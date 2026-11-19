@@ -299,4 +299,71 @@ const quiet = console.warn;
   ok("executeEntry on a plain open document reads it as before", (await executeEntry(fakeDoc(4), CONTENT.proficiencies, {}, ID)).ok === true);
 }
 
+/* --- a real proxy has no destroy; its loading task does ---------------------------------------- */
+{
+  // pdf.js's PDFDocumentProxy offers `loadingTask.destroy()` and no `destroy` of its own.
+  const proxyDoc = (pages = 7) => {
+    const doc = fakeDoc(pages);
+    delete doc.destroy;
+    doc.taskDestroyed = 0;
+    doc.loadingTask = {
+      async destroy() {
+        doc.taskDestroyed++;
+      },
+    };
+    return doc;
+  };
+  const proxyServer = (opts = {}) => {
+    const srv = server(FILES, opts);
+    srv.open = async () => {
+      srv.log.opens++;
+      const doc = proxyDoc();
+      srv.log.docs.push(doc);
+      return { doc, numPages: 7, title: "The Real Title" };
+    };
+    return srv;
+  };
+
+  const srv = proxyServer();
+  const handle = handleOn(srv);
+  await handle.live();
+  await handle.destroy();
+  ok("destroy releases a proxy through its loading task", srv.log.docs[0].taskDestroyed === 1 && handle.isLive === false);
+
+  const idleSrv = proxyServer();
+  const idle = handleOn(idleSrv, { idleMs: 25 });
+  await idle.live();
+  await new Promise((r) => setTimeout(r, 90));
+  ok("an idle release reaches the proxy's loading task", idle.isLive === false && idleSrv.log.docs[0].taskDestroyed === 1);
+
+  const adoptSrv = proxyServer();
+  const adopting = handleOn(adoptSrv);
+  const first = proxyDoc();
+  const second = proxyDoc();
+  adopting.adopt({ doc: first, numPages: 7, title: "A" });
+  adopting.adopt({ doc: second, numPages: 7, title: "B" });
+  await Promise.resolve();
+  ok("adopting a second document releases the first through its task and keeps the second", first.taskDestroyed === 1 && second.taskDestroyed === 0);
+  adopting.adopt({ doc: second, numPages: 7, title: "B" });
+  ok("adopting the document already held releases nothing", second.taskDestroyed === 0);
+  await adopting.destroy();
+  ok("destroying the adopting handle releases the held proxy", second.taskDestroyed === 1);
+
+  let finish;
+  const gate = new Promise((r) => (finish = r));
+  const late = proxyDoc();
+  const racing = handleOn(srv, {
+    open: async () => {
+      await gate;
+      return { doc: late, numPages: 7, title: "T" };
+    },
+  });
+  const opening = racing.live().catch((err) => err);
+  await Promise.resolve();
+  await racing.destroy();
+  finish();
+  const refused = await opening;
+  ok("a document that opens after the handle was destroyed is released through its task", /destroyed while it opened/.test(refused?.message) && late.taskDestroyed === 1);
+}
+
 console.log(`test-book-handle: ${pass} checks passed`);

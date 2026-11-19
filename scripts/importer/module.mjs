@@ -36,6 +36,7 @@ import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
 import { BookHandle } from "./book-handle.mjs";
+import { releaseDoc } from "./release-doc.mjs";
 import { ParsedBooks } from "./parsed-book.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
@@ -918,7 +919,7 @@ async function openChecked(bookId, buffer) {
   const { doc, numPages, title } = await openBook(buffer);
   const actualId = identifyBook(numPages, title);
   if (actualId && actualId !== bookId) {
-    await doc.destroy?.();
+    await releaseDoc(doc);
     const err = new Error(
       game.i18n.format(`${LANG_PREFIX}.ui.connectWrongBook`, {
         book: REGISTRY[bookId]?.label ?? bookId,
@@ -931,7 +932,7 @@ async function openChecked(bookId, buffer) {
   if (bookIsForm(bookId)) {
     const { isForm, share } = await readForm(doc);
     if (!isForm) {
-      await doc.destroy?.();
+      await releaseDoc(doc);
       throw new Error(
         game.i18n.format(`${LANG_PREFIX}.ui.connectNotForm`, { book: BOOKS[bookId].label, share: Math.round(share * 100) }),
       );
@@ -1994,7 +1995,7 @@ async function forgetBooks() {
   sessionDocs.clear();
   for (const [bookId, { doc }] of dropped) {
     try {
-      await doc?.destroy?.();
+      await releaseDoc(doc);
     } catch (err) {
       console.warn(`${MODULE_ID} | forget books: ${bookId} could not be released`, err);
     }

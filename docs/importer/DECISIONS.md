@@ -2813,8 +2813,9 @@ and the last pointer wins; a player seat never parses.
 seats could never have written one file. The saved id drops the counter and
 keeps the load order (`fontId`). `PDFDocumentProxy` has no `destroy` in the
 vendored pdf.js 6.1.200; its loading task does, so `doc.destroy?.()` releases
-nothing. The parse releases through the task (`releaseDoc`); S1's handle still
-calls `doc.destroy?.()`.
+nothing. Every importer release goes through the task (`release-doc.mjs`,
+`releaseDoc`): the parse, the handle's idle release and `destroy`, a refused
+connect and forgetting the books.
 
 *Rejected:* saving `pageItems`' output (a registry or extract edit would
 invalidate every file); parsing from the handle's live document (its fonts load

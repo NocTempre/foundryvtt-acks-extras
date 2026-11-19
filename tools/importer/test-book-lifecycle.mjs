@@ -37,7 +37,8 @@ const fn = (head) => src.match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))?.[0] ?? ""
   ok("openChecked is found", checked.length > 0);
   ok("it refuses a file that fingerprints as another book", /actualId !== bookId/.test(checked) && /err\.wrongBook = actualId/.test(checked));
   ok("it refuses a form with no fields", /bookIsForm\(bookId\)/.test(checked) && /connectNotForm/.test(checked));
-  ok("a refused file's document is released", (checked.match(/await doc\.destroy\?\.\(\)/g) ?? []).length === 2);
+  ok("a refused file's document is released", (checked.match(/await releaseDoc\(doc\)/g) ?? []).length === 2);
+  ok("no importer site releases a document with doc.destroy, a silent no-op on a pdf.js proxy", !/\bdoc\??\.destroy\?\./.test(src));
   ok("it tags the document before any page is read", checked.indexOf("useTypography(doc, bookId)") > checked.indexOf("readForm"));
   const ingest = fn("async function ingestBook\\(");
   ok("ingestBook opens through openChecked", /await openChecked\(bookId, buffer\)/.test(ingest));
@@ -72,8 +73,8 @@ const fn = (head) => src.match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))?.[0] ?? ""
   const forget = fn("async function forgetBooks\\(");
   ok("forgetBooks is found", forget.length > 0);
   ok("it takes the open documents before clearing", forget.indexOf("[...sessionDocs]") > -1 && forget.indexOf("[...sessionDocs]") < forget.indexOf("sessionDocs.clear()"));
-  ok("it destroys each one", /await doc\?\.destroy\?\.\(\)/.test(forget));
-  ok("a document that refuses to be released is a console warning", /catch \(err\) \{\s*console\.warn\(/.test(forget.slice(forget.indexOf("destroy"))));
+  ok("it releases each one through the loading task", /await releaseDoc\(doc\)/.test(forget));
+  ok("a document that refuses to be released is a console warning", /catch \(err\) \{\s*console\.warn\(/.test(forget.slice(forget.indexOf("releaseDoc"))));
 }
 
 // Apply Stats names the monsters whose page no longer matches.

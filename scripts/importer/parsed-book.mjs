@@ -31,6 +31,7 @@
  */
 import { version } from "../../vendor/pdfjs/pdf.mjs";
 import { textRuns } from "./extract.mjs";
+import { releaseDoc } from "./release-doc.mjs";
 
 /** The shape of a saved book, bumped with the shape or with `textRuns`; part of the stamp. */
 export const PARSE_SCHEMA = 1;
@@ -46,13 +47,6 @@ export const PARSE_STAMP = `p${PARSE_SCHEMA}-${version}`;
  * order, which is the same on every open that reads pages in order, stays.
  */
 export const fontId = (name) => (typeof name === "string" ? name.replace(/^(g_)?d\d+_/, "$1") : name);
-
-/**
- * Release a pdf.js document. The document proxy has no `destroy`; its loading
- * task does, and ends the worker's copy of the file. A stand-in with a
- * `destroy` of its own is released through that.
- */
-export const releaseDoc = (doc) => Promise.resolve(doc?.loadingTask?.destroy ? doc.loadingTask.destroy() : doc?.destroy?.());
 
 /**
  * Parse every page of an open document into the saved form. Pages are read in

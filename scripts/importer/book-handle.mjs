@@ -28,6 +28,7 @@
  * engine and no Foundry: `open(buffer)` fingerprints and returns
  * `{doc, numPages, title}`, or throws for a file that is another book.
  */
+import { releaseDoc } from "./release-doc.mjs";
 
 /** How long a live document stays open after its last read, in milliseconds. Longer than the slowest page render. */
 export const IDLE_MS = 120_000;
@@ -144,7 +145,7 @@ export class BookHandle {
    * connect or a staging leaves the handle verified and holding it.
    */
   adopt({ doc, numPages, title, src = null }) {
-    if (this.#doc && this.#doc !== doc) this.#doc.destroy?.()?.catch?.(() => {});
+    if (this.#doc && this.#doc !== doc) releaseDoc(this.#doc).catch(() => {});
     this.#doc = doc;
     this.#numPages = numPages;
     this.#title = title;
@@ -178,7 +179,7 @@ export class BookHandle {
     if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${this.#src} (${resp?.status})`);
     const { doc, numPages, title } = await this.#open(await resp.arrayBuffer());
     if (this.#gone) {
-      await doc.destroy?.();
+      await releaseDoc(doc);
       throw new Error(`${this.#bookId}: the handle was destroyed while it opened`);
     }
     this.#doc = doc;
@@ -340,7 +341,7 @@ export class BookHandle {
     this.#vouched = false;
     this.#saved = null;
     this.#noParse = false;
-    Promise.resolve(doc?.destroy?.()).catch(() => {});
+    releaseDoc(doc).catch(() => {});
   }
 
   /** Release everything; the handle opens nothing again. */
@@ -352,7 +353,7 @@ export class BookHandle {
     this.#doc = null;
     this.#vouched = false;
     this.#saved = null;
-    await doc?.destroy?.();
+    await releaseDoc(doc);
   }
 }
 

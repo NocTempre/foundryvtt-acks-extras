@@ -43,7 +43,8 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { openBook, pageItems, useTypography } from "../../scripts/importer/extract.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
-import { PARSE_STAMP, SavedBook, fontId, parseDocument, releaseDoc } from "../../scripts/importer/parsed-book.mjs";
+import { PARSE_STAMP, SavedBook, fontId, parseDocument } from "../../scripts/importer/parsed-book.mjs";
+import { releaseDoc } from "../../scripts/importer/release-doc.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

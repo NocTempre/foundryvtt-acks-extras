@@ -16,6 +16,7 @@ import { makeLoc } from "../../lib/util.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { whenReady } from "../../lib/library.mjs";
 import { openBook } from "../../importer/extract.mjs";
+import { releaseDoc } from "../../importer/release-doc.mjs";
 import { LANG, MODULE_ID } from "../constants.mjs";
 import { readForm } from "./form.mjs";
 import { buildPlan } from "./plan.mjs";
@@ -50,7 +51,7 @@ async function withPdf(bytes, use) {
   try {
     return await use(doc);
   } finally {
-    await (doc.destroy?.() ?? doc.loadingTask?.destroy?.());
+    await releaseDoc(doc);
   }
 }
 
