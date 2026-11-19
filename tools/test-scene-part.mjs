@@ -24,8 +24,18 @@ const MODULE = "acks-extras";
 const writes = [];
 const place = {
   id: "PlaceActor000001", uuid: "Actor.PlaceActor000001", type: "acks-extras.location", system: { sceneUuid: "Scene.OwnMap" },
-  update(patch) { writes.push(patch); Object.assign(this.system, { sceneUuid: patch["system.sceneUuid"] }); return Promise.resolve(this); },
+  update(patch) {
+    writes.push(patch);
+    for (const [key, value] of Object.entries(patch)) if (key.startsWith("system.")) this.system[key.slice(7)] = value;
+    ops.push(`mirror ${Object.values(patch)[0]}`);
+    return Promise.resolve(this);
+  },
 };
+/** Every write in the order made, so a test can say which end let go first. */
+const ops = [];
+/** The documents `fromUuidSync` resolves: each scene and region a test builds. */
+const docs = new Map();
+globalThis.fromUuidSync = (uuid) => docs.get(uuid) ?? null;
 globalThis.game = {
   user: { isGM: true }, userId: "u1", system: { id: "acks" },
   actors: { get: (id) => (id === place.id ? place : undefined), filter: (fn) => [place].filter(fn) },
@@ -33,20 +43,26 @@ globalThis.game = {
 };
 globalThis.Actor = { updateDocuments: async (updates) => { writes.push(...updates); } };
 
-const { mirrorCreatedLinks, linkScene, unlinkScene, isScenePart, registerSceneLinkSync } = await import("../scripts/location/scene-link.mjs");
+const { mirrorCreatedLinks, linkScene, linkRegion, unlinkScene, isScenePart, registerSceneLinkSync } = await import("../scripts/location/scene-link.mjs");
 registerSceneLinkSync();
 
-/** A scene document holding the module's flags; `part` makes it a part of its place. */
-const sceneOf = (uuid, { part = 0, link = place.uuid } = {}) => {
-  const flags = { ...(link ? { location: link } : {}), ...(part ? { scenePart: part } : {}) };
-  return {
-    uuid, regions: [], flags,
+/** A document of this name holding the module's flags, resolvable by its uuid. */
+const flagged = (documentName, uuid, flags) => {
+  const doc = {
+    documentName, uuid, regions: [], flags,
     getFlag: (scope, key) => (scope === MODULE ? flags[key] : undefined),
-    setFlag: async (scope, key, value) => { flags[key] = value; },
-    unsetFlag: async (scope, key) => { delete flags[key]; },
+    setFlag: async (scope, key, value) => { flags[key] = value; ops.push(`set ${uuid}`); },
+    unsetFlag: async (scope, key) => { delete flags[key]; ops.push(`unset ${uuid}`); },
   };
+  docs.set(uuid, doc);
+  return doc;
 };
-const reset = () => { writes.length = 0; place.system.sceneUuid = "Scene.OwnMap"; };
+/** A scene document holding the module's flags; `part` makes it a part of its place. */
+const sceneOf = (uuid, { part = 0, link = place.uuid } = {}) =>
+  flagged("Scene", uuid, { ...(link ? { location: link } : {}), ...(part ? { scenePart: part } : {}) });
+/** A Region document whose link flag names `link`. */
+const regionOf = (uuid, { link = place.uuid } = {}) => flagged("Region", uuid, link ? { location: link } : {});
+const reset = () => { writes.length = 0; ops.length = 0; docs.clear(); place.system.sceneUuid = "Scene.OwnMap"; place.system.regionUuid = ""; };
 const fire = (name, ...args) => Promise.all((handlers[name] ?? []).map((fn) => fn(...args)));
 let n = 0;
 const t = async (name, fn) => { reset(); await fn(); n++; console.log(`ok - ${name}`); };
@@ -109,6 +125,47 @@ await t("a changed link flag on a part moves no mirror; on a plain scene it does
   place.system.sceneUuid = "";
   await fire("updateScene", sceneOf("Scene.Plain"), changes, {}, "u1");
   assert.equal(place.system.sceneUuid, "Scene.Plain");
+});
+
+await t("relinking a place to another plain scene lets its old map go, after the mirror names the new one", async () => {
+  const own = sceneOf("Scene.OwnMap");
+  const next = sceneOf("Scene.Next", { link: "" });
+  assert.equal(await linkScene(next, place), true);
+  assert.equal(own.getFlag(MODULE, "location"), undefined);
+  assert.equal(next.getFlag(MODULE, "location"), place.uuid);
+  assert.equal(place.system.sceneUuid, "Scene.Next");
+  assert.ok(ops.indexOf("unset Scene.OwnMap") > ops.indexOf("mirror Scene.Next"));
+});
+
+await t("relinking a part leaves the place's own map naming it", async () => {
+  const own = sceneOf("Scene.OwnMap");
+  await linkScene(sceneOf("Scene.Part", { part: 1, link: "" }), place);
+  assert.equal(own.getFlag(MODULE, "location"), place.uuid);
+});
+
+await t("relinking a place to its own map lets nothing go", async () => {
+  const own = sceneOf("Scene.OwnMap");
+  await linkScene(own, place);
+  assert.equal(own.getFlag(MODULE, "location"), place.uuid);
+  assert.equal(ops.some((op) => op.startsWith("unset")), false);
+});
+
+await t("relinking a place to another Region lets its old Region go, after the mirror names the new one", async () => {
+  const old = regionOf("Scene.S.Region.Old");
+  place.system.regionUuid = old.uuid;
+  const next = regionOf("Scene.S.Region.Next", { link: "" });
+  assert.equal(await linkRegion(next, place), true);
+  assert.equal(old.getFlag(MODULE, "location"), undefined);
+  assert.equal(next.getFlag(MODULE, "location"), place.uuid);
+  assert.equal(place.system.regionUuid, next.uuid);
+  assert.ok(ops.indexOf(`unset ${old.uuid}`) > ops.indexOf(`mirror ${next.uuid}`));
+});
+
+await t("a Region whose flag already names another place keeps it", async () => {
+  const other = regionOf("Scene.S.Region.Other", { link: "Actor.Other" });
+  place.system.regionUuid = other.uuid;
+  await linkRegion(regionOf("Scene.S.Region.Next", { link: "" }), place);
+  assert.equal(other.getFlag(MODULE, "location"), "Actor.Other");
 });
 
 console.log(`scene-part: ${n} checks OK`);

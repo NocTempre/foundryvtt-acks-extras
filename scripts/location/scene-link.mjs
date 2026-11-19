@@ -75,8 +75,10 @@ export function regionOfLocation(location) {
 /**
  * Link a scene to a place, writing both ends. Re-linking a scene that already
  * points elsewhere clears the old place's mirror first, so a location never
- * claims a map that has moved on. A scene that is a part of its place
- * (`isScenePart`) takes the flag alone: the place's mirror is its own map's.
+ * claims a map that has moved on, and a place whose map was another scene lets
+ * that scene go, so no scene keeps naming a place that has moved on. A scene
+ * that is a part of its place (`isScenePart`) takes the flag alone: the
+ * place's mirror is its own map's.
  */
 export async function linkScene(scene, location) {
   if (!scene || !location || !game.user.isGM) return false;
@@ -84,12 +86,18 @@ export async function linkScene(scene, location) {
     await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
     return true;
   }
+  const held = sceneOfLocation(location);
   const previous = locationOfScene(scene);
   if (previous && previous.uuid !== location.uuid) {
     await previous.update({ "system.sceneUuid": "" }).catch(() => null);
   }
   await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
   await location.update({ "system.sceneUuid": scene.uuid });
+  // The place's old map is let go only once the mirror names the new one, so
+  // the flag hook finds no place still pointing at it to clear.
+  if (held && held.uuid !== scene.uuid) {
+    await held.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
+  }
   return true;
 }
 
@@ -128,21 +136,23 @@ export async function createLocationForScene(scene) {
 
 /**
  * Link a Region to a place, writing both ends. A place that pointed at another
- * region lets it go first, and a region that pointed at another place clears
+ * region lets it go, and a region that pointed at another place clears
  * that place's mirror, so neither end ever claims a link the other denies.
  */
 export async function linkRegion(region, location) {
   if (!region || !location || !game.user.isGM) return false;
   const held = regionOfLocation(location);
-  if (held && held.uuid !== region.uuid) {
-    await held.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
-  }
   const previous = locationOfRegion(region);
   if (previous && previous.uuid !== location.uuid) {
     await previous.update({ "system.regionUuid": "" }).catch(() => null);
   }
   await region.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
   await location.update({ "system.regionUuid": region.uuid });
+  // The place's old Region is let go only once the mirror names the new one,
+  // so the flag hook finds no place still pointing at it to clear.
+  if (held && held.uuid !== region.uuid) {
+    await held.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
+  }
   return true;
 }
 
