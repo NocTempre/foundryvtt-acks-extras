@@ -56,6 +56,9 @@ All paths are under `scripts/formation/` unless noted.
 | `trap-markers.mjs` | Canvas markers showing each trap's state, staged: a Judge sees every trap, a player only what the party has found. |
 | `trapbreak-app.mjs` | The Trapbreaking dialog — who, which trap, which column — open to Judges and to players whose character can make the throw. |
 | `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
+| `data/hazard-data.mjs`, `hazard-sheet.mjs`, `hazard-keys.mjs`, `hazard-logic.mjs` | The `acks-extras.hazard` Item subtype (§Obstacles and conditions on a place): its data model and sheet, the key list every reader shares, and `crossingSeed`. |
+| `hazard-things.mjs`, `region-place-row.mjs`, `region-place-logic.mjs` | The `trap`, `obstacle` and `condition` kinds registered into lib's place things, and the Place row on core's Region window with the map drop. |
+| `hazard-entry.mjs`, `hazard-entry-logic.mjs` | The Judges' hazard card a move posts for the places the party newly enters, and the Begin press that seeds a crossing from them. |
 | `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag), the party token's size, and clearing a light the module wrote on it. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
 | `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
 | `column.mjs` | Pure: the marching column (§The column) — where each body stands along the party token's trail, how a move changes the trail, and which scenes lay a column. |
@@ -1088,7 +1091,158 @@ than a throw. Players open the same dialog from the party sheet whenever one of
 their characters could actually make the throw, and their attempt is declared to
 the Judge's client the way every other player action is.
 
-## Doors
+## Obstacles and conditions on a place
+
+An obstacle is a natural trap that lives on a place: a Judge drops a Hazard
+onto the place, and when the party walks in the Judges are shown a card with a
+Begin button that opens the crossing of that obstacle. A place's list of things
+is lib's (`lib/place-things.mjs`; its shape and its `kindOfDrop` table are
+`docs/lib`'s); formation registers three kinds into it, once at init
+(`registerHazardThingKinds`, `hazard-things.mjs`): `trap`, `obstacle` and
+`condition`. A trap thing is the third trap source described under "Traps"
+above, and traps, obstacles and conditions stack on one place without limit.
+
+### The Hazard item and its compendium
+
+The `acks-extras.hazard` Item sub-type (`HAZARD_ITEM_TYPE`,
+`data/hazard-data.mjs`) is one obstacle or one condition.
+
+- **Two fields.** `key` and `description` (an HTML field, declared in
+  `module.json`'s `htmlFields`). `key` is a string with a choices function, so
+  the labels localize when a sheet renders; it may be blank, a hazard not yet
+  chosen, which no kind accepts.
+- **No figures.** Length, gap and depth are typed on a place's own row
+  (the thing's `params`), so one Hazard serves places of different sizes.
+- **The keys** are `hazard-keys.mjs`, which holds no Foundry global so the pack
+  builder reads it under Node. Nine obstacle keys: the climb obstacles in
+  `OBSTACLES` order, then `jump`, `swim` and `squeeze`. Six condition keys:
+  `ropeFixed`, `noRunUp`, `precarious`, `waterCold`, `waterRough` and
+  `waterFast`. A condition is present or absent. `hazardGroupOf` says which
+  group a key is in; the labels are the crossing's own where it has one.
+- **The sheet** (`hazard-sheet.mjs`, `templates/formation/hazard-item.hbs`) is
+  an `ItemSheetV2` inside the scroll contract: name, picture, a Kind select
+  (a blank option, then the obstacles, then the conditions) and the
+  description. It submits on change and holds no number field, so it never
+  re-renders under a half-typed figure. A viewer without edit rights gets the
+  fields disabled and the description enriched, since a prose-mirror has no
+  `disabled`.
+- **The compendium** `hazards` holds one item per key, built by `buildHazards`
+  in `tools/pack-data/formation.mjs` (the id is a hash of the key, the icon a
+  core one, the description empty), in the folder ACKS II — Extras → Hazards.
+  The pack's ownership is Observer for players and Owner for assistants. A
+  compendium index carries no `system.key` (core's default index fields), so a
+  ref's key is always read from the document.
+- **What a Hazard seeds** (`hazard-logic.mjs`). `crossingSeed` answers one
+  entry per obstacle thing in a list: its `kind` and a `setup`, made of the
+  thing's `params` read through the crossing's own `SETUP_FIELDS` (a blank or
+  refused one is absent) and the union of the list's conditions, each kept only
+  where `KIND_SETUP_KEYS` says the kind reads that key (`CONDITION_SETUP` maps a
+  condition to its setup key and value). A thing whose ref the resolver does
+  not know, or whose kind is not `obstacle` or `condition`, is skipped.
+  `seedFromPlaces` reads several places' lists as one. Only length, gap, depth
+  and the conditions seed: a swim's `penaltyPick` and `movement`, a squeeze's
+  `shape` and the `judgeMod` of any kind are not carried by any thing, so a
+  crossing begun from a card opens on `beginCrossing`'s defaults for them.
+  A test parses the party sheet's crossing template and holds
+  `KIND_SETUP_KEYS` to the controls it offers for each kind.
+
+### The Region window's Place row
+
+A row on core's own Region window, for the Judge only, added by
+`installRegionPlaceRow` (`region-place-row.mjs`; the logic that needs no
+Foundry is `region-place-logic.mjs`). It sits under the Name field on the
+Appearance tab, and is rebuilt on every render of the window, since
+ApplicationV2 replaces its parts. It holds:
+
+- **The place picker** (`placePickerOf`, also the District behaviour's row):
+  a select of the world's places with the Region's own selected, and a button
+  that makes a place for the Region. A change is written at once through the
+  location feature's own api (`linkRegion`, `unlinkRegion`,
+  `createLocationForRegion`), since the window's submit knows nothing of the
+  link.
+- **A counts line** (`countsOf`): how many traps, obstacles and conditions the
+  place holds, each count's tooltip naming the things. Other kinds of thing are
+  not counted.
+- **A drop zone.** `dropOnRegionPlace` resolves the dragged document and asks
+  the one `kindOfDrop` table what it becomes. A drop no kind accepts writes
+  nothing and warns in words (`notItem`, `blankHazard`, `notAccepted`). With
+  no place yet the Region is made one first, quietly: the place's sheet does
+  not open and the link is written with `render: false`, because a render
+  there would take the Judge's unsaved edits in the Region window. A Hazard is
+  accepted by `acceptsObstacle` or `acceptsCondition` by its key's group, a
+  trap Item by `acceptsTrap`. `thingOfDrop` builds the thing: `ref` is the
+  dropped document's uuid (the thing points and never copies), a trap starts
+  hidden, an obstacle's `params` start blank, and `point` is where a map drop
+  landed, null for this row.
+
+The same module takes a drop on the map. `dropOnMapPlace`, called from the
+`dropCanvasData` hook for a GM, puts the thing on the first place whose area
+holds the point (`placesAround`); with none, on the smallest Region over the
+point that has no behaviors and no place, which is made a place as above, point
+set; with no such Region, the Hazard warns `noRegion` and nothing is written.
+The hook leaves a trap drop to the wall assignment (`trap-walls.mjs`), which
+calls `dropOnMapPlace` with `includeTraps` only where no wall is near. The hook
+always answers true, since its work is async.
+
+### The entry card and its seeding
+
+`runEntryStep` (`hazard-entry.mjs`) runs inside the party-token move's
+`afterMove`, after `runTrapCheck` has resolved the sweep and every armed trap
+with its own cards, so the Judges' card is the move's last act. A failure in it
+is logged and never costs the move its trap answer.
+
+- **Which places.** `placesUnderParty` lists the places linked to the Regions
+  core says the party token is in (`token.regions`), in the scene's Region
+  order, each once, as `{uuid, name, things}`. The party actor's flag
+  `placesUnder` holds the uuids the last move left. `newlyEntered(now, before)`
+  is the difference, so a place left and entered again posts again, and a move
+  within a place posts nothing. The flag is written only when the list
+  changed, in every travel mode.
+- **A halted move posts nothing and writes nothing.** `moveHalted` reads
+  `runTrapCheck`'s answer: a result whose placement is a wall that was found or
+  sprung (`stackStops`) stops the party. `runEntryStep` then returns before it
+  reads or writes `placesUnder`, so the place the party was pulled back from
+  still counts as new when it gets there. A zone or a trap thing never halts.
+- **Journey and settlement mode** begin nothing: the flag is kept current and
+  no card is posted.
+- **The card's rows** (`entryModel`). A place appears only if it holds an
+  obstacle. An obstacle thing whose ref is not a known Hazard of an obstacle
+  key is no obstacle and has no row. Conditions are listed once each as chips,
+  and a condition is marked hidden only when every copy of it is. Hidden
+  obstacles and conditions are listed and marked, since the card is the
+  Judges'; trap things are never listed. A row's figures are the params its
+  kind's setup reads (`figureKeysOf`, in the params' own order), each as the
+  thing's own value read the way the party sheet's form reads it, or null where
+  blank. A swim reads none of the three, so a swim row shows no figure.
+- **The card** (`entryCard`) is lib's roll card, posted by `postToJudges`: one
+  card at most per move, whispered to the Judges. It has column headings
+  ("Obstacle", "Figures", "Crossing"), a section per place, and a row per
+  obstacle with a Begin button, the figures labelled ("Length 40 ft · Depth —",
+  a blank one a dash), and a "Hidden from players" mark on a hidden row or chip.
+  A figures cell's tooltip names which params the row's place types and the page
+  the crossing's own setup already cites for that kind (`FIGURE_REFS`).
+- **Begin** (`pressBegin`, bound by `bindEntryCard` on a GM's seat only; a press
+  from another seat is refused `seat`). The Begin button names the place and
+  the thing's id, since ids are per place (`thing-1` twice is normal) and
+  `seedForThing` addresses each as its place and its id together.
+  - **It re-reads the places at the press**, not at the card. A party that has
+    left the place is refused `left`; a thing that is gone or is no longer an
+    obstacle is refused `gone`; journey and settlement mode warn and refuse.
+  - **The seed is every condition of every place the party stands in at the
+    press**, unioned, so a condition on one place reaches an obstacle on
+    another, each kept only where the kind reads it. `beginCrossing(formation,
+    kind, {seed})` takes only the setup keys the kind reads, each through its
+    `SETUP_FIELDS` reader, merges them over the defaults in the same single
+    write that opens the crossing, and never lets the seed reach `id`, `kind`
+    or `members`. Nothing re-reads a place after Begin.
+  - **Over an open crossing Begin asks the Judge to End it first**: a confirm
+    dialog ("End and begin" or "Cancel"). Cancel writes nothing. After the
+    answer the open crossing's id is compared with the one the question was
+    asked over, and a change refuses the press (`changed`); otherwise the
+    places are read again, the old crossing is ended (`endCrossing`) and the
+    new one begun. A refusal by `beginCrossing` warns and begins nothing.
+  - A crossing that begins opens the party's sheet.
+
 
 A door is a wall with `door > 0`; everything beyond Foundry's own open/closed
 state is the `door` flag under `flags["acks-extras"]` (`doors.mjs`,

@@ -610,3 +610,46 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 
 **Cost.** A squeeze row for a member with no combat speed on the actor, or none core derives for a creature, refuses until the Judge gives the creature one. A long squeeze takes as many made throws as the length holds rounds of movement, so a slow member on a long squeeze rolls many times; that is the page's per-round throw, not a module choice.
 
+## 2026-11-18 — An obstacle is a natural trap on a place; the region behaviour type is dropped
+
+**Ruled.** The first design made an obstacle a Region behaviour type: a kind and its setup fields on the Region, a seeding record on the crossing, marks for what the region filled and what the Judge changed, a drift warning with Take and Reset, and yes/no/blank selects for the booleans. The owner overruled it in two steps, relayed verbatim: "Conditions are present when added, most easily by dragging. This is akin to a natural trap. Not doing a big switchboard of possibilities." and then "The questions reveal the design is off." Two further constraints came with it: "Traps, obstacles, conditions can stack arbitrarily." and "This is some variation of location." An architect re-ruled the design from the trap zone's model, and the owner approved the redrawn boards with "Approve, build it".
+
+- An obstacle and a condition are one Item sub-type, `acks-extras.hazard`, holding a key and no figure. A Judge drops one on a place or on its Region. Each drop is a thing on the place pointing at the Hazard (the carrier is lib's), with the obstacle's figures typed in the thing's `params`.
+- Entry shows the Judges one card for the places newly entered, after the trap cards and only when no wall halted the move. Begin seeds the crossing once, from every condition of the places the party stands in at the press, and nothing re-reads a place afterwards. Begin over an open crossing asks the Judge to End it first.
+- S1's behaviour type (`b1be395a`) is dropped on the topic. Its `SETUP_FIELDS` export, its reader logic and its template-parsing test are kept, and the test now lives in `tools/test-hazard.mjs`.
+
+**Rejected.**
+- The behaviour type, the seeding record, the region and Judge marks, drift tracking and Take/Reset, the yes/no/blank selects and a choice at entry: all of it is the "big switchboard" the owner turned down. S2 was stopped before it wrote anything.
+- Core's token-enter events as the entry trigger (a ruling of the first design that the entry step keeps): they split every move at a region's edge and fire when a behaviour is enabled under a party already standing there. The step reads where the token stands after its own move instead.
+
+**Cost.** An obstacle needs a place. A Region with none gets one made quietly by its first drop, and a Region that already carries a behaviour is not made a place by a map drop. A condition changed on the place mid-crossing changes nothing the open crossing holds. A swim's `penaltyPick` and `movement`, a squeeze's `shape` and any kind's `judgeMod` are on no thing, so a crossing begun from a card opens on the defaults for them (ROADMAP, H4). S1's work on the topic was written and then dropped.
+
+## 2026-11-18 — Traps live on the place, not on the Region
+
+**Ruled.** The owner, on where traps live, relayed verbatim: "Everything to a place that can apply effects to a region. All to region if easiest". Board decisions 1, 3 and 4 were not answered, so their defaults as drawn stand. An architect picked the place over all-on-region on build cost: imported keyed rooms are places with no Region, and the shape co-signed with scene search already keeps things on the place.
+
+- A new trap is a trap thing on the place. It is formation's third `Placement` source (`thingPlacement`, "A place's trap things are the third source" in MODEL), measured through the Region linked to its place.
+- The trap zones and trap walls that already exist stay `Placement` sources. The ruling lists them read-only on the place's sheet; that surface is location's and is not formation's.
+- The Hazard item holds no figures; they sit in each thing's `params`, so one Hazard serves a ledge and a cliff.
+- The Region window's Place row is where "all to region" is honoured: a drop there, or on the Region on the map, reaches the place.
+
+**Rejected.**
+- All traps, obstacles and conditions on the Region, the owner's own "if easiest": it would have left every imported keyed room with no home for its traps, since those rooms are places with no Region.
+- The split, traps on the Region and obstacles on the place: the owner's ruling puts it out.
+
+**Cost.** A trap thing is measured through its place's linked Region, so its reach needs a linked Region the party can stand in. Three trap sources, each with its own state storage (a zone's behaviour, a wall's flag, a thing's `state` on the place's flag), are read through one `Placement`. A drop on a place's Region and a drop on the place's sheet are two gestures for one write, kept in step by lib's one `kindOfDrop` table.
+
+## 2026-11-18 — The Judges' hazard card: headings, the hidden mark and labelled figures
+
+**Ruled.** Three points of the card went beyond board v13, and the owner answered each, verbatim:
+
+- Column headings ("Obstacle", "Figures", "Crossing"): "Keep headings".
+- A "Hidden from players" mark on a hidden thing's row and chip: "Keep the mark".
+- Figures as "Length 40 ft · Depth —", not the board's "Sheer climb · 40′": "Labelled".
+
+The card shows a hidden obstacle or condition to the Judges, marked, since the card is theirs. A trap thing is not listed on it, since a trap has its own card.
+
+**Rejected.** A card with no headings, a hidden thing left unmarked or left off the card, and the board's bare figure beside the kind. The mark is the row's detail text and, on a condition's chip, the chip's tooltip.
+
+**Cost.** Each figure carries its param's name, so a row is wider and its lang strings are longer. A blank figure reads as a dash beside its name, never a stand-in number. The board's "Swim · depth —" is not built: the swim setup reads no length, gap or depth, so a swim row shows no figure. That is carried to H4 (ROADMAP): either drop the depth figure from that row or add the read, whichever the page supports.
+

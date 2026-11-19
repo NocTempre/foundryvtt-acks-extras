@@ -5269,3 +5269,88 @@ Before the first step the Rules tables must be imported again: the walk reads `c
 | R11 | A second party sheet, a detached window, the type size on a fresh window | The line wraps and keeps its tooltip; its size follows the knob |
 
 Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; restore the clock only by the walk's own readings (never roll it back by a write).
+
+## Obstacle regions (added with H1, B3, B2/H3 and P3)
+
+Built for the Hazard item and its compendium (Items sidebar → a Hazard item; Compendium Packs → ACKS II — Extras → Hazards), the Place row on core's Region window (Scene controls → Regions → the Region → Appearance tab), the Judges' hazard card a move posts and its Begin button (Chat), and a trap thing on a place. A mock cannot prove that the sub-type registers on a real client, that a pack entry reaches both seats read-only, that a Region window keeps the Judge's unsaved edits across a drop, that a real token move walks the trap check before the card, that a card's button reaches only a GM's seat, or that a halted move writes nothing.
+
+The sub-type is read by the SERVER at world launch: a world launched before `acks-extras.hazard` existed returns a falsy `Item.create` for it. Shut the world down before `npm run build:packs`, rebuild, then launch (`.claude/rules/live-testing.md`). Check `game.documentTypes.Item.includes("acks-extras.hazard")` first.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`; `own: <tag>` and `@<tag>` markers where a peer is on this surface). A kept fixture carries what the last walk left, so each step asserts or sets the shape it needs at its start.
+- `formation/hazard-sample`: an `acks-extras.hazard` Item whose Kind is an obstacle, with a description.
+- `formation/trap-stack-*`: a scene with a grid and a scale, holding the party token and a row of Regions, each region's place carrying the trap sources of the "Traps stack" paragraph (a trap wall, trap zones, a trap thing).
+- `formation/place-row-*`: a scene with a Region that has a place linked, and a second Region with none, for the Place row's drops.
+- `formation/hazard-entry-place-d`: a location actor linked to one of the stack scene's Regions, holding one rappel obstacle thing with its length typed.
+- Two members of the party, one with the Trapbreaking skill and one without (the rearm refusal); a Hazard Item of each kind the entry steps use, taken from the pack.
+
+A place is built as a user builds it: link a location actor to a Region (`acksExtras.location.scenes.linkRegion(region, place)`), then drop Items on the Place row, or write the place's `flags.acks-extras.things` whole as a ForcedReplacement where setup is not the subject (the thing's shape is docs/lib API's). The map-drop and Region-window drop mechanics (`Hooks.call("dropCanvasData", canvas, data)`, and a `drop` event dispatched on the row's zone) are `docs/scene-search/TESTING.md`, "S2 — session, activities and drops"; this recipe does not restate them.
+
+**Drive mechanics.**
+- **A sheet.** Find it with `item.sheet`, render with `render({force: true})`, poll `sheet.rendered`. For a true fresh open set `item._sheet = null` first, since the kept position and the type scale apply only at construction. Write a form field by setting `select.value` and dispatching a bubbling `change`; race `Hooks.on("updateItem")` against one 4 s timer.
+- **The description editor.** Click `button.toggle`, focus `.ProseMirror`, `document.execCommand("insertText", false, text)`, click `button[data-action=save]`.
+- **Removing one ownership key.** Write the whole map with `{diff: false, recursive: false}`; the `-=` null form does not apply.
+- **A real compendium drag** goes through CDP on the seat's page: `Input.setInterceptDrags {enabled: true}`, `mouseMoved`, `mousePressed`, about eight `mouseMoved` steps with `buttons: 1`, wait for `Input.dragIntercepted` (it carries a `text/plain` item), replay it with `Input.dispatchDragEvent` (`dragEnter`, `dragOver`, `drop`), `mouseReleased`, then set intercept back to false. Coordinates: `ui.sidebar.toggleExpanded()`, `changeTab("items", "primary")`, `pack.render(true)` and `setPosition`, scroll the row into view, read its `getBoundingClientRect`. `pack.index` carries no `system.key` (core's default index fields), so read the key from the document.
+- **The CDP drag cannot grow a window.** A drag of a window's corner shrinks it and moves its header, and fails to grow one, on a core sheet too: it is the driver's artifact, never the module's. Check a size by `setPosition`.
+- **A move.** `tok.update({x, y}, {animate: false})`, then wait about 4.5 s (the trap check, the sweep and the card are async), then diff `game.messages` against the ids read before. Read the new ids at once and `api.track(id, "ChatMessage")` them.
+- **`api.fixture()` tracks what it builds**, so `api.sweepTracked()` deletes a fixture built in the same run along with its cards. Build a fixture in a run that does not sweep, or build it again after.
+- **A wall that halts.** A trap wall whose stored state is `found` is known and skipped, never a halt, and a wall that is not armed is not in the stack. To halt, point the wall at a trap that springs on the move.
+- **Dice.** Rig `CONFIG.Dice.randomUniform` (0.025 throws a 20, 0.975 a 1) and restore it in a `finally`.
+- **A Player seat's press.** Import `scripts/formation/hazard-entry.mjs` on the Player's page and call `pressBegin` with the card button's `data-*` values; read the answer.
+- **The console.** Attach the recorder before the page loads: one attached after `ready` saw none of `init`, `setup` and `ready`.
+
+**The Hazard item and its compendium (H1).**
+
+| Step | Do | Observable |
+|---|---|---|
+| H1 | Relaunch the world; on both seats read `game.documentTypes.Item` | It lists `acks-extras.hazard`; the recorder shows no module error through `init`, `setup` and `ready` |
+| H2 | Open the sample's sheet | The Kind select lists a blank option, then the nine obstacles, then the six conditions, in two captioned groups |
+| H3 | As GM change Kind, the name and the description | Each persists on the item (read it back); the Kind's `system.key` is the picked key |
+| H4 | Give the Player seat Observer on the sample and open it there | The fields are disabled and the description is plain enriched text, with no editor |
+| H5 | Shrink the window to about 300 by 250; open two sheets side by side; raise the type size and open a fresh instance; click the image | The window scrolls; two sheets do not collide; the body follows the knob; the image opens core's file picker |
+| H6 | Open the Hazards pack | 15 entries in the folder ACKS II — Extras → Hazards, each with its icon loading and its name readable; an entry opens read-only on both seats |
+| H7 | Drag an entry onto the Items sidebar | The copy carries `system.key`, its picture and `compendiumSource`, and opens editable |
+| H8 | Drag an entry onto a character sheet | It becomes an owned Item (core does this; the module does nothing more with it) |
+
+Teardown for H7 and H8: arm a `createItem` hook as an OBSERVER only, `api.track` the uuid read back (an embedded copy is `Actor.<id>.Item.<id>`), then `sweepTracked`.
+
+**The Region window's Place row (B3).**
+
+| Step | Do | Observable |
+|---|---|---|
+| B1 | As GM open the Region window of the Region that has no place; open the Appearance tab | A Place row under the Name field: a picker reading none, a make-a-place button, a counts line reading none, a drop zone |
+| B2 | Type a change into the window's Name field without saving, then drop an obstacle Hazard onto the zone | A place exists for the Region and its sheet did not open; the typed change is still in the field; the picker now selects the place; the counts line reads one obstacle; the thing is kind `obstacle`, its `ref` the Hazard's uuid, `params` blank, `point` null |
+| B3 | Drop a trap Item, and a condition Hazard | A trap thing with `hidden` true; a condition thing; the counts line reads each count, its tooltip naming the things |
+| B4 | Drop a Hazard whose Kind is blank, then an Item that is neither a trap nor a Hazard | Each warns in words and nothing is written to the place's list |
+| B5 | Pick another place in the picker, then none | The Region's link flag moves to it, then is cleared |
+| B6 | Drop a Hazard on the map over the Region, then over a bare Region, then where no Region is | The first lands on the place with `point` set; the bare Region is made a place with its sheet closed and the thing on it; the last warns and writes nothing. A trap dropped near a wall assigns the wall, not the place |
+
+**The entry card and Begin (B2 and H3).** The party token stands outside a Region whose place holds the rappel thing (length typed), a second obstacle thing of another kind (a narrow ledge, whose `ref` is a world Hazard item), a hidden trap thing and a Rope fixed condition.
+
+| Step | Do | Observable |
+|---|---|---|
+| E1 | Move the party token into the Region | One new card, to the Judges only. Its headings are Obstacle, Figures and Crossing; a row per obstacle with figures labelled ("Length 40 ft · Depth —"), the Hidden from players mark on a hidden obstacle, a Begin button each, a chip for the condition; the trap thing is not listed; figure and Begin tooltips are present |
+| E2 | Move within the Region | No card; the party actor's `placesUnder` flag holds the place's uuid |
+| E3 | Move out and back in | One new card |
+| E4 | Press Begin on the rappel row | The open crossing is a rappel with the typed length and `ropeFixed` true (read it from the party's crossing flag and the panel's fields); the party sheet opens |
+| E5 | Press Begin on another row with that crossing open | A confirm dialog (in the scroll contract, resizable by its corner; the header drag moves it). Cancel leaves the crossing unchanged |
+| E6 | Press Begin again and answer End and begin | A new crossing id, of the second row's kind, its length blank and `ropeFixed` seeded from the place |
+| E7 | Point a trap wall that lies between the party and the Region at a trap that springs, then move across it into the Region | The party is pulled back, no card is posted, and `placesUnder` is unchanged; the next move into the Region posts the card |
+| E8 | As the Player seat: look for the card, then call `pressBegin` | The card is not visible; the answer is `{ok: false, refused: "seat"}`; an unbound button does nothing. A GM's press made after the party has left the place warns the party no longer stands in it, and nothing begins |
+| E9 | With the party in journey or settlement mode move into the Region (not walked yet) | No card; `placesUnder` is kept current |
+
+**A trap thing on a place (P3).** The Region's place holds a trap thing whose Trap Item springs.
+
+| Step | Do | Observable |
+|---|---|---|
+| P1 | Move the party into the Region while the thing is armed and hidden | The trap goes off on its own card; the party is not pulled back (a thing halts nothing); the entry card still posts; the thing reads discharged and no longer hidden |
+| P2 | Open Trapbreaking as GM | The thing is listed as "A trap area", spent, with its distance |
+| P3 | Press Rebuild it on it | The thing is armed and hidden again |
+| P4 | Press Mark found | It is found and no longer hidden |
+| P5 | Give the working member Thieves' tools and rig the die to a made throw; press Work on it | A "Disarm it, or set it off?" dialog opens and the script waits on it: answer it. Disarm writes `disarmed` |
+| P6 | Press rearm with an unskilled member working it | Refused with the skill reason; a skilled member is needed for a rearm to succeed, and a successful rearm needs its own step |
+| P7 | Open Trapbreaking as the Player seat | The known thing is listed |
+| P8 | Call `linkRegion(region2, place)` on the place another Region already names | The first Region resolves to no place; the thing is measured through the second Region |
+
+Walked so far: H1 to H8 (two passes), the Place row's steps on the plan's record of 14 of 14 checks (this table is written from the row's code and that record, since the walk's own step list was not kept), E1 to E8 and P1 to P8. E9 is written from the code.
+
+Teardown: nothing the walks built is swept; the fixtures stay. `api.sweepTracked()` takes the run's own tracked ids, the cards of each move among them, and the report quotes what it removed, could not find and refused. A run that lost its ledger on a reload lists its own cards by author, minute and the party's alias, and sweeps that list by id. A walk leaves things changed: restore a wall to its armed trap, re-arm the thing, take back a member's Thieves' tools, restore the links P8 moved, and keep no unsaved Region-window edit.
