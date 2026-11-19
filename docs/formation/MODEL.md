@@ -363,6 +363,15 @@ a borrowed throw is the ability's own throw, edited on the ability sheet. A hand
 check by its `checkKey` binding or, if it carries a stored target or a
 level-scaled throw, by name; it contributes no bonus unless it carries a row.
 
+`rollCheckFor` reads the natural die before the total: where `lib/throws.mjs` has
+the edges imported, a member `skilled` in the check whose natural result is the
+automatic-success edge succeeds, a natural result at or under the
+automatic-failure edge fails, and otherwise the total against the target decides.
+A Strength-scaled check (the bash) with a Strength modifier that is not zero and
+no imported factor rolls nothing and answers `{roll: null, row: null, missing}`;
+the party card's footnote names the member as not thrown, and the audit leaves
+the member out.
+
 ## The audit roll
 
 Each row of the Skill audit's party roster has a roll control. It rolls that ability
@@ -481,9 +490,10 @@ party's own stops in the Foundry-free
   once. The two Trapbreaking columns offer one option per trap the party has
   found within reach (`knownPlacementsNear`) and refuse as the disarm dialog
   does (`disarmRefusal`, as `trap:<reason>`); each resolves through
-  `attemptDisarm`. Battering a door registers with no length: the turns an axe
-  needs are the door's printed figure, which no import reads yet (ROADMAP §6),
-  so it is offered disabled, with no reason beside it, and cannot lock. Rest is registered under
+  `attemptDisarm`. Battering a door registers with no length: the time is the
+  picked door row's, imported, but a plan entry names no door (ROADMAP, "The
+  turn plan"), so it is offered disabled, with no reason beside it, and cannot
+  lock. Rest is registered under
   lib's `REST_KEY`. Every other length is one turn: a pace is structural, and no
   activity the formation registers is round-length (`length`, under
   Resolution).
@@ -1271,29 +1281,81 @@ is logged and never costs the move its trap answer.
 A door is a wall with `door > 0`; everything beyond Foundry's own open/closed
 state is the `door` flag under `flags["acks-extras"]` (`doors.mjs`,
 `doorState`): `kind`, `spikes`, `wedged`, `evil`, `jammed`, `batteredTurns`.
-`setDoorState` merges a patch over the whole stored state, so a write to one
-field keeps the rest.
+`setDoorState` writes only the keys it is given, which Foundry merges into what
+is stored, so a write to one field keeps the rest, a stored `kind` no row
+answers to included.
+
+**Every door figure is imported.** The door grid (RR p. 266) is the `formation`
+document's `doors` rows, `{ordinal, label, batter}`, and the bash paragraph (RR
+p. 267) is nine figures beside it: the Strength factor, the pair, crowbar and
+size (up and down) terms, the spike penalty and limit, the botch band and the
+rebound damage, all magnitudes whose signs are the procedure's. `doors.mjs`
+reads each through `formationValue`, and a figure not imported reads null; no
+value stands in for it (DECISIONS, "An unimported door figure leaves bash or
+batter blank"). A door's stored `kind` is a row's key, `<ordinal>:<label>`
+(`doorKey`), since two rows share a label; a name no row answers to, an older
+stored kind included, reads as unset, and a door with no row picked has no
+batter.
 
 **The dialog edits the door's record.** `door-app.mjs` is GM-only (the
-`acksDoor` scene tool). Its form submits on change; the construction select
-and the **Evil** and **Lock jammed** checkboxes are written through
-`setDoorTraits` to `kind`, `evil` and `jammed`, and only when the submitted
-value differs from the stored one, so the rolling options (crowbar, size,
-Judge's modifier) never touch the wall. The render that follows re-reads
-`doorState`, so the batter figure follows the construction. `evil` and
-`jammed` are records for the Judge; no figure in the dialog changes with them.
+`acksDoor` scene tool, Scene controls → Walls). Its form submits on change; the
+construction select, which lists the imported rows after an unset choice that
+leads and is selected until a row is picked, and the **Evil** and **Lock
+jammed** checkboxes are written through `setDoorTraits` to `kind`, `evil` and
+`jammed`, and only when the submitted value differs from the stored one, so the
+rolling options (crowbar, size, Judge's modifier) never touch the wall. The
+render that follows re-reads `doorState`, so the batter figure follows the
+construction. `evil` and `jammed` are records for the Judge; no figure in the
+dialog changes with them.
 
-**A bash botch is reported, not applied.** `bashDoor` posts one card; on an
-unmodified 1 the card carries a second line, "Damage to {name}", with the point
-`bashDoor` returns as `damage`, and a note that it is reported, not applied.
-Nothing is written to the basher's sheet, as for a trap (see Traps above).
+**The bash target is the basher's own throw.** `bashThrow(actor)` is
+`resolveCheck(actor, PARTY_CHECKS.dungeonbashing)`: its target, and `skilled`
+as the proficiency. An actor with no such throw (no token, or a creature whose
+sheet carries no Adventuring figure and holds no such skill) has no bash,
+`{ok: false, reason: "noThrow"}`; the character's figure is never lent. A pair
+throws at the basher's own target, with the stronger of the two Strength
+adjustments and the pair term, and nothing else of the partner's.
 
-**A batter spends its time.** `batterDoor` opens the wall (`ds: 1`) and charges
-the `batterPlan` turns through `advanceTurns(formation, turns, { reason:
-"action" })` to the formation holding the basher (`getFormationForActor`). With
-no basher selected, or no formation holding them, the door still opens, no
-clock moves, and the notification says so. A construction an axe cannot beat
-opens nothing and spends nothing.
+**A bash plan applies the terms in play.** `bashPlan` adds a part for each term
+whose input is in play: Strength for a modifier that is not zero
+(`bashStrBonus`, the one reader of the factor, which the party check and the
+squeeze's push also call), the pair term with a partner, the crowbar's when
+ticked, a size term by the sign of the steps, and the spike penalty for each
+spike past the first. A term in play whose figure is not imported, and the
+botch band and rebound every bash needs, are named in `missing`; with any, or
+with no throw, the plan is not `ready`, `needs` and `hopeless` are null, and the
+window leaves needs blank and Heave disabled, with RR p. 267 in the tooltip.
+`bashDoor` throws nothing from such a plan and answers `{ok: false, reason:
+"missing", missing}`. `needs` is the lowest natural result that succeeds: the
+target less the modifier, no lower than the die's floor (`dieFloor`), and no
+higher than a proficient basher's automatic-success edge. `hopeless` is true
+only where the best natural result cannot reach the target and an automatic
+success cannot either.
+
+**The natural die is read first.** A basher holding the skill whose natural
+result is the automatic-success edge succeeds, and a natural result at or under
+the automatic-failure edge fails, whatever the total (`lib/throws.mjs`, absent
+until imported; `rollCheckFor` reads it in the same order). Otherwise the total
+against the target decides.
+
+**A bash botch is reported, not applied.** A failure whose natural result is in
+the imported botch band is a botch; `bashDoor` posts one card whose second line,
+"Damage to {name}", carries the imported rebound as `damage`, with a note that
+it is reported, not applied. A natural result in the band whose total reaches the
+target is a success and costs nothing. Nothing is written to the basher's sheet,
+as for a trap (see Traps above).
+
+**A batter spends its time.** `batterPlan` reads the picked row's batter
+`{count, unit, tool}`, a count of turns or rounds with the tool as the import
+words it, and answers `noRow` for a door with no row picked (the window shows no
+batter) and `tooSolid` for a row whose notes give no time. `batterDoor` opens
+the wall (`ds: 1`) and charges the plan's `rounds` through
+`advanceRounds(formation, rounds, { reason: "action" })` to the formation
+holding the basher (`getFormationForActor`); a count of turns is `count` times
+`ROUNDS_PER_TURN`. With no basher selected, or no formation holding them, the
+door still opens, no clock moves, and the notification says so. Whether the
+party holds the tool is the Judge's call. Spiking a door past the imported limit
+is refused, and with no limit imported nothing is hammered.
 
 **A secret door is shown by one write.** `revealSecretDoor(wall)` sets a secret
 door's `door` to an ordinary door and writes nothing else, so `ds` and every

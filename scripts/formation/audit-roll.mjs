@@ -141,7 +141,7 @@ export async function rollAbilityForParty(formation, { key, name }) {
       const bound = boundChecks(item)[0];
       if (bound) {
         const rolled = await rollCheckFor(actor, bound.cfg);
-        if (!rolled) {
+        if (!rolled || rolled.missing) {
           skipped.cannot.push(actor.name);
           continue;
         }

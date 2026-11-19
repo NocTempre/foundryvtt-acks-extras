@@ -5,7 +5,7 @@
 
     <div class="form-group">
       <label>{{localize "ACKS-FORMATION.doors.construction"}}</label>
-      <div class="form-fields">
+      <div class="form-fields" data-tooltip="ACKS-FORMATION.doors.constructionTip">
         <select name="kind">
           {{#each kinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
@@ -30,7 +30,7 @@
     <div class="form-group">
       <label>{{localize "ACKS-FORMATION.doors.spikes"}}</label>
       <div class="form-fields acks-extras-door-spikes">
-        <span>{{state.spikes}} / {{maxSpikes}}</span>
+        <span data-tooltip="ACKS-FORMATION.doors.spikeHint">{{state.spikes}} / {{maxSpikes}}</span>
         {{#if canSpike}}
           <button type="button" data-action="spike">
             <i class="fa-solid fa-hammer"></i> {{localize "ACKS-FORMATION.doors.spikeIt"}}
@@ -77,12 +77,14 @@
       <div class="form-fields"><input type="number" name="extra" step="1" value="{{opts.extra}}"></div>
     </div>
 
-    {{! The throw, before anyone spends a round on it. }}
-    <div class="acks-extras-door-throw{{#if plan.hopeless}} is-hopeless{{/if}}">
+    {{! The throw, before anyone spends a round on it. A throw that is not
+        ready (a figure it applies is not imported, or the token has no
+        Dungeonbashing throw) leaves its figure blank, and the tooltip carries the page. }}
+    <div class="acks-extras-door-throw{{#if plan.hopeless}} is-hopeless{{/if}}" data-tooltip="ACKS-FORMATION.doors.bashTip">
       {{#if plan.hopeless}}
         <p><i class="fa-solid fa-ban"></i> {{localize "ACKS-FORMATION.doors.hopeless"}}</p>
       {{else}}
-        <p class="acks-extras-door-needs">{{localize "ACKS-FORMATION.doors.needs"}} <strong>{{needs}}+</strong></p>
+        <p class="acks-extras-door-needs">{{localize "ACKS-FORMATION.doors.needs"}} <strong>{{#if plan.ready}}{{needs}}+{{/if}}</strong></p>
       {{/if}}
       {{#if parts.length}}
         <ul class="acks-extras-door-parts">
@@ -91,19 +93,19 @@
       {{/if}}
     </div>
 
-    <button type="button" data-action="bash" {{#if plan.hopeless}}disabled{{/if}}>
+    <button type="button" data-action="bash" data-tooltip="ACKS-FORMATION.doors.bashTip" {{#unless canBash}}disabled{{/unless}}>
       <i class="fa-solid fa-person-falling-burst"></i> {{localize "ACKS-FORMATION.doors.bashIt"}}
     </button>
   </fieldset>
 
-  <fieldset>
+  <fieldset data-tooltip="ACKS-FORMATION.doors.batterTip">
     <legend>{{localize "ACKS-FORMATION.doors.axe"}}</legend>
     {{#if batter.ok}}
-      <p>{{localize "ACKS-FORMATION.doors.batterCost"}} <strong>{{batter.turns}}</strong></p>
+      <p>{{localize "ACKS-FORMATION.doors.batterCost"}} <strong>{{batter.line}}</strong></p>
       <button type="button" data-action="batter">
         <i class="fa-solid fa-axe"></i> {{localize "ACKS-FORMATION.doors.batterIt"}}
       </button>
-    {{else}}
+    {{else if batter.tooSolid}}
       <p class="hint">{{localize "ACKS-FORMATION.doors.tooSolid"}}</p>
     {{/if}}
   </fieldset>

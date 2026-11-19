@@ -9,7 +9,7 @@
  * and walk away instead of burning rounds finding out.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { bashPlan, bashDoor, spikeDoor, unspikeDoor, batterPlan, batterDoor, setDoorTraits, doorState, isDoor, selectedDoor, DOOR_KINDS, MAX_SPIKES } from "./doors.mjs";
+import { bashPlan, bashDoor, bashThrow, spikeDoor, unspikeDoor, batterPlan, batterDoor, setDoorTraits, doorRows, doorState, selectedDoor, maxSpikes } from "./doors.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.doors";
@@ -52,7 +52,7 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // what is stored is written, so a crowbar tick never touches the wall.
     const state = doorState(this.wall);
     const traits = {};
-    if (d.kind && d.kind !== state.kind) traits.kind = d.kind;
+    if (d.kind !== undefined && d.kind !== (state.kind ?? "")) traits.kind = d.kind;
     if (!!d.evil !== state.evil) traits.evil = !!d.evil;
     if (!!d.jammed !== state.jammed) traits.jammed = !!d.jammed;
     if (Object.keys(traits).length) await setDoorTraits(this.wall, traits);
@@ -70,8 +70,13 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.basher;
     const partner = this.opts.partnerId ? game.actors.get(this.opts.partnerId) : null;
     const strMod = Math.max(actor ? abilityMod(actor, "str") : 0, partner ? abilityMod(partner, "str") : 0);
-    const plan = bashPlan({ ...this.opts, strMod, pair: !!partner, spikes: state.spikes });
+    const thrown = await bashThrow(actor);
+    const plan = bashPlan({
+      crowbar: this.opts.crowbar, sizeSteps: this.opts.sizeSteps, extra: this.opts.extra,
+      target: thrown?.target ?? null, proficient: thrown?.proficient ?? false, strMod, pair: !!partner, spikes: state.spikes,
+    });
     const batter = batterPlan(this.wall);
+    const cap = maxSpikes();
 
     return {
       state,
@@ -80,24 +85,31 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       // Judge with three tokens selected should see which one it used.
       actorName: actor?.name ?? game.i18n.localize(`${LANG_PREFIX}.noToken`),
       plan,
-      // What the die must show, which is what a player actually asks for.
-      needs: Math.max(2, plan.target - plan.modifier),
+      // What the die must show, which is what a player actually asks for; null
+      // (left blank) while the throw is not ready.
+      needs: plan.needs,
+      // A bash is thrown only from a ready plan that is not hopeless.
+      canBash: plan.ready && !plan.hopeless,
       parts: plan.parts.map((p) => ({ ...p, label: game.i18n.localize(`${LANG_PREFIX}.mod.${p.key}`), sign: p.value > 0 ? "+" : "" })),
-      batter,
-      kinds: Object.entries(DOOR_KINDS).map(([value, k]) => ({
-        value, label: game.i18n.localize(k.label), selected: value === state.kind,
-      })),
+      batter: batter.ok
+        ? { ok: true, line: game.i18n.format(`${LANG_PREFIX}.batterLine`, { count: batter.count, unit: game.i18n.localize(`${LANG_PREFIX}.unit.${batter.unit}`), tool: batter.tool }) }
+        : { ok: false, tooSolid: batter.reason === "tooSolid" },
+      // The unset choice is always first and is the one selected until a row is picked.
+      kinds: [{ value: "", label: game.i18n.localize(`${LANG_PREFIX}.kindUnset`), selected: !state.kind },
+        ...doorRows().map((row) => ({ value: row.key, label: row.label, selected: row.key === state.kind }))],
       partners: game.actors.filter((a) => a.type === "character" && a !== actor)
         .map((a) => ({ id: a.id, name: a.name, selected: a.id === this.opts.partnerId })),
       opts: this.opts,
-      canSpike: state.spikes < MAX_SPIKES,
-      maxSpikes: MAX_SPIKES,
+      canSpike: cap != null && state.spikes < cap,
+      maxSpikes: cap ?? "",
     };
   }
 
   static async #onBash() {
     const partner = this.opts.partnerId ? game.actors.get(this.opts.partnerId) : null;
-    await bashDoor(this.wall, { actor: this.basher, partner, crowbar: this.opts.crowbar, sizeSteps: this.opts.sizeSteps, extra: this.opts.extra });
+    const r = await bashDoor(this.wall, { actor: this.basher, partner, crowbar: this.opts.crowbar, sizeSteps: this.opts.sizeSteps, extra: this.opts.extra });
+    // A bash missing an imported term is not thrown and the window already shows it blank; no message says so.
+    if (!r.ok && r.reason !== "missing") ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refuse.${r.reason}`));
     this.render();
   }
 
@@ -115,11 +127,12 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onBatter() {
     const r = await batterDoor(this.wall, this.basher);
     if (!r.ok) { ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refuse.${r.reason}`)); return; }
-    // The notification says what the clock was charged: the turns and whose
-    // clock, or that no formation held the basher and nothing was spent.
+    // The notification says what the clock was charged: the time the grid counts
+    // and whose clock, or that no formation held the basher and nothing was spent.
+    const time = game.i18n.format(`${LANG_PREFIX}.batterTime`, { count: r.count, unit: game.i18n.localize(`${LANG_PREFIX}.unit.${r.unit}`) });
     ui.notifications?.info(r.formation
-      ? game.i18n.format(`${LANG_PREFIX}.batteredDown`, { turns: r.spent, formation: r.formation })
-      : game.i18n.format(`${LANG_PREFIX}.batteredNoClock`, { turns: r.turns }));
+      ? game.i18n.format(`${LANG_PREFIX}.batteredDown`, { time, formation: r.formation })
+      : game.i18n.format(`${LANG_PREFIX}.batteredNoClock`, { time }));
     this.render();
   }
 }

@@ -65,7 +65,9 @@ globalThis.Roll = class {
   }
   async evaluate() {
     const extra = [...this.formula.matchAll(/([+-])\s*(\d+)/g)].reduce((n, [, sign, num]) => n + (sign === "-" ? -1 : 1) * Number(num), 0);
-    this.total = (dice.shift() ?? 10) + extra;
+    const natural = dice.shift() ?? 10;
+    this.dice = [{ results: [{ result: natural }] }];
+    this.total = natural + extra;
     return this;
   }
   async render() { return `<div class="dice-roll">${this.total}</div>`; }
@@ -94,7 +96,12 @@ const { evaluateThrow, rollAbility, rollsOf, throwOutcome } = await import("../s
 const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
 const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
 const { renderRollCard } = await import("../scripts/lib/roll-card.mjs");
-const { BASH_STR_FACTOR } = await import("../scripts/formation/doors.mjs");
+const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
+const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
+/** An invented Strength factor, registered the way an import registers it; no page's figure. */
+const STR_FACTOR = 3;
+const importFactor = (tables = { bashStrengthFactor: STR_FACTOR }) =>
+  registerTable({ id: FORMATION_DOC, source: "invented", tables }, { priority: PRIORITY.WORLD, source: "test" });
 const { PARTY_CHECKS, boundChecks, checkTip, citedParts, citedSource, resolveCheck, rollCheckFor, usedForOptions } = await import("../scripts/formation/party-rolls.mjs");
 
 /* --- fixtures ---------------------------------------------------------------- */
@@ -316,8 +323,8 @@ await ok("the cited-parts helper prints a part's page after it, and the roll row
   reset();
   const parts = [{ label: "Alertness", value: 2, cite: "XX p.1" }, { label: "Throw bonus", value: -1 }];
   assert.equal(citedParts(parts), "+2 Alertness (XX p.1), −1 Throw bonus");
-  assert.equal(citedParts(parts, ["+8 STR×4"]), "+2 Alertness (XX p.1), −1 Throw bonus, +8 STR×4", "extra parts follow, as given");
-  assert.equal(citedParts([], ["+8 STR×4"]), "+8 STR×4");
+  assert.equal(citedParts(parts, [`+${2 * STR_FACTOR} STR×${STR_FACTOR}`]), `+2 Alertness (XX p.1), −1 Throw bonus, +${2 * STR_FACTOR} STR×${STR_FACTOR}`, "extra parts follow, as given");
+  assert.equal(citedParts([], [`+${2 * STR_FACTOR} STR×${STR_FACTOR}`]), `+${2 * STR_FACTOR} STR×${STR_FACTOR}`);
   assert.equal(citedParts(undefined), "");
   assert.equal(citedSource({ source: "Searching", parts }), "Searching; +2 Alertness (XX p.1), −1 Throw bonus");
   assert.equal(citedSource({ source: "Searching", parts: [] }), "Searching", "no parts, the line alone");
@@ -332,8 +339,10 @@ await ok("the cited-parts helper prints a part's page after it, and the roll row
   const ladderThrow = throwOf(0, { target: { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 16 }, { atLevel: 3, value: 14 }] } });
   const basher = actor("Birch", [{ name: "Dungeonbashing", rolls: [ladderThrow], system: { rollTarget: 14 }, flags: { targetMod: 1 } }]);
   basher.system.scores = { str: { mod: 2 } };
+  importFactor();
   const bash = await rollCheckFor(basher, PARTY_CHECKS.dungeonbashing);
-  const strTerm = `+${2 * BASH_STR_FACTOR} STR×${BASH_STR_FACTOR}`;
+  unregisterTable(FORMATION_DOC, "test");
+  const strTerm = `+${2 * STR_FACTOR} STR×${STR_FACTOR}`;
   assert.equal(bash.row.source, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm}`);
   assert.equal(bash.row.sourceTip, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm}`);
   assert.equal(bash.check.source, "Dungeonbashing (L3) [+1]", "the level tag is the lang string's, the same text as before");
@@ -345,6 +354,60 @@ await ok("the cited-parts helper prints a part's page after it, and the roll row
     ["Search", "Trapbreaking"],
     "a flag two checks share is named for itself, not for its first check",
   );
+});
+
+await ok("a Strength-scaled check with a modifier and no imported factor is not thrown and is no member who cannot attempt it; a zero modifier needs none", async () => {
+  reset();
+  const strong = actor("Birch", [{ name: "Dungeonbashing", rolls: [throwOf(14)], system: { rollTarget: 14 } }]);
+  strong.system.scores = { str: { mod: 2 } };
+  const rolled = await rollCheckFor(strong, PARTY_CHECKS.dungeonbashing);
+  assert.deepEqual([rolled.roll, rolled.row, rolled.missing], [null, null, ["bashStrengthFactor"]], "nothing is rolled");
+  assert.equal(seen.formulas.length, 0, "no die was thrown");
+  const result = await rollAbilityForParty(party("Birch"), { key: "name:dungeonbashing", name: "Dungeonbashing" });
+  assert.deepEqual([result.rolled, result.cannot], [0, ["Birch"]], "the audit leaves the member out");
+  strong.system.scores = { str: { mod: 0 } };
+  dice.push(11);
+  const plain = await rollCheckFor(strong, PARTY_CHECKS.dungeonbashing);
+  assert.deepEqual([plain.row.target, plain.row.total], [14, 11], "a modifier of zero rolls with nothing imported");
+  assert.equal(plain.missing, undefined);
+});
+
+await ok("the natural die is read first: an automatic failure fails a total over the target, and a proficient automatic success passes one under it, only for a holder of the skill", async () => {
+  reset();
+  registerTable({ id: THROWS_DOC, source: "invented", tables: { [THROW_TABLE]: { autoFailMax: 2, autoSucceedMin: 19 } } }, { priority: PRIORITY.WORLD, source: "test" });
+  importFactor();
+  try {
+    const holder = (mod) => {
+      const a = actor("Birch", [{ name: "Dungeonbashing", rolls: [throwOf(14)], system: { rollTarget: 14 } }]);
+      a.system.scores = { str: { mod } };
+      return a;
+    };
+    const outcome = async (a, natural) => {
+      dice.push(natural);
+      return (await rollCheckFor(a, PARTY_CHECKS.dungeonbashing)).row;
+    };
+    // A natural 2 with +15 on the die totals 17, over the target of 14, and still fails.
+    const over = await outcome(holder(5), 2);
+    assert.deepEqual([over.total, over.target, over.success], [17, 14, false], "an automatic failure ignores the total");
+    // A natural 19 with -15 totals 4, under the target, and a holder succeeds.
+    const under = await outcome(holder(-5), 19);
+    assert.deepEqual([under.total, under.target, under.success], [4, 14, true], "a proficient automatic success ignores the total");
+    // The same natural from a member whose throw is the Adventuring figure alone is not proficient.
+    const unskilled = actor("Cedar", []);
+    unskilled.system.adventuring = { dungeonbashing: 14 };
+    unskilled.system.scores = { str: { mod: -5 } };
+    const bare = await outcome(unskilled, 19);
+    assert.deepEqual([bare.total, bare.success], [4, false], "no skill, no automatic success");
+    // Between the two edges the total against the target decides.
+    const middle = await outcome(holder(5), 10);
+    assert.deepEqual([middle.total, middle.success], [25, true]);
+    unregisterTable(THROWS_DOC, "test");
+    const none = await outcome(holder(5), 2);
+    assert.equal(none.success, true, "with nothing imported the target alone decides");
+  } finally {
+    unregisterTable(THROWS_DOC, "test");
+    unregisterTable(FORMATION_DOC, "test");
+  }
 });
 
 await ok("a bonus whose ifHas the character does not hold, or a renamed holder of it, does not change the figure", async () => {

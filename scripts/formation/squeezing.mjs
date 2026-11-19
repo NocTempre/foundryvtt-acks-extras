@@ -126,7 +126,8 @@ export function wiggleShift({ encumbrance = 0, plight = 0, judgeMod = 0 } = {}) 
  * @param {number} [o.strMod] the member's Strength modifier; 0 for a creature with none
  * @param {number} [o.judgeMod]
  * @returns {{target: number|null, parts: Array<{key: string, value: number, mod?: number}>, unknown: string[]}}
- *   a `strength` part also carries the modifier it was read from
+ *   a `strength` part also carries the modifier it was read from; a non-zero
+ *   modifier with no imported factor names `bashStrengthFactor` in `unknown`
  */
 export function pushThrow({ figure = null, encumbrance = 0, proficient = false, plight = 0, strMod = 0, judgeMod = 0 } = {}) {
   const stone = Math.max(0, Number(encumbrance) || 0);
@@ -140,7 +141,12 @@ export function pushThrow({ figure = null, encumbrance = 0, proficient = false, 
   if (proficient && bonus != null) parts.push({ key: "contortionism", value: -bonus });
   if (strength) parts.push({ key: "strength", value: -strength, mod: Number(strMod) });
   if (mod) parts.push({ key: "judge", value: -mod });
-  const unknown = [...(base === null ? ["figure"] : []), ...owed.unknown, ...(proficient && bonus == null ? ["contortionismBonus"] : [])];
+  const unknown = [
+    ...(base === null ? ["figure"] : []),
+    ...owed.unknown,
+    ...(proficient && bonus == null ? ["contortionismBonus"] : []),
+    ...(strength === null ? ["bashStrengthFactor"] : []),
+  ];
   if (unknown.length) return { target: null, parts, unknown };
   return { target: base + stone + owed.value - bonus - strength - mod, parts, unknown };
 }

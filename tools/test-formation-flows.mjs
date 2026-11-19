@@ -5576,6 +5576,31 @@ await scenario("the delve's wandering throw takes its cadence from the setting o
 await scenario("a door's construction and marks persist, a botch reports its damage, a batter spends its turns", async () => {
   const doors = await import("../scripts/formation/doors.mjs");
   const { default: DoorApp } = await import("../scripts/formation/door-app.mjs");
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
+  const { ROUNDS_PER_TURN } = await import("../scripts/formation/constants.mjs");
+
+  // Every figure below is INVENTED and registered the way an import registers
+  // it, each different from the others and from any page's, so a figure left in
+  // source or two figures swapped fails a check.
+  const GRID = [
+    { ordinal: 1, label: "Door A", batter: { count: 2, unit: "turn", tool: "mattock" } },
+    { ordinal: 2, label: "Door B", batter: null },
+    { ordinal: 3, label: "Door B", batter: { count: 5, unit: "round", tool: "adze" } },
+  ];
+  const BASH = {
+    bashStrengthFactor: 3, bashPairBonus: 5, bashCrowbarBonus: 7, bashSizeBonus: 6, bashSizePenalty: 9,
+    bashSpikePenalty: 11, doorSpikeMax: 6, bashBotchBand: 2, bashReboundDamage: 3,
+  };
+  const TARGET = 15; // the basher's own Dungeonbashing figure
+  const importDoors = (tables = { doors: GRID, ...BASH }) => {
+    unregisterTable("formation", { priority: PRIORITY.WORLD });
+    if (tables) registerTable({ id: "formation", tables }, { priority: PRIORITY.WORLD, source: "test" });
+  };
+  const importThrows = (cells) => {
+    unregisterTable(THROWS_DOC, { priority: PRIORITY.WORLD });
+    if (cells) registerTable({ id: THROWS_DOC, tables: { [THROW_TABLE]: cells } }, { priority: PRIORITY.WORLD, source: "test" });
+  };
 
   // A wall document as far as the door code touches one: Foundry merges an
   // object flag into what is stored, and a wall update writes its fields.
@@ -5598,8 +5623,10 @@ await scenario("a door's construction and marks persist, a botch reports its dam
   };
 
   const basher = await member("Basher");
+  basher.system.adventuring.dungeonbashing = TARGET; // Strength +1 on the sheet, no skill held
   await drain();
   await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  importDoors();
   const priorRoll = globalThis.Roll;
   const priorControlled = canvas.tokens.controlled;
   const hadSpeaker = "getSpeaker" in ChatMessage;
@@ -5636,14 +5663,21 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     const defaults = doors.doorState(wall);
     assert.equal(defaults.evil, false);
     assert.equal(defaults.jammed, false);
-    const other = Object.keys(doors.DOOR_KINDS).find((k) => k !== defaults.kind);
+    assert.equal(defaults.kind, null, "no construction is picked until one is: none is assumed");
+    assert.deepEqual(doors.doorRows().map((r) => r.key), ["1:Door A", "2:Door B", "3:Door B"], "a row is keyed by its place and its label, since two share a name");
+    assert.deepEqual(doors.batterPlan(wall), { ok: false, reason: "noRow" }, "a door with no row picked has no batter");
+    const ctx0 = await app._prepareContext();
+    assert.deepEqual(ctx0.kinds.map((k) => [k.value, k.selected]), [["", true], ["1:Door A", false], ["2:Door B", false], ["3:Door B", false]], "the unset choice leads and is the one selected");
+    assert.deepEqual(ctx0.batter, { ok: false, tooSolid: false }, "the window shows no batter for it, and no refusal");
+    const other = "1:Door A";
     await submit(app, { kind: other, evil: true, jammed: false });
     let state = doors.doorState(wall);
     assert.equal(state.kind, other, "the construction select writes the wall");
     assert.equal(state.evil, true, "the evil mark writes the wall");
     assert.equal(state.jammed, false);
     assert.equal(wall.flags[MODULE_ID].door.kind, other, "under the door flag, where doorState reads it");
-    assert.equal(doors.batterPlan(wall).kind, doors.DOOR_KINDS[other], "and the plan follows the construction");
+    assert.equal(doors.batterPlan(wall).row.key, other, "and the plan follows the construction");
+    assert.equal((await app._prepareContext()).batter.line.includes("mattock"), true, "the tool word is the import's");
 
     await submit(app, { kind: other, evil: false, jammed: true });
     state = doors.doorState(wall);
@@ -5651,11 +5685,22 @@ await scenario("a door's construction and marks persist, a botch reports its dam
 
     const bad = await doors.setDoorTraits(wall, { kind: "notAConstruction" });
     assert.equal(bad.state.kind, other, "an unknown construction is not stored");
-    await doors.setDoorTraits(wall, { kind: defaults.kind, evil: false, jammed: false });
+    await doors.setDoorTraits(wall, { kind: "", evil: false, jammed: false });
+    assert.equal(doors.doorState(wall).kind, null, "the empty choice clears the construction");
     wall.flags[MODULE_ID].door.spikes = 2;
     await submit(app, { kind: other, evil: true, jammed: true });
     assert.equal(doors.doorState(wall).spikes, 2, "a write to the marks leaves the spikes alone");
-    await doors.setDoorTraits(wall, { kind: defaults.kind, evil: false, jammed: false });
+    await doors.setDoorTraits(wall, { kind: "", evil: false, jammed: false });
+
+    /* --- a stored name from before the grid was imported reads as unset, and a write beside it leaves it --- */
+    wall.flags[MODULE_ID].door.kind = "ironBanded";
+    assert.equal(doors.doorState(wall).kind, null, "an older stored kind reads unset");
+    assert.equal(doors.batterPlan(wall).reason, "noRow");
+    await doors.spikeDoor(wall, basher);
+    assert.equal(wall.flags[MODULE_ID].door.kind, "ironBanded", "a spike writes its own key and nothing it read");
+    assert.equal(wall.flags[MODULE_ID].door.spikes, 3);
+    await doors.setDoorTraits(wall, { kind: "", evil: false, jammed: false });
+    wall.flags[MODULE_ID].door.spikes = 0;
 
     /* --- a botch reports its damage on the card and writes nothing --- */
     const hpBefore = basher.system.hp.value;
@@ -5663,7 +5708,9 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     let from = chat.length;
     const botched = await doors.bashDoor(wall, { actor: basher });
     assert.equal(botched.botch, true);
-    assert.ok(botched.damage > 0, "a botch deals damage");
+    assert.equal(botched.damage, BASH.bashReboundDamage, "a botch deals the imported rebound");
+    assert.equal(botched.plan.target, TARGET, "the target is the basher's own Dungeonbashing figure");
+    assert.equal(botched.total, 1 + BASH.bashStrengthFactor, "and Strength adds at the imported factor");
     const [card] = chat.slice(from);
     assert.ok(card.content.includes("ACKS-FORMATION.doors.damageTo"), "the card carries the damage line");
     assert.ok(card.content.includes(`"damage":${botched.damage}`), "with the figure the roll returned");
@@ -5676,7 +5723,89 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     assert.equal(held.damage, 0);
     assert.ok(!chat.slice(from)[0].content.includes("damageTo"), "an ordinary miss carries no damage line");
 
+    /* --- the terms a bash applies, each from its own import --- */
+    const bplan = (o) => doors.bashPlan({ target: TARGET, strMod: 0, ...o });
+    assert.deepEqual(bplan({ strMod: 2, pair: true, crowbar: true, sizeSteps: 2, spikes: 3, extra: 1 }).parts.map((p) => [p.key, p.value]),
+      [["str", 6], ["pair", 5], ["crowbar", 7], ["size", 12], ["spikes", -22], ["judge", 1]], "each term reads its own magnitude, the sign being the procedure's");
+    assert.deepEqual(bplan({ sizeSteps: -2 }).parts.map((p) => [p.key, p.value]), [["size", -18]], "a smaller basher reads the penalty figure");
+    assert.equal(bplan({ spikes: 1 }).parts.length, 0, "the first spike costs nothing");
+    assert.equal(bplan({ strMod: 2, pair: true }).needs, TARGET - 6 - 5);
+    assert.equal(doors.maxSpikes(), BASH.doorSpikeMax, "the spike limit is the import's");
+
+    /* --- the natural die is read first, then the door's own band, then the target --- */
+    rigRoll(2);
+    const bandOverTotal = await doors.bashDoor(wall, { actor: basher, extra: 20 });
+    assert.deepEqual([bandOverTotal.success, bandOverTotal.botch, bandOverTotal.damage], [true, false, 0], "with no throws imported the total decides, and a botch is a failure");
+    importThrows({ autoFailMax: 3, autoSucceedMin: 18 });
+    rigRoll(3);
+    const autoFailed = await doors.bashDoor(wall, { actor: basher, extra: 20 });
+    assert.deepEqual([autoFailed.total >= TARGET, autoFailed.success, autoFailed.botch], [true, false, false], "an automatic failure fails a total over the target, outside the band");
+    rigRoll(2);
+    const autoFailedBotch = await doors.bashDoor(wall, { actor: basher, extra: 20 });
+    assert.deepEqual([autoFailedBotch.success, autoFailedBotch.botch, autoFailedBotch.damage], [false, true, BASH.bashReboundDamage], "a natural in the band that fails is a botch");
+    rigRoll(18);
+    const noSkill = await doors.bashDoor(wall, { actor: basher, extra: -10 });
+    assert.deepEqual([noSkill.total < TARGET, noSkill.success], [true, false], "an automatic success is for a basher holding the skill: this one throws the Adventuring figure");
+    const skilled = await member("Skilled");
+    skilled.system.adventuring.dungeonbashing = TARGET + 5;
+    await skilled.createEmbeddedDocuments("Item", [{
+      name: "Dungeonbashing", type: "ability", system: { rollTarget: TARGET },
+      flags: { [MODULE_ID]: { extras: { rolls: [{ key: "primary", formula: "1d20", rollType: "above", target: { kind: "flat", flat: TARGET }, scale: "level" }] } } },
+    }]);
+    assert.deepEqual(await doors.bashThrow(skilled), { target: TARGET, proficient: true }, "a holder of the skill is proficient, as resolveCheck reports it");
+    rigRoll(18);
+    const skillAuto = await doors.bashDoor(wall, { actor: skilled, extra: -10 });
+    assert.deepEqual([skillAuto.total < TARGET, skillAuto.success], [true, true], "a proficient automatic success opens it with the total under the target");
+    importThrows(null);
+    rigRoll(18);
+    assert.equal((await doors.bashDoor(wall, { actor: skilled, extra: -10 })).success, false, "with nothing imported the target alone decides");
+
+    /* --- the plan's hopelessness counts an automatic success --- */
+    const weak = { strMod: -5 };
+    assert.equal(bplan(weak).hopeless, true, "no roll reaches it and nothing is automatic");
+    importThrows({ autoFailMax: 3, autoSucceedMin: 18 });
+    assert.equal(bplan({ ...weak, proficient: true }).hopeless, false, "a proficient basher's automatic success can");
+    assert.equal(bplan({ ...weak, proficient: true }).needs, 18, "and the die must show its edge");
+    assert.equal(bplan({ ...weak, proficient: false }).hopeless, true, "a basher without the skill has none");
+    importThrows(null);
+
+    /* --- an unimported figure the bash applies leaves it blank, and one it does not apply costs nothing --- */
+    const thrownDice = [];
+    const spyRoll = globalThis.Roll;
+    globalThis.Roll = class extends spyRoll { constructor(f) { super(f); thrownDice.push(f); } };
+    importDoors(null);
+    const bare = await doors.bashDoor(wall, { actor: basher });
+    assert.deepEqual([bare.ok, bare.reason], [false, "missing"], "a bookless world bashes no door");
+    assert.deepEqual(bare.missing, ["bashStrengthFactor", "bashBotchBand", "bashReboundDamage"], "the figures it applies are named");
+    assert.equal(thrownDice.length, 0, "no die is thrown");
+    const blank = await (async () => { const c = await app._prepareContext(); return [c.needs, c.canBash, c.plan.hopeless]; })();
+    assert.deepEqual(blank, [null, false, null], "the window leaves needs blank and the button disabled, not hopeless");
+    assert.deepEqual(doors.bashPlan({ target: TARGET, spikes: 3 }).missing, ["bashSpikePenalty", "bashBotchBand", "bashReboundDamage"]);
+    importDoors({ bashBotchBand: BASH.bashBotchBand, bashReboundDamage: BASH.bashReboundDamage });
+    basher.system.scores.str.mod = 0;
+    assert.equal(doors.bashPlan({ target: TARGET }).ready, true, "a term not in play needs no import: no Strength, no partner, no crowbar, no size, no spike");
+    assert.equal(doors.bashPlan({ target: TARGET, spikes: 1 }).ready, true, "the first spike is free of a penalty");
+    for (const [o, key] of [[{ pair: true }, "bashPairBonus"], [{ crowbar: true }, "bashCrowbarBonus"], [{ sizeSteps: 1 }, "bashSizeBonus"], [{ sizeSteps: -1 }, "bashSizePenalty"], [{ spikes: 2 }, "bashSpikePenalty"], [{ strMod: 1 }, "bashStrengthFactor"]]) {
+      assert.deepEqual(doors.bashPlan({ target: TARGET, ...o }).missing, [key], `${key} applies once its input is in play`);
+    }
+    rigRoll(9);
+    assert.equal((await doors.bashDoor(wall, { actor: basher })).ok, true, "with only the band and the rebound imported a plain bash is thrown");
+    assert.equal((await doors.bashDoor(wall, { actor: basher, crowbar: true })).reason, "missing");
+    assert.deepEqual(await doors.spikeDoor(wall, basher), { ok: false, reason: "missing", missing: ["doorSpikeMax"] }, "no limit imported: no spike is hammered");
+    globalThis.Roll = spyRoll;
+    basher.system.scores.str.mod = 1;
+    importDoors();
+
+    /* --- a creature with no Dungeonbashing throw has no bash, and a null actor none --- */
+    const beast = await ActorMock.create({ name: "Beast", type: "monster", system: { hp: { value: 5, max: 5 }, scores: { str: { mod: 1 } } } });
+    assert.deepEqual([(await doors.bashDoor(wall, { actor: beast })).reason, (await doors.bashDoor(wall, { actor: null })).reason], ["noThrow", "noThrow"]);
+    assert.equal(await doors.bashThrow(null), null);
+
     /* --- a batter charges the basher's formation, and only that one --- */
+    wall.ds = 0; // an earlier bash that succeeded opened it
+    const unpicked = await doors.batterDoor(wall, basher);
+    assert.deepEqual([unpicked.ok, unpicked.reason, wall.ds], [false, "noRow", 0], "a door with no row picked is not battered");
+    await doors.setDoorTraits(wall, { kind: "1:Door A" });
     const unheld = await doors.batterDoor(wall, basher);
     assert.equal(unheld.ok, true);
     assert.equal(unheld.spent, 0, "no formation holds the basher: nothing is spent");
@@ -5692,26 +5821,41 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     await drain();
     const id = onlyFormation().id;
     const plan = doors.batterPlan(wall);
-    assert.ok(plan.ok && plan.turns > 0, "the chosen construction can be battered");
+    assert.deepEqual([plan.ok, plan.count, plan.unit, plan.tool, plan.rounds], [true, 2, "turn", "mattock", 2 * ROUNDS_PER_TURN], "the row's time and tool, as imported");
     const turnsBefore = onlyFormation().clock.turnsTotal;
     wall.ds = 0;
     const r = await doors.batterDoor(wall, basher);
     await drain();
-    assert.equal(r.spent, plan.turns);
-    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + plan.turns, "the formation's clock advanced by the plan's turns");
+    assert.equal(r.spent, plan.rounds);
+    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + plan.count, "the formation's clock advanced by the row's turns");
     assert.equal(wall.ds, 1);
 
     notices.length = 0;
     wall.ds = 0;
     await DoorApp.DEFAULT_OPTIONS.actions.batter.call(app);
     await drain();
-    assert.match(notices.at(-1)[1], new RegExp(`batteredDown.*"turns":${plan.turns}`), "the notice states the turns spent");
-    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.turns);
+    assert.match(notices.at(-1)[1], /batteredDown.*count.*2/, "the notice states the time spent");
+    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.count);
 
-    await doors.setDoorTraits(wall, { kind: "portcullis" });
+    // A row counted in rounds spends rounds, not turns.
+    await doors.setDoorTraits(wall, { kind: "3:Door B" });
+    const roundsPlan = doors.batterPlan(wall);
+    assert.deepEqual([roundsPlan.count, roundsPlan.unit, roundsPlan.tool, roundsPlan.rounds], [5, "round", "adze", 5]);
+    const absRounds = (c) => c.turnsTotal * ROUNDS_PER_TURN + (c.roundsPartial ?? 0);
+    const roundsBefore = absRounds(onlyFormation().clock);
+    wall.ds = 0;
+    const byRounds = await doors.batterDoor(wall, basher);
+    await drain();
+    assert.equal(byRounds.spent, 5, "five rounds are spent");
+    const clock = onlyFormation().clock;
+    assert.equal(absRounds(clock), roundsBefore + 5);
+    assert.equal(clock.turnsTotal, turnsBefore + 2 * plan.count + Math.floor(5 / ROUNDS_PER_TURN), "the round count converts at the turn's length");
+
+    await doors.setDoorTraits(wall, { kind: "2:Door B" });
     const solid = await doors.batterDoor(wall, basher);
-    assert.deepEqual([solid.ok, solid.reason], [false, "tooSolid"], "a construction an axe cannot beat spends nothing");
-    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.turns);
+    assert.deepEqual([solid.ok, solid.reason], [false, "tooSolid"], "a row whose notes give no time spends nothing");
+    assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.count + Math.floor(5 / ROUNDS_PER_TURN));
+    assert.equal((await app._prepareContext()).batter.tooSolid, true, "the window refuses it, naming nothing missing");
 
     await model.disband(model.getFormation(id));
     await drain();

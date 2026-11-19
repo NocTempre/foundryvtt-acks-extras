@@ -111,26 +111,6 @@ Still unbuilt, in likely order:
 |---|---|
 | Route tax: a path's own encounter profile | not built. `routeCost` reports the tax apart from the speed multiplier; the path's encounter profile is not modelled. |
 
-## 6. The door numbers leave the module
-
-`doors.mjs` holds printed values in code: the bash target, the
-Strength, pair, crowbar, size and spike magnitudes, the spike cap, the botch
-damage, and `DOOR_KINDS`, which is RR ch. 6's door grid retyped (with a
-"portcullis" row the books do not print). Ruled content, not structure:
-[DECISIONS.md](DECISIONS.md). Two steps, importer first, since extras cannot
-read a table no world can supply.
-
-| Step | Where | Work |
-|---|---|---|
-| 1 | importer | An RR ch. 6 recipe in `TABLE_RECIPES.formation`, bound by `formation-binding.mjs`: the door grid with `ac` / `shp` columns, the batter-down turns per construction, and the bash modifiers as `from: {pattern}` reads out of the section's prose. Ch. 6 has no register file yet, so the page range is new; the extraction shape is not. |
-| 2 | formation | `doors.mjs` reads its figures through `formationValue`, as `obstacles.mjs` and `swimming.mjs` do. `bashPlan` keeps its shape; only the magnitudes are passed in. |
-
-Without an imported table, bash and batter refuse and say so, while every
-structural door gesture (open, close, lock, spike, unspike, evil doors) keeps
-working. There is no identity value for a missing throw target, and falling
-back on a remembered target would reinstate the value the ruling removes. The
-spike comments in `doors.mjs` (`bashPlan`'s, and `spikeDoor`'s docstring) state the spike magnitudes in prose; they are cleared in the same pass.
-
 ## 6a. What else in formation still holds printed values
 
 A printed value here is imported or dropped under the trap-figures entry in
@@ -140,7 +120,6 @@ worst first:
 
 | Where | What | Note |
 |---|---|---|
-| `party-rolls.mjs` resolver | the Strength factor, read from `doors.mjs` (`BASH_STR_FACTOR`) | The one literal the resolver still reads. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read for the Swimming, Acrobatics, Cat Burglary and Contortionism terms, not a subsystem. |
 | `trap-rules.mjs` `CRUDE` | the crude-trap modifiers (find, remove, attack, save) | Printed in the Judges Journal's trap chapter and no recipe reads them yet. The reaches, the trigger die and band, the botch bands, the methodical bonus and the pit's dice are imported (DECISIONS 2026-11-13). |
 | `formation-model.mjs`, `formation-view.mjs`, `deployment.mjs` | the combat-speed ratio | The exploration-speed bands are read off the system's own movement calculation (`lib/capacity.mjs` `explorationSpeedBearing`), and the blinded share is imported (`blindedSpeedShare`); the combat ratio is not. |
 | `travel.mjs` `rollLandNavigation`, `navigation-card.mjs` | the natural result on which a navigation throw fails whatever the bonus | `navigationProse` reads only the competence bonuses; the failure band needs a window on the same page and a binding read. |
@@ -263,7 +242,7 @@ generic throw register later slices on the turn plan (MODEL, "The turn plan").
 | Not built | What it is | What it needs first |
 |---|---|---|
 | Key and lockpicking at a door | RR ch. 6 names using a key and picking a lock, hasty and methodical, among the turn's activities. The formation has no door-lock procedure: the door helper bashes, batters and spikes, and a container's pick belongs to the equipment feature. | a door-lock resolution (which door, the lockpicking throw through the abilities, what a key is) and the owner's word that the formation owns it. |
-| Battering as a plan choice | Registered with no length: the turns an axe needs are the door's printed figure (`DOOR_KINDS`), so the choice cannot lock. Its resolve also has no door to open. | §6's door import, then a door option per door within reach. |
+| Battering as a plan choice | Registered with no length. The time is the picked door row's, imported (`doors.mjs` `batterPlan`), but a plan entry names no door, so the choice cannot lock, and its resolve has no door to open. | A door option per door within reach. |
 | A door within reach | Bashing in the plan is the party's Dungeonbashing check, as the party check rolls it; no door is named, so the Judge opens the door by hand. | a reader of the doors within reach of the party, like `knownPlacementsNear` for traps, that never lists a secret door to a player. |
 | The wiggle's Contortionism term | A holder's wiggle back is core's Paralysis save, and the ability's situational modifier is applied to it on no seat (the crossing never applies the specification, and a relayed press skips core's dialog), so the tooltip says nothing of it. The squeeze and the push already carry the imported figure. | The granted-modifier read for the Contortionism term (the `party-rolls.mjs` resolver row above, slice S26), then the wiggle takes it once and its tooltip lists it. |
 | Non-living creatures and drowning | A monster with no swim speed throws against its carried load whether or not it breathes; the page says a creature that does not live cannot drown, and no lib reader says which creatures live. | A lib "living" reader over the monster's type and traits, then the swim row reading it so a non-living creature has no throw and is never marked drowning. Nothing is automatic until then: the Judge declines the press. |

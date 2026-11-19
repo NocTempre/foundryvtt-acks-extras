@@ -7,8 +7,8 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-02 — [Three printed figures leave the module; the rest are inventoried (2026-09-02)](DECISIONS-through-v11.14.5.md#three-printed-figures-leave-the-module-the-rest-are-inventoried-2026-09-02)
 - 2026-08-31 — [The day's end is raised by movement and answered by the Judge (2026-08-31)](DECISIONS-through-v11.14.5.md#the-days-end-is-raised-by-movement-and-answered-by-the-judge-2026-08-31)
 - 2026-08-31 — [A city is explored, not administered (2026-08-31)](DECISIONS-through-v11.14.5.md#a-city-is-explored-not-administered-2026-08-31)
-- 2026-08-30 — [The door numbers are content, and move behind the registry (2026-08-30)](DECISIONS-through-v11.14.5.md#the-door-numbers-are-content-and-move-behind-the-registry-2026-08-30)
-- 2026-08-30 — [Strength on a Dungeonbashing throw has one owner (2026-08-30)](DECISIONS-through-v11.14.5.md#strength-on-a-dungeonbashing-throw-has-one-owner-2026-08-30)
+- 2026-08-30 — [The door numbers are content, and move behind the registry (2026-08-30)](DECISIONS-through-v11.14.5.md#the-door-numbers-are-content-and-move-behind-the-registry-2026-08-30) — superseded in part by "2026-11-18 — An unimported door figure leaves bash or batter blank" (the "report that no door table has been imported" clause, the `doors` document route and the bash target as an import)
+- 2026-08-30 — [Strength on a Dungeonbashing throw has one owner (2026-08-30)](DECISIONS-through-v11.14.5.md#strength-on-a-dungeonbashing-throw-has-one-owner-2026-08-30) — qualified 2026-11-18: the factor is imported (`bashStrengthFactor`, RR p. 267) and `bashStrBonus` is still its one reader
 - 2026-08-24 — [2026-08-24 — A trap is a wall PRESET, its marker is its control, and it gets no bucket](DECISIONS-through-v11.14.5.md#2026-08-24--a-trap-is-a-wall-preset-its-marker-is-its-control-and-it-gets-no-bucket)
 - 2026-08-18 — [2026-08-18 — The trap tool hands back the SELECT tool after it draws](DECISIONS-through-v11.14.5.md#2026-08-18--the-trap-tool-hands-back-the-select-tool-after-it-draws)
 - 2026-08-18 — [2026-08-18 — A trap has a hidden stage, and `known` is what carries it](DECISIONS-through-v11.14.5.md#2026-08-18--a-trap-has-a-hidden-stage-and-known-is-what-carries-it)
@@ -668,4 +668,21 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 **Rejected.** Resolving round entries on any counted round: a drag, a fight or a crossing is not a Judge's choice to act on the plan, and the 2026-11-11 reasoning for them stands. Spending the clock inside the resolver: the Round press already spends it, so the resolver would bill the round twice.
 
 **Cost.** The City tab's Round pill shares the `advanceRound` action and so resolves the plan too. An entry a Round press stamped shows as done in the column until the next Turn or Rest drops it, even when further Round presses complete a turn. No activity registered by the formation is round-length; the first is scene search's hasty check.
+
+## 2026-11-18 — An unimported door figure leaves bash or batter blank
+
+**Supersedes** (in part) *The door numbers are content, and move behind the registry (2026-08-30)*: bash and batter "report that no door table has been imported", the `doors` document route, and the bash target as an import. **Evidence:** the template's 2026-11-14 "A field with nothing imported stays blank"; the target is the character's Adventuring throw.
+
+**Ruled.** A bash missing a term it applies is not thrown: needs blank, Bash disabled, tooltip RR p. 267; callers get `{ok: false, missing}`, never "incapable". A door with no imported row shows no batter (RR p. 266). No message says so. A construction no axe beats still refuses.
+
+**Rejected.** A remembered figure. **Cost.** A bookless world bashes no door.
+
+**Built.** (Dungeon close-out slice D2.)
+- *A term applies when its input is in play:* Strength when the basher's modifier is not zero, the pair term with a partner, the crowbar's when ticked, a size term when the steps are not zero (the larger or the smaller figure by sign), the spike penalty for each spike past the first. A term not in play needs no import. The botch band and the rebound apply to every bash, since the die is always rolled, so a bash lacking either is not thrown. `bashPlan` names each missing figure in `missing`; `bashDoor` answers `{ok: false, reason: "missing", missing}` before any die is thrown, and `{ok: false, reason: "noThrow"}` where the actor has no Dungeonbashing throw.
+- *The bash target is the basher's own Dungeonbashing throw* (`resolveCheck`, as `equipment/locks.mjs` `bashOpen` reads it), not a window on RR p. 267 that would give the figure two owners. A creature with no such throw has no bash: the monster passage (MM ch. 3, "Proficiencies for Monsters") gives it an Adventuring-equivalent proficiency and no figure the sheet carries, so the bash is refused with `noThrow` and a character's figure is never lent.
+- *A pair* follows RR p. 267 as printed (owner, 2026-11-18: "Follow raw"): the basher throws at their own target, and the partner contributes the one Strength term and the pair term the page names for a pair, nothing more. No combination of the two throws is invented.
+- *Required before any bash:* the botch band and the rebound, since the die is always rolled; the owner may reverse it (two lines in `bashPlan`).
+- *A botch is a failure.* A natural result in the band whose total reaches the target is a success and costs nothing, since the page's botch is a failed throw; with `throws` unimported the target alone decides. This is this slice's reading of the order "natural die, band, target".
+- *Spiking* with no `doorSpikeMax` imported hammers nothing. A Strength-scaled party check missing the factor is reported as not thrown, never as incapable.
+- *API:* `api.formation.doors` loses `BASH_TARGET`, `BASH_STR_FACTOR`, `DOOR_KINDS` and `MAX_SPIKES`, and gains `maxSpikes()`, `bashStrFactor()`, `bashBotchBand()`, `bashReboundDamage()`, `doorRows()`, `doorRow()`, `doorKey()` and `bashThrow()`. `bashPlan` takes the target and returns `ready`, `missing` and `needs`; `batterPlan` and `batterDoor` count `count`, `unit`, `tool` and `rounds` where they returned `turns`. `apiVersion` 35. The namespace's own policy calls a removal a major of the module, which this note does not declare: it is the owner's.
 

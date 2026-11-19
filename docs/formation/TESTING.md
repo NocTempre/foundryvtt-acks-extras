@@ -271,28 +271,52 @@ it covers; a section no walk names is walked by hand.
     `formation/steps-stranger` (token `formation/steps-stranger-token`) in no
     formation. At the step's start both doors are written closed (`ds: 0`)
     with the `door` flag unset, both characters' hit points set to 6, and the
-    party's record brought to a new record's shape. Select the door on the Walls layer, select the first
-    character's token, and press the **ACKS door actions** tool.
-    - *Construction.* Pick another construction in the select.
+    party's record brought to a new record's shape. The step seeds INVENTED
+    door figures, never a page's: the `formation` document registered at world
+    priority (`H.m.tables.registerTable`, source `formation-steps`) with
+    `doors` rows (one counted in turns with an invented tool word, one counted
+    in rounds, one with no time, two sharing a label) and the nine bash figures
+    (Strength factor, pair, crowbar, size up and down, spike penalty and limit,
+    botch band, rebound), each different from every printed figure, and the
+    first character's Adventuring Dungeonbashing figure set to an invented
+    target; it unregisters them at the end. Select the door on the Walls layer,
+    select the first character's token, and press the **ACKS door actions**
+    tool (Scene controls → Walls).
+    - *Construction.* Read the select with the grid imported: its first option
+      is the unset choice, selected, and the **Batter** fieldset shows no
+      time and no hint. Pick a row in the select.
       *Observable:* re-read `wall.flags["acks-extras"].door.kind` from the
-      document (not the DOM) and see the new value; the **Turns with an axe**
-      figure follows it, and a construction an axe cannot beat shows the
-      "will not do it" hint in place of the button.
+      document (not the DOM): it is the row's key, `<ordinal>:<label>`. The
+      **Time to batter down** line shows the row's count, unit and tool word as
+      imported, and the row with no time shows the "no battering time" hint in
+      place of the button. Write an older kind name (`ironBanded`) into the
+      flag by hand: the select reads unset and `doorState(wall).kind` is null.
+    - *Blanked.* Unregister the `formation` figures. Re-open the window.
+      *Observable:* the **Needs a roll of** figure is blank, **Heave** is
+      disabled and not styled as hopeless, the Construction select lists only
+      the unset choice, and the tooltips on the throw and on the Batter
+      fieldset carry RR p. 267 and RR p. 266. Register only the botch band and
+      the rebound: with no Strength modifier, no partner, no crowbar and no
+      size step the figure and the button return; ticking **Crowbar in hand**
+      blanks them again.
     - *Marks.* Tick **Evil**, then **Lock jammed**, then untick **Evil**.
       *Observable:* the wall's `door.evil` and `door.jammed` flags read
       `false`/`true` after the last change, and `api.doors.doorState(wall)`
       returns the same; the spikes count is unchanged by each write.
     - *Botch.* Rig the d20 to show a 1 (the dice rig reads from the top; probe
       one roll after rigging) and press **Heave**.
-      *Observable:* the card carries a "Damage to {name}" line and the
-      "reported, not applied" note; the character's hit points are unchanged.
-      An ordinary miss carries neither line.
-    - *Batter.* On a construction an axe can beat, read
+      *Observable:* the card carries a "Damage to {name}" line with the
+      imported rebound and the "reported, not applied" note; the character's
+      hit points are unchanged. An ordinary miss carries neither line. The card
+      shows the character's own target (the invented figure) and the total as
+      the die plus the imported Strength term.
+    - *Batter.* On the row counted in turns, read
       `getFormations()[id].clock.turnsTotal`, press **Batter it down** with the
       formation's member selected.
-      *Observable:* `turnsTotal` rose by exactly the turns the button showed,
+      *Observable:* `turnsTotal` rose by exactly the count the line showed,
       a turn card posted, the wall's `ds` reads 1, and
-      the notification names the turns and the formation. Repeat with the
+      the notification names the time and the formation. On the row counted in
+      rounds the clock rises by those rounds. Repeat with the
       unformed character selected on the second door.
       *Observable:* the door opens, no clock moved, and the notification says
       no formation holds the basher.

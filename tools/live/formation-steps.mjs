@@ -365,7 +365,8 @@ const P = {
     const el = H.root(foundry.applications.instances.get("acks-extras-door"));
     const axe = el ? [...el.querySelectorAll("fieldset")].at(-1) : null;
     const fig = axe?.querySelector("p strong")?.textContent.trim() ?? null;
-    const kind = D.DOOR_KINDS[state.kind];
+    const row = D.doorRow(state.kind);
+    const kind = row ? { batter: row.batter ? game.i18n.format("ACKS-FORMATION.doors.batterLine", { count: row.batter.count, unit: game.i18n.localize(`ACKS-FORMATION.doors.unit.${row.batter.unit}`), tool: row.batter.tool }) : null } : null;
     return {
       flag: { kind: flag.kind ?? null, evil: flag.evil ?? null, jammed: flag.jammed ?? null, spikes: flag.spikes ?? null },
       stateMatchesFlag: state.kind === (flag.kind ?? state.kind) && state.evil === !!flag.evil && state.jammed === !!flag.jammed,
@@ -375,7 +376,7 @@ const P = {
       jammedBox: el?.querySelector('input[name="jammed"]')?.checked ?? null,
       axeBeats: kind?.batter != null,
       batterButton: !!axe?.querySelector('[data-action="batter"]'),
-      figureFollows: kind?.batter != null && fig === String(kind.batter),
+      figureFollows: kind?.batter != null && fig === kind.batter,
       tooSolidShown: axe?.querySelector(".hint")?.textContent.trim() === game.i18n.localize("ACKS-FORMATION.doors.tooSolid"),
     };
   },
@@ -390,6 +391,32 @@ const P = {
     input.dispatchEvent(new Event("change", { bubbles: true }));
     await H.sleep(1500);
     return { found: true };
+  },
+
+  /**
+   * Register (or retire) INVENTED door figures, as an import registers them, and
+   * give the basher an invented Dungeonbashing figure. None is a page's.
+   */
+  doorSeed: async ({ actorId, on }) => {
+    const H = globalThis.__d;
+    const T = H.m.tables;
+    T.unregisterTable("formation", { priority: 30 });
+    if (on) {
+      T.registerTable({
+        id: "formation",
+        tables: {
+          doors: [
+            { ordinal: 1, label: "Door A", batter: { count: 2, unit: "turn", tool: "mattock" } },
+            { ordinal: 2, label: "Door B", batter: null },
+            { ordinal: 3, label: "Door B", batter: { count: 5, unit: "round", tool: "adze" } },
+          ],
+          bashStrengthFactor: 3, bashPairBonus: 5, bashCrowbarBonus: 7, bashSizeBonus: 6, bashSizePenalty: 9,
+          bashSpikePenalty: 11, doorSpikeMax: 6, bashBotchBand: 2, bashReboundDamage: 3,
+        },
+      }, { priority: 30, source: "formation-steps" });
+    }
+    await game.actors.get(actorId).update({ "system.adventuring.dungeonbashing": 15 });
+    return { on: !!on };
   },
 
   doorPlace: async () => {
@@ -434,7 +461,7 @@ const P = {
     const app = foundry.applications.instances.get("acks-extras-door");
     const el = H.root(app);
     const axe = [...el.querySelectorAll("fieldset")].at(-1);
-    const shown = Number(axe.querySelector("p strong")?.textContent);
+    const shown = Number.parseInt(axe.querySelector("p strong")?.textContent, 10);
     const turns = () => Object.fromEntries(watch.map((id) => [id, H.formation(id)?.clock?.turnsTotal ?? 0]));
     const before = turns();
     const w0 = game.time.worldTime;
@@ -447,9 +474,11 @@ const P = {
     const notes = H.takeNotes();
     const after = turns();
     const f = fid ? H.formation(fid) : null;
+    // The walk batters the row counted in turns, so the time the notice names is `shown` turns.
+    const time = game.i18n.format("ACKS-FORMATION.doors.batterTime", { count: shown, unit: game.i18n.localize("ACKS-FORMATION.doors.unit.turn") });
     const expect = fid
-      ? game.i18n.format("ACKS-FORMATION.doors.batteredDown", { turns: shown, formation: f?.name })
-      : game.i18n.format("ACKS-FORMATION.doors.batteredNoClock", { turns: shown });
+      ? game.i18n.format("ACKS-FORMATION.doors.batteredDown", { time, formation: f?.name })
+      : game.i18n.format("ACKS-FORMATION.doors.batteredNoClock", { time });
     const wall = game.scenes.get(sceneId).walls.get(wallId);
     const msgs = H.mine(t0);
     return {
@@ -1118,16 +1147,19 @@ try {
   const tBasher = await partyToken("formation/steps-basher-token", basher.id, s1, { x: 400, y: 250 });
   const tStranger = await partyToken("formation/steps-stranger-token", stranger.id, s1, { x: 800, y: 250 });
 
+  note("invented door figures imported, the basher's Dungeonbashing figure set", await run(gm, P.doorSeed, { actorId: basher.id, on: true }));
   let r = await run(gm, P.doorOpen, { wallId: door1.id, tokenId: tBasher.id });
   check("the door tool opens the dialog on the selected door, heaving with the selected token", r.controlled && r.tool && r.open && r.wallMatches && r.tokenControlled && r.basher && r.nameShown, r);
 
-  await run(gm, P.doorInput, { name: "kind", value: "wood" });
   r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
-  check("Construction: the choice is written to the door and the axe figure follows it", r.flag.kind === "wood" && r.select === "wood" && r.batterButton && r.figureFollows, { flagKind: r.flag.kind, select: r.select, batterButton: r.batterButton, figureFollows: r.figureFollows });
-  await run(gm, P.doorInput, { name: "kind", value: "iron" });
+  check("Construction: a door with no row picked reads unset and shows no batter", r.select === "" && !r.batterButton && !r.tooSolidShown, { select: r.select, batterButton: r.batterButton });
+  await run(gm, P.doorInput, { name: "kind", value: "1:Door A" });
   r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
-  check("Construction: a door an axe cannot beat shows why in place of the button", r.flag.kind === "iron" && !r.axeBeats && !r.batterButton && r.tooSolidShown, { flagKind: r.flag.kind, batterButton: r.batterButton, tooSolidShown: r.tooSolidShown });
-  await run(gm, P.doorInput, { name: "kind", value: "wood" });
+  check("Construction: the row's key is written to the door and the time and tool follow it", r.flag.kind === "1:Door A" && r.select === "1:Door A" && r.batterButton && r.figureFollows, { flagKind: r.flag.kind, select: r.select, batterButton: r.batterButton, figureFollows: r.figureFollows });
+  await run(gm, P.doorInput, { name: "kind", value: "2:Door B" });
+  r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
+  check("Construction: a row with no time shows why in place of the button", r.flag.kind === "2:Door B" && !r.axeBeats && !r.batterButton && r.tooSolidShown, { flagKind: r.flag.kind, batterButton: r.batterButton, tooSolidShown: r.tooSolidShown });
+  await run(gm, P.doorInput, { name: "kind", value: "1:Door A" });
   r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
   const spikes0 = r.spikes;
 
@@ -1151,10 +1183,10 @@ try {
   r = await run(gm, P.doorBash, { face: 1, actorId: basher.id });
   await trackAll(r.uuids);
   check("Botch: a natural 1 posts the rebound line and the reported-not-applied note; hit points unchanged", r.rigOk && r.card && r.damageLine && r.reportedNote && r.hpUnchanged, r);
-  const miss = await run(gm, P.doorBash, { face: 2, actorId: basher.id });
+  const miss = await run(gm, P.doorBash, { face: 5, actorId: basher.id });
   await trackAll(miss.uuids);
   if (miss.missPossible) check("Botch: an ordinary miss carries neither line", miss.rigOk && miss.card && !miss.damageLine && !miss.reportedNote, miss);
-  else note("ordinary miss not walked", "the basher's throw makes a 2; no miss is possible");
+  else note("ordinary miss not walked", "the basher's throw makes a 5; no miss is possible");
   r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
   check("the heaves left the door closed", r.ds === 0, { ds: r.ds });
 
@@ -1169,6 +1201,7 @@ try {
   await trackAll(r.uuids);
   clockMoves += r.worldTimeDelta;
   check("Batter, no formation: the door opens, no clock moved, the notice says no formation holds the basher", r.ds === 1 && r.othersStill && r.noteOk && r.worldTimeDelta === 0, r);
+  note("invented door figures retired", await run(gm, P.doorSeed, { actorId: basher.id, on: false }));
   await run(gm, P.closeAll);
 
   /* ---------------------------------------------------------------- */

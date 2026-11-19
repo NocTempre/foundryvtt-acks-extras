@@ -893,7 +893,7 @@ await ok("a swimmer who has thrown this round has no throw left, for every seat;
 
 // ---- the squeeze ------------------------------------------------------------
 /** Invented figures for the squeeze; the printed ones arrive through the importer. */
-const SQUEEZE = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2 };
+const SQUEEZE = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2, bashStrengthFactor: 5 };
 const loadSqueeze = (tables = SQUEEZE) => {
   resetTables();
   if (tables) registerTable({ id: FORMATION_DOC, source: "invented", tables }, { priority: PRIORITY.WORLD, source: "test" });
@@ -933,6 +933,19 @@ await ok("the push takes Strength through the one Dungeonbashing definition, on 
   assert.equal(none.escape.push.target - strong.escape.push.target, bashStrBonus(2), "the push takes the bash's Strength");
   assert.equal(none.escape.push.target - weak.escape.push.target, bashStrBonus(-1));
   assert.deepEqual(strong.escape.push.parts.find((p) => p.key === "strength"), { key: "strength", value: -bashStrBonus(2), mod: 2 });
+  assert.deepEqual([strong.target, strong.escape.wiggle.target], [none.target, none.escape.wiggle.target], "the squeezing throw and the wiggle read none of it");
+  assert.equal(bashStrBonus(2), 10, "the imported factor, never a figure of the file's own");
+});
+
+await ok("a push with a Strength modifier and no imported factor has no target, a zero modifier needs none, and the squeeze and the wiggle are unaffected", () => {
+  loadSqueeze({ ...SQUEEZE, bashStrengthFactor: undefined });
+  const row = (strMod) => squeezeRow({ encumbrance: 5, shape: "chokepoint", pushFigure: basher, save: cell, strMod, member: stuckRecord(), seat: JUDGE });
+  const [none, strong] = [row(0), row(2)];
+  assert.equal(bashStrBonus(0), 0, "a zero modifier asks nothing of the import");
+  assert.equal(bashStrBonus(2), null, "a modifier that applies reads null, not a default");
+  assert.notEqual(none.escape.push.target, null, "a modifier of zero still has a target");
+  assert.equal(strong.escape.push.target, null, "the push is blank");
+  assert.equal(strong.escape.push.can, false, "and refused");
   assert.deepEqual([strong.target, strong.escape.wiggle.target], [none.target, none.escape.wiggle.target], "the squeezing throw and the wiggle read none of it");
 });
 

@@ -5,7 +5,8 @@ import { postToJudges } from "../lib/roll-audience.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { itemHasCapability, overrideFor } from "./ability-bridge.mjs";
 import { getMemberActor, hasAbility, isDown, isHurried, updateFormation } from "./formation-model.mjs";
-import { BASH_STR_FACTOR, bashStrBonus } from "./doors.mjs";
+import { bashStrBonus, bashStrFactor } from "./doors.mjs";
+import { isAutoFail, isAutoSucceed } from "../lib/throws.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -82,7 +83,7 @@ export const PARTY_CHECKS = Object.freeze({
     icon: "fa-door-open",
     advKey: "dungeonbashing",
     pattern: /dungeon\s*bash|open\s*doors?\b|force\s*open/i,
-    strScaled: true, // Strength counts at BASH_STR_FACTOR per point (doors.mjs owns the factor)
+    strScaled: true, // Strength counts at the imported factor per point (doors.mjs owns the factor)
     note: "ACKS-FORMATION.rolls.bashNote",
   },
   /*
@@ -340,11 +341,16 @@ export function boundChecks(item) {
  * The one place a member's party-check throw is made, so the party card and the
  * audit's roll cannot disagree about a target.
  *
+ * The natural die is read before the total: a proficient member's automatic
+ * success and an automatic failure (`lib/throws.mjs`, each absent until
+ * imported) decide the throw, and otherwise the total against the target does.
+ *
  * @param {Actor} actor
  * @param {object} cfg a `PARTY_CHECKS` entry
- * @returns {Promise<{roll: Roll, check: object, row: {name: string, total: number, target: number, source: string, sourceTip: string, success: boolean}}|null>}
- *   null when the member cannot attempt the check; `source` is the card's
- *   detail line and `sourceTip` the same with the page each part cites
+ * @returns {Promise<{roll: Roll, check: object, row: {name: string, total: number, target: number, source: string, sourceTip: string, success: boolean}}|{roll: null, check: object, row: null, missing: string[]}|null>}
+ *   null when the member cannot attempt the check; `missing` names the imported
+ *   figure a bash needs and does not have, and nothing is rolled; `source` is the
+ *   card's detail line and `sourceTip` the same with the page each part cites
  */
 export async function rollCheckFor(actor, cfg) {
   const check = resolveCheck(actor, cfg, { auto: true });
@@ -358,11 +364,20 @@ export async function rollCheckFor(actor, cfg) {
     };
   }
   let bonus = check.bonus;
-  if (cfg.strScaled) bonus += bashStrBonus(abilityMod(actor, "str"));
+  if (cfg.strScaled) {
+    const strength = bashStrBonus(abilityMod(actor, "str"));
+    if (strength == null) return { roll: null, check, row: null, missing: ["bashStrengthFactor"] };
+    bonus += strength;
+  }
   const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
   const roll = await new Roll(formula).evaluate();
-  const strPart = cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×${BASH_STR_FACTOR}`] : [];
+  const factor = bashStrFactor();
+  const strPart = cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR${factor == null ? "" : `×${factor}`}`] : [];
   const breakdown = (check.parts ?? []).map(partText).concat(strPart).join(", ");
+  const natural = roll.dice?.[0]?.results?.[0]?.result;
+  const success = isAutoSucceed(natural, { proficient: check.skilled }) === true
+    ? true
+    : isAutoFail(natural) === true ? false : roll.total >= check.target;
   return {
     roll,
     check,
@@ -372,7 +387,7 @@ export async function rollCheckFor(actor, cfg) {
       target: check.target,
       source: breakdown ? `${check.source}; ${breakdown}` : check.source,
       sourceTip: citedSource(check, strPart),
-      success: roll.total >= check.target,
+      success,
     },
   };
 }
@@ -435,6 +450,7 @@ export async function rollPartyCheck(formation, checkKey, { only = null, spend =
   const rows = [];
   const rolls = [];
   const incapable = [];
+  const unthrown = [];
   for (const member of formation.members) {
     if (only && !only.includes(member?.actorId)) continue;
     const actor = getMemberActor(member);
@@ -444,12 +460,19 @@ export async function rollPartyCheck(formation, checkKey, { only = null, spend =
       incapable.push(actor.name);
       continue;
     }
+    // A figure the check needs is not imported: the member is not one who cannot attempt it.
+    if (rolled.missing) {
+      unthrown.push(actor.name);
+      continue;
+    }
     if (rolled.roll) rolls.push(rolled.roll);
     rows.push(rolled.row);
   }
 
   if (!rows.length) {
-    ui.notifications.warn(loc("rolls.nobodyCapable", { check: game.i18n.localize(cfg.label) }));
+    ui.notifications.warn(unthrown.length
+      ? loc("rolls.notThrown", { names: unthrown.join(", ") })
+      : loc("rolls.nobodyCapable", { check: game.i18n.localize(cfg.label) }));
     return 0;
   }
 
@@ -470,7 +493,10 @@ export async function rollPartyCheck(formation, checkKey, { only = null, spend =
         })),
       },
     ],
-    footnote: incapable.length ? loc("rolls.notCapable", { names: incapable.join(", ") }) : undefined,
+    footnote: [
+      incapable.length ? loc("rolls.notCapable", { names: incapable.join(", ") }) : null,
+      unthrown.length ? loc("rolls.notThrown", { names: unthrown.join(", ") }) : null,
+    ].filter(Boolean).join(" ") || undefined,
   });
 
   await postToJudges({ content: html, rolls, speaker: { alias: formation.name } });
