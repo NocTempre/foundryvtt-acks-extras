@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import {
-  DRAW_REQUEST, cardRows, entryOf, fallenOf, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
+  DRAW_REQUEST, cardRows, entryOf, fallenOf, heldDraw, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
   normalizeRecord, openedNow, planTakeOff, recordOf, specOfResult, uuidOfLink,
 } from "../scripts/treasure/search-logic.mjs";
 
@@ -231,6 +231,18 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
   let asked = 0;
   planTakeOff({ carried, order: ["zz"], exists: () => (asked++, true) });
   eq(asked, 0, "a card not in the pot never asks the world");
+}
+
+{
+  // A body's linked table is rolled once per card: a later press reuses what the first drew.
+  const cup = { kind: "item", name: "Tin cup" };
+  eq(heldDraw(null, "c1"), null, "a card with no record has drawn nothing");
+  eq(heldDraw({}, "c1"), null, "a record with no draws has drawn nothing");
+  eq(heldDraw({ drawnBy: { c2: [cup] } }, "c1"), null, "another body's draw is not this body's");
+  eq(heldDraw({ drawnBy: { c1: [cup] } }, "c1"), [cup], "the body's own draw is reused");
+  eq(heldDraw({ drawnBy: { c1: [] } }, "c1"), [], "a draw that dealt no item is still a draw: it is not rolled again");
+  eq(heldDraw({ drawnBy: { c1: [cup, null, "x", [1]] } }, "c1"), [cup], "only card truths are reused");
+  eq(heldDraw({ drawnBy: { c1: "x" } }, "c1"), null, "a malformed entry is no draw");
 }
 
 console.log(`test-treasure-search: ${checks} checks passed`);

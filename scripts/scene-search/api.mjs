@@ -69,7 +69,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord, an
     const drawn = {};
     if (fight && !Array.isArray(sources) && drawTable) {
       for (const body of fight.fallen) {
-        if (body.combatantId && body.tableUuid) drawn[body.combatantId] = await drawTable({ messageId: recordMessageId, name: String(body.name ?? ""), tableUuid: body.tableUuid });
+        if (body.combatantId && body.tableUuid) drawn[body.combatantId] = await drawTable({ messageId: recordMessageId, combatantId: body.combatantId, name: String(body.name ?? ""), tableUuid: body.tableUuid });
       }
     }
     const found = fight ? bodiesFromRecord(fight, { drawn }) : { bodies: [], sources: [] };

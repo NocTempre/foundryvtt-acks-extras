@@ -473,7 +473,7 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   const draws = [];
   const withTable = createSceneSearchApi({ plan, request: async () => null, drawTable: async (draw) => (draws.push(draw), [truth("Drawn cup")]) });
   const tabled = await withTable.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m2", metInLair: true });
-  eq(draws, [{ messageId: "m2", name: "Gnoll", tableUuid: "RollTable.t1" }], "only a body with a linked table is drawn, from the card its record is on");
+  eq(draws, [{ messageId: "m2", combatantId: "c2", name: "Gnoll", tableUuid: "RollTable.t1" }], "only a body with a linked table is drawn, from the card its record is on, named by its combatant so a later press reuses the draw");
   eq(tabled.session.lots.map((l) => l.key), ["body:c2/1", "body:c2/2", "body:c3/1"], "what the table dealt follows the goods the body carried");
   await withTable.end("f1");
   draws.length = 0;

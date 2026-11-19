@@ -28,6 +28,20 @@ export const DRAW_REQUEST = Object.freeze({ displayChat: false });
 
 const text = (v) => (typeof v === "string" ? v.trim() : "");
 
+/**
+ * The truths a fallen creature's linked table already drew for this card
+ * (`drawnBy[combatantId]` on the card's raw record), or null where it has not
+ * been drawn. A press after a refused open reuses them, so a table is rolled
+ * once per card however many presses reach the draw.
+ * @param {object|null} flag the card's raw record flag
+ * @param {string} combatantId
+ * @returns {object[]|null}
+ */
+export function heldDraw(flag, combatantId) {
+  const held = flag?.drawnBy?.[combatantId];
+  return Array.isArray(held) ? held.filter((t) => t !== null && typeof t === "object" && !Array.isArray(t)) : null;
+}
+
 /** Whether `disposition` is the hostile one. `hostile` is the system's constant, passed in. */
 export const isHostile = (disposition, hostile) => disposition != null && hostile != null && disposition === hostile;
 

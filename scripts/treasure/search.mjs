@@ -24,7 +24,7 @@ import { acksExtras } from "../namespace.mjs";
 import { LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
 import { findPot, potOf, truthsFromItem } from "./pot.mjs";
 import {
-  DRAW_REQUEST, SEARCH_FLAG, cardRows, entryOf, fallenOf, isNaturalWeapon, needsTakeOff, normalizeRecord, openedNow, planTakeOff, recordOf, specOfResult,
+  DRAW_REQUEST, SEARCH_FLAG, cardRows, entryOf, fallenOf, heldDraw, isNaturalWeapon, needsTakeOff, normalizeRecord, openedNow, planTakeOff, recordOf, specOfResult,
 } from "./search-logic.mjs";
 
 const loc = makeLoc(LANG);
@@ -119,16 +119,23 @@ async function drawTables(draws) {
  * Draw one fallen creature's linked table quietly, for the scene search that
  * is opening from a card. A result that points at an item is made into the
  * truths of its cards; a result that is only text is kept on the card for the
- * Judge to read (the card's `drawnText`, shown by its render hook).
- * @param {{messageId: string|null, name: string, tableUuid: string}} draw the card the record is on, the creature, and its table
+ * Judge to read (the card's `drawnText`, shown by its render hook). The truths
+ * are kept on the card by combatant, and a later press for the same body takes
+ * them from there without rolling again (`heldDraw`).
+ * @param {{messageId: string|null, combatantId?: string|null, name: string, tableUuid: string}} draw the card the record is on, the fallen's combatant, the creature, and its table
  * @returns {Promise<object[]>} the truths the table dealt
  */
-export async function drawFallenTable({ messageId, name, tableUuid }) {
-  const drawn = await drawTables([{ name, tableUuid, request: { ...DRAW_REQUEST } }]);
+export async function drawFallenTable({ messageId, combatantId = null, name, tableUuid }) {
   const message = messageId ? game.messages?.get(messageId) : null;
-  if (message && drawn.lines.length) {
-    const held = normalizeRecord(message.flags?.[MODULE_ID]?.[SEARCH_FLAG]).drawnText;
-    await message.update({ [`flags.${MODULE_ID}.${SEARCH_FLAG}.drawnText`]: [...held, ...drawn.lines] });
+  const flag = message?.flags?.[MODULE_ID]?.[SEARCH_FLAG] ?? null;
+  const held = combatantId ? heldDraw(flag, combatantId) : null;
+  if (held) return held;
+  const drawn = await drawTables([{ name, tableUuid, request: { ...DRAW_REQUEST } }]);
+  if (message) {
+    const update = {};
+    if (combatantId) update[`flags.${MODULE_ID}.${SEARCH_FLAG}.drawnBy.${combatantId}`] = drawn.truths;
+    if (drawn.lines.length) update[`flags.${MODULE_ID}.${SEARCH_FLAG}.drawnText`] = [...normalizeRecord(flag).drawnText, ...drawn.lines];
+    if (Object.keys(update).length) await message.update(update);
   }
   return drawn.truths;
 }

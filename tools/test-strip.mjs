@@ -519,6 +519,8 @@ const stripOf = (id) => {
     String(key) + (options?.hash && Object.keys(options.hash).length ? JSON.stringify(options.hash) : ""));
   hb.registerHelper("checked", (v) => (v ? "checked" : ""));
   hb.registerHelper("eq", (a, b) => a === b);
+  // Core's `or`: true when any argument before the options hash is truthy.
+  hb.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
   for (const path of [
     "formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-crossing.hbs", "formation/formation-cell.hbs", "formation/formation-country-card.hbs",
     "formation/formation-country.hbs", "formation/formation-plate.hbs", "lib/station-chip.hbs",
