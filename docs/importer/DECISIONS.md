@@ -2737,6 +2737,8 @@ read test). 2026-10-28's rule about WHICH books a seat may read. 2026-11-10's
 delete licence, now asked of verified. 2026-11-13's OCR ruling, its bytes
 fetched from the handle's path.
 
+**Timing.** The owner: "In the minor". The minor waits for S1 to S4.
+
 *Rejected:* opening at join and closing after (the fetch is the cost);
 keeping T-0675's re-check in `restoreShelf` (the pass has no await, so no
 other path can open a book while it runs); a handle that is verified by
@@ -2823,6 +2825,19 @@ in whatever order earlier reads left, so the file would differ per seat); a
 HEAD mismatch that falls back to a live open (the file at that path is not the
 one that was parsed, and the pointer would go on naming a stale parse); a
 background backfill (the owner: "On first read").
+
+Also rejected, from the plan's list: the text held in world documents, a
+compendium, or flags (the pointer is the only flag); IndexedDB (a store per
+browser, so it cannot give one parse to every GM seat); decoding every page's
+images (the file holds text and placement boxes, and pictures stay live);
+parsing a book that is not shelved, or uploading one a seat holds unstaged
+(`srcOf` answers null for it); a refused upload as a lock (each attempt's file
+name is unique); parsing at join (S1).
+
+*Against stopping at S1, nothing persisted:* the gains of the saved file recur
+every session. Each book touched would otherwise cost a 52 to 103 MB fetch and
+open, a hire reads 7 MB, table scans run in memory, and one
+parse serves every GM seat.
 
 *Costs.*
 - Stale parse files pile up: Foundry has no delete and never overwrites a
@@ -2923,6 +2938,7 @@ server (N) · X stale · Y refused".
 - **Cost.** A Prepared book whose file was deleted reads Prepared until something
   touches it. A Stale or Prepared book read again leaves its old saved file on
   the server, since Foundry deletes none.
+- The owner, on the Books tab: "Add state + control".
 - Rejected: time and user on the pointer ("When and by whom"); a HEAD for every
   row when the tab opens.
 
