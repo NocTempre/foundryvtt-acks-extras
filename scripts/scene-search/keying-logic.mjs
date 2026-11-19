@@ -269,9 +269,10 @@ export function railOf(entry, entries, { names, proficiencies = [], nameOfRef = 
 /* -------------------------------------------- */
 
 /** One layer's line in a row: how it is made and what it holds. */
-function summaryLine(entry, name, t) {
+function summaryLine(entry, name, t, labelOf) {
   const layer = entry.layers[name];
-  const how = layer.check === CHECK.SKILL ? t(`${ROOT}summary.skill`, { name: String(layer.capability ?? "").replace(/^kw:/i, "") || t(`${ROOT}summary.unnamed`) }) : t(`${ROOT}summary.${layer.check}`);
+  const label = layer.capability ? String(labelOf?.(layer.capability) ?? "").trim() || String(layer.capability).replace(/^kw:/i, "") : "";
+  const how = layer.check === CHECK.SKILL ? t(`${ROOT}summary.skill`, { name: label || t(`${ROOT}summary.unnamed`) }) : t(`${ROOT}summary.${layer.check}`);
   const parts = [how];
   if (layer.yields.clue) parts.push(t(`${ROOT}summary.clue`));
   if (layer.yields.reveal.length) parts.push(t(`${ROOT}summary.reveal`, { n: layer.yields.reveal.length }));
@@ -298,9 +299,12 @@ function flagOf(entry, t) {
  * @param {object[]} entries every entry of the place
  * @param {Map<string, string>} names the plate name of each entry, by key
  * @param {(key: string, data?: object) => string} t the words
+ * @param {(token: string) => string} [labelOf] a capability token's label, for a
+ *   proficiency check's summary; without one, or where it answers nothing, the
+ *   token's own word stands
  * @returns {{things: object[], derived: object[]}}
  */
-export function tabOf(entries, names, t) {
+export function tabOf(entries, names, t, labelOf = null) {
   const row = (entry) => ({
     key: entry.key,
     kindWord: t(`${KIND}${entry.kind}`),
@@ -309,7 +313,7 @@ export function tabOf(entries, names, t) {
     hidden: entry.hidden,
   });
   return {
-    things: entries.filter((e) => e.source === "thing").map((e) => ({ ...row(e), summary: LAYER_NAMES.map((name) => summaryLine(e, name, t)).join(" · ") })),
+    things: entries.filter((e) => e.source === "thing").map((e) => ({ ...row(e), summary: LAYER_NAMES.map((name) => summaryLine(e, name, t, labelOf)).join(" · ") })),
     derived: entries.filter((e) => e.source === "door" || e.source === "oldTrap").map(row),
   };
 }

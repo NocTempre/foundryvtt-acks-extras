@@ -216,6 +216,13 @@ const layerOf = (list, id, name) => normalizeThings(list).find((x) => x.id === i
   eq(tab.derived[1].flag, "ACKS-LOCATION.sceneSearch.keying.flag.secretDoor", "a hidden exit's flag says it");
   ok(tab.things[0].summary.includes("summary.layer"), "a row summarises both layers");
   eq(tabOf([], new Map(), t), { things: [], derived: [] }, "a place with nothing keyed lists nothing");
+
+  // A proficiency check's summary names the proficiency by its label, falling back to the token's word.
+  const skilled = sceneEntries({ things: [thing({ id: "s", layers: { hasty: { check: "skill", capability: "kw:oldlore" } } })] });
+  const named = (labelOf) => tabOf(skilled, new Map(), t, labelOf).things[0].summary;
+  const labelled = named((token) => (token === "kw:oldlore" ? "Old Lore" : ""));
+  ok(labelled.includes("Old Lore") && !labelled.includes("oldlore"), "the summary names a proficiency by its label");
+  ok(named(() => "").includes("oldlore") && named(null).includes("oldlore"), "with no label the token's word stands");
 }
 
 console.log(`test-scene-keying: OK (${checks} checks — the lib op over the authored half, each rail field's write, the dealt-lot guard, behind a clue and its loop guard, the rail's model and the Things here tab's lists)`);

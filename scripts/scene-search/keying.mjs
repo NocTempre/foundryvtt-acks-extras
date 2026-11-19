@@ -115,7 +115,7 @@ export async function prepareKeyingTab(sheet, context) {
   const place = sheet.actor;
   const entries = sceneEntries({ things: thingsOf(place), ...derivedInputs(place, sceneOfPlace(place)) });
   const names = plateNamesOf(entries);
-  const tab = tabOf(entries, names, say);
+  const tab = tabOf(entries, names, say, capabilityLabel);
   const key = tab.things.some((row) => row.key === opened.get(sheet)) ? opened.get(sheet) : null;
   context.keying = {
     ...tab,
