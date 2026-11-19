@@ -499,3 +499,13 @@ level 1 matrix, LOCAL-ONLY.
 - **Next slice:** C1, the gnosis prose figures, under
   `scripts/importer/books/bta/`. C4 waits on the spell-effects line's word;
   C5 and C6 wait on R5 and the /design approval.
+
+### Results, deferral (2026-11-19)
+
+- **Owner, relayed:** "BtA magic can get defered as simply needs more work
+  later, mostly concerned about RR completion". C1, C4, C5, C6, B6 and B7
+  are out of the next minor; what has landed (B1-B5, C2, C3) ships with it,
+  read by no surface beyond the Casting tab's Level cap. The /design canvas
+  (version 1794984538-829c, no placeholder art) awaits the owner's approval
+  when the work resumes. topic/bta holds nothing beyond main and stays open
+  for the next slice. ROADMAP 3c names what is deferred.

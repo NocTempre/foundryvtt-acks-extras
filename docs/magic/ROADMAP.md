@@ -46,7 +46,12 @@ questions, ruled"): 2 and 4a before 1b.
 - **3c — Gnosis and ceremonial.** The shared ceremony procedure (performance
   ladder, mishap tiers, stigma, purification); BTA invocations and
   implements; HFH codices, trinkets and talismans — items on the flag 4a
-  ships.
+  ships. Built: the level cap, the ceremony record and the invocation throw
+  as pure functions, read by no surface yet. Deferred past the next minor
+  (owner, 2026-11-19): the prose figures, the corruption kind, the Magic-tab
+  and item-sheet surfaces, the ceremony procedure and the invocations' effect
+  rows; the plan and its /design canvas are
+  [wip/20261116-bta-magic-groundwork-plan.md](wip/20261116-bta-magic-groundwork-plan.md).
 - **3d — Spellsinging.** The points engine, tapping, extemporaneous builds
   through the cost engine (needs 1b).
 - **4b — Magic items: Treasure Tome.** The `tt` reader; the Mechanics block;
