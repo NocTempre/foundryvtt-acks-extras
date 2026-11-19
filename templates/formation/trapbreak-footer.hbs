@@ -1,0 +1,12 @@
+{{!-- The Trapbreaking window's two writes. A separate part so they stay pinned below
+      the scrolling body. A control that cannot act is disabled, and the body says why. --}}
+<footer class="form-footer acks-extras-trapbreak-footer">
+  {{#if showRearm}}
+    <button type="button" data-action="rearm" {{#unless canRearm}}disabled{{/unless}}>
+      <i class="fa-solid fa-lock" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakRearm"}}
+    </button>
+  {{/if}}
+  <button type="button" class="acks-btn acks-btn--roll" data-action="attempt" data-tooltip-text="{{needsTip}}" {{#unless canAttempt}}disabled{{/unless}}>
+    <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakAttempt"}}
+  </button>
+</footer>

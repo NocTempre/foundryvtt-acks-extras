@@ -1,27 +1,27 @@
-<section class="acks-extras-trapbreak">
+{{!-- The Trapbreaking window's body: who, which trap, how, and the throw before it is rolled.
+      The part root is the scroller; Work on it and Re-arm are the footer part. Every figure
+      hovers where it came from. --}}
+<div class="acks-extras-trapbreak-body">
 
-  <fieldset>
-    <legend>{{localize "ACKS-FORMATION.traps.breakWho"}}</legend>
-
+  <section class="acks-extras-trapbreak-section">
+    <h3 class="acks-extras-trapbreak-heading"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakWho"}}</h3>
     {{#if hasActor}}
-      <div class="form-group">
-        <label>{{localize "ACKS-FORMATION.traps.breakActor"}}</label>
-        <div class="form-fields">
-          <select name="actorId">
-            {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
-          </select>
-        </div>
+      <div class="acks-extras-trapbreak-grid">
+        <label class="acks-label" for="{{@root.partId}}-actor">{{localize "ACKS-FORMATION.traps.breakActor"}}</label>
+        <select id="{{@root.partId}}-actor" name="actorId">
+          {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+        </select>
       </div>
     {{else}}
       <p class="hint">{{localize "ACKS-FORMATION.traps.breakNoActor"}}</p>
     {{/if}}
-  </fieldset>
+  </section>
 
   {{! The target is picked, never inferred: a party halted in a corridor can be
-      standing at more than one trap. Only what the party has FOUND is listed —
-      offering an unfound one would announce it. }}
-  <fieldset>
-    <legend>{{localize "ACKS-FORMATION.traps.breakWhich"}}</legend>
+      standing at more than one trap. A player is offered only what the party has
+      FOUND, since listing an unfound one would announce it. }}
+  <section class="acks-extras-trapbreak-section">
+    <h3 class="acks-extras-trapbreak-heading"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakWhich"}}</h3>
 
     {{#if targets.length}}
       <div class="acks-extras-trapbreak-targets">
@@ -29,88 +29,78 @@
           <label class="acks-extras-trapbreak-target{{#unless known}} is-unfound{{/unless}}">
             <input type="radio" name="targetUuid" value="{{uuid}}" {{#if selected}}checked{{/if}}>
             <span class="label">{{label}}</span>
-            <span class="state">{{state}}</span>
-            <span class="range">{{feet}} ft</span>
-            {{#unless known}}<span class="unfound">{{localize "ACKS-FORMATION.traps.breakUnfound"}}</span>{{/unless}}
+            <span class="state">{{state}}{{#unless known}} · {{localize "ACKS-FORMATION.traps.breakUnfound"}}{{/unless}}</span>
+            <span class="range">{{distance}}</span>
           </label>
         {{/each}}
       </div>
     {{else}}
       <p class="hint">{{localize "ACKS-FORMATION.traps.breakNothing"}}</p>
     {{/if}}
-    {{#if reachFeet}}
-      <p class="hint">{{localize "ACKS-FORMATION.traps.breakReach" feet=reachFeet}}</p>
-    {{/if}}
+    <p class="hint acks-extras-trapbreak-reach">{{localize "ACKS-FORMATION.traps.breakReachLabel"}} <span class="acks-extras-trapbreak-figure" data-tooltip-text="{{reachTip}}">{{reachText}}</span></p>
+    {{#unless reachImported}}<p class="hint">{{localize "ACKS-FORMATION.traps.breakTouchingOnly"}}</p>{{/unless}}
+    {{#unless isGM}}<p class="hint">{{localize "ACKS-FORMATION.traps.breakListed"}}</p>{{/unless}}
 
     {{#if isGM}}
       {{#if chosen}}
       <div class="acks-extras-trapbreak-judge">
         {{#unless chosen.known}}
           <button type="button" data-action="markFound">
-            <i class="fa-solid fa-eye"></i> {{localize "ACKS-FORMATION.traps.breakMarkFound"}}
+            <i class="fa-solid fa-eye" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakMarkFound"}}
           </button>
         {{/unless}}
         <button type="button" data-action="resetTrap">
-          <i class="fa-solid fa-rotate-left"></i> {{localize "ACKS-FORMATION.traps.breakReset"}}
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakReset"}}
         </button>
       </div>
       <p class="hint">{{localize "ACKS-FORMATION.traps.breakJudgeHint"}}</p>
       {{/if}}
     {{/if}}
-  </fieldset>
+  </section>
 
-  <fieldset>
-    <legend>{{localize "ACKS-FORMATION.traps.breakHow"}}</legend>
+  <section class="acks-extras-trapbreak-section">
+    <h3 class="acks-extras-trapbreak-heading"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> {{localize "ACKS-FORMATION.traps.breakHow"}}</h3>
 
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.traps.breakMode"}}</label>
-      <div class="form-fields">
-        <select name="mode">
-          <option value="methodical" {{#unless hasty}}selected{{/unless}}>{{localize "ACKS-FORMATION.rolls.trapbreakMethodical"}}</option>
-          <option value="hasty" {{#if hasty}}selected{{/if}}>{{localize "ACKS-FORMATION.rolls.trapbreakHasty"}}</option>
-        </select>
-      </div>
-      <p class="hint">{{localize "ACKS-FORMATION.traps.breakModeHint"}}</p>
+    <div class="acks-extras-trapbreak-grid">
+      <label class="acks-label" for="{{@root.partId}}-mode">{{localize "ACKS-FORMATION.traps.breakMode"}}</label>
+      <select id="{{@root.partId}}-mode" name="mode" data-tooltip-text="{{modeTip}}">
+        <option value="methodical" {{#unless hasty}}selected{{/unless}}>{{localize "ACKS-FORMATION.rolls.trapbreakMethodical"}}</option>
+        <option value="hasty" {{#if hasty}}selected{{/if}}>{{localize "ACKS-FORMATION.rolls.trapbreakHasty"}}</option>
+      </select>
+
+      {{#if isGM}}
+        <label class="acks-label" for="{{@root.partId}}-extra">{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
+        <input class="acks-input acks-extras-trapbreak-number" type="number" id="{{@root.partId}}-extra" name="extra" step="1" value="{{extra}}">
+      {{/if}}
     </div>
 
-    {{#if isGM}}
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
-      <div class="form-fields"><input type="number" name="extra" step="1" value="{{extra}}"></div>
-    </div>
-    {{/if}}
-
+    {{! The throw, before anyone spends a round on it. A throw that is not read leaves
+        its figure blank and the tooltip carries the page alone. }}
     <div class="acks-extras-trapbreak-throw">
-      {{#if check}}
-        <p class="needs">{{localize "ACKS-FORMATION.traps.breakNeeds"}} <strong>{{needs}}+</strong></p>
-        <p class="hint">{{check.source}}</p>
-        {{#if parts.length}}
-          <ul class="acks-extras-trapbreak-parts">
-            {{#each parts}}<li>{{label}} <span>{{sign}}{{value}}</span></li>{{/each}}
-          </ul>
+      <p class="acks-extras-trapbreak-needs">
+        <span class="acks-label">{{localize "ACKS-FORMATION.traps.breakNeeds"}}</span>
+        {{#if hasThrow}}
+          <strong class="acks-extras-trapbreak-figure acks-extras-trapbreak-needs-figure" data-tooltip-text="{{needsTip}}">{{needs}}+</strong>
+        {{else}}
+          <strong class="acks-extras-trapbreak-figure acks-extras-trapbreak-needs-figure" data-tooltip-text="{{needsTip}}">—</strong>
         {{/if}}
-        {{#if extra}}<p class="hint">{{localize "ACKS-FORMATION.doors.judgeMod"}} {{extraSign}}{{extra}}</p>{{/if}}
-      {{else}}
-        <p class="hint">{{localize "ACKS-FORMATION.traps.breakNoThrow"}}</p>
+      </p>
+      {{#if hasThrow}}
+        <ul class="acks-extras-trapbreak-parts">
+          <li data-tooltip-text="{{throwLine.tip}}">{{throwLine.source}} <span>{{throwLine.target}}+</span></li>
+          {{#each parts}}<li data-tooltip-text="{{tip}}">{{label}} <span>{{display}}</span></li>{{/each}}
+          {{#if judgePart}}<li data-tooltip-text="{{judgePart.tip}}">{{localize "ACKS-FORMATION.doors.judgeMod"}} <span>{{judgePart.display}}</span></li>{{/if}}
+        </ul>
       {{/if}}
     </div>
 
-    {{#if refusal}}<p class="acks-extras-trapbreak-refusal"><i class="fa-solid fa-ban"></i> {{refusal}}</p>{{/if}}
+    {{#if refusal}}
+      <p class="acks-extras-trapbreak-refusal" role="status"{{#if refusal.tip}} data-tooltip-text="{{refusal.tip}}"{{/if}}><i class="fa-solid fa-ban" aria-hidden="true"></i> {{refusal.text}}</p>
+    {{/if}}
+    {{#each warnings}}
+      <p class="acks-extras-trapbreak-warning" role="status"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{text}} {{advice}}</p>
+    {{/each}}
+    {{#if note}}<p class="hint acks-extras-trapbreak-note" data-tooltip-text="{{note.tip}}">{{note.text}}</p>{{/if}}
+  </section>
 
-    <div class="acks-extras-trapbreak-buttons">
-      <button type="button" data-action="attempt" {{#unless canAttempt}}disabled{{/unless}}>
-        <i class="fa-solid fa-screwdriver-wrench"></i> {{localize "ACKS-FORMATION.traps.breakAttempt"}}
-      </button>
-      {{#if chosen.disarmed}}
-        <button type="button" data-action="rearm">
-          <i class="fa-solid fa-lock"></i> {{localize "ACKS-FORMATION.traps.breakRearm"}}
-        </button>
-      {{/if}}
-    </div>
-
-    <p class="hint">
-      {{#if repeatable}}{{localize "ACKS-FORMATION.traps.mayTryAgain"}}{{else}}{{localize "ACKS-FORMATION.traps.noSecondHastyTry"}}{{/if}}
-    </p>
-  </fieldset>
-
-</section>
+</div>

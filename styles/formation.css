@@ -1853,7 +1853,7 @@
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) .member.slowest {
-  border-color: var(--acks-warning);
+  border-color: var(--acks-warning-ink);
 }
 
 /* --- Stacked occupants ------------------------------------------------
@@ -2586,7 +2586,7 @@
    takes the warning fill and the label its readable -ink pair. */
 .acks-extras:is(.party-sheet, .skill-audit) .ability-roster .binding.route-name {
   border-style: dashed;
-  border-color: var(--acks-warning);
+  border-color: var(--acks-warning-ink);
   color: var(--acks-warning-ink);
 }
 
@@ -2825,81 +2825,187 @@
   cursor: pointer;
 }
 
-/* --- the Trapbreaking dialog ----------------------------------------- */
+/* --- the Trapbreaking dialog: a scrolling body over a pinned footer ---
+   The body part is the scroller, so a draw after each change keeps its place;
+   the footer never shrinks, so Work on it stays in reach. The window root is
+   capped to the viewport. Widths are ems and ramp steps: the type knob reaches
+   every part, and the canvas width is scaled to the seat's type size where the
+   window is made. */
 
-.acks-extras-trapbreak {
+.acks-extras-trapbreak-window.application {
+  max-height: 92vh;
+}
+
+.acks-extras-trapbreak-window.application .window-content {
+  padding: 0;
+  /* Re-take the type from core, which pins a size on the content box. */
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-body {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4) var(--acks-sp-5);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  margin: 0 0 var(--acks-sp-3);
+  padding-block-end: var(--acks-sp-2);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  font-size: var(--acks-fs-h3);
+  color: var(--acks-spot);
+  text-transform: uppercase;
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 10em) minmax(0, 1fr);
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+  align-items: center;
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-grid :is(select, input[type="number"]) {
+  inline-size: 100%;
+  box-sizing: border-box;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-number {
+  max-inline-size: 6em;
+}
+
+.acks-extras-trapbreak-window .hint {
+  margin: var(--acks-sp-2) 0 0;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
 }
 
 /* The target list is a stack of radio rows rather than a <select>: which trap
    is being worked on carries a state and a range, and a one-line option cannot
    show either. */
-.acks-extras-trapbreak-targets {
+.acks-extras-trapbreak-window .acks-extras-trapbreak-targets {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--acks-sp-2);
 }
 
-.acks-extras-trapbreak-target {
+.acks-extras-trapbreak-window .acks-extras-trapbreak-target {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.15rem 0.3rem;
-  font-size: var(--acks-fs-label);
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: var(--acks-paper-pure);
+  font-size: var(--acks-fs-body);
   cursor: pointer;
 }
 
-.acks-extras-trapbreak-target .state,
-.acks-extras-trapbreak-target .range {
+/* A row only the Judge ever sees: a trap in reach that the party has not found. */
+.acks-extras-trapbreak-window .acks-extras-trapbreak-target.is-unfound {
+  border-style: dashed;
   color: var(--acks-ink-soft);
 }
 
-/* A row only the Judge ever sees: a trap in reach that the party has not found. */
-.acks-extras-trapbreak-target.is-unfound .label {
-  font-style: italic;
+.acks-extras-trapbreak-window .acks-extras-trapbreak-target .state {
+  font-size: var(--acks-fs-label);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
 }
 
-.acks-extras-trapbreak-target .unfound {
-  grid-column: 2 / -1;
+.acks-extras-trapbreak-window .acks-extras-trapbreak-target .range,
+.acks-extras-trapbreak-window .acks-extras-trapbreak-figure,
+.acks-extras-trapbreak-window .acks-extras-trapbreak-parts span {
+  font-weight: var(--acks-weight-bold);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-judge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+  margin-block-start: var(--acks-sp-3);
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-throw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin-block-start: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-needs {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+  margin: 0;
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-needs-figure {
+  font-size: 1.6em;
+  color: var(--acks-spot);
+}
+
+/* The throw broken into what made it, one entry each. */
+.acks-extras-trapbreak-window .acks-extras-trapbreak-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2) var(--acks-sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--acks-fs-label);
+}
+
+/* A refusal the seat cannot work past, and a warning the Judge can. */
+.acks-extras-trapbreak-window :is(.acks-extras-trapbreak-refusal, .acks-extras-trapbreak-warning) {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin: var(--acks-sp-3) 0 0;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid currentColor;
+  background: var(--acks-paper-pure);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-trapbreak-window .acks-extras-trapbreak-refusal {
   color: var(--acks-danger-ink);
 }
 
-.acks-extras-trapbreak-judge {
-  display: flex;
-  gap: 0.3rem;
-  margin-top: 0.3rem;
+.acks-extras-trapbreak-window .acks-extras-trapbreak-warning {
+  color: var(--acks-warning-ink);
 }
 
-.acks-extras-trapbreak-throw .needs {
-  margin: 0.2rem 0;
+.acks-extras-trapbreak-window .acks-extras-trapbreak-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  border-block-start: var(--acks-rule) solid var(--acks-spot);
+  background: var(--acks-tint);
   font-size: var(--acks-fs-body);
 }
 
-.acks-extras-trapbreak-parts {
-  list-style: none;
-  margin: 0.2rem 0 0;
-  padding: 0;
-  font-size: var(--acks-fs-label);
-}
-
-.acks-extras-trapbreak-parts > li {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-
-.acks-extras-trapbreak-refusal {
-  margin: 0.3rem 0;
-  color: var(--acks-danger-ink);
-  font-size: var(--acks-fs-label);
-}
-
-.acks-extras-trapbreak-buttons {
-  display: flex;
-  gap: 0.3rem;
+/* Core pins the type size of buttons and form controls; the window's own re-take it. */
+.acks-extras-trapbreak-window :is(button, select, input) {
+  font-size: var(--acks-fs-body);
 }
 
 /* --- Trap item sheet ------------------------------------------------- */
