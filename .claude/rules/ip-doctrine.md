@@ -96,7 +96,10 @@ in this order of preference:
 1. **The Judge's own copy, through the importer**, like every other piece of
    content. The importer already cuts page regions to images (a scene's
    `crop`). A texture or ornament taken from the book ships as a register row
-   that names the page and the box, never as the image.
+   that names the page and the box, never as the image. Any region of any
+   picture may be boxed, a whole illustration included. The owner,
+   2026-11-18: "You can use any part or whole of the images, they are not
+   getting redistributed they are getting imported by the book owner".
 2. **Openly licensed art, with its attribution intact.** Foundry core's
    `icons/svg` (CC BY, attributed by Foundry itself) and an optional module's
    files (such as `game-icons-net`) are referenced by path, never copied. A
