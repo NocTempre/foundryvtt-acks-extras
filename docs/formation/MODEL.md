@@ -1162,7 +1162,9 @@ type size.
   is the declaring user's, `judgeDeclares()` in the dialog, never `game.user.isGM`
   inside the throw, which a player's relayed request reaches on a GM client) is
   warned of `SOFT_REFUSALS` (no thieves' tools, hasty without the skill, a failed
-  hasty try at this level) and blocked by the rest. A turn plan entry a GM locked
+  hasty try at this level) and blocked by the rest. A character without the
+  skill has no hasty throw, so in practice meets `cannotTry` and the Judge is
+  blocked there too. A turn plan entry a GM locked
   resolves with `judge`; the player's request path never sets it. Ruling:
   "2026-11-19 — The Trapbreaking dialog is one window per party and character".
 - **The figure.** Needs is the character's throw less the Judge's modifier,

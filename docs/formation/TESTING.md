@@ -265,9 +265,17 @@ it covers; a section no walk names is walked by hand.
    join as a seat owning one member.
    *Observable:* markers are drawn ONLY for `known` placements; the dialog
    offers only that seat's own characters and only found traps; the party
-   sheet shows the Trapbreaking button; pressing "Work on it" announces
-   "… works on the trap." publicly and the disarm question opens on the
-   JUDGE's client.
+   sheet's Dungeon tab head shows the Trapbreaking button; pressing "Work on
+   it" with a made throw (dice rigged) announces "… works on the trap."
+   publicly, the card posts at once, and "The trap is beaten" opens on the
+   PLAYER's seat, never the Judge's (on the player seat,
+   `automationCensus()` from `lib/automation-client.mjs`, imported in page
+   context, reads lead and settled). The trap reads
+   `disarmed` while the question is open; Discharge writes `discharged` and
+   whispers one line; Leave disarmed or closing it writes nothing more. With
+   the question open, the Judge presses Rebuild it: a later Discharge leaves
+   the rebuilt trap armed. With the question open on a turn plan entry, the
+   plan's next entry resolves without waiting.
 11a. **A player leaves their own character behind.** Player seat owning one
     member (a second, GM-owned member beside them), the party token on the
     scene, the owned member brought to 0 hit points (the control renders for
