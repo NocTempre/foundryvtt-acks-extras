@@ -76,3 +76,5 @@ Owner: "Parse once, read everywhere". Tree: `topic/parse-once`.
   - Label: "Read now / Read again". "Read now" shows when no text is prepared, "Read again" otherwise.
   - File check: "Only when touched". Refused shows only after an import, a repair or a press this session.
   - The board also rewrites `statusNote`, which says the file is never stored and becomes false after S2.
+- 2026-11-19: the owner moved this work up the landing queue: "Move performance patches forward in priority".
+- 2026-11-19: S3 built (`841cd28e`, `109356a0`). A walled map still renders its page for `traceSceneWalls` on every rebuild, so an AX1 rebuild (15 of 17 scene recipes walled) still fetches the PDF. The owner: "Yes, add it (Recommended)". So **S5 Saved wall traces** goes in the minor: the saved file keeps each walled scene's traced walls beside its placements, and an Adventure rebuild of a book whose scenes are all cached fetches no PDF. It is built after S3 lands.
