@@ -154,7 +154,8 @@ export async function unlinkRegion(region) {
 /**
  * Make a place for a Region and link the two. Named after the region and
  * nested inside the scene's own place when the scene has one. The place's
- * sheet opens unless `render` is false (a drop makes the place quietly).
+ * sheet opens unless `render` is false (a drop makes the place quietly, and
+ * the region's write then re-renders none of its windows).
  *
  * @param {RegionDocument} region
  * @param {object} [options]
@@ -174,7 +175,9 @@ export async function createLocationForRegion(region, { render = true } = {}) {
     system: { regionUuid: region.uuid, parentUuid: locationOfScene(region.parent)?.uuid ?? "" },
   });
   if (!location) return null;
-  await region.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
+  // A quiet make also leaves the Region's open window unrendered, so a Judge's
+  // unsaved edits in it survive the link.
+  await region.update({ [`flags.${MODULE_ID}.${SCENE_LINK_FLAG}`]: location.uuid }, render ? {} : { render: false });
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.regionLinked`, { name: location.name, region: region.name }));
   if (render) location.sheet?.render(true);
   return location;
