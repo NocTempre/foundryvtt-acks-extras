@@ -2591,7 +2591,24 @@ twice. A form is never parsed.
   keep what they have. A re-pointed book is parsed
   again on the next GM read into a new file; a player seat opens the new PDF live
   until then.
-- **Not saved.** Any control or state on the Books tab.
+- **State and re-read** (`book-text.mjs`; the controls that show them are the
+  Books tab's). `textState` derives one of four states without a request: *none*
+  (no pointer ever written), *prepared* (`ParsedBooks.pointer` is current),
+  *stale* (`ParsedBooks.stored` holds a pointer that is not current) and
+  *refused* (`BookHandle.refusal`, which wins over the others). A state is read
+  from the shelf journal, the store's run in flight (`ParsedBooks.reading`) and the
+  handle, never from the server, so building the tab opens nothing. A handle holds
+  a refusal only where a check ran on it (a read, a repair, a re-read), which is
+  how refused shows only once a book was touched; the next check that passes
+  clears it. A form has no state. `rowActions` offers a GM *Read now* on a book
+  with none and *Read again* on prepared or stale; refused offers Remove only; both
+  are disabled while a read runs, and a player is offered neither.
+  `BookHandle.reread()` is the press: `ParsedBooks.prepare` with `force`, fetching
+  the file afresh and writing a new file and pointer, the old file staying put. A
+  file that cannot be fetched refuses the book; an upload or pointer failure leaves
+  the old text current and the book unrefused. `pressRead` reports the result
+  through a notifier and never throws. The importer API carries
+  `bookText(bookId)`, `bookTextTally(ids)` and `readBookText(bookId, notify)`.
 - **The parity gate.** `tools/importer/check-parse-parity.mjs`, local only like
   `verify-cookbook`: every page's `pageItems`, every entry's node and the
   placements of the book's scene pages (and twelve pages spread across it), live

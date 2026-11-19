@@ -183,6 +183,15 @@ export class BookHandle {
     return this.#verified || this.#vouched;
   }
 
+  /**
+   * Why the file could not be verified, as the Error of the last refusal, or
+   * null. Only a check made by a read, a repair or a re-read sets it, so a
+   * handle nothing has touched answers null; the next check that passes clears it.
+   */
+  get refusal() {
+    return this.#refusal;
+  }
+
   /** Whether a live pdf.js document is held now. */
   get isLive() {
     return !!this.#doc;
@@ -201,6 +210,7 @@ export class BookHandle {
     this.#src = src;
     this.#opened = true;
     this.#verified = true;
+    this.#refusal = null;
     this.#gone = false;
     this.#arm();
     return this;
@@ -263,9 +273,14 @@ export class BookHandle {
   verify() {
     this.#follow();
     if (!this.#verifying) {
-      const verifying = this.#verify().finally(() => {
-        if (this.#verifying === verifying) this.#verifying = null;
-      });
+      const verifying = this.#verify()
+        .then((verified) => {
+          if (verified) this.#refusal = null;
+          return verified;
+        })
+        .finally(() => {
+          if (this.#verifying === verifying) this.#verifying = null;
+        });
       this.#verifying = verifying;
     }
     return this.#verifying;
@@ -295,6 +310,54 @@ export class BookHandle {
     }
   }
 
+  /**
+   * Make the book's text again although a current one is saved, from a fresh
+   * fetch of the file, and leave the handle as a verified one holds it: the
+   * refusal cleared and the new text read on the next page. The handle follows
+   * the journal first, so the file fetched is the journal's PDF page now, and
+   * the parse refuses bytes that are of any other path (a file this seat
+   * connected on purpose). A file that cannot be fetched refuses the book; any
+   * other failure (an upload, the pointer, a journal that moved while it ran)
+   * leaves the handle as it was, with the old text still current. Rejects with
+   * the failure.
+   *
+   * @returns {Promise<{pointer: object, fresh: boolean}>}
+   */
+  async reread() {
+    this.#follow();
+    const src = this.#src;
+    if (!this.#parsed || !src || !this.#parsed.canParse(this.#bookId)) {
+      throw new Error(`${this.#bookId}: this seat does not make saved text`);
+    }
+    const epoch = this.#epoch;
+    let fetchFailure = null;
+    try {
+      const made = await this.#parsed.prepare(this.#bookId, {
+        force: true,
+        src,
+        getBytes: async () => {
+          try {
+            return await this.#bytes(src);
+          } catch (err) {
+            fetchFailure = err;
+            throw err;
+          }
+        },
+      });
+      // A journal that moved while it ran made the file another book's text; the next read asks the new path.
+      if (epoch === this.#epoch) {
+        this.#refusal = null;
+        this.#noParse = false;
+        this.#saved = null;
+        this.#vouch();
+      }
+      return made;
+    } catch (err) {
+      if (fetchFailure && epoch === this.#epoch) this.#refuse(fetchFailure);
+      throw err;
+    }
+  }
+
   /** Remember why the book was refused, so a read rejects with it; answers false. */
   #refuse(err) {
     console.warn(`acks-extras | ${this.#bookId} could not be verified`, err);
@@ -316,9 +379,9 @@ export class BookHandle {
     }
   }
 
-  async #bytes() {
-    const resp = await this.#fetch(this.#src);
-    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${this.#src} (${resp?.status})`);
+  async #bytes(src = this.#src) {
+    const resp = await this.#fetch(src);
+    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${src} (${resp?.status})`);
     return resp.arrayBuffer();
   }
 

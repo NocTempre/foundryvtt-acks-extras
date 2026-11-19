@@ -38,6 +38,7 @@ import { RECIPES } from "./recipes.mjs";
 import { BookHandle } from "./book-handle.mjs";
 import { releaseDoc } from "./release-doc.mjs";
 import { ParsedBooks } from "./parsed-book.mjs";
+import { pressRead, rowActions, tally, textState } from "./book-text.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
@@ -644,6 +645,43 @@ const parsedBooks = new ParsedBooks({
   open: (bookId, buffer) => openChecked(bookId, buffer),
   attempt: () => foundry.utils.randomID(10),
 });
+
+/**
+ * What the Books tab says of one shelved book's saved text: its state, whether
+ * a read is running, and the controls this seat is offered. Derived from the
+ * shelf journal's pointer, the run in flight and the refusal the book's handle
+ * remembers; nothing is fetched, so building the tab never touches a file.
+ * A handle that nothing has checked holds no refusal, which is why a book is
+ * "refused" only once an import, a repair or a read has touched it.
+ */
+function bookTextStatus(bookId) {
+  const doc = sessionDocs.get(bookId)?.doc;
+  const status = textState({ parsed: parsedBooks, bookId, refusal: doc?.isBookHandle ? doc.refusal : null });
+  return { ...status, ...rowActions({ state: status.state, reading: status.reading, isGM: !!game.user?.isGM }) };
+}
+
+/** The counts of stale and refused books among the shelved ones, for a fold's closed summary. */
+function bookTextTally(bookIds) {
+  return tally(bookIds.map((id) => bookTextStatus(id)));
+}
+
+/**
+ * "Read now" / "Read again": make a shelved book's text again on this GM seat,
+ * from a fresh fetch of its file, and tell the seat the result. The handle does
+ * it where the book has one, so its refusal and saved text follow the result.
+ * `notify` receives `{bookId, pointer}` or `{bookId, error}`.
+ */
+function readBookText(bookId, notify) {
+  const doc = sessionDocs.get(bookId)?.doc;
+  const reread = doc?.isBookHandle ? () => doc.reread() : () => parsedBooks.prepare(bookId, { force: true });
+  return pressRead({
+    bookId,
+    reread,
+    canRead: parsedBooks.canParse(bookId),
+    reading: parsedBooks.reading(bookId),
+    notify,
+  });
+}
 
 /**
  * A handle for a book: the saved text's page count and label (the registry
@@ -2539,6 +2577,10 @@ Hooks.once("ready", async () => {
     importEquipment, importAllEquipment, cookbookEquipmentIds,
     importWeapons, importArmor,
     importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
+    /** One shelved book's saved-text state and the controls this seat is offered; `bookTextTally` counts a list's stale and refused. */
+    bookText: bookTextStatus, bookTextTally,
+    /** Make a shelved book's text again on a GM seat; resolves `{ok, pointer|error}` and reports through `notify`. */
+    readBookText,
     /** Opens the Books tab with the first-run walkthrough open. */
     gettingStarted: () => openBooksDialog({ firstRun: true }),
     RECIPES, BOOKS,

@@ -260,6 +260,24 @@ export class ParsedBooks {
     return !!this.#isGM() && !!this.#srcOf(bookId);
   }
 
+  /** Whether a book can have saved text at all, on any seat: it is shelved and not a form. */
+  savable(bookId) {
+    return !!this.#srcOf(bookId);
+  }
+
+  /**
+   * The pointer the shelf journal holds, current or not; null when none was
+   * ever written. A stored pointer that `pointer` refuses is a stale one.
+   */
+  stored(bookId) {
+    return this.#pointerOf(bookId) ?? null;
+  }
+
+  /** Whether a run is making this book's text now, from any caller on this seat. */
+  reading(bookId) {
+    return this.#flights.has(bookId);
+  }
+
   /**
    * Read the saved book a pointer names. Rejects when the file is gone or is
    * not the book the pointer says, and the reader then opens the PDF.
@@ -275,26 +293,42 @@ export class ParsedBooks {
    * Make a book's saved text: fetch the PDF, open and fingerprint it, parse
    * every page, upload the file, then write the pointer. One run per book at a
    * time; a second caller takes the first's result. A book whose pointer is
-   * already current is not parsed again.
+   * already current is not parsed again, unless `force` asks for a fresh run:
+   * the old file stays where it is and the pointer moves only once the new one
+   * is up, so a failed run leaves the book as it was. A forced call that finds
+   * an unforced run in flight starts after it rather than taking its result.
    *
    * @param {string} bookId
    * @param {object} [o]
    * @param {() => Promise<ArrayBuffer>} [o.getBytes] the file's bytes where the caller holds them, else the shelved path is fetched
    * @param {string|null} [o.src] the path those bytes are of; the parse refuses unless it is the journal's PDF page now, since a pointer names the file of the page and a parse of another file would be served as its text
+   * @param {boolean} [o.force] parse again although the pointer is current
    * @returns {Promise<{pointer: object, fresh: boolean}>} `fresh` says this run opened and fingerprinted the file
    */
-  prepare(bookId, { getBytes = null, src = null } = {}) {
+  prepare(bookId, { getBytes = null, src = null, force = false } = {}) {
     let flight = this.#flights.get(bookId);
-    if (!flight) {
-      flight = this.#prepare(bookId, getBytes, src).finally(() => this.#flights.delete(bookId));
-      this.#flights.set(bookId, flight);
+    if (flight && force && !flight.force) {
+      const after = flight.promise.catch(() => {});
+      flight = this.#fly(bookId, after.then(() => this.#prepare(bookId, getBytes, src, true)), true);
+    } else if (!flight) {
+      flight = this.#fly(bookId, this.#prepare(bookId, getBytes, src, force), force);
     }
+    return flight.promise;
+  }
+
+  /** Record a run as the book's flight until it settles; `reading` answers from it. */
+  #fly(bookId, run, force) {
+    const flight = { force, promise: null };
+    flight.promise = run.finally(() => {
+      if (this.#flights.get(bookId) === flight) this.#flights.delete(bookId);
+    });
+    this.#flights.set(bookId, flight);
     return flight;
   }
 
-  async #prepare(bookId, getBytes, bytesSrc) {
+  async #prepare(bookId, getBytes, bytesSrc, force = false) {
     if (!this.canParse(bookId)) throw new Error(`${bookId}: this seat does not make saved text`);
-    const current = this.pointer(bookId);
+    const current = force ? null : this.pointer(bookId);
     if (current) return { pointer: current, fresh: false };
     const src = this.#srcOf(bookId);
     if (bytesSrc && bytesSrc !== src) throw new Error(`${bookId}: the bytes are of ${bytesSrc}, not of the shelf's ${src}`);
