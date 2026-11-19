@@ -97,7 +97,7 @@ globalThis.Roll = class {
 
 const T = await import("../scripts/lib/tables.mjs");
 const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
-const { attemptDisarm, disarmGate, disarmRefusals, registerTrapZoneSocket } = await import("../scripts/formation/trap-zone.mjs");
+const { attemptDisarm, disarmGate, disarmRefusals, registerTrapZoneSocket, SOFT_REFUSALS } = await import("../scripts/formation/trap-zone.mjs");
 const { thingsOf } = await import("../scripts/lib/place-things.mjs");
 const { resolveDue } = await import("../scripts/lib/turn-activities.mjs");
 const { registerFormationActivities } = await import("../scripts/formation/turn-plan.mjs");
@@ -466,6 +466,8 @@ await ok("the gate: not found, spent, disarmed and no trap are hard for the Judg
     assert.deepEqual(disarmGate({ ...base, ...patch }, bare, "methodical", { judge: true }), { block: reason, warnings: [] }, reason);
   }
   assert.deepEqual(disarmGate(null, alder, "methodical", { judge: true }), { block: "noZone", warnings: [] });
+  // A hasty try without the skill has no throw to make, so it blocks the Judge too.
+  assert.deepEqual([...SOFT_REFUSALS].sort(), ["alreadyFailedHasty", "noTools"]);
 });
 
 await ok("a Judge's own attempt works past no thieves' tools; without the Judge's declaration it is refused", async () => {

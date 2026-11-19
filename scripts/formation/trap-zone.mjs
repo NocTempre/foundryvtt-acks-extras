@@ -982,10 +982,11 @@ export function disarmRefusal(placement, actor, mode) {
 
 /**
  * The refusals a Judge may work past, with a warning in their place: the
- * character's tools or proficiency, and a failed hasty try at this level. Every
- * other refusal leaves nothing to roll, and stays a block for the Judge too.
+ * character's tools, and a failed hasty try at this level. Every other refusal
+ * stays a block for the Judge too, `hastyNeedsSkill` among them: the hasty
+ * column takes no Adventuring throw (RR ch. 6, Disabling Traps, p. 267).
  */
-export const SOFT_REFUSALS = Object.freeze(["noTools", "hastyNeedsSkill", "alreadyFailedHasty"]);
+export const SOFT_REFUSALS = Object.freeze(["noTools", "alreadyFailedHasty"]);
 
 /**
  * What stands between this character and this trap, for one seat: `block` is
