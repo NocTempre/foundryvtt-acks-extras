@@ -339,17 +339,27 @@ fixtures stay.
 
 ## Replace seeds at open (both seats)
 
-Not yet walked live. Offline coverage is `tools/test-treasure.mjs`'s T3 blocks
-(the planner and `planOpen`); nothing offline renders the window or writes a
-Card.
+Walked by `tools/live/treasure-seeds.mjs` (`node tools/live/run.mjs
+treasure-seeds`), steps 1 to 7, and every pot's doorway pressed once on the
+Player seat, with five more one-lot pots for that press alone. Offline coverage
+is `tools/test-treasure.mjs`'s T3 blocks (the planner and `planOpen`); nothing
+offline renders the window or writes a Card.
 
 **Fixtures** (found by marker, built through `api.fixture`):
 
-- `treasure/lot-high`, `treasure/lot-mid`, `treasure/lot-low` — value-card or
-  coin-card sources worth 400, 150 and 100 gp, so their worths are known.
+- `treasure/lot-high`, `treasure/lot-mid`, `treasure/lot-low` — coin cards
+  (`money` items at 100 cp a coin) worth 400, 150 and 100 gp, so their worths
+  show. A plain item's worth never shows on the pot (`worthOf` answers only a
+  coin or a value card), so a plain-item lot leaves the pot value blank. A coin
+  card's true name carries its count ("400 …"); the plan's row, the tile and the
+  audit use that name.
+- `treasure/lot-plain` — a plain item costing less than any lot, dropped with
+  the lots in step 5 so the seed has a lot of its own pool to be compared with.
 - `treasure/seed-replace` — a plain item with `system.cost` 250, dropped into
   the Replace bucket.
 - `treasure/seed-replace-big` — a plain item costing 1000, for the shortfall.
+- `treasure/lot-magic` — a magic item disguised (`disguiseData`) as a 150 gp
+  one, for step 7.
 
 **Steps** (a fresh pot per run; drop the three lots on the pot, the seed in the
 Replace bucket):
@@ -358,7 +368,8 @@ Replace bucket):
    struck through and reads "Replaced by <seed>"; the seed's bucket row reads
    "Takes <lot> (150 gp over)" and its tooltip gives the seed's worth against the
    lots taken; the 150 and 100 tiles are untouched; the pot value counts the 150
-   and 100 lots plus the seed.
+   and 100 lots and not the struck one (250 gp: the plain-item seed shows no
+   worth).
 2. **Open, Judge deals.** Observables: the pot's `order` lists the seed where the
    400 lot stood, and not the 400 lot; the pile still holds the 400 lot's Card;
    `flags.acks-extras.treasure.replaced` is `[{seedId, struck: [<400 lot>],
@@ -366,15 +377,19 @@ Replace bucket):
    struck lot; a whisper to the Judge only lists the seed, the lot's true name and
    the overshoot, and the Player seat sees no whisper.
 3. **Open, table rolls.** Repeat step 2 on a pot whose mode is Table.
-   Observable: the same plan and the same record, since no tick control exists.
+   Observable: the same plan and the same record.
 4. **Struck is never delivered (Player seat).** The Player sees one card fewer
    than the lots dropped plus the seed, and none carries the struck lot's name
    or worth. As the Judge, run a `claim` for the struck lot's Card id through
    the relay: refused as not in the pot. Close the pot: the doorway record lists
    no struck lot, and the haul counts none.
-5. **A seed cannot be told apart (Player seat).** The seed's back and the lots'
-   backs differ only by band; the seed does not sit last. Repeat with the
-   shortfall seed: it sits at a drawn position, not at the tail on every run.
+5. **A seed cannot be told apart (Player seat).** The seed's back and
+   `treasure/lot-plain`'s differ only by band: each wears exactly the dress
+   `card-art.mjs` `backDress` gives its own band in that pool (the frame and the
+   rich stone follow the band, so the two class lists differ between bands), under
+   the same pool plate, and no seed mark reaches the Player. The seed's position in
+   `order`, noted per pot over the walk, is not the tail on every pot. A coin lot
+   is no comparison: its pool plate differs by design.
 6. **A shortfall (Judge seat, staging).** Drop only `treasure/seed-replace-big`
    in the Replace bucket. Observables: its row reads "No lots cover it (<n> gp
    short); takes none", and no tile is struck; open: `replaced` holds
