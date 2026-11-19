@@ -11,7 +11,7 @@ import { MODULE_ID, LANG_PREFIX, DEFAULT_IMG } from "../constants.mjs";
 import { entryText } from "../prose.mjs";
 import { REPAIR, countRepair, unrepaired } from "../refresh.mjs";
 import { printedNameOf } from "../printed-name.mjs";
-import { bindPatch, magicItemPairs, pairStep, takeoverPatch } from "../magic-item-pair.mjs";
+import { bindPatch, magicItemPairs, pairStep, takeoverPatch, writesOver } from "../magic-item-pair.mjs";
 import { executeEntry } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { data, ctx, cookbookEntry } from "./state.mjs";
@@ -197,7 +197,7 @@ export async function cookbookImportMagicItems({ books = null, only = null, repa
       if (have) {
         counts.already++;
         // A document standing under another claim (the later printing's) is that book's to repair.
-        if (have.flags?.[MODULE_ID]?.cookbook?.id !== id) continue;
+        if (!writesOver(have.toObject(), id)) continue;
         if (unrepaired(repair, have)) {
           countRepair(repair, await repairFromEntry(have, id, (node) => magicItemData(bookId, id, entry, node), REPAIR.magicItem, repair));
         }

@@ -101,3 +101,15 @@ export function pairStep(pairs, id, { held, open }) {
   if (flagOf(held(pair.later))?.id === pair.later) return { step: "bind", to: pair.later };
   return open(bookOf(pair.later)) ? { step: "defer", to: pair.later } : { step: "own" };
 }
+
+/**
+ * Whether a repair or a forced rewrite of row `id` may write over the held
+ * document `doc` (its stored data). Only a document standing under `id` is
+ * the row's to write: a document the row answers for as a merged id stands under
+ * the later printing's claim and is that row's to write. So a forced rebuild of
+ * the earlier book leaves it alone, and an unpaired row, or a row's own
+ * document, is written.
+ * @param {object|null} doc the held document's stored data
+ * @param {string} id the row being written
+ */
+export const writesOver = (doc, id) => !!doc && doc.flags?.[MODULE_ID]?.cookbook?.id === id;

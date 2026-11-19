@@ -9,7 +9,8 @@
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { claimIds } from "../../scripts/importer/place-pair.mjs";
-import { bindPatch, magicItemPairs, pairStep, takeoverPatch } from "../../scripts/importer/magic-item-pair.mjs";
+import fs from "node:fs";
+import { bindPatch, magicItemPairs, pairStep, takeoverPatch, writesOver } from "../../scripts/importer/magic-item-pair.mjs";
 
 let n = 0;
 const t = (name, fn) => {
@@ -141,6 +142,24 @@ t("the delete path: removing the one document leaves both rows to start again", 
   docs.push(earlierDoc());
   docs.length = 0;
   assert.deepEqual(pairStep(pairs, LATER.id, lib()), { step: "own" });
+});
+
+t("a forced rebuild of the earlier book leaves the merged document alone; an unpaired or own row is written", () => {
+  const merged = applied(laterDoc(), bindPatch(laterDoc(), EARLIER));
+  assert.equal(writesOver(merged, EARLIER.id), false, "the Journal row does not write over the Tome's document");
+  assert.equal(writesOver(merged, LATER.id), true, "the Tome row writes its own document");
+  assert.equal(writesOver(earlierDoc(), EARLIER.id), true, "an unpaired or not yet merged row rewrites its own document");
+  assert.equal(writesOver(null, EARLIER.id), false);
+});
+
+t("the rebuild module reaches an item only through the in-place run, and the item step is pair-aware", () => {
+  const rebuild = fs.readFileSync(new URL("../../scripts/importer/cookbook/rebuild.mjs", import.meta.url), "utf8");
+  // The only deletes and rewrites there are of actors, places and factions; an item is written in place by its run.
+  assert.ok(!/deleteImported\("Item"/.test(rebuild), "no item delete in rebuild.mjs");
+  assert.match(rebuild, /cookbookImportMagicItems: \(only, tally\) => cookbookImportMagicItems\(\{ only, repair: tally \}\)/);
+  const step = fs.readFileSync(new URL("../../scripts/importer/cookbook/magic-items.mjs", import.meta.url), "utf8");
+  assert.match(step, /pairStep\(pairs, id,/);
+  assert.match(step, /!writesOver\(have\.toObject\(\), id\)/);
 });
 
 console.log(`\nmagic-item-pair: ${n} checks OK`);
