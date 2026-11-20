@@ -535,7 +535,7 @@ const liveDeps = () => ({
   declare: liveDeclare(),
   // A summoning's creature prompt, the ref's creature, lib's pre-click checks, the seat's clicks and the placement (`lib/summons.mjs`, loaded where a summoning is cast).
   pickSummon: async (caster, o) => (await import("../lib/summons.mjs")).pickSummon(caster, o),
-  summonVariant: async (caster, family) => (await import("../lib/summons.mjs")).summonVariant(caster, family),
+  summonVariant: async (caster, family, o) => (await import("../lib/summons.mjs")).summonVariant(caster, family, o),
   resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId }),
   summonVerdict: async (caster, o) => {
     const lib = await import("../lib/summons.mjs");
@@ -893,7 +893,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   if (pick && moment !== MOMENT.declare && deps.summonVariant) {
     const family = (await deps.resolveRef?.(pick.ref)) ?? null;
     if (family?.type === TEMPLATE_TYPE) {
-      const made = await deps.summonVariant(caster, family);
+      const made = await deps.summonVariant(caster, family, { spellId: spell.id });
       if (!made) return { ok: false, reason: "cancelled" };
       pick = { ...pick, ref: made.uuid };
       answer = { ...answer, summon: pick };

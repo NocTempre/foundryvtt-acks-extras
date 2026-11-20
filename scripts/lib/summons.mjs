@@ -447,9 +447,11 @@ export async function summonRelay({ op, requestUserId = null, ...rest } = {}) {
  * so the placement's readable-source check passes for the creature it chose.
  * @returns {Promise<{ok: true, uuid: string}|{ok: false, reason: string}>}
  */
-async function variantOp({ summonerUuid, templateUuid, pins = {}, user }) {
+async function variantOp({ summonerUuid, templateUuid, pins = {}, spellId = "", user }) {
   const summoner = summonerUuid ? await fromUuid(summonerUuid).catch(() => null) : null;
   if (!summoner?.testUserPermission?.(user, "OWNER")) return refused("notOwner");
+  // As a placement is: through one of the summoner's spells, unless the seat may summon bare.
+  if (spellId ? summoner.items?.get?.(spellId)?.type !== "spell" : !bareSummonAllowed(user)) return refused(spellId ? "badSpell" : "spellRequired");
   const template = templateUuid ? await fromUuid(normalizeRef(templateUuid)).catch(() => null) : null;
   if (template?.type !== TEMPLATE_TYPE) return refused("badSource");
   if (!sourceReadable(template, user)) return refused("unreadable");
@@ -470,13 +472,14 @@ async function variantOp({ summonerUuid, templateUuid, pins = {}, user }) {
  * the reason told to the seat.
  * @param {Actor} summoner  the character summoning
  * @param {Actor} template  an `acks-extras.template` actor
+ * @param {{spellId?: string}} [o]  the summoner's spell the summoning is cast from
  * @returns {Promise<Actor|null>} the world actor made
  */
-export async function summonVariant(summoner, template) {
+export async function summonVariant(summoner, template, { spellId = "" } = {}) {
   const { GroupSheet } = await import("./apps/group-sheet.mjs");
-  const pins = await GroupSheet.askVariantPins(template);
+  const pins = await GroupSheet.askVariantPins(template, { title: loc("variantTitle", { name: template.name }) });
   if (!pins) return null;
-  const made = await send({ op: "variant", summonerUuid: summoner.uuid, templateUuid: template.uuid, pins });
+  const made = await send({ op: "variant", summonerUuid: summoner.uuid, templateUuid: template.uuid, pins, spellId });
   if (!made?.ok) {
     warnRefusal(made?.reason ?? "noGm");
     return null;

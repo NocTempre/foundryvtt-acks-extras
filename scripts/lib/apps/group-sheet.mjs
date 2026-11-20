@@ -298,9 +298,10 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
    * one left to the axis's default or roll. Nothing is generated here; the
    * caller makes the creature, on whichever client may create it.
    * @param {Actor} template  an `acks-extras.template` actor
+   * @param {{title?: string}} [o]  the window's title, already localized; the stack's own by default
    * @returns {Promise<Record<string, string>|null>} the pins by axis key; null where the family is a stub or the dialog closed
    */
-  static async askVariantPins(template) {
+  static async askVariantPins(template, { title = "" } = {}) {
     const sys = template.system;
     if (sys.isStub) return null;
     // An axis that names a default takes it when left alone, so its blank
@@ -320,7 +321,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     });
     const pins = await DialogV2.prompt({
       classes: DIALOG_CLASSES,
-      window: { title: loc("variant.title", { name: template.name }) },
+      window: { title: title || loc("variant.title", { name: template.name }) },
       content: await dialogContent("group-variant", { axes }),
       ok: {
         label: loc("variant.press"),
