@@ -2,6 +2,12 @@
 
 Changes through v11.14.5: [CHANGELOG-through-v11.14.5.md](CHANGELOG-through-v11.14.5.md).
 
+## 2026.11.20.2 — Public Beta
+
+### Fixed
+
+- A treasure pot can be opened from a macro: **Compendium Packs tab → ACKS Extras Macros → Deal Treasure** does what Scene controls → Token controls → New treasure pot does, with the selected monster tokens' rows or By hand when none are selected.
+
 ## 2026.11.20.1 — Public Beta
 
 ### Fixed
