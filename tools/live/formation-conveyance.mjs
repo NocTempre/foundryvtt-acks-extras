@@ -105,6 +105,37 @@ const P = {
     return { [userId]: carriers.map((id) => game.actors.get(id).ownership[userId]) };
   },
 
+  /**
+   * The Player seat's reach, as this walk needs it: its own carriers only. A carrier another
+   * walk keeps in the seat's hands is a ride every party the seat owns a member of is offered
+   * (a kept vessel is what By vessel boards), so each one the seat owns is taken out of its
+   * reach for the run, and `rows` says what to put back. A member of another party aboard one
+   * of this walk's carriers is taken off it, since a carrier with a rider is not on offer.
+   */
+  quietForeign: async ({ carriers, userId, restore = null }) => {
+    const H = globalThis.__cv;
+    if (restore) {
+      for (const row of restore) await game.actors.get(row.id)?.update({ [`ownership.${userId}`]: row.level });
+      return { restored: restore.length };
+    }
+    const rows = [];
+    for (const actor of game.actors) {
+      const carrier = actor.type === "acks-extras.vehicle" || (actor.type === "acks-extras.animal" && actor.system?.animal?.mountable);
+      const level = actor.ownership?.[userId] ?? 0;
+      if (!carrier || carriers.includes(actor.id) || level < CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) continue;
+      rows.push({ id: actor.id, name: actor.name, level });
+      await actor.update({ [`ownership.${userId}`]: 0 });
+    }
+    const freed = [];
+    for (const actor of game.actors) {
+      const at = H.attachment.attachmentOf(actor);
+      if (!at || !carriers.some((id) => at.uuid === `Actor.${id}`) || actor.flags?.world?.fixture?.startsWith("conveyance/")) continue;
+      await H.attachment.detach(actor);
+      freed.push(actor.name);
+    }
+    return { rows, freed };
+  },
+
   /** Nobody on anything, no pin, no word, nothing to undo, and only the listed members. */
   startShape: async ({ fid, members, others }) => {
     const H = globalThis.__cv;
@@ -357,6 +388,7 @@ async function record(port, label, api) {
 const open = {};
 const cards = [];
 const access = { carriers: [], userId: null };
+let quieted = null;
 let worldTime0 = null;
 
 const character = (name) => ({ name, type: "character", prototypeToken: { actorLink: true }, system: { hp: { value: 6, max: 6 } } });
@@ -408,6 +440,8 @@ try {
   access.carriers = [pony.id, mule.id, cart.id];
   access.userId = census.player.userId;
   note("the carriers go to the Player seat for the run", await run(gm, P.carrierAccess, { ...access, level: 3 }));
+  quieted = await run(gm, P.quietForeign, access);
+  note("other walks' carriers out of the Player seat's reach for the run, and who was taken off this walk's", quieted);
   const members = [rider.id, mate.id, hand.id];
   const ids = [...members, late.id];
   const built = await run(gm, P.buildParty, { partyId: party.id, sceneId: scene.id, memberIds: members });
@@ -557,6 +591,7 @@ try {
 } finally {
   section("teardown");
   try { if (open.gm && worldTime0 != null) note("clock put back", await run(open.gm, P.setClock, { worldTime: worldTime0 })); } catch (err) { console.error("clock:", err?.message ?? err); }
+  try { if (open.gm && quieted?.rows?.length) note("other walks' carriers back in the Player seat's reach", await run(open.gm, P.quietForeign, { ...access, restore: quieted.rows })); } catch (err) { console.error("quieted carriers:", err?.message ?? err); }
   try { if (open.gm && access.userId) note("the carriers out of a Player seat's reach between runs", await run(open.gm, P.carrierAccess, { ...access, level: 0 })); } catch (err) { console.error("carriers:", err?.message ?? err); }
   try { if (open.gm && cards.length) note("cards swept", await open.gm.sweepTracked({ only: cards })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   console.log(`\nchecks: ${tally.pass} passed, ${tally.fail} failed`);

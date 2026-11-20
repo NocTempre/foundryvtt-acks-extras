@@ -2398,13 +2398,16 @@ async function walkCountry(W) {
   check("C4: the Camp section says water is at hand with its declaration unticked", s.camp?.waterAuto === true && s.camp?.waterHint === true && s.camp?.waterChecked === false, s.camp);
   note("vessel", await page(gm, P.press, { partyId: party.id, selector: '[data-action="movementTile"][data-mode="vessel"]' }));
   r = await page(gm, P.record, { fid });
+  for (let n = 0; n < 20 && r?.movement !== "vessel"; n++) { await sleep(1000); r = await page(gm, P.record, { fid }); }
   note("record", { movement: r.movement, values: r.values, provenance: r.provenance, at: r.map?.at });
   check("C4: on the vessel the encounter terrain is the land river table with provenance map", r.movement === "vessel" && r.values.encounterTerrain === "riverLand" && r.provenance.encounterTerrain === "map", { movement: r.movement, table: r.values.encounterTerrain, provenance: r.provenance.encounterTerrain });
   check("C4: travel.map.at is unchanged (no re-read)", r.map?.at === mapAt, { before: mapAt, after: r.map?.at ?? null });
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   check("C4: the Encounters line names the river table", !!s.draw && !!s.labels?.riverLand && s.draw.includes(s.labels.riverLand), { draw: s.draw, label: s.labels?.riverLand });
   note("foot", await page(gm, P.press, { partyId: party.id, selector: '[data-action="movementTile"][data-mode="foot"]' }));
+  // A tile writes its word after it has moved the party: the Player seat's kept carriers (another walk's vessels among them) board the member on the vessel tile and take them off on this one, one actor write at a time, so the word lands seconds after the press.
   r = await page(gm, P.record, { fid });
+  for (let n = 0; n < 20 && r?.movement !== "foot"; n++) { await sleep(1000); r = await page(gm, P.record, { fid }); }
   check("C4: back on foot the ground's own table returns", r.movement === "foot" && r.values.encounterTerrain !== "riverLand" && r.provenance.encounterTerrain === "scene", { movement: r.movement, table: r.values.encounterTerrain, provenance: r.provenance.encounterTerrain });
   note("pause", await page(gm, P.pause, { fid, paused: true }));
   const pC = await page(gm, P.drag, { fid, xy: xy("C") });

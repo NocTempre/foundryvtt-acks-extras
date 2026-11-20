@@ -3550,7 +3550,12 @@ undo, `conveyance/late` out of the party. **The carriers are the Player seat's
 for the run alone.** Every party a player owns a member of counts that player's
 free carriers, so a carrier left in their hands is taken by a peer walk's kept
 party at its next dawn; the walk gives them to the seat at its start and takes
-them back in its `finally`.
+them back in its `finally`. The same holds the other way: a carrier another walk
+keeps in the seat's hands is on offer to this party (a kept vessel is what By
+vessel boards, and a member of a peer's party aboard `conveyance/pony` takes it
+off the list), so `P.quietForeign` takes every other carrier the seat owns out
+of its reach for the run, puts each back in the `finally`, and takes a peer's
+member off this walk's carriers.
 
 A dawn arranges every party on a journey, a peer walk's kept one among them, in
 the record's order. So `P.toDawn` puts any other party back by its own Undo in
