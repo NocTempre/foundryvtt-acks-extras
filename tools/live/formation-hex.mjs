@@ -645,9 +645,11 @@ const P = {
   /**
    * Click a control on the OPEN sheet. With `untilNote` (a notification kind), wait for the first note of
    * that kind, up to `cap` ms, in place of the fixed `settle`: an action that toasts once its write resolves
-   * can outlast any fixed wait.
+   * can outlast any fixed wait. With `untilCard`, wait for the first navigation card this press posts, up to
+   * `cap` ms: a throw rolls and records behind the record's lock, so its card lands after any fixed wait a
+   * busy world outlasts.
    */
-  press: async ({ partyId, selector, settle = 1200, untilNote = null, cap = 10000 }) => {
+  press: async ({ partyId, selector, settle = 1200, untilNote = null, untilCard = false, cap = 10000 }) => {
     const H = globalThis.__p2b;
     const app = game.actors.get(partyId).sheet;
     const el = H.root(app);
@@ -658,7 +660,10 @@ const P = {
     H.action = "press";
     n.click();
     if (untilNote) await H.poll(() => H.notes.some((x) => x.kind === untilNote), { tries: Math.ceil(cap / 100), every: 100 });
-    else await H.sleep(settle);
+    else if (untilCard) {
+      await H.poll(() => H.messagesSince(t0).some((m) => m.navCard), { tries: Math.ceil(cap / 100), every: 100 });
+      await H.sleep(settle);
+    } else await H.sleep(settle);
     H.action = null;
     return { found: true, notes: H.takeNotes(), messages: H.messagesSince(t0) };
   },
@@ -1318,7 +1323,7 @@ try {
   check("Navigation, quietly reads owed at the day's first step off the road", s.navDom?.state === "owed" && !!s.navDom?.line, s.navDom);
   check("the day log's rows name their hex while the party is shown the believed hex", s.logHexes.length >= 1 && s.logHexes.every((h) => typeof h === "string" && h.length > 0), { logHexes: s.logHexes });
   note("rig 1", await page(gm, P.rig, { want: 1 }));
-  const p10 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="travelEnterHex"]', settle: 2500 });
+  const p10 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="travelEnterHex"]', settle: 1200, untilCard: true, cap: 15000 });
   await trackMessages(p10.messages);
   note("next hex", { messages: p10.messages, notes: p10.notes });
   r = await page(gm, P.record, { fid });
