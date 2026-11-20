@@ -139,8 +139,9 @@ haul, and deletes the pile by its own id with `{chatNotification: false}`.
 
 ## The Judge's way in
 
-**Scene controls → Token controls → New treasure pot** (a Judge-only button), or
-`acksExtras.treasure.newPot()`. A pot already made is reopened from the Cards
+**Scene controls → Token controls → New treasure pot** (a Judge-only button), the
+**Compendium Packs tab → ACKS Extras Macros → Deal Treasure** macro (the same
+call), or `acksExtras.treasure.newPot()`. A pot already made is reopened from the Cards
 directory, whose open action uses the pot's own sheet.
 
 ## Search the fallen
@@ -573,7 +574,8 @@ gp (masterwork's page) · the page that prints the deal") with the world's figur
 then the tooltip lists none). `cardView` builds both for a Judge alone: a Player's
 view carries a blank type and no parts, and the window is handed neither.
 
-**Two entries open it staged.** The token-controls button calls `newDealPot()`:
+**Three entries open it staged.** The token-controls button and the macros
+compendium's Deal Treasure macro both call `newDealPot()`:
 with monster tokens selected the pot opens with their rows, each kind with a
 letter ticked; with none it opens By hand. A monster sheet's Ecology tab shows a
 Judge-only Deal beside the Treasure type (disabled with no letter, live on a

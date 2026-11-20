@@ -1,0 +1,20 @@
+{
+  "_id": "acksTreasDeal000",
+  "_key": "!macros!acksTreasDeal000",
+  "name": "Deal Treasure",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/chest.svg",
+  "command": "// Open a treasure pot in staging: the selected monster tokens' rows, or By hand.\nconst api = game.modules.get(\"acks-extras\")?.api?.treasure ?? globalThis.acksExtras?.treasure;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (!game.user.isGM) return ui.notifications.warn(\"ACKS Extras | Only a GM deals treasure.\");\nawait api.newDealPot();",
+  "folder": "acks420ff1a0388a",
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

@@ -448,7 +448,10 @@ or the cookbook documents a real import writes.
    `treasure/player-character`'s token, then press Scene controls → Token controls →
    New treasure pot. Observables: a staged pot opens with two Monsters rows,
    `<name> ×2 · Type <letter>` ticked and the bare monster's row disabled with
-   its no-letter reason; the character makes no row. Nothing is dealt.
+   its no-letter reason; the character makes no row. Nothing is dealt. With the
+   same tokens selected, run Compendium Packs tab → ACKS Extras Macros → Deal
+   Treasure (drive: `(await game.packs.get("acks-extras.macros").getDocument("acksTreasDeal000")).execute()`).
+   Observable: a second staged pot opens with the same rows.
 2. **Lair warning.** With "Met in their lair" off, press Deal. Observable: the
    rail's warning callout appears naming the toggle, and the pot holds no new
    card. Press Cancel: the callout clears, still no card.
