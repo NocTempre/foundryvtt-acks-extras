@@ -195,15 +195,15 @@ const P = {
     const since = Date.now();
     H.arm = { fid, tokenUuid, regionUuid, dest, cards: [], writes: [], hook: null };
     const started = { drawnAtStart: false };
-    // One space a second draws a 500 px step over five seconds, so the chain's reads (which take about a second to land) fall in its first half, before the token's prepared centre reaches a zone 250 px out.
+    // 0.4 spaces a second draws a 500 px step over 12.5 seconds, so the chain's reads (a second to land, several in a busy world) fall in its first half, before the token's prepared centre reaches a zone 250 px out; the settle outlasts the drawing.
     const speed0 = CONFIG.Token.movement.defaultSpeed;
-    CONFIG.Token.movement.defaultSpeed = 1;
+    CONFIG.Token.movement.defaultSpeed = 0.4;
     let arm;
     try {
       const update = token.update(dest);
       started.drawnAtStart = token.x !== token._source.x || token.y !== token._source.y;
       await update;
-      await H.sleep(wait ?? 8000);
+      await H.sleep(wait ?? 15000);
     } finally {
       CONFIG.Token.movement.defaultSpeed = speed0;
       arm = H.arm;
