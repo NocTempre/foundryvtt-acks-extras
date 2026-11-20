@@ -187,6 +187,20 @@ const P = {
     H.before = new Set(foundry.applications.instances.values());
     return true;
   },
+  /** Run the macros compendium's Deal Treasure with the tokens still controlled; the new pot is found by difference. */
+  runDealMacro: async () => {
+    const H = globalThis.__tk;
+    H.before = new Set(foundry.applications.instances.values());
+    const m = await game.packs.get("acks-extras.macros")?.getDocument("acksTreasDeal000");
+    if (!m) return { found: false, controlled: canvas.tokens.controlled.length };
+    await m.execute();
+    return { found: true, controlled: canvas.tokens.controlled.length };
+  },
+  /** Close one pot's window, so a second pot never sits over the one the next presses land on. */
+  closePot: async ({ potId }) => {
+    await globalThis.__tk.sheet(potId)?.close();
+    return true;
+  },
   awaitNewPot: async () => {
     const H = globalThis.__tk;
     const app = await H.poll(() => [...foundry.applications.instances.values()].find((a) => !H.before.has(a) && a.rendered && a.constructor.name === "PotSheet") ?? null, { tries: 60, every: 250 });
@@ -438,6 +452,12 @@ try {
   check("the lettered kind's row reads its name with its two tokens counted once, its type, is ticked and enabled, and its tooltip names the sheet and the page", !!lettered1 && lettered1.letterText === expLetterText && lettered1.checked && !lettered1.disabled && lettered1.tip === expTipLetter && lettered1.countTip === expCount, { text: lettered1?.letterText === expLetterText, tip: lettered1?.tip === expTipLetter, count: lettered1?.countTip === expCount });
   check("the bare monster's row is disabled and unticked with its no-letter reason on the row and in its tooltip", !!bare1 && bare1.disabled && !bare1.checked && bare1.off && bare1.letterText === expNoLetter && bare1.tip === expTipNone, { disabled: bare1?.disabled, text: bare1?.letterText === expNoLetter, tip: bare1?.tip === expTipNone });
   check("the stored deal state holds the same two rows, one on, and nothing was dealt: no card in the pot", r1.stored?.rows.length === 2 && r1.stored.rows.filter((x) => x.on).length === 1 && r1.cards === 0, { stored: r1.stored?.rows.length, cards: r1.cards });
+  const mac = await run(gm, P.runDealMacro);
+  const potM = mac.found ? await run(gm, P.awaitNewPot) : null;
+  if (potM) made.push(gm.track(potM.uuid, "Cards"));
+  const rM = potM ? await run(gm, P.rail, { potId: potM.potId }) : null;
+  if (potM) await run(gm, P.closePot, { potId: potM.potId });
+  check("the macros compendium's Deal Treasure, run with the same four tokens controlled, opens a second staged pot with the same two rows, the lettered one ticked and the bare one disabled, nothing dealt", mac.found && mac.controlled === 4 && !!rM && rM.phase === "staging" && rM.rows.length === 2 && rM.rows.some((r) => r.name === expName && r.checked) && rM.rows.some((r) => r.name === expBare && r.disabled) && rM.cards === 0, { found: mac.found, controlled: mac.controlled, rows: rM?.rows.length });
   const pa = (sel) => ({ scope: "sheet", potId: potA.potId, sel });
 
   section("Step 2. the lair warning");
