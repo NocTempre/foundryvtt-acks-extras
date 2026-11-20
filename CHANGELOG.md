@@ -2,6 +2,12 @@
 
 Changes through v11.14.5: [CHANGELOG-through-v11.14.5.md](CHANGELOG-through-v11.14.5.md).
 
+## 2026.11.20.1 — Public Beta
+
+### Fixed
+
+- **Dungeonbashing includes the character's Strength wherever its figure is shown.** Character sheet → Rolls tab → Adventuring → Dungeonbash showed the figure stored on the sheet with no Strength in it, so a strong character read the same target as a weak one. The figure now takes the Strength modifier at the factor the Rules tables import reads (RR p. 267), and its tooltip names the Strength part with its page. The party's Dungeonbashing roll and the skill audit read the same figure, so the audit's target now includes Strength too. With a Strength modifier and no imported factor, the row is blank and does not roll.
+
 ## 2026.11.20 — Public Beta
 
 ### Fixed
