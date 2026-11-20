@@ -18,7 +18,7 @@ import { levelTip } from "../cast-ability-tips.mjs";
 import { gateTip } from "../cast-gates.mjs";
 import { needsBearer, kindChoices, saveModifierOf } from "../cast-mods.mjs";
 import { FIELD_KIND } from "../../lib/field-spec.mjs";
-import { bucketView, BUCKET_LANG_PREFIX } from "../../lib/bucket.mjs";
+import { bucketView, BUCKET_LANG_PREFIX, BUCKET_ACTIONS } from "../../lib/bucket.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { invocationFigure } from "../cast-level.mjs";
 import { procedureHeading } from "../cast-procedure.mjs";
@@ -97,31 +97,42 @@ export function effectRow(row, statusImg = () => null) {
 /*  The answer's state                          */
 /* -------------------------------------------- */
 
-/** The creatures the Summon band offers, flat: each row's creature where the spell names one, else every creature on the shelves the seat can open. `amount` is the count a row opens on. Empty where the cast summons nothing. */
+/** The creatures the Summon band offers, flat: each row's creature where the spell names one. `amount` is the count a row opens on. Empty where the cast summons nothing or the rows name no creature (the band then takes a dropped one). */
 function summonOptions(ctx) {
   const s = ctx.summon;
-  if (!s) return [];
-  if (s.creatures?.length) return s.creatures.map((c, i) => ({ value: c.value, name: c.name || game.i18n.format("ACKS-LIB.summons.creatureN", { n: i + 1 }), amount: Number(c.amount) || 0, source: c.source ?? null }));
-  return (s.shelves ?? []).flatMap((shelf) => shelf.entries.map((e) => ({ value: e.uuid, name: e.name, amount: 0, source: null })));
+  if (!s?.creatures?.length) return [];
+  return s.creatures.map((c, i) => ({ value: c.value, name: c.name || game.i18n.format("ACKS-LIB.summons.creatureN", { n: i + 1 }), amount: Number(c.amount) || 0, source: c.source ?? null }));
+}
+
+/**
+ * The creature dropped on an open Summon band, with its name and picture read
+ * from the world; null where none is held. The open row's own count is the one
+ * it opens on.
+ */
+function droppedCreature(ctx, state) {
+  const ref = String(state.summon?.ref ?? "").trim();
+  if (!ctx.summon?.open || !ref) return null;
+  const doc = globalThis.fromUuidSync?.(ref) ?? null;
+  return { value: ref, name: String(state.summon?.name ?? doc?.name ?? ""), img: String(state.summon?.img ?? doc?.img ?? ""), amount: Number(ctx.summon.open.amount) || 0, source: null };
 }
 
 /**
  * The creature and count the Summon band stands on: the seat's creature where
- * it is still offered, else the first; the seat's typed count, else the row's
- * own count, else one. Null where the cast summons nothing or nothing is
- * offered (the cast then asks for the creature with lib's shelf prompt).
+ * it is still offered, else the first, or on an open band the creature dropped
+ * on it; the seat's typed count, else the row's own count, else one. Null where
+ * the cast summons nothing or no creature is offered or dropped.
  * @param {object} ctx
  * @param {object} state
  * @returns {{ref: string, count: number, name: string, source: object|null}|null}
  */
 export function summonPick(ctx, state) {
   const options = summonOptions(ctx);
-  const chosen = options.find((o) => o.value === state.summon?.ref) ?? options[0];
+  const chosen = options.find((o) => o.value === state.summon?.ref) ?? options[0] ?? droppedCreature(ctx, state);
   if (!chosen) return null;
   const typed = String(state.summon?.count ?? "").trim();
   // A count under one reads as one, as the cast does (`ANSWER_FIELDS.summon`), so the band shows and judges the figure the cast uses.
   const count = typed !== "" && Number.isFinite(Number(typed)) ? Math.max(1, Math.trunc(Number(typed))) : chosen.amount || 1;
-  return { ref: chosen.value, count, name: chosen.name, source: chosen.source };
+  return { ref: chosen.value, count, name: chosen.name, source: chosen.source, ...(chosen.img !== undefined ? { img: chosen.img } : {}) };
 }
 
 /** The first option of every group the spell offers, by group id. */
@@ -467,15 +478,35 @@ function summonView(ctx, pick, judged, { cite, level }) {
     : feet !== null
       ? { text: loc("dialog.summonWithin", { feet, name: ctx.caster?.name ?? "" }), tip: loc(level != null ? "tip.summonRange" : "tip.summonRangeFlat", { feet, level: level ?? "", cite: parens }) }
       : { text: loc("dialog.summonOpen"), tip: cite };
+  const creatureLabel = game.i18n.localize("ACKS-LIB.summons.creature");
+  // An open band is lib's inventory bucket with one row at most: the creature dropped on it, with an X, and the drop zone (`templates/lib/bucket.hbs`, drawn from this object).
+  const dropped = !flat && ctx.summon.open && pick ? { uuid: pick.ref, name: pick.name, img: pick.img ?? "" } : null;
+  const drop = !flat && ctx.summon.open
+    ? {
+        key: "summon",
+        legend: creatureLabel,
+        icon: "",
+        head: null,
+        empty: !dropped,
+        emptyText: loc("dialog.summonEmpty"),
+        canDrop: true,
+        dropLabel: loc("dialog.summonDrop"),
+        rows: dropped
+          ? [{ uuid: dropped.uuid, kind: "actor", name: dropped.name, img: dropped.img || "icons/svg/mystery-man.svg", removeAction: BUCKET_ACTIONS.remove, removeLabel: game.i18n.format(`${BUCKET_LANG_PREFIX}.remove`, { name: dropped.name }), chips: [], caption: "", showValue: false, diamonds: [] }]
+          : [],
+      }
+    : null;
   return {
     show: true,
-    none: options.length === 0,
+    none: !flat && !drop,
     noneText: game.i18n.localize("ACKS-LIB.summons.noMonsters"),
     legend: loc("dialog.summon"),
+    drop,
+    // The count stands only once there is a creature to count.
+    counted: flat || Boolean(dropped),
     creature: {
-      label: game.i18n.localize("ACKS-LIB.summons.creature"),
+      label: creatureLabel,
       options: flat ? options.map(mark) : [],
-      groups: flat ? [] : (ctx.summon.shelves ?? []).map((shelf) => ({ label: shelf.label, options: shelf.entries.map((e) => mark({ value: e.uuid, name: e.name })) })),
     },
     count: {
       label: loc("dialog.summonCount"),
@@ -533,7 +564,9 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   // A summons: the creature and count the band stands on, weighed at this level so the count and a missing GM show in the footer before the confirm.
   const pick = summonPick(ctx, st);
   const judged = pick ? (ctx.summon.at?.(pick, { mode, level: resolved, inv, declaring: moment === "declare" }) ?? null) : null;
-  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, inv, st.procedure, judged) : (ctx.verdicts?.[mode] ?? []);
+  const found = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, inv, st.procedure, judged) : (ctx.verdicts?.[mode] ?? []);
+  // An open Summon band with no creature dropped on it has nothing to cast: Cast waits for the drop, on every seat.
+  const verdicts = ctx.summon?.open && !pick ? [...found, { severity: "block", key: "summonNone" }] : found;
   const blocks = verdicts.some((v) => v.severity === "block");
 
   // The saves: the situational figure, ruling 126's toggle, and the parts that stand.

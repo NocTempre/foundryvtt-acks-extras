@@ -8,6 +8,7 @@ import { MODULE_ID, LANG_PREFIX, TEMPLATE_HOOKS } from "./constants.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDice, rollMenu } from "./template-logic.mjs";
 import { hitDiceOrLevel } from "./actor-read.mjs";
 import { actorFolder } from "./util.mjs";
+import { cookbookId } from "./library.mjs";
 
 /**
  * Where a generated creature goes: a top-level folder of its own, never the
@@ -129,6 +130,8 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
         ...(resolved.flags?.[MODULE_ID] ?? {}),
         generated: {
           templateUuid: template.uuid,
+          // The family's importer id, so a summoning row that names the family names every creature made from it.
+          ...(cookbookId(template) ? { templateRef: cookbookId(template) } : {}),
           choices,
           log,
           menu: menuPicks.map((p) => p.label),

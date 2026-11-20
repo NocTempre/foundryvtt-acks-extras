@@ -265,7 +265,7 @@ amount, value, max, summonFormat, control}` (`value` is the row's LevelValue
 object and `max` the count's ceiling at the caster level, both passed through
 unresolved; `name` is the creature's imported name where the row carries one,
 else empty); a spell with no rows of its own reads its library twin's, and no
-rows at all is `[]`, which the caller reads as the open shelf picker. An empty
+rows at all is `[]`, which the cast dialog reads as an open pick. An empty
 `ref` is an open pick within a row. `libraryTwin(spell, {byCookbookId,
 fromUuidSync})` finds the twin by the cookbook stamp, else by the document
 `_stats.compendiumSource` names. `resolveSummonRef(ref, {fromUuid,
@@ -286,8 +286,13 @@ click costs the cast nothing:
 
 1. *The dialog and its verdicts.* The Summon band stands where the Targets band
    would, which a summons hides. Its creature select offers each row's creature
-   by its imported name, else `Creature n`, and the shelves the seat can open
-   only for a spell with no row. The count opens on the row's amount and shows
+   by its imported name, else `Creature n`. Where the rows name no creature (a
+   spell with no row, or only open rows) the band is lib's inventory bucket
+   instead, holding one creature dropped on it: an Actor of a summonable type
+   or a family (`acks-extras.template`), from the Actors tab or a compendium,
+   or a token's creature (an unlinked token's world actor). Cast is blocked
+   (`summonNone`) until one is dropped, on every seat. No shelf list is
+   offered. The count opens on the row's amount and shows
    its ceiling at the caster level: the row's `max` read through `castAt`, else its
    `amount`, with a provenance tooltip, and a blank ceiling leaves the page
    reference alone. The placement line says within the spell's range of the
@@ -295,6 +300,15 @@ click costs the cast nothing:
    own. The footer judges the pick before Cast: `summonCount` blocks a Player and
    warns a Judge, and a Player with no GM connected is refused
    (`summonRefused`), since the GM's client makes the tokens.
+   A family picked for a cast that places now is made one creature first, at
+   the confirm and before lib's checks: the seat picks its variant in the group
+   sheet's dialog (`GroupSheet.askVariantPins`) and lib's `summonVariant` has
+   the GM's client generate it (relay op `variant`), making a Player an
+   observer of what it chose. That creature is what is checked and placed; a
+   closed variant dialog ends the cast with nothing spent. A declaring keeps
+   the family and makes its creature at the turn. A row naming a family names
+   every creature made from it (the generated flag's `templateUuid` or
+   `templateRef`).
 2. *The clicks* (lib `pickPlacement`, which makes nothing). A point for a
    creature beyond the range from the centre of the caster's token is refused to
    a Player and warned to a Judge as it is clicked; a calling and a range the

@@ -76,6 +76,7 @@ import { defenseCite } from "../lib/defenses.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { tokenGapFeet } from "../lib/distance-units.mjs";
 import { isMagical } from "../lib/item-model.mjs";
+import { TEMPLATE_TYPE } from "../lib/constants.mjs";
 
 /** The claimant's key on the cast seam. */
 export const CAST_SPELL_KEY = `${MODULE_ID}.magic.castSpell`;
@@ -534,7 +535,7 @@ const liveDeps = () => ({
   declare: liveDeclare(),
   // A summoning's creature prompt, the ref's creature, lib's pre-click checks, the seat's clicks and the placement (`lib/summons.mjs`, loaded where a summoning is cast).
   pickSummon: async (caster, o) => (await import("../lib/summons.mjs")).pickSummon(caster, o),
-  summonShelves: async () => (await import("../lib/summons.mjs")).summonShelves(),
+  summonVariant: async (caster, family) => (await import("../lib/summons.mjs")).summonVariant(caster, family),
   resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId }),
   summonVerdict: async (caster, o) => {
     const lib = await import("../lib/summons.mjs");
@@ -774,10 +775,12 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     deps.notify(gone.length ? "warn" : "info", why, { name: caster.name, n: gone.length });
   }
   const gateExtras = (inv = startInv) => castGateExtrasOf(spell, deps.lookups, atFor(modeKeys[0], inv));
-  // A summoning's creatures: its rows' own, each resolved once, else the shelves the seat can open. The dialog's Summon band offers them and answers one.
+  // A summoning's creatures: its rows' own, each resolved once. The dialog's Summon band offers them and answers one; with none, it answers the creature dropped on it.
   const summoning = isSummonSpell(spell) && !fromProject;
   const summonRows = summoning ? summonRowsOf(spell, deps.lookups) : [];
-  const offer = summoning ? await summonOffer(summonRows, { resolveRef: deps.resolveRef, shelves: deps.summonShelves }) : null;
+  // No shelf list is offered: a spell whose rows name no creature takes one dropped on the Summon band.
+  const offer = summoning ? await summonOffer(summonRows, { resolveRef: deps.resolveRef }) : null;
+  const openRow = summonRows.find((row) => !String(row?.ref ?? "").trim()) ?? null;
   // A Player's creatures are made by the GM's client: with none connected the placement would be refused after the spend. A Judge's own seat needs no relay.
   const gmMissing = () => !deps.isGM() && Boolean(deps.gmOnline) && !deps.gmOnline();
   const noGm = () => ({ reason: "noGm", notice: loc("notice.summonNoGm") });
@@ -791,7 +794,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     caster,
     moment,
     // A summoning's creatures and the judge of a pick; null where the cast summons nothing.
-    summon: summoning ? { creatures: offer.creatures, shelves: offer.shelves, at: summonAt } : null,
+    summon: summoning ? { creatures: offer.creatures, open: !offer.creatures.length ? { amount: Number(openRow?.amount) || 0 } : null, at: summonAt } : null,
     // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).
     momentAt: (mode, levelValue, praw, inv = startInv) => momentAt(mode ?? modeKeys[0], inv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
     // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far (and the invocation level it holds); null where the tradition has none.
@@ -886,6 +889,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The level the answer resolved to, never the declaration's default: a null stays null, so the verdicts and the kept rows read one level.
   // Where the cast falls given the final answer: the procedure's casting time is read from it.
   moment = momentAt(mode, invocation.value, level.value, answer.procedure);
+  // A family picked for a cast that places now is made one creature first: the seat picks its variant and the client that may create actors makes it. A declaring keeps the family, made at its turn; a closed variant dialog ends the cast with nothing spent.
+  if (pick && moment !== MOMENT.declare && deps.summonVariant) {
+    const family = (await deps.resolveRef?.(pick.ref)) ?? null;
+    if (family?.type === TEMPLATE_TYPE) {
+      const made = await deps.summonVariant(caster, family);
+      if (!made) return { ok: false, reason: "cancelled" };
+      pick = { ...pick, ref: made.uuid };
+      answer = { ...answer, summon: pick };
+    }
+  }
   const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
   // A summoning's creature and count, judged on the final answer: the ceiling at this caster level, and lib's own refusal before any click. Nothing is placed in a declaring, so lib's checks wait for the turn.
   const summon = pick ? await summonJudged({ pick, level: level.value, at, declaring: moment === MOMENT.declare }) : null;

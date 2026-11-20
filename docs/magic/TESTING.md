@@ -283,10 +283,21 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     added; no end card is posted for that cast. The earlier casts of the same
     caster, whose rows keep their creatures, post their own expiry cards, which
     the run lists by id and sweeps.
+13. The open band. On the caster, a copy of an imported summoning spell whose
+    one row names no creature (tracked, deleted at teardown). *Observable:* the
+    Summon band draws lib's bucket with its drop zone, no creature select and no
+    count, and the footer blocks Cast (`summonNone`). A `character` dropped on
+    the zone is refused with a notice and the band stays empty. An imported
+    family (`acks-extras.template`) dropped there fills the row with its name and
+    picture, the count opens on the row's amount and Cast is enabled. Cast opens
+    the variant dialog; its confirm makes one world actor in the Generated folder
+    whose generated flag carries the family's `templateRef`, and that creature
+    is the one placed. The drop is a real `DragEvent("drop")` carrying
+    `{type: "Actor", uuid}` dispatched on `[data-bucket-drop="summon"]`.
 
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
-caster records, the fight, the walk's own token and the world copies where none
-stood before. The fixtures stay. Quote `gm.sweepTracked({only})`'s result, and
+caster records, the fight, the walk's own token, the generated creature and
+the world copies where none stood before. The fixtures stay. Quote `gm.sweepTracked({only})`'s result, and
 note that the tokens the module removed are among its `could not find`.
 
 ## Spell effect rows (the recipe channel)

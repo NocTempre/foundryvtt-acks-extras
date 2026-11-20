@@ -286,6 +286,21 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
    * @returns {Promise<Actor|null>} null where the dialog closed or nothing generated
    */
   static async #pickVariant(template) {
+    const pins = await GroupSheet.askVariantPins(template);
+    if (!pins) return null;
+    const created = await generateFromTemplate(template, { pins });
+    if (!created) ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.rejected"));
+    return created;
+  }
+
+  /**
+   * The variant a family is to be made as: one choice per single axis, a blank
+   * one left to the axis's default or roll. Nothing is generated here; the
+   * caller makes the creature, on whichever client may create it.
+   * @param {Actor} template  an `acks-extras.template` actor
+   * @returns {Promise<Record<string, string>|null>} the pins by axis key; null where the family is a stub or the dialog closed
+   */
+  static async askVariantPins(template) {
     const sys = template.system;
     if (sys.isStub) return null;
     // An axis that names a default takes it when left alone, so its blank
@@ -314,10 +329,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       },
       rejectClose: false,
     });
-    if (!pins) return null;
-    const created = await generateFromTemplate(template, { pins });
-    if (!created) ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.rejected"));
-    return created;
+    return pins || null;
   }
 
   /** One monster's choice, its line read out beside it. Null where the dialog closed. */

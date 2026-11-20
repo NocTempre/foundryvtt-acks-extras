@@ -548,9 +548,19 @@ await ta("the real template draws a summons' Summon band in the targets band's p
   assert.doesNotMatch(html, /name="summonCount"[^>]*\sid=/);
   assert.match(render(baseCtx()), /acks-extras-cast-targets"/, "a cast that summons nothing keeps its Targets band");
   assert.doesNotMatch(render(baseCtx()), /summonRef/);
-  const shelf = render(baseCtx({ summon: { creatures: [], shelves: [{ label: "Invented shelf", entries: [{ uuid: "uZ", name: "Zebra" }] }], at: () => null } }));
-  assert.match(shelf, /<optgroup label="Invented shelf"><option value="uZ" selected>Zebra<\/option><\/optgroup>/);
-  assert.match(render(baseCtx({ summon: { creatures: [], shelves: [] } })), /ACKS-LIB\.summons\.noMonsters/, "no creature to offer says so, with no select");
+  // Rows that name no creature: lib's bucket with its drop zone and no select; the count stands once a creature is dropped.
+  const open = { creatures: [], open: { amount: 1 }, at: () => null };
+  const empty = render(baseCtx({ summon: open }));
+  assert.match(empty, /data-bucket="summon"/);
+  assert.match(empty, /data-bucket-drop="summon"/);
+  assert.match(empty, /ACKS-MAGIC\.cast\.dialog\.summonEmpty/);
+  assert.doesNotMatch(empty, /name="summonRef"|name="summonCount"/);
+  const held = render(baseCtx({ summon: open }), { summon: { ref: "uZ", count: "", name: "Zebra", img: "z.png" } });
+  assert.match(held, /data-uuid="uZ" data-kind="actor"/);
+  assert.match(held, /Zebra/);
+  assert.match(held, /data-action="bucketRemove" data-uuid="uZ"/);
+  assert.match(held, /<input type="number" name="summonCount" min="1" step="1" value="1">/);
+  assert.match(render(baseCtx({ summon: { creatures: [], open: null } })), /ACKS-LIB\.summons\.noMonsters/, "no creature to offer and no drop says so, with no select");
 });
 
 /* ------------------------------------------------------------------ */

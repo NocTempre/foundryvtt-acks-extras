@@ -28,6 +28,11 @@ import { MODULE_ID } from "../constants.mjs";
 import { BUCKETS_KEY, PICKED_KEY } from "../cast-procedure.mjs";
 import { entriesFromAnswer, entryFromDrop, nextFit, BUCKET_ACTIONS, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE } from "../../lib/bucket.mjs";
 import { dialogContext, initialState, answerOf, bucketsOf, resolveDrop, resolveActor, addTarget, untarget } from "./cast-dialog-model.mjs";
+import { SUMMON_SOURCE_TYPES } from "../../lib/summons-logic.mjs";
+import { TEMPLATE_TYPE } from "../../lib/constants.mjs";
+
+/** The `data-bucket` key of an open Summon band, which the tradition's buckets never use. */
+const SUMMON_BUCKET = "summon";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -208,6 +213,8 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     // The Summon band: a changed creature drops the typed count, so the new creature's own count stands.
     const creature = field("summonRef");
     if (creature) a.summon = { ref: creature.value, count: creature.value === a.summon?.ref ? (field("summonCount")?.value ?? "") : "" };
+    // An open band's creature comes by a drop alone; only its count is a control.
+    else if (a.summon?.ref && field("summonCount")) a.summon = { ...a.summon, count: field("summonCount").value };
     const toggle = field("saveMod");
     if (toggle && !toggle.disabled) a.saveMod = toggle.checked;
     const typed = {};
@@ -243,6 +250,7 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     event.currentTarget?.classList?.remove("drop-hover");
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     const bucket = event.currentTarget?.dataset?.bucketDrop;
+    if (bucket === SUMMON_BUCKET) return this.#dropOnSummon(data);
     if (bucket) return this.#dropOnBucket(bucket, data);
     this.#take(await resolveDrop(data, { fromUuid }));
   }
@@ -261,6 +269,30 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!mine) return;
     change({ list: lists[key], lists, picked, policy: mine.policy });
     this.#answer.procedure = { ...this.#answer.procedure, [BUCKETS_KEY]: lists, [PICKED_KEY]: picked };
+    this.render();
+  }
+
+  /**
+   * A creature dropped on an open Summon band: an Actor from the sidebar or a
+   * compendium, or a token's creature, of a type a summon is made from or a
+   * family the cast makes one creature of at the confirm. It replaces the one
+   * held, and its count opens on the row's own; anything else says why not.
+   */
+  async #dropOnSummon(data) {
+    this.#capture();
+    let actor = null;
+    if (data?.type === "Actor") actor = await fromUuid(data.uuid).catch(() => null);
+    else if (data?.type === "Token") {
+      const token = await fromUuid(data.uuid).catch(() => null);
+      // An unlinked token's creature is its world actor: the summon copies the creature, never one token's own changes.
+      actor = token?.actorLink ? token.actor : (token?.baseActor ?? token?.actor ?? null);
+    }
+    if (!actor) return;
+    if (actor.documentName !== "Actor" || ![...SUMMON_SOURCE_TYPES, TEMPLATE_TYPE].includes(actor.type)) {
+      ui.notifications?.warn(game.i18n.localize("ACKS-LIB.summons.refused.badSource"));
+      return;
+    }
+    this.#answer.summon = { ref: actor.uuid, count: "", name: actor.name, img: actor.img };
     this.render();
   }
 
@@ -323,6 +355,11 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   static #onBucketRemove(_event, target) {
     this.#capture();
     const key = CastDialog.#bucketOf(target);
+    if (key === SUMMON_BUCKET) {
+      this.#answer.summon = { ref: "", count: "" };
+      this.render();
+      return;
+    }
     this.#holdBucket(key, (held) => {
       const at = held.list.findIndex((e) => e.uuid === target.dataset.uuid);
       if (at >= 0) held.list.splice(at, 1);

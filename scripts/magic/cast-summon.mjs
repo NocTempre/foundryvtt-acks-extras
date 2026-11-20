@@ -13,6 +13,7 @@
  * caster level. A Player seat's summon must come through a summoning spell, so
  * the policy also refuses a spell that is none.
  */
+import { MODULE_ID } from "./constants.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin } from "./summon-spell.mjs";
 import { flattenAt } from "./cast-rows.mjs";
 import { modifierFigure } from "./cast-mods.mjs";
@@ -38,13 +39,17 @@ export function summonRowsOf(spell, lookups = worldLookups()) {
 
 /**
  * Does a row's ref name this creature? A creature in hand is named by its uuid,
- * its importer cookbook id or its own name; one the seat could not open
+ * its importer cookbook id or its own name, and a creature made from a family
+ * also by the family's uuid or importer id; one the seat could not open
  * (`source` null) is named by the ref the request carries, compared as written.
  */
 function rowNames(rowRef, { source, sourceRef }) {
   const ref = normalizeRef(rowRef);
   if (!ref) return false;
-  if (source) return ref === source.uuid || ref === cookbookId(source) || ref.toLowerCase() === String(source.name ?? "").trim().toLowerCase();
+  if (source) {
+    const family = source.flags?.[MODULE_ID]?.generated ?? null;
+    return ref === source.uuid || ref === cookbookId(source) || ref.toLowerCase() === String(source.name ?? "").trim().toLowerCase() || (Boolean(family) && (ref === family.templateUuid || ref === family.templateRef));
+  }
   return ref === normalizeRef(sourceRef);
 }
 

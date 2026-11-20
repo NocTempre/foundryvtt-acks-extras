@@ -99,15 +99,19 @@
     {{#if summon.none}}
     <p class="acks-extras-cast-hint">{{summon.noneText}}</p>
     {{else}}
+    {{#if summon.drop}}
+    {{> "modules/acks-extras/templates/lib/bucket.hbs" summon.drop}}
+    {{else}}
     <div class="acks-extras-cast-field">
       <label>
         <span>{{summon.creature.label}}</span>
         <select name="summonRef">
           {{#each summon.creature.options}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
-          {{#each summon.creature.groups}}<optgroup label="{{label}}">{{#each options}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}</optgroup>{{/each}}
         </select>
       </label>
     </div>
+    {{/if}}
+    {{#if summon.counted}}
     <div class="acks-extras-cast-field acks-extras-cast-invlevel">
       <label{{#if summon.count.tip}} data-tooltip-text="{{summon.count.tip}}"{{/if}}>
         <span>{{summon.count.label}}</span>
@@ -115,6 +119,7 @@
       </label>
       {{#if summon.count.of}}<span class="acks-extras-cast-cap acks-nums{{#if summon.count.over}} is-warn{{/if}}"{{#if summon.count.tip}} data-tooltip-text="{{summon.count.tip}}"{{/if}}>{{summon.count.of}}</span>{{/if}}
     </div>
+    {{/if}}
     <div class="acks-extras-cast-split"{{#if summon.placement.tip}} data-tooltip-text="{{summon.placement.tip}}"{{/if}}>
       <span>{{summon.placement.label}}</span>
       <span class="acks-extras-cast-cap acks-nums">{{summon.placement.text}}</span>

@@ -34,7 +34,7 @@ globalThis.Roll = class {
 globalThis.ui = { notifications: { warn() {}, info() {} } };
 
 const { castSpellRun, castSpellClaims, castSpellClaimant } = await import("../scripts/magic/cast-spell.mjs");
-const { summonCeiling, summonCeilingFor, summonIsCalling, summonRefusal, summonRowsOf } = await import("../scripts/magic/cast-summon.mjs");
+const { summonCeiling, summonCeilingFor, summonIsCalling, summonRefusal, summonRowsOf, summonFitting } = await import("../scripts/magic/cast-summon.mjs");
 const { castVerdicts, VERDICT } = await import("../scripts/magic/cast-plan.mjs");
 const { ANSWER_FIELDS, answerStored, answerFromPending } = await import("../scripts/magic/cast-declare.mjs");
 const { registerCastProcedure } = await import("../scripts/magic/cast-procedure.mjs");
@@ -675,21 +675,46 @@ await ta("the band offers the row's creature by its resolved name and reads its 
   assert.deepEqual(model.answerOf(ctx, { summon: { ref: GLIMMER.uuid, count: "4" } }).summon, { ref: GLIMMER.uuid, count: 4 }, "a typed count is the answer's");
 });
 
-await ta("a creature the seat cannot open is offered by the row's name, else Creature n; a spell with no rows offers the shelf and its ceiling stays blank", async () => {
+await ta("a creature the seat cannot open is offered by the row's name, else Creature n; rows that name no creature take a dropped one, and Cast waits for it", async () => {
   let ctx = await askedWith(makeSpell({ rows: [row({ ref: "def.invented.far", name: "Far hound" }), row({ ref: "def.invented.unseen", amount: 1 })] }), {});
   assert.deepEqual(model.dialogContext(ctx, {}).summon.creature.options.map((o) => o.label), ["Far hound", 'ACKS-LIB.summons.creatureN|{"n":2}']);
-  const shelves = [{ label: "Invented shelf", entries: [{ uuid: "Compendium.invented.Actor.z", name: "Zebra" }] }];
-  const seen = [];
-  const r = runDeps({ answer: null });
-  r.deps.summonShelves = async () => shelves;
-  r.deps.ask = async (c) => (seen.push(c), null);
-  await cast(makeSpell({ rows: [] }), r);
-  const band = model.dialogContext(seen[0], {}).summon;
-  assert.deepEqual([band.creature.options, band.creature.groups.map((g) => [g.label, g.options.map((o) => o.value)])], [[], [["Invented shelf", ["Compendium.invented.Actor.z"]]]]);
-  assert.deepEqual(model.answerOf(seen[0], {}).summon, { ref: "Compendium.invented.Actor.z", count: 1 });
-  assert.equal(band.count.of, "");
+  assert.equal(model.dialogContext(ctx, {}).summon.drop, null, "a spell that names its creatures draws no drop zone");
+  ctx = await askedWith(makeSpell({ rows: [row({ ref: "", amount: 2 })] }), {});
+  const empty = model.dialogContext(ctx, {});
+  assert.deepEqual([empty.summon.none, empty.summon.drop?.empty, empty.summon.counted, "summon" in model.answerOf(ctx, {})], [false, true, false, false]);
+  assert.deepEqual([empty.footer.blocked, empty.footer.verdicts.map((v) => v.text.split("|")[0])], [true, ["ACKS-MAGIC.cast.notice.blocked.summonNone"]], "an empty band blocks Cast on every seat");
+  const state = { summon: { ref: "Compendium.invented.Actor.z", count: "", name: "Zebra", img: "z.png" } };
+  const held = model.dialogContext(ctx, state);
+  assert.deepEqual([held.summon.drop.rows.map((r) => [r.uuid, r.name, r.img]), held.summon.counted, held.footer.blocked], [[["Compendium.invented.Actor.z", "Zebra", "z.png"]], true, false]);
+  assert.deepEqual(model.answerOf(ctx, state).summon, { ref: "Compendium.invented.Actor.z", count: 2 }, "the dropped creature opens on the open row's count");
   ctx = await askedWith(makeSpell({ rows: [] }), {});
-  assert.deepEqual([model.dialogContext(ctx, {}).summon.none, "summon" in model.answerOf(ctx, {})], [true, false], "nothing to offer: no answer, so the cast asks with the shelf prompt");
+  assert.equal(model.dialogContext(ctx, {}).summon.drop?.empty, true, "a rowless summoning spell takes a dropped creature too");
+});
+
+await ta("a family picked for a cast that places now is made one creature first, and that creature is placed; a closed variant dialog spends nothing", async () => {
+  const family = { uuid: "Compendium.invented.Actor.fam", name: "Invented family", type: "acks-extras.template", flags: {} };
+  const madeOne = { uuid: "Actor.made", name: "Invented family, small", type: "monster", flags: { "acks-extras": { generated: { templateUuid: family.uuid } } } };
+  const r = runDeps({ answer: answerOf({ summon: { ref: family.uuid, count: 1 } }) });
+  const resolve = r.deps.resolveRef;
+  r.deps.resolveRef = async (ref) => (ref === family.uuid ? family : ref === madeOne.uuid ? madeOne : resolve(ref));
+  const asked = [];
+  r.deps.summonVariant = async (_caster, fam) => (r.order.push("variant"), asked.push(fam.uuid), madeOne);
+  await cast(makeSpell({ rows: [row({ ref: "" })] }), r);
+  assert.deepEqual(asked, [family.uuid], "the variant is asked once, of the family");
+  assert.deepEqual(r.order.slice(0, 4), ["ask", "variant", "verdict", "clicks"], "the creature is made before lib's checks and the clicks");
+  assert.deepEqual([r.calls.verdicts[0]?.sourceUuid, r.calls.clicked[0]?.sourceUuid], [madeOne.uuid, madeOne.uuid], "the made creature is what is checked and placed");
+  const shut = runDeps({ answer: answerOf({ summon: { ref: family.uuid, count: 1 } }) });
+  shut.deps.resolveRef = r.deps.resolveRef;
+  shut.deps.summonVariant = async () => null;
+  const out = await cast(makeSpell({ rows: [row({ ref: "" })] }), shut);
+  assert.deepEqual([out.ok, out.reason, shut.calls.spends], [false, "cancelled", 0]);
+});
+
+await ta("a row that names a family names every creature made from it, by the family's uuid or importer id", () => {
+  const madeOne = { uuid: "Actor.made", name: "Small one", type: "monster", flags: { "acks-extras": { generated: { templateUuid: "Compendium.invented.Actor.fam", templateRef: "def.invented.family" } } } };
+  assert.equal(summonFitting([row({ ref: "def.invented.family" })], { source: madeOne }).length, 1);
+  assert.equal(summonFitting([row({ ref: "Compendium.invented.Actor.fam" })], { source: madeOne }).length, 1);
+  assert.equal(summonFitting([row({ ref: "def.invented.other" })], { source: madeOne }).length, 0);
 });
 
 await ta("a blank ceiling shows the page reference alone, and no count is held against it", async () => {

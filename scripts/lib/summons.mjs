@@ -31,7 +31,7 @@
  * spell names is resolved on the GM's client with the GM's access, so a seat
  * that cannot open its shelf still summons it.
  */
-import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK, TEMPLATE_TYPE } from "./constants.mjs";
 import { docOf, makeLoc } from "./util.mjs";
 import { centreOfToken, pointGapFeet } from "./distance-units.mjs";
 import * as services from "./services.mjs";
@@ -59,6 +59,7 @@ import {
   normalizeCast,
   checkPlacementRange,
   rangeLimitOf,
+  sourceReadable,
 } from "./summons-logic.mjs";
 
 export { summonerOf, registerSummonPolicy, registerSummonNaming };
@@ -435,7 +436,52 @@ export async function summonRelay({ op, requestUserId = null, ...rest } = {}) {
   if (!user) return refused("noUser");
   if (op === "place") return placeOp({ ...rest, user });
   if (op === "dismiss") return dismissOp({ ...rest, user });
+  if (op === "variant") return variantOp({ ...rest, user });
   return refused("badOp");
+}
+
+/**
+ * Make one creature of a family (`acks-extras.template`) for a summoning, on
+ * the client that may create actors. The sender must own the summoner and be
+ * able to open the family; a Player is made an observer of what it generates,
+ * so the placement's readable-source check passes for the creature it chose.
+ * @returns {Promise<{ok: true, uuid: string}|{ok: false, reason: string}>}
+ */
+async function variantOp({ summonerUuid, templateUuid, pins = {}, user }) {
+  const summoner = summonerUuid ? await fromUuid(summonerUuid).catch(() => null) : null;
+  if (!summoner?.testUserPermission?.(user, "OWNER")) return refused("notOwner");
+  const template = templateUuid ? await fromUuid(normalizeRef(templateUuid)).catch(() => null) : null;
+  if (template?.type !== TEMPLATE_TYPE) return refused("badSource");
+  if (!sourceReadable(template, user)) return refused("unreadable");
+  const { generateFromTemplate } = await import("./template-generate.mjs");
+  const made = await generateFromTemplate(template, { pins: pins && typeof pins === "object" ? pins : {} }).catch((err) => {
+    console.error(`${MODULE_ID} | a summoned family's creature could not be made`, err);
+    return null;
+  });
+  if (!made) return refused("noCopy");
+  if (!user.isGM) await made.update({ [`ownership.${user.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER });
+  return { ok: true, uuid: made.uuid };
+}
+
+/**
+ * A creature of a family, for a summoning to place: the seat picks the
+ * variant (the group sheet's dialog), and the client that may create actors
+ * makes it. Null where the dialog closed or the creature was not made, with
+ * the reason told to the seat.
+ * @param {Actor} summoner  the character summoning
+ * @param {Actor} template  an `acks-extras.template` actor
+ * @returns {Promise<Actor|null>} the world actor made
+ */
+export async function summonVariant(summoner, template) {
+  const { GroupSheet } = await import("./apps/group-sheet.mjs");
+  const pins = await GroupSheet.askVariantPins(template);
+  if (!pins) return null;
+  const made = await send({ op: "variant", summonerUuid: summoner.uuid, templateUuid: template.uuid, pins });
+  if (!made?.ok) {
+    warnRefusal(made?.reason ?? "noGm");
+    return null;
+  }
+  return (await fromUuid(made.uuid).catch(() => null)) ?? null;
 }
 
 /** Register the GM's half of the relay — once, at init. */
