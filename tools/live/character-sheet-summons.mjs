@@ -3,10 +3,12 @@
  * sheet. Walks docs/character-sheet/TESTING.md "Summons from a Player seat" on
  * the GM and Player seats: a boot recorder attached before the reload that sees
  * `init`, `setup` and `ready`; the cast cell offering Cast for each summoning
- * spell and no spell-less Summon… to the Player; Cast placing the named
- * creature by two real clicks, after which the cell offers that spell's
+ * spell and no spell-less Summon… to the Player; Cast opening the cast dialog
+ * and, once Cast is pressed there, placing the named creature by two real
+ * clicks, after which the cell offers that spell's
  * Dismiss with its count and no Cast; the Magic tab's standing count and its
- * Dismiss; a second spell's cast from an open shelf adding Dismiss all; the
+ * Dismiss; a second spell's cast, its open Summon band given a creature from an
+ * open shelf by a drop, adding Dismiss all; the
  * world clock moved past the first cast's duration posting one whispered card,
  * once, to the caster's owner and the GM, whose Dismiss on the Player seat
  * removes that cast and nothing else; the Magic tab's Dismiss removing the
@@ -155,26 +157,53 @@ const P = {
     await H.sleep(900);
     return true;
   },
-  /** The creature prompt, once it is up: its choices and its count. */
+  /** The cast dialog's Summon band, once the dialog is up: its creature choices (none on an open band, which has a drop zone instead), its count and whether Cast is enabled. */
   prompt: async () => {
     const H = globalThis.__cs;
-    const form = await H.poll(() => [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count), { tries: 60, every: 200 });
-    if (!form) return { prompt: false };
-    return { prompt: true, values: [...form.elements.source.options].map((o) => o.value), count: form.elements.count.value };
+    const live = () => document.querySelector(".application.acks-extras-cast");
+    const el = await H.poll(live, { tries: 80, every: 150 });
+    if (!el) return { prompt: false };
+    const cast = el.querySelector('button[data-action="cast"]');
+    return {
+      prompt: true,
+      summonBand: !!el.querySelector(".acks-extras-cast-summon"),
+      open: !!el.querySelector('[data-bucket-drop="summon"]'),
+      values: [...(el.querySelector('select[name="summonRef"]')?.options ?? [])].map((o) => o.value),
+      count: el.querySelector('input[name="summonCount"]')?.value ?? null,
+      castDisabled: !!cast?.disabled,
+    };
   },
-  /** Answer the prompt (count, then Place on the map), then clear every framed window off the map. */
-  answer: async ({ count }) => {
+  /**
+   * Answer the cast dialog: a creature dropped on an open band first (a real
+   * `drop` carrying the Actor's uuid on the zone), then the count typed as a
+   * user does (each change re-renders the window), then Cast pressed, then every
+   * framed window cleared off the map.
+   */
+  answer: async ({ count, dropUuid }) => {
     const H = globalThis.__cs;
-    const form = [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count);
-    if (!form) return { prompt: false };
-    if (count) form.elements.count.value = String(count);
-    const ok = form.querySelector('button[data-action="ok"]') ?? form.closest(".application")?.querySelector('button[data-action="ok"]');
-    ok?.click();
+    const live = () => document.querySelector(".application.acks-extras-cast");
+    if (!live()) return { prompt: false };
+    if (dropUuid) {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ type: "Actor", uuid: dropUuid }));
+      live().querySelector('[data-bucket-drop="summon"]')?.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+      await H.poll(() => live()?.querySelector('input[name="summonCount"]'), { tries: 40, every: 150 });
+      await H.sleep(400);
+    }
+    const input = live()?.querySelector('input[name="summonCount"]');
+    if (count && input && input.value !== String(count)) {
+      input.value = String(count);
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.sleep(600);
+    }
+    const ok = live()?.querySelector('button[data-action="cast"]');
+    if (!ok || ok.disabled) return { prompt: true, pressed: false, disabled: !!ok?.disabled };
+    ok.click();
     await H.sleep(500);
     for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
     try { ui.notifications.clear?.(); } catch { /* chrome only */ }
     await H.sleep(500);
-    return { prompt: true, pressed: !!ok };
+    return { prompt: true, pressed: true };
   },
   /** One client point per cell asked for, found by scanning the viewport for bare canvas well inside the scene. */
   pointsFor: async ({ cells, avoid = [] }) => {
@@ -519,8 +548,8 @@ try {
   section("2. Cast from the cell places the named creature, and the cell turns to its Dismiss");
   check("2: Cast is picked", await run(player, P.pick, { label: castMenu.named }));
   const p2 = await run(player, P.prompt);
-  check("2: the prompt offers the spell's one creature and opens on its count", p2.prompt && p2.values.length === 1 && p2.values[0] === spikeUuid && p2.count === "2", { choices: p2.values?.length, count: p2.count });
-  check("2: Place on the map is pressed", (await run(player, P.answer, { count: 2 })).pressed);
+  check("2: the cast dialog's Summon band offers the spell's one creature and opens on its count", p2.prompt && p2.summonBand && p2.values.length === 1 && p2.values[0] === spikeUuid && p2.count === "2", { choices: p2.values?.length, count: p2.count });
+  check("2: Cast is pressed in the dialog, for the count of 2", (await run(player, P.answer, { count: 2 })).pressed);
   await frontSeat(PORTS.player);
   await pointerToMiddle(player, PORTS.player);
   const clicked = [];
@@ -562,8 +591,9 @@ try {
   await run(player, P.menu, { actorId: summonerId });
   check("4: Cast is picked for the open spell", await run(player, P.pick, { label: castMenu.open }));
   const p4 = await run(player, P.prompt);
-  check("4: the prompt offers the shelf the Player can open", p4.prompt && p4.values.includes(shelf), { choices: p4.values?.length });
-  await run(player, P.answer, { count: 1 });
+  check("4: the cast dialog's Summon band is open (a drop zone, no creature choice) and Cast waits for a creature", p4.prompt && p4.summonBand && p4.open && p4.values.length === 0 && p4.castDisabled, { open: p4.open, choices: p4.values?.length, castDisabled: p4.castDisabled });
+  const a4 = await run(player, P.answer, { count: 1, dropUuid: shelf });
+  check("4: a creature from the shelf the Player can open, dropped on the band, enables Cast, and Cast is pressed", a4.pressed, a4);
   await frontSeat(PORTS.player);
   await pointerToMiddle(player, PORTS.player);
   const [p4pt] = await run(player, P.pointsFor, { cells: [0], avoid: clicked });
@@ -602,16 +632,18 @@ try {
   check("5: a further step of the clock posts no second card", (await run(gm, P.endedCards, { castId: namedCast, playerId })).length === 1);
   check("5: the creatures still stand: the card tells, it does not remove", (await tokens()).length === 3);
 
-  section("6. the card's Dismiss on the Player seat removes that cast, and nothing else");
+  section("6. the card's Dismiss, drawn on the Judge's seat only, removes that cast, and nothing else");
   const seen6 = await run(player, P.endedCards, { castId: namedCast, playerId });
   check("6: the Player seat sees the card", seen6.length === 1 && seen6[0].visible);
-  const declined6 = await run(player, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
-  check("6: the card's Dismiss button is rendered on the Player seat and pressed", declined6.button);
-  check("6: the confirmation is answered No", await run(player, P.confirm, { action: "no" }));
+  const refused6 = await run(player, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
+  check("6: the card's Dismiss button is not drawn on the Player seat", !refused6.button);
+  const declined6 = await run(gm, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
+  check("6: the card's Dismiss button is rendered on the GM seat and pressed", declined6.button);
+  check("6: the confirmation is answered No", await run(gm, P.confirm, { action: "no" }));
   check("6: No removes nothing", (await tokens()).length === 3);
-  const pressed6 = await run(player, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
+  const pressed6 = await run(gm, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
   check("6: the card's Dismiss is pressed again", pressed6.button);
-  check("6: the confirmation is answered Yes", await run(player, P.confirm, { action: "yes" }));
+  check("6: the confirmation is answered Yes", await run(gm, P.confirm, { action: "yes" }));
   const after6 = await until(gm, P.summonTokens, { sceneId, summonerUuid }, (t) => t.length === 1, { tries: 30, every: 300 });
   check("6: the named cast's two tokens are gone and the open cast's one stands", after6.length === 1 && after6[0].record?.castId === openCast, { n: after6.length });
 

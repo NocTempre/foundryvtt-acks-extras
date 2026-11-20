@@ -2974,10 +2974,10 @@ types the name the kept party does not carry. Read each seat's
    | Camp | `travel.exposure.hours`, `.atHeatSource`, `.wet`; `travel.camp.steal`, `.water`, `.sleepInArmour` |
    | Judge tab, The episode | `lostBegin` (by state `lostDiscover`, `lostReanchor`, `lostEnd`), `travel.lostNote` |
    | Judge tab, The Judge's hand | `travel.override.ground`, `.encounterTerrain`, `.territory`, `.climate`, `.road`, `.following`; `clearOverride` beside each one set |
-   | Order head | `autoArrange`, `frontage`, `saveMarchingOrder`, `loadMarchingOrder`, `addBlank`, `openTrapbreak`, `openSkillAudit`, `disband` |
+   | Order head | `autoArrange`, `frontage`, `saveMarchingOrder`, `loadMarchingOrder`, `addBlank`, `openSkillAudit`, `disband` |
 
    In the delve, the Dungeon head holds `advanceTurn`, `advanceRound`,
-   `restTurn`, `undoTurn` and `togglePace`. On a district scene, the City
+   `restTurn`, `undoTurn`, `togglePace` and `openTrapbreak` (step 12). On a district scene, the City
    head holds `travel.settlement.wanted` (and `settlementTravelTo` while a
    point of interest is in reach) and the four turn pills, and The city holds
    `travel.settlement.pace`, `.where`, `.route`, `.hour`, `.intent` and

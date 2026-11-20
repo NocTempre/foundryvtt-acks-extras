@@ -2522,7 +2522,7 @@ async function frame(gm, player, census) {
     note(`rails ${mode}`, R[mode]);
     check(`step 2 (${mode}): four rails of 6, 5, 5 and 5 cells, the same list on every tab, each pill showing its tab`, R[mode].mode === mode && same(R[mode].counts, [6, 5, 5, 5]) && R[mode].sameOnEveryTab && R[mode].everyPillActivates, { mode: R[mode].mode, counts: R[mode].counts, sameOnEveryTab: R[mode].sameOnEveryTab, pills: R[mode].pills, labels: R[mode].labels });
     if (mode === "delve") {
-      check("step 3 (delve): the Dungeon head holds advanceTurn, advanceRound, restTurn, undoTurn and togglePace", sameSet(R.delve.headActions, ["advanceTurn", "advanceRound", "restTurn", "undoTurn", "togglePace"]) && R.delve.headActions.length === 5, R.delve.headActions);
+      check("step 3 (delve): the Dungeon head holds advanceTurn, advanceRound, restTurn, undoTurn, togglePace and openTrapbreak", sameSet(R.delve.headActions, ["advanceTurn", "advanceRound", "restTurn", "undoTurn", "togglePace", "openTrapbreak"]) && R.delve.headActions.length === 6, R.delve.headActions);
       note("home", await page(gm, P.frameHome, { partyId: party.id, tab: "mode" }));
       note("calm", await page(gm, P.calm));
       await shot(gm, "formation-frame", ".application.acks-extras-party-sheet");

@@ -193,21 +193,32 @@ const P = {
     await H.sleep(900);
     return true;
   },
-  /** The creature prompt, once it is up: its choices and its count. */
+  /** The cast dialog's Summon band, once the dialog is up: its creature choices and its count. */
   prompt: async () => {
     const H = globalThis.__ff;
-    const form = await H.poll(() => [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count), { tries: 60, every: 200 });
-    if (!form) return { prompt: false };
-    return { prompt: true, values: [...form.elements.source.options].map((o) => o.value), count: form.elements.count.value };
+    const el = await H.poll(() => document.querySelector(".application.acks-extras-cast"), { tries: 80, every: 150 });
+    if (!el) return { prompt: false };
+    return {
+      prompt: true,
+      summonBand: !!el.querySelector(".acks-extras-cast-summon"),
+      values: [...(el.querySelector('select[name="summonRef"]')?.options ?? [])].map((o) => o.value),
+      count: el.querySelector('input[name="summonCount"]')?.value ?? null,
+    };
   },
-  /** Answer the prompt (count, then Place on the map), then clear every framed window off the map. */
+  /** Answer the cast dialog (the count typed as a user does, each change re-rendering the window, then Cast), then clear every framed window off the map. */
   answer: async ({ count }) => {
     const H = globalThis.__ff;
-    const form = [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count);
-    if (!form) return { prompt: false };
-    if (count) form.elements.count.value = String(count);
-    const ok = form.querySelector('button[data-action="ok"]') ?? form.closest(".application")?.querySelector('button[data-action="ok"]');
-    ok?.click();
+    const live = () => document.querySelector(".application.acks-extras-cast");
+    if (!live()) return { prompt: false };
+    const input = live().querySelector('input[name="summonCount"]');
+    if (count && input && input.value !== String(count)) {
+      input.value = String(count);
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.sleep(600);
+    }
+    const ok = live()?.querySelector('button[data-action="cast"]');
+    if (!ok || ok.disabled) return { prompt: true, pressed: false, disabled: !!ok?.disabled };
+    ok.click();
     await H.sleep(500);
     for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
     try { ui.notifications.clear?.(); } catch { /* chrome only */ }
@@ -825,15 +836,15 @@ try {
     } else await run(player, P.closeMenu);
     await run(player, P.clearWindows);
   }
-  /** One cast from the cast cell: Cast, the prompt answered, a real click per creature, and the creatures joined as members. */
+  /** One cast from the cast cell: Cast, the cast dialog answered, a real click per creature, and the creatures joined as members. */
   async function placeCast({ tag, actorId, label, count, joined }) {
     await run(player, P.clearWindows);
     const m = await run(player, P.menu, { actorId });
     check(`${tag}: Cast is offered in the cast cell`, m.cell && m.items.includes(label));
     check(`${tag}: Cast is picked`, await run(player, P.pick, { label }));
     const prompt = await run(player, P.prompt);
-    check(`${tag}: the prompt offers the spell's one creature`, prompt.prompt && prompt.values.length === 1 && prompt.values[0] === spikeUuid, { choices: prompt.values?.length });
-    check(`${tag}: Place on the map is pressed for ${count}`, (await run(player, P.answer, { count })).pressed);
+    check(`${tag}: the cast dialog's Summon band offers the spell's one creature`, prompt.prompt && prompt.summonBand && prompt.values.length === 1 && prompt.values[0] === spikeUuid, { choices: prompt.values?.length });
+    check(`${tag}: Cast is pressed in the dialog for ${count}`, (await run(player, P.answer, { count })).pressed);
     await frontSeat(PORTS.player);
     await pointerToMiddle(player, PORTS.player);
     const clicked = [];
@@ -1029,13 +1040,15 @@ try {
   check("7: the creatures still stand: the card tells, it does not remove", ofCast(await st(), bUuid).length === 2);
   const seen7 = await run(player, P.endedCards, { castId: castB2, playerId });
   check("7: the Player seat sees the card", seen7.length === 1 && seen7[0].visible);
-  const press7 = await run(player, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
-  check("7: the card's Dismiss is rendered on the Player seat and pressed", press7.button);
-  check("7: the confirmation is answered No", await run(player, P.confirm, { action: "no" }));
+  const refused7 = await run(player, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
+  check("7: the card's Dismiss is not drawn on the Player seat (a creature whose control ended is the Judge's to dismiss)", !refused7.button);
+  const press7 = await run(gm, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
+  check("7: the card's Dismiss is rendered on the GM seat and pressed", press7.button);
+  check("7: the confirmation is answered No", await run(gm, P.confirm, { action: "no" }));
   check("7: No removes nothing", ofCast(await st(), bUuid).length === 2);
-  const press7b = await run(player, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
+  const press7b = await run(gm, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
   check("7: the card's Dismiss is pressed again", press7b.button);
-  check("7: the confirmation is answered Yes", await run(player, P.confirm, { action: "yes" }));
+  check("7: the confirmation is answered Yes", await run(gm, P.confirm, { action: "yes" }));
   const s7 = await until(gm, P.state, { fid, sceneId, playerId, aId, bId }, (s) => s.summons.length === 0, { tries: 40, every: 300 });
   check("7: the held creatures are gone: no member, no token", s7.summons.length === 0 && s7.loose === 0, { members: s7.summons.length });
 

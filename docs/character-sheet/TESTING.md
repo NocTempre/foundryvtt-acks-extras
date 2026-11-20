@@ -724,8 +724,8 @@ seats, after a reload of each seat under a boot recorder.
   cast-end watch ignores a backward step, and the walk leaves the world clock
   62 seconds on. The card is read by its `castEnded` flag's `castId`, never by
   its text.
-- The card's *Dismiss* is pressed in the Player seat's rendered chat log, and
-  the confirmation is answered by its Yes button.
+- The card's *Dismiss* is drawn on a GM seat only, so it is pressed in the GM
+  seat's rendered chat log, and the confirmation is answered by its Yes button.
 
 At the start the summoner has no summons on the scene; a leftover token is a
 past run's, read by its `summon` record and removed through *Dismiss all*
@@ -736,9 +736,9 @@ released at the start.
 summoner, the Tokens layer active):
 1. Character sheet → cast cell (the first cell of the second right-rail column). *Observable:* the menu offers *Cast <spell>*
    for both summoning spells, and neither *Summon…* nor any *Dismiss*.
-2. Pick *Cast* for the named spell. *Observable:* the creature prompt offers the
-   spell's one creature with the count opening on 2. Place on the map and click
-   twice: two tokens of one cast, each record naming the spell; the spell's
+2. Pick *Cast* for the named spell. *Observable:* the cast dialog's Summon band
+   offers the spell's one creature with the count opening on 2. Press Cast in
+   the dialog and click twice on the map: two tokens of one cast, each record naming the spell; the spell's
    cast count is 1; one caster record carries that cast id, not stamped
    `ended`, with the one-minute duration. The cell now offers
    *Dismiss <named spell> (2)* and no *Cast* for it, and still *Cast* for the
@@ -747,16 +747,20 @@ summoner, the Tokens layer active):
    "2 standing" with a tooltip, and carries a *Dismiss* button named by its
    `aria-label`; the open spell's row reads "0 standing", tooltipped, and has no
    *Dismiss*.
-4. Cast cell → *Cast* for the open spell, pick a creature from a shelf the
-   Player can open, place one. *Observable:* a third token of a second cast
+4. Cast cell → *Cast* for the open spell: the dialog's Summon band is a drop
+   zone with Cast disabled. Drop a creature from a shelf the Player can open
+   on it (a real `drop` carrying the Actor's uuid), press Cast, place one.
+   *Observable:* a third token of a second cast
    naming the open spell; its caster record has no duration. The cell offers
    both spells' *Dismiss*, *Dismiss all summons*, and no *Cast*.
 5. From the GM seat, move the clock forward past the minute. *Observable:* one
    card, whispered to the Player and to the GM, for the named cast; that
    cast's record is stamped `ended`; no card for the open cast. A further step
    of the clock posts no second card. All three tokens still stand.
-6. On the Player seat, the card is visible; press its *Dismiss* and answer No.
-   *Observable:* nothing is removed. Press it again and answer Yes.
+6. On the Player seat, the card is visible and draws no *Dismiss* (a creature
+   whose control ended is the Judge's to dismiss). On the GM seat press the
+   card's *Dismiss* and answer No. *Observable:* nothing is removed. Press it
+   again and answer Yes.
    *Observable:* the named cast's two tokens are gone and the open cast's one
    stands.
 7. Magic tab → the open spell's *Dismiss*, answer Yes. *Observable:* no summons
