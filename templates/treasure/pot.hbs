@@ -24,7 +24,7 @@
           <div class="acks-extras-treasure__field acks-extras-treasure__hoards" role="group" aria-labelledby="{{@root.partId}}-hoards">
             <div class="acks-extras-treasure__hoards-head">
               <span class="acks-extras-caption" id="{{@root.partId}}-hoards">{{localize "ACKS-TREASURE.deal.hoardsTitle"}}</span>
-              <span class="acks-extras-treasure__hoards-total">{{deal.hoardsText}}</span>
+              <span class="acks-extras-treasure__hoards-total" data-tooltip-text="{{deal.hoardsTip}}">{{deal.hoardsText}}</span>
             </div>
             {{#if deal.rows.length}}
               <ul class="acks-extras-treasure__hoards-list">
@@ -36,11 +36,11 @@
                       <span class="acks-extras-treasure__hoard-source"{{#if sourceTip}} data-tooltip-text="{{sourceTip}}"{{/if}}>{{source}}</span>
                     </span>
                     <span class="acks-extras-treasure__stepper">
-                      <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealStep" data-list="{{list}}" data-index="{{index}}" data-step="-1" aria-label="{{lessLabel}}"{{#if off}} disabled{{/if}}>−</button>
+                      <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealStep" data-list="{{list}}" data-index="{{index}}" data-step="-1" aria-label="{{lessLabel}}" data-tooltip=""{{#if off}} disabled{{/if}}>−</button>
                       <span class="acks-extras-treasure__stepper-n">{{hoardsText}}</span>
-                      <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealStep" data-list="{{list}}" data-index="{{index}}" data-step="1" aria-label="{{moreLabel}}"{{#if off}} disabled{{/if}}>+</button>
+                      <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealStep" data-list="{{list}}" data-index="{{index}}" data-step="1" aria-label="{{moreLabel}}" data-tooltip=""{{#if off}} disabled{{/if}}>+</button>
                     </span>
-                    <button type="button" class="acks-btn acks-btn--sm acks-btn--quiet" data-action="dealRemove" data-list="{{list}}" data-index="{{index}}" aria-label="{{removeLabel}}">×</button>
+                    <button type="button" class="acks-btn acks-btn--sm acks-btn--quiet" data-action="dealRemove" data-list="{{list}}" data-index="{{index}}" aria-label="{{removeLabel}}" data-tooltip="">×</button>
                   </li>
                 {{/each}}
               </ul>
@@ -49,7 +49,7 @@
               <span>{{localize "ACKS-TREASURE.deal.dropZone"}}</span>
               <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.deal.dropHint"}}</span>
             </div>
-            <span class="acks-extras-treasure__add" data-tooltip-text="{{deal.addTip}}">
+            <span class="acks-extras-treasure__add"{{#if deal.addTip}} data-tooltip-text="{{deal.addTip}}"{{/if}}>
               <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealPicker" aria-expanded="{{deal.picking}}" aria-controls="{{@root.partId}}-picker"{{#unless deal.canAdd}} disabled{{/unless}}>{{localize "ACKS-TREASURE.deal.addType"}}</button>
             </span>
             {{#if deal.picking}}

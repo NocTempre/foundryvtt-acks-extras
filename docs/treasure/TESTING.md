@@ -44,7 +44,7 @@ swept with `api.sweepTracked()`.
   no-party step, since two parties and an unset `partyId` is how a pot has none.
 - A pot is **not** a kept fixture: it is made by the step that builds it (the
   scene control's tool with no token selected, which calls
-  `acksExtras.treasure.newDealPot()` and opens By hand), is marked
+  `acksExtras.treasure.newDealPot()` and opens with an empty list), is marked
   `flags.world.fixture = "treasure/pot"` by the run (`newPot` sets none; the
   run retires a standing one first, since a marker names one document), and is
   deleted by the close step. A pot left behind is tracked and swept.
@@ -52,7 +52,7 @@ swept with `api.sweepTracked()`.
 ## Judge seat (Gamemaster)
 
 1. **Scene controls → Token controls → New treasure pot.** Observable: a window
-   titled "Treasure" opens in staging with "Source: By hand", the Judge / Table
+   titled "Treasure" opens in staging with an empty "Hoards to deal" list and its drop zone, the Judge / Table
    toggle, "Open to the table" and two buckets, Add and Replace, beneath an
    empty grid. The Cards directory lists the pile. The pile's flag reads
    `phase: "staging"`, `order: []`.

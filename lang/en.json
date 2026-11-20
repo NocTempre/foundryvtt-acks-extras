@@ -10808,6 +10808,7 @@
   "ACKS-TREASURE.deal.tip.letter": "Treasure type {letter}, read from {name}'s sheet ({cite})",
   "ACKS-TREASURE.deal.tip.noLetter": "{name}'s sheet states no treasure type, so there is nothing to deal ({cite})",
   "ACKS-TREASURE.deal.tip.count": "{count} token(s) of this kind",
+  "ACKS-TREASURE.deal.tip.total": "{monsters} from the monster rows, {hand} by hand ({cite})",
   "ACKS-TREASURE.deal.tip.hand": "Treasure type {letter}, added by hand ({cite})",
   "ACKS-TREASURE.deal.tip.pick": "Treasure type {letter} ({cite})",
   "ACKS-TREASURE.deal.tip.style": "The {style} table of treasure types ({cite})",

@@ -480,7 +480,7 @@ a notification on the opening Judge's client; nothing is refused and no player
 sees it. **Counter (moderate):** striking every free lot (11a's option b) keeps
 the pot's total near the roll; the warning only tells the Judge it was not.
 
-## 2026-11-17 — "Met in their lair" is the Judge's toggle, and a kind of monster deals one hoard
+## 2026-11-17 — "Met in their lair" is the Judge's toggle, and a kind of monster deals one hoard — SUPERSEDED IN PART 2026-11-20
 
 The owner: "These are GM tools, there doesn't need to be a logic, just an input
 toggle". So the pot's staging state carries `deal.metInLair`, the Judge sets
@@ -672,3 +672,25 @@ entry carried, in the owner's words.
 - **Counter (moderate):** the mood the owner asked for was a pack torn open.
   Without motion, the opening carries that feeling only through the frames, the
   foils and the count.
+
+## 2026-11-20 — The deal rail is one list of hoards, and a row asks for as many as the Judge raises it to
+
+The owner, reporting the bug: "Treasure scene tool does not show options of
+what to roll, just text field. Should be inventory with bucket of options and
+qty (e.g. click to open selector and add O, click X to remove, click again to
+add 2xA and B, drag monster to include it's roll, etc)." The design was drawn
+and the owner said "Skip approval on a budgey". The monster checklist and the
+typed treasure type are one section, "Hoards to deal": a monster row (a
+selected token, or an Actor dropped on the zone) and a by-hand row (a type picked
+from the imported table of the pot's style) each carry a hoard count with a
+stepper and a remove. A row in the list is a row dealt, so the tick is gone.
+The deal sends a letter once per hoard (`dealLines`). This supersedes in part
+the 2026-11-17 entry on "Met in their lair": a kind still deals one hoard
+however many tokens stand for it, but the Judge can now raise that kind's hoards
+by hand, so two bands from two lairs no longer need a by-hand second hoard. The
+new evidence is the owner's bug report above, which asks for a count per row.
+Stored by-hand letters of pots staged before this are not read (no tools for
+previous-version data). The picker lists only the imported table of the pot's
+current style, and a count stops at 99. **Counter (weak):** a by-hand hoard needs
+two presses (open the picker, pick) where a typed letter needed one field; the
+list shows what will be dealt, which the field never did.

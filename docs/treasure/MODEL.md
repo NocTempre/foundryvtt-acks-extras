@@ -539,8 +539,7 @@ would reset: `deal.monsters` (`[{actorId, name, count, letter, hoards}]`; a row 
 the list is a row dealt, and a row with no letter is kept so it can be shown and
 removed, and deals nothing), `deal.hand` (`[{letter, hoards}]`, the by-hand
 hoards), `deal.style` (`DEAL_STYLE`: classic, heroic, gritty), `deal.special`
-and `deal.metInLair`. A pot staged before the list kept a by-hand `deal.letter`;
-nothing reads it. Their setters are staging-only and Judge-only (`setDealMonsters`,
+and `deal.metInLair`. Their setters are staging-only and Judge-only (`setDealMonsters`,
 `addDealMonster`, `addDealHand`, `stepDealRow`, `removeDealRow`, `setDealOption`,
 `setDealMetInLair`), and the window runs the list's writes one after another so a
 second press reads what the first wrote.

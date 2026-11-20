@@ -620,7 +620,7 @@ try {
   await sleep(900);
   const r5 = await run(gm, P.rail, { potId: potA.potId });
   check("the disabled row is removed by its remove button, and the two dealt rows stand", !!bare5 && bare5.canRemove && r5.rows.length === 2 && !r5.rows.some((r) => r.source === expBare) && r5.stored?.rows.length === 1, { rows: r5.rows.length });
-  note("the by-hand row's case-insensitive type lookup has no control since the text field went; the table lookup keeps it", "covered offline by test-hoard-map");
+  note("the type lookup's case folding is the table's own, reached by no control", "covered offline by test-hoard-map");
 
   section("Step 6. the monster sheet");
   const gL = await run(gm, P.sheetEcology, { actorId: ids.lettered });

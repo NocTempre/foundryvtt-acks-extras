@@ -258,6 +258,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     return {
       rows,
       hoardsText: loc(lines.length === 1 ? "deal.hoardsTotalOne" : "deal.hoardsTotal", { n: lines.length }),
+      hoardsTip: loc("deal.tip.total", { monsters: lines.filter((l) => l.name !== null).length, hand: lines.filter((l) => l.name === null).length, cite }),
       types: types.map((letter) => ({ letter, listed: listed.has(letter), label: loc("deal.pickLabel", { letter }), tip: loc("deal.tip.pick", { letter, cite: pickCite }) })),
       picking: this.#picking && types.length > 0,
       canAdd: types.length > 0,
