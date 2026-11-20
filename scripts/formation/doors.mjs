@@ -97,6 +97,26 @@ export function bashStrBonus(strMod) {
   return factor == null ? null : mod * factor;
 }
 
+/**
+ * Strength's part in an actor's own Dungeonbashing figure, as the figure's
+ * parts list it: `{kind: "strength", label, value, cite}`, with a positive
+ * value lowering the target. Null where it is worth nothing, and
+ * `{missing: "bashStrengthFactor"}` where the modifier is not zero and the
+ * factor is not imported. The one place that figure takes its thrower's
+ * Strength: `adventuringThrow` and `resolveCheck` add it, and a surface that
+ * itemizes Strength itself (a door bash, which takes the stronger of a pair; a
+ * squeeze push) asks them for the figure without it.
+ *
+ * @param {Actor} actor
+ * @returns {{kind: "strength", label: string, value: number, cite: string}|{missing: string}|null}
+ */
+export function bashStrPart(actor) {
+  const value = bashStrBonus(abilityMod(actor, "str"));
+  if (value == null) return { missing: "bashStrengthFactor" };
+  if (!value) return null;
+  return { kind: "strength", label: game.i18n.localize("ACKS-FORMATION.doors.mod.str"), value, cite: game.i18n.localize("ACKS-FORMATION.doors.page.bash") };
+}
+
 /** The unit words a door's batter time can be counted in. */
 const BATTER_UNITS = Object.freeze(["turn", "round"]);
 
@@ -234,7 +254,8 @@ export function bashPlan({ target = null, proficient = false, strMod = 0, pair =
 export async function bashThrow(actor) {
   if (!actor) return null;
   const { PARTY_CHECKS, resolveCheck } = await import("./party-rolls.mjs");
-  const check = resolveCheck(actor, PARTY_CHECKS.dungeonbashing);
+  // The bash itemizes Strength itself, as the stronger of a pair (`bashPlan`).
+  const check = resolveCheck(actor, PARTY_CHECKS.dungeonbashing, { strength: false });
   return check && Number.isFinite(check.target) ? { target: check.target, proficient: !!check.skilled } : null;
 }
 

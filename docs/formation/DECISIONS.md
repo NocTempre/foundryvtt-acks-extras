@@ -8,7 +8,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-31 — [The day's end is raised by movement and answered by the Judge (2026-08-31)](DECISIONS-through-v11.14.5.md#the-days-end-is-raised-by-movement-and-answered-by-the-judge-2026-08-31)
 - 2026-08-31 — [A city is explored, not administered (2026-08-31)](DECISIONS-through-v11.14.5.md#a-city-is-explored-not-administered-2026-08-31)
 - 2026-08-30 — [The door numbers are content, and move behind the registry (2026-08-30)](DECISIONS-through-v11.14.5.md#the-door-numbers-are-content-and-move-behind-the-registry-2026-08-30) — superseded in part by "2026-11-18 — An unimported door figure leaves bash or batter blank" (the "report that no door table has been imported" clause, the `doors` document route and the bash target as an import)
-- 2026-08-30 — [Strength on a Dungeonbashing throw has one owner (2026-08-30)](DECISIONS-through-v11.14.5.md#strength-on-a-dungeonbashing-throw-has-one-owner-2026-08-30) — qualified 2026-11-18: the factor is imported (`bashStrengthFactor`, RR p. 267) and `bashStrBonus` is still its one reader
+- 2026-08-30 — [Strength on a Dungeonbashing throw has one owner (2026-08-30)](DECISIONS-through-v11.14.5.md#strength-on-a-dungeonbashing-throw-has-one-owner-2026-08-30) — qualified 2026-11-18: the factor is imported (`bashStrengthFactor`, RR p. 267) and `bashStrBonus` is still its one reader; qualified 2026-11-20 by "A Dungeonbashing figure takes its thrower's Strength in one place" (`bashStrPart`)
 - 2026-08-24 — [2026-08-24 — A trap is a wall PRESET, its marker is its control, and it gets no bucket](DECISIONS-through-v11.14.5.md#2026-08-24--a-trap-is-a-wall-preset-its-marker-is-its-control-and-it-gets-no-bucket)
 - 2026-08-18 — [2026-08-18 — The trap tool hands back the SELECT tool after it draws](DECISIONS-through-v11.14.5.md#2026-08-18--the-trap-tool-hands-back-the-select-tool-after-it-draws)
 - 2026-08-18 — [2026-08-18 — A trap has a hidden stage, and `known` is what carries it](DECISIONS-through-v11.14.5.md#2026-08-18--a-trap-has-a-hidden-stage-and-known-is-what-carries-it)
@@ -725,6 +725,20 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 - OQ-C: the easy and sheer climbs only.
 
 **Cost.** A precarious path admits more members than the ch. 6 prose names. Every HP fall of a member on a ledge prompts the Judges, a correction included, and the card can be dismissed.
+
+## 2026-11-20 — A Dungeonbashing figure takes its thrower's Strength in one place
+
+Qualifies "Strength on a Dungeonbashing throw has one owner" (2026-08-30, qualified 2026-11-18). **New evidence:** a field report against 2026.11.20. A STR 17 character's Rolls tab showed Dungeonbash at the stored 18+. The arithmetic had one owner (`bashStrBonus`), but each surface applied it at its own site: the party roll on the die, the squeeze push and the door bash in their own plans. The Rolls tab and the skill audit applied it nowhere.
+
+**Ruled.** `bashStrPart` (`doors.mjs`) is the one place the figure takes Strength, as a cited part. `adventuringThrow` adds it on the Adventuring side, and `resolveCheck` adds it on a held skill's throw for a `strScaled` check. The Rolls tab, the party roll and the audit therefore read one figure. A modifier with no imported factor leaves the figure blank (`missing`), with its page alone in the tooltip, and nothing is rolled. The door bash takes the stronger of a pair, and the squeeze push itemizes Strength with the stone and the plight. Both still itemize Strength themselves through `bashStrBonus`, and ask for the figure with `strength: false`.
+
+**Rejected.** A fourth application on the Rolls tab: that is the drift this entry removes. A Strength term on the Adventuring proficiency's imported throw (`score`): the stored field is the figure, not the item's throw, and the register reads no factor there.
+
+**Cost.** The party card's die is a bare d20 against a target with Strength inside it, so its total no longer carries Strength. The Follower Card and core's own sheet roll the stored field through `rollAdventuring` with no target, and take no Strength. A figure a spell set takes no Strength.
+
+| Position | Strongest counter | Strength |
+|---|---|---|
+| Strength inside the figure | A door or a push that omits `strength: false` counts it twice | Medium: the two callers are commented, and the suites pin the party figure with Strength in it |
 
 ## 2026-11-19 — The Trapbreaking dialog is one window per party and character, and a Judge is warned past what stops a player
 

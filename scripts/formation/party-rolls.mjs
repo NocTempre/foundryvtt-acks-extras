@@ -5,9 +5,8 @@ import { postToJudges } from "../lib/roll-audience.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { itemHasCapability, overrideFor } from "./ability-bridge.mjs";
 import { getMemberActor, hasAbility, isDown, isHurried, updateFormation } from "./formation-model.mjs";
-import { bashStrBonus, bashStrFactor } from "./doors.mjs";
+import { bashStrPart } from "./doors.mjs";
 import { isAutoFail, isAutoSucceed } from "../lib/throws.mjs";
-import { abilityMod } from "../lib/actor-read.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
@@ -83,7 +82,7 @@ export const PARTY_CHECKS = Object.freeze({
     icon: "fa-door-open",
     advKey: "dungeonbashing",
     pattern: /dungeon\s*bash|open\s*doors?\b|force\s*open/i,
-    strScaled: true, // Strength counts at the imported factor per point (doors.mjs owns the factor)
+    strScaled: true, // the figure takes the thrower's Strength (`bashStrPart`), on a held skill's throw too
     note: "ACKS-FORMATION.rolls.bashNote",
   },
   /*
@@ -208,11 +207,13 @@ export function citedSource(check, extra = []) {
 }
 
 /** A resolved check's figure as a control prints it: "14+", or the word for an automatic throw. */
-export const checkLabel = (check) => (check.auto ? game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : `${check.target}+`);
+export const checkLabel = (check) => (check.auto ? game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : check.target == null ? "—" : `${check.target}+`);
 
 /** The tooltip a resolved check's target carries: the target and where it came from, with each part's page; the spell, for an automatic one. */
 export function checkTip(check, extra = []) {
   if (check.auto) return autoText({ record: check.record });
+  // A figure left blank for want of an import carries its page alone.
+  if (check.missing) return game.i18n.localize("ACKS-FORMATION.doors.page.bash");
   return game.i18n.format("ACKS-FORMATION.audit.checkTip", { target: `${check.target}+`, source: citedSource(check, extra) });
 }
 
@@ -269,16 +270,19 @@ function bestSkill(actor, cfg, { auto = false } = {}) {
  * A throw a spell record made automatic answers `auto` (the spell, its page)
  * with a null `target`, no parts and no bonus: nothing is rolled and the
  * creature's conditions do not apply. Only a caller that passes `auto` can act on
- * that; any other reads the character's own throw there, so no figure of its
- * own is ever null.
+ * that; any other reads the character's own throw there. A figure that needs an
+ * unimported one answers `missing` (its keys) with a null `target`: nothing is
+ * rolled.
  *
  * The target is the abilities' own figure (`skillThrow`, else
- * `adventuringThrow`), bonuses included, so the die is a bare d20 and `bonus`
+ * `adventuringThrow`), bonuses included, with the thrower's Strength on a
+ * `strScaled` check unless `strength` is false (a caller that itemizes it
+ * itself), so the die is a bare d20 and `bonus`
  * is 0; the creature's conditions are applied once, here. `parts` itemizes what
  * moved the target, each `{label, value, cite?}` with a positive value lowering
  * it. With several matching skill items the lowest target is used.
  */
-export function resolveCheck(actor, cfg, { auto = false } = {}) {
+export function resolveCheck(actor, cfg, { auto = false, strength = true } = {}) {
   const loc = (key) => game.i18n.localize(`ACKS-FORMATION.${key}`);
   const abilityParts = (list) =>
     (list ?? []).filter((p) => p.kind !== "conditions").map(({ label, value, cite }) => ({ label, value, ...(cite ? { cite } : {}) }));
@@ -300,13 +304,23 @@ export function resolveCheck(actor, cfg, { auto = false } = {}) {
       parts,
       skilled: true,
     };
+    // The thrower's Strength, as the Adventuring figure takes it (`bashStrPart`).
+    if (cfg.strScaled && strength) {
+      const str = bashStrPart(actor);
+      if (str?.missing) return { target: null, missing: [str.missing], source: found.source, parts: [], skilled: true, bonus: 0 };
+      if (str) {
+        found.parts.push({ label: str.label, value: str.value, cite: str.cite });
+        found.target -= str.value;
+      }
+    }
   } else if (cfg.advKey) {
-    const adv = adventuringThrow(actor, cfg.advKey, { allow: skillGateAllows, auto });
+    const adv = adventuringThrow(actor, cfg.advKey, { allow: skillGateAllows, auto, strength });
     const via = loc("rolls.viaAdventuring");
     const by = adv.source === "standIn" ? adv.standIn.name : adv.source === "skill" ? adv.skillName : "";
     // A figure a held skill supplied is a skill's throw whoever resolved it; a stored or stand-in figure is not.
     const heldSkill = adv.source === "skill";
     if (adv.auto) return { target: null, auto: adv.auto, source: by ? `${via} (${by})` : via, parts: [], skilled: heldSkill, bonus: 0, record: adv.record };
+    if (adv.missing) return { target: null, missing: adv.missing, source: by ? `${via} (${by})` : via, parts: [], skilled: heldSkill, bonus: 0 };
     if (adv.target == null) return null;
     // The page is the throw's that supplied the figure; a stored figure is read off the sheet and names none.
     const cite = adv.source === "standIn" ? adv.standIn?.cite : heldSkill ? adv.cite : undefined;
@@ -345,7 +359,7 @@ export function boundChecks(item) {
 
 /**
  * Roll one member's party check without posting: the throw `resolveCheck`
- * resolves, the Strength a bash adds, the die, and the row a card prints for it.
+ * resolves, the die, and the row a card prints for it.
  * The one place a member's party-check throw is made, so the party card and the
  * audit's roll cannot disagree about a target.
  *
@@ -371,17 +385,12 @@ export async function rollCheckFor(actor, cfg) {
       row: { name: actor.name, total: told, target: null, source: check.source, sourceTip: autoText({ record: check.record }), success: true, auto: true },
     };
   }
-  let bonus = check.bonus;
-  if (cfg.strScaled) {
-    const strength = bashStrBonus(abilityMod(actor, "str"));
-    if (strength == null) return { roll: null, check, row: null, missing: ["bashStrengthFactor"] };
-    bonus += strength;
-  }
+  // A figure the throw needs is not imported: nothing is rolled.
+  if (check.missing) return { roll: null, check, row: null, missing: check.missing };
+  const bonus = check.bonus;
   const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
   const roll = await new Roll(formula).evaluate();
-  const factor = bashStrFactor();
-  const strPart = cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR${factor == null ? "" : `×${factor}`}`] : [];
-  const breakdown = (check.parts ?? []).map(partText).concat(strPart).join(", ");
+  const breakdown = (check.parts ?? []).map(partText).join(", ");
   const natural = roll.dice?.[0]?.results?.[0]?.result;
   const success = isAutoSucceed(natural, { proficient: check.skilled }) === true
     ? true
@@ -394,7 +403,7 @@ export async function rollCheckFor(actor, cfg) {
       total: roll.total,
       target: check.target,
       source: breakdown ? `${check.source}; ${breakdown}` : check.source,
-      sourceTip: citedSource(check, strPart),
+      sourceTip: citedSource(check),
       success,
     },
   };

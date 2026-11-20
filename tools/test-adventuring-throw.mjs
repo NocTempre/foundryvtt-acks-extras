@@ -284,4 +284,27 @@ await ok("a skill whose only throw backs a row leaves the proficiencies and does
   assert.equal(rows(inv, "post").length, 0);
 });
 
+await ok("Dungeonbashing takes the thrower's Strength at the imported factor, as a cited part; blank with a modifier and no factor; left out on request", async () => {
+  const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
+  const strong = sheetActor(3, []);
+  strong.system.scores = { str: { mod: 2 } };
+  const bashRow = () => rows(rollInventory(strong), "adventuring").find((r) => r.id === "adv:dungeonbashing");
+  // No factor imported: no figure, the key that is missing, and a blank row carrying its page alone.
+  const blank = adventuringThrow(strong, "dungeonbashing");
+  assert.deepEqual([blank.target, blank.missing], [null, ["bashStrengthFactor"]]);
+  assert.deepEqual([bashRow().value, bashRow().tip], ["—", LANG["ACKS-FORMATION.doors.page.bash"]]);
+  registerTable({ id: FORMATION_DOC, source: "invented", tables: { bashStrengthFactor: 3 } }, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    const found = adventuringThrow(strong, "dungeonbashing");
+    assert.equal(found.target, 17 - 2 * 3, "the stored figure lowered by the modifier times the factor");
+    assert.deepEqual(found.parts.map((p) => [p.kind, p.label, p.value, p.cite]), [["strength", LANG["ACKS-FORMATION.doors.mod.str"], 6, LANG["ACKS-FORMATION.doors.page.bash"]]]);
+    assert.equal(adventuringThrow(strong, "dungeonbashing", { strength: false }).target, 17, "a caller that itemizes Strength reads the bare figure");
+    assert.equal(adventuringThrow(strong, "climb").target, 7, "no other Adventuring throw takes it");
+    assert.equal(bashRow().value, "11+", "the Rolls tab shows the figure with Strength in it");
+    assert.match(bashRow().tip, new RegExp(`${LANG["ACKS-FORMATION.doors.mod.str"]} \\+6 \\(RR p\\. 267\\)`), "its tooltip names the part and its page");
+  } finally {
+    unregisterTable(FORMATION_DOC, "test");
+  }
+});
+
 console.log(`\n${passed} passed`);

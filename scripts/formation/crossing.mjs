@@ -2232,7 +2232,8 @@ function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, 
   const stone = stoneFor(actor, load);
   const turn = crossingTurn(formation, member);
   const save = { base: actor.system?.saves?.[WIGGLE_SAVE]?.value == null ? null : saveSpec(actor, WIGGLE_SAVE, { magical: false }).target };
-  const pushFigure = resolveCheck(actor, PARTY_CHECKS.dungeonbashing);
+  // The push itemizes Strength itself (`pushThrow`), so the figure is read without it.
+  const pushFigure = resolveCheck(actor, PARTY_CHECKS.dungeonbashing, { strength: false });
   const holds = holdsContortionism(actor);
   const row = markLoad(squeezeRow({
     encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,

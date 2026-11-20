@@ -10,7 +10,8 @@
  * the one reading every ability surface shares. This file joins the two: it
  * holds no figure and no ladder, only which skill throw answers which
  * Adventuring key. Climbing and Dungeonbashing have no skill throw, so they
- * stay the stored figure.
+ * stay the stored figure; Dungeonbashing's also takes the thrower's Strength
+ * (`bashStrPart`, its one owner), as a part.
  *
  * Two more things reach an Adventuring figure. An ability that stands in for
  * the Adventuring throw where the character holds no skill (the `searchListen`
@@ -27,6 +28,10 @@ import { rollsOf, keyOf, measures, throwOutcome, defaultKeyOf, citeOf, modifiesP
 import { itemHasCapability } from "../lib/capabilities.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { isAdventuring, ADVENTURING_REF } from "../classes/grants.mjs";
+import { bashStrPart } from "../formation/doors.mjs";
+
+/** The Adventuring keys whose figure takes the thrower's Strength (`bashStrPart`). */
+export const STRENGTH_ADVENTURING = Object.freeze(["dungeonbashing"]);
 
 /**
  * The skill throw behind each Adventuring key: the capability token that names
@@ -187,6 +192,8 @@ function autoAnswer(source, auto, record, extra = {}) {
  *   from the skill and the stand-in (the Judge's ruling that a skill is not used)
  * @param {boolean} [opts.auto=true] answer an automatic throw as `auto`; false reads the figure the character
  *   has without that record, for a caller with no way to roll nothing
+ * @param {boolean} [opts.strength=true] false leaves the thrower's Strength out of a
+ *   `STRENGTH_ADVENTURING` figure, for a caller that itemizes it itself
  * @returns {{target: number|null, source: "skill"|"standIn"|"stored", skillName: string|undefined,
  *   cite: string|undefined, other: number|null, backs: {itemId: string, rollKey: string}|null,
  *   standIn: {name: string, cite: string, target: number}|null,
@@ -200,9 +207,10 @@ function autoAnswer(source, auto, record, extra = {}) {
  *   `standIn` is the ability that replaced the stored figure, when one did;
  *   `parts` itemizes the bonuses inside `target`; `auto` names the spell that
  *   made the throw automatic (`target` is then null) and `via` the held ability
- *   throw that posts it; `record` is what the spell records did to the winner
+ *   throw that posts it; `record` is what the spell records did to the winner;
+ *   `missing` names an unimported figure the target needs (`target` is then null)
  */
-export function adventuringThrow(actor, key, { allow, auto = true } = {}) {
+export function adventuringThrow(actor, key, { allow, auto = true, strength = true } = {}) {
   const raw = actor?.system?.adventuring?.[key];
   const stored = raw == null || raw === "" || !Number.isFinite(Number(raw)) ? null : Number(raw);
   const skill = adventuringSkillThrow(actor, key, { allow, auto });
@@ -243,6 +251,18 @@ export function adventuringThrow(actor, key, { allow, auto = true } = {}) {
     side = base == null ? null : base - sideParts.reduce((sum, part) => sum + part.value, 0);
   }
   const record = own ?? null;
+
+  // The thrower's Strength, on the figure as the character has it (not on one a spell set).
+  if (strength && side != null && !own?.set && STRENGTH_ADVENTURING.includes(key)) {
+    const str = bashStrPart(actor);
+    if (str?.missing) {
+      return { target: null, source: baseSource, ...named, other: null, backs, standIn, parts: [], record, missing: [str.missing] };
+    }
+    if (str) {
+      sideParts = [...sideParts, str];
+      side -= str.value;
+    }
+  }
 
   if (skill && (side == null || skill.target < side)) {
     return { target: skill.target, source: "skill", ...named, other: side, backs, standIn: null, parts: skill.parts, record: skill.record ?? null };

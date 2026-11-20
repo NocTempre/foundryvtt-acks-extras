@@ -54,6 +54,8 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
  */
 function adventuringTip(found) {
   if (found.auto) return autoText({ record: found.record });
+  // A figure left blank for want of an import carries its page alone.
+  if (found.missing) return game.i18n.localize("ACKS-FORMATION.doors.page.bash");
   return [adventuringBase(found), noteProvenance(found.record)].filter(Boolean).join(" · ");
 }
 
@@ -270,6 +272,11 @@ export async function rollById(actor, id, { event } = {}) {
           await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
         }
         return true;
+      }
+      // A figure the throw needs is not imported: nothing is rolled against a wrong one.
+      if (found.missing) {
+        ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.doors.refuse.missing"));
+        return false;
       }
       const stored = Number(sys.adventuring?.[a]);
       await actor.rollAdventuring(a, { event, ...(found.target != null && found.target !== stored ? { target: found.target } : {}) });

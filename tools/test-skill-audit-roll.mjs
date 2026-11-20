@@ -335,16 +335,17 @@ await ok("the cited-parts helper prints a part's page after it, and the roll row
   assert.equal(search.row.source, "Searching [+1]; +2 Alertness, +1 Throw bonus");
   assert.equal(search.row.sourceTip, "Searching [+1]; +2 Alertness (XX p.1), +1 Throw bonus");
 
-  // A Strength-scaled check: its term follows the parts in both lines, and a level-scaled throw names the level.
+  // A Strength-scaled check: Strength is a cited part of the figure, and a level-scaled throw names the level.
   const ladderThrow = throwOf(0, { target: { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 16 }, { atLevel: 3, value: 14 }] } });
   const basher = actor("Birch", [{ name: "Dungeonbashing", rolls: [ladderThrow], system: { rollTarget: 14 }, flags: { targetMod: 1 } }]);
   basher.system.scores = { str: { mod: 2 } };
   importFactor();
   const bash = await rollCheckFor(basher, PARTY_CHECKS.dungeonbashing);
   unregisterTable(FORMATION_DOC, "test");
-  const strTerm = `+${2 * STR_FACTOR} STR×${STR_FACTOR}`;
+  const strTerm = `+${2 * STR_FACTOR} ${game.i18n.localize("ACKS-FORMATION.doors.mod.str")}`;
+  assert.equal(bash.check.target, 14 - 1 - 2 * STR_FACTOR, "Strength is inside the figure, beside the other parts");
   assert.equal(bash.row.source, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm}`);
-  assert.equal(bash.row.sourceTip, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm}`);
+  assert.equal(bash.row.sourceTip, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm} (${game.i18n.localize("ACKS-FORMATION.doors.page.bash")})`);
   assert.equal(bash.check.source, "Dungeonbashing (L3) [+1]", "the level tag is the lang string's, the same text as before");
   assert.equal(usedForOptions().filter((o) => o.value === "search").length, 1, "one option per flag");
   assert.deepEqual(usedForOptions().map((o) => o.value), ["", "listen", "search", "bash", "trapbreak", "track"]);
@@ -407,21 +408,21 @@ await ok("the natural die is read first: an automatic failure fails a total over
       dice.push(natural);
       return (await rollCheckFor(a, PARTY_CHECKS.dungeonbashing)).row;
     };
-    // A natural 2 with +15 on the die totals 17, over the target of 14, and still fails.
+    // A natural 2 against a target Strength lowered by 15, to -1, is over it and still fails.
     const over = await outcome(holder(5), 2);
-    assert.deepEqual([over.total, over.target, over.success], [17, 14, false], "an automatic failure ignores the total");
-    // A natural 19 with -15 totals 4, under the target, and a holder succeeds.
+    assert.deepEqual([over.total, over.target, over.success], [2, -1, false], "an automatic failure ignores the total");
+    // A natural 19 against a target Strength raised by 15, to 29, is under it, and a holder succeeds.
     const under = await outcome(holder(-5), 19);
-    assert.deepEqual([under.total, under.target, under.success], [4, 14, true], "a proficient automatic success ignores the total");
+    assert.deepEqual([under.total, under.target, under.success], [19, 29, true], "a proficient automatic success ignores the total");
     // The same natural from a member whose throw is the Adventuring figure alone is not proficient.
     const unskilled = actor("Cedar", []);
     unskilled.system.adventuring = { dungeonbashing: 14 };
     unskilled.system.scores = { str: { mod: -5 } };
     const bare = await outcome(unskilled, 19);
-    assert.deepEqual([bare.total, bare.success], [4, false], "no skill, no automatic success");
+    assert.deepEqual([bare.total, bare.target, bare.success], [19, 29, false], "no skill, no automatic success");
     // Between the two edges the total against the target decides.
     const middle = await outcome(holder(5), 10);
-    assert.deepEqual([middle.total, middle.success], [25, true]);
+    assert.deepEqual([middle.total, middle.success], [10, true]);
     unregisterTable(THROWS_DOC, "test");
     const none = await outcome(holder(5), 2);
     assert.equal(none.success, true, "with nothing imported the target alone decides");
