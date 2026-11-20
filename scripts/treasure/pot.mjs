@@ -21,7 +21,7 @@ import { capacity6, load6 } from "../lib/capacity.mjs";
 import * as services from "../lib/services.mjs";
 import { ARMS_LAST_FLAG, CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
-  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planFound, planOpen, seatCards, setDealChoice, setMetInLair, setMonsterOn, setMonsters, setToggle,
+  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planFound, planOpen, seatCards, addHand, addMonster, removeRow, setDealChoice, setMetInLair, setMonsters, stepRow, setToggle,
   stage, turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
 import { mayStartGrab, ownsAnyMember, resolveParty, splitCoin } from "./grab-pot.mjs";
@@ -179,16 +179,36 @@ export async function setDealMonsters(pile, rows) {
   return pile.update({ [`${potPath}.deal.monsters`]: pot.deal.monsters });
 }
 
-/** Tick or clear one monster row (by its index) on a staged pot. Stored only. Judge-only. */
-export async function setDealMonsterOn(pile, index, on) {
-  const pot = setMonsterOn(potOf(pile), index, on);
+/** Add a monster to the staged pot's deal list, or raise the hoards of the row already standing for it. Stored only. Judge-only. */
+export async function addDealMonster(pile, row) {
+  const pot = addMonster(potOf(pile), row);
   if (!game.user.isGM || !pot) return null;
   return pile.update({ [`${potPath}.deal.monsters`]: pot.deal.monsters });
 }
 
+/** Add one hoard of a by-hand treasure type to the staged pot's deal list. Stored only. Judge-only. */
+export async function addDealHand(pile, letter) {
+  const pot = addHand(potOf(pile), letter);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.hand`]: pot.deal.hand });
+}
+
+/** Move one deal-list row's hoards by `delta` (`list` is `DEAL_LIST`'s `monsters` or `hand`; a step down from one removes the row). Stored only. Judge-only. */
+export async function stepDealRow(pile, list, index, delta) {
+  const pot = stepRow(potOf(pile), list, index, delta);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.${list}`]: pot.deal[list] });
+}
+
+/** Remove one deal-list row (`list` as in `stepDealRow`). Stored only. Judge-only. */
+export async function removeDealRow(pile, list, index) {
+  const pot = removeRow(potOf(pile), list, index);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.${list}`]: pot.deal[list] });
+}
+
 /**
- * Set one deal choice (`style`, `special`, the by-hand `letter` or the
- * `armsSetting` column) on a staged pot. Stored only. Judge-only. A column is
+ * Set one deal choice (`style`, `special` or the `armsSetting` column) on a staged pot. Stored only. Judge-only. A column is
  * also kept on the Judge's user, as the default the next new pot opens with.
  */
 export async function setDealOption(pile, key, value) {

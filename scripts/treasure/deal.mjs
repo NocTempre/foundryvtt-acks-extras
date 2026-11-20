@@ -45,8 +45,8 @@ export function selectedMonsterGroups() {
 }
 
 /**
- * A new pot in staging with one monster row per kind in `groups`, a kind with a
- * letter ticked, nothing rolled. Without a kind it is the By hand pot
+ * A new pot in staging with one monster row per kind in `groups`, one hoard each,
+ * nothing rolled. Without a kind it is the By hand pot
  * `newPot()` makes. Judge-only.
  * @param {Array<{actorId: string|null, name: string, count: number, letter: string|null}>} [groups]
  *   `groupMonsters`' rows; the selected tokens' by default

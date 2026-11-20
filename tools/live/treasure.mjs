@@ -339,9 +339,9 @@ const P = {
       figure: H.text(figure),
       figureTip: figure?.dataset.tooltipText ?? null,
       turned: H.text(q(".acks-extras-treasure__turned")),
-      source: H.text(q(".acks-extras-treasure__field")),
+      hoards: H.text(q(".acks-extras-treasure__hoards")),
       modes: qa("[data-action='setMode']").map((b) => ({ mode: b.dataset.mode, pressed: b.getAttribute("aria-pressed"), text: H.text(b) })),
-      modeHint: H.text(q("[role='group'] .acks-extras-treasure__hint")),
+      modeHint: H.text(q("[role='group'][aria-labelledby$='-mode'] .acks-extras-treasure__hint")),
       openText: H.text(q("aside [data-action='openTable']")),
       buckets: qa("section.acks-extras-treasure__bucket").map((s) => ({ key: s.dataset.acceptDrop, title: H.text(q("h3", s)), rows: qa(".acks-extras-treasure__bucket-name", s).map(H.text) })),
       gridZone: !!q("ol.acks-extras-treasure__grid[data-accept-drop='pot']"),
@@ -838,8 +838,8 @@ try {
   const s1 = await run(gm, P.stage, { potId });
   const r1 = await run(gm, P.sheetRead, { potId });
   const tTitle = await t(gm, "pot.defaultName");
-  const tSource = await t(gm, "judge.source");
-  const tByHand = await t(gm, "judge.byHand");
+  const tHoards = await t(gm, "deal.hoardsTitle");
+  const tDrop = await t(gm, "deal.dropZone");
   const tOpen = await t(gm, "judge.open");
   const tJudge = await t(gm, "judge.modeJudge");
   const tTable = await t(gm, "judge.modeTable");
@@ -847,7 +847,7 @@ try {
   const tReplace = await t(gm, "judge.bucket.replace");
   const tJudgeHint = await t(gm, "judge.modeJudgeHint");
   check("a window titled for the pot opened in staging", r1.rendered && r1.title === tTitle && s1.name === tTitle, { title: r1.title === tTitle });
-  check("it reads Source: By hand, offers the Judge / Table toggle and Open to the table", r1.source.includes(tSource) && r1.source.includes(tByHand) && r1.modes.map((m) => m.text).join("|") === `${tJudge}|${tTable}` && r1.openText === tOpen, { source: r1.source.includes(tByHand), modes: r1.modes.map((m) => m.mode), open: r1.openText === tOpen });
+  check("it reads Hoards to deal with its drop zone, offers the Judge / Table toggle and Open to the table", r1.hoards.includes(tHoards) && r1.hoards.includes(tDrop) && r1.modes.map((m) => m.text).join("|") === `${tJudge}|${tTable}` && r1.openText === tOpen, { hoards: r1.hoards.includes(tHoards), modes: r1.modes.map((m) => m.mode), open: r1.openText === tOpen });
   check("two buckets, Add and Replace, sit beneath an empty grid that takes a drop", r1.buckets.map((b) => b.key).join(",") === "add,replace" && r1.buckets[0].title === tAdd && r1.buckets[1].title === tReplace && r1.empty && r1.cards.length === 0 && r1.gridZone, { buckets: r1.buckets.map((b) => b.key), empty: r1.empty, cards: r1.cards.length });
   check("the Judge is shown Judge selected and its hint", r1.modes[0].pressed === "true" && r1.modes[1].pressed === "false" && r1.modeHint === tJudgeHint, r1.modes);
   check("the pile's flag reads phase staging and an empty order, its sheet is the pot's, and the Cards collection holds it", s1.phase === "staging" && s1.order.length === 0 && s1.sheetClass === "acks-extras.PotSheet" && s1.cards.length === 0, { phase: s1.phase, order: s1.order.length, sheet: s1.sheetClass });

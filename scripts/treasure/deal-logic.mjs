@@ -5,9 +5,9 @@
  * "Met in their lair" toggle on the pot's staging state (`pot.deal.metInLair`),
  * and the warning keys off that toggle alone.
  *
- * A group is one KIND of monster, and a kind deals ONE hoard of its letter however
- * many tokens stand for it: a treasure type is the lair's hoard, and a lair is
- * not multiplied by the bodies in it. `deal.mjs` is the Foundry side.
+ * A group is one KIND of monster, and a kind deals the hoards the Judge asks of
+ * its row (one to begin with) however many tokens stand for it: a treasure type
+ * is the lair's hoard, and a lair is not multiplied by the bodies in it. `deal.mjs` is the Foundry side.
  */
 import { PHASE, REFUSAL } from "./constants.mjs";
 import { MAGIC_ERROR } from "./magic-deal-logic.mjs";
@@ -118,34 +118,44 @@ export async function runLetterDeal({ isGM, pot, letters, confirmLair, deal, rol
 
 /**
  * The staged monster rows for a list of kinds: each row as the pot stores it,
- * ticked when its sheet carries a letter and left clear when it carries none.
+ * one hoard to deal. A kind whose sheet carries no letter is kept, so the list
+ * can show it and the Judge can remove it, and it deals nothing.
  * @param {Array<{actorId?: string|null, name?: string, count?: number, letter?: string|null}>} groups
  *   `groupMonsters`' rows
- * @returns {Array<{actorId: string|null, name: string, count: number, letter: string|null, on: boolean}>}
+ * @returns {Array<{actorId: string|null, name: string, count: number, letter: string|null, hoards: number}>}
  */
 export function monsterRows(groups) {
   return (Array.isArray(groups) ? groups : [])
     .filter(Boolean)
-    .map((g) => {
-      const letter = letterOf(g.letter);
-      return { actorId: g.actorId ?? null, name: String(g.name ?? ""), count: Math.max(1, Math.floor(Number(g.count) || 1)), letter, on: !!letter };
-    });
+    .map((g) => ({
+      actorId: g.actorId ?? null,
+      name: String(g.name ?? ""),
+      count: Math.max(1, Math.floor(Number(g.count) || 1)),
+      letter: letterOf(g.letter),
+      hoards: 1,
+    }));
 }
 
 /**
- * What a Deal sends, from the pot's staged deal state: one line per ticked
- * monster row that carries a letter (one hoard per kind, never one per token),
- * then the by-hand letter. A line is `{letter, name, count}`, with `name` null
- * and `count` 0 for the by-hand letter.
- * @param {{monsters?: object[], letter?: string|null}} deal `pot.deal`
+ * What a Deal sends, from the pot's staged deal state: each monster row that
+ * carries a letter, its letter once per hoard it asks for (a kind's token count
+ * never multiplies its hoards), then each by-hand row's letter once per hoard.
+ * A line is `{letter, name, count}`, with `name` null and `count` 0 for a
+ * by-hand letter.
+ * @param {{monsters?: object[], hand?: object[]}} deal `pot.deal`
  * @returns {Array<{letter: string, name: string|null, count: number}>}
  */
 export function dealLines(deal) {
-  const lines = (deal?.monsters ?? [])
-    .filter((row) => row.on && letterOf(row.letter))
-    .map((row) => ({ letter: letterOf(row.letter), name: row.name, count: row.count }));
-  const byHand = letterOf(deal?.letter);
-  if (byHand) lines.push({ letter: byHand, name: null, count: 0 });
+  const lines = [];
+  const hoards = (row) => Math.max(1, Math.floor(Number(row.hoards) || 1));
+  for (const row of deal?.monsters ?? []) {
+    const letter = letterOf(row.letter);
+    if (letter) for (let i = 0; i < hoards(row); i++) lines.push({ letter, name: row.name, count: row.count });
+  }
+  for (const row of deal?.hand ?? []) {
+    const letter = letterOf(row.letter);
+    if (letter) for (let i = 0; i < hoards(row); i++) lines.push({ letter, name: null, count: 0 });
+  }
   return lines;
 }
 

@@ -535,17 +535,40 @@ staging rail in `pot-sheet.mjs` / `pot.hbs`.
 
 **The staging rail** (Judge, staging only) holds the deal's state, stored on the
 pot flag like the toggles, since every card write rewrites the flag and a pick
-would reset: `deal.monsters` (`[{actorId, name, count, letter, on}]`; a row with
-no letter is never ticked), `deal.letter` (the by-hand Treasure type),
-`deal.style` (`DEAL_STYLE`: classic, heroic, gritty), `deal.special` and
-`deal.metInLair`. Their setters are staging-only and Judge-only
-(`setDealMonsters`, `setDealMonsterOn`, `setDealOption`, `setDealMetInLair`).
-**Deal** sends one letter per ticked row plus the by-hand letter (`dealLines`)
-to `dealLettersIntoPot`; while the lair warning stands it raises the rail's
+would reset: `deal.monsters` (`[{actorId, name, count, letter, hoards}]`; a row in
+the list is a row dealt, and a row with no letter is kept so it can be shown and
+removed, and deals nothing), `deal.hand` (`[{letter, hoards}]`, the by-hand
+hoards), `deal.style` (`DEAL_STYLE`: classic, heroic, gritty), `deal.special`
+and `deal.metInLair`. A pot staged before the list kept a by-hand `deal.letter`;
+nothing reads it. Their setters are staging-only and Judge-only (`setDealMonsters`,
+`addDealMonster`, `addDealHand`, `stepDealRow`, `removeDealRow`, `setDealOption`,
+`setDealMetInLair`), and the window runs the list's writes one after another so a
+second press reads what the first wrote.
+
+The rail's first section, **Hoards to deal**, is one list of those rows: a
+badge with the treasure type, a title line, a source line (the monster's name
+with its token count, or "By hand"), a count stepper (`−`, `×n`, `+`) and a remove
+button. A `−` at one hoard removes the row; a monster row is tinted and a
+by-hand row plain; a monster row with no letter is disabled with its no-letter
+reason and can still be removed. A header counts the hoards the list deals
+(`dealLines` length), and the Deal button names the same total. Under the list a
+dashed zone takes an Actor dropped from the Actors sidebar or a compendium: a
+monster becomes a row, or raises the hoards of the row already standing for it,
+and anything else is refused by lang string. A button, "+ Add treasure type",
+opens an inline picker with one button per type the imported table of the
+pot's style holds (`hoardTypes`, read from the registry; nothing is shipped, and
+with nothing imported the button is disabled with the page reference as its
+tooltip). A pick adds one by-hand hoard or raises the hoards of that type's row,
+and a type already in the list is tinted. Whether the picker is open is window
+state, not stored.
+
+**Deal** sends each row's letter once per hoard it asks for, monster rows first
+then by-hand rows (`dealLines`), to `dealLettersIntoPot`; a kind's token count
+never multiplies its hoards. While the lair warning stands it raises the rail's
 callout instead, and the callout's Deal anyway deals with `confirmLair`
 answering true. The callout clears on Cancel and on a lair toggle. Refusals and
 per-letter errors reach the Judge as lang strings (`dealMessages`). A letter
-typed in another case finds the type table's own key (`hoard-map.mjs`).
+in another case finds the type table's own key (`hoard-map.mjs`).
 
 **The arms column field** sits under Table style in the rail: a labelled select,
 "Arms and armor column", whose label is the module's own and never the imported
@@ -576,8 +599,8 @@ view carries a blank type and no parts, and the window is handed neither.
 
 **Three entries open it staged.** The token-controls button and the macros
 compendium's Deal Treasure macro both call `newDealPot()`:
-with monster tokens selected the pot opens with their rows, each kind with a
-letter ticked; with none it opens By hand. A monster sheet's Ecology tab shows a
+with monster tokens selected the pot opens with their rows, one hoard each;
+with none it opens with an empty list. A monster sheet's Ecology tab shows a
 Judge-only Deal beside the Treasure type (disabled with no letter, live on a
 locked sheet too), which opens a pot staged with that one monster. Nothing is
 rolled until Deal. Monsters reach treasure only through

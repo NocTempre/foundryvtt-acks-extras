@@ -15,7 +15,7 @@ import { coinTemplate } from "../lib/money.mjs";
 import { weight6Of } from "../lib/item-model.mjs";
 import { TREASURE_DOC_ID } from "../importer/treasure-binding.mjs";
 import { rollerFrom, dealHoard as dealEngine } from "./hoard-logic.mjs";
-import { STYLE_TABLE, mapHoardArgs, truthsFromCards } from "./hoard-map.mjs";
+import { STYLE_TABLE, mapHoardArgs, truthsFromCards, typeKeysOf } from "./hoard-map.mjs";
 
 /** The lang key of the world's name for each coin column's denomination. */
 const COIN_NAME_KEY = Object.freeze({
@@ -49,6 +49,13 @@ async function worldCoins(keys) {
  * @returns {string|null}
  */
 export const styleCite = (style) => citeOf(TREASURE_DOC_ID, STYLE_TABLE[style]);
+
+/**
+ * The treasure types the world's imported table of one style holds, in the table's order; empty while that table is not imported.
+ * @param {"classic"|"heroic"|"gritty"} style
+ * @returns {string[]}
+ */
+export const hoardTypes = (style) => (hasDoc(TREASURE_DOC_ID) ? typeKeysOf(getDoc(TREASURE_DOC_ID).tables, style) : []);
 
 /**
  * Deal one treasure type, in one style, from the imported tables.

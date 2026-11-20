@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { dealHoard, parseDice } from "../scripts/treasure/hoard-logic.mjs";
-import { COIN_KEYS, GEM_LISTS, JEWELRY_LISTS, buildKinds, coinNamesIn, figureOf, formsOf, mapHoardArgs, truthsFromCards } from "../scripts/treasure/hoard-map.mjs";
+import { COIN_KEYS, GEM_LISTS, JEWELRY_LISTS, buildKinds, coinNamesIn, figureOf, formsOf, mapHoardArgs, truthsFromCards, typeKeysOf } from "../scripts/treasure/hoard-map.mjs";
 
 let n = 0;
 const ok = (cond, label) => { assert.ok(cond, label); n++; };
@@ -281,6 +281,14 @@ eq(figureOf(null), null, "null");
   eq(dealt.cards.map((c) => [c.tableRef, c.typeList === true]), [["whatever", true], ["whatever", true], ["widget", false]], "a card carries typeList only from a type-list kind");
   const { truths } = truthsFromCards(dealt.cards, { coinOf });
   eq(truths.map((t) => [t.tableRef, t.typeList === true]), [["whatever", true], ["whatever", true], ["widget", false]], "the dealt placeholder carries typeList beside tableRef");
+}
+
+/* --- the types a style's imported table holds --- */
+{
+  const tables = doc();
+  eq(typeKeysOf(tables, "classic"), ["Z", "Y"], "the types are the type table's own keys, in its order");
+  eq(typeKeysOf(tables, "heroic"), [], "a style whose table is not imported offers none");
+  eq([typeKeysOf(null, "classic"), typeKeysOf({}, "classic"), typeKeysOf(tables, "epic")], [[], [], []], "no tables, no table and an unlisted style offer none");
 }
 
 console.log(`test-hoard-map: ${n} checks passed`);

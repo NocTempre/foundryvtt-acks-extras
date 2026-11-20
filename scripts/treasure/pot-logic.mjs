@@ -37,37 +37,48 @@ export const DEAL_STYLE = Object.freeze(["classic", "heroic", "gritty"]);
 /** The deal toggles with both keys present and nothing else kept. */
 const normalizeToggles = (t) => Object.fromEntries(Object.values(DEAL_TOGGLE).map((k) => [k, t?.[k] === true]));
 
+/** The most hoards one row of the deal list asks for; a stepper stops here so a held key cannot queue a runaway deal. */
+const MAX_HOARDS = 99;
+
+/** A hoard count as a whole number from one to `MAX_HOARDS`; one for anything that is not a number. */
+const hoardsOf = (v) => Math.min(MAX_HOARDS, Math.max(1, Math.floor(num(v, 1))));
+
 /**
  * The monster rows a pot is staged with: one per kind, its base actor's id (null
  * for a kind known by name alone), the name, how many tokens stand for it, the
- * treasure letter its sheet carries and whether the Judge ticked it. A row with
- * no letter can never be ticked, and a row is never given a count below one.
+ * treasure letter its sheet carries and how many hoards of it to deal. A row in
+ * the list is a row dealt; a row with no letter is kept so it can be shown and
+ * removed, and deals nothing. A count or a hoard number is never below one.
  */
 function normalizeMonsters(list) {
   return (Array.isArray(list) ? list : [])
     .filter((x) => x && typeof x === "object")
-    .map((x) => {
-      const letter = letterOf(x.letter);
-      return {
-        actorId: typeof x.actorId === "string" && x.actorId ? x.actorId : null,
-        name: String(x.name ?? ""),
-        count: Math.max(1, Math.floor(num(x.count, 1))),
-        letter,
-        on: x.on === true && !!letter,
-      };
-    });
+    .map((x) => ({
+      actorId: typeof x.actorId === "string" && x.actorId ? x.actorId : null,
+      name: String(x.name ?? ""),
+      count: Math.max(1, Math.floor(num(x.count, 1))),
+      letter: letterOf(x.letter),
+      hoards: hoardsOf(x.hoards),
+    }));
+}
+
+/** The by-hand rows: a treasure type and how many hoards of it to deal; a row naming no type is dropped. */
+function normalizeHand(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && typeof x === "object" && letterOf(x.letter))
+    .map((x) => ({ letter: letterOf(x.letter), hoards: hoardsOf(x.hoards) }));
 }
 
 /** Whether a value is a setting column's key in the arms grids (`s1` and on); a blank is no column. */
 const isArmsSetting = (v) => typeof v === "string" && /^s\d+$/.test(v);
 
-/** A staged pot's deal state with every key present: the toggles, the lair state, the monster rows, the by-hand letter, the table style, the special choice and the arms column (a setting key, or blank for none). */
+/** A staged pot's deal state with every key present: the toggles, the lair state, the monster rows, the by-hand rows, the table style, the special choice and the arms column (a setting key, or blank for none). */
 function normalizeDeal(d) {
   return {
     toggles: normalizeToggles(d?.toggles),
     metInLair: d?.metInLair === true,
     monsters: normalizeMonsters(d?.monsters),
-    letter: letterOf(d?.letter),
+    hand: normalizeHand(d?.hand),
     style: DEAL_STYLE.includes(d?.style) ? d.style : DEAL_STYLE[0],
     special: d?.special === true,
     armsSetting: isArmsSetting(d?.armsSetting) ? d.armsSetting : "",
@@ -604,7 +615,7 @@ export function setMetInLair(pot, on) {
 /**
  * The pot with its monster rows replaced, during staging only (a pot opened from
  * a sheet or from selected tokens). Rows are normalized: a row with no letter is
- * never ticked. Returns the new pot, or null.
+ * kept and deals nothing. Returns the new pot, or null.
  */
 export function setMonsters(pot, rows) {
   if (pot.phase !== PHASE.staging) return null;
@@ -613,23 +624,75 @@ export function setMonsters(pot, rows) {
   return next;
 }
 
-/** The pot with monster row `index` ticked or cleared, during staging only. Null for a pot that is not staging, a row that does not exist, or a ticking of a row with no letter. */
-export function setMonsterOn(pot, index, on) {
+/**
+ * The pot with a monster row added, during staging only (a monster dropped on
+ * the deal list). A row for an actor already in the list, or for a kind of the
+ * same name where neither has an actor, raises that row's hoards by one instead
+ * of standing twice; a row with no letter is added and stays at one. Returns
+ * the new pot, or null for a pot that is not staging.
+ */
+export function addMonster(pot, row) {
   if (pot.phase !== PHASE.staging) return null;
   const next = normalizePot(pot);
-  const row = Number.isInteger(index) ? next.deal.monsters[index] : null;
-  if (!row || (on && !row.letter)) return null;
-  row.on = !!on;
+  const [added] = normalizeMonsters([row]);
+  if (!added) return null;
+  const same = next.deal.monsters.find((m) => (added.actorId ? m.actorId === added.actorId : !m.actorId && m.name === added.name));
+  if (!same) next.deal.monsters.push(added);
+  else if (same.letter) same.hoards = Math.min(MAX_HOARDS, same.hoards + 1);
+  return next;
+}
+
+/**
+ * The pot with one hoard of a by-hand treasure type added, during staging only:
+ * a row of that type has its hoards raised by one, otherwise a row of one is
+ * appended. Returns the new pot, or null for a pot that is not staging or a
+ * type that names none.
+ */
+export function addHand(pot, letter) {
+  const type = letterOf(letter);
+  if (pot.phase !== PHASE.staging || !type) return null;
+  const next = normalizePot(pot);
+  const same = next.deal.hand.find((h) => h.letter === type);
+  if (same) same.hoards = Math.min(MAX_HOARDS, same.hoards + 1);
+  else next.deal.hand.push({ letter: type, hoards: 1 });
+  return next;
+}
+
+/** The deal-list sections a row is stepped or removed in: the monster rows and the by-hand rows. */
+export const DEAL_LIST = Object.freeze({ monsters: "monsters", hand: "hand" });
+
+/**
+ * The pot with one deal-list row's hoards moved by `delta`, during staging only.
+ * A step down from one removes the row, and a row with no letter takes no step
+ * up (it deals nothing and can only be removed). Returns the new pot, or null
+ * for a pot that is not staging, a section that is not listed, a row that does
+ * not exist, or a step a row cannot take.
+ */
+export function stepRow(pot, list, index, delta) {
+  if (pot.phase !== PHASE.staging || !Object.values(DEAL_LIST).includes(list) || !Number.isInteger(index) || !Number.isInteger(delta)) return null;
+  const next = normalizePot(pot);
+  const row = next.deal[list][index];
+  if (!row || (!row.letter && delta > 0)) return null;
+  if (row.hoards + delta < 1) next.deal[list].splice(index, 1);
+  else row.hoards = Math.min(MAX_HOARDS, row.hoards + delta);
+  return next;
+}
+
+/** The pot with one deal-list row removed, during staging only. Null for a pot that is not staging, a section that is not listed or a row that does not exist. */
+export function removeRow(pot, list, index) {
+  if (pot.phase !== PHASE.staging || !Object.values(DEAL_LIST).includes(list) || !Number.isInteger(index)) return null;
+  const next = normalizePot(pot);
+  if (!next.deal[list][index]) return null;
+  next.deal[list].splice(index, 1);
   return next;
 }
 
 /**
  * The pot with one deal choice set, during staging only: `style` (one of
- * `DEAL_STYLE`), `special` (a boolean), `letter` (the by-hand treasure type;
- * blank clears it) or `armsSetting` (the arms grids' column a rolled arm is typed
- * on; blank clears it). Returns the new pot, or null for a pot that is not
- * staging, a key that is not a choice, a style that is not listed, or an arms
- * column that is not a setting key.
+ * `DEAL_STYLE`), `special` (a boolean) or `armsSetting` (the arms grids' column
+ * a rolled arm is typed on; blank clears it). Returns the new pot, or null for a
+ * pot that is not staging, a key that is not a choice, a style that is not
+ * listed, or an arms column that is not a setting key.
  */
 export function setDealChoice(pot, key, value) {
   if (pot.phase !== PHASE.staging) return null;
@@ -641,8 +704,7 @@ export function setDealChoice(pot, key, value) {
   else if (key === "armsSetting") {
     if (value !== "" && value != null && !isArmsSetting(value)) return null;
     next.deal.armsSetting = isArmsSetting(value) ? value : "";
-  } else if (key === "letter") next.deal.letter = letterOf(value);
-  else return null;
+  } else return null;
   return next;
 }
 

@@ -133,7 +133,7 @@ async function rollHitPoints() {
 }
 
 /**
- * Open a treasure pot staged with this monster's row ticked, from the Treasure
+ * Open a treasure pot with this monster's row in its list, from the Treasure
  * type field's Deal button. Judge-only; nothing is rolled until Deal is pressed in
  * the pot. The row's letter is whatever the sheet carries now.
  */

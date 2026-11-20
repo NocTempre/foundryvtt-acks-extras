@@ -190,6 +190,19 @@ function typeKeyOf(typeTable, letter) {
 }
 
 /**
+ * The treasure types one style's imported type table holds, in the table's own
+ * order; none where that table is not imported. Read from the registry document's
+ * `tables`, so a world with nothing imported offers no type.
+ * @param {object|null|undefined} tables the registry document's `tables`
+ * @param {"classic"|"heroic"|"gritty"} style
+ * @returns {string[]}
+ */
+export function typeKeysOf(tables, style) {
+  const table = tables?.[STYLE_TABLE[style]];
+  return table && typeof table === "object" ? Object.keys(table) : [];
+}
+
+/**
  * The engine's arguments for dealing one treasure type, from the imported
  * `treasure` tables (`doc.tables`). `cite(tableId)` answers a table's page
  * reference. A style whose type table, or whose letter, was not imported is an

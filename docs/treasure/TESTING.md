@@ -424,7 +424,7 @@ treasure-deal`), one section per step to step 7; step 8 by
 magic placeholders, counted by match outcome, is its first observable. Each
 walk's header lists the gestures that are scripted and what it does not reach.
 Offline coverage is `tools/test-treasure-deal.mjs` (the stored deal state, the
-rows, the letters a Deal sends, the warning, the fake world's deal),
+rows and their edits, the letters a Deal sends, the warning, the fake world's deal),
 `tools/test-treasure-magic-deal.mjs` (the magic cards rolled at the deal) and
 `tools/test-hoard-map.mjs`; nothing offline renders the rail, the monster
 sheet's button or the token control, and nothing offline holds the item tables
@@ -446,9 +446,11 @@ or the cookbook documents a real import writes.
 
 1. **Selected tokens (Judge seat).** Select the three monster tokens and
    `treasure/player-character`'s token, then press Scene controls → Token controls →
-   New treasure pot. Observables: a staged pot opens with two Monsters rows,
-   `<name> ×2 · Type <letter>` ticked and the bare monster's row disabled with
-   its no-letter reason; the character makes no row. Nothing is dealt. With the
+   New treasure pot. Observables: a staged pot opens with two rows under Hoards
+   to deal, the lettered one reading `Type <letter>` over `<name> ×2` at `×1` and
+   the bare monster's row disabled with its no-letter reason (its remove
+   button live); the character makes no row; the header and the Deal button
+   count one hoard. Nothing is dealt. With the
    same tokens selected, run Compendium Packs tab → ACKS Extras Macros → Deal
    Treasure (drive: `(await game.packs.get("acks-extras.macros").getDocument("acksTreasDeal000")).execute()`).
    Observable: a second staged pot opens with the same rows.
@@ -462,14 +464,22 @@ or the cookbook documents a real import writes.
 4. **Met in their lair.** Tick it and press Deal. Observable: no callout; a
    second hoard is dealt at once. Reopen the window: the toggle, the style and
    the Special treasure tick read back as left.
-5. **By hand and case.** Untick both rows, type the letter in lower case in the
-   Treasure type field and press Deal at once. Observable: a hoard is dealt on
-   the first press.
+5. **The list.** On the lettered row press `+` (`×2`, the header and the Deal
+   button say two), `−` (back to `×1`) and `−` again (the row goes). Drop the
+   lettered actor on the dashed zone, from the Actors sidebar (drive: a `drop`
+   event on `[data-accept-drop='deal']` whose `DataTransfer` carries
+   `{"type":"Actor","uuid":…}`): its row returns at `×1`; drop it again: `×2`,
+   no second row; drop a character: a warning, no row. Press + Add treasure
+   type: the picker opens with one button per type the imported classic table
+   holds. Pick one type twice: one by-hand row, plain, at `×2`, the type tinted
+   in the picker; `−` then `+` on it; Done closes the picker. Press Deal
+   (`Deal 4 hoards`): one notification names the letter once per hoard. Press
+   the disabled row's remove button: it goes.
 6. **Monster sheet.** Open `treasure/monster-lettered`'s sheet, Ecology tab.
    Observables: a Deal button beside Treasure type (Judge seat only; the
    Player seat, given Observer on the actor, sees none); on
    `treasure/monster-bare`'s sheet it is disabled. Press it: a staged pot opens
-   with that one monster's row ticked and nothing dealt.
+   with that one monster's row at one hoard and nothing dealt.
 7. **Refusals.** On a pot opened to the table, the rail is gone. In a world
    with the registry unimported (or a style whose table is missing), Deal
    reports the not-imported error by lang string and nothing throws.

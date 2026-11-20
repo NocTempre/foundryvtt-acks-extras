@@ -10,18 +10,21 @@
  * Covers: fixtures (the imported registry, and a treasure type that deals both
  * magic and other cards, chosen in page from the type table's own keys); step 1
  * (three monster tokens and a character's token selected, the Token controls'
- * New treasure pot pressed: a staged pot with two Monsters rows, the lettered
- * kind ticked with its two tokens counted once, the bare kind disabled with its
- * reason, no row for the character, nothing dealt); step 2 (the lair warning
+ * New treasure pot pressed: a staged pot with two rows under Hoards to deal, the
+ * lettered kind at one hoard with its two tokens counted once, the bare kind
+ * disabled with its reason, no row for the character, nothing dealt); step 2 (the lair warning
  * raised in the rail naming the toggle, nothing dealt, Cancel clearing it);
  * step 3 (Deal then Deal anyway: face-down cards from one hoard, the
  * notification, No magic and Force cursed honoured); step 4 (Met in their
  * lair: no callout, a second hoard at once, the lair, style and Special
- * choices read back after the window is reopened); step 5 (both rows
- * unticked, the letter typed in lower case and Deal pressed at once); step 6
+ * choices read back after the window is reopened); step 5 (the list: + and -
+ * on a row, - at one removing it, the lettered monster dropped on the drop zone
+ * and dropped again, a character refused, the picker opened and a type picked
+ * twice, Done, then Deal pressed for the four hoards and the disabled row
+ * removed); step 6
  * (a Judge-only Deal beside Treasure type on the Ecology tab, disabled for a
  * monster with no letter, none for an Observer, and its press opening a staged
- * pot with that one row ticked and nothing dealt); step 7 (a pot opened to the
+ * pot with that one row at one hoard and nothing dealt); step 7 (a pot opened to the
  * table has no rail, a deal into it is refused by lang string, a deal for a
  * style with no table says so by lang string and nothing throws).
  *
@@ -34,16 +37,16 @@
  * tokens, the pots and the doorway card are the run's own, tracked by id and
  * swept by id; kept fixtures stay.
  *
- * Real gestures: the scene control's tool, each rail control (the toggles, a
- * tick, the style and Special choices, Deal, Deal anyway, Cancel), the letter
- * typed into the field (CDP text insertion, so the field is read as it stands
- * when Deal is pressed), the monster sheet's Deal and Open to the table are CDP
+ * Real gestures: the scene control's tool, each rail control (the toggles, the
+ * steps and remove buttons, the picker, the style and Special choices, Deal,
+ * Deal anyway, Cancel), the monster sheet's Deal and Open to the table are CDP
  * mouse presses at the control's centre when the control is the element under
  * that point. Scripted: the die under a Deal press (the GM page's
  * `CONFIG.Dice.randomUniform` is held at its floor around each Deal so a
  * chance cell always hits, and put back after each), the token selection
  * (`control()`), the scene being viewed, the window's reopen, the Ecology tab's
- * switch, the drops, and the refusals of step 7, which have no control.
+ * switch, the drops (the actor drop is a `drop` event carrying the drag data a
+ * sidebar drag writes), and the refusals of step 7, which have no control.
  *
  * Not reached: step 7's "registry unimported" half. The world's registry is
  * imported and cannot be un-imported on a shared world, the pot offers only the
@@ -56,7 +59,7 @@
  */
 import { connect } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
-import { MACHINE, PORTS, P as K, run, t, note, section, check, checks, clicks, idOf, openSeats, press, cdp, sleep, finish, watchdog } from "./_treasure-kit.mjs";
+import { MACHINE, PORTS, P as K, run, t, note, section, check, checks, clicks, idOf, openSeats, press, sleep, finish, watchdog } from "./_treasure-kit.mjs";
 
 const MARKS = {
   scene: "treasure/deal-scene",
@@ -217,28 +220,39 @@ const P = {
     const pile = H.pile(potId);
     if (!root || !pile) return { rendered: false };
     const f = pile.getFlag("acks-extras", "treasure") ?? {};
-    const rows = [...root.querySelectorAll(".acks-extras-treasure__monster")].map((el) => {
-      const box = el.querySelector("input[data-action='dealMonster']");
-      const nameEl = el.querySelector(".acks-extras-treasure__monster-name");
+    const rows = [...root.querySelectorAll(".acks-extras-treasure__hoard")].map((el) => {
+      const less = el.querySelector("[data-action='dealStep'][data-step='-1']");
+      const more = el.querySelector("[data-action='dealStep'][data-step='1']");
+      const remove = el.querySelector("[data-action='dealRemove']");
+      const source = el.querySelector(".acks-extras-treasure__hoard-source");
       return {
-        index: Number(box?.dataset.index),
-        checked: !!box?.checked,
-        disabled: !!box?.disabled,
+        list: less?.dataset.list ?? null,
+        index: Number(less?.dataset.index),
+        monster: el.classList.contains("is-monster"),
         off: el.classList.contains("is-off"),
-        name: H.text(nameEl),
-        countTip: nameEl?.getAttribute("data-tooltip-text") ?? null,
-        letterText: H.text(el.querySelector(".acks-extras-treasure__monster-letter")),
+        stepsDisabled: !!less?.disabled && !!more?.disabled,
+        canRemove: !!remove && !remove.disabled,
+        labelled: [less, more, remove].every((b) => !!b?.getAttribute("aria-label")),
+        title: H.text(el.querySelector(".acks-extras-treasure__hoard-title")),
+        source: H.text(source),
+        sourceTip: source?.getAttribute("data-tooltip-text") ?? null,
+        hoardsText: H.text(el.querySelector(".acks-extras-treasure__stepper-n")),
         tip: el.getAttribute("data-tooltip-text"),
       };
     });
+    const add = root.querySelector("[data-action='dealPicker'][aria-expanded]");
     const pressed = (sel) => root.querySelector(sel)?.getAttribute("aria-pressed") ?? null;
     const warn = root.querySelector("[data-deal-warning]");
     return {
       rendered: true,
       phase: f.phase ?? null,
       rows,
-      field: root.querySelector("[data-deal-letter]")?.value ?? null,
-      hasField: !!root.querySelector("[data-deal-letter]"),
+      hoardsTotal: H.text(root.querySelector(".acks-extras-treasure__hoards-total")),
+      runText: H.text(root.querySelector("[data-action='dealRun']")),
+      hasDrop: !!root.querySelector("[data-accept-drop='deal']"),
+      add: { present: !!add, disabled: !!add?.disabled, expanded: add?.getAttribute("aria-expanded") ?? null },
+      picker: !!root.querySelector(".acks-extras-treasure__picker"),
+      pick: [...root.querySelectorAll("[data-action='dealPick']")].map((b) => ({ letter: b.dataset.letter, listed: b.classList.contains("is-listed"), labelled: !!b.getAttribute("aria-label") })),
       style: Object.fromEntries([...root.querySelectorAll("[data-action='dealStyle']")].map((b) => [b.dataset.style, b.getAttribute("aria-pressed")])),
       special: pressed("[data-action='dealSpecial']"),
       lair: pressed("[data-action='dealLair']"),
@@ -249,12 +263,11 @@ const P = {
       warningCancel: !!warn?.querySelector("[data-action='dealCancel']"),
       dealBtn: !!root.querySelector("[data-action='dealRun']"),
       side: !!root.querySelector(".acks-extras-treasure__side"),
-      monsterBoxes: root.querySelectorAll("input[data-action='dealMonster']").length,
       cards: pile.cards.size,
       cardsDown: pile.cards.contents.filter((c) => c.face === null || c.face === undefined).length,
       magicCards: pile.cards.contents.filter((c) => c.getFlag("acks-extras", "card")?.pool === "magic").length,
       storedToggles: f.deal?.toggles ?? null,
-      stored: f.deal ? { rows: (f.deal.monsters ?? []).map((m) => ({ on: !!m.on, count: m.count, hasLetter: !!m.letter })), lair: f.deal.metInLair === true, special: f.deal.special === true, style: f.deal.style ?? null, letter: f.deal.letter ?? null } : null,
+      stored: f.deal ? { rows: (f.deal.monsters ?? []).map((m) => ({ hoards: m.hoards, count: m.count, hasLetter: !!m.letter })), hand: (f.deal.hand ?? []).map((h) => ({ letter: h.letter, hoards: h.hoards })), lair: f.deal.metInLair === true, special: f.deal.special === true, style: f.deal.style ?? null } : null,
     };
   },
   /** Wait for the deal's notification, which the Judge's press raises once the cards are staged. */
@@ -277,16 +290,26 @@ const P = {
     await H.sleep(500);
     return { rendered: !!ok };
   },
-  /** Empty the by-hand field and focus it, so inserted text is what a keyboard would type. */
-  focusLetter: async ({ potId }) => {
+  /**
+   * Drop an actor on the deal list's zone the way a drag from the Actors sidebar
+   * does: a `drop` event carrying `{type: "Actor", uuid}`. Waits for the stored
+   * rows to change, or the settle time where the drop is meant to change nothing.
+   */
+  dropActor: async ({ potId, uuid, expectChange }) => {
     const H = globalThis.__tk;
-    const el = H.root(H.sheet(potId))?.querySelector("[data-deal-letter]");
-    if (!el) return { found: false };
-    el.value = "";
-    el.focus();
-    return { found: true, focused: document.activeElement === el };
+    const pile = H.pile(potId);
+    const zone = H.root(H.sheet(potId))?.querySelector("[data-accept-drop='deal']");
+    if (!zone || !pile) return { found: false };
+    const sig = () => JSON.stringify(pile.getFlag("acks-extras", "treasure")?.deal?.monsters ?? []);
+    const before = sig();
+    const dt = new DataTransfer();
+    dt.setData("text/plain", JSON.stringify({ type: "Actor", uuid }));
+    zone.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    const changed = expectChange ? await H.poll(() => sig() !== before) : await H.sleep(1200).then(() => sig() !== before);
+    await H.sleep(700);
+    return { found: true, changed: !!changed };
   },
-  /** Record the pointer events and the field's change around a press, in order, so a lost click can be told from a press that dealt nothing. */
+  /** Record the pointer events around a press, in order, so a lost click can be told from a press that dealt nothing. */
   watchClicks: async () => {
     const H = globalThis.__tk;
     H.evLog = [];
@@ -295,7 +318,7 @@ const P = {
     const types = ["mousedown", "mouseup", "click", "change"];
     const on = (event) => {
       const el = event.target;
-      H.evLog.push({ t: Math.round(performance.now() - H.evT0), type: event.type, deal: !!el?.closest?.("[data-action='dealRun']"), field: !!el?.matches?.("[data-deal-letter]"), connected: !!el?.isConnected });
+      H.evLog.push({ t: Math.round(performance.now() - H.evT0), type: event.type, deal: !!el?.closest?.("[data-action='dealRun']"), connected: !!el?.isConnected });
     };
     for (const type of types) document.addEventListener(type, on, true);
     H.evOff = () => { for (const type of types) document.removeEventListener(type, on, true); H.evOff = null; };
@@ -385,9 +408,7 @@ try {
   if (!picked.imported) blocked("the world's treasure registry is not imported, so every Deal would report it (recipe step 6); import the Treasure Tome first");
   if (!picked.letter) blocked("no treasure type in the imported classic table deals both a magic card and another kind under a floor die, so the walk cannot show No magic doing anything");
   const LETTER = picked.letter;
-  const LOWER = LETTER.toLowerCase();
   check("the registry is imported, and one treasure type deals a magic card without No magic and only other cards with it, under a floor die", picked.imported && !!LETTER, { tried: picked.tried });
-  check("that type's lower-case form differs from it, so the case step is not vacuous", LOWER !== LETTER);
 
   const fxScene = await gm.fixture(MARKS.scene, "Scene", { name: "QA Deal Scene", width: 1200, height: 800, grid: { size: 100 } });
   const monster = (name, type) => ({ name, type: "monster", system: { details: { treasure: { type } } }, prototypeToken: { actorLink: false, disposition: -1 }, ownership: { default: 0, [playerId]: 2 } });
@@ -440,24 +461,28 @@ try {
   const r1 = await run(gm, P.rail, { potId: potA.potId });
   const expName = await t(gm, "deal.monster", { name: NAMES.lettered, count: 2 });
   const expBare = await t(gm, "deal.monster", { name: NAMES.bare, count: 1 });
-  const lettered1 = r1.rows.find((r) => r.name === expName);
-  const bare1 = r1.rows.find((r) => r.name === expBare);
+  const lettered1 = r1.rows.find((r) => r.source === expName);
+  const bare1 = r1.rows.find((r) => r.source === expBare);
   const cite = await t(gm, "cite.deal");
   const expLetterText = await t(gm, "search.letter", { letter: LETTER });
   const expTipLetter = await t(gm, "deal.tip.letter", { name: NAMES.lettered, letter: LETTER, cite });
   const expTipNone = await t(gm, "deal.tip.noLetter", { name: NAMES.bare, cite });
   const expNoLetter = await t(gm, "deal.noLetter");
   const expCount = await t(gm, "deal.tip.count", { count: 2 });
-  check("the staged pot has exactly two Monsters rows", r1.rendered && r1.phase === "staging" && r1.rows.length === 2 && !!lettered1 && !!bare1 && !r1.rows.some((r) => r.name.includes(NAMES.player)), { rows: r1.rows.length });
-  check("the lettered kind's row reads its name with its two tokens counted once, its type, is ticked and enabled, and its tooltip names the sheet and the page", !!lettered1 && lettered1.letterText === expLetterText && lettered1.checked && !lettered1.disabled && lettered1.tip === expTipLetter && lettered1.countTip === expCount, { text: lettered1?.letterText === expLetterText, tip: lettered1?.tip === expTipLetter, count: lettered1?.countTip === expCount });
-  check("the bare monster's row is disabled and unticked with its no-letter reason on the row and in its tooltip", !!bare1 && bare1.disabled && !bare1.checked && bare1.off && bare1.letterText === expNoLetter && bare1.tip === expTipNone, { disabled: bare1?.disabled, text: bare1?.letterText === expNoLetter, tip: bare1?.tip === expTipNone });
-  check("the stored deal state holds the same two rows, one on, and nothing was dealt: no card in the pot", r1.stored?.rows.length === 2 && r1.stored.rows.filter((x) => x.on).length === 1 && r1.cards === 0, { stored: r1.stored?.rows.length, cards: r1.cards });
+  const expHoards1 = await t(gm, "deal.hoardsTotalOne", { n: 1 });
+  const expRun1 = await t(gm, "deal.runOne", { n: 1 });
+  const expCount1 = await t(gm, "deal.hoardCount", { n: 1 });
+  check("the staged pot has exactly two rows under Hoards to deal, none for the character, with the drop zone and the add button beside them", r1.rendered && r1.phase === "staging" && r1.rows.length === 2 && !!lettered1 && !!bare1 && !r1.rows.some((r) => r.source.includes(NAMES.player)) && r1.hasDrop && r1.add.present && !r1.add.disabled && r1.add.expanded === "false" && !r1.picker, { rows: r1.rows.length, drop: r1.hasDrop, add: r1.add });
+  check("the lettered kind's row reads its type and its name with its two tokens counted once, at one hoard, tinted as a monster row and enabled, and its tooltip names the sheet and the page", !!lettered1 && lettered1.title === expLetterText && lettered1.hoardsText === expCount1 && lettered1.monster && !lettered1.off && !lettered1.stepsDisabled && lettered1.labelled && lettered1.tip === expTipLetter && lettered1.sourceTip === expCount, { title: lettered1?.title === expLetterText, tip: lettered1?.tip === expTipLetter, count: lettered1?.sourceTip === expCount });
+  check("the bare monster's row is disabled with its no-letter reason on the row and in its tooltip, its steps off and its remove still enabled", !!bare1 && bare1.off && bare1.stepsDisabled && bare1.canRemove && bare1.title === expNoLetter && bare1.tip === expTipNone, { off: bare1?.off, title: bare1?.title === expNoLetter, tip: bare1?.tip === expTipNone });
+  check("the header counts one hoard and the Deal button says so: only the lettered row deals", r1.hoardsTotal === expHoards1 && r1.runText === expRun1, { total: r1.hoardsTotal === expHoards1, run: r1.runText === expRun1 });
+  check("the stored deal state holds the same two rows at one hoard each, no by-hand row, and nothing was dealt: no card in the pot", r1.stored?.rows.length === 2 && r1.stored.rows.every((x) => x.hoards === 1) && r1.stored.hand.length === 0 && r1.cards === 0, { stored: r1.stored?.rows.length, cards: r1.cards });
   const mac = await run(gm, P.runDealMacro);
   const potM = mac.found ? await run(gm, P.awaitNewPot) : null;
   if (potM) made.push(gm.track(potM.uuid, "Cards"));
   const rM = potM ? await run(gm, P.rail, { potId: potM.potId }) : null;
   if (potM) await run(gm, P.closePot, { potId: potM.potId });
-  check("the macros compendium's Deal Treasure, run with the same four tokens controlled, opens a second staged pot with the same two rows, the lettered one ticked and the bare one disabled, nothing dealt", mac.found && mac.controlled === 4 && !!rM && rM.phase === "staging" && rM.rows.length === 2 && rM.rows.some((r) => r.name === expName && r.checked) && rM.rows.some((r) => r.name === expBare && r.disabled) && rM.cards === 0, { found: mac.found, controlled: mac.controlled, rows: rM?.rows.length });
+  check("the macros compendium's Deal Treasure, run with the same four tokens controlled, opens a second staged pot with the same two rows, the lettered one enabled and the bare one disabled, nothing dealt", mac.found && mac.controlled === 4 && !!rM && rM.phase === "staging" && rM.rows.length === 2 && rM.rows.some((r) => r.source === expName && !r.off) && rM.rows.some((r) => r.source === expBare && r.off && r.stepsDisabled) && rM.cards === 0, { found: mac.found, controlled: mac.controlled, rows: rM?.rows.length });
   const pa = (sel) => ({ scope: "sheet", potId: potA.potId, sel });
 
   section("Step 2. the lair warning");
@@ -519,37 +544,83 @@ try {
   await press(gm, PORTS.gm, pa("[data-action='dealSpecial']"), "Special treasure off");
   await sleep(600);
 
-  section("Step 5. by hand, and case");
+  section("Step 5. the list: steps, remove, a dropped monster, the picker");
+  const stepSel = (list, index, step) => `[data-action='dealStep'][data-list='${list}'][data-index='${index}'][data-step='${step}']`;
+  const removeSel = (list, index) => `[data-action='dealRemove'][data-list='${list}'][data-index='${index}']`;
+  const expOne = await t(gm, "deal.monster", { name: NAMES.lettered, count: 1 });
+  const expHand = await t(gm, "judge.byHand");
+  const countText = (n) => t(gm, "deal.hoardCount", { n });
   const before5 = await run(gm, P.rail, { potId: potA.potId });
-  const rowIndex = before5.rows.findIndex((r) => r.name === expName);
-  const untick = await press(gm, PORTS.gm, pa(`input[data-action='dealMonster'][data-index='${before5.rows[rowIndex]?.index}']`), "untick the lettered row");
+  const row5 = before5.rows.find((r) => r.source === expName);
+  const up = await press(gm, PORTS.gm, pa(stepSel("monsters", row5?.index, 1)), "+ on the lettered row");
   await sleep(900);
-  const after5 = await run(gm, P.rail, { potId: potA.potId });
-  check("both rows are now unticked: the lettered one by a press, the bare one disabled throughout, and the pot's state says so", untick.found && rowIndex >= 0 && after5.rows.every((r) => !r.checked) && after5.stored?.rows.every((r) => !r.on) && after5.style.classic === "true" && after5.special === "false", { rows: after5.rows.length });
-  const focus = await run(gm, P.focusLetter, { potId: potA.potId });
-  const typing = await cdp(PORTS.gm);
-  try {
-    await typing.send("Page.bringToFront");
-    await typing.send("Input.insertText", { text: LOWER });
-  } finally {
-    typing.close();
-  }
-  const typed = await run(gm, P.rail, { potId: potA.potId });
-  check("the treasure type is typed in lower case into the field, which holds it and has not stored it yet", focus.found && focus.focused && typed.field === LOWER && typed.stored?.letter !== LOWER, { field: typed.field === LOWER });
+  const up5 = await run(gm, P.rail, { potId: potA.potId });
+  const upRow = up5.rows.find((r) => r.source === expName);
+  check("+ on the lettered row raises it to two hoards: the row, the stored state, the header and the Deal button all say two", up.found && !!row5 && upRow?.hoardsText === (await countText(2)) && up5.stored?.rows[row5.index]?.hoards === 2 && up5.hoardsTotal === (await t(gm, "deal.hoardsTotal", { n: 2 })) && up5.runText === (await t(gm, "deal.runN", { n: 2 })), { row: upRow?.hoardsText, stored: up5.stored?.rows[row5?.index]?.hoards, total: up5.hoardsTotal });
+  await press(gm, PORTS.gm, pa(stepSel("monsters", row5?.index, -1)), "- on the lettered row");
+  await sleep(900);
+  const down5 = await run(gm, P.rail, { potId: potA.potId });
+  check("- on a row at two hoards lowers it to one and leaves the row", down5.rows.find((r) => r.source === expName)?.hoardsText === expCount1 && down5.stored?.rows[row5.index]?.hoards === 1 && down5.rows.length === 2, { rows: down5.rows.length });
+  await press(gm, PORTS.gm, pa(stepSel("monsters", row5?.index, -1)), "- on the lettered row at one");
+  await sleep(900);
+  const gone5 = await run(gm, P.rail, { potId: potA.potId });
+  check("- at one hoard removes the lettered row: only the disabled row stands, the header counts none and the Deal button is the plain Deal", gone5.rows.length === 1 && gone5.rows[0].source === expBare && gone5.stored?.rows.length === 1 && gone5.hoardsTotal === (await t(gm, "deal.hoardsTotal", { n: 0 })) && gone5.runText === (await t(gm, "deal.run")), { rows: gone5.rows.length, total: gone5.hoardsTotal, run: gone5.runText });
+
+  await run(gm, K.takeNotes);
+  const drop1 = await run(gm, P.dropActor, { potId: potA.potId, uuid: fxLettered.uuid, expectChange: true });
+  const d1 = await run(gm, P.rail, { potId: potA.potId });
+  const dropped1 = d1.rows.find((r) => r.source === expOne);
+  check("the lettered monster dropped on the zone adds its row at one hoard, tinted as a monster row, enabled, with its type", drop1.found && drop1.changed && !!dropped1 && dropped1.hoardsText === expCount1 && dropped1.monster && !dropped1.off && dropped1.title === expLetterText && d1.rows.length === 2, { rows: d1.rows.length });
+  const drop2 = await run(gm, P.dropActor, { potId: potA.potId, uuid: fxLettered.uuid, expectChange: true });
+  const d2 = await run(gm, P.rail, { potId: potA.potId });
+  check("the same monster dropped again raises that row to two hoards and adds no second row", drop2.changed && d2.rows.length === 2 && d2.rows.find((r) => r.source === expOne)?.hoardsText === (await countText(2)), { rows: d2.rows.length });
+  const dropPc = await run(gm, P.dropActor, { potId: potA.potId, uuid: fxPlayer.uuid, expectChange: false });
+  const dNotes = await run(gm, K.takeNotes);
+  const d3 = await run(gm, P.rail, { potId: potA.potId });
+  check("a character dropped on the zone adds nothing and is refused by lang string", dropPc.found && !dropPc.changed && d3.rows.length === 2 && dNotes.warns.includes(await t(gm, "deal.dropKind")), { rows: d3.rows.length, warned: dNotes.warns.includes(await t(gm, "deal.dropKind")) });
+
+  const openPick = await press(gm, PORTS.gm, pa("[data-action='dealPicker'][aria-expanded]"), "+ Add treasure type");
+  await sleep(700);
+  const k1 = await run(gm, P.rail, { potId: potA.potId });
+  check("+ Add treasure type opens the picker: one button per type the imported classic table holds, the chosen one among them, none listed yet", openPick.found && k1.add.expanded === "true" && k1.picker && k1.pick.length === picked.tried && k1.pick.some((x) => x.letter === LETTER) && k1.pick.every((x) => x.labelled && !x.listed), { expanded: k1.add.expanded, buttons: k1.pick.length, types: picked.tried });
+  const pickSel = `[data-action='dealPick'][data-letter=${JSON.stringify(LETTER)}]`;
+  await press(gm, PORTS.gm, pa(pickSel), "pick the type");
+  await sleep(900);
+  const k2 = await run(gm, P.rail, { potId: potA.potId });
+  const handRow = k2.rows.find((r) => r.source === expHand);
+  check("picking a type adds one by-hand row at one hoard, plain rather than tinted, and tints that type in the picker, which stays open", !!handRow && !handRow.monster && handRow.title === expLetterText && handRow.hoardsText === expCount1 && k2.stored?.hand.length === 1 && k2.stored.hand[0].letter === LETTER && k2.pick.find((x) => x.letter === LETTER)?.listed && k2.picker, { row: !!handRow, hand: k2.stored?.hand.length });
+  await press(gm, PORTS.gm, pa(pickSel), "pick the same type");
+  await sleep(900);
+  const k3 = await run(gm, P.rail, { potId: potA.potId });
+  check("picking it again raises that row to two hoards and adds no second row", k3.stored?.hand.length === 1 && k3.stored.hand[0].hoards === 2 && k3.rows.find((r) => r.source === expHand)?.hoardsText === (await countText(2)), { hand: k3.stored?.hand.length });
+  await press(gm, PORTS.gm, pa(stepSel("hand", 0, -1)), "- on the by-hand row");
+  await sleep(900);
+  await press(gm, PORTS.gm, pa(stepSel("hand", 0, 1)), "+ on the by-hand row");
+  await sleep(900);
+  const k4 = await run(gm, P.rail, { potId: potA.potId });
+  check("- then + on the by-hand row lands it back at two hoards", k4.stored?.hand[0]?.hoards === 2, { hoards: k4.stored?.hand[0]?.hoards });
+  const done = await press(gm, PORTS.gm, pa(".acks-extras-treasure__picker [data-action='dealPicker']"), "Done");
+  await sleep(700);
+  const k5 = await run(gm, P.rail, { potId: potA.potId });
+  check("Done closes the picker", done.found && !k5.picker && k5.add.expanded === "false", { picker: k5.picker });
+
+  section("Step 5b. Deal the list");
+  const expRun4 = await t(gm, "deal.runN", { n: 4 });
+  check("the list holds the lettered monster at two hoards and the by-hand type at two: the header and the Deal button say four", k5.hoardsTotal === (await t(gm, "deal.hoardsTotal", { n: 4 })) && k5.runText === expRun4, { total: k5.hoardsTotal, run: k5.runText === expRun4 });
   await run(gm, P.watchClicks);
-  const hand = await dealPress(pa("aside [data-action='dealRun']"), "Deal");
+  const hand = await dealPress(pa("aside [data-action='dealRun']"), "Deal 4 hoards");
   const evs = await run(gm, P.readClicks);
-  note("step 5, the pointer events around the press, in order (t ms, type, on Deal, on the field, still in the document)", evs.map((e) => `${e.t}:${e.type}${e.deal ? ":deal" : ""}${e.field ? ":field" : ""}${e.connected ? "" : ":detached"}`).join(" "));
+  note("step 5, the pointer events around the press, in order (t ms, type, on Deal, still in the document)", evs.map((e) => `${e.t}:${e.type}${e.deal ? ":deal" : ""}${e.connected ? "" : ":detached"}`).join(" "));
   const s5 = await run(gm, P.rail, { potId: potA.potId });
   const n3 = s5.cards - s4.cards;
-  const wantDone3 = await doneText(n3, LOWER);
-  check("Deal pressed at once dealt a hoard on the first press: no callout, new face-down cards, one notification with the letter as typed", hand.pressed.found && hand.waited && !s5.warning && n3 > 0 && s5.cardsDown === s5.cards && hand.notes.infos.includes(wantDone3) && hand.errs.length === 0, { added: n3, reported: hand.notes.infos.includes(wantDone3), real: hand.pressed.real, field: s5.field === LOWER, stored: s5.stored?.letter === LOWER, warns: hand.notes.warns.length });
-
-  if (n3 === 0) {
-    const again = await dealPress(pa("aside [data-action='dealRun']"), "Deal, a second press");
-    const s5b = await run(gm, P.rail, { potId: potA.potId });
-    note("step 5, with the field already stored, a second press of Deal", { dealt: s5b.cards - s5.cards, reported: again.notes.infos.some((m) => m.startsWith(doneHead)) });
-  }
+  const wantDone3 = await doneText(n3, Array(4).fill(LETTER).join(", "));
+  check("Deal pressed once dealt all four hoards: no callout, new face-down cards, one notification naming the letter once per hoard", hand.pressed.found && hand.waited && !s5.warning && n3 > 0 && s5.cardsDown === s5.cards && hand.notes.infos.includes(wantDone3) && hand.errs.length === 0, { added: n3, reported: hand.notes.infos.includes(wantDone3), real: hand.pressed.real, warns: hand.notes.warns.length });
+  const bare5 = s5.rows.find((r) => r.source === expBare);
+  await press(gm, PORTS.gm, pa(removeSel("monsters", bare5?.index)), "remove the disabled row");
+  await sleep(900);
+  const r5 = await run(gm, P.rail, { potId: potA.potId });
+  check("the disabled row is removed by its remove button, and the two dealt rows stand", !!bare5 && bare5.canRemove && r5.rows.length === 2 && !r5.rows.some((r) => r.source === expBare) && r5.stored?.rows.length === 1, { rows: r5.rows.length });
+  note("the by-hand row's case-insensitive type lookup has no control since the text field went; the table lookup keeps it", "covered offline by test-hoard-map");
 
   section("Step 6. the monster sheet");
   const gL = await run(gm, P.sheetEcology, { actorId: ids.lettered });
@@ -572,8 +643,7 @@ try {
   if (!potB) throw new Error("the monster sheet's Deal opened no pot window");
   made.push(gm.track(potB.uuid, "Cards"));
   const r6 = await run(gm, P.rail, { potId: potB.potId });
-  const expOne = await t(gm, "deal.monster", { name: NAMES.lettered, count: 1 });
-  check("the pot is staged with that one monster's row, ticked, and nothing was dealt", r6.phase === "staging" && r6.rows.length === 1 && r6.rows[0].name === expOne && r6.rows[0].checked && !r6.rows[0].disabled && r6.rows[0].letterText === expLetterText && r6.cards === 0 && r6.stored?.rows.length === 1 && r6.stored.rows[0].on, { rows: r6.rows.length, cards: r6.cards });
+  check("the pot is staged with that one monster's row at one hoard, enabled, and nothing was dealt", r6.phase === "staging" && r6.rows.length === 1 && r6.rows[0].source === expOne && !r6.rows[0].off && r6.rows[0].hoardsText === expCount1 && r6.rows[0].title === expLetterText && r6.cards === 0 && r6.stored?.rows.length === 1 && r6.stored.rows[0].hoards === 1, { rows: r6.rows.length, cards: r6.cards });
   await run(gm, K.closeAll);
 
   section("Step 7. refusals");
@@ -585,14 +655,14 @@ try {
   const drop = await run(gm, P.dropAndWait, { potId: potC.potId, zone: "pot", uuid: fxPlain.uuid });
   check("a small pot is stocked with one plain item, so the open pot below holds no dealt placeholder", drop.ok, { ids: drop.ids.length });
   const staged7 = await run(gm, P.rail, { potId: potC.potId });
-  check("while staging the rail is there: Deal, the by-hand field, and Open to the table", staged7.dealBtn && staged7.hasField && staged7.side);
+  check("while staging the rail is there: Deal, the drop zone and the add button, and Open to the table", staged7.dealBtn && staged7.hasDrop && staged7.add.present && staged7.side);
   const open7 = await press(gm, PORTS.gm, { scope: "sheet", potId: potC.potId, sel: "aside [data-action='openTable']" }, "Open to the table");
   const w7 = await run(gm, K.waitState, { potId: potC.potId, until: "phase", phase: "open" });
   const st7 = await run(gm, K.stage, { potId: potC.potId });
   if (st7.messageId) made.push(gm.track(st7.messageId, "ChatMessage"));
   await run(gm, K.rerender, { potId: potC.potId });
   const o7 = await run(gm, P.rail, { potId: potC.potId });
-  check("on a pot opened to the table the rail is gone: no Deal, no by-hand field, no Monsters rows, no side panel", open7.found && w7.met && o7.phase === "open" && !o7.dealBtn && !o7.hasField && !o7.side && o7.monsterBoxes === 0, { phase: o7.phase, deal: o7.dealBtn, side: o7.side });
+  check("on a pot opened to the table the rail is gone: no Deal, no drop zone, no list rows, no side panel", open7.found && w7.met && o7.phase === "open" && !o7.dealBtn && !o7.hasDrop && !o7.side && o7.rows.length === 0, { phase: o7.phase, deal: o7.dealBtn, side: o7.side });
   const refusedGm = await run(gm, P.dealApi, { potId: potC.potId, letter: LETTER, expectKey: "deal.refuse.phase" });
   check("a deal into the open pot is refused as no longer staging, worded by lang string, and stages nothing", refusedGm.found && refusedGm.threw === null && refusedGm.ok === false && refusedGm.reason === "phase" && refusedGm.said && refusedGm.cardsDelta === 0, { reason: refusedGm.reason, said: refusedGm.said });
   const refusedPl = await run(player, P.dealApi, { potId: potC.potId, letter: LETTER, expectKey: "deal.refuse.notAllowed" });

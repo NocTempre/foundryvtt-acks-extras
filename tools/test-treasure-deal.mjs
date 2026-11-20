@@ -49,7 +49,7 @@ globalThis.Hooks = { once() {}, on() {}, callAll() {} };
 globalThis.foundry = {};
 
 const { PHASE, MODULE_ID, POT_FLAG } = await import("../scripts/treasure/constants.mjs");
-const { normalizePot, setDealChoice, setMetInLair, setMonsterOn, setMonsters, setToggle, DEAL_STYLE, DEAL_TOGGLE } = await import("../scripts/treasure/pot-logic.mjs");
+const { addHand, addMonster, normalizePot, removeRow, setDealChoice, setMetInLair, setMonsters, setToggle, stepRow, DEAL_LIST, DEAL_STYLE, DEAL_TOGGLE } = await import("../scripts/treasure/pot-logic.mjs");
 const { DEAL_ERROR_CODES, DEAL_REFUSAL, dealLines, dealMessages, groupMonsters, lairWarning, monsterRows, runLetterDeal } = await import("../scripts/treasure/deal-logic.mjs");
 const { STYLE_TABLE } = await import("../scripts/treasure/hoard-map.mjs");
 const { readFileSync } = await import("node:fs");
@@ -106,56 +106,87 @@ const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url)
   eq(groupMonsters([{ actorId: "a1", name: "x" }, null, undefined]).map((r) => r.count), [1], "a hole in the list is skipped");
 }
 
-/* --- the staged deal state: monster rows, the by-hand letter, style and special --- */
+/* --- the staged deal state: monster rows, the by-hand rows, style and special --- */
 {
   const fresh = normalizePot({});
-  eq([fresh.deal.monsters, fresh.deal.letter, fresh.deal.style, fresh.deal.special], [[], null, "classic", false], "a new pot stages no rows, no letter, classic, no special");
+  eq([fresh.deal.monsters, fresh.deal.hand, fresh.deal.style, fresh.deal.special], [[], [], "classic", false], "a new pot stages no rows, no by-hand rows, classic, no special");
   eq(DEAL_STYLE, Object.keys(STYLE_TABLE), "the styles listed are the keys the hoard maps");
 
   const rows = normalizePot({
     deal: {
       monsters: [
-        { actorId: "a1", name: "Mossback", count: 3.7, letter: " Q ", on: true },
-        { actorId: "", name: 5, count: 0, letter: "none", on: true },
-        { actorId: 7, name: "Drifter", count: "x", letter: null, on: "yes" },
+        { actorId: "a1", name: "Mossback", count: 3.7, letter: " Q ", hoards: 2.9 },
+        { actorId: "", name: 5, count: 0, letter: "none", hoards: 0 },
+        { actorId: 7, name: "Drifter", count: "x", letter: null, hoards: "x" },
+        { name: "Hoarder", letter: "Q", hoards: 5000 },
         null,
         "junk",
       ],
     },
   }).deal.monsters;
   eq(rows, [
-    { actorId: "a1", name: "Mossback", count: 3, letter: "Q", on: true },
-    { actorId: null, name: "5", count: 1, letter: null, on: false },
-    { actorId: null, name: "Drifter", count: 1, letter: null, on: false },
-  ], "rows are cleaned: counts floor to one or more, a letter is trimmed, a row with no letter is never ticked, only a real true ticks");
+    { actorId: "a1", name: "Mossback", count: 3, letter: "Q", hoards: 2 },
+    { actorId: null, name: "5", count: 1, letter: null, hoards: 1 },
+    { actorId: null, name: "Drifter", count: 1, letter: null, hoards: 1 },
+    { actorId: null, name: "Hoarder", count: 1, letter: "Q", hoards: 99 },
+  ], "rows are cleaned: counts and hoards floor to one or more, hoards stop at 99, a letter is trimmed, a letterless row is kept");
   eq(normalizePot({ deal: { monsters: "x" } }).deal.monsters, [], "rows that are not a list are none");
 
-  const kept = normalizePot({ deal: { letter: " R ", style: "gritty", special: true } });
-  eq([kept.deal.letter, kept.deal.style, kept.deal.special], ["R", "gritty", true], "a by-hand letter, a listed style and special are kept");
-  eq(normalizePot({ deal: { letter: "none", style: "epic", special: "yes" } }).deal, fresh.deal, "'none' is no letter, an unlisted style is classic, special needs a real true");
+  eq(normalizePot({ deal: { hand: [{ letter: " K ", hoards: 2 }, { letter: "none" }, { letter: "L" }, { hoards: 3 }, null, "junk"] } }).deal.hand, [{ letter: "K", hoards: 2 }, { letter: "L", hoards: 1 }], "by-hand rows keep a trimmed type and a hoard count of one or more; a row naming no type is dropped");
+  eq(normalizePot({ deal: { hand: "x" } }).deal.hand, [], "by-hand rows that are not a list are none");
+  const kept = normalizePot({ deal: { style: "gritty", special: true } });
+  eq([kept.deal.style, kept.deal.special], ["gritty", true], "a listed style and special are kept");
+  eq(normalizePot({ deal: { style: "epic", special: "yes" } }).deal, fresh.deal, "an unlisted style is classic, special needs a real true");
+  eq("letter" in fresh.deal, false, "a pot staged before the list keeps no by-hand letter");
 
   const staged = normalizePot({ phase: PHASE.staging });
-  const set = setMonsters(staged, [{ actorId: "a1", name: "Mossback", count: 2, letter: "Q", on: true }, { actorId: "a2", name: "Wisp", count: 1, letter: null, on: true }]);
-  eq(set.deal.monsters.map((r) => [r.name, r.on]), [["Mossback", true], ["Wisp", false]], "setMonsters stores the rows, a letterless one clear");
+  const set = setMonsters(staged, [{ actorId: "a1", name: "Mossback", count: 2, letter: "Q" }, { actorId: "a2", name: "Wisp", count: 1, letter: null }]);
+  eq(set.deal.monsters.map((r) => [r.name, r.hoards]), [["Mossback", 1], ["Wisp", 1]], "setMonsters stores the rows at one hoard each, a letterless one kept");
   eq(setMonsters(normalizePot({ phase: PHASE.open }), []), null, "rows are staged in staging only");
   eq(staged.deal.monsters, [], "the input pot is not changed");
   eq(setMetInLair(set, true).deal.monsters, set.deal.monsters, "the lair toggle keeps the rows");
 
-  eq(setMonsterOn(set, 0, false).deal.monsters[0].on, false, "a row is cleared");
-  eq(setMonsterOn(setMonsterOn(set, 0, false), 0, true).deal.monsters[0].on, true, "and ticked again");
-  eq(setMonsterOn(set, 1, true), null, "a row with no letter cannot be ticked");
-  eq(setMonsterOn(set, 2, true), null, "a row that does not exist is refused");
-  eq(setMonsterOn(set, -1, true), null, "a negative index is refused");
-  eq(setMonsterOn(set, "0", true), null, "an index that is not an integer is refused");
-  eq(setMonsterOn(normalizePot({ phase: PHASE.open, deal: { monsters: [{ name: "x", letter: "Q" }] } }), 0, true), null, "ticking is staging only");
+  // The list's own edits: steps, removal and the two ways a row is added.
+  const up = stepRow(set, DEAL_LIST.monsters, 0, 1);
+  eq(up.deal.monsters[0].hoards, 2, "a step up raises a row's hoards");
+  eq(stepRow(up, DEAL_LIST.monsters, 0, -1).deal.monsters[0].hoards, 1, "and a step down lowers them");
+  eq(stepRow(set, DEAL_LIST.monsters, 0, -1).deal.monsters.map((r) => r.name), ["Wisp"], "a step down from one removes the row");
+  eq(stepRow(set, DEAL_LIST.monsters, 1, 1), null, "a row with no letter takes no step up");
+  eq(stepRow(set, DEAL_LIST.monsters, 1, -1).deal.monsters.map((r) => r.name), ["Mossback"], "but a step down removes it");
+  eq(stepRow(set, DEAL_LIST.monsters, 2, 1), null, "a row that does not exist is refused");
+  eq(stepRow(set, DEAL_LIST.monsters, -1, 1), null, "a negative index is refused");
+  eq(stepRow(set, DEAL_LIST.monsters, "0", 1), null, "an index that is not an integer is refused");
+  eq(stepRow(set, DEAL_LIST.monsters, 0, 0.5), null, "a step that is not a whole number is refused");
+  eq(stepRow(set, "letter", 0, 1), null, "a section that is not listed is refused");
+  eq(stepRow(normalizePot({ phase: PHASE.open, deal: { monsters: [{ name: "x", letter: "Q" }] } }), DEAL_LIST.monsters, 0, 1), null, "stepping is staging only");
+  const capped =normalizePot({ phase: PHASE.staging, deal: { monsters: [{ name: "x", letter: "Q", hoards: 99 }] } });
+  eq(stepRow(capped, DEAL_LIST.monsters, 0, 1).deal.monsters[0].hoards, 99, "a step up stops at 99");
+  eq(removeRow(set, DEAL_LIST.monsters, 0).deal.monsters.map((r) => r.name), ["Wisp"], "a row is removed at any count");
+  eq(removeRow(up, DEAL_LIST.monsters, 0).deal.monsters.map((r) => r.name), ["Wisp"], "including one raised above one");
+  eq([removeRow(set, DEAL_LIST.monsters, 5), removeRow(set, "nope", 0), removeRow(normalizePot({ phase: PHASE.open }), DEAL_LIST.hand, 0)], [null, null, null], "a missing row, an unlisted section and an open pot are refused");
+
+  const dropped = addMonster(set, { actorId: "a1", name: "Mossback", count: 1, letter: "Q" });
+  eq(dropped.deal.monsters.map((r) => [r.name, r.hoards]), [["Mossback", 2], ["Wisp", 1]], "a monster already in the list has its hoards raised, not a second row");
+  eq(addMonster(set, { actorId: "a3", name: "Gust", count: 1, letter: "R" }).deal.monsters.map((r) => [r.name, r.hoards]), [["Mossback", 1], ["Wisp", 1], ["Gust", 1]], "a new monster is appended at one hoard");
+  eq(addMonster(set, { actorId: "a2", name: "Wisp", count: 1, letter: null }).deal.monsters[1].hoards, 1, "a letterless monster dropped again stays at one hoard");
+  eq(addMonster(set, { name: "Wisp", letter: null }).deal.monsters.length, 3, "a kind known by name alone is not matched to an actor's row");
+  eq(addMonster(addMonster(staged, { name: "Drifter", letter: "Q" }), { name: "Drifter", letter: "Q" }).deal.monsters.map((r) => r.hoards), [2], "two rows known by name alone are one kind");
+  eq([addMonster(normalizePot({ phase: PHASE.open }), { name: "x", letter: "Q" }), addMonster(staged, null)], [null, null], "a monster is added in staging only, and a hole adds nothing");
+
+  const hand = addHand(staged, " K ");
+  eq(hand.deal.hand, [{ letter: "K", hoards: 1 }], "a by-hand type is added at one hoard, trimmed");
+  eq(addHand(hand, "K").deal.hand, [{ letter: "K", hoards: 2 }], "the same type again raises its hoards");
+  eq(addHand(hand, "L").deal.hand, [{ letter: "K", hoards: 1 }, { letter: "L", hoards: 1 }], "another type is a row of its own");
+  eq(stepRow(addHand(hand, "K"), DEAL_LIST.hand, 0, -1).deal.hand, [{ letter: "K", hoards: 1 }], "a by-hand row steps down");
+  eq(stepRow(hand, DEAL_LIST.hand, 0, -1).deal.hand, [], "and a step down from one removes it");
+  eq([addHand(staged, ""), addHand(staged, "none"), addHand(normalizePot({ phase: PHASE.open }), "K")], [null, null, null], "a blank type, 'none' and an open pot add nothing");
 
   eq(setDealChoice(staged, "style", "heroic").deal.style, "heroic", "a listed style is set");
   eq(setDealChoice(staged, "style", "epic"), null, "an unlisted style is refused");
   eq(setDealChoice(staged, "special", true).deal.special, true, "special is set");
   eq(setDealChoice(setDealChoice(staged, "special", true), "special", false).deal.special, false, "and cleared");
   eq(setDealChoice(staged, "special", "yes").deal.special, false, "only a real true sets it");
-  eq(setDealChoice(staged, "letter", " K ").deal.letter, "K", "a by-hand letter is trimmed");
-  eq(setDealChoice(setDealChoice(staged, "letter", "K"), "letter", "").deal.letter, null, "a blank clears it");
+  eq(setDealChoice(staged, "letter", "K"), null, "the by-hand letter is no longer a choice");
   eq(setDealChoice(staged, "metInLair", true), null, "a key that is not a choice is refused");
   eq(setDealChoice(normalizePot({ phase: PHASE.open }), "style", "heroic"), null, "choices are staging only");
   eq(setDealChoice(set, "style", "gritty").deal.monsters, set.deal.monsters, "a choice keeps the rows");
@@ -165,24 +196,27 @@ const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url)
 {
   const groups = groupMonsters([{ actorId: "a1", name: "Mossback", letter: "Q" }, { actorId: "a1", name: "Mossback", letter: "Q" }, { actorId: "a2", name: "Wisp", letter: null }]);
   eq(monsterRows(groups), [
-    { actorId: "a1", name: "Mossback", count: 2, letter: "Q", on: true },
-    { actorId: "a2", name: "Wisp", count: 1, letter: null, on: false },
-  ], "a kind with a letter is ticked, one without is clear");
-  eq(monsterRows([{ actorId: "a1", name: "m", count: 0, letter: "none" }, null]), [{ actorId: "a1", name: "m", count: 1, letter: null, on: false }], "'none' is no letter; a hole is skipped");
+    { actorId: "a1", name: "Mossback", count: 2, letter: "Q", hoards: 1 },
+    { actorId: "a2", name: "Wisp", count: 1, letter: null, hoards: 1 },
+  ], "every kind is a row at one hoard, one without a letter kept");
+  eq(monsterRows([{ actorId: "a1", name: "m", count: 0, letter: "none" }, null]), [{ actorId: "a1", name: "m", count: 1, letter: null, hoards: 1 }], "'none' is no letter; a hole is skipped");
   eq(monsterRows(undefined), [], "no kinds, no rows");
 
-  const dealOf = (monsters, letter) => normalizePot({ deal: { monsters, letter } }).deal;
+  const dealOf = (monsters, hand) => normalizePot({ deal: { monsters, hand } }).deal;
   eq(dealLines(dealOf([
-    { name: "Mossback", count: 4, letter: "Q", on: true },
-    { name: "Wisp", count: 1, letter: "Q", on: true },
-    { name: "Gust", count: 2, letter: "R", on: false },
-    { name: "Bare", count: 1, letter: null, on: true },
-  ], "Z")), [
+    { name: "Mossback", count: 4, letter: "Q" },
+    { name: "Wisp", count: 1, letter: "Q", hoards: 2 },
+    { name: "Bare", count: 1, letter: null, hoards: 3 },
+  ], [{ letter: "Z" }, { letter: "Y", hoards: 2 }])), [
     { letter: "Q", name: "Mossback", count: 4 },
     { letter: "Q", name: "Wisp", count: 1 },
+    { letter: "Q", name: "Wisp", count: 1 },
     { letter: "Z", name: null, count: 0 },
-  ], "one line per ticked row with a letter, a kind's count never multiplies its hoard, the by-hand letter last");
-  eq(dealLines(dealOf([], null)), [], "nothing ticked and no letter: no line");
+    { letter: "Y", name: null, count: 0 },
+    { letter: "Y", name: null, count: 0 },
+  ], "a line per hoard of each row with a letter, a kind's token count never multiplies its hoards, the by-hand rows last");
+  eq(dealLines(dealOf([], [])), [], "an empty list: no line");
+  eq(dealLines({ monsters: [{ letter: "Q", hoards: "x" }], hand: [{ letter: "none" }] }), [{ letter: "Q", name: undefined, count: undefined }], "a row read before it was cleaned still deals one hoard of its letter; 'none' deals none");
   eq(dealLines(undefined), [], "no state, no line");
 }
 
@@ -361,32 +395,41 @@ const plain = () => {
   eq(selectedMonsterGroups(), [], "nothing selected, no rows");
 
   // The staged-state writes, and the pot the entries open.
-  const { setDealMonsterOn, setDealMonsters, setDealOption, setDealMetInLair } = await import("../scripts/treasure/pot.mjs");
+  const { addDealHand, addDealMonster, removeDealRow, setDealMonsters, setDealOption, setDealMetInLair, stepDealRow } = await import("../scripts/treasure/pot.mjs");
   const { newDealPot } = await import("../scripts/treasure/deal.mjs");
   const stored = () => flags[MODULE_ID][POT_FLAG].deal;
   reset({ phase: PHASE.staging });
-  await setDealMonsters(pile, [{ actorId: "a1", name: "Mossback", count: 2, letter: "Z", on: true }, { actorId: "a2", name: "Wisp", count: 1, letter: null, on: true }]);
-  eq(stored().monsters.map((r) => [r.name, r.on]), [["Mossback", true], ["Wisp", false]], "rows are written to the pot's flag, a letterless one clear");
-  await setDealMonsterOn(pile, 0, false);
-  eq(stored().monsters[0].on, false, "a tick is written");
-  eq(await setDealMonsterOn(pile, 1, true), null, "a row with no letter writes nothing");
-  eq(stored().monsters[1].on, false, "and stays clear");
+  await setDealMonsters(pile, [{ actorId: "a1", name: "Mossback", count: 2, letter: "Z" }, { actorId: "a2", name: "Wisp", count: 1, letter: null }]);
+  eq(stored().monsters.map((r) => [r.name, r.hoards]), [["Mossback", 1], ["Wisp", 1]], "rows are written to the pot's flag, a letterless one kept");
+  await stepDealRow(pile, DEAL_LIST.monsters, 0, 1);
+  eq(stored().monsters[0].hoards, 2, "a step is written");
+  eq(await stepDealRow(pile, DEAL_LIST.monsters, 1, 1), null, "a row with no letter writes nothing");
+  await addDealMonster(pile, { actorId: "a1", name: "Mossback", count: 1, letter: "Z" });
+  eq(stored().monsters.map((r) => [r.name, r.hoards]), [["Mossback", 3], ["Wisp", 1]], "a dropped monster already listed raises its hoards");
+  await addDealHand(pile, "K");
+  await addDealHand(pile, "K");
+  eq(stored().hand, [{ letter: "K", hoards: 2 }], "a picked type is written, and picked again raises its hoards");
+  await removeDealRow(pile, DEAL_LIST.monsters, 1);
+  eq(stored().monsters.map((r) => r.name), ["Mossback"], "a removed row is gone from the flag");
+  await stepDealRow(pile, DEAL_LIST.hand, 0, -1);
+  await stepDealRow(pile, DEAL_LIST.hand, 0, -1);
+  eq(stored().hand, [], "a step down from one removes a by-hand row from the flag");
   await setDealOption(pile, "style", "gritty");
   await setDealOption(pile, "special", true);
-  await setDealOption(pile, "letter", " K ");
-  eq([stored().style, stored().special, stored().letter], ["gritty", true, "K"], "style, special and the by-hand letter are written");
+  eq([stored().style, stored().special], ["gritty", true], "style and special are written");
   eq(await setDealOption(pile, "style", "epic"), null, "an unlisted style writes nothing");
+  eq(await setDealOption(pile, "letter", "K"), null, "the by-hand letter is no longer a choice to write");
   await setDealMetInLair(pile, true);
-  eq(stored().monsters.length, 2, "a later write keeps the rows");
+  eq(stored().monsters.length, 1, "a later write keeps the rows");
   r = await dealLettersIntoPot(pile, { letters: ["Z"], style: "classic" });
   eq(r.ok, true, "a staged pot with the lair set deals unasked");
-  eq(stored().letter, "K", "a deal leaves the staged letter alone");
+  eq(stored().monsters.length, 1, "a deal leaves the list alone");
   reset({ phase: PHASE.open });
-  eq([await setDealMonsters(pile, []), await setDealMonsterOn(pile, 0, true), await setDealOption(pile, "special", true)], [null, null, null], "an open pot takes none of them");
+  eq([await setDealMonsters(pile, []), await stepDealRow(pile, DEAL_LIST.monsters, 0, 1), await addDealHand(pile, "K"), await addDealMonster(pile, { name: "x", letter: "Z" }), await removeDealRow(pile, DEAL_LIST.hand, 0), await setDealOption(pile, "special", true)], [null, null, null, null, null, null], "an open pot takes none of them");
   globalThis.game.user.isGM = false;
-  reset({ phase: PHASE.staging, deal: { monsters: [{ name: "x", letter: "Z", on: false }] } });
-  eq([await setDealMonsters(pile, [{ name: "y", letter: "Z" }]), await setDealMonsterOn(pile, 0, true), await setDealOption(pile, "special", true)], [null, null, null], "a player writes none of them");
-  eq(flags[MODULE_ID][POT_FLAG].deal.monsters, [{ name: "x", letter: "Z", on: false }], "and nothing is stored");
+  reset({ phase: PHASE.staging, deal: { monsters: [{ name: "x", letter: "Z" }] } });
+  eq([await setDealMonsters(pile, [{ name: "y", letter: "Z" }]), await stepDealRow(pile, DEAL_LIST.monsters, 0, 1), await addDealHand(pile, "K"), await addDealMonster(pile, { name: "y", letter: "Z" }), await removeDealRow(pile, DEAL_LIST.monsters, 0), await setDealOption(pile, "special", true)], [null, null, null, null, null, null], "a player writes none of them");
+  eq(flags[MODULE_ID][POT_FLAG].deal.monsters, [{ name: "x", letter: "Z" }], "and nothing is stored");
   globalThis.game.user.isGM = true;
 
   const made = [];
@@ -401,17 +444,17 @@ const plain = () => {
   await newDealPot();
   const opened = made.at(-1).flags[MODULE_ID][POT_FLAG];
   eq(opened.deal.monsters, [
-    { actorId: "a1", name: "Mossback", count: 2, letter: "Z", on: true },
-    { actorId: "zz", name: "Drifter", count: 1, letter: null, on: false },
-  ], "selected tokens open the pot staged with one row per kind, a kind with a letter ticked");
+    { actorId: "a1", name: "Mossback", count: 2, letter: "Z", hoards: 1 },
+    { actorId: "zz", name: "Drifter", count: 1, letter: null, hoards: 1 },
+  ], "selected tokens open the pot staged with one row per kind at one hoard, a kind with no letter kept");
   eq([opened.phase, opened.order], [PHASE.staging, []], "the pot is staging and nothing is dealt");
   controlled = [];
   await newDealPot();
   eq(made.at(-1).flags[MODULE_ID][POT_FLAG].deal.monsters, [], "nothing selected opens By hand, as before");
   await newDealPot([{ actorId: "a1", name: "Mossback", count: 1, letter: "Z" }]);
-  eq(made.at(-1).flags[MODULE_ID][POT_FLAG].deal.monsters.map((x) => [x.name, x.on]), [["Mossback", true]], "a sheet opens the pot with its one monster ticked");
+  eq(made.at(-1).flags[MODULE_ID][POT_FLAG].deal.monsters.map((x) => [x.name, x.hoards]), [["Mossback", 1]], "a sheet opens the pot with its one monster at one hoard");
   await newDealPot([{ actorId: "a1", name: "Mossback", count: 1, letter: null }]);
-  eq(made.at(-1).flags[MODULE_ID][POT_FLAG].deal.monsters.map((x) => [x.name, x.on]), [["Mossback", false]], "a sheet with no letter opens its row clear");
+  eq(made.at(-1).flags[MODULE_ID][POT_FLAG].deal.monsters.map((x) => [x.name, x.letter]), [["Mossback", null]], "a sheet with no letter opens its row disabled");
   globalThis.game.user.isGM = false;
   const before = made.length;
   eq([await newDealPot([{ actorId: "a1", name: "x", count: 1, letter: "Z" }]), made.length], [null, before], "a player opens no pot");

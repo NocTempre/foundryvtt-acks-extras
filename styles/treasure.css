@@ -350,24 +350,39 @@
   gap: var(--acks-sp-3);
 }
 
-.acks-extras-treasure .acks-extras-treasure__static {
-  font-family: var(--acks-font-body);
-}
-
 .acks-extras-treasure .acks-extras-treasure__hint {
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-soft);
 }
 
-/* The deal controls in the left rail: the monster rows, the by-hand letter, the style group, and the lair warning. */
-.acks-extras-treasure .acks-extras-treasure__monsters {
+/* The deal controls in the left rail: the hoards to deal (a list, a drop zone, a picker of the imported types), the style group, and the lair warning. */
+.acks-extras-treasure .acks-extras-treasure__hoards {
   min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
 }
 
-.acks-extras-treasure .acks-extras-treasure__monster {
+.acks-extras-treasure .acks-extras-treasure__hoards-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoards-total {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoards-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoard {
   display: flex;
   align-items: center;
   gap: var(--acks-sp-4);
@@ -377,25 +392,92 @@
   background: var(--acks-paper);
   color: var(--acks-ink);
   font-size: var(--acks-fs-body);
-  cursor: pointer;
 }
 
-.acks-extras-treasure .acks-extras-treasure__monster.is-off {
+.acks-extras-treasure .acks-extras-treasure__hoard.is-monster {
+  background: var(--acks-tint);
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoard.is-off {
   color: var(--acks-ink-soft);
-  cursor: default;
 }
 
-.acks-extras-treasure .acks-extras-treasure__monster-name {
+.acks-extras-treasure .acks-extras-treasure__hoard-badge {
+  flex: none;
+  min-width: 1.8em;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  text-align: center;
+  font-family: var(--acks-font-display);
+  background: var(--acks-spot);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoard.is-off .acks-extras-treasure__hoard-badge {
+  background: var(--acks-tint-2);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoard-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-family: var(--acks-font-body);
+  display: flex;
+  flex-direction: column;
   overflow-wrap: anywhere;
 }
 
-.acks-extras-treasure .acks-extras-treasure__monster-letter {
-  flex: none;
+.acks-extras-treasure .acks-extras-treasure__hoard-title {
+  font-family: var(--acks-font-body);
+}
+
+.acks-extras-treasure .acks-extras-treasure__hoard-source {
   font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .acks-extras-treasure__stepper {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure__stepper-n {
+  min-width: 2.2em;
+  text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+.acks-extras-treasure .acks-extras-treasure__dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-5);
+  text-align: center;
+  color: var(--acks-ink-soft);
+  border: var(--acks-rule-hair) dashed var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__add {
+  align-self: flex-start;
+}
+
+.acks-extras-treasure .acks-extras-treasure__picker {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure__picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-treasure .acks-extras-treasure__picker-grid .acks-btn.is-listed {
+  background: var(--acks-tint-2);
 }
 
 /* The arms column select: an imported label is any length, so the control shrinks to the rail instead of widening it. */

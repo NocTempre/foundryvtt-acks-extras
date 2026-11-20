@@ -17,15 +17,15 @@ import { providers } from "../lib/storage.mjs";
 import { executeAsGM } from "../lib/sockets.mjs";
 import { writeOnChange } from "../lib/press-safe-change.mjs";
 import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
-import { DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, seatCards, turnedOf, withBands } from "./pot-logic.mjs";
+import { DEAL_LIST, DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, seatCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
 import { TEXTURE, backArt, backDress, faceArt, faceDress, textureArt } from "./card-art.mjs";
-import { dealLines, dealMessages, lairWarning } from "./deal-logic.mjs";
+import { dealLines, dealMessages, lairWarning, monsterRows } from "./deal-logic.mjs";
 import { armsSource, dealLettersIntoPot } from "./deal.mjs";
 import { armsBandParts, armsField } from "./magic-deal-logic.mjs";
-import { styleCite } from "./hoard.mjs";
+import { hoardTypes, styleCite } from "./hoard.mjs";
 import {
-  addTruths, closePot, mayGrab, openPot, partyFigures, potOf, removeStaged, setDealMetInLair, setDealMonsterOn, setDealOption, setDealToggle, setMode, truthsFromItem, viewOf,
+  addDealHand, addDealMonster, addTruths, closePot, mayGrab, openPot, partyFigures, potOf, removeDealRow, removeStaged, setDealMetInLair, setDealOption, setDealToggle, setMode, stepDealRow, truthsFromItem, viewOf,
 } from "./pot.mjs";
 
 const { HandlebarsApplicationMixin, DocumentSheetV2, DialogV2 } = foundry.applications.api;
@@ -80,7 +80,10 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       grab: PotSheet.#onGrab,
       setMode: PotSheet.#onSetMode,
       toggleDeal: PotSheet.#onToggleDeal,
-      dealMonster: PotSheet.#onDealMonster,
+      dealStep: PotSheet.#onDealStep,
+      dealRemove: PotSheet.#onDealRemove,
+      dealPicker: PotSheet.#onDealPicker,
+      dealPick: PotSheet.#onDealPick,
       dealStyle: PotSheet.#onDealStyle,
       dealSpecial: PotSheet.#onDealSpecial,
       dealLair: PotSheet.#onDealLair,
@@ -109,6 +112,18 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
 
   /** Whether a Deal is under way, so a second press while the first is rolling does nothing. */
   #dealing = false;
+
+  /** Whether the treasure-type picker is open. Window state: it is not stored and a re-render keeps it. */
+  #picking = false;
+
+  /** The deal list's writes in the order they were pressed, so a second press reads the pot the first one wrote. */
+  #writes = Promise.resolve();
+
+  /** Run a deal-list write after every write pressed before it has settled; a failed write does not stop the ones behind it. */
+  #queue(write) {
+    this.#writes = this.#writes.catch(() => {}).then(write);
+    return this.#writes;
+  }
 
   /** @override A pot is not a form: its seats act through buttons, so core's disabling of a non-owner's controls must not apply. */
   _toggleDisabled() {}
@@ -181,23 +196,56 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   }
 
   /**
-   * The Judge's deal controls as the template reads them: the staged monster
-   * rows, the by-hand letter, the table style and the two toggles, each with the
-   * provenance of its figure, and the lair warning while one stands. A row with
-   * no letter is disabled, and its tooltip says so with the page reference alone.
+   * The Judge's deal controls as the template reads them: the list of hoards to
+   * deal (the staged monster rows, then the by-hand rows), the picker of the
+   * imported treasure types, the table style and the two toggles, each with the
+   * provenance of its figure, and the lair warning while one stands. A monster
+   * row with no letter is disabled, and its tooltip says so with the page
+   * reference alone.
    */
   #dealContext(pot) {
     const { deal } = pot;
     const cite = loc("cite.deal");
-    const monsters = deal.monsters.map((row, index) => ({
-      index,
-      on: row.on,
-      off: !row.letter,
-      name: loc("deal.monster", { name: row.name, count: row.count }),
-      countTip: loc("deal.tip.count", { count: row.count }),
-      letterText: row.letter ? loc("search.letter", { letter: row.letter }) : loc("deal.noLetter"),
-      tip: row.letter ? loc("deal.tip.letter", { name: row.name, letter: row.letter, cite }) : loc("deal.tip.noLetter", { name: row.name, cite }),
-    }));
+    const rows = [
+      ...deal.monsters.map((row, index) => {
+        const title = row.letter ? loc("search.letter", { letter: row.letter }) : loc("deal.noLetter");
+        const source = loc("deal.monster", { name: row.name, count: row.count });
+        return {
+          list: DEAL_LIST.monsters,
+          index,
+          monster: true,
+          off: !row.letter,
+          badge: row.letter ?? "–",
+          title,
+          source,
+          sourceTip: loc("deal.tip.count", { count: row.count }),
+          hoardsText: loc("deal.hoardCount", { n: row.hoards }),
+          tip: row.letter ? loc("deal.tip.letter", { name: row.name, letter: row.letter, cite }) : loc("deal.tip.noLetter", { name: row.name, cite }),
+          ...this.#rowLabels(`${title}, ${source}`),
+        };
+      }),
+      ...deal.hand.map((row, index) => {
+        const title = loc("search.letter", { letter: row.letter });
+        const source = loc("judge.byHand");
+        return {
+          list: DEAL_LIST.hand,
+          index,
+          monster: false,
+          off: false,
+          badge: row.letter,
+          title,
+          source,
+          sourceTip: "",
+          hoardsText: loc("deal.hoardCount", { n: row.hoards }),
+          tip: loc("deal.tip.hand", { letter: row.letter, cite }),
+          ...this.#rowLabels(`${title}, ${source}`),
+        };
+      }),
+    ];
+    const lines = dealLines(deal);
+    const types = hoardTypes(deal.style);
+    const listed = new Set(deal.hand.map((h) => h.letter));
+    const pickCite = styleCite(deal.style) ?? cite;
     const styles = DEAL_STYLE.map((key) => {
       const label = loc(`deal.style.${key}`);
       const page = styleCite(key);
@@ -206,12 +254,15 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     });
     const { columns, cite: armsCite } = armsSource();
     const arms = armsField({ columns, chosen: deal.armsSetting, cite: armsCite ?? loc("cite.arms"), loc });
-    const lines = dealLines(deal);
     const standing = this.#warned && !!lairWarning({ letters: lines, metInLair: deal.metInLair });
     return {
-      monsters,
-      letter: deal.letter ?? "",
-      letterTip: loc("search.letterTip"),
+      rows,
+      hoardsText: loc(lines.length === 1 ? "deal.hoardsTotalOne" : "deal.hoardsTotal", { n: lines.length }),
+      types: types.map((letter) => ({ letter, listed: listed.has(letter), label: loc("deal.pickLabel", { letter }), tip: loc("deal.tip.pick", { letter, cite: pickCite }) })),
+      picking: this.#picking && types.length > 0,
+      canAdd: types.length > 0,
+      addTip: types.length ? "" : cite,
+      runText: lines.length ? loc(lines.length === 1 ? "deal.runOne" : "deal.runN", { n: lines.length }) : loc("deal.run"),
       styles,
       arms,
       special: deal.special,
@@ -220,6 +271,11 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       dealTip: loc("deal.tip.deal"),
       warning: standing ? { body: loc("deal.warn.body", { toggle: loc("deal.lair") }), tip: cite } : null,
     };
+  }
+
+  /** The three labels a deal-list row's buttons carry, each naming the row it acts on. */
+  #rowLabels(what) {
+    return { lessLabel: loc("deal.less", { what }), moreLabel: loc("deal.more", { what }), removeLabel: loc("deal.removeRow", { what }) };
   }
 
   /**
@@ -356,9 +412,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   }
 
   /**
-   * Bound once per window element: the by-hand treasure type and the arms column
-   * are written when their fields change, since a pot is not a form and nothing
-   * else stores them. A change
+   * Bound once per window element: the arms column is written when its field
+   * changes, since a pot is not a form and nothing else stores it. A change
    * made by pressing Deal is written after the press (`writeOnChange`), so the
    * re-render does not swallow Deal's click. The target is told by `matches`,
    * never by `instanceof`.
@@ -369,8 +424,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     root.dataset.choiceBound = "1";
     writeOnChange(root, (field) => {
       if (!game.user.isGM) return;
-      if (field?.matches?.("[data-deal-letter]")) setDealOption(this.document, "letter", field.value);
-      else if (field?.matches?.("[data-deal-arms]")) setDealOption(this.document, "armsSetting", field.value);
+      if (field?.matches?.("[data-deal-arms]")) setDealOption(this.document, "armsSetting", field.value);
     });
   }
 
@@ -428,8 +482,26 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     report(await executeAsGM(POT_HANDLER, { potId: this.document.id, op: "claim", cardId: card.id, actorUuid }));
   }
 
+  /**
+   * An actor dropped on the deal list's zone becomes a monster row, or raises the
+   * hoards of the row that stands for it. A drop that is not a monster is said
+   * not to be taken and adds nothing; a monster whose sheet states no treasure
+   * type is listed disabled, as a selected token of that kind is.
+   */
+  async #onActorDrop(event) {
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    const actor = data?.type === "Actor" && data.uuid ? await fromUuid(data.uuid) : null;
+    if (actor?.type !== "monster") {
+      ui.notifications?.warn(loc("deal.dropKind"));
+      return;
+    }
+    const [row] = monsterRows([{ actorId: actor.id, name: actor.name, count: 1, letter: actor.system?.details?.treasure?.type ?? null }]);
+    await this.#queue(() => addDealMonster(this.document, row));
+  }
+
   /** Items dropped on the pot become cards; on a bucket, seed cards of that bucket. Anything else is said not to be taken. */
   async #onDrop(event, zone) {
+    if (zone === "deal") return this.#onActorDrop(event);
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     const item = data?.type === "Item" && data.uuid ? await fromUuid(data.uuid) : null;
     if (!item) {
@@ -494,10 +566,25 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     await setDealToggle(this.document, target.dataset.toggle, target.getAttribute("aria-pressed") !== "true");
   }
 
-  /** Judge: tick or clear one monster row; a refused write leaves the box as the pot has it. */
-  static async #onDealMonster(_event, target) {
-    const written = await setDealMonsterOn(this.document, Number(target.dataset.index), !!target.checked);
-    if (!written) this.render();
+  /** Judge: raise or lower one deal-list row's hoards by the step its button carries; a step down from one removes the row. */
+  static #onDealStep(_event, target) {
+    return this.#queue(() => stepDealRow(this.document, target.dataset.list, Number(target.dataset.index), Number(target.dataset.step)));
+  }
+
+  /** Judge: remove one deal-list row. */
+  static #onDealRemove(_event, target) {
+    return this.#queue(() => removeDealRow(this.document, target.dataset.list, Number(target.dataset.index)));
+  }
+
+  /** Judge: open or close the treasure-type picker. */
+  static #onDealPicker() {
+    this.#picking = !this.#picking;
+    this.render();
+  }
+
+  /** Judge: add one by-hand hoard of the picked treasure type. */
+  static #onDealPick(_event, target) {
+    return this.#queue(() => addDealHand(this.document, target.dataset.letter));
   }
 
   /** Judge: pick the table style a Deal rolls on. */
@@ -534,7 +621,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   }
 
   /**
-   * Deal the ticked rows' letters and the by-hand letter into this pot. Unless
+   * Deal the list's hoards into this pot, each letter once per hoard. Unless
    * confirmed, a standing lair warning is raised in the rail and nothing is dealt;
    * confirmed, the deal runs without asking. What the Judge is told comes from
    * `dealMessages`, one notification each. A second press while a deal runs does
@@ -544,9 +631,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     if (this.#dealing) return;
     this.#dealing = true;
     try {
-      // The by-hand letter is stored when its field changes, and that write may not have landed when this press arrives, so the field is read as it stands.
-      const typed = this.element?.querySelector("[data-deal-letter]")?.value.trim();
-      if (typed !== undefined && typed !== (potOf(this.document).deal.letter ?? "")) await setDealOption(this.document, "letter", typed);
+      await this.#writes.catch(() => {});
       const { deal } = potOf(this.document);
       const letters = dealLines(deal).map((line) => line.letter);
       if (!confirmed && lairWarning({ letters, metInLair: deal.metInLair })) {
