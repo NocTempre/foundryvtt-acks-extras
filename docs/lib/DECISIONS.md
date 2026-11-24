@@ -1016,11 +1016,15 @@ parallel code maintenance."
   one answer to the second: false for a weapon and for armour, by type. Their
   quantity counts toward weight and nothing else. They never divide, never
   merge, move whole, and a bucket takes one as a single entry.
-- A bundle row is counted as core's drop counts it (`_createBundleEntryItem`):
-  one document holding the row's count. This supersedes, for the count only,
-  "A bundle arrives as its goods, and delivery has one owner (2026-09-23)";
-  the new evidence is 14.2.0's drop, which stopped multiplying by the source's
-  own stack and stopped making copies.
+- A bundle row delivers the units core's drop makes of it
+  (`_createBundleEntryItem`): gear and coin as one document holding the row's
+  count. This supersedes, for gear's count only, "A bundle arrives as its
+  goods, and delivery has one owner (2026-09-23)"; the new evidence is
+  14.2.0's drop, which stopped multiplying by the source's own stack. A weapon
+  or armour still arrives as that many rows of one each, from a bundle, a
+  purchase and the character PDF alike, where core makes one row holding the
+  count: the units agree and the rows are this module's, since nothing on its
+  sheets divides such a row.
 - `coreWeight6Of` and `PHYSICAL_ITEM_TYPES` mirror core's `computeEncumbrance`
   and its constant of the same name. Core publishes neither on a surface a
   module can call, so each mirror cites what it mirrors.

@@ -1502,16 +1502,18 @@ t("arrivalOf strips placement and keeps identity", () => {
   assert.equal(worn.flags["acks-extras"].containedIn, "pack", "the source is not touched");
 });
 
-t("goodsForRow counts as core's bundle drop does: one document per row, holding the row's count", () => {
+t("goodsForRow delivers the units core's bundle drop does: gear and coin in one row, a weapon or armour a row each", () => {
   const swords = goodsForRow(swordN("sw", 1), 3);
-  assert.equal(swords.length, 1, "a weapon arrives as one item");
-  assert.equal(swords[0].system.quantity, 3, "holding the row's quantity");
-  assert.equal(goodsForRow(swordN("sw", 1), 1)[0].system.quantity, 1);
-  assert.equal(goodsForRow(swordN("sw", 3), 2)[0].system.quantity, 2, "the source's own quantity is not multiplied in");
-  assert.equal(goodsForRow(sword("sw"), 3)[0].system.quantity, 3, "a source carrying no quantity gets one");
+  assert.equal(swords.length, 3, "three swords arrive as three rows");
+  assert.deepEqual(swords.map((s) => s.system.quantity), [1, 1, 1], "of one each, a plain number");
+  assert.notEqual(swords[0], swords[1], "each row its own data");
+  assert.equal(goodsForRow(swordN("sw", 1), 1).length, 1);
+  const fromThree = goodsForRow(swordN("sw", 3), 2);
+  assert.deepEqual(fromThree.map((s) => s.system.quantity), [1, 1], "the source's own quantity is not multiplied in");
+  assert.deepEqual(goodsForRow(sword("sw"), 3).map((s) => s.system.quantity), [1, 1, 1], "a source carrying no quantity gets one");
   const mail = goodsForRow(mailN("m", 1), 2);
-  assert.equal(mail.length, 1);
-  assert.equal(mail[0].system.quantity, 2, "armour counts as a weapon does");
+  assert.equal(mail.length, 2, "armour counts as a weapon does");
+  assert.equal(mail[1].system.quantity, 1);
   assert.equal(mail[0].system.equipped, false, "and arrives unequipped");
   const arrows = goodsForRow(gearN("ar", "Arrows", 20), 2);
   assert.equal(arrows.length, 1);
@@ -1538,8 +1540,8 @@ t("goodsForDrop delivers the stack that was dropped: an empty coin is one coin, 
   assert.equal(goodsForDrop(gearN("e", "Rope", 0))[0].system.quantity, 1, "an empty stack counts as one");
   assert.equal(goodsForDrop(sword("sw")).length, 1);
   assert.equal(goodsForDrop(swordN("sw", 1))[0].system.quantity, 1);
-  assert.equal(goodsForDrop(swordN("sw", 3))[0].system.quantity, 3, "a weapon keeps the quantity it was dropped with");
-  assert.equal(goodsForDrop(mailN("m", 2))[0].system.quantity, 2, "and so does armour");
+  assert.deepEqual(goodsForDrop(swordN("sw", 3)).map((s) => s.system.quantity), [1, 1, 1], "a weapon dropped with a quantity arrives as that many rows");
+  assert.equal(goodsForDrop(mailN("m", 2)).length, 2, "and so does armour");
 });
 
 t("goodsForDrop feeds planStackMerge: a second coin off the shelf joins the first", () => {
@@ -1559,8 +1561,8 @@ t("goodsForRow feeds planStackMerge: a bundle's arrows join the stack already ca
 
 t("goodsForRow feeds planStackMerge: a bundle's swords stay rows of their own", () => {
   const { creates, targetUpdates } = planStackMerge([...goodsForRow(swordN("sw", 1), 2), ...goodsForRow(swordN("sw", 1), 1)], [swordN("have", 1)]);
-  assert.equal(creates.length, 2, "two rows arrive, neither folded into the other or into the sword carried");
-  assert.deepEqual(creates.map((c) => c.system.quantity), [2, 1]);
+  assert.equal(creates.length, 3, "three rows arrive, none folded into another or into the sword carried");
+  assert.deepEqual(creates.map((c) => c.system.quantity), [1, 1, 1]);
   assert.deepEqual(targetUpdates, []);
 });
 

@@ -1398,9 +1398,10 @@ sheet lists an embedded one. So nothing embeds one:
 - **A bundle dropped on the character sheet** opens through `unpackBundle`.
   Each row resolves by its uuid, then by the library item of the same name and
   type, and a row neither finds is named in a warning while the rest arrive.
-  A row counts as core's own drop counts it (`_createBundleEntryItem`): one
-  document per row, and coin and every Physical Item (gear, weapon, armour)
-  hold the row's count as their quantity. The bundle is read, never consumed.
+  A row delivers the units core's own drop makes of it
+  (`_createBundleEntryItem`): coin and gear as one document holding the row's
+  count, a weapon or armour as that many rows of one each. The bundle is read,
+  never consumed.
 - **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
   units, so it hands over one stack of the quantity bought or that many
   copies, through the same `deliverItems`.
