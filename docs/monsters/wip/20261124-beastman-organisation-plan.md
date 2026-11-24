@@ -513,7 +513,7 @@ answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place (boards 1a to 1i) | S12 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature (boards 1a to 1j) | S12 |
 | [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
@@ -971,3 +971,35 @@ the model, and the board marks the three points where it chose:
 
 Question 2 of "The owner on the two cards" stands. `architect` is not run.
 Not checked: board 1i's rendering. Released: none.
+
+### A stack that is another creature, 2026-11-24
+
+The owner's instruction is section 4, answer 6, relayed by the planning
+session; the words and their reading are there and are not restated.
+[Board 1j](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) draws what it
+asks of the surfaces, with the owner's words on the note beside it: a stack
+that is another creature, on the chart (1f's cards), on a group sheet and on
+the Judges' card (1e), in three states.
+
+- **Matched to an entry.** The creature's own portrait and name, its own
+  figures with a tooltip that names its entry, and a control that opens the
+  entry. 1f's Lesser kin and Beasts cards take this shape.
+- **No entry matched.** The word the import read off the page, a dashed card,
+  blank figures whose tooltip is the page reference alone, and "Link an
+  entry…" for the Judge. Every such row is in this state until S4's
+  `source.uuid` is filled at import.
+- **A rider and its mount.** Two creatures and two counts on one row, the
+  rider's head in its role frame beside the mount's own portrait.
+
+Open on board 1j, the drawn shape first:
+
+1. A reference with no entry: (a) says nothing in words, as a figure not
+   imported stays blank (owner, 2026-11-14), (b) carries a worded warning on
+   the row.
+2. A stack with no entry linked: (a) is refused the map, and the row says
+   why, (b) deploys as a bare token carrying the word alone.
+3. A rider and its mount on a map: (a) one token for the pair, (b) one each.
+
+"Link an entry…" is a Judge's tool the capture needs wherever a word matches
+no entry; which slice builds it is not ruled. Not checked: board 1j's
+rendering. Released: none.
