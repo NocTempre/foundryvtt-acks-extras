@@ -61,8 +61,9 @@ export function quantityOf(plain) {
   const sys = plain?.system;
   if (!sys) return null;
   if (typeof sys.quantity === "number") return { value: sys.quantity, path: "system.quantity" };
+  // quantity-shape-ok: this seam is the one reader of the object shape a saved item copy keeps
   if (sys.quantity && typeof sys.quantity === "object" && Number.isFinite(Number(sys.quantity.value))) {
-    return { value: Number(sys.quantity.value), path: "system.quantity.value" };
+    return { value: Number(sys.quantity.value), path: "system.quantity.value" }; // quantity-shape-ok: the path of that saved shape, handed to the caller as is
   }
   return null;
 }

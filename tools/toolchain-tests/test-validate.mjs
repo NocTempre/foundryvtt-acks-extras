@@ -832,6 +832,113 @@ await actor.update({ "-=old": null });
     out: [/validate: legacy update keys checked 0 "-=" or "==" key spellings in 1 script under scripts\/ and 0 macro commands in packs\/_source: /],
   },
   {
+    name: "an object literal opening with value or max as a quantity's value fails, in a ternary arm and a call's argument alike",
+    files: {
+      "scripts/items.mjs": `export const stack = (n) => ({ name: "Torch", quantity: { value: n, max: 0 } });
+export const arm = (flat, n) => ({ quantity: flat ? n : { value: n } });
+export const call = (n) => ({ quantity: Object.assign({}, { max: 0, value: n }) });
+`,
+    },
+    exit: 1,
+    fails: [
+      /^FAIL scripts\/items\.mjs: line 1: an object literal with the retired \{value, max\} shape as the value of a quantity property — .*"\/\/ quantity-shape-ok: <reason>" on or just above the line$/,
+      /^FAIL scripts\/items\.mjs: line 2: an object literal with the retired/,
+      /^FAIL scripts\/items\.mjs: line 3: an object literal with the retired/,
+    ],
+    out: [/^validate: quantity shape checked 3 retired \{value, max\} spellings in 3 files under scripts\/ and tools\/$/m],
+  },
+  {
+    name: "a .value or .max read off a quantity fails, off a chain or optionally",
+    files: {
+      "scripts/items.mjs": `export const read = (item) => item.system.quantity.value;
+export const safe = (item) => item?.system?.quantity?.max ?? 0;
+`,
+    },
+    exit: 1,
+    fails: [
+      /^FAIL scripts\/items\.mjs: line 1: a \.value or \.max read off a quantity — /,
+      /^FAIL scripts\/items\.mjs: line 2: a \.value or \.max read off a quantity — /,
+    ],
+    out: [/^validate: quantity shape checked 2 retired \{value, max\} spellings in 3 files under scripts\/ and tools\/$/m],
+  },
+  {
+    name: "a string, or the last text of a template, that ends in the quantity's value or max path fails",
+    files: {
+      "scripts/items.mjs": `export const PATH = "system.quantity.value";
+export const query = { fields: ["system.quantity.max"] };
+export const dotted = (item) => item.update({ [\`\${item.prefix}.quantity.max\`]: 2 });
+`,
+    },
+    exit: 1,
+    fails: [
+      /^FAIL scripts\/items\.mjs: line 1: an update or index path into the value or max of a quantity — /,
+      /^FAIL scripts\/items\.mjs: line 2: an update or index path into the value or max of a quantity — /,
+      /^FAIL scripts\/items\.mjs: line 3: an update or index path into the value or max of a quantity — /,
+    ],
+    out: [/^validate: quantity shape checked 3 retired \{value, max\} spellings in 3 files under scripts\/ and tools\/$/m],
+  },
+  {
+    name: "a plain integer quantity, an unrelated numeric quantity, a case label and prose about the old shape pass, in scripts/ and tools/ alike",
+    files: {
+      "scripts/items.mjs": `// The old shape was quantity: { value: n, max: 0 }, and item.system.quantity.value read it.
+/* "system.quantity.value" was its path */
+export const NOTE = "the count lived at system.quantity.value once, and a value of 3";
+export const stack = (n) => ({ name: "Torch", quantity: n });
+export const bump = (item) => item.update({ "system.quantity": item.system.quantity + 1 });
+export const retainer = { quantity: 4 };
+export const roster = (group) => group.quantity * 2;
+export const { quantity } = retainer;
+export const doubled = quantity + quantity;
+export const kind = (word) => {
+  switch (word) {
+    case "quantity":
+      return 1;
+    default:
+      return 0;
+  }
+};
+export const nested = { quantity: { amount: { value: 1 } } };
+`,
+      "tools/live/stock.mjs": `export const count = (item) => item.system.quantity;
+export const fields = ["system.quantity", "system.quantitybank"];
+`,
+    },
+    exit: 0,
+    out: [/^validate: quantity shape checked 0 retired \{value, max\} spellings in 4 files under scripts\/ and tools\/$/m],
+  },
+  {
+    name: "quantity-shape-ok with a reason passes a spelling on its line or in a comment of its own just above",
+    files: {
+      "scripts/items.mjs": `// quantity-shape-ok: reads the object an old saved copy keeps
+export const old = (copy) => copy.system.quantity.value;
+export const PATH = "system.quantity.value"; // quantity-shape-ok: names the path of that saved shape
+export const saved = { quantity: { value: 2 } }; /* quantity-shape-ok: a saved copy */
+`,
+    },
+    exit: 0,
+    out: [/^validate: quantity shape checked 3 retired \{value, max\} spellings in 3 files under scripts\/ and tools\/; 3 passed on quantity-shape-ok$/m],
+  },
+  {
+    name: "quantity-shape-ok with no reason does not count, nor does a trailing comment on the line above",
+    files: {
+      "scripts/items.mjs": `// quantity-shape-ok:
+export const bare = (copy) => copy.system.quantity.max;
+export const late = (copy) => copy.system.quantity.value; // quantity-shape-ok:
+export const block = (copy) => copy.system.quantity.value; /* quantity-shape-ok: */
+const first = 1; // quantity-shape-ok: a comment after code excuses its own line, never the next
+export const next = (copy) => copy.quantity.max;
+`,
+    },
+    exit: 1,
+    fails: [
+      /^FAIL scripts\/items\.mjs: line 2: a \.value or \.max read off a quantity — /,
+      /^FAIL scripts\/items\.mjs: line 3: a \.value or \.max read off a quantity — /,
+      /^FAIL scripts\/items\.mjs: line 4: a \.value or \.max read off a quantity — /,
+      /^FAIL scripts\/items\.mjs: line 6: a \.value or \.max read off a quantity — /,
+    ],
+    out: [/^validate: quantity shape checked 4 retired \{value, max\} spellings in 3 files under scripts\/ and tools\/$/m],
+  },
+  {
     // The files are checked several at a time. The one walked first is long
     // enough to be the last whose check ends.
     name: "a file that does not parse fails at its name, and two are reported in the order they were walked",

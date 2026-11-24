@@ -64,6 +64,12 @@
  *      command of every script macro under packs/_source; one that only
  *      tests, compares or looks the key up passes, and either failure may
  *      state why with `legacy-key-ok: <reason>`.
+ *   9b. The retired `{ value, max }` item quantity: an object literal of that
+ *      shape as a `quantity` value, a `.value` or `.max` read off a `quantity`,
+ *      or a `quantity.value` / `quantity.max` path string, in scripts/ and
+ *      tools/ (the unit suites and tools/live included), where core now keeps
+ *      a plain whole number. Any of them may state why with
+ *      `quantity-shape-ok: <reason>`.
  *   10. IP leak scan (tools/ip-scan.mjs): local-only rules extracts, extraction
  *      pipeline state, and publisher attribution inside data files. Not run
  *      when ACKS_IP_SCAN_VERDICT is exactly `clean`, the verdict the release
@@ -2259,6 +2265,113 @@ function legacyKeyUses(tokens) {
     `validate: legacy update keys checked ${spellings} "-=" or "==" key spelling${spellings === 1 ? "" : "s"} in ${scripts} script${scripts === 1 ? "" : "s"} under scripts/ ` +
       `and ${commands} macro command${commands === 1 ? "" : "s"} in packs/_source: ${tally.written} written, ${tally.neither} neither written nor read where spelled, ${tally.read} read` +
       (tally.excused ? `; ${tally.excused} passed on legacy-key-ok` : ""),
+  );
+}
+
+/* 9b. The retired `{ value, max }` item quantity. A Physical Item keeps its
+ *    count as a plain whole number at `system.quantity`, and the module reads
+ *    a count only through `quantityOf` (scripts/lib/storage-logic.mjs), the one
+ *    place that still answers the object shape an item copy saved in a flag
+ *    before the field was flattened carries. Source that writes the object,
+ *    reads a member off it or names its path past that seam breaks on a live
+ *    item without any offline suite noticing.
+ *
+ *    A SOURCE-TEXT match on 2b's tokens over scripts/ and tools/ (.mjs and .js,
+ *    the unit suites and tools/live included), so a comment or a string that
+ *    only describes the shape is not one. Three forms fail:
+ *
+ *      object  — a `quantity` property whose value holds an object literal
+ *                that opens with `value` or `max`, in either arm of a
+ *                conditional or inside a call's arguments;
+ *      member  — `quantity` followed by `.` or `?.` and then `value` or `max`;
+ *      path    — a string or the last text of a template that ends in
+ *                `quantity.value` or `quantity.max`, an update or index path.
+ *
+ *    Each may state why with `// quantity-shape-ok: <reason>` on the line, or
+ *    in a comment of its own on the line above; an escape with no reason does
+ *    not count. A numeric `quantity` of another domain (a roster count) has
+ *    neither a `.value` after it nor an object for a value, and passes.
+ *
+ *    Not seen: the shape reached through a name that does not spell the word
+ *    (`const q = item.system.quantity; q.value`), a key or member put together
+ *    at run time, a computed `["quantity"]` key, and a path held in pieces. */
+const QUANTITY_SHAPE_KEYS = new Set(["value", "max"]);
+const QUANTITY_PATH_END = /quantity\.(?:value|max)$/;
+
+/**
+ * Every spelling of the retired item quantity object in `tokens`.
+ * @returns {{ at: number, form: "object" | "member" | "path" }[]}
+ *   `at` — the offset of the spelling in the source the tokens were read from
+ */
+function quantityShapeUses(tokens) {
+  const uses = [];
+  const shapeKeyAt = (k) => ["ident", "string"].includes(tokens[k]?.type) && QUANTITY_SHAPE_KEYS.has(tokens[k].value);
+  const opensWithShapeKey = (open) => shapeKeyAt(open + 1) && [":", ",", "}"].includes(tokens[open + 2]?.value);
+  // An object literal reached from the value at tokens[from, to) through a
+  // conditional, a group or a call; one that does not open with the shape is
+  // another record, and nothing inside it is read.
+  const retiredObjectIn = (from, to) => {
+    for (let j = from; j < to; j++) {
+      if (!punctAt(tokens, j, "{")) continue;
+      if (opensWithShapeKey(j)) return true;
+      j = closerOf(tokens, j);
+    }
+    return false;
+  };
+  tokens.forEach((tk, k) => {
+    if ((tk.type === "string" || tk.type === "templateTail") && QUANTITY_PATH_END.test(tk.value)) uses.push({ at: tk.start, form: "path" });
+    if ((tk.type !== "ident" && tk.type !== "string") || tk.value !== "quantity") return;
+    // A property name: after `{` or `,` and before `:`, which a conditional's
+    // arm (after `?` or `:`) never is.
+    if ((punctAt(tokens, k - 1, "{") || punctAt(tokens, k - 1, ",")) && punctAt(tokens, k + 1, ":")) {
+      if (retiredObjectIn(k + 2, expressionEnd(tokens, k + 2))) uses.push({ at: tk.start, form: "object" });
+      return;
+    }
+    const member = k + (punctAt(tokens, k + 1, "?") && punctAt(tokens, k + 2, ".") ? 3 : punctAt(tokens, k + 1, ".") ? 2 : 0);
+    if (tk.type === "ident" && member > k && tokens[member]?.type === "ident" && QUANTITY_SHAPE_KEYS.has(tokens[member].value)) {
+      uses.push({ at: tk.start, form: "member" });
+    }
+  });
+  return uses;
+}
+
+{
+  const FORMS = {
+    object: "an object literal with the retired {value, max} shape as the value of a quantity property",
+    member: "a .value or .max read off a quantity",
+    path: "an update or index path into the value or max of a quantity",
+  };
+  let files = 0;
+  let spellings = 0;
+  let excused = 0;
+  const check = (full) => {
+    if (!/\.m?js$/.test(full) || full.split(path.sep).includes("node_modules")) return;
+    const mod = jsModule(full);
+    if (!mod) return;
+    files++;
+    const lines = mod.src.split("\n");
+    const excuses = (line) => /(?:\/\/|\/\*)[^\n]*quantity-shape-ok:\s*(?!\*\/)\S/.test(line);
+    for (const use of quantityShapeUses(mod.tokens)) {
+      spellings++;
+      const lineNo = mod.src.slice(0, use.at).split("\n").length;
+      // The line above excuses the spelling only as a comment of its own: a
+      // comment trailing code there is about that line.
+      const above = lines[lineNo - 2] ?? "";
+      if (excuses(lines[lineNo - 1]) || (/^\s*(?:\/\/|\/\*|\*)/.test(above) && excuses(above))) {
+        excused++;
+        continue;
+      }
+      fail(
+        rel(full),
+        `line ${lineNo}: ${FORMS[use.form]} — core keeps a Physical Item's count as a plain whole number at system.quantity, and quantityOf (scripts/lib/storage-logic.mjs) is the one reader of the retired object. Read and write the integer, or state why not with "// quantity-shape-ok: <reason>" on or just above the line`,
+      );
+    }
+  };
+  walk(path.join(ROOT, "scripts"), check);
+  walk(path.join(ROOT, "tools"), check);
+  console.log(
+    `validate: quantity shape checked ${spellings} retired {value, max} spelling${spellings === 1 ? "" : "s"} in ${files} file${files === 1 ? "" : "s"} under scripts/ and tools/` +
+      (excused ? `; ${excused} passed on quantity-shape-ok` : ""),
   );
 }
 

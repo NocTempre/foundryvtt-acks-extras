@@ -516,6 +516,15 @@ false record.
   may send it. Either failure takes `// legacy-key-ok: <reason>` on or just
   above the line. The section's own comment lists the spellings it tells
   apart and the ones it does not see.
+- **Retired item quantity shape (validate.mjs §9b).** Core keeps a Physical
+  Item's count as a plain whole number at `system.quantity`; `quantityOf` in
+  `scripts/lib/storage-logic.mjs` is the one reader of the old `{ value, max }`
+  object. A **source-text match** over `scripts/` and `tools/` (unit suites and
+  `tools/live` included) fails an object literal of that shape as a `quantity`
+  value, a `.value`/`.max` read off a `quantity`, and a `quantity.value` /
+  `quantity.max` path string. Each takes `// quantity-shape-ok: <reason>` on or
+  just above the line; an escape with no reason does not count. A count reached
+  through a differently named alias is not seen.
 - Optional module-owned pure-logic tests: mock minimal Foundry globals and
   import the real scripts. A single-subject module names the file
   `tools/test-logic.mjs`; a multi-subsystem one splits per subject and chains

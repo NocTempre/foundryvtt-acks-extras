@@ -1400,6 +1400,7 @@ t("quantityOf reads a plain number on every Physical Item, and the old object sh
   assert.deepEqual(quantityOf(swordN("w", 1)), { value: 1, path: "system.quantity" });
   assert.deepEqual(quantityOf(swordN("w", 3)), { value: 3, path: "system.quantity" });
   assert.deepEqual(quantityOf(mailN("m", 2)), { value: 2, path: "system.quantity" });
+  // quantity-shape-ok: the assertion pins the path the seam answers for a saved item copy
   assert.deepEqual(quantityOf(savedGear("old", "Torch", 3)), { value: 3, path: "system.quantity.value" }, "the object branch stays for a copy saved before the flattening");
 });
 
