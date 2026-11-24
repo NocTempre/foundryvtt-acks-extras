@@ -240,10 +240,11 @@ entry reads, and with none, the first variant's portrait. An overview whose
 picture is printed on another page of the family names that page in its
 register row (`assists.artPage`); the pick keeps the kind's size criteria,
 because an image's name inside a page differs from one read to the next. Each
-variant option keeps its own portrait. A repair in place keeps a held
-template's picture, except one that is a variant's portrait: that is the
-import's own fallback, and gives way to the family's. The picture shows in the
-compendium list; the template's sheet draws none.
+variant option keeps its own portrait. A repair in place writes the family's
+picture over whatever the library's copy holds. A template held outside the
+library keeps its picture, except one that is a variant's portrait: that is
+the import's own fallback, and gives way to the family's. The picture shows in
+the compendium list; the template's sheet draws none.
 
 **What a leader cell writes.** From its sentence: AC, the fixed hit points,
 the Hit Dice rating (as `hp.hd` and as the extras `hd` the band shows), and the

@@ -396,8 +396,8 @@ and 15's observer pin is walked on an invented template by
     family row). *Observable:* the same id, the Role axis and its cells as an
     import writes them, and any other book's merged variants still present.
     The template's `img` (the pack index row's too) is the family's own
-    picture, at the size the page prints it, where the held one was a
-    variant's portrait; each variant option's `art` and a sidebar copy's
+    picture, at the size the page prints it, whatever the library's copy
+    held before; each variant option's `art` and a sidebar copy's
     `img` and `system` are unchanged. The template's sheet draws no picture,
     so the read is of the document and of the compendium list's thumbnail.
 10a. In a world without the rulebook's or the compendium's tables, with a

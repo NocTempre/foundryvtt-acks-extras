@@ -179,6 +179,10 @@ not generate one creature with a role or a trait).
 
 ### c. Kits
 
+Section 4, answer 2 widens this section: the inventory is a humanoid
+monster's, opt-in, and a kit may carry stat changes and abilities beside its
+items. The bullets below are the design before that answer.
+
 - **A kit is a core bundle** (`system.itemList`, `bundles-logic.mjs`
   `bundleRows`) linking shared library items, plus
   `flags.acks-extras.kit = {stat, suits {variants, roles, troops, tags}, cite}`.
@@ -233,7 +237,8 @@ extending it against building beside it.
 
 ### e. Two sources for leaders and villages
 
-The breed pages and the p. 54 tables disagree in seven places: one breed's
+Section 4, answer 1 rules these differences intended. The breed pages and the
+p. 54 tables differ in seven places: one breed's
 sub-chieftain armour class, one's chieftain armour class, one's champion
 damage, one's chieftain damage and die, one's young share, one's second
 guard-beast chance, and one breed's alternative guard beast the table omits.
@@ -244,7 +249,9 @@ breed page, which is what ships today.
 
 ### f. Art
 
-The plate is the template's `img`. Each head goes onto its trait option and
+Section 4, answer 3 gives the plate to the warband generator and leaves the
+template's own picture open. Before that answer: the plate is the template's
+`img`. Each head goes onto its trait option and
 trait item, matched by reading its caption from the Judge's PDF and folding it,
 so no word ships. A crop of the plate is E4's image. Portraits stay on their
 variants, and the group's image stays the creature's.
@@ -294,9 +301,9 @@ S9a). The owner's feedback on each is that slice's go-ahead
 
 ### Start prompt, phase 1
 
-Phase 1 starts once the owner has accepted or overturned section 4: one of its
-answers supersedes a ruling in part, and another reads a cap as lifted. It
-builds no new window, so it does not wait for the design session.
+Section 4 is answered, so phase 1 may start. It builds no new window and does
+not wait for the design session. S5's trait and template art waits for the one
+question answer 3 leaves open; the rest of S5 does not.
 
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md` and `docs/monsters/MODEL.md` ("Family
@@ -309,19 +316,49 @@ builds no new window, so it does not wait for the design session.
 > generate each troop role and each trait and compare the figures with the
 > pages. Append results here, correct the phase 2 and 3 prompts, and report.
 
-## 4. Assumed answers, for the owner to overturn
+## 4. The owner's answers, 2026-11-24
 
-- **Two sources (2e):** both offered, the breed page the default.
-- **Real items (2c):** kits give weapon items from the imported weapons and
-  the optional equipment is real items with their actions; armour stays a stat
-  cell.
-- **Template picture (2f):** the plate, with the heads on their traits.
-- **A repair and a held picture (S0, landed):** a repair in place replaces a
-  family template's picture only where it is one of the variants' portraits,
-  which is what an import wrote before; any other picture is kept, and so a
-  Judge who chose a variant's portrait on purpose loses it on a repair.
-- **Starting now:** the 2026-11-17 "start nothing new" cap is read as lifted by
-  this request; no topic branch was open on 2026-11-24.
+Each was put as an assumed answer and amended by the owner the same day. The
+owner's words are quoted whole; "Read as" is the planning session's reading,
+and a brief quotes the words, not the reading.
+
+1. **Two sources (2e).** Assumed: both offered, the breed page the default.
+   Owner: "Breed is default, Table 54 shows leaders who are both better
+   equipped and tougher (higher HD)". Read as: the default stands, and the
+   table is no competing printing of the same leaders. Its leaders are a
+   better-equipped, tougher grade, so where the two differ the difference is
+   the table's point. The `table` option of Leader figures is that grade.
+2. **Real items (2c).** Assumed: kits give weapon items, the optional
+   equipment is real items, armour stays a stat cell. Owner: "Humanoids,
+   including beastmen, should have an (optional, not used for basic entries,
+   used for advanced beastmen rules) equipment inventory. A kit can ALSO
+   include stat bumps or abilities". Read as: the inventory belongs to
+   humanoid monsters as a kind, not to this family; it is opt-in, a basic
+   entry stays stat-only as it imports today, and the advanced beastman rules
+   turn it on; a kit carries items and may also carry stat changes and
+   abilities. Not ruled: whether armour is an inventory item. The reading the
+   design session draws is an armour item in the inventory with its armour
+   class delivered by the kit's stat change, so nothing counts twice.
+3. **Pictures (2f).** Assumed: the plate on the template, the heads on their
+   traits. Owner: "Use the template picture for the template, use the
+   specifics for each where available. Use the art splash (pg 56) for the
+   warband generator". Read as: each breed and each trait shows its own
+   picture where the section prints one, and the p. 56 plate is the warband
+   generator's. **Open, asked of the owner:** whether "the template picture"
+   is the overview page's own picture (the strip), which would move the plate
+   off the template where S0 put it, or the plate on both.
+4. **Starting now.** Assumed: the 2026-11-17 "start nothing new" cap is lifted
+   by this request. Owner: "work pause lifted in full".
+5. **A repair and a held picture.** Assumed: a repair replaces a family
+   template's picture only where it is one of the variants' portraits. Owner:
+   "Unclear, repairs always reset the compendium copies, may offer to fix
+   existing entries if a simple fix, must offer keeping a copy/as is for
+   modified actors". Read as three rules. A library (compendium) copy is
+   always written to what the import makes, its picture included. An entry
+   outside the library may be offered the fix where the fix is simple. A
+   modified actor is always offered the choice to keep a copy or stay as it
+   is. The first is applied to the family template's picture (Results); the
+   rule as a whole is wider than this plan and is registered as T-0712.
 
 ## 5. Risks
 
@@ -389,6 +426,20 @@ on that page is the same picture by size (496×565 against the first variant's
 error was recorded. Its axes hashed differently after the repair; the template
 had not been repaired since an older build, the commit writes no axis, and
 what moved was not diffed.
+
+**Section 4's answer 5, applied to this picture the same day.** A repair in
+place now writes the family's picture over whatever the library's copy holds;
+a template held outside the library keeps the narrower rule (only a variant's
+portrait gives way). Exercised live on lane B, with a peer on lane A: Repair
+in place on the Lycanthrope family row moved the library copy's picture, which
+was no variant's portrait, from the older art folder's file to the import's
+own (496×565, loads), and the pack index row with it; axes, cells and the five
+portraits hashed the same before and after, so a second repair moves no axis;
+the Beastman template's picture was unchanged; no warning or error from the
+click to the read. Not walked: a template held outside the library. The rest
+of the answer (offering a fix to entries outside the library, offering a kept
+copy for a modified actor, a library copy's name and listed edits) is T-0712
+and is not built.
 
 Found on the walk, for the design session: **the template's sheet draws no
 picture.** The plate shows only as the compendium list's thumbnail, so "the

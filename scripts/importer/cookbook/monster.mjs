@@ -1124,12 +1124,13 @@ export async function importFamily(bookId, famId, folderId) {
     ui.notifications.warn(`${MODULE_ID} | ${fam.name}: the system rejected the family template — skipped (see console).`);
     return null;
   }
-  // A repair in place keeps the held picture. One that is a variant's portrait
-  // is the fallback an import wrote, and gives way to the family's own.
+  // A repair in place keeps a held picture. The library's copy is always the
+  // import's, so it takes the family's own; a copy outside the library gives
+  // way only where it holds a variant's portrait, the fallback an import wrote.
   if (familyImg && existing && actor.img !== familyImg) {
     const file = (path) => String(path ?? "").split("/").pop();
     const portraits = new Set(options.map((o) => file(o.art)).filter(Boolean));
-    if (portraits.has(file(actor.img))) await actor.update({ img: familyImg });
+    if (actor.pack || portraits.has(file(actor.img))) await actor.update({ img: familyImg });
   }
   return actor;
 }
