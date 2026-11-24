@@ -861,7 +861,7 @@ await ok("an ordinary place still refuses another character's row, whoever stand
   }
 });
 
-await ok("a stash takes a count off plain-number gear and a weapon or armour whole, quantity and all", async () => {
+await ok("a stash counts off plain-number gear, a weapon and armour alike", async () => {
   const hero = await makeHero();
   await hero.createEmbeddedDocuments("Item", [
     { _id: "spears", name: "Spears", type: "weapon", system: { cost: 0, weight6: 6, quantity: 3, equipped: false } },
@@ -872,12 +872,27 @@ await ok("a stash takes a count off plain-number gear and a weapon or armour who
   const answer = await stash(hero, place, [{ id: "spears", quantity: 1 }, { id: "mail", quantity: 1 }, { id: "torches", quantity: 2 }]);
   assert.equal(answer.ok, true);
   const there = (name) => place.items.find((i) => i.name === name);
-  assert.equal(there("Spears").system.quantity, 3, "a weapon is not counted off: the whole row moved");
-  assert.equal(there("Mail").system.quantity, 2, "nor armour");
+  assert.equal(there("Spears").system.quantity, 1, "a weapon is counted off: the one asked for moved");
+  assert.equal(there("Mail").system.quantity, 1, "and armour");
   assert.equal(there("Torches").system.quantity, 2, "gear moves the count asked for");
-  assert.equal(hero.items.find((i) => i.name === "Spears"), undefined);
-  assert.equal(hero.items.find((i) => i.name === "Mail"), undefined);
+  assert.equal(hero.items.find((i) => i.name === "Spears").system.quantity, 2, "two stay");
+  assert.equal(hero.items.find((i) => i.name === "Mail").system.quantity, 1);
   assert.equal(hero.items.find((i) => i.name === "Torches").system.quantity, 3);
+});
+
+await ok("a stash folds a counted-off weapon into the stack the place already holds, and keeps a drawn one out of it", async () => {
+  const hero = await makeHero();
+  await hero.createEmbeddedDocuments("Item", [
+    { _id: "spears", name: "Spears", type: "weapon", system: { cost: 0, weight6: 6, quantity: 4, equipped: false } },
+    { _id: "drawn", name: "Spears", type: "weapon", system: { cost: 0, weight6: 6, quantity: 1, equipped: true } },
+  ], { keepId: true });
+  const place = await Actor.create({ name: "Cellar", type: LOCATION_TYPE, flags: { [MOD]: { storage: { provider: true } } }, ownership: { default: 2 } });
+  assert.equal((await stash(hero, place, [{ id: "spears", quantity: 1 }])).ok, true);
+  assert.equal((await stash(hero, place, [{ id: "spears", quantity: 2 }])).ok, true);
+  const rows = place.items.filter((i) => i.name === "Spears");
+  assert.deepEqual(rows.map((i) => i.system.quantity), [3], "two stashes of the one stack are one row there");
+  assert.equal(hero.items.find((i) => i.id === "spears").system.quantity, 1);
+  assert.equal(hero.items.find((i) => i.id === "drawn").system.equipped, true, "the spear in hand was not asked for");
 });
 
 await ok("the owner takes their own rows from a pile from anywhere, reach not asked", async () => {

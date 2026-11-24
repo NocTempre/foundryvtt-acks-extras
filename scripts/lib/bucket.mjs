@@ -228,11 +228,14 @@ export function acceptVerdict(policy, entry, doc = null) {
 /** An entry for a resolved document of `kind`, valued by the policy, else by the item default. */
 function entryOfDoc(doc, kind, uuid, policy, { qty, fit } = {}) {
   const img = doc?.img || doc?.texture?.src || doc?.actor?.img || defaultImgFor(kind) || "";
-  const stack = kind === ENTRY_KIND.item && isStackable(doc) ? stackCountOf(doc) : null;
+  const held = kind === ENTRY_KIND.item ? stackCountOf(doc) : null;
+  const stack = held !== null && isStackable(doc) ? held : null;
   const cap = stack !== null && stack >= 1 ? stack : kind === ENTRY_KIND.item ? 1 : null;
   const base = makeEntry({ uuid, kind, name: doc?.name ?? "", img, qty: qty ?? cap ?? 1, cap });
   let value = policy?.value ? policy.value(doc, base) : null;
-  if (!value && kind === ENTRY_KIND.item) value = itemValue({ cost: doc?.system?.cost, count: base.qty });
+  // A row that cannot be counted off (it carries Active Effects of its own) is
+  // one entry that is spent whole, so it is worth its whole count.
+  if (!value && kind === ENTRY_KIND.item) value = itemValue({ cost: doc?.system?.cost, count: stack !== null ? base.qty : Math.max(1, held ?? 1) });
   const withV = makeEntry({ ...base, value, effects: value?.effects ?? [] });
   const preset = fit ?? preselectFit(withV, policy?.fit);
   const entry = { ...withV, fit: preset };

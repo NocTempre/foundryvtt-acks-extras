@@ -13,7 +13,24 @@ import { classItems, classByKey, templatePartOf } from "../../classes/registry.m
 import { refOf } from "../../classes/grants.mjs";
 import { resolveLanguage } from "../../classes/languages.mjs";
 import { ownCoin } from "../../lib/money.mjs";
+import { isWorn, stackCountOf } from "../../lib/item-model.mjs";
+import { isStackable } from "../../lib/storage-logic.mjs";
 import { henchmanIds } from "../snapshot.mjs";
+
+/**
+ * The rows of one stack, among the unclaimed items carried under a gear line's
+ * name: every stackable row (equipping takes one off a stack, so the one in
+ * hand and the rest resting beside it are one stack), with their summed count
+ * and the row to place, the one already worn first. Null when the first row is
+ * no stack, so a line naming separate copies is read as copies.
+ * @param {Item[]} have the unclaimed items carried under the line's name
+ * @returns {{rows: Item[], held: number, item: Item}|null}
+ */
+export function stackAnswering(have) {
+  if (!have.length || !isStackable(have[0])) return null;
+  const rows = have.filter((i) => isStackable(i));
+  return { rows, held: rows.reduce((sum, row) => sum + (stackCountOf(row) || 1), 0), item: rows.find(isWorn) ?? rows[0] };
+}
 
 /** A name with any trailing bracket dropped, folded: what two spellings of one thing share. */
 export const nameSlug = (name) => slug(String(name ?? "").replace(/\s*\([^)]*\)\s*$/, ""));

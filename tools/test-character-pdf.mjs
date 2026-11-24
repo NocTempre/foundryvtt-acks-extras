@@ -524,6 +524,22 @@ test("a weapon's damage box holds the formula, whatever shape the item stores it
   }
 });
 
+section("official sheet: a stack on a gear line");
+test("a line counting three daggers is answered by the row in hand and the rest beside it, so a re-import reports no mismatch", async () => {
+  const { stackAnswering } = await import("../scripts/character-sheet/pdf/match.mjs");
+  const dagger = (id, qty, equipped, extra = {}) => ({ id, name: "Dagger", type: "weapon", system: { cost: 3, weight6: 1, equipped, quantity: qty }, flags: {}, ...extra });
+  const drawn = dagger("drawn", 1, true);
+  const rest = dagger("rest", 2, false);
+  const answer = stackAnswering([rest, drawn]);
+  assert.equal(answer.held, 3, "the sheet's count is the sum of both rows");
+  assert.deepEqual(answer.rows.map((r) => r.id), ["rest", "drawn"], "both answer the line, so neither is claimed by a second dagger line");
+  assert.equal(answer.item.id, "drawn", "the row already worn is the one placed, so no second dagger is drawn");
+  const fresh = stackAnswering([dagger("all", 3, false)]);
+  assert.deepEqual([fresh.held, fresh.item.id], [3, "all"], "an untouched row of three is the stack and the row to place");
+  assert.equal(stackAnswering([]), null, "nothing carried is no stack");
+  assert.equal(stackAnswering([dagger("fx", 1, false, { effects: [{ id: "e" }] })]), null, "a row with effects of its own is a copy, never counted into a stack");
+});
+
 for (const [name, fn] of tests) {
   if (name === null) {
     console.log(fn);

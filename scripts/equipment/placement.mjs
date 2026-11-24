@@ -16,7 +16,9 @@ export const HAND_PLACES = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.both
  * Put `item` at `slot`, taking it out of any container first. A weapon is
  * drawn into the hand it is put in (by name; any other place is a plain draw),
  * anything core can equip is equipped, a torch stack put in a hand readies one
- * torch there, and anything else is worn at the slot.
+ * torch there, and anything else is worn at the slot. Core-equippable gear
+ * leaves its container in the equip write itself (`unstowOnUse`), so a stack of
+ * it keeps the rest where they were while one is taken out.
  * @param {Actor} actor the item's owner
  * @param {Item} item an item `actor` carries
  * @param {string} slot a WEAR_SLOTS key
@@ -24,7 +26,7 @@ export const HAND_PLACES = Object.freeze([SLOT.mainHand, SLOT.offHand, SLOT.both
  *   is written); the caller says so
  */
 export async function placeItem(actor, item, slot) {
-  if (containedIn(item)) await takeOut(item);
+  if (containedIn(item) && !isEquippable(item)) await takeOut(item);
   if (item.type === ITEM_TYPE.weapon) {
     await drawInto(item, slot === SLOT.offHand ? "off" : slot === SLOT.mainHand ? "main" : null);
     return true;

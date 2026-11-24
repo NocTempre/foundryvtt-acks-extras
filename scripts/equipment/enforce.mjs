@@ -14,10 +14,12 @@ import { MODULE_ID, SETTINGS, ENFORCE, HOOKS } from "./constants.mjs";
 import { getLoadout, VIOLATION, heldHandsClause } from "./loadout.mjs";
 import { syncLoadoutEffect } from "./effects.mjs";
 import { rowsSettled } from "./weapon-rows.mjs";
-import { isEquippable } from "../lib/item-model.mjs";
+import { isEquippable, foldIntoRest } from "../lib/item-model.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
 import { isLeadClient } from "../lib/automation-client.mjs";
+import { divertsEquip, takeOneToEquip } from "./item-sheet/stack.mjs";
+import { unstowOnUse } from "./containers.mjs";
 
 /**
  * Is this an equip-state change on a wearable item of a character?
@@ -92,6 +94,37 @@ export function onPreUpdateItem(item, changes) {
   ui.notifications.warn(`${item.name}: ${reason}`);
   Hooks.callAll(HOOKS.EQUIP_BLOCKED, item.parent, item, { reason, resolution: "veto" });
   return false;
+}
+
+/**
+ * The whole preUpdate for an item, in its order. The veto runs first, so an
+ * equip the limits refuse takes nothing off its stack and moves nothing out of
+ * its container. Then an equip of a stack takes one: the write is cancelled and
+ * one write on this row, with the count at one, replaces it once the rest are
+ * made (`takeOneToEquip`). Last, gear entering use leaves the container holding
+ * it in this same write (`unstowOnUse`).
+ * @returns {boolean} false to cancel the update
+ */
+export function onPreUpdateEquip(item, changes) {
+  if (onPreUpdateItem(item, changes) === false) return false;
+  if (divertsEquip(item, changes)) {
+    takeOneToEquip(item, changes).catch((err) => console.error(`${MODULE_ID} | taking one off a stack failed`, err));
+    return false;
+  }
+  unstowOnUse(item, changes);
+  return true;
+}
+
+/**
+ * updateItem: a row taken out of use folds back into the stack it was drawn
+ * from. Acts on the client that wrote the change only, since the fold writes
+ * (the count, then a delete) are the writer's to make, once; none of them sets
+ * `equipped`, so the fold never triggers itself.
+ * @returns {Promise<Item|null>|null} the fold's outcome, or null where nothing was asked
+ */
+export function foldOnUnequip(item, changes, userId) {
+  if (userId !== game.user?.id || foundry.utils.getProperty(changes, "system.equipped") !== false) return null;
+  return foldIntoRest(item);
 }
 
 /**

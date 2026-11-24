@@ -16,8 +16,8 @@ import { registerSettings } from "./settings.mjs";
 import { buildApi } from "./api.mjs";
 import VariationData from "./data/variation-data.mjs";
 import { registerVariationSheet } from "./variation-sheet.mjs";
-import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
-import { unstowOnUse, releaseContents } from "./containers.mjs";
+import { onPreUpdateEquip, foldOnUnequip, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
+import { releaseContents } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
 import { registerDamagePrompt } from "./damage-prompt.mjs";
@@ -224,20 +224,16 @@ Hooks.once("ready", async () => {
 
 Hooks.on("preUpdateItem", (item, changes) => {
   try {
-    // Before the equip limits are weighed: gear entering use leaves the
-    // container holding it, in this same write. A veto below throws the whole
-    // update away, containment patch included, which is the right outcome —
-    // gear that was refused its hand never came out of the pack.
-    unstowOnUse(item, changes);
-    return onPreUpdateItem(item, changes);
+    return onPreUpdateEquip(item, changes);
   } catch (err) {
     console.error(`${MODULE_ID} | preUpdateItem enforcement failed`, err);
     return true;
   }
 });
 
-Hooks.on("updateItem", (item, changes) => {
+Hooks.on("updateItem", (item, changes, _options, userId) => {
   onUpdateItem(item, changes).catch((err) => console.error(`${MODULE_ID} | updateItem enforcement failed`, err));
+  foldOnUnequip(item, changes, userId)?.catch((err) => console.error(`${MODULE_ID} | folding a row back into its stack failed`, err));
   // An equip toggle rebuilds inside onUpdateItem. Any other edit to a wearable
   // or a proficiency can change what the loadout reads — a Specialization's
   // style pick, a shield's strap, a declared weapon type or grip — so it

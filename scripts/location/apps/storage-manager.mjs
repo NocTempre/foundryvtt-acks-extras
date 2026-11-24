@@ -94,7 +94,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
               name: item.name,
               img: item.img,
               quantity: qty,
-              stackable: api.isStackable(item),
+              stackable: api.offersCount(item),
               checked: this.#selection.has(item._id),
               take: this.#selection.get(item._id) ?? "",
             };

@@ -1733,3 +1733,19 @@ record. Nothing else is written.
 4. Clear the override and the imported `gearAccess` document, clear the flag and annotate. *Observable:* no `gear.access` is written on any of the three, the select reads "Unset", the tooltip names the page alone, and nothing throws.
 5. Pick a side by hand on the unlisted item. *Observable:* it stays after a re-render and a second annotate.
 6. Teardown. The run's tracked documents are swept by ledger; the override is cleared.
+
+## Equipping a stack of weapons (unwalked)
+
+### Fixtures
+
+- **Kept, `equipment/weapon-stack`**: a `character` actor found by marker, built by `api.fixture`, owned by a real player seat. Each step asserts its shape first: one resting `weapon` row named for the sword holding quantity 3, no other row of that name; rebuild it when a walk left it otherwise. A second row in a carried container is built for step 3 and carries `equipment/weapon-stack-packed`.
+
+### Steps
+
+1. As the player, click Draw on the sword row holding 3 (the EQP cell on the character sheet, and again from the item sheet). *Observable:* two rows, a resting one holding 2 and a drawn one holding 1 in the slot; never a drawn row of 3. Hovering the quantity badge on each names the count.
+2. Click Draw twice quickly on a fresh row of 3. *Observable:* the same two rows as step 1, the second click taking nothing; the sum of both rows is 3.
+3. Repeat step 1 with the stack inside a carried container, then with it loose. *Observable:* the resting remainder sits in the same container as the stack it came from, and the drawn row is placed as an unstow of a drawn item is. The packed and the loose case are walked apart, since the unstow rides the same write.
+4. Draw a stack where a placement veto applies (a hand already full). *Observable:* the veto message shows and the row still holds 3 with no second row.
+5. Put the drawn sword away. *Observable:* the drawn row folds into the resting row, which holds 3 again, and one row remains.
+6. Throw a drawn sword from a stack of 3 and recover it. *Observable:* the recovered row folds into the resting row; the count is 3.
+7. Teardown. The run's tracked documents are swept by ledger; the kept fixture is restored to one resting row of 3 for the next walk.

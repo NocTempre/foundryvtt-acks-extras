@@ -24,7 +24,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { feetToUnits } from "./distance-units.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
-import { canWear, containedIn, findCarried, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
+import { canWear, containedIn, findCarried, isEquippable, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
 import { isStackable, quantityOf } from "./storage-logic.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
 import { tokenCentre } from "./token-centre.mjs";
@@ -279,11 +279,12 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
     if (enforcement === "require" && !override) return false;
   }
 
-  // Only a genuine stack decrements (`isStackable`): a torch carried as a
-  // WEAPON stays one row and simply burns out on its own timer. See
-  // docs/lib/DECISIONS.md, "Fuel burn-down reuses the ammunition tracker
-  // (2026-09-22)" for why the decrement itself is shared with equipment.
-  if (fuel && isStackable(fuel)) {
+  // Only a stack of what core cannot equip decrements: a torch carried as a
+  // WEAPON is drawn and burns out on its own timer, and its count is the number
+  // of torches in the row, not fuel. See docs/lib/DECISIONS.md, "Fuel burn-down
+  // reuses the ammunition tracker (2026-09-22)" for why the decrement itself is
+  // shared with equipment.
+  if (fuel && isStackable(fuel) && !isEquippable(fuel)) {
     const consume = globalThis.acksExtras?.equipment?.consumeItem;
     const held = quantityOf(fuel);
     if (typeof consume === "function") await consume(fuel, 1);

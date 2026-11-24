@@ -5,7 +5,7 @@
  */
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE, PHYSICAL_ITEM_TYPES } from "./vocab.mjs";
-import { LIB_ID, STORAGE_KEY, UNPACKED_FROM, isStackable, planStackMerge, quantityOf } from "./storage-logic.mjs";
+import { LIB_ID, STORAGE_KEY, UNPACKED_FROM, planStackMerge, quantityOf } from "./storage-logic.mjs";
 
 /** The equipment feature's container pointer, under the same flag scope. */
 const CONTAINED_IN = "containedIn";
@@ -52,23 +52,21 @@ export function arrivalOf(sourceData) {
 }
 
 /**
- * What one row delivers: as many units as the system's own bundle drop
- * (`_createBundleEntryItem`) makes of it, in the rows this module keeps them
- * in. Coin and gear arrive as one document holding the row's `count` as a
+ * What one row delivers, as the system's own bundle drop
+ * (`_createBundleEntryItem`) makes it: one document per row. Coin and every
+ * Physical Item (gear, weapon, armour) arrive holding the row's `count` as a
  * plain whole-number `system.quantity`, whatever quantity the source carried
- * and whatever shape it kept it in. A weapon or armour never shares a row
- * (`isStackable`), so it arrives as `count` documents of one each. Anything
- * else (a spell, a proficiency) arrives once, as it is, with no quantity.
+ * and whatever shape it kept it in. Anything else (a spell, a proficiency)
+ * arrives once, as it is, with no quantity.
  * @returns {object[]} plain item data, one entry per document to deliver
  */
 export function goodsForRow(sourceData, count) {
   const n = Math.max(1, Math.floor(num(count, 1)));
   const one = arrivalOf(sourceData);
-  if (one.type !== ITEM_TYPE.money && !PHYSICAL_ITEM_TYPES.includes(one.type)) return [one];
-  one.system = { ...one.system, quantity: n };
-  if (isStackable(one)) return [one];
-  one.system.quantity = 1;
-  return Array.from({ length: n }, (_, i) => (i ? structuredClone(one) : one));
+  if (one.type === ITEM_TYPE.money || PHYSICAL_ITEM_TYPES.includes(one.type)) {
+    one.system = { ...one.system, quantity: n };
+  }
+  return [one];
 }
 
 /**
@@ -76,7 +74,7 @@ export function goodsForRow(sourceData, count) {
  * delivers: the stack as it stands, an empty one counted as one. The system
  * ships its coins as stacks of none, so a coin dragged off the shelf is one
  * coin, and a pile the Judge counted out in the sidebar is the whole pile. A
- * weapon or armour dropped with a quantity arrives as that many rows.
+ * weapon or armour dropped with a quantity arrives as one row holding it.
  * @returns {object[]} plain item data, one entry per document to deliver
  */
 export function goodsForDrop(sourceData) {

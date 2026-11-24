@@ -19,6 +19,7 @@ import {
   groupByOwner,
   planCoinFold,
   isStackable,
+  offersCount,
   planStackMerge,
   quantityOf,
   splitSpec,
@@ -1224,45 +1225,132 @@ t("quantityOf reads a plain number on every Physical Item, and the old object sh
   assert.deepEqual(quantityOf(gear("old", "Torch", 3)), { value: 3, path: "system.quantity.value" }, "the object branch stays for a copy saved before the flattening");
 });
 
-t("isStackable: gear and coin stack; a weapon or armour never does, whatever its quantity", () => {
+// A weapon or armour at rest: a quantity, not equipped, no flags.
+const swordR = (id, qty, extra = {}) => ({ _id: id, name: "Sword", type: "weapon", system: { cost: 10, weight6: 6, equipped: false, quantity: qty }, ...extra });
+const mailR = (id, qty, extra = {}) => ({ _id: id, name: "Mail", type: "armor", system: { cost: 7, weight6: 10, equipped: false, quantity: qty }, ...extra });
+const withFlags = (item, flags) => ({ ...item, flags: { "acks-extras": { ...(item.flags?.["acks-extras"] ?? {}), ...flags } } });
+
+t("isStackable: any row carrying a quantity stacks, a weapon and armour included, unless it carries effects of its own", () => {
   assert.equal(isStackable(gearN("i", "Torch", 3)), true);
   assert.equal(isStackable(gear("old", "Torch", 3)), true, "an old-shape copy of gear still stacks");
   assert.equal(isStackable(gold("g", 5)), true);
-  assert.equal(isStackable(swordN("w", 1)), false);
-  assert.equal(isStackable(swordN("w", 3)), false);
-  assert.equal(isStackable(mailN("m", 2)), false);
-  assert.equal(isStackable(sword("w")), false, "nor one carrying no quantity");
+  assert.equal(isStackable(swordN("w", 1)), true);
+  assert.equal(isStackable(swordN("w", 3)), true);
+  assert.equal(isStackable(mailN("m", 2)), true);
+  assert.equal(isStackable(sword("w")), false, "a weapon carrying no quantity does not");
   assert.equal(isStackable({ type: "spell", system: {} }), false, "nor anything with no quantity");
   assert.equal(isStackable(null), false);
+  assert.equal(isStackable({ ...swordN("w", 3), effects: [{ _id: "e" }] }), false, "a row with an effect of its own stays whole: it would apply once per document");
+  assert.equal(isStackable({ ...swordN("w", 3), effects: [] }), true, "an empty list of effects is none");
+  assert.equal(isStackable({ ...swordN("w", 3), effects: { size: 1 } }), false, "a document's effects collection has a size and no length");
+  assert.equal(isStackable({ ...swordN("w", 3), effects: { size: 0 } }), true);
 });
 
-t("splitSpec: a weapon or armour moves whole whatever its quantity or the request", () => {
-  assert.deepEqual(splitSpec(swordN("w", 3), 1), { move: 1, remain: 0, whole: true, path: null });
-  assert.deepEqual(splitSpec(swordN("w", 0), 2), { move: 1, remain: 0, whole: true, path: null }, "a quantity of none still moves");
-  assert.deepEqual(splitSpec(mailN("m", 2)), { move: 1, remain: 0, whole: true, path: null });
+t("offersCount: a stackable row core cannot equip; a weapon or armour waits for its own design", () => {
+  assert.equal(offersCount(gearN("i", "Torch", 3)), true);
+  assert.equal(offersCount(gold("g", 5)), true);
+  assert.equal(offersCount(swordN("w", 3)), false, "a weapon is stackable and core-equippable");
+  assert.equal(offersCount(mailN("m", 2)), false);
+  assert.equal(offersCount(sword("w")), false, "nor a row carrying no quantity");
+  assert.equal(offersCount(null), false);
+});
+
+t("splitSpec: a weapon or armour counts off like any stack; a row carrying no quantity moves whole", () => {
+  assert.deepEqual(splitSpec(swordN("w", 3), 1), { move: 1, remain: 2, whole: false, path: "system.quantity" });
+  assert.deepEqual(splitSpec(swordN("w", 3)), { move: 3, remain: 0, whole: true, path: "system.quantity" });
+  assert.deepEqual(splitSpec(mailN("m", 2), 5), { move: 2, remain: 0, whole: true, path: "system.quantity" }, "clamped, not refused");
+  assert.deepEqual(splitSpec(sword("w"), 2), { move: 1, remain: 0, whole: true, path: null });
+  assert.deepEqual(splitSpec({ ...swordN("w", 3), effects: [{ _id: "e" }] }, 1), { move: 1, remain: 0, whole: true, path: null }, "a row with effects of its own moves whole");
   assert.deepEqual(splitSpec(gearN("i", "Torch", 10), 4), { move: 4, remain: 6, whole: false, path: "system.quantity" });
 });
 
-t("stackSignature: two identical swords, with a quantity or without, never share a row", () => {
-  assert.equal(stackSignature(swordN("a", 1)), null);
-  assert.equal(stackSignature(swordN("a", 3)), null);
-  assert.equal(stackSignature(mailN("a", 1)), null);
-  assert.equal(stackSignature(sword("a")), null);
+t("stackSignature: identical resting swords share a signature whatever their count; a different one does not", () => {
+  assert.equal(stackSignature(swordR("a", 1)), stackSignature(swordR("b", 3)));
+  assert.notEqual(stackSignature(swordR("a", 1)), null);
+  assert.equal(stackSignature(mailR("a", 1)), stackSignature(mailR("b", 2)));
+  assert.notEqual(stackSignature(swordR("a", 1)), stackSignature({ ...swordR("b", 1), name: "Long sword" }));
+  assert.equal(stackSignature(sword("a")), null, "a weapon carrying no quantity has none");
+  assert.equal(stackSignature({ ...swordR("a", 2), effects: [{ _id: "e" }] }), null, "nor a row with effects of its own");
+  assert.equal(stackSignature({ ...swordR("a", 2), effects: { size: 1 } }), null, "read by size on a document");
   assert.equal(stackSignature(gearN("a", "Torch", 2)), stackSignature(gearN("b", "Torch", 9)), "gear differs by its count only");
 });
 
-t("planStackMerge: weapons and armour keep their own rows, quantity and all", () => {
-  const { creates, targetUpdates } = planStackMerge([swordN("n1", 1), swordN("n2", 3), mailN("n3", 1)], [swordN("held", 1), mailN("hm", 1)]);
-  assert.equal(creates.length, 3);
+t("stackSignature: a row in use is null and equals nothing, so nothing folds into a drawn row", () => {
+  assert.equal(stackSignature(swordN("a", 1)), null, "equipped");
+  assert.equal(stackSignature(withFlags(swordR("a", 1), { gear: { wornAt: "belt" } })), null, "worn at a slot");
+  assert.equal(stackSignature(withFlags(swordR("a", 1), { thrownAway: true })), null, "thrown away");
+  assert.equal(stackSignature(withFlags(swordR("a", 1), { thrownAway: false })), stackSignature(swordR("b", 1)), "a cleared throw is a resting row");
+  const drawn = swordN("drawn", 1);
+  const { creates, targetUpdates } = planStackMerge([swordR("n", 2)], [drawn]);
+  assert.equal(creates.length, 1, "a resting sword never joins the one in hand");
   assert.deepEqual(targetUpdates, []);
+  // Null never equals null: two rows in use are not one thing.
+  const two = planStackMerge([swordN("n1", 1), swordN("n2", 1)], [swordN("d", 1)]);
+  assert.equal(two.creates.length, 2);
+  assert.deepEqual(two.targetUpdates, []);
 });
 
-t("buildTransferPayload: a weapon with a quantity of 3 moves whole and keeps its quantity", () => {
-  const { creates, sourceUpdates, sourceDeletes } = buildTransferPayload([swordN("w", 3)], [{ id: "w", quantity: 1 }], { newId: ids() });
+t("stackSignature: the wear leftovers of a resting row and its provenance are not identity; every other mark is", () => {
+  const plain = stackSignature(swordR("a", 1));
+  for (const left of [{ hand: "main" }, { grip: "2h" }, { strap: "back" }, { splitFrom: "x" }, { unpackedFrom: "b" }, { gear: { wornAt: "" } }]) {
+    assert.equal(stackSignature(withFlags(swordR("a", 1), left)), plain, `${Object.keys(left)[0]} is a leftover or provenance`);
+  }
+  assert.equal(stackSignature(withFlags(swordR("a", 1), { gear: { wornAt: "", slots: ["belt"] } })), stackSignature(withFlags(swordR("b", 3), { gear: { slots: ["belt"], wornAt: "" } })), "a declared slot is compared, wornAt is not");
+  assert.notEqual(stackSignature(withFlags(swordR("a", 1), { gear: { slots: ["belt"] } })), plain, "a declaration is a difference");
+  for (const mark of [
+    { markets: { magic: true } },
+    { markets: { identified: "full" } },
+    { markets: { cursed: true } },
+    { disguise: { apparent: "x" } },
+    { named: { givenName: "x" } },
+    { silvered: true },
+    { pristine: { cost: 1 } },
+    { itemLossAc: 1 },
+    { destroyed: true },
+    { containedIn: "pack" },
+  ]) {
+    assert.notEqual(stackSignature(withFlags(swordR("a", 1), mark)), plain, `${Object.keys(mark)[0]} keeps its own row`);
+  }
+  assert.equal(stackSignature(withFlags(swordR("a", 1), { container: { capacity: 1 } })), null, "a container keeps its own row");
+});
+
+t("planStackMerge: swords fold into a resting row of the same sword and keep a row of their own when they differ", () => {
+  const { creates, targetUpdates } = planStackMerge([swordR("n1", 1), swordR("n2", 3), mailR("n3", 1)], [swordR("held", 1), mailR("hm", 1)]);
+  assert.deepEqual(creates, [], "all three fold");
+  assert.deepEqual(targetUpdates, [{ _id: "held", "system.quantity": 5 }, { _id: "hm", "system.quantity": 2 }]);
+  const other = planStackMerge([withFlags(swordR("n1", 1), { markets: { magic: true } })], [swordR("held", 4)]);
+  assert.equal(other.creates.length, 1, "a magic sword is not the plain stack");
+  assert.deepEqual(other.targetUpdates, []);
+  const apart = planStackMerge([swordR("n1", 1)], [inside(swordR("held", 2), "pack")]);
+  assert.equal(apart.creates.length, 1, "one in another container is another row");
+});
+
+t("planStackMerge: a row some document is stored inside keeps its own row", () => {
+  const sheath = { _id: "v", name: "Silvered", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "held" } } };
+  const { creates, targetUpdates } = planStackMerge([swordR("n1", 1)], [swordR("held", 2), sheath]);
+  assert.equal(creates.length, 1, "the row holding the variation takes nothing");
+  assert.deepEqual(targetUpdates, []);
+  const onto = planStackMerge([swordR("n1", 1)], [swordR("held", 2), swordR("other", 3), { ...sheath, flags: { "acks-extras": { containedIn: "held" } } }]);
+  assert.deepEqual(onto.targetUpdates, [{ _id: "other", "system.quantity": 4 }], "the arrival joins the row nothing points at");
+});
+
+t("buildTransferPayload: a weapon with a quantity of 3 counts off like any stack", () => {
+  const { creates, sourceUpdates, sourceDeletes } = buildTransferPayload([swordR("w", 3)], [{ id: "w", quantity: 1 }], { newId: ids() });
   assert.equal(creates.length, 1);
-  assert.equal(creates[0].system.quantity, 3, "the row arrives as it stood");
-  assert.deepEqual(sourceUpdates, []);
-  assert.deepEqual(sourceDeletes, ["w"]);
+  assert.equal(creates[0].system.quantity, 1, "one arrives");
+  assert.deepEqual(sourceUpdates, [{ _id: "w", "system.quantity": 2 }], "two stay");
+  assert.deepEqual(sourceDeletes, []);
+  const whole = buildTransferPayload([swordR("w", 3)], [{ id: "w" }], { newId: ids() });
+  assert.equal(whole.creates[0].system.quantity, 3);
+  assert.deepEqual(whole.sourceDeletes, ["w"]);
+});
+
+t("buildTransferPayload: a row holding a variation moves whole whatever count was asked", () => {
+  const variation = { _id: "v", name: "Silvered", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "w" } } };
+  const p = buildTransferPayload([swordR("w", 3), variation], [{ id: "w", quantity: 1 }], { newId: ids() });
+  assert.equal(p.creates.find((c) => c.type === "weapon").system.quantity, 3, "the whole row, not one");
+  assert.deepEqual(p.sourceDeletes.sort(), ["v", "w"], "and the variation inside it with it");
+  assert.deepEqual(p.sourceUpdates, []);
 });
 
 t("item model: a weapon with a quantity of 1 or 3 and armour weigh by their count, and the system counts the same", () => {
@@ -1502,18 +1590,18 @@ t("arrivalOf strips placement and keeps identity", () => {
   assert.equal(worn.flags["acks-extras"].containedIn, "pack", "the source is not touched");
 });
 
-t("goodsForRow delivers the units core's bundle drop does: gear and coin in one row, a weapon or armour a row each", () => {
+t("goodsForRow delivers the units core's bundle drop does: one row holding the count, whatever the item", () => {
   const swords = goodsForRow(swordN("sw", 1), 3);
-  assert.equal(swords.length, 3, "three swords arrive as three rows");
-  assert.deepEqual(swords.map((s) => s.system.quantity), [1, 1, 1], "of one each, a plain number");
-  assert.notEqual(swords[0], swords[1], "each row its own data");
+  assert.equal(swords.length, 1, "three swords arrive as one row");
+  assert.equal(swords[0].system.quantity, 3, "holding three, a plain number");
   assert.equal(goodsForRow(swordN("sw", 1), 1).length, 1);
   const fromThree = goodsForRow(swordN("sw", 3), 2);
-  assert.deepEqual(fromThree.map((s) => s.system.quantity), [1, 1], "the source's own quantity is not multiplied in");
-  assert.deepEqual(goodsForRow(sword("sw"), 3).map((s) => s.system.quantity), [1, 1, 1], "a source carrying no quantity gets one");
+  assert.deepEqual(fromThree.map((s) => s.system.quantity), [2], "the source's own quantity is not multiplied in");
+  assert.deepEqual(goodsForRow(sword("sw"), 3).map((s) => s.system.quantity), [3], "a source carrying no quantity gets the count");
+  assert.equal(goodsForRow({ ...swordR("sw", 1), effects: [{ _id: "e" }] }, 2).length, 1, "a row with effects of its own is one row too, as core makes it");
   const mail = goodsForRow(mailN("m", 1), 2);
-  assert.equal(mail.length, 2, "armour counts as a weapon does");
-  assert.equal(mail[1].system.quantity, 1);
+  assert.equal(mail.length, 1, "armour counts as a weapon does");
+  assert.equal(mail[0].system.quantity, 2);
   assert.equal(mail[0].system.equipped, false, "and arrives unequipped");
   const arrows = goodsForRow(gearN("ar", "Arrows", 20), 2);
   assert.equal(arrows.length, 1);
@@ -1540,8 +1628,8 @@ t("goodsForDrop delivers the stack that was dropped: an empty coin is one coin, 
   assert.equal(goodsForDrop(gearN("e", "Rope", 0))[0].system.quantity, 1, "an empty stack counts as one");
   assert.equal(goodsForDrop(sword("sw")).length, 1);
   assert.equal(goodsForDrop(swordN("sw", 1))[0].system.quantity, 1);
-  assert.deepEqual(goodsForDrop(swordN("sw", 3)).map((s) => s.system.quantity), [1, 1, 1], "a weapon dropped with a quantity arrives as that many rows");
-  assert.equal(goodsForDrop(mailN("m", 2)).length, 2, "and so does armour");
+  assert.deepEqual(goodsForDrop(swordN("sw", 3)).map((s) => s.system.quantity), [3], "a weapon dropped with a quantity arrives as one row holding it");
+  assert.deepEqual(goodsForDrop(mailN("m", 2)).map((s) => s.system.quantity), [2], "and so does armour");
 });
 
 t("goodsForDrop feeds planStackMerge: a second coin off the shelf joins the first", () => {
@@ -1559,11 +1647,14 @@ t("goodsForRow feeds planStackMerge: a bundle's arrows join the stack already ca
   assert.deepEqual(targetUpdates, [{ _id: "have", "system.quantity": 25 }]);
 });
 
-t("goodsForRow feeds planStackMerge: a bundle's swords stay rows of their own", () => {
-  const { creates, targetUpdates } = planStackMerge([...goodsForRow(swordN("sw", 1), 2), ...goodsForRow(swordN("sw", 1), 1)], [swordN("have", 1)]);
-  assert.equal(creates.length, 3, "three rows arrive, none folded into another or into the sword carried");
-  assert.deepEqual(creates.map((c) => c.system.quantity), [1, 1, 1]);
-  assert.deepEqual(targetUpdates, []);
+t("goodsForRow feeds planStackMerge: a bundle's swords join the sword at rest and never the one in hand", () => {
+  const rest = planStackMerge([...goodsForRow(swordR("sw", 1), 2), ...goodsForRow(swordR("sw", 1), 1)], [swordR("have", 1)]);
+  assert.equal(rest.creates.length, 0, "all three fold into the sword carried");
+  assert.deepEqual(rest.targetUpdates, [{ _id: "have", "system.quantity": 4 }]);
+  const drawn = planStackMerge([...goodsForRow(swordR("sw", 1), 2), ...goodsForRow(swordR("sw", 1), 1)], [swordN("have", 1)]);
+  assert.equal(drawn.creates.length, 1, "against the one in hand they make a row of their own");
+  assert.equal(drawn.creates[0].system.quantity, 3, "the arrivals of one batch join each other");
+  assert.deepEqual(drawn.targetUpdates, []);
 });
 
 t("groupByOwner buckets stored goods, unattributed included", () => {
@@ -4511,10 +4602,13 @@ await (async () => {
     const ok = await prepareToLight({ name: "Bearer", items: [stack] }, "torch");
     assert.equal(ok, true);
     assert.deepEqual(writes, [{ "system.quantity": 3 }], "one torch leaves the stack, written at the plain field");
-    const blade = { id: "w1", name: "Torch", type: "weapon", system: { cost: 0, weight6: 0, quantity: 1 }, update: async (u) => writes.push(u) };
+    const blade = { id: "w1", name: "Torch", type: "weapon", system: { cost: 0, weight6: 0, equipped: false, quantity: 1 }, update: async (u) => writes.push(u) };
     writes.length = 0;
     await prepareToLight({ name: "Bearer", items: [blade] }, "torch");
     assert.deepEqual(writes, [], "a torch carried as a weapon is never taken off a stack");
+    const bundle = { ...blade, id: "w3", system: { ...blade.system, quantity: 3 } };
+    await prepareToLight({ name: "Bearer", items: [bundle] }, "torch");
+    assert.deepEqual(writes, [], "nor is a row of three torch weapons: its count is torches, not fuel");
   } finally {
     globalThis.acksExtras = prior;
   }

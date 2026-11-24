@@ -197,3 +197,15 @@ while the plating flag is still true keeps the plating price, and its picker
 reads Auto (Not silvered), since the picker shows a stored pick only while the
 field agrees with it (`silverChoiceOf`).
 
+
+## 2026-11-24 — Equipping a stack takes one from it
+
+The equip write is the seam: `preUpdateItem` vetoes first, then a row of two or
+more that core can equip is divided (`divertsEquip`, `takeOneToEquip` in
+`item-sheet/stack.mjs`), then an unstow applies. `foldOnUnequip` and
+`recoverThrown` fold a returned row into its resting one. The ruling, its
+rejected alternatives and its cost are in `docs/lib/DECISIONS.md`, "A weapon or
+a suit of armour folds into a stack, and equipping takes one from it". The
+handlers live in `enforce.mjs` (`onPreUpdateEquip`, `foldOnUnequip`) and
+`module.mjs` only registers them, so the handler order is testable. `placement.mjs`
+offers no take-out for a core-equippable item.

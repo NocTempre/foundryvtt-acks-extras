@@ -79,12 +79,23 @@ function makeItem(data, parent = null) {
     get img() { return src.img; },
     get system() { return src.system; },
     get flags() { return src.flags; },
+    get effects() { return src.effects; },
     parent,
     getFlag: (scope, key) => src.flags?.[scope]?.[key],
     toObject: () => structuredClone(src),
     update: async (changes) => {
       if (parent) parent.writes++;
-      for (const [key, value] of Object.entries(changes)) setProperty(src, key, value);
+      // A key without a dot holding a plain object merges into what is there, as a nested update does.
+      const merge = (into, from) => {
+        for (const [key, value] of Object.entries(from)) {
+          if (value && typeof value === "object" && value.constructor === Object && into[key] && typeof into[key] === "object") merge(into[key], value);
+          else into[key] = value;
+        }
+      };
+      for (const [key, value] of Object.entries(changes)) {
+        if (!key.includes(".") && value && typeof value === "object" && value.constructor === Object) merge((src[key] ??= {}), value);
+        else setProperty(src, key, value);
+      }
       return doc;
     },
     delete: async () => {
@@ -189,7 +200,7 @@ const cp = (holder) => holder.items.filter((i) => i.type === "money").reduce((n,
 const money = await import("../scripts/lib/money.mjs");
 const { creditCoin, mintCoin, sinkCoin, transferCoin, ownCoin, purseGp, coinTemplate, HOUSE_OWNER } = money;
 const storage = await import("../scripts/lib/storage.mjs");
-const { divideStack, joinStacks, sumWeight6 } = await import("../scripts/lib/item-model.mjs");
+const { canDivide, divideStack, foldIntoRest, joinStacks, sumWeight6 } = await import("../scripts/lib/item-model.mjs");
 const { goodsForDrop } = await import("../scripts/lib/bundles-logic.mjs");
 const moneyLogic = await import("../scripts/lib/money-logic.mjs");
 const { planStackMerge } = await import("../scripts/lib/storage-logic.mjs");
@@ -1378,16 +1389,63 @@ await test("any stack divides, and one that was worn leaves its place behind", a
   assert.equal(made.flags["acks-extras"].gear.wornAt, "", "the divided-off part is carried, not worn");
   assert.equal(hero.items.get("t").flags["acks-extras"].gear.wornAt, "belt");
 });
-await test("plain-number gear divides as `system.quantity` and a weapon or armour with a quantity never does", async () => {
+await test("plain-number gear divides as `system.quantity`, and so does a weapon or armour holding more than one", async () => {
   const flat = (id, name, type, qty) => ({ _id: id, name, type, system: { cost: 1, weight6: 1, quantity: qty }, flags: {} });
   const hero = makeActor({ id: "hero", items: [flat("t", "Torch", "item", 6), flat("w1", "Sword", "weapon", 1), flat("w3", "Spears", "weapon", 3), flat("m", "Mail", "armor", 2)] });
   const made = await divideStack(hero.items.get("t"), 2);
   assert.equal(made.system.quantity, 2);
   assert.equal(hero.items.get("t").system.quantity, 4);
+  const spears = await divideStack(hero.items.get("w3"), 1);
+  assert.equal(spears.system.quantity, 1);
+  assert.equal(hero.items.get("w3").system.quantity, 2, "three spears are a row of two and a row of one");
+  assert.equal((await divideStack(hero.items.get("m"), 1)).system.quantity, 1, "armour divides as a weapon does");
   const writes = hero.writes;
-  for (const id of ["w1", "w3", "m"]) assert.equal(await divideStack(hero.items.get(id), 1), null, `${id} stays one row`);
+  assert.equal(await divideStack(hero.items.get("w1"), 1), null, "a row of one has nothing to divide");
   assert.equal(hero.writes, writes, "and nothing is written for it");
-  assert.equal(hero.items.get("w3").system.quantity, 3);
+});
+await test("a row with effects of its own, or holding a variation, is never divided", async () => {
+  const flat = (id, qty, extra = {}) => ({ _id: id, name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, quantity: qty }, flags: {}, ...extra });
+  const variation = { _id: "v", name: "Silvered", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "held" } } };
+  const hero = makeActor({ id: "hero", items: [flat("fx", 3, { effects: [{ _id: "e" }] }), flat("held", 3), variation, flat("plain", 3)] });
+  assert.equal(canDivide(hero.items.get("fx")), false);
+  assert.equal(canDivide(hero.items.get("held")), false);
+  assert.equal(canDivide(hero.items.get("plain")), true);
+  const writes = hero.writes;
+  assert.equal(await divideStack(hero.items.get("fx"), 1), null);
+  assert.equal(await divideStack(hero.items.get("held"), 1), null);
+  assert.equal(hero.writes, writes, "nothing is written for either");
+});
+await test("a divide takes a pending change into the one write that reduces the stack", async () => {
+  const spears = { _id: "sp", name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, equipped: false, quantity: 3 }, flags: { "acks-extras": { containedIn: "pack" } } };
+  const hero = makeActor({ id: "hero", items: [pack(), spears] });
+  const stack = hero.items.get("sp");
+  const log = [];
+  const update = stack.update;
+  stack.update = async (changes) => (log.push(structuredClone(changes)), update(changes));
+  const made = await divideStack(stack, 2, { also: { system: { equipped: true }, flags: { "acks-extras": { hand: "main" } } } });
+  assert.equal(log.length, 1, "one write on the stack");
+  assert.deepEqual(log[0], { system: { equipped: true, quantity: 1 }, flags: { "acks-extras": { hand: "main" } } }, "the pending change and the count together");
+  assert.equal(stack.system.quantity, 1);
+  assert.equal(stack.system.equipped, true, "the row that was handled is the one equipped");
+  assert.equal(made.system.quantity, 2);
+  assert.equal(made.system.equipped, false, "the rest rest");
+  assert.equal(made.flags["acks-extras"].containedIn, "pack", "in the same container");
+  assert.equal(made.flags["acks-extras"].hand, undefined, "and carry nothing of the change");
+});
+await test("a reduce that is refused or throws deletes the copy again, so a divide never leaves more than it found", async () => {
+  const flat = (id) => ({ _id: id, name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, equipped: false, quantity: 3 }, flags: {} });
+  const hero = makeActor({ id: "hero", items: [flat("refused"), flat("thrown")] });
+  const refused = hero.items.get("refused");
+  refused.update = async () => undefined;
+  assert.equal(await divideStack(refused, 1, { also: { system: { equipped: true } } }), null, "a write the hook refused divides nothing");
+  assert.equal(hero.items.size, 2, "the copy is gone");
+  const thrown = hero.items.get("thrown");
+  thrown.update = async () => {
+    throw new Error("write failed");
+  };
+  await assert.rejects(() => divideStack(thrown, 1), /write failed/);
+  assert.equal(hero.items.size, 2, "the copy is gone and the error is the caller's");
+  assert.equal(thrown.system.quantity, 3, "the stack is as it was");
 });
 await test("a divide that would leave either side empty is refused and writes nothing", async () => {
   const sword = { _id: "sw", name: "Sword", type: "weapon", system: { cost: 10, weight6: 6, equipped: true } };
@@ -1428,19 +1486,89 @@ await test("two rows join only when they are one thing in one place", async () =
   assert.equal((await joinStacks(item("t2"), item("t1"))).system.quantity.value, 6, "identical stacks of anything join");
   assert.equal(hero.items.get("t2"), undefined);
 });
-await test("plain-number stacks join, and two identical weapons or armour never do", async () => {
-  const flat = (id, name, type, qty) => ({ _id: id, name, type, img: "x.webp", system: { cost: 1, weight6: 1, quantity: qty }, flags: {} });
+await test("plain-number stacks join, and identical swords and armour join as they would stack", async () => {
+  const flat = (id, name, type, qty, over = {}) => ({ _id: id, name, type, img: "x.webp", system: { cost: 1, weight6: 1, equipped: type === "item" ? undefined : false, quantity: qty, ...over }, flags: {} });
   const hero = makeActor({
     id: "hero",
-    items: [flat("t1", "Torch", "item", 4), flat("t2", "Torch", "item", 2), flat("s1", "Sword", "weapon", 1), flat("s2", "Sword", "weapon", 1), flat("m1", "Mail", "armor", 1), flat("m2", "Mail", "armor", 3)],
+    items: [flat("t1", "Torch", "item", 4), flat("t2", "Torch", "item", 2), flat("s1", "Sword", "weapon", 1), flat("s2", "Sword", "weapon", 2), flat("m1", "Mail", "armor", 1), flat("m2", "Mail", "armor", 3), flat("drawn", "Sword", "weapon", 1, { equipped: true })],
   });
   const item = (id) => hero.items.get(id);
-  assert.equal(await joinStacks(item("s2"), item("s1")), null, "two identical swords stay two rows");
-  assert.equal(await joinStacks(item("m2"), item("m1")), null, "so does armour, whatever its quantity");
+  assert.equal(await joinStacks(item("s2"), item("drawn")), null, "nothing joins into a sword in hand");
+  assert.equal(await joinStacks(item("drawn"), item("s1")), null, "and a sword in hand joins nothing");
   assert.equal(hero.writes, 0, "a refusal writes nothing");
+  assert.equal((await joinStacks(item("s2"), item("s1"))).system.quantity, 3, "identical resting swords join");
+  assert.equal(hero.items.get("s2"), undefined);
+  assert.equal((await joinStacks(item("m2"), item("m1"))).system.quantity, 4, "so does armour");
   assert.equal((await joinStacks(item("t2"), item("t1"))).system.quantity, 6, "identical plain-number stacks join");
   assert.equal(hero.items.get("t2"), undefined);
-  assert.deepEqual(planStackMerge([flat("n1", "Sword", "weapon", 1)], hero.items.map((i) => i.toObject())), { creates: [flat("n1", "Sword", "weapon", 1)], targetUpdates: [] }, "an arriving sword is never folded into the one carried");
+  const arriving = flat("n1", "Sword", "weapon", 2);
+  const plan = planStackMerge([arriving], hero.items.map((i) => i.toObject()));
+  assert.deepEqual(plan, { creates: [], targetUpdates: [{ _id: "s1", "system.quantity": 5 }] }, "an arriving sword folds into the resting one, never the one in hand");
+});
+await test("a row that holds anything, or has effects of its own, joins nothing and is joined by nothing", async () => {
+  const sword = (id, qty, extra = {}) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {}, ...extra });
+  const variation = { _id: "v", name: "Silvered", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "s2" } } };
+  const hero = makeActor({ id: "hero", items: [sword("s1", 2), sword("s2", 3), variation, sword("fx1", 1, { effects: [{ _id: "e" }] }), sword("fx2", 1, { effects: [{ _id: "e" }] })] });
+  const item = (id) => hero.items.get(id);
+  assert.equal(await joinStacks(item("s1"), item("s2")), null, "onto a row holding a variation");
+  assert.equal(await joinStacks(item("s2"), item("s1")), null, "from a row holding a variation");
+  assert.equal(await joinStacks(item("fx2"), item("fx1")), null, "two rows with effects of their own");
+  assert.equal(hero.writes, 0, "and nothing is written");
+});
+
+/* -------------------------------------------- */
+/*  A row out of use folds back                 */
+/* -------------------------------------------- */
+
+console.log("coin: folding a row back into its stack");
+await test("a row taken out of use folds into the resting row of the same thing and keeps its own id", async () => {
+  const sword = (id, qty, over = {}) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {}, ...over });
+  const hero = makeActor({ id: "hero", items: [sword("drawn", 1), sword("rest", 2)] });
+  const folded = await foldIntoRest(hero.items.get("drawn"));
+  assert.equal(folded, hero.items.get("drawn"), "the row that was handled is the one that stays");
+  assert.equal(hero.items.get("drawn").system.quantity, 3);
+  assert.equal(hero.items.get("rest"), undefined, "the resting row is removed once the count has moved");
+  assert.equal(await foldIntoRest(hero.items.get("drawn")), null, "nothing left to fold");
+});
+await test("a fold finds the same thing only: in the same container, on the same holder, at rest", async () => {
+  const sword = (id, qty, over = {}) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {}, ...over });
+  const packed = { "acks-extras": { containedIn: "pack" } };
+  const drawn = sword("drawn", 1, { system: { cost: 1, weight6: 1, equipped: true, quantity: 1 } });
+  const hero = makeActor({
+    id: "hero",
+    items: [pack(), sword("back", 1), sword("boxed", 2, { flags: packed }), sword("magic", 2, { flags: { "acks-extras": { markets: { magic: true } } } }), sword("thrown", 2, { flags: { "acks-extras": { thrownAway: true } } }), drawn, { ...sword("long", 4), name: "Long sword" }],
+  });
+  const other = makeActor({ id: "other", items: [sword("elsewhere", 5)] });
+  assert.equal(await foldIntoRest(hero.items.get("drawn")), null, "a row still in use folds nothing, and nothing folds into it");
+  assert.equal(await foldIntoRest(hero.items.get("thrown")), null, "nor a row thrown away: it has no signature, which equals nothing");
+  assert.equal(hero.writes + other.writes, 0, "and no write is made");
+  assert.equal((await foldIntoRest(hero.items.get("back"))), null, "the others differ by container, mark or name");
+  assert.equal(hero.writes, 0);
+  assert.equal(hero.items.size, 7);
+  assert.equal(await foldIntoRest(makeItem(sword("loose", 1))), null, "a row no holder carries has nothing beside it");
+});
+await test("two identical rows taken out of use together fold into one row holding both, never into none", async () => {
+  const sword = (id) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: 1 }, flags: {} });
+  const hero = makeActor({ id: "hero", items: [sword("a"), sword("b"), sword("c")] });
+  const folds = await Promise.all(["a", "b", "c"].map((id) => foldIntoRest(hero.items.get(id))));
+  assert.equal(hero.items.size, 1, "one row is left");
+  assert.equal([...hero.items.values()][0].system.quantity, 3, "holding all three");
+  assert.deepEqual(folds.map((f) => f?.id ?? null), ["a", null, "c"], "a took b; b was gone by its turn; c took a, the row it found beside it");
+});
+await test("a fold refuses a row holding anything, and writes the count before it removes the row", async () => {
+  const sword = (id, qty) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {} });
+  const variation = { _id: "v", name: "Silvered", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "rest" } } };
+  const hero = makeActor({ id: "hero", items: [sword("drawn", 1), sword("rest", 2), variation] });
+  assert.equal(await foldIntoRest(hero.items.get("drawn")), null, "the resting row holds a variation");
+  assert.equal(hero.items.size, 3);
+  const clean = makeActor({ id: "clean", items: [sword("drawn", 1), sword("rest", 2)] });
+  const order = [];
+  const [gain, lose] = [clean.items.get("drawn"), clean.items.get("rest")];
+  const [gainWrite, loseDelete] = [gain.update, lose.delete];
+  gain.update = async (changes) => (order.push("gain"), gainWrite(changes));
+  lose.delete = async () => (order.push("lose"), loseDelete());
+  await foldIntoRest(gain);
+  assert.deepEqual(order, ["gain", "lose"], "a fold cut short leaves a duplicate, never a loss");
 });
 await test("a coin row with a banked balance is emptied by a join, never removed", async () => {
   const hero = makeActor({ id: "hero", items: [gold(7, { _id: "g1" }), gold(5, { _id: "g2", bank: 30 })] });

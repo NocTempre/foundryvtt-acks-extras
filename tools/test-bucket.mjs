@@ -46,12 +46,13 @@ const ta = async (name, fn) => {
 const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
 
 /** An item document with a stack, a cost and the writes `divideStack` and a delete make. */
-function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg", flat = false, type } = {}) {
+function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg", flat = false, type, effects } = {}) {
   const row = {
     documentName: "Item",
     name,
     img,
     ...(type ? { type } : {}),
+    ...(effects ? { effects } : {}),
     // `flat` is the system's current shape, a plain whole number; the default is the `{value}` object an older copy keeps.
     system: { cost, quantity: flat ? qty : { value: qty, max: 0 } },
     flags: {},
@@ -60,8 +61,10 @@ function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg", flat = fal
     toObject() {
       return { name: this.name, img: this.img, ...(type ? { type } : {}), system: structuredClone(this.system), flags: {} };
     },
+    // A document's update resolves to the document, which is how a refused one is told apart.
     async update(patch) {
       for (const [path, v] of Object.entries(patch)) foundry.utils.setProperty(this, path, v);
+      return this;
     },
     async delete() {
       this.deleted = true;
@@ -288,30 +291,41 @@ await ta("applying a plan to plain-number gear spends a whole stack by a delete 
   assert.deepEqual(out.spent, ["whole", "part"]);
 });
 
-await ta("a weapon or armour row is never divided: it is spent whole, whatever its quantity", async () => {
+await ta("a weapon or armour row is spent like any stack: a part of it by dividing, all of it by a delete", async () => {
   const one = item("Sword", { qty: 1, flat: true, type: "weapon" });
   const three = item("Spears", { qty: 3, flat: true, type: "weapon" });
   const mail = item("Mail", { qty: 2, flat: true, type: "armor" });
   const { made } = holder(one, three, mail);
   const docs = { one, three, mail };
   const out = await applySettlement(
-    [{ uuid: "one", kind: "item", qty: 1, action: "consume" }, { uuid: "three", kind: "item", qty: 1, action: "consume" }, { uuid: "mail", kind: "item", qty: 1, action: "destroy" }],
+    [{ uuid: "one", kind: "item", qty: 1, action: "consume" }, { uuid: "three", kind: "item", qty: 1, action: "consume" }, { uuid: "mail", kind: "item", qty: 2, action: "destroy" }],
     async (u) => docs[u] ?? null,
   );
-  assert.deepEqual([one.deleted, three.deleted, mail.deleted, made.length, out.failed.length], [true, true, true, 0, 0]);
+  assert.deepEqual([one.deleted, three.deleted, three.system.quantity, mail.deleted, out.failed.length], [true, false, 2, true, 0]);
+  assert.deepEqual([made.length, made[0].deleted, made[0].system.quantity], [1, true, 1], "the spear taken off the stack is the one deleted");
   assert.deepEqual(out.spent, ["one", "three", "mail"]);
 });
 
-await ta("a weapon with a quantity is one entry of one; plain-number gear is an entry of its stack", async () => {
+await ta("a row with effects of its own is one entry that is valued and spent whole", async () => {
+  const spears = item("Spears", { cost: 2, qty: 3, flat: true, type: "weapon", effects: [{ _id: "e" }] });
+  const { made } = holder(spears);
+  const entry = (await bucket.entryFromDrop({ type: "Item", uuid: "s" }, async () => spears)).entry;
+  assert.deepEqual([entry.qty, entry.cap], [1, 1], "it cannot be counted off");
+  assert.equal(entry.value.gp, 6, "but it is worth the three it holds");
+  const out = await applySettlement([{ uuid: "s", kind: "item", qty: 1, action: "consume" }], async () => spears);
+  assert.deepEqual([spears.deleted, made.length, out.failed.length], [true, 0, 0]);
+});
+
+await ta("a weapon row is an entry of its stack, valued per unit; plain-number gear likewise", async () => {
   const spears = item("Spears", { cost: 2, qty: 3, flat: true, type: "weapon" });
   const sword = item("Sword", { cost: 2, qty: 1, flat: true, type: "weapon" });
   const mail = item("Mail", { cost: 2, qty: 2, flat: true, type: "armor" });
   const torches = item("Torches", { cost: 2, qty: 4, flat: true, type: "item" });
   const docs = { spears, sword, mail, torches };
   const got = Object.fromEntries(await Promise.all(Object.keys(docs).map(async (k) => [k, (await bucket.entryFromDrop({ type: "Item", uuid: k }, async () => docs[k])).entry])));
-  assert.deepEqual([got.spears.qty, got.spears.cap], [1, 1], "a weapon is not counted off");
+  assert.deepEqual([got.spears.qty, got.spears.cap, got.spears.value.gp, got.spears.value.each], [3, 3, 6, 2], "three spears are an entry of three");
   assert.deepEqual([got.sword.qty, got.sword.cap], [1, 1]);
-  assert.deepEqual([got.mail.qty, got.mail.cap], [1, 1]);
+  assert.deepEqual([got.mail.qty, got.mail.cap], [2, 2]);
   assert.deepEqual([got.torches.qty, got.torches.cap], [4, 4]);
 });
 

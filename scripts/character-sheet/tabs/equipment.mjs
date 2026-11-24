@@ -30,7 +30,7 @@ import { bearerLights } from "../../lib/light.mjs";
 import { canSplit } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
 import { isEquippable, isWorn, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
-import { isStackable } from "../../lib/storage-logic.mjs";
+import { offersCount } from "../../lib/storage-logic.mjs";
 import { wearableSlots } from "../../equipment/profiles.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { coinOrderView } from "../../lib/coin-order.mjs";
@@ -126,7 +126,7 @@ function rowControls(actor, item, loadout, lights) {
   // A stack with somewhere to be worn splits ONE out to wear it; any other
   // stack divides, a count of the owner's choosing into a row of its own.
   if (canSplit(item)) state.push(ctl("splitStack", "fa-solid fa-scissors", loc("equipment.split")));
-  else if (isStackable(item) && (stackCountOf(item) ?? 0) > 1) state.push(ctl("divideStack", "fa-solid fa-scissors", game.i18n.localize("ACKS-LIB.stack.divide")));
+  else if (offersCount(item) && (stackCountOf(item) ?? 0) > 1) state.push(ctl("divideStack", "fa-solid fa-scissors", game.i18n.localize("ACKS-LIB.stack.divide")));
   if ("favorite" in (item.system ?? {})) {
     state.push(ctl("itemFavorite", item.system.favorite ? "fa-solid fa-star" : "fa-regular fa-star", game.i18n.localize(item.system.favorite ? "ACKS.items.RemoveFromFavorites" : "ACKS.items.AddToFavorites"), {}, item.system.favorite ? "is-on" : ""));
   }

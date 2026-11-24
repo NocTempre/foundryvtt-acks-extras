@@ -16,6 +16,7 @@ import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 import { coinCount, coinKind, coinTotalGC } from "./money-logic.mjs";
 import { setPath } from "./dotted-path.mjs";
+import { VARIATION_TYPE } from "./constants.mjs";
 
 // Coin's worth is money-logic's to compute; it is offered through here as
 // well because the storage surface lists every place's coin beside its goods.
@@ -68,14 +69,30 @@ export function quantityOf(plain) {
 
 /**
  * Can this item be split into rows, folded into another row of itself, or
- * counted off one at a time? A weapon and a suit of armour keep a quantity
- * like every Physical Item but always stay a row of their own and move whole,
- * so they answer false; so does anything that carries no quantity. Works on
- * plain item data and on a document alike.
+ * counted off one at a time? Every Physical Item keeps a quantity, a weapon and
+ * a suit of armour included, so any row carrying one answers true, except a row
+ * with Active Effects of its own: an effect applies once per document, so a
+ * second row would apply it twice, and such a row moves whole. Anything that
+ * carries no quantity answers false. Works on plain item data and on a
+ * document alike (a document's `effects` is a collection with a `size`, plain
+ * data's an array with a `length`).
  */
 export function isStackable(plain) {
-  if (plain?.type === ITEM_TYPE.weapon || plain?.type === ITEM_TYPE.armor) return false;
+  const effects = plain?.effects;
+  if ((effects?.size ?? effects?.length ?? 0) > 0) return false;
   return quantityOf(plain) !== null;
+}
+
+/**
+ * Should a surface draw a count control (a divide, a take-how-many, a sale
+ * count) on this row? A stackable row that core cannot equip: a weapon or a
+ * suit of armour is stackable but a count control on it waits for the design
+ * that routes an equippable stack to equipping instead of splitting. Core
+ * equips what carries an `equipped` field, the one probe `isEquippable` reads.
+ */
+export function offersCount(plain) {
+  if (!isStackable(plain)) return false;
+  return !(plain?.system && "equipped" in plain.system);
 }
 
 /** The container this item is inside, per the equipment feature. Null when loose. */
@@ -175,9 +192,13 @@ export function buildTransferPayload(plainItems, spec, opts = {}) {
   const items = plainItems ?? [];
   const byId = new Map(items.map((i) => [i._id, i]));
 
+  // A row holding a variation moves whole whatever count was asked: a divided
+  // copy would arrive with none of the variation documents inside it.
+  const holdsVariation = new Set(items.filter((i) => i?.type === VARIATION_TYPE && containedInOf(i)).map(containedInOf));
+
   const plans = new Map();
   for (const [id, requested] of readSpec(spec, byId)) {
-    const plan = splitSpec(byId.get(id), requested);
+    const plan = splitSpec(byId.get(id), holdsVariation.has(id) ? null : requested);
     if (plan.move <= 0) continue; // nothing asked for, or an empty stack
     plans.set(id, plan);
   }
@@ -252,15 +273,30 @@ function canon(value) {
     .join(",")}}`;
 }
 
+/** The flag marking a weapon thrown away and awaiting recovery (equipment's `ITEM_FLAGS.THROWN_STATE`), read without importing its owner. */
+const THROWN_AWAY = "thrownAway";
+/** The flag naming the stack a split row came from: provenance, never identity. */
+const SPLIT_FROM = "splitFrom";
+/**
+ * The wear leftovers on a resting row, which core's equip toggle does not
+ * clear (the hand a weapon was drawn in, the chosen grip, a shield's strap):
+ * they describe the last time the row was in use, not what the row is.
+ */
+const WEAR_LEFTOVERS = ["hand", "grip", "strap"];
+
 /**
  * The merge identity of a stack — what makes two rows "the same thing" for
- * merging. Returns null for anything that must keep its own row (unstackable,
- * or carrying its own Active Effects). Coin keys on its kind; everything
- * else keys on the whole document minus quantity. At a provider the key also
- * carries the owner. See docs/lib/API.md, "storage".
+ * merging. Returns null for anything that must keep its own row: an
+ * unstackable row (`isStackable`), a container, and a row in use, whether
+ * equipped, worn at a slot or thrown away, because nothing folds into a row in
+ * use. Callers read a null as "equal to nothing", never as a value two rows
+ * share. Coin keys on its kind; everything else keys on the whole document
+ * minus quantity, provenance and the wear leftovers of a resting row
+ * (`WEAR_LEFTOVERS`). At a provider the key also carries the owner. See
+ * docs/lib/API.md, "storage".
  */
 export function stackSignature(plain, { byOwner = false } = {}) {
-  if (!isStackable(plain)) return null; // weapons and armour keep their own row
+  if (!isStackable(plain)) return null;
   // Coin identity is the KIND (name and rate together), not the rate alone,
   // and `coinKind` is its one statement. See docs/lib/DECISIONS.md,
   // "2026-08-14 — Money is physical; four rulings land at once". A coin row
@@ -268,10 +304,11 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   // made before house rows were stamped is one owner's with the stamped one.
   if (isMoney(plain)) return `money|${byOwner ? rowOwnerOf(plain) : ""}|${coinKind(plain)}`;
   const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
-  if (plain.effects?.length) return null;
+  const own = plain.flags?.[LIB_ID] ?? {};
   // A container keeps its own row: merging two would leave the second's
   // contents pointing at a container id that is never created.
-  if (plain.flags?.[LIB_ID]?.container) return null;
+  if (own.container) return null;
+  if (plain.system?.equipped || own.gear?.wornAt || own[THROWN_AWAY]) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };
   setPath(wrapper, quantityOf(plain).path, 0);
@@ -281,6 +318,15 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   if (flags[LIB_ID]) {
     delete flags[LIB_ID][STORAGE_KEY];
     delete flags[LIB_ID][UNPACKED_FROM];
+    delete flags[LIB_ID][SPLIT_FROM];
+    delete flags[LIB_ID][THROWN_AWAY]; // a falsy mark is left over from a recovery
+    for (const key of WEAR_LEFTOVERS) delete flags[LIB_ID][key];
+    // A resting row's `wornAt` is empty (a set one returned above); an empty
+    // one is no more a difference than a missing one.
+    if (flags[LIB_ID].gear) {
+      delete flags[LIB_ID].gear.wornAt;
+      if (!Object.keys(flags[LIB_ID].gear).length) delete flags[LIB_ID].gear;
+    }
   }
   // An arriving item has had keys removed from its flags (attribution, a
   // dangling container pointer), which can leave an emptied `{"acks-extras": {}}`
@@ -334,8 +380,18 @@ function inContainer(plain, containerId) {
  */
 export function planStackMerge(creates, targetItems = [], { byOwner = false, coinInto = null } = {}) {
   const present = new Set();
-  for (const item of [...targetItems, ...(creates ?? [])]) if (item?._id) present.add(item._id);
-  const slotKey = (plain) => (isMoney(plain) ? coinSlotKey(plain, present, { byOwner }) : stackSignature(plain, { byOwner }));
+  const pointedAt = new Set();
+  for (const item of [...targetItems, ...(creates ?? [])]) {
+    if (item?._id) present.add(item._id);
+    if (containedInOf(item)) pointedAt.add(containedInOf(item));
+  }
+  // A row some document is stored inside keeps its own row, as a container
+  // does: merging it would leave the other document pointing at a row that is
+  // never created, or at a row now holding more than it described.
+  const slotKey = (plain) => {
+    if (isMoney(plain)) return coinSlotKey(plain, present, { byOwner });
+    return pointedAt.has(plain?._id) ? null : stackSignature(plain, { byOwner });
+  };
   const into = coinInto && present.has(coinInto) ? coinInto : null;
   // Where an arriving coin row is put: left where it travelled, else inside
   // `coinInto`, else loose with a pointer at nothing taken off it.

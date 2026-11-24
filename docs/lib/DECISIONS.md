@@ -994,7 +994,7 @@ Book style. A rule that sets no face of its own inherits its parent's under both
 looks, so a label whose face comes from another rule can still read in a display
 face until it is walked live.
 
-## 2026-11-24 — Quantity is the system's plain number, and a weapon stays one row
+## 2026-11-24 — Quantity is the system's plain number, and a weapon stays one row — SUPERSEDED IN PART 2026-11-24
 
 `acks` 14.2.0 keeps Quantity as a whole number at `system.quantity` on every
 Physical Item (gear, clothing, weapon, armour). Before it gear kept
@@ -1037,3 +1037,53 @@ it has been shown.
 **Cost.** A weapon or armour whose quantity is above one is valued and spent
 whole, and the storage lists do not show its count. Offline only until the
 slice is walked on `main`.
+
+## 2026-11-24 — A weapon or a suit of armour folds into a stack, and equipping takes one from it
+
+Supersedes in part "Quantity is the system's plain number, and a weapon stays one
+row" (the same day): its third and fourth bullets and its rejected "folding
+identical weapons into one stack". The new evidence is the owner's answer to
+the question that entry left open, and the standing ruling it follows. The
+owner: "Anything that now duplicates needs rolled into calling core instead of
+parallel code maintenance." On stacks: "Fold into stacks", then "With the
+caveat that equip takes from the stack instead of equipping the stack".
+
+**Ruled.**
+
+- `isStackable` is true of any row carrying a quantity, a weapon and armour
+  included, unless it has Active Effects of its own. Three swords bought arrive
+  as one row holding 3, as core's `_createBundleEntryItem` makes them, from a
+  bundle, a purchase, a chargen kit and the character PDF alike.
+- `stackSignature` is null for a row in use (equipped, worn at a slot, thrown)
+  and for a container, and a null signature equals nothing. Wear leftovers
+  (`hand`, `grip`, `strap`, `gear.wornAt`) and provenance (`splitFrom`,
+  `unpackedFrom`, `storage`) are ignored on a resting row, so two resting rows
+  of one thing are one stack.
+- Equipping takes one from the stack. The write that equips a row of two or
+  more is cancelled and replaced: the rest are made first as a resting row, then
+  the clicked row is written holding one with the pending change in the same
+  write (`takeOneToEquip`). A refused or failed write deletes the rest again, so
+  the worst outcome is a duplicate. Draw on a row of 3 leaves a resting row of 2
+  and a drawn row of 1, never a drawn row of 3. A veto of the equip runs first
+  and makes no remainder.
+- Unequipping folds the row into the resting row of the same thing
+  (`foldIntoRest`, on the writing client only), and so does recovering a
+  thrown weapon. Divides and folds on one holder take turns (`oneAtATime`), so
+  two quick equips cannot each read the old count.
+- `offersCount` is the one answer to whether a surface draws a count control: a
+  stackable row core cannot equip. A weapon or armour row shows none until the
+  design that routes its count to equipping is shown and built.
+- A row holding a variation, or one something points at, is not divided, joined
+  or merged; a transfer moves a variation-holding row whole.
+
+**Rejected.** Splitting a stack of weapons by the count controls: a stack of
+drawn weapons has no meaning, and the owner's caveat rules it out. Keeping
+weapons as one row each: it is the parallel maintenance the standing ruling
+removes.
+
+**Cost.** An equip of a stack is two writes, so a peer sees the resting row
+appear a moment before the drawn row changes, and the caller's own `update`
+resolves to nothing while the replacing write is still in flight. Gear with
+Active Effects of its own, which divided before, now moves whole and shows no
+count control; a sale still counts units off it, since a sale makes no second
+row.

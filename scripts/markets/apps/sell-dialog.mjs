@@ -9,7 +9,7 @@ import { performSell, salePlan, demandStepsFor, categoryOf, availabilityFor } fr
 import { refusalText, availabilityText } from "../engine/refusal.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { magicKnowledge, stackCountOf } from "../../lib/item-model.mjs";
-import { isStackable } from "../../lib/storage-logic.mjs";
+import { offersCount } from "../../lib/storage-logic.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -51,7 +51,7 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     // item is undetected reads the ordinary basis; the figure is the same.
     const undetected = plan.basis === "apparent" && !game.user.isGM && !magicKnowledge(this.item).known;
     context.basis = game.i18n.localize(`${LANG}.sale.basis.${undetected ? "base" : plan.basis}`);
-    context.stackable = isStackable(itemData);
+    context.stackable = offersCount(itemData);
     context.carried = stackCountOf(itemData) || 1;
     const avail = availabilityFor(this.location, {
       itemName: this.item.name,

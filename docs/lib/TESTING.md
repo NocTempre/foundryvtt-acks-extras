@@ -3864,3 +3864,19 @@ no indoors Region, and no magic light on the roller.
 
 Teardown: put darkness back to 0, delete the Region and any effect the run
 made, by the ledger; the fixtures stay.
+
+## A weapon or armour is a stack (unwalked)
+
+### Fixtures
+
+- **Kept, `lib/weapon-stack-holder`**: a `character` actor and a `location` actor, found by marker. Each step asserts its shape at its start: the character holds one resting sword row of 3 and one of armour holding 2, and the location holds none.
+
+### Steps
+
+1. Drop a bundle naming three swords onto the character sheet. *Observable:* one new row holding 3, as core's own drop makes it, and no three single rows.
+2. Buy three swords through a market. *Observable:* one row holding 3 or, when the actor already holds a resting row of that sword, the existing row rising by 3.
+3. Open the character sheet equipment tab and the location's storage tab on the sword rows. *Observable:* no divide, take-how-many or sale count control on a weapon or armour row, and the row's weight and value read for the whole count.
+4. Stash the stack at the location and retrieve it. *Observable:* it moves whole and merges into a resting row of the same thing; a row holding a variation moves whole and never merges.
+5. Import the same character PDF twice. *Observable:* the second import finds the rows and adds no row; the count stays what the PDF states.
+6. Open a sword row's item sheet. *Observable:* no count control appears; the quantity shown is the whole row's count (item sheet count controls wait for the S11 slice).
+7. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.

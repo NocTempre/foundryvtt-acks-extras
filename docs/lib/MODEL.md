@@ -1053,7 +1053,7 @@ the system adds a type this library never heard of.
 | Have they got one? | `findCarried` / `carriesItem` | every "you need a pole / a torch / a quill for this" rule asks the same question; physical-only, so a proficiency named "Spear Fighting" is not an implement, and `hasStock` makes an empty stack read as not carried |
 | Can it be put somewhere? | `isGoods` / `isStowable` | coin is goods without being physical — the gap that grew a `\|\| type === "money"` rider at fifteen sites |
 | Is it currency? | `isCurrency` | the one stackable whose weight is stated per stone — see "Currency" |
-| How many are in the stack? | `stackCountOf` | read by the field's shape (the system's plain number, or the `{value}` object on an item copy a flag saved earlier); `null` for data that carries no quantity. Whether a row divides or merges is `isStackable`: never a weapon or armour |
+| How many are in the stack? | `stackCountOf` | read by the field's shape (the system's plain number, or the `{value}` object on an item copy a flag saved earlier); `null` for data that carries no quantity. Whether a row divides or merges is `isStackable` (a weapon and armour included); whether a surface draws a count control for it is `offersCount` |
 | What does it weigh? | `weight6Of` / `sumWeight6` | a stack's weight in sixths, bundle size applied; currency as an exact fraction, summed per rate |
 | Is it clothing? | `isClothing` | core's `system.subtype`, its one sub-classification |
 | What does it add to encumbrance? | `encumbering6` | what core's `computeEncumbrance` counts, clothing excluded, with coin weighed to the coin where core counts whole stones |
@@ -1210,7 +1210,16 @@ was waived. A payment no user declares, a sweep, passes nothing and is gated.
 one row to another of the same kind, owner and container, and removes it.
 Both write the gaining side first, so a write cut short leaves a duplicate
 and never a loss. Two rows of one kind are a state the holder may have
-chosen, and nothing joins them unasked. `promptDivide(item)`
+chosen, and nothing joins them unasked, except that a row put back to rest
+folds into the resting row of the same thing (`foldIntoRest`). A row in use
+(equipped, worn at a slot, thrown) and a container have a null stack signature,
+which equals nothing; wear leftovers and provenance flags do not tell two
+resting rows apart. A row holding a variation, or one something points at, is
+not divided or joined, and a transfer moves it whole. Equipping a row of two or
+more takes one from it (`takeOneToEquip`, equipment feature): the rest are made
+first as a resting row, then one write sets the clicked row to one with the
+pending change in it. Divides and folds on one holder run in turn
+(`oneAtATime`). `promptDivide(item)`
 (`stack-prompt.mjs`) is the one prompt every sheet asks a division through: a
 dismissed prompt writes nothing and says nothing, and a count outside the
 stack, 0 included, is refused with a warning. `gatherCoin(holder)` is the
@@ -1399,8 +1408,8 @@ sheet lists an embedded one. So nothing embeds one:
   Each row resolves by its uuid, then by the library item of the same name and
   type, and a row neither finds is named in a warning while the rest arrive.
   A row delivers the units core's own drop makes of it
-  (`_createBundleEntryItem`): coin and gear as one document holding the row's
-  count, a weapon or armour as that many rows of one each. The bundle is read,
+  (`_createBundleEntryItem`): coin and every Physical Item as one document
+  holding the row's count, a weapon and armour included. The bundle is read,
   never consumed.
 - **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
   units, so it hands over one stack of the quantity bought or that many

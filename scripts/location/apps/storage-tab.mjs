@@ -58,7 +58,7 @@ function collect(actor) {
     coinGC,
     rows: items.map((item) => {
       const qty = api.quantityOf(item.toObject())?.value ?? null;
-      return { id: item.id, name: item.name, img: item.img, quantity: qty, stackable: api.isStackable(item) };
+      return { id: item.id, name: item.name, img: item.img, quantity: qty, stackable: api.offersCount(item) };
     }),
     };
   };

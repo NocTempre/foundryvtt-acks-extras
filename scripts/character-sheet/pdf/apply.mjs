@@ -23,8 +23,6 @@ import { wearableSlots } from "../../equipment/profiles.mjs";
 import { damageFormulaOf } from "../../equipment/properties.mjs";
 import { whenReady } from "../../lib/library.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
-import { stackCountOf } from "../../lib/item-model.mjs";
-import { isStackable } from "../../lib/storage-logic.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../../lib/money.mjs";
 import { applyClass, grantFixedAwards } from "../../classes/apply.mjs";
@@ -49,7 +47,7 @@ import { DOMAIN_TYPE } from "../../domains/constants.mjs";
 import { normalizeDomain } from "../../domains/domain-logic.mjs";
 import { familiesOf, ledgerFor, placeFamilies, vassalsOf } from "../../domains/domains.mjs";
 import { ADVENTURING_KEYS, COIN_KEYS, MOVE_KEYS, SAVE_BOOK_KEYS, SCORE_KEYS, buildPlan } from "./plan.mjs";
-import { COIN_METALS, classUnbound, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed } from "./match.mjs";
+import { COIN_METALS, classUnbound, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed, stackAnswering } from "./match.mjs";
 import { notesBlock, replaceNotesBlock } from "./notes.mjs";
 
 const loc = makeLoc(LANG);
@@ -172,26 +170,26 @@ function containerFor(actor, place) {
   return actor.items.find((i) => isContainer(i) && words.some((w) => slug(i.name).includes(w))) ?? null;
 }
 
-/** Whether one item of this kind is a stack rather than one of several copies. */
-const stacks = (item) => isStackable(item);
-
 /**
  * Land every gear line on the actor and put it where the sheet lists it. An
  * item the actor already carries under that name answers the line, so a
  * second import lands nothing twice; one item answers one line, so two lines
- * naming a dagger are two daggers. A stack whose count differs from the
- * sheet's is reported, never changed.
+ * naming a dagger are two daggers. A stack is every row the actor carries
+ * under that name (the one in hand and the rest resting beside it are one
+ * stack, as equipping takes one off it): their counts are summed, all of them
+ * answer the line, and the row already worn is the one placed. A stack whose
+ * count differs from the sheet's is reported, never changed.
  */
 async function landGear(actor, gear, report) {
   const claimed = new Set();
   const placed = [];
   for (const line of gear) {
     const have = actor.items.filter((i) => GEAR_TYPES.includes(i.type) && slug(i.name) === slug(line.name) && !claimed.has(i.id));
-    if (have.length && stacks(have[0])) {
-      claimed.add(have[0].id);
-      const held = stackCountOf(have[0]) || 1;
-      if (held !== line.qty) report.checks.push({ label: have[0].name, sheet: String(line.qty), inForce: String(held) });
-      placed.push({ line, item: have[0] });
+    const stack = stackAnswering(have);
+    if (stack) {
+      for (const row of stack.rows) claimed.add(row.id);
+      if (stack.held !== line.qty) report.checks.push({ label: have[0].name, sheet: String(line.qty), inForce: String(stack.held) });
+      placed.push({ line, item: stack.item });
       continue;
     }
     const copies = have.slice(0, line.qty);

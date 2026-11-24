@@ -11,7 +11,7 @@ import { WEAPON_CATEGORY } from "./config.mjs";
 import { isSilvered } from "./silver.mjs";
 import { slug } from "../lib/vocab.mjs";
 import { unset } from "../lib/util.mjs";
-import { stackCountOf } from "../lib/item-model.mjs";
+import { stackCountOf, foldIntoRest } from "../lib/item-model.mjs";
 import { quantityOf } from "../lib/storage-logic.mjs";
 
 /**
@@ -89,10 +89,16 @@ export function isThrownAway(item) {
   return !!item?.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE);
 }
 
-/** Recover every thrown-away weapon on the actor. Manual — RAW has no auto-recover. */
+/**
+ * Recover every thrown-away weapon on the actor. Manual — RAW has no
+ * auto-recover. A recovered row that was drawn from a stack folds back into it.
+ */
 export async function recoverThrown(actor) {
   const away = actor.items.filter(isThrownAway);
-  for (const i of away) await i.unsetFlag(MODULE_ID, ITEM_FLAGS.THROWN_STATE);
+  for (const i of away) {
+    await i.unsetFlag(MODULE_ID, ITEM_FLAGS.THROWN_STATE);
+    await foldIntoRest(i);
+  }
   return away.map((i) => i.name);
 }
 

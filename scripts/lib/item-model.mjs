@@ -10,6 +10,7 @@
 import { MODULE_ID, FLAG_GEAR, VARIATION_TYPE } from "./constants.mjs";
 import { WEAR_SLOTS, slotCapacity, ITEM_TYPE, PHYSICAL_ITEM_TYPES } from "./vocab.mjs";
 import { containedInOf, quantityOf, isStackable, stackSignature } from "./storage-logic.mjs";
+import { setPath } from "./dotted-path.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -81,10 +82,11 @@ export const isCurrency = (item) => item?.type === ITEM_TYPE.money;
 /**
  * How many units the item stands for, or null for one that carries no
  * quantity. A weapon and a suit of armour answer their quantity like any other
- * Physical Item; whether a row may be divided or merged is `isStackable`'s
- * question. Read by the field's SHAPE, so coin and gear answer through the
- * same door, and an item copy saved before the system flattened its
- * quantity still answers.
+ * Physical Item: three swords are one row holding 3, and the one drawn from
+ * them is a row holding 1. Whether a row may be divided or merged is
+ * `isStackable`'s question. Read by the field's SHAPE, so coin and gear answer
+ * through the same door, and an item copy saved before the system flattened
+ * its quantity still answers.
  */
 export function stackCountOf(item) {
   const q = quantityOf(item);
@@ -358,27 +360,56 @@ export function physicalItems(actor) {
 export const hasStock = (item) => (stackCountOf(item) ?? 1) > 0;
 
 /**
+ * Can this row be divided at all? A holder that can take a new row beside it,
+ * a stackable row (`isStackable`) holding more than one, and no variation
+ * document stored inside it: a copy would get none of the variations, and the
+ * recompute of its fields would strip the bonus the variation baked in.
+ */
+export function canDivide(item) {
+  const q = quantityOf(item);
+  if (!q || !isStackable(item) || !(q.value > 1) || !item?.parent?.createEmbeddedDocuments) return false;
+  return !contentsIn(item).some((v) => v?.type === VARIATION_TYPE);
+}
+
+/**
  * Divide `count` off a stack into a row of its own beside it — the same
  * thing, in the same container, under the same owner — and leave the rest
  * where it was. The copy is made before the stack is reduced, so a divide cut
- * short leaves a duplicate and never a loss. Nothing is written unless the
- * count falls strictly inside the stack, and never for a weapon or armour,
- * which stay one row (`isStackable`).
+ * short leaves a duplicate and never a loss; a reduce that is refused or throws
+ * deletes the copy again. Nothing is written unless the row can be divided
+ * (`canDivide`) and the count falls strictly inside the stack.
+ * @param {Item} item the stack
+ * @param {number} count how many go to the new row
+ * @param {{also?: object}} [opts] `also` is a pending change to the stack
+ *   itself, written in the same update that reduces it, so the row the caller
+ *   holds ends up reduced and changed in one write
  * @returns {Promise<Item|null>} the new row, or null when nothing was divided
  */
-export async function divideStack(item, count) {
+export async function divideStack(item, count, { also = null } = {}) {
   const q = quantityOf(item);
   const take = Math.floor(Number(count));
-  const holder = item?.parent;
-  if (!isStackable(item) || !holder?.createEmbeddedDocuments || !(take > 0) || !(take < q.value)) return null;
+  if (!canDivide(item) || !(take > 0) || !(take < q.value)) return null;
   const copy = item.toObject();
   delete copy._id;
   foundry.utils.setProperty(copy, q.path, take);
   if (copy.system && "quantitybank" in copy.system) copy.system.quantitybank = 0;
   if (copy.flags?.[MODULE_ID]?.[FLAG_GEAR]?.wornAt) copy.flags[MODULE_ID][FLAG_GEAR].wornAt = "";
-  const [made] = await holder.createEmbeddedDocuments("Item", [copy]);
+  const [made] = await item.parent.createEmbeddedDocuments("Item", [copy]);
   if (!made) return null;
-  await item.update({ [q.path]: q.value - take });
+  // A pending change is the expanded object a hook was handed, so the count
+  // joins it as a nested key; with none, the count is the whole write.
+  const write = also ? setPath(foundry.utils.deepClone(also), q.path, q.value - take) : { [q.path]: q.value - take };
+  let reduced;
+  try {
+    reduced = await item.update(write);
+  } catch (err) {
+    await made.delete();
+    throw err;
+  }
+  if (!reduced) {
+    await made.delete();
+    return null;
+  }
   return made;
 }
 
@@ -386,10 +417,12 @@ export async function divideStack(item, count) {
  * Join `item` into `onto`, another row of the same thing on the same holder —
  * `divideStack` undone. Two rows are one thing when they share a stack
  * signature (coin by its kind, anything else by the whole document but its
- * count), an owner and a container. `onto` takes the count before `item` is
- * removed, so a join cut short leaves a duplicate and never a loss. A coin row
- * still carrying a balance in the system's banked field is emptied and kept,
- * as `emptyMoneyDeletes` keeps one.
+ * count), an owner and a container; a null signature is no row's twin. Neither
+ * row may hold anything: a document stored inside a row would be left pointing
+ * at one that is gone or that now holds more than it described. `onto` takes
+ * the count before `item` is removed, so a join cut short leaves a duplicate
+ * and never a loss. A coin row still carrying a balance in the system's banked
+ * field is emptied and kept, as `emptyMoneyDeletes` keeps one.
  * @returns {Promise<Item|null>} `onto`, or null when the two are not one thing
  */
 export async function joinStacks(item, onto) {
@@ -402,10 +435,55 @@ export async function joinStacks(item, onto) {
   const signature = stackSignature(from, { byOwner: true });
   if (!q || !target || signature === null || signature !== stackSignature(into, { byOwner: true })) return null;
   if ((containedInOf(from) || null) !== (containedInOf(into) || null)) return null;
+  if (contentsIn(item).length || contentsIn(onto).length) return null;
   await onto.update({ [target.path]: target.value + q.value });
   if (Number(from.system?.quantitybank) > 0) await item.update({ [q.path]: 0 });
   else await item.delete();
   return onto;
+}
+
+/**
+ * Fold a row that has just come out of use back into the stack it left: the
+ * first resting row on the same holder that is one thing with it (an equal
+ * `stackSignature` by owner, the same container, nothing stored inside either)
+ * joins into `item` through `joinStacks`, so the row the user handled keeps its
+ * id and the count rises before the other row is removed. A row still in use,
+ * thrown away or a container has a null signature and folds nothing. Folds on
+ * one holder run one at a time (`oneAtATime`), each choosing its partner when
+ * its turn comes: two identical rows taken out of use together would otherwise
+ * each pick the other and delete both.
+ * @param {Item} item the row just taken out of use
+ * @returns {Promise<Item|null>} `item`, or null when nothing folded
+ */
+export function foldIntoRest(item) {
+  if (!item?.parent?.items) return Promise.resolve(null);
+  return oneAtATime(item.parent, async () => {
+    const items = item.parent.items;
+    if (items.get && !items.get(item.id)) return null; // folded away by an earlier turn
+    const signature = stackSignature(item.toObject(), { byOwner: true });
+    if (signature === null) return null;
+    const rest = items.find((i) => i.id !== item.id && stackSignature(i.toObject(), { byOwner: true }) === signature && (stackCountOf(i) ?? 0) > 0);
+    return rest ? joinStacks(rest, item) : null;
+  });
+}
+
+/** The turn each holder's last queued task finishes in, so its next one waits. */
+const turns = new WeakMap();
+
+/**
+ * Run `task` after every task already queued for `holder` has finished, whether
+ * it succeeded or threw. Writes that divide a stack or fold two rows read the
+ * holder's rows before an await and write after it, so two of them in flight on
+ * one holder would act on rows the other is changing. The caller re-reads
+ * whatever it depends on inside `task`, which is when it is that caller's turn.
+ * @param {Actor} holder the document whose rows the task reads and writes
+ * @param {() => Promise<*>} task
+ * @returns {Promise<*>} the task's own result
+ */
+export function oneAtATime(holder, task) {
+  const run = (turns.get(holder) ?? Promise.resolve()).then(task);
+  turns.set(holder, run.catch(() => {}));
+  return run;
 }
 
 /**

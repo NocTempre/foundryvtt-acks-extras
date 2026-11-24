@@ -1223,3 +1223,20 @@ adding something), then units by name, unknown tokens last as written — and
 `toggledGrant(csv, token)` is one edit expressed through both. The character
 sheet's Stats tab draws the units; `classes/training.mjs` writes through
 `toggledGrant`.
+## Equipping a stack
+
+A weapon or a suit of armour bought, dropped or imported in a number is one row
+holding the count. The equip write is intercepted in one place, `onPreUpdateEquip`
+(`enforce.mjs`, registered on `preUpdateItem` by `module.mjs`), in a fixed order:
+the placement veto, then the divide, then the unstow. `divertsEquip` says the
+write is an equip of a resting, core-equippable row of two or more that touches
+no count; the write is then cancelled and `takeOneToEquip` makes the remainder as
+a resting row in the same container, and writes the clicked row once with a
+count of 1 and the pending change. A vetoed equip makes no remainder, a refused
+or failed write deletes the remainder again, and a second equip of the same row
+waits its turn (`oneAtATime`) and finds it already drawn. `foldOnUnequip` (on
+`updateItem`, the writing client only) and `recoverThrown` join the row back into
+the resting row of the same thing (`foldIntoRest`). A stack core cannot equip
+(a flask, a torch, a garment) still splits on the EQP cell (`canSplit`,
+`splitOne`, `restack`). `placement.mjs` offers no take-out for a core-equippable
+item, and the weapon and armour rows draw no count control (`offersCount`).

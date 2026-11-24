@@ -16,7 +16,7 @@ globalThis.acksExtras ??= {};
 const SETTINGS_STATE = { overlayShieldVariants: false, overlayManeuvers: true };
 globalThis.game = {
   settings: {
-    get: (_m, k) => (k === "defaultHandBudget" ? 2 : k === "enforceMode" ? "resolve" : SETTINGS_STATE[k]),
+    get: (_m, k) => (k === "defaultHandBudget" ? 2 : k === "enforceMode" ? (SETTINGS_STATE.enforceMode ?? "resolve") : SETTINGS_STATE[k]),
   },
   i18n: { has: () => false, localize: (x) => x, format: (k) => k },
   modules: { get: () => ({ active: false }) },
@@ -41,6 +41,14 @@ globalThis.foundry = {
     hasProperty: (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o) !== undefined,
     getProperty: (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o),
     mergeObject: (a, b) => ({ ...a, ...b }),
+    setProperty(obj, path, value) {
+      const keys = path.split(".");
+      const last = keys.pop();
+      let at = obj;
+      for (const k of keys) at = at[k] ??= {};
+      at[last] = value;
+      return true;
+    },
   },
   data: { operators: { ForcedDeletion: class ForcedDeletion {} } },
   applications: {
@@ -2483,7 +2491,7 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   const mkRow = (name, type, qty, { flags = {}, items = [] } = {}) => {
     const row = {
       id: `${name}-id`, name, type,
-      system: { cost: 0, weight6: 0, quantity: qty },
+      system: { cost: 0, weight6: 0, quantity: qty, ...(type === "weapon" ? { equipped: false } : {}) },
       flags: { "acks-extras": { gear: { slots: ["worn"] }, ...flags } },
       getFlag: (m, k) => row.flags[m]?.[k],
       unsetFlag: async () => {},
@@ -2501,7 +2509,7 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
     return row;
   };
   check("a plain-number stack two or more deep may split", canSplit(mkRow("Gloves", "item", 3)) && !canSplit(mkRow("Gloves", "item", 1)));
-  check("a weapon never splits, whatever it counts", !canSplit(mkRow("Sword", "weapon", 3)));
+  check("a weapon never splits to be worn, whatever it counts: core equips it, and the equip write divides it", !canSplit(mkRow("Sword", "weapon", 3)));
   const stack = mkRow("Gloves", "item", 3);
   const one = await splitOne(stack);
   check("the split row is one, as a plain number, and the stack keeps the rest", !!one && made[0].system.quantity === 1 && JSON.stringify(writes) === JSON.stringify([{ "system.quantity": 2 }]));
@@ -2510,6 +2518,168 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   const back = mkRow("Gloves", "item", 1, { flags: { splitFrom: home.id } });
   back.parent.items.push(home);
   check("restack adds the split row to the stack at system.quantity and removes it", (await restack(back)) === true && JSON.stringify(writes) === JSON.stringify([{ "system.quantity": 3 }, "deleted"]));
+}
+
+// Equipping a stack takes one: the write that would equip the stack is diverted, and one row is taken off it.
+{
+  const { divertsEquip, takeOneToEquip } = await import(new URL("item-sheet/stack.mjs", S));
+  const log = [];
+  // Foundry's own clone keeps an object it cannot clone (a forced deletion) by reference.
+  const plainClone = foundry.utils.deepClone;
+  const keepsInstances = (x) => (x === null || typeof x !== "object" ? x : Array.isArray(x) ? x.map(keepsInstances) : x.constructor !== Object ? x : Object.fromEntries(Object.entries(x).map(([k, v]) => [k, keepsInstances(v)])));
+  foundry.utils.deepClone = keepsInstances;
+  const holderOf = (items) => {
+    const holder = {
+      documentName: "Actor",
+      items: Object.assign(items, { get: (id) => items.find((i) => i.id === id) }),
+      createEmbeddedDocuments: async (_kind, rows) => {
+        const made = rows.map((r, n) => {
+          const row = { ...r, id: `rest${n}`, parent: holder, getFlag: (m, k) => r.flags?.[m]?.[k], toObject: () => structuredClone(r), update: async () => row, delete: async () => { log.push(["delete", row.id]); } };
+          return row;
+        });
+        for (const m of made) log.push(["create", structuredClone({ ...m, parent: undefined, toObject: undefined, update: undefined, delete: undefined, getFlag: undefined })]);
+        return made;
+      },
+    };
+    return holder;
+  };
+  const stackOf = ({ qty = 3, type = "weapon", equipped = false, flags = {}, effects = [], refuse = false, throws = false, items = [] } = {}) => {
+    const src = { name: "Sword", type, system: { cost: 0, weight6: 0, ...(type === "weapon" || type === "armor" ? { equipped } : {}), quantity: qty }, flags: { "acks-extras": { ...flags } } };
+    const holder = holderOf(items);
+    const row = {
+      id: "row", ...src, effects, parent: holder,
+      getFlag: (m, k) => row.flags[m]?.[k],
+      toObject: () => structuredClone({ name: row.name, type: row.type, system: row.system, flags: row.flags }),
+      update: async (u) => {
+        log.push(["update", structuredClone(u), u]);
+        if (throws) throw new Error("write failed");
+        if (refuse) return undefined;
+        Object.assign(row.system, u.system ?? {});
+        return row;
+      },
+    };
+    items.push(row);
+    return row;
+  };
+  const equip = { system: { equipped: true } };
+
+  check("a stack of two or more weapons equipped is diverted", divertsEquip(stackOf(), equip) === true);
+  check("a stack of armour is diverted the same way", divertsEquip(stackOf({ type: "armor" }), equip) === true);
+  check("a row of one is not: there is nothing to take", divertsEquip(stackOf({ qty: 1 }), equip) === false);
+  check("an unequip is not diverted", divertsEquip(stackOf({ equipped: true }), { system: { equipped: false } }) === false);
+  check("a row already equipped is not diverted again", divertsEquip(stackOf({ equipped: true }), equip) === false);
+  check("a write that does not equip is not diverted", divertsEquip(stackOf(), { flags: { "acks-extras": { hand: "main" } } }) === false);
+  check("a write that sets the count is takeOneToEquip's own, and is not diverted", divertsEquip(stackOf(), { system: { equipped: true, quantity: 1 } }) === false);
+  check("a stack of what core cannot equip is split on its own control, not here", divertsEquip(stackOf({ type: "item" }), equip) === false);
+  check("a row no actor holds is not diverted", (() => { const r = stackOf(); r.parent = null; return divertsEquip(r, equip); })() === false);
+  check("a row with effects of its own is equipped whole", divertsEquip(stackOf({ effects: [{ id: "e" }] }), equip) === false);
+  check("a row holding a variation is equipped whole", (() => {
+    const items = [{ id: "v", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "row" } }, getFlag: (_m, k) => (k === "containedIn" ? "row" : undefined) }];
+    return divertsEquip(stackOf({ items }), equip);
+  })() === false);
+
+  log.length = 0;
+  const packed = stackOf({ qty: 3, flags: { containedIn: "pack" } });
+  const rest = await takeOneToEquip(packed, { _id: "row", system: { equipped: true }, flags: { "acks-extras": { hand: "main" } } });
+  check("the rest are made first, resting, in the same container, then one write sets the count and the whole pending change", log.length === 2 && log[0][0] === "create" && log[1][0] === "update");
+  check("the rest hold two, unequipped, still in the container", log[0][1].system.quantity === 2 && log[0][1].system.equipped === false && log[0][1].flags["acks-extras"].containedIn === "pack");
+  check("the write on the clicked row carries the count of one, the equip and the hand", log[1][1].system.quantity === 1 && log[1][1].system.equipped === true && log[1][1].flags["acks-extras"].hand === "main" && !("_id" in log[1][1]));
+  check("and the stack leaves its container in that same write", log[1][2].flags["acks-extras"].containedIn instanceof foundry.data.operators.ForcedDeletion);
+  check("the rest is returned", rest?.id === "rest0");
+
+  log.length = 0;
+  const twice = stackOf({ qty: 3 });
+  const [first, second] = await Promise.all([takeOneToEquip(twice, equip), takeOneToEquip(twice, equip)]);
+  check("a double click takes one off the stack once: the second equip finds the row drawn", log.filter((l) => l[0] === "create").length === 1 && first?.id === "rest0" && second === null);
+
+  log.length = 0;
+  const refusedRow = stackOf({ refuse: true });
+  check("a write the hook refuses divides nothing", (await takeOneToEquip(refusedRow, equip)) === null);
+  check("and the rest made for it are deleted again", JSON.stringify(log.map((l) => l[0])) === JSON.stringify(["create", "update", "delete"]) && log[2][1] === "rest0");
+
+  log.length = 0;
+  const failingRow = stackOf({ throws: true });
+  let failed = null;
+  await takeOneToEquip(failingRow, equip).catch((err) => { failed = err; });
+  check("a write that throws deletes the rest and the error reaches the caller", failed?.message === "write failed" && log.at(-1)[0] === "delete");
+
+  foundry.utils.deepClone = plainClone;
+}
+
+// A recovered thrown weapon folds back into the stack it was drawn from.
+{
+  const items = [];
+  const holder = { documentName: "Actor", items: Object.assign(items, { get: (id) => items.find((i) => i.id === id) }) };
+  const writes = [];
+  const row = (id, qty, flags = {}) => {
+    const src = { name: "Javelin", type: "weapon", system: { cost: 0, weight6: 0, equipped: false, quantity: qty }, flags: { "acks-extras": { ...flags } } };
+    const r = {
+      id, name: src.name, type: src.type, system: src.system, flags: src.flags, parent: holder,
+      getFlag: (m, k) => r.flags[m]?.[k],
+      unsetFlag: async (m, k) => { delete r.flags[m][k]; },
+      toObject: () => structuredClone({ name: r.name, type: r.type, system: r.system, flags: r.flags }),
+      update: async (u) => { writes.push([id, structuredClone(u)]); for (const [k, v] of Object.entries(u)) foundry.utils.setProperty(r, k, v); return r; },
+      delete: async () => { writes.push([id, "deleted"]); items.splice(items.indexOf(r), 1); },
+    };
+    items.push(r);
+    return r;
+  };
+  row("stack", 2);
+  row("thrown", 1, { thrownAway: true });
+  const names = await recoverThrown(holder);
+  check("recovering names the weapon it recovered", JSON.stringify(names) === JSON.stringify(["Javelin"]));
+  check("and folds it into the stack: the recovered row keeps its id and counts all three", items.length === 1 && items[0].id === "thrown" && items[0].system.quantity === 3);
+  check("the count is written before the stack is removed", JSON.stringify(writes.map((w) => w[1])) === JSON.stringify([{ "system.quantity": 3 }, "deleted"]));
+}
+
+// The preUpdate in its order: the veto first, then the divide, then the unstow; and the fold on the unequip.
+{
+  const { onPreUpdateEquip, foldOnUnequip } = await import(new URL("enforce.mjs", S));
+  globalThis.ui = globalThis.ui ?? { notifications: { warn: () => {}, info: () => {} } };
+  const created = [];
+  const updates = [];
+  const mkShield = (id, over = {}) => {
+    const s = armor("Shield", "shield", { id, equipped: over.equipped ?? false });
+    s.system.quantity = over.qty ?? 1;
+    s.flags = { "acks-extras": { ...(over.flags ?? {}) } };
+    s.toObject = () => structuredClone({ name: s.name, type: s.type, system: s.system, flags: s.flags });
+    s.update = async (u) => { updates.push([id, structuredClone(u)]); return s; };
+    return s;
+  };
+  const worn = mkShield("worn", { equipped: true });
+  const stack = mkShield("stack", { qty: 2, flags: { containedIn: "pack" } });
+  const bearer = withItems([worn, stack]);
+  bearer.documentName = "Actor";
+  bearer.createEmbeddedDocuments = async (_k, rows) => { created.push(...rows); return rows.map((r) => ({ ...r, id: "rest", update: async () => ({}), delete: async () => {} })); };
+  for (const i of [worn, stack]) i.parent = bearer;
+  const equip = () => ({ _id: "stack", system: { equipped: true } });
+
+  SETTINGS_STATE.enforceMode = "veto";
+  const refused = equip();
+  check("in veto mode a second shield equipped from a stack is refused", onPreUpdateEquip(stack, refused) === false);
+  await new Promise((resolve) => setImmediate(resolve));
+  check("and a refused equip creates no remainder and writes nothing", created.length === 0 && updates.length === 0);
+  check("nor moves the stack out of its container", !("flags" in refused));
+
+  SETTINGS_STATE.enforceMode = "resolve";
+  const allowed = equip();
+  check("with the limits met the equip is diverted: the write is cancelled", onPreUpdateEquip(stack, allowed) === false);
+  await new Promise((resolve) => setImmediate(resolve));
+  check("and one row is taken off the stack, the rest left resting in its container", created.length === 1 && created[0].system.quantity === 1 && created[0].system.equipped === false && created[0].flags["acks-extras"].containedIn === "pack");
+  check("the clicked row is written once with the count of one, the equip and the unstow", updates.length === 1 && updates[0][0] === "stack" && updates[0][1].system.quantity === 1 && updates[0][1].system.equipped === true && "containedIn" in updates[0][1].flags["acks-extras"]);
+
+  const lone = mkShield("lone", { flags: { containedIn: "pack" } });
+  lone.parent = bearer;
+  const loneWrite = { _id: "lone", system: { equipped: true } };
+  check("a row of one is not diverted, and leaves its container in the write itself", onPreUpdateEquip(lone, loneWrite) === true && "containedIn" in loneWrite.flags["acks-extras"]);
+  SETTINGS_STATE.enforceMode = undefined;
+
+  check("a fold is asked of the seat that wrote the unequip, and only for an unequip", foldOnUnequip(worn, { system: { equipped: true } }, "me") === null);
+  globalThis.game.user = { id: "me" };
+  check("another seat's unequip folds nothing here", foldOnUnequip(worn, { system: { equipped: false } }, "someone else") === null);
+  check("an unequip written here is folded", foldOnUnequip(worn, { system: { equipped: false } }, "me") instanceof Promise);
+  check("a write that leaves the equip alone folds nothing", foldOnUnequip(worn, { flags: {} }, "me") === null);
+  delete globalThis.game.user;
 }
 
 // A thrown-away weapon's weight leaves the encumbrance total until recovered.

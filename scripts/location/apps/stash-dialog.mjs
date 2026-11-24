@@ -20,7 +20,7 @@ const isContainer = (item) => !!globalThis.acksExtras?.lib.places.isContainerIte
 
 function rowHTML(item) {
   const plain = item.toObject();
-  const qty = storage().isStackable(plain) ? (storage().quantityOf(plain)?.value ?? null) : null;
+  const qty = storage().offersCount(plain) ? (storage().quantityOf(plain)?.value ?? null) : null;
   const holds = isContainer(item) ? ` <em class="acks-location-hint">${loc("storage.takesContents")}</em>` : "";
   return `<li class="acks-location-pick">
     <label>

@@ -26,7 +26,7 @@ import { holdFrom } from "./hold.mjs";
 import { deploymentOf, deploySite, deployVehicle, strikeVehicle } from "./deploy.mjs";
 import { borneWeight6, load6 } from "../lib/capacity.mjs";
 import { attach, detach } from "../lib/attachment.mjs";
-import { handOver, isProvider, storesByOwner, storageFlagOf, quantityOf, isStackable } from "../lib/storage.mjs";
+import { handOver, isProvider, storesByOwner, storageFlagOf, quantityOf, offersCount } from "../lib/storage.mjs";
 import { isLocation, parentUuidOf, placeIndex, placePath, setParent } from "../lib/place.mjs";
 import { occupantsOf, draftPullOf, derivedSkills } from "./occupants.mjs";
 import { stationsFor, effectiveCrewRoles } from "./stations.mjs";
@@ -275,8 +275,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       img: it.img,
       qty: stackCountOf(it) || 1,
       stone: round2(encumbering6(it) / STONE),
-      // Only a stackable item offers a count; a sword does not.
-      stacks: isStackable(it),
+      // Only an item that offers a count shows one; a sword does not.
+      stacks: offersCount(it),
       ownerName: storageFlagOf(it)?.ownerName || null,
       merchandise: !!it.getFlag(MODULE_ID, MARKETS_FLAG)?.merchandise,
     }));

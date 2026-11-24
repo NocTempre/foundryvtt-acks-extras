@@ -32,7 +32,7 @@ import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { excludedSources, listedSource, shopListsWorld, shopPacks } from "./catalog-sources.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
-import { isStackable, quantityOf } from "../../lib/storage-logic.mjs";
+import { quantityOf } from "../../lib/storage-logic.mjs";
 import { partyOf, partySize } from "./parties.mjs";
 import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
 import { marketRules, bargaining, magicPrices, stepFractionFor, printedError } from "./printed.mjs";
@@ -493,10 +493,10 @@ async function takeHeld(held, qty) {
 
 /**
  * Hand purchased goods to their buyer through `lib/bundles.mjs`: `qty` counts
- * units and `goodsForRow` makes the rows. A stackable arrives as one row
- * holding `qty` and folds into an identical row the buyer carries; a row that
- * is not `isStackable` (thirty swords) arrives as `qty` rows of one each.
- * Never as a bundle: no actor sheet lists an embedded one.
+ * units and `goodsForRow` makes the row: every Physical Item arrives as one
+ * row holding `qty` (thirty swords are one row of thirty, as the system's own
+ * bundle drop makes it) and folds into an identical resting row the buyer
+ * carries. Never as a bundle: no actor sheet lists an embedded one.
  */
 export async function deliverGoods(buyer, { entry, qty }) {
   const data = foundry.utils.deepClone(entry.data);
@@ -738,9 +738,10 @@ export async function sell(location, payload) {
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
 
+  // A sale counts units off the row and makes no second row, so every row that
+  // holds a count sells by it, one that cannot be divided included.
   const own = quantityOf(itemData);
-  const stackable = isStackable(itemData);
-  const carried = stackable ? own.value : 1;
+  const carried = own ? own.value : 1;
   const qty = Math.min(Math.max(1, Math.floor(Number(rawQty) || 1)), Math.max(1, carried));
 
   // Price first (the plan also names the band value), then availability.
@@ -788,7 +789,7 @@ export async function sell(location, payload) {
     if (stack) foundry.utils.setProperty(kept, stack.path, qty);
     await location.createEmbeddedDocuments("Item", [kept]);
   }
-  if (stackable && carried > qty) {
+  if (own && carried > qty) {
     await item.update({ [own.path]: carried - qty });
   } else {
     await item.delete();
