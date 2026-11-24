@@ -1026,7 +1026,7 @@ await test("the Judge moves coin only for the seat that owns the payer", async (
 console.log("goods: a place the seat does not own");
 await storage.registerStorageRelay();
 const { getSocket } = await import("../scripts/lib/sockets.mjs");
-const rope = (over = {}) => ({ _id: over._id ?? "rope", name: "Rope", type: "item", system: { quantity: { value: 1, max: 0 }, weight6: 6 }, flags: over.flags ?? {} });
+const rope = (over = {}) => ({ _id: over._id ?? "rope", name: "Rope", type: "item", system: { quantity: 1, weight6: 6 }, flags: over.flags ?? {} });
 /** A place no player's seat may write, holding `items`. */
 const judgesPlace = (id, items = []) => {
   const place = makePlace({ id, items });
@@ -1381,11 +1381,11 @@ await test("a count taken off a stack becomes a row of its own beside it", async
   assert.equal(moneyLogic.coinTotalCp(hero.items.map((i) => i.toObject())), 1000, "nothing made, nothing lost");
 });
 await test("any stack divides, and one that was worn leaves its place behind", async () => {
-  const torches = { _id: "t", name: "Torch", type: "item", system: { cost: 1, weight6: 1, quantity: { value: 6, max: 0 } }, flags: { "acks-extras": { gear: { slots: ["belt"], wornAt: "belt" } } } };
+  const torches = { _id: "t", name: "Torch", type: "item", system: { cost: 1, weight6: 1, quantity: 6 }, flags: { "acks-extras": { gear: { slots: ["belt"], wornAt: "belt" } } } };
   const hero = makeActor({ id: "hero", items: [torches] });
   const made = await divideStack(hero.items.get("t"), 2.9);
-  assert.equal(made.system.quantity.value, 2, "a count is whole");
-  assert.equal(hero.items.get("t").system.quantity.value, 4);
+  assert.equal(made.system.quantity, 2, "a count is whole");
+  assert.equal(hero.items.get("t").system.quantity, 4);
   assert.equal(made.flags["acks-extras"].gear.wornAt, "", "the divided-off part is carried, not worn");
   assert.equal(hero.items.get("t").flags["acks-extras"].gear.wornAt, "belt");
 });
@@ -1464,7 +1464,7 @@ await test("a divided stack joins back into the row it came off", async () => {
   assert.deepEqual(purse(hero), ["Gold ×12"]);
 });
 await test("two rows join only when they are one thing in one place", async () => {
-  const torch = (id, qty, flags = {}) => ({ _id: id, name: "Torch", type: "item", img: "torch.webp", system: { cost: 1, weight6: 1, quantity: { value: qty, max: 0 } }, flags });
+  const torch = (id, qty, flags = {}) => ({ _id: id, name: "Torch", type: "item", img: "torch.webp", system: { cost: 1, weight6: 1, quantity: qty }, flags });
   const packed = { "acks-extras": { containedIn: "pack" } };
   const hero = makeActor({
     id: "hero",
@@ -1483,7 +1483,7 @@ await test("two rows join only when they are one thing in one place", async () =
   assert.equal(await joinStacks(item("t3"), item("t1")), null, "a packed stack is not the loose one");
   assert.equal(await joinStacks(item("sw"), item("t1")), null, "what does not stack does not join");
   assert.equal(hero.writes + other.writes, 0, "a refusal writes nothing");
-  assert.equal((await joinStacks(item("t2"), item("t1"))).system.quantity.value, 6, "identical stacks of anything join");
+  assert.equal((await joinStacks(item("t2"), item("t1"))).system.quantity, 6, "identical stacks of anything join");
   assert.equal(hero.items.get("t2"), undefined);
 });
 await test("plain-number stacks join, and identical swords and armour join as they would stack", async () => {
@@ -1685,7 +1685,7 @@ await test("coin with no actor behind it lands on the row of its kind, an empty 
 });
 await test("the guard takes coin from elsewhere and nothing else", async () => {
   const hero = makeActor({ id: "hero", items: [gold(5, { _id: "g" })] });
-  const other = makeActor({ id: "other", items: [{ _id: "rope", name: "Rope", type: "item", system: { quantity: { value: 1, max: 0 }, weight6: 2 } }] });
+  const other = makeActor({ id: "other", items: [{ _id: "rope", name: "Rope", type: "item", system: { quantity: 1, weight6: 2 } }] });
   const card = new Card(hero);
   assert.equal(await card._onDropItem({}, hero.items.get("g")), hero.items.get("g"));
   assert.deepEqual([card.sorted, purse(hero), hero.writes], [1, ["Gold ×5"], 0], "a drop within one actor is the base class's re-sort");
@@ -1693,7 +1693,7 @@ await test("the guard takes coin from elsewhere and nothing else", async () => {
   assert.ok(hero.items.get("rope") && other.items.get("rope"), "anything else is still Foundry's copy");
 });
 await test("a sheet whose actor carries nothing takes no coin: it is neither moved nor copied", async () => {
-  const giver = makeActor({ id: "giver", items: [gold(5, { _id: "pile" }), { _id: "rope", name: "Rope", type: "item", system: { quantity: { value: 1, max: 0 }, weight6: 2 } }] });
+  const giver = makeActor({ id: "giver", items: [gold(5, { _id: "pile" }), { _id: "rope", name: "Rope", type: "item", system: { quantity: 1, weight6: 2 } }] });
   for (const type of ["acks-extras.party", "acks-extras.group", "acks-extras.faction", "acks-extras.template"]) {
     const band = makeActor({ id: "band", type });
     assert.equal(await new Card(band)._onDropItem({}, giver.items.get("pile")), null);
@@ -1732,7 +1732,7 @@ await test("where libWrapper is loaded the guard is registered through it, not a
   const wrapped = async () => { fell++; return "base"; };
   assert.equal(await calls[0][2].call(sheet, wrapped, {}, giver.items.get("pile")), null);
   assert.deepEqual([purse(giver), purse(taker), fell], [[], ["Gold ×5"], 0]);
-  assert.equal(await calls[0][2].call(sheet, wrapped, {}, makeItem({ name: "Rope", type: "item", system: { quantity: { value: 1 } } })), "base");
+  assert.equal(await calls[0][2].call(sheet, wrapped, {}, makeItem({ name: "Rope", type: "item", system: { quantity: 1 } })), "base");
   assert.equal(fell, 1, "anything that is not coin from elsewhere reaches the wrapped method");
 });
 await test("a sheet with a drop handler of its own lands coin by the same statement", async () => {

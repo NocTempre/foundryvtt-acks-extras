@@ -46,15 +46,15 @@ const ta = async (name, fn) => {
 const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
 
 /** An item document with a stack, a cost and the writes `divideStack` and a delete make. */
-function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg", flat = false, type, effects } = {}) {
+function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg", type, effects } = {}) {
   const row = {
     documentName: "Item",
     name,
     img,
     ...(type ? { type } : {}),
     ...(effects ? { effects } : {}),
-    // `flat` is the system's current shape, a plain whole number; the default is the `{value}` object an older copy keeps.
-    system: { cost, quantity: flat ? qty : { value: qty, max: 0 } },
+    // The system's shape: a plain whole number.
+    system: { cost, quantity: qty },
     flags: {},
     deleted: false,
     parent: null,
@@ -78,8 +78,7 @@ function holder(...rows) {
   const made = [];
   const h = {
     async createEmbeddedDocuments(_type, [data]) {
-      const flat = typeof data.system.quantity === "number";
-      const row = item(data.name, { cost: data.system.cost, qty: flat ? data.system.quantity : data.system.quantity.value, img: data.img, flat, type: data.type });
+      const row = item(data.name, { cost: data.system.cost, qty: data.system.quantity, img: data.img, type: data.type });
       row.parent = h;
       made.push(row);
       return [row];
@@ -162,7 +161,7 @@ t("a creature is the sum of its component items, whatever bars its XP", () => {
 });
 
 t("a creature's component items count by their own stacks unless the caller counts otherwise", () => {
-  const stacked = [{ c: true, system: { cost: 10, quantity: { value: 3 } } }, { c: true, system: { cost: 4 } }];
+  const stacked = [{ c: true, system: { cost: 10, quantity: 3 } }, { c: true, system: { cost: 4 } }];
   const v = value.creatureValue({}, { items: stacked, isComponent: (i) => i.c, xpOf: () => 999 });
   assert.equal(v.gp, 34, "3 x 10 for the stack, 1 x 4 for the item that does not stack");
 });
@@ -273,13 +272,13 @@ await ta("applying a plan spends a whole stack by a delete and a part of one by 
     async (u) => docs[u] ?? null,
   );
   assert.equal(whole.deleted, true);
-  assert.deepEqual([part.deleted, part.system.quantity.value, made.length, made[0].deleted, made[0].system.quantity.value], [false, 3, 1, true, 2]);
+  assert.deepEqual([part.deleted, part.system.quantity, made.length, made[0].deleted, made[0].system.quantity], [false, 3, 1, true, 2]);
   assert.deepEqual(out.spent, ["whole", "part"]);
 });
 
 await ta("applying a plan to plain-number gear spends a whole stack by a delete and a part of one by dividing it", async () => {
-  const whole = item("Whole", { qty: 3, flat: true, type: "item" });
-  const part = item("Part", { qty: 5, flat: true, type: "item" });
+  const whole = item("Whole", { qty: 3, type: "item" });
+  const part = item("Part", { qty: 5, type: "item" });
   const { made } = holder(whole, part);
   const docs = { whole, part };
   const out = await applySettlement(
@@ -292,9 +291,9 @@ await ta("applying a plan to plain-number gear spends a whole stack by a delete 
 });
 
 await ta("a weapon or armour row is spent like any stack: a part of it by dividing, all of it by a delete", async () => {
-  const one = item("Sword", { qty: 1, flat: true, type: "weapon" });
-  const three = item("Spears", { qty: 3, flat: true, type: "weapon" });
-  const mail = item("Mail", { qty: 2, flat: true, type: "armor" });
+  const one = item("Sword", { qty: 1, type: "weapon" });
+  const three = item("Spears", { qty: 3, type: "weapon" });
+  const mail = item("Mail", { qty: 2, type: "armor" });
   const { made } = holder(one, three, mail);
   const docs = { one, three, mail };
   const out = await applySettlement(
@@ -307,7 +306,7 @@ await ta("a weapon or armour row is spent like any stack: a part of it by dividi
 });
 
 await ta("a row with effects of its own is one entry that is valued and spent whole", async () => {
-  const spears = item("Spears", { cost: 2, qty: 3, flat: true, type: "weapon", effects: [{ _id: "e" }] });
+  const spears = item("Spears", { cost: 2, qty: 3, type: "weapon", effects: [{ _id: "e" }] });
   const { made } = holder(spears);
   const entry = (await bucket.entryFromDrop({ type: "Item", uuid: "s" }, async () => spears)).entry;
   assert.deepEqual([entry.qty, entry.cap], [1, 1], "it cannot be counted off");
@@ -317,10 +316,10 @@ await ta("a row with effects of its own is one entry that is valued and spent wh
 });
 
 await ta("a weapon row is an entry of its stack, valued per unit; plain-number gear likewise", async () => {
-  const spears = item("Spears", { cost: 2, qty: 3, flat: true, type: "weapon" });
-  const sword = item("Sword", { cost: 2, qty: 1, flat: true, type: "weapon" });
-  const mail = item("Mail", { cost: 2, qty: 2, flat: true, type: "armor" });
-  const torches = item("Torches", { cost: 2, qty: 4, flat: true, type: "item" });
+  const spears = item("Spears", { cost: 2, qty: 3, type: "weapon" });
+  const sword = item("Sword", { cost: 2, qty: 1, type: "weapon" });
+  const mail = item("Mail", { cost: 2, qty: 2, type: "armor" });
+  const torches = item("Torches", { cost: 2, qty: 4, type: "item" });
   const docs = { spears, sword, mail, torches };
   const got = Object.fromEntries(await Promise.all(Object.keys(docs).map(async (k) => [k, (await bucket.entryFromDrop({ type: "Item", uuid: k }, async () => docs[k])).entry])));
   assert.deepEqual([got.spears.qty, got.spears.cap, got.spears.value.gp, got.spears.value.each], [3, 3, 6, 2], "three spears are an entry of three");

@@ -1327,7 +1327,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     async evaluate() { thrown.push(this.formula); this.total = rigged[this.formula] ?? next; return this; }
   };
   const plain = (data) => ({ ...data, toObject() { return this; } });
-  const sacks = plain({ _id: "sacks", id: "sacks", type: "item", name: "Sacks", flags: { [MODULE_ID]: { markets: { merchandise: true, category: "salt" } } }, system: { quantity: { value: 12 }, cost: 20, weight6: 0 } });
+  const sacks = plain({ _id: "sacks", id: "sacks", type: "item", name: "Sacks", flags: { [MODULE_ID]: { markets: { merchandise: true, category: "salt" } } }, system: { quantity: 12, cost: 20, weight6: 0 } });
   const blade = plain({ _id: "blade", id: "blade", type: "weapon", name: "Blade", system: { cost: 10, weight6: 18 } });
   const trader = { uuid: "Actor.trader", id: "trader", name: "Trader", items: [sacks, blade], testUserPermission: () => true };
   const place = (gateToll, prices = [{ category: "salt", monthStartTime: monthStart, priceCp: 2500 }]) => ({

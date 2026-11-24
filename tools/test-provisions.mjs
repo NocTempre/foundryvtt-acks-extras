@@ -98,7 +98,7 @@ ok("the forecast says how many days the packs hold", () => {
    pattern did not match, and the forecast read zero while the packs were full. */
 const item = (name, qty, foraged = null) => ({
   name,
-  system: { quantity: { value: qty } },
+  system: { quantity: qty },
   getFlag: (scope, key) => (scope === "acks-extras" && key === "foraged" ? foraged : undefined),
 });
 const carrying = (...items) => ({ items });

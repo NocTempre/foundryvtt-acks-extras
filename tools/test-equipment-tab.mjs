@@ -55,7 +55,7 @@ const itemOf = (id, name, { qty, flags = {}, contained, stamp } = {}) => ({
   name,
   stamp,
   // A physical item, as `isGoods` reads one: it carries a cost and a weight.
-  system: { cost: 0, weight6: 0, ...(qty === undefined ? {} : { quantity: { value: qty } }) },
+  system: { cost: 0, weight6: 0, ...(qty === undefined ? {} : { quantity: qty }) },
   getFlag: flagged({ "acks-extras": { ...flags, ...(contained ? { containedIn: contained } : {}) } }),
 });
 

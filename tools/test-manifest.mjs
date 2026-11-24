@@ -19,7 +19,7 @@ const load = (id, category, stones, { cost = 10, owner = null, name = "Sack", ty
   _id: id,
   name,
   type,
-  system: { quantity: { value: stones, max: 0 }, cost },
+  system: { quantity: stones, cost },
   flags: {
     "acks-extras": {
       markets: merchandise ? { merchandise: true, category } : {},
@@ -103,14 +103,14 @@ const took = await removeLoads(holder, "alpha", 5, { traderUuid: "Actor.me" });
 check(() => {
   assert.equal(took.ok, true);
   assert.equal(took.removed.length, 2, "a draw over two stacks snapshots both");
-  assert.equal(took.removed[0].system.quantity.value, 3);
-  assert.equal(took.removed[1].system.quantity.value, 2);
+  assert.equal(took.removed[0].system.quantity, 3);
+  assert.equal(took.removed[1].system.quantity, 2);
   assert.ok(took.removed.every((r) => !("_id" in r)), "snapshots carry no id");
   assert.deepEqual(took.removed[0].flags["acks-extras"].markets, { merchandise: true, category: "alpha" }, "the flag travels inside the snapshot");
   assert.deepEqual(holder.log.deletes, ["s1"], "the emptied stack is deleted");
-  assert.deepEqual(holder.log.updates, [{ _id: "s2", "system.quantity.value": 2 }], "the broken stack keeps its remainder");
+  assert.deepEqual(holder.log.updates, [{ _id: "s2", "system.quantity": 2 }], "the broken stack keeps its remainder");
 });
-check(() => assert.equal(holder.items[0].system.quantity.value, 3, "the live stack data is not mutated by the snapshot"));
+check(() => assert.equal(holder.items[0].system.quantity, 3, "the live stack data is not mutated by the snapshot"));
 
 const shortHolder = holderOf([load("s1", "alpha", 3), load("s3", "alpha", 2, { owner: "Actor.other" })]);
 const short = await removeLoads(shortHolder, "alpha", 4);

@@ -119,7 +119,7 @@ const LISTS = {
 const knownItemData = () => ({
   name: "Delta item",
   type: "item",
-  system: { quantity: { value: 1 } },
+  system: { quantity: 1 },
   flags: { [MODULE_ID]: { markets: { magic: true, detected: true, identified: "full", cursed: true, curseKnown: true } } },
 });
 const knownTruth = () => normalizeTruth({ source: { uuid: "Item.d", data: knownItemData() }, pool: POOL.item, label: "Delta item", magical: true, detected: true, identified: "full" });
@@ -408,7 +408,7 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
     name: "Alpha widget",
     type: "item",
     flags: { [MODULE_ID]: { markets: { magic: true, detected: true, identified: "full", curseKnown: true } } },
-    toObject() { return { name: this.name, type: "item", system: { quantity: { value: 1 } }, flags: structuredClone(this.flags) }; },
+    toObject() { return { name: this.name, type: "item", system: { quantity: 1 }, flags: structuredClone(this.flags) }; },
   };
   globalThis.fromUuid = async (uuid) => (uuid === "Item.alpha" ? alphaItem : null);
   services.register("cookbook-items", { documentOf: async (ref) => (ref === "cb.alpha" ? { uuid: "Item.alpha" } : null) });

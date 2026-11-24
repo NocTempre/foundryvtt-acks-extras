@@ -120,7 +120,7 @@ function makeActor({ id, name = id, type = "character", items = [] }) {
   return actor;
 }
 
-const goods = (name, over = {}) => ({ name, type: "item", system: { cost: 1, weight6: 6, quantity: { value: 1, max: 0 } }, ...over });
+const goods = (name, over = {}) => ({ name, type: "item", system: { cost: 1, weight6: 6, quantity: 1 }, ...over });
 const coin = (name, qty) => ({ name, type: "money", system: { coppervalue: 100, quantity: qty, quantitybank: 0 } });
 const feature = (name) => ({ name, type: "ability", system: { description: "" } });
 

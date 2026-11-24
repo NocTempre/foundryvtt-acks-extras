@@ -293,17 +293,17 @@ const gear = (extra = {}) => ({ container: { capacity: 0 }, gear: { slots: ["bac
  * gives the pack core's `equipped` field, which a transfer resets.
  */
 async function kit(hero, { worn = true, equippable = false, slot = true } = {}) {
-  const system = { subtype: "item", cost: 0, weight6: 0, quantity: { value: 1, max: 0 }, ...(equippable ? { equipped: worn } : {}) };
+  const system = { subtype: "item", cost: 0, weight6: 0, quantity: 1, ...(equippable ? { equipped: worn } : {}) };
   const flags = gear();
   if (!slot) delete flags.gear;
   else flags.gear.wornAt = worn ? "back" : "";
   const inside = { [MOD]: { containedIn: "pack1" } };
   await hero.createEmbeddedDocuments("Item", [
     { _id: "pack1", name: "Backpack", type: "item", img: "icons/pack.svg", system, flags: { [MOD]: flags } },
-    { _id: "torch1", name: "Torch", type: "item", system: { subtype: "item", cost: 0, weight6: 0, quantity: { value: 3, max: 0 } }, flags: inside },
+    { _id: "torch1", name: "Torch", type: "item", system: { subtype: "item", cost: 0, weight6: 0, quantity: 3 }, flags: inside },
     { _id: "gold1", name: "Gold", type: "money", system: { coppervalue: 100, quantity: 40, quantitybank: 0 }, flags: inside },
     { _id: "dagger1", name: "Dagger", type: "item", system: { subtype: "item", cost: 0, weight6: 0, equipped: false }, flags: inside },
-    { _id: "rope1", name: "Rope", type: "item", system: { subtype: "item", cost: 0, weight6: 0, quantity: { value: 1, max: 0 } }, flags: {} },
+    { _id: "rope1", name: "Rope", type: "item", system: { subtype: "item", cost: 0, weight6: 0, quantity: 1 }, flags: {} },
   ], { keepId: true });
   return hero.items.get("pack1");
 }

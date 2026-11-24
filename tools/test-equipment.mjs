@@ -830,9 +830,8 @@ const { encumbranceDelta6, contentsWeight6, overCapacity, containerReport, isCon
 
 const gear = (name, w6, over = {}) => {
   const type = over.type ?? "item";
-  // `flat` is the system's current shape, a plain whole number on every
-  // Physical Item; the default keeps the `{value}` object an older copy carries.
-  const system = { cost: over.cost ?? 0, weight6: w6, quantity: over.flat ? (over.qty ?? 1) : { value: over.qty ?? 1 }, subtype: over.subtype };
+  // The system's shape: a plain whole number on every Physical Item.
+  const system = { cost: over.cost ?? 0, weight6: w6, quantity: over.qty ?? 1, subtype: over.subtype };
   // Core declares `equipped` on weapon and armor ONLY, and Foundry prunes keys
   // outside a type's schema — so a fixture carrying it on a plain `item` claims
   // a field the system cannot store. That lie is exactly how the adventurer's
@@ -909,40 +908,43 @@ const coreCounts = (items) =>
     0,
   );
 const closes = (items) => coreCounts(items) + encumbranceDelta6(withItems(items)) === items.reduce((sum, i) => sum + enc6(i), 0);
-const flat = (name, w6, over = {}) => gear(name, w6, { ...over, flat: true });
 const dartsFlags = { gear: { per: 3 } };
 
-check("a plain-number quantity is read by the stack count", stackOf(flat("Rope", 6, { qty: 5 })) === 5);
-check("a weapon with a quantity of 1 weighs its weight", w6Of(flat("Sword", 6, { type: "weapon", qty: 1 })) === 6);
-check("a weapon with a quantity of 3 weighs three times its weight", w6Of(flat("Sword", 6, { type: "weapon", qty: 3 })) === 18);
-check("armour multiplies by its quantity too", w6Of(flat("Mail", 10, { type: "armor", qty: 2 })) === 20);
-check("a stack of gear multiplies", w6Of(flat("Torches", 2, { qty: 4 })) === 8);
-check("core counts a weapon at weight times quantity", coreWeight6Of(flat("Sword", 6, { type: "weapon", qty: 3 })) === 18);
-check("core counts armour at weight times quantity", coreWeight6Of(flat("Mail", 10, { type: "armor", qty: 2 })) === 20);
-check("core counts no clothing", coreWeight6Of(flat("Robes", 6, { qty: 4, subtype: "clothing" })) === 0);
+check("a plain-number quantity is read by the stack count", stackOf(gear("Rope", 6, { qty: 5 })) === 5);
+check("a weapon with a quantity of 1 weighs its weight", w6Of(gear("Sword", 6, { type: "weapon", qty: 1 })) === 6);
+check("a weapon with a quantity of 3 weighs three times its weight", w6Of(gear("Sword", 6, { type: "weapon", qty: 3 })) === 18);
+check("armour multiplies by its quantity too", w6Of(gear("Mail", 10, { type: "armor", qty: 2 })) === 20);
+check("a stack of gear multiplies", w6Of(gear("Torches", 2, { qty: 4 })) === 8);
+check("core counts a weapon at weight times quantity", coreWeight6Of(gear("Sword", 6, { type: "weapon", qty: 3 })) === 18);
+check("core counts armour at weight times quantity", coreWeight6Of(gear("Mail", 10, { type: "armor", qty: 2 })) === 20);
+check("core counts no clothing", coreWeight6Of(gear("Robes", 6, { qty: 4, subtype: "clothing" })) === 0);
 check("core counts no coin", coreWeight6Of({ type: "money", system: { quantity: 80, coppervalue: 1 } }) === 0);
-check("an item copy kept in the old object shape still weighs by its count", w6Of(gear("Torches", 2, { qty: 4 })) === 8);
-check("a stack of gear closes", closes([flat("Torches", 2, { qty: 4 })]));
-check("a bundled quiver closes", closes([flat("Quiver, 7 Arrows", 1, { qty: 7, flags: { gear: { per: 7 } } })]));
-check("a part-used bundled quiver weighs whole bundles and closes", closes([flat("Quiver, 7 Arrows", 1, { qty: 15, flags: { gear: { per: 7 } } })]));
-check("a weapon with a quantity of 1 closes", closes([flat("Sword", 6, { type: "weapon", qty: 1 })]));
-check("a weapon with a quantity of 3 needs no correction", encumbranceDelta6(withItems([flat("Sword", 6, { type: "weapon", qty: 3 })])) === 0);
-check("a bundled weapon stack is corrected like any bundle", encumbranceDelta6(withItems([flat("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags })])) === 2 - 6);
-check("a bundled weapon stack closes", closes([flat("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags })]));
-check("armour with a quantity of 2 closes", closes([flat("Mail", 10, { type: "armor", qty: 2 })]));
-check("bundled armour closes", closes([flat("Mail", 10, { type: "armor", qty: 4, flags: { gear: { per: 2 } } })]));
-check("clothing closes whatever its quantity and bundle", closes([flat("Robes", 6, { qty: 4, subtype: "clothing", flags: { gear: { per: 4 } } })]));
+{
+  // quantity-shape-ok: the subject is the seam still answering an item copy saved in a module flag before the system flattened the field
+  const savedCopy = { ...gear("Torches", 2), system: { cost: 0, weight6: 2, quantity: { value: 4 } } };
+  check("an item copy kept in the old object shape still weighs by its count", w6Of(savedCopy) === 8);
+}
+check("a stack of gear closes", closes([gear("Torches", 2, { qty: 4 })]));
+check("a bundled quiver closes", closes([gear("Quiver, 7 Arrows", 1, { qty: 7, flags: { gear: { per: 7 } } })]));
+check("a part-used bundled quiver weighs whole bundles and closes", closes([gear("Quiver, 7 Arrows", 1, { qty: 15, flags: { gear: { per: 7 } } })]));
+check("a weapon with a quantity of 1 closes", closes([gear("Sword", 6, { type: "weapon", qty: 1 })]));
+check("a weapon with a quantity of 3 needs no correction", encumbranceDelta6(withItems([gear("Sword", 6, { type: "weapon", qty: 3 })])) === 0);
+check("a bundled weapon stack is corrected like any bundle", encumbranceDelta6(withItems([gear("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags })])) === 2 - 6);
+check("a bundled weapon stack closes", closes([gear("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags })]));
+check("armour with a quantity of 2 closes", closes([gear("Mail", 10, { type: "armor", qty: 2 })]));
+check("bundled armour closes", closes([gear("Mail", 10, { type: "armor", qty: 4, flags: { gear: { per: 2 } } })]));
+check("clothing closes whatever its quantity and bundle", closes([gear("Robes", 6, { qty: 4, subtype: "clothing", flags: { gear: { per: 4 } } })]));
 check("a mixed load closes", closes([
-  flat("Torches", 2, { qty: 4 }),
-  flat("Quiver, 7 Arrows", 1, { qty: 7, flags: { gear: { per: 7 } } }),
-  flat("Sword", 6, { type: "weapon", qty: 3 }),
-  flat("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags }),
-  flat("Mail", 10, { type: "armor", qty: 2 }),
-  flat("Robes", 6, { qty: 4, subtype: "clothing" }),
+  gear("Torches", 2, { qty: 4 }),
+  gear("Quiver, 7 Arrows", 1, { qty: 7, flags: { gear: { per: 7 } } }),
+  gear("Sword", 6, { type: "weapon", qty: 3 }),
+  gear("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags }),
+  gear("Mail", 10, { type: "armor", qty: 2 }),
+  gear("Robes", 6, { qty: 4, subtype: "clothing" }),
 ]));
 // A thrown weapon row comes off whole: core's count, the bundle correction and
 // the thrown subtraction cancel.
-const thrownDarts = flat("Darts", 1, { type: "weapon", qty: 6, flags: { ...dartsFlags, thrownAway: true } });
+const thrownDarts = gear("Darts", 1, { type: "weapon", qty: 6, flags: { ...dartsFlags, thrownAway: true } });
 check("a thrown bundled weapon row leaves no weight behind", coreCounts([thrownDarts]) + encumbranceDelta6(withItems([thrownDarts])) === 0);
 check("backpack rolls up its contents' weight", contentsWeight6(cActor, "bp") === 12);
 check("backpack under capacity (2 st of 4)", !overCapacity(cActor, pack));
@@ -1582,7 +1584,7 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const GEAR_KEY = "flags.acks-extras.gear";
   const bundled = (qty, gearFlag) => {
     const flags = gearFlag ? { gear: { ...gearFlag } } : {};
-    const it = { id: "qv" + qty, name: "Quiver, 7 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: { value: qty }, subtype: "item" }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+    const it = { id: "qv" + qty, name: "Quiver, 7 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: qty, subtype: "item" }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
     it.update = async (u) => { it.writes.push(u); };
     return it;
   };
@@ -1590,7 +1592,7 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const fresh = bundled(1);
   const freshKey = await api.annotateItem(fresh);
   check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[`${GEAR_KEY}.per`] === 7);
-  check("annotate leaves a fresh bundle's count to core", !wrote(fresh, "system.quantity.value"));
+  check("annotate leaves a fresh bundle's count to core", !wrote(fresh, "system.quantity"));
   check("annotate stamps the imported side of the retrieval list", fresh.writes[0]?.[`${GEAR_KEY}.access`] === "action");
   unregAccess("gearAccess", { priority: ACCESS_P.WORLD });
   const unlisted = bundled(1);
@@ -1599,7 +1601,7 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   registerAccess();
   const spent = bundled(7, { slots: ["belt"], access: "free", capacity: null, per: 7 });
   await api.annotateItem(spent);
-  check("a half-spent bundle keeps its count", !wrote(spent, "system.quantity.value"));
+  check("a half-spent bundle keeps its count", !wrote(spent, "system.quantity"));
   check("a declared bundle size survives re-annotation",
     !wrote(spent, `${GEAR_KEY}.per`) && spent.writes.every((u) => u[GEAR_KEY]?.per === undefined));
 
@@ -1608,7 +1610,7 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   // earlier answer from theirs.
   const doc = (name, type, gearFlag, system = {}) => {
     const flags = gearFlag ? { gear: { ...gearFlag } } : {};
-    const it = { id: name.replace(/\W/g, ""), name, type, system: { cost: 0, weight6: 1, quantity: { value: 1 }, subtype: "item", ...system }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+    const it = { id: name.replace(/\W/g, ""), name, type, system: { cost: 0, weight6: 1, quantity: 1, subtype: "item", ...system }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
     it.update = async (u) => { it.writes.push(u); };
     return it;
   };
@@ -2401,24 +2403,24 @@ const trackItem = (name, over = {}) => {
     getFlag: (_m, k) => flags[k],
     setFlag: async (_m, k, v) => { flags[k] = v; },
     unsetFlag: async (_m, k) => { delete flags[k]; },
-    update: async (u) => { for (const [p, v] of Object.entries(u)) { if (p === "system.quantity.value") sys.quantity = { ...sys.quantity, value: v }; else if (p.startsWith("flags.")) flags[p.split(".").pop()] = v; else if (p === "system.equipped") sys.equipped = v; } },
+    update: async (u) => { for (const [p, v] of Object.entries(u)) { if (p === "system.quantity") sys.quantity = v; else if (p.startsWith("flags.")) flags[p.split(".").pop()] = v; else if (p === "system.equipped") sys.equipped = v; } },
     _flags: flags, _sys: sys,
   };
 };
 
 // Firing a ammoBow decrements the matching ammoQuiver, not other ammo.
-const ammoQuiver = trackItem("Quiver, 7 Arrows", { quantity: { value: 7 }, equipped: false });
-const ammoBolts = trackItem("Case, 5 Bolts", { quantity: { value: 5 }, equipped: false });
+const ammoQuiver = trackItem("Quiver, 7 Arrows", { quantity: 7, equipped: false });
+const ammoBolts = trackItem("Case, 5 Bolts", { quantity: 5, equipped: false });
 const ammoBow = trackItem("Long Bow", { missile: true, melee: false });
 const archer = withItems([ammoBow, ammoQuiver, ammoBolts]);
 await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "missile" });
-check("firing a ammoBow spends one arrow", ammoQuiver._sys.quantity.value === 6);
-check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.value === 5);
+check("firing a ammoBow spends one arrow", ammoQuiver._sys.quantity === 6);
+check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity === 5);
 
 // --- Declaring which stack to fire (the `nocked` flag over plain-first) ---
 {
-  const plain = trackItem("Quiver, 7 Arrows", { id: "plain", quantity: { value: 7 }, equipped: false });
-  const silver = trackItem("Quiver, 7 Arrows (Silver)", { id: "silver", quantity: { value: 7 }, equipped: false, flags: { silvered: true } });
+  const plain = trackItem("Quiver, 7 Arrows", { id: "plain", quantity: 7, equipped: false });
+  const silver = trackItem("Quiver, 7 Arrows (Silver)", { id: "silver", quantity: 7, equipped: false, flags: { silvered: true } });
   const bow = trackItem("Long Bow", { missile: true, melee: false });
   const arch = withItems([bow, plain, silver]);
   arch.updateEmbeddedDocuments = async (_t, updates) => {
@@ -2433,12 +2435,12 @@ check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.val
     }
   };
   await consumeForAttack(arch, bow, classifyWeapon(bow), { type: "missile" });
-  check("plain arrows spend first by default", plain._sys.quantity.value === 6 && silver._sys.quantity.value === 7);
+  check("plain arrows spend first by default", plain._sys.quantity === 6 && silver._sys.quantity === 7);
 
   const on = await nockAmmo(arch, silver);
   check("nocking a stack reports it on", on === true && silver._flags.nocked === true);
   await consumeForAttack(arch, bow, classifyWeapon(bow), { type: "missile" });
-  check("a declared stack fires ahead of plain", silver._sys.quantity.value === 6 && plain._sys.quantity.value === 6);
+  check("a declared stack fires ahead of plain", silver._sys.quantity === 6 && plain._sys.quantity === 6);
 
   await nockAmmo(arch, plain);
   check("declaring another stack un-declares the first", plain._flags.nocked === true && silver._flags.nocked === undefined);
@@ -2448,14 +2450,14 @@ check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.val
 
   // A declaration dies with its stack.
   await nockAmmo(arch, silver);
-  silver._sys.quantity = { value: 1 };
+  silver._sys.quantity = 1;
   await consumeItem(silver, 1);
   check("an emptied stack drops its declaration", silver._flags.nocked === undefined);
 }
 
 // A melee attack consumes nothing.
 await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "melee" });
-check("a melee attack spends no ammo", ammoQuiver._sys.quantity.value === 6);
+check("a melee attack spends no ammo", ammoQuiver._sys.quantity === 6);
 
 // A single thrown weapon is MARKED thrown (not destroyed), unequipped.
 const axe = trackItem("Hand Axe", { melee: true, missile: true, special: { thrown: true } });
@@ -2466,31 +2468,31 @@ check("a thrown weapon is unequipped", axe._sys.equipped === false);
 check("a thrown weapon is NOT destroyed", !!thrower.items.find((i) => i.id === axe.id));
 
 // A stackable thrown weapon decrements instead of being marked.
-const ammoDarts = trackItem("Darts", { melee: true, missile: true, quantity: { value: 5 }, special: { thrown: true } });
+const ammoDarts = trackItem("Darts", { melee: true, missile: true, quantity: 5, special: { thrown: true } });
 await consumeForAttack(withItems([ammoDarts]), ammoDarts, classifyWeapon(ammoDarts), { type: "missile" });
-check("a stackable thrown weapon decrements", ammoDarts._sys.quantity.value === 4);
+check("a stackable thrown weapon decrements", ammoDarts._sys.quantity === 4);
 check("a stackable thrown weapon is not marked thrown-away", !isThrownAway(ammoDarts));
 
 // A pure-thrown SPLASH consumable (military oil) SHATTERS — spent, not marked
 // for recovery (you cannot pick up a broken flask). This is the gap the old
 // `profile.melee` gate left open: oil is missile-only, so it was never consumed.
-const oilFlask = trackItem("Military Oil", { missile: true, melee: false, quantity: { value: 1 } });
+const oilFlask = trackItem("Military Oil", { missile: true, melee: false, quantity: 1 });
 await consumeForAttack(withItems([oilFlask]), oilFlask, classifyWeapon(oilFlask), { type: "missile" });
-check("a single splash flask is spent (0), not thrown-away", oilFlask._sys.quantity.value === 0 && !isThrownAway(oilFlask));
+check("a single splash flask is spent (0), not thrown-away", oilFlask._sys.quantity === 0 && !isThrownAway(oilFlask));
 
-const oilStack = trackItem("Military Oil", { missile: true, melee: false, quantity: { value: 3 } });
+const oilStack = trackItem("Military Oil", { missile: true, melee: false, quantity: 3 });
 await consumeForAttack(withItems([oilStack]), oilStack, classifyWeapon(oilStack), { type: "missile" });
-check("a stack of splash flasks decrements", oilStack._sys.quantity.value === 2);
+check("a stack of splash flasks decrements", oilStack._sys.quantity === 2);
 
 // A pure-thrown REUSABLE weapon (bola) is recoverable, unlike a splash flask.
-const bola = trackItem("Bola", { missile: true, melee: false, quantity: { value: 1 } });
+const bola = trackItem("Bola", { missile: true, melee: false, quantity: 1 });
 await consumeForAttack(withItems([bola]), bola, classifyWeapon(bola), { type: "missile" });
 check("a single reusable thrown weapon (bola) is marked thrown-away", isThrownAway(bola));
 
 // consumeItem: the shared decrement primitive the formation feature reuses.
-const torchStack = trackItem("Torch", { quantity: { value: 6 } });
-check("consumeItem decrements a stack and returns the remainder", (await consumeItem(torchStack, 1)) === 5 && torchStack._sys.quantity.value === 5);
-check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quantity: { value: 0 } }), 1)) === 0);
+const torchStack = trackItem("Torch", { quantity: 6 });
+check("consumeItem decrements a stack and returns the remainder", (await consumeItem(torchStack, 1)) === 5 && torchStack._sys.quantity === 5);
+check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quantity: 0 }), 1)) === 0);
 
 // A quantity kept as a plain whole number is read where it lies and written back to the same field.
 {
@@ -2700,7 +2702,7 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
 }
 
 // A thrown-away weapon's weight leaves the encumbrance total until recovered.
-const heavyAxe = { ...trackItem("Hand Axe", { flags: { thrownAway: true } }), type: "weapon", system: { weight6: 6, cost: 5, quantity: { value: 1 } } };
+const heavyAxe = { ...trackItem("Hand Axe", { flags: { thrownAway: true } }), type: "weapon", system: { weight6: 6, cost: 5, quantity: 1 } };
 heavyAxe.getFlag = (_m, k) => (k === "thrownAway" ? true : undefined);
 const encActor = withItems([heavyAxe]);
 check("a thrown-away weapon subtracts its weight from encumbrance", encumbranceDelta6(encActor) === -6);
@@ -2711,9 +2713,9 @@ check("recover clears the thrown state", !isThrownAway(axe) && recovered.include
 
 // Off by setting.
 SETTINGS_STATE.ammoTracking = false;
-const q2 = trackItem("Quiver, 7 Arrows", { quantity: { value: 7 }, equipped: false });
+const q2 = trackItem("Quiver, 7 Arrows", { quantity: 7, equipped: false });
 await consumeForAttack(withItems([ammoBow, q2]), ammoBow, classifyWeapon(ammoBow), { type: "missile" });
-check("ammo tracking off → nothing consumed", q2._sys.quantity.value === 7);
+check("ammo tracking off → nothing consumed", q2._sys.quantity === 7);
 SETTINGS_STATE.ammoTracking = true;
 
 /* ---------------------------------------------------------------------- */
@@ -2823,30 +2825,30 @@ check("readied torch carries no quantity (a single wielded torch)", readied.syst
 check("readiedWeaponData ignores non-preparable gear", readiedWeaponData({ name: "Sword" }) === null && readiedWeaponData({ name: "Lantern" }) === null);
 // Core's own compendium stack is named "Torches (6)": it readies as the
 // table's torch, under the torch's name so the readied weapon classifies as one.
-const coreStack = readiedWeaponData({ name: "Torches (6)", img: "t.png", system: { cost: 1, weight6: 1, quantity: { value: 6 } } });
+const coreStack = readiedWeaponData({ name: "Torches (6)", img: "t.png", system: { cost: 1, weight6: 1, quantity: 6 } });
 check("core's torch stack readies under the torch's own name", coreStack?.type === "weapon" && coreStack.system.damage.base.formula === FIXTURE_ROWS.torch.damage && coreStack.name === "Torch" && coreStack.flags["acks-extras"].light);
 
 const created = [];
 const torchActor = { createEmbeddedDocuments: async (_t, arr) => { created.push(...arr); return arr.map((d, i) => ({ ...d, id: "new" + i })); } };
-const stack = { name: "Torch", img: "t.png", system: { quantity: { value: 3 }, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { if (u["system.quantity.value"] != null) this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
+const stack = { name: "Torch", img: "t.png", system: { quantity: 3, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { if (u["system.quantity"] != null) this.system.quantity = u["system.quantity"]; }, async delete() { this.deleted = true; } };
 const madeTorch = await prepareTorch(torchActor, stack);
 check("prepareTorch creates a weapon-torch", madeTorch && madeTorch.type === "weapon" && madeTorch.system.damage.base.formula === FIXTURE_ROWS.torch.damage);
-check("prepareTorch decrements the stack (3 → 2), keeps it", stack.system.quantity.value === 2 && stack.deleted === false);
-const lastTorch = { name: "Torch", img: "t.png", system: { quantity: { value: 1 } }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
+check("prepareTorch decrements the stack (3 → 2), keeps it", stack.system.quantity === 2 && stack.deleted === false);
+const lastTorch = { name: "Torch", img: "t.png", system: { quantity: 1 }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity = u["system.quantity"]; }, async delete() { this.deleted = true; } };
 await prepareTorch(torchActor, lastTorch);
-check("prepareTorch deletes the stack when the last torch is drawn", lastTorch.system.quantity.value === 0 && lastTorch.deleted === true);
+check("prepareTorch deletes the stack when the last torch is drawn", lastTorch.system.quantity === 0 && lastTorch.deleted === true);
 check("a readied torch is carried, not drawn, unless asked", created.every((d) => d.system.equipped === false));
 // A stack's weight covers a whole bundle; the one drawn carries its own share.
-const bundledTorches = readiedWeaponData({ name: "Torches (6)", img: "t.png", flags: { "acks-extras": { gear: { per: 6 } } }, system: { cost: 1, weight6: 6, quantity: { value: 6 } } });
+const bundledTorches = readiedWeaponData({ name: "Torches (6)", img: "t.png", flags: { "acks-extras": { gear: { per: 6 } } }, system: { cost: 1, weight6: 6, quantity: 6 } });
 check("a torch drawn from a bundle carries one unit's share of its weight", bundledTorches.system.weight6 === 1);
 check("an unbundled torch keeps its stated weight", readied.system.weight6 === 1);
 // A stack dropped on a hand place, or its Equip pressed, readies one torch INTO
 // the hand: the stack is never held, so "equip a torch" is ready-and-draw.
 const drawn = [];
 const handActor = { createEmbeddedDocuments: async (_t, arr) => arr.map((d, i) => ({ ...d, id: "hand" + i, async update(u) { drawn.push(u); } })) };
-const handStack = { name: "Torches (6)", img: "t.png", system: { quantity: { value: 2 }, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
+const handStack = { name: "Torches (6)", img: "t.png", system: { quantity: 2, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity = u["system.quantity"]; }, async delete() { this.deleted = true; } };
 const inHand = await prepareTorch(handActor, handStack, { draw: true });
-check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torch" && drawn.length === 1 && drawn[0]["system.equipped"] === true && handStack.system.quantity.value === 1);
+check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torch" && drawn.length === 1 && drawn[0]["system.equipped"] === true && handStack.system.quantity === 1);
 
 /* ---------------------------------------------------------------------- */
 /*  #3 Unarmed strike (RR p299: melee only, its die imported)               */
@@ -3443,7 +3445,7 @@ const PARCHMENT = {
   pattern: /parchment/i,
   name: "Parchment",
   label: "kit.parchment",
-  fallback: { system: { quantity: { value: 1, max: 0 }, cost: 1, weight6: 0 } },
+  fallback: { system: { quantity: 1, cost: 1, weight6: 0 } },
 };
 
 // No world items and no compendia in this harness, so every grant falls back to
@@ -3498,11 +3500,11 @@ check("only the missing half is supplied", halfKitted.items.length === 2 && half
 // pattern matches that holds the most. Names and counts invented.
 {
   const saved = { items: globalThis.game.items, packs: globalThis.game.packs };
-  const doc = (name, qty) => ({ name, toObject: () => ({ name, type: "item", system: { quantity: { value: qty }, cost: 2 } }) });
+  const doc = (name, qty) => ({ name, toObject: () => ({ name, type: "item", system: { quantity: qty, cost: 2 } }) });
   const packOf = (collection, rows) => ({
     collection,
     documentName: "Item",
-    getIndex: async () => rows.map(([id, name, qty]) => ({ _id: id, name, system: qty == null ? {} : { quantity: { value: qty } } })),
+    getIndex: async () => rows.map(([id, name, qty]) => ({ _id: id, name, system: qty == null ? {} : { quantity: qty } })),
     getDocument: async (id) => { const [, name, qty] = rows.find(([rid]) => rid === id); return doc(name, qty ?? 1); },
   });
   const { findGearByPattern } = await import(new URL("grant.mjs", S));
@@ -3515,7 +3517,7 @@ check("only the missing half is supplied", halfKitted.items.length === 2 && half
   check("the largest matching stack across the packs answers", (await findGearByPattern(STICK.pattern))?.name === "Glowsticks, bundle");
   const lit = grantee();
   await grantGear(lit, [STICK]);
-  check("a nameless spec grants that stack", lit.items.length === 1 && lit.items[0].system.quantity.value === 9);
+  check("a nameless spec grants that stack", lit.items.length === 1 && lit.items[0].system.quantity === 9);
   globalThis.game.items = [doc("Glowstick, the Judge's", 2)];
   check("the world's items answer first, a Judge's own over any pack", (await findGearByPattern(STICK.pattern))?.name === "Glowstick, the Judge's");
   globalThis.game.items = [];

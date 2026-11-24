@@ -197,7 +197,7 @@ t("danglingRefCheck finds the references that no longer resolve, and clears only
 /*  The embedded bundle's unpack                                        */
 /* -------------------------------------------------------------------- */
 
-const arrows = (q) => ({ _id: `arrows${q}`, name: "Arrows", type: "item", img: "a.png", system: { quantity: { value: q, max: 0 } } });
+const arrows = (q) => ({ _id: `arrows${q}`, name: "Arrows", type: "item", img: "a.png", system: { quantity: q } });
 const sword = () => ({ name: "Sword", type: "weapon", img: "s.png", system: { damage: "1d8" } });
 const bundle = (id, flags = {}) => ({ _id: id, name: "Sword ×2", type: "bundle", flags, system: { itemList: [{ uuid: "Item.s", name: "Sword", type: "weapon", quantity: 2 }] } });
 
@@ -213,7 +213,7 @@ t("an unpack's stage is read off the bundle and the items beside it", () => {
 t("the plan merges stackables and writes the journal in one call, and stamps every copy", () => {
   const goods = [arrows(10), sword(), sword()].map(arrivalOf);
   const { updates, creates } = planEmbeddedUnpack("B1", goods, [arrows(5)]);
-  assert.deepEqual(updates[0], { _id: "arrows5", "system.quantity.value": 15 });
+  assert.deepEqual(updates[0], { _id: "arrows5", "system.quantity": 15 });
   const journal = updates.at(-1);
   assert.equal(journal._id, "B1");
   assert.equal(journal[`flags.${LIB_ID}.${UNPACK_JOURNAL}`].merged, true);
@@ -274,7 +274,7 @@ t("an unpack stopped after any write is finished by the next run, and nothing ar
     assert.equal(items.filter((i) => i.name === "Sword").length, 2, `stop after ${stopAfter}: two swords, not four`);
     const quiver = items.filter((i) => i.name === "Arrows");
     assert.equal(quiver.length, 1);
-    assert.equal(quiver[0].system.quantity.value, 15, `stop after ${stopAfter}: the arrows merged once`);
+    assert.equal(quiver[0].system.quantity, 15, `stop after ${stopAfter}: the arrows merged once`);
   }
 });
 
@@ -283,7 +283,7 @@ t("the provenance stamp never splits a stack, and does not travel with the goods
   assert.equal(stackSignature(stamped), stackSignature(arrows(3)));
   const { creates, targetUpdates } = planStackMerge([arrivalOf(arrows(2))], [stamped]);
   assert.deepEqual(creates, []);
-  assert.deepEqual(targetUpdates, [{ _id: "arrows3", "system.quantity.value": 5 }]);
+  assert.deepEqual(targetUpdates, [{ _id: "arrows3", "system.quantity": 5 }]);
   assert.equal(arrivalOf(stamped).flags[LIB_ID][UNPACKED_FROM], undefined);
 });
 

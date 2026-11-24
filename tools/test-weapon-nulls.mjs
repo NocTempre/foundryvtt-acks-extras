@@ -202,7 +202,7 @@ check("equipmentClass answers null for a name no row holds", equipmentClass("Lan
 // --- the annotate writer refuses what no row states ----------------------------------------
 /** An item with a recorded update. */
 const doc = (name, system = {}, flags = {}) => {
-  const it = { id: name.replace(/\W/g, ""), name, type: "weapon", system: { cost: 0, weight6: 1, quantity: { value: 1 }, subtype: "item", melee: true, size: "na", ...system }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+  const it = { id: name.replace(/\W/g, ""), name, type: "weapon", system: { cost: 0, weight6: 1, quantity: 1, subtype: "item", melee: true, size: "na", ...system }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
   it.update = async (u) => { it.writes.push(u); };
   return it;
 };
@@ -233,7 +233,7 @@ check("with no rows annotate writes no weapon figure and no identity", (() => {
 })());
 
 // --- a container with no imported capacity is still a container ------------------------------
-const holder = (gear) => ({ id: "h1", name: "Zorg sack", type: "item", system: { cost: 0, weight6: 1, quantity: { value: 1 } }, flags: { "acks-extras": { gear } }, getFlag: (_m, k) => (k === "gear" ? gear : undefined), effects: [] });
+const holder = (gear) => ({ id: "h1", name: "Zorg sack", type: "item", system: { cost: 0, weight6: 1, quantity: 1 }, flags: { "acks-extras": { gear } }, getFlag: (_m, k) => (k === "gear" ? gear : undefined), effects: [] });
 const holds = holder({ holds: true });
 check("an item that declares it holds gear holds gear", model.holdsGear(holds) === true && model.isContainer(holds) === true);
 check("it states no capacity and the stated-capacity check says so", model.capacityOf(holds) === null && model.capacityStated(holds) === false);

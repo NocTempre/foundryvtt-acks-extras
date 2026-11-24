@@ -30,7 +30,7 @@ assert.equal(coinRate(split), 100);
 assert.equal(coinRate({ type: "money", system: {} }), 1, "a row that states no rate is worth one copper each");
 assert.equal(coinTotalCp([split]), 100, "the banked field is not coin anybody holds");
 assert.equal(coinTotalGC([split, coin("s", "Silver", 10, 5)]), 1.5);
-assert.equal(coinTotalCp([split, { _id: "x", type: "item", system: { quantity: { value: 40 } } }]), 100,
+assert.equal(coinTotalCp([split, { _id: "x", type: "item", system: { quantity: 40 } }]), 100,
   "what is not coin counts for nothing");
 assert.deepEqual(coinSlots([split]), [{ id: "g", cv: 100, qty: 1, kind: "gold|100", name: "Gold" }],
   "a slot is a row, never one field of it");

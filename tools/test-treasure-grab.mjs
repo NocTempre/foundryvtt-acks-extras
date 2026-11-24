@@ -31,7 +31,7 @@ const OUT = { id: "out", isGM: false };
 
 /* --- what a bundle's documents weigh --- */
 {
-  const stack = { type: "item", system: { cost: 1, weight6: 12, quantity: { value: 2 } } };
+  const stack = { type: "item", system: { cost: 1, weight6: 12, quantity: 2 } };
   const single = { type: "item", system: { cost: 1, weight6: 6 } };
   const none = { type: "item", system: { cost: 1, weight6: 0 } };
   const weights = goodsWeights6([stack, single, none]);

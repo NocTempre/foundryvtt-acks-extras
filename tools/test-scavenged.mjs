@@ -68,8 +68,8 @@ const doc = (name, type, system) => {
     },
   };
 };
-const armour = () => doc("Mail", "armor", { cost: 60, weight6: 30, quantity: { value: 1 }, ac: { value: 6 }, type: "heavy", equipped: false });
-const blade = () => doc("Blade", "weapon", { cost: 10, weight6: 6, quantity: { value: 1 }, damage: { base: { formula: "1d6" } }, bonus: { attack: 0 }, melee: true });
+const armour = () => doc("Mail", "armor", { cost: 60, weight6: 30, quantity: 1, ac: { value: 6 }, type: "heavy", equipped: false });
+const blade = () => doc("Blade", "weapon", { cost: 10, weight6: 6, quantity: 1, damage: { base: { formula: "1d6" } }, bonus: { attack: 0 }, melee: true });
 
 const row = (category, effect, value, min, max) => ({ category, effect, value, min, max });
 const REROLL = (min, max) => row("Roll again twice", "-", "-", min, max);

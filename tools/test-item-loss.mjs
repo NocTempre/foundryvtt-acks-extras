@@ -82,7 +82,7 @@ let writes = 0;
 const doc = (name, w6, { type = "item", cat, material = "wood", ac = 0 } = {}) => {
   const flags = { material };
   if (cat) flags.lossCategory = cat;
-  const system = { cost: 0, weight6: w6, quantity: { value: 1 } };
+  const system = { cost: 0, weight6: w6, quantity: 1 };
   if (type === "armor") Object.assign(system, { ac: { value: ac }, type: "heavy", equipped: false });
   return {
     id: name.replace(/\W/g, ""), name, type, system, _flags: flags, effects: [],
@@ -158,7 +158,7 @@ check("the contents of a destroyed container still find their holder", ids(held.
 
 // --- a stack and a bundle weigh as stacked ------------------------------------
 const bolts = doc("Bolts", 2, { cat: "handsOrTorso" });
-bolts.system.quantity.value = 5;
+bolts.system.quantity = 5;
 const stacked = planItemLoss(actorOf([bolts]), NO_LOADOUT, { hp: -9, damageType: "fire" });
 check("a stack is planned at its whole weight, not the per-unit figure", stacked.destroyed.length === 0 && stacked.marred.length === 1 && stacked.marred[0].weight6 === 10);
 

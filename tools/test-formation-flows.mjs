@@ -1470,7 +1470,7 @@ await scenario("players steer their own members via the GM relay", async () => {
   // Dave carries the gear to light a lantern (require-enforcement default).
   await dave.createEmbeddedDocuments("Item", [
     { name: "Lantern", type: "item", system: {} },
-    { name: "Flask of Oil", type: "item", system: { quantity: { value: 3 } } },
+    { name: "Flask of Oil", type: "item", system: { quantity: 3 } },
   ]);
   await drain();
 
@@ -1808,7 +1808,7 @@ await scenario("a player lights their own lamp from the character sheet", async 
       // stand-in is named by its label, as grant.mjs names it.
       return actor.createEmbeddedDocuments(
         "Item",
-        missing.map((s) => ({ name: s.name ?? game.i18n.localize(s.label), type: "item", system: { quantity: { value: 1 } } })),
+        missing.map((s) => ({ name: s.name ?? game.i18n.localize(s.label), type: "item", system: { quantity: 1 } })),
       );
     },
     async clearHands() {
@@ -1832,7 +1832,7 @@ await scenario("a player lights their own lamp from the character sheet", async 
     // Lantern and oil bought and carried: the same click now lands.
     await pat.createEmbeddedDocuments("Item", [
       { name: "Lantern", type: "item", system: {} },
-      { name: "Flask of Oil", type: "item", system: { quantity: { value: 2 } } },
+      { name: "Flask of Oil", type: "item", system: { quantity: 2 } },
     ]);
     await drain();
     await declareLightAction(pat, "light", { lightType: "lantern", bearerId: pat.id });
@@ -1899,7 +1899,7 @@ await scenario("a character in no formation lights their own lamp", async () => 
 
     await solo.createEmbeddedDocuments("Item", [
       { name: "Lantern", type: "item", system: {} },
-      { name: "Flask of Oil", type: "item", system: { quantity: { value: 2 } } },
+      { name: "Flask of Oil", type: "item", system: { quantity: 2 } },
     ]);
     await drain();
     await declareLightAction(solo, "light", { lightType: "lantern", bearerId: solo.id });
@@ -1909,7 +1909,7 @@ await scenario("a character in no formation lights their own lamp", async () => 
     assert.equal(lights.length, 1, "a lone character lights their own lantern");
     assert.ok(lights[0].lit, "and it is burning");
     assert.equal(
-      solo.items.find((i) => /oil/i.test(i.name)).system.quantity.value,
+      solo.items.find((i) => /oil/i.test(i.name)).system.quantity,
       1,
       "striking it burns a flask of oil, the same as it would in a party",
     );
@@ -1947,7 +1947,7 @@ await scenario("light-source equipment enforcement (require / warn / consume)", 
   await withKit.createEmbeddedDocuments("Item", [
     { name: "Torch", type: "weapon", system: {} },
     { name: "Lantern", type: "item", system: {} },
-    { name: "Flask of Oil", type: "item", system: { quantity: { value: 1 } } },
+    { name: "Flask of Oil", type: "item", system: { quantity: 1 } },
   ]);
   await drain();
 
@@ -1975,7 +1975,7 @@ await scenario("light-source equipment enforcement (require / warn / consume)", 
   await engine.addLight(model.getFormation(id), "lantern", withKit.id);
   await drain();
   assert.equal(
-    withKit.items.find((i) => /oil/i.test(i.name)).system.quantity.value,
+    withKit.items.find((i) => /oil/i.test(i.name)).system.quantity,
     0,
     "lighting a lantern consumes a flask of oil",
   );
@@ -2345,7 +2345,7 @@ await scenario("lighting works with the equipment feature's hand accounting", as
   const id = onlyFormation().id;
   await game.settings.set(MODULE_ID, "lightItemEnforcement", "require");
   await hero.createEmbeddedDocuments("Item", [
-    { name: "Torch", type: "item", system: { quantity: { value: 10 } } },
+    { name: "Torch", type: "item", system: { quantity: 10 } },
   ]);
 
   // Stand in for the equipment feature: hands = 2 budget, minus equipped
@@ -2419,7 +2419,7 @@ await scenario("the Judge's override supplies gear and empties a hand", async ()
       if (!missing.length) return [];
       return actor.createEmbeddedDocuments(
         "Item",
-        missing.map((s) => ({ name: s.name ?? game.i18n.localize(s.label), type: "item", system: { quantity: { value: 1 } } })),
+        missing.map((s) => ({ name: s.name ?? game.i18n.localize(s.label), type: "item", system: { quantity: 1 } })),
       );
     },
     async clearHands(actor, needed) {
@@ -6305,8 +6305,8 @@ await scenario("taking the mapper role needs the hands, and the kit is listed at
   await drain();
   const id = onlyFormation().id;
   await scribe.createEmbeddedDocuments("Item", [
-    { name: "Quill, writing", type: "item", system: { quantity: { value: 1 } } },
-    { name: "Parchment", type: "item", system: { quantity: { value: 1 } } },
+    { name: "Quill, writing", type: "item", system: { quantity: 1 } },
+    { name: "Parchment", type: "item", system: { quantity: 1 } },
   ]);
   const roles = () => onlyFormation().members.find((m) => m.actorId === scribe.id)?.roles ?? [];
   const nameOf = (itemId) => scribe.items.find((i) => i.id === itemId)?.name ?? null;
@@ -6369,10 +6369,10 @@ await scenario("a torch already in hand is lit where it is: no hand emptied, not
   // the stack it was readied from: both hands full, and the torch is one of them.
   const [torch] = await bearer.createEmbeddedDocuments("Item", [
     { name: "Torch", type: "weapon", system: { equipped: true } },
-    { name: "Torches (6)", type: "item", system: { quantity: { value: 5 } } },
+    { name: "Torches (6)", type: "item", system: { quantity: 5 } },
   ]);
   bearer.system.__handsUsed = 2;
-  const stack = () => bearer.items.find((i) => /torches/i.test(i.name)).system.quantity.value;
+  const stack = () => bearer.items.find((i) => /torches/i.test(i.name)).system.quantity;
   const calls = { clearHands: 0, grantGear: 0, consume: 0 };
   globalThis.acksExtras.equipment = {
     spareHands: (actor) => Math.max(0, 2 - (actor.system.__handsUsed ?? 0)),
@@ -6380,7 +6380,7 @@ await scenario("a torch already in hand is lit where it is: no hand emptied, not
     unlitInHand: (actor, type) => (type === "torch" ? torch : null),
     async grantGear() { calls.grantGear++; return []; },
     async clearHands(actor) { calls.clearHands++; actor.system.__handsUsed -= 1; return { handsSpare: 1, released: [{ name: "Dagger" }] }; },
-    async consumeItem(item, n) { calls.consume++; await item.update({ "system.quantity.value": item.system.quantity.value - n }); },
+    async consumeItem(item, n) { calls.consume++; await item.update({ "system.quantity": item.system.quantity - n }); },
   };
   try {
     // The player path: lit on the torch in hand, through the hands check that

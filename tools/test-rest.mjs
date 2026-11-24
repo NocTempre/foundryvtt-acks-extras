@@ -166,7 +166,7 @@ let serial = 0;
 const item = (name, { type = "item", weight6 = 0, equipped } = {}) => ({
   name,
   type,
-  system: { cost: 0, weight6, quantity: { value: 1 }, ...(equipped === undefined ? {} : { equipped }) },
+  system: { cost: 0, weight6, quantity: 1, ...(equipped === undefined ? {} : { equipped }) },
 });
 const PLATE = () => item("Plate", { type: "armor", weight6: 42, equipped: true }); // 7 stone, worn
 const PACK = (stone) => item("Pack", { weight6: stone * 6 });
