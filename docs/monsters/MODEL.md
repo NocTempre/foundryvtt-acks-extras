@@ -549,6 +549,58 @@ override of a table, which wins, reads its own rows and no page. A cell that
 does not read whole is null. The Judge edits any table in the Ruledata Browser.
 The importer's mechanic is in `docs/importer/MODEL.md`.
 
+**The paragraph tables**, in the same document (MM pp. 47, 54-57): the figures
+the section's prose prints, read from the Judge's own copy so the standing
+figures, the gated, ranged and activated parts and the organisation generator
+read them and never a constant. Each is a row per paragraph, `{label, ...figures}`
+(`importedOrganisation()` returns `{key, label, figures}`), and a figure the
+paragraph does not print is an absent key, never a zero; a row whose paragraph
+the page lacks holds its label alone. Rows sit under keys the page's tables
+already mint, so no troop, trait or item name is in source:
+
+- `beastmanTroopRules` (MM p. 55): a row per row of `beastmanSpecialTroops`, under
+  its key. Fields: `attack`, `vulnerableAttack`, `initiative`, `avoidSurprise`,
+  `opponentSurprise` (bonuses read with their sign), `acReduction`,
+  `armourBump`, `damageDiceTimes`, `overrunPenaltyCut`, `opponentSave`,
+  `xpAbilities` (the special-ability count counted for XP), `proficiency` (the
+  words printed beside "as the proficiency", for a consumer to fold against a
+  proficiency name), `carry` (`{equipmentKey: percent}`, the keys
+  `beastmanEquipment`'s), and, on the mounted role, `mounts` and `alongside`
+  (`{breedKey: creature text as printed}`; a breed that rides no creature is
+  absent from `mounts`).
+- `beastmanEquipment` (MM pp. 55-57): a row per optional equipment paragraph,
+  keyed by `slugLabel` of its run-in heading. Who may carry: `ranks` (role
+  keys), `troops` (`beastmanSpecialTroops` keys), `kinds` (unit kinds);
+  `carry`, a list of `{pct, perHitDie?, scope?}` (`scope` one of gang, warband,
+  village, lair, where the paragraph says "each"). Figures: `riderDice`,
+  `wearerLevel`, `sizes` (`{breedKey: size}`), `blast` (a list of `{lb, dice,
+  radius}`), `throw`, `fuseDice`, `fumble`, `saveKind`, `saveMod`,
+  `saveFraction`, `radius`, `damage`, `immunityTurns`, `condition`, `penalty`,
+  `healDice`, `successHealDice`, `swigs`, `ac`, `reductionPerDie`,
+  `delayTurns`, `bonus`; radii are feet and a turn count whole turns. A
+  paragraph `hookedWeapon` reads its maneuver figures from carries `figuresFrom:
+  "hookedWeapon"` and only who and how often; the figures are read there.
+- `beastmanTraitRules` (MM p. 57): a row per row of `beastmanTraits`, under its
+  key. Fields: `damage` (a bonus, or `{breedKey: [printed die text per
+  attack]}`), `attack`, `morale`, `armourBump`, `outnumber` (`[allies,
+  opponents]`), `round`, `strategy`, `proficiency`, `proficiencyRanks`,
+  `treasurePct`, `beastDice`, `saveKind`, `condition`, `immunityTurns`,
+  `durationTurns`, `durationMinutes`.
+- `beastmanOrganisation` (MM pp. 47, 54, 55): one block per page, `split`
+  (`archerShare`, `archerRound`, `warriorShare`, `warriorRound`, `specialShare`,
+  `specialRound`: percentages and "up" or "down"; `moraleWhileChieftain`),
+  `speech` (`commonWarrior`, `commonLeaderPerHd`: percentages) and `elite` (the
+  sidebar: `wageExtra`, `wageEvery`, `wageMin` in gp, `battleAttack`, and
+  `battleCite`, the Revised Rulebook page the sidebar points at, read as a
+  citation `"RR p.N"` and not a figure). The reader returns them as one flat
+  `{figures, cite}`, whether an override stores blocks or a flat map.
+
+A condition or a save is read as the printed word (`condition`, `saveKind`,
+lowercased) for the consumer to map to its own key. The reader drops a figure
+that is not a plain number, text, list or map, and an override of any table wins
+and reads no page. The importer's mechanic is `rowsFrom` in
+`docs/importer/MODEL.md`.
+
 ## The Kit axis
 
 A beastman template (a family, or an entry's leader template) gains a **Kit**

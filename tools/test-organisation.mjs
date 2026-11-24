@@ -8,7 +8,10 @@
  * order, a band is whole numbers with `min` no more than `max` or null, a
  * leader cell keeps a printed zero apart from nothing printed, a missing-row
  * placeholder and a nameless row are skipped, a Judge's override of one table
- * wins over the import and carries no page, and the other tables stand.
+ * wins over the import and carries no page, and the other tables stand. The
+ * paragraph tables (troop kinds, equipment, traits) read as rows of plain
+ * figures, a figure not read absent; the split, speech and sidebar figures read
+ * as one flat map whether stored in page blocks or flat.
  * Run: node tools/test-organisation.mjs
  */
 import assert from "node:assert/strict";
@@ -25,6 +28,7 @@ const check = (label, cond) => {
 const world = (tables, cites = { beastmanVillage: "XX p. 1", beastmanLeaders: "XX p. 1", beastmanSpecialTroops: "XX p. 2", beastmanTraits: "XX p. 3" }) =>
   registerTable({ id: ORGANISATION_DOC, cites, tables }, { priority: PRIORITY.WORLD });
 const none = { rows: [], cite: null };
+const EMPTY = JSON.stringify({ village: none, leaders: none, troops: none, traits: none, troopRules: none, traitRules: none, equipment: none, organisation: { figures: {}, cite: null } });
 
 const village = {
   wrangler: { label: "Wrangler", alba: "qq one", brex: "qq two", cyth: null },
@@ -49,18 +53,18 @@ const traits = { sleeper: { label: "Sleeper", alba: { min: 61, max: 62 }, brex: 
 /* --- nothing imported ---------------------------------------------------------- */
 resetTables();
 let got = importedOrganisation();
-check("no document: every table is empty and uncited", JSON.stringify(got) === JSON.stringify({ village: none, leaders: none, troops: none, traits: none }));
+check("no document: every table is empty and uncited", JSON.stringify(got) === EMPTY);
 world({ sizeSquare: { squares: { feet: 5 } } });
-check("a document without the tables is the same state", JSON.stringify(importedOrganisation()) === JSON.stringify({ village: none, leaders: none, troops: none, traits: none }));
+check("a document without the tables is the same state", JSON.stringify(importedOrganisation()) === EMPTY);
 resetTables();
 world({ beastmanVillage: {}, beastmanLeaders: "text", beastmanSpecialTroops: [], beastmanTraits: { r: { __missing: true } } });
-check("an empty, non-object, array or all-missing table reads empty and uncited", Object.values(importedOrganisation()).every((t) => t.rows.length === 0 && t.cite === null));
+check("an empty, non-object, array or all-missing table reads empty and uncited", Object.entries(importedOrganisation()).every(([id, t]) => (id === "organisation" ? Object.keys(t.figures).length === 0 : t.rows.length === 0) && t.cite === null));
 
 /* --- imported ------------------------------------------------------------------ */
 resetTables();
 world({ beastmanVillage: village, beastmanLeaders: leaders, beastmanSpecialTroops: troops, beastmanTraits: traits });
 got = importedOrganisation();
-check("the tables are the four roles, each with its rows", Object.keys(got).join() === "village,leaders,troops,traits");
+check("the tables are the eight roles, each with its rows", Object.keys(got).join() === "village,leaders,troops,traits,troopRules,traitRules,equipment,organisation");
 check("a row keeps its key and printed label in order; a placeholder and a nameless row are skipped",
   got.village.rows.map((r) => `${r.key}:${r.label}`).join() === "wrangler:Wrangler,drifter:Drifter");
 check("a village cell is the printed text, and null where the page prints none", got.village.rows[0].cells.alba === "qq one" && got.village.rows[0].cells.cyth === null
@@ -83,6 +87,37 @@ registerTable(
 got = importedOrganisation();
 check("the override replaces its table, and carries no page", got.troops.rows.map((r) => r.key).join() === "alpha" && got.troops.rows[0].cells.brex.max === 76 && got.troops.cite === null);
 check("the tables the override leaves alone stand, with their pages", got.village.rows.length === 2 && got.village.cite === "XX p. 1" && got.traits.cite === "XX p. 3" && got.leaders.rows.length === 1);
+
+/* --- the paragraph tables and the organisation figures ---------------------------- */
+resetTables();
+const rules = {
+  wrangler: { label: "Wrangler", initiative: 3, carry: { tinBell: 17 }, mounts: { alba: "marsh herons", brex: null }, nothing: null, bad: Number.NaN, empty: "  ", none: [], figuresFrom: "elsewhere" },
+  drifter: { label: "Drifter" },
+  row9: { __missing: true },
+  nameless: { label: " ", initiative: 1 },
+};
+const gear = { tinBell: { label: "Tin Bell", ranks: ["champion"], carry: [{ pct: 31 }, { pct: 9, perHitDie: true, scope: "gang" }], blast: [{ lb: 2, dice: "1d5", radius: 7 }] } };
+registerTable(
+  { id: ORGANISATION_DOC, cites: { beastmanTroopRules: "XX p. 4", beastmanTraitRules: "XX p. 5", beastmanEquipment: "XX p. 4-6", beastmanOrganisation: "XX p. 7; XX p. 8" },
+    tables: { beastmanTroopRules: rules, beastmanTraitRules: { sleeper: { label: "Sleeper", morale: -3, outnumber: [3, 2] } }, beastmanEquipment: gear,
+      beastmanOrganisation: { split: { archerShare: 44, archerRound: "down" }, speech: { commonWarrior: 12 }, elite: { battleCite: "RR p.1", gone: null, bad: Number.NaN } } } },
+  { priority: PRIORITY.WORLD },
+);
+got = importedOrganisation();
+check("a paragraph row keeps its key and label in order; a placeholder and a nameless row are skipped", got.troopRules.rows.map((r) => `${r.key}:${r.label}`).join() === "wrangler:Wrangler,drifter:Drifter");
+check("a row holds the figures its paragraph printed, plain, and nothing else",
+  JSON.stringify(got.troopRules.rows[0].figures) === '{"initiative":3,"carry":{"tinBell":17},"mounts":{"alba":"marsh herons"},"figuresFrom":"elsewhere"}');
+check("a row whose paragraph was not read holds no figure, and is still a row", JSON.stringify(got.troopRules.rows[1].figures) === "{}");
+check("structure survives: lists of keys, lists of chances, lists of blast rows", JSON.stringify(got.equipment.rows[0].figures) === JSON.stringify({ ranks: ["champion"], carry: [{ pct: 31 }, { pct: 9, perHitDie: true, scope: "gang" }], blast: [{ lb: 2, dice: "1d5", radius: 7 }] }));
+check("a signed figure and a ratio keep their sign and order", got.traitRules.rows[0].figures.morale === -3 && JSON.stringify(got.traitRules.rows[0].figures.outnumber) === "[3,2]");
+check("each paragraph table cites the page its own import recorded", got.troopRules.cite === "XX p. 4" && got.traitRules.cite === "XX p. 5" && got.equipment.cite === "XX p. 4-6");
+check("the organisation figures are one flat map across the page blocks, citing every page", JSON.stringify(got.organisation.figures) === '{"archerShare":44,"archerRound":"down","commonWarrior":12,"battleCite":"RR p.1"}' && got.organisation.cite === "XX p. 7; XX p. 8");
+check("the four grids stand empty beside them", got.village.rows.length === 0 && got.troops.rows.length === 0);
+registerTable({ id: ORGANISATION_DOC, tables: { beastmanOrganisation: { archerShare: 50, wageExtra: 2 }, beastmanEquipment: { alpha: { label: "Alpha", radius: 9 } } } }, { priority: PRIORITY.OVERRIDE });
+got = importedOrganisation();
+check("an override stored flat reads alike, replaces its table and carries no page", JSON.stringify(got.organisation.figures) === '{"archerShare":50,"wageExtra":2}' && got.organisation.cite === null);
+check("an overridden equipment table replaces the import's and carries no page; the other paragraph tables stand",
+  got.equipment.rows.map((r) => r.key).join() === "alpha" && got.equipment.cite === null && got.troopRules.rows.length === 2 && got.troopRules.cite === "XX p. 4");
 
 /* --- the ids ------------------------------------------------------------------- */
 check("every table read is one the importer has a recipe for, in the same document",

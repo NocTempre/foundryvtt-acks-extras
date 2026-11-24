@@ -13,6 +13,7 @@
  */
 import { BOOKS } from "./books.mjs";
 import { findHeading, holdsKey, keyTokenAt } from "./printed-name.mjs";
+import { extractProseRows, rowTake } from "./prose-rows.mjs";
 
 /** Cluster a page's text items into rows by y proximity. */
 export function rowsByY(items, tol = 3) {
@@ -1280,7 +1281,7 @@ function takePatronym(cased) {
  * named take reads from it, or undefined. A `proseValues` recipe and a seat-side
  * scan that reads the same kind of figure (the executor's `defenseScan`) share it.
  */
-export function takeProse(window, take, spec = {}) {
+export function takeProse(window, take, spec = {}, recipe = null) {
   const num = (s) => Number(s.replace(/,/g, ""));
   switch (take) {
     case "levelLadder":
@@ -1490,7 +1491,7 @@ export function takeProse(window, take, spec = {}) {
       return m ? m[1] : undefined;
     }
     default:
-      return undefined;
+      return rowTake(window, take, spec, recipe);
   }
 }
 
@@ -1569,7 +1570,7 @@ function findIn(text, v) {
     const re = new RegExp(v.findRe, "g");
     let m;
     for (let n = v.occurrence ?? 1; n > 0; n--) if (!(m = re.exec(text))) return null;
-    return { idx: m.index, len: m[0].length };
+    return { idx: m.index, len: m[0].length, match: m };
   }
   const find = v.find.toLowerCase();
   let idx = -1;
@@ -1600,8 +1601,16 @@ function findIn(text, v) {
  * following page's items in `recipe.runOn`, a section that is still open at the
  * foot of its page (`sectionRunsOn`) also reads that page's runs up to its
  * first heading, so a paragraph the print breaks across the page is read whole.
+ *
+ * A value with `findRe` and `group: n` reads its `take` from capture group `n`
+ * of the match (0 the whole match) instead of from the text after it, so a
+ * phrase around the figure anchors it and the figure is the capture.
+ *
+ * A recipe with `rowsFrom` reads one paragraph per row instead of one flat
+ * object, and takes `span`, the pages of its span (`prose-rows.mjs`).
  */
 export function extractProseValues(items, recipe) {
+  if (recipe.rowsFrom) return extractProseRows(recipe.span ?? [items], recipe, { extractGridRows, extractProseValues, slugLabel, tidyRowName });
   const split = recipe.colSplit ?? 300;
   const { xMin = 20, xMax = 600 } = recipe.column ?? {};
   const readingOrder = (pageItems) => pageItems
@@ -1645,12 +1654,13 @@ export function extractProseValues(items, recipe) {
       continue;
     }
     const span = v.span ?? 90;
-    const window = v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + len, idx + len + span);
+    const captured = v.group != null ? String(found.match?.[v.group] ?? "") : null;
+    const window = captured ?? (v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + len, idx + len + span));
     // `runins` is read from the page's own case; every other take reads the
     // lowercased window.
-    const casedWindow = v.before ? cased.slice(Math.max(0, idx - span), idx) : cased.slice(idx + len, idx + len + span);
-    let val = v.take === "runins" ? takeRunins(casedWindow.trim()) : takeProse(window, v.take ?? "int", v);
-    if (v.before && val !== undefined) {
+    const casedWindow = captured ?? (v.before ? cased.slice(Math.max(0, idx - span), idx) : cased.slice(idx + len, idx + len + span));
+    let val = v.take === "runins" ? takeRunins(casedWindow.trim()) : takeProse(window, v.take ?? "int", v, recipe);
+    if (v.before && captured === null && val !== undefined) {
       // before-windows want the LAST match, not the first
       let last;
       const re = { pct: /(\d+)\s*%/g, gp: /(-?[\d,]+)\s*gp/g, int: /-?\d[\d,]*/g, num: /-?\d[\d,]*(?:\.\d+)?/g, signedInt: /[-+]\s?\d+/g, signed: /[-+]\s?\d+/g }[v.take ?? "int"];

@@ -72,16 +72,35 @@ export async function locatePageNumber(doc, recipe, read = pageItems) {
   return null;
 }
 
-/** The located page's items; with `pageSpan`, one items array per page of the span. */
+/**
+ * How many pages a recipe is handed: its `pageSpan` (each read alike and
+ * merged, or read together where it has `windows`), or `readPages` where
+ * pages beyond the table's own are read for their words and the citation names
+ * the table's page alone.
+ */
+export const recipePages = (recipe) => recipe.pageSpan ?? recipe.readPages ?? 1;
+
+/** The located page's items; with `pageSpan` or `readPages`, one items array per page of the span. */
 async function locatePage(doc, recipe, read) {
   const p = await locatePageNumber(doc, recipe, read);
   if (p == null) return null;
   const { items } = await read(doc, p);
-  if (!recipe.pageSpan) return items;
+  if (recipePages(recipe) === 1) return items;
   // Multi-page tables (the JJ occupation packages) merge the span.
   const span = [items];
-  for (let k = 1; k < recipe.pageSpan && p + k <= doc.numPages; k++) span.push((await read(doc, p + k)).items);
+  for (let k = 1; k < recipePages(recipe) && p + k <= doc.numPages; k++) span.push((await read(doc, p + k)).items);
   return span;
+}
+
+/**
+ * Read a plain table recipe from what `locatePage` returned. A recipe with
+ * `windows` reads its whole span as one text (`prose-rows.mjs`); a `pageSpan`
+ * without them reads each page alike and merges; any other reads one page.
+ */
+export function extractPlain(items, recipe) {
+  if (recipePages(recipe) === 1) return extractTable(items, recipe);
+  if (recipe.windows || recipe.rowsFrom) return extractTable(items[0], { ...recipe, span: items });
+  return Object.assign({}, ...items.map((pg) => extractTable(pg, recipe)));
 }
 
 // The search each kind of block makes. A culture block's anchor is the key of a
@@ -156,7 +175,7 @@ export async function readPlainTable(recipe, sessionDocs, read, storedCite = nul
   if (!session?.doc) return { noBook: recipe.book, ...(absent ? { absent } : {}) };
   const items = await locatePage(session.doc, recipe, read);
   if (!items) return { missing: "page not found", ...(absent ? { absent } : {}) };
-  const table = recipe.pageSpan ? Object.assign({}, ...items.map((pg) => extractTable(pg, recipe))) : extractTable(items, recipe);
+  const table = extractPlain(items, recipe);
   return { table, used: recipe, ...(absent ? { absent } : {}) };
 }
 
@@ -324,7 +343,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
       const [items, runOn] = runsOn ? found : [found];
       // A block may bound its own page: a column, and a yMax above a table
       // that shares the page with the prose it reads.
-      const got = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMax: block.yMax ?? recipe.yMax, section: block.section, runOn });
+      const got = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMin: block.yMin ?? recipe.yMin, yMax: block.yMax ?? recipe.yMax, section: block.section, runOn });
       if (Object.keys(got).length) out[block.id] = got;
     }
     return recipe.emit?.path?.length ? { [recipe.emit.path[0]]: out } : out;

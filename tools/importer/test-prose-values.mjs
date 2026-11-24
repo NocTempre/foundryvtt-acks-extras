@@ -203,4 +203,122 @@ check("a key the page does not hold reads nothing", !("absentWord" in guild));
 check("a key anchors a figure's window like a phrase does", guild.pctAfterWord === 12 && guild.pctBeforeWord === 30);
 check("the word keeps the page's case", read(["the LONGHOUSE stands"], [{ key: "w", findKey: printKey("longhouse"), take: "anchor" }]).w === "LONGHOUSE");
 
+/* --- `rowsFrom`: one paragraph per row, found by its heading on the page's runs --- */
+{
+  // Every word is invented. A page prints a small grid (rows by two breed
+  // columns) and, under it, a run-in titled paragraph per row; a second page
+  // prints run-in paragraphs for items, one headed with a period.
+  const r = (str, x, y) => ({ str, x, y, w: str.length * 5, h: 9 });
+  const grid = {
+    shape: "gridRows",
+    column: { xMin: 0, xMax: 400, yMin: 20, yMax: 90 },
+    labelMaxX: 50,
+    keyByLabel: true,
+    headerColumns: { labelRe: "^kind$", cellPattern: "rollBand" },
+    rows: Array.from({ length: 6 }, (_, i) => ({ key: `row${i + 1}`, labelRe: "^[a-z][a-z -]*$", optional: true })),
+  };
+  // A heading is a run at the column's left edge, its text following on the line.
+  const para = (y, head, lines) => [r(head, 10, y), r(lines[0], 80, y), ...lines.slice(1).map((l, i) => r(l, 10, y + 12 * (i + 1)))];
+  const page1 = [
+    r("Kind", 10, 30), r("Kell", 100, 30), r("Dorn", 170, 30),
+    r("Wrangler", 10, 42), r("11-13", 104, 42), r("-", 180, 42),
+    r("Drifter", 10, 54), r("24-29", 104, 54), r("25", 180, 54),
+    r("Sleeper", 10, 66), r("30", 104, 66), r("26", 180, 66),
+    r("Caption furniture", 500, 20),
+    ...para(100, "Wranglers:", [
+      "Wranglers gain a +3 bonus to initiative and may speak (as the proficiency).",
+      "Lantern bearers are common. A wrangler rolls 2d5 rounds. 17% may bear tin bells",
+      "and/or a rope lantern. Kells ride marsh herons; dorns ride river pike.",
+    ]),
+    ...para(150, "Misc Note:", ["A heading the table has no row for, which only ends the paragraph above it."]),
+    ...para(180, "Drifters.", ["Drifters suffer a -3 penalty to morale. They can sing (as the proficiency). Only kells drift"]),
+    ...para(210, "Sleepers:", [
+      "Champions, sub-chieftains and witch- doctors sleep. Kells deal 2d5-1 /2d5 /2d7 damage with claws;",
+      "dorns deal 3/3/2d9 burning damage. Each warband has a 7% chance per Hit Die of snoring.",
+      "Dorn and kell sleepers carry bells of 3lb and 9lb size respectively.",
+    ]),
+    r("Tab", 597, 120),
+  ];
+  const itemPage = [
+    ...para(100, "Tin Bell:", ["Wranglers or sleepers have a 35% chance to ring a tin bell. A bell is heard within 45’."]),
+    ...para(130, "Rope Lantern.", ["Champions and chieftains carry a rope lantern. Each gang has a 11% chance."]),
+    r("Tab", 597, 140),
+  ];
+  const items = {
+    shape: "proseValues",
+    rowsFrom: { runins: true },
+    column: { xMin: 0, xMax: 590 },
+    windows: [{ page: 1, column: { xMin: 0, xMax: 590 }, yMin: 95 }],
+    values: [{ key: "radius", find: "heard within", take: "int", span: 8 }],
+  };
+  const rules = {
+    shape: "proseValues",
+    rowsFrom: { grid },
+    vocab: grid,
+    itemsFrom: items,
+    column: { xMin: 0, xMax: 400 },
+    windows: [{ page: 0, column: { xMin: 0, xMax: 400 }, yMin: 95 }],
+    values: [
+      { key: "initiative", find: "bonus to initiative", before: true, take: "signed", span: 6 },
+      { key: "morale", find: "penalty to morale", before: true, take: "signed", span: 6 },
+      { key: "carry", find: "", take: "itemShares", span: 4000 },
+      { key: "proficiency", findRe: "may ([a-z]+) \\(as the proficiency\\)", group: 1, take: "text" },
+      { key: "proficiency", findRe: "can ([a-z]+) \\(as the proficiency\\)", group: 1, take: "text" },
+      { key: "mounts", find: "", take: "byBreed", verb: "ride", span: 4000 },
+      { key: "damage", find: "", take: "breedDice", verb: "deals?", span: 4000 },
+      { key: "ranks", find: "", take: "ranks", span: 4000 },
+      { key: "chance", find: "", take: "chances", span: 4000 },
+      { key: "sizes", find: "", take: "respectively", unit: "lb", span: 4000 },
+      { key: "rounds", findRe: "rolls (\\d+d\\d+) rounds", group: 1, take: "text" },
+    ],
+  };
+  const span = [page1, itemPage];
+  const got = extractTable(page1, { ...rules, span });
+  check("a paragraph is bound to the row its heading folds to, a plural tolerated, under the table's own key", Object.keys(got).join() === "wrangler,drifter,sleeper");
+  check("the row keeps the label the table prints", got.wrangler.label === "Wrangler" && got.sleeper.label === "Sleeper");
+  check("a heading the table has no row for mints nothing and ends the paragraph before it", !("miscNote" in got) && got.wrangler.proficiency === "speak");
+  check("a heading closed by a period is a heading", got.drifter.morale === -3 && got.drifter.proficiency === "sing");
+  check("a figure reads inside its own paragraph", got.wrangler.initiative === 3 && !("initiative" in got.drifter));
+  check("a paragraph with no figure of a kind has no such key", !("morale" in got.wrangler) && !("mounts" in got.drifter));
+  check("a capitalised line inside a paragraph is no heading", Object.keys(got).length === 3 && got.wrangler.rounds === "2d5");
+  check("a figure never reads past its paragraph into the next", !("initiative" in got.sleeper));
+  check("a share keys the items named in its sentence by the item recipe's own keys, plural tolerated",
+    JSON.stringify(got.wrangler.carry) === '{"tinBell":17,"ropeLantern":17}');
+  check("a take naming breeds reads the page's header words", JSON.stringify(got.wrangler.mounts) === '{"kell":"marsh herons","dorn":"river pike"}');
+  check("a clause names its breeds and prints one figure per attack, as printed",
+    JSON.stringify(got.sleeper.damage) === '{"kell":["2d5-1","2d5","2d7"],"dorn":["3","3","2d9"]}');
+  check("a rank word, plural, hyphenated or split at a line end, is the module's role key",
+    JSON.stringify(got.sleeper.ranks) === '["champion","subChieftain","witchDoctor"]');
+  check("a chance carries its scope and per-Hit-Die mark", JSON.stringify(got.sleeper.chance) === '[{"pct":7,"perHitDie":true,"scope":"warband"}]');
+  check("'respectively' pairs the breeds in the order the sentence names them, not the table's",
+    JSON.stringify(got.sleeper.sizes) === '{"dorn":3,"kell":9}');
+  const cut = page1.filter((x) => x.y < 175 || x.y > 195);
+  const bare = extractTable(cut, { ...rules, span: [cut, itemPage] });
+  check("a table row whose paragraph the page lacks is a row with its label and no figure", JSON.stringify(bare.drifter) === '{"label":"Drifter"}' && "morale" in got.drifter);
+
+  const gearSpan = extractTable(page1, { ...items, span });
+  check("a window reads the page of the span it names, and every heading is a row keyed by its slug", Object.keys(gearSpan).join() === "tinBell,ropeLantern" && gearSpan.tinBell.radius === 45);
+  check("the margin tab outside the window is not read", !JSON.stringify(gearSpan).toLowerCase().includes("tab"));
+  check("a window naming a page the span lacks reads nothing", Object.keys(extractTable(page1, { ...items, span: [page1] })).length === 0);
+  const own = extractTable(page1, { ...items, windows: [{ page: 0, column: { xMin: 0, xMax: 400 }, yMin: 95 }], span });
+  check("without a grid every heading on the page is a row", ["wranglers", "miscNote", "drifters", "sleepers"].every((k) => k in own));
+
+  // A paragraph another recipe reads figures from keeps only the kinds named, and points there.
+  const deferred = extractTable(page1, { ...items, span, defer: [{ table: "elsewhere", locate: "Rope Lantern.", keep: ["ranks"] }] });
+  check("a deferred paragraph points at the recipe that reads it and keeps only what it is told to", deferred.ropeLantern.figuresFrom === "elsewhere" && deferred.tinBell.figuresFrom === undefined);
+
+  // `group`: a phrase around a figure anchors it and the capture is the window.
+  const cap = extractTable(page(["The ward is held for 12 turns by the guard."]), { shape: "proseValues", column: { xMin: 20, xMax: 600 }, values: [
+    { key: "turns", findRe: "held for (\\d+) turns", group: 1, take: "int" },
+    { key: "whole", findRe: "held for \\d+ turns", group: 0, take: "text" },
+    { key: "none", findRe: "held for (\\d+) years", group: 1, take: "int" },
+  ] });
+  check("a capture group is the window the take reads, group 0 the whole match, no match nothing", cap.turns === 12 && cap.whole === "held for 12 turns" && !("none" in cap));
+  const tk = (text, take, spec = {}) => extractTable(page([text]), { shape: "proseValues", column: { xMin: 20, xMax: 600 }, values: [{ key: "v", find: "", take, span: 400, ...spec }] }).v;
+  check("an ordinal word, a rounding word and a ratio read", tk("on the third round", "ordinalWord") === 3 && tk("two (rounded down) ", "roundWord") === "down" && JSON.stringify(tk("by 5:3 or more", "ratio")) === "[5,3]");
+  check("a page reference reads as a citation", tk("see ACKS II RR p. 77).", "cite") === "RR p.77");
+  check("matches reads every occurrence into named fields", JSON.stringify(tk("a 2lb jar spans 4 and a 7lb jar spans 9", "matches", { re: "(\\d+)lb jar spans (\\d+)", fields: ["lb", "span"] })) === '[{"lb":2,"span":4},{"lb":7,"span":9}]');
+  check("a sizes list with unequal counts reads nothing", tk("Kell and dorn carry 3lb size respectively", "respectively", { unit: "lb" }) === undefined);
+}
+
 console.log(`test-prose-values: ${pass} checks passed.`);

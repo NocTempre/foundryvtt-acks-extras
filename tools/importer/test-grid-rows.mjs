@@ -412,7 +412,7 @@ check("the other print column never joins a cell", !ranges.some((r) => /across/.
   check("each organisation table reads the Monstrous Manual by header columns, keys minted from the print",
     names.every((n) => T[n].book === "mm" && T[n].keyByLabel === true && T[n].headerColumns && !T[n].cellColumns && T[n].rows.every((r) => /^row\d+$/.test(r.key) && r.optional)));
   check("the table pages are the cited ones, and the block's source lists them",
-    names.map((n) => T[n].printedPage).join() === "54,54,55,57" && /MM [\d, ]*\b54, 55, 57\b/.test(TABLE_RECIPES.monsters.source.pages));
+    names.map((n) => T[n].printedPage).join() === "54,54,55,57" && [54, 55, 57].every((n) => new RegExp(`MM [\\d, ]*\\b${n}\\b`).test(TABLE_RECIPES.monsters.source.pages)));
 
   // The special-troop recipe on invented runs laid out as the book sets it:
   // labels right-aligned, cells centred under the header words.

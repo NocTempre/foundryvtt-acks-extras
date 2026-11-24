@@ -1872,6 +1872,55 @@ roll band into `{min, max}`, and `leaderStats` a leader's three-line cell into
 `{ac, armour, hd, hp, die, dmg}`. The monsters document's organisation tables
 (MM pp. 54-55, 57; `docs/monsters/MODEL.md`) are read this way.
 
+A `proseValues` recipe with `rowsFrom` reads one paragraph per row, for a page
+that prints a run-in titled paragraph under each row of a table (or each item
+of a list), and names none of them (`importer/prose-rows.mjs`; the headings are
+the reader's page and never a string of this repo). A heading is found on the
+page's runs: a line that opens at its column's left edge with a Title-Case
+phrase and a colon or a period, its text following on the same line. It does
+not depend on the sentence before it ending in a stop, so a paragraph the print
+leaves unclosed does not hide the next heading. `rowsFrom.grid` is a `gridRows`
+recipe for a table on the same page, and each of its rows takes the paragraph
+whose heading folds to its label (letters only, a plural tolerated either way),
+so the row's key is the table's own key (`keyByLabel`) and no label is written
+in the recipe; a table row with no paragraph on the page is a row holding its
+label alone, and a heading no row folds to ends the paragraph above it and
+mints nothing. `rowsFrom.runins` makes every heading a row, keyed by its
+`slugLabel`. A paragraph runs from its heading to the next heading found or the
+end of its window, and the recipe's `values` read inside it with the same
+anchors and takes every `proseValues` recipe uses, so a figure a paragraph does
+not print is an absent key. Output is `{rowKey: {label, ...figures}}`.
+
+`windows` bounds the text read from each page of a span (`{page, column, yMin,
+yMax}`, the page an index of the span; one page may appear twice, a column
+each), so a table's own cells, a margin tab, a sidebar or the section after the
+last paragraph never join one. A span is `pageSpan` (every page read alike and
+merged, the citation naming all of them) or `readPages` (the pages are read for
+their words and the citation names the table's page alone); a recipe with
+`windows` or `rowsFrom` is read over its whole span as one text.
+`extractPlain` and `recipePages` in `tables-binding.mjs` are the one reading of
+that, shared with `tools/importer/dev-try-recipe.mjs` and
+`test-recipe-content.mjs`.
+
+Three more opt-ins name what a take may bind a figure to, all read from the page
+and none written in the recipe. `vocab` is a `gridRows` recipe on the span's
+first page: its row keys are the roles (`troops`) and its column keys the
+breeds (`byBreed`, `breedDice`, `respectively`). `itemsFrom` is a recipe of
+this shape whose headings are the items `itemShares` may name, so one recipe
+keys its shares by the keys another mints. `defer` lists `{table, locate,
+keep}`: a paragraph whose heading folds to `locate` is another recipe's read,
+the row points at that table (`figuresFrom`) and keeps only the figure kinds
+`keep` names, so a figure is read in one place. A value with `findRe` and
+`group` reads its `take` from that capture group of the match (0 the whole
+match) in place of the text after it, so a phrase around the figure anchors it
+and the figure is the capture; a `valueBlocks` block takes a `yMin` as it takes
+a `yMax`. The takes added with these are `text`, `ordinalWord`, `roundWord`,
+`cite`, `ratio`, `ranks` (a role word as the module's own role key, through
+`roleKeyOf`), `troops`, `kinds`, `chances` (each percentage, with `perHitDie`
+and an "each unit" `scope`), `itemShares`, `byBreed`, `breedDice`,
+`respectively` and `matches`. The monsters document's paragraph tables are read
+this way (`docs/monsters/MODEL.md`).
+
 ## An entry's heading line
 
 An AX book's entry is anchored on, and its flow stopped by, heading LINES

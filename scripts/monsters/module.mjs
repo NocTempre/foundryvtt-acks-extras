@@ -91,10 +91,10 @@ Hooks.once("init", () => {
   // them. The ids are `importer/leader-roles.mjs` THROW_LADDER_TABLE,
   // `leader-derive.mjs` LEADER_TABLES and `kits.mjs` KIT_TABLES, written as
   // literals because the producers gate reads this call from source. The last
-  // four are `organisation.mjs` ORGANISATION_TABLES. Guarded: a throw in
+  // eight are `organisation.mjs` ORGANISATION_TABLES. Guarded: a throw in
   // `init` leaves the rest of the hook dead.
   try {
-    expectTables("monsters", ["attackThrowByHd", "leaderLadder", "leaderSteps", "beastmanTroops", "beastmenByType", "damageDieConversion", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits"]);
+    expectTables("monsters", ["attackThrowByHd", "leaderLadder", "leaderSteps", "beastmanTroops", "beastmenByType", "damageDieConversion", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits", "beastmanTroopRules", "beastmanEquipment", "beastmanTraitRules", "beastmanOrganisation"]);
   } catch (err) {
     console.warn(`${MODULE_ID} | monster tables not declared`, err);
   }

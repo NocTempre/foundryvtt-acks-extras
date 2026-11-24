@@ -20,7 +20,8 @@ import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 import { BODY_FORM_ICONS } from "../../scripts/monsters/statblock.mjs";
-import { cultureNames, locatePageNumber, recipeLocates } from "../../scripts/importer/tables-binding.mjs";
+import { cultureNames, extractPlain, locatePageNumber, recipeLocates, recipePages } from "../../scripts/importer/tables-binding.mjs";
+import { ROLE_ORDER } from "../../scripts/importer/leader-roles.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { isMissingRow, missingRowKeys, quantity } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
@@ -119,7 +120,7 @@ const TABLES = {
   // default attribute score; the natural weapons each damage type is listed
   // against, the edges of the extraordinary-damage rule, the body forms, and
   // the beastman organisation grids (village, leaders, special troops, traits).
-  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits"],
+  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits", "beastmanEquipment", "beastmanTroopRules", "beastmanTraitRules", "beastmanOrganisation"],
   // The armour limits on abilities, and the weapon-narrowing penalty's two figures.
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
@@ -731,6 +732,80 @@ VERIFY["monsters.beastmanLeaders"] = (out, recipe, fail) => organisationGrid(out
 });
 VERIFY["monsters.beastmanSpecialTroops"] = (out, recipe, fail) => organisationGrid(out, recipe, fail, { cell: isBand, ladder: true, rows: 7 });
 VERIFY["monsters.beastmanTraits"] = (out, recipe, fail) => organisationGrid(out, recipe, fail, { cell: isBand, ladder: true, rows: 10 });
+// The paragraphs under those tables and the optional equipment (`rowsFrom`):
+// a row per table row, under the table's own key; a row per equipment heading;
+// the count of figures each paragraph prints (by ordinal, in print order); and
+// the kind of each figure. No row, item, breed or figure is named here, and no
+// value is asserted: a count is how many figures a paragraph prints.
+const isSigned = (v) => Number.isInteger(v) && v !== 0;
+const isDiceText = (v) => typeof v === "string" && /^\d+d\d+$/.test(v);
+const isPlainText = (v) => isText(v) && /^[a-z][a-z -]*$/.test(v);
+const isPct = (v) => Number.isInteger(v) && v > 0 && v <= 100;
+const rowFigures = (row) => Object.keys(row).filter((k) => k !== "label" && k !== "figuresFrom");
+const FIGURE_KINDS = {
+  attack: isSigned, acReduction: Number.isInteger, armourBump: isSigned, xpAbilities: Number.isInteger,
+  vulnerableAttack: isSigned, damageDiceTimes: Number.isInteger, opponentSurprise: isSigned, initiative: isSigned,
+  avoidSurprise: isSigned, overrunPenaltyCut: Number.isInteger, opponentSave: isSigned, proficiency: isPlainText,
+  morale: isSigned, strategy: isSigned, proficiencyRanks: Number.isInteger, treasurePct: isPct, beastDice: isDiceText,
+  saveKind: isPlainText, immunityTurns: Number.isInteger, condition: isPlainText, durationTurns: Number.isInteger,
+  durationMinutes: Number.isInteger, round: Number.isInteger, riderDice: isDiceText, wearerLevel: Number.isInteger,
+  throw: Number.isInteger, fuseDice: isDiceText, fumble: Number.isInteger, saveFraction: (v) => v > 0 && v < 1,
+  saveMod: isSigned, radius: Number.isInteger, penalty: isSigned, healDice: isDiceText, successHealDice: isDiceText,
+  swigs: isDiceText, ac: isSigned, reductionPerDie: Number.isInteger, delayTurns: Number.isInteger, bonus: isSigned,
+  outnumber: (v) => Array.isArray(v) && v.length === 2 && v.every(Number.isInteger),
+  damage: (v) => Number.isInteger(v) || isDiceText(v) || (v && typeof v === "object" && Object.values(v).every((d) => Array.isArray(d) && d.length > 0 && d.every(isText))),
+  blast: (v) => Array.isArray(v) && v.length > 1 && v.every((b) => Number.isInteger(b.lb) && isDiceText(b.dice) && Number.isInteger(b.radius)),
+};
+const READS = {};
+const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
+  const rows = Object.entries(out ?? {});
+  if (rows.length !== counts.length) fail(`${rows.length} rows read, the page prints ${counts.length}`);
+  if (keysFrom) {
+    const table = Object.keys(READS[keysFrom] ?? {});
+    if (!table.length) fail(`the table ${keysFrom} was not read`);
+    else if (rows.map(([k]) => k).join() !== table.join()) fail(`the row keys are not ${keysFrom}'s`);
+  }
+  rows.forEach(([key, row], i) => {
+    const n = `row ${i + 1}`;
+    if (!isText(row.label) || (keysFrom ? false : slugLabel(row.label) !== key)) fail(`${n}: no printed label, or a key that is not its slug`);
+    const figures = rowFigures(row);
+    if (figures.length !== counts[i]) fail(`${n}: ${figures.length} figures read, the page prints ${counts[i]}`);
+    for (const k of figures) {
+      const ok = FIGURE_KINDS[k];
+      if (ok && !ok(row[k])) fail(`${n}: figure ${k} has an unexpected shape`);
+    }
+    for (const k of ["ranks", "troops", "kinds"]) if (row[k] !== undefined && !(Array.isArray(row[k]) && row[k].length && row[k].every(isText))) fail(`${n}: ${k} is not a list of keys`);
+    for (const rank of row.ranks ?? []) if (!ROLE_ORDER.includes(rank)) fail(`${n}: ${rank} is not a role key`);
+    for (const breed of [...Object.keys(row.mounts ?? {}), ...Object.keys(row.alongside ?? {}), ...Object.keys(row.sizes ?? {}), ...(row.damage && typeof row.damage === "object" ? Object.keys(row.damage) : [])]) {
+      if (!FAMILY_VARIANT_KEYS.has(breed)) fail(`${n}: ${breed} is not a Variant key of the family`);
+    }
+    for (const c of Array.isArray(row.carry) ? row.carry : []) if (!isPct(c.pct) || (c.scope !== undefined && !["gang", "warband", "village", "lair"].includes(c.scope))) fail(`${n}: a carry chance has an unexpected shape`);
+    if (row.carry && !Array.isArray(row.carry)) {
+      const items = Object.keys(READS["monsters.beastmanEquipment"] ?? {});
+      for (const [item, pct] of Object.entries(row.carry)) if (!items.includes(item) || !isPct(pct)) fail(`${n}: a carry share names no equipment row, or is not a percentage`);
+    }
+  });
+};
+VERIFY["monsters.beastmanTroopRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [5, 3, 2, 2, 4, 3, 2], keysFrom: "monsters.beastmanSpecialTroops" });
+VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [1, 4, 1, 2, 4, 2, 1, 1, 1, 5], keysFrom: "monsters.beastmanTraits" });
+VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
+  paragraphRows(out, recipe, fail, { counts: [5, 9, 4, 7, 7, 4, 3, 6, 4] });
+  const rows = Object.values(out ?? {});
+  if (rows.filter((r) => r.figuresFrom).length !== 1) fail("exactly one paragraph should point at the recipe that reads its figures");
+  if (rows.some((r) => !Array.isArray(r.carry) || !r.carry.length)) fail("a paragraph prints no carry chance");
+  for (const r of rows) for (const t of r.troops ?? []) if (!Object.keys(READS["monsters.beastmanSpecialTroops"] ?? {}).includes(t)) fail("a troop key is not a row of the special-troop table");
+};
+VERIFY["monsters.beastmanOrganisation"] = (out, recipe, fail) => {
+  const want = { split: 7, speech: 2, elite: 5 };
+  for (const [id, n] of Object.entries(want)) {
+    if (!out?.[id]) { fail(`block ${id}: not read`); continue; }
+    const figs = Object.entries(out[id]);
+    if (figs.length !== n) fail(`block ${id}: ${figs.length} figures read, the page prints ${n}`);
+    for (const [k, v] of figs) if (!(typeof v === "number" || (typeof v === "string" && isText(v)))) fail(`block ${id}: figure ${k} has an unexpected shape`);
+  }
+  if (out?.split && !["up", "down"].includes(out.split.archerRound)) fail("block split: a rounding is not read");
+  if (out?.elite && !/^[A-Z]+ p\.\d+$/.test(out.elite.battleCite ?? "")) fail("block elite: the page reference is not read as a citation");
+};
 // The armour limits on abilities: a skill list the binding can split, a phrase
 // holding a ladder word the consumer maps to a rung, and a shield window. Shape
 // only; no skill, rung or rule is named.
@@ -1542,15 +1617,21 @@ for (const [docId, ids] of Object.entries(TABLES)) {
             const { items } = await pageItems(doc, page);
             // A value that reads on past its page is handed the next page, as the import does.
             const runOn = block.values.some((v) => v.runOn) && page < doc.numPages ? (await pageItems(doc, page + 1)).items : undefined;
-            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, section: block.section, runOn });
+            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMin: block.yMin ?? recipe.yMin, yMax: block.yMax ?? recipe.yMax, section: block.section, runOn });
           }
+          READS[name] = out;
           VERIFY[name](out, recipe, fail);
         } else {
           const page = await locatePageNumber(doc, recipe);
           if (page == null) fail("page not found");
           else {
             const { items } = await pageItems(doc, page);
-            VERIFY[name](extractTable(items, recipe), recipe, fail);
+            // A recipe handed a span (`pageSpan`, `readPages`) is read over its pages, as the import reads it.
+            const span = [items];
+            for (let k = 1; k < recipePages(recipe) && page + k <= doc.numPages; k++) span.push((await pageItems(doc, page + k)).items);
+            const read = extractPlain(recipePages(recipe) > 1 ? span : items, recipe);
+            READS[name] = read;
+            VERIFY[name](read, recipe, fail);
           }
         }
       } catch (err) {
