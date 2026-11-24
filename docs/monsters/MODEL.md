@@ -235,6 +235,16 @@ reads the sentences (shipped locators; every figure is the page's) into one
 cell per variant×role, keyed `variant|role`; a role is on the axis only where
 some variant has its cell.
 
+**The family's picture.** The template's picture is the art its overview
+entry reads, and with none, the first variant's portrait. An overview whose
+picture is printed on another page of the family names that page in its
+register row (`assists.artPage`); the pick keeps the kind's size criteria,
+because an image's name inside a page differs from one read to the next. Each
+variant option keeps its own portrait. A repair in place keeps a held
+template's picture, except one that is a variant's portrait: that is the
+import's own fallback, and gives way to the family's. The picture shows in the
+compendium list; the template's sheet draws none.
+
 **What a leader cell writes.** From its sentence: AC, the fixed hit points,
 the Hit Dice rating (as `hp.hd` and as the extras `hd` the band shows), and the
 damage bonus as a **total** on `system.damage.mod`, melee and missile alike (a

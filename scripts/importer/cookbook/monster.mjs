@@ -878,6 +878,30 @@ function carryMergedVariants(held, axes, cells, lore = new Set()) {
 }
 
 /**
+ * Uploads the picture a cookbook entry's art instruction names and returns its
+ * path, or "" when the book session cannot upload, the extraction fails or it
+ * takes longer than 30 s: one undecodable image costs its owner (`what` names
+ * it in the warning) a picture, never the import.
+ */
+async function uploadEntryArt(bindDoc, id, entry, node, what) {
+  if (!ctx.uploadPageArt) return "";
+  const artInstr = entry.fields?.art ?? {};
+  const up = await Promise.race([
+    ctx
+      .uploadPageArt(bindDoc, {
+        id,
+        page: artInstr.page ?? entry.pages[0],
+        name: artInstr.name ?? node.fields.art?.name ?? null,
+        box: artInstr.box ?? null,
+      })
+      .catch(() => null),
+    new Promise((r) => setTimeout(() => r(null), 30000)),
+  ]);
+  if (!up) console.warn(`${MODULE_ID} | ${entry.name}: ${what} art skipped (timeout or extraction failure).`);
+  return up?.path ?? "";
+}
+
+/**
  * kind.monsterFamily -> one `acks-extras.template` generator whose variant axis
  * options are the family's member creatures, each a complete preset: the same
  * `bindMonster` output a direct import produces (system, weapons, abilities,
@@ -897,7 +921,10 @@ export async function importFamily(bookId, famId, folderId) {
   const memberText = new Map();
   const memberXp = new Map();
   let lore = "";
-  let img = "";
+  // The template's picture: the family's own plate (an overview member's art)
+  // outranks the first variant's portrait.
+  let familyImg = "";
+  let variantImg = "";
   for (const member of fam.members) {
     try {
     let entry = cb.entries[member.id];
@@ -907,7 +934,10 @@ export async function importFamily(bookId, famId, folderId) {
     if (overviewIsLore(member, fam.members, fam.name, (id) => cb.entries[id])) {
       loreIds.add(member.id);
       const node = await executeEntry(session.doc, cb, data.registers, member.id);
-      if (node.ok) lore = entryText(node, member.id, entry.cite);
+      if (node.ok) {
+        lore = entryText(node, member.id, entry.cite);
+        if (node.fields.art) familyImg ||= await uploadEntryArt(session.doc, member.id, entry, node, "family");
+      }
       continue;
     }
     // A member reprinted in another open book binds the newer printing (the
@@ -950,23 +980,9 @@ export async function importFamily(bookId, famId, folderId) {
     }
 
     let art = "";
-    if (node.fields.art && ctx.uploadPageArt) {
-      // Timeout-bounded: one undecodable image costs this variant its portrait, not the import.
-      const artInstr = entry.fields?.art ?? {};
-      const up = await Promise.race([
-        ctx
-          .uploadPageArt(bindDoc, {
-            id: bindId,
-            page: artInstr.page ?? entry.pages[0],
-            name: artInstr.name ?? node.fields.art.name ?? null,
-            box: artInstr.box ?? null,
-          })
-          .catch(() => null),
-        new Promise((r) => setTimeout(() => r(null), 30000)),
-      ]);
-      if (up?.path) art = up.path;
-      if (art && !img) img = art;
-      if (!up) console.warn(`${MODULE_ID} | ${entry.name}: variant art skipped (timeout or extraction failure).`);
+    if (node.fields.art) {
+      art = await uploadEntryArt(bindDoc, bindId, entry, node, "variant");
+      if (art && !variantImg) variantImg = art;
     }
 
     options.push(
@@ -1095,7 +1111,7 @@ export async function importFamily(bookId, famId, folderId) {
     name: fam.name,
     type: TEMPLATE_TYPE,
     folder: folderId,
-    ...(img ? { img } : {}),
+    ...(familyImg || variantImg ? { img: familyImg || variantImg } : {}),
     system: {
       output: { actorType: "monster", nameFormat: out.nameFormat },
       axes,
@@ -1107,6 +1123,13 @@ export async function importFamily(bookId, famId, folderId) {
   if (!actor) {
     ui.notifications.warn(`${MODULE_ID} | ${fam.name}: the system rejected the family template — skipped (see console).`);
     return null;
+  }
+  // A repair in place keeps the held picture. One that is a variant's portrait
+  // is the fallback an import wrote, and gives way to the family's own.
+  if (familyImg && existing && actor.img !== familyImg) {
+    const file = (path) => String(path ?? "").split("/").pop();
+    const portraits = new Set(options.map((o) => file(o.art)).filter(Boolean));
+    if (portraits.has(file(actor.img))) await actor.update({ img: familyImg });
   }
   return actor;
 }
