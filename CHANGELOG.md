@@ -2,6 +2,12 @@
 
 Changes through v11.14.5: [CHANGELOG-through-v11.14.5.md](CHANGELOG-through-v11.14.5.md).
 
+## 2026.11.24.1 — Public Beta
+
+### Fixed
+
+- A character sheet opened soon after the world loads no longer shows "—" for a throw that reads an imported skill's ladder, such as the Climbing proficiency on a non-Thief: Actors sidebar → a character → Rolls tab → Proficiencies & powers redraws with the figure once the world's skill ladders are read.
+
 ## 2026.11.24 — Public Beta
 
 ### Changed
