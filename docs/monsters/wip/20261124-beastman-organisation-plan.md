@@ -63,7 +63,7 @@ consumable; GEN at generation only; INFO description only.
 |---|---|---|---|---|---|
 | 1 | Overview prose | Y, template biography (`overviewIsLore`) | — | INFO | — |
 | 2 | Chance of speaking Common, by rank (per HD for leaders) | N | R | GEN: `organisation-logic` | speaker count on the stack; language on a leader |
-| 3 | Head strip: five heads, each captioned with a trait | N | trait option `art`, trait ability `img` | INFO | five trait options show a head |
+| 3 | Head strip: five captioned heads. The owner: "They are tribes, neither" a breed's nor a trait's; this row first read the captions as traits, wrongly | Y since `78f3c109`, whole, as the template's picture | template `img` | INFO | the template's picture is the strip |
 | 4-5 | Stat block and portrait, ×6 | Y, variant preset | — | — | — |
 | 6 | Breed combat qualities, ×6 | P: figures folded into the stat line; the surprise part and the leader exemption are unread | I, a quality ability per breed | GATE, plus a new against-side surprise part | the surprise card lists the part |
 | 7 | Breed's default split and its rounding | N | Rc | GEN | counts in the unit tree |
@@ -251,9 +251,8 @@ breed page, which is what ships today.
 
 Section 4, answer 3 gives the plate to the warband generator and the overview
 page's strip to the template, which is built (Results). The plate has no
-reader until S12. Before that answer: the plate is the template's `img`. Each head goes onto its trait option and
-trait item, matched by reading its caption from the Judge's PDF and folding it,
-so no word ships. A crop of the plate is E4's image. Portraits stay on their
+reader until S12. No head is cut from the strip onto a trait, a variant or a role: the heads
+are tribes' (Results, "Ruling 4 reaches S5"). A crop of the plate is E4's image. Portraits stay on their
 variants, and the group's image stays the creature's.
 `uploadBookPicture({stem, page, crop})` renders a page region; a crop stays
 above the purchaser stamp (`CROP_LIMITS.stampLine`).
@@ -487,8 +486,9 @@ Not checked: a fresh import of any family; a read that fails (the
 held-picture guard is read from the code); a template held outside the
 library; what the strip looks like as a list thumbnail.
 
-Phase 1's start prompt above stands as written. S5 puts each head on its trait
-and leaves the template's `img` alone.
+Phase 1's start prompt above stands as written. S5 leaves the template's `img`
+alone. This paragraph first said S5 puts each head on its trait; the owner's
+later answer ("Ruling 4 reaches S5", below) takes that away.
 
 ### Design session, 2026-11-24
 
