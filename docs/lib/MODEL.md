@@ -2744,6 +2744,19 @@ reaches everyone. The flank and a subjacent target are choices the system's
 attack dialog prices itself (its direction and its subjacent box), so the
 **Flanked** and **Subjacent** statuses mark the state and carry no row.
 
+**What an opposing creature imposes on a surprise roll.** A monster's ability can
+carry a `modifier` row `{target: "surprise", appliesTo: "opponent"}`: a figure
+added to each roll of the side opposing it. A character's row is the loadout's
+(`surpriseothers`, which core reads as the highest of a side's opponents); this
+reader takes the types that have no such field, and takes the SUM, so two
+carriers add where core's own field takes one. Sides are the matrix's (hostile,
+neutral and secret against friendly), and a carrier never shifts its own side.
+`withSurpriseConditions` adds the sum to each combatant's held figure, with or
+without conditions of its own, and names every part by its source and page in
+the notice the roll already posts. A row under a gate or a free-text condition
+that nothing at the matrix can decide is told and not applied. The figure is
+the row's, imported; no figure, or a zero, adds nothing.
+
 **A waiver of an Armor Class figure.** An ability can carry a `modifier` row
 with `target: "acWaiver"` and a `conditions` list: the creature does not suffer
 the Armor Class figure of those conditions. It names the condition and not the
@@ -2766,7 +2779,7 @@ A gated row is not read, so no waiver is applied on a guess.
 | Adventuring throw | `withAdventuringConditions`, called by the throw's own wrapper (`patches/adventuring-roll.mjs`) | `adventuring.<key>` shifted |
 | Proficiency throw | `withModifiers` in abilities' `ability-rolls.mjs` | Folded into the target every surface shows |
 | Morale | `withMoraleConditions`, called by the morale roll's own wrapper (`patches/morale-roll.mjs`) | `details.morale` shifted |
-| Surprise | `withSurpriseConditions`, from the surprise-card patch | `surprise.avoidsurprise` shifted for the matrix's whole roll |
+| Surprise | `withSurpriseConditions`, from the surprise-card patch | `surprise.avoidsurprise` shifted for the matrix's whole roll: by the combatant's own conditions, and by the sum of what the opposing side's carriers impose (below) |
 | Speed | wrap of `_calculateMovement` | Each derived speed scaled; several reductions do not compound, the slowest governs |
 
 A shift is held on the in-memory field only while core reads it and is put

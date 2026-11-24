@@ -381,6 +381,27 @@ check("the light gate asks the token's place: daylight satisfies daylight only, 
   assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }, { token: lit }), false);
 });
 
+const { consumedRows } = await import("../scripts/lib/typed-modifiers.mjs");
+check("consumedRows reads the rows of one target on any actor, once per definition, with the value resolved and the gate left to the caller", () => {
+  const row = (extra = {}) => mod({ target: "damageReduction", value: 2, ...extra });
+  const items = [
+    ability("Plates", [row(), mod({ target: "ac" })], { id: "def.ability.plates" }),
+    ability("Plates", [row()], { id: "def.ability.plates", itemId: "copy" }),
+    ability("Gated", [row({ gate: { kind: "weaponMundane" } }), row({ value: null })]),
+    { ...ability("Gear", [row()]), type: "weapon" },
+    ability("Other", [row({ type: "throw" })]),
+  ];
+  const rows = consumedRows(asActor(items, "monster"), "damageReduction");
+  assert.deepEqual(rows.map((r) => [r.item.name, r.index]), [["Plates", 0], ["Gated", 0], ["Gated", 1]], "one Plates row: a copy counts once, a weapon and a non-modifier are not read");
+  assert.equal(rows[0].value, 2);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[2].value, null, "a figure that does not resolve is null, the row kept");
+  assert.equal(rows[1].spec.gate.kind, "weaponMundane", "the spec comes back whole");
+  assert.deepEqual(consumedRows(null, "damageReduction"), []);
+  assert.equal(modifierDisposition(row()).consumer, "defenses");
+  assert.equal(modifierDisposition(mod({ target: "acWaiver", value: undefined })).consumer, "conditions");
+});
+
 check("rollGatedModifiers reads a monster's rows, once per definition, and leaves out blank, zero, opponent and other targets", () => {
   const items = [
     ability("Sun Shy", [lightRow(), lightRow({ value: null }), lightRow({ value: 0 }), lightRow({ appliesTo: "opponent" }), lightRow({ target: "save" }), mod()]),

@@ -35,6 +35,7 @@ import { resolveLevelValue, scopeApplies, satisfies, abilitySlug, hasScope } fro
 import { cookbookId } from "./library.mjs";
 import { RELEASED_SAVE_KEYS } from "./actor-compat.mjs";
 import { LIGHT_LEVELS, lightAtLeast, lightLevelOf } from "./light.mjs";
+import { AC_WAIVER_TARGET } from "./conditions.mjs";
 
 const FLAG_SCOPE = "acks-extras";
 
@@ -74,8 +75,14 @@ export const OPPONENT_PATHS = Object.freeze({
   }),
 });
 
-/** Targets another feature reads off the spec itself, by the feature that reads it. */
+/**
+ * Targets another feature reads off the spec itself, by the feature that reads
+ * it. `acWaiver` is `conditions.mjs`' (`subjectOf`), and `damageReduction` is
+ * `defenses.mjs`' (`actorReductions`).
+ */
 export const CONSUMED_TARGETS = Object.freeze({
+  [AC_WAIVER_TARGET]: "conditions",
+  damageReduction: "defenses",
   reaction: "influence",
   morale: "influence",
   loyalty: "influence",
@@ -418,6 +425,37 @@ export function rollGatedModifiers(actor, target, { resolve = defaultResolve } =
       const { value } = modifierValue(actor, item, spec, { resolve });
       if (value === null || value === 0) return;
       out.push({ item, spec, index, gate: disposition.gate, value });
+    });
+  }
+  return out;
+}
+
+/**
+ * The rows of one `modifier` target an actor's abilities carry, whatever the
+ * disposition, for the feature that consumes the target: `[{item, spec, index,
+ * value}]` in item and row order, `value` resolved as `standingModifiers`
+ * resolves it (null where it does not). Copies of one definition count once. A
+ * row is read as it is stored; the caller decides what its gate, its subject
+ * and its scope mean. Any actor type.
+ *
+ * @param {object} actor
+ * @param {string} target a modifier target
+ * @param {{resolve?: Function}} [options]
+ */
+export function consumedRows(actor, target, { resolve = defaultResolve } = {}) {
+  const out = [];
+  if (!actor?.items) return out;
+  const seen = new Set();
+  for (const item of actor.items) {
+    if (item?.type !== "ability") continue;
+    const effects = extrasOf(item)?.effects;
+    if (!Array.isArray(effects)) continue;
+    const key = definitionKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    effects.forEach((spec, index) => {
+      if (spec?.type !== "modifier" || spec.target !== target) return;
+      out.push({ item, spec, index, value: modifierValue(actor, item, spec, { resolve }).value });
     });
   }
   return out;

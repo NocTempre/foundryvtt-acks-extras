@@ -981,6 +981,16 @@ them, and a row narrowed to some kinds of attack only when `kind` does: a call
 that passes neither gets the rows that reach every save, or stand against
 every attack.
 
+**What a creature imposes on the surprise roll.** `surprise-parts.mjs` reads an
+ability's `modifier` row `{target: "surprise", appliesTo: "opponent", value}` on
+a creature whose type has no `surpriseothers` field (a monster; a character's
+row is the loadout's, written to that field for core to read). `opposingSurpriseParts(actor)`
+answers `{parts: [{source, cite, value}], left: [{source, why}]}`, `why` being
+`gate` or `condition` for a row nothing at the matrix can decide;
+`surpriseAgainst(pools)` answers `{imposedOn: {monsters, adventurers}, left}`,
+the parts each side's roll gains, from the other side's combatants (`sideOfPool`:
+hostile, neutral and secret against friendly); `sumOfParts(parts)` adds them.
+
 The roll wrappers and the two helpers a roll's owner calls
 (`withMoraleConditions`, `withSurpriseConditions`) are
 `scripts/lib/status-effects.mjs`, imported directly; `conditionNameKey(id)`

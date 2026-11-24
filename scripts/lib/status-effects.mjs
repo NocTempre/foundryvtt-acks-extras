@@ -35,6 +35,7 @@ import {
   attackMath, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
 } from "./conditions.mjs";
 import { isArranged, normalizePalette, resolvePalette } from "./status-palette.mjs";
+import { sideOfPool, sumOfParts, surpriseAgainst } from "./surprise-parts.mjs";
 
 /** The system's own marker for a defeated combatant, kept as Foundry names it. */
 export const STATUS_DEAD = "dead";
@@ -318,6 +319,10 @@ const termLabel = (part) => (part.side === "target" ? loc("term.target", { name:
 const list = (ids) => [...new Set(ids)].map(nameOf).join(", ");
 const partList = (parts) => parts.map((p) => `${termLabel(p)} ${signed(p.value)}`).join(", ");
 
+/** The figures an opposing carrier imposes on a roll, each named by its source and its page. */
+const importedList = (parts) =>
+  parts.map((p) => loc(p.cite ? "term.imposedCited" : "term.imposed", { source: p.source, cite: p.cite, value: signed(p.value) })).join(", ");
+
 /** Say which figures a roll could not place, each with the circumstance it waits on. */
 function reportPending(name, pending) {
   if (!pending.length) return;
@@ -545,10 +550,12 @@ function onCalculateMovement(wrapped, ...args) {
 
 /**
  * Hold every combatant's surprise figure on the field the Surprise Matrix
- * reads, for as long as `run` takes. A combatant whose actor re-prepared in
- * that time has a fresh field, which is left alone. Which side rolls is the
- * matrix's to decide and is not visible from here, so the figures are told
- * once, as what is held, for whoever does roll.
+ * reads, for as long as `run` takes: its own conditions' figure, and the sum of
+ * what the opposing side's carriers impose (`surprise-parts.mjs`), each named by
+ * its source and page. A combatant whose actor re-prepared in that time has a
+ * fresh field, which is left alone. Which side rolls is the matrix's to decide
+ * and is not visible from here, so the figures are told once, as what is held,
+ * for whoever does roll.
  *
  * @param {object} pools the matrix's combatant pools, by disposition
  * @param {() => Promise<*>} run core's roll
@@ -556,21 +563,29 @@ function onCalculateMovement(wrapped, ...args) {
 export async function withSurpriseConditions(pools, run) {
   const held = [];
   try {
-    for (const combatant of Object.values(pools ?? {}).flat()) {
-      const actor = combatant?.actor;
-      const cell = actor?.system?.surprise;
-      if (!cell || numOrNull(cell.avoidsurprise) == null) continue;
-      const subject = subjectOf(actor);
-      if (!subject?.statuses?.size) continue;
-      const math = rollMath("surprise", subject);
-      reportPending(actor.name, math.pending);
-      if (!math.total) continue;
-      held.push({ actor, cell, was: cell.avoidsurprise, parts: math.parts });
-      cell.avoidsurprise = Number(cell.avoidsurprise) + math.total;
+    const against = surpriseAgainst(pools);
+    for (const [pool, combatants] of Object.entries(pools ?? {})) {
+      const imposed = against.imposedOn[sideOfPool(pool)] ?? [];
+      for (const combatant of combatants ?? []) {
+        const actor = combatant?.actor;
+        const cell = actor?.system?.surprise;
+        if (!cell || numOrNull(cell.avoidsurprise) == null) continue;
+        const subject = subjectOf(actor);
+        const own = subject?.statuses?.size ? rollMath("surprise", subject) : null;
+        if (own) reportPending(actor.name, own.pending);
+        const shift = (own?.total ?? 0) + sumOfParts(imposed);
+        if (!shift) continue;
+        held.push({ actor, cell, was: cell.avoidsurprise, parts: own?.parts ?? [], imposed });
+        cell.avoidsurprise = Number(cell.avoidsurprise) + shift;
+      }
     }
     if (held.length) {
-      const rows = held.map((h) => `${h.actor.name}: ${partList(h.parts)}`).join("; ");
+      const rows = held.map((h) => [`${h.actor.name}: `, [partList(h.parts), importedList(h.imposed)].filter(Boolean).join(", ")].join("")).join("; ");
       ui.notifications?.info(loc("notice.surprise", { rows }));
+    }
+    if (against.left.length) {
+      const rows = against.left.map((n) => `${n.bearer}: ${n.source}`).join(", ");
+      ui.notifications?.info(loc("notice.surpriseLeft", { rows }));
     }
   } catch (err) {
     console.error(`${MODULE_ID} | conditions could not read a surprise roll; it rolls without them`, err);
