@@ -2,6 +2,12 @@
 
 Changes through v11.14.5: [CHANGELOG-through-v11.14.5.md](CHANGELOG-through-v11.14.5.md).
 
+## 2026.11.24 — Public Beta
+
+### Changed
+
+- The pot window's left panel (**Scene controls → Token controls → New treasure pot**) deals from one list, "Hoards to deal", instead of a monster checklist and a typed treasure type: each row shows its treasure type and source with a `−` `×n` `+` stepper and a remove button, a monster dropped from the Actors sidebar or a compendium adds its row, and "+ Add treasure type" opens a picker of the treasure types the world has imported. The Deal button counts the hoards it will deal.
+
 ## 2026.11.20.2 — Public Beta
 
 ### Fixed
