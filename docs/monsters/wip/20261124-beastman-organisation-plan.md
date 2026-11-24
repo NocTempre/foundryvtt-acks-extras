@@ -513,7 +513,7 @@ answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges (boards 1a to 1h) | S12 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place (boards 1a to 1i) | S12 |
 | [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
@@ -857,7 +857,8 @@ these words:
 - **G**'s rows are not valid as written; S10 gains whatever group nesting
   needs.
 
-Still the owner's, the reading's pick first:
+Still the owner's, the reading's pick first. Question 1 is no longer put in
+this form; see "A faction at several places" below.
 
 1. Where a village's bodies are at Generate: (a) a home group at the
    village's place that holds a group for each warband, each holding a group
@@ -919,3 +920,54 @@ worded.
 
 Question 2 stands. `architect` is not run again on these words alone; the
 re-rule waits for question 1. Released: none.
+
+### A faction at several places, a place with several factions, 2026-11-24
+
+Given in answer to the restated question 1: "A faction can be at multiple
+places, a place can contain multiple factions."
+
+Read as: where is a place, and a place is not the faction's own. One
+faction's things may be at several places at once, and one place lists the
+things of several factions. Example: a village's Gang 1 is at a ford while
+its Gang 2 is at the village's site, and that site also lists another
+faction's patrol.
+
+Which "at" the reading takes: where a faction's bodies are, since the subject
+was who is where. The other "at", the places a faction holds, is already many
+to many as built: a seat and `holdings` on the faction, and `factionsAt` and
+`factionsHolding` answering with several factions for one place
+(`docs/factions/MODEL.md`, "Where a faction stands"). Holding a place and
+having bodies at it are two facts, and this reading leaves the first alone.
+
+What it withdraws: "home group". The words were the design session's and
+never the owner's, in the two entries above (the first's example, and both
+forms of question 1) and on board 1g. A group names one place
+(`unit.locationUuid`), so one group cannot be a village's bodies at two
+places. Where those entries say it, read "the groups a place lists". Board
+1g's strings name a place now.
+
+For the re-rule, a consequence and not a ruling: option (b), a gang as a row
+inside a larger group, needs a group for each place a faction has bodies at,
+and a gang that changes place moves its row from one group to another, so a
+reference to it by group and stack key does not survive the move.
+
+Drawn as [board 1i](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb), the
+four statements over one set of things, labelled on the board as a reading.
+Affiliation is on the left and places on the right, with the same lettered
+things in both. Gang 1 is away from its warband, another faction's group is
+at the village's site, and a warband out whole is a group card that lists two
+gangs' groups.
+
+Question 1 was put twice as (a) or (b) and drew a statement of the model each
+time, so it is not put a third time. The owner is asked whether board 1i is
+the model, and the board marks the three points where it chose:
+
+1. A gang is a group actor of its own (drawn), or a row inside a larger group
+   for each place.
+2. A warband and a gang are lines on the village's faction card (drawn), or
+   faction cards of their own nested under it.
+3. A warband out whole is a group card that lists groups (drawn). It is the
+   one kind of thing on the board that no model has today.
+
+Question 2 of "The owner on the two cards" stands. `architect` is not run.
+Not checked: board 1i's rendering. Released: none.
