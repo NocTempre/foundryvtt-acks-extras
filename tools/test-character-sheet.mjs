@@ -823,6 +823,47 @@ test("an armour-training line shows the rungs it adds with their parts, and is b
   }
 });
 
+const { acTips, summedArmour } = await import("../scripts/character-sheet/tabs/stats.mjs");
+const sheetArmour = (name, type, ac, over = {}) => ({
+  id: over.id ?? name.replace(/\W/g, ""), name, type: "armor",
+  system: { equipped: over.equipped ?? true, type, ac: { value: ac }, quantity: 1, cost: 0, weight6: 0 },
+  getFlag: () => undefined, effects: [],
+});
+test("the AC tooltip names every armour core sums, each with its figure, and their total", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const tips = acTips({ type: "character", effects: [] }, { scores: { dex: { mod: 1 } }, ac: { value: 9, shield: 1, mod: 0 } }, { ac: { mod: 0 } }, { parts: [], listed: [] }, [{ name: "Test Hauberk", value: 4 }, { name: "Test Helm", value: 2 }]);
+    const part = (tip) => { const outer = JSON.parse(tip.slice(tip.indexOf("|") + 1).split(" · ")[0]); return outer.armour; };
+    const read = (s) => ({ key: s.slice(0, s.indexOf("|")), data: JSON.parse(s.slice(s.indexOf("|") + 1)) });
+    const named = read(part(tips.armour));
+    assert.equal(named.key, "ACKS-CHARACTER.stats.acBaseNamed");
+    assert.equal(named.data.value, 6, "the total is the sum of both pieces");
+    assert.deepEqual(named.data.items.split(", ").map((s) => read(s).data), [{ name: "Test Hauberk", value: 4 }, { name: "Test Helm", value: 2 }], "each piece is named with its own figure");
+    assert.equal(read(part(tips.shield)).key, "ACKS-CHARACTER.stats.acBaseNamed", "the shield row names the armour too");
+    const none = acTips({ type: "character", effects: [] }, { scores: { dex: { mod: 0 } }, ac: { value: 0, shield: 0 } }, { ac: { mod: 0 } }, { parts: [], listed: [] }, []);
+    assert.equal(read(part(none.armour)).key, "ACKS-CHARACTER.stats.acBaseNone", "no armour is stated as none");
+  } finally {
+    delete globalThis.game;
+  }
+});
+test("the armour the tooltip lists is core's set: every equipped armour not typed shield, a helmet included, a shield excluded", () => {
+  globalThis.game = { settings: { get: (_m, k) => (k === "defaultHandBudget" ? 2 : k === "enforceMode" ? "resolve" : undefined) }, i18n: { has: () => false, localize: (k) => k, format: (k) => k } };
+  try {
+    const items = [
+      sheetArmour("Test Hauberk", "medium", 4),
+      sheetArmour("Test Helm", "light", 2),
+      sheetArmour("Test Shield", "shield", 1),
+      sheetArmour("Test Spare", "heavy", 5, { equipped: false }),
+      sheetArmour("Test Cap", "light", null),
+    ];
+    const read = summedArmour({ type: "character", items, system: {}, effects: [], getFlag: () => undefined });
+    assert.deepEqual(read.map((a) => [a.name, a.value]).sort(), [["Test Cap", 0], ["Test Hauberk", 4], ["Test Helm", 2]], "worn pieces with their own figures; none from the shield or the unworn suit; a null figure reads 0");
+    assert.deepEqual(summedArmour({ type: "character" }), [], "a record with no items has none");
+  } finally {
+    delete globalThis.game;
+  }
+});
+
 console.log("character sheet: adding a proficiency by hand");
 const atest = async (name, fn) => {
   await fn();

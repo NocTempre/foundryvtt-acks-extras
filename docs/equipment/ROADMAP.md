@@ -46,7 +46,7 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   suit and charges a suit worn bare (RR ch. 4, "Helmet, Light"); nothing reads
   that yet. The figures are printed, so they arrive through the importer's
   equipment rule table and are applied by the loadout effect beside the
-  helmet's base correction (MODEL, "A helmet never replaces the suit").
+  shield cut (MODEL, "The shield and its style").
 - **The item sheet's mocked groups.** The design's Upkeep, Study, Reading The
   Chart and Ability Rolls Boosted roll groups, the spell book's legibility
   rows and the named-item note prose have no data source in this module; the

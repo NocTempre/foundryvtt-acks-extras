@@ -308,25 +308,48 @@ function typedLines(actor, paths, target, typed) {
 const withLines = (tip, lines) => [tip, ...lines].join(" · ");
 
 /**
+ * The equipped armour core's AC sums into its base: every equipped armour not
+ * typed "shield", each with its own AC figure (`ac.value ?? 0`, as core reads
+ * it). The loadout's suits (`extraArmor` and `armor`) and its helmets are
+ * exactly that set. A record with no items, or a loadout that cannot be read,
+ * has none.
+ * @param {Actor} actor
+ * @returns {{name: string, value: number}[]}
+ */
+export function summedArmour(actor) {
+  if (actor?.type !== "character" || !actor.items) return [];
+  try {
+    const { extraArmor, armor, helmets } = getLoadout(actor);
+    return [...extraArmor, ...(armor ? [armor] : []), ...helmets].map((item) => ({ name: item.name, value: num(item.system?.ac?.value) }));
+  } catch {
+    return []; // no loadout to read: the base is stated without its names
+  }
+}
+
+/**
  * The AC rows' tooltips: core's sum in its parts with the actor's numbers —
- * the armour core reads as its base, by name, Dexterity, the shield, the stored
- * bonus and what effects add — then each part the loadout effect wrote to
- * `system.ac.mod`. A record with no items reads its parts without the name.
+ * the armour it sums, each piece by name with its own figure and the total,
+ * Dexterity, the shield, the stored bonus and what effects add — then each part
+ * the loadout effect wrote to `system.ac.mod`.
+ * @param {Actor} actor
+ * @param {object} sys the prepared system data
+ * @param {object} stored the stored system data
+ * @param {object} typed the typed modifiers (`standingModifiers`)
+ * @param {{name: string, value: number}[]} [armour] the armour core sums, read from the actor by default
  * @returns {{shield: string, armour: string, naked: string}}
  */
-function acTips(actor, sys, stored, typed) {
-  let base = null;
-  try {
-    base = actor?.type === "character" && actor.items ? getLoadout(actor).coreArmorBase : null;
-  } catch {
-    base = null; // no loadout to read: the base is stated without its name
-  }
+export function acTips(actor, sys, stored, typed, armour = summedArmour(actor)) {
   const dex = actor?.type === "character" ? num(sys.scores?.dex?.mod) : 0;
   const shield = num(sys.ac?.shield);
   const storedMod = num(stored.ac?.mod);
   const total = num(sys.ac?.value);
   const parts = {
-    armour: base ? loc("stats.acBaseNamed", { value: num(base.system?.ac?.value), name: base.name }) : loc("stats.acBaseNone"),
+    armour: armour.length
+      ? loc("stats.acBaseNamed", {
+          value: armour.reduce((n, a) => n + a.value, 0),
+          items: armour.map((a) => loc("stats.acBaseItem", { name: a.name, value: a.value })).join(", "),
+        })
+      : loc("stats.acBaseNone"),
     dex: signed(dex),
     stored: signed(storedMod),
     effects: signed(num(sys.ac?.mod) - storedMod),

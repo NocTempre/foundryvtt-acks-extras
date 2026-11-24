@@ -74,7 +74,7 @@ Object.defineProperty(globalThis.CONST, "ACTIVE_EFFECT_MODES", {
 const S = new URL("../scripts/equipment/", import.meta.url);
 const { classifyWeapon, handCost, equipmentClass } = await import(new URL("profiles.mjs", S));
 const { getLoadout, VIOLATION } = await import(new URL("loadout.mjs", S));
-const { buildLoadoutChanges, dualStyleFigure } = await import(new URL("effects.mjs", S));
+const { buildLoadoutChanges, buildLoadoutParts, dualStyleFigure } = await import(new URL("effects.mjs", S));
 const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, armourCeiling, lightlyEquipped, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
 const { buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
 const { MASTERWORK, SILVER } = await import(new URL("config.mjs", S));
@@ -374,15 +374,22 @@ const npAcSum = buildLoadoutChanges(npUse, npUseLo).filter((c) => c.key === "sys
 check("no attribute bonus to AC while non-proficient (DEX +2 cancelled)", npAcSum === -2);
 const npDexPen = actor([weapon("Battle Axe", { melee: true, id: "ax" })], { flags: { weaponProficiency: "swordDagger", styles: "single,twoHanded" }, system: { scores: { dex: { mod: -2 } }, details: { level: 3 } } });
 check("DEX penalty to AC is kept (penalties are not bonuses)", buildLoadoutChanges(npDexPen, getLoadout(npDexPen)).filter((c) => c.key === "system.ac.mod").reduce((s, c) => s + Number(c.value), 0) === 0);
-// Core's AC base is the last equipped non-shield armour; a helmet after the suit
-// must not stand in for it, and a helmet's own stated AC adds.
+// Core's AC sums every equipped armour not typed "shield", a helmet included, so
+// the armour part of AC is core's alone: the loadout effect writes nothing for
+// it, whatever the order the pieces went on in.
 const acModOf = (items) => { const a = actor(items, { flags: { armorMax: "heavy" }, system: { scores: { dex: { mod: 0 } }, details: { level: 3 } } }); return buildLoadoutChanges(a, getLoadout(a)).filter((c) => c.key === "system.ac.mod").reduce((s, c) => s + Number(c.value), 0); };
+const acChangesOf = (items) => { const a = actor(items, { flags: { armorMax: "heavy" }, system: { scores: { dex: { mod: 0 } }, details: { level: 3 } } }); return buildLoadoutParts(a, getLoadout(a)).changes.filter((c) => c.key === "system.ac.mod"); };
 const suitAC = armor("Chain Mail", "medium", { id: "cm", ac: 4 });
-check("helmet worn after the suit → the suit's AC is put back over core's helmet base", acModOf([suitAC, armor("Heavy Helmet", "medium", { id: "hh" })]) === 4);
-check("helmet worn before the suit → core already reads the suit, nothing written", acModOf([armor("Heavy Helmet", "medium", { id: "hh" }), suitAC]) === 0);
-check("a helmet stating AC after the suit → suit plus helmet", acModOf([suitAC, armor("Heavy Helmet", "medium", { id: "hh", ac: 1 })]) === 4);
-check("a helmet stating AC before the suit → its AC added to core's suit base", acModOf([armor("Heavy Helmet", "medium", { id: "hh", ac: 1 }), suitAC]) === 1);
-check("a helmet alone → core's own base stands", acModOf([armor("Heavy Helmet", "medium", { id: "hh" })]) === 0);
+check("helmet worn after the suit → no armour-base change on system.ac.mod", acChangesOf([suitAC, armor("Heavy Helmet", "medium", { id: "hh" })]).length === 0);
+check("helmet worn before the suit → nothing written", acModOf([armor("Heavy Helmet", "medium", { id: "hh" }), suitAC]) === 0);
+check("a helmet stating AC after the suit → nothing written, core sums both", acModOf([suitAC, armor("Heavy Helmet", "medium", { id: "hh", ac: 1 })]) === 0);
+check("a helmet stating AC before the suit → nothing written, core sums both", acModOf([armor("Heavy Helmet", "medium", { id: "hh", ac: 1 }), suitAC]) === 0);
+check("a helmet alone → nothing written", acModOf([armor("Heavy Helmet", "medium", { id: "hh" })]) === 0);
+{
+  const both = actor([suitAC, armor("Heavy Helmet", "medium", { id: "hh", ac: 1 })]);
+  check("no part of the loadout effect carries a rule for the armour base", !buildLoadoutParts(both, getLoadout(both)).parts.some((p) => /armorBase/.test(p.labelKey ?? "")));
+  check("the Loadout names no armour base",!("coreArmorBase" in getLoadout(both)) && !("armorBase" in getLoadout(both)));
+}
 const profLo = getLoadout(actor([weapon("Sword", { melee: true, id: "sw" })], { flags: { styles: "single,twoHanded" }, system: { scores: { dex: { mod: 2 } }, details: { level: 3 } } }));
 check("fully proficient loadout → no nonProficientUse state", profLo.nonProficientUse === false && !profLo.violations.some((v) => v.type === VIOLATION.NON_PROFICIENT_USE));
 
@@ -637,6 +644,17 @@ const bigShield = actor([weapon("Sword", { melee: true, id: "s10" }), armor("Tow
 const bigShieldAC = buildLoadoutChanges(bigShield, getLoadout(bigShield)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("the cut is the shield's own value, whatever it is", bigShieldAC === -2);
 check("no shield in hand → nothing to cut", getLoadout(actor([weapon("Sword", { melee: true, id: "s11" })], { flags: { styles: "single" } })).shieldStyled === true);
+
+// Every equipped shield adds its AC in core: the variant cut cancels the AC of each
+// shield that grants nothing, the style cut that of every shield, and the effect
+// takes the deeper of the two once.
+const shieldAt = (name, variant, ac, strap = "hand") => armor(name, "shield", { ac, id: name.replace(/\W/g, ""), flags: { shieldVariant: variant, strap } });
+const acSumOf = (a) => buildLoadoutChanges(a, getLoadout(a)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
+check("one shield that grants nothing → its own AC is cut",acSumOf(wsActor([weapon("Sword", { melee: true, id: "k1" }), shieldAt("Buckler", "buckler", 2)], false)) === -2);
+check("two shields, neither granting → the cut is the sum of both", acSumOf(wsActor([weapon("Sword", { melee: true, id: "k2" }), shieldAt("Buckler A", "buckler", 1), shieldAt("Buckler B", "buckler", 2)], false)) === -3);
+check("two shields, one granting → the cut is the one that does not", acSumOf(wsActor([weapon("Sword", { melee: true, id: "k3" }), shieldAt("Phalanx Shield", "phalanx", 2), shieldAt("Buckler", "buckler", 1)], false)) === -1);
+check("two shields, both granting → nothing cut", acSumOf(wsActor([weapon("Sword", { melee: true, id: "k4" }), shieldAt("Phalanx Shield", "phalanx", 2), shieldAt("Kite Shield", "kite", 1)], false)) === 0);
+check("no style, two shields → the style cut is the sum of both, once beside the variant cut", acSumOf(actor([weapon("Sword", { melee: true, id: "k5" }), shieldAt("Buckler", "buckler", 1), shieldAt("Phalanx Shield", "phalanx", 2)], { flags: { styles: "single" } })) === -3);
 
 // --- single-shield rule (RR p141) + shield-frees-a-hand-for-a-light -----------
 // A character benefits from only ONE shield, however carried. Two in hand:
@@ -2253,7 +2271,6 @@ const prose = power("Prose", "def.power.prose", [{ type: "modifier", target: "in
 check("a free-text condition applies nothing", initOf(sworded([prose])) === 0);
 
 // Each change is named in the ledger, index for index.
-const { buildLoadoutParts } = await import(new URL("effects.mjs", S));
 const ledgerChar = sworded([power("Quick", "def.power.quick", [{ type: "modifier", target: "initiative", value: 2 }])]);
 const built = buildLoadoutParts(ledgerChar, getLoadout(ledgerChar));
 const at = built.changes.findIndex((c) => c.key === "system.initiative.mod");

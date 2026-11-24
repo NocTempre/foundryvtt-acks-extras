@@ -209,3 +209,34 @@ a suit of armour folds into a stack, and equipping takes one from it". The
 handlers live in `enforce.mjs` (`onPreUpdateEquip`, `foldOnUnequip`) and
 `module.mjs` only registers them, so the handler order is testable. `placement.mjs`
 offers no take-out for a core-equippable item.
+
+## 2026-11-24 — Armour class is the system's sum
+
+Supersedes "A helmet never replaces the suit (2026-11-10)" (archived in
+`DECISIONS-through-v11.14.5.md`; it carries no row in "In force"). **New
+evidence:** `acks` 14.2.0's `computeAC` adds the AC of every equipped armour
+not typed "shield" to the base and the AC of every equipped shield to the
+shield figure. The 14.1.0 `computeAC` the ruling answered took its base from
+the last such armour and its shield from the last shield.
+
+**Ruled.** The armour part of AC is the system's alone: the loadout effect
+writes no armour-base change to `system.ac.mod`, and the Loadout no longer
+names `coreArmorBase` or `armorBase`. The shield cut follows what the system
+now adds: the variant cut (`shieldACCorrection`) cancels the AC of each
+equipped shield that `grantsOrdinaryAC` says grants nothing, the style cut
+cancels the AC of every equipped shield while `shieldStyled` is false, and the
+effect still takes the deeper of the two, once. With one shield the figure is
+unchanged. The character sheet's AC tooltip lists every equipped armour not
+typed "shield", each with its own figure, and their total (`summedArmour`).
+
+**Rejected.** Keeping the base correction: on 14.2.0 the system already sums a
+suit and a helmet, so the correction counts the suit's AC a second time. A
+rule about a second shield (only the best one counts, or none): the module
+cancels only what its two existing rules already say grants nothing, and
+nothing here adds a third.
+
+**What it cost.** A helmet stating an AC adds it to the suit's whichever went
+on first, as before, and now by the system's own sum. A world that stays on
+14.1.0 reads the old base and would see the helmet stand in for the suit; the
+module's minimum is 14.2.0. Every shield worn beyond the first is now cut
+(or kept) by the same two rules rather than ignored.

@@ -117,17 +117,17 @@ export function grantsOrdinaryAC(item, hasShieldSpec, actor = null) {
 
 /**
  * Correction for `system.ac.mod` that cancels core's unconditional shield
- * bonus where the shield grants no ordinary AC. Core adds the LAST equipped
- * shield's ac.value, so that is the shield tested.
+ * bonus where a shield grants no ordinary AC. Core adds the ac.value of every
+ * equipped shield, so the correction is the sum of those of them that grant
+ * none.
  * @returns {number} 0 or a negative correction
  */
 export function shieldACCorrection(loadout, hasShieldSpec, actor = null) {
   if (!overlayEnabled()) return 0;
-  const shields = loadout?.shields ?? [];
-  if (!shields.length) return 0;
-  const counted = shields[shields.length - 1]; // matches core's last-wins pick
-  if (grantsOrdinaryAC(counted, hasShieldSpec, actor)) return 0;
-  return -Number(counted.system?.ac?.value ?? 0);
+  const cut = (loadout?.shields ?? [])
+    .filter((shield) => !grantsOrdinaryAC(shield, hasShieldSpec, actor))
+    .reduce((n, shield) => n + Number(shield.system?.ac?.value ?? 0), 0);
+  return cut ? -cut : 0;
 }
 
 /**

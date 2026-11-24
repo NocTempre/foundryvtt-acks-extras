@@ -233,20 +233,13 @@ export function buildLoadoutParts(actor, loadout) {
     add("system.ac.mod", -Math.max(0, Number(actor.system?.scores?.dex?.mod ?? 0)), rule("ACKS-EQUIPMENT.part.nonProficient"));
   }
 
-  // Core's AC computation reads its base off the last equipped armour not typed
-  // "shield", so a helmet put on after the suit stands in for the suit. The base
-  // is the suit's, and a helmet adds the AC it states (see
-  // docs/equipment/MODEL.md, "A helmet never replaces the suit").
-  const acOf = (item) => Number(item?.system?.ac?.value) || 0;
-  const helmetAC = (loadout.helmets ?? []).filter((h) => h.system?.type !== "shield").reduce((n, h) => n + acOf(h), 0);
-  add("system.ac.mod", acOf(loadout.armorBase) + helmetAC - acOf(loadout.coreArmorBase), rule("ACKS-EQUIPMENT.part.armorBase"));
-
-  // Core's AC computation adds the last equipped shield's AC unconditionally;
-  // two rules can say it grants nothing (see docs/equipment/MODEL.md, "The
-  // shield and its style").
+  // Core's AC computation adds every equipped shield's AC unconditionally; two
+  // rules can say a shield grants nothing, and each cancels the AC of the
+  // shields it covers (see docs/equipment/MODEL.md, "The shield and its style").
+  // The armour part of AC is core's alone: it sums every equipped armour that is
+  // not a shield, a helmet included, and this effect writes nothing for it.
   const variantCut = shieldACCorrection(loadout, spec.has(STYLE.WEAPON_SHIELD.toLowerCase()), actor);
-  const lastShield = loadout.shields?.[loadout.shields.length - 1] ?? null;
-  const styleCut = loadout.shieldStyled === false && lastShield ? -Number(lastShield.system?.ac?.value ?? 0) : 0;
+  const styleCut = loadout.shieldStyled === false ? -(loadout.shields ?? []).reduce((n, s) => n + Number(s.system?.ac?.value ?? 0), 0) : 0;
   add("system.ac.mod", Math.min(variantCut, styleCut), rule("ACKS-EQUIPMENT.part.shield"));
 
   // Enclosing (heavy) helmet (RR ch. 4, "Helmet, Heavy"): affects the field

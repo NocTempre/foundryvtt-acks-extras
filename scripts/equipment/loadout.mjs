@@ -220,11 +220,6 @@ export function getLoadout(actor, opts = {}) {
   const shields = equippedArmor.filter(isShield);
   const helmets = equippedArmor.filter((a) => !isShield(a) && isHelmet(a));
   const suits = equippedArmor.filter((a) => !isShield(a) && !isHelmet(a));
-  // Core's AC takes its base from the last equipped armour not typed "shield",
-  // a helmet included; `armorBase` is the same pick with the helmets left out.
-  const baseCandidates = equippedArmor.filter((a) => a.system?.type !== "shield");
-  const coreArmorBase = baseCandidates[baseCandidates.length - 1] ?? null;
-  const armorBase = baseCandidates.filter((a) => !isHelmet(a)).pop() ?? null;
 
   // Classify weapons and assign hand costs (minimum, i.e. medium counts as 1).
   const wprof = weaponProficiency(actor);
@@ -453,8 +448,6 @@ export function getLoadout(actor, opts = {}) {
     helmet: helmets[0] ?? null,
     helmets,
     hasHelmet: helmets.length > 0,
-    coreArmorBase,
-    armorBase,
     activeStyle,
     trainedStyles: trained,
     specStyles: spec,
@@ -490,8 +483,6 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {object|null} shield
  * @property {object|null} helmet
  * @property {object[]} helmets every equipped helmet
- * @property {object|null} coreArmorBase the armour core's AC reads as its base: the last equipped one not typed "shield"
- * @property {object|null} armorBase the same pick with helmets left out
  * @property {string} activeStyle
  * @property {Set<string>} trainedStyles
  * @property {Set<string>} specStyles

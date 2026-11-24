@@ -11,13 +11,21 @@
  * Machine values arrive through ./_env.mjs; nothing here names a port, a world
  * or a seat. Every figure typed into a fixture is invented.
  *
- * Fixtures, kept and found again by marker (`api.fixture`): the character
- * `equipment/hands-probe`. Each section brings it to shape first (reset: a
- * row it lost built again, nothing drawn, no hand flags, no readied torch,
- * the stack at six, no own lights, out of every formation). The party the walk creates is a formation
- * record (a setting, not a document) and is deleted at the end; each torch the
- * walk readies is tracked and swept. Writes outside the ledger: the formation
- * record, deleted by the walk's own id.
+ * Also covers docs/equipment/TESTING.md "Armour class is the system's sum": a
+ * suit, then a helmet stating an AC, then a shield, worn on a second kept
+ * fixture; the system's armour class holds every piece once, the loadout
+ * effect writes no armour-base change, and the Stats tab's armour class
+ * tooltip names the suit and the helmet.
+ *
+ * Fixtures, kept and found again by marker (`api.fixture`): the characters
+ * `equipment/hands-probe` and `equipment/ac-sum`. Each section brings its
+ * fixture to shape first (hands-probe reset: a row it lost built again,
+ * nothing drawn, no hand flags, no readied torch, the stack at six, no own
+ * lights, out of every formation; ac-sum: nothing worn, the stored armour
+ * class bonus at an invented figure). The party the walk creates is a
+ * formation record (a setting, not a document) and is deleted at the end;
+ * each torch the walk readies is tracked and swept. Writes outside the
+ * ledger: the formation record, deleted by the walk's own id.
  */
 import { connect, sleep } from "./_driver.mjs";
 import { walkDone } from "./_walk.mjs";
@@ -28,6 +36,7 @@ const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const MARKER = "equipment/hands-probe";
+const AC_MARKER = "equipment/ac-sum";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -57,6 +66,7 @@ const P = {
     H.fm = await import("/modules/acks-extras/scripts/formation/formation-model.mjs");
     H.te = await import("/modules/acks-extras/scripts/formation/turn-engine.mjs");
     H.light = await import("/modules/acks-extras/scripts/lib/light.mjs");
+    H.fx = await import("/modules/acks-extras/scripts/equipment/effects.mjs");
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.poll = async (fn, { tries = 40, every = 150 } = {}) => {
       for (let n = 0; n < tries; n++) {
@@ -120,6 +130,27 @@ const P = {
       };
     };
     H.read = (actorId) => ({ tab: H.tab(actorId), model: H.model(game.actors.get(actorId)) });
+    // The armour class as the world holds it: the system's figure, the pieces it
+    // sums (worn, not typed shield / typed shield, each by its own figure), the
+    // stored bonus, and each change the loadout effect wrote to `system.ac.mod`
+    // with whether its part is the armour base's. `other` is what the effect's
+    // remaining rules write (a cut shield, a non-proficient cancel).
+    H.acRead = (actor) => {
+      const worn = actor.items.filter((i) => i.type === "armor" && i.system?.equipped);
+      const figure = (i) => i.system?.ac?.value ?? 0;
+      const effect = H.fx.findLoadoutEffect(actor);
+      const changes = (effect?.changes ?? []).filter((c) => c.key === "system.ac.mod").map((c) => ({ value: Number(c.value), armourBase: /armorBase$/.test(H.fx.loadoutPart(effect, c)?.labelKey ?? "") }));
+      return {
+        ac: actor.system.ac.value,
+        dex: actor.system.scores.dex.mod,
+        mod: actor.system.ac.mod,
+        storedMod: actor._source.system.ac.mod,
+        pieces: worn.filter((i) => i.system.type !== "shield").reduce((n, i) => n + figure(i), 0),
+        shields: worn.filter((i) => i.system.type === "shield").reduce((n, i) => n + figure(i), 0),
+        changes,
+        other: changes.filter((c) => !c.armourBase).reduce((n, c) => n + c.value, 0),
+      };
+    };
     // Press one row control and wait for the sheet to re-render behind the write.
     // `tries` bounds the wait for the tab to change: a draw pressed in the load window waits for the weapon rows (about 20 s after ready), so the walk's first draw allows it.
     H.press = async (actorId, re, action, filter = {}, { tries = 20 } = {}) => {
@@ -253,6 +284,53 @@ const P = {
     return H.rerender(actorId);
   },
 
+  /** The armour class as the world holds it (`H.acRead`). */
+  acRead: async ({ actorId }) => globalThis.__eqh.acRead(game.actors.get(actorId)),
+  /** Bring the armour-class fixture to its start shape: nothing worn, the stored bonus at `stored`. */
+  acReset: async ({ actorId, stored }) => {
+    const H = globalThis.__eqh;
+    const actor = game.actors.get(actorId);
+    const worn = actor.items.filter((i) => i.system?.equipped);
+    if (worn.length) await actor.updateEmbeddedDocuments("Item", worn.map((i) => ({ _id: i.id, "system.equipped": false })));
+    if (actor._source.system.ac.mod !== stored) await actor.update({ "system.ac.mod": stored });
+    await H.sleep(1200);
+    return { worn: actor.items.filter((i) => i.system?.equipped).length, storedMod: actor._source.system.ac.mod };
+  },
+  /** Put one named piece on, wait for the loadout effect to settle, and read. */
+  acWear: async ({ actorId, name }) => {
+    const H = globalThis.__eqh;
+    const actor = game.actors.get(actorId);
+    const item = actor.items.find((i) => i.name === name);
+    if (!item) return { found: false };
+    await item.update({ "system.equipped": true });
+    const stamp = () => JSON.stringify([actor.system.ac.value, (H.fx.findLoadoutEffect(actor)?.changes ?? []).map((c) => [c.key, c.value])]);
+    await H.sleep(1200);
+    let last = stamp();
+    for (let n = 0; n < 20; n++) {
+      await H.sleep(600);
+      const now = stamp();
+      if (now === last) break;
+      last = now;
+    }
+    return { found: true, ...H.acRead(actor) };
+  },
+  /** Open the fixture's character sheet on its Stats tab and read each armour class row's tooltip against the names. */
+  acTips: async ({ actorId, names }) => {
+    const H = globalThis.__eqh;
+    const actor = game.actors.get(actorId);
+    const app = new acksExtras.characterSheet.Sheet({ document: actor });
+    H.opened.push(app);
+    app.tabGroups.primary = "stats";
+    await app.render(true);
+    const tips = await H.poll(() => {
+      const root = H.root(H.sheet(actorId));
+      const rows = [...(root?.querySelectorAll(".acks-extras-frame__fact-value[data-tooltip-text]") ?? [])].map((el) => el.dataset.tooltipText);
+      return rows.length ? rows : null;
+    });
+    if (!tips) return { rendered: false };
+    return { rendered: true, rows: tips.length, named: tips.map((t) => names.map((n) => t.includes(n))) };
+  },
+
   closeAll: async () => globalThis.__eqh?.closeAll?.() ?? 0,
 };
 
@@ -303,8 +381,23 @@ const hands = (r) => ({ badge: r.tab?.badge, clause: r.tab?.clause, main: r.tab?
 const noHandFlags = (r) => Object.values(r.model?.hands ?? {}).every((h) => !h.eq && h.hand === null && h.where !== "mainHand" && h.where !== "offHand" && h.where !== "bothHands");
 const rowLines = (r, key) => (r.tab?.places?.[key]?.rows ?? []).map((x) => x.line);
 
+/** The armour class fixture: invented pieces, worn in turn by the armour class section. Quantities are plain numbers. */
+const FIXTURE_AC = {
+  name: "QA Armour Class Sum",
+  type: "character",
+  system: { scores: { dex: { value: 10 } } },
+  items: [
+    { name: "QA Suit", type: "armor", system: { type: "medium", ac: { value: 4 }, quantity: 1, cost: 1, weight6: 0 } },
+    { name: "QA Helm", type: "armor", system: { type: "light", ac: { value: 1 }, quantity: 1, cost: 1, weight6: 0 } },
+    { name: "QA Shield", type: "armor", system: { type: "shield", ac: { value: 1 }, quantity: 1, cost: 1, weight6: 0 } },
+  ],
+};
+/** The stored armour class bonus the section sets, an invented figure. */
+const AC_STORED = 1;
+
 let formationId = null;
 let actorId = null;
+let acActorId = null;
 try {
   const gm = await seat("gm");
   note("census (gm)", await run(gm, P.census));
@@ -407,12 +500,36 @@ try {
   const taken = await run(gm, P.toggleRole, { actorId, formationId, role: "mapper" });
   check("with the hands free the role is taken without an override", taken.roles.includes("mapper") && taken.kit === 2, taken);
   note("role off", await run(gm, P.toggleRole, { actorId, formationId, role: "mapper" }));
+
+  section("armour class is the system's sum");
+  const acFixture = await gm.fixture(AC_MARKER, "Actor", FIXTURE_AC);
+  acActorId = acFixture.id;
+  note("fixture", { marker: AC_MARKER, id: acActorId });
+  note("reset", await run(gm, P.acReset, { actorId: acActorId, stored: AC_STORED }));
+  // The system's figure: every piece of armour once, Dexterity, and the prepared bonus, which is the stored one plus whatever the loadout effect wrote.
+  const holdsEvery = (r) => r.ac === r.pieces + r.shields + r.dex + r.storedMod + r.other;
+  const acFigures = (r) => ({ ac: r.ac, pieces: r.pieces, shields: r.shields, dex: r.dex, storedMod: r.storedMod, other: r.other, changes: r.changes.length, armourBase: r.changes.filter((c) => c.armourBase).length });
+  const suitOn = await run(gm, P.acWear, { actorId: acActorId, name: "QA Suit" });
+  const helmOn = await run(gm, P.acWear, { actorId: acActorId, name: "QA Helm" });
+  const shieldOn = await run(gm, P.acWear, { actorId: acActorId, name: "QA Shield" });
+  note("worn in turn (suit, helmet, shield)", [acFigures(suitOn), acFigures(helmOn), acFigures(shieldOn)]);
+  // The suit and the helmet draw no other rule of the loadout (the fixture is proficient with nothing to cancel and carries no ability), so the effect writes nothing to the armour class bonus and the figure is the pieces, Dexterity and the stored bonus alone.
+  check("a helmet worn after the suit adds its own figure and no second copy of the suit's: the figure is the pieces, Dexterity and the stored bonus, and the loadout effect writes nothing to the bonus", suitOn.found && helmOn.found && helmOn.pieces === suitOn.pieces + 1 && helmOn.changes.length === 0 && helmOn.ac === helmOn.pieces + helmOn.dex + helmOn.storedMod, acFigures(helmOn));
+  // The shield may be cut by the style rule (a fixture with no Weapon & Shield style under enforcement), which writes its own figure: nothing else may.
+  check("with the shield worn too, the system's armour class holds every piece once, and the loadout's only share is the shield's own cut, if any", shieldOn.found && shieldOn.shields === 1 && holdsEvery(shieldOn) && (shieldOn.other === 0 || shieldOn.other === -shieldOn.shields), acFigures(shieldOn));
+  check("the loadout effect's changes on the armour class bonus hold no armour-base part", [suitOn, helmOn, shieldOn].every((r) => r.found && !r.changes.some((c) => c.armourBase)), { armourBase: [suitOn, helmOn, shieldOn].map((r) => r.changes.filter((c) => c.armourBase).length) });
+  const acTips = await run(gm, P.acTips, { actorId: acActorId, names: ["QA Suit 4", "QA Helm 1"] });
+  check("the Stats tab's armour class tooltip names the suit and the helmet, each with its figure", acTips.rendered && acTips.named.some((row) => row.every(Boolean)), { rows: acTips.rows, named: acTips.named });
+  note("reset after armour class", await run(gm, P.acReset, { actorId: acActorId, stored: AC_STORED }));
   walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {
   section("teardown");
   const gm = seats.gm;
+  if (gm && acActorId) {
+    try { note("reset (armour class)", await run(gm, P.acReset, { actorId: acActorId, stored: AC_STORED })); } catch (err) { console.error("acReset:", err?.message ?? err); }
+  }
   if (gm && actorId) {
     try { note("reset", await run(gm, P.reset, { actorId, items: FIXTURE.items })); } catch (err) { console.error("reset:", err?.message ?? err); }
     if (formationId) { try { note("party deleted", await run(gm, P.deleteParty, { formationId })); } catch (err) { console.error("deleteParty:", err?.message ?? err); } }

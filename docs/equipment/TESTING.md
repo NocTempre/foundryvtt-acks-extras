@@ -1190,43 +1190,51 @@ that holds items whose effects are all `override` at priority 50.
 The fixture stays, with nothing equipped. A card step 3 posted despite the
 Cancel is the run's: delete it by its id.
 
-## A helmet over the suit
+## Armour class is the system's sum
 
-Core's AC reads the last equipped non-shield armour as its base; the loadout
-effect puts the suit's back (MODEL, "A helmet never replaces the suit").
+Core's AC adds every equipped armour not typed "shield" to its base and every
+equipped shield to its shield figure; the loadout effect writes no armour-base
+change (MODEL, "Armour class is the system's sum"). Walked by
+`tools/live/equipment.mjs`, section `== armour class is the system's sum ==`.
 
 ### Fixtures
 
-- **Kept, `equipment/helm-after-suit`**: a `character` with dexterity
-  modifier 0. Its armour is copied each run from the imported price list
-  (`world.acks-cookbook--item`): the first `medium` armour with an AC above 0
-  (`suit`), and the first armour whose name reads helm (`helm`), each found by
-  `flags.world.acPart`. A run deletes the copies the last one left, by that
-  flag, before copying.
-- `equipment/override-grants` (above) takes the same suit and helm, plus the
-  first `shield` with an AC above 0 (`shield`).
+- **Kept, `equipment/ac-sum`**: a `character` carrying three invented armour
+  items with plain-number quantities: a `medium` suit stating AC 4, a `light`
+  helmet whose name reads helm stating AC 1, and a `shield` stating AC 1. A
+  run first takes everything off and sets the stored `system.ac.mod` to 1.
 
 ### Steps
 
-1. Equip the suit, then the helm, waiting for each `updateItem`.
-   *Observable:* `system.ac.value` equals the suit's AC both times, and
-   `system.ac.mod` after the helm equals it too (core's base is the helm's 0).
-2. On `equipment/override-grants`: suit, shield, helm. *Observable:* AC is
-   the suit's plus the shield's after the shield and after the helm, and
-   `getLoadout(actor).nonProficientUse` is false (the medium grant).
-3. With suit and helm on and the loadout effect written, open the character
-   sheet on its Stats tab; then again with the sheet open before the suit and
-   the helm go on. *Observable:* both times the armour AC figure reads
-   `system.ac.value` less the shield, and its tooltip names the helm as core's
-   armour, then the suit's AC under a helmet with its figure.
-4. The pre-update shape: suit and helm on, the loadout effect deleted (what
-   the code before this fix left for the pair). Close the window and connect a
-   fresh one, toggling nothing. *Observable:* within the ready pass, the effect
-   is written and AC equals the suit's.
+1. Equip the suit, then the helmet, then the shield, waiting for the loadout
+   effect to settle after each. *Observable:* after the helmet,
+   `system.ac.value` equals the worn pieces' figures, once each, plus the
+   Dexterity modifier and the stored `system.ac.mod`. After the shield, it
+   equals the same plus the loadout effect's share of `system.ac.mod`, which is
+   0 or the shield's own AC taken off (the style rule, where the fixture has
+   no Weapon & Shield style under enforcement; the section prints it as
+   `other`).
+2. Read the loadout effect's changes on `system.ac.mod` after each piece.
+   *Observable:* after the suit and after the helmet there are none, and after
+   the shield the only one is the shield's own cut, if any.
+3. Open the character sheet on its Stats tab. *Observable:* an Armor Class row
+   tooltip names the suit with its figure and the helmet with its figure, in
+   the armour part.
+4. By hand, on `equipment/override-grants` (above), which is trained in
+   medium armour and in the Weapon & Shield style: give it copies of the three
+   pieces and equip the suit, the shield, then the helmet. *Observable:* AC
+   holds every piece once after the shield and after the helmet, the loadout
+   effect writes nothing to `system.ac.mod`, and
+   `getLoadout(actor).nonProficientUse` is false. Take the copies off and
+   delete them by id.
+5. By hand, the load-time rebuild: with the suit and the helmet on, delete the
+   loadout effect, close the window and connect a fresh one, toggling nothing.
+   *Observable:* within the ready pass the elected window writes the effect
+   again, and AC is the same before the delete and after the reload.
 
 ### Teardown
 
-The fixtures stay with their armour unequipped.
+The fixture stays with its armour unequipped and its stored bonus at 1.
 
 ## Weapon rows, and the silver and masterwork figures
 

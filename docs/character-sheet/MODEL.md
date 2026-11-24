@@ -437,8 +437,9 @@ auto-movement is off), vision light by light (daylight ∞, the dark at 0′ or
 the sense's reach, each light source's reach, the two dark senses), the
 vitals (HP current over full, the hit dice with a roll that writes a new full
 total after confirming, by the classes feature's rules (docs/classes/MODEL.md,
-"Hit points"), AC with and without the shield and unarmoured, the AC
-modifier, cleaves, mortal wounds), and the throw group (`buildThrows`): the
+"Hit points"), AC with and without the shield and unarmoured, each tooltip
+naming the armour core sums (docs/equipment/MODEL.md, "Armour class is the
+system's sum"), the AC modifier, cleaves, mortal wounds), and the throw group (`buildThrows`): the
 targets — attack throw, saves, adventuring throws, healing rate, and morale
 where the character `carriesMorale` — and, under their own *Roll modifiers*
 subhead, the four modifiers a roll adds: the save modifier, the initiative
