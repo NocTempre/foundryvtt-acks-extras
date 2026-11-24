@@ -489,3 +489,127 @@ library; what the strip looks like as a list thumbnail.
 
 Phase 1's start prompt above stands as written. S5 puts each head on its trait
 and leaves the template's `img` alone.
+
+### Design session, 2026-11-24
+
+Five canvases, one per surface, drawn with the ACKS II design system and
+private to the owner. Nothing is implemented. **No slice is released:** the
+owner gave three rulings while the first canvas was open, and has not yet
+answered the questions below or approved a canvas.
+
+| Canvas | Surface | Slices |
+|---|---|---|
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy (boards 1a to 1g) | S12 |
+| [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits | S14 |
+| [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
+| [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
+| [5](https://claude.ai/artifact/PxYv6twWXeHwarsiXU8Vkh) | The template sheet: its picture, the variants' portraits, the trait heads | S5's place on the sheet |
+
+Every figure on them is a placeholder (`n`, `NdN`, `nn%`), every option a
+neutral id (R1 to R7, T1 to T10, E1 to E9, V1 to V7), every picture a labelled
+empty box. One tooltip of each provenance shape is drawn open on each canvas.
+
+**The owner's rulings, all on canvas 1.**
+
+1. "The UI should split between generate random and design via selection".
+   Read as: one Generate window with two tabs. Example: *Roll at random* rolls
+   every slot of a village; *Design by selection* has the Judge choose the
+   village row, each warband and each gang's troop type and size, and a die
+   beside a slot rolls that slot alone.
+2. "The end result should be the same and allow editing between. It should
+   look like and org chart with a tree grouping and expanding into leader
+   cards with their gangs. collapse and expand options including all at
+   once." Read as: both tabs fill one organisation chart, which stays when
+   the tab changes; a chieftain's card opens into sub-chieftains' cards, each
+   into its champions' cards holding their gangs. Example: a gang rolled on
+   the first tab is opened on its card, given another troop type and pinned;
+   *Expand all* opens every warband to its champions.
+3. "So reroll gang within a warband, also expand to full village including
+   noncombatants, sub-beastmen, prisoners, pets. This might have become a
+   faction card that lets you deploy gangs as group actors (that can deploy
+   to individual during tactical)". Read as two rulings and one thought. A
+   gang's own die rolls that gang and leaves its warband as it is. The chart
+   carries the whole village: a camp branch of dependants, lesser kin,
+   captives and beasts beside the warbands (stand-in labels). The thought,
+   which the owner worded as "might": the village is a card that is never on
+   a map, a gang leaves it as a group actor, and that group's bodies leave it
+   as tokens by the group's existing Deploy. Example: Gang 1 is sent out,
+   shows on the village's card as out, cannot be re-rolled from there, and
+   comes back by Recall with its fallen still counted (board 1g).
+
+What these change above. Section 2b's `tree` gains the camp's kinds as nodes
+and a re-roll scoped to one node. S12's "unit tree" is the chart. The thought
+in ruling 3 does not fit 2b as written, where every unit's bodies sum into the
+stacks of one group actor: it needs a holder for the chart and a way for a
+gang to leave it. `acks-extras.faction` is an actor sub-type that already
+keeps members, a counted strength, a leader and a seat
+(`docs/factions/MODEL.md`). Which holder it is goes to the owner (question 1)
+and then to `architect`, before S12 is briefed.
+
+Carried without a ruling: the Kits window on canvas 2 is drawn with the same
+two tabs, at random and by selection. Canvas 5 draws section 4's answer 3 as
+ruled: the template's own strip or an empty box on the template, a portrait
+on each variant's tile, a head on each trait's tile, and the p. 56 plate at
+the head of the Generate window on canvas 1.
+
+**Open questions.** The first option of each is the one drawn.
+
+Canvas 1 (S12):
+
+1. What holds a generated village? (a) One group actor holds every stack, as
+   2b has it, and a gang sent out becomes a second group. (b) A faction actor
+   holds the chart and a gang becomes a group only when sent out. (c) One
+   group actor, and no gang leaves it as a group. Boards 1c and 1g are drawn
+   so that (a) or (b) fits.
+2. On the Design tab, a slot left blank at Build: (a) that unit is left out
+   until filled, (b) it is rolled.
+3. A troop type or trait the variant's bands do not give: (a) a Judge may
+   choose it and the card is marked, (b) it is refused.
+4. Re-roll while bodies are out of the village or on a map: (a) only the
+   cards that are out are refused, (b) the whole roll is refused.
+5. A gang recalled with losses: (a) the fallen stay counted against its card,
+   (b) the card is whole again.
+
+Canvas 2 (S14):
+
+1. A kit drawn at random: (a) one kit for the whole stack, (b) one for each
+   body, which splits the stack.
+2. Where a Judge sets what a kit suits: (a) a window of its own, opened from
+   a button on core's bundle sheet, (b) a fieldset inside core's sheet.
+3. A kit that does not suit the stack: (a) a Judge may give it and the row is
+   marked, (b) it is refused.
+
+Canvas 3 (S4b):
+
+1. Where the editor opens from: (a) the monster's Ecology tab, the family
+   template's variant row and the Generate window, (b) one of them.
+2. A "Try a roll" preview that writes nothing: (a) in, (b) out.
+3. A part with two sources, the variant's page and the leader table: (a) one
+   choice for each part, with the count of figures that differ, (b) both
+   shown side by side.
+
+Canvas 4 (S8, S9a):
+
+1. A bearer still inside a stack: (a) the item cannot be raised until that
+   body is deployed, (b) raising it deploys the body.
+2. What a player sees of a reach they stand in: (a) the Judge's choice for
+   each item, (b) always the ring and the source's name, (c) never.
+3. A player's save against a raised item: (a) a whispered card with their own
+   Roll, which the Judge can roll for an absent player, (b) the Judge rolls
+   all of them.
+
+Canvas 5 (the template sheet):
+
+1. The strip, once its heads sit on the trait tiles: (a) still shown whole at
+   the head of the sheet, (b) shown only as the heads.
+2. Variants and traits are picked: (a) from picture tiles, (b) from selects
+   with a thumbnail beside each.
+
+Not checked: how any canvas renders (the canvas type's own rule is to verify
+only when asked); which five of the ten traits carry a head, and the camp's
+four labels, which are stand-ins until S5 and the village rows are imported;
+the overview strip's page number, drawn as a placeholder.
+
+Released: none. Each of S12, S14, S4b, S8 with S9a, and S5's place on the
+sheet waits for the owner's answers on its canvas; S12 also waits for
+`architect` on question 1.
