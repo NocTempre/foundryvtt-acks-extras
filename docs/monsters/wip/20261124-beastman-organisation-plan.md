@@ -249,9 +249,9 @@ breed page, which is what ships today.
 
 ### f. Art
 
-Section 4, answer 3 gives the plate to the warband generator and leaves the
-template's own picture open. Before that answer: the plate is the template's
-`img`. Each head goes onto its trait option and
+Section 4, answer 3 gives the plate to the warband generator and the overview
+page's strip to the template, which is built (Results). The plate has no
+reader until S12. Before that answer: the plate is the template's `img`. Each head goes onto its trait option and
 trait item, matched by reading its caption from the Judge's PDF and folding it,
 so no word ships. A crop of the plate is E4's image. Portraits stay on their
 variants, and the group's image stays the creature's.
@@ -284,7 +284,7 @@ itself where the agent re-delegates.
 | S9c | 2 | gear | implementer | E1, E6, E7 (E7 applies the figures read today) | no | S6b |
 | S10 | 3 | topic | implementer | Group schema, labelled stack, `fixedHp`, service contract, leader morale. Dependency half | no | — |
 | S11 | 3 | topic | implementer | `encounter-recipe.mjs` and `organisation-logic.mjs`, offline, mutation-checked | no | S5, S10 |
-| S12 | 3 | topic | implementer, then a live walk | Generate dialog, tree, re-roll/pin/edit, the Judges' card, the pot hand-off, `rollLair`. Marker `lib/beastman-warband` | yes | S11 |
+| S12 | 3 | topic | implementer, then a live walk | Generate dialog, tree, re-roll/pin/edit, the Judges' card, the pot hand-off, `rollLair`; the p. 56 plate read by a register row of its own, as the generator's picture. Marker `lib/beastman-warband` | yes | S11 |
 | S13 | 4 | topic | implementer | Kit bundles minted; Kit option `ref` | no | S5 |
 | S14 | 4 | topic | implementer, then a live walk | Three scopes, random kit, custom fieldset. Marker `monsters/beastman-kits` | yes | S13, S12 |
 
@@ -302,8 +302,7 @@ S9a). The owner's feedback on each is that slice's go-ahead
 ### Start prompt, phase 1
 
 Section 4 is answered, so phase 1 may start. It builds no new window and does
-not wait for the design session. S5's trait and template art waits for the one
-question answer 3 leaves open; the rest of S5 does not.
+not wait for the design session.
 
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md` and `docs/monsters/MODEL.md` ("Family
@@ -344,9 +343,18 @@ and a brief quotes the words, not the reading.
    specifics for each where available. Use the art splash (pg 56) for the
    warband generator". Read as: each breed and each trait shows its own
    picture where the section prints one, and the p. 56 plate is the warband
-   generator's. **Open, asked of the owner:** whether "the template picture"
-   is the overview page's own picture (the strip), which would move the plate
-   off the template where S0 put it, or the plate on both.
+   generator's. Settled the same day in the phase 1 session, which asked
+   "should the p. 56 plate be the template's picture, with each of the five
+   heads placed on its trait?" and "should a repair in place keep replacing
+   the template's picture only when that picture is one of the variants'
+   portraits?". Owner: "3) no, see previous answer" and "4) yes, template
+   should show a unique template image or none at all". Read as: the plate
+   comes off the template; a template shows a picture that is its own or
+   none, so no variant's portrait stands in on any family's template. Still a
+   reading: that this family's own picture is the overview page's strip
+   rather than none, and that "yes" to the second question sits beside
+   answer 5's "always reset" for the library's copy (a hand-set picture there
+   is written over).
 4. **Starting now.** Assumed: the 2026-11-17 "start nothing new" cap is lifted
    by this request. Owner: "work pause lifted in full".
 5. **A repair and a held picture.** Assumed: a repair replaces a family
@@ -449,4 +457,35 @@ before it is visible where a Judge works.
 S0b: T-0709 is fixed-unreleased; T-0710 and T-0711 stay `new`, owned by S9c
 and S10.
 
-Phase 1's start prompt above stands as written.
+**Section 4's answer 3, built the same day: the plate comes off the template.**
+The Beastman overview's register row no longer names the plate's page; it
+widens the pick's ratio limit for that one row (`assists.artSelect`), so the
+template takes the overview page's own strip. `importFamily` gives a template
+its overview's picture or none, on every family; the first-variant fallback is
+gone. A repair writes that over the library's copy, the type's default where a
+family prints none, and leaves the held picture where the read failed. The
+compile differs from the cookbook before S0 by one ratio figure on one entry.
+
+Exercised live on lane B, peers seated on lane A: one Repair in place of three
+family rows. Lycanthrope: picture, axes, cells and portraits unchanged. Bear
+(no overview picture): the library copy's picture went from its first
+variant's portrait to the type's default, the pack index row with it; cells
+and portraits unchanged; axes hashed differently, as Lycanthrope's did on its
+first repair in this build, and were not diffed. Beastman: the first pass kept
+the plate's pixels, because an art file already uploaded under an entry's id
+is reused and the earlier walk had put the plate there. That one file, this
+session's own, was deleted from the art folder by its path, and a second
+repair read the strip (1036×329, loads) with axes, cells and portraits
+unchanged. The sidebar copy's picture was untouched throughout; no warning or
+error was recorded in either pass. A world that never ran the unreleased S0
+holds no such file.
+
+Offline, on the final tree: `test-leader-roles` 40, `test-leader-template` 7,
+`test-executor` 87, `test-cookbook-inputs` 92, `test-ax1-cookbook` 47.
+
+Not checked: a fresh import of any family; a read that fails (the
+held-picture guard is read from the code); a template held outside the
+library; what the strip looks like as a list thumbnail.
+
+Phase 1's start prompt above stands as written. S5 puts each head on its trait
+and leaves the template's `img` alone.

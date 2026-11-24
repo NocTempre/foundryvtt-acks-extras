@@ -863,7 +863,7 @@ function citeSpecs(specs, cite) {
 async function compileMonster(doc, entry, kindRow, glyphChars) {
   // Per-entry ASSISTS (docs/importer/RECIPES.md): chef-authored one-off directions the
   // compiler honors before its own heuristics. Supported: anchor (exact
-  // display text), statPage, spoilsPage, noSpoils, noArt, artPage, descStopHeading,
+  // display text), statPage, spoilsPage, noSpoils, noArt, artSelect, descStopHeading,
   // columns, proseColumn, labelAliases, pageColumns, continuation.
   const assists = entry.assists ?? {};
   const page = entry.pages[0];
@@ -1301,9 +1301,11 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
     };
   }
 
-  // `assists.artPage` points the pick at another page of the entry (a plate
-  // printed pages after its heading); the criteria stay the kind's.
-  if (!assists.noArt) fields.art = { op: "art", page: assists.artPage ?? page, select: kindRow.fields.art.select };
+  // `assists.artSelect` overrides the kind's pick criteria for one entry whose
+  // own picture has a shape they refuse (a strip wider than the ratio limit).
+  if (!assists.noArt) {
+    fields.art = { op: "art", page, select: assists.artSelect ? { ...kindRow.fields.art.select, ...assists.artSelect } : kindRow.fields.art.select };
+  }
 
   // Chef-authored effect specs (`compileDefinition`'s passthrough): structure
   // and locators only, the figure read from the seat's own prose at import.

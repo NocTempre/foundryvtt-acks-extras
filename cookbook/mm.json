@@ -16471,12 +16471,12 @@
         },
         "art": {
           "op": "art",
-          "page": 58,
+          "page": 49,
           "select": {
             "minW": 200,
             "minH": 200,
             "maxW": 1500,
-            "maxRatio": 3
+            "maxRatio": 3.5
           }
         }
       }

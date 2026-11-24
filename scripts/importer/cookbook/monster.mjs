@@ -921,10 +921,11 @@ export async function importFamily(bookId, famId, folderId) {
   const memberText = new Map();
   const memberXp = new Map();
   let lore = "";
-  // The template's picture: the family's own plate (an overview member's art)
-  // outranks the first variant's portrait.
+  // The template's picture is the family's own, read by its overview member,
+  // or none: a variant's portrait is one option's. `pictureUnread` marks a
+  // read that failed, which leaves a held picture as it is.
   let familyImg = "";
-  let variantImg = "";
+  let pictureUnread = false;
   for (const member of fam.members) {
     try {
     let entry = cb.entries[member.id];
@@ -936,7 +937,12 @@ export async function importFamily(bookId, famId, folderId) {
       const node = await executeEntry(session.doc, cb, data.registers, member.id);
       if (node.ok) {
         lore = entryText(node, member.id, entry.cite);
-        if (node.fields.art) familyImg ||= await uploadEntryArt(session.doc, member.id, entry, node, "family");
+        if (node.fields.art && !familyImg) {
+          familyImg = await uploadEntryArt(session.doc, member.id, entry, node, "family");
+          pictureUnread = !familyImg;
+        }
+      } else if (entry.fields?.art) {
+        pictureUnread = true;
       }
       continue;
     }
@@ -979,11 +985,7 @@ export async function importFamily(bookId, famId, folderId) {
       system.details = { ...(system.details ?? {}), biography: channels.biography };
     }
 
-    let art = "";
-    if (node.fields.art) {
-      art = await uploadEntryArt(bindDoc, bindId, entry, node, "variant");
-      if (art && !variantImg) variantImg = art;
-    }
+    const art = node.fields.art ? await uploadEntryArt(bindDoc, bindId, entry, node, "variant") : "";
 
     options.push(
       creatureOption({ key: slugLabel(member.variant), label: member.variant, name: entry.name, art, system, items, flags, extras, prototypeToken, id: bindId, cite: entry.cite }),
@@ -1111,7 +1113,7 @@ export async function importFamily(bookId, famId, folderId) {
     name: fam.name,
     type: TEMPLATE_TYPE,
     folder: folderId,
-    ...(familyImg || variantImg ? { img: familyImg || variantImg } : {}),
+    ...(familyImg ? { img: familyImg } : {}),
     system: {
       output: { actorType: "monster", nameFormat: out.nameFormat },
       axes,
@@ -1124,13 +1126,15 @@ export async function importFamily(bookId, famId, folderId) {
     ui.notifications.warn(`${MODULE_ID} | ${fam.name}: the system rejected the family template — skipped (see console).`);
     return null;
   }
-  // A repair in place keeps a held picture. The library's copy is always the
-  // import's, so it takes the family's own; a copy outside the library gives
-  // way only where it holds a variant's portrait, the fallback an import wrote.
-  if (familyImg && existing && actor.img !== familyImg) {
+  // A repair in place keeps a held picture, so the template's is written here:
+  // the family's own, or the type's default where the family prints none. The
+  // library's copy always takes it; a template held outside the library gives
+  // way only where it holds a variant's portrait.
+  if (existing && !pictureUnread) {
+    const want = familyImg || actor.constructor.getDefaultArtwork(actor.toObject()).img;
     const file = (path) => String(path ?? "").split("/").pop();
     const portraits = new Set(options.map((o) => file(o.art)).filter(Boolean));
-    if (actor.pack || portraits.has(file(actor.img))) await actor.update({ img: familyImg });
+    if (actor.img !== want && (actor.pack || portraits.has(file(actor.img)))) await actor.update({ img: want });
   }
   return actor;
 }

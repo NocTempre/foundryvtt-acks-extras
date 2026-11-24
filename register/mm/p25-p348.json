@@ -275,7 +275,9 @@
     },
     "assists": {
       "descColumns": 2,
-      "artPage": 58
+      "artSelect": {
+        "maxRatio": 3.5
+      }
     }
   },
   {
