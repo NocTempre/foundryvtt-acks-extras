@@ -513,7 +513,7 @@ answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature (boards 1a to 1j) | S12 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers (boards 1a to 1l) | S12 |
 | [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
@@ -1341,6 +1341,23 @@ second lane over the same files. All take `implementer`.
 Not checked by `architect`: anything live, how validate treats the new
 fields, and whether the influence listener resolves a deployed body's group.
 Released: none.
+
+**Drawn from H, as a proposal:**
+[board 1l](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb), with the
+owner's words on followers beside it. The Follower Card's compact face as
+`docs/lib/FOLLOWER-CARD.md` describes it, on a lord's Followers tab and on a
+village's chart; a unit as the group sheet's stack row; the two views on a
+character's Followers tab over who serves whom; and which parts are one thing
+and which stay two. Open on the board, the drawn shape first:
+
+1. The Followers tab gets the two views with this work (question 6 above).
+2. Today's flat cards on the Followers tab: (a) stay as a third view, (b)
+   the Org chart takes their place.
+3. On a chart the card: (a) keeps Show, loses Dismiss and gains a foot with
+   roll again, edit and send out, (b) is drawn some other way.
+
+The cards of boards 1f and 1h are still the design session's own and are not
+redrawn on the Follower Card. Not checked: board 1l's rendering.
 
 ### Phase 1, 2026-11-24
 
