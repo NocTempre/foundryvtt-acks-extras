@@ -459,11 +459,11 @@ const P = {
     if (!A || !B) return { ok: false };
     const mk = (d) => d.getFlag("acks-extras", "markets");
     H.held = { a: { uuid: A.uuid, base: mk(A).baseCostGp, apparent: mk(A).apparentValueGp }, b: { uuid: B.uuid, base: mk(B).baseCostGp, apparent: mk(B).apparentValueGp } };
-    await A.update({ "flags.acks-extras.markets.baseCostGp": H.held.a.base + 7, "system.quantity.value": 3 });
+    await A.update({ "flags.acks-extras.markets.baseCostGp": H.held.a.base + 7, "system.quantity": 3 });
     await B.update({ "flags.acks-extras.markets.baseCostGp": H.held.b.base + 7, "flags.acks-extras.cookbook.read.markets.baseCostGp": H.held.b.base + 7 });
     const A2 = await fromUuid(H.held.a.uuid);
     const B2 = await fromUuid(H.held.b.uuid);
-    return { ok: true, aEdited: mk(A2).baseCostGp === H.held.a.base + 7 && A2.system.quantity?.value === 3, bEdited: mk(B2).baseCostGp === H.held.b.base + 7 };
+    return { ok: true, aEdited: mk(A2).baseCostGp === H.held.a.base + 7 && A2.system.quantity === 3, bEdited: mk(B2).baseCostGp === H.held.b.base + 7 };
   },
   /** Entries 3, after the repair. */
   afterRepair: async () => {
@@ -474,10 +474,10 @@ const P = {
     return {
       aStands: mk(A)?.baseCostGp === H.held.a.base + 7,
       aApparentFromPage: mk(A)?.apparentValueGp === H.held.a.apparent,
-      aQuantityKept: A?.system?.quantity?.value === 3,
+      aQuantityKept: A?.system?.quantity === 3,
       bRewritten: mk(B)?.baseCostGp === H.held.b.base,
       bStampRewritten: B?.getFlag("acks-extras", "cookbook")?.read?.markets?.baseCostGp === H.held.b.base,
-      bQuantityKept: B?.system?.quantity?.value === 1,
+      bQuantityKept: B?.system?.quantity === 1,
     };
   },
   /** Entries 5: potions4's rows against the cookbook, and the faces that land on a linked and an unlinked row. */

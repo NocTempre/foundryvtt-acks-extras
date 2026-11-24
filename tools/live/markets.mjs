@@ -1299,9 +1299,9 @@ try {
     for (const [k, tier, exempt, label] of [["p", "precious", false, "Precious"], ["c", "common", false, "Common"], ["e", "common", true, "Exempt"]]) {
       await keep(`markets/gate-${label.toLowerCase()}`, "Item", { name: `QA ${label}`, type: "acks-extras.merchandise", system: { key: KEY[k], tier, tariffExempt: exempt, pricePerStoneGp: PRICE[k], priceStepGp: 1, dailyStones: [10, 5, 2, 1, 1, 1] } });
     }
-    const load = (k, stones, more = {}) => ({ name: `QA load ${k}`, type: "item", system: { quantity: { value: stones, max: 0 }, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
+    const load = (k, stones, more = {}) => ({ name: `QA load ${k}`, type: "item", system: { quantity: stones, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
     // Goods carried, not loads: the cup is of the precious type by its own flag and may be declared for sale; the charm is magic, which the gate never assesses.
-    const kit = (name, cost, quantity, more = {}) => ({ name: `QA ${name}`, type: "item", system: { quantity: { value: quantity, max: 0 }, cost, weight6: 1 }, flags: { "acks-extras": { markets: { category: KEY.p, ...more } } } });
+    const kit = (name, cost, quantity, more = {}) => ({ name: `QA ${name}`, type: "item", system: { quantity, cost, weight6: 1 }, flags: { "acks-extras": { markets: { category: KEY.p, ...more } } } });
     const CUP = { cost: 25, n: 2 };
     // The partner's load is of a tier the class taxes, so assessing it moves the trader's coin.
     const tk = gr.rates.precious > 0 ? "p" : "c";
@@ -1528,7 +1528,7 @@ try {
     for (const [k, tier, label] of [["p", "precious", "Precious"], ["c", "common", "Common"]]) {
       await keep(`markets/parties-${label.toLowerCase()}`, "Item", { name: `QA Parties ${label}`, type: "acks-extras.merchandise", system: { key: KEY[k], tier, tariffExempt: false, pricePerStoneGp: PRICE[k], priceStepGp: 1, dailyStones: DAILY } });
     }
-    const load = (k, stones, more = {}) => ({ name: `QA parties load ${k}`, type: "item", system: { quantity: { value: stones, max: 0 }, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
+    const load = (k, stones, more = {}) => ({ name: `QA parties load ${k}`, type: "item", system: { quantity: stones, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
     const wagon = (name, cap, items = []) => keep(`markets/parties-${name.toLowerCase().replace(/\s+/g, "-")}`, "Actor", { name: `QA Parties ${name}`, type: "acks-extras.vehicle", ownership: own, system: { kind: "land", cargo: { capacityStone: cap } }, items });
     // A driver is aboard their wagon without weighing on its hold.
     const drives = (v) => ({ "acks-extras": { attachedTo: { uuid: v.uuid, role: "crew", station: "driver" } } });

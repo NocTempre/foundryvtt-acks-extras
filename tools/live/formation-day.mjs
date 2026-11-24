@@ -2262,7 +2262,7 @@ async function delve(gm, player, census) {
   // player seat is "given the party actor" by owning a member.
   const wayfinder = await mk("formation/day-delve-wayfinder", "Wayfinder", 9, [{ name: "Navigation", type: "ability" }], { ownership: { default: 0, [playerId]: 3 } });
   const scout = await mk("formation/day-delve-scout", "Scout", 8);
-  const porter = await mk("formation/day-delve-porter", "Porter", 8, [{ name: `QA Sack ${TAG}`, type: "item", system: { weight6: 12, quantity: { value: 1 } } }]);
+  const porter = await mk("formation/day-delve-porter", "Porter", 8, [{ name: `QA Sack ${TAG}`, type: "item", system: { weight6: 12, quantity: 1 } }]);
   const fallen = await mk("formation/day-delve-fallen", "Fallen", 0);
   const memberIds = [wayfinder.id, scout.id, porter.id, fallen.id];
   note("delve members as built", await page(gm, P.memberShape, { list: [[wayfinder, 9], [scout, 8], [porter, 8], [fallen, 0]].map(([a, hp]) => ({ actorId: a.id, hp })) }));

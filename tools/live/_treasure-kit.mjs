@@ -234,7 +234,7 @@ export const P = {
   },
   actorRows: async ({ actorId }) => (game.actors.get(actorId)?.items ?? []).map((i) => {
     const m = i.getFlag("acks-extras", "markets") ?? {};
-    return { id: i.id, uuid: i.uuid, name: i.name, qty: typeof i.system?.quantity === "number" ? i.system.quantity : Number(i.system?.quantity?.value ?? 0), cursed: m.cursed ?? null, curseKnown: m.curseKnown ?? null };
+    return { id: i.id, uuid: i.uuid, name: i.name, qty: Number(i.system?.quantity ?? 0), cursed: m.cursed ?? null, curseKnown: m.curseKnown ?? null };
   }),
   closeAll: async () => {
     const H = globalThis.__tk;

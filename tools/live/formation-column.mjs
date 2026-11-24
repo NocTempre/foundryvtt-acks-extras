@@ -1010,14 +1010,15 @@ const P = {
     const actor = game.actors.get(bearerId);
     const pattern = H.light.LIGHT_SOURCES.torch.consumes;
     const before = new Set(actor.items.map((i) => i.id));
-    const qty = (e) => { const n = Number(e?.system?.quantity?.value); return Number.isFinite(n) && n > 0 ? n : 1; };
+    // A compendium index answers the stored shape, which a pack built before the plain number still holds as an object.
+    const qty = (e) => { const q = e?.system?.quantity; const n = Number(q !== null && typeof q === "object" ? q.value : q); return Number.isFinite(n) && n > 0 ? n : 1; };
     const world = [...game.items].filter((i) => pattern.test(i.name ?? ""));
     let largest = world.length ? Math.max(...world.map(qty)) : null;
     let from = world.length ? "world" : null;
     if (largest == null) {
       for (const pack of game.packs) {
         if (pack.documentName !== "Item") continue;
-        const index = await pack.getIndex({ fields: ["system.quantity.value"] });
+        const index = await pack.getIndex({ fields: ["system.quantity"] });
         for (const e of index) if (pattern.test(e.name ?? "")) { largest = Math.max(largest ?? 0, qty(e)); from = "compendium"; }
       }
     }
@@ -1162,7 +1163,7 @@ const restore = { settings: null, overrides: [], lightDropped: false, paused: fa
 const character = (name, items = [], ownership = undefined) => ({
   name, type: "character", prototypeToken: { actorLink: true }, system: { hp: { value: 8, max: 8 } }, items, ...(ownership ? { ownership } : {}),
 });
-const gear = (name, qty) => ({ name, type: "item", system: { quantity: { value: qty, max: 0 } } });
+const gear = (name, qty) => ({ name, type: "item", system: { quantity: qty } });
 const centre = (c) => ({ x: c.x + GS / 2, y: c.y + GS / 2 });
 const key = (c) => `${c.x},${c.y}`;
 /** Two cell lists, cell for cell. */

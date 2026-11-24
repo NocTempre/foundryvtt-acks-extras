@@ -188,8 +188,8 @@ const P = {
   shape: async ({ traderId, sceneId }) => {
     const trader = game.actors.get(traderId);
     const goods = trader.items.getName("Window walk goods");
-    if (!goods) await trader.createEmbeddedDocuments("Item", [{ name: "Window walk goods", type: "item", system: { quantity: { value: 3, max: 0 } } }]);
-    else if (goods.system.quantity?.value !== 3) await goods.update({ "system.quantity.value": 3 });
+    if (!goods) await trader.createEmbeddedDocuments("Item", [{ name: "Window walk goods", type: "item", system: { quantity: 3 } }]);
+    else if (goods.system.quantity !== 3) await goods.update({ "system.quantity": 3 });
     const scene = game.scenes.get(sceneId);
     const door = scene.walls.find((w) => w.door > 0);
     if (!door) await scene.createEmbeddedDocuments("Wall", [{ c: [100, 100, 300, 100], door: 1 }]);

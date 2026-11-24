@@ -570,7 +570,7 @@ const P = {
     return (a?.items ?? []).map((i) => {
       const m = i.getFlag("acks-extras", "markets") ?? {};
       const d = i.getFlag("acks-extras", "disguise") ?? null;
-      const q = typeof i.system?.quantity === "number" ? i.system.quantity : Number(i.system?.quantity?.value ?? 0);
+      const q = Number(i.system?.quantity ?? 0);
       return { id: i.id, uuid: i.uuid, name: i.name, type: i.type, qty: q, detected: m.detected ?? "absent", magic: !!m.magic, disguised: !!d, trueName: d?.true?.name ?? null };
     });
   },

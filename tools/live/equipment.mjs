@@ -116,7 +116,7 @@ const P = {
         hands: Object.fromEntries(actor.items.filter((i) => i.type === "weapon").map((i) => [i.getFlag(H.MOD, "readied") ? "Torch" : i.name, { eq: !!i.system?.equipped, hand: i.getFlag(H.MOD, "hand") ?? null, where: H.wear.wearLocation(actor, i, lo) }])),
         lights: (acksExtras.lib?.light?.bearerLights?.(actor) ?? []).map((l) => ({ type: l.type, lit: l.lit, mine: l.bearerId === actor.id })),
         ownLights: actor.getFlag(H.MOD, "lights") ?? null,
-        stack: H.byName(actor, /torches/i)?.system?.quantity?.value ?? null,
+        stack: H.byName(actor, /torches/i)?.system?.quantity ?? null,
       };
     };
     H.read = (actorId) => ({ tab: H.tab(actorId), model: H.model(game.actors.get(actorId)) });
@@ -152,7 +152,7 @@ const P = {
     const updates = actor.items.filter((i) => i.system?.equipped || i.getFlag(H.MOD, "hand") || i.getFlag(H.MOD, "gear")?.wornAt).map((i) => ({ _id: i.id, "system.equipped": false, [`flags.${H.MOD}.-=hand`]: null, [`flags.${H.MOD}.gear.wornAt`]: "" }));
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
     const stack = H.byName(actor, /torches/i);
-    if (stack && stack.system.quantity.value !== 6) await stack.update({ "system.quantity.value": 6 });
+    if (stack && stack.system.quantity !== 6) await stack.update({ "system.quantity": 6 });
     if (actor.getFlag(H.MOD, "lights")) await actor.unsetFlag(H.MOD, "lights");
     for (const f of Object.values(H.fm.readFormations())) {
       if (f.members?.some((m) => m?.actorId === actorId)) await H.fm.removeMember(f, actorId, { restore: false });
@@ -290,9 +290,9 @@ const FIXTURE = {
     { name: "Long Bow", type: "weapon", system: { melee: false, missile: true, damage: { base: { formula: "1d6" } } } },
     { name: "Sword, Two-Handed", type: "weapon", system: { melee: true, missile: false, damage: { base: { formula: "1d10" } } } },
     { name: "Dagger", type: "weapon", system: { melee: true, missile: true, damage: { base: { formula: "1d4" } } } },
-    { name: "Torches (6)", type: "item", system: { quantity: { value: 6, max: 0 }, cost: 1, weight6: 6 } },
-    { name: "Quill, writing", type: "item", system: { quantity: { value: 1, max: 0 }, cost: 1 } },
-    { name: "Parchment", type: "item", system: { quantity: { value: 1, max: 0 }, cost: 1 } },
+    { name: "Torches (6)", type: "item", system: { quantity: 6, cost: 1, weight6: 6 } },
+    { name: "Quill, writing", type: "item", system: { quantity: 1, cost: 1 } },
+    { name: "Parchment", type: "item", system: { quantity: 1, cost: 1 } },
   ],
 };
 

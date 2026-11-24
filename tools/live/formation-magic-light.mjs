@@ -604,10 +604,10 @@ try {
   const char = (name) => ({ name, type: "character", prototypeToken: { actorLink: true }, system: { hp: { value: 8, max: 8 } }, ...own(playerId) });
   const memA = await gm.fixture(MEMBER_A, "Actor", char("QA Magic Light Member"));
   const memB = await gm.fixture(MEMBER_B, "Actor", char("QA Magic Light Member Worn"));
-  const itemA = await gm.fixture(ITEM_A, "Item", { name: "QA Magic Light Lamp", type: "item", system: { quantity: { value: 1, max: 0 } } }, { parent: memA.uuid });
-  const pack = await gm.fixture(PACK, "Item", { name: PACK_NAME, type: "item", system: { quantity: { value: 1, max: 0 } }, flags: { "acks-extras": { gear: { capacity: 100 } } } }, { parent: memA.uuid });
+  const itemA = await gm.fixture(ITEM_A, "Item", { name: "QA Magic Light Lamp", type: "item", system: { quantity: 1 } }, { parent: memA.uuid });
+  const pack = await gm.fixture(PACK, "Item", { name: PACK_NAME, type: "item", system: { quantity: 1 }, flags: { "acks-extras": { gear: { capacity: 100 } } } }, { parent: memA.uuid });
   const itemB = await gm.fixture(ITEM_B, "Item", { name: "QA Magic Light Ring", type: "armor" }, { parent: memB.uuid });
-  const world = await gm.fixture(WORLD, "Item", { name: "QA Magic Light World Lamp", type: "item", system: { quantity: { value: 1, max: 0 } } });
+  const world = await gm.fixture(WORLD, "Item", { name: "QA Magic Light World Lamp", type: "item", system: { quantity: 1 } });
   ids = { scene: idOf(scene), party: idOf(party), a: idOf(memA), b: idOf(memB), itemA: idOf(itemA), pack: idOf(pack), itemB: idOf(itemB), world: idOf(world) };
   const fo = await run(gm, P.formationOf, { partyId: ids.party });
   if (fo.error) throw new Error(fo.error);

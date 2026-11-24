@@ -178,7 +178,7 @@ const P = {
     const a = game.actors.get(placeId);
     return JSON.parse(JSON.stringify(a.getFlag("acks-extras", "things") ?? []));
   },
-  placeItems: async ({ placeId } = {}) => game.actors.get(placeId).items.map((i) => ({ id: i.id, uuid: i.uuid, name: i.name, qty: Number(i.system?.quantity?.value ?? i.system?.quantity ?? 1) })),
+  placeItems: async ({ placeId } = {}) => game.actors.get(placeId).items.map((i) => ({ id: i.id, uuid: i.uuid, name: i.name, qty: Number(i.system?.quantity ?? 1) })),
   docExists: async ({ uuid } = {}) => {
     const d = await fromUuid(uuid).catch(() => null);
     return d ? { name: d.name } : null;

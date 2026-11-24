@@ -152,7 +152,7 @@ const P = {
     const html = String(doc.system?.description ?? "");
     return {
       id: doc.id, folder: doc.folder?.id ?? null, ownership: doc.ownership ?? null,
-      modified: doc._stats?.modifiedTime ?? null, quantity: doc.system?.quantity?.value ?? null,
+      modified: doc._stats?.modifiedTime ?? null, quantity: doc.system?.quantity ?? null,
       cost: doc.system?.cost ?? null, textLength: html.length, judged: globalThis.__fr.RF.handWrittenProse(html),
     };
   },
@@ -162,7 +162,7 @@ const P = {
     const player = game.users.getName(playerName);
     await doc.update({
       "system.description": `${doc.system.description ?? ""}${note}`,
-      "system.quantity.value": 3,
+      "system.quantity": 3,
       "system.cost": 0,
       [`ownership.${player.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER,
     });

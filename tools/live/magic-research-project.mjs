@@ -135,7 +135,7 @@ try {
   const hero = await gm.fixture("magic/research-hero", "Actor", { name: "QA Research Hero", type: "character", ...base, ownership: { default: 0, [playerId]: 3 } });
   const pell = await gm.fixture("magic/research-pell", "Actor", { name: "QA Research Pell", type: "character", ...base, ownership: { default: 2 } });
   const lena = await gm.fixture("magic/research-lena", "Actor", { name: "QA Research Lena", type: "character", ...base, ownership: { default: 0, [playerId]: 3 } });
-  const part = await gm.fixture("magic/research-part", "Item", { name: "QA Research Part", type: "item", system: { cost: 12, quantity: { value: 1 } } });
+  const part = await gm.fixture("magic/research-part", "Item", { name: "QA Research Part", type: "item", system: { cost: 12, quantity: 1 } });
   const where = await gm.fixture("magic/research-place", "Actor", { name: "QA Research Place", type: "acks-extras.location", ownership: { default: 2 } });
   const U = where.uuid;
   const ids = { hero: hero.uuid, pell: pell.uuid, lena: lena.uuid, part: part.uuid };
@@ -638,12 +638,12 @@ try {
   // The die is rigged on the GM seat, where every Finish of a Player's is applied too (the place is theirs to observe only).
   // `CONFIG.Dice.randomUniform` reads from the top: 1 - (die - 0.5) / 20 throws that natural die on core 14. Restored in the finally.
   const spellFx = await gm.fixture("magic/research-spell", "Item", { name: "QA Research Spell", type: "spell", system: { lvl: 2 } });
-  const gearFx = await gm.fixture("magic/research-gear", "Item", { name: "QA Research Gear", type: "item", system: { cost: 5, quantity: { value: 1 } } });
-  const gear2Fx = await gm.fixture("magic/research-gear2", "Item", { name: "QA Research Gear Two", type: "item", system: { cost: 5, quantity: { value: 1 } } });
-  const relicFx = await gm.fixture("magic/research-relic", "Item", { name: "QA Research Relic", type: "item", system: { cost: 5, quantity: { value: 1 } } });
+  const gearFx = await gm.fixture("magic/research-gear", "Item", { name: "QA Research Gear", type: "item", system: { cost: 5, quantity: 1 } });
+  const gear2Fx = await gm.fixture("magic/research-gear2", "Item", { name: "QA Research Gear Two", type: "item", system: { cost: 5, quantity: 1 } });
+  const relicFx = await gm.fixture("magic/research-relic", "Item", { name: "QA Research Relic", type: "item", system: { cost: 5, quantity: 1 } });
   const ids13 = { ...ids, spell: spellFx.uuid, gear: gearFx.uuid, gear2: gear2Fx.uuid, relic: relicFx.uuid };
   const mkPart = async (name) => {
-    const made = await gm.create("Item", { name, type: "item", system: { cost: 40, quantity: { value: 1 } } });
+    const made = await gm.create("Item", { name, type: "item", system: { cost: 40, quantity: 1 } });
     tracked.push(made.uuid);
     return made.uuid;
   };
@@ -827,7 +827,7 @@ try {
     const btn = card(${JSON.stringify(fi.id)}).querySelector('[data-action="finishResearchProject"]');
     const planI = await research().plan(place(), ${JSON.stringify(fi.id)});
     // The delivery folds into the stack the hero already carries from A, so what it added is read as quantity.
-    const held = () => [...hero.items].filter((i) => i.name === "QA Research Gear").reduce((n, i) => n + Number(i.system.quantity?.value ?? 0), 0);
+    const held = () => [...hero.items].filter((i) => i.name === "QA Research Gear").reduce((n, i) => n + Number(i.system.quantity ?? 0), 0);
     const out = { enabled: !!btn && !btn.disabled, tip: btn?.dataset.tooltipText ?? "", noThrow: planI.noThrow, formula: planI.formula, heldBefore: held() };
     // The die is counted: the rigged 1 is inside the automatic-failure band, so a throw would fail; no throw reads no die at all.
     const real = CONFIG.Dice.randomUniform;
@@ -1028,7 +1028,7 @@ try {
     out.awaiting = { present: !!row, tag: row?.querySelector(".acks-tag")?.textContent.trim() ?? "", chooseLive: !!row?.querySelector('[data-action="chooseResearchPlacement"]') && row.querySelector('[data-action="chooseResearchPlacement"]').disabled === false };
     out.cards = newCards().map((m) => m.uuid);
     out.kept = !!fromUuidSync(${JSON.stringify(partM)});
-    out.spent = !fromUuidSync(${JSON.stringify(partR)}) || Number(fromUuidSync(${JSON.stringify(partR)}).system.quantity?.value) === 0;
+    out.spent = !fromUuidSync(${JSON.stringify(partR)}) || Number(fromUuidSync(${JSON.stringify(partR)}).system.quantity) === 0;
     return out;`, ids13);
   for (const u of rb.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
   check("with a matched component the ritual is thrown for: the project closes, stamps `pending: placement`, shows `cast · awaiting where it goes` with a live Choose…, the card posts, the matched row is spent and the barred row is kept", rb.enabled && rb.status === "closed" && rb.outcome?.result === "success" && rb.outcome?.pending === "placement" && rb.awaiting.present && rb.awaiting.tag.length > 0 && rb.awaiting.chooseLive && rb.cards.length === 1 && rb.kept && rb.spent, rb);

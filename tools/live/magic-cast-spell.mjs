@@ -616,7 +616,7 @@ const P = {
   /** Delete one document by uuid, or empty an item's stack, as this seat's user does. */
   lostLeave: async ({ uuid, empty }) => {
     const doc = await fromUuid(uuid);
-    if (empty) await doc.update({ "system.quantity.value": 0 });
+    if (empty) await doc.update({ "system.quantity": 0 });
     else await doc.delete();
     return true;
   },
@@ -1562,7 +1562,7 @@ async function walkInvocation(K) {
   const prior = await run(gm, P.invWorld, { classUuid, casterId, level: 4 });
   const mine = [];
   const made = async (name, level, damage) => {
-    const doc = await gm.create("Item", { name, type: "item", system: { quantity: { value: 1, max: 0 } } }, { parent: casterUuid });
+    const doc = await gm.create("Item", { name, type: "item", system: { quantity: 1 } }, { parent: casterUuid });
     await track(doc.uuid, "Item");
     mine.push(doc.uuid);
     await run(gm, P.invSet, { uuid: doc.uuid, level, damage });
@@ -1603,7 +1603,7 @@ async function walkInvocation(K) {
     check("band 3: a radio picks the set used", picked.rows.filter((r) => r.used).map((r) => r.name).join() === "QA Set high");
     const removed = await run(player, P.invBand, { casterId, spellId: damageId, remove: "QA Set spare" });
     check("band 3: X removes a set and the pick opens on the lowest that still reaches", !removed.rows.some((r) => r.name.startsWith("QA Set spare")) && removed.rows.filter((r) => r.used).map((r) => r.name).join() === "QA Set high");
-    const extra = await gm.create("Item", { name: "QA Set dropped", type: "item", system: { quantity: { value: 1, max: 0 } } }, { parent: casterUuid });
+    const extra = await gm.create("Item", { name: "QA Set dropped", type: "item", system: { quantity: 1 } }, { parent: casterUuid });
     await track(extra.uuid, "Item");
     mine.push(extra.uuid);
     await run(gm, P.invSet, { uuid: extra.uuid, level: 3, damage: 0 });
@@ -1670,7 +1670,7 @@ async function walkLostItem(K) {
     mine.push(doc.uuid);
     return doc.uuid;
   };
-  const item = (name) => made("Item", { name, type: "item", system: { quantity: { value: 2, max: 0 } } }, casterUuid);
+  const item = (name) => made("Item", { name, type: "item", system: { quantity: 2 } }, casterUuid);
   const [a, b, c, d, z] = [await item("QA Lost a"), await item("QA Lost b"), await item("QA Lost c"), await item("QA Lost d"), await item("QA Lost z")];
   const stranger = await made("Actor", { name: "QA Lost Holder", type: "monster", ownership: { default: 0 } });
   const strangerId = String(stranger).split(".").pop();

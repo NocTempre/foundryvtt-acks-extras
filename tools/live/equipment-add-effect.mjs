@@ -154,7 +154,7 @@ try {
   check("the seat is a GM", (await run(gm, P.install)).isGM);
 
   section("fixture");
-  const fixture = await gm.fixture(MARKER, "Item", { name: "Walk sample sheet", type: "item", system: { quantity: { value: 1, max: 0 }, cost: 1 } });
+  const fixture = await gm.fixture(MARKER, "Item", { name: "Walk sample sheet", type: "item", system: { quantity: 1, cost: 1 } });
   itemId = fixture.id ?? String(fixture.uuid).split(".").pop();
   const shaped = await run(gm, P.shape, { itemId });
   check("shape: the fixture carries no effect", shaped.effects === 0, shaped);
