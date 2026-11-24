@@ -565,15 +565,29 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
    class, hit points and Hit Dice are the table's, the throw and saves moved
    with the rating, and the hover on the hit-point note names the table's page
    and the armour words. A rank the table has no cell for lists as unavailable.
-6. Pin a troop and a trait on a leader with a Kit pinned. *Observable:* the
+   For a table-grade champion and chieftain also read the attack: the
+   Statblock's attack tag reads the cell's die alone, and its hover names the
+   row, the page, the creature's by-weapon modifier and the take-back; Actor
+   Tweaks reads the modifier (+n); the attack item's Damage bonus reads −n; the
+   Follower Card's attack row shows the die alone. Roll the attack.
+   *Observable:* the card's damage line posts the die, plus n, minus n, and
+   totals the die's face, with no `badDamage` warning.
+6. The same champion with a troop Kit pinned, and then with Unarmoured.
+   *Observable:* under the troop Kit the tag reads "By weapon" with the kit's
+   modifier and the item's Damage bonus reads 0 (the die stays recorded on the
+   creature's flag and written nowhere); under Unarmoured the die stands as in
+   step 5.
+7. Pin a troop and a trait on a leader with a Kit pinned. *Observable:* the
    armour class stands on the kit's figure with the bumps added, and its
    tooltip keeps the kit's part and names each organisation part.
-7. Type another armour class on a step 2 creature and hover. *Observable:* the
-   organisation parts are gone from the tip.
-8. Pin a piece of optional equipment. *Observable:* nothing on the sheet
+8. Type another armour class on a step 2 creature and hover. *Observable:* the
+   organisation parts are gone from the tip. Edit the table-grade champion's
+   attack formula or its Damage bonus. *Observable:* the attack tag shows what
+   core adds and the table's hover is gone.
+9. Pin a piece of optional equipment. *Observable:* nothing on the sheet
    changes; the notes name it with its page, and the creature's flag records
    it with the row's figures.
-9. Join as the Player seat, granted Observer on a step 2 creature.
+10. Join as the Player seat, granted Observer on a step 2 creature.
    *Observable:* the tooltips render as on the GM seat.
 
 **Drive notes.** A generated creature opens on the Follower Card, a

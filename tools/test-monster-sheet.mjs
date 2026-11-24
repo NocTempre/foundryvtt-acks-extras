@@ -164,6 +164,36 @@ test("a leader's kit damage is named on the attack even at none, and a blank one
   assert.equal(blankNull.damageTip, "QQ p.41");
   assert.equal(tipOf({ value: null, missing: false }, 0).damageTip, "", "an empty record names nothing");
 });
+test("a weapon's own damage bonus shows in the tag and the tooltip names it beside the creature's modifier", () => {
+  const rowOf = (over, bonusDamage) => statblockColumns({ ...snap(), ...over, attacks: [{ ...snap().attacks[0], bonusDamage }] }, loc).columns[1][0].rows[0];
+  const both = rowOf({ damageMod: 2 }, 1);
+  assert.equal(both.damage, "1d4 +3");
+  assert.equal(both.damageTip, 'statblock.row.damageWithMod:{"formula":"1d4","mod":"+2"} · statblock.row.damageWithBonus:{"bonus":"+1"}');
+  const alone = rowOf({ damageMod: 0 }, -1);
+  assert.equal(alone.damage, "1d4 −1");
+  assert.equal(alone.damageTip, 'statblock.row.damageWithBonus:{"bonus":"−1"}');
+  assert.equal(rowOf({ damageMod: 2 }, 0).damage, "1d4 +2", "a plain weapon is as before");
+  assert.equal(rowOf({ damageMod: 2 }, -2).damage, "1d4", "a bonus that cancels the modifier leaves the die alone");
+});
+test("a held leader-table die: the tag is the die alone, the tooltip names the row, the page and the take-back, and no converted die", () => {
+  const dice = { rows: { header: { col1: "+1" }, r1: { die: "1d8", col1: "1d10" } }, cite: "QQ p.9" };
+  const leader = { source: "table", cite: "QQ p.12", ac: 8, armour: "felt", die: "1d8", row: "Champion", damage: 1 };
+  const grade = (over = {}, attack = {}) => statblockColumns({ ...snap(), dice, damageMod: 1, derived: { leader }, attacks: [{ ...snap().attacks[0], damage: "1d8", bonusDamage: -1, ...attack }], ...over }, loc).columns[1][0].rows[0];
+  const held = grade();
+  assert.equal(held.damage, "1d8", "the die alone");
+  assert.match(held.damageTip, /^statblock\.tip\.dieTable:/);
+  assert.deepEqual(JSON.parse(held.damageTip.slice("statblock.tip.dieTable:".length)), { die: "1d8", row: "Champion", cite: "QQ p.12", mod: "+1", takeBack: "−1" });
+  assert.ok(!held.damageTip.includes("dieConverted"), "the table's die is not converted again");
+  const withTrait = grade({ damageMod: 2, derived: { leader, organisation: { damage: { value: 2, base: 1, trait: 1 }, trait: { label: "Trait C", cite: "QQ p.3" } } } });
+  assert.equal(withTrait.damage, "1d8 +1", "an ungated trait's figure rides on the die");
+  assert.match(withTrait.damageTip, /dieTable.* · statblock\.tip\.orgFigure/);
+  assert.ok(!withTrait.damageTip.includes("dieConverted"), "nor with a trait's figure, where the table holds a cell for the sum");
+  assert.equal(grade({}, { bonusDamage: 0 }).damageTip.includes("dieTable"), false, "the tip is gone once the bonus is edited");
+  assert.equal(grade({}, { damage: "1d6" }).damageTip.includes("dieTable"), false, "and once the formula is");
+  assert.equal(grade({ derived: { leader: { ...leader, cite: "" } } }).damageTip.includes('"cite":"—"'), true, "an override of the table reads no page");
+  assert.equal(grade({ derived: { leader: { ...leader, die: "" } } }).damageTip.includes("dieTable"), false, "a die only recorded names nothing");
+  assert.match(grade({}, { damage: "1d8", bonusDamage: 0 }).damage, /^1d8 \+1$/, "an attack that does not hold the take-back shows what core adds");
+});
 test("the Loyalty row: none for a creature that serves nobody, blank with the page for an empty field, signed for a score", () => {
   const loyaltyRows = (s) => statblockColumns(s, loc).columns.flat().find((g) => g.key === "reactions").rows.filter((r) => r.id === "loyalty");
   assert.deepEqual(loyaltyRows(snap()), [], "null is a creature in nobody's service");
@@ -311,12 +341,12 @@ test("the load note names no maximum where there is none", () => {
 
 console.log("monster sheet: an attack row");
 /** A live-shaped owned weapon: the system's `types` is a Set, and the flags sit on the document. */
-const weaponDoc = ({ types = [], extraordinary, flags = {} } = {}) => ({
+const weaponDoc = ({ types = [], extraordinary, flags = {}, bonus } = {}) => ({
   id: "w1",
   name: "Bite",
   flags: { "acks-extras": flags },
   getFlag: (m, k) => (m === "acks-extras" ? flags[k] : undefined),
-  system: { damage: { base: { formula: "1d6", types: new Set(types), ...(extraordinary === undefined ? {} : { extraordinary }) } }, counter: { value: 1, max: 1 } },
+  system: { damage: { base: { formula: "1d6", types: new Set(types), ...(extraordinary === undefined ? {} : { extraordinary }) } }, ...(bonus === undefined ? {} : { bonus }), counter: { value: 1, max: 1 } },
 });
 const asKey = (key) => key ?? "";
 test("a core type beats a stale flag", () => {
@@ -338,6 +368,11 @@ test("the row carries the die and the counter", () => {
   const row = attackRowOf(weaponDoc(), asKey);
   assert.equal(row.damage, "1d6");
   assert.deepEqual(row.counter, { value: 1, max: 1 });
+});
+test("the row carries the weapon's own damage bonus, none where the weapon holds none or a bare number", () => {
+  assert.equal(attackRowOf(weaponDoc({ bonus: { attack: 0, damage: -2 } }), asKey).bonusDamage, -2);
+  assert.equal(attackRowOf(weaponDoc(), asKey).bonusDamage, 0);
+  assert.equal(attackRowOf(weaponDoc({ bonus: 0 }), asKey).bonusDamage, 0);
 });
 
 console.log(`\nmonster sheet: ${passed} passed`);

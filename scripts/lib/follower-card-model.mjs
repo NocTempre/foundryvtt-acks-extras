@@ -37,6 +37,15 @@ export function withMod(dice, mod) {
   return m ? `${dice}${signed(m)}` : `${dice}`;
 }
 
+/**
+ * The damage bonus the card shows for a kind of attack: the Tweaks adjustment
+ * for its side, and the damage bonus of the weapon the row rolls (`item`),
+ * which the system adds to the same roll.
+ */
+export function shownDamageBonus(actor, type, item = null) {
+  return num(actor?.system?.damage?.mod?.[type === "missile" ? "missile" : "melee"]) + num(item?.system?.bonus?.damage);
+}
+
 /** An attack throw as its target figure, `9+`; blank where the throw is not a number. */
 export function throwFigure(target) {
   return Number.isFinite(target) ? `${target}+` : "";

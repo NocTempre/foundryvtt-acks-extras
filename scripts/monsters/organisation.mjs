@@ -13,9 +13,9 @@
  */
 import { citeOf, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
 import { mergePatch } from "../lib/template-logic.mjs";
-import { leaderCell, roleKeyOf, STANDARD_ROLE } from "../importer/leader-roles.mjs";
+import { leaderCell, roleKeyOf, splitWeaponModifier, STANDARD_ROLE } from "../importer/leader-roles.mjs";
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
-import { damageModOf } from "./kits.mjs";
+import { damageModOf, UNARMOURED } from "./kits.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -246,11 +246,21 @@ function extrasOf(resolved) {
  * (`extras.organisation.grade`), and the figures are read here from the
  * world's table and written as a printed leader cell writes them
  * (`leaderCell`: armour class, hit points and rating, the damage modifier as a
- * total, the throw and saves moved from the member's own block). The printed
- * die is recorded, not written, as a printed leader's is. `variantOption` is
- * the template's variant option for the chosen variant, the member's block the
- * leader is moved from. A grade the table holds no cell for writes nothing.
- * Returns the grade recorded, or null.
+ * total, the throw and saves moved from the member's own block).
+ *
+ * The table's die states the leader's damage with its arms, the grade's
+ * modifier already in it. Without a troop kit it becomes the formula of each
+ * by-weapon attack the payload carries (the weapon item holding only the bare
+ * marker), and that item's own damage bonus takes back the grade's modifier,
+ * so core's addition of the actor's modifier nets to the die. The actor keeps
+ * the modifier, so a kit, a trait and a natural attack read what they read
+ * for a printed leader. A troop kit leaves the die recorded alone (the kit
+ * states the leader's damage as a modifier over the troop row's); the
+ * unarmoured kit is not a troop kit and keeps the die. A die that does not
+ * read whole as dice writes nothing, and no item is added where none
+ * qualifies. `variantOption` is the template's variant option for the chosen
+ * variant, the member's block the leader is moved from. A grade the table
+ * holds no cell for writes nothing. Returns the grade recorded, or null.
  */
 export function applyGeneratedLeaderGrade(resolved, { variantOption, org = importedOrganisation(), ladder = null, ladderCite = null } = {}) {
   const extras = resolved?.flags?.[MODULE_ID]?.[FLAG_EXTRAS];
@@ -259,16 +269,47 @@ export function applyGeneratedLeaderGrade(resolved, { variantOption, org = impor
   const row = org.leaders.rows.find((r) => roleKeyOf(r.label) === mark.role);
   const cell = row?.cells?.[mark.variant];
   if (!cell) return null;
-  const built = leaderCell(variantOption, { ac: cell.ac, hd: cell.hd, hp: cell.hp, dmg: cell.dmg ?? 0 }, {
+  const modifier = cell.dmg ?? 0;
+  const troopKit = !!extras.kit && extras.kit.troop !== UNARMOURED;
+  const die = troopKit ? null : diceOf(cell.die);
+  const built = leaderCell(variantOption, { ac: cell.ac, hd: cell.hd, hp: cell.hp, dmg: modifier }, {
     ladder,
     ladderCite,
-    leader: { source: GRADE_SOURCE, cite: org.leaders.cite ?? "", ac: cell.ac, armour: cell.armour ?? "" },
+    leader: { source: GRADE_SOURCE, cite: org.leaders.cite ?? "", ac: cell.ac, armour: cell.armour ?? "", die: "", row: row.label, damage: modifier },
   });
   mergePatch((resolved.system ??= {}), built.merge);
   mergePatch(extras, built.flags?.[MODULE_ID]?.extras ?? {});
+  if (die && writeGradeDie(resolved.items, die, modifier)) extras.derived.leader.die = die;
   const grade = { ...mark, label: row.label, armour: cell.armour ?? "", die: cell.die ?? "", cite: org.leaders.cite ?? "" };
   extras.organisation = { ...extras.organisation, grade };
   return grade;
+}
+
+/** A printed damage cell as a formula, spaces stripped and minus signs plain, or null where it does not read whole as dice (a number alone, or dice with a modifier of their own, count). */
+function diceOf(text) {
+  const formula = String(text ?? "").replace(/\s+/g, "").replace(/[−–—]/g, "-");
+  return /^(?:\d*d\d+(?:[+-]\d+)?|\d+)$/i.test(formula) ? formula : null;
+}
+
+/**
+ * Write a grade's die onto the by-weapon attacks among `items`: each weapon
+ * whose formula is the bare marker (no modifier of its own) takes `die` as its
+ * formula, keeping its damage types and extraordinary mark, and its damage
+ * bonus takes back `modifier`. Returns how many items were written.
+ */
+function writeGradeDie(items, die, modifier) {
+  let written = 0;
+  for (const item of Array.isArray(items) ? items : []) {
+    if (item?.type !== "weapon") continue;
+    const base = item.system?.damage?.base;
+    if (!base || splitWeaponModifier(base.formula)?.mod !== 0) continue;
+    base.formula = die;
+    const bonus = item.system.bonus;
+    const taken = (Number(bonus?.damage) || 0) - modifier;
+    item.system.bonus = bonus && typeof bonus === "object" ? { ...bonus, damage: taken } : { attack: Number(bonus) || 0, damage: taken };
+    written++;
+  }
+  return written;
 }
 
 /** The natural-attack items a trait's dice list gives: one weapon per listed die, named by `name(n)`; a text with no die in it gives none. */

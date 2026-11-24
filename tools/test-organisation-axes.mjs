@@ -156,17 +156,50 @@ check("an axis the rebuild lacks is carried whole, in its place", lacking.map((a
 
 /* --- the leader grade ---------------------------------------------------------------- */
 const ladder = { hd1: { throw: 10 }, hd2: { throw: 9 }, hd3: { throw: 8 }, hd4: { throw: 7 }, hd5: { throw: 6 } };
+/** A by-weapon attack as `bindMonster` writes one: the bare marker as its formula, a typed and extraordinary base, both bonuses at 0. */
+const weaponItem = (formula = "By weapon") => ({
+  name: "Strike",
+  type: "weapon",
+  system: { damage: { base: { formula, types: ["slashing"], extraordinary: true } }, bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true },
+});
 const base = () => ({
   system: { ac: { value: 5 }, attack: { throw: 11 }, details: { morale: 0 }, damage: { mod: { melee: 0, missile: 0 } } },
   flags: { [MID]: { extras: { organisation: { grade: { variant: "alba", role: "champion" } } } } },
-  items: [],
+  items: [weaponItem()],
 });
 const alba = variantOptions()[0];
 let resolved = base();
 let grade = applyGeneratedLeaderGrade(resolved, { variantOption: alba, org, ladder, ladderCite: "XX r" });
 check("the grade writes armour class, hit points and rating, the damage total and the throw moved by the ladder", resolved.system.ac.value === 8 && resolved.system.hp.max === 9 && resolved.system.hp.hd === "2d8" && resolved.system.damage.mod.melee === 1 && resolved.system.damage.mod.missile === 1 && resolved.system.attack.throw === 10);
 check("its saves move with the rating and its source is recorded with the armour words", resolved.system.saves != null && resolved.flags[MID].extras.derived.leader.source === "table" && resolved.flags[MID].extras.derived.leader.armour === "felt" && resolved.flags[MID].extras.derived.leader.cite === "XX p. 1");
-eq("the printed die is recorded, not written", [grade.die, resolved.items.length], ["1d8", 0]);
+eq("the printed die is recorded on the grade and written as the by-weapon attack's formula, its types and mark kept", [grade.die, resolved.items.length, resolved.items[0].system.damage.base], ["1d8", 1, { formula: "1d8", types: ["slashing"], extraordinary: true }]);
+eq("that attack's own damage bonus takes back the grade's modifier while the actor keeps it, so core's sum is the die", [resolved.items[0].system.bonus, resolved.system.damage.mod, resolved.system.damage.mod.melee + resolved.items[0].system.bonus.damage], [{ attack: 0, damage: -1 }, { melee: 1, missile: 1 }, 0]);
+eq("the leader record holds the die, the row's label and the modifier", [resolved.flags[MID].extras.derived.leader.die, resolved.flags[MID].extras.derived.leader.row, resolved.flags[MID].extras.derived.leader.damage], ["1d8", "Champion", 1]);
+const withCell = (cell) => ({ ...org, leaders: { cite: "XX p. 1", rows: [{ key: "champion", label: "Champion", cells: { alba: { ac: 8, armour: "felt", hd: "2", hp: 9, ...cell } } }] } });
+const graded = (cell, items) => {
+  const r = base();
+  if (items) r.items = items;
+  applyGeneratedLeaderGrade(r, { variantOption: alba, org: withCell(cell), ladder });
+  return r;
+};
+resolved = graded({ die: "2d5 + 1", dmg: 4 });
+eq("a die a conversion would not give is written as read, spaces stripped, never computed from the modifier", [resolved.items[0].system.damage.base.formula, resolved.items[0].system.bonus.damage], ["2d5+1", -4]);
+resolved = graded({ die: "1d6−1", dmg: -2 });
+eq("a printed minus sign is made plain and a negative modifier is taken back as a positive bonus", [resolved.items[0].system.damage.base.formula, resolved.items[0].system.bonus.damage], ["1d6-1", 2]);
+resolved = graded({ die: "1d8", dmg: null });
+eq("a modifier the table does not print takes back nothing", [resolved.items[0].system.damage.base.formula, resolved.items[0].system.bonus.damage], ["1d8", 0]);
+resolved = graded({ die: "1d8", dmg: 3 }, [{ ...weaponItem(), system: { ...weaponItem().system, bonus: { attack: 0, damage: 2 } } }]);
+eq("a bonus the item already carries is kept, less the modifier", resolved.items[0].system.bonus.damage, -1);
+for (const die of [null, "", "By weapon", "1d8 or 2d4", "see text"]) {
+  resolved = graded({ die, dmg: 1 });
+  eq(`a die that is not dice (${JSON.stringify(die)}) writes nothing: the item is as bound and the record names no die`, [resolved.items[0].system.damage.base.formula, resolved.items[0].system.bonus.damage, resolved.flags[MID].extras.derived.leader.die], ["By weapon", 0, ""]);
+}
+resolved = graded({ die: "1d8", dmg: 1 }, [weaponItem("By weapon +1"), weaponItem("1d6"), { name: "Bite", type: "weapon", system: { damage: { base: { formula: "1d4" } }, bonus: 0 } }, { name: "Quill", type: "ability", system: {} }]);
+eq("only the bare by-weapon marker is written: a modifier of its own, a die and a non-weapon are left, and no item is added", [resolved.items.map((i) => i.system.damage?.base?.formula ?? null), resolved.items.length, resolved.flags[MID].extras.derived.leader.die], [["By weapon +1", "1d6", "1d4", null], 4, ""]);
+resolved = graded({ die: "1d8", dmg: 1 }, []);
+check("a payload with no by-weapon attack gains none and records no die written", resolved.items.length === 0 && resolved.flags[MID].extras.derived.leader.die === "");
+resolved = graded({ die: "1d8", dmg: 1 }, [weaponItem(), { ...weaponItem(), name: "Throw", system: { ...weaponItem().system, damage: { base: { formula: "By weapon" } }, bonus: 0 } }]);
+eq("every qualifying attack takes the die, a bonus that is no object becoming one", [resolved.items.map((i) => i.system.damage.base.formula), resolved.items[1].system.bonus], [["1d8", "1d8"], { attack: 0, damage: -1 }]);
 resolved = base();
 resolved.flags[MID].extras.organisation.grade = { variant: "brex", role: "champion" };
 check("a breed and rank the table holds no cell for writes nothing", applyGeneratedLeaderGrade(resolved, { variantOption: alba, org }) === null && resolved.system.ac.value === 5);
@@ -260,5 +293,29 @@ applyGeneratedLeaderGrade(withKit, { variantOption: alba, org, ladder });
 withKit.flags[MID].extras.kit = { troop: "k", label: "K", ac: 4, memberAc: 5, role: "champion", compute: true, cite: "XX p. 9" };
 applyGeneratedKit(withKit, {});
 check("the kit reads the grade's armour class: the troop row's plus the leader's over its warrior's", withKit.system.ac.value === 4 + (8 - 5));
+
+/* --- the grade's die against a troop kit, the unarmoured kit and the trait ---------------- */
+const kitCell = (over = {}) => ({ troop: "k", label: "K", ac: 4, memberAc: 5, damage: 2, memberDamage: 0, role: "champion", compute: true, cite: "XX p. 9", ...over });
+const kitFirst = base();
+kitFirst.flags[MID].extras.kit = kitCell();
+const kitGrade = applyGeneratedLeaderGrade(kitFirst, { variantOption: alba, org, ladder });
+eq("under a troop kit the die is recorded and writes nothing: the formula stays the marker and the bonus 0", [kitGrade.die, kitFirst.items[0].system.damage.base.formula, kitFirst.items[0].system.bonus.damage, kitFirst.flags[MID].extras.derived.leader.die], ["1d8", "By weapon", 0, ""]);
+applyGeneratedKit(kitFirst, {});
+check("the kit still gives the troop row's modifier plus the leader's over its warrior's", kitFirst.system.damage.mod.melee === 2 + (1 - 0) && kitFirst.system.damage.mod.missile === 3);
+const bare = base();
+bare.flags[MID].extras.kit = kitCell({ troop: "unarmoured", naturalAc: 6, kind: "alba" });
+applyGeneratedLeaderGrade(bare, { variantOption: alba, org, ladder });
+eq("the unarmoured kit is no troop kit: the die stands", [bare.items[0].system.damage.base.formula, bare.items[0].system.bonus.damage], ["1d8", -1]);
+resolved = base();
+resolved.flags[MID].extras.organisation.naturalAttacks = { variant: "alba", trait: "ta" };
+resolved.items.push(...naturalAttackItems(["1d2-1"], (n) => `pre${n}`));
+applyGeneratedLeaderGrade(resolved, { variantOption: alba, org, ladder });
+applyGeneratedOrganisation(resolved, { choices: { trait: "ta", role: "champion" }, org, loc: (k, v) => `${v.label} ${v.n}` });
+eq("natural attacks, before or after the grade, keep their own dice and bonuses", resolved.items.slice(1).map((i) => [i.system.damage.base.formula, i.system.bonus]), [["1d2-1", 0], ["1d2-1", 0], ["1d2-1", 0], ["3", 0]]);
+check("and the by-weapon attack still holds the die", resolved.items[0].system.damage.base.formula === "1d8" && resolved.items[0].system.bonus.damage === -1);
+resolved = base();
+applyGeneratedLeaderGrade(resolved, { variantOption: alba, org, ladder });
+applyGeneratedOrganisation(resolved, { choices: { trait: "tc", role: "champion" }, org });
+check("an ungated trait's damage adds to the actor's modifier and nets, with the take-back, to the die plus the trait's figure", resolved.system.damage.mod.melee === 2 && resolved.items[0].system.damage.base.formula === "1d8" && resolved.system.damage.mod.melee + resolved.items[0].system.bonus.damage === 1);
 
 console.log(`test-organisation-axes: ${pass} checks passed.`);

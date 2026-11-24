@@ -175,6 +175,9 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
           damage: num({ integer: true }),
           // The armour words the leader table prints beside a grade's armour class.
           armour: str(),
+          // A table grade's die as written onto its by-weapon attacks (empty where it was only recorded) and the grade row's label.
+          die: str(),
+          row: str(),
         }),
         // The special troop and tribal trait a template generated the creature
         // in (monsters/organisation.mjs `applyGeneratedOrganisation`): each

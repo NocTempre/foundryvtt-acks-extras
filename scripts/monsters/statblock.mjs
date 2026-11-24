@@ -148,6 +148,8 @@ export function attackRowOf(weapon, damageLabel) {
     damageType: damageLabel(damageTypeOf(weapon)),
     natural: !!weapon.flags?.[MODULE_ID]?.naturalWeapon,
     extraordinary: extraordinaryOf(weapon),
+    // The weapon's own damage bonus, which core adds to every roll beside the creature's modifier.
+    bonusDamage: Number(weapon.system?.bonus?.damage) || 0,
     counter: { value: num(weapon.system?.counter?.value), max: num(weapon.system?.counter?.max) },
   };
 }
@@ -354,15 +356,37 @@ export function statblockColumns(snap, loc) {
   const pins = new Set(Array.isArray(snap.pins) ? snap.pins : []);
   const groups = [];
   const { throwTip, savesTip, leaderTip, moraleTip, damageTip: kitDamageTip, initiativeTip, surpriseTip } = derivationTips(snap, loc);
-  // An attack's damage tooltip: its die and the creature's modifier, where
-  // the modifier came from a kit's row, and the die the imported conversion
-  // table makes of the pair.
-  const attackDamageTip = (formula) => {
+  // What core adds to an attack's die: the creature's modifier and the
+  // weapon's own damage bonus. The tag and its tooltip show this figure.
+  const damageFigure = (a) => (Number(snap.damageMod) || 0) + (Number(a.bonusDamage) || 0);
+  // A leader-table grade's die the attack still holds: the die written as the
+  // formula, and the damage bonus that takes back the grade's modifier.
+  const heldGradeDie = (a) => {
+    const l = snap.derived?.leader ?? {};
+    return l.source === "table" && !!l.die && l.die === a.damage && l.damage != null && (Number(a.bonusDamage) || 0) === -Number(l.damage) ? l : null;
+  };
+  // An attack's damage tooltip: its die and the figures core adds to it (the
+  // creature's modifier, named where it came from a kit's row, and the
+  // weapon's own bonus), and the die the imported conversion table makes of
+  // the pair. A held grade die names the leader table's row instead.
+  const attackDamageTip = (a) => {
+    const formula = a.damage;
     if (!formula) return "";
-    if (!snap.damageMod) return kitDamageRecord(snap.derived) ? kitDamageTip : "";
-    const parts = [loc("statblock.row.damageWithMod", { formula, mod: signed(snap.damageMod) })];
+    const grade = heldGradeDie(a);
+    if (grade) {
+      return [
+        loc("statblock.tip.dieTable", { die: grade.die, row: grade.row || "—", cite: grade.cite || "—", mod: signed(num(grade.damage)), takeBack: signed(num(a.bonusDamage)) }),
+        kitDamageTip,
+      ].filter(Boolean).join(" · ");
+    }
+    const bonus = Number(a.bonusDamage) || 0;
+    const total = damageFigure(a);
+    if (!total) return kitDamageRecord(snap.derived) ? kitDamageTip : "";
+    const parts = [];
+    if (snap.damageMod) parts.push(loc("statblock.row.damageWithMod", { formula, mod: signed(snap.damageMod) }));
+    if (bonus) parts.push(loc("statblock.row.damageWithBonus", { bonus: signed(bonus) }));
     if (kitDamageTip) parts.push(kitDamageTip);
-    const die = convertedDie(snap.dice?.rows, formula, Number(snap.damageMod));
+    const die = convertedDie(snap.dice?.rows, formula, total);
     if (die) parts.push(loc("statblock.tip.dieConverted", { die, cite: snap.dice?.cite || "—" }));
     return parts.join(" · ");
   };
@@ -438,10 +462,11 @@ export function statblockColumns(snap, loc) {
     rows: (snap.attacks ?? []).map((a) =>
       row(pins, `atk:${a.id}`, a.name, attackThrow.cell, {
         line: [a.damageType, a.natural ? loc("statblock.row.natural") : "", a.extraordinary ? loc("statblock.row.extraordinary") : ""].filter(Boolean).join(" · "),
-        // The creature's own damage modifier rides every roll beside the
-        // attack's die, so the tag shows both and the tooltip names each.
-        damage: modded(a.damage, snap.damageMod) || "—",
-        damageTip: attackDamageTip(a.damage),
+        // The creature's own damage modifier and the weapon's own bonus ride
+        // every roll beside the attack's die, so the tag shows them and the
+        // tooltip names each.
+        damage: modded(a.damage, damageFigure(a)) || "—",
+        damageTip: attackDamageTip(a),
         valueTip: throwTip,
         counter: a.counter ?? null,
         item: a.id,

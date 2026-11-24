@@ -237,3 +237,45 @@ outnumbering, a target's state) is recorded on the creature and its notes and
 applied by nothing until the roll gates exist. A proficiency a troop or trait
 grants lands only where the printed word folds onto one of the world's
 proficiency names; elsewhere the creature gets none and the console says so.
+
+## 2026-11-24 — A leader-table die is the by-weapon attack's formula
+
+**Ruled (architect).** The leader table's die cell states the leader's damage
+with its arms, the grade's modifier already folded in. It is not an unarmed or
+natural attack. Core has no monster damage formula (the actor holds a modifier
+only), and an attack's damage is its weapon's formula plus the actor's
+modifier, so the die becomes the formula of the leader's by-weapon attack, that
+item's own damage bonus takes back the grade's modifier, and the actor keeps
+the modifier (a kit, a trait's damage and a natural attack read what they read
+for a printed leader). The die is read from the imported cell and never worked
+out from the modifier. A troop kit leaves the die recorded alone, since it
+states the leader's damage as a modifier over its troop row's; Unarmoured is
+no troop kit. A die that does not read whole as dice writes nothing, and no
+item is added where none holds the marker. The Statblock and the Follower Card
+show what core rolls, the weapon's own damage bonus included.
+
+**New evidence** (the die had only been recorded on the creature, as a printed
+leader's cell records none, and no entry ruled on it; the ledger row T-0714
+found that nothing read it): the companion arms article pairs a weapon's modifier form with a
+converted die for the same arms, so the die is a second statement of the same
+damage and not a second attack; by the architect's own hand count over the local extracts, not re-checked,
+the conversion fits 16 of the 18 cells, the two misses being the plan's 2e
+damage-conflict cells, so a computed die is wrong where the printed one is
+right; and a by-weapon marker is no formula a roll can read, so a leader with
+only the marker had a modifier and nothing to add it to.
+
+**Rejected.** An unarmed or natural die: it is not what the cell says, and the
+creature already fights by weapon. A labelled take-back row at the lib seam:
+the roll's rows would show a figure that is no modifier of the weapon. Zeroing
+the actor's modifier: the kit, the trait and the natural attacks read it, and
+the Tweaks reading would stop saying what the grade is. A second item at mode
+0: two attacks for one routine. The status quo: the table's die reached no
+roll. Reverse-computing a die from the modifier: the conversion does not fit
+every cell.
+
+**What it cost.** The grade's die sits in two places on the creature, the
+formula and the take-back, and an edit of either ends the sheet's naming of
+the table. A creature generated under a troop kit shows the kit's modifier and
+the marker, as before. The Follower Card's shown damage now includes a
+weapon's own bonus on every body, which changes a figure a character's card
+showed.

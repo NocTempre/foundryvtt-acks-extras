@@ -6,7 +6,7 @@
  * shortens, and which rows a star list picks.
  */
 import assert from "node:assert";
-import { stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
+import { stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, shownDamageBonus, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -150,6 +150,32 @@ test("a row with nothing left standing is removed whole", () => {
 test("a row with only an unbakeable field, or no item, writes and clears nothing", () => {
   assert.deepEqual(planAttackCommit({ "w1:0": { target: 8 }, "gone:0": { label: "X" } }, has("w1")), { itemUpdates: [], cleared: {} });
   assert.deepEqual(planAttackCommit(undefined, has()), { itemUpdates: [], cleared: {} });
+});
+
+console.log("follower card: the damage figure a row shows");
+
+const body = { system: { damage: { mod: { melee: 1, missile: 3 } } } };
+const arm = (damage) => ({ system: { bonus: { attack: 0, damage } } });
+
+test("the shown damage bonus is the actor's adjustment for the side, as before, with no weapon", () => {
+  assert.equal(shownDamageBonus(body, "melee"), 1);
+  assert.equal(shownDamageBonus(body, "missile"), 3);
+  assert.equal(shownDamageBonus(body, "thrown"), 1, "any other kind reads the melee side");
+  assert.equal(shownDamageBonus({ system: {} }, "melee"), 0);
+});
+
+test("the weapon's own damage bonus is part of the figure shown, so a take-back leaves the die alone", () => {
+  assert.equal(shownDamageBonus(body, "melee", arm(-1)), 0);
+  assert.equal(shownDamageBonus(body, "missile", arm(2)), 5);
+  assert.equal(shownDamageBonus(body, "melee", { system: { bonus: 0 } }), 1, "a bare-number bonus holds no damage figure");
+  assert.equal(shownDamageBonus(body, "melee", null), 1);
+});
+
+test("an override's delta is measured against the figure shown, the weapon's bonus included", () => {
+  const typed = 2;
+  assert.equal(typed - shownDamageBonus(body, "melee"), 1);
+  assert.equal(typed - shownDamageBonus(body, "melee", arm(-1)), 2, "the system adds the weapon's bonus itself, so the delta is what the typed figure lacks of it");
+  assert.equal(shownDamageBonus(body, "melee", arm(-1)) + (typed - shownDamageBonus(body, "melee", arm(-1))), typed, "the roll carries the figure typed");
 });
 
 console.log(`follower card: ${passed} passed`);

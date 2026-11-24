@@ -68,7 +68,10 @@ A weapon's melee row shows the die of the grip the weapon is held in and rolls
 that grip's damage mode (`heldGrip`, reached through the equipment API;
 docs/equipment/MODEL.md), with a tooltip naming where the die came from; the
 editor's damage field stays the item's own base die, and a die typed there
-replaces it on the row and is rolled in the base mode.
+replaces it on the row and is rolled in the base mode. The damage bonus a row
+shows is what the system adds to its roll: the actor's Tweaks adjustment for
+the row's side plus the weapon's own damage bonus (`shownDamageBonus`), and a
+card-only override of it is measured against that figure.
 **Notes** as a prose editor, **Equipment** with the worn toggle, the divide
 control and the coin-order block, the class-build strips, and the caster's
 slots.

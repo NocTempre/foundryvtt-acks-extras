@@ -515,8 +515,11 @@ that writes a monster does it: `bindMonster`, the legacy stat line
 (`bindLegacyMonster`), the person block (`bindNpc`), and a grid template's row
 and form cells (`templateOption`, `weaponsFromRoutine`). A die with its own
 modifier ("1d6+1") is a natural attack's and keeps it. A refill clears a
-modifier the re-read no longer finds (`REFILL_STAT_PATHS`). The Statblock's attack tag shows the die and the modifier together
-and its tooltip names each part.
+modifier the re-read no longer finds (`REFILL_STAT_PATHS`). The Statblock's
+attack tag shows the die, the modifier and the weapon's own damage bonus
+together (what core adds to the roll) and its tooltip names each part. A
+leader generated from the leader table gives the marker a die of its own
+("The organisation axes", step 1).
 
 **Repair.** A family is built only by its importer; a repair in place
 (`withRewrite`) runs that build and writes it over the held template whole,
@@ -675,8 +678,9 @@ or the parts and the row's or the natural table's citation for one worked out
 (`derivationTips`, where a kit's armour class outranks the leader's own); the
 morale row names the troop row; an attack's damage tag adds the troop row
 where the modifier is the row's, and the die the conversion table makes of the
-attack's die and the creature's modifier where the table is imported and
-prints a cell for the pair. A worked-out leader's damage tag names the modifier,
+attack's die and the figure core adds to it (the creature's modifier and the
+weapon's own damage bonus) where the table is imported and prints a cell for
+the pair. A worked-out leader's damage tag names the modifier,
 the row's figure, the leader's modifier over its warrior's, and the page; with
 the modifier left blank the tag is the die alone and its tooltip the row's page. Each is shown only
 while the actor still holds the figure, and a derived leader's tooltip stays
@@ -735,11 +739,27 @@ template engine's resolved hook, in this order:
    takes the grade's armour class, hit points, Hit Dice rating and damage
    modifier as a printed leader's cell writes them (`leaderCell`: the throw and
    saves move from the variant's own block by the attack-throw ladder and the
-   save rule). The armour words and the page go to `extras.derived.leader`
-   (`source: "table"`); the printed die is recorded on `extras.organisation.grade`,
-   not written, since a printed leader's cell writes no die either; the role's
-   XP stays the printed leader's. A grade the table holds no cell for writes
-   nothing.
+   save rule). The armour words, the row's label, the modifier and the page go
+   to `extras.derived.leader` (`source: "table"`); the role's XP stays the
+   printed leader's. The cell's die is the leader's damage with its arms, the
+   grade's modifier already in it, and it is recorded on
+   `extras.organisation.grade` whatever follows. **Without a troop kit it
+   becomes the formula of the by-weapon attack** (each weapon item whose
+   formula is the bare marker, "The "by weapon" modifier"), keeping its damage
+   types and extraordinary mark, and that item's own damage bonus takes back
+   the grade's modifier, so core's addition of the actor's modifier nets to the
+   die; the actor keeps the modifier, so a kit, a trait's damage and a natural
+   attack read what they read for a printed leader. The die is read from the
+   imported cell and never worked out from the modifier. A troop kit
+   (`extras.kit` with a troop other than Unarmoured, set before the grade is
+   applied) leaves the die recorded alone, since the kit states the leader's
+   damage as a modifier over its troop row's; Unarmoured is no troop kit and
+   keeps the die. A die that does not read whole as dice writes nothing, and no
+   item is added where none holds the marker (`extras.derived.leader.die` names
+   the die only when it was written). The Statblock's attack tag shows the die
+   alone (or with a trait's figure), and its tooltip names the row, the page,
+   the modifier and the take-back while the attack still holds the die and the
+   take-back. A grade the table holds no cell for writes nothing.
 2. `applyGeneratedKit` (above).
 3. `applyGeneratedOrganisation`, **after the kit**. It **writes** only the
    standing figures: a troop's attack bonus (`attack.mod`, melee and missile),

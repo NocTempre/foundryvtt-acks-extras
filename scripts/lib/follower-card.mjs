@@ -29,7 +29,7 @@ import { ITEM_TYPE } from "./vocab.mjs";
 import { ANIMAL_TRAINING } from "./data/animal-data.mjs";
 import { signed } from "./frame-model.mjs";
 import { blankLoyaltyCite } from "./score-bounds.mjs";
-import { STAR_FLAG, stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
+import { STAR_FLAG, shownDamageBonus, stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
 
 export { STAR_FLAG };
 
@@ -118,10 +118,7 @@ export function shownAttackBonus(actor, type) {
     : num(sys.scores?.str?.mod) + num(sys.attack?.mod?.melee);
 }
 
-/** The damage bonus the card shows for a kind of attack: the Tweaks adjustment for its side. */
-export function shownDamageBonus(actor, type) {
-  return num(actor?.system?.damage?.mod?.[type === "missile" ? "missile" : "melee"]);
-}
+export { shownDamageBonus };
 
 /**
  * Does this body bring spells to the table? A class caster declares the slot
@@ -393,7 +390,7 @@ export async function followerCardContext(actor, { editable = false, interactive
   // holds no number for is null, and a target built on it reads blank.
   const throwTarget = numOrNull(sys.attack?.throw);
   const bonusFor = (type) => shownAttackBonus(actor, type);
-  const dmgModFor = (type) => shownDamageBonus(actor, type);
+  const dmgModFor = (type, item) => shownDamageBonus(actor, type, item);
 
   const equippedWeapons = weapons.filter((w) => w.system?.equipped);
   // A body without scores fights by its routine: one throw for every attack.
@@ -424,7 +421,7 @@ export async function followerCardContext(actor, { editable = false, interactive
       const item = o.itemId ? actor.items.get(o.itemId) : null;
       const ov = atkOv[o.key] ?? {};
       const baseBonus = bonusFor(o.type);
-      const baseDmgMod = dmgModFor(o.type === "missile" ? "missile" : "melee");
+      const baseDmgMod = dmgModFor(o.type === "missile" ? "missile" : "melee", item);
       // The die shown is the one the roll deals: a hand-set die, else the grip's.
       // The edit row keeps the item's own base die, the field an edit writes.
       const dmgDie = ov.damage ?? o.damage;

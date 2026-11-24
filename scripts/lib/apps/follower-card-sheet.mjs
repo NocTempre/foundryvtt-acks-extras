@@ -408,7 +408,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       item,
       attackType,
       skipDialog: skipDialogFor(event),
-      acksLib: { ...this.#overrideRows(ov, side), ...(damageMode ? { damageMode } : {}) },
+      acksLib: { ...this.#overrideRows(ov, side, stored), ...(damageMode ? { damageMode } : {}) },
     });
   }
 
@@ -438,9 +438,10 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   /**
    * An override's target, bonus and damage bonus as modifier rows against what
    * the card shows: a lower target is so much more on the die, a replaced
-   * bonus is its difference from the shown one.
+   * bonus is its difference from the shown one. `stored` is the weapon the row
+   * rolls, whose own damage bonus is part of the shown figure.
    */
-  #overrideRows(ov, side) {
+  #overrideRows(ov, side, stored = null) {
     if (!ov) return undefined;
     const label = game.i18n.localize("ACKS-LIB.attack.override");
     const terms = [];
@@ -450,7 +451,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const held = numOrNull(this.actor.system?.attack?.throw);
     if (ov.target != null && held != null) terms.push({ label, value: held - num(ov.target) });
     if (ov.bonus != null) terms.push({ label, value: num(ov.bonus) - shownAttackBonus(this.actor, side) });
-    if (ov.damageBonus != null) damageTerms.push({ label, value: num(ov.damageBonus) - shownDamageBonus(this.actor, side) });
+    if (ov.damageBonus != null) damageTerms.push({ label, value: num(ov.damageBonus) - shownDamageBonus(this.actor, side, stored) });
     return { terms, damageTerms };
   }
 
