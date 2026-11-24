@@ -117,8 +117,9 @@ const TABLES = {
   // The frontage a monster size category occupies on a battle grid, and what
   // one of its squares is worth in feet; the load rule's two figures and the
   // default attribute score; the natural weapons each damage type is listed
-  // against, the edges of the extraordinary-damage rule, and the body forms.
-  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms"],
+  // against, the edges of the extraordinary-damage rule, the body forms, and
+  // the beastman organisation grids (village, leaders, special troops, traits).
+  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits"],
   // The armour limits on abilities, and the weapon-narrowing penalty's two figures.
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
@@ -689,6 +690,47 @@ VERIFY["monsters.bodyForms"] = (out, recipe, fail) => {
   const unread = Object.keys(BODY_FORM_ICONS).filter((hash) => !hashes.has(hash));
   if (unread.length) fail(`${unread.length} glyph key(s) match no row read`);
 };
+// The organisation tables (breed columns): rows minted from the print, one
+// column per header word on every row, and each column key the slug of a
+// Variant of the beastman family, which is what `monsters/organisation.mjs`
+// and the template's axes address a breed by. `cell` checks one cell's shape,
+// `ladder` that a roll column's bands run on from 1 without a gap or an
+// overlap, `rows` the count of rows the page prints. Shape only; no row, breed
+// or figure is named.
+const FAMILY_VARIANT_KEYS = (() => {
+  const book = JSON.parse(fs.readFileSync(new URL("../../cookbook/mm.json", import.meta.url), "utf8"));
+  return new Set((book.families?.["mm.familyBeastman"]?.members ?? []).map((m) => slugLabel(m.variant)));
+})();
+const organisationGrid = (out, recipe, fail, { cell, ladder = false, rows: expected }) => {
+  const rows = Object.entries(out ?? {});
+  if (!rows.length) return fail("no row read");
+  if (rows.length >= recipe.rows.length) fail("as many rows as specs: the run may have stopped short");
+  if (rows.length !== expected) fail(`${rows.length} rows read, the page prints ${expected}`);
+  const columns = Object.keys(rows[0][1]).filter((k) => k !== "label");
+  if (columns.length < 2) fail("fewer than two breed columns read");
+  for (const col of columns) if (!FAMILY_VARIANT_KEYS.has(col)) fail(`column ${col}: not a Variant key of the family`);
+  for (const [key, row] of rows) {
+    if (isMissingRow(row)) { fail(`row ${key}: read missing`); continue; }
+    if (!isText(row.label) || slugLabel(row.label) !== key) fail(`row ${key}: key is not the slug of its label`);
+    const own = Object.keys(row).filter((k) => k !== "label");
+    if (own.length !== columns.length || own.some((k) => !columns.includes(k))) fail(`row ${key}: its columns differ from the table's`);
+    for (const col of columns) if (row[col] !== null && !cell(row[col])) fail(`row ${key}, column ${col}: unexpected cell shape`);
+  }
+  if (!ladder) return;
+  for (const col of columns) {
+    const bands = rows.map(([, row]) => row[col]).filter(Boolean).sort((a, b) => a.min - b.min);
+    if (!bands.length) fail(`column ${col}: no band`);
+    else if (bands[0].min !== 1 || bands.some((b, i) => i && b.min !== bands[i - 1].max + 1)) fail(`column ${col}: bands do not run on from 1 without a gap or an overlap`);
+  }
+};
+const isBand = (b) => Number.isInteger(b?.min) && Number.isInteger(b?.max) && b.min >= 1 && b.min <= b.max;
+VERIFY["monsters.beastmanVillage"] = (out, recipe, fail) => organisationGrid(out, recipe, fail, { cell: isText, rows: 7 });
+VERIFY["monsters.beastmanLeaders"] = (out, recipe, fail) => organisationGrid(out, recipe, fail, {
+  cell: (c) => Number.isInteger(c.ac) && isText(c.armour) && isText(c.hd) && Number.isInteger(c.hp) && c.hp > 0 && isText(c.die) && (c.dmg === null || Number.isInteger(c.dmg)),
+  rows: 3,
+});
+VERIFY["monsters.beastmanSpecialTroops"] = (out, recipe, fail) => organisationGrid(out, recipe, fail, { cell: isBand, ladder: true, rows: 7 });
+VERIFY["monsters.beastmanTraits"] = (out, recipe, fail) => organisationGrid(out, recipe, fail, { cell: isBand, ladder: true, rows: 10 });
 // The armour limits on abilities: a skill list the binding can split, a phrase
 // holding a ladder word the consumer maps to a rung, and a shield window. Shape
 // only; no skill, rung or rule is named.

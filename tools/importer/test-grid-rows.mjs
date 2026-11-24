@@ -356,4 +356,95 @@ check("the other print column never joins a cell", !ranges.some((r) => /across/.
     && costs.r1.label === 1 && costs.r6.label === 6 && costs.r4.cost === "44pp");
 }
 
+/* --- headerColumns: column keys minted from the printed header ----------------- */
+{
+  // Every word below is invented. The header's last word splits a small-caps
+  // initial into a run of its own, a second header stacks a second block under
+  // the first (its row labels repeat), a dash is a cell, and a cell the page
+  // leaves out has no run at all.
+  const rec = {
+    shape: "gridRows",
+    column: { xMin: 0, xMax: 400, yMin: 20 },
+    labelMaxX: 50,
+    smallCaps: 1.5,
+    labelGap: 1,
+    keyByLabel: true,
+    headerColumns: { labelRe: "^kind$", cellPattern: "rollBand" },
+    rows: Array.from({ length: 8 }, (_, i) => ({ key: `row${i + 1}`, labelRe: "^[a-z][a-z -]*$", optional: true })),
+  };
+  const page = [
+    run("Caption text", 10, 8, 60),
+    run("Kind", 10, 30, 20), run("Alba", 100, 30, 20), run("Brex", 170, 30, 25), run("C", 240, 30, 6), run("yth", 246, 30, 15),
+    run("w", 10, 42, 5), run("rangler", 15, 42, 35), run("11-13", 104, 42, 15), run("-", 180, 42, 4), run("27", 250, 42, 4),
+    run("Drifter", 10, 54, 35), run("24-29", 104, 54, 15), run("25", 180, 54, 4), run("-", 250, 54, 4),
+    run("Kind", 10, 70, 20), run("Delt", 100, 70, 20), run("Ennu", 170, 70, 25),
+    run("w", 10, 82, 5), run("rangler", 15, 82, 35), run("32", 108, 82, 4),
+    run("s", 10, 94, 5), run("leeper", 15, 94, 35), run("36-36", 104, 94, 15), run("42-60", 172, 94, 20),
+  ];
+  const got = extractTable(page, rec);
+  check("the rows come from the labels the page prints, both blocks merged under one key", Object.keys(got).join() === "wrangler,drifter,sleeper");
+  check("the header and the caption are no rows", !("kind" in got) && !("captionText" in got));
+  check("the column keys are the header words, a small-caps initial kept with its word",
+    ["alba", "brex", "cyth", "delt", "ennu"].every((k) => k in got.wrangler) && Object.keys(got.wrangler).length === 6);
+  check("a band reads {min, max}, a lone figure both", JSON.stringify(got.wrangler.alba) === '{"min":11,"max":13}' && JSON.stringify(got.wrangler.cyth) === '{"min":27,"max":27}');
+  check("a dash cell reads null, never a missing key", got.wrangler.brex === null && got.drifter.cyth === null && "brex" in got.wrangler);
+  check("a cell the page leaves out, and a block the row is absent from, read null", got.wrangler.ennu === null && got.drifter.delt === null && got.sleeper.alba === null);
+  check("the second block's cells land under its own columns", got.wrangler.delt.min === 32 && got.sleeper.delt.max === 36 && got.sleeper.ennu.min === 42);
+  check("the label is the print, its small-caps opening restored", got.wrangler.label === "Wrangler" && got.sleeper.label === "Sleeper");
+  check("a page with no header row reads nothing", Object.keys(extractTable(page.filter((r) => r.str !== "Kind"), rec)).length === 0);
+
+  // The leader cell: three lines joined, the armour in brackets, the rating and
+  // hit points, the die and the modifier a weapon adds.
+  const lead = (s) => applyCellPattern(s, "leaderStats");
+  const full = lead("Ac14 (felt & hide) 9+2 Hd, 44 hp 1d20+3 or by weapon +7");
+  check("a leader cell reads its armour class, armour, rating, hit points, die and modifier",
+    JSON.stringify(full) === '{"ac":14,"armour":"felt & hide","hd":"9+2","hp":44,"die":"1d20+3","dmg":7}');
+  const bare = lead("Ac 15 11 Hd, 55 hp 1d3 or by weapon");
+  check("a cell printing no armour and no modifier leaves them null", bare.armour === null && bare.dmg === null && bare.die === "1d3" && bare.hd === "11");
+  check("a signed rating and a negative modifier read", lead("Ac13 (x) 12-1 Hd, 41 hp 1d3 or by weapon -4").hd === "12-1" && lead("Ac13 (x) 12-1 Hd, 41 hp 1d3 or by weapon -4").dmg === -4);
+  check("a half rating reads, and a cell with no damage reads no die", lead("Ac15 (y) 1/2 Hd, 42 hp").hd === "1/2" && lead("Ac15 (y) 1/2 Hd, 42 hp").die === null);
+  check("a dash and an unreadable cell are null", lead("-") === null && lead("nothing here") === null);
+
+  // The four shipped recipes: generic specs, the page's own words for every key,
+  // and the pages they cite.
+  const T = TABLE_RECIPES.monsters.tables;
+  const names = ["beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits"];
+  check("each organisation table reads the Monstrous Manual by header columns, keys minted from the print",
+    names.every((n) => T[n].book === "mm" && T[n].keyByLabel === true && T[n].headerColumns && !T[n].cellColumns && T[n].rows.every((r) => /^row\d+$/.test(r.key) && r.optional)));
+  check("the table pages are the cited ones, and the block's source lists them",
+    names.map((n) => T[n].printedPage).join() === "54,54,55,57" && /MM [\d, ]*\b54, 55, 57\b/.test(TABLE_RECIPES.monsters.source.pages));
+
+  // The special-troop recipe on invented runs laid out as the book sets it:
+  // labels right-aligned, cells centred under the header words.
+  const sp = [
+    run("Caption", 72, 78, 70), run("r", 120, 96, 5), run("ole", 126, 96, 15), run("Alba", 163, 96, 28), run("Brex", 235, 96, 30),
+    run("Wrangler", 107, 108, 38), run("-", 177, 108, 4), run("2-17", 242, 108, 18),
+    run("Drifter", 110, 120, 35), run("44-58", 168, 120, 22), run("60-99", 240, 120, 28),
+    run("Prose below the grid", 72, 195, 200),
+  ];
+  const troops = extractTable(sp, T.beastmanSpecialTroops);
+  check("the special-troop recipe reads its rows and bands from the page's words",
+    Object.keys(troops).join() === "wrangler,drifter" && troops.wrangler.alba === null && troops.wrangler.brex.max === 17 && troops.drifter.brex.min === 60 && troops.drifter.alba.min === 44);
+
+  // The leader recipe: three-line cells with the rank on the middle line, two
+  // stacked blocks, the second under its own header.
+  const cell = (x, y, ac, hd, hp, dmg) => [
+    run("A", x, y - 9, 6), run("c", x + 6, y - 9, 5), run(`${ac} (felt & hide)`, x + 13, y - 9, 70),
+    run(`${hd} H`, x + 18, y, 18), run("d", x + 36, y, 5), run(`, ${hp} hp`, x + 42, y, 30),
+    run(dmg, x + 9, y + 9, 70),
+  ];
+  const ld = [
+    run("Leader", 50, 543, 28), run("t", 79, 543, 4), run("ype", 84, 543, 14), run("Alba", 169, 543, 30), run("Brex", 312, 543, 30),
+    run("h", 49, 564, 5), run("ostler", 54, 564, 40), ...cell(145, 564, 13, "9", 41, "1d3 or by weapon"), ...cell(287, 564, 14, "10+1", 44, "1d3 or by weapon +5"),
+    run("w", 49, 594, 5), run("arden", 54, 594, 30), ...cell(145, 594, 15, "11", 52, "1d3 or by weapon +6"), ...cell(287, 594, 16, "12", 61, "1d3 or by weapon +7"),
+    run("Leader", 50, 645, 28), run("t", 79, 645, 4), run("ype", 84, 645, 14), run("Delt", 163, 645, 35),
+    run("h", 49, 669, 5), run("ostler", 54, 669, 40), ...cell(145, 669, 17, "13", 70, "1d3 or by weapon +8"),
+  ];
+  const leaders = extractTable(ld, T.beastmanLeaders);
+  check("the leader recipe reads a rank per row from the print and a cell per header word", Object.keys(leaders).join() === "hostler,warden" && Object.keys(leaders.hostler).length === 4);
+  check("a three-line cell reads whole under its column", JSON.stringify(leaders.hostler.alba) === '{"ac":13,"armour":"felt & hide","hd":"9","hp":41,"die":"1d3","dmg":null}'
+    && leaders.warden.brex.hp === 61 && leaders.warden.brex.dmg === 7 && leaders.hostler.brex.hd === "10+1");
+  check("the second block's column reads on the rank it shares, and is null where the rank is absent", leaders.hostler.delt.hp === 70 && leaders.warden.delt === null);
+}
+
 console.log(`test-grid-rows: all ${pass} checks passed`);

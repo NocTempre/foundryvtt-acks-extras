@@ -295,6 +295,28 @@ export function applyCellPattern(text, pattern = "raw") {
       const parts = t.replace(/[−–—]/g, "-").split("/").map((s) => s.trim());
       return parts.every((s) => /^[-+]?\d+$/.test(s)) ? parts.map(Number) : null;
     }
+    case "leaderStats": {
+      // A leader's cell of three lines joined by a space, the armour class and
+      // its armour in brackets, the rating and hit points, then the damage die
+      // and the modifier a weapon adds: -> {ac, armour, hd, hp, die, dmg}.
+      // `armour`, `die` and `dmg` are null where the cell prints none (`dmg`
+      // is the printed signed figure, never a default); `hd` is the rating as
+      // printed ("n", "n+m", "n-m"). A small-caps "AC" and "HD" arrive with
+      // their letters apart. A cell that does not read is null.
+      const s = t.replace(/[−–—]/g, "-").replace(/\s+/g, " ");
+      const m = s.match(/^a\s*c\s*(-?\d+)\s*(?:\(([^)]*)\))?\s*(\d+(?:\s*\/\s*\d+|\s*[+-]\s*\d+)?)\s*h\s*d\s*,?\s*(\d+)\s*hp\b\s*(.*)$/i);
+      if (!m) return null;
+      const die = m[5].match(/\d+\s*d\s*\d+(?:\s*[+-]\s*\d+)?/i);
+      const weapon = m[5].match(/by\s*weapon\s*([+-]\s*\d+)?/i);
+      return {
+        ac: Number(m[1]),
+        armour: m[2] ? m[2].replace(/\s+/g, " ").trim() || null : null,
+        hd: m[3].replace(/\s+/g, ""),
+        hp: Number(m[4]),
+        die: die ? die[0].replace(/\s+/g, "") : null,
+        dmg: weapon?.[1] ? Number(weapon[1].replace(/\s+/g, "")) : null,
+      };
+    }
     case "labelInt": {
       // A row whose whole label is one integer, read as a `labelPattern`:
       // "N" -> {label: N}. The row's figure comes off the page, so the row's
@@ -498,8 +520,11 @@ export function capitalInitials(runs, gap) {
  * (`joinRuns`'s `gapMin`): a gap wider than that many points is a word space.
  * `markKey` names a boolean each row carries, true where a lone footnote mark
  * sits in its cell band (the runs the cells themselves never keep).
+ * `headerColumns` takes the column keys from the page's header rows instead
+ * of `cellColumns` (`extractHeaderColumns`).
  */
 export function extractGridRows(items, recipe) {
+  if (recipe.headerColumns) return extractHeaderColumns(items, recipe);
   const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
   items = items.filter((it) => it.x >= xMin && it.x <= xMax && it.y >= yMin && it.y <= yMax);
   const rows = rowsByY(items, recipe.rowTol ?? 3);
@@ -695,6 +720,76 @@ export function extractGridRows(items, recipe) {
     if (recipe.markKey) row[recipe.markKey] = marked;
     if (recipe.keyByLabel) row.label = tidyRowName(matchedLabel.replace(/\W+$/, ""));
     out[key] = row;
+  }
+  return out;
+}
+
+/**
+ * `gridRows` with `headerColumns`: a grid whose column keys are the page's own
+ * header words, so no column is named in the recipe. `headerColumns.labelRe`
+ * claims a header row by the label printed at its left (the corner cell). The
+ * runs right of `labelMaxX` on it are joined into words (a run starting under
+ * `headerColumns.gap` points past the previous run's end continues its word, so
+ * a small-caps initial stays with its word) and each word's `slugLabel` is a
+ * column key; `headerColumns.cellPattern` (default `raw`) reads every cell. A
+ * cell belongs to the column whose header centre its own centre is nearest, so
+ * a column is set centred under its header. The header is consumed and is never
+ * a row.
+ *
+ * A page that stacks the same grid in blocks, each under a header row of its
+ * own (three breeds above three more, the row labels repeating), is read one
+ * block per header, down to the next header or the box's bottom, and each row's
+ * cells merge under its key, so a row holds every block's columns. Every
+ * column key read from any header is on every row: a cell the page prints
+ * blank or as a dash, or in a block the row is absent from, reads null, never a
+ * missing key. `startAfter` and `stopAt` do not combine with it; every other
+ * `gridRows` option (`keyByLabel`, `wrapRows`, `smallCaps`, `rowTol`, `column`)
+ * applies to each block.
+ */
+function extractHeaderColumns(items, recipe) {
+  const { labelRe, gap = 10, cellPattern = "raw" } = recipe.headerColumns;
+  const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
+  const rows = rowsByY(items.filter((it) => it.x >= xMin && it.x <= xMax && it.y >= yMin && it.y <= yMax), recipe.rowTol ?? 3);
+  const corner = new RegExp(labelRe, "i");
+  const labelOf = (row) => joinRuns(capitalInitials(row.items.filter((it) => it.x < recipe.labelMaxX), recipe.smallCaps), recipe.labelGap ?? null);
+  const heads = [];
+  rows.forEach((row, i) => {
+    if (corner.test(labelOf(row)) && row.items.some((it) => it.x >= recipe.labelMaxX)) heads.push(i);
+  });
+  const out = {};
+  const columnKeys = [];
+  heads.forEach((at, n) => {
+    const words = [];
+    for (const it of rows[at].items.filter((r) => r.x >= recipe.labelMaxX && !/^[*†‡]+$/.test(r.str.trim()))) {
+      const last = words[words.length - 1];
+      if (last && it.x - last.end < gap) {
+        last.str += it.str;
+        last.end = it.x + (it.w ?? 0);
+      } else words.push({ str: it.str, start: it.x, end: it.x + (it.w ?? 0) });
+    }
+    const cols = [];
+    for (const word of words) {
+      const key = slugLabel(word.str);
+      if (key && !cols.some((c) => c.key === key)) cols.push({ key, centre: (word.start + word.end) / 2 });
+    }
+    if (!cols.length) return;
+    const edge = (i) => (cols[i].centre + cols[i + 1].centre) / 2;
+    const cellColumns = cols.map((col, i) => {
+      const x = i === 0 ? recipe.labelMaxX : edge(i - 1);
+      return { key: col.key, x, w: (i === cols.length - 1 ? 1e9 : edge(i)) - x, row: true, pattern: cellPattern };
+    });
+    const block = rows.slice(at + 1, heads[n + 1] ?? rows.length).flatMap((row) => row.items);
+    const part = extractGridRows(block, { ...recipe, headerColumns: undefined, startAfter: undefined, stopAt: undefined, anchor: "center", cellColumns });
+    for (const col of cols) if (!columnKeys.includes(col.key)) columnKeys.push(col.key);
+    for (const [key, row] of Object.entries(part)) {
+      if (row.__missing && out[key]) continue;
+      if (!out[key] || out[key].__missing) out[key] = row;
+      else out[key] = { ...out[key], ...row, ...(out[key].label !== undefined ? { label: out[key].label } : {}) };
+    }
+  });
+  for (const row of Object.values(out)) {
+    if (row.__missing) continue;
+    for (const key of columnKeys) row[key] ??= null;
   }
   return out;
 }

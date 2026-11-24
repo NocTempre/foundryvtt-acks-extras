@@ -1858,6 +1858,20 @@ key or repeats one is dropped. The monsters document's `bodyForms` (MM p. 389)
 is read this way, its sample column through the `tidyNames` cell pattern, which
 restores each comma part's small-capped opening letter.
 
+A `gridRows` recipe with `headerColumns` names no column in source either:
+`headerColumns.labelRe` claims a header row by the label at its left, the words
+printed right of `labelMaxX` become the column keys (`slugLabel`; a run starting
+within `headerColumns.gap` points of the last one's end continues its word), and
+`headerColumns.cellPattern` reads every cell. A cell goes to the column whose
+header centre is nearest its own centre. A page that stacks the grid in blocks,
+each under a header of its own, is read a block at a time (down to the next
+header or the box's bottom) and a row's cells merge across blocks under its key.
+Every column key read is on every row, null where the page prints a dash or
+nothing, or the row is not in that block. The `rollBand` cell pattern reads a
+roll band into `{min, max}`, and `leaderStats` a leader's three-line cell into
+`{ac, armour, hd, hp, die, dmg}`. The monsters document's organisation tables
+(MM pp. 54-55, 57; `docs/monsters/MODEL.md`) are read this way.
+
 ## An entry's heading line
 
 An AX book's entry is anchored on, and its flow stopped by, heading LINES

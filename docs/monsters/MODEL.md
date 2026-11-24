@@ -468,6 +468,28 @@ library's: a copy dragged out of the library (`isWorldCopy`) is never found by
 the lookup (`importedActorsOfType`) and never written, so it keeps the shape it
 was copied with.
 
+**The organisation tables**, in registry document `monsters` (MM pp. 54-55, 57;
+`scripts/monsters/organisation.mjs` `importedOrganisation`): `beastmanVillage`,
+the village makeup, a row per kind of inhabitant with a cell of printed text per
+breed; `beastmanLeaders`, the leader grades, a row per rank with a cell per
+breed holding the armour class, the armour words, the Hit Dice, the hit points,
+the damage die and the modifier a weapon adds (`{ac, armour, hd, hp, die,
+dmg}`, `dmg` null where none is printed); `beastmanSpecialTroops` and
+`beastmanTraits`, a row per troop role or trait with, per breed, the band of
+the die roll that picks it, `{min, max}` of whole numbers (a single printed
+value is both). The leader table is a distinct, tougher and better-armed grade
+than the breed pages' own leaders and does not replace them. No row or breed is
+named in the recipe: row keys are the slug of the printed label (`keyByLabel`),
+the label kept as the row's `label`, and column keys are the slugs of the
+printed header words (`headerColumns`), which are the family template's Variant
+option keys (the family's overview variant has no column). A breed the page
+prints a dash for, or no cell, is **null** on its row, never an absent key or a
+zero. The reader returns each table's rows in print order and its page for
+`citeOf`; a table not imported reads no rows and no page, and a Judge's
+override of a table, which wins, reads its own rows and no page. A cell that
+does not read whole is null. The Judge edits any table in the Ruledata Browser.
+The importer's mechanic is in `docs/importer/MODEL.md`.
+
 ## The Kit axis
 
 A beastman template (a family, or an entry's leader template) gains a **Kit**

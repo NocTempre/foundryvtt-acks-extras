@@ -5205,7 +5205,7 @@ const SHARED_TABLE_RECIPES = {
   // Monster figures a binder works out rather than reads off the creature's
   // own block. `importer/leader-roles.mjs` keys the ladder rows.
   monsters: {
-    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 12, 13, 349, 389" },
+    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 12, 13, 54, 55, 57, 349, 389" },
     tables: {
       // Attack Throws by Level and HD (RR ch. 6): the Monster HD column and
       // the throw value at its far right. The class-level columns between are
@@ -5475,6 +5475,79 @@ const SHARED_TABLE_RECIPES = {
         keyByLabel: true,
         cellColumns: [{ key: "example", x: 136, w: 105, row: true, pattern: "tidyNames" }],
         rows: Array.from({ length: 60 }, (_, i) => ({ key: `form${i + 1}`, labelRe: "^[a-z]+\\W*$", optional: true })),
+      },
+      // The beastman organisation tables (MM pp. 54-55, 57). Each is a grid of
+      // option rows by breed columns, and nothing in it is named here: the row
+      // keys are minted from the printed labels (`keyByLabel`), the column keys
+      // from the printed header words (`headerColumns`, which are the family
+      // template's Variant option keys), and the specs are a generic run longer
+      // than any table. A cell the page prints as a dash reads null.
+      // `monsters/organisation.mjs` reads them.
+      //
+      // The village makeup: what a village holds, one row per kind of
+      // inhabitant, a cell per breed, kept as printed text. The page stacks the
+      // breeds in two blocks of three, each under its own header.
+      beastmanVillage: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 54,
+        locate: "Beastman Village Makeup",
+        column: { xMin: 40, xMax: 600, yMin: 322, yMax: 518 },
+        labelMaxX: 115,
+        smallCaps: 1.5,
+        labelGap: 1,
+        keyByLabel: true,
+        headerColumns: { labelRe: "^inhabitants$", cellPattern: "raw" },
+        rows: Array.from({ length: 14 }, (_, i) => ({ key: `row${i + 1}`, labelRe: "^[a-z][a-z -]*$", optional: true })),
+      },
+      // The leader table: a rank per row, and per breed its armour class with
+      // the armour in brackets, its Hit Dice and hit points, and its damage die
+      // and modifier (`leaderStats`). Each cell prints over three lines with
+      // the rank on the middle one, and the page stacks the breeds in two
+      // blocks of three. These leaders are a grade apart from the breed pages'
+      // own: a separate table, never a replacement.
+      beastmanLeaders: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 54,
+        locate: "Beastman Champion and Chieftain Characteristics",
+        column: { xMin: 40, xMax: 600, yMin: 535, yMax: 748 },
+        labelMaxX: 115,
+        smallCaps: 1.5,
+        labelGap: 1,
+        wrapRows: { centered: true, tol: 12 },
+        keyByLabel: true,
+        headerColumns: { labelRe: "^leader\\s*type$", cellPattern: "leaderStats" },
+        rows: Array.from({ length: 8 }, (_, i) => ({ key: `row${i + 1}`, labelRe: "^[a-z][a-z -]*$", optional: true })),
+      },
+      // The special-troop table: a troop role per row, and per breed the band of
+      // the roll that picks it (`rollBand`: `{min, max}`, a lone figure both).
+      beastmanSpecialTroops: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 55,
+        locate: "Beastman Special Troops",
+        column: { xMin: 60, xMax: 590, yMin: 85, yMax: 190 },
+        labelMaxX: 150,
+        smallCaps: 1.5,
+        labelGap: 1,
+        keyByLabel: true,
+        headerColumns: { labelRe: "^role$", cellPattern: "rollBand" },
+        rows: Array.from({ length: 14 }, (_, i) => ({ key: `row${i + 1}`, labelRe: "^[a-z][a-z -]*$", optional: true })),
+      },
+      // The tribal-trait table: a trait per row, read as the special troops are.
+      beastmanTraits: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 57,
+        locate: "Beastman Tribal Traits",
+        column: { xMin: 60, xMax: 590, yMin: 92, yMax: 226 },
+        labelMaxX: 150,
+        smallCaps: 1.5,
+        labelGap: 1,
+        keyByLabel: true,
+        headerColumns: { labelRe: "^trait$", cellPattern: "rollBand" },
+        rows: Array.from({ length: 16 }, (_, i) => ({ key: `row${i + 1}`, labelRe: "^[a-z][a-z -]*$", optional: true })),
       },
     },
   },
