@@ -135,7 +135,9 @@ module-breaking bug in this family passed them.
 ## Release
 
 Every release is a **major**, **minor** or **hotfix** — declared by the user,
-never derived. Ask if unclear; a major is always explicit. What each kind
+never derived. Ask only when the user calls a release without naming its
+kind, and never while planning or reporting work (TOOLCHAIN §4, "Release
+kinds"); a major is always explicit. What each kind
 requires is TOOLCHAIN §4's table, and `/acks-release` walks the steps with
 their commands. Never `gh run watch` (it hangs); never retag a published
 release (the release is the day's next version).
@@ -163,7 +165,7 @@ renders and hides exactly this.
   hand `git worktree remove` and a switch of `main`'s tree, and says at
   startup which tree a session is in. `worktree.bgIsolation`
   is `none` (read at daemon start — restart the app after changing it).
-- `compatibility` minimum 14 / verified 14.364; system `acks` minimum 14.
+- `compatibility` minimum 14 / verified 14.364; system `acks` minimum 14.2.0.
 - Every `relationships.requires` entry carries a `reason`; third-party entries
   also carry `compatibility.minimum` — intra-family acks-* entries do not
   (TOOLCHAIN §3 waiver).

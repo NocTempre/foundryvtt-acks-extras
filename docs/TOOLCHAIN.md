@@ -195,7 +195,11 @@ to every user's download for no consumer.
 Every release is one of three kinds, and the kind is **declared, not derived**.
 It is not read off the version number — the number is a date and says nothing
 about how big a release is. The user declares it; ask which kind is intended
-whenever the user has not said. A **major release is only ever explicit**; it is
+when the user calls a release and has not said. **That is the only time a
+release is asked about.** A plan, a brief, a report and a wrap-up carry no
+question about a release's kind, its timing, or what it waits for: a work
+package is defined by its slices, and the release is the owner's to call when
+they want one. A **major release is only ever explicit**; it is
 never inferred from the size of a diff. The kind is recorded in the release
 commit's subject, `Release <version> (<kind>) — …`
 (`Release 2026.12.15 (major) — …`).

@@ -467,3 +467,28 @@ is the single consumer above.
 **Cost.** No one-command scaffold for a second module. Toolchain commits enter
 this repo's history. Nothing compares `LICENSE` or a toolchain file with a
 second copy, so a hand edit to one is caught by review and by its suite.
+
+## 2026-11-24 — A release is asked about when it is called, and at no other time
+
+A plan for the `acks` 14.2.0 repair listed "The release. Its kind, and whether
+it waits for every break slice" among its owner decisions. The owner: "Doesn't
+matter for defining work package, asking this is a project bug that needs
+squashed." The same ask had been stopped once before, on 2026-11-11: "Stop
+asking about a release type." That ruling was kept as one campaign's, in a
+session's memory, so the next plan asked again.
+
+**Ruled.** The kind is asked when the owner calls a release without naming it
+(`/acks-release`), and nowhere before. A plan, a brief, a report and a wrap-up
+carry no question about a release's kind, its timing or what it waits for. A
+work package is its slices; which release carries them is the owner's, said
+when they want one. The rule is TOOLCHAIN §4, "Release kinds", and `CLAUDE.md`
+points at it.
+
+**Rejected.** A gate, which `CLAUDE.md` asks for when a written lesson recurs.
+The question is asked in a session's own messages and in a plan's prose. No
+tool reads the first, and no pattern tells a question about a release from a
+mention of one in the second.
+
+**Cost.** A slice that carries a migration, a setting or a new surface is no
+longer flagged for the owner's eye while it is built. The release that ships
+it names them in one line when it is cut (`acks-minor` §1).
