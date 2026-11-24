@@ -1219,7 +1219,9 @@ and S8 needs S10b. Phase 4: S14 says whether a kit dropped on a group
 reaches its nested groups.
 
 **Section 3, proposed.** All on `topic/beastman-organisation`, all
-`implementer`, since the design is ruled here.
+`implementer`, since the design is ruled here. These rows are replaced by
+the table in the next entry, written once the owner's words on followers
+reached `architect`; they stay here as what it proposed without them.
 
 | Slice | Delivers | `/design` | Needs |
 |---|---|---|---|
@@ -1255,6 +1257,90 @@ place's headcount goes stale after casualties; `place.mjs`'s
 
 Not checked by `architect`: anything live, and how validate treats the new
 flag and fields. Released: none.
+
+### Architect on followers and on tabs as views, 2026-11-24
+
+**Proposed, not ruled.** The same `architect`, given the owner's two later
+statements verbatim, revised its report. Rulings B to F and the questions
+above stand as written. What it changed and added:
+
+**A, changed.** A unit row is a lib field, `unitField()` in
+`scripts/lib/fields.mjs` beside `occupantField`: `{key, parentKey, label,
+holderUuid, notes, hidden}`. `FactionData.units` is a list of them, and in
+branch (b) of G the root group's record stores its tree as the same rows.
+
+**H. Followers.** Its restatement of the owner's words, with its example:
+each shared piece is built once, in lib, so that a lord's company and a
+village use the same code; a unit sent to garrison a keep and a gang sent to
+a ford are the same write. Read by it in `docs/lib/FOLLOWER-CARD.md`,
+`docs/henchmen/MODEL.md`, `character-sheet/tabs/followers.mjs`,
+`henchmen/engine/events.mjs` and core's `actor.mjs`. Part by part:
+
+- **The tree: the same shape, a different fact.** Followers store who serves
+  whom as child pointers: core's `retainer.managerid` with `henchmenList`,
+  the module's `record.employerUuid`, and a unit's `unit.employerUuid` and
+  `unit.officerUuid`. A generated monster never gets an employer pointer,
+  since payday, the henchman limit and the Roster would all pick it up, and
+  `units` does not replace the service tree, half of which is core's.
+  Extend lib: `lib/org-tree-logic.mjs` reduces both trees to one node shape,
+  `{key, parentKey, label, holderUuid}`. Factions supplies nodes from
+  `units`; henchmen supplies them through `serviceNodes(employer)`.
+- **A leader with the bodies under it: extend lib's command block.**
+  `unit.officerStackKey` beside `officerUuid`, so `commandMorale` counts a
+  leader stack's part while that stack has a living body. A gang needs no
+  reader of its own for it; parts from leaders above a gang stay S11b's.
+- **Where things are: new, and lib's.** Followers record no place today, and
+  B's readers serve both.
+- **Send out and Recall.** Putting bodies on a map and taking them off:
+  lib's group code as it is. The moves between places in D: new, in
+  `lib/org.mjs`, on `addOccupant` and `removeOccupant`.
+- **Cards.** A leader that is its own actor: a monster already opens on the
+  Follower Card, reused as it is. A leader still inside a stack:
+  `followerCardContext` extended to draw the base actor with that body's
+  record. A unit: the group sheet's stack row, reused.
+- **The org chart and locations views: new.** The Followers tab is three
+  flat buckets of cards, and units linked by `unit.employerUuid` are not on
+  it. Both views are built once, in lib, over nodes.
+- **Generation: extend lib.** `GROUP_CATEGORY.follower` has no writer and the
+  followers roll makes no actors. The plan that turns nodes into groups,
+  stacks, pointers and roster rows goes in lib, where a followers roll can
+  use it once its tables are imported.
+
+Docs: a new `docs/lib/ORGANISATION.md` owns the node shape, the walks, the
+views and send-out; `docs/lib/GROUPS.md` owns nesting and the officer stack;
+factions' MODEL owns `units`, henchmen's the adapter, monsters' the recipe
+and the generation flag.
+
+**I. Tabs are views.** One stored shape: `units`, the generation flag, the
+groups and the rosters. Each tab is a view of it, by unit and by place, and
+Roll at random and Design by selection are tools on a view that both write
+that shape. The generating surface is the faction sheet's view by unit.
+
+**Section 3, proposed, replacing the table above.** S10a to S10c are built
+on the topic branch and landed on `main` together, walked through the API,
+before S11 starts, so followers work can build on `main`. It rejected a lib
+topic of its own: S11 needs the pieces at once and a second branch is a
+second lane over the same files. All take `implementer`.
+
+| Slice | Delivers | `/design` | Needs |
+|---|---|---|---|
+| S10a | lib only: `unit.parentGroupUuid`, its guard and walker; the nested counts of C; combat and formation deploy walk descendants; `unit.officerStackKey` in `commandMorale`; `stack.gen`; a labelled stack refused the map with a reason; no per-monster Roll on a generated stack | no | none |
+| S10b | lib and factions: `unitField`, `org-tree-logic.mjs`, the two view models, `placeOf`, `thingsAt`, `lib/org.mjs` send-out and recall; `FactionData.units` and the five readers; `docs/lib/ORGANISATION.md` | no | S10a |
+| S10c | henchmen's adapter: `serviceNodes(employer)` over core's pointers and the module's | no | S10b |
+| S11 | monsters' recipe and organisation logic; `lib/org-write-logic.mjs` with the plans that make and re-roll; the generation flag's normalizer. Mutation-checked | no | S5, S10a to S10c |
+| S11b | the provider; shared prototypes; library stacks for other creatures; leader parts read through `units`; the Judges' card; DECISIONS entries. Walked through the API | no | S11, and the owner's questions 1 and 2 |
+| S11c | branch (b) only: a root group's record joins a faction | if it adds a gesture | S11b |
+| S12 | the faction sheet's views by unit and by place with both tools; nested rows on the group sheet; a place's roster rows by faction; leader cards drawn by the Follower Card; Delete; the plate | yes: boards 1i and 1k and canvas 1's answers first | S11b |
+| S12b | the character sheet's Followers tab hosts both views over `serviceNodes`, the employer's units listed | yes | S10c, S12 |
+
+**One more for the owner**, `architect`'s pick first:
+
+6. The Followers tab gets the two views in this plan: (a) yes, as S12b, (b)
+   later.
+
+Not checked by `architect`: anything live, how validate treats the new
+fields, and whether the influence listener resolves a deployed body's group.
+Released: none.
 
 ### Phase 1, 2026-11-24
 
