@@ -204,6 +204,34 @@ const addTo = (n, d) => (figure(n) ?? 0) + d;
 /** The fold of a printed name for matching: letters and digits, lowercased. */
 export const foldName = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/** English inflectional endings a printed word and a library name may differ by. */
+const INFLECTIONS = new Set(["s", "es", "ed", "er", "ers", "ing", "ings", "ion", "ions", "ation", "ment", "ance", "ence", "ist"]);
+/** The shortest fold the inflection match accepts, so a short word cannot swallow an unrelated name. */
+const MIN_STEM = 4;
+
+/**
+ * The one candidate (an object with a `name`) that a printed word names, or
+ * null. An exact fold wins and the first such candidate answers. Failing that,
+ * a candidate answers when its fold and the word's fold differ only by an
+ * English inflection (one is the other plus an ending from a short fixed set)
+ * and the shorter fold is at least four characters; the match holds only when
+ * the candidates that qualify carry one folded name, so an ambiguous word
+ * answers null rather than a guess.
+ */
+export function matchProficiency(word, candidates) {
+  const target = foldName(word);
+  if (!target) return null;
+  const list = [...(candidates ?? [])].filter((c) => foldName(c?.name));
+  const exact = list.find((c) => foldName(c.name) === target);
+  if (exact) return exact;
+  const inflected = list.filter((c) => {
+    const name = foldName(c.name);
+    const [short, long] = name.length < target.length ? [name, target] : [target, name];
+    return short.length >= MIN_STEM && long.startsWith(short) && INFLECTIONS.has(long.slice(short.length));
+  });
+  return new Set(inflected.map((c) => foldName(c.name))).size === 1 ? inflected[0] : null;
+}
+
 /** The extras block of a resolved payload, created where absent. */
 function extrasOf(resolved) {
   const flags = (resolved.flags ??= {});
@@ -365,7 +393,7 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
     parts.damage = { base: meleeBase, troop: null, trait: r.damage, value: meleeBase + r.damage };
   }
 
-  // Proficiency grants: the printed word folded against the world's proficiency names.
+  // Proficiency grants: the printed word matched to the world's proficiency names (`matchProficiency`).
   const grants = [];
   const grant = (word, ranks, kind) => {
     if (!word) return;

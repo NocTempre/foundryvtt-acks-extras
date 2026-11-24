@@ -752,7 +752,10 @@ template engine's resolved hook, in this order:
    cell's list holds. A damage modifier left blank by the kit stays blank, an
    armour class that is not a figure is left alone, and a figure the table did
    not import writes nothing. A proficiency is granted as copies of the world's
-   library ability whose folded name equals the folded printed word; a miss
+   library ability whose folded name equals the folded printed word or, failing
+   that, differs from it only by an English inflectional ending (`matchProficiency`:
+   a stem of at least four letters plus one ending from a short fixed set, either
+   way round) and does so for exactly one folded name; a miss or an ambiguity
    writes none and is logged.
 
 Everything gated, ranged, activated or generated (a troop's opponent-surprise

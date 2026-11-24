@@ -11,11 +11,12 @@
  * wins over the import and carries no page, and the other tables stand. The
  * paragraph tables (troop kinds, equipment, traits) read as rows of plain
  * figures, a figure not read absent; the split, speech and sidebar figures read
- * as one flat map whether stored in page blocks or flat.
+ * as one flat map whether stored in page blocks or flat; a printed proficiency word
+ * names the one library name it equals or differs from by an English inflection.
  * Run: node tools/test-organisation.mjs
  */
 import assert from "node:assert/strict";
-import { ORGANISATION_DOC, ORGANISATION_TABLES, bandCell, importedOrganisation, gradeCell } from "../scripts/monsters/organisation.mjs";
+import { ORGANISATION_DOC, ORGANISATION_TABLES, bandCell, importedOrganisation, gradeCell, matchProficiency } from "../scripts/monsters/organisation.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { TABLE_RECIPES } from "../scripts/importer/table-recipes.mjs";
 
@@ -122,6 +123,22 @@ check("an overridden equipment table replaces the import's and carries no page; 
 /* --- the ids ------------------------------------------------------------------- */
 check("every table read is one the importer has a recipe for, in the same document",
   Object.values(ORGANISATION_TABLES).every((id) => TABLE_RECIPES[ORGANISATION_DOC]?.tables?.[id]));
+
+/* --- the proficiency a printed word names ------------------------------------------ */
+const abilities = (...names) => names.map((name) => ({ name }));
+const pick = (word, ...names) => matchProficiency(word, abilities(...names))?.name ?? null;
+check("an exact fold answers, case, spaces and punctuation aside", pick("Quill-work", "Zed", "quill work") === "quill work");
+check("an exact fold beats a longer inflected name", pick("Plorb", "Plorbing", "Plorb") === "Plorb");
+check("a word that is a stem of one name answers that name", pick("Plorb", "Zed", "Plorbing") === "Plorbing");
+check("a name that is a stem of the word answers (the other direction)", pick("Plorbing", "Zed", "Plorb") === "Plorb");
+check("every ending in the set answers", ["s", "es", "ed", "er", "ers", "ing", "ings", "ion", "ions", "ation", "ment", "ance", "ence", "ist"].every((end) => pick("Plorb", `Plorb${end}`) === `Plorb${end}`));
+check("two candidates that qualify answer none", pick("Plorb", "Plorbing", "Plorbion") === null);
+check("duplicates of one name are not an ambiguity", abilities("Plorbing", "plorbing").length === 2 && pick("Plorb", "Plorbing", "plorbing") === "Plorbing");
+check("a short stem answers none even with an ending in the set", pick("Cat", "Cating") === null && pick("Catting", "Cat") === null);
+check("a remainder outside the set answers none", pick("Plorb", "Plorbxyz") === null && pick("Plorb", "Plorbingx") === null);
+check("a shared beginning that is not a stem answers none", pick("Plorbo", "Plorbing") === null);
+check("a true miss answers none", pick("Plorb", "Zed", "Quill work") === null);
+check("an empty word or no candidates answers none", pick("") === null && pick("   ", "Zed") === null && matchProficiency("Plorb", null) === null);
 
 resetTables();
 console.log(`test-organisation: all ${pass} checks passed`);

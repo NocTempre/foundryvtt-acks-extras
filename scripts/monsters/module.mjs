@@ -21,7 +21,7 @@ import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
-import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, foldName, importedOrganisation } from "./organisation.mjs";
+import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, importedOrganisation, matchProficiency } from "./organisation.mjs";
 import { importedThrowLadder } from "../importer/leader-roles.mjs";
 import { libraryItems } from "../lib/library.mjs";
 
@@ -127,7 +127,7 @@ Hooks.once("init", () => {
         choices,
         org: importedOrganisation(),
         findProficiency: (word) => {
-          const hit = libraryItems().find((i) => i.type === "ability" && foldName(i.name) === foldName(word));
+          const hit = matchProficiency(word, libraryItems().filter((i) => i.type === "ability"));
           return hit ? hit.toObject() : null;
         },
         noteLine: ({ kind, label, cite }) => `<p>${loc("organisation.note", { kind: loc(`organisation.kind.${kind}`), label: escape(label ?? ""), cite: escape(cite || "—") })}</p>`,
