@@ -72,7 +72,21 @@ function takeLadder(map, item, items = null) {
   items?.set(key, item);
 }
 
-/** Rebuild the skill-to-ladder map from the item directory AND the world packs. */
+/** A map's ladders as one comparable string, so a rebuild that changed nothing redraws nothing. */
+const ladderSignature = (map) => JSON.stringify([...map].sort(([a], [b]) => a.localeCompare(b)));
+
+/**
+ * Redraw every open actor sheet. A sheet drawn before the packs' first read
+ * finished, or before an import changed a ladder, shows a throw borrowed from a
+ * skill's ladder as blank, and nothing else draws it again.
+ */
+function redrawActorSheets() {
+  for (const app of foundry.applications?.instances?.values?.() ?? []) {
+    if (app?.rendered && app.document?.documentName === "Actor") app.render();
+  }
+}
+
+/** Rebuild the skill-to-ladder map from the item directory AND the world packs; open actor sheets redraw when a ladder changed. */
 export async function refreshLadders() {
   const mine = ++generation;
   const map = new Map();
@@ -88,8 +102,10 @@ export async function refreshLadders() {
   }
   // A read that started earlier never overwrites a later one's map.
   if (mine === generation) {
+    const changed = ladderSignature(map) !== ladderSignature(ladderCache ?? new Map());
     ladderCache = map;
     itemCache = items;
+    if (changed) redrawActorSheets();
   }
   return map;
 }

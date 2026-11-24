@@ -106,6 +106,17 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    directly and never proves they survive normalization, which is exactly how
    that bug lived through a release. Read the stored target back after a real
    `change` event on the pickers.
+
+   **A sheet opened before the skill ladders are read.** Fixture
+   `character-sheet/climbing-borrowed`: a level-7 `character` of no class
+   carrying the library pack's Climbing proficiency, whose throw borrows the
+   imported Climbing skill's ladder (`as: "thief"`, `table: "climbing"`). With
+   the rulebook imported, reload the page and open that character's sheet the
+   moment `game.ready` is true, while `importedSkillKeys()` still lacks
+   `climbing` (the packs are read in the background, about 9 s on the test
+   world). *Observable:* Rolls tab → Proficiencies & powers → Climbing reads
+   "—", then the open sheet redraws by itself to the rung's figure ("0+")
+   once the read finishes, with no console error.
 10. **The three verdicts a rung can give.** Walk one throw up through its ladder.
    *Observable:* at a `none` rung the row reads the printed cell, says the throw
    is not available, and clicking it posts NOTHING to chat (a notification only).

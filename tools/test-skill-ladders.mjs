@@ -233,5 +233,20 @@ await ok("a deleted library skill stops answering once the quiet window has pass
   assert.equal(importedLadderFor("sneaking", null), null);
 });
 
+await ok("an open actor sheet redraws once when a read changes the ladders, and not when it changes nothing", async () => {
+  let renders = 0;
+  let itemRenders = 0;
+  const sheet = { rendered: true, document: { documentName: "Actor" }, render() { renders++; } };
+  const other = { rendered: true, document: { documentName: "Item" }, render() { itemRenders++; } };
+  globalThis.foundry.applications.instances = new Map([["a", sheet], ["b", other]]);
+  shelf = [skill("climbing", [1, 6], [7, 0])];
+  await refreshLadders();
+  assert.equal(renders, 1, `renders ${renders}`);
+  await refreshLadders();
+  assert.equal(renders, 1, "an unchanged read redraws nothing");
+  assert.equal(itemRenders, 0, "only actor sheets redraw");
+  delete globalThis.foundry.applications.instances;
+});
+
 console.log(`\n${passed} passed`);
 process.exit(0);
