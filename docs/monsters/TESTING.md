@@ -576,6 +576,15 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
 9. Join as the Player seat, granted Observer on a step 2 creature.
    *Observable:* the tooltips render as on the GM seat.
 
+**Drive notes.** A generated creature opens on the Follower Card, a
+monster's default face, which shows no organisation part; every hover above
+is read on the Full Monster sheet, opened from the card or built from its
+registered class. The troop and trait selects appear only once a variant is
+pinned. The sheet's root is a `<form>`, so a helper that takes
+`element[0]` gets its first control; tell the root by `nodeType === 1`. The
+sheet's Generate opens the new creature's sheet, whose document is the
+action's own result to track.
+
 **Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
 template stays.
 
