@@ -17,6 +17,7 @@ import {
 } from "../leader-roles.mjs";
 import { deriveLeader, importedLeaderProcedure } from "../../monsters/leader-derive.mjs";
 import { kitPresets, unionKitAxis } from "../kit-presets.mjs";
+import { readEcologyRecipe, attachRecipe, retractRecipe, memberVariant } from "../ecology-recipe.mjs";
 import { importedKits } from "../../monsters/kits.mjs";
 import { sizeSquares } from "../../monsters/sizes.mjs";
 import { hdFormula } from "../../lib/actor-read.mjs";
@@ -509,7 +510,7 @@ export function bindMonster(node) {
  * Shared by `importOne` and the family importer. The page reference closes the
  * last field in FIELD_ORDER that received text, so the creature carries it once.
  */
-export function monsterProseChannels(node, id, cite) {
+export function monsterProseChannels(node, id, cite, { variant = null } = {}) {
   const paras = node.fields.description ?? [];
   const ROUTE = {
     appearance: "appearance", combat: "combat", ecology: "ecology",
@@ -528,8 +529,27 @@ export function monsterProseChannels(node, id, cite) {
   for (const [field, lines] of texts) description[field] = bookText(lines, field === last ? cite : "", where);
   // A page that matched but yielded no prose still says where it was read from.
   if (!description[last]) description[last] = bookText([], cite, where);
-  const extras = { ...buildExtras(node), description };
+  const built = { ...buildExtras(node), description };
+  const extras = attachRecipe(built, recipeOf(node, id, cite, built.encounter, variant));
   return { biography: bookText(nodeParagraphs(node), cite, where), extras };
+}
+
+/**
+ * The encounter recipe a creature's Combat and Ecology prose states
+ * (`readEcologyRecipe`), its Role cells named under `variant`: the key its
+ * family template files the variant under, which is the entry's own name where
+ * the entry is in no family (the key `mintLeaderTemplate` uses). Never throws;
+ * a read that fails is no recipe.
+ */
+function recipeOf(node, id, cite, encounter, variant = null) {
+  try {
+    const label = variant == null ? memberVariant(id, data.books?.values?.() ?? []) : null;
+    const key = variant ?? slugLabel(label ?? node.name ?? "");
+    return readEcologyRecipe({ combat: nodeParagraphs(node, "combat"), ecology: nodeParagraphs(node, "ecology"), encounter, variant: key, cite });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | ${id}: the encounter recipe could not be read.`, err);
+    return [];
+  }
 }
 
 /** Every spell compendium loaded, once a session: what a stat block names is resolved against the loaded packs. */
@@ -979,7 +999,7 @@ export async function importFamily(bookId, famId, folderId) {
     if (legacy) {
       system.details = { ...(system.details ?? {}), biography: entryText(node, bindId, entry.cite) };
     } else {
-      const channels = monsterProseChannels(node, bindId, entry.cite);
+      const channels = monsterProseChannels(node, bindId, entry.cite, { variant: slugLabel(member.variant) });
       extras = channels.extras;
       // Both prose channels ship on the option; the sheet active at generate time uses its own.
       system.details = { ...(system.details ?? {}), biography: channels.biography };
@@ -1340,7 +1360,8 @@ export async function refillMonster(actor, { whole = false, force = false, repai
   await warmSpellPacksOnce();
   const { system, items, flags, prototypeToken } = bindMonster(node);
   if (whole) {
-    const { extras } = monsterProseChannels(node, id, found.entry.cite);
+    // A recipe the page no longer yields is written empty, or the update's merge keeps the old parts.
+    const extras = retractRecipe(monsterProseChannels(node, id, found.entry.cite).extras, actor.getFlag(MODULE_ID, "extras"));
     const typed = primaryTypeOf(node);
     const plan = await repairWrite(
       actor,

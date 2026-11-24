@@ -22,6 +22,11 @@ import {
   INTERVAL_UNITS,
   TRAINED_ROLES,
   DAMAGE_TYPES,
+  RECIPE_ROLES,
+  RECIPE_BASES,
+  RECIPE_STATES,
+  RECIPE_PLACES,
+  RECIPE_ROUNDS,
 } from "./config.mjs";
 // Leaf field-builders and the movement / senses / vision shapes come from
 // lib (one source across the features). num()/str()/choice() are
@@ -38,6 +43,7 @@ import {
   sensesField,
   visionField,
   defensesField,
+  wordList,
 } from "../lib/fields.mjs";
 
 const fields = foundry.data.fields;
@@ -54,6 +60,31 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       new SchemaField({
         wandering: new SchemaField({ noun: str(), number: str(), unit: str() }),
         lair: new SchemaField({ noun: str(), number: str(), unit: str() }),
+      });
+
+    // One part of an encounter recipe (`importer/ecology-recipe.mjs` names the
+    // fields). `source` and `count` are each one of several shapes, so every
+    // member is optional and blank until its shape uses it.
+    const recipePart = () =>
+      new SchemaField({
+        key: str(),
+        label: str(),
+        role: choice(RECIPE_ROLES),
+        source: new SchemaField({ uuid: str(), templateCell: str(), stat: str(), name: str() }),
+        count: new SchemaField({
+          dice: str(),
+          literal: num({ integer: true }),
+          ratioOf: str(),
+          percent: num(),
+          round: choice(RECIPE_ROUNDS),
+          perUnit: str(),
+        }),
+        chance: num(), // percent; null = always
+        when: new SchemaField({ state: choice(RECIPE_STATES), place: choice(RECIPE_PLACES), units: wordList() }),
+        branch: new SchemaField({ group: str(), band: str() }),
+        moraleWhileAlive: num({ integer: true }),
+        cite: str(),
+        basis: choice(RECIPE_BASES),
       });
 
     return {
@@ -251,6 +282,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         lairChance: num({ integer: true }), // % ; 0 = never in lair (meaningful) vs null = unspecified
         dungeon: encSide(),
         wilderness: encSide(),
+        recipe: new ArrayField(recipePart()), // what a group is made of; read at import, evaluated by the group generator
       }),
 
       // --- Related stat-line variants (juveniles, babies, leaders) ---

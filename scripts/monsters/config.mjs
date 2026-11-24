@@ -108,6 +108,29 @@ export const AGE_CATEGORIES = {
   maximum: { label: "Maximum" },
 };
 
+/**
+ * What an encounter recipe part is made of (`extras.encounter.recipe`): the
+ * unit's own bodies, the unit a body count is made of, a leader, young or
+ * dependants of the bodies, guards, captives, a caster. The importer writes
+ * them (`importer/ecology-recipe.mjs`); the vocabulary is shared by the data
+ * model and the reader.
+ */
+export const RECIPE_ROLES = {
+  body: {}, unit: {}, leader: {}, young: {}, dependant: {}, guard: {}, captive: {}, caster: {},
+};
+
+/** Where a recipe part's figures were read from: the creature's own page, or a printed table. */
+export const RECIPE_BASES = { page: {}, table: {} };
+
+/** The state of the unit a recipe part applies to: met wandering, or in its lair. */
+export const RECIPE_STATES = { wandering: {}, lair: {} };
+
+/** The place a recipe part applies in: the dungeon or the wilderness line of the stat block. */
+export const RECIPE_PLACES = { dungeon: {}, wilderness: {} };
+
+/** How a recipe share rounds, as the page prints it. */
+export const RECIPE_ROUNDS = { up: {}, down: {} };
+
 /** Roles a tamed monster can be trained for (MM Overview p.14). */
 export const TRAINED_ROLES = {
   guard: { label: "Guard" },

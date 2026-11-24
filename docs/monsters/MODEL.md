@@ -58,6 +58,65 @@ The Ecology tab edits all three fields, and its submit keeps core's field in ste
 Walking a unit to the bodies it holds is the recipe engine's, not built:
 `docs/lib/wip/20261031-encounter-group.md`, §3d.
 
+## The encounter recipe
+
+`extras.encounter.recipe` is a list of parts saying what a group of this
+creature is made of. The importer writes it, at the same two places
+`extras.encounter` travels: the imported creature, and the variant option of a
+family template. `scripts/importer/ecology-recipe.mjs` reads the creature's
+Combat and Ecology paragraphs and its parsed encounter lines; shipped locators
+find each structure, and every figure and every creature word is the page's.
+The evaluator that rolls a recipe into stacks, and the Judge's editor for it,
+are later slices (`docs/monsters/wip/20261124-beastman-organisation-plan.md`,
+S11 and S4b; the design is `docs/lib/wip/20261031-encounter-group.md`, §3d).
+
+A part carries `key`, `label` (the word as printed), `role`, `source`, `count`,
+`chance` (percent; null for always), `when`, `branch`, `moraleWhileAlive`,
+`cite` (the page) and `basis`.
+
+- `source` is the creature the part is made of: `templateCell` names a Role
+  cell of the family template (`variant|role`, never a copy of its figures),
+  `name` a creature as printed, and `uuid` and `stat` are for a Judge's own
+  part. The variant is the key the family files the creature under; an entry in
+  no family takes the key `mintLeaderTemplate` files its own leaders under.
+- `count` is `dice` or `literal`. A share of another part is `ratioOf` with
+  `percent` and `round`: `ratioOf` is a part's key, or `unit`, a share of the
+  units the sentence names counted in whole units (the gangs of a warband, the
+  warbands of a lair or village), rounded as printed. `perUnit` names the unit
+  a count is rolled once for.
+- `when.units` are the unit words the part applies to, as the stat block's
+  lines print them; `state` and `place` are set only where a line fixes them.
+- Parts of one `branch.group` are alternatives. `band` names a die's share
+  where a page prints one, and no reader invents it.
+- `basis` is `page` for everything the reader writes. `table` is for a part
+  that cites a printed table, which is the evaluator's to choose over the page
+  and never a correction of it.
+
+| Part | Role | Reads |
+|---|---|---|
+| `archers`, `warriors` | `body` | each share (`ratioOf: unit`) of the gangs or warbands the sentence names, in whole units, with its printed rounding |
+| `leader-<role>` | `leader` | the rank that leads each unit and how many; the chieftain's part carries `moraleWhileAlive`, the printed bonus while that rank lives |
+| `dependant-drudge`, `dependant-whelp` | `dependant` | each share of the warriors; the rounding stays blank where the page prints none |
+| `guard-<n>` | `guard` | a village guard's chance, dice and creature; beasts joined by "or" share one `branch.group` |
+| `chieftain-guard` | `guard` | the chieftain's escort, pointing at the Role cell the page says it is equivalent to |
+| `captives` | `captive` | chance and dice per unit |
+| `caster-shaman`, `caster-witchDoctor` | `caster` | each caster's chance, pointing at the Role cell that holds its level die |
+| `size-<place>-<state>` | `body` or `unit` | what each side of the encounter lines counts: bodies, or the unit it counts and how many |
+
+A sentence no locator reads adds no part, and a failed read is no recipe: the
+import goes on. A creature whose prose yields no part has no recipe, and the
+size parts join only a recipe the prose started. A morale sentence with no
+leader part to carry it adds nothing. Any creature whose pages state the same
+structures gets the same read, so the recipe is not limited to one family.
+
+A whole repair writes the recipe it reads. Where the page no longer yields one
+and the document holds parts, the build writes an empty list, since an update
+merges and would otherwise leave the old parts standing (`retractRecipe`). A
+refill that rewrites only the stat leaves does not touch it. The extras schema
+declares the field, so a sheet submit keeps the parts it does not render.
+`tools/importer/check-ecology-recipe.mjs` reads the local Monstrous Manual
+through the importer's path and reports the parts read per breed.
+
 ## Item flag metadata (`flags["acks-extras"]`)
 
 Set via the "ACKS Monster" group injected into monster-owned item sheets
