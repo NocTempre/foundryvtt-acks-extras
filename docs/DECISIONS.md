@@ -485,9 +485,10 @@ when they want one. The rule is TOOLCHAIN §4, "Release kinds", and `CLAUDE.md`
 points at it.
 
 **Rejected.** A gate, which `CLAUDE.md` asks for when a written lesson recurs.
-The question is asked in a session's own messages and in a plan's prose. No
-tool reads the first, and no pattern tells a question about a release from a
-mention of one in the second.
+The question is asked in a session's own messages and in a plan's prose. A
+Stop hook is handed the first and a docs check could read the second, and in
+neither does a pattern tell a question about a release from a mention of one.
+The rejection is the session's that wrote the rule, not the owner's.
 
 **Cost.** A slice that carries a migration, a setting or a new surface is no
 longer flagged for the owner's eye while it is built. The release that ships
