@@ -494,13 +494,13 @@ and leaves the template's `img` alone.
 
 Five canvases, one per surface, drawn with the ACKS II design system and
 private to the owner. Nothing is implemented. **No slice is released:** the
-owner gave three rulings while the first canvas was open, and has not yet
+owner gave four rulings while the first canvas was open, and has not yet
 answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy (boards 1a to 1g) | S12 |
-| [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits | S14 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges (boards 1a to 1h) | S12 |
+| [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
 | [5](https://claude.ai/artifact/PxYv6twWXeHwarsiXU8Vkh) | The template sheet: its picture, the variants' portraits, the trait heads | S5's place on the sheet |
@@ -509,7 +509,7 @@ Every figure on them is a placeholder (`n`, `NdN`, `nn%`), every option a
 neutral id (R1 to R7, T1 to T10, E1 to E9, V1 to V7), every picture a labelled
 empty box. One tooltip of each provenance shape is drawn open on each canvas.
 
-**The owner's rulings, all on canvas 1.**
+**The owner's rulings, given while canvas 1 was open.**
 
 1. "The UI should split between generate random and design via selection".
    Read as: one Generate window with two tabs. Example: *Roll at random* rolls
@@ -536,6 +536,29 @@ empty box. One tooltip of each provenance shape is drawn open on each canvas.
    as tokens by the group's existing Deploy. Example: Gang 1 is sent out,
    shows on the village's card as out, cannot be re-rolled from there, and
    comes back by Recall with its fallen still counted (board 1g).
+4. "There's only one head available per breed so will need to use
+   borders/icons for role/upgrades". Read as: every card, row and tile of a
+   breed shows that breed's one head; the role is a frame around it and an
+   upgrade (troop type, trait, kit or optional equipment) is a badge on one
+   of its corners. Example: a champion of Variant 1 with R3, T5 and Kit B
+   shows Variant 1's head in the champion's frame with three badges (board
+   1h). The badge glyphs on the canvas are stand-ins: the build takes each
+   from the import where a page prints one, or from Foundry core's icon set
+   by path, and draws none (`.claude/rules/ip-doctrine.md`, "Art").
+
+**Ruling 4 reaches S5, in phase 1.** S5's row has "trait art", and Results
+above ends "S5 puts each head on its trait". The owner's words give a head to
+a breed. Canvas 5 now keeps heads on the variants' tiles and gives a trait's
+tile its badge, and asks question 3 there. S5 builds no trait art until that
+is answered; the rest of S5 stands.
+
+**Section 4's answers, drawn in the owner's words.** Answer 1: the leader
+choice on boards 1a, 1b and 3a is a grade, the variant's own leaders or the
+table's, and no count of differing figures. Answer 2: board 2d draws a kit's
+three kinds of content (items, stat changes, abilities) and a humanoid
+monster's inventory as off on a basic entry until turned on. Answer 3: the
+p. 56 plate heads the Generate window. Answer 5: no canvas draws a repair or
+a re-import prompt.
 
 What these change above. Section 2b's `tree` gains the camp's kinds as nodes
 and a re-roll scoped to one node. S12's "unit tree" is the chart. The thought
@@ -575,6 +598,8 @@ Canvas 1 (S12):
    of 2026-11-01 is (b)'s first half, "the roll writes stacks at once"; (a)
    is drawn because a chart that two tabs edit needs a moment at which it is
    done, and it would qualify that ruling.
+7. A token on the map: (a) its ring carries the role and the upgrades are on
+   its hover line, (b) the ring and the badges both.
 
 Canvas 2 (S14):
 
@@ -586,15 +611,22 @@ Canvas 2 (S14):
    marked, (b) it is refused.
 4. The Kits window: (a) two tabs, at random and by selection, as Generate has
    them, (b) one list with a Roll button.
+5. Armour, which answer 2 leaves open: (a) an armour item listed in the
+   inventory, its armour class delivered by the kit's stat change so nothing
+   counts twice, (b) an armour item that itself sets the armour class, (c) no
+   armour item, a stat change only.
+6. What turns a monster's inventory on: (a) a switch on its sheet, thrown for
+   it when a kit or a piece of optional equipment is first given, (b) one
+   world setting for every humanoid monster.
 
 Canvas 3 (S4b):
 
 1. Where the editor opens from: (a) the monster's Ecology tab, the family
    template's variant row and the Generate window, (b) one of them.
 2. A "Try a roll" preview that writes nothing: (a) in, (b) out.
-3. A part with two sources, the variant's page and the leader table: (a) one
-   choice for each part, with the count of figures that differ, (b) both
-   shown side by side.
+3. A leader's grade, the variant's own or the table's: (a) set for each
+   leader part in the recipe, with the Generate window's choice setting it
+   for a roll, (b) set once in the Generate window only.
 
 Canvas 4 (S8, S9a):
 
@@ -612,6 +644,10 @@ Canvas 5 (the template sheet):
    the head of the sheet, (b) shown only as the heads.
 2. Variants and traits are picked: (a) from picture tiles, (b) from selects
    with a thumbnail beside each.
+3. The strip's five heads: (a) they are the breeds' own, so a variant's tile
+   may take its head from the strip and a trait's tile carries a badge, (b)
+   they are the traits', as S5 was planned, and ruling 4 speaks of the
+   variants' portraits only.
 
 Not checked: how any canvas renders (the canvas type's own rule is to verify
 only when asked); which five of the ten traits carry a head, and the camp's
