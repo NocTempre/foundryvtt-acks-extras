@@ -1042,6 +1042,71 @@ re-rule covers both branches and picks neither. Not checked: the redrawn
 board's rendering. Released: none; section 3's rows change on the owner's
 word on the proposal.
 
+### Tabs are views, Roll and Design are tools, 2026-11-24
+
+With board 1f on screen: "The Roll at Random and Design by selection are
+tools for the tab. The tabs are different ways to view the data (org chart,
+locations, etc"
+
+Read as: there is one window, the village's sheet, and its tabs are views of
+one set of data. Roll at random and Design by selection are not tabs; they
+are tools on a tab. This corrects the design session's reading of "The UI
+should split between generate random and design via selection", which boards
+1a and 1b drew as the two tabs of a Generate window. Example: on the Org
+chart tab a Judge presses Roll at random and the chart fills, then opens
+Design by selection and changes one gang's troops; the Locations tab shows
+the same village by place.
+
+Drawn as [board 1k](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb): the
+Org chart tab with its two tools at rest, with each tool open (the panels are
+what 1a and 1b hold; those boards are retitled and not redrawn), and the
+Locations tab. Board 1i's tabs take the owner's names. The owner named tools
+for one tab; Send out and Recall as the Locations tab's tools is the design
+session's reading.
+
+Open on board 1k, the drawn shape first:
+
+1. The Org chart tab's layout: (a) rows, each warband a row with its gangs
+   along it (board 1i, after "tabs with horizontal spread and rows"), (b) a
+   tree, each warband a column with its gangs beneath (board 1f).
+2. Generate on a family template: (a) makes the village's sheet and opens it
+   on the Org chart tab with nothing rolled, and no Generate window exists,
+   (b) a window first, as 1a drew.
+3. What else "etc" holds beside Org chart and Locations. Drawn: nothing.
+
+Not checked: board 1k's rendering. Released: none.
+
+### The owner on followers, 2026-11-24
+
+"PS this should overlap with followers. Follow project rules to merge the
+code instead of parallel"
+
+Read as: a leader with the bodies under it, shown as cards, sent out and
+recalled, is what the followers surface already is, and the Beastman
+organisation is built on the same code, extended where it falls short, and
+not as a second implementation beside it. The project rule is CLAUDE.md's
+"reuse → extend → enhance → invent", with shared logic in `scripts/lib/`.
+Example: the card the chart draws for a champion is the lib's follower card
+in its compact face, the one an employer's Followers tab already shows for
+each follower, with the role frame of board 1h around its portrait; it is not
+a new card component.
+
+Read in source for this entry, and no further: `docs/lib/FOLLOWER-CARD.md`
+gives one template with two faces, the follower's own sheet and a read-only
+compact card that an employer's sheet shows for each follower, and names a
+Roster app in the henchmen feature. A group has `unit.employerUuid` and a
+`follower` category (`scripts/lib/data/group-data.mjs`). What followers
+stores for who follows whom, and whether it has a tree or a place, was not
+read.
+
+What it changes. The cards and rows of boards 1f, 1g, 1h, 1i and 1k are the
+design session's own shapes and were drawn without looking at the follower
+card; they are not reconciled with it yet, and are redrawn on it once the
+ruling below says what is shared. The words went to the `architect` that was
+already re-ruling the holder, verbatim, with the question of which parts are
+reused as they are, which extend a shared lib piece, which are new, and what
+moves into `scripts/lib/` so there is one implementation. Released: none.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
