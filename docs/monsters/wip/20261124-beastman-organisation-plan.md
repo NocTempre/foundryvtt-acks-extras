@@ -589,7 +589,8 @@ Canvas 1 (S12):
    2b has it, and a gang sent out becomes a second group. (b) A faction actor
    holds the chart and a gang becomes a group only when sent out. (c) One
    group actor, and no gang leaves it as a group. Boards 1c and 1g are drawn
-   so that (a) or (b) fits.
+   so that (a) or (b) fits. **Answered: (b)**, in the owner's words at the
+   foot of this entry.
 2. On the Design tab, a slot left blank at Build: (a) that unit is left out
    until filled, (b) it is rolled.
 3. A troop type or trait the variant's bands do not give: (a) a Judge may
@@ -677,3 +678,34 @@ labelled stack, `fixedHp`) and S11 (`encounter-recipe.mjs`,
 actor holding every unit's stacks. Ruling 3's thought questions that shape, so
 neither is briefed until the holder is settled. Phase 1 (S1 to S5) and phase 2
 build no group and no generation record, and their prompts stand.
+
+**Canvas 1's question 1, answered the same day.** Asked "What holds a
+generated village: a faction card, or one group actor?", the owner: "Faction
+card". Read as option (b): a generated village is an `acks-extras.faction`
+actor that holds the organisation chart and every body not sent out; a gang,
+a warband or a camp card becomes a group actor when it is sent out, and that
+group's bodies become tokens by the group's existing Deploy. Example:
+Generate on the family template makes one faction and no group; sending Gang
+1 out makes the first group, and the faction's card shows Gang 1 as out
+(boards 1f and 1g). Board 1c, one group holding every stack, is not the
+design and is kept only for the chart's narrow layout.
+
+What the answer changes, and what it leaves to `architect` before any phase 3
+slice is briefed:
+
+- Section 2b is superseded in part. The roll's record and its tree sit on the
+  faction; a group's stacks are written when a card is sent out, for that
+  card alone. "A stack stays one row" (2026-10-31) holds inside a group.
+- Not settled by the two words: whether a roll smaller than a village (a
+  wandering warband, a lair) is also a faction or goes straight to a group;
+  where the faction keeps bodies that are counted and unnamed (`strength`,
+  `members`, or a field of its own); which of S10's group fields (`fixedHp`,
+  the labelled stack, `stack.gen`) a sent-out card carries; how a re-roll and
+  a Recall with losses are booked; and what "the roll writes stacks at once"
+  (2026-11-01) means when a roll writes none until a card is sent out, which
+  is question 6.
+- The rows of S10, S11 and S12 in section 3 are written for one group actor
+  and are rewritten on that ruling.
+
+Released by this answer: none. It settles the holder; phase 3 stays held for
+`architect`, and S12 for the rest of canvas 1's questions.
