@@ -524,7 +524,7 @@ ok("the sheet names a derived figure's parts only while the actor carries it", (
   const own = derivationTips({ ...snap, derived: { throw: { value: 24, base: null, hd: "2", rows: null, cite: "" } }, attackThrow: 24 }, tipLoc);
   assert.match(own.throwTip, /^statblock\.tip\.throwLadder\|value=24,hd=2,cite=statblock\.tip\.ladderOverride/, "no cite: the Judge's own ladder");
   assert.equal(derivationTips({ derived: { throw: { missing: true } } }, tipLoc).throwTip, "statblock.tip.throwMissing|");
-  assert.deepEqual(derivationTips({}, tipLoc), { throwTip: "", savesTip: "", leaderTip: "", acTip: "", moraleTip: "", damageTip: "" });
+  assert.deepEqual(derivationTips({}, tipLoc), { throwTip: "", savesTip: "", leaderTip: "", acTip: "", moraleTip: "", damageTip: "", initiativeTip: "", surpriseTip: "" });
 });
 
 /* ---------------- the refill ---------------- */

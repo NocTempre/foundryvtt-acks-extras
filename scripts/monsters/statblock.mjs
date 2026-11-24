@@ -200,8 +200,30 @@ function kitDamageRecord(derived) {
  * from). `{throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip}`,
  * "" where there is nothing to name.
  */
-export function derivationTips(snap, loc) {
-  const d = snap.derived ?? {};
+export function derivationTips(snapHeld, loc) {
+  const d = snapHeld.derived ?? {};
+  const org = d.organisation ?? {};
+  const orgHeld = (f, now) => f?.value != null && Number(f.value) === Number(now);
+  // A figure an organisation piece moved is unwound to the base it moved from
+  // before the leader's and the kit's own checks compare it with what they wrote.
+  const snap = {
+    ...snapHeld,
+    ac: orgHeld(org.ac, snapHeld.ac) && org.ac.base != null ? org.ac.base : snapHeld.ac,
+    morale: orgHeld(org.morale, snapHeld.morale) && org.morale.base != null ? org.morale.base : snapHeld.morale,
+    damageMod: orgHeld(org.damage, snapHeld.damageMod) && org.damage.base != null ? org.damage.base : snapHeld.damageMod,
+  };
+  // What an organisation piece did to a figure the actor still holds: the figure, its base, each part named and the pages.
+  const orgText = (key, now) => {
+    const f = org[key];
+    if (!orgHeld(f, now)) return "";
+    const parts = [
+      f.troop != null ? `${signed(num(f.troop))} ${org.troop?.label ?? ""}` : "",
+      f.trait != null ? `${signed(num(f.trait))} ${org.trait?.label ?? ""}` : "",
+    ].filter(Boolean);
+    const cite = [...new Set([f.troop != null ? org.troop?.cite : "", f.trait != null ? org.trait?.cite : ""].filter(Boolean))].join(", ");
+    return loc("statblock.tip.orgFigure", { value: f.value, base: f.base, parts: parts.join(" · "), cite: cite || "—" });
+  };
+  const joined = (...tips) => tips.filter(Boolean).join(" · ");
   const t = d.throw ?? {};
   let throwTip = "";
   if (t.missing) throwTip = loc("statblock.tip.throwMissing");
@@ -225,6 +247,13 @@ export function derivationTips(snap, loc) {
   if (l.source === "printed") {
     leaderTip = loc("statblock.tip.leaderPrinted", { cite: l.cite || "—" });
     if (l.ac != null && Number(l.ac) === Number(snap.ac)) acTip = loc("statblock.tip.acPrinted", { ac: l.ac, cite: l.cite || "—" });
+  } else if (l.source === "table") {
+    const hd = d.throw?.hd ?? "";
+    const kitHeld = d.kit?.value != null && Number(d.kit.value) === Number(snap.ac) && d.kit.leaderAc != null;
+    const leaderAc = kitHeld ? d.kit.leaderAc : snap.ac;
+    const intact = Number(l.ac) === Number(leaderAc);
+    leaderTip = intact ? loc("statblock.tip.leaderTable", { cite: l.cite || "—", hd, ac: l.ac, armour: l.armour || "—" }) : loc("statblock.tip.leaderTableEdited", { cite: l.cite || "—" });
+    if (Number(l.ac) === Number(snap.ac)) acTip = loc("statblock.tip.acTable", { ac: l.ac, armour: l.armour || "—", cite: l.cite || "—" });
   } else if (l.source) {
     if (Number(l.ac) === Number(snap.ac)) {
       acTip = loc("statblock.tip.acDerived", { ac: l.ac, baseAc: l.baseAc, acAdd: signed(num(l.acAdd)), cite: l.cite || "—" });
@@ -286,7 +315,16 @@ export function derivationTips(snap, loc) {
       });
     }
   }
-  return { throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip };
+  return {
+    throwTip: joined(throwTip, orgText("attack", snapHeld.attackMod)),
+    savesTip,
+    leaderTip,
+    acTip: joined(acTip || (orgHeld(org.ac, snapHeld.ac) ? loc("frame.rail.ac", { n: snap.ac }) : ""), orgText("ac", snapHeld.ac)),
+    moraleTip: joined(moraleTip, orgText("morale", snapHeld.morale)),
+    damageTip: joined(damageTip, orgText("damage", snapHeld.damageMod)),
+    initiativeTip: orgText("initiative", snapHeld.initiative),
+    surpriseTip: orgText("avoidSurprise", snapHeld.surpriseAvoid),
+  };
 }
 
 /** One dashboard row. The pin state is read off the id. */
@@ -315,7 +353,7 @@ const row = (pins, id, label, value, extra = {}) => ({
 export function statblockColumns(snap, loc) {
   const pins = new Set(Array.isArray(snap.pins) ? snap.pins : []);
   const groups = [];
-  const { throwTip, savesTip, leaderTip, moraleTip, damageTip: kitDamageTip } = derivationTips(snap, loc);
+  const { throwTip, savesTip, leaderTip, moraleTip, damageTip: kitDamageTip, initiativeTip, surpriseTip } = derivationTips(snap, loc);
   // An attack's damage tooltip: its die and the creature's modifier, where
   // the modifier came from a kit's row, and the die the imported conversion
   // table makes of the pair.
@@ -348,9 +386,9 @@ export function statblockColumns(snap, loc) {
         ? [row(pins, "loyalty", loc("statblock.row.loyalty"), snap.loyalty === "" ? "" : signed(num(snap.loyalty)), snap.loyalty === "" ? { valueTip: blankLoyaltyCite() } : {})]
         : []),
       row(pins, "reaction", loc("statblock.row.reaction"), "", { line: "2d6" }),
-      row(pins, "init", loc("statblock.row.initiative"), signed(num(snap.initiative))),
+      row(pins, "init", loc("statblock.row.initiative"), signed(num(snap.initiative)), { valueTip: initiativeTip }),
       row(pins, "surprise:others", loc("statblock.row.surpriseOthers"), signed(num(snap.surpriseOthers))),
-      row(pins, "surprise:avoid", loc("statblock.row.avoidSurprise"), signed(num(snap.surpriseAvoid))),
+      row(pins, "surprise:avoid", loc("statblock.row.avoidSurprise"), signed(num(snap.surpriseAvoid)), { valueTip: surpriseTip }),
     ],
   };
 

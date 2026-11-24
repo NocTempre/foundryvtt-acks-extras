@@ -87,6 +87,15 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         basis: choice(RECIPE_BASES),
       });
 
+    // One standing figure an organisation piece moved: the value written, the
+    // base it came from and the troop's and the trait's own part.
+    const organisationFigure = () =>
+      new SchemaField({ value: num({ integer: true }), base: num({ integer: true }), troop: num({ integer: true }), trait: num({ integer: true }) });
+    // One row of an organisation table a creature was generated with: its key,
+    // imported label and page, and the figures the row holds (read at generation).
+    const organisationRow = () =>
+      new SchemaField({ key: str(), label: str(), cite: str(), figures: new fields.AnyField({ required: false, nullable: true, initial: null, serializable: true }) });
+
     return {
       // --- Identity / classification ---
       types: choiceSet(MONSTER_TYPES),
@@ -164,6 +173,22 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
           hd: str(),
           ac: num({ integer: true }),
           damage: num({ integer: true }),
+          // The armour words the leader table prints beside a grade's armour class.
+          armour: str(),
+        }),
+        // The special troop and tribal trait a template generated the creature
+        // in (monsters/organisation.mjs `applyGeneratedOrganisation`): each
+        // standing figure with the base it moved from and each source's part,
+        // and the labels and pages the parts are named by.
+        organisation: new SchemaField({
+          troop: new SchemaField({ label: str(), cite: str() }),
+          trait: new SchemaField({ label: str(), cite: str() }),
+          ac: organisationFigure(),
+          attack: organisationFigure(),
+          initiative: organisationFigure(),
+          avoidSurprise: organisationFigure(),
+          morale: organisationFigure(),
+          damage: organisationFigure(),
         }),
         // An armour class a kit no page prints was worked out from at
         // generation (monsters/kits.mjs `kitArmourClass`): the troop row's or
@@ -219,6 +244,21 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         morale: num({ integer: true }),
         cite: str(),
         compute: bool(false),
+      }),
+
+      // --- What the organisation axes recorded (importer/organisation-axes.mjs,
+      //     monsters/organisation.mjs): the troop, trait and equipment rows
+      //     with their figures, for the parts nothing applies yet; the leader
+      //     grade; proficiency grants and misses; natural attacks. The cells
+      //     mark `grade` and `naturalAttacks`, which generation reads. ---
+      organisation: new SchemaField({
+        grade: new SchemaField({ variant: str(), role: str(), label: str(), armour: str(), die: str(), cite: str() }),
+        troop: organisationRow(),
+        trait: organisationRow(),
+        gear: new ArrayField(organisationRow()),
+        proficiencies: new ArrayField(new SchemaField({ kind: str(), word: str(), ranks: num({ integer: true }), found: bool(false) })),
+        natural: new SchemaField({ trait: str(), count: num({ integer: true }) }),
+        naturalAttacks: new SchemaField({ variant: str(), trait: str() }),
       }),
 
       // --- Monster attributes (MM Rules p.349; a blank score stays blank, and

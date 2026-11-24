@@ -8,7 +8,7 @@
  */
 import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
-import { axisIsBanded, axisOffersChoice, optionAvailable } from "../template-logic.mjs";
+import { axisIsBanded, axisOffersChoice, optionAvailable, ROLL_PIN } from "../template-logic.mjs";
 import { registryBands } from "../template-bands.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -58,7 +58,8 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     // An option no cell stands behind beside the other pins is listed as
     // unavailable and cannot be picked; Generate never chooses it either.
     const bandOf = registryBands();
-    const stringPins = () => Object.fromEntries(Object.entries(this.#pins).filter(([, v]) => typeof v === "string"));
+    // A roll pin chooses nothing yet, so it is no choice another axis's options are judged beside.
+    const stringPins = () => Object.fromEntries(Object.entries(this.#pins).filter(([, v]) => typeof v === "string" && v !== ROLL_PIN));
     // Edit mode lists every axis, since it edits structure, not a generation.
     const shown = (sys.axes ?? []).filter((axis) => {
       if (context.editing) return true;
@@ -86,6 +87,10 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
             : game.i18n.localize("ACKS-LIB.template.rollUniform"),
         derived: !!axis.derive?.from && !!this.#baseUuid,
         pinned: this.#pins[axis.key] ?? "",
+        // A banded axis that names a default rolls only on request: the select offers the roll beside the default.
+        canRoll: !axis.multi && axisIsBanded(axis) && !!axis.default,
+        rollPin: ROLL_PIN,
+        rollSelected: this.#pins[axis.key] === ROLL_PIN,
         options: (axis.options ?? []).map((o) => {
           const unavailable = (!axis.multi || axisIsBanded(axis)) && !optionAvailable(sys, axis, o, others, bandOf);
           return {

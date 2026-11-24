@@ -425,7 +425,7 @@ const ROLE_LABELS = {
  * The Role axis holding `found` roles, Standard first and the default: added
  * where the template has none, and widened in `ROLE_ORDER` where it lacks one.
  */
-function roleAxis(axes, found, out) {
+export function roleAxis(axes, found, out) {
   let axis = axes.find((a) => a.key === "role");
   if (!axis) {
     axis = {

@@ -880,6 +880,7 @@
   "ACKS-LIB.template.rollDie": "— Roll {die} —",
   "ACKS-LIB.template.rollUniform": "— Roll —",
   "ACKS-LIB.template.defaultTo": "— {option} —",
+  "ACKS-LIB.template.rollOnTable": "Roll on the table",
   "ACKS-LIB.template.unavailable": "{option} (not printed for this choice)",
   "ACKS-LIB.template.generate": "Generate",
   "ACKS-LIB.template.folder": "Generated",
@@ -6441,11 +6442,24 @@
         "acKitNaturalLeader": "Armour class {ac}: the kind's natural armour class {base}, unarmoured ({cite}), {step} for the leader's armour class {leaderAc} over its warrior's {memberAc}, worked out at generation",
         "kitFigure": "From the {label} troop row ({cite})",
         "damageKitLeader": "Damage modifier {damage}: the {label} troop row's {base} ({cite}) {step} for the leader's damage modifier {leaderDamage} over its warrior's {memberDamage}, worked out at generation",
-        "dieConverted": "As a die: {die} ({cite})"
+        "dieConverted": "As a die: {die} ({cite})",
+        "orgFigure": "{value}: {base} {parts} ({cite})",
+        "leaderTable": "Leader figures from the leader table ({cite}): {hd} HD, armour class {ac} ({armour})",
+        "leaderTableEdited": "Leader figures from the leader table ({cite}), since edited",
+        "acTable": "Armour class {ac}, the leader table's ({armour}, {cite})"
       }
     },
     "kit": {
       "note": "Kit: {label} ({cite}): {note}"
+    },
+    "organisation": {
+      "note": "{kind}: {label} ({cite})",
+      "natural": "{label} attack {n}",
+      "kind": {
+        "troop": "Special troop",
+        "trait": "Tribal trait",
+        "gear": "Optional equipment"
+      }
     }
   },
   "ACKS-HENCHMEN.location.tab.contents": "Contents",
@@ -8525,6 +8539,15 @@
   "ACKS-ABILITIES.roll.grantedAt": "Read at level {level}.",
   "ACKS-ABILITIES.roll.grantLatent": "Castable on yourself, not cast: {detail}",
   "ACKS-IMPORTER.leaderTemplate.name": "{name} (leaders)",
+  "ACKS-IMPORTER.organisation.troopAxis": "Special troop",
+  "ACKS-IMPORTER.organisation.noTroop": "No special troop",
+  "ACKS-IMPORTER.organisation.traitAxis": "Tribal trait",
+  "ACKS-IMPORTER.organisation.noTrait": "No trait",
+  "ACKS-IMPORTER.organisation.gearAxis": "Optional equipment",
+  "ACKS-IMPORTER.organisation.sourceAxis": "Leader figures",
+  "ACKS-IMPORTER.organisation.sourcePrinted": "As printed",
+  "ACKS-IMPORTER.organisation.sourceTable": "Leader table ({cite})",
+  "ACKS-IMPORTER.organisation.sourceTableUncited": "Leader table",
   "ACKS-IMPORTER.tables.gmOnly": "Only a GM can import rules tables into the world.",
   "ACKS-IMPORTER.tables.noProvider": "No rules-table host is active. Reload, and report it if it persists.",
   "ACKS-IMPORTER.tables.imported": "ACKS Extras | imported {tables} rules table(s) from your books into this world ({docs}). Market and hiring automation now uses your book values.",

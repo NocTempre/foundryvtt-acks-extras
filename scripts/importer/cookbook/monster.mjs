@@ -19,6 +19,8 @@ import { deriveLeader, importedLeaderProcedure } from "../../monsters/leader-der
 import { kitPresets, unionKitAxis } from "../kit-presets.mjs";
 import { readEcologyRecipe, attachRecipe, retractRecipe, memberVariant } from "../ecology-recipe.mjs";
 import { importedKits } from "../../monsters/kits.mjs";
+import { importedOrganisation, ORGANISATION_AXES } from "../../monsters/organisation.mjs";
+import { orderAxes, organisationAxes, unionOrganisationAxes } from "../organisation-axes.mjs";
 import { sizeSquares } from "../../monsters/sizes.mjs";
 import { hdFormula } from "../../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../../lib/encounter-line.mjs";
@@ -832,6 +834,7 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, folde
     if (!built) return null;
     // Kits its kind fields where the Judge's tables hold them; a kit alone mints no template.
     kitPresets({ options: [option], axes: built.axes, cells: built.cells, kits: importedKits() });
+    mintOrganisation({ options: [option], axes: built.axes, cells: built.cells, out: built.out });
     const templateId = leaderTemplateId(id);
     const label = game.i18n.format(`${LANG_PREFIX}.leaderTemplate.name`, { name });
     const system = { output: { actorType: "monster", nameFormat: built.out.nameFormat }, axes: built.axes, cells: built.cells };
@@ -891,10 +894,37 @@ function carryMergedVariants(held, axes, cells, lore = new Set()) {
     const named = new Set(keptCells.map((c) => String(c.key).split("|")[1]));
     roleIn.options.push(...roleHeld.options.filter((o) => !have.has(o.key) && (named.has(o.key) || o.key === roleHeld.default)));
   }
-  // A kept variant's kit cells keep the kit axis, which stays the last one.
-  if (keptCells.some((c) => (c.by ?? []).includes("kit"))) unionKitAxis(axes, heldAxes);
-  const kitAt = axes.findIndex((a) => a.key === "kit");
-  if (kitAt >= 0 && kitAt < axes.length - 1) axes.push(...axes.splice(kitAt, 1));
+  // A kept variant's cells keep the axes they are keyed by, and the axes return to their canonical order.
+  const named = new Set(keptCells.flatMap((c) => c.by ?? []));
+  if (named.has("kit")) unionKitAxis(axes, heldAxes);
+  unionOrganisationAxes(axes, heldAxes, { keys: [SOURCE_AXIS, ...ORGANISATION_AXES].filter((k) => named.has(k)) });
+  orderAxes(axes);
+}
+
+/** The labels the organisation axes are minted with, from the importer's lang; the leader table's option names its page. */
+function organisationLabels(org) {
+  const loc = (k) => game.i18n.localize(`${LANG_PREFIX}.organisation.${k}`);
+  const cite = org?.leaders?.cite;
+  return {
+    troopAxis: loc("troopAxis"),
+    noTroop: loc("noTroop"),
+    traitAxis: loc("traitAxis"),
+    noTrait: loc("noTrait"),
+    gearAxis: loc("gearAxis"),
+    sourceAxis: loc("sourceAxis"),
+    sourcePrinted: loc("sourcePrinted"),
+    sourceTable: cite ? game.i18n.format(`${LANG_PREFIX}.organisation.sourceTable`, { cite }) : loc("sourceTableUncited"),
+  };
+}
+
+/** The organisation axes onto a built template; a failure costs them and nothing else. */
+function mintOrganisation(args) {
+  try {
+    const org = importedOrganisation();
+    organisationAxes({ ...args, org, labels: organisationLabels(org) });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | organisation axes not built.`, err);
+  }
 }
 
 /**
@@ -1043,6 +1073,8 @@ export async function importFamily(bookId, famId, folderId) {
   } catch (err) {
     console.warn(`${MODULE_ID} | ${famId}: kit pass failed — importing without kits.`, err);
   }
+  // The organisation axes follow the kit: the troop is chosen before it and the trait and gear after.
+  mintOrganisation({ options, axes, cells, out });
   try {
     FAMILY_ONE_OFFS[famId]?.({ fam, options, memberText, axes, cells, out });
   } catch (err) {
@@ -1094,8 +1126,9 @@ export async function importFamily(bookId, famId, folderId) {
         const at = exAxes.findIndex((a) => a.key === "role");
         exAxes.splice(at < 0 ? exAxes.length : at, 0, inSource);
       }
-      // The kit axis is chosen last, after the role its cells are keyed by.
+      // The kit and organisation axes follow the role their cells are keyed by, in the canonical order.
       if (addedCells.some((c) => (c.by ?? []).includes("kit"))) unionKitAxis(exAxes, axes);
+      unionOrganisationAxes(exAxes, axes, { keys: [SOURCE_AXIS, ...ORGANISATION_AXES].filter((k) => axes.some((a) => a.key === k)), widen: true });
       // The core printing owns the name: an adventure-created template a core family merges into takes its name and id.
       const CORE_BOOKS = new Set(["mm", "rr", "jj"]);
       const exFam = existing.getFlag(MODULE_ID, "cookbook")?.id ?? "";

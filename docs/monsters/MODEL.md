@@ -686,4 +686,82 @@ worked out from it.
 **Merging.** A variant another book adds to a held template brings its kit
 cells, and the held template gains the Kit axis where it had none
 (`unionKitAxis`); a repair in place carries a kept variant's kit cells and the
-axis with them, kept last.
+axis with them, in the canonical order ("The organisation axes").
+
+## The organisation axes
+
+A beastman template (a family, or an entry's leader template) whose variants
+are columns of the imported organisation tables gains three axes and a third
+source of leaders (`scripts/importer/organisation-axes.mjs`, built after the
+Kit axis from `importedOrganisation()`, "The organisation tables"). **The
+canonical order** is Variant, Leader figures, Role, troop, Kit, trait, gear
+(`orderAxes`); a build, a merge and a repair each restore it, and each unions
+the axes a kept variant's cells are keyed by (`unionOrganisationAxes`: a
+repair takes the rebuilt table's options, a merge widens them). A held template
+with none of them gains them on the repair, since the build is whole.
+
+- **Special troop** (`troop`): one option per row of `beastmanSpecialTroops`,
+  its key the row's and its label the imported one, after a default, **No
+  special troop**. It takes its bands from the registry by variant
+  (`bandsFrom`, [../lib/API.md](../lib/API.md)) and names no die of its own, so
+  a roll throws the one the variant's bands imply. An unpinned generation takes
+  the default; a pin of Roll on the table (`ROLL_PIN`, one more entry in the
+  builder's select on a banded axis that names a default) rolls it. A troop
+  the variant has no band for is listed disabled. It reaches the rank and file
+  and the leaders (a champion shares its gang's role); a caster, a dependant
+  and a noncombatant take none of its figures.
+- **Tribal trait** (`trait`): the same over `beastmanTraits`, default **No
+  trait**, placed after the Kit axis. Every option carries a marker flag, since
+  a trait with `variant|trait` cells would otherwise stand only where a cell
+  matches.
+- **Optional equipment** (`gear`): a multi axis keyed by the rows of
+  `beastmanEquipment`, after the trait, with no bands. Who may carry a piece is
+  the generator's carry roll (not built); a Judge's pin is the Judge's call.
+- **Leader table** (`table`, the third option of Leader figures, labelled with
+  the page): never the default, the breed page stays it. Its cells,
+  `variant|role|table`, exist for each breed and rank `beastmanLeaders` holds a
+  cell for, and mark variant and role only. The axis is added where the template
+  had none (AXIOMS not imported), and so is the Role axis.
+- **Natural attacks** (`variant|trait` cells): a trait whose table row lists a
+  die per attack for each breed has a cell for each breed with a non-empty list,
+  marking variant and trait.
+
+**What generation writes.** The template carries structure and imported labels;
+every figure is read at generation by the monsters feature's listener on the
+template engine's resolved hook, in this order:
+
+1. `applyGeneratedLeaderGrade`, **before the kit** (the kit reads the leader's
+   armour class and damage modifier): a leader generated under a `table` cell
+   takes the grade's armour class, hit points, Hit Dice rating and damage
+   modifier as a printed leader's cell writes them (`leaderCell`: the throw and
+   saves move from the variant's own block by the attack-throw ladder and the
+   save rule). The armour words and the page go to `extras.derived.leader`
+   (`source: "table"`); the printed die is recorded on `extras.organisation.grade`,
+   not written, since a printed leader's cell writes no die either; the role's
+   XP stays the printed leader's. A grade the table holds no cell for writes
+   nothing.
+2. `applyGeneratedKit` (above).
+3. `applyGeneratedOrganisation`, **after the kit**. It **writes** only the
+   standing figures: a troop's attack bonus (`attack.mod`, melee and missile),
+   armour reduction and armour bump (`ac.value`, net), initiative
+   (`initiative.mod`), avoid-surprise bonus (`surprise.avoidsurprise`) and
+   proficiency grant; a trait's damage (both modifiers) and morale (held to the
+   core field's range) where its row has no gate (`outnumber`, `round`,
+   `condition`, `saveKind`), its armour bump for a fighting rank, and, for a
+   chieftain, its proficiency ranks; and a natural attack for each die a marked
+   cell's list holds. A damage modifier left blank by the kit stays blank, an
+   armour class that is not a figure is left alone, and a figure the table did
+   not import writes nothing. A proficiency is granted as copies of the world's
+   library ability whose folded name equals the folded printed word; a miss
+   writes none and is logged.
+
+Everything gated, ranged, activated or generated (a troop's opponent-surprise
+and vulnerable-target figures, a trait's gated rows, the equipment) is not
+applied: `extras.organisation` records the chosen troop, trait and gear with
+each row's label, page and figures, and every piece is named with its page in
+both prose channels, for the later slices to read. The parts of every figure
+written go to `extras.derived.organisation` (the value, the base it moved from
+and each source's part). Their tooltips (`derivationTips`) name the parts with
+the actor's own numbers and the page, only while the actor still holds the
+figure, and are unwound first, so the kit's and the leader's own tips stand
+beside them.

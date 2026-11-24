@@ -21,6 +21,9 @@ import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
+import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, foldName, importedOrganisation } from "./organisation.mjs";
+import { importedThrowLadder } from "../importer/leader-roles.mjs";
+import { libraryItems } from "../lib/library.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
 
@@ -102,11 +105,37 @@ Hooks.once("init", () => {
   // A generated creature in a kit takes the armour class worked out for a
   // kit no page prints, and the kit's own words in its notes, before it is
   // written.
-  Hooks.on(TEMPLATE_HOOKS.RESOLVED, ({ resolved }) => {
+  // The leader table's grade is written first, since the kit reads the leader's
+  // armour class and damage modifier; the troop and trait figures follow the kit.
+  Hooks.on(TEMPLATE_HOOKS.RESOLVED, ({ resolved, template, choices }) => {
+    try {
+      const org = importedOrganisation();
+      const axes = template?.system?.toObject?.().axes ?? template?.system?.axes ?? [];
+      const variantOption = axes.find((a) => a.key === "variant")?.options?.find((o) => o.key === choices?.variant) ?? null;
+      const ladder = importedThrowLadder();
+      applyGeneratedLeaderGrade(resolved, { variantOption, org, ladder: ladder.rows, ladderCite: ladder.cite });
+    } catch (err) {
+      console.warn(`${MODULE_ID} | leader grade not applied`, err);
+    }
     try {
       applyGeneratedKit(resolved, { kits: importedKits(), noteLine: (kit) => `<p>${loc("kit.note", { label: escape(kit.label ?? ""), note: escape(kit.note || "—"), cite: escape(kit.cite || "—") })}</p>` });
     } catch (err) {
       console.warn(`${MODULE_ID} | kit not applied`, err);
+    }
+    try {
+      applyGeneratedOrganisation(resolved, {
+        choices,
+        org: importedOrganisation(),
+        findProficiency: (word) => {
+          const hit = libraryItems().find((i) => i.type === "ability" && foldName(i.name) === foldName(word));
+          return hit ? hit.toObject() : null;
+        },
+        noteLine: ({ kind, label, cite }) => `<p>${loc("organisation.note", { kind: loc(`organisation.kind.${kind}`), label: escape(label ?? ""), cite: escape(cite || "—") })}</p>`,
+        warn: (message) => console.warn(`${MODULE_ID} | organisation: ${message}`),
+        loc,
+      });
+    } catch (err) {
+      console.warn(`${MODULE_ID} | organisation not applied`, err);
     }
   });
 

@@ -516,6 +516,69 @@ invented template by `tools/live/monsters-encounter.mjs`.
 **Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
 templates and creatures stay.
 
+## The organisation axes
+
+The troop, trait and gear axes, the leader table's grade and a trait's natural
+attacks (MODEL, "The organisation axes"). Needs the MM connected with its
+tables imported (`monsters` / `beastmanSpecialTroops`, `beastmanTraits`,
+`beastmanLeaders`, `beastmanTroopRules`, `beastmanTraitRules`,
+`beastmanEquipment`), then the family repaired in place so the template gains
+the axes. Marker `monsters/beastman-organisation`.
+
+The axes, the unions, the cells and every standing figure on invented tables
+are `tools/test-organisation-axes.mjs`. `tools/importer/check-organisation-axes.mjs`
+reads this machine's own MM, mints the axes and resolves a generation for every
+breed and troop row and every breed and trait row; it prints availability and
+what each wrote by ordinal, to be read against the two printed tables by hand.
+
+**Fixtures.**
+
+- `monsters/family-roles` (above), repaired in place after the MM's tables are
+  imported; a template built without them has none of the axes. The repair is
+  not the subject, so the fixture is kept. Assert at the start of a step that
+  the template's axes read, in order, Variant, Leader figures, Role, troop, Kit,
+  trait, gear.
+- `monsters/beastman-organisation`: one generated creature per step, tracked by
+  `api.track` the moment `generateFromTemplate` returns it.
+
+**Steps.** For each breed in the tables' column order:
+
+1. Open the template's sheet, pin the breed and read the Special troop select.
+   *Observable:* a role the breed has no band for is listed disabled; every
+   other row of the table is enabled. A blank band is never rolled.
+2. Pin each enabled special troop in turn and Generate. *Observable:* the
+   Statblock's armour class, attack throw note, initiative and avoid-surprise
+   rows show the figures the troop paragraph prints; each hover names the
+   troop, the actor's own base figure and the page. A troop whose paragraph
+   prints only gated figures changes none, and the creature's notes still name
+   it with its page.
+3. Pin each enabled trait in turn and Generate. *Observable:* morale, damage
+   and armour class move only for the traits that print an ungated figure, each
+   tooltip naming the trait and the page; the creature's notes name the trait.
+   The trait with natural attacks lists one attack per printed die, which the
+   breed's own list sets, and a breed with no list gets none.
+4. Pin Roll on the table on the troop and then the trait select and Generate
+   five times. *Observable:* only rows the breed has a band for come up, and
+   the log on the creature's `generated` flag records the die and each roll.
+5. Pin a leader rank under Leader figures set to the leader table, for each
+   breed and rank the table prints, and Generate. *Observable:* the armour
+   class, hit points and Hit Dice are the table's, the throw and saves moved
+   with the rating, and the hover on the hit-point note names the table's page
+   and the armour words. A rank the table has no cell for lists as unavailable.
+6. Pin a troop and a trait on a leader with a Kit pinned. *Observable:* the
+   armour class stands on the kit's figure with the bumps added, and its
+   tooltip keeps the kit's part and names each organisation part.
+7. Type another armour class on a step 2 creature and hover. *Observable:* the
+   organisation parts are gone from the tip.
+8. Pin a piece of optional equipment. *Observable:* nothing on the sheet
+   changes; the notes name it with its page, and the creature's flag records
+   it with the row's figures.
+9. Join as the Player seat, granted Observer on a step 2 creature.
+   *Observable:* the tooltips render as on the GM seat.
+
+**Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
+template stays.
+
 ## A beastman's kit
 
 The Kit axis and the armour class worked out at generation (MODEL, "The Kit

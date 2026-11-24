@@ -503,6 +503,7 @@ export function createFullMonsterSheet(Base) {
         })(),
         attackThrow: sys.attack?.throw,
         damageMod: Number(sys.damage?.mod?.melee) || 0,
+        attackMod: Number(sys.attack?.mod?.melee) || 0,
         attacks: (context.owned?.weapons ?? []).map((w) => attackRowOf(w, (key) => labelOf(CFG.DAMAGE_TYPES, key))),
         hp: { value: sys.hp?.value, max: sys.hp?.max, formula: sys.hp?.hd ?? "" },
         hdText: hdRating(extras.hd) ?? (sys.hp?.hd ? String(sys.hp.hd) : null),

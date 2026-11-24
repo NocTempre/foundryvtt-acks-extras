@@ -12,6 +12,10 @@
  * empty with no citation.
  */
 import { citeOf, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
+import { mergePatch } from "../lib/template-logic.mjs";
+import { leaderCell, roleKeyOf, STANDARD_ROLE } from "../importer/leader-roles.mjs";
+import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
+import { damageModOf } from "./kits.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -170,4 +174,238 @@ export function importedOrganisation() {
     equipment: readFigures("equipment"),
     organisation: { figures, cite: Object.keys(figures).length ? citeOf(ORGANISATION_DOC, ORGANISATION_TABLES.organisation) : null },
   };
+}
+
+/** The special-troop axis's key. */
+export const TROOP_AXIS = "troop";
+/** The tribal-trait axis's key. */
+export const TRAIT_AXIS = "trait";
+/** The optional-equipment axis's key (a multi axis). */
+export const GEAR_AXIS = "gear";
+/** The three organisation axes, in the order a template lists them (the Kit axis sits between the first two). */
+export const ORGANISATION_AXES = Object.freeze([TROOP_AXIS, TRAIT_AXIS, GEAR_AXIS]);
+/** The troop axis's default: no special troop. */
+export const NO_TROOP = "none";
+/** The trait axis's default: no trait. */
+export const NO_TRAIT = "none";
+/** The leader-figures option that reads the leader table (`beastmanLeaders`). */
+export const GRADE_SOURCE = "table";
+
+/** The roles that stand in a gang, warband or village as fighters: a troop role and a trait's armour reach these and no caster or dependant. */
+const FIGHTING_ROLES = new Set([STANDARD_ROLE, "champion", "subChieftain", "chieftain"]);
+/** The roles a trait's rank grant (its proficiency ranks) reaches. */
+const GRANT_ROLES = new Set(["chieftain"]);
+/** The core morale field's bounds. */
+const MORALE_RANGE = [-6, 4];
+
+const figure = (v) => (v !== null && v !== "" && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null);
+const addTo = (n, d) => (figure(n) ?? 0) + d;
+
+/** The fold of a printed name for matching: letters and digits, lowercased. */
+export const foldName = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** The extras block of a resolved payload, created where absent. */
+function extrasOf(resolved) {
+  const flags = (resolved.flags ??= {});
+  const mine = (flags[MODULE_ID] ??= {});
+  return (mine[FLAG_EXTRAS] ??= {});
+}
+
+/**
+ * A leader generated from the leader table's grade (leader figures `table`),
+ * applied to its resolved payload before the kit is (the kit reads the
+ * leader's armour class and damage modifier): the cell marks variant and role
+ * (`extras.organisation.grade`), and the figures are read here from the
+ * world's table and written as a printed leader cell writes them
+ * (`leaderCell`: armour class, hit points and rating, the damage modifier as a
+ * total, the throw and saves moved from the member's own block). The printed
+ * die is recorded, not written, as a printed leader's is. `variantOption` is
+ * the template's variant option for the chosen variant, the member's block the
+ * leader is moved from. A grade the table holds no cell for writes nothing.
+ * Returns the grade recorded, or null.
+ */
+export function applyGeneratedLeaderGrade(resolved, { variantOption, org = importedOrganisation(), ladder = null, ladderCite = null } = {}) {
+  const extras = resolved?.flags?.[MODULE_ID]?.[FLAG_EXTRAS];
+  const mark = extras?.organisation?.grade;
+  if (!mark || !variantOption) return null;
+  const row = org.leaders.rows.find((r) => roleKeyOf(r.label) === mark.role);
+  const cell = row?.cells?.[mark.variant];
+  if (!cell) return null;
+  const built = leaderCell(variantOption, { ac: cell.ac, hd: cell.hd, hp: cell.hp, dmg: cell.dmg ?? 0 }, {
+    ladder,
+    ladderCite,
+    leader: { source: GRADE_SOURCE, cite: org.leaders.cite ?? "", ac: cell.ac, armour: cell.armour ?? "" },
+  });
+  mergePatch((resolved.system ??= {}), built.merge);
+  mergePatch(extras, built.flags?.[MODULE_ID]?.extras ?? {});
+  const grade = { ...mark, label: row.label, armour: cell.armour ?? "", die: cell.die ?? "", cite: org.leaders.cite ?? "" };
+  extras.organisation = { ...extras.organisation, grade };
+  return grade;
+}
+
+/** The natural-attack items a trait's dice list gives: one weapon per listed die, named by `name(n)`; a text with no die in it gives none. */
+export function naturalAttackItems(dice, name) {
+  const items = [];
+  for (const text of Array.isArray(dice) ? dice : []) {
+    const formula = /^\s*(\d*d\d+(?:\s*[+-]\s*\d+)?|\d+)/i.exec(String(text))?.[1]?.replace(/\s+/g, "");
+    if (!formula) continue;
+    items.push({
+      name: name(items.length + 1),
+      type: "weapon",
+      system: {
+        description: "",
+        damage: { base: { formula } },
+        bonus: 0,
+        melee: true,
+        missile: false,
+        equipped: true,
+        pattern: "transparent",
+        tags: [],
+        counter: { value: 1, max: 1 },
+        cost: 0,
+        weight: 0,
+        weight6: 0,
+      },
+    });
+  }
+  return items;
+}
+
+/**
+ * A generated creature's special troop, tribal trait and optional equipment,
+ * applied to its resolved payload before it is written (the template engine's
+ * resolved hook, after the kit). Reads `importedOrganisation()` and the chosen
+ * keys (`choices.troop`, `.trait`, `.gear`, and the role for who a figure
+ * reaches).
+ *
+ * WRITES the standing figures only: a troop's attack bonus (`attack.mod`),
+ * armour reduction and armour bump (`ac.value`), initiative (`initiative.mod`),
+ * avoid-surprise bonus and proficiency grant; a trait's damage and morale
+ * where the row has no gate, its armour bump and, for a chieftain, its
+ * proficiency ranks; natural attacks where the template's cell marked them.
+ * Everything gated, ranged, activated or generated (the rest of a row's
+ * figures, the gear) is RECORDED on `extras.organisation` as the row's figures
+ * and not applied. A figure not imported writes nothing. The parts go to
+ * `extras.derived.organisation` for the sheet's tooltips. A noncombatant, and a
+ * caster or dependant role, takes no troop figure and no armour bump.
+ * `findProficiency(word)` returns an item payload or null (a miss writes none
+ * and is reported to `warn`); `noteLine({kind, label, cite})` is the prose line
+ * added to both channels; `loc(key, data)` names a natural attack.
+ * Returns the derivation written, or null.
+ */
+export function applyGeneratedOrganisation(resolved, { choices = {}, org = importedOrganisation(), findProficiency = null, noteLine = () => "", warn = () => {}, loc = (k) => k } = {}) {
+  const troopKey = choices.troop && choices.troop !== NO_TROOP ? choices.troop : null;
+  const traitKey = choices.trait && choices.trait !== NO_TRAIT ? choices.trait : null;
+  const gearKeys = Array.isArray(choices.gear) ? choices.gear : choices.gear ? [choices.gear] : [];
+  const marks = resolved?.flags?.[MODULE_ID]?.[FLAG_EXTRAS]?.organisation;
+  if (!troopKey && !traitKey && !gearKeys.length && !marks?.naturalAttacks) return null;
+  const extras = extrasOf(resolved);
+  const system = (resolved.system ??= {});
+  const role = choices.role ?? STANDARD_ROLE;
+  const fights = FIGHTING_ROLES.has(role) && !extras.noncombatant;
+  const record = { ...(extras.organisation ?? {}) };
+  const pick = (grid, rules, key, cite) => {
+    const row = org[rules].rows.find((r) => r.key === key);
+    const label = org[grid].rows.find((r) => r.key === key)?.label ?? row?.label ?? key;
+    return { key, label, cite: cite ?? "", figures: row?.figures ?? {} };
+  };
+  const troop = troopKey ? pick("troops", "troopRules", troopKey, org.troopRules.cite ?? org.troops.cite) : null;
+  const trait = traitKey ? pick("traits", "traitRules", traitKey, org.traitRules.cite ?? org.traits.cite) : null;
+  const gear = gearKeys.map((key) => {
+    const row = org.equipment.rows.find((r) => r.key === key);
+    return { key, label: row?.label ?? key, cite: org.equipment.cite ?? "", figures: row?.figures ?? {} };
+  });
+  if (troop) record.troop = troop;
+  if (trait) record.trait = trait;
+  if (gear.length) record.gear = gear;
+
+  // The standing figures, each as {base, troop, trait, value}: the troop's and the trait's own part.
+  const t = fights && troop ? troop.figures : {};
+  const r = trait ? trait.figures : {};
+  const gated = r.outnumber != null || r.round != null || r.condition != null || r.saveKind != null;
+  const parts = {};
+
+  const acBase = figure(system.ac?.value);
+  const hasTroopAc = figure(t.armourBump) != null || figure(t.acReduction) != null;
+  const troopAc = (figure(t.armourBump) ?? 0) - (figure(t.acReduction) ?? 0);
+  const traitAc = fights ? figure(r.armourBump) : null;
+  if (acBase !== null && (hasTroopAc || traitAc !== null)) {
+    const value = acBase + (hasTroopAc ? troopAc : 0) + (traitAc ?? 0);
+    system.ac = { ...(system.ac ?? {}), value };
+    parts.ac = { base: acBase, troop: hasTroopAc ? troopAc : null, trait: traitAc, value };
+  }
+  if (figure(t.attack) !== null) {
+    const mod = system.attack?.mod ?? {};
+    const melee = addTo(mod.melee, figure(t.attack));
+    system.attack = { ...(system.attack ?? {}), mod: { ...mod, melee, missile: addTo(mod.missile, figure(t.attack)) } };
+    parts.attack = { base: figure(mod.melee) ?? 0, troop: figure(t.attack), trait: null, value: melee };
+  }
+  if (figure(t.initiative) !== null) {
+    const base = figure(system.initiative?.mod) ?? 0;
+    system.initiative = { ...(system.initiative ?? {}), mod: base + figure(t.initiative) };
+    parts.initiative = { base, troop: figure(t.initiative), trait: null, value: base + figure(t.initiative) };
+  }
+  if (figure(t.avoidSurprise) !== null) {
+    const base = figure(system.surprise?.avoidsurprise) ?? 0;
+    system.surprise = { ...(system.surprise ?? {}), avoidsurprise: base + figure(t.avoidSurprise) };
+    parts.avoidSurprise = { base, troop: figure(t.avoidSurprise), trait: null, value: base + figure(t.avoidSurprise) };
+  }
+  const moraleBase = figure(system.details?.morale);
+  if (!gated && figure(r.morale) !== null && moraleBase !== null) {
+    const value = Math.max(MORALE_RANGE[0], Math.min(MORALE_RANGE[1], moraleBase + figure(r.morale)));
+    system.details = { ...(system.details ?? {}), morale: value };
+    parts.morale = { base: moraleBase, troop: null, trait: figure(r.morale), value };
+  }
+  const mods = system.damage?.mod ?? {};
+  // A modifier the kit left blank (null) stays blank; one never set is 0.
+  const meleeBase = mods.melee === null ? null : damageModOf(mods.melee);
+  const missileBase = mods.missile === null ? null : damageModOf(mods.missile);
+  if (!gated && typeof r.damage === "number" && meleeBase !== null && missileBase !== null) {
+    system.damage = { ...(system.damage ?? {}), mod: { ...mods, melee: meleeBase + r.damage, missile: missileBase + r.damage } };
+    parts.damage = { base: meleeBase, troop: null, trait: r.damage, value: meleeBase + r.damage };
+  }
+
+  // Proficiency grants: the printed word folded against the world's proficiency names.
+  const grants = [];
+  const grant = (word, ranks, kind) => {
+    if (!word) return;
+    const source = findProficiency?.(word) ?? null;
+    if (!source) {
+      warn(`${kind}: no proficiency answers to the printed word`);
+      grants.push({ kind, word, ranks, found: false });
+      return;
+    }
+    for (let i = 0; i < ranks; i++) {
+      const copy = structuredClone(source);
+      delete copy._id;
+      (resolved.items ??= []).push(copy);
+    }
+    grants.push({ kind, word, ranks, found: true });
+  };
+  if (fights && troop) grant(t.proficiency, 1, "troop");
+  if (trait && GRANT_ROLES.has(role)) grant(r.proficiency, figure(r.proficiencyRanks) ?? 1, "trait");
+  if (grants.length) record.proficiencies = grants;
+
+  // Natural attacks a cell marked: one weapon per die the trait's table lists for the breed.
+  if (marks?.naturalAttacks && trait) {
+    const dice = r.damage && typeof r.damage === "object" ? r.damage[marks.naturalAttacks.variant] : null;
+    const made = naturalAttackItems(dice, (n) => loc("organisation.natural", { label: trait.label, n }));
+    if (made.length) (resolved.items ??= []).push(...made);
+    record.natural = { trait: trait.key, count: made.length };
+  }
+
+  extras.organisation = record;
+  const derived = { ...(troop ? { troop: { label: troop.label, cite: troop.cite } } : {}), ...(trait ? { trait: { label: trait.label, cite: trait.cite } } : {}), ...parts };
+  if (Object.keys(parts).length) extras.derived = { ...(extras.derived ?? {}), organisation: derived };
+
+  // The prose: each piece named with its page.
+  let lines = "";
+  if (troop) lines += noteLine({ kind: "troop", label: troop.label, cite: troop.cite });
+  if (trait) lines += noteLine({ kind: "trait", label: trait.label, cite: trait.cite });
+  for (const g of gear) lines += noteLine({ kind: "gear", label: g.label, cite: g.cite });
+  if (lines) {
+    system.details = { ...(system.details ?? {}), biography: `${system.details?.biography ?? ""}${lines}` };
+    extras.description = { ...(extras.description ?? {}), notes: `${extras.description?.notes ?? ""}${lines}` };
+  }
+  return Object.keys(parts).length ? derived : null;
 }
