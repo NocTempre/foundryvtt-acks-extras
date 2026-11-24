@@ -810,3 +810,50 @@ questions, with its pick against the one drawn where marked.
 Not checked by `architect`: how the faction sheet handles a dropped group,
 validate's flag-scope check, the canvases, whether the template-resolved
 listeners work without creating an actor, the group sheet, and anything live.
+
+### The owner on the two cards, 2026-11-24
+
+Given after `architect`'s proposal was shown, in two messages: "Faction card
+is affiliation, group card is who's where." and "Both are nestable".
+
+Read as: the faction card is the organisation chart, who belongs to which
+village, warband and gang, and holds no bodies. Every body is in a group from
+the moment it is rolled, and a group says where those bodies are. A faction
+card may sit under another, and a group may hold groups. Example: Generate
+makes the village's faction card and a home group at the village's place; the
+faction card's Gang 3 names the group that holds Gang 3's bodies, and sending
+Warband 1 out moves its group, with its gangs' groups inside it, out of the
+home group.
+
+What this changes in `architect`'s proposal above, which was written before
+these words:
+
+- **A** kept each card's bodies as stacks on the faction card. They are in
+  groups. The generator's flag holds the chart, and each card names its group.
+- **C** made a group when a card was sent out. The bodies are already in a
+  group; sending out moves or splits a group, and Recall puts it back.
+- **A warband sent out whole** is a group holding its gangs' groups. The
+  design session's reading under the ladder, "one group holding its gangs'
+  stacks, not a card that holds groups", is withdrawn.
+- **E** loses its tension: a roll writes its groups' stacks at once, so the
+  2026-11-01 ruling stands unqualified on this reading, and board 1f's Save
+  is then the odd one out (question 4 above is still the owner's).
+- **F** has nesting on both sides. A faction's parent link exists. Whether a
+  group can hold a group today was not checked; `architect` found only a
+  comment about an army in `group-data.mjs`.
+- **G**'s rows are not valid as written; S10 gains whatever group nesting
+  needs.
+
+Still the owner's, the reading's pick first:
+
+1. Where a village's bodies are at Generate: (a) a home group at the
+   village's place that holds a group for each warband, each holding a group
+   for each gang, and one for the camp; (b) a home group with a stack row for
+   each gang, and nested groups made only when a card is sent out.
+2. A wandering warband or a lair roll: (a) its groups and a faction card of
+   its own, (b) its groups only, joined to a faction when the Judge names
+   one. This replaces `architect`'s question 1.
+
+`architect`'s questions 2, 3, 5 and 6 stand. Its rulings A, C, F and G are
+re-ruled on these words, by a fresh agent, once questions 1 and 2 here are
+answered; the two shapes of question 1 are different schemas. Released: none.
