@@ -13,7 +13,8 @@ import {
   CUSTOM_EFFECT_FIELDS, PALETTE_SOURCES, isArranged, isDefaultPalette, normalizeCustom, normalizePalette,
   paletteSetting, resolvePalette, slugStatusId, statusIdError,
 } from "../scripts/lib/status-palette.mjs";
-import { CONDITION_IDS } from "../scripts/lib/conditions.mjs";
+import { CONDITION_IDS, CONDITIONS } from "../scripts/lib/conditions.mjs";
+import { LANG_PREFIX } from "../scripts/lib/constants.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -161,22 +162,43 @@ ok("every source the editor groups by is one a known status can carry", () => {
 /* --- the list a token's HUD reads ---------------------------------------------- */
 
 const stored = { value: {} };
-globalThis.game = { settings: { get: () => stored.value } };
+// The system's world settings, read by namespace and key; `unreadable` makes them throw as before they register.
+const system = { "core-status-effects": false, unreadable: false };
+globalThis.game = {
+  settings: {
+    get: (namespace, key) => {
+      if (namespace !== "acks") return stored.value;
+      if (system.unreadable) throw new Error("not registered");
+      return system[key];
+    },
+  },
+};
+// The system's own lists, in the shape core 14.2.0 gives them. The figures are invented.
+const CORE_CHANGES = [{ key: "system.invented.mod", type: "add", value: 7 }];
+const CORE_CONDITIONS = [
+  // An id the catalogue also holds, with figures the catalogue's entry does not take.
+  { id: "blinded", name: "ACKS.conditions.blinded", img: "sys/blinded.svg", system: { changes: CORE_CHANGES } },
+  { id: "coreonly", name: "ACKS.conditions.coreonly", img: "sys/coreonly.svg", system: { changes: CORE_CHANGES } },
+];
+const CORE_COMBAT_STATES = [
+  { id: "overnumbering", name: "ACKS.combatStates.overnumbering", img: "icons/svg/regen.svg", hud: false },
+  { id: "done", name: "ACKS.combatStates.done", img: "icons/svg/cancel.svg", hud: false },
+  { id: "readied", name: "ACKS.combatStates.readied", img: "icons/svg/ice-aura.svg", hud: false },
+  { id: "delayed", name: "ACKS.combatStates.delayed", img: "icons/svg/clockwork.svg", hud: false },
+];
 globalThis.CONFIG = {
-  // What is there when the module takes the palette: Foundry's own, by shape.
+  // What the system's `init` has already written when the module takes the palette: its conditions, its
+  // combat states, the Foundry ids it always keeps, and (its setting on) the rest of Foundry's list.
   statusEffects: [
+    ...CORE_CONDITIONS,
+    ...CORE_COMBAT_STATES,
     { id: "dead", name: "EFFECT.StatusDead", img: "core/dead.svg" },
+    { id: "fly", name: "EFFECT.StatusFlying", img: "core/fly.svg" },
     { id: "blind", name: "EFFECT.StatusBlind", img: "core/blind.svg" },
     { id: "stun", name: "EFFECT.StatusStunned", img: "core/stun.svg", order: 9 },
-    { id: "fly", name: "EFFECT.StatusFlying", img: "core/fly.svg" },
   ],
   specialStatusEffects: {},
-  ACKS: {
-    statusEffects: [
-      { id: "done", name: "Done", img: "sys/done.svg" },
-      { id: "readied", name: "Readied", img: "sys/readied.svg", duration: { rounds: 1 } },
-    ],
-  },
+  ACKS: { conditions: CORE_CONDITIONS, combatStates: CORE_COMBAT_STATES },
 };
 const fx = await import("../scripts/lib/status-effects.mjs");
 const STATES = ["dead", "invisible", "acks-extras.running"];
@@ -184,49 +206,108 @@ const config = (id) => CONFIG.statusEffects.find((s) => s.id === id);
 const configIds = () => CONFIG.statusEffects.map((s) => s.id);
 const store = (value) => { stored.value = value; return fx.applyStatusPalette(); };
 
-ok("taking the palette registers the conditions and the engine's states, unordered, and nothing else", () => {
+ok("taking the palette registers the catalogue, the engine's states, the system's own and the Foundry ids the system keeps, unordered", () => {
   fx.registerStatusEffects();
-  assert.deepEqual(configIds().sort(), [...CONDITION_IDS, ...STATES].sort());
+  assert.deepEqual(configIds().sort(), [...CONDITION_IDS, ...STATES, "done", "overnumbering", "coreonly", "fly"].sort());
   for (const status of CONFIG.statusEffects) {
-    assert.deepEqual([status.order, status.hud], [undefined, undefined], status.id);
+    assert.deepEqual([status.order], [undefined], status.id);
     assert.ok(status.name && status.img, status.id);
   }
-  assert.equal(CONFIG.specialStatusEffects.BLIND, "blinded");
   // The module's own entry for an id Foundry also uses, not Foundry's.
   assert.equal(config("dead").img, "icons/svg/skull.svg");
+  // Foundry's blindness is pointed at Blinded by the system, not rewritten here.
+  assert.equal(CONFIG.specialStatusEffects.BLIND, undefined);
 });
 
-ok("what Foundry and the system offer is known, off by default; an alias of a condition is not offered", () => {
+ok("the system's combat states are registered with nothing arranged, so the tracker's Done can toggle them", () => {
+  for (const id of ["overnumbering", "done", "readied", "delayed"]) assert.ok(config(id), id);
+  // The states the system leaves off the HUD are off the palette and hidden.
+  assert.equal(config("done").hud, false);
+  assert.equal(config("overnumbering").hud, false);
+  assert.equal(config("done").name, "ACKS.combatStates.done");
   const all = new Map(fx.knownStatuses().map((s) => [s.id, s]));
-  assert.deepEqual([all.get("stun").source, all.get("stun").defaultOn, all.get("stun").keep], ["foreign", false, false]);
-  assert.equal(all.get("fly").source, "foreign");
-  assert.deepEqual([all.get("done").source, all.get("done").defaultOn], ["system", false]);
-  assert.equal(all.has("blind"), false);
-  assert.equal(all.get("readied").source, "condition");
-  assert.equal(all.get("dead").source, "state");
-  assert.equal(all.size, CONDITION_IDS.length + STATES.length + 3);
+  assert.deepEqual([all.get("done").source, all.get("done").defaultOn, all.get("done").keep], ["system", false, true]);
+  // The catalogue holds Readied and Delayed, so its entries stand, on the palette.
+  assert.deepEqual([all.get("readied").source, all.get("delayed").source], ["condition", "condition"]);
+  assert.deepEqual([config("readied").hud, config("delayed").hud], [undefined, undefined]);
+});
+
+ok("a system condition the catalogue lacks is registered and off the HUD, with the figures it carries", () => {
+  assert.equal(config("coreonly").hud, false);
+  assert.deepEqual(config("coreonly").system.changes, CORE_CHANGES);
+  const entry = fx.knownStatuses().find((s) => s.id === "coreonly");
+  assert.deepEqual([entry.source, entry.defaultOn, entry.keep], ["system", false, true]);
+  assert.equal(fx.readStatusPalette().find((e) => e.id === "coreonly").on, false);
+});
+
+ok("an id the catalogue offers keeps the catalogue's name and image", () => {
+  assert.deepEqual([config("blinded").name, config("blinded").img], [`${LANG_PREFIX}.condition.blinded`, CONDITIONS.blinded.img]);
+  assert.equal(fx.knownStatuses().filter((s) => s.id === "blinded").length, 1);
+  assert.equal(fx.knownStatuses().find((s) => s.id === "blinded").source, "condition");
+});
+
+ok("the system's setting off: no Foundry status is on the palette, and only the ids the system always keeps are registered", () => {
+  system["core-status-effects"] = false;
+  const palette = store({});
+  assert.ok(palette.some((e) => e.source === "foreign") && palette.filter((e) => e.source === "foreign").every((e) => !e.on));
+  for (const id of ["stun", "blind"]) {
+    assert.deepEqual([fx.knownStatuses().find((s) => s.id === id).defaultOn, config(id)], [false, undefined], id);
+  }
+  // The system keeps `fly` registered whatever its setting says, so it is registered here, off the HUD.
+  assert.deepEqual([fx.knownStatuses().find((s) => s.id === "fly").keep, config("fly").hud], [true, false]);
+});
+
+ok("the system's setting on: Foundry's statuses are on by default, and the ids the system always keeps are not turned on by it", () => {
+  system["core-status-effects"] = true;
+  try {
+    const known = new Map(fx.knownStatuses().map((s) => [s.id, s]));
+    for (const id of ["stun", "blind"]) assert.deepEqual([known.get(id).source, known.get(id).defaultOn, known.get(id).keep], ["foreign", true, false], id);
+    assert.deepEqual([known.get("fly").source, known.get("fly").defaultOn, known.get("fly").keep], ["foreign", false, true]);
+    store({});
+    assert.deepEqual([config("stun").hud, config("blind").hud, config("fly").hud], [undefined, undefined, false]);
+    // Foundry's own entry carries over, order and all, as the palette places it.
+    assert.deepEqual([config("stun").name, config("stun").img], ["EFFECT.StatusStunned", "core/stun.svg"]);
+    // The engine's own `dead` and `invisible` are the module's whichever way the setting reads.
+    assert.equal(config("dead").img, "icons/svg/skull.svg");
+    // A setting that cannot be read answers off.
+    system.unreadable = true;
+    assert.equal(fx.knownStatuses().find((s) => s.id === "stun").defaultOn, false);
+  } finally {
+    system.unreadable = false;
+    system["core-status-effects"] = false;
+    store({});
+  }
+});
+
+ok("the ids Foundry's list once used for a condition are no longer reserved or rewritten", () => {
+  const known = new Set(fx.knownStatuses().map((s) => s.id));
   const taken = fx.takenStatusIds();
-  for (const id of ["blind", "prone", "stun", "done", "dead"]) assert.ok(taken.has(id), id);
+  assert.deepEqual([...taken].sort(), [...known].sort());
+  for (const id of ["deaf", "fear", "paralysis", "restrain", "sleep", "bless", "silence"]) assert.equal(taken.has(id), false, id);
+  // Foundry's own `blind` is a status like any other the system's list carried.
+  assert.ok(taken.has("blind"));
 });
 
 ok("an arranged palette carries each status's place, and a status put back is registered with what it brought", () => {
   const palette = store({ layout: ["stun", "prone", "dead"], off: ["blinded"] });
   assert.deepEqual([config("stun").order, config("prone").order, config("dead").order], [0, 1, 2]);
   assert.deepEqual([config("stun").name, config("stun").img], ["EFFECT.StatusStunned", "core/stun.svg"]);
-  // Every other default follows the arranged ones.
-  assert.ok(CONFIG.statusEffects.filter((s) => !["stun", "prone", "dead", "blinded"].includes(s.id)).every((s) => s.order >= 3));
+  // Every other default follows the arranged ones; what is off the palette carries no place.
+  const rest = CONFIG.statusEffects.filter((s) => s.hud !== false && !["stun", "prone", "dead", "blinded"].includes(s.id));
+  assert.ok(rest.length && rest.every((s) => s.order >= 3));
   // Off the palette, but toggled by id: kept, and hidden from the HUD.
   assert.deepEqual([config("blinded").hud, config("blinded").order], [false, undefined]);
-  assert.equal(config("fly"), undefined);
+  assert.deepEqual([config("fly").hud, config("fly").order], [false, undefined]);
   assert.equal(palette.find((e) => e.id === "stun").on, true);
   assert.deepEqual(fx.readStatusPalette().filter((e) => e.on).slice(0, 3).map((e) => e.id), ["stun", "prone", "dead"]);
 });
 
-ok("a tracker mark the catalogue does not hold can be put on, with its name and icon only", () => {
+ok("a tracker mark the catalogue does not hold can be put on, and the system's `hud: false` does not follow it", () => {
   store({ layout: ["done"] });
-  assert.deepEqual(config("done"), { id: "done", name: "Done", img: "sys/done.svg", order: 0 });
+  assert.deepEqual(config("done"), { id: "done", name: "ACKS.combatStates.done", img: "icons/svg/cancel.svg", order: 0 });
   store({});
-  assert.equal(config("done"), undefined);
+  // Off the palette it stays registered, and hidden.
+  assert.deepEqual([config("done").hud, config("done").order], [false, undefined]);
 });
 
 ok("a status another package registers afterwards stays, on the palette by default and registered off it", () => {

@@ -6,7 +6,11 @@
  * server. The GM's next write of initiatives reaches the player's tracker
  * whole, a value equal to last round's included. The relay refuses a stale
  * round and a seat whose turn it is not, and a refused call leaves the
- * player's tracker as it was. Machine values arrive through ./_env.mjs;
+ * player's tracker as it was. The GM's press of the tracker's Done control on
+ * the combatant that is up throws nothing, and leaves the actor carrying the
+ * `done` status, which the palette must register because the control toggles
+ * it by id; the effect the press made is tracked and swept by its uuid.
+ * Machine values arrive through ./_env.mjs;
  * nothing here names a port, a world, a seat or a book. Every figure typed
  * into a fixture is invented.
  *
@@ -175,6 +179,33 @@ const P = {
     if (!button) return { pressed: false, actions: [...(ui.combat.element?.querySelectorAll?.("[data-action]") ?? [])].map((b) => b.dataset.action) };
     button.click();
     return { pressed: true };
+  },
+
+  /**
+   * The tracker's Done control on one combatant's row, pressed as a user does
+   * (a click on the button the system puts there), then what the page and the
+   * actor read: whether the palette registers `done`, whether the actor
+   * carries it, the effects carrying it, and what this seat recorded.
+   */
+  pressDone: async ({ rowId, actorId }) => {
+    const H = globalThis.__crw ?? {};
+    const row = ui.combat.element?.querySelector?.(`li.combatant[data-combatant-id="${rowId}"]`);
+    const button = row?.querySelector?.(".combatant-control.action-done");
+    if (!button) return { pressed: false, controls: [...(row?.querySelectorAll?.(".combatant-control") ?? [])].map((b) => b.className) };
+    const actor = game.actors.get(actorId);
+    const registered = CONFIG.statusEffects.some((s) => s.id === "done");
+    const before = actor.statuses.has("done");
+    button.click();
+    // The handler does not await the toggle: a refusal is an unhandled rejection that lands a tick later.
+    for (let n = 0; n < 40 && !actor.statuses.has("done"); n++) await new Promise((r) => setTimeout(r, 150));
+    return {
+      pressed: true,
+      registered,
+      before,
+      done: actor.statuses.has("done"),
+      effects: actor.effects.filter((e) => e.statuses?.has("done")).map((e) => e.uuid),
+      errors: [...(H.errors ?? [])],
+    };
   },
 
   /** The relay called by hand, as a seat's console would, to read its answer. */
@@ -353,6 +384,25 @@ try {
   if (strays.length === 1) await gm.mark(`ChatMessage.${strays[0]}`, "lib/round-message-out-of-turn");
   else for (const id of strays) gm.track(id, "ChatMessage");
   check("and posts nothing", strays.length === 0, { gm: gmDirect.posted.length, player: plDirect.posted.length });
+
+  section("The tracker's Done control marks the combatant that is up");
+  // The system's own Done status must be registered on the palette this module writes: the control toggles it by id.
+  const upShape = await run(gm, P.shape, { ...ids, playerId, inits: { ally: 6, foe: 4, pc: 1 }, round: 1, upKey: "ally" });
+  note("shaped", named(upShape));
+  note("viewed (gm)", await run(gm, P.view, { combatId: ids.combatId }));
+  const beforeDone = await until(gm, ids.combatId, (r) => r.up === ids.rows.ally && r.row === ids.rows.ally);
+  check("the GM's tracker shows the ally up", beforeDone.up === ids.rows.ally && beforeDone.row === ids.rows.ally, { up: nameOf[beforeDone.up], row: nameOf[beforeDone.row] });
+  await run(gm, P.clear);
+  const done = await run(gm, P.pressDone, { rowId: ids.rows.ally, actorId: ids.actors.ally });
+  note("pressed Done", done);
+  // Read from the real control: before the change the id was not registered and the toggle threw.
+  check("the tracker row carries a Done control", done.pressed === true, done.controls);
+  check("the palette registers the system's Done status", done.registered === true, { registered: done.registered });
+  check("pressing Done throws nothing and records no refused write", done.errors?.length === 0, done.errors);
+  check("the ally's actor carries the Done status afterwards", done.before === false && done.done === true, { before: done.before, done: done.done });
+  // The effect the press created is this run's own: tracked so teardown deletes it by id.
+  for (const uuid of done.effects ?? []) gm.track(uuid, "ActiveEffect");
+  if (done.effects?.length) note("swept the Done effect", await gm.sweepTracked({ only: done.effects }));
   walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);

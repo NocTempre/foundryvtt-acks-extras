@@ -638,9 +638,20 @@ An out-of-turn call that gets through posts one too: it is marked
    `{error: "notYourTurn"}`. The player's own `combat.nextRound()` then
    changes no round on either seat, leaves the player's initiatives as the
    server holds them, and posts nothing.
+4. **The tracker's Done control.** The section shapes the fixtures again with
+   the ally up and views the combat on the GM's seat, empties the page's
+   recorders, then clicks
+   `ui.combat.element.querySelector('li.combatant[data-combatant-id="<ally row>"] .combatant-control.action-done')`.
+   The system adds that button to every row and toggles `done` by id without
+   awaiting it, so a refusal is an unhandled rejection a tick later.
+   **Observable:** `CONFIG.statusEffects` holds `done` before the click, the
+   recorders hold no error, and the ally's `actor.statuses` holds `done`
+   afterwards. With `done` unregistered, the toggle throws,
+   the recorders hold it and the actor never gains the status. The effect the
+   press made is tracked by its uuid and swept.
 
 **Teardown.** The fixtures stay. The persistence setting is restored where the
-walk changed it.
+walk changed it, and the Done effect is swept by its uuid.
 
 ## Captions bound to their controls
 
@@ -2270,7 +2281,7 @@ Covers `conditions.mjs`, `status-effects.mjs`, the palette's arrangement
 (`status-palette.mjs`) and its editor (`apps/status-palette-app.mjs`), the
 attack throw's condition rows and the damage factor and waived throw it is
 told of (`patches/attack-throw.mjs`), the surprise shim (`patches/surprise-card.mjs`),
-the `lib.statusIds` repair check, and the importer's `conditions` document.
+and the importer's `conditions` document.
 The morale page's condition rows are influence's own recipe.
 
 **Drive notes:**

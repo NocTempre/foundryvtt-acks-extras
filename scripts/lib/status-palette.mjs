@@ -3,8 +3,8 @@
  * offers, in what order, and the ones the Judge added.
  *
  * A status is KNOWN when something offers it: the conditions catalogue, the
- * states the engine reads, the system's tracker, another package, or the
- * Judge. The stored arrangement names ids only, so a status that becomes known
+ * states the engine reads, the system's conditions and combat states, another
+ * package, or the Judge. The stored arrangement names ids only, so a status that becomes known
  * later (a catalogue that grew, a package enabled since) takes its source's
  * default instead of being lost, and one that stops being known drops out
  * without a write.

@@ -1,14 +1,16 @@
-/* global CONFIG, Hooks, game, ui, fromUuid */
+/* global CONFIG, Hooks, game, ui */
 /**
  * Conditions on the table: the status effects a token can carry, and the
  * seams that put their math on a roll (RR 291-303, 507-515).
  *
  * The palette is the catalogue in `conditions.mjs` and three states the engine
  * needs beside it, in the order and with the additions the Judge arranged
- * (`status-palette.mjs`); Foundry's generic list is off it until the Judge
- * puts a status back. Nothing here stores a modifier on an effect. Each roll
- * reads the roller's statuses
- * — and the target's, for an attack — at the moment it is made, so a condition
+ * (`status-palette.mjs`). The system's own conditions and combat states are
+ * registered beside it from `CONFIG.ACKS`, and Foundry's generic list is off
+ * it until the system's setting or the Judge puts a status back. This module
+ * is the one writer of `CONFIG.statusEffects`. Nothing here stores a modifier
+ * on an effect. Each roll reads the roller's statuses — and the target's, for
+ * an attack — at the moment it is made, so a condition
  * applies its math whoever created the effect that carries it, and a figure
  * imported later reaches conditions already in place.
  *
@@ -26,7 +28,6 @@ import { isPrimaryGM, numOrNull } from "./util.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
-import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
 import { sheetSaveShift, tellRollMods } from "./roll-mods.mjs";
 import {
@@ -54,20 +55,16 @@ const STATES = Object.freeze([
 ]);
 
 /**
- * Status ids other packages wrote, each with the condition it stood for:
- * Foundry's generic list.
+ * The Foundry status ids the system keeps registered whatever its "Include
+ * Foundry core status effects" setting says. Mirrors `KEPT_CORE_STATUS_IDS` in
+ * the system's `module/status-effects.mjs`, which is module-private. They stay
+ * registered here as there, and the system's setting never turns them on, so
+ * neither does the palette.
  */
-const LEGACY_STATUS_IDS = Object.freeze({
-  blind: "blinded",
-  deaf: "deafened",
-  fear: "frightened",
-  paralysis: "paralyzed",
-  restrain: "restrained",
-  sleep: "slumbering",
-  bless: "blessed",
-  // The senses read this id as a creature that cannot hear.
-  silence: "deafened",
-});
+const SYSTEM_KEPT_STATUS_IDS = Object.freeze(["dead", "invisible", "fly", "burrow", "hover"]);
+
+/** The system's world setting that keeps Foundry's own statuses on its list. */
+const SYSTEM_CORE_STATUSES_SETTING = "core-status-effects";
 
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.${key}`, data);
 const nameOf = (id) => game.i18n.localize(conditionNameKey(id));
@@ -96,17 +93,31 @@ function storedPalette() {
   }
 }
 
+/** True when the system's setting keeps Foundry's own statuses on its list; false where it cannot be read. */
+function systemKeepsFoundryStatuses() {
+  try {
+    return game.settings.get("acks", SYSTEM_CORE_STATUSES_SETTING) === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Every status the palette can offer, with where it comes from and whether it
  * is on the palette before the Judge arranges anything.
  *
  * The catalogue, the engine's states and the Judge's own statuses are always
- * registered, because code toggles them by id; the system's tracker marks and
- * the statuses Foundry and earlier packages offered are registered only while
- * they are on the palette. A status another package registered after this
- * module took the palette is on it by default and stays registered off it. A
- * status the catalogue already stands for — the same id, or an earlier id for
- * one of its conditions — is not offered a second time.
+ * registered, because code toggles them by id. The system's combat states and
+ * conditions (`CONFIG.ACKS`) are registered too, because its tracker and its
+ * macros toggle them by id, and are off the palette until the Judge puts them
+ * on, carrying the system's own effect `changes`. The statuses Foundry and
+ * earlier packages offered are registered only while they are on the palette,
+ * and Foundry's are on it by default exactly when the system's setting keeps
+ * them; the few the system keeps whatever that setting says
+ * (`SYSTEM_KEPT_STATUS_IDS`) stay registered off the palette. A status another package registered after this module took the
+ * palette is on it by default and stays registered off it. An id already
+ * offered is not offered a second time, so the catalogue's entry stands where
+ * the system names the same condition.
  *
  * @param {object} [setting]  the arrangement whose Judge-made statuses to include
  * @returns {import("./status-palette.mjs").KnownStatus[]}
@@ -130,29 +141,33 @@ export function knownStatuses(setting = storedPalette()) {
   for (const c of normalizePalette(setting).custom) {
     offer({ id: c.id, source: "custom", name: c.name, img: c.img, defaultOn: true, keep: true, data: c.effect });
   }
-  const outside = (source, status, late) => {
-    if (!status?.id || Object.hasOwn(LEGACY_STATUS_IDS, status.id)) return;
+  const outside = (source, status, defaultOn, keep) => {
+    if (!status?.id) return;
     const name = status.name ?? status.label ?? status.id;
-    offer({ id: status.id, source, name, img: status.img ?? status.icon, defaultOn: late, keep: late, data: status });
+    offer({ id: status.id, source, name, img: status.img ?? status.icon, defaultOn, keep, data: status });
   };
-  for (const status of CONFIG.ACKS?.statusEffects ?? []) {
-    outside("system", { id: status.id, name: status.name ?? status.label, img: status.img ?? status.icon }, false);
-  }
+  // Whether a status shows on the HUD is the palette's to say, so the system's own `hud` is not carried.
+  const ofSystem = ({ hud: _hud, ...status }) => outside("system", status, false, true);
+  for (const status of CONFIG.ACKS?.combatStates ?? []) ofSystem(status);
+  for (const status of CONFIG.ACKS?.conditions ?? []) ofSystem(status);
   // The later registration first: a package that registers an id again means it.
-  for (const status of foreignSince.values()) outside("foreign", status, true);
-  for (const status of foreignAtInit.values()) outside("foreign", status, false);
+  for (const status of foreignSince.values()) outside("foreign", status, true, true);
+  const foundryOn = systemKeepsFoundryStatuses();
+  for (const status of foreignAtInit.values()) {
+    const kept = SYSTEM_KEPT_STATUS_IDS.includes(status?.id);
+    outside("foreign", status, foundryOn && !kept, kept);
+  }
   return known;
 }
 
 /**
- * Every id a new status cannot take: the known ones, and the earlier ids the
- * catalogue's conditions answered to, which the repair check rewrites.
+ * Every id a new status cannot take: the known ones.
  *
  * @param {object} [setting]  the arrangement whose Judge-made statuses count as known
  * @returns {Set<string>}
  */
 export function takenStatusIds(setting = storedPalette()) {
-  return new Set([...knownStatuses(setting).map((status) => status.id), ...Object.keys(LEGACY_STATUS_IDS)]);
+  return new Set(knownStatuses(setting).map((status) => status.id));
 }
 
 /**
@@ -206,11 +221,12 @@ export function onStatusPaletteChange() {
 }
 
 /**
- * Take the token palette: remember what Foundry and earlier packages offered,
- * write the conditions in the Judge's arrangement, point Foundry's blindness
- * at the Blinded condition, and declare the table the figures come from. At
- * `init`, after the arrangement's setting is registered: a token drawn before
- * this runs offers the generic list.
+ * Take the token palette: remember what the system, Foundry and earlier
+ * packages offered, write the palette in the Judge's arrangement, and declare
+ * the table the figures come from. At `init`, after the arrangement's setting
+ * is registered and after the system's own `init` has written its list: a
+ * token drawn before this runs offers the generic list. The system points
+ * Foundry's blindness at the Blinded condition itself.
  */
 export function registerStatusEffects() {
   if (!paletteTaken) {
@@ -220,7 +236,6 @@ export function registerStatusEffects() {
     CONFIG.statusEffects.length = 0;
   }
   applyStatusPalette();
-  CONFIG.specialStatusEffects.BLIND = "blinded";
   expectTables(CONDITIONS_DOC, [CONDITIONS_TABLE]);
 }
 
@@ -893,47 +908,6 @@ function registerLosses() {
 }
 
 /* -------------------------------------------- */
-/*  Earlier ids                                  */
-/* -------------------------------------------- */
-
-/** Register the repair check that renames earlier status ids to their conditions. */
-function registerStatusIdCheck() {
-  const key = (name) => `${LANG_PREFIX}.repair.check.statusIds.${name}`;
-  registerRepairCheck({
-    id: "lib.statusIds",
-    label: key("label"),
-    hint: key("hint"),
-    order: 60,
-    scan: () => {
-      const out = [];
-      for (const actor of worldActors()) {
-        for (const effect of actor.effects ?? []) {
-          const old = [...(effect.statuses ?? [])].filter((s) => LEGACY_STATUS_IDS[s]);
-          if (!old.length) continue;
-          out.push({
-            key: effect.uuid,
-            uuid: effect.uuid,
-            name: `${actor.name} → ${effect.name}`,
-            detail: game.i18n.format(key("detail"), {
-              from: old.join(", "),
-              to: old.map((s) => nameOf(LEGACY_STATUS_IDS[s])).join(", "),
-            }),
-          });
-        }
-      }
-      return out;
-    },
-    fix: (findings) =>
-      fixEach(findings, async (f) => {
-        const effect = await fromUuid(f.uuid);
-        if (!effect) return;
-        const statuses = [...new Set([...effect.statuses].map((s) => LEGACY_STATUS_IDS[s] ?? s))];
-        await effect.update({ statuses });
-      }),
-  });
-}
-
-/* -------------------------------------------- */
 /*  Installation                                 */
 /* -------------------------------------------- */
 
@@ -990,6 +964,4 @@ export function installConditionRolls() {
     }
   });
   registerLosses();
-
-  registerStatusIdCheck();
 }

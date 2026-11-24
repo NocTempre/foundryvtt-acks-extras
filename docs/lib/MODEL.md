@@ -2863,26 +2863,40 @@ cleared when the lift finishes, a failed one included, and only by the loss that
 set it. `STATES_LOST_HOOK` fires after the lift and cannot say it. A state taken
 off by any other path (the token HUD, a hand delete) carries no cause.
 
-**Earlier ids.** An effect carrying one of Foundry's generic status ids, or
-this module's earlier Hiding id, is found by the repair tool's `lib.statusIds`
-check and renamed to the condition it stood for.
+**Earlier ids are the system's.** The system renames Foundry's generic status
+ids on an actor to its own conditions at upgrade (its migration
+`m6-core-status-effects`), and points Foundry's blindness at `blinded` at its
+own `init`. This module keeps no table of earlier ids and no repair check for
+them.
 
 **The palette is arranged by the Judge.** A status is *known* when something
-offers it, and each source has a default:
+offers it, and each source has a default. The system writes its own
+`CONFIG.statusEffects` at `init` (`ACKS.conditions`, `ACKS.combatStates` and
+Foundry's `dead`, `invisible`, `fly`, `burrow`, `hover`, plus the rest of
+Foundry's list when its setting "Include Foundry core status effects" is on);
+this module is the one writer after it: at its own `init` it remembers that
+list, empties it, and writes the palette.
 
 | Source | What it is | By default | Off the palette |
 |---|---|---|---|
 | `condition` | the catalogue | on | registered, hidden from the HUD |
 | `state` | `dead`, `invisible`, Running | on | registered, hidden |
 | `custom` | a status the Judge made | on | registered, hidden |
-| `system` | a tracker mark the catalogue does not hold | off | not registered |
-| `foreign` | what `CONFIG.statusEffects` held when this module took it: Foundry's list and earlier packages' | off | not registered |
+| `system` | `CONFIG.ACKS.combatStates` and `CONFIG.ACKS.conditions` the catalogue does not hold, as the system wrote them | off | registered, hidden |
+| `foreign` | what `CONFIG.statusEffects` held when this module took it, less the above: Foundry's own list | on exactly when the system's setting is on, and never for `dead`, `invisible`, `fly`, `burrow` or `hover` | not registered, but for those five, which the system keeps: registered, hidden |
 | `foreign` | what another package registered afterwards | on | registered, hidden |
 
 A status that code toggles by id stays registered off the palette, so the
-toggle still finds it; the HUD is told to leave it out (`hud: false`). One of
-Foundry's ids that the catalogue already stands for (`blind`, `sleep` and the
-rest of the earlier ids) is not offered a second time.
+toggle still finds it; the HUD is told to leave it out (`hud: false`). The
+system's combat states are such statuses: its tracker's Done, Readied and
+Delayed controls toggle them by id, and the `hud` flag the system gives them
+does not follow them onto the palette. Where the catalogue and the system name
+one id (the catalogue holds Readied and Delayed, and every system condition
+but two), the catalogue's entry is the one offered: its name and icon stand,
+and the effect `changes` the system attaches to eleven of its conditions do
+not reach `CONFIG.statusEffects`, since this module's rolls read the status
+(see "Conditions"). `SYSTEM_KEPT_STATUS_IDS` mirrors the system's private list
+of the five Foundry ids it keeps.
 
 The arrangement is one world setting, `statusPalette`:
 `{layout, off, custom}`. `layout` is the ids on the palette in order, `off`

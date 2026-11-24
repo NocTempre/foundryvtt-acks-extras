@@ -1203,3 +1203,59 @@ maintenance the ruling removes.
   its row; one with none is not, and is left to the Judge.
 - That the runner reaches module sub-types and rewrites them as stated is read
   from 14.2.0's source, not observed in a world.
+
+## 2026-11-24 — The palette is an adapter over the system's conditions, combat states and setting
+
+`acks` 14.2.0 writes `CONFIG.statusEffects` itself at `init`
+(`configureStatusEffects`): its `ACKS.conditions`, its `ACKS.combatStates`
+(`overnumbering`, `done`, `readied`, `delayed`), five of Foundry's ids, and the
+rest of Foundry's list only while its setting "Include Foundry core status
+effects" is on. Its migration `m6-core-status-effects` renames Foundry's plain
+status ids on actors to its conditions, and it points Foundry's blindness at
+`blinded` itself. This module emptied that list and wrote its own, reading the
+system's tracker marks from `CONFIG.ACKS.statusEffects`, which no longer
+exists, so the four combat states were unregistered and the tracker's Done
+control threw. The owner, 2026-11-24: "Anything that now duplicates needs
+rolled into calling core instead of parallel code maintenance." With a world on
+14.2.0, an actor's `silence` status becomes `mute` in the system and stayed
+`deafened` in this module's repair check.
+
+**Ruled.**
+- `knownStatuses` offers `CONFIG.ACKS.combatStates` and
+  `CONFIG.ACKS.conditions` as source `system`, kept registered (the tracker and
+  macros toggle them by id) and off the palette, so the token HUD a world
+  shows does not change. The system's own `hud` flag is not carried: the
+  palette says what the HUD lists. An id the catalogue already offers keeps
+  the catalogue's entry.
+- The module stays the one writer of `CONFIG.statusEffects`. What is left of
+  the list the system wrote is Foundry's own, on the palette by default exactly
+  when the system's setting is on, except `dead`, `invisible`, `fly`, `burrow`
+  and `hover`, which the setting never turns on and which stay registered off
+  the palette, as the system keeps them. The five mirror the system's private
+  `KEPT_CORE_STATUS_IDS`, which a module cannot import.
+- `LEGACY_STATUS_IDS`, the repair check `lib.statusIds` and the
+  `specialStatusEffects.BLIND` line are deleted. The system's migration and
+  `init` do each of them, and `silence` becomes `mute`.
+
+**Rejected.** Leaving the system's list in place and adding the catalogue to
+it: the palette is arranged by the Judge and the HUD order, the off-palette
+registration and the Judge's own statuses all depend on one writer. Carrying
+the system's `changes` onto the catalogue's entries for the ids both name:
+eleven system conditions carry Active Effect `changes`, the catalogue's rolls
+read the status, and both would count (see 2026-10-01, "Active Effect changes
+on each status"). Whether to read the system's figures instead is a design the
+owner has not been shown.
+
+**Cost.** The system's `done`, `overnumbering` and the two conditions the
+catalogue lacks become toggleable by id in every world and appear under the
+*Combat tracker* group of the palette window. `readied` and `delayed` stay on
+the palette, as the catalogue has them, where the system hides them from the
+HUD. The senses read `deafened` as a creature that cannot hear, and a
+`silence` status the system renamed to `mute` no longer does.
+
+**Supersedes, in part,** "The token palette is the conditions" (2026-10-01:
+Foundry's blindness pointed at `blinded`, the legacy `silence` reading) and "The
+palette takes the states of a round" (2026-10-10: Foundry's ids offered off the
+palette and "the repair check renames them on sight"), both in
+DECISIONS-through-v11.14.5.md. The new evidence is `acks` 14.2.0's
+`configureStatusEffects` and its migration m6. Neither has an In-force row.
