@@ -649,7 +649,8 @@ ability is resolved in this order (`modifierDisposition`):
    `condition`, is **situational**;
 6. the rest is **standing**.
 
-`gate` (`effectField`) is `{kind, armourMax, noShield, loadMax, style, status}`; the
+`gate` (`effectField`) is `{kind, armourMax, noShield, loadMax, style, status,
+condition, round: {from, to}, ratio, side, band}`; the
 importer reads its figures off the page (`loadMax` through a `gate.loadMax`
 locator, the `armourMax` rung through a `gate.armourMax` locator whose captured
 clause the armour-limit word table maps to a ladder key) and the recipe ships
@@ -702,6 +703,25 @@ token's light; `isRollGate`) or `at: "item"` (the weapon of the roll,
 reason `item`, right after the roll-gate test and on either path, and never
 reaches `rollGatedModifiers`. A later registration of a kind replaces its timing.
 `weaponMundane` and `weaponMagical` are item gates (`roll-mods.mjs`).
+
+**Attack-moment roll gates** (`roll-gate-kinds.mjs`, each `at: "roll"`, each read
+with the attack's context `{token, target, targetActor, item, type}` that
+`roll-gates.mjs` passes). Each answers true, false or null, and null whenever
+its context or its figure is missing; every figure comes from the gate, which
+the import fills, never from source.
+
+| Kind | Figure on the gate | Reads | True when |
+|---|---|---|---|
+| `targetCondition` | `condition`: a condition id of `conditions.mjs` (a list is accepted from a caller; the schema stores one) | `targetActor.statuses`, closed over what each condition implies (`conditionSet`) | the target carries any named condition. An id the catalogue lacks is ignored; none left is null |
+| `combatRound` | `round`: `{from, to}`, either bound optional, equal bounds one round; a bare number from a caller is that round | `token.combatant`'s combat `round` | the round is inside the span. A token in no combat, or a combat at round 0, is null |
+| `outnumbering` | `ratio`, and `side: "against"` to read the opposing side | the dispositions of the undefeated combatants of the token's own combat (`areEnemies`: friendly against hostile; neutral and secret tokens count for neither side) | the bearer's side, itself included, is at least `ratio` times the other side's (with `against`, the other side at least `ratio` times the bearer's). A neutral or secret bearer, no combat, or nobody on the other side is null |
+| `rangeBand` | `band`: `melee`, `short`, `medium` or `long` (a list is accepted from a caller) | the delivery `type`; for `missile` and `thrown` the gap between `token` and `target` (`tokenGapFeet`) against the weapon's `system.range` reaches, in feet | the attack's band is the one named. The band is the nearest whose reach the gap does not exceed, not the choice made in the system's attack dialog, which no contributor sees. No target, no weapon reaches, another scene, or beyond the long reach is null |
+
+`roll-gates.mjs` `gateLabel(gate)` names the gate for the row's label by kind
+(`ACKS-LIB.gate.*`; the light level for `light`, the kind itself for a kind
+with no phrase). A gate is read by the throw's contributor only: no damage
+contributor reads one yet (the seam's `damage(ctx, attackType, modifiers)` question
+is where one would).
 
 `stackingPart({value, label, ref, stacksWith, notStacksWith, ...rest})` is the
 one way to build a part for `resolveStacking`: it always gives `caps`

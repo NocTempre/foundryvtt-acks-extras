@@ -506,6 +506,12 @@ export function effectField() {
       loadMax: num(), // in stone
       style: str(), // a fighting-style key
       status: str(), // a status id
+      // The roll gates of `roll-gate-kinds.mjs`, each figure read off the page by the import:
+      condition: str(), // targetCondition: a condition id of the conditions catalogue
+      round: new (F().SchemaField)({ from: num({ integer: true }), to: num({ integer: true }) }), // combatRound: rounds from..to; one bound alone is open-ended, both equal is one round
+      ratio: num(), // outnumbering: how many times the other side's count
+      side: str(), // outnumbering: "against" reads the opposing side outnumbering the bearer's
+      band: str(), // rangeBand: melee, short, medium or long
       // A status gate on a record's part that belongs to one occasion (the daily
       // save an enervated creature makes) holds only where the roller names
       // that occasion; `partHolds` leaves it pending otherwise.

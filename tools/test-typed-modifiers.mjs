@@ -418,6 +418,186 @@ check("the contributor adds nothing for a row with no figure", () => {
   assert.deepEqual(rollGateRows({ actor, token: tokenIn({ day: true }) }, "melee"), []);
 });
 
+/* --- The attack-moment roll gates: target condition, round, sides, range --- */
+
+const { gateLabel } = await import("../scripts/lib/roll-gates.mjs");
+
+/** A scene whose grid measures straight lines in feet, 100px a 10ft square. Invented. */
+let arenas = 0;
+const arena = () => ({
+  id: `arena${++arenas}`,
+  grid: { size: 100, distance: 10, units: "ft", measurePath: ([a, b]) => ({ distance: (Math.hypot(b.x - a.x, b.y - a.y) / 100) * 10 }) },
+  tokens: [],
+});
+/** A token at a grid cell, on a side (1 friendly, -1 hostile, 0 neutral). */
+const fighter = (scene, id, cell, disposition = 1) => ({ id, x: cell * 100, y: 0, width: 1, height: 1, parent: scene, disposition });
+/** A combat of `[token, defeated]` pairs at a round; every token's combatant is wired back to it. */
+const combatOf = (round, entries) => {
+  const combat = { round, combatants: [] };
+  for (const [token, defeated] of entries) {
+    const combatant = { id: `c${token.id}`, tokenId: token.id, token, isDefeated: defeated === true, parent: combat };
+    token.combatant = combatant;
+    combat.combatants.push(combatant);
+  }
+  return combat;
+};
+const gated = (gate, over = {}) => mod({ target: "attackThrow", value: 2, gate, ...over });
+const rowsFor = (gate, ctx, attackType = "melee", over = {}) =>
+  rollGateRows({ actor: asActor([ability("Cunning", [gated(gate, over)])], "monster"), ...ctx }, attackType);
+
+check("the four attack-moment gates are roll gates, read on any actor and never written as standing", () => {
+  for (const kindName of ["targetCondition", "combatRound", "outnumbering", "rangeBand"]) {
+    assert.equal(isRollGate(kindName), true, kindName);
+    assert.equal(modifierDisposition(gated({ kind: kindName }), { actorType: "monster" }).kind, DISPOSITION.AT_ROLL, kindName);
+  }
+});
+
+check("targetCondition: true while the target carries the condition or one it implies, false without, null with no target or no known id", () => {
+  const webbed = { targetActor: { statuses: new Set(["webbed"]) } };
+  const clear = { targetActor: { statuses: new Set() } };
+  const actor = asActor([]);
+  const gate = { kind: "targetCondition", condition: "webbed" };
+  assert.equal(gateVerdict(actor, gate, webbed), true);
+  assert.equal(gateVerdict(actor, gate, clear), false);
+  assert.equal(gateVerdict(actor, { kind: "targetCondition", condition: "vulnerable" }, webbed), true, "an implied state counts");
+  assert.equal(gateVerdict(actor, { kind: "targetCondition", condition: ["blinded", "webbed"] }, webbed), true, "any of a list");
+  assert.equal(gateVerdict(actor, { kind: "targetCondition", condition: ["blinded", "prone"] }, webbed), false);
+  assert.equal(gateVerdict(actor, gate, {}), null, "no target");
+  assert.equal(gateVerdict(actor, gate, { targetActor: {} }), null, "a target that cannot say");
+  assert.equal(gateVerdict(actor, { kind: "targetCondition" }, webbed), null, "no id read");
+  assert.equal(gateVerdict(actor, { kind: "targetCondition", condition: "notACondition" }, webbed), null, "an id the catalogue lacks");
+});
+
+check("combatRound: an exact round, a span and open ends decide from the token's combat; no combat or an unbegun one is null", () => {
+  const scene = arena();
+  const me = fighter(scene, "a", 0);
+  const actor = asActor([]);
+  const ask = (round, gate) => {
+    combatOf(round, [[me, false]]);
+    return gateVerdict(actor, { kind: "combatRound", ...gate }, { token: me });
+  };
+  assert.equal(ask(3, { round: { from: 3, to: 3 } }), true);
+  assert.equal(ask(3, { round: 3 }), true, "a bare number is that round");
+  assert.equal(ask(4, { round: 3 }), false);
+  assert.equal(ask(2, { round: { from: 2, to: 4 } }), true);
+  assert.equal(ask(4, { round: { from: 2, to: 4 } }), true);
+  assert.equal(ask(5, { round: { from: 2, to: 4 } }), false);
+  assert.equal(ask(1, { round: { from: 2, to: 4 } }), false);
+  assert.equal(ask(9, { round: { from: 2 } }), true, "no upper bound");
+  assert.equal(ask(1, { round: { from: 2 } }), false);
+  assert.equal(ask(1, { round: { to: 2 } }), true, "no lower bound");
+  assert.equal(ask(3, { round: { to: 2 } }), false);
+  assert.equal(ask(3, { round: { from: null, to: null } }), null, "no figure read");
+  assert.equal(ask(3, {}), null, "no round on the gate");
+  assert.equal(ask(0, { round: 1 }), null, "a combat not begun");
+  const loose = fighter(scene, "b", 1);
+  assert.equal(gateVerdict(actor, { kind: "combatRound", round: 1 }, { token: loose }), null, "a token in no combat");
+  assert.equal(gateVerdict(actor, { kind: "combatRound", round: 1 }, {}), null, "no token");
+});
+
+check("outnumbering: the attacker's side against the other by token disposition among the undefeated, null where it cannot be told", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0, -1);
+  const mate = fighter(scene, "mate", 1, -1);
+  const third = fighter(scene, "third", 2, -1);
+  const foe = fighter(scene, "foe", 3, 1);
+  const other = fighter(scene, "other", 4, 1);
+  const actor = asActor([]);
+  const gate = (over) => ({ kind: "outnumbering", ratio: 2, ...over });
+  combatOf(1, [[me, false], [mate, false], [third, false], [foe, false], [other, false]]);
+  assert.equal(gateVerdict(actor, gate(), { token: me }), false, "three to two is not twice");
+  assert.equal(gateVerdict(actor, gate({ ratio: 1.5 }), { token: me }), true, "three to two is one and a half");
+  assert.equal(gateVerdict(actor, gate({ ratio: 1 }), { token: me }), true);
+  assert.equal(gateVerdict(actor, gate({ side: "against", ratio: 1 }), { token: me }), false, "the other side is not larger");
+  assert.equal(gateVerdict(actor, gate({ side: "against", ratio: 1 }), { token: foe }), true, "the same fight from the other seat");
+  combatOf(1, [[me, false], [mate, false], [third, false], [foe, false], [other, true]]);
+  assert.equal(gateVerdict(actor, gate(), { token: me }), true, "a defeated combatant does not count");
+  combatOf(1, [[me, false], [mate, true], [third, true], [foe, false], [other, false]]);
+  assert.equal(gateVerdict(actor, gate({ ratio: 1 }), { token: me }), false, "the fallen on the attacker's side do not count either");
+  combatOf(1, [[me, false], [mate, false], [third, false]]);
+  assert.equal(gateVerdict(actor, gate(), { token: me }), null, "nobody on the other side");
+  const watcher = fighter(scene, "watcher", 5, 0);
+  combatOf(1, [[watcher, false], [foe, false], [me, false]]);
+  assert.equal(gateVerdict(actor, gate(), { token: watcher }), null, "a neutral attacker has no side");
+  assert.equal(gateVerdict(actor, gate({ ratio: undefined }), { token: me }), null, "no ratio read");
+  assert.equal(gateVerdict(actor, gate({ ratio: 0 }), { token: me }), null);
+  assert.equal(gateVerdict(actor, gate(), { token: fighter(scene, "loose", 6) }), null, "no combat");
+  assert.equal(gateVerdict(actor, gate(), {}), null, "no token");
+});
+
+check("rangeBand: melee by the delivery, a ranged band by the gap to the target and the weapon's own reaches, null where either cannot say", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0);
+  const at = (cell) => fighter(scene, `t${cell}`, cell, -1);
+  const bow = { system: { range: { short: 20, medium: 40, long: 60 } } };
+  const actor = asActor([]);
+  const ask = (band, ctx) => gateVerdict(actor, { kind: "rangeBand", band }, ctx);
+  assert.equal(ask("melee", { type: "melee" }), true);
+  assert.equal(ask("short", { type: "melee" }), false);
+  assert.equal(ask("short", { type: "missile", token: me, target: at(2), item: bow }), true, "20 ft is within the short reach");
+  assert.equal(ask("medium", { type: "missile", token: me, target: at(2), item: bow }), false);
+  assert.equal(ask("medium", { type: "missile", token: me, target: at(3), item: bow }), true);
+  assert.equal(ask("long", { type: "thrown", token: me, target: at(6), item: bow }), true);
+  assert.equal(ask("melee", { type: "missile", token: me, target: at(1), item: bow }), false);
+  assert.equal(ask(["short", "medium"], { type: "missile", token: me, target: at(3), item: bow }), true, "any of a list");
+  assert.equal(ask("long", { type: "missile", token: me, target: at(7), item: bow }), null, "beyond the long reach");
+  assert.equal(ask("short", { type: "missile", token: me, item: bow }), null, "no target");
+  assert.equal(ask("short", { type: "missile", token: me, target: at(1) }), null, "no weapon");
+  assert.equal(ask("short", { type: "missile", token: me, target: at(1), item: { system: { range: { short: 0, medium: 0, long: 0 } } } }), null, "a weapon with no reaches");
+  assert.equal(ask("short", { type: "missile", token: me, target: { ...at(1), parent: arena() }, item: bow }), null, "another scene");
+  assert.equal(ask("short", { token: me, target: at(1), item: bow }), null, "no delivery");
+  assert.equal(ask("near", { type: "melee" }), null, "a band that is no band");
+  assert.equal(gateVerdict(actor, { kind: "rangeBand" }, { type: "melee" }), null, "no band read");
+});
+
+check("gateLabel names each kind, and the light level and an unknown kind as before", () => {
+  assert.equal(gateLabel({ kind: "light", light: "daylight" }), "daylight");
+  assert.equal(gateLabel({ kind: "targetCondition", condition: "webbed" }), "against a target that is Webbed");
+  assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed", "blinded"] }), "against a target that is Webbed, Blinded");
+  assert.equal(gateLabel({ kind: "combatRound", round: 3 }), "in round 3");
+  assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: 2 } }), "in round 2");
+  assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: 4 } }), "in rounds 2 to 4");
+  assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: null } }), "from round 2");
+  assert.equal(gateLabel({ kind: "combatRound", round: { from: null, to: 4 } }), "through round 4");
+  assert.equal(gateLabel({ kind: "outnumbering", ratio: 2 }), "while outnumbering");
+  assert.equal(gateLabel({ kind: "outnumbering", ratio: 2, side: "against" }), "while outnumbered");
+  assert.equal(gateLabel({ kind: "rangeBand", band: "short" }), "at short range");
+  assert.equal(gateLabel({ kind: "rangeBand", band: ["short", "medium"] }), "at short, medium range");
+  assert.equal(gateLabel({ kind: "rangeBand", band: "melee" }), "in melee");
+  assert.equal(gateLabel({ kind: "somethingElse" }), "somethingElse");
+});
+
+check("a modifier under each gate adds its labelled row to the throw only while the gate answers yes", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0, -1);
+  const foe = fighter(scene, "foe", 2, 1);
+  const mate = fighter(scene, "mate", 1, -1);
+  const combat = combatOf(3, [[me, false], [mate, false], [foe, false]]);
+  const bow = { system: { range: { short: 20, medium: 40, long: 60 } } };
+  const base = { token: me, target: foe, targetActor: { statuses: new Set(["webbed"]) }, item: bow };
+  const row = (label) => [{ label: `Cunning · ${label}`, value: 2 }];
+  const yes = [
+    [{ kind: "targetCondition", condition: "webbed" }, "against a target that is Webbed"],
+    [{ kind: "combatRound", round: { from: 2, to: 4 } }, "in rounds 2 to 4"],
+    [{ kind: "outnumbering", ratio: 1 }, "while outnumbering"],
+    [{ kind: "rangeBand", band: "short" }, "at short range"],
+  ];
+  const no = [
+    { kind: "targetCondition", condition: "blinded" },
+    { kind: "combatRound", round: { from: 4, to: 6 } },
+    { kind: "outnumbering", ratio: 3 },
+    { kind: "rangeBand", band: "long" },
+  ];
+  for (const [gate, label] of yes) assert.deepEqual(rowsFor(gate, base, "missile"), row(label), gate.kind);
+  for (const gate of no) assert.deepEqual(rowsFor(gate, base, "missile"), [], `${gate.kind} answering no`);
+  for (const [gate] of [yes[0], yes[3]]) assert.deepEqual(rowsFor(gate, { token: me }, "missile"), [], `${gate.kind} with no target or weapon`);
+  assert.deepEqual(rowsFor(yes[1][0], {}, "missile"), [], "a round with no token");
+  combat.round = 0;
+  assert.deepEqual(rowsFor(yes[1][0], base, "missile"), [], "a combat not begun");
+  assert.deepEqual(rowsFor(yes[0][0], base, "missile", { forWhat: "melee" }), [], "a row narrowed to melee does not ride a missile attack");
+  assert.deepEqual(rowsFor(yes[0][0], base, "melee", { forWhat: "melee" }), row("against a target that is Webbed"));
+});
+
 /* --- Keys ------------------------------------------------------------ */
 
 check("a spec key follows content, not position or locator", () => {
@@ -648,6 +828,8 @@ await (async () => {
         assert.ok(row[key] instanceof Bool, key);
         assert.equal(row[key].a.initial, false, key);
       }
+      for (const key of ["condition", "side", "band", "ratio"]) assert.ok(key in row.gate.fields, `gate.${key}`);
+      assert.deepEqual(Object.keys(row.gate.fields.round.fields), ["from", "to"], "gate.round is a span, either end open");
       assert.ok(row.gate.fields.occasion instanceof Bool);
       assert.equal(row.gate.fields.occasion.a.initial, false);
       assert.equal(row.exemptSizeOver.a.initial, "");

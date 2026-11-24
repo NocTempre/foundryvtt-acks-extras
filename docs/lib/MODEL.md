@@ -852,9 +852,11 @@ disposition is `atRoll` with reason `gate` on any actor, monsters included, and
 `standingModifiers` never writes it. The evaluator answers null without
 `ctx.token`, else whether the token's level is at least `light`.
 `roll-gates.mjs` is the attack seam's contributor: for each `attackThrow` row
-whose roll gate passes for the attacker's token (`attackInFlight(actor).token`:
-`actor.token`, else the first active token, else null), it adds
-`{name} · {level} (cite)` with the row's value; a row narrowed by `forWhat` to
+whose roll gate passes for the attack's context (`attackInFlight(actor)`: the
+attacker's token, `actor.token`, else the first active token, else null, and the
+target, weapon and delivery), it adds `{name} · {what the gate names} (cite)`
+with the row's value (the gates beside the light gate are in API.md, "Typed
+modifiers"); a row narrowed by `forWhat` to
 melee or missile rides only that attack, and a blank value adds nothing. The
 effect row editor writes the gate (an "Only at light level" select on modifier
 rows) and never replaces a gate of another kind.
