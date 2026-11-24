@@ -115,10 +115,12 @@ const ITEM_GATES = new Set();
  * A later registration of the same kind replaces the earlier one, and its
  * `at` with it.
  *
- * `at: "roll"` marks a gate that describes the roller's place at the moment of
- * a roll (a token's light), not the actor's state: a spec it gates is never
- * written as a standing modifier, on any actor, and a roll reads it with the
- * context the roll holds (`ctx.token`).
+ * `at: "roll"` marks a gate that describes the roller's place or the attack's
+ * moment (a token's light, the target's condition, the round), not the actor's
+ * state: a spec it gates is never written as a standing modifier, on any actor,
+ * and a roll reads it with the context the roll holds (`ctx.token`, and for an
+ * attack `target`, `targetActor`, `item` and `type`). A reader that holds less
+ * gets null from a gate that needs more.
  *
  * `at: "item"` marks a gate that describes the weapon the roll is made with
  * (`ctx.item`): a spec it gates is never written as a standing modifier and

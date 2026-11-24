@@ -697,8 +697,8 @@ above step 1) waits until the at-the-roll answers have been tried, so a monster
 bearer's scoped or item-gated row answers `atRoll`. Without it every answer is
 the one this section lists; the ability sheet and quick effects never pass it.
 
-`registerGate(kind, evaluate, {at})` takes `at: "roll"` (the roller's place, a
-token's light; `isRollGate`) or `at: "item"` (the weapon of the roll,
+`registerGate(kind, evaluate, {at})` takes `at: "roll"` (the roller's place or the
+attack's moment: a token's light, the attack-moment gates below; `isRollGate`) or `at: "item"` (the weapon of the roll,
 `ctx.item`; `isItemGate`). A row gated by an item gate answers `atRoll` with
 reason `item`, right after the roll-gate test and on either path, and never
 reaches `rollGatedModifiers`. A later registration of a kind replaces its timing.
@@ -712,16 +712,20 @@ the import fills, never from source.
 
 | Kind | Figure on the gate | Reads | True when |
 |---|---|---|---|
-| `targetCondition` | `condition`: a condition id of `conditions.mjs` (a list is accepted from a caller; the schema stores one) | `targetActor.statuses`, closed over what each condition implies (`conditionSet`) | the target carries any named condition. An id the catalogue lacks is ignored; none left is null |
-| `combatRound` | `round`: `{from, to}`, either bound optional, equal bounds one round; a bare number from a caller is that round | `token.combatant`'s combat `round` | the round is inside the span. A token in no combat, or a combat at round 0, is null |
+| `targetCondition` | `condition`: condition ids of `conditions.mjs`, a list stored as written (a bare string from a caller is one) | `targetActor.statuses`, closed over what each condition implies (`conditionSet`) | the target carries any named condition. An id the catalogue lacks is ignored; none left is null |
+| `combatRound` | `round`: `{from, to}`, either bound optional, equal bounds one round (the schema stores the span; a caller's bare number is read as that round) | `token.combatant`'s combat `round` | the round is inside the span. A token in no combat, or a combat at round 0, is null |
 | `outnumbering` | `ratio`, and `side: "against"` to read the opposing side | the dispositions of the undefeated combatants of the token's own combat (`areEnemies`: friendly against hostile; neutral and secret tokens count for neither side) | the bearer's side, itself included, is at least `ratio` times the other side's (with `against`, the other side at least `ratio` times the bearer's). A neutral or secret bearer, no combat, or nobody on the other side is null |
-| `rangeBand` | `band`: `melee`, `short`, `medium` or `long` (a list is accepted from a caller) | the delivery `type`; for `missile` and `thrown` the gap between `token` and `target` (`tokenGapFeet`) against the weapon's `system.range` reaches, in feet | the attack's band is the one named. The band is the nearest whose reach the gap does not exceed, not the choice made in the system's attack dialog, which no contributor sees. No target, no weapon reaches, another scene, or beyond the long reach is null |
+| `rangeBand` | `band`: `melee`, `short`, `medium` or `long`, a list stored as written | the delivery `type`; for `missile` and `thrown` the gap between `token` and `target` (`tokenGapFeet`) against the weapon's `system.range` reaches, in feet | the attack's band is the one named. The band is the nearest whose reach the gap does not exceed, not the choice made in the system's attack dialog, which no contributor sees. No target, no weapon reaches, another scene, or beyond the long reach is null |
 
 `roll-gates.mjs` `gateLabel(gate)` names the gate for the row's label by kind
 (`ACKS-LIB.gate.*`; the light level for `light`, the kind itself for a kind
-with no phrase). A gate is read by the throw's contributor only: no damage
-contributor reads one yet (the seam's `damage(ctx, attackType, modifiers)` question
-is where one would).
+with no phrase). Two readers ask a gate: the throw's contributor in `roll-gates.mjs`
+(the whole context above) and `roll-mods.mjs`' record parts, which hand a gate
+`{item, token}` only, so a record part under `targetCondition` or `rangeBand`
+answers null and `combatRound` and `outnumbering` read the attacker's token.
+No damage contributor reads a gate yet: the seam's `damage(ctx, attackType,
+modifiers)` question is where one would, with `rollGatedModifiers(actor, "damage")`
+for its rows.
 
 `stackingPart({value, label, ref, stacksWith, notStacksWith, ...rest})` is the
 one way to build a part for `resolveStacking`: it always gives `caps`
@@ -1227,7 +1231,7 @@ reaches the stacking, except a `grant` and a `throw` of mode `auto`, which carry
 higher one the better, any other the lower. Stacking is per group (a grant's by
 `ref`, a throw's by mode), so a bonus on one proficiency never displaces another's.
 `partHolds` answers true, false or null: a gate through `gateVerdict` (an item
-gate waits for `ctx.item`, a roll gate for `ctx.token`; one marked `occasion` that
+gate waits for `ctx.item`, a roll gate for the context it reads (`ctx.token` for the light gate; the attack-moment gates read more, and answer null where `partHolds` is not handed it); one marked `occasion` that
 holds waits for `ctx.occasion` to name its status), each `ifHas` through
 `hasCapability`; false beats null. It takes a row as well as a part, so a row of a
 spell's own save is tested per saver before any record exists (`ownSaveParts`,

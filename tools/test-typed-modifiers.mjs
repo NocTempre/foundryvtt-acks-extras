@@ -567,6 +567,28 @@ check("gateLabel names each kind, and the light level and an unknown kind as bef
   assert.equal(gateLabel({ kind: "somethingElse" }), "somethingElse");
 });
 
+const { readFileSync } = await import("node:fs");
+const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+check("every phrase gateLabel uses is a key en.json holds, placeholders and all", () => {
+  const prior = globalThis.game;
+  // A stub that answers only from en.json and marks each answer, so a key the file lacks falls back unmarked.
+  globalThis.game = { i18n: { has: (key) => key in lang, localize: (key) => `~${lang[key]}` } };
+  try {
+    assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed"] }), "~against a target that is Webbed");
+    assert.equal(gateLabel({ kind: "combatRound", round: 3 }), "~in round 3");
+    assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: 4 } }), "~in rounds 2 to 4");
+    assert.equal(gateLabel({ kind: "combatRound", round: { from: 2 } }), "~from round 2");
+    assert.equal(gateLabel({ kind: "combatRound", round: { to: 4 } }), "~through round 4");
+    assert.equal(gateLabel({ kind: "outnumbering", ratio: 2 }), "~while outnumbering");
+    assert.equal(gateLabel({ kind: "outnumbering", ratio: 2, side: "against" }), "~while outnumbered");
+    assert.equal(gateLabel({ kind: "rangeBand", band: ["short", "long"] }), "~at ~short, ~long range");
+    assert.equal(gateLabel({ kind: "rangeBand", band: ["medium"] }), "~at ~medium range");
+    assert.equal(gateLabel({ kind: "rangeBand", band: ["melee"] }), "~in melee");
+    assert.equal(gateLabel({ kind: "light", light: "dim" }), "~Dim light", "the light level reads its own key");
+  } finally {
+    globalThis.game = prior;
+  }
+});
 check("a modifier under each gate adds its labelled row to the throw only while the gate answers yes", () => {
   const scene = arena();
   const me = fighter(scene, "me", 0, -1);
@@ -830,6 +852,7 @@ await (async () => {
       }
       for (const key of ["condition", "side", "band", "ratio"]) assert.ok(key in row.gate.fields, `gate.${key}`);
       assert.deepEqual(Object.keys(row.gate.fields.round.fields), ["from", "to"], "gate.round is a span, either end open");
+      for (const key of ["condition", "band"]) assert.ok(row.gate.fields[key] instanceof List, `gate.${key} is a list of words`);
       assert.ok(row.gate.fields.occasion instanceof Bool);
       assert.equal(row.gate.fields.occasion.a.initial, false);
       assert.equal(row.exemptSizeOver.a.initial, "");

@@ -491,10 +491,11 @@ export function effectField() {
     // character's state by the evaluator `lib/typed-modifiers.mjs`
     // `registerGate` holds for `kind` (equipment's `lightlyEquipped`,
     // `activeStyle`, `specializedStyle` and `armourCeiling`, lib's `status` and
-    // `light`). The arguments are read off the
+    // `light`, and the four of `roll-gate-kinds.mjs`). The arguments are read off the
     // ability's own page by the import; one it did not read leaves the gate
     // undecided, and the modifier is listed rather than applied. A `light` gate
-    // is read at the roll, from the roller's token (`registerGate`'s `at: "roll"`).
+    // is read at the roll, from the roller's token (`registerGate`'s `at: "roll"`),
+    // and the four attack-moment gates from the attack's own context.
     // See docs/lib/API.md, "Typed modifiers".
     gate: new SchemaField({
       kind: str(),
@@ -507,11 +508,11 @@ export function effectField() {
       style: str(), // a fighting-style key
       status: str(), // a status id
       // The roll gates of `roll-gate-kinds.mjs`, each figure read off the page by the import:
-      condition: str(), // targetCondition: a condition id of the conditions catalogue
+      condition: wordList(), // targetCondition: condition ids of the conditions catalogue, any of
       round: new (F().SchemaField)({ from: num({ integer: true }), to: num({ integer: true }) }), // combatRound: rounds from..to; one bound alone is open-ended, both equal is one round
       ratio: num(), // outnumbering: how many times the other side's count
       side: str(), // outnumbering: "against" reads the opposing side outnumbering the bearer's
-      band: str(), // rangeBand: melee, short, medium or long
+      band: wordList(), // rangeBand: melee, short, medium or long, any of
       // A status gate on a record's part that belongs to one occasion (the daily
       // save an enervated creature makes) holds only where the roller names
       // that occasion; `partHolds` leaves it pending otherwise.

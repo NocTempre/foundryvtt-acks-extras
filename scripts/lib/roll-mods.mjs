@@ -273,7 +273,8 @@ function narrow(part, { subject = null, rollKey, save, kind, byRef = true } = {}
  * Whether a record's part (or a spell's row, before any record exists) holds
  * for `actor` now: true, false, or null where it cannot be told. A gate is
  * tested through `gateVerdict` (an item gate answers null unless `ctx.item` is
- * held, a roll gate unless `ctx.token` is), and a gate marked `occasion` that
+ * held, a roll gate unless the context it reads is: `ctx.token` for the light gate,
+ * and the attack-moment gates of `roll-gate-kinds.mjs` read the target and weapon too), and a gate marked `occasion` that
  * holds answers null unless `ctx.occasion` names its status, since the roll
  * that gate belongs to is the caller's to name. Each `ifHas` token is tested
  * through `hasCapability`. A false answer wins over a null one.
