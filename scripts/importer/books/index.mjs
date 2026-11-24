@@ -22,6 +22,7 @@
  * its own folder, and the silo gate counts what is left").
  */
 import * as jj from "./jj/index.mjs";
+import * as mm from "./mm/index.mjs";
 import * as rr from "./rr/index.mjs";
 import * as tt from "./tt/index.mjs";
 
@@ -29,4 +30,4 @@ import * as tt from "./tt/index.mjs";
  * Each book's contribution by book id, in merge order:
  * `{<id>: {tableRecipes?, magicItemLists?, axBands?, bookArt?}}`.
  */
-export const BOOK_CODE = Object.freeze({ jj, rr, tt });
+export const BOOK_CODE = Object.freeze({ jj, mm, rr, tt });
