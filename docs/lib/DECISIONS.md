@@ -37,7 +37,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-05 — [One palette, both seats — sheet theming retires into the tokens (2026-08-05)](DECISIONS-through-v11.14.5.md#one-palette-both-seats--sheet-theming-retires-into-the-tokens-2026-08-05)
 - 2026-08-05 — [The sheet theme stops being a setting (2026-08-05)](DECISIONS-through-v11.14.5.md#the-sheet-theme-stops-being-a-setting-2026-08-05--superseded-in-part-2026-08-07) — superseded in part (marked in the archive)
 - 2026-08-05 — [The palette crosses to core's sheets; the chrome is a setting (2026-08-05)](DECISIONS-through-v11.14.5.md#the-palette-crosses-to-cores-sheets-the-chrome-is-a-setting-2026-08-05)
-- 2026-08-05 — [Goods the system leaves un-draggable are marked — and only those (2026-08-05)](DECISIONS-through-v11.14.5.md#goods-the-system-leaves-un-draggable-are-marked--and-only-those-2026-08-05)
+- 2026-08-05 — [Goods the system leaves un-draggable are marked — and only those (2026-08-05)](DECISIONS-through-v11.14.5.md#goods-the-system-leaves-un-draggable-are-marked--and-only-those-2026-08-05) — qualified by "2026-11-24 — A goods row is marked draggable only when it has no handle"
 - 2026-08-05 — [The attack roll delegates its audience to core, and offers four modes (2026-08-05)](DECISIONS-through-v11.14.5.md#the-attack-roll-delegates-its-audience-to-core-and-offers-four-modes-2026-08-05)
 - 2026-08-07 — [The look becomes a setting; the palette is handed back rather than withheld (2026-08-07)](DECISIONS-through-v11.14.5.md#the-look-becomes-a-setting-the-palette-is-handed-back-rather-than-withheld-2026-08-07)
 - 2026-08-11 — [A character alone can strike a light (2026-08-11)](DECISIONS-through-v11.14.5.md#a-character-alone-can-strike-a-light-2026-08-11)
@@ -1105,3 +1105,30 @@ banded axis it invents a distribution the table does not print.
 
 **What it cost.** A banded axis needs its table imported; with none, every
 option but the default is unavailable and the axis rolls nothing.
+
+## 2026-11-24 — A goods row is marked draggable only when it has no handle
+
+Qualifies "Goods the system leaves un-draggable are marked — and only those
+(2026-08-05)". That ruling stands: goods are read from the data through
+`isGoods`, and only what core leaves un-draggable is marked. What changed is
+what "leaves un-draggable" means. The 2026-08-05 premise was that core marked
+every inventory row `.draggable` except money, so a row without the class was a
+coin row. `acks` 14.2.0 puts the class on a handle inside the row (the item
+name) and leaves the row itself plain, so a quantity input can be clicked and
+selected. That is the new evidence: the row is no longer the drag source, the
+name is.
+
+- A row is marked only when it has no handle of its own: it is not
+  `.draggable`, holds no `.draggable` descendant, and sits inside no
+  `.draggable` ancestor. A coin row has none and is marked, with the sheet's
+  DragDrop re-bound as before.
+- The test reads core's `.draggable` and nothing else of its markup; it is the
+  sheet's own `dragSelector`.
+
+**Rejected.** Marking by `data-item-id` alone, as 14.1.0 allowed: on 14.2.0 it
+turns every item, weapon and armour row back into a drag source and undoes the
+selectable quantity input.
+
+**Cost.** None on a sheet that draws a handle. A sheet another module registers
+whose rows carry `data-item-id` and a handle further inside is now left as it
+draws itself.

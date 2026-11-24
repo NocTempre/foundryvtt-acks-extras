@@ -1767,4 +1767,100 @@ await test("an arrival that is nobody's never joins a row kept for an owner", as
     "what arrives stamped as theirs still does");
 });
 
+/* -------------------------------------------- */
+/*  Rows with no drag handle                    */
+/* -------------------------------------------- */
+
+console.log("coin: a row with no drag handle is marked");
+
+const { markGoodsDraggable } = await import("../scripts/lib/patches/goods-drag.mjs");
+
+/**
+ * A node that answers the selectors the patch asks, over a tree it keeps:
+ * `[data-item-id]:not(.draggable)`, `.draggable` and `closest(".draggable")`.
+ */
+function node({ itemId = null, draggable = false, children = [] } = {}) {
+  const el = {
+    nodeType: 1,
+    parent: null,
+    dataset: itemId ? { itemId } : {},
+    children,
+    classList: { add: (name) => { if (name === "draggable") el.draggable = true; } },
+    draggable,
+    querySelector: (selector) => el.querySelectorAll(selector)[0] ?? null,
+    querySelectorAll(selector) {
+      const below = [];
+      const walk = (n) => { for (const c of n.children) { below.push(c); walk(c); } };
+      walk(el);
+      if (selector === ".draggable") return below.filter((n) => n.draggable);
+      if (selector === "[data-item-id]:not(.draggable)") return below.filter((n) => n.dataset.itemId && !n.draggable);
+      throw new Error(`the fake DOM does not answer ${selector}`);
+    },
+    closest(selector) {
+      assert.equal(selector, ".draggable");
+      for (let n = el; n; n = n.parent) if (n.draggable) return n;
+      return null;
+    },
+  };
+  for (const child of children) child.parent = el;
+  return el;
+}
+
+/** An app whose DragDrop counts the passes it is bound over. */
+function sheetOf(actor) {
+  const app = { actor, binds: 0, _dragDrop: { bind() { app.binds++; } } };
+  return app;
+}
+
+const sword = { _id: "sword", name: "Sword", type: "weapon", system: { quantity: { value: 1, max: 0 } } };
+
+await test("a row that holds a drag handle of its own is left alone and nothing is re-bound", async () => {
+  game.system = { id: "acks" };
+  try {
+    const actor = makeActor({ id: "hero", items: [sword] });
+    const handle = node({ itemId: "sword", draggable: true });
+    const rowEl = node({ itemId: "sword", children: [handle] });
+    const root = node({ children: [rowEl] });
+    const app = sheetOf(actor);
+    markGoodsDraggable(app, root);
+    assert.deepEqual([rowEl.draggable, handle.draggable, app.binds], [false, true, 0], "core's handle is the drag source; the row stays selectable");
+  } finally {
+    delete game.system;
+  }
+});
+await test("a handle is never re-marked, and a row inside a draggable one is left alone", async () => {
+  game.system = { id: "acks" };
+  try {
+    const actor = makeActor({ id: "hero", items: [sword, gold(5, { _id: "pile" })] });
+    const handle = node({ itemId: "sword", draggable: true });
+    const inner = node({ itemId: "pile" });
+    const outer = node({ draggable: true, children: [inner] });
+    const root = node({ children: [node({ itemId: "sword", children: [handle] }), outer] });
+    const app = sheetOf(actor);
+    markGoodsDraggable(app, root);
+    assert.deepEqual([handle.draggable, inner.draggable, app.binds], [true, false, 0]);
+  } finally {
+    delete game.system;
+  }
+});
+await test("a goods row with no handle is marked and the sheet's DragDrop is bound once", async () => {
+  game.system = { id: "acks" };
+  try {
+    const rope = { _id: "rope", name: "Rope", type: "item", system: { quantity: { value: 1, max: 0 }, weight6: 2 } };
+    const actor = makeActor({ id: "hero", items: [sword, rope, gold(5, { _id: "pile" }), silver(2, { _id: "s" })] });
+    const handle = node({ itemId: "sword", draggable: true });
+    const [swordRow, pile, small] = [node({ itemId: "sword", children: [handle] }), node({ itemId: "pile" }), node({ itemId: "s" })];
+    const stranger = node({ itemId: "nobody" });
+    const root = node({ children: [swordRow, pile, small, stranger] });
+    const app = sheetOf(actor);
+    markGoodsDraggable(app, root);
+    assert.deepEqual([swordRow.draggable, pile.draggable, small.draggable, stranger.draggable, app.binds], [false, true, true, false, 1],
+      "both coin rows are marked, a row that names no item is not, and the bind runs once for the pass");
+    markGoodsDraggable(app, root);
+    assert.equal(app.binds, 1, "a second render finds nothing left to mark and binds nothing");
+  } finally {
+    delete game.system;
+  }
+});
+
 console.log(`test-coin-flows: ${passed} checks passed`);

@@ -1007,7 +1007,7 @@ drops and purchases delivered with it.
 Covers `money.mjs` and `money-logic.mjs`, the stack half of `item-model.mjs`
 (`divideStack`, `joinStacks`, `perStoneOf`, `sumWeight6`), `stack-prompt.mjs`,
 `coin-order.mjs` on each sheet that hosts it, `bundles.mjs` `landCoin` and
-`refuseGoods`, and both guards in `patches/goods-drag.mjs`. The banked-coin
+`refuseGoods`, and the drag mark and both guards in `patches/goods-drag.mjs`. The banked-coin
 sweep is the location feature's ([location TESTING](../location/TESTING.md)),
 the wage run the henchmen feature's, and the till and the changer the markets
 feature's; each of those recipes carries its own coin steps.
@@ -1076,7 +1076,7 @@ feature's; each of those recipes carries its own coin steps.
   lock is shut (`flags.acks-extras.container = {locked: true, opened: false}`).
   Its coin is made with `money.creditCoin`: Gold ×100 and Silver ×20 loose, a
   Gold row of 50 in the pouch, and a Gold row of 30 behind the strongbox's
-  lock.
+  lock. It also carries "Coin Sword", a `weapon` with a quantity of 3.
 - "Coin Payee", a `character` holding one Gold row of 5 and no smaller coin.
 - "Coin Merc", a `monster` the Player seat owns, holding a Gold row of 12. It
   opens on the follower card.
@@ -1247,6 +1247,16 @@ feature's; each of those recipes carries its own coin steps.
     purse row is a drag source: its `dragstart` puts `{type: "Item", uuid}` on
     the event, and dropped on the Hero's sheet it is handed over into the
     container the Hero's order names.
+21. **The drag handle on the system's sheet.** Open the system's sheet for the
+    Hero on its inventory tab (drive notes: the system's own sheet), after the
+    Hero holds the Coin Sword row.
+    **Observable:** the Sword row's quantity input takes focus and its text
+    selects with the mouse, and the row is dragged by its name. The row itself
+    carries no `draggable` class, and holds one `.draggable` name element.
+    A coin row has no name handle, carries `draggable` on the row itself, and
+    drags from anywhere on it: dropped on the Hero's other Gold row it joins
+    as in step 3. Render the sheet twice: a coin row is marked once and the
+    Sword row is never marked.
 
 **Teardown.** `api.sweepTracked()`. Deleting the actors takes their coin with
 them, and deleting Coin Scene takes the tokens. The Bank and the vault each

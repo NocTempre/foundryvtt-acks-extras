@@ -4,17 +4,20 @@
  * opens once they are.
  *
  * `ActorSheetV2` binds its drag sources with `dragSelector: ".draggable"`, and
- * core's inventory template marks every row with that class except money. A
- * coin row is therefore never bound as a drag source, silently: no `dragstart`
- * fires and nothing of ours runs to explain why. The system is a read-only
- * reference, so the class is added after render and the sheet's own DragDrop
- * is re-bound — `DragDrop.bind` assigns `ondragstart` element by element, so a
- * class added afterwards stays inert until that pass runs again; binding twice
- * is safe because those handlers are assigned, not stacked.
+ * core's inventory template puts that class on a handle inside each row it
+ * makes draggable (the item name), leaving the rest of the row, its quantity
+ * input included, free to be clicked and selected. A coin row has no handle at
+ * all, so it is never bound as a drag source, silently: no `dragstart` fires
+ * and nothing of ours runs to explain why. The system is a read-only
+ * reference, so the class is added to that row after render and the sheet's
+ * own DragDrop is re-bound — `DragDrop.bind` assigns `ondragstart` element by
+ * element, so a class added afterwards stays inert until that pass runs again;
+ * binding twice is safe because those handlers are assigned, not stacked.
  *
- * Which rows qualify is read from the DATA, never a type name: a row is a drag
- * source when its `data-item-id` resolves to goods on this actor, via the same
- * `isGoods` storage and containers already gate on.
+ * Which rows qualify is read from the DATA, never a type name: a row with no
+ * handle of its own (not `.draggable`, no `.draggable` inside it or around it)
+ * is a drag source when its `data-item-id` resolves to goods on this actor,
+ * via the same `isGoods` storage and containers already gate on.
  *
  * Making coin draggable at all opens two core paths that must not run once it
  * is: `_onDropItem`'s money branch adds one to the row's quantity on a same-
@@ -46,7 +49,14 @@ import { MODULE_ID } from "../constants.mjs";
 import { landCoin, listsGoods, refuseGoods } from "../bundles.mjs";
 import { elementOf } from "../util.mjs";
 
-function markGoodsDraggable(app, element) {
+/**
+ * Mark every goods row that has no drag handle, then re-bind the sheet's
+ * DragDrop once if any row changed. A row has a handle of its own when it is
+ * `.draggable` itself, holds a `.draggable` descendant (core's item name), or
+ * sits inside a `.draggable` ancestor; such a row is left as the sheet drew it.
+ * Exported for the suite that drives it; the render hook is the one caller.
+ */
+export function markGoodsDraggable(app, element) {
   if (game.system?.id !== "acks") return;
   const actor = app?.actor ?? app?.document;
   if (!actor?.items?.size) return;
@@ -55,6 +65,7 @@ function markGoodsDraggable(app, element) {
 
   let marked = false;
   for (const row of root.querySelectorAll("[data-item-id]:not(.draggable)")) {
+    if (row.querySelector(".draggable") || row.closest(".draggable")) continue;
     const item = actor.items.get(row.dataset.itemId);
     if (!item || !isGoods(item)) continue;
     row.classList.add("draggable");
