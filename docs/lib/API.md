@@ -1908,3 +1908,37 @@ listener then takes that class's slots at that level before drawing the
 repertoire. The family Role axis built on all of this is
 [docs/monsters/MODEL.md](../monsters/MODEL.md), "Family templates: the Role
 axis".
+
+**Per-variant bands** (apiVersion 66). An axis may carry `bandsFrom: {doc,
+table, by}` (strings; all blank is none, and any one filled in makes the axis
+banded, so a half-written spec offers its default alone and never rolls
+uniform). It is opt-in: an axis without it behaves as above, which keeps
+summons, the cast dialog and the builder as they were. The bands are read at
+roll time from the registry, not copied onto options, so a Judge's override
+counts at once. **Band contract:** in `getDoc(doc).tables[table]`, the row
+keyed by the option's `key` holds, under the key of the option chosen on axis
+`by` (which must come earlier in axis order), a band `{min, max}` of whole
+numbers, `min <= max`, a band printed as one value having `min === max`; a
+column with no printed band holds nothing (absent, null or blank), and a row
+the import marked missing reads as none. Under `bandsFrom`: an option with no
+band for the chosen variant is unavailable (the axis's `default` aside, which
+needs none); with no resolver, no table or no choice on `by` yet only the
+default stands, and nothing throws. The roll uses the axis's own `roll` die,
+else `bandDie` of that variant's column (a column topping at 20 rolls `1d20`),
+over the available options' bands; the roll and die ride the log entry
+(`{source: "rolled", roll, die}`). A roll outside every band takes the default
+and logs `source: "gap"`, or with no default leaves the axis unchosen and logs
+the gap with no `option`; the uniform fallback never applies. A multi axis uses
+the bands for availability only.
+
+The Foundry-free logic takes the bands as a resolver,
+`bandOf(axis, option, choices) → {min, max} | null`, in the options of
+`chooseAxes`, and as a last argument of `optionAvailable` and
+`axisOffersChoice`. `registryBands()` (`scripts/lib/template-bands.mjs`)
+builds it from the registry, never throws, and returns null for every absence;
+`generateFromTemplate` and the builder sheet each build one. `axisIsBanded(axis)`
+is the one test of the field. `ROLL_PIN` (`templateLogic.ROLL_PIN`) as an axis's
+pin makes it roll though it names a default, passing over derive too; an axis
+without `bandsFrom` then rolls by its printed option bands, else uniform. The
+group sheet's variant dialog lists a banded axis's every option, since the
+variant is not yet chosen there; `chooseAxes` drops one with no band.

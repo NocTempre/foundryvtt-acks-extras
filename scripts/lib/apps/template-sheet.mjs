@@ -8,7 +8,8 @@
  */
 import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
-import { axisOffersChoice, optionAvailable } from "../template-logic.mjs";
+import { axisIsBanded, axisOffersChoice, optionAvailable } from "../template-logic.mjs";
+import { registryBands } from "../template-bands.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -56,13 +57,14 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     context.editing = this.#editing && this.isEditable;
     // An option no cell stands behind beside the other pins is listed as
     // unavailable and cannot be picked; Generate never chooses it either.
+    const bandOf = registryBands();
     const stringPins = () => Object.fromEntries(Object.entries(this.#pins).filter(([, v]) => typeof v === "string"));
     // Edit mode lists every axis, since it edits structure, not a generation.
     const shown = (sys.axes ?? []).filter((axis) => {
       if (context.editing) return true;
       const others = stringPins();
       delete others[axis.key];
-      if (axisOffersChoice(sys, axis, others)) return true;
+      if (axisOffersChoice(sys, axis, others, bandOf)) return true;
       // An axis with nothing to choose beside these pins takes its default;
       // a pin left on it would only be logged as unavailable at Generate.
       delete this.#pins[axis.key];
@@ -85,7 +87,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         derived: !!axis.derive?.from && !!this.#baseUuid,
         pinned: this.#pins[axis.key] ?? "",
         options: (axis.options ?? []).map((o) => {
-          const unavailable = !axis.multi && !optionAvailable(sys, axis, o, others);
+          const unavailable = (!axis.multi || axisIsBanded(axis)) && !optionAvailable(sys, axis, o, others, bandOf);
           return {
             key: o.key,
             label: unavailable
@@ -124,7 +126,8 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         if (value) this.#pins[key] = value;
         else delete this.#pins[key];
         // Another axis's options may stand or fall with this pin.
-        if ((this.actor.system.cells ?? []).some((c) => (c.by ?? []).includes(key))) this.render();
+        const sys = this.actor.system;
+        if ((sys.cells ?? []).some((c) => (c.by ?? []).includes(key)) || (sys.axes ?? []).some((a) => a.bandsFrom?.by === key)) this.render();
       });
     }
     // Multi-select axes pin an ARRAY of checked options (stacked add-ons).

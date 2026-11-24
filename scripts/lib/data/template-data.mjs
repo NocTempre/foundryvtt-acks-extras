@@ -81,6 +81,11 @@ export default class TemplateData extends foundry.abstract.TypeDataModel {
           // The option an unpinned generation takes instead of a roll ("" →
           // roll); always available, whatever the other axes chose.
           default: str(),
+          // Roll bands read per variant from a registry table at roll time
+          // (template-logic.mjs `axisIsBanded`, template-bands.mjs): `doc` the
+          // registry document id, `table` the table id, `by` the key of the
+          // axis whose choice picks the column. All blank → not banded.
+          bandsFrom: new SchemaField({ doc: str(), table: str(), by: str() }),
           options: new ArrayField(optionField()),
         })
       ),

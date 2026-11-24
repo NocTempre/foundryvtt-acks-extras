@@ -17,10 +17,16 @@
  * dropped base actor) > DEFAULT (the option the axis names for an unpinned
  * generation) > ROLLED (the axis die over the printed bands, else uniform).
  * Only options available beside the choices already made are chosen
- * (`optionAvailable`).
+ * (`optionAvailable`). A pin of `ROLL_PIN` asks the axis to roll, passing over
+ * derive and default.
+ *
+ * An axis may take its bands per variant from a registry table (`bandsFrom`,
+ * see `axisIsBanded`). The Foundry-free logic never reads the registry: it is
+ * handed `bandOf(axis, option, choices) → {min, max} | null`, which
+ * template-bands.mjs builds from the world's tables.
  */
 
-import { bracketRow } from "./tables.mjs";
+import { bandDie, bracketRow } from "./tables.mjs";
 import { setPath } from "./dotted-path.mjs";
 
 /** Mulberry32 — a tiny seedable PRNG so tests are deterministic. */
@@ -94,6 +100,55 @@ export function rollOption(axis, rng = Math.random) {
 }
 
 /**
+ * The pin value that asks an axis to ROLL even though it names a default
+ * (`pinned[axis.key] === ROLL_PIN`). A string no option key can be, so a pin
+ * survives a select value and a stored record. It outranks derive as any pin
+ * does: the axis rolls by its own rules (bands when it carries them, else
+ * uniform; `rollBandedOption` under `bandsFrom`).
+ */
+export const ROLL_PIN = "$roll";
+
+/**
+ * Does this axis take its roll bands per variant from a registry table
+ * (`axis.bandsFrom = {doc, table, by}`)? Any of the three strings filled in
+ * says yes, so a half-written spec fails closed, to the default alone, and never
+ * to an invented uniform roll. The schema fills every axis with blank strings,
+ * and all-blank is "not banded". Written once so no caller tests the object's
+ * truthiness.
+ */
+export function axisIsBanded(axis) {
+  const from = axis?.bandsFrom;
+  return !!(from && (String(from.doc ?? "").trim() || String(from.table ?? "").trim() || String(from.by ?? "").trim()));
+}
+
+/** A band as a resolver may hand it back: whole numbers, `min <= max`. */
+const validBand = (band) => !!band && Number.isInteger(band.min) && Number.isInteger(band.max) && band.min <= band.max;
+
+/**
+ * Roll one axis whose options take per-variant bands (`bandsFrom`): a die over
+ * the resolved bands of `options` (the available ones). The die is the axis's
+ * own `roll` when it names one, else the one the variant's column of bands
+ * implies (`bandDie`: as many faces as the highest band edge across every option
+ * of the axis). Returns `{option, roll, die}` for a hit; `{option: null, roll,
+ * die}` for a gap, which is a roll outside every band, or no die to throw
+ * (`roll` and `die` null when no band and no die give one). Never the uniform
+ * fallback, which would invent a distribution the page does not print. The
+ * caller applies the axis's default to a gap.
+ */
+export function rollBandedOption(axis, options, choices, bandOf, rng = Math.random) {
+  const named = String(axis?.roll ?? "").trim();
+  const bands = (axis?.options ?? []).map((o) => bandOf?.(axis, o, choices)).filter(validBand);
+  const die = named || bandDie(bands);
+  const roll = rollDie(die, rng);
+  if (roll == null) return { option: null, roll: null, die: die || null };
+  const option = (options ?? []).find((o) => {
+    const band = bandOf?.(axis, o, choices);
+    return validBand(band) && roll >= band.min && roll <= band.max;
+  });
+  return { option: option ?? null, roll, die };
+}
+
+/**
  * Derive an axis choice from a dropped base actor's values. The axis says
  * which base value it reads (`derive.from`, e.g. "hd") and its cap; options
  * with numeric keys are matched to the clamped value, taking the closest
@@ -126,10 +181,17 @@ const hasOwnPatch = (o) =>
  * of its cells, so it stands only where a cell matches it. An axis left
  * unchosen in `choices` matches any of its options. The axis's `default` is
  * always available, and so is every option of an axis no cell names.
+ *
+ * On a banded axis (`axisIsBanded`) an option stands only where `bandOf` (see
+ * the header) holds a band for it beside `choices`, the default aside; with no
+ * resolver, no table or no choice on the `by` axis yet, only the default stands.
+ * The band gate comes first, so an option's own patch never defeats a blank
+ * band; an option with a band then meets the cell rule above as any other.
  */
-export function optionAvailable(system, axis, option, choices = {}) {
+export function optionAvailable(system, axis, option, choices = {}, bandOf = null) {
   if (!option) return false;
   if (axis?.default && option.key === axis.default) return true;
+  if (axisIsBanded(axis) && !validBand(bandOf?.(axis, option, choices))) return false;
   if (hasOwnPatch(option)) return true;
   const cells = (system?.cells ?? []).filter((c) => (c.by ?? []).includes(axis.key));
   if (!cells.length) return true;
@@ -149,9 +211,9 @@ export function optionAvailable(system, axis, option, choices = {}) {
  * leaves the axis out. A multi axis and an axis that derives from a base
  * always offer one.
  */
-export function axisOffersChoice(system, axis, choices = {}) {
+export function axisOffersChoice(system, axis, choices = {}, bandOf = null) {
   if (!axis || axis.multi || axis.derive?.from) return true;
-  return (axis.options ?? []).filter((o) => optionAvailable(system, axis, o, choices)).length > 1;
+  return (axis.options ?? []).filter((o) => optionAvailable(system, axis, o, choices, bandOf)).length > 1;
 }
 
 /**
@@ -161,13 +223,27 @@ export function axisOffersChoice(system, axis, choices = {}) {
  * An unknown pinned key falls through to derive/roll; a pin of an unavailable
  * option is logged as `source: "unavailable"` and falls through the same way.
  * An axis's `default` stands in for a roll, so an axis that names one never
- * rolls.
+ * rolls, unless its pin is `ROLL_PIN`.
+ *
+ * `bandOf` resolves per-variant bands for banded axes (header, `axisIsBanded`);
+ * the axes an axis's `bandsFrom.by` names must come before it in axis order. A
+ * banded axis rolls its die over those bands only: a roll outside every band
+ * takes the default and logs `source: "gap"`, and with no default leaves the
+ * axis unchosen and logs the gap (no `option` key). A multi axis never rolls
+ * and takes only its availability from the bands. Without `bandOf` a banded axis
+ * offers its default alone.
  */
-export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random } = {}) {
+export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random, bandOf = null } = {}) {
   const choices = {};
   const log = [];
   for (const axis of system?.axes ?? []) {
-    const options = (axis.options ?? []).filter((o) => axis.multi || optionAvailable(system, axis, o, choices));
+    const banded = axisIsBanded(axis);
+    // A multi axis skips the cell rule; its bands alone gate it.
+    const stands = (o) =>
+      axis.multi
+        ? !banded || (axis.default && o.key === axis.default) || validBand(bandOf?.(axis, o, choices))
+        : optionAvailable(system, axis, o, choices, bandOf);
+    const options = (axis.options ?? []).filter(stands);
     if (!options.length) continue;
     // Multi-select axes are OPT-IN add-ons: apply exactly what was pinned
     // (validated), never roll a default.
@@ -183,22 +259,39 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
     let option = null;
     let source = null;
     let roll = null;
-    if (pinned[axis.key] != null) {
+    let die = null;
+    const mustRoll = pinned[axis.key] === ROLL_PIN;
+    if (pinned[axis.key] != null && !mustRoll) {
       option = options.find((o) => o.key === pinned[axis.key]) ?? null;
       if (option) source = "pinned";
       else if ((axis.options ?? []).some((o) => o.key === pinned[axis.key])) {
         log.push({ axis: axis.key, option: pinned[axis.key], source: "unavailable" });
       }
     }
-    if (!option) {
+    if (!option && !mustRoll) {
       option = deriveOption({ ...axis, options }, baseValues);
       if (option) source = "derived";
     }
-    if (!option && axis.default) {
+    if (!option && axis.default && !mustRoll) {
       option = options.find((o) => o.key === axis.default) ?? null;
       if (option) source = "default";
     }
-    if (!option) {
+    if (!option && banded) {
+      const r = rollBandedOption(axis, options, choices, bandOf, rng);
+      roll = r.roll;
+      die = r.die;
+      option = r.option;
+      if (option) source = "rolled";
+      else {
+        // A gap: the default when the axis names one, else the axis stays unchosen.
+        option = axis.default ? options.find((o) => o.key === axis.default) ?? null : null;
+        if (!option) {
+          log.push({ axis: axis.key, source: "gap", ...(roll != null ? { roll } : {}), ...(die ? { die } : {}) });
+          continue;
+        }
+        source = "gap";
+      }
+    } else if (!option) {
       const r = rollOption({ ...axis, options }, rng);
       option = r?.option ?? null;
       roll = r?.roll ?? null;
@@ -206,7 +299,7 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
     }
     if (!option) continue;
     choices[axis.key] = option.key;
-    log.push({ axis: axis.key, option: option.key, source, ...(roll != null ? { roll } : {}) });
+    log.push({ axis: axis.key, option: option.key, source, ...(roll != null ? { roll } : {}), ...(die ? { die } : {}) });
   }
   return { choices, log };
 }

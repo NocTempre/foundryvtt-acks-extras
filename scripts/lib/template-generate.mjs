@@ -6,6 +6,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, TEMPLATE_HOOKS } from "./constants.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDice, rollMenu } from "./template-logic.mjs";
+import { registryBands } from "./template-bands.mjs";
 import { hitDiceOrLevel } from "./actor-read.mjs";
 import { actorFolder } from "./util.mjs";
 import { cookbookId } from "./library.mjs";
@@ -36,7 +37,7 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
     if (hd != null) baseValues.hd = hd;
   }
 
-  const { choices, log } = chooseAxes(sys, { pinned: pins, baseValues });
+  const { choices, log } = chooseAxes(sys, { pinned: pins, baseValues, bandOf: registryBands() });
   const resolved = resolveActor(sys, choices, { baseName: base?.name ?? "", templateName: template.name });
 
   // A dropped base actor seeds generation (full system/items/flags), the

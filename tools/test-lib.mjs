@@ -8,7 +8,10 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import { BELOW_EVERY_RUNG, cleanDelta, commandStatus, isDerivedEffect, memberName, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
-import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
+import {
+  ROLL_PIN, axisIsBanded, axisOffersChoice, chooseAxes, mergePatch, optionAvailable, resolveActor, rollDie, rollMenu, rollOption, seededRng,
+} from "../scripts/lib/template-logic.mjs";
+import { registryBands } from "../scripts/lib/template-bands.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, csvFlagValue, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
@@ -1061,6 +1064,180 @@ t("chooseAxes precedence: pinned > derived > rolled", () => {
   // A stale pin falls through to a roll rather than failing.
   const stale = chooseAxes(TEMPLATE_SYS, { pinned: { tier: "gone" }, rng });
   assert.ok(["petty", "major"].includes(stale.choices.tier));
+});
+
+/* Banded axes (`bandsFrom`): invented keys and bands throughout. */
+const GIZMO_DOC = "gizmos";
+const BAND_TABLE = {
+  widget: { printer: { min: 1, max: 3 }, snark: { min: 1, max: 10 } },
+  gadget: { printer: { min: 4, max: 10 }, snark: null },
+  doohickey: { printer: { min: 11, max: 12 }, snark: "" },
+  thingamajig: { printer: { min: 12, max: 11 } },
+};
+const gizmoOpt = (key) => ({ key, label: key, merge: {}, items: [] });
+const bandedSystem = ({ roll = "", def = "", multi = false } = {}) => ({
+  axes: [
+    { key: "variant", label: "Variant", roll: "", default: "", options: ["printer", "snark"].map(gizmoOpt) },
+    {
+      key: "troop", label: "Troop", roll, default: def, multi,
+      bandsFrom: { doc: GIZMO_DOC, table: "bands", by: "variant" },
+      options: ["widget", "gadget", "doohickey", "thingamajig"].map(gizmoOpt),
+    },
+  ],
+  cells: [],
+});
+const withGizmos = (fn, table = BAND_TABLE) => {
+  T.resetTables();
+  T.registerTable({ id: GIZMO_DOC, tables: { bands: table } }, { priority: T.PRIORITY.WORLD });
+  try {
+    fn(registryBands());
+  } finally {
+    T.resetTables();
+  }
+};
+
+t("banded axis: an all-blank bandsFrom is no bands, and an axis without one rolls as before", () => {
+  assert.equal(axisIsBanded({ bandsFrom: { doc: "", table: "", by: "" } }), false);
+  assert.equal(axisIsBanded({}), false);
+  assert.equal(axisIsBanded({ bandsFrom: { doc: "", table: "", by: "variant" } }), true, "half a spec fails closed, not open");
+  const sys = { axes: [{ ...TEMPLATE_SYS.axes[1], bandsFrom: { doc: "", table: "", by: "" } }] };
+  const withResolver = chooseAxes(sys, { rng: () => 0.99, bandOf: () => null });
+  assert.deepEqual(withResolver.choices, { element: "water" });
+  assert.equal(withResolver.log[0].source, "uniform", "the uniform fallback stands where nothing is banded");
+  assert.equal(chooseAxes(TEMPLATE_SYS, { rng: () => 0.1 }).log[0].source, "rolled", "bands on options still roll");
+});
+
+t("banded axis: no band for the chosen variant is unavailable and disabled; the default always stands", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem({ def: "widget" });
+    const troop = sys.axes[1];
+    const opt = (k) => troop.options.find((o) => o.key === k);
+    assert.equal(optionAvailable(sys, troop, opt("gadget"), { variant: "printer" }, bandOf), true);
+    assert.equal(optionAvailable(sys, troop, opt("gadget"), { variant: "snark" }, bandOf), false, "a null band");
+    assert.equal(optionAvailable(sys, troop, opt("doohickey"), { variant: "snark" }, bandOf), false, "a blank band");
+    assert.equal(optionAvailable(sys, troop, opt("thingamajig"), { variant: "printer" }, bandOf), false, "min above max reads as no band");
+    assert.equal(optionAvailable(sys, troop, opt("widget"), { variant: "snark" }, bandOf), true);
+    assert.equal(optionAvailable(sys, troop, opt("gadget"), {}, bandOf), false, "no variant chosen yet");
+    const noBandDefault = bandedSystem({ def: "thingamajig" });
+    assert.equal(optionAvailable(noBandDefault, noBandDefault.axes[1], opt("thingamajig"), { variant: "printer" }, bandOf), true, "the default needs no band");
+    // The builder's view: with only the default left, there is no choice to show.
+    const snarkOnly = bandedSystem({ def: "doohickey" });
+    assert.equal(axisOffersChoice(snarkOnly, snarkOnly.axes[1], { variant: "snark" }, bandOf), true, "widget and the default");
+    assert.equal(axisOffersChoice(snarkOnly, snarkOnly.axes[1], { variant: "printer" }, bandOf), true);
+    const lone = bandedSystem({ def: "doohickey" });
+    lone.axes[1].options = lone.axes[1].options.filter((o) => ["gadget", "doohickey"].includes(o.key));
+    assert.equal(axisOffersChoice(lone, lone.axes[1], { variant: "snark" }, bandOf), false, "only the default stands");
+  });
+});
+
+t("banded axis: no resolver, no table or no variant leaves the default alone and throws nothing", () => {
+  const sys = bandedSystem({ def: "widget" });
+  const troop = sys.axes[1];
+  assert.equal(optionAvailable(sys, troop, troop.options[1], { variant: "printer" }), false, "no resolver");
+  assert.equal(axisOffersChoice(sys, troop, { variant: "printer" }), false);
+  const bare = chooseAxes(sys, { pinned: { variant: "printer" }, rng: seededRng(1) });
+  assert.deepEqual(bare.choices, { variant: "printer", troop: "widget" });
+  assert.equal(bare.log.at(-1).source, "default");
+  const noDefault = chooseAxes(bandedSystem(), { pinned: { variant: "printer" }, rng: seededRng(1) });
+  assert.deepEqual(noDefault.choices, { variant: "printer" }, "nothing is invented");
+  T.resetTables();
+  const absent = registryBands();
+  assert.doesNotThrow(() => absent(troop, troop.options[0], { variant: "printer" }));
+  assert.equal(absent(troop, troop.options[0], { variant: "printer" }), null, "no document in the world");
+  withGizmos((bandOf) => {
+    assert.equal(bandOf(troop, troop.options[0], {}), null, "no choice on the by axis");
+    assert.equal(bandOf({ ...troop, bandsFrom: { doc: GIZMO_DOC, table: "nope", by: "variant" } }, troop.options[0], { variant: "printer" }), null);
+    assert.equal(bandOf({ ...troop, bandsFrom: { doc: GIZMO_DOC, table: "bands", by: "" } }, troop.options[0], { variant: "printer" }), null);
+    assert.equal(bandOf(troop, { key: "__proto__" }, { variant: "printer" }), null, "a key off the prototype is no row");
+    assert.equal(bandOf(troop, troop.options[0], { variant: "toString" }), null);
+    assert.equal(bandOf(troop, { key: "flux" }, { variant: "printer" }), null, "a band must be whole numbers, not text");
+    assert.equal(bandOf(troop, troop.options[1], { variant: "printer" }), null, "a missing-row cell is no band");
+    assert.equal(bandOf(troop, troop.options[0], { variant: "printer" }), null, "a missing row is no row");
+  },{ widget: { __missing: true }, gadget: { printer: { __missing: true } }, flux: { printer: { min: "1", max: "2" } } });
+});
+
+t("banded axis: the band is read per chosen variant, and the die follows the column", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem();
+    const run = (variant) => chooseAxes(sys, { pinned: { variant }, rng: () => 0.5, bandOf });
+    const printer = run("printer");
+    assert.equal(printer.choices.troop, "gadget", "1d12 at a half roll is 7, in the gadget band");
+    assert.deepEqual(printer.log.at(-1), { axis: "troop", option: "gadget", source: "rolled", roll: 7, die: "1d12" });
+    const snark = run("snark");
+    assert.equal(snark.choices.troop, "widget", "1d10 at a half roll is 6, in the widget band");
+    assert.equal(snark.log.at(-1).die, "1d10", "the die is the highest band edge of that variant's column");
+    // Every seeded roll lands in a band of its own column.
+    for (let seed = 1; seed <= 40; seed++) {
+      const { choices, log } = chooseAxes(sys, { pinned: { variant: "printer" }, rng: seededRng(seed), bandOf });
+      const band = BAND_TABLE[choices.troop].printer;
+      const roll = log.at(-1).roll;
+      assert.ok(roll >= band.min && roll <= band.max, `seed ${seed}: roll ${roll} within ${choices.troop}'s band`);
+    }
+    // A die the axis names wins over the derived one.
+    const named = chooseAxes(bandedSystem({ roll: "1d20" }), { pinned: { variant: "printer" }, rng: () => 0.5, bandOf });
+    assert.deepEqual(named.log.at(-1), { axis: "troop", option: "doohickey", source: "rolled", roll: 11, die: "1d20" });
+  });
+});
+
+t("banded axis: a gap takes the default and logs it; with no default the axis stays unchosen", () => {
+  withGizmos((bandOf) => {
+    const pinned = { variant: "printer" };
+    const rng = () => 0.99; // 1d20 → 20, past every band
+    const withDefault = chooseAxes(bandedSystem({ roll: "1d20", def: "widget" }), { pinned: { ...pinned, troop: ROLL_PIN }, rng, bandOf });
+    assert.equal(withDefault.choices.troop, "widget");
+    assert.deepEqual(withDefault.log.at(-1), { axis: "troop", option: "widget", source: "gap", roll: 20, die: "1d20" });
+    const bare = chooseAxes(bandedSystem({ roll: "1d20" }), { pinned, rng, bandOf });
+    assert.equal("troop" in bare.choices, false, "unchosen");
+    assert.deepEqual(bare.log.at(-1), { axis: "troop", source: "gap", roll: 20, die: "1d20" });
+    // No die anywhere (the column holds no band at all) is a gap too, never a uniform pick.
+    const dead = chooseAxes(bandedSystem(), { pinned: { variant: "snark" }, rng, bandOf: () => null });
+    assert.equal("troop" in dead.choices, false);
+    assert.equal(dead.log.some((l) => l.axis === "troop"), false, "no option stands, so the axis is skipped");
+    const noDie = chooseAxes(bandedSystem({ def: "widget" }), { pinned: { variant: "snark", troop: ROLL_PIN }, rng, bandOf: () => null });
+    assert.deepEqual(noDie.log.at(-1), { axis: "troop", option: "widget", source: "gap" }, "a rolled axis with no die and no band is a gap");
+  });
+});
+
+t("ROLL_PIN makes an axis that names a default roll; a plain axis rolls by its own rules", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem({ def: "widget" });
+    const unpinned = chooseAxes(sys, { pinned: { variant: "printer" }, rng: () => 0.5, bandOf });
+    assert.equal(unpinned.choices.troop, "widget");
+    assert.equal(unpinned.log.at(-1).source, "default");
+    const rolled = chooseAxes(sys, { pinned: { variant: "printer", troop: ROLL_PIN }, rng: () => 0.5, bandOf });
+    assert.equal(rolled.choices.troop, "gadget");
+    assert.equal(rolled.log.at(-1).source, "rolled");
+    const element = { axes: [{ ...TEMPLATE_SYS.axes[1], default: "fire" }] };
+    assert.equal(chooseAxes(element, { rng: () => 0.99 }).choices.element, "fire");
+    const plain = chooseAxes(element, { pinned: { element: ROLL_PIN }, rng: () => 0.99 });
+    assert.deepEqual(plain.choices, { element: "water" });
+    assert.equal(plain.log[0].source, "uniform", "no bands on the options: uniform, as today");
+    const tier = { axes: [{ ...TEMPLATE_SYS.axes[0], default: "petty" }] };
+    assert.equal(chooseAxes(tier, { pinned: { tier: ROLL_PIN }, rng: () => 0.9 }).choices.tier, "major", "printed bands on options");
+  });
+});
+
+t("banded multi axis: bands gate availability only, and nothing is rolled", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem({ multi: true });
+    const rng = () => 0.5;
+    const off = chooseAxes(sys, { pinned: { variant: "snark" }, rng, bandOf });
+    assert.equal("troop" in off.choices, false, "never rolled");
+    const picked = chooseAxes(sys, { pinned: { variant: "snark", troop: ["widget", "gadget", "doohickey"] }, rng, bandOf });
+    assert.deepEqual(picked.choices.troop, ["widget"], "only the option with a band for the variant");
+  });
+});
+
+t("banded axis: a Judge's override layer wins over the imported table", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem();
+    const troop = sys.axes[1];
+    assert.equal(bandOf(troop, troop.options[1], { variant: "snark" }), null);
+    T.registerTable({ id: GIZMO_DOC, tables: { bands: { gadget: { snark: { min: 2, max: 2 } } } } }, { priority: T.PRIORITY.OVERRIDE });
+    const after = registryBands();
+    assert.deepEqual(after(troop, troop.options[1], { variant: "snark" }), { min: 2, max: 2 }, "a single value is min = max");
+    assert.equal(after(troop, troop.options[0], { variant: "snark" }), null, "the override replaces the whole table");
+  });
 });
 
 t("sub-rolls resolve on pick: die, outcomes, twice; graceful without", () => {
