@@ -1003,3 +1003,41 @@ Open on board 1j, the drawn shape first:
 "Link an entry…" is a Judge's tool the capture needs wherever a word matches
 no entry; which slice builds it is not ruled. Not checked: board 1j's
 rendering. Released: none.
+
+### The owner on board 1i, 2026-11-24
+
+Asked whether board 1i is the model, with boards 1h and 1i on screen: "It's
+okay. I'd rather have tabs with horizontal spread and rows than columns of
+vertical spread."
+
+Read as two things. First, the model stands as board 1i drew it, its three
+marked points included: a gang is a group actor of its own, a warband and a
+gang are entries on the village's faction card and not faction cards of their
+own, and a warband out whole is a group card that lists groups. The reading
+is thin, two words over three points, and a correction to any of the three is
+still the owner's to give. Second, a layout ruling that changes nothing in
+the model: a surface that shows units or places is tabs, each tab a set of
+rows with its things spread along the row, not side-by-side columns of
+indented lists. Example: the village's faction sheet has a row for Warband 1
+with Gang 1 and Gang 2 along it, and on another tab a row for each place with
+the things there along it.
+
+Board 1i is redrawn that way: the village's faction sheet on two tabs, and
+the place's own roster with a row for each faction there. Its rows wrap at a
+narrow width and nothing scrolls sideways. Drawn, and still open: the rows by
+unit sit on the sheet's existing Members tab and Where is a new tab beside it
+(`docs/factions/MODEL.md`, "The sheet", has five tabs today); the other shape
+is one new tab for both.
+
+What it puts in question, not redrawn: the indented outline that boards 1c
+and 1d and the "Window behaviour" note give the chart in a narrow window is a
+column of vertical spread. Whether the chart of 1f wraps as rows instead is
+not drawn.
+
+Question 1 of "The owner on the two cards" is answered on this reading, so
+the re-rule of `architect`'s A, C, F and G runs now, on the owner's words,
+by a fresh agent, and is recorded below as proposed. Question 2, a wandering
+warband or lair roll and a faction card of its own, stays the owner's; the
+re-rule covers both branches and picks neither. Not checked: the redrawn
+board's rendering. Released: none; section 3's rows change on the owner's
+word on the proposal.
