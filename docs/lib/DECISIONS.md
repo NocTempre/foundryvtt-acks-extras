@@ -1087,3 +1087,21 @@ resolves to nothing while the replacing write is still in flight. Gear with
 Active Effects of its own, which divided before, now moves whole and shows no
 count control; a sale still counts units off it, since a sale makes no second
 row.
+
+## 2026-11-24 — A template axis can take its bands from a registry table
+
+**Ruled.** An axis with `bandsFrom: {doc, table, by}` reads each option's roll
+band at roll time from the registry cell for the option's row and the column
+named by the pinned `by` axis, through a resolver `generateFromTemplate`
+passes in (`registryBands`), so `template-logic.mjs` stays pure. The die is
+derived from the bands. An option with no band for the chosen column is
+unavailable. A roll outside every band takes the axis default and logs `gap`.
+`ROLL_PIN` lets a Judge roll an axis that names a default. An axis without
+`bandsFrom` behaves as before, which keeps summons and the cast dialog as they
+are.
+
+**Rejected.** The uniform fallback on a gap, which every other axis uses: on a
+banded axis it invents a distribution the table does not print.
+
+**What it cost.** A banded axis needs its table imported; with none, every
+option but the default is unavailable and the axis rolls nothing.

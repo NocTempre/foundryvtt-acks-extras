@@ -198,3 +198,42 @@ answered **"Yes, add it"**. The public beta wrote that data itself, so the
 The fix's changelog bullet says to apply stats again, which replaces the
 monster's natural attacks with typed ones. A line is all it gets: no check, no
 warning and no repair tool.
+
+## 2026-11-24 — A beastman's special troop, tribal trait and optional equipment are template axes, banded per breed and read at generation
+
+**Ruled (owner).** "I want the beastmen template fixed with special attention
+towards capturing everything in this document mechanically (plus arranging art
+correctly, etc)." On the two leader sources, asked whether the breed page or
+the leader table is the default: **"Breed is default, Table 54 shows leaders
+who are both better equipped and tougher (higher HD)"**. On the overview
+page's five heads, asked whose they are: **"They are tribes, neither"**, then
+"Can reuse for roles" and at once **"Wait no you can't"**.
+
+**Ruled (this change).** The family template gains three axes beside Variant,
+Leader figures, Role and Kit, in the order Variant, Leader figures, Role,
+special troop, Kit, tribal trait, optional equipment (`orderAxes`). Troop and
+trait are single axes whose options take their roll bands per breed from the
+registry tables (lib DECISIONS, "A template axis can take its bands from a
+registry table"); optional equipment is a multi axis that is only pinned. The
+template holds keys, labels and cells; every figure is read at generation from
+the imported `monsters` document (`applyGeneratedOrganisation`), so a Judge's
+override counts with no repair. The leader table is a third Leader figures
+option, a better-equipped and tougher grade, applied before the kit
+(`applyGeneratedLeaderGrade`); the breed page stays the default. A share of
+missile troops in a breed's encounter recipe (`ratioOf: "unit"`) counts whole
+units, the gangs of a warband or the warbands of a lair or village, rounded as
+printed. No head from the overview strip is placed on a trait, a variant or a
+role.
+
+**Rejected.** Bands on cells: every patch duplicated per breed, and an
+option's own patch defeats the blank handling. Bands copied onto options at
+import: an override would need a repair. A registry with no axes: the builder
+could not make one creature with a troop or a trait. The share read as a share
+of bodies: the sentence divides units. A trait head: the heads are tribes'.
+
+**What it cost.** The axis order is fixed, since the variant merge splices the
+Kit axis at its place. A figure the page makes conditional (a first round, an
+outnumbering, a target's state) is recorded on the creature and its notes and
+applied by nothing until the roll gates exist. A proficiency a troop or trait
+grants lands only where the printed word folds onto one of the world's
+proficiency names; elsewhere the creature gets none and the console says so.

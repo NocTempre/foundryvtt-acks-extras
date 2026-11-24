@@ -1041,3 +1041,175 @@ warband or lair roll and a faction card of its own, stays the owner's; the
 re-rule covers both branches and picks neither. Not checked: the redrawn
 board's rendering. Released: none; section 3's rows change on the owner's
 word on the proposal.
+
+### Phase 1, 2026-11-24
+
+S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
+landed on `main` and walked on seat lane B. Commits, none pushed: S1
+`b6b8297e`, S2 `467c0c3a`, S4 `ddf61bba`, S3 `e3248745`, S5 `02b0544f`, and
+`be3508b1`, which moves the new table recipes into the MM's book folder after
+the first land was refused by check-silos. The topic is landed and open;
+phases 3 and 4 build on it. What landed is described in `docs/monsters/MODEL.md`
+("The organisation tables", "The encounter recipe", "The organisation axes")
+and ruled in monsters and lib DECISIONS (both 2026-11-24). The walk recipe is
+`docs/monsters/TESTING.md`, "The organisation axes", marker
+`monsters/beastman-organisation`.
+
+Breeds below are named by their page, pp. 48 to 53; roles, traits and items
+by the ids at the head of this file.
+
+**Exercised live**, on lane B, the Gamemaster 2 and Player 2 seats, with
+Gamemaster and Player seated by peers and nothing shut down:
+
+- The import wrote the MM's 21 `monsters` tables. A repair in place took the
+  family template from the axes Variant, Leader figures, Role and Kit to the
+  seven axes in their order, with 23 more cells. Its picture was unchanged.
+- Availability on the template sheet, through a real pick in its selects: on
+  the p. 48 breed, every R is enabled and the two T without a band are listed
+  disabled. Through the resolver on every breed, all 52 R and T cells match
+  pp. 55 and 57.
+- For every breed: each R and each T pinned alone, and each leader rank under
+  both Leader figures sources, 131 creatures in all. Every armour class,
+  attack, initiative, avoid-surprise, morale and damage change matches the
+  paragraph that prints it. The T1 natural attacks match each breed's printed
+  dice, with the breed's damage modifier applied. A row whose paragraph prints
+  only conditional figures (R2, R7, T2, T3, T4, T6, T10) changes no figure.
+  Every leader cell matches p. 54 under the table grade, and the breed's own
+  page under the default. The four cells where the two print differently
+  each come out as their own source prints them: the p. 48 breed's chieftain
+  damage, the p. 50 breed's chieftain armour class, the p. 51 breed's
+  champion damage and the p. 52 breed's sub-chieftain armour class.
+- Rolls: 36 rolls on each of R and T (six per breed). Every result lands on a
+  band the breed has. None landed on a blank and none fell into a gap.
+- Each of E1 to E9 pinned alone on every breed (54 creatures): no figure
+  moves, and the flag records the item with its row and cite.
+- A table-grade champion with a Kit, R5 and T9 pinned, on every breed. The
+  armour class is the grade's plus both bumps, its parts recorded. The damage
+  is the kit's figure plus the grade's step over the warrior, by importer
+  DECISIONS 2026-11-14. On the p. 51 breed that differs from the grade's own
+  figure with no kit, as that rule says it should.
+- The sheet gesture: the troop and trait picked in the template sheet's
+  selects and Generate clicked. The creature it opened has the base armour
+  class plus both bumps. On the Full Monster sheet, the armour-class hover
+  names the base, each part and both pages. It renders the same on the
+  Player 2 seat once that seat is given Observer, and it is gone after
+  another armour class is typed.
+- The proficiency grants: R3's lands as one ability item on every breed. R6's
+  word folds onto no world proficiency, so the creature gets none, and that is
+  the console warning seen seven times (six pinned, one rolled).
+- Teardown: every creature was deleted by the uuid its own generation
+  returned. Sweeps removed 131 + 108 + 1 + 4, with nothing missing and nothing
+  refused. A console recorder attached after `ready` saw no error.
+
+**Checked offline only.** Unit suites on the final tree: `test-lib` 274,
+`test-organisation-axes` 69, `test-prose-values` 67,
+`importer/test-ecology-recipe` 38, `test-organisation` 26. The full gate
+passed on the second land. `check-organisation-axes` and
+`check-ecology-recipe` were read against pp. 54 to 57 on this machine's MM.
+
+**Not checked.** A fresh import into an empty world, and a world missing one
+table. The variant-pin prompt dialog. The creature's notes, where each
+conditional row and each E is said to be named with its page. The Follower
+Card's figures (see T-0715). The sheet at a raised type size or a narrow
+width. `init`, `setup` and `ready` themselves, since no recorder was attached
+before them. A leader rank whose two sources differ in armour class, under a
+Kit.
+
+**References to other creatures** (section 4, answer 6). This is a census of
+what phase 1 holds, matched by folding the printed word against the MM's
+cookbook entries (plural to singular, the entry's "X, Y" order), offline on
+this machine's MM. Nothing writes the match yet: every such part keeps
+`source.name` and an empty `source.uuid`.
+
+- Resolved, one entry folds: the guard-beast part `guard-1` of all six breeds,
+  and `guard-2` of the p. 53 breed. On p. 54, the beast cells of row V1 that
+  name a creature outside the family and five of V2's six cells. On p. 55,
+  four of R7's six mounts, the p. 48 breed's beasts that fight alongside
+  included.
+- Unresolved, a finding each, none guessed at: `guard-2` of the p. 49 breed,
+  whose word two entries answer because the page leaves out the qualifier
+  both carry, and V2's cell for the same breed, for the same reason. `guard-2`
+  of the p. 52 breed and that breed's R7 mount, whose entry is filed under a
+  category word the page leaves out. The p. 51 breed's R7 mount, which matches
+  no entry by fold because the entry is named by another word.
+- Not creatures to resolve: each breed's `captives` part, a count of no named
+  kind. T6's added beasts, which the page leaves to the breed. V6 and V7's
+  "fights as" cells, which name breeds of the family.
+- The owner's second example word names no creature the section prints. The
+  p. 50 breed's guard beast and mount are printed under another word, which
+  folds to its own entry.
+
+Making these references real is more than a fix to S4. The part needs an
+entry reference resolved at generation, since a library uuid exists only
+once the other creature is imported. The resolver needs a category word and
+a two-entry case, which no fold settles. The text cells of V1, V2 and R7 need
+reading into parts. All of it is the new S11 requirement in the phase 3
+prompt below; ledger T-0717.
+
+**Findings**, each on the intake ledger:
+
+- T-0713: R6's proficiency is never granted.
+- T-0714: the table grade's die is recorded and read by nothing.
+- T-0715: the Follower Card names no organisation part.
+- T-0716: the armour-class tip opens with the unwound base.
+- T-0717: no references to other creatures.
+- T-0718: `acks-branch land` deletes its gate log on a refusal.
+- T-0719: the variant-pin prompt lists bandless options.
+- T-0720: the E checkboxes have no unavailable state (needs `/design`).
+- T-0721: the recipe reader yields parts for seven entries outside the
+  family.
+- T-0722: a one-per-N dependant share is unread.
+- T-0723: the trait table's `damage` key holds two shapes.
+
+Two more for the slices that own them. E5's condition is printed under a
+word other than the `choking` that section 2d names (S9b). The recipe
+part's `basis` field and its whole-unit share are what S11 reads (MODEL,
+"The encounter recipe"). lib's `apiVersion` is 66.
+
+Section 3's S5 row is delivered as built, without its "trait art" (Ruling 4
+above). Phase 1's start prompt is spent.
+
+### Start prompt, phase 2
+
+> Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
+> `.claude/rules/ip-doctrine.md`, `docs/monsters/MODEL.md` ("The organisation
+> axes") and `docs/lib/README.md`. First, on `main` as fixes, one
+> `implementer` each: ledger T-0713 (R6's grant) and T-0714 (the table grade's
+> die). Each is walked by the "organisation axes" recipe in
+> `docs/monsters/TESTING.md` before the next starts. Then open
+> `topic/beastman-gear` with `acks-branch` and build, one agent per slice:
+> S6a and S6b (`implementer`), S7 (`architect`, since it crosses lib, magic
+> and equipment; its ruling is appended here before S8 or S9a is briefed),
+> S9b and S9c (`implementer`). S8 and S9a are released only once the owner
+> has answered canvas 4's questions (Design session, above); until then they
+> are listed as held. Each brief quotes the owner's three sentences (section
+> "The owner's words") and the slice's acceptance from section 3. Land each
+> slice that needs a walk and walk it on `main`, on a lane no peer holds,
+> without shutting the world down unasked. Append results here sorted as
+> exercised live, offline only and not checked, correct the phase 3 prompt,
+> and report every commit by sha and "not pushed". The book is
+> `C:\Proj\acks-reference\Snips\MM_Beastmen.pdf` (LOCAL-ONLY).
+
+### Start prompt, phase 3 — HELD
+
+Held until both are true: the owner has accepted the re-rule of `architect`'s
+A, C, F and G that the planning session records above as proposed, and has
+answered question 2 of "The owner on the two cards" (a wandering warband or a
+lair roll and a faction card of its own). Section 3's rows S10 to S12 are
+rewritten on that ruling before this prompt runs.
+
+> Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
+> `.claude/rules/ip-doctrine.md`, `docs/monsters/MODEL.md` ("The encounter
+> recipe", "The organisation axes"), `docs/lib/GROUPS.md` and
+> `docs/factions/MODEL.md`. `acks-branch sync beastman-organisation`, then
+> build in its worktree, one `implementer` per slice, S10, S11, S11b, then
+> S12 once canvas 1 is approved. S11's first requirement is section 4, answer 6,
+> whose words the brief quotes from there: a recipe part, a village cell or a
+> mount that names a creature outside the family holds a reference to that
+> creature's entry, resolved at generation, and a generated unit includes it
+> as that creature. Its acceptance is phase 1's census ("References
+> to other creatures", Results): every resolved row resolves, and every
+> unresolved row stays a finding the Judge links by hand (board 1j). Each
+> brief quotes the owner's three sentences and the slice's acceptance. Land
+> and walk on `main` as in phase 1. Append results here, correct the phase 4
+> prompt, and report.
