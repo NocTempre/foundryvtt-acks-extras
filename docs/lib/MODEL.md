@@ -1740,39 +1740,6 @@ Card submits on change too, and calls the same `showStoredInputs` from its own
 `_onRender`; its wrapper carries the actor's own id in `data-item-id`, which
 the item-row test reads as the actor's fields rather than an item's.
 
-### A record the system stamped without renaming
-
-The system's `character` and `monster` models rename the 14.0 combat fields
-(`thac0`, `aac`, the saves `breath` and `wand`) in `migrateData`, but only
-while the record's `_schemaVersion` is below current. A record its world
-migration stamped and left on the old fields would build with the schema's
-defaults in their place. `patches/legacy-source.mjs` wraps both models'
-static `migrateData` at init, so the wrap is in place before
-`initializeDocuments` builds any world actor. The wrap runs
-`migrateLegacyCombatSource` ahead of the system's method. The helper fills
-each new field from the old one where the new one is absent, and the record
-itself is not written.
-
-The `weapon`, `armor`, `item`, `ability` and `spell` models skip their renames
-on the stamp the same way: a weapon's string damage, numeric bonus and tag
-list, an item's weight, an armour's `aac`, an old save key. The wrap on those
-asks `legacyItemFields` (`actor-compat.mjs`) which of the system's renames
-would still change the record, one test per rename copied from the guard of
-the system's helper that performs it. When any would, it runs the system's own
-method with the stamp held at 0 for that call and puts it back after, so the
-system's helpers do the renaming. A weapon whose damage object names no
-alternate at all also gets a blank one, as the system's string-to-object
-migration writes it, rather than the schema's initial die. Only a stored record
-qualifies: a change set (`options.partial`) and creation data carry no stamp,
-and the system migrates those itself.
-
-Each rescue is kept in a `WeakMap` against the document's loaded `system`
-source (`rescuedFields`), joined across the two passes an embedded item's
-source takes. The repair check `lib.stampedRecords` lists what it holds and
-writes each record whole, with `system` replaced rather than merged, which is
-the only update that removes a key the schema does not declare. A record so
-written loads as stored, and the map forgets it.
-
 ### A weapon's two-handed die follows its imported row
 
 A weapon's alternate damage (`system.damage.alternate.formula`) follows the
@@ -1789,9 +1756,7 @@ Weapons already in the world are brought to their row by the repair check
 `lib.twoHandedRow`, which lists the world's weapons and the weapons on world
 actors whose stored alternate, compared without spacing or case, differs from
 the row's, and writes the row's value when ticked. An unlinked token's actor
-is not walked. A weapon the stamped-record rescue still holds is listed and
-not offered until `lib.stampedRecords` has written its record, since its stored
-`damage` may still be a string that a merged change set cannot extend.
+is not walked.
 
 ## The multi-roller chat card
 

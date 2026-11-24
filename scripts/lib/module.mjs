@@ -112,7 +112,6 @@ import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-ro
 import { installLoyaltyRollPatch } from "./patches/loyalty-roll.mjs";
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
-import { installLegacyCombatRescue } from "./patches/legacy-source.mjs";
 import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
 import { installCompendiumEmptyLoadPatch } from "./patches/compendium-empty-load.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "./patches/spell-use.mjs";
@@ -572,9 +571,6 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[ANIMAL_TYPE] = AnimalData;
   CONFIG.Actor.dataModels[GROUP_TYPE] = GroupData;
   CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
-  // At init for the same reason: the system's own models build each world
-  // actor from its stored record in `initializeDocuments`.
-  installLegacyCombatRescue();
   light.declareLightTables();
   senses.declareSenseTables();
   declareDefenseTables();

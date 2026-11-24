@@ -1,7 +1,8 @@
 /**
- * Live walk, lib-repair-checks: the two-handed row repair check, and tied
- * initiative sorted the same on both seats. Walks docs/lib/TESTING.md:
- *   - "A weapon's two-handed die, and the check that writes it", steps 1–4;
+ * Live walk, lib-repair-checks: the two-handed row repair check, the Repair
+ * window's check list, and tied initiative sorted the same on both seats.
+ * Walks docs/lib/TESTING.md:
+ *   - "A weapon's two-handed die, and the check that writes it", steps 1–5;
  *   - "Tied initiative sorts the same on every seat", steps 1, 2, 3, 5 and 6.
  * Machine values arrive through ./_env.mjs. No book is needed: every name and
  * die is invented, and the weapon rows are the stamped modes built by hand.
@@ -18,7 +19,9 @@
  * combat's tokens in reverse. Each step writes the shape it needs first. The
  * run's own products (the repair report's whisper) are tracked and swept; the
  * fixtures stay. `LEAVINGS=<json file>` names uuids a run that died before its
- * sweep tracked (read off its log), and they are swept first.
+ * sweep tracked (read off its log), and they are swept first. Step 5 retires
+ * the markers `lib/legacy-stamped-fighter`, `-kit` (characters) and `-loose`
+ * (a weapon), which an earlier recipe kept, and builds nothing in their place.
  */
 import fs from "node:fs";
 import { connect, sleep } from "./_driver.mjs";
@@ -146,6 +149,20 @@ const P = {
     return {
       table: true, ticked, rows, counts, still, posted: H.posted.slice(),
       reportWhisper: report.length === 1 && report[0].whisper.length > 0,
+    };
+  },
+  /** The repair window opened with no filter and no scan: every check it lists, by id, beside the registry's. */
+  checkList: async () => {
+    const H = globalThis.__lr;
+    const app = acksExtras.lib.repair.open({});
+    const first = await H.poll(() => app.rendered && H.root(app)?.querySelector("article[data-check]"), { tries: 150 });
+    const ids = first ? [...H.root(app).querySelectorAll("article[data-check]")].map((a) => a.dataset.check) : [];
+    await app.close({ animate: false });
+    return {
+      rendered: !!first,
+      ids,
+      registered: H.RP.repairChecks().map((c) => c.id),
+      scanned: (await H.RP.scanRepairs({ only: "lib.stampedRecords" })).length,
     };
   },
   sheet: async ({ uuid }) => {
@@ -356,6 +373,21 @@ try {
   const s2 = await run(gm, P.sheet, { uuid: none.uuid });
   note("sheets", { first: s1, second: s2 });
   check("4: the first weapon's alternate damage field reads 1d11, the second's reads empty", s1.found && s1.value === "1d11" && s2.found && s2.value === "", { first: s1, second: s2 });
+
+  section("A weapon's two-handed die: 5. the window holds no stamped-record check");
+  // The pre-14.2.0 fixtures are retired by marker, each tracked and swept by
+  // its own uuid; a marker that finds nothing is "none standing".
+  const retired = {};
+  for (const [marker, kind] of [["lib/legacy-stamped-fighter", "Actor"], ["lib/legacy-stamped-kit", "Actor"], ["lib/legacy-stamped-loose", "Item"]]) {
+    retired[marker] = await gm.retire(marker, kind);
+  }
+  note("retired", Object.fromEntries(Object.entries(retired).map(([m, sw]) => [m, { removed: sw.removed.map((e) => e.uuid), missing: sw.missing.map((e) => e.uuid), failed: sw.failed.map((e) => ({ uuid: e.uuid, error: e.error })) }])));
+  check("5: no retired fixture refused its delete", Object.values(retired).every((sw) => !sw.failed.length && !sw.missing.length));
+  const listed = await run(gm, P.checkList);
+  note("check list", { rendered: listed.rendered, ids: listed.ids, scanned: listed.scanned });
+  // The positive controls first: a window that failed to render would pass the absence check.
+  check("5: the window rendered a row for the two-handed and the stranded-coin checks", listed.rendered && listed.ids.includes("lib.twoHandedRow") && listed.ids.includes("lib.strandedCoin"), listed.ids);
+  check("5: the window holds no lib.stampedRecords row, the registry holds none, and a scan of it answers nothing", !listed.ids.includes("lib.stampedRecords") && !listed.registered.includes("lib.stampedRecords") && listed.scanned === 0, { window: listed.ids.length, registered: listed.registered.length, scanned: listed.scanned });
 
   section("Tied initiative: fixtures");
   // The kept combat is read as it stands: its rows' ids, tokens and sides are

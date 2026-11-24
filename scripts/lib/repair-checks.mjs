@@ -1,7 +1,6 @@
-/* global game, fromUuid, foundry, Item, CONFIG, fetch, AbortController */
+/* global game, fromUuid, foundry, CONFIG, fetch, AbortController */
 /**
- * The repair checks lib owns: records the system stamped as migrated while
- * keeping their old field names, bundles embedded where no sheet lists them,
+ * The repair checks lib owns: bundles embedded where no sheet lists them,
  * carry links to actors that are gone, a weapon's two-handed die that
  * disagrees with its imported row, images whose file the server no longer has,
  * and the coin of actors a package no longer installed left unloadable. The
@@ -16,7 +15,6 @@ import { bundleRows, unpackStage } from "./bundles-logic.mjs";
 import { ATTACH_FLAG, ATTACH_ROLES, attachmentOf } from "./attachment.mjs";
 import { resolveActorSync } from "./storage.mjs";
 import { isLegacyChangeKey, migrateChangeKey } from "./actor-compat.mjs";
-import { forgetRescue, rescuedFields } from "./patches/legacy-source.mjs";
 import { distinctPaths, missingPaths, planRepair } from "./missing-images.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
@@ -81,79 +79,6 @@ async function rewriteLegacyChanges(fx) {
 }
 
 /**
- * Every world document the stamped-record rescue read back at load, with the
- * fields it read: the world's actors and their items, then the world's items.
- * An unlinked token's actor is left out: its record is the base actor's, plus
- * a delta the base actor's fix does not need.
- */
-function* stampedDocs() {
-  for (const actor of game.actors ?? []) {
-    const filled = rescuedFields(actor._source?.system);
-    if (filled) yield { doc: actor, parent: null, fields: filled, name: actor.name };
-    for (const item of actor.items ?? []) {
-      const fields = rescuedFields(item._source?.system);
-      if (fields) yield { doc: item, parent: actor, fields, name: `${actor.name} → ${item.name}` };
-    }
-  }
-  for (const item of game.items ?? []) {
-    const fields = rescuedFields(item._source?.system);
-    if (fields) yield { doc: item, parent: null, fields, name: item.name };
-  }
-}
-
-/**
- * Write each rescued record whole, an actor's items in one call per actor. The
- * write is not diffed and replaces `system` rather than merging into it: core
- * cleans a deletion of an undeclared key out of a change set, so the old names
- * leave the record only when `system` is replaced. Each rescue is forgotten
- * once its write lands. See docs/lib/DECISIONS.md, "A stamped item is read at
- * load and written by a repair check".
- */
-async function writeStampedRecords(findings) {
-  const wanted = new Set(findings.map((f) => f.key));
-  const batches = new Map();
-  for (const entry of stampedDocs()) {
-    if (!wanted.has(entry.doc.uuid)) continue;
-    const owner = entry.doc.documentName === "Actor" ? entry.doc : entry.parent;
-    const slot = owner?.uuid ?? "world";
-    if (!batches.has(slot)) batches.set(slot, { owner, actor: null, items: [] });
-    if (entry.doc.documentName === "Actor") batches.get(slot).actor = entry;
-    else batches.get(slot).items.push(entry);
-  }
-  const results = [];
-  const settle = (entries, error) => {
-    for (const e of entries) {
-      if (!error) forgetRescue(e.doc._source.system);
-      results.push(error ? { key: e.doc.uuid, ok: false, error } : { key: e.doc.uuid, ok: true });
-    }
-  };
-  // A fresh object per call: core writes the parent into the operation it is
-  // handed, and a reused one sends the next batch to the last one's actor.
-  const whole = () => ({ diff: false, recursive: false });
-  const system = (doc) => foundry.utils.deepClone(doc._source.system);
-  for (const { owner, actor, items } of batches.values()) {
-    if (actor) {
-      try {
-        await actor.doc.update({ system: system(actor.doc) }, whole());
-        settle([actor], null);
-      } catch (err) {
-        settle([actor], String(err?.message ?? err));
-      }
-    }
-    if (!items.length) continue;
-    const rows = items.map((e) => ({ _id: e.doc.id, system: system(e.doc) }));
-    try {
-      if (owner) await owner.updateEmbeddedDocuments("Item", rows, whole());
-      else await Item.implementation.updateDocuments(rows, whole());
-      settle(items, null);
-    } catch (err) {
-      settle(items, String(err?.message ?? err));
-    }
-  }
-  return results;
-}
-
-/**
  * The two-handed die a weapon's imported row names, read off the modes the
  * importer stamped on the item from the Judge's own page: the die of the mode
  * held two-handed, `""` when the row names none, and null when the item
@@ -171,8 +96,7 @@ const foldDie = (die) => String(die ?? "").replace(/\s+/g, "").toLowerCase();
 /**
  * Every weapon the two-handed-die check reads, labelled as it prints them: the
  * world's actors' items, then the world's items. An unlinked token's actor is
- * left out, as `stampedDocs` leaves it, since its record is the base actor's
- * plus a delta.
+ * left out: its record is the base actor's plus a delta.
  */
 function* weaponDocs() {
   for (const actor of game.actors ?? []) {
@@ -187,10 +111,7 @@ function* weaponDocs() {
 
 /**
  * Every weapon whose stored alternate die differs from the one its imported
- * row names. The finding carries the die to write (`want`, `""` for none). A
- * weapon the stamped-record rescue is still holding is listed and not offered:
- * its stored `damage` is not yet the object the loaded source shows, and a
- * change set merged into it would replace the base die.
+ * row names. The finding carries the die to write (`want`, `""` for none).
  */
 function twoHandedFindings() {
   const none = loc("repair.check.twoHandedRow.none");
@@ -206,7 +127,6 @@ function twoHandedFindings() {
       name,
       want: row,
       detail: loc("repair.check.twoHandedRow.detail", { stored: stored || none, row: row || none }),
-      ...(rescuedFields(item._source?.system) ? { fixable: false, reason: loc("repair.check.twoHandedRow.stampedFirst") } : {}),
     });
   }
   return out;
@@ -217,7 +137,7 @@ function twoHandedFindings() {
  * source, ownerImg?}`: the world's actors with their items and effects, the
  * world's items with their effects, macros, roll tables with their results,
  * journal pages, and every scene with its levels and tokens. An unlinked
- * token's synthetic actor is left out, as in `stampedDocs`. A scene token
+ * token's synthetic actor is left out. A scene token
  * carries its base actor's image as `ownerImg`, the default its own art falls
  * back to.
  */
@@ -315,20 +235,6 @@ async function missingImageFindings() {
 
 /** Registers lib's checks. Called once, at `init`. */
 export function registerLibRepairChecks() {
-  registerRepairCheck({
-    id: "lib.stampedRecords",
-    label: key("stampedRecords.label"),
-    hint: key("stampedRecords.hint"),
-    order: 5,
-    scan: () => [...stampedDocs()].map(({ doc, name, fields }) => ({
-      key: doc.uuid,
-      uuid: doc.uuid,
-      name,
-      detail: loc("repair.check.stampedRecords.detail", { fields: fields.join(", ") }),
-    })),
-    fix: writeStampedRecords,
-  });
-
   registerRepairCheck({
     id: "lib.twoHandedRow",
     label: key("twoHandedRow.label"),

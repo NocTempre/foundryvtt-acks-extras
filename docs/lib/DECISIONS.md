@@ -54,7 +54,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-10 — [Every writer of the library opens its shelf through one door](DECISIONS-through-v11.14.5.md#2026-09-10--every-writer-of-the-library-opens-its-shelf-through-one-door)
 - 2026-09-11 — [A deletion is the operator, spelled once](DECISIONS-through-v11.14.5.md#2026-09-11--a-deletion-is-the-operator-spelled-once)
 - 2026-09-16 — [The setting is the same word as the prompt](DECISIONS-through-v11.14.5.md#2026-09-16--the-setting-is-the-same-word-as-the-prompt) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md); "2026-10-22 — A hireling opens on its type's sheet; the card is picked"; "2026-10-28 — The merge residue check removes what it lists"; "2026-10-21 — The non-proficient package's figures are imported" (docs/equipment/DECISIONS.md)
-- 2026-10-21 — [The flank and the subjacent target are the system dialog's choices](DECISIONS-through-v11.14.5.md#2026-10-21--the-flank-and-the-subjacent-target-are-the-system-dialogs-choices) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md); "2026-11-03 — A stamped item is read at load and written by a repair check"
+- 2026-10-21 — [The flank and the subjacent target are the system dialog's choices](DECISIONS-through-v11.14.5.md#2026-10-21--the-flank-and-the-subjacent-target-are-the-system-dialogs-choices) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md); "2026-11-24 — The system migrates a stamped record, so the module reads none" (its nested "A stamped record's old combat fields are read at load (2026-10-28)")
 - 2026-10-30 — [Automated Animations is told what a card cannot say](DECISIONS-through-v11.14.5.md#2026-10-30--automated-animations-is-told-what-a-card-cannot-say)
 - 2026-11-01 — [The drag corner is asked for once](DECISIONS-through-v11.14.5.md#2026-11-01--the-drag-corner-is-asked-for-once)
 - 2026-11-01 — [A monster's Roll writes at once, and the token says what the Judge lets it](DECISIONS-through-v11.14.5.md#2026-11-01--a-monsters-roll-writes-at-once-and-the-token-says-what-the-judge-lets-it)
@@ -64,8 +64,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-03 — [Tied initiative sorts the same on every seat](DECISIONS-through-v11.14.5.md#2026-11-03--tied-initiative-sorts-the-same-on-every-seat)
 - 2026-11-03 — [A token's light and sight are written in the scene's units](DECISIONS-through-v11.14.5.md#2026-11-03--a-tokens-light-and-sight-are-written-in-the-scenes-units)
 - 2026-11-03 — [A group token in a combat deploys the whole group](DECISIONS-through-v11.14.5.md#2026-11-03--a-group-token-in-a-combat-deploys-the-whole-group)
-- 2026-11-03 — [A stamped item is read at load and written by a repair check](DECISIONS-through-v11.14.5.md#2026-11-03--a-stamped-item-is-read-at-load-and-written-by-a-repair-check) — superseded in part by "2026-11-03 — A weapon's two-handed die follows its imported row"
-- 2026-11-03 — [A weapon's two-handed die follows its imported row](DECISIONS-through-v11.14.5.md#2026-11-03--a-weapons-two-handed-die-follows-its-imported-row)
+- 2026-11-03 — [A weapon's two-handed die follows its imported row](DECISIONS-through-v11.14.5.md#2026-11-03--a-weapons-two-handed-die-follows-its-imported-row) — superseded in part by "2026-11-24 — The system migrates a stamped record, so the module reads none" (its Cost sentence on a weapon the rescue holds)
 - 2026-11-04 — [An axis with one option left is no choice on the builder](DECISIONS-through-v11.14.5.md#2026-11-04--an-axis-with-one-option-left-is-no-choice-on-the-builder)
 - 2026-11-10 — [A CSV grant is a union](DECISIONS-through-v11.14.5.md#2026-11-10--a-csv-grant-is-a-union)
 - 2026-11-11 — [A magic light shines where its holder lets it](DECISIONS-through-v11.14.5.md#2026-11-11--a-magic-light-shines-where-its-holder-lets-it)
@@ -1132,3 +1131,75 @@ selectable quantity input.
 **Cost.** None on a sheet that draws a handle. A sheet another module registers
 whose rows carry `data-item-id` and a handle further inside is now left as it
 draws itself.
+
+## 2026-11-24 — The system migrates a stamped record, so the module reads none
+
+Supersedes "2026-11-03 — A stamped item is read at load and written by a repair
+check" (archived in `DECISIONS-through-v11.14.5.md`), the nested "A stamped
+record's old combat fields are read at load (2026-10-28)" in "2026-10-21 — The
+flank and the subjacent target are the system dialog's choices", and the
+sentence of "2026-11-03 — A weapon's two-handed die follows its imported row"
+that holds a weapon back while the rescue holds it. It also supersedes the
+same-day amendment to the repo-level "2026-11-13 — Only what the module and the
+current system write is served", which kept `legacy-source.mjs` and
+`lib.stampedRecords`. The rest of those entries stands.
+
+**New evidence.** The owner's standing ruling for this upgrade: "Anything that
+now duplicates needs rolled into calling core instead of parallel code
+maintenance." `acks` 14.2.0's migration runner, which the 2026-11-03 entry
+found to write only a stamp, now repairs the record itself:
+
+- `MigrationRunner` (`migration/runner/migration-runner.mjs`) reads each
+  document's stored data from the server (`MigrationUtil.fetchStoredSources`),
+  migrates that, and writes `system` whole as a `ForcedReplacement` with
+  `diff: false`, so the old keys leave the record.
+- `Migration7RepairLostMigrations` (`migrations/m7-repair-lost-migrations.mjs`)
+  re-runs `updateActor` and `updateItem` of migrations 1 to 5 (saves, item
+  weight, languages, weapons, data clean-up) over every document stored below
+  schema 8. `CURRENT_SCHEMA_VERSION` is 8 (it was 5), and the world setting
+  `systemSchemaVersion` that 14.1.0 left at 5 is what starts the run.
+- It reaches every world actor of every type, its items, world items,
+  unlinked token deltas and world-owned compendium packs. Module and system
+  packs are skipped.
+
+**Ruled.** The module reads and writes none of it. `patches/legacy-source.mjs`
+and its install at `init`, the `lib.stampedRecords` repair check, the
+`twoHandedRow` check's hold on a weapon the rescue still carried,
+`migrateLegacyCombatSource` and `legacyItemFields` (`actor-compat.mjs`) are
+deleted, with the `migrateData` overrides of the module's `animal`, `group`
+and `template` models that called the first of them. `LEGACY_SAVE_KEYS`,
+`saveKindOf` and the effect-key helpers stay: they read effect changes and
+dangling save references, which the runner does not rewrite.
+`lib.legacyEffectKeys` stays for the same reason; its 2026-11-13 reason, the
+worlds the rescue served, is gone, and whether it still stands is the owner's
+question.
+
+**Rejected.** Keeping the check for a world not yet launched on 14.2.0: the
+module's minimum is 14.2.0, and the runner repairs such a world at its first
+GM load. Keeping the module sub-types' own rename: core's m1 and m5 reach those
+records already, and a second reader of the same fields is the parallel
+maintenance the ruling removes.
+
+**Cost.**
+- A record of a module sub-type (`animal`, `group`, `template`) that still
+  stores `thac0`, `aac`, `saves.breath` or `saves.wand` loads, until the runner
+  has rewritten it, with those keys dropped by the schema and the new fields
+  at their defaults (attack throw 10, Armor Class 0, the schema's saves). The
+  runner does reach it, once, at the first GM load while the world setting is
+  below 8, since the migrations carry no type guard. The 2026-11-11 ruling
+  covers a record from before the beta, so no check is kept for one that
+  arrives later, an old export imported into a world already on 8 included.
+- Core renames a field only when its parent is absent: `attack` or `ac` is
+  moved only when the stored record holds none, and a save only when its
+  new key is absent. The module's own helper filled each missing leaf. A
+  stored record that holds both a partial `attack` and `thac0` keeps the
+  partial `attack`, and `thac0` is deleted.
+- Core's schema fills an absent `damage.alternate` with a die ("1d6", the
+  `DamageField` initial), and its string-to-object migration writes a blank one
+  only for a record whose `damage` is still a string. A weapon stored with a
+  damage object and no alternate, which the rescue loaded blank, now loads with
+  that die, and the sheet offers a second grip the record never stated. A
+  weapon with an imported row is listed by `lib.twoHandedRow` and fixed from
+  its row; one with none is not, and is left to the Judge.
+- That the runner reaches module sub-types and rewrites them as stated is read
+  from 14.2.0's source, not observed in a world.

@@ -60,7 +60,7 @@ The rule: an effect is suppressed when all of these hold:
 - the effect does not carry the opt-out flag `flags.acks-extras.whileCarried` (for an item that works merely carried).
 
 Mechanics:
-- Register at `init`, as `patches/legacy-source.mjs` does, so the wrap is in place before `initializeDocuments`.
+- Register at `init`, so the wrap is in place before `initializeDocuments`.
 - The predicate reads only source data (`gear.wornAt`, `system.equipped`). It runs inside `applyActiveEffects("initial")`, after `prepareEmbeddedDocuments`.
 - It composes with no other change: `actor.appliedEffects`, and so every effect-scan collector, filters on `effect.active`.
 

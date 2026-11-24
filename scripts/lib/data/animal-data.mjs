@@ -15,7 +15,7 @@
  * What it adds beyond a monster is the shop-and-stable half: what the animal
  * can CARRY, whether it can be RIDDEN, and how well it is trained.
  */
-import { creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
+import { creatureAttackModifiers, savingThrowFields } from "../actor-compat.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 
 /** How an animal was trained (RR Animal Training). Display strings are i18n keys. */
@@ -176,10 +176,5 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
   /** The damage roll's modifiers from this animal: its Tweaks adjustment for the attack's kind, then the attack seam's. */
   getDamageModifiers(attackType) {
     return damageModifiersFor(this, attackType, creatureAttackModifiers(this, attackType).damage);
-  }
-
-  /** A source stored under the system's earlier field names is read onto the current ones. */
-  static migrateData(source) {
-    return super.migrateData(migrateLegacyCombatSource(source));
   }
 }

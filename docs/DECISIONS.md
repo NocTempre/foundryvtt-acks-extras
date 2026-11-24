@@ -153,7 +153,10 @@ imports is not the same as fix previous versions of imports. The former is
 still approved." Amended the same day, after the `acks` 14.1.0 migration
 runner was found to write only its stamp: `lib/patches/legacy-source.mjs`
 and the `lib.stampedRecords` repair check stay, because worlds on the current
-system still hold the old record shape.
+system still hold the old record shape. **Superseded 2026-11-24** (this
+amendment only): both are deleted, since `acks` 14.2.0's migration repairs the
+record itself; the lib ruling of that date, in `docs/lib/DECISIONS.md`, names
+the evidence.
 
 **The test.** Each item was read, not judged by its comment: who calls it,
 and whether anything the current module or the current `acks` system still

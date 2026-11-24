@@ -10,7 +10,7 @@
  * stack, a mixed unit (10 swordsmen beside 10 spearmen) is two, each with its
  * own base actor and its own sparse roster.
  */
-import { acksCompatStubs, creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
+import { acksCompatStubs, creatureAttackModifiers, savingThrowFields } from "../actor-compat.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 import { commandStatus } from "../group-logic.mjs";
 import { clampScore, moraleBounds } from "../score-bounds.mjs";
@@ -176,16 +176,6 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         morale: new NumberField({ integer: true, min: -6, max: 4, initial: 0 }),
       }),
     };
-  }
-
-  /**
-   * A source stored under the system's earlier combat field names is read onto
-   * the current ones.
-   * @override
-   */
-  static migrateData(source) {
-    migrateLegacyCombatSource(source);
-    return super.migrateData(source);
   }
 
   /**

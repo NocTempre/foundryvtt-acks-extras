@@ -2915,99 +2915,12 @@ holding the same effect.
 
 **Teardown.** Delete both actors by their tracked ids.
 
-## A record the system stamped without renaming
-
-Covers `patches/legacy-source.mjs`. One GM seat. Each step reloads the page,
-so drive it from a pane or the driver, and poll `game.ready` after each reload.
-
-**Drive mechanics.**
-- The record as stored, before any client-side `migrateData`:
-  `(await foundry.helpers.SocketInterface.dispatch("modifyDocument", {type: "Actor", action: "get", operation: {query: {_id}}})).result[0].system`.
-  `actor._source` and `toObject()` are already migrated and cannot show it.
-- A raw socket `create` (`action: "create"`, `operation: {data: [data]}`)
-  stores `system` exactly as given. The requesting client does not add the
-  actor to `game.actors` until a reload.
-
-**Fixture, a setup check:** `lib/legacy-stamped-fighter`, a `character`
-created raw with the 14.0 fields: `details.level` 2, `saves` with `paralysis`
-13, `breath` 14 and `wand` 15, and `thac0`
-`{value: 19, bba: 1, throw: 9, mod: {melee: 0, missile: 0}}`. Step 1 needs
-it unstamped, so a walk retires the one its marker finds, tracking it first,
-and builds it again raw.
-
-1. **The system's migration write.** Reload. Then send the update the
-   system's runner sends: `raw = actor.toObject()`,
-   `raw.system._schemaVersion = 5`, drop `items` and `effects`,
-   `Actor.implementation.updateDocuments([{_id, ...raw}])`.
-   **Observable:** `foundry.utils.diffObject(actor._source, raw)` is
-   `{system: {_schemaVersion: 5}}`, and the raw record reads stamp 5 with
-   `thac0.throw` 9, `saves.breath` 14 and no `attack` or `blast`.
-2. **The next load.** Reload.
-   **Observable:** the actor reads attack 9, Blast 14, Implements 15 and
-   Paralysis 13, and the raw record is unchanged. Without the wrap it reads
-   10, 15 and 16.
-3. **A record on the new fields.** Read any other character.
-   **Observable:** its figures are its own. In-page,
-   `new Actor.implementation({name, type: "monster", system: {_schemaVersion: 5, attack: {throw: 6}, saves: {blast: {value: 9}}}})`
-   keeps 6 and 9, and the same build with `thac0.throw` 7 and no `attack`
-   reads 7.
-
-**Teardown.** None: the stamped character stays as the fixture until the
-next walk retires it.
-
-### Stamped items, and the check that writes them
-
-Covers the item wrap and `lib.stampedRecords`. One GM seat; each step
-reloads.
-
-**Fixtures, a setup check:** the check's fix rewrites them, so a walk retires
-the ones their markers find and builds them again raw, each `_schemaVersion`
-5. Every name and die below is invented.
-- `lib/legacy-stamped-kit`: a `character` with the 14.0 combat fields
-  (`thac0.throw` 9, `thac0.mod.melee` 1, `aac.value` 4, `saves.breath` 14,
-  `saves.wand` 15) and four items: a weapon with `damage` "1d10", `bonus` 2,
-  `tags` `[{value: "Slow", label: "Slow"}]` and `weight` 100; a weapon with
-  `damage {base: {formula: "1d4"}}` and no alternate; an armour with
-  `aac.value` 4 and `weight` 250; and a control armour holding `aac` and an
-  equal `ac`. The raw create takes the items in the actor's `items`, each with
-  its own `_id`.
-- `lib/legacy-stamped-loose`: a world weapon with `damage` "1d8" and `bonus` 1.
-
-1. **The load.** Reload.
-   **Observable:** the character reads attack 9, Blast 14, Implements 15; the
-   first weapon 1d10 with a blank alternate and attack bonus 2; the second
-   1d4 with a blank alternate; the armour Armor Class 4; the control 3; the
-   world weapon 1d8, bonus 1. `rescuedFields(doc._source.system)`, imported
-   from `scripts/lib/patches/legacy-source.mjs`, names `attack, ac,
-   saves.blast, saves.implements` on the character, `weight, damage, bonus,
-   tags` on the first weapon (all four: the embedded item's second pass sees
-   only `tags`, and a list that loses the rest is the bug), `alternate`,
-   `weight, aac`, null on the control, and `damage, bonus`.
-2. **The check.** `scanRepairs({only: "lib.stampedRecords"})` from
-   `scripts/lib/repair.mjs`, then `fixRepairs("lib.stampedRecords", keys,
-   {report: false})`.
-   **Observable:** five findings, five fixed, none failed, a rescan of 0. The
-   raw records (`modifyDocument` `get`) hold no `thac0`, `aac`, `tags`,
-   `weight`, `saves.breath` or `saves.wand`; the new fields carry the step 1
-   figures; the control is unchanged. In a world holding other stamped
-   records the scan lists them too: tick only the fixtures.
-3. **The next load.** Reload.
-   **Observable:** the step 1 figures, the scan empty, and the character's
-   sheet and the first weapon's sheet render.
-
-**Drive mechanics.** Core writes the parent into the operation object it is
-handed, so a fix that reused one options object for an actor's items and then
-for a world item sent the world item to that actor ("does not exist in the
-EmbeddedCollection"). A merged update with forced deletions of the old keys
-lands the new fields and none of the deletions; only `recursive: false` on
-`system` removes them.
-
-### A weapon's two-handed die, and the check that writes it
+## A weapon's two-handed die, and the check that writes it
 
 Covers `lib.twoHandedRow` (MODEL.md, "A weapon's two-handed die follows its
 imported row"). One GM seat. Every name and die below is invented; the rows
 are the stamped modes the importer writes, built by hand, so no book is
-needed. `tools/live/lib-repair-checks.mjs` walks steps 1–4.
+needed. `tools/live/lib-repair-checks.mjs` walks steps 1–5.
 
 **Fixtures,** found by marker with `api.fixture(marker, "Item", data)`. The
 check's fix rewrites them, so each step that needs a shape asserts it by
@@ -3043,16 +2956,23 @@ writing it first (`item.update({"system.damage.alternate.formula": …})`):
 4. **The sheet.** Open the first weapon's sheet.
    **Observable:** its alternate damage field reads 1d11, and the second
    weapon's reads empty with no second grip offered.
-5. **A stamped record.** Retire and rebuild the first weapon raw through a
-   create that stores `_schemaVersion` 5, string `damage` and no alternate
-   (the previous section's raw create), reload, and scan.
-   **Observable:** it is listed with the stamped-first reason and is not
-   offered; after `lib.stampedRecords` has written it, a rescan offers it.
+5. **No stamped-record check.** Retire the fixtures an earlier recipe kept
+   for the check core 14.2.0's migration made unnecessary, each by its marker
+   with `api.retire(marker, kind)`: the characters `lib/legacy-stamped-fighter`
+   and `lib/legacy-stamped-kit`, and the world weapon
+   `lib/legacy-stamped-loose`. A marker that finds nothing prints "none
+   standing" and is not a failure. Then open the Repair window with no filter
+   and no scan: `acksExtras.lib.repair.open({})`.
+   **Observable:** the retire sweeps remove or miss each and refuse none; the
+   window holds an `article[data-check]` for `lib.twoHandedRow` and for
+   `lib.strandedCoin` (the control that proves it rendered), none for
+   `lib.stampedRecords`; `acksExtras.lib.repair.checks()` lists no such id; and
+   `scanRepairs({only: "lib.stampedRecords"})` answers an empty list.
 
 **Teardown.** None: the fixtures stay; the next walk writes their alternates
 back before step 1.
 
-### An image whose file is gone, and the check that replaces it
+## An image whose file is gone, and the check that replaces it
 
 Covers `lib.missingImages` (`missing-images.mjs`, `repair-checks.mjs`).
 `tools/test-repair-checks.mjs` holds the scan, the update and the fix against a

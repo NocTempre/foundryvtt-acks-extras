@@ -105,6 +105,13 @@ const ENABLE = "ACKS-LIB.repair.enablePackage";
 registerLibRepairChecks();
 const COIN = getRepairCheck("lib.strandedCoin");
 
+t("lib registers its own checks and no stamped-record check", () => {
+  const ids = repairChecks().map((c) => c.id);
+  assert.ok(ids.includes("lib.twoHandedRow") && ids.includes("lib.strandedCoin"), "the checks that remain are registered");
+  assert.ok(!ids.includes("lib.stampedRecords"));
+  assert.equal(getRepairCheck("lib.stampedRecords"), null);
+});
+
 /* -------------------------------------------------------------------- */
 /*  lib.strandedCoin                                                    */
 /* -------------------------------------------------------------------- */
@@ -353,7 +360,6 @@ t("a legacy change key with no counterpart is listed unfixable, and `only` takes
 const TWO_HANDED = getRepairCheck("lib.twoHandedRow");
 const ROW_DETAIL = "ACKS-LIB.repair.check.twoHandedRow.detail";
 const ROW_NONE = said("ACKS-LIB.repair.check.twoHandedRow.none");
-const ROW_STAMPED = said("ACKS-LIB.repair.check.twoHandedRow.stampedFirst");
 
 /** The modes an importer stamps on a weapon: a one-handed die, and a two-handed one where the row names it. */
 const rowModes = (twoHanded) => [
@@ -483,24 +489,10 @@ t("a weapon gone before the fix is refused, and the rest are written", async () 
   assert.deepEqual(sword.updates, []);
 });
 
-t("a weapon the stamped-record rescue still holds is listed and not offered, then offered once its record is written", async () => {
-  const { installLegacyCombatRescue, forgetRescue } = await import("../scripts/lib/patches/legacy-source.mjs");
-  const model = () => class {
-    static migrateData(source) {
-      return source;
-    }
-  };
-  CONFIG.Actor.dataModels = { character: model(), monster: model() };
-  CONFIG.Item.dataModels = { weapon: model(), armor: model(), item: model(), ability: model(), spell: model() };
-  installLegacyCombatRescue();
-  // A stamped record whose damage names no alternate loads with a blank one.
-  const source = CONFIG.Item.dataModels.weapon.migrateData({ _schemaVersion: 5, damage: { base: { formula: "1d7" } } }, { partial: false });
-  assert.equal(source.damage.alternate.formula, "");
+t("every weapon the scan lists is offered, whatever its loaded source holds", async () => {
   const sword = weaponDoc("w1", "Long Blade", { alternate: "", modes: rowModes("1d11") });
-  sword._source = { system: source };
+  sword._source = { system: { _schemaVersion: 5, damage: { base: { formula: "1d7" } } } };
   weaponWorld({ items: [sword] });
-  assert.deepEqual((await scanCheck(TWO_HANDED)).findings.map((f) => [f.key, f.fixable, f.reason]), [["Item.w1", false, ROW_STAMPED]]);
-  forgetRescue(source);
   assert.deepEqual((await scanCheck(TWO_HANDED)).findings.map((f) => [f.key, f.fixable, f.reason]), [["Item.w1", true, null]]);
 });
 
