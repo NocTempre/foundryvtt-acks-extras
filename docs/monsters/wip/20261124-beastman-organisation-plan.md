@@ -1107,6 +1107,155 @@ already re-ruling the holder, verbatim, with the question of which parts are
 reused as they are, which extend a shared lib piece, which are new, and what
 moves into `scripts/lib/` so there is one implementation. Released: none.
 
+### Architect's re-ruling on the owner's words, 2026-11-24
+
+**Proposed, not ruled.** A fresh `architect`, read-only, briefed with the
+owner's statements verbatim, re-ruled the earlier A to G. It reported before
+the owner's words on followers and on tabs as views reached it; what it adds
+on those is the next entry. Nothing here is the owner's until the owner says
+so.
+
+Its restatement of the owner's words, with its example: a faction card
+records who belongs to what and a group card records where bodies are; each
+nests inside its own kind; neither owns what it lists and one thing can be
+listed by both; one faction's things can stand at several places and one
+place can hold several factions' things; board 1i's three points stand.
+Gang 1 is a group, listed on the village's card under Warband 1; sent to a
+ford, it moves from the site's roster to the ford's, and the card does not
+change.
+
+**A. The chart is a factions field; the roll's record is a monsters flag.**
+`FactionData.units`, rows of `{key, parentKey, label, holderUuid, notes,
+hidden}`, where `holderUuid` is the group or the single actor that holds the
+entry's bodies. Factions owns the field and its writers. The roll's state is
+`flags["acks-extras"].generation` on the faction, keyed by unit key and
+written whole, with monsters its one writer. Every affiliation reader takes
+`members` plus the holders through one getter: `hasMember`, `headcount`,
+`factionRecord`, `readableLeaderUuid` and the influence listener's
+concealed-member call, which passes raw `members` today. `leaderUuid` names
+the chieftain's group, since a stack has no uuid. Rejected: `members` alone
+(its row has no key or parent and is also the place roster's row), the chart
+in a monsters flag (the faction sheet's Judge tool would be a second writer),
+a member row for each holder (one fact in two places). Cost: one schema field
+with no migration, and five readers. Not checked: whether the standing
+listener follows a deployed body's token back to its group.
+
+**B. Where things are: a place's stored `roster` is the source of truth.**
+It lists the outermost things present, and a nested group is wherever its
+outermost container is. `rollLair` records a group this way already.
+`unit.locationUuid` is not reused: its one writer is `hire-group.mjs`, where
+it means the hiring settlement, and its one reader keys wages by that
+settlement's market, so "where now" in it would rekey a mercenary's wages
+when the group moves. Readers: `placeOf(holder)` and `thingsAt(place)`. A
+roster row naming a nested group is stale and ignored; a root on two rosters
+shows at both and is flagged.
+
+**C. A warband out whole needs one new field.** No existing container
+serves: a location's token is a marker that deploy, combat and formation
+skip; a group flagged as a place provider would put every gang in the
+storage manager, the coin scan and the site's contents; a faction's `members`
+is belonging; a formation is the party's record. New:
+`GroupData.unit.parentGroupUuid`, loop-guarded as `wouldCycleFaction` is.
+One guarded walker serves every reader. Nested bodies count for formation
+cells, vehicles, capacity, a place's headcount, the full caption, the lair
+state, group combat and formation deployment; a faction's headcount, the
+sheet's totals and mercenary wages count a group's own bodies only. Counts
+are read live, never from a row's `quantity`.
+
+**D. The writes.** Each touches two documents, target first, as `moveStack`
+does. Sending a gang out adds the target's row, then clears the pointer.
+Sending a warband out adds the target's row, then removes the source's.
+Recall sets the pointer, then removes the row. A re-roll of one gang is
+refused before any die where a body is deployed, the gang is pinned, or it is
+away; otherwise it replaces that gang's own generated stacks in one write and
+writes the faction's flag last. A re-roll of all leaves held, away and pinned
+entries standing, and deletes unnamed actors last, by the record's own list,
+so a half-finished run leaves extra actors and never missing ones.
+Casualties stay recorded in their own group and never move. A leader's
+morale parts are found through `units`, whether or not the leader's group is
+at the same place.
+
+**E. The standing Roll rulings.** "A stack stays one row" is about one row
+for a stack and not one for a body; the clause about summing every unit's
+bodies into one stack is this plan's section 2b and appears in no ruling,
+and is moot once gangs are separate groups. Generate stamps one key on every
+stack and group it makes, and a re-roll replaces only stacks with its key.
+World actors for one village, as it reckons: one faction, a group for each
+warband, a group for each gang, two more (the camp, the chieftain's unit),
+and the shared prototypes, plus one base for each other-creature stack on
+its first deploy.
+
+**F. A stack that is another creature.** Matched: `template.uuid` holds the
+library entry until the first deploy mints a world base; the link survives
+as the snapshot's cookbook id. Not matched: a null uuid, an empty snapshot,
+and the imported word as the label; `ensureBaseActor` already returns
+nothing without a snapshot type, so the map already refuses it (board 1j,
+question 2a), and the row has to say why. "Link an entry…" is the existing
+drop onto a stack row (`setStackPrototype`); mending the recipe's
+`source.uuid` is S4b's.
+
+**G. A wandering warband or a lair roll, both branches, no pick.** (a) A
+faction card of its own: A's schema, joined to a village by `parentUuid`;
+one more faction in every scan. (b) Groups only: one root group for the roll
+holds the others and carries the record as a flag; joining a faction writes
+`units`, then clears the flag. It leaves one record with two possible
+carriers, and a roll with several warbands at its top gets a root group
+close to the withdrawn "home group". It adds slice S11c.
+
+**The earlier A to G.** A falls, its flag surviving as the record's home. B
+becomes G here. C falls. D's verdicts stand and its mechanism falls. E and F
+stand.
+
+**If a point of board 1i is reversed.** A gang as a row in a larger group:
+holders become a group and a stack key, and C's field is not needed.
+Warbands and gangs as faction cards: `units` goes. A warband out as one
+group of its gangs' stacks: no pointer, and the gangs lose their identity on
+the way out.
+
+**Phases.** Phase 1 is untouched. Phase 2: "the same group" in coverage row
+47 and section 2d item 6 now has three possible meanings (a gang's own
+group, its container, its faction's subtree); S7 takes this ruling as input
+and S8 needs S10b. Phase 4: S14 says whether a kit dropped on a group
+reaches its nested groups.
+
+**Section 3, proposed.** All on `topic/beastman-organisation`, all
+`implementer`, since the design is ruled here.
+
+| Slice | Delivers | `/design` | Needs |
+|---|---|---|---|
+| S10a | lib only: `unit.parentGroupUuid`, its guard and writer; the walker and the nested counts of C; `stack.gen`; a labelled stack refused the map with a reason; no per-monster Roll on a generated stack. No visible surface | no | none |
+| S10b | factions and lib place readers: `FactionData.units`, the affiliation getter and its five readers; `placeOf`, `thingsAt`; live counts. No visible surface | no | none |
+| S11 | the recipe, the organisation logic and the record (its normalizer, D's refusals, the ordered write plans), mutation-checked | no | S5, S10a, S10b |
+| S11b | the provider runs S11's plans; shared prototypes; library stacks for other creatures; the Judges' card; DECISIONS entries. Walked through the API | no | S11, and the owner's questions 1 and 2 |
+| S11c | branch (b) only: a root group's record joins a faction's `units` | yes, if the join is a new gesture | S11b |
+| S12 | the surface: the village's sheet with its views and tools, nested-group rows on the group sheet, place roster rows by faction, Delete, the plate | yes: boards 1i and 1k and canvas 1's answers first | S11b |
+
+S12's row names the views by the owner's later words (Org chart, Locations);
+`architect` wrote "unit rows on Members and a Where tab" from board 1i as it
+then stood.
+
+**For the owner**, `architect`'s pick first:
+
+1. A warband's group: (a) made at Generate, holding its gangs at home, (b)
+   made only when it is sent out whole. Board 1i draws (b).
+2. A wandering warband or a lair roll: (a) its groups and a faction card of
+   its own, (b) its groups only, joined to a faction when the Judge names
+   one. No pick.
+3. A warband's token joining a combat: (a) every body under it, as the
+   2026-11-03 whole-group ruling has it, (b) its gangs as group tokens.
+4. Canvas 1's question 4: (a) an entry that is away stands as pinned, (b)
+   the re-roll is refused.
+5. Canvas 1's question 6: (a) Generate writes at once, (b) staged until a
+   Save.
+
+**To register on the bug ledger**, shipped defects it found on the way and
+did not touch: a stored roster row's `quantity` is never refreshed, so a
+place's headcount goes stale after casualties; `place.mjs`'s
+`groupHeadcount` reads an emptied group as one.
+
+Not checked by `architect`: anything live, and how validate treats the new
+flag and fields. Released: none.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
