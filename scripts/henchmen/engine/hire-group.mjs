@@ -70,7 +70,7 @@ function getCandidate(location, id) {
   return (location.system.candidates ?? []).find((c) => c.id === id) ?? null;
 }
 
-/** A bare stat-block prototype actor for a troop type, snapshotted by the group on addStack. Created through the base `Actor.create`, never `Actor.implementation.create`: the system's create override replaces `system` on a character created without `items`. */
+/** A bare stat-block prototype actor for a troop type, snapshotted by the group on addStack. Created through the base `Actor.create`, never `Actor.implementation.create`: the system's create override flags a new character `isNew` and seeds it the equipment pack's coin rows, and a stack's snapshot copies both into every body it stands for. */
 async function createTroopPrototype(candidate, employer) {
   const data = {
     name: candidate.troopType || candidate.occupation || candidate.name || game.i18n.localize("ACKS-HENCHMEN.candidate.unnamed"),
@@ -87,7 +87,7 @@ async function createTroopPrototype(candidate, employer) {
   return Actor.create(data);
 }
 
-/** Find the employer's existing merc group, else create one named for them. The unit block is set by a post-create update: the system's create override drops create-time `system` data. */
+/** Find the employer's existing merc group, else create one named for them, its unit block written with the create. */
 async function findOrCreateGroup(employer, location) {
   const existing = game.actors.find((a) => a.type === GROUP_TYPE && a.system?.unit?.employerUuid === employer.uuid);
   if (existing) return existing;
@@ -95,18 +95,18 @@ async function findOrCreateGroup(employer, location) {
     name: game.i18n.format("ACKS-HENCHMEN.group.companyName", { name: employer.name }),
     type: GROUP_TYPE,
     ownership: employerOwnership(employer),
+    system: {
+      unit: {
+        category: "mercenary",
+        employerUuid: employer.uuid,
+        locationUuid: location?.uuid ?? "",
+        // The employer commands until a hired mercOfficer overrides this.
+        officerLevel: Number(employer.system?.details?.level ?? 0) || 0,
+      },
+    },
   });
-  if (group) {
-    await group.update({
-      "system.unit.category": "mercenary",
-      "system.unit.employerUuid": employer.uuid,
-      "system.unit.locationUuid": location?.uuid ?? "",
-      // The employer commands until a hired mercOfficer overrides this.
-      "system.unit.officerLevel": Number(employer.system?.details?.level ?? 0) || 0,
-    });
-    // Start the wage clock.
-    await group.setFlag(MODULE_ID, FLAG_GROUP_PAY, { lastPaidTime: now(), arrearsGp: 0 });
-  }
+  // Start the wage clock.
+  if (group) await group.setFlag(MODULE_ID, FLAG_GROUP_PAY, { lastPaidTime: now(), arrearsGp: 0 });
   return group;
 }
 

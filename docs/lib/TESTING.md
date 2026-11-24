@@ -3152,7 +3152,9 @@ and an immediate read holds the old path beside the new name.
    count, both seats read that and the art, and turned back it masks again.
 9. **Make Encounter.** Press it on the monster sheet.
    *Observable:* a group opens, holding the creature, filed under Encounters, masked,
-   linked and hostile, and a token placed before the Roll gives nothing away. A
+   linked and hostile, and a token placed before the Roll gives nothing away. The
+   group's `reveal` and `isNew` are on the document at its `createActor` hook (a
+   one-shot observer on the hook, never a delete list, reads `_source.system`). A
    player who owns a monster is not offered the tool.
 10. **The Player seat.** Grant Observer, then Owner, on a group.
     *Observable:* an Observer has no field and reads the row's count as text, and an

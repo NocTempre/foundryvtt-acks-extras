@@ -119,11 +119,22 @@ globalThis.Roll = class {
   }
 };
 
+/** What the system's `AcksActor.create` hands the database: an array, or data carrying `items`, goes straight through; any other data keeps the caller's `system` and gains `isNew`. */
+function coreCreatePayload(data) {
+  if (Array.isArray(data) || data.items) return data;
+  return { ...data, system: { isNew: true, ...data.system } };
+}
+
+/** The caller's data as `Actor.implementation.create` received it, before the system's override. */
+const handed = [];
+/** The same data as the override sends it on. */
 const created = [];
 globalThis.Actor = {
   implementation: {
     DEFAULT_ICON: CONST.DEFAULT_TOKEN,
-    async create(data) {
+    async create(callerData) {
+      handed.push(callerData);
+      const data = coreCreatePayload(callerData);
       created.push(data);
       const group = groupOf([], { img: data.img, reveal: data.system.reveal });
       group.prototypeToken = data.prototypeToken;
@@ -720,8 +731,9 @@ await ok("Make Encounter files a masked, linked, hostile group with the creature
   const knot = creature({ encounter: LINES, img: "art/knot.webp" });
   const group = await makeEncounter(knot);
   const [data] = created;
-  assert.deepEqual(data.items, [], "the system replaces `system` on a create with no items");
-  assert.equal(data.system.reveal, REVEAL.noun);
+  assert.ok(!("items" in handed[0]), "the create passes no `items`, since the system keeps `system` on its own");
+  assert.equal(data.system.reveal, REVEAL.noun, "the reveal is in the create payload");
+  assert.equal(data.system.isNew, true, "the system's override flags the new group");
   assert.equal(data.name, "Knot encounter");
   assert.equal(data.ownership.default, CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE);
   assert.equal(data.prototypeToken.actorLink, true);
@@ -732,6 +744,7 @@ await ok("Make Encounter files a masked, linked, hostile group with the creature
   assert.equal(game.folders.find((f) => f.id === data.folder)?.name, "Encounters");
   assert.equal(group.system.stacks.length, 1);
   assert.equal(group.system.stacks[0].template.uuid, knot.uuid);
+  assert.ok(group.updates.every((u) => !("system.reveal" in u)), "no follow-up write sets the reveal");
 
   await makeEncounter(knot);
   assert.equal(game.folders.filter((f) => f.name === "Encounters").length, 1, "a second encounter adopts the folder");

@@ -1381,6 +1381,46 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
         await hireAsGroup(location, employer, { troops: [{ candidateId: `g-${type}-${variant}` }] });
         assert.strictEqual(stack.baseMorale, expected, `${type} in a ${variant} settlement: the group stack takes the wage row's figure`);
       }
+
+      // An employer with no company yet: the unit block rides the create, and
+      // the system's override (which keeps the caller's `system` and flags the
+      // actor new) is the only thing between the call and the database.
+      const handedToCore = [];
+      const sentOn = [];
+      const groupWrites = [];
+      const groupFlags = [];
+      const baseCreate = globalThis.Actor.create;
+      const baseCalls = [];
+      globalThis.Actor.create = async (d) => (baseCalls.push(structuredClone(d)), baseCreate(d));
+      globalThis.Actor.implementation = {
+        async create(callerData) {
+          handedToCore.push(callerData);
+          const payload = callerData.items ? callerData : { ...callerData, system: { isNew: true, ...callerData.system } };
+          sentOn.push(payload);
+          return {
+            id: "g2", uuid: "Actor.g2", name: payload.name, type: payload.type,
+            system: { ...payload.system, commandStatus: () => null, troopCounts: {} },
+            update: async (u) => { groupWrites.push(u); },
+            setFlag: async (s, k, v) => { groupFlags.push([s, k, v]); },
+          };
+        },
+      };
+      game.actors.find = () => null;
+      location.system.market = { compositeVariant: "longbow" };
+      location.system.candidates.push({ id: "g-fresh", status: "available", kind: "mercenary", troopType: "troopA", quantity: 1, level: 1, classKey: "fighter", hitDice: "1d8", attributes: {} });
+      const made = await hireAsGroup(location, employer, { troops: [{ candidateId: "g-fresh" }] });
+      assert.strictEqual(made.group?.id, "g2", "a company is made for an employer with none");
+      assert.strictEqual(handedToCore.length, 1, "the company is the one create the system's override sees");
+      assert.ok(!("items" in handedToCore[0]), "the create passes no `items`");
+      assert.deepStrictEqual(sentOn[0].system.unit, { category: "mercenary", employerUuid: employer.uuid, locationUuid: location.uuid, officerLevel: 3 }, "the unit block is in the create payload");
+      assert.strictEqual(sentOn[0].system.isNew, true, "the override flags the new company");
+      assert.deepStrictEqual(groupWrites, [], "no follow-up write restores the unit block");
+      assert.deepStrictEqual(groupFlags.map(([s, k]) => [s, k]), [["acks-extras", "groupPay"]], "the wage clock starts");
+      assert.strictEqual(baseCalls.length, 1, "the troop prototype is the one base create");
+      assert.strictEqual(baseCalls[0].type, "character", "and it is a character");
+      assert.ok(handedToCore.every((d) => d.type !== "character"), "a prototype never goes through the system's override");
+      delete globalThis.Actor.implementation;
+      globalThis.Actor.create = baseCreate;
     } finally {
       ns.lib.groups = savedGroups;
       game.actors.find = savedFind;

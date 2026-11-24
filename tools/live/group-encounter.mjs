@@ -536,9 +536,17 @@ const P = {
     const out = { rendered: !!H.root(app), tool: !!tool, editable: app.isEditable, label: tool?.getAttribute("aria-label") ?? tool?.dataset.tooltip ?? null };
     if (tool && press) {
       const before = new Set(foundry.applications.instances.keys());
+      // An observer, never a delete list: what the new group reads the moment its createActor fires, before any write that follows the create.
+      const atCreate = [];
+      const watch = (doc, _options, userId) => {
+        if (doc.type === "acks-extras.group" && userId === game.user.id) atCreate.push({ id: doc.id, reveal: doc._source?.system?.reveal ?? null, isNew: doc._source?.system?.isNew ?? null });
+      };
+      Hooks.on("createActor", watch);
       tool.click();
       const fresh = await H.poll(() => [...foundry.applications.instances.values()].find((a) => !before.has(a.id) && a.document?.type === "acks-extras.group" && a.rendered));
+      Hooks.off("createActor", watch);
       out.groupId = fresh?.document.id ?? null;
+      out.atCreate = atCreate.find((c) => c.id === out.groupId) ?? null;
     }
     await app.close({ force: true });
     return out;
@@ -939,6 +947,7 @@ try {
   state = await until(gm, P.state, { groupId: made.groupId }, (s) => s.list.length === 1);
   note("made", state);
   check("the group holds the creature, filed in the encounters folder", state.list[0]?.uuid.endsWith(lined.id) && state.folder === "Encounters", state.folder);
+  check("the reveal is on the group the moment it is created", made.atCreate?.reveal === "noun" && made.atCreate.isNew === true, made.atCreate);
   check("masked, linked, hostile, an encounter from the first", state.reveal === "noun" && state.proto.link && state.proto.disposition === -1 && state.proto.src !== ART && state.proto.name === "Pack", state.proto);
   const early = await run(gm, P.place, { sceneId: scene.id, actorId: made.groupId, x: 500 });
   swept.unshift(gm.track(early.uuid, "Token"));

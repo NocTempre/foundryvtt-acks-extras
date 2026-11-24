@@ -26,7 +26,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-22 — [Candidate class and level are fixed at the market roll, not at hire (2026-09-22)](DECISIONS-through-v11.14.5.md#candidate-class-and-level-are-fixed-at-the-market-roll-not-at-hire-2026-09-22)
 - 2026-09-22 — [Wage pay-period conversions match the influence feature's bribe tiers (2026-09-22)](DECISIONS-through-v11.14.5.md#wage-pay-period-conversions-match-the-influence-features-bribe-tiers-2026-09-22)
 - 2026-09-22 — [History the source comments carried, recorded (2026-09-22)](DECISIONS-through-v11.14.5.md#history-the-source-comments-carried-recorded-2026-09-22)
-- 2026-09-30 — [A troop prototype is created through the base `Actor.create` (2026-09-30)](DECISIONS-through-v11.14.5.md#a-troop-prototype-is-created-through-the-base-actorcreate-2026-09-30)
+- 2026-09-30 — [A troop prototype is created through the base `Actor.create` (2026-09-30)](DECISIONS-through-v11.14.5.md#a-troop-prototype-is-created-through-the-base-actorcreate-2026-09-30) — qualified in part 2026-11-24 (the entry of that date below: the base call stands for `isNew` and the coin rows, and no longer because the override replaces `system`)
 - 2026-10-01 — [A hired unit rolls morale on the Combat Morale page (2026-10-01)](DECISIONS-through-v11.14.5.md#a-hired-unit-rolls-morale-on-the-combat-morale-page-2026-10-01)
 - 2026-10-01 — [A wage is paid into the purse, and a refused payment books no payday (2026-10-01)](DECISIONS-through-v11.14.5.md#a-wage-is-paid-into-the-purse-and-a-refused-payment-books-no-payday-2026-10-01)
 - 2026-10-01 — [A wage draws on what the employer can pay with, and the hook reports what moved (2026-10-01)](DECISIONS-through-v11.14.5.md#a-wage-draws-on-what-the-employer-can-pay-with-and-the-hook-reports-what-moved-2026-10-01)
@@ -335,3 +335,30 @@ them.
   the figure would move under a group already hired) and a migration run
   unasked at ready (a write the Judge did not choose). *Cost:* an old group
   stays unbilled until the repair tool is run.
+
+## 2026-11-24 — A company's unit block rides its create; a troop prototype still bypasses the system's create
+
+**Ruled.** `findOrCreateGroup` passes the unit block (category, employer,
+location, command level) as `system` in the one `Actor.implementation.create`,
+and the follow-up `group.update` that restored it is gone. `lib/group-encounter.mjs`
+`makeEncounter` likewise passes no `items: []`. A troop prototype is still made
+through the base `Actor.create`: its reason is now the system's `isNew` flag and
+coin seeding for a character, and no longer the loss of `system`.
+
+**Why.** `acks` 14.2.0's `AcksActor.create` keeps the caller's `system`
+(`{ isNew: true, ...data.system }`; 14.1.0 assigned `{ isNew: true }`), so a
+group's create-time `system` survives the override. A character created without
+`items` still gains `isNew: true` and the money rows of the equipment pack, and a
+stack's `template.snapshot` is the prototype's `toObject()`: every body minted or
+detached from it would carry the flag and the coins, and a detached henchman's
+sheet would offer Generate Scores.
+
+**Supersedes, in part,** "A troop prototype is created through the base
+`Actor.create`" (2026-09-30, DECISIONS-through-v11.14.5.md, In-force row above):
+its premise that the override replaces create-time `system`, and its line that
+the post-create update stays. The base-class call it ruled stands. The new
+evidence is `acks` 14.2.0's `AcksActor.create`.
+
+**Rejected.** `Actor.implementation.create` for the prototype, with the flag and
+the coin rows cleared in a second write: a parallel path around what the base
+call already avoids.

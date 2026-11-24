@@ -270,8 +270,6 @@ export async function makeEncounter(source) {
     folder: folder?.id ?? null,
     ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
     prototypeToken: { ...tokenDefaults(), name: face.name, texture: { src: face.src } },
-    // Items present, so the system's create keeps `system` (its override replaces it otherwise).
-    items: [],
     system: { reveal: REVEAL.noun },
   });
   if (group) await addStack(group, creature);

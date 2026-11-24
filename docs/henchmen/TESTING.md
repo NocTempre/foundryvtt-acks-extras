@@ -474,12 +474,16 @@ a step it does not name is walked by hand.
     `available`, and a new row of the count taken reads `hired`. The stack's
     `template.snapshot` and the prototype actor its `template.uuid` names carry
     the candidate's level, class, hit die (read from the `hitDice` line) and
-    scores, and the prototype holds no items. Track the group and the
-    prototype from those two reads; the dialog reports counts, not ids.
+    scores, and the prototype holds no items. The group's unit block
+    (category, employer, location, command level) and `isNew` are on the
+    document at its `createActor` hook: a one-shot observer on that hook,
+    never a delete list, reads `_source.system.unit` the moment the group
+    exists. Track the group and the prototype from those two reads; the
+    dialog reports counts, not ids.
 11. Re-pointing a unit's stack at an edited troop, built on purpose: a disposable
     `acks-extras.group`, a troop actor made with
-    `Actor.implementation.create` (it comes back first-level, classless, 1d8,
-    carrying coins), and `acksExtras.lib.groups.addStack(group, troop, {count})`.
+    `Actor.implementation.create` (a character with `system` defaults, flagged
+    `isNew` and carrying the equipment pack's coin rows), and `acksExtras.lib.groups.addStack(group, troop, {count})`.
     Edit the troop's level, class and hit die, open the group's sheet, and drop
     the troop onto its stack row (`[data-stack-key]`) — a `DragEvent("drop")`
     carrying a `DataTransfer` of `{type: "Actor", uuid}` reaches the sheet's own
@@ -542,8 +546,8 @@ a step it does not name is walked by hand.
       Beast Friendship and Command of Voice built that way, at level 5.
     - **Employer B.** Hand-made `ability` items named Leadership, Command and
       Diplomacy with no effects, Charisma 3.
-    - **A hireling for each.** Create each with `items: []`: an actor payload
-      with `system` and no items comes back blank. Link it through
+    - **A hireling for each.** Create each with `items: []`, which keeps it
+      out of the system's new-actor path (no `isNew` flag, no coin rows). Link it through
       `addHenchman`.
     - **A monster.**
 

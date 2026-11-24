@@ -950,8 +950,14 @@ const P = {
     const actorsBefore = new Set(game.actors.map((a) => a.id));
     const pick = (o) => (o ? { level: o.system?.details?.level ?? null, cls: o.system?.details?.class ?? null, hd: o.system?.hp?.hd ?? null, str: o.system?.scores?.str?.value ?? null, items: (o.items ?? []).length } : null);
     H.takeNotes(); H.takeChat();
+    // An observer, never a delete list: what the new group's unit block reads the moment its createActor fires, before any write that follows the create.
+    const atCreate = [];
+    const watch = (doc, _options, userId) => {
+      if (doc.type === "acks-extras.group" && userId === game.user.id) atCreate.push({ id: doc.id, isNew: doc.system?.isNew ?? null, unit: foundry.utils.deepClone(doc._source?.system?.unit ?? null) });
+    };
+    Hooks.on("createActor", watch);
     const btn = H.root(H.sheetOf(locationId))?.querySelector('section[data-tab="mercenaries"] [data-action="hireGroup"]');
-    if (!btn) return { pressed: false };
+    if (!btn) { Hooks.off("createActor", watch); return { pressed: false }; }
     btn.click();
     const first = await H.poll(() => document.querySelector('.application.dialog select[name="employerId"], .application.dialog input[name^="q_"]'), { tries: 40, every: 200 });
     let employerPrompt = false;
@@ -961,7 +967,7 @@ const P = {
       first.closest(".application").querySelector('button[data-action="ok"]').click();
     }
     const q = await H.poll(() => document.querySelector(`.application.dialog input[name="q_${candidateId}"]`), { tries: 40, every: 200 });
-    if (!q) return { pressed: true, employerPrompt, groupDialog: false, notes: H.takeNotes() };
+    if (!q) { Hooks.off("createActor", watch); return { pressed: true, employerPrompt, groupDialog: false, notes: H.takeNotes() }; }
     const root = q.closest(".application");
     const forLine = H.text(root.querySelector(".acks-henchmen-hire-group p"));
     const cells = [...root.querySelectorAll('input[name^="q_"]')].map((i) => ({ name: i.name, cap: i.dataset.cap, max: i.max }));
@@ -980,12 +986,13 @@ const P = {
     }
     const group = await H.poll(() => game.actors.find((a) => a.type === "acks-extras.group" && !groupsBefore.has(a.id) && a.system?.unit?.employerUuid === employer.uuid && (a.system.stacks ?? []).length) ?? null, { tries: 60, every: 300 });
     await H.sleep(1000);
+    Hooks.off("createActor", watch);
     const stacks = (group?.system?.stacks ?? []).map((st) => ({ key: st.key, count: st.size?.current ?? null, label: st.template?.label ?? null, uuid: st.template?.uuid ?? null, snap: pick(st.template?.snapshot) }));
     const protoDoc = stacks[0]?.uuid ? await fromUuid(stacks[0].uuid).catch(() => null) : null;
     const proto = protoDoc ? { id: protoDoc.id, ...pick(protoDoc.toObject()), items: protoDoc.items.size } : null;
     const rows = (loc.system.candidates ?? []).map((c) => ({ id: c.id, name: c.name, status: c.status, quantity: c.quantity ?? null }));
     const newActors = game.actors.filter((a) => !actorsBefore.has(a.id)).map((a) => ({ id: a.id, type: a.type, name: a.name }));
-    return { pressed: true, how, employerPrompt, forLine, cells, officer, group: group ? { id: group.id, name: group.name } : null, stacks, proto, rows, newActors, chat: H.takeChat(), notes: H.takeNotes() };
+    return { pressed: true, how, employerPrompt, forLine, cells, officer, group: group ? { id: group.id, name: group.name } : null, atCreate: atCreate.find((c) => c.id === group?.id) ?? null, stacks, proto, rows, newActors, chat: H.takeChat(), notes: H.takeNotes() };
   },
 
   /** Press a row's Hire button on the open sheet's Specialists tab (or call the API naming the employer), answer the heads prompt, and read the hosted page. */
@@ -1892,6 +1899,7 @@ try {
     const orig = rowsAfter.find((r) => r.id === troop.id), hiredRow = rowsAfter.find((r) => r.id !== troop.id && r.name === "QA Spearmen" && r.status === "hired");
     check("10: the dialog opens for the employer with the troop row capped at the market's count", hg.pressed && hg.cells?.some((c) => c.name === `q_${troop.id}` && String(c.cap) === "10") && (direct || hg.employerPrompt || !!census.character === false), { employerPrompt: hg.employerPrompt, forLine: hg.forLine, cells: hg.cells, how: hg.how });
     check("10: a group named for the employer holds one stack of the count taken", !!hg.group && hg.group.name === `${A.name}'s Company` && hg.stacks?.length === 1 && hg.stacks[0].count === 4, { group: hg.group, stacks: hg.stacks?.map((st) => [st.label, st.count]) });
+    check("10: the group's unit block (category, employer, location, command level) is on the document the moment it is created", hg.atCreate?.unit?.category === "mercenary" && hg.atCreate.unit.employerUuid === `Actor.${A.id}` && hg.atCreate.unit.locationUuid === `Actor.${hall.id}` && hg.atCreate.unit.officerLevel === 5 && hg.atCreate.isNew === true, hg.atCreate);
     check("10: the troop row keeps its id with the heads not taken, available; a new row of the count taken reads hired", orig?.status === "available" && orig?.quantity === 6 && !!hiredRow && hiredRow.quantity === 4, { orig, hiredRow });
     check("10: the stack's snapshot and the prototype it names carry the candidate's level, class, hit die and scores, and the prototype holds no items", hg.stacks?.[0]?.snap?.level === 1 && hg.stacks[0].snap.cls === "fighter" && hg.stacks[0].snap.hd === "1d8" && hg.stacks[0].snap.str === 13 && hg.proto?.level === 1 && hg.proto?.cls === "fighter" && hg.proto?.hd === "1d8" && hg.proto?.str === 13 && hg.proto?.items === 0, { snap: hg.stacks?.[0]?.snap, proto: hg.proto });
     note("closed", await run(gm, P.closeAll));
