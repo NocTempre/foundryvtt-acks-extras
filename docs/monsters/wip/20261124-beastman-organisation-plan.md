@@ -366,6 +366,20 @@ and a brief quotes the words, not the reading.
    modified actor is always offered the choice to keep a copy or stay as it
    is. The first is applied to the family template's picture (Results); the
    rule as a whole is wider than this plan and is registered as T-0712.
+6. **References to other creatures.** Not asked; the owner, after phase 1's
+   first walk stage: "Make sure to include the outside references such as to
+   ogres and wargs." Read as: wherever the section names a creature that is
+   not a beastman (a village's guard beasts, a chieftain's guard, a mount, the
+   beasts a trait adds), the capture holds a reference to that creature's own
+   library entry, and a generated warband or village includes it as that
+   creature, with its own figures and picture. Example: a village whose page
+   gives it guard beasts generates a stack built from that beast's own entry,
+   not a stack that carries only the beast's printed word. Where it stands:
+   S4 writes such a part with `source.name`, the word as the page prints it,
+   and leaves `source.uuid` empty, so no part yet points at an entry. A
+   printed word is matched to an entry at import, by folding both, so no
+   creature's name is written in source; a word that matches no entry is a
+   finding to list, and the labelled stack is what is left for it alone.
 
 ## 5. Risks
 
