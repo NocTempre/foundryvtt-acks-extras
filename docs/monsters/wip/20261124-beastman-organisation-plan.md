@@ -569,6 +569,12 @@ Canvas 1 (S12):
    cards that are out are refused, (b) the whole roll is refused.
 5. A gang recalled with losses: (a) the fallen stay counted against its card,
    (b) the card is whole again.
+6. When the chart is written: (a) it is staged in the Generate window and
+   written by a Save, as board 1f draws, (b) Generate writes the stacks at
+   once and every later change to a card edits them live. The standing ruling
+   of 2026-11-01 is (b)'s first half, "the roll writes stacks at once"; (a)
+   is drawn because a chart that two tabs edit needs a moment at which it is
+   done, and it would qualify that ruling.
 
 Canvas 2 (S14):
 
@@ -578,6 +584,8 @@ Canvas 2 (S14):
    a button on core's bundle sheet, (b) a fieldset inside core's sheet.
 3. A kit that does not suit the stack: (a) a Judge may give it and the row is
    marked, (b) it is refused.
+4. The Kits window: (a) two tabs, at random and by selection, as Generate has
+   them, (b) one list with a Roll button.
 
 Canvas 3 (S4b):
 
@@ -610,6 +618,19 @@ only when asked); which five of the ten traits carry a head, and the camp's
 four labels, which are stand-ins until S5 and the village rows are imported;
 the overview strip's page number, drawn as a placeholder.
 
+For whoever builds from a canvas: only board 1f draws the organisation chart;
+1c and 1d show it as the indented outline a window narrower than about 900
+gets, and were relabelled after ruling 2, not redrawn. A blank field's
+`aria-label` on the canvases reads "Not imported" before its page; the live
+field carries the page reference alone (`.claude/rules/ui-tooltips.md`).
+
 Released: none. Each of S12, S14, S4b, S8 with S9a, and S5's place on the
 sheet waits for the owner's answers on its canvas; S12 also waits for
 `architect` on question 1.
+
+**Phase 3 holds on canvas 1's question 1.** S10 (the group schema, the
+labelled stack, `fixedHp`) and S11 (`encounter-recipe.mjs`,
+`organisation-logic.mjs`) are built before S12 and on 2b's shape, one group
+actor holding every unit's stacks. Ruling 3's thought questions that shape, so
+neither is briefed until the holder is settled. Phase 1 (S1 to S5) and phase 2
+build no group and no generation record, and their prompts stand.
