@@ -709,3 +709,16 @@ slice is briefed:
 
 Released by this answer: none. It settles the holder; phase 3 stays held for
 `architect`, and S12 for the rest of canvas 1's questions.
+
+**The ladder, in the owner's words, the same day:** "(Faction > Army > not
+yet mentioned extension) Village > Warband > Gang > Individual". Read as: four
+rungs are this plan's, a village holding warbands, a warband holding gangs, a
+gang holding individuals; the three in brackets sit above a village and are
+not this plan's to build, the third being an extension the owner has not yet
+described. Example: Gang 3 of Warband 1 is sent out of its village as a
+group, and one of its bodies is then deployed as a token. Still a reading:
+that a village is itself a card of the faction kind whose parent may later be
+an army or a faction (`acks-extras.faction` already keeps a `parentUuid`),
+and not a rung beneath a separate faction that must exist first; and that a
+warband sent out whole is one group holding its gangs' stacks, not a card
+that holds groups.
