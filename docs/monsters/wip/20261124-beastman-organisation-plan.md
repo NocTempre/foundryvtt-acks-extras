@@ -96,13 +96,13 @@ consumable; GEN at generation only; INFO description only.
 | 37 | Elite-troop sidebar | N | R | the wage reaches `unit.wageGpEach`; the battle-turn part is a page reference only (no mass combat is built) | wage at hire |
 | 38 | Who may carry, by breed, role and rank | N | R per item | GEN | — |
 | 39 | E1 | N | gear item | GEN carry; a new damage rider on maneuvers | a wrestle hit adds the rider |
-| 40 | E2 | N | gear item with effect rows | ACT (throw, fumble), CONS; area damage, save fraction; fuse on `turn-life`; structural damage handed off | blast card, halved on a save |
+| 40 | E2 | N | gear item with effect rows | ACT (throw, fumble), CONS; area damage, save fraction; fuse on `turn-life`; structural damage handed off | blast card, reduced on a save by the imported fraction |
 | 41 | E3 | N | gear item | ACT; RANGE parts with `endsOn: attack` | the next damage roll shows the part |
 | 42 | E4 | N | gear item | ACT; RANGE save → `shaken`, then an immunity window; ends when lowered or the bearer dies | prompt, `shaken`, lift |
 | 43 | E5 | N | consumable | CONS heal (`adjustHp`); save → `choking` | heal; the condition on a human |
 | 44 | E6 | N | gear item | STAND AC; a per-die stage in `defenses`, gated on mundane damage | the Apply card shows the reduction |
 | 45 | E7 | P: `hookedWeapon` is read and never applied | flag on the item | maneuver parts | disarm parts |
-| 46 | E8 | N | ammunition variant | GEN carry and cascade; on-hit save; delayed damage (new) | damage lands a turn later |
+| 46 | E8 | N | ammunition variant | GEN carry and cascade; on-hit save; delayed damage (new) | damage lands after the imported delay |
 | 47 | E9 | N | gear item | ACT; RANGE parts for the same group | parts only in range |
 | 48 | Plate, p. 56 | N | template `img`; a crop for E4 | INFO | template picture |
 | 49 | Trait table, a band per breed | N | R `beastmanTraits`; trait Ax (`bandsFrom`) | GEN | a blank trait is disabled |
@@ -294,6 +294,10 @@ S9a). The owner's feedback on each is that slice's go-ahead
 
 ### Start prompt, phase 1
 
+Phase 1 starts once the owner has accepted or overturned section 4: one of its
+answers supersedes a ruling in part, and another reads a cap as lifted. It
+builds no new window, so it does not wait for the design session.
+
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md` and `docs/monsters/MODEL.md` ("Family
 > templates: the Role axis", "The Kit axis"). Open `topic/beastman-organisation`
@@ -312,6 +316,10 @@ S9a). The owner's feedback on each is that slice's go-ahead
   the optional equipment is real items with their actions; armour stays a stat
   cell.
 - **Template picture (2f):** the plate, with the heads on their traits.
+- **A repair and a held picture (S0, landed):** a repair in place replaces a
+  family template's picture only where it is one of the variants' portraits,
+  which is what an import wrote before; any other picture is kept, and so a
+  Judge who chose a variant's portrait on purpose loses it on a repair.
 - **Starting now:** the 2026-11-17 "start nothing new" cap is read as lifted by
   this request; no topic branch was open on 2026-11-24.
 
@@ -370,6 +378,17 @@ Not checked: a fresh import of the family (the library template stands, and
 retiring it is a setup walk); a Judge-set picture surviving a repair (read
 from the code); the overview strip, which is still imported nowhere and waits
 for the trait rows it illustrates (2f).
+
+**The change reaches every family whose overview is lore and reads art.**
+Across the cookbooks' 47 families that is two, both in the MM: this one and
+`mm.familyLycanthrope`, whose overview reads art on its own page with no
+`artPage`. Repaired in place on lane B: its held picture (the overview's own,
+written by an older build into the older art folder) was kept, the fresh pick
+on that page is the same picture by size (496×565 against the first variant's
+497×497), the cells and the five portraits were unchanged, and no warning or
+error was recorded. Its axes hashed differently after the repair; the template
+had not been repaired since an older build, the commit writes no axis, and
+what moved was not diffed.
 
 Found on the walk, for the design session: **the template's sheet draws no
 picture.** The plate shows only as the compendium list's thumbnail, so "the
