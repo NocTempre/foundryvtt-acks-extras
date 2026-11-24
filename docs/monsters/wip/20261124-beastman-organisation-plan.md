@@ -838,9 +838,8 @@ these words:
 - **E** loses its tension: a roll writes its groups' stacks at once, so the
   2026-11-01 ruling stands unqualified on this reading, and board 1f's Save
   is then the odd one out (question 4 above is still the owner's).
-- **F** has nesting on both sides. A faction's parent link exists. Whether a
-  group can hold a group today was not checked; `architect` found only a
-  comment about an army in `group-data.mjs`.
+- **F** has nesting on both sides. A faction's parent link exists. A group
+  cannot hold a group today; the next entry has what was read.
 - **G**'s rows are not valid as written; S10 gains whatever group nesting
   needs.
 
@@ -857,3 +856,52 @@ Still the owner's, the reading's pick first:
 `architect`'s questions 2, 3, 5 and 6 stand. Its rulings A, C, F and G are
 re-ruled on these words, by a fresh agent, once questions 1 and 2 here are
 answered; the two shapes of question 1 are different schemas. Released: none.
+
+### The two cards share references, 2026-11-24
+
+Given next, on the same subject: "And containers that share references". With
+the two statements before it, one sentence: the faction card and the group
+card are both nestable, and both are containers that share references.
+
+Read as: neither card owns what it lists. Each holds references, and one
+thing may be referenced from both, by the faction card for what it belongs to
+and by a group card for where it is. Sending out and Recall change the second
+reference and leave the first alone. Example: Gang 3 is one thing; the
+village's faction card lists it under Warband 1 and the home group lists it
+as present, and sending it out takes it off the home group's list and nothing
+off the faction card's.
+
+What can be referenced today, read in source for this entry. These are facts
+for the re-rule's brief, not options for the owner:
+
+- A faction's `members` and a place's `roster` are the same row,
+  `occupantField` (`scripts/lib/fields.mjs`): a uuid with a name, an image, a
+  kind and a quantity. Its kinds include a group and a place
+  (`OCCUPANT_KIND`, `scripts/lib/place-logic.mjs`), and a group row counts
+  its whole stack. Two containers that reference one group actor exist
+  already: a faction and a place.
+- A place holds places by the same row (`docs/lib/PLACES.md`, "Occupancy").
+- A group holds `stacks` and no other list (`scripts/lib/data/group-data.mjs`).
+  A stack is an embedded row with a `key`; it is no document and has no uuid.
+  No field of a group holds a group. A group names where it is in
+  `unit.locationUuid`.
+
+So the words do not answer question 1 above; they change what it turns on. A
+gang that both cards reference is a group actor of its own, which every
+reference row above can name today, or a stack inside a larger group, which
+needs a reference nothing has yet (a group and a stack key). Question 1,
+restated, the reading's pick first:
+
+1. What a gang is, for both cards to reference: (a) a group actor of its own
+   from Generate, so a village is one group actor for each card that holds
+   bodies; (b) a stack row in the village's home group, referenced by group
+   and stack key, and a group actor only once it is sent out.
+
+What each costs. (a) makes many actors for one village, and a warband's group
+then lists its gangs' groups, which no group field does today. (b) puts two
+gangs of identical bodies in one group as two rows, which "a stack stays one
+row" (2026-10-31), held above to apply inside a group, does not allow as
+worded.
+
+Question 2 stands. `architect` is not run again on these words alone; the
+re-rule waits for question 1. Released: none.
