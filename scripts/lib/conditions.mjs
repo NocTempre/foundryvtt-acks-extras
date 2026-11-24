@@ -380,10 +380,34 @@ export const conditionsReady = () => Object.keys(conditionValues()).length > 0;
  * @property {Record<string, string[]>} [sources]  the origin uuid of each effect imposing a condition
  * @property {Record<string, {statuses: Iterable<string>}>} [gifts]  for a state another combatant gave, that giver's statuses
  * @property {string} [id]  the creature's own uuid, matched against another's `sources`
+ * @property {string[]} [acWaived]  condition ids whose Armor Class figure the creature does not suffer (`AC_WAIVER_TARGET`)
  */
 
 /** Flag key under `flags["acks-extras"]` on an effect: how many causes it stands for. */
 export const STACKS_FLAG = "conditionStacks";
+
+/**
+ * The `modifier` target of an ability row that waives the Armor Class figures
+ * of the conditions its `conditions` list names: `{type: "modifier", target:
+ * "acWaiver", conditions: [...]}`, with no value. `subjectOf` reads it off the
+ * actor's abilities; a row under a gate or a free-text condition is not read,
+ * so a waiver is never applied on a guess.
+ */
+export const AC_WAIVER_TARGET = "acWaiver";
+
+/** The condition ids an actor's abilities waive the Armor Class figure of, each once, catalogue conditions only. */
+function waivedBy(actor) {
+  const ids = new Set();
+  for (const item of actor?.items ?? []) {
+    if (item?.type !== "ability") continue;
+    const extras = item.getFlag?.(MODULE_ID, "extras") ?? item.flags?.[MODULE_ID]?.extras;
+    for (const spec of Array.isArray(extras?.effects) ? extras.effects : []) {
+      if (spec?.type !== "modifier" || spec.target !== AC_WAIVER_TARGET || spec.gate?.kind || spec.condition) continue;
+      for (const id of Array.from(spec.conditions ?? [])) if (CONDITIONS[id]) ids.add(id);
+    }
+  }
+  return [...ids];
+}
 
 /**
  * Who gave `actor` the state an effect carries: the combatant that was acting
@@ -433,10 +457,25 @@ export function subjectOf(actor) {
       for (const implied of entry.implies ?? []) if (CONDITIONS[implied]?.given && !own.has(implied)) gifts[implied] = gift;
     }
   }
-  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null };
+  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null, acWaived: waivedBy(actor) };
 }
 
-const emptyMath = () => ({ total: 0, parts: [], pending: [], unpriced: [] });
+const emptyMath = () => ({ total: 0, parts: [], pending: [], unpriced: [], waived: [] });
+
+/**
+ * The conditions whose Armor Class row a subject does not suffer: each id its
+ * `acWaived` names that it carries, and each condition it carries only because
+ * a waived one implies it (a charge's disorder). A condition another status the
+ * creature carries in its own right brings stands: waiving the charge leaves
+ * the disorder a countercharge or a hand-set status causes.
+ */
+function waivedRows(subject) {
+  const named = [...new Set(subject?.acWaived ?? [])].filter((id) => CONDITIONS[id]);
+  if (!named.length) return new Set();
+  const carried = conditionSet(subject?.statuses);
+  const standing = conditionSet([...(subject?.statuses ?? [])].filter((id) => !named.includes(id)));
+  return new Set([...carried].filter((id) => named.includes(id) || !standing.has(id)));
+}
 
 /** How many times a `per` row counts. */
 function multiplier(mod, key, subject) {
@@ -474,6 +513,7 @@ function reaches(key, subject, opponent) {
  * @param {number} [p.sign]  -1 turns a figure on a creature's AC into one on its attacker's roll
  */
 function collect({ set, subject, on, side, kind, save, opponent, values, out, sign = 1 }) {
+  const waived = on === "ac" && side === "own" ? waivedRows(subject) : null;
   for (const key of set) {
     // A state another gave is superseded by what its giver does, not its bearer.
     const gift = subject?.gifts?.[key];
@@ -491,6 +531,10 @@ function collect({ set, subject, on, side, kind, save, opponent, values, out, si
       }
       const value = figure * multiplier(mod, key, subject) * sign;
       if (!value) continue;
+      if (waived?.has(key)) {
+        (out.waived ??= []).push({ condition: key, value });
+        continue;
+      }
       if (mod.when && mod.when !== "source") {
         out.pending.push({ condition: key, value, when: mod.when });
         continue;
@@ -538,9 +582,11 @@ export function forbiddenBy(set, act) {
  * @returns {{terms: Array<{condition: string, value: number, side: "own"|"target"}>,
  *   damage: Array<{condition: string, value: number}>, damageFactor: number,
  *   damageFactorBy: string[], forbidden: string[], shielded: string[],
- *   autoHit: string|null, pending: object[], unpriced: string[]}} `autoHit` is
- *   the target's condition that waives the throw; `damageFactorBy` the
- *   attacker's conditions that scaled the damage.
+ *   autoHit: string|null, pending: object[], unpriced: string[], waived: Array<{condition: string, value: number}>}}
+ *   `autoHit` is the target's condition that waives the throw; `damageFactorBy`
+ *   the attacker's conditions that scaled the damage; `waived` the target's
+ *   Armor Class rows it does not suffer (`acMath`), left out of `terms`, each
+ *   with the figure as a term would have carried it.
  */
 export function attackMath({ attacker, target = null, kind = "melee", attackerSize = null, targetSize = null, values = conditionValues() }) {
   const own = conditionSet(attacker?.statuses);
@@ -579,6 +625,7 @@ export function attackMath({ attacker, target = null, kind = "melee", attackerSi
     autoHit,
     pending: out.pending,
     unpriced: [...new Set([...out.unpriced, ...dmg.unpriced, ...factor.unpriced])],
+    waived: out.waived ?? [],
   };
 }
 
@@ -616,14 +663,27 @@ export function rollMath(on, subject, values = conditionValues(), { save } = {})
  * no `kind` it is the Armor Class against every attack, and a row that stands
  * against only some kinds is left out.
  *
+ * A condition the subject's `acWaived` names is not suffered: its row is left
+ * out of `parts` and `total` and reported in `waived`, and so is the row of a
+ * condition that is carried only because a waived one implies it (a charge's
+ * disorder). Only the Armor Class figure is waived; the caller still reads the
+ * condition's other rows and what it forbids.
+ *
  * @param {ConditionSubject} subject
  * @param {object} [values]
  * @param {{kind?: "melee"|"missile"|"thrown"}} [options]
+ * @returns {{total: number, parts: Array<{condition: string, value: number}>, unpriced: string[],
+ *   waived: Array<{condition: string, value: number}>}}
  */
 export function acMath(subject, values = conditionValues(), { kind } = {}) {
   const out = emptyMath();
   collect({ set: conditionSet(subject?.statuses), subject, on: "ac", side: "own", kind, values, out });
-  return { total: total(out.parts), parts: out.parts.map(({ condition, value }) => ({ condition, value })), unpriced: out.unpriced };
+  return {
+    total: total(out.parts),
+    parts: out.parts.map(({ condition, value }) => ({ condition, value })),
+    unpriced: out.unpriced,
+    waived: out.waived,
+  };
 }
 
 /**

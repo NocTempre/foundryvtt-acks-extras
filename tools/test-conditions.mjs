@@ -235,6 +235,51 @@ ok("both sides stack on one throw", () => {
   assert.equal(math.terms.reduce((sum, t) => sum + t.value, 0), 6 + 5 + 3);
 });
 
+ok("a waiver leaves a condition's Armor Class figure out and reports it, the shape otherwise as it was", () => {
+  const waiving = (statuses, acWaived) => who(statuses, { acWaived });
+  const plain = acMath(who(["charging"]), VALUES);
+  assert.deepEqual(plain, { total: -3, parts: [{ condition: "disordered", value: -3 }], unpriced: [], waived: [] }, "no waiver: the same total and parts, an empty list");
+  // The charge has no Armor Class row of its own; its disorder is what it costs.
+  const waived = acMath(waiving(["charging"], ["charging"]), VALUES);
+  assert.deepEqual(waived, { total: 0, parts: [], unpriced: [], waived: [{ condition: "disordered", value: -3 }] });
+  assert.equal(acMath(waiving(["charging"], ["countercharging"]), VALUES).total, -3, "a waiver for what the creature is not doing waives nothing");
+  assert.equal(acMath(waiving(["charging"], ["disordered"]), VALUES).total, 0, "naming the row's own condition waives it");
+  // The disorder another cause brings stands.
+  assert.equal(acMath(waiving(["charging", "disordered"], ["charging"]), VALUES).total, -3, "a disorder carried in its own right is suffered");
+  assert.equal(acMath(waiving(["charging", "countercharging"], ["charging"]), VALUES).total, -3, "so is one a second implier brings");
+  assert.equal(acMath(waiving(["charging", "countercharging"], ["charging", "countercharging"]), VALUES).total, 0, "both waived");
+  // Only the Armor Class figure: every other row of the creature stands.
+  const mixed = acMath(waiving(["charging", "infuriated"], ["charging"]), VALUES);
+  assert.deepEqual(mixed.parts, [{ condition: "infuriated", value: -4 }]);
+  assert.equal(mixed.total, -4);
+  assert.deepEqual(mixed.waived, [{ condition: "disordered", value: -3 }]);
+  const counter = attackMath({ attacker: waiving(["countercharging"], ["countercharging"]), kind: "melee", values: VALUES });
+  assert.equal(termOf(counter, "countercharging").value, 5, "the attack row of a waived condition still applies");
+  // An id that is no condition names nothing.
+  assert.equal(acMath(waiving(["charging"], ["no-such-condition"]), VALUES).total, -3);
+  // The same reading on the target's side of an attack throw.
+  const target = waiving(["charging", "infuriated"], ["charging"]);
+  const theirs = attackMath({ attacker: who([]), target, kind: "melee", values: VALUES });
+  assert.deepEqual(theirs.terms, [{ condition: "infuriated", value: 4, side: "target" }]);
+  assert.deepEqual(theirs.waived, [{ condition: "disordered", value: 3 }], "the figure as a term would have carried it");
+  assert.deepEqual(attackMath({ attacker: who([]), target: who(["charging"]), kind: "melee", values: VALUES }).waived, []);
+});
+
+ok("subjectOf reads the waiver rows of an actor's abilities: ungated, a catalogue condition, each once", () => {
+  const row = (extra = {}) => ({ type: "modifier", target: "acWaiver", appliesTo: "self", conditions: ["charging", "retreating"], ...extra });
+  const ability = (effects, extra = {}) => ({ type: "ability", flags: { "acks-extras": { extras: { effects } } }, ...extra });
+  const actor = (items) => ({ statuses: new Set(["charging"]), items, uuid: "Actor.w" });
+  assert.deepEqual(subjectOf(actor([ability([row()])])).acWaived, ["charging", "retreating"]);
+  assert.deepEqual(subjectOf(actor([ability([row()]), ability([row({ conditions: ["retreating", "prone"] })])])).acWaived, ["charging", "retreating", "prone"], "two abilities pool, each id once");
+  assert.deepEqual(subjectOf(actor([ability([row({ gate: { kind: "status", status: "x" } })])])).acWaived, [], "a gated row is not read: no waiver on a guess");
+  assert.deepEqual(subjectOf(actor([ability([row({ condition: "while it lasts" })])])).acWaived, [], "nor one under a free-text condition");
+  assert.deepEqual(subjectOf(actor([ability([row({ target: "ac" })])])).acWaived, [], "another target is not a waiver");
+  assert.deepEqual(subjectOf(actor([ability([row({ conditions: ["no-such-condition"] })])])).acWaived, []);
+  assert.deepEqual(subjectOf(actor([{ ...ability([row()]), type: "weapon" }])).acWaived, [], "only an ability carries one");
+  assert.deepEqual(subjectOf(actor(undefined)).acWaived, []);
+  assert.equal(acMath(subjectOf(actor([ability([row()])])), VALUES).total, 0, "the subject an actor makes carries it into the math");
+});
+
 ok("a superseded row stands down", () => {
   assert.equal(termOf(attack([], ["covered"], "missile"), "covered").value, -3);
   const both = attack([], ["covered", "coveredGreater"], "missile");

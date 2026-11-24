@@ -2744,6 +2744,19 @@ reaches everyone. The flank and a subjacent target are choices the system's
 attack dialog prices itself (its direction and its subjacent box), so the
 **Flanked** and **Subjacent** statuses mark the state and carry no row.
 
+**A waiver of an Armor Class figure.** An ability can carry a `modifier` row
+with `target: "acWaiver"` and a `conditions` list: the creature does not suffer
+the Armor Class figure of those conditions. It names the condition and not the
+row: a charge has no Armor Class row of its own, its disorder is what it costs,
+so a waiver of the charge leaves out the disorder that the charge alone brings.
+A disorder the creature carries in its own right, or one a second condition
+implies (a countercharge), stands, and naming the disorder itself waives it
+whatever brought it. `collect` makes the reading from the subject's `acWaived`
+(`subjectOf` fills it), so `acMath` and the target's side of `attackMath`
+agree and no caller passes it. Only the Armor Class figure is waived: the
+condition's own attack row, what it forbids and what it implies are as before.
+A gated row is not read, so no waiver is applied on a guess.
+
 **Where each roll takes it.**
 
 | Roll | Seam | How the figure rides |
