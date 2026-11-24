@@ -19,7 +19,8 @@ const stowable = (actor) => actor.items.filter((i) => !!globalThis.acksExtras?.l
 const isContainer = (item) => !!globalThis.acksExtras?.lib.places.isContainerItem(item);
 
 function rowHTML(item) {
-  const qty = storage().quantityOf(item.toObject())?.value ?? null;
+  const plain = item.toObject();
+  const qty = storage().isStackable(plain) ? (storage().quantityOf(plain)?.value ?? null) : null;
   const holds = isContainer(item) ? ` <em class="acks-location-hint">${loc("storage.takesContents")}</em>` : "";
   return `<li class="acks-location-pick">
     <label>

@@ -1376,7 +1376,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
             img: item.img,
             type: item.type,
             quantity: api.quantityOf(item)?.value ?? null,
-            stackable: !!api.quantityOf(item),
+            stackable: api.isStackable(item),
             spoil,
             retrievable,
             canTake: canTakeGroup || (isHouse && retrievable),

@@ -6,6 +6,7 @@
 import { LANG_PREFIX } from "./constants.mjs";
 import { makeLoc } from "./util.mjs";
 import { divideStack, stackCountOf } from "./item-model.mjs";
+import { isStackable } from "./storage-logic.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -18,7 +19,7 @@ const loc = makeLoc(LANG_PREFIX);
  */
 export async function promptDivide(item) {
   const have = stackCountOf(item) ?? 0;
-  if (!item || have < 2) return null;
+  if (!item || !isStackable(item) || have < 2) return null;
   const count = await foundry.applications.api.DialogV2.prompt({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("stack.divideTitle", { name: item.name }) },

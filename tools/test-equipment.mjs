@@ -804,7 +804,9 @@ const { encumbranceDelta6, contentsWeight6, overCapacity, containerReport, isCon
 
 const gear = (name, w6, over = {}) => {
   const type = over.type ?? "item";
-  const system = { cost: over.cost ?? 0, weight6: w6, quantity: { value: over.qty ?? 1 }, subtype: over.subtype };
+  // `flat` is the system's current shape, a plain whole number on every
+  // Physical Item; the default keeps the `{value}` object an older copy carries.
+  const system = { cost: over.cost ?? 0, weight6: w6, quantity: over.flat ? (over.qty ?? 1) : { value: over.qty ?? 1 }, subtype: over.subtype };
   // Core declares `equipped` on weapon and armor ONLY, and Foundry prunes keys
   // outside a type's schema — so a fixture carrying it on a plain `item` claims
   // a field the system cannot store. That lie is exactly how the adventurer's
@@ -870,6 +872,52 @@ check("a bundled stack inside a container rolls up bundled",
 // correction however its bundle reads.
 check("clothing declares no bundle correction",
   encumbranceDelta6(withItems([gear("Robes", 6, { qty: 4, subtype: "clothing", flags: { gear: { per: 4 } } })])) === 0);
+// --- the system's quantity is one whole number on every Physical Item ---------
+// The delta is checked as an invariant: what the system's `computeEncumbrance`
+// counts (restated here, independently of `coreWeight6Of`) plus the correction
+// equals what the item model weighs. Weights are this file's own.
+const { encumbering6: enc6, stackCountOf: stackOf } = await import(new URL("../lib/item-model.mjs", S));
+const coreCounts = (items) =>
+  items.reduce(
+    (sum, i) => (["item", "weapon", "armor"].includes(i.type) && i.system.subtype !== "clothing" ? sum + i.system.weight6 * i.system.quantity : sum),
+    0,
+  );
+const closes = (items) => coreCounts(items) + encumbranceDelta6(withItems(items)) === items.reduce((sum, i) => sum + enc6(i), 0);
+const flat = (name, w6, over = {}) => gear(name, w6, { ...over, flat: true });
+const dartsFlags = { gear: { per: 3 } };
+
+check("a plain-number quantity is read by the stack count", stackOf(flat("Rope", 6, { qty: 5 })) === 5);
+check("a weapon with a quantity of 1 weighs its weight", w6Of(flat("Sword", 6, { type: "weapon", qty: 1 })) === 6);
+check("a weapon with a quantity of 3 weighs three times its weight", w6Of(flat("Sword", 6, { type: "weapon", qty: 3 })) === 18);
+check("armour multiplies by its quantity too", w6Of(flat("Mail", 10, { type: "armor", qty: 2 })) === 20);
+check("a stack of gear multiplies", w6Of(flat("Torches", 2, { qty: 4 })) === 8);
+check("core counts a weapon at weight times quantity", coreWeight6Of(flat("Sword", 6, { type: "weapon", qty: 3 })) === 18);
+check("core counts armour at weight times quantity", coreWeight6Of(flat("Mail", 10, { type: "armor", qty: 2 })) === 20);
+check("core counts no clothing", coreWeight6Of(flat("Robes", 6, { qty: 4, subtype: "clothing" })) === 0);
+check("core counts no coin", coreWeight6Of({ type: "money", system: { quantity: 80, coppervalue: 1 } }) === 0);
+check("an item copy kept in the old object shape still weighs by its count", w6Of(gear("Torches", 2, { qty: 4 })) === 8);
+check("a stack of gear closes", closes([flat("Torches", 2, { qty: 4 })]));
+check("a bundled quiver closes", closes([flat("Quiver, 7 Arrows", 1, { qty: 7, flags: { gear: { per: 7 } } })]));
+check("a part-used bundled quiver weighs whole bundles and closes", closes([flat("Quiver, 7 Arrows", 1, { qty: 15, flags: { gear: { per: 7 } } })]));
+check("a weapon with a quantity of 1 closes", closes([flat("Sword", 6, { type: "weapon", qty: 1 })]));
+check("a weapon with a quantity of 3 needs no correction", encumbranceDelta6(withItems([flat("Sword", 6, { type: "weapon", qty: 3 })])) === 0);
+check("a bundled weapon stack is corrected like any bundle", encumbranceDelta6(withItems([flat("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags })])) === 2 - 6);
+check("a bundled weapon stack closes", closes([flat("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags })]));
+check("armour with a quantity of 2 closes", closes([flat("Mail", 10, { type: "armor", qty: 2 })]));
+check("bundled armour closes", closes([flat("Mail", 10, { type: "armor", qty: 4, flags: { gear: { per: 2 } } })]));
+check("clothing closes whatever its quantity and bundle", closes([flat("Robes", 6, { qty: 4, subtype: "clothing", flags: { gear: { per: 4 } } })]));
+check("a mixed load closes", closes([
+  flat("Torches", 2, { qty: 4 }),
+  flat("Quiver, 7 Arrows", 1, { qty: 7, flags: { gear: { per: 7 } } }),
+  flat("Sword", 6, { type: "weapon", qty: 3 }),
+  flat("Darts", 1, { type: "weapon", qty: 6, flags: dartsFlags }),
+  flat("Mail", 10, { type: "armor", qty: 2 }),
+  flat("Robes", 6, { qty: 4, subtype: "clothing" }),
+]));
+// A thrown weapon row comes off whole: core's count, the bundle correction and
+// the thrown subtraction cancel.
+const thrownDarts = flat("Darts", 1, { type: "weapon", qty: 6, flags: { ...dartsFlags, thrownAway: true } });
+check("a thrown bundled weapon row leaves no weight behind", coreCounts([thrownDarts]) + encumbranceDelta6(withItems([thrownDarts])) === 0);
 check("backpack rolls up its contents' weight", contentsWeight6(cActor, "bp") === 12);
 check("backpack under capacity (2 st of 4)", !overCapacity(cActor, pack));
 check("container report lists load in stone", containerReport(cActor)[0].loadStone === 2);

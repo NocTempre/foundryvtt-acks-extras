@@ -687,7 +687,7 @@ shipped: the importer names the quiver and bolt-case rows of the weapons grid
 from the page's own label, so the count arrives in the name from the Judge's
 book. A name that states none declares nothing, and the device keeps holding
 gear. Annotate does not write the count: that
-is core's `system.quantity.value`, arriving with the item from the compendium,
+is core's `system.quantity`, arriving with the item from the compendium,
 the importer or the Judge, and Annotate leaves it as it finds it.
 
 Core's own encumbrance loop multiplies `weight6` by the whole quantity and

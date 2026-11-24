@@ -993,3 +993,43 @@ host's emphatic text) carry it, and a Judge who wants the distinction back has
 Book style. A rule that sets no face of its own inherits its parent's under both
 looks, so a label whose face comes from another rule can still read in a display
 face until it is walked live.
+
+## 2026-11-24 — Quantity is the system's plain number, and a weapon stays one row
+
+`acks` 14.2.0 keeps Quantity as a whole number at `system.quantity` on every
+Physical Item (gear, clothing, weapon, armour). Before it gear kept
+`{value}` and a weapon or a suit of armour kept none, and lib read "carries no
+quantity" as "is a single thing that moves whole". The owner, 2026-11-24:
+"Anything that now duplicates needs rolled into calling core instead of
+parallel code maintenance."
+
+**Ruled.**
+
+- The module requires `acks` 14.2.0. Core's AC sum, its combat states and its
+  stored shapes differ between 14.1.0 and 14.2.0, so serving both is parallel
+  code by construction.
+- `quantityOf` stays the one reader of the field, and `weight6Of` and
+  `coreWeight6Of` take the count through it. Its `{value}` branch stays for an
+  item copy a module flag saved before the system flattened the field; no tool
+  converts those.
+- Carrying a quantity and being a stack are two questions. `isStackable` is the
+  one answer to the second: false for a weapon and for armour, by type. Their
+  quantity counts toward weight and nothing else. They never divide, never
+  merge, move whole, and a bucket takes one as a single entry.
+- A bundle row is counted as core's drop counts it (`_createBundleEntryItem`):
+  one document holding the row's count. This supersedes, for the count only,
+  "A bundle arrives as its goods, and delivery has one owner (2026-09-23)";
+  the new evidence is 14.2.0's drop, which stopped multiplying by the source's
+  own stack and stopped making copies.
+- `coreWeight6Of` and `PHYSICAL_ITEM_TYPES` mirror core's `computeEncumbrance`
+  and its constant of the same name. Core publishes neither on a surface a
+  module can call, so each mirror cites what it mirrors.
+
+**Rejected.** Reading both shapes for a transition release: cheap for quantity
+alone and not for the rest. Folding identical weapons into one stack: it
+changes what a hand-over, a stash and a sale do with a row, and no design for
+it has been shown.
+
+**Cost.** A weapon or armour whose quantity is above one is valued and spent
+whole, and the storage lists do not show its count. Offline only until the
+slice is walked on `main`.

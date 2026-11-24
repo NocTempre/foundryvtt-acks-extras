@@ -4,7 +4,7 @@
  * and makes the writes.
  */
 import { toNum as num } from "./util.mjs";
-import { ITEM_TYPE } from "./vocab.mjs";
+import { ITEM_TYPE, PHYSICAL_ITEM_TYPES } from "./vocab.mjs";
 import { LIB_ID, STORAGE_KEY, UNPACKED_FROM, planStackMerge, quantityOf } from "./storage-logic.mjs";
 
 /** The equipment feature's container pointer, under the same flag scope. */
@@ -52,38 +52,34 @@ export function arrivalOf(sourceData) {
 }
 
 /**
- * What one row delivers, counted as core's own bundle drop counts it: coin
- * arrives as `count` coins, a stackable as one stack of `count` times its own
- * size (an empty source stack counts as one), anything else as `count` copies.
+ * What one row delivers, counted as the system's own bundle drop counts it
+ * (`_createBundleEntryItem`): one document per row. Coin and every Physical
+ * Item (gear, weapon, armour) arrive holding the row's `count` as a plain
+ * whole-number `system.quantity`, whatever quantity the source carried and
+ * whatever shape it kept it in; anything else (a spell, a proficiency) arrives
+ * as it is, with no quantity.
  * @returns {object[]} plain item data, one entry per document to deliver
  */
 export function goodsForRow(sourceData, count) {
   const n = Math.max(1, Math.floor(num(count, 1)));
   const one = arrivalOf(sourceData);
-  if (one.type === ITEM_TYPE.money) {
+  if (one.type === ITEM_TYPE.money || PHYSICAL_ITEM_TYPES.includes(one.type)) {
     one.system = { ...one.system, quantity: n };
-    return [one];
   }
-  const q = quantityOf(one);
-  if (q) {
-    const size = Math.max(1, q.value) * n;
-    if (q.path === "system.quantity") one.system.quantity = size;
-    else one.system.quantity = { ...one.system.quantity, value: size };
-    return [one];
-  }
-  return Array.from({ length: n }, (_, i) => (i ? structuredClone(one) : one));
+  return [one];
 }
 
 /**
  * What a stack dropped from outside any actor — a compendium, the sidebar —
  * delivers: the stack as it stands, an empty one counted as one. The system
  * ships its coins as stacks of none, so a coin dragged off the shelf is one
- * coin, and a pile the Judge counted out in the sidebar is the whole pile.
+ * coin, and a pile the Judge counted out in the sidebar is the whole pile. A
+ * weapon or armour keeps its own quantity the same way.
  * @returns {object[]} plain item data, one entry per document to deliver
  */
 export function goodsForDrop(sourceData) {
-  if (sourceData?.type !== ITEM_TYPE.money) return goodsForRow(sourceData, 1);
-  return goodsForRow(sourceData, Math.max(1, Math.floor(num(quantityOf(sourceData)?.value, 1))));
+  const held = quantityOf(sourceData)?.value;
+  return goodsForRow(sourceData, Math.max(1, Math.floor(num(held, 1))));
 }
 
 /** `data` with the bundle it came out of stamped on it. */

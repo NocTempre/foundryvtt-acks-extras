@@ -47,9 +47,14 @@ const isMoney = (plain) => plain?.type === ITEM_TYPE.money;
 /* -------------------------------------------- */
 
 /**
- * Where this item keeps its stack size, and how big the stack is.
- * @returns {{value: number, path: string}|null} null when the item does not
- *   stack at all (weapon, armor) — those always move whole.
+ * Where this item keeps its quantity, and how many it stands for. Every
+ * Physical Item (gear, clothing, weapon, armour) keeps a plain whole number at
+ * `system.quantity`, as does coin. The `{value}` object branch stays because an
+ * item copy saved in a module flag before the system flattened the field still
+ * carries that shape; its path is `system.quantity.value`.
+ * @returns {{value: number, path: string}|null} null when the data carries no
+ *   quantity in either shape. Whether the item may be split or merged is
+ *   `isStackable`'s question, not this one's.
  */
 export function quantityOf(plain) {
   const sys = plain?.system;
@@ -59,6 +64,18 @@ export function quantityOf(plain) {
     return { value: Number(sys.quantity.value), path: "system.quantity.value" };
   }
   return null;
+}
+
+/**
+ * Can this item be split into rows, folded into another row of itself, or
+ * counted off one at a time? A weapon and a suit of armour keep a quantity
+ * like every Physical Item but always stay a row of their own and move whole,
+ * so they answer false; so does anything that carries no quantity. Works on
+ * plain item data and on a document alike.
+ */
+export function isStackable(plain) {
+  if (plain?.type === ITEM_TYPE.weapon || plain?.type === ITEM_TYPE.armor) return false;
+  return quantityOf(plain) !== null;
 }
 
 /** The container this item is inside, per the equipment feature. Null when loose. */
@@ -81,7 +98,7 @@ export const rowOwnerOf = (plain) => storageFlagOf(plain)?.ownerUuid || HOUSE_OW
  */
 export function splitSpec(plain, requested = null) {
   const q = quantityOf(plain);
-  if (!q) return { move: 1, remain: 0, whole: true, path: null };
+  if (!isStackable(plain)) return { move: 1, remain: 0, whole: true, path: null };
   const have = Math.max(0, num(q.value));
   const want = requested == null ? have : Math.max(0, Math.floor(num(requested)));
   const move = Math.min(have, want);
@@ -243,7 +260,7 @@ function canon(value) {
  * carries the owner. See docs/lib/API.md, "storage".
  */
 export function stackSignature(plain, { byOwner = false } = {}) {
-  if (!quantityOf(plain)) return null; // unstackable: weapons, armour
+  if (!isStackable(plain)) return null; // weapons and armour keep their own row
   // Coin identity is the KIND (name and rate together), not the rate alone,
   // and `coinKind` is its one statement. See docs/lib/DECISIONS.md,
   // "2026-08-14 — Money is physical; four rulings land at once". A coin row

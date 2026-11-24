@@ -1053,7 +1053,7 @@ the system adds a type this library never heard of.
 | Have they got one? | `findCarried` / `carriesItem` | every "you need a pole / a torch / a quill for this" rule asks the same question; physical-only, so a proficiency named "Spear Fighting" is not an implement, and `hasStock` makes an empty stack read as not carried |
 | Can it be put somewhere? | `isGoods` / `isStowable` | coin is goods without being physical — the gap that grew a `\|\| type === "money"` rider at fifteen sites |
 | Is it currency? | `isCurrency` | the one stackable whose weight is stated per stone — see "Currency" |
-| How many are in the stack? | `stackCountOf` | read by the field's shape, so coin's bare number and a stackable's `{value, max}` answer through one door; `null` for what does not stack |
+| How many are in the stack? | `stackCountOf` | read by the field's shape (the system's plain number, or the `{value}` object on an item copy a flag saved earlier); `null` for data that carries no quantity. Whether a row divides or merges is `isStackable`: never a weapon or armour |
 | What does it weigh? | `weight6Of` / `sumWeight6` | a stack's weight in sixths, bundle size applied; currency as an exact fraction, summed per rate |
 | Is it clothing? | `isClothing` | core's `system.subtype`, its one sub-classification |
 | What does it add to encumbrance? | `encumbering6` | what core's `computeEncumbrance` counts, clothing excluded, with coin weighed to the coin where core counts whole stones |
@@ -1398,9 +1398,9 @@ sheet lists an embedded one. So nothing embeds one:
 - **A bundle dropped on the character sheet** opens through `unpackBundle`.
   Each row resolves by its uuid, then by the library item of the same name and
   type, and a row neither finds is named in a warning while the rest arrive.
-  A row counts as core's own drop counts it: coin as that many coins, a
-  stackable as one stack of the count times its own size, anything else as
-  that many copies. The bundle is read, never consumed.
+  A row counts as core's own drop counts it (`_createBundleEntryItem`): one
+  document per row, and coin and every Physical Item (gear, weapon, armour)
+  hold the row's count as their quantity. The bundle is read, never consumed.
 - **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
   units, so it hands over one stack of the quantity bought or that many
   copies, through the same `deliverItems`.

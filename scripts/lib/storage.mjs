@@ -29,6 +29,7 @@ import {
   expandContainerClosure,
   groupByOwner,
   planCoinFold,
+  isStackable,
   planStackMerge,
   quantityOf,
   rowOwnerOf,
@@ -69,6 +70,7 @@ export {
   expandContainerClosure,
   groupByOwner,
   planCoinFold,
+  isStackable,
   planStackMerge,
   quantityOf,
   rowOwnerOf,
@@ -569,7 +571,7 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
       name: containerName,
       type: "item",
       img: "icons/svg/chest.svg",
-      system: { subtype: "item", cost: 0, weight6: 0, quantity: { value: 1, max: 0 } },
+      system: { subtype: "item", cost: 0, weight6: 0, quantity: 1 },
       flags: { "acks-extras": { container: { capacity: 0 } } },
     };
     const [made] = await owner.createEmbeddedDocuments("Item", [container]);

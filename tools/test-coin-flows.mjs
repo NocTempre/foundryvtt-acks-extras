@@ -1378,6 +1378,17 @@ await test("any stack divides, and one that was worn leaves its place behind", a
   assert.equal(made.flags["acks-extras"].gear.wornAt, "", "the divided-off part is carried, not worn");
   assert.equal(hero.items.get("t").flags["acks-extras"].gear.wornAt, "belt");
 });
+await test("plain-number gear divides as `system.quantity` and a weapon or armour with a quantity never does", async () => {
+  const flat = (id, name, type, qty) => ({ _id: id, name, type, system: { cost: 1, weight6: 1, quantity: qty }, flags: {} });
+  const hero = makeActor({ id: "hero", items: [flat("t", "Torch", "item", 6), flat("w1", "Sword", "weapon", 1), flat("w3", "Spears", "weapon", 3), flat("m", "Mail", "armor", 2)] });
+  const made = await divideStack(hero.items.get("t"), 2);
+  assert.equal(made.system.quantity, 2);
+  assert.equal(hero.items.get("t").system.quantity, 4);
+  const writes = hero.writes;
+  for (const id of ["w1", "w3", "m"]) assert.equal(await divideStack(hero.items.get(id), 1), null, `${id} stays one row`);
+  assert.equal(hero.writes, writes, "and nothing is written for it");
+  assert.equal(hero.items.get("w3").system.quantity, 3);
+});
 await test("a divide that would leave either side empty is refused and writes nothing", async () => {
   const sword = { _id: "sw", name: "Sword", type: "weapon", system: { cost: 10, weight6: 6, equipped: true } };
   const hero = makeActor({ id: "hero", items: [gold(10, { _id: "g" }), sword] });
@@ -1416,6 +1427,20 @@ await test("two rows join only when they are one thing in one place", async () =
   assert.equal(hero.writes + other.writes, 0, "a refusal writes nothing");
   assert.equal((await joinStacks(item("t2"), item("t1"))).system.quantity.value, 6, "identical stacks of anything join");
   assert.equal(hero.items.get("t2"), undefined);
+});
+await test("plain-number stacks join, and two identical weapons or armour never do", async () => {
+  const flat = (id, name, type, qty) => ({ _id: id, name, type, img: "x.webp", system: { cost: 1, weight6: 1, quantity: qty }, flags: {} });
+  const hero = makeActor({
+    id: "hero",
+    items: [flat("t1", "Torch", "item", 4), flat("t2", "Torch", "item", 2), flat("s1", "Sword", "weapon", 1), flat("s2", "Sword", "weapon", 1), flat("m1", "Mail", "armor", 1), flat("m2", "Mail", "armor", 3)],
+  });
+  const item = (id) => hero.items.get(id);
+  assert.equal(await joinStacks(item("s2"), item("s1")), null, "two identical swords stay two rows");
+  assert.equal(await joinStacks(item("m2"), item("m1")), null, "so does armour, whatever its quantity");
+  assert.equal(hero.writes, 0, "a refusal writes nothing");
+  assert.equal((await joinStacks(item("t2"), item("t1"))).system.quantity, 6, "identical plain-number stacks join");
+  assert.equal(hero.items.get("t2"), undefined);
+  assert.deepEqual(planStackMerge([flat("n1", "Sword", "weapon", 1)], hero.items.map((i) => i.toObject())), { creates: [flat("n1", "Sword", "weapon", 1)], targetUpdates: [] }, "an arriving sword is never folded into the one carried");
 });
 await test("a coin row with a banked balance is emptied by a join, never removed", async () => {
   const hero = makeActor({ id: "hero", items: [gold(7, { _id: "g1" }), gold(5, { _id: "g2", bank: 30 })] });

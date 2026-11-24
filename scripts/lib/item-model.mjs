@@ -8,8 +8,8 @@
  */
 
 import { MODULE_ID, FLAG_GEAR, VARIATION_TYPE } from "./constants.mjs";
-import { WEAR_SLOTS, slotCapacity, ITEM_TYPE } from "./vocab.mjs";
-import { containedInOf, quantityOf, stackSignature } from "./storage-logic.mjs";
+import { WEAR_SLOTS, slotCapacity, ITEM_TYPE, PHYSICAL_ITEM_TYPES } from "./vocab.mjs";
+import { containedInOf, quantityOf, isStackable, stackSignature } from "./storage-logic.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -79,10 +79,12 @@ export function bundleSizeOf(item) {
 export const isCurrency = (item) => item?.type === ITEM_TYPE.money;
 
 /**
- * How many units are in the stack, or null for an item that does not stack at
- * all (a weapon, a suit of armour). Read by the field's SHAPE, so coin — which
- * keeps a bare number where every other stackable keeps `{value, max}` —
- * answers through the same door.
+ * How many units the item stands for, or null for one that carries no
+ * quantity. A weapon and a suit of armour answer their quantity like any other
+ * Physical Item; whether a row may be divided or merged is `isStackable`'s
+ * question. Read by the field's SHAPE, so coin and gear answer through the
+ * same door, and an item copy saved before the system flattened its
+ * quantity still answers.
  */
 export function stackCountOf(item) {
   const q = quantityOf(item);
@@ -142,10 +144,11 @@ export function perStoneOf(item) {
 }
 
 /**
- * Effective weight in `weight6`, honouring quantity the way the system does.
- * Only stackable items multiply (a `weapon`/`armor` has no quantity field, so
- * it is read where it exists, not defaulted). A stated weight covering a
- * BUNDLE of units is counted once per whole bundle used (CEILS, not divides) —
+ * Effective weight in `weight6`, honouring quantity the way the system does:
+ * every item that carries a quantity multiplies by it, a weapon and a suit of
+ * armour included; one that carries none weighs what it states. A stated
+ * weight covering a BUNDLE of units is counted once per whole bundle used
+ * (CEILS, not divides) —
  * see docs/lib/DECISIONS.md, "A bundled good's weight and its count share a
  * denominator, and the size is printed".
  *
@@ -161,8 +164,8 @@ export function weight6Of(item) {
   }
   if (!isPhysical(item)) return 0;
   const w = Number(item.system.weight6 ?? 0);
-  const qty = item.system.quantity?.value;
-  if (!Number.isFinite(qty)) return w;
+  const qty = stackCountOf(item);
+  if (qty === null) return w;
   const per = bundleSizeOf(item);
   return per > 1 ? w * Math.ceil(qty / per) : w * qty;
 }
@@ -188,16 +191,17 @@ export function sumWeight6(items, each = weight6Of) {
 }
 
 /**
- * What core's own encumbrance sum would make of this item — `weight6` times
- * quantity, with no bundle applied. Core owns the character encumbrance loop
- * and cannot be modified, so a bundle has to be corrected AFTER core has
- * counted it; this is the figure `encumbranceDelta6` corrects away.
+ * What the system's `computeEncumbrance` adds to a character's load for this
+ * one item: `weight6` times quantity for a Physical Item (gear, weapon, armour)
+ * that is not clothing, with no bundle applied; nothing for clothing, coin or
+ * any other type. Core owns the character encumbrance loop and cannot be
+ * modified, so a bundle has to be corrected AFTER core has counted it; this is
+ * the figure `encumbranceDelta6` corrects away. An item whose data carries no
+ * quantity counts once, the schema's initial.
  */
 export function coreWeight6Of(item) {
-  if (!isPhysical(item)) return 0;
-  const w = Number(item.system.weight6 ?? 0);
-  const qty = item.system.quantity?.value;
-  return Number.isFinite(qty) ? w * qty : w;
+  if (!PHYSICAL_ITEM_TYPES.includes(item?.type) || isClothing(item)) return 0;
+  return Number(item.system?.weight6 ?? 0) * (stackCountOf(item) ?? 1);
 }
 
 /** The same weight in stone, for display. */
@@ -347,8 +351,9 @@ export function physicalItems(actor) {
 }
 
 /**
- * Does a stack have anything left? An item the system gives no quantity — a
- * weapon, a suit of armour — is a single thing and always answers yes.
+ * Does a stack have anything left? An item whose data carries no quantity is a
+ * single thing and always answers yes; a quantity of none, a weapon's included,
+ * answers no.
  */
 export const hasStock = (item) => (stackCountOf(item) ?? 1) > 0;
 
@@ -357,14 +362,15 @@ export const hasStock = (item) => (stackCountOf(item) ?? 1) > 0;
  * thing, in the same container, under the same owner — and leave the rest
  * where it was. The copy is made before the stack is reduced, so a divide cut
  * short leaves a duplicate and never a loss. Nothing is written unless the
- * count falls strictly inside the stack.
+ * count falls strictly inside the stack, and never for a weapon or armour,
+ * which stay one row (`isStackable`).
  * @returns {Promise<Item|null>} the new row, or null when nothing was divided
  */
 export async function divideStack(item, count) {
   const q = quantityOf(item);
   const take = Math.floor(Number(count));
   const holder = item?.parent;
-  if (!q || !holder?.createEmbeddedDocuments || !(take > 0) || !(take < q.value)) return null;
+  if (!isStackable(item) || !holder?.createEmbeddedDocuments || !(take > 0) || !(take < q.value)) return null;
   const copy = item.toObject();
   delete copy._id;
   foundry.utils.setProperty(copy, q.path, take);

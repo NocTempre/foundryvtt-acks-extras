@@ -239,6 +239,16 @@ await test("and from the mount back to the rider", async () => {
   assert.deepEqual([names(hero), names(horse)], [["Lantern", "Rope"], ["Saddle"]]);
 });
 
+await test("a weapon with a quantity and armour move whole and keep their quantity; plain-number gear moves as its stack", async () => {
+  const flatGoods = (name, type, qty) => ({ name, type, system: { cost: 1, weight6: 6, quantity: qty } });
+  const hero = makeActor({ id: "hero", items: [flatGoods("Spears", "weapon", 3), flatGoods("Sword", "weapon", 1), flatGoods("Mail", "armor", 2), flatGoods("Torches", "item", 5)] });
+  const horse = makeActor({ id: "horse", type: ANIMAL });
+  await ride(hero, horse);
+  for (const name of ["Spears", "Sword", "Mail", "Torches"]) assert.equal(await dropItem(horse, row(hero, name)), false);
+  assert.deepEqual([names(hero), names(horse)], [[], ["Mail", "Spears", "Sword", "Torches"]]);
+  assert.deepEqual(["Spears", "Sword", "Mail", "Torches"].map((n) => row(horse, n).system.quantity), [3, 1, 2, 5]);
+});
+
 await test("a container goes with what is inside it", async () => {
   const bags = { ...goods("Saddlebags"), _id: "bags", flags: { [MODULE]: { container: {} } } };
   const inBags = { ...goods("Rations"), flags: { [MODULE]: { containedIn: "bags" } } };

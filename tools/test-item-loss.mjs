@@ -162,6 +162,20 @@ bolts.system.quantity.value = 5;
 const stacked = planItemLoss(actorOf([bolts]), NO_LOADOUT, { hp: -9, damageType: "fire" });
 check("a stack is planned at its whole weight, not the per-unit figure", stacked.destroyed.length === 0 && stacked.marred.length === 1 && stacked.marred[0].weight6 === 10);
 
+// The system's current shape is a plain whole number on every Physical Item, a weapon and armour included.
+const flatBolts = doc("Quarrels", 2, { cat: "handsOrTorso" });
+flatBolts.system.quantity = 5;
+const flatStacked = planItemLoss(actorOf([flatBolts]), NO_LOADOUT, { hp: -9, damageType: "fire" });
+check("a plain-number stack is planned at its whole weight", flatStacked.destroyed.length === 0 && flatStacked.marred.length === 1 && flatStacked.marred[0].weight6 === 10);
+const flatSpears = doc("Spears", 2, { type: "weapon", cat: "handsOrTorso" });
+flatSpears.system.quantity = 3;
+const spearLoss = planItemLoss(actorOf([flatSpears]), NO_LOADOUT, { hp: -9, damageType: "fire" });
+check("a weapon with a quantity of 3 is planned at three times its weight", spearLoss.destroyed.length + spearLoss.marred.length === 1 && [...spearLoss.destroyed, ...spearLoss.marred][0].weight6 === 6);
+const flatSword = doc("Sword", 2, { type: "weapon", cat: "handsOrTorso" });
+flatSword.system.quantity = 1;
+const swordLoss = planItemLoss(actorOf([flatSword]), NO_LOADOUT, { hp: -9, damageType: "fire" });
+check("a weapon with a quantity of 1 is planned at its own weight", [...swordLoss.destroyed, ...swordLoss.marred].length === 1 && [...swordLoss.destroyed, ...swordLoss.marred][0].weight6 === 2);
+
 // --- the material guess reads whole words --------------------------------------
 const mat = (name) => materialOf({ name, type: "item", getFlag: () => undefined });
 check("Boiled Leather is leather, not oil", mat("Boiled Leather Armor") === "leather");

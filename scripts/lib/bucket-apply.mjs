@@ -14,6 +14,7 @@
  * document is relayed by the caller, which owns the seat.
  */
 import { divideStack, stackCountOf } from "./item-model.mjs";
+import { isStackable } from "./storage-logic.mjs";
 import { STATUS_DEAD } from "./status-effects.mjs";
 import { ENTRY_KIND, SETTLE } from "./bucket.mjs";
 
@@ -49,7 +50,7 @@ export async function applySettlement(plan, resolve = (uuid) => globalThis.fromU
 /** Spend `qty` of an item: the whole row when the quantity reaches the stack, else the divided-off part. */
 async function spend(item, qty, out, uuid) {
   const stack = stackCountOf(item);
-  if (stack === null || qty >= stack) await item.delete();
+  if (!isStackable(item) || qty >= stack) await item.delete();
   else {
     const part = await divideStack(item, qty);
     if (!part) throw new Error("the stack could not be divided");

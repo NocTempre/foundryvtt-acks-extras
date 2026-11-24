@@ -34,6 +34,7 @@ import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { foldName } from "./spell-sources.mjs";
 import { gpText } from "./money-logic.mjs";
 import { stackCountOf } from "./item-model.mjs";
+import { isStackable } from "./storage-logic.mjs";
 import { itemValue } from "./bucket-value.mjs";
 
 /** The partials a window draws a bucket with: the bucket, and its row (which a list that is not a bucket may draw alone). */
@@ -227,7 +228,7 @@ export function acceptVerdict(policy, entry, doc = null) {
 /** An entry for a resolved document of `kind`, valued by the policy, else by the item default. */
 function entryOfDoc(doc, kind, uuid, policy, { qty, fit } = {}) {
   const img = doc?.img || doc?.texture?.src || doc?.actor?.img || defaultImgFor(kind) || "";
-  const stack = kind === ENTRY_KIND.item ? stackCountOf(doc) : null;
+  const stack = kind === ENTRY_KIND.item && isStackable(doc) ? stackCountOf(doc) : null;
   const cap = stack !== null && stack >= 1 ? stack : kind === ENTRY_KIND.item ? 1 : null;
   const base = makeEntry({ uuid, kind, name: doc?.name ?? "", img, qty: qty ?? cap ?? 1, cap });
   let value = policy?.value ? policy.value(doc, base) : null;

@@ -1,4 +1,4 @@
-# lib API (apiVersion 64)
+# lib API (apiVersion 65)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 64,
+  apiVersion: 65,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1523,7 +1523,8 @@ const { isPhysical, isEquippable, isEquipped, weight6Of, weightStoneOf,
 
 These read the **schema**, not a type name (`"cost" in item.system`), so they
 keep working when the system adds a physical type this library never heard of.
-`weight6Of` multiplies by quantity only where a quantity field exists.
+`weight6Of` multiplies by the quantity an item carries, a weapon's and an
+armour's included, and reads the count through `stackCountOf`.
 `physicalFields()` / `equippableFields()` build a module sub-type's own schema
 to match the system exactly rather than approximately.
 
@@ -1533,7 +1534,10 @@ weight, so the schema probe alone loses it. `encumbering6` is what core's
 where core counts it in whole stones.
 
 **The stack (apiVersion 24).** `stackCountOf(item)` is how many units a row
-holds, read by the field's shape, and `null` for an item that does not stack.
+stands for, read by the field's shape, and `null` for an item whose data
+carries no quantity. `storage.isStackable(item)` (apiVersion 65) is whether a
+row may be divided, merged or counted off: false for a weapon and for armour,
+which carry a quantity and stay one row.
 `divideStack(item, count)` puts `count` into a row of its own beside the stack
 and resolves to the new row, or to `null` when `count` does not fall strictly
 inside the stack. `joinStacks(item, onto)` folds one row into another of the

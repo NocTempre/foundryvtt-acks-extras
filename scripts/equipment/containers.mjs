@@ -30,7 +30,7 @@ import { itemBaseType } from "./variation-items.mjs";
 // what a lock shuts in is asked by the coin paths); re-exported here so this
 // feature's importers keep one door.
 export { containedIn, contentsOf, contentsWeight6, isLocked };
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, PHYSICAL_ITEM_TYPES } from "../lib/vocab.mjs";
 import { unset } from "../lib/util.mjs";
 
 
@@ -395,7 +395,9 @@ export function encumbranceDelta6(actor) {
 
   // 3. Thrown-away weapons: a weapon that has been thrown has left the
   //    wielder's hands and no longer weighs on them until it is recovered
-  //    (ammo.mjs marks it; the Recover action clears it).
+  //    (ammo.mjs marks it; the Recover action clears it). The row's whole
+  //    weight, quantity and bundle included, comes off — step 4 brings core's
+  //    count of it to `weight6Of`, so the two cancel.
   for (const w of actor.items.filter((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.THROWN_STATE))) {
     delta -= weight6Of(w);
   }
@@ -407,11 +409,11 @@ export function encumbranceDelta6(actor) {
   //    it the item sheet and the character sheet print different numbers for
   //    the same quiver.
   //
-  //    Restricted to the shape core multiplies: a plain `item` that is not
-  //    clothing. A weapon or armour has no quantity in the schema, so core
-  //    counts it once whatever a bundle size says.
+  //    Restricted to what core's loop counts: a Physical Item (gear, weapon or
+  //    armour, each with a quantity) that is not clothing. Clothing is no part
+  //    of core's sum, so it needs no correction; coin is step 5.
   for (const i of actor.items) {
-    if (i.type !== ITEM_TYPE.item || isClothing(i)) continue;
+    if (!PHYSICAL_ITEM_TYPES.includes(i.type) || isClothing(i)) continue;
     if (bundleSizeOf(i) <= 1) continue;
     delta += weight6Of(i) - coreWeight6Of(i);
   }

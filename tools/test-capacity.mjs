@@ -22,11 +22,13 @@ const flagReader = (flags) => function (scope, key) {
   return flags?.[scope]?.[key];
 };
 
-const item = ({ id, weight6 = 0, qty, type = "item", subtype, flags = {} }) => ({
+// `flat` is the system's current shape, a plain whole number on every Physical
+// Item; the default is the `{value}` object a copy saved before that carries.
+const item = ({ id, weight6 = 0, qty, flat = false, type = "item", subtype, flags = {} }) => ({
   documentName: "Item",
   id,
   type,
-  system: { cost: 0, weight6, ...(qty !== undefined ? { quantity: { value: qty } } : {}), ...(subtype ? { subtype } : {}) },
+  system: { cost: 0, weight6, ...(qty !== undefined ? { quantity: flat ? qty : { value: qty } } : {}), ...(subtype ? { subtype } : {}) },
   flags,
   getFlag: flagReader(flags),
 });
@@ -99,6 +101,16 @@ assert.equal(sumWeight6([...rows, coin({ id: "r3", qty: 6, perStone: 12 }), item
 assert.equal(sumWeight6([item({ id: "c", weight6: 6, subtype: "clothing" }), purse], encumbering6), 2 * STONE,
   "the per-item reading governs what is not currency");
 assert.equal(sumWeight6(null), 0);
+
+// Every Physical Item keeps a plain whole number, a weapon and armour included.
+assert.equal(stackCountOf(item({ id: "w3", type: "weapon", weight6: 6, qty: 3, flat: true })), 3);
+assert.equal(weight6Of(item({ id: "w1", type: "weapon", weight6: 6, qty: 1, flat: true })), 6, "a weapon with a quantity of 1 weighs its own weight");
+assert.equal(weight6Of(item({ id: "w3", type: "weapon", weight6: 6, qty: 3, flat: true })), 18, "a weapon with a quantity of 3 weighs three");
+assert.equal(weight6Of(item({ id: "a2", type: "armor", weight6: 10, qty: 2, flat: true })), 20, "armour weighs by its quantity");
+assert.equal(weight6Of(item({ id: "g4", weight6: 2, qty: 4, flat: true })), 8, "so does gear");
+assert.equal(sumWeight6([item({ id: "w3", type: "weapon", weight6: 6, qty: 3, flat: true }), item({ id: "a2", type: "armor", weight6: 10, qty: 2, flat: true })]), 38);
+assert.equal(hasStock(item({ id: "w1", type: "weapon", qty: 1, flat: true })), true);
+assert.equal(hasStock(item({ id: "w0", type: "weapon", qty: 0, flat: true })), false, "a quantity of none is not carried");
 
 /* --- monster / mount ------------------------------------------------------ */
 const mule = actor({

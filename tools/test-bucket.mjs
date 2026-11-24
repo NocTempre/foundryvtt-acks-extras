@@ -46,17 +46,19 @@ const ta = async (name, fn) => {
 const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
 
 /** An item document with a stack, a cost and the writes `divideStack` and a delete make. */
-function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg" } = {}) {
+function item(name, { cost = 5, qty = 3, img = "icons/test/item.svg", flat = false, type } = {}) {
   const row = {
     documentName: "Item",
     name,
     img,
-    system: { cost, quantity: { value: qty, max: 0 } },
+    ...(type ? { type } : {}),
+    // `flat` is the system's current shape, a plain whole number; the default is the `{value}` object an older copy keeps.
+    system: { cost, quantity: flat ? qty : { value: qty, max: 0 } },
     flags: {},
     deleted: false,
     parent: null,
     toObject() {
-      return { name: this.name, img: this.img, system: structuredClone(this.system), flags: {} };
+      return { name: this.name, img: this.img, ...(type ? { type } : {}), system: structuredClone(this.system), flags: {} };
     },
     async update(patch) {
       for (const [path, v] of Object.entries(patch)) foundry.utils.setProperty(this, path, v);
@@ -73,7 +75,8 @@ function holder(...rows) {
   const made = [];
   const h = {
     async createEmbeddedDocuments(_type, [data]) {
-      const row = item(data.name, { cost: data.system.cost, qty: data.system.quantity.value, img: data.img });
+      const flat = typeof data.system.quantity === "number";
+      const row = item(data.name, { cost: data.system.cost, qty: flat ? data.system.quantity : data.system.quantity.value, img: data.img, flat, type: data.type });
       row.parent = h;
       made.push(row);
       return [row];
@@ -269,6 +272,47 @@ await ta("applying a plan spends a whole stack by a delete and a part of one by 
   assert.equal(whole.deleted, true);
   assert.deepEqual([part.deleted, part.system.quantity.value, made.length, made[0].deleted, made[0].system.quantity.value], [false, 3, 1, true, 2]);
   assert.deepEqual(out.spent, ["whole", "part"]);
+});
+
+await ta("applying a plan to plain-number gear spends a whole stack by a delete and a part of one by dividing it", async () => {
+  const whole = item("Whole", { qty: 3, flat: true, type: "item" });
+  const part = item("Part", { qty: 5, flat: true, type: "item" });
+  const { made } = holder(whole, part);
+  const docs = { whole, part };
+  const out = await applySettlement(
+    [{ uuid: "whole", kind: "item", qty: 3, action: "consume" }, { uuid: "part", kind: "item", qty: 2, action: "destroy" }],
+    async (u) => docs[u] ?? null,
+  );
+  assert.equal(whole.deleted, true);
+  assert.deepEqual([part.deleted, part.system.quantity, made.length, made[0].deleted, made[0].system.quantity], [false, 3, 1, true, 2]);
+  assert.deepEqual(out.spent, ["whole", "part"]);
+});
+
+await ta("a weapon or armour row is never divided: it is spent whole, whatever its quantity", async () => {
+  const one = item("Sword", { qty: 1, flat: true, type: "weapon" });
+  const three = item("Spears", { qty: 3, flat: true, type: "weapon" });
+  const mail = item("Mail", { qty: 2, flat: true, type: "armor" });
+  const { made } = holder(one, three, mail);
+  const docs = { one, three, mail };
+  const out = await applySettlement(
+    [{ uuid: "one", kind: "item", qty: 1, action: "consume" }, { uuid: "three", kind: "item", qty: 1, action: "consume" }, { uuid: "mail", kind: "item", qty: 1, action: "destroy" }],
+    async (u) => docs[u] ?? null,
+  );
+  assert.deepEqual([one.deleted, three.deleted, mail.deleted, made.length, out.failed.length], [true, true, true, 0, 0]);
+  assert.deepEqual(out.spent, ["one", "three", "mail"]);
+});
+
+await ta("a weapon with a quantity is one entry of one; plain-number gear is an entry of its stack", async () => {
+  const spears = item("Spears", { cost: 2, qty: 3, flat: true, type: "weapon" });
+  const sword = item("Sword", { cost: 2, qty: 1, flat: true, type: "weapon" });
+  const mail = item("Mail", { cost: 2, qty: 2, flat: true, type: "armor" });
+  const torches = item("Torches", { cost: 2, qty: 4, flat: true, type: "item" });
+  const docs = { spears, sword, mail, torches };
+  const got = Object.fromEntries(await Promise.all(Object.keys(docs).map(async (k) => [k, (await bucket.entryFromDrop({ type: "Item", uuid: k }, async () => docs[k])).entry])));
+  assert.deepEqual([got.spears.qty, got.spears.cap], [1, 1], "a weapon is not counted off");
+  assert.deepEqual([got.sword.qty, got.sword.cap], [1, 1]);
+  assert.deepEqual([got.mail.qty, got.mail.cap], [1, 1]);
+  assert.deepEqual([got.torches.qty, got.torches.cap], [4, 4]);
 });
 
 await ta("applying a plan marks a creature dead and never deletes it, an unlinked token's actor included", async () => {

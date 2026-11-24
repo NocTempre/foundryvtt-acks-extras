@@ -20,6 +20,7 @@ import { toNum as num, numOrNull } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
 import { isCurrency, canWear, isWorn, stackCountOf } from "./item-model.mjs";
+import { isStackable } from "./storage-logic.mjs";
 import { borneWeight6 } from "./capacity.mjs";
 import { coinOrderView } from "./coin-order.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
@@ -195,7 +196,7 @@ export async function followerCardContext(actor, { editable = false, interactive
         // beside the weapons and armour, and read through the same two stores.
         equippable: canWear(i),
         equipped: isWorn(i),
-        divisible: editable && interactive && q > 1,
+        divisible: editable && interactive && q > 1 && isStackable(i),
       };
     });
   // The coin order and the fold, on the same terms: only where there is a

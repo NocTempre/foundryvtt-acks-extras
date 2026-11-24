@@ -203,6 +203,14 @@ export const ITEM_TYPE = Object.freeze({
 });
 
 /**
+ * The document types the system treats as Physical Items: each carries a
+ * `system.quantity`, and the system's encumbrance sum and its bundle drop act
+ * on exactly these. Money is not one of them. Mirrors the system's
+ * `PHYSICAL_ITEM_TYPES`, which it does not publish on any API surface.
+ */
+export const PHYSICAL_ITEM_TYPES = Object.freeze([ITEM_TYPE.item, ITEM_TYPE.weapon, ITEM_TYPE.armor]);
+
+/**
  * The core system's Actor document sub-types. The module's own sub-types embed
  * `MODULE_ID` and are named by `ANIMAL_TYPE` / `GROUP_TYPE` / `TEMPLATE_TYPE`
  * in lib/module.mjs, which this Foundry-free file does not re-export.
