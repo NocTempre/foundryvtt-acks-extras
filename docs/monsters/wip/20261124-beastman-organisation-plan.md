@@ -548,9 +548,15 @@ empty box. One tooltip of each provenance shape is drawn open on each canvas.
 
 **Ruling 4 reaches S5, in phase 1.** S5's row has "trait art", and Results
 above ends "S5 puts each head on its trait". The owner's words give a head to
-a breed. Canvas 5 now keeps heads on the variants' tiles and gives a trait's
-tile its badge, and asks question 3 there. S5 builds no trait art until that
-is answered; the rest of S5 stands.
+a breed. Canvas 5 asked whose heads the strip prints (question 3 there), and
+the owner answered the same day: "They are tribes, neither", then "Can reuse
+for roles" and at once "Wait no you can't". Read as: the strip's five heads
+are tribes' heads; none is cut onto a trait, a variant or a role, and the
+strip stays whole as the template's picture, as `78f3c109` built it. Example:
+a trait's tile on the template sheet carries the trait's badge and no head,
+and a champion and a chieftain of one breed show the same portrait in
+different frames. **S5 therefore puts no head on a trait**, which takes
+"trait art" off its row; the rest of S5 stands and is not held.
 
 **Section 4's answers, drawn in the owner's words.** Answer 1: the leader
 choice on boards 1a, 1b and 3a is a grade, the variant's own leaders or the
@@ -644,10 +650,11 @@ Canvas 5 (the template sheet):
    the head of the sheet, (b) shown only as the heads.
 2. Variants and traits are picked: (a) from picture tiles, (b) from selects
    with a thumbnail beside each.
-3. The strip's five heads: (a) they are the breeds' own, so a variant's tile
-   may take its head from the strip and a trait's tile carries a badge, (b)
-   they are the traits', as S5 was planned, and ruling 4 speaks of the
-   variants' portraits only.
+3. Answered: the strip's five heads are tribes', neither the breeds' nor the
+   traits' (the owner's words are under ruling 4 above).
+4. A tribe's head, beyond the template's strip: (a) shown nowhere else, (b)
+   shown on that tribe's kit alternatives (coverage rows 8-9), once S13 mints
+   them.
 
 Not checked: how any canvas renders (the canvas type's own rule is to verify
 only when asked); which five of the ten traits carry a head, and the camp's
