@@ -3865,7 +3865,12 @@ no indoors Region, and no magic light on the roller.
 Teardown: put darkness back to 0, delete the Region and any effect the run
 made, by the ledger; the fixtures stay.
 
-## A weapon or armour is a stack (unwalked)
+## A weapon or armour is a stack (unwalked but for a delivery)
+
+A delivery of weapons that folds into a resting row, and one that arrives as
+one row, are walked in `tools/live/equipment-weapon-stacks.mjs`
+([../equipment/TESTING.md](../equipment/TESTING.md), "Equipping a stack of
+weapons"). The steps below are unwalked.
 
 ### Fixtures
 
@@ -3878,5 +3883,5 @@ made, by the ledger; the fixtures stay.
 3. Open the character sheet equipment tab and the location's storage tab on the sword rows. *Observable:* no divide, take-how-many or sale count control on a weapon or armour row, and the row's weight and value read for the whole count.
 4. Stash the stack at the location and retrieve it. *Observable:* it moves whole and merges into a resting row of the same thing; a row holding a variation moves whole and never merges.
 5. Import the same character PDF twice. *Observable:* the second import finds the rows and adds no row; the count stays what the PDF states.
-6. Open a sword row's item sheet. *Observable:* no count control appears; the quantity shown is the whole row's count (item sheet count controls wait for the S11 slice).
+6. Open a sword row's item sheet. *Observable:* no count control appears; the quantity shown is the whole row's count.
 7. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.

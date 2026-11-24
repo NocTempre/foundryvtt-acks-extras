@@ -12,9 +12,9 @@
  * or a seat. Every figure typed into a fixture is invented.
  *
  * Fixtures, kept and found again by marker (`api.fixture`): the character
- * `equipment/hands-probe`. Each section brings it to shape first (reset:
- * nothing drawn, no hand flags, no readied torch, the stack at six, no own
- * lights, out of every formation). The party the walk creates is a formation
+ * `equipment/hands-probe`. Each section brings it to shape first (reset: a
+ * row it lost built again, nothing drawn, no hand flags, no readied torch,
+ * the stack at six, no own lights, out of every formation). The party the walk creates is a formation
  * record (a setting, not a document) and is deleted at the end; each torch the
  * walk readies is tracked and swept. Writes outside the ledger: the formation
  * record, deleted by the walk's own id.
@@ -143,10 +143,13 @@ const P = {
     return "installed";
   },
 
-  /** Bring the fixture to its start shape: nothing equipped, no hand flags, no readied torch, the stack at six, no own lights, out of every formation. */
-  reset: async ({ actorId }) => {
+  /** Bring the fixture to its start shape: every row of `items` present by name, nothing equipped, no hand flags, no readied torch, the stack at six, no own lights, out of every formation. */
+  reset: async ({ actorId, items = [] }) => {
     const H = globalThis.__eqh;
     const actor = game.actors.get(actorId);
+    // A stack spent to nothing is deleted, so a run that ended there leaves the fixture a row short.
+    const missing = items.filter((row) => !actor.items.some((i) => i.name === row.name && i.type === row.type));
+    if (missing.length) await actor.createEmbeddedDocuments("Item", missing);
     const readied = actor.items.filter((i) => i.getFlag(H.MOD, "readied"));
     if (readied.length) await actor.deleteEmbeddedDocuments("Item", readied.map((i) => i.id));
     const updates = actor.items.filter((i) => i.system?.equipped || i.getFlag(H.MOD, "hand") || i.getFlag(H.MOD, "gear")?.wornAt).map((i) => ({ _id: i.id, "system.equipped": false, [`flags.${H.MOD}.-=hand`]: null, [`flags.${H.MOD}.gear.wornAt`]: "" }));
@@ -311,7 +314,7 @@ try {
   note("fixture", { marker: MARKER, id: actorId });
 
   section("2b. a two-handed weapon takes both hands and gives both back");
-  note("reset", await run(gm, P.reset, { actorId }));
+  note("reset", await run(gm, P.reset, { actorId, items: FIXTURE.items }));
   const opened = await run(gm, P.openSheet, { actorId });
   check("the sheet opens on the Equipment tab with the hands badge and both hand places", opened.tab?.rendered && "mainHand" in (opened.tab.places ?? {}) && "offHand" in (opened.tab.places ?? {}), hands(opened));
   check("at rest the badge reads 0 / 2 with no clause and empty places", opened.tab?.badge === "0 / 2" && opened.tab.clause === "" && !opened.tab.places.mainHand.rows.length && !opened.tab.places.offHand.rows.length, hands(opened));
@@ -323,7 +326,7 @@ try {
   const dOn = await run(gm, P.press, { actorId, re: "^dagger", action: "toggleEquip" });
   const gsOver = await run(gm, P.press, { actorId, re: "two-handed", action: "toggleEquip" });
   check("with a dagger drawn, drawing the two-handed sword is resolved: the loadout stays legal within two hands", dOn.tab.badge === "1 / 2" && gsOver.found && gsOver.model.legal && gsOver.model.used <= 2 && gsOver.model.violations.length === 0, { dagger: hands(dOn), sword: hands(gsOver), hands: gsOver.model.hands });
-  note("reset after 2b", await run(gm, P.reset, { actorId }));
+  note("reset after 2b", await run(gm, P.reset, { actorId, items: FIXTURE.items }));
   const clean = await run(gm, P.rerender, { actorId });
   check("after the sweep of 2b every weapon is sheathed with no hand flag and the badge reads 0 / 2", noHandFlags(clean) && clean.tab.badge === "0 / 2", hands(clean));
 
@@ -375,13 +378,13 @@ try {
   check("sheathed, the lone burning torch keeps its hand: badge 1 / 2 with the clause", loneSheathed.tab.badge === "1 / 2" && /1 .*light/i.test(loneSheathed.tab.clause) && loneSheathed.model.heldLights === 1, hands(loneSheathed));
   const loneDoused = await run(gm, P.pressId, { actorId, itemId: torchId, action: "lightAction", filter: { light: "lightToggle" } });
   check("Douse gives it back: badge 0 / 2", loneDoused.found && loneDoused.tab.badge === "0 / 2" && loneDoused.tab.clause === "", hands(loneDoused));
-  note("reset after 2c", await run(gm, P.reset, { actorId }));
+  note("reset after 2c", await run(gm, P.reset, { actorId, items: FIXTURE.items }));
   const loneStack = await run(gm, P.lightAlone, { actorId, type: "torch" });
   check("a lone torch from the stack with none readied is one hand: badge 1 / 2 with the clause", loneStack.lit && loneStack.tab.badge === "1 / 2" && /1 .*light/i.test(loneStack.tab.clause), hands(loneStack));
   note("unlit", hands(await run(gm, P.unlightAlone, { actorId })));
 
   section("2d/2e. the mapper's kit is listed at the hands, and the role needs them");
-  note("reset", await run(gm, P.reset, { actorId }));
+  note("reset", await run(gm, P.reset, { actorId, items: FIXTURE.items }));
   const joined = await run(gm, P.joinParty, { actorId });
   if (joined !== formationId) { await run(gm, P.deleteParty, { formationId }); formationId = joined; }
   const roleOn = await run(gm, P.toggleRole, { actorId, formationId, role: "mapper", override: true });
@@ -411,7 +414,7 @@ try {
   section("teardown");
   const gm = seats.gm;
   if (gm && actorId) {
-    try { note("reset", await run(gm, P.reset, { actorId })); } catch (err) { console.error("reset:", err?.message ?? err); }
+    try { note("reset", await run(gm, P.reset, { actorId, items: FIXTURE.items })); } catch (err) { console.error("reset:", err?.message ?? err); }
     if (formationId) { try { note("party deleted", await run(gm, P.deleteParty, { formationId })); } catch (err) { console.error("deleteParty:", err?.message ?? err); } }
     try { note("closed (gm)", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
     // The reset deleted the readied torch; the sweep reports it as not found, which is the record.

@@ -61,13 +61,18 @@ const P = {
         .filter((i) => i.name === name)
         .map((i) => ({ id: i.id, qty: i.system.quantity, eq: !!i.system.equipped, in: i.getFlag("acks-extras", "containedIn") ?? null, thrown: !!i.getFlag("acks-extras", "thrownAway") }));
     // Wait until the rows hold still for three reads in a row, then answer them.
-    H.settled = async (actor, name) => {
+    // A fold is two writes, the count and then the delete, and the first write
+    // after a seat loads can take seconds to come back: where the caller knows
+    // how many rows the step ends on (`want`), stillness counts only once that
+    // many stand, for up to twenty seconds.
+    H.settled = async (actor, name, want = null) => {
       let last = "";
       let same = 0;
-      for (let n = 0; n < 40 && same < 3; n++) {
+      for (let n = 0; n < 100 && same < 3; n++) {
         await H.sleep(200);
-        const now = JSON.stringify(H.rows(actor, name));
-        same = now === last ? same + 1 : 0;
+        const rows = H.rows(actor, name);
+        const now = JSON.stringify(rows);
+        same = now === last && (want === null || rows.length === want || n >= 96) ? same + 1 : 0;
         last = now;
       }
       return H.rows(actor, name);
@@ -109,11 +114,11 @@ const P = {
     return { rows: H.rows(actor, name), load: actor.system.encumbrance?.value ?? null };
   },
   /** One plain equip or unequip write, as any caller makes it. */
-  setEquipped: async ({ actorId, itemId, on }) => {
+  setEquipped: async ({ actorId, itemId, on, want = null }) => {
     const H = globalThis.__ws;
     const actor = game.actors.get(actorId);
     const answered = await actor.items.get(itemId).update({ "system.equipped": on });
-    return { answered: !!answered, rows: await H.settled(actor), load: actor.system.encumbrance?.value ?? null };
+    return { answered: !!answered, rows: await H.settled(actor, undefined, want), load: actor.system.encumbrance?.value ?? null };
   },
   /** Two equips of one row fired in the same tick: a double click. */
   equipTwice: async ({ actorId, itemId }) => {
@@ -233,12 +238,12 @@ try {
   const before = await run(gm, P.read, { actorId });
 
   section("1. an equip of a row of three takes one");
-  const equipped = await run(gm, P.setEquipped, { actorId, itemId: keepId, on: true });
+  const equipped = await run(gm, P.setEquipped, { actorId, itemId: keepId, on: true, want: 2 });
   check("the row that was equipped is drawn holding one, and a resting row holds two", tookOne(equipped.rows) && drawn(equipped.rows)[0].id === keepId, equipped.rows);
   check("the load the system counts is the same before and after", equipped.load === before.load, { before: before.load, after: equipped.load });
 
   section("5. putting it away folds the rows");
-  const away = await run(gm, P.setEquipped, { actorId, itemId: keepId, on: false });
+  const away = await run(gm, P.setEquipped, { actorId, itemId: keepId, on: false, want: 1 });
   check("one row holds three again, and it is the row that was handled", oneRowOf(away.rows) && away.rows[0].id === keepId, away.rows);
 
   section("1. the character sheet's own control");

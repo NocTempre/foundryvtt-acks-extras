@@ -365,6 +365,10 @@ const P = {
     // Not rendered: say what the seat holds, so a failure names its cause.
     const pile = H.pile(potId);
     const s = pile?.sheet;
+    // A press's render is not awaited, so what it threw reached no recorder: render once more and catch it.
+    let threw = null;
+    try { await s?.render(true); } catch (err) { threw = String(err?.stack ?? err).slice(0, 700); }
+    await H.sleep(600);
     return {
       rendered: false,
       pile: !!pile,
@@ -372,6 +376,7 @@ const P = {
       sheetClass: s?.constructor?.name ?? null,
       appRendered: !!s?.rendered,
       root: !!H.root(s),
+      threw,
       errors: H.errors.slice(-5),
     };
   },

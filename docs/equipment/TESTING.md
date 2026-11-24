@@ -1734,7 +1734,13 @@ record. Nothing else is written.
 5. Pick a side by hand on the unlisted item. *Observable:* it stays after a re-render and a second annotate.
 6. Teardown. The run's tracked documents are swept by ledger; the override is cleared.
 
-## Equipping a stack of weapons (unwalked)
+## Equipping a stack of weapons
+
+Walked by `tools/live/equipment-weapon-stacks.mjs`: steps 1, 2, 3, 5 and 6, a
+delivery that folds into a resting row, and the equip and the put-away as a
+plain update from the Player seat. Step 1's item-sheet control and step 4 are
+unwalked. The walk's fixture carries a blade and a pack of invented names; its
+packed case uses the same row, stored and taken out, and no second marker.
 
 ### Fixtures
 
