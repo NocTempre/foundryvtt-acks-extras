@@ -27,6 +27,7 @@ import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
 import { now } from "../../henchmen/time.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { coinStores } from "../../lib/money.mjs";
+import { stackCountOf } from "../../lib/item-model.mjs";
 import { coinCount, coinRate } from "../../lib/money-logic.mjs";
 import { merchandiseCatalog, merchandiseFor } from "../engine/merchandise.mjs";
 import { writeDemand } from "../engine/demand.mjs";
@@ -291,7 +292,7 @@ export async function prepareTradeTab(sheet, context) {
                 id: i.id,
                 name: i.name,
                 img: i.img,
-                qty: Number(data.system?.quantity?.value ?? 1) || 1,
+                qty: stackCountOf(data) || 1,
                 estimateGp: Math.round(plan.unitCp) / 100,
               }
             : null;

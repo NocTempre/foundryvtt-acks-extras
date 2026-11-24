@@ -385,7 +385,7 @@ export async function buildGearData(entry, { base: given } = {}) {
       delete data.flags[MODULE_ID].minted;
     }
     data.name = skinName;
-    foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
+    foundry.utils.setProperty(data, "system.quantity", entry.qty || 1);
     // A price the template cell prints outranks the base's own. See
     // docs/classes/DECISIONS.md, "a template item carries the price its page printed for it".
     if (entry.cost > 0) foundry.utils.setProperty(data, "system.cost", entry.cost);
@@ -418,14 +418,14 @@ export async function buildGearData(entry, { base: given } = {}) {
             bonus: 0,
             ...priced,
           }
-        : { quantity: { value: entry.qty || 1, max: 0 }, ...priced };
+        : { quantity: entry.qty || 1, ...priced };
     return { data: { name: skinName, type: klass.type, system, flags: skinFlags }, resolution: "root" };
   }
   return {
     data: {
       name: skinName,
       type: ITEM_TYPE.item,
-      system: { quantity: { value: entry.qty || 1, max: 0 }, ...priced },
+      system: { quantity: entry.qty || 1, ...priced },
       flags: skinFlags,
     },
     resolution: "bare",
@@ -898,7 +898,7 @@ export async function materializeTemplates(
     // A weapon that resolved to a document but not to a weapon-table row is
     // reported here, where the descriptor and the base are both in hand.
     if (isUnidentifiedWeapon(data)) report.unidentified.push(templateItemName(entry));
-    foundry.utils.setProperty(data, "system.quantity.value", 1);
+    foundry.utils.setProperty(data, "system.quantity", 1);
     stampPart(data, { kind: "gear", key }, stamp);
     return { data, key };
   };

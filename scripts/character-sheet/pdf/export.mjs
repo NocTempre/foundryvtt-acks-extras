@@ -17,6 +17,7 @@ import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
 import { figure, normalizeDomain } from "../../domains/domain-logic.mjs";
 import { allDomains, domainsRuledBy, familiesOf, isDomain, ledgerFor, vassalsOf } from "../../domains/domains.mjs";
 import { cookbookId } from "../../lib/library.mjs";
+import { stackCountOf } from "../../lib/item-model.mjs";
 import { isAdventuring } from "../../classes/grants.mjs";
 import { rollsOf, throwText } from "../../abilities/ability-rolls.mjs";
 import { bestAttackBonus, getLoadout } from "../../equipment/loadout.mjs";
@@ -70,7 +71,7 @@ export function weaponThrow(actor, item) {
 
 /** One gear line as the sheet writes it: "3 Torches", "Rope". */
 function gearLine(item) {
-  const qty = Number(item.system?.quantity?.value ?? 1) || 1;
+  const qty = stackCountOf(item) || 1;
   return qty > 1 ? `${qty} ${item.name}` : item.name;
 }
 

@@ -35,8 +35,8 @@ function notify(key, data) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The item payload a readied torch becomes — a SINGLE weapon (core weapons have
- * no quantity field), melee AND thrown (so core's range selector offers
+ * The item payload a readied torch becomes — a SINGLE weapon (it states no
+ * quantity, so the system's default of one stands), melee AND thrown (so core's range selector offers
  * both a swing and a hurl), flagged a light source. Pure, so a test can assert
  * the shape without Foundry. Its damage die and type are the weapon table's
  * row for a torch and nothing else: a table with no torch row readies none.

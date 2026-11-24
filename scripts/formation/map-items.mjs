@@ -239,7 +239,7 @@ async function openSession(formation, mapper, scene) {
       img: "icons/sundries/documents/document-torn-diagram-tan.webp",
       system: {
         description: loc("map.itemDescription", { scene: scene.name, mapper: mapper.name }),
-        quantity: { value: 1 },
+        quantity: 1,
       },
       flags: {
         [MODULE_ID]: {
@@ -501,7 +501,7 @@ export async function saveFogAsMapItem() {
     name: loc("map.itemName", { scene: canvas.scene.name }),
     type: "item",
     img: "icons/sundries/documents/document-sealed-brown-red.webp",
-    system: { description: loc("map.authoredDescription", { scene: canvas.scene.name }), quantity: { value: 1 } },
+    system: { description: loc("map.authoredDescription", { scene: canvas.scene.name }), quantity: 1 },
     flags: {
       [MODULE_ID]: {
         [MAP_FLAG]: {

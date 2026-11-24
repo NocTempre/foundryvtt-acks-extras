@@ -11,6 +11,8 @@ import { WEAPON_CATEGORY } from "./config.mjs";
 import { isSilvered } from "./silver.mjs";
 import { slug } from "../lib/vocab.mjs";
 import { unset } from "../lib/util.mjs";
+import { stackCountOf } from "../lib/item-model.mjs";
+import { quantityOf } from "../lib/storage-logic.mjs";
 
 /**
  * Ammo-name pattern a launcher consumes, or null if it is not a launcher. A bow
@@ -34,8 +36,8 @@ export function launcherAmmoPattern(item, profile) {
 
 /** The count carried by an ammo/stackable item (core quantity, else our flag). */
 export function roundsOf(item) {
-  const q = item?.system?.quantity?.value;
-  if (q != null) return Number(q);
+  const q = stackCountOf(item);
+  if (q != null) return q;
   const f = item?.getFlag?.(MODULE_ID, "rounds");
   return f != null ? Number(f) : 1;
 }
@@ -43,7 +45,8 @@ export function roundsOf(item) {
 /** Write a new count back to whichever field the item uses. */
 async function setRounds(item, n) {
   const v = Math.max(0, n);
-  if (item?.system?.quantity?.value != null) return item.update({ "system.quantity.value": v });
+  const q = quantityOf(item);
+  if (q) return item.update({ [q.path]: v });
   return item.setFlag(MODULE_ID, "rounds", v);
 }
 

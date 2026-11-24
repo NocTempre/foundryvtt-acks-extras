@@ -353,7 +353,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 - A disposable `character`; on it a `weapon` ("Battle Axe", melee, bonus 1),
   an `armor` ("Chainmail"), an `item` "Backpack", an `item` "Torch" with
-  `system.quantity.value` 3, an `item` "Flask of Oil", a `money` "Gold Pieces".
+  `system.quantity` 3, an `item` "Flask of Oil", a `money` "Gold Pieces".
 - A WORLD `item` "Crowbar" (no actor) and a disposable Scene.
 
 ### Drive mechanics (non-obvious, learned live)
@@ -1103,7 +1103,7 @@ gear flag's storage row).
 7. **The system's own sheet.** Render the actor with core's `Ct` sheet class
    (not its default), Inventory tab. *Observable:* the injected control on the
    belt's row reads "Wear it — Belt" and makes step 2's write.
-8. **A stack.** A copy of the belt with `system.quantity.value` 2, tracked.
+8. **A stack.** A copy of the belt with `system.quantity` 2, tracked.
    Press "Split one off the stack". *Observable:* a new one-belt item with
    `{slots: ["belt"], wornAt: "belt"}`, the stack at 1. Track the new item.
 9. **Annotate.** On core's sheet, the annotate control in the inventory's

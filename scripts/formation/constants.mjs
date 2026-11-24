@@ -229,7 +229,7 @@ export const ROLE_GEAR = Object.freeze({
       pattern: /parchment|vellum|graph paper/i,
       name: "Parchment",
       label: "ACKS-FORMATION.kit.parchment",
-      fallback: { system: { quantity: { value: 1, max: 0 }, cost: 1, weight6: 0 } },
+      fallback: { system: { quantity: 1, cost: 1, weight6: 0 } },
     },
   ]),
 });

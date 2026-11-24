@@ -8,6 +8,7 @@
 import { MODULE_ID, LANG, CONDITION_SAVES, RAIL_CONDITIONS } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { isManagedEffect } from "../../lib/managed-effects.mjs";
+import { stackCountOf } from "../../lib/item-model.mjs";
 import { bearerLights, LIGHT_SOURCES, lightFigures } from "../../lib/light.mjs";
 import { poolState } from "../../classes/casting.mjs";
 import { trainingEffects } from "../../classes/training.mjs";
@@ -144,7 +145,7 @@ export function buildEffectsTab(actor) {
   const stacks = (pattern, exclude = null) =>
     actor.items
       .filter((i) => i.type === ITEM_TYPE.item && pattern.test(i.name) && !(exclude && exclude.test(i.name)))
-      .reduce((n, i) => n + num(i.system?.quantity?.value), 0);
+      .reduce((n, i) => n + num(stackCountOf(i)), 0);
   const resources = [
     { key: "rations", name: loc("effects.res.rations"), icon: "fa-solid fa-bread-slice", count: stacks(/ration/i), line: loc("effects.res.rationsLine") },
     { key: "oil", name: loc("effects.res.oil"), icon: "fa-solid fa-flask", count: stacks(/\boil\b/i, /military/i), line: loc("effects.res.oilLine") },

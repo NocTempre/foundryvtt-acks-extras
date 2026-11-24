@@ -26,6 +26,7 @@ import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ACTOR_TYPE, ITEM_TYPE, slug } from "../lib/vocab.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
+import { stackCountOf } from "../lib/item-model.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { elementOf, unset } from "../lib/util.mjs";
@@ -167,7 +168,7 @@ async function grantRowEntries(actor, { abilities = [], items = [], spells = [] 
   for (const entry of items) payloads.push((await buildGearData(entry)).data);
   if (payloads.length) {
     await actor.createEmbeddedDocuments("Item", payloads);
-    report.items.push(...payloads.map((p) => (p.system?.quantity?.value > 1 ? `${p.name} ×${p.system.quantity.value}` : p.name)));
+    report.items.push(...payloads.map((p) => (stackCountOf(p) > 1 ? `${p.name} ×${stackCountOf(p)}` : p.name)));
     // A weapon whose table row nothing could name is granted anyway — it rolls
     // and it weighs — but it carries no proficiency category, so the sheet will
     // call this character non-proficient with the weapon its own template gave
@@ -237,7 +238,7 @@ async function grantBundleRows(actor, rows, report) {
       report.items.push(quantity > 1 ? `${data.name} ×${quantity}` : data.name);
       paidCoin = true;
     } else if (r.type === ITEM_TYPE.item) {
-      foundry.utils.setProperty(data, "system.quantity.value", quantity);
+      foundry.utils.setProperty(data, "system.quantity", quantity);
       await actor.createEmbeddedDocuments("Item", [data]);
       report.items.push(quantity > 1 ? `${data.name} ×${quantity}` : data.name);
     } else {

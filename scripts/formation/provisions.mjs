@@ -7,6 +7,7 @@
  * counts and returns an allocation; reading packs and writing conditions belong
  * to the caller. See docs/formation/MODEL.md, "Provisions".
  */
+import { stackCountOf } from "../lib/item-model.mjs";
 
 /**
  * Days of a provision an actor is carrying: items whose NAME matches `pattern`
@@ -19,7 +20,7 @@ export function daysCarried(actor, { pattern, foraged = null } = {}) {
     const named = pattern ? pattern.test(item.name ?? "") : false;
     const tagged = foraged ? item.getFlag?.("acks-extras", "foraged") === foraged : false;
     if (!named && !tagged) continue;
-    const qty = Number(item.system?.quantity?.value ?? 0);
+    const qty = stackCountOf(item) ?? 0;
     if (!Number.isFinite(qty) || qty <= 0) continue;
     days += qty * (/week/i.test(item.name ?? "") ? 7 : 1);
   }

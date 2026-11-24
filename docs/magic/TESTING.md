@@ -655,7 +655,7 @@ later step finds a pending record or one of these items on the kept caster.
     names three items. *Observable:* the GM deletes one and, within a few
     seconds, the record's `kit` holds the other two and no more; an item named by
     no record, deleted, leaves the record as it was; a stack emptied with
-    `system.quantity.value` set to 0 takes its item out of the record and the
+    `system.quantity` set to 0 takes its item out of the record and the
     item itself stays; the last deletion leaves `kit` an empty list, not
     absent. A second record on the caster and a third on the monster actor each
     name one item; the Player seat reads `canUserModify` as true for the first

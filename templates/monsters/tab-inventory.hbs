@@ -33,7 +33,7 @@
           <div class="item-row">
             <div class="item__icon" data-action="itemShow"><img src="{{item.img}}" alt="{{item.name}}" class="item__image"/></div>
             <div class="item__text"><a data-action="toggleSummary">{{item.name}}</a></div>
-            <div class="acksm-inv-meta">{{acksExtrasVal item.system.weight6 0}}/6 st · {{acksExtrasVal item.system.cost 0}} gp{{#if item.system.quantity.value}} · ×{{item.system.quantity.value}}{{/if}}</div>
+            <div class="acksm-inv-meta">{{acksExtrasVal item.system.weight6 0}}/6 st · {{acksExtrasVal item.system.cost 0}} gp{{#if item.system.quantity}} · ×{{item.system.quantity}}{{/if}}</div>
             {{#if ../owner}}
             <div class="item__controls">
               <a class="item-control" data-tooltip='{{localize "ACKS.Edit"}}' data-action="itemEdit"><i class="fas fa-edit"></i></a>

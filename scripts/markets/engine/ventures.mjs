@@ -51,7 +51,8 @@ import { characteristicsFor, entryQuote, gateTollOf, settleToll, settleTariff, e
 import { writeReport } from "./trade-objects.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
-import { storageFlagOf } from "../../lib/storage-logic.mjs";
+import { quantityOf, storageFlagOf } from "../../lib/storage-logic.mjs";
+import { stackCountOf } from "../../lib/item-model.mjs";
 import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
 
 const SECONDS_PER_DAY = 86400;
@@ -108,7 +109,18 @@ export function loadStacks(holder, category, traderUuid = holder?.uuid ?? null) 
 
 /** Stones of one merchandise category a holder carries as loads (one unit per stone, across every stack). */
 export function loadsHeld(holder, category, traderUuid = holder?.uuid ?? null) {
-  return loadStacks(holder, category, traderUuid).reduce((sum, i) => sum + Math.max(0, Number(i.system?.quantity?.value ?? 0) || 0), 0);
+  return loadStacks(holder, category, traderUuid).reduce((sum, i) => sum + Math.max(0, stackCountOf(i) ?? 0), 0);
+}
+
+/**
+ * The `updateEmbeddedDocuments` payload that leaves each drawn stack holding
+ * its `qty`: `updates` is a load draw's (`planLoadDraw`), `stacks` the loads it
+ * was planned over, so each row is written at the path its own stack keeps its
+ * quantity at.
+ */
+export function loadDrawUpdates(stacks, updates) {
+  const pathOf = new Map(stacks.map((i) => [i.id, quantityOf(i)?.path ?? "system.quantity"]));
+  return updates.map((u) => ({ _id: u.id, [pathOf.get(u.id) ?? "system.quantity"]: u.qty }));
 }
 
 /**
@@ -908,7 +920,7 @@ export async function tradeMerchandise(location, payload) {
   // Refused before any negotiation is rolled: a trade that cannot land is not
   // worth a merchant's patience.
   const stacks = loadStacks(hold, category, actor.uuid);
-  const draw = direction === "buy" ? null : planLoadDraw(stacks.map((i) => ({ id: i.id, qty: i.system?.quantity?.value })), stones);
+  const draw = direction === "buy" ? null : planLoadDraw(stacks.map((i) => ({ id: i.id, qty: stackCountOf(i) })), stones);
   if (draw?.short) return err("noLoads", { remaining: draw.held });
   if (direction === "buy" && inVehicle) {
     const free = Math.floor(holdOf(hold)?.free ?? 0);
@@ -955,7 +967,7 @@ export async function tradeMerchandise(location, payload) {
     // a stack nobody else's stamp is on.
     const carried = stacks.find((i) => !storageFlagOf(i)) ?? stacks[0] ?? null;
     if (carried) {
-      await carried.update({ "system.quantity.value": Number(carried.system.quantity?.value ?? 0) + stones });
+      await carried.update({ [quantityOf(carried)?.path ?? "system.quantity"]: (stackCountOf(carried) ?? 0) + stones });
     } else {
       await hold.createEmbeddedDocuments("Item", [
         {
@@ -963,7 +975,7 @@ export async function tradeMerchandise(location, payload) {
           type: ITEM_TYPE.item,
           img: "icons/containers/bags/sack-simple-leather-brown.webp",
           system: {
-            quantity: { value: stones, max: 0 },
+            quantity: stones,
             cost: Number(merch.pricePerStoneGp) || 0,
             weight6: 6, // one stone per unit
             description: game.i18n.format(`${LANG}.ventures.loadDescription`, { label, location: location.name }),
@@ -977,7 +989,7 @@ export async function tradeMerchandise(location, payload) {
     const earned = await adapter.grantGold(actor, totalGp, { from: location, at: location, allowMint: true, within: location, judge: judgeDeclares(requestUserId) });
     if (!earned) return err("payoutRefused");
     if (draw.updates.length) {
-      await hold.updateEmbeddedDocuments("Item", draw.updates.map((u) => ({ _id: u.id, "system.quantity.value": u.qty })));
+      await hold.updateEmbeddedDocuments("Item", loadDrawUpdates(stacks, draw.updates));
     }
     if (draw.deletes.length) await hold.deleteEmbeddedDocuments("Item", draw.deletes);
   }

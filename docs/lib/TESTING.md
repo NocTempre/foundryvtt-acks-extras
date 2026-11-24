@@ -32,6 +32,16 @@ report the same symptom.
   `lib/follower-throw-row`, `lib/follower-throw-die`,
   `lib/follower-appearing-dungeon` and `lib/follower-appearing-wilderness`,
   and a walk retires each before it throws again.
+- The plain-number quantity's, kept and found again by marker
+  (`flags.world.fixture`), and built carrying it where none stands:
+  `lib/core-14-2-weight` (a `character` carrying a gear stack, a stack that
+  declares a bundle size with `flags.acks-extras.gear.per`, a weapon with
+  `system.quantity` 3 and a suit of armour; build the four items with
+  `api.create` on the actor, then `api.mark` the actor),
+  `lib/core-14-2-torch` (a world `item` holding more than one, with a
+  `weight6`), `lib/core-14-2-sword` (a world `weapon`) and
+  `lib/core-14-2-bundle` (a world bundle whose rows name the torch and the
+  sword, each with a count); each is `api.fixture(marker, "Item", data)`.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -957,7 +967,7 @@ path that embedded bundles whole.
 
 **Fixtures (as GM, each id recorded with `api.track`):**
 - "Bundle Hero", a `character` the Player seat owns, open on this module's
-  sheet. It carries "Bundle Arrows", an `item` with `system.quantity.value` 5.
+  sheet. It carries "Bundle Arrows", an `item` with `system.quantity` 5.
 - World items the player can see: "Bundle Sword" (`weapon`); "Bundle Arrows"
   (`item`, quantity 20, identical to the carried stack apart from quantity);
   "Bundle Coin" (`money`, `coppervalue` 100, quantity 0).
@@ -1969,7 +1979,7 @@ own pass over a real page proves the watch answers it.
 named with an invented phrase of about 45 characters, and a `monster` and an
 `acks-extras.marketReport` item named with one of about 85. For steps 7 and 8,
 a `character` owned by every seat (`ownership: {default: 3}`) holding an
-`item` of `system.quantity.value` 6 named with one of about 70, and a plain
+`item` of `system.quantity` 6 named with one of about 70, and a plain
 world `item`. For step 10, a second `acks-extras.vehicle`, a second `monster`
 and two more `character`s, each named with the 85-character phrase. For steps
 11 to 14, three `acks-extras.vehicle`s under any name.

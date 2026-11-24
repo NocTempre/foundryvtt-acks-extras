@@ -32,7 +32,7 @@ import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { excludedSources, listedSource, shopListsWorld, shopPacks } from "./catalog-sources.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
-import { quantityOf } from "../../lib/storage-logic.mjs";
+import { isStackable, quantityOf } from "../../lib/storage-logic.mjs";
 import { partyOf, partySize } from "./parties.mjs";
 import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
 import { marketRules, bargaining, magicPrices, stepFractionFor, printedError } from "./printed.mjs";
@@ -341,8 +341,8 @@ export async function buildCatalog(location) {
 /**
  * The atomic purchase. Runs on a seat that can write the location AND the
  * buyer (players hold OWNER on both by default); other seats relay via the
- * "marketsPurchase" socket. Delivery is `deliverGoods`: quantity-bearing items
- * merge into the buyer's existing stack, unit items arrive one copy per unit.
+ * "marketsPurchase" socket. Delivery is `deliverGoods`: a stackable merges into
+ * the buyer's existing row, anything else arrives one row per unit.
  * A `heldItemId` payload buys one of the market's own holdings (a magic item a
  * sale left on the location): the embedded item MOVES to the buyer, priced as
  * magic stock and outside the monthly grid — it is a physical thing on the
@@ -493,9 +493,10 @@ async function takeHeld(held, qty) {
 
 /**
  * Hand purchased goods to their buyer through `lib/bundles.mjs`: `qty` counts
- * units, so a stackable arrives as one stack of `qty` and folds into an
- * identical stack the buyer carries, and a unit item (thirty swords) arrives
- * as `qty` copies. Never as a bundle: no actor sheet lists an embedded one.
+ * units and `goodsForRow` makes the rows. A stackable arrives as one row
+ * holding `qty` and folds into an identical row the buyer carries; a row that
+ * is not `isStackable` (thirty swords) arrives as `qty` rows of one each.
+ * Never as a bundle: no actor sheet lists an embedded one.
  */
 export async function deliverGoods(buyer, { entry, qty }) {
   const data = foundry.utils.deepClone(entry.data);
@@ -737,8 +738,9 @@ export async function sell(location, payload) {
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
 
-  const stackable = itemData.type === ITEM_TYPE.item;
-  const carried = stackable ? Number(itemData.system?.quantity?.value ?? 1) : 1;
+  const own = quantityOf(itemData);
+  const stackable = isStackable(itemData);
+  const carried = stackable ? own.value : 1;
   const qty = Math.min(Math.max(1, Math.floor(Number(rawQty) || 1)), Math.max(1, carried));
 
   // Price first (the plan also names the band value), then availability.
@@ -787,7 +789,7 @@ export async function sell(location, payload) {
     await location.createEmbeddedDocuments("Item", [kept]);
   }
   if (stackable && carried > qty) {
-    await item.update({ "system.quantity.value": carried - qty });
+    await item.update({ [own.path]: carried - qty });
   } else {
     await item.delete();
   }

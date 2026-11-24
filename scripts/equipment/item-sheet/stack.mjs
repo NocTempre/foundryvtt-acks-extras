@@ -10,7 +10,9 @@
  * lost either way, and the stack's own quantity is the only count that moves.
  */
 import { MODULE_ID } from "../constants.mjs";
-import { setWorn, siblingsOf } from "../../lib/item-model.mjs";
+import { setWorn, siblingsOf, stackCountOf } from "../../lib/item-model.mjs";
+import { quantityOf, isStackable } from "../../lib/storage-logic.mjs";
+import { setPath } from "../../lib/dotted-path.mjs";
 import { wearableSlots } from "../profiles.mjs";
 
 /** The flag naming the stack a split item came from. */
@@ -24,10 +26,13 @@ function wearSlotFor(item) {
   return wearableSlots(item)[0] ?? null;
 }
 
-/** Can this stack split one out? A stack with somewhere to wear it, two or more deep. */
+/**
+ * Can this stack split one out? A row `isStackable` accepts, with somewhere to
+ * wear it, two or more deep.
+ */
 export function canSplit(item) {
-  const qty = Number(item?.system?.quantity?.value);
-  return Number.isFinite(qty) && qty > 1 && !!wearSlotFor(item) && !!siblingsOf(item);
+  const qty = stackCountOf(item);
+  return isStackable(item) && Number.isFinite(qty) && qty > 1 && !!wearSlotFor(item) && !!siblingsOf(item);
 }
 
 /**
@@ -37,9 +42,10 @@ export function canSplit(item) {
 export async function splitOne(item) {
   if (!canSplit(item)) return null;
   const slot = wearSlotFor(item);
+  const q = quantityOf(item);
   const data = item.toObject();
   delete data._id;
-  data.system.quantity.value = 1;
+  setPath(data, q.path, 1);
   data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), [SPLIT_FROM]: item.id } };
   // The declared slot travels with the copy, so `setWorn` has a slot to accept.
   data.flags[MODULE_ID].gear = { ...(data.flags[MODULE_ID].gear ?? {}), slots: [slot] };
@@ -47,7 +53,7 @@ export async function splitOne(item) {
     ? await item.parent.createEmbeddedDocuments("Item", [data])
     : [await getDocumentClass("Item").create(data)];
   if (!created) return null;
-  await item.update({ "system.quantity.value": Number(item.system.quantity.value) - 1 });
+  await item.update({ [q.path]: q.value - 1 });
   await setWorn(created, slot);
   return created;
 }
@@ -61,11 +67,12 @@ export async function restack(split) {
   const stackId = splitFromOf(split);
   if (!stackId) return false;
   const stack = siblingsOf(split)?.get?.(stackId) ?? null;
-  if (!stack) {
+  const into = stack && isStackable(stack) ? quantityOf(stack) : null;
+  if (!into) {
     await split.unsetFlag(MODULE_ID, SPLIT_FROM);
     return false;
   }
-  await stack.update({ "system.quantity.value": Number(stack.system.quantity?.value ?? 0) + Number(split.system.quantity?.value ?? 1) });
+  await stack.update({ [into.path]: (stackCountOf(stack) ?? 0) + (stackCountOf(split) ?? 1) });
   await split.delete();
   return true;
 }

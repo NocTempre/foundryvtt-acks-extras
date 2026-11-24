@@ -4500,4 +4500,26 @@ t("areEnemies: friendly against hostile is true, one side false, neutral secret 
   });
 }
 
+// Lighting a torch from a stack takes one off the stack, where the stack keeps a plain-number quantity.
+await (async () => {
+  const { prepareToLight } = await import("../scripts/lib/light.mjs");
+  const prior = globalThis.acksExtras;
+  globalThis.acksExtras = {};
+  try {
+    const writes = [];
+    const stack = { id: "t1", name: "Torches", type: "item", system: { cost: 0, weight6: 0, quantity: 4 }, update: async (u) => { writes.push(u); } };
+    const ok = await prepareToLight({ name: "Bearer", items: [stack] }, "torch");
+    assert.equal(ok, true);
+    assert.deepEqual(writes, [{ "system.quantity": 3 }], "one torch leaves the stack, written at the plain field");
+    const blade = { id: "w1", name: "Torch", type: "weapon", system: { cost: 0, weight6: 0, quantity: 1 }, update: async (u) => writes.push(u) };
+    writes.length = 0;
+    await prepareToLight({ name: "Bearer", items: [blade] }, "torch");
+    assert.deepEqual(writes, [], "a torch carried as a weapon is never taken off a stack");
+  } finally {
+    globalThis.acksExtras = prior;
+  }
+  n++;
+  console.log("ok - prepareToLight: a plain-number stack loses one, a weapon torch loses none");
+})();
+
 console.log(`\n${n} tests passed`);

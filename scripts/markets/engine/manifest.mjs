@@ -14,13 +14,15 @@
 import { marketsFlagOf } from "../rules/goods.mjs";
 import { planLoadDraw } from "../rules/arbitrage.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
-import { storageFlagOf } from "../../lib/storage-logic.mjs";
-import { loadStacks } from "./ventures.mjs";
+import { quantityOf, storageFlagOf } from "../../lib/storage-logic.mjs";
+import { stackCountOf } from "../../lib/item-model.mjs";
+import { setPath } from "../../lib/dotted-path.mjs";
+import { loadStacks, loadDrawUpdates } from "./ventures.mjs";
 import { marketMonthStart } from "./trade.mjs";
 import { merchandiseFor } from "./merchandise.mjs";
 
 const gpRound = (n) => Math.round(n * 100) / 100;
-const stonesOf = (item) => Math.max(0, Number(item?.system?.quantity?.value ?? 0) || 0);
+const stonesOf = (item) => Math.max(0, stackCountOf(item) ?? 0);
 
 /**
  * The merchandise loads among one holder's plain items, priced.
@@ -107,14 +109,14 @@ export function manifestOf(holders, { market = null, traderUuid = null } = {}) {
  * stacks in the order a sale draws them. Whole loads only; a draw the stacks
  * cannot meet takes nothing and answers `{ok: false, reason: "noLoads", held}`.
  * On success `removed` holds one detached plain copy per stack drawn from —
- * `_id` dropped, `system.quantity.value` set to the stones taken from it — so
+ * `_id` dropped, `system.quantity` set to the stones taken from it — so
  * the goods can be re-created later with `createEmbeddedDocuments` by a
  * caller that knows nothing of the load flag.
  * @returns {Promise<{ok: true, removed: object[]}|{ok: false, reason: "noLoads", held: number}>}
  */
 export async function removeLoads(holder, category, stones, { traderUuid = null } = {}) {
   const stacks = loadStacks(holder, category, traderUuid);
-  const draw = planLoadDraw(stacks.map((i) => ({ id: i.id, qty: i.system?.quantity?.value })), stones);
+  const draw = planLoadDraw(stacks.map((i) => ({ id: i.id, qty: stackCountOf(i) })), stones);
   if (draw.short) return { ok: false, reason: "noLoads", held: draw.held };
 
   const left = new Map(draw.updates.map((u) => [u.id, u.qty]));
@@ -125,12 +127,12 @@ export async function removeLoads(holder, category, stones, { traderUuid = null 
     const taken = Math.round((stonesOf(stack) - (gone ? 0 : left.get(stack.id))) * 1e6) / 1e6;
     const copy = foundry.utils.deepClone(stack.toObject());
     delete copy._id;
-    copy.system.quantity.value = taken;
+    setPath(copy, quantityOf(copy)?.path ?? "system.quantity", taken);
     removed.push(copy);
   }
 
   if (draw.updates.length) {
-    await holder.updateEmbeddedDocuments("Item", draw.updates.map((u) => ({ _id: u.id, "system.quantity.value": u.qty })));
+    await holder.updateEmbeddedDocuments("Item", loadDrawUpdates(stacks, draw.updates));
   }
   if (draw.deletes.length) await holder.deleteEmbeddedDocuments("Item", draw.deletes);
   return { ok: true, removed };

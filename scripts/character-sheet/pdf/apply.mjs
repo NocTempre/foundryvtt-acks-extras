@@ -23,6 +23,8 @@ import { wearableSlots } from "../../equipment/profiles.mjs";
 import { damageFormulaOf } from "../../equipment/properties.mjs";
 import { whenReady } from "../../lib/library.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
+import { stackCountOf } from "../../lib/item-model.mjs";
+import { isStackable } from "../../lib/storage-logic.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../../lib/money.mjs";
 import { applyClass, grantFixedAwards } from "../../classes/apply.mjs";
@@ -171,7 +173,7 @@ function containerFor(actor, place) {
 }
 
 /** Whether one item of this kind is a stack rather than one of several copies. */
-const stacks = (item) => item.type !== ITEM_TYPE.weapon && item.type !== ITEM_TYPE.armor;
+const stacks = (item) => isStackable(item);
 
 /**
  * Land every gear line on the actor and put it where the sheet lists it. An
@@ -187,7 +189,7 @@ async function landGear(actor, gear, report) {
     const have = actor.items.filter((i) => GEAR_TYPES.includes(i.type) && slug(i.name) === slug(line.name) && !claimed.has(i.id));
     if (have.length && stacks(have[0])) {
       claimed.add(have[0].id);
-      const held = Number(have[0].system?.quantity?.value ?? 1) || 1;
+      const held = stackCountOf(have[0]) || 1;
       if (held !== line.qty) report.checks.push({ label: have[0].name, sheet: String(line.qty), inForce: String(held) });
       placed.push({ line, item: have[0] });
       continue;

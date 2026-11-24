@@ -32,6 +32,7 @@ import {
   isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear, magicKnowledge, curseKnowledge,
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
+import { isStackable } from "../../lib/storage-logic.mjs";
 import { lightControl, writesMagicLight } from "../../lib/light.mjs";
 import { damageGlyphOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, WEAR_SLOTS } from "../../lib/vocab.mjs";
@@ -311,13 +312,13 @@ function recordOf(item) {
       ];
     case ITEM_TYPE.item:
       return [
-        { name: "system.quantity.value", label: loc("itemSheet.field.quantity"), type: "number", value: sys.quantity?.value ?? 1, width: "xs" },
+        { name: "system.quantity", label: loc("itemSheet.field.quantity"), type: "number", value: stackCountOf(item) ?? 1, width: "xs" },
         // Silent at 1 on a single item — the ordinary case, and asking every
         // crowbar how big its bundle is would be noise. It appears wherever a
         // bundle can mean something: on a STACK, or on anything that already
         // declares one. A field a Judge cannot reach is a field nobody can
         // populate, so "hidden until set" is not an option on its own.
-        ...(bundleSizeOf(item) > 1 || Number(sys.quantity?.value ?? 1) > 1
+        ...(bundleSizeOf(item) > 1 || (stackCountOf(item) ?? 1) > 1
           ? [{ name: `flags.${MODULE_ID}.${FLAG_GEAR}.per`, label: loc("itemSheet.field.per"), hint: loc("itemSheet.field.perHint"), type: "number", value: bundleSizeOf(item), width: "xs" }]
           : []),
       ];
@@ -499,7 +500,7 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
   const markets = item.getFlag(MODULE_ID, MARKETS_FLAG) ?? {};
   const disguise = item.getFlag(MODULE_ID, ITEM_FLAGS.DISGUISE) ?? null;
   const weaponProfile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
-  const stackable = item.type === ITEM_TYPE.item || isCurrency(item);
+  const stackable = isStackable(item);
   const qty = stackCountOf(item);
 
   return {

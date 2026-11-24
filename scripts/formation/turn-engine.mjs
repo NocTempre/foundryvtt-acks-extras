@@ -27,6 +27,8 @@ import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { roadDistance } from "../battlemap/roads.mjs";
 import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { lightFigures, prepareToLight } from "../lib/light.mjs";
+import { stackCountOf } from "../lib/item-model.mjs";
+import { quantityOf } from "../lib/storage-logic.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { tokenCentre } from "../lib/token-centre.mjs";
 import { equipForLight } from "./judge-override.mjs";
@@ -288,7 +290,7 @@ export async function encounterCheck(formation, { manual = false, params = null 
 
 function findRationItem(actor) {
   const rations = actor.items.filter(
-    (i) => RATION_PATTERN.test(i.name) && (i.system?.quantity?.value ?? 0) > 0,
+    (i) => RATION_PATTERN.test(i.name) && (stackCountOf(i) ?? 0) > 0,
   );
   if (!rations.length) return null;
   // Prefer day rations over week rations, standard over iron.
@@ -317,7 +319,7 @@ export async function consumeRations(formation) {
         const uses = (ration.getFlag(MODULE_ID, "uses") ?? 0) + 1;
         if (uses >= 7) {
           await ration.update({
-            "system.quantity.value": ration.system.quantity.value - 1,
+            [quantityOf(ration).path]: stackCountOf(ration) - 1,
             [`flags.${MODULE_ID}.uses`]: 0,
           });
         } else {
@@ -325,7 +327,7 @@ export async function consumeRations(formation) {
         }
         fed.push({ name: actor.name, ration: `${ration.name} (${Math.min(uses, 7)}/7)` });
       } else {
-        await ration.update({ "system.quantity.value": ration.system.quantity.value - 1 });
+        await ration.update({ [quantityOf(ration).path]: stackCountOf(ration) - 1 });
         fed.push({ name: actor.name, ration: ration.name });
       }
     } else {

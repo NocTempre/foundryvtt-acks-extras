@@ -440,7 +440,7 @@ item or compendium entry over a synthesized stand-in — a granted torch should
 be the system's torch. A spec with a `name` takes the entry of that name. A
 spec without one is gear known by what it is: `findGearByPattern` takes, among
 the items its `pattern` matches, the stack holding the most by
-`system.quantity.value`, the world's items before any compendium's, so a light's
+`system.quantity`, the world's items before any compendium's, so a light's
 fuel arrives as a bundle without any count written into a name; its stand-in
 is named by the spec's `label`. `clearHands(actor, n)` sheathes held
 gear (shields first, then weapons newest-first) until there is room, and reports

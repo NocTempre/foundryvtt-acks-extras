@@ -13,6 +13,7 @@
  * `grant.mjs`").
  */
 import { carriesItem } from "../lib/item-model.mjs";
+import { quantityOf } from "../lib/storage-logic.mjs";
 import { openPacks } from "../lib/library.mjs";
 import { getLoadout, releaseOrder } from "./loadout.mjs";
 import { sheatheItem } from "./actions.mjs";
@@ -80,7 +81,7 @@ export async function findGearEntry(name, { world: searchWorld = true, pack: pac
 
 /** The count a stack holds, as its quantity field stores it; 1 where it stores none. */
 const stackSize = (entry) => {
-  const n = Number(entry?.system?.quantity?.value);
+  const n = quantityOf({ system: entry?.system })?.value ?? NaN;
   return Number.isFinite(n) && n > 0 ? n : 1;
 };
 
@@ -101,7 +102,7 @@ export async function findGearByPattern(pattern) {
 
   let best = null;
   for (const pack of openPacks("Item")) {
-    const index = (await pack.getIndex?.({ fields: ["system.quantity.value"] })) ?? pack.index ?? [];
+    const index = (await pack.getIndex?.({ fields: ["system.quantity"] })) ?? pack.index ?? [];
     const found = largest([...index].filter((e) => pattern.test(e.name ?? "")));
     if (found && (!best || stackSize(found) > stackSize(best.entry))) best = { pack, entry: found };
   }
@@ -126,7 +127,7 @@ function synthesize(spec) {
   return {
     name: spec.name ?? (spec.label ? game.i18n?.localize?.(spec.label) ?? spec.label : ""),
     type: "item",
-    system: { quantity: { value: 1, max: 0 }, cost: 0, weight6: 0 },
+    system: { quantity: 1, cost: 0, weight6: 0 },
     ...(spec.fallback ?? {}),
   };
 }

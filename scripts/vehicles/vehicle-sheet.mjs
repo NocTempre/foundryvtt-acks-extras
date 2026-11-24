@@ -26,7 +26,7 @@ import { holdFrom } from "./hold.mjs";
 import { deploymentOf, deploySite, deployVehicle, strikeVehicle } from "./deploy.mjs";
 import { borneWeight6, load6 } from "../lib/capacity.mjs";
 import { attach, detach } from "../lib/attachment.mjs";
-import { handOver, isProvider, storesByOwner, storageFlagOf, quantityOf } from "../lib/storage.mjs";
+import { handOver, isProvider, storesByOwner, storageFlagOf, quantityOf, isStackable } from "../lib/storage.mjs";
 import { isLocation, parentUuidOf, placeIndex, placePath, setParent } from "../lib/place.mjs";
 import { occupantsOf, draftPullOf, derivedSkills } from "./occupants.mjs";
 import { stationsFor, effectiveCrewRoles } from "./stations.mjs";
@@ -34,7 +34,7 @@ import { routeActorDrop } from "./drop-dialog.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { boardForBestPace, reboardLast } from "./boarding.mjs";
 import { explorationSpeedOf, getMemberActor } from "../formation/formation-model.mjs";
-import { STONE, encumbering6, isCurrency } from "../lib/item-model.mjs";
+import { STONE, encumbering6, isCurrency, stackCountOf } from "../lib/item-model.mjs";
 import { landCoin } from "../lib/bundles.mjs";
 import { expeditionFrom, expeditionTip, TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../markets/constants.mjs";
@@ -273,10 +273,10 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       id: it.id,
       name: it.name,
       img: it.img,
-      qty: Number(it.system?.quantity?.value ?? 1) || 1,
+      qty: stackCountOf(it) || 1,
       stone: round2(encumbering6(it) / STONE),
       // Only a stackable item offers a count; a sword does not.
-      stacks: it.system?.quantity !== undefined,
+      stacks: isStackable(it),
       ownerName: storageFlagOf(it)?.ownerName || null,
       merchandise: !!it.getFlag(MODULE_ID, MARKETS_FLAG)?.merchandise,
     }));
@@ -367,7 +367,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     // would mean writing it into the actor's system object on its way past.
     if (el?.dataset?.cargoQty !== undefined) {
       const item = this.actor.items.get(el.dataset.itemId);
-      if (item) await item.update({ "system.quantity.value": Math.max(0, Number(el.value) || 0) });
+      const held = item ? quantityOf(item) : null;
+      if (held) await item.update({ [held.path]: Math.max(0, Number(el.value) || 0) });
       return this.render();
     }
     // The place it is filed under: written at once where the vehicle already

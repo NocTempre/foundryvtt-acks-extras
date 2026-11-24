@@ -2467,6 +2467,51 @@ const torchStack = trackItem("Torch", { quantity: { value: 6 } });
 check("consumeItem decrements a stack and returns the remainder", (await consumeItem(torchStack, 1)) === 5 && torchStack._sys.quantity.value === 5);
 check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quantity: { value: 0 } }), 1)) === 0);
 
+// A quantity kept as a plain whole number is read where it lies and written back to the same field.
+{
+  const writes = [];
+  const plainTorch = { ...trackItem("Torch", { quantity: 6 }), update: async (u) => { writes.push(u); } };
+  check("roundsOf reads a plain-number quantity", roundsOf(plainTorch) === 6);
+  check("consumeItem takes one off a plain-number stack and writes system.quantity", (await consumeItem(plainTorch, 1)) === 5 && JSON.stringify(writes) === JSON.stringify([{ "system.quantity": 5 }]));
+}
+
+// The stack on the item sheet: a plain-number row splits one out and takes it back.
+{
+  const { splitOne, restack, canSplit } = await import(new URL("item-sheet/stack.mjs", S));
+  const writes = [];
+  const made = [];
+  const mkRow = (name, type, qty, { flags = {}, items = [] } = {}) => {
+    const row = {
+      id: `${name}-id`, name, type,
+      system: { cost: 0, weight6: 0, quantity: qty },
+      flags: { "acks-extras": { gear: { slots: ["worn"] }, ...flags } },
+      getFlag: (m, k) => row.flags[m]?.[k],
+      unsetFlag: async () => {},
+      toObject: () => structuredClone({ name: row.name, type: row.type, system: row.system, flags: row.flags }),
+      update: async (u) => { writes.push(u); },
+      delete: async () => { writes.push("deleted"); },
+      parent: {
+        items: Object.assign(items, { get: (id) => items.find((i) => i.id === id) }),
+        createEmbeddedDocuments: async (_kind, rows) => {
+          made.push(...rows);
+          return rows.map((r) => ({ ...r, id: "split-id", getFlag: (m, k) => r.flags?.[m]?.[k], update: async () => {} }));
+        },
+      },
+    };
+    return row;
+  };
+  check("a plain-number stack two or more deep may split", canSplit(mkRow("Gloves", "item", 3)) && !canSplit(mkRow("Gloves", "item", 1)));
+  check("a weapon never splits, whatever it counts", !canSplit(mkRow("Sword", "weapon", 3)));
+  const stack = mkRow("Gloves", "item", 3);
+  const one = await splitOne(stack);
+  check("the split row is one, as a plain number, and the stack keeps the rest", !!one && made[0].system.quantity === 1 && JSON.stringify(writes) === JSON.stringify([{ "system.quantity": 2 }]));
+  writes.length = 0;
+  const home = mkRow("Gloves", "item", 2);
+  const back = mkRow("Gloves", "item", 1, { flags: { splitFrom: home.id } });
+  back.parent.items.push(home);
+  check("restack adds the split row to the stack at system.quantity and removes it", (await restack(back)) === true && JSON.stringify(writes) === JSON.stringify([{ "system.quantity": 3 }, "deleted"]));
+}
+
 // A thrown-away weapon's weight leaves the encumbrance total until recovered.
 const heavyAxe = { ...trackItem("Hand Axe", { flags: { thrownAway: true } }), type: "weapon", system: { weight6: 6, cost: 5, quantity: { value: 1 } } };
 heavyAxe.getFlag = (_m, k) => (k === "thrownAway" ? true : undefined);

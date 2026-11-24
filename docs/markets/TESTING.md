@@ -890,7 +890,7 @@ T, Q and A are the party: a roster of the run's own appended to the world's
 `marketParties`, and removed by its id at the end. G's ownership is set after
 creation to exactly `{default: 0, [Player]: 3}`.
 
-A load is an `item` with `system.quantity.value` stones, `system.cost`,
+A load is an `item` with `system.quantity` stones, `system.cost`,
 `weight6: 6` and
 `flags["acks-extras"].markets = {merchandise: true, category: <key>}`.
 

@@ -25,6 +25,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { feetToUnits } from "./distance-units.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
 import { canWear, containedIn, findCarried, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
+import { isStackable, quantityOf } from "./storage-logic.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
 import { tokenCentre } from "./token-centre.mjs";
 import { locOr, positiveFigure } from "./util.mjs";
@@ -278,14 +279,15 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
     if (enforcement === "require" && !override) return false;
   }
 
-  // Only a genuine stack decrements: a torch carried as a WEAPON has no
-  // `system.quantity` (core weapons don't) and simply burns out on its own
-  // timer. See docs/lib/DECISIONS.md, "Fuel burn-down reuses the ammunition
-  // tracker (2026-09-22)" for why the decrement itself is shared with equipment.
-  if (fuel && fuel.system?.quantity?.value != null) {
+  // Only a genuine stack decrements (`isStackable`): a torch carried as a
+  // WEAPON stays one row and simply burns out on its own timer. See
+  // docs/lib/DECISIONS.md, "Fuel burn-down reuses the ammunition tracker
+  // (2026-09-22)" for why the decrement itself is shared with equipment.
+  if (fuel && isStackable(fuel)) {
     const consume = globalThis.acksExtras?.equipment?.consumeItem;
+    const held = quantityOf(fuel);
     if (typeof consume === "function") await consume(fuel, 1);
-    else await fuel.update({ "system.quantity.value": Math.max(0, fuel.system.quantity.value - 1) });
+    else await fuel.update({ [held.path]: Math.max(0, held.value - 1) });
   }
   return true;
 }

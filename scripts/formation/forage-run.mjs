@@ -7,6 +7,7 @@
  */
 import { MODULE_ID, RATION_PATTERN } from "./constants.mjs";
 import { makeLoc, gmIds } from "./../lib/util.mjs";
+import { quantityOf } from "../lib/storage-logic.mjs";
 import { getMemberActor, realMembers, hasAbility } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
 import { forageSpec, huntSpec, forageYield, partyThrows, standingWaterOf, FORAGE_KINDS } from "./foraging.mjs";
@@ -48,14 +49,14 @@ async function deposit(actor, kind, days) {
   const name = DEPOSIT_NAMES[kind] ?? DEPOSIT_NAMES.food;
   const existing = actor.items.find((i) => i.name === name);
   if (existing) {
-    const now = Number(existing.system?.quantity?.value ?? 0) + days;
-    await existing.update({ "system.quantity.value": now });
+    const held = quantityOf(existing);
+    await existing.update({ [held?.path ?? "system.quantity"]: (held?.value ?? 0) + days });
     return existing;
   }
   const [made] = await actor.createEmbeddedDocuments("Item", [{
     name,
     type: "item",
-    system: { quantity: { value: days } },
+    system: { quantity: days },
     flags: { [MODULE_ID]: { foraged: kind } },
   }]);
   return made ?? null;
