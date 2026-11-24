@@ -1243,8 +1243,15 @@ registration and the Judge's own statuses all depend on one writer. Carrying
 the system's `changes` onto the catalogue's entries for the ids both name:
 eleven system conditions carry Active Effect `changes`, the catalogue's rolls
 read the status, and both would count (see 2026-10-01, "Active Effect changes
-on each status"). Whether to read the system's figures instead is a design the
-owner has not been shown.
+on each status").
+
+**Scope.** This entry rules the repair of what 14.2.0 broke and nothing past
+it. Asked whether the catalogue's rolls keep their own figures or the system's
+Active Effects apply them, the owner, 2026-11-24: "Revert to core now that it
+available, repair implementations and ties to automation that are downstream".
+Who writes `CONFIG.statusEffects`, and whether the catalogue's entry stands for
+an id the system also ships, are therefore open again, and the entry that
+rules on them supersedes the first two bullets above.
 
 **Cost.** The system's `done`, `overnumbering` and the two conditions the
 catalogue lacks become toggleable by id in every world and appear under the
