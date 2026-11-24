@@ -722,3 +722,91 @@ an army or a faction (`acks-extras.faction` already keeps a `parentUuid`),
 and not a rung beneath a separate faction that must exist first; and that a
 warband sent out whole is one group holding its gangs' stacks, not a card
 that holds groups.
+
+### Architect's ruling on the holder, 2026-11-24
+
+`architect` read this plan, `FactionData`, `GroupData`, the group, encounter
+and lair code, lib's README and the "In force" rows, and edited nothing. This
+is its ruling, **proposed and not yet the owner's**; the design session did
+not check its code citations. Section 3's rows are unchanged until the owner
+answers the questions at its foot.
+
+**A. The faction sub-type as it stands, schema untouched.** The roll's record
+and the tree of cards live in one flag on the faction,
+`flags["acks-extras"].organisation`: the roll's key, template, variant,
+state, context, rules, source, choices and log, and a `tree` of cards (`kind`
+village, lair, warband, gang or camp; parent, role, troop, trait, `pinned`,
+`out`, and the card's own `stacks`). A pure reader cleans it and it is
+written whole, as `lib/place-things.mjs` does its flag. One writer, the
+monsters provider; factions reads it through the contract. Bodies counted and
+unnamed are lib stack objects on each card, not `strength` (a second home for
+one count, which the 2026-09-30 factions ruling rejects) and not `members`
+(actor uuids). The village sets `seatUuid` to its lair's place and leaves
+`leaderUuid` and `parentUuid` blank. This qualifies `FactionData`'s "every
+value is what the Judge typed": rolled content stays in the generator's flag,
+never in a faction field. Against it, moderate: rolled villages fill the
+faction directory and every faction scan.
+
+**B. Every organised roll is a faction**, a warband or a lair included, its
+root card of that kind; a plain monster stays on the group's Roll. A group
+cannot hold a tree, and ruling 3 asks for a gang re-rolled inside its
+warband. Against it, moderate: a wandering band is met to be fought now.
+
+**C. Sending a card out.** The group is written first and holds the stacks of
+the card and of every card under it; then one faction write marks those cards
+out, drops their stacks and adds a hidden roster row; a failed faction write
+deletes the group. Each stack carries `gen` (faction, roll key, node),
+`fixedHp` where a leader's hit points are printed, and a label where the
+library has no creature. A warband sent out whole is one group with a stack
+for each gang and prototype, not summed. S10 must also stop a `gen` stack
+offering the per-monster Roll, and make the stack match compare `gen.node`,
+or a drag between groups merges two gangs.
+
+**D. Recall and re-roll.** A stack returns to the card its `gen.node` names,
+so a gang dragged into another group still finds its card; the fallen stay on
+the card. A card whose group was deleted by hand reads as lost and can be
+rolled again. A card that is out is not re-rolled or edited; in its parent's
+re-roll it stands as pinned, as does a card with losses or individual
+records. A card at home with fallen warns the Judge and proceeds. The variant
+changes only while no card is out.
+
+**E. "The roll writes stacks at once"** holds if Generate writes the faction
+and its cards' stacks at once and every edit is live. A Save that stages the
+chart, as board 1f draws, would qualify the 2026-11-01 ruling and needs the
+owner's word. "An encounter is a group" (lib DECISIONS, the same entry) is
+superseded in part by "Faction card"; the slice that builds the provider
+writes that entry.
+
+**F. The upper rungs.** `parentUuid` is enough, with its loop guard and its
+picker on the faction sheet. The village is itself the faction, not a rung
+under one that must exist first. Against it, weak: an army may gather
+warbands from several villages, which a parent link does not express.
+
+**G. Section 3, proposed.**
+
+| Slice | Agent | Delivers; acceptance | `/design` | Needs |
+|---|---|---|---|---|
+| S10 | implementer (lib only) | `stack.gen`; `fixedHp`; the labelled stack; a plain-data stack builder; a generate that creates no actor; Roll and count origin treat a `gen` stack as its card's; the stack match compares `gen.node`; leader morale. Offline: a fixed body keeps its figure, two gangs stay two rows through a move, the morale part goes when the leader falls. Dependency half | no | — |
+| S11 | implementer | `encounter-recipe.mjs`, `organisation-logic.mjs`, and a pure `organisation-record.mjs` for A's record and D's verdicts, mutation-checked. A gang re-roll leaves every other card identical | no | S5, S10 |
+| S11b (new) | implementer | The generator provider and its API row; send out and return; `rollLair` for lairs counted in units; the Judges' card; the pot hand-off; the DECISIONS entry; a pointer in factions MODEL. Walked live through the API: generate, send out, a casualty, return. Marker `monsters/beastman-village` | no | S11 |
+| S12 | implementer, then a live walk | The Generate window, the faction sheet's entry to it, the lair row on the location sheet, the plate | yes | S11b, the owner's answers |
+
+**For the owner.** `architect`'s pick is first. Three repeat canvas 1's
+questions, with its pick against the one drawn where marked.
+
+1. A warband or lair roll: (a) a faction with the same chart, (b) a group,
+   and only a village is a faction.
+2. A parent re-rolled while one of its cards is out (canvas 1, question 4):
+   (a) the card that is out stands as pinned, (b) the re-roll is refused.
+3. A gang recalled with losses (canvas 1, question 5): (a) its fallen stay on
+   the card, (b) the card is whole again.
+4. When the chart is written (canvas 1, question 6, where the Save is drawn):
+   (a) Generate writes at once and edits are live, (b) staged until a Save.
+5. A card dragged onto the map: (a) sent out and deployed whole in one
+   gesture, (b) sending out and deploying stay two steps.
+6. A gang that is out: (a) also listed on the faction's Members tab, (b)
+   shown on the chart only.
+
+Not checked by `architect`: how the faction sheet handles a dropped group,
+validate's flag-scope check, the canvases, whether the template-resolved
+listeners work without creating an actor, the group sheet, and anything live.
