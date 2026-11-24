@@ -44,7 +44,7 @@ const stored = (row, folder, description, extra = {}) => ({
   name: "Quorv Band",
   type: "item",
   folder,
-  system: { description, quantity: { value: 1, max: 0 } },
+  system: { description, quantity: 1 },
   flags: { [MODULE_ID]: { cookbook: { id: row.id, book: row.book, kind: "kind.magicItem" }, markets: { magic: true, baseCostGp: row.id === EARLIER.id ? 100 : 120 } } },
   ...extra,
 });
@@ -98,14 +98,14 @@ t("a held edit survives the takeover: the patch writes the claim and the folder,
   const held = earlierDoc();
   held.name = "Judge's Own Name";
   held.system.description = "<p>The Judge's edited text.</p>";
-  held.system.quantity = { value: 3, max: 0 };
+  held.system.quantity = 3;
   held.flags[MODULE_ID].heldNote = "kept";
   const patch = takeoverPatch(held, laterRow, earlierRow);
   assert.deepEqual(Object.keys(patch).sort(), [`flags.${MODULE_ID}.cookbook.book`, `flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`, "folder"].sort());
   const out = applied(held, patch);
   assert.equal(out.name, "Judge's Own Name");
   assert.equal(out.system.description, "<p>The Judge's edited text.</p>");
-  assert.deepEqual(out.system.quantity, { value: 3, max: 0 });
+  assert.equal(out.system.quantity, 3);
   assert.equal(out.flags[MODULE_ID].heldNote, "kept");
   const moved = { ...earlierDoc(), folder: "F.judge" };
   assert.ok(!("folder" in takeoverPatch(moved, laterRow, earlierRow)), "a folder the Judge moved the item to stays");

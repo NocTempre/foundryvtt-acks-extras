@@ -496,7 +496,7 @@ export function bindAmmoRow(row, id, cite, { device = false } = {}) {
   const system = {
     description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
     subtype: "item",
-    quantity: { value: count, max: 0 },
+    quantity: count,
   };
   if (printed6 != null) system.weight6 = device || count <= 1 ? printed6 : printed6 / count;
   if (cost != null) system.cost = cost;

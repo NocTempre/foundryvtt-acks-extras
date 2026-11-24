@@ -1369,7 +1369,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     flags: { [MODULE_ID]: { cookbook: { id }, note: "kept" }, ...(extra.flags ?? {}) },
     _stats: extra._stats ?? {},
     system: { hp: { value: 7 }, details: { biography: "<p>Invented.</p>" } },
-    items: [{ _id: "itm0000000001", name: "Stick", type: "item", system: { quantity: { value: 1 } }, sort: 5 }],
+    items: [{ _id: "itm0000000001", name: "Stick", type: "item", system: { quantity: 1 }, sort: 5 }],
     getFlag(scope, key) {
       return this.flags?.[scope]?.[key] ?? null;
     },
@@ -1388,7 +1388,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     const hp = stamped("zz.npc6");
     hp.system.hp.value = 3;
     const item = stamped("zz.npc7");
-    item.items[0].system.quantity.value = 4;
+    item.items[0].system.quantity = 4;
     const moved = stamped("zz.npc8");
     moved.items[0].sort = 99;
     moved.flags[MODULE_ID].note = "moved";

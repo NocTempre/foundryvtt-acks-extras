@@ -2507,7 +2507,7 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
     name: s.name.charAt(0).toUpperCase() + s.name.slice(1),
     type: "item",
     img: DEFAULT_IMG.ITEM,
-    system: { description: "", subtype: "item", quantity: { value: 1, max: 0 }, cost: s.cost, weight: 0, weight6: s.weight6 },
+    system: { description: "", subtype: "item", quantity: 1, cost: s.cost, weight: 0, weight6: s.weight6 },
     flags: { [MODULE_ID]: { spoil: true, component: true, researchEffects: s.effects } },
   }));
 

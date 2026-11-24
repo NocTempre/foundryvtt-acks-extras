@@ -25,7 +25,7 @@ const mk = (name, group) => ({ name, cite: "p.1", meta: group ? { group } : {} }
 
 const torch = bindEquipment(mk("Torch"), { fields: {} }, "def.equip.torch");
 check("torch imports as a carried STACK (item), not a wielded weapon", torch.type === "item");
-check("torch keeps a quantity (a bundle you carry)", torch.system.quantity?.value === 1);
+check("torch keeps a quantity (a bundle you carry)", torch.system.quantity === 1);
 check("torch is a light source (flagged)", torch.flags["acks-extras"].light === true);
 // The 1d4 lives on the readied weapon-torch (the equipment feature's prepareTorch), never
 // on the bundle — a stack is not a weapon and carries no damage die.
@@ -90,5 +90,13 @@ const written = refreshPlan(stored, rebuilt, REPAIR.priced).update.flags?.[MODUL
 check("a rebuild writes the page's capacity over a stored one and leaves the declaration's other keys out of the write", written?.gear?.capacity === 4 && written.cookbook.read.capacity === 4 && !("slots" in written.gear));
 const nothingStated = { type: "item", name: "Crate", system: {}, flags: { [MODULE_ID]: { cookbook: { id: "x" } } } };
 check("a build that states none writes none over what a hand typed", Object.keys(refreshPlan(stored, nothingStated, REPAIR.priced).update).length === 0);
+
+// --- The count an import writes is the plain integer the system stores -------------
+// A stored row holds the count as an integer, and the comparison `unstampedTwins`
+// makes (`coversFigure`) is strict about shape, so the build has to carry one too.
+const { unstampedTwins } = await import("../../scripts/importer/refresh.mjs");
+check("a priced row's item carries its count as a plain integer", Number.isInteger(rope.system.quantity) && rope.system.quantity === 1);
+const heldRope = { _id: "rope00000000001", type: rope.type, name: rope.name, system: { ...rope.system, weight: 0 } };
+check("a stored row that holds the build's integer covers it", unstampedTwins([heldRope], [rope]).join() === "rope00000000001");
 
 console.log(`test-equipment-binding: all ${pass} checks passed`);

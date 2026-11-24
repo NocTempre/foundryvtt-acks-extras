@@ -132,10 +132,10 @@ check("cargo writes only what was read", vehicle.update.system.cargo.capacitySto
 
 /* --- equipment: the stack is the Judge's ------------------------------------ */
 const gear = refreshPlan(
-  { type: "item", system: { quantity: { value: 12, max: 0 }, cost: 5, subtype: "clothing" } },
+  { type: "item", system: { quantity: 12, cost: 5, subtype: "clothing" } },
   {
     type: "item",
-    system: { quantity: { value: 1, max: 0 }, cost: 6, subtype: "item" },
+    system: { quantity: 1, cost: 6, subtype: "item" },
     flags: { [M]: { light: true, minted: true } },
   },
   REPAIR.equipment,

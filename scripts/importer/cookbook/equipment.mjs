@@ -406,12 +406,13 @@ export function bindEquipment(entry, node, id) {
   const klass = equipmentClass(entry.name) ?? null;
   if (klass?.type) type = klass.type;
 
-  // Fields that exist only on the chosen type. `item` keeps subtype/quantity;
-  // weapon and armor have neither and would fail validation if handed them.
+  // Fields that exist only on the chosen type. `item` takes subtype and an
+  // explicit quantity; weapon and armor have no subtype and take the schema's
+  // initial quantity.
   const typed = {};
   if (type === "item") {
     typed.subtype = meta.subtype === "clothing" ? "clothing" : "item";
-    typed.quantity = { value: 1, max: 0 };
+    typed.quantity = 1;
   } else if (type === "weapon") {
     // A page-extracted value wins; gear the weapons table never listed falls
     // back to the equipment root's stat. melee/missile likewise.
@@ -423,8 +424,8 @@ export function bindEquipment(entry, node, id) {
     if (typeof melee === "boolean") typed.melee = melee;
     if (typeof missile === "boolean") typed.missile = missile;
     if (f.range) typed.range = f.range;
-    // A weapon-torch is a single wielded torch: core weapons carry no `quantity`.
-    // A supply of torches is a stackable `item`.
+    // A weapon-torch is a single wielded torch and takes the schema's initial
+    // quantity. A supply of torches is a stackable `item`.
   } else if (type === "armor") {
     // The recipe's field is still spelled `aac`; the system's is `ac`.
     if (Number.isFinite(f.aac)) typed.ac = { value: f.aac };
@@ -887,7 +888,7 @@ export function pricedDoc(row, id, cite) {
     type,
     img: "icons/containers/bags/pouch-simple-brown.webp",
     system: {
-      ...(type === "item" ? { subtype, quantity: { value: 1, max: 0 } } : {}),
+      ...(type === "item" ? { subtype, quantity: 1 } : {}),
       ...(row.cost != null ? { cost: row.cost } : {}),
       ...(row.weight6 != null ? { weight6: row.weight6 } : {}),
     },

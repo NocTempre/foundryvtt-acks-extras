@@ -90,14 +90,14 @@ check("and keeps its modes without a die", net.flags["acks-extras"].weapon.modes
 // --- ammunition: a stack whose quantity is the printed count
 const ammo = (name, enc) => ({ name, label: name, melee: false, missile: false, ammunition: true, size: null, cells: { damage: "—", enc, cost: "1gp" } });
 const quiver = bindAmmoRow(ammo("Quiver, 7 Arrows", "1/6"), "x", "y", { device: true });
-check("a loaded device counts its load as quantity", quiver.system.quantity.value === 7);
+check("a loaded device counts its load as quantity", quiver.system.quantity === 7);
 check("and carries the printed encumbrance whole", quiver.system.weight6 === 1);
 check("and no load flag", quiver.flags["acks-extras"].ammo === undefined);
 const stones = bindAmmoRow(ammo("9 Sling Stones", "1/6"), "x", "y", { device: false });
-check("a bare stack counts its units", stones.system.quantity.value === 9);
-check("and divides the printed weight across them", Math.abs(stones.system.quantity.value * stones.system.weight6 - 1) < 1e-9);
+check("a bare stack counts its units", stones.system.quantity === 9);
+check("and divides the printed weight across them", Math.abs(stones.system.quantity * stones.system.weight6 - 1) < 1e-9);
 const noCount = bindAmmoRow(ammo("Quiver", "1/6"), "x", "y", { device: true });
-check("a label that prints no count is one unit, never a stand-in figure", noCount.system.quantity.value === 1);
+check("a label that prints no count is one unit, never a stand-in figure", noCount.system.quantity === 1);
 
 // --- a bundle row is named from the seat's own label, so its count is the reader's
 const cell = (str, x, y) => ({ str, x, y });

@@ -244,14 +244,14 @@ const mine = (doc) => doc.flags?.[MODULE_ID] ?? {};
   const dose = adventureItemData(BOOK, ID2, itemEntry(2), node("A dose drunk at dawn. Cost: 5 sp."));
   ok("a dose has no slot and no mark", !mine(dose).gear && !mine(dose).markets);
   ok("and a price in silver reads in gold", dose.system.cost === 0.5, String(dose.system.cost));
-  ok("a dose carries one, with no quantity cap", dose.system.quantity.value === 1 && dose.system.quantity.max === 0);
+  ok("a dose carries one, as the plain number the system stores", dose.system.quantity === 1);
   ok("a paragraph with no price costs 0, never null", adventureItemData(BOOK, ID2, itemEntry(2), node("A cord.")).system.cost === 0);
   ok("a page that gave no name keeps the entry's label", dose.name === "Item 2", dose.name);
 
   /* --- the policy, on the stripped shape an item holds when it carries no binding ------- */
   const stripped = {
     type: "item",
-    system: { description: worn.system.description, subtype: "item", quantity: { value: 3, max: 0 }, cost: 0, weight: 0, weight6: 0 },
+    system: { description: worn.system.description, subtype: "item", quantity: 3, cost: 0, weight: 0, weight6: 0 },
     flags: { [MODULE_ID]: { cookbook: { id: ID1, book: BOOK, kind: "kind.adventureItem", cite: "ZZ 1" } } },
   };
   const plan = refreshPlan(stripped, worn, REPAIR.adventureItem);
@@ -284,7 +284,7 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   ok("the notice does not claim a repair", /2 imported, 0 already present\./.test(lastNotice()), lastNotice());
 
   // The world's hand on them: a price, a slot, a quantity, a Judge's note on the second.
-  await one.update({ "system.cost": 99, "system.quantity.value": 3, [`flags.${MODULE_ID}.gear`]: { slots: ["belt"] } });
+  await one.update({ "system.cost": 99, "system.quantity": 3, [`flags.${MODULE_ID}.gear`]: { slots: ["belt"] } });
   await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>`, "system.cost": 7 });
   forgetImportedIndex();
   const plain = await cookbookImportAdventureItems({ books: [BOOK] });
@@ -300,7 +300,7 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   // A flag the build does not carry is not retracted: the binder writes its
   // own answers over the document and leaves what it has no answer for.
   ok("a slot a hand set where the page gave none is left", mine(one).gear?.slots?.join() === "belt", JSON.stringify(mine(one).gear));
-  ok("its quantity of 3 is the Judge's and stays", one.system.quantity.value === 3, String(one.system.quantity.value));
+  ok("its quantity of 3 is the Judge's and stays", one.system.quantity === 3, String(one.system.quantity));
   ok("the second's note stays while its cost is rewritten", /Kept by the smith/.test(two.system.description) && two.system.cost === 0);
   ok("the identity stamp survives the repair", mine(one).cookbook.id === ID1 && mine(one).cookbook.book === BOOK);
   ok("the notice says repaired in place", /already present, repaired in place\./.test(lastNotice()), lastNotice());
@@ -335,7 +335,7 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
     { name: "Item 1", type: "item", system: { description: "<p>Made at the table.</p>", cost: 5 }, flags: {} },
     { pack: ITEM_PACK },
   );
-  await one.update({ "system.cost": 99, "system.quantity.value": 3, [`flags.${MODULE_ID}.gear`]: { slots: ["belt"] } });
+  await one.update({ "system.cost": 99, "system.quantity": 3, [`flags.${MODULE_ID}.gear`]: { slots: ["belt"] } });
   await two.update({ "system.cost": 7 });
   forgetImportedIndex();
   const snapshot = () => JSON.stringify([one.toObject(), two.toObject(), handMade.toObject()]);
@@ -365,7 +365,7 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   ok("keeping it runs no second pass", confirms === 1 && !("second" in kept) && kept.taken === 0 && kept.held === 1, JSON.stringify(kept));
   ok("the note stands", /Kept by the smith/.test(two.system.description));
   ok("and the price is the build's", one.system.cost === 0 && two.system.cost === 0);
-  ok("a kept skip: the quantity is still the Judge's", one.system.quantity.value === 3);
+  ok("a kept skip: the quantity is still the Judge's", one.system.quantity === 3);
   ok("a kept skip: a slot the page gave none stays", mine(one).gear?.slots?.join() === "belt");
   ok("a kept skip: an item made by hand is not touched", handMade.name === "Item 1" && handMade.system.cost === 5 && /Made at the table/.test(handMade.system.description) && !mine(handMade).cookbook);
   ok("the notice is the merged one", /repairMergedDone/.test(lastNotice()), lastNotice());

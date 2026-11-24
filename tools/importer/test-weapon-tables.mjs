@@ -89,7 +89,7 @@ check("and so is what it is a load of", /bolts/i.test(ammoLoad(boltRow)?.of ?? "
 const caseItem = bindAmmoRow(boltRow, "def.weapon.case20Bolts", "cite", { device: true });
 check("a loaded device is inventory, not a weapon", caseItem.type === "item");
 check("it carries no damage die", caseItem.system.damage === undefined);
-check("its load is its quantity", caseItem.system.quantity.value === ammoLoad(boltRow).count);
+check("its load is its quantity", caseItem.system.quantity === ammoLoad(boltRow).count);
 check("and nothing rides on a load flag", caseItem.flags["acks-extras"].ammo === undefined);
 check("and it carries the printed encumbrance whole",
   caseItem.system.weight6 === bindWeaponRow(boltRow, "x", "y").system.weight6);
@@ -99,9 +99,9 @@ const stoneRow = ammoRows.find((r) => /stone/i.test(r.name));
 if (stoneRow) {
   const stack = bindAmmoRow(stoneRow, "def.weapon.slingStones", "cite", { device: false });
   const load = ammoLoad(stoneRow);
-  check("a bare stack counts its units", stack.system.quantity.value === load.count);
+  check("a bare stack counts its units", stack.system.quantity === load.count);
   check("and quantity × weight6 is the printed encumbrance",
-    Math.abs(stack.system.quantity.value * (stack.system.weight6 ?? 0) - bindWeaponRow(stoneRow, "x", "y").system.weight6) < 1e-9);
+    Math.abs(stack.system.quantity * (stack.system.weight6 ?? 0) - bindWeaponRow(stoneRow, "x", "y").system.weight6) < 1e-9);
 }
 
 // Multiple roll types — the capture the compendium lacked.
@@ -142,6 +142,6 @@ console.log(`\nExtracted ammunition (${ammoRows.length}):`);
 for (const r of ammoRows) {
   const load = ammoLoad(r);
   const it = bindAmmoRow(r, "x", "y", { device: /case|quiver/i.test(r.name) });
-  console.log(`  ${r.name.padEnd(22)} qty=${it.system.quantity.value} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"} load=${load ? `${load.count} ${load.of}` : "-"}`);
+  console.log(`  ${r.name.padEnd(22)} qty=${it.system.quantity} enc6=${it.system.weight6 ?? "-"} cost=${it.system.cost ?? "-"} load=${load ? `${load.count} ${load.of}` : "-"}`);
 }
 console.log(`\ntest-weapon-tables: all ${pass} checks passed`);

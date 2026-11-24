@@ -1265,7 +1265,7 @@ The Revised Rulebook connected.
    other row is still `weapon`. The one-liner:
 
    ```
-   game.items.filter(i => i.getFlag("acks-extras","ammunition")).map(i => `${i.name} [${i.type}] ×${i.system.quantity?.value} enc6=${i.system.weight6} per=${i.getFlag("acks-extras","gear")?.per ?? "-"}`)
+   game.items.filter(i => i.getFlag("acks-extras","ammunition")).map(i => `${i.name} [${i.type}] ×${i.system.quantity} enc6=${i.system.weight6} per=${i.getFlag("acks-extras","gear")?.per ?? "-"}`)
    ```
 
    Four rows, all `[item]`. The case and the quiver are named from the page's

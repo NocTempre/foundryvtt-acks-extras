@@ -107,7 +107,7 @@ export function magicItemData(bookId, id, entry, node, folder = null) {
     type: coreTypeOf(entry.meta?.category),
     img: DEFAULT_IMG.ITEM,
     folder,
-    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: { value: 1, max: 0 }, cost: 0, weight: 0, weight6: 0 },
+    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: 1, cost: 0, weight: 0, weight6: 0 },
     flags: { [MODULE_ID]: flags },
   };
 }

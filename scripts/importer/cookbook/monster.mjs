@@ -472,7 +472,7 @@ export function bindMonster(node) {
       name: capitalize(sp.name),
       type: "item",
       img: DEFAULT_IMG.ITEM,
-      system: { description: "", subtype: "item", quantity: { value: 1, max: 0 }, cost: sp.cost, weight: 0, weight6: sp.weight6 },
+      system: { description: "", subtype: "item", quantity: 1, cost: sp.cost, weight: 0, weight6: sp.weight6 },
       flags: { [MODULE_ID]: { spoil: true, component: true, researchEffects: sp.effects.map((e) => e.text) } },
     });
   }
