@@ -131,3 +131,8 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   naming is lost on the next level-up, and the reverse. The fix is a named
   layer in `layerDeltas`, with `recomputeItemFields` called from every caller
   that now calls `named.applyUpdates`; it needs a DECISIONS entry first.
+- **An item's charges are shown nowhere.** The system stores a plain item's
+  `charges` (value and max) and marks the field as not yet used by its own
+  sheet; the item sheet's Durability tab read only the dropped quantity
+  maximum and that row is removed. Once the system shows or uses charges, the
+  item sheet may show them beside it; nothing is built for it before then.
