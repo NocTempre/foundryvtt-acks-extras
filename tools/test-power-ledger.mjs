@@ -57,13 +57,15 @@ const e = (id, amount, day, extra = {}) => ({ id, amount, day, name: "", img: ""
 /* ------------------------------- the entries ------------------------------- */
 
 t("an entry is cleaned to its shape, and one that moves nothing or has no id is dropped", () => {
-  assert.deepEqual(P.cleanEntry({ id: "a", amount: "3.9", day: "4", name: 7, by: "judge", extra: 1 }), { id: "a", amount: 3, day: 4, name: "7", img: "", ref: "", by: "judge" });
+  assert.deepEqual(P.cleanEntry({ id: "a", amount: "3.9", day: "4", name: 7, by: "judge", extra: 1 }), { id: "a", amount: 3, day: 4, name: "7", img: "", ref: "", by: "judge", user: "" });
+  assert.equal(P.cleanEntry({ id: "a", amount: 2, user: "u9" }).user, "u9", "the user who pressed is kept");
+  for (const bad of [7, null, undefined, {}]) assert.equal(P.cleanEntry({ id: "a", amount: 2, user: bad }).user, "", `a user that is no id string reads blank: ${String(bad)}`);
   assert.equal(P.cleanEntry({ id: "a", amount: 0 }), null);
   assert.equal(P.cleanEntry({ id: "", amount: 2 }), null);
   assert.equal(P.cleanEntry({ amount: 2 }), null);
   assert.equal(P.cleanEntry(null), null);
   assert.equal(P.cleanEntry({ id: "a", amount: 2, day: "x" }).day, null, "a day that is no number is a lot with no stamp");
-  assert.equal(P.cleanEntry({ id: "a", amount: 2, by: "someone" }).by, "", "only a Judge's hand is a mark");
+  assert.equal(P.cleanEntry({ id: "a", amount: 2, by: "someone" }).by, "", "only the hand mark is kept");
 });
 
 t("the count is a whole number of at least one, else blank", () => {
@@ -184,10 +186,13 @@ t("a relayed request is decided on who sent it", () => {
   assert.deepEqual(ok({ kind: "divine", op: "gain", args: { amount: 1 } }, { fromJudge: false, owns: true }), { ok: true });
   assert.deepEqual(ok({ kind: "divine", op: "spend", args: {} }, { fromJudge: false, owns: true }), { ok: true });
   assert.deepEqual(ok({ kind: "divine", op: "gain", args: {} }, { fromJudge: false, owns: false }), { refused: "owner" });
-  assert.deepEqual(ok({ kind: "divine", op: "undo", args: {} }, { fromJudge: false, owns: true }), { refused: "judge" });
-  assert.deepEqual(ok({ kind: "arcane", op: "count", args: {} }, { fromJudge: false, owns: true }), { refused: "judge" });
-  assert.deepEqual(ok({ kind: "divine", op: "gain", args: { by: "judge" } }, { fromJudge: false, owns: true }), { refused: "judge" }, "a hand's mark is the Judge's");
-  assert.deepEqual(ok({ kind: "divine", op: "undo", args: {} }, { fromJudge: true, owns: false }), { ok: true });
+  assert.deepEqual(ok({ kind: "divine", op: "undo", args: {} }, { fromJudge: false, owns: true }), { ok: true }, "an owner undoes");
+  assert.deepEqual(ok({ kind: "arcane", op: "count", args: {} }, { fromJudge: false, owns: true }), { ok: true }, "an owner sets the count");
+  assert.deepEqual(ok({ kind: "divine", op: "gain", args: { by: "judge", stays: true } }, { fromJudge: false, owns: true }), { ok: true }, "an owner's hand press and a lot that stays are the owner's");
+  assert.deepEqual(ok({ kind: "divine", op: "spend", args: { by: "judge", fromStays: true } }, { fromJudge: false, owns: true }), { ok: true });
+  for (const op of ["gain", "spend", "undo"]) assert.deepEqual(ok({ kind: "divine", op, args: { by: "judge" } }, { fromJudge: false, owns: false }), { refused: "owner" }, `a seat that owns nothing is refused ${op}`);
+  assert.deepEqual(ok({ kind: "arcane", op: "count", args: {} }, { fromJudge: false, owns: false }), { refused: "owner" });
+  assert.deepEqual(ok({ kind: "divine", op: "undo", args: {} }, { fromJudge: true, owns: false }), { ok: true }, "a Judge owns every character");
   assert.deepEqual(ok({ kind: "nope", op: "gain" }, { fromJudge: true, owns: true }), { refused: "kind" });
   assert.deepEqual(ok({ kind: "divine", op: "nope" }, { fromJudge: true, owns: true }), { refused: "op" });
   assert.deepEqual(P.checkPowerRequest({ kind: "divine", op: "gain" }, { actor: null, fromJudge: true, owns: true }), { refused: "noActor" });
@@ -196,8 +201,8 @@ t("a relayed request is decided on who sent it", () => {
 /* -------------------------------------- ops -------------------------------------- */
 
 /** A stored flag and the dependencies over it: the seat's own rights and the relay it sends to. */
-function rig({ judge = true, canWrite = true, span = null, relayAnswer = undefined } = {}) {
-  const r = { flag: undefined, writes: 0, today: 100, relays: [], span };
+function rig({ judge = true, canWrite = true, span = null, relayAnswer = undefined, user = judge ? "gm1" : "pl1" } = {}) {
+  const r = { flag: undefined, writes: 0, today: 100, relays: [], span, user };
   let id = 0;
   r.actor = { uuid: "Actor.hero" };
   r.deps = {
@@ -215,6 +220,7 @@ function rig({ judge = true, canWrite = true, span = null, relayAnswer = undefin
     isJudge: () => judge,
     lifetime: () => r.span,
     newId: () => `e${++id}`,
+    userId: () => r.user,
   };
   r.ops = P.powerOps(r.deps);
   return r;
@@ -224,7 +230,7 @@ await ta("a Judge gains and spends; the entries carry the day, the source and th
   const r = rig();
   const gained = await r.ops.gain(r.actor, "divine", { amount: 8, name: "Sacrifice: bandit chief", img: "icons/x.svg", ref: "cast1" });
   assert.deepEqual(gained, { ok: true, id: "e1", amount: 8, balance: 8 });
-  assert.deepEqual(r.flag.divine.entries[0], { id: "e1", amount: 8, day: 100, name: "Sacrifice: bandit chief", img: "icons/x.svg", ref: "cast1", by: "" });
+  assert.deepEqual(r.flag.divine.entries[0], { id: "e1", amount: 8, day: 100, name: "Sacrifice: bandit chief", img: "icons/x.svg", ref: "cast1", by: "", user: "gm1" });
   const spent = await r.ops.spend(r.actor, "divine", { amount: 3, name: "Spent: ritual", ref: "cast2" });
   assert.deepEqual(spent, { ok: true, amount: 3, id: "e2", balance: 5 });
   assert.equal(r.flag.divine.entries[1].amount, -3);
@@ -247,16 +253,46 @@ await ta("a Judge's spend beyond the balance takes what is held and warns; with 
   assert.equal(r.writes, writes);
 });
 
-await ta("a Player is blocked beyond the balance and from the Judge's own acts, and nothing is written", async () => {
+await ta("a Player is blocked beyond the balance and writes nothing for it; within the balance the write stands", async () => {
   const r = rig({ judge: false, canWrite: true });
   r.flag = { divine: { entries: [e("a", 3, 90)] } };
   assert.deepEqual(await r.ops.spend(r.actor, "divine", { amount: 4 }), { ok: false, reason: "short" });
-  assert.deepEqual(await r.ops.gain(r.actor, "divine", { amount: 1, by: "judge" }), { ok: false, reason: "judge" });
-  assert.deepEqual(await r.ops.undo(r.actor, "divine", "a"), { ok: false, reason: "judge" });
-  assert.deepEqual(await r.ops.setCount(r.actor, 3), { ok: false, reason: "judge" });
+  assert.deepEqual(await r.ops.spend(r.actor, "divine", { amount: 4, by: "judge" }), { ok: false, reason: "short" }, "a hand press is blocked past the balance too");
   assert.equal(r.writes, 0);
   assert.equal((await r.ops.spend(r.actor, "divine", { amount: 3 })).ok, true, "within the balance a Player's write stands");
-  assert.equal(r.flag.divine.entries.at(-1).by, "");
+  assert.deepEqual([r.flag.divine.entries.at(-1).by, r.flag.divine.entries.at(-1).user], ["", "pl1"]);
+});
+
+await ta("a Player who owns the character adds power that fades as one entry under that user, spends from the lots that stay, sets the count and undoes", async () => {
+  const r = rig({ judge: false, canWrite: true });
+  const gained = await r.ops.gain(r.actor, "divine", { amount: 2, by: "judge" });
+  assert.deepEqual(gained, { ok: true, id: "e1", amount: 2, balance: 2 });
+  assert.deepEqual(r.flag.divine.entries, [{ id: "e1", amount: 2, day: 100, name: "", img: "", ref: "", by: "judge", user: "pl1" }], "one entry, no stays key, under the Player");
+  const kept = await r.ops.gain(r.actor, "divine", { amount: 3, by: "judge", stays: true });
+  assert.equal(kept.ok, true);
+  assert.equal(r.flag.divine.entries[1].stays, true, "a lot that stays is the owner's to add");
+  const out = await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge", fromStays: true });
+  assert.deepEqual([out.ok, out.amount, out.balance], [true, 1, 4]);
+  assert.deepEqual([r.flag.divine.entries[2].fromStays, r.flag.divine.entries[2].user], [true, "pl1"], "and so is a removal from the lots that stay");
+  assert.deepEqual(await r.ops.setCount(r.actor, 5), { ok: true, count: 5 });
+  assert.equal(r.flag.arcane.count, 5);
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", out.id), { ok: true, balance: 5 }, "an owner takes a spend back");
+  assert.equal(r.flag.divine.entries.length, 2);
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e2"), { ok: true, balance: 2 }, "and a gain none of which was spent");
+  assert.deepEqual(r.flag.divine.entries.map((x) => x.id), ["e1"]);
+});
+
+await ta("a seat that owns nothing cannot write the actor, so it asks the GM's client, and the GM's client refuses it on the sender", async () => {
+  const none = rig({ judge: false, canWrite: false });
+  const asks = [
+    none.ops.gain(none.actor, "divine", { amount: 1, by: "judge", stays: true }),
+    none.ops.spend(none.actor, "divine", { amount: 1, by: "judge", fromStays: true }),
+    none.ops.undo(none.actor, "divine", "x"),
+    none.ops.setCount(none.actor, 2),
+  ];
+  for (const answer of await Promise.all(asks)) assert.deepEqual(answer, { ok: false, reason: "noGm" });
+  assert.equal(none.relays.length, 4, "none was refused here on role: each was sent");
+  assert.equal(none.writes, 0);
 });
 
 await ta("a seat that cannot write the actor asks the GM's client, and an unanswered ask is not a write", async () => {
@@ -272,25 +308,102 @@ await ta("a seat that cannot write the actor asks the GM's client, and an unansw
   assert.equal(judgeAsk.relays.length, 1);
 });
 
-await ta("on the GM's client a relayed request runs as its sender: a Player's mark by hand is not kept", async () => {
+await ta("on the GM's client a relayed request runs as its sender: the sender's mark by hand is kept and the entry names the sender the caller gives", async () => {
   const r = rig({ judge: true });
-  await r.ops.apply(r.actor, "divine", "gain", { amount: 2, by: "judge" }, false);
-  assert.equal(r.flag.divine.entries[0].by, "", "the mark is the Judge's");
-  await r.ops.apply(r.actor, "divine", "gain", { amount: 2, by: "judge" }, true);
-  assert.equal(r.flag.divine.entries[1].by, "judge");
-  const over = await r.ops.apply(r.actor, "divine", "spend", { amount: 99 }, false);
+  await r.ops.apply(r.actor, "divine", "gain", { amount: 2, by: "judge", user: "forged" }, false, "pl7");
+  assert.deepEqual([r.flag.divine.entries[0].by, r.flag.divine.entries[0].user], ["judge", "pl7"], "the user is the caller's, never the request's own argument");
+  await r.ops.apply(r.actor, "divine", "gain", { amount: 2 }, false);
+  assert.deepEqual([r.flag.divine.entries[1].by, r.flag.divine.entries[1].user], ["", ""], "no sender id, no user");
+  const over = await r.ops.apply(r.actor, "divine", "spend", { amount: 99 }, false, "pl7");
   assert.deepEqual(over, { ok: false, reason: "short" });
+  const stays = await r.ops.apply(r.actor, "divine", "gain", { amount: 2, stays: true }, false, "pl7");
+  assert.equal(r.flag.divine.entries.find((x) => x.id === stays.id).stays, true, "apply honours the mark it is asked for, whoever asked");
 });
 
-await ta("an undo takes back a spend only, and the power returns", async () => {
+await ta("an undo takes back a spend, or a gain none of which was spent, and the power returns", async () => {
   const r = rig();
   await r.ops.gain(r.actor, "divine", { amount: 8, name: "g" });
   const spend = await r.ops.spend(r.actor, "divine", { amount: 5, name: "s" });
   assert.equal(r.ops.balance(r.actor, "divine"), 3);
-  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e1"), { ok: false, reason: "undo" }, "a gain is not undone here");
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e1"), { ok: false, reason: "spent" }, "a gain partly spent is refused, with its own reason");
   assert.deepEqual(await r.ops.undo(r.actor, "divine", "nope"), { ok: false, reason: "undo" });
+  assert.equal(r.flag.divine.entries.length, 2, "a refusal writes nothing");
   assert.deepEqual(await r.ops.undo(r.actor, "divine", spend.id), { ok: true, balance: 8 });
   assert.equal(r.flag.divine.entries.length, 1);
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e1"), { ok: true, balance: 0 }, "once the spend is back, the gain is whole and goes");
+  assert.deepEqual(r.flag.divine.entries, []);
+});
+
+await ta("a press by hand folds into the same user's last entry of the day, and into nothing else", async () => {
+  const hand = { by: "judge" };
+  const r = rig({ judge: false, canWrite: true });
+  const first = await r.ops.gain(r.actor, "divine", { amount: 1, ...hand });
+  const second = await r.ops.gain(r.actor, "divine", { amount: 2, ...hand });
+  assert.equal(second.id, first.id, "the folded press answers with the entry it joined");
+  assert.deepEqual(r.flag.divine.entries.map((x) => [x.id, x.amount, x.day]), [["e1", 3, 100]], "one entry, amount summed, id and day kept");
+  assert.equal(r.writes, 2);
+  r.user = "pl2";
+  await r.ops.gain(r.actor, "divine", { amount: 1, ...hand });
+  assert.equal(r.flag.divine.entries.length, 2, "a different user does not fold");
+  r.user = "pl1";
+  await r.ops.gain(r.actor, "divine", { amount: 1, ...hand });
+  assert.equal(r.flag.divine.entries.length, 3, "only the LAST entry is a target: the other user's is last");
+  r.today = 101;
+  await r.ops.gain(r.actor, "divine", { amount: 1, ...hand });
+  assert.equal(r.flag.divine.entries.length, 4, "a different day does not fold");
+  const spend = await r.ops.spend(r.actor, "divine", { amount: 1, ...hand });
+  assert.equal(r.flag.divine.entries.length, 5, "a different sign does not fold");
+  await r.ops.spend(r.actor, "divine", { amount: 1, ...hand });
+  assert.deepEqual([r.flag.divine.entries.length, r.flag.divine.entries.at(-1).amount, r.flag.divine.entries.at(-1).id], [5, -2, spend.id], "a second hand spend folds, summed");
+  assert.equal(r.ops.balance(r.actor, "divine"), 4, "six gained, two spent");
+});
+
+await ta("the mark a press carries decides the fold: stays with stays, fromStays with fromStays, and nothing folds into an entry no hand wrote", async () => {
+  const hand = { by: "judge" };
+  const r = rig({ judge: true });
+  await r.ops.gain(r.actor, "divine", { amount: 1, ...hand });
+  await r.ops.gain(r.actor, "divine", { amount: 1, ...hand, stays: true });
+  assert.equal(r.flag.divine.entries.length, 2, "a gain that stays does not fold into one that fades");
+  await r.ops.gain(r.actor, "divine", { amount: 4, ...hand, stays: true });
+  assert.deepEqual(r.flag.divine.entries.map((x) => x.amount), [1, 5], "and joins the last lot that stays");
+  await r.ops.spend(r.actor, "divine", { amount: 1, ...hand });
+  await r.ops.spend(r.actor, "divine", { amount: 1, ...hand, fromStays: true });
+  assert.equal(r.flag.divine.entries.length, 4, "a removal does not fold into an ordinary spend");
+  await r.ops.spend(r.actor, "divine", { amount: 1, ...hand, fromStays: true });
+  assert.deepEqual(r.flag.divine.entries.map((x) => x.amount), [1, 5, -1, -2], "and joins the last removal");
+  const cast = rig({ judge: true });
+  await cast.ops.gain(cast.actor, "arcane", { amount: 2, name: "a ritual" });
+  await cast.ops.gain(cast.actor, "arcane", { amount: 3, ...hand });
+  assert.equal(cast.flag.arcane.entries.length, 2, "a hand press never folds into an entry a source wrote");
+  await cast.ops.gain(cast.actor, "arcane", { amount: 3 });
+  await cast.ops.gain(cast.actor, "arcane", { amount: 3, name: "a ritual" });
+  assert.equal(cast.flag.arcane.entries.length, 4, "a press that is not by hand never folds");
+  const old = rig({ judge: true });
+  old.flag = { divine: { entries: [e("a", 2, 100, { by: "judge" })] } };
+  await old.ops.gain(old.actor, "divine", { amount: 1, ...hand });
+  assert.deepEqual(old.flag.divine.entries.map((x) => [x.id, x.amount]), [["a", 2], ["e1", 1]], "an entry stored with no user never folds");
+  const blank = rig({ judge: true, user: "" });
+  await blank.ops.gain(blank.actor, "divine", { amount: 1, ...hand });
+  await blank.ops.gain(blank.actor, "divine", { amount: 1, ...hand });
+  assert.equal(blank.flag.divine.entries.length, 2, "a press with no known user folds into nothing");
+});
+
+await ta("an undo of a folded entry removes it whole, and a gain partly spent is refused whatever was folded", async () => {
+  const r = rig({ judge: true });
+  await r.ops.gain(r.actor, "divine", { amount: 1, by: "judge" });
+  await r.ops.gain(r.actor, "divine", { amount: 2, by: "judge" });
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e1"), { ok: true, balance: 0 }, "the whole of 3 goes");
+  assert.deepEqual(r.flag.divine.entries, []);
+  await r.ops.gain(r.actor, "divine", { amount: 3, by: "judge" });
+  await r.ops.gain(r.actor, "divine", { amount: 3, by: "judge", stays: true });
+  await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge" });
+  const spend = await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge" });
+  assert.deepEqual([spend.id, r.ops.balance(r.actor, "divine")], ["e4", 4], "two hand spends were one entry of 2");
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", spend.id), { ok: true, balance: 6 }, "a folded spend is taken back whole");
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e3"), { ok: true, balance: 3 }, "a lot that stays, none of it spent, goes");
+  await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge" });
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e2"), { ok: false, reason: "spent" }, "a gain partly spent is refused");
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", "e3"), { ok: false, reason: "undo" }, "an entry already taken back is gone");
 });
 
 await ta("the arcane count is written beside the entries and blanked by a non-number", async () => {
@@ -323,7 +436,7 @@ const ledgerOf = (raw) => P.readLedger(raw);
 const lives = (over = {}) => ({ divine: { span: null, lifetime: null, cite: null, byHand: false }, arcane: { span: null, lifetime: null, cite: null, byHand: false }, ...over });
 const model = (raw, o = {}) => P.chipModel({ ledger: ledgerOf(raw), today: 10, lifetimes: lives(), loc: echo, judge: false, ...o });
 
-t("a Player's chip shows a kind with entries, no controls and no count; a Judge's shows both kinds", () => {
+t("the chip of a seat that owns nothing shows a kind with entries, no controls and no count; an owner's shows both kinds", () => {
   const raw = { divine: { entries: [e("a", 4, 1, { name: "Sacrifice: bandit chief" })] } };
   const player = model(raw);
   assert.deepEqual(player.kinds.map((k) => [k.kind, k.shown]), [["divine", true], ["arcane", false]]);
@@ -354,12 +467,12 @@ t("the tooltip lists the entries, the next fading and the page; an overridden li
   assert.ok(model({}, { judge: true }).kinds[0].tip.includes(": empty"), "an empty ledger says so in the board's words");
 });
 
-t("the rows run newest first; a spend carries Undo for a Judge alone; an expired lot is dimmed with its reason", () => {
+t("the rows run newest first; a spend carries Undo for an owner alone; an expired lot is dimmed with its reason", () => {
   const raw = { divine: { entries: [e("a", 8, 0, { name: "Old" }), e("b", 2, 20, { name: "New" }), e("s", -1, 21, { name: "Spent", ref: "cast9" })] } };
   const life = lives({ divine: { span: 30, lifetime: { count: 1, unit: "month" }, cite: null, byHand: false } });
   const judge = model(raw, { lifetimes: life, today: 35, judge: true }).kinds[0];
   assert.deepEqual(judge.rows.map((r) => r.id), ["s", "b", "a"]);
-  assert.deepEqual(judge.rows.map((r) => r.undoable), [true, false, false]);
+  assert.deepEqual(judge.rows.map((r) => r.undoable), [true, true, false], "the spend, and the gain none of which was spent; the first gain was partly spent");
   assert.deepEqual(judge.rows.map((r) => r.off), [false, false, true]);
   assert.equal(judge.rows[0].caption, "cast9");
   assert.equal(judge.rows[1].caption, 'fadesAfter{"span":"1 month"}');
@@ -371,6 +484,33 @@ t("the rows run newest first; a spend carries Undo for a Judge alone; an expired
   assert.equal(used.find((r) => r.id === "a").caption, "usedUp");
   assert.equal(model({ divine: { entries: [e("h", 1, 0, { by: "judge" })] } }).kinds[0].rows[0].name, "byHand", "a figure set by hand is named so");
   assert.equal(model({ divine: { entries: [e("h", 1, 0)] } }).kinds[0].rows[0].name, "unnamed");
+});
+
+t("the chip's controls are the owner's: a Player who owns the character gets them, a seat that does not gets none, and a gain partly spent says why it has no Undo", () => {
+  const raw = { divine: { entries: [e("a", 4, 1, { name: "Old" }), e("b", 2, 2, { name: "New" }), e("s", -1, 3, { name: "Spent" })] } };
+  const owner = model(raw, { owns: true, judge: false });
+  assert.deepEqual(owner.kinds.map((k) => k.shown), [true, true], "an owner sees both kinds, as a Judge does");
+  assert.ok(owner.kinds[0].stay && owner.kinds[1].stay, "the Fades / Stays labels");
+  assert.ok(owner.kinds[1].count, "the arcane count");
+  assert.equal(owner.kinds[0].count, null);
+  const rows = Object.fromEntries(owner.kinds[0].rows.map((r) => [r.id, r]));
+  assert.deepEqual([rows.s.undoable, rows.b.undoable, rows.a.undoable], [true, true, false]);
+  assert.equal(rows.a.undoRefused, "undoSpent", "the line is the lang group's own");
+  assert.deepEqual([rows.s.undoRefused, rows.b.undoRefused], [null, null], "a row that can be undone carries no refusal");
+  const viewer = model(raw, { owns: false, judge: false });
+  assert.deepEqual(viewer.kinds.map((k) => k.shown), [true, false]);
+  assert.deepEqual([viewer.kinds[0].stay, viewer.kinds[1].count], [null, null]);
+  assert.equal(viewer.kinds[0].rows.some((r) => r.undoable || r.undoRefused), false, "no undo and no refusal for a seat that owns nothing");
+  assert.equal(model({}, { owns: true, judge: false }).any, true, "an owner's chip stands on an empty ledger");
+  assert.equal(model({}, { owns: false, judge: true }).any, false, "the controls read `owns`, not `judge`");
+  assert.equal(owner.owns, true);
+});
+
+t("an entry by hand is named for the user who pressed where the world has them, else as set by hand", () => {
+  const raw = { divine: { entries: [e("h", 1, 0, { by: "judge", user: "u1" }), e("g", 1, 1, { by: "judge", user: "gone" }), e("o", 1, 2, { by: "judge" }), e("n", 1, 3, { name: "Named", by: "judge", user: "u1" })] } };
+  const names = Object.fromEntries(model(raw, { userName: (id) => (id === "u1" ? "Invented Player" : "") }).kinds[0].rows.map((r) => [r.id, r.name]));
+  assert.deepEqual(names, { h: "Invented Player", g: "byHand", o: "byHand", n: "Named" }, "an unresolved or absent user reads as today");
+  assert.equal(model(raw).kinds[0].rows.find((r) => r.id === "h").name, "byHand", "with no resolver the name is today's");
 });
 
 t("the arcane count's tooltip carries the page reference alone until a unit is imported", () => {
@@ -416,6 +556,10 @@ function worldActor(uuid, { canModify = true, flags = undefined } = {}) {
     updates: [],
     canUserModify: () => canModify,
     testUserPermission: (user) => actor.owners?.includes(user?.id) === true,
+    // Foundry's own ownership test for the viewing user: true for a GM, else a listed owner.
+    get isOwner() {
+      return gameState.isGM || actor.owners?.includes(game.user.id) === true;
+    },
     async update(patch) {
       actor.updates.push(patch);
       for (const [path, value] of Object.entries(patch)) {
@@ -478,12 +622,19 @@ await ta("the relay handler authorizes on the sender it was told of, never on th
   gameState.users.set("other1", { id: "other1", isGM: false });
   const ask = (op, args, requestUserId, kind = "divine") => L.powerHandler({ actorUuid: "Actor.h1", kind, op, args, requestUserId });
   assert.deepEqual(await ask("gain", { amount: 1 }, "other1"), { ok: false, reason: "owner" }, "a user who is no owner");
-  assert.deepEqual(await ask("undo", { id: "s" }, "owner1"), { ok: false, reason: "judge" }, "an owner asking for the Judge's undo");
-  assert.deepEqual(await ask("count", { count: 2 }, "owner1", "arcane"), { ok: false, reason: "judge" });
-  assert.deepEqual(await ask("gain", { amount: 1, by: "judge" }, "owner1"), { ok: false, reason: "judge" });
+  assert.deepEqual(await ask("undo", { id: "s" }, "other1"), { ok: false, reason: "owner" }, "a user who is no owner cannot undo");
+  assert.deepEqual(await ask("count", { count: 2 }, "other1", "arcane"), { ok: false, reason: "owner" });
+  assert.deepEqual(await ask("gain", { amount: 1, by: "judge", stays: true }, "other1"), { ok: false, reason: "owner" });
+  assert.deepEqual(await ask("spend", { amount: 1, by: "judge", fromStays: true }, "other1"), { ok: false, reason: "owner" });
   assert.equal(actor.updates.length, 0, "every refusal wrote nothing");
   assert.equal((await ask("gain", { amount: 2, name: "x" }, "owner1")).ok, true);
   assert.deepEqual(await ask("spend", { amount: 99 }, "owner1"), { ok: false, reason: "short" }, "an owner's spend over the balance is blocked");
+  const hand = await ask("gain", { amount: 1, by: "judge", user: "forged" }, "owner1");
+  assert.equal(hand.ok, true, "an owner's hand press runs");
+  const handEntry = actor.flags["acks-extras"].power.divine.entries.find((x) => x.id === hand.id);
+  assert.deepEqual([handEntry.by, handEntry.user], ["judge", "owner1"], "the entry names the sender Foundry attested, not the payload");
+  assert.equal((await ask("count", { count: 2 }, "owner1", "arcane")).ok, true, "an owner sets the count");
+  assert.equal((await ask("undo", { id: hand.id }, "owner1")).ok, true, "an owner's undo runs");
   assert.equal((await ask("undo", { id: "s" }, undefined)).ok, true, "the Judge's own client (no sender id) may");
   assert.deepEqual(await L.powerHandler({ actorUuid: "Actor.none", kind: "divine", op: "gain", args: {}, requestUserId: "owner1" }), { ok: false, reason: "noActor" });
   const { executeAsGM, registerHandler } = await import("../scripts/lib/sockets.mjs");
@@ -522,7 +673,7 @@ t("the strip's ledger section: a Player sees entries and no control; a Judge see
   gameState.isGM = true;
 });
 
-await ta("a Judge's plus, minus, Undo and count reach the ledger; a Player's strip is not wired to anything", async () => {
+await ta("a Judge's plus, minus, Undo and count reach the ledger, and so do a Player's on a character the Player may write", async () => {
   resetTables();
   gameState.isGM = true;
   const actor = worldActor("Actor.c3", { flags: {} });
@@ -550,15 +701,25 @@ await ta("a Judge's plus, minus, Undo and count reach the ledger; a Player's str
   gameState.isGM = false;
   press("[data-power-adjust]", { powerKind: "divine", powerAdjust: "1" });
   await new Promise((r) => setTimeout(r, 0));
-  assert.equal(L.powerApi.balance(actor, "divine"), 1, "a Player's press, were one sent, is refused");
-  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.refused.judge"));
+  assert.equal(L.powerApi.balance(actor, "divine"), 2, "a Player's press on a character the seat may write goes through");
+  assert.deepEqual(actor.flags["acks-extras"].power.divine.entries.at(-1).user, "pl1", "and the entry names the Player");
+  press("[data-power-undo]", { powerKind: "divine", powerUndo: actor.flags["acks-extras"].power.divine.entries.at(-1).id });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(L.powerApi.balance(actor, "divine"), 1, "the Player's undo of that gain, none of it spent, goes through");
+  gameState.warned = [];
+  const entries = actor.flags["acks-extras"].power.divine.entries;
+  press("[data-power-adjust]", { powerKind: "divine", powerAdjust: "-1" });
+  await new Promise((r) => setTimeout(r, 0));
+  press("[data-power-undo]", { powerKind: "divine", powerUndo: entries[0].id });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.refused.spent"), "an undo of a gain partly spent is announced");
   gameState.isGM = true;
 });
 
 /* ------------------------------ a hand plus that stays ------------------------------ */
 
 t("a lot's stay mark survives a clean only on a gain, and a stored entry without one reads as it always did", () => {
-  assert.deepEqual(P.cleanEntry({ id: "a", amount: 2, day: 1, stays: true }), { id: "a", amount: 2, day: 1, name: "", img: "", ref: "", by: "", stays: true });
+  assert.deepEqual(P.cleanEntry({ id: "a", amount: 2, day: 1, stays: true }), { id: "a", amount: 2, day: 1, name: "", img: "", ref: "", by: "", user: "", stays: true });
   assert.equal("stays" in P.cleanEntry({ id: "a", amount: 2, day: 1 }), false, "no key where there was no mark");
   for (const bad of [false, "true", 1, null, "yes"]) assert.equal("stays" in P.cleanEntry({ id: "a", amount: 2, stays: bad }), false, String(bad));
   assert.equal("stays" in P.cleanEntry({ id: "s", amount: -2, stays: true }), false, "a spend never stays");
@@ -589,7 +750,7 @@ t("a spend takes the fading lots first, oldest first, and the lots that stay onl
   assert.equal(P.balanceOf([stayOld, e("f", 3, 10), e("s", -4, 12)], 100, 30), 4, "and what stays is what is left once the fading power has faded");
 });
 
-t("a Judge's chip carries the Fades / Stays labels and a Player's carries none", () => {
+t("an owner's chip carries the Fades / Stays labels and a seat that owns nothing carries none", () => {
   const raw = { divine: { entries: [e("a", 4, 1, { name: "Sacrifice: bandit chief" })] } };
   const judge = model(raw, { judge: true });
   assert.deepEqual(judge.kinds.map((k) => k.stay), [
@@ -648,33 +809,36 @@ await ta("a spend, an API settle too, draws the fading lots first and leaves wha
   assert.equal(r.ops.balance(r.actor, "divine"), 5);
 });
 
-await ta("a Player's request for a lot that stays is refused, direct or relayed, and nothing is written", async () => {
+await ta("a request for a lot that stays is the owner's: written direct, sent where the seat cannot write, and applied for any sender", async () => {
   const own = rig({ judge: false, canWrite: true });
-  assert.deepEqual(await own.ops.gain(own.actor, "divine", { amount: 1, stays: true }), { ok: false, reason: "judge" });
-  assert.equal(own.writes, 0);
+  assert.equal((await own.ops.gain(own.actor, "divine", { amount: 1, stays: true })).ok, true);
+  assert.equal(own.flag.divine.entries[0].stays, true);
   const away = rig({ judge: false, canWrite: false });
-  assert.deepEqual(await away.ops.gain(away.actor, "divine", { amount: 1, stays: true }), { ok: false, reason: "judge" });
-  assert.deepEqual([away.relays.length, away.writes], [0, 0], "refused before a request is sent");
-  assert.deepEqual(P.checkPowerRequest({ kind: "divine", op: "gain", args: { stays: true } }, { actor: {}, fromJudge: false, owns: true }), { refused: "judge" });
+  assert.deepEqual(await away.ops.gain(away.actor, "divine", { amount: 1, stays: true }), { ok: false, reason: "noGm" });
+  assert.deepEqual([away.relays.length, away.writes], [1, 0], "sent to the GM's client, where the sender is checked");
+  assert.deepEqual(P.checkPowerRequest({ kind: "divine", op: "gain", args: { stays: true } }, { actor: {}, fromJudge: false, owns: true }), { ok: true });
   assert.deepEqual(P.checkPowerRequest({ kind: "divine", op: "gain", args: { stays: true } }, { actor: {}, fromJudge: true, owns: false }), { ok: true });
-  assert.deepEqual(P.checkPowerRequest({ kind: "divine", op: "gain", args: { stays: false } }, { actor: {}, fromJudge: false, owns: true }), { ok: true }, "only a request for the mark is the Judge's");
+  assert.deepEqual(P.checkPowerRequest({ kind: "divine", op: "gain", args: { stays: true } }, { actor: {}, fromJudge: false, owns: false }), { refused: "owner" });
   const judgeRun = rig({ judge: true });
-  await judgeRun.ops.apply(judgeRun.actor, "divine", "gain", { amount: 2, stays: true }, false);
-  assert.equal("stays" in judgeRun.flag.divine.entries[0], false, "applied for a sender who is no Judge, the mark is not kept");
+  await judgeRun.ops.apply(judgeRun.actor, "divine", "gain", { amount: 2, stays: true }, false, "pl1");
+  assert.equal(judgeRun.flag.divine.entries[0].stays, true, "applied for a sender who is no Judge, the mark is kept");
   await judgeRun.ops.apply(judgeRun.actor, "divine", "gain", { amount: 2, stays: true }, true);
   assert.equal(judgeRun.flag.divine.entries[1].stays, true);
 });
 
-await ta("the relay handler refuses an owner's request for a lot that stays and runs a Judge's", async () => {
+await ta("the relay handler runs an owner's request for a lot that stays, refuses a user who owns nothing, and runs a Judge's", async () => {
   resetTables();
   gameState.isGM = true;
   const actor = worldActor("Actor.h2", { flags: {} });
   actor.owners = ["owner2"];
   gameState.users.set("owner2", { id: "owner2", isGM: false });
   const ask = (args, requestUserId) => L.powerHandler({ actorUuid: "Actor.h2", kind: "divine", op: "gain", args, requestUserId });
-  assert.deepEqual(await ask({ amount: 1, stays: true }, "owner2"), { ok: false, reason: "judge" });
+  gameState.users.set("other2", { id: "other2", isGM: false });
+  assert.deepEqual(await ask({ amount: 1, stays: true }, "other2"), { ok: false, reason: "owner" });
   assert.equal(actor.updates.length, 0);
-  assert.equal((await ask({ amount: 1, name: "x" }, "owner2")).ok, true, "an owner's plain gain still runs");
+  assert.equal((await ask({ amount: 1, name: "x" }, "owner2")).ok, true, "an owner's plain gain runs");
+  assert.equal((await ask({ amount: 1, stays: true }, "owner2")).ok, true, "and so does an owner's lot that stays");
+  assert.equal(actor.flags["acks-extras"].power.divine.entries.at(-1).stays, true);
   assert.equal((await ask({ amount: 2, stays: true }, undefined)).ok, true, "the Judge's own client may");
   assert.equal(actor.flags["acks-extras"].power.divine.entries.at(-1).stays, true);
   assert.equal("stays" in actor.flags["acks-extras"].power.divine.entries[0], false);
@@ -746,20 +910,20 @@ await ta("the switch sets what that tag's plus writes, starts on Fades, and writ
   C.wirePowerChip({ addEventListener: (type, fn) => (fresh[type] = fn) }, actor);
   fresh.click({ target: { closest: (s) => (s === "[data-power-adjust]" ? { dataset: { powerKind: "divine", powerAdjust: "1" } } : null) }, preventDefault() {} });
   await tick();
-  assert.equal("stays" in entries("divine")[4], false, "a strip wired with no window's record starts on Fades");
+  assert.deepEqual([entries("divine").length, entries("divine")[3].amount, "stays" in entries("divine")[3]], [4, 2, false], "a strip wired with no window's record starts on Fades: its plus folded into the same user's fading gain");
   gameState.isGM = false;
   pressPill(divine[1]);
   plus("divine");
   await tick();
-  assert.equal(entries("divine").length, 5, "a Player's stay press, were one sent, writes nothing");
-  assert.ok(gameState.warned.filter((m) => m === "ACKS-MAGIC.power.refused.judge").length >= 1);
+  assert.equal(entries("divine").length, 5, "a Player's stay press writes a lot that stays");
+  assert.deepEqual([entries("divine")[4].stays, entries("divine")[4].user], [true, "pl1"], "under the Player");
   gameState.isGM = true;
 });
 
 /* ------------------------------ a minus that removes a point that stays ------------------------------ */
 
 t("a spend's from-stays mark survives a clean only on a spend, and a stored spend without one reads as it always did", () => {
-  assert.deepEqual(P.cleanEntry({ id: "s", amount: -1, day: 1, fromStays: true }), { id: "s", amount: -1, day: 1, name: "", img: "", ref: "", by: "", fromStays: true });
+  assert.deepEqual(P.cleanEntry({ id: "s", amount: -1, day: 1, fromStays: true }), { id: "s", amount: -1, day: 1, name: "", img: "", ref: "", by: "", user: "", fromStays: true });
   assert.equal("fromStays" in P.cleanEntry({ id: "s", amount: -1, day: 1 }), false, "no key where there was no mark");
   for (const bad of [false, "true", 1, null]) assert.equal("fromStays" in P.cleanEntry({ id: "s", amount: -1, fromStays: bad }), false, String(bad));
   assert.equal("fromStays" in P.cleanEntry({ id: "g", amount: 2, fromStays: true }), false, "a gain is never a removal");
@@ -816,35 +980,40 @@ await ta("a Judge's minus on Stays with no point that stays writes nothing and w
   assert.deepEqual([(await empty.ops.spend(empty.actor, "arcane", { amount: 1, fromStays: true })).warn, empty.writes], ["staysShort", 0]);
 });
 
-await ta("a Player can never draw from the lots that stay alone: refused direct, unsent, relayed and applied, and nothing is written", async () => {
+await ta("a removal from the lots that stay is the owner's: written direct, sent where the seat cannot write, and applied for any sender", async () => {
   const own = rig({ judge: false, canWrite: true });
   own.flag = { divine: { entries: [e("k", 3, 90, { stays: true })] } };
-  assert.deepEqual(await own.ops.spend(own.actor, "divine", { amount: 1, fromStays: true }), { ok: false, reason: "judge" });
+  const done = await own.ops.spend(own.actor, "divine", { amount: 1, fromStays: true });
+  assert.deepEqual([done.ok, done.amount], [true, 1]);
+  assert.equal(own.flag.divine.entries.at(-1).fromStays, true);
   const away = rig({ judge: false, canWrite: false });
-  assert.deepEqual(await away.ops.spend(away.actor, "divine", { amount: 1, fromStays: true }), { ok: false, reason: "judge" });
-  assert.deepEqual([own.writes, away.relays.length, away.writes], [0, 0, 0], "refused before a request is sent");
+  assert.deepEqual(await away.ops.spend(away.actor, "divine", { amount: 1, fromStays: true }), { ok: false, reason: "noGm" });
+  assert.deepEqual([away.relays.length, away.writes], [1, 0], "sent to the GM's client, where the sender is checked");
   const ask = (args, who) => P.checkPowerRequest({ kind: "divine", op: "spend", args }, { actor: {}, ...who });
-  assert.deepEqual(ask({ amount: 1, fromStays: true }, { fromJudge: false, owns: true }), { refused: "judge" });
+  assert.deepEqual(ask({ amount: 1, fromStays: true }, { fromJudge: false, owns: true }), { ok: true });
   assert.deepEqual(ask({ amount: 1, fromStays: true }, { fromJudge: true, owns: false }), { ok: true });
-  assert.deepEqual(ask({ amount: 1, fromStays: false }, { fromJudge: false, owns: true }), { ok: true }, "only a request for the mark is the Judge's");
+  assert.deepEqual(ask({ amount: 1, fromStays: true }, { fromJudge: false, owns: false }), { refused: "owner" });
   const gm = rig({ judge: true });
   gm.flag = { divine: { entries: [e("k", 3, 90, { stays: true }), e("f", 3, 90)] } };
-  assert.deepEqual(await gm.ops.apply(gm.actor, "divine", "spend", { amount: 1, fromStays: true }, false), { ok: false, reason: "judge" }, "applied for a sender who is no Judge it is refused, not run as an ordinary spend");
-  assert.equal(gm.writes, 0);
+  const applied = await gm.ops.apply(gm.actor, "divine", "spend", { amount: 1, fromStays: true }, false, "pl1");
+  assert.equal(applied.ok, true, "applied for a sender who is no Judge it runs as asked");
+  assert.deepEqual([gm.flag.divine.entries.at(-1).fromStays, gm.flag.divine.entries.at(-1).amount], [true, -1]);
   assert.equal((await gm.ops.apply(gm.actor, "divine", "spend", { amount: 1, fromStays: true }, true)).ok, true);
-  assert.equal(gm.flag.divine.entries.at(-1).fromStays, true);
 });
 
-await ta("the relay handler refuses an owner's removal from the lots that stay and runs a Judge's", async () => {
+await ta("the relay handler runs an owner's removal from the lots that stay, refuses a user who owns nothing, and runs a Judge's", async () => {
   resetTables();
   gameState.isGM = true;
   const actor = worldActor("Actor.h3", { flags: { divine: { entries: [e("k", 3, 5, { stays: true }), e("f", 3, 5)] } } });
   actor.owners = ["owner3"];
   gameState.users.set("owner3", { id: "owner3", isGM: false });
   const ask = (args, requestUserId) => L.powerHandler({ actorUuid: "Actor.h3", kind: "divine", op: "spend", args, requestUserId });
-  assert.deepEqual(await ask({ amount: 1, fromStays: true }, "owner3"), { ok: false, reason: "judge" });
+  gameState.users.set("other3", { id: "other3", isGM: false });
+  assert.deepEqual(await ask({ amount: 1, fromStays: true }, "other3"), { ok: false, reason: "owner" });
   assert.equal(actor.updates.length, 0);
-  assert.equal((await ask({ amount: 1 }, "owner3")).ok, true, "an owner's ordinary spend still runs");
+  assert.equal((await ask({ amount: 1 }, "owner3")).ok, true, "an owner's ordinary spend runs");
+  assert.equal((await ask({ amount: 1, fromStays: true }, "owner3")).ok, true, "and so does an owner's removal");
+  assert.equal(actor.flags["acks-extras"].power.divine.entries.at(-1).fromStays, true);
   assert.equal((await ask({ amount: 1, fromStays: true }, undefined)).ok, true, "the Judge's own client may");
   assert.equal(actor.flags["acks-extras"].power.divine.entries.at(-1).fromStays, true);
   assert.equal("fromStays" in actor.flags["acks-extras"].power.divine.entries[2], false);
@@ -904,7 +1073,7 @@ await ta("the switch holds across a render: kept per window and per tag, never o
   const render2 = wiredStrip(actor, C.powerSwitchOf(windowA));
   render2.plus("divine");
   await tick();
-  assert.deepEqual(entries("divine").map((x) => x.stays === true), [true, true], "after a render the next plus still stays");
+  assert.deepEqual(entries("divine").map((x) => [x.stays === true, x.amount]), [[true, 2]], "after a render the next plus still stays, and folds into the lot the first one wrote");
   assert.deepEqual(actor.updates.map((u) => Object.keys(u)[0]), ["flags.acks-extras.power.divine", "flags.acks-extras.power.divine"], "only the two gains were written");
   render2.plus("arcane");
   await tick();
@@ -912,7 +1081,7 @@ await ta("the switch holds across a render: kept per window and per tag, never o
   const other = wiredStrip(actor, C.powerSwitchOf(windowB));
   other.plus("divine");
   await tick();
-  assert.equal("stays" in entries("divine")[2], false, "a second window on the same actor opens on Fades");
+  assert.equal("stays" in entries("divine")[1], false, "a second window on the same actor opens on Fades");
   const html = (win) => C.powerSectionHtml(actor, true, C.powerSwitchOf(win));
   const a = html(windowA);
   assert.ok(/data-power-stay="1" data-power-kind="divine" aria-pressed="true"/.test(a) && /data-power-stay="0" data-power-kind="divine" aria-pressed="false"/.test(a), "the render draws the divine pair as set");
@@ -938,7 +1107,7 @@ await ta("the switch holds across a render: kept per window and per tag, never o
   bareA.press("divine", 1);
   bareB.plus("divine");
   await tick();
-  assert.equal("stays" in entries("divine").at(-1), false, "two strips wired with no window's record share nothing");
+  assert.equal("stays" in entries("divine").at(-1), false, "two strips wired with no window's record share nothing (the plus fades, and folds into the fading gain)");
 });
 
 await ta("the minus on a tag set to Stays removes a point that stays, and on Fades spends as it did; the switch is read at each press", async () => {
@@ -949,14 +1118,21 @@ await ta("the minus on a tag set to Stays removes a point that stays, and on Fad
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const entries = () => actor.flags["acks-extras"].power.divine.entries;
   const window = {};
+  const startTime = gameState.worldTime;
+  const nextDay = () => {
+    gameState.worldTime += 86400;
+  };
   const strip = wiredStrip(actor, C.powerSwitchOf(window));
   strip.plus("divine");
   strip.press("divine", 1);
+  nextDay();
   strip.plus("divine");
+  nextDay();
   strip.plus("divine");
   await tick();
-  assert.deepEqual(entries().map((x) => x.stays === true), [false, true, true]);
+  assert.deepEqual(entries().map((x) => x.stays === true), [false, true, true], "a plus on another day is another entry");
   const strip2 = wiredStrip(actor, C.powerSwitchOf(window));
+  nextDay();
   strip2.take("divine");
   await tick();
   assert.deepEqual([entries()[3].amount, entries()[3].fromStays, entries()[3].by], [-1, true, "judge"], "on Stays the minus is a removal from the lots that stay");
@@ -977,9 +1153,32 @@ await ta("the minus on a tag set to Stays removes a point that stays, and on Fad
   gameState.isGM = false;
   strip2.take("divine");
   await tick();
-  assert.equal(entries().length, 6, "a Player's removal, were one sent, writes nothing");
-  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.refused.judge"));
+  assert.equal(entries().length, 6, "a Player's removal with no point that stays left is blocked, as a short spend is");
+  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.refused.short"));
   gameState.isGM = true;
+  gameState.worldTime = startTime;
+});
+
+await ta("a Player who owns the character presses twice through the API and the chip reads it back: one entry under the Player, the controls on, the name resolved", async () => {
+  resetTables();
+  gameState.isGM = false;
+  gameState.warned = [];
+  gameState.users.set("pl1", { id: "pl1", name: "Invented Player", isGM: false });
+  const mine = worldActor("Actor.own1", { canModify: true, flags: {} });
+  mine.owners = ["pl1"];
+  const theirs = worldActor("Actor.own2", { canModify: true, flags: { divine: { entries: [e("a", 1, 5, { by: "judge", user: "pl1" })] } } });
+  assert.equal((await L.powerApi.gain(mine, "divine", { amount: 1, by: "judge" })).ok, true);
+  assert.equal((await L.powerApi.gain(mine, "divine", { amount: 1, by: "judge" })).amount, 1);
+  assert.deepEqual(mine.flags["acks-extras"].power.divine.entries.map((x) => [x.amount, x.user, x.by]), [[2, "pl1", "judge"]], "one entry, the two presses summed");
+  const owned = L.chipModelFor(mine);
+  assert.deepEqual([owned.owns, owned.judge, owned.kinds.map((k) => k.shown)], [true, false, [true, true]]);
+  assert.equal(owned.kinds[0].rows[0].name, "Invented Player");
+  assert.equal(owned.kinds[0].rows[0].undoable, true);
+  const seen = L.chipModelFor(theirs);
+  assert.deepEqual([seen.owns, seen.kinds.map((k) => k.shown), seen.kinds[0].rows[0].undoable], [false, [true, false], false], "a seat that does not own the character sees the entries and no controls");
+  gameState.isGM = true;
+  const gm = L.chipModelFor(theirs);
+  assert.deepEqual([gm.owns, gm.judge, gm.kinds.map((k) => k.shown)], [true, true, [true, true]], "a Judge owns every character");
 });
 
 console.log(`\n${n} power-ledger tests passed`);

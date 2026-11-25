@@ -39,7 +39,7 @@ export function calendarUnitDays(calendar = game.time?.calendar) {
  * Both powers' lifetimes as the chip and the expiry read them: `{divine, arcane}`,
  * each `{span, lifetime, cite, byHand}`. Divine's `{count, unit}` is imported
  * whole. Arcane's page names the unit and no count, so its count is the ledger's
- * own (Judge-written, blank until set). `span` is whole days, or null where
+ * own (written by hand, blank until set). `span` is whole days, or null where
  * nothing is imported, the count is blank or the calendar cannot say the unit.
  */
 export function lifetimesFor(ledger, { lookup, calendar } = {}) {
@@ -69,6 +69,7 @@ export const liveDeps = () => ({
   isJudge: () => game.user.isGM === true,
   lifetime: (kind, ledger) => lifetimesFor(ledger)[kind].span,
   newId: () => foundry.utils.randomID(),
+  userId: () => game.user?.id ?? "",
 });
 
 const ops = () => powerOps(liveDeps());
@@ -78,7 +79,8 @@ export const ledgerOf = (actor) => readLedger(liveDeps().read(actor));
 
 /**
  * The GM's client runs a request a seat could not write, after it checks who
- * sent it: the sender Foundry attested, never what the payload says.
+ * sent it: the sender Foundry attested, never what the payload says. The entry
+ * it writes records that sender as the user who pressed.
  */
 export async function powerHandler(payload = {}) {
   const { judgeDeclares } = await import("../lib/sockets.mjs");
@@ -92,7 +94,7 @@ export async function powerHandler(payload = {}) {
   const user = game.users.get(payload.requestUserId);
   const verdict = checkPowerRequest(payload, { actor, fromJudge, owns: fromJudge || actor?.testUserPermission?.(user, "OWNER") === true });
   if (verdict.refused) return { ok: false, reason: verdict.refused };
-  return ops().apply(actor, payload.kind, payload.op, payload.args ?? {}, fromJudge);
+  return ops().apply(actor, payload.kind, payload.op, payload.args ?? {}, fromJudge, String(payload.requestUserId ?? ""));
 }
 
 let registered = false;
@@ -104,10 +106,15 @@ export function registerPower() {
   void import("../lib/sockets.mjs").then(({ registerHandler }) => registerHandler(POWER_HANDLER, powerHandler));
 }
 
-/** The chip's model for an actor, as the viewing user sees it. */
+/**
+ * The chip's model for an actor, as the viewing user sees it: its controls are
+ * drawn where the user owns the actor (`isOwner`, which holds for a GM), and an
+ * entry by hand is named for the user who pressed where the world still has them.
+ */
 export function chipModelFor(actor) {
   const ledger = ledgerOf(actor);
-  return chipModel({ ledger, today: liveDeps().today(), lifetimes: lifetimesFor(ledger), loc, judge: game.user.isGM === true });
+  const userName = (id) => game.users?.get(id)?.name ?? "";
+  return chipModel({ ledger, today: liveDeps().today(), lifetimes: lifetimesFor(ledger), loc, judge: game.user.isGM === true, owns: actor?.isOwner === true, userName });
 }
 
 /** Tell the user what a refused or short write came to. */
@@ -138,13 +145,13 @@ export const powerApi = {
     const ledger = ledgerOf(actor);
     return POWER_KINDS.includes(kind) ? nextExpiry(ledger[kind].entries, liveDeps().today(), lifetimesFor(ledger)[kind].span) : null;
   },
-  /** Power gained: `gain(actor, kind, {amount, name, img, ref})`; a Judge's `stays: true` writes a lot that never expires (a Player's is refused). */
+  /** Power gained: `gain(actor, kind, {amount, name, img, ref})`; `stays: true` writes a lot that never expires, and `by: "judge"` marks a press by hand. */
   gain: (actor, kind, args) => ops().gain(actor, kind, args),
-  /** Power spent: `spend(actor, kind, {amount, name, img, ref})`, which draws fading lots first and then lots that stay. A Judge's `fromStays: true` draws on the lots that stay alone (a Player's is refused). */
+  /** Power spent: `spend(actor, kind, {amount, name, img, ref})`, which draws fading lots first and then lots that stay. `fromStays: true` draws on the lots that stay alone. */
   spend: (actor, kind, args) => ops().spend(actor, kind, args),
-  /** A spend taken back by its entry id (the Judge's). */
+  /** An entry taken back by its id: a spend, or a gain none of which was spent (`reason: "spent"` otherwise). */
   undo: (actor, kind, id) => ops().undo(actor, kind, id),
-  /** The arcane lifetime's count, `null` to blank it (the Judge's). */
+  /** The arcane lifetime's count, `null` to blank it. */
   setCount: (actor, count) => ops().setCount(actor, count),
   /** The bucket row for a power, capped by the balance; null when none is held. */
   row(actor, kind, { amount = 1, name, value = null, fit = "" } = {}) {

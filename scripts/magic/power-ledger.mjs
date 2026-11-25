@@ -5,16 +5,17 @@
  * argument or a dependency, so a test or a consumer supplies its own.
  *
  * The record is `flags["acks-extras"].power = {divine: {entries}, arcane:
- * {entries, count}}`. An ENTRY is `{id, amount, day, name, img, ref, by}`: a
+ * {entries, count}}`. An ENTRY is `{id, amount, day, name, img, ref, by, user}`: a
  * positive `amount` is power gained, a negative one power spent; `day` is the
  * calendar day it was written (lib `world-time` `dayOfWorldTime`), `name` and
  * `img` are the source's (a victim, a ritual), `ref` is the cast or project that
- * caused it, and `by: "judge"` marks a figure a Judge set by hand. A gain a Judge
- * marked `stays: true` is a permanent lot: it carries no lifetime, so it never
- * expires, and the key is written only on such a gain. A spend a Judge marked
- * `fromStays: true` draws only on the lots that stay (the minus on a tag whose
- * switch is Stays), and the key is written only on such a spend. Entries only
- * ever append, in the order they happened.
+ * caused it, `by: "judge"` marks a figure set by hand (the stored value is the
+ * mark; whoever pressed is `user`, a user id, blank where none was given). A gain marked `stays: true` is a permanent lot: it carries no
+ * lifetime, so it never expires, and the key is written only on such a gain. A
+ * spend marked `fromStays: true` draws only on the lots that stay (the minus on a
+ * tag whose switch is Stays), and the key is written only on such a spend. Entries
+ * append in the order they happened; a press by hand folds into the kind's last
+ * entry where the same user wrote it the same day with the same sign and mark.
  *
  * Nothing here is a figure: the lifetime is an imported span (`{count, unit}`,
  * `research-tables.mjs`), converted to days by the calendar the world runs, and a
@@ -23,7 +24,7 @@
  * the oldest fading lot that still stands and only then from the lots that stay,
  * a fading lot expires once a whole span of days has passed since its day, and
  * nothing is written when time moves. Arcane power's
- * lifetime has a unit and no count on its page, so its count is a Judge-written
+ * lifetime has a unit and no count on its page, so its count is a hand-written
  * field of the ledger (`arcane.count`), blank until set.
  */
 import { powerEntry } from "../lib/bucket.mjs";
@@ -58,7 +59,8 @@ const dayOf = (n) => (n === null || n === undefined || n === "" || !Number.isFin
  * One stored entry cleaned to its shape, or null for one that moves no power.
  * `stays: true` survives only on a gain and `fromStays: true` only on a spend;
  * every other use and value of either key is dropped, so a stored entry that never
- * had the key reads as it always did.
+ * had the key reads as it always did. `user` is the id of the user who pressed,
+ * blank where the entry has none.
  */
 export function cleanEntry(raw) {
   const amount = whole(raw?.amount);
@@ -71,6 +73,7 @@ export function cleanEntry(raw) {
     img: String(raw.img ?? ""),
     ref: String(raw.ref ?? ""),
     by: raw.by === "judge" ? "judge" : "",
+    user: typeof raw.user === "string" ? raw.user : "",
     ...(raw.stays === true && amount > 0 ? { stays: true } : {}),
     ...(raw.fromStays === true && amount < 0 ? { fromStays: true } : {}),
   };
@@ -180,7 +183,29 @@ export function withEntry(ledger, kind, entry) {
   return { ...ledger, [kind]: { ...ledger[kind], entries: [...ledger[kind].entries, clean] } };
 }
 
-/** The ledger without the entry of that id (the spend an undo takes back). */
+/**
+ * The entry a press by hand folds into, or null. It is the kind's last entry, and
+ * only where that entry was written by hand by the same `user`, on the same `day`,
+ * with the same sign and the same mark (`stays` for a gain, `fromStays` for a
+ * spend). An entry with no user never folds, and no user never folds an entry.
+ * @param {object[]} entries the kind's cleaned entries
+ * @param {{user: string, amount: number, day: number|null, stays?: boolean, fromStays?: boolean}} press `amount` is signed
+ */
+export function foldTarget(entries, { user, amount, day, stays = false, fromStays = false }) {
+  const last = entries?.at(-1);
+  if (!last || !user || last.user !== user || last.by !== "judge" || last.day !== day) return null;
+  if (last.amount > 0 !== amount > 0) return null;
+  const same = amount > 0 ? (last.stays === true) === (stays === true) : (last.fromStays === true) === (fromStays === true);
+  return same ? last : null;
+}
+
+/** The ledger with `amount` (signed) added to the entry of that id, which keeps its id and its day. */
+export function withFolded(ledger, kind, id, amount) {
+  if (!isKind(kind)) return ledger;
+  return { ...ledger, [kind]: { ...ledger[kind], entries: ledger[kind].entries.map((e) => (e.id === id ? { ...e, amount: e.amount + amount } : e)) } };
+}
+
+/** The ledger without the entry of that id (the entry an undo takes back). */
 export function withoutEntry(ledger, kind, id) {
   if (!isKind(kind)) return ledger;
   return { ...ledger, [kind]: { ...ledger[kind], entries: ledger[kind].entries.filter((e) => e.id !== id) } };
@@ -211,11 +236,9 @@ export function kindOfRow(uuid) {
 /**
  * Whether a relayed request may run, decided on who SENT it. `fromJudge` is true
  * for a request a GM's own client made (`judgeDeclares`); `owns` is whether the
- * sender may write the actor on the server. A hand adjustment, an undo and the
- * arcane count are the Judge's, and so are a gain that stays and a spend from the
- * lots that stay; a gain or a spend is
- * its owner's, and a Player's spend over the balance is refused by `planSpend`
- * where it runs.
+ * sender owns the actor, Foundry's own test. Every operation, a hand press, an
+ * undo and the arcane count included, is an owner's, and a Judge owns every actor;
+ * a Player's spend over the balance is refused by `planSpend` where it runs.
  * @returns {{ok: true}|{refused: string}}
  */
 export function checkPowerRequest(req, { actor, fromJudge, owns }) {
@@ -223,7 +246,6 @@ export function checkPowerRequest(req, { actor, fromJudge, owns }) {
   if (!isKind(req?.kind) && req?.op !== POWER_OP.count) return { refused: "kind" };
   if (!Object.values(POWER_OP).includes(req?.op)) return { refused: "op" };
   if (!fromJudge && !owns) return { refused: "owner" };
-  if (!fromJudge && (req.op === POWER_OP.undo || req.op === POWER_OP.count || req.args?.by === "judge" || req.args?.stays === true || req.args?.fromStays === true)) return { refused: "judge" };
   return { ok: true };
 }
 
@@ -232,7 +254,8 @@ export function checkPowerRequest(req, { actor, fromJudge, owns }) {
  * `deps`: `read(actor)` the stored flag, `write(actor, kind, next)` a direct
  * update of one kind, `canWrite(actor)`, `relay(request)` the GM's answer or
  * undefined, `today()` the calendar day, `isJudge()`, `lifetime(kind, ledger)`
- * the span in whole days or null, `newId()`.
+ * the span in whole days or null, `newId()`, `userId()` the id of the user whose
+ * client this is (the one a direct write records as having pressed).
  */
 export function powerOps(deps) {
   const ledgerOf = (actor) => readLedger(deps.read(actor));
@@ -242,8 +265,14 @@ export function powerOps(deps) {
     return isKind(kind) ? balanceOf(ledger[kind].entries, deps.today(), spanOf(kind, ledger)) : 0;
   };
 
-  /** Run one op here, on a ledger this client may write; `judge` is the requester's, not this client's. */
-  async function apply(actor, kind, op, args, judge) {
+  /**
+   * Run one op here, on a ledger this client may write. `judge` is the requester's,
+   * not this client's: it decides whether a short spend warns or is blocked.
+   * `userId` is the id of the user who pressed, given by the caller (this client's
+   * user on a direct write, the relay's attested sender on a relayed one) and never
+   * read from `args`; an entry records it.
+   */
+  async function apply(actor, kind, op, args, judge, userId = "") {
     const ledger = ledgerOf(actor);
     const today = deps.today();
     if (op === POWER_OP.count) {
@@ -255,28 +284,46 @@ export function powerOps(deps) {
     if (op === POWER_OP.gain) {
       const amount = whole(args.amount);
       if (amount < 1) return { ok: false, reason: "amount" };
+      const by = args.by === "judge" ? "judge" : "";
+      const stays = args.stays === true;
+      const into = by ? foldTarget(ledger[kind].entries, { user: userId, amount, day: today, stays }) : null;
+      if (into) {
+        const next = withFolded(ledger, kind, into.id, amount);
+        await deps.write(actor, kind, next[kind]);
+        return { ok: true, id: into.id, amount, balance: balanceOf(next[kind].entries, today, span) };
+      }
       const id = deps.newId();
-      const next = withEntry(ledger, kind, { id, amount, day: today, name: args.name, img: args.img, ref: args.ref, by: judge && args.by === "judge" ? "judge" : "", stays: judge && args.stays === true });
+      const next = withEntry(ledger, kind, { id, amount, day: today, name: args.name, img: args.img, ref: args.ref, by, user: userId, stays });
       await deps.write(actor, kind, next[kind]);
       return { ok: true, id, amount, balance: balanceOf(next[kind].entries, today, span) };
     }
     if (op === POWER_OP.spend) {
-      // A spend from the lots that stay is the Judge's; a request for one from a sender who is no Judge is refused, never run as an ordinary spend.
       const only = args.fromStays === true;
-      if (only && !judge) return { ok: false, reason: "judge" };
       const held = only ? stayingBalanceOf(ledger[kind].entries, today, span) : balanceOf(ledger[kind].entries, today, span);
       const planned = planSpend({ amount: args.amount, balance: held, judge });
       if (!planned.ok) return planned;
       const plan = only && planned.warn ? { ...planned, warn: "staysShort" } : planned;
       if (plan.amount === 0) return { ...plan, balance: only ? balanceOf(ledger[kind].entries, today, span) : 0 };
+      const by = args.by === "judge" ? "judge" : "";
+      const into = by ? foldTarget(ledger[kind].entries, { user: userId, amount: -plan.amount, day: today, fromStays: only }) : null;
+      if (into) {
+        const next = withFolded(ledger, kind, into.id, -plan.amount);
+        await deps.write(actor, kind, next[kind]);
+        return { ...plan, id: into.id, balance: balanceOf(next[kind].entries, today, span) };
+      }
       const id = deps.newId();
-      const next = withEntry(ledger, kind, { id, amount: -plan.amount, day: today, name: args.name, img: args.img, ref: args.ref, by: judge && args.by === "judge" ? "judge" : "", fromStays: only });
+      const next = withEntry(ledger, kind, { id, amount: -plan.amount, day: today, name: args.name, img: args.img, ref: args.ref, by, user: userId, fromStays: only });
       await deps.write(actor, kind, next[kind]);
       return { ...plan, id, balance: balanceOf(next[kind].entries, today, span) };
     }
     if (op === POWER_OP.undo) {
       const entry = ledger[kind].entries.find((e) => e.id === args.id);
-      if (!entry || entry.amount > 0) return { ok: false, reason: "undo" };
+      if (!entry) return { ok: false, reason: "undo" };
+      if (entry.amount > 0) {
+        // A gain is taken back only while none of it has been spent.
+        const lot = standing(ledger[kind].entries, today, span).find((l) => l.id === entry.id);
+        if (!lot || lot.left !== lot.amount) return { ok: false, reason: "spent" };
+      }
       const next = withoutEntry(ledger, kind, args.id);
       await deps.write(actor, kind, next[kind]);
       return { ok: true, balance: balanceOf(next[kind].entries, today, span) };
@@ -284,12 +331,11 @@ export function powerOps(deps) {
     return { ok: false, reason: "op" };
   }
 
-  /** Run an op where the seat may write the actor, else ask the GM's client; `{ok: false, reason: "noGm"}` where none answers. */
+  /** Run an op where the seat may write the actor, else ask the GM's client, which refuses a sender who owns nothing; `{ok: false, reason: "noGm"}` where none answers. */
   async function run(actor, kind, op, args = {}) {
     if (op !== POWER_OP.count && !isKind(kind)) return { ok: false, reason: "kind" };
     const judge = deps.isJudge();
-    if (!judge && (op === POWER_OP.undo || op === POWER_OP.count || args.by === "judge" || args.stays === true || args.fromStays === true)) return { ok: false, reason: "judge" };
-    if (deps.canWrite(actor)) return apply(actor, kind, op, args, judge);
+    if (deps.canWrite(actor)) return apply(actor, kind, op, args, judge, deps.userId?.() ?? "");
     const answer = await deps.relay({ actorUuid: actor?.uuid, kind, op, args });
     return answer && typeof answer === "object" ? answer : { ok: false, reason: "noGm" };
   }
@@ -298,30 +344,36 @@ export function powerOps(deps) {
     apply,
     run,
     balance,
-    /** Power gained: `{amount, name, img, ref}`; a Judge's hand adds `by: "judge"`, and a Judge may add `stays: true` for a lot that never expires. */
+    /** Power gained: `{amount, name, img, ref}`; a press by hand adds `by: "judge"` (and folds into the same user's last hand gain of the day), and `stays: true` makes a lot that never expires. */
     gain: (actor, kind, args) => run(actor, kind, POWER_OP.gain, args),
-    /** Power spent: a Player over the balance is blocked, a Judge's takes what is held and warns. A Judge's `fromStays: true` draws on the lots that stay alone (`warn: "staysShort"` where they hold less); a Player's is refused. */
+    /** Power spent: a short spend blocks a Player and warns a Judge, which takes what is held. `fromStays: true` draws on the lots that stay alone (`warn: "staysShort"` where they hold less). A press by hand folds as a gain's does. */
     spend: (actor, kind, args) => run(actor, kind, POWER_OP.spend, args),
-    /** A spend taken back, by its entry id; the Judge's. */
+    /** An entry taken back, by its id: a spend, or a gain none of which was spent (`reason: "spent"` otherwise). */
     undo: (actor, kind, id) => run(actor, kind, POWER_OP.undo, { id }),
-    /** The arcane lifetime's count, `null` to blank it; the Judge's. */
+    /** The arcane lifetime's count, `null` to blank it. */
     setCount: (actor, count) => run(actor, POWER_KIND.arcane, POWER_OP.count, { count }),
   };
 }
 
 /**
  * The chip's model for one actor: per kind its balance, the entries newest
- * first, the next expiry and the tooltip, and the Judge-only controls (the count
- * box and the `stay` switch's labels; a Player's model carries neither). A spend
- * a Judge took from the lots that stay captions itself as a removal. A lot
- * that stays is a row with a pin and its own caption, and its tooltip part says
- * so. `loc(key, data)` is the localizer of the ledger's lang group. `lifetimes[kind]` is
+ * first, the next expiry and the tooltip, and the controls (the count box and
+ * the `stay` switch's labels; a model of a seat that does not own the character
+ * carries neither). Every control is the owner's: `owns` is whether the viewing
+ * user owns the actor (Foundry's own test, true for a GM); `judge` is the GM
+ * flag and is returned unchanged. A spend marked `fromStays` captions
+ * itself as a removal. A lot that stays is a row with a pin and its own caption,
+ * and its tooltip part says so. A row is `undoable` for an owner where it is a
+ * spend or a gain none of which was spent; a gain partly spent carries
+ * `undoRefused`, a line saying why, and no undo. An entry by hand is named by
+ * `userName(id)` where it has a user and the name resolves. `loc(key, data)` is
+ * the localizer of the ledger's lang group. `lifetimes[kind]` is
  * `{span, lifetime, cite, byHand}`: the span in days (null: nothing expires),
  * the imported `{count, unit}` for the words, the page the lifetime was read
- * from and whether a hand set it. A Player's chip shows a kind that has entries;
- * a Judge's shows both and the controls.
+ * from and whether a hand set it. A kind is shown to an owner always and to
+ * anyone else where it has entries.
  */
-export function chipModel({ ledger, today, lifetimes, loc, judge }) {
+export function chipModel({ ledger, today, lifetimes, loc, judge, owns = judge === true, userName = () => "" }) {
   const kinds = POWER_KINDS.map((kind) => {
     const entries = ledger[kind].entries;
     const life = lifetimes?.[kind] ?? {};
@@ -330,7 +382,7 @@ export function chipModel({ ledger, today, lifetimes, loc, judge }) {
     const balance = lots.reduce((n, lot) => (lot.expired ? n : n + lot.left), 0);
     const expiry = nextExpiry(entries, today, span);
     const words = life.lifetime && life.lifetime.count != null && life.lifetime.unit ? `${life.lifetime.count} ${life.lifetime.unit}` : "";
-    const nameOf = (e) => e.name || (e.by === "judge" ? loc("byHand") : loc("unnamed"));
+    const nameOf = (e) => e.name || (e.by === "judge" ? (e.user && userName(e.user)) || loc("byHand") : loc("unnamed"));
     const rows = [...entries].reverse().map((e) => {
       const lot = lots.find((l) => l.id === e.id);
       const spent = e.amount < 0;
@@ -338,6 +390,7 @@ export function chipModel({ ledger, today, lifetimes, loc, judge }) {
       let caption = e.ref;
       if (spent && e.fromStays) caption = e.ref || loc("removedStays");
       if (!spent && lot) caption = lot.expired ? loc("expired") : lot.left <= 0 ? loc("usedUp") : lot.stays ? loc("staysCaption") : words && lot.expiresDay !== null ? loc("fadesAfter", { span: words }) : "";
+      const unspentGain = !spent && !!lot && lot.left === lot.amount;
       const tag = `${spent ? "−" : "+"}${Math.abs(e.amount)}`;
       return {
         id: e.id,
@@ -354,7 +407,8 @@ export function chipModel({ ledger, today, lifetimes, loc, judge }) {
         fromStays: !!e.fromStays,
         pinned: !spent && !!lot?.stays && lot.left > 0,
         off,
-        undoable: judge && spent,
+        undoable: owns && (spent || unspentGain),
+        undoRefused: owns && !spent && !unspentGain ? loc("undoSpent") : null,
         undoLabel: loc("undoLabel", { name: nameOf(e) }),
       };
     });
@@ -363,15 +417,15 @@ export function chipModel({ ledger, today, lifetimes, loc, judge }) {
     const tail = [expiry ? loc("tipFades", { n: expiry.amount, days: expiry.inDays ?? "", day: expiry.day }) : "", life.byHand ? loc("tipByHand") : ""].filter(Boolean).join(" · ");
     const tip = `${loc("tipHead", { label: loc(`kind.${kind}`), balance })}${parts ? `: ${parts}` : `: ${loc("empty")}`}${tail ? ` · ${tail}` : ""}${cite ? ` (${cite})` : ""}`;
     const count =
-      kind === POWER_KIND.arcane && judge
+      kind === POWER_KIND.arcane && owns
         ? {
             value: ledger.arcane.count ?? "",
             label: loc("countLabel"),
             tip: life.lifetime?.unit ? loc("countTipUnit", { unit: life.lifetime.unit, cite: loc("cite.arcane") }) : loc("countTip", { cite: loc("cite.arcane") }),
           }
         : null;
-    const stay = judge ? { group: loc("stayGroup", { label: loc(`kind.${kind}`) }), fades: loc("fades"), stays: loc("stays"), fadesTip: loc("fadesTip"), staysTip: loc("staysTip") } : null;
-    return { kind, label: loc(`kind.${kind}`), balance, expiry, tip, rows, count, stay, shown: judge || entries.length > 0, addLabel: loc("addLabel", { label: loc(`kind.${kind}`) }), removeLabel: loc("removeLabel", { label: loc(`kind.${kind}`) }), removeStaysLabel: loc("removeStaysLabel", { label: loc(`kind.${kind}`) }), empty: entries.length === 0 };
+    const stay = owns ? { group: loc("stayGroup", { label: loc(`kind.${kind}`) }), fades: loc("fades"), stays: loc("stays"), fadesTip: loc("fadesTip"), staysTip: loc("staysTip") } : null;
+    return { kind, label: loc(`kind.${kind}`), balance, expiry, tip, rows, count, stay, shown: owns || entries.length > 0, addLabel: loc("addLabel", { label: loc(`kind.${kind}`) }), removeLabel: loc("removeLabel", { label: loc(`kind.${kind}`) }), removeStaysLabel: loc("removeStaysLabel", { label: loc(`kind.${kind}`) }), empty: entries.length === 0 };
   });
-  return { judge, kinds, any: kinds.some((k) => k.shown), hasEntries: kinds.some((k) => !k.empty), emptyText: loc("empty") };
+  return { judge, owns, kinds, any: kinds.some((k) => k.shown), hasEntries: kinds.some((k) => !k.empty), emptyText: loc("empty") };
 }
