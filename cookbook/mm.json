@@ -16478,6 +16478,16 @@
             "maxW": 1500,
             "maxRatio": 3.5
           }
+        },
+        "plate": {
+          "op": "art",
+          "page": 58,
+          "select": {
+            "minW": 200,
+            "minH": 200,
+            "maxW": 1500,
+            "maxRatio": 3
+          }
         }
       }
     },

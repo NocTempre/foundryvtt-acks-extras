@@ -637,6 +637,13 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[ANIMAL_TYPE] = AnimalData;
   CONFIG.Actor.dataModels[GROUP_TYPE] = GroupData;
   CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
+  // The family plate joins the Actor compendium index, so a template held in a
+  // pack answers `fromUuidSync(...).flags` with it after a reload, when core
+  // returns the index entry. Before any index is built: a pack indexed without
+  // the field answers `undefined` until `getIndex` is called again.
+  const indexed = CONFIG.Actor.compendiumIndexFields;
+  const plateField = `flags.${MODULE_ID}.plate`;
+  if (!indexed.includes(plateField)) indexed.push(plateField);
   light.declareLightTables();
   senses.declareSenseTables();
   declareDefenseTables();

@@ -307,6 +307,19 @@ leaves the held one as it is. An art file already uploaded under the entry's
 id is reused, not read again. The picture shows in the compendium list; the
 template's sheet draws none.
 
+**The family's plate.** The overview's register row may name a second page
+(`assists.platePage`); `compileMonster` writes it as the entry's `plate` field,
+an art instruction with the kind's pick criteria and no `box`. `importFamily`
+uploads the page's placed image under `<member id>.plate` (the strip's file is
+the member's own id) and the template's `flags["acks-extras"].plate` holds its
+path. `img` is untouched. A read that finds no image leaves the key out and a
+held plate stays; only a repair in place writes it onto an existing template.
+Two readers use it: the organisation chart's plate (`chartContext`,
+`lib/org-chart-ui.mjs`) and Generate, which gives the root group it makes the
+plate as its `img` (`generateHost`). A template held in a pack is read through
+the Actor compendium index, which lib adds the flag to at `init`. Why a page
+and no box: DECISIONS, 2026-11-25.
+
 **What a leader cell writes.** From its sentence: AC, the fixed hit points,
 the Hit Dice rating (as `hp.hd` and as the extras `hd` the band shows), and the
 damage bonus as a **total** on `system.damage.mod`, melee and missile alike (a

@@ -3,7 +3,7 @@
  * The organisation chart's surface (docs/lib/ORGANISATION.md, "The chart's tab"): the
  * context the two partials draw on a faction's Org chart and Locations tabs and on a
  * root group's sheet, and the actions behind each card and tool. Every press drives
- * the writers lib already has (`org.addRow`, `org.editRow`, `org.deleteRow`,
+ * the writers lib already has (`org.addRow`, `org.editRow`, `org.unlistRow`,
  * `org.sendOut`, `org.recall`) and, where a family template is known, the Roll the
  * generating feature registered on the module api; nothing here makes a second path
  * to a document. A press is a control, not a gate: the only refusals are a write

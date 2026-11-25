@@ -1122,3 +1122,47 @@ first (`host.update({"system.units": []})`) after tracking and sweeping what the
    the count the line gave; a second Roll with `pot` given raises that row.
 
 **Teardown.** `api.sweepTracked()`, and quote its result.
+
+## Family plate
+
+The family's plate, imported from the Judge's own Monstrous Manual onto the Beastman
+template's `flags["acks-extras"].plate` (MODEL, "The family's plate"). Needs the MM connected
+(`ACKS_TEST_BOOKS`). Walked by `tools/live/monsters-beastman-plate.mjs`.
+
+**Fixtures.**
+
+- `monsters/beastman-plate`: the library's family template (cookbook id
+  `mm.familyBeastman`). A pack document, so `api.fixture` does not build it: find
+  the library document whose `flags.world.fixture` is the marker; when none
+  carries it and the library holds exactly one template of the family, mark it
+  (`doc.setFlag("world", "fixture", marker)`, the pack unlocked for the write and
+  locked again). A library with no template is imported first through the entry
+  picker; two templates stop the walk.
+- `monsters/beastman-plate-host`: a faction card, built by `api.fixture`, whose
+  one top row names the template in its `gen`. A step that needs the row writes
+  it at its start.
+- The root group Generate makes: `api.track` its uuid the moment the press makes
+  it; it is found by the template its top row names.
+
+**Steps.**
+
+1. Repair the template in place (Settings tab → Game Settings → ACKS II —
+   Extras → Manage imports → (Re)import individual entries, the family row
+   ticked; Yes to the confirm, Keep all to a held-edits list). *Observable:* the
+   flag ends in the plate's own file (`mm-beastman-plate.png`) and `img` is
+   still the strip, a file of another name; the Variant options are as many as
+   before.
+2. Open the uploaded file. *Observable:* it is the plate and carries no page
+   foot. The walk fetches it, logs its pixel size and saves a copy under the
+   run's `aia-tmp/live/`; the walker views the copy, since a foot is for eyes.
+   A plate that does not arrive is no file and no flag: nothing is rendered in
+   its place.
+3. Reload, then open the faction host on its Org chart tab. *Observable:*
+   `.acks-extras-org__plate` is drawn with the plate's file. A pack
+   document answers `fromUuidSync` with its index entry after a reload, so this
+   step fails if the flag is missing from `compendiumIndexFields`: the walk reads `fromUuidSync` raw before anything loads the document, and says so when it answered a Document.
+4. Press Generate on the template's sheet. *Observable:* one root group is made
+   and its `img` is the plate.
+
+**Teardown.** `api.sweepTracked()`, and quote its result. The template and the
+host are kept.

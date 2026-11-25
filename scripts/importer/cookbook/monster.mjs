@@ -931,17 +931,19 @@ function mintOrganisation(args) {
  * Uploads the picture a cookbook entry's art instruction names and returns its
  * path, or "" when the book session cannot upload, the extraction fails or it
  * takes longer than 30 s: one undecodable image costs its owner (`what` names
- * it in the warning) a picture, never the import.
+ * it in the warning) a picture, never the import. `field` names the art
+ * instruction read, `art` or the family's `plate`; a file is reused by its id,
+ * so a second picture of one entry is uploaded under an id of its own.
  */
-async function uploadEntryArt(bindDoc, id, entry, node, what) {
+async function uploadEntryArt(bindDoc, id, entry, node, what, field = "art") {
   if (!ctx.uploadPageArt) return "";
-  const artInstr = entry.fields?.art ?? {};
+  const artInstr = entry.fields?.[field] ?? {};
   const up = await Promise.race([
     ctx
       .uploadPageArt(bindDoc, {
         id,
         page: artInstr.page ?? entry.pages[0],
-        name: artInstr.name ?? node.fields.art?.name ?? null,
+        name: artInstr.name ?? node.fields[field]?.name ?? null,
         box: artInstr.box ?? null,
       })
       .catch(() => null),
@@ -976,6 +978,8 @@ export async function importFamily(bookId, famId, folderId) {
   // read that failed, which leaves a held picture as it is.
   let familyImg = "";
   let pictureUnread = false;
+  // The plate the organisation chart draws, read by the overview as well; "" when none arrived.
+  let familyPlate = "";
   for (const member of fam.members) {
     try {
     let entry = cb.entries[member.id];
@@ -990,6 +994,11 @@ export async function importFamily(bookId, famId, folderId) {
         if (node.fields.art && !familyImg) {
           familyImg = await uploadEntryArt(session.doc, member.id, entry, node, "family");
           pictureUnread = !familyImg;
+        }
+        // The family's plate, an assist on this row: its own file beside the
+        // strip's, and no read leaves the flag out so a held plate stays.
+        if (node.fields.plate && !familyPlate) {
+          familyPlate = await uploadEntryArt(session.doc, `${member.id}.plate`, entry, node, "family plate", "plate");
         }
       } else if (entry.fields?.art) {
         pictureUnread = true;
@@ -1173,7 +1182,7 @@ export async function importFamily(bookId, famId, folderId) {
       cells,
       ...(lore ? { details: { biography: lore } } : {}),
     },
-    flags: { [MODULE_ID]: { cookbook: { id: famId, cite: fam.cite } } },
+    flags: { [MODULE_ID]: { cookbook: { id: famId, cite: fam.cite }, ...(familyPlate ? { plate: familyPlate } : {}) } },
   });
   if (!actor) {
     ui.notifications.warn(`${MODULE_ID} | ${fam.name}: the system rejected the family template — skipped (see console).`);

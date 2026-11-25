@@ -434,3 +434,36 @@ the first: a wandering or lair roll of a gang or a warband got a card nobody ask
   is an unlisted shell. Making the card before the Roll would set the leader through
   `planRoll`'s existing faction branch; it is not built because the ruling says the Roll ends
   with it.
+
+## 2026-11-25 — The family plate is an assist on the overview row, page only, no box
+
+The owner, on art: "You can use any part or whole of the images, they are not getting
+redistributed they are getting imported by the book owner" (`ip-doctrine.md`, Art, item 1).
+The plate is the section's full-page picture, imported from the Judge's own copy; the repo
+ships its page number and nothing else.
+
+- **An assist on the overview's register row, `assists.platePage`**, not a row of its own and
+  not a new kind. The plan said a register row of its own; a new kind would need exclusions in
+  the import dialog, the claim census and the target list for a document that is only a
+  picture. `compileMonster` adds `fields.plate`, an art instruction on that page under the
+  kind's own pick criteria, and `executeEntry` runs it like any field. Departure from the
+  plan's wording; the owner's ruling is unchanged.
+- **No box.** The hub's earlier wording was "the page and the box". `uploadPageArt` takes the
+  page's placed image first and renders the page only where the recipe carries a `box`, so a
+  box lets a missed image object fall back to a render, and a render carries the page foot.
+  Without one the plate is the image's own samples or nothing. A test pins that the compiled
+  op has no `box`. A box matters only to a later crop of the plate, which is taken from the
+  image's placement and linted as a crop.
+- **A file of its own.** The strip is uploaded under the member's id and an uploaded file is
+  reused by id, so the plate goes under `<member id>.plate`. `img` stays the strip.
+- **`flags["acks-extras"].plate`** is written by `importFamily` on the template, and a repair
+  in place writes it through the actor policy's flags (every key but `cookbook` and `minted`).
+  A read that fails leaves the key out, so a held plate stays; a plain re-import returns early
+  and only Repair in place delivers it.
+- **The plate is on the compendium index** (`CONFIG.Actor.compendiumIndexFields`, at lib
+  `init`): `fromUuidSync` on a pack document answers the index entry after a reload, which
+  carries only indexed fields.
+- *Open:* the Variant list read through `system.axes` may be empty from the index in the same
+  way; it is inferred from the code and is reproduced after a reload before it is fixed.
+- *Cost:* the second art op runs on every `executeEntry` of the overview, so a direct import
+  of that row decodes the plate page too; a caller that skips the `art` op skips it.

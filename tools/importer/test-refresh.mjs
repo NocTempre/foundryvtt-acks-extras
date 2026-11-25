@@ -387,6 +387,14 @@ check("an actor policy rewrites the biography, the token and the items", policy.
 check("an actor policy replaces rows and takes the monster prose flags only with extras", policy.rows === "replace" && policy.proseFlags.length > 0);
 const bare = actorPolicy({ type: "character", system: {}, flags: { [M]: { cookbook: { id: "y" } } } });
 check("a build with nothing to write carries no flags, token, items or prose", bare.flags.length === 0 && bare.top.length === 0 && bare.minted.length === 0 && bare.prose.length === 0 && bare.proseFlags.length === 0);
+const platedBuilt = { type: "acks-extras.template", system: {}, flags: { [M]: { cookbook: { id: "fam" }, plate: "art/new-plate.png" } } };
+const platedPolicy = actorPolicy(platedBuilt);
+const platedHeld = { type: "acks-extras.template", system: {}, flags: { [M]: { cookbook: { id: "fam" }, plate: "art/held-plate.png" } } };
+const platedPlan = refreshPlan(platedHeld, platedBuilt, platedPolicy);
+check("a build that carries a plate writes it over the held one", platedPolicy.flags.join() === "plate" && platedPlan.update.flags[M].plate === "art/new-plate.png");
+const unplatedBuilt = { type: "acks-extras.template", system: {}, flags: { [M]: { cookbook: { id: "fam" } } } };
+const unplatedPlan = refreshPlan(platedHeld, unplatedBuilt, actorPolicy(unplatedBuilt));
+check("a build that read no plate leaves the held plate and writes no plate key", !("plate" in (unplatedPlan.update.flags?.[M] ?? {})) && !Object.keys(unplatedPlan.update.flags ?? {}).some((k) => k.includes("plate")));
 const tableTally = repairTally({ force: true });
 tableTally.tables = new Set(["priced"]);
 check("a tally carries the table importers a run repairs, and counts skip it", tableTally.tables.has("priced") && !("tables" in repairCounts(tableTally)));

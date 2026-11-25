@@ -143,6 +143,34 @@ const TABLES = {
 /** Whether a recipe's book is on this machine. */
 const haveBook = (book) => !!FILES[book] && fs.existsSync(FILES[book]);
 
+// The family's plate rides the overview entry as a second art instruction on the
+// register's named page, and carries no `box`: the upload falls back to a page
+// render when a box ships, and a render of the page brings its foot with it. The
+// strip stays the entry's own art, on the entry's own page. Reads the shipped
+// cookbook and the register, so it runs with no book on the machine.
+{
+  const readJson = (rel) => JSON.parse(fs.readFileSync(new URL(rel, import.meta.url), "utf8"));
+  const register = readJson("../../register/mm/p25-p348.json");
+  const row = register.find((r) => r.assists?.platePage !== undefined);
+  assert.ok(row, "the register names a plate page on one overview row");
+  const entries = readJson("../../cookbook/mm.json").entries;
+  const entry = entries[row.id];
+  assert.ok(entry?.fields?.plate, `${row.id}: the cookbook carries a plate instruction`);
+  const { plate, art } = entry.fields;
+  assert.strictEqual(plate.op, "art", "the plate is an art instruction");
+  assert.strictEqual(plate.page, row.assists.platePage, "the plate reads the register's plate page");
+  assert.ok(!("box" in plate), "the plate carries no box, so a missed image object never becomes a page render");
+  assert.ok(!("name" in plate), "the plate names no image: the pick is the page's own");
+  assert.strictEqual(art.page, entry.pages[0], "the strip stays on the family page");
+  assert.notStrictEqual(plate.page, art.page, "the plate is on a page of its own");
+  const kindSelect = Object.values(entries).find((e) => e.kind === "kind.monster" && !e.fields?.plate && e.fields?.art && e.fields.art.select.maxRatio === plate.select.maxRatio)?.fields.art.select;
+  assert.deepStrictEqual(plate.select, kindSelect, "the plate takes the kind's own pick criteria, not the strip's widened ratio");
+  assert.ok(art.select.maxRatio > plate.select.maxRatio, "the strip's own pick is the widened one");
+  assert.ok(!("box" in art), "the strip carries no box either");
+  const plated = Object.entries(entries).filter(([, e]) => e.fields?.plate).map(([id]) => id);
+  assert.deepStrictEqual(plated, [row.id], "one entry in the book carries a plate");
+}
+
 // An optional recipe reads a supplement; a machine without it skips that table and keeps the rest.
 const NEEDED = [...new Set(
   Object.entries(TABLES).flatMap(([doc, ids]) => ids.map((id) => TABLE_RECIPES[doc]?.tables?.[id]).filter((r) => r && !r.optional).map((r) => r.book)),

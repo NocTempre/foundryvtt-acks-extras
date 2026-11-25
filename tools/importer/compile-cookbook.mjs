@@ -863,7 +863,7 @@ function citeSpecs(specs, cite) {
 async function compileMonster(doc, entry, kindRow, glyphChars) {
   // Per-entry ASSISTS (docs/importer/RECIPES.md): chef-authored one-off directions the
   // compiler honors before its own heuristics. Supported: anchor (exact
-  // display text), statPage, spoilsPage, noSpoils, noArt, artSelect, descStopHeading,
+  // display text), statPage, spoilsPage, noSpoils, noArt, artSelect, platePage, descStopHeading,
   // columns, proseColumn, labelAliases, pageColumns, continuation.
   const assists = entry.assists ?? {};
   const page = entry.pages[0];
@@ -1305,6 +1305,13 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   // own picture has a shape they refuse (a strip wider than the ratio limit).
   if (!assists.noArt) {
     fields.art = { op: "art", page, select: assists.artSelect ? { ...kindRow.fields.art.select, ...assists.artSelect } : kindRow.fields.art.select };
+  }
+  // `assists.platePage` is a second picture of the entry, on another page: a
+  // family's plate, read as the page's placed image under the kind's own pick
+  // criteria. It carries no box, so an image that does not arrive is no
+  // picture, never a render of the page with its foot.
+  if (assists.platePage) {
+    fields.plate = { op: "art", page: assists.platePage, select: kindRow.fields.art.select };
   }
 
   // Chef-authored effect specs (`compileDefinition`'s passthrough): structure
