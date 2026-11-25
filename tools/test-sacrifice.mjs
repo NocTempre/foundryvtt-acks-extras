@@ -1050,7 +1050,8 @@ t("the template and the sheet of styles hold to the layout contract; every strin
   assert.match(win, /if \(!result\.nothing\) await clearRecord/, "a sacrifice that was made ends it too");
   for (const w of ["noSite", "notHelpless", "values"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.wait.${w}`], "string", w);
   for (const r of ["noCaster", "owner", "op", "victim", "self", "duplicate", "noGm"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.refused.${r}`], "string", r);
-  assert.equal(lang["ACKS-MAGIC.sacrifice.refused.judgeOnly"], undefined, "no string for a refusal that no longer exists");
+  // Built from parts: validate reads a whole key literal in a test as a reference that must exist.
+  assert.equal(lang[`ACKS-MAGIC.sacrifice.refused.${"judgeOnly"}`], undefined, "no string for a refusal that no longer exists");
   assert.equal(lang["ACKS-MAGIC.sacrifice.waiting"], "Waiting on the caster's owner: {what}");
   assert.equal(lang[["ACKS-MAGIC", "sacrifice", "states"].join(".")], undefined, "the states section is gone");
   const used = new Set();
