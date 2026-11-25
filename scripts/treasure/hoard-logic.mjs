@@ -245,6 +245,23 @@ function parseFigure(v) {
   return /^\d{1,3}(,\d{3})+(\.\d+)?$|^\d+(\.\d+)?$/.test(s) ? Number(s.replace(/,/g, "")) : null;
 }
 
+const THROWN_VALUE_RE = /^(\d*d\d+(?:[+-]\d+)?)(?:[×xX*](\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?))?$/i;
+
+/**
+ * A band's value cell read as `{figure}` (a plain figure) or `{expr, times}` (a
+ * dice expression, alone or multiplied by a plain figure, the sign `×`, `x`, `X`
+ * or `*` with spaces optional). Null for anything else. The dice and the
+ * multiplier come from the cell; none is written here.
+ */
+function parseValueCell(v) {
+  const figure = parseFigure(v);
+  if (figure != null) return { figure };
+  if (typeof v !== "string") return null;
+  const m = THROWN_VALUE_RE.exec(v.replace(/\s+/g, ""));
+  if (!m || !parseDice(m[1])) return null;
+  return { expr: m[1], times: m[2] == null ? 1 : Number(m[2].replace(/,/g, "")) };
+}
+
 const unitOf = (units, key) => (typeof units === "number" ? units : units?.[key]);
 const labelOf = (k) => k.label ?? k.names?.[0] ?? k.key;
 
@@ -327,10 +344,15 @@ export function dealHoard({ type, tables, kinds, roll, units = {}, special = tru
         for (let i = 0; i < count; i++) {
           const hit = rollOnBands(values, kind.die, roll);
           if (hit.error) { fail(hit, where); break; }
-          const valueGp = parseFigure(hit.row.value ?? hit.row.valueGp);
-          if (valueGp == null) { fail(err("bad-value", { value: hit.row.value ?? null }), where); continue; }
-          audit.push({ where, expr: kind.die, sides: hit.roll.sides, min: hit.roll.min, max: hit.roll.max, total: hit.roll.total, cite: values.cite ?? null, valueGp });
-          const card = { pool: kind.pool, valueGp, label: hit.row.type ?? labelOf(kind), cite: values.cite ?? null };
+          const cell = parseValueCell(hit.row.value ?? hit.row.valueGp);
+          if (!cell) { fail(err("bad-value", { value: hit.row.value ?? null }), where); continue; }
+          const thrownValue = cell.expr ? rollChecked(roll, cell.expr) : null;
+          if (thrownValue?.error) { fail(thrownValue, where); continue; }
+          const valueGp = thrownValue ? thrownValue.total * cell.times : cell.figure;
+          const cite = values.cite ?? null;
+          audit.push({ where, expr: kind.die, sides: hit.roll.sides, min: hit.roll.min, max: hit.roll.max, total: hit.roll.total, cite, valueGp });
+          if (thrownValue) audit.push({ where, expr: thrownValue.expr, sides: thrownValue.sides, min: thrownValue.min, max: thrownValue.max, total: thrownValue.total, cite, valueGp, value: true });
+          const card = { pool: kind.pool, valueGp, label: hit.row.type ?? labelOf(kind), cite };
           cards.push(card);
           thrown.push({ card, kind });
         }

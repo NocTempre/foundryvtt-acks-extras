@@ -462,7 +462,11 @@ or the cookbook documents a real import writes.
 3. **Deal anyway.** Press Deal, then Deal anyway. Observables: the pot gains
    face-down cards from one hoard of the letter (one hoard for the two tokens,
    not two); a notification reports the deal; the deal toggles (No magic,
-   Force cursed) are honoured.
+   Force cursed) are honoured. A letter whose jewelry cell fires (deal a
+   jewelry-heavy letter until it does) pools jewelry cards, each carrying a
+   worth, and the deal's notice names no `bad-value`: the jewelry values the
+   importer reads are printed as throws, so a pot with gems and no jewelry from
+   such a letter is how T-0804 is caught.
 4. **Met in their lair.** Tick it and press Deal. Observable: no callout; a
    second hoard is dealt at once. Reopen the window: the toggle, the style and
    the Special treasure tick read back as left.

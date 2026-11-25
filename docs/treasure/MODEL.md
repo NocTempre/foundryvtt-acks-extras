@@ -522,7 +522,11 @@ by the lang name of its column (`ACKS-TREASURE.hoard.coin.<key>`), found with
 `coinTemplate`; its `cv` is that item's `coppervalue` and its weight that
 stack's. A world with no such coin gets `coin-missing` and no card for that
 coin; no rate is assumed. A gem or jewelry card carries `valueGp` and its
-band's type as the label. A magic card is a placeholder: pool `magic`, magical,
+band's type as the label; a band whose value is printed as a throw (a dice
+expression alone, or times a figure) is thrown at the deal on the deal's roller
+and multiplied, and the audit holds that throw as its own row marked `value`
+beside the band's. A value that is neither a figure nor such a throw is
+`bad-value` and deals no card. A magic card is a placeholder: pool `magic`, magical,
 undetected, no mask, with a `tableRef` (the noun its cell printed, null for a
 magic column that prints none) that is not part of a stored truth; the letter
 deal rolls it ("Magic cards are rolled", below). Dice are `CONFIG.Dice.randomUniform` through

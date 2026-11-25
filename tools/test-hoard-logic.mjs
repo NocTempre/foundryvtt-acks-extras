@@ -166,6 +166,48 @@ deal = dealHoard({ type: "ZZ9", tables: JEW, kinds: KINDS, roll: scripted(5), un
 eq(deal.cards, [{ pool: "jewelry", valueGp: 90, label: "Circlet", cite: "INV jewelry list" }], "a whole-number count is not thrown, the unit is");
 eq(deal.audit[0].expr, "1d7", "the jewelry list is thrown on the die its kind declares");
 
+// A value printed as a throw is thrown on the deal's roller and multiplied.
+const THROWN = { cite: "INV thrown list", die: "1d7", bands: [
+  { min: 1, max: 2, value: "1d4 × 10", type: "Ring" },
+  { min: 3, max: 3, value: "2d6", type: "Brooch" },
+  { min: 4, max: 4, value: "3d6 x 1,000", type: "Tiara" },
+  { min: 5, max: 5, value: "d8+1*100", type: "Chain" },
+  { min: 6, max: 6, value: "75", type: "Pin" },
+  { min: 7, max: 7, value: "lots", type: "Mystery" },
+] };
+const dealThrown = (...rolls) => dealHoard({ type: "ZZ9", tables: { ...JEW, values: { ...VALUES, jv: THROWN } }, kinds: KINDS, roll: scripted(...rolls), units: {} });
+deal = dealThrown(2, 3);
+eq(deal.errors, [], "a value printed as a throw is dealt");
+eq(deal.cards, [{ pool: "jewelry", valueGp: 30, label: "Ring", cite: "INV thrown list" }], "the throw times the figure is the worth");
+eq(deal.audit, [
+  { where: "ZZ9.jewelry", expr: "1d7", sides: 7, min: 1, max: 7, total: 2, cite: "INV thrown list", valueGp: 30 },
+  { where: "ZZ9.jewelry", expr: "1d4", sides: 4, min: 1, max: 4, total: 3, cite: "INV thrown list", valueGp: 30, value: true },
+], "the band throw and the value throw are both audited, the second marked as the value's");
+eq(dealThrown(3, 9).cards[0].valueGp, 9, "a dice expression alone is the worth as thrown");
+eq(dealThrown(4, 11).cards[0].valueGp, 11000, "the figure may carry a thousands comma and the sign may be an x");
+eq(dealThrown(5, 9).cards[0].valueGp, 900, "a modifier and a star sign are read, the range running to the modifier");
+const plain = dealThrown(6);
+eq([plain.errors, plain.cards[0].valueGp, plain.audit.length], [[], 75, 1], "a plain figure beside the throws is not thrown");
+const bad = dealThrown(7);
+eq([bad.errors.map((e) => e.code), bad.cards], [["bad-value"], []], "an unreadable value is still refused");
+eq(dealThrown(1, 5).errors[0].code, "roll-out-of-range", "a value throw outside its die is caught");
+eq(dealHoard({ type: "ZZ9", tables: { ...JEW, values: { ...VALUES, jv: THROWN } }, kinds: KINDS, roll: sixSided(1), units: {} }).errors.length, 1, "a roller on the wrong die fails the deal's throw");
+
+{
+  // On a seeded production roller, every thrown value is its throw times its figure.
+  const only = { ...THROWN, bands: [{ min: 1, max: 7, value: "1d4 × 10", type: "Ring" }] };
+  const seeded = rollerFrom(seededRng(11));
+  let sound = true;
+  let seen = 0;
+  for (let i = 0; i < 100; i++) {
+    const d = dealHoard({ type: "ZZ9", tables: { ...JEW, values: { ...VALUES, jv: only } }, kinds: KINDS, roll: seeded, units: {} });
+    const v = d.audit.find((a) => a.value);
+    seen++;
+    if (d.errors.length || !v || v.valueGp !== v.total * 10 || d.cards[0].valueGp !== v.valueGp || v.min !== 1 || v.max !== 4) sound = false;
+  }
+  ok(sound && seen === 100, "a seeded roller's thrown values are each the throw times its figure, in the audit and on the card");
+}
+
 // Failures are reported beside what still dealt.
 const MIXED = { ...TABLES, type: { cite: "INV type", rows: { ZZ9: { c1: "100% 1d4", c2: "100% 1d4", gems: "100% 1 fizzlers", jewelry: "???", magic: "1 wonders" } } } };
 deal = dealHoard({ type: "ZZ9", tables: MIXED, kinds: KINDS, roll: scripted(10, 2, 10, 2), units: { c1: 37 } });

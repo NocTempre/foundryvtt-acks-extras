@@ -84,6 +84,16 @@ eq(figureOf(null), null, "null");
   ok(r.dealt.audit.some((a) => a.where === "Z.jewelry" && a.expr === "d8"), "a jewelry kind is thrown on its legend row's die");
 }
 
+/* --- a jewelry value printed as a throw reaches the truth worth ------------------- */
+{
+  const d = doc();
+  d.jewelryValue = { bands: [band(1, 8, { value: "1d4 × 10", type: "wire loop" })] };
+  const r = run(d, "Z", [5, 30, 2, 1, 3, 10, 7, 3, 5], { special: false });
+  eq(r.dealt.errors, [], "a thrown jewelry value is no engine error");
+  const piece = r.truths.find((t) => t.pool === "jewelry");
+  eq([piece?.label, piece?.valueGp], ["wire loop", 30], "the truth carries the throw times its figure");
+}
+
 /* --- special treasure is asked for, and a lot of one's own kind stays ------------- */
 {
   const off = run(doc(), "Z", [5, 30, 2, 1, 3, 10, 7, 5], { special: false });
