@@ -15,8 +15,8 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | --- | --- |
 | `phase` | `staging` → `open` → `closed` |
 | `mode` | `judge` or `table`: who rolls. Stored only; a pot built by hand rolls nothing |
-| `flippers` | user ids that may turn cards, or `null` for every seat in the audience |
-| `audience` | user ids given LIMITED sight at open |
+| `flippers` | user ids that may turn cards, or `null` for every seat that holds LIMITED on the pile |
+| `audience` | user ids given LIMITED sight at open; a record that no act reads (the relay reads the pile's own level, see "Opening, the relay and closing") |
 | `order` | the card ids that are in the pot, **the authority** |
 | `buckets` | `{add: [ids], replace: [ids]}`, the seed cards kept out of `order` until open |
 | `replaced` | `[{seedId, struck: [lot ids], shortGp}]`, what each replacing seed took when the pot opened; empty until then |
@@ -112,9 +112,14 @@ delete cards around the relay; the doorway is posted.
 **The relay** (`pot-relay.mjs`, handler `treasurePot`, built over the world in
 `pot.mjs` `createPotRelay`): every player act is `executeAsGM`, and the handler
 authorizes on the attested sender (`runRelayed`), never on the payload. It
-refuses a pot that is not open, a seat outside the audience or not among the
-`flippers`, a card not in `order`, a card of the wrong face, a claimed card, a
-target that is no actor, and a target a player does not own. The in-flight key
+refuses a pot that is not open, a seat without LIMITED or better on the pile
+or not among the `flippers`, a card not in `order`, a card of the wrong face, a
+claimed card, a target that is no actor, and a target a player does not own.
+The seat test is Foundry's own, `pile.testUserPermission(sender, "LIMITED")`
+(the relay's `seated` dep), read when the act arrives, and a Judge always
+passes it. The `audience` flag is the opening's record of who it gave LIMITED
+to and is read by no act, so a seat a Judge sets to None after the opening is
+refused and a seat given LIMITED afterwards is admitted. The in-flight key
 `potId:op:cardId` is claimed before the first await (`potId:grab:` for a grab);
 one request runs at a time per pot. A `grab` is the third op, below.
 
@@ -256,7 +261,7 @@ members come from the roster read on the Judge's client, never from the
 payload, which names only the pot. The window offers the button to exactly
 those seats (`mayGrab`, read once per render).
 
-1. `planGrabStart` refuses a pot not open, a seat outside the audience or owning
+1. `planGrabStart` refuses a pot not open, a seat without LIMITED on the pile or owning
    no member (`notAllowed`), and a pot with no turned unclaimed card
    (`nothingToGrab`); `deps.party` refuses a pot with no party (`noParty`).
 2. The members are the roster's: `capacity6` and `load6` from lib on the row's

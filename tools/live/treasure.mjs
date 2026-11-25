@@ -12,7 +12,9 @@
  * what it writes); Player seat 1 to 4 (the doorway button, the face-down cards
  * and what they say, a flip, a Take onto the seat's own character through the
  * actor pick); Refusals (a flip while staging, a Take onto an actor the seat
- * does not own, a Take of a face-down card, a planted Card the pot's `order`
+ * does not own, a Take of a face-down card, a seat set to None after the
+ * opening and a seat holding LIMITED that the audience copy never named, a
+ * planted Card the pot's `order`
  * does not list, and a request after the pot is gone); the window contract on
  * both seats; Close (leftovers to a place, the chat card rewritten as the
  * record, the pile gone, no chat message from the delete); teardown.
@@ -44,8 +46,8 @@
  * check reads back from documents rather than from a click.
  *
  * Not reached: a real drag with pointer travel and the zone's highlight; a
- * Take onto a monster or a token actor; the pot opened to a seat that joined
- * after Open; a table with more than one non-Judge seat taking at once; the
+ * Take onto a monster or a token actor; a seat that joined (a real new user)
+ * after Open, which Refusals stands in for by emptying the audience copy; a table with more than one non-Judge seat taking at once; the
  * "left behind" wording (a close with no place chosen); the Player seat's
  * keyboard route through the cards; bands, deal toggles and later slices.
  */
@@ -583,6 +585,26 @@ const P = {
     const r = await H.race(H.S.executeAsGM("treasurePot", payload), 25000);
     return r === undefined ? { none: true } : r;
   },
+  /**
+   * Set one seat's ownership level on the pile, and optionally the audience
+   * copy the opening wrote, then answer what the pile and the flag read back
+   * and whether Foundry now counts the seat LIMITED. The relay reads the level
+   * when an act arrives, never the copy.
+   */
+  setSeat: async ({ potId, userId, level, audience }) => {
+    const H = globalThis.__tw;
+    const pile = H.pile(potId);
+    const update = {};
+    if (level !== undefined) update[`ownership.${userId}`] = level;
+    if (audience !== undefined) update["flags.acks-extras.treasure.audience"] = audience;
+    await pile.update(update);
+    await H.sleep(500);
+    return {
+      level: pile.ownership?.[userId] ?? 0,
+      audience: pile.getFlag("acks-extras", "treasure")?.audience ?? [],
+      limited: pile.testUserPermission(game.users.get(userId), "LIMITED"),
+    };
+  },
   plant: async ({ potId, fromId }) => {
     const H = globalThis.__tw;
     const pile = H.pile(potId);
@@ -1081,6 +1103,30 @@ try {
   check("a flip and a Take asked for by its id are each refused notInPot", flipPlanted.ok === false && flipPlanted.reason === "notInPot" && claimPlanted.ok === false && claimPlanted.reason === "notInPot", { flip: flipPlanted, claim: claimPlanted });
   check("the doorway's count did not change", doorAfterPlant.turned === doorBeforePlant.turned && doorAfterPlant.pips === doorBeforePlant.pips, { before: doorBeforePlant.turned, after: doorAfterPlant.turned });
   note("the planted Card is swept by its tracked id", await gm.sweepTracked({ only: [planted.uuid] }));
+
+  section("Refusals: a seat's level on the pile is read when it acts, never the audience copy");
+  // The step's start shape, asserted: the Player seat holds LIMITED, the audience copy names it, and the value card is face down and unclaimed.
+  const seat0 = await run(gm, P.setSeat, { potId, userId: playerId, level: lim });
+  const stSeat0 = await run(gm, P.stage, { potId });
+  check("the step starts as the opening left the seat: LIMITED on the pile, named in the audience copy, the value card face down and unclaimed", seat0.limited && seat0.audience.includes(playerId) && cardOf(stSeat0, C.value).face === null && !cardOf(stSeat0, C.value).claimedBy, { limited: seat0.limited, named: seat0.audience.includes(playerId) });
+  // A seat set to None after the opening: still named in the audience copy, no longer LIMITED. Each act is refused before its own guards (notAllowed comes before faceDown and notOwner).
+  const seatNone = await run(gm, P.setSeat, { potId, userId: playerId, level: 0 });
+  const noneFlip = await run(player, P.relay, { potId, op: "flip", cardId: C.value });
+  const noneClaim = await run(player, P.relay, { potId, op: "claim", cardId: C.value, actorUuid: playerUuid });
+  const noneGrab = await run(player, P.relay, { potId, op: "grab" });
+  const sNone = await run(gm, P.stage, { potId });
+  check("a seat set to None after the opening, still named in the audience copy, is refused notAllowed on a flip, a Take and a Quick grab", !seatNone.limited && seatNone.audience.includes(playerId) && noneFlip.ok === false && noneFlip.reason === "notAllowed" && noneClaim.ok === false && noneClaim.reason === "notAllowed" && noneGrab.ok === false && noneGrab.reason === "notAllowed", { flip: noneFlip, claim: noneClaim, grab: noneGrab });
+  check("nothing was written by those refusals: the value card is still face down and unclaimed", cardOf(sNone, C.value).face === null && !cardOf(sNone, C.value).claimedBy && JSON.stringify(sNone.order) === JSON.stringify(stSeat0.order), { face: cardOf(sNone, C.value).face });
+  // A seat the audience copy never named but that holds LIMITED: admitted. The copy is emptied and the seat given LIMITED again; the Take of a face-down card is then refused faceDown, the guard after the seat's own, and writes nothing.
+  const seatLate = await run(gm, P.setSeat, { potId, userId: playerId, level: lim, audience: [] });
+  const lateClaim = await run(player, P.relay, { potId, op: "claim", cardId: C.value, actorUuid: playerUuid });
+  const sLate = await run(gm, P.stage, { potId });
+  check("a seat holding LIMITED that the audience copy does not name is admitted: its Take of the face-down card reaches the card's own guard and is refused faceDown, with nothing written", seatLate.limited && seatLate.audience.length === 0 && lateClaim.ok === false && lateClaim.reason === "faceDown" && cardOf(sLate, C.value).face === null && !cardOf(sLate, C.value).claimedBy, { limited: seatLate.limited, audience: seatLate.audience.length, claim: lateClaim });
+  // The copy is put back, and the Player's window is asked to render again: a level change may have left it stale.
+  const seatBack = await run(gm, P.setSeat, { potId, userId: playerId, level: lim, audience: s5.audience });
+  await run(player, P.rerender, { potId });
+  const sheetBack = await run(player, P.waitSheet, { potId });
+  check("the seat is left as the opening made it: LIMITED, named in the audience copy again, the window renders", seatBack.limited && seatBack.level === lim && s5.audience.every((id) => seatBack.audience.includes(id)) && sheetBack.rendered, { level: seatBack.level, named: seatBack.audience.length, rendered: sheetBack.rendered });
 
   section("Player seat 3. take the coin");
   const coinBefore = await run(player, P.actorRows, { actorId: ids.player });

@@ -16,7 +16,9 @@
  * step 3 (a drop on that member's zone: the load rises by the card's weight
  * and the speed re-reads from the roster); step 4 (a drop on a member the seat
  * does not own is refused with the notice, the card unclaimed, the actor
- * unchanged); step 5 (Quick grab by a real press: the notice, every member's
+ * unchanged); step 4c (Quick grab follows the seat's level on the pile and not the
+ * audience copy: set to None it is offered no grab and is refused, with the copy
+ * emptied and LIMITED held it is offered one); step 5 (Quick grab by a real press: the notice, every member's
  * pace no lower than the announced one with the slowest equal to it, "Party
  * moves" the same, every load within its capacity, the coin card split into
  * turned cards that sum to the stack, the card heavier than any member's room
@@ -208,6 +210,25 @@ const P = {
     await globalThis.__tk.sleep(800);
     return (a.ownership?.[userId] ?? 0) === level;
   },
+  /**
+   * Set one user's ownership level on the pile, and optionally the audience copy
+   * the opening wrote, and answer what reads back. Quick grab reads the level,
+   * never the copy.
+   */
+  setSeat: async ({ potId, userId, level, audience }) => {
+    const pile = game.cards.get(potId);
+    const update = {};
+    if (level !== undefined) update[`ownership.${userId}`] = level;
+    if (audience !== undefined) update["flags.acks-extras.treasure.audience"] = audience;
+    await pile.update(update);
+    await globalThis.__tk.sleep(800);
+    return { level: pile.ownership?.[userId] ?? 0, audience: pile.getFlag("acks-extras", "treasure")?.audience ?? [], limited: pile.testUserPermission(game.users.get(userId), "LIMITED") };
+  },
+  /** Whether this seat is offered Quick grab: the answer the window's button reads. */
+  mayGrab: async ({ potId }) => {
+    const pot = await import("/modules/acks-extras/scripts/treasure/pot.mjs");
+    return !!pot.mayGrab(game.cards.get(potId), game.user);
+  },
   /** The seat's scripted Quick grab, through the relay as the button sends it. */
   grabRelay: async ({ potId }) => {
     const H = globalThis.__tk;
@@ -391,6 +412,25 @@ try {
   await run(player, K.rerender, { potId: pot.potId });
   const a4c = await run(player, P.aside, { potId: pot.potId });
   check("owning a member again, the seat sees the Quick grab button", !!a4c.button, { button: a4c.button });
+
+  section("Step 4c. Quick grab follows the seat's level on the pile, not the audience copy");
+  // The seat owns a member here, so the level on the pile is the one thing that decides. The pot's opening gave the seat LIMITED and named it in the audience copy.
+  const seat4c0 = await run(gm, P.setSeat, { potId: pot.potId, userId: playerId, level: 1 });
+  const may4c0 = await run(player, P.mayGrab, { potId: pot.potId });
+  check("the step starts with the seat LIMITED on the pile, named in the audience copy, and offered Quick grab", seat4c0.limited && seat4c0.audience.includes(playerId) && may4c0 === true, { limited: seat4c0.limited, named: seat4c0.audience.includes(playerId), offered: may4c0 });
+  const seat4cNone = await run(gm, P.setSeat, { potId: pot.potId, userId: playerId, level: 0 });
+  const may4cNone = await run(player, P.mayGrab, { potId: pot.potId });
+  const grab4cNone = await run(player, P.grabRelay, { potId: pot.potId });
+  const s4cNone = await run(gm, K.stage, { potId: pot.potId });
+  check("a seat set to None after the opening, still named in the audience copy and owning a member, is offered no Quick grab and a scripted grab is refused 'notAllowed' with no card claimed", !seat4cNone.limited && seat4cNone.audience.includes(playerId) && may4cNone === false && grab4cNone?.ok === false && grab4cNone?.reason === "notAllowed" && s4cNone.cards.every((c) => !c.claimedBy || c.id === cid.a || c.id === cid.b), { offered: may4cNone, grab: grab4cNone });
+  const seat4cLate = await run(gm, P.setSeat, { potId: pot.potId, userId: playerId, level: 1, audience: [] });
+  const may4cLate = await run(player, P.mayGrab, { potId: pot.potId });
+  check("a seat holding LIMITED that the audience copy does not name is offered Quick grab", seat4cLate.limited && seat4cLate.audience.length === 0 && may4cLate === true, { limited: seat4cLate.limited, audience: seat4cLate.audience.length, offered: may4cLate });
+  // The copy is put back, so Step 5's real press runs on the pot as the opening left it.
+  const seat4cBack = await run(gm, P.setSeat, { potId: pot.potId, userId: playerId, level: 1, audience: seat4c0.audience });
+  await run(player, K.rerender, { potId: pot.potId });
+  const a4cBack = await run(player, P.aside, { potId: pot.potId });
+  check("the seat is left as the opening made it, and its window offers Quick grab again", seat4cBack.limited && seat4c0.audience.every((id) => seat4cBack.audience.includes(id)) && !!a4cBack.button, { limited: seat4cBack.limited, button: a4cBack.button });
 
   section("Step 5. Quick grab (Player seat)");
   const before5 = await run(player, P.roster, { fid, actorIds: Object.values(ids) });

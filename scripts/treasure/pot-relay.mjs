@@ -35,6 +35,7 @@ const failure = (reason, extra = {}) => ({ ok: false, reason, ...extra });
  * @param {() => ({id: string|null, isGM: boolean}|null)} deps.self  the executing user, for a request with no attested sender
  * @param {(potId: string) => (object|null)} deps.readPot  the pot's `PotView`, read fresh
  * @param {(potId: string, update: object) => Promise<void>} deps.writeFlip  writes one card's flip update
+ * @param {(potId: string, user: object) => boolean} deps.seated  whether the user holds LIMITED or better on the pot's pile, read when the act arrives
  * @param {(user: object, actorUuid: string) => boolean} deps.owns  whether the user owns the actor
  * @param {(actorUuid: string) => boolean} deps.hasActor  whether the uuid names an actor
  * @param {(actorUuid: string) => boolean} deps.ownedByTable  whether any seat at the table owns the actor
@@ -71,6 +72,7 @@ export function createRelay(deps) {
     const hasTarget = !!actorUuid && deps.hasActor(actorUuid);
     const plan = planClaim(deps.readPot(potId), cardId, {
       sender,
+      seated: !!deps.seated(potId, sender),
       hasTarget,
       owns: hasTarget && (anyTarget || deps.owns(sender, actorUuid)),
       ownedByTable: hasTarget && (anyTarget || deps.ownedByTable(actorUuid)),
@@ -109,7 +111,7 @@ export function createRelay(deps) {
     const gps = valueGpsOf(deps.readPot(potId));
     let weighed = null;
     if (gps.length && deps.valueWeights6) weighed = await Promise.resolve(deps.valueWeights6(gps)).catch(() => null);
-    const start = planGrabStart(deps.readPot(potId), { sender, ownsMember, valueWeight6: (gp) => weighed?.get(gp) ?? null });
+    const start = planGrabStart(deps.readPot(potId), { sender, ownsMember, seated: !!deps.seated(potId, sender), valueWeight6: (gp) => weighed?.get(gp) ?? null });
     if (!start.ok) return failure(start.reason);
     if (!members.length) return failure(REFUSAL.noParty);
     const byId = new Map(members.map((m) => [m.id, m]));
@@ -153,7 +155,7 @@ export function createRelay(deps) {
   async function act(potId, op, sender, payload) {
     if (op === "grab") return grab(potId, sender);
     if (op === "flip") {
-      const plan = planFlip(deps.readPot(potId), payload.cardId, { sender });
+      const plan = planFlip(deps.readPot(potId), payload.cardId, { sender, seated: !!deps.seated(potId, sender) });
       if (!plan.ok) return failure(plan.reason);
       await deps.writeFlip(potId, plan.update);
       return { ok: true, cardId: payload.cardId };

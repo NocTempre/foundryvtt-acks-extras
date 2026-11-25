@@ -65,16 +65,19 @@ const viewOf = (cards, pot = {}) => ({
   const view = viewOf([card("a"), card("down", {}, null), coinCard("coin", 30, 3), card("taken", { claimedBy: { userId: "x" } }), card("planted")], { order: ["a", "down", "coin", "taken"] });
   eq(grabLots(view), [{ id: "a", weight6: 6, coin: null }, { id: "coin", weight6: 3, coin: { name: "QQ coin", cv: 1, count: 30 } }], "lots are the turned, unclaimed cards in order, none planted outside it");
   ok(planGrabStart(view, { sender: GM }).ok, "the Judge may start, owning no member");
-  ok(planGrabStart(view, { sender: ANNA, ownsMember: true }).ok, "a seat in the audience that owns a member may start");
-  eq(planGrabStart(view, { sender: ANNA, ownsMember: false }).reason, REFUSAL.notAllowed, "a seat in the audience that owns no member may not");
-  eq(planGrabStart(view, { sender: ANNA }).reason, REFUSAL.notAllowed, "ownership unstated is none");
-  eq(planGrabStart(view, { sender: OUT, ownsMember: true }).reason, REFUSAL.notAllowed, "a seat outside the audience may not, owning a member");
+  ok(planGrabStart(view, { sender: ANNA, ownsMember: true, seated: true }).ok, "a seated seat that owns a member may start");
+  eq(planGrabStart(view, { sender: ANNA, ownsMember: false, seated: true }).reason, REFUSAL.notAllowed, "a seated seat that owns no member may not");
+  eq(planGrabStart(view, { sender: ANNA, seated: true }).reason, REFUSAL.notAllowed, "ownership unstated is none");
+  eq(planGrabStart(view, { sender: OUT, ownsMember: true }).reason, REFUSAL.notAllowed, "seating unstated is not seated");
+  eq(planGrabStart(view, { sender: ANNA, ownsMember: true, seated: false }).reason, REFUSAL.notAllowed, "a seat in the audience copy with no LIMITED on the pile may not, owning a member");
+  ok(planGrabStart(viewOf(view.cards, { audience: [] }), { sender: OUT, ownsMember: true, seated: true }).ok, "a seat holding LIMITED that is not in the audience copy may start");
+  ok(planGrabStart(viewOf(view.cards, { audience: [] }), { sender: GM, seated: false }).ok, "the Judge starts whatever the caller read");
   ok(ownsAnyMember([{ uuid: null }, { uuid: "Actor.a" }], (u) => u === "Actor.a"), "owning one member of several counts");
   ok(!ownsAnyMember([{ uuid: null }, { uuid: "Actor.a" }], () => false), "owning none does not");
   ok(!ownsAnyMember([{ uuid: null }], () => true), "a member with no uuid is not tested");
   ok(!ownsAnyMember(undefined, () => true), "no party is no member");
   eq(planGrabStart(viewOf([card("a")], { phase: PHASE.staging }), { sender: GM }).reason, REFUSAL.phase, "a pot not open is refused");
-  eq(planGrabStart(viewOf([card("down", {}, null)]), { sender: ANNA, ownsMember: true }).reason, REFUSAL.nothingToGrab, "nothing turned is nothing to grab");
+  eq(planGrabStart(viewOf([card("down", {}, null)]), { sender: ANNA, ownsMember: true, seated: true }).reason, REFUSAL.nothingToGrab, "nothing turned is nothing to grab");
   eq(planGrabStart(null, { sender: GM }).reason, REFUSAL.noPot);
 }
 
@@ -132,7 +135,11 @@ const speedAt = (load) => Math.max(10, 120 - 30 * Math.floor(load / SIZE));
 /** By default the seat `anna` owns every member and nobody else owns any; a test names its own owners. */
 const annaOwnsAll = (user) => user.id === ANNA.id;
 
-function world({ members, cards, pot = {}, deliver, failSplit = false, owns = annaOwnsAll, valueWeights6 } = {}) {
+/** Foundry's LIMITED and NONE as the fake pile answers them: only `anna` holds LIMITED unless a test names its own levels. */
+const LIMITED = 1;
+const NONE = 0;
+
+function world({ members, cards, pot = {}, deliver, failSplit = false, owns = annaOwnsAll, valueWeights6, levels = { anna: LIMITED } } = {}) {
   const store = {
     pot: normalizePot({ phase: PHASE.open, audience: [ANNA.id], order: cards.map((c) => c.id), ...pot }),
     cards,
@@ -144,6 +151,7 @@ function world({ members, cards, pot = {}, deliver, failSplit = false, owns = an
     self: () => GM,
     readPot: (id) => (id === "pot1" ? { id, pot: store.pot, cards: store.cards } : null),
     writeFlip: async () => {},
+    seated: (_id, user) => user.isGM || (levels[user.id] ?? NONE) >= LIMITED,
     owns,
     hasActor: (uuid) => members.some((m) => m.uuid === uuid),
     ownedByTable: () => false,
@@ -280,21 +288,28 @@ const stack = () => [
   eq((await send(w, { requestUserId: "gm" })).reason, REFUSAL.noParty, "no party is refused to the Judge");
   eq((await send(w, { requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a player owns no member of no party");
 
-  // who may start: the Judge always; a seat in the audience only while it owns a member
+  // who may start: the Judge always; a seated seat only while it owns a member
   const ownsM2 = (user, uuid) => user.id === ANNA.id && uuid === "Actor.m2";
   const own = world({ members: [member("m1", 30), member("m2", 30)], cards: [card("a")], owns: ownsM2 });
-  ok((await send(own, { requestUserId: "anna" })).ok, "a seat in the audience that owns one member of the party starts a grab");
+  ok((await send(own, { requestUserId: "anna" })).ok, "a seated seat that owns one member of the party starts a grab");
   eq(own.log.delivered.length, 1, "and the grab shares the pot across the party, not only to what it owns");
   const bare = world({ members: [member("m1", 30)], cards: [card("a")], owns: () => false });
-  eq((await send(bare, { requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seat in the audience that owns no member is refused");
+  eq((await send(bare, { requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seated seat that owns no member is refused");
   eq(bare.log.delivered, [], "and nothing moves");
   ok((await send(bare, { requestUserId: "gm" })).ok, "the Judge starts one owning no member");
   const outsider = world({ members: [member("m1", 30)], cards: [card("a")], owns: () => true });
-  eq((await send(outsider, { requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat outside the audience is refused though it owns a member");
+  eq((await send(outsider, { requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat with no level on the pile is refused though it owns a member");
   eq(outsider.log.delivered, [], "and nothing moves for it");
+  const late = world({ members: [member("m1", 30)], cards: [card("a")], owns: () => true, levels: { anna: LIMITED, out: LIMITED } });
+  ok((await send(late, { requestUserId: "out" })).ok, "a seat holding LIMITED that is not in the audience copy starts a grab");
+  const revoked = world({ members: [member("m1", 30)], cards: [card("a")], levels: { anna: NONE } });
+  eq((await send(revoked, { requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seat in the audience copy whose level is NONE is refused though it owns a member");
+  eq(revoked.log.delivered, [], "and nothing moves for it");
+  const judgeOnly = world({ members: [member("m1", 30)], cards: [card("a")], owns: () => false, levels: {} });
+  ok((await send(judgeOnly, { requestUserId: "gm" })).ok, "the Judge starts one with no level in the table");
 
   const x = world({ members: [member("m1", 30)], cards: [card("a")] });
-  eq((await send(x, { requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat outside the audience is refused");
+  eq((await send(x, { requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat with no level on the pile is refused");
   const closed = world({ members: [member("m1", 30)], cards: [card("a")], pot: { phase: PHASE.staging } });
   eq((await send(closed, { requestUserId: "gm" })).reason, REFUSAL.phase, "a pot not open is refused");
   const empty = world({ members: [member("m1", 30)], cards: [card("d", {}, null)] });

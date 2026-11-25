@@ -105,6 +105,27 @@ swept with `api.sweepTracked()`.
   from `lib/sockets.mjs`). Observable: `{ok: false, reason: "notOwner"}`; the
   actor gains nothing and the Card is unmarked. The same call for a face-down
   card answers `faceDown`, since the card is judged before the target.
+- **A seat is its LIMITED on the pile (Player seat; the Judge seat is the
+  control).** A Judge always passes the seat test, so only the Player seat can
+  show it refuse; a GM seat cannot test an ownership gate. After Open, with the
+  Player seat holding LIMITED and named in the pot's `audience`, and a card that
+  is still face down and unclaimed:
+  1. In Configure Ownership on the pile, or as the Judge by
+     `pile.update({"ownership.<player user id>": 0})`, set the Player to None.
+     From the Player page send, by hand as above, a `flip`, a `claim` onto
+     `treasure/player-character`, and a `grab`. Observable: each answers
+     `{ok: false, reason: "notAllowed"}` though `audience` still lists the seat
+     (the seat guard comes before `faceDown`); no Card changes.
+  2. Give the Player LIMITED again and empty the flag
+     (`pile.update({"flags.acks-extras.treasure.audience": []})`), which stands
+     in for a seat that joined after Open (a real new user needs a second
+     login). Send the same `claim` of the face-down card. Observable:
+     `faceDown`, the guard after the seat's own, and nothing is written; the
+     seat is admitted though no copy names it. A `flip` is not used to show
+     admission, since it would turn the card.
+  3. Put the audience back and re-render the Player's window. A step that needs
+     the seat LIMITED asserts it at its start. `tools/live/treasure.mjs` walks
+     these steps; Quick grab's two answers are `treasure-party.mjs` step 4c.
 - **A planted Card.** After Open, as the Judge, create a Card in the pile with a
   turned face and the card flag copied from a real one, and leave `order` alone.
   Observables: neither seat's window lists it; a flip or Take request for its id
@@ -172,6 +193,13 @@ the window's.
    reason: "notAllowed"}` and nothing is claimed. Give ownership back (Owner)
    and re-render: the button is back. A step that needs the seat to own its
    character asserts that ownership at its start.
+4c. **Quick grab follows the seat's level on the pile (Player seat).** The seat
+   owns a member here, so the pile's level is the one thing that decides. As the
+   Judge set the Player's ownership of the pile to None. Observables:
+   `mayGrab(pile, game.user)` answers false and the scripted grab answers
+   `notAllowed`, with nothing claimed, though `audience` still lists the seat.
+   Set LIMITED again and empty the `audience` flag: `mayGrab` answers true. Put
+   the audience back before step 5.
 5. **Quick grab (Player seat), the predicted pace.** From the figures read before
    the step, work out the slowest speed the party could keep with everything
    placed (try each member's load with the whole of each card added; the planner

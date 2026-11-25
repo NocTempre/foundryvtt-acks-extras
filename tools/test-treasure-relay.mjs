@@ -21,8 +21,17 @@ const ok = (c, msg) => {
 const users = { gm: { id: "gm", isGM: true }, anna: { id: "anna", isGM: false }, ben: { id: "ben", isGM: false }, out: { id: "out", isGM: false } };
 const owners = { "Actor.cleo": ["anna"], "Actor.dina": ["ben"], "Actor.npc": [] };
 
+/**
+ * Foundry's ownership levels as the fake pile answers them: a seat is seated
+ * at LIMITED or better, and a Judge always. The table is read at each act, so a
+ * test changes a seat's level between two requests.
+ */
+const NONE = 0;
+const LIMITED = 1;
+const OBSERVER = 2;
+
 /** A relay over one fake pot, with a log of every write and every delivery. */
-function world({ pot = {}, cards, deliver, setClaimDelay = 0 } = {}) {
+function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: LIMITED, ben: LIMITED } } = {}) {
   const store = {
     pot: normalizePot({ phase: PHASE.open, audience: ["anna", "ben"], order: ["a", "b"], ...pot }),
     cards: cards ?? [
@@ -41,6 +50,8 @@ function world({ pot = {}, cards, deliver, setClaimDelay = 0 } = {}) {
       const c = store.cards.find((x) => x.id === update._id);
       c.face = update.face;
     },
+    seated: (_id, user) => user.isGM || (levels[user.id] ?? NONE) >= LIMITED,
+    party: () => ({ members: [{ id: "m1", uuid: "Actor.cleo", name: "Cleo", capacity6: null, load6: null, casualty: false, hasDocument: true }], paceWith: () => 0 }),
     owns: (user, uuid) => user.isGM || (owners[uuid] ?? []).includes(user.id),
     hasActor: (uuid) => uuid in owners,
     ownedByTable: (uuid) => (owners[uuid] ?? []).length > 0,
@@ -54,7 +65,7 @@ function world({ pot = {}, cards, deliver, setClaimDelay = 0 } = {}) {
       store.cards.find((x) => x.id === cardId).truth.claimedBy = claim;
     },
   });
-  return { relay, store, log };
+  return { relay, store, log, levels };
 }
 const send = (w, payload) => w.relay.handle({ potId: "pot1", ...payload });
 
@@ -71,7 +82,7 @@ const send = (w, payload) => w.relay.handle({ potId: "pot1", ...payload });
 {
   const w = world();
   eq((await send(w, { op: "flip", cardId: "planted", requestUserId: "anna" })).reason, REFUSAL.notInPot, "a planted Card is ignored");
-  eq((await send(w, { op: "flip", cardId: "a", requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat outside the audience");
+  eq((await send(w, { op: "flip", cardId: "a", requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat with no level on the pile");
   eq((await send(world({ pot: { flippers: ["ben"] } }), { op: "flip", cardId: "a", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seat not in flippers");
   eq((await send(w, { op: "flip", cardId: "a", requestUserId: "nobody" })).reason, REFUSAL.noUser, "an unknown sender");
   eq((await send(w, { op: "flip", cardId: "a", requestUserId: "anna", potId: "other" })).reason, REFUSAL.noPot, "an unknown pot");
@@ -135,6 +146,34 @@ const send = (w, payload) => w.relay.handle({ potId: "pot1", ...payload });
   const results = [await a, await b];
   eq(results.filter((r) => r.ok).length, 1, "only one of two simultaneous claims lands");
   eq(w.log.delivered.length, 1);
+}
+
+/* --- a seat is its level on the pile, read when it acts --- */
+{
+  // LIMITED on the pile admits a seat the audience copy never named, on flip and claim.
+  const w = world({ levels: { anna: LIMITED, ben: LIMITED, out: LIMITED } });
+  ok((await send(w, { op: "flip", cardId: "a", requestUserId: "out" })).ok, "a seat holding LIMITED that is not in the audience copy flips");
+  ok((await send(w, { op: "claim", cardId: "b", actorUuid: "Actor.npc", requestUserId: "out" })).reason === REFUSAL.notOwner, "and reaches the next guard on a claim");
+
+  // NONE on the pile refuses a seat the audience copy still names, on every op.
+  const n = world({ levels: { anna: NONE, ben: LIMITED } });
+  eq((await send(n, { op: "flip", cardId: "a", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seat in the audience copy whose level is NONE is refused a flip");
+  eq((await send(n, { op: "claim", cardId: "b", actorUuid: "Actor.cleo", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "and a claim");
+  eq((await send(n, { op: "grab", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "and a Quick grab");
+  eq(n.log.flips.length + n.log.claims.length + n.log.delivered.length, 0, "nothing was written");
+
+  // The level is read at each act: a seat set to None after one turn is refused the next.
+  const m = world();
+  ok((await send(m, { op: "flip", cardId: "a", requestUserId: "ben" })).ok, "a seated seat flips");
+  m.levels.ben = NONE;
+  eq((await send(m, { op: "claim", cardId: "b", actorUuid: "Actor.dina", requestUserId: "ben" })).reason, REFUSAL.notAllowed, "the same seat set to None afterwards is refused");
+  m.levels.ben = OBSERVER;
+  ok((await send(m, { op: "claim", cardId: "b", actorUuid: "Actor.dina", requestUserId: "ben" })).ok, "and admitted again at a higher level");
+
+  // A Judge is seated on every pile, and a Judge's own call (no attested sender) too.
+  const g = world({ levels: {} });
+  ok((await send(g, { op: "flip", cardId: "a", requestUserId: "gm" })).ok, "a Judge flips with no level in the table");
+  ok((await send(g, { op: "claim", cardId: "b", actorUuid: "Actor.npc" })).ok, "a Judge's own call claims");
 }
 
 console.log(`test-treasure-relay: ${checks} checks passed`);

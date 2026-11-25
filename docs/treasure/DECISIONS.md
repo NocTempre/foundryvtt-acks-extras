@@ -694,3 +694,30 @@ previous-version data). The picker lists only the imported table of the pot's
 current style, and a count stops at 99. **Counter (weak):** a by-hand hoard needs
 two presses (open the picker, pick) where a typed letter needed one field; the
 list shows what will be dealt, which the field never did.
+
+## 2026-11-25 — A seat is its LIMITED on the pile, read when it acts
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". And, on T-0793: "In either case the approach is follow
+foundry permissions, don't invent new ones." The relay's seat test was a copy
+this module wrote once: `pot.audience`, the user ids `openPot` gave LIMITED at
+the opening. It is now Foundry's own test, `pile.testUserPermission(sender,
+"LIMITED")`, read when the act arrives (the relay's `seated` dep, which
+`planFlip`, `planClaim` and `mayStartGrab` take as a flag). A Judge passes it on
+every pile, so the Judge's act is as it was. A seat a Judge sets to None after
+the opening is refused, and a seat given LIMITED afterwards is admitted; the
+copy answered the opposite way for both. `mayGrab`, which decides whether the
+window offers Quick grab, reads the same test, so the button and the relay
+agree. The 2026-11-17 entry "A seat gets LIMITED, never OWNER" stands: this
+reads the level that entry grants and grants nothing. `audience` stays a field,
+the opening's record of whom it gave LIMITED to, and nothing migrates. LIMITED
+is sight of the window and gives no sight of a card's truth: every projection
+that hides a truth (`cardView`, `seatCards`) is untouched, so what a Judge
+keeps hidden stays hidden. **Counter (moderate):** the relay now reads Foundry
+state on the Judge's client at each act, where the copy was a field already in
+the view; the read is one permission test on a document already in memory, and
+a Judge who edits Configure Ownership by hand now changes who may act, which is
+the rule asked for. **Rejected:** keeping the copy and refreshing it on an
+ownership change, since a second record of a level Foundry already holds goes
+stale in exactly the cases that prompted this.

@@ -564,7 +564,7 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   const { default: PotSheet } = await import("../scripts/treasure/pot-sheet.mjs");
   const potWith = (truths, deal = {}) => {
     const cards = truths.map((t, i) => ({ id: `c${i}`, face: null, value: 0, flags: { [MODULE_ID]: { [CARD_FLAG]: t } } }));
-    return { id: "pot9", documentName: "Cards", type: "pile", flags: { [MODULE_ID]: { [POT_FLAG]: { phase: PHASE.staging, order: cards.map((c) => c.id), deal } } }, cards: { contents: cards, get: (id) => cards.find((c) => c.id === id) } };
+    return { id: "pot9", documentName: "Cards", type: "pile", testUserPermission: (user) => !!user?.isGM, flags: { [MODULE_ID]: { [POT_FLAG]: { phase: PHASE.staging, order: cards.map((c) => c.id), deal } } }, cards: { contents: cards, get: (id) => cards.find((c) => c.id === id) } };
   };
   const contextOf = async (pile, { gm = true } = {}) => {
     seatedPile = pile;

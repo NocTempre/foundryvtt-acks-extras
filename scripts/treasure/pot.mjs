@@ -463,7 +463,7 @@ const actorOf = (uuid) => {
 export function mayGrab(pile, user) {
   const figures = partyFigures(pile);
   const ownsMember = ownsAnyMember(figures?.members, (uuid) => !!actorOf(uuid)?.testUserPermission(user, "OWNER"));
-  return mayStartGrab(potOf(pile), { sender: user, ownsMember });
+  return mayStartGrab({ sender: user, ownsMember, seated: !!pile.testUserPermission(user, "LIMITED") });
 }
 
 /** The relay over the world's documents (`pot-relay.mjs` holds the rules). */
@@ -478,6 +478,7 @@ export function createPotRelay() {
     writeFlip: async (id, update) => {
       await findPot(id)?.updateEmbeddedDocuments("Card", [update]);
     },
+    seated: (id, user) => !!findPot(id)?.testUserPermission(user, "LIMITED"),
     owns: (user, uuid) => !!actorOf(uuid)?.testUserPermission(user, "OWNER"),
     hasActor: (uuid) => !!actorOf(uuid),
     ownedByTable: (uuid) => {

@@ -256,12 +256,12 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   eq(L.haulOf(L.seatCards(up).map((c) => L.cardView(c, { isGM: false }))).totalGp, 2, "the haul a player reads counts found lots only");
 
   const hidden = view([card("a", { lot: "x/1", found: false })], { audience: ["p1"] });
-  eq(L.planFlip(hidden, "a", { sender: player }).reason, REFUSAL.notInPot, "a player cannot turn an unfound lot");
-  eq(L.planFlip(hidden, "a", { sender: judge }).reason, REFUSAL.notInPot, "nor can the Judge, until it is found");
-  eq(L.planFlip(L.planFound(hidden, ["x/1"]).view, "a", { sender: player }).ok, true, "once found, it turns");
+  eq(L.planFlip(hidden, "a", { sender: player, seated: true }).reason, REFUSAL.notInPot, "a player cannot turn an unfound lot");
+  eq(L.planFlip(hidden, "a", { sender: judge, seated: true }).reason, REFUSAL.notInPot, "nor can the Judge, until it is found");
+  eq(L.planFlip(L.planFound(hidden, ["x/1"]).view, "a", { sender: player, seated: true }).ok, true, "once found, it turns");
   const seen = view([card("a", { found: false }, 0)], { audience: [] });
-  eq(L.planClaim(seen, "a", { sender: judge, hasTarget: true, owns: true, ownedByTable: true }).reason, REFUSAL.notInPot, "an unfound lot cannot be claimed even if its face is up");
-  ok(L.planClaim(view([card("a", {}, 0)]), "a", { sender: judge, hasTarget: true, owns: true, ownedByTable: true }).ok, "a lot with no mark is claimed as before");
+  eq(L.planClaim(seen, "a", { sender: judge, seated: true, hasTarget: true, owns: true, ownedByTable: true }).reason, REFUSAL.notInPot, "an unfound lot cannot be claimed even if its face is up");
+  ok(L.planClaim(view([card("a", {}, 0)]), "a", { sender: judge, seated: true, hasTarget: true, owns: true, ownedByTable: true }).ok, "a lot with no mark is claimed as before");
   eq(grabLots(view([card("a", { found: false }, 0), card("b", {}, 0)])).map((l) => l.id), ["b"], "a grab offers found lots only");
 
   const closing = L.planClose(view([card("a", { found: false, label: "Hidden" }, 0), card("b", { label: "Seen" }, 0)]));

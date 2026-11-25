@@ -138,23 +138,25 @@ const view = (cards, pot = {}) => ({
 /* --- planFlip --- */
 {
   const v = view([card("a"), card("planted")], { order: ["a"] });
-  const good = planFlip(v, "a", { sender: ANNA });
+  const good = planFlip(v, "a", { sender: ANNA, seated: true });
   ok(good.ok && good.update.face === 0, "a seated player flips a face-down card");
-  eq(planFlip(v, "planted", { sender: ANNA }).reason, REFUSAL.notInPot, "a planted card is refused");
-  eq(planFlip(view([card("a")], { phase: PHASE.staging }), "a", { sender: ANNA }).reason, REFUSAL.phase, "no flip while staging");
-  eq(planFlip(view([card("a")], { phase: PHASE.staging }), "a", { sender: GM }).reason, REFUSAL.phase, "not even the Judge's");
-  eq(planFlip(view([card("a")], { phase: PHASE.closed }), "a", { sender: ANNA }).reason, REFUSAL.phase, "no flip once closed");
-  eq(planFlip(view([card("a")], { audience: [BEN.id] }), "a", { sender: ANNA }).reason, REFUSAL.notAllowed, "a seat outside the audience");
-  eq(planFlip(view([card("a")], { flippers: [BEN.id] }), "a", { sender: ANNA }).reason, REFUSAL.notAllowed, "a seat not among the flippers");
-  ok(planFlip(view([card("a")], { flippers: [BEN.id] }), "a", { sender: GM }).ok, "the Judge turns regardless of the flippers list");
-  eq(planFlip(view([card("a", {}, 0)]), "a", { sender: ANNA }).reason, REFUSAL.alreadyUp, "a turned card is not turned again");
-  eq(planFlip(null, "a", { sender: ANNA }).reason, REFUSAL.noPot);
+  eq(planFlip(v, "planted", { sender: ANNA, seated: true }).reason, REFUSAL.notInPot, "a planted card is refused");
+  eq(planFlip(view([card("a")], { phase: PHASE.staging }), "a", { sender: ANNA, seated: true }).reason, REFUSAL.phase, "no flip while staging");
+  eq(planFlip(view([card("a")], { phase: PHASE.staging }), "a", { sender: GM, seated: true }).reason, REFUSAL.phase, "not even the Judge's");
+  eq(planFlip(view([card("a")], { phase: PHASE.closed }), "a", { sender: ANNA, seated: true }).reason, REFUSAL.phase, "no flip once closed");
+  eq(planFlip(view([card("a")]), "a", { sender: ANNA, seated: false }).reason, REFUSAL.notAllowed, "a seat with no LIMITED on the pile, though it sits in the audience copy");
+  ok(planFlip(view([card("a")], { audience: [BEN.id] }), "a", { sender: ANNA, seated: true }).ok, "a seat with LIMITED on the pile, though it is not in the audience copy");
+  ok(planFlip(view([card("a")], { audience: [] }), "a", { sender: GM, seated: true }).ok, "the Judge, whom Foundry answers LIMITED for on every pile, is admitted");
+  eq(planFlip(view([card("a")], { flippers: [BEN.id] }), "a", { sender: ANNA, seated: true }).reason, REFUSAL.notAllowed, "a seat not among the flippers");
+  ok(planFlip(view([card("a")], { flippers: [BEN.id] }), "a", { sender: GM, seated: true }).ok, "the Judge turns regardless of the flippers list");
+  eq(planFlip(view([card("a", {}, 0)]), "a", { sender: ANNA, seated: true }).reason, REFUSAL.alreadyUp, "a turned card is not turned again");
+  eq(planFlip(null, "a", { sender: ANNA, seated: true }).reason, REFUSAL.noPot);
 }
 
 /* --- planClaim --- */
 {
   const up = card("a", {}, 0);
-  const mine = { sender: ANNA, hasTarget: true, owns: true, ownedByTable: true };
+  const mine = { sender: ANNA, seated: true, hasTarget: true, owns: true, ownedByTable: true };
   ok(planClaim(view([up]), "a", mine).ok, "a seated player claims a turned card onto their actor");
   eq(planClaim(view([up]), "a", { ...mine, owns: false }).reason, REFUSAL.notOwner, "an actor the sender does not own is refused");
   eq(planClaim(view([up]), "a", { ...mine, hasTarget: false, owns: false }).reason, REFUSAL.noTarget);
@@ -163,10 +165,11 @@ const view = (cards, pot = {}) => ({
   eq(planClaim(view([up], { order: [] }), "a", mine).reason, REFUSAL.notInPot, "a card not in order is ignored");
   eq(planClaim(view([up], { phase: PHASE.staging }), "a", mine).reason, REFUSAL.phase);
   eq(planClaim(view([up], { phase: PHASE.closed }), "a", mine).reason, REFUSAL.phase);
-  eq(planClaim(view([up], { audience: [] }), "a", mine).reason, REFUSAL.notAllowed);
-  const judge = planClaim(view([up]), "a", { sender: GM, hasTarget: true, owns: true, ownedByTable: false });
+  eq(planClaim(view([up]), "a", { ...mine, seated: false }).reason, REFUSAL.notAllowed, "a seat with no LIMITED on the pile, though it sits in the audience copy");
+  ok(planClaim(view([up], { audience: [] }), "a", mine).ok, "a seat with LIMITED on the pile, though it is not in the audience copy");
+  const judge = planClaim(view([up]), "a", { sender: GM, seated: true, hasTarget: true, owns: true, ownedByTable: false });
   ok(judge.ok && judge.warn, "the Judge may give to any actor, with a warning for one no seat owns");
-  ok(!planClaim(view([up]), "a", { sender: GM, hasTarget: true, owns: true, ownedByTable: true }).warn, "no warning for a table's own actor");
+  ok(!planClaim(view([up]), "a", { sender: GM, seated: true, hasTarget: true, owns: true, ownedByTable: true }).warn, "no warning for a table's own actor");
 }
 
 /* --- staging, open and close --- */
@@ -667,8 +670,8 @@ const planOf = (seeds, lots) => planReplace({ seeds: seeds.map((w, i) => ({ id: 
   eq(opened.audit[0].lines, [{ seed: "s", lots: ["a"], overGp: 150, shortGp: null }]);
 
   const live = { ...v, pot: opened.flag, cards: v.cards.map((c) => (c.id === "a" ? c : { ...c })) };
-  eq(planClaim(live, "a", { sender: GM, hasTarget: true, owns: true, ownedByTable: true }).reason, REFUSAL.notInPot, "a struck lot is never claimed");
-  eq(planFlip(live, "a", { sender: ANNA }).reason, REFUSAL.notInPot, "and never turned");
+  eq(planClaim(live, "a", { sender: GM, seated: true, hasTarget: true, owns: true, ownedByTable: true }).reason, REFUSAL.notInPot, "a struck lot is never claimed");
+  eq(planFlip(live, "a", { sender: ANNA, seated: true }).reason, REFUSAL.notInPot, "and never turned");
   ok(!potCards(live).some((c) => c.id === "a"), "and never listed in the pot");
   const closed = planClose(live);
   ok(!closed.left.some((c) => c.id === "a"), "a struck lot is not left over when the pot closes");

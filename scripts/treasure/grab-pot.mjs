@@ -65,28 +65,27 @@ export const ownsAnyMember = (members, owns) => (Array.isArray(members) ? member
 
 /**
  * Whether a seat may start a grab on a pot: the Judge always, any other seat
- * only when the pot opened to it and it owns at least one member of the pot's
+ * only when it is seated at the pot and owns at least one member of the pot's
  * party. The party's own players share out one load; an observer or a player
  * outside the party has no part in it.
- * @param {{audience: string[]}} pot a normalized pot
- * @param {{sender: {id?: string, isGM?: boolean}, ownsMember: boolean}} who `ownsMember` is `ownsAnyMember` over the pot's party
+ * @param {{sender: {id?: string, isGM?: boolean}, ownsMember: boolean, seated: boolean}} who `ownsMember` is `ownsAnyMember` over the pot's party; `seated` is the sender's LIMITED or better on the pile, read by the caller when the act arrives
  * @returns {boolean}
  */
-export const mayStartGrab = (pot, { sender, ownsMember }) => !!sender?.isGM || (!!ownsMember && !!pot?.audience?.includes(sender?.id));
+export const mayStartGrab = ({ sender, ownsMember, seated }) => !!sender?.isGM || (!!ownsMember && !!seated);
 
 /**
  * Whether `sender` may start a grab on this pot and what it would plan over.
- * The pot must be open and the sender the Judge, or a seat the pot opened to
+ * The pot must be open and the sender the Judge, or a seat seated at the pot
  * that owns a member of the pot's party (`mayStartGrab`); a grab is not limited
  * to the characters the sender owns, since it shares the pot across the party.
  * @param {{pot: object, cards: object[]}|null} view a `PotView`
- * @param {{sender: object, ownsMember?: boolean, valueWeight6?: (valueGp: number) => number|null}} who `ownsMember`: the sender owns a member of the party, read by the caller; `valueWeight6` weighs a value card as `grabLots` reads it
+ * @param {{sender: object, ownsMember?: boolean, seated?: boolean, valueWeight6?: (valueGp: number) => number|null}} who `ownsMember`: the sender owns a member of the party, and `seated`: the sender holds LIMITED or better on the pile, both read by the caller; `valueWeight6` weighs a value card as `grabLots` reads it
  * @returns {{ok: true, lots: object[]}|{ok: false, reason: string}}
  */
-export function planGrabStart(view, { sender, ownsMember = false, valueWeight6 = null }) {
+export function planGrabStart(view, { sender, ownsMember = false, seated = false, valueWeight6 = null }) {
   if (!view) return { ok: false, reason: REFUSAL.noPot };
   if (view.pot.phase !== PHASE.open) return { ok: false, reason: REFUSAL.phase };
-  if (!mayStartGrab(view.pot, { sender, ownsMember })) return { ok: false, reason: REFUSAL.notAllowed };
+  if (!mayStartGrab({ sender, ownsMember, seated })) return { ok: false, reason: REFUSAL.notAllowed };
   const lots = grabLots(view, { valueWeight6 });
   if (!lots.length) return { ok: false, reason: REFUSAL.nothingToGrab };
   return { ok: true, lots };

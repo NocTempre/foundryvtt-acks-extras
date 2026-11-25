@@ -478,19 +478,22 @@ export function turnedOf(view) {
 /*  Acts a player asks for                       */
 /* -------------------------------------------- */
 
-/** Whether a sender may act on an open pot at all: a Judge, or a seat the pot opened to. */
-const seated = (pot, sender) => !!sender?.isGM || pot.audience.includes(sender?.id);
-
 /**
- * Turn a card. Refused unless the pot is open, the sender is the Judge or a
- * seat in the audience that may flip, and the card is in `order` and face down.
+ * Turn a card. Refused unless the pot is open, the sender is seated, the
+ * sender is the Judge or a seat that may flip, and the card is in `order` and
+ * face down. `seated` is Foundry's own answer, read by the caller when the act
+ * arrives: the sender holds LIMITED or better on the pile, which a Judge always
+ * does.
+ * @param {object} view
+ * @param {string} cardId
+ * @param {{sender: object, seated: boolean}} ctx
  * @returns {{ok: true, card: object, update: object}|{ok: false, reason: string}}
  */
-export function planFlip(view, cardId, { sender }) {
+export function planFlip(view, cardId, { sender, seated }) {
   if (!view) return refuse(REFUSAL.noPot);
   const { pot } = view;
   if (pot.phase !== PHASE.open) return refuse(REFUSAL.phase);
-  if (!seated(pot, sender)) return refuse(REFUSAL.notAllowed);
+  if (!seated) return refuse(REFUSAL.notAllowed);
   if (!sender.isGM && pot.flippers && !pot.flippers.includes(sender.id)) return refuse(REFUSAL.notAllowed);
   const card = cardInPot(view, cardId);
   if (!card || !isFound(card)) return refuse(REFUSAL.notInPot);
@@ -499,20 +502,20 @@ export function planFlip(view, cardId, { sender }) {
 }
 
 /**
- * Take a card onto an actor. Refused unless the pot is open, the sender is the
- * Judge or in the audience, the card is in `order`, turned and unclaimed, the
+ * Take a card onto an actor. Refused unless the pot is open, the sender is
+ * seated (`planFlip`), the card is in `order`, turned and unclaimed, the
  * target exists, and a player owns it. A Judge may give to any actor; `warn`
  * says the actor is one no seat at the table owns.
  * @param {object} view
  * @param {string} cardId
- * @param {{sender: object, hasTarget: boolean, owns: boolean, ownedByTable: boolean}} ctx
+ * @param {{sender: object, seated: boolean, hasTarget: boolean, owns: boolean, ownedByTable: boolean}} ctx
  * @returns {{ok: true, card: object, warn: boolean}|{ok: false, reason: string}}
  */
-export function planClaim(view, cardId, { sender, hasTarget, owns, ownedByTable }) {
+export function planClaim(view, cardId, { sender, seated, hasTarget, owns, ownedByTable }) {
   if (!view) return refuse(REFUSAL.noPot);
   const { pot } = view;
   if (pot.phase !== PHASE.open) return refuse(REFUSAL.phase);
-  if (!seated(pot, sender)) return refuse(REFUSAL.notAllowed);
+  if (!seated) return refuse(REFUSAL.notAllowed);
   const card = cardInPot(view, cardId);
   if (!card || !isFound(card)) return refuse(REFUSAL.notInPot);
   if (!isUp(card)) return refuse(REFUSAL.faceDown);
