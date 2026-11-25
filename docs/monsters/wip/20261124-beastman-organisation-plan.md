@@ -1863,7 +1863,9 @@ board's rendering. Released: none.
 the owner's statements verbatim and sent each later one as it came, the drop
 of re-roll last. Its report replaces the two earlier `architect` entries
 wherever they differ, and what it does not restate stands. Nothing here is
-the owner's until the owner says so. It cites symbols, not lines.
+the owner's until the owner says so. It cites symbols, not lines. Its
+rulings 2, 3 and 4 and its adoption ask are replaced by "The owner's
+corrections, and the audit" below; rulings 1, 5 and 6 stand as changed there.
 
 Its restatement of the owner's words, each with its example:
 
@@ -2060,6 +2062,140 @@ whether every imported leader morale figure fits the bonus field's declared
 range; the stale stored roster figure beyond its write at row creation;
 whether core deletes a body's combatant with its token; an edited prototype
 under a deployed body's delta; any board's rendering. Released: none.
+
+### The owner's corrections, and the audit against the book, Foundry and the shipped code, 2026-11-24
+
+Shown the four adoption points above, the owner wrote:
+
+"1) Group initiative is a foundry feature
+2) this doesn't make sense
+3) no, RHIP
+4) lair is a location that can be a gang or a warband depending on the rng
+or selection
+
+Seriously, most of these questions reveal a lack of investigating foundry
+and RAW before designing"
+
+then: "I'm getting annoyed at the incompleteness, I've come to expect
+better. Not all of my criticisms were explictly aimed at the latest list"
+
+then: "Don't overcomplicate. A lair is just an encounter flag for size and
+loot when RNG generated"
+
+The words are the owner's. The fault they name is the design session's: it
+and its `architect`s designed first and read second, and put to the owner
+what a page, Foundry or this repo's own shipped code already answered. This
+entry is the reading, done over everything asked or proposed today and not
+only the four points.
+
+**Read:** MM pp. 47-57 (the six breed pages and the organisation pages); RR
+ch. 6, "Round and Initiative"; Foundry core 14, build 370, the combat
+documents and the tracker; the `acks` system's combat source at 14.2.0; lib
+groups, lair and place code, factions, and henchmen's hire of a unit.
+
+**1. A lair is the encounter's state, and it is shipped.**
+
+- *The page.* Each breed's encounter lines (MM pp. 47-53) name a unit for
+  each context and state: a gang, a warband or a village. The lair is the
+  state. No line yields warbands with no village over them.
+- *Shipped.* Lib reads `ecology.encounter[context][state]` as a unit and a
+  count (`group-encounter-logic.mjs` `lineReading`).
+  `rollEncounter(group, stackKey, {context, state})` takes the state or
+  throws the lair chance for it, and `lair.mjs` `rollLair(place, {context})`
+  rolls a place's lair.
+- *So.* Nothing in the data is named a lair. The generator's Roll takes the
+  shipped `context` and `state`. The state picks which unit is rolled and
+  whether treasure is dealt (coverage rows 19, 21 and 22), and the chart
+  then has that unit at its top like any other. Where a lair is rolled for
+  a place, the place is the location and the unit stands on its roster.
+- *Withdrawn:* `architect`'s ruling 2 (a lair's host group), board 1m's
+  point 2 (a roll with several warbands at its top), and "a lair roll" as a
+  kind of roll anywhere in this plan.
+
+**2. A leader is the unit's officer, an actor of its own, and it is
+shipped.**
+
+- *The owner:* "no, RHIP". Read as, and marked as a reading: rank has its
+  privileges, so a leader is no row of bodies inside its unit's group. It
+  is an individual, with a card of its own at the head of its unit.
+- *The page.* MM pp. 47-57 give each unit one leader with its own figures.
+  By its rank a leader has its own chances to carry gear, a mount when its
+  unit rides, and the role of its unit.
+- *Shipped.* A group already names its commanding officer:
+  `unit.officerUuid`, "a lone leveled actor, not a stack"
+  (`lib/data/group-data.mjs`), with `officerMoraleBonus` and `officerLevel`
+  cached beside it and written today by `henchmen/engine/hire-group.mjs`. A
+  faction names its `leaderUuid`. The owner's "expanding into leader cards
+  with their gangs" and board 1l's Follower Card said the same.
+- *So.* A unit's leader is one actor, named by its unit group's
+  `unit.officerUuid`; a village's chieftain is also the faction's
+  `leaderUuid`. Example: Gang 1's champion is an actor with its own sheet
+  and kit. Gang 1's group holds the warriors as a stack and names the
+  champion as its officer. The chart's card shows the champion's head with
+  the gang's count under it.
+- *Withdrawn:* `unit.officerStackKey`, and `architect`'s ruling 3.
+- *To re-read, not ruled here:* coverage rows 11 and 24 and section 2b speak
+  of leader stacks, and `fixedHp` on a stack was needed only because a
+  leader was a stack. Not checked: what else reads a group's officer.
+
+**3. Group initiative is the system's feature, and the module calls it.**
+
+- *The owner:* "Group initiative is a foundry feature", "this doesn't make
+  sense".
+- *The page.* RR ch. 6, "Round and Initiative", leaves rolling once for a
+  group of like monsters to the Judge.
+- *Foundry core 14.* A combat holds `CombatantGroup` documents, and a
+  combatant in one takes its group's initiative
+  (`Combatant#_prepareGroup`). Core's tracker draws nothing for a group, and
+  the `acks` system does not use the document.
+- *The `acks` system.* What a Judge has in the tracker: a control that
+  groups the selected tokens (`combat.manageGroup(tokens)`), one roll for
+  each group in `rollInitiative`, and a group mark beside each name. Lib
+  already reads those groups (`patches/initiative-card.mjs`).
+- *So.* The module builds no grouping and writes no list. When lib puts a
+  group's bodies into a combat, it makes the call the tracker's control
+  makes, for those bodies, and the Judge regroups with that same control.
+  It is one path with no condition on which group, since a gang is a group
+  and the feature draws no line between them (a reading).
+- *The system's two defects* are the system's, for the core repair plan,
+  and no reason to write beside it: T-0734 (a second group overwrites the
+  first's bonus, confirmed by reading) and T-0735 (the write is not
+  awaited; the dropped group is inferred).
+- *Of lib DECISIONS 2026-08-24*, only the rejection of auto-grouping is
+  superseded, on the owner's "gangs should automatically join combat as
+  groups for group initiative". Its note on the system's namespace stands.
+- *Withdrawn:* `architect`'s write of the system's list, its scope ruling,
+  and the tie key in `turn-order.mjs`, which is built only if a live walk
+  shows two groups on one total interleaving.
+
+**4. Asked today, and already answered where the design session did not
+look.**
+
+| Put to the owner, or invented | Where the answer stood |
+|---|---|
+| Does a warband's token bring every body into a combat | lib DECISIONS 2026-11-03, "A group token in a combat deploys the whole group" |
+| Confirm, a setup state, and what an unrolled part is | the open language slot (`docs/classes/MODEL.md`, "Languages"), which the owner pointed at |
+| A lair's host; several warbands with no village | the breed pages' encounter lines, and lib's shipped `state` |
+| Where a leader is held | `unit.officerUuid`, shipped |
+| How gangs share initiative, and for which groups | the system's tracker control, and RR ch. 6 |
+
+**What stands of "Architect, consolidated".** Ruling 1 (one chart shape on
+a faction or on a root group, `kind`, `gen`, `orgHostOf`, join and leave, a
+Roll writes at once), ruling 5, and ruling 6's verbs and refusals. The
+slices change in three places:
+
+- S10a: the leader is the shipped officer field, so `officerStackKey` goes.
+- S10b: the morale reader walks ancestors' officers. The page gives the
+  morale part to the chieftain alone, and the walk is what carries it to a
+  gang.
+- S10d: the call to the system's control when a group's bodies join, the
+  absorbing of a gang already in that combat, and the lib DECISIONS entry.
+  No list of the module's, and no tie key.
+
+Canvas 1's board 1m point 2 now reads as answered. Still the owner's, and
+no design question: the word that adopts the shape as corrected and
+releases its slices. Not checked: anything live; any board's rendering.
+Released: none.
 
 ### Phase 1, 2026-11-24
 
