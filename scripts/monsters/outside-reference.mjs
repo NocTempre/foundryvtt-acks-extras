@@ -32,7 +32,7 @@ export const REFERENCE = Object.freeze({
 });
 
 /** A token's singular: ves, ies and the sibilant plurals, then a bare s. Applied to both sides of a match, so an over-reach folds alike. */
-const singular = (w) => w.replace(/ves$/, "f").replace(/(ch|sh|x|ss)es$/, "$1").replace(/ies$/, "y").replace(/([^s])s$/, "$1");
+export const singular = (w) => w.replace(/ves$/, "f").replace(/(ch|sh|x|ss)es$/, "$1").replace(/ies$/, "y").replace(/([^s])s$/, "$1");
 
 /**
  * The sorted singular tokens of a printed word or an entry's name, qualifiers
