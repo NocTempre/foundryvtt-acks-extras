@@ -81,6 +81,9 @@ export function summonRowOf(entries, { scene }) {
   };
 }
 
+/** One list as the Magic tab names it: its label, then the level the spell stands at under it where one is known. */
+const listShown = (l) => (l.level == null ? l.label : `${l.label} ${l.level}`);
+
 /**
  * The words of a spell row's lists line and its tooltip, from one appearance
  * `spellStanding` gave: under a heading, its own list then "also" the others;
@@ -94,10 +97,9 @@ export function summonRowOf(entries, { scene }) {
  */
 export function listsLineOf(entry, cite = "") {
   if (!entry.lists.length) return null;
-  const shown = (l) => (l.level == null ? l.label : `${l.label} ${l.level}`);
   const text = entry.own
-    ? [shown(entry.own), entry.also.length ? loc("magic.listsAlso", { lists: entry.also.map(shown).join(", ") }) : ""].filter(Boolean).join(" · ")
-    : entry.lists.map(shown).join(" · ");
+    ? [listShown(entry.own), entry.also.length ? loc("magic.listsAlso", { lists: entry.also.map(listShown).join(", ") }) : ""].filter(Boolean).join(" · ")
+    : entry.lists.map(listShown).join(" · ");
   const tip = entry.lists.every((l) => l.fromClass) ? loc("magic.listsTipClass") : cite ? loc("magic.listsTipCite", { cite }) : loc("magic.listsTip");
   return { text, tip };
 }
@@ -119,18 +121,25 @@ export function pipsOf({ used, max }, { label, level }) {
   }));
 }
 
-/** Build the tab's data. */
-export function buildMagicTab(actor) {
+/**
+ * What the Magic tab reads of a caster before it draws a row, shared with every
+ * surface that offers a spell by the tab's own words: the class the caster is
+ * bound to, its pools, where each spell stands (`spellStanding`), and the
+ * builders that read them: `gateOf` is the verdict a list raises against a cast
+ * (`listGate`, blocking a seat that is not a GM and warning one that is),
+ * `gateFor` applies it to a row (none in levels mode, none where a declared cast
+ * already spent the slot), `declaredOf` finds that declaration, `provenance`
+ * picks a tooltip's plain or cited form from the class document's own citation,
+ * and `slotTip` is a slot row's tooltip.
+ *
+ * @param {Actor} actor
+ * @param {{isGM?: boolean}} [seat]  whether the viewing seat is a GM
+ */
+export function magicStanding(actor, { isGM = false } = {}) {
   const sys = actor.system ?? {};
   // The slot maximum is an input: it renders the stored value, which a submit writes back.
   const stored = storedSystem(actor);
   const spells = actor.items.filter((i) => i.type === ITEM_TYPE.spell);
-  const scene = currentScene();
-  const standing = standingBySpell(summonsOnScene(actor, scene));
-  const summonOf = (spell) => {
-    if (!isSummonSpell(spell)) return null;
-    return summonRowOf(standing.get(spell.id) ?? [], { scene });
-  };
   const records = [...(actor.effects ?? [])].map((effect) => spellEffectOf(effect)).filter((record) => record?.pending);
   const combatOf = (id) => (id ? (game.combats?.get(id) ?? null) : null);
   const classItem = classForActor(actor);
@@ -152,7 +161,6 @@ export function buildMagicTab(actor) {
   });
   const casting = classItem?.system?.casting ?? [];
   const castsAt = (level) => spells.filter((s) => Number(s.system?.lvl) === level).reduce((sum, s) => sum + (Number(s.system?.cast) || 0), 0);
-  const isGM = game.user?.isGM === true;
   /**
    * What a list raises against this row's cast before the press: the spell is
    * on no list the class casts from, or the list the row stands under has no
@@ -176,17 +184,70 @@ export function buildMagicTab(actor) {
     const blocked = found.severity === "block";
     return { key: found.key, blocked, text: game.i18n.format(`${MAGIC_LANG}.cast.notice.${blocked ? "blocked" : "verdict"}.${found.key}`, {}) };
   };
+  /** The cast a spell has declared and waiting for the caster's turn (`declaredRowOf`), or null. */
+  const declaredOf = (spell) => declaredRowOf(records, spell, { name: actor.name, combatOf });
   /**
-   * One spell row, for either mode: `entry` is what `spellStanding` gave for its
+   * A row's gate, for either mode: `entry` is what `spellStanding` gave for its
    * appearance and `tradition` the key of the list it stands under (none under
-   * "Other spells" and in levels mode). A row carries a gate only where the class
-   * casts from lists, and a spell with a cast declared and waiting is exempt: its
-   * slot was spent at the declaring.
+   * "Other spells"). A row carries a gate only where the class casts from lists,
+   * and a spell with a cast declared and waiting is exempt: its slot was spent
+   * at the declaring.
    */
+  const gateFor = (entry, tradition = null, declared = declaredOf(entry.ref)) => (entry.lists && !declared ? gateOf(entry, tradition) : null);
+  const provenance = (stem, data) => (cite ? loc(`magic.${stem}Cite`, { ...data, cite }) : loc(`magic.${stem}`, data));
+  const className = classItem?.name ?? "";
+  return {
+    sys,
+    spells,
+    records,
+    combatOf,
+    classItem,
+    classLevel,
+    className,
+    pools,
+    stands,
+    gateOf,
+    gateFor,
+    declaredOf,
+    provenance,
+    slotTip: (slot) => provenance("slotsTip", { used: slot.used, max: slot.max, class: className, level: classLevel }),
+  };
+}
+
+/**
+ * The line a spell's offer reads under the Magic tab's own words, from one
+ * appearance `spellStanding` gave: the list it stands under and its level, with
+ * the tab's lists tooltip, and that level's slots, with the tab's slot tooltip.
+ * In levels mode (no list) the line names the spell's level and the slots are
+ * core's own grid, which has no tooltip of its own here. `slots` is null where
+ * the list keeps no slot row at that level (a points pool, a ladder).
+ *
+ * @param {ReturnType<typeof magicStanding>} standing
+ * @param {object} entry  one `spellStanding` appearance
+ * @param {{level: number, slot: {used: number, max: number}|null}} at  the level it stands at and its slot row there
+ * @returns {{list: {text: string, tip: string}, slots: {used: number, max: number, text: string, tip: string}|null}}
+ */
+export function standingLineOf(standing, entry, { level, slot }) {
+  const lists = entry.lists ? listsLineOf(entry, entry.ref.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "") : null;
+  const list = lists ? { text: entry.own ? listShown(entry.own) : lists.text, tip: lists.tip } : { text: `${game.i18n.localize("ACKS.spells.Level")} ${level}`, tip: "" };
+  const slots = slot ? { used: slot.used, max: slot.max, text: `${game.i18n.localize("ACKS.spells.Slots")} ${slot.used} / ${slot.max}`, tip: entry.lists ? standing.slotTip(slot) : "" } : null;
+  return { list, slots };
+}
+
+/** Build the tab's data. */
+export function buildMagicTab(actor) {
+  const { sys, spells, classLevel, className, pools, stands, gateFor, declaredOf, provenance, slotTip } = magicStanding(actor, { isGM: game.user?.isGM === true });
+  const scene = currentScene();
+  const standing = standingBySpell(summonsOnScene(actor, scene));
+  const summonOf = (spell) => {
+    if (!isSummonSpell(spell)) return null;
+    return summonRowOf(standing.get(spell.id) ?? [], { scene });
+  };
+  /** One spell row, for either mode: `entry` is what `spellStanding` gave for its appearance and `tradition` the key of the list it stands under (none under "Other spells" and in levels mode). */
   const rowOf = (entry, tradition = null) => {
     const spell = entry.ref;
     const lists = entry.lists ? listsLineOf(entry, spell.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "") : null;
-    const declared = declaredRowOf(records, spell, { name: actor.name, combatOf });
+    const declared = declaredOf(spell);
     return {
       id: spell.id,
       name: spell.name,
@@ -201,12 +262,10 @@ export function buildMagicTab(actor) {
       lists,
       offList: entry.offList === true,
       tradition: tradition ?? "",
-      gate: entry.lists && !declared ? gateOf(entry, tradition) : null,
+      gate: gateFor(entry, tradition, declared),
       countTip: loc("magic.castTip", { spell: spell.name }),
     };
   };
-  const provenance = (stem, data) => (cite ? loc(`magic.${stem}Cite`, { ...data, cite }) : loc(`magic.${stem}`, data));
-  const className = classItem?.name ?? "";
   return {
     enabled: !!sys.spells?.enabled || pools.length > 0,
     mode: stands.mode,
@@ -235,7 +294,7 @@ export function buildMagicTab(actor) {
           ? {
               used: l.slot.used,
               max: l.slot.max,
-              tip: provenance("slotsTip", { used: l.slot.used, max: l.slot.max, class: className, level: classLevel }),
+              tip: slotTip(l.slot),
               pips: pipsOf(l.slot, { label: g.label, level: l.level }),
               groupLabel: classesLoc("casting.pipsGroup", { list: g.label, level: l.level }),
             }

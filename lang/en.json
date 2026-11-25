@@ -2980,7 +2980,13 @@
       "downBadge": "Down (0 hp or less): carried, not walking — assign Carriers, or leave them behind to march on",
       "blindBadge": "Cannot see (darkness, no dark senses): moves at {share} of its speed (RR App. B, Blinded)",
       "blindBadgeCite": "RR App. B, Blinded",
-      "editImageHint": "Change the party's image (updates the actor, its prototype token, and the placed token)"
+      "editImageHint": "Change the party's image (updates the actor, its prototype token, and the placed token)",
+      "lightCastCaption": "Cast a light spell",
+      "lightCastPick": "Light spell and its caster",
+      "lightCastOption": "{spell} · {caster}, {tradition}",
+      "lightCastOptionBare": "{spell} · {caster}",
+      "lightCast": "Cast",
+      "lightCastSlotsCore": "Used {used} of {max}: the slot count on {caster}'s sheet for level {level}"
     },
     "sheet": {
       "party": "Party Formation Sheet"

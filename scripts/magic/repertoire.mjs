@@ -225,9 +225,14 @@ const spellFlagOf = (item) => item?.flags?.[MODULE_ID]?.[FLAG_SPELL];
  * (the spell is carried, not castable); any other matched tradition can, its
  * capacity unknown where it keeps no count (a points pool, a ladder rung, a
  * grid never imported); and with no tradition, core's own slot count at the
- * spell's level counts where core's spells block is on.
+ * spell's level counts where core's spells block is on. A spell on none of the
+ * class's lists has no tradition and no core grid read here, so it is not
+ * castable by this reading.
+ *
+ * @param {ReturnType<import("./cast-spell.mjs").castReading>} reading
+ * @param {boolean} coreOn  whether the actor's `system.spells.enabled` is on
  */
-function canCastNow(reading, coreOn) {
+export function canCastNow(reading, coreOn) {
   const { capacity } = reading;
   if (capacity.source === "tradition") return capacity.max > 0;
   if (reading.found) return true;
