@@ -281,9 +281,15 @@ itself where the agent re-delegates.
 | S9a | 2 | gear | implementer | E2 | yes | S7 |
 | S9b | 2 | gear | implementer | E5, E8 | no | S6b |
 | S9c | 2 | gear | implementer | E1, E6, E7 (E7 applies the figures read today) | no | S6b |
-| S10 | 3 | topic | implementer | Group schema, labelled stack, `fixedHp`, service contract, leader morale. Dependency half | no | — |
-| S11 | 3 | topic | implementer | `encounter-recipe.mjs` and `organisation-logic.mjs`, offline, mutation-checked | no | S5, S10 |
-| S12 | 3 | topic | implementer, then a live walk | Generate dialog, tree, re-roll/pin/edit, the Judges' card, the pot hand-off, `rollLair`; the p. 56 plate read by a register row of its own, as the generator's picture. Marker `lib/beastman-warband` | yes | S11 |
+| S10a | 3 | topic | implementer | **Released.** Lib groups: a group inside a group (`unit.parentGroupUuid`, its cycle guard, one walker); a group's count read live with its nested groups, an emptied group counting none (T-0732, T-0733); deploy, recall and placing walk nested groups; `stack.gen = {part, cite}` with the count's tooltip and a note in place of the per-monster Roll; a whispered warning when a stack with no base actor is sent to the map; the labelled stack, the service contract, and `fixedHp` for a stack whose part prints hit points. A unit's leader is the shipped `unit.officerUuid`, and no field is added for it. Accepted when the unit suites cover nesting, the guard and the counts, and a live walk shows an outer token deploying and recalling every nested body and an emptied group reading no bodies on its place and its faction | no | — |
+| S10b | 3 | topic | implementer | **Released.** The chart: `unitField` and `units` on factions and on groups, `org-tree-logic.mjs`, `orgHostOf`, the two view models, `org.mjs` (send out, recall, join, leave, add), the morale reader that walks ancestors' officers, the affiliation readers, `docs/lib/ORGANISATION.md`. Accepted when the tree and write-plan suites pass and a walk through the API adds a row on each kind of host, joins and leaves, sends out and recalls, and shows a chieftain's morale part reaching a gang and gone when the chieftain falls | no | S10a |
+| S10c | 3 | topic | implementer | **Released.** Henchmen's `serviceNodes(employer)`. Accepted when its nodes for an employer with henchmen and a hired unit match the cards the Followers tab shows | no | S10b |
+| S10d | 3 | topic | implementer | **Released.** A group's bodies joining a combat are grouped by the system's own tracker call; a gang already in that combat is absorbed; the lib DECISIONS entry. Nothing is written beside the system's feature. Accepted on a live walk: a warband's token puts every body in, each gang rolls once, and a gang already in the fight is one of its groups. The walk's first observation is whether a group rolls again each round | no | S10a, S10b |
+| S11 | 3 | topic | implementer | **Released.** `encounter-recipe.mjs` and `organisation-logic.mjs`; the Roll (one level, or all below), Add and Edit plans in `lib/org-write-logic.mjs`; the Roll takes lib's shipped `context` and `state`, and nothing is named a lair; section 4, answer 6. Offline, mutation-checked | no | S5, S10a to S10c |
+| S11b | 3 | topic | implementer | Held for canvas 1. The provider, shared prototypes, library stacks for other creatures, leaders made as actors and named as officers, the Judges' card for each Roll (board 1e), Delete, the pot hand-off. Walked through the API. Marker `monsters/beastman-village` | yes, its card | S11 |
+| S11c | 3 | topic | implementer | Held for canvas 1. Join, leave and make-its-own gestures (board 1m) | yes | S11b |
+| S12 | 3 | topic | implementer, then a live walk | Held for canvas 1. The tree and the Locations rows on the faction sheet and the root group's sheet; Roll, Add and Edit; nested rows; the p. 56 plate read by a register row of its own, as the generator's picture. Marker `lib/beastman-warband` | yes | S11b |
+| S12b | 3 | topic | implementer, then a live walk | Held for canvas 1. The Followers tab's views over `serviceNodes` (board 1l) | yes | S10c, S12 |
 | S13 | 4 | topic | implementer | Kit bundles minted; Kit option `ref` | no | S5 |
 | S14 | 4 | topic | implementer, then a live walk | Three scopes, random kit, custom fieldset. Marker `monsters/beastman-kits` | yes | S13, S12 |
 
@@ -2197,6 +2203,35 @@ no design question: the word that adopts the shape as corrected and
 releases its slices. Not checked: anything live; any board's rendering.
 Released: none.
 
+### The owner adopts the shape as corrected, 2026-11-24
+
+Asked "Adopt the data shape as corrected and release slices S10a to S11?",
+with the one button "Adopt as corrected", the owner chose:
+
+"Adopt as corrected"
+
+The words are the button's; the choice is the owner's. Adopted: rulings 1,
+5 and 6 of "Architect, consolidated" as changed by "The owner's corrections,
+and the audit". Example: Gang 1 is a group whose officer is its champion, an
+actor of its own. In a village its row sits on the faction card under
+Warband 1. Rolled as a dungeon's lair, the same shape is a warband's group
+with its gangs' groups inside it and no faction card, and nothing in it is
+named a lair. Its token joins a combat, every body goes in, and each gang is
+grouped by the system's own tracker call.
+
+**Released: S10a, S10b, S10c, S10d and S11.** Section 3's rows S10 to S12
+are rewritten as S10a to S12b with each slice's acceptance, and phase 3's
+start prompt is no longer held.
+
+Not released, and waiting on the owner's go-ahead on canvas 1 as redrawn:
+S11b (its Judges' card is board 1e's, and it was not in the question), S11c,
+S12 and S12b. Still waiting on their own canvases: S14 (canvas 2), S4b
+(canvas 3), S8 and S9a (canvas 4).
+
+Left as it was, for the phase 3 session to re-read against ruling 2 of the
+corrections: coverage rows 11 and 24 and section 2b, which speak of leader
+stacks. Not checked: anything live; any board's rendering.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
@@ -2431,22 +2466,32 @@ design) and S8b (design); S9a needs S8.
 > and report every commit by sha and "not pushed". The book is
 > `C:\Proj\acks-reference\Snips\MM_Beastmen.pdf` (LOCAL-ONLY).
 
-### Start prompt, phase 3 — HELD
+### Start prompt, phase 3
 
-Held until both are true: the owner has accepted the re-rule of `architect`'s
-A, C, F and G that the planning session records above as proposed, and has
-answered question 2 of "The owner on the two cards" (a wandering warband or a
-lair roll and a faction card of its own). Section 3's rows S10 to S12 are
-rewritten on that ruling before this prompt runs.
+Both holds are lifted: the owner adopted the data shape ("The owner adopts
+the shape as corrected", Results) and answered the question of a roll with
+no village ("The owner on a roll with no village"). Section 3's rows S10 to
+S12 are rewritten on it as S10a to S12b. Released: S10a, S10b, S10c, S10d
+and S11. Held for the owner's go-ahead on canvas 1: S11b, S11c, S12 and
+S12b. Held for canvas 3: S4b.
 
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md`, `docs/monsters/MODEL.md` ("The encounter
 > recipe", "The organisation axes"), `docs/lib/GROUPS.md` and
-> `docs/factions/MODEL.md`. This session starts on Opus.
+> `docs/factions/MODEL.md`. This session starts on Opus. The shape is in
+> Results: "Architect, consolidated" (rulings 1, 5 and 6) as changed by "The
+> owner's corrections, and the audit", which wins wherever the two differ.
+> Each brief quotes the owner's words from those two entries, and the agent
+> restates them with one example before building. Before a brief or an
+> agent adds a field or a mechanism, it names what it read in the printed
+> pages, in Foundry core, in the `acks` system and in this repo's shipped
+> code, and the shipped thing it reuses; the owner: "most of these questions
+> reveal a lack of investigating foundry and RAW before designing".
 > `acks-branch sync beastman-organisation`, then build in its worktree, one
-> `implementer` per slice, S10, S11, S11b, then S12 once canvas 1 is
-> approved, and S4b once canvas 3 is answered; until then S4b is listed as
-> held. S11's first requirement is section 4, answer 6,
+> `implementer` per slice: S10a, S10b and S10c, landed together and walked,
+> then S10d and S11. S11b, S11c, S12 and S12b are listed as held until the
+> owner's go-ahead on canvas 1 is recorded in Results, and S4b until canvas
+> 3 is answered. S11's first requirement is section 4, answer 6,
 > whose words the brief quotes from there: a recipe part, a village cell or a
 > mount that names a creature outside the family holds a reference to that
 > creature's entry, resolved at generation, and a generated unit includes it
