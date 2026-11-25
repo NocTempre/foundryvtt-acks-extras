@@ -421,7 +421,7 @@ function engagedRowOf(r, { words, seat }) {
   const data = { ...r.ids, subject, entryKey: r.entryKey };
   const base = { name: r.bearerNames, ...(r.bearersTip ? { nameTooltip: r.bearersTip } : {}), total: "" };
   // A blank save is a blank cell whose tooltip is the page alone; a no-break space keeps the Save column and its tooltip without a figure.
-  const target = numOrNull(r.target) !== null ? { target: r.target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : { targetText: " ", ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) };
+  const target = numOrNull(r.target) !== null ? { target: r.target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : { targetText: "\u00a0", ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) };
   const undo = seat.mayUndo?.(r.entry, subject) === true ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data, tooltip: words.undoTip }] : [];
   switch (r.state) {
     case "open": return {

@@ -535,7 +535,8 @@ await t("the cards no T10 slice touched render byte for byte as before: an E4 ra
     pins.e9 = hash(presenter.raisedBody({ id: "PIN2" }, card({ subjects: { "P~a": { uuid: "P.a", name: "Alpha", state: "in", latest: "" } } })));
     current = kinds.e3;
     pins.e3 = hash(presenter.onceBody({ id: "PIN3" }, { ...card({ kind: "once" }), title: "Gear", subjects: { "P~a": { uuid: "P.a", name: "Alpha", state: "in", latest: "" } }, entries: { "P~a": { subject: "P.a", state: "open" } } }));
-    assert.deepEqual(pins, { e4Open: "315cb1defc703ba0", e4Done: "10f5560dd9abefdb", e4Whisper: "64fa2f13746bf948", e9: "ad4f3776a3832bff", e3: "2053bac0b727e37b" });
+    pins.e3Direct = hash(presenter.onceBody({ id: "PIN3" }, { ...card({ kind: "once" }), direct: true, title: "Gear", subjects: { "P~a": { uuid: "P.a", name: "Alpha", state: "in", latest: "" } }, entries: { "P~a": { subject: "P.a", state: "applied", recordIds: ["E1"], presser: "gm" } } }));
+    assert.deepEqual(pins, { e4Open: "315cb1defc703ba0", e4Done: "10f5560dd9abefdb", e4Whisper: "64fa2f13746bf948", e9: "ad4f3776a3832bff", e3: "2053bac0b727e37b", e3Direct: "416b562c1c7d51be" });
   } finally {
     messages.splice(messages.findIndex((m) => m.id === "PIN1"), 1);
     globalThis.fromUuidSync = prior;
@@ -544,6 +545,15 @@ await t("the cards no T10 slice touched render byte for byte as before: an E4 ra
 
 
 /* --- T10: the engaged card (board 5b) --- */
+const withParams = async (fn) => {
+  const prior = game.i18n.format;
+  game.i18n.format = (key, data) => (data && Object.keys(data).length ? `${key}${JSON.stringify(data)}` : key);
+  try {
+    return await fn();
+  } finally {
+    game.i18n.format = prior;
+  }
+};
 const engagedMessages = () => messages.filter((m) => m.flags["acks-extras"]?.itemRunCard?.kind === "engaged");
 const engagedCard = (message) => message.flags["acks-extras"].itemRunCard;
 const t10 = {};
@@ -551,7 +561,12 @@ const t10 = {};
 await t("T10: a prompt of an always-on engaged reach posts one card per subject per moment, one row per item kind with every same-kind bearer named on it, and whispers 4c's save card titled for the trait to the subject's owners", async () => {
   const reach = await import("../scripts/lib/aura-reach.mjs");
   const run2 = await import("../scripts/lib/item-run.mjs");
+  const hooked = {};
+  const priorOn = globalThis.Hooks.on;
+  globalThis.Hooks.on = (name, fn) => { hooked[name] = fn; };
   presenter.installItemRunPresenter();
+  globalThis.Hooks.on = priorOn;
+  t10.hooked = hooked;
   run2.installItemRun();
   users.push({ id: "pe" }, { id: "pn" }, { id: "pbb" }, { id: "pall" });
   game.combat = { id: "c1", started: true, round: 2, turn: 1, combatants: { find: () => null } };
@@ -578,7 +593,7 @@ await t("T10: a prompt of an always-on engaged reach posts one card per subject 
   };
   const key = "c1:2:1:E.s:kindT";
   reach.holdReachMoment(key, "c1:2:1");
-  await presenter.presentReach(t10.prompt());
+  await withParams(() => presenter.presentReach(t10.prompt()));
   assert.equal(engagedMessages().length, 1, "one card for the subject's moment");
   const [message] = engagedMessages();
   const card = engagedCard(message);
@@ -593,6 +608,7 @@ await t("T10: a prompt of an always-on engaged reach posts one card per subject 
   assert.deepEqual([...whisperNow.whisper], ["gm", "pe", "pall"], "the save card goes to the owners of the subject's token, as 4b's does");
   assert.ok(whisperNow.content.includes("itemRun.card.engagedTitle") && !whisperNow.content.includes("itemRun.card.whisperTitle"), "titled for the trait");
   assert.equal(whisperNow.flags["acks-extras"].itemRunWhisper.engaged, true);
+  assert.ok(whisperNow.content.includes("itemRun.card.life.timed"), "a row that names its own interval tells the subject its failure is timed, not until its next turn");
   assert.equal(whisperNow.flags["acks-extras"].itemRunWhisper.messageId, message.id);
   assert.equal(card.entries["c1:2:1:E~s:kindT"].whisperId, whisperNow.id, "the card keeps the whisper's id");
   // A second kind asked at the same moment is a second row of the same card.
@@ -636,6 +652,10 @@ await t("T10: each seat's body shows the row to the subject's owners and to a se
   assert.deepEqual(shape(body("pbb")), [true, false, true, true], "the bearers' owners see the row, Not engaged and the line, and no Save");
   assert.equal(body("pn").includes("Champion 1"), false, "a seat that owns neither sees no row of this subject's");
   assert.equal(body("pa").includes('data-action'), false, "and no press");
+  const shell = { body: { innerHTML: "", querySelectorAll: () => [] } };
+  me.current = users.find((u) => u.id === "pall");
+  t10.hooked.renderChatMessageHTML(message, { nodeType: 1, querySelector: () => shell.body });
+  assert.ok(shell.body.innerHTML.includes("Champion 1, Champion 2") && shell.body.innerHTML.includes("itemRun.card.engagedBy</th>"), "the render hook draws an engaged card with the engaged body, not the raised card's");
   const html = body("pall");
   assert.ok(html.includes("itemRun.card.engagedBy</th>") && html.includes("itemRun.card.save</th>"), "the columns read Engaged by and Save");
   assert.ok(html.includes('itemRun.card.engagedByTip (MM p. 57)"'), "Engaged by's tooltip is computed and cites the item's page");
@@ -659,7 +679,7 @@ await t("T10: a blank save leaves the Save target blank with the page reference 
   const blankMessage = engagedMessages().at(-1);
   me.current = users.find((u) => u.id === "pall");
   const html = presenter.engagedBody(blankMessage, engagedCard(blankMessage));
-  assert.ok(html.includes('data-tooltip-text="MM p. 57"> </td>'), "a blank cell whose tooltip is the page alone, with no words saying it is missing");
+  assert.ok(html.includes('data-tooltip-text="MM p. 57">\u00a0</td>'), "a blank cell whose tooltip is the page alone, with no words saying it is missing");
   assert.ok(!html.includes('data-tooltip-text="paralysis'), "no figure stands in for it");
   const row = Object.values(engagedCard(blankMessage).entries)[0];
   const key = Object.keys(engagedCard(blankMessage).entries)[0];
@@ -706,7 +726,8 @@ await t("T10: Not engaged closes a row for a seat that owns every bearer: the ro
   const closedRow = closedBody.split("<tr").find((r) => r.includes("itemRun.card.closedBy"));
   assert.ok(!closedRow.includes('data-action="itemRun.roll"') && !closedRow.includes('data-action="itemRun.notEngaged"') && closedRow.includes('data-action="itemRun.undo"'), "no Save and no Not engaged on a closed row, and 4b's Undo to reopen it");
   me.current = users[0];
-  const whisperHtml = presenter.whisperBody(whisperOf().flags["acks-extras"].itemRunWhisper);
+  const whisperHtml = await withParams(() => presenter.whisperBody(whisperOf().flags["acks-extras"].itemRunWhisper));
+  assert.ok(whisperHtml.includes("itemRun.card.engagedTitle") && !whisperHtml.includes("itemRun.card.whisperTitle") && whisperHtml.includes("itemRun.card.life.timed"), "the whispered card keeps its title and its timed interval when it is drawn again");
   assert.ok(!whisperHtml.includes("itemRun.card.rollSave") && whisperHtml.includes("itemRun.card.closedBy"), "the whispered card offers no roll once the row is closed");
   const undone = await t10.run.undoCardEntry({ messageId: message.id, entryKey: key });
   assert.deepEqual([undone.ok, card().entries[key].state, card().entries[key].closedBy], [true, "open", undefined], "Undo reopens it");

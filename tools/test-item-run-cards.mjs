@@ -392,7 +392,7 @@ t("the engaged card's row states: a closed row keeps its bearers, reads who clos
   const bare = cardFor([engagedRow({ state: "applied", entry: { saved: true, total: 15, recordIds: [] } })], seat).sections[0].rows[0];
   assert.equal(bare.outcome, "Saved");
   const blank = cardFor([engagedRow({ target: null, targetTip: "MM p. 57" })], seat).sections[0].rows[0];
-  assert.deepEqual([blank.target, blank.targetText, blank.targetTooltip], [undefined, " ", "MM p. 57"], "a blank cell whose tooltip is the page reference alone");
+  assert.deepEqual([blank.target, blank.targetText, blank.targetTooltip], [undefined, "\u00a0", "MM p. 57"], "a blank cell whose tooltip is the page reference alone");
   const undone = cardFor([engagedRow({ state: "undone" })], seat).sections[0].rows[0];
   assert.deepEqual([undone.outcome, undone.emphasis], ["Undone", "muted"]);
   const unnamed = cardFor([engagedRow({ bearersTip: "" })], seat).sections[0].rows[0];

@@ -1327,6 +1327,8 @@ no HUD control.
 No `module.json` change. S8b's brief names E4's figures `reach.save` and
 `reach.immunity`, so one name serves both.
 
+**Qualified 2026-11-25 (release hub):** A8.1's and A8.5 item 4's "Judge-only" read line and Not engaged follow ownership of every engaging bearer on the row, per the owner's pick "Not engaged: The bearer's owners"; A8.4's "a blank save refuses a Player's Roll and warns a Judge" is refused for every seat; the Judge closes the row or sets the condition by hand.
+
 ### A9. S8b-1's open choices, ruled 2026-11-25
 
 `architect`, read-only, at `topic/beastman-gear` d0136678 (S8b-1); Foundry

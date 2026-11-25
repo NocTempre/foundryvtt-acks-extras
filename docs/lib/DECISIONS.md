@@ -2513,3 +2513,43 @@ Supersedes in part the battle-map entry of 2026-11-25 ("The square's size in
 feet is a unit of measure and stays in source", `docs/battlemap/DECISIONS.md`):
 where the constant sits. New evidence: RR p. 288 ties engagement to that square,
 so a second feature needs the constant.
+
+## 2026-11-25 — Not engaged and the read line follow the engaging bearers' ownership
+
+The owner's pick on the T10 board: "Build as drawn. Not engaged: The bearer's
+owners. Engaged: The adjacent square, in source". The release hub reads "the
+bearer's owners" for a row that names several bearers as every one of them: the
+"Not engaged" press, and the line saying what the module read, show only to a
+user who owns EVERY bearer named on that row (Foundry's
+`testUserPermission(user, "OWNER")`). No `isGM` test and no `judgeDeclares`
+decides it: Foundry makes a GM an owner of every document, so a Judge is offered
+both, and a Player is offered them only for bearers it owns outright. The press goes through the
+carrier's own relay (`executeAsGM`, which runs at once on a GM's window), and the
+handler on the GM's window checks ownership of every bearer again on the relayed
+seat (`requestUserId`); a payload claims nothing. It closes the row with no save
+and no record, releases the moment key and answers the whisper, and 4b's Undo
+reopens it.
+
+The row is shown to the owners of the subject and to a seat that owns every
+bearer; the Save is the subject's owners' alone. A seat that owns neither sees
+no row.
+
+A blank save stays refused for every seat: the press needs a save figure, and
+the Judge closes the row or sets the condition by hand. This replaces the Judge's
+warning in the earlier ruling (`docs/monsters/wip/20261124-s7-ruling-reader-carrier.md`,
+A8.4, qualified there).
+
+Rejected: offering Not engaged to whoever can press Save, which lets a player
+wave off their own save; a role test, which the owner has ruled out for every
+control.
+
+Strongest counter, MEDIUM: a row's several bearers may have different owners, so
+no one but a Judge owns them all, and the control sits with the Judge by
+default. Medium: that is what ownership of the call says, and a table that
+wants another reading changes the bodies' ownership, not a rule.
+
+Also: the shared card renderer takes three more additive fields, a row's
+`nameTooltip`, a button's `ariaLabel` and a card's `lines`, so that the engaged
+card's "Engaged by" carries a computed tooltip, "Not engaged" names its subject
+and bearers, and the read line is a paragraph of its own. None is passed by any
+earlier caller and `tools/test-roll-card.mjs` pins their HTML.

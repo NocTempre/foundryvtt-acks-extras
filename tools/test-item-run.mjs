@@ -2207,6 +2207,10 @@ await t("an engaged card's entry names its own item: a Save press writes under t
     assert.equal(entries().c.state, "open");
     assert.equal(holdReachMoment("mc", "c1:1:0"), false, "a refused press releases no key");
     assert.equal((await close({ entryKey: "a", requestUserId: "both" })).reason, "applied", "an answered row is not closed");
+    const kind = message.flags["acks-extras"].itemRunCard.kind;
+    message.flags["acks-extras"].itemRunCard.kind = "toggle";
+    assert.equal((await close({ requestUserId: "both" })).reason, "struck", "a raised card's entry is no engaged row");
+    message.flags["acks-extras"].itemRunCard.kind = kind;
     const closed = await close({ requestUserId: "both" });
     assert.equal(closed.ok, true, "the seat that owns every bearer");
     assert.deepEqual([entries().c.state, entries().c.closedBy.id, entries().c.presser], ["closed", "both", "both"]);
