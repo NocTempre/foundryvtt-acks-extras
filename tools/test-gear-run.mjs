@@ -100,6 +100,7 @@ await t("a row is the shape its value keys make it, never its key: an action ite
   assert.deepEqual(drum.rows[0].reach.on, [...STANDING_ROLLS]);
   assert.equal(drum.rows[0].reach.filter.unit, "under", "the bearer's unit and those under it, not its own group alone");
   assert.deepEqual(missed, []);
+  for (const shape of [flag.rows[0], banner.rows[0], drum.rows[0]]) assert.equal(shape.reach.showReach, false, "the import draws the Region for the Judge alone");
   for (const item of [once, gearRunItem(rows.banner, BASE), gearRunItem(rows.drum, BASE)]) {
     assert.equal(item.type, "item");
     assert.equal(item.flags["acks-extras"].cookbook.id, `organisation.gear.${item.flags["acks-extras"].itemRun.rows[0].reach.radius.row}`, "the kind key `kindKeyOf` answers");

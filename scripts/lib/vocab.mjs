@@ -1614,6 +1614,22 @@ export const REACH_PULSES = Object.freeze({
   burst: { label: "Once, at a burst" },
 });
 
+/**
+ * The rolls a part is read on (`rollMods` parts: `roll-mods.mjs`). The attack and
+ * the saving throw read the first five; `throw` (a proficiency's throw),
+ * `reaction`, `grant` (a proficiency the bearer counts as holding) and `immune`
+ * (what the bearer cannot be affected by) are read by `recordParts` and its
+ * siblings.
+ */
+export const ROLL_MODS_ON = Object.freeze(["attack", "damage", "ac", "save", "ward", "throw", "reaction", "grant", "immune"]);
+
+/**
+ * The rolls a reach's modifier may name (`reach.on`): the `ROLL_MODS_ON` keys and
+ * `morale`, which `reachParts` writes as a reaction part naming the morale roll.
+ * A word outside this list names no roll and is dropped when a reach is read.
+ */
+export const REACH_ON = Object.freeze([...ROLL_MODS_ON, "morale"]);
+
 /** Which side of the bearer a reach's subjects stand on (`reach.filter.side`), read from token dispositions. */
 export const REACH_SIDES = Object.freeze({
   any: { label: "Either side" },

@@ -12,7 +12,7 @@
  * the caller lists such a subject for the Judge to tick. Foundry-free.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { ACTOR_TYPE, REACH_PULSES, REACH_SIDES, REACH_UNITS } from "./vocab.mjs";
+import { ACTOR_TYPE, REACH_ON, REACH_PULSES, REACH_SIDES, REACH_UNITS } from "./vocab.mjs";
 import { RACE_CATEGORIES, areEnemies, creatureKinds } from "./actor-read.mjs";
 import { GROUP_FLAG } from "./group-logic.mjs";
 import { getDoc, hasDoc } from "./tables.mjs";
@@ -78,10 +78,12 @@ export function readFilter(raw) {
 
 /**
  * A row's stored `reach` as `{radius, save, immunity, modifier, on, filter,
- * pulse}`, or null for a row with none or one whose pulse is no `REACH_PULSES`
- * key (it acts on nothing). `radius`, `save`, `immunity` and `modifier` are
- * figure references (`resolveFigure` reads each), null where absent; `on` is
- * the list of `ROLL_MODS_ON` keys the modifier rides on.
+ * pulse, showReach}`, or null for a row with none or one whose pulse
+ * is no `REACH_PULSES` key (it acts on nothing). `radius`, `save`, `immunity`
+ * and `modifier` are figure references (`resolveFigure` reads each), null where
+ * absent; `on` is the reach's own list of rolls the modifier rides on
+ * (`REACH_ON`: the `ROLL_MODS_ON` keys and `morale`), any other word dropped;
+ * `showReach` is true only where the Region is shown to everyone.
  */
 export function readReach(raw) {
   if (!raw || typeof raw !== "object" || !(raw.pulse in REACH_PULSES)) return null;
@@ -91,9 +93,10 @@ export function readReach(raw) {
     save: ref("save"),
     immunity: ref("immunity"),
     modifier: ref("modifier"),
-    on: words(raw.on),
+    on: words(raw.on).filter((word) => REACH_ON.includes(word)),
     filter: readFilter(raw.filter),
     pulse: raw.pulse,
+    showReach: raw.showReach === true,
   };
 }
 

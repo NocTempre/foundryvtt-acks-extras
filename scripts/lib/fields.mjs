@@ -573,11 +573,13 @@ export function effectField() {
         radius: figureRefField(),
         // The figures a pulse reads when it acts, each a live reference: the save asked of a
         // subject, how long a pass holds, the size of the part a held or action row writes, and
-        // the rolls (`ROLL_MODS_ON` keys) that part rides on.
+        // the rolls (`REACH_ON`: the `ROLL_MODS_ON` keys and `morale`) that part rides on.
         save: figureRefField(),
         immunity: figureRefField(),
         modifier: figureRefField(),
         on: wordList(),
+        // Whether the raised Region is drawn for everyone, not the Judge alone. The import writes it false.
+        showReach: bool(),
         filter: new SchemaField({
           kinds: wordList(),
           exceptKinds: wordList(),

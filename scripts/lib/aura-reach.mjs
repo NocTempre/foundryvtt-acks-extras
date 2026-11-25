@@ -204,7 +204,8 @@ function bearerDown(token) {
 /**
  * The raise itself, on the primary GM's window: check the request against what
  * is live, then create the Region through core's `createTokenEmanation`, grid
- * based, hidden as the token is, GM-visible, holding the `aura` behavior.
+ * based, hidden as the token is, GM-visible (everyone's where the row's
+ * `showReach` is true), holding the `aura` behavior.
  * The reach is stored in feet and core takes the scene's own units, so the
  * range goes through `feetToUnits` first.
  */
@@ -234,7 +235,7 @@ async function raiseHere({ tokenUuid, sourceUuid, rowKey, activationId, requestU
   const region = await CONFIG.Region.documentClass.createTokenEmanation(
     token,
     feetToUnits(verdict.rangeFeet, token.parent?.grid?.units),
-    { name: item.name, hidden: token.hidden, visibility: CONST.REGION_VISIBILITY.GAMEMASTER, behaviors: [behavior] },
+    { name: item.name, hidden: token.hidden, visibility: reach.showReach ? CONST.REGION_VISIBILITY.ALWAYS : CONST.REGION_VISIBILITY.GAMEMASTER, behaviors: [behavior] },
     { gridBased: true },
   );
   return { ok: true, regionId: region?.id ?? null, regionUuid: region?.uuid ?? null };

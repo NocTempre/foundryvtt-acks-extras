@@ -34,7 +34,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_ROLL_MODS, MORALE_ROLL_KEY } from "./constants.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
 import { gateVerdict, registerGate, resolveStacking, stackingPart } from "./typed-modifiers.mjs";
-import { ACTOR_TYPE, capabilityForId, hasScope, satisfies, scopeApplies } from "./vocab.mjs";
+import { ACTOR_TYPE, ROLL_MODS_ON, capabilityForId, hasScope, satisfies, scopeApplies } from "./vocab.mjs";
 import { vocabLabel } from "./magic-vocab.mjs";
 import { saveSpec } from "./saves.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
@@ -45,13 +45,8 @@ import { activeNumericChanges, appliedEffects, CHANGE } from "./effect-scan.mjs"
 import { isMagical } from "./item-model.mjs";
 import { signed } from "./frame-model.mjs";
 
-/**
- * The rolls a part is read on. The attack and the saving throw read the first
- * five; `throw` (a proficiency's throw), `reaction`, `grant` (a proficiency the
- * bearer counts as holding) and `immune` (what the bearer cannot be affected by)
- * are read by `recordParts` and its siblings.
- */
-export const ROLL_MODS_ON = Object.freeze(["attack", "damage", "ac", "save", "ward", "throw", "reaction", "grant", "immune"]);
+/** The rolls a part is read on (defined in `vocab.mjs`, which the reach's own list shares). */
+export { ROLL_MODS_ON };
 
 /** Where a part came from, as `resolveItemParts` marks it: the weapon's own bonus or a record's. */
 const FROM_ITEM = "item";

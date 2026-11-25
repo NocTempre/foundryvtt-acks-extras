@@ -19,7 +19,7 @@ globalThis.foundry = {
 };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key }, users: [], user: { isGM: true } };
 globalThis.ui = { notifications: { warn() {}, error() {} } };
-globalThis.CONST = { REGION_VISIBILITY: { GAMEMASTER: 1 }, TOKEN_DISPOSITIONS: { FRIENDLY: 1, HOSTILE: -1 } };
+globalThis.CONST = { REGION_VISIBILITY: { GAMEMASTER: 1, ALWAYS: 2 }, TOKEN_DISPOSITIONS: { FRIENDLY: 1, HOSTILE: -1 } };
 
 const logic = await import("../scripts/lib/aura-reach-logic.mjs");
 const actorRead = await import("../scripts/lib/actor-read.mjs");
@@ -182,6 +182,16 @@ await t("a hand-made behavior (empty config) reads as none and a handler is neve
   reach.setReachHandler(null);
 });
 
+await t("a reach's own list of rolls keeps the roll keys and morale and drops any other word, and its Region is shown to everyone only where the row says so", () => {
+  const { ROLL_MODS_ON, REACH_ON } = vocab;
+  assert.deepEqual([...REACH_ON], [...ROLL_MODS_ON, "morale"], "the roll keys and morale, nothing else");
+  assert.deepEqual(logic.readReach({ pulse: "standing", on: ["ac", " Morale ", "bogus", "attack", ""] }).on, ["ac", "morale", "attack"]);
+  assert.deepEqual(logic.readReach({ pulse: "standing", on: "ac" }).on, [], "a stored value that is no list names no roll");
+  assert.equal(logic.readReach({ pulse: "standing" }).showReach, false, "shown to the Judge alone by default");
+  assert.equal(logic.readReach({ pulse: "standing", showReach: true }).showReach, true);
+  assert.equal(logic.readReach({ pulse: "standing", showReach: "true" }).showReach, false, "only the boolean counts");
+});
+
 await t("a reach reads only with a known pulse; a filter reads its words lowercase and defaults to any", () => {
   assert.equal(logic.readReach({ pulse: "nope", filter: {} }), null);
   assert.equal(logic.readReach(null), null);
@@ -278,6 +288,10 @@ await t("raising asks core for a grid-based emanation in feet, hidden as the tok
   const refused = await reach.raiseReach({ tokenUuid: "T.1", sourceUuid: "I.1", rowKey: "none", activationId: "act" });
   assert.equal(refused.ok, false, "a row naming no reach raises nothing");
   assert.equal(asked.length, 1);
+  item.flags["acks-extras"].itemRun.rows.push({ key: "shown", reach: { pulse: "standing", radius: { value: "30" }, showReach: true } });
+  await reach.raiseReach({ tokenUuid: "T.1", sourceUuid: "I.1", rowKey: "shown", activationId: "act" });
+  assert.equal(asked[1][2].visibility, 2, "a row that shows its reach draws the Region for everyone");
+  assert.equal(asked[0][2].visibility, 1, "a row that does not keeps it the Judge's");
 });
 
 /** A region with behaviors, deleting itself into a list. */
@@ -367,7 +381,8 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.equal(field.options.nullable, true);
   assert.equal(field.options.initial, null);
   assert.equal(field.options.required, false);
-  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "immunity", "modifier", "on", "pulse", "radius", "save"]);
+  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "immunity", "modifier", "on", "pulse", "radius", "save", "showReach"]);
+  assert.equal(field.fields.showReach.options.initial, false, "a Region is the Judge's alone unless a row says otherwise");
   for (const key of ["save", "immunity", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
   assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "side", "unit"]);

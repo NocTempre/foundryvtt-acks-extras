@@ -110,7 +110,7 @@ export function gearRunItem(row, { doc, table, fold, miss = () => {} }) {
       miss(FIGURE.condition, printed);
       return null;
     }
-    const reach = { radius, save: refTo(base, row.key, FIGURE.saveKind), filter: { kinds: [], exceptKinds: [], side: "any", unit: "any" }, pulse: "turnStart+moveIn" };
+    const reach = { radius, save: refTo(base, row.key, FIGURE.saveKind), filter: { kinds: [], exceptKinds: [], side: "any", unit: "any" }, pulse: "turnStart+moveIn", showReach: false };
     if (whole(f[FIGURE.immunityTurns])) reach.immunity = refTo(base, row.key, FIGURE.immunityTurns);
     return itemData(row, "toggle", { key: "reach", type: "conditionGrant", conditions: [key], reach });
   }
@@ -132,6 +132,7 @@ export function gearRunItem(row, { doc, table, fold, miss = () => {} }) {
     on: once ? ["damage"] : [...STANDING_ROLLS],
     filter: { kinds, exceptKinds: [], side: "any", unit: "under" },
     pulse: once ? "action" : "standing",
+    showReach: false,
   };
   const rowData = { key: "reach", type: "modifier", reach, ...(once ? { endsOn: ["attack"] } : {}) };
   return itemData(row, once ? "once" : "toggle", rowData);
