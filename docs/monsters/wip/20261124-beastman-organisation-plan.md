@@ -1544,6 +1544,33 @@ group alone. Example: Generate for a village makes the faction card, the
 warbands' groups and the gangs' groups in one go, and the tree shows on the
 faction's sheet; no group of the village's carries its chart. Released: none.
 
+### The owner on a warband's token in a combat, 2026-11-24
+
+Asked "When a warband's token joins a combat, does it bring every body under
+it, or its gangs as group tokens?", with the buttons "Every body" and "Gangs
+as tokens", the owner chose:
+
+"Every body"
+
+The words are the button's; the choice is the owner's. It answers
+`architect`'s question 3 with (a), its own pick, which it tied to the
+2026-11-03 whole-group ruling. Example: a warband's group stands on a map as
+one token with two gangs inside it. Added to a combat, it puts every body of
+both gangs and the warband's leader into that combat; neither gang appears
+there as a group token of its own.
+
+It keeps C's walk as proposed: group combat and formation deployment count a
+group's nested bodies. Not asked: how the bodies of a gang are told apart
+from another gang's once they stand in the same combat. Released: none.
+
+**Where the owner's questions stand.** Of `architect`'s six: 1 (at
+Generate), 2 (only a group is needed, a faction card optional), 3 (every
+body) and 6 (the Followers tab, with this work) are answered. Open: 4 (an
+entry that is away, on a re-roll) and 5 (Generate writes at once or is
+staged). The Org chart tab is the tree. `architect` has seen none of these
+answers; a fresh one is given them verbatim, and its result is the next
+entry.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
