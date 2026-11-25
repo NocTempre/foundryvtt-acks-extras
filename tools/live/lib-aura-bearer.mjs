@@ -191,7 +191,7 @@ try {
       count: regions.length,
       behaviors: r ? [...r.behaviors].map((b) => b.type) : [],
       shape: r?.shapes?.[0] ? { type: r.shapes[0].type, radius: r.shapes[0].radius, base: { x: r.shapes[0].base?.x, y: r.shapes[0].base?.y } } : null,
-      visibility: r?.visibility, hidden: r?.hidden, attachedTo: r?.attachment?.token ?? null,
+      visibility: r?.visibility, hidden: r?.hidden, attachedTo: r?.attachment?.token?.id ?? r?.attachment?.token ?? null,
       state: item.flags?.["acks-extras"]?.itemRun?.activation?.state ?? null,
       gridPx: scene.dimensions.distancePixels,
     };
