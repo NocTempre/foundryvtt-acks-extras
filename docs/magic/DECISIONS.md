@@ -1595,7 +1595,9 @@ the hub undertook to report the three to the owner as facts.
 
 **Decided in the build, not selected by the owner.** The party's name is shown to every seat: its record is a world
 setting every client reads and its token's name shows on hover. A party in a fight answers no party, and the click
-placement stays, since a party that joins a combat deploys its members and the caster then has a token. The Magic
+placement stays, since a party that joins a combat deploys its members and the caster then has a token. The release
+hub ruled that this stands beside the formation change that lets an owner bring a member in or take one out during
+a fight: that change does not make a fighting party a place a summoning joins. The Magic
 row keeps its scene filter, and the creatures of one cast share one appended number; both are ROADMAP rows. The
 row's tooltip reads "creature(s)" where the board drew "creatures", which is wrong for one.
 
