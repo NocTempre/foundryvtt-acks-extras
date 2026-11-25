@@ -401,6 +401,30 @@ part is blocked without it.
     scale in the `order` shape, and "Rescale tokens" leaves it alone.
 18. A marker's token — a place's, an organisation's, a domain's — keeps the
     size it was drawn: walked in `docs/domains/TESTING.md`, step 18.
+19. **Coming back to the group arms nothing.** On a hex fixture, arm the
+    Country brush from the group, then Draw box, each followed by a press on
+    another control and a press on the group's own button. Press both through
+    the DOM (`#scene-controls [data-control="…"]`): a scripted
+    `activate({control})` carries no press, so it does not exercise this.
+    *Observable:* a tick after the return, `ui.controls.tool.name` is `off`,
+    the session's mode and the brush are null, and `renderTerrainPaletteApp`
+    fires no time. `ui.controls.activate({control: "acksBattlemap", tool:
+    "square"})` still arms Draw box.
+20. **Ctrl+Z takes the newest sample.** On the square family, draw a box,
+    drag a scale bar, click a corner and draw a second box, then press Ctrl+Z
+    four times with no field focused. *Observable:* the second box goes
+    first, then the corner, then the bar, then the first box; a fifth press
+    changes nothing.
+21. **One render per edit.** With the Map setup window open on a square
+    scene and three boxes drawn (their across/down fields posted), wrap the
+    window's `render` to count, then change a number field once. *Observable:*
+    exactly one render, and the same on a hex family.
+22. **A unit the scene already spells its own way is kept.** On a
+    scale-only scene whose grid units read `Miles` (`battlemap/unit-spelling`:
+    gridless, built by the step when no scene carries the marker, and set back
+    to `Miles` at the step's start), drag a scale bar, choose mi and Apply. *Observable:*
+    `grid.units` still reads `Miles`, and the done notice shows `Miles`. A
+    scene in `ft` with mi chosen is written `mi`.
 
 ## Teardown
 
