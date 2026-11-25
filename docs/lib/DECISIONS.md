@@ -2497,3 +2497,19 @@ The stamp path is the actor's flag `flags["acks-extras"].summon.lost` on a place
 **Strongest counter, MEDIUM.** A Judge who grants a Player token creation to let them place their own tokens now also lets that Player summon a creature with no spell, so one grant opens two tools. Held, since a creature the Player cannot observe is still refused `unreadable`, and a Judge who wants the spell-less call kept to themselves leaves the grant off: it is the world's own setting, and no module-side switch stands beside it.
 
 *Cost:* a world with a Player role granted token creation now offers every Player a spell-less Summon…. A consumer on `party-roster` v4 has no `amendSummons`, so a stashed creature's control end is left `unapplied` there, as before.
+
+## 2026-11-25 — Engagement is the battle map's adjacent square, stated in source
+
+The owner's pick on the T10 board: "Engaged: The adjacent square, in source".
+Engagement's distance is printed (RR p. 291, restated p. 509), and RR p. 288
+sizes the battle map's square from it. `SQUARE_FEET` moves to
+`lib/distance-units.mjs`, `monsters/sizes.mjs` re-exports it, and
+`engagementFeet()` answers it. Facing, wards, flight and the optional size table
+stay with the Judge (RR p. 291).
+
+Rejected: importing the distance.
+
+Supersedes in part the battle-map entry of 2026-11-25 ("The square's size in
+feet is a unit of measure and stays in source", `docs/battlemap/DECISIONS.md`):
+where the constant sits. New evidence: RR p. 288 ties engagement to that square,
+so a second feature needs the constant.

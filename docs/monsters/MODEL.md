@@ -353,7 +353,8 @@ table (MM Overview p. 11), imported into registry document `monsters`, table
 squares: the first printed pair, else a lone figure or fraction, each side held
 to one square at the least (a body never occupies less than a token square).
 What one of its squares is worth in feet, the unit the row's label names, is
-stated and not imported: `sizes.mjs` `SQUARE_FEET` (MM p. 11), which
+stated and not imported: `SQUARE_FEET` of `lib/distance-units.mjs` (MM p. 11),
+which `sizes.mjs` re-exports and
 `sizeSquareFeet()` answers whatever the world holds. No recipe produces a
 table for it. A world that imported one while the square was imported keeps
 it: the rules-table import carries forward every table its layer already

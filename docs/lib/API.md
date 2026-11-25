@@ -1825,6 +1825,12 @@ missing token, tokens on different scenes, or a grid that cannot measure, so a
 caller judges nothing rather than guessing. A token's centre is its document's
 `getCenterPoint`, else its corner plus half its size.
 
+`SQUARE_FEET` is what one battle-grid square is worth in feet (MM p. 11), stated
+here and re-exported by `monsters/sizes.mjs`. `engagementFeet()` answers how far
+an engaged opponent is, in feet: that adjacent square (RR p. 288, 291, 509), the
+same figure and never imported. Facing, wards, flight and the optional size
+table are the Judge's (RR p. 291).
+
 ## Versioning
 
 `apiVersion` is bumped when this surface changes shape, and it is informational:

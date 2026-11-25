@@ -445,7 +445,8 @@ times the square's feet → one such square for a token with no category. The
 frontage is imported and the square is stated: the frontage is the Frontage
 (squares) line of MM Overview p. 11, read into registry document `monsters`,
 table `sizeFrontage`, and the square is the unit that line counts in, the
-constant `SQUARE_FEET` of `monsters/sizes.mjs` (MM p. 11), which
+constant `SQUARE_FEET` of `lib/distance-units.mjs` (MM p. 11; `monsters/sizes.mjs`
+re-exports it, and `engagementFeet()` answers the same square), which
 `sizeSquareFeet()` answers and which `footprintFeet` reads itself
 (`docs/monsters/MODEL.md`, "The size frontage"). A category the world holds no
 frontage for has no footprint: `footprintFeet` answers null (an override still

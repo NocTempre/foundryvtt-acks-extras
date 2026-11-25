@@ -464,7 +464,7 @@ them.
 **Cost.** A Judge who picks Terrain to look under a territory brush and then
 paints sees the view switch back on the first stroke.
 
-## 2026-11-25 — The square's size in feet is a unit of measure and stays in source
+## 2026-11-25 — The square's size in feet is a unit of measure and stays in source — SUPERSEDED IN PART 2026-11-25
 
 The owner, the same day, on the import of the rounds to a dungeon turn: "Too
 aggressive, rounds per turn is very generic rules, not IP", and as the test:
