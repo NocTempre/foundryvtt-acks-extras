@@ -3506,7 +3506,11 @@ no importer mark, no unread note, a hand key) is inserted after the list's last
 row. `removeSummonCreature` splices a sibling out, and the only row keeps its
 format, number and control and blanks its creature. Add and Remove change the
 row list, so each closes every editor on the store, writes, and opens the row
-again at its new index; a row an edit changes loses its `origin`, as any edit
+again at its new index. The rungs drafted on the row and not yet saved go with
+it: the closing window's `RungDrafts#carry` hands the changed drafts to the new
+window's `adopt`, which takes one only where the row still stores the ladder it
+was drafted from, and nothing is saved. A Remove of the open row itself opens
+another row and carries none. A row an edit changes loses its `origin`, as any edit
 of a row does. The Number box and the uuid box carry no `name`, so the form
 never submits them (`_onChangeForm` skips them); a Number box writes its own
 row's `amount` through `writeOnChange`, blank as null, and a press on Add or

@@ -180,7 +180,8 @@ row editor's bar is a pinned footer part, "Save row", over every ladder the row
 holds (a row's `value` and `max` save in one write); the Overview draws the
 bar under each figure's rungs, "Save rungs". Save writes once. A kind button
 applies at once and drops the figure's draft; closing a window drops its
-drafts. The Overview's store (`spellFigureStore`) writes the figure's flag
+drafts, except across the close and reopen an Add or a Remove of a summon
+row's creature list makes, where the new window takes them up unsaved. The Overview's store (`spellFigureStore`) writes the figure's flag
 path through the spell's normalisation and lets core's strings follow, as a
 sheet submit does; a row writes through the row's own `store.write`, which
 makes the row the Judge's. The write is a Judge's (`game.user.isGM`, checked in

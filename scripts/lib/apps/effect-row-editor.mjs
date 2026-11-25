@@ -36,7 +36,8 @@
  * its creature, where it is from, a Number box and Remove, and under them the
  * drop zone and a uuid box with Add. The list is edited as rows: a Number box
  * writes its row's `amount`, and Add and Remove change the row list, so they
- * close every editor on the store and reopen this row at its new index. Each
+ * close every editor on the store and reopen this row at its new index, and
+ * the rungs drafted on it and not yet saved go to the new window unsaved. Each
  * creature reads as the seat can open it: a seat with no Observer on it reads
  * the neutral label and no source, never the name or the ref. The boxes carry
  * no `name`, so the form never submits them; a Number box writes through
@@ -781,12 +782,18 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     await this.#rewrite(out.rows, out.index);
   }
 
-  /** Write a changed row list, close the store's editors (their indexes are stale) and open this row at its new place. */
-  async #rewrite(rows, index, options) {
+  /**
+   * Write a changed row list, close the store's editors (their indexes are
+   * stale) and open this row at its new place. With `carry`, the rungs drafted
+   * here and not yet saved are handed to the window that opens, still unsaved;
+   * the caller passes false where the window opens on another row.
+   */
+  async #rewrite(rows, index, options, { carry = true } = {}) {
     const { store } = this;
+    const rungs = carry ? this.rungs.carry() : [];
     await closeEffectEditors(store);
     await store.write(rows, options);
-    openEffectEditor(store, index);
+    openEffectEditor(store, index, { rungs });
   }
 
   static async #onSummonAdd() {
@@ -805,7 +812,9 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       this.render();
       return;
     }
-    await this.#rewrite(out.rows, out.index, out.removed ? { removed: out.removed } : undefined);
+    // The open row itself went where the removed row is the one this window holds: the window then opens on another row, and the drafts go with the row they were made on.
+    const sameRow = !out.removed || Number(target.dataset.index) !== this.index;
+    await this.#rewrite(out.rows, out.index, out.removed ? { removed: out.removed } : undefined, { carry: sameRow });
   }
 
   /** A dropped Actor becomes the row's creature, by uuid; anything else is ignored. */
@@ -910,21 +919,27 @@ function editorsOn(storeKey) {
   return [...open].filter((app) => app instanceof EffectRowEditor && app.store?.key === storeKey);
 }
 
-/** Open (or focus) the editor for one row of a store. */
-export function openEffectEditor(store, index) {
+/**
+ * Open (or focus) the editor for one row of a store. `rungs` is what a closed
+ * editor's drafts carried (`RungDrafts#carry`): a new window takes them up
+ * unsaved, and a window already open keeps its own.
+ */
+export function openEffectEditor(store, index, { rungs = [] } = {}) {
   const existing = editorsOn(store.key).find((app) => app.index === index);
   if (existing) {
     existing.bringToFront?.();
     return existing;
   }
   const editor = new EffectRowEditor({ store, index });
+  editor.rungs.adopt(rungs);
   editor.render(true);
   return editor;
 }
 
 /**
  * Close every editor on a store — after a delete or a reorder, no index it
- * holds is still true. Rungs drafted in a closed editor are dropped with it.
+ * holds is still true. Rungs drafted in a closed editor are dropped with it,
+ * unless the caller carried them first (`RungDrafts#carry`).
  */
 export async function closeEffectEditors(store) {
   await Promise.all(editorsOn(store.key).map((app) => app.close()));

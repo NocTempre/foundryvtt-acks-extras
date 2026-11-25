@@ -461,7 +461,7 @@ Built for the creature block of a spell's row window (lib MODEL, "Summons";
 MODEL, "Casting a summoning spell"): the summon rows that share a row's
 invocation band, format and control, shown as one list and written back as
 rows. A mock cannot prove that Add closes the window and reopens it on the
-right row, that a drop reaches the list, that a Number box writes one row and
+right row with the rungs a hand drafted still in it, that a drop reaches the list, that a Number box writes one row and
 no other, or that a Player who owns the spell reads the neutral label for a
 creature the seat cannot open, on the window and on the Mechanics tab.
 
@@ -525,6 +525,13 @@ list. A creature's name is compared in the page and never printed.
    carries no mark and the tooltip is `ACKS-LIB.effectEditor.tip.amountHand`.
 7. Two lists. The spell is rewritten to two summon rows that differ in control.
    *Observable:* the window on either row shows one line.
+7b. Unsaved rungs. The spell is rewritten to one summon row whose `value` is a
+   ladder of three invocation levels, and a figure is typed in its second rung
+   and not saved. *Observable:* the window reads the typed figure and the row
+   stores the old one. After Add the new window still reads the typed figure,
+   with Save row on, and both the open row and the row Add made store the
+   ladder as it was. After Remove of the other line the same holds. Save row
+   then stores the typed figure.
 8. Player seat, three rows naming a, b and the closed creature. *Observable:*
    on the spell sheet's Mechanics tab (Character sheet → Magic tab → the spell
    → Mechanics tab) the closed creature's line holds the neutral label and

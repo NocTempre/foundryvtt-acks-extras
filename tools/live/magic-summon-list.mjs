@@ -18,6 +18,9 @@
  *      the book; a change by hand takes the mark off and the tooltip reads as set
  *      by hand.
  *   7. Two lists: rows that differ in control are two lists of one line each.
+ *  7b. Rungs drafted on the row's value ladder and not saved are still in the
+ *      window Add opens, and in the one Remove of another line opens; neither
+ *      press stores a rung, and Save row then writes the carried draft.
  *   8. The Player seat (owner of the spell's caster): the Mechanics tab and the
  *      window name a creature the seat cannot open by the neutral label alone,
  *      with no name, no uuid and no where-from source.
@@ -281,6 +284,38 @@ const P = {
     const ed = await H.waitEditor(index, { prev, lines });
     return { ok: true, reopened: !!ed, ...(ed ? H.view(ed) : {}) };
   },
+  /** The `value` ladder of the window on a row index as it reads now: each rung's figure, how many figure boxes are marked as changed by hand, and whether Save row is on. */
+  rungs: async ({ index }) => {
+    const H = globalThis.__msl;
+    const root = H.editor(index)?.element;
+    const el = root?.querySelector('[data-rung-ladder="value"]');
+    if (!el) return { ladder: false };
+    const save = [...root.querySelectorAll('[data-action="rungSave"]')].find((b) => (b.dataset.rungKeys ?? "").split(" ").includes("value"));
+    return { ladder: true, figures: [...el.querySelectorAll("[data-rung-value]")].map((b) => b.value), edited: el.querySelectorAll("input.is-edited").length, saveOn: !!save && save.getAttribute("aria-disabled") !== "true" };
+  },
+  /** Type a figure in one rung of the `value` ladder, as a user does, and save nothing. Answers whether the spell's rows changed. */
+  rungType: async ({ index, rung, text, uuid }) => {
+    const H = globalThis.__msl;
+    const box = H.editor(index)?.element?.querySelector(`[data-rung-ladder="value"] [data-rung-value="${rung}"]`);
+    if (!box) return { ok: false };
+    const before = JSON.stringify(H.rows(uuid));
+    box.value = text;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    await H.sleep(1200);
+    return { ok: true, changed: JSON.stringify(H.rows(uuid)) !== before };
+  },
+  /** Press Save row on the window, then wait for the spell's rows to change. */
+  rungSave: async ({ index, uuid }) => {
+    const H = globalThis.__msl;
+    const root = H.editor(index)?.element;
+    const save = [...(root?.querySelectorAll('[data-action="rungSave"]') ?? [])].find((b) => (b.dataset.rungKeys ?? "").split(" ").includes("value"));
+    if (!save) return { ok: false };
+    const before = JSON.stringify(H.rows(uuid));
+    save.click();
+    await H.poll(() => JSON.stringify(H.rows(uuid)) !== before, { tries: 50, every: 100 });
+    return { ok: true, changed: JSON.stringify(H.rows(uuid)) !== before };
+  },
   /**
    * The spell's Mechanics tab as this seat draws it: the effect lines, each read against `expect` as `H.view` reads it (a name or the neutral label is looked for in the line's text, a forbidden string in all of its markup).
    */
@@ -489,6 +524,31 @@ try {
   const v7b = await run(gm, P.open, { uuid: spellUuid, index: 1, expect: [{ uuid: bUuid }] });
   check("7: the window on row 0 shows one line, the first creature's", shaped7.gm && v7a.opened && v7a.index === 0 && v7a.count === 1 && line(v7a, 0).matches === true, { lines: v7a.count ?? 0, named: line(v7a, 0).matches ?? null });
   check("7: the window on row 1 shows one line, the second creature's", v7b.opened && v7b.index === 1 && v7b.count === 1 && line(v7b, 0).matches === true, { lines: v7b.count ?? 0, named: line(v7b, 0).matches ?? null });
+  await run(gm, P.clearWindows);
+
+  /* ---------------------------------------------------------------- */
+  section("7b. rungs drafted on the row and not saved survive Add and Remove, still unsaved");
+  // An invented ladder on the row's value: a figure at three invocation levels.
+  const LADDER = () => ({ kind: "conditional", on: "invocationLevel", breakpoints: [[1, 3], [3, 5], [5, 8]].map(([atLevel, value]) => ({ atLevel, value, outcome: "", text: "" })) });
+  const stored = async (i) => ((await run(gm, P.rows, { uuid: spellUuid }))[i]?.value?.breakpoints ?? []).map((b) => Number(b.value));
+  const same = (a, b) => a.length === b.length && a.every((x, i) => Number(x) === b[i]);
+  const shaped7b = await shape([rowOf("_walkListA", aUuid, { value: LADDER() })]);
+  const v7b0 = await run(gm, P.open, { uuid: spellUuid, index: 0, expect: [{ uuid: aUuid }] });
+  const r0 = await run(gm, P.rungs, { index: 0 });
+  check("7b: the row's window shows its value ladder with three rungs as stored", shaped7b.gm && v7b0.opened && r0.ladder === true && same(r0.figures ?? [], [3, 5, 8]), { opened: v7b0.opened, ladder: r0.ladder ?? false, rungs: r0.figures?.length ?? 0 });
+  const typed7b = await run(gm, P.rungType, { index: 0, rung: 1, text: "6", uuid: spellUuid });
+  const r1 = await run(gm, P.rungs, { index: 0 });
+  check("7b: a figure typed in the second rung is a draft: the window reads it and the spell's rows are unchanged", typed7b.ok && typed7b.changed === false && same(r1.figures ?? [], [3, 6, 8]) && same(await stored(0), [3, 5, 8]), { changed: typed7b.changed ?? null, drafted: same(r1.figures ?? [], [3, 6, 8]) });
+  const add7b = await run(gm, P.add, { index: 0, ref: bUuid, mode: "reopen", lines: 2 });
+  const r2 = await run(gm, P.rungs, { index: 0 });
+  const rows7b = await run(gm, P.rows, { uuid: spellUuid });
+  check("7b: Add opens a new window with two lines that still reads the drafted figure, with Save row on", add7b.ok && add7b.reopened && add7b.count === 2 && same(r2.figures ?? [], [3, 6, 8]) && r2.saveOn === true, { reopened: add7b.reopened ?? false, lines: add7b.count ?? 0, drafted: same(r2.figures ?? [], [3, 6, 8]), saveOn: r2.saveOn ?? null });
+  check("7b: the Add saved no rung: the open row and the row it made both store the ladder as it was", summonRows(rows7b).length === 2 && same(await stored(0), [3, 5, 8]) && same(await stored(1), [3, 5, 8]), { rows: summonRows(rows7b).length });
+  const rem7b = await run(gm, P.remove, { index: 0, line: 1, lines: 1 });
+  const r3 = await run(gm, P.rungs, { index: 0 });
+  check("7b: Remove of the other line opens a new window with one line that still reads the drafted figure, and the row still stores the ladder as it was", rem7b.ok && rem7b.reopened && rem7b.count === 1 && same(r3.figures ?? [], [3, 6, 8]) && same(await stored(0), [3, 5, 8]), { reopened: rem7b.reopened ?? false, lines: rem7b.count ?? 0, drafted: same(r3.figures ?? [], [3, 6, 8]) });
+  const save7b = await run(gm, P.rungSave, { index: 0, uuid: spellUuid });
+  check("7b: Save row then writes the carried draft: the row stores the typed figure", save7b.ok && save7b.changed && same(await stored(0), [3, 6, 8]), { saved: save7b.changed ?? false });
   await run(gm, P.clearWindows);
 
   /* ---------------------------------------------------------------- */

@@ -279,6 +279,30 @@ await t("discard drops a draft so the next read starts from what is stored", () 
   assert.equal(d.dirty("fig"), false);
 });
 
+await t("a changed draft is carried to another holder unsaved, and only onto the ladder it was drafted from", () => {
+  const held = { value: IMPORTED(), max: IMPORTED(), idle: IMPORTED() };
+  const d = holder(held);
+  d.change("value", 1, { value: 6 });
+  d.add("max");
+  d.draft("idle");
+  const carried = d.carry();
+  assert.deepEqual(carried.map((c) => c.key).sort(), ["max", "value"], "a draft nothing changed is not carried");
+  const next = holder(held);
+  assert.equal(next.adopt(carried), 2);
+  assert.equal(next.draft("value")[1].value, 6, "the typed figure is in the new holder's draft");
+  assert.equal(next.draft("max").length, 4, "and so is the added rung");
+  assert.equal(next.dirty("value"), true, "it is still unsaved there");
+  assert.deepEqual(held.value, IMPORTED(), "carrying stores nothing");
+  next.change("value", 1, { value: 7 });
+  assert.equal(d.draft("value")[1].value, 6, "the two holders share no rung");
+  const other = holder({ value: ladder([1, 4]), max: IMPORTED() });
+  assert.equal(other.adopt(carried), 1, "a draft made on another ladder is dropped");
+  assert.equal(other.dirty("value"), false);
+  assert.equal(other.draft("max").length, 4);
+  assert.equal(holder(held, () => false).adopt(carried), 0, "a viewer who may not edit takes none");
+  assert.equal(holder(held).adopt(undefined), 0);
+});
+
 await t("the verdict names the first figure that cannot be saved, and toSave returns only the figures a hand changed, refusing an invalid one", () => {
   const held = { value: IMPORTED(), max: ladder([2, 1], [4, 2]), idle: IMPORTED() };
   const d = holder(held);

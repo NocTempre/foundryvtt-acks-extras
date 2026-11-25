@@ -1578,7 +1578,8 @@ the hub undertook to report the three to the owner as facts.
   Number box and Remove, then a drop zone and a uuid box with Add. Add copies the open row for the new creature;
   Remove splices a row out, and on a list of one keeps the row and blanks its creature, since the row's format,
   number and control are the spell's setup. Add and Remove change the row list, so the window closes and reopens at
-  the row's new index, and a rung draft not yet saved is dropped. Nothing in the block reads the seat's role: the
+  the row's new index, carrying the rungs drafted on the row and not yet saved, which stay unsaved (the hub's
+  direction; the first build dropped them). Nothing in the block reads the seat's role: the
   spell's owner sets it up under Foundry's own permissions, and a creature the seat cannot open is listed under the
   neutral label and refused at the cast.
 - **Creatures join the caster's party.** A caster who marches inside a party token (a member neither deployed nor

@@ -290,6 +290,35 @@ export class RungDrafts {
   }
 
   /**
+   * The drafts a hand changed, copied so another holder can take them up: a
+   * window that closes and opens again on the same figures hands them across.
+   * A draft nothing changed is left out, since the next holder seeds the same.
+   * @returns {{key: string, draft: object[], seed: object|null, json: string}[]}
+   */
+  carry() {
+    return [...this.#entries.keys()].filter((key) => this.dirty(key)).map((key) => structuredClone({ key, ...this.#entries.get(key) }));
+  }
+
+  /**
+   * Take up drafts another holder carried. A draft is taken only where this
+   * holder stores the ladder it was drafted from, so one carried to a different
+   * figure is dropped; nothing is taken for a viewer who may not edit. Nothing
+   * is stored: the drafts are as unsaved here as they were there.
+   * @param {{key: string, draft: object[], seed: object|null, json: string}[]} carried what `carry` answered
+   * @returns {number} how many drafts were taken
+   */
+  adopt(carried) {
+    if (!this.editable()) return 0;
+    let taken = 0;
+    for (const { key, draft, seed, json } of carried ?? []) {
+      if (JSON.stringify(this.read(key) ?? null) !== json) continue;
+      this.#entries.set(key, structuredClone({ draft, seed, json }));
+      taken++;
+    }
+    return taken;
+  }
+
+  /**
    * The level values these figures save as, `{key: levelValue}`, for each whose
    * draft a hand changed. Refused with a throw for a viewer who may not edit and
    * for a draft that does not validate, so nothing invalid reaches a store.
