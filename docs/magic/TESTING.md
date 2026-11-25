@@ -300,6 +300,86 @@ caster records, the fight, the walk's own token, the generated creature and
 the world copies where none stood before. The fixtures stay. Quote `gm.sweepTracked({only})`'s result, and
 note that the tokens the module removed are among its `could not find`.
 
+## Casting a summoning spell from inside a party
+
+Built for a summoner whose token is stashed in a formation party token and that
+no combat holds: the cast has no combatant to resolve against and no token of
+the caster on the field to measure from. A mock cannot prove that the cast
+reads as a free cast there, that the creatures join the party and leave no
+token on the field, or what a Player is told when a range has no caster token
+to start from.
+
+**Fixtures** (kept; found by marker, built when none carries it). The walk
+keeps a party and a field of its own: the formation walk's disband and the
+other summoning walk's field assertions are not shared.
+- `magic/party-scene` is the field both seats view.
+- `magic/party-creature` is a `monster` whose ownership gives the Player's user
+  Observer (level 2). The shape step writes `ownership[<player's user id>] = 2`
+  and the walk asserts it reads back 2 on the GM seat and as an Observer on the
+  Player seat before any cast, so no result below turns on whether the Player
+  may read the creature.
+- `magic/party-caster` is a `character` the Player owns, spells enabled.
+- `magic/party-spell-open` and `magic/party-spell-ranged` are two `spell`s on
+  that character, each rewritten whole by its step (the flag deleted first, then
+  written) with one summon row naming the creature by uuid and a fixed two
+  hours. The open one asks for two and states no range; the ranged one asks for
+  one and states a distance the fixture sets.
+- `magic/party` is an `acks-extras.party` actor whose formation holds the caster
+  alone, delving. `magic/party-token` is its token on `magic/party-scene`, the
+  caster stashed inside it.
+
+At the start no combat in `game.combats` holds the caster or the party's actor,
+and no token of the caster stands on the field. A combat that holds either is
+not the walk's: the walk prints `WALK BLOCKED` with that reason and leaves it
+standing. A summon member a past run left is dismissed through the Magic tab's
+Dismiss before the walk.
+
+What the run makes and sweeps by uuid, never kept: the cast cards, the caster
+records that appear during the run and the world copy of the creature where
+none stood. A member a failed step leaves in the party is released by the run's
+own cast id. The world clock is not moved.
+
+`tools/live/magic-summon-in-party.mjs` walks the steps on the GM and Player
+seats. Its recorders attach after `ready`, so a clean console there says nothing
+about `init`, `setup` or `ready`.
+
+**Drive mechanics.** The cast is the real window: the Magic tab's Cast, the
+dialog's `button[data-action="cast"]`, then real pointer clicks on the
+placement, as "Casting a summoning spell" drives it. The party gathers a
+placed creature after the GM's client has made its token, so a read of the
+party's members polls until the count lands and the field holds no token. The
+Dismiss is the Magic tab row's `[data-action="spellDismiss"]`, shown only while
+the row reads a standing count, and its confirmation is the `yes` button.
+
+**Steps, from the Player seat:**
+
+1. The spell with no range (the walk labels it A). Record the confirm button's label first.
+   *Observable:* the cast count rose by exactly 1; no pending-declaration
+   record exists on the caster and it carries no casting status; the party's
+   member list grew by the count (under distinct ids, each naming the caster and
+   one cast), and no creature token stands on the field; the caster is still
+   the party's one person with no token of its own; the Magic tab's row reads
+   "2 standing"; one cast card and one caster record exist. The row's Dismiss,
+   answered Yes, removes the members.
+2. The spell with a distance range (the walk labels it B). The step first reads
+   the spell as the Player seat's own module reads it and requires the
+   fixture's range back, so an observation of a spell with no range is never
+   taken. An observation: a Player's request here
+   names no caster token to measure from, and what the cast does then is not
+   settled, so the step records what it sees and fails only a broken
+   invariant. It prints the button's label, the dialog's verdicts and the
+   refusal text a notice or the footer showed, the placement result, the cast
+   count before and after, and whether a pending record exists. Invariants:
+   nothing placed means nothing spent (the count unchanged, no cast card, no
+   pending record, no casting status) and a refusal the user can read; creatures
+   placed means the count rose by exactly 1, no pending record, the members in
+   the party and none on the field, and they are dismissed through the same
+   control. A click the range gate refuses leaves the placement pending, which
+   the walk cancels with a right click.
+
+**Teardown.** The fixtures stay, the party back to the caster alone. Delete only
+what the run tracked, and quote `gm.sweepTracked({only})`'s result.
+
 ## Spell effect rows (the recipe channel)
 
 Walk: `tools/live/magic-spell-recipes.mjs`, on the GM seat only: nothing here

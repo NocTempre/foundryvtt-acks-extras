@@ -1554,3 +1554,23 @@ under it, so read the rows again afterwards rather than trusting its return.
    rung's number.
 
 **Teardown:** none; the character is a kept fixture and the classes stay.
+
+## A typed class name is not a bound class
+
+Walked by `tools/live/classes-typed-name.mjs` on the GM seat, with
+`proficiencyEnforcement` set to on for the run and put back.
+
+**Fixtures** (kept, found by marker): `classes/typed-name-typed`, a character,
+and `classes/typed-name-applied`, a character holding an equipped weapon and an
+equipped shield (armor type, `system.type` `shield`). The class is found at run
+time among the library's non-stub classes, preferring one whose training effect
+grants the weapon-and-shield style.
+
+| Step | Do | Observable |
+| --- | --- | --- |
+| 1 | Type the class's name into the typed character's class field, no class applied; open the Class tab | The name resolves to a class document, yet `bound` is false; the tab draws the unbound line and no class link, bound line or next-experience note |
+| 2 | Apply the same class to the other character through the picker; open the Class tab | `bound` is true; the tab draws the class link, the bound line and the next-experience note, and not the unbound line |
+| 3 | On the applied character, read the loadout and the Equipment tab with the weapon and shield equipped | The weapon-and-shield style is active and reads trained (no untrained-style violation, no untrained tag); a failure prints the class key, the style tokens the class grants, the equipped items' types and the reading, and is the field report's finding |
+
+The party sheet's member row has no untrained-style producer in
+`scripts/formation` or `templates/formation`, so no step reads it.

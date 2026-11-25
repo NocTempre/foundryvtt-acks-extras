@@ -1769,3 +1769,26 @@ packed case uses the same row, stored and taken out, and no second marker.
 8. From a script, equip the row of 3 and wait a second, then run `await row.update({"system.equipped": false}); await row.update({"system.equipped": true})` on the drawn row and wait a second again. *Observable:* a drawn row holding 1 and a resting row holding 2, the sum 3; never a drawn row of 3. The equip is held while the fold lands and divides the whole stack when it is issued.
 9. Drag a drawn sword onto its own resting row in Carried (character sheet → Equipment tab → Carried). *Observable:* one row holding the whole count of 3; neither row is deleted.
 10. Teardown. The run's tracked documents are swept by ledger; the kept fixture is restored to one resting row of 3 for the next walk.
+
+## The Inherited row's fighting style
+
+Walked by `tools/live/equipment-inherited-style.mjs` on the GM seat, with
+`proficiencyEnforcement` set to on for the run and put back.
+
+**Fixtures** (kept, found by marker): `equipment/inherited-style-classless` and
+`equipment/inherited-style-classed`, characters each holding an equipped weapon
+and an equipped armor-type shield (`system.type` `shield`). The classed one is
+reset to no class and applied again at the step's start; the class is found at
+run time among the library's non-stub classes by a training effect that grants
+the weapon-and-shield style. A world with none stops the walk blocked.
+
+| Step | Do | Observable |
+| --- | --- | --- |
+| 1 | On the classless character, open the weapon's item sheet, Effects tab | The Inherited row's label is the style's lang string (the id appears on no row), its detail reads Untrained, its source tag reads the no-class string and not the plain Class tag |
+| 2 | Open the class picker on the class (the route a dropped class takes), press Apply | The picker closes and the class ledger names the class |
+| 3 | On that character, open the weapon's item sheet, Effects tab | The row's detail reads Trained and its source tag is the class's own name, not the plain Class tag |
+
+Drive mechanics: a mandatory style (single, missile) reads trained with no class
+naming it and falls to the plain Class tag, so the walk uses weapon plus shield.
+A damage-bonus election dialog the apply raises is answered through its OK
+button.

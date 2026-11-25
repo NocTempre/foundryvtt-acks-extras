@@ -5587,3 +5587,27 @@ Fixtures: the turn plan's kept party, marker `formation/plan-party`, on its scen
 | T4 | Drag the party token one turn's distance on the dungeon-scale scene | The turn count moves by one and the world clock by `turnSeconds()` |
 
 Drive mechanics: the unit tests cover the arithmetic; the live pass proves the strip and the clock on a real scene.
+
+## A magic light as the only light
+
+Walked by `tools/live/formation-light-reading.mjs` on the GM seat.
+
+**Fixtures** (kept, found by marker): the party actor `formation/light-reading`
+holding the character `formation/light-reading-member`, which carries the plain
+item `formation/light-reading-lamp`. The lamp's magic light effect is made with
+the Add Effect control's own start data and is the run's own, swept by uuid with
+the turn cards the party's turns post. Each step starts by asserting the shape:
+no flame lit on the record, the delve, the lamp out of every container and
+unshuttered, `formationHasLight` true.
+
+| Step | Do | Observable |
+| --- | --- | --- |
+| 1 | Advance the party one turn with the magic light shining and no flame lit | The turn card posted for the party lists its status rows and carries none of the no-light line (matched by the lang string) |
+| 2 | Open the party sheet, Kit tab | One magic light row reads Shining; the figures rail's light cell (the flame glyph) shows that row's badge as its reading and not the no-light reading |
+| 3 | Press the row's Shutter button, wait for the effect to read Shuttered, advance one turn | The turn card carries the no-light line, which proves step 1's absence is not a card that never had one |
+| 4 | Open the party sheet, Kit tab | The row reads Shuttered; the light cell reads the no-light reading and no longer the badge |
+
+Drive mechanics: a turn advance moves world time, and the kept party's rest and
+encounter counters accumulate across runs. The cell is found by its glyph inside
+`.acks-extras-party-sheet__rail--figures`; its reading is the sub span, its name
+the tooltip and aria-label.
