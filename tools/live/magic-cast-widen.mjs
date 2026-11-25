@@ -751,7 +751,7 @@ async function stageGates() {
   if (!exemptKey) {
     gap("F: the import left no exemptSizeFrom on a row; the walk sets one on its copy");
     exemptKey = sizes[sizes.length - 1];
-    shaped = await shape("earths-excrescence", { ...base, rows: [...base.rows, { type: "damage", first: true, set: { exemptSizeFrom: exemptKey } }] });
+    shaped = await shape("earths-excrescence", { ...base, rows: [...base.rows, { type: "damage", first: true, set: { roll: "6", exemptSizeFrom: exemptKey } }] });
   }
   check("F: the exempting size is a key of the monsters config", sizes.includes(exemptKey));
   await run(gm, P.shapeMonster, { actorId: W.actor.huge, hp: 40, hd: 2, size: exemptKey, defenses: null });
