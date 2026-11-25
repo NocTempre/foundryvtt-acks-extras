@@ -364,7 +364,6 @@ export function conditionOf(item, container) {
   const base = pristineOf(item);
   const acNow = item.type === ITEM_TYPE.armor ? Number(item.system?.ac?.value ?? 0) : null;
   const acFull = item.type === ITEM_TYPE.armor ? Math.max(0, Number(base.ac ?? 0) + deltas.ac) : null;
-  const qty = item.system?.quantity;
   return {
     labels: sc?.labels ?? [],
     damaged: lost > 0 || (!!sc && ((sc.damage ?? 0) < 0 || (sc.attack ?? 0) < 0 || (sc.ac ?? 0) < 0 || (sc.encumbrance ?? 0) > 0 || !!sc.breaks)),
@@ -375,7 +374,6 @@ export function conditionOf(item, container) {
     acFull,
     acTip: acNow === null ? null : acTipOf({ full: acFull, scavenged: Number(sc?.ac ?? 0), lost }),
     itemLossAc: lost,
-    uses: Number.isFinite(qty?.value) && Number(qty?.max) > 0 ? { now: qty.value, max: qty.max } : null,
     breaks: !!sc?.breaks,
     notes: [...(sc?.notes ?? []), ...(sc?.cannotSneak ? [loc("itemSheet.condition.cannotSneak")] : [])],
     // Present only while the item-loss overlay is on, the way the spells tab is

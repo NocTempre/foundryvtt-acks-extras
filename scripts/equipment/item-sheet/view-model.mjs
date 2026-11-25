@@ -20,7 +20,7 @@
  *              keys[], fragile, accepts[], refusal, contents[], canSee} | null
  *   spellbook  {pagesUsed, pagesCap (null until imported), hasCap, capTip, usedTip, groups[]} | null
  *   chart      {sceneName, explored, pct} | null
- *   condition  {labels[], damaged, destroyed, material, acNow, acFull, itemLossAc, uses, note,
+ *   condition  {labels[], damaged, destroyed, material, acNow, acFull, itemLossAc, note,
  *              itemLoss}   itemLoss {state, tip} | null (overlay off)
  *              | null
  *   rolls      groups[{key, name, note, src, rows[{id, m, glyph, v, label,
