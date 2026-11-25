@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, roleOf, subtreeView, templateOf, unlistedView } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView } from "./org-chart-ui-logic.mjs";
 import { isLocation } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
@@ -255,14 +255,19 @@ function readPanel(form) {
   };
 }
 
-/** The slots' picks: a share and a troop for each unit row the panel lists, blank where the Judge left it to the roll. */
+/**
+ * The slots' picks: a share and a troop for each unit row the panel offers, blank where the Judge left
+ * it to the roll, and the unit word its Roll rolls. A slot the state does not name a unit for is not
+ * offered and picks nothing.
+ */
 function readSlots(form) {
   const picks = {};
   for (const el of form.querySelectorAll("[data-slot]")) {
+    if (el.dataset.unsure === "true") continue;
     const key = el.dataset.slot;
-    const share = form.elements.namedItem(`share-${key}`)?.value ?? "";
+    const share = form.elements.namedItem(`share-${key}`);
     const troop = form.elements.namedItem(`troop-${key}`);
-    picks[key] = { shareKind: share, troop: troop && !troop.hidden ? troop.value : "" };
+    picks[key] = { shareKind: share && !share.hidden ? share.value : "", troop: troop && !troop.hidden ? troop.value : "", kind: el.dataset.kind ?? "" };
   }
   return picks;
 }
@@ -279,7 +284,8 @@ async function askRoll(family, defaults = {}, { slots = [], title = loc("roll.ti
   const variants = (axis?.options ?? []).map((o) => ({ key: o.key, label: o.label ?? o.key, selected: o.key === defaults.variant }));
   const first = defaults.variant || variants[0]?.key || "";
   const rules = Object.fromEntries(["troops", "traits", "gear"].map((k) => [k, defaults.rules?.[k] !== false]));
-  const described = describeRoll({ family, variant: first, context: defaults.context ?? "wilderness", state: defaults.state ?? "wandering", rules, chosen: defaults.choices ?? {} });
+  const slotArgs = slots.map(({ key, depth, topKind }) => ({ key, depth, topKind }));
+  const described = describeRoll({ family, variant: first, context: defaults.context ?? "wilderness", state: defaults.state ?? "wandering", rules, chosen: defaults.choices ?? {}, slots: slotArgs });
   const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/org-roll-panel.hbs`, {
     family: family?.name ?? "",
     variants,
@@ -288,7 +294,7 @@ async function askRoll(family, defaults = {}, { slots = [], title = loc("roll.ti
     rules: ["troops", "traits", "gear"].map((k) => ({ key: k, label: loc(`roll.rules.${k}`), checked: rules[k] })),
     choices: described?.choices ?? [],
     make: described?.make ?? null,
-    slots,
+    slots: slots.map((s) => ({ ...s, rowKind: s.kind, kind: described?.slotUnits?.[s.key]?.word ?? "", unsure: !described?.slotUnits?.[s.key]?.sure && !s.kind })),
     shares: described?.shares ?? [],
     troops: described?.troops ?? [],
   });
@@ -302,17 +308,42 @@ async function askRoll(family, defaults = {}, { slots = [], title = loc("roll.ti
       const root = dialog.element;
       const form = root.querySelector("form");
       if (!form) return;
-      const special = described?.special ?? "";
+      let current = described;
+      const options = (select, list) => {
+        const kept = select.value;
+        select.replaceChildren(...[{ key: "", label: loc("design.rolled") }, ...list].map((o) => {
+          const option = root.ownerDocument.createElement("option");
+          option.value = o.key;
+          option.textContent = o.label;
+          return option;
+        }));
+        select.value = list.some((o) => o.key === kept) ? kept : "";
+      };
       const syncSlots = () => {
-        const troops = !!form.elements.namedItem("rules-troops")?.checked;
+        const special = current?.special ?? "";
+        const shares = current?.shares ?? [];
         for (const el of form.querySelectorAll("[data-slot]")) {
-          const troop = form.elements.namedItem(`troop-${el.dataset.slot}`);
-          if (troop) troop.hidden = !(troops && special && form.elements.namedItem(`share-${el.dataset.slot}`)?.value === special);
+          const key = el.dataset.slot;
+          const unit = current?.slotUnits?.[key];
+          const unsure = !(unit?.sure) && !el.dataset.rowKind;
+          el.dataset.unsure = String(unsure);
+          el.dataset.kind = unit?.word ?? "";
+          for (const control of el.querySelectorAll("select, button")) control.hidden = unsure;
+          const note = el.querySelector("[data-org-slot-note]");
+          if (note) note.hidden = !unsure;
+          const share = form.elements.namedItem(`share-${key}`);
+          if (share) {
+            options(share, shares);
+            if (!unsure) share.hidden = shares.length === 0;
+          }
+          const troop = form.elements.namedItem(`troop-${key}`);
+          if (troop) troop.hidden = unsure || !(special && share?.value === special);
         }
       };
       const redraw = async () => {
         const now = readPanel(form);
-        const out = describeRoll({ family, variant: now.variant, context: now.context, state: now.state, rules: now.rules, chosen: now.choices });
+        const out = describeRoll({ family, variant: now.variant, context: now.context, state: now.state, rules: now.rules, chosen: now.choices, slots: slotArgs });
+        current = out;
         const holder = root.ownerDocument.createElement("div");
         holder.innerHTML = await foundry.applications.handlebars.renderTemplate(sectionsTemplate, { choices: out?.choices ?? [], make: out?.make ?? null });
         const old = form.querySelector("[data-org-sections]");
@@ -399,7 +430,8 @@ async function onRollAll(_event, target) {
  */
 async function writeSlot(host, key, pick) {
   const gen = { shareKind: pick?.shareKind ?? "", troop: pick?.troop ?? "" };
-  return org.editRow(host, key, { fields: { gen } });
+  const blank = !org.unitsOf(host).find((r) => r.key === key)?.kind;
+  return org.editRow(host, key, { fields: { gen, ...(blank && pick?.kind ? { kind: pick.kind } : {}) } });
 }
 
 /**
@@ -415,7 +447,7 @@ async function onDesign(_event, target) {
   const rows = org.unitsOf(host);
   const slotKeys = emptyKeys(scope).filter((k) => templateOf(rows, k).template && rows.find((r) => r.key === k)?.parentKey);
   const { family, defaults } = familyOf(host, emptyKeys(scope)[0] ?? slotKeys[0] ?? "");
-  const slots = slotKeys.map((k) => ({ key: k, label: scope.rows.find((r) => r.key === k)?.label ?? k }));
+  const slots = slotKeys.map((k) => ({ key: k, label: scope.rows.find((r) => r.key === k)?.label ?? k, kind: rows.find((r) => r.key === k)?.kind ?? "", ...slotPosition(rows, k) }));
   const onSlot = async (key, options) => {
     const wrote = await writeSlot(host, key, options.picks[key]);
     if (!wrote.ok) {
@@ -429,13 +461,16 @@ async function onDesign(_event, target) {
   if (!options) return render(this);
   for (const key of slotKeys) {
     if (org.unitsOf(host).find((r) => r.key === key)?.holderUuid) continue;
-    const wrote = await writeSlot(host, key, options.picks?.[key]);
+    if (!options.picks?.[key]) continue;
+    const wrote = await writeSlot(host, key, options.picks[key]);
     if (!wrote.ok) refuse(wrote);
   }
+  // A slot the panel did not offer (no one unit named for its level) is left empty, as it was listed.
+  const left = new Set(slotKeys.filter((k) => !options.picks?.[k]));
   let filled = 0;
   for (let guard = 0; guard < 200; guard++) {
     const now = org.orgChart(host, { isGM: true });
-    const key = emptyKeys(root ? subtreeView(now, root) : now).find((k) => templateOf(org.unitsOf(host), k).template);
+    const key = emptyKeys(root ? subtreeView(now, root) : now).find((k) => !left.has(k) && templateOf(org.unitsOf(host), k).template);
     if (!key) break;
     const run = await rollRow(host, key, options);
     if (!run.ok) break;

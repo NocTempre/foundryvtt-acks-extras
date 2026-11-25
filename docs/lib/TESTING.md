@@ -4627,14 +4627,24 @@ picked variant can reach (a rounding, the two choices of a split, each branch gr
 what the evaluator takes, and **This roll will make** lists the line read for the place and state, then each part with its
 die expression, its chance and a tooltip carrying its page reference; **no number is thrown to draw it** (the Actors tab
 and the world's chat are unchanged until Roll is pressed). Change the variant, Found in, State or a rule: both sections
-redraw to that pick's figures. Roll is never held waiting on a choice.
+redraw to that pick's figures. Roll is never held waiting on a choice. *Observable, per state:* the list holds only the parts
+the Roll would make in that state, so a part that applies to a unit only the lair's tree stands on is absent under Wandering
+and present under Lair (Chance lists what either side could make and reads the lair line); with Special troops on and the
+split shares imported, the three imported shares stand in the list in place of the recipe's.
 
 **Design by selection (board 1b).** Press **Design by selection** in the tools strip (drawn only while an empty card has a
 family to roll). *Observable:* the same panel with a **Units** fieldset: a row for each empty card below the top with a
-share select and a die; a troop select appears for a unit only while Optional rules → Special troops is on and its share
-is the special one (the one case a troop pick is read). Pick a share on a unit and press OK: the unit's row `gen`
-holds `shareKind` (and `troop`) before the Roll, and the filled unit takes the share. The unit's die rolls that row alone
-with all below it and removes the slot; the other units stay empty. A pick left on "Rolled" writes no key.
+share select and a die; the share select offers exactly the shares the evaluator splits by in the state and rules picked
+(the imported three with Special troops on, else the recipe's own, none where no level is one they name), and it is rebuilt
+when the state, a rule or the variant changes, a pick no longer offered going back to "Rolled". A troop select appears for a
+unit only while the picked share is the special one, which only the imported shares carry. Pick a share on a unit and press
+OK: the unit's row `gen` holds `shareKind` (and `troop`) and its `kind` the unit word of its level before the Roll, in one
+write to the host, and the filled unit takes the share. The unit's die rolls that row alone, **at its level** (the row's
+`kind` is read from the side's line, never blank), with all below it, and removes the slot; the other units stay empty. A pick
+left on "Rolled" writes no key. A slot whose level the state does not name one unit for (Chance when the two sides word it
+differently, or a level below the bodies) shows "Not offered" with no controls and is left empty by OK.
+The unmapped inputs (a unit's trait, the village row, guard, caster and dependant counts) are not drawn: each would need a
+row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `troop` only).
 4. **Edit** — press the pen on a filled card: the card turns to a form (troop select with off-the-bands
    types marked, bodies, Clear the leader where one exists, Remove, Done); change the bodies, press Done. *Observable:* the
    group's stack `size.initial` and `size.current` are the new figure, the card reads **set by hand** with a

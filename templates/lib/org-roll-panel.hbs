@@ -24,9 +24,10 @@
   <fieldset data-org-slots>
     <legend>{{localize "ACKS-LIB.org.design.units"}}</legend>
     {{#each slots}}
-      <div class="acks-lib-roll-slot" data-slot="{{key}}" data-share="{{share}}">
+      <div class="acks-lib-roll-slot" data-slot="{{key}}" data-kind="{{kind}}" data-row-kind="{{rowKind}}" data-unsure="{{unsure}}">
         <span>{{label}}</span>
-        <select name="share-{{key}}" aria-label="{{localize 'ACKS-LIB.org.design.share' name=label}}" data-tooltip="ACKS-LIB.org.design.shareTip">
+        <span class="hint" data-org-slot-note {{#unless unsure}}hidden{{/unless}}>{{localize "ACKS-LIB.org.design.unsure"}}</span>
+        <select name="share-{{key}}" aria-label="{{localize 'ACKS-LIB.org.design.share' name=label}}" data-tooltip="ACKS-LIB.org.design.shareTip" {{#if unsure}}hidden{{else}}{{#unless @root.shares.length}}hidden{{/unless}}{{/if}}>
           <option value="">{{localize "ACKS-LIB.org.design.rolled"}}</option>
           {{#each @root.shares}}<option value="{{key}}">{{label}}</option>{{/each}}
         </select>
@@ -34,7 +35,7 @@
           <option value="">{{localize "ACKS-LIB.org.design.rolled"}}</option>
           {{#each @root.troops}}<option value="{{key}}">{{label}}{{#if offBands}} · {{localize "ACKS-LIB.org.edit.offBands"}}{{/if}}</option>{{/each}}
         </select>
-        <button type="button" data-org-slot-roll="{{key}}" data-tooltip="ACKS-LIB.org.design.dieTip" aria-label="{{localize 'ACKS-LIB.org.design.die' name=label}}"><i class="fas fa-dice" aria-hidden="true"></i></button>
+        <button type="button" data-org-slot-roll="{{key}}" {{#if unsure}}hidden{{/if}} data-tooltip="ACKS-LIB.org.design.dieTip" aria-label="{{localize 'ACKS-LIB.org.design.die' name=label}}"><i class="fas fa-dice" aria-hidden="true"></i></button>
       </div>
     {{/each}}
   </fieldset>

@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, roleOf, templateOf, unlistedView } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -102,6 +102,14 @@ t("a folded card keeps its rank: the role is read before the fold empties its ch
   const midShut = chartCards(tree.roots, { collapsed: new Set(["mid"]) });
   assert.equal(rankOf(open, "mid"), "sub");
   assert.equal(rankOf(midShut, "mid"), "sub", "a folded mid-level card is no champion");
+});
+
+t("a slot's position is its depth below the chart's top and the word the top row holds", () => {
+  const rows = [row("t", "", "", { kind: "top-word" }), row("m", "t"), row("l", "m")];
+  assert.deepEqual(slotPosition(rows, "m"), { depth: 1, topKind: "top-word" });
+  assert.deepEqual(slotPosition(rows, "l"), { depth: 2, topKind: "top-word" });
+  assert.deepEqual(slotPosition(rows, "t"), { depth: 0, topKind: "top-word" });
+  assert.deepEqual(slotPosition(rows, "zz"), { depth: 0, topKind: "" });
 });
 
 t("a count is set by hand when it differs from the total its Roll threw, and a stack with no record never is", () => {

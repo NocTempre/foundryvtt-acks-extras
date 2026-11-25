@@ -223,10 +223,22 @@ const P = {
       make: [...(dlg?.querySelectorAll(".acks-lib-roll-make li") ?? [])].map((li) => li.textContent.trim().replace(/\s+/g, " ")),
       tips: [...(dlg?.querySelectorAll(".acks-lib-roll-make li") ?? [])].filter((li) => li.dataset.tooltipText).length,
       slots: [...(dlg?.querySelectorAll("[data-slot]") ?? [])].map((el) => el.dataset.slot),
+      slotReads: [...(dlg?.querySelectorAll("[data-slot]") ?? [])].map((el) => ({ key: el.dataset.slot, kind: el.dataset.kind, unsure: el.dataset.unsure === "true", shares: [...(el.querySelector("select[name^='share-']")?.options ?? [])].map((o) => o.value).filter(Boolean) })),
       troopHidden: [...(dlg?.querySelectorAll("[name^='troop-']") ?? [])].every((el) => el.hidden),
       actors: game.actors.size,
       chat: game.messages.size,
     };
+  },
+
+  /** Tick or clear a checkbox of the open dialog and fire its change, as a hand does. */
+  setRule: async ({ name, checked }) => {
+    const dlg = [...document.querySelectorAll("dialog.application, .application.dialog-v2")].at(-1);
+    const el = dlg?.querySelector(`[name="${name}"]`);
+    if (!el) return false;
+    el.checked = checked;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 400));
+    return true;
   },
 
   /** Set a field of the open dialog and fire its change, as a hand does. */
@@ -328,13 +340,23 @@ try {
     const panel = await run(gm, P.panel, null);
     check("Roll at random opens a panel that lists what the roll will make, each row with a provenance tooltip", panel.open && panel.make.length > 0 && panel.tips === panel.make.length, { make: panel.make.length, tips: panel.tips });
     note("where the page is silent: the choices this variant reaches", panel.choices);
+    const wander = await run(gm, P.setField, { name: "state", value: "wandering" });
+    const wandering = await run(gm, P.panel, null);
     const state = await run(gm, P.setField, { name: "state", value: "lair" });
     const again = await run(gm, P.panel, null);
+    note("This roll will make under Wandering and under Lair, for the walker to compare against the recipe: a part that applies only to the lair's units is absent from the first", { wandering: wandering.make, lair: again.make, waited: wander });
     check("changing the state redraws the readings, and nothing was rolled or made to draw them", state && again.actors === panel.actors && again.chat === panel.chat, { actors: [panel.actors, again.actors], chat: [panel.chat, again.chat] });
     await run(gm, P.closeDialog, null);
     await run(gm, P.press, { id: fid, action: "orgDesign", wait: 700 });
     const design = await run(gm, P.panel, null);
     check("Design by selection opens the panel with a slot for each empty unit below the top, and no troop select shown until the troops rule and the special share both stand", design.open && design.slots.length >= 0 && design.troopHidden, design.slots);
+    note("each slot's unit word (kind), whether it is offered, and the shares its select holds, with the rules as they stand", design.slotReads);
+    check("a slot that is offered carries the unit word of its level, so its die rolls that unit and not the whole line", design.slotReads.every((s) => s.unsure || !!s.kind), design.slotReads);
+    await run(gm, P.setRule, { name: "rules-troops", checked: false });
+    const without = await run(gm, P.panel, null);
+    await run(gm, P.setRule, { name: "rules-troops", checked: true });
+    const withRule = await run(gm, P.panel, null);
+    check("the share options follow the Special troops rule: they differ between the two reads where the shares were imported, and a troop select stays hidden while no slot holds the special share", withRule.troopHidden && without.slotReads.length === withRule.slotReads.length, { off: without.slotReads.map((s) => s.shares), on: withRule.slotReads.map((s) => s.shares) });
     await run(gm, P.closeDialog, null);
   } else note("not walked", "no family template carries an encounter line in this world");
 

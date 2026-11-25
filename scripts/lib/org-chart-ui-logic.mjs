@@ -29,6 +29,20 @@ export function templateOf(rows, key) {
 /** The keys of every empty row, in reading order: what Roll at random fills, each a Roll of its own with all below it. */
 export const emptyKeys = (view) => (view?.rows ?? []).filter((r) => r.empty).map((r) => r.key);
 
+/**
+ * Where a row stands in its chart, for a slot's unit: how many rows lie between it and the
+ * chart's top, and the unit word the top row holds (blank before a roll).
+ * @param {object[]} rows the host's rows
+ * @param {string} key
+ * @returns {{depth: number, topKind: string}}
+ */
+export function slotPosition(rows, key) {
+  const list = (rows ?? []).map((r) => r?.toObject?.() ?? r);
+  const above = rowAncestors(key, nodesOf(list));
+  const top = list.find((r) => r.key === (above.at(-1) ?? key));
+  return { depth: above.length, topKind: String(top?.kind ?? "") };
+}
+
 /** The keys of every row with rows beneath it: what Collapse all folds. */
 export const branchKeys = (view) => (view?.rows ?? []).filter((r) => r.children.length).map((r) => r.key);
 

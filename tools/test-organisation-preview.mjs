@@ -109,6 +109,15 @@ t("a slot's unit is the level the top unit is made of, read from the side's line
   assert.deepEqual(at({ state: "chance", depth: 1 }), { word: "", sure: false }, "the two sides of a chance throw word the level differently");
 });
 
+t("a slot's Roll is a Roll of that one row at its level: the evaluator started from the slot's unit word makes that unit and nothing above it", () => {
+  const { word } = slotUnit({ recipe: RECIPE, encounter: ENCOUNTER, state: "lair", depth: 1 });
+  const whole = evaluateRecipe({ recipe: RECIPE, encounter: ENCOUNTER, state: "lair", rng: () => 0.001 });
+  const one = evaluateRecipe({ recipe: RECIPE, encounter: ENCOUNTER, state: "lair", unit: word, rng: () => 0.001 });
+  assert.equal(whole.top.unit, "hold", "a blank kind rolls the whole line");
+  assert.equal(one.ok, true);
+  assert.deepEqual(walk(one.top).map((n) => n.unit), ["band"], "the slot's unit alone");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {

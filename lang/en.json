@@ -11533,6 +11533,7 @@
   "ACKS-LIB.org.design.title": "Design by selection",
   "ACKS-LIB.org.design.units": "Units",
   "ACKS-LIB.org.design.rolled": "Rolled",
+  "ACKS-LIB.org.design.unsure": "Not offered: the state picked names no one unit for this level. Pick Wandering or Lair.",
   "ACKS-LIB.org.design.share": "Share of {name}",
   "ACKS-LIB.org.design.shareTip": "The share this unit takes from its parent's line. Left to the roll, it is thrown with the line.",
   "ACKS-LIB.org.design.troop": "Troop type of {name}",
