@@ -124,11 +124,11 @@ export async function restPools(actor) {
 }
 
 /** Render the strip markup for one actor (empty string when nothing casts and no power is held). */
-function stripHtml(actor, switches) {
+function stripHtml(actor, switches, { traditions = true } = {}) {
   const state = poolState(actor);
   const power = powerSectionHtml(actor, state.length > 0, switches);
   if (!state.length && !power) return "";
-  const parts = state.map((t) => {
+  const parts = (traditions ? state : []).map((t) => {
     if (t.slots) {
       const cells = t.slots
         .map((s) => {
@@ -162,11 +162,14 @@ function stripHtml(actor, switches) {
  * mount exactly this, so the two cannot drift. `app` is the window that hosts
  * the strip: it keys the power ledger's record (Fades / Stays, which panels are
  * open, the typed amounts, the panel ids), which each render of the strip reads
- * back (`power-chip.mjs`).
+ * back (`power-chip.mjs`). With `traditions: false` the strip draws no
+ * per-tradition pips or points pair, which a host that groups spells under
+ * each tradition's heading draws there instead; the rest control and the
+ * power section stay.
  */
-export function castingStripElement(actor, app) {
+export function castingStripElement(actor, app, { traditions = true } = {}) {
   const switches = powerSwitchOf(app);
-  const html = stripHtml(actor, switches);
+  const html = stripHtml(actor, switches, { traditions });
   if (!html) return null;
   const holder = document.createElement("div");
   holder.innerHTML = html;

@@ -1,9 +1,12 @@
 /* global game */
 /**
- * The Magic tab's data: the system's spell repertoire by level with the
- * slot pair core stores (`system.spells.<n>`), and the per-tradition pools
- * the classes feature derives from the class document (mounted as its
- * strip). Present only for a caster. A summoning spell's row also carries how
+ * The Magic tab's data. Where the bound class casts from a list, the spells
+ * stand under a heading per list with that list's slot row per level
+ * (`spellStanding`), and the rest under "Other spells"; otherwise the system's
+ * spell repertoire by level with the slot pair core stores
+ * (`system.spells.<n>`). One row builder serves both. The pools are the
+ * classes feature's, derived from the class document; the rest control and the
+ * power section stay on the strip it mounts. Present only for a caster. A summoning spell's row also carries how
  * many of its creatures stand on the scene the party cell counts on, and how
  * many of those ride in a party (`summonRowOf`), and any
  * spell's row carries a cast declared in a fight and still waiting for the
@@ -12,6 +15,10 @@
 import { LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { poolState } from "../../classes/casting.mjs";
+import { classForActor } from "../../classes/registry.mjs";
+import { LANG_PREFIX as CLASSES_LANG } from "../../classes/constants.mjs";
+import { MODULE_ID, FLAG_SPELL } from "../../magic/constants.mjs";
+import { spellStanding } from "../../magic/cast-capacity.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { isSummonSpell } from "../../magic/summon-spell.mjs";
 import { spellEffectOf } from "../../magic/spell-effect.mjs";
@@ -20,6 +27,7 @@ import { storedSystem, standingBySpell } from "../view-model.mjs";
 import { summonsOnScene, currentScene } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
+const classesLoc = makeLoc(CLASSES_LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /**
@@ -72,6 +80,44 @@ export function summonRowOf(entries, { scene }) {
   };
 }
 
+/**
+ * The words of a spell row's lists line and its tooltip, from one appearance
+ * `spellStanding` gave: under a heading, its own list then "also" the others;
+ * under "Other spells", every list it names. Null where the spell names none.
+ * The tooltip says where the lists were read from: the spell flag's own
+ * citation, the flag with none, or core's class field where the flag lists none.
+ *
+ * @param {{lists: {label: string, level: number|null, fromClass: boolean}[], own: object|null, also: object[]}} entry
+ * @param {string} cite  the spell flag's `cite`
+ * @returns {{text: string, tip: string}|null}
+ */
+export function listsLineOf(entry, cite = "") {
+  if (!entry.lists.length) return null;
+  const shown = (l) => (l.level == null ? l.label : `${l.label} ${l.level}`);
+  const text = entry.own
+    ? [shown(entry.own), entry.also.length ? loc("magic.listsAlso", { lists: entry.also.map(shown).join(", ") }) : ""].filter(Boolean).join(" · ")
+    : entry.lists.map(shown).join(" · ");
+  const tip = entry.lists.every((l) => l.fromClass) ? loc("magic.listsTipClass") : cite ? loc("magic.listsTipCite", { cite }) : loc("magic.listsTip");
+  return { text, tip };
+}
+
+/**
+ * The hand pips of one slot row, one per slot: the first `used` filled, each
+ * named for a keyboard and a screen reader (give back for a filled one, spend
+ * for an empty one) and carrying the slot key the write takes.
+ *
+ * @param {{used: number, max: number}} slot
+ * @param {{label: string, level: number}} of  the list's label and the spell level
+ * @returns {{slot: string, spent: boolean, label: string}[]}
+ */
+export function pipsOf({ used, max }, { label, level }) {
+  return Array.from({ length: Math.max(0, max) }, (_, i) => ({
+    slot: `s${level}`,
+    spent: i < used,
+    label: classesLoc(i < used ? "casting.pipGive" : "casting.pipSpend", { list: label, level }),
+  }));
+}
+
 /** Build the tab's data. */
 export function buildMagicTab(actor) {
   const sys = actor.system ?? {};
@@ -86,37 +132,81 @@ export function buildMagicTab(actor) {
   };
   const records = [...(actor.effects ?? [])].map((effect) => spellEffectOf(effect)).filter((record) => record?.pending);
   const combatOf = (id) => (id ? (game.combats?.get(id) ?? null) : null);
-  const byLevel = new Map();
-  for (const spell of spells) {
-    const lvl = Math.max(0, num(spell.system?.lvl));
-    if (!byLevel.has(lvl)) byLevel.set(lvl, []);
-    byLevel.get(lvl).push(spell);
-  }
-  const levels = [...byLevel.keys()].sort((a, b) => a - b).map((n) => {
-    const rows = byLevel.get(n).sort((a, b) => a.name.localeCompare(b.name));
-    const used = rows.reduce((s, r) => s + num(r.system?.cast), 0);
-    return {
-      n,
-      used,
-      max: num(stored.spells?.[n]?.max),
-      maxPath: `system.spells.${n}.max`,
-      rows: rows.map((spell) => ({
-        id: spell.id,
-        name: spell.name,
-        img: spell.img,
-        cast: num(spell.system?.cast),
-        memorized: num(spell.system?.memorized),
-        line: [spell.system?.class, spell.system?.range, spell.system?.duration].filter(Boolean).join(" · "),
-        save: spell.system?.save ?? "",
-        summon: summonOf(spell),
-        declared: declaredRowOf(records, spell, { name: actor.name, combatOf }),
-      })),
-    };
-  });
+  const classItem = classForActor(actor);
+  const classLevel = Math.max(1, Number(sys.details?.level) || 1);
+  const cite = classItem?.system?.source?.cite || "";
   const pools = poolState(actor);
+  const stands = spellStanding({
+    casting: classItem?.system?.casting ?? [],
+    pools,
+    spells: spells.map((spell) => ({
+      ref: spell,
+      name: spell.name,
+      lvl: spell.system?.lvl,
+      class: spell.system?.class,
+      cast: spell.system?.cast,
+      extras: spell.flags?.[MODULE_ID]?.[FLAG_SPELL] ?? {},
+    })),
+    coreSpells: stored.spells,
+  });
+  /** One spell row, for either mode: `entry` is what `spellStanding` gave for its appearance. */
+  const rowOf = (entry) => {
+    const spell = entry.ref;
+    const lists = entry.lists ? listsLineOf(entry, spell.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "") : null;
+    return {
+      id: spell.id,
+      name: spell.name,
+      img: spell.img,
+      cast: num(spell.system?.cast),
+      memorized: num(spell.system?.memorized),
+      // The lists line names the list and its level, so the row line drops core's class string where one is drawn.
+      line: [lists ? "" : spell.system?.class, spell.system?.range, spell.system?.duration].filter(Boolean).join(" · "),
+      save: spell.system?.save ?? "",
+      summon: summonOf(spell),
+      declared: declaredRowOf(records, spell, { name: actor.name, combatOf }),
+      lists,
+      offList: entry.offList === true,
+      countTip: loc("magic.castTip", { spell: spell.name }),
+    };
+  };
+  const provenance = (stem, data) => (cite ? loc(`magic.${stem}Cite`, { ...data, cite }) : loc(`magic.${stem}`, data));
+  const className = classItem?.name ?? "";
   return {
     enabled: !!sys.spells?.enabled || pools.length > 0,
-    levels,
+    mode: stands.mode,
+    byList: stands.mode === "lists",
+    levels: stands.levels.map((l) => ({
+      n: l.level,
+      used: l.used,
+      max: l.max,
+      maxPath: `system.spells.${l.level}.max`,
+      rows: l.spells.map(rowOf),
+    })),
+    groups: stands.groups.map((g) => ({
+      key: g.key,
+      label: g.label,
+      className,
+      kind: g.kind,
+      note: g.note,
+      noteTip: g.note ? provenance("ladderTip", { class: className, level: classLevel }) : "",
+      points: g.pool
+        ? { used: g.pool.used, max: g.pool.max, tip: provenance("poolTip", { used: g.pool.used, max: g.pool.max, class: className, level: classLevel }) }
+        : null,
+      levels: g.levels.map((l) => ({
+        n: l.level,
+        rows: l.spells.map(rowOf),
+        slot: l.slot
+          ? {
+              used: l.slot.used,
+              max: l.slot.max,
+              tip: provenance("slotsTip", { used: l.slot.used, max: l.slot.max, class: className, level: classLevel }),
+              pips: pipsOf(l.slot, { label: g.label, level: l.level }),
+              groupLabel: classesLoc("casting.pipsGroup", { list: g.label, level: l.level }),
+            }
+          : null,
+      })),
+    })),
+    other: stands.other.map((l) => ({ n: l.level, rows: l.spells.map(rowOf) })),
     hasSpells: spells.length > 0,
     pools: pools.length,
     editable: actor.isOwner,

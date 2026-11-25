@@ -63,7 +63,7 @@ import { openLegacy } from "../classes/legacy.mjs";
 import { setActorPath } from "../classes/paths.mjs";
 import { electDamageBonus } from "../classes/apply.mjs";
 import { classForActor, classForActorAsync } from "../classes/registry.mjs";
-import { castingStripElement, restPools } from "../classes/casting.mjs";
+import { adjustPool, castingStripElement, restPools } from "../classes/casting.mjs";
 import { toggleTraining, toggleTrainingShortcut, resetTraining } from "../classes/training.mjs";
 import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs";
 import { LANGUAGE_ACTIONS } from "../abilities/language-slots.mjs";
@@ -87,7 +87,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 const T = `modules/${MODULE_ID}/templates/character-sheet`;
 /** Every template the body includes as a partial, preloaded at init; the frame's own are the lib's. */
 export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
-  "body", "rolls", "abilities", "equipment", "gear-row", "stats", "class", "magic", "service", "followers", "notes", "effects",
+  "body", "rolls", "abilities", "equipment", "gear-row", "stats", "class", "magic", "spell-row", "service", "followers", "notes", "effects",
 ].map((n) => `${T}/${n}.hbs`));
 
 const loc = makeLoc(LANG);
@@ -196,6 +196,8 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
       spellDismiss: AcksCharacterSheet.#onSpellDismiss,
       spellReset: AcksCharacterSheet.#onSpellReset,
       rest: AcksCharacterSheet.#onRest,
+      poolSlot: AcksCharacterSheet.#onPoolSlot,
+      poolPoints: AcksCharacterSheet.#onPoolPoints,
       roster: AcksCharacterSheet.#onRoster,
       payWages: AcksCharacterSheet.#onPayWages,
       serviceThrow: AcksCharacterSheet.#onServiceThrow,
@@ -680,7 +682,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
   #mountCasting() {
     const mount = this.element.querySelector('[data-mount="casting"]');
     if (!mount || mount.children.length) return;
-    const strip = castingStripElement(this.actor, this);
+    const strip = castingStripElement(this.actor, this, { traditions: false });
     if (strip) mount.append(strip);
   }
 
@@ -1479,6 +1481,16 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
 
   static async #onRest() {
     await restPools(this.actor);
+  }
+
+  /** A hand slot pip under a tradition's heading: a filled one (`data-spent`) gives the slot back, an empty one spends it. */
+  static async #onPoolSlot(event, target) {
+    await adjustPool(this.actor, target.dataset.tradition, target.dataset.slot, target.dataset.spent === "true" ? -1 : 1);
+  }
+
+  /** A points tradition's heading control: its `data-delta` is the change to the spent total. */
+  static async #onPoolPoints(event, target) {
+    await adjustPool(this.actor, target.dataset.tradition, "points", Number(target.dataset.delta) || 0);
   }
 
   /* -------------------------------------------- */

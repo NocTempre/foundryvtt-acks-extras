@@ -1137,3 +1137,63 @@ legend > .acks-extras-classes-ctl {
 .acks-extras-legacy__ledger td {
   overflow-wrap: anywhere;
 }
+
+/* The Magic tab's slot row under a list's heading: the hand pips beside the
+   "Slots used / max" figure, right-aligned and wrapping on a narrow sheet. */
+.acks-extras-classes-slotrow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  margin-inline-start: auto;
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-classes-handpips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-1);
+}
+.acks-extras-classes-handpip {
+  inline-size: 0.95em;
+  block-size: 0.95em;
+  min-inline-size: 0;
+  min-block-size: 0;
+  padding: 0;
+  margin: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-radius: 50%;
+  background: none;
+  line-height: 1;
+  display: inline-block;
+}
+button.acks-extras-classes-handpip {
+  cursor: pointer;
+}
+.acks-extras-classes-handpip.is-spent {
+  background: var(--acks-spot);
+  opacity: 0.45;
+}
+button.acks-extras-classes-handpip:focus-visible,
+.acks-extras-classes-pointsbtn:focus-visible {
+  outline: var(--acks-rule) solid var(--acks-spot);
+  outline-offset: 2px;
+}
+.acks-extras-classes-pointsbtn {
+  min-inline-size: 0;
+  min-block-size: 0;
+  padding: 0 var(--acks-sp-2);
+  border: 0;
+  background: none;
+  color: var(--acks-spot);
+  font-size: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+/* A spell row wraps its name, count and controls under each other rather than forcing the sheet wider. */
+.acks-extras-frame__row.is-spell {
+  flex-wrap: wrap;
+}
+.acks-extras-frame__row.is-spell > .acks-extras-frame__row-text {
+  flex: 1 1 12em;
+}

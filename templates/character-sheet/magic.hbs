@@ -1,10 +1,13 @@
-{{!-- Magic: the casting pools (mounted from the classes feature) and the
-      repertoire by level, with the slot pair core stores. --}}
+{{!-- Magic: the casting strip (mounted from the classes feature: rest and the
+      power line), then the repertoire. A class that casts from a list groups
+      its spells under a heading per list, each with its slot row per level and
+      its hand pips, and the rest under "Other spells"; any other character
+      keeps the repertoire by level with the slot pair core stores. --}}
 {{#with panels.magic as |mg|}}
 <div class="acks-extras-frame__stack">
   <div class="acks-extras-frame__rule">
     <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.magic.pools"}}</span>
-    <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.magic.poolsNote"}}</span>
+    {{#if mg.byList}}<span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.magic.poolsNote"}}</span>{{/if}}
     {{#if mg.editable}}
     <button type="button" class="acks-extras-frame__chip" data-action="rest" data-tooltip="{{localize 'ACKS-CLASSES.casting.restTip'}}"><i class="fa-solid fa-bed" inert></i>{{localize "ACKS-CHARACTER.magic.rest"}}</button>
     <button type="button" class="acks-extras-frame__chip" data-action="spellReset" data-tooltip="{{mg.resetLabel}}"><i class="fa-solid fa-rotate" inert></i>{{localize "ACKS-CHARACTER.magic.resetSlots"}}</button>
@@ -12,7 +15,7 @@
     {{/if}}
   </div>
   <div data-mount="casting"></div>
-  {{#unless mg.pools}}<div class="acks-extras-frame__hint">{{localize "ACKS-CHARACTER.magic.noPools"}}</div>{{/unless}}
+  {{#unless mg.byList}}{{#unless mg.pools}}<div class="acks-extras-frame__hint">{{localize "ACKS-CHARACTER.magic.noPools"}}</div>{{/unless}}{{/unless}}
 
   {{#each mg.levels as |lvl|}}
   <div class="acks-extras-frame__group">
@@ -23,39 +26,64 @@
       </span>
     </div>
     {{#each lvl.rows as |spell|}}
-    <div class="acks-extras-frame__row is-spell draggable" data-item-id="{{spell.id}}">
-      <img class="acks-extras-frame__gear-img" src="{{spell.img}}" alt="" inert>
-      <span class="acks-extras-frame__row-text">
-        <a class="acks-extras-frame__row-name" data-action="itemEdit">{{spell.name}}</a>
-        {{#if spell.line}}<span class="acks-extras-frame__row-line">{{spell.line}}</span>{{/if}}
-        {{#if spell.declared}}<span class="acks-extras-frame__row-line">{{spell.declared.line}}</span>{{/if}}
-      </span>
-      {{#if spell.declared}}<span class="acks-tag acks-tag--solid" data-tooltip-text="{{spell.declared.tip}}">{{spell.declared.tag}}</span>{{/if}}
-      <span class="acks-extras-frame__fact-label">{{localize "ACKS.spells.Cast"}}</span>
-      <input class="acks-input acks-extras-frame__fact-input is-xs acks-nums" type="number" data-item-field="system.cast" value="{{spell.cast}}" {{disabled (not @root.editable)}}>
-      {{#if spell.summon}}
-      <span class="acks-extras-frame__fact-label acks-nums" data-summon="standing" data-tooltip-text="{{spell.summon.tip}}">{{spell.summon.label}}</span>
-      {{#if spell.summon.joined}}<span class="acks-extras-frame__fact-label acks-nums" data-summon="joined" data-tooltip-text="{{spell.summon.joined.tip}}">{{spell.summon.joined.label}}</span>{{/if}}
-      {{/if}}
-      <span class="acks-extras-frame__ctls">
-        <span class="acks-extras-frame__grp">
-          <button type="button" class="acks-extras-frame__mini" data-action="spellCast" data-tooltip="{{localize 'ACKS-CHARACTER.magic.cast'}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
-          {{#if mg.editable}}{{#if spell.summon.standing}}
-          <button type="button" class="acks-extras-frame__mini" data-action="spellDismiss" aria-label="{{localize 'ACKS-CHARACTER.magic.dismiss'}}" data-tooltip=""><i class="fa-solid fa-ghost" inert></i></button>
-          {{/if}}{{/if}}
-        </span>
-        {{#if @root.editable}}
-        <span class="acks-extras-frame__grp">
-          <button type="button" class="acks-extras-frame__ctl" data-action="itemShow" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-eye" inert></i></button>
-          <button type="button" class="acks-extras-frame__ctl" data-action="itemEdit" data-tooltip="{{localize 'ACKS.Edit'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
-          <button type="button" class="acks-extras-frame__ctl" data-action="itemDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button>
-        </span>
-        {{/if}}
-      </span>
-    </div>
+    {{> "modules/acks-extras/templates/character-sheet/spell-row.hbs" spell=spell owns=mg.editable sheetEditable=@root.editable}}
     {{/each}}
   </div>
   {{/each}}
+
+  {{#each mg.groups as |group|}}
+  <div class="acks-extras-frame__group">
+    <div class="acks-extras-frame__rule">
+      <span class="acks-extras-frame__rule-title">{{group.label}}</span>
+      {{#if group.points}}
+      <span class="acks-extras-classes-slotrow">
+        {{#if mg.editable}}<button type="button" class="acks-extras-classes-pointsbtn" data-action="poolPoints" data-tradition="{{group.key}}" data-delta="-1" aria-label="{{localize 'ACKS-CLASSES.casting.refundTip'}}" data-tooltip=""><i class="fa-solid fa-minus" inert></i></button>{{/if}}
+        <span class="acks-nums" data-tooltip-text="{{group.points.tip}}">{{localize "ACKS-CHARACTER.magic.points"}} {{group.points.used}} / {{group.points.max}}</span>
+        {{#if mg.editable}}<button type="button" class="acks-extras-classes-pointsbtn" data-action="poolPoints" data-tradition="{{group.key}}" data-delta="1" aria-label="{{localize 'ACKS-CLASSES.casting.spendTip'}}" data-tooltip=""><i class="fa-solid fa-plus" inert></i></button>{{/if}}
+      </span>
+      {{/if}}
+      {{#if group.note}}<span class="acks-extras-frame__fact-label" data-tooltip-text="{{group.noteTip}}">{{group.note}}</span>{{/if}}
+      {{#if group.className}}<span class="acks-extras-frame__rule-note">{{group.className}}</span>{{/if}}
+    </div>
+    {{#each group.levels as |lvl|}}
+    <div class="acks-extras-frame__subhead">
+      <span>{{localize "ACKS.spells.Level"}} {{lvl.n}}</span>
+      {{#if lvl.slot}}
+      <span class="acks-extras-classes-slotrow">
+        {{#if mg.editable}}
+        <span class="acks-extras-classes-handpips" role="group" aria-label="{{lvl.slot.groupLabel}}">
+          {{#each lvl.slot.pips as |pip|}}<button type="button" class="acks-extras-classes-handpip{{#if pip.spent}} is-spent{{/if}}" data-action="poolSlot" data-tradition="{{group.key}}" data-slot="{{pip.slot}}" data-spent="{{pip.spent}}" aria-label="{{pip.label}}" data-tooltip=""></button>{{/each}}
+        </span>
+        {{else}}
+        <span class="acks-extras-classes-handpips" aria-hidden="true">
+          {{#each lvl.slot.pips as |pip|}}<span class="acks-extras-classes-handpip{{#if pip.spent}} is-spent{{/if}}"></span>{{/each}}
+        </span>
+        {{/if}}
+        <span class="acks-extras-frame__subhead-note acks-nums" data-tooltip-text="{{lvl.slot.tip}}">{{localize "ACKS.spells.Slots"}} {{lvl.slot.used}} / {{lvl.slot.max}}</span>
+      </span>
+      {{/if}}
+    </div>
+    {{#each lvl.rows as |spell|}}
+    {{> "modules/acks-extras/templates/character-sheet/spell-row.hbs" spell=spell owns=mg.editable sheetEditable=@root.editable}}
+    {{/each}}
+    {{/each}}
+  </div>
+  {{/each}}
+
+  {{#if mg.other.length}}
+  <div class="acks-extras-frame__group">
+    <div class="acks-extras-frame__rule">
+      <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.magic.other"}}</span>
+      <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.magic.otherNote"}}</span>
+    </div>
+    {{#each mg.other as |lvl|}}
+    <div class="acks-extras-frame__subhead"><span>{{localize "ACKS.spells.Level"}} {{lvl.n}}</span></div>
+    {{#each lvl.rows as |spell|}}
+    {{> "modules/acks-extras/templates/character-sheet/spell-row.hbs" spell=spell owns=mg.editable sheetEditable=@root.editable}}
+    {{/each}}
+    {{/each}}
+  </div>
+  {{/if}}
   {{#unless mg.hasSpells}}<div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS.category.spells"}}</span><span class="acks-empty-hint">{{mg.emptyHint}}</span></div>{{/unless}}
 </div>
 {{/with}}

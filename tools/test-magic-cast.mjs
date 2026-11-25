@@ -29,7 +29,7 @@ const Tables = await import("../scripts/lib/tables.mjs");
 const { TURN_SECONDS, ROUND_SECONDS } = await import("./time-unit-fixture.mjs");
 const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
-const { castCapacity, traditionFor, spendsFromPool } = await import("../scripts/magic/cast-capacity.mjs");
+const { castCapacity, traditionFor, spendsFromPool, spellStanding } = await import("../scripts/magic/cast-capacity.mjs");
 const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
@@ -197,6 +197,78 @@ t("the tradition that cast a spell is found by its key or its label against the 
   assert.equal(found.spellLevel, 2, "the list's level wins over core's");
   assert.equal(traditionFor(casting, { extras: { lists: [{ source: "nature", level: 1 }] } }), null);
   assert.equal(traditionFor(casting, { extras: {}, class: "Divine" }).tradition.key, "divine", "core's class string stands in where no list is printed");
+});
+
+/** An invented spell for the standing: `lists` are `[source, level]`, `ref` is its name. */
+const stands = (name, { lists = null, lvl = 1, cls = "", cast = 0 } = {}) => ({ ref: name, name, lvl, class: cls, cast, extras: lists ? { lists: lists.map(([source, level]) => ({ source, level })) } : {} });
+const WISP = { key: "wisp", label: "Wisp", kind: "vancian" };
+const TIDE = { key: "tide", label: "Tide", kind: "points" };
+const POOLS = [{ key: "wisp", kind: "vancian", slots: [{ n: 1, max: 2, used: 1 }, { n: 2, max: 1, used: 0 }] }, { key: "tide", kind: "points", pool: { max: 4, used: 1 } }];
+const refs = (spells) => spells.map((s) => s.ref);
+
+t("with no class, or a class that casts from no list, the standing is the sheet's grid by level with core's typed maximum and the count per spell", () => {
+  const spells = [stands("Bolt", { lvl: 2, cast: 3 }), stands("Aflame", { lists: [["wisp", 1]], cast: 1 }), stands("Hush", { cast: 2 })];
+  for (const casting of [undefined, [], [{ label: "No key" }]]) {
+    const out = spellStanding({ casting, pools: POOLS, spells, coreSpells: { 1: { max: 4 } } });
+    assert.deepEqual([out.mode, out.groups, out.other], ["levels", [], []]);
+    assert.deepEqual(out.levels.map((l) => [l.level, l.used, l.max, refs(l.spells)]), [[1, 3, 4, ["Aflame", "Hush"]], [2, 3, 0, ["Bolt"]]], "by the level on the spell, by name, summing the counts");
+  }
+  assert.deepEqual(spellStanding({}).levels, []);
+});
+
+t("a class that casts from lists gives a group per tradition in its order, its slot row per level from its pool, and the spells that name it", () => {
+  const spells = [stands("Bolt", { lists: [["wisp", 2]] }), stands("Aflame", { lists: [["wisp", 1]] }), stands("Drift", { lists: [["tide", 3]] })];
+  const out = spellStanding({ casting: [WISP, TIDE], pools: POOLS, spells });
+  assert.equal(out.mode, "lists");
+  assert.deepEqual(out.levels, []);
+  assert.deepEqual(out.groups.map((g) => [g.key, g.label, g.kind]), [["wisp", "Wisp", "vancian"], ["tide", "Tide", "points"]]);
+  assert.deepEqual(out.groups[0].levels.map((l) => [l.level, l.slot, refs(l.spells)]), [[1, { used: 1, max: 2 }, ["Aflame"]], [2, { used: 0, max: 1 }, ["Bolt"]]]);
+  assert.deepEqual([out.groups[0].pool, out.groups[0].note], [null, ""]);
+});
+
+t("a level the pool gives slots at has its row though no spell stands there, and a spell's level with no slot has no row", () => {
+  const out = spellStanding({ casting: [WISP], pools: POOLS, spells: [stands("High", { lists: [["wisp", 5]] })] });
+  assert.deepEqual(out.groups[0].levels.map((l) => [l.level, l.slot, refs(l.spells)]), [[1, { used: 1, max: 2 }, []], [2, { used: 0, max: 1 }, []], [5, null, ["High"]]]);
+});
+
+t("a spell on two of the class's lists is under both headings, each at that list's own level, naming the other", () => {
+  const out = spellStanding({ casting: [WISP, TIDE], pools: POOLS, spells: [stands("Aflame", { lists: [["wisp", 1], ["tide", 3]] })] });
+  const [inWisp] = out.groups[0].levels.flatMap((l) => l.spells);
+  const [inTide] = out.groups[1].levels.flatMap((l) => l.spells);
+  assert.deepEqual([inWisp.level, inWisp.own.label, inWisp.also.map((l) => [l.label, l.level])], [1, "Wisp", [["Tide", 3]]]);
+  assert.deepEqual([inTide.level, inTide.own.label, inTide.also.map((l) => [l.label, l.level])], [3, "Tide", [["Wisp", 1]]]);
+  assert.deepEqual(out.other, []);
+});
+
+t("a list matches a tradition by its key or its label, folded, and core's class string stands in where the spell names no list", () => {
+  const out = spellStanding({ casting: [{ key: "w1", label: "Wisp Craft", kind: "vancian" }], pools: [], spells: [stands("A", { lists: [["WISP-craft", 2]] }), stands("B", { cls: "Wisp Craft", lvl: 4 }), stands("C", { cls: "Other" })] });
+  assert.deepEqual(out.groups[0].levels.map((l) => [l.level, refs(l.spells)]), [[2, ["A"]], [4, ["B"]]]);
+  assert.deepEqual(out.groups[0].levels.flatMap((l) => l.spells).map((s) => s.own.fromClass), [false, true]);
+  assert.deepEqual(refs(out.other.flatMap((l) => l.spells)), ["C"]);
+});
+
+t("a spell on no list the class casts from is in Other at core's level: off a list where it names another, on none where it names none", () => {
+  const spells = [stands("Alien", { lists: [["gust", 2]], lvl: 1 }), stands("Bare", { lvl: 3 }), stands("Own", { lists: [["wisp", 1]] })];
+  const out = spellStanding({ casting: [WISP], pools: POOLS, spells });
+  assert.deepEqual(out.other.map((l) => [l.level, l.spells.map((s) => [s.ref, s.offList, s.own, s.also.length, s.lists.map((x) => x.label)])]), [[1, [["Alien", true, null, 0, ["Gust"]]]], [3, [["Bare", false, null, 0, []]]]]);
+  assert.deepEqual(refs(out.groups[0].levels.flatMap((l) => l.spells)), ["Own"], "a spell on a list of the class is not in Other");
+});
+
+t("a tradition with no slot row at this level still has its heading, a points list has its pool and a ladder its text, none with a slot row per level", () => {
+  const out = spellStanding({
+    casting: [WISP, TIDE, { key: "gleam", label: "Gleam", kind: "gnostic" }],
+    pools: [POOLS[1], { key: "gleam", kind: "gnostic", capacity: "Testreach" }],
+    spells: [stands("Drift", { lists: [["tide", 3]] }), stands("Glow", { lists: [["gleam", 2]] })],
+  });
+  assert.deepEqual(out.groups.map((g) => g.key), ["wisp", "tide", "gleam"]);
+  assert.deepEqual([out.groups[0].levels, out.groups[0].pool], [[], null]);
+  assert.deepEqual([out.groups[1].pool, out.groups[1].levels.map((l) => [l.level, l.slot])], [{ used: 1, max: 4 }, [[3, null]]]);
+  assert.deepEqual([out.groups[2].note, out.groups[2].pool, out.groups[2].levels.map((l) => [l.level, l.slot])], ["Testreach", null, [[2, null]]]);
+});
+
+t("a spell with no level reads at level zero, as the sheet's own grid reads it", () => {
+  const out = spellStanding({ casting: [WISP], pools: [], spells: [stands("Lost", { lists: [["wisp", ""]], lvl: "" })] });
+  assert.deepEqual(out.groups[0].levels.map((l) => l.level), [0]);
 });
 
 t("a Player is blocked and a Judge warned: no slot, several targets for a throw row, a condition that stops casting", () => {

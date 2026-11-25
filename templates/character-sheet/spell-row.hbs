@@ -1,0 +1,35 @@
+{{!-- One spell on the Magic tab, under a level or a list's level. The caller passes
+      `spell` (a row from `buildMagicTab`), `owns` (the seat owns the character:
+      Dismiss) and `sheetEditable` (the sheet takes edits: the count, show, edit
+      and delete). --}}
+<div class="acks-extras-frame__row is-spell draggable" data-item-id="{{spell.id}}">
+  <img class="acks-extras-frame__gear-img" src="{{spell.img}}" alt="" inert>
+  <span class="acks-extras-frame__row-text">
+    <a class="acks-extras-frame__row-name" data-action="itemEdit">{{spell.name}}</a>
+    {{#if spell.line}}<span class="acks-extras-frame__row-line">{{spell.line}}</span>{{/if}}
+    {{#if spell.lists}}<span class="acks-extras-frame__row-line" data-spell-lists data-tooltip-text="{{spell.lists.tip}}">{{spell.lists.text}}</span>{{/if}}
+    {{#if spell.declared}}<span class="acks-extras-frame__row-line">{{spell.declared.line}}</span>{{/if}}
+  </span>
+  {{#if spell.declared}}<span class="acks-tag acks-tag--solid" data-tooltip-text="{{spell.declared.tip}}">{{spell.declared.tag}}</span>{{/if}}
+  <span class="acks-extras-frame__fact-label">{{localize "ACKS.spells.Cast"}}</span>
+  <input class="acks-input acks-extras-frame__fact-input is-xs acks-nums" type="number" data-item-field="system.cast" value="{{spell.cast}}" aria-label="{{spell.countTip}}" data-tooltip-text="{{spell.countTip}}" {{disabled (not sheetEditable)}}>
+  {{#if spell.summon}}
+  <span class="acks-extras-frame__fact-label acks-nums" data-summon="standing" data-tooltip-text="{{spell.summon.tip}}">{{spell.summon.label}}</span>
+  {{#if spell.summon.joined}}<span class="acks-extras-frame__fact-label acks-nums" data-summon="joined" data-tooltip-text="{{spell.summon.joined.tip}}">{{spell.summon.joined.label}}</span>{{/if}}
+  {{/if}}
+  <span class="acks-extras-frame__ctls">
+    <span class="acks-extras-frame__grp">
+      <button type="button" class="acks-extras-frame__mini" data-action="spellCast" data-tooltip="{{localize 'ACKS-CHARACTER.magic.cast'}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
+      {{#if owns}}{{#if spell.summon.standing}}
+      <button type="button" class="acks-extras-frame__mini" data-action="spellDismiss" aria-label="{{localize 'ACKS-CHARACTER.magic.dismiss'}}" data-tooltip=""><i class="fa-solid fa-ghost" inert></i></button>
+      {{/if}}{{/if}}
+    </span>
+    {{#if sheetEditable}}
+    <span class="acks-extras-frame__grp">
+      <button type="button" class="acks-extras-frame__ctl" data-action="itemShow" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-eye" inert></i></button>
+      <button type="button" class="acks-extras-frame__ctl" data-action="itemEdit" data-tooltip="{{localize 'ACKS.Edit'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
+      <button type="button" class="acks-extras-frame__ctl" data-action="itemDelete" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i></button>
+    </span>
+    {{/if}}
+  </span>
+</div>

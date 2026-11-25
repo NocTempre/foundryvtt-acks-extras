@@ -234,7 +234,7 @@ test("a summon held in the party token is counted and dismissed beside the ones 
   assert.deepEqual(menu.filter((i) => i.kind === "token").map((i) => [i.tokenId, !!i.disabled]), [["t1", false], [null, true], [null, true]], "a held summon is listed and has no token to pick");
 });
 test("the Magic tab's standing count carries its tooltip and its Dismiss is named and wired", () => {
-  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
   assert.match(tpl, /data-tooltip-text="\{\{spell\.summon\.tip\}\}">\{\{spell\.summon\.label\}\}/, "the count shows its provenance on hover");
   const dismiss = tpl.split("\n").find((l) => l.includes('data-action="spellDismiss"'));
   assert.ok(dismiss && /<button type="button"/.test(dismiss) && /aria-label="\{\{localize /.test(dismiss), "a real button with a name");
@@ -291,7 +291,7 @@ await testAsync("a lost declaration shows nothing (a lapsed one is deleted with 
   assert.equal(other.sp1, null, "an effect no cast wrote, and another spell's declaration, are not this row's");
 });
 test("the Magic tab's row draws the tag and the line from the declaration and has no control to withdraw it", () => {
-  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
   assert.match(tpl, /<span class="acks-tag acks-tag--solid" data-tooltip-text="\{\{spell\.declared\.tip\}\}">\{\{spell\.declared\.tag\}\}<\/span>/, "the tag shows its provenance on hover");
   assert.match(tpl, /\{\{spell\.declared\.line\}\}/);
   assert.ok(!/withdraw/i.test(tpl), "no page prints withdrawing a declared cast, so the row has no control for it");
@@ -319,10 +319,118 @@ await testAsync("a summoning's row counts what stands and, where some ride in a 
   }
 });
 test("the Magic tab's row marks its standing count and its joined count, each with its provenance on hover, and draws no literal id or title", () => {
-  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
   assert.match(tpl, /data-summon="standing" data-tooltip-text="\{\{spell\.summon\.tip\}\}">\{\{spell\.summon\.label\}\}/);
   assert.match(tpl, /\{\{#if spell\.summon\.joined\}\}<span [^>]*data-summon="joined" data-tooltip-text="\{\{spell\.summon\.joined\.tip\}\}">\{\{spell\.summon\.joined\.label\}\}<\/span>/, "the joined figure shows only where some joined");
   assert.ok(!/\sid=|\stitle=/.test(tpl), "no literal id (a second copy of the sheet would duplicate it) and no title attribute");
+});
+
+/**
+ * The Magic tab's whole context for a caster holding `spells`. `casting` binds an invented class that casts from
+ * those rows (null binds none); `spent` is the actor's spent pools; `cite` the class document's own citation.
+ */
+const magicContextOf = async ({ spells, casting = null, ladders = [], cite = "", owner = true, spent = {}, level = 1 }) => {
+  const priorGame = globalThis.game;
+  const priorCanvas = globalThis.canvas;
+  const priorUuid = globalThis.fromUuidSync;
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` }, combats: { get: () => null }, scenes: { active: null } };
+  globalThis.canvas = { scene: null };
+  const doc = { uuid: "Item.cls1", documentName: "Item", type: "acks-extras.class", name: "Testcaster", system: { casting: casting ?? [], ladders, source: { cite } } };
+  globalThis.fromUuidSync = (uuid) => (uuid === "Item.cls1" ? doc : null);
+  try {
+    const { buildMagicTab } = await import("../scripts/character-sheet/tabs/magic.mjs");
+    const actor = {
+      name: "Testcaster", uuid: "Actor.c", type: "character", system: { spells: { enabled: true }, details: { level } }, items: spells, effects: [], isOwner: owner,
+      getFlag: (m, k) => (casting && m === "acks-extras" && k === "classes" ? { uuid: "Item.cls1", pools: spent } : null),
+    };
+    return buildMagicTab(actor);
+  } finally {
+    globalThis.game = priorGame;
+    globalThis.canvas = priorCanvas;
+    globalThis.fromUuidSync = priorUuid;
+  }
+};
+/** An invented spell on the lists `lists` names (each `[source, level]`), with core's `lvl` and `class` as given. */
+const listedSpell = (id, name, { lists = null, lvl = 1, cls = "" } = {}) => ({
+  id, uuid: `Actor.c.Item.${id}`, name, img: "", type: "spell", parent: { type: "character" }, system: { lvl, class: cls, cast: 0, range: "", duration: "" },
+  flags: lists ? { "acks-extras": { spell: { lists: lists.map(([source, level]) => ({ source, level })), cite: "Test p. 9" } } } : {},
+});
+const WISP = { key: "wisp", label: "Wisp", kind: "vancian", slots: [{ atLevel: 1, s1: 2, s2: 1 }] };
+const TIDE = { key: "tide", label: "Tide", kind: "points", pool: [{ atLevel: 1, value: 4 }] };
+const GLEAM = { key: "gleam", label: "Gleam", kind: "gnostic", levelCap: "reach" };
+
+await testAsync("a character with no class bound, or a class that casts from no list, keeps the tab by level: the sheet's own slot grid, no heading, every row key it had", async () => {
+  const spells = [listedSpell("a", "Aflame", { lists: [["wisp", 1]] }), listedSpell("b", "Bolt", { lvl: 2 })];
+  for (const casting of [null, []]) {
+    const tab = await magicContextOf({ spells, casting });
+    assert.deepEqual([tab.mode, tab.byList, tab.groups, tab.other], ["levels", false, [], []]);
+    assert.deepEqual(tab.levels.map((l) => [l.n, l.used, l.max, l.maxPath, l.rows.map((r) => r.id)]), [[1, 0, 0, "system.spells.1.max", ["a"]], [2, 0, 0, "system.spells.2.max", ["b"]]]);
+    const row = tab.levels[0].rows[0];
+    for (const key of ["id", "name", "img", "cast", "memorized", "line", "save", "summon", "declared"]) assert.ok(key in row, `the row keeps ${key}`);
+    assert.deepEqual([row.lists, row.offList], [null, false], "no lists line and no off-list mark outside the list mode");
+  }
+});
+await testAsync("a class that casts from lists groups the spells under a heading per list, with its slot row and hand pips per level, and the rest under Other spells", async () => {
+  const spells = [
+    listedSpell("a", "Aflame", { lists: [["wisp", 1], ["tide", 2]], cls: "Wisp" }),
+    listedSpell("b", "Bolt", { lists: [["wisp", 2]] }),
+    listedSpell("h", "Hush", { lists: [["gust", 1]] }),
+    listedSpell("p", "Plain", { lvl: 3 }),
+  ];
+  const tab = await magicContextOf({ spells, casting: [WISP, TIDE], cite: "Test p. 1", spent: { wisp: { s1: 1 } } });
+  assert.deepEqual([tab.mode, tab.byList, tab.levels], ["lists", true, []]);
+  assert.deepEqual(tab.groups.map((g) => [g.key, g.label, g.className]), [["wisp", "Wisp", "Testcaster"], ["tide", "Tide", "Testcaster"]], "a heading per list, in the class's order");
+  const [wisp, tide] = tab.groups;
+  assert.deepEqual(wisp.levels.map((l) => [l.n, l.slot && [l.slot.used, l.slot.max], l.rows.map((r) => r.id)]), [[1, [1, 2], ["a"]], [2, [0, 1], ["b"]]]);
+  assert.equal(wisp.levels[0].slot.tip, 'ACKS-CHARACTER.magic.slotsTipCite|{"used":1,"max":2,"class":"Testcaster","level":1,"cite":"Test p. 1"}', "the slot figure says where it came from, with the class document's own citation");
+  assert.deepEqual(wisp.levels[0].slot.pips.map((p) => [p.slot, p.spent, p.label]), [["s1", true, 'ACKS-CLASSES.casting.pipGive|{"list":"Wisp","level":1}'], ["s1", false, 'ACKS-CLASSES.casting.pipSpend|{"list":"Wisp","level":1}']], "a filled pip gives the slot back and an empty one spends it, each named");
+  assert.deepEqual([wisp.points, tide.points.used, tide.points.max, tide.levels.map((l) => [l.n, l.slot]), tide.levels[0].rows[0].id], [null, 0, 4, [[2, null]], "a"], "a points list has its pool and no slot row per level");
+  assert.equal(wisp.levels[0].rows[0].lists.text, 'Wisp 1 · ACKS-CHARACTER.magic.listsAlso|{"lists":"Tide 2"}', "a spell on two lists names the other");
+  assert.equal(tide.levels[0].rows[0].lists.text, 'Tide 2 · ACKS-CHARACTER.magic.listsAlso|{"lists":"Wisp 1"}', "and stands at the other list's level there");
+  assert.equal(wisp.levels[0].rows[0].lists.tip, 'ACKS-CHARACTER.magic.listsTipCite|{"cite":"Test p. 9"}', "the lists line carries the spell flag's own citation");
+  assert.deepEqual(tab.other.map((l) => [l.n, l.rows.map((r) => [r.id, r.offList, r.lists && r.lists.text])]), [[1, [["h", true, "Gust 1"]]], [3, [["p", false, null]]]], "Other spells: by the level on the spell, off a list or on none");
+  const row = wisp.levels[0].rows[0];
+  for (const key of ["id", "name", "img", "cast", "memorized", "line", "save", "summon", "declared"]) assert.ok(key in row, `the row keeps ${key}`);
+  assert.equal(row.line, "", "the row line leaves core's class string to the lists line, which names the list and its level");
+});
+await testAsync("a slot figure with no class citation names its parts alone, and a spell with no lists says its list was read from the class field", async () => {
+  const tab = await magicContextOf({ spells: [listedSpell("a", "Aflame", { lvl: 1, cls: "Wisp" })], casting: [WISP] });
+  assert.equal(tab.groups[0].levels[0].slot.tip, 'ACKS-CHARACTER.magic.slotsTip|{"used":0,"max":2,"class":"Testcaster","level":1}');
+  const row = tab.groups[0].levels[0].rows[0];
+  assert.deepEqual([row.lists.text, row.lists.tip], ["Wisp 1", "ACKS-CHARACTER.magic.listsTipClass|{}"]);
+  assert.equal(row.countTip, 'ACKS-CHARACTER.magic.castTip|{"spell":"Aflame"}');
+});
+await testAsync("a ladder list shows its text as the heading's note with no slot row, and a list with no slot row at this level still has its heading", async () => {
+  const ladders = [{ key: "reach", label: "Reach", values: [{ atLevel: 1, value: 1, text: "Testreach" }] }];
+  const tab = await magicContextOf({ spells: [listedSpell("a", "Aflame", { lists: [["gleam", 1]] })], casting: [GLEAM, WISP], ladders, cite: "Test p. 1" });
+  assert.deepEqual(tab.groups.map((g) => g.label), ["Gleam", "Wisp"], "a heading for each list the class casts from");
+  assert.deepEqual([tab.groups[0].points, tab.groups[0].note, tab.groups[0].levels.map((l) => l.slot)], [null, "Testreach", [null]]);
+  assert.equal(tab.groups[0].noteTip, 'ACKS-CHARACTER.magic.ladderTipCite|{"class":"Testcaster","level":1,"cite":"Test p. 1"}', "the ladder's text names where it was read from");
+  const late = await magicContextOf({ spells: [], casting: [{ ...WISP, slots: [{ atLevel: 5, s1: 3 }] }] });
+  assert.deepEqual(late.groups.map((g) => [g.label, g.levels]), [["Wisp", []]], "no slot row yet at this level: the heading stands with no levels");
+});
+await testAsync("the hand pips are controls only on a seat that owns the character", async () => {
+  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  const buttons = tpl.split("\n").filter((l) => l.includes('data-action="poolSlot"'));
+  assert.equal(buttons.length, 1);
+  assert.ok(/<button type="button"/.test(buttons[0]) && /aria-label="\{\{pip\.label\}\}"/.test(buttons[0]), "a real button, named");
+  const branches = /\{\{#if mg\.editable\}\}\s*<span class="acks-extras-classes-handpips" role="group"[\s\S]*?data-action="poolSlot"[\s\S]*?\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/.exec(tpl);
+  assert.ok(branches, "the buttons sit in the owner branch");
+  assert.ok(branches[1].includes('aria-hidden="true"') && !/<button|data-action/.test(branches[1]), "the other branch draws spans that name nothing and press nothing");
+  assert.ok(!/isGM|user\.isGM/.test(tpl), "no hard-coded role: the seat's ownership gates the pips");
+  const own = await magicContextOf({ spells: [], casting: [WISP], owner: true });
+  const seen = await magicContextOf({ spells: [], casting: [WISP], owner: false });
+  assert.deepEqual([own.editable, seen.editable], [true, false], "the template reads the actor's ownership");
+  assert.deepEqual(seen.groups[0].levels.map((l) => [l.n, l.slot.max]), [[1, 2], [2, 1]], "a seat that cannot own still reads every heading and figure");
+});
+test("the hand pips write through the sheet's own actions and the strip leaves the module's sheet its rest control and power line only", () => {
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  assert.match(sheet, /poolSlot: AcksCharacterSheet\.#onPoolSlot/);
+  assert.match(sheet, /poolPoints: AcksCharacterSheet\.#onPoolPoints/);
+  assert.match(sheet, /castingStripElement\(this\.actor, this, \{ traditions: false \}\)/, "the module's sheet draws no pips on the strip");
+  assert.match(sheet, /"magic", "spell-row", "service"/, "the row partial is preloaded");
+  const casting = readFileSync(new URL("../scripts/classes/casting.mjs", import.meta.url), "utf8");
+  assert.match(casting, /const strip = castingStripElement\(doc, app\);/, "the system's own sheet keeps its strip whole");
 });
 
 /** A caster-side cast record as `castOf` gives it. */
