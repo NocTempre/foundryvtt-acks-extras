@@ -1308,7 +1308,18 @@ fails that check; re-import it (the Spells repair).
    no amount refuses no count, and the one carrying a caster-level ceiling
    carries it unresolved on the row. The two rows that name a creature resolve
    to one: the walk imports the creature as setup when the Monster Manual is
-   open on the GM seat (SKIP only when it is not, naming why). Pressing
+   open on the GM seat (SKIP only when it is not, naming why). For each that
+   resolves, the Player seat reads the creature's shelf: visible, at Observer
+   or better; a count check is skipped, by name, where the Player seat cannot
+   resolve the creature. Then the Judge's seat brings the creature out of its
+   shelf into the world, as a drag onto the Actors tab does
+   (`game.actors.importFromCompendium`), and that copy is the run's own,
+   tracked by uuid. *Observable:* the copy carries the importer's stamp at
+   default None with no player named, the Player seat does not observe it,
+   and the plain lookup of the row's id answers with it; lib's verdict on the
+   Player seat (`summonVerdict`, the question a cast asks before any click)
+   still does not refuse the creature and takes the shelf's own; the copy is
+   swept alone before the next stage. Pressing
    Cast on those two from the GM seat opens the cast dialog with a Summon band
    offering the row's one choice, labelled, with a count and its ceiling at the
    caster level and no Targets band; cancelling writes no record.

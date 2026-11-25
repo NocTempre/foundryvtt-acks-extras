@@ -389,6 +389,41 @@ const P = {
     const pack = doc?.compendium ?? null;
     return { resolves: !!doc, inPack: !!pack, visible: pack ? !!pack.visible : null, level: pack?.getUserLevel?.(game.user) ?? null, observer: pack ? (pack.testUserPermission?.(game.user, "OBSERVER") ?? null) : null, docObserver: doc && !pack ? !!doc.testUserPermission?.(game.user, "OBSERVER") : null };
   },
+  /** On the Judge's seat: bring the creature a copy's row names out of its shelf into the world, as a drag onto the Actors tab does, and read what the world's copy holds: the importer's stamp, its default level and how many players it names. */
+  dragOut: async ({ casterId, itemId }) => {
+    const S = await import("/modules/acks-extras/scripts/magic/cast-summon.mjs");
+    const L = await import("/modules/acks-extras/scripts/lib/library.mjs");
+    const row = S.summonRowsOf(game.actors.get(casterId).items.get(itemId))[0] ?? null;
+    const shelf = row?.ref ? L.byCookbookId("Actor", row.ref, { prefer: (d) => !!d.compendium }) : null;
+    if (!shelf?.compendium) return { uuid: null, inPack: false };
+    const made = await game.actors.importFromCompendium(shelf.compendium, shelf.id, {}, { keepId: false });
+    const source = made?._source?.ownership ?? {};
+    return {
+      uuid: made?.uuid ?? null,
+      inPack: true,
+      stamped: !!L.cookbookId(made) && L.cookbookId(made) === L.cookbookId(shelf),
+      def: source.default ?? null,
+      players: Object.keys(source).filter((k) => k !== "default" && game.users.get(k)?.isGM === false).length,
+    };
+  },
+  /** What this seat reads of the dragged-out copy: whether it is here, whether this seat's user observes it, and whether the plain lookup of the row's id answers with it (the world's are read before the shelves'). */
+  draggedRead: async ({ casterId, itemId, uuid }) => {
+    const S = await import("/modules/acks-extras/scripts/magic/cast-summon.mjs");
+    const L = await import("/modules/acks-extras/scripts/lib/library.mjs");
+    const row = S.summonRowsOf(game.actors.get(casterId).items.get(itemId))[0] ?? null;
+    const doc = await fromUuid(uuid);
+    const first = row?.ref ? L.byCookbookId("Actor", row.ref) : null;
+    return { present: !!doc, observes: doc ? !!doc.testUserPermission(game.user, "OBSERVER") : null, first: !!first && first.uuid === uuid };
+  },
+  /** lib's own verdict on this seat for one creature of a copy's row, as a cast asks it before any click: whether it stands, the refusal's word, and whether the creature it took lives on a shelf. */
+  seatVerdict: async ({ casterId, itemId }) => {
+    const lib = await import("/modules/acks-extras/scripts/lib/summons.mjs");
+    const S = await import("/modules/acks-extras/scripts/magic/cast-summon.mjs");
+    const caster = game.actors.get(casterId);
+    const row = S.summonRowsOf(caster.items.get(itemId))[0] ?? null;
+    const v = await lib.summonVerdict(caster, { sourceUuid: row?.ref ?? "", count: 1, spellId: itemId });
+    return { ok: v.ok === true, reason: v.reason ?? null, taken: v.source?.uuid ?? null, inPack: v.ok ? !!v.source?.compendium : null };
+  },
   /** Open a copy's cast dialog as `item.use()` does (not awaited) and read the Summon band: its choices, its count, its ceiling and its Cast button. Nothing is answered. */
   openDialog: async ({ casterId, itemId }) => {
     const H = globalThis.__mct;
@@ -1018,6 +1053,25 @@ async function stageSummonRows() {
         // A world document answering for the id is the case that refuses a shipped spell: the Player must observe that document itself.
         if (shelf.resolves && !shelf.inPack) check(`E ${s.slug}: the creature the Player seat resolves is a world document, and the Player observes it`, shelf.docObserver === true, { docObserver: shelf.docObserver });
         else check(`E ${s.slug}: the Player seat resolves the creature and reads its shelf as visible at Observer or better`, shelf.resolves && shelf.inPack && shelf.visible === true && shelf.observer !== false && (shelf.level === null || shelf.level >= 2), { resolves: shelf.resolves, visible: shelf.visible, level: shelf.level, observer: shelf.observer });
+        if (shelf.resolves && shelf.inPack) {
+          // The world the fix was found in: a Judge drags the creature out of its shelf, and the world's copy keeps the importer's stamp at default None and is read before the shelf's own.
+          const dragged = await run(gm, P.dragOut, { casterId: W.caster, itemId: W.spell[s.slug] });
+          if (!dragged.uuid) check(`E ${s.slug}: the Judge's seat brings the creature out of its shelf into the world`, false, dragged);
+          else {
+            await track(dragged.uuid, "Actor");
+            const seen = await until(() => run(player, P.draggedRead, { casterId: W.caster, itemId: W.spell[s.slug], uuid: dragged.uuid }), (v) => v.present === true);
+            check(`E ${s.slug}: the dragged-out copy carries the importer's stamp at default None with no player named, the Player seat does not observe it, and the plain lookup of the row's id answers with it`, dragged.stamped && dragged.def === 0 && dragged.players === 0 && seen.present && seen.observes === false && seen.first === true, { stamped: dragged.stamped, def: dragged.def, players: dragged.players, observes: seen.observes, first: seen.first });
+            const asked = await run(player, P.seatVerdict, { casterId: W.caster, itemId: W.spell[s.slug] });
+            // The readable check comes before the canvas and the pause, so either of those two words also says the creature was not refused.
+            check(`E ${s.slug}: with the copy standing, the Player seat's verdict on the row does not refuse the creature, and the one it takes is the shelf's`, asked.ok ? asked.inPack === true && asked.taken !== dragged.uuid : ["noCanvas", "paused"].includes(asked.reason), { ok: asked.ok, reason: asked.reason, inPack: asked.inPack });
+            const forGm = await run(gm, P.seatVerdict, { casterId: W.caster, itemId: W.spell[s.slug] });
+            note(`E ${s.slug}: the Judge's seat, which observes both, takes`, { ok: forGm.ok, reason: forGm.reason, world: forGm.taken === dragged.uuid });
+            const gone = await gm.sweepTracked({ only: [dragged.uuid] });
+            // The copy leaves the walk's own list only when it left the driver's, so the last sweep names nothing the driver does not hold.
+            if (!gone.failed.length) own.splice(own.indexOf(dragged.uuid), 1);
+            check(`E ${s.slug}: the dragged-out copy is removed again, so the stages after this one resolve the shelf's creature`, gone.removed.length === 1 && gone.failed.length === 0, { removed: gone.removed.length, missing: gone.missing.length, failed: gone.failed.length });
+          }
+        }
       }
     }
     if (s.counted) {
