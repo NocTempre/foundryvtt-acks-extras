@@ -213,11 +213,12 @@ const P = {
 
   messageIds: async () => game.messages.map((m) => m.id),
   whispers: async ({ before, alias, label, name }) => {
-    const gms = game.users.filter((u) => u.isGM).map((u) => u.id).sort();
-    const said = foundry.utils.escapeHTML(game.i18n.format("ACKS-LIB.group.warn.noCreature", { name, label }));
+    const gms = game.users.filter((u) => u.isGM).map((u) => u.id);
+    const said = game.i18n.format("ACKS-LIB.group.warn.noCreature", { name, label });
+    const plain = (html) => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent; };
     return game.messages
-      .filter((m) => !before.includes(m.id) && m.speaker?.alias === alias && m.content.includes(label))
-      .map((m) => ({ id: m.id, toGMs: JSON.stringify([...m.whisper].sort()) === JSON.stringify(gms), says: m.content.includes(said) }));
+      .filter((m) => !before.includes(m.id) && m.speaker?.alias === alias && plain(m.content).includes(label))
+      .map((m) => ({ id: m.id, toGMs: m.whisper.length > 0 && m.whisper.every((u) => gms.includes(u)), says: plain(m.content).includes(said) }));
   },
 
   /** A stack's printed hit points on a body's first record, and on its token. */
@@ -345,6 +346,7 @@ try {
   check("the place's rows read x2 and x0, both still listed, the header 2", rows.place.rows === 2 && rows.place.outer === 2 && rows.place.inner === 0 && rows.place.headcount === 2, rows.place);
   check("the faction's rows read x2 and x0, both still listed, the headcount 2", rows.faction.rows === 2 && rows.faction.outer === 2 && rows.faction.inner === 0 && rows.faction.headcount === 2, rows.faction);
   for (const [doc, kind] of [[place, "place"], [faction, "faction"]]) {
+    await run(gm, P.openSheet, { docId: doc.id });
     seen = await until(gm, P.sheetRead, { docId: doc.id, kind, uuids }, (s) => s?.inner?.includes("×0"));
     check(`the ${kind}'s sheet prints x2, x0 and a header of 2`, seen?.outer?.includes("×2") && seen.inner?.includes("×0") && /\b2\b/.test(seen.headcount ?? ""), seen);
   }
