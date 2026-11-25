@@ -585,6 +585,9 @@ at once: the driver's two browsers, never two pane tabs.
   `lib/round-foe-token` (hostile) and `lib/round-pc-token` (friendly).
 - The unlinked combat `lib/round-combat` (`scene: null`), with a row per
   token: `lib/round-ally-row`, `lib/round-foe-row` and `lib/round-pc-row`.
+  The walk's teardown leaves it neither active nor begun: a begun combat with
+  no scene is the current combat on every scene, and Foundry stamps every new
+  effect in the world with it.
 
 Each section brings them to shape at its start:
 - ownership is written whole, and every seat may observe the scene;

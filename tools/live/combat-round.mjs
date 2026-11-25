@@ -27,7 +27,8 @@
  * for the posting seat's own user, is marked `lib/round-message` and retired
  * by the next run before it advances. Writes outside the ledger: the system's
  * initiative-persistence setting, set to reset where it reads keep and
- * restored in the finally.
+ * restored in the finally. The finally also leaves `lib/round-combat`
+ * neither active nor begun, so it stamps no other walk's effects.
  */
 import { connect, sleep } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
@@ -98,6 +99,16 @@ const P = {
    * dispositions, no status effects, the combat's flags, initiatives, round,
    * and the turn on `upKey`'s row.
    */
+  /**
+   * Leave the kept combat in the world neither active nor begun. A begun combat with no scene is the current combat on every
+   * scene, and Foundry stamps every new effect in the world with it, so a state another walk toggles would read as given.
+   */
+  rest: async ({ combatId }) => {
+    const combat = game.combats.get(combatId);
+    if (!combat) return { found: false };
+    await combat.update({ active: false, round: 0, turn: null });
+    return { found: true, active: combat.active, started: combat.started };
+  },
   shape: async ({ sceneId, actors, tokens, combatId, rows, playerId, inits, round, upKey }) => {
     const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
     const D = CONST.TOKEN_DISPOSITIONS;
@@ -267,6 +278,7 @@ async function seat(key) {
 }
 
 let restorePersistence = null;
+let restCombatId = null;
 try {
   section("seats");
   const gm = await seat("gm");
@@ -294,6 +306,7 @@ try {
     tokens[key] = await gm.fixture(`lib/round-${key}-token`, "Token", { name: actors[key].name, actorId: actors[key].id, actorLink: true, x: 100 + 200 * n, y: 300 }, { parent: scene.uuid });
   }
   const combat = await gm.fixture("lib/round-combat", "Combat", { scene: null, active: false });
+  restCombatId = combat.id;
   const rows = {};
   for (const key of KEYS) {
     rows[key] = await gm.fixture(`lib/round-${key}-row`, "Combatant", { tokenId: tokens[key].id, sceneId: scene.id, actorId: actors[key].id }, { parent: combat.uuid });
@@ -408,6 +421,9 @@ try {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {
   section("teardown");
+  if (restCombatId && seats.gm) {
+    try { note("the kept combat left neither active nor begun", await run(seats.gm, P.rest, { combatId: restCombatId })); } catch (err) { console.error("rest combat:", err?.message ?? err); }
+  }
   if (restorePersistence !== null && seats.gm) {
     try { note("initiative persistence restored", await run(seats.gm, P.setPersistence, { value: restorePersistence })); } catch (err) { console.error("restore persistence:", err?.message ?? err); }
   }
