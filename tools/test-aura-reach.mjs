@@ -439,11 +439,11 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.equal(field.options.nullable, true);
   assert.equal(field.options.initial, null);
   assert.equal(field.options.required, false);
-  assert.deepEqual(Object.keys(field.fields).sort(), ["engaged", "filter", "immunity", "lasts", "modifier", "on", "pulse", "radius", "save", "saveWhen", "showReach"]);
+  assert.deepEqual(Object.keys(field.fields).sort(), ["engaged", "filter", "fraction", "immunity", "lasts", "modifier", "on", "pulse", "radius", "save", "saveWhen", "showReach"]);
   assert.equal(field.fields.engaged.options.initial, false, "a reach engages only where a row says so");
   assert.equal(field.fields.showReach.options.initial, false, "a Region is the Judge's alone unless a row says otherwise");
   assert.deepEqual(Object.keys(field.fields.saveWhen.fields).sort(), ["magical", "when"]);
-  for (const key of ["save", "immunity", "lasts", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
+  for (const key of ["save", "immunity", "lasts", "modifier", "fraction"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
   assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "self", "side", "unit"]);
   assert.equal(field.fields.filter.fields.side.options.initial, "any");

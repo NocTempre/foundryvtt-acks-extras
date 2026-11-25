@@ -117,8 +117,8 @@ await t("a relayed press is checked against the item's own row, live, before it 
 });
 
 await t("Undo removes only the ids its row stored that still exist, and only a Judge's seat does it", async () => {
-  assert.deepEqual(logic.undoPlan({ recordIds: ["a", "b", "a"] }, ["b", "z"]), { ids: ["b"], gone: ["a"] });
-  assert.deepEqual(logic.undoPlan({}, ["b"]), { ids: [], gone: [] });
+  assert.deepEqual(logic.undoPlan({ recordIds: ["a", "b", "a"] }, ["b", "z"]), { ids: ["b"], gone: ["a"], hp: [] });
+  assert.deepEqual(logic.undoPlan({}, ["b"]), { ids: [], gone: [], hp: [] });
   const deletes = [];
   const actor = { effects: [{ id: "a" }, { id: "b" }, { id: "other" }], deleteEmbeddedDocuments: async (...args) => deletes.push(args) };
   globalThis.fromUuidSync = () => ({ actor });

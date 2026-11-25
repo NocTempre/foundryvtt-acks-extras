@@ -105,10 +105,11 @@ export function namesFigure(ref) {
 }
 
 /**
- * A row's stored `reach` as `{radius, save, immunity, lasts, modifier, on,
- * filter, pulse, engaged, showReach, saveWhen}`, or null for a row with none or
+ * A row's stored `reach` as `{radius, save, immunity, lasts, modifier, fraction,
+ * on, filter, pulse, engaged, showReach, saveWhen}`, or null for a row with none or
  * one whose pulse is no `REACH_PULSES` key (it acts on nothing). `radius`,
- * `save`, `immunity`, `lasts` and `modifier` are figure references
+ * `save`, `immunity`, `lasts`, `modifier` and `fraction` (the share of an amount
+ * a passed save takes off) are figure references
  * (`resolveFigure` reads each), null where absent; `lasts` is how many turns a
  * failed save's condition holds, and `namesFigure` tells a row that has one;
  * `engaged` is true for a reach whose subjects are the bearer's engaged
@@ -127,6 +128,7 @@ export function readReach(raw) {
     lasts: ref("lasts"),
     engaged: raw.engaged === true,
     modifier: ref("modifier"),
+    fraction: ref("fraction"),
     on: words(raw.on).filter((word) => REACH_ON.includes(word)),
     filter: readFilter(raw.filter),
     pulse: raw.pulse,

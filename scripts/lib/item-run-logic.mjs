@@ -18,6 +18,8 @@ import { conditionEffectId } from "./status-effects.mjs";
 import { numOrNull } from "./util.mjs";
 import { stackCountOf } from "./item-model.mjs";
 import { namesFigure, readReach, resolveFigure } from "./aura-reach-logic.mjs";
+import { isAutoFail, isAutoSucceed } from "./throws.mjs";
+import { amountAfter } from "./hp-logic.mjs";
 
 /* -------------------------------------------- */
 /*  Reading an item                              */
@@ -34,17 +36,31 @@ function readState(raw) {
 /**
  * A stored `itemRun` flag as `{activation, rows}`, or null where it holds no
  * activation of a known kind. The figures a fuse and a counted item name stay
- * figure references (`resolveFigure` reads them live).
+ * figure references (`resolveFigure` reads them live). A fuse also names the
+ * proficiency its light rides on, the bomb sizes by breed (`sizes`), the blast
+ * rows by size (`blast`) and `variant`, the breed key that indexes `sizes` (a
+ * trimmed string, "" where none is stored).
  *
  * @param {object} [raw]
- * @returns {{activation: {kind: string, state: {active: boolean, activationId: string, regionId: string}, throw: object|null, fumble: object|null, fuseDice: object|null, uses: object|null}, rows: object[]}|null}
+ * @returns {{activation: {kind: string, state: {active: boolean, activationId: string, regionId: string}, throw: object|null, fumble: object|null, fuseDice: object|null, proficiency: object|null, sizes: object|null, blast: object|null, variant: string, uses: object|null}, rows: object[]}|null}
  */
 export function readItemRun(raw) {
   const kind = raw?.activation?.kind;
   if (!(kind in ITEM_RUN_ACTIVATIONS)) return null;
   const figure = (key) => (raw.activation[key] && typeof raw.activation[key] === "object" ? raw.activation[key] : null);
   return {
-    activation: { kind, state: readState(raw.activation.state), throw: figure("throw"), fumble: figure("fumble"), fuseDice: figure("fuseDice"), uses: figure("uses") },
+    activation: {
+      kind,
+      state: readState(raw.activation.state),
+      throw: figure("throw"),
+      fumble: figure("fumble"),
+      fuseDice: figure("fuseDice"),
+      proficiency: figure("proficiency"),
+      sizes: figure("sizes"),
+      blast: figure("blast"),
+      variant: typeof raw.activation.variant === "string" ? raw.activation.variant.trim() : "",
+      uses: figure("uses"),
+    },
     rows: Array.isArray(raw.rows) ? raw.rows : [],
   };
 }
@@ -245,14 +261,24 @@ export function activationRecordIds(effects, activationId) {
  * What an Undo removes: exactly the ids its row stored that still exist,
  * never the Region, the activation or the quantity. A row with no ids stored
  * removes nothing.
- * @param {{recordIds?: string[]}} entry
+ *
+ * An entry that took hit points also stores `hp: [{uuid, amount}]`, `amount`
+ * the hit points the press took from the subject (negative where it gave them).
+ * The plan's `hp` is each of those reversed, `amount` negated and so the hit
+ * points to give back, in the order stored; an entry with none, an amount that
+ * is no number and an amount of zero reverse nothing.
+ * @param {{recordIds?: string[], hp?: Array<{uuid: string, amount: number}>}} entry
  * @param {Iterable<string>} existingIds the ids on the subject now
- * @returns {{ids: string[], gone: string[]}}
+ * @returns {{ids: string[], gone: string[], hp: Array<{uuid: string, amount: number}>}}
  */
 export function undoPlan(entry, existingIds) {
   const have = new Set(existingIds ?? []);
   const stored = [...new Set(entry?.recordIds ?? [])];
-  return { ids: stored.filter((id) => have.has(id)), gone: stored.filter((id) => !have.has(id)) };
+  const hp = (Array.isArray(entry?.hp) ? entry.hp : [])
+    .map((taken) => ({ uuid: String(taken?.uuid ?? ""), amount: numOrNull(taken?.amount) }))
+    .filter((taken) => taken.uuid && taken.amount !== null && taken.amount !== 0)
+    .map((taken) => ({ uuid: taken.uuid, amount: -taken.amount }));
+  return { ids: stored.filter((id) => have.has(id)), gone: stored.filter((id) => !have.has(id)), hp };
 }
 
 /**
@@ -266,14 +292,16 @@ export function undoPlan(entry, existingIds) {
  * the row names that figure at all, resolved or not: a row that names one is
  * timed, and a blank figure on it is a blank, never the other kind of row.
  *
- * @returns {{radius: number|null, modifier: number|null, immunityTurns: number|null, lasts: number|null, lastsNamed: boolean, save: string|null, on: string[], saveWhen: {when: string, magical: boolean}|null}|null} null for a row with no reach
+ * `fraction` is the share of an amount a passed save leaves, a number or null.
+ *
+ * @returns {{radius: number|null, modifier: number|null, fraction: number|null, immunityTurns: number|null, lasts: number|null, lastsNamed: boolean, save: string|null, on: string[], saveWhen: {when: string, magical: boolean}|null}|null} null for a row with no reach
  */
 export function reachFigures(row, read) {
   const reach = readReach(row?.reach);
   if (!reach) return null;
   const num = (ref) => numOrNull(resolveFigure(ref, read));
   const saveName = resolveFigure(reach.save, read) ?? row?.target;
-  return { radius: num(reach.radius), modifier: num(reach.modifier), immunityTurns: num(reach.immunity), lasts: num(reach.lasts), lastsNamed: namesFigure(reach.lasts), save: saveName ? String(saveName) : null, on: reach.on, saveWhen: reach.saveWhen };
+  return { radius: num(reach.radius), modifier: num(reach.modifier), fraction: num(reach.fraction), immunityTurns: num(reach.immunity), lasts: num(reach.lasts), lastsNamed: namesFigure(reach.lasts), save: saveName ? String(saveName) : null, on: reach.on, saveWhen: reach.saveWhen };
 }
 
 /**
@@ -502,7 +530,99 @@ export function fuseToWorld(raw, combatId, { now, roundSeconds }) {
   const record = readFuse(raw);
   if (!record?.clock || record.clock.combatId !== combatId) return null;
   const rounds = Math.max(record.clock.count - record.clock.seen, 0);
-  return { source: record.source, activationId: record.activationId, spot: record.spot, dueAt: Math.ceil(now + rounds * roundSeconds) };
+  return { source: record.source, activationId: record.activationId, spot: record.spot, dueAt: worldDueAt(rounds, now, roundSeconds) };
+}
+
+/** The world-clock moment `rounds` rounds of `roundSeconds` end, counted from `now`; one reading for every fuse put on the world clock. */
+const worldDueAt = (rounds, now, roundSeconds) => Math.ceil(now + Math.max(rounds, 0) * roundSeconds);
+
+/**
+ * A fuse lit outside a fight, on the world clock: `{source, activationId, spot,
+ * dueAt}` as `readFuse` reads it, due `rounds` rounds from `now`, each
+ * `roundSeconds` long (the same arithmetic `fuseToWorld` uses). Null where the
+ * rounds, the reading of the clock or the round's length is no number, or the
+ * round is no positive length.
+ *
+ * @param {{source: string, activationId: string, spot: object, rounds: number, now: number, roundSeconds: number}} p
+ */
+export function fuseWorldFlag({ source, activationId, spot, rounds, now, roundSeconds }) {
+  const count = numOrNull(rounds);
+  const start = numOrNull(now);
+  const unit = numOrNull(roundSeconds);
+  if (count === null || start === null || unit === null || unit <= 0) return null;
+  return { source, activationId, spot, dueAt: worldDueAt(count, start, unit) };
+}
+
+/* -------------------------------------------- */
+/*  The light and the burst                      */
+/* -------------------------------------------- */
+
+/**
+ * The blast a bomb of one breed's size deals: `{dice, radius, types}` or null.
+ * `sizes` maps a breed key to the bomb's size and `blast` lists rows `{lb, dice,
+ * radius, types}`, joined to the size on `lb`. `types` is the damage types the
+ * row names, `[]` where an older import wrote none. Null where the variant, its
+ * size, the matching row, or that row's dice or radius is blank; nothing stands
+ * in for a figure nobody imported. The inputs are resolved figure values.
+ *
+ * @param {{sizes: Record<string, number|string>|null, blast: Array<{lb: number|string, dice: string, radius: number|string, types?: string[]}>|null, variant: string}} p
+ * @returns {{dice: string, radius: number, types: string[]}|null}
+ */
+export function blastOf({ sizes, blast, variant }) {
+  const key = String(variant ?? "").trim();
+  if (!key || !sizes || typeof sizes !== "object" || !Array.isArray(blast)) return null;
+  const size = numOrNull(sizes[key]);
+  if (size === null) return null;
+  const row = blast.find((r) => numOrNull(r?.lb) === size);
+  const dice = String(row?.dice ?? "").trim();
+  const radius = numOrNull(row?.radius);
+  if (!row || !dice || radius === null) return null;
+  return { dice, radius, types: Array.isArray(row.types) ? row.types.map((t) => String(t)) : [] };
+}
+
+/**
+ * What the proficiency throw that lights a fuse did: `fumble` (the unmodified
+ * roll is at or below the imported `fumble` figure, the highest natural result
+ * that fumbles), `lit`, or `unlit`; null where the Judge decides, since the
+ * fumble figure is blank or the throw is settled by a target that is. The
+ * natural die answers first, as `throws.mjs` reads it: an automatic failure is
+ * `unlit` and an automatic success, which only a `proficient` bearer has, is
+ * `lit`, neither consulting the target. Any other result is `total` against
+ * `target`, a hit lighting it.
+ *
+ * @param {{natural: number, total: number, target: number|null, fumble: number|null, proficient: boolean}} p
+ * @returns {"fumble"|"lit"|"unlit"|null}
+ */
+export function fuseLight({ natural, total, target, fumble, proficient }) {
+  const roll = numOrNull(natural);
+  const edge = numOrNull(fumble);
+  if (roll === null || edge === null) return null;
+  if (roll <= edge) return "fumble";
+  if (isAutoFail(roll) === true) return "unlit";
+  if (isAutoSucceed(roll, { proficient }) === true) return "lit";
+  const goal = numOrNull(target);
+  const made = numOrNull(total);
+  if (goal === null || made === null) return null;
+  return made >= goal ? "lit" : "unlit";
+}
+
+/**
+ * The amount a burst's roll does to one subject: `{amount, judge}`. The damage is
+ * rolled once and every subject takes `rolled`, a subject that `saved` having it
+ * reduced by the save's `reduction` (the share a passed save takes off, so it
+ * keeps `1 - reduction`), then each of `stages` (`amountAfter`). A saved subject
+ * with no reduction, and a stage the module does not compute, are the Judge's:
+ * `{amount: null, judge: true}`.
+ *
+ * @param {{rolled: number, saved: boolean, reduction: number|null, stages?: Array<Function|object|null>}} p
+ * @returns {{amount: number|null, judge: boolean}}
+ */
+export function burstAmount({ rolled, saved, reduction, stages = [] }) {
+  const off = numOrNull(reduction);
+  if (saved && off === null) return { amount: null, judge: true };
+  const out = amountAfter(rolled, { fraction: saved ? 1 - off : 1, stages });
+  if (out.judge || out.applied === null) return { amount: null, judge: true };
+  return { amount: out.applied, judge: false };
 }
 
 /** The fuse flag key, named once for the writer and the steppers. */

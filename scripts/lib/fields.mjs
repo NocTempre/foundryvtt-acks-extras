@@ -588,6 +588,8 @@ export function effectField() {
         immunity: figureRefField(),
         lasts: figureRefField(),
         modifier: figureRefField(),
+        // The share of an amount a passed save takes off, a decimal (`item-run-logic.mjs` `burstAmount`), read live like the rest.
+        fraction: figureRefField(),
         // Whether the reach's subjects are the bearer's engaged opponents (`engagementHolds`).
         engaged: bool(),
         on: wordList(),
