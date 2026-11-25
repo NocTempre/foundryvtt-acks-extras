@@ -1,4 +1,4 @@
-# lib API (apiVersion 78)
+# lib API (apiVersion 79)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 78,
+  apiVersion: 79,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1181,7 +1181,7 @@ A consumer that stored or compared an old id, or built a name key from the
 pattern `ACKS-LIB.condition.<id>`, reads the new id or `conditionNameKey`. A row
 marked `state` is filed under States on the palette.
 
-**Defend is one condition and its shield is read at the roll** (apiVersion 78).
+**Defend is one condition and its shield is read at the roll** (apiVersion 79).
 `defendingShield` is gone from the catalogue: `defending` carries the melee row
 and, under `when: "shield"`, the thrown, missile and Blast rows.
 `subjectOf(actor).shield` is `shieldOf(actor)`: `true` for an equipped armour
