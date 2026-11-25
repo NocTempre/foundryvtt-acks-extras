@@ -32,6 +32,25 @@
  *      reads the joins text and not the range line, no `noCaster` refusal is
  *      raised, the cast count rose by exactly one, one member is stashed and
  *      none stands loose, no pending record exists, and Dismiss removes it.
+ *   3. (T-0842) A held end that leaves the creature. The held spell's row says
+ *      `stays`; the Player casts from inside the party and the Player's seat ends
+ *      the concentration by the status's toggle. The stashed member carries
+ *      `summon.lost` `stays` in its stash, still a member with the Player's
+ *      ownership and its disposition as they were; the party sheet's Order tab
+ *      on both seats draws `i.fa-link-slash` on its name line, labelled with the
+ *      stays badge's text; the one funnel card is drawn by the Player's seat with
+ *      Dismiss and Restore, and the Player's Dismiss, answered Yes, releases the
+ *      member.
+ *   4. (T-0842) The same with the row saying `hostile`. The stash carries
+ *      `lost` `hostile`, the Player's user at 0 in its ownership delta and the
+ *      disposition hostile, and the member stays; the Order tab draws
+ *      `i.fa-triangle-exclamation.down-badge` on both seats; the Player's seat
+ *      draws the funnel card with Restore and no Dismiss; the Magic tab's row
+ *      Dismiss on the Player's sheet is refused `controlLost`, and the member
+ *      stands. The Judge's seat deploys the party's member: the token made reads
+ *      hostile, the Player's user does not own it, and the Order tab still draws
+ *      the hostile badge; the Judge's Magic tab Dismiss removes it, the party
+ *      holding the caster alone again.
  * Prints booleans and counts, never a name or an id; the ledger's own sweep
  * report is the one place ids print. Machine values arrive through ./_env.mjs.
  * The recorders on the seats attach after `ready`, so a clean console here says
@@ -44,7 +63,10 @@
  * any cast), `magic/party-caster` (a character the Player owns, spells
  * enabled), `magic/party-spell-open` and `magic/party-spell-ranged` (its two
  * summoning spells, each rewritten whole by its step; the ranged one states a
- * distance the fixture sets), `magic/party` (an `acks-extras.party` actor whose
+ * distance the fixture sets), `magic/summon-party-held` (a spell on the same
+ * caster for steps 3 and 4, rewritten whole by each with one summon row naming
+ * the creature by uuid, `amount` 1, a stationary concentration and the row's
+ * `controlEnd` that step needs), `magic/party` (an `acks-extras.party` actor whose
  * formation holds the caster alone, delving) and `magic/party-token` (its token
  * on the field, the caster stashed inside). The run's own documents (the cast
  * cards, the caster records, the creature's world copy where none stood and
@@ -72,6 +94,10 @@ const check = (label, ok, detail) => {
 
 /** The duration both spells carry: the walk's own, a fixed two hours. */
 const DURATION = { shape: "fixed", value: 2, unit: "hours" };
+/** The held spell's duration: a stationary concentration, which the Player's seat ends by the status's toggle. */
+const HELD = { shape: "concentration", concentration: "stationary" };
+/** The status the held spell's caster record is bound to. */
+const HELD_STATUS = "concentrating-and-stationary";
 /** The ranged spell's distance, in feet: a figure the fixture sets. */
 const RANGE_FEET = 30;
 /** How many creatures each spell's row asks for. */
@@ -227,11 +253,11 @@ const P = {
     if (!actor.system.spells?.enabled) await actor.update({ "system.spells.enabled": true });
     return { enabled: !!actor.system.spells?.enabled, type: actor.type };
   },
-  /** One spell's flag replaced whole (the old flag deleted first): its summon row, its duration and, where given, its distance range in feet. The count is 0 again. */
-  reshape: async ({ casterId, spellId, ref, amount, duration, rangeFeet }) => {
+  /** One spell's flag replaced whole (the old flag deleted first): its summon row (with its `controlEnd` where given), its duration and, where given, its distance range in feet. The count is 0 again. */
+  reshape: async ({ casterId, spellId, ref, amount, duration, rangeFeet, controlEnd }) => {
     const item = game.actors.get(casterId).items.get(spellId);
     await item.update({ "flags.acks-extras.spell": new foundry.data.operators.ForcedDeletion() });
-    const flag = { schools: ["summoning"], effects: [{ type: "summon", ref, amount }], duration };
+    const flag = { schools: ["summoning"], effects: [{ type: "summon", ref, amount, ...(controlEnd ? { controlEnd } : {}) }], duration };
     if (rangeFeet != null) flag.range = { shape: "distance", value: rangeFeet, unit: "feet" };
     await item.update({ "system.cast": 0, "flags.acks-extras.spell": flag });
     const { isSummonSpell } = await import("/modules/acks-extras/scripts/magic/summon-spell.mjs");
@@ -504,6 +530,105 @@ const P = {
     await H.sleep(1500);
     return true;
   },
+  /** End a held cast by the status's own toggle, as the HUD does it, on whichever seat runs this. */
+  endHeld: async ({ casterId, status }) => { await game.actors.get(casterId).toggleStatusEffect(status, { active: false }); return true; },
+  /** Whether the caster carries the held status. */
+  holds: async ({ casterId, status }) => game.actors.get(casterId).statuses.has(status),
+  /** The funnel card and the clock's card a cast posted, by uuid. */
+  endCards: async ({ castId }) => [...game.messages].filter((m) => m.flags?.["acks-extras"]?.castHeldEnd?.castId === castId || m.flags?.["acks-extras"]?.castEnded?.castId === castId).map((m) => ({ uuid: m.uuid, id: m.id, held: !!m.flags["acks-extras"].castHeldEnd, outcome: m.flags["acks-extras"].castHeldEnd?.outcome ?? m.flags["acks-extras"].castEnded?.outcome ?? null })),
+  /** What this seat's rendered funnel card shows: the creatures it lists, its Dismiss buttons (the all-creatures one counted apart) and its Restore. The card is drawn in the Chat tab, so that tab is brought up first. */
+  heldCard: async ({ messageId }) => {
+    const H = globalThis.__mps;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    const el = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"]`), { tries: 40, every: 200 });
+    if (!el) return { found: false };
+    await H.sleep(600);
+    return {
+      found: true,
+      creatures: el.querySelectorAll(".acks-extras-cast-held .acks-extras-bucket__row").length,
+      dismiss: el.querySelectorAll("[data-acks-extras-held-dismiss]:not([data-all])").length,
+      dismissAll: el.querySelectorAll("[data-acks-extras-held-dismiss][data-all]").length,
+      restore: el.querySelectorAll("[data-acks-extras-held-restore]").length,
+    };
+  },
+  /** Press the funnel card's Dismiss for its one listed creature on this seat; the confirmation is answered apart. */
+  cardPress: async ({ messageId }) => {
+    const H = globalThis.__mps;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    const el = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"]`), { tries: 40, every: 200 });
+    const button = el?.querySelector("[data-acks-extras-held-dismiss]:not([data-all])");
+    if (!button) return { button: false };
+    button.click();
+    return { button: true };
+  },
+  /**
+   * Press the spell row's Dismiss on the Magic tab of this seat's sheet of the caster and watch for what follows: the warnings raised, and whether a
+   * confirmation opened (it is answered No and closed, since the walk wants the answer to the refusal, not a removal).
+   */
+  pressDismissWatch: async ({ casterId, spellId }) => {
+    const H = globalThis.__mps;
+    const sheet = game.actors.get(casterId).sheet;
+    if (!sheet.rendered) { await sheet.render(true); await H.poll(() => H.root(sheet)?.isConnected); }
+    sheet.changeTab("magic", "primary");
+    await H.sleep(600);
+    const button = H.root(sheet)?.querySelector(`[data-item-id='${spellId}'] [data-action='spellDismiss']`);
+    if (!button) return { button: false };
+    H.warns.length = 0;
+    button.click();
+    const dialogUp = () => [...document.querySelectorAll(".application.dialog button, dialog button")].find((x) => x.dataset.action === "no");
+    const seen = await H.poll(() => H.warns.length > 0 || !!dialogUp(), { tries: 30, every: 200 });
+    const no = dialogUp();
+    if (no) no.click();
+    await H.sleep(400);
+    return { button: true, reacted: !!seen, warns: H.warns.slice(), dialog: !!no };
+  },
+  /**
+   * The party member's stash as the record holds it: still a member, still stashed, the control-end stamp, the level the Player's user holds in the
+   * stash's ownership delta (null where it holds no entry) and the stash's disposition.
+   */
+  stashOf: async ({ fid, actorId, playerId }) => {
+    const H = globalThis.__mps;
+    const member = H.model.getFormation(fid)?.members.find((m) => m?.actorId === actorId);
+    if (!member) return { member: false };
+    const data = member.tokenData ?? null;
+    return {
+      member: true,
+      summon: H.model.isSummonMember(member),
+      stashed: !!data && !member.deployedTokenId,
+      deployed: !!member.deployedTokenId,
+      lost: H.logic.summonOfData(data).summon?.lost ?? null,
+      level: data?.delta?.ownership?.[playerId] ?? null,
+      disposition: data?.disposition ?? null,
+      hostile: data?.disposition === CONST.TOKEN_DISPOSITIONS.HOSTILE,
+    };
+  },
+  /**
+   * The party sheet opened fresh on its Order tab on this seat, and one member's name line read: the badge glyphs it draws and their `aria-label`s.
+   * The hostile glyph is selected with its `down-badge` class, since the skull and the eye share that class.
+   */
+  orderBadge: async ({ partyId, actorId }) => {
+    const H = globalThis.__mps;
+    const app = game.actors.get(partyId).sheet;
+    try { await app.close({ animate: false }); } catch { /* not open */ }
+    await app.render(true);
+    const el = await H.poll(() => (H.root(app)?.isConnected ? H.root(app) : null), { tries: 40, every: 200 });
+    if (!el) return { rendered: false };
+    el.querySelector('[data-action="tab"][data-tab="order"]')?.click();
+    await H.sleep(900);
+    const row = await H.poll(() => H.root(app)?.querySelector(`li.member[data-actor-id="${actorId}"]`), { tries: 20, every: 250 });
+    if (!row) return { rendered: true, row: false };
+    const name = row.querySelector(".info .name");
+    const stays = name?.querySelector("i.fa-link-slash");
+    const hostile = name?.querySelector("i.fa-triangle-exclamation.down-badge");
+    return { rendered: true, row: true, stays: !!stays, staysLabel: stays?.getAttribute("aria-label") ?? null, hostile: !!hostile, hostileLabel: hostile?.getAttribute("aria-label") ?? null };
+  },
+  /** A token as the world holds it: its disposition, and whether the Player's user owns it (read on this seat for the user given). */
+  tokenRead: async ({ uuid, playerId }) => {
+    let token = null;
+    try { token = await fromUuid(uuid); } catch { token = null; }
+    if (!token) return { resolves: false };
+    return { resolves: true, disposition: token.disposition, hostile: token.disposition === CONST.TOKEN_DISPOSITIONS.HOSTILE, playerOwns: !!token.testUserPermission(game.users.get(playerId), "OWNER"), lost: token.actor?.getFlag("acks-extras", "summon")?.lost ?? null };
+  },
   /** Release the members of casts this run made, and delete the scene tokens of those casts: the run's own, by its cast ids. */
   clearCasts: async ({ fid, sceneId, castIds }) => {
     const H = globalThis.__mps;
@@ -657,12 +782,15 @@ try {
   const nameRanged = "QA Party Ranged Spell";
   const spellOpen = await gm.fixture("magic/party-spell-open", "Item", { name: nameOpen, type: "spell", system: { lvl: 1, cast: 0, memorized: 0 } }, { parent: caster.uuid });
   const spellRanged = await gm.fixture("magic/party-spell-ranged", "Item", { name: nameRanged, type: "spell", system: { lvl: 1, cast: 0, memorized: 0 } }, { parent: caster.uuid });
+  const nameHeld = "QA Party Held Spell";
+  const spellHeld = await gm.fixture("magic/summon-party-held", "Item", { name: nameHeld, type: "spell", system: { lvl: 1, cast: 0, memorized: 0 } }, { parent: caster.uuid });
   const party = await gm.fixture("magic/party", "Actor", { name: PARTY_NAME, type: `${SCOPE}.party` });
   sceneId = idOf(scene);
   const creatureId = idOf(creature);
   casterId = idOf(caster);
   const openId = idOf(spellOpen);
   const rangedId = idOf(spellRanged);
+  const heldId = idOf(spellHeld);
   partyId = idOf(party);
   casterUuid = `Actor.${casterId}`;
   const creatureUuid = `Actor.${creatureId}`;
@@ -691,17 +819,19 @@ try {
 
   const st = () => run(gm, P.state, { fid, sceneId, casterId });
   /** Dismiss through the Magic tab's own control what a past run left, as a user does. */
-  async function dismissStanding(spellId) {
-    await run(player, P.clearWindows);
-    const pressedDismiss = await run(player, P.pressDismiss, { casterId, spellId });
-    if (pressedDismiss.button) await run(player, P.answerConfirm, { action: "yes" });
-    await run(player, P.clearWindows);
+  async function dismissStanding(spellId, seat = player) {
+    await run(seat, P.clearWindows);
+    const pressedDismiss = await run(seat, P.pressDismiss, { casterId, spellId });
+    if (pressedDismiss.button) await run(seat, P.answerConfirm, { action: "yes" });
+    await run(seat, P.clearWindows);
     return pressedDismiss.button;
   }
   let lead = await st();
   if (lead.mine || lead.loose) {
     const left = { members: lead.mine, tokens: lead.loose };
     for (const spellId of [openId, rangedId]) await dismissStanding(spellId);
+    // A held spell's member a failed run left may have turned hostile, which only the Judge's seat may dismiss.
+    await dismissStanding(heldId, gm);
     lead = await until(gm, P.state, { fid, sceneId, casterId }, (s) => !s.mine && !s.loose, { tries: 30, every: 300 });
     note("leftover creatures dismissed through the Magic tab", left);
   }
@@ -865,6 +995,128 @@ try {
   await run(player, P.clearWindows);
   const dB = await run(player, P.drain);
   check("B: no console error or uncaught error on the Player seat", !dB.errors.length && !dB.uncaught.length, { errors: dB.errors.length, uncaught: dB.uncaught.length });
+  /* ---------------------------------------------------------------- */
+  /**
+   * One cast of the held spell from inside the party, the Player's seat ending its concentration by the status's toggle, the row's `controlEnd` as given
+   * (steps 3 and 4). Answers what the outcome-specific checks read: the cast id, the member's id, the stash before and after the end, the funnel card and the
+   * sizes of the party's summon list before the end.
+   */
+  async function castHeld(controlEnd, label) {
+    const shaped = await run(gm, P.reshape, { casterId, spellId: heldId, ref: creatureUuid, amount: 1, duration: HELD, rangeFeet: null, controlEnd });
+    check(`${label}: start shape: the held spell reads as a summoning spell with one row and the count at 0`, shaped.isSpell && shaped.summon && shaped.rows === 1 && shaped.cast === 0, shaped);
+    await until(player, P.castState, { casterId, spellId: heldId }, (s) => s.cast === 0, { tries: 40, every: 200 });
+    const s0 = await st();
+    const pending0 = await run(gm, P.pending, { casterId });
+    check(`${label}: start shape: no summon member of the caster, none loose, no pending declaration, no token of the caster on the field, no held status on the caster`, s0.mine === 0 && s0.loose === 0 && pending0.pending.length === 0 && s0.casterTokens === 0 && !(await run(gm, P.holds, { casterId, status: HELD_STATUS })), { mine: s0.mine, loose: s0.loose, pending: pending0.pending.length, casterTokens: s0.casterTokens });
+    await run(player, P.warnsTake);
+    const press = await run(player, P.press, { casterId, spellId: heldId });
+    check(`${label}: the Magic tab's Cast button exists on the held spell's row`, press.button && press.before === 0, { before: press.before });
+    if (!press.button) throw new Error("no Cast button on the Player's Magic tab for the held spell");
+    const dlg = await run(player, P.dialog, { spellName: nameHeld });
+    check(`${label}: the dialog's placement line is the joins line and Cast is on`, dlg.dialog && dlg.placement === joinsLine && !dlg.castDisabled && dlg.verdicts.every((v) => v.severity !== "block"), { isJoins: dlg.placement === joinsLine, disabled: dlg.castDisabled });
+    const answered = await run(player, P.confirm, { count: 1 });
+    check(`${label}: the confirm button is pressed and the windows are cleared off the map`, answered.dialog && answered.pressed, answered);
+    let previews = 0;
+    for (let n = 0; n < 6; n++) {
+      previews = Math.max(previews, await run(player, P.previews));
+      await sleep(250);
+    }
+    if (previews > 0) {
+      try { await cancelPlacement(); } catch { /* the failure below is the one to report */ }
+      check(`${label}: the placement previews stay at zero`, false, { previews });
+      throw new Error("the held cast started a placement instead of joining the party");
+    }
+    const after = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine >= 1 && s.loose === 0, { tries: 80, every: 300 });
+    await until(player, P.castState, { casterId, spellId: heldId }, (s) => s.cast > 0 && s.castCards.length >= 1, { tries: 60, every: 200 });
+    await sleep(900);
+    const settled = await run(player, P.castState, { casterId, spellId: heldId });
+    const mine = after.summons.filter((s) => s.by === casterUuid);
+    const castId = mine[0]?.cast ?? "";
+    const actorId = mine[0]?.id ?? "";
+    for (const uuid of await run(gm, P.copiesOf, { sourceUuid: creatureUuid })) if (!copiesBefore.includes(uuid)) await track(uuid, "Actor");
+    const records = await trackCast(heldId, settled, castId);
+    check(`${label}: the cast joined one member to the party, stashed, none stands loose, and left a concentration record the Player's seat reads as the held status`, mine.length === 1 && mine[0].stashed && after.loose === 0 && records.length >= 1 && (await run(player, P.holds, { casterId, status: HELD_STATUS })), { members: mine.length, loose: after.loose, records: records.length });
+    const pre = await run(gm, P.stashOf, { fid, actorId, playerId });
+    check(`${label}: before the end the stash is a summon member's, unstamped, and gives the Player's user ownership`, pre.member && pre.summon && pre.stashed && pre.lost === null && pre.level >= 3, { stashed: pre.stashed, lost: pre.lost, level: pre.level });
+    check(`${label}: the party sheet's Order tab draws neither control-end badge for it before the end`, await (async () => {
+      const b = await run(gm, P.orderBadge, { partyId, actorId });
+      await run(gm, P.clearWindows);
+      return b.row && !b.stays && !b.hostile;
+    })());
+    await run(player, P.endHeld, { casterId, status: HELD_STATUS });
+    const cards = await until(gm, P.endCards, { castId }, (l) => l.some((c) => c.held), { tries: 40, every: 250 });
+    for (const c of cards) await track(c.uuid, "ChatMessage");
+    const card = cards.find((c) => c.held) ?? null;
+    check(`${label}: ending the concentration posts the one funnel card, whose flag carries the outcome ${controlEnd}`, cards.filter((c) => c.held).length === 1 && card?.outcome === controlEnd, { cards: cards.length, outcome: card?.outcome ?? null });
+    const post = await until(gm, P.stashOf, { fid, actorId, playerId }, (s) => s.lost === controlEnd, { tries: 40, every: 250 });
+    return { castId, actorId, pre, post, card, membersBefore: after.summons.length };
+  }
+  /** The party sheet's Order tab on one seat, read for a member's badges; the sheet is closed after. */
+  const orderOn = async (seat, actorId) => {
+    const read = await run(seat, P.orderBadge, { partyId, actorId });
+    await run(seat, P.clearWindows);
+    return read;
+  };
+
+  section("3. a held end that leaves the creature (T-0842): the stash is stamped, the member stays, the Player's seat draws Dismiss and Restore");
+  const r3 = await castHeld("stays", "3");
+  check("3: the stash carries summon.lost stays, is still a stashed member of the party, and keeps the Player's ownership and the disposition it had", r3.post.member && r3.post.stashed && r3.post.summon && r3.post.lost === "stays" && r3.post.level === r3.pre.level && r3.post.disposition === r3.pre.disposition, { lost: r3.post.lost, sameLevel: r3.post.level === r3.pre.level, sameDisposition: r3.post.disposition === r3.pre.disposition });
+  const staysText = await run(player, P.loc, { key: "ACKS-FORMATION.app.summonStaysBadge" });
+  for (const [label, seat] of [["Judge", gm], ["Player", player]]) {
+    const read = await orderOn(seat, r3.actorId);
+    check(`3: the party sheet's Order tab on the ${label}'s seat draws the member's name line with an i.fa-link-slash whose aria-label is the stays badge's text, and no hostile badge`, read.row && read.stays && read.staysLabel === staysText && staysText.length > 0 && !read.hostile, { row: read.row, stays: read.stays, label: read.staysLabel === staysText, hostile: read.hostile });
+  }
+  const cardOn3 = r3.card ? await run(player, P.heldCard, { messageId: r3.card.id }) : { found: false };
+  check("3: the Player's seat draws the funnel card listing the creature with Dismiss and Restore", cardOn3.found && cardOn3.creatures === 1 && cardOn3.dismiss >= 1 && cardOn3.restore >= 1, cardOn3);
+  const cardOnGm3 = r3.card ? await run(gm, P.heldCard, { messageId: r3.card.id }) : { found: false };
+  check("3: the Judge's seat draws the same card with Dismiss and Restore", cardOnGm3.found && cardOnGm3.creatures === 1 && cardOnGm3.dismiss >= 1 && cardOnGm3.restore >= 1, cardOnGm3);
+  const dismiss3 = r3.card ? await run(player, P.cardPress, { messageId: r3.card.id }) : { button: false };
+  check("3: the Player presses the card's Dismiss and answers Yes", dismiss3.button && (await run(player, P.answerConfirm, { action: "yes" })), dismiss3);
+  const gone3 = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine === 0 && s.loose === 0, { tries: 40, every: 300 });
+  check("3: the member is released: the party's summon list shrank by one and the caster is still its one person", gone3.mine === 0 && gone3.loose === 0 && gone3.summons.length === r3.membersBefore - 1 && gone3.persons === 1 && gone3.hasCaster, { mine: gone3.mine, loose: gone3.loose, summons: gone3.summons.length, before: r3.membersBefore });
+  await run(player, P.clearWindows);
+  const d3 = await run(player, P.drain);
+  check("3: no console error or uncaught error on the Player seat", !d3.errors.length && !d3.uncaught.length, { errors: d3.errors.length, uncaught: d3.uncaught.length });
+
+  section("4. a held end that turns the creature hostile (T-0842): the stash is stamped and the Player's ownership is gone, the Player's seat draws Restore and no Dismiss");
+  const r4 = await castHeld("hostile", "4");
+  check("4: the stash carries summon.lost hostile, the Player's user at ownership 0 and the disposition hostile, and the creature is still a stashed member", r4.post.member && r4.post.stashed && r4.post.summon && r4.post.lost === "hostile" && r4.post.level === 0 && r4.post.hostile, { lost: r4.post.lost, level: r4.post.level, hostile: r4.post.hostile });
+  const hostileText = await run(player, P.loc, { key: "ACKS-FORMATION.app.summonHostileBadge" });
+  for (const [label, seat] of [["Judge", gm], ["Player", player]]) {
+    const read = await orderOn(seat, r4.actorId);
+    check(`4: the party sheet's Order tab on the ${label}'s seat draws the member's name line with an i.fa-triangle-exclamation.down-badge whose aria-label is the hostile badge's text, and no stays badge`, read.row && read.hostile && read.hostileLabel === hostileText && hostileText.length > 0 && !read.stays, { row: read.row, hostile: read.hostile, label: read.hostileLabel === hostileText, stays: read.stays });
+  }
+  const cardOn4 = r4.card ? await run(player, P.heldCard, { messageId: r4.card.id }) : { found: false };
+  check("4: the Player's seat draws the funnel card listing the creature with Restore and no Dismiss", cardOn4.found && cardOn4.creatures === 1 && cardOn4.dismiss === 0 && cardOn4.dismissAll === 0 && cardOn4.restore >= 1, cardOn4);
+  const cardOnGm4 = r4.card ? await run(gm, P.heldCard, { messageId: r4.card.id }) : { found: false };
+  check("4: the Judge's seat draws the same card with Dismiss and Restore", cardOnGm4.found && cardOnGm4.creatures === 1 && cardOnGm4.dismiss >= 1 && cardOnGm4.restore >= 1, cardOnGm4);
+  const controlLost = await run(player, P.loc, { key: "ACKS-LIB.summons.refused.controlLost" });
+  await run(player, P.clearWindows);
+  const refused4 = await run(player, P.pressDismissWatch, { casterId, spellId: heldId });
+  check("4: the Magic tab's row Dismiss, pressed on the Player's sheet, is refused with the controlLost notice before any confirmation opens", refused4.button && refused4.reacted && refused4.warns.includes(controlLost) && !refused4.dialog, { button: refused4.button, warns: refused4.warns?.length, dialog: refused4.dialog });
+  await run(player, P.clearWindows);
+  const stands4 = await st();
+  check("4: the hostile member stands in the party after the refusal", stands4.mine === 1 && (await run(gm, P.stashOf, { fid, actorId: r4.actorId, playerId })).member, { mine: stands4.mine });
+  // The Judge's seat deploys the party's member through the travel API, as step 1 does for its one creature.
+  const out4 = await run(gm, P.deployOne, { fid, actorId: r4.actorId });
+  if (out4.uuid) await track(out4.uuid, "Token");
+  check("4: the member is deployed through the party's own deployment: a token is made from the stash and the member stands deployed", out4.ok && out4.made === 1 && out4.deployed, { made: out4.made, deployed: out4.deployed });
+  const placedGm = out4.uuid ? await run(gm, P.tokenRead, { uuid: out4.uuid, playerId }) : { resolves: false };
+  check("4: the token made from the stash reads hostile and the Player's user does not own it", placedGm.resolves && placedGm.hostile && !placedGm.playerOwns && placedGm.lost === "hostile", { hostile: placedGm.hostile, playerOwns: placedGm.playerOwns, lost: placedGm.lost });
+  const placedPlayer = out4.uuid ? await until(player, P.tokenRead, { uuid: out4.uuid, playerId }, (r) => r.resolves, { tries: 30, every: 300 }) : { resolves: false };
+  check("4: the Player's seat reads the same: the token is hostile and testUserPermission(user, OWNER) on it is false", placedPlayer.resolves && placedPlayer.hostile && !placedPlayer.playerOwns, { resolves: placedPlayer.resolves, hostile: placedPlayer.hostile, playerOwns: placedPlayer.playerOwns });
+  const readDeployed = await orderOn(gm, r4.actorId);
+  check("4: with the party deployed the Order tab's row still draws the hostile badge, read off the placed token's actor", readDeployed.row && readDeployed.hostile && readDeployed.hostileLabel === hostileText && !readDeployed.stays, { row: readDeployed.row, hostile: readDeployed.hostile, label: readDeployed.hostileLabel === hostileText });
+  // The Judge's seat dismisses it through the Magic tab's row Dismiss on the caster's sheet.
+  await run(gm, P.clearWindows);
+  const dismissed4 = await run(gm, P.pressDismiss, { casterId, spellId: heldId });
+  check("4: the Judge's seat presses the Magic tab's row Dismiss and answers Yes", dismissed4.button && (await run(gm, P.answerConfirm, { action: "yes" })), dismissed4);
+  const gone4 = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine === 0 && s.loose === 0 && s.deployedTokens === 0, { tries: 40, every: 300 });
+  const tokenGone4 = out4.uuid ? await until(gm, P.tokenRead, { uuid: out4.uuid, playerId }, (r) => !r.resolves, { tries: 20, every: 300 }) : { resolves: false };
+  check("4: the token is gone and the party holds the caster alone again", !tokenGone4.resolves && gone4.mine === 0 && gone4.loose === 0 && gone4.deployedTokens === 0 && gone4.persons === 1 && gone4.hasCaster, { tokenGone: !tokenGone4.resolves, mine: gone4.mine, loose: gone4.loose, persons: gone4.persons });
+  await run(gm, P.clearWindows);
+  const d4 = await run(player, P.drain);
+  check("4: no console error or uncaught error on the Player seat", !d4.errors.length && !d4.uncaught.length, { errors: d4.errors.length, uncaught: d4.uncaught.length });
   const gEnd = await run(gm, P.drain);
   check("no console error or uncaught error on the GM seat over the walk", !gEnd.errors.length && !gEnd.uncaught.length, { errors: gEnd.errors.length, uncaught: gEnd.uncaught.length });
   walkDone();
@@ -906,7 +1158,7 @@ try {
   if (gm && wasPaused) {
     try { note("paused again", await run(gm, P.pause, { paused: true })); } catch (err) { console.error("pause restore:", err?.message ?? err); }
   }
-  console.log("fixtures kept: magic/party-scene, magic/party-creature, magic/party-caster, magic/party-spell-open, magic/party-spell-ranged, magic/party, magic/party-token");
+  console.log("fixtures kept: magic/party-scene, magic/party-creature, magic/party-caster, magic/party-spell-open, magic/party-spell-ranged, magic/summon-party-held, magic/party, magic/party-token");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

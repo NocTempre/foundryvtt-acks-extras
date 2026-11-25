@@ -482,7 +482,7 @@ own, driven through the travel API the party sheet's buttons call.
    tab name line drawing an `i.fa-triangle-exclamation.down-badge` whose
    `aria-label` is `ACKS-FORMATION.app.summonHostileBadge`'s text. The
    Player's seat draws the funnel card with Restore and no Dismiss; the Magic
-   tab's row Dismiss, pressed on the Player's sheet and answered Yes, is refused
+   tab's row Dismiss, pressed on the Player's sheet, is refused before any confirmation opens
    with `ACKS-LIB.summons.refused.controlLost` and the member stands. From the
    Judge's seat the party is deployed through the travel API, as step 1 does
    for its one creature: the token made from the stash reads hostile, and the

@@ -18,8 +18,12 @@
  * refused before the spend (the seat reads no active GM, which is synthetic); a
  * placement range refused to a Player and warned to a Judge, with a calling
  * exempt; a declared summons placed at its turn; a held end that lists the
- * creatures, Dismiss on the Judge's seat only, and `controlEnd` `stays` and
- * `hostile` applied; the delete path (a `gone` summons removed at its timed end
+ * creatures, with Dismiss for the Judge's seat always and for the Player's seat
+ * (the caster's owner) where the creature stays and not where it turned hostile,
+ * `controlEnd` `stays` and `hostile` applied (a `stays` creature dismissed from
+ * the Player's card, a hostile one refused `controlLost` to the Player), and the
+ * same test on the clock's timed-end card, the world clock advanced past a `stays`
+ * cast and past a `hostile` one; the delete path (a `gone` summons removed at its timed end
  * while a hand-placed decoy of the same creature and every other token stand).
  * Then a spell whose row names a creature the Player cannot observe: the row
  * saves from the Player's own seat (by uuid, then by name), a forged request and
@@ -459,7 +463,7 @@ const P = {
     return game.time.worldTime;
   },
   /** Cards of the two end kinds for a cast: the concentration's funnel card and the clock's expiry card. */
-  endCards: async ({ castId }) => [...game.messages].filter((m) => m.flags?.["acks-extras"]?.castHeldEnd?.castId === castId || m.flags?.["acks-extras"]?.castEnded?.castId === castId).map((m) => ({ uuid: m.uuid, id: m.id, held: !!m.flags["acks-extras"].castHeldEnd, timed: !!m.flags["acks-extras"].castEnded })),
+  endCards: async ({ castId }) => [...game.messages].filter((m) => m.flags?.["acks-extras"]?.castHeldEnd?.castId === castId || m.flags?.["acks-extras"]?.castEnded?.castId === castId).map((m) => ({ uuid: m.uuid, id: m.id, held: !!m.flags["acks-extras"].castHeldEnd, timed: !!m.flags["acks-extras"].castEnded, outcome: m.flags["acks-extras"].castHeldEnd?.outcome ?? m.flags["acks-extras"].castEnded?.outcome ?? null })),
   /** What this seat's rendered chat card of a message shows: the creatures it lists, its Dismiss buttons and its Restore. The card is rendered in the Chat tab, so that tab is brought up first. */
   heldCard: async ({ messageId }) => {
     const H = globalThis.__mc;
@@ -473,6 +477,53 @@ const P = {
       dismiss: el.querySelectorAll("[data-acks-extras-held-dismiss]").length,
       restore: el.querySelectorAll("[data-acks-extras-held-restore]").length,
     };
+  },
+  /** What this seat's rendered timed-end card draws: its Dismiss buttons. The card is rendered in the Chat tab, so that tab is brought up first. */
+  timedCard: async ({ messageId }) => {
+    const H = globalThis.__mc;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    const el = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"]`), { tries: 40, every: 200 });
+    if (!el) return { found: false };
+    await H.sleep(600);
+    return { found: true, dismiss: el.querySelectorAll("[data-acks-extras-cast-dismiss]").length };
+  },
+  /** Press a card's Dismiss on this seat: the held-end card's one for its one listed creature, or the timed-end card's (`kind` held or timed). The confirmation is answered apart. */
+  cardPress: async ({ messageId, kind }) => {
+    const H = globalThis.__mc;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    const el = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"]`), { tries: 40, every: 200 });
+    const button = el?.querySelector(kind === "held" ? "[data-acks-extras-held-dismiss]:not([data-all])" : "[data-acks-extras-cast-dismiss]");
+    if (!button) return { button: false };
+    button.click();
+    return { button: true };
+  },
+  /** Answer the open confirmation dialog. */
+  answerConfirm: async ({ action }) => {
+    const H = globalThis.__mc;
+    const b = await H.poll(() => [...document.querySelectorAll(".application.dialog button, dialog button")].find((x) => x.dataset.action === action), { tries: 30 });
+    if (!b) return false;
+    b.click();
+    await H.sleep(1500);
+    return true;
+  },
+  /**
+   * A Player's dismissal of ONE named token through lib's prompt, as the seat's own sheet would send it (the Magic tab's row names every standing
+   * creature of its spell, so the earlier casts of the walk's standing spell would join the request). A refusal comes before any confirmation; if one
+   * opens anyway it is answered No. Answers the reason, the warnings raised and whether a confirmation opened.
+   */
+  dismissToken: async ({ casterId, tokenUuid }) => {
+    const H = globalThis.__mc;
+    const token = fromUuidSync(tokenUuid);
+    if (!token) return { token: false };
+    H.warns.length = 0;
+    const { promptDismiss } = await import("/modules/acks-extras/scripts/lib/summons.mjs");
+    const call = promptDismiss(game.actors.get(casterId), { tokens: [token] });
+    const dialogUp = () => [...document.querySelectorAll(".application.dialog button, dialog button")].find((x) => x.dataset.action === "no");
+    const answer = await Promise.race([call, H.poll(() => !!dialogUp(), { tries: 30, every: 200 }).then((up) => (up ? { opened: true } : { timeout: true }))]);
+    const no = dialogUp();
+    if (no) no.click();
+    await H.sleep(400);
+    return { token: true, ok: answer?.ok === true, reason: answer?.reason ?? null, opened: !!no, warns: H.warns.slice() };
   },
   /** The clock's expiry cards a caster's casts posted since a time, by uuid. */
   expiryCards: async ({ casterUuid, since }) => [...game.messages].filter((m) => m.timestamp >= since && m.flags?.["acks-extras"]?.castEnded?.casterUuid === casterUuid).map((m) => m.uuid),
@@ -1167,7 +1218,8 @@ try {
     await run(player, P.clearWindows);
   }
 
-  section("11. a held summons' end lists its creatures, with Dismiss on the Judge's seat only, and its control ends as its row says");
+  section("11. a held summons' end lists its creatures, with Dismiss for the Player's seat where the creature stays and for the Judge's seat always, and its control ends as its row says");
+  const controlLostText = await loc("player", "LIB.summons.refused.controlLost");
   for (const outcome of ["stays", "hostile"]) {
     await reshape([summonRow({ amount: 1, controlEnd: outcome })], { duration: HELD });
     const before11 = await standing();
@@ -1187,13 +1239,63 @@ try {
       const onGm = await run(gm, P.heldCard, { messageId: cards[0].id });
       const onPlayer = await run(player, P.heldCard, { messageId: cards[0].id });
       check(`11 ${outcome}: the card lists the standing creature on both seats, with Dismiss and Restore on the Judge's seat`, onGm.found && onGm.creatures === 1 && onGm.dismiss >= 1 && onGm.restore >= 1, onGm);
-      check(`11 ${outcome}: the Player's seat lists the creature, with no Dismiss`, onPlayer.found && onPlayer.creatures === 1 && onPlayer.dismiss === 0, onPlayer);
+      if (outcome === "stays") check("11 stays: the Player owns the caster, so the Player's seat lists the creature with Dismiss and Restore", onPlayer.found && onPlayer.creatures === 1 && onPlayer.dismiss >= 1 && onPlayer.restore >= 1, onPlayer);
+      else check("11 hostile: the Player's seat lists the creature with Restore and no Dismiss (a hostile creature is the Judge's to dismiss)", onPlayer.found && onPlayer.creatures === 1 && onPlayer.dismiss === 0 && onPlayer.restore >= 1, onPlayer);
     }
     const post = await until(gm, P.summonTokens, { sceneId, summonerUuid: casterUuid, playerId }, (l) => l.find((t) => t.uuid === fresh11[0]?.uuid)?.lost, { tries: 40, every: 250 });
     const mine = post.find((t) => t.uuid === fresh11[0]?.uuid);
     const onPlayerSeat = (await run(player, P.summonTokens, { sceneId, summonerUuid: casterUuid })).find((t) => t.uuid === fresh11[0]?.uuid);
     if (outcome === "stays") check("11 stays: the creature stands, is stamped lost, keeps the Player's ownership and its disposition", mine && mine.lost && mine.playerLevel >= 3 && mine.disposition === pre.disposition && onPlayerSeat?.owner === true, { lost: mine?.lost, level: mine?.playerLevel, same: mine?.disposition === pre?.disposition });
     else check("11 hostile: the creature stands, is stamped lost, the Player's ownership is gone and its disposition is hostile", mine && mine.lost && mine.playerLevel < 3 && mine.disposition === -1 && onPlayerSeat?.owner === false, { lost: mine?.lost, level: mine?.playerLevel, disposition: mine?.disposition });
+    const held11 = cards.find((c) => c.held);
+    if (outcome === "stays") {
+      const pressed11 = held11 ? await run(player, P.cardPress, { messageId: held11.id, kind: "held" }) : { button: false };
+      check("11 stays: the Player presses the card's Dismiss and answers Yes", pressed11.button && (await run(player, P.answerConfirm, { action: "yes" })), pressed11);
+      const left11 = await until(gm, P.summonTokens, { sceneId, summonerUuid: casterUuid, playerId }, (l) => !l.some((t) => t.uuid === fresh11[0]?.uuid), { tries: 40, every: 300 });
+      check("11 stays: the dismissed creature is removed (its token is in the sweep's could-not-find)", !left11.some((t) => t.uuid === fresh11[0]?.uuid), { standing: left11.length });
+    } else {
+      // The sheet's row would name every standing creature of the spell, the earlier casts' included, so the request names this one token.
+      const lost11 = await run(player, P.dismissToken, { casterId, tokenUuid: fresh11[0]?.uuid });
+      check("11 hostile: the Player's dismissal of the hostile creature is refused controlLost, with the notice and before any confirmation opens", lost11.token && lost11.ok === false && lost11.reason === "controlLost" && lost11.warns.includes(controlLostText) && !lost11.opened, { reason: lost11.reason, warns: lost11.warns?.length, opened: lost11.opened });
+      const still11 = (await run(gm, P.summonTokens, { sceneId, summonerUuid: casterUuid, playerId })).some((t) => t.uuid === fresh11[0]?.uuid);
+      check("11 hostile: the creature still stands after the refusal", still11);
+    }
+    await run(gm, P.clearWindows);
+    await run(player, P.clearWindows);
+  }
+
+  // The timed end follows the same test. The clock moves past each cast, so each is its own cast with a row that says what becomes of the creature; the advance also ends the earlier casts of the caster, whose cards are the run's own.
+  for (const outcome of ["stays", "hostile"]) {
+    await reshape([summonRow({ amount: 1, controlEnd: outcome })]);
+    const before11t = await standing();
+    await openDialog("player");
+    await run(player, P.confirm, { count: 1 });
+    await clickPlaces("player", 1);
+    const fresh11t = await awaitFresh(before11t, 1);
+    const fin11t = await settle("player", fresh11t);
+    check(`11 timed ${outcome}: the cast placed one creature and wrote one timed caster record`, fresh11t.length === 1 && fin11t.records.length === 1, { placed: fresh11t.length, records: fin11t.records.length });
+    const since11t = Date.now() - 1000;
+    const t11a = await run(gm, P.worldTime);
+    const t11b = await run(gm, P.advance, { seconds: 2 * 3600 + 60 });
+    check(`11 timed ${outcome}: the world clock moved past the spell's two hours`, t11b >= t11a + 2 * 3600, { moved: t11b - t11a });
+    const cards11t = await until(gm, P.endCards, { castId: fin11t.castId }, (l) => l.some((c) => c.timed), { tries: 40, every: 250 });
+    for (const c of cards11t) await track(c.uuid, "ChatMessage");
+    for (const uuid of await run(gm, P.expiryCards, { casterUuid, since: since11t })) await track(uuid, "ChatMessage");
+    const timed11 = cards11t.filter((c) => c.timed);
+    check(`11 timed ${outcome}: the clock's end posts the one timed card` + (outcome === "hostile" ? ", whose flag outcome is hostile" : ""), timed11.length === 1 && (outcome === "hostile" ? timed11[0].outcome === "hostile" : timed11[0].outcome !== "hostile"), { cards: timed11.length, outcome: timed11[0]?.outcome ?? null });
+    if (timed11[0]) {
+      const onGm11 = await run(gm, P.timedCard, { messageId: timed11[0].id });
+      const onPlayer11 = await run(player, P.timedCard, { messageId: timed11[0].id });
+      check(`11 timed ${outcome}: the Judge's seat draws Dismiss on the card`, onGm11.found && onGm11.dismiss >= 1, onGm11);
+      if (outcome === "stays") check("11 timed stays: the Player's seat draws Dismiss on the card", onPlayer11.found && onPlayer11.dismiss >= 1, onPlayer11);
+      else check("11 timed hostile: the Player's seat draws the card with no Dismiss", onPlayer11.found && onPlayer11.dismiss === 0, onPlayer11);
+      if (outcome === "stays") {
+        const pressed11t = await run(player, P.cardPress, { messageId: timed11[0].id, kind: "timed" });
+        check("11 timed stays: the Player presses the card's Dismiss and answers Yes", pressed11t.button && (await run(player, P.answerConfirm, { action: "yes" })), pressed11t);
+        const left11t = await until(gm, P.summonTokens, { sceneId, summonerUuid: casterUuid, playerId }, (l) => !l.some((t) => t.uuid === fresh11t[0]?.uuid), { tries: 40, every: 300 });
+        check("11 timed stays: the dismissed creature is removed (its token is in the sweep's could-not-find)", !left11t.some((t) => t.uuid === fresh11t[0]?.uuid), { standing: left11t.length });
+      }
+    }
     await run(gm, P.clearWindows);
     await run(player, P.clearWindows);
   }

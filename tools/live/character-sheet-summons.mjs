@@ -10,12 +10,15 @@
  * Dismiss; a second spell's cast, its open Summon band given a creature from an
  * open shelf by a drop, adding Dismiss all; the
  * world clock moved past the first cast's duration posting one whispered card,
- * once, to the caster's owner and the GM, whose Dismiss on the Player seat
- * removes that cast and nothing else; the Magic tab's Dismiss removing the
+ * once, to the caster's owner and the GM, drawing Dismiss on both seats (the
+ * caster's owner is the Player), pressed on the Player seat to remove that cast
+ * and nothing else; the Magic tab's Dismiss removing the
  * other; a creature bound by hand kept by Release alone; a character the
  * Player does not own offering neither Cast nor Summon…; the GM seat offered
- * Summon…. Prints booleans and counts, never a name or an id. Machine values
- * arrive through ./_env.mjs.
+ * Summon…; then the Player user's own TOKEN_CREATE grant opening the bare
+ * Summon… and a spell-less placement on the Player seat, the grant put back to
+ * the value the run found. Prints booleans and counts, never a name or an id.
+ * Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker (the GM seat builds them): `summons/scene`,
  * `summons/summoner` (a character the Player owns) with its token
@@ -31,7 +34,11 @@
  * the cast cards, the cast-ended card and the caster records) are tracked by
  * uuid and swept alone. The world clock moves forward by the seconds printed
  * and is not moved back. A paused world is unpaused for the run and paused
- * again in the finally.
+ * again in the finally. The Player user's `permissions.TOKEN_CREATE` is read
+ * from `_source` and printed at the start, written false where the Player seat
+ * would read it true, written true for step 10, and put back in the finally
+ * exactly as found (an absent key is deleted with Foundry's ForcedDeletion);
+ * a run stopped before its finally is found by the printed starting value.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
 import { walkDone } from "./_walk.mjs";
@@ -307,6 +314,33 @@ const P = {
     button.click();
     return { button: true };
   },
+  /** Whether a rendered cast-ended card draws its Dismiss button on this seat, without pressing it. */
+  cardDismissDrawn: async ({ messageId }) => {
+    const H = globalThis.__cs;
+    try { ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* the log renders either way */ }
+    const button = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-acks-extras-cast-dismiss]`), { tries: 30, every: 200 });
+    return { button: !!button };
+  },
+  /**
+   * A user's own `TOKEN_CREATE` grant as the document stores it (`_source.permissions`: a key set to true or
+   * false, or no key), and what this seat's own user can do.
+   */
+  grantRead: async ({ userId }) => {
+    const stored = game.users.get(userId)?._source?.permissions ?? {};
+    return { has: Object.hasOwn(stored, "TOKEN_CREATE"), value: Object.hasOwn(stored, "TOKEN_CREATE") ? stored.TOKEN_CREATE : null, can: game.user.can("TOKEN_CREATE") };
+  },
+  /** On the Judge's seat: set a user's `TOKEN_CREATE` key to true or false, or delete the key (`"absent"`, Foundry's ForcedDeletion). */
+  grantWrite: async ({ userId, value }) => {
+    const user = game.users.get(userId);
+    await user.update({ "permissions.TOKEN_CREATE": value === "absent" ? new foundry.data.operators.ForcedDeletion() : value });
+    const stored = user._source.permissions ?? {};
+    return { has: Object.hasOwn(stored, "TOKEN_CREATE"), value: Object.hasOwn(stored, "TOKEN_CREATE") ? stored.TOKEN_CREATE : null };
+  },
+  /** A bare summoning straight through lib, with its one place already picked so no click is asked: the answer, or `{timeout: true}`. */
+  placeBare: async ({ actorId, sourceUuid, x, y }) => {
+    const call = acksExtras.lib.summons.placeSummons(game.actors.get(actorId), { sourceUuid, count: 1, positions: [{ x, y }] });
+    return Promise.race([call, new Promise((r) => setTimeout(() => r({ timeout: true }), 20000))]);
+  },
   viewport: async () => ({ w: window.innerWidth, h: window.innerHeight }),
   /** A summoning straight through lib on a character this seat does not own: the answer, or `{timeout: true}` where it reached placement. */
   placeOn: async ({ actorId, sourceUuid }) => {
@@ -484,7 +518,23 @@ const track = async (uuid, kind) => {
   own.push(uuid);
   await gm.track(uuid, kind);
 };
-const WALL_MS = Number(process.env.WALK_WALL_MS ?? 900_000);
+/** The Player user's id and its stored TOKEN_CREATE key as the run found it (`{has, value}`); null until read. */
+let grantUserId = null;
+let grantStart = null;
+/**
+ * Put the Player user's TOKEN_CREATE key back exactly as the run found it (a set key written back as it was, an
+ * absent one deleted with ForcedDeletion) and read it back on both seats. Safe to call twice.
+ * @returns {Promise<{ok: boolean}|null>} null when the starting value was never read
+ */
+async function putGrantBack() {
+  if (!grantStart || !grantUserId || !gm) return null;
+  await run(gm, P.grantWrite, { userId: grantUserId, value: grantStart.has ? grantStart.value : "absent" });
+  const same = (r) => r.has === grantStart.has && (!grantStart.has || r.value === grantStart.value);
+  const onGm = await until(gm, P.grantRead, { userId: grantUserId }, same);
+  const onPlayer = player ? await until(player, P.grantRead, { userId: grantUserId }, same) : null;
+  return { ok: same(onGm) && (!onPlayer || same(onPlayer)), start: { has: grantStart.has, value: grantStart.value }, gm: { has: onGm.has, value: onGm.value }, player: onPlayer ? { has: onPlayer.has, value: onPlayer.value } : null };
+}
+const WALL_MS =Number(process.env.WALK_WALL_MS ?? 900_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}
@@ -555,6 +605,17 @@ try {
   const spikeCopiesBefore = await run(gm, P.copiesOf, { sourceUuid: spikeUuid });
   const messagesBefore = await run(gm, P.messageIds);
   const castMenu = { named: `Cast ${namedName}`, open: `Cast ${openName}` };
+  // The Player user's own TOKEN_CREATE key is read, printed and kept; steps 1 to 9 need the Player seat to read it false, and step 10 grants it.
+  grantUserId = playerId;
+  grantStart = await run(gm, P.grantRead, { userId: playerId });
+  note("the Player user's TOKEN_CREATE at the start (key present, value)", { has: grantStart.has, value: grantStart.value });
+  const startSeat = await run(player, P.grantRead, { userId: playerId });
+  if (startSeat.can !== false) {
+    const wrote = await run(gm, P.grantWrite, { userId: playerId, value: false });
+    check("grant: the key stood at true or the role table grants Players the permission, so the key is written false explicitly", wrote.has && wrote.value === false, wrote);
+  }
+  const noGrant = await until(player, P.grantRead, { userId: playerId }, (r) => r.can === false);
+  check("grant: the Player seat reads game.user.can(\"TOKEN_CREATE\") false before step 1", noGrant.can === false, { can: noGrant.can });
   await run(player, P.drain);
   await run(gm, P.drain);
 
@@ -650,18 +711,19 @@ try {
   check("5: a further step of the clock posts no second card", (await run(gm, P.endedCards, { castId: namedCast, playerId })).length === 1);
   check("5: the creatures still stand: the card tells, it does not remove", (await tokens()).length === 3);
 
-  section("6. the card's Dismiss, drawn on the Judge's seat only, removes that cast, and nothing else");
+  section("6. the card's Dismiss, drawn for an owner of the caster, removes that cast from the Player seat, and nothing else");
   const seen6 = await run(player, P.endedCards, { castId: namedCast, playerId });
   check("6: the Player seat sees the card", seen6.length === 1 && seen6[0].visible);
-  const refused6 = await run(player, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
-  check("6: the card's Dismiss button is not drawn on the Player seat", !refused6.button);
-  const declined6 = await run(gm, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
-  check("6: the card's Dismiss button is rendered on the GM seat and pressed", declined6.button);
-  check("6: the confirmation is answered No", await run(gm, P.confirm, { action: "no" }));
+  // The named spell's row ends with its creatures standing and the Player owns the caster, so both seats draw Dismiss (only a creature that turned hostile at its end is the Judge's alone).
+  const drawnGm6 = await run(gm, P.cardDismissDrawn, { messageId: cards[0]?.id ?? "" });
+  check("6: the card's Dismiss button is drawn on the GM seat as well", drawnGm6.button);
+  const declined6 = await run(player, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
+  check("6: the card's Dismiss button is drawn on the Player seat, which owns the caster, and pressed", declined6.button);
+  check("6: the confirmation is answered No on the Player seat", await run(player, P.confirm, { action: "no" }));
   check("6: No removes nothing", (await tokens()).length === 3);
-  const pressed6 = await run(gm, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
-  check("6: the card's Dismiss is pressed again", pressed6.button);
-  check("6: the confirmation is answered Yes", await run(gm, P.confirm, { action: "yes" }));
+  const pressed6 = await run(player, P.pressCardDismiss, { messageId: cards[0]?.id ?? "" });
+  check("6: the Player presses the card's Dismiss again", pressed6.button);
+  check("6: the confirmation is answered Yes on the Player seat", await run(player, P.confirm, { action: "yes" }));
   const after6 = await until(gm, P.summonTokens, { sceneId, summonerUuid }, (t) => t.length === 1, { tries: 30, every: 300 });
   check("6: the named cast's two tokens are gone and the open cast's one stands", after6.length === 1 && after6[0].record?.castId === openCast, { n: after6.length });
 
@@ -704,6 +766,33 @@ try {
   check("9: the GM seat's cell for the summoner offers Summon… beside both Casts", mGM.items.includes("Summon…") && mGM.items.includes(castMenu.named) && mGM.items.includes(castMenu.open));
   await run(gm, P.clearWindows);
 
+  section("10. the grant opens the bare summon");
+  const granted10 = await run(gm, P.grantWrite, { userId: playerId, value: true });
+  const seen10 = await until(player, P.grantRead, { userId: playerId }, (r) => r.has && r.value === true && r.can === true);
+  check("10: the Player user's TOKEN_CREATE is written true from the GM seat and reads back true on the Player seat", granted10.has && granted10.value === true && seen10.has && seen10.value === true && seen10.can === true, { gm: granted10, player: seen10 });
+  await run(player, P.clearWindows);
+  const m10 = await run(player, P.menu, { actorId: summonerId });
+  check("10: the Player's cast menu on the summoner now offers Summon…", m10.cell && m10.items.includes("Summon…"), { n: m10.items.length });
+  await run(player, P.closeMenu);
+  check("10: the source still reads OBSERVER for the Player, as the fixtures step asserted", (await run(player, P.observes, { uuid: spikeUuid })) === true);
+  check("10: the Player seat views the field", await run(player, P.view, { sceneId }));
+  const placed10 = await run(player, P.placeBare, { actorId: summonerId, sourceUuid: spikeUuid, x: 700, y: 450 });
+  for (const uuid of placed10?.tokenUuids ?? []) await track(uuid, "Token");
+  check("10: placeSummons with no spellId and the spike source resolves ok with one token", placed10?.ok === true && placed10.tokenUuids?.length === 1, { ok: placed10?.ok, reason: placed10?.reason, timeout: placed10?.timeout, n: placed10?.tokenUuids?.length });
+  const stand10 = await until(gm, P.summonTokens, { sceneId, summonerUuid }, (t) => t.length === 1, { tries: 30, every: 300 });
+  check("10: one token stands, its record naming no spell", stand10.length === 1 && !!stand10[0].record && !stand10[0].record.spellId, { n: stand10.length });
+  for (const uuid of await run(gm, P.copiesOf, { sourceUuid: spikeUuid })) if (!spikeCopiesBefore.includes(uuid)) await track(uuid, "Actor");
+  await run(player, P.clearWindows);
+  const m10s = await run(player, P.menu, { actorId: idOf(stranger) });
+  check("10: on the stranger the menu is unchanged: no cast menu, neither Cast nor Summon…", m10s.sheet && !m10s.cell && !m10s.items.some((l) => l.startsWith("Cast ")) && !m10s.items.includes("Summon…"));
+  await run(player, P.clearWindows);
+  const refused10 = await run(player, P.placeOn, { actorId: idOf(stranger), sourceUuid: shelf });
+  check("10: placeSummons for the stranger is still refused notOwner, before any click", refused10?.ok === false && refused10.reason === "notOwner", refused10);
+  note("10: the bare summon's token removed by its ledger entry", await gm.sweepTracked({ only: placed10?.tokenUuids ?? [] }));
+  check("10: no summons stand after the removal", (await run(gm, P.summonTokens, { sceneId, summonerUuid })).length === 0);
+  const back10 = await putGrantBack();
+  check("10: the Player user's TOKEN_CREATE is back to its starting value, key or no key, read on both seats", back10.ok, back10);
+
   for (const uuid of await run(gm, P.newMessages, { since: messagesBefore, actorId: summonerId, actorUuid: summonerUuid })) await track(uuid, "ChatMessage");
   const pEnd = await run(player, P.drain);
   const gEnd = await run(gm, P.drain);
@@ -715,6 +804,14 @@ try {
   checks.push(["walk ran to the end", false]);
 } finally {
   section("teardown");
+  // The grant is the one thing the walk changes outside its ledger: back to the starting value even where a step threw.
+  try {
+    const back = await putGrantBack();
+    if (back) {
+      note("the Player user's TOKEN_CREATE put back (start, gm seat, player seat)", back);
+      checks.push(["teardown: the Player user's TOKEN_CREATE is back to its starting value on both seats", back.ok]);
+    }
+  } catch (err) { console.error("grant restore:", err?.message ?? err); checks.push(["teardown: the Player user's TOKEN_CREATE is back to its starting value on both seats", false]); }
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     try { if (seat) note(`restored (${label})`, await run(seat, P.restore)); } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
   }

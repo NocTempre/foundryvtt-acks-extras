@@ -49,14 +49,25 @@
  * circle's caster record is a status-only held record, and its end is one
  * funnel. The status toggled off (the HUD's path) ends step 1's cast with the
  * cause removed; the GM hurting the caster ends a recast with one card whose
- * cause is damage and which lists both recipients, the GM's view of it offering
- * Restore and the Player's not, and Restore putting the same records back under
- * the same ids; the Player hurting its own caster has the Player's client end
- * what it can write and the GM's the ally's; a time after concentration
+ * cause is damage and which lists both recipients, both seats' views of it
+ * offering Restore (the Player owns the caster), and the Player's Restore, relayed
+ * to the GM's client, putting the same records back under the same ids; the Player
+ * hurting its own caster has the Player's client end what it can write and the GM's
+ * the ally's, and the Player's Restore on that card puts back only what the Player
+ * owns, tells the partial and leaves the card open for the Judge's; a time after concentration
  * re-times the recipients' records from now and the clock then removes them; a
  * longest hold ends everything with the cause time; and a recast warns in the
  * dialog and ends what is held with the cause cast. Durations are the walk's own
- * invented ones. Then the declaration steps ("The declaration steps"): in the
+ * invented ones. Then the ownership steps ("The ownership presses (Undo and Revert)"):
+ * Undo and Revert are offered where Foundry's ownership puts them. The Player who
+ * cast at a monster takes the entry back through the GM's client (U1) and is told
+ * when the target moved since (U2); the Player who owns the target of a card the GM
+ * cast takes it back (U3), and a Player who owns neither caster nor target is
+ * offered nothing and refused by the relay (U4); a registered procedure's Revert is
+ * offered to the Player who cast it and owns the caster (R1), and not on a card the
+ * GM cast for that character (R2). The two notices a seat with no button cannot
+ * reach (`undoRefused`, `revert.notOwner`) are named in the output, not asserted.
+ * Then the declaration steps ("The declaration steps"): in the
  * run's own begun fight the Player's Declare spends once and leaves a casting
  * status, a pending record and the combatant's flag, no card; damage loses it and
  * the turn reports it lost; a resolved declaration casts at the turn with no
@@ -669,18 +680,83 @@ const P = {
     const el = document.querySelector(`[data-message-id="${messageId}"]`);
     return { found: !!el, restore: !!el?.querySelector("[data-acks-extras-held-restore]"), end: el?.querySelectorAll("[data-acks-extras-held-end]").length ?? 0 };
   },
-  /** Press Restore as the GM does, and wait for the card to say so. */
-  pressRestore: async ({ messageId }) => {
+  /**
+   * Press Restore on this seat's rendering of a concentration card. By default wait for the card to carry its `restored` stamp; with `partial`
+   * wait instead for a notice to be told here (a restore that left records unwritten is never stamped). Answers the stamp, whether it names this
+   * seat's user, and the notices told since the press.
+   */
+  pressRestore: async ({ messageId, partial }) => {
     const H = globalThis.__mcs;
     try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
     await H.sleep(400);
     const button = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-acks-extras-held-restore]:not([disabled])`), { tries: 40, every: 200 });
     if (!button) return { button: false };
+    const warns0 = H.warns.length;
     button.click();
-    const done = await H.poll(() => game.messages.get(messageId)?.flags?.["acks-extras"]?.castHeldEnd?.restored, { tries: 60, every: 250 });
+    const stamp = () => game.messages.get(messageId)?.flags?.["acks-extras"]?.castHeldEnd?.restored;
+    const done = await H.poll(() => (partial ? H.warns.length > warns0 : stamp()), { tries: 60, every: 250 });
     await H.sleep(500);
-    return { button: true, restored: !!done };
+    return { button: true, restored: !!stamp(), came: !!done, byMe: stamp()?.by === game.user.name, warns: H.warns.slice(warns0) };
   },
+  /* ---------------------------------------------------------------- */
+  /*  The ownership steps                                              */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Press a button of a cast card in the chat log, as a user does, and wait on the signal the press ends in: a press the GM's client carries out
+   * is written after this client's own handler returns, so the card as stored is read only once `until` holds. `until`: `off` (the entry of
+   * `target` and `row` leaves `applied`), `warn` (a notice is told on this seat), `reverted` (the card's procedure is stamped reverted).
+   * Answers the card as stored, whether the signal came, and the notices told since the press.
+   */
+  pressUntil: async ({ messageId, action, target, row, until }) => {
+    const H = globalThis.__mcs;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    await H.sleep(400);
+    const sel = `[data-message-id="${messageId}"] [data-action="${action}"]${target ? `[data-target="${target}"]` : ""}${row ? `[data-row="${row}"]` : ""}`;
+    const button = await H.poll(() => document.querySelector(sel), { tries: 40, every: 200 });
+    if (!button) return { button: false };
+    const warns0 = H.warns.length;
+    const card = () => game.messages.get(messageId)?.flags?.["acks-extras"]?.castCard;
+    const signal = until === "warn" ? () => H.warns.length > warns0 : until === "reverted" ? () => card()?.procedure?.reverted === true : () => card()?.entries?.[`${target}_${row}`]?.state !== "applied";
+    button.click();
+    const came = await H.poll(signal, { tries: 60, every: 250 });
+    await H.sleep(500);
+    return { button: true, came: !!came, model: card(), warns: H.warns.slice(warns0) };
+  },
+  /** Send a request to the GM's client through lib's socket transport as this seat's user; answers whether anything came back and what. */
+  relay: async ({ action, payload }) => {
+    const { executeAsGM } = await import("/modules/acks-extras/scripts/lib/sockets.mjs");
+    const answer = await Promise.race([executeAsGM(action, payload), new Promise((r) => setTimeout(() => r("timeout"), 20000))]);
+    return { answered: answer !== undefined && answer !== null && answer !== "timeout", timeout: answer === "timeout", answer: answer === "timeout" ? null : (answer ?? null) };
+  },
+  /** One entry of a stored card: its state and the figures a step compares. */
+  entryOf: async ({ messageId, id }) => {
+    const e = game.messages.get(messageId)?.flags?.["acks-extras"]?.castCard?.entries?.[id];
+    return e ? { state: e.state, applied: e.applied ?? 0, before: e.before ?? null, after: e.after ?? null } : null;
+  },
+  /**
+   * Register a procedure on a tradition kind on this seat whose `perform` answers undo data and whose `revert` records the keys of the `ctx` it
+   * was handed with the undo data and the cast id; `revProcOff` takes it off. The client that presses Revert runs `revert`, the one that casts runs `perform`.
+   */
+  revProc: async ({ kind }) => {
+    const H = globalThis.__mcs;
+    H.revOff?.();
+    H.reverts = [];
+    H.revOff = acksExtras.magic.registerCastProcedure(kind, {
+      perform: async () => ({ proceed: true, undo: { qa: 1 } }),
+      revert: async (ctx, undo) => { H.reverts.push({ keys: Object.keys(ctx).sort(), undo, castId: ctx.castId ?? null }); },
+    });
+    return true;
+  },
+  revProcOff: async () => {
+    const H = globalThis.__mcs;
+    H.revOff?.();
+    H.revOff = null;
+    return true;
+  },
+  /** The calls the registered `revert` recorded on this seat. */
+  revCalls: async () => (globalThis.__mcs.reverts ?? []).map((r) => ({ keys: r.keys, undo: r.undo, castId: r.castId })),
+
   /** A Combat of these tokens, begun by writing its round, turn and core's initDone flag (never `startCombat`, which opens the surprise matrix). */
   combatNew: async ({ sceneId, tokenIds }) => {
     const scene = game.scenes.get(sceneId);
@@ -1065,7 +1141,7 @@ const labelWithCite = (rec) => (rec.cite ? `${rec.label} (${rec.cite})` : rec.la
  * counts records. A figure the import left blank fails its step as an import
  * finding, and nothing here fills one in.
  */
-async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload, damageId, classUuid }) {
+async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload, damageId, classUuid, targetTokenId }) {
   const fmt = (key, data) => run(gm, P.format, { key, data });
   const modsOf = (tokenId) => run(gm, P.mods, { sceneId, tokenId });
   const gmId = await run(gm, async () => game.user.id);
@@ -1333,6 +1409,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   check("buff 14: the Judge's dialog states the same verdict as a warning and leaves Cast on", warned14.dialog && warned14.verdicts.includes("warn") && !warned14.verdicts.includes("block") && warned14.verdictTexts.includes(warnText) && !warned14.castDisabled, warned14.verdicts);
   await spent();
 
+  await walkOwnership({ sceneId, casterId, damageId, ids, tCaster, tAlly, targetTokenId, fmt, spent, trackCard });
   await walkDeclare({ sceneId, casterId, tCaster, tFoe, ids, damageId, fmt, spent, trackCard });
   await walkLostItem({ casterId, casterUuid: caster.uuid, damageId });
   await walkInvocation({ casterId, casterUuid: caster.uuid, damageId, classUuid, sceneId, tCaster, tFoe, spent, trackCard, fmt });
@@ -1391,8 +1468,10 @@ async function walkHeld(K) {
   check("held 6: exactly one card of the cast's end, its cause damage, listing both recipients", cards6.length === 1 && cards6[0].cause === "damage" && cards6[0].ended.length === 2, { cards: cards6.length, cause: cards6[0]?.cause });
   const seenGm = cards6[0] ? await run(gm, P.heldCard, { messageId: cards6[0].id }) : null;
   const seenPlayer = cards6[0] ? await run(player, P.heldCard, { messageId: cards6[0].id }) : null;
-  check("held 6: the GM's view of the card has Restore and the Player's has none", !!seenGm?.found && seenGm.restore && !!seenPlayer?.found && !seenPlayer.restore, { gm: seenGm?.restore, player: seenPlayer?.restore });
-  const restored = cards6[0] ? await run(gm, P.pressRestore, { messageId: cards6[0].id }) : { button: false };
+  check("held 6: the card offers Restore on the GM's view and on the Player's, since the Player owns the caster", !!seenGm?.found && seenGm.restore && !!seenPlayer?.found && seenPlayer.restore, { gm: seenGm?.restore, player: seenPlayer?.restore });
+  // The Player owns neither the GM-authored card nor the ally, so the press is relayed to the GM's client, which writes every record of a GM's card.
+  const restored = cards6[0] ? await run(player, P.pressRestore, { messageId: cards6[0].id }) : { button: false };
+  check("held 6: the Player's Restore stamped the card restored with the Player's user name and told no partial restore", restored.button && restored.restored && restored.byMe === true && restored.warns.length === 0, { restored: restored.restored, byMe: restored.byMe, warns: restored.warns?.length });
   const back6 = await standingOf(id6);
   const idsBack = [...back6.caster, ...back6.ally, ...back6.held].map((r) => r.id).sort();
   const idsWere = [...before6.caster, ...before6.ally, ...before6.held].map((r) => r.id).sort();
@@ -1407,6 +1486,33 @@ async function walkHeld(K) {
   const after7 = await standingOf(id6);
   check("held 7: the cast ended, every record gone, with one card listing both recipients", ended7 && empty(after7) && cards7.length === 1 && cards7[0].ended.length === 2, { cards: cards7.length });
   check("held 7: the Player's client posted the card, and the ally's record is gone though the Player owns neither its token nor its actor, so the GM's client ended it", cards7[0]?.author === playerId && allyOwned === false && cards7[0].open === 0, { author: cards7[0]?.author === playerId });
+  await hp(gm, 9);
+
+  section("held 7a. the Player's Restore on its own card puts back what the Player owns; the Judge's finishes it");
+  const card7 = cards7[0];
+  const idsOf = (list) => list.map((r) => r.id).sort();
+  const casterIds = idsOf([...before6.caster, ...before6.held]);
+  const seen7 = card7 ? await run(player, P.heldCard, { messageId: card7.id }) : null;
+  check("held 7a: the Player's own card draws Restore", !!seen7?.found && seen7.restore, { found: seen7?.found, restore: seen7?.restore });
+  // The card is the Player's word, so the GM's client writes only the actors the Player owns: the caster's records, not the ally's.
+  const part = card7 ? await run(player, P.pressRestore, { messageId: card7.id, partial: true }) : { button: false };
+  const back7 = await standingOf(id6);
+  check("held 7a: the caster's records are back under their own ids and the ally's is not", part.button && JSON.stringify(idsOf([...back7.caster, ...back7.held])) === JSON.stringify(casterIds) && casterIds.length === 2 && back7.ally.length === 0, { caster: back7.caster.length, held: back7.held.length, ally: back7.ally.length });
+  const partialText = await fmt("ACKS-MAGIC.castHeld.notice.restorePartial", { done: back7.caster.length + back7.held.length, left: before6.ally.length - back7.ally.length });
+  check("held 7a: the Player's seat told the partial restore, with the count put back and the count left", part.came === true && part.warns.includes(partialText), { warns: part.warns?.length });
+  const open7 = (await run(gm, P.endCards, { since: since7, castId: id6 })).find((c) => c.id === card7?.id);
+  const seen7b = card7 ? await run(player, P.heldCard, { messageId: card7.id }) : null;
+  check("held 7a: the card is not stamped restored and still draws Restore on the Player's seat", !!open7 && open7.restored === false && part.restored === false && !!seen7b?.found && seen7b.restore, { restored: open7?.restored, restore: seen7b?.restore });
+  const finished = card7 ? await run(gm, P.pressRestore, { messageId: card7.id }) : { button: false };
+  const back7b = await standingOf(id6);
+  check("held 7a: the Judge's Restore put the ally's record back under its id and wrote none of the caster's twice", finished.button && full(back7b) && JSON.stringify(idsOf(back7b.ally)) === JSON.stringify(idsOf(before6.ally)) && JSON.stringify(idsOf([...back7b.caster, ...back7b.held])) === JSON.stringify(casterIds), { caster: back7b.caster.length, held: back7b.held.length, ally: back7b.ally.length });
+  check("held 7a: the card reads restored with the Judge's user name", finished.restored === true && finished.byMe === true, { restored: finished.restored, byMe: finished.byMe });
+  // The restored cast stands again: the real trigger ends it, so the next step begins from a caster holding nothing.
+  const since7b = Date.now();
+  await hp(gm, 8);
+  const ended7b = await run(gm, P.waitEnd, { castId: id6, since: since7b });
+  await endCardsSince(since7b, id6);
+  check("held 7a: the restored cast ended again, every record gone", ended7b && empty(await standingOf(id6)), { ended: ended7b });
   await hp(gm, 9);
 
   section("held 8. a time after concentration: the recipients' records run it out");
@@ -1451,6 +1557,132 @@ async function walkHeld(K) {
   const cards10 = only(await endCardsSince(since10, id10), id10);
   check("held 10: the cast went through, the held records ended with one card of the cause cast, and the caster holds nothing", c10b.card && cards10.length === 1 && cards10[0].cause === "cast" && empty(await standingOf(id10)), { cards: cards10.length, cause: cards10[0]?.cause });
   await spent();
+}
+
+/**
+ * The ownership steps (docs/magic/TESTING.md, "The ownership presses (Undo and Revert)"): Undo and Revert are offered where Foundry's ownership
+ * puts them, never where the server role does. Every press is made on the seat the step names, in the chat tab, and waits on the signal the press
+ * ends in (`P.pressUntil`), since a press the GM's client carries out is written after the presser's handler returns. The Player owns the caster
+ * and neither target-a nor the ally; the Judge's seat casts the foe's copy of the damage spell. A seat with no button cannot press one, so the
+ * `undoRefused` and `revert.notOwner` notices are named in the output and not asserted; the relay's answer and the revert's call count stand for them.
+ */
+async function walkOwnership(K) {
+  const { sceneId, casterId, damageId, ids, tCaster, tAlly, targetTokenId, fmt, spent, trackCard } = K;
+  const hpOf = async (tokenId) => (await run(gm, P.hp, { sceneId, tokenIds: [tokenId] }))[0];
+  const setHp = (tokenId, value) => run(gm, P.setHp, { sceneId, tokenId, value });
+  const keyOf = (model) => Object.keys(model?.targets ?? {})[0];
+  const rowOf = (model) => model?.order?.[0];
+  const entryOf = (model) => model?.entries?.[`${keyOf(model)}_${rowOf(model)}`];
+  const undoCount = (seen) => (seen?.actions ?? []).filter((a) => a === "magicCastUndo").length;
+  const pressUndo = (c, until) => run(player, P.pressUntil, { messageId: c.messageId, action: "magicCastUndo", target: keyOf(c.model), row: rowOf(c.model), until });
+  /** The Player's cast of the damage spell at one token (or none), with the save rigged to fail so the entry applies a figure. */
+  const playerCast = async (tokenId) => {
+    await spent();
+    await run(player, P.target, { sceneId, tokenIds: tokenId ? [tokenId] : [] });
+    await run(player, P.rig, { seq: [0.975] });
+    const c = await run(player, P.cast, { casterId, spellId: damageId, wait: 80 });
+    await run(player, P.rig, {});
+    await run(player, P.target, { sceneId, tokenIds: [] });
+    await trackCard(c.messageId);
+    if (c.model?.castId) castIds.push(c.model.castId);
+    return c;
+  };
+  /** The Judge's cast of the foe's copy of the damage spell at one token. */
+  const foeCast = async (tokenId) => {
+    await run(gm, P.target, { sceneId, tokenIds: [tokenId] });
+    const c = await run(gm, P.cast, { casterId: ids.foe, spellId: ids.foeSpell, wait: 60 });
+    await run(gm, P.target, { sceneId, tokenIds: [] });
+    await trackCard(c.messageId);
+    if (c.model?.castId) castIds.push(c.model.castId);
+    return c;
+  };
+  const stateOf = (c) => run(gm, P.entryOf, { messageId: c.messageId, id: `${keyOf(c.model)}_${rowOf(c.model)}` });
+
+  section("U1. the apply seat undoes a hit point entry on a monster it does not own (Player seat, relayed)");
+  const ownsTarget = await run(player, P.ownsToken, { sceneId, tokenId: targetTokenId });
+  await setHp(targetTokenId, 20);
+  const hpU1 = await hpOf(targetTokenId);
+  const u1 = await playerCast(targetTokenId);
+  const e1 = entryOf(u1.model);
+  check("U1: the Player owns neither target-a's token nor its actor, and its cast applied one entry that moved the hit points", ownsTarget === false && u1.card && u1.settled && e1?.state === "applied" && e1.applied > 0 && (await hpOf(targetTokenId)) === hpU1 - e1.applied, { owns: ownsTarget, state: e1?.state });
+  const seenU1 = await run(player, P.seen, { messageId: u1.messageId });
+  check("U1: the Player's rendering of the card draws Undo on the entry", seenU1.found && undoCount(seenU1) === 1, { found: seenU1.found, undo: undoCount(seenU1) });
+  const pressU1 = await pressUndo(u1, "off");
+  check("U1: the press restored the target's hit points to what they were before the cast, the entry reads undone and no notice was told", pressU1.button && pressU1.came && entryOf(pressU1.model)?.state === "undone" && (await hpOf(targetTokenId)) === hpU1 && pressU1.warns.length === 0, { came: pressU1.came, state: entryOf(pressU1.model)?.state, warns: pressU1.warns?.length });
+
+  section("U2. the relay keeps what the card's figures do not bound (Player seat, the Judge having moved the target)");
+  await setHp(targetTokenId, 20);
+  const u2 = await playerCast(targetTokenId);
+  const e2 = entryOf(u2.model);
+  const hpMoved = (await hpOf(targetTokenId)) - 1;
+  await setHp(targetTokenId, hpMoved);
+  const pressU2 = await pressUndo(u2, "warn");
+  const keptText = await fmt("ACKS-MAGIC.cast.notice.undoKept", { name: u2.model?.targets?.[keyOf(u2.model)]?.name ?? "" });
+  check("U2: the cast applied an entry and the Player's press was kept: the undoKept notice shows", u2.card && e2?.state === "applied" && e2.applied > 0 && pressU2.button && pressU2.came && pressU2.warns.includes(keptText), { button: pressU2.button, warns: pressU2.warns?.length });
+  check("U2: the target's hit points stand where the Judge left them and the entry stays applied", (await hpOf(targetTokenId)) === hpMoved && (await stateOf(u2))?.state === "applied", { hp: await hpOf(targetTokenId), moved: hpMoved });
+  await setHp(targetTokenId, 20);
+
+  section("U3. the target's owner undoes an entry on a card the Judge cast (Player seat, relayed)");
+  await setHp(tCaster.id, 9);
+  const hpU3 = await hpOf(tCaster.id);
+  const u3 = await foeCast(tCaster.id);
+  const e3 = entryOf(u3.model);
+  check("U3: the Judge's cast at the character's token applied an entry that moved its hit points", u3.card && u3.settled && e3?.state === "applied" && e3.applied > 0 && (await hpOf(tCaster.id)) === hpU3 - e3.applied, { state: e3?.state });
+  const seenU3 = await run(player, P.seen, { messageId: u3.messageId });
+  check("U3: the Player, owning the target and neither the caster nor the card, draws Undo on the entry", seenU3.found && undoCount(seenU3) === 1, { found: seenU3.found, undo: undoCount(seenU3) });
+  const pressU3 = await pressUndo(u3, "off");
+  check("U3: the relayed press returned the character's hit points and the entry reads undone", pressU3.button && pressU3.came && entryOf(pressU3.model)?.state === "undone" && (await hpOf(tCaster.id)) === hpU3 && pressU3.warns.length === 0, { came: pressU3.came, state: entryOf(pressU3.model)?.state, warns: pressU3.warns?.length });
+  await setHp(tCaster.id, 9);
+
+  section("U4. owning neither draws nothing, and the relay refuses (Player seat)");
+  const ownsAlly = await run(player, P.ownsToken, { sceneId, tokenId: tAlly.id });
+  await setHp(tAlly.id, 20);
+  const u4 = await foeCast(tAlly.id);
+  const e4 = entryOf(u4.model);
+  const hpU4 = await hpOf(tAlly.id);
+  check("U4: the Judge's cast at the ally applied an entry, and the Player owns neither the ally's token nor its actor", ownsAlly === false && u4.card && u4.settled && e4?.state === "applied" && e4.applied > 0 && hpU4 === 20 - e4.applied, { owns: ownsAlly, state: e4?.state });
+  const seenU4 = await run(player, P.seen, { messageId: u4.messageId });
+  check("U4: the Player's rendering of the card is found and draws no Undo on the entry", seenU4.found === true && undoCount(seenU4) === 0, { found: seenU4.found, undo: undoCount(seenU4) });
+  const sent = await run(player, P.relay, { action: "magicCastUndo", payload: { messageId: u4.messageId, targetKey: keyOf(u4.model), rowKey: rowOf(u4.model) } });
+  check("U4: a request sent straight to the relay from the Player's seat is answered notOwner", sent.answered && sent.answer?.ok === false && sent.answer?.reason === "notOwner", { answered: sent.answered, timeout: sent.timeout, answer: sent.answer });
+  check("U4: it wrote nothing: the entry stays applied and the ally's hit points stand where the cast left them", (await stateOf(u4))?.state === "applied" && (await hpOf(tAlly.id)) === hpU4, { hp: await hpOf(tAlly.id) });
+  note("U4 not asserted", "the undoRefused notice: it is told by the card's own Undo press, and the Player's rendering draws no button to press");
+  await setHp(tAlly.id, 20);
+
+  const kind = "vancian";
+  try {
+    await run(player, P.revProc, { kind });
+    await run(gm, P.revProc, { kind });
+
+    section("R1. a registered procedure's Revert, for the author who owns the caster (Player seat)");
+    const r1 = await playerCast(null);
+    check("R1: the Player's cast carries the procedure's undo data, not yet reverted", r1.card && r1.model?.procedure?.undo != null && r1.model.procedure.reverted !== true, { procedure: !!r1.model?.procedure });
+    const seenR1 = await run(player, P.seen, { messageId: r1.messageId });
+    check("R1: the Player's rendering draws Revert", seenR1.found && seenR1.actions.includes("magicCastRevert"), seenR1.actions);
+    const pressR1 = await run(player, P.pressUntil, { messageId: r1.messageId, action: "magicCastRevert", until: "reverted" });
+    const calls1 = await run(player, P.revCalls);
+    check("R1: the press called the procedure's revert once with the card's undo data and the cast id, its ctx holding no isGM, ownsCaster or ownsCard", pressR1.button && pressR1.came && calls1.length === 1 && JSON.stringify(calls1[0].undo) === JSON.stringify(r1.model.procedure.undo) && calls1[0].castId === r1.model.castId && !calls1[0].keys.some((k) => ["isGM", "ownsCaster", "ownsCard"].includes(k)), { calls: calls1.length, keys: calls1[0]?.keys });
+    const afterR1 = await run(player, P.seen, { messageId: r1.messageId });
+    check("R1: the card reads reverted and Revert is no longer drawn", pressR1.model?.procedure?.reverted === true && afterR1.found && !afterR1.actions.includes("magicCastRevert"), afterR1.actions);
+
+    section("R2. a Judge-cast card for the Player's character offers the Player no Revert");
+    await spent();
+    await run(gm, P.target, { sceneId, tokenIds: [] });
+    const r2 = await run(gm, P.cast, { casterId, spellId: damageId, wait: 40 });
+    await trackCard(r2.messageId);
+    if (r2.model?.castId) castIds.push(r2.model.castId);
+    const seenR2gm = await run(gm, P.seen, { messageId: r2.messageId });
+    const seenR2 = await run(player, P.seen, { messageId: r2.messageId });
+    check("R2: the Judge's cast carries the undo data and the Judge's rendering draws Revert", r2.card && r2.model?.procedure?.undo != null && seenR2gm.found && seenR2gm.actions.includes("magicCastRevert"), seenR2gm.actions);
+    check("R2: the Player's rendering of the card is found and draws no Revert", seenR2.found === true && !seenR2.actions.includes("magicCastRevert"), { found: seenR2.found, actions: seenR2.actions });
+    const callsAfter = { player: await run(player, P.revCalls), gm: await run(gm, P.revCalls) };
+    check("R2: no revert was called on either seat beyond R1's one", callsAfter.player.length === 1 && callsAfter.gm.length === 0, { player: callsAfter.player.length, gm: callsAfter.gm.length });
+    note("R2 not asserted", "the revert.notOwner notice: it is told by the card's own Revert press, and the Player's rendering draws no button to press");
+  } finally {
+    await run(player, P.revProcOff);
+    await run(gm, P.revProcOff);
+    await spent();
+  }
 }
 
 /**
@@ -2014,7 +2246,7 @@ try {
 
   // The buff steps run apart, so a throw in one still reaches the console check below.
   try {
-    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage, damageId: spellId.damage, classUuid: cls.uuid });
+    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage, damageId: spellId.damage, classUuid: cls.uuid, targetTokenId: tokenIds[0] });
   } catch (err) {
     console.error("WALK ERROR (buff steps):", err?.stack ?? err);
     checks.push(["the buff steps ran to the end", false]);

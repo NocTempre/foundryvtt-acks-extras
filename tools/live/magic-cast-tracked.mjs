@@ -1162,7 +1162,7 @@ async function holdFlow(who, { endIt }) {
   check(`${L}: the first summoning's creature still stands beside the second's`, standingB.length === standingA.length + 1 && standingA.every((t) => standingB.some((s) => s.uuid === t.uuid)), { before: standingA.length, after: standingB.length });
 
   if (endIt) {
-    // The end of a held summons by its real trigger (the status's toggle): the funnel's card listing the standing creatures, Dismiss on the Judge's seat only, and nothing removed from the map.
+    // The end of a held summons by its real trigger (the status's toggle): the funnel's card listing the standing creatures, Dismiss and Restore drawn on the seat of an owner of the caster (the Judge's and the Player's alike, the end not being hostile), and nothing removed from the map.
     await run(seat, P.mark, { casterId: W.caster });
     const since2 = Date.now() - 1000;
     await run(seat, P.endHeld, { casterId: W.caster, status: "concentrating-and-stationary" });
@@ -1174,7 +1174,7 @@ async function holdFlow(who, { endIt }) {
       const messageId = end[0].uuid.split(".").pop();
       const onGm = await run(gm, P.heldCard, { messageId });
       const onPlayer = await run(player, P.heldCard, { messageId });
-      check(`${L}: the card lists the cast's one standing creature on both seats, and Dismiss is left on the Judge's seat alone`, onGm.found && onPlayer.found && onGm.creatures === 1 && onPlayer.creatures === 1 && onGm.dismiss >= 1 && onPlayer.dismiss === 0, { gm: onGm, player: onPlayer });
+      check(`${L}: the card lists the cast's one standing creature on both seats, and both draw Dismiss and Restore, the Player owning the caster and the end not being hostile`, onGm.found && onPlayer.found && onGm.creatures === 1 && onPlayer.creatures === 1 && onGm.dismiss >= 1 && onPlayer.dismiss >= 1 && onGm.restore >= 1 && onPlayer.restore >= 1, { gm: onGm, player: onPlayer });
     }
     const after = await tokensOf();
     check(`${L}: the creatures are left standing: a spell whose rows state no control end keeps them`, after.length === standingB.length && standingB.every((t) => after.some((s) => s.uuid === t.uuid)), { before: standingB.length, after: after.length });

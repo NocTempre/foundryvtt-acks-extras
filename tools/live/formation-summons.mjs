@@ -1059,15 +1059,18 @@ try {
   check("7: the creatures still stand: the card tells, it does not remove", ofCast(await st(), bUuid).length === 2);
   const seen7 = await run(player, P.endedCards, { castId: castB2, playerId });
   check("7: the Player seat sees the card", seen7.length === 1 && seen7[0].visible);
-  const refused7 = await run(player, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
-  check("7: the card's Dismiss is not drawn on the Player seat (a creature whose control ended is the Judge's to dismiss)", !refused7.button);
+  // The card's Dismiss follows ownership of the caster: the Player owns it, so the Player seat draws it as the GM seat does (only a creature whose control ended hostile is the Judge's alone, and this spell's end is not).
+  const press7p = await run(player, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
+  check("7: the card's Dismiss is drawn on the Player seat, which owns the caster, and pressed", press7p.button);
+  check("7: the Player's confirmation is answered No", await run(player, P.confirm, { action: "no" }));
+  check("7: the Player's No removes nothing", ofCast(await st(), bUuid).length === 2);
   const press7 = await run(gm, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
-  check("7: the card's Dismiss is rendered on the GM seat and pressed", press7.button);
-  check("7: the confirmation is answered No", await run(gm, P.confirm, { action: "no" }));
+  check("7: the card's Dismiss is also rendered on the GM seat and pressed", press7.button);
+  check("7: the GM's confirmation is answered No", await run(gm, P.confirm, { action: "no" }));
   check("7: No removes nothing", ofCast(await st(), bUuid).length === 2);
-  const press7b = await run(gm, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
-  check("7: the card's Dismiss is pressed again", press7b.button);
-  check("7: the confirmation is answered Yes", await run(gm, P.confirm, { action: "yes" }));
+  const press7b = await run(player, P.pressCardDismiss, { messageId: cards7[0]?.id ?? "" });
+  check("7: the Player presses the card's Dismiss again", press7b.button);
+  check("7: the Player's confirmation is answered Yes", await run(player, P.confirm, { action: "yes" }));
   const s7 = await until(gm, P.state, { fid, sceneId, playerId, aId, bId }, (s) => s.summons.length === 0, { tries: 40, every: 300 });
   check("7: the held creatures are gone: no member, no token", s7.summons.length === 0 && s7.loose === 0, { members: s7.summons.length });
 
