@@ -1872,10 +1872,17 @@ the two seats' views are read from the code and a mock DOM and not from a world.
   shows a notification at most. *Counter (medium):* it changes what a cast costs in a world that
   already holds such spells; the release says so under Upgrading, and the hand pips give a slot
   back.
-- **A spell that names no list at all is not off list.** It keeps the system's own slot reading
-  and carries no gate, on the tab and in the cast. The module blocks only where it knows the
-  answer. *Counter (medium):* a hand-made spell with its list left blank spends no slot of any
-  list; naming its list on the spell is the Judge's remedy.
+- **A spell that names no list at all is not off list.** It carries no gate on the tab and the
+  gate claimant never refuses it. The module blocks only where it knows the answer. *Counter
+  (medium):* a hand-made spell with its list left blank spends no slot of any list; naming its
+  list on the spell is the Judge's remedy.
+- **The row and the gate claimant judge a list's own slots, never the system's count**
+  (`listGate`, `cast-plan.mjs`). On a class that casts from lists the system's grid is one row of
+  maxima for every list, and every list's casts count against it, so a refusal read from it would
+  be the defect this board was drawn to remove. *Counter (medium):* the cast window still reads
+  that count for a spell with effect rows where no list's slot row answers, so the window can
+  refuse a Player what the row let through; that reading predates this board and is on magic's
+  roadmap.
 - **Where the world holds no slot maximum for a list, nothing blocks.** The used count rises and
   the cast goes through. *Counter (low):* a class made by hand with no slot rows never refuses a
   cast; a refusal there would rest on a figure nobody imported.

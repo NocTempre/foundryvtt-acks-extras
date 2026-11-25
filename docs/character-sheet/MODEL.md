@@ -534,10 +534,11 @@ editable maximum).
 A row (`spell-row.hbs`) carries the spell's cast count, which is one figure
 on the spell and so the same under each list, a Cast control, show, edit and
 delete, a summoning spell's figures and the Declared tag. In the by-list mode
-it also carries the cast's gate (`gateOf`): the verdict the cast itself would
-raise for its two capacity gates, read with the cast's own functions
-(`spellCapacity`, `castVerdicts`). The list's slots at that level are all
-used, or the spell names a list and none of them is the class's. A seat that
+it also carries the cast's gate (`gateOf`): what a list raises against the
+cast, read with the cast's own reading (`spellCapacity`) and judged by
+`listGate`, which the gate claimant judges with too. The list's own slots at
+that level are all used, or the spell names a list and none of them is the
+class's. A seat that
 is not a GM reads the reason on a line of its own under the row and a Cast
 that is off; a GM reads the warning there and a Cast that is on. A spell that
 names no list at all, and a spell with a cast declared and waiting, carry no

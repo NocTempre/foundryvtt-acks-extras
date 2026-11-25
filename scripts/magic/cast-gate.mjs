@@ -9,9 +9,9 @@
  * no list, and a monster.
  *
  * The gate reads the cast's standing as the cast window does (`castReading`) and
- * asks the same verdicts (`castVerdicts`), keeping the two the Magic tab's row
- * shows: the spell is on none of the class's lists, or the list's slots at its
- * level are all used. A Player is blocked, with a notification, before core's cast
+ * judges it as the Magic tab's row does (`listGate`): the spell is on none of the
+ * class's lists, or the list's own slots at its level are all used. A spell that
+ * names no list is read against no list and is never refused here. A Player is blocked, with a notification, before core's cast
  * runs: nothing is spent and nothing is written. A Judge is warned and the cast
  * goes on. The cast itself stays core's (`spend()`: the count and the card); where
  * it ran and the list has a slot row, the list's used count rises by one, the same
@@ -20,15 +20,12 @@
  */
 import { MODULE_ID, SPELL_TYPE } from "./constants.mjs";
 import { listTraditions, spendsFromPool } from "./cast-capacity.mjs";
-import { castVerdicts, VERDICT } from "./cast-plan.mjs";
+import { listGate } from "./cast-plan.mjs";
 import { castReading } from "./cast-spell.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 
 /** The claimant's key on the cast seam. */
 export const CAST_GATE_KEY = `${MODULE_ID}.magic.castGate`;
-
-/** The verdicts this gate judges: the two the Magic tab's row gate shows. */
-const GATED = new Set([VERDICT.offList, VERDICT.noSlot]);
 
 /**
  * The world readers a gate run uses, as the live world gives them; a test
@@ -71,7 +68,7 @@ export async function castGateRun(item, options, spend, deps = liveDeps()) {
   const classItem = deps.classFor(actor);
   const pools = await deps.pools(actor);
   const { offList, capacity } = castReading(actor, item, { classItem, pools, tradition: typeof options?.tradition === "string" ? options.tradition : null });
-  const found = castVerdicts({ capacity, offList, isGM: deps.isGM() === true }).find((v) => GATED.has(v.key));
+  const found = listGate({ capacity, offList, isGM: deps.isGM() === true });
   if (found?.severity === "block") {
     deps.notify("warn", `blocked.${found.key}`);
     return { ok: false, reason: found.key };

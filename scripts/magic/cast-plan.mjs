@@ -103,3 +103,23 @@ export function castVerdicts({ capacity, offList = false, targets = [], rows = [
 
 /** Does any verdict stop this seat's cast? */
 export const blocked = (verdicts) => (verdicts ?? []).some((v) => v.severity === "block");
+
+/**
+ * The verdict a list raises against a cast before anything else is asked, or
+ * null: the spell is on none of the lists the class casts from, or the list's
+ * own slots at the spell's level are all used. A capacity read from the
+ * system's slot count, where no list's slot row answers, raises none here: on a
+ * class that casts from lists that count is one grid for every list. The Magic
+ * tab's row and the gate claimant (`cast-gate.mjs`) both judge with this.
+ * @param {object} from
+ * @param {ReturnType<import("./cast-capacity.mjs").castCapacity>} [from.capacity]
+ * @param {boolean} [from.offList]  `isOffList`
+ * @param {boolean} [from.isGM]  a GM is warned where another seat is blocked
+ * @returns {{key: string, severity: "block"|"warn"}|null}
+ */
+export function listGate({ capacity, offList = false, isGM = false } = {}) {
+  const found = castVerdicts({ capacity, offList, isGM }).find((v) => v.key === VERDICT.offList || v.key === VERDICT.noSlot);
+  if (!found) return null;
+  if (found.key === VERDICT.noSlot && capacity?.source !== "tradition") return null;
+  return found;
+}

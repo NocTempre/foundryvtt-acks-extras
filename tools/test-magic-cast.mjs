@@ -30,7 +30,7 @@ const { TURN_SECONDS, ROUND_SECONDS } = await import("./time-unit-fixture.mjs");
 const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { castCapacity, traditionFor, spendsFromPool, spellStanding, isOffList, spellCapacity } = await import("../scripts/magic/cast-capacity.mjs");
-const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
+const { castVerdicts, blocked, listGate } = await import("../scripts/magic/cast-plan.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
 const { castControlOutcome, applyCastControl } = await import("../scripts/magic/cast-control.mjs");
@@ -2347,6 +2347,20 @@ t("offList blocks a Player and warns a Judge, pre-empts noSlot, and is absent wh
   const foot = (severity) => dialogContext({ modes: ["normal"], groups: { normal: [] }, level: { value: 3, source: "class" }, levelNeeded: false, saves: false, targets: [], verdicts: { normal: [{ key: "offList", severity }] }, capacity: { verdict: "unknown" } }, {}).footer;
   assert.deepEqual([foot("block").blocked, foot("block").verdicts[0].text.includes("blocked.offList")], [true, true], "the window's foot words it for a Player and stops the button");
   assert.deepEqual([foot("warn").blocked, foot("warn").verdicts[0].text.includes("verdict.offList")], [false, true], "and for a Judge, who may cast anyway");
+});
+
+t("listGate judges a list's own slots and never the system's count", () => {
+  const of = (capacity, over = {}) => {
+    const found = listGate({ capacity, ...over });
+    return found && `${found.key}:${found.severity}`;
+  };
+  assert.equal(of({ verdict: "none", source: "tradition" }), "noSlot:block");
+  assert.equal(of({ verdict: "none", source: "tradition" }, { isGM: true }), "noSlot:warn");
+  assert.equal(of({ verdict: "none", source: "core" }), null, "the system's one grid answers for no list");
+  assert.equal(of({ verdict: "none", source: "core" }, { offList: true }), "offList:block", "off list is judged whatever the capacity read");
+  assert.equal(of({ verdict: "ok", source: "tradition" }), null);
+  assert.equal(of({ verdict: "unknown", source: "pool" }), null);
+  assert.equal(of(undefined), null);
 });
 
 await ta("a Player's cast of an off-list spell is refused before the spend, and a Judge's is warned and spends no list's slot", async () => {

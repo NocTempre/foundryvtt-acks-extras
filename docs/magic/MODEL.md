@@ -965,17 +965,20 @@ gate takes the cast of a spell item on an actor the seat owns whose bound class
 casts from at least one list (`listTraditions`): in practice a spell made by
 hand, with no effect rows, reached from any cast door. It reads the standing
 with `castReading`, the list the cast was pressed under included, and judges
-it with `castVerdicts`, keeping the two verdicts the Magic tab's row shows
-(`offList`, `noSlot`). A Player's blocked cast shows the reason as a
+it with `listGate` (`cast-plan.mjs`), as the Magic tab's row does: `offList`,
+or `noSlot` where the capacity read is a list's own slot row and never where
+it is the system's count. A Player's blocked cast shows the reason as a
 notification, and the seam's `spend()` is never called, so no count rises and
 nothing is written. A Judge's shows the warning and goes on. The cast itself
 stays the system's (`spend()`: its count and its card), and where it ran and
 the cast spends from a list's slots (`spendsFromPool`) the list's used count
 rises by one, the write the cast window makes. No window opens. A spell that
-names no list keeps the system's own reading and writes no pool; where the
-world holds no slot maximum the capacity is unknown and nothing blocks; and a
+names no list is read against no list: it is never refused here and writes no
+pool. Where the world holds no slot maximum for the list nothing blocks. A
 character with no class bound, a class that casts from no list and a monster
-are declined, so the system's cast runs as it did.
+are declined, so the system's cast runs as it did. The gate takes every cast
+the window declines on an actor it answers for, so a claimant registered after
+it is not offered one.
 
 **What a caster can cast now** (`repertoire.mjs`, the castable-spell source)
 reads the same `castReading`, so a spell that is off the class's lists is not

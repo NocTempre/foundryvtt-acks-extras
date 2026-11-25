@@ -166,6 +166,18 @@ await ta("a spell that names no list on a class caster is cast as today: no noti
   assert.deepEqual(calls.notices, []);
 });
 
+await ta("the system's own slot count, used up, refuses nothing here: a spell that names no list, and a list with no slot row answering", async () => {
+  const full = { 1: { max: 1 } };
+  const bare = owned([], { coreSpells: full });
+  bare.system.cast = 1;
+  const none = await run(bare, {}, { pools: poolsOf(["alpha", 1, 2, 0]) });
+  assert.deepEqual([none.result, none.calls.spends, none.calls.pools, none.calls.notices], [{ ok: true }, 1, [], []], "a Player's bare spell is cast with the system's count full");
+  const listed = owned([["alpha", 1]], { coreSpells: full });
+  listed.system.cast = 1;
+  const rowless = await run(listed, {}, { pools: [] });
+  assert.deepEqual([rowless.result, rowless.calls.spends, rowless.calls.pools, rowless.calls.notices], [{ ok: true }, 1, [], []], "a listed spell whose list has no slot row is not judged by the system's grid");
+});
+
 await ta("a cast the system did not run writes no pool", async () => {
   const { result, calls } = await run(owned([["alpha", 2]]), {}, { pools: poolsOf(["alpha", 2, 2, 0]), spent: false });
   assert.deepEqual(result, { ok: false, reason: "notSpent" });

@@ -467,6 +467,12 @@ await testAsync("a Judge's rows carry the warning and stay on", async () => {
     ["h", null, "offList", false, "ACKS-MAGIC.cast.notice.verdict.offList|{}"],
   ]);
 });
+test("the row's gate is judged by listGate, the gate claimant's own judge", () => {
+  const tab = readFileSync(new URL("../scripts/character-sheet/tabs/magic.mjs", import.meta.url), "utf8");
+  const gate = readFileSync(new URL("../scripts/magic/cast-gate.mjs", import.meta.url), "utf8");
+  assert.ok(/listGate\(\{ capacity, offList, isGM \}\)/.test(tab), "the row asks listGate");
+  assert.ok(/listGate\(\{ capacity, offList, isGM: /.test(gate), "and so does the claimant");
+});
 await testAsync("a row whose spell has a cast declared and waiting is exempt from both gates", async () => {
   const fights = { k1: { round: 2, scene: { name: "Testyard" } } };
   const effects = [declaredEffect("c1", "Actor.c.Item.a", {}), declaredEffect("c2", "Actor.c.Item.h", {})];

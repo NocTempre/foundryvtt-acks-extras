@@ -19,7 +19,7 @@ import { classForActor } from "../../classes/registry.mjs";
 import { LANG_PREFIX as CLASSES_LANG } from "../../classes/constants.mjs";
 import { MODULE_ID, FLAG_SPELL, LANG_PREFIX as MAGIC_LANG } from "../../magic/constants.mjs";
 import { spellStanding, spellCapacity } from "../../magic/cast-capacity.mjs";
-import { castVerdicts, VERDICT } from "../../magic/cast-plan.mjs";
+import { listGate } from "../../magic/cast-plan.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { isSummonSpell } from "../../magic/summon-spell.mjs";
 import { spellEffectOf } from "../../magic/spell-effect.mjs";
@@ -155,12 +155,12 @@ export function buildMagicTab(actor) {
   const castsAt = (level) => spells.filter((s) => Number(s.system?.lvl) === level).reduce((sum, s) => sum + (Number(s.system?.cast) || 0), 0);
   const isGM = game.user?.isGM === true;
   /**
-   * What the cast window would raise before this row's press, for the two
-   * capacity gates only: the spell is on no list the class casts from, or the
-   * list the row stands under has no slot left at the row's level. The
-   * reading and the verdicts are the cast's own (`spellCapacity`,
-   * `castVerdicts`), so the row and the window cannot disagree. A seat that is
-   * not a GM is blocked and a GM warned. Null where nothing stands in the way.
+   * What a list raises against this row's cast before the press: the spell is
+   * on no list the class casts from, or the list the row stands under has no
+   * slot left at the row's level. The reading is the cast's own
+   * (`spellCapacity`) and the verdict is `listGate`'s, which the gate claimant
+   * judges with too. A seat that is not a GM is blocked and a GM warned. Null
+   * where nothing stands in the way, and where no list's slot row answers.
    */
   const gateOf = (entry, tradition) => {
     const spell = entry.ref;
@@ -172,7 +172,7 @@ export function buildMagicTab(actor) {
       spell: { extras: spell.flags?.[MODULE_ID]?.[FLAG_SPELL] ?? {}, lvl: spell.system?.lvl, class: spell.system?.class },
       prefer: tradition,
     });
-    const found = castVerdicts({ capacity, offList, isGM }).find((v) => v.key === VERDICT.offList || v.key === VERDICT.noSlot);
+    const found = listGate({ capacity, offList, isGM });
     if (!found) return null;
     const blocked = found.severity === "block";
     return { key: found.key, blocked, text: castLoc(`notice.${blocked ? "blocked" : "verdict"}.${found.key}`) };
