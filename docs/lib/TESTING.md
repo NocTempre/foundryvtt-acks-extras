@@ -4114,6 +4114,7 @@ record". Walked on the primary GM seat; a player seat sees only the card.
 
 The model is [GROUPS.md](GROUPS.md), "A group inside a group" and "A count read
 now". Walked on the primary GM seat, which acts on a group token's combat.
+`tools/live/lib-nested-groups.mjs` walks steps 1 to 7 and a stack's printed hit points, on a kept monster `lib/nested-group-monster`; a combatant is made through the combat, so the HUD button itself is by hand.
 
 ### Fixtures
 
@@ -4170,6 +4171,7 @@ The model is [ORGANISATION.md](ORGANISATION.md). No sheet draws the chart yet, s
 every step is a page-context call on `acksExtras.lib.org` and the observable is the
 stored rows or the call's answer. Walked on the primary GM seat; step 10 also
 wants a player seat.
+`tools/live/lib-org-chart.mjs` walks steps 1 to 9 and step 10's headcount, on a kept monster `lib/org-monster`, and the service tree on `henchmen/service-employer`, `-hench-a`, `-hench-b`, `-unit` and `-officer`; step 10's player-seat standing row is by hand.
 
 ### Fixtures
 
