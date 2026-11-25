@@ -164,7 +164,7 @@ const P = {
         return {
           id: c.id, present: !!e,
           sameChanges: same(c.id),
-          moduleName: !!e && e.name !== c.name && game.i18n.has(String(e.name)),
+          systemName: !!e && e.name === c.name && e.img === c.img,
           ownKeys: c.system.changes.map((x) => x.key),
         };
       }),
@@ -859,7 +859,7 @@ try {
   const census = await run(gm, P.census);
   note("census", { carrying: census.carrying, keys: Object.fromEntries(census.registered.map((r) => [r.id, r.ownKeys])), implying: census.implying, playersSeeTargetAc: census.playersSeeTargetAc, libWrapper: census.libWrapper });
   check("1: the system ships changes for the conditions this walk names, and no other", JSON.stringify([...census.carrying].sort()) === JSON.stringify([...CARRYING].sort()), census.carrying);
-  check("1: each one's entry in CONFIG.statusEffects carries the system's changes, under the module's name", census.registered.every((r) => r.present && r.sameChanges && r.moduleName), census.registered.filter((r) => !(r.present && r.sameChanges && r.moduleName)).map((r) => r.id));
+  check("1: each one's entry in CONFIG.statusEffects carries the system's changes, under the system's name and icon", census.registered.every((r) => r.present && r.sameChanges && r.systemName), census.registered.filter((r) => !(r.present && r.sameChanges && r.systemName)).map((r) => r.id));
   check("1: no entry carries a change the system does not ship for it or for a condition it brings, and Readied and Delayed are on the palette", census.stray.length === 0 && census.readied && census.delayed, { stray: census.stray, readied: census.readied, delayed: census.delayed });
   const brings = Object.fromEntries(census.implying.map((e) => [e.id, e.brings]));
   const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));

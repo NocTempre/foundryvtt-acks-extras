@@ -2743,7 +2743,7 @@ round) are "Conditions on the palette and on a roll", above.
 
 1. **The palette.** Read `CONFIG.ACKS.conditions` and `CONFIG.statusEffects`.
    **Observable:** for every id whose system entry carries `system.changes`,
-   the registered entry carries them under the module's name; no entry
+   the registered entry carries them under the system's name and icon; no entry
    carries a change the system does not ship for it or for a condition it
    brings; Readied and Delayed are on the palette. Charging, Countercharging
    and Retreating name Disordered in `statuses`, Starving and Underfed name
