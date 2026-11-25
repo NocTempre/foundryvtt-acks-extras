@@ -3659,8 +3659,10 @@ The party stays in delve, where a player's choice of who comes along matters.
 10. **A real fight** (`tools/live/formation-fight-line-up.mjs`, `node
     tools/live/run.mjs formation-fight-line-up`). The fixtures of "A party in a
     combat" (`formation/combat-scene`, `formation/combat-party`,
-    `formation/combat-party-token`, `formation/combat-member-<n>`), one member
-    owned by the Player seat. Start the combat so the party deploys. On the
+    `formation/combat-party-token`, `formation/combat-member-2` and `-3`), with
+    the walk's own `formation/fight-member-player` (the Player seat's, the one
+    taken out) and `formation/fight-joiner`; a shared member's ownership is
+    never changed. Start the combat so the party deploys. On the
     Player seat, take the owned member out. *Observable:* they leave the record;
     their deployed token stays where it stood and its combatant still resolves
     it; no token appears beside the party token; an initiative roll completes.

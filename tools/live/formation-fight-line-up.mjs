@@ -17,9 +17,10 @@
  * Every fixture and figure is invented. Fixtures, kept and found again by marker
  * (`api.fixture`): the scene `formation/combat-scene`; the party
  * `formation/combat-party` with its token `formation/combat-party-token` and the
- * members `formation/combat-member-1`..`-3` (the first is given to the Player
- * seat, which is all the walk changes on a kept fixture); and the Player seat's
- * `formation/fight-joiner`, in no party. The walk brings them to its start
+ * members `formation/combat-member-2` and `-3`; and the Player seat's own
+ * `formation/fight-member-player`, the member it takes out, and
+ * `formation/fight-joiner`, in no party. A shared member's ownership is never
+ * changed. The walk brings them to its start
  * shape itself: no fight in the record, the three members in order and not
  * deployed, the party token shown, the joiner's token on the map.
  * Writes outside the ledger: the fight, its combat, the joiner's token, the
@@ -397,9 +398,11 @@ try {
   section("fixtures");
   const scene = await gm.fixture("formation/combat-scene", "Scene", { name: "QA Combat Ground", active: false, navigation: false, width: 1600, height: 1000, padding: 0, grid: { type: 1, size: 100, distance: 5, units: "ft" }, ownership: { default: 2 } });
   const party = await gm.fixture("formation/combat-party", "Actor", { name: "QA Combat Party", type: `${SCOPE}.party` });
-  const members = [];
-  for (const n of [1, 2, 3]) members.push(await gm.fixture(`formation/combat-member-${n}`, "Actor", character(`QA Fighter ${n}`)));
-  const joiner = await gm.fixture("formation/fight-joiner", "Actor", character("QA Joiner", { ownership: { default: 0, [census.player.userId]: 3 } }));
+  const yours = { ownership: { default: 0, [census.player.userId]: 3 } };
+  const playerMember = await gm.fixture("formation/fight-member-player", "Actor", character("QA Fight Lead", yours));
+  const members = [playerMember];
+  for (const n of [2, 3]) members.push(await gm.fixture(`formation/combat-member-${n}`, "Actor", character(`QA Fighter ${n}`)));
+  const joiner = await gm.fixture("formation/fight-joiner", "Actor", character("QA Joiner", yours));
   const [leaver, stayer, third] = members;
   held.partyId = party.id;
   await run(gm, P.grant, { actorId: leaver.id, userId: census.player.userId });
@@ -414,15 +417,15 @@ try {
   const own = [...wanted, joiner.id];
   const shape = await run(gm, P.startShape, { fid, sceneId: scene.id, wanted, own });
   note("start shape", shape);
-  // Only the joiner is this walk's alone; a member's token standing is a shared fixture's, and is reported, never swept.
-  const memberStrays = shape.strays.filter((t) => t.actorId !== joiner.id);
+  // Only the joiner and the Player seat's member are this walk's alone; a member's token standing is a shared fixture's, and is reported, never swept.
+  const memberStrays = shape.strays.filter((t) => t.actorId !== joiner.id && t.actorId !== playerMember.id);
   if (memberStrays.length) blocked(`tokens of the combat members stand on the scene, left by an earlier run: ${memberStrays.map((t) => t.uuid).join(", ")}`);
   for (const stray of shape.strays) tracked.push(gm.track(stray.uuid, "Token"));
   check("the walk starts with the three members in order, no fight in the record, the party token shown", JSON.stringify(shape.members) === JSON.stringify(wanted) && !shape.combat && shape.partyShown, shape);
   const joinerToken = await run(gm, P.ensureToken, { sceneId: scene.id, actorId: joiner.id, x: 900, y: 700 });
   tracked.push(gm.track(joinerToken.uuid, "Token"));
   const t0 = await run(gm, P.nowMs);
-  const names = ["QA Fighter 1", "QA Fighter 2", "QA Fighter 3", "QA Joiner"];
+  const names = ["QA Fight Lead", "QA Fighter 2", "QA Fighter 3", "QA Joiner"];
   const seen = { fid, sceneId: scene.id, actorIds: own };
 
   section("1. start the combat so the party deploys");
