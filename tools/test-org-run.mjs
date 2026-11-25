@@ -438,6 +438,30 @@ t("Delete takes a group off its roster and clears the faction's leader it named;
   assert.equal(world.has(chief.uuid), true);
 });
 
+t("a body is minted as the rank and file, never as a leader the Role axis rolls, where the axis names no default", async () => {
+  const { pinsOf } = await import("../scripts/monsters/organisation-run.mjs");
+  const { chooseAxes } = await import("../scripts/lib/template-logic.mjs");
+  const family = (role) => ({
+    system: {
+      axes: [{ key: "variant", options: [{ key: "alba" }], default: "alba" }, { key: "role", ...role, options: [{ key: "standard" }, { key: "lead" }, { key: "chief" }] }],
+      cells: ["standard", "lead", "chief"].map((r) => ({ by: ["variant", "role"], key: `alba|${r}` })),
+    },
+  });
+  const body = { kind: "cell", variant: "alba", role: "", troop: "", trait: "" };
+  const roleAt = (fam, pins, roll) => chooseAxes(fam.system, { pinned: pins, rng: () => roll }).choices.role;
+  const rolls = [0, 0.4, 0.7, 0.99];
+  const noDefault = family({});
+  assert.deepEqual(rolls.map((r) => roleAt(noDefault, pinsOf(body), r)), ["standard", "lead", "chief", "chief"], "unpinned, an axis with no default rolls among every option: the leaders too");
+  assert.deepEqual(rolls.map((r) => roleAt(noDefault, pinsOf(body, {}, noDefault), r)), ["standard", "standard", "standard", "standard"], "pinned to the rank and file, a body is never a leader");
+  assert.equal(pinsOf({ ...body, role: "lead" }, {}, noDefault).role, "lead", "a spec that names a role keeps it");
+  const named = family({ default: "lead" });
+  assert.equal(pinsOf(body, {}, named).role, undefined, "an axis that names its own default is left to it");
+  assert.equal(pinsOf(body, {}, { system: { axes: [] } }).role, undefined, "no Role axis, no pin");
+  assert.equal(pinsOf(body, {}, null).role, undefined);
+  const bare = { system: { axes: [{ key: "role", options: [{ key: "lead" }] }] } };
+  assert.equal(pinsOf(body, {}, bare).role, undefined, "an axis that lists no rank and file is left alone");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {

@@ -19,6 +19,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { letterOf } from "../treasure/search-logic.mjs";
 import { newPot, potOf, setDealMonsters } from "../treasure/pot.mjs";
 import { GRADE_SOURCE, NO_TRAIT, NO_TROOP, importedOrganisation } from "./organisation.mjs";
+import { STANDARD_ROLE } from "../importer/leader-roles.mjs";
 import { planOrganisationRoll } from "./organisation-logic.mjs";
 import { cardView, withHoards } from "./organisation-card.mjs";
 
@@ -36,10 +37,28 @@ const variantOptionOf = (template, variant) =>
 /** The Role cell `variant|role` of a template, or null. */
 const cellOf = (template, variant, role) => (template.system?.cells ?? []).find((c) => c.key === `${variant}|${role}`) ?? null;
 
-/** The axes a spec pins on the family template; every axis the roll decided is pinned, so a mint never rolls beside it. */
-function pinsOf(spec, extra = {}) {
+/**
+ * The Role a body takes where its spec names none: the rank-and-file key, pinned only when the
+ * template's Role axis has no default of its own to stand for it (an axis with neither default nor
+ * pin rolls among every option, leaders included) and lists that key. Null where the axis has a
+ * default, lists no rank-and-file option, or is absent.
+ */
+function bodyRoleOf(family) {
+  const axis = (family?.system?.toObject?.().axes ?? family?.system?.axes ?? []).find((a) => a.key === "role");
+  if (!axis || axis.default) return null;
+  return (axis.options ?? []).some((o) => o.key === STANDARD_ROLE) ? STANDARD_ROLE : null;
+}
+
+/**
+ * The axes a spec pins on the family template; every axis the roll decided is pinned, so a mint never rolls beside it.
+ * @param {object} spec the prototype or leader spec
+ * @param {object} [extra] further pins
+ * @param {Actor|null} [family] the family template, read for the role a body without one takes
+ */
+export function pinsOf(spec, extra = {}, family = null) {
   const pins = { variant: spec.variant, troop: spec.troop || NO_TROOP, trait: spec.trait || NO_TRAIT, ...extra };
-  if (spec.role) pins.role = spec.role;
+  const role = spec.role || bodyRoleOf(family);
+  if (role) pins.role = role;
   if (spec.grade === GRADE_SOURCE) pins.leaderSource = GRADE_SOURCE;
   return pins;
 }
@@ -59,7 +78,7 @@ const mintedFor = (key) => [...game.actors].find((a) => a.flags?.[MODULE_ID]?.[O
 export async function mintPrototype(family, spec, protoKey) {
   const held = mintedFor(protoKey);
   if (held) return { actor: held, made: false };
-  const actor = await generateFromTemplate(family, { pins: pinsOf(spec) });
+  const actor = await generateFromTemplate(family, { pins: pinsOf(spec, {}, family) });
   if (!actor) return null;
   await actor.update({ [`flags.${MODULE_ID}.${ORG_PROTOTYPE_FLAG}`]: protoKey });
   return { actor, made: true };
@@ -129,7 +148,7 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   const provider = {
     mint: (spec, { key: protoKey }) => mintPrototype(family, spec, protoKey),
     async makeLeader(op, spec, mount) {
-      const actor = await generateFromTemplate(family, { pins: pinsOf({ ...spec, role: spec.role || op.role, troop: op.troop, trait: op.trait }, op.gear?.length ? { gear: op.gear } : {}) });
+      const actor = await generateFromTemplate(family, { pins: pinsOf({ ...spec, role: spec.role || op.role, troop: op.troop, trait: op.trait }, op.gear?.length ? { gear: op.gear } : {}, family) });
       if (!actor) return null;
       const figures = { ...(mount ? { mount } : {}), ...(op.speaksCommon != null ? { speaksCommon: !!op.speaksCommon } : {}) };
       if (Object.keys(figures).length) await actor.update({ [`flags.${MODULE_ID}.${LEADER_FLAG}`]: figures });

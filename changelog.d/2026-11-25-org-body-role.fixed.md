@@ -1,0 +1,1 @@
+- A Roll on a faction's chart (Actors sidebar tab → a faction → Org chart tab) mints a unit's bodies as the rank and file when the family template's Role axis names no default, where it could roll a leader's role for them.
