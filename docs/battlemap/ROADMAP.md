@@ -51,17 +51,13 @@ Re-issued 2026-11-14.
      keeps no scroll position).
    - T-0625: on a hex family the grid-size hint speaks of a Foundry square.
    - T-0626: the scale-only confirmation is titled as a grid calibration.
-   - T-0627: scale-only with boxes drawn divides by the map-cell field, which
-     that family hides.
    - T-0628: "px" names image pixels on the card and the box rows, and canvas
      pixels in the grid-size fields and the measured scale.
    - T-0629: a sample row's delete button has no spoken name.
-   - T-0631: a custom size typed and confirmed with one click may be lost
-     (inferred, not walked).
    - T-0591: the square family's loose-fit warning names no sample.
-   The hex fit, each measured offline in Phase 1 and not fixed: T-0593 (after
-   several boxes sharing one outline bias, a far box lands a hex short on the
-   column types), T-0594 (a stretched picture with boxes spread along one axis
+   The hex fit, each measured offline in Phase 1, re-measured on 2026-11-25
+   and not fixed: T-0593 (after several boxes sharing one outline bias, a far
+   box lands a hex short, on the row types as well as the column types), T-0594 (a stretched picture with boxes spread along one axis
    only leaves the family to the shape fallback, which misreads rows
    stretched 1.25 times).
    The capture tools and the group:

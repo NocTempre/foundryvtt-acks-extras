@@ -34,7 +34,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-17 — [The country brush's layers are a registry](DECISIONS-through-v11.14.5.md#2026-10-17--the-country-brushs-layers-are-a-registry) — superseded in part by "2026-11-16 — Paint is a core grid shape per value"
 - 2026-10-24 — [The brush paints the board alone](DECISIONS-through-v11.14.5.md#2026-10-24--the-brush-paints-the-board-alone)
 - 2026-10-24 — [The climate is the map's](DECISIONS-through-v11.14.5.md#2026-10-24--the-climate-is-the-maps) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
-- 2026-10-24 — [The map shows one mode at a time](DECISIONS-through-v11.14.5.md#2026-10-24--the-map-shows-one-mode-at-a-time) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
+- 2026-10-24 — [The map shows one mode at a time](DECISIONS-through-v11.14.5.md#2026-10-24--the-map-shows-one-mode-at-a-time) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md); "2026-11-25 — Closing the palette disarms every brush, and a stroke shows its layer"
 - 2026-10-25 — [A layer can derive the territory](DECISIONS-through-v11.14.5.md#2026-10-25--a-layer-can-derive-the-territory)
 - 2026-10-28 — [The map's declaration is on its navigation card](DECISIONS-through-v11.14.5.md#2026-10-28--the-maps-declaration-is-on-its-navigation-card)
 
@@ -437,6 +437,11 @@ T-0600 and T-0602): "A on all three".
 "Closing the palette disarms a brush the toolbar did not arm", and so the
 toolbar's exemption it implied. Kept: a sheet can arm the brush, and the
 rejection of a sheet-armed brush left armed, whose reason now covers both.
+Also *2026-10-24 The map shows one mode at a time*, its Q4a: a mode no longer
+stays off until the Judge picks it again once the brush paints its layer, and
+the handout switch is turned off by a stroke on a layer it hides. Kept: the
+mode is the client's and outlives the brush and every control; a pick with no
+stroke after it stands.
 
 **New evidence.** A toolbar-armed brush left armed on close kept catching the
 canvas with nothing on screen to say so, which is the 2026-10-15 reason
