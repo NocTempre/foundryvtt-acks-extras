@@ -579,7 +579,8 @@ const localImpl = Object.freeze({
    * and `registerStructureDamage(fn)` what writes a structure's damage when a
    * burst is handed on (`handOn`); `applyEntry` and `applyAllEntries` apply a
    * burst card's rows, and `moveFuseSpot` and `setFuseOffNow` are a lit fuse's
-   * owner's controls.
+   * owner's controls, and `litStateOf(effects, itemUuid)` reads whether an item
+   * is lit on an actor and for how long.
    * A card's presses are on the block too, each callable from any seat and run
    * on the GM's window, which checks the relayed seat's ownership again:
    * `undoCardEntry` takes one entry back, `tickBearer` and `untickBearer` count
@@ -597,6 +598,7 @@ const localImpl = Object.freeze({
     burstFuse: itemRun.burstFuse,
     moveFuseSpot: itemRun.moveFuseSpot,
     setFuseOffNow: itemRun.setFuseOffNow,
+    litStateOf: itemRunLogic.litStateOf,
     applyEntry: itemRun.applyEntry,
     applyAllEntries: itemRun.applyAllEntries,
     handOn: itemRun.handOn,

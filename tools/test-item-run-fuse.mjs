@@ -207,6 +207,29 @@ await t("a proficiency's standing share is summed and itemized per ability, and 
   assert.deepEqual(logic.proficiencyBonus(undefined), { bonus: 0, parts: [] });
 });
 
+await t("an item's lit state is read off the actor's effects: the combat clock's turns left, the world clock's moment, the soonest of an item's fuses, and null for any other item", () => {
+  const fx = (raw) => ({ flags: { "acks-extras": { fuse: raw } } });
+  const combat = (source, count, seen) => fx({ ...logic.fuseFlag({ source, activationId: `a-${source}-${count}`, spot, combatId: "c1", combatantId: "m1", count }), clock: { combatId: "c1", combatantId: "m1", edge: "end", count, seen } });
+  const world = (source, dueAt) => fx({ source, activationId: `w-${source}-${dueAt}`, spot, dueAt });
+  assert.deepEqual(logic.litStateOf([combat("I.1", 4, 1)], "I.1"), { roundsLeft: 3, combat: true, dueAt: null });
+  assert.deepEqual(logic.litStateOf([world("I.1", 900)], "I.1"), { roundsLeft: null, combat: false, dueAt: 900 });
+  assert.deepEqual(logic.litStateOf([combat("I.1", 5, 1), combat("I.1", 3, 2), world("I.1", 10)], "I.1"), { roundsLeft: 1, combat: true, dueAt: null }, "the fewest turns left; a count of turns and a moment do not compare, so the combat clock reads first");
+  assert.deepEqual(logic.litStateOf([world("I.1", 900), world("I.1", 700)], "I.1"), { roundsLeft: null, combat: false, dueAt: 700 }, "the earliest moment");
+  assert.equal(logic.litStateOf([combat("I.2", 4, 1), world("I.2", 5)], "I.1"), null, "another item's fuse");
+  assert.equal(logic.litStateOf([{ flags: {} }, { flags: { "acks-extras": { fuse: { source: "I.1" } } } }, null], "I.1"), null, "an effect with no fuse, and a record readFuse refuses");
+  assert.equal(logic.litStateOf(undefined, "I.1"), null);
+  assert.equal(logic.litStateOf(new Set([combat("I.1", 2, 2)]), "I.1").roundsLeft, 0, "any iterable of effects; a spent count reads zero");
+});
+
+await t("the bearer's proficiency reader the monsters feature registers answers a blank word and an ability the bearer lacks as not proficient, with no modifiers", async () => {
+  const { readBearerProficiency } = await import("../scripts/monsters/fuse-proficiency.mjs");
+  const none = { proficient: false, bonus: 0, parts: [] };
+  assert.deepEqual(await readBearerProficiency({ items: [{ type: "ability", name: "Skill B" }] }, null), none, "a blank word");
+  assert.deepEqual(await readBearerProficiency({ items: [] }, "Skill A"), none, "no abilities");
+  assert.deepEqual(await readBearerProficiency({ items: [{ type: "ability", name: "Skill B" }, { type: "item", name: "Skill A" }] }, "Skill A"), none, "an ability named otherwise, and an item that is no ability");
+  assert.deepEqual(await readBearerProficiency(undefined, "Skill A"), none, "no actor");
+});
+
 await t("an Apply is for a rolled entry, by an owner of the subject, or the Judge's own press", () => {
   const ask = (entry, over) => logic.checkApplyRequest(entry, { subjectOwnerIds: ["u1"], ...over });
   assert.deepEqual(ask({ state: "rolled" }, { requestUserId: "u1" }), { ok: true });

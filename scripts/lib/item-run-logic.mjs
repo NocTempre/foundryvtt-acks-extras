@@ -554,6 +554,27 @@ export function fuseWorldFlag({ source, activationId, spot, rounds, now, roundSe
   return { source, activationId, spot, dueAt: worldDueAt(count, start, unit) };
 }
 
+/**
+ * Whether an item is lit on an actor, and for how long, read off the actor's
+ * effects: `{roundsLeft, combat, dueAt}` for the fuse the item lit that burns
+ * out first, or null where none is. On the combat clock `combat` is true and
+ * `roundsLeft` the bearer's turns it still burns (`count - seen`), `dueAt` null;
+ * on the world clock `combat` is false, `roundsLeft` null and `dueAt` the moment
+ * it is due. A fuse on the combat clock reads before one on the world's, since a
+ * count of turns and a moment do not compare.
+ *
+ * @param {Iterable<{flags?: object}>|null|undefined} effects the actor's Active Effects
+ * @param {string} itemUuid the lit item's uuid
+ * @returns {{roundsLeft: number|null, combat: boolean, dueAt: number|null}|null}
+ */
+export function litStateOf(effects, itemUuid) {
+  const records = [...(effects ?? [])].map((effect) => readFuse(effect?.flags?.[MODULE_ID]?.[FLAG_FUSE])).filter((record) => record && record.source === itemUuid);
+  const counted = records.filter((record) => record.clock).map((record) => Math.max(record.clock.count - record.clock.seen, 0));
+  if (counted.length) return { roundsLeft: Math.min(...counted), combat: true, dueAt: null };
+  const due = records.filter((record) => "dueAt" in record).map((record) => record.dueAt);
+  return due.length ? { roundsLeft: null, combat: false, dueAt: Math.min(...due) } : null;
+}
+
 /* -------------------------------------------- */
 /*  The light and the burst                      */
 /* -------------------------------------------- */

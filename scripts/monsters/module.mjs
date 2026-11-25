@@ -31,6 +31,8 @@ import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, carriedGearItems
 import { registerCarryResolver } from "../lib/group.mjs";
 import { importedThrowLadder } from "../importer/leader-roles.mjs";
 import { libraryItems } from "../lib/library.mjs";
+import { setProficiencyReader } from "../lib/item-run.mjs";
+import { readBearerProficiency } from "./fuse-proficiency.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
 
@@ -108,6 +110,8 @@ Hooks.once("init", () => {
   services.register("org-roll", orgRollService);
   // What a body of a generated stack carries when it is sent out (lib's deploy asks per `gen.carry` row).
   registerCarryResolver((group, stackKey, rowKey) => carriedGearItems(rowKey));
+  // Which ability a fuse's proficiency word names on the bearer, and what that ability adds to the lighting throw (lib's item runner reads none itself).
+  setProficiencyReader(readBearerProficiency);
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply

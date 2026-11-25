@@ -27,7 +27,8 @@
  *   `itemRun.dueAt` and `liftDueRecords` deletes it once the clock reaches it.
  * - The fuse is stepped from lib's turn hooks as delayed damage is: the record
  *   is deleted first, then the registered burst runs (`setFuseBurst`), and a
- *   fight that ends moves it to the world clock.
+ *   fight that ends moves it to the world clock. A bearer whose last token is
+ *   deleted bursts nothing: the Judge is told (`noBearer`).
  */
 import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
 import { carriesItem, figureNumber, isEngagedActivation, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits, resolveFigure } from "./aura-reach-logic.mjs";
@@ -35,7 +36,7 @@ import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseRe
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, alwaysOn, blastOf, burstAmount, checkApplyRequest, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseFlag, fuseLight, fuseRecordData, fuseSpot, fuseStep, fuseToWorld, fuseWorldFlag,
-  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, proficiencyBonus, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
+  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoGuard, undoPlan,
 } from "./item-run-logic.mjs";
 import { adjustHp, resolveTargets } from "./hp.mjs";
@@ -52,7 +53,6 @@ import { saveSpec, saveThrow } from "./saves.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { roundSeconds, turnSeconds } from "./time-unit.mjs";
 import { isPrimaryGM, makeLoc, plainRoll, unset } from "./util.mjs";
-import { ITEM_TYPE } from "./vocab.mjs";
 import { onWorldTimeAdvanced } from "./world-time.mjs";
 import { isMarkerActor } from "./place.mjs";
 
@@ -1252,23 +1252,24 @@ export async function liftWorldFuses(actors, worldTime, deps = { burst: burster 
 /* -------------------------------------------- */
 
 /**
- * The bearer's proficiency as the light reads it: `{proficient, bonus, parts}`.
- * The default folds the activation's proficiency word to the ability the bearer
- * holds (`monsters/organisation.mjs` `matchProficiency`) and reads that ability's
- * standing throw modifiers (`abilities/ability-rolls.mjs` `targetModifiers`),
- * both loaded on first use so lib carries no import of either feature. A bearer
- * without the proficiency is `{proficient: false, bonus: 0, parts: []}`.
+ * The bearer's proficiency as the light reads it: `{proficient, bonus, parts,
+ * read?}`. Lib holds no reading of which ability a word names, so with no reader
+ * registered (`setProficiencyReader`) the default answers no modifiers and no
+ * proficiency, `read: false`, and the roll carries `proficiencyRead: false` for
+ * the card to say so.
  */
-async function readProficiency(actor, word) {
-  const held = word ? (await import("../monsters/organisation.mjs")).matchProficiency(String(word), [...(actor?.items ?? [])].filter((i) => i.type === ITEM_TYPE.ability)) : null;
-  if (!held) return { proficient: false, bonus: 0, parts: [] };
-  const { targetModifiers } = await import("../abilities/ability-rolls.mjs");
-  return { proficient: true, ...proficiencyBonus(targetModifiers({ rollType: "above" }, actor, held)) };
+async function readProficiency() {
+  return { proficient: false, bonus: 0, parts: [], read: false };
 }
 
 let proficiencyReader = readProficiency;
 
-/** Replace what reads the bearer's proficiency (`fn(actor, word)`, awaited, answering `{proficient, bonus, parts}`); a non-function restores the default. */
+/**
+ * Register what reads the bearer's proficiency: `fn(actor, word)`, awaited,
+ * answering `{proficient, bonus, parts}` (`bonus` the standing modifiers' sum,
+ * `parts` `[{label, value, cite}]`). An answer is read unless it says `read:
+ * false`. A non-function restores the default, which reads nothing.
+ */
 export function setProficiencyReader(fn) {
   proficiencyReader = typeof fn === "function" ? fn : readProficiency;
 }
@@ -1297,9 +1298,11 @@ function spotAt(token) {
  * - `light` is `fuseLight`'s answer, which `outcome` equals unless a lit fuse
  *   could not be written (`outcome` null);
  * - `roll` is `{natural, total, formula, target, base, modifiers, proficient,
- *   proficiency}`: the die, the target it was read against (null when blank),
- *   `base` the item's own figure, `modifiers` `[{label, value, cite}]` and
- *   `proficiency` the word read; null where nothing was rolled;
+ *   proficiencyRead, proficiency}`: the die, the target it was read against (null
+ *   when blank), `base` the item's own figure, `modifiers` `[{label, value,
+ *   cite}]`, `proficiencyRead` false where no reader answered (the bearer's
+ *   proficiency was not looked up, so `proficient` and `modifiers` say nothing)
+ *   and `proficiency` the word read; null where nothing was rolled;
  * - `fuse` is `{count, combat, dueAt?, spot}` for a lit fuse (`combat` true on the
  *   bearer's combat clock, else `dueAt` the world-clock moment it is due), else null.
  */
@@ -1316,7 +1319,7 @@ async function runFuse({ item, run, actor, token }) {
   const natural = Number(die.total);
   const effective = target === null ? null : target - (prof?.bonus ?? 0);
   result.light = fuseLight({ natural, total: natural, target: effective, fumble, proficient: prof?.proficient === true });
-  result.roll = { natural, total: natural, formula: "1d20", target: effective, base: target, modifiers: prof?.parts ?? [], proficient: prof?.proficient === true, proficiency: word === null ? "" : String(word) };
+  result.roll = { natural, total: natural, formula: "1d20", target: effective, base: target, modifiers: prof?.parts ?? [], proficient: prof?.proficient === true, proficiencyRead: prof != null && prof.read !== false, proficiency: word === null ? "" : String(word) };
   result.outcome = result.light;
   const spot = spotAt(token);
   if (result.light === "fumble") {
@@ -1351,6 +1354,9 @@ async function consumeOne(item) {
   else await item.delete();
 }
 
+/** The fields every burst result carries, the one a Judge's line names the fuse by: `{kind: "burst", activationId, itemUuid, itemName, actorName, actorUuid}`. */
+const fuseFacts = ({ actor, record, itemName }) => ({ kind: "burst", activationId: record?.activationId ?? "", itemUuid: record?.source ?? "", itemName: itemName ?? "", actorName: actor?.name ?? "", actorUuid: actor?.uuid ?? "" });
+
 /** The row a burst reads its save and fraction from: the first with a `burst` reach, else the one keyed `burst`. */
 const burstRow = (item) => itemRunRowsOf(item).find((r) => readReach(r?.reach)?.pulse === "burst") ?? itemRunRowsOf(item).find((r) => r?.key === "burst") ?? null;
 
@@ -1380,16 +1386,18 @@ const burstRow = (item) => itemRunRowsOf(item).find((r) => readReach(r?.reach)?.
  *   nothing is rolled or consumed. `why` is "gone" (the item or its activation
  *   is no more), "figure" (the variant's size or blast row is blank) or "dice";
  * - `{ok: false, kind: "burst", reason, activationId, itemUuid, itemName,
- *   actorName, actorUuid}` with `reason` "noScene" (the spot's scene is gone, so
- *   nothing bursts and the Judge is told which fuse) or "snapshot".
+ *   actorName, actorUuid}` with `reason` "noBearer" (the bearer's actor has no
+ *   token on any scene, so nothing bursts and the Judge is told which fuse),
+ *   "noScene" (the spot's scene is gone, likewise) or "snapshot".
  */
 export async function burstFuse({ actor, record }) {
   const item = record?.source ? fromUuidSync(record.source) : null;
-  const base = { kind: "burst", activationId: record?.activationId ?? "", itemUuid: record?.source ?? "", itemName: item?.name ?? "", actorName: actor?.name ?? "", actorUuid: actor?.uuid ?? "" };
+  const base = fuseFacts({ actor, record, itemName: item?.name });
   const answer = async (result) => {
     await presenter?.(result);
     return result;
   };
+  if (!tokensOfActor(actor).length) return answer({ ok: false, ...base, reason: "noBearer" });
   const scene = game.scenes?.get?.(record?.spot?.sceneId) ?? null;
   if (!scene) return answer({ ok: false, ...base, reason: "noScene" });
   const activation = itemRunOf(item)?.activation ?? null;
@@ -1536,6 +1544,30 @@ export async function setFuseOffNow(p) {
   return (await executeAsGM(HANDLER.setOff, payload)) ?? { ok: false, reason: "relay" };
 }
 
+/**
+ * A token was deleted: a fuse burning on its actor has no bearer left. Where the
+ * actor stands as no other token on any scene, nothing bursts: a linked actor's
+ * record is deleted, an unlinked token's went with it, and the presenter is
+ * handed the `noBearer` result `burstFuse` answers (so the Judge is told which
+ * fuse). A linked actor with another token keeps its fuse. An unlinked token's
+ * records are read from its own actor, else from its delta, since the synthetic
+ * actor is not the world's.
+ */
+async function dropDeletedBearerFuses(token) {
+  const actor = token?.actor ?? null;
+  const linked = !!token?.actorLink && !!actor;
+  const mine = token?.uuid ?? token?.id;
+  if (linked && tokensOfActor(actor).some((other) => (other?.uuid ?? other?.id) !== mine)) return;
+  const holder = actor ?? { name: token?.name, uuid: token?.uuid, effects: token?.delta?.effects ?? [] };
+  for (const { effect, raw } of fuseEffects([holder])) {
+    const record = readFuse(raw);
+    if (!record) continue;
+    if (linked) await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+    const item = fromUuidSync(record.source);
+    await presenter?.({ ok: false, ...fuseFacts({ actor: holder, record, itemName: item?.name ?? effect.name }), reason: "noBearer" });
+  }
+}
+
 /* -------------------------------------------- */
 /*  Handing a burst on to a structure            */
 /* -------------------------------------------- */
@@ -1630,6 +1662,9 @@ export function installItemRun() {
     const actors = [...[...(combat?.combatants ?? [])].map((c) => c?.actor), ...worldActors()];
     await convertFuses(combat, actors, { now: game.time.worldTime, roundSeconds: roundSeconds() });
     await liftWorldFuses(actors, game.time.worldTime);
+  });
+  Hooks.on("deleteToken", (token) => {
+    if (isPrimaryGM()) dropDeletedBearerFuses(token).catch((err) => console.error(`${MODULE_ID} | a deleted bearer's fuse could not be dropped`, err));
   });
   onWorldTimeAdvanced(async (worldTime) => {
     const { worldActors } = await import("./repair.mjs");

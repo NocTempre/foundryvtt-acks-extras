@@ -439,7 +439,7 @@ await t("installing registers the two kinds, the two relays and the reach's hand
   } finally {
     globalThis.Hooks.on = priorOn;
   }
-  for (const name of [consts.TURN_BEGAN_HOOK, consts.TURN_ENDED_HOOK, "deleteCombat", "updateWorldTime"]) assert.equal(hooked[name]?.length, 1, `${name} once`);
+  for (const name of [consts.TURN_BEGAN_HOOK, consts.TURN_ENDED_HOOK, "deleteCombat", "deleteToken", "updateWorldTime"]) assert.equal(hooked[name]?.length, 1, `${name} once`);
   run.setUsePresenter(async (result) => presented.push(result));
 });
 
@@ -2352,7 +2352,7 @@ await t("the fuse's light writes nothing for a blank figure, an unlit throw or a
     RollStub.queue.push(9);
     const unlit = await run.runUse({ itemUuid: "I.1" });
     assert.deepEqual([unlit.outcome, unlit.fuse], ["unlit", null]);
-    assert.deepEqual(unlit.roll, { natural: 9, total: 9, formula: "1d20", target: 10, base: 12, modifiers: [{ label: "Skill A", value: 2, cite: "ZZ p. 1" }], proficient: true, proficiency: "Skill A" }, "the target is the item's figure less the proficiency's standing modifiers");
+    assert.deepEqual(unlit.roll, { natural: 9, total: 9, formula: "1d20", target: 10, base: 12, modifiers: [{ label: "Skill A", value: 2, cite: "ZZ p. 1" }], proficient: true, proficiencyRead: true, proficiency: "Skill A" }, "the target is the item's figure less the proficiency's standing modifiers");
     assert.deepEqual(written, [], "an unlit fuse writes nothing");
     // In a fight the record counts the bearer's turns.
     gameStub.combat = { id: "c9", started: true, combatants: [{ id: "m9", tokenId: "1" }] };
@@ -2438,6 +2438,127 @@ await t("a burst rolls once over the spot's area, sends vehicles to their own ro
     assert.equal(seen.at(-1), none);
     assert.deepEqual([RollStub.posted, world.ops.deleted], [[], []]);
   } finally {
+    world.restore();
+  }
+});
+
+await t("with no proficiency reader registered the light reads nothing: no modifiers, not proficient, and the roll says its proficiency was not read", async () => {
+  const world = stageFuseWorld([bearerTok]);
+  bearerTok.testInsideRegion = () => true;
+  try {
+    itemFlags = fuseFlags();
+    RollStub.queue.push(9);
+    const out = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual(out.roll, { natural: 9, total: 9, formula: "1d20", target: 12, base: 12, modifiers: [], proficient: false, proficiencyRead: false, proficiency: "Skill A" }, "the item's own target, with nothing taken off it");
+    assert.equal(out.outcome, "unlit");
+    run.setProficiencyReader(async () => null);
+    RollStub.queue.push(9);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).roll.proficiencyRead, false, "a reader that answers nothing has read nothing");
+    run.setProficiencyReader(async () => ({ proficient: false, bonus: 0, parts: [] }));
+    RollStub.queue.push(9);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).roll.proficiencyRead, true, "a reader's answer is read, a bearer without the proficiency included");
+    run.setProficiencyReader(async () => ({ proficient: false, bonus: 0, parts: [], read: false }));
+    RollStub.queue.push(9);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).roll.proficiencyRead, false, "unless it says it did not");
+    run.setProficiencyReader(null);
+    RollStub.queue.push(9);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).roll.proficiencyRead, false, "clearing the reader restores the default");
+  } finally {
+    world.restore();
+  }
+});
+
+await t("a deleted token's fuse: the primary GM's window drops a linked bearer's record and a lost unlinked one, tells the Judge which fuse, bursts nothing, and a linked actor's other token on any scene keeps it", async () => {
+  const priorScenes = gameStub.scenes;
+  const told = [];
+  run.setUsePresenter(async (result) => told.push(result));
+  const dels = [];
+  const raw = { source: "I.1", activationId: "act9", spot: spotOne, dueAt: 5 };
+  const fuseEffect = { id: "fe", uuid: "E.fe", name: "Gear", flags: { "acks-extras": { fuse: raw } } };
+  const plain = { id: "pe", uuid: "E.pe", name: "Other", flags: {} };
+  const expected = (over = {}) => ({ ok: false, kind: "burst", activationId: "act9", itemUuid: "I.1", itemName: "Gear", actorName: "Bearer", actorUuid: "A.1", reason: "noBearer", ...over });
+  const drop = async (token) => {
+    await hooked.deleteToken[0](token);
+    await settle();
+  };
+  const reset = () => { told.length = 0; dels.length = 0; };
+  const linkedActor = (token) => ({ id: "a1", uuid: "A.1", name: "Bearer", isToken: false, effects: [plain, fuseEffect], getActiveTokens: () => [token], deleteEmbeddedDocuments: async (kind, ids) => dels.push([kind, ...ids]) });
+  const linkedToken = () => { const token = { id: "t1", uuid: "T.t1", actorLink: true }; token.actor = linkedActor(token); return token; };
+  try {
+    seatOf(true);
+    // A linked actor with no token left: the record goes, the Judge is told, nothing bursts.
+    gameStub.scenes = [{ tokens: [{ actorLink: true, actorId: "a1", uuid: "T.t1" }, { actorLink: true, actorId: "zz", uuid: "T.zz" }, { actorLink: false, actorId: "a1", uuid: "T.syn" }] }];
+    reset();
+    await drop(linkedToken());
+    assert.deepEqual(dels, [["ActiveEffect", "fe"]], "the fuse record only; the deleted token is not its own other token, and an unlinked token of the base actor is another body");
+    assert.deepEqual(told, [expected()]);
+    // Another linked token on a scene nobody views: the fuse stays.
+    gameStub.scenes = [{ tokens: [] }, { tokens: [{ actorLink: true, actorId: "a1", uuid: "T.far" }] }];
+    reset();
+    await drop(linkedToken());
+    assert.deepEqual([dels, told], [[], []], "the actor still stands as another token");
+    // The canvas still lists a sibling.
+    const withSibling = linkedToken();
+    withSibling.actor.getActiveTokens = () => [withSibling, { uuid: "T.t2", id: "t2" }];
+    gameStub.scenes = [];
+    await drop(withSibling);
+    assert.deepEqual([dels, told], [[], []], "a sibling on the viewed scene");
+    // An unlinked token: its actor and its fuse go with it, so nothing is deleted and the Judge is told.
+    const synthetic = { isToken: true, uuid: "A.syn", name: "Bearer", effects: [fuseEffect], deleteEmbeddedDocuments: async () => { throw new Error("an unlinked actor's record goes with the token"); } };
+    const unlinked = { id: "t3", uuid: "T.t3", actorLink: false, actor: synthetic };
+    synthetic.token = unlinked;
+    await drop(unlinked);
+    assert.deepEqual([dels, told], [[], [expected({ actorUuid: "A.syn" })]]);
+    // An unlinked token whose actor is no longer built is read from its own delta.
+    reset();
+    await drop({ id: "t4", uuid: "T.t4", name: "Delta", actorLink: false, actor: null, delta: { effects: [fuseEffect] } });
+    assert.deepEqual([dels, told], [[], [expected({ actorName: "Delta", actorUuid: "T.t4" })]]);
+    // A deleted token whose actor carries no fuse tells nobody; a record that is no fuse is none.
+    reset();
+    const quiet2 = linkedToken();
+    quiet2.actor.effects = [plain, { id: "bad", flags: { "acks-extras": { fuse: { source: "I.1" } } } }];
+    gameStub.scenes = [];
+    await drop(quiet2);
+    await drop({ id: "t5", uuid: "T.t5", actorLink: false, actor: null });
+    assert.deepEqual([dels, told], [[], []]);
+    // Not the primary GM's window: nothing.
+    seatOf(false);
+    await drop(linkedToken());
+    assert.deepEqual([dels, told], [[], []], "not the primary GM's window");
+  } finally {
+    seatOf(true);
+    gameStub.scenes = priorScenes;
+    run.setUsePresenter(async (result) => presented.push(result));
+  }
+});
+
+await t("a burst whose bearer has no token on any scene bursts nothing and says so, on a fumble or the world clock alike; a linked token on another scene is a bearer", async () => {
+  const world = stageFuseWorld([bodyTok("one", hpActor("one", "owner"))]);
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  const record = { source: "I.1", activationId: "act", spot: spotOne };
+  try {
+    itemFlags = fuseFlags();
+    bearerActor.getActiveTokens = () => [];
+    RollStub.queue.push(11);
+    const lost = await run.burstFuse({ actor: bearerActor, record });
+    assert.deepEqual(lost, { ok: false, kind: "burst", activationId: "act", itemUuid: "I.1", itemName: "Gear", actorName: "Bearer", actorUuid: "A.1", reason: "noBearer" });
+    assert.equal(seen.at(-1), lost, "the presenter is told which fuse");
+    assert.deepEqual([RollStub.posted, world.ops.updates, world.ops.deleted], [[], [], []], "nothing rolled, nothing consumed");
+    // The world clock's leg: the record goes, then the burst says so.
+    const order = [];
+    bearerActor.effects = [{ id: "fe", uuid: "E.fe", flags: { "acks-extras": { fuse: { ...record, dueAt: 5 } } } }];
+    bearerActor.deleteEmbeddedDocuments = async (kind, ids) => { order.push(["delete", ...ids]); };
+    seen.length = 0;
+    await run.liftWorldFuses([bearerActor], 6, { burst: run.burstFuse });
+    assert.deepEqual([order, seen.map((r) => [r.kind, r.ok, r.reason])], [[["delete", "fe"]], [["burst", false, "noBearer"]]]);
+    // A linked token on a scene nobody views is the bearer: the burst goes on to its own checks.
+    bearerActor.id = "a1";
+    gameStub.scenes = Object.assign([{ tokens: [{ actorLink: true, actorId: "a1", uuid: "T.far" }] }], { get: () => null });
+    assert.equal((await run.burstFuse({ actor: bearerActor, record })).reason, "noScene");
+  } finally {
+    delete bearerActor.id;
+    bearerActor.getActiveTokens = () => [bearerTok];
     world.restore();
   }
 });
