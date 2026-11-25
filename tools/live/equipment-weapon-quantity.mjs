@@ -649,7 +649,8 @@ try {
   section("fixtures");
   const hero = await gm.fixture(MARKS.hero, "Actor", { name: "Walk: S11 holder", type: "character", ownership: { default: 3 }, system: { scores: { str: { value: 12 } } } });
   actorId = hero.id ?? String(hero.uuid).split(".").pop();
-  const place = await gm.fixture(MARKS.place, "Actor", { name: "Walk: S11 place", type: "acks-extras.location" });
+  // Made a storage provider from its first write: the GM seat's empty-location prune runs a moment after ready and takes an empty place.
+  const place = await gm.fixture(MARKS.place, "Actor", { name: "Walk: S11 place", type: "acks-extras.location", flags: { "acks-extras": { storage: { provider: true } } } });
   placeId = place.id ?? String(place.uuid).split(".").pop();
   const beast = await gm.fixture(MARKS.beast, "Actor", { name: "Walk: S11 monster", type: "monster" });
   beastId = beast.id ?? String(beast.uuid).split(".").pop();
