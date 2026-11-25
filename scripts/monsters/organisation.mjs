@@ -24,7 +24,9 @@ import { ITEM_FLAGS } from "../equipment/constants.mjs";
 import { shotStack } from "../equipment/ammo.mjs";
 import { classifyWeapon } from "../equipment/profiles.mjs";
 import { DEFAULT_IMG } from "../importer/constants.mjs";
-import { gearRunItem } from "./gear-run.mjs";
+import { gearRunItem, refTo } from "./gear-run.mjs";
+import { matchKinds } from "../lib/actor-read.mjs";
+import { MONSTER_TYPES } from "./config.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -418,6 +420,49 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
 }
 
 /**
+ * The always-on engaged reach a trait row's paragraph prints: an effect row, on
+ * the trait's ability, that asks a saving throw of an opposing creature of the
+ * printed kind whenever it begins its initiative engaged by the bearer or
+ * becomes engaged to it during one, and holds the condition it names on a
+ * failure. It names no activation, so the reach is raised while the bearer is a
+ * combatant. The row's figures are live registry references into
+ * `ORGANISATION_TABLES.traitRules` (`save`, `immunity`, `lasts`), read at use
+ * and blank where the import left them blank; the subject kinds are the printed
+ * qualifier folded onto kind keys by lib's `matchKinds`. Null, with each part
+ * that does not resolve reported through `miss(figureKey, word)`, where the
+ * paragraph does not state that the subject is held engaged
+ * (`whileEngaged`), the condition word folds to no catalogue entry, or the
+ * qualifier is unread or names a word that matches no key.
+ */
+function engagedReachRow(row, f, miss) {
+  const base = { doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.traitRules };
+  const printed = text(f.subjectKinds);
+  const found = printed ? matchKinds(printed, Object.keys(MONSTER_TYPES)) : null;
+  const kinds = found && found.kinds.length && !found.unresolved.length ? found.kinds : null;
+  const condition = text(f.condition) ? matchCondition(f.condition) : null;
+  const held = !!text(f.whileEngaged);
+  if (!kinds) miss("subjectKinds", printed);
+  if (!condition) miss("condition", text(f.condition));
+  if (!held) miss("whileEngaged");
+  if (!kinds || !condition || !held) return null;
+  return {
+    key: "engaged",
+    type: "conditionGrant",
+    appliesTo: "opponent",
+    conditions: [condition],
+    reach: {
+      engaged: true,
+      filter: { kinds, exceptKinds: [], side: "opposing", unit: "any" },
+      pulse: "turnStart+enter",
+      showReach: false,
+      save: refTo(base, row.key, "saveKind"),
+      immunity: refTo(base, row.key, "immunityTurns"),
+      lasts: refTo(base, row.key, "durationTurns"),
+    },
+  };
+}
+
+/**
  * The effect specs one troop or trait row's figures give, built from the
  * recipe's VALUE keys only (never a row key), and the figures that could not be
  * written: `{specs, unresolved}`, each unresolved `{kind, key, figure, word}`.
@@ -426,9 +471,14 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
  * not imported) writes no spec and is listed. The gate keys a trait row carries
  * all gate its attack and damage figures together (`allOf` where there are two);
  * `outnumberedMorale` is a clause that prints no ratio and gates only its own
- * morale part.
+ * morale part. A trait whose paragraph calls a save of the creatures engaged by
+ * its bearer (`saveKind`) gives one more spec, the engaged reach
+ * (`engagedReachRow`), for a body of any role: its figures are the table's
+ * own, and a part that does not resolve writes no row and is listed. `fights`
+ * false (a body that takes no troop or trait figure) leaves that the only spec
+ * a trait gives.
  */
-function organisationSpecs(kind, row, figures) {
+function organisationSpecs(kind, row, figures, { fights = true } = {}) {
   const specs = [];
   const unresolved = [];
   const miss = (figureKey, word = null) => unresolved.push({ kind, key: row.key, figure: figureKey, word });
@@ -440,7 +490,7 @@ function organisationSpecs(kind, row, figures) {
   };
   const num = (v) => (typeof v === "number" && Number.isFinite(v) && v !== 0 ? v : null);
   const waived = Object.keys(WAIVED_BY_KEY).filter((k) => text(f[k])).map((k) => WAIVED_BY_KEY[k]);
-  if (waived.length) specs.push({ type: "modifier", target: "acWaiver", conditions: waived });
+  if (waived.length && fights) specs.push({ type: "modifier", target: "acWaiver", conditions: waived });
 
   if (kind === "troop") {
     if (num(f.opponentSurprise) !== null) specs.push({ type: "modifier", target: "surprise", appliesTo: "opponent", value: f.opponentSurprise });
@@ -457,6 +507,12 @@ function organisationSpecs(kind, row, figures) {
     }
     return { specs, unresolved };
   }
+
+  if (text(f.saveKind)) {
+    const engaged = engagedReachRow(row, f, miss);
+    if (engaged) specs.push(engaged);
+  }
+  if (!fights) return { specs, unresolved };
 
   const gates = [];
   let sound = true;
@@ -727,9 +783,9 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
 
   // The gated figures ride on one ability item per row, for a fighting creature only; a row with no spec mints none.
   const unresolved = [];
-  for (const [kind, row] of [["troop", fights ? troop : null], ["trait", fights ? trait : null]]) {
+  for (const [kind, row] of [["troop", fights ? troop : null], ["trait", trait]]) {
     if (!row) continue;
-    const built = organisationSpecs(kind, row, row.figures);
+    const built = organisationSpecs(kind, row, row.figures, { fights });
     unresolved.push(...built.unresolved);
     const item = organisationAbility(kind, row, built.specs);
     if (item) (resolved.items ??= []).push(item);

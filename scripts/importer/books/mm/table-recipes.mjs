@@ -188,6 +188,9 @@ const BEASTMAN_TRAIT_RULES = {
     { key: "condition", findRe: "becomes ([a-z]+) for", group: 1, take: "text" },
     { key: "durationTurns", findRe: "becomes [a-z]+ for (\\w+) turn", group: 1, take: "wordInt" },
     { key: "durationMinutes", findRe: "\\((\\d+) minutes\\)", group: 1, take: "int" },
+    // Who a reach of engagement names (the words before the clause that sets the moment), read as printed and folded onto kind keys at generation (`monsters/organisation.mjs`); and whether the paragraph holds its subject to being engaged, the word as printed, present or absent.
+    { key: "subjectKinds", findRe: "\\ban? ([a-z- ]+?) that begins its initiative engaged", group: 1, take: "text" },
+    { key: "whileEngaged", findRe: "initiative (engaged) (?:by|to)\\b", group: 1, take: "text" },
   ],
 };
 

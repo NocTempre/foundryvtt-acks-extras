@@ -38,6 +38,9 @@ import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
 import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, assembleBash, assembleDoors, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import * as RT from "../../scripts/magic/research-tables.mjs";
 import { resolveSaveWhen } from "../../scripts/monsters/gear-run.mjs";
+import { matchCondition as condition } from "../../scripts/monsters/organisation.mjs";
+import { matchKinds } from "../../scripts/lib/actor-read.mjs";
+import { MONSTER_TYPES } from "../../scripts/monsters/config.mjs";
 import { circumstanceOf } from "../../scripts/lib/conditions.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -771,6 +774,7 @@ const FIGURE_KINDS = {
   avoidSurprise: isSigned, overrunPenaltyCut: Number.isInteger, opponentSave: isSigned, proficiency: isPlainText,
   morale: isSigned, strategy: isSigned, proficiencyRanks: Number.isInteger, treasurePct: isPct, beastDice: isDiceText,
   saveQualifier: isPlainText, saveCircumstance: isPlainText,
+  subjectKinds: isPlainText, whileEngaged: isPlainText,
   saveKind: isPlainText, immunityTurns: Number.isInteger, condition: isPlainText, durationTurns: Number.isInteger,
   durationMinutes: Number.isInteger, round: Number.isInteger, riderDice: isDiceText, wearerLevel: Number.isInteger,
   throw: Number.isInteger, fuseDice: isDiceText, fumble: Number.isInteger, saveFraction: (v) => v > 0 && v < 1,
@@ -812,7 +816,21 @@ const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
   });
 };
 VERIFY["monsters.beastmanTroopRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [5, 5, 2, 4, 4, 3, 2], keysFrom: "monsters.beastmanSpecialTroops" });
-VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [1, 5, 2, 2, 4, 2, 2, 1, 1, 5], keysFrom: "monsters.beastmanTraits" });
+VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => {
+  paragraphRows(out, recipe, fail, { counts: [1, 5, 2, 2, 4, 2, 2, 1, 1, 7], keysFrom: "monsters.beastmanTraits" });
+  // The one paragraph that calls a save of those it engages names who (read as the page's words, every word of which folds onto a kind key) and that the subject is held engaged; no other paragraph holds either key.
+  const rows = Object.values(out ?? {});
+  const engaging = rows.filter((r) => r.saveKind !== undefined);
+  if (engaging.length !== 1) fail("exactly one trait paragraph should call a save");
+  else {
+    const [row] = engaging;
+    const { kinds, unresolved } = matchKinds(row.subjectKinds ?? "", Object.keys(MONSTER_TYPES));
+    if (!kinds.length || unresolved.length) fail("the engaged paragraph's subjects do not all fold onto kind keys");
+    if (!isPlainText(row.whileEngaged)) fail("the engaged paragraph's hold on its subject was not read");
+    if (!condition(row.condition)) fail("the engaged paragraph's condition does not fold onto the conditions catalogue");
+  }
+  if (rows.filter((r) => r.subjectKinds !== undefined || r.whileEngaged !== undefined).length !== engaging.length) fail("a paragraph with no save holds a subject or an engagement key");
+};
 VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
   paragraphRows(out, recipe, fail, { counts: [5, 9, 5, 7, 7, 4, 3, 6, 7] });
   const rows = Object.values(out ?? {});

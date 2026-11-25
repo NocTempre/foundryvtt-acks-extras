@@ -363,6 +363,82 @@ check("two bumps from two rows sum, each row listed", (() => {
   check("the existing rows of the axes suite carry neither discriminator", ["ea", "eb"].every((k) => !("healDice" in (org.equipment.rows.find((r) => r.key === k)?.figures ?? {})) && !("delayTurns" in (org.equipment.rows.find((r) => r.key === k)?.figures ?? {}))));
 }
 
+/* --- a trait that calls a save of the creatures it engages: the always-on engaged reach ---- */
+{
+  const cid = CONDITION_IDS[0];
+  const base = { saveKind: "sk", immunityTurns: 1, condition: cid, durationTurns: 1, subjectKinds: "humans or demi-humans", whileEngaged: "engaged" };
+  const engOrg = (figures, extra = []) => ({ ...org, traitRules: { cite: "XX p. 3", rows: [{ key: "tx", label: "Trait X", figures }, ...extra] } });
+  const run = (figures, role = "standard", opts = {}, extra = []) => {
+    const warned = [];
+    const r = { system: { ac: { value: 5 }, details: { biography: "" } }, flags: { [MID]: { extras: { description: {}, ...(opts.noncombatant ? { noncombatant: true } : {}) } } }, items: [] };
+    applyGeneratedOrganisation(r, { choices: { trait: opts.trait ?? "tx", role }, org: engOrg(figures, extra), warn: (m) => warned.push(m), noteLine: ({ kind, label, cite }) => `<p>${kind}|${label}|${cite}</p>` });
+    return { r, warned, ex: r.flags[MID].extras, un: r.flags[MID].extras.organisation.unresolved, item: r.items.find((i) => i.name === "Trait X") };
+  };
+  const ref = (figure) => ({ doc: "monsters", table: "beastmanTraitRules", row: "tx", figure });
+  const wanted = {
+    key: "engaged",
+    type: "conditionGrant",
+    appliesTo: "opponent",
+    conditions: [cid],
+    reach: {
+      engaged: true,
+      filter: { kinds: ["human", "demi-human"], exceptKinds: [], side: "opposing", unit: "any" },
+      pulse: "turnStart+enter",
+      showReach: false,
+      save: ref("saveKind"),
+      immunity: ref("immunityTurns"),
+      lasts: ref("durationTurns"),
+    },
+  };
+
+  let e = run(base);
+  check("the body carries an ability named by the row, its page on the cookbook id", e.item?.type === "ability" && e.item.flags[MID].cookbook.id === "organisation.trait.tx" && e.item.flags[MID].cookbook.cite === "XX p. 3");
+  eq("its one row is the engaged reach: opposing side, the printed kinds as keys, the turn-start-or-enter pulse, every figure a live reference", e.item.flags[MID].extras.effects, [wanted]);
+  check("it names no activation, so the reach is always on", e.item.flags[MID].itemRun === undefined);
+  check("the trait stays recorded with its figures and its note line stays", e.ex.organisation.trait.key === "tx" && e.ex.organisation.trait.figures.subjectKinds === base.subjectKinds && e.r.system.details.biography.includes("trait|Trait X|XX p. 3") && e.un === undefined && e.warned.length === 0);
+  for (const role of ["standard", "champion", "chieftain", "shaman", "drudge"]) {
+    check(`a ${role} carries the reach`, run(base, role).item?.flags[MID].extras.effects.length === 1);
+  }
+  check("a noncombatant carries it too", run(base, "standard", { noncombatant: true }).item?.flags[MID].extras.effects.length === 1);
+
+  // A body that takes no trait figure takes this one only; one that fights takes the gated figures beside it.
+  const gatedToo = { ...base, outnumber: [2, 1], attack: 1, round: 1, waivesRun: "running" };
+  e = run(gatedToo, "drudge");
+  eq("a dependant's ability holds the engaged row alone, no gated figure or waiver", e.item.flags[MID].extras.effects.map((x) => x.key ?? x.target), ["engaged"]);
+  e = run(gatedToo, "champion");
+  eq("a fighter's holds the waiver, the gated figure and the engaged row", e.item.flags[MID].extras.effects.map((x) => x.key ?? x.target).sort(), ["acWaiver", "attackThrow", "engaged"]);
+  {
+    const x = run({ attack: 1, outnumber: [2, 1] });
+    check("a trait row that prints no save carries no engaged row and lists nothing", x.item.flags[MID].extras.effects.every((y) => y.key !== "engaged") && x.un === undefined);
+  }
+
+  // A part that does not resolve writes no row, and is listed with its word.
+  const miss = (figures, role = "standard") => {
+    const x = run(figures, role);
+    return { item: x.item, un: x.un, warned: x.warned };
+  };
+  let m = miss({ ...base, subjectKinds: undefined });
+  check("no qualifier read writes no item and lists the figure", m.item === undefined && m.un.length === 1 && m.un[0].kind === "trait" && m.un[0].key === "tx" && m.un[0].figure === "subjectKinds" && m.un[0].word === null && m.warned.length === 1);
+  m = miss({ ...base, subjectKinds: "humans or zzzfolk" });
+  check("a qualifier with a word that matches no key writes no item, the word listed", m.item === undefined && m.un.length === 1 && m.un[0].figure === "subjectKinds" && m.un[0].word === "humans or zzzfolk");
+  m = miss({ ...base, condition: "zzzunfolded" });
+  check("a condition word that folds to none writes no item", m.item === undefined && m.un.length === 1 && m.un[0].figure === "condition" && m.un[0].word === "zzzunfolded");
+  m = miss({ ...base, whileEngaged: undefined });
+  check("a paragraph that does not hold its subject engaged writes no item", m.item === undefined && m.un.length === 1 && m.un[0].figure === "whileEngaged");
+  m = miss({ ...base, subjectKinds: undefined, condition: undefined, whileEngaged: undefined });
+  eq("every part that fails is listed, none twice", m.un.map((u) => u.figure), ["subjectKinds", "condition", "whileEngaged"]);
+  m = miss({ ...base, subjectKinds: undefined }, "drudge");
+  check("the listing holds for any role", m.item === undefined && m.un.length === 1);
+
+  // A troop row's save is no engaged reach.
+  const troopRun = (() => {
+    const r = { system: { ac: { value: 5 }, details: { biography: "" } }, flags: { [MID]: { extras: { description: {} } } }, items: [] };
+    applyGeneratedOrganisation(r, { choices: { troop: "ra", role: "standard" }, org: { ...org, troopRules: { cite: "XX p. 2", rows: [{ key: "ra", label: "Row A", figures: base }] } } });
+    return r;
+  })();
+  check("a troop row with the same figures writes no engaged row and lists nothing", troopRun.items.every((i) => !(i.flags?.[MID]?.extras?.effects ?? []).some((x) => x.key === "engaged")) && troopRun.flags[MID].extras.organisation.unresolved === undefined);
+}
+
 /* --- natural attacks ------------------------------------------------------------------ */
 eq("one weapon per listed die, a bare number a flat die, a text without a die none", naturalAttackItems(["1d2-1", "x", "3", "1d3 - 1"], (n) => `a${n}`).map((i) => [i.name, i.system.damage.base.formula]), [["a1", "1d2-1"], ["a2", "3"], ["a3", "1d3-1"]]);
 const marked = (variant) => ({ system: { ac: { value: 5 }, details: {} }, flags: { [MID]: { extras: { organisation: { naturalAttacks: { variant, trait: "ta" } } } } }, items: [] });

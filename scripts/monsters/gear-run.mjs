@@ -45,8 +45,8 @@ export const STANDING_ROLLS = Object.freeze(["ac", "attack", "morale"]);
 const whole = (v) => typeof v === "number" && Number.isFinite(v);
 const word = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-/** The reference to one figure of an equipment row. */
-const refTo = (base, rowKey, figure) => ({ doc: base.doc, table: base.table, row: rowKey, figure });
+/** The reference to one figure of an imported rules row, `base` naming its registry `{doc, table}`. */
+export const refTo =(base, rowKey, figure) => ({ doc: base.doc, table: base.table, row: rowKey, figure });
 
 /** The item document a shape is minted as: named by the row, its page on the cookbook id and the carrier's flag holding the activation and the one row. */
 function itemData(row, kind, rowData) {
