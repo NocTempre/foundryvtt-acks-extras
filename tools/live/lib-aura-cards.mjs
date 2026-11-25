@@ -14,11 +14,12 @@
  * since a press resolves its figures on the seat that presses and a card on the
  * seat that renders it, and prints which figures it read.
  *
- * Ownership-gated presses (W3, W7, W8, the strip's Save, Count in and Undo) are
- * made from the Player seat by clicking the card's own button in that seat's
- * page. Where no button exists (a refused second press, a forged Undo) the seat
- * calls the lib API in its own page and the check says so. Dice are rigged in
- * the presser's page to decide a save and restored after each press.
+ * The Player seat presses by clicking the card's own button in its page: Save on the raised
+ * card and on the whisper (W3), Undo (W7), the strip's Save (W9b, W9c) and Count in (W9f, once
+ * the bearer is handed to it). The Judge seat presses W8's early Save and the rest of the
+ * Judge's controls; the Player's early press, a forged Undo and a second press are the lib's
+ * calls made in the Player's page, since the card draws no button for them, and each check says
+ * so. Dice are rigged in the presser's page to decide a save and restored after each press.
  *
  * Fixtures, kept and found by marker (`api.fixture`):
  *   scenes `lib/aura-cards-scene` (square, 5 ft cells), `lib/aura-cards-scene-hex`
@@ -676,7 +677,7 @@ const P = {
     return { name: hidden ? null : t.name };
   },
 
-  /** A page-side plain effect on an actor for a removal to leave, made by the GM's client. */
+/** The tooltip of a card button, by action and subject, or null where it is not drawn. */
   tipOf: ({ id, action, subject }) => {
     const b = globalThis.__lac.msgEls(id).flatMap((e) => [...e.querySelectorAll(`button[data-action="${action}"]`)]).find((x) => x.dataset.subject === subject);
     return b?.dataset.tooltipText ?? null;
@@ -685,7 +686,6 @@ const P = {
   /** The popout log at the plate's width, scrolled to a card; returns the selector to clip to. */
   popout: async ({ id, width }) => {
     const H = globalThis.__lac;
-    for (const app of foundry.applications.instances.values()) { try { await app.close({ animate: false }); } catch { /* closed */ } }
     await ui.hotbar.render(true);
     const pop = await ui.chat.renderPopout();
     await H.sleep(1500);
@@ -786,7 +786,7 @@ const carrier = async (key) => (await gmRun(P.effects, { uuid: A[key].uuid })).f
 const nextRound = () => ++S.round;
 const turn = (role, ms) => gmRun(P.turnTo, { combatId: S.combat.id, round: nextRound(), tokenId: T[role].id, ms });
 
-/* The reach of the run: all steps. */
+/* A wall clock past which the seats are closed and the run ends, since a stuck press would otherwise wait on the world. */
 const WALL_MS = Number(process.env.WALK_WALL_MS ?? 1_500_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
@@ -943,13 +943,17 @@ try {
     check("W8 a warning line is whispered to the Judges alone", !!warn && same(to, await gmRun(P.judges)), { to, judges: await gmRun(P.judges) });
     const pcard = await waitCard(plRun, r.messageId, (c) => rowNamed(c, NAME.M));
     const pm = rowNamed(pcard, NAME.M);
-    check("W8 a Player owner reads the row, answered, with no press left on it", !!pm && !hasBtn(pm, "itemRun.roll") && !hasBtn(pm, "itemRun.undo") || !!pm && outcomeOf(pm) === W.failed, { outcome: outcomeOf(pm), buttons: pm?.buttons });
+    check("W8 a Player owner reads the row answered as failed, with no Save left on it", !!pm && !hasBtn(pm, "itemRun.roll") && outcomeOf(pm) === W.failed, { outcome: outcomeOf(pm), buttons: pm?.buttons });
     // A second waiting body, answered by nobody: the Player owner sees it waiting with no press.
     await reset({ place: { B: RING.B, M: RING.M, O: RING.O } });
     const r2 = await raise("S");
     const pc2 = await waitCard(plRun, r2.messageId, (c) => rowNamed(c, NAME.M));
     const pm2 = rowNamed(pc2, NAME.M);
     check("W8 a Player owner sees its row waiting with no press", !!pm2 && outcomeOf(pm2) === W.waiting && (pm2.buttons ?? []).length === 0, { outcome: outcomeOf(pm2), buttons: pm2?.buttons });
+    const early = await plRun(P.api, { call: "pressRoll", args: { itemUuid: I.S.uuid, rowKey: "reach", activationId: r2.activationId, subject: T.M.uuid, messageId: r2.messageId, entryKey: "" } });
+    check("W8 a Player's early press on a waiting row is refused (the lib's press, called from the Player seat: the card draws no button for it)", early.ok === false, early);
+    const stillWaiting = entryOf(await gmRun(P.card, { id: r2.messageId }), T.M.uuid, (e) => e.state === "applied");
+    check("W8 the refused early press wrote nothing", !stillWaiting && (await carrier("M")).length === 0, { applied: !!stillWaiting });
   });
 
   /* ---------------------------------------------------------------- */
@@ -1072,11 +1076,11 @@ try {
       await p.restore();
       let cond = (await carrier("M")).filter((e) => e.statuses.includes(COND));
       check("W4 the failed save wrote one condition under the asking bearer's activation", cond.length === 1 && cond[0].run.activationId === owner.activationId && p.found, { count: cond.length });
-      await gmRun((a) => acksExtras.lib.auraReach.lower(a), { tokenUuid: T[ownerBearer].uuid, activationId: owner.activationId });
+      await gmRun(P.click, { id: owner.messageId, action: "itemRun.lower" });
       await sleep(2500);
       cond = (await carrier("M")).filter((e) => e.statuses.includes(COND));
       check("W4 lowering the first hands the condition to the second", cond.length === 1 && cond[0].run.activationId === other.activationId, { count: cond.length, handed: cond[0]?.run?.activationId === other.activationId });
-      await gmRun((a) => acksExtras.lib.auraReach.lower(a), { tokenUuid: T[otherBearer].uuid, activationId: other.activationId });
+      await gmRun(P.click, { id: other.messageId, action: "itemRun.lower" });
       await sleep(2500);
       cond = (await carrier("M")).filter((e) => e.statuses.includes(COND));
       check("W4 lowering both deletes it", cond.length === 0, { count: cond.length });
@@ -1261,7 +1265,12 @@ try {
       let card = await waitCard(gmRun, r.messageId, (c) => rowsOf(c).some((x) => x.name === NAME.B));
       const pc = await waitCard(plRun, r.messageId, (c) => !!c);
       check("W9f a seat that does not own the item sees neither control", !anyBtn(pc, "itemRun.tick") && !anyBtn(pc, "itemRun.untick"));
-      const clickedIn = await gmRun(P.click, { id: r.messageId, action: "itemRun.tick" });
+      await gmRun((a) => fromUuidSync(a.uuid).update({ ownership: { default: 0, [a.player]: 3 } }), { uuid: A.B.uuid, player: S.playerId });
+      await plRun(() => ui.chat.render({ force: true }));
+      await sleep(1500);
+      const owning = await waitCard(plRun, r.messageId, (c) => anyBtn(c, "itemRun.tick"));
+      check("W9f a seat that owns the bearer is offered Count in", anyBtn(owning, "itemRun.tick"));
+      const clickedIn = await plRun(P.click, { id: r.messageId, action: "itemRun.tick" });
       await until(async () => (await flagOf()) === "count", 8000);
       check("W9f Count in: the item's filter reads count", clickedIn === true && (await flagOf()) === "count", { self: await flagOf() });
       card = await waitCard(gmRun, r.messageId, (c) => anyBtn(c, "itemRun.untick"));
@@ -1484,7 +1493,7 @@ try {
     }
     if (out.uuid) disposables.push(gm.track(out.uuid, "ChatMessage"));
     const label = `${W.inReachOf} ${ITEMS.T.name}`;
-    check("W9d the card's working lists In reach of the item with the figure", out.content.includes(label) && out.content.includes(`+${FIGURES.standing.bonus}`) || out.content.includes(label), { has: out.content.includes(label) });
+    check("W9d the card's working lists In reach of the item with the figure", out.content.includes(label) && out.content.includes(`+${FIGURES.standing.bonus}`), { has: out.content.includes(label) });
     check("W9d the record's page is on the line", out.content.includes("Aura Cards ref T"), { cite: out.content.includes("Aura Cards ref T") });
     check("W9d the row's tooltip names where the figure came from", out.tips.some((t) => t.includes("Aura Cards ref T")), { tips: out.tips.length });
     skip("W9d (a spell's record on the same page keeps its own label)", "this walk writes no spell record on the body; the label rule for a spell is the unit suite's (`test-influence-records.mjs`)");
@@ -1527,6 +1536,7 @@ try {
     await reset({ place: { ...RING } });
     const made = await gmRun(P.coreSave, { actorUuid: A.M.uuid });
     check("W11 a core save card posted", !!made.id);
+    if (made.id) disposables.push(gm.track(made.id, "ChatMessage"));
     const hashes = async (run) => { const c = await until(async () => run(P_read_html, { id: made.id }), 8000, 500); return c; };
     const gBefore = await hashes(gmRun);
     const pBefore = await hashes(plRun);
@@ -1539,8 +1549,8 @@ try {
     const gAfter = await hashes(gmRun);
     const pAfter = await hashes(plRun);
     check("W11 the card's content is identical on the GM seat after the carrier ran", !!gBefore && gBefore.hash === gAfter?.hash && gBefore.length === gAfter?.length, { before: gBefore, after: gAfter });
-    check("W11 and on the Player seat", !pBefore || (pBefore.hash === pAfter?.hash && pBefore.length === pAfter?.length), { before: pBefore, after: pAfter });
-    if (!pBefore) skip("W11 (Player seat)", "the Player seat holds no rendered copy of the card, a card of a body it does not own");
+    if (pBefore) check("W11 and on the Player seat", pBefore.hash === pAfter?.hash && pBefore.length === pAfter?.length, { before: pBefore, after: pAfter });
+    if (!pBefore) skip("W11 (Player seat)", "the Player seat holds no rendered copy of the card, so only the GM seat's copy is compared");
   });
 
   /* ---------------------------------------------------------------- */
@@ -1567,7 +1577,7 @@ try {
   walkDone();
 } catch (err) {
   if (err?.name !== "WalkBlocked") console.error("WALK ERROR:", err?.stack ?? err);
-  if (err?.name !== "WalkBlocked") checks.push(["walk ran to the end", false]);
+  checks.push(["walk ran to the end", false]);
 } finally {
   section("teardown");
   try {
@@ -1599,8 +1609,12 @@ try {
 
 /** The read function for a card's rendered content, as a page function. */
 function P_read_html(a) {
-  const c = globalThis.__lac.read(a.id);
-  return c ? { hash: c.hash, length: c.length } : null;
+  const el = globalThis.__lac.msgEls(a.id)[0];
+  const content = el?.querySelector(".message-content")?.innerHTML ?? null;
+  if (content === null) return null;
+  let hash = 2166136261;
+  for (let i = 0; i < content.length; i++) hash = Math.imul(hash ^ content.charCodeAt(i), 16777619) >>> 0;
+  return { hash, length: content.length };
 }
 
 /** Two plates of the raised card at a 320 px chat width, taken only under SHOTS=1: the popout log, clipped to the card's own content. */
