@@ -1645,6 +1645,16 @@ export const REACH_UNITS = Object.freeze({
 });
 
 /**
+ * Whether a reach's bearer is one of its own subjects (`reach.filter.self`): `no`
+ * is the default and what every import writes; `count` makes the bearer a
+ * subject, read at its own turn start (a Judge's tick, or its owner's).
+ */
+export const REACH_SELF = Object.freeze({
+  no: { label: "The bearer is not a subject" },
+  count: { label: "The bearer is a subject" },
+});
+
+/**
  * How an item the carrier runs is activated (`itemRun.activation.kind`): `once`
  * on a press, `toggle` raised and lowered, `fuse` lit and set to burst, and
  * `consume` spent as it is used.

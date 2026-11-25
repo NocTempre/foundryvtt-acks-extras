@@ -270,6 +270,9 @@ export function standingPartDiffers(existing, wanted) {
   return !same(flag[FLAG_ROLL_MODS]?.parts, want[FLAG_ROLL_MODS].parts) || !same(flag[FLAG_ITEM_RUN], want[FLAG_ITEM_RUN]) || existing.name !== wanted.name;
 }
 
+/** The one key an item kind is recorded under: the importer's entry id, else the row's key. Two items of one kind share it, whoever bears them. */
+export const kindKeyOf = (item, row) => String(flagsOf(item, "cookbook")?.id ?? row?.key ?? "");
+
 /** The state a prompt card holds for one subject, `open` where it holds none. */
 export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?? "open";
 

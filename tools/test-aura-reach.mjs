@@ -120,7 +120,15 @@ await t("a pulse takes its own moments: enter alone does not prompt a turn-start
   assert.equal(act("action", "moveIn"), "none");
   assert.equal(act("turnStart+moveIn", "moveIn"), "prompt");
   assert.equal(act("turnStart+moveIn", "turnStart"), "prompt");
-  assert.equal(act("turnStart+moveIn", "enter"), "none", "a walk-in fires both events and only one prompts");
+  assert.equal(act("turnStart+moveIn", "enter"), "list", "a walk-in fires both events and only moveIn prompts: enter lists");
+  assert.equal(act("turnStart+moveIn", "enter", false), "refuse", "a body the filter refuses is listed as no target");
+  assert.equal(act("turnStart+moveIn", "enter", null), "undetermined");
+  assert.equal(act("turnStart+moveIn", "enter", true, true), "list", "an immune body is listed too; the prompt skips it");
+  assert.equal(act("turnStart+moveIn", "exit"), "out");
+  assert.equal(act("turnStart+moveIn", "exit", false), "out", "out for whoever the filter says");
+  assert.equal(act("turnStart+moveIn", "turnStart", false), "none", "no prompt for a body the filter refuses");
+  assert.equal(act("action", "enter"), "none");
+  assert.equal(act("action", "exit"), "none");
   assert.equal(act("turnStart+moveIn", "turnStart", true, true), "skip", "an immune subject is skipped");
   assert.equal(act("standing", "enter"), "on");
   assert.equal(act("standing", "exit", false), "off");
@@ -129,6 +137,45 @@ await t("a pulse takes its own moments: enter alone does not prompt a turn-start
   assert.equal(act("burst", "burst", null), "undetermined");
   assert.equal(act("burst", "burst", false), "none");
   assert.equal(act("nonsense", "burst"), "none");
+});
+
+await t("the bearer is a subject only where the filter's self is count, and its other clauses still decide", () => {
+  assert.equal(logic.readFilter({}).self, "no");
+  assert.equal(logic.readFilter({ self: "count" }).self, "count");
+  assert.equal(logic.readFilter({ self: "ask" }).self, "no", "a word outside the vocabulary is no");
+  assert.equal(logic.reachAdmits(bearer, bearer, { self: "no" }, deps), false);
+  assert.equal(logic.reachAdmits(bearer, bearer, { self: "count" }, deps), true);
+  const mine = body({ id: "b", kinds: ["alpha"] });
+  assert.equal(logic.reachAdmits(mine, mine, { self: "count", kinds: ["beta"] }, deps), false, "a kinds clause the bearer misses still refuses it");
+  assert.equal(logic.reachAdmits(mine, mine, { self: "count", kinds: ["alpha"] }, deps), true);
+  assert.equal(logic.reachAdmits(bearer, bearer, { self: "count" }, { ...deps, isMarker: () => true }), false, "a marker is never a subject");
+  assert.equal(logic.readReach({ pulse: "standing", filter: { self: "count" } }).filter.self, "count");
+});
+
+await t("a held prompt key is held once, released on an answer, and pruned at a turn start for another initiative only", () => {
+  const held = new Map();
+  const stamp = logic.turnStamp({ combatId: "c1", round: 2, turn: 3 });
+  assert.equal(stamp, "c1:2:3");
+  assert.equal(logic.turnStamp({}), null);
+  assert.equal(logic.turnStamp({ combatId: "" }), null);
+  assert.equal(logic.holdMoment(held, "k1", stamp), true);
+  assert.equal(logic.holdMoment(held, "k1", stamp), false, "asked once for the kind and the initiative");
+  assert.equal(logic.holdMoment(held, "k2", "c1:2:2"), true);
+  assert.equal(logic.holdMoment(held, "loose:k", null), true);
+  assert.equal(logic.holdMoment(held, null), true, "a blank key cannot be told apart and always asks");
+  assert.equal(logic.holdMoment(held, null), true);
+  assert.deepEqual(logic.pruneMoments(held, stamp), ["k2"], "a key of another initiative goes");
+  assert.deepEqual([...held.keys()], ["k1", "loose:k"], "this initiative's and a key held outside a fight stay");
+  assert.equal(logic.releaseMoment(held, "k1"), true);
+  assert.equal(logic.releaseMoment(held, "k1"), false);
+  assert.equal(logic.releaseMoment(held, null), false);
+  assert.equal(logic.holdMoment(held, "k1", stamp), true, "answered, it can be asked again");
+});
+
+await t("reaches group by item kind in the order met, and a reach with no kind is a group of its own", () => {
+  const list = [{ n: 1, k: "a" }, { n: 2, k: "b" }, { n: 3, k: "a" }, { n: 4, k: "" }, { n: 5, k: "" }];
+  assert.deepEqual(logic.groupByKind(list, (e) => e.k).map((g) => g.map((e) => e.n)), [[1, 3], [2], [4], [5]]);
+  assert.deepEqual(logic.groupByKind(null, () => "x"), []);
 });
 
 await t("a moment's key is combat, round, turn, subject and kind inside a fight, and subject and kind outside one", () => {
@@ -206,7 +253,7 @@ await t("a reach reads only with a known pulse; a filter reads its words lowerca
   assert.equal(logic.readReach({ pulse: "nope", filter: {} }), null);
   assert.equal(logic.readReach(null), null);
   const r = logic.readReach({ pulse: "standing", radius: { value: "5" }, filter: { kinds: [" Alpha "], side: "weird", unit: "own" } });
-  assert.deepEqual(r.filter, { kinds: ["alpha"], exceptKinds: [], side: "any", unit: "own" });
+  assert.deepEqual(r.filter, { kinds: ["alpha"], exceptKinds: [], side: "any", unit: "own", self: "no" });
 });
 
 await t("the snapshot's radius is in pixels: range times the scene's pixels per unit, never the range", () => {
@@ -396,7 +443,7 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.deepEqual(Object.keys(field.fields.saveWhen.fields).sort(), ["magical", "when"]);
   for (const key of ["save", "immunity", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
-  assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "side", "unit"]);
+  assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "self", "side", "unit"]);
   assert.equal(field.fields.filter.fields.side.options.initial, "any");
 });
 
@@ -442,8 +489,8 @@ await t("a figure's own value is trimmed, a missing part of its reference names 
 });
 
 await t("a stored filter and config read as written: sets and blanks, a stranger unit, a radius kept, a config trimmed", () => {
-  assert.deepEqual(logic.readFilter({ kinds: new Set(["A", " "]), exceptKinds: ["", "B "], unit: "stranger", side: "opposing" }), { kinds: ["a"], exceptKinds: ["b"], side: "opposing", unit: "any" });
-  assert.deepEqual(logic.readFilter(null), { kinds: [], exceptKinds: [], side: "any", unit: "any" });
+  assert.deepEqual(logic.readFilter({ kinds: new Set(["A", " "]), exceptKinds: ["", "B "], unit: "stranger", side: "opposing" }), { kinds: ["a"], exceptKinds: ["b"], side: "opposing", unit: "any", self: "no" });
+  assert.deepEqual(logic.readFilter(null), { kinds: [], exceptKinds: [], side: "any", unit: "any", self: "no" });
   assert.deepEqual(logic.readReach({ pulse: "burst", radius: { value: "5" } }).radius, { value: "5" });
   assert.equal(logic.readReach({ pulse: "burst" }).radius, null);
   assert.equal(logic.readAuraConfig({ sourceUuid: "a", bearerUuid: "b", activationId: "c", rowKey: "   " }), null, "spaces are no row key");
@@ -1020,8 +1067,74 @@ await t("a reach's pulse, side and unit are choices of their own vocabularies, a
   assert.equal(field.fields.pulse.options.initial, "", "a pulse nobody chose acts on nothing");
   assert.equal(field.fields.filter.fields.unit.options.initial, "any");
   assert.equal(field.fields.filter.fields.side.options.initial, "any");
+  assert.deepEqual(keysOf(field.fields.filter.fields.self), Object.keys(vocab.REACH_SELF));
+  assert.equal(field.fields.filter.fields.self.options.initial, "no", "the bearer is not a subject unless counted in");
   assert.ok(field.fields.filter.fields.kinds instanceof List && field.fields.filter.fields.exceptKinds instanceof List);
   assert.ok(field.fields.radius instanceof Schema, "the radius is a figure reference");
+});
+
+await t("a turn start asks a subject once per item kind, prunes the keys of an earlier initiative, and reads the bearer's own attached reach only where its filter counts it", async () => {
+  const turnBegan = hooksSeen[constants.TURN_BEGAN_HOOK][0];
+  const aura = (activationId, rowKey) => ({ type: AURA, system: sys({ activationId, rowKey }) });
+  const row = (key, over = {}) => ({ key, reach: { pulse: "turnStart+moveIn", radius: { value: "20" }, filter: {}, ...over } });
+  const itemOf = (uuid, rows, cookbookId) => ({ uuid, name: "Charm", type: "item", flags: { "acks-extras": { itemRun: { rows }, ...(cookbookId ? { cookbook: { id: cookbookId } } : {}) } } });
+  const items = { "I.a": itemOf("I.a", [row("k")], "kind-1"), "I.b": itemOf("I.b", [row("k")], "kind-1"), "I.c": itemOf("I.c", [row("k")], "kind-2"), "I.s": itemOf("I.s", [row("k", { filter: { self: "count" } })], "kind-3") };
+  const priorFrom = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => items[uuid] ?? priorFrom(uuid);
+  const walker = tokenOf("w", ["alpha"], { regions: new Set([holder]), parent: { regions: [holder], tokens: scene.tokens } });
+  const combat = { id: "c1", round: 2, turn: 1, combatants: { get: (id) => (id === "cm1" ? { token: walker } : id === "cmb" ? { token: bearerTok } : undefined) } };
+  const heard = [];
+  const answers = [];
+  reach.setReachHandler((ctx) => { heard.push([ctx.moment, ctx.subject.token.id, ctx.item.uuid]); return answers.shift() ?? null; });
+  const behaviorOf = (uuid, activationId) => ({ type: AURA, system: sys({ sourceUuid: uuid, activationId, rowKey: "k" }) });
+  try {
+    seat(true);
+    holder.behaviors = [behaviorOf("I.a", "a1"), behaviorOf("I.b", "a2"), behaviorOf("I.c", "a3")];
+    answers.push("prompt");
+    await turnBegan(combat, "cm1");
+    assert.deepEqual(heard, [["turnStart", "w", "I.a"], ["turnStart", "w", "I.c"]], "the second reach of kind-1 is not asked once the first settled it; kind-2 is its own kind");
+    heard.length = 0;
+    answers.push(null, "skip");
+    await turnBegan(combat, "cm1");
+    assert.deepEqual(heard.map((h) => h[2]), ["I.a", "I.b", "I.c"], "a reach that settles nothing leaves the kind to the next");
+    heard.length = 0;
+    answers.push("held");
+    await turnBegan(combat, "cm1");
+    assert.deepEqual(heard.map((h) => h[2]), ["I.a", "I.c"], "a prompt already held settles the kind too");
+
+    // The held keys of another initiative go at a turn start; one held outside a fight stays.
+    assert.equal(reach.holdReachMoment("c1:1:0:T.w:kind-1", "c1:1:0"), true);
+    assert.equal(reach.holdReachMoment("T.w:kind-9", null), true);
+    assert.equal(reach.holdReachMoment("c1:2:1:T.w:kind-1", "c1:2:1"), true);
+    await turnBegan(combat, "cm1");
+    assert.equal(reach.holdReachMoment("c1:1:0:T.w:kind-1", "c1:1:0"), true, "pruned, so free to hold again");
+    assert.equal(reach.holdReachMoment("T.w:kind-9", null), false, "outside a fight it stays until answered");
+    assert.equal(reach.holdReachMoment("c1:2:1:T.w:kind-1", "c1:2:1"), false, "this initiative's stays");
+    assert.equal(reach.releaseReachMoment("T.w:kind-9"), true);
+    assert.equal(reach.holdReachMoment("T.w:kind-9", null), true, "answered, it can be held again");
+    reach.releaseReachMoment("T.w:kind-9");
+
+    // The bearer: its attached reach is read at its own turn start only where the filter counts it in.
+    holder.behaviors = [];
+    const attach = (uuid) => {
+      const region = { id: "RA", hidden: false, parent: scene, attachment: { token: "bt" } };
+      region.behaviors = [{ type: AURA, system: { ...cfg, sourceUuid: uuid, rowKey: "k", region } }];
+      return region;
+    };
+    bearerTok.attachments = { regions: new Set([attach("I.a")]) };
+    heard.length = 0;
+    await turnBegan(combat, "cmb");
+    assert.deepEqual(heard, [], "a reach that does not count the bearer in is not read at its turn start");
+    bearerTok.attachments = { regions: new Set([attach("I.s")]) };
+    await turnBegan(combat, "cmb");
+    assert.deepEqual(heard, [["turnStart", "bt", "I.s"]], "counted in: the bearer's own turn start reads its attached reach");
+  } finally {
+    holder.behaviors = [];
+    delete bearerTok.attachments;
+    globalThis.fromUuidSync = priorFrom;
+    reach.setReachHandler(null);
+    seat(false);
+  }
 });
 
 console.log(`\ntest-aura-reach: ${passed} checks passed.`);

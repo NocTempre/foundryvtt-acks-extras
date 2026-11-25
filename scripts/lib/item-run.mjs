@@ -28,7 +28,7 @@ import { dispatchReachMoment, lowerReach, raiseReach, reachSnapshot, setReachHan
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
-  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
+  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
@@ -107,8 +107,7 @@ export function tokensOfActor(actor) {
   return [...found.values()];
 }
 
-/** The one key an item kind's immunity is recorded under: the importer's entry id, else the row's key. */
-export const kindKeyOf = (item, row) => String(item?.flags?.[MODULE_ID]?.cookbook?.id ?? row?.key ?? "");
+export { kindKeyOf };
 
 /** Write an activation's toggle state onto the item. */
 const setState = (item, state) => item.update({ [`flags.${MODULE_ID}.${FLAG_ITEM_RUN}.activation.state`]: state });

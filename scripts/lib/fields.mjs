@@ -47,6 +47,7 @@ import {
   EFFECT_RECUR_SAVES,
   EFFECT_RECUR_TARGETS,
   REACH_PULSES,
+  REACH_SELF,
   REACH_SIDES,
   REACH_UNITS,
 } from "./vocab.mjs";
@@ -590,6 +591,8 @@ export function effectField() {
           exceptKinds: wordList(),
           side: choice(REACH_SIDES, { initial: "any" }),
           unit: choice(REACH_UNITS, { initial: "any" }),
+          // Whether the bearer is a subject of its own reach. Every import writes `no`.
+          self: choice(REACH_SELF, { initial: "no" }),
         }),
         pulse: choice(REACH_PULSES),
       },

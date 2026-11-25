@@ -12,7 +12,7 @@
  * the caller lists such a subject for the Judge to tick. Foundry-free.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { ACTOR_TYPE, REACH_ON, REACH_PULSES, REACH_SIDES, REACH_UNITS } from "./vocab.mjs";
+import { ACTOR_TYPE, REACH_ON, REACH_PULSES, REACH_SELF, REACH_SIDES, REACH_UNITS } from "./vocab.mjs";
 import { RACE_CATEGORIES, areEnemies, creatureKinds } from "./actor-read.mjs";
 import { GROUP_FLAG } from "./group-logic.mjs";
 import { getDoc, hasDoc } from "./tables.mjs";
@@ -61,9 +61,10 @@ const words = (raw) => (Array.isArray(raw) || raw instanceof Set ? [...raw] : []
 /**
  * A stored filter as the one shape `reachAdmits` reads: the kinds and the kinds
  * excepted, each a list of lowercase words, `side` and `unit` one of their
- * vocabularies and `any` where absent or unknown.
+ * vocabularies and `any` where absent or unknown, and `self` (`REACH_SELF`),
+ * `no` where absent or unknown.
  *
- * @returns {{kinds: string[], exceptKinds: string[], side: string, unit: string}}
+ * @returns {{kinds: string[], exceptKinds: string[], side: string, unit: string, self: string}}
  */
 export function readFilter(raw) {
   const side = raw?.side;
@@ -73,6 +74,7 @@ export function readFilter(raw) {
     exceptKinds: words(raw?.exceptKinds),
     side: side in REACH_SIDES ? side : "any",
     unit: unit in REACH_UNITS ? unit : "any",
+    self: raw?.self in REACH_SELF ? raw.self : "no",
   };
 }
 
@@ -181,8 +183,9 @@ function unitClause(unit, bearer, subject) {
 
 /**
  * Whether a subject is one of the filter's: true, false, or null where a
- * clause cannot be settled. The bearer itself and a marker token (a party or a
- * place standing on the map) are never subjects. A false from any clause wins;
+ * clause cannot be settled. A marker token (a party or a place standing on the
+ * map) is never a subject, and neither is the bearer itself unless the filter's
+ * `self` is `count`, in which case its other clauses decide. A false from any clause wins;
  * otherwise a null from any clause is null.
  *
  * @param {{token: object, actor: object}} bearer
@@ -195,9 +198,9 @@ function unitClause(unit, bearer, subject) {
  */
 export function reachAdmits(bearer, subject, filter, deps = {}) {
   const { kindsOf = creatureKinds, enemies = areEnemies, isMarker = () => false } = deps;
-  if (sameToken(bearer?.token, subject?.token)) return false;
-  if (isMarker(subject?.actor)) return false;
   const rule = readFilter(filter);
+  if (sameToken(bearer?.token, subject?.token) && rule.self !== "count") return false;
+  if (isMarker(subject?.actor)) return false;
   const verdicts = [];
   if (rule.kinds.length || rule.exceptKinds.length) {
     const have = new Set(kindsOf(subject?.actor));
@@ -226,10 +229,10 @@ export function reachAdmits(bearer, subject, filter, deps = {}) {
 /** The moments a reach hears: a press, a subject entering or moving in or leaving, a turn start, a burst. */
 export const REACH_MOMENTS = Object.freeze(["press", "enter", "moveIn", "exit", "turnStart", "burst"]);
 
-/** The moments each pulse listens to; a moment outside its list does nothing (a subject that walks in fires both `enter` and `moveIn`, and only one prompts). */
+/** The moments each pulse listens to; a moment outside its list does nothing (a subject that walks in fires both `enter` and `moveIn`, and only `moveIn` prompts). */
 const PULSE_MOMENTS = Object.freeze({
   action: ["press"],
-  "turnStart+moveIn": ["moveIn", "turnStart"],
+  "turnStart+moveIn": ["enter", "moveIn", "exit", "turnStart"],
   standing: ["enter", "exit"],
   burst: ["burst"],
 });
@@ -242,12 +245,23 @@ const PULSE_MOMENTS = Object.freeze({
  * standing part to write or to take off). An exit takes the part off whoever
  * the filter says, since the part was written while the subject was inside.
  *
+ * A reach that prompts at a turn start and on moving in also hears a subject
+ * enter and leave, and asks nobody for either: an `enter` is `list` (a row
+ * that waits for its moment) or `refuse` (the filter says it is no target), and
+ * an `exit` is `out` for whoever the filter says. A prompt happens only on
+ * `moveIn` and `turnStart`.
+ *
  * @param {{pulse: string, moment: string, admitted: boolean|null, immune?: boolean}} p
- * @returns {"none"|"undetermined"|"skip"|"prompt"|"on"|"off"}
+ * @returns {"none"|"undetermined"|"skip"|"prompt"|"on"|"off"|"list"|"refuse"|"out"}
  */
 export function pulseAct({ pulse, moment, admitted, immune = false } = {}) {
   if (!(PULSE_MOMENTS[pulse] ?? []).includes(moment)) return "none";
   if (pulse === "standing" && moment === "exit") return "off";
+  if (pulse === "turnStart+moveIn" && moment === "exit") return "out";
+  if (pulse === "turnStart+moveIn" && moment === "enter") {
+    if (admitted === null || admitted === undefined) return "undetermined";
+    return admitted === true ? "list" : "refuse";
+  }
   if (admitted === null || admitted === undefined) return "undetermined";
   if (admitted !== true) return "none";
   if (pulse === "standing") return "on";
@@ -270,6 +284,74 @@ export function momentKey({ combatId = null, round = null, turn = null, subjectU
   if (!subject || !kind) return null;
   const inFight = combatId !== null && combatId !== undefined && String(combatId) !== "";
   return inFight ? [combatId, round ?? "", turn ?? "", subject, kind].join(":") : `${subject}:${kind}`;
+}
+
+/**
+ * The stamp of one initiative, `combatId:round:turn`, or null outside a fight:
+ * what a held prompt is pruned by at each turn start.
+ *
+ * @param {{combatId?: string|null, round?: number|null, turn?: number|null}} p
+ * @returns {string|null}
+ */
+export function turnStamp({ combatId = null, round = null, turn = null } = {}) {
+  return combatId === null || combatId === undefined || String(combatId) === "" ? null : [combatId, round ?? "", turn ?? ""].join(":");
+}
+
+/**
+ * Hold a prompt's moment key: true where it was free and is now held (ask), false
+ * where it is already held (the subject was asked once for this kind and
+ * initiative). A blank key cannot be told apart from another and always asks.
+ * `held` maps a key to the stamp of its initiative, null outside a fight.
+ *
+ * @param {Map<string, string|null>} held
+ * @param {string|null} key
+ * @param {string|null} [stamp]
+ */
+export function holdMoment(held, key, stamp = null) {
+  if (!key) return true;
+  if (held.has(key)) return false;
+  held.set(key, stamp);
+  return true;
+}
+
+/** Release a held key, when its prompt is answered or struck. */
+export const releaseMoment = (held, key) => (key ? held.delete(key) : false);
+
+/**
+ * Prune the keys held for another initiative than `stamp`; a key held outside a
+ * fight stays until it is answered or struck. Answers the keys removed.
+ *
+ * @param {Map<string, string|null>} held
+ * @param {string|null} stamp the initiative that is beginning
+ * @returns {string[]}
+ */
+export function pruneMoments(held, stamp) {
+  const gone = [];
+  for (const [key, kept] of held) {
+    if (kept !== null && kept !== stamp) gone.push(key);
+  }
+  for (const key of gone) held.delete(key);
+  return gone;
+}
+
+/**
+ * Group a subject's reaches by the item kind each is of, in the order met: what
+ * a turn start asks once per kind. `kindOf(entry)` is the kind's key; an entry
+ * with a blank key is its own group, since nothing says it is the same kind.
+ *
+ * @template T
+ * @param {T[]} entries
+ * @param {(entry: T) => string} kindOf
+ * @returns {T[][]}
+ */
+export function groupByKind(entries, kindOf) {
+  const groups = new Map();
+  let lone = 0;
+  for (const entry of entries ?? []) {
+    const key = String(kindOf(entry) ?? "") || `#${lone++}`;
+    groups.set(key, [...(groups.get(key) ?? []), entry]);
+  }
+  return [...groups.values()];
 }
 
 /* -------------------------------------------- */

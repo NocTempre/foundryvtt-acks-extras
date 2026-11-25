@@ -12,7 +12,11 @@
  *   (`sockets.mjs`), who resolves the radius from the item's own row.
  * - Core's region events and lib's `TURN_BEGAN_HOOK` reach `dispatchReachMoment`
  *   on the primary GM alone, which asks `reachAdmits` and hands the moment to
- *   the one registered handler (`setReachHandler`): the item runner's.
+ *   the one registered handler (`setReachHandler`): the item runner's. A turn
+ *   start asks a subject once per item kind, and a bearer its filter counts in
+ *   hears its own attached reach at its own turn start. A prompt is held under
+ *   its moment key on the primary GM until it is answered or struck, and the
+ *   keys of an earlier initiative are pruned at each turn start.
  * - The one teardown is the Region's deletion (`setReachTeardown`): every
  *   record carrying the Region's activation id goes with it. A bearer whose hit
  *   points reach zero, or that takes the defeated status, has its reaches
@@ -25,8 +29,8 @@
  * config and does nothing.
  */
 import { AURA_BEHAVIOR_TYPE, BEARER_DOWN_HOOK, MODULE_ID, LANG_PREFIX, TURN_BEGAN_HOOK } from "./constants.mjs";
-import { carriesItem, checkRaise, downCause, figureNumber, readAuraConfig, readReach, reachAdmits, snapshotRegionData } from "./aura-reach-logic.mjs";
-import { itemRunRowsOf } from "./item-run-logic.mjs";
+import { carriesItem, checkRaise, downCause, figureNumber, groupByKind, holdMoment, pruneMoments, readAuraConfig, readReach, reachAdmits, releaseMoment, snapshotRegionData, turnStamp } from "./aura-reach-logic.mjs";
+import { itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import { executeAsGM, registerHandler } from "./sockets.mjs";
 import { tokenHasStatus, tokenHitPoints } from "./hp-logic.mjs";
@@ -43,6 +47,23 @@ const HANDLER = Object.freeze({ raise: `${MODULE_ID}.aura.raise`, lower: `${MODU
 /** The one handler a moment reaches, set by the item runner, and the one teardown. */
 let momentHandler = null;
 let teardownHandler = null;
+
+/** The prompts held on this window, a moment key to the stamp of its initiative (null outside a fight). */
+const heldMoments = new Map();
+
+/**
+ * Hold a prompt's moment key on this window: true where the subject is to be
+ * asked, false where it already was for this item kind and initiative.
+ * @param {string|null} key a `momentKey`
+ * @param {string|null} [stamp] a `turnStamp`
+ */
+export const holdReachMoment = (key, stamp = null) => holdMoment(heldMoments, key, stamp);
+
+/** Release a held prompt, when it is answered or struck. */
+export const releaseReachMoment = (key) => releaseMoment(heldMoments, key);
+
+/** The stamp of the fight's current initiative on this window, null outside a fight. */
+export const currentStamp = () => turnStamp({ combatId: game.combat?.started ? game.combat.id : null, round: game.combat?.round, turn: game.combat?.turn });
 
 /**
  * Register the handler a reach's moment goes to: `fn(context)` with
@@ -147,33 +168,77 @@ const bodyOf = (token) => ({ token, actor: token?.actor ?? null });
  * @param {object} system the behavior's system data
  * @param {string} moment `enter`, `moveIn`, `exit` or `turnStart`
  * @param {TokenDocument} subjectToken
+ * @returns {Promise<*>} what the handler answered (the act it took), or null where nothing was handed on or the handler threw
  */
 export async function dispatchReachMoment(system, moment, subjectToken) {
   const config = readAuraConfig(system);
-  if (!config || !subjectToken || !momentHandler) return;
+  if (!config || !subjectToken || !momentHandler) return null;
   const region = system?.region ?? system?.parent?.region ?? null;
   const item = fromUuidSync(config.sourceUuid);
   const row = itemRunRowsOf(item).find((r) => r?.key === config.rowKey);
   const reach = readReach(row?.reach);
-  if (!reach) return;
+  if (!reach) return null;
   const bearerToken = region?.parent?.tokens?.get?.(region.attachment?.token) ?? null;
-  if (!bearerToken) return;
+  if (!bearerToken) return null;
   const bearer = bodyOf(bearerToken);
   const subject = bodyOf(subjectToken);
   const admitted = reachAdmits(bearer, subject, reach.filter, { isMarker: isMarkerActor });
   try {
-    await momentHandler({ moment, config, item, row, reach, bearer, subject, admitted, region });
+    return await momentHandler({ moment, config, item, row, reach, bearer, subject, admitted, region });
   } catch (err) {
     console.error(`${MODULE_ID} | a reach's ${moment} could not be run`, err);
+    return null;
   }
 }
 
-/** A turn began: every reach the combatant's token stands in hears it. */
+/** The kind key of the item a behavior's config names, "" where the item or row is gone. */
+function kindOfBehavior(behavior) {
+  const config = readAuraConfig(behavior?.system);
+  const item = config ? fromUuidSync(config.sourceUuid) : null;
+  const row = itemRunRowsOf(item).find((r) => r?.key === config?.rowKey);
+  return row ? kindKeyOf(item, row) : "";
+}
+
+/**
+ * The reaches attached to a token whose filter counts the bearer in (`self`),
+ * as `{region, behavior}`: core never reports a token inside its own Region, so
+ * its own turn start reads them from the attachment.
+ */
+function attachedCounting(token) {
+  const out = [];
+  for (const region of reachesOf(token)) {
+    for (const behavior of region.behaviors ?? []) {
+      if (behavior.type !== AURA_BEHAVIOR_TYPE || behavior.disabled || region.hidden) continue;
+      const config = readAuraConfig(behavior.system);
+      const row = itemRunRowsOf(config ? fromUuidSync(config.sourceUuid) : null).find((r) => r?.key === config?.rowKey);
+      const reach = readReach(row?.reach);
+      if (reach?.pulse === "turnStart+moveIn" && reach.filter.self === "count") out.push({ region, behavior });
+    }
+  }
+  return out;
+}
+
+/** The acts that settle a kind for a subject at a turn start: it was asked, holds an immunity, or was already asked. */
+const SETTLES = new Set(["prompt", "skip", "held"]);
+
+/**
+ * A turn began: the keys held for another initiative are pruned, then every
+ * reach the combatant's token stands in, and its own attached reach where its
+ * filter counts the bearer, hears it. A subject is asked once per item kind:
+ * the reaches of one kind are offered in the order met until one settles it.
+ */
 async function onTurnBegan(combat, combatantId) {
   if (!isPrimaryGM()) return;
+  pruneMoments(heldMoments, turnStamp({ combatId: combat?.id, round: combat?.round, turn: combat?.turn }));
   const token = combat?.combatants?.get?.(combatantId)?.token ?? null;
   if (!token) return;
-  for (const { behavior } of behaviorsUnder(token, AURA_BEHAVIOR_TYPE)) await dispatchReachMoment(behavior.system, "turnStart", token);
+  const heard = behaviorsUnder(token, AURA_BEHAVIOR_TYPE);
+  for (const own of attachedCounting(token)) if (!heard.some((h) => h.behavior === own.behavior)) heard.push(own);
+  for (const group of groupByKind(heard, ({ behavior }) => kindOfBehavior(behavior))) {
+    for (const { behavior } of group) {
+      if (SETTLES.has(await dispatchReachMoment(behavior.system, "turnStart", token))) break;
+    }
+  }
 }
 
 /* -------------------------------------------- */
