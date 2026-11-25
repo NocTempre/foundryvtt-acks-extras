@@ -891,7 +891,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     if (asked?.ok !== false && !declaring && gmMissing()) asked = { ok: false, ...noGm() };
     const refused = asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null;
     // A conjured creature serves while its caster holds the cast, so the cast is held (`heldByConjuration`).
-    return { ...judgeSummon(summonRows, picked, { source, level: casterLvl, at: invAt, refused }), conjuration: summonIsConjuration(summonRows, { source, sourceRef: picked.ref }), name: String(source?.name ?? offer.creatures.find((c) => c.value === picked.ref)?.name ?? "").trim() };
+    return { ...judgeSummon(summonRows, picked, { source, level: casterLvl, at: invAt, refused }), conjuration: summonIsConjuration(summonRows, { source, sourceRef: picked.ref }), sourceUuid: String(source?.uuid ?? picked.ref), name: String(source?.name ?? offer.creatures.find((c) => c.value === picked.ref)?.name ?? "").trim() };
   };
 
   const mode =modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
@@ -1032,13 +1032,12 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   if (positions) {
     placed = await stepOf("summon")({ caster, spell, castId, pick, positions, cast: { castId, casterLevel: level.value, invocationLevel: invocation.value }, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null, card }, deps);
     if (placed?.ok) {
-      // The line names the creature, how many stand and how long the spell lasts; any click that made no creature is its own line.
+      // The card stores the creature, how many stand, how long the spell lasts and how many clicks made no creature as a record; each seat's line is worded from it at render (`castCardView`), so the name is read only by a seat that can open the creature. `party` is the party the creatures joined, none until a cast joins one.
       const made = placed.tokenUuids?.length ?? positions.length;
       // The spell's own printed length (a level-scaled or concentration one reads as written), none for an instant.
       const shape = durationShapeOf(spell, deps.lookups, mode);
       const lasts = shape?.shape === "instantaneous" ? "" : displayDuration(shape);
-      card.lines.push(loc(lasts ? "line.summoned" : "line.summonedOpen", { name: summon.name || loc("dialog.summonCreature"), n: made, duration: lasts }));
-      if (made < positions.length) card.lines.push(loc("line.summonShort", { n: positions.length - made }));
+      card.summoned = { sourceUuid: summon.sourceUuid, name: summon.name, n: made, short: Math.max(0, positions.length - made), duration: lasts, party: null };
     } else card.lines.push(placed?.reason === "noGm" || !placed ? loc("line.summonNoGm") : loc("line.summonRefused", { reason: placed.notice || placed.reason || "" }));
   }
   // The door is sealed only once the cast proceeds. The write is the seal kind's own step (`cast-kinds.mjs`) and carries this cast's id, which the caster's record keeps; a refusal is a line on the card and a notice to the seat, and the spend stands. A Judge's pick past the range states no range, since the GM's client measures any it is given.
@@ -1086,6 +1085,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       card.rows[keyed.key] = cardRow(keyed, {});
       card.order.push(keyed.key);
       if (placeOf(row) === "rowAndLine") card.lines.push(kindOf(row.type).lineKey ? loc(kindOf(row.type).lineKey) : describeSpellEffect(row).text);
+    } else if (row.type === "summon") {
+      // A summon row's own line prints its creature ref (a uuid, or a cookbook id that spells the creature out); the cast's summoning is the card's `summoned` record.
     } else {
       card.lines.push(describeSpellEffect(row).text);
     }

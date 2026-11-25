@@ -22,7 +22,7 @@ import { normalizeRef, offerRows, registerSummonPolicy, bareSummonAllowed, contr
 const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync(uuid) });
 
 /** The live compendium a uuid is in, from the world's pack registry; null with no registry or no such pack. */
-const worldPackOf = (uuid) => globalThis.game?.packs?.get?.(packIdOfUuid(uuid)) ?? null;
+export const worldPackOf = (uuid) => globalThis.game?.packs?.get?.(packIdOfUuid(uuid)) ?? null;
 
 /** The `summonFormat` of a row whose creature is called from where it stands, so no range bounds its place (a key of `SUMMON_FORMATS`). */
 export const CALLING_FORMAT = "calling";

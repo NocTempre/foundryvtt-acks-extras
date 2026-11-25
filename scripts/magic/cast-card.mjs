@@ -21,7 +21,10 @@
  * hook rebuilds the body per seat, so each seat gets exactly the buttons it
  * may press: Apply and Throw for the caster's author and a GM, Undo for a GM. A
  * defense an amount or a save met is named to a GM and to the target's owners;
- * every other seat reads "a defense" and the figures.
+ * every other seat reads "a defense" and the figures. A summoning is stored as
+ * a record (`card.summoned`), never as a worded line, and each seat's line names
+ * the creature only where that seat can open it; the stored content reads the
+ * neutral label.
  * The buttons carry actions of this feature's own (`magicCast…`) and never
  * the system's `.card-buttons`.
  */
@@ -30,6 +33,8 @@ import { renderRollCard } from "../lib/roll-card.mjs";
 import { DAMAGE_TYPES, CONDITION_KEYS } from "../lib/vocab.mjs";
 import { defenseCiteOf, defenseWord, namesDefense } from "../lib/attack-apply.mjs";
 import { docOf } from "../lib/util.mjs";
+import { creatureOpens, seatLabel } from "../lib/summons-logic.mjs";
+import { worldPackOf } from "./cast-summon.mjs";
 import { isModRow } from "./cast-mods.mjs";
 import { instancesTip } from "./cast-instances.mjs";
 import { gateTip } from "./cast-gates.mjs";
@@ -259,10 +264,25 @@ function outcomeOf(entry, loc) {
 }
 
 /**
+ * The footnote lines a stored summoning (`card.summoned`) is worded as for one
+ * seat: the creature's name where the seat is a GM or `opens` says it can open
+ * the creature, else the neutral label; a line for the creatures that stand, and
+ * one for any click that placed none. A card with no record has none.
+ */
+function summonedLines(summoned, seat, loc) {
+  if (!summoned) return [];
+  const opens = seat.isGM === true || seat.opens?.(summoned.sourceUuid) === true;
+  const name = seatLabel({ name: summoned.name || loc("dialog.summonCreature"), opens, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") });
+  const lines = [loc(summoned.duration ? "line.summoned" : "line.summonedOpen", { name, n: summoned.n, duration: summoned.duration })];
+  if (summoned.short > 0) lines.push(loc("line.summonShort", { n: summoned.short }));
+  return lines;
+}
+
+/**
  * The roll card a cast card is drawn as, for one seat.
  *
  * @param {object} card  the model
- * @param {{isGM: boolean, canPress: boolean, ownsTarget?: (target: object) => boolean}} seat  `ownsTarget` says whether the seat owns a card target's actor; absent, no target is
+ * @param {{isGM: boolean, canPress: boolean, ownsTarget?: (target: object) => boolean, opens?: (uuid: string) => boolean}} seat  `ownsTarget` says whether the seat owns a card target's actor; absent, no target is. `opens` says whether the seat can open the creature a summoning's uuid names; absent, none can but a GM
  * @param {(key: string, data?: object) => string} loc  the cast's strings, under the magic root's `cast` branch
  * @returns {object} `renderRollCard`'s argument
  */
@@ -368,7 +388,7 @@ export function castCardView(card, seat, loc) {
     noteTooltip: noteTip(card, loc),
     sections,
     bare: true,
-    footnote: (card.lines ?? []).join(" · "),
+    footnote: [...summonedLines(card.summoned, seat, loc), ...(card.lines ?? [])].join(" · "),
     buttons,
     labels: { total: loc("col.applied"), target: loc("col.target"), result: loc("col.result"), actions: loc("col.actions") },
   };
@@ -441,6 +461,9 @@ function ownsCardTarget(target) {
   return actor?.testUserPermission?.(game.user, "OWNER") === true;
 }
 
+/** Can this seat's user open the creature a uuid names? Foundry's own test (`creatureOpens`), the document read as it stands. */
+const opensCreature = (uuid) => creatureOpens(docOf(uuid), game.user, { packOf: worldPackOf });
+
 /** The handlers the card's buttons call, set by the cast engine; a card with none presses nothing. */
 let actions = {};
 
@@ -451,7 +474,7 @@ function onRender(message, html) {
   if (!card || !root) return;
   const body = root.querySelector?.(".message-content");
   if (!body) return;
-  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), ownsTarget: ownsCardTarget, ownsCaster: docOf(card.casterUuid)?.testUserPermission?.(game.user, "OWNER") === true };
+  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), ownsTarget: ownsCardTarget, opens: opensCreature, ownsCaster: docOf(card.casterUuid)?.testUserPermission?.(game.user, "OWNER") === true };
   body.innerHTML = renderRollCard(castCardView(card, seat, cardLoc));
   body.querySelectorAll("[data-action^='magicCast']").forEach((button) => {
     button.addEventListener("click", (event) => {

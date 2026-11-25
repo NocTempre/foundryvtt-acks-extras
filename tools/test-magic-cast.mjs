@@ -1040,6 +1040,36 @@ t("the card lists every stored step of an amount, a defense named to a Judge and
   });
 });
 
+t("a summoning's line is worded per seat from the card's record: the name for a Judge and a seat that opens the creature, the neutral label for any other seat and for the stored content", () => {
+  withLang(() => {
+    const summoned = { sourceUuid: "Compendium.invented.Actor.zz", name: "Quillback", n: 2, short: 1, duration: "2 hours", party: null };
+    const c = card({ summoned, lines: ["Another line"] });
+    const note = (seat) => castCardView(c, seat, realLoc).footnote;
+    const neutral = LANG["ACKS-LIB.summons.neutral"];
+    assert.equal(note({ isGM: true, canPress: false }), `Summoned: Quillback × 2 · lasts 2 hours · 1 not placed · Another line`, "a Judge reads the name, ahead of the card's other lines");
+    const asked = [];
+    assert.equal(note({ isGM: false, canPress: false, opens: (uuid) => (asked.push(uuid), true) }), note({ isGM: true, canPress: false }), "a seat that opens the creature reads the name");
+    assert.ok(asked.length > 0 && asked.every((uuid) => uuid === summoned.sourceUuid), "the seat is asked about the stored uuid");
+    const closed = note({ isGM: false, canPress: false, opens: () => false });
+    assert.equal(closed, `Summoned: ${neutral} × 2 · lasts 2 hours · 1 not placed · Another line`, "a seat that cannot open it reads the neutral label");
+    assert.equal(note({ isGM: false, canPress: false }), closed, "a seat with no test opens nothing");
+    const content = castCardContent(c, realLoc);
+    assert.ok(!content.includes("Quillback") && content.includes(neutral), "the stored content carries the neutral label, never the name");
+    assert.deepEqual(c.summoned, summoned, "the view leaves the stored record as it was");
+    const open = castCardView(card({ summoned: { ...summoned, short: 0, duration: "" } }), { isGM: true, canPress: false }, realLoc).footnote;
+    assert.equal(open, "Summoned: Quillback × 2", "an instant's line states no length and no short count");
+  });
+});
+
+t("a card stored with a worded summon line and no record renders that line as it was", () => {
+  withLang(() => {
+    const old = card({ lines: ["Summoned: Quillback × 2 · lasts 2 hours"] });
+    assert.equal(old.summoned, undefined);
+    assert.equal(castCardView(old, { isGM: false, canPress: false }, realLoc).footnote, "Summoned: Quillback × 2 · lasts 2 hours");
+    assert.ok(castCardContent(old, realLoc).includes("Quillback"), "a card with no record is read as it was written");
+  });
+});
+
 t("a defense the module does not price names itself on the line, with the page reference alone as the tooltip", () => {
   withLang(() => {
     const defense = { label: "Judge's call", band: "judge", types: ["fire"], source: "Quillback", cite: "ZZ p. 4", why: "figure" };

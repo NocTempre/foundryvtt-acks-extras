@@ -322,7 +322,18 @@ click costs the cast nothing:
    `cast {castId, casterLevel, invocationLevel}`, whose levels the GM trusts as
    the apply relay does) only when the cast proceeds. A refusal after the spend is
    a line on the card, and the spend stands.
-5. *The card:* a line naming the creature, the count and how long it lasts.
+5. *The card:* the summoning is stored as a record, `card.summoned`
+   (`{sourceUuid, name, n, short, duration, party}`: the creature's uuid, its
+   name, how many stand, how many clicks placed none, the spell's printed length
+   and the party they joined, none yet), and is no worded line. The summon row's
+   own line (which prints its creature ref) is not on the card. `castCardView`
+   words the line from the record for the seat reading it: the creature's name
+   for a Judge and for a seat that can open the creature (`creatureOpens` on
+   the stored uuid, which the render hook asks), else lib's neutral label. The
+   stored `content`, which a client with the module off reads, is drawn for a
+   seat that opens nothing and carries the neutral label. A card stored with a
+   worded line and no record renders that line as it was. The record's `name`
+   stays readable in the message's flag.
 
 A summons held by concentration writes the record every held cast writes
 (`heldRecordData`); a `conjuration` row with a duration that is not a

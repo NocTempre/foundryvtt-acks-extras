@@ -172,7 +172,9 @@ await ta("the order: dialog and verdicts, the clicks, the spend and the pool, th
   assert.deepEqual(r.calls.verdicts, [{ sourceUuid: REF, count: 2, spellId: "sp1" }], "lib's checks answer before anything is spent");
   assert.deepEqual(r.calls.clicked[0], { sourceUuid: REF, count: 2, spellId: "sp1", rangeFeet: null, calling: false, casterToken: CASTER_TOKEN });
   assert.equal(spellEffectOf(r.calls.records[0]).castId, "castX", "the record carries the id the creatures carry");
-  assert.ok(r.calls.posts[0].lines.includes("ACKS-MAGIC.cast.line.summoned|{\"name\":\"Glimmerkin\",\"n\":2,\"duration\":\"2 hours\"}"), "the card names the creature, how many stood and how long");
+  const posted = r.calls.posts[0];
+  assert.deepEqual(posted.summoned, { sourceUuid: GLIMMER.uuid, name: "Glimmerkin", n: 2, short: 0, duration: "2 hours", party: null }, "the card stores the creature, how many stood and how long as a record");
+  assert.deepEqual(posted.lines, [], "no line on the card names the creature or prints the summon row's ref");
   assert.equal(out.placed.ok, true);
 });
 
@@ -835,22 +837,23 @@ await ta("the band's answer is the cast's pick: no shelf prompt, the count it ho
   assert.deepEqual(r.order.filter((step) => step === "pickSummon"), [], "the shelf prompt is the fallback only");
   assert.deepEqual([r.calls.placed[0].pick, r.calls.verdicts[0]], [{ ref: GLIMMER.uuid, count: 7 }, { sourceUuid: GLIMMER.uuid, count: 7, spellId: "sp1" }]);
   assert.deepEqual(keys(r), ["warn:verdict.summonCount"], "a Judge's count over the ceiling is warned, as the footer said");
-  assert.ok(r.calls.posts[0].lines.some((l) => l.startsWith("ACKS-MAGIC.cast.line.summonedOpen|") && l.includes('"name":"Glimmerkin","n":2')), "the card names the creature and the clicks' two places");
+  assert.deepEqual([r.calls.posts[0].summoned.name, r.calls.posts[0].summoned.n, r.calls.posts[0].summoned.duration], ["Glimmerkin", 2, ""], "the card's record names the creature and the clicks' two places");
   const state = model.initialState({ ...ctx, initial: { summon: { ref: GLIMMER.uuid, count: 5 } } });
   assert.deepEqual(state.summon, { ref: GLIMMER.uuid, count: "5" });
 });
 
-await ta("the card's summon line says how long the spell lasts as it is written (a level-scaled and a concentration length too), nothing for an instant, and a click that made no creature is its own line", async () => {
-  const lineFor = async (duration, over = {}) => {
+await ta("the card's summon record says how long the spell lasts as it is written (a level-scaled and a concentration length too), nothing for an instant, and a click that made no creature is counted in it", async () => {
+  const recordFor = async (duration, over = {}) => {
     const r = runDeps({ answer: answerOf(), ...over });
     await cast(makeSpell({ extra: { duration } }), r);
-    return r.calls.posts[0].lines.filter((l) => l.includes("line.summon"));
+    const { n, short, duration: lasts } = r.calls.posts[0].summoned;
+    return { n, short, lasts };
   };
-  assert.deepEqual(await lineFor({ shape: "perLevel", value: 1, unit: "turns" }), ['ACKS-MAGIC.cast.line.summoned|{"name":"Glimmerkin","n":2,"duration":"1 turn/level"}']);
-  assert.deepEqual(await lineFor({ shape: "concentration", concentration: "mobile" }), ['ACKS-MAGIC.cast.line.summoned|{"name":"Glimmerkin","n":2,"duration":"concentration"}']);
-  assert.deepEqual(await lineFor({ shape: "instantaneous" }), ['ACKS-MAGIC.cast.line.summonedOpen|{"name":"Glimmerkin","n":2,"duration":""}']);
-  const short = await lineFor({ shape: "fixed", value: 1, unit: "hours" }, { place: (ctx) => ({ ok: true, castId: ctx.castId, tokenUuids: ["Scene.s1.Token.t0"] }) });
-  assert.deepEqual(short, ['ACKS-MAGIC.cast.line.summoned|{"name":"Glimmerkin","n":1,"duration":"1 hour"}', 'ACKS-MAGIC.cast.line.summonShort|{"n":1}']);
+  assert.deepEqual(await recordFor({ shape: "perLevel", value: 1, unit: "turns" }), { n: 2, short: 0, lasts: "1 turn/level" });
+  assert.deepEqual(await recordFor({ shape: "concentration", concentration: "mobile" }), { n: 2, short: 0, lasts: "concentration" });
+  assert.deepEqual(await recordFor({ shape: "instantaneous" }), { n: 2, short: 0, lasts: "" });
+  const short = await recordFor({ shape: "fixed", value: 1, unit: "hours" }, { place: (ctx) => ({ ok: true, castId: ctx.castId, tokenUuids: ["Scene.s1.Token.t0"] }) });
+  assert.deepEqual(short, { n: 1, short: 1, lasts: "1 hour" });
 });
 
 await ta("a count under one reads as one, and a targeted token the summons never draws raises no verdict in its footer", async () => {
