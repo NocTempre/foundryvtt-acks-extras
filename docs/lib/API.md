@@ -1,4 +1,4 @@
-# lib API (apiVersion 86)
+# lib API (apiVersion 87)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 86,
+  apiVersion: 87,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -72,6 +72,7 @@ acksExtras.lib = {
   // 74: org.{runPlan, deleteRow, planRoll, planAddUnit, planEdit, planDelete, keySource, ORG_PROTOTYPE_FLAG} (below, "`org` — the organisation chart"); a stack's `gen` carries `mount`, `carry` and `speakers`
   // 73: fields.unitField; org.{orgHostOf, orgHosts, unitsOf, chartRows, addRow, setHolder, sendOut, recall, join, leave, orgChart, locations, chartOf, rostersHolding, moraleFromUnitsAbove, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys, isEmptyRow, affiliationRows, registerOrgIndex} (below, "`org` — the organisation chart"); a faction and a group carry `system.units`
   // 86: a stack's `gen` carries `formula` and `thrown`; org.editRow's and planEdit's stack change takes `thrown` (below, "`org` — the organisation chart")
+  // 87: light.{MAGIC_LIGHT_CITE_FLAG, magicLightChanges, magicLightRecord, magicLightCite}; light.magicLights entries carry `cite`; fields.effectField carries `lightBands` (docs/lib/MODEL.md, "Perception: senses, light, and the token")
 }
 ```
 
