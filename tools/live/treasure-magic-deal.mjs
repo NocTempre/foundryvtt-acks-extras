@@ -16,7 +16,10 @@
  * classic deal (rolled cards, audit rows, the refusal codes of any card left a
  * placeholder); a rolled card never named for its item on a seat's turned face;
  * a linked card's claim data knowing no identification and no curse; a heroic
- * deal rolling on the rarity lists; No magic striking rolled cards at open; the
+ * deal rolling on the rarity lists; a gritty deal of a type whose magic cell
+ * the engine reads in part (a clause refused alone, the others dealt): magic in
+ * the pot, and the failed clause reported once per hoard by its code, not the
+ * whole cell refused; No magic striking rolled cards at open; the
  * pot's arms column set by API (`setDealOption`, T6c-2) and
  * sixty rolls on the weapons list, each stored arm's base cost checked against
  * its document and its masterwork cost against the tier's `costAdd`, ranking at
@@ -91,6 +94,78 @@ const P = {
       CONFIG.Dice.randomUniform = orig;
     }
     return { treasure: true, lists, census, letter: { classic: letter.classic ?? fallback.classic, heroic: letter.heroic ?? fallback.heroic }, tried: keys.length };
+  },
+  /**
+   * The gritty type whose magic cell the engine reads in part: `parseCell` returns terms and errors both. Counts by
+   * outcome come back (cells that read clean, in part, and not at all), with the failed clauses' codes; no clause
+   * text, count or noun leaves the page.
+   */
+  grittyPick: async ({ mod }) => {
+    const T = await import(`${mod}/lib/tables.mjs`);
+    const B = await import(`${mod}/importer/treasure-binding.mjs`);
+    const HL = await import(`${mod}/treasure/hoard-logic.mjs`);
+    const rows = T.hasDoc(B.TREASURE_DOC_ID) ? T.getDoc(B.TREASURE_DOC_ID).tables?.typeGritty ?? {} : {};
+    const cells = { clean: 0, partial: 0, refused: 0 };
+    let letter = null;
+    let codes = [];
+    for (const key of Object.keys(rows)) {
+      const parsed = HL.parseCell(rows[key]?.magic, { column: "magic" });
+      if (parsed.error) cells.refused++;
+      else if (parsed.terms?.length && parsed.errors?.length) {
+        cells.partial++;
+        if (!letter) { letter = key; codes = parsed.errors.map((e) => e.code); }
+      } else if (parsed.terms?.length) cells.clean++;
+    }
+    // A cell refused whole while one of its clauses reads on its own is the whole-cell refusal a partial cell must
+    // not get. The split is the engine's own clause separator, read here so the census does not trust parseCell's
+    // aggregation to report on itself; every grid and every column is counted.
+    const SPLIT = /\s*(?:;|,(?=\s+\d)|\s\+\s)\s*/;
+    let wholeButReadable = 0;
+    let wholeCells = 0;
+    const tables = T.hasDoc(B.TREASURE_DOC_ID) ? T.getDoc(B.TREASURE_DOC_ID).tables ?? {} : {};
+    for (const grid of ["typeClassic", "typeHeroic", "typeGritty"]) {
+      for (const row of Object.values(tables[grid] ?? {})) {
+        for (const [column, cell] of Object.entries(row ?? {})) {
+          if (typeof cell !== "string" || !HL.parseCell(cell, { column }).error) continue;
+          wholeCells++;
+          if (cell.split(SPLIT).some((part) => part && HL.parseCell(part, { column }).terms?.length)) wholeButReadable++;
+        }
+      }
+    }
+    return { types: Object.keys(rows).length, cells, letter, codes, wholeCells, wholeButReadable };
+  },
+  /**
+   * `hoards` hoards of `letter` dealt in gritty into a fresh pot staged By hand, the die at its floor so every chance
+   * clause hits. `once` is whether each hoard reports the cell's failed clauses exactly once each, by their codes
+   * (`codes`, in `parseCell`'s order), at the magic column; `whole` counts errors there that carry no clause but
+   * a code of the same set, which is the whole cell refused.
+   */
+  grittyDeal: async ({ mod, letter, hoards, codes }) => {
+    const D = await import(`${mod}/treasure/deal.mjs`);
+    const Pm = await import(`${mod}/treasure/pot.mjs`);
+    const pile = await globalThis.acksExtras.treasure.newDealPot([]);
+    if (!pile) return { made: false };
+    const orig = CONFIG.Dice.randomUniform;
+    CONFIG.Dice.randomUniform = () => 0;
+    let out;
+    try {
+      out = await D.dealLettersIntoPot(pile, { letters: Array(hoards).fill(letter), style: "gritty", confirmLair: async () => true });
+    } finally {
+      CONFIG.Dice.randomUniform = orig;
+    }
+    const truths = Pm.viewOf(pile).cards.map((c) => c.truth);
+    const dealt = out?.dealt ?? [];
+    const atMagic = (d) => (d.errors ?? []).filter((e) => String(e.where ?? "").endsWith(".magic"));
+    const want = [...codes].sort().join("|");
+    return {
+      made: true,
+      uuid: pile.uuid,
+      ok: !!out?.ok,
+      hoards: dealt.length,
+      magic: truths.filter((x) => x.pool === "magic").length,
+      once: dealt.length === hoards && dealt.every((d) => atMagic(d).filter((e) => e.clause != null).map((e) => e.code).sort().join("|") === want),
+      whole: dealt.reduce((n, d) => n + atMagic(d).filter((e) => e.clause == null && codes.includes(e.code)).length, 0),
+    };
   },
   /** Deal one letter into a fresh pot staged By hand, the die at its floor; read back what the pot holds. */
   deal: async ({ mod, letter, style, noMagic }) => {
@@ -431,6 +506,17 @@ try {
     check("a heroic deal rolls on the rarity lists", h.ok && h.rolled > 0 && h.starts.length > 0 && h.starts.every((s) => s === "heroic"), { rolled: h.rolled, starts: h.starts, refused: h.reasons.length });
   } else check("a heroic treasure type deals a placeholder that names a rarity list", false, { lists: pr.lists, letter: !!pr.letter.heroic });
 
+  section("Step 8. gritty deal, a magic cell with a clause that fails");
+  const gp = await run(gm, P.grittyPick, { mod: MOD });
+  check("no cell of the three type grids is refused whole while one of its clauses reads on its own", gp.wholeButReadable === 0, { refusedWhole: gp.wholeCells, withAReadableClause: gp.wholeButReadable });
+  if (gp.types) note("gritty: the imported magic cells, by how the engine reads them", { types: gp.types, ...gp.cells });
+  if (!gp.types) note("gritty: the gritty type table is not imported, so the failed-clause deal is not reached", { types: 0 });
+  else if (!gp.letter) note("gritty: no type's magic cell reads in part (some clauses dealt, one refused alone), so the failed-clause deal is not reached", gp.cells);
+  const g = gp.letter ? await run(gm, P.grittyDeal, { mod: MOD, letter: gp.letter, hoards: 3, codes: gp.codes }) : null;
+  if (g?.uuid) made.push(gm.track(g.uuid, "Cards"));
+  if (g) note("gritty: the failed clauses' codes, one cell", gp.codes);
+  if (g) check("a gritty hoard whose magic cell has a clause that fails still deals the others: magic placeholders or rolled magic cards are in the pot", g.made && g.ok && g.magic > 0, { magic: g.magic, hoards: g.hoards });
+  if (g) check("each of the three hoards reports the failed clause once, by its code at the magic column, and none reports the whole cell refused", g.made && g.once && g.whole === 0, { once: g.once, whole: g.whole, hoards: g.hoards });
   section("Step 8. No magic");
   const nb = await run(gm, P.deal, { mod: MOD, letter: pr.letter.classic, style: "classic", noMagic: "before" });
   if (nb.uuid) made.push(gm.track(nb.uuid, "Cards"));
