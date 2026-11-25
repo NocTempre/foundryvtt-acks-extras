@@ -273,13 +273,13 @@ itself where the agent re-delegates.
 | S3 | 1 | topic | implementer | proseValues for R, E and T, the sidebar, speech | no | S2 |
 | S4 | 1 | topic | implementer | `ecology-recipe.mjs` breed parts. Dependency half until S4b | no | S2 |
 | S5 | 1 | topic | implementer | Troop, trait and gear axes; the `table` source; T1 cells; trait art; `applyGeneratedOrganisation`; tooltips; axis-order fix. Marker `monsters/beastman-organisation` | no (builder controls) | S1, S3, S4 |
-| S4b | 3 | topic | implementer | The recipe editor (the Judge tool); marker `monsters/beastman-recipe` | yes | S4 |
+| S4b | 3 | topic | implementer | **Released** on the go-ahead on canvases 2 to 5. The recipe editor (the Judge tool), built from canvas 3; marker `monsters/beastman-recipe` | yes | S4 |
 | S6a | 2 | topic/beastman-gear | implementer | Roll gates and `labelOf` | no | S5 |
 | S6b | 2 | gear | implementer | Against-surprise part, `acMath` waiver, per-die stage, delayed damage | no | S5 |
 | S7 | 2 | gear | architect: crosses lib, magic and equipment | Ruling on the range reader and the item carrier | — | S6a |
-| S8 | 2 | gear | implementer | E3, E4, E9, T10. Marker `lib/aura-bearer` | yes | S7 |
-| S9a | 2 | gear | implementer | E2 | yes | S7 |
-| S9b | 2 | gear | implementer | E5, E8 | no | S6b |
+| S8 | 2 | gear | implementer | E3, E4, E9, T10. Marker `lib/aura-bearer`. Split by S7 into S8a (no UI) and S8b. **S8b released without T10** on the go-ahead on canvases 2 to 5, built from canvas 4; T10 waits for `architect` (S7's addendum A5) | yes, S8b | S7; S8b needs S8a |
+| S9a | 2 | gear | implementer | **Released** on the same go-ahead. E2, built from canvas 4 | yes | S8a |
+| S9b | 2 | gear | implementer | E5, E8. Split by S7 into S9b-1 (no UI) and S9b-2. **S9b-2 released** on the same go-ahead, built from canvas 4, board 4d | yes, S9b-2 | S6b, S6c; S9b-2 needs S8a |
 | S9c | 2 | gear | implementer | E1, E6, E7 (E7 applies the figures read today) | no | S6b |
 | S10a | 3 | topic | implementer | **Released.** Lib groups: a group inside a group (`unit.parentGroupUuid`, its cycle guard, one walker); a group's count read live with its nested groups, an emptied group counting none (T-0732, T-0733); deploy, recall and placing walk nested groups; `stack.gen = {part, cite}` with the count's tooltip and a note in place of the per-monster Roll; a whispered warning when a stack with no base actor is sent to the map; the labelled stack, the service contract, and `fixedHp` for a stack whose part prints hit points. A unit's leader is the shipped `unit.officerUuid`, and no field is added for it. Accepted when the unit suites cover nesting, the guard and the counts, and a live walk shows an outer token deploying and recalling every nested body and an emptied group reading no bodies on its place and its faction | no | — |
 | S10b | 3 | topic | implementer | **Released.** The chart: `unitField` and `units` on factions and on groups, `org-tree-logic.mjs`, `orgHostOf`, the two view models, `org.mjs` (send out, recall, join, leave, add), the morale reader that walks ancestors' officers, the affiliation readers, `docs/lib/ORGANISATION.md`. Accepted when the tree and write-plan suites pass and a walk through the API adds a row on each kind of host, joins and leaves, sends out and recalls, and shows a chieftain's morale part reaching a gang and gone when the chieftain falls | no | S10a |
@@ -291,7 +291,7 @@ itself where the agent re-delegates.
 | S12 | 3 | topic | implementer, then a live walk | **Released.** The tree and the Locations rows on the faction sheet and the root group's sheet; Roll, Add and Edit; nested rows; the p. 56 plate read by a register row of its own, as the generator's picture. Marker `lib/beastman-warband` | yes | S11b |
 | S12b | 3 | topic | implementer, then a live walk | **Released.** The Followers tab's views over `serviceNodes` (board 1l) | yes | S10c, S12 |
 | S13 | 4 | topic | implementer | Kit bundles minted; Kit option `ref` | no | S5 |
-| S14 | 4 | topic | implementer, then a live walk | Three scopes, random kit, custom fieldset. Marker `monsters/beastman-kits` | yes | S13, S12 |
+| S14 | 4 | topic | implementer, then a live walk | **Released** on the go-ahead on canvases 2 to 5. Three scopes, random kit, what a kit suits, built from canvas 2. Marker `monsters/beastman-kits` | yes | S13, S12 |
 
 Phases 1, 3 and 4 run in order on the one worktree of
 `topic/beastman-organisation`. Phase 2 opens `topic/beastman-gear` after S5
@@ -2274,7 +2274,7 @@ drawn, and the owner corrects it by saying so. Not checked: any board's
 rendering. Not drawn: the tree itself in a window narrower than it, which
 scrolls in its part root (`ui-layout.md`).
 
-### Canvases 2 to 5 audited against the book, Foundry and the shipped code, 2026-11-24 — proposed
+### Canvases 2 to 5 audited against the book, Foundry and the shipped code, 2026-11-24 — approved the same day
 
 The owner's corrections of the same day ("The owner's corrections, and the
 audit", above) were made of canvas 1 and hold for every canvas. Each open
@@ -2409,6 +2409,49 @@ the design of T-0719 and T-0720. It would also accept the points of S7's propose
 that canvas 4 is drawn on: the reach as a core Region, the carrier built
 beside the cast engine, and the split of S8 and S9b. Section 3's rows and
 the phase prompts are unchanged until then.
+
+### The owner's go-ahead on canvases 2 to 5, 2026-11-24
+
+Asked "Go ahead on canvases 2 to 5 as corrected?", with the buttons "Go
+ahead" and "Changes first", the owner chose:
+
+"Go ahead"
+
+The words are the button's; the choice is the owner's. It is the go-ahead
+`.claude/rules/ui-layout.md` ("Design before build") asks for, on canvas 2
+at Version 7, canvas 3 at Version 7, canvas 4 at Version 7 and canvas 5 at
+Version 9, as "Canvases 2 to 5 audited" (above) describes them. Example:
+S14 builds one Kits window with two tools and no tabs, adds no inventory
+switch, and lets a Judge give a kit that does not suit a stack, marked.
+
+The message that asked listed the picks that depart from something said or
+built earlier, so the go-ahead covers them by name: no inventory switch,
+which is a reading of "optional, not used for basic entries"; tools in
+place of tabs in the Kits window; a choice the variant's tables do not give
+marked and pickable, which reverses the unpickable select options phase 1
+built and walked; S7's canvas 4 question 2 and its E5 question answered;
+board 4d; and no preview roll in the recipe editor.
+
+**Released:**
+
+- S4b, built from canvas 3 (phase 3).
+- S14, built from canvas 2, after S13 and S12 (phase 4).
+- S8b without T10, S9a and S9b-2, built from canvas 4, each after S8a
+  (phase 2, `topic/beastman-gear`).
+- The design of ledger rows T-0719 and T-0720, from board 5a, with the two
+  other changes its rule makes: the selects' `disabled` and `chooseAxes`.
+
+**Accepted with it**, as the same message named them: the points of S7's
+ruling that canvas 4 is drawn on, which are the reach as a core Region,
+the item carrier built beside the cast engine, and the split of S8 and of
+S9b.
+
+**Still open:** T10's reach (S7's addendum A5), which stays with
+`architect` and holds nothing else.
+
+Not checked: any board's rendering. This session starts no build session.
+Section 3's rows, the note above phase 2's prompt and phase 3's prompt are
+corrected on this entry; phase 4's prompt is phase 3's to write.
 
 ### Phase 1, 2026-11-24
 
@@ -2559,7 +2602,9 @@ S9c). Neither ran a suite or a walk. Proposed until the owner accepts it;
 S6c, S9c and S9b-1 are built on it because they need no design and no
 owner answer. Its canvas 4 question 2, its owner question on E5 and the
 editor host it found undrawn are taken up in "Canvases 2 to 5 audited",
-above.
+above. The owner's go-ahead on canvases 2 to 5 accepts the points canvas 4
+is drawn on: the reach as a core Region, the carrier beside the cast
+engine, and the split of S8 and of S9b. T10's reach stays open.
 
 - **The range reader** is a core Region attached to the bearer's token, a
   grid emanation of its footprint, with a new lib behaviour sub-type
@@ -2623,6 +2668,11 @@ design) and S8b (design); S9a needs S8.
 
 ### Start prompt, phase 2
 
+Since this prompt was written, the owner's go-ahead on canvases 2 to 5
+(Results) released S8b without T10, S9a and S9b-2, each after S8a and each
+built from canvas 4 as approved. The prompt's sentence that holds S8 and
+S9a is spent. T10 waits for `architect`.
+
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md`, `docs/monsters/MODEL.md` ("The organisation
 > axes") and `docs/lib/README.md`. This session starts on Opus, since it
@@ -2653,7 +2703,7 @@ the shape as corrected", Results) and answered the question of a roll with
 no village ("The owner on a roll with no village"). Section 3's rows S10 to
 S12 are rewritten on it as S10a to S12b. Released: S10a, S10b, S10c, S10d
 and S11, and, on the owner's "Go ahead" on canvas 1, S11b, S11c, S12 and
-S12b. Held for canvas 3: S4b.
+S12b. On the go-ahead on canvases 2 to 5, S4b as well; nothing is held.
 
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md`, `docs/monsters/MODEL.md` ("The encounter
@@ -2671,8 +2721,10 @@ S12b. Held for canvas 3: S4b.
 > `implementer` per slice: S10a, S10b and S10c, landed together and walked,
 > then S10d and S11, then S11b, S11c, S12 and S12b, each built from canvas
 > 1 as the owner approved it ("The owner's go-ahead on canvas 1", Results,
-> which says which board wins where two differ). S4b is listed as held
-> until canvas 3 is answered. S11's first requirement is section 4, answer 6,
+> which says which board wins where two differ). S4b is built from canvas
+> 3 as approved ("The owner's go-ahead on canvases 2 to 5", Results). The
+> phase 4 prompt this session writes builds S14 from canvas 2 on the same
+> entry. S11's first requirement is section 4, answer 6,
 > whose words the brief quotes from there: a recipe part, a village cell or a
 > mount that names a creature outside the family holds a reference to that
 > creature's entry, resolved at generation, and a generated unit includes it
