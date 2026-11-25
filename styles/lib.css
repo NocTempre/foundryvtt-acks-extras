@@ -795,6 +795,29 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   gap: 0.4rem;
 }
 
+/* The faction line: the caption, the card's name and the presses, wrapping at a narrow width. */
+.acks-lib-group-faction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  margin-bottom: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-lib-group-faction__cap {
+  flex: 0 0 auto;
+  color: var(--acks-ink-soft);
+}
+
+.acks-lib-group-faction__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-inline-start: auto;
+}
+
 .acks-lib-group-stack,
 .acks-lib-group-purse,
 .acks-lib-group-unit {

@@ -168,7 +168,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 74,
+  apiVersion: 75,
   vocab,
   fields,
   /**
@@ -277,7 +277,7 @@ const localImpl = Object.freeze({
    * The organisation chart (org.mjs, org-host.mjs, org-tree-logic.mjs): the rows a
    * faction or a group hosts in `units`, `orgHostOf` (which host and row a holder
    * stands on), `addRow`, `setHolder`, `sendOut`, `recall`, `join`, `leave`, `deleteRow` and the plan runner
-   * `runPlan`, the Foundry-free plans, the
+   * `runPlan`, a group's own gestures (`joinFaction`, `makeFaction`, `leaveFaction`, `factionLineOf`, `worldFactions`), the Foundry-free plans, the
    * two views `orgChart` and `locations`, and the morale part a group takes from
    * the units above it. docs/lib/ORGANISATION.md.
    */

@@ -44,6 +44,7 @@ import {
   statesACount,
   unitSides,
 } from "../group-encounter-logic.mjs";
+import { factionView, pressJoin, pressLeave, pressMakeOwn, pressOpen } from "../group-faction.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
 import { makeLoc } from "../util.mjs";
 import { coinCount, coinTotalGC } from "../money-logic.mjs";
@@ -87,6 +88,10 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       deleteRecord: GroupSheet.#onDeleteRecord,
       removeStack: GroupSheet.#onRemoveStack,
       rollEncounter: GroupSheet.#onRollEncounter,
+      joinFaction: GroupSheet.#onJoinFaction,
+      makeFaction: GroupSheet.#onMakeFaction,
+      leaveFaction: GroupSheet.#onLeaveFaction,
+      openFaction: GroupSheet.#onOpenFaction,
     },
   };
 
@@ -165,6 +170,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       Object.entries(GROUP_CATEGORY).map(([k, label]) => [k, game.i18n.has(label) ? game.i18n.localize(label) : k])
     );
     context.reveal = judge && sys.reveal ? this.#revealView() : null;
+    context.faction = factionView(this.actor, this.isEditable);
     return context;
   }
 
@@ -464,6 +470,26 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     if (!stackKey) return;
     await groups.removeStack(this.actor, stackKey);
     this.render();
+  }
+
+  /** The faction line's four presses (group-faction.mjs): each writes through lib's org and the sheet redraws. */
+  static async #onJoinFaction() {
+    await pressJoin(this.actor);
+    this.render();
+  }
+
+  static async #onMakeFaction() {
+    await pressMakeOwn(this.actor);
+    this.render();
+  }
+
+  static async #onLeaveFaction() {
+    await pressLeave(this.actor);
+    this.render();
+  }
+
+  static #onOpenFaction() {
+    pressOpen(this.actor);
   }
 
   /** A row's Roll: a refusal says why before the dialog opens, and the side chosen may still give no bodies. */

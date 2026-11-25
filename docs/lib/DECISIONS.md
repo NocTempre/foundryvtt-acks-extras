@@ -1717,3 +1717,13 @@ the owner's words and on the system's feature being one control that any Judge u
 both ways. **Cost:** until the system repairs T-0734 a Judge's second gang takes the
 first's bonus, and a group of the system's that the Judge made by hand and that holds
 a body of ours is replaced when the body's group is made.
+
+## 2026-11-25 — A group joins a faction as a control, and a group with no chart joins as one row
+
+Ruled by the owner's words on a roll with no village: "Groups only", "Or more specifically, not by default nor required", "The specification is the faction card is optional for groups, but it's not a strict only, rather an only group needed", and on permissions "owner can use the controls, don't hard code permissions unless explictly asked". A group's sheet carries three gestures, join a faction, make its own and leave, and writes through `join` and `leave` (docs/lib/ORGANISATION.md, "A group's own gestures"). The gestures show on any sheet the seat can edit, hold no refusal of their own, and answer a seat that cannot write a document with `join`'s own `notOwner`.
+
+A group inside no group that hosts no rows joins as one row holding itself, built in memory and written with the join, since `planJoin` takes no empty chart and a group standing alone is what the owner's sentences name. The shape is the one a roll with no village gives its top unit, so leaving gives the group back a chart that reads as any other. A join stopped between its two writes reads as free and offers the faction it wrote to first, so the same press completes it and a Leave cannot undo it. The picker joins at the top of the faction's chart.
+
+**Rejected.** Seeding the row with `addRow` and `setHolder` before the join: two writes and a stray row on a group when the join then refuses. A Leave on a stopped join: it would undo the first write. A row picker in the dialog: board 1m draws none.
+
+**Strongest counter, MEDIUM.** A player owning a group but not the faction meets a refusal after pressing, where hiding the button would spare it. Held, since the owner's words are that no permission is hard coded and Foundry's ownership already answers the write. **Cost:** a join to a faction the seat cannot write is a press and a warning, and a Make its own by a seat that cannot create actors is answered by the notice that no card could be made.

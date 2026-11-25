@@ -1,0 +1,11 @@
+{{!-- The faction a group joins, picked from the world's. A faction a stopped join
+      already wrote to is the one preselected. --}}
+<div class="acks-lib-group-roll">
+  <label>{{localize "ACKS-LIB.org.faction.pickLabel"}}
+    <select name="faction">
+      {{#each factions}}
+        <option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+      {{/each}}
+    </select>
+  </label>
+</div>

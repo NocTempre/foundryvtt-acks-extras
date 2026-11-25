@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import {
   affiliationRows, blankRow, isEmptyRow, isOfficerUp, locationsView, moraleFromAbove, nodesOf, orgChartView, planAdd,
   planJoin, planLeave, planRecall, planSendOut, preferredHost, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
-  withHolder,
+  withHolder, chartToJoin, factionLine,
 } from "../scripts/lib/org-tree-logic.mjs";
 
 /** A stored row, as a model would hand it over. */
@@ -142,6 +142,33 @@ t("any subtree may leave, a leaf included, and a second press completes the move
   assert.deepEqual(again.ops.map((o) => o.uuid), ["F.1"]);
   assert.equal(planLeave(faction, "missing", { uuid: "G.a", rows: [] }).reason, "noRow");
   assert.equal(planLeave(faction, "a", { uuid: "", rows: [] }).reason, "noHolder");
+});
+
+t("a group with no chart joins as one row that holds itself, and a chart of its own is never replaced", () => {
+  const self = { key: "k1", label: "Alone", holderUuid: "G.a" };
+  const alone = chartToJoin([], self);
+  assert.deepEqual(alone.map((r) => [r.key, r.parentKey, r.label, r.holderUuid]), [["k1", "", "Alone", "G.a"]]);
+  const plan = planJoin({ uuid: "G.a", rows: alone }, { uuid: "F.1", rows: [row("v", "", "G.v")] }, "v");
+  assert.equal(plan.ok, true, "the one row is a chart planJoin accepts");
+  assert.equal(plan.ops[0].update["system.units"].find((r) => r.key === "k1").parentKey, "v");
+  const own = [row("w1", "", "G.w1"), row("g1", "w1", "G.g1")];
+  assert.deepEqual(chartToJoin(own, self).map((r) => r.key), ["w1", "g1"]);
+  const copy = chartToJoin(own, self);
+  copy[0].label = "changed";
+  assert.equal(own[0].label, "Row w1", "a copy, so the group's rows are not edited in place");
+});
+
+t("the faction line: joined, free, free for a stopped join, and hidden where another group lists it", () => {
+  const faction = { hostUuid: "F.1", hostIsFaction: true };
+  const group = { hostUuid: "G.w", hostIsFaction: false };
+  assert.deepEqual(factionLine({ ownRows: false, nested: false, found: faction }), { state: "joined", hostUuid: "F.1" });
+  assert.deepEqual(factionLine({ ownRows: false, nested: true, found: faction }), { state: "joined", hostUuid: "F.1" }, "a nested gang on a faction's chart shows the card");
+  assert.deepEqual(factionLine({ ownRows: true, nested: false, found: faction }), { state: "free", hostUuid: "F.1" }, "a stopped join offers its faction and no Leave");
+  assert.deepEqual(factionLine({ ownRows: true, nested: false, found: null }), { state: "free" });
+  assert.deepEqual(factionLine({ ownRows: true, nested: true, found: group }), { state: "free" }, "a chart of its own is a root's");
+  assert.deepEqual(factionLine({ ownRows: false, nested: false, found: null }), { state: "free" }, "a group inside no group, with no chart");
+  assert.deepEqual(factionLine({ ownRows: false, nested: false, found: group }), { state: "hidden" }, "listed on a group's chart");
+  assert.deepEqual(factionLine({ ownRows: false, nested: true, found: null }), { state: "hidden" }, "inside a group that hosts none");
 });
 
 /* -------------------------------------------- */

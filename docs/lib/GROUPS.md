@@ -196,6 +196,10 @@ where a Judge holds Alt, the rest five abreast. The row's Deploy takes its Count
 part of a stack. The fields stay outside the grip, because a field inside a dragged
 element loses its text selection to the drag.
 
+The body's first line is the faction line: which faction card lists the group, with
+Join a faction, Make its own, Open and Leave. A group needs no card; the line and its
+rules are [ORGANISATION.md](ORGANISATION.md)'s, "A group's own gestures".
+
 ### A generated stack
 
 A stack the generator made carries `gen: {part, cite}`, the recipe part's key and the

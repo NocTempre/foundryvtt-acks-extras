@@ -185,6 +185,42 @@ export function planLeave(faction, key, group) {
 }
 
 /**
+ * The chart a group joins with. A group hosting rows joins with them; a group
+ * hosting none joins as one row that holds itself, the shape a roll with no
+ * village gives its top unit, so a group standing alone can still be listed under
+ * a faction. A row of the group's own is never replaced.
+ *
+ * @param {object[]} rows the group's own rows
+ * @param {{key: string, label: string, holderUuid: string}} self the one row an empty chart becomes
+ * @returns {object[]} plain rows
+ */
+export function chartToJoin(rows, { key, label, holderUuid }) {
+  const own = copyRows(rows);
+  return own.length ? own : [blankRow(key, { label, holderUuid })];
+}
+
+/**
+ * What the faction line on a group's sheet shows and offers. A faction that
+ * answers for the group's row, while the group hosts no rows of its own, is a
+ * joined group: the line names the faction and offers Leave. A group hosting rows
+ * of its own that a faction also names is a join stopped between its two writes:
+ * it reads as free, with that faction offered first, so a second press completes
+ * it. A group that is a row of another group's chart is listed there and shows no
+ * line, and neither does a group inside another group that hosts no chart.
+ *
+ * @param {object} facts
+ * @param {boolean} facts.ownRows the group hosts rows of its own
+ * @param {boolean} facts.nested the group stands inside another group
+ * @param {{hostUuid: string, hostIsFaction: boolean}|null} facts.found the host that names the group's row
+ * @returns {{state: "joined"|"free"|"hidden", hostUuid?: string}}
+ */
+export function factionLine({ ownRows, nested, found }) {
+  if (found?.hostIsFaction) return ownRows ? { state: "free", hostUuid: found.hostUuid } : { state: "joined", hostUuid: found.hostUuid };
+  if (ownRows) return { state: "free" };
+  return found || nested ? { state: "hidden" } : { state: "free" };
+}
+
+/**
  * Send a row's group out to a place. The place's roster is written first, then the
  * group leaves the group it stood inside, so a group caught between the two writes
  * stands in two places rather than none. Every other roster that held it lets it go.

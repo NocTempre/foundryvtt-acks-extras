@@ -21,8 +21,8 @@ import { GROUP_ACTOR_TYPE, bodyCount, groupAncestors, groupDescendants, groupNod
 import { setParentGroup } from "./group.mjs";
 import { chartRows, orgHostOf, orgHosts, unitsOf } from "./org-host.mjs";
 import {
-  locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, rowAncestors, rowDescendants, twinKeys,
-  withHolder,
+  chartToJoin, factionLine, locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, rowAncestors,
+  rowDescendants, twinKeys, withHolder,
 } from "./org-tree-logic.mjs";
 import { ORG_PROTOTYPE_FLAG, planDelete } from "./org-write-logic.mjs";
 import { addOccupant, isLocation, removeOccupant } from "./place.mjs";
@@ -335,6 +335,104 @@ export async function leave(faction, key) {
   const plan = planLeave({ uuid: faction.uuid, rows: unitsOf(faction) }, key, { uuid: doc.uuid, rows: unitsOf(doc) });
   const result = await carryOut(plan);
   return plan.ok ? { ...result, moved: plan.moved, group: doc } : result;
+}
+
+/* -------------------------------------------- */
+/*  A group's own gestures                       */
+/* -------------------------------------------- */
+
+/** The faction actor sub-type, the one non-group host. */
+const FACTION_TYPE = `${MODULE_ID}.faction`;
+
+/** A group as the chart knows it: an unlinked token's actor is read as its base actor. */
+const baseOf = (group) => (group?.isToken ? (group.baseActor ?? group) : group);
+
+/**
+ * The world's factions, in the order the world lists them: what a group may join.
+ * @returns {Actor[]}
+ */
+export function worldFactions() {
+  return [...(game.actors ?? [])].filter((a) => a?.documentName === "Actor" && a.type === FACTION_TYPE);
+}
+
+/**
+ * What the faction line of a group's sheet shows: `state` (`joined`, `free` or
+ * `hidden`, `org-tree-logic.mjs`'s `factionLine`), the faction that answers for a
+ * joined group (or, for a free one, the faction a stopped join already wrote to),
+ * and the group's row there. For a sheet to draw; it writes nothing.
+ * @param {Actor} group
+ * @returns {{state: "joined"|"free"|"hidden", faction: Actor|null, row: object|null}}
+ */
+export function factionLineOf(group) {
+  const base = baseOf(group);
+  if (!isGroupActor(base)) return { state: "hidden", faction: null, row: null };
+  const found = orgHostOf(base.uuid);
+  const hostIsFaction = !!found && !isGroupActor(found.host);
+  const line = factionLine({
+    ownRows: unitsOf(base).length > 0,
+    nested: !!base.system?.unit?.parentGroupUuid,
+    found: found ? { hostUuid: found.host.uuid, hostIsFaction } : null,
+  });
+  return { state: line.state, faction: line.hostUuid ? found.host : null, row: line.hostUuid ? found.row : null };
+}
+
+/**
+ * Join a group to a faction: `join`, for a group that hosts rows or none. A group
+ * with no rows joins as one row that holds itself, so a group standing alone can
+ * be listed under a faction. Under Foundry's own permissions, as `join` is.
+ *
+ * @param {Actor} group
+ * @param {Actor} faction
+ * @param {string} [underKey] the faction's row the group's top row goes under, blank for the top
+ * @returns {Promise<{ok: boolean, reason?: string, moved?: string[]}>}
+ */
+export async function joinFaction(group, faction, underKey = "") {
+  const base = baseOf(group);
+  if (!isGroupActor(base)) return refused("notGroup");
+  if (!hostsChart(faction) || isGroupActor(faction)) return refused("notFaction");
+  const rows = chartToJoin(unitsOf(base), { key: foundry.utils.randomID(), label: base.name ?? "", holderUuid: base.uuid });
+  const plan = planJoin({ uuid: base.uuid, rows }, { uuid: faction.uuid, rows: unitsOf(faction) }, underKey);
+  const result = await carryOut(plan);
+  return plan.ok ? { ...result, moved: plan.moved } : result;
+}
+
+/**
+ * Make a faction card of a group's own and join the group to it. The card is named
+ * from the group, and its leader is the group's officer where one is set. A join
+ * that refuses leaves the card made, and the result names it.
+ *
+ * @param {Actor} group
+ * @returns {Promise<{ok: boolean, reason?: string, faction?: Actor, moved?: string[]}>}
+ */
+export async function makeFaction(group) {
+  const base = baseOf(group);
+  if (!isGroupActor(base)) return refused("notGroup");
+  const leaderUuid = base.system?.unit?.officerUuid ?? "";
+  let faction = null;
+  try {
+    faction = await Actor.implementation.create({
+      name: base.name,
+      type: FACTION_TYPE,
+      ...(leaderUuid ? { system: { leaderUuid } } : {}),
+    });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a faction card could not be made`, err);
+  }
+  if (!faction) return refused("notMade");
+  return { ...(await joinFaction(base, faction)), faction };
+}
+
+/**
+ * Take a joined group out of its faction: `leave` over the row that names it, which
+ * moves its subtree onto it. Refuses with `noFaction` where no faction answers for it.
+ * @param {Actor} group
+ * @returns {Promise<{ok: boolean, reason?: string, moved?: string[], group?: Actor}>}
+ */
+export async function leaveFaction(group) {
+  const base = baseOf(group);
+  const found = base?.uuid ? orgHostOf(base.uuid) : null;
+  if (!found || isGroupActor(found.host)) return refused("noFaction");
+  return leave(found.host, found.row.key);
 }
 
 /* -------------------------------------------- */

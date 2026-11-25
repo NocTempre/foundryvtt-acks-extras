@@ -117,7 +117,8 @@ globalThis.Actor = {
   implementation: {
     async create(data) {
       writes.push(`create:${data.name}`);
-      return group(data.name);
+      if (globalThis.createRefuses) throw new Error("create refused");
+      return data.type === FACTION ? makeActor(FACTION, data.name, { units: [], members: [], leaderUuid: "", ...(data.system ?? {}) }) : group(data.name);
     },
   },
 };
@@ -429,6 +430,128 @@ t("leave refuses a row that is not there, a lone actor, and a group as the facti
   f.system.units.push(row("lone", "v", lone.uuid));
   assert.equal((await org.leave(f, "lone")).reason, "holderNotGroup");
   assert.equal((await org.leave(war, "w")).reason, "notFaction");
+});
+
+/* -------------------------------------------- */
+/*  A group's own gestures                       */
+/* -------------------------------------------- */
+
+t("a group hosting a chart joins a faction as join does, and the line then reads it as joined", async () => {
+  const { war, f } = warbandWorld();
+  assert.deepEqual(org.factionLineOf(war), { state: "free", faction: null, row: null }, "a root group with a chart of its own is free");
+  writes = [];
+  const result = await org.joinFaction(war, f);
+  assert.equal(result.ok, true);
+  assert.deepEqual(writes, ["Village:system.units", "Warband:system.units"]);
+  assert.deepEqual(f.system.units.map((r) => [r.key, r.parentKey]), [["v", ""], ["w", ""], ["g1", "w"], ["g2", "w"]], "no row chosen, so the top row joins at the top");
+  const line = org.factionLineOf(war);
+  assert.equal(line.state, "joined");
+  assert.equal(line.faction, f);
+  assert.equal(line.row.key, "w");
+});
+
+t("a group with no chart joins as one row that holds itself, and leaving gives it that chart back", async () => {
+  reset();
+  const lone = group("Lone group", { bodies: 2 });
+  const f = faction("Card", []);
+  assert.equal(org.factionLineOf(lone).state, "free", "a group inside no group is free with no chart");
+  const result = await org.joinFaction(lone, f);
+  assert.equal(result.ok, true);
+  assert.equal(f.system.units.length, 1);
+  assert.deepEqual([f.system.units[0].label, f.system.units[0].holderUuid, f.system.units[0].parentKey], ["Lone group", lone.uuid, ""]);
+  assert.deepEqual(lone.system.units, []);
+  const key = f.system.units[0].key;
+  const line = org.factionLineOf(lone);
+  assert.deepEqual([line.state, line.faction, line.row.key], ["joined", f, key]);
+  const left = await org.leaveFaction(lone);
+  assert.equal(left.ok, true);
+  assert.deepEqual(lone.system.units.map((r) => [r.key, r.holderUuid, r.parentKey]), [[key, lone.uuid, ""]], "keys kept, and the group hosts its own chart again");
+  assert.deepEqual(f.system.units, []);
+  assert.equal(org.factionLineOf(lone).state, "free");
+});
+
+t("make its own creates a faction card from the group, led by the group's officer, and joins it", async () => {
+  reset();
+  const officer = makeActor("character", "Officer", {});
+  const war = group("Warband", { bodies: 3, officer: officer.uuid });
+  war.system.units = [row("w", "", war.uuid)];
+  writes = [];
+  const result = await org.makeFaction(war);
+  assert.equal(result.ok, true);
+  assert.equal(result.faction.type, FACTION);
+  assert.equal(result.faction.name, "Warband");
+  assert.equal(result.faction.system.leaderUuid, officer.uuid, "the group's officer leads the card");
+  assert.deepEqual(writes, ["create:Warband", "Warband:system.units", "Warband:system.units"], "the card is made, takes the rows, then the group lets them go");
+  assert.deepEqual(result.faction.system.units.map((r) => r.key), ["w"]);
+  assert.deepEqual(war.system.units, []);
+  assert.equal(org.factionLineOf(war).faction, result.faction);
+  assert.equal(org.worldFactions().length, 1);
+});
+
+t("make its own leaves the leader blank where the group has no officer, and says when no card could be made", async () => {
+  reset();
+  const lone = group("Lone group");
+  const made = await org.makeFaction(lone);
+  assert.equal(made.ok, true);
+  assert.equal(made.faction.system.leaderUuid, "");
+  assert.equal(made.faction.system.units.length, 1, "a group with no chart is listed as one row");
+
+  const other = group("Other group");
+  globalThis.createRefuses = true;
+  const warn = console.warn;
+  console.warn = () => {};
+  const failed = await org.makeFaction(other);
+  console.warn = warn;
+  globalThis.createRefuses = false;
+  assert.deepEqual([failed.ok, failed.reason], [false, "notMade"]);
+  assert.deepEqual(other.system.units, [], "nothing was written");
+});
+
+t("a join that refuses leaves the card made, and a seat that cannot write the group writes nothing", async () => {
+  reset();
+  const war = group("Warband", {}, { isOwner: false });
+  war.system.units = [row("w", "", war.uuid)];
+  const result = await org.makeFaction(war);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "notOwner");
+  assert.equal(result.faction.type, FACTION, "the result names the card that was made");
+  assert.deepEqual(war.system.units.map((r) => r.key), ["w"]);
+  assert.deepEqual(result.faction.system.units, []);
+  const lone = group("Lone", {}, { isOwner: false });
+  assert.equal((await org.joinFaction(lone, faction("Card"))).reason, "notOwner");
+});
+
+t("the line shows nothing for a group listed in another group's chart or nested with no chart of its own", async () => {
+  const { war, g1, g2, f } = warbandWorld();
+  assert.equal(org.factionLineOf(g1).state, "hidden", "nested, listed in its warband's chart");
+  assert.equal(org.factionLineOf(g2).state, "hidden", "listed in its warband's chart, though it stands inside no group");
+  const inner = group("Inner", { parent: war.uuid });
+  assert.equal(org.factionLineOf(inner).state, "hidden", "nested, in no chart");
+  await org.joinFaction(war, f);
+  assert.equal(org.factionLineOf(g1).state, "joined", "a gang listed on a faction's chart shows the card");
+  assert.equal(org.factionLineOf(place("P")).state, "hidden", "a place is no group");
+});
+
+t("a join stopped partway reads as free with the card it wrote to first, and the same press completes it", async () => {
+  const { war, f } = warbandWorld();
+  war.refuse = true;
+  const warn = console.warn;
+  console.warn = () => {};
+  await org.joinFaction(war, f);
+  console.warn = warn;
+  const line = org.factionLineOf(war);
+  assert.deepEqual([line.state, line.faction], ["free", f], "Leave is not offered, so a press cannot undo it");
+  war.refuse = false;
+  assert.equal((await org.joinFaction(war, f)).ok, true);
+  assert.equal(f.system.units.length, 4, "no row twice");
+  assert.equal(org.factionLineOf(war).state, "joined");
+});
+
+t("leave over a group refuses where no faction lists it, and a group inside another's chart is not a faction's", async () => {
+  const { war, g1 } = warbandWorld();
+  assert.equal((await org.leaveFaction(war)).reason, "noFaction");
+  assert.equal((await org.leaveFaction(g1)).reason, "noFaction", "its row is on a group's chart");
+  assert.equal((await org.leaveFaction(place("P"))).reason, "noFaction");
 });
 
 /* -------------------------------------------- */

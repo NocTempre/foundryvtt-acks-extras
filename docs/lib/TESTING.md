@@ -4247,6 +4247,7 @@ tokens}`), and the tracker's group mark beside each name.
 10. Teardown. `api.sweepTracked()` for the scene, tokens and combat; quote its result.
     Put each kept group's counts back.
 
+## The organisation chart through the API
 
 The model is [ORGANISATION.md](ORGANISATION.md). No sheet draws the chart yet, so
 every step is a page-context call on `acksExtras.lib.org` and the observable is the
@@ -4352,7 +4353,76 @@ Two disposable groups and one disposable faction (step 9) are made through
 
 ### Not walked
 
-The sheets that draw the two views, the gestures for join, leave and "make its
-own", and the Roll are later slices. The influence feature's Morale button reads
-`commandMorale` through `moraleRatingOf`, which is unchanged; the step 4 read is
-the proof, and the button itself is not walked.
+The sheets that draw the two views and the Roll are later slices; the gestures for
+join, leave and "make its own" are walked below. The influence feature's Morale
+button reads `commandMorale` through `moraleRatingOf`, which is unchanged; the step 4
+read is the proof, and the button itself is not walked.
+
+## Join, leave and make its own
+
+The model is [ORGANISATION.md](ORGANISATION.md), "A group's own gestures". Walked on
+the primary GM seat through the rendered sheet, a click on each control, with the
+writes read back from the stored rows. Step 8 also wants a player seat.
+
+### Fixtures
+
+- **Kept, `lib/org-wander`**: an `acks-extras.group` actor inside no group, holding one
+  stack over the kept monster `lib/org-monster` (`acksExtras.lib.groups.addStack(group,
+  monster, {count: 3})`). Its `system.unit.officerUuid` is the kept actor
+  `lib/org-chief`. Found by marker. A step that needs a shape asserts it at its start:
+  `system.units` empty, `system.unit.parentGroupUuid` blank, and no faction card
+  naming it (`acksExtras.lib.org.orgHostOf(group.uuid)` is null).
+- **Kept, `lib/org-wander-faction`**: an `acks-extras.faction` actor with empty
+  `system.units`.
+- Built when the walk needs them and swept by the run's ledger (`api.track` the uuid
+  read back at once): the faction card step 5 makes.
+
+### Steps
+
+1. Open the group's sheet (`group.sheet.render(true)`). *Observable:* the first line of
+   the body, `.acks-lib-group-faction`, reads Faction, **None**, with
+   `[data-action="joinFaction"]` (Join a faction…) and `[data-action="makeFaction"]`
+   (Make its own…) and neither Leave nor Open. Hover each button: a tooltip says what
+   it does. The line wraps at a narrow window and both buttons stay reachable, down to
+   the window's narrowest.
+2. Click `[data-action="joinFaction"]` and close the picker with its close control.
+   *Observable:* nothing written (the faction's rows and the group's rows are as they
+   were) and no notification.
+3. Click `[data-action="joinFaction"]` again, choose `lib/org-wander-faction` in the
+   picker's `select[name="faction"]` (it lists every faction in the world) and press
+   Join. *Observable:* an info notification; the faction's `system.units` holds one row
+   labelled with the group's name, holding the group, with no parent; the group's
+   `system.units` is empty; `org.orgHostOf(group.uuid).host` is the faction. The sheet
+   redraws: the line reads the faction's name, "listed there as" the group's name, with
+   `[data-action="openFaction"]` and `[data-action="leaveFaction"]` and no Join or
+   Make its own.
+4. Click `[data-action="openFaction"]`. *Observable:* the faction's own sheet opens.
+5. Click `[data-action="leaveFaction"]`. *Observable:* an info notification; the
+   faction's `system.units` is empty and the group's holds the same row under the
+   same key, at the top, holding itself; the line reads None again.
+6. Click `[data-action="makeFaction"]`. *Observable:* a new `acks-extras.faction`
+   actor named as the group, its `system.leaderUuid` the chief's uuid (the group's
+   officer), holding one row for the group; the line names it. Read its uuid from
+   `org.orgHostOf(group.uuid).host.uuid` at once and `api.track` it. Leave it, then
+   blank the group's `system.unit.officerUuid` and make another: its `leaderUuid` is
+   blank.
+7. A group with a chart. Give the group a chart as a roll with no village does:
+   `org.addRow(group, "", {label: "Top"})`, `org.setHolder` to the group, and a
+   second row under it. Join the kept faction through the sheet. *Observable:* both
+   rows on the faction with their keys and parents as they were, the group's
+   `units` empty, and `org.chartOf(group)` answers the subtree from the faction's rows.
+   Leave: both rows come back to the group.
+8. Player seat. Give the player Owner on the group and nothing on the kept faction,
+   join as that player, open the group's sheet and join the kept faction. *Observable:*
+   a warning that the seat cannot edit the faction, naming it (the `notOwner` refusal),
+   and both documents unwritten, the plan having refused before its first write. With the player at Observer on
+   the group the line shows without any button. Restore the permissions.
+9. Teardown. `api.sweepTracked()` for the cards step 6 made; quote its result. Put
+   the kept faction's rows and the group's rows and officer back to the shape the
+   fixtures section names.
+
+### Not walked
+
+A group that is a row in another group's chart shows no line, which is read from the
+stored shape (`org.factionLineOf(gang)` answers `hidden`) and not walked on a sheet.
+The faction's own sheet drawing the joined group's tree is S12's.

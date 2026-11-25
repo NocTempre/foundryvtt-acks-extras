@@ -12,7 +12,8 @@ and the faction that hosts a village's chart is [factions/MODEL.md](../factions/
 | `scripts/lib/org-tree-logic.mjs` | Foundry-free: the node, the walks, the ordered write plans, the host preference, the morale walk, `affiliationRows`, the two view models. |
 | `scripts/lib/org-write-logic.mjs` | Foundry-free: the Roll, Add and Edit plans of a generated organisation. |
 | `scripts/lib/org-host.mjs` | The reads over the world: `orgHostOf` and its index, `unitsOf`, `orgHosts`, `chartRows`, `moraleFromUnitsAbove`. Imports nothing that writes, so a group's data model can read it. |
-| `scripts/lib/org.mjs` | The writes (`addRow`, `setHolder`, `sendOut`, `recall`, `join`, `leave`), the two views over a world (`orgChart`, `locations`) and `chartOf`. Exposed as `acksExtras.lib.org`. |
+| `scripts/lib/org.mjs` | The writes (`addRow`, `setHolder`, `sendOut`, `recall`, `join`, `leave`, and a group's own `joinFaction`, `makeFaction`, `leaveFaction`), the two views over a world (`orgChart`, `locations`), `chartOf` and the faction line's reader `factionLineOf`. Exposed as `acksExtras.lib.org`. |
+| `scripts/lib/group-faction.mjs` | The group sheet's faction line: its view and the four presses (join, make its own, leave, open) with the picker and the notifications. Not part of the API. |
 
 ## The row
 
@@ -105,6 +106,44 @@ faction answers, the view marks the twin, and a second press completes the move.
 After a join the group's sheet draws its subtree from the faction's rows
 (`chartOf(group)`: the rows above and beneath its own), with no copy. "Make a
 faction card of its own" is a create followed by the join.
+
+## A group's own gestures
+
+A group needs no faction card and a Judge may give it one. The group sheet's first
+line, **Faction**, is where the three gestures sit (`group-faction.mjs` reads the
+line and carries the presses out; `org.mjs` does the writes, as `join` and `leave`
+do):
+
+- **Join a faction…** opens a picker over the world's factions (`worldFactions()`,
+  the world's `acks-extras.faction` actors) and `joinFaction(group, faction)`
+  joins the group at the top of the faction's chart. A world with no faction says
+  so and opens nothing; a closed picker writes nothing.
+- **Make its own…** is `makeFaction(group)`: a faction actor named from the group,
+  with `leaderUuid` the group's `unit.officerUuid` where one is set, then the join.
+  A join that refuses leaves the card made, and the result names it.
+- **Leave** is `leaveFaction(group)`, `leave` over the row the faction holds for the
+  group. **Open** opens the card.
+
+`joinFaction` is `join` for a group that hosts rows, with its own rows. A group
+inside no group that hosts none joins as one row that holds itself, the shape a
+roll with no village gives its top unit, so a group standing alone can be listed
+under a faction. Leaving gives it that chart back.
+
+The line is `factionLineOf(group)`: **joined** where a faction answers for the
+group's row and the group hosts no rows of its own (its name, the row's label as
+"listed there as", Open and Leave); **free** otherwise for a group inside no group or
+one that hosts a chart (None, Join and Make its own); no line for a group another
+group's chart lists, and for a group inside another group that hosts none. A group
+that hosts rows while a faction also names it is a join stopped between its two
+writes: it reads free with that faction first in the picker, so the same press
+completes the move and no Leave can undo it. A faction's name or a row's label is
+the world's own text.
+
+These are controls, not gates. The only refusals are `join`'s and `leave`'s: a seat
+that cannot write a document (`notOwner`, naming it, before any write), a document
+gone, a write that failed partway. Each is said in a warning on the sheet's seat,
+and a Judge is warned of nothing else. The presses show on any sheet the seat can
+edit.
 
 ## The two views
 
@@ -215,8 +254,7 @@ Bodies on a map warn (`warnings: ["onMap"]`, a whisper to the Judges) and refuse
 
 ## What is not here
 
-The sheets that draw the two views, and the gestures for join, leave and
-"make its own" are later slices. A character's
+The sheets that draw the two views are later slices. A character's
 service tree reaches the same nodes through henchmen's `serviceNodes`
 ([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom").
 
@@ -226,6 +264,7 @@ Offline: `tools/test-org-tree.mjs` (the node, the plans, the views, the morale w
 and the affiliation list), `tools/test-org.mjs` (the index and its deletes, the
 writes over mocked documents and their order, the twin a stopped join leaves),
 `tools/test-org-run.mjs` (the executor and Delete), `tools/test-group-command.mjs` (command morale through the real getter) and
-`tools/test-factions.mjs` (the affiliation readers) and `tools/test-org-write.mjs` (the
-Roll, Add and Edit plans). Live: docs/lib/TESTING.md,
-"The organisation chart through the API".
+`tools/test-factions.mjs` (the affiliation readers), `tools/test-org-write.mjs` (the
+Roll, Add and Edit plans) and `tools/test-group-faction.mjs` (the faction line and its
+presses). Live: docs/lib/TESTING.md, "The organisation chart through the API" and
+"Join, leave and make its own".

@@ -8,6 +8,37 @@
     <p class="acks-lib-group-warning">{{localize "ACKS-LIB.group.warn.invariant"}}</p>
   {{/if}}
 
+  {{!-- The faction line: which faction card lists this group, if any. A group needs
+        none; joining one, making one of its own and leaving it are the Judge's
+        controls (docs/lib/ORGANISATION.md). --}}
+  {{#if faction}}
+    <div class="acks-lib-group-faction" role="group" aria-label="{{localize 'ACKS-LIB.org.faction.label'}}">
+      <span class="acks-lib-group-faction__cap">{{localize "ACKS-LIB.org.faction.label"}}</span>
+      {{#if faction.joined}}
+        <strong class="acks-lib-group-faction__name">{{faction.name}}</strong>
+        {{#if faction.rowLabel}}<span class="hint">{{localize "ACKS-LIB.org.faction.listedAs" label=faction.rowLabel}}</span>{{/if}}
+        <span class="acks-lib-group-faction__actions">
+          <button type="button" data-action="openFaction" data-tooltip="ACKS-LIB.org.faction.openTip"
+                  aria-label="{{localize 'ACKS-LIB.org.faction.open'}}">{{localize "ACKS-LIB.org.faction.open"}}</button>
+          {{#if faction.canEdit}}
+            <button type="button" data-action="leaveFaction" data-tooltip="ACKS-LIB.org.faction.leaveTip"
+                    aria-label="{{localize 'ACKS-LIB.org.faction.leave'}}">{{localize "ACKS-LIB.org.faction.leave"}}</button>
+          {{/if}}
+        </span>
+      {{else}}
+        <strong class="acks-lib-group-faction__name">{{localize "ACKS-LIB.org.faction.none"}}</strong>
+        {{#if faction.canEdit}}
+          <span class="acks-lib-group-faction__actions">
+            <button type="button" data-action="joinFaction" data-tooltip="ACKS-LIB.org.faction.joinTip"
+                    aria-label="{{localize 'ACKS-LIB.org.faction.join'}}">{{localize "ACKS-LIB.org.faction.join"}}</button>
+            <button type="button" data-action="makeFaction" data-tooltip="ACKS-LIB.org.faction.makeTip"
+                    aria-label="{{localize 'ACKS-LIB.org.faction.make'}}">{{localize "ACKS-LIB.org.faction.make"}}</button>
+          </span>
+        {{/if}}
+      {{/if}}
+    </div>
+  {{/if}}
+
   {{!-- Group summary: totals across every stack, and the collective noun. --}}
   <section class="acks-lib-group-summary">
     <div class="size-figure">
