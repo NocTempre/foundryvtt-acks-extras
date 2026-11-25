@@ -895,6 +895,23 @@
   gap: var(--acks-sp-3);
 }
 
+/* The asks line takes a row of its own under the pills, flush right. */
+.acks-extras-party-sheet__head-asks {
+  flex: 1 0 100%;
+  margin: 0;
+  text-align: right;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+/* A pill that asks the Judge draws the speech-bubble glyph where the press would draw its own icon. */
+.acks-extras-party-sheet__head-ask {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+
 .acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill {
   position: relative;
   display: inline-flex;

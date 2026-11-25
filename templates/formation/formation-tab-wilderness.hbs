@@ -9,11 +9,11 @@
     <div class="acks-extras-party-sheet__head-lead">
       <i class="{{frame.heads.mode.icon}} acks-extras-party-sheet__head-glyph" inert></i>
       <div>
-        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.mode.title}}</h2>
+        <h2 class="acks-extras-party-sheet__head-title" data-tooltip-text="{{frame.heads.mode.tip}}">{{frame.heads.mode.title}}</h2>
         <p class="acks-extras-party-sheet__head-sub">{{frame.heads.mode.sub}}</p>
       </div>
     </div>
-    {{#if isGM}}
+    {{#if seat.ownsMember}}
     <div class="acks-extras-party-sheet__head-actions">
       <input type="text" class="acks-extras-party-sheet__head-field" name="travel.hexLabel" value="{{travel.hexField}}"
              aria-label="{{localize 'ACKS-FORMATION.travel.hex'}}"

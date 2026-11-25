@@ -92,8 +92,9 @@ function clockTime() {
 
 /**
  * What the viewing seat owns of what the frame's presses write, each field
- * Foundry's own test or a fold of it: `ownsMember` (a save, a ration or a
- * check reaches the members the seat owns), `ownsEveryMember` (Deal XP credits
+ * Foundry's own test or a fold of it: `ownsMember` (a save, a ration, a check
+ * or the mode head's clock, pace and day presses act for the members the seat
+ * owns), `ownsEveryMember` (Deal XP credits
  * every participant), `ownsParty` (the description and the image are writes to
  * the party actor), `canBrowse` (the file picker refuses a seat without it).
  * A Judge's seat holds every ownership field, an empty party's included.
@@ -406,9 +407,11 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     const source = String(this.actor.system?.description ?? "");
     const editing = this.actor.isOwner && this.#ui.editing;
     context.description = { source, html: source ? await enrich(source, this.actor) : "", editing };
+    const seat = seatOf(this.actor, formation);
+    context.seat = seat;
     context.frame = buildFrameView({
       view: context,
-      seat: seatOf(this.actor, formation),
+      seat,
       headcount: context.headcount,
       hitPoints: realMembers(formation).map((member) => memberHp(member)),
       clockTime: clockTime(),

@@ -11,8 +11,9 @@
  * On the Judge's seat the rails are the same in every mode: the same cells, in
  * the same order, pressing the same way. A mode changes what a figure reads,
  * never which cells there are. A seat's press follows what it owns of what the
- * press writes: a save, a ration or a check reaches the members the seat owns,
- * Deal XP the party only where the seat owns every participant, the description
+ * press writes: a save, a ration, a check or the delve's and the city's pace
+ * reaches the members the seat owns (and the mode head's pills follow the same
+ * ownership), Deal XP the party only where the seat owns every participant, the description
  * and the image the party actor the seat owns. A press the seat cannot make is
  * left out of its rail, or is a reading with no action where the figure is
  * still shown. A Judge's secret (the encounter throw, a journey's hour search,
@@ -206,7 +207,7 @@ function figureCells(view, { seat, headcount, hitPoints, clockTime }) {
       reading: priced ? loc("figure.blocksReading", { n: city.rateBlocks }) : loc("figure.unknown"),
       sub: priced ? loc("figure.blocksSub", { n: city.rateBlocks }) : DASH,
       cls: view.hurried ? "is-warn" : "",
-      ...pressIf(seat.isGM, "togglePace", loc("presses.pace")),
+      ...pressIf(seat.ownsMember, "togglePace", loc("presses.pace")),
     });
   } else {
     const feet = view.hurried ? view.effSpeed : view.speed;
@@ -220,7 +221,7 @@ function figureCells(view, { seat, headcount, hitPoints, clockTime }) {
       cls: view.hurried ? "is-warn" : "",
       ...(journey
         ? { action: "goTab", tab: "mode", press: loc("presses.movement") }
-        : pressIf(seat.isGM, "togglePace", loc("presses.pace"))),
+        : pressIf(seat.ownsMember, "togglePace", loc("presses.pace"))),
     });
   }
 
@@ -392,15 +393,24 @@ function judgeState(travel) {
   return { state: loc("judge.closed"), open: false };
 }
 
-/** Each tab's head: a glyph, a title that reads the tab's state, and a line under it. */
-function headsOf(view, { headcount }) {
+/**
+ * Each tab's head: a glyph, a title that reads the tab's state, and a line
+ * under it. The mode head also carries `tip`, the title's tooltip built from
+ * the figures the title prints, and `asks`, the line that says a clock press
+ * goes to the Judge, on a delve or city head whose seat owns a member and is
+ * not the Judge's.
+ */
+function headsOf(view, { headcount, seat = {} }) {
   const strip = view.strip ?? {};
   const mode = modeOf(strip.mode);
   const turns = strip.delve?.turns ?? 0;
+  const elapsed = strip.delve?.elapsed ?? "";
+  const day = dayOf(strip);
+  const asks = !seat.isGM && seat.ownsMember ? loc("head.asks") : "";
   const modeHead = {
-    journey: { title: loc("head.journey", { day: dayOf(strip) }), sub: loc("head.journeySub") },
-    delve: { title: loc("head.delve", { turns, elapsed: strip.delve?.elapsed ?? "" }), sub: loc("head.delveSub") },
-    settlement: { title: loc("head.city", { turns }), sub: loc("head.citySub") },
+    journey: { title: loc("head.journey", { day }), sub: loc("head.journeySub"), tip: loc("head.journeyTip", { day }) },
+    delve: { title: loc("head.delve", { turns, elapsed }), sub: loc("head.delveSub"), tip: loc("head.delveTip", { turns, elapsed }), asks },
+    settlement: { title: loc("head.city", { turns }), sub: loc("head.citySub"), tip: loc("head.cityTip", { turns }), asks },
   }[mode];
   return {
     mode: { icon: MODE_TAB[mode].icon, ...modeHead },
@@ -468,7 +478,7 @@ export function buildFrameView({ view, seat = {}, headcount = 0, hitPoints = [],
     rails,
     reading: readingOf(v, { seat, headcount, clockTime }),
     key: { open: !!keyOpen, ...keyLegend(rails) },
-    heads: headsOf(v, { headcount }),
+    heads: headsOf(v, { headcount, seat }),
     panel: { hidden: !!panelHidden, label: panelHidden ? loc("chevron.show") : loc("chevron.hide") },
   };
 }

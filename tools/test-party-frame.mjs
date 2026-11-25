@@ -379,7 +379,7 @@ const frameOf = (view, seat, extra = {}) =>
   assert.ok(supplies.title.includes(`"${said("presses.rationOwned")}"`), "naming the members it rations");
   assert.ok(byKey(rails(delveView(), SEAT.judge).figures, "supplies").title.includes(`"${said("presses.ration")}"`), "the Judge keeps the shipped words");
   assert.equal(byKey(one.figures, "hp").action, undefined, "hit points stay a reading");
-  assert.equal(byKey(one.figures, "pace").action, undefined, "the delve's pace stays a reading");
+  assert.equal(byKey(one.figures, "pace").action, "togglePace", "the delve's pace is a press for a member's owner");
   assert.equal(frameOf(delveView(), SEAT.playerOne).plate.edit, false, "no plate press without file browsing");
   const oneKey = frameOf(delveView(), SEAT.playerOne).key.groups;
   assert.deepEqual(oneKey.map((g) => g.key), ["saves", "figures", "tools", "sheet"]);
@@ -489,6 +489,24 @@ const frameOf = (view, seat, extra = {}) =>
   assert.equal(gm.heads.mode.title, said("head.journey", { day: 3 }));
   assert.equal(frameOf(delveView(), true).heads.mode.title, said("head.delve", { turns: 7, elapsed: "E.70" }));
   assert.equal(city.heads.mode.title, said("head.city", { turns: 2 }));
+
+  // Every seat's mode head carries a title tooltip filled from the figures the title prints, ending in its page reference.
+  assert.equal(gm.heads.mode.tip, said("head.journeyTip", { day: 3 }));
+  assert.equal(frameOf(delveView(), true).heads.mode.tip, said("head.delveTip", { turns: 7, elapsed: "E.70" }));
+  assert.equal(city.heads.mode.tip, said("head.cityTip", { turns: 2 }));
+  assert.equal(frameOf(delveView(), SEAT.none).heads.mode.tip, said("head.delveTip", { turns: 7, elapsed: "E.70" }), "a seat that owns nothing reads the same tip");
+  // The asks line shows on a delve or city head whose seat owns a member and is not the Judge's.
+  for (const [name, view] of [["delve", delveView()], ["city", cityView()]]) {
+    assert.equal(frameOf(view, true).heads.mode.asks, "", `${name}: the Judge's head asks no one`);
+    assert.equal(frameOf(view, SEAT.none).heads.mode.asks, "", `${name}: a seat owning no member has no pills to caption`);
+    assert.equal(frameOf(view, SEAT.playerOne).heads.mode.asks, said("head.asks"), `${name}: a member-owner's head says Turn and Round ask`);
+  }
+  assert.ok(!frameOf(journeyView(), SEAT.playerOne).heads.mode.asks, "a journey head has no clock press to ask");
+  // A member-owner presses the pace cell in the delve and the city; a journey's cell navigates.
+  assert.equal(byKey(frameOf(delveView(), SEAT.playerOne).rails.figures, "pace").action, "togglePace");
+  assert.equal(byKey(frameOf(cityView(), SEAT.playerOne).rails.figures, "pace").action, "togglePace");
+  assert.equal(byKey(frameOf(delveView(), SEAT.none).rails.figures, "pace").action, undefined, "a seat owning no member reads the pace alone");
+  assert.equal(byKey(frameOf(journeyView(), SEAT.playerOne).rails.figures, "pace").action, "goTab");
   assert.equal(gm.heads.order.title, said("head.order", { heads: 5, frontage: 2 }));
   assert.deepEqual([gm.heads.judge.state, gm.heads.judge.open], [said("judge.closed"), false], "no episode open");
   const judge = frameOf(journeyView(lost), true).heads.judge;
@@ -600,19 +618,19 @@ const frameOf = (view, seat, extra = {}) =>
 
   // An owning seat's render: the presses are the ones frame-view drew, each named and carrying a tooltip,
   // and none of the Judge's is among them.
-  const SEAT_PRESSES = ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "dealXp", "editDescription", "editPartyImage"];
+  const SEAT_PRESSES = ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "togglePace", "dealXp", "editDescription", "editPartyImage"];
   for (const [name, seat, view, expected] of [
-    ["Player owning one of two", SEAT.playerOne, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "editDescription"]],
+    ["Player owning one of two", SEAT.playerOne, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "togglePace", "editDescription"]],
     ["Player on a journey", SEAT.playerOne, journeyView(), ["partySave", "toggleMagical", "partyChecks", "consumeRations", "editDescription"]],
-    ["Player owning every member", SEAT.playerAll, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "dealXp", "editDescription"]],
-    ["Trusted", SEAT.trusted, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "editDescription", "editPartyImage"]],
+    ["Player owning every member", SEAT.playerAll, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "togglePace", "dealXp", "editDescription"]],
+    ["Trusted", SEAT.trusted, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "togglePace", "editDescription", "editPartyImage"]],
   ]) {
     const html = render(view, seat, { keyOpen: true });
     const drawn = new Set(actionsIn(html));
     for (const action of SEAT_PRESSES) assert.equal(drawn.has(action), expected.includes(action), `${name}: ${action}`);
     for (const action of JUDGE_PRESSES.filter((a) => !SEAT_PRESSES.includes(a))) assert.ok(!drawn.has(action), `${name}: no ${action}`);
     for (const [, attrs] of html.matchAll(/<button([^>]*)>/g)) {
-      assert.ok(/data-tooltip="[^"]+"/.test(attrs) && /aria-label="[^"]+"/.test(attrs) || !/data-action="(partySave|toggleMagical|partyChecks|partyCheck|consumeRations|dealXp|editDescription|editPartyImage)"/.test(attrs),
+      assert.ok(/data-tooltip="[^"]+"/.test(attrs) && /aria-label="[^"]+"/.test(attrs) || !/data-action="(partySave|toggleMagical|partyChecks|partyCheck|consumeRations|togglePace|dealXp|editDescription|editPartyImage)"/.test(attrs),
         `${name}: a drawn press has a tooltip and a name (${attrs.trim().slice(0, 50)})`);
     }
     assert.equal((html.match(/data-group-key=/g) ?? []).length, 4, `${name}: the Key's groups`);

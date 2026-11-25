@@ -9,39 +9,47 @@
     <div class="acks-extras-party-sheet__head-lead">
       <i class="{{frame.heads.mode.icon}} acks-extras-party-sheet__head-glyph" inert></i>
       <div>
-        <h2 class="acks-extras-party-sheet__head-title">{{frame.heads.mode.title}}</h2>
+        <h2 class="acks-extras-party-sheet__head-title" data-tooltip-text="{{frame.heads.mode.tip}}">{{frame.heads.mode.title}}</h2>
         <p class="acks-extras-party-sheet__head-sub">{{frame.heads.mode.sub}}</p>
       </div>
     </div>
-    {{#if canTrapbreak}}
+    {{#if (or seat.ownsMember canTrapbreak)}}
     <div class="acks-extras-party-sheet__head-actions">
-      {{#if isGM}}
+      {{#if seat.ownsMember}}
+      {{!-- A Judge's Turn and Round spend the clock; a member-owner's ask the Judge, drawn with the speech bubble. --}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceTurn"
-              data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
-        <i class="fa-solid fa-hourglass-half" inert></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
+              data-tooltip="{{#if isGM}}{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}{{else}}{{localize 'ACKS-LOCATION.sceneSearch.screen.button.askSpendTip'}}{{/if}}">
+        {{#if isGM}}<i class="fa-solid fa-hourglass-half" inert></i>{{else}}<svg class="acks-extras-party-sheet__head-ask" viewBox="0 0 12 12" aria-hidden="true" inert><path d="M1 2h10v6H5L2 10V8H1z"/></svg>{{/if}} {{localize "ACKS-FORMATION.app.advanceTurn"}}
       </button>
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceRound"
-              data-tooltip="{{localize 'ACKS-FORMATION.app.advanceRoundHint'}}">
-        <i class="fa-solid fa-hourglass-start" inert></i> {{localize "ACKS-FORMATION.app.advanceRound"}}
+              data-tooltip="{{#if isGM}}{{localize 'ACKS-FORMATION.app.advanceRoundHint'}}{{else}}{{localize 'ACKS-LOCATION.sceneSearch.screen.button.askRoundTip'}}{{/if}}">
+        {{#if isGM}}<i class="fa-solid fa-hourglass-start" inert></i>{{else}}<svg class="acks-extras-party-sheet__head-ask" viewBox="0 0 12 12" aria-hidden="true" inert><path d="M1 2h10v6H5L2 10V8H1z"/></svg>{{/if}} {{localize "ACKS-FORMATION.app.advanceRound"}}
       </button>
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="restTurn"
               data-tooltip="{{localize 'ACKS-FORMATION.app.restTurnHint'}}">
         <i class="fa-solid fa-campfire" inert></i> {{localize "ACKS-FORMATION.frame.pill.restTurn"}}
       </button>
+      {{/if}}
+      {{#if isGM}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="undoTurn"
               data-tooltip="{{localize 'ACKS-FORMATION.app.undoTurnHint'}}">
         <i class="fa-solid fa-rotate-left" inert></i> {{localize "ACKS-FORMATION.frame.pill.undo"}}
       </button>
+      {{/if}}
+      {{#if seat.ownsMember}}
       <button type="button" class="acks-extras-party-sheet__head-pill{{#if strip.delve.hurried}} is-on{{/if}}" data-action="togglePace"
               aria-pressed="{{#if strip.delve.hurried}}true{{else}}false{{/if}}"
               data-tooltip="{{localize 'ACKS-FORMATION.app.paceHint'}}">
         <i class="fa-solid {{#if strip.delve.hurried}}fa-person-running{{else}}fa-person-walking{{/if}}" inert></i> {{localize "ACKS-FORMATION.frame.pill.hurried"}}
       </button>
       {{/if}}
+      {{#if canTrapbreak}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="openTrapbreak"
               data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
         <i class="fa-solid fa-screwdriver-wrench" inert></i> {{localize "ACKS-FORMATION.traps.breakTitle"}}
       </button>
+      {{/if}}
+      {{#if frame.heads.mode.asks}}<p class="acks-extras-party-sheet__head-asks">{{frame.heads.mode.asks}}</p>{{/if}}
     </div>
     {{/if}}
   </header>

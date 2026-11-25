@@ -589,6 +589,7 @@ const stripOf = (id) => {
       };
       // A seat owning nothing unless the caller names the seat it is drawing.
       const seat = given ?? { isGM: gm, ownsMember: gm, ownsEveryMember: gm, ownsParty: gm, canBrowse: gm };
+      context.seat = seat;
       context.frame = buildFrameView({ view: context, seat, headcount: 1, hitPoints: [], clockTime: "" });
       const out = {};
       for (const part of framePartIds({ isGM: gm, hasFormation: true })) {
@@ -776,6 +777,67 @@ const stripOf = (id) => {
   }
   assert.ok(ownerFrame.includes("ACKS-FORMATION.app.saveTooltipOwned"), "each save says whose members it rolls for");
   assert.ok(!whole(owning).includes('data-action="travelEndDay"') && !("judge" in owning), "and the Judge's tab and presses stay off");
+
+  // The heads on a member-owner's seat: each mode's own clock or day, and the asks.
+  const OWN = { isGM: false, ownsMember: true, ownsEveryMember: false, ownsParty: true, canBrowse: false };
+  const headOf = (parts) => parts.mode.slice(0, parts.mode.indexOf("</header>"));
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+  const langAt = (path) => path.split(".").reduce((o, k) => o?.[k], lang);
+  const tipOf = (head) => /<h2 class="acks-extras-party-sheet__head-title" data-tooltip-text="([^"]*)"/.exec(head)?.[1];
+  const ownDelveHead = headOf(owning);
+  for (const action of ["advanceTurn", "advanceRound", "restTurn", "togglePace"]) {
+    assert.ok(ownDelveHead.includes(`data-action="${action}"`), `a member's owner has ${action} at the Dungeon head`);
+  }
+  assert.ok(!ownDelveHead.includes('data-action="undoTurn"'), "and no Undo, the Judge's alone");
+  assert.ok(!ownDelveHead.includes('data-action="openTrapbreak"'), "no Trapbreaking where no member may make the throw");
+  assert.ok(ownDelveHead.includes("ACKS-LOCATION.sceneSearch.screen.button.askSpendTip") && ownDelveHead.includes("ACKS-LOCATION.sceneSearch.screen.button.askRoundTip"),
+    "Turn and Round carry the ask tooltips");
+  assert.ok(!ownDelveHead.includes("ACKS-FORMATION.app.advanceTurnHint") && !ownDelveHead.includes("fa-hourglass"), "and neither the Judge's hint nor the hourglass");
+  assert.equal(count(ownDelveHead, 'viewBox="0 0 12 12"'), 2, "each ask pill draws the speech bubble");
+  assert.equal(count(ownDelveHead, 'class="acks-extras-party-sheet__head-asks"'), 1, "the asks line is drawn once");
+  assert.ok(ownDelveHead.includes("ACKS-FORMATION.frame.head.asks"), "and says that Turn and Round ask the Judge");
+  assert.ok(ownDelveHead.indexOf("head-asks") > ownDelveHead.lastIndexOf('data-action="togglePace"'), "under the pills");
+  const ablerOwn = render(delve, { gm: false, seat: OWN, extra: { canTrapbreak: true } });
+  assert.ok(headOf(ablerOwn).includes('data-action="openTrapbreak"') && headOf(ablerOwn).includes('data-action="advanceTurn"'), "Trapbreaking joins the pills when a member may try");
+  const trapOnly = render(delve, { gm: false, extra: { canTrapbreak: true } });
+  assert.ok(headOf(trapOnly).includes('data-action="openTrapbreak"') && !headOf(trapOnly).includes("head-asks"), "a seat that owns no member keeps the opener alone, with no asks line");
+  assert.ok(!headOf(playerDelve).includes("head-actions"), "a seat that owns no member and cannot try the throw has no head actions");
+  assert.ok(!headOf(gmDelve).includes("head-asks") && !gmDelve.mode.includes("askSpendTip"), "the Judge's Dungeon head carries no asks");
+
+  const ownCity = render(city, { gm: false, seat: OWN, extra: { strip: (() => {
+    const base = buildFormationView(getFormation(city)).strip;
+    return { ...base, settlement: { ...base.settlement, poiTargets: 2 } };
+  })() } });
+  const ownCityHead = headOf(ownCity);
+  for (const action of ["settlementTravelTo", "advanceTurn", "advanceRound", "restTurn"]) {
+    assert.ok(ownCityHead.includes(`data-action="${action}"`), `a member's owner has ${action} at the City head`);
+  }
+  assert.ok(!ownCityHead.includes("travel.settlement.wanted"), "no Hunted here, a Judge's secret");
+  assert.ok(!ownCityHead.includes('data-action="undoTurn"'), "no Undo");
+  assert.ok(ownCityHead.includes("askSpendTip") && ownCityHead.includes("head-asks"), "the City head asks the Judge as the Dungeon head does");
+  assert.ok(headOf(render(city, { gm: false })).indexOf("head-actions") < 0, "a seat that owns no member has no City head actions");
+
+  const ownJourney = render(journey, { gm: false, seat: OWN });
+  const ownJourneyHead = headOf(ownJourney);
+  for (const action of ["travelEnterHex", "forageDay", "travelEndDay"]) {
+    assert.ok(ownJourneyHead.includes(`data-action="${action}"`), `a member's owner has ${action} at the Wilderness head`);
+  }
+  assert.ok(ownJourneyHead.includes('name="travel.hexLabel"'), "and the hex field");
+  assert.ok(!ownJourneyHead.includes("head-asks"), "a journey's day is the party's own, with nothing to ask");
+  assert.ok(!headOf(render(journey, { gm: false })).includes("head-actions"), "a seat that owns no member has no Wilderness head actions");
+
+  // Every seat's title carries a tooltip from the same figures, ending in the page it cites.
+  for (const [mode, html, key, ending] of [
+    ["Dungeon", headOf(gmDelve), "delveTip", /\(RR p\. 263\)$/],
+    ["City", cityHead, "cityTip", /\(RR p\. 263\)$/],
+    ["Wilderness", head, "journeyTip", /\(RR ch\. 6, Wilderness Expeditions\)$/],
+  ]) {
+    assert.ok(tipOf(html)?.startsWith(`ACKS-FORMATION.frame.head.${key} `), `${mode}: the Judge's title carries its tip`);
+    assert.match(langAt(`ACKS-FORMATION.frame.head.${key}`), ending, `${mode}: the tip ends in its page reference`);
+  }
+  for (const [mode, parts, key] of [["Dungeon", playerDelve, "delveTip"], ["Wilderness", playerJourney, "journeyTip"], ["City", render(city, { gm: false }), "cityTip"]]) {
+    assert.ok(tipOf(parts.mode)?.startsWith(`ACKS-FORMATION.frame.head.${key} `), `${mode}: a seat that owns nothing reads the same tip`);
+  }
   const playerMovement = sectionOf(playerJourney.mode, "movement");
   assert.ok(playerMovement.includes('data-action="movementTile"'), "the five tiles reach a player");
   assert.equal(playerMovement.match(/data-action="movementTile"[^>]*disabled/g)?.length, 5, "with none to press");
@@ -881,7 +943,7 @@ const stripOf = (id) => {
   const veiled = makeFormation(shownScene, shownToken, { hex: { label: "Q9", i: 0, j: 0 }, travel: { shown: "unknown", log: [logged] } });
   const asPlayer = buildTravelView(getFormation(veiled), { asPlayer: true });
   assert.deepEqual([asPlayer.plate.blank, asPlayer.plate.draw, asPlayer.plate.hex], [true, false, ""], "a blank plate: no drawing, no label");
-  assert.deepEqual([asPlayer.hex, asPlayer.hexField], ["", "Q9"], "no hex named, and the record's own label kept for the Judge's field");
+  assert.deepEqual([asPlayer.hex, asPlayer.hexField], ["", ""], "no hex named, and the field blank as well while the party is shown unknown country");
   assert.deepEqual([asPlayer.country.unknown, asPlayer.country.cards.length, asPlayer.country.encountersDrawOn], [true, 0, null],
     "no card reads anything, and no table is named");
   assert.equal(asPlayer.judge, undefined, "a player's view carries nothing of the Judge's tab");
@@ -895,6 +957,9 @@ const stripOf = (id) => {
     "while the Judge's strip keeps its count");
 
   const veiledPlayer = render(veiled, { gm: false });
+  const veiledOwner = headOf(render(veiled, { gm: false, seat: OWN }));
+  assert.match(veiledOwner, /name="travel.hexLabel" value=""/, "a member's owner reads the hex field blank while the party is shown unknown country");
+  assert.ok(!veiledOwner.includes("Q9"), "and the true label is not in the head");
   assert.ok(!whole(veiledPlayer).includes("Q9"), "the hex is named nowhere on a player's seat");
   const veiledCountry = sectionOf(veiledPlayer.mode, "country");
   assert.equal(count(veiledCountry, "ACKS-FORMATION.shown.unknownCountry"), 1, "Unknown country, once");
@@ -907,7 +972,7 @@ const stripOf = (id) => {
   // hex, so the view reads the token's cell, and the Judge's field stays empty.
   const unwalked = makeFormation(shownScene, makeToken(shownScene, "t.strip.unwalked", 3 * CELL, 2 * CELL), { hex: { label: "", i: null, j: null } });
   const placed = buildTravelView(getFormation(unwalked), { asPlayer: true });
-  assert.deepEqual([placed.hex, placed.plate.hex, placed.hexField], ["D3", "D3", ""], "the hex the token stands in, drawn and named; nothing typed");
+  assert.deepEqual([placed.hex, placed.plate.hex, placed.hexField], ["D3", "D3", "D3"], "the hex the token stands in, drawn, named and in a player's field");
   assert.equal(placed.plate.aria, 'ACKS-FORMATION.plate.aria {"hex":"D3"}');
   const named = makeFormation(shownScene, makeToken(shownScene, "t.strip.named", 3 * CELL, 2 * CELL), { hex: { label: "The ford", i: null, j: null } });
   assert.equal(buildTravelView(getFormation(named), { asPlayer: true }).hex, "The ford", "a label the Judge typed stands over the cell's");

@@ -1421,8 +1421,9 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
  * seat: the hex drawn on the plate (`plate`), its label (`hex`) and the
  * country's cards; or, `unknown`, a blank plate, no label and the one
  * "Unknown country" line (`blank`, and `shownUnknown` on the Judge's copy).
- * `hexField` keeps the record's own label for the Judge's hex field, so a
- * blank never submits over it.
+ * `hexField` is the head's hex field: the record's own label on the Judge's
+ * seat, so a blank never submits over it; on a player's seat the label the
+ * party believes, which is blank while the party is shown unknown country.
  *
  * `asPlayer` builds what a player's seat gets: no stock, no Judge's marks on
  * the cards, none of the Judge tab's context. A Judge's view carries that
@@ -1443,7 +1444,7 @@ export function buildTravelView(formation, { asPlayer = !game.user?.isGM } = {})
     // The bends the day has walked, in hexes. Shown apart from the march so the
     // road's cost and its benefit stay legible as two different things.
     winding: Number(t.day?.winding) || 0,
-    dayCount: t.dayCount, hex: blank ? "" : standing, hexField: t.hex.label, hexesEntered: t.day?.hexesEntered ?? 0,
+    dayCount: t.dayCount, hex: blank ? "" : standing, hexField: asPlayer ? (blank ? "" : standing) : t.hex.label, hexesEntered: t.day?.hexesEntered ?? 0,
     shown: t.shown,
     blank,
     shownUnknown: blank && !asPlayer,
