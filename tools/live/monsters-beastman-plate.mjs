@@ -181,6 +181,8 @@ let gm = null;
 try {
   section("seat and book");
   gm = await connect({ browser, origin, user: MACHINE.gm, port: PORTS.gm, own: MACHINE.own });
+  // The importer's api is assigned only after its cookbook loads, which can be after ready.
+  for (let n = 0; n < 60 && !(await gm.eval("!!globalThis.acksExtras?.importer?.connectBookUrl")); n++) await sleep(1000);
   let installed = await run(gm, P.install);
   check("the GM seat is the active GM", installed.isGM && installed.activeGMIsSelf, installed.module);
   if (!installed.activeGMIsSelf) blocked("another GM client is the active GM");
@@ -247,7 +249,7 @@ try {
   check("Generate on the template made one root group", generated.pressed && !!generated.uuid && generated.count === 1, generated);
   check("the root group's img is the plate", !!generated.uuid && generated.img === after.plate, { img: tail(generated.img) });
 
-  note("not walked", "the faction a village Roll makes takes no plate from this slice; the Variant list's read from the index after a reload is the phase session's reproduction");
+  note("not walked here", "the faction a village Roll makes takes the root group's img, walked by lib-beastman-warband; the Roll panel's Variant list read after a reload");
   walkDone();
 } catch (err) {
   if (err?.name !== "WalkBlocked") {
@@ -260,7 +262,9 @@ try {
   section("teardown");
   if (gm) {
     try { await run(gm, P.closeAll); } catch { /* page gone */ }
-    try { note("swept", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
+    // The marked host stays as a kept fixture; only what this run made without a marker goes.
+    const disposable = gm.tracked().filter((e) => !e.marker).map((e) => e.uuid);
+    try { note("swept", await gm.sweepTracked({ only: disposable })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   }
   const passed = checks.filter(([, ok]) => ok).length;
   console.log(`\nchecks: ${passed} passed, ${checks.length - passed} failed`);

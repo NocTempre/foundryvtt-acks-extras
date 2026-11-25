@@ -509,7 +509,8 @@ try {
 } finally {
   section("teardown");
   const gm = open.gm;
-  try { if (gm) note("swept", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
+  // The marked fixtures stay for the next walk; only what this run made without a marker goes.
+  try { if (gm) note("swept", await gm.sweepTracked({ only: gm.tracked().filter((e) => !e.marker).map((e) => e.uuid) })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   console.log(`\nchecks: ${tally.pass} passed, ${tally.fail} failed`);
   if (tally.fail) process.exitCode = 1;
   for (const api of Object.values(open)) { try { api.close(); } catch (_e) { /* closed */ } }
