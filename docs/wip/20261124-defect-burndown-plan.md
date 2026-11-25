@@ -152,3 +152,64 @@ above.
 The four findings B01 registered are in the batch map: one in B05, three in
 B12, so 118 rows are in the twelve batches. B02's eleven rows are claimed and
 its session is proposed to the owner as a card.
+
+### 2026-11-25, B02
+
+Eleven rows worked, built on `topic/defects-b02` and landed on `main` in one
+land. Seven are fixed: T-0595 and T-0632 (999759b1, with f85dea09, which the
+walk found and is written in `main`'s tree), T-0630 and T-0633 (bcb811ab),
+T-0602 (1e3bc714), and T-0599 and T-0600 (e9bd6d27). Their recipe steps are in
+7dd564cf and e9bd6d27. Two were already released: T-0627 and T-0631 shipped in
+v2026.11.19 (ec5b05c4, aad8121f) before the batch reached them. Two are
+deferred with the architect's numbers on the ledger: T-0593 and T-0594. One
+finding was registered `new`: T-0768. All on `main`, not pushed.
+
+T-0599, T-0600 and T-0602 were built from a design board on which the owner
+ruled "A on all three" (2026-11-25). The battlemap DECISIONS entry of that date
+records the ruling for T-0599 and T-0600.
+
+T-0593 is deferred because none of the variants measured separates a bias
+shared by every box from an honest small-hex set. Every one that catches the
+misplacement also breaches an acceptance bound or fires on honest sets.
+T-0594 splits three ways:
+
+- (a) is a lattice-gate change measured with no case made worse. It supersedes
+  the earlier fit's three-box threshold and rewords
+  `ACKS-BATTLEMAP.warn.familyAmbiguous`, so it needs a DECISIONS entry and a
+  wording board, and is left for the batch that picks the row up. Its change
+  list is in the row's ledger notes.
+- (b) is deferred.
+- (c) waits on a ruling about the hex shape tolerance.
+
+Walked live on `main`, lane B (Gamemaster 2), alone on the server:
+
+- Battlemap TESTING steps 19 to 22:
+  - Pressing the group again arms nothing (DOM clicks), and a scripted
+    activate still arms.
+  - Ctrl+Z removes the newest sample of any kind, in order.
+  - A field change renders once on square and on hex.
+  - A scene spelled `Miles` keeps `Miles`. Re-walked after f85dea09, the row
+    reads the same spelling.
+- Map modes steps 7 and 8:
+  - Closing the palette disarms, the group rests, and a press reopens the
+    palette. A brush armed from a sheet closes to null with the toolbar's tool
+    left alone.
+  - A Terrain pick and a handout tick each hold until the next real pointer
+    stroke, which shows Territory with the handout off. A Terrain-layer stroke
+    leaves the view.
+- The water step 5 addition: the Coastline preset marks a coast. Paved road
+  then Alley marks a paved alley.
+- The released pair re-confirmed: the map-cell field shows on scale-only with
+  boxes, and a custom size pressed once sizes the token.
+- No page error was recorded from the walk's own listener, installed after
+  `ready` on each run.
+- Kept fixtures: `battlemap/unit-spelling`, `battlemap/b02-brush@b02` and
+  `battlemap/b02-custom-size@b02`. Regions and walls drawn on the brush
+  fixture were deleted by their own uuids (2 regions, 2 walls).
+
+Checked offline only: the six battlemap suites on each fix. T-0593 and T-0594
+were measured offline by the architect at the fit's interface.
+
+Not checked: the ordinary-preset branch of the two marking tools, live (unit
+tests only); the erase stroke, live (unit tests only); `init`/`setup`/`ready`
+console (the walk's listener attached after `ready`).
