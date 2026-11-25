@@ -2336,6 +2336,35 @@ await scenario("turn + light state survive the equipment feedback loop", async (
   await drain();
 });
 
+await scenario("a turn card says no light only where neither a flame nor a shining magic light is borne", async () => {
+  const bearer = await member("Glow Bearer");
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Magic Light Party");
+  formation = await model.addMember(formation, bearer, null);
+  await drain();
+  const id = onlyFormation().id;
+  const { MAGIC_LIGHT_CHANGE_KEYS } = await import("../scripts/lib/light.mjs");
+  const glow = { id: "fxcard", name: "Glow", disabled: false, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, type: "upgrade", value: "11" }], getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+  const turnCard = async () => {
+    const before = chat.length;
+    await engine.advanceTurns(model.getFormation(id), 1, { reason: "manual" });
+    await drain();
+    return chat.slice(before).map((d) => d.content).find((c) => c.includes("acks-formation-card")) ?? "";
+  };
+  try {
+    assert.ok((await turnCard()).includes("chat.noLight"), "no flame and no magic light: the card says so");
+    bearer.effects.push(glow);
+    assert.ok(!(await turnCard()).includes("chat.noLight"), "a shining magic light is a light, with no flame lit");
+    glow.flags = { [MODULE_ID]: { lightShutter: true } };
+    assert.ok((await turnCard()).includes("chat.noLight"), "a shuttered magic light is not");
+  } finally {
+    bearer.effects.length = 0;
+    await model.disband(model.getFormation(id));
+    await drain();
+  }
+});
+
 await scenario("lighting works with the equipment feature's hand accounting", async () => {
   const hero = await member("Handy");
   await drain();

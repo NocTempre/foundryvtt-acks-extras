@@ -125,6 +125,21 @@ export function classForActor(actor) {
 }
 
 /**
+ * Whether `classItem` is the class the actor was APPLIED to: the actor's class
+ * flag, which only the class picker's apply writes, names it by uuid or by key.
+ * A class resolved only from the typed `details.class` name is not applied, and
+ * answers false.
+ */
+export function classIsApplied(actor, classItem) {
+  if (!classItem) return false;
+  const flag = actor?.getFlag?.(MODULE_ID, FLAG_CLASSES);
+  if (!flag) return false;
+  if (flag.uuid && flag.uuid === classItem.uuid) return true;
+  const key = classItem.system?.key || String(classItem.name ?? "").toLowerCase();
+  return !!flag.key && flag.key === key;
+}
+
+/**
  * The uuids of the library's class rows called `name` (already lower-cased),
  * read off the packs' indexes so finding one loads no shelf.
  */

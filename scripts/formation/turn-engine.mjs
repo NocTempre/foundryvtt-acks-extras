@@ -588,7 +588,8 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
       ? `<li>${loc("chat.lightStatus", { light: label, bearer, turns: light.remaining })}</li>`
       : `<li>${loc("chat.lightStatusUncounted", { light: label, bearer })}</li>`;
   }
-  if (!litLights.length) html += `<li class="warn">${loc("chat.noLight")}</li>`;
+  // A member's shining magic light is a light too; the record's flames are only the listed ones.
+  if (!litLights.length && !formationHasLight(formation)) html += `<li class="warn">${loc("chat.noLight")}</li>`;
   for (const spell of formation.spells ?? []) {
     const caster = game.actors.get(spell.casterId)?.name ?? "?";
     html += `<li>${loc("chat.spellStatus", { spell: foundry.utils.escapeHTML(spell.name), caster, turns: spell.remaining })}</li>`;

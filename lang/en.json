@@ -2532,7 +2532,8 @@
         "ability": "Ability",
         "proficiency": "Proficiency",
         "attribute": "Attribute",
-        "class": "Class"
+        "class": "Class",
+        "noClass": "No class grants it"
       },
       "slot": {
         "wornAt": "Worn at {slot}",

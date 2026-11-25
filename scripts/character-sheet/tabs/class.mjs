@@ -9,7 +9,7 @@
  */
 import { LANG, MODULE_ID } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { classForActor, findByRef } from "../../classes/registry.mjs";
+import { classForActor, classIsApplied, findByRef } from "../../classes/registry.mjs";
 import { classUpdateData, damageBonusLadder } from "../../classes/apply.mjs";
 import { atLevelCap, levelCap } from "../../classes/level-cap.mjs";
 import { awardsAt } from "../../classes/grants.mjs";
@@ -118,7 +118,8 @@ export function buildClassTab(actor) {
   // Only a player character's or a henchman's experience is tracked.
   const tracked = earnsExperience(actor);
   const out = {
-    bound: !!classItem,
+    // Bound means applied: a class found only by the typed name has had no training written.
+    bound: classIsApplied(actor, classItem),
     className: classItem?.name ?? String(sys.details?.class ?? ""),
     img: classItem?.img ?? null,
     uuid: classItem?.uuid ?? null,

@@ -25,6 +25,8 @@ import { wearLabel } from "../wear.mjs";
 import { collectEffectModifiers, hasEffectFlag, stringFlagValue } from "../effects.mjs";
 import { getLoadout } from "../loadout.mjs";
 import { isWeaponProficient } from "../proficiency.mjs";
+import { trainingProvenance, trainingClassItem } from "../../classes/training.mjs";
+import { abilityGrants } from "../../lib/proficiency-strip.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
@@ -199,15 +201,41 @@ function inheritedGrants(item, actor) {
   if (item.type === ITEM_TYPE.armor && dex && !loadout?.nonProficientUse) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.ac")}`, src: loc("itemSheet.src.attribute") });
   if (item.type === ITEM_TYPE.weapon && loadout) {
     const entry = loadout.weapons?.find((w) => w.item?.id === item.id);
-    if (entry && loadout.activeStyle) {
-      out.push({
-        label: loc("itemSheet.grant.style", { style: loadout.activeStyle }),
-        detail: loc(loadout.styleProficient ? "itemSheet.grant.styleTrained" : "itemSheet.grant.styleUntrained"),
-        src: loc("itemSheet.src.class"),
-      });
-    }
+    if (entry && loadout.activeStyle) out.push(styleGrant(actor, loadout));
   }
   return out;
+}
+
+/** A style token folded to its comparison key: lowercase, letters only (the fold `loadout.mjs` trains by). */
+const styleFold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z]/g, "");
+
+/**
+ * The Inherited row for the actor's active fighting style: the style's label,
+ * whether it is trained, and what grants it. A class's training effect names
+ * the class; an ability or any other effect or flag that trains the style takes
+ * the Ability or Proficiency tag; an untrained style says no class grants it. A
+ * trained style no effect names (the mandatory ones, or enforcement off) and a
+ * class that cannot be named keep the plain "Class" tag.
+ * @param {Actor} actor
+ * @param {{activeStyle: string, styleProficient: boolean}} loadout the actor's `getLoadout`
+ * @returns {{label: string, detail: string, src: string}}
+ */
+export function styleGrant(actor, loadout) {
+  const label = loc("itemSheet.grant.style", { style: wearLabel(`style.${loadout.activeStyle}`) });
+  if (!loadout.styleProficient) {
+    return { label, detail: loc("itemSheet.grant.styleUntrained"), src: loc("itemSheet.src.noClass") };
+  }
+  const key = styleFold(loadout.activeStyle);
+  // A token with a kind (`dual:specialized`) is a specialization, not the training.
+  const granting = trainingProvenance(actor).styles.filter((c) => c.tokens.some((t) => !String(t).includes(":") && styleFold(t) === key));
+  const by = (source) => granting.some((c) => c.source === source);
+  let src;
+  if (by("class")) src = trainingClassItem(actor)?.name || actor?.system?.details?.class || loc("itemSheet.src.class");
+  // The gate's own reading of proficiency items, which also takes their synonyms.
+  else if (by("ability") || abilityGrants(actor).styles.has(key)) src = loc("itemSheet.src.ability");
+  else if (granting.length) src = loc("itemSheet.src.proficiency");
+  else src = loc("itemSheet.src.class");
+  return { label, detail: loc("itemSheet.grant.styleTrained"), src };
 }
 
 /**

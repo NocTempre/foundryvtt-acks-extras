@@ -75,7 +75,10 @@ system's Scores Generator, below.
   picker for each choice the ladder leaves open. A character bound at 5th
   arrives with all five levels' awards, not with the fifth level's alone. What
   they already carry is not given twice, and what lands is posted to chat.
-  Dropping a class document onto the sheet does the same thing.
+  Dropping a class document onto the sheet does the same thing. A class name
+  typed into the Class field binds nothing and grants no training: the Class
+  tab (character sheet → Class tab) keeps showing "no class document bound"
+  until the cap is used to apply the class.
 
   Applying the same class at the same level again hands over any ability the
   level owes that the character does not yet carry: the fields show nothing to

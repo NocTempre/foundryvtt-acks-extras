@@ -293,6 +293,20 @@ const frameOf = (view, isGM, extra = {}) =>
   assert.equal(night.sub, said("figure.hoursSub", { n: 10 }), "after dark, the hours to dawn");
   assert.equal(byKey(frameOf(delveView(), true).rails.figures, "light").sub, said("figure.turnsSub", { n: 2 }), "the fewest turns among the lights burning");
   assert.equal(byKey(frameOf({ ...delveView(), lights: [] }, true).rails.figures, "light").sub, "—", "no light burning");
+  // A member's magic light is a light: shining with no flame lit, the cell does not read the no-light figure.
+  const noFlame = { ...delveView(), lights: [] };
+  const magicRow = (over) => ({ set: true, shining: true, badge: "B.shining", ...over });
+  const shiningCell = byKey(frameOf({ ...noFlame, magicLights: [magicRow()] }, true).rails.figures, "light");
+  assert.deepEqual([shiningCell.sub, shiningCell.title.includes("B.shining"), shiningCell.title.includes(said("figure.noLight"))], ["B.shining", true, false], "a shining magic light with no flame is a light");
+  const coveredCell = byKey(frameOf({ ...noFlame, magicLights: [magicRow({ shining: false, badge: "B.shuttered" })] }, true).rails.figures, "light");
+  assert.deepEqual([coveredCell.sub, coveredCell.title.includes(said("figure.noLight"))], ["—", true], "a covered magic light is no light");
+  const unsetCell = byKey(frameOf({ ...noFlame, magicLights: [magicRow({ set: false })] }, true).rails.figures, "light");
+  assert.equal(unsetCell.sub, "—", "a shining light whose reach is not typed sheds nothing");
+  assert.equal(
+    byKey(frameOf({ ...delveView(), magicLights: [magicRow()] }, true).rails.figures, "light").sub,
+    said("figure.turnsSub", { n: 2 }),
+    "a lit flame still reads its turns beside a magic light",
+  );
   const cityLight = byKey(frameOf(cityView(), true).rails.figures, "light");
   assert.deepEqual([cityLight.sub, cityLight.title.includes("C.line")], ["09:30", true], "the city reads the clock and its board's line");
   for (const view of [journeyView(), delveView(), cityView()]) {

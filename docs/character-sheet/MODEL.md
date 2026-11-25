@@ -478,7 +478,10 @@ therefore carries the figure in force itself.
 
 **Class** shows the bound class document (opens on click), the level and
 title, the XP pair and the free-text class field, with chips for the class
-picker and the Scores Generator. While the XP bar is full a gold band names
+picker and the Scores Generator. Bound means the actor's class flag, written
+only by the class picker's apply, names the resolved class by uuid or key
+(`classIsApplied`); a class found only by the typed class name shows that name
+under the unbound note, with the picker offered. While the XP bar is full a gold band names
 the level advanced to and the *Level up* button opens the classes feature's
 wizard. Underneath, a preview built from the same `classUpdateData` the
 wizard writes with: every field the next class row changes, from → to; the

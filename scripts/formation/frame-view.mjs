@@ -222,7 +222,8 @@ function figureCells(view, { isGM, headcount, hitPoints, clockTime }) {
 
 /**
  * What the light cell reads by mode: on a journey the hours to the next dusk
- * or dawn; in the delve the fewest turns left among the lights burning; in the
+ * or dawn; in the delve the fewest turns left among the lights burning, or,
+ * with no flame lit, the state a member's shining magic light reads; in the
  * city the hour line the board follows.
  */
 function lightReading(view, { mode, clockTime }) {
@@ -239,7 +240,12 @@ function lightReading(view, { mode, clockTime }) {
   }
   if (mode === "delve") {
     const left = (view.lights ?? []).filter((l) => l.lit).map((l) => Number(l.remaining)).filter(Number.isFinite);
-    if (!left.length) return { reading: loc("figure.noLight"), sub: DASH };
+    if (!left.length) {
+      // A magic light has no turns to count down: with one shining and no flame lit, the cell names its state.
+      const shining = (view.magicLights ?? []).find((row) => row.shining && row.set !== false);
+      if (shining) return { reading: shining.badge ?? DASH, sub: shining.badge ?? DASH };
+      return { reading: loc("figure.noLight"), sub: DASH };
+    }
     const n = Math.min(...left);
     return { reading: loc("figure.turnsReading", { n }), sub: loc("figure.turnsSub", { n }) };
   }
