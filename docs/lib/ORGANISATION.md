@@ -345,9 +345,24 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
 - The tree is board 1f's chart: leader cards joined top-down by connector lines, children side by side, in a
   box that scrolls sideways. A leader's card is the Follower Card's compact face (`frame` option) inside the
   role frame of its tier (`gen.tier`, read from the evaluated line), with troop, trait and kit badges drawn
-  by the generator's `org-chart` service. A card in edit is a form in the card: troop, bodies, the
-  officer line, Remove and Done. A count is **set by hand** when it differs from the total its Roll threw (`gen.rolled` on
+  by the generator's `org-chart` service. A card in edit is a form in the card: troop, bodies with the count die,
+  the officer line, Remove and Done. A count is **set by hand** when it differs from the total its Roll threw (`gen.rolled` on
   the stack), derived each draw and never stored.
+- **The count die** (`countDieOf`, `onRollCount`) sits beside a stack's Bodies in the form, drawn as the sheet's dice icon
+  (`fa-dice`), on every row, warband, gang and part alike, whose stack recorded a formula. The Roll writes the
+  expression its count was thrown from on the stack as `gen.formula`, as the evaluator gave it (the part's own
+  dice, the line's number for a unit's bodies, the beast dice of a trait; a count per unit records one throw for each
+  unit, summed). A stack with no `gen.formula`, a formula with no die in it (a counted line), and a seat that does not own
+  both the host and the row's group (the two documents `org.editRow` checks) get no die and no words about it, and a
+  stack the Roll wrote before the die existed has none. A press evaluates the formula with Foundry's `Roll` (no chat
+  card: the chart's Roll whispers the Judges a card of its steps, and the die shows its throw in the two tooltips) and writes through `org.editRow` the total as the stack's count,
+  `size.initial` and `gen.rolled` (so the hand-set mark reads rolled again) and the dice as thrown on `gen.thrown`
+  (`dieChangeOf`; the `setStack` op's `thrown` field). Bodies on a map are the edit's own case: `planEdit` warns
+  `onMap` (a whisper to the Judges, and a notice to the seat that pressed), the count at rest changes and the tokens keep
+  what they went out with; a roster the stack records floors the count (`dieFloorOf` says so in a notice), `gen.rolled`
+  names the figure written and no dice are recorded beside a total they did not give. The die's tooltip names the stack's imported label, the formula
+  and the page (`gen.cite`), assembled at render; after a press the Bodies field's tooltip and the card's count
+  tooltip name the formula, the dice thrown and the total while the count still equals `gen.rolled` (`thrownOf`).
 - **The officer line** (`officerLineOf`, `org-officer-line.hbs`) shows a card's officer as live, empty or
   deleted. The chart reads the uuid the group names (`readHolder`'s `officerUuid`) and tells deleted from
   present by `readAfterIndex` over `fromUuidSync`, so an officer in a compendium is never read as deleted

@@ -154,6 +154,9 @@ export async function runPlan(plan, { mint = null, makeLeader = null } = {}) {
             const n = Math.max(Math.floor(Number(op.count)) || 0, (s.roster ?? []).length);
             s.size.current = n;
             s.size.initial = n;
+            // A thrown count is the stack's rolled one again: the record `byHandOf` compares the count with. A roster that floors the count
+            // leaves a total the dice did not give, so no dice are recorded beside it.
+            if (Array.isArray(op.thrown)) s.gen = { ...s.gen, rolled: n, thrown: n === Math.max(Math.floor(Number(op.count)) || 0, 0) ? [...op.thrown] : [] };
           });
           if (!hit) return result({ ok: false, reason: "noStack", error: String(op.stack) });
         }

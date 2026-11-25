@@ -70,6 +70,10 @@ After every Delete, a strip at the top of the tab offers **Undo** until you relo
 Tick **Don't warn me before a Delete again** and later Deletes act at once, applying the tick as you left it. Turn
 the warning back on at Settings tab → Game Settings → ACKS II — Extras → **Warn before deleting chart rows**.
 
+### Rolling a row's bodies again
+
+Open the Actors sidebar tab, a faction, its Org chart tab, press a card's pen, and look beside **Bodies** in the form. Where the row's bodies were rolled from dice, a dice button is drawn there. Press it to throw those dice again: the total becomes the row's bodies, and the card stops reading **set by hand**. Hover the Bodies field, or the count on the card, to see the dice and the total thrown. Bodies already on a map stay as they are; the Judges are told so. A row that was never rolled and one whose bodies are a fixed figure show no dice button. You need to own the row's group and the faction.
+
 ### Giving a row an officer
 
 Open the Actors sidebar tab, a faction, its Org chart tab, press a card's pen, and look at the officer line in the form. Where the row can offer **+ Make the …** it offers that. Where it cannot (a part of a village, for one), the line offers **＋ Officer**: it makes one actor, a copy of the creature the row's group holds where there is one and otherwise a blank actor, named by the row, and sets it as the row's officer. On any row, drag an actor from the Actors sidebar tab onto the officer line: it becomes the row's officer, and the one it replaces stays in the world, unlinked. While you drag, the line shows a dashed outline and names the actor. Only a character or a creature is taken; any other actor dropped there (a group, a faction, a place, a party, a domain) does nothing. A press or a drop clears the morale figure that **+ Make the …** recorded for the officer it made; the module has no field for that figure, and the unit's own morale stays the **Morale** field on the group's sheet (open it with the card's **Open**). You need to own the row's group (and to be allowed to create actors, for the button).

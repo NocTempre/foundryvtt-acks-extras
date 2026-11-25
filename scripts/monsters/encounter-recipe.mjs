@@ -186,6 +186,9 @@ export function reachedWords({ recipe = [], encounter = null, context = "wildern
 /** The formula a part's count states, or "" where it states none a roll reads. */
 const formulaOf = (p) => (p.count?.dice ? String(p.count.dice) : p.count?.literal != null ? String(p.count.literal) : "");
 
+/** The expression a stack records to be thrown again: the formula as given where the roll read it, else blank. */
+const recordedFormula = (formula) => (formula !== "" && formula != null && rollFormula(formula, () => 0) !== null ? String(formula) : "");
+
 /**
  * Evaluate a recipe for one unit.
  *
@@ -306,7 +309,7 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
   for (const node of all) {
     if (node.bodies > 0) {
       const key = node.kind || sizeBodyKey;
-      node.parts.push({ part: key, role: "body", label: labelOf.get(key) ?? "", count: node.bodies, source: {}, chance: null, cite: "", basis: "page" });
+      node.parts.push({ part: key, role: "body", label: labelOf.get(key) ?? "", count: node.bodies, formula: recordedFormula(node.count?.formula), source: {}, chance: null, cite: "", basis: "page" });
     }
   }
 
@@ -361,6 +364,7 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
       if (!passes(p)) continue;
 
       let count = null;
+      let recorded = "";
       if (p.count?.ratioOf) {
         const base = subtreeBodies(node, p.count.ratioOf);
         count = round((base * Number(p.count.percent)) / 100, p.count.round || chosen.unprintedRound);
@@ -372,9 +376,12 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
         else {
           count = 0;
           for (let i = 0; i < times; i++) count += roll(formula, `${p.key} count`) ?? 0;
+          // One throw for each unit the count is per: the expression, summed that many times.
+          recorded = recordedFormula(formula);
+          if (recorded && times > 1) recorded = Array.from({ length: times }, () => `(${recorded})`).join("+");
         }
       }
-      node.parts.push({ part: p.key, role: p.role, label: p.label ?? "", count: count ?? 0, source: p.source ?? {}, chance: p.chance ?? null, cite: p.cite ?? "", basis: p.basis ?? "page", branch: group ?? "", perUnit: p.count?.perUnit ?? "" });
+      node.parts.push({ part: p.key, role: p.role, label: p.label ?? "", count: count ?? 0, formula: recorded, source: p.source ?? {}, chance: p.chance ?? null, cite: p.cite ?? "", basis: p.basis ?? "page", branch: group ?? "", perUnit: p.count?.perUnit ?? "" });
     }
   }
   return { ok: true, context, state: found, requested: state, lair, top: root, choices: chosen, missing, steps };

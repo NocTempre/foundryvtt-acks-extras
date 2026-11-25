@@ -345,6 +345,8 @@ const genOf = (gen) => {
   if (Number.isFinite(speakers)) out.speakers = Math.max(0, Math.floor(speakers));
   const rolled = gen?.rolled === null || gen?.rolled === undefined || gen?.rolled === "" ? NaN : Number(gen.rolled);
   if (Number.isFinite(rolled)) out.rolled = Math.max(0, Math.floor(rolled));
+  if (typeof gen?.formula === "string" && gen.formula.trim()) out.formula = gen.formula.trim();
+  if (Array.isArray(gen?.thrown)) out.thrown = gen.thrown.filter((d) => Number.isInteger(d));
   return out;
 };
 
@@ -379,7 +381,7 @@ function stackFromSource(source, { count = 0, key, gen = null, fixedHp = null } 
  * @param {Actor} source
  * @param {object} [opts]
  * @param {number} [opts.count] living bodies to start with
- * @param {{part: string, cite: string, mount?: object, carry?: object, speakers?: number}} [opts.gen] the recipe part and its page, and the figures the generator wrote for its bodies
+ * @param {{part: string, cite: string, mount?: object, carry?: object, speakers?: number, rolled?: number, formula?: string, thrown?: number[]}} [opts.gen] the recipe part and its page, and the figures the generator wrote for its bodies: the count it rolled, the expression that count was thrown from and the dice of a later throw
  * @param {number} [opts.fixedHp] the printed hit points every body of this stack takes in place of a roll
  * @returns {Promise<string|null>} the new stack's key, or null
  */

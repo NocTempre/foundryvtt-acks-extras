@@ -4,7 +4,7 @@
  * Judge presses on the faction sheet and reads what the press wrote: Generate on the
  * family template (the host opens on its Org chart tab), Add a card, Roll one card with
  * all below it, rank frames, Edit a filled card's count, Clear the leader, Send out and
- * Recall from the Locations tab, Expand all and Collapse all, Remove in edit with and
+ * Recall from the Locations tab, the count die beside Bodies (rigged dice), Expand all and Collapse all, Remove in edit with and
  * without its confirm, the tree scrolling in its own box in a narrow window. Machine
  * values arrive through ./_env.mjs. Every name and figure here is invented.
  *
@@ -326,6 +326,56 @@ const P = {
     });
   },
 
+  /** The first filled row (a part row where `part` is set) whose group holds a stack that recorded dice (`gen.formula` with a die in it): the die's shape, or null where none stands. */
+  dieStack: async ({ id, part }) => {
+    for (const r of game.actors.get(id).system.units) {
+      if (part && !r.gen?.part) continue;
+      const g = r.holderUuid ? fromUuidSync(r.holderUuid) : null;
+      const s = (g?.system?.stacks ?? []).find((x) => /\d*d\d+/i.test(x.gen?.formula ?? ""));
+      if (s) return { key: r.key, holder: g.uuid, stack: s.key, formula: s.gen.formula, cite: s.gen.cite ?? "", initial: s.size.initial, rolled: s.gen.rolled ?? null };
+    }
+    return null;
+  },
+
+  /** What Foundry's own Roll gives for a formula with every die at its lowest, the total the rigged throw must reach. */
+  lowest: async ({ formula }) => (await new Roll(formula).evaluate({ minimize: true })).total,
+
+  /** Rig Foundry's dice so every die shows its lowest face (the generator reads from the top), or put the real generator back. */
+  rig: async ({ on }) => {
+    if (on) {
+      globalThis.__dieRigWas ??= CONFIG.Dice.randomUniform;
+      CONFIG.Dice.randomUniform = () => 0.9999;
+    } else if (globalThis.__dieRigWas) {
+      CONFIG.Dice.randomUniform = globalThis.__dieRigWas;
+      delete globalThis.__dieRigWas;
+    }
+    return { rigged: !!globalThis.__dieRigWas };
+  },
+
+  /** A stack's count, rolled record and thrown dice as stored. */
+  dieStored: async ({ uuid, stack }) => {
+    const s = fromUuidSync(uuid)?.system?.stacks?.find((x) => x.key === stack);
+    return { current: s?.size?.current ?? null, initial: s?.size?.initial ?? null, rolled: s?.gen?.rolled ?? null, thrown: [...(s?.gen?.thrown ?? [])], formula: s?.gen?.formula ?? "" };
+  },
+
+  /** The die beside a stack's Bodies in a card in edit: whether it is drawn, its name and tooltip, and what the Bodies field and the card's count say. */
+  dieRead: async ({ id, key, stack }) => {
+    const card = game.actors.get(id).sheet.element.querySelector(`li[data-key="${key}"]`);
+    const form = card?.querySelector(`[data-org-stack="${stack}"]`);
+    const die = form?.querySelector('[data-action="orgRollCount"]');
+    const input = form?.querySelector('[data-org-field="count"]');
+    return {
+      drawn: !!die,
+      label: die?.getAttribute("aria-label") ?? "",
+      tip: die?.dataset.tooltipText ?? "",
+      icon: !!die?.querySelector("i.fa-dice"),
+      count: input?.value ?? null,
+      inputTip: input?.dataset.tooltipText ?? "",
+      cardTip: card?.querySelector(".acks-extras-org-card__count")?.dataset.tooltipText ?? "",
+      byHand: !!card?.querySelector(".acks-extras-org-card__count.is-hand"),
+    };
+  },
+
   /** Whether a card in edit offers the clear-leader control, and press it. */
   clearLeader: async ({ id, key, press }) => {
     const card = game.actors.get(id).sheet.element.querySelector(`li[data-key="${key}"]`);
@@ -625,6 +675,53 @@ try {
     } else note("not walked", "no card draws a badge on this roll");
   } else note("not walked", "no filled card holds a stack");
 
+  section("the count die beside Bodies");
+  let dieAt = await run(gm, P.dieStack, { id: fid });
+  if (!dieAt) {
+    // The fixture's Roll can leave no stack that recorded dice (a spent top row, or a template whose lines state figures): rebuild the shape the step needs from the same Roll.
+    note("rebuilding", "no stack on the chart records dice, so the host is reset to one empty top row and rolled again");
+    await run(gm, P.host, { id: fid, template: tpl.uuid, tab: "orgChart" });
+    await run(gm, P.press, { id: fid, action: "orgRoll", key: "top", wait: 400 });
+    await run(gm, P.dialog, { fields: { context: "wilderness", state: "lair" }, button: "ok" });
+    await rollResult(gm, 25000);
+    await waitFor(gm, `game.actors.get("${fid}").system.units.some((r) => r.holderUuid)`, 20000);
+    dieAt = await run(gm, P.dieStack, { id: fid });
+  }
+  check("the chart stands in the shape this step needs: a filled card whose stack recorded dice as the roll entry gave them", !!dieAt, dieAt);
+  if (dieAt) {
+    const lowest = await run(gm, P.lowest, { formula: dieAt.formula });
+    // Type a count by hand first, so the die has a hand-set mark to clear.
+    await run(gm, P.press, { id: fid, action: "orgEdit", key: dieAt.key, wait: 600 });
+    await run(gm, P.field, { id: fid, key: dieAt.key, stack: dieAt.stack, field: "count", value: String(lowest + 3) });
+    await run(gm, P.press, { id: fid, action: "orgEditDone", key: dieAt.key, wait: 600 });
+    await waitFor(gm, `fromUuidSync("${dieAt.holder}").system.stacks.find((s) => s.key === "${dieAt.stack}").size.initial === ${lowest + 3}`, 8000);
+    const typed = await run(gm, P.dieRead, { id: fid, key: dieAt.key, stack: dieAt.stack });
+    check("a count typed by hand reads as set by hand on the card", typed.byHand, typed);
+    await run(gm, P.press, { id: fid, action: "orgEdit", key: dieAt.key, wait: 600 });
+    const form = await run(gm, P.dieRead, { id: fid, key: dieAt.key, stack: dieAt.stack });
+    check("the card's form draws the die beside Bodies as the sheet's dice icon, named for its stack", form.drawn && form.icon && /\S/.test(form.label), form);
+    check("the die's tooltip names the recorded formula and, where the roll entry gave one, its page reference", form.tip.includes(dieAt.formula) && (!dieAt.cite || form.tip.includes(dieAt.cite)), { tip: form.tip, formula: dieAt.formula, cite: dieAt.cite });
+    check("the Bodies field's tooltip says nothing of a throw before one is made", !form.inputTip.includes(dieAt.formula), form.inputTip);
+    await run(gm, P.rig, { on: true });
+    await run(gm, P.press, { id: fid, action: "orgRollCount", key: dieAt.key, wait: 900 });
+    await run(gm, P.rig, { on: false });
+    const wrote = await waitFor(gm, `fromUuidSync("${dieAt.holder}").system.stacks.find((s) => s.key === "${dieAt.stack}").gen.rolled === ${lowest}`, 8000);
+    const stored = await run(gm, P.dieStored, { uuid: dieAt.holder, stack: dieAt.stack });
+    check("the press wrote the thrown total as the count, size.initial and gen.rolled together, from the recorded formula and Foundry's own dice", wrote && stored.current === lowest && stored.initial === lowest && stored.rolled === lowest && stored.formula === dieAt.formula, { lowest, stored });
+    check("it recorded the dice as thrown, each at its lowest face under the rig", stored.thrown.length >= 1 && stored.thrown.every((d) => d === 1), stored.thrown);
+    const after = await run(gm, P.dieRead, { id: fid, key: dieAt.key, stack: dieAt.stack });
+    check("the form reads the new count, and the card no longer reads set by hand", after.count === String(lowest) && !after.byHand, after);
+    check("the Bodies field's tooltip and the card's count tooltip name the formula, the dice as thrown and the total", [after.inputTip, after.cardTip].every((tip) => tip.includes(dieAt.formula) && tip.includes(stored.thrown.join(", ")) && tip.includes(String(lowest))), { input: after.inputTip, card: after.cardTip });
+    await run(gm, P.press, { id: fid, action: "orgEditDone", key: dieAt.key, wait: 600 });
+    const partAt = await run(gm, P.dieStack, { id: fid, part: true });
+    if (partAt) {
+      await run(gm, P.press, { id: fid, action: "orgEdit", key: partAt.key, wait: 600 });
+      const partForm = await run(gm, P.dieRead, { id: fid, key: partAt.key, stack: partAt.stack });
+      check("a part row whose stack recorded dice draws the same die, with the formula in its tooltip", partForm.drawn && partForm.tip.includes(partAt.formula), partForm);
+      await run(gm, P.press, { id: fid, action: "orgEditDone", key: partAt.key, wait: 600 });
+    } else note("not walked", "no part row on this chart holds a stack that recorded dice, so the part row's die is not shown");
+  }
+
   section("clear the leader");
   const lead = (await run(gm, P.rows, { id: fid })).filter((r) => r.officer);
   if (lead.length) {
@@ -784,6 +881,7 @@ try {
   if (gm) {
     // The setting goes back first, then the wrapped Roll; a Roll's result still kept is tracked before the sweep.
     if (confirmWas !== null) { try { await run(gm, P.setting, { set: confirmWas }); } catch (err) { console.error("setting:", err?.message ?? err); } }
+    try { await run(gm, P.rig, { on: false }); } catch (err) { console.error("rig:", err?.message ?? err); }
     try {
       const back = await run(gm, P.unspy, null);
       for (const r of back.left) for (const uuid of r.created) gm.track(uuid);

@@ -208,6 +208,11 @@ names the formula and total, the part and its page. Its row offers no per-monste
 since a press would make the count again from the creature's own line, and shows a note
 in the Roll's place; `rollEncounter` refuses it as `generated`.
 
+The Roll also writes `gen.rolled` (the count it gave) and, where the count was dice, `gen.formula`,
+the expression as the roll entry gave it. The organisation chart's count die throws `gen.formula`
+again and records the dice it threw in `gen.thrown`, beside `gen.rolled`
+(docs/lib/ORGANISATION.md, "The chart's tab").
+
 Two generated stacks never merge in a move, whatever their base: the same creature in
 two units is two rows, and a generated stack that meets a plain one over the same base
 merges into it as any two do.

@@ -456,6 +456,64 @@ export function byHandOf(stacks) {
   return null;
 }
 
+/** A die in a count expression: a term with a die size ("2d4"), as against a figure alone. */
+const DICE_TERM = /\d*d\d+/i;
+
+/**
+ * The die beside a card's Bodies, for one stack: the expression its Roll recorded (`gen.formula`)
+ * where that holds dice and the seat owns what the write reaches. A stack nothing recorded, a
+ * count that is a figure alone and a seat without ownership get none.
+ * @param {{gen?: {formula?: string, cite?: string}, template?: {label?: string}}} stack
+ * @param {{owns?: boolean}} [seat] `owns`: the seat owns the host and the row's group, as `org.editRow` needs
+ * @returns {{formula: string, cite: string, name: string}|null}
+ */
+export function countDieOf(stack, { owns = false } = {}) {
+  const formula = String(stack?.gen?.formula ?? "").trim();
+  if (!owns || !formula || !DICE_TERM.test(formula)) return null;
+  return { formula, cite: String(stack?.gen?.cite ?? ""), name: stack?.template?.label ?? "" };
+}
+
+/**
+ * What the die's last throw gave for a stack, while the count still stands as thrown: the formula,
+ * the dice in the order thrown and the total. Null before a throw, and once the count was changed
+ * by hand (a count that no longer equals `gen.rolled` is no throw's result).
+ * @param {{size?: {initial?: number}, gen?: {formula?: string, thrown?: number[], rolled?: number|null}}} stack
+ * @returns {{formula: string, dice: string, total: number}|null} `dice` is the thrown dice joined for a line
+ */
+export function thrownOf(stack) {
+  const dice = (stack?.gen?.thrown ?? []).filter((d) => Number.isInteger(d));
+  const formula = String(stack?.gen?.formula ?? "").trim();
+  const rolled = stack?.gen?.rolled;
+  if (!dice.length || !formula || rolled === null || rolled === undefined || rolled !== (stack?.size?.initial ?? 0)) return null;
+  return { formula, dice: dice.join(", "), total: rolled };
+}
+
+/**
+ * The write the die's press makes for a stack, from the evaluated roll: the total as the count and
+ * the dice as thrown. Null where the roll gave no whole total, so nothing is written.
+ * @param {string} stackKey
+ * @param {{total?: number, dice?: {results?: {result: number, active?: boolean}[]}[]}} roll an evaluated Foundry `Roll`
+ * @returns {{stack: string, count: number, thrown: number[]}|null}
+ */
+export function dieChangeOf(stackKey, roll) {
+  const total = Number(roll?.total);
+  if (!stackKey || !Number.isFinite(total)) return null;
+  const thrown = (roll.dice ?? []).flatMap((d) => (d.results ?? []).filter((r) => r.active !== false).map((r) => r.result)).filter((n) => Number.isInteger(n));
+  return { stack: stackKey, count: Math.max(0, Math.floor(total)), thrown };
+}
+
+/**
+ * The bodies a stack's roster holds, where a throw's total falls below them: the count the write then keeps.
+ * Null where the total stands.
+ * @param {{roster?: object[]}} stack
+ * @param {{count: number}} change `dieChangeOf`'s answer
+ * @returns {number|null}
+ */
+export function dieFloorOf(stack, change) {
+  const held = (stack?.roster ?? []).length;
+  return change && change.count < held ? held : null;
+}
+
 /**
  * What a Remove left, for the line above the chart: the row that left and the rows that moved up,
  * with the row they now stand beneath (null for the top). Null where no row moved, so a leaf's

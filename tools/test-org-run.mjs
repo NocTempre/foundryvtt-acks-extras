@@ -234,6 +234,21 @@ t("a stack's mount, carried pieces and speakers are stored on it", async () => {
   assert.ok(stack.gen.mount.uuid, "the mount names its creature");
 });
 
+t("a stack's recorded formula is stored on it by addStack and addLabelledStack", async () => {
+  reset();
+  const host = faction("Holdfast");
+  const plan = planRoll({ host: { uuid: host.uuid, kind: "faction" }, rows: [], tree: rollTree(), scope: "below" });
+  const body = plan.ops.find((o) => o.op === "addStack" && o.gen.part === "warriors");
+  body.gen = { ...body.gen, formula: "2d6" };
+  const labelled = plan.ops.find((o) => o.op === "addLabelledStack");
+  if (labelled) labelled.gen = { ...labelled.gen, formula: "1d4" };
+  const run = await runPlan(plan, provider());
+  assert.equal(run.ok, true, run.error);
+  const stacks = [...actors.values()].filter((a) => a.type === GROUP).flatMap(stacksOf);
+  assert.equal(stacks.find((s) => s.gen.part === "warriors").gen.formula, "2d6");
+  if (labelled) assert.ok(stacks.some((s) => s.gen.formula === "1d4"), "a labelled stack records it too");
+});
+
 t("a run that fails hands back every id it made, and writes no ref it could not resolve", async () => {
   reset();
   const host = faction("Holdfast");
@@ -293,6 +308,21 @@ t("setStack floors a count at the bodies the stack already records and says so f
   assert.equal(gone.reason, "noStack");
   const bad = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "s1", prototype: "L.nowhere" }] }, provider());
   assert.equal(bad.reason, "noPrototype");
+});
+
+t("setStack with thrown dice writes the count, size.initial, gen.rolled and the dice together, and a roster floors the count the record then names", async () => {
+  reset();
+  const g = oneStack();
+  const run = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "s1", count: 8, thrown: [3, 5] }] }, provider());
+  assert.equal(run.ok, true, run.error);
+  const stack = g.system.stacks[0];
+  assert.deepEqual([stack.size.current, stack.size.initial, stack.gen.rolled, stack.gen.thrown], [8, 8, 8, [3, 5]]);
+  const typed = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "s1", count: 5 }] }, provider());
+  assert.equal(typed.ok, true, typed.error);
+  assert.deepEqual([g.system.stacks[0].size.initial, g.system.stacks[0].gen.rolled, g.system.stacks[0].gen.thrown], [5, 8, [3, 5]], "a typed count leaves the throw's record for the hand-set mark to read");
+  const held = oneStack([{ key: "m1" }, { key: "m2" }, { key: "m3" }]);
+  await runPlan({ ok: true, ops: [{ op: "setStack", group: held.uuid, stack: "s1", count: 1, thrown: [1] }] }, provider());
+  assert.deepEqual([held.system.stacks[0].size.initial, held.system.stacks[0].gen.rolled, held.system.stacks[0].gen.thrown], [3, 3, []], "the bodies at rest change only to what the roster leaves; the record names what was written and holds no dice that did not give it");
 });
 
 t("Edit runs through the org writer: a filled row's label and a stack's count land, and bodies on a map warn without refusing", async () => {

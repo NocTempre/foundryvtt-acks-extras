@@ -267,7 +267,7 @@ export function planOrganisationRoll({
     } else proto = protoOf({ kind: "label", label: src.name || p.label || p.part });
     const spec = prototypes[proto];
     const hp = spec.kind === "entry" ? null : printedHp(spec);
-    return { proto, label: spec.kind === "label" ? spec.label : p.label, count: p.count, role: p.role, gen: { part: p.part, cite: p.cite ?? "" }, ...(Number.isFinite(hp) ? { fixedHp: hp } : {}), ...(p.chance != null ? { chance: p.chance } : {}) };
+    return { proto, label: spec.kind === "label" ? spec.label : p.label, count: p.count, role: p.role, gen: { part: p.part, cite: p.cite ?? "", ...(p.formula ? { formula: String(p.formula) } : {}) }, ...(Number.isFinite(hp) ? { fixedHp: hp } : {}), ...(p.chance != null ? { chance: p.chance } : {}) };
   };
 
   // A village: the top unit holds units that hold units, and holds no body of its own, so the host can take its parts as rows.
@@ -326,10 +326,11 @@ export function planOrganisationRoll({
     if (!word) findings.push({ what: "traitBeasts", trait, dice: traitRow.figures.beastDice });
     else {
       const r = outside(word, "traitBeast");
-      const count = rollFormula(traitRow.figures.beastDice, rng) ?? 0;
+      const total = rollFormula(traitRow.figures.beastDice, rng);
+      const count = total ?? 0;
       const proto = protoOf(r.status === REFERENCE.resolved ? { kind: "entry", uuid: r.entry.uuid ?? "" } : { kind: "label", label: word });
       const camp = village ? null : nodes.find((n) => n.camp) ?? null;
-      const stack = { proto, label: word, count, role: "guard", gen: { part: `trait-${trait}`, cite: traitRow.cite ?? "" } };
+      const stack = { proto, label: word, count, role: "guard", gen: { part: `trait-${trait}`, cite: traitRow.cite ?? "", ...(total !== null ? { formula: String(traitRow.figures.beastDice) } : {}) } };
       if (camp) camp.stacks.push(stack);
       else if (village) top.children.push(partNode(stack, top.key, word));
       else top.children.push({ key: `r${++serial}`, word: "", kind: "", parentKey: top.key, label: "", camp: true, troop: "", trait, officers: [], stacks: [stack], children: [], evalKey: "" });

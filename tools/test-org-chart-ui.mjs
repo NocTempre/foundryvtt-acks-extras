@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
 import { planEdit, planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -384,6 +384,64 @@ t("a Roll's family is the template loaded whole, so its variants are there when 
   assert.deepEqual([got.defaults.variant, got.defaults.context], ["alba", "lair"]);
   assert.equal((await familyOfRows([row("a")], "a", load)).family, null, "a chart with no template has no family");
   assert.equal((await familyOfRows(rows, "w", async () => { throw new Error("gone"); })).family, null, "a template that will not load is no family");
+});
+
+const dieStack = (gen = {}, size = 4) => ({ key: "s1", template: { label: "QA Part" }, size: { initial: size }, gen: { cite: "QA p. 1", formula: "1d4+1", ...gen } });
+
+t("the count die is drawn only where the stack recorded dice and the seat owns the host and the row's group", () => {
+  assert.deepEqual(countDieOf(dieStack(), { owns: true }), { formula: "1d4+1", cite: "QA p. 1", name: "QA Part" });
+  assert.equal(countDieOf(dieStack(), { owns: false }), null, "a seat that fails the ownership tests sees no die");
+  assert.equal(countDieOf(dieStack(), {}), null, "no ownership given is none");
+  assert.equal(countDieOf(dieStack({ formula: "" }), { owns: true }), null, "a stack nothing recorded, a hand-typed count or a row never rolled");
+  assert.equal(countDieOf({ key: "s", size: { initial: 2 }, gen: {} }, { owns: true }), null, "no gen.formula at all");
+  assert.equal(countDieOf(dieStack({ formula: "6" }), { owns: true }), null, "a counted line (a figure alone) has nothing to roll");
+  assert.equal(countDieOf(dieStack({ formula: "(2d6)*10" }), { owns: true })?.formula, "(2d6)*10", "dice under a multiplier are dice");
+  assert.equal(countDieOf(null, { owns: true }), null);
+});
+
+t("the thrown dice speak for the count only while it stands as thrown", () => {
+  const thrown = dieStack({ thrown: [3], rolled: 4 }, 4);
+  assert.deepEqual(thrownOf(thrown), { formula: "1d4+1", dice: "3", total: 4 });
+  assert.equal(thrownOf(dieStack({ thrown: [3], rolled: 4 }, 9)), null, "a count changed by hand after the throw is no throw's result");
+  assert.equal(thrownOf(dieStack({ thrown: [], rolled: 4 }, 4)), null, "a Roll's own stack records no dice thrown");
+  assert.equal(thrownOf(dieStack({ thrown: [3] }, 4)), null, "no rolled record");
+  assert.equal(thrownOf(dieStack({ thrown: [2, 5], rolled: 7, formula: "" }, 7)), null, "no formula, nothing to name");
+  assert.equal(thrownOf(dieStack({ thrown: [2, 5], rolled: 7 }, 7)).dice, "2, 5");
+});
+
+t("a thrown roll becomes the count and the dice in order, and a roll with no whole total writes nothing", () => {
+  const roll = { total: 7, dice: [{ results: [{ result: 2, active: true }, { result: 4 }, { result: 6, active: false }] }, { results: [{ result: 1 }] }] };
+  assert.deepEqual(dieChangeOf("s1", roll), { stack: "s1", count: 7, thrown: [2, 4, 1] });
+  assert.equal(dieChangeOf("s1", { total: -3, dice: [] }).count, 0, "never below none");
+  assert.equal(dieChangeOf("s1", { total: 5.9, dice: [] }).count, 5);
+  assert.equal(dieChangeOf("s1", null), null);
+  assert.equal(dieChangeOf("s1", { total: NaN }), null);
+  assert.equal(dieChangeOf("", roll), null);
+});
+
+t("the die's write carries the count with the thrown dice, and warns of bodies on a map without refusing", () => {
+  const rows = [row("u1", "", "G.1")];
+  const change = dieChangeOf("s1", { total: 6, dice: [{ results: [{ result: 5 }] }] });
+  const plan = planEdit({ host: { uuid: "H" }, rows, key: "u1", stacks: [change], onMap: true });
+  assert.deepEqual(plan.ops, [{ op: "setStack", group: "G.1", stack: "s1", count: 6, thrown: [5] }]);
+  assert.deepEqual(plan.warnings, ["onMap"], "the same one plain warning the form's Done gives");
+  assert.deepEqual(planEdit({ host: { uuid: "H" }, rows, key: "u1", stacks: [change], onMap: false }).warnings, []);
+  assert.equal(planEdit({ host: { uuid: "H" }, rows, key: "u1", stacks: [{ stack: "s1", count: 2 }] }).ops[0].thrown, undefined, "a typed count records no dice");
+});
+
+t("a throw that falls below the bodies a stack still records says the count is held there", () => {
+  const held = { ...dieStack(), roster: [{ key: "m1" }, { key: "m2" }, { key: "m3" }] };
+  assert.equal(dieFloorOf(held, { count: 1 }), 3);
+  assert.equal(dieFloorOf(held, { count: 3 }), null, "a total that meets the roster stands");
+  assert.equal(dieFloorOf(dieStack(), { count: 0 }), null, "a stack with no roster has no floor");
+  assert.equal(dieFloorOf(held, null), null);
+});
+
+t("a thrown count reads as rolled again, so the hand-set mark clears", () => {
+  const after = { ...dieStack({ rolled: 2, thrown: [] }, 6) };
+  assert.equal(byHandOf([after])?.byHand, true, "a count differing from the roll's record is by hand");
+  after.gen = { ...after.gen, rolled: 6, thrown: [5] };
+  assert.equal(byHandOf([after]), null);
 });
 
 let failures = 0;

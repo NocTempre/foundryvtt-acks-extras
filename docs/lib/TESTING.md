@@ -4815,6 +4815,14 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
    tooltip naming the total the Roll threw (`gen.rolled`) and never below the bodies it records. With a body
    on a map the Judges are whispered and the write still lands. A badge on a card, where the roll drew one,
    puts its tooltip text in a notice when pressed (`#notifications .notification`).
+   **The count die (slice g).** On a chart where a stack recorded dice (`gen.formula` with a die in it; the step rebuilds the
+   host and rolls it again where none did), type a count by hand and press Done, then press the pen: the form draws a dice-icon
+   button beside Bodies whose tooltip names the formula and the stack's page. With `CONFIG.Dice.randomUniform` rigged
+   (`() => 0.9999`, every die at its lowest face, restored in the teardown), press it. *Observable:* the stack's `size.current`,
+   `size.initial` and `gen.rolled` all equal the formula's lowest total (`new Roll(formula).evaluate({minimize: true})`),
+   `gen.thrown` holds the dice thrown (all 1), the Bodies field and the card's count tooltips name the formula, the dice and
+   the total, and the card no longer reads set by hand. A part row, where the chart has one, draws the same die.
+   Not walked: a Player seat's view (the unit cases cover `countDieOf`'s ownership gate) and a row with bodies on a map.
    **Rank frames (board 1h).** *Observable:* each leader's head and each rank-and-file card's art sits in a
    frame whose class is `acks-extras-pf--file` (hairline), `--champion` (solid), `--sub` (double) or `--chief`
    (double, spot colour); the frame's `aria-label` and a word on the card say the rank ("Rank and file",

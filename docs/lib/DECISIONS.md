@@ -2388,3 +2388,25 @@ dropped; it is set through Make or the press instead.
 **Cost.** None to the other callers: neither field is passed by any of them, and `tools/test-roll-card.mjs` pins their HTML byte for byte.
 
 **Strongest counter, WEAK.** A renderer many cards use grows for one card. Weak: both fields are additive and pinned.
+
+## 2026-11-25 — A stack's count has a die beside Bodies, thrown again from the formula its Roll recorded (slice g)
+
+**Ruled.** The hub, on board 1u: the die sits only beside Bodies in a card's edit form, on every row whose stack records a
+formula, warband, gang and part alike, with no second placement (a part row offers no Roll, and a filled warband row draws
+none either). A row with no recorded formula draws no die and no words: a stack never rolled, or made by hand. The Roll records the formula on each stack's `gen`, which the hub accepted since the Roll has never been released,
+so there is no migration. A press throws it and writes the count, `size.initial` and `gen.rolled` together, so the
+hand-set mark reads rolled again. Who may press follows ownership of the host and the row's group, as Make does, with no
+`isGM` read. Two tooltips, both assembled at render: the die's names where the formula came from, the imported label and
+the page; after a press the Bodies field's and the card's count tooltips name the formula, the dice as thrown and the total.
+A deployed row changes only its count at rest, and says so in a notice to the seat that pressed (the form's `onMap` line, beside `org.editRow`'s whisper to the Judges).
+
+**Built.** `gen.formula` (the expression, from `evaluateRecipe`'s parts and the trait's beast dice) and `gen.thrown` (the
+dice in order) on the group data's stack `gen`; `countDieOf`, `thrownOf`, `dieChangeOf` in the chart's logic;
+the `setStack` op takes `thrown` and writes `gen.rolled` as the count it wrote.
+
+**Rejected.** *A Roll slot on a part row.* The hub ruled one placement. *Posting the throw to chat.* The chart's Roll whispers
+the Judges a card of its steps; the hub named the two tooltips as where the die shows its throw, so the die posts nothing.
+*A new warning for a deployed row.* The form already has one; the press reuses its text.
+
+**Cost.** A count per unit records its formula repeated once for each unit at the Roll, since the unit count a later throw
+would need is not stored. The press writes at once, so a label typed in the same form and not yet saved is redrawn away.

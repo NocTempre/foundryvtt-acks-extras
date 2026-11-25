@@ -204,13 +204,30 @@ t("a plain roll turns each part into a stack with its part and page, and a print
   const r = roll();
   assert.equal(r.ok, true);
   const escort = stacksOf(r).find((s) => s.gen.part === "escort");
-  assert.deepEqual([escort.gen, escort.fixedHp], [{ part: "escort", cite: "XX p. 1" }, 7]);
+  assert.deepEqual([escort.gen, escort.fixedHp], [{ part: "escort", cite: "XX p. 1", formula: "2d4" }, 7]);
   assert.equal("fixedHp" in stacksOf(r).find((s) => s.gen.part === "archers" || s.gen.part === "warriors"), false, "no figure the page does not print");
   assert.equal(r.gen.variant, "alba");
   assert.deepEqual(r.treasure, { deal: true, hoards: 3 }, "one hoard for each unit the line counts");
   assert.equal(roll({ state: "wandering" }).treasure.deal, false, "the state decides whether treasure is dealt");
   assert.deepEqual(roll({ context: "dungeon", state: "wandering" }).treasure, { deal: false, hoards: 1 }, "a unit that counts bodies is one hoard");
   assert.equal(roll({ unit: "band", state: "lair" }).treasure.deal, false, "a roll of one empty row deals none: its ancestor's roll dealt for it");
+});
+
+t("each stack records the expression its count was thrown from, as given, and a count that is no dice records none", () => {
+  const r = roll();
+  const stacks = stacksOf(r);
+  const bodies = stacks.filter((s) => s.role === "body");
+  assert.ok(bodies.length && bodies.every((s) => /^\d*d\d+$/.test(s.gen.formula)), "a unit's bodies carry the line's number");
+  assert.equal(stacks.find((s) => s.gen.part === "guard-2").gen.formula, "1d4", "a part's own dice");
+  const village = roll({ villageSource: "table" });
+  const captives = stacksOf(village).find((s) => s.gen.part === "village-prisoners");
+  assert.match(captives.gen.formula, /^\(2d4\)(\+\(2d4\))*$/, "a count per unit records one throw for each unit, summed");
+  const literal = roll({ recipe: RECIPE.map((p) => (p.key === "guard-2" ? { ...p, count: { ...p.count, dice: "", literal: 3 } } : p)) });
+  assert.equal(stacksOf(literal).find((s) => s.gen.part === "guard-2").gen.formula, "3", "a figure is recorded as given; the card draws no die for it");
+  const ratio = stacksOf(r).filter((s) => s.role === "body").every((s) => !/%/.test(s.gen.formula));
+  assert.ok(ratio, "a share of bodies is no expression to throw");
+  const named = roll({ rules: { traits: true }, choices: { traitBeast: "gleaves" } });
+  assert.equal(stacksOf(named).find((x) => x.gen.part === "trait-x1").gen.formula, "2d4", "a trait's beasts record the beast dice");
 });
 
 t("a leader is an officer of its unit with its morale part, never a stack; an out-of-range figure is null and a finding", () => {

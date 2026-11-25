@@ -104,6 +104,11 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
           speakers: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
           // The bodies the Roll threw for this stack: what a count set by hand is told from.
           rolled: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
+          // The count expression the Roll read for this stack, as the roll entry gave it: what
+          // the card's die throws again. Blank where the count was no dice or nothing recorded it.
+          formula: str(),
+          // The dice the die's last throw gave, in the order thrown. Empty until the die is pressed.
+          thrown: new ArrayField(new NumberField({ required: true, nullable: false, integer: true })),
         }),
         // A printed hit-point figure every body of this stack takes in place of a
         // roll. Null is a stack whose bodies roll their hit dice.

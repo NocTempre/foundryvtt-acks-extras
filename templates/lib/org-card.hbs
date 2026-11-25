@@ -1,7 +1,7 @@
 {{!-- One card of the chart and, beneath it, its unfolded cards (board 1f). A card with
-      nothing in it offers Roll and a pen; a filled card a pen and Send out, and no die.
+      nothing in it offers Roll and a pen; a filled card a pen and Send out, and no Roll.
       A leader's card is the Follower Card, drawn in the role frame of its rank (board 1l).
-      A card in edit draws its own form (troop, bodies, the officer line, Remove, Done); a card whose
+      A card in edit draws its own form (troop, bodies and, beside them, the count die where the stack recorded dice, the officer line, Remove, Done); a card whose
       officer was deleted draws the officer line outside edit too. Recursive. --}}
 <li role="treeitem"{{#if role}} aria-label="{{rank}} · {{role.word}}"{{/if}} {{#if hasKids}}aria-expanded="{{#if folded}}false{{else}}true{{/if}}"{{/if}} data-key="{{key}}">
   <div class="acks-extras-org-card{{#if leader}} is-leader{{/if}}{{#if empty}} is-empty{{/if}}{{#if groupGone}} is-gone{{/if}}{{#if hidden}} is-hidden{{/if}}{{#if twin}} is-twin{{/if}}{{#if byHand}} is-hand{{/if}}{{#if editing}} is-on{{/if}}">
@@ -30,7 +30,8 @@
             <div class="acks-extras-org-card__stack" data-org-stack="{{key}}">
               <span>{{name}}</span>
               {{#if troop}}<select data-org-field="troop" data-was="{{#each troop.options}}{{#if selected}}{{key}}{{/if}}{{/each}}" aria-label="{{localize 'ACKS-LIB.org.edit.troop' name=name}}" data-tooltip="ACKS-LIB.org.edit.troopTip">{{#each troop.options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}{{#if offBands}} · {{localize "ACKS-LIB.org.edit.offBands"}}{{/if}}</option>{{/each}}</select>{{/if}}
-              <input type="text" inputmode="numeric" class="acks-extras-org-card__bodies" data-org-field="count" value="{{count}}" aria-label="{{localize 'ACKS-LIB.org.edit.count' name=name}}" data-tooltip="ACKS-LIB.org.edit.bodiesTip" />
+              <input type="text" inputmode="numeric" class="acks-extras-org-card__bodies" data-org-field="count" value="{{count}}" aria-label="{{localize 'ACKS-LIB.org.edit.count' name=name}}" data-tooltip-text="{{bodiesTip}}" />
+              {{#if die}}<button type="button" class="acks-extras-org-card__die" data-action="orgRollCount" aria-label="{{die.label}}" data-tooltip-text="{{die.tip}}"><i class="fas fa-dice" aria-hidden="true"></i></button>{{/if}}
             </div>
           {{/each}}
           {{#if officerLine}}{{> "modules/acks-extras/templates/lib/org-officer-line.hbs" officerLine}}{{/if}}

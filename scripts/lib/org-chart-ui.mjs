@@ -1,4 +1,4 @@
-/* global game, foundry, ui, fromUuid, fromUuidSync, Actor, document */
+/* global game, foundry, ui, fromUuid, fromUuidSync, Actor, document, Roll */
 /**
  * The organisation chart's surface (docs/lib/ORGANISATION.md, "The chart's tab"): the
  * context the two partials draw on a faction's Org chart and Locations tabs and on a
@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { outputActorType } from "./template-generate.mjs";
@@ -244,6 +244,7 @@ export async function chartContext(actor, app, { isGM }) {
     const stacks = isGroupActor(holder) ? (holder.system.stacks ?? []) : [];
     const cites = citesOf(holder);
     const hand = byHandOf(stacks);
+    const thrown = stacks.map(thrownOf).find(Boolean) ?? null;
     const inEdit = editable && editing.has(c.key);
     const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows, hostGen });
     const officerGone = !!officerLine?.gone;
@@ -256,13 +257,13 @@ export async function chartContext(actor, app, { isGM }) {
       groupGone,
       canRoll: c.canRoll && (!groupGone || !!game.user?.can?.("ACTOR_CREATE")),
       cites,
-      countTip: loc("card.countTip", { name: c.name, cites }),
+      countTip: thrown ? loc("edit.thrownTip", { ...thrown, cites }) : loc("card.countTip", { name: c.name, cites }),
       byHand: !!hand,
       handTip: hand ? loc("card.handTip", { n: hand.now, rolled: hand.rolled, cites }) : "",
       role,
       leader: await leaderHtml({ ...c, role }),
       editing: inEdit,
-      edit: inEdit ? await editOf(c, stacks, deleteGate(host, c.key).offered) : null,
+      edit: inEdit ? await editOf(c, stacks, deleteGate(host, c.key).offered, !!host.isOwner && !!holder?.isOwner) : null,
       children: await decorate(c.children),
     };
   }));
@@ -290,14 +291,19 @@ export async function chartContext(actor, app, { isGM }) {
   };
 }
 
-/** What a card in edit shows: its label, whether its Delete is offered, and each stack's bodies and troop options. */
-async function editOf(card, stacks, canDelete) {
+/** What a card in edit shows: its label, whether its Delete is offered, and each stack's bodies, die and troop options. `owns` is the seat's ownership of the host and the row's group, which the die's write needs. */
+async function editOf(card, stacks, canDelete, owns) {
   return {
     label: card.label,
     canDelete: !!canDelete,
     stacks: await Promise.all(stacks.map(async (s) => {
       const troop = await troopFor(s);
+      const die = countDieOf(s, { owns });
+      const thrown = thrownOf(s);
+      const cites = s.gen?.cite ?? "";
       return {
+        bodiesTip: thrown ? loc("edit.thrownTip", { ...thrown, cites }) : loc("edit.bodiesTip"),
+        die: die ? { label: loc("edit.die", { name: die.name }), tip: loc("edit.dieTip", { name: die.name, formula: die.formula, cites: die.cite }) } : null,
         key: s.key,
         name: s.template?.label ?? "",
         count: s.size?.initial ?? 0,
@@ -707,6 +713,36 @@ async function onEditDone(_event, target) {
   const result = await org.editRow(host, key, change);
   if (!result.ok) return refuse(result);
   editsOf(this).delete(key);
+  render(this);
+}
+
+/**
+ * The die beside a stack's Bodies in a card's form: it throws the dice the stack's Roll recorded
+ * (`gen.formula`) with Foundry's own `Roll` and writes the total as the stack's count, with
+ * `gen.rolled` and the dice thrown, through `org.editRow` at once, as every press does. The seat's
+ * ownership of the host and the row's group is read again here, and a stack with no recorded dice
+ * is refused. Bodies on a map keep what they went out with, which `org.editRow` says in its own
+ * whisper. The form's other typed fields are not carried by the press.
+ */
+async function onRollCount(_event, target) {
+  const { host, key } = await targetOf(target);
+  const stackKey = target.closest("[data-org-stack]")?.dataset.orgStack;
+  if (!host || !stackKey) return;
+  const group = docOf(org.unitsOf(host).find((r) => r.key === key)?.holderUuid);
+  const stack = isGroupActor(group) ? (group.system.stacks ?? []).find((s) => s.key === stackKey) : null;
+  const die = countDieOf(stack, { owns: !!host.isOwner && !!group?.isOwner });
+  if (!die) return void refuse({ ok: false, reason: stack && !(host.isOwner && group?.isOwner) ? "notOwner" : "noDie", name: group?.name ?? host.name });
+  const roll = Roll.validate(die.formula) ? await new Roll(die.formula).evaluate().catch(() => null) : null;
+  const change = dieChangeOf(stackKey, roll);
+  if (!change) return void refuse({ ok: false, reason: "dieFailed" });
+  const result = await org.editRow(host, key, { stacks: [change] });
+  if (!result.ok) refuse(result);
+  else {
+    // The Judges are whispered the map's case by `org.editRow`; the seat that pressed is told here, whoever it is.
+    if (result.warnings?.includes("onMap")) ui.notifications.warn(loc("edit.onMap", { name: group.name }));
+    const floor = dieFloorOf(stack, change);
+    if (floor !== null) ui.notifications.warn(loc("edit.dieFloored", { name: die.name || group.name, bodies: floor }));
+  }
   render(this);
 }
 
@@ -1307,6 +1343,7 @@ export const ORG_ACTIONS = Object.freeze({
   orgAddWarband: onAddWarband,
   orgEdit: onEdit,
   orgEditDone: onEditDone,
+  orgRollCount: onRollCount,
   orgRemove: onRemove,
   orgDelete: onDelete,
   orgUndo: onUndo,
