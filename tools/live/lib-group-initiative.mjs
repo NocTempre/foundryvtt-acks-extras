@@ -431,17 +431,22 @@ try {
     const turned = await run(gm, P.nextRound, { combatId: fight1.id });
     note("next round", turned);
     s = await state(fight1.id, (st) => st.round === 2 && st.combatants.every((c) => c.initiative === null), { tries: 24 });
+    const cleared = s.round === 2 && s.combatants.every((c) => c.initiative === null);
     note("after the round turned", { round: s.round, initiatives: s.combatants.map((c) => c.initiative), persistence: census.persistence });
     const rerolled = await run(gm, P.roll, { combatId: fight1.id });
     note("roll again", rerolled);
     s = await state(fight1.id, (st) => st.combatants.every((c) => c.initiative !== null), { tries: 24 });
     const after = { values: valuesBy(s), stored: s.stored.map((g) => ({ gang: ownersOf(g, s).join("+"), initiative: g.initiative })) };
     note("round 2, after", after);
-    const kept = JSON.stringify(before.stored) === JSON.stringify(after.stored);
+    note("NOTE", `the stored group initiatives are not compared: the system never writes a group's rolled figure back, so they read ${JSON.stringify(before.stored.map((g) => g.initiative))} before and ${JSON.stringify(after.stored.map((g) => g.initiative))} after`);
+    const shared = (values) => Object.fromEntries(Object.entries(values).map(([k, v]) => [k, [...new Set(v)].join("/")]));
+    const sharedBefore = shared(before.values);
+    const sharedAfter = shared(after.values);
+    const changed = Object.keys(sharedAfter).filter((k) => sharedBefore[k] !== sharedAfter[k]);
     const setting = `with the initiative persistence setting at ${JSON.stringify(census.persistence)}`;
-    note("OBSERVATION: does a group roll again each round?", kept
-      ? `no, ${setting}: the stored group initiative did not change between the rounds (the system reuses a stored initiative above zero, and nothing clears it at the round)`
-      : `yes, ${setting}: a stored group initiative changed between the rounds; read the two lines above for which`);
+    note("OBSERVATION: does a group roll again each round?", `${cleared ? "yes" : "no"}, ${setting}: the round turn ${cleared ? "cleared" : "did not clear"} every combatant's initiative; `
+      + `${changed.length ? `${changed.map((k) => NAMES[k] ?? k).join(" and ")} took ${changed.length === 1 ? "a different shared value" : "different shared values"} from round 1 to round 2 (${JSON.stringify(sharedBefore)} then ${JSON.stringify(sharedAfter)})` : `no gang's shared value changed (${JSON.stringify(sharedAfter)})`}; `
+      + "a matching value can be chance, since the roll is 1d6 plus the bonus");
   }
   await ending("the first combat", fight1.id);
 
