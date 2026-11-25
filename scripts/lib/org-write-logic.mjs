@@ -60,7 +60,20 @@ const tierOf = (node) => Math.max(-1, ...(node.children ?? []).filter((c) => !c.
  * ancestor's roll decided for it; a filled row keeps them to show, and to tell a hand's
  * change from the roll's.
  */
-const pickedOf = (node) => ({ ...(node.shareKind ? { shareKind: node.shareKind } : {}), ...(node.troop ? { troop: node.troop } : {}), ...(node.trait ? { trait: node.trait } : {}), ...(node.camp ? {} : { tier: tierOf(node) }) });
+const pickedOf = (node) => ({ ...(node.shareKind ? { shareKind: node.shareKind } : {}), ...(node.troop ? { troop: node.troop } : {}), ...(node.trait ? { trait: node.trait } : {}), ...(node.camp ? {} : { tier: tierOf(node) }), ...leaderRecord(node) });
+
+/**
+ * The unit's first officer as its row records it, so a leader made later by hand is the one
+ * the roll would have made: the template role it took, the troop it was made under and the
+ * morale part that goes with it. Empty for a unit with no officer.
+ * @param {{officers?: {role?: string, troop?: string, moraleBonus?: number|null}[]}} node a tree node
+ * @returns {{leader?: {role: string, troop: string, moraleBonus?: number}}}
+ */
+export function leaderRecord(node) {
+  const first = node?.officers?.[0];
+  if (!first?.role) return {};
+  return { leader: { role: first.role, troop: first.troop ?? "", ...(Number.isInteger(first.moraleBonus) ? { moraleBonus: first.moraleBonus } : {}) } };
+}
 
 /** The next keys no row holds: `u1`, `u2`, and on, skipping every key in `taken`. */
 export function keySource(taken) {
@@ -195,7 +208,7 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
     row.label = node === tree.top && target?.label ? target.label : nameOf(node);
     row.kind = node.camp ? "" : (node.kind ?? node.word ?? "");
     row.holderUuid = groupOf.get(node);
-    row.gen = node === tree.top ? { ...tree.gen, tier: tierOf(node) } : { ...(row.gen ?? {}), ...pickedOf(node) };
+    row.gen = node === tree.top ? { ...tree.gen, tier: tierOf(node), ...leaderRecord(node) } : { ...(row.gen ?? {}), ...pickedOf(node) };
     written.push(row);
   }
   for (const node of empties) {

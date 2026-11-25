@@ -63,6 +63,37 @@ export function pinsOf(spec, extra = {}, family = null) {
   return pins;
 }
 
+/**
+ * The pins one leader is generated under: the spec's axes with the role, troop and trait the
+ * leader's unit fixed, and the gear the roll gave it. The Roll and a hand's Make read it alike.
+ * @param {object} spec the leader's prototype spec (`variant`, `grade`, and a `role` where it names one)
+ * @param {{role?: string, troop?: string, trait?: string, gear?: string[]}} op the leader the plan names
+ * @param {Actor|null} [family] the family template
+ * @returns {object}
+ */
+export function leaderPinsOf(spec, op, family = null) {
+  return pinsOf({ ...spec, role: spec.role || op.role, troop: op.troop, trait: op.trait }, op.gear?.length ? { gear: op.gear } : {}, family);
+}
+
+/**
+ * Make one leader actor from the family template: generated under `leaderPinsOf`, then given the
+ * figures with no field of their own (a mount, whether it speaks Common) on its leader flag. The
+ * one leader maker: the Roll's provider calls it and so does a hand's Make through the chart service.
+ * It marks nothing as a minted prototype, so no Delete treats a leader as one.
+ * @param {Actor} family the family template
+ * @param {object} spec as for `leaderPinsOf`
+ * @param {object} op as for `leaderPinsOf`, with `speaksCommon` where the roll threw it
+ * @param {object|null} [mount] the mount a leader rides, as a stack records it
+ * @returns {Promise<Actor|null>}
+ */
+export async function makeLeaderActor(family, spec, op, mount = null) {
+  const actor = await generateFromTemplate(family, { pins: leaderPinsOf(spec, op, family) });
+  if (!actor) return null;
+  const figures = { ...(mount ? { mount } : {}), ...(op.speaksCommon != null ? { speaksCommon: !!op.speaksCommon } : {}) };
+  if (Object.keys(figures).length) await actor.update({ [`flags.${MODULE_ID}.${LEADER_FLAG}`]: figures });
+  return actor;
+}
+
 /** The world actor already minted for a prototype key, or null. */
 const mintedFor = (key) => [...game.actors].find((a) => a.flags?.[MODULE_ID]?.[ORG_PROTOTYPE_FLAG] === key) ?? null;
 
@@ -147,13 +178,7 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
 
   const provider = {
     mint: (spec, { key: protoKey }) => mintPrototype(family, spec, protoKey),
-    async makeLeader(op, spec, mount) {
-      const actor = await generateFromTemplate(family, { pins: pinsOf({ ...spec, role: spec.role || op.role, troop: op.troop, trait: op.trait }, op.gear?.length ? { gear: op.gear } : {}, family) });
-      if (!actor) return null;
-      const figures = { ...(mount ? { mount } : {}), ...(op.speaksCommon != null ? { speaksCommon: !!op.speaksCommon } : {}) };
-      if (Object.keys(figures).length) await actor.update({ [`flags.${MODULE_ID}.${LEADER_FLAG}`]: figures });
-      return actor;
-    },
+    makeLeader: (op, spec, mount) => makeLeaderActor(family, spec, op, mount),
   };
   const run = await runPlan(plan, provider);
   const groups = topHolder ? [topHolder, ...run.made.groups] : run.made.groups;

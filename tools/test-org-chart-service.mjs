@@ -7,7 +7,7 @@
  * Run: node tools/test-org-chart-service.mjs
  */
 import assert from "node:assert/strict";
-import { badgesOf, respec, troopOptions } from "../scripts/monsters/org-chart-logic.mjs";
+import { badgesOf, leaderSpecOf, respec, troopOptions } from "../scripts/monsters/org-chart-logic.mjs";
 import { protoKey } from "../scripts/monsters/organisation-logic.mjs";
 
 const axes = [
@@ -49,6 +49,23 @@ t("a troop change keeps every other part of the spec and takes the Roll's key", 
   assert.equal(respec(protoKey(spec), "").spec.troop, "none");
   assert.equal(respec("not json", "t2"), null);
   assert.equal(respec(protoKey({ kind: "entry", uuid: "X" }), "t2"), null, "an entry has no troop");
+});
+
+t("a row names the leader it would make from what it and the row that began the chart recorded", () => {
+  const row = (key, parentKey, gen = {}) => ({ key, parentKey, label: key, holderUuid: "", kind: "", notes: "", hidden: false, gen });
+  const rows = [
+    row("v", "", { template: "T.fam", variant: "alba", leaderSource: "table", trait: "a", tier: 2, leader: { role: "c", troop: "t1", moraleBonus: 2 } }),
+    row("w", "v", { trait: "a", troop: "t2", tier: 1, leader: { role: "b", troop: "t2" } }),
+    row("g", "w", { tier: 0 }),
+  ];
+  assert.deepEqual(leaderSpecOf(rows, "w"), { template: "T.fam", variant: "alba", role: "b", troop: "t2", trait: "a", grade: "table", moraleBonus: null }, "the template, variant and grade come from the row that began the chart");
+  assert.deepEqual(leaderSpecOf(rows, "v"), { template: "T.fam", variant: "alba", role: "c", troop: "t1", trait: "a", grade: "table", moraleBonus: 2 });
+  assert.equal(leaderSpecOf(rows, "g"), null, "a row that records no leader role names none");
+  assert.equal(leaderSpecOf(rows, "zz"), null);
+  assert.equal(leaderSpecOf([row("x", "", { leader: { role: "c" } })], "x"), null, "no template on the row or above it, so nothing to make from");
+  assert.equal(leaderSpecOf([row("x", "", { template: "T", leader: { role: "c" } })], "x"), null, "no variant either");
+  assert.equal(leaderSpecOf([row("x", "", { template: "T", variant: "alba", leader: { role: "c" } })], "x").grade, "", "no table grade unless the chart's roll took one");
+  assert.equal(leaderSpecOf(null, "x"), null);
 });
 
 t("troop options mark the ones the variant's bands leave out, and stay selectable", () => {

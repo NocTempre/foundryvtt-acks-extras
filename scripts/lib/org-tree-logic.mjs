@@ -427,7 +427,7 @@ export function readableChartRows(rows, isGM = true) {
  * count and is marked `covered`, so the chart's total counts those bodies once.
  *
  * @param {object[]} rows the host's rows
- * @param {(holderUuid: string) => ({name: string, img: string, count: number, ancestors?: string[], officer?: {uuid: string, name: string, img: string}|null}|null)} read the holder as the world has it, null where it does not resolve
+ * @param {(holderUuid: string) => ({name: string, img: string, count: number, ancestors?: string[], officer?: {uuid: string, name: string, img: string}|null, officerUuid?: string}|null)} read the holder as the world has it, null where it does not resolve; `officerUuid` is what the group names as officer even where the actor is gone
  * @param {Iterable<string>} [twins] keys standing on two hosts
  * @param {{isGM?: boolean}} [options] a reader who is no Judge is shown no hidden row, nor any row beneath one
  * @returns {{roots: object[], rows: object[], total: number, empty: number}} `rows` is the tree flattened in reading order
@@ -471,6 +471,7 @@ export function orgChartView(allRows, read, twins = [], { isGM = true } = {}) {
       count: held ? Math.max(0, held.count ?? 0) : 0,
       covered: !!held && (held.ancestors ?? []).some((u) => heldBy.has(u)),
       officer: held?.officer ?? null,
+      officerUuid: held?.officerUuid ?? "",
       twin: twin.has(n.key),
       children: [],
     };

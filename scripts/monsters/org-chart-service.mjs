@@ -11,8 +11,8 @@ import { MODULE_ID } from "./constants.mjs";
 import { ORG_PROTOTYPE_FLAG } from "../lib/org.mjs";
 import { registryBands } from "../lib/template-bands.mjs";
 import { NO_TROOP } from "./organisation.mjs";
-import { badgesOf, respec, troopOptions } from "./org-chart-logic.mjs";
-import { mintPrototype } from "./organisation-run.mjs";
+import { badgesOf, leaderSpecOf, respec, troopOptions } from "./org-chart-logic.mjs";
+import { makeLeaderActor, mintPrototype } from "./organisation-run.mjs";
 
 /** The minted prototype a stack names, with its recorded key and generating template, or null. */
 async function prototypeOf(stack) {
@@ -50,5 +50,21 @@ export const orgChartService = {
     if (!next) return null;
     const hit = await mintPrototype(held.family, next.spec, next.key);
     return hit?.actor?.uuid ?? null;
+  },
+  /** Whether a Make can name this row's leader: its record holds a leader role and the chart a template. Sync, for a render. */
+  canMakeLeader(rows, key) {
+    return !!leaderSpecOf(rows, key);
+  },
+  /**
+   * Make a new leader actor for a row, by the maker the Roll's provider uses and from what the row
+   * recorded. Always a new actor, never a prototype found by key, so no two rows share a leader.
+   * Null where nothing can be made; the caller sets the uuid as the row group's officer.
+   */
+  async makeLeader(rows, key) {
+    const spec = leaderSpecOf(rows, key);
+    const family = spec ? await fromUuid(spec.template).catch(() => null) : null;
+    if (!family) return null;
+    const actor = await makeLeaderActor(family, { variant: spec.variant, grade: spec.grade }, { role: spec.role, troop: spec.troop, trait: spec.trait });
+    return actor?.uuid ?? null;
   },
 };

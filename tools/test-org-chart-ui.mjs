@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, leaderRoleOf, nextLevelKind, officerControls, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -102,6 +102,60 @@ t("a folded card keeps its rank: the role is read before the fold empties its ch
   const midShut = chartCards(tree.roots, { collapsed: new Set(["mid"]) });
   assert.equal(rankOf(open, "mid"), "sub");
   assert.equal(rankOf(midShut, "mid"), "sub", "a folded mid-level card is no champion");
+});
+
+t("the rank a card's leader would hold is read from the unit alone, with or without a leader", () => {
+  assert.equal(leaderRoleOf({ parentKey: "p", gen: { tier: 0 }, children: [] }), "champion");
+  assert.equal(leaderRoleOf({ parentKey: "p", gen: { tier: 1 }, children: [] }), "sub");
+  assert.equal(leaderRoleOf({ parentKey: "", gen: { tier: 2 }, children: [] }), "chief");
+  assert.equal(roleOf({ empty: false, officer: null, parentKey: "p", gen: { tier: 1 }, children: [] }), "file", "a card with no leader is still the rank and file");
+});
+
+t("a link is empty where none is named, live where its actor resolves and deleted where it names one that does not", () => {
+  assert.equal(officerStateOf({ officerUuid: "", resolves: false }), "empty");
+  assert.equal(officerStateOf({ officerUuid: "A.1", resolves: true }), "live");
+  assert.equal(officerStateOf({ officerUuid: "A.1", resolves: false }), "deleted");
+  assert.equal(officerStateOf({ officerUuid: "", resolves: true }), "empty", "no link, nothing to resolve");
+  assert.equal(officerStateOf(), "empty");
+});
+
+t("an officer line offers each control only to a seat that passes that control's own test, in every state", () => {
+  const all = { owns: true, canOpen: true, canDelete: true, canCreate: true, canMake: true };
+  assert.deepEqual(officerControls({ state: "live", ...all }), { open: true, clear: true, deleteActor: true, make: false });
+  assert.deepEqual(officerControls({ state: "empty", ...all }), { open: false, clear: false, deleteActor: false, make: true });
+  assert.deepEqual(officerControls({ state: "deleted", ...all }), { open: false, clear: true, deleteActor: false, make: true }, "a deleted link offers Make and Clear and nothing on the actor");
+  // A seat that owns the card but may not delete the actor: Clear stays, Delete actor is gone.
+  assert.deepEqual(officerControls({ state: "live", ...all, canDelete: false }), { open: true, clear: true, deleteActor: false, make: false });
+  // A seat that may not create actors is shown no Make, in both states that would offer it.
+  for (const state of ["empty", "deleted"]) assert.equal(officerControls({ state, ...all, canCreate: false }).make, false);
+  // The generating feature cannot name a leader from the row: no Make.
+  assert.equal(officerControls({ state: "empty", ...all, canMake: false }).make, false);
+  // A seat that owns neither the host nor the group writes none of it; it may still look.
+  assert.deepEqual(officerControls({ state: "live", ...all, owns: false }), { open: true, clear: false, deleteActor: false, make: false });
+  assert.deepEqual(officerControls({ state: "deleted", ...all, owns: false }), { open: false, clear: false, deleteActor: false, make: false });
+  // A seat that may not see the actor is not offered Open.
+  assert.equal(officerControls({ state: "live", ...all, canOpen: false }).open, false);
+  assert.deepEqual(officerControls({ state: "live" }), { open: false, clear: false, deleteActor: false, make: false }, "no test passed, no control");
+});
+
+t("a deleted officer is told from an empty line by the uuid the chart keeps, and a holder that does not resolve stays an empty card", () => {
+  const world = { "G.a": { name: "A", img: "", count: 3, officer: null, officerUuid: "A.gone" }, "G.b": { name: "B", img: "", count: 3, officer: null, officerUuid: "" } };
+  const tree = orgChartView([row("a", "", "G.a"), row("b", "", "G.b"), row("c", "", "G.none")], (u) => world[u] ?? null);
+  const byKey = Object.fromEntries(tree.rows.map((r) => [r.key, r]));
+  assert.equal(byKey.a.officerUuid, "A.gone", "the dead link keeps its uuid");
+  assert.equal(byKey.a.officer, null);
+  assert.equal(byKey.b.officerUuid, "");
+  assert.equal(byKey.c.empty, true, "an unresolved holder reads empty, as it did");
+  assert.equal(byKey.c.officerUuid, "");
+});
+
+t("a window is redrawn for a deleted actor only where its leader line, a row's group or a group's officer names it", () => {
+  const facts = { leaderUuid: "A.lead", rows: [{ holderUuid: "G.1", officerUuid: "A.o1" }, { holderUuid: "G.2", officerUuid: "" }] };
+  for (const uuid of ["A.lead", "G.1", "A.o1", "G.2"]) assert.equal(windowNames(facts, uuid), true, uuid);
+  assert.equal(windowNames(facts, "A.other"), false);
+  assert.equal(windowNames(facts, ""), false);
+  assert.equal(windowNames({ leaderUuid: "", rows: [{ holderUuid: "G.1", officerUuid: "" }] }, ""), false, "a blank link names nothing");
+  assert.equal(windowNames(), false);
 });
 
 t("a slot's position is its depth below the chart's top and the word the top row holds", () => {

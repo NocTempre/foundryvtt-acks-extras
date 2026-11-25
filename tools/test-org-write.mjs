@@ -14,7 +14,7 @@
  * Run: node tools/test-org-write.mjs
  */
 import assert from "node:assert/strict";
-import { keySource, planAddUnit, planEdit, planRoll } from "../scripts/lib/org-write-logic.mjs";
+import { keySource, leaderRecord, planAddUnit, planEdit, planRoll } from "../scripts/lib/org-write-logic.mjs";
 import { planReparent, wouldCycle } from "../scripts/lib/place-logic.mjs";
 
 const tests = [];
@@ -70,7 +70,7 @@ t("a Roll of one empty row fills it and leaves every other row exactly as it was
   assert.equal(filled.parentKey, "v", "the row keeps its place under its parent");
   assert.equal(filled.label, "Row w2", "and the name the Judge gave it");
   assert.match(filled.holderUuid, /^new:g/);
-  assert.deepEqual(filled.gen, { ...TREE().gen, tier: 2 }, "the generation record rides on the row where the roll began, with the rank the unit stands at");
+  assert.deepEqual(filled.gen, { ...TREE().gen, tier: 2, leader: { role: "c", troop: "", moraleBonus: 2 } }, "the generation record rides on the row where the roll began, with the rank the unit stands at and the leader it made");
   assert.equal(plan.rows.indexOf(filled), 2, "the row stays where it stood in the list");
 });
 
@@ -109,6 +109,18 @@ t("each row keeps its tier and what the roll fixed for it, and each stack the to
   assert.ok(opsOf(plan, "addLabelledStack").every((o) => o.gen.rolled === o.count));
   const one = planRoll({ host: HOST, rows: [], tree: TREE(), scope: "one" });
   assert.deepEqual(one.rows.filter((r) => !r.holderUuid).map((r) => r.gen.tier), [1, 0], "an empty row keeps its tier too");
+});
+
+t("each row records the first leader its roll made, so a hand's Make can make the same one", () => {
+  const plan = planRoll({ host: HOST, rows: [], tree: TREE(), scope: "one" });
+  const top = plan.rows.find((r) => r.kind === "hold");
+  assert.deepEqual(top.gen.leader, { role: "c", troop: "", moraleBonus: 2 });
+  const waiting = plan.rows.filter((r) => !r.holderUuid);
+  assert.deepEqual(waiting.map((r) => r.gen.leader), [{ role: "b", troop: "" }, { role: "b", troop: "" }], "an empty row records what it will make; a blank morale part is no key");
+  const camp = planRoll({ host: HOST, rows: [], tree: TREE(), scope: "below" }).rows.find((r) => r.kind === "" && r.parentKey);
+  assert.equal("leader" in camp.gen, false, "a unit with no officer records none");
+  assert.deepEqual(leaderRecord({ officers: [{ role: "x", troop: "t1", moraleBonus: 0 }] }), { leader: { role: "x", troop: "t1", moraleBonus: 0 } }, "a morale part of zero is a part");
+  assert.deepEqual(leaderRecord({ officers: [{ role: "", troop: "t1" }] }), {}, "an officer with no role is no record");
 });
 
 t("a row with a holder is never rolled again, and a row that is not there is refused", () => {

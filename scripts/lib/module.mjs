@@ -76,7 +76,7 @@ import TemplateData from "./data/template-data.mjs";
 import * as groups from "./group.mjs";
 import * as groupEncounter from "./group-encounter.mjs";
 import * as org from "./org.mjs";
-import { ORG_PARTIALS } from "./org-chart-ui.mjs";
+import { ORG_PARTIALS, redrawWindowsNaming } from "./org-chart-ui.mjs";
 import { CONFIRM_REMOVE_SETTING } from "./org-chart-ui-logic.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
@@ -1411,4 +1411,11 @@ Hooks.on("getActorContextOptions", (application, options) => {
       onClick: (_event, li) => setFollowerSheet(actorFor(li), false),
     },
   );
+});
+
+/* An actor deleted by hand leaves the chart links that name it. Core fires `deleteActor` on every
+ * client, and each redraws its own open windows that draw one (org-chart-ui.mjs); a redraw writes
+ * nothing, so no seat's right to write is in question. */
+Hooks.once("setup", () => {
+  Hooks.on("deleteActor", (actor) => redrawWindowsNaming(actor));
 });

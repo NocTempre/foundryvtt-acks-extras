@@ -525,7 +525,8 @@ export async function leaveFaction(group) {
 
 /**
  * A holder as the views read it: its name, art, live count, the groups it stands
- * inside and holds, and its officer. Null where it does not resolve.
+ * inside and holds, its officer and the uuid its group names as officer (kept where the actor
+ * no longer resolves). Null where it does not resolve.
  * @param {string} uuid
  * @param {object[]} nodes the world's group nodes, read once for a whole view
  */
@@ -541,6 +542,7 @@ export function readHolder(uuid, nodes) {
     ancestors: group ? groupAncestors(actor, nodes) : [],
     descendants: group ? groupDescendants(actor, nodes) : [],
     officer: officer ? { uuid: officer.uuid, name: officer.name ?? "", img: officer.img ?? "" } : null,
+    officerUuid: group ? actor.system?.unit?.officerUuid ?? "" : "",
   };
 }
 

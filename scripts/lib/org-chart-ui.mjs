@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, nextLevelKind, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, leaderRoleOf, nextLevelKind, officerControls, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
@@ -28,7 +28,7 @@ const loc = makeLoc(ORG_LANG_PREFIX);
 const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-dialog"];
 
 /** The partials the two sheets include; lib loads them at init. */
-export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-locations", "org-nested", "org-roll-panel", "org-roll-sections", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
+export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-officer-line", "org-locations", "org-nested", "org-roll-panel", "org-roll-sections", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
 
 /** The folded branches of each open window, by window: a press redraws the sheet and the fold stays. */
 const folds = new WeakMap();
@@ -78,10 +78,76 @@ const troopFor = (stack) => services.get("org-chart")?.troopOf?.(stack) ?? null;
  * @returns {{key: string, word: string, label: string, tip: string}|null} null for an empty card
  */
 function roleView(card) {
-  const key = card.roleKey ?? roleOf(card);
+  const key = card.officerGone ? card.leaderRoleKey : (card.roleKey ?? roleOf(card));
   if (!key) return null;
   const word = loc(`role.${key}`);
-  return { key, word, label: loc("role.label", { word, name: card.officer?.name ?? card.name ?? "" }), tip: loc(`role.${key}Tip`) };
+  return {
+    key,
+    word,
+    label: loc("role.label", { word, name: card.officer?.name ?? card.name ?? "" }),
+    tip: card.officerGone ? loc("officer.deletedTip", { word: word.toLocaleLowerCase() }) : loc(`role.${key}Tip`),
+    gone: !!card.officerGone,
+  };
+}
+
+/**
+ * Does the actor a uuid names still exist? Read after the pack that would hold it has built its
+ * index, so an actor in a compendium is never read as deleted before the index is there.
+ * @param {string} uuid
+ * @returns {Promise<boolean>}
+ */
+export async function actorExists(uuid) {
+  if (!uuid) return false;
+  try {
+    return !!(await readAfterIndex(uuid, { pack: game.packs?.get(packIdOf(uuid)), read: fromUuidSync }));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A card's officer line: where the link stands and the controls this seat is offered on it, each
+ * by Foundry's own test. A write of the line reaches the host and the card's group, so both must
+ * be the seat's to own for Make, Clear and Delete actor; Open needs the actor's own limited
+ * permission, Delete actor its delete permission, and Make the world's actor-create permission
+ * and a leader the generating feature can name from the row.
+ * @param {object} card a view row with `officer`, `officerUuid` and `leaderRoleKey`
+ * @param {{holder: Actor|null, editable: boolean, rows: object[]}} where the card's group, whether the seat owns the host, and the host's rows
+ * @returns {Promise<object>} the line as the partial draws it
+ */
+async function officerLineOf(card, { holder, editable, rows }) {
+  const user = game.user;
+  const officerUuid = card.officerUuid ?? "";
+  const doc = card.officer ? docOf(card.officer.uuid) : null;
+  const state = officerStateOf({ officerUuid, resolves: !!doc || (officerUuid ? await actorExists(officerUuid) : false) });
+  const group = isGroupActor(holder) ? holder : null;
+  const controls = officerControls({
+    state,
+    owns: !!editable && !!group?.isOwner,
+    canOpen: !!doc?.testUserPermission?.(user, "LIMITED"),
+    canDelete: !!doc?.canUserModify?.(user, "delete"),
+    canCreate: !!user?.can?.("ACTOR_CREATE"),
+    canMake: !!services.get("org-chart")?.canMakeLeader?.(rows, card.key),
+  });
+  const role = card.leaderRoleKey || leaderRoleOf(card);
+  const title = loc(`role.${role}`);
+  const word = title.toLocaleLowerCase();
+  const name = card.officer?.name ?? "";
+  return {
+    state,
+    uuid: officerUuid,
+    gone: state === "deleted",
+    none: state === "empty",
+    controls,
+    text: state === "live" ? loc("role.label", { word: title, name }) : state === "deleted" ? loc("officer.deleted", { word: title }) : loc("officer.none", { word }),
+    deletedTip: loc("officer.deletedTip", { word }),
+    openTip: loc("officer.openTip", { word }),
+    makeLabel: loc("officer.make", { word }),
+    makeTip: loc("officer.makeTip", { word }),
+    clearTip: loc(state === "deleted" ? "officer.clearDeletedTip" : "officer.clearTip", { word }),
+    deleteLabel: loc("officer.deleteLabel", { word }),
+    deleteTip: loc("officer.deleteTip", { word }),
+  };
 }
 
 /** One card's leader as the chart draws it: the follower card in a role frame with its badges, or null where the row has none. */
@@ -124,9 +190,13 @@ export async function chartContext(actor, app, { isGM }) {
     const cites = citesOf(holder);
     const hand = byHandOf(stacks);
     const inEdit = editable && editing.has(c.key);
-    const role = roleView(c);
+    const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows });
+    const officerGone = !!officerLine?.gone;
+    const role = roleView({ ...c, officerGone });
     return {
       ...c,
+      officerLine,
+      officerGone,
       cites,
       countTip: loc("card.countTip", { name: c.name, cites }),
       byHand: !!hand,
@@ -134,7 +204,7 @@ export async function chartContext(actor, app, { isGM }) {
       role,
       leader: await leaderHtml({ ...c, role }),
       editing: inEdit,
-      edit: inEdit ? await editOf(c, holder, stacks, role) : null,
+      edit: inEdit ? await editOf(c, stacks) : null,
       children: await decorate(c.children),
     };
   }));
@@ -161,8 +231,8 @@ export async function chartContext(actor, app, { isGM }) {
   };
 }
 
-/** What a card in edit shows: its label, each stack's bodies and troop options, and the leader it can clear, named by its role. */
-async function editOf(card, holder, stacks, role) {
+/** What a card in edit shows: its label and each stack's bodies and troop options. */
+async function editOf(card, stacks) {
   return {
     label: card.label,
     stacks: await Promise.all(stacks.map(async (s) => {
@@ -174,8 +244,6 @@ async function editOf(card, holder, stacks, role) {
         troop: troop ? { options: troop.options.map((o) => ({ ...o, selected: o.key === troop.current })) } : null,
       };
     })),
-    hasOfficer: !!card.officer,
-    clearLabel: card.officer ? loc("edit.clearLeader", { word: role?.word ?? "", name: card.officer.name }) : "",
   };
 }
 
@@ -556,6 +624,87 @@ async function onClearLeader(_event, target) {
   render(this);
 }
 
+/** The row a press names, the group it holds and the actor that group names as officer, as the world has them now. */
+function officerTargetOf(host, key) {
+  const row = org.unitsOf(host).find((r) => r.key === key);
+  const group = docOf(row?.holderUuid);
+  const officer = isGroupActor(group) ? docOf(group.system?.unit?.officerUuid) : null;
+  return { row, group: isGroupActor(group) ? group : null, officer };
+}
+
+/**
+ * "+ Make the <officer>": a new leader actor made for the card by the generating feature, from what
+ * the row recorded, then set as the card's officer through `org.editRow`. Every test is made before
+ * the actor is: the seat must create actors and own the host and the card's group, and the feature
+ * must be able to name the leader. Where the link is refused after the actor was made, the notice
+ * names the actor, which stays in the world.
+ */
+async function onMakeLeader(_event, target) {
+  const { host, key } = await targetOf(target);
+  if (!host) return;
+  const { row, group } = officerTargetOf(host, key);
+  const service = services.get("org-chart");
+  if (!game.user.can("ACTOR_CREATE")) return refuse({ reason: "noCreate" });
+  if (!host.isOwner || !group?.isOwner) return refuse({ reason: "notOwner", name: (group ?? host).name });
+  if (!service?.canMakeLeader?.(org.unitsOf(host), key)) return refuse({ reason: "noLeader" });
+  const uuid = await service.makeLeader(org.unitsOf(host), key);
+  if (!uuid) return refuse({ reason: "leaderNotMade" });
+  const moraleBonus = (row?.toObject?.() ?? row)?.gen?.leader?.moraleBonus ?? null;
+  const result = await org.editRow(host, key, { officer: { officer: uuid, moraleBonus } });
+  if (!result.ok) {
+    refuse(result);
+    ui.notifications.warn(loc("refused.leaderUnlinked", { name: docOf(uuid)?.name ?? uuid }));
+  }
+  render(this);
+}
+
+/**
+ * "Delete actor…": after a confirm, clear the card's link and then delete the officer's actor, so a
+ * refused clear deletes nothing. The seat must be able to delete the actor and own the host and the
+ * card's group. Only a delete made outside the chart leaves a link to a missing actor.
+ */
+async function onDeleteLeaderActor(_event, target) {
+  const { host, key } = await targetOf(target);
+  if (!host) return;
+  const { row, group, officer } = officerTargetOf(host, key);
+  if (!officer) return render(this);
+  if (!officer.canUserModify(game.user, "delete")) return refuse({ reason: "noDelete", name: officer.name ?? "" });
+  if (!host.isOwner || !group?.isOwner) return refuse({ reason: "notOwner", name: (group ?? host).name });
+  const { DialogV2 } = foundry.applications.api;
+  const yes = await DialogV2.confirm({
+    classes: DIALOG_CLASSES,
+    window: { title: loc("officer.deleteTitle", { name: officer.name ?? "" }) },
+    content: `<p>${loc("officer.deleteAsk", { name: escape(officer.name ?? ""), card: escape(row?.label ?? "") })}</p>`,
+    rejectClose: false,
+    yes: { label: loc("officer.deletePress"), callback: () => true },
+    no: { callback: () => false },
+  });
+  if (!yes) return;
+  const cleared = await org.editRow(host, key, { officer: { officer: "", moraleBonus: null } });
+  if (!cleared.ok) return refuse(cleared);
+  await officer.delete();
+  render(this);
+}
+
+/**
+ * Redraw this client's open windows whose chart or leader line names an actor that was deleted.
+ * Core fires `deleteActor` on every client, so each client redraws its own windows; it reads the
+ * world as it is now and writes nothing, and the link it leaves is cleared by a press of a seat
+ * that passes the control's test.
+ * @param {Actor} actor the deleted actor
+ */
+export function redrawWindowsNaming(actor) {
+  const uuid = actor?.uuid;
+  if (!uuid) return;
+  for (const app of foundry.applications.instances.values()) {
+    const subject = app.actor ?? app.document;
+    if (subject?.documentName !== "Actor" || subject.uuid === uuid) continue;
+    const { host } = hostFor(subject);
+    const rows = org.unitsOf(host).map((r) => ({ holderUuid: r.holderUuid, officerUuid: docOf(r.holderUuid)?.system?.unit?.officerUuid ?? "" }));
+    if (windowNames({ leaderUuid: host.system?.leaderUuid ?? "", rows }, uuid)) Promise.resolve(app.render()).catch((err) => console.warn(`${MODULE_ID} | a window could not redraw after a deleted actor`, err));
+  }
+}
+
 /** A badge's press: say where the upgrade came from, which a pointer's tooltip says and a keyboard's cannot. */
 function onBadge(_event, target) {
   const tip = target.dataset.tooltipText;
@@ -697,6 +846,8 @@ export const ORG_ACTIONS = Object.freeze({
   orgDismissUnlisted: onDismissUnlisted,
   orgBadge: onBadge,
   orgClearLeader: onClearLeader,
+  orgMakeLeader: onMakeLeader,
+  orgDeleteLeaderActor: onDeleteLeaderActor,
   hirelingShow: onOpen,
   orgSendOut: onSendOut,
   orgRecall: onRecall,

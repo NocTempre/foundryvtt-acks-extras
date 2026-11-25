@@ -144,6 +144,25 @@
 .acks-extras-org-card__form select,
 .acks-extras-org-card__form input[type="text"] { min-width: 0; max-width: 100%; }
 .acks-extras-org-card__bodies { width: 4.5em; text-align: center; }
+
+/* A card's officer line: the name, then its controls; a deleted officer reads in the danger colours. */
+.acks-extras-org-officer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.4rem;
+  padding: 0.2rem 0.3rem;
+  border: var(--acks-border-soft);
+}
+.acks-extras-org-officer.is-gone { border-color: var(--acks-danger); background: var(--acks-danger-tint); }
+.acks-extras-org-officer__name { flex: 1 1 auto; min-width: 0; }
+.acks-extras-org-officer.is-gone .acks-extras-org-officer__name { color: var(--acks-danger-ink); }
+.acks-extras-org-officer.is-none .acks-extras-org-officer__name { color: var(--acks-ink-soft); }
+.acks-extras-org-officer__controls { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
+.acks-extras-org-officer button { width: auto; height: auto; line-height: 1.4; padding: 0.1rem 0.5rem; }
+.acks-extras-org-officer__delete { border-color: var(--acks-danger); color: var(--acks-danger-ink); }
+.acks-extras-pf.is-gone { border-style: dotted; border-color: var(--acks-danger); }
+.acks-extras-pf__gone { color: var(--acks-danger-ink); }
 .acks-extras-org-card__count.is-hand { border-bottom: 1px dotted var(--acks-warning); cursor: help; }
 
 .acks-extras-org-card__art { width: 2em; height: 2em; object-fit: cover; border: 0; }

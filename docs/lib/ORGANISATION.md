@@ -213,6 +213,10 @@ once per `key`), `createGroup`, `parent`, `addStack` and `addLabelledStack`,
   unit beneath is made too. Nothing outside the row and its new descendants is
   written: every other row comes back as it went in. The generation record rides
   as `gen` on the row the roll began at, and lib stores it and never reads it.
+  Every row a roll fills or leaves waiting also records `gen.leader` (`leaderRecord`): the
+  first officer's role, troop and morale part, which the `org-chart` service reads to make
+  that leader again by hand. A unit with no officer records none, and a row rolled before
+  the record existed offers no Make.
   A roll with no host is hosted by its top unit's group; a faction host's top row
   also writes the faction's `leaderUuid`.
 - **One prototype per creature.** The tree's creatures are keyed by their own
@@ -292,9 +296,22 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
 - The tree is board 1f's chart: leader cards joined top-down by connector lines, children side by side, in a
   box that scrolls sideways. A leader's card is the Follower Card's compact face (`frame` option) inside the
   role frame of its tier (`gen.tier`, read from the evaluated line), with troop, trait and kit badges drawn
-  by the generator's `org-chart` service. A card in edit is a form in the card: troop, bodies, champion,
-  Remove and Done. A count is **set by hand** when it differs from the total its Roll threw (`gen.rolled` on
+  by the generator's `org-chart` service. A card in edit is a form in the card: troop, bodies, the
+  officer line, Remove and Done. A count is **set by hand** when it differs from the total its Roll threw (`gen.rolled` on
   the stack), derived each draw and never stored.
+- **The officer line** (`officerLineOf`, `org-officer-line.hbs`) shows a card's officer as live, empty or
+  deleted. The chart reads the uuid the group names (`readHolder`'s `officerUuid`) and tells deleted from
+  present by `readAfterIndex` over `fromUuidSync`, so an officer in a compendium is never read as deleted
+  before the pack's index exists. Each control is drawn only where Foundry's own test passes, and not at
+  all otherwise (`officerControls`): **Open** (the actor's limited permission), **Clear** (ownership of the
+  host and of the card's group, the two documents `editRow` checks and writes), **Delete actor…** (the
+  actor's delete permission and the same two; the link is cleared first, then the actor deleted) and
+  **+ Make the &lt;officer&gt;** (`ACTOR_CREATE`, the same two, and a leader the `org-chart` service can name
+  from the row). No test reads `isGM`. A deleted officer draws the line outside edit too, and the card's
+  head marks it. The faction's leader line reads the same way and keeps its Clear.
+- **A hand's deletion redraws the open windows.** Core fires `deleteActor` on every client, and each client
+  redraws its own open windows whose chart or leader line names the actor (`redrawWindowsNaming`, found by
+  scanning `foundry.applications.instances`). The redraw writes nothing and clears no link.
 - A reader who is no Judge is shown no `hidden` row and nothing beneath one, in the chart
   and in the Locations rows (`readableUnits`, `readableChartRows`).
 - **Expand all** and **Collapse all** keep their fold on the window (a press redraws the

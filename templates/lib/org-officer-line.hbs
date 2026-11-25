@@ -1,0 +1,12 @@
+{{!-- A card's officer line (boards 1q and 1r): the linked leader, or that there is none, or that it was
+      deleted outside the chart, with the controls this seat passes the test for. A control that fails its
+      test is not rendered. Context: one card's `officerLine`. --}}
+<div class="acks-extras-org-officer{{#if gone}} is-gone{{/if}}{{#if none}} is-none{{/if}}">
+  <span class="acks-extras-org-officer__name"{{#if gone}} data-tooltip-text="{{deletedTip}}"{{/if}}>{{text}}</span>
+  <span class="acks-extras-org-officer__controls">
+    {{#if controls.open}}<button type="button" data-action="orgOpen" data-uuid="{{uuid}}" data-tooltip-text="{{openTip}}">{{localize "ACKS-LIB.org.officer.open"}}</button>{{/if}}
+    {{#if controls.make}}<button type="button" data-action="orgMakeLeader" data-tooltip-text="{{makeTip}}" aria-label="{{makeLabel}}"><i class="fas fa-plus" aria-hidden="true"></i> {{makeLabel}}</button>{{/if}}
+    {{#if controls.clear}}<button type="button" data-action="orgClearLeader" data-tooltip-text="{{clearTip}}">{{localize "ACKS-LIB.org.officer.clear"}}</button>{{/if}}
+    {{#if controls.deleteActor}}<button type="button" class="acks-extras-org-officer__delete" data-action="orgDeleteLeaderActor" data-tooltip-text="{{deleteTip}}" aria-label="{{deleteLabel}}"><i class="fas fa-trash" aria-hidden="true"></i> {{localize "ACKS-LIB.org.officer.deleteActor"}}</button>{{/if}}
+  </span>
+</div>

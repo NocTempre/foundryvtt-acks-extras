@@ -142,6 +142,7 @@ export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll =
       ...node,
       rank,
       roleKey: roleOf(node),
+      leaderRoleKey: node.empty ? "" : leaderRoleOf(node),
       folded,
       hasKids: node.children.length > 0,
       below: folded ? below(node) : null,
@@ -235,10 +236,67 @@ export const asksBeforeRemoving = (going, setting) => !!setting && (going?.lengt
 export function roleOf(node) {
   if (node?.empty) return "";
   if (!node?.officer) return "file";
+  return leaderRoleOf(node);
+}
+
+/**
+ * The rank a card's leader would hold, from the unit alone and whether or not a leader stands:
+ * `roleOf`'s reading with the officer taken as given. It names the leader a line with none, or a
+ * deleted one, would make.
+ * @param {{parentKey?: string, gen?: {tier?: number}, children?: object[]}} node a view row
+ * @returns {"champion"|"sub"|"chief"}
+ */
+export function leaderRoleOf(node) {
   const tierOf = (n) => Math.max(-1, ...(n.children ?? []).map(tierOf)) + 1;
   const tier = Number.isInteger(node?.gen?.tier) ? node.gen.tier : tierOf(node);
   if (tier <= 0) return "champion";
   return node.parentKey ? "sub" : "chief";
+}
+
+/**
+ * Where a card's officer link stands: `empty` where the group names none, `live` where the
+ * named actor resolves, `deleted` where it names one that no longer does. The caller reads
+ * `resolves` after the pack that would hold the actor has built its index, so an officer in a
+ * compendium is never read as deleted before its index exists.
+ * @param {{officerUuid?: string, resolves?: boolean}} args
+ * @returns {"empty"|"live"|"deleted"}
+ */
+export function officerStateOf({ officerUuid = "", resolves = false } = {}) {
+  if (!officerUuid) return "empty";
+  return resolves ? "live" : "deleted";
+}
+
+/**
+ * Does a window's chart or leader line name an actor? True where the faction's leader is it, or
+ * a row's group or that group's officer is. The `deleteActor` relay redraws exactly these windows.
+ * @param {{leaderUuid?: string, rows?: {holderUuid?: string, officerUuid?: string}[]}} facts what the window draws
+ * @param {string} uuid the actor
+ * @returns {boolean}
+ */
+export function windowNames({ leaderUuid = "", rows = [] } = {}, uuid) {
+  if (!uuid) return false;
+  return leaderUuid === uuid || rows.some((r) => r.holderUuid === uuid || r.officerUuid === uuid);
+}
+
+/**
+ * Which controls an officer line offers, each by the test Foundry itself makes and none by who
+ * the seat is. A control that fails its test is absent, not disabled.
+ * @param {object} args
+ * @param {"empty"|"live"|"deleted"} args.state
+ * @param {boolean} args.owns the seat owns the host and the card's group, which every write of the line reaches
+ * @param {boolean} [args.canOpen] the seat may see the actor's sheet
+ * @param {boolean} [args.canDelete] the seat may delete the actor
+ * @param {boolean} [args.canCreate] the seat may create actors
+ * @param {boolean} [args.canMake] the generating feature can make this row's leader
+ * @returns {{open: boolean, clear: boolean, deleteActor: boolean, make: boolean}}
+ */
+export function officerControls({ state, owns = false, canOpen = false, canDelete = false, canCreate = false, canMake = false } = {}) {
+  return {
+    open: state === "live" && !!canOpen,
+    clear: state !== "empty" && !!owns,
+    deleteActor: state === "live" && !!owns && !!canDelete,
+    make: state !== "live" && !!owns && !!canCreate && !!canMake,
+  };
 }
 
 /**

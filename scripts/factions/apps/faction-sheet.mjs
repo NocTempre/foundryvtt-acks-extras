@@ -36,7 +36,7 @@ import {
 } from "../standing-logic.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { liveRows } from "../../lib/group-logic.mjs";
-import { ORG_ACTIONS, chartContext, locationsContext } from "../../lib/org-chart-ui.mjs";
+import { ORG_ACTIONS, actorExists, chartContext, locationsContext } from "../../lib/org-chart-ui.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { docOf, escape as esc, makeLoc, refOf } from "../../lib/util.mjs";
@@ -143,7 +143,9 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
 
     // What it holds.
     context.seat = refOf(sys.seatUuid);
-    context.leader = refOf(readableLeaderUuid(sys, isGM));
+    // A leader the sync read cannot find is deleted only where the async read, taken after any pack's index, cannot either.
+    const leader = refOf(readableLeaderUuid(sys, isGM));
+    context.leader = leader && { ...leader, gone: leader.missing && !(await actorExists(leader.uuid)) };
     context.parent = refOf(sys.parentUuid);
     // The parent picker offers every other faction that would not close a
     // loop. It is a named form field, so it always carries the stored value

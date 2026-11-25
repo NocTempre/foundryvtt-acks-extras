@@ -464,6 +464,21 @@ t("a body is minted as the rank and file, never as a leader the Role axis rolls,
   assert.equal(pinsOf(body, {}, bare).role, undefined, "an axis that lists no rank and file is left alone");
 });
 
+t("the Roll and a hand's Make make a leader by one maker, from the same pins, and mark it as no prototype", async () => {
+  const { leaderPinsOf, pinsOf } = await import("../scripts/monsters/organisation-run.mjs");
+  const family = { system: { axes: [] } };
+  const spec = { kind: "cell", variant: "alba", role: "", partKey: "lead", troop: "", trait: "", grade: "table" };
+  const op = { role: "lead", troop: "t1", trait: "a", gear: ["k1"] };
+  assert.deepEqual(leaderPinsOf(spec, op, family), pinsOf({ ...spec, role: "lead", troop: "t1", trait: "a" }, { gear: ["k1"] }, family), "the Roll's inputs, unchanged by the lift");
+  assert.equal(leaderPinsOf(spec, op, family).role, "lead", "the op's role stands where the spec names none");
+  assert.equal(leaderPinsOf({ ...spec, role: "own" }, op, family).role, "own", "a spec that names a role keeps it");
+  assert.equal(leaderPinsOf(spec, op, family).leaderSource, "table", "a table grade is pinned");
+  assert.equal("gear" in leaderPinsOf(spec, { role: "lead" }, family), false, "a Make passes no gear: it is the Roll's own throw");
+  const src = (await import("node:fs")).readFileSync(new URL("../scripts/monsters/organisation-run.mjs", import.meta.url), "utf8");
+  const maker = src.slice(src.indexOf("export async function makeLeaderActor"), src.indexOf("/** The world actor already minted"));
+  assert.ok(maker.length > 100 && !maker.includes("ORG_PROTOTYPE_FLAG"), "the leader maker never stamps the prototype flag, so no Delete treats a leader as a minted prototype");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {

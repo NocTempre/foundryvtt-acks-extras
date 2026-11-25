@@ -411,7 +411,12 @@ Provider: monsters (`scripts/monsters/org-chart-service.mjs`). Consumer: the org
 `badges({actor, row})` answers `[{corner, label, tip, icon, byHand}]` for a leader's head;
 `troopOf(stack)` answers `{current, options: [{key, label, offBands}]}` or null; `prototypeFor(stack,
 troop)` answers the uuid of the prototype for the stack with that troop, found or made by the Roll's own
-mint. No provider means no badge and no troop select; the chart still draws and edits.
+mint. `canMakeLeader(rows, key)` answers whether the row records a leader role and the chart a template (sync, for
+a render); `makeLeader(rows, key)` makes a new leader actor for the row, by the maker the Roll's provider uses, and
+answers its uuid, or null where none can be made. It is always a new actor, never one found by prototype key, and
+it sets nothing: lib writes the uuid as the row group's officer through `org.editRow`. The row's record that serves
+it is `gen.leader` (`{role, troop, moraleBonus?}`), which lib's `planRoll` writes beside `tier`. No provider means
+no badge, no troop select and no Make; the chart still draws and edits.
 
 ### Contract `org-roll` v1
 

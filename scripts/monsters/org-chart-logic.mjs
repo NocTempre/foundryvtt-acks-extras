@@ -7,7 +7,8 @@
  */
 import { makeLoc } from "../lib/util.mjs";
 import { optionAvailable } from "../lib/template-logic.mjs";
-import { NO_TRAIT, NO_TROOP, GEAR_AXIS, TRAIT_AXIS, TROOP_AXIS } from "./organisation.mjs";
+import { nodesOf, rowAncestors } from "../lib/org-tree-logic.mjs";
+import { GRADE_SOURCE, NO_TRAIT, NO_TROOP, GEAR_AXIS, TRAIT_AXIS, TROOP_AXIS } from "./organisation.mjs";
 import { protoKey } from "./organisation-logic.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
@@ -66,6 +67,33 @@ export function respec(key, troop) {
   if (!spec || spec.kind !== "cell") return null;
   const next = { ...spec, troop: troop || NO_TROOP };
   return { spec: next, key: protoKey(next) };
+}
+
+/**
+ * What a row's Make needs to make the leader its Roll would have made: the family template and
+ * variant the chart began with, and the role, troop, trait and morale part the row recorded for
+ * its leader. Null where the row records no leader role or no template, and nothing is then made.
+ * Gear, a mount and whether it speaks Common are the Roll's own throws and are not recorded.
+ * @param {object[]} rows the host's rows
+ * @param {string} key the row
+ * @returns {{template: string, variant: string, role: string, troop: string, trait: string, grade: string, moraleBonus: number|null}|null}
+ */
+export function leaderSpecOf(rows, key) {
+  const list = (rows ?? []).map((r) => r?.toObject?.() ?? r);
+  const own = list.find((r) => r.key === key);
+  const leader = own?.gen?.leader;
+  if (!leader?.role) return null;
+  const began = [key, ...rowAncestors(key, nodesOf(list))].map((k) => list.find((r) => r.key === k)).find((r) => r?.gen?.template);
+  if (!began?.gen?.variant) return null;
+  return {
+    template: String(began.gen.template),
+    variant: String(began.gen.variant),
+    role: String(leader.role),
+    troop: String(leader.troop ?? ""),
+    trait: String(own.gen.trait ?? ""),
+    grade: began.gen.leaderSource === GRADE_SOURCE ? GRADE_SOURCE : "",
+    moraleBonus: Number.isInteger(leader.moraleBonus) ? leader.moraleBonus : null,
+  };
 }
 
 /** The troop axis options of a template, each marked `offBands` where the variant has no band for it. */
