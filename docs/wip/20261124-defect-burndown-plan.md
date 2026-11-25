@@ -220,3 +220,54 @@ T-0594 and the finding B02 registered are in the batch map under B06, and the
 two findings the repair's Phase 2 registered are under B09, which no longer
 waits: the repair's S7c is on `main`. T-0593 stays deferred. B03's ten rows
 are claimed and its session is proposed to the owner as a card.
+
+### 2026-11-25, B03
+
+Ten rows worked, all in `main`'s tree (walk scripts and recipes only, so no
+topic branch was opened). Four are fixed in 0f44b0ba: T-0533, T-0562, T-0563
+and T-0564. Five were already released in v2026.11.14: T-0532, T-0566, T-0567
+and T-0568 (1838c199) and T-0565 (bb051e26). Their walk checks pass in every
+run since 2026-11-15, and the ledger notes name the runs. T-0534 is a false
+report: its walk was retired in 546248b1, and the id it named belongs to a
+coined monster, whose name the owner ruled on 2026-11-18 ships. Four findings
+were registered `new`: T-0771, T-0772, T-0783 and T-0784. All on `main`, not
+pushed.
+
+- The guards are gone. The importer walks' setup deletes a standing import of
+  the book by the uuids it reads back, through `track` and
+  `sweepTracked({only})`. That follows the owner's 2026-11-11 ruling: "tests
+  always may clear away items on the test server as needed". `HELD_OK` and
+  `TAKEOVER_OK` are removed. importer-ax1 remakes the AX1 import and keeps it;
+  the world held 17 AX1 scenes and 219 AX1 actors before and after.
+- importer-typography reads every count from the cookbook. Its paragraph
+  oracle is replaced by a check on page shape: a paragraph closes unless it is
+  a list or stat line, and none is cut mid-sentence.
+- Walk drift fixed on the way:
+  - The typography setup missed the monster's leaders template.
+  - importer-ax1 had a table roll on an Adventure's data-model tables.
+  - Its zone checks predated region-wide zones.
+  - Its link count read one cookbook where the importer reads all of them.
+  - force-repair's No observer counted a peer's writes. It now keeps the GM
+    seat's own writes.
+- An architect diagnosed importer-ax1's backlog: one module finding (T-0772,
+  the pair block's stale register list) and two walk drifts, both fixed.
+
+Walked live on `main`, lane B (Gamemaster 2 / Player 2):
+
+- importer-typography 20261125-112211: passed (49 pass, 0 fail).
+- importer-force-repair 20261125-112211: passed (54 pass, 0 fail).
+- importer-ax1 20261125-112211: failed (98 pass, 1 fail). It reached WALK END,
+  and the one FAIL is T-0772.
+- formation-column 20261125-113354, with FIXTURE_OWN=b03, so the entry is
+  partial: 117 pass, 2 fail. Every step-20 check passes, including the trap
+  die's import check. The two FAILs, at steps 1 and 2, passed on 2026-11-24 and
+  are T-0784. The earlier run 20261125-110733 is not counted: lane B's kept
+  fixtures are owned by lane A's player, and a peer held lane A's Judge, the
+  active GM, from 11:11 to 11:16 UTC.
+
+Checked offline only: the cookbook-derived counts, and the shape rule against
+an offline `executeEntry` run on the two six-box prose entries.
+
+Not checked: formation-column's re-import branch for the trap die, because the
+world already held it; a non-partial formation-column run; `init`/`setup`/`ready`
+console beyond each walk's own load-to-ready check.
