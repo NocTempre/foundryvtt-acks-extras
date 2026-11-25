@@ -1,7 +1,7 @@
 /**
  * Offline tests for a cast's range and target count (`cast-range.mjs`, the
  * `outOfRange` and `tooManyTargets` verdicts in `cast-plan.mjs`, the readers in
- * `cast-spell.mjs`, and lib's `tokenGapFeet`). Foundry-free; every spell and
+ * `cast-spell.mjs`, and lib's `tokenGapFeet` and `tokenEdgeGapFeet`). Foundry-free; every spell and
  * figure below is invented, so this file carries no book content.
  *
  * Usage: node tools/test-cast-range.mjs
@@ -17,7 +17,7 @@ const { castVerdicts, blocked, VERDICT } = await import("../scripts/magic/cast-p
 const { castFiguresOf, castReach } = await import("../scripts/magic/cast-spell.mjs");
 const { levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
-const { tokenGapFeet } = await import("../scripts/lib/distance-units.mjs");
+const { tokenEdgeGapFeet, tokenGapFeet } = await import("../scripts/lib/distance-units.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -203,6 +203,33 @@ t("tokenGapFeet is centre to centre through the scene grid and its unit, and nul
   assert.equal(tokenGapFeet(a, { ...b, parent: { ...sceneOf(), id: "s2" } }), null, "another scene");
   assert.equal(tokenGapFeet(a, { ...b, parent: null }), null);
   assert.equal(tokenGapFeet({ ...a, parent: sceneOf({ measurePath: undefined }) }, b), null, "a grid that cannot measure");
+});
+
+t("tokenEdgeGapFeet is the gap between the two tokens' nearest edges: 0 where they touch or overlap, a cell per empty square between them, through the scene's unit", () => {
+  const cell = (v) => Math.floor(v / 100);
+  const square = { id: "s1", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) } };
+  const at = (x, y, w = 1, h = 1) => ({ parent: square, x, y, width: w, height: h });
+  const a = at(0, 0);
+  assert.equal(tokenEdgeGapFeet(a, at(100, 0)), 0, "tokens side by side touch");
+  assert.equal(tokenEdgeGapFeet(a, at(100, 100)), 0, "tokens corner to corner touch");
+  assert.equal(tokenEdgeGapFeet(a, at(0, 0)), 0, "tokens on one square overlap");
+  assert.equal(tokenEdgeGapFeet(a, at(50, 50)), 0, "tokens half a square off overlap");
+  assert.equal(tokenEdgeGapFeet(a, at(200, 0)), 5, "one empty square between");
+  assert.equal(tokenEdgeGapFeet(a, at(300, 0)), 10, "two empty squares between");
+  assert.equal(tokenEdgeGapFeet(a, at(200, 200)), 5, "one empty square on the diagonal");
+  assert.equal(tokenEdgeGapFeet(a, at(300, 100)), 10, "the nearer axis decides the squares between");
+  assert.equal(tokenEdgeGapFeet(at(300, 0), a), 10, "the order of the two does not matter");
+  const big = at(300, 0, 2, 2);
+  assert.equal(tokenEdgeGapFeet(a, big), 10, "a large token is measured from its near side, not its centre");
+  assert.ok(tokenGapFeet(a, big) > tokenEdgeGapFeet(a, big), "and the centre-to-centre figure is the longer");
+  const yards = { ...square, grid: { ...square.grid, units: "yd" } };
+  assert.equal(tokenEdgeGapFeet({ ...a, parent: yards }, { ...at(200, 0), parent: yards }), 15, "five yards, in feet");
+  const gridless = { id: "s1", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: (Math.hypot(q.x - p.x, q.y - p.y) / 100) * 5 }) } };
+  assert.equal(tokenEdgeGapFeet({ ...a, parent: gridless }, { ...at(250, 0), parent: gridless }), 7.5, "a gridless scene is the straight line between the nearest points");
+  assert.equal(tokenEdgeGapFeet(a, null), null, "a missing token");
+  assert.equal(tokenEdgeGapFeet(a, { ...at(200, 0), parent: { ...square, id: "s2" } }), null, "another scene");
+  assert.equal(tokenEdgeGapFeet(a, { ...at(200, 0), width: undefined }), null, "a token with no size");
+  assert.equal(tokenEdgeGapFeet({ ...a, parent: { ...square, grid: { ...square.grid, measurePath: undefined } } }, at(200, 0)), null, "a grid that cannot measure");
 });
 
 console.log(`\n${n} cast range tests passed`);

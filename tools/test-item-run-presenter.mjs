@@ -119,6 +119,12 @@ await t("each seat's body shows only what it may press: the Judge every row, an 
   const pa = body(users[1]);
   assert.ok(pa.includes("Alpha") && !pa.includes("Beta"), "an owner sees the rows of the tokens it owns");
   assert.ok(!pa.includes('data-action="itemRun.roll"'), "a waiting row has no press for a seat that is not a Judge");
+  assert.ok(pa.includes("itemRun.card.waiting"), "and the row says in its Result that the save waits for the body's moment");
+  const cell = (v) => Math.floor(v / 100);
+  const scene = { id: "sc", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) } };
+  for (const [key, x] of [["S.bear", 0], ["S.a", 200], ["S.b", 100]]) Object.assign(tokens[key], { parent: scene, x, y: 0, width: 1, height: 1 });
+  const near = body(users[0]);
+  assert.ok(near.includes("5′") && near.includes("0′"), "the distance is measured edge to edge: a token one empty square from the bearer's is 5′ away and one beside it 0′");
   assert.ok(pa.includes('data-action="itemRun.tick"'), "an owner of the item may count the bearer in, with no role read");
   assert.ok(!pa.includes('data-action="itemRun.lower"'), "Lower is the bearer's owners'");
   const pb = body(users[2]);

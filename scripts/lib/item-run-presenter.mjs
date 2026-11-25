@@ -29,7 +29,7 @@ import { itemCite, itemRunRowsOf, promptCardModel } from "./item-run-logic.mjs";
 import { patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard } from "./item-run-card-logic.mjs";
 import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, undoCardEntry } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
-import { tokenGapFeet } from "./distance-units.mjs";
+import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { isMarkerActor } from "./place.mjs";
 import { isPrimaryGM, makeLoc } from "./util.mjs";
@@ -277,7 +277,7 @@ function rowsOf(card, row, item, bearerToken) {
     const token = fromUuidSync(sub.uuid);
     const state = rowStateOf(card, sub.uuid);
     const entry = card.entries?.[sub.latest] ?? null;
-    const gap = distance && bearerToken && token ? tokenGapFeet(bearerToken, token) : null;
+    const gap = distance && bearerToken && token ? tokenEdgeGapFeet(bearerToken, token) : null;
     const feet = gap === null ? null : Math.round(gap);
     const figure = ["open", "applied", "undone"].includes(state) ? saveFigureOf(token?.actor, row, item) : { target: null, tip: null };
     const earlier = Object.entries(card.entries ?? {}).filter(([key, e]) => e.subject === sub.uuid && key !== sub.latest && e.state !== "open").map(([, e]) => (e.state === "applied" ? loc("itemRun.card.tip.earlier", { result: e.saved ? loc("itemRun.card.saved") : loc("itemRun.card.failed"), total: e.total, target: e.target }) : loc("itemRun.card.undone")));

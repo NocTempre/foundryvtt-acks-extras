@@ -577,7 +577,7 @@
   "ACKS-LIB.itemRun.card.checkTip": "Read who is inside the reach now. Rows are listed or muted to match; nobody is asked.",
   "ACKS-LIB.itemRun.card.lowerTip": "Lower the reach. Its conditions end; a pass's window stays.",
   "ACKS-LIB.itemRun.card.note.reach": "Reaches {feet}′ from the bearer",
-  "ACKS-LIB.itemRun.card.tip.distance": "{feet}′ from {name}, measured now between the two tokens. The reach's ring decides who is inside.",
+  "ACKS-LIB.itemRun.card.tip.distance": "{feet}′ from {name}, measured now between the nearest edges of the two tokens on the scene grid. The reach's ring decides who is inside.",
   "ACKS-LIB.itemRun.card.tip.earlier": "Earlier: {result}, {total} against {target}",
   "ACKS-LIB.itemRun.card.life.turn": "until its next turn starts",
   "ACKS-LIB.itemRun.card.life.mark": "until it first starts a turn in a fight",

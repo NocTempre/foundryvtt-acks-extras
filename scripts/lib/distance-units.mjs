@@ -104,6 +104,50 @@ export function tokenGapFeet(a, b) {
   return pointGapFeet(scene, centreOfToken(a), centreOfToken(b));
 }
 
+/** A token document's footprint as a pixel rectangle `{x0, y0, x1, y1}`, from its corner and its size in cells; null where either is unreadable. */
+function rectOfToken(token) {
+  const size = Number(token?.parent?.grid?.size);
+  const x0 = Number(token?.x);
+  const y0 = Number(token?.y);
+  const w = Number(token?.width) * size;
+  const h = Number(token?.height) * size;
+  return [x0, y0, w, h].every(Number.isFinite) && w > 0 && h > 0 ? { x0, y0, x1: x0 + w, y1: y0 + h } : null;
+}
+
+/** The coordinate each of two intervals reaches toward the other on one axis: the facing ends where they are apart, one shared coordinate where they touch or overlap. */
+function nearestOnAxis(a0, a1, b0, b1) {
+  if (a1 < b0) return [a1, b0];
+  if (b1 < a0) return [a0, b1];
+  const shared = (Math.max(a0, b0) + Math.min(a1, b1)) / 2;
+  return [shared, shared];
+}
+
+/**
+ * The gap between two tokens' NEAREST EDGES, in FEET: the scene grid's own
+ * `measurePath` between the nearest points of the two footprints, read through
+ * the scene's units. Tokens that touch or overlap are 0 apart; a token one empty
+ * square away is one square away. On a square grid a point on a cell boundary
+ * counts in the cell beyond it, so two facing edges one cell apart measure one
+ * cell and two touching ones none. A gridless scene measures the straight line
+ * between the nearest points. `tokenGapFeet` keeps the centre-to-centre figure
+ * for the callers that want it.
+ *
+ * @param {TokenDocument} a
+ * @param {TokenDocument} b
+ * @returns {number|null} null where either token is missing or unreadable, they
+ *   stand on different scenes, or the scene's grid cannot measure
+ */
+export function tokenEdgeGapFeet(a, b) {
+  const scene = a?.parent;
+  if (!scene || !b || !a || scene.id !== b.parent?.id) return null;
+  const ra = rectOfToken(a);
+  const rb = rectOfToken(b);
+  if (!ra || !rb) return null;
+  const [ax, bx] = nearestOnAxis(ra.x0, ra.x1, rb.x0, rb.x1);
+  const [ay, by] = nearestOnAxis(ra.y0, ra.y1, rb.y0, rb.y1);
+  return pointGapFeet(scene, { x: ax, y: ay }, { x: bx, y: by });
+}
+
 /**
  * The distance between two points of a scene, in FEET, by the scene grid's own
  * `measurePath` read through its units: the figure a ruler on that scene shows.
