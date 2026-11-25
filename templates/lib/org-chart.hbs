@@ -23,26 +23,6 @@
       </span>
     {{/if}}
   </div>
-  {{#if removed}}
-    <div class="acks-extras-org__removed" role="status">
-      <strong>{{localize "ACKS-LIB.org.removed.title"}}</strong>
-      <span data-tooltip="ACKS-LIB.org.removed.countTip">{{localize "ACKS-LIB.org.removed.count" rows=removed.rows groups=removed.groups}}</span>
-      {{#if removed.leaders.length}}
-        <span data-tooltip="ACKS-LIB.org.removed.leadersTip">{{localize "ACKS-LIB.org.removed.leaders" n=removed.leaders.length}}</span>
-        <ul>
-          {{#each removed.leaders}}<li data-uuid="{{uuid}}">{{name}} <button type="button" data-action="orgOpen" data-tooltip="ACKS-LIB.org.removed.openTip">{{localize "ACKS-LIB.org.card.open"}}</button></li>{{/each}}
-        </ul>
-      {{/if}}
-      <span data-tooltip="ACKS-LIB.org.removed.prototypesTip">{{localize "ACKS-LIB.org.removed.prototypes" n=removed.prototypes}}</span>
-      {{#if removed.kept.length}}
-        <span data-tooltip="ACKS-LIB.org.removed.keptTip">{{localize "ACKS-LIB.org.removed.kept" n=removed.kept.length}}</span>
-        <ul>
-          {{#each removed.kept}}<li data-uuid="{{uuid}}">{{name}} <button type="button" data-action="orgOpen" data-tooltip="ACKS-LIB.org.removed.openTip">{{localize "ACKS-LIB.org.card.open"}}</button></li>{{/each}}
-        </ul>
-      {{/if}}
-      <button type="button" data-action="orgDismiss" data-tooltip="ACKS-LIB.org.removed.dismissTip">{{localize "ACKS-LIB.org.removed.dismiss"}}</button>
-    </div>
-  {{/if}}
   {{#if cards.length}}
     <p class="hint">
       <span data-tooltip="ACKS-LIB.org.chart.totalTip">{{localize "ACKS-LIB.org.chart.total" n=total}}</span>
