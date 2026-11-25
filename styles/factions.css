@@ -7,6 +7,12 @@
   gap: var(--acks-sp-2);
 }
 
+/* The tab row wraps: its seven tabs run past a narrow window, and the frame hides
+   sideways overflow, so a row that does not wrap clips its last tabs out of reach. */
+.acks-extras-faction-sheet nav.sheet-tabs {
+  flex-wrap: wrap;
+}
+
 .acks-extras-faction-sheet .faction-header {
   display: flex;
   gap: var(--acks-sp-3);

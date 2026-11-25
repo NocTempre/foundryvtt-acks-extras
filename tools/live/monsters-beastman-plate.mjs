@@ -82,10 +82,21 @@ const P = {
     return { uuid: doc?.uuid ?? null, twins: held.length };
   },
 
-  /** `fromUuidSync` as the chart reads it: whether it answers a Document or an index entry, and the plate it carries. */
+  /**
+   * `fromUuidSync` as the chart reads it: once before and once after the pack's client
+   * `getIndex()`, since the server's startup index carries the class's core fields alone and the
+   * plate field reaches an index only through that call. Whether each answers a Document or an
+   * index entry, and the plate it carries.
+   */
   indexRead: async ({ uuid }) => {
-    const hit = fromUuidSync(uuid);
-    return { hit: !!hit, isDocument: hit instanceof foundry.abstract.Document, plate: hit?.flags?.["acks-extras"]?.plate ?? null };
+    const read = () => {
+      const hit = fromUuidSync(uuid);
+      return { hit: !!hit, isDocument: hit instanceof foundry.abstract.Document, plate: hit?.flags?.["acks-extras"]?.plate ?? null };
+    };
+    const before = read();
+    // "Compendium.<package>.<pack>.Actor.<id>": the pack id is the second and third parts.
+    await game.packs.get(uuid.split(".").slice(1, 3).join("."))?.getIndex();
+    return { before, ...read() };
   },
 
   /** What the template holds now: the plate flag, the picture, and the strip's own file by its id. */
@@ -232,9 +243,9 @@ try {
   await run(gm, P.install);
   // Read raw, before anything loads the pack document: `fromUuid` caches it, and `fromUuidSync` then answers the document, which proves nothing about the index.
   const indexed = await run(gm, P.indexRead, { uuid: found.uuid });
-  note("raw read after the reload", { isDocument: indexed.isDocument, hit: indexed.hit });
+  note("raw read after the reload, before the pack's getIndex()", { isDocument: indexed.before.isDocument, hit: indexed.before.hit, plate: tail(indexed.before.plate) });
   if (indexed.isDocument) note("not an index pass", "the pack document was already loaded at ready, so the next check does not test the index field");
-  check("fromUuidSync on the pack's template carries the plate flag after the reload", indexed.hit && tail(indexed.plate) === tail(after.plate), { isDocument: indexed.isDocument, plate: tail(indexed.plate) });
+  check("fromUuidSync on the pack's template carries the plate flag once the pack's getIndex() has run, as the chart reads it", indexed.hit && tail(indexed.plate) === tail(after.plate), { isDocument: indexed.isDocument, plate: tail(indexed.plate) });
 
   section("the Org chart draws the plate");
   const host = await gm.fixture(HOST_MARKER, "Actor", { name: `QA Plate host${TAG}`, type: "acks-extras.faction", items: [] });
