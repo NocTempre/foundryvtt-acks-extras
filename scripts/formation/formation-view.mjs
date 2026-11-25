@@ -410,15 +410,22 @@ export function buildFormationView(formation) {
       shielded: !!light.shielded,
       // A player manages the lights their own character carries.
       canControl: game.user.isGM || owned,
+      // Putting a light out is the bearer's owner's; a Judge's seat also clears a light whose bearer is gone.
+      canRemove: game.user.isGM || !!bearerActor?.isOwner,
     };
   });
 
   view.magicLights = magicLightRows(formation);
 
-  view.spells = (formation.spells ?? []).map((spell) => ({
-    ...spell,
-    caster: game.actors.get(spell.casterId)?.name ?? "—",
-  }));
+  view.spells = (formation.spells ?? []).map((spell) => {
+    const caster = spell.casterId ? game.actors.get(spell.casterId) : null;
+    return {
+      ...spell,
+      caster: caster?.name ?? "—",
+      // A spell's turns and its tracking are its caster's owner's to set; a spell with no caster is the Judge's.
+      canAdjust: game.user.isGM || !!caster?.isOwner,
+    };
+  });
 
   view.saves = SAVE_KEYS.map((key) => ({
     key,
@@ -2030,21 +2037,6 @@ export function buildGMExtras(formation) {
     .filter(Boolean)
     .map((a) => ({ id: a.id, name: a.name }));
 
-  // Known spells across members, durations parsed with the caster's level.
-  extras.spellOptions = [];
-  for (const member of formation.members) {
-    const actor = getMemberActor(member);
-    const level = actor?.system?.details?.level ?? 1;
-    for (const item of actor?.items ?? []) {
-      if (item.type !== ITEM_TYPE.spell) continue;
-      const turns = parseSpellTurns(item.system?.duration, level);
-      extras.spellOptions.push({
-        key: `${actor.id}|${item.id}`,
-        label: `${item.name} — ${actor.name}${turns ? ` (${turns})` : ""}`,
-      });
-    }
-  }
-
   extras.tables = game.tables.contents.map((t) => ({
     id: t.id,
     name: t.name,
@@ -2065,6 +2057,45 @@ export function buildGMExtras(formation) {
 /*  Player action panel context                 */
 /* -------------------------------------------- */
 
+/**
+ * The known spells of `actors`, one picker row each, with the duration parsed at
+ * the caster's level.
+ * @returns {{key: string, label: string}[]}  `key` is `<actorId>|<itemId>`
+ */
+function knownSpellRows(actors) {
+  const rows = [];
+  for (const actor of actors) {
+    const level = actor.system?.details?.level ?? 1;
+    for (const item of actor.items ?? []) {
+      if (item.type !== ITEM_TYPE.spell) continue;
+      const turns = parseSpellTurns(item.system?.duration, level);
+      rows.push({
+        key: `${actor.id}|${item.id}`,
+        label: `${item.name} — ${actor.name}${turns ? ` (${turns})` : ""}`,
+      });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Context for the Kit tab's add-spell row, built for every seat: the known spells
+ * of the members the seat owns (`spellOptions`) and those members as casters
+ * (`spellCasters`). A member is the seat's by Foundry's own `isOwner`, which is
+ * true on every actor for a Judge, so no seat is handed a member it does not own
+ * and a Judge's seat reads the whole party. It carries none of `buildGMExtras`'s
+ * Judge-only context.
+ */
+export function buildSpellTracker(formation) {
+  const owned = formation.members
+    .map((m) => getMemberActor(m))
+    .filter((a) => a?.isOwner);
+  return {
+    spellOptions: knownSpellRows(owned),
+    spellCasters: owned.map((a) => ({ id: a.id, name: a.name })),
+  };
+}
+
 /** Context for the player declaration panel (non-GM member owners). */
 export function buildPlayerPanel(formation) {
   const owned = formation.members
@@ -2076,7 +2107,7 @@ export function buildPlayerPanel(formation) {
       key,
       label: game.i18n.localize(cfg.label),
     })),
-    playerSpells: [],
+    playerSpells: knownSpellRows(owned),
     // Trapbreaking is offered only to a seat that could actually make the
     // throw — by the skill, or by Adventuring.
     canTrapbreak: owned.some(
@@ -2086,16 +2117,5 @@ export function buildPlayerPanel(formation) {
     // allows one: the rows the crossing section draws, on the modes that draw it.
     canCross: !["journey", "settlement"].includes(travelOf(formation).mode) && canCross(formation),
   };
-  for (const actor of owned) {
-    const level = actor.system?.details?.level ?? 1;
-    for (const item of actor.items) {
-      if (item.type !== ITEM_TYPE.spell) continue;
-      const turns = parseSpellTurns(item.system?.duration, level);
-      panel.playerSpells.push({
-        key: `${actor.id}|${item.id}`,
-        label: `${item.name} — ${actor.name}${turns ? ` (${turns})` : ""}`,
-      });
-    }
-  }
   return panel;
 }

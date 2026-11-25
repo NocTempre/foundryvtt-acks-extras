@@ -74,13 +74,10 @@ import { openTrapbreakApp } from "./trapbreak-app.mjs";
 import {
   addLight,
   addSpell,
-  adjustSpell,
   advanceRounds,
   consumeRations,
   encounterCheck,
   parseSpellTurns,
-  removeLight,
-  removeSpell,
   rollPartySave,
   storedPosition,
   toggleLight,
@@ -134,10 +131,23 @@ async function reorder(app, target, dir) {
   await requestPartyAction(formation.id, "reorder", { actorId, dir });
 }
 
+/**
+ * A tracked spell's row pressed: the spell's id and the formation, for a seat that
+ * owns the spell's caster (a Judge's seat owns them all). A spell with no caster is
+ * the Judge's alone.
+ */
+function trackedSpellPress(app, target) {
+  const formation = app.formation;
+  const spellId = target.closest("[data-spell-id]")?.dataset.spellId;
+  const spell = formation?.spells?.find((s) => s.id === spellId);
+  if (!spell || (!game.user.isGM && !ownsActor(spell.casterId))) return null;
+  return { formation, spellId };
+}
+
 async function adjustTrackedSpell(app, target, delta) {
-  const formation = gmFormation(app);
-  if (!formation) return;
-  await adjustSpell(formation, target.closest("[data-spell-id]")?.dataset.spellId, delta);
+  const press = trackedSpellPress(app, target);
+  if (!press) return;
+  await requestPartyPress(press.formation, "spellAdjust", { spellId: press.spellId, delta });
   app.render();
 }
 
@@ -776,16 +786,25 @@ export const SHARED_ACTIONS = {
     await requestPartyAction(formation.id, "lightToggle", { lightId });
   },
 
+  /** The Judge puts out any light; a seat that owns the bearer puts out theirs, through the relay. */
   async removeLight(event, target) {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     if (!formation) return;
-    await removeLight(formation, target.closest("[data-light-id]")?.dataset.lightId);
+    const lightId = target.closest("[data-light-id]")?.dataset.lightId;
+    const light = formation.lights.find((l) => l.id === lightId);
+    if (!light || (!game.user.isGM && !ownsActor(light.bearerId))) return;
+    await requestPartyPress(formation, "lightRemove", { lightId });
     this.render();
   },
 
+  /**
+   * Track a spell: the Judge writes it direct; a seat that owns the caster sends the
+   * name, the turns and the caster to the Judge's client (`spell`, which checks the
+   * ownership again).
+   */
   async addSpell() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
     const pick = this.element.querySelector("[data-pick=spellPick]")?.value ?? "";
     const manualName = this.element.querySelector("[data-pick=spellName]")?.value?.trim() ?? "";
     const manualTurns = Number(this.element.querySelector("[data-pick=spellTurns]")?.value) || 0;
@@ -812,14 +831,19 @@ export const SHARED_ACTIONS = {
       ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.warn.spellNeedsTurns"));
       return;
     }
-    await addSpell(formation, { name, casterId, turns });
-    this.render();
+    if (game.user.isGM) {
+      await addSpell(formation, { name, casterId, turns });
+      this.render();
+      return;
+    }
+    if (!casterId || !ownsActor(casterId)) return;
+    await requestPartyAction(formation.id, "spell", { name, casterId, turns });
   },
 
   async removeSpell(event, target) {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await removeSpell(formation, target.closest("[data-spell-id]")?.dataset.spellId);
+    const press = trackedSpellPress(this, target);
+    if (!press) return;
+    await requestPartyPress(press.formation, "spellRemove", { spellId: press.spellId });
     this.render();
   },
 

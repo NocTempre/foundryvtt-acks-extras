@@ -4,8 +4,10 @@ import { hopRefusal, travelToPlace, whisperHop } from "./poi.mjs";
 import { nextHex, spendActivityHours } from "./journey.mjs";
 import { closeDay } from "./day-close.mjs";
 import { runForageDay } from "./forage-run.mjs";
-import { travelOf } from "./travel.mjs";
+import { travelOf, TRAVEL_MODES } from "./travel.mjs";
 import { partyPoint } from "./zones.mjs";
+import { LIGHT_SOURCES } from "./constants.mjs";
+import { adjustSpell, removeLight, removeSpell } from "./turn-engine.mjs";
 
 /**
  * The presses a seat that owns a party member may make on the party's own clock
@@ -116,6 +118,46 @@ export const PARTY_PRESSES = Object.freeze({
     modes: Object.freeze(["journey"]),
     async run(formation) {
       return (await closeDay(formation)) ? { ok: true, said: loc("request.endDay") } : { ok: false, refused: "quiet" };
+    },
+  }),
+
+  // The Kit tab's three tracked-thing presses are the bearer's or the caster's own,
+  // so each names that member and the relay tests the seat's ownership of it. The
+  // Kit is the same in every mode.
+  lightRemove: Object.freeze({
+    parse: (args) => (typeof args?.lightId === "string" && args.lightId ? { lightId: args.lightId } : null),
+    actor: ({ lightId }, formation) => formation.lights.find((l) => l.id === lightId)?.bearerId ?? null,
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation, { lightId }) {
+      const light = formation.lights.find((l) => l.id === lightId);
+      if (!light) return { ok: false, refused: "stale" };
+      const name = `${game.i18n.localize(LIGHT_SOURCES[light.type]?.label ?? light.type)} — ${game.actors.get(light.bearerId)?.name ?? "?"}`;
+      await removeLight(formation, lightId);
+      return { ok: true, said: loc("request.lightRemove", { light: esc(name) }) };
+    },
+  }),
+
+  spellAdjust: Object.freeze({
+    parse: (args) => (typeof args?.spellId === "string" && args.spellId && (args.delta === 1 || args.delta === -1) ? { spellId: args.spellId, delta: args.delta } : null),
+    actor: ({ spellId }, formation) => (formation.spells ?? []).find((s) => s.id === spellId)?.casterId ?? null,
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation, { spellId, delta }) {
+      const spell = (formation.spells ?? []).find((s) => s.id === spellId);
+      if (!spell) return { ok: false, refused: "stale" };
+      await adjustSpell(formation, spellId, delta);
+      return { ok: true, said: loc("request.spellAdjust", { spell: esc(spell.name) }) };
+    },
+  }),
+
+  spellRemove: Object.freeze({
+    parse: (args) => (typeof args?.spellId === "string" && args.spellId ? { spellId: args.spellId } : null),
+    actor: ({ spellId }, formation) => (formation.spells ?? []).find((s) => s.id === spellId)?.casterId ?? null,
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation, { spellId }) {
+      const spell = (formation.spells ?? []).find((s) => s.id === spellId);
+      if (!spell) return { ok: false, refused: "stale" };
+      await removeSpell(formation, spellId);
+      return { ok: true, said: loc("request.spellRemove", { spell: esc(spell.name) }) };
     },
   }),
 });

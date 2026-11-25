@@ -3,7 +3,7 @@ import { MODULE_ID, PANEL_FLAG, PARTY_TYPE } from "./constants.mjs";
 import { SHARED_ACTIONS, bindCrossingPace, bindCrossingRescuer, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
 import { seatChanged } from "./conveyance.mjs";
-import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
+import { buildFormationView, buildGMExtras, buildPlayerPanel, buildSpellTracker } from "./formation-view.mjs";
 import { userOwnsMember } from "./player-requests.mjs";
 import { participantsOf } from "./xp-shares.mjs";
 import { MODE_TEMPLATES, TAB_IDS, buildFrameView, framePartIds, frameTabs } from "./frame-view.mjs";
@@ -394,6 +394,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     Object.assign(context, buildFormationView(formation));
     if (isGM) Object.assign(context, buildGMExtras(formation));
     else Object.assign(context, buildPlayerPanel(formation));
+    Object.assign(context, buildSpellTracker(formation));
     attachPlanNotes(context.plan, this.planNotes, formation.clock?.turnsTotal ?? 0);
 
     // The party is counted in BODIES; a stack's row says how many it stands for.

@@ -3215,7 +3215,10 @@
       "enterHex": "takes the party into the next hex, {hex}.",
       "enterHexBlank": "takes the party into the next hex.",
       "forageDay": "works the country for the day.",
-      "endDay": "ends the day."
+      "endDay": "ends the day.",
+      "lightRemove": "puts out {light}.",
+      "spellAdjust": "changes {spell}'s turns.",
+      "spellRemove": "stops tracking {spell}."
     },
     "role": {
       "mapper": "Mapper",

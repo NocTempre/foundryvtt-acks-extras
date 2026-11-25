@@ -17,7 +17,7 @@
         <i class="fa-solid {{#if this.lit}}fa-moon{{else}}fa-lightbulb{{/if}}"></i>
       </button>
       {{/if}}
-      {{#if @root.isGM}}
+      {{#if this.canRemove}}
       <button type="button" data-action="removeLight" class="danger" aria-label="{{localize 'ACKS-FORMATION.app.removeLight'}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
       {{/if}}
     </div>
@@ -57,14 +57,14 @@
       <i class="fa-solid fa-wand-sparkles lit"></i>
       <span class="label">{{this.name}} — {{this.caster}}</span>
       <span class="remaining">{{this.remaining}} {{localize "ACKS-FORMATION.app.turnsLeft"}}</span>
-      {{#if @root.isGM}}
+      {{#if this.canAdjust}}
       <button type="button" data-action="spellMinus" aria-label="{{localize 'ACKS-FORMATION.app.spellMinusHint'}}" data-tooltip=""><i class="fa-solid fa-minus"></i></button>
       <button type="button" data-action="spellPlus" aria-label="{{localize 'ACKS-FORMATION.app.spellPlusHint'}}" data-tooltip=""><i class="fa-solid fa-plus"></i></button>
       <button type="button" data-action="removeSpell" class="danger" aria-label="{{localize 'ACKS-FORMATION.app.removeSpell'}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
       {{/if}}
     </div>
     {{/each}}
-    {{#if isGM}}
+    {{#if seat.ownsMember}}
     <div class="add-light add-spell">
       <select data-pick="spellPick" aria-label="{{localize 'ACKS-FORMATION.app.spellPickLabel'}}" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPickHint'}}">
         <option value="">{{localize "ACKS-FORMATION.app.spellManual"}}</option>
@@ -75,7 +75,7 @@
       <input type="text" data-pick="spellName" placeholder="{{localize 'ACKS-FORMATION.app.spellName'}}" />
       <input type="number" data-pick="spellTurns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
       <select data-pick="spellCaster" aria-label="{{localize 'ACKS-FORMATION.app.spellCasterLabel'}}" data-tooltip="">
-        {{#each bearerOptions}}
+        {{#each spellCasters}}
         <option value="{{this.id}}">{{this.name}}</option>
         {{/each}}
       </select>

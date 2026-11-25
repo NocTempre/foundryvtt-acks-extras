@@ -1776,6 +1776,205 @@ await scenario("a seat that owns a member presses the party's own pace, clock, h
   }
 });
 
+await scenario("a seat that owns a bearer or a caster puts out its light and sets its spells from the Kit tab, through the relay", async () => {
+  // Owner rule: "Spell owner can setup the spell as needed". The seat test is
+  // Foundry's ownership of the light's bearer or the spell's caster, never the
+  // user's role; a Judge's own press runs the same entry, and a relayed press
+  // never reads `judge` or passes `override`.
+  const { default: Handlebars } = await import("handlebars");
+  const fs = await import("node:fs");
+  Handlebars.registerHelper("localize", (k) => String(k));
+  const kit = Handlebars.compile(fs.readFileSync("templates/formation/formation-tab-kit.hbs", "utf8"));
+  const view = await import("../scripts/formation/formation-view.mjs");
+  const { PARTY_PRESSES } = await import("../scripts/formation/party-press.mjs");
+  const { SHARED_ACTIONS } = await import("../scripts/formation/formation-actions.mjs");
+  const { ITEM_TYPE } = await import("../scripts/lib/vocab.mjs");
+  const party = await drawnParty("Kitter");
+  const { id, walker: mine } = party;
+  mine.ownership = { default: 0, PL1: 3 };
+  const theirs = await member("Kitter B");
+  await model.addMember(model.getFormation(id), theirs, null);
+  mine.items.set("sp1", { id: "sp1", name: "Lamp Spell", type: ITEM_TYPE.spell, system: { duration: "6 turns" }, getFlag: () => undefined });
+  theirs.items.set("sp2", { id: "sp2", name: "Hidden Spell", type: ITEM_TYPE.spell, system: { duration: "6 turns" }, getFlag: () => undefined });
+  for (const actor of [mine, theirs]) Object.defineProperty(actor, "isOwner", { get: () => actor.testUserPermission(game.user) });
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  const gmUser = game.user;
+  const asSeat = async (userId, fn) => {
+    game.user = game.users.get(userId);
+    try {
+      return await fn();
+    } finally {
+      game.user = gmUser;
+    }
+  };
+  const press = (userId, name, args, extra = {}) => asSeat(userId, () => requests.requestPartyAction(id, "partyPress", { press: name, args, ...extra }));
+  const stored = () => onlyFormation();
+  const lightOf = (actor) => stored().lights.find((l) => l.bearerId === actor.id);
+  const spellOf = (name) => stored().spells.find((s) => s.name === name);
+  let chatStart = chat.length;
+  const said = () => chat.length - chatStart;
+  const row = (html, attr, rowId) => {
+    const start = html.indexOf(`${attr}="${rowId}"`);
+    assert.ok(start >= 0, `${attr} ${rowId} rendered`);
+    return html.slice(start, html.indexOf("</div>", start));
+  };
+  const render = (userId) => asSeat(userId, () => {
+    const f = model.getFormation(id);
+    const isGM = game.user.isGM;
+    return kit({
+      isGM,
+      seat: { isGM, ownsMember: isGM || requests.userOwnsMember(f, game.user) },
+      formation: f,
+      ...view.buildFormationView(f),
+      ...view.buildSpellTracker(f),
+    });
+  });
+  const targetOf = (attr, value) => ({ closest: () => ({ dataset: { [attr]: value } }) });
+  const sheet = (fields = {}) => ({ formation: model.getFormation(id), render() {}, ...fields });
+  try {
+    await engine.addLight(model.getFormation(id), "torch", mine.id, { override: true });
+    await engine.addLight(model.getFormation(id), "torch", theirs.id, { override: true });
+    await engine.addSpell(model.getFormation(id), { name: "Lamp Spell", casterId: mine.id, turns: 6 });
+    await engine.addSpell(model.getFormation(id), { name: "Hidden Spell", casterId: theirs.id, turns: 6 });
+    await engine.addSpell(model.getFormation(id), { name: "Loose Spell", casterId: null, turns: 6 });
+    await drain();
+    chatStart = chat.length;
+
+    // --- The view: each control on the row whose bearer or caster the seat owns.
+    const playerHtml = await render("PL1");
+    assert.ok(row(playerHtml, "data-light-id", lightOf(mine).id).includes('data-action="removeLight"'), "A's light shows Remove to its owner");
+    assert.ok(!row(playerHtml, "data-light-id", lightOf(theirs).id).includes('data-action="removeLight"'), "B's light shows none");
+    const mineRow = row(playerHtml, "data-spell-id", spellOf("Lamp Spell").id);
+    for (const action of ["spellMinus", "spellPlus", "removeSpell"]) assert.ok(mineRow.includes(`data-action="${action}"`), `A's spell shows ${action}`);
+    for (const name of ["Hidden Spell", "Loose Spell"]) {
+      const other = row(playerHtml, "data-spell-id", spellOf(name).id);
+      for (const action of ["spellMinus", "spellPlus", "removeSpell"]) assert.ok(!other.includes(`data-action="${action}"`), `${name} shows no ${action}`);
+    }
+    // The add-spell row is drawn, offering A as a caster and A's spells, and not B.
+    assert.ok(playerHtml.includes('data-action="addSpell"'), "the add-spell row is drawn for a seat that owns a member");
+    const casters = playerHtml.slice(playerHtml.indexOf('data-pick="spellCaster"'), playerHtml.indexOf("</select>", playerHtml.indexOf('data-pick="spellCaster"')));
+    assert.ok(casters.includes(`value="${mine.id}"`) && !casters.includes(`value="${theirs.id}"`), "the caster list offers A and not B");
+    const picker = playerHtml.slice(playerHtml.indexOf('data-pick="spellPick"'), playerHtml.indexOf("</select>", playerHtml.indexOf('data-pick="spellPick"')));
+    assert.ok(picker.includes(`value="${mine.id}|sp1"`) && !picker.includes("sp2"), "the spell picker holds A's known spells only");
+    assert.ok(!playerHtml.includes('data-action="addLight"'), "the add-light row stays the Judge's");
+    assert.ok(!playerHtml.includes('data-action="newMap"'), "and the Kit maps");
+    const stranger = await render("PL9");
+    assert.ok(!stranger.includes('data-action="addSpell"') && !stranger.includes('data-action="removeLight"') && !stranger.includes('data-action="spellPlus"'), "a seat owning no member is drawn none of it");
+    const judgeHtml = await render(gmUser.id);
+    assert.ok(row(judgeHtml, "data-light-id", lightOf(theirs).id).includes('data-action="removeLight"'), "the Judge's seat keeps Remove on every light");
+    assert.ok(row(judgeHtml, "data-spell-id", spellOf("Loose Spell").id).includes('data-action="spellMinus"'), "and the controls on a spell with no caster");
+    const judgeCasters = judgeHtml.slice(judgeHtml.indexOf('data-pick="spellCaster"'), judgeHtml.indexOf("</select>", judgeHtml.indexOf('data-pick="spellCaster"')));
+    assert.ok(judgeCasters.includes(`value="${mine.id}"`) && judgeCasters.includes(`value="${theirs.id}"`), "the Judge's caster list is the whole party");
+    assert.ok(judgeHtml.includes('data-action="addLight"') && judgeHtml.includes('data-action="newMap"'), "and the Judge's own rows stay");
+    const context = view.buildSpellTracker(model.getFormation(id));
+    assert.deepEqual(Object.keys(context).sort(), ["spellCasters", "spellOptions"], "the lists carry nothing of the Judge's hand");
+
+    // --- A parse reads only the keys it names, so a Judge's flag buys a seat nothing.
+    const f = stored();
+    assert.deepEqual(PARTY_PRESSES.lightRemove.parse({ lightId: "L1", judge: true, override: true }, f), { lightId: "L1" });
+    assert.deepEqual(PARTY_PRESSES.spellAdjust.parse({ spellId: "S1", delta: -1, judge: true, override: true }, f), { spellId: "S1", delta: -1 });
+    assert.deepEqual(PARTY_PRESSES.spellRemove.parse({ spellId: "S1", override: true }, f), { spellId: "S1" });
+    for (const entry of ["lightRemove", "spellAdjust", "spellRemove"]) {
+      assert.deepEqual([...PARTY_PRESSES[entry].modes].sort(), ["delve", "journey", "settlement"], `${entry} is open in every mode`);
+    }
+
+    // --- Arguments that do not parse.
+    const before = structuredClone(stored());
+    for (const args of [{}, { lightId: 7 }, { lightId: "" }, null]) assert.deepEqual(await press("PL1", "lightRemove", args), { ok: false, refused: "badPress" }, `lightRemove ${JSON.stringify(args)}`);
+    const mineSpell = spellOf("Lamp Spell");
+    for (const args of [{ spellId: mineSpell.id }, { spellId: mineSpell.id, delta: 2 }, { spellId: mineSpell.id, delta: "1" }, { spellId: mineSpell.id, delta: 0 }, { delta: 1 }]) {
+      assert.deepEqual(await press("PL1", "spellAdjust", args), { ok: false, refused: "badPress" }, `spellAdjust ${JSON.stringify(args)}`);
+    }
+    assert.deepEqual(await press("PL1", "spellRemove", {}), { ok: false, refused: "badPress" });
+    assert.deepEqual(stored(), before, "none of them wrote");
+
+    // --- Someone else's bearer or caster, a spell with no caster, a thing the record no longer holds.
+    assert.deepEqual(await press("PL1", "lightRemove", { lightId: lightOf(theirs).id, judge: true }, { judge: true, override: true }), { ok: false, refused: "notOwner" });
+    assert.deepEqual(await press("PL1", "lightRemove", { lightId: "gone" }), { ok: false, refused: "notOwner" });
+    assert.deepEqual(await press("PL1", "spellAdjust", { spellId: spellOf("Hidden Spell").id, delta: 1, override: true }), { ok: false, refused: "notOwner" });
+    assert.deepEqual(await press("PL1", "spellRemove", { spellId: spellOf("Hidden Spell").id }), { ok: false, refused: "notOwner" });
+    for (const name of ["spellAdjust", "spellRemove"]) {
+      assert.deepEqual(await press("PL1", name, { spellId: spellOf("Loose Spell").id, delta: 1 }), { ok: false, refused: "notOwner" }, `${name} on a spell with no caster is refused`);
+    }
+    assert.deepEqual(await press("PL1", "spellAdjust", { spellId: "gone", delta: 1 }), { ok: false, refused: "notOwner" });
+    assert.deepEqual(await press("PL9", "lightRemove", { lightId: lightOf(mine).id }), { ok: false, refused: "notOwner" }, "a seat owning no member is refused");
+    assert.deepEqual(stored(), before, "no refusal wrote");
+    assert.equal(said(), 0, "or announced");
+
+    // --- A's own: lands, and is announced once.
+    assert.deepEqual(await press("PL1", "spellAdjust", { spellId: mineSpell.id, delta: 1, judge: true, override: true }), { ok: true });
+    assert.equal(spellOf("Lamp Spell").remaining, 7, "plus");
+    assert.match(String(chat.at(-1).content), /request\.spellAdjust/);
+    assert.deepEqual(await press("PL1", "spellAdjust", { spellId: mineSpell.id, delta: -1 }), { ok: true });
+    assert.equal(spellOf("Lamp Spell").remaining, 6, "minus");
+    assert.equal(said(), 2);
+    const lightId = lightOf(mine).id;
+    assert.deepEqual(await press("PL1", "lightRemove", { lightId }), { ok: true });
+    assert.equal(lightOf(mine), undefined, "A's light is out");
+    assert.ok(lightOf(theirs), "B's stays");
+    assert.match(String(chat.at(-1).content), /request\.lightRemove/);
+    assert.deepEqual(await press("PL1", "lightRemove", { lightId }), { ok: false, refused: "notOwner" }, "a second press finds no light");
+    assert.deepEqual(await press("PL1", "spellRemove", { spellId: mineSpell.id }), { ok: true });
+    assert.equal(spellOf("Lamp Spell"), undefined, "A's spell is no longer tracked");
+    assert.match(String(chat.at(-1).content), /request\.spellRemove/);
+    assert.equal(said(), 4);
+
+    // --- The sheet's own presses, from each seat.
+    await engine.addLight(model.getFormation(id), "torch", mine.id, { override: true });
+    await engine.addSpell(model.getFormation(id), { name: "Lamp Spell", casterId: mine.id, turns: 6 });
+    await drain();
+    const spellId = spellOf("Lamp Spell").id;
+    await asSeat("PL1", () => SHARED_ACTIONS.spellPlus.call(sheet(), null, targetOf("spellId", spellId)));
+    assert.equal(spellOf("Lamp Spell").remaining, 7, "the player's plus");
+    await asSeat("PL1", () => SHARED_ACTIONS.spellMinus.call(sheet(), null, targetOf("spellId", spellId)));
+    assert.equal(spellOf("Lamp Spell").remaining, 6, "the player's minus");
+    const hiddenId = spellOf("Hidden Spell").id;
+    await asSeat("PL1", () => SHARED_ACTIONS.spellPlus.call(sheet(), null, targetOf("spellId", hiddenId)));
+    await asSeat("PL1", () => SHARED_ACTIONS.removeSpell.call(sheet(), null, targetOf("spellId", hiddenId)));
+    await asSeat("PL1", () => SHARED_ACTIONS.removeSpell.call(sheet(), null, targetOf("spellId", spellOf("Loose Spell").id)));
+    await asSeat("PL1", () => SHARED_ACTIONS.removeLight.call(sheet(), null, targetOf("lightId", lightOf(theirs).id)));
+    assert.equal(spellOf("Hidden Spell").remaining, 6, "B's spell is not the player's to change");
+    assert.ok(spellOf("Hidden Spell") && spellOf("Loose Spell") && lightOf(theirs), "or to remove, nor a light or a spell with no caster");
+    await asSeat("PL9", () => SHARED_ACTIONS.removeSpell.call(sheet(), null, targetOf("spellId", spellId)));
+    assert.ok(spellOf("Lamp Spell"), "a seat owning no member presses nothing");
+    await asSeat("PL1", () => SHARED_ACTIONS.removeLight.call(sheet(), null, targetOf("lightId", lightOf(mine).id)));
+    assert.equal(lightOf(mine), undefined, "the player's Remove light");
+    await asSeat("PL1", () => SHARED_ACTIONS.removeSpell.call(sheet(), null, targetOf("spellId", spellId)));
+    assert.equal(spellOf("Lamp Spell"), undefined, "the player's Remove spell");
+
+    const announced = said();
+    await SHARED_ACTIONS.spellPlus.call(sheet(), null, targetOf("spellId", hiddenId));
+    assert.equal(spellOf("Hidden Spell").remaining, 7, "the Judge's seat sets any caster's spell");
+    await SHARED_ACTIONS.spellMinus.call(sheet(), null, targetOf("spellId", spellOf("Loose Spell").id));
+    await SHARED_ACTIONS.removeSpell.call(sheet(), null, targetOf("spellId", spellOf("Loose Spell").id));
+    assert.equal(spellOf("Loose Spell"), undefined, "and a spell with no caster");
+    await SHARED_ACTIONS.removeLight.call(sheet(), null, targetOf("lightId", lightOf(theirs).id));
+    assert.equal(lightOf(theirs), undefined, "and any light");
+    assert.equal(said(), announced, "the Judge's own presses announce nothing");
+
+    // --- Add a spell: a typed name and its turns, under a caster the seat owns.
+    const fields = (values) => ({ querySelector: (sel) => ({ value: values[/data-pick=(\w+)/.exec(sel)[1]] ?? "" }) });
+    const add = (userId, values) => asSeat(userId, () => SHARED_ACTIONS.addSpell.call(sheet({ element: fields(values) })));
+    await add("PL1", { spellName: "Typed Spell", spellTurns: "5", spellCaster: theirs.id });
+    assert.equal(spellOf("Typed Spell"), undefined, "a typed spell under B's name is not tracked for a player");
+    await add("PL9", { spellName: "Typed Spell", spellTurns: "5", spellCaster: mine.id });
+    assert.equal(spellOf("Typed Spell"), undefined, "nor for a seat owning no member");
+    await add("PL1", { spellName: "Typed Spell", spellTurns: "5", spellCaster: mine.id });
+    await drain();
+    assert.deepEqual([spellOf("Typed Spell")?.casterId, spellOf("Typed Spell")?.remaining], [mine.id, 5], "a typed name and turns are tracked under A");
+    await add("PL1", { spellPick: `${mine.id}|sp1`, spellTurns: "3", spellCaster: theirs.id });
+    await drain();
+    assert.equal(spellOf("Lamp Spell")?.remaining, 3, "a picked spell goes under its own caster, with the turns typed");
+    await add(gmUser.id, { spellName: "Judge Spell", spellTurns: "4", spellCaster: theirs.id });
+    assert.equal(spellOf("Judge Spell")?.casterId, theirs.id, "the Judge writes it direct, under any member");
+  } finally {
+    game.user = gmUser;
+    game.users.pop();
+    await dismissDrawn(party);
+    game.actors.delete(theirs.id);
+  }
+});
+
 await scenario("a player brings their own actors in and takes them out through the GM relay", async () => {
   const theirs = (name) => ActorMock.create({
     name,
