@@ -13,7 +13,6 @@
  */
 import { MODULE_ID, FLAG_MONSTER_LIST } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE } from "../../lib/group-logic.mjs";
-import { docOf } from "../../lib/util.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 /**
@@ -46,9 +45,10 @@ export const hiredUnitsOf = (employer) =>
  * The service tree under `employer`, as `{key, parentKey, label, holderUuid,
  * kind}` nodes in breadth-first order. The employer is the root; under each
  * actor stand its hired units, then its hirelings in the Followers tab's order,
- * each of them an employer in turn. A unit's officer stands under the unit it
- * leads, once: an officer who is also on the employer's roster is placed there
- * and not beside the unit. `key` is the holder's uuid, and a holder met a second
+ * each of them an employer in turn. A unit's officer has no node: the chart
+ * draws the leader as the head of the unit's card, from the unit's own
+ * `officerUuid`, and an officer the roster also lists is left out of the
+ * hirelings. `key` is the holder's uuid, and a holder met a second
  * time is skipped, so a service chain that loops ends. `kind` is the category the
  * data carries (`retainer.category`, `unit.category`), blank for the root.
  * Reads only.
@@ -72,14 +72,13 @@ export function serviceNodes(employer) {
   while (queue.length) {
     const boss = queue.shift();
     const units = hiredUnitsOf(boss);
-    // Units first, so a rostered officer is placed under its unit before the roster meets it.
-    for (const unit of hiredUnitsOf(boss)) {
-      if (!stand(unit, boss.uuid, unit.system?.unit?.category)) continue;
-      const officer = docOf(unit.system?.unit?.officerUuid);
-      if (officer && stand(officer, unit.uuid, kindOf(officer))) queue.push(officer);
-    }
+    for (const unit of units) stand(unit, boss.uuid, unit.system?.unit?.category);
+    // A unit's leader is its card's head (`officerUuid`), never a node, so the
+    // roster's copy of the same actor is left out too.
+    const leaders = new Set(units.map((unit) => unit.system?.unit?.officerUuid).filter(Boolean));
     const { henchmen, mercenaries, specialists } = hirelingBuckets(boss);
     for (const hireling of [...henchmen, ...mercenaries, ...specialists]) {
+      if (leaders.has(hireling.uuid)) continue;
       if (stand(hireling, boss.uuid, kindOf(hireling))) queue.push(hireling);
     }
   }

@@ -1,7 +1,7 @@
 /**
  * `serviceNodes(employer)` over stand-in documents: the employer's service tree in
  * lib's organisation-node shape, set against the cards the Followers tab builds for
- * the same employer, a hired unit with its officer beside them, a chain that loops,
+ * the same employer, a hired unit whose officer is its card's head and no node, a chain that loops,
  * and the nodes read through lib's own chart view with no henchmen-specific code.
  * Every name and id is invented.
  *
@@ -141,18 +141,15 @@ await test("the employer is the root, each hireling stands under who employs the
   assert.equal(rowRoots(nodes).length, 1, "one root");
 });
 
-await test("the actor nodes are the Followers tab's cards, and the unit nodes are the hired units", async () => {
+await test("the actor nodes under the employer are the tab's cards less the hired units' officers, and each unit is a node", async () => {
   const w = buildWorld();
   const nodes = serviceNodes(w.boss);
   const cards = await cardIds(w.boss);
   assert.deepEqual(cards, ["lead", "plain", "beast", "sworn", "captain"], "the tab's own order: henchmen, then the roster's monsters, mercenaries, specialists");
-  const tabIds = cards.map((id) => `Actor.${id}`);
-  const nested = [w.under.uuid];
-  const actorNodes = nodes
-    .filter((n) => n.key !== w.boss.uuid && !hiredUnitsOf(w.boss).some((u) => u.uuid === n.key) && !nested.includes(n.key))
-    .map((n) => n.key);
-  assert.deepEqual([...actorNodes].sort(), [...tabIds].sort(), "the employer's direct hirelings are exactly the tab's cards");
-  assert.equal(new Set(tabIds).size, tabIds.length);
+  const officers = new Set(hiredUnitsOf(w.boss).map((u) => u.system.unit.officerUuid));
+  const expected = cards.map((id) => `Actor.${id}`).filter((uuid) => !officers.has(uuid));
+  const direct = nodes.filter((n) => n.parentKey === w.boss.uuid && !hiredUnitsOf(w.boss).some((u) => u.uuid === n.key)).map((n) => n.key);
+  assert.deepEqual(direct, expected, "the employer's direct hirelings are the tab's cards, in its order, less the officers");
   assert.deepEqual(
     nodes.filter((n) => hiredUnitsOf(w.boss).some((u) => u.uuid === n.key)).map((n) => n.key),
     [w.band.uuid],
@@ -160,17 +157,14 @@ await test("the actor nodes are the Followers tab's cards, and the unit nodes ar
   );
 });
 
-await test("a unit's officer is one node, under the unit, and not beside it as a roster card", async () => {
+await test("a unit's officer has no node of its own, under the unit or beside it", async () => {
   const w = buildWorld();
   const nodes = serviceNodes(w.boss);
-  const officerNodes = nodes.filter((n) => n.holderUuid === w.captain.uuid);
-  assert.equal(officerNodes.length, 1, "one node for the officer");
-  assert.equal(officerNodes[0].parentKey, w.band.uuid);
-  assert.equal(officerNodes[0].kind, "specialist");
+  assert.equal(nodes.filter((n) => n.holderUuid === w.captain.uuid).length, 0);
   assert.ok((await cardIds(w.boss)).includes(w.captain.id), "the tab still shows the officer as a specialist card");
 });
 
-await test("a unit employed by someone else, and one whose officer is not on any roster, are read for their own employer", () => {
+await test("a unit employed by someone else is read for its own employer, with no node for its officer", () => {
   const w = buildWorld();
   const stranger = makeActor({ id: "stranger" });
   const outsider = makeActor({ id: "outsider", category: "specialist" });
@@ -182,7 +176,7 @@ await test("a unit employed by someone else, and one whose officer is not on any
   assert.ok(!serviceNodes(w.boss).some((n) => n.key === other.uuid), "not under the first employer");
   const mine = byKey(serviceNodes(stranger));
   assert.equal(mine[other.uuid].parentKey, stranger.uuid);
-  assert.equal(mine[outsider.uuid].parentKey, other.uuid, "an officer no roster holds still stands under their unit");
+  assert.ok(!mine[outsider.uuid], "an officer no roster holds has no node either");
 });
 
 await test("an employer with nothing is the root alone, and a missing employer answers an empty list", () => {
@@ -223,21 +217,40 @@ await test("an employer who is their own henchman stands once as the root", () =
 /* -------------------------------------------- */
 
 console.log("service nodes: lib's views");
+/** A holder as lib's `readHolder` answers it: a unit's `officerUuid` is read into its `officer` field. */
+const readLikeLib = (uuid) => {
+  const doc = actors.get(uuid.replace(/^Actor\./, ""));
+  if (!doc) return null;
+  const lead = doc.type === GROUP ? actors.get(String(doc.system.unit.officerUuid ?? "").replace(/^Actor\./, "")) : null;
+  return {
+    name: doc.name,
+    img: "",
+    count: 1,
+    ancestors: [],
+    officer: lead ? { uuid: lead.uuid, name: lead.name, img: "" } : null,
+  };
+};
+
 await test("lib's org chart view draws the nodes as a tree with no henchmen-specific code", () => {
   const w = buildWorld();
   const nodes = serviceNodes(w.boss);
-  const read = (uuid) => {
-    const doc = actors.get(uuid.replace(/^Actor\./, ""));
-    return doc ? { name: doc.name, img: "", count: 1, ancestors: [], officer: null } : null;
-  };
-  const view = orgChartView(nodes, read);
+  const view = orgChartView(nodes, readLikeLib);
   assert.equal(view.roots.length, 1);
   assert.equal(view.roots[0].holderUuid, w.boss.uuid);
   assert.equal(view.rows.length, nodes.length, "every node is a row");
   const row = Object.fromEntries(view.rows.map((r) => [r.key, r]));
   assert.equal(row[w.under.uuid].depth, 2);
-  assert.equal(row[w.captain.uuid].depth, 2, "the officer is under the unit, a level below the employer");
+  assert.equal(row[w.band.uuid].depth, 1);
   assert.equal(view.empty, 0);
+});
+
+await test("each unit's officer is drawn exactly once, as the head of its unit's row", () => {
+  const w = buildWorld();
+  const view = orgChartView(serviceNodes(w.boss), readLikeLib);
+  const drawn = view.rows.filter((r) => r.holderUuid === w.captain.uuid || r.officer?.uuid === w.captain.uuid);
+  assert.equal(drawn.length, 1, "once, not as a row and again as a head");
+  assert.equal(drawn[0].key, w.band.uuid);
+  assert.equal(drawn[0].officer.uuid, w.captain.uuid);
 });
 
 await test("a loop reads through the view and ends", () => {
