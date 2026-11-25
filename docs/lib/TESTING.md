@@ -2289,6 +2289,8 @@ attack throw's condition rows and the damage factor and waived throw it is
 told of (`patches/attack-throw.mjs`), the surprise shim (`patches/surprise-card.mjs`),
 and the importer's `conditions` document.
 The morale page's condition rows are influence's own recipe.
+`tools/live/lib-defend-shield.mjs` walks step 21 on the GM seat alone
+(`node tools/live/run.mjs lib-defend-shield`); steps 1 to 20 are driven by hand.
 
 **Drive notes:**
 - **Price the conditions in your own client, not in the world.**
@@ -2418,6 +2420,20 @@ The morale page's condition rows are influence's own recipe.
   the pointer once `ui.sidebar.changeTab("combat", "primary")` has shown it.
 - **A player's client sees a fight only on the scene it views.** Call
   `scene.view()` from that seat before reading what a move there costs.
+- **A weapon offers the attack kinds its flags name.** `melee`, `missile` and
+  `special.thrown` together offer all three; core's `normalizeChoices` rolls
+  the weapon's first kind when `attackType` is one it does not offer, so a
+  melee-only weapon asked for a missile attack reads as a melee one. Check
+  `ctx.conditions[kind].kind === kind` before reading a term.
+- **A shield is read off the items.** `shieldOf` is true for an equipped armour
+  item of type `shield`, whatever its Armor Class, and an unequipped shield on a
+  monster reads null like none at all. A kept shield item on an unlinked
+  token's actor is found by marker in `tokenDoc.actor.items` and built there,
+  and brought to its equipped state at the start of every step.
+- **A given state is proven before it is read.** The effect's `start` names the
+  fixture combat, the giver's combatant and a non-null initiative; with the
+  tracker not rendered on that combat, or the giver's initiative unrolled,
+  `start` is empty and the state reads as the creature's own.
 
 **Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
 - A scene, created with `active: false`, `ownership.default` OBSERVER, and
@@ -2435,6 +2451,17 @@ The morale page's condition rows are influence's own recipe.
   the stored arrangement (drive notes).
 - For steps 18 to 20: "Guard", a second linked `character` with a token, and
   a combat of the three made `active: true` with an initiative on each.
+- For step 21 (kept, found by marker, never swept): the scene `lib/defend-scene`;
+  the characters `lib/defend-hero`, `lib/defend-guard` and the attacker
+  `lib/defend-raider`, each with a linked token (`lib/defend-hero-token`,
+  `lib/defend-guard-token`, `lib/defend-raider-token`); the shield items
+  `lib/defend-hero-shield` and `lib/defend-guard-shield` (armour, type `shield`,
+  Armor Class left at its blank 0); the attacker's one weapon
+  `lib/defend-raider-weapon` (melee, missile and `special.thrown`); the monster
+  `lib/defend-goblin` with its unlinked token `lib/defend-goblin-token`; and
+  `lib/defend-goblin-shield`, an item that lives on that token's own actor. The
+  walk's own products (its combat and the two rows in it, the effect holding the
+  retired id, and the cards it posts) are swept by id.
 
 1. **The palette.** Read `CONFIG.statusEffects` and open the Hero token's HUD.
    **Observable:** an entry per catalogue condition plus `dead`, `invisible`
