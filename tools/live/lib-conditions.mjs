@@ -730,6 +730,39 @@ const P = {
       await H.sleep(350);
     }
   },
+  /**
+   * One attack on a monster under a hand-made effect of the walk's own that carries a condition's status and sets the Armor Class field: whether the
+   * attacker's throw lists one modifier named for the target's condition followed by Foundry's word for the change type, and none naming it bare. The effect
+   * is deleted by id.
+   */
+  kindAttack: async ({ bearer, foe, id }) => {
+    const H = globalThis.__lc;
+    const tok = await fromUuid(bearer);
+    const foeTok = await fromUuid(foe);
+    const actor = tok.actor;
+    const acKey = H.RM.CONDITION_STEP_KEYS.ac;
+    const bare = game.i18n.format("ACKS-LIB.conditionRoll.term.target", { name: game.i18n.localize(`ACKS-LIB.condition.${id}`) });
+    const named = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.kinded", { label: bare, kind: game.i18n.localize("EFFECT.CHANGES.TYPES.override") });
+    let made = [];
+    try {
+      const stored = Number(foundry.utils.getProperty(actor._source, acKey)) || 0;
+      made = await actor.createEmbeddedDocuments("ActiveEffect", [{ name: "Walk kind: guard", statuses: [id], changes: [{ key: acKey, type: "override", value: String(stored + 2) }] }]);
+      await H.sleep(400);
+      const r = await H.attack(foeTok, tok);
+      await H.sleep(400);
+      return {
+        made: made.length, rolled: r.rolled, card: r.card,
+        term: r.terms.filter((t) => t.condition === id && t.side === "target" && t.value !== 0).length,
+        named: r.modifiers.filter((m) => m.label === named).length,
+        bare: r.modifiers.filter((m) => m.label === bare).length,
+      };
+    } finally {
+      const left = made.map((e) => e.id).filter((eid) => actor.effects.has(eid));
+      if (left.length) await actor.deleteEmbeddedDocuments("ActiveEffect", left);
+      canvas.tokens.setTargets([]);
+      await H.sleep(350);
+    }
+  },
   drain: async () => ({ posted: globalThis.__lc?.posted?.slice() ?? [] }),
   restore: async () => {
     const H = globalThis.__lc;
@@ -1003,6 +1036,12 @@ try {
     const kn = await run(gm, P.kindNotice, { bearer: monTok.uuid, id: saveId });
     note("kind notice", kn);
     check("13: a monster's save under an effect that sets the save modifier tells one notice naming the effect with the word, and none naming it bare", kn.made === 1 && kn.naming === 1 && kn.bare === 0, kn);
+  }
+  if (!acId) check("13: the system ships a condition with an Armor Class change", false);
+  else {
+    const ka = await run(gm, P.kindAttack, { bearer: monTok.uuid, foe: pcTok.uuid, id: acId });
+    note("kind attack", ka);
+    check("13: an attack on a monster under an effect that sets Armor Class lists one modifier naming the target's condition with the word, and none naming it bare", ka.made === 1 && ka.rolled && ka.term === 1 && ka.named === 1 && ka.bare === 0, ka);
   }
   walkDone();
 } catch (err) {

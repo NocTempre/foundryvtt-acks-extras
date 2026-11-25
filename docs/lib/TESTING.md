@@ -2843,7 +2843,10 @@ round) are "Conditions on the palette and on a roll", above.
     tooltips, hover the Armor Class figure, then delete the three by id. On
     the monster make one effect that carries the status of a condition with
     a save change and overrides `system.save.mod`, roll a save with core's
-    notices recorded, and delete it by id. The expected lines are built from
+    notices recorded, and delete it by id; then one that carries the status
+    of a condition with an Armor Class change and overrides `system.ac.mod`,
+    attack the monster from the character, and delete it by id. The expected
+    lines are built from
     the effect's name and Foundry's `EFFECT.CHANGES.TYPES` word through the
     lang strings.
     **Observable:** the overriding and the upgrading effect each have one
@@ -2851,7 +2854,8 @@ round) are "Conditions on the palette and on a roll", above.
     neither typed line shows bare; "Other Effects" does not show; the hover
     shows core's tooltip with the attribute's text and no `title`; the
     monster's save tells one notice naming the effect, its condition in
-    brackets, then the word.
+    brackets, then the word; the attack's throw lists one modifier naming
+    the target's condition, then the word, and none naming it bare.
 
 **Not walked by the script:** missile and thrown attacks; a damage roll's
 own lines; a spell carrier's card; the line in a detached chat window; an
