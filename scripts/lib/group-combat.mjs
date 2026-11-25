@@ -18,6 +18,7 @@
 import { GROUP_LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { MEMBER_FLAG, deployedTree, gangPartition, groupTree, isGroupActor } from "./group-logic.mjs";
 import { gmIds, isPrimaryGM, makeLoc, unset } from "./util.mjs";
+import { noticeOnce, tokenlessNames } from "./patches/tokenless-combat.mjs";
 
 const loc = makeLoc(GROUP_LANG_PREFIX);
 
@@ -169,6 +170,8 @@ async function until(test, { interval, timeout }) {
  */
 export async function groupGangs(combat, group, bodies, { interval = 10, timeout = 3000 } = {}) {
   if (typeof combat?.manageGroup !== "function") return;
+  // The group control is refused while the combat holds a combatant with no token; the Judge sees its notice once.
+  if (tokenlessNames(combat).length) return noticeOnce(combat);
   try {
     const fighting = new Set([...combat.combatants].map((c) => c.tokenId));
     for (const { group: gang, tokens } of gangPartition(group, bodies, fighting)) {

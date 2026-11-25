@@ -832,6 +832,35 @@ t("a system that never stores the group is waited on to the limit, warned about 
   await groupGangs({ combatants: combat.combatants }, outer, bodies);
 });
 
+t("a combat holding a combatant with no token is not grouped and shows its one notice, with no wait", async () => {
+  const { where, outer, gangA, combat } = warband();
+  const bodies = [];
+  for (const g of [outer, gangA]) {
+    for (let i = 0; i < 2; i++) {
+      const b = tokenDoc(where, { actorId: g.id, flags: { [MODULE_ID]: { group: g.uuid, member: `m${i}` } } });
+      where.tokens.set(b.id, b);
+      bodies.push(b);
+    }
+  }
+  await combat.createEmbeddedDocuments("Combatant", [...bodies.map((b) => ({ tokenId: b.id, actorId: b.actorId, sceneId: where.id })), { actorId: outer.id, name: "Stray" }]);
+  const calls = [];
+  combat.manageGroup = (tokens) => calls.push(tokens.map((x) => x.id));
+  const notes = [];
+  const priorUi = globalThis.ui;
+  globalThis.ui = { ...(priorUi ?? {}), notifications: { warn: (m) => notes.push(m) } };
+  const began = Date.now();
+  try {
+    await groupGangs(combat, outer, bodies, { interval: 1000, timeout: 3000 });
+    await groupGangs(combat, outer, bodies, { interval: 1000, timeout: 3000 });
+  } finally {
+    globalThis.ui = priorUi;
+  }
+  assert.deepEqual(calls, [], "the group control is never called");
+  assert.ok(Date.now() - began < 500, "nothing is waited on");
+  assert.equal(notes.length, 1, "one notice for the combat");
+  assert.ok(notes[0].includes("Stray"), "the notice names the row with no token");
+});
+
 t("a call that returns its write is waited on by the call itself, so the next gang reads a list that has the one before", async () => {
   const { where, outer, gangA, gangB, combat } = warband();
   const bodies = [];
