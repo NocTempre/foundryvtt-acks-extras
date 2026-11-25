@@ -527,3 +527,33 @@ traces imports is a tool to build and keep. The owner's rule needs neither.
 it, and nothing marks that walk as owed again. A release's landings therefore
 come before its walks where that is possible, and a session that knows a
 landing reached a walked surface runs that walk again without being told to.
+
+## 2026-11-25 — Each walk runs under the landing lease
+
+**Problem.** Walks and landings shared one tree and one world, and kept off
+each other by messages through the hub session: a landing waited for a word
+that the walks were between runs, and a walk waited for a word that the landing
+was done. A landing that moved the runtime tree in the middle of a walk made
+the walk's result refused, and the word could be late or wrong.
+
+**Ruled.** `tools/live/run.mjs` takes the landing lease of
+`.claude/skills/acks-commit/lease.mjs`, the one `acks-commit` and
+`acks-branch land` hold from their gate to their commit, around each walk: before
+the walk's runtime tree id, given up after the closing id, on a pass, a failure,
+a throw and a signal. The holder is named `walk:<name>` with the session. It is
+one lease for each walk and never one for a batch, and the runner stands aside
+for a moment between two walks, so a landing that waits (it looks again every two
+seconds) goes in between them. A lease another run holds is waited for, the
+holder named, for an hour at most; past that the walk and those after it are not
+started, nothing is recorded and the runner exits 5. Nothing skips the lease;
+`--list` and `--classify` take none. The runner already took several walks and
+went on after one that was not a pass, so that stays. The owner: "Yes do the
+workflow as you describe, implement the recommendations etc".
+
+**Rejected.** A hub message as the hand-over between a landing and a walk
+(the practice until now), and a lease held for a whole batch, which would keep
+every landing out for the hour a batch takes.
+
+**Cost.** A landing waits for the walk that holds the lease, a walk's length at
+most, and a walk waits for a landing's gate, about six minutes. A session that
+runs `acks-commit` while it runs a batch waits for its own batch's walk.

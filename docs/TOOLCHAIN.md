@@ -301,6 +301,15 @@ unknown schema; a required walk that was not run, is stale, changed during its
 run or is partial; and a non-pass that is not classified. On a clear run it
 prints the walk table the release report quotes under "exercised live".
 
+Each walk runs holding the landing lease (`shared-tree.md`, "The tree you gate
+is the tree you commit"): the runner takes it before the walk's runtime tree id
+and gives it up after the closing id, so no landing or commit moves the tree
+during a walk, and it is one lease for each walk of a batch so a waiting landing
+goes in between two. A held lease is waited for, its holder named, for an hour;
+past that the walk and those after it are not started and the runner exits 5.
+`--list` and `--classify` take none, and nothing skips it
+(`docs/DECISIONS.md`, 2026-11-25, "Each walk runs under the landing lease").
+
 - **Required walks.** Which walks a kind requires is §4's kinds table. A
   recipe names a walk by mentioning `tools/live/<name>.mjs` in its
   `docs/<feature>/TESTING.md`.
