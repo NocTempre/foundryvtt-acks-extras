@@ -1,4 +1,4 @@
-# lib API (apiVersion 79)
+# lib API (apiVersion 80)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 79,
+  apiVersion: 80,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1308,7 +1308,8 @@ built-in check, on the requesting seat and on the GM's client, and each must
 answer from documents both can read. A policy that throws is logged to the
 console and counts as an allow. The call returns a function that unregisters it.
 
-No registration exempts a creature from `unreadable`. The requesting user's
+**No registration exempts a creature from `unreadable`** (apiVersion 80, which
+takes `registerSummonNaming` out of the API). The requesting user's
 level on the document, or on its compendium, is the whole answer, and a GM's is
 always enough; a caller that wants a player to summon a creature grants that
 player OBSERVER on it.
