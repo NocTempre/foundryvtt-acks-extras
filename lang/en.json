@@ -2164,6 +2164,7 @@
       "condition": {
         "damaged": "Damaged",
         "destroyed": "Destroyed",
+        "uses": "Uses",
         "breaks": "Breaks",
         "breakable": "Breakable (RR ch. 4)",
         "acFull": "Full: {n}",
