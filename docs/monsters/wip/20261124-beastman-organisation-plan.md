@@ -1696,6 +1696,20 @@ setup beside the same card confirmed, the Org chart tab's tools in setup and
 after, and a tree partly confirmed. Released: none. Not checked: board 1n's
 rendering.
 
+Asked point 1 as "Is each card confirmed on its own, or the whole roll at
+once?", with the buttons "Each card" and "Whole roll at once", the owner
+chose neither and wrote:
+
+"Either"
+
+Read as: both gestures exist, and the Judge uses whichever suits. That is
+what board 1n draws, so the drawing stands: a Confirm on each card, taking
+the cards under it, and a Confirm all at the head. Example: a Judge confirms
+Gang 4 alone while still rolling the rest of its warband, then confirms
+everything left with one press. The other reading, that the owner has no
+preference and leaves the pick to the build, ends at the same drawing. Point
+1 is closed on board 1n; points 2 to 5 are open.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
