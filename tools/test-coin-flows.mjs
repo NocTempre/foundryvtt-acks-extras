@@ -1812,7 +1812,7 @@ function sheetOf(actor) {
   return app;
 }
 
-const sword = { _id: "sword", name: "Sword", type: "weapon", system: { quantity: { value: 1, max: 0 } } };
+const sword = { _id: "sword", name: "Sword", type: "weapon", system: { quantity: 1 } };
 
 await test("a row that holds a drag handle of its own is left alone and nothing is re-bound", async () => {
   game.system = { id: "acks" };
@@ -1846,7 +1846,7 @@ await test("a handle is never re-marked, and a row inside a draggable one is lef
 await test("a goods row with no handle is marked and the sheet's DragDrop is bound once", async () => {
   game.system = { id: "acks" };
   try {
-    const rope = { _id: "rope", name: "Rope", type: "item", system: { quantity: { value: 1, max: 0 }, weight6: 2 } };
+    const rope = { _id: "rope", name: "Rope", type: "item", system: { quantity: 1, weight6: 2 } };
     const actor = makeActor({ id: "hero", items: [sword, rope, gold(5, { _id: "pile" }), silver(2, { _id: "s" })] });
     const handle = node({ itemId: "sword", draggable: true });
     const [swordRow, pile, small] = [node({ itemId: "sword", children: [handle] }), node({ itemId: "pile" }), node({ itemId: "s" })];
