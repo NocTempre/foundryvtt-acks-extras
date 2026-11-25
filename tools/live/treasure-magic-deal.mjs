@@ -118,15 +118,17 @@ const P = {
     }
     // A cell refused whole while one of its clauses reads on its own is the whole-cell refusal a partial cell must
     // not get. The split is the engine's own clause separator, read here so the census does not trust parseCell's
-    // aggregation to report on itself; every grid and every column is counted.
+    // aggregation to report on itself; every grid and every dealt column is counted (the engine's label columns,
+    // which it never deals, are skipped as it skips them).
     const SPLIT = /\s*(?:;|,(?=\s+\d)|\s\+\s)\s*/;
+    const LABELS = new Set(["category", "avgValue"]);
     let wholeButReadable = 0;
     let wholeCells = 0;
     const tables = T.hasDoc(B.TREASURE_DOC_ID) ? T.getDoc(B.TREASURE_DOC_ID).tables ?? {} : {};
     for (const grid of ["typeClassic", "typeHeroic", "typeGritty"]) {
       for (const row of Object.values(tables[grid] ?? {})) {
         for (const [column, cell] of Object.entries(row ?? {})) {
-          if (typeof cell !== "string" || !HL.parseCell(cell, { column }).error) continue;
+          if (LABELS.has(column) || typeof cell !== "string" || !HL.parseCell(cell, { column }).error) continue;
           wholeCells++;
           if (cell.split(SPLIT).some((part) => part && HL.parseCell(part, { column }).terms?.length)) wholeButReadable++;
         }
