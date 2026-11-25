@@ -13,6 +13,8 @@
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
 import { rollOrganisation } from "./organisation-run.mjs";
+import { generateHost } from "./generate-host.mjs";
+import * as services from "../lib/services.mjs";
 import { createFullMonsterSheet, MONSTER_SHEET_TEMPLATES } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
@@ -91,6 +93,8 @@ Hooks.once("init", () => {
     rollOrganisation,
   };
   acksExtras.monsters = api;
+  // The host a Generate on a family template makes (contract `template-generate`, docs/lib/API.md).
+  services.register("template-generate", { generate: generateHost });
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply

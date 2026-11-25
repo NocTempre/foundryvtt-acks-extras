@@ -372,6 +372,15 @@ when none stands; a consumer treats a null, a throw and no registered provider a
 and leaves the uuid null. The roll's result carries the uuid as data; no card or
 window draws it yet.
 
+### Contract `template-generate` v1
+
+Provider: monsters (`scripts/monsters/generate-host.mjs`). Consumer: the template
+sheet's Generate press. `generate(template)` answers `{handled: false}` for a
+template it does not own, and lib then generates a creature as it always has. For
+one it owns it makes a host (a faction card holding an empty top row whose `gen`
+names the template) and answers `{handled: true, actor, tab}`; the sheet opens
+`actor` on tab `tab` and generates nothing. Lib never learns what a recipe is.
+
 ### Contract `encounter-generator` v1
 
 Provider: the monsters feature (its recipe evaluator), which registers it at `init`.

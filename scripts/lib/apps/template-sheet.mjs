@@ -10,6 +10,7 @@ import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
 import { axisIsBanded, axisOffersChoice, optionAvailable, ROLL_PIN } from "../template-logic.mjs";
 import { registryBands } from "../template-bands.mjs";
+import * as services from "../services.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -281,6 +282,15 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
 
   static async #onGenerate() {
     if (this.actor.system.isStub) return;
+    // A feature that makes a host of its own for this template (contract `template-generate`) answers first.
+    const hosted = await services.get("template-generate")?.generate?.(this.actor);
+    if (hosted?.handled) {
+      ui.notifications.info(game.i18n.format("ACKS-LIB.template.info.generated", { name: hosted.actor.name }));
+      const sheet = hosted.actor.sheet;
+      if (hosted.tab) sheet.tabGroups.primary = hosted.tab;
+      sheet.render(true);
+      return;
+    }
     const base = this.#baseUuid ? await fromUuid(this.#baseUuid) : null;
     const created = await generateFromTemplate(this.actor, { pins: this.#pins, base });
     if (!created) {
