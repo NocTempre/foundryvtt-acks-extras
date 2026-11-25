@@ -877,6 +877,15 @@ Net row all read one answer.
   then its name answer; `pickAmmo` and the fired-silver notice read that. The
   flag's readers (the price layer, the price ledger, the variation-family
   conflict) ask whether plating was bought.
+- **Which stack a shot comes from, and what its hit asks.** `shotStack(actor,
+  weapon, profile)` names the stack a launcher's shot is spent from, in
+  `pickAmmo`'s order (a nocked stack, else plain before silver), and
+  `consumeForAttack` spends exactly that stack. A variant is a flag on its own
+  stack, as silver is: `onHit` (`ITEM_FLAGS.ON_HIT`, `{saveKind, saveMod, formula,
+  delayTurns, source, cite}`, the figures a gear row printed) is read by
+  `onHitOf`, which answers null for a flag naming no damage dice or no whole
+  turn count. Nothing asks the save yet; the flag and the stack are the data it
+  will read. See docs/monsters/MODEL.md, "Equipment".
 
 ### Scavenged condition (RR p. 160)
 

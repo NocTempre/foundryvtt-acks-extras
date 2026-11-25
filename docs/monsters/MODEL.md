@@ -846,6 +846,33 @@ a blank figure writes nothing, and a caster or dependant carries none of it.
 | `ac` | a standing bump into `ac.value`, the `gear` part of `extras.derived.organisation.ac`, and `extras.derived.organisation.gear` (`[{label, cite}]`) for the hover |
 | `riderDice` | an ability item with a `maneuverRider` spec `{maneuvers: [overrun, wrestling], dice}`, read by `damageRows` in `equipment/attack-mods.mjs` |
 | `figuresFrom: hookedWeapon` | the module's `hooked` item flag on each melee weapon item (a missile weapon stays unflagged) |
+| `healDice` | one item (type `item`) named by the row, its page on `cookbook.cite`, its figures on `flags["acks-extras"].drink` (below) |
+| `delayTurns` and damage dice | the `onHit` flag (below) on the stack of ammunition the creature's launcher shoots, which is also declared nocked |
+
+**A consumable to drink** carries `drink = {healDice, saveKind, condition, successHealDice, swigDice}`,
+each the row's figure or null where the import left it blank. `condition` is the
+conditions-catalogue id `matchCondition` folds the printed word to; a word that
+folds to none is null, listed on `extras.organisation.unresolved` as `{kind: "gear",
+key, figure: "condition", word}` and passed to `warn`. The item carries no swig
+count: `swigDice` is stored and nothing rolls it (an owner question, open).
+`swigOutcome({drinkerKind, drink, saved})` (`monsters/gear-outcomes.mjs`, pure) says
+what one swig does: the bearer's own kind heals `healDice`; a human or demi-human
+(`DRINKER_KIND.human`) with no result owes a save of `saveKind`, then heals
+`successHealDice` on a pass or takes the condition on a fail, with a turn-life
+record `{edge: "end", count: 1}`; any other kind answers null, for the Judge; a
+blank figure is null in the outcome and nothing is substituted. Nothing calls it yet:
+the swig, its save prompt and the item's breakage with its bearer wait on the item
+carrier.
+
+**Ammunition whose hit asks a save** carries `onHit = {saveKind, saveMod, formula,
+delayTurns, source, cite}` (`source` the row's label, `cite` its page), written
+only where the row has a whole turn count of one or more and damage dice. The
+stack is the one `shotStack` names for the creature's first launcher, which is the
+stack its shot spends, and it is declared nocked so the archer fires it. A creature that
+holds no launcher with a stack gets nothing written and keeps the row on
+`extras.organisation.gear`: a generated rank-and-file creature holds neither until a
+kit writes them. `gearPayloads` returns, beside its four keys, `consumables` (the
+items to add), `onHit` (the count of stacks flagged) and `unresolved`.
 
 The rider and the hooked part follow the equipment feature's `overlayManeuvers`
 world setting, since both are parts of a manoeuvre: `damageRows` adds the rider

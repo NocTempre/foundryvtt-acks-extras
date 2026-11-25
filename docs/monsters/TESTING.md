@@ -648,8 +648,29 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
    shows the penalty with the hooked part and its page in the tooltip, and its
    Roll puts that row on the card's throw; the same weapon untagged shows the
    base alone. Marker `equipment/hooked-character`.
+20. Generate with the row that carries `healDice` pinned. *Observable:* the
+   creature holds one item named by the row, type `item`, whose `flags["acks-extras"]`
+   carry `cookbook.cite` (the row's page) and `drink`, with the printed condition as a
+   catalogue id and `swigDice` set, and no `rounds` flag or count. No inventory
+   surface shows the page on that item today, so read the flag. Set the row's
+   condition word in the registry override to a word no entry answers and generate
+   again. *Observable:* `drink.condition` is null and `extras.organisation.unresolved`
+   lists it; restore the word.
+21. The ammunition flag, which no generated creature can show before the kits: a
+   rank-and-file creature's only weapon is the "By weapon" marker and it holds no
+   ammunition. Give a fixture archer (marker `equipment/onhit-archer`) a launcher
+   and two stacks of its ammunition by script, one carrying `flags["acks-extras"].onHit`
+   with invented figures. Import the module's file in the page, `await
+   import("/modules/acks-extras/scripts/equipment/ammo.mjs")`, and call
+   `shotStack(actor, weapon, classifyWeapon(weapon))` and `onHitOf(stack)`, with
+   `classifyWeapon` from `/modules/acks-extras/scripts/equipment/profiles.mjs`.
+   *Observable:* `shotStack` returns the flagged stack, `onHitOf` its figures;
+   firing through `actor.makeAttackThrow({item, attackType: "missile"})` with
+   ammunition tracking on spends that stack and no other, and no prompt appears.
+   The generation half (flag, nock, record-only) is held by the organisation suite
+   alone.
 
-**The gear rows (steps 16 to 19).** A creature has gear only by pin:
+**The gear rows (steps 16 to 21).** A creature has gear only by pin:
 `generateFromTemplate(template, {pins: {variant, role, gear: [<row key>]}})`,
 the key read from `importedOrganisation().equipment` by the row whose figures
 hold the key the step names, or by `figuresFrom` (never by label), then
