@@ -1244,34 +1244,65 @@ const P = {
   frameShortScroll: async ({ partyId }) => {
     const H = globalThis.__a1;
     const app = game.actors.get(partyId).sheet;
-    try { app.changeTab("mode", "primary"); } catch (_e) { /* fine */ }
-    app.setPosition({ height: 520 });
-    await H.sleep(600);
-    let el = H.root(app);
-    let part = el.querySelector('[data-application-part="mode"]');
-    const wc = el.querySelector(".window-content");
-    const short = {
-      frameH: Math.round(el.getBoundingClientRect().height), wcClient: wc.clientHeight, wcScroll: wc.scrollHeight,
-      partClient: part.clientHeight, partScroll: part.scrollHeight,
-    };
-    part.scrollTop = Math.round((part.scrollHeight - part.clientHeight) / 2);
-    await H.sleep(300);
-    const scrolled = part.scrollTop;
-    const sel = part.querySelector('select[name="travel.weather.wind"]') ?? part.querySelector('select[name="travel.hour"]');
-    const name = sel?.getAttribute("name") ?? null;
-    if (sel) {
-      const opts = [...sel.options].map((o) => o.value);
-      sel.value = opts.find((v) => v !== sel.value) ?? sel.value;
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    // Every render of an auto-height window puts its height back to auto, and the render replaces the part element, so a
+    // render landing between a read and the element it was read from is counted and the element is queried again.
+    let n = 0;
+    const hid = Hooks.on("renderApplicationV2", (a) => { if (a === app) n++; });
+    try {
+      const livePart = () => H.root(app).querySelector('[data-application-part="mode"]');
+      const settle = async () => {
+        let seen = n;
+        let quiet = Date.now();
+        const t0 = Date.now();
+        while (Date.now() - quiet < 800 && Date.now() - t0 < 8000) {
+          await H.sleep(100);
+          if (n !== seen) { seen = n; quiet = Date.now(); }
+        }
+      };
+      try { app.changeTab("mode", "primary"); } catch (_e) { /* fine */ }
+      let short = null;
+      let scrolled = 0;
+      let attempts = 0;
+      while (attempts < 3) {
+        attempts++;
+        await settle();
+        const n0 = n;
+        app.setPosition({ height: 520 });
+        await H.sleep(300);
+        let part = livePart();
+        const el0 = H.root(app);
+        const wc = el0.querySelector(".window-content");
+        short = {
+          frameH: Math.round(el0.getBoundingClientRect().height), wcClient: wc.clientHeight, wcScroll: wc.scrollHeight,
+          partClient: part.clientHeight, partScroll: part.scrollHeight,
+        };
+        part.scrollTop = Math.round((part.scrollHeight - part.clientHeight) / 2);
+        await H.sleep(300);
+        part = livePart();
+        scrolled = part.scrollTop;
+        if (n === n0) break;
+      }
+      let part = livePart();
+      const sel = part.querySelector('select[name="travel.weather.wind"]') ?? part.querySelector('select[name="travel.hour"]');
+      const name = sel?.getAttribute("name") ?? null;
+      if (sel) {
+        const nChange = n;
+        const opts = [...sel.options].map((o) => o.value);
+        sel.value = opts.find((v) => v !== sel.value) ?? sel.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        await H.poll(() => n > nChange, { tries: 50, every: 100 });
+      }
+      await settle();
+      const el = H.root(app);
+      part = livePart();
+      return {
+        short, scrolled, field: name, attempts,
+        after: { scrollTop: part.scrollTop, partClient: part.clientHeight, partScroll: part.scrollHeight, frameH: Math.round(el.getBoundingClientRect().height), stillOverflows: part.scrollHeight > part.clientHeight + 1 },
+        kept: Math.abs(part.scrollTop - scrolled) <= 2,
+      };
+    } finally {
+      Hooks.off("renderApplicationV2", hid);
     }
-    await H.sleep(2200);
-    el = H.root(app);
-    part = el.querySelector('[data-application-part="mode"]');
-    return {
-      short, scrolled, field: name,
-      after: { scrollTop: part.scrollTop, partClient: part.clientHeight, partScroll: part.scrollHeight, frameH: Math.round(el.getBoundingClientRect().height), stillOverflows: part.scrollHeight > part.clientHeight + 1 },
-      kept: Math.abs(part.scrollTop - scrolled) <= 2,
-    };
   },
 
   /** The window narrowed toward its floor: controls cut off with no scroller to reach them. */
@@ -1918,6 +1949,7 @@ const P = {
     let part = H.root(app).querySelector('[data-application-part="mode"]');
     part.scrollTop = Math.round((part.scrollHeight - part.clientHeight) / 2);
     await H.sleep(300);
+    part = H.root(app).querySelector('[data-application-part="mode"]');
     const heights = (p) => Object.fromEntries([...p.querySelectorAll("[data-section]")].map((s) => [s.dataset.section, Math.round(s.getBoundingClientRect().height)]));
     const top0 = part.getBoundingClientRect().top;
     const blocks = [...part.querySelectorAll("[data-section] > *")];
@@ -2694,7 +2726,7 @@ async function frame(gm, player, census) {
   note("home", await page(gm, P.frameHome, { partyId: party.id, tab: "mode" }));
   const ss = await page(gm, P.frameShortScroll, { partyId: party.id });
   note("short window", ss);
-  check("step 6: in the 520-high window the content box stays under the frame and only the Wilderness part's scrollHeight exceeds its box", ss.short.wcClient < ss.short.frameH && ss.short.wcScroll <= ss.short.wcClient + 1 && ss.short.partScroll > ss.short.partClient, ss.short);
+  check("step 6: in the 520-high window the content box stays under the frame and only the Wilderness part's scrollHeight exceeds its box", Math.abs(ss.short.frameH - 520) <= 2 && ss.short.wcClient < ss.short.frameH && ss.short.wcScroll <= ss.short.wcClient + 1 && ss.short.partScroll > ss.short.partClient, ss.short);
   check("step 6: the Wilderness tab keeps its scroll across a field change while it still overflows after the re-fit", ss.after.stillOverflows ? ss.kept : true, { scrolled: ss.scrolled, after: ss.after, kept: ss.kept, field: ss.field });
   const nar18 = await page(gm, P.frameNarrow, { partyId: party.id });
   note("narrowed at 18", nar18);

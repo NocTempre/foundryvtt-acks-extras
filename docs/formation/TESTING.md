@@ -3032,8 +3032,11 @@ types the name the kept party does not carry. Read each seat's
    (core does that to every auto-height window on every render), so the
    scroll is kept only while the part still overflows at the re-fitted
    height; close the Key legend first, or its rows crowd the part to a few
-   pixels and the content's backstop scroll takes over. Narrow the window toward
-   its 640px floor: every control still reachable, nothing cut off without a
+   pixels and the content's backstop scroll takes over. Any render after
+   `setPosition` puts the window back to auto, a peer seat's write included, so
+   the walk lets renders settle before shrinking, checks the frame at 520 and
+   reads the part fresh, never from an element captured before a render.
+   Narrow the window toward its 640px floor: every control still reachable, nothing cut off without a
    scrollbar. At 18 and the floor, the header band wraps: the bar takes a
    second line at the band's end and no rect of the bar or of a header
    control meets the name field's, and the title keeps at least its computed

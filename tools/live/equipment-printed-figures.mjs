@@ -389,11 +389,30 @@ P.unarmed = async ({ actorId, roll }) => {
   const before = H.notes.length;
   const cardsBefore = H.cards.length;
   let threw = null;
+  let asked = false;
+  let settled = true;
   if (roll) {
-    try { await H.ACT.rollUnarmed(actor, { skipDialog: true }); } catch (e) { threw = String(e?.message ?? e).slice(0, 120); }
+    // The throw is started and not awaited: a damage-formula prompt waits for a click, so the walk looks for
+    // one, dismisses it, and bounds the wait for the roll instead of hanging on it.
+    const seen = new Set(foundry.applications.instances.keys());
+    let done = false;
+    const rolled = H.ACT.rollUnarmed(actor, { skipDialog: true })
+      .catch((e) => { threw = String(e?.message ?? e).slice(0, 120); })
+      .then(() => { done = true; });
+    const found = await H.poll(() => [...foundry.applications.instances.entries()].find(([id, app]) => !seen.has(id)
+      && app instanceof foundry.applications.api.DialogV2 && H.root(app)?.querySelector('input[name="formula"]'))?.[1] ?? done, { tries: 25, every: 200 });
+    const prompt = found === true ? null : found;
+    if (prompt) {
+      asked = true;
+      try { await prompt.close({ animate: false }); } catch { /* already closed */ }
+    }
+    await Promise.race([rolled, H.sleep(5000)]);
+    settled = done;
     await H.sleep(800);
   }
   return {
+    asked,
+    settled,
     formula: data.system.damage.base.formula,
     die: H.AM.unarmedStrikeDie(),
     // A blank die raises no notice of its own: every notification the throw raised is counted.
@@ -651,7 +670,8 @@ try {
   u = await run(gm, P.unarmed, { actorId, roll: true });
   for (const id of u.cards) { await gm.track(id, "ChatMessage"); own.push(`ChatMessage.${id}`); }
   check("with no die imported the strike carries a blank formula and no figure", u.die === null && u.formula === "", { die: u.die, formula: u.formula });
-  check("the throw raises no notice about the missing die", u.noticesRaised === 0 && u.threw === null, { noticesRaised: u.noticesRaised, threw: u.threw });
+  check("6: the unarmed strike's throw opens no damage-formula prompt", !u.asked, { asked: u.asked, settled: u.settled });
+  check("the throw raises no notice about the missing die", u.settled && u.noticesRaised === 0 && u.threw === null, { settled: u.settled, noticesRaised: u.noticesRaised, threw: u.threw });
   const invented = await run(gm, P.override, { table: UNARMED, data: { damage: INVENTED_DIE } });
   u = await run(gm, P.unarmed, { actorId, roll: false });
   check("a Judge's own die wins over the page's", invented.set && u.die === INVENTED_DIE && u.formula === INVENTED_DIE, { set: invented.set, die: u.die === INVENTED_DIE });
