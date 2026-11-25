@@ -1,4 +1,4 @@
-# lib API (apiVersion 75)
+# lib API (apiVersion 76)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -2188,7 +2188,7 @@ variant is not yet chosen there; `chooseAxes` drops one with no band.
 
 ## `itemUse`, `itemRun` and `auraReach` — the item carrier and the live reach
 
-Rows on the lib api from `apiVersion` 75.
+Rows on the lib api from `apiVersion` 76.
 
 - `itemUse.addClaimant({key, claims, run})` / `removeClaimant(key)`: the seam on `Item#use`. The first claimant whose synchronous `claims(item, options)` answers exactly `true` runs `run(item, options, system)`; `system()` is the system's own use, once. A claimant must decline every spell.
 - `itemRun.useItem(item)`, `registerRunner(kind, fn)`, `setPresenter(fn)`, `setFuseBurst(fn)`, `pressRoll({itemUuid, rowKey, activationId, subject})`, `undoEntry({subject, entry})` (GM only), `rowsOf(item)`, and `logic` (the pure half: `readItemRun`, the record builders, `checkPressRequest`, `promptCardModel`, the fuse functions). An item carries `flags["acks-extras"].itemRun = {activation: {kind: once|toggle|fuse|consume, state, throw, fumble, fuseDice, uses}, rows}`; an ability keeps its rows in `extras.effects`.
