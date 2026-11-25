@@ -2297,7 +2297,7 @@ Version 7.
    `scripts/monsters/item-annotations.mjs` already makes into an item
    sheet's Details tab. No window of its own.
 3. A kit that does not suit a stack may be given, and the row is marked
-   (the owner, 2026-11-14: automation warns a Judge).
+   (the owner, 2026-11-14: "players get blocks, judges get warnings").
 4. One Kits window with two tools, and no tabs. The owner, of the chart:
    "The Roll at Random and Design by selection are tools for the tab."
 5. An armour item is listed and the kit's stat change carries the armour
@@ -2325,14 +2325,13 @@ Version 7.
 3. A leader's grade is the template's Leader figures axis, built in phase 1
    and chosen at the Roll. A recipe part carries no grade.
 
-**Canvas 4 (S8b, S9a, S9b-2)**,
-https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v, Version 6.
+**Canvas 4 (S8b without T10, S9a, S9b-2)**,
+https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v, Version 7.
 
-1. The items with a reach are carried by leaders and casters (MM p. 56),
-   who are actors of their own under the adopted shape, so a reach item
-   meets no stack. A thrown item on a body still in a stack: Throw puts the
-   body out by the group's shipped Deploy and then throws. Nothing is
-   refused.
+1. A unit's leader is an actor of its own under the adopted shape, with
+   board 4a's rows on its sheet. Any other carrier still in a stack presses
+   from its stack row: Raise or Throw puts the body out by the group's
+   shipped Deploy and then acts. Nothing is refused.
 2. Who sees a reach is the Judge's choice for each item, the first option
    and the one first drawn: a tick in the row editor's reach group (S7's
    `showReach`), which sets the Region's `visibility` when the item is
@@ -2354,8 +2353,20 @@ sheet by the same injection as canvas 2's. The editor gains a reach group.
 4d also draws E5's row with its Swig press, and says where S9b-2's two
 prompts and the breakage appear.
 
+S7's two lists of UI elements, each walked to a board. For S8b: the press
+and its state are on 4a (the sheet row, the stack row and, by a line, a
+character sheet's inventory); the ring and who sees it on 4a, 4c and 4d;
+the prompt card on 4b; the editor's host and reach group on 4d. For S9a:
+the press is 4a's Throw, which S7 calls the light press; the fuse's state
+on the bearer while it burns is that row's second state on 4a; the blast
+card is on 4b.
+
+T10 is left out of canvas 4. S7's addendum A5 leaves its reach open among
+three ways and no board draws them. S7 calls it the one piece of S8b that
+can slip, and it stays with `architect`.
+
 **Canvas 5 (the template sheet)**,
-https://claude.ai/artifact/PxYv6twWXeHwarsiXU8Vkh, Version 8.
+https://claude.ai/artifact/PxYv6twWXeHwarsiXU8Vkh, Version 9.
 
 1. and 3. The strip's heads are tribes' and the strip stays whole.
 2. Variants and traits are picked from the selects phase 1 built
@@ -2368,11 +2379,18 @@ header control, which `TemplateSheet` inherits.
 
 One rule is drawn for a choice the variant's tables do not give: it is
 marked and a Judge may still make it, in a select and in a tick box alike.
-Canvas 1, approved, keeps such a pick on board 1b ("A Judge may keep it").
-A roll never lands on one. The rule changes three things:
+Canvas 1, approved, keeps such a pick on board 1b ("A Judge may keep it"),
+the first option of its question 3, and the owner's "players get blocks,
+judges get warnings" (2026-11-14) asks for it. A roll never lands on one.
+The rule changes four things:
 
 - the selects' `disabled` on such an option, built and walked in phase 1,
   goes, and the words it is listed with stay;
+- `chooseAxes` (`scripts/lib/template-logic.mjs`) today logs a pin on such
+  an option as `unavailable` and rolls in its place. Under the rule it
+  keeps the pin, logs it as given by hand, and writes what the option's own
+  patch and matching cells give that variant, which may be the option's
+  name alone;
 - T-0719: the variant-pin prompt lists such an option with the same words;
 - T-0720: the gear axis is `multi` and takes no bands
   (`scripts/importer/organisation-axes.mjs`), so nothing says today which
@@ -2386,8 +2404,8 @@ Raise and Throw on board 4a, which were drawn before this audit and reuse
 nothing named. Which pieces board 5a marks, which is a stand-in.
 
 **Released: none.** A go-ahead on canvases 2 to 5 would release S14 (after
-S13 and S12), S4b, S8b, S9a and S9b-2 (each after S8a), and the design of
-T-0719 and T-0720. It would also accept the points of S7's proposed ruling
+S13 and S12), S4b, S8b without T10, S9a and S9b-2 (each after S8a), and
+the design of T-0719 and T-0720. It would also accept the points of S7's proposed ruling
 that canvas 4 is drawn on: the reach as a core Region, the carrier built
 beside the cast engine, and the split of S8 and S9b. Section 3's rows and
 the phase prompts are unchanged until then.
