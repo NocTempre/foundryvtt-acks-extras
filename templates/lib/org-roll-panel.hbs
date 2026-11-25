@@ -7,7 +7,7 @@
   <label>{{localize "ACKS-LIB.org.roll.foundIn"}}
     <select name="context">{{#each context}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
   </label>
-  <label>{{localize "ACKS-LIB.org.roll.state"}}
+  <label>{{localize "ACKS-LIB.org.roll.stateLabel"}}
     <select name="state">{{#each state}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
   </label>
   <fieldset>
@@ -16,7 +16,7 @@
     <label><input type="radio" name="leaderSource" value="table" /> {{localize "ACKS-LIB.org.roll.leadersTable"}}</label>
   </fieldset>
   <fieldset>
-    <legend>{{localize "ACKS-LIB.org.roll.rules"}}</legend>
+    <legend>{{localize "ACKS-LIB.org.roll.rulesLabel"}}</legend>
     {{#each rules}}<label><input type="checkbox" name="rules-{{key}}" {{#if checked}}checked{{/if}} /> {{label}}</label>{{/each}}
   </fieldset>
   {{> "modules/acks-extras/templates/lib/org-roll-sections.hbs" this}}

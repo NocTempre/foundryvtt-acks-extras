@@ -43,7 +43,7 @@ export const orgRollService = {
       name: c.group ? `branch:${c.group}` : c.key,
       label: c.group ? loc("organisation.choice.branch", { group: c.group }) : loc(`organisation.choice.${c.key}`),
       tip: loc(c.group ? "organisation.choice.branchTip" : `organisation.choice.${c.key}Tip`),
-      options: c.options.map((o) => ({ key: o.key, label: o.label ?? loc(`organisation.choice.${c.key}.${o.key}`), selected: o.key === c.current })),
+      options: c.options.map((o) => ({ key: o.key, label: o.label ?? loc(`organisation.choiceOption.${c.key}.${o.key}`), selected: o.key === c.current })),
     }));
     const made = willMake({ recipe, encounter, context, state, chosen, shares: imported, shareCite: org.organisation?.cite ?? "" });
     const rows = made.rows.map((r) => ({
