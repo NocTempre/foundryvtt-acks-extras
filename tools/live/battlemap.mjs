@@ -2010,8 +2010,17 @@ async function walkLayers(W) {
   note("player canvas", pov);
   check("L4: a player seat draws neither water line", pov.viewed && !pov.isGM && !("#3f7fb5" in pov.byColor) && !("#2c5a85" in pov.byColor), pov.byColor);
 
+  // The Walls control's mark tool marks the water preset in hand: Coastline is in hand from L4.
+  const G0 = pt("G");
+  const inHand = await page(gm, P.plainWall, { sceneId: hex.id, c: [G0.x - 40, G0.y + 60, G0.x + 40, G0.y + 140] });
+  gm.track(inHand.uuid, "Wall");
+  const markedInHand = await page(gm, P.markSelected, { wallUuid: inHand.uuid });
+  note("marked with Coastline in hand", markedInHand);
+  check("L4: a mark made with Coastline in hand lands a coast, not the first kind, and leaves the wall's restrictions", markedInHand.controlled?.length === 1 && markedInHand.water?.kind === "coast" && same(markedInHand.before, markedInHand.after), markedInHand);
+  note("the mark's wall swept", await gm.sweepTracked({ only: [inHand.uuid] }));
+
   section("layers 5. the wall sheet and the Walls control");
-  const opened = await page(gm, P.wallSheetOpen, { wallUuid: riverUuid, name: "QA brook" });
+  const opened =await page(gm, P.wallSheetOpen, { wallUuid: riverUuid, name: "QA brook" });
   note("wall sheet opened", opened);
   check("L5: the river's sheet carries one water row: river, the boat ticked, the name typed (written at once)", opened.row && opened.rows === 1 && opened.kind === "river" && opened.navigable === true && opened.nameField === "QA brook" && opened.water?.name === "QA brook", opened);
   if (opened.row) await shot(gm, "battlemap-water-lines", `[id="${opened.id}"]`);
@@ -2024,10 +2033,13 @@ async function walkLayers(W) {
   const plain = await page(gm, P.plainWall, { sceneId: hex.id, c: [G.x - 40, G.y - 40, G.x + 40, G.y + 40] });
   gm.track(plain.uuid, "Wall");
   note("plain wall", plain);
+  // The tool marks the preset in hand, and L4 left Coastline there: the river goes back in hand first.
+  note("river preset in hand", (await page(gm, P.pressTool, { control: "acksBattlemap", tool: "water-river" })).preset?.water ?? null);
   const marked = await page(gm, P.markSelected, { wallUuid: plain.uuid });
   note("marked", marked);
   check("L5: Mark the selected walls as water lands the flag, leaves the restrictions, and warns the party cannot cross it", marked.controlled?.length === 1 && marked.water?.kind === "river" && same(marked.before, marked.after) && marked.before.move !== 0 && marked.notes.some((n) => n.kind === "warn" && /cannot/i.test(n.text)), marked);
   note("river closed to boats", await page(gm, P.setWater, { wallUuid: riverUuid, kind: "river", navigable: false }));
+  note("river preset in hand", (await page(gm, P.pressTool, { control: "acksBattlemap", tool: "water-river" })).preset?.water ?? null);
   const remarked = await page(gm, P.markSelected, { wallUuid: riverUuid });
   note("re-marked", remarked);
   check("L5: pressing the tool again on the unticked river: updated 1, navigable still false", remarked.water?.kind === "river" && remarked.water?.navigable === false && remarked.notes.some((n) => /0 wall\(s\) made water, 1 updated/.test(n.text)), { water: remarked.water, notes: remarked.notes });
