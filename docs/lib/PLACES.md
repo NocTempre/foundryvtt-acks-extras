@@ -116,9 +116,11 @@ scan. Take one per render and thread it through `childPlaces`, `placePath` and
 `coinRollupGC` rather than letting each re-scan.
 
 `allPlaces({ pack })` adds the places ONE compendium holds, read from its
-already-loaded index — no fetch on a render path, because the location feature
-puts `system.parentUuid` and the place flag into
-`CONFIG.Actor.compendiumIndexFields` at init. One pack, not all of them: a
+already-loaded index — no fetch on a render path. The location feature puts
+`system.parentUuid` and the place flag into `CONFIG.Actor.compendiumIndexFields`
+at init, but core's server builds a pack's startup index from the document
+class's own fields, so the two reach an index only once a client calls the
+pack's `getIndex()`; until then the read finds none of the pack's places. One pack, not all of them: a
 pack's places point at each other (an imported adventure and its rooms are
 written together), so the pack being looked at is the whole world those
 pointers live in. The location sheet passes its own document's `pack`, or —
