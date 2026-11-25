@@ -309,7 +309,7 @@ export function planUnlist({ rows, key } = {}) {
  * @param {string} args.key the row
  * @param {{label?: string, notes?: string, kind?: string, hidden?: boolean, gen?: object}} [args.fields] `gen` is a patch of the row's own record: a blank value removes the key
  * @param {{stack: string, count?: number, prototype?: string}[]} [args.stacks]
- * @param {{officer: string, moraleBonus?: number|null}} [args.officer]
+ * @param {{officer: string, moraleBonus?: number|null, leaderIfBlank?: boolean}} [args.officer] `leaderIfBlank` also makes the officer a faction host's leader, on a top row and only while the host's leader is blank; a leader already set is never replaced
  * @param {boolean} [args.onMap] a body of the row's group stands on a map
  * @param {string} [args.currentOfficer] the uuid of the row's group's officer now; a blank `officer.officer` clears it, and where it is the faction host's `leaderUuid` the same host write clears that too
  * @returns {{ok: boolean, reason?: "noRow"|"empty", ops: object[], warnings?: string[]}}
@@ -333,6 +333,7 @@ export function planEdit({ host, rows, key, fields = {}, stacks = [], officer = 
   const hostUpdate = {};
   if (Object.keys(changes).length) hostUpdate["system.units"] = list.map((r) => (r.key === key ? { ...r, ...changes } : r));
   if (officer && !officer.officer && currentOfficer && host?.kind === "faction" && host.leaderUuid === currentOfficer) hostUpdate["system.leaderUuid"] = "";
+  if (officer?.officer && officer.leaderIfBlank && host?.kind === "faction" && !row.parentKey && !host.leaderUuid) hostUpdate["system.leaderUuid"] = officer.officer;
   if (Object.keys(hostUpdate).length) ops.push({ op: "update", uuid: host.uuid, update: hostUpdate });
   for (const s of stacks) {
     const change = { op: "setStack", group: row.holderUuid, stack: s.stack };

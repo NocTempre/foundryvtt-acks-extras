@@ -248,6 +248,19 @@ t("clearing the officer that is the faction's leader clears the faction's leader
   assert.deepEqual(group.ops.map((o) => o.op), ["setOfficer"], "only a faction has a leader to clear");
 });
 
+t("a Make on a faction's top row also makes the officer the faction's leader, but only while the leader is blank", () => {
+  const rows = [row("u1", "", "G.1"), row("u2", "u1", "G.2")];
+  const make = (host, key) => planEdit({ host, rows, key, officer: { officer: "A.new", moraleBonus: null, leaderIfBlank: true } });
+  const blank = make({ uuid: "F.1", kind: "faction", leaderUuid: "" }, "u1");
+  assert.deepEqual(blank.ops.map((o) => o.op), ["update", "setOfficer"]);
+  assert.deepEqual(blank.ops[0], { op: "update", uuid: "F.1", update: { "system.leaderUuid": "A.new" } });
+  assert.deepEqual(make({ uuid: "F.1", kind: "faction", leaderUuid: "A.old" }, "u1").ops.map((o) => o.op), ["setOfficer"], "a leader already set is never replaced");
+  assert.deepEqual(make({ uuid: "F.1", kind: "faction", leaderUuid: "" }, "u2").ops.map((o) => o.op), ["setOfficer"], "a row below the top is no faction leader");
+  assert.deepEqual(make({ uuid: "G.0", kind: "group" }, "u1").ops.map((o) => o.op), ["setOfficer"], "a group host has no leader field");
+  const plain = planEdit({ host: { uuid: "F.1", kind: "faction", leaderUuid: "" }, rows, key: "u1", officer: { officer: "A.new", moraleBonus: null } });
+  assert.deepEqual(plain.ops.map((o) => o.op), ["setOfficer"], "an officer set by any other press does not touch the leader");
+});
+
 t("a Roll that names the host's own group as the top holder makes no group for the top, and the host stands on its own top row without nesting itself", () => {
   const GROUP = { uuid: "G.host", kind: "group" };
   const rows = [row("top", "", "", { gen: { template: "T.1" } })];

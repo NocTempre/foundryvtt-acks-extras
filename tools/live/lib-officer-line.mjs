@@ -133,6 +133,9 @@ const P = {
     return { key: r.key, parentKey: r.parentKey, holderUuid: r.holderUuid, leaderRole: r.gen?.leader?.role ?? "", morale: r.gen?.leader?.moraleBonus ?? null, officer, officerMorale: h?.system?.unit?.officerMoraleBonus ?? null, officerExists: officer ? !!fromUuidSync(officer) : false };
   }),
 
+  /** Whether an actor carries an image of its own (the module's frame draws only then). */
+  actorImg: async ({ uuid }) => !!fromUuidSync(uuid)?.img,
+
   /** What a minted leader carries: its generating template, whether it is marked as a minted prototype, and whether it is in the world. */
   actorRead: async ({ uuid }) => {
     const a = uuid ? fromUuidSync(uuid) : null;
@@ -209,6 +212,12 @@ const P = {
   setOfficer: async ({ id, key, officer }) => {
     const out = await acksExtras.lib.org.editRow(game.actors.get(id), key, { officer: { officer, moraleBonus: null } });
     return { ok: out.ok, reason: out.reason ?? "" };
+  },
+
+  /** Write the faction's own leader field, as a hand does; used to put the blank and the already-set cases of step 8. */
+  setLeader: async ({ id, leader }) => {
+    await game.actors.get(id).update({ "system.leaderUuid": leader });
+    return game.actors.get(id).system.leaderUuid ?? "";
   },
 
   /** How many dialogs are open. */
@@ -430,6 +439,34 @@ try {
   if (O3) gm.track(O3);
   const replaced = await until(gm, P.line, { id: fid, key: A }, (l) => !l.gone && l.actions.includes("orgOpen"));
   check("+ Make on the deleted line sets a new officer in place of the dead link, and the line reads live", !!O3 && O3 !== O2 && !replaced.gone, { O3 });
+
+  section("8. + Make on a faction's top row also makes the leader, but only while the faction's leader is blank");
+  const T = topRow?.key ?? "";
+  if (T && topRow.leaderRole) {
+    await run(gm, P.setOfficer, { id: fid, key: T, officer: "" });
+    await run(gm, P.setLeader, { id: fid, leader: "" });
+    await run(gm, P.pressCard, { id: fid, key: T, action: "orgEdit", wait: 800 });
+    const topLine = await until(gm, P.line, { id: fid, key: T }, (l) => l.none && l.actions.includes("orgMakeLeader"));
+    check("the top card's line reads empty with + Make, and the faction's leader is blank", topLine.none && (await run(gm, P.leaderLine, { id: fid })).stored === "", topLine);
+    check("the + Make tooltip says it makes the leader only", topLine.tips.length > 0 && (await run(gm, (arg) => document.querySelector(`li[data-key="${arg.key}"] > div .acks-extras-org-officer [data-action="orgMakeLeader"]`)?.dataset.tooltipText ?? "", { key: T })).length > 0);
+    await run(gm, P.pressLine, { id: fid, key: T, action: "orgMakeLeader", wait: 1500 });
+    await waitFor(gm, `!!fromUuidSync(game.actors.get("${fid}").system.units.find((r) => r.key === "${T}").holderUuid)?.system.unit.officerUuid`, 20000);
+    const O4 = (await run(gm, P.rows, { id: fid })).find((r) => r.key === T).officer;
+    if (O4) gm.track(O4);
+    note("the leader Make made on the top row, tracked", O4);
+    check("with the faction's leader blank, Make on the top row also set it to the new actor", !!O4 && (await run(gm, P.leaderLine, { id: fid })).stored === O4, { O4 });
+    await run(gm, P.setOfficer, { id: fid, key: T, officer: "" });
+    const held = await run(gm, P.setLeader, { id: fid, leader: O3 });
+    await run(gm, P.pressCard, { id: fid, key: T, action: "orgEdit", wait: 800 });
+    await until(gm, P.line, { id: fid, key: T }, (l) => l.none && l.actions.includes("orgMakeLeader"));
+    await run(gm, P.pressLine, { id: fid, key: T, action: "orgMakeLeader", wait: 1500 });
+    await waitFor(gm, `!!fromUuidSync(game.actors.get("${fid}").system.units.find((r) => r.key === "${T}").holderUuid)?.system.unit.officerUuid`, 20000);
+    const O5 = (await run(gm, P.rows, { id: fid })).find((r) => r.key === T).officer;
+    if (O5) gm.track(O5);
+    check("with a leader already set, Make on the top row sets the card's officer and never replaces the faction's leader", !!O5 && O5 !== O3 && held === O3 && (await run(gm, P.leaderLine, { id: fid })).stored === O3, { O5, kept: O3 });
+    const portrait = await run(gm, (arg) => !!document.querySelector(`li[data-key="${arg.key}"] > div .acks-extras-org-officer .acks-extras-pf img`), { key: T });
+    check("the live officer line draws the actor's own portrait in its frame where the actor has an image", portrait === !!(await run(gm, P.actorImg, { uuid: O5 })), { portrait });
+  } else note("not walked", "the top row records no leader in this roll, so + Make on a faction's top row has nothing to make");
 
   section("6. after a reload, a live officer is not shown as deleted");
   let libOfficer = null;

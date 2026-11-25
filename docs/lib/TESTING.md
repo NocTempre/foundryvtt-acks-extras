@@ -4801,17 +4801,18 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
    and `.window-content` does not scroll sideways.
 6. **Expand all, Collapse all** — *Observable:* Collapse all leaves every branch card with
    `aria-expanded="false"` and a count of rows and bodies beneath it; Expand all leaves none folded.
-7. **Remove** — Org chart tab → a card's pen → **Remove**; a row with rows beneath it asks first, a row on
-   its own does not, and with the client setting `confirmRemoveRows` off ("Ask before removing several chart rows", Settings tab → Game Settings → ACKS Extras)
-   nothing asks. The walk reads the setting first, forces it on, answers one multi-row ask, removes a row on its
-   own, turns it off for the top row's multi-row Remove (counting open dialogs before and after the press), and
-   restores the value read, in a `finally` too. *Observable:* the row and its subtree leave `units`; **every group, prototype and
-   leader the subtree named is still in the Actors tab, checked by uuid**; a line above the chart names
-   each group now hosting its own chart with an **Open**, and the count of rows dropped; **Dismiss**
+7. **Remove** — Org chart tab → a card's pen → **Remove from chart**; a row with rows directly beneath it asks
+   first (naming the rows that move and where), a row with none does not, and with the client setting
+   `confirmRemoveRows` off ("Ask before removing several chart rows", Settings tab → Game Settings → ACKS II — Extras)
+   nothing asks. The walk reads the setting first, forces it on, answers one ask, removes a row with none beneath it,
+   turns it off for the top row's Remove (counting open dialogs before and after the press), and
+   restores the value read, in a `finally` too. *Observable:* **only that row** leaves `units`; the rows that stood
+   directly beneath it are still on the host with the removed row's parent (or the top) as their parent, and no other row
+   changes parent; **every group, prototype and leader is still in the Actors tab, checked by uuid**; a line above the
+   chart names the rows that moved and where, and says nothing where none moved; **Dismiss**
    closes it and changes nothing else. **On a group's own top row** (a group whose first row names itself),
-   Remove writes the group's `units` once: the group hosts nothing afterwards, each group beneath the row hosts
-   its own subtree (`unit.parentGroupUuid` blank), no document leaves the Actors tab, and the line above the chart
-   does not count the group's own row among the rows that named no group. The walk drives this through `org.unlistRow`,
+   Remove writes the group's `units` once: the rows beneath it stand at the top of the group's chart, no group is
+   un-nested, and no document leaves the Actors tab. The walk drives this through `org.unlistRow`,
    the call the press ends in, on two groups it makes; the press on a group sheet's own top card is not walked.
 8. **A narrow window, on a freshly opened one** — close the sheet, reopen it and resize it to about 320 wide
    (an open window's descendants keep the sizes they had before a type change, so measure the new one).
@@ -4868,8 +4869,9 @@ No test reads `isGM`.
    *Observable:* the group's `officerUuid` is a new world actor, not the cleared one and not any other
    row's officer; it carries `flags["acks-extras"].generated.templateUuid` of the chart's template, no
    `organisationPrototype` mark (so no Delete treats it as a minted prototype), and the morale part the row
-   recorded in `gen.leader.moraleBonus`. The line then reads live. The button's tooltip says it makes an
-   actor in the world. The walk tracks the uuid at once, read from the group.
+   recorded in `gen.leader.moraleBonus`. The line then reads live. The button's tooltip says it makes the
+   leader only, with no gear or mount rolled. The walk tracks the uuid at once, read from the group. A live
+   line draws the actor's own portrait in a frame; an actor with no image draws no frame.
 2. **Open** — press **Open** on a live line. *Observable:* the officer's own sheet renders.
 3. **Clear** — press **Clear** on a live line. *Observable:* the group's `officerUuid` is blank and the
    actor is still in the world; the line reads empty ("No <officer>") with **+ Make** and no Open or Delete
@@ -4901,6 +4903,13 @@ No test reads `isGM`.
    may create actors and absent where they may not; where it is shown the walk presses it, tracks the actor
    it made, and reads the officer written. The branch the world's permission does not give is not walked,
    since the walk reads the permission and never changes it.
+8. **Make on a faction's top row** — with the top row's officer cleared and the faction's `leaderUuid` blank,
+   open the top card's pen and press **+ Make**. *Observable:* the group's officer is a new actor and the
+   faction's `leaderUuid` is that actor. Then clear the top row's officer again, set `leaderUuid` to another
+   world actor, and press **+ Make** once more: the card's officer is a newer actor and `leaderUuid` is still
+   the other one, never replaced. A Make on a row below the top, or on a group host, writes no leader
+   (unit-tested in `tools/test-org-write.mjs`). The faction's ownership is the host's, which `org.editRow`
+   already checks.
 
 ### Teardown
 

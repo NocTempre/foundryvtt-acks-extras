@@ -347,7 +347,7 @@ export async function deleteRow(host, key) {
  *
  * @param {Actor} host a faction or a group hosting a chart
  * @param {string} key the row
- * @param {{fields?: object, stacks?: {stack: string, count?: number, prototype?: string}[], officer?: {officer: string, moraleBonus?: number|null}}} [change]
+ * @param {{fields?: object, stacks?: {stack: string, count?: number, prototype?: string}[], officer?: {officer: string, moraleBonus?: number|null, leaderIfBlank?: boolean}}} [change] `leaderIfBlank` is `planEdit`'s: a faction's leader taken from a top row's new officer while the field is blank
  * @returns {Promise<{ok: boolean, reason?: string, warnings?: string[], done?: number}>}
  */
 export async function editRow(host, key, { fields = {}, stacks = [], officer = null } = {}) {

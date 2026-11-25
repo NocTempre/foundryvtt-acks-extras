@@ -160,6 +160,8 @@ async function officerLineOf(card, { holder, editable, rows }) {
   const name = card.officer?.name ?? found?.name ?? "";
   return {
     state,
+    img: state === "live" ? doc?.img || found?.img || "" : "",
+    frame: role,
     uuid: officerUuid,
     gone: state === "deleted",
     none: state === "empty",
@@ -672,7 +674,8 @@ function officerTargetOf(host, key) {
 
 /**
  * "+ Make the <officer>": a new leader actor made for the card by the generating feature, from what
- * the row recorded, then set as the card's officer through `org.editRow`. Every test is made before
+ * the row recorded, then set as the card's officer through `org.editRow`. On a faction's top row it
+ * also becomes the faction's leader while that field is blank. Every test is made before
  * the actor is: the seat must create actors and own the host and the card's group, and the feature
  * must be able to name the leader. Where the link is refused after the actor was made, the notice
  * names the actor, which stays in the world.
@@ -688,7 +691,7 @@ async function onMakeLeader(_event, target) {
   const uuid = await service.makeLeader(org.unitsOf(host), key);
   if (!uuid) return refuse({ reason: "leaderNotMade" });
   const moraleBonus = (row?.toObject?.() ?? row)?.gen?.leader?.moraleBonus ?? null;
-  const result = await org.editRow(host, key, { officer: { officer: uuid, moraleBonus } });
+  const result = await org.editRow(host, key, { officer: { officer: uuid, moraleBonus, leaderIfBlank: true } });
   if (!result.ok) {
     refuse(result);
     ui.notifications.warn(loc("refused.leaderUnlinked", { name: docOf(uuid)?.name ?? uuid }));

@@ -11639,7 +11639,7 @@
   "ACKS-LIB.org.officer.clearTip": "The card no longer has this {word}. The actor stays in the world; where it was the faction's leader, the faction is left with none.",
   "ACKS-LIB.org.officer.clearDeletedTip": "Clear the link to the deleted {word}. Where it was the faction's leader, the faction is left with none.",
   "ACKS-LIB.org.officer.make": "Make the {word}",
-  "ACKS-LIB.org.officer.makeTip": "Make a new {word} actor in the world from this chart's family template and set it as the card's officer.",
+  "ACKS-LIB.org.officer.makeTip": "Make a new {word} actor in the world from this chart's family template and set it as the card's officer. It makes the leader only: no gear or mount is rolled. On a faction's top row it also becomes the faction's leader while that field is blank.",
   "ACKS-LIB.org.officer.deleteActor": "Delete actor…",
   "ACKS-LIB.org.officer.deleteLabel": "Delete the {word}'s actor",
   "ACKS-LIB.org.officer.deleteTip": "Delete the {word}'s actor from the world and clear it from the card. Asks first.",

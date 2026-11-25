@@ -2,6 +2,7 @@
       deleted outside the chart, with the controls this seat passes the test for. A control that fails its
       test is not rendered. Context: one card's `officerLine`. --}}
 <div class="acks-extras-org-officer{{#if gone}} is-gone{{/if}}{{#if none}} is-none{{/if}}">
+  {{#if img}}<span class="acks-extras-pf acks-extras-pf--{{frame}}" role="presentation"><img class="acks-extras-org-card__art" src="{{img}}" alt="" /></span>{{/if}}
   <span class="acks-extras-org-officer__name"{{#if gone}} data-tooltip-text="{{deletedTip}}"{{/if}}>{{text}}</span>
   <span class="acks-extras-org-officer__controls">
     {{#if controls.open}}<button type="button" data-action="orgOpen" data-uuid="{{uuid}}" data-tooltip-text="{{openTip}}">{{localize "ACKS-LIB.org.officer.open"}}</button>{{/if}}
