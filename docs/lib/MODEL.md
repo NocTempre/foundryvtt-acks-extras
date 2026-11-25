@@ -2820,10 +2820,15 @@ brings. A disorder the creature carries in its own right, or one a second
 condition implies (a countercharge), stands, and naming the disorder itself
 waives it whatever brought it. The decision is one function
 (`acWaivedSet(subject)`, from the subject's `acWaived`, which `subjectOf` fills),
-and `subjectOf` also names the conditions only the implied-condition holder's
-effects carry (`implied`, the effects bearing `IMPLIED_FLAG`), which the
-decision does not read as carried in their own right, or the hold would sustain
-itself. Three appliers read the decision, by where the figure is applied:
+and `subjectOf` also names the conditions only an effect carrying the status
+that implies them carries (`implied`: an effect of charging and disordered
+carries an implied disordered, and an enabled effect of disordered alone, or of
+disordered and a status that does not imply it, makes it carried in its own
+right). The decision does not read an implied condition as carried in its own
+right, or the waived condition would sustain itself. A condition a state implies
+will ride on that state's own effect, as Foundry's implicit statuses carry it
+(a later slice); no module effect is written for it. Two appliers read the
+decision, by where the figure is applied:
 
 - The module's own `ac` rows, which are Defend's: `collect` leaves a waived
   condition's row out of `acMath` and the target's side of `attackMath` and
@@ -2831,11 +2836,10 @@ itself. Three appliers read the decision, by where the figure is applied:
 - A monster's directly held condition: the step reader puts a step whose
   effect's statuses all sit in the decision into `waived` instead of `steps`,
   and the attack seam merges that list with the rows'. A mixed-status effect
-  keeps its step.
-- A disorder a waived condition implies: the implied-condition holder writes it
-  with no Armor Class change. A holder's effect carrying no change gives the
-  reader nothing to take, and a disorder set by hand beside it carries the
-  system's change and is suffered.
+  keeps its step. A disorder a waived condition implies rides on that
+  condition's effect, and the decision covers it through `implied`; a disorder
+  set by hand beside it is an effect of its own, carries the system's change
+  and is suffered.
 
 A character who holds the waived condition directly is not waived: the system
 folds the step into `ac.value` itself, and the module has no seat in that

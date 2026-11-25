@@ -83,7 +83,7 @@ const {
   sheetSaveShift, installRollMods, ROLL_MODS_ON, partHolds, recordParts, throwResolution, recordImmunity, ownSaveParts,
   conditionSteps, CONDITION_STEP_KEYS,
 } = mods;
-const { acWaivedSet, subjectOf, IMPLIED_FLAG } = await import("../scripts/lib/conditions.mjs");
+const { acWaivedSet, subjectOf } =await import("../scripts/lib/conditions.mjs");
 installAttackThrowPatch();
 installRollMods();
 const makeAttackThrow = registered["CONFIG.Actor.documentClass.prototype.makeAttackThrow"];
@@ -774,15 +774,14 @@ await ok("a directly waived condition's step lands in waived, valued as the fiel
   assert.deepEqual(conditionSteps(monsterOf([conditionEffect("hungry")], ["hungry"]), SAVE).steps.map((s) => s.value), [conditionValue("hungry", SAVE)]);
 });
 
-await ok("a waived charge's disorder: a holder-shaped Disordered carrying no change gets no step, and a hand Disordered beside it keeps its step", () => {
-  const charging = conditionEffect("charging");
-  const holders = conditionEffect("disordered", { changes: [], flags: { "acks-extras": { [IMPLIED_FLAG]: "charging" } } });
-  const alone = monsterOf([charging, holders], ["charging"]);
+await ok("a waived charge's disorder: the one on the charging effect, which carries no change, gets no step, and a hand Disordered beside it keeps its step", () => {
+  const charging = conditionEffect("charging", { statuses: ["charging", "disordered"], changes: [] });
+  const alone = monsterOf([charging], ["charging"]);
   assert.deepEqual(subjectOf(alone).implied, ["disordered"]);
-  assert.equal(acWaivedSet(subjectOf(alone)).has("disordered"), true, "the held disorder follows the waived charge");
+  assert.equal(acWaivedSet(subjectOf(alone)).has("disordered"), true, "the implied disorder follows the waived charge");
   assert.deepEqual(conditionSteps(alone, AC), { steps: [], waived: [] }, "it carries no change, so there is no step to take or to waive");
   const hand = conditionEffect("disordered");
-  const beside = monsterOf([charging, holders, hand], ["charging"]);
+  const beside = monsterOf([charging, hand], ["charging"]);
   assert.deepEqual(subjectOf(beside).implied, [], "a disorder carried in its own right is not implied");
   assert.equal(acWaivedSet(subjectOf(beside)).has("disordered"), false);
   assert.deepEqual(conditionSteps(beside, AC).steps.map((s) => [s.condition, s.value]), [["disordered", conditionValue("disordered", AC)]]);

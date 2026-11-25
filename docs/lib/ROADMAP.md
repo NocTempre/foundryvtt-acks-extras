@@ -258,7 +258,8 @@ rest of each entry is not automated:
 - **A waiver on a character who holds the condition directly is not applied.**
   The system folds a condition's `ac.mod` step into a character's `ac.value`
   itself, so the Armor Class waiver reaches a monster's directly held condition
-  and any implied one, and a character's own is suffered. No ability writes the
+  and a condition that rides on a waived state's own effect (Foundry's implicit
+  statuses, a later slice), and a character's own is suffered. No ability writes the
   waiver for a character today. The route if one does is a
   `preCreateActiveEffect` filter that drops the waived condition's
   `system.ac.mod` change from an effect made for that actor.

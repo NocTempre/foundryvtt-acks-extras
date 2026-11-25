@@ -383,19 +383,11 @@ export const conditionsReady = () => Object.keys(conditionValues()).length > 0;
  * @property {Record<string, {statuses: Iterable<string>}>} [gifts]  for a state another combatant gave, that giver's statuses
  * @property {string} [id]  the creature's own uuid, matched against another's `sources`
  * @property {string[]} [acWaived]  condition ids whose Armor Class figure the creature does not suffer (`AC_WAIVER_TARGET`)
- * @property {string[]} [implied]  condition ids carried only by effects bearing `IMPLIED_FLAG`
+ * @property {string[]} [implied]  condition ids carried only by effects that also carry a status implying them
  */
 
 /** Flag key under `flags["acks-extras"]` on an effect: how many causes it stands for. */
 export const STACKS_FLAG = "conditionStacks";
-
-/**
- * Flag key under `flags["acks-extras"]` on an effect the implied-condition
- * holder writes, naming the status that implies it. `subjectOf` reads it: a
- * condition carried only by such effects is `implied`, not carried in its own
- * right.
- */
-export const IMPLIED_FLAG = "impliedBy";
 
 /**
  * The `modifier` target of an ability row that waives the Armor Class figures
@@ -442,8 +434,8 @@ export function giverOf(effect, actor) {
 /**
  * An actor as a subject: its statuses, how many enabled effects carry each
  * condition, where those effects came from, who gave it the states another
- * can give, and which conditions only the implied-condition holder's effects
- * carry. Null for no actor.
+ * can give, and which conditions only an effect that also carries a status
+ * implying them carries (`implied`). Null for no actor.
  *
  * @returns {ConditionSubject|null}
  */
@@ -458,11 +450,11 @@ export function subjectOf(actor) {
   for (const effect of actor.appliedEffects ?? actor.effects ?? []) {
     if (effect?.disabled) continue;
     const stacks = Math.max(1, Math.floor(numOrNull(effect.flags?.[MODULE_ID]?.[STACKS_FLAG]) ?? 1));
-    const holders = Boolean(effect.flags?.[MODULE_ID]?.[IMPLIED_FLAG]);
-    for (const status of effect.statuses ?? []) {
+    const carried = [...(effect.statuses ?? [])].filter((status) => CONDITIONS[status]);
+    const brought = new Set(carried.flatMap((status) => CONDITIONS[status].implies ?? []));
+    for (const status of carried) {
       const entry = CONDITIONS[status];
-      if (!entry) continue;
-      (holders ? held : ownRight).add(status);
+      (brought.has(status) ? held : ownRight).add(status);
       counts[status] = (counts[status] ?? 0) + stacks;
       if (effect.origin) (sources[status] ??= []).push(String(effect.origin));
       const giver = entry.given ? giverOf(effect, actor) : null;
@@ -485,13 +477,13 @@ const emptyMath = () => ({ total: 0, parts: [], pending: [], unpriced: [], waive
  * carries, and each condition it carries only because a waived one implies it
  * (a charge's disorder). A condition another status the creature carries in
  * its own right brings stands: waiving the charge leaves the disorder a
- * countercharge or a hand-set status causes. A status the holder keeps for a
- * condition that implies it (`implied`) is not carried in its own right, or the
- * hold would sustain itself.
+ * countercharge or a hand-set status causes. A status an effect carries beside
+ * the condition that implies it (`implied`) is not carried in its own right, or
+ * the waived condition would sustain itself.
  *
- * Three appliers read it: `collect` for the module's own `ac` rows, the step
+ * Two appliers read it: `collect` for the module's own `ac` rows, and the step
  * reader (`conditionSteps`, `roll-mods.mjs`) for a monster's `system.ac.mod`
- * steps, and the implied-condition holder for the changes it writes.
+ * steps.
  *
  * @param {ConditionSubject|null} subject
  * @returns {Set<string>}

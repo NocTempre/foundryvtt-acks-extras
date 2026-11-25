@@ -1404,9 +1404,11 @@ and the row deletions are one change.
   character's prepared field already holds each step, so for a character the
   module adds none.
 - The Armor Class waiver is one decision (`acWaivedSet`), read by the module's
-  own rows, by the step reader and by the implied-condition holder (a later
-  slice). `subjectOf` gains `implied`, the conditions only the holder's effects
-  carry, so the holder's own effect does not sustain the hold.
+  own rows and by the step reader. A condition a state implies will ride on
+  that state's own effect (Foundry's implicit statuses, a later slice), and no
+  module effect is written for it. `subjectOf` gains `implied`, derived from the
+  effects: the conditions only an effect that also carries a status implying
+  them carries, so the waived state's own effect does not sustain the waiver.
 - The importer drops the seven windows whose figure the system's effect now
   applies; the other windows each serve a roll the system has no field for.
 
@@ -1422,8 +1424,8 @@ waiver: each makes the module act on a figure the system applies.
 system's changes, so it applies no figure until it is taken off and set again.
 A condition another status implies (the disorder a charge, a countercharge or
 a retreat brings; the hunger a starving or underfed creature has) has no
-effect of its own and so applies no figure from the system's effect until the
-holder slice writes one. Two effects naming one condition each carry the
+effect of its own and so applies no figure from the system's effect until it
+rides on the implying state's own effect (a later slice). Two effects naming one condition each carry the
 system's changes and the system applies both; the module deduplicates none of
 it, which is the writers' slice's. A waiver on a character who holds the
 condition directly is not applied (the roadmap).

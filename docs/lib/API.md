@@ -968,7 +968,7 @@ parts and names the condition in `unpriced`.
 acksExtras.lib.conditions = {
   CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label, implies?, mods?, forbids?, ends?, given?, lost?, …}
   CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_SLOTS,  // where the figures are read, and which each condition wants
-  ACTS, ATTACK_KINDS, SAVE_KINDS, LOSSES, STACKS_FLAG, IMPLIED_FLAG, AC_WAIVER_TARGET,
+  ACTS, ATTACK_KINDS, SAVE_KINDS, LOSSES, STACKS_FLAG, AC_WAIVER_TARGET,
   conditionSet(statuses),       // → Set of ids, closed under `implies`, in catalogue order
   conditionValues(),            // → the registered rows, {} when none
   conditionsReady(),            // → whether any row is registered
@@ -1008,10 +1008,14 @@ free-text `condition` is not read. `acMath` and the target's side of
 are Defend's alone, since a figure the system's condition effect applies has no
 row here, so the list is empty in practice. `acWaivedSet(subject)` is the one
 decision the appliers read: the ids a subject's `acWaived` names that it
-carries, and what only a waived one implies. `subjectOf(actor).implied` lists
-the conditions only effects bearing `IMPLIED_FLAG` carry (the implied-condition
-holder's), which the decision does not count as carried in their own right. A
-subject with no `acWaived` reads as before. The rule is in docs/lib/MODEL.md,
+carries, and what only a waived one implies. `subjectOf(actor).implied` is derived from
+the actor's enabled effects: the conditions carried only by effects that also
+carry a status whose entry `implies` them (an effect of charging and disordered
+carries an implied disordered; another enabled effect carrying disordered
+without such a status makes it carried in its own right). The decision does not
+count an implied condition as carried in its own right. A condition a state
+implies will ride on that state's own effect, as Foundry's implicit statuses
+carry it (a later slice). A subject with no `acWaived` reads as before. The rule is in docs/lib/MODEL.md,
 "Conditions".
 
 **The steps the system's condition effects make.** `conditionSteps(actor, key)`

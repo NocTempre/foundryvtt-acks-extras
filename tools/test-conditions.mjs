@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
-  ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, IMPLIED_FLAG, LOSSES, SAVE_KINDS,
+  ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, LOSSES, SAVE_KINDS,
   STACKS_FLAG, acMath, acWaivedSet, attackMath, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
   giverOf, lostTo, rollMath, speedMath, subjectOf,
 } from "../scripts/lib/conditions.mjs";
@@ -297,7 +297,7 @@ ok("the waiver's decision: a named condition, what only it implies, never what s
   assert.deepEqual(decide(["charging"], ["no-such-condition"]), [], "an id that is no condition names nothing");
   assert.deepEqual(decide([], ["charging"]), [], "nothing carried, nothing waived");
   assert.deepEqual(decide(["charging"], undefined), [], "no waiver, an empty decision");
-  // The implied-condition holder's own effect carries the disorder: it is not carried in its own right.
+  // The charging effect carries the disorder beside it: it is not carried in its own right.
   const both = ["charging", "countercharging"];
   assert.deepEqual(decide([...both, "disordered"], both, ["disordered"]), ["charging", "countercharging", "disordered"]);
   assert.deepEqual(decide(["charging", "disordered"], ["charging"], ["disordered"]), ["charging", "disordered"], "with the second implier gone the held disorder follows the charge");
@@ -318,16 +318,19 @@ ok("subjectOf reads the waiver rows of an actor's abilities: ungated, a catalogu
   assert.deepEqual(subjectOf(actor([{ ...ability([row()]), type: "weapon" }])).acWaived, [], "only an ability carries one");
   assert.deepEqual(subjectOf(actor(undefined)).acWaived, []);
   assert.deepEqual([...acWaivedSet(subjectOf(actor([ability([row()])])))].sort(), ["charging", "disordered"], "the subject an actor makes carries it into the decision");
-  assert.deepEqual(subjectOf(actor([])).implied, [], "no holder's effect, nothing implied");
+  assert.deepEqual(subjectOf(actor([])).implied, [], "no effect, nothing implied");
 });
 
-ok("a condition only the implied-condition holder's effects carry is implied; one a hand effect also carries is not", () => {
-  const holders = (id, extra = {}) => conditionEffect(id, { changes: [], flags: { "acks-extras": { [IMPLIED_FLAG]: "charging" } }, ...extra });
+ok("a condition only an effect carrying the status that implies it carries is implied; one another effect also carries is not", () => {
+  const riding = (extra = {}) => conditionEffect("charging", { statuses: ["charging", "disordered"], changes: [], ...extra });
   const subjectWith = (effects) => subjectOf(conditionActor("monster", effects));
-  assert.deepEqual(subjectWith([conditionEffect("charging"), holders("disordered")]).implied, ["disordered"]);
-  assert.deepEqual(subjectWith([conditionEffect("charging"), holders("disordered"), conditionEffect("disordered")]).implied, []);
-  assert.deepEqual(subjectWith([conditionEffect("charging"), holders("disordered", { disabled: true })]).implied, [], "a disabled effect holds nothing");
+  assert.deepEqual(subjectWith([riding()]).implied, ["disordered"]);
+  assert.deepEqual(subjectWith([riding(), conditionEffect("disordered")]).implied, [], "an enabled effect of Disordered alone carries it in its own right");
+  assert.deepEqual(subjectWith([riding(), conditionEffect("disordered", { disabled: true })]).implied, ["disordered"], "a disabled one carries nothing");
+  assert.deepEqual(subjectWith([riding(), conditionEffect("disordered", { statuses: ["disordered", "hungry"] })]).implied, [], "nor a status that does not imply it, beside it");
+  assert.deepEqual(subjectWith([riding({ disabled: true })]).implied, [], "a disabled effect carries nothing");
   assert.deepEqual(subjectWith([conditionEffect("charging")]).implied, []);
+  assert.deepEqual(subjectWith([conditionEffect("disordered", { statuses: ["disordered", "hungry"] })]).implied, [], "two statuses neither implies the other");
 });
 
 ok("a superseded row stands down", () => {
@@ -1088,12 +1091,9 @@ await (async () => {
     assert.deepEqual(named(once.attack, "disordered").map((r) => r.value), [-conditionValue("disordered", "system.ac.mod")]);
     // A waived condition's step is no term: the monster is not suffering it.
     const waiving = holding("monster", ["charging", "disordered"], "Beast");
-    waiving.effects = waiving.appliedEffects = [
-      conditionEffect("charging"),
-      conditionEffect("disordered", { changes: [], flags: { "acks-extras": { [IMPLIED_FLAG]: "charging" } } }),
-    ];
+    waiving.effects = waiving.appliedEffects = [conditionEffect("charging", { statuses: ["charging", "disordered"], changes: [] })];
     waiving.items = [{ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions: ["charging"] }] } } } }];
-    assert.deepEqual((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, [], "the held disorder carries no change, and a waived charge's has no step");
+    assert.deepEqual((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, [], "the disorder rides on the charging effect, which carries no change, and a waived charge's has no step");
     waiving.effects.push(conditionEffect("disordered"));
     assert.deepEqual(
       named((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, "disordered").map((r) => r.value),
