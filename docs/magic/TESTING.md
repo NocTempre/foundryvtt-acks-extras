@@ -351,7 +351,9 @@ one reading the cast's refusal takes. The relay itself is not exercised.
        the document will not open, and asserts the shelf is visible at Observer
        or better. It prints `SKIP` with the reason when the Judge's seat opens no
        monster compendium or that creature is not an import.
-    7. The card per seat, read after sub-step 5 has taken the grant off.
+    7. The card per seat, read after sub-step 5 has taken the grant off. Each
+       seat draws the card again with `message.renderHTML()`, since the node in
+       its chat log was drawn while the grant stood.
        *Observable:* the card of sub-step 4's cast, as the Player seat draws it,
        holds the neutral label and not the creature's name; as the Judge's seat
        draws it, it holds the name; the message's stored `content` does not hold
@@ -491,8 +493,11 @@ The list is `[data-acks-extras-summon-list]`, a line is
 and its Remove `[data-action="summonRemove"][data-index]`; the uuid box is
 `[data-summon-add]` and Add is `[data-action="summonAdd"]`. The boxes carry no
 `name`, so the form never submits them: a Number is written by a `change`
-event on its box. Add and Remove close the window and open it again on the
-row's new index, so every read after one waits for the new window. A drop is a
+event on its box, which redraws the window in place. Add and Remove close the
+window and open it again on the row's new index, so every read after one waits
+for a window that is not the one before; an Add that changes nothing leaves
+the same window standing. The box is a number input, so a letter never reaches
+its handler: that half of `amountFromBox` is the unit suite's. A drop is a
 real `DragEvent("drop")` carrying `{type: "Actor", uuid}` dispatched on the
 list. A creature's name is compared in the page and never printed.
 
@@ -513,7 +518,7 @@ list. A creature's name is compared in the page and never printed.
    on the Judge's seat the third line names the creature.
 5. Number. Line 2's box set to 3. *Observable:* that row's `amount` is 3 and no
    other row's changed. Set blank: the row's `amount` is null, never 0. A
-   negative figure and a letter: nothing is written.
+   negative figure: the box keeps it and nothing is written.
 6. The importer's mark. The spell is rewritten to one summon row carrying the
    importer's mark. *Observable:* the Number box's tooltip opens with
    `ACKS-LIB.effectEditor.tip.amountRead`; after the box is set to 4 the row

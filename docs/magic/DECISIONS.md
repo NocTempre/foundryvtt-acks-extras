@@ -1531,7 +1531,7 @@ foundry permissions, don't invent new ones."
 
 **Where the board was wrong.** It was drawn before it was read against the code, and three of its "shipped" claims
 did not hold. What is built in place of each is a direction of the release hub's and no selection of the owner's;
-the hub told the owner of each as a fact.
+the hub undertook to report the three to the owner as facts.
 
 - *"The field already stores a list; no migration."* A summon row holds one creature (`ref`) and one number
   (`amount`). What is a list is the spell's `effects`, which may hold several summon rows, and every reader loops over
@@ -1557,8 +1557,10 @@ the hub told the owner of each as a fact.
   which printed the row's raw ref, leaves the card: a cookbook id spells its creature. A card stored before this keeps
   its worded line.
 - **The limit of the neutral label.** Foundry gates no read: the creature's name is in the message flag and in the
-  spell's row, and any seat can read both from the console. The label keeps the name off the screen and does nothing
-  more. The owner selected it over printing the name to whoever owns the character.
+  spell's row, and any seat can read both from the console. The label keeps the name off the cast window, the card
+  and the spell's sheet, and does nothing more: the party cell, the party sheet and a token's own name are not worded
+  per seat. The board put that limit beside the question, with the alternative of printing the name to whoever owns
+  the character; the owner selected the neutral label.
 - **A declared cast names its fight.** The pending record gains `declaredRound`, the fight's round when the cast was
   declared (`round` stays the round it lapses in). The cast window's foot, beside Cancel and Declare, names the fight
   by its scene and that round and says what the caster's turn does; the line that stood in the body is gone. The
@@ -1615,6 +1617,9 @@ row's tooltip reads "creature(s)" where the board drew "creatures", which is wro
 - Character-sheet's archived "A summon is an unlinked token of a GM-made copy (2026-11-10)": a creature made into a
   party is the GM-made copy with its token data stashed and no token; it is that unlinked token once the party
   deploys it.
+- Formation's "A summon is a member under a key of its own" (2026-11-16): its "Only a token carrying a cast record
+  joins" holds for the gather. `admitSummons` also takes a stash that carries a cast record and was never a token,
+  under the same minted key, and the `party-roster` contract that ruling names at v2 is v4.
 
 **New evidence**, which the entries of 2026-11-19 and 2026-11-25 above did not have: the owner's selections on the
 board's cards, relayed by the release hub on 2026-11-25, and the reading of the board against the code that found

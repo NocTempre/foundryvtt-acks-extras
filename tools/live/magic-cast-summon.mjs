@@ -26,8 +26,13 @@
  * the seat's own placement are refused `unreadable` for each, the real Cast press
  * is refused with the cast count, the field, the creature's world copies and
  * the cards unchanged, and once the Judge's seat grants Observer the same press
- * places the creature; the grant is taken off again and the Player's level on
- * an imported Monster Manual creature's pack is read. Last, a claimant's `spend` called after its cast has returned (read, and left
+ * places the creature; the grant is taken off again, the cast's card is read as
+ * each seat draws it (the Player's by the neutral label, the Judge's by the
+ * name, the stored content by neither name) and the Player's level on
+ * an imported Monster Manual creature's pack is read. The declared summons also
+ * reads the dialog's foot note (the fight's scene and round) before Declare, the
+ * Declared tag and line on the Player's Magic tab row with no withdraw control
+ * after it, and their absence once the turn has placed the creature. Last, a claimant's `spend` called after its cast has returned (read, and left
  * bare), which libWrapper's invalidated chain would throw on and the seam
  * answers false and logs once. Prints booleans and counts, never a name or an
  * id. The selectors and clicks of the dialog steps are derived from the
@@ -107,6 +112,7 @@ const P = {
         summonBand: !!el.querySelector(".acks-extras-cast-summon"),
         targetsBand: !!el.querySelector(".acks-extras-cast-targets"),
         values: options.map((o) => o.value),
+        labels: options.map((o) => o.textContent.trim()),
         labelled: options.every((o) => o.textContent.trim().length > 0),
         count: el.querySelector('input[name="summonCount"]')?.value ?? null,
         of: el.querySelector(".acks-extras-cast-invlevel .acks-extras-cast-cap")?.textContent.trim() ?? "",
@@ -355,6 +361,55 @@ const P = {
   },
   /** A localized string as this seat reads it (the caller splits the key so the key scan reads no bare prefix). */
   loc: async ({ key, data }) => game.i18n.format(key, data ?? {}),
+  /**
+   * The open cast dialog's foot note against a fight: whether it stands, whether it names the fight's scene as core's navigation names it (`navName`, else `name`, read here from the combat) and whether it holds the fight's round.
+   */
+  footNote: async ({ combatId }) => {
+    const H = globalThis.__mc;
+    const el = H.live()?.querySelector(".acks-extras-cast-foot__note") ?? null;
+    const combat = game.combats.get(combatId) ?? null;
+    const scene = String(combat?.scene?.navName || combat?.scene?.name || "");
+    const text = el?.textContent ?? "";
+    return { present: !!el, hasScene: scene.length > 0 && text.includes(scene), hasRound: Number.isInteger(combat?.round) && new RegExp(`\\b${combat.round}\\b`).test(text) };
+  },
+  /**
+   * The spell's row on the caster's Magic tab as a fresh draw of the sheet shows it: the solid tag's text and whether its tooltip is set, how many lines stand under the name and whether one names the fight's scene, and whether any control of the row is a withdraw. A null `tag` is a row with no solid tag.
+   */
+  declaredRow: async ({ casterId, spellId, combatId }) => {
+    const H = globalThis.__mc;
+    const sheet = game.actors.get(casterId).sheet;
+    await sheet.render(true);
+    await H.poll(() => H.root(sheet)?.isConnected);
+    sheet.changeTab("magic", "primary");
+    await H.sleep(700);
+    const row = H.root(sheet)?.querySelector(`[data-item-id='${spellId}']`) ?? null;
+    const tag = row?.querySelector(".acks-tag--solid") ?? null;
+    const lines = [...(row?.querySelectorAll(".acks-extras-frame__row-line") ?? [])];
+    const combat = game.combats.get(combatId) ?? null;
+    const scene = String(combat?.scene?.navName || combat?.scene?.name || "");
+    return {
+      row: !!row,
+      tag: tag ? tag.textContent.trim() : null,
+      tipped: !!String(tag?.dataset.tooltipText ?? "").trim(),
+      lines: lines.length,
+      lineScene: scene.length > 0 && lines.some((l) => l.textContent.includes(scene)),
+      withdraw: [...(row?.querySelectorAll("[data-action]") ?? [])].some((b) => String(b.dataset.action).includes("withdraw")),
+    };
+  },
+  /** A cast card's content as this seat's client draws it now (the render hook runs again for the seat's own rights): whether it holds the neutral label and whether it holds `name` anywhere, text or attribute. */
+  cardDrawn: async ({ messageId, name }) => {
+    const message = game.messages.get(messageId);
+    if (!message) return { found: false };
+    const el = await message.renderHTML();
+    const neutral = game.i18n.localize("ACKS-LIB.summons.neutral");
+    return { found: true, neutral: el.textContent.includes(neutral), named: !!name && el.innerHTML.includes(name) };
+  },
+  /** A message's stored content, as the world holds it: whether it holds `name`. */
+  cardStored: async ({ messageId, name }) => {
+    const message = game.messages.get(messageId);
+    if (!message) return { found: false };
+    return { found: true, named: !!name && String(message.content ?? "").includes(name) };
+  },
   /** Make the seat see no active GM, or give it back. Only the seat's own reading of `game.users.activeGM` changes; the GM seat stays connected. */
   noGm: async ({ on }) => {
     if (on) Object.defineProperty(game.users, "activeGM", { configurable: true, get: () => null });
@@ -1084,12 +1139,17 @@ try {
     const cast10 = (await castState("player")).cast;
     const d10 = await openDialog("player");
     check("10: the dialog's button reads Declare", d10.dialog && d10.castLabel === (await loc("player", "MAGIC.cast.dialog.declare")), { label: d10.castLabel });
+    const foot10 = await run(player, P.footNote, { combatId: fight.id });
+    check("10: before Declare is pressed the dialog's foot note stands, names the fight's scene as core's navigation names it and holds the fight's round", foot10.present && foot10.hasScene && foot10.hasRound, foot10);
     check("10: Declare is pressed in the Player's dialog", (await run(player, P.confirm, { count: 1 })).pressed);
     const pend = await until(player, P.pending, { casterId }, (r) => r.pending.length >= 1, { tries: 40, every: 250 });
     for (const u of pend.pending) await track(u, "ActiveEffect");
     const declared = await castState("player");
     for (const c of declared.cards) await track(`ChatMessage.${c}`, "ChatMessage");
     check("10: the declaration is one pending record and the casting status, the slot is spent once, no creature is placed and no cast card posts", pend.pending.length === 1 && pend.casting && declared.cast === cast10 + 1 && declared.castCards.length === 0 && (await tokens(gm)).every((t) => before10.has(t.uuid)), { pending: pend.pending.length, cast: declared.cast - cast10, castCards: declared.castCards.length });
+    const declaredTag = await loc("player", "CHARACTER.magic.declared");
+    const rowDeclared = await until(player, P.declaredRow, { casterId, spellId: act.id, combatId: fight.id }, (r) => !!r.tag, { tries: 10, every: 500 });
+    check("10: after Declare the spell's row on the Player's Magic tab shows the solid Declared tag with a tooltip, a line under the name that names the fight's scene, and no control that withdraws it", rowDeclared.row && rowDeclared.tag === declaredTag && rowDeclared.tipped && rowDeclared.lineScene && !rowDeclared.withdraw, { row: rowDeclared.row, tag: rowDeclared.tag === declaredTag, tipped: rowDeclared.tipped, lines: rowDeclared.lines, lineScene: rowDeclared.lineScene, withdraw: rowDeclared.withdraw });
     const turn = await run(gm, P.combatMove, { combatId: fight.id, update: { turn: 1 } });
     check("10: the tracker stands on the caster's turn", turn.onTurn === casterToken[0].id, turn);
     // The turn's cast asks no dialog: the pending record stands for it, and the click is the one thing asked.
@@ -1100,6 +1160,8 @@ try {
     const fresh10 = await awaitFresh(before10, 1);
     const fin10 = await settle("player", fresh10);
     check("10: the click at the turn places the declared creature, with no second spend, one cast card and the pending record gone", fresh10.length === 1 && fin10.state.cast === cast10 + 1 && fin10.state.castCards.length === 1 && (await run(player, P.pending, { casterId })).pending.length === 0, { placed: fresh10.length, cast: fin10.state.cast - cast10, castCards: fin10.state.castCards.length });
+    const rowPlaced = await run(player, P.declaredRow, { casterId, spellId: act.id, combatId: fight.id });
+    check("10: once the turn has placed the creature the Declared tag and the line under the name are gone from the row", rowPlaced.row && rowPlaced.tag === null && !rowPlaced.lineScene, { row: rowPlaced.row, tag: rowPlaced.tag, lineScene: rowPlaced.lineScene, lines: rowPlaced.lines });
   } finally {
     if (await run(gm, P.combatDrop, { combatId: fight.id })) own.splice(own.indexOf(fight.uuid), 1);
     await run(player, P.clearWindows);
@@ -1194,6 +1256,8 @@ try {
     check(`14: with the row naming the creature by ${how}, a forged relay request is refused unreadable and makes nothing`, !forged.ok && forged.reason === "unreadable" && forged.made === 0, forged);
     check(`14: with the row naming the creature by ${how}, the seat's own placement is refused unreadable`, !api.ok && api.reason === "unreadable", api);
   };
+  /** The cast card of the cast the grant let through, read after the grant is taken off. */
+  let castCard13 = null;
   try {
     // An open row first, so the Player's save below is a change the Judge's seat sees arrive.
     await reshape([{ type: "summon", amount: 1 }]);
@@ -1214,6 +1278,8 @@ try {
     const press13 = await run(player, P.press, { casterId, spellId: act.id });
     check("14: the Cast button is pressed on the closed spell's row", press13.button);
     const band13 = await run(player, P.dialog, { spellName: act.name });
+    const neutral13 = await loc("player", "LIB.summons.neutral");
+    check("14: the window names the closed creature to the Player seat by the neutral label and never by its name, and Cast is off before any press", band13.labels?.length === 1 && band13.labels[0] === neutral13 && !(closedName && band13.labels[0].includes(closedName)) && band13.castDisabled === true, { options: band13.labels?.length ?? 0, neutral: band13.labels?.[0] === neutral13, castDisabled: band13.castDisabled });
     let shown = !!band13.verdicts?.some((v) => v.text === refusedText);
     const confirm13 = band13.dialog && !band13.castDisabled ? await run(player, P.confirm, { count: 1 }) : null;
     await sleep(1500);
@@ -1237,6 +1303,7 @@ try {
     await clickPlaces("player", 1);
     const fresh13 = await awaitFresh(before13, 1);
     const fin13 = await settle("player", fresh13);
+    castCard13 = fin13.state.castCards[0] ?? null;
     const copies13 = await run(gm, P.copiesOf, { sourceUuid: otherUuid });
     if (!copies13Before) for (const c of copies13) await track(c.uuid, "Actor");
     check("14: the same press with Observer places the creature: one token, the cast count up by exactly one, one cast card", fresh13.length === 1 && fin13.state.cast === cast13 + 1 && fin13.state.castCards.length === 1, { placed: fresh13.length, cast: fin13.state.cast - cast13, castCards: fin13.state.castCards.length });
@@ -1247,6 +1314,18 @@ try {
     check("14: the grant is taken off again: the closed creature holds no entry for the Player at default None, and the Player seat no longer observes it", !off.keyed && off.stored === null && off.def === 0 && !readOff[0].observes, { keyed: off.keyed, def: off.def, observes: readOff[0].observes });
     act = { id: spellId, uuid: spellUuid, name: spellName };
     await run(player, P.clearWindows);
+  }
+
+  // The cast went through while the Player held Observer, and the grant is off again: each seat's draw of the card reads the creature by its own rights now, and what is stored never names it. The card stays tracked and is swept with the run's own.
+  const closedName14 = (await run(gm, P.levelOf, { uuid: otherUuid, userId: playerId })).name;
+  check("14: the cast with Observer left one cast card to read", !!castCard13);
+  if (castCard13) {
+    const drawnPlayer = await run(player, P.cardDrawn, { messageId: castCard13, name: closedName14 });
+    const drawnGm = await run(gm, P.cardDrawn, { messageId: castCard13, name: closedName14 });
+    const storedGm = await run(gm, P.cardStored, { messageId: castCard13, name: closedName14 });
+    check("14: with the grant off the cast card as the Player seat draws it holds the neutral label and never the creature's name", closedName14.length > 0 && drawnPlayer.found && drawnPlayer.neutral && !drawnPlayer.named, { found: drawnPlayer.found, neutral: drawnPlayer.neutral, named: drawnPlayer.named });
+    check("14: the same card as the GM seat draws it holds the creature's name", drawnGm.found && drawnGm.named, { found: drawnGm.found, named: drawnGm.named });
+    check("14: the message's stored content never holds the creature's name", storedGm.found && !storedGm.named, storedGm);
   }
 
   // Read only: the level the Player seat holds on a creature of an imported shelf.
