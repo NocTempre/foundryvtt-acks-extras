@@ -4603,7 +4603,7 @@ The faction's own sheet drawing the joined group's tree is S12's.
 
 **What offline proves** (`tools/test-aura-reach.mjs`, `test-item-use.mjs`, `test-item-run.mjs`): the filter and its null cases, the pulse table, the snapshot's area in pixels, the raise's verdict and the Region asked of core, the seam's contract and the claim, the records, the press check, Undo, the card model and the fuse. It proves nothing of Foundry's own behavior.
 
-**Fixtures.** Marker `lib/aura-bearer`: a monster token on a gridded scene, linked, carrying a gear item whose `flags["acks-extras"].itemRun` is `{activation: {kind: "toggle"}, rows: [{key, reach: {pulse: "standing", radius: {value: "<invented feet>"}, filter: {}}}]}`; two more tokens (an ally, a foe) at known distances; one unlinked body. Build them by API with `api.fixture`; invented figures only.
+**Fixtures.** Marker `lib/aura-bearer`: a monster token on a gridded scene, linked, carrying a gear item whose `flags["acks-extras"].itemRun` is `{activation: {kind: "toggle"}, rows: [{key, reach: {pulse: "standing", radius: {value: "<invented feet>"}, filter: {}}}]}`; two more tokens (an ally, a foe) at known distances; one unlinked body. Build them by API with `api.fixture`; invented figures only. `tools/live/lib-aura-bearer.mjs` walks steps 1 to 8 on the GM seat alone and keeps them under `lib/aura-scene`, `lib/aura-bearer`, `lib/aura-ally`, `lib/aura-foe`, `lib/aura-far`, `lib/aura-unlinked`, the items `lib/aura-gear`, `lib/aura-gear-blank` and `lib/aura-unlinked-gear`, and a `-token` marker for each body. Each step writes the shape it needs first: the fixture scene viewed, tokens placed and shown, hit points full, no defeated status, no reach up.
 
 **Steps and observables** (world relaunch first: `documentTypes.RegionBehavior.aura` is read at launch).
 
@@ -4616,7 +4616,7 @@ The faction's own sheet drawing the joined group's tree is S12's.
 7. Delete the Region by hand while a toggle is up: the item's `state` clears and the records carrying its activation id are gone.
 8. A spell, an ability with no activation and an unflagged item still act as before (the system's card; the cast engine for a spell).
 
-Teardown: `api.sweepTracked()`.
+Teardown: the run's own products are swept by id (`api.sweepTracked({only})`): the disposable token, the plain item and ability, the cards they post, and any Region left on the fixture scene. The fixtures stay.
 
 ## A Player's welcome-version write
 
