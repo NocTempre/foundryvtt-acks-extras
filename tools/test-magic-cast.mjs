@@ -1296,6 +1296,35 @@ await ta("a cast rolls each row once, posts one card with no targets, writes no 
   assert.deepEqual(spellEffectOf(r.calls.records[0]).duration, { value: 1, units: "minutes" });
 });
 
+await ta("a no-throw damage row that states no die asks for one once, by its key; a closed window leaves the row unrolled, and a heal row never asks", async () => {
+  const asked = [];
+  const mm = { key: "mm", type: "damage", roll: "", damage: ["fire"] };
+  let r = runDeps({ answer: { mode: "normal", picks: {}, visibility: "gm" } });
+  r.deps.askDie = async (o) => (asked.push({ rowKey: o.rowKey, castId: o.castId }), null);
+  const out = await castSpellRun(spell([mm]), () => {}, r.deps);
+  assert.equal(out.ok, true, "a closed window does not fail the cast");
+  assert.deepEqual(asked, [{ rowKey: "mm", castId: "castX" }]);
+  assert.equal(r.calls.posts[0].rows.mm.total, null, "the row is left unrolled");
+  asked.length = 0;
+  r = runDeps({ answer: { mode: "normal", picks: {}, visibility: "gm" } });
+  r.deps.askDie = async (o) => (asked.push(o.rowKey), null);
+  await castSpellRun(spell([{ key: "mend", type: "heal", roll: "1d6" }]), () => {}, r.deps);
+  assert.deepEqual(asked, [], "a heal row never asks");
+  // A recurring damage row that states no die asks at the cast, once, and the die typed rides on the card for its later turns.
+  asked.length = 0;
+  const later = { key: "burn", type: "damage", roll: "", damage: ["fire"], recur: "laterRounds" };
+  r = runDeps({ answer: { mode: "normal", picks: {}, visibility: "gm" } });
+  r.deps.askDie = async (o) => (asked.push(o.rowKey), "2d4+1");
+  await castSpellRun(spell([later]), () => {}, r.deps);
+  assert.deepEqual(asked, ["burn"], "the recurring row asks at the cast");
+  assert.deepEqual(r.calls.posts[0].dice, { burn: "2d4+1" }, "the die typed is on the card");
+  assert.equal(r.calls.posts[0].rows.burn, undefined, "and the cast rolls nothing for it");
+  r = runDeps({ answer: { mode: "normal", picks: {}, visibility: "gm" } });
+  r.deps.askDie = async () => null;
+  await castSpellRun(spell([later]), () => {}, r.deps);
+  assert.equal(r.calls.posts[0].dice, undefined, "a closed window leaves the card with no die");
+});
+
 await ta("an untimed cast writes a clockless caster record when a row recurs on the caster's turn, which then prompts and is ended by the passed cast-wide save; with no such row it writes none", async () => {
   const { duePrompts, resolveRecurEntry } = await import("../scripts/magic/cast-recur.mjs");
   const special = { shape: "special" };

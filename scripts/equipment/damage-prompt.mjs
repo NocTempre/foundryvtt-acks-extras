@@ -71,8 +71,8 @@ async function saveFormula(item, formula) {
  * the prompt is closed or the weapon cannot be written by this user. The
  * unarmed strike is built for each throw and has no item to save to, so it has
  * a window of its own (`unarmed-prompt.mjs`) that keeps the answer on the
- * world. A spell carrier is built per cast and is never asked: a blank formula
- * there is an attack throw with no damage roll.
+ * world. A spell carrier is built per cast and is asked by the magic feature's
+ * own contributor (`magic/spell-die-prompt.mjs`), never here.
  */
 export async function prepareDamageFormula(ctx) {
   const item = ctx?.weapon;

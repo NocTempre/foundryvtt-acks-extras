@@ -1169,6 +1169,49 @@ whole actor is deleted, since Foundry fires no per-record hook for it
 
 What is not built yet is in [ROADMAP.md](ROADMAP.md) and the plan, `wip/`.
 
+**A damage row that states no die** (`spell-die.mjs`, `spell-die-prompt.mjs`).
+A damage row whose `roll` is blank asks for one when the cast reaches it. A
+row with no throw asks as its cast rolls it (`cast-spell.mjs`, before
+`rollRow`; `cast-apply.mjs`'s re-read of a card never asks); a thrown row asks
+at its first instance's throw, through a `prepare` contributor on lib's attack
+seam, and the other instances read the answer. A cast asks once for a row
+(`castId` and row key), and a closed window cancels the throw or leaves a
+no-throw row unrolled. The window takes whatever the row's own roll field
+holds and the dice roller parses (`Roll.validate`), a flat figure included, and
+refuses the rest on the window. A heal row never asks.
+
+A recurring damage row asks at the cast, where its line is written, and never at
+a later turn. The die typed is stored as the cast card's `dice`
+(`{ [rowKey]: formula }`, the formula as typed and never written from a
+constant); `castAt(card)` returns it and `rowsOfMode` fills the blank row with
+it, so the presses in `cast-recur.mjs`, the relay and Apply read one row. A card
+holds no `dice` key when nothing was typed. The card's stored keys: `castId`,
+`spellUuid`, `spellName`, `casterUuid`, `casterName`, `mode`, `picks`,
+`castingTime`, `casterLevel`, `invocationLevel`, `invocation`, `abilities`,
+`save`, `situational`, `saveMod`, `cite`, `duration`, `casterTokenUuid`, `rows`,
+`order`, `targets`, `entries`, `allocation`, `lines`, `pickKind`, `procedure`,
+`summoned` and `dice`.
+
+A die is kept for a row key in the copy's
+`flags["acks-extras"].spellDie` (`{ [rowKey]: formula }`), and `cast-rows.mjs`
+`withKeptDice` reads it into the row, so the cast, its relay and its throws see
+one row. A copy that follows its library twin reads its own kept die first and
+the twin's second, and keeps following the twin for everything else. A copy has
+a die for a row when its effective row states one or one is kept for it.
+
+What the window offers to keep depends on the seat. A seat with `SETTINGS_MODIFY`
+may save on every copy: the spell's source entry (its library twin, else the
+spell) and each spell item in the world that is a copy of it, a world item or
+an item of a world actor, matched by the cookbook id both carry, else by the
+copy's `_stats.compendiumSource` naming the source. Only copies that have no die
+are written. A source entry in a locked compendium is not written, and the
+blank copies still are; an unlinked token's own copy is not reached. A seat that
+may update the spell item saves on that copy alone and whispers the Judge's
+seats an offer card (`spellDieOffer` flag) whose one press does the every-copy
+save from the Judge's seat. The card holds no state and is drawn from the world:
+the press while a copy or the entry is blank, a line once none is. Any other
+seat has the field and Attack alone.
+
 ## The research tables
 
 The printed figures magic research, ritual casting and blood sacrifice run on

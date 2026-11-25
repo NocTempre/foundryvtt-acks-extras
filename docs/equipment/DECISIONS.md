@@ -276,7 +276,9 @@ drops the held write's options.
 ## 2026-11-25 — The strike and a spell carrier are never asked for a formula — SUPERSEDED IN PART 2026-11-25
 
 The strike's half is superseded by "2026-11-25 — An unarmed strike with no die
-asks, and a Judge can keep the answer". The spell carrier's half stands.
+asks, and a Judge can keep the answer" and, for the carrier, by "2026-11-25 —
+A spell attack with no damage die asks, and the die is kept per copy"
+(`docs/magic/DECISIONS.md`).
 
 Supersedes in part "2026-11-17 — A weapon with no damage formula stays blank,
 and its first attack asks": its reading that every blank weapon asks. Two
@@ -315,7 +317,7 @@ for a formula" (its strike half) and, for the strike, the reading in
 "2026-11-11 — Capacities, finesse sizes and the unarmed die are read, not
 shipped" (archived in `DECISIONS-through-v11.14.5.md`, "In force") that a blank
 unarmed die means an attack throw and no damage roll. The spell carrier's half
-stands.
+is superseded in `docs/magic/DECISIONS.md` (2026-11-25).
 
 **Ruled** (owner, on being asked whether an unarmed strike with a blank die
 should make an attack throw and no damage roll, with no formula prompt):
@@ -354,9 +356,9 @@ reverses it, and it names the save the entry said the strike could not have:
   The `ruledata-import` contract gains an additive `setOverride` (v1.5), so
   equipment writes through the service and not through the location feature's
   file.
-- A spell carrier with a blank die, and a stored weapon, are unchanged: the
-  carrier asks nothing and makes an attack throw with no damage roll; a stored
-  weapon asks once and saves the answer on the item.
+- A spell carrier with a blank die, and a stored weapon, were unchanged here:
+  the carrier asked nothing (superseded, `docs/magic/DECISIONS.md`, 2026-11-25);
+  a stored weapon asks once and saves the answer on the item.
 
 **Rejected.** Saving into a world flag or a setting of equipment's own: a
 second place for the die, with no surface to show or clear it. Asking a seat

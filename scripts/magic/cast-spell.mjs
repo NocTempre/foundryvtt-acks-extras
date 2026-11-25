@@ -44,7 +44,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, awaitsFail, isRecurring, castersTurnRecurs, recurringRows, castAt, flattenAt, readsInvocation, CAST_MODES } from "./cast-rows.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, damageBlank, optionTokenOf, resolvesAtCast, awaitsFail, isRecurring, castersTurnRecurs, recurringRows, castAt, flattenAt, readsInvocation, CAST_MODES } from "./cast-rows.mjs";
 import { casterLevel, levelNeeded, invocationLevel, invocationFigure, invocationOffered } from "./cast-level.mjs";
 import { castAbilityLevel } from "./cast-abilities.mjs";
 import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
@@ -72,6 +72,7 @@ import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell, resolveSummonRef } from "./summon-spell.mjs";
 import { summonRowsOf, summonOffer, judgeSummon, summonIsConjuration } from "./cast-summon.mjs";
 import { SEAL_ROW_TYPE } from "./cast-seal.mjs";
+import { askSpellDie } from "./spell-die-prompt.mjs";
 import { displayDuration } from "./spell-logic.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { sourceReadable } from "../lib/summons-logic.mjs";
@@ -530,6 +531,8 @@ const liveDeps = () => ({
   holds: async (uuid) => Boolean(await fromUuid(uuid).catch(() => null)),
   adjustPool: async (actor, tradition, slotKey) => (await import("../classes/casting.mjs")).adjustPool(actor, tradition, slotKey, 1),
   castId: () => newCastId(),
+  // The die of a damage row that states none (`spell-die-prompt.mjs`); a cast with no such dependency rolls the row blank.
+  askDie: askSpellDie,
   // The locations a caster is linked to, and the opening of a ritual's project at one of them.
   ritualLocations: async (caster) => (await import("./research-project-live.mjs")).locationsOf(caster),
   ritualOpen: async ({ location, spell, caster }) => (await import("./research-project-live.mjs")).openRitual(location, { spell, caster }),
@@ -1091,6 +1094,11 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       card.lines.push(loc(lasts ? "line.sealed" : "line.sealedOpen", { duration: lasts }), loc("line.sealEnd"));
     } else if ((row.type === "damage" || row.type === "heal") && !resolvesAtCast(row)) {
       // A row that recurs from the later rounds waits for its first moment (`cast-recur.mjs`); the card says so in a line.
+      // One that states no die asks now, once, and the die typed rides on the card (`card.dice`) for the turns that roll it; a closed window leaves the row with none.
+      if (deps.askDie && damageBlank(row) && instanceCount(row, level.value).value != null) {
+        const die = await deps.askDie({ caster, spell, rowKey: keyed.key, castId, lookups: deps.lookups });
+        if (die) card.dice = { ...card.dice, [keyed.key]: die };
+      }
       card.lines.push(describeSpellEffect(row).text);
     } else if (row.type === "damage" || row.type === "heal") {
       const count = instanceCount(row, level.value);
@@ -1098,7 +1106,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
         // A thrown row whose count the import left blank is thrown at nobody: the card carries the page reference alone.
         card.rows[keyed.key] = { ...cardRow(keyed, {}, count), ...(count.value == null ? { blank: true } : {}) };
       } else {
-        const rolled = await rollRow(caster, spell, card, keyed);
+        // A damage row that states no die asks once for this cast; a closed window leaves the row unrolled.
+        const asks = Boolean(deps.askDie) && damageBlank(row) && count.value != null;
+        const die = asks ? await deps.askDie({ caster, spell, rowKey: keyed.key, castId, lookups: deps.lookups }) : null;
+        const rolled = asks && !die ? { total: null, formula: "", detail: "", roll: null } : await rollRow(caster, spell, card, die ? { ...keyed, row: { ...row, roll: die } } : keyed);
         if (rolled.roll) rolls.push(rolled.roll);
         card.rows[keyed.key] = cardRow(keyed, rolled, count);
       }

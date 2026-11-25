@@ -2242,3 +2242,59 @@ card id is tracked and swept by that list.
 Both windows and the caster's sheets are closed, the caster's ledger, level, alignment and open record and both
 victims' dead marks are put back, the run's overrides are cleared (also in the walk's `finally`), the dice are
 restored on both seats, and the tracked cards are swept by id. The fixtures stay.
+
+## A spell damage row with no die
+
+The prompt and the two saves of a damage row that states no die (`spell-die.mjs`,
+`spell-die-prompt.mjs`). Offline: `tools/test-spell-die.mjs`; the write set,
+the window, the carrier's `prepare` and the card are pinned there with mocked
+globals, which cannot say Foundry lets a seat write the item or that the card
+whispers as Foundry does. This recipe is the live half and names its own
+fixtures.
+
+### Fixtures
+
+The committed walk is `tools/live/magic-spell-die.mjs` (GM and Player seats); it
+builds each fixture below by its marker and brings every kept die off all of
+them before its first check.
+
+- `magic/spell-die-source`: a spell Item the world holds (a world item is enough)
+  with one damage row, no `roll`, no throw (the no-throw case), and a cookbook id
+  in `flags["acks-extras"].cookbook.id`. Build it with `api.fixture`, kind
+  `Item`.
+- `magic/spell-die-thrown`: the same with delivery `missile`, on the first caster.
+- `magic/spell-die-mine`, `magic/spell-die-blank`, `magic/spell-die-has`: copies
+  on the Player seat's caster (`-mine`) and on a second caster only the GM owns
+  (`-blank`, `-has`), each carrying the source's cookbook id; the last one's
+  row states a die.
+- `magic/spell-die-caster` (owned by the Player seat) and `magic/spell-die-other`
+  (GM only): characters with a class that can cast the spell and a pool slot.
+- `magic/spell-die-class`, `-scene` and `-foe`: the class, the field and the
+  target of the thrown step.
+
+### Steps
+
+1. Player seat casts `copy-mine` (no-throw row): a window opens with the field, the
+   hint and the character-copy box. A word that is not a formula is refused on the
+   window; `[dice]` ticked saves on that copy. *Observable:* the copy's
+   `flags["acks-extras"].spellDie` holds it; the Judge seat holds one whispered
+   card with one press; the cast card shows the roll.
+2. The same Player seat casts again: no window.
+3. Judge seat presses the card. *Observable:* `copy-other` and the source have the
+   die; `copy-has-die` is untouched; the card's line carries the counts read back
+   and says the entry was written. With the entry in a locked pack the line says
+   it was not written.
+4. The thrown spell: cast it at a target; one window opens at the first
+   instance's throw, none at the later ones.
+5. A seat with neither right (a Player who owns neither caster nor spell) is not
+   on this fixture; the unit suite covers it.
+6. A recurring damage row that states no die (`recur: laterRounds`) on a copy with
+   none kept: the cast opens the window, at the cast and at no later turn.
+   *Observable:* the cast card's flag `castCard.dice` holds the formula typed (the
+   fixture `magic/spell-die-recur`). That the later turn reads it back is pinned
+   offline (`tools/test-spell-die.mjs`); a walk at a turn is not part of this
+   recipe.
+
+### Drive mechanics
+
+A whispered card prints user names in its header: crop the shot to the card body.

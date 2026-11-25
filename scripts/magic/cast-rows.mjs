@@ -9,7 +9,7 @@
  * Judge's own row `_` and a random id (`lib/fields.mjs` `effectField`); a row
  * with neither, an older copy's, is keyed by its position, `#<index>`.
  */
-import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
+import { MODULE_ID, FLAG_SPELL, FLAG_SPELL_DIE } from "./constants.mjs";
 import { libraryTwin } from "./summon-spell.mjs";
 import { resolveLevelValue, rowInInvocationRange } from "../lib/vocab.mjs";
 
@@ -39,10 +39,37 @@ export function effectRowsOf(item) {
  */
 export function rowsOf(spell, lookups) {
   const own = effectRowsOf(spell);
-  if (own.length) return { rows: own, from: "own" };
+  if (own.length) return { rows: withKeptDice(own, spell), from: "own" };
   const twin = lookups ? libraryTwin(spell, lookups) : null;
   const rows = twin ? effectRowsOf(twin) : [];
-  return rows.length ? { rows, from: "twin" } : { rows: [], from: "none" };
+  return rows.length ? { rows: withKeptDice(rows, spell, twin), from: "twin" } : { rows: [], from: "none" };
+}
+
+/** The dice kept on a spell copy, by row key: `{}` for a copy with none. */
+export const keptDiceOf = (item) => {
+  const kept = item?.flags?.[MODULE_ID]?.[FLAG_SPELL_DIE];
+  return kept && typeof kept === "object" ? kept : {};
+};
+
+/** Whether a damage row states no die. */
+export const damageBlank = (row) => row?.type === "damage" && !String(row.roll ?? "").trim();
+
+/**
+ * The rows with each damage row that states no die given the die kept for it:
+ * the copy's own first, then each source's after it. A row that states a die, or
+ * has none kept, is the very object it was.
+ *
+ * @param {object[]} rows
+ * @param {...object} sources  the copies whose kept dice are read, in order
+ */
+export function withKeptDice(rows, ...sources) {
+  const kept = sources.map(keptDiceOf);
+  if (!kept.some((map) => Object.keys(map).length)) return rows;
+  return rows.map((row, i) => {
+    if (!damageBlank(row)) return row;
+    const die = kept.map((map) => map[rowKeyOf(row, i)]).find((value) => typeof value === "string" && value.trim());
+    return die ? { ...row, roll: die } : row;
+  });
 }
 
 /** The key a row goes by in a cast: its own, else its position. */
@@ -71,7 +98,18 @@ const onScale = (node) => node?.kind === "conditional" && node.on === INVOCATION
  * carries none. Every place that turns a card back into rows reads it here.
  * @param {{invocationLevel?: number|null}|null} card
  */
-export const castAt = (card) => ({ invocationLevel: levelAt(card) });
+export const castAt = (card) => ({ invocationLevel: levelAt(card), ...(typedDiceOf(card) ? { dice: typedDiceOf(card) } : {}) });
+
+/**
+ * The dice a cast was typed at, by row key: `card.dice`, which holds only what a
+ * seat typed into the damage window for a recurring row that states no die.
+ * Null where the card holds none, so a card with none reads as it always did.
+ * @param {{dice?: Record<string, string>}|null} card
+ */
+const typedDiceOf = (card) => {
+  const dice = card?.dice;
+  return dice && typeof dice === "object" && Object.keys(dice).length ? dice : null;
+};
 
 /**
  * A copy of `node` with each conditional LevelValue on the invocation scale
@@ -121,12 +159,18 @@ export function readsInvocation(node) {
  * whichever of its neighbours the level drops.
  * @param {object[]} rows
  * @param {string} mode  a `CAST_MODES` key
- * @param {{invocationLevel?: number|null}|null} [at]
+ * @param {{invocationLevel?: number|null, dice?: Record<string, string>}|null} [at]
  */
 export const rowsOfMode = (rows, mode, at = null) =>
   keyedRows(rows)
     .filter(({ row }) => Boolean(row.reversed) === (mode === CAST_MODES.reversed) && rowInInvocationRange(row, levelAt(at)))
-    .map((keyed) => ({ ...keyed, row: flattenAt(keyed.row, at) }));
+    .map((keyed) => ({ ...keyed, row: typedDie(flattenAt(keyed.row, at), keyed.key, at) }));
+
+/** A damage row that states no die given the die its cast was typed (`castAt`); any other row is the very object it was. */
+function typedDie(row, key, at) {
+  const die = at?.dice?.[key];
+  return damageBlank(row) && typeof die === "string" && die.trim() ? { ...row, roll: die } : row;
+}
 
 /**
  * The option a row belongs to in its choice group: its own `pickOption` token,

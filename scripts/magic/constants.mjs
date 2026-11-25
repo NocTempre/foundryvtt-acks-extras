@@ -8,6 +8,10 @@ export const LANG_PREFIX = "ACKS-MAGIC";
 export const SPELL_TYPE = "spell";
 /** Flag key under flags["acks-extras"] holding the spell primitive. */
 export const FLAG_SPELL = "spell";
+/** Flag key under flags["acks-extras"] on a spell copy holding the damage dice kept for its rows that state none, by row key (`spell-die.mjs`). */
+export const FLAG_SPELL_DIE = "spellDie";
+/** The chat-message flag a spell damage die offer card carries (`spell-die-prompt.mjs`). */
+export const SPELL_DIE_OFFER_FLAG = "spellDieOffer";
 /** Flag key under flags["acks-extras"] on an Active Effect a cast left behind. */
 export const FLAG_SPELL_EFFECT = "spellEffect";
 /** The capability every spell record's roll-mod part provides, so two spell records never add (`lib/roll-mods.mjs`). */

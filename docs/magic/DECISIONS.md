@@ -1652,3 +1652,62 @@ deployed later keeps that roll.
 **Supersedes IN PART**, none under 7 days: "Research projects at a location, and the facility (M-q1, rulings 220, 221)", its "Who writes which field" (the costs, paid, throw and later level as the Judge's) and "the facility inputs exist only on a Judge's render"; "The Research tab's parts beyond board 10 stand as built (owner, board 15)", its "a project's level, cost and material-paid boxes for a Judge (text for a Player)", where the boxes are now an owner's; "Research days: the Judge's due, Post days… and withdrawing (owner, board 16)", the due only ("a Player sees the due as text always"), while Post days… stands. The charge-item rule was a build call (M-r2b) with no entry.
 
 **Strongest counter, MEDIUM.** A Player can now type the cost and the level their own project is read against, which M-q1 kept with the Judge because "it is the Judge who sees the project and can correct it". Held: the owner's rule makes the record its owner's, the Judge still writes every field, and the facility and assistant shortfalls still block a Player and warn a Judge.
+## 2026-11-25 — A spell attack with no damage die asks, and the die is kept per copy
+
+Supersedes the spell carrier's half of "2026-11-25 — The strike and a spell
+carrier are never asked for a formula" (`docs/equipment/DECISIONS.md`) and, for
+a spell, the reading in "2026-11-11 — Capacities, finesse sizes and the unarmed
+die are read, not shipped" (archived in `docs/equipment/DECISIONS-through-v11.14.5.md`,
+"In force") that a blank formula is an attack throw with no damage roll.
+
+**Ruled** (owner, on the design board's card): "Build the surface, e.g. magic
+missile, then follow offer to save for character (fwd offer to judge to save for
+all instances), offer to save for all instances to judge by default". An
+example: a Player casts a spell whose damage row states no die; a window asks;
+`[dice]` typed with "Save on this character's copy of the spell" ticked is that
+copy's die from then on, and the Judge is whispered one press that saves it on
+every copy that has none.
+
+**New evidence.** The earlier entry rested on the carrier being built for each
+throw and so having nowhere to keep an answer. The spell item it comes from is
+that place, and the owner's words name it.
+
+**Decided** (release hub, answering the build's questions):
+
+- **A per-row flag on the copy**, `flags["acks-extras"].spellDie`, keyed by row
+  key, read into the row by `withKeptDice`. The copy keeps following its library
+  twin for everything else, and a copy with rows of its own is never rewritten.
+  The other reading, writing the twin's rows onto each copy, rewrites more and
+  detaches the copy from later imports.
+- **Every copy** is the source entry and each world item and world actor item
+  matched by cookbook id, else compendium source. Unlinked tokens are not
+  reached, and the card says so in one line. A token whose delta does not change
+  the spell reads its base actor's copy.
+- **Once per cast per row**: a thrown row asks at its first instance.
+- **A copy has a die** when its effective row states one or one is kept for it;
+  no save overwrites either.
+- **A locked source entry** is not written; the blank copies are, and the card
+  says the entry was not written.
+- The window accepts what the row's roll field holds and the roller parses; it
+  is not the strike's `NdM` rule. A flat figure is a formula.
+- The prompt is registered by the magic feature as a `prepare` contributor and
+  by one call before `rollRow` on the cast path, so `attack-throw.mjs` is
+  unchanged.
+- **A recurring row asks at the cast, never at a later turn** (owner, relayed by
+  the release hub: "the die typed at the cast is carried on that cast's record and
+  its recurring turns roll it; no prompt opens at a later turn"). A recurring
+  damage row that states no die asks in the cast loop where it is lined, and the
+  die typed is stored as `card.dice = { [rowKey]: formula }`, the formula as the
+  seat typed it. `castAt(card)` returns it and `rowsOfMode` fills the blank row
+  with it, so every place that reads a card's rows again (the presses in
+  `cast-recur.mjs`, the relay, Apply) reads the one row. A row with no die at all
+  still rolls nothing and breaks nothing.
+
+**Rejected.** Writing the die on the carrier (built per throw, nothing to keep
+it). A second prompt for each instance. A save that overwrites a copy's own die.
+A prompt at a recurring turn, which would stop a press the GM's client answers.
+
+**What it cost.** A spell copy has a third place a damage die can come from, so a
+Judge who imports a die later finds copies that keep their own; the sheet shows
+no list of them. A recurring row's die typed at one cast is that cast's alone
+unless it was kept, so a closed window leaves that cast's turns with none.

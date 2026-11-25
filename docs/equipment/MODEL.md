@@ -42,8 +42,8 @@ truth behind the code enums; local-only, never in the repo).
   weapon and takes the formula in memory; an unsaved weapon takes it in memory
   only. Two unsaved weapons are built per throw and cannot keep an answer on
   the item, and both are known by identity. A spell carrier (lib
-  `isSpellCarrier`) is never asked: its blank formula is an attack throw with no
-  damage roll. The unarmed strike (`actions.mjs` `isUnarmedStrike`, a set
+  `isSpellCarrier`) is asked by the magic feature's own contributor
+  (`magic/spell-die-prompt.mjs`, docs/magic/MODEL.md), never by this one. The unarmed strike (`actions.mjs` `isUnarmedStrike`, a set
   `rollUnarmed` fills) with no die imported has a window of its own
   (`unarmed-prompt.mjs`): the field, a refusal shown on the window for any
   answer that is not one `NdM` die (`attack-mods.mjs` `asUnarmedDie`, the test

@@ -43,6 +43,7 @@ import { registerCastRecur } from "./cast-recur.mjs";
 import { registerCastExpiry } from "./cast-expiry.mjs";
 import { registerCastHeld } from "./cast-held.mjs";
 import { registerCastDeclare } from "./cast-declare.mjs";
+import { registerSpellDiePrompt } from "./spell-die-prompt.mjs";
 import { registerCastSeal } from "./cast-seal-live.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
@@ -154,6 +155,12 @@ Hooks.once("init", () => {
     registerSpellReach(selfReach);
   } catch (err) {
     console.error(`${MODULE_ID} | the castable-spell register could not be filled`, err);
+  }
+  // A spell attack whose damage row states no die asks for one, and offers the Judge the die for every copy.
+  try {
+    registerSpellDiePrompt();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the spell damage prompt could not register`, err);
   }
   // A recurring row's prompt is posted at its turn by lib's turn hooks, and its Save, Roll and Next round
   // presses are relayed to the GM's client.
