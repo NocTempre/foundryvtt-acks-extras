@@ -80,7 +80,7 @@ const P = {
     await warband.update({ ...unit, "system.unit.officerUuid": chief.uuid, "system.unit.officerMoraleBonus": a.part });
     await gang.update({ ...unit, "system.unit.officerUuid": "", "system.unit.officerMoraleBonus": null, "system.unit.morale": 0 });
     await faction.update({ "system.units": [], "system.members": [] });
-    await place.update({ "system.roster": [] });
+    await place.update({ "system.roster": [], "system.gmNotes": "<p>Walk place</p>" });
     return { before, rebuilt };
   },
 
@@ -243,7 +243,9 @@ try {
   const warband = await gm.fixture("lib/org-warband", "Actor", { name: named("warband"), type: "acks-extras.group", items: [] });
   const gang = await gm.fixture("lib/org-gang", "Actor", { name: named("gang"), type: "acks-extras.group", items: [] });
   const chief = await gm.fixture("lib/org-chief", "Actor", { name: named("chief"), type: "character", items: [], system: { hp: { value: 8, max: 8 } } });
-  const place = await gm.fixture("lib/org-place", "Actor", { name: named("place"), type: "acks-extras.location", items: [] });
+  // A Judge's note keeps the place out of the empty-location prune, which the
+  // primary GM's window runs once its election settles; the shape step writes it too.
+  const place = await gm.fixture("lib/org-place", "Actor", { name: named("place"), type: "acks-extras.location", items: [], system: { gmNotes: "<p>Walk place</p>" } });
   shapeArgs = { factionId: faction.id, warbandId: warband.id, gangId: gang.id, chiefId: chief.id, placeId: place.id, monsterId: monster.id, part: MORALE_PART };
   const shaped = await run(gm, P.shape, shapeArgs);
   note("found at", shaped.before);
