@@ -122,7 +122,9 @@ do):
   (`orgChart(faction).rows`, which leaves out a hidden row and what lies beneath it for
   a seat that is no Judge), in reading order, each named as its card names it, a nested row indented under its parent
   (`underOptions`, `org-tree-logic.mjs`); a change of the Faction select refills it
-  from the new faction's rows. The picker adds no gate: who may write is `join`'s,
+  from the new faction's rows. Its footer is **Join** then **Cancel**; Cancel and the
+  close × each join nothing (`joinChoiceOf` takes only a chosen faction's shape, since a button
+  whose callback returns nothing resolves to its action string). The picker adds no gate: who may write is `join`'s,
   and `planJoin` nests the top row where it is told, whatever the depth. A world with no faction says
   so and opens nothing; a closed picker writes nothing.
 - **Make its own…** is `makeFaction(group)`: a faction actor named from the group,

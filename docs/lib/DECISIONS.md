@@ -2431,3 +2431,15 @@ depth gate was added; the hub's "Group depth stays at two" was made for a genera
 parent, and the label stays the chart's own.
 
 **Cost.** The rows are read from the world when the dialog opens and again at each change of faction, not live while the dialog stays open.
+
+## 2026-11-25 — The Join picker has a Cancel button, as board 1w draws it
+
+**Ruled.** The hub: the approved board draws Cancel, so the dialog has it. The picker is a two-button
+`DialogV2.wait`, Join then Cancel. Cancel's callback returns a value that is tested for, and the close ×
+resolves as Cancel does: both join nothing. Slice (d) had kept the landed one-button `DialogV2.prompt`.
+
+**Rejected.** A Cancel whose callback returns nothing. `DialogV2` resolves such a press to the button's
+action string, which is truthy, so a truthiness test would read it as a choice.
+
+**Cost.** None beyond the shape test: a join is taken only from an object that names a faction.
+

@@ -4623,7 +4623,10 @@ writes read back from the stored rows. Step 8 also wants a player seat.
    parents as they were, the group's `units` empty, and `org.chartOf(group)` answers
    the subtree from the faction's rows. Leave: both rows come back to the group.
    7b. Join under a row. Write three rows on the kept faction by API (a top, a row beneath
-   it, a second top marked `hidden`), click `[data-action="joinFaction"]` and read the
+   it, a second top marked `hidden`), click `[data-action="joinFaction"]`, choose the
+   faction and a row, and press `[data-action="cancel"]`. *Observable:* the footer's actions
+   are `join` then `cancel`, the dialog closes, and nothing is joined (the group hosts its two
+   rows, the faction its three). Click Join a faction again and read the
    picker's `select[name="under"]`. *Observable:* its first option has a blank value and is
    selected; the rest are the faction's rows in reading order, the nested row indented
    with no-break spaces and the tops not, the hidden row listed to the GM; its

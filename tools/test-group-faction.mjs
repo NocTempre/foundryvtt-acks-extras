@@ -32,7 +32,7 @@ globalThis.foundry = {
     handlebars: { renderTemplate: async (path, view) => JSON.stringify({ path, view }) },
     api: {
       DialogV2: {
-        async prompt(options) {
+        async wait(options) {
           picker.asked.push(options);
           return picker.choice;
         },
@@ -171,6 +171,24 @@ t("join opens the picker with every world faction and writes nothing when it is 
   assert.equal(picker.asked[0].rejectClose, false);
   assert.deepEqual(lone.system.units, []);
   assert.deepEqual(said, []);
+});
+
+t("join's Cancel and its close each write nothing, and the dialog offers Join then Cancel", async () => {
+  reset();
+  const lone = group("Lone");
+  const f = faction("Card");
+  for (const choice of [{ cancelled: true }, "cancel", "join", null, undefined, { faction: "" }]) {
+    picker.choice = choice;
+    assert.equal(await gesture.pressJoin(lone), null, `resolved ${JSON.stringify(choice)} joins nothing`);
+  }
+  assert.deepEqual(f.system.units, []);
+  assert.deepEqual(lone.system.units, []);
+  assert.deepEqual(said, []);
+  const { buttons } = picker.asked.at(-1);
+  assert.deepEqual(buttons.map((b) => b.action), ["join", "cancel"]);
+  assert.equal(buttons[0].default, true);
+  assert.deepEqual(buttons[1].callback(), { cancelled: true }, "Cancel returns a value tested for, never nothing");
+  assert.equal(gesture.joinChoiceOf({ faction: "Actor.f", under: "k" }).under, "k");
 });
 
 t("join writes the faction chosen, says so, and a world with no faction opens nothing", async () => {

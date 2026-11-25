@@ -76,7 +76,7 @@ Open the Actors sidebar tab, a faction, its Org chart tab, press a card's pen, a
 
 ### Joining a group under a row
 
-Open the Actors sidebar tab, a group, its **Faction** line, and press **Join a faction…**. Pick the faction, then use the **Under** select to pick where the group's top row goes. **At the top** makes it a top row of the faction's chart. Under lists the faction's rows, a nested row indented under its parent; pick one to nest the group beneath it, and the group's own rows come with it. Change the faction and Under shows that faction's rows. A row the Judge has hidden is not listed to a player.
+Open the Actors sidebar tab, a group, its **Faction** line, and press **Join a faction…**. Pick the faction, then use the **Under** select to pick where the group's top row goes. **At the top** makes it a top row of the faction's chart. Under lists the faction's rows, a nested row indented under its parent; pick one to nest the group beneath it, and the group's own rows come with it. Change the faction and Under shows that faction's rows. A row the Judge has hidden is not listed to a player. **Cancel** closes the picker and joins nothing.
 
 ### Giving a row an officer
 

@@ -276,7 +276,7 @@ const P = {
     select.value = uuid;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     const buttons = [...root.querySelectorAll(".form-footer button[data-action]")];
-    const go = buttons.find((b) => b.dataset.action === "ok") ?? buttons[0];
+    const go = buttons.find((b) => b.dataset.action === "join") ?? buttons[0];
     if (under !== undefined) {
       const choice = root.querySelector('select[name="under"]');
       if (choice) choice.value = under;
@@ -286,6 +286,25 @@ const P = {
     go.click();
     const gone = await H.poll(() => !foundry.applications.instances.has(dlg.id), { tries: 50 });
     return { found: true, chosen: true, pressed: go.dataset.action, gone: !!gone };
+  },
+
+  /** Choose the faction and the row named, then press the picker's Cancel: the footer's actions as drawn, and whether the dialog closed. */
+  pickerCancel: async ({ uuid, under }) => {
+    const H = globalThis.__lj;
+    const dlg = [...foundry.applications.instances.values()].find((a) => !(H.before ?? []).includes(a.id) && a instanceof foundry.applications.api.DialogV2 && H.root(a)?.querySelector('select[name="faction"]'));
+    if (!dlg) return { found: false };
+    const root = H.root(dlg);
+    const select = root.querySelector('select[name="faction"]');
+    select.value = uuid;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const choice = root.querySelector('select[name="under"]');
+    if (choice) choice.value = under;
+    const actions = [...root.querySelectorAll(".form-footer button[data-action]")].map((b) => b.dataset.action);
+    const cancel = root.querySelector('.form-footer button[data-action="cancel"]');
+    if (!cancel) return { found: true, actions, pressed: false };
+    cancel.click();
+    const gone = await H.poll(() => !foundry.applications.instances.has(dlg.id), { tries: 50 });
+    return { found: true, actions, pressed: true, gone: !!gone };
   },
 
   /** The picker's Under select after the faction named is chosen (a change event, as a hand's choice fires): its choices as drawn. */
@@ -553,6 +572,12 @@ try {
   await run(gm, P.hideRow, { id: faction.id, key: hidden7.key });
   note("NOTE", "driven by API, not click: three rows written on the kept faction (a top, a row beneath it, and a hidden top)");
   check("the faction holds the three rows", top7.ok && child7.ok && hidden7.ok, { top7, child7, hidden7 });
+  await run(gm, P.press, { id: group.id, action: "joinFaction" });
+  await until(gm, P.picker, null, (d) => !!d);
+  const cancel7 = await run(gm, P.pickerCancel, { uuid: faction.uuid, under: child7.key });
+  check("the picker's footer offers Join then Cancel, and Cancel closes it", same(cancel7.actions, ["join", "cancel"]) && cancel7.pressed === true && cancel7.gone === true, cancel7);
+  const sCancel = await run(gm, P.read, A);
+  check("Cancel joins nothing: the group hosts its own rows and the faction holds only its three", sCancel.group.length === 2 && sCancel.faction.length === 3 && sCancel.host?.isGroup === true, { group: sCancel.group.length, faction: sCancel.faction.length });
   await run(gm, P.press, { id: group.id, action: "joinFaction" });
   await until(gm, P.picker, null, (d) => !!d);
   const under1 = await run(gm, P.pickerUnder, { uuid: faction.uuid });

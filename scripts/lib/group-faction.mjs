@@ -83,7 +83,20 @@ function bindUnder(dialog, factions) {
   });
 }
 
-/** The faction picker's choice, `{faction, under}` (`under` blank for the top), or null where the dialog closed. */
+/**
+ * What the picker resolved to, as a join: `{faction, under}` only where the Join button returned a
+ * chosen faction, else null. Cancel returns `{cancelled: true}` and the close × resolves null; a
+ * button whose callback returns nothing would resolve to its action string, so a choice is tested
+ * for its shape, never for truthiness.
+ * @param {unknown} result what `DialogV2.wait` resolved to
+ * @returns {{faction: string, under: string}|null}
+ */
+export function joinChoiceOf(result) {
+  if (!result || typeof result !== "object" || typeof result.faction !== "string" || !result.faction) return null;
+  return { faction: result.faction, under: typeof result.under === "string" ? result.under : "" };
+}
+
+/** The faction picker's choice, `{faction, under}` (`under` blank for the top), or null where it was cancelled or closed. */
 async function askFaction(factions, preselected, group) {
   const first = factions.find((f) => f.uuid === preselected) ?? factions[0];
   const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/group-faction.hbs`, {
@@ -92,21 +105,26 @@ async function askFaction(factions, preselected, group) {
     underTip: loc("faction.underTip", { group: group?.name ?? "" }),
   });
   const { DialogV2 } = foundry.applications.api;
-  const picked = await DialogV2.prompt({
+  const picked = await DialogV2.wait({
     classes: FACTION_DIALOG_CLASSES,
     window: { title: loc("faction.pickTitle") },
     content,
-    ok: {
-      label: loc("faction.pickPress"),
-      callback: (_event, button) => {
-        const uuid = button.form.elements.namedItem("faction")?.value || "";
-        return uuid ? { faction: uuid, under: button.form.elements.namedItem("under")?.value || "" } : null;
+    buttons: [
+      {
+        action: "join",
+        label: loc("faction.pickPress"),
+        default: true,
+        callback: (_event, button) => {
+          const uuid = button.form.elements.namedItem("faction")?.value || "";
+          return uuid ? { faction: uuid, under: button.form.elements.namedItem("under")?.value || "" } : { cancelled: true };
+        },
       },
-    },
+      { action: "cancel", label: loc("faction.pickCancel"), callback: () => ({ cancelled: true }) },
+    ],
     render: (_event, dialog) => bindUnder(dialog, factions),
     rejectClose: false,
   });
-  return picked || null;
+  return joinChoiceOf(picked);
 }
 
 /**
