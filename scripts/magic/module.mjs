@@ -29,6 +29,7 @@ import {
 } from "./repertoire.mjs";
 import { registerCastSummon, castSummon } from "./cast-summon.mjs";
 import { registerCastSpell, castReading } from "./cast-spell.mjs";
+import { registerCastGate } from "./cast-gate.mjs";
 import { registerCastProcedure, procedureOfKind } from "./cast-procedure.mjs";
 import { implementsBucket, IMPLEMENTS_KEY } from "./cast-implements.mjs";
 import { powerApi, registerPower } from "./power-ledger-live.mjs";
@@ -147,6 +148,12 @@ Hooks.once("init", () => {
     registerCastSpell({ classFor: classForActor });
   } catch (err) {
     console.error(`${MODULE_ID} | the spell cast could not register`, err);
+  }
+  // A spell the cast window declines, cast by a class that casts from a list, is refused a Player and spends the list's slot.
+  try {
+    registerCastGate({ classFor: classForActor });
+  } catch (err) {
+    console.error(`${MODULE_ID} | the cast gate could not register`, err);
   }
   // What a character can cast is one register in lib: the repertoire is a source, and magic decides what a cast would write on its caster.
   try {

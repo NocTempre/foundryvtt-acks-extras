@@ -41,6 +41,15 @@ export function traditionFor(casting, { extras, lvl, class: systemClass } = {}) 
   return null;
 }
 
+/**
+ * The traditions of a class that have a key: the lists it casts from. Where there
+ * is at least one, the Magic tab groups by list (`spellStanding`'s `lists` mode)
+ * and a hand-made spell's cast is gated by its list (`cast-gate.mjs`).
+ * @param {object[]|null|undefined} casting  the class's `system.casting`
+ * @returns {object[]}
+ */
+export const listTraditions = (casting) => (casting ?? []).filter((t) => t?.key);
+
 /** The folded key and label sets of the class's traditions that have a key: the lists the class casts from. */
 const castFrom = (casting) => (casting ?? []).filter((t) => t?.key).map((t) => new Set([foldKey(t.key), foldKey(t.label)].filter(Boolean)));
 
@@ -190,7 +199,7 @@ function bucketByLevel(items) {
  *   other: Array<{level: number, spells: object[]}>}}
  */
 export function spellStanding({ casting = [], pools = [], spells = [], coreSpells = null } = {}) {
-  const traditions = (casting ?? []).filter((t) => t?.key);
+  const traditions = listTraditions(casting);
   if (!traditions.length) {
     const levels = bucketByLevel(spells.map((s) => ({ ref: s.ref, name: s.name, level: levelOf(s.lvl), cast: Number(s.cast) || 0 }))).map(({ level, spells: rows }) => {
       const max = Number(coreSpells?.[level]?.max);
