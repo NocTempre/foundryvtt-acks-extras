@@ -3840,20 +3840,23 @@ asserts the shape it needs at its start:
   offer. The start shape writes the party's ownership and members, one lit light
   and one spell per member, nothing else.
 
-Setup the walker owns. **Create New Actors** must be granted to the Player for the
-no-place-with-create step (PR3): Settings tab → Game Settings → Configure
-Permissions, which reaches every seated peer, so ask the hub first. If it cannot be
-granted, PR3's create half is reported not walked and its no-create half is the
-whole step. A Region the Judge drew needs OBSERVER for the Player to open its
+Setup the walker owns. **Create New Actors** is held by the Player role for the
+no-place-with-create step (PR3) and PR2's create half, and the walk grants it: it
+reads and prints the Player role's starting value (Settings tab → Game Settings →
+Configure Permissions is the same entry), walks PR2's no-create half first, writes the grant
+from the Judge's seat, asserts `game.user.can("ACTOR_CREATE")` reads true on the
+Player seat, and in a `finally` puts the starting value back and reads it on both
+seats (GM and Player), whether PR3 passes, fails or throws. The grant reaches every seated peer while
+it stands, so find out who is seated first. A Region the Judge drew needs OBSERVER for the Player to open its
 window. The relay needs a primary GM client; with none, lib warns and no press or
 drop writes. Core 14 offers the Regions control to any seat holding Create Regions
 (a Player by default) and makes the drawing seat the Region's owner; where the
 world has revoked it, the control is absent, PR1 is reported not walked, and the
 Judge builds the Region with the seat at OWNER for the rest. The walk makes the
 Region as the seat by creating it in the scene from the Player's page, the write
-a drawing ends in; it does not drive the pointer's draw. The walk does not change
-world permissions: it reads whether the seat holds Create New Actors and reports PR3
-`NOT WALKED` where it does not, and PR2 asserts the row the seat's permission gives.
+a drawing ends in; it does not drive the pointer's draw. Where the seat already holds
+Create New Actors at the start, PR2's no-create half is reported `NOT WALKED` (the
+walk grants and never revokes); PR2's create half and PR3 still run.
 
 **The heads** (Actors sidebar tab → a party actor → its sheet → the mode's tab; the
 head is the row at the top of that tab). Press by the real click on the Player's
@@ -3917,8 +3920,8 @@ checks of the row and three of the map drop.
 | Step | Do | Observable |
 |---|---|---|
 | PR1 | As the Player, draw a Region on `formation/place-row-player-scene` (Scene controls → Regions) and open its window | The Region is the seat's own; the window opens |
-| PR2 | Open the Appearance tab | A Place row under the Name field: a caption that is a `<span>`, the none stand-in, no picker, no make-a-place button; with Create New Actors not held, no drop zone and no hint |
-| PR3 | Assert Create New Actors is held (else report this step not walked), then drop an obstacle Hazard on the zone | The zone's words end "With no place yet, one is made."; a place exists for the Region and its sheet did not open; the place opens to the table (its default ownership is OWNER); the Judge's seat reads one obstacle on it. `api.track` the place's uuid read back at once |
+| PR2 | Open the Appearance tab, first with Create New Actors not held, then again once the walk has granted it | A Place row under the Name field: a caption that is a `<span>`, the none stand-in, no picker, no make-a-place button; with Create New Actors not held, no drop zone and no hint; with it held, the drop zone and the hidden-trap hint |
+| PR3 | Grant Create New Actors to the Player role and assert the Player seat reads it true (the walk puts the starting value back after the step), then drop an obstacle Hazard on the zone | The zone's words end "With no place yet, one is made."; a place exists for the Region and its sheet did not open; the place opens to the table (its default ownership is OWNER); the Judge's seat reads one obstacle on it. `api.track` the place's uuid read back at once |
 | PR4 | The Judge links `formation/place-row-player-place-owned` to the Region and the Player's window is reopened; then the same with `-place-seen`, then `-place-closed` | Owned: the place's name as text, a counts line of what is not hidden, a zone reading "Drop a trap, obstacle or condition here." and the line saying a dropped trap is hidden. Seen: the name alone, no counts, no zone. Closed: "A place you cannot open", nothing else |
 | PR5 | The Player opens the District behaviour window of `formation/place-row-player-observed-region` (Judge-drawn, the seat at OBSERVER) | The window is read-only and carries no place row; an owner-editable behaviour window is not asserted here |
 

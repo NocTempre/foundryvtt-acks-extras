@@ -10,8 +10,11 @@
  * Steps report under the recipe's ids: H1 to H5 (the heads), PR1 to PR5 (the
  * Place row), PM1 to PM3 (the map drop) and K1 to K7 (the Kit). A step the world
  * cannot give is printed as `NOT WALKED  <id>  <reason>`, which is neither a PASS
- * nor a FAIL. The walk changes no world permission: it reads whether the seat
- * holds Create New Actors and walks PR3 only where it does.
+ * nor a FAIL. The one world permission the walk changes is Create New Actors for
+ * the Player role: its starting value is read and printed at the start, PR2's
+ * no-create half is read before the grant, the grant is written for PR2's create
+ * half and PR3 alone, and a `finally` puts the starting value back and reads it
+ * on both seats.
  *
  * Scripted, not gestured: the Region of PR1 is created from the Player's page
  * (the write a drawing ends in; the pointer's draw is not driven); the map drop
@@ -78,6 +81,23 @@ const RECORDER = `(() => {
 /* ------------------------------------------------------------------ */
 
 const P = {
+  /**
+   * The world's `permissions` setting entry for Create New Actors (the roles that hold it) as stored, and what
+   * this seat's own user can do.
+   */
+  roleRead: async () => ({
+    roles: [...(game.settings.get("core", "permissions")?.ACTOR_CREATE ?? [])],
+    can: !!game.user.can("ACTOR_CREATE"),
+  }),
+
+  /** On the Judge's seat: write the Create New Actors entry of the `permissions` setting to `roles`, leaving every other entry as it stands. */
+  roleWrite: async ({ roles }) => {
+    const current = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+    current.ACTOR_CREATE = roles;
+    await game.settings.set("core", "permissions", current);
+    return { roles: [...(game.settings.get("core", "permissions")?.ACTOR_CREATE ?? [])] };
+  },
+
   census: async () => ({
     user: game.user.name,
     userId: game.user.id,
@@ -511,6 +531,17 @@ const P = {
 
 const run = (api, fn, arg) => api.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
 
+/** Run a page function on a seat until its answer passes `test`, or give back the last answer. */
+const until = async (api, fn, arg, test, { tries = 40, every = 250 } = {}) => {
+  let last = null;
+  for (let n = 0; n < tries; n++) {
+    last = await run(api, fn, arg);
+    if (test(last)) return last;
+    await sleep(every);
+  }
+  return last;
+};
+
 const ready = async (api, label) => {
   for (let n = 0; n < 240; n++) {
     const ok = await api.eval(`!!(globalThis.game?.ready && globalThis.acksExtras?.formation)`).catch(() => false);
@@ -550,6 +581,23 @@ const cardIds = [];
 const held = { places: [], partyIds: [], modeParties: [] };
 const character = (name, ownership) => ({ name, type: "character", prototypeToken: { actorLink: true }, system: { hp: { value: 6, max: 6 } }, ...(ownership ? { ownership } : {}) });
 const SWEEPABLE = /QA (Seat|Heads|Kit|Place)/;
+/** The roles holding Create New Actors as the run found them; null until read, and again once put back. */
+let grantStart = null;
+/**
+ * Put the Create New Actors entry back to the roles the run found, whether or not the grant was written, and
+ * read it on both seats. Safe to call twice: once put back, `grantStart` is null.
+ * @returns {Promise<{ok: boolean, start: number[], gm: number[], seat: number[]}|null>} null when nothing is to put back
+ */
+async function putGrantBack() {
+  if (!grantStart || !open.gm) return null;
+  const start = grantStart;
+  await run(open.gm, P.roleWrite, { roles: start });
+  const match = (r) => same(r.roles, start);
+  const onGm = await until(open.gm, P.roleRead, null, match);
+  const onSeat = open.player ? await until(open.player, P.roleRead, null, match) : null;
+  grantStart = null;
+  return { ok: match(onGm) && (!onSeat || match(onSeat)), start, gm: onGm.roles, seat: onSeat?.roles ?? null };
+}
 
 try {
   section("seats");
@@ -567,6 +615,9 @@ try {
   for (const [key, c] of Object.entries(census)) check(`${key}: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
   const seatId = census.seat.userId;
   const canCreate = census.seat.canCreate;
+  const startRead = await run(gm, P.roleRead);
+  grantStart = startRead.roles;
+  note("Create New Actors in the world's permissions setting at the start (roles; the Player role is 1)", grantStart);
   const yours = { default: 0, [seatId]: 3 };
   const L = async (key, data) => run(gm, P.loc, { key, data });
 
@@ -846,28 +897,50 @@ try {
   note("row, no place", r);
   const noneText = await L("ACKS-FORMATION.REGION_PLACE.none");
   check("PR2 a Place row: a caption that is a span, the none stand-in, no picker and no make-a-place button", r.row && r.captionTag === "SPAN" && r.name === noneText && !r.picker && !r.make, r);
+  const dropText = await L("ACKS-FORMATION.REGION_PLACE.drop");
+  const dropHiddenText = await L("ACKS-FORMATION.REGION_PLACE.dropHidden");
   if (!canCreate) {
     check("PR2 with Create New Actors not held: no drop zone and no hint", r.zone === null && r.hint === null, r);
   } else {
-    check("PR2 with Create New Actors held: the drop zone and the hidden-trap hint are drawn", r.zone === (await L("ACKS-FORMATION.REGION_PLACE.drop")) && r.hint === (await L("ACKS-FORMATION.REGION_PLACE.dropHidden")), r);
-    notWalked("PR2 no-create half", "the seat holds Create New Actors, so the row without a zone cannot be read; change the world's permission by hand to walk it");
+    notWalked("PR2 no-create half", "the seat already holds Create New Actors at the start, so the row without a zone cannot be read; the walk grants and never revokes");
   }
 
-  section("PR3. A drop makes the place");
-  if (!canCreate) {
-    notWalked("PR3", "needs Create New Actors, which the seat does not hold; the walk does not change world permissions");
-  } else {
-    const dropWords = await L("ACKS-FORMATION.REGION_PLACE.drop");
-    check("PR3 the zone's words end \"With no place yet, one is made.\"", /one is made\.$/.test(r.zone ?? "") && r.zone === dropWords, r.zone);
-    await run(player, P.dropRegion, { regionUuid, uuid: row.hazard.uuid });
-    const made = await run(gm, P.placeOf, { regionUuid });
-    if (made) {
-      gm.track(made.uuid);
-      held.places.push(made.uuid);
+  // The grant is the one thing the walk changes outside its ledger: written for the create half of PR2 and PR3 alone,
+  // and put back in the finally whether they pass, fail or throw.
+  section("PR3 setup. Create New Actors granted to the Player role");
+  try {
+    const roles = grantStart.includes(1) ? grantStart : [...grantStart, 1];
+    const wrote = await run(gm, P.roleWrite, { roles });
+    const seen = await until(player, P.roleRead, null, (v) => v.can === true && v.roles.includes(1));
+    check("PR3 setup: the Player role holds Create New Actors in the setting and game.user.can(\"ACTOR_CREATE\") reads true on the Player seat", wrote.roles.includes(1) && seen.can === true && seen.roles.includes(1), { gm: wrote.roles, seat: seen });
+
+    if (seen.can !== true) {
+      notWalked("PR2 create half and PR3", "the grant did not reach the Player seat");
+    } else {
+      section("PR2. No place yet, the create half");
+      r = await run(player, P.regionRow, { regionUuid });
+      note("row, no place, Create New Actors granted", r);
+      check("PR2 with Create New Actors held: the drop zone and the hidden-trap hint are drawn", r.zone === dropText && r.hint === dropHiddenText, r);
+
+      section("PR3. A drop makes the place");
+      check("PR3 the zone's words end \"With no place yet, one is made.\"", /one is made\.$/.test(r.zone ?? "") && r.zone === dropText, r.zone);
+      await run(player, P.dropRegion, { regionUuid, uuid: row.hazard.uuid });
+      const made = await run(gm, P.placeOf, { regionUuid });
+      if (made) {
+        gm.track(made.uuid);
+        held.places.push(made.uuid);
+      }
+      const madeThings = made ? await run(gm, P.things, { placeUuid: made.uuid }) : [];
+      check("PR3 a place exists for the Region, its sheet did not open, and it opens to the table", !!made && !made.sheetOpen && made.ownerDefault === 3, made);
+      check("PR3 the Judge's seat reads one obstacle on it", madeThings.length === 1 && madeThings[0].kind === "obstacle", madeThings);
     }
-    const madeThings = made ? await run(gm, P.things, { placeUuid: made.uuid }) : [];
-    check("PR3 a place exists for the Region, its sheet did not open, and it opens to the table", !!made && !made.sheetOpen && made.ownerDefault === 3, made);
-    check("PR3 the Judge's seat reads one obstacle on it", madeThings.length === 1 && madeThings[0].kind === "obstacle", madeThings);
+  } finally {
+    section("PR3 teardown. Create New Actors put back");
+    const back = await putGrantBack();
+    if (back) {
+      note("Create New Actors put back (start, gm seat, player seat; roles)", back);
+      check("PR3 teardown: Create New Actors is back to its starting value, read on both seats", back.ok, back);
+    }
   }
 
   section("PR4. The row in each state");
@@ -1053,6 +1126,14 @@ try {
   process.exitCode = 1;
 } finally {
   section("teardown");
+  // Normally put back already after PR3; this is the second chance where a step threw before that finally ran or the restore itself failed.
+  try {
+    const back = await putGrantBack();
+    if (back) {
+      note("Create New Actors put back (start, gm seat, player seat; roles)", back);
+      check("teardown: Create New Actors is back to its starting value, read on both seats", back.ok, back);
+    }
+  } catch (err) { console.error("grant restore:", err?.message ?? err); check("teardown: Create New Actors is back to its starting value, read on both seats", false); }
   for (const partyId of held.partyIds) {
     try { if (open.player) await run(open.player, P.close, { partyId }); } catch (_e) { /* closed */ }
     try { if (open.gm) await run(open.gm, P.close, { partyId }); } catch (_e) { /* closed */ }
