@@ -76,29 +76,34 @@
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
  *   - the maps the scenes step makes for AX1 (`created.scenes`, tracked) and
- *     the folders it opens (`created.folders`, tracked). The walk stops before
- *     the step when a world scene already carries an AX1 map's id, since that
- *     scene is not this run's. HELD_OK=1 is that import's owner's go-ahead:
- *     the held maps are deleted and the step makes them again. A map made in
- *     place of a held one is the owner's, kept and never swept; any other map
- *     the step makes is tracked, and a folder it opens then is the owner's;
+ *     the folders it opens (`created.folders`, tracked). A world scene that
+ *     stands under one of AX1's map ids is the world's standing import: the
+ *     run notes who is seated, reads its uuid back, deletes it through the
+ *     run's ledger (`track`, then `sweepTracked({only})`, the removed, missing
+ *     and failed uuids printed, the walk stopping on a refusal) and the step
+ *     makes it again (`.claude/rules/live-testing.md` step 4, and the ruling
+ *     of 2026-11-11 that a walk may clear the test world's items). A map made
+ *     in place of a standing one is the world's standing import, kept and
+ *     never swept; any other map the step makes is tracked, and a folder it
+ *     opens then is the standing import's;
  *   - AX1's people and creatures, imported by id where the library lacks them
  *     (each read back under its id and tracked, with the definitions the
  *     import supplied on demand), so a room has its book's rows to link to;
  *   - the places and creatures the places step makes (`created.places`,
  *     `created.creatures`, tracked), under the same rule as the maps: a place
- *     or creature already under one of AX1's place ids stops the walk, and
- *     under HELD_OK is deleted and made again as the owner's. Two rooms are
- *     deleted mid-walk and made again; the new ones are tracked like the rest;
+ *     or creature that stands under one of AX1's place ids is deleted by its
+ *     read-back uuid and made again as the standing import's, kept. Two rooms
+ *     are deleted mid-walk and made again; the new ones are tracked like the
+ *     rest;
  *   - the maps made again in 2c, with the world copies of AX1's places the
  *     step brings across (`created.actors`) and the folders it opens, under
  *     section 1's rule; the plans and places 3b deletes, and what the
  *     Adventure import creates in their stead (read from core's
  *     `importAdventure` hook), under the same rule; the two plans 3c deletes,
- *     both this run's or, under HELD_OK, both the owner's, and what its import
+ *     both this run's or both the standing import's, and what its import
  *     creates in their stead under the Adventure's seeded ids: tracked where
- *     the plans were this run's, and the owner's, under those new ids, where
- *     they were the owner's;
+ *     the plans were this run's, and the standing import's, under those new
+ *     ids, where they were the standing import's;
  *   - two empty places, one inside the other, made with `api.create` to show
  *     the prune's dry run lists both;
  *   - AX1's journal, stamped by the journals step on an earlier run and left
@@ -106,11 +111,11 @@
  *     (`created.journals`, tracked), and AX1's Adventure, written or rebuilt by
  *     the Adventure step
  *     (one it writes is tracked, and a shelf it opens is deleted when empty).
- *     The Adventure step rewrites what the library already holds of AX1, so it
- *     runs only when the library holds no AX1 Adventure or under HELD_OK; an
+ *     The Adventure step rewrites what the library already holds of AX1; an
  *     Adventure it rebuilt is rebuilt again after the sweep, so it carries
  *     nothing the sweep removed, and is checked there to carry every way
- *     between the maps though the world then holds only the owner's;
+ *     between the maps though the world then holds only the standing
+ *     import's;
  *   - one character owned by the player seat, the lamplighter, kept and found
  *     again by marker (`importer/lamplighter`): the one fixture the run keeps,
  *     since every section is setup (`.claude/rules/live-testing.md` step 4) and
@@ -132,27 +137,26 @@
  *     map; and the player seat's explored fog on every map a token stood on,
  *     deleted by id after the sweep;
  *   - the later book's place a pair binds onto, and its world copy, are the
- *     owner's: the bind writes the place's stamp and notes and the maps step
- *     the copy's stamp, and no delete list of sections 2 to 3b names either,
- *     since each keys on a document's own id. Section 2d runs only under
- *     HELD_OK=1 with TAKEOVER_OK=1, the owner's go-ahead to delete that
- *     place: it connects the later book on the GM seat (remember:false),
- *     deletes the place, lets AX1's row make its own and the later row take
- *     that over, then rebuilds AX1's Adventure. The place left standing is
- *     the owner's; the later book's own Adventure still carries the deleted
- *     one, and the report says so. Only the pairs TAKEOVER names
- *     (comma-separated AX1 row ids, the first dungeon level's by default)
- *     are taken over: the go-ahead covers those places and no other;
+ *     world's standing import: the bind writes the place's stamp and notes and
+ *     the maps step the copy's stamp, and no delete list of sections 2 to 3b
+ *     names either, since each keys on a document's own id. Section 2d
+ *     connects the later book on the GM seat (remember:false), deletes that
+ *     place by its read-back uuid through the run's ledger, lets AX1's row
+ *     make its own and the later row take that over, then rebuilds AX1's
+ *     Adventure. The place left standing is the standing import's; the later
+ *     book's own Adventure still carries the deleted one, and the report says
+ *     so. Only the pairs TAKEOVER names (comma-separated AX1 row ids, the
+ *     first dungeon level's by default) are taken over;
  *   - the region's own place and the sites it holds, made by the places step
  *     (`created.places`, tracked) under the same rule as the keyed areas.
  */
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { connect, sleep, pageSweep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, logDir } from "./_env.mjs";
 import { walkDone } from "./_walk.mjs";
 import {
-  GRID_SCENE_PADDING, LINK_ASK, isLinkRow, isRegionRecipe, linkBoxOnFirstStorey, linkEndKey,
+  GRID_SCENE_PADDING, LINK_ASK, coversCrop, isLinkRow, isRegionRecipe, linkBoxOnFirstStorey, linkEndKey,
 } from "../../scripts/importer/scene-binding.mjs";
 
 const MACHINE = machineSeats();
@@ -163,8 +167,6 @@ const NONCE = "x" + Math.random().toString(36).slice(2, 8);
 const BOOK = "ax1";
 const BOOKS = books([BOOK]);
 const LEVEL = "ax1.level1Map";
-const HELD_OK = process.env.HELD_OK === "1";
-const TAKEOVER_OK = process.env.TAKEOVER_OK === "1";
 const TAKEOVER = (process.env.TAKEOVER ?? `${BOOK}.l1`).split(",").map((s) => s.trim()).filter(Boolean);
 // Ledger entries per page-side sweep call, each well inside the driver's timeout.
 const SWEEP_CHUNK = 25;
@@ -232,20 +234,28 @@ const sameSet = (a, b) => a.length === b.length && new Set(a).size === a.length 
 // The book's ways between maps, as the map step joins them: each distinct end
 // by its key, its map, the storey it stands on, the ends it leads to and
 // whether it asks first; a level row is one end over its storeys.
-const LINKS = (() => {
+// Built over any cookbook's link rows: `recipeOf` gives a scene id's recipe,
+// and `held` (a set of scene ids, or null for all) leaves a row waiting, and
+// counted in `waiting`, when one of its ends stands on a map not in it.
+const linkEnds = (rows, recipeOf, held = null) => {
   const ends = new Map();
+  let waiting = 0;
   const slot = (key, init) => {
     if (!ends.has(key)) ends.set(key, { key, leads: new Set(), levels: new Set(), asks: false, ...init });
     return ends.get(key);
   };
-  for (const row of Object.values(COOKBOOK.scenes ?? {})) {
+  for (const row of rows) {
     if (!isLinkRow(row)) continue;
     const at = row.link.ends.map((end) => {
       const level = Number(end.level) || 0;
-      const recipe = COOKBOOK.scenes[end.scene]?.scene;
+      const recipe = recipeOf(end.scene);
       return { end, level, recipe, box: recipe ? linkBoxOnFirstStorey(end.box, recipe, level) : null };
     });
     if (at.some((a) => !a.box)) continue;
+    if (held && at.some((a) => !held.has(a.end.scene))) {
+      waiting++;
+      continue;
+    }
     if (row.link.mode === "level") {
       const s = slot(linkEndKey(at[0].end.scene, at[0].box), { mode: "level", scene: at[0].end.scene });
       for (const a of at) s.levels.add(a.level);
@@ -257,8 +267,23 @@ const LINKS = (() => {
       if (row.link.confirm) ends.get(from).asks = true;
     }
   }
-  return [...ends.values()].map((e) => ({ ...e, leads: [...e.leads], levels: [...e.levels], asks: e.mode === "teleport" && (e.asks || e.leads.size > 1 || e.region) }));
-})();
+  return {
+    waiting,
+    ends: [...ends.values()].map((e) => ({ ...e, leads: [...e.leads], levels: [...e.levels], asks: e.mode === "teleport" && (e.asks || e.leads.size > 1 || e.region) })),
+  };
+};
+const LINKS = linkEnds(Object.values(COOKBOOK.scenes ?? {}), (id) => COOKBOOK.scenes?.[id]?.scene).ends;
+// The other cookbooks' link rows: the importer joins every loaded cookbook's
+// rows, so their ends on maps the world holds are Regions beside AX1's own.
+// Each row waits for its maps (`P.heldMaps`), as the importer counts it.
+const OTHER_BOOKS = await Promise.all((await readdir(new URL("../../cookbook/", import.meta.url)))
+  .filter((f) => f.endsWith(".json") && f !== `${BOOK}.json`)
+  .map(async (f) => JSON.parse(await readFile(new URL(`../../cookbook/${f}`, import.meta.url), "utf8"))));
+const OTHER_SCENES = Object.assign({}, COOKBOOK.scenes, ...OTHER_BOOKS.map((b) => (b && !Array.isArray(b) ? b.scenes : null) ?? {}));
+const OTHER_ROWS = OTHER_BOOKS.flatMap((b) => Object.values((b && !Array.isArray(b) ? b.scenes : null) ?? {}));
+const otherLinks = (held) => linkEnds(OTHER_ROWS, (id) => OTHER_SCENES[id]?.scene, held);
+// Every map a link row of another cookbook names, for the held-maps probe.
+const OTHER_MAPS = [...new Set(OTHER_ROWS.filter(isLinkRow).flatMap((r) => r.link.ends.map((e) => e.scene)))];
 // A stored Adventure's ways (`P.adventureLinks`) as the map step joins them:
 // every end once, each teleport leading to as many ends as its rows name, and
 // every destination one of the Adventure's own Regions.
@@ -299,11 +324,8 @@ const P = {
   heldMaps: async ({ ids }) => game.scenes.filter((s) => ids.includes(s.flags?.["acks-extras"]?.cookbook?.id)).map((s) => ({ uuid: s.uuid, id: s.flags["acks-extras"].cookbook.id })),
   /** The cookbook id each scene carries. */
   sceneIdsOf: async ({ uuids }) => Promise.all(uuids.map(async (u) => ({ uuid: u, id: (await fromUuid(u))?.flags?.["acks-extras"]?.cookbook?.id ?? null }))),
-  deleteScenes: async ({ uuids }) => {
-    const ids = uuids.map((u) => u.split(".").pop());
-    const gone = await Scene.deleteDocuments(ids);
-    return gone.map((s) => s.uuid);
-  },
+  /** The names of the users seated now, as the log's record of who was on the server. */
+  seatedUsers: async () => game.users.filter((u) => u.active).map((u) => u.name),
   actorPacks: async () => game.packs.filter((p) => p.documentName === "Actor" && p.metadata.packageType === "world").map((p) => p.collection),
   /** The library's actors under the given cookbook ids, as id, uuid and type. */
   actorsUnder: async ({ ids }) => {
@@ -335,19 +357,8 @@ const P = {
     }
     return out;
   },
-  deleteActors: async ({ uuids }) => {
-    const groups = new Map();
-    for (const u of uuids) {
-      const parts = u.split(".");
-      const pack = parts[0] === "Compendium" ? `${parts[1]}.${parts[2]}` : null;
-      if (!groups.has(pack)) groups.set(pack, []);
-      groups.get(pack).push(parts.at(-1));
-    }
-    const gone = [];
-    for (const [pack, ids] of groups) gone.push(...((await Actor.deleteDocuments(ids, pack ? { pack } : {})) ?? []).map((d) => d.uuid));
-    globalThis.__ax.CB.forgetImportedIndex();
-    return gone;
-  },
+  /** Drops the importer's cache of what the library holds, after actors were deleted from it. */
+  forgetImportedIndex: async () => { globalThis.__ax.CB.forgetImportedIndex(); return true; },
   /** The cookbook ids of every ability definition the library holds. */
   libraryAbilityIds: async () => globalThis.__ax.LIB.libraryItems().filter((i) => i.type === "ability").map((i) => i.flags?.["acks-extras"]?.cookbook?.id).filter(Boolean),
   /**
@@ -678,6 +689,8 @@ const P = {
       for (const adv of await pack.getDocuments()) table ??= adv.tables.find(isOurs);
     }
     if (!table) return null;
+    // An Adventure stores its tables as data models without the client's methods; a temporary RollTable rolls one.
+    if (typeof table.roll !== "function") table = new RollTable(table.toObject());
     const draw = await table.roll();
     return draw.results.length >= 1 && draw.results.every((x) => x.range[0] <= draw.roll.total && draw.roll.total <= x.range[1]);
   },
@@ -1210,10 +1223,36 @@ const failing = (ids, ok) => {
 };
 
 let gm = null;
+/**
+ * Deletes the documents at `uuids` (read back from the world or the library,
+ * all of one document type) through the run's ledger: each is tracked, then
+ * swept alone, a chunk at a time so no page-side call outlives the driver's
+ * evaluate timeout. Prints the removed, missing and failed uuids, and throws
+ * naming any that refused, since the step after it assumes they are gone.
+ * Deleted actors drop the importer's cache of what the library holds.
+ */
+async function deleteByLedger(label, uuids, kind) {
+  const list = [...new Set(uuids)];
+  const out = { removed: [], missing: [], failed: [] };
+  for (let i = 0; i < list.length; i += SWEEP_CHUNK) {
+    const chunk = list.slice(i, i + SWEEP_CHUNK);
+    for (const uuid of chunk) gm.track(uuid, kind);
+    const r = await gm.sweepTracked({ only: chunk });
+    for (const k of Object.keys(out)) out[k].push(...r[k]);
+  }
+  if (kind === "Actor" && list.length) await run(gm, P.forgetImportedIndex);
+  note(label, {
+    removed: out.removed.map((e) => e.uuid),
+    missing: out.missing.map((e) => e.uuid),
+    failed: out.failed.map((e) => ({ uuid: e.uuid, error: e.error })),
+  });
+  if (out.failed.length) throw new Error(`${label}: ${out.failed.length} document(s) refused the delete: ${out.failed.map((e) => e.uuid).join(", ")}`);
+  return out;
+}
 let fogLeft = { sceneId: null, userId: null, packs: [], more: [] };
 /** The uuids of the fixtures the run keeps; the teardown sweep leaves them. */
 const KEPT = new Set();
-let ownersAdventure = false;
+let standingAdventure = false;
 
 try {
   section("seats and the book");
@@ -1232,19 +1271,22 @@ try {
 
   section("1. a walled map is dark, and a token sees by its own light");
   const held = await run(gm, P.heldMaps, { ids: MAPS });
-  const rebuild = held.length > 0 && HELD_OK;
-  check(rebuild ? "the owner's AX1 maps are deleted to be made again (HELD_OK=1)" : "no world scene carries an AX1 map's id", !held.length || rebuild, held);
-  if (held.length && !rebuild) throw new Error("stopped before the maps step: a scene this run did not make carries a map's id");
-  if (rebuild) note("1: deleted (the owner's, by HELD_OK)", await run(gm, P.deleteScenes, { uuids: held.map((h) => h.uuid) }));
+  // The world's standing import of the book: a scene under one of its maps'
+  // ids is deleted by the uuid read back and made again.
+  const rebuild = held.length > 0;
+  note("1: seated on the GM seat", await run(gm, P.seatedUsers));
+  check("1: the AX1 maps that stood are deleted by their read-back uuids to be made again", true, { held: held.length });
+  if (rebuild) await deleteByLedger("1: deleted (the world's standing maps)", held.map((h) => h.uuid), "Scene");
   const st = await step(gm, "cookbookImportScenes", [{ books: [BOOK] }]);
-  // A map made again in place of one the owner held is the owner's; any other
-  // the step made is this run's, and so is a folder it opened with none held.
-  const ownersIds = new Set(held.map((h) => h.id));
+  // A map made again in place of a standing one is the world's standing
+  // import, kept and never swept; any other the step made is this run's, and
+  // so is a folder it opened with none standing.
+  const standingIds = new Set(held.map((h) => h.id));
   const made = await run(gm, P.sceneIdsOf, { uuids: st?.created?.scenes ?? [] });
-  for (const m of made) if (!rebuild || !ownersIds.has(m.id)) gm.track(m.uuid, "Scene");
+  for (const m of made) if (!rebuild || !standingIds.has(m.id)) gm.track(m.uuid, "Scene");
   if (!rebuild) for (const uuid of st?.created?.folders ?? []) gm.track(uuid, "Folder");
   if (!rebuild) for (const uuid of st?.created?.actors ?? []) gm.track(uuid, "Actor");
-  note("1: maps made", { owners: made.filter((m) => rebuild && ownersIds.has(m.id)).map((m) => m.uuid), tracked: made.filter((m) => !rebuild || !ownersIds.has(m.id)).map((m) => m.uuid), folders: st?.created?.folders ?? [], foldersTracked: !rebuild, copies: st?.created?.actors?.length ?? 0 });
+  note("1: maps made", { standing: made.filter((m) => rebuild && standingIds.has(m.id)).map((m) => m.uuid), tracked: made.filter((m) => !rebuild || !standingIds.has(m.id)).map((m) => m.uuid), folders: st?.created?.folders ?? [], foldersTracked: !rebuild, copies: st?.created?.actors?.length ?? 0 });
   note("maps step", {
     made: st?.made, already: st?.already, unready: st?.unready, refused: st?.refused, gridRefused: st?.gridRefused,
     walls: st?.walls, wallsFailed: st?.wallsFailed, scenes: st?.created?.scenes?.length ?? 0,
@@ -1356,11 +1398,9 @@ try {
   note("2: pairs", { pairs: PAIRS.length, binding: binding.map((p) => p.id), joined: joined.map((p) => p.id), made: PAIRS.filter((p) => !BOUND.has(p.id)).map((p) => p.id) });
 
   const heldPlaces = await run(gm, P.heldPlaces, { book: BOOK, ids: [...ROWS, BOOK_PLACE, REGION_PLACE] });
-  const rebuildPlaces = heldPlaces.length > 0 && HELD_OK;
-  check(rebuildPlaces ? "the owner's AX1 places are deleted to be made again (HELD_OK=1)" : "nothing stands under any AX1 place id",
-    !heldPlaces.length || rebuildPlaces, { held: heldPlaces.length });
-  if (heldPlaces.length && !rebuildPlaces) throw new Error("stopped before the places step: an actor this run did not make stands under an AX1 place id");
-  if (rebuildPlaces) note("2: deleted (the owner's, by HELD_OK)", (await run(gm, P.deleteActors, { uuids: heldPlaces })).length);
+  const rebuildPlaces = heldPlaces.length > 0;
+  check("2: the AX1 places and creatures that stood are deleted by their read-back uuids to be made again", true, { held: heldPlaces.length });
+  if (rebuildPlaces) await deleteByLedger("2: deleted (the world's standing places and creatures)", heldPlaces, "Actor");
   const ps = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
   const keep = (uuids, kind) => { if (!rebuildPlaces) for (const uuid of uuids ?? []) gm.track(uuid, kind); };
   keep(ps.created?.places, "Actor");
@@ -1447,7 +1487,7 @@ try {
   const was = Object.fromEntries(picks.map((id) => [id, { ...one(id), lines: linesOf(id) }]));
   const inside = KEYED.filter((k) => parentOf(k) === holder);
   note("2b: the rooms", picks.map((id) => ({ id, uuid: was[id].uuid, inside: id === holder ? inside.length : 0, lineRows: was[id].lines.length })));
-  note("2b: deleted", await run(gm, P.deleteActors, { uuids: picks.map((id) => was[id].uuid) }));
+  await deleteByLedger("2b: deleted", picks.map((id) => was[id].uuid), "Actor");
   const again = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
   keep(again.created?.places, "Actor");
   keep(again.created?.creatures, "Actor");
@@ -1472,10 +1512,10 @@ try {
   // Section 1 made the maps before the library held AX1's places, and a held
   // map is never reshaped: each is made again, now that its pins have places.
   const before2c = await run(gm, P.heldMaps, { ids: MAPS });
-  note("2c: maps deleted to be made again", await run(gm, P.deleteScenes, { uuids: before2c.map((m) => m.uuid) }));
+  await deleteByLedger("2c: maps deleted to be made again", before2c.map((m) => m.uuid), "Scene");
   // A world place under another book's id is that book's copy, and stays.
   const copiesBefore = (await run(gm, P.worldPlaces, { book: BOOK })).filter((p) => p.here);
-  if (copiesBefore.length) note("2c: world places deleted", await run(gm, P.deleteActors, { uuids: copiesBefore.map((p) => p.uuid) }));
+  if (copiesBefore.length) await deleteByLedger("2c: world places deleted", copiesBefore.map((p) => p.uuid), "Actor");
   // A pair's copy the world holds answers for the row whatever its document
   // id: the library's, or one an earlier run's 2d deleted and made again.
   const pairCopies = {};
@@ -1493,7 +1533,7 @@ try {
   note("2c: the places the pins sit in, after the step", standing(await run(gm, P.standing, { ids: above2c, docs: true })));
   note("2c: actors the step created", (sc?.created?.actors ?? []).length);
   const remade = await run(gm, P.sceneIdsOf, { uuids: sc?.created?.scenes ?? [] });
-  for (const m of remade) if (!rebuild || !ownersIds.has(m.id)) gm.track(m.uuid, "Scene");
+  for (const m of remade) if (!rebuild || !standingIds.has(m.id)) gm.track(m.uuid, "Scene");
   if (!rebuild) for (const uuid of sc?.created?.folders ?? []) gm.track(uuid, "Folder");
   if (!rebuild) for (const uuid of sc?.created?.actors ?? []) gm.track(uuid, "Actor");
   note("2c: maps step", { made: sc?.made, missing: sc?.missing, copied: sc?.copied, tokens: sc?.tokens, refused: sc?.refused, wallsFailed: sc?.wallsFailed, tracked: !rebuild });
@@ -1544,14 +1584,21 @@ try {
   const listsHeld = new Set(await run(gm, P.tablesHeld, { ids: ZONES.map((z) => z.table).filter(Boolean) }));
   for (const z of ZONES) plans[z.scene] ??= await run(gm, P.planOf, { id: z.scene });
   const zonesOn = (z, plan) => (plan?.zones ?? []).filter((r) => r.zone === z.id);
-  const inSchema = (r) => r.target >= 1 && r.target <= 6 && r.every >= 1 && r.every <= 24 && r.level >= 1 && r.level <= 20;
+  // A figure the zone's row leaves out reads 0 (inherit, do not scale); one it
+  // carries is within the behaviour's schema. A zone is drawn on the Regions
+  // layer alone only when its outline covers its map's whole picture.
+  const zoneRow = (z) => COOKBOOK.scenes[z.id].zone;
+  const inSchema = (z, r) => r.target >= 1 && r.target <= 6
+    && (zoneRow(z).fields?.every ? r.every >= 1 && r.every <= 24 : r.every === 0)
+    && (zoneRow(z).fields?.dungeonLevel ? r.level >= 1 && r.level <= 20 : r.level === 0);
   const laidRight = (z, plan) => {
     const [r, ...more] = zonesOn(z, plan);
-    return !!r && !more.length && r.layerOnly && r.list === (listsHeld.has(z.table) ? z.table : null) && inSchema(r);
+    return !!r && !more.length && r.layerOnly === coversCrop(zoneRow(z).outline, COOKBOOK.scenes[z.scene]?.scene?.crop)
+      && r.list === (listsHeld.has(z.table) ? z.table : null) && inSchema(z, r);
   };
   note("2c: zones, to check against the page", { listsHeld: listsHeld.size, zones: ZONES.map((z) => ({ id: z.id, on: z.scene, laid: zonesOn(z, plans[z.scene]) })) });
   check("2c: the maps step lays every AX1 zone", sc?.zones === ZONES.length && !sc?.zonesRefused, { zones: sc?.zones, held: sc?.zonesHeld, waiting: sc?.zonesWaiting, refused: sc?.zonesRefused });
-  check("2c: each zone lies once on its plan, drawn on the Regions layer alone, its list its level's table, its figures within the behaviour's schema",
+  check("2c: each zone lies once on its plan, drawn on the Regions layer alone where its outline covers the whole picture, its list its level's table, its figures within the behaviour's schema and 0 where its row leaves one out",
     ZONES.length > 0 && ZONES.every((z) => laidRight(z, plans[z.scene])), ZONES.map((z) => ({ id: z.id, ok: laidRight(z, plans[z.scene]) })));
   const world2c = await run(gm, P.worldPlaces, { book: BOOK });
   const sitsInItsParent = (places) => {
@@ -1623,9 +1670,16 @@ try {
     collisions);
 
   section("2e. the ways between maps: one Region per end, leading where its rows say");
-  note("2e: links joined by the 2c step", { links: sc?.links, held: sc?.linksHeld, repaired: sc?.linksRepaired, waiting: sc?.linksWaiting, refused: sc?.linksRefused, ends: LINKS.length });
-  check("2e: the map step made one Region per link end, none waiting and none refused",
-    LINKS.length > 0 && sc?.links === LINKS.length && !sc?.linksHeld && !sc?.linksWaiting && !sc?.linksRefused, { links: sc?.links, ends: LINKS.length });
+  // The importer joins every loaded cookbook's link rows, so the other books'
+  // ends on maps the world holds are held beside AX1's own; a row whose map the
+  // world lacks waits, one row counted once. The held maps are read from the
+  // world, never taken from the Regions the world carries.
+  const otherHeld = new Set((await run(gm, P.heldMaps, { ids: OTHER_MAPS })).map((m) => m.id));
+  const { ends: OTHER, waiting: otherWaiting } = otherLinks(otherHeld);
+  note("2e: links joined by the 2c step", { links: sc?.links, held: sc?.linksHeld, repaired: sc?.linksRepaired, waiting: sc?.linksWaiting, refused: sc?.linksRefused, ends: LINKS.length, otherEnds: OTHER.length, otherWaiting });
+  check("2e: the map step made one Region per AX1 link end, held every other cookbook's ends on maps the world holds, left their rows waiting on maps it lacks, and refused none",
+    LINKS.length > 0 && sc?.links === LINKS.length && sc?.linksHeld === OTHER.length && !sc?.linksRefused && sc?.linksWaiting === otherWaiting,
+    { links: sc?.links, ends: LINKS.length, held: sc?.linksHeld, otherEnds: OTHER.length, waiting: sc?.linksWaiting, otherWaiting });
   // Each end against the rows: one Region, on its map and storey, of its
   // behaviour, leading to the ends its rows name and asking where it should.
   const linkProblems = (regions) => LINKS.map((e) => {
@@ -1655,8 +1709,10 @@ try {
   check("2e: each end is one GM-only, locked Region on its map and storey, named apart from the others there, leading to the ends its rows name, and asking where it leads to several, where its row says so, or on the region's map",
     !linkProblems(linked).length, linkProblems(linked));
   const alone = await step(gm, "cookbookImportLinks", []);
-  check("2e: the link pass run alone holds every Region and changes none",
-    alone?.links === 0 && alone?.linksHeld === LINKS.length && !alone?.linksRepaired && !alone?.linksRefused, alone);
+  check("2e: the Regions the world carries are every cookbook's ends on maps the world holds, and no others",
+    sameSet(linked.map((r) => r.key), [...LINKS, ...OTHER].map((e) => e.key)), { regions: linked.length, ends: LINKS.length + OTHER.length });
+  check("2e: the link pass run alone holds every cookbook's ends on maps the world holds and changes none",
+    alone?.links === 0 && alone?.linksHeld === LINKS.length + OTHER.length && !alone?.linksRepaired && !alone?.linksRefused, alone);
   // The DELETE path: an end's Region deleted leaves its partner's destination
   // naming nothing; the pass makes the end again and re-points the partner.
   const lost = LINKS.find((e) => e.mode === "teleport" && e.leads.length === 1 && LINKS.find((o) => o.key === e.leads[0])?.leads.length === 1);
@@ -1666,7 +1722,7 @@ try {
     const repair = await step(gm, "cookbookImportLinks", []);
     linked = await run(gm, P.linkRegions);
     check("2e: with one end's Region deleted, its partner names nothing; the pass makes the end again and re-points the partner",
-      sameSet(dangling, lost.leads) && repair?.links === 1 && repair?.linksRepaired === 1 && repair?.linksHeld === LINKS.length - 1 && !linkProblems(linked).length,
+      sameSet(dangling, lost.leads) && repair?.links === 1 && repair?.linksRepaired === 1 && repair?.linksHeld === LINKS.length - 1 + OTHER.length && !linkProblems(linked).length,
       { dangling: dangling.length, links: repair?.links, repaired: repair?.linksRepaired, held: repair?.linksHeld, problems: linkProblems(linked) });
   }
 
@@ -1791,9 +1847,8 @@ try {
   section("3. AX1's Adventure carries its places beside its maps");
   const before = await run(gm, P.library, { book: BOOK });
   const ownedAdventure = before.adventures.length > 0;
-  check(ownedAdventure && HELD_OK ? "the library's AX1 Adventure is rewritten (HELD_OK=1)" : "the library holds no AX1 Adventure",
-    !ownedAdventure || HELD_OK, { journals: before.journals.length, adventures: before.adventures.length });
-  if (ownedAdventure && !HELD_OK) throw new Error("stopped before the Adventure step: the library's AX1 Adventure is not this run's");
+  check("3: the library's AX1 Adventure that stood is rewritten by the Adventure step", true,
+    { journals: before.journals.length, adventures: before.adventures.length });
   const js = await step(gm, "cookbookImportJournals", [{ books: [BOOK] }], 600);
   for (const uuid of js?.created?.journals ?? []) gm.track(uuid, "JournalEntry");
   const mid = await run(gm, P.library, { book: BOOK });
@@ -1805,7 +1860,7 @@ try {
   const as = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
   for (const uuid of as?.created?.adventures ?? []) gm.track(uuid, "Adventure");
   fogLeft.packs.push(...(as?.created?.packs ?? []).filter((c) => !before.packs.includes(c)));
-  ownersAdventure = as?.books?.[BOOK] === "rebuilt";
+  standingAdventure = as?.books?.[BOOK] === "rebuilt";
   note("3: Adventure step", { outcome: as?.books?.[BOOK] ?? null, written: as?.written, rebuilt: as?.rebuilt, kept: as?.kept, held: as?.held, failed: as?.failed });
   check("3: the step wrote or rebuilt AX1's Adventure", ["written", "rebuilt"].includes(as?.books?.[BOOK]), as?.books);
   const after = await run(gm, P.library, { book: BOOK });
@@ -1865,18 +1920,21 @@ try {
   const world3a = await run(gm, P.worldPlaces, { book: BOOK });
   const placesHeld = world3a.filter((p) => p.here);
   const pairsStood = new Set(world3a.filter((p) => !p.here).map((p) => p.id));
-  note("3b: deleted", {
-    scenes: (await run(gm, P.deleteScenes, { uuids: plansHeld.map((m) => m.uuid) })).length,
-    places: (await run(gm, P.deleteActors, { uuids: placesHeld.map((p) => p.uuid) })).length,
-  });
+  // A sweep drops what it removes from the ledger, so what this run held
+  // before the delete is remembered: the import brings it back under the same
+  // uuid, and it is this run's still.
+  const ours3b = new Set(gm.tracked().map((e) => e.uuid));
+  await deleteByLedger("3b: plans deleted", plansHeld.map((m) => m.uuid), "Scene");
+  await deleteByLedger("3b: world places deleted", placesHeld.map((p) => p.uuid), "Actor");
   const click = await run(gm, P.importViaSheet, { book: BOOK });
   note("3b: sheet", click);
   if (!click.clicked) throw new Error("the Adventure sheet's Import button could not be pressed");
   const imported = await poll(gm, P.importState, undefined, { tries: 120, every: 2000, until: importEnded });
   await run(gm, P.endImport);
   const createdBy = imported?.created ?? {};
-  if (!rebuild) for (const [type, uuids] of Object.entries(createdBy)) for (const uuid of uuids) gm.track(uuid, type);
-  note("3b: created", { ...Object.fromEntries(Object.entries(createdBy).map(([type, uuids]) => [type, uuids.length])), tracked: !rebuild });
+  const trackedBack = [];
+  for (const [type, uuids] of Object.entries(createdBy)) for (const uuid of uuids) if (!rebuild || ours3b.has(uuid)) { gm.track(uuid, type); trackedBack.push(uuid); }
+  note("3b: created", { ...Object.fromEntries(Object.entries(createdBy).map(([type, uuids]) => [type, uuids.length])), tracked: trackedBack.length });
   check("3b: pressed with the library cold, the sheet's Import waits for it, then runs to core's hook",
     click.coldAtPress === true && imported?.waited === true && imported?.done === true,
     { coldBefore: click.coldBefore, coldAtPress: click.coldAtPress, waited: imported?.waited === true, refused: imported?.refused ?? null });
@@ -1927,16 +1985,16 @@ try {
   const gone3c = into ? [shared.scene, into.scene] : [];
   const maps3c = await run(gm, P.heldMaps, { ids: gone3c });
   const ours3c = new Set(gm.tracked().map((e) => e.uuid));
-  // Both this run's, or under HELD_OK both the owner's, as 3b deletes them.
+  // Both this run's, or both the world's standing import, as 3b deletes them.
   const mine3c = maps3c.every((m) => ours3c.has(m.uuid));
-  const owners3c = HELD_OK && !maps3c.some((m) => ours3c.has(m.uuid));
-  if (gone3c.length < 2 || maps3c.length !== 2 || !(mine3c || owners3c)) {
+  const standing3c = !maps3c.some((m) => ours3c.has(m.uuid));
+  if (gone3c.length < 2 || maps3c.length !== 2 || !(mine3c || standing3c)) {
     note("3c: not run", { plans: gone3c.length, held: maps3c.length, thisRun: maps3c.filter((m) => ours3c.has(m.uuid)).length });
   } else {
     const onGone = (key) => gone3c.includes(endBy(key)?.scene);
     const laid3c = LINKS.filter((e) => onGone(e.key)).map((e) => e.key);
     const into3c = LINKS.filter((e) => !onGone(e.key) && e.leads.some(onGone)).map((e) => e.key);
-    note(mine3c ? "3c: deleted (this run's)" : "3c: deleted (the owner's, by HELD_OK)", await run(gm, P.deleteScenes, { uuids: maps3c.map((m) => m.uuid) }));
+    await deleteByLedger(mine3c ? "3c: deleted (this run's)" : "3c: deleted (the world's standing plans)", maps3c.map((m) => m.uuid), "Scene");
     const broken = linkProblems(await run(gm, P.linkRegions)).map((p) => p.key);
     check("3c: with the two plans gone, the census misses every end on them, and each end leading into them names nothing",
       sameSet(broken, [...laid3c, ...into3c]), { broken: broken.length, onPlans: laid3c.length, leadingIn: into3c.length });
@@ -1955,7 +2013,7 @@ try {
     await run(gm, P.endImport);
     const made3c = imported3c?.created ?? {};
     // The plans come back under the Adventure's seeded ids, which no ledger
-    // holds: this run's where the deleted ones were, else the owner's.
+    // holds: this run's where the deleted ones were, else the world's standing import.
     if (mine3c) for (const [type, uuids] of Object.entries(made3c)) for (const uuid of uuids) gm.track(uuid, type);
     note("3c: created", { ...Object.fromEntries(Object.entries(made3c).map(([type, uuids]) => [type, uuids.length])), tracked: mine3c });
     const madeMaps = await run(gm, P.sceneIdsOf, { uuids: made3c.Scene ?? [] });
@@ -1997,13 +2055,12 @@ try {
     if (left3c.length) note("3c: the pc's tokens, removed", JSON.parse(await gm.eval(pageSweep(left3c))));
   }
 
-  // Last, so every section above ran against the owner's place under its own
-  // document id: deleting it gives the place a new one in either order.
+  // Last, so every section above ran against the world's standing place under
+  // its own document id: deleting it gives the place a new one in either order.
   section("2d. the other order: AX1's place first, the later book's row takes it over");
   const takeover = PAIRS.filter((p) => BOUND.has(p.id) && TAKEOVER.includes(p.id));
   note("2d: pairs left bound, outside TAKEOVER", PAIRS.filter((p) => BOUND.has(p.id) && !TAKEOVER.includes(p.id)).map((p) => p.id));
   if (!takeover.length) note("2d: not reached", "no pair TAKEOVER names had its later place stand in the library");
-  else if (!HELD_OK || !TAKEOVER_OK) note("2d: not run", "the later book's place is the owner's; HELD_OK=1 with TAKEOVER_OK=1 is the go-ahead to delete it");
   else {
     const laterBooks = [...new Set(takeover.map((p) => p.later.split(".")[0]))];
     for (const b of laterBooks) {
@@ -2019,7 +2076,7 @@ try {
     // The world copy answering for each row before its library place goes.
     const copy2d = {};
     for (const p of takeover) copy2d[p.id] = await run(gm, P.worldClaimant, { id: p.id });
-    note("2d: deleted (the owner's, by HELD_OK and TAKEOVER_OK)", await run(gm, P.deleteActors, { uuids: takeover.map((p) => bind[p.id].uuid) }));
+    await deleteByLedger("2d: deleted (the world's standing places)", takeover.map((p) => bind[p.id].uuid), "Actor");
     const mine = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
     note("2d: AX1's places step", { made: mine.made, already: mine.already, paired: mine.paired, refused: mine.refused, places: mine.created?.places ?? [] });
     const own = {};
@@ -2092,16 +2149,16 @@ try {
     }
   } catch (err) { console.error("sweep gm:", err?.message ?? err); }
   try {
-    // The owner's Adventure, rebuilt above over what the sweep has removed, is
+    // The standing Adventure, rebuilt above over what the sweep has removed, is
     // rebuilt again so it carries only what the library still holds.
-    if (gm && ownersAdventure && swept) {
+    if (gm && standingAdventure && swept) {
       const re = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
-      const owners = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
-      note("the owner's Adventure, rebuilt over the swept library", { outcome: re?.books?.[BOOK] ?? null, contents: owners?.contents ?? null });
-      // The world now holds only the owner's maps, which may be fewer than
-      // the book's; the Adventure lays the ways the world lacks itself.
-      const ways = owners ? await run(gm, P.adventureLinks, { uuid: owners.uuid }) : null;
-      check("teardown: the owner's Adventure, built over the owner's maps alone, carries every way between them, all leading to its own ends",
+      const standing = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
+      note("the standing Adventure, rebuilt over the swept library", { outcome: re?.books?.[BOOK] ?? null, contents: standing?.contents ?? null });
+      // The world now holds only the standing import's maps, which may be
+      // fewer than the book's; the Adventure lays the ways the world lacks itself.
+      const ways = standing ? await run(gm, P.adventureLinks, { uuid: standing.uuid }) : null;
+      check("teardown: the standing Adventure, built over the standing maps alone, carries every way between them, all leading to its own ends",
         adventureWaysRight(ways), { worldMaps: (await run(gm, P.heldMaps, { ids: MAPS })).length, ends: ways?.ends.length, unresolved: ways?.unresolved });
     }
   } catch (err) { console.error("adventure rebuild:", err?.message ?? err); }

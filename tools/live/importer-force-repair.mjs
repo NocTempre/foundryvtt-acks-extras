@@ -22,10 +22,11 @@
  * wildcard token, kept. The book's items are imported by this run where the
  * world lacks them and tracked (the typography and item-repair walks sweep
  * theirs, so the library holds none between runs); where the world already
- * holds them under another hand the walk stops, since those are read, never
- * driven. Every confirm and every choice is the real dialog, read and answered
- * by its own buttons; a No path is proved by a create/update/delete observer
- * that holds nothing. A Yes is pressed only over the run's own items, so the
+ * holds them, the setup clears them by the uuids it reads back through the
+ * run's ledger (live-testing.md step 4; a walk may clear test-world items),
+ * then imports its own. Every confirm and every choice is the real dialog,
+ * read and answered by its own buttons; a No path is proved by a create/update/delete
+ * observer of the GM seat's own writes that holds nothing. A Yes is pressed only over the run's own items, so the
  * choice lists nothing but their edits. The group Make Encounter builds is
  * tracked. Import everything is found in the bar and not pressed: it runs the
  * chain, which writes. Teardown sweeps the ledger and empties a shelf this run opened.
@@ -116,7 +117,14 @@ const P = {
       for (const doc of ["Actor", "Item", "RollTable", "JournalEntry", "Scene", "Adventure"]) {
         for (const verb of ["create", "update", "delete"]) {
           const hook = `${verb}${doc}`;
-          H.observer[hook] = Hooks.on(hook, (d) => { if (H.observing) H.writes.push({ hook, uuid: d?.uuid ?? null }); });
+          // Hooks fire on every client for every user's write; the last argument names the writer,
+          // so a peer's write is counted apart and never read as this seat's.
+          H.observer[hook] = Hooks.on(hook, (d, ...rest) => {
+            if (!H.observing) return;
+            const userId = rest.at(-1);
+            if (userId === game.user.id) H.writes.push({ hook, uuid: d?.uuid ?? null });
+            else H.foreign = (H.foreign ?? 0) + 1;
+          });
         }
       }
     }
@@ -130,11 +138,14 @@ const P = {
   },
   observe: async ({ on }) => {
     const H = globalThis.__fr;
-    if (on) H.writes = [];
+    if (on) { H.writes = []; H.foreign = 0; }
     H.observing = !!on;
     return H.writes;
   },
+  /** How many writes by other users the observer saw while it was last armed. */
+  foreignWrites: async () => globalThis.__fr.foreign ?? 0,
   packs: async () => game.packs.filter((p) => p.metadata.packageType === "world").map((p) => p.collection),
+  seated: async () => game.users.filter((u) => u.active).map((u) => u.name),
   held: async ({ ids }) => {
     const out = {};
     for (const id of ids) out[id] = (await globalThis.__fr.CB.importedItemFor(id))?.uuid ?? null;
@@ -638,7 +649,16 @@ try {
   const heldBefore = await run(gm, P.held, { ids: IDS });
   const theirs = Object.values(heldBefore).filter(Boolean);
   note("held before this run", { held: theirs.length, of: IDS.length });
-  if (theirs.length) throw new Error("the world already holds the book's items under another hand; they are read, never driven (live-testing.md step 4)");
+  if (theirs.length) {
+    // A standing import is setup to clear, by the uuids read back and no other key (live-testing.md step 4).
+    note("seated on the GM seat before the clear", await run(gm, P.seated));
+    for (const u of theirs) gm.track(u, "Item");
+    const cleared = await gm.sweepTracked({ only: theirs });
+    note("cleared (standing import)", { removed: cleared.removed.map((e) => e.uuid), missing: cleared.missing.map((e) => e.uuid), failed: cleared.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
+    if (cleared.failed.length) throw new Error(`the standing import of the book's items could not be cleared: ${cleared.failed.map((e) => e.uuid).join(", ")}`);
+    const gone = new Set([...cleared.removed, ...cleared.missing].map((e) => e.uuid));
+    check("setup: a standing import of the book's items was cleared by the ids read back", theirs.every((u) => gone.has(u)), { removed: cleared.removed.length, missing: cleared.missing.length, of: theirs.length });
+  }
   const imported = await run(gm, P.importItems);
   note("items step", imported.result);
   const heldAfter = await run(gm, P.held, { ids: IDS });
@@ -667,7 +687,7 @@ try {
   let said = await run(gm, P.answer, { before: pick.before, yes: false, expect: expectText });
   let flight = await run(gm, P.flight);
   let writes = await run(gm, P.observe, { on: false });
-  note("repair, No", { said, writes: writes.length });
+  note("repair, No", { said, writes: writes.length, byOtherUsers: await run(gm, P.foreignWrites) });
   check("a confirm titled Repair in place counts the documents to write over and closes on what is kept", said.found && said.merged && said.expected && said.keeps && said.count === mine.length, said);
   const afterNo = await run(gm, P.shape, { uuid: subject });
   check("answered No, nothing is written and no choice is put: the note stands, modifiedTime has not moved, the observer holds nothing", afterNo.judged && afterNo.modified === edited.modified && writes.length === 0 && flight.result === null, { modified: afterNo.modified === edited.modified, writes: writes.length });

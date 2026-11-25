@@ -527,7 +527,9 @@ counting, run offline in `tools/importer/test-import-manager.mjs` and
    return.
    The bar above the steps holds **Import everything** and **Repair
    everything**, and no select. Press **Repair everything** and answer the
-   confirm **No**, with a create/update/delete observer armed.
+   confirm **No**, with a create/update/delete observer armed. A hook fires on
+   every client for every user's write, so the observer keeps the GM seat's
+   own writes and counts a peer's apart.
    *Observable:* one confirm, titled Repair in place, listing every open book
    and every open adventure book under its own name, each with the lines its
    own repair shows; the observer holds nothing after the No. A Yes repairs the whole
@@ -925,7 +927,7 @@ find and what refused.
 
 ## Repair in place
 
-`tools/live/importer-force-repair.mjs` walks step 9 on its own items of one book and step 10's confirms answered No.
+`tools/live/importer-force-repair.mjs` walks step 9 on its own items of one book and step 10's confirms answered No. Where the world already holds the book's items, the walk's setup clears them by the uuids it reads back and imports its own.
 
 Every control runs the one repair (`mergedRepair`): Reimport One Shelf and the
 entry picker carry no Mode select, and the API's `mode` option is ignored
@@ -2283,10 +2285,10 @@ is a place inside `ax1.region`, or binds onto the AX3 site its pair names.
   and track it, with the ability definitions the import supplied on demand.
 - Nothing under an AX1 place id: no actor claimed under a keyed row's or a
   site's id, `ax1.adventure` or `ax1.region`, and no creature under
-  `ax1.<place>-o<i>`. Where one stands,
-  it is its owner's, and the walk stops unless the owner says to rebuild
-  (`HELD_OK=1`): the held ones are deleted and the step makes them again as
-  the owner's.
+  `ax1.<place>-o<i>`, when the step runs. Where one stands, it is the world's
+  standing import: the walk deletes it by the uuid it reads back, through the
+  run's ledger, and the step makes it again as the standing import, kept and
+  never swept.
 - The step's own result is the ledger: track `created.places` (the book's own
   place and the region's are among them) and `created.creatures`.
 
@@ -2330,9 +2332,9 @@ lands in the library as one Adventure").
 
 ### Teardown
 
-`api.sweepTracked()`. Under `HELD_OK` the rebuilt places are the owner's and
-are not tracked. Where the walk rebuilt the owner's AX1 Adventure over the
-swept documents, run the Adventure step once more after the sweep, so it
+`api.sweepTracked()`. The places made in place of standing ones are the
+standing import and are not tracked. Where the walk rebuilt the standing AX1
+Adventure over the swept documents, run the Adventure step once more after the sweep, so it
 carries only what the library still holds. Delete a shelf the run opened only
 when it is empty.
 
@@ -2347,15 +2349,15 @@ compared page-side and only the boolean leaves the page.
 
 ### Fixtures
 
-- AX3's region places in the library, imported by the owner. The pair's later
-  place and its world copy are the owner's: no delete list may name them,
-  which is why each list keys on a document's own id, never a merged one.
+- AX3's region places in the library, imported by the owner. Only the
+  takeover deletes the pair's later place, by the uuid it reads back; every
+  other delete list keys on a document's own id, never a merged one, so it
+  cannot name the later place or its world copy.
 - AX3 connected on the GM seat (`remember: false`) for the takeover, where the
   walk connects it from `ACKS_TEST_BOOKS`.
-- The takeover deletes the owner's AX3 place, so it runs only on the owner's
-  go-ahead (`HELD_OK=1` with `TAKEOVER_OK=1`), and only for the pairs
-  `TAKEOVER` names (AX1 row ids, comma-separated; `ax1.l1` by default). The
-  go-ahead covers the places it was given for and no other.
+- The takeover deletes the standing AX3 place by the uuid the walk reads
+  back, through the run's ledger, and only for the pairs `TAKEOVER` names
+  (AX1 row ids, comma-separated; `ax1.l1` by default).
 
 ### Steps
 
@@ -2432,9 +2434,10 @@ What a scripted walk meets:
 ### Fixtures
 
 - AX1's places in the library ("An adventure's keyed areas land as places").
-- No AX1 map in the world and no world copy of an AX1 place. Where the walk
-  made them earlier, it deletes them; under `HELD_OK` they are the owner's,
-  and what the steps make in their place is the owner's too.
+- No AX1 map in the world and no world copy of an AX1 place when a step
+  runs. Where the walk made them earlier, or the world holds them as its
+  standing import, it deletes them by the uuids it reads back, through the
+  run's ledger. What a step makes in place of a standing one is kept.
 - Two empty places, the second inside the first, made with `api.create`
   and swept every run: a place with nothing in it is pruned at a GM seat's
   `ready`, so it cannot be kept (DECISIONS, 2026-10-28).
@@ -2505,9 +2508,9 @@ What a scripted walk meets:
 
 ### Teardown
 
-`api.sweepTracked()`: the fixtures, and, outside `HELD_OK`, every map, copy
-and folder the steps and the import made. Under `HELD_OK` the owner keeps
-the plans and places the import made.
+`api.sweepTracked()`: the fixtures, and every map, copy and folder the steps
+and the import made, except those made in place of a standing one, which
+stay as the world's standing import.
 
 ## Organisations land as factions
 
@@ -3120,7 +3123,8 @@ the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
    (DECISIONS, 2026-10-28).
 2. Every map the links name, made by the map step with the places in the
    library, so each Region is named for its place. A map the world held
-   before the run is the owner's, made again only under `HELD_OK=1`.
+   before the run is the world's standing import, deleted by its read-back
+   uuid and made again.
 3. Each token of the character on a map, made beside a link end on the GM
    seat and tracked; a token a teleport makes on another map keeps its id
    there, so read each token's uuid back after every hop and track it.
@@ -3144,7 +3148,8 @@ the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
    Record one stored destination as it stands: it shows the form the
    Adventure carries.
 3. Run `cookbookImportLinks()`. *Observable:* `links` 0, `linksHeld` the
-   number of ends, `linksRepaired` 0.
+   number of every loaded cookbook's ends on maps the world holds,
+   `linksRepaired` 0.
 4. The DELETE path: delete one end whose partner leads only to it, and run
    the pass again. *Observable:* before the run the partner's destination
    resolves to nothing; after it, `links` 1, `linksRepaired` 1, and step 2's
@@ -3592,17 +3597,18 @@ untagged seat would read every line as a heading and import nothing.
 - Nothing else: every document below is created by the import and swept by
   its id. Every step is setup, and nothing is kept: a standing import is what
   the next run's first import needs absent (DECISIONS, 2026-10-28).
-- A world whose owner already imported part of the book (the walk's
-  `HELD_OK=1`) runs the same steps. A class or power imported while the book
-  was closed holds no text and no hit die, only what the cookbook entry
-  carries, so rebuild every held one through the entry picker
-  (`Classes|<id>`, `Abilities|<id>`) once the book is open. *Observable:*
-  each answers under the uuid it had, with a later `_stats.createdTime` — the
-  same document id on the same shelf, written again. The steps then skip a
-  held class and reuse a held power, so take each
-  count as the absent ones. Read the classes' shapes off the uuids held under
-  their ids, not off the step's result. Track only what was absent before
-  the run.
+- A world that already holds an import of the book is cleared first, as setup
+  (`.claude/rules/live-testing.md` step 4): the walk notes who is seated, reads
+  back every world Scene, Actor, Item and Journal carrying one of the book's
+  cookbook ids and every document of the book's stamp on the line's shelves,
+  `api.track`s each uuid and sweeps exactly those through
+  `api.sweepTracked({ only })`, quoting what it removed, could not find and
+  refused. A line shelf the sweep leaves empty is deleted by its collection id;
+  a shelf that still holds anything else is left standing and stops the walk,
+  naming the shelf and its count. The first import then runs against a world
+  that holds nothing under the book's ids, and the walk's own preconditions
+  (the shelves absent, nothing under the ids, a census that opens no pack)
+  are checked after the clear, not waived.
 
 ### Steps
 
@@ -3614,48 +3620,52 @@ untagged seat would read every line as a heading and import nothing.
    she binds hers at import — for the person it prints in full
    (`acksExtras.importer.cookbookImportIds(["cat.npc1"])`), the items step
    (`acksExtras.importer.cookbookImportAdventureItems({ books: ["cat"] })`)
-   for the ten items it introduces and the journals step
+   for every item the book's cookbook lists and the journals step
    (`acksExtras.importer.cookbookImportJournals({ books: ["cat"] })`) for
-   its seven passages, each scoped to the book. (Import Everything runs the
-   same steps over every open book.)
-   *Observable:* the journals step reports seven pages made, none refused,
-   and two journals created on the line's Judge JournalEntry shelf, named by
-   group ("Essays", "Tavern"), each page titled by what its passage is
-   (Introduction, Race, Cultures, Design notes, Generic class, Conversion
-   notes; Tavern) and holding the page's paragraphs — the first lines of a page's
-   top, the bullets and the two-column order included — closed by a page
-   reference; the items step reports ten imported, none already present,
-   none refused, and the line's Judge Item shelf ("ACKS Cookbook — The OSR
-   Catgirl — Judge — Item"), absent before the step, holds ten core items in
-   the book's folder under "Items", each named from the page, with one
-   paragraph of description closed by a page reference, each priced from its
-   cost line, the eight worn ones declaring one slot (four at the hands, two
-   at the belt, two at the uncapped worn place) and marked magic, the two
-   doses declaring none; a copy of a worn one embedded on the keeper is
+   every passage it lists, each scoped to the book. (Import Everything runs the
+   same steps over every open book.) Every count below is the cookbook's own,
+   read at run time, and must be above zero.
+   *Observable:* the journals step reports as many pages made as the cookbook
+   has passages, none refused, and one journal per group the cookbook files
+   them under, created on the line's Judge JournalEntry shelf and named by
+   that group, each page titled by what its passage is. A page holds no more
+   paragraphs than its entry has boxes (the executor joins boxes cut at a
+   column or a page and never splits one), each closes on terminal
+   punctuation unless it is a list line (a marker, a run-in label, or a stat
+   line of labels and values with no sentence in it), and no paragraph is cut mid-sentence
+   (the next never opens in lower case after one that did not close). It ends
+   in a page reference. The items step reports every item imported, none
+   already present, none refused, and the line's Judge Item shelf, absent
+   before the step, holds them as core items in the book's folder under
+   "Items", each named from the page, with the paragraphs its cookbook entry
+   lists closed by a page reference and priced from its cost line. An item
+   declares at most one slot and each declared slot is one of the module's
+   wear slots; every item that declares a slot is marked magic, every item
+   that declares none is not, and both kinds occur. A copy of a hand-worn one embedded on the keeper is
    offered on her Follower Card and the card's toggle wears it at its slot
-   and puts it away again; the series' OPEN Item
-   shelf ("ACKS Cookbook — The OSR Catgirl — Item"), absent before the run
-   and opened by the classes and powers steps, holds five class-power items
-   (Catgirl 0–4, one paragraph each) and three class items with hit die,
+   and puts it away again. The series' OPEN Item shelf, absent before the run
+   and opened by the classes and powers steps, holds a power item for every
+   power the cookbook lists (the paragraphs its entry lists each) and a class
+   item for every class, with hit die,
    maximum level, prime requisite, requirements, a proficiency list of whole
    names (no pair welded at a line turn) and a description running the whole
    spread — a content row files on its book's series' open line
    (`lineOfClaim`), never the Judge's, and each is filed in its shelf folder
    ("Classes", "Class Powers") inside that pack, not dropped at the root;
    the library's own Item shelf gains nothing from this book; the line's
-   Judge Actor shelf ("ACKS Cookbook — The
-   OSR Catgirl — Judge — Actor", closed to every player seat as it is made)
-   holds one monster actor with AC, HD, movement, three attacks with a weapon
-   alternative, morale, saves, alignment, treasure type, XP, vision, a
-   proficiency list, a sectioned description and two spoils.
+   Judge Actor shelf, closed to every player seat as it is made, holds the
+   monster actor with AC, HD, movement, at least two attack modes (each with
+   at least one attack), morale, saves, alignment, treasure type, XP, vision, a
+   proficiency list, a sectioned description and spoils, each with weight,
+   value and effects.
 3. Open the monster. *Observable:* the description's sections read in page
    order across the page turn — the Combat section's last paragraph is whole,
-   not cut at the column foot — and Spoils lists two components with weight,
+   not cut at the column foot — and Spoils lists components with weight,
    value and effects. Open the keeper. *Observable:* her import step warned
    of nothing; a core character on
    the Judge Actor shelf under "NPCs", named from the page and owned by
    nobody,
-   her class one of the book's three (bound, so the class's hit dice,
+   her class one of the book's classes (bound, so the class's hit dice,
    throws and saves are derived; its titles are the Judge's to type) at the
    printed level, her six scores and hit
    points written, her proficiencies embedded as abilities where the library
@@ -3666,10 +3676,11 @@ untagged seat would read every line as a heading and import nothing.
    figure the class works out differently.
 4. Open a class item. *Observable:* the list's names the register knows are
    resolved and the rest stay as text; the description opens each passage
-   with the spread's own run-in label.
+   with the spread's own run-in label, and each class declares the saves and
+   attack chassis its cookbook entry names.
 5. The maps step, scoped to the book:
    `acksExtras.importer.cookbookImportScenes({ books: ["cat"] })`.
-   *Observable:* two maps created, none refused; each is a world Scene in a
+   *Observable:* as many maps created as the cookbook lists, none refused; each is a world Scene in a
    folder named for the book, gridless, off the navigation bar, its picture
    cut from the page and uploaded under the art directory, no token and no
    wall on it. The uploaded pictures stay in the data directory after the
@@ -3677,14 +3688,14 @@ untagged seat would read every line as a heading and import nothing.
 6. The adventures step, scoped the same way:
    `acksExtras.importer.cookbookImportAdventures({ books: ["cat"] })`.
    *Observable:* one Adventure written, for this book alone, on the line's
-   Judge Adventure shelf, carrying the two maps, the monster, the keeper and
-   the ten items and none of the classes or powers; the GM's Books tab row
+   Judge Adventure shelf, carrying every map, monster, person and item the
+   cookbook lists and none of the classes or powers; the GM's Books tab row
    for the book now reads its contents. The class item stands on the series'
    open Item shelf, the monster and the keeper on the Judge Actor shelf and
    an item on the Judge Item shelf — `lineOfPack(doc.pack)` on each.
 7. Join as the **Player** seat. *Observable:* no compendium of the Judge
-   line is visible to it, and the series' open Item shelf is, with the five
-   powers and three classes in its index.
+   line is visible to it, and the series' open Item shelf is, with every
+   power and class the cookbook lists in its index.
 ### Teardown
 
 8. `api.track` every id the imports' results list — the class documents, the

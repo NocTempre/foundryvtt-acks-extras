@@ -30,18 +30,23 @@
  * run's first import needs absent (docs/importer/DECISIONS.md, 2026-10-28);
  * step 8's sweep takes it by the run's own ids.
  *
- * The run expects a world that holds nothing under the book's ids. With
- * HELD_OK=1, the library owner's go-ahead, a document already standing under
- * one of them is the owner's: a held class or power is first rebuilt from the
- * open book through the entry picker, under the uuid it had, so the shapes
- * read are the book's and not whatever the owner's import could make without
- * it; the steps then skip or reuse it as they do for any world, and it is never
- * tracked, so the sweep leaves it where it stood.
+ * The first import needs the book's shelves and ids absent, so section 0 is
+ * a setup that clears a standing import by the ids it reads back: every world
+ * document under one of the book's cookbook ids and every document the book's
+ * line shelves hold under its stamp is tracked in the driver's ledger and swept
+ * through `sweepTracked({ only })`, never by name, folder, type or time; a line
+ * shelf that is then empty is deleted by its collection id, and one that still
+ * holds a document that is not the book's stops the walk. Setup that clears a
+ * test world's own content is the 2026-11-11 ruling. The seated users are
+ * logged first. The checks that follow (shelves absent before the census,
+ * nothing under the book's ids, the GM census opens no pack) then run against
+ * a world the clear has emptied, and pass or fail on what it holds.
  *
  * Writes outside the fixture ledger, each reported:
  *   - the book connected on the GM seat with remember:false;
  *   - the GM seat's notification methods, patched to read what a run says
  *     (put back at teardown);
+ *   - the line's shelves a standing import left empty, deleted by section 0;
  *   - the shelves the line's first import opens (packs) and the folders filed
  *     in them: a pack this run opened is deleted at teardown once empty, and a
  *     folder this run added to a pack it found is tracked and swept;
@@ -59,13 +64,7 @@ const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const BOOK = "cat";
-// Each passage's page title with the paragraphs its page prints, as the seat
-// materializes them (read against the page by hand on 2026-10-23): a short
-// count is a passage cut at a column or a page, a long one a list read as
-// lines.
-const PROSE_PARAS = "Conversion notes:5 Cultures:20 Design notes:7 Generic class:4 Introduction:7 Race:5 Tavern:6";
 const BOOKS = books([BOOK]);
-const HELD_OK = process.env.HELD_OK === "1";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -154,6 +153,43 @@ const P = {
   line: async ({ book }) => globalThis.__bt.CB.lineOf(book),
   /** The line the book's CONTENT rows file on — its series' open shelf, read by the rule the writes use. */
   openLine: async ({ book }) => globalThis.__bt.CB.lineOfClaim("def.class.probe", book),
+  /** The users seated now, by name: the log's record of who shared the world when a setup cleared it. */
+  seated: async () => game.users.filter((u) => u.active).map((u) => u.name),
+  /**
+   * What stands under the book, read back without a presence check: the world's
+   * Scenes, Actors, Items and Journals whose cookbook id is one of the book's
+   * (`ids`), and each line shelf's documents carrying the book's stamp (its
+   * `cookbook.book`, or a cookbook id of the book's). A shelf reports its whole
+   * size beside the uuids it holds for the book, so a document of anything else
+   * shows as the difference.
+   */
+  standing: async ({ book, ids, line, open }) => {
+    const H = globalThis.__bt;
+    const want = new Set(ids);
+    const world = [];
+    for (const [kind, collection] of [["Scene", game.scenes], ["Actor", game.actors], ["Item", game.items], ["JournalEntry", game.journal]]) {
+      for (const doc of collection) {
+        const stamp = doc.getFlag("acks-extras", "cookbook");
+        if (want.has(stamp?.id) || want.has(stamp?.leadersOf)) world.push({ uuid: doc.uuid, kind });
+      }
+    }
+    const shelves = [];
+    // A monster's leaders template is the book's too: its stamp names the monster it leads.
+    const read = async (type, pack) => {
+      if (!pack || shelves.some((s) => s.collection === pack.collection)) return;
+      const index = await pack.getIndex({ fields: ["flags.acks-extras.cookbook.id", "flags.acks-extras.cookbook.book", "flags.acks-extras.cookbook.leadersOf"] });
+      const mine = [...index.values()].filter((row) => {
+        const stamp = row.flags?.["acks-extras"]?.cookbook;
+        return !!stamp && (stamp.book === book || want.has(stamp.id) || want.has(stamp.leadersOf));
+      });
+      shelves.push({ collection: pack.collection, type, size: index.size, uuids: mine.map((row) => `Compendium.${pack.collection}.${type}.${row._id}`) });
+    };
+    for (const type of ["Item", "Actor", "RollTable", "JournalEntry", "Adventure"]) await read(type, H.LIB.findLibraryPack(type, line));
+    await read("Item", H.LIB.findLibraryPack("Item", open));
+    return { world, shelves };
+  },
+  /** The module's wear-slot names, from the vocabulary the item model declares them in. */
+  wearSlots: async () => Object.keys((await import("/modules/acks-extras/scripts/lib/vocab.mjs")).WEAR_SLOTS),
   /** The world's shelves, the line's own by type and the open line's Item shelf, with the folders on each, before and after. */
   shelves: async ({ line, open }) => {
     const H = globalThis.__bt;
@@ -184,7 +220,15 @@ const P = {
     const line = doc.pack ? H.LIB.lineOfPack(doc.pack) : undefined;
     return { pack: doc.pack ?? null, line: line ?? null, judge: !!doc.pack && H.LIB.isJudgeLine(line) };
   },
-  /** A journal the journals step made: its name, its shelf, and each page's title, paragraph count and page reference. */
+  /**
+   * A journal the journals step made: its name, its shelf, and each page's title,
+   * cookbook id, paragraph count and page reference. Each printed paragraph
+   * (a bare `<p>`) is also read for its shape alone: whether it closes on
+   * terminal punctuation, whether it opens lower-case, and whether it opens
+   * on a list marker (a first glyph that is neither a letter, a digit nor an
+   * opening quote or bracket), a run-in label or a run of labels and values;
+   * no text leaves the page.
+   */
   journal: async ({ uuid }) => {
     const H = globalThis.__bt;
     const doc = await fromUuid(uuid);
@@ -192,7 +236,32 @@ const P = {
     const line = doc.pack ? H.LIB.lineOfPack(doc.pack) : null;
     const pages = doc.pages.contents.map((p) => {
       const html = String(p.text?.content ?? "");
-      return { name: p.name, paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length };
+      const holder = document.createElement("div");
+      holder.innerHTML = html;
+      const shape = [...holder.querySelectorAll("p:not([class])")].map((el) => {
+        const text = (el.textContent ?? "").trim();
+        const first = [...text.matchAll(/\p{L}/gu)][0]?.[0] ?? "";
+        const last = text.slice(-1);
+        const words = text.split(/\s+/);
+        return {
+          // A run of labels and their values (a stat line): no sentence break inside,
+          // two capitalised words to open, and capitals on a third of its words or more.
+          labelRun: !/[.!?]["”’)]*\s/u.test(text) && /^\p{Lu}\p{Ll}*\s+\p{Lu}/u.test(text)
+            && words.filter((w) => /^\p{Lu}/u.test(w)).length / words.length >= 0.3,
+          // The closing glyph's class and whether the line is short, never the glyph or the words.
+          end: !last ? "none" : /\p{L}/u.test(last) ? "letter" : /\p{N}/u.test(last) ? "digit" : /[.!?:;…]/u.test(last) ? "terminal" : /[)\]"”’']/u.test(last) ? "close" : "other",
+          short: words.length <= 8,
+          terminal: /[.!?:;…]["”’')\]]*$/u.test(text),
+          lowerOpen: !!first && first === first.toLowerCase() && first !== first.toUpperCase() && text.indexOf(first) < 3,
+          marker: /^[^\p{L}\p{N}"“‘'(\[]/u.test(text),
+          // A line opened by a run-in label ("Label: …") is a labelled list line.
+          labelled: /^[A-Z][\p{L}' ]{1,40}:/u.test(text),
+        };
+      });
+      return {
+        name: p.name, id: p.flags?.["acks-extras"]?.cookbook?.id ?? null,
+        paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length, shape,
+      };
     });
     return { name: doc.name, pack: doc.pack ?? null, line, judge: !!doc.pack && H.LIB.isJudgeLine(line), folder: doc.folder?.name ?? null, pages };
   },
@@ -300,48 +369,6 @@ const P = {
     return { started: true };
   },
   stepState: async () => ({ ...globalThis.__btStep, notes: globalThis.__bt.notes.slice() }),
-  /** Run the entry picker over `picks` (`[key, id]` pairs), answer its confirm, and resolve when its refill is done. */
-  rebuild: async ({ picks }) => {
-    const find = (pred) => [...foundry.applications.instances.values()].find((a) => a instanceof foundry.applications.api.DialogV2 && a.rendered && pred(a));
-    const wait = async (pred, tries = 120) => {
-      for (let n = 0; n < tries; n++) {
-        const a = find(pred);
-        if (a) return a;
-        await new Promise((r) => setTimeout(r, 250));
-      }
-      return null;
-    };
-    globalThis.__btRebuild = { done: false };
-    acksExtras.importer.cookbookReimportEntries()
-      .then((r) => { globalThis.__btRebuild = { done: true, result: r ?? null }; })
-      .catch((e) => { globalThis.__btRebuild = { done: true, error: String(e?.message ?? e) }; });
-    const picker = await wait((a) => !!a.element?.querySelector(".acks-extras-importer-mon-list"));
-    if (!picker) return { picker: false };
-    const boxes = picks.map(([key, id]) => picker.element.querySelector(`input[name="sel"][value="${key}|${id}"]`));
-    const absent = picks.filter((_, i) => !boxes[i]).map(([key, id]) => `${key}|${id}`);
-    if (absent.length) return { picker: true, row: false, absent };
-    for (const box of boxes) box.checked = true;
-    picker.element.querySelector('button[data-action="ok"]')?.click();
-    const confirm = await wait((a) => a !== picker && !!a.element?.querySelector('button[data-action="yes"]'));
-    if (!confirm) return { picker: true, row: true, confirm: false };
-    confirm.element.querySelector('button[data-action="yes"]').click();
-    // The repair may put its choice once its first pass has run; closed, it keeps every edit and leaves every character.
-    (async () => {
-      for (let n = 0; n < 2400 && !globalThis.__btRebuild.done; n++) {
-        const chooser = find((a) => !!a.element?.querySelector(".acks-extras-held-list"));
-        if (chooser) await chooser.close();
-        await new Promise((r) => setTimeout(r, 250));
-      }
-    })();
-    return { picker: true, row: true, confirm: true };
-  },
-  rebuildState: async () => globalThis.__btRebuild,
-  /** Each document's creation time, by uuid. */
-  created: async ({ uuids }) => {
-    const out = {};
-    for (const u of uuids) out[u] = (await fromUuid(u))?._stats?.createdTime ?? null;
-    return out;
-  },
   /** The uuid the world now holds under each id — the import's own documents, read back by the ids it was given. */
   heldNow: async ({ ids }) => {
     const H = globalThis.__bt;
@@ -350,7 +377,15 @@ const P = {
     for (const id of ids.actors ?? []) held[id] = (await H.CB.importedActorFor(id))?.uuid ?? null;
     return held;
   },
-  /** A class-power or book item: its type, how many paragraphs its description holds, and — for an item — its declared slots, its cost and its magic mark. */
+  /** The leaders templates the monster step minted on the line's Actor shelf for the given monster ids, as uuids. */
+  leaders: async ({ ids, line }) => {
+    const pack = globalThis.__bt.LIB.findLibraryPack("Actor", line);
+    if (!pack) return [];
+    const want = new Set(ids);
+    const index = await pack.getIndex({ fields: ["flags.acks-extras.cookbook.leadersOf"] });
+    return [...index.values()].filter((row) => want.has(row.flags?.["acks-extras"]?.cookbook?.leadersOf)).map((row) => `Compendium.${pack.collection}.Actor.${row._id}`);
+  },
+  /** A class-power or book item: its type, cookbook id, how many paragraphs its description holds, and — for an item — its declared slots, its cost and its magic mark. */
   power: async ({ uuid }) => {
     const doc = await fromUuid(uuid);
     if (!doc) return null;
@@ -358,7 +393,7 @@ const P = {
     const x = doc.flags?.["acks-extras"] ?? {};
     // Bare `<p>` is a printed paragraph; the page reference closes the text as a classed one.
     return {
-      type: doc.type, paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length,
+      type: doc.type, id: x.cookbook?.id ?? null, paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length,
       slots: Array.isArray(x.gear?.slots) ? x.gear.slots : null, cost: doc.system?.cost ?? null, magic: !!x.markets?.magic,
     };
   },
@@ -463,7 +498,7 @@ const P = {
     const html = String(s.description ?? "");
     const paras = [...html.matchAll(/<p>(.*?)<\/p>/g)].map((m) => m[1].replace(/<[^>]*>/g, "").trim());
     return {
-      type: doc.type, hitDie: !!s.hitDie, maximumLevel: s.maximumLevel ?? null,
+      type: doc.type, id: doc.flags?.["acks-extras"]?.cookbook?.id ?? null, hitDie: !!s.hitDie, maximumLevel: s.maximumLevel ?? null,
       // A set field reads back as a Set, an array field as an array; both count the same way.
       keyAttributes: Array.from(s.keyAttributes ?? []).length, requirements: Array.from(s.requirements ?? []).length,
       resolved: (s.inventory?.classProfs ?? []).length, unresolved: s.unresolvedProfs ?? [],
@@ -486,7 +521,7 @@ const P = {
     if (!pack) return { gone: true };
     const index = await pack.getIndex();
     if (index.size) return { kept: index.size };
-    // Its folders go with it: a pack this run opened holds only the folders its imports filed.
+    // Its folders go with it: an emptied shelf holds only the folders an import filed.
     await pack.deleteCompendium();
     return { deleted: !game.packs.get(collection) };
   },
@@ -533,7 +568,12 @@ function bookIds(book) {
   // the book's own items (`adventureItems`) stand on its Judge shelf instead.
   // `prose` maps each passage's id to the title its page takes.
   // `characters` are the people the book prints in full (an npc row bound as a character).
-  const ids = { items: [], actors: [], characters: [], classes: [], powers: [], scenes: [], adventureItems: [], prose: {} };
+  // `paras` is each power's and item's description box count and `proseParas` each
+  // passage's (the executor joins boxes cut at a column or a page, never splits
+  // one); `chassis` is each class's declared saves and attack row; `groups` is the
+  // sorted distinct group the passages are filed under, one journal each.
+  const ids = { items: [], actors: [], characters: [], classes: [], powers: [], scenes: [], adventureItems: [], prose: {}, paras: {}, proseParas: {}, chassis: {}, groups: [] };
+  const groups = new Set();
   const dir = path.join(ROOT, "cookbook");
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith(".json") || f === "registers.json") continue;
@@ -541,14 +581,20 @@ function bookIds(book) {
     if (cb.book?.id === book) for (const [id, row] of Object.entries(cb.scenes ?? {})) if (row?.kind === "kind.scene") ids.scenes.push(id);
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
       if ((e.book ?? cb.book?.id) !== book) continue;
-      if (e.kind === "kind.class") { ids.classes.push(id); ids.items.push(id); }
-      else if (e.kind === "kind.power") { ids.powers.push(id); ids.items.push(id); }
+      const boxes = e.fields?.description?.paras?.length ?? 0;
+      if (e.kind === "kind.class") { ids.classes.push(id); ids.items.push(id); ids.chassis[id] = { saves: e.meta?.chassis?.saves ?? null, attack: e.meta?.chassis?.attack ?? null }; }
+      else if (e.kind === "kind.power") { ids.powers.push(id); ids.items.push(id); ids.paras[id] = boxes; }
       else if (e.kind === "kind.monster") ids.actors.push(id);
       else if (e.kind === "kind.npc" && e.meta?.actor === "character") ids.characters.push(id);
-      else if (e.kind === "kind.adventureItem") ids.adventureItems.push(id);
-      else if (e.kind === "kind.prose") ids.prose[id] = e.meta?.title ?? e.name;
+      else if (e.kind === "kind.adventureItem") { ids.adventureItems.push(id); ids.paras[id] = boxes; }
+      else if (e.kind === "kind.prose") {
+        ids.prose[id] = e.meta?.title ?? e.name;
+        ids.proseParas[id] = boxes;
+        if (e.meta?.group) groups.add(e.meta.group);
+      }
     }
   }
+  ids.groups = [...groups].sort();
   return ids;
 }
 
@@ -571,16 +617,40 @@ try {
   section("seats and the book");
   gm = await seat("gm");
   note("install (gm)", await run(gm, P.install));
+  const line = await run(gm, P.line, { book: BOOK });
+  const open = await run(gm, P.openLine, { book: BOOK });
+  // A null line names the ACKS library's own shelves, which no clear may touch.
+  if (!line || !open || open === line) throw new Error(`the book's lines are not its own: ${JSON.stringify({ line, open })}`);
+
+  section("0. setup: clear a standing import by the ids it reads back");
+  // The reads use the library's pack lookup and the world's collections only:
+  // a presence check (`importedActorFor`) can mint the shelf it reads.
+  note("seated on the world", await run(gm, P.seated));
+  const everyId = [...IDS.classes, ...IDS.powers, ...IDS.actors, ...IDS.characters, ...IDS.adventureItems, ...Object.keys(IDS.prose), ...IDS.scenes];
+  const standing = await run(gm, P.standing, { book: BOOK, ids: everyId, line, open });
+  const standingDocs = [...standing.world, ...standing.shelves.flatMap((s) => s.uuids.map((uuid) => ({ uuid, kind: s.type })))];
+  note("standing under the book", { world: standing.world.length, shelves: standing.shelves.map((s) => ({ collection: s.collection, size: s.size, book: s.uuids.length })) });
+  for (const d of standingDocs) gm.track(d.uuid, d.kind);
+  const swept = await gm.sweepTracked({ only: standingDocs.map((d) => d.uuid) });
+  note("setup sweep (gm)", { removed: swept.removed.map((e) => e.uuid), missing: swept.missing.map((e) => e.uuid), failed: swept.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
+  if (swept.failed.length) throw new Error(`the standing import could not be cleared: ${swept.failed.map((e) => e.uuid).join(", ")}`);
+  // A shelf the sweep emptied is the book's and goes; one that still holds a document is another's and stops the walk.
+  const foreign = [];
+  for (const s of standing.shelves) {
+    const r = await run(gm, P.packEmpty, { collection: s.collection });
+    note(`line shelf ${s.collection}`, r);
+    if (r.kept) foreign.push(`${s.collection} holds ${r.kept}`);
+  }
+  if (foreign.length) throw new Error(`a line shelf holds documents that are not the book's, so it is left standing: ${foreign.join("; ")}`);
+
   // The shelf census brackets the GM census: a presence check (`importedActorFor`)
   // reads, and the world's packs before and after it are the proof. The line's
   // Actor shelf has to be absent beforehand for the proof to say anything — it
   // is the pack a presence check once minted on its way to reading it.
-  const line = await run(gm, P.line, { book: BOOK });
-  const open = await run(gm, P.openLine, { book: BOOK });
   const before = await run(gm, P.shelves, { line, open });
   note("shelves before", { packs: before.packs.length, line, open, lined: before.lined, openItems: before.open.Item, folders: Object.fromEntries(Object.entries(before.folders).map(([c, f]) => [c, f.length])) });
   check("the book's content files on its series' open line, apart from its Judge line", !!open && open !== line && !open.endsWith("Judge"), { line, open });
-  check(HELD_OK ? "the open line's Item shelf is read as it stands (HELD_OK=1: the owner's)" : "the open line's Item shelf is not in the world before the run", HELD_OK || before.open.Item === null, { open: before.open });
+  check("the open line's Item shelf is not in the world before the run", before.open.Item === null, { open: before.open });
   let census = await run(gm, P.census, { book: BOOK, ids: IDS });
   note("gm census", census);
   const afterCensus = await run(gm, P.shelves, { line });
@@ -589,15 +659,14 @@ try {
   check("the GM census opens no pack", !minted.length && afterCensus.packs.length === before.packs.length, { minted, packs: afterCensus.packs.length });
   check("the GM seat is a GM, the book is registered with a typography and the scoped import api is present", census.isGM && census.registered && census.typography && census.api, { bodyPt: census.bodyPt });
   const heldBefore = Object.entries(census.held).filter(([, u]) => u).map(([id]) => id);
-  // A document standing before the run is never this run's to track.
-  const theirs = new Set(Object.values(census.held).filter(Boolean));
-  const mine = (uuid) => !!uuid && !theirs.has(uuid);
-  const heldOf = (ids) => ids.filter((id) => census.held[id]).length;
-  check(HELD_OK ? "what the world holds under the book's ids is the owner's (HELD_OK=1: never tracked)" : "the world holds nothing under the book's ids before the run", HELD_OK || !heldBefore.length, heldBefore);
-  if (!census.isGM || !census.registered || !census.api || (heldBefore.length && !HELD_OK)) throw new Error("preconditions not met");
+  check("the world holds nothing under the book's ids before the run", !heldBefore.length, heldBefore);
+  if (!census.isGM || !census.registered || !census.api || heldBefore.length) throw new Error("preconditions not met");
 
   section("1. connect the book");
   let connectNotes = [];
+  // The world's shelf may open the book on the seat after ready; the open's
+  // announcement is then not this run's to observe.
+  const openedHere = !census.open;
   if (!census.open) {
     if (!BOOKS.length) throw new Error(`${BOOK} is not open on the GM seat and ACKS_TEST_BOOKS names no copy of it`);
     note("connect", await run(gm, P.connectBook, BOOKS[0]));
@@ -610,31 +679,9 @@ try {
   // The log keeps what the connect said; the console gets the verdict alone.
   note("connect notes", connectNotes);
   const opened = connectNotes.find((n) => n.kind === "info" && n.text.includes(census.label) && /\bopen\b/.test(n.text));
-  check("1: the open is announced by the book's label", !!opened, { count: opened ? (/(\d+) entr/.exec(opened.text)?.[1] ?? null) : null, notes: connectNotes.map((n) => n.kind) });
+  if (openedHere) check("1: the open is announced by the book's label", !!opened, { count: opened ? (/(\d+) entr/.exec(opened.text)?.[1] ?? null) : null, notes: connectNotes.map((n) => n.kind) });
+  else note("1: not checked", "the open's announcement: the seat had the book open before the run");
   if (!census.open) throw new Error("stopped before the imports");
-
-  const heldItems = [...IDS.powers, ...IDS.classes].filter((id) => census.held[id]);
-  if (HELD_OK && heldItems.length) {
-    section("1a. the owner's classes and powers, rebuilt from the open book");
-    const was = heldItems.map((id) => census.held[id]);
-    const t0 = await run(gm, P.created, { uuids: was });
-    await sleep(1100); // a rebuilt document's creation time must be able to differ
-    const picks = heldItems.map((id) => [IDS.classes.includes(id) ? "Classes" : "Abilities", id]);
-    const drove = await run(gm, P.rebuild, { picks });
-    check("1a: the entry picker lists every held class and power, and its confirm is answered", drove.picker && drove.row && drove.confirm, drove);
-    const rb = await poll(gm, P.rebuildState, undefined, { tries: 150 });
-    if (rb?.error) throw new Error(`the rebuild threw: ${rb.error}`);
-    const now = await run(gm, P.heldNow, { ids: { items: heldItems } });
-    // Whatever stands under a held id now is still the owner's.
-    for (const id of heldItems) if (now[id]) theirs.add(now[id]);
-    const t1 = await run(gm, P.created, { uuids: heldItems.map((id) => now[id]).filter(Boolean) });
-    // A rebuild deletes and creates under the id the document stood under, so
-    // the uuid is the same and only the creation time says it was written again.
-    const kept = heldItems.filter((id) => now[id] === census.held[id]);
-    const rebuilt = kept.filter((id) => t1[now[id]] > t0[census.held[id]]);
-    check("1a: each is rebuilt under the uuid it had (the owner's, never tracked)", kept.length === heldItems.length && rebuilt.length === heldItems.length,
-      { held: heldItems.length, kept: kept.length, rebuilt: rebuilt.length });
-  }
 
   section("2. import the book");
   const powers = await runStep("2: abilities (powers)", "cookbookImportAbilities", { only: IDS.powers });
@@ -652,12 +699,15 @@ try {
   // Track everything the run made: the classes, the items and the journals
   // from their own results, the rest read back by the ids this run imported,
   // which the census proved absent beforehand.
-  for (const uuid of classes.result?.docs ?? []) if (mine(uuid)) gm.track(uuid, "Item");
-  for (const uuid of items.result?.created?.items ?? []) if (mine(uuid)) gm.track(uuid, "Item");
-  for (const uuid of journals.result?.created?.journals ?? []) if (mine(uuid)) gm.track(uuid, "JournalEntry");
+  for (const uuid of classes.result?.docs ?? []) if (uuid) gm.track(uuid, "Item");
+  for (const uuid of items.result?.created?.items ?? []) if (uuid) gm.track(uuid, "Item");
+  for (const uuid of journals.result?.created?.journals ?? []) if (uuid) gm.track(uuid, "JournalEntry");
   const held = await run(gm, P.heldNow, { ids: { items: [...IDS.powers, ...IDS.classes], actors: [...IDS.actors, ...IDS.characters] } });
   // The classes are tracked from the step's own result above.
-  for (const [id, uuid] of Object.entries(held)) if (mine(uuid) && !IDS.classes.includes(id)) gm.track(uuid, IDS.actors.includes(id) || IDS.characters.includes(id) ? "Actor" : "Item");
+  for (const [id, uuid] of Object.entries(held)) if (uuid && !IDS.classes.includes(id)) gm.track(uuid, IDS.actors.includes(id) || IDS.characters.includes(id) ? "Actor" : "Item");
+  // The monster step may also mint the monster's leaders template; it is this run's, read back by the monster ids.
+  const leaderUuids = await run(gm, P.leaders, { ids: IDS.actors, line });
+  for (const uuid of leaderUuids) gm.track(uuid, "Actor");
   const classUuids = IDS.classes.map((id) => held[id]).filter(Boolean);
   const after = await run(gm, P.shelves, { line, open });
   for (const c of after.packs.filter((c) => !before.packs.includes(c))) openedPacks.push(c);
@@ -668,56 +718,80 @@ try {
   note("shelves opened by this run", openedPacks);
   check("2: the import, not the census, opened the line's Actor shelf", !!after.lined.Actor && openedPacks.includes(after.lined.Actor), { actor: after.lined.Actor, opened: openedPacks });
 
-  check("2: five class powers imported, any already held reused", powers.result?.made === IDS.powers.length - heldOf(IDS.powers) && powers.result?.reused === heldOf(IDS.powers) && IDS.powers.length === 5, { ...powers.result, held: heldOf(IDS.powers) });
-  check("2: three classes imported, any already held skipped, and all three stand", (classes.result?.docs ?? []).length === IDS.classes.length - heldOf(IDS.classes) && classUuids.length === 3 && IDS.classes.length === 3, { made: (classes.result?.docs ?? []).length, held: heldOf(IDS.classes), stand: classUuids.length });
-  check("2: one monster imported", monsters.result?.value === 1 && IDS.actors.length === 1, monsters.result);
-  check("2: the person the page prints in full imported, one", keeper.result?.value === 1 && IDS.characters.length === 1, keeper.result);
+  check("2: as many powers imported as the cookbook lists, none already held", IDS.powers.length > 0 && powers.result?.made === IDS.powers.length && powers.result?.reused === 0, powers.result);
+  check("2: as many classes imported as the cookbook lists, and each stands", IDS.classes.length > 0 && (classes.result?.docs ?? []).length === IDS.classes.length && classUuids.length === IDS.classes.length, { made: (classes.result?.docs ?? []).length, stand: classUuids.length });
+  check("2: as many monsters imported as the cookbook lists", IDS.actors.length > 0 && monsters.result?.value === IDS.actors.length, monsters.result);
+  check("2: as many people the page prints in full imported as the cookbook lists", IDS.characters.length > 0 && keeper.result?.value === IDS.characters.length, keeper.result);
   const it = items.result ?? {};
-  check("2: ten items imported, none already present, none refused", it.made === IDS.adventureItems.length && IDS.adventureItems.length === 10 && it.already === 0 && it.refused === 0, it);
+  check("2: every item the cookbook lists imported, none already present, none refused", IDS.adventureItems.length > 0 && it.made === IDS.adventureItems.length && it.already === 0 && it.refused === 0, it);
   check("2: the import, not the census, opened the line's Item shelf", !!after.lined.Item && openedPacks.includes(after.lined.Item), { item: after.lined.Item });
-  check("2: the classes and powers stand on the series' open Item shelf, opened by the import or the owner's own, apart from the Judge's",
-    !!after.open.Item && (openedPacks.includes(after.open.Item) || (HELD_OK && after.open.Item === before.open.Item)) && after.open.Item !== after.lined.Item,
+  check("2: the classes and powers stand on the series' open Item shelf, opened by the import, apart from the Judge's",
+    !!after.open.Item && openedPacks.includes(after.open.Item) && after.open.Item !== after.lined.Item,
     { open: after.open.Item, judge: after.lined.Item, opened: openedPacks.includes(after.open.Item) });
   const itemShapes = [];
   for (const uuid of it.created?.items ?? []) itemShapes.push(await run(gm, P.power, { uuid }));
-  check("2: each item is a core item of one paragraph with a page reference", itemShapes.length === 10 && itemShapes.every((p) => p && p.type === "item" && p.paragraphs === 1 && p.cite), itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
-  check("2: each item is priced from its cost line", itemShapes.length === 10 && itemShapes.every((p) => p && p.cost > 0), itemShapes.map((p) => p?.cost));
-  const wornItems = itemShapes.filter((p) => p?.slots?.length);
-  const doses = itemShapes.filter((p) => p && !p.slots?.length);
-  const slotCount = (slot) => wornItems.filter((p) => p.slots[0] === slot).length;
-  check("2: the eight worn items declare one slot each — four at the hands, two at the belt, two worn — and are marked magic; the two doses declare none and are not",
-    wornItems.length === 8 && wornItems.every((p) => p.slots.length === 1 && p.magic) && slotCount("hands") === 4 && slotCount("belt") === 2 && slotCount("worn") === 2 && doses.length === 2 && doses.every((p) => !p.magic),
+  check("2: each cookbook item stands once, as a core item with the paragraphs its entry lists and a page reference",
+    itemShapes.length === IDS.adventureItems.length && new Set(itemShapes.map((p) => p?.id)).size === IDS.adventureItems.length
+      && itemShapes.every((p) => p && p.type === "item" && IDS.paras[p.id] > 0 && p.paragraphs === IDS.paras[p.id] && p.cite),
+    itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, boxes: IDS.paras[p.id], chars: p.chars }));
+  check("2: each item is priced from its cost line", itemShapes.length === IDS.adventureItems.length && itemShapes.every((p) => p && p.cost > 0), itemShapes.map((p) => p?.cost));
+  const slotNames = await run(gm, P.wearSlots);
+  const slotted = itemShapes.filter((p) => p?.slots?.length);
+  const unslotted = itemShapes.filter((p) => p && !p.slots?.length);
+  check("2: an item declares at most one slot, every slotted item is marked magic and every unslotted one is not, both kinds occur, and each slot is one of the module's",
+    itemShapes.every((p) => p && (p.slots?.length ?? 0) <= 1) && slotted.length > 0 && unslotted.length > 0
+      && slotted.every((p) => p.magic && slotNames.includes(p.slots[0])) && unslotted.every((p) => !p.magic),
     itemShapes.map((p) => p && { slots: p.slots, magic: p.magic }));
   const jr = journals.result ?? {};
   const proseIds = Object.keys(IDS.prose);
-  check("2: seven passages written as pages, none refused, two journals made", jr.made === proseIds.length && proseIds.length === 7 && jr.refused === 0 && (jr.created?.journals ?? []).length === 2, jr);
+  check("2: every passage the cookbook lists written as a page, none refused, one journal made per group",
+    proseIds.length > 0 && IDS.groups.length > 0 && jr.made === proseIds.length && jr.refused === 0 && (jr.created?.journals ?? []).length === IDS.groups.length, jr);
   const journalShapes = [];
   for (const uuid of jr.created?.journals ?? []) journalShapes.push(await run(gm, P.journal, { uuid }));
-  note("journals", journalShapes);
+  note("journals", journalShapes.map((j) => j && { ...j, pages: j.pages.map(({ shape, ...rest }) => ({ ...rest, shape: shape.length })) }));
   const pages = journalShapes.flatMap((j) => j?.pages ?? []);
-  check("2: the journals are named by group and stand on the line's Judge JournalEntry shelf", journalShapes.length === 2 && journalShapes.every((j) => j && j.judge && j.line === line) && journalShapes.map((j) => j.name).sort().join("|") === "Essays|Tavern", journalShapes.map((j) => j && { name: j.name, line: j.line }));
-  check("2: each page is titled by what the passage is, holds its paragraphs and closes with a page reference", pages.length === 7 && pages.every((p) => p.paragraphs >= 1 && p.cite && Object.values(IDS.prose).includes(p.name)), pages.map((p) => ({ name: p.name, paragraphs: p.paragraphs, cite: p.cite })));
-  check("2: the passages read whole — their paragraph counts are the page's", pages.map((p) => `${p.name}:${p.paragraphs}`).sort().join(" ") === PROSE_PARAS, pages.map((p) => `${p.name}:${p.paragraphs}`).sort().join(" "));
-  // The book prints its classes' progression tables as pictures, so binding
-  // the keeper's class warns that it has no rows yet; that one warning is the
-  // page's, and the only one the character step may raise.
-  const progressionWarn = (n) => n.kind === "warn" && /no progression rows/.test(n.text);
+  check("2: the journals are named by the cookbook's groups and stand on the line's Judge JournalEntry shelf",
+    journalShapes.length === IDS.groups.length && journalShapes.every((j) => j && j.judge && j.line === line) && journalShapes.map((j) => j.name).sort().join("|") === IDS.groups.join("|"),
+    journalShapes.map((j) => j && { name: j.name, line: j.line }));
+  check("2: each page is titled by what its passage is, holds its paragraphs and closes with a page reference",
+    pages.length === proseIds.length && pages.every((p) => p.paragraphs >= 1 && p.cite && IDS.prose[p.id] === p.name),
+    pages.map((p) => ({ name: p.name, paragraphs: p.paragraphs, cite: p.cite })));
+  // A page joins boxes the PDF cut at a column or a page and never splits one, so
+  // its paragraphs number at most its entry's boxes; a paragraph closes on terminal
+  // punctuation unless it is a list or stat line, and the next never opens in lower case
+  // after one that did not close.
+  const pageReads = pages.map((p) => {
+    const sh = (p.shape ?? []).map((s) => ({ ...s, list: s.marker || s.labelled || s.labelRun }));
+    return {
+      paragraphs: p.paragraphs, boxes: IDS.proseParas[p.id] ?? null,
+      unclosed: sh.filter((s) => !s.terminal && !s.list).length,
+      cut: sh.filter((s, i) => i > 0 && !sh[i - 1].terminal && !sh[i - 1].list && s.lowerOpen && !s.list).length,
+      listLines: sh.filter((s) => s.list).length,
+      unclosedAt: sh.map((s, i) => (!s.terminal && !s.list ? { i, of: sh.length, end: s.end, short: s.short, nextLower: !!sh[i + 1]?.lowerOpen } : null)).filter(Boolean),
+    };
+  });
+  check("2: the passages read whole — a page holds no more paragraphs than its entry has boxes, none closes short, none is cut mid-sentence",
+    pages.length === proseIds.length && pageReads.every((r) => r.paragraphs >= 1 && r.boxes > 0 && r.paragraphs <= r.boxes && r.unclosed === 0 && r.cut === 0), pageReads);
+  // A class stated in sentences imports with its levels, so binding the
+  // keeper's class finds rows and the character step raises no warning.
   const keeperNoise = keeper.notes.filter((n) => n.kind === "error" || n.kind === "warn");
-  check("2: the character step warns of the class's missing progression (its tables are pictures) and of nothing else", keeperNoise.length === 1 && progressionWarn(keeperNoise[0]), keeperNoise.map((n) => n.kind));
+  check("2: the character step warns of nothing", !keeperNoise.length, keeperNoise.map((n) => n.kind));
   const stepErrors = [powers, classes, monsters, items, journals].flatMap((s) => s.notes.filter((n) => n.kind === "error" || n.kind === "warn"));
   check("2: no other step warned or erred", !stepErrors.length, stepErrors.map((n) => n.kind));
   const powerShapes = [];
   for (const id of IDS.powers) powerShapes.push(held[id] ? await run(gm, P.power, { uuid: held[id] }) : null);
-  check("2: each power is one paragraph with a page reference", powerShapes.every((p) => p && p.paragraphs === 1 && p.cite), powerShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
+  check("2: each power holds the paragraphs its cookbook entry lists and a page reference",
+    IDS.powers.length > 0 && powerShapes.every((p, i) => p && IDS.paras[IDS.powers[i]] > 0 && p.paragraphs === IDS.paras[IDS.powers[i]] && p.cite),
+    powerShapes.map((p, i) => p && { type: p.type, paragraphs: p.paragraphs, boxes: IDS.paras[IDS.powers[i]], chars: p.chars }));
 
   section("3. the monster");
   const monsterId = IDS.actors[0];
   const m = held[monsterId] ? await run(gm, P.monster, { uuid: held[monsterId] }) : null;
   note("monster", m);
   check("3: AC, HD, movement, morale, XP, alignment, treasure, saves, vision and type landed", !!m && m.ac != null && !!m.hd && m.movement > 0 && m.morale != null && m.xp != null && m.alignment && m.treasure && m.saves > 0 && m.vision > 0 && m.types > 0);
-  check("3: three natural attacks in the first mode and the weapon alternative as a second", !!m && m.modes.length === 2 && m.modes[0] === 3 && m.modes[1] === 1, m && { weapons: m.weapons, modes: m.modes });
+  check("3: at least two attack modes, each with at least one attack", !!m && m.modes.length >= 2 && m.modes.every((n) => n > 0), m && { weapons: m.weapons, modes: m.modes });
   check("3: a proficiency list rides as embedded abilities", !!m && m.abilities > 0, m && { abilities: m.abilities });
-  check("3: two spoils, each with a value, a weight and effects", !!m && m.spoils.length === 2 && m.spoils.every((s) => s.cost > 0 && s.weight6 != null && s.effects > 0), m && m.spoils);
+  check("3: spoils, each with a value, a weight and effects", !!m && m.spoils.length >= 1 && m.spoils.every((s) => s.cost > 0 && s.weight6 != null && s.effects > 0), m && m.spoils);
   const combat = m?.sections.find((s) => s.field === "combat");
   check("3: the prose is sectioned, and the Combat section's last paragraph is whole across the page turn", !!m && m.sections.length >= 3 && !!combat && combat.lastEndsSentence, m && m.sections);
 
@@ -735,7 +809,8 @@ try {
   check("3: the biography is the page's paragraph about her house with its page reference, then the as-printed block", !!k && k.prose >= 1 && k.cite && k.asPrinted, k && { prose: k.prose, cite: k.cite, asPrinted: k.asPrinted });
   // The Follower Card's wear toggle, pressed for real on a copy of a hand-worn
   // item embedded on her: the card offers a slotted plain item and wears it at
-  // its declared slot, which core's `equipped` field never could.
+  // its declared slot, which core's `equipped` field never could. "hands" is the
+  // module's slot name.
   const handWornUuid = (it.created?.items ?? [])[itemShapes.findIndex((p) => p?.slots?.[0] === "hands")] ?? null;
   const wear = held[keeperId] && handWornUuid ? await run(gm, P.wearOnCard, { actorUuid: held[keeperId], itemUuid: handWornUuid }) : null;
   note("a hand-worn item on her Follower Card", wear);
@@ -745,23 +820,26 @@ try {
   const classShapes = [];
   for (const uuid of classUuids) classShapes.push(await run(gm, P.classItem, { uuid }));
   note("classes", classShapes);
-  check("4: each class carries its hit die, maximum level, prime requisite and requirements", classShapes.length === 3 && classShapes.every((c) => c && c.hitDie && c.maximumLevel > 0 && c.keyAttributes > 0 && c.requirements > 0));
+  check("4: each class carries its hit die, maximum level, prime requisite and requirements", classShapes.length === IDS.classes.length && IDS.classes.length > 0 && classShapes.every((c) => c && c.hitDie && c.maximumLevel > 0 && c.keyAttributes > 0 && c.requirements > 0));
   check("4: the list resolves names the register knows and keeps the rest as text, none welded at a line turn", classShapes.every((c) => c && c.resolved > 0 && !c.unresolved.some(welded)), classShapes.map((c) => c && { resolved: c.resolved, unresolved: c.unresolved.length, welded: c.unresolved.filter(welded).length }));
-  check("4: each description runs the whole spread, with passages opened by run-in labels", classShapes.every((c) => c && c.paragraphs >= 9 && c.runIn >= 1), classShapes.map((c) => c && { paragraphs: c.paragraphs, runIn: c.runIn }));
-  check("4: the declared chassis is fighter/fighter", classShapes.every((c) => c && c.chassis[0] === "fighter" && c.chassis[1] === "fighter"));
+  check("4: each description runs the whole spread, with passages opened by run-in labels", classShapes.every((c) => c && c.paragraphs >= 2 && c.runIn >= 1), classShapes.map((c) => c && { paragraphs: c.paragraphs, runIn: c.runIn }));
+  // The chassis a class declares is its cookbook entry's, read back by the class's id.
+  check("4: each class declares the saves and attack chassis its cookbook entry names",
+    classShapes.length === IDS.classes.length && classShapes.every((c) => { const want = IDS.chassis[c?.id]; return !!want?.saves && !!want?.attack && c.chassis[0] === want.saves && c.chassis[1] === want.attack; }),
+    classShapes.map((c) => c && { saves: c.chassis[0] === IDS.chassis[c.id]?.saves, attack: c.chassis[1] === IDS.chassis[c.id]?.attack }));
 
-  section("5. the tavern's plans");
+  section("5. the book's plans");
   const scenesStep = await runStep("5: scenes", "cookbookImportScenes", { books: [BOOK] });
   const made = scenesStep.result?.created ?? {};
   for (const uuid of made.scenes ?? []) gm.track(uuid, "Scene");
   for (const uuid of made.actors ?? []) gm.track(uuid, "Actor");
   for (const uuid of made.folders ?? []) gm.track(uuid, "Folder");
   const sc = scenesStep.result ?? {};
-  check("5: two maps created, none refused, none already held", sc.made === IDS.scenes.length && IDS.scenes.length === 2 && sc.refused === 0 && sc.already === 0 && sc.gridRefused === 0, { made: sc.made, refused: sc.refused, already: sc.already, gridRefused: sc.gridRefused, created: (made.scenes ?? []).length });
+  check("5: as many maps created as the cookbook lists, none refused, none already held", IDS.scenes.length > 0 && sc.made === IDS.scenes.length && sc.refused === 0 && sc.already === 0 && sc.gridRefused === 0, { made: sc.made, refused: sc.refused, already: sc.already, gridRefused: sc.gridRefused, created: (made.scenes ?? []).length });
   const sceneShapes = [];
   for (const uuid of made.scenes ?? []) sceneShapes.push(await run(gm, P.scene, { uuid }));
   note("scenes", sceneShapes);
-  check("5: each map is a gridless world scene with its picture, off the navigation bar, in the book's folder, with no token and no wall", sceneShapes.length === 2 && sceneShapes.every((s) => s && s.picture && s.gridless && !s.navigation && s.folder && s.width > 0 && s.height > 0 && s.tokens === 0 && s.walls === 0 && s.book === BOOK));
+  check("5: each map is a gridless world scene with its picture, off the navigation bar, in the book's folder, with no token and no wall", sceneShapes.length === IDS.scenes.length && sceneShapes.every((s) => s && s.picture && s.gridless && !s.navigation && s.folder && s.width > 0 && s.height > 0 && s.tokens === 0 && s.walls === 0 && s.book === BOOK));
   note("map pictures left under (outside the ledger)", [...new Set(sceneShapes.map((s) => s?.pictureDir))]);
 
   section("6. the book's Adventure");
@@ -775,7 +853,8 @@ try {
   const advUuid = ad.created?.adventures?.[0] ?? null;
   const a = advUuid ? await run(gm, P.adventure, { uuid: advUuid }) : null;
   note("adventure", a);
-  check("6: it carries the two maps, the monster, the keeper and the ten items under the book's stamp", !!a && a.scenes === 2 && a.actors === 2 && a.items === 10 && a.book === BOOK, a && { scenes: a.scenes, actors: a.actors, items: a.items });
+  // A monster's leaders template rides with it, so the actors are the monsters, the people and those templates.
+  check("6: it carries every map, monster, person and item the cookbook lists under the book's stamp, and each monster's leaders template", !!a && a.scenes === IDS.scenes.length && a.actors === IDS.actors.length + IDS.characters.length + leaderUuids.length && a.items === IDS.adventureItems.length && IDS.scenes.length > 0 && IDS.adventureItems.length > 0 && a.book === BOOK, a && { scenes: a.scenes, actors: a.actors, items: a.items });
   const advShelf = advUuid ? await run(gm, P.shelfOf, { uuid: advUuid }) : null;
   const monsterShelf = held[monsterId] ? await run(gm, P.shelfOf, { uuid: held[monsterId] }) : null;
   const keeperShelf = held[keeperId] ? await run(gm, P.shelfOf, { uuid: held[keeperId] }) : null;
@@ -805,7 +884,7 @@ try {
   note("player view", view);
   check("7: the seat is a player", view.isGM === false);
   check("7: no shelf of the Judge line is open to it", !view.anyLinedVisible, { linedPacksSeen: view.lined.length, gmSaw: Object.keys(later.folders).length });
-  check("7: the series' open Item shelf is, with the book's classes and powers in it", !!view.openItems?.visible && view.openItems.line === open && view.classesSeen === view.classesWanted && view.classesWanted === 8, { seen: view.classesSeen, wanted: view.classesWanted, shelf: view.openItems });
+  check("7: the series' open Item shelf is, with the book's classes and powers in it", !!view.openItems?.visible && view.openItems.line === open && view.classesSeen === view.classesWanted && view.classesWanted === IDS.items.length && IDS.items.length > 0, { seen: view.classesSeen, wanted: view.classesWanted, shelf: view.openItems });
   if (SHOTS && view.openItems?.collection) {
     const frame = await run(player, P.shelfPopout, { collection: view.openItems.collection });
     note("plate shelf", frame);

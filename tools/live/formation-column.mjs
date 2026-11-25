@@ -41,7 +41,9 @@
  *   "The rest switch" 1-4.
  *   The column's frontage figures: the three `formation` keys the Rules tables
  *       import reads from RR ch. 6 are present and cited, and an override of
- *       them (invented figures) is what the reader returns.
+ *       them (invented figures) is what the reader returns. The trap's two
+ *       `formation` keys, its secret die and its band, are brought by the same
+ *       import where the world lacks them.
  *
  * Every fixture and figure is invented; an imported figure is compared in the
  * page and printed as a boolean. Fixtures, kept and found again by marker
@@ -214,6 +216,7 @@ const P = {
       formation: H.t.hasDoc("formation"),
       frontage: Object.fromEntries(["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"].map((k) => [k, H.k.formationValue(k) != null])),
       frontageCite: Object.fromEntries(["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"].map((k) => [k, !!H.t.citeOf("formation", k)])),
+      trap: Object.fromEntries(["trapTriggerDie", "trapTriggerOn"].map((k) => [k, H.k.formationValue(k) != null])),
     };
   },
 
@@ -1199,10 +1202,12 @@ try {
   // The figures this walk compares come from the Judge's import. Where the world
   // holds none, the walk runs Rules tables for the three documents from the
   // staged books, as a Judge would; the import stays, like any corpus fixture.
-  // A `formation` document that lacks the three frontage keys is imported
-  // again, as a Judge reruns Rules tables.
+  // A `formation` document that lacks the keys this walk reads (the three
+  // frontage keys and the trap's secret die and its band) is imported again,
+  // as a Judge reruns Rules tables.
   const frontageThere = Object.values(tables.frontage).every(Boolean);
-  const wanted = [["light", tables.light], ["delveEncounters", tables.delve], ["formation", tables.formation && frontageThere]].filter(([, has]) => !has).map(([id]) => id);
+  const trapThere = Object.values(tables.trap).every(Boolean);
+  const wanted = [["light", tables.light], ["delveEncounters", tables.delve], ["formation", tables.formation && frontageThere && trapThere]].filter(([, has]) => !has).map(([id]) => id);
   if (wanted.length) {
     section("rules tables");
     const staged = books(["rr", "jj"]);
@@ -1751,6 +1756,8 @@ try {
   // A kept zone fixture carries whatever shape its last use left; it is set to the cell the head ends on.
   const zoneShape = await run(gm, P.trapShape, { sceneId: scene.id, regionId: trapZone.id, shape: { type: "rectangle", x: into.x, y: GS, width: GS, height: 2 * GS, rotation: 0, hole: false } });
   check("20: the trap zone is the one cell the head ends the move on and the cell beside it across the corridor", zoneShape.count === 1 && zoneShape.x === into.x && zoneShape.y === GS && zoneShape.width === GS && zoneShape.height === 2 * GS, zoneShape);
+  const trap20 = (await run(gm, P.tables)).trap;
+  check("20: the Rules tables import brought the trap's secret die and its band", Object.values(trap20).every(Boolean), trap20);
   const names20 = new Map([[lead.id, "QA Column Lead"], [torch.id, "QA Column Torch"], [lantern.id, "QA Column Lantern"]]);
   const caught20 = async (radius) => {
     // From the head at the corridor's west end, the zone ahead of it armed with this radius, frontage 3.
