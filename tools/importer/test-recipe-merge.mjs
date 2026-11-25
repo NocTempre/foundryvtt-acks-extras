@@ -199,14 +199,15 @@ t("each option's read copy is the read, whole, whatever the rows merged to", () 
 t("an option the build no longer has is not written, and one it carries from the held template keeps its stored parts", () => {
   const a = part("a");
   const hand = byHand(a, "9d9");
-  const source = template([axis("variant", [option("one", [part("a")]), option("gone", [part("g")]), option("merged", [hand], [a])])]);
+  const own = part("_qa1", { origin: "", label: "QA own" });
+  const source = template([axis("variant", [option("one", [part("a")]), option("gone", [part("g")]), option("merged", [hand, own], [a])])]);
   const dropped = template([axis("variant", [option("one", [part("a")])])]);
   const planDropped = refreshPlan(source, dropped, actorPolicy(dropped));
   assert.deepEqual(planDropped.update.system.axes[0].options.map((o) => o.key), ["one"]);
   assert.deepEqual(planDropped.keptRows, []);
-  const carried = template([axis("variant", [option("one", [part("a")]), option("merged", [hand], [a])])]);
+  const carried = template([axis("variant", [option("one", [part("a")]), option("merged", [hand, own], [a])])]);
   const planCarried = refreshPlan(source, carried, actorPolicy(carried));
-  assert.deepEqual(recipeOf(planCarried, 0, "merged"), [hand]);
+  assert.deepEqual(recipeOf(planCarried, 0, "merged"), [hand, own], "each stored part once, a Judge's own included");
   assert.deepEqual(planCarried.keptRows, [], "a carried option is the stored one, so nothing differs from the page");
   const fresher = template([axis("variant", [option("one", [part("a")]), option("added", [part("n")])])]);
   assert.deepEqual(recipeOf(refreshPlan(source, fresher, actorPolicy(fresher)), 0, "added").map((p) => p.key), ["n"]);

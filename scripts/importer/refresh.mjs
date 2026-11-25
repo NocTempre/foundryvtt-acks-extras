@@ -386,6 +386,8 @@ export function refreshPlan(source, built, policy = {}) {
       for (const site of keyedSites(path, system, stored)) {
         const fresh = getPath(site.built, site.tail);
         const have = getPath(site.stored, site.tail);
+        // A site whose build rows are the stored ones (an option carried over from the held template) has nothing to merge.
+        if (sameValue(fresh, have)) continue;
         const merged = mergeRowsByOrigin(have, fresh, { take: takenKeys(policy.takeRows, site.path), force: policy.force });
         keptRows.push(...merged.kept.map((held) => ({ ...held, path: site.path })));
         if (!merged.rows.length && !(Array.isArray(have) && have.length)) continue; // nothing stored, nothing built

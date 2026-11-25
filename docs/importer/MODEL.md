@@ -1286,7 +1286,7 @@ parts. A site's path names the axis and option keys
 stamps `cookbook.read.recipe` whole, as the actor does. A family's repair
 reaches this through `rewriteHeld`; the leader template of a single creature,
 written by `mintLeaderTemplate`, goes through `repairWrite` under the refill's
-tally (none on a first import, which writes unforced). The axes are still
+tally (none on an import over a template already held, which writes unforced). The axes are still
 written whole, with each option's recipe merged first.
 
 **A borrowed throw.** A roll spec whose `target` has a locator proving the page
