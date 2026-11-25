@@ -501,9 +501,28 @@ const P = {
   },
   /** Walls from specs (a door is a wall carrying `door`), answered with each wall's id and uuid. */
   wallsMake: async ({ sceneId, specs }) => {
+    const H = globalThis.__mct;
     const scene = game.scenes.get(sceneId);
+    // Every door-state write to the walls made here is logged on this seat: who wrote it and, for a write this
+    // client made, the stack it came from, so a door that does not hold the state it was made in says why.
+    H.wallLog = [];
+    const ids = new Set();
+    const at = () => Math.round(performance.now());
+    H.wallHooks?.forEach(([name, id]) => Hooks.off(name, id));
+    H.wallHooks = [
+      ["preUpdateWall", Hooks.on("preUpdateWall", (w, ch) => { if (ids.has(w.id) && "ds" in ch) H.wallLog.push({ pre: true, id: w.id, from: w.ds, to: ch.ds, t: at(), stack: String(new Error().stack).split("\n").slice(2, 9).map((l) => l.trim()) }); })],
+      ["updateWall", Hooks.on("updateWall", (w, ch, _o, userId) => { if (ids.has(w.id) && "ds" in ch) H.wallLog.push({ id: w.id, to: ch.ds, userId, self: userId === game.user.id, t: at() }); })],
+    ];
+    const t0 = at();
     const made = await scene.createEmbeddedDocuments("Wall", specs.map((s) => ({ c: s.c, door: CONST.WALL_DOOR_TYPES.DOOR, ds: s.ds ?? CONST.WALL_DOOR_STATES.CLOSED })));
-    return made.map((w) => ({ id: w.id, uuid: w.uuid }));
+    for (const w of made) ids.add(w.id);
+    H.wallT0 = t0;
+    return made.map((w) => ({ id: w.id, uuid: w.uuid, created: w.ds }));
+  },
+  /** The door-state writes logged since `wallsMake`, times in ms from its create. */
+  wallLog: async () => {
+    const H = globalThis.__mct;
+    return (H.wallLog ?? []).map((e) => ({ ...e, t: e.t - (H.wallT0 ?? 0) }));
   },
   /** A wall as the world holds it: its door state, its seal stamp (the cast ids and the state the first seal found), or that it is gone. */
   wallRead: async ({ sceneId, wallId }) => {
@@ -1162,8 +1181,13 @@ async function stageSeal() {
   const made = await run(gm, P.wallsMake, { sceneId: W.scene, specs: [{ c: [250, 300, 250, 400] }, { c: [1250, 100, 1250, 200] }, { c: [250, 500, 250, 600], ds: DOOR_STATE.locked }, { c: [250, 650, 250, 750] }] });
   for (const w of made) await track(w.uuid, "Wall");
   const [A, B, C, D] = made.map((w) => w.id);
-  check("I: four doors stand on the field, one already locked", made.length === 4 && (await run(gm, P.wallRead, { sceneId: W.scene, wallId: C })).ds === DOOR_STATE.locked, { doors: made.length });
+  const c0 = await run(gm, P.wallRead, { sceneId: W.scene, wallId: C });
+  check("I: four doors stand on the field, one already locked", made.length === 4 && c0.ds === DOOR_STATE.locked, { doors: made.length, created: made.map((w) => w.created), read: c0.ds });
   const wall = (id) => run(gm, P.wallRead, { sceneId: W.scene, wallId: id });
+  if (c0.ds !== DOOR_STATE.locked) {
+    await sleep(1500);
+    note("I: the locked door's state 1.5 s on, and every door-state write to the four doors since their create", { read: (await wall(C)).ds, writes: await run(gm, P.wallLog) });
+  }
   const refusedWord = await run(player, P.locKey, { key: "MAGIC.castSeal.refused.outOfRange" });
   const farWord = await run(gm, P.locKey, { key: "MAGIC.castSeal.pick.far" });
   const noGmWord = await run(player, P.notice, { key: "sealNoGm" });
@@ -1267,6 +1291,7 @@ async function stageSeal() {
   check("I 8: the door that was locked before the seal stays locked", ended[2].ds === DOOR_STATE.locked && ended[2].stamp === null, { ds: ended[2].ds });
   check("I 8: the door a hand opened is left open", ended[3].ds === DOOR_STATE.open && ended[3].stamp === null, { ds: ended[3].ds });
   check("I 8: the first cast's id is on no wall any longer", castA && (await Promise.all([A, B, C, D].map(wall))).every((w) => !w.stamp?.casts?.includes(castA)));
+  note("I: every door-state write to the four doors through the stage, in order", { doors: { A, B, C, D }, writes: await run(gm, P.wallLog) });
 }
 
 /* ------------------------------ run ----------------------------------- */
