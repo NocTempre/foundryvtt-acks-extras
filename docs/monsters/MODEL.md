@@ -864,6 +864,8 @@ a blank figure writes nothing, and a caster or dependant carries none of it.
 | `healDice` | one item (type `item`) named by the row, its page on `cookbook.cite`, its figures on `flags["acks-extras"].drink` (below) |
 | `delayTurns` and damage dice | the `onHit` flag (below) on the stack of ammunition the creature's launcher shoots, which is also declared nocked |
 
+**A reach item** (a row with `radius`) is minted by `monsters/gear-run.mjs` from the value keys the row holds, never its key, and carries only references to the row's figures. The printed qualifier of who it meets resolves onto module kind keys with lib's `matchKinds` over the race categories and `MONSTER_TYPES` (the key, its `s` or `es`, the `men` plural of a `man` key); a word that matches no key writes no item and is listed in `unresolved` as `{kind: "gear", key, figure: "reachKind", word}`. The bonus item's filter is the bearer's unit and those under it (`unit: under`: true for the bearer's own group, the Judge's tick for any other until the unit ancestry is registered). Where the page names a circumstance and a qualifier for a saving-throw bonus, `resolveSaveWhen` folds the circumstance onto the conditions catalogue and the qualifier onto the magic flag and the item's rows gain `save` with `reach.saveWhen`; a word that does not resolve writes no save part and is listed (`saveCircumstance`, `saveQualifier`). The import writes `reach.showReach` false.
+
 **A consumable to drink** carries `drink = {healDice, saveKind, condition, successHealDice, swigDice}`,
 each the row's figure or null where the import left it blank. `condition` is the
 conditions-catalogue id `matchCondition` folds the printed word to; a word that

@@ -483,6 +483,14 @@ README row and `tools/test-welcome-version.mjs` once the system minimum names a 
 that guards its own write, and re-walk the welcome-version recipe of
 `docs/lib/TESTING.md` without it.
 
+## Circumstances named by the cast engine
+
+A save part narrowed to a circumstance (`when`, with `magical`) is applied only where a caller of `saveSpec`, `saveModParts` or `sheetSaveShift` names the circumstance through `circumstances`, and no caller does: nine call sites pass at most `damage`. So a narrowed part is told on every throw and never added. A spell whose row says what a throw resists (a fear effect) names its circumstance, and the cast engine passes it to `saveSpec` for each saver. Conditions' own `row("save", "all", {when: "fear"})` rows are told the same way and wait on the same caller.
+
+## One home for live figures
+
+A reach's live figures sit in three places: `reach.radius`, `reach.save`, `reach.immunity` and `reach.modifier` (a `figureRefField` each, read only by a pulse); the row's own stated `value`, which the cast engine reads; and the activation's `throw`, `fumble`, `fuseDice` and `uses`. Each has one reader today. Merge them into one group a Judge edits in one place, with one resolver, once a second reader of any of them appears.
+
 ## The system's abandoned combat start
 
 `AcksCombat#internalStartCombat` sets `flags.acks.initDone` before the declaration
