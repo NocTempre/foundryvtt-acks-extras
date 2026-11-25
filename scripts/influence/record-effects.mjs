@@ -27,6 +27,8 @@ import { recordParts, rollModsOf } from "../lib/roll-mods.mjs";
 import { resolveStacking } from "../lib/typed-modifiers.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
 import { signed } from "../lib/frame-model.mjs";
+import { moraleLine } from "../lib/item-run-card-logic.mjs";
+import { FLAG_ITEM_RUN, MODULE_ID } from "../lib/constants.mjs";
 
 /** A form-safe row key: the record's effect id and the part's key, with nothing that nests form data. */
 const rowKeyOf = (effectId, key) => `rec:${effectId}:${String(key ?? "reaction").replace(/[^A-Za-z0-9_-]/g, "_")}`;
@@ -130,6 +132,9 @@ export function getRecordReactionMods(subject, { tone = null, kinds = [], alignm
       record: true,
       effectId: c.effect?.id ?? null,
       stackPart: c,
+      spell: c.spell ?? c.label,
+      cite: c.cite ?? "",
+      fromItem: !!c.effect?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN],
       tip: [head, ...lines].join(" · "),
     };
   });
@@ -149,4 +154,19 @@ export function keptRecordRows(mods, values, alive = null) {
   const live = (mods ?? []).filter((m) => m.record && values?.[m.key] && (!alive || alive.has(m.effectId)));
   const { kept } = resolveStacking(live.map((m) => ({ ...m.stackPart, value: m.value, rowKey: m.key })));
   return new Set(kept.map((p) => p.rowKey));
+}
+
+/**
+ * The line a morale roll's working prints for a record row an item's reach
+ * wrote (`fromItem`): the item's name under the "In reach of" words with the
+ * record's page reference, and the row's own tooltip. A spell's record, and a
+ * row of any other page, has none: it keeps the label it was offered under.
+ *
+ * @param {{record?: boolean, fromItem?: boolean, family?: string, spell?: string, cite?: string, tip?: string|null}} mod a row, as the page offers it
+ * @param {{inReachOf: string}} words
+ * @returns {{label: string, cite: string, tip: string}|null}
+ */
+export function moraleWorkingLine(mod, words) {
+  if (!mod?.record || !mod.fromItem || mod.family !== ROLL_FAMILY.MORALE) return null;
+  return { ...moraleLine({ item: mod.spell ?? "", cite: mod.cite ?? "", words }), tip: [mod.tip, mod.cite].filter(Boolean).join(" · ") };
 }

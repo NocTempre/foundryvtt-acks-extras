@@ -25,7 +25,7 @@ globalThis.Roll = { validate: () => true };
 globalThis.ChatMessage = { getSpeakerActor: () => null };
 globalThis.CONFIG = { Actor: { documentClass: { prototype: {} }, dataModels: {} }, Item: { documentClass: class {}, dataModels: {} } };
 
-const { getRecordReactionMods, keptRecordRows, liveRecordIds } = await import("../scripts/influence/record-effects.mjs");
+const { getRecordReactionMods, keptRecordRows, liveRecordIds, moraleWorkingLine } = await import("../scripts/influence/record-effects.mjs");
 
 let passed = 0;
 const ok = async (name, fn) => {
@@ -151,6 +151,21 @@ await ok("a part's key never nests the form data its row is named in", () => {
   const [row] = getRecordReactionMods(bearer([rec("alpha", [reaction(2, { key: "a.b c" })])]), page());
   assert.ok(!row.id.includes("."), row.id);
   assert.match(row.id, /^rec:fx\d+:a_b_c$/);
+});
+
+await ok("a record an item's reach wrote prints a morale line naming the item and its page, with the row's tooltip; a spell's record and a reaction page's row print none", () => {
+  const fromItem = (id, parts) => ({ ...rec(id, parts), flags: { "acks-extras": { ...rec(id, parts).flags["acks-extras"], itemRun: { source: "I.1", activationId: "a", rowKey: "r" } } } });
+  const morale = (value) => ({ key: "morale", on: "reaction", rollKey: "morale", value, provides: [SHARED] });
+  const rows = getRecordReactionMods(bearer([fromItem("trait", [morale(-1)]), rec("charm", [{ ...morale(1), provides: ["kw:other"] }], { sourceAlignment: null })]), { rollKey: "morale", kinds: new Set(["beast"]) });
+  const words = { inReachOf: "In reach of" };
+  const byLabel = Object.fromEntries(rows.map((r) => [r.spell, r]));
+  assert.deepEqual([byLabel.Trait.fromItem, byLabel.Charm.fromItem], [true, false]);
+  const line = moraleWorkingLine(byLabel.Trait, words);
+  assert.deepEqual([line.label, line.cite], ["In reach of Trait", "Test cite"], "the item's name under the words, and the record's page");
+  assert.ok(line.tip.endsWith("Test cite") && line.tip.includes("Trait"), "the tooltip carries the row's own provenance and the page");
+  assert.equal(moraleWorkingLine(byLabel.Charm, words), null, "a spell's record keeps its own label");
+  const reactionRows = getRecordReactionMods(bearer([fromItem("trait", [reaction(1)])]), page());
+  assert.equal(moraleWorkingLine(reactionRows[0], words), null, "a reaction page's row is not a morale roll's working");
 });
 
 console.log(`\n${passed} passed`);

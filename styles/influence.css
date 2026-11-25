@@ -529,3 +529,8 @@
 .acks-influence-card-content {
   margin-top: 0.3rem;
 }
+
+.acks-influence-mode-result .acks-influence-mod-cite {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}

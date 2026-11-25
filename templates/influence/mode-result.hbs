@@ -13,7 +13,7 @@
     {{#if activeModifiers.length}}
     <ul class="acks-influence-mod-parts">
       {{#each activeModifiers}}
-      <li><span>{{this.label}}</span><span>{{numberFormat this.value sign=true}}</span></li>
+      <li{{#if this.tip}} data-tooltip-text="{{this.tip}}"{{/if}}><span>{{this.label}}{{#if this.cite}} <small class="acks-influence-mod-cite">{{this.cite}}</small>{{/if}}</span><span>{{numberFormat this.value sign=true}}</span></li>
       {{/each}}
     </ul>
     {{/if}}

@@ -39,7 +39,7 @@ import {
   toLibAlignment,
 } from "./actor-data.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
-import { getRecordReactionMods, keptRecordRows, liveRecordIds } from "./record-effects.mjs";
+import { getRecordReactionMods, keptRecordRows, liveRecordIds, moraleWorkingLine } from "./record-effects.mjs";
 import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
 import { attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
@@ -367,6 +367,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         // A spell record's row: where its figure came from, and the part it
         // stacks as, so the larger of two ticked records is the one that counts.
         record: m.record === true,
+        fromItem: m.fromItem === true,
+        family: m.family ?? null,
+        spell: m.spell ?? "",
+        cite: m.cite ?? "",
         effectId: m.effectId ?? null,
         stackPart: m.stackPart ?? null,
         tip: m.tip ?? null,
@@ -730,7 +734,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     for (const group of this.#modConfig[this.#system.tone]) {
       for (const mod of group.mods) {
         const contribution = this.#contribution(mod, values[mod.key]);
-        if (contribution !== 0) list.push({ label: this.#auditLabel(mod, values[mod.key]), value: contribution });
+        if (contribution === 0) continue;
+        // A record an item's reach wrote names the item, its page and where the figure came from; any other row keeps its label.
+        const line = moraleWorkingLine(mod, { inReachOf: game.i18n.localize("ACKS-LIB.itemRun.strip.inReachOf") });
+        list.push(line ? { label: line.label, cite: line.cite, tip: line.tip, value: contribution } : { label: this.#auditLabel(mod, values[mod.key]), value: contribution });
       }
     }
     // A note adds nothing, and this is the list of what was added.
