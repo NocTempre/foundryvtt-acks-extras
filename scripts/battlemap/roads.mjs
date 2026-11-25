@@ -294,6 +294,18 @@ export async function armAlleyPreset() {
 }
 
 /**
+ * The road the wall tool is set to draw, as `roadFromSelection`'s arguments:
+ * its surface, and its street where the preset names one. Any other preset (a
+ * trap line) or none gives `{}`, which leaves the first surface and the
+ * scene's default street to the caller.
+ */
+export function armedRoad() {
+  const road = wallRoad({ flags: currentWallPreset()?.flags });
+  if (!road) return {};
+  return road.street ? { surface: road.surface, street: road.street } : { surface: road.surface };
+}
+
+/**
  * Mark the selected walls as roads — or, with nothing selected, arm the
  * preset. An existing wall's own properties are never altered (a road is a
  * layer, like a trap); it counts walls that still restrict movement instead,
@@ -437,7 +449,8 @@ export function installRoadControls() {
       createData: roadWallData(),
       // ONE handler. A `button: true` tool given both `onChange` and `onClick`
       // has both called for a single press.
-      onChange: () => roadFromSelection(),
+      // The tool marks the road preset in hand: its surface, its street.
+      onChange: () => roadFromSelection(armedRoad()),
     };
     // v13+ hands the tools over as an object keyed by name; older builds as an
     // array. Both shapes are still in the wild across the family's worlds.

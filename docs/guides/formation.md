@@ -668,8 +668,10 @@ tool and hands it to you, so the next wall you draw is that road.
 **Alley** is a modifier on whichever surface is armed rather than a road of its
 own — a paved alley and an earthen one are both alleys. For walls that already
 exist the **Walls** control carries a single tool, *Mark the selected walls as
-roads*, which marks everything selected as a road of the kind a city scene
-defaults to. In settlement mode a move is
+roads*, which marks everything selected as the road the wall tool is set to
+draw: with a road preset armed it takes that surface, and an alley stays an
+alley. With no road armed it marks an earthen road, an avenue on a city scene. In
+settlement mode a move is
 then measured over the streets rather than across the blocks between them, so
 a party that follows a curving avenue pays for the avenue. The panel says
 which way the last move was measured. A map with no streets drawn is measured

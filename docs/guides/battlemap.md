@@ -313,7 +313,9 @@ A river or a coastline is a line you draw, not a hex you paint. The group's
 so the next walls you draw are that water — the same way the road presets
 work ([Streets, and quarters](formation.md#streets-and-quarters)). For walls
 that already exist, the **Walls** control carries **Mark the selected walls as
-water**, which makes each selected wall a river. A water
+water**, which marks each selected wall as the water the wall tool
+is set to draw: with the **Coastline** preset armed, a coast, and with **River**
+armed, or any other wall type, a river. A water
 line blocks nothing; if a wall you marked still restricts movement, the
 notification says so, because the party cannot travel along it.
 

@@ -15,6 +15,7 @@ import {
   armWallPreset,
   blocksMovement,
   controlledWalls,
+  currentWallPreset,
   hasWallLayer,
   openWallData,
   setWallLayer,
@@ -124,6 +125,16 @@ export async function armWaterPreset({ kind = WATER_KINDS[0], navigable = null, 
   if (armed) ui.notifications?.info(loc("water.presetArmed", { water: waterKindLabel(kind) }));
   else ui.notifications?.warn(loc("water.presetUnavailable"));
   return armed;
+}
+
+/**
+ * The kind of water the wall tool is set to draw, as `waterFromSelection`'s
+ * arguments. Any other preset (a road, a trap line) or none gives `{}`, which
+ * leaves the first kind to the caller.
+ */
+export function armedWater() {
+  const water = wallWater({ flags: currentWallPreset()?.flags });
+  return water ? { kind: water.kind } : {};
 }
 
 /**
@@ -248,7 +259,8 @@ export function installWaterControls() {
       createData: waterWallData(),
       // ONE handler: a `button: true` tool given both `onChange` and `onClick`
       // has both called for a single press.
-      onChange: () => waterFromSelection(),
+      // The tool marks the water preset in hand: its kind.
+      onChange: () => waterFromSelection(armedWater()),
     };
     if (Array.isArray(walls.tools)) walls.tools.push(tool);
     else walls.tools[tool.name] = tool;

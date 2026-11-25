@@ -663,7 +663,10 @@ surface, plus an alley modifier and the conversion) are in the Battlemap group
 with the rest of map preparation. **Marking a selection** is on the Walls
 control, because leaving a placeables layer releases everything selected on it:
 a Roads control of its own would empty the wall selection at the moment it
-opened, and a selected wall is what that tool acts on.
+opened, and a selected wall is what that tool acts on. The tool reads the
+preset slot when pressed: a road preset in hand gives the surface and its
+street (an alley stays an alley), and anything else gives the first surface and
+the scene's default street (`armedRoad`).
 
 The **alley tool is a modifier on the armed preset** rather than a road kind of
 its own — pressing paved and then alley means a paved alley, which is what a
@@ -690,7 +693,9 @@ does not hide the river beside it.
 The road layer's mechanics carry over unchanged. The wall shape states every
 restriction as NONE and the door type as none (`waterWallData`), because the
 preset persists. Marking a selected wall as water (the Walls control's tool)
-never alters the wall itself, keeps a name already on the line, and counts a
+never alters the wall itself, marks the kind the water preset in hand draws
+(the first kind under any other preset, `armedWater`), keeps a name already on
+the line, and counts a
 line that still restricts movement so the notification can say the party
 cannot cross it. The water row on a wall's own sheet edits the kind, whether a
 boat can follow it, and the name, and "not water" takes the layer off. The two

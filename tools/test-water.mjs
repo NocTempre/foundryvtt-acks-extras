@@ -93,7 +93,9 @@ const {
   WATER_FLAG, WATER_KINDS, wallWater, isWaterWall, waterWallsOf, waterWallData, waterUnder,
   waterKindLabel, armWaterPreset, waterFromSelection, registerWaterHooks, installWaterControls,
 } = await import("../scripts/battlemap/water.mjs");
-const { roadWallsOf, roadSegmentsOf, invalidateRoadGraph } = await import("../scripts/battlemap/roads.mjs");
+const {
+  roadWallsOf, roadSegmentsOf, invalidateRoadGraph, roadWallData, wallRoad, installRoadControls,
+} = await import("../scripts/battlemap/roads.mjs");
 
 /* -------------------------------------------- */
 /*  Fixtures                                    */
@@ -296,6 +298,78 @@ ok("the Walls layer carries the from-selection tool, as a button with one handle
   handler(listed);
   assert.equal(listed[0].tools[0].name, "acksWaterFromSelection", "and pushed onto a listed tool array");
   handler({ tokens: { tools: {} } });
+});
+
+/** The tool `install` put on the Walls layer, pressed once, as the Judge's click calls it. */
+async function pressTool(install, name) {
+  install();
+  const keyed = { walls: { tools: {} } };
+  hooks.get("getSceneControlButtons").at(-1)(keyed);
+  await keyed.walls.tools[name].onChange();
+}
+
+await okAsync("the water tool marks the water preset in hand, and the first kind under anything else", async () => {
+  const wall = makeWall([0, 0, 100, 0]);
+  const mark = async (preset) => {
+    settings.delete("core.wallPreset");
+    if (preset) settings.set("core.wallPreset", preset);
+    wall.flags[MODULE_ID] = {};
+    controlled = [{ document: wall }];
+    await pressTool(installWaterControls, "acksWaterFromSelection");
+    return wallWater(wall);
+  };
+  assert.deepEqual(await mark(waterWallData({ kind: "coast" })), { kind: "coast", navigable: false, name: "" },
+    "a coast in hand marks a coast");
+  assert.equal((await mark(waterWallData({ kind: "river" }))).kind, "river", "a river in hand marks a river");
+  assert.equal((await mark(null)).kind, WATER_KINDS[0], "nothing in hand marks the first kind");
+  assert.equal((await mark({ flags: { [MODULE_ID]: { trap: { name: "x" } } } })).kind, WATER_KINDS[0],
+    "a trap line in hand marks the first kind");
+  assert.equal((await mark(roadWallData({ surface: "paved", street: "alley" }))).kind, WATER_KINDS[0],
+    "a road in hand marks the first kind");
+
+  // A line already of the preset's kind keeps its say on boats.
+  const closed = makeWall([0, 300, 100, 300], { water: { kind: "coast", navigable: true, name: "" } });
+  controlled = [{ document: closed }];
+  settings.set("core.wallPreset", waterWallData({ kind: "coast" }));
+  await pressTool(installWaterControls, "acksWaterFromSelection");
+  assert.equal(wallWater(closed).navigable, true, "a coast made a coast again keeps its own say on boats");
+
+  // With nothing selected the tool re-arms the kind in hand.
+  controlled = [];
+  settings.set("core.wallPreset", waterWallData({ kind: "coast" }));
+  await pressTool(installWaterControls, "acksWaterFromSelection");
+  assert.deepEqual(settings.get("core.wallPreset"), waterWallData({ kind: "coast" }), "the coast stays armed");
+  settings.delete("core.wallPreset");
+});
+
+await okAsync("the road tool marks the road preset in hand, and the first surface under anything else", async () => {
+  const wall = makeWall([0, 0, 100, 0]);
+  const mark = async (preset) => {
+    settings.delete("core.wallPreset");
+    if (preset) settings.set("core.wallPreset", preset);
+    wall.flags[MODULE_ID] = {};
+    controlled = [{ document: wall }];
+    await pressTool(installRoadControls, "acksRoadFromSelection");
+    return wallRoad(wall);
+  };
+  assert.deepEqual(await mark(roadWallData({ surface: "paved", street: "alley" })),
+    { surface: "paved", street: "alley", name: "" }, "a paved alley in hand marks a paved alley");
+  assert.deepEqual(await mark(roadWallData({ surface: "gravel", street: "avenue" })),
+    { surface: "gravel", street: "avenue", name: "" }, "a gravel avenue in hand marks a gravel avenue");
+  assert.deepEqual(await mark(roadWallData({ surface: "paved", street: null })),
+    { surface: "paved", street: null, name: "" }, "a paved road with no street keeps the scene's default street");
+  assert.deepEqual(await mark(null), { surface: "earth", street: null, name: "" }, "nothing in hand marks the first surface");
+  assert.deepEqual(await mark({ flags: { [MODULE_ID]: { trap: { name: "x" } } } }),
+    { surface: "earth", street: null, name: "" }, "a trap line in hand marks the first surface");
+  assert.deepEqual(await mark(waterWallData({ kind: "coast" })), { surface: "earth", street: null, name: "" },
+    "water in hand marks the first surface");
+
+  // With nothing selected the tool re-arms the road in hand, an alley still an alley.
+  controlled = [];
+  settings.set("core.wallPreset", roadWallData({ surface: "paved", street: "alley" }));
+  await pressTool(installRoadControls, "acksRoadFromSelection");
+  assert.deepEqual(wallRoad(settings.get("core.wallPreset")), { surface: "paved", street: "alley", name: "" });
+  settings.delete("core.wallPreset");
 });
 
 /* -------------------------------------------- */
