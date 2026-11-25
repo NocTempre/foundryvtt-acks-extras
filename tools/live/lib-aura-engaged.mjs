@@ -68,12 +68,6 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The module whose flags the fixtures carry. */
 const MOD = "acks-extras";
-/** The path the carrier is imported from in a page, for the one press the API does not export. */
-const ITEM_RUN_MODULE = "/modules/acks-extras/scripts/lib/item-run.mjs";
-/** The generator's own module, imported in a page to make one creature per call. */
-const GENERATE_MODULE = "/modules/acks-extras/scripts/lib/template-generate.mjs";
-/** The distance module, imported in a page for the engagement square's feet. */
-const DISTANCE_MODULE = "/modules/acks-extras/scripts/lib/distance-units.mjs";
 /** A subject's stored save target: invented, low enough that a natural 20 passes and a natural 1 fails whatever a body's modifiers. */
 const SAVE_TARGET = 10;
 /** The most bodies the generator is asked for while the walk looks for one holding an engaged row. */
@@ -293,7 +287,7 @@ const P = {
 
   /** The engagement square's feet, and the scene grid's reading of a cell, from the carrier's own module. */
   square: async ({ sceneUuid }) => {
-    const D = await import(DISTANCE_PLACEHOLDER);
+    const D = await import("/modules/acks-extras/scripts/lib/distance-units.mjs");
     const scene = sceneUuid ? fromUuidSync(sceneUuid) : null;
     return { feet: D.engagementFeet(), cell: scene ? D.sceneFeetPerCell(scene) : 0 };
   },
@@ -314,7 +308,7 @@ const P = {
 
   /** One creature from a template under a pinned trait; the engaged row its ability item holds, or null. */
   generate: async ({ templateUuid, trait, variant }) => {
-    const GEN = await import(GENERATE_PLACEHOLDER);
+    const GEN = await import("/modules/acks-extras/scripts/lib/template-generate.mjs");
     const template = await fromUuid(templateUuid);
     const actor = await GEN.generateFromTemplate(template, { pins: { trait, ...(variant ? { variant } : {}) } });
     if (!actor) return { ok: false };
@@ -555,7 +549,7 @@ const P = {
   },
   /** The carrier's one press the API does not export, called in this page: Not engaged, as a seat with no button would forge it. */
   forgedNotEngaged: async ({ messageId, entryKey }) => {
-    const M = await import(ITEM_RUN_PLACEHOLDER);
+    const M = await import("/modules/acks-extras/scripts/lib/item-run.mjs");
     const out = await M.notEngaged({ messageId, entryKey });
     return { ok: out?.ok ?? null, reason: out?.reason ?? null };
   },
@@ -636,13 +630,6 @@ const P = {
   /** The aura Regions left on a scene, to be tracked and swept. */
   leftRegions: ({ sceneUuid }) => [...(fromUuidSync(sceneUuid)?.regions ?? [])].filter((r) => [...r.behaviors].some((b) => b.type === "acks-extras.aura")).map((r) => r.uuid),
 };
-
-/* The page functions import by path; the paths are this file's constants, spliced in once. */
-for (const [name, constant] of [["square", ["DISTANCE_PLACEHOLDER", DISTANCE_MODULE]], ["generate", ["GENERATE_PLACEHOLDER", GENERATE_MODULE]], ["forgedNotEngaged", ["ITEM_RUN_PLACEHOLDER", ITEM_RUN_MODULE]]]) {
-  const [token, path] = constant;
-  const fn = P[name];
-  P[name] = Object.assign(Object.create(null), { toString: () => fn.toString().replace(token, JSON.stringify(path)) });
-}
 
 /* ------------------------------------------------------------------ */
 /*  The walk                                                           */
