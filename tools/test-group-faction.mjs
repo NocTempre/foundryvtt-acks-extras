@@ -201,6 +201,20 @@ t("join says why a seat cannot write, in the reason's own words", async () => {
   assert.equal(said[0][1], 'ACKS-LIB.org.refused.noFaction {"name":""}');
 });
 
+t("a leave a seat cannot write names the faction", async () => {
+  reset();
+  const war = group("Warband");
+  war.system.units = [row("w", "", war.uuid)];
+  const f = faction("Card");
+  await org.joinFaction(war, f);
+  f.isOwner = false;
+  said = [];
+  const result = await gesture.pressLeave(war);
+  assert.equal(result.reason, "notOwner");
+  assert.deepEqual(said, [["warn", 'ACKS-LIB.org.refused.notOwner {"name":"Card"}']]);
+  assert.equal(f.system.units.length, 1, "nothing was written");
+});
+
 t("a reason with no words of its own falls to the general line", async () => {
   reset();
   const war = group("Warband");
