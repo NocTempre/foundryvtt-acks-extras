@@ -233,7 +233,8 @@ part is blocked without it.
    row's Large cell with a pair of your own, then press "Rescale tokens on scene".
    *Observable:* the Large monster's token takes the override's squares at the
    stated square; clear the override and it returns to the imported cells.
-   The Ruledata Browser lists no `sizeSquare` table.
+   Where the Ruledata Browser still lists a `sizeSquare` table, from an import
+   made while the square was imported, an override of it moves no token.
 7. Press "Rescale tokens on scene" with the
    character token and the party token present.
    *Observable:* the character token resizes to one square at the

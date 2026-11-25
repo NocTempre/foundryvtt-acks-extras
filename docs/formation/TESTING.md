@@ -5574,7 +5574,7 @@ Teardown: nothing the walks built is swept; the fixtures stay. `api.sweepTracked
 
 ## The turn's unit: rounds to a turn and turns to an hour (RR p. 263)
 
-Fixtures: a kept delve party, marker `formation/time-unit` (a party actor with one member holding a torch, on a dungeon-scale scene). Nothing is imported for this surface: the unit is stated in `lib/time-unit.mjs`.
+Fixtures: the turn plan's kept party, marker `formation/plan-party`, on its scene `formation/plan-scene` ("The turn plan", above, which brings both to their start shape). Nothing is imported for this surface: the unit is stated in `lib/time-unit.mjs`.
 
 | Step | Do | Observable |
 | --- | --- | --- |

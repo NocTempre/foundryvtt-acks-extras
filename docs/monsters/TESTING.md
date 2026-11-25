@@ -826,8 +826,10 @@ imports → Rules tables). The battlemap's walk of the same figures is
 1. Open the Ruledata Browser (Settings tab → Game Settings → ACKS II — Extras →
    Imported Rules Tables → Open Ruledata Browser) on `monsters`.
    *Observable:* `sizeFrontage` is listed with one `squares` row holding a
-   cell per size category and citing the Monster Size table's page, and no
-   `sizeSquare` table is listed. In the console the frontage cells parse
+   cell per size category and citing the Monster Size table's page. A world
+   whose first import is this one lists no `sizeSquare` table; one that
+   imported while the square was imported still lists it, and nothing reads
+   it. In the console the frontage cells parse
    through `sizes.mjs` `sizeSquares`.
 2. Override `sizeFrontage`'s Large cell with a pair of your own and read it
    back.

@@ -341,9 +341,11 @@ squares: the first printed pair, else a lone figure or fraction, each side held
 to one square at the least (a body never occupies less than a token square).
 What one of its squares is worth in feet, the unit the row's label names, is
 stated and not imported: `sizes.mjs` `SQUARE_FEET` (MM p. 11), which
-`sizeSquareFeet()` answers whatever the world holds. No table carries it, so
-the Ruledata Browser lists none and a registered `sizeSquare` table moves
-nothing. Two readers take the frontage: the battlemap's `footprintFeet`, which
+`sizeSquareFeet()` answers whatever the world holds. No recipe produces a
+table for it. A world that imported one while the square was imported keeps
+it: the rules-table import carries forward every table its layer already
+holds (`tables-binding.mjs` `importTables`), so the Ruledata Browser still
+lists `sizeSquare` there, and nothing reads it. Two readers take the frontage: the battlemap's `footprintFeet`, which
 multiplies it by the square (`docs/battlemap/MODEL.md`, "Token sizing"), and
 the importer, which sets a monster's prototype token to the squares. The Judge
 edits the frontage in the Ruledata Browser like any imported table, and the

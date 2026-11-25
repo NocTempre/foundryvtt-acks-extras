@@ -498,6 +498,10 @@ ladders, and what that entry rejected, stand.
 **Cost.**
 - The Judge no longer edits the square in the Ruledata Browser, and a hover
   that cited the import shows the page reference stated in source.
+- A world that imported the square between v2026.11.14 and v2026.11.24.1
+  keeps its `sizeSquare` table. The rules-table import carries forward every
+  table its layer holds, so a re-import does not drop it, and the Ruledata
+  Browser lists a table whose edit changes nothing. No tool removes it.
 - The formation's wide frontage (`formation` / `wideFrontageFeet`, RR p. 288)
   is a second import that the audit read as the same unit. It is left
   imported: the march frontage and the rank interval beside it are figures the
