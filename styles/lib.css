@@ -727,6 +727,13 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   color: var(--acks-ink);
 }
 
+/* `is-muted` is a row that no longer counts: soft ink on the card's own ground,
+   never bold. */
+.acks-extras-roll-card .acks-table tbody tr.is-muted > td {
+  color: var(--acks-ink-soft);
+  font-weight: normal;
+}
+
 /* The detail line keeps its softened tone inside a tinted row rather than
    inheriting the verdict colour, which would make the stack shout. */
 .acks-extras-roll-card .acks-table tbody tr > td .acks-extras-roll-detail {

@@ -165,4 +165,22 @@ ok("a section's chips print under its table as labels, escaped, each with its to
   assert.equal(renderRollCard({ title: "T", sections: [{ rows: [], chips: [{ label: "x" }] }] }), "", "chips alone do not make a card");
 });
 
+ok("an aside opens a column after Name, headed by its label, with its tooltip as text; no aside leaves the card as it was", () => {
+  const rows = [{ name: "A", total: 1, aside: "5′ <x>", asideTooltip: "measured & now" }, { name: "B", total: 2 }];
+  const html = renderRollCard({ title: "T", labels: { aside: "Dist." }, sections: [{ rows }] });
+  assert.ok(html.includes('<th>ACKS-LIB.rollCard.colName</th><th class="acks-nums">Dist.</th><th class="acks-nums">ACKS-LIB.rollCard.colTotal</th>'), "the column sits right after Name");
+  assert.ok(html.includes('<td class="acks-nums" data-tooltip-text="measured &amp; now">5′ &lt;x&gt;</td><td class="acks-nums">1</td>'));
+  assert.ok(html.includes('<td>B</td><td class="acks-nums"></td><td class="acks-nums">2</td>'), "a row with none leaves its cell empty");
+  assert.ok(renderRollCard({ title: "T", sections: [{ rows }] }).includes("rollCard.colAside"), "the heading has a default");
+  assert.ok(!renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: 1, asideTooltip: "t" }] }] }).includes("colAside"), "a tooltip with no aside opens no column");
+  const bare = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: 1, aside: "" }] }] });
+  assert.equal(bare, renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: 1 }] }] }));
+});
+
+ok("a muted row takes its own class, and its outcome is never bold", () => {
+  const html = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: "", outcome: "Out of reach", emphasis: "muted" }] }] });
+  assert.ok(html.includes('<tr class="is-muted"><td>A</td>'));
+  assert.ok(html.includes("<td>Out of reach</td>") && !html.includes("<strong>"), "soft ink, not bold");
+});
+
 console.log(`\n${passed} passed`);

@@ -1229,6 +1229,7 @@
   "ACKS-LIB.surprise.monsters": "Monsters",
   "ACKS-LIB.surprise.adventurers": "Adventurers",
   "ACKS-LIB.rollCard.colName": "Name",
+  "ACKS-LIB.rollCard.colAside": "Detail",
   "ACKS-LIB.rollCard.colTotal": "Total",
   "ACKS-LIB.rollCard.colTarget": "Target",
   "ACKS-LIB.rollCard.colResult": "Result",

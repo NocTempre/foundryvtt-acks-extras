@@ -19,9 +19,11 @@ const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 /**
  * How a row is marked. `success`/`failure` are a verdict against a target;
  * `neutral` is emphasis WITHOUT a verdict — the surprise card's marked rows,
- * where whether the result is good news depends on which table you are reading.
+ * where whether the result is good news depends on which table you are reading;
+ * `muted` is a row that no longer counts (a body that left reach, one that is
+ * not a target), in soft ink and never bold.
  */
-const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", neutral: "is-neutral" });
+const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", neutral: "is-neutral", muted: "is-muted" });
 
 /**
  * A button on a card: `action` is its `data-action`, `label` its words (already
@@ -57,6 +59,12 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  *                                 as text and never read as a lang key.
  * @property {string} [detail]     The modifier stack / source, printed small
  *                                 under the name. Escaped here.
+ * @property {string} [aside]      A figure beside the name in a column of its own
+ *                                 (a distance), headed by `labels.aside`; the
+ *                                 column appears only if some row in the section
+ *                                 has one. Escaped here.
+ * @property {string} [asideTooltip] Hover text for the aside, assembled at render,
+ *                                 so it is written as text and never read as a lang key.
  * @property {string} [tooltip]    Hover text for the total (a dice formula), read by
  *                                 core as a lang key or cleaned HTML.
  * @property {string} [tooltipText] Hover text for the total assembled at render, so
@@ -69,7 +77,7 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  * @property {string} [outcome]    The verdict, already localized; the Result
  *                                 column appears only if some row in the
  *                                 section has one.
- * @property {"success"|"failure"|"neutral"} [emphasis]
+ * @property {"success"|"failure"|"neutral"|"muted"} [emphasis]
  */
 
 /** A `data-*` attribute name from a camelCased key. */
@@ -97,6 +105,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
   // Result, like Target, is printed only where there is one: a roll that
   // carries no verdict — initiative — is a name and a number, and an always-on
   // column would head a whole table of blanks.
+  const showAside = rows.some((r) => r.aside);
   const showResult = rows.some((r) => r.outcome);
   const showActions = rows.some((r) => r.actions?.length);
   const titleTip = titleTooltip ? ` data-tooltip-text="${esc(titleTooltip)}"` : "";
@@ -104,6 +113,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
   html += `<table class="acks-table"><thead><tr>`;
   const head = (key, fallback) => esc(labels[key] ?? loc(fallback));
   html += `<th>${head("name", "rollCard.colName")}</th>`;
+  if (showAside) html += `<th class="acks-nums">${head("aside", "rollCard.colAside")}</th>`;
   html += `<th class="acks-nums">${head("total", "rollCard.colTotal")}</th>`;
   if (showTarget) html += `<th class="acks-nums">${head("target", "rollCard.colTarget")}</th>`;
   if (showResult) html += `<th>${head("result", "rollCard.colResult")}</th>`;
@@ -115,6 +125,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
     html += `<td>${esc(row.name)}`;
     if (row.detail) html += `<span class="acks-extras-roll-detail">${esc(row.detail)}</span>`;
     html += `</td>`;
+    if (showAside) html += `<td class="acks-nums"${row.aside && row.asideTooltip ? ` data-tooltip-text="${esc(row.asideTooltip)}"` : ""}>${esc(row.aside)}</td>`;
     html += `<td class="acks-nums"${tip}>${esc(row.total)}</td>`;
     if (showTarget) {
       const t = Number(row.target);
@@ -161,7 +172,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
  *                                    posts on a non-empty return keeps its "".
  * @param {RollCardAction[]} [card.buttons]  Buttons in a footer under the tables and the
  *                                    footnote, classed `acks-extras-roll-actions`.
- * @param {{name?: string, total?: string, target?: string, result?: string, actions?: string}} [card.labels]
+ * @param {{name?: string, aside?: string, total?: string, target?: string, result?: string, actions?: string}} [card.labels]
  *                                    Column headings in place of the defaults, already localized.
  * @returns {string} HTML, or "" if there is nothing to show.
  */

@@ -42,7 +42,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-07 — [The look becomes a setting; the palette is handed back rather than withheld (2026-08-07)](DECISIONS-through-v11.14.5.md#the-look-becomes-a-setting-the-palette-is-handed-back-rather-than-withheld-2026-08-07)
 - 2026-08-11 — [A character alone can strike a light (2026-08-11)](DECISIONS-through-v11.14.5.md#a-character-alone-can-strike-a-light-2026-08-11)
 - 2026-08-11 — [Surprise results consolidate onto one card](DECISIONS-through-v11.14.5.md#2026-08-11--surprise-results-consolidate-onto-one-card)
-- 2026-08-11 — [One renderer for every card where several people roll](DECISIONS-through-v11.14.5.md#2026-08-11--one-renderer-for-every-card-where-several-people-roll)
+- 2026-08-11 — [One renderer for every card where several people roll](DECISIONS-through-v11.14.5.md#2026-08-11--one-renderer-for-every-card-where-several-people-roll), qualified 2026-11-25: [four emphases, and an aside column](#2026-11-25--the-shared-card-gains-a-fourth-emphasis-and-an-aside-column)
 - 2026-08-14 — [Tokens split colour from structure; the light palette is a real branch](DECISIONS-through-v11.14.5.md#2026-08-14--tokens-split-colour-from-structure-the-light-palette-is-a-real-branch)
 - 2026-08-14 — [Money is physical; four rulings land at once](DECISIONS-through-v11.14.5.md#2026-08-14--money-is-physical-four-rulings-land-at-once) — superseded in part by "2026-09-01 — the system's compendium tree is the system's, and the library can be put back"; "2026-09-02 — hiding compendiums was a BAD DIRECTION"; "2026-10-01 — Currency is one stack with one count, weighed by how many make a stone"; "2026-11-11 — A spoil is released by the Judge, not claimed by a throw" (docs/location/DECISIONS.md)
 - 2026-08-18 — [One owner for the attack roll, and one seam for future modifiers](DECISIONS-through-v11.14.5.md#2026-08-18--one-owner-for-the-attack-roll-and-one-seam-for-future-modifiers) — superseded in part by "2026-10-20 — The attack seam rides the system's labelled modifiers"
@@ -2376,3 +2376,15 @@ morale figure), and the replaced officer who is also the faction's leader as an 
 
 **Cost.** A creature of a type the system does not declare and the row's Make does not create cannot be
 dropped; it is set through Make or the press instead.
+
+## 2026-11-25 — The shared card gains a fourth emphasis and an aside column
+
+**Ruled.** `renderRollCard` marks a row one of four ways, `success`, `failure`, `neutral` and `muted`, where the in-force "One renderer for every card where several people roll" (2026-08-11) names three. A row may also carry an `aside` and its `asideTooltip`: a figure in a column after Name, headed by `labels.aside`, printed only where some row of the section has one. Board 4b of the reach cards draws both: a body's distance as a figure that carries a tooltip of where it came from, and a body that left reach or is no target in grey.
+
+**Why not the old fields.** `detail` prints small under the name and has no tooltip slot, and a distance is a figure (`ui-tooltips.md`). `neutral` prints bold on a tint, which is the reverse of grey.
+
+**Qualifies IN PART** the 2026-08-11 ruling on its count of emphases only; the one renderer, the markup and the caller's ownership of every word stand. `muted` is soft ink (`--acks-ink-soft`) and never bold, one rule in `styles/lib.css`.
+
+**Cost.** None to the other callers: neither field is passed by any of them, and `tools/test-roll-card.mjs` pins their HTML byte for byte.
+
+**Strongest counter, WEAK.** A renderer many cards use grows for one card. Weak: both fields are additive and pinned.
