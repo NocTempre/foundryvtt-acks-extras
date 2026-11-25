@@ -2148,7 +2148,7 @@ The guess in the owner's words does not hold in core 14: an embedded Item takes 
 
 *Cost:* a Player's spell whose row names a creature on a Judge's shelf, or a world actor the Player cannot observe, is refused until the Judge grants Observer. A compendium's ownership is set by role, so the grant on a shelf opens it to every Player, and "Restore the Compendium Library" writes a Judge's shelf closed again. The shipped summon recipes name creatures on the monster book's shelf or none, and that shelf keeps core's default ownership. This is a gate on the tool and not on the data: Foundry gates no read, so the creature's document stays readable from any client, and its name still prints on the row.
 
-## 2026-11-25 — The organisation chart's row verbs, linked actors and village level, as the owner ruled them
+## 2026-11-25 — The organisation chart's row verbs, linked actors and village level, as the owner ruled them — SUPERSEDED IN PART 2026-11-25
 
 **Ruled.** The owner answered the organisation chart's open questions in these words:
 
@@ -2176,3 +2176,25 @@ The orchestration hub turned the answers into directions, approved on board 3 of
 **Rejected.** *A Ctrl+Z binding for the Undo strip.* The chart tab holds text fields with their own undo, and core's canvas undo is core's; the hub ruled the button only. *A disabled tick for an actor the seat cannot delete.* The ruled shape is a line saying it stays. *A tick per linked actor, off by default, and a one-click Delete that keeps every linked actor.* Board 3 drew both; the owner marked "One-click Delete keeps people" wrong. *Remove handing the rows beneath to the removed row's group.* That is the landed `unlistRow`; the owner marked it wrong against the words (k).
 
 **Strongest counter, MEDIUM.** A one-click Delete takes linked actors, and its Undo is held only in memory, so a reload or a second Delete after a mistaken press loses those actors for good. Held: the owner asked for exactly that trade ("One-click deletes people without extra prompting"), and the setting turns the warning back on.
+
+## 2026-11-25 — A village's non-fighter parts are chart rows of their own, with a warband's controls
+
+**Ruled.** The owner, on where a village's non-fighters live: "They need the same controls as warbands, they just happen to be druges, whelps, prisoners, females, beasts etc some of which are non-combat".
+
+**What it settles.** The entry above held "where the camp's parts live" for the owner's answer. This is the answer, and it is the new evidence for superseding that one row of the entry's table, less than a day after it was written.
+- Each non-fighter part the roll entry lists is a top row of the village's chart, beside the warbands.
+- Each part row names its own group, and that group holds the part's bodies as a stack, the shape of a gang row.
+- The group sits one level under the faction, as a warband's does.
+- No row or group wraps the parts.
+- A part row has every control a gang row has: Open, which leads to its group sheet and that sheet's Deploy, Add, Edit, Send out, Recall, the count die, Remove, Delete with its warning and Undo, Join, and an officer line where the template gives the part a leader role.
+- Labels and creature links come from the imported entries. A part whose creature entry is not imported behaves as a gang row does when its creature is missing.
+- Nothing is written to the faction's Strength table.
+
+The rest of the entry above stands. Slice (c), village as faction, builds this with the faction's leader line and its "+ Make the chieftain".
+
+**Rejected.**
+- *A camp row or group holding the parts.* The owner marked it wrong.
+- *The parts as counted figures in the faction's Strength table.* That shape reached the build plan only through one hub message whose option wording, "Counted on the village", was then withdrawn. It was the hub's error, not an owner ruling: the owner's sentence above replaced it before anything was built.
+- *A fighting or non-fighting mark, sort or gate.* "some of which are non-combat" describes the parts and asks for no mechanism.
+
+**Strongest counter, LOW.** A village chart with a row per part is longer than one with a single camp row, and a Judge scrolls past rows that never fight. Held: the owner asked for the controls on each part, and a row is the only shape that carries them.
