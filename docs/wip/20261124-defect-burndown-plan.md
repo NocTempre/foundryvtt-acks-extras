@@ -226,8 +226,8 @@ are claimed and its session is proposed to the owner as a card.
 Ten rows worked, all in `main`'s tree (walk scripts and recipes only, so no
 topic branch was opened). Four are fixed in 0f44b0ba: T-0533, T-0562, T-0563
 and T-0564. Five were already released in v2026.11.14: T-0532, T-0566, T-0567
-and T-0568 (1838c199) and T-0565 (bb051e26). Their walk checks pass in every
-run since 2026-11-15, and the ledger notes name the runs. T-0534 is a false
+and T-0568 (1838c199) and T-0565 (bb051e26). Their walk checks pass in the
+three or four runs from 2026-11-15 to 2026-11-25 that each ledger note names. T-0534 is a false
 report: its walk was retired in 546248b1, and the id it named belongs to a
 coined monster, whose name the owner ruled on 2026-11-18 ships. Four findings
 were registered `new`: T-0771, T-0772, T-0783 and T-0784. All on `main`, not
@@ -247,15 +247,24 @@ pushed.
   - importer-ax1 had a table roll on an Adventure's data-model tables.
   - Its zone checks predated region-wide zones.
   - Its link count read one cookbook where the importer reads all of them.
-  - force-repair's No observer counted a peer's writes. It now keeps the GM
-    seat's own writes.
+  - force-repair's No observer counted every user's writes. It now keeps the
+    GM seat's own writes and counts other users' apart. A setup check proves it
+    still records the seat's own edit. That a peer's writes made the earlier
+    run's 10 is inferred, not shown: the subject's modifiedTime did not move,
+    and a peer disclosed holding a seat in that window. The passing runs saw 0
+    writes by other users.
 - An architect diagnosed importer-ax1's backlog: one module finding (T-0772,
   the pair block's stale register list) and two walk drifts, both fixed.
 
 Walked live on `main`, lane B (Gamemaster 2 / Player 2):
 
 - importer-typography 20261125-112211: passed (49 pass, 0 fail).
-- importer-force-repair 20261125-112211: passed (54 pass, 0 fail).
+- importer-force-repair 20261125-112211: passed (54 pass, 0 fail). With the
+  observer's own-write check added, 20261125-120036 passed (55 pass, 0 fail).
+  The run between them, 20261125-114842, errored: the GM page stopped
+  answering after Keep all, a step that passed on both sides of it. Its own 10
+  items were swept by uuid afterwards (all removed), and the shelf it opened
+  was deleted once empty.
 - importer-ax1 20261125-112211: failed (98 pass, 1 fail). It reached WALK END,
   and the one FAIL is T-0772.
 - formation-column 20261125-113354, with FIXTURE_OWN=b03, so the entry is
@@ -265,9 +274,34 @@ Walked live on `main`, lane B (Gamemaster 2 / Player 2):
   fixtures are owned by lane A's player, and a peer held lane A's Judge, the
   active GM, from 11:11 to 11:16 UTC.
 
+Deleted and kept, from each log's ledger. Every sweep quoted here ended with
+nothing missing and nothing failed:
+
+- The typography setup sweep removed nothing (the shelves were already
+  clear). Its teardown swept its own Adventure, maps, actors and shelves.
+- The force-repair 120036 teardown removed its 10 items and one actor, and
+  deleted the shelf it opened. It reused `importer/token-art-wildcard`.
+- importer-ax1 deleted the world's AX1 maps, places, creatures and plans by
+  read-back uuids and remade them as the standing import: 17 maps, 219 actors
+  copied. It reused `importer/lamplighter`, and its own token sweep found its
+  tokens already gone with their maps.
+- formation-column built and kept 13 `@b03` fixtures:
+  - `formation/column-scene`, `column-party`, `column-lead`, `column-torch`,
+    `column-lantern` and `column-watcher`
+  - `formation/column-party-token`, `column-trap-item` and `column-trap`
+  - `formation/cadence-party`, `cadence-member`, `rest-party` and
+    `rest-member`
+
 Checked offline only: the cookbook-derived counts, and the shape rule against
 an offline `executeEntry` run on the two six-box prose entries.
 
-Not checked: formation-column's re-import branch for the trap die, because the
-world already held it; a non-partial formation-column run; `init`/`setup`/`ready`
-console beyond each walk's own load-to-ready check.
+Not checked:
+
+- formation-column's re-import branch for the trap die, because the world
+  already held it.
+- A formation-column run that is not partial.
+- Typography step 1's announcement on opening the book: the seat had it open
+  before the run.
+- force-repair's steps 2, 3, 5, 6 and 7: no active module ships a monster
+  compendium with token art.
+- `init`/`setup`/`ready` console beyond each walk's own load-to-ready check.

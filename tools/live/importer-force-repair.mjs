@@ -670,8 +670,11 @@ try {
   check("setup: the items step imported every item of the book, all this run's own", mine.length === IDS.length && IDS.length > 0, { made: mine.length, of: IDS.length });
   const subject = mine[0];
   const fresh = await run(gm, P.shape, { uuid: subject });
+  await run(gm, P.observe, { on: true });
   await run(gm, P.edit, { uuid: subject, note: NOTE, playerName: SEATS.player });
+  const ownEdit = await run(gm, P.observe, { on: false });
   const edited = await run(gm, P.shape, { uuid: subject });
+  check("setup: the observer records the GM seat's own write (the edit just made)", ownEdit.some((w) => w.uuid === subject && /^update/.test(w.hook)), { writes: ownEdit.length });
   check("setup: the first item now carries a Judge's note, a quantity of 3 and an owner beside the default", edited.judged && edited.quantity === 3 && Object.keys(edited.ownership ?? {}).length >= 2 && edited.textLength > fresh.textLength, { judged: edited.judged, quantity: edited.quantity, owners: Object.keys(edited.ownership ?? {}).length });
 
   const shelfDlg = await run(gm, P.shelfDialog);
