@@ -597,6 +597,8 @@
   "ACKS-LIB.delayedDamage.detail": "{amount} from {source} ({cite})",
   "ACKS-LIB.delayedDamage.detailBare": "{amount} from {source}",
   "ACKS-LIB.delayedDamage.refused": "Delayed damage from {source} was not applied to {name}: {why}.",
+  "ACKS-LIB.delayedDamage.owed": "Delayed damage from {source} ({cite}) was not applied to {name}: {amount} is owed, so apply it by hand.",
+  "ACKS-LIB.delayedDamage.owedBare": "Delayed damage from {source} was not applied to {name}: {amount} is owed, so apply it by hand.",
   "ACKS-LIB.conditionRoll.term.imposed": "{source} {value}",
   "ACKS-LIB.conditionRoll.term.imposedCited": "{source} ({cite}) {value}",
   "ACKS-LIB.conditionRoll.roll.attack": "attack throw",
