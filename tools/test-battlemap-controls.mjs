@@ -122,4 +122,35 @@ reset();
 group.tools[TOOL_OFF].onChange(undefined, true);
 assert.deepEqual(calls, [["session.disarm"]], "off disarms the session");
 
+// Closing the palette disarms the brush whatever armed it; one the toolbar's
+// tool armed also puts the group back on off, but only while the group is the
+// current control with the brush its active tool.
+const closePalette = (armedBy, { control = CONTROL_GROUP, tool = "terrain" } = {}) => {
+  reset();
+  terrainPaint.armedBy = armedBy;
+  ui.controls.control = control ? { name: control } : null;
+  ui.controls.tool = tool ? { name: tool } : null;
+  new TerrainPaletteApp()._onClose({});
+};
+
+closePalette("tool");
+assert.deepEqual(calls, [["terrainPaint.disarm"]], "a palette closed over the tool's brush disarms it");
+assert.deepEqual(activated, [{ tool: TOOL_OFF }], "and the group rests on off");
+
+closePalette("tool", { control: "walls", tool: "terrain" });
+assert.deepEqual(calls, [["terrainPaint.disarm"]], "another control current: the brush is still disarmed");
+assert.deepEqual(activated, [], "another control current: the GM's control is left alone");
+
+closePalette("tool", { tool: "off" });
+assert.deepEqual(activated, [], "the brush no longer the group's active tool: nothing is activated");
+
+closePalette("tool", { control: null, tool: null });
+assert.deepEqual(activated, [], "no control current: nothing is activated");
+
+for (const by of ["sheet", "palette"]) {
+  closePalette(by);
+  assert.deepEqual(calls, [["terrainPaint.disarm"]], `${by}: a palette closed over its brush disarms it`);
+  assert.deepEqual(activated, [], `${by}: and does not touch the toolbar`);
+}
+
 console.log("battlemap controls: ok");

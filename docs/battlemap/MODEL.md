@@ -144,9 +144,10 @@ country").
 
 **The brush from a sheet.** `openCountryBrush({layer, brush, by})` arms the
 brush on a registered layer and opens its palette: the toolbar's tool calls it, and so
-does a party sheet's paint chip. Closing the palette disarms a brush the
-toolbar did not arm, because nothing else on screen says the canvas is
-captured.
+does a party sheet's paint chip. Closing the palette disarms the brush,
+whoever armed it, because nothing else on screen says the canvas is captured;
+a brush the toolbar armed also rests the Battlemap group on its resting tool,
+so a press on Country brush opens the palette again.
 
 ## Map modes
 
@@ -206,7 +207,12 @@ hides the road markers too. The mode outlives the brush and every control:
 it changes when the Judge picks another in the Map modes window, or when the
 brush is armed on a layer or switched to one (the mode that layer's pill
 shows, which opens the window for any mode but Terrain). A swatch picked or a
-disarm leaves the mode as it is.
+disarm leaves the mode as it is, and so does a mode or the handout picked
+while the brush is armed, until a stroke: the press that opens a stroke, an
+erase included, on a layer whose overlay the view is not drawing writes that
+layer's mode with the handout off and opens the window
+(`terrainPaint.onStroke`). A Terrain stroke changes nothing, since core's own
+regions draw the terrain under every mode and the handout.
 
 **The Map modes window** (`MapModesApp`, the group's Map modes tool) shows a
 pill per mode with the view's pressed, the mode's legend and what an

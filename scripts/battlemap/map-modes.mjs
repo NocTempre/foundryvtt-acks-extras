@@ -11,8 +11,10 @@
  *
  * The mode, the overlay's opacity and the handout switch are this client's
  * view (`mapView`, a client setting the Map modes window writes) and outlive
- * the brush. The handout switch hides every GM overlay, the road markers
- * included (`acksExtrasMapView`). A player is drawn none.
+ * the brush; a pick of either stands until a stroke on a layer the view is
+ * not showing switches it to that layer's mode. The handout switch hides
+ * every GM overlay, the road markers included (`acksExtrasMapView`). A player
+ * is drawn none.
  *
  * See docs/battlemap/DECISIONS.md, "The map shows one mode at a time".
  */
@@ -330,8 +332,19 @@ function stroke(g, segments, widthOf) {
 }
 
 /**
+ * Write a patch to the view and, for any mode but Terrain, open the Map modes
+ * window beside it. The two ways the view follows the brush share it.
+ */
+function showMode(mode, patch) {
+  setMapView(patch).catch((err) => console.error(`${MODULE_ID} | map mode not saved`, err));
+  if (mode !== TERRAIN_MODE) openMapModes();
+}
+
+/**
  * Following the brush: arming it, or switching its layer, shows the mode the
- * layer's pill names. A disarm leaves the mode as it is.
+ * layer's pill names. A disarm leaves the mode as it is, and so does a mode or
+ * the handout picked while the brush is armed: only a stroke (`showStrokeLayer`)
+ * shows the layer again.
  */
 let followed = null;
 function followBrush() {
@@ -342,10 +355,23 @@ function followBrush() {
   if (terrainPaint.layer === followed) return;
   followed = terrainPaint.layer;
   const mode = modeForLayer(followed);
-  if (mode !== mapView().mode) {
-    setMapView({ mode }).catch((err) => console.error(`${MODULE_ID} | map mode not saved`, err));
-  }
-  if (mode !== TERRAIN_MODE) openMapModes();
+  if (mode !== mapView().mode) showMode(mode, { mode });
+  else if (mode !== TERRAIN_MODE) openMapModes();
+}
+
+/**
+ * A stroke that opens on a layer whose overlay the view is not drawing shows
+ * it: the mode the layer's pill names, with the handout off, in one write. A
+ * layer whose mode is Terrain is drawn by core's own regions, which neither
+ * the mode nor the handout switch hides, so its stroke changes nothing. A view
+ * already showing the layer is left alone.
+ */
+function showStrokeLayer(layer) {
+  const mode = modeForLayer(layer);
+  if (mode === TERRAIN_MODE) return;
+  const view = mapView();
+  if (view.mode === mode && !view.handout) return;
+  showMode(mode, { mode, handout: false });
 }
 
 /**
@@ -375,6 +401,7 @@ export function installMapModes() {
   // A layer whose values changed meaning with no region written: a domain renamed, re-lieged or reclassified.
   Hooks.on(PAINT_LAYER_CHANGED_HOOK, later);
   terrainPaint.onChange(followBrush);
+  terrainPaint.onStroke(showStrokeLayer);
 }
 
 /* -------------------------------------------------------------------- */

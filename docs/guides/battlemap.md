@@ -276,12 +276,13 @@ mode, **Domains**, does the same for the domains painted on the map
 ([Domains](domains.md#on-the-map)). The group's **Map modes** tool opens the
 window that picks the mode; pressing the Territory or Domain pill on the
 brush picks that mode too and opens the window, and it stays on, through every
-control, until you pick Terrain again.
+control, until you pick another. A mode you pick while painting holds until
+your next stroke on the brush's layer, which shows that layer's mode again.
 
 The window lists what each colour means, what a hex with no border reads as
 (the scene's own territory), and the map's climate. **Opacity** fades the
 borders; **Handout view** hides them, and the road and water markers, while
-you show your screen. Players never see a map mode. The territory regions
+you show your screen, until your next Territory or Domains stroke turns it off. Players never see a map mode. The territory regions
 themselves show only on the Regions control.
 
 ![](../releases/v11.10.0/battlemap-map-modes.png)

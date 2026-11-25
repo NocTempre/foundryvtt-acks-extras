@@ -2910,7 +2910,8 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
 
   // Following the brush. The window is opened, never drawn.
   let opened = 0;
-  MapModesApp.prototype.render = function render() { opened++; this.rendered = true; return this; };
+  // Only a forced render is the window being opened; a redraw of one already open is not.
+  MapModesApp.prototype.render = function render(options) { if (options?.force) opened++; this.rendered = true; return this; };
   installMapModes();
   try {
     terrainPaint.arm(null, { layer: "territory", by: "sheet" });
@@ -2925,6 +2926,91 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
     assert.equal(mapView().mode, "territory", "and the mode outlives the brush");
     terrainPaint.arm(null, { layer: "terrain", by: "sheet" });
     assert.equal(mapView().mode, "terrain", "arming on terrain is the way back");
+
+    // A stroke on a layer the view is not showing shows it. The catcher is built against a
+    // stand-in stage whose handlers the test calls as PIXI would.
+    const board = { id: "board" };
+    class Node {
+      handlers = {};
+      transform = { updateTransform() {} };
+      addChild(child) { return child; }
+      on(name, fn) { this.handlers[name] = fn; }
+      destroy() {}
+    }
+    let catcher = null;
+    globalThis.PIXI = {
+      Container: Node,
+      Sprite: class extends Node { constructor() { super(); catcher = this; } },
+      Texture: { WHITE: {} },
+      Transform: { IDENTITY: {} },
+    };
+    globalThis.canvas = { stage: new Node(), app: { screen: {}, view: board }, scene };
+    const at = (x, y, buttons = 1) => ({ nativeEvent: { target: board }, buttons, getLocalPosition: () => ({ x, y }) });
+    const settle = async () => { for (let n = 0; n < 6; n++) await new Promise((resolve) => setTimeout(resolve, 0)); };
+    const press = async (x = 150, y = 150) => {
+      catcher.handlers.pointerdown(at(x, y));
+      await settle();
+      catcher.handlers.pointerup(at(x, y, 0));
+    };
+    const realSet = game.settings.set;
+    let viewWrites = 0;
+    game.settings.set = (...args) => { viewWrites++; return realSet(...args); };
+    try {
+      terrainPaint.disarm();
+      terrainPaint.arm(null, { layer: "territory", by: "sheet" });
+      await setMapView({ mode: "terrain" });
+      await setMapView({ opacity: 0.5 });
+      viewWrites = 0;
+      await settle();
+      assert.deepEqual([mapView().mode, viewWrites], ["terrain", 0], "a hand pick of Terrain with no stroke after it stays as picked");
+      let before = opened;
+      await press();
+      assert.deepEqual([mapView().mode, mapView().handout, mapView().opacity, opened - before, viewWrites], ["territory", false, 0.5, 1, 1],
+        "the first stroke on a layer the view does not show switches to its mode in one write, keeps the rest of the view, and opens the window");
+
+      before = opened;
+      viewWrites = 0;
+      await setMapView({ handout: true });
+      await settle();
+      assert.deepEqual([mapView().mode, mapView().handout, opened - before], ["territory", true, 0], "the handout view picked with no stroke after it stays");
+      viewWrites = 0;
+      await press();
+      assert.deepEqual([mapView().mode, mapView().handout, opened - before, viewWrites], ["territory", false, 1, 1],
+        "a stroke over the handout view with the mode right turns the handout off");
+
+      before = opened;
+      viewWrites = 0;
+      await press(250, 150);
+      assert.deepEqual([viewWrites, opened - before], [0, 0], "a stroke on a view already showing the layer writes no view and opens nothing");
+
+      await setMapView({ mode: "terrain" });
+      terrainPaint.setBrush("erase");
+      await press();
+      assert.equal(mapView().mode, "territory", "an erase stroke shows the layer as a painting one does");
+
+      // Only the press announces: a hand pick made mid-drag stays through the drag's later cells.
+      terrainPaint.setBrush("borderlands");
+      await setMapView({ mode: "terrain" });
+      catcher.handlers.pointerdown(at(150, 150));
+      assert.equal(mapView().mode, "territory", "the press that opens a stroke switches the view");
+      await setMapView({ mode: "terrain" });
+      catcher.handlers.pointermove(at(250, 350));
+      await settle();
+      catcher.handlers.pointerup(at(250, 350, 0));
+      assert.equal(mapView().mode, "terrain", "the later cells of the drag switch nothing");
+
+      // A layer whose mode is Terrain is drawn by core's regions, which the handout does not hide.
+      terrainPaint.setLayer("terrain");
+      await setMapView({ handout: true });
+      viewWrites = 0;
+      before = opened;
+      await press();
+      assert.deepEqual([mapView().mode, mapView().handout, viewWrites, opened - before], ["terrain", true, 0, 0],
+        "a stroke on the terrain layer leaves the view as picked");
+    } finally {
+      game.settings.set = realSet;
+      delete globalThis.PIXI;
+    }
   } finally {
     terrainPaint.disarm();
     terrainPaint.setLayer("terrain");

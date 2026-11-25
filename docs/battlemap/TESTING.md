@@ -716,6 +716,13 @@ bubbling `change`.
    restrictions do not change, and a warning says the party cannot cross it.
    Untick the river line's boat tick, select that line and press the tool
    again: `updated` 1 and `navigable` still false.
+   Press the **Coastline** preset, select a second ordinary wall and press
+   the tool: that wall's flag reads `kind` coast, the armed kind; with core's
+   ordinary wall armed instead, the tool marks a river. Press **Paved road**,
+   then **Alley (of the armed road)**, select a third ordinary wall and press
+   **Mark the selected walls as roads** on the Walls control: its road flag
+   reads surface paved and street alley, the preset's pair; with core's
+   ordinary wall armed, the tool marks the first surface and no street.
 6. In the Map setup window, set the scene's Ground here, Territory and Climate.
    *Observable:* `flags["acks-extras"].battlemap.country` holds the three keys
    at once, with no apply, and the record's other fields are unchanged;
@@ -814,7 +821,22 @@ back at the end.
    borders back.
 6. Repaint one hex of the cluster the other territory.
    *Observable:* the overlay redraws within a moment, the hex's borders moved.
-7. View the square scene with the window open.
+7. Press **Terrain** in the window, then paint one more hex of the cluster
+   with the brush still on the Territory pill; then tick **Handout view** and
+   paint another.
+   *Observable:* the Terrain pick stands until the stroke; at the stroke's
+   first hex `mapView()` reads mode "territory" and handout false, the
+   window shows Territory pressed and the new hex is drawn. The handout tick
+   likewise stands until the next stroke, which unticks it. A pick with no
+   stroke after it is still the pick a second later.
+8. Close the palette from its header with the brush armed from the toolbar.
+   *Observable:* `terrainPaint.brush` is null, the group's active tool is
+   its resting tool (`ui.controls.tool.name` "off") and the Country brush is
+   no longer lit; a click on the canvas paints nothing; a press on **Country
+   brush** arms it again and the palette renders. Arm it from a party sheet's
+   paint chip instead and close the palette: the brush is null and the
+   toolbar's tool is whatever it was.
+9. View the square scene with the window open.
    *Observable:* the window says the modes are drawn on a hex map, and the
    overlay holds no child.
 

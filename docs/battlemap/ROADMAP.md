@@ -72,12 +72,9 @@ Re-issued 2026-11-14.
      hexes, and the brush has no Escape.
    - T-0590: the Country brush is offered on a scene that is not a hex grid
      and refuses only at the first click.
-   The brush, the wall layers and the navigation card: T-0599 (closing the
-   palette leaves a toolbar-armed brush armed), T-0600 (territory painted
-   under the Terrain mode or the handout view shows nowhere), T-0601 (the
+   The brush, the wall layers and the navigation card: T-0601 (the
    palette's layer pills and the Map modes pills look alike and do different
-   things), T-0602 (marking selected walls always marks the first kind),
-   T-0603 (the alley preset's notice and the shore's names disagree; three
+   things), T-0603 (the alley preset's notice and the shore's names disagree; three
    road presets share one glyph), T-0604 (the road row has no spoken names,
    and its fields stay editable under "Not a road" and "Not water"), T-0605
    (swatches put world labels in `data-tooltip`), T-0606 (the opacity slider

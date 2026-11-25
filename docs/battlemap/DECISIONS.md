@@ -30,7 +30,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-09 — [The brush paints at the book's grain](DECISIONS-through-v11.14.5.md#2026-10-09--the-brush-paints-at-the-books-grain) — superseded in part by "2026-10-15 — A river or a coast is a line"; "2026-10-15 — The country is read from the map, and the Judge's word stands over it"
 - 2026-10-09 — [A recipe's grid is aligned the way the calibration aligns one](DECISIONS-through-v11.14.5.md#2026-10-09--a-recipes-grid-is-aligned-the-way-the-calibration-aligns-one)
 - 2026-10-15 — [A river or a coast is a line](DECISIONS-through-v11.14.5.md#2026-10-15--a-river-or-a-coast-is-a-line)
-- 2026-10-15 — [The country brush paints three layers](DECISIONS-through-v11.14.5.md#2026-10-15--the-country-brush-paints-three-layers) — superseded in part by "2026-10-24 — The climate is the map's"; "2026-10-24 — The map shows one mode at a time"
+- 2026-10-15 — [The country brush paints three layers](DECISIONS-through-v11.14.5.md#2026-10-15--the-country-brush-paints-three-layers) — superseded in part by "2026-10-24 — The climate is the map's"; "2026-10-24 — The map shows one mode at a time"; "2026-11-25 — Closing the palette disarms every brush, and a stroke shows its layer"
 - 2026-10-17 — [The country brush's layers are a registry](DECISIONS-through-v11.14.5.md#2026-10-17--the-country-brushs-layers-are-a-registry) — superseded in part by "2026-11-16 — Paint is a core grid shape per value"
 - 2026-10-24 — [The brush paints the board alone](DECISIONS-through-v11.14.5.md#2026-10-24--the-brush-paints-the-board-alone)
 - 2026-10-24 — [The climate is the map's](DECISIONS-through-v11.14.5.md#2026-10-24--the-climate-is-the-maps) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
@@ -413,3 +413,48 @@ or a non-grid shape a Judge adds to a paint Region paints nothing, and is
 carried through the next write untouched. Every write replaces the Region's
 whole `shapes` array (about 16 bytes a cell; the offsets field has no maximum),
 and an Apply takes a read of every grid cell before it writes.
+
+## 2026-11-25 — Closing the palette disarms every brush, and a stroke shows its layer
+
+**Ruled** (owner, 2026-11-25, on the B02 design board for ledger rows T-0599,
+T-0600 and T-0602): "A on all three".
+
+**Decision.**
+- **Closing the palette disarms the brush, whoever armed it.** A brush the
+  toolbar armed also rests the Battlemap group on its resting tool when the
+  group and the Country brush are still the active pair, so the tool is no
+  longer lit and the next press on it arms the brush and opens the palette
+  again. A brush a sheet armed is disarmed as before.
+- **A stroke shows the layer it paints.** The first stroke on a layer the
+  map view does not show (another mode, or the handout view on) switches the
+  view to that layer's mode with the handout off and opens the Map modes
+  window, the switch arming already makes. The press that opens a stroke
+  decides it, an erase included; a Terrain stroke changes nothing, since
+  core's own regions draw the terrain under every mode and the handout. A
+  mode or the handout picked with no stroke after it stays as picked.
+
+**Supersedes in part** *2026-10-15 The country brush paints three layers*:
+"Closing the palette disarms a brush the toolbar did not arm", and so the
+toolbar's exemption it implied. Kept: a sheet can arm the brush, and the
+rejection of a sheet-armed brush left armed, whose reason now covers both.
+
+**New evidence.** A toolbar-armed brush left armed on close kept catching the
+canvas with nothing on screen to say so, which is the 2026-10-15 reason
+applied to the toolbar's own case; and the lit tool swallowed the next press
+(core's `SceneControls` ignores a press on the active tool), so the palette
+could not be reopened from the toolbar until another tool was picked. Under
+the 2026-10-24 rule that arming shows a layer, a hand pick of Terrain or the
+handout after arming left later territory strokes writing where nothing drew
+them.
+
+**Rejected.**
+- *Keep the toolbar's brush armed and reopen the palette on the next press*:
+  the canvas stays caught while nothing says so, the case the 2026-10-15
+  rejection already named.
+- *Refuse a stroke on a hidden layer*: it puts a gate on the Judge's own
+  surface where a switch the brush already makes on arming says the same.
+- *Switch the view on every pick while armed*: it overrides a choice the
+  Judge just made; the stroke is the moment the Judge asks to see the layer.
+
+**Cost.** A Judge who picks Terrain to look under a territory brush and then
+paints sees the view switch back on the first stroke.

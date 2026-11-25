@@ -22,7 +22,7 @@
  *
  * See docs/battlemap/DECISIONS.md, "Paint is a core grid shape per value."
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, CONTROL_GROUP, TOOL_OFF } from "./constants.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
@@ -767,8 +767,9 @@ class TerrainPaintSession {
   /**
    * What armed the brush: "tool" (the toolbar's terrain tool, which disarms it
    * when toggled off), "sheet" (a party sheet's paint chip) or "palette" (a
-   * swatch picked while disarmed). Closing the palette disarms any but the
-   * tool's, since nothing else on screen says the canvas is captured.
+   * swatch picked while disarmed). Closing the palette disarms the brush
+   * whatever armed it; one the tool armed also puts the toolbar back on its
+   * resting tool, since a lit tool cannot be pressed again to reopen the palette.
    */
   armedBy = null;
 
@@ -779,6 +780,7 @@ class TerrainPaintSession {
   /** Tail of the write chain; a stroke's cell writes run one after another. */
   #paintQueue = Promise.resolve();
   #listeners = new Set();
+  #strokeListeners = new Set();
   /** The last value picked on each layer, so a layer switch or a re-arm comes back to it. */
   #lastBrush = { terrain: "grassland" };
 
@@ -789,6 +791,16 @@ class TerrainPaintSession {
 
   #notify() {
     for (const fn of this.#listeners) fn(this.brush);
+  }
+
+  /**
+   * Call `fn(layer)` as each stroke opens: a press on the board of a hex scene
+   * with the brush armed, erase included, before the first cell is written. A
+   * drag's later cells announce nothing. Returns the unsubscribe.
+   */
+  onStroke(fn) {
+    this.#strokeListeners.add(fn);
+    return () => this.#strokeListeners.delete(fn);
   }
 
   /**
@@ -846,6 +858,7 @@ class TerrainPaintSession {
     buildPointerCatcher(container, {
       down: (ev) => {
         this.#stroking = true;
+        if (this.brush && isHexScene(canvas?.scene)) for (const fn of this.#strokeListeners) fn(this.layer);
         this.#paintAt(ev);
       },
       move: (ev) => {
@@ -892,6 +905,23 @@ class TerrainPaintSession {
       .then(() => paintHexAt(scene, point, value, layer))
       .catch((err) => console.error(`${MODULE_ID} | terrain paint failed`, err));
   }
+}
+
+/** The Battlemap group's Country brush tool, the one that arms `terrainPaint` with `by: "tool"`. */
+const BRUSH_TOOL = "terrain";
+
+/**
+ * Put the Battlemap group on its resting tool, but only while the group is the
+ * current control and the Country brush is its active tool. Core ignores a
+ * press on the tool already active, so a lit brush over a closed palette
+ * cannot be pressed to reopen it; a group already left, or a tool already
+ * changed, is the GM's own choice and is not touched. Selecting a tool within
+ * the group never switches the GM to it from another control.
+ */
+function restGroupAtOff() {
+  const controls = globalThis.ui?.controls;
+  if (controls?.control?.name !== CONTROL_GROUP || controls.tool?.name !== BRUSH_TOOL) return;
+  controls.activate({ tool: TOOL_OFF });
 }
 
 /** The one terrain-paint session the scene controls drive. */
@@ -983,7 +1013,11 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
     this.#unsubscribe = null;
     if (this.#layerHook != null) Hooks.off(PAINT_LAYER_CHANGED_HOOK, this.#layerHook);
     this.#layerHook = null;
-    if (terrainPaint.armedBy !== "tool") terrainPaint.disarm();
+    // The subscription is already gone, so the disarm's notice cannot render
+    // this closing window back open.
+    const byTool = terrainPaint.armedBy === "tool";
+    terrainPaint.disarm();
+    if (byTool) restGroupAtOff();
   }
 
   static async #pickBrush(_event, target) {
