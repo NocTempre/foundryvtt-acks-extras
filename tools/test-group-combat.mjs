@@ -222,6 +222,8 @@ function combatIn() {
     lateMs: 0,
     /** Each call's token ids and the stored list it read, as the system's call reads it. */
     manageCalls: [],
+    /** Writes of the system's call that have not landed. */
+    pending: 0,
     /**
      * The system's tracker call: it refuses a token that is no combatant, reads the stored
      * list now, takes the tokens out of every other group, drops a group under two, and
@@ -239,8 +241,10 @@ function combatIn() {
         if (i !== groups.length - 1) g.tokens = g.tokens.filter((id) => !ids.includes(id));
       });
       const kept = groups.filter((g) => g.tokens.length > 1);
+      combat.pending++;
       setTimeout(() => {
         combat.flags.acks = { groups: kept };
+        combat.pending--;
       }, combat.lateMs);
     },
     async createEmbeddedDocuments(type, rows) {
@@ -340,10 +344,20 @@ function groupToken(where, group, data = {}) {
   return token;
 }
 
+/** Wait until the system's writes have landed and lib has stopped calling it, whatever the timers do. */
+async function idle(combat) {
+  let seen = -1;
+  while (combat.pending > 0 || combat.manageCalls.length !== seen) {
+    seen = combat.manageCalls.length;
+    await sleep(25);
+  }
+}
+
 /** Add a token to a combat the way the HUD does, then let the hooks finish. */
 async function addToCombat(combat, token, { hidden = false } = {}) {
   const [combatant] = await combat.createEmbeddedDocuments("Combatant", [{ tokenId: token.id, actorId: token.actorId, sceneId: token.parent.id, hidden }]);
   await settle();
+  await idle(combat);
   return combatant;
 }
 

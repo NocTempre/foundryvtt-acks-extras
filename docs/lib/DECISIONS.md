@@ -1694,9 +1694,10 @@ is built only if a live walk shows two groups on one total interleaving.
 **Two defects of the system's are the system's, and nothing here works round them.**
 T-0734: a second `manageGroup` recomputes every stored group's `initiativeBonus`
 from the tokens it was just passed, so grouping a second gang hands the first gang
-the second's bonus. T-0735: `manageGroup` does not await its flag write, so a call made
-before the last one has landed reads the stored list without it and its write drops
-that group. Between calls lib reads the stored list until it holds the group just
+the second's bonus (confirmed by reading the system's source). T-0735:
+`manageGroup` does not await its flag write, so a call made before the last one has
+landed would read the stored list without it and its write would drop that group (the
+dropped group is inferred from the source and not yet seen live). Between calls lib reads the stored list until it holds the group just
 made, which is ordering; it does not write the flag. A group the stored list already
 holds as it is makes no call, because a call replaces the group with one that has
 not rolled.
@@ -1705,7 +1706,8 @@ not rolled.
 does not use it, its tracker draws nothing for one, and it would be a second
 grouping beside the system's. Writing the system's list from lib: the 2026-08-24
 ruling, not reversed. A scope narrower than "every group actor whose token joins":
-the owner's wording draws no line between a gang and another group.
+the system's feature draws no line between a gang and another group, which is a
+reading, not the owner's word.
 
 **Strongest counter, STRONG.** The 2026-08-24 rejection was the maintainer's own
 ruling, and going past gangs reverses it for groups the owner did not name, a

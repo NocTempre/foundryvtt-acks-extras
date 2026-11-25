@@ -303,6 +303,10 @@ group as one row. The partition is `gangPartition` (`group-logic.mjs`), the call
   holds the group, so the next call starts from a list that has it. The wait is ordering
   and writes nothing. If the list never holds the group, the wait ends at three seconds, a
   line goes to the console and the next gang goes on.
+- Lib never writes the list, so it never prunes it. An early gather deletes the bodies'
+  combatants and leaves their group stored with token ids that no longer exist, and
+  sending the bodies out again stores a second group beside it. The stale one holds no
+  live body and is harmless to the roll.
 - A body that joins a combat on its own, as a monster added by hand, is no group's and is
   never grouped.
 
