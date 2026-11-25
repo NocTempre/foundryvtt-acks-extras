@@ -477,6 +477,10 @@ await t("E9: a standing part is held once per subject and kind, written only whe
 await t("E9's save part: the printed circumstance and qualifier resolve onto the catalogue and the magic flag, the save part is written narrowed and told on every throw, and an unresolved word writes no save and is reported", async () => {
   const { circumstanceOf } = await import("../scripts/lib/conditions.mjs");
   const { saveModParts } = rollMods;
+  const { CIRCUMSTANCES } = await import("../scripts/lib/conditions.mjs");
+  assert.deepEqual([...CIRCUMSTANCES].sort(), ["fear", "sight", "voice"], "the words the catalogue rows wait on, never the two a roll settles itself");
+  for (const settled of ["source", "shield", "fears", ""]) assert.equal(circumstanceOf(settled), null, `${settled || "blank"} names no circumstance`);
+  assert.equal(circumstanceOf(" Fear "), "fear");
   const missed = [];
   const miss = (figure, word) => missed.push([figure, word]);
   const deps = { ...BASE, circumstance: circumstanceOf, miss };
