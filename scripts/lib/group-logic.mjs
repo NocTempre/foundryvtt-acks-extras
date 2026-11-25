@@ -10,6 +10,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { appearingFormula, sideFormula } from "./encounter-line.mjs";
+import { OCCUPANT_KIND, ancestorUuids, descendantUuids, indexPlaces, wouldCycle } from "./place-logic.mjs";
 
 /** The registered actor sub-type a stack is stored as. */
 export const GROUP_ACTOR_TYPE = `${MODULE_ID}.group`;
@@ -33,8 +34,9 @@ export const STACK_FLAG = "stack";
 export const MEMBER_FLAG = "member";
 
 /**
- * The tokens on `scenes` that stand for `group`'s bodies, found by the group
- * flag every deployed body carries. Reads only.
+ * The tokens on `scenes` that stand for `group`'s own bodies, found by the group
+ * flag every deployed body carries. Reads only. A group inside this one has its
+ * own bodies, which `deployedTree` adds.
  * @param {object} group the group actor
  * @param {Iterable<Scene>} scenes
  * @returns {TokenDocument[]}
@@ -50,20 +52,171 @@ export function deployedBodies(group, scenes) {
   return bodies;
 }
 
+/* -------------------------------------------- */
+/*  A group inside a group                       */
+/* -------------------------------------------- */
+
 /**
- * How many BODIES an actor stands for: a stack stands for its living bodies
- * across every stack it holds, and any other actor stands for itself.
- *
- * This is the one place that answers "how many people is this row?", so a
- * formation cell, a headcount and a marching block all agree. Reads the derived
- * total when the data model is live and falls back to summing the raw stacks, so
- * a plain source object answers the same.
+ * Every group actor in the world, or none where no world is loaded. The one read
+ * the tree walks below start from.
+ * @returns {object[]}
  */
-export function bodyCount(actor) {
-  if (!isGroupActor(actor)) return actor ? 1 : 0;
-  const sys = actor.system ?? {};
+export function worldGroups() {
+  const actors = globalThis.game?.actors;
+  return typeof actors?.[Symbol.iterator] === "function" ? [...actors].filter(isGroupActor) : [];
+}
+
+/**
+ * The nodes the one walker reads, `{uuid, parentUuid}` over each group's
+ * `unit.parentGroupUuid`: place-logic's `ancestorUuids`, `descendantUuids` and
+ * `wouldCycle` are the walker, and a group's nesting uses it as a place's and a
+ * faction's do.
+ * @param {object[]} [groups] defaults to every group in the world
+ * @returns {{uuid: string, parentUuid: string, name: string, own: number}[]} `own` is the
+ *   bodies the group holds in its own stacks
+ */
+export function groupNodes(groups = worldGroups()) {
+  return groups
+    .filter((g) => g?.uuid)
+    .map((g) => ({ uuid: g.uuid, parentUuid: g.system?.unit?.parentGroupUuid ?? "", name: g.name ?? "", own: ownBodies(g) }));
+}
+
+/**
+ * The uuids of every group inside `group`, nearest first, however deep. The walk
+ * ends on its own where data loops.
+ * @param {object} group
+ * @param {{uuid: string, parentUuid: string}[]} [nodes]
+ * @returns {string[]}
+ */
+export function groupDescendants(group, nodes = groupNodes()) {
+  return group?.uuid ? descendantUuids(group.uuid, nodes) : [];
+}
+
+/**
+ * The uuids of every group `group` stands inside, nearest first.
+ * @param {object} group
+ * @param {{uuid: string, parentUuid: string}[]} [nodes]
+ * @returns {string[]}
+ */
+export function groupAncestors(group, nodes = groupNodes()) {
+  return group?.uuid ? ancestorUuids(group.uuid, indexPlaces(nodes)) : [];
+}
+
+/**
+ * Would putting `uuid` inside `parentUuid` close a loop? Putting a group inside
+ * itself counts, and a parent this client cannot see does not.
+ * @param {string} uuid
+ * @param {string} parentUuid
+ * @param {{uuid: string, parentUuid: string}[]} [nodes]
+ */
+export function wouldCycleGroup(uuid, parentUuid, nodes = groupNodes()) {
+  return wouldCycle(uuid, parentUuid, indexPlaces(nodes));
+}
+
+/**
+ * A group and every group inside it, as actors: the group first, then those
+ * inside it nearest first. A group nothing is inside is a tree of itself.
+ * @param {object} group
+ * @returns {object[]}
+ */
+export function groupTree(group) {
+  if (!isGroupActor(group)) return [];
+  const all = worldGroups();
+  const byUuid = new Map(all.map((g) => [g.uuid, g]));
+  const inside = groupDescendants(group, groupNodes(all)).map((u) => byUuid.get(u)).filter(Boolean);
+  return [group, ...inside];
+}
+
+/**
+ * The tokens on `scenes` that stand for the bodies of `group` and of every group
+ * inside it. What a token's fight sends out, gathers and puts back, and what a
+ * formation reads for a member that holds a nested group.
+ * @param {object} group
+ * @param {Iterable<Scene>} scenes
+ * @returns {TokenDocument[]}
+ */
+export function deployedTree(group, scenes) {
+  const uuids = new Set(groupTree(group).map((g) => g.uuid));
+  if (!uuids.size && group?.uuid) uuids.add(group.uuid);
+  const bodies = [];
+  for (const scene of scenes ?? []) {
+    for (const token of scene?.tokens ?? []) {
+      if (uuids.has(token?.getFlag?.(MODULE_ID, GROUP_FLAG))) bodies.push(token);
+    }
+  }
+  return bodies;
+}
+
+/**
+ * The living bodies one group holds in its own stacks, none for an emptied one.
+ * Reads the derived total when the data model is live and falls back to summing
+ * the raw stacks, so a plain source object answers the same.
+ * @param {object} actor a group
+ */
+export function ownBodies(actor) {
+  const sys = actor?.system ?? {};
   if (typeof sys.totalCurrent === "number") return Math.max(0, sys.totalCurrent);
   return (sys.stacks ?? []).reduce((n, s) => n + Math.max(0, s?.size?.current ?? 0), 0);
+}
+
+/**
+ * How many BODIES an actor stands for: a group stands for its living bodies across
+ * every stack it holds and every group inside it, read now and never from a
+ * stored figure; an emptied group stands for none. Any other actor stands for
+ * itself.
+ *
+ * This is the one place that answers "how many people is this row?", so a
+ * formation cell, a headcount and a marching block all agree.
+ * @param {object} actor
+ * @param {{uuid: string, parentUuid: string}[]} [nodes] the groups to walk, default every group in the world
+ */
+export function bodyCount(actor, nodes = null) {
+  if (!isGroupActor(actor)) return actor ? 1 : 0;
+  return ownBodies(actor) + treeBodies(actor, nodes);
+}
+
+/** The living bodies of every group inside `actor`, each counted once. */
+function treeBodies(actor, nodes) {
+  const all = nodes ?? groupNodes();
+  const inside = new Set(groupDescendants(actor, all));
+  return all.filter((n) => inside.has(n.uuid)).reduce((sum, n) => sum + (n.own ?? 0), 0);
+}
+
+/**
+ * Roster or member rows with each group row's count read now. A row naming a
+ * group that resolves is a group row whatever its stored `kind` says, and its
+ * `quantity` is that group's `bodyCount`, nested groups included and none for an
+ * emptied one. A group's bodies are counted once however many rows reach it: a
+ * row whose group stands inside another row's group counts none of its own. A row
+ * that does not resolve (a group deleted, a pack not loaded) keeps what it
+ * stored, and every other row is left as it is.
+ * @param {object[]} rows plain rows with `uuid`, `kind`, `quantity`
+ * @param {(uuid: string) => object|null} [resolve] a row's actor, default the world's
+ * @returns {object[]}
+ */
+export function liveRows(rows, resolve = worldActor) {
+  const list = rows ?? [];
+  const groups = list.map((row) => {
+    const actor = row?.uuid ? resolve(row.uuid) : null;
+    return isGroupActor(actor) ? actor : null;
+  });
+  const nodes = groupNodes(worldGroups());
+  const held = new Set(groups.filter(Boolean).map((g) => g.uuid));
+  return list.map((row, i) => {
+    const group = groups[i];
+    if (!group) return row;
+    const inside = groupAncestors(group, nodes).some((u) => held.has(u));
+    return { ...row, kind: OCCUPANT_KIND.GROUP, quantity: inside ? 0 : bodyCount(group, nodes) };
+  });
+}
+
+/** A world document by uuid, or null: `fromUuidSync` throws on a pack that is not loaded. */
+function worldActor(uuid) {
+  try {
+    return typeof globalThis.fromUuidSync === "function" ? (globalThis.fromUuidSync(uuid) ?? null) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -92,17 +245,23 @@ export function memberName(stack, member) {
   return `${label} #${member?.ordinal ?? "?"}`;
 }
 
+/** Was this stack made by the generator? Its `gen` names the recipe part. */
+export const isGeneratedStack = (stack) => !!stack?.gen?.part;
+
 /**
  * The stack on a group that a crossing stack joins: the one over the same base
  * actor, so every record's delta still overlays what it was written against. A
- * stack with no base matches none, and a shared label never matches.
+ * stack with no base matches none, and a shared label never matches. Two
+ * generated stacks never match, since each stands for one unit's part and the
+ * same creature in two units is two rows.
  * @param {object[]} stacks - the receiving group's stacks
  * @param {object} stack - the stack crossing
  * @returns {object|null}
  */
 export function matchingStack(stacks, stack) {
   const uuid = stack?.template?.uuid;
-  return (uuid && stacks?.find((s) => s.template?.uuid === uuid)) || null;
+  const made = isGeneratedStack(stack);
+  return (uuid && stacks?.find((s) => s.template?.uuid === uuid && !(made && isGeneratedStack(s)))) || null;
 }
 
 /**

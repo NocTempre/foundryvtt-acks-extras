@@ -456,6 +456,9 @@ standingStep = 0;
   assert.equal(headcountOf(readableRows(rows, false)), 4, "a player counts only what a player can read");
   assert.equal(headcountOf([{ uuid: "Actor.x" }, { quantity: 0 }, { quantity: -2 }]), 3, "a row with no usable quantity is one body");
   assert.equal(headcountOf(), 0);
+  // An emptied group is a member holding no bodies, not a body.
+  assert.equal(headcountOf([{ uuid: "Actor.g", kind: "group", quantity: 0 }, { uuid: "Actor.p", kind: "actor" }]), 1, "an emptied group row counts none");
+  assert.equal(headcountOf([{ uuid: "Actor.g", kind: "group", quantity: 6 }]), 6);
 }
 
 // --- an imported body's overview is the Judge's --------------------------------------

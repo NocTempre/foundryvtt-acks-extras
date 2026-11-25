@@ -85,6 +85,13 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // `baseMorale` is this troop type's RR 166 base; the consumer sets both
         // from the mercenary rules at hire. It is null while the figure is not
         // imported, and `unitMoraleOf` counts a null as adding nothing.
+        // Set where the generator made this stack: the recipe part's key and the page
+        // that prints it. A blank part is a stack nothing generated, so the field is
+        // never null. See docs/lib/GROUPS.md, "A generated stack".
+        gen: new SchemaField({ part: str(), cite: str() }),
+        // A printed hit-point figure every body of this stack takes in place of a
+        // roll. Null is a stack whose bodies roll their hit dice.
+        fixedHp: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 1 }),
         mounted: new foundry.data.fields.BooleanField({ initial: false }),
         baseMorale: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: -4, max: 4 }),
         /** The sparse roster: one entry per body that has diverged. See docs/lib/GROUPS.md, "The laziness invariant". */
@@ -136,6 +143,10 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         wageUnit: str({ initial: "month" }),
         employerUuid: str(),
         locationUuid: str(),
+        // The group this one stands inside (a gang inside a warband). Blank is a group
+        // inside none. Written by `setParentGroup`, which refuses a loop; the walk
+        // over it is group-logic's `groupTree`. See docs/lib/GROUPS.md, "A group inside a group".
+        parentGroupUuid: str(),
         // The commanding officer (RR 171): a lone leveled actor, not a stack.
         // Only the skirmish-scale bit lives here (uuid + cached morale
         // modifier, so `commandMorale` computes without loading the officer);

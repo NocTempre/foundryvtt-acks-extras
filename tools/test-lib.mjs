@@ -7,7 +7,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
-import { BELOW_EVERY_RUNG, cleanDelta, commandStatus, isDerivedEffect, memberName, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
+import {
+  BELOW_EVERY_RUNG, bodyCount, cleanDelta, commandStatus, groupAncestors, groupDescendants, groupNodes, groupTree, isDerivedEffect, liveRows, matchingStack, memberName,
+  nextOrdinal, platoonCapacity, sizeFromEcology, wouldCycleGroup,
+} from "../scripts/lib/group-logic.mjs";
 import {
   ROLL_PIN, axisIsBanded, axisOffersChoice, chooseAxes, mergePatch, optionAvailable, resolveActor, rollDie, rollMenu, rollOption, seededRng,
 } from "../scripts/lib/template-logic.mjs";
@@ -1969,6 +1972,112 @@ t("visibleOccupants: OWNING the hidden occupant does not reveal it", () => {
 t("headcount counts a group row as its whole stack", () => {
   assert.equal(headcount([{ uuid: "a" }, { uuid: "b", quantity: 30 }]), 31);
   assert.equal(headcount([]), 0);
+});
+
+t("headcount counts an emptied group row as none and any other row as at least one", () => {
+  assert.equal(headcount([{ uuid: "g", kind: "group", quantity: 0 }]), 0);
+  assert.equal(headcount([{ uuid: "g", kind: "group", quantity: 0 }, { uuid: "a", kind: "actor" }, { uuid: "m", kind: "monster", quantity: 0 }]), 2);
+  assert.equal(headcount([{ uuid: "g", kind: "group" }]), 0, "a group row with no figure reads none, not one");
+  assert.equal(headcount([{ uuid: "g", kind: "group", quantity: 12 }, { uuid: "a", kind: "actor", quantity: 3 }]), 15);
+});
+
+/** A group actor of invented bodies: `unit.parentGroupUuid` names the group it stands inside. */
+function nestedGroup(uuid, bodies, parent = "") {
+  return { uuid, name: uuid, type: "acks-extras.group", system: { totalCurrent: bodies, unit: { parentGroupUuid: parent } } };
+}
+
+/** Run `fn` with these groups as the world's actors and `fromUuidSync` answering for them. */
+function inWorld(list, fn) {
+  const prior = { game: globalThis.game, fromUuidSync: globalThis.fromUuidSync };
+  globalThis.game = { actors: list };
+  globalThis.fromUuidSync = (uuid) => {
+    if (uuid === "Actor.lost") throw new Error("pack not loaded");
+    return list.find((a) => a.uuid === uuid) ?? null;
+  };
+  try {
+    return fn();
+  } finally {
+    globalThis.game = prior.game;
+    globalThis.fromUuidSync = prior.fromUuidSync;
+  }
+}
+
+t("the group walker finds descendants nearest first and ancestors up to the root, and ends on a loop", () => {
+  const world = [nestedGroup("Actor.o", 1), nestedGroup("Actor.a", 1, "Actor.o"), nestedGroup("Actor.b", 1, "Actor.o"), nestedGroup("Actor.c", 1, "Actor.b")];
+  inWorld(world, () => {
+    const nodes = groupNodes();
+    assert.deepEqual(groupDescendants(world[0], nodes), ["Actor.a", "Actor.b", "Actor.c"]);
+    assert.deepEqual(groupAncestors(world[3], nodes), ["Actor.b", "Actor.o"]);
+    assert.deepEqual(groupTree(world[1]).map((g) => g.uuid), ["Actor.a"], "a group nothing is inside is a tree of itself");
+    assert.deepEqual(groupTree(world[0]).map((g) => g.uuid), ["Actor.o", "Actor.a", "Actor.b", "Actor.c"]);
+  });
+  // A loop in stored data, written around the writer: both walks end and report each group once.
+  const loop = [nestedGroup("Actor.x", 1, "Actor.y"), nestedGroup("Actor.y", 1, "Actor.x")];
+  inWorld(loop, () => {
+    assert.deepEqual(groupDescendants(loop[0]), ["Actor.y"]);
+    assert.deepEqual(groupAncestors(loop[0]), ["Actor.y"]);
+    assert.equal(bodyCount(loop[0]), 2);
+  });
+});
+
+t("a group cannot be put inside itself or inside a group that stands inside it", () => {
+  const world = [nestedGroup("Actor.o", 1), nestedGroup("Actor.a", 1, "Actor.o"), nestedGroup("Actor.c", 1, "Actor.a")];
+  inWorld(world, () => {
+    assert.equal(wouldCycleGroup("Actor.o", "Actor.o"), true, "inside itself");
+    assert.equal(wouldCycleGroup("Actor.o", "Actor.c"), true, "inside its own grandchild");
+    assert.equal(wouldCycleGroup("Actor.c", "Actor.o"), false, "a deeper group may move up");
+    assert.equal(wouldCycleGroup("Actor.a", "Actor.unseen"), false, "a parent this client cannot see closes nothing");
+    assert.equal(wouldCycleGroup("Actor.a", ""), false);
+  });
+});
+
+t("a group's count is read live with the groups inside it, and an emptied group counts none", () => {
+  const world = [nestedGroup("Actor.o", 2), nestedGroup("Actor.a", 3, "Actor.o"), nestedGroup("Actor.b", 0, "Actor.o"), nestedGroup("Actor.c", 4, "Actor.a")];
+  inWorld(world, () => {
+    assert.equal(bodyCount(world[0]), 9);
+    assert.equal(bodyCount(world[1]), 7);
+    assert.equal(bodyCount(world[2]), 0, "an emptied group has none, not one");
+    assert.equal(bodyCount({ type: "monster" }), 1);
+    assert.equal(bodyCount(null), 0);
+  });
+  // With no world loaded a group answers from its own stacks.
+  assert.equal(bodyCount({ type: "acks-extras.group", uuid: "Actor.q", system: { stacks: [{ size: { current: 2 } }, { size: { current: 3 } }] } }), 5);
+});
+
+t("a roster row's count is the group's count now, never the figure the row was written with", () => {
+  const world = [nestedGroup("Actor.o", 2), nestedGroup("Actor.a", 3, "Actor.o"), nestedGroup("Actor.e", 0)];
+  inWorld(world, () => {
+    const rows = [
+      { uuid: "Actor.o", kind: "group", quantity: 30 },
+      { uuid: "Actor.e", kind: "group", quantity: 8 },
+      { uuid: "Actor.p", kind: "actor", quantity: 1 },
+      { uuid: "Actor.lost", kind: "group", quantity: 6 },
+    ];
+    const live = liveRows(rows);
+    assert.deepEqual(live.map((r) => r.quantity), [5, 0, 1, 6], "stale 30 and 8 are replaced; a person and an unresolvable row keep theirs");
+    assert.equal(headcount(live), 12);
+    assert.equal(rows[0].quantity, 30, "the stored rows are untouched");
+  });
+});
+
+t("two roster rows that reach the same bodies count them once", () => {
+  const world = [nestedGroup("Actor.o", 2), nestedGroup("Actor.a", 3, "Actor.o")];
+  inWorld(world, () => {
+    const rows = [{ uuid: "Actor.o", kind: "group", quantity: 1 }, { uuid: "Actor.a", kind: "group", quantity: 3 }];
+    assert.deepEqual(liveRows(rows).map((r) => r.quantity), [5, 0], "the inner group's bodies are the outer row's already");
+    assert.equal(headcount(liveRows(rows)), 5);
+    assert.equal(headcount(liveRows([rows[1]])), 3, "alone, the inner group counts its own");
+  });
+});
+
+t("two generated stacks over one creature never match, and a generated stack still matches a plain one", () => {
+  const stack = (uuid, part) => ({ template: { uuid }, ...(part ? { gen: { part, cite: "p" } } : {}) });
+  const here = [stack("Actor.base", "P1"), stack("Actor.base", "")];
+  assert.equal(matchingStack(here, stack("Actor.base", "P1")), here[1], "the same part in another unit is another row; the plain stack takes it");
+  assert.equal(matchingStack([here[0]], stack("Actor.base", "P1")), null);
+  assert.equal(matchingStack([here[0]], stack("Actor.base", "P2")), null);
+  const plain = [stack("Actor.base", "")];
+  assert.equal(matchingStack(plain, stack("Actor.base", "")), plain[0], "two plain stacks over one creature merge as before");
 });
 
 t("planSplit refuses to empty a stack or split a single place", () => {

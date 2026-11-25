@@ -1,6 +1,6 @@
 /* global game, foundry */
 import { KEEP_HIT_POINTS_OPTION, MODULE_ID } from "../lib/constants.mjs";
-import { GROUP_FLAG, deployedBodies } from "../lib/group-logic.mjs";
+import { GROUP_FLAG, deployedTree, groupTree } from "../lib/group-logic.mjs";
 import {
   blockOrigin,
   cellPosition,
@@ -83,7 +83,8 @@ export function standsAs(formation, member, token) {
   if (!token || !isMemberDeployed(member)) return false;
   if (member.deployedStack) {
     const group = getMemberActor(member);
-    return !!group?.uuid && token.getFlag?.(MODULE_ID, GROUP_FLAG) === group.uuid;
+    const flag = token.getFlag?.(MODULE_ID, GROUP_FLAG);
+    return !!group?.uuid && !!flag && (flag === group.uuid || groupTree(group).some((g) => g.uuid === flag));
   }
   return holdsToken(member, token.id, token.parent?.id);
 }
@@ -92,7 +93,7 @@ export function standsAs(formation, member, token) {
  * Every token on `scene` this member is standing on: one for an individual,
  * one per body for a stack, none for a member inside the party token, already
  * gone, or standing on another scene. A stack's bodies are found by
- * `deployedBodies`, the read `groups.recall` gathers them by. Enumeration
+ * `deployedTree`, the read `groups.recall` gathers them by. Enumeration
  * only: nothing here writes.
  *
  * @param {object} member the formation member record
@@ -101,7 +102,7 @@ export function standsAs(formation, member, token) {
  */
 export async function deployedTokens(member, scene) {
   if (!scene || !isMemberDeployed(member)) return [];
-  if (member.deployedStack) return deployedBodies(getMemberActor(member), [scene]);
+  if (member.deployedStack) return deployedTree(getMemberActor(member), [scene]);
   if (member.deployedSceneId !== scene.id) return [];
   const token = scene.tokens.get(member.deployedTokenId);
   return token ? [token] : [];
@@ -120,8 +121,8 @@ export function standsElsewhere(formation, member, scene) {
     return !!token && token.parent?.id !== scene.id;
   }
   const actor = getMemberActor(member);
-  if (deployedBodies(actor, [scene]).length) return false;
-  return deployedBodies(actor, [...(game.scenes ?? [])].filter((s) => s.id !== scene.id)).length > 0;
+  if (deployedTree(actor, [scene]).length) return false;
+  return deployedTree(actor, [...(game.scenes ?? [])].filter((s) => s.id !== scene.id)).length > 0;
 }
 
 /**
@@ -133,7 +134,7 @@ export function standsElsewhere(formation, member, scene) {
 export function hasStaleDeployment(formation, member) {
   if (!isMemberDeployed(member)) return false;
   if (!member.deployedStack) return !ownToken(member);
-  return deployedBodies(getMemberActor(member), game.scenes ?? []).length === 0;
+  return deployedTree(getMemberActor(member), game.scenes ?? []).length === 0;
 }
 
 /**
@@ -234,20 +235,23 @@ export async function deployMembers(formation, { members = formation.members, de
     const spots = column?.[cell]?.length ? column[cell] : cellPositions(formation, scene, origin, cell, heading).map((p) => ({ point: null, cell: p }));
     const before = created.length;
     let body = 0;
-    for (const stack of actor.system.stacks ?? []) {
-      const n = stack.size?.current ?? 0;
-      if (n <= 0) continue;
-      const first = body;
-      // One creation call per stack. The last square catches a stack that
-      // grew after the squares were measured.
-      const bodies = await groups.deploy(actor, scene, {
-        stackKey: stack.key,
-        count: n,
-        // A stack's bodies are one cell each.
-        place: (k) => deploySpot(spots[first + k] ?? spots.at(-1), { gs, fits }),
-      });
-      created.push(...bodies);
-      body += n;
+    // The member's own stacks, then those of every group inside it.
+    for (const owner of groupTree(actor)) {
+      for (const stack of owner.system.stacks ?? []) {
+        const n = stack.size?.current ?? 0;
+        if (n <= 0) continue;
+        const first = body;
+        // One creation call per stack. The last square catches a stack that
+        // grew after the squares were measured.
+        const bodies = await groups.deploy(owner, scene, {
+          stackKey: stack.key,
+          count: n,
+          // A stack's bodies are one cell each.
+          place: (k) => deploySpot(spots[first + k] ?? spots.at(-1), { gs, fits }),
+        });
+        created.push(...bodies);
+        body += n;
+      }
     }
     // Marked only once bodies are really on the map. No token id to keep —
     // the bodies belong to the group — and no leash anchor for a crowd.

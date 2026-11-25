@@ -12,7 +12,7 @@
  * RELATIONS carry no arithmetic: one organisation's stance toward another is a
  * label and a note, read here and never summed.
  */
-import { ancestorUuids } from "../lib/place-logic.mjs";
+import { ancestorUuids, headcount } from "../lib/place-logic.mjs";
 
 /**
  * The subject set for one side of a dealing. `factionUuids` are the
@@ -192,9 +192,9 @@ export function readableLeaderUuid(sys, isGM) {
   return row?.hidden ? "" : leaderUuid;
 }
 
-/** Headcount over a set of roster rows: each row is worth its quantity, or one. */
+/** Headcount over a set of roster rows, counted the way a place counts its own (`headcount`). */
 export function headcountOf(rows) {
-  return (rows ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+  return headcount(rows);
 }
 
 /* -------------------------------------------- */

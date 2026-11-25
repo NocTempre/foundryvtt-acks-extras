@@ -99,9 +99,10 @@ export function occupantField() {
     name: str(),
     img: str(),
     kind: new StringField({ required: true, initial: OCCUPANT_KIND.ACTOR, choices: Object.values(OCCUPANT_KIND) }),
-    // A group row counts its whole stack: a platoon billeted at an inn is 30
-    // people asleep in it, and a headcount that said 1 would mislead every
-    // capacity decision made from the sheet.
+    // A group row counts its whole count: a platoon billeted at an inn is 30
+    // people asleep in it, and an emptied group counts none. The figure is what
+    // the row was written with; a reader reads the group's count again
+    // (group-logic.mjs `liveRows`).
     quantity: int(1),
     ownerUuid: str(), // who put it here / whose it is; "" = the holder's own
     // Caller-supplied at placement (lib's `occupantRow` / `addOccupant`

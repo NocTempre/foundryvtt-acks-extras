@@ -11,7 +11,7 @@
  * calling client under Foundry's own permission checks; they do not route
  * over a socket — a consumer needing GM-routed writes wraps them.
  */
-import { KEEP_HIT_POINTS_OPTION, MODULE_ID } from "./constants.mjs";
+import { GROUP_LANG_PREFIX, KEEP_HIT_POINTS_OPTION, MODULE_ID } from "./constants.mjs";
 import GroupData, { GROUP_CATEGORY, GROUP_STATE } from "./data/group-data.mjs";
 import {
   GROUP_ACTOR_TYPE,
@@ -22,16 +22,24 @@ import {
   byOrdinal,
   cleanDelta,
   deployedBodies,
+  deployedTree,
+  groupAncestors,
+  groupDescendants,
+  groupNodes,
+  groupTree,
   isDerivedEffect,
+  isGeneratedStack,
   isGroupActor,
+  liveRows,
   memberName,
   moveRefusal,
   nextOrdinal,
   receiveStack,
   sizeFromEcology,
+  wouldCycleGroup,
 } from "./group-logic.mjs";
-import { registerGroupCombat } from "./group-combat.mjs";
-import { isPrimaryGM, replacementToken } from "./util.mjs";
+import { registerGroupCombat, whisperJudges } from "./group-combat.mjs";
+import { isPrimaryGM, makeLoc, replacementToken } from "./util.mjs";
 
 // Re-export the Foundry-free lifecycle logic so consumers reach it all through
 // `acksLib.groups`, while the pure half stays independently Node-importable.
@@ -44,13 +52,23 @@ export {
   bodyCount,
   cleanDelta,
   deployedBodies,
+  deployedTree,
+  groupAncestors,
+  groupDescendants,
+  groupNodes,
+  groupTree,
   isDerivedEffect,
+  isGeneratedStack,
   isGroupActor,
+  liveRows,
   memberName,
   moveRefusal,
   nextOrdinal,
   sizeFromEcology,
+  wouldCycleGroup,
 };
+
+const loc = makeLoc(GROUP_LANG_PREFIX);
 
 /** Hooks other modules key off. Namespaced per the family convention. */
 export const GROUP_HOOKS = Object.freeze({
@@ -312,8 +330,17 @@ function stackTaken(stacks, stackKey) {
   return update;
 }
 
+/**
+ * What the generator stamps on a stack it makes, as a plain source: the recipe
+ * part's key and its page. Blank without a part.
+ */
+const genOf = (gen) => ({ part: String(gen?.part ?? ""), cite: String(gen?.cite ?? "") });
+
+/** A printed hit-point figure as a stack stores it: a whole number above zero, else null. */
+const fixedHpOf = (n) => (Number.isFinite(Number(n)) && Number(n) >= 1 ? Math.floor(Number(n)) : null);
+
 /** A stack source object seeded from an actor: snapshot + label + type + size. */
-function stackFromSource(source, { count = 0, key } = {}) {
+function stackFromSource(source, { count = 0, key, gen = null, fixedHp = null } = {}) {
   return {
     key: key ?? foundry.utils.randomID(),
     template: {
@@ -324,6 +351,8 @@ function stackFromSource(source, { count = 0, key } = {}) {
       snapshotTime: Math.floor(game?.time?.worldTime ?? 0),
     },
     size: { current: Math.max(0, count | 0), initial: Math.max(0, count | 0), formula: sizeFromEcology(source) ?? "" },
+    gen: genOf(gen),
+    fixedHp: fixedHpOf(fixedHp),
     roster: [],
   };
 }
@@ -334,17 +363,73 @@ function stackFromSource(source, { count = 0, key } = {}) {
  * troop type — swordsmen, then spearmen. If it becomes the FIRST stack, the
  * group's representative-individual block (the token's bar) is seeded from it.
  *
+ * @param {Actor} group
+ * @param {Actor} source
+ * @param {object} [opts]
+ * @param {number} [opts.count] living bodies to start with
+ * @param {{part: string, cite: string}} [opts.gen] the recipe part and its page, for a stack the generator makes
+ * @param {number} [opts.fixedHp] the printed hit points every body of this stack takes in place of a roll
  * @returns {Promise<string|null>} the new stack's key, or null
  */
-export async function addStack(group, source, { count = 0 } = {}) {
+export async function addStack(group, source, { count = 0, gen = null, fixedHp = null } = {}) {
   if (!isGroup(group) || !source) return null;
   const stacks = group.system.toObject().stacks;
-  const stack = stackFromSource(source, { count });
+  const stack = stackFromSource(source, { count, gen, fixedHp });
   stacks.push(stack);
   const update = { "system.stacks": stacks };
   if (stacks.length === 1) Object.assign(update, representativeMirror(source));
   await group.update(update);
   return stack.key;
+}
+
+/**
+ * A stack with no creature behind it: a label (the word an import read for a
+ * creature no library entry matched) and a count. It has no prototype, so nothing
+ * of it can be placed on a map until a creature is dropped on its row
+ * (`setStackPrototype`), and every send to the map says so in a whisper to the
+ * Judges. It never seeds the representative block.
+ *
+ * @param {Actor} group
+ * @param {object} stack
+ * @param {string} stack.label the word, as the import read it
+ * @param {number} [stack.count] living bodies
+ * @param {{part: string, cite: string}} [stack.gen] the recipe part and its page
+ * @returns {Promise<string|null>} the new stack's key, or null
+ */
+export async function addLabelledStack(group, { label, count = 0, gen = null } = {}) {
+  if (!isGroup(group) || !String(label ?? "").trim()) return null;
+  const n = Math.max(0, count | 0);
+  const stacks = group.system.toObject().stacks;
+  const key = foundry.utils.randomID();
+  stacks.push({
+    key,
+    template: { uuid: null, type: "", label: String(label).trim(), snapshot: {}, snapshotTime: 0 },
+    size: { current: n, initial: n, formula: "" },
+    gen: genOf(gen),
+    roster: [],
+  });
+  await group.update({ "system.stacks": stacks });
+  return key;
+}
+
+/**
+ * Put a group inside another one (or at the root, with a blank parent). The one
+ * writer of `unit.parentGroupUuid`: a loop is refused, since the walk over it
+ * could not end, and so is a seat that cannot write the group.
+ *
+ * @param {Actor} group
+ * @param {string|null} parentUuid the group it stands inside
+ * @returns {Promise<{ok: boolean, reason?: "notGroup"|"notOwner"|"missing"|"cycle"|"same"}>}
+ */
+export async function setParentGroup(group, parentUuid) {
+  if (!isGroup(group)) return { ok: false, reason: "notGroup" };
+  const next = parentUuid || "";
+  if (next && !isGroupActor(await fromUuid(next))) return { ok: false, reason: "missing" };
+  if (!group.isOwner) return { ok: false, reason: "notOwner" };
+  if ((group.system.unit?.parentGroupUuid ?? "") === next) return { ok: false, reason: "same" };
+  if (next && wouldCycleGroup(group.uuid, next)) return { ok: false, reason: "cycle" };
+  await group.update({ "system.unit.parentGroupUuid": next });
+  return { ok: true };
 }
 
 /**
@@ -479,9 +564,12 @@ function stackHd(stack) {
   return stack?.template?.snapshot?.system?.hp?.hd || "1d8";
 }
 
-/** Roll a body's hit points from a hit-dice formula, mirroring the system's own
- *  unlinked-monster HP roll. Falls back to a single die's worth on error. */
+/** A body's hit points: the printed figure the stack carries (`fixedHp`), else its
+ *  hit dice rolled as the system rolls an unlinked monster's. Falls back to a
+ *  single die's worth on error. */
 async function rollBodyHp(stack) {
+  const fixed = fixedHpOf(stack?.fixedHp);
+  if (fixed !== null) return fixed;
   const hd = stackHd(stack);
   try {
     const roll = await new Roll(hd).evaluate();
@@ -583,6 +671,16 @@ export async function applyCasualties(group, stackKey, n) {
 /* -------------------------------------------- */
 
 /**
+ * Tell the Judges a stack has no creature to place, in the whisper a group that
+ * holds nothing to place gets. Sending it to the map places nothing of this stack
+ * and leaves every other stack to go.
+ */
+async function warnNoCreature(group, stack) {
+  const label = stack?.template?.label || game.i18n.localize(`${GROUP_LANG_PREFIX}.emptyStack`);
+  await whisperJudges(group, loc("warn.noCreature", { name: group.name, label }));
+}
+
+/**
  * The default square the i-th body of a deploy lands on: five abreast from the
  * anchor. A caller with its own shape — a formation laying a stack out at the
  * party's frontage — passes `place` instead.
@@ -618,7 +716,10 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
   if (!key) return [];
   await reconcileStrandedMembers(group);
   const base = await ensureBaseActor(group, key);
-  if (!base) return [];
+  if (!base) {
+    await warnNoCreature(group, group.system.stackOf(key));
+    return [];
+  }
 
   const wanted = Math.max(0, Math.floor(count));
   const stack = group.system.stackOf(key);
@@ -677,7 +778,7 @@ async function deployDrop(board, { group: uuid, stackKey, x, y, elevation }, eve
   if (!canDeploy(group)) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.group.warn.noTokens"));
   if (!board.dimensions.rect.contains(x, y)) return;
   const base = await ensureBaseActor(group, stackKey);
-  if (!base) return;
+  if (!base) return warnNoCreature(group, group.system.stackOf(stackKey));
   const scene = board.scene;
   const token = await base.getTokenDocument({}, { parent: scene });
   const anchor = CONFIG.Token.objectClass._getDropActorPosition(token, { x, y, elevation }, { snap: !event.shiftKey });
@@ -707,34 +808,43 @@ export function registerStackDrop() {
  * Reconciles by the group flag so a token orphaned by a crash is still
  * collected; the stack flag routes it back to the right stack's roster.
  *
- * @returns {Promise<{recalled:number, casualties:number}>}
+ * Every group inside this one is recalled with it, each body folding into the
+ * group whose flag it carries.
+ *
+ * @returns {Promise<{recalled:number, casualties:number}>} the totals over the
+ *   group and every group inside it
  */
 export async function recall(group, { scene = null } = {}) {
   if (!isGroup(group)) return { recalled: 0, casualties: 0 };
   const scenes = scene ? [scene] : [...(game.scenes ?? [])];
-  const folds = [];
+  const out = [];
   const collected = [];
 
-  for (const sc of scenes) {
-    for (const token of deployedBodies(group, [sc])) {
+  for (const owner of groupTree(group)) {
+    const folds = [];
+    for (const token of deployedBodies(owner, scenes)) {
       folds.push({
-        stackKey: token.getFlag(MODULE_ID, STACK_FLAG) ?? group.system.primaryStack?.key,
+        stackKey: token.getFlag(MODULE_ID, STACK_FLAG) ?? owner.system.primaryStack?.key,
         memberKey: token.getFlag(MODULE_ID, MEMBER_FLAG),
         delta: cleanDelta(token.delta?.toObject?.() ?? {}),
         fell: fell(token),
       });
       collected.push(token);
     }
+    if (folds.length) out.push({ owner, folds });
   }
-  if (!folds.length) return { recalled: 0, casualties: 0 };
+  if (!out.length) return { recalled: 0, casualties: 0 };
 
-  // Stash before destroy: one write folds every body back in, and only then do
-  // the tokens come off the canvas.
-  const casualties = await foldMembers(group, folds);
+  // Stash before destroy: one write folds each group's bodies back in, and only
+  // then do the tokens come off the canvas.
+  const done = [];
+  for (const { owner, folds } of out) done.push({ owner, recalled: folds.length, casualties: await foldMembers(owner, folds) });
   await removeTokens(collected);
-  const recalled = folds.length;
-  Hooks.callAll(GROUP_HOOKS.RECALLED, group, { recalled, casualties });
-  return { recalled, casualties };
+  for (const { owner, recalled, casualties } of done) Hooks.callAll(GROUP_HOOKS.RECALLED, owner, { recalled, casualties });
+  return {
+    recalled: done.reduce((n, d) => n + d.recalled, 0),
+    casualties: done.reduce((n, d) => n + d.casualties, 0),
+  };
 }
 
 /* -------------------------------------------- */

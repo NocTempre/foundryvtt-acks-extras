@@ -11,7 +11,7 @@
  * stays pristine until `materializeMembers` rolls each body's own hit points.
  */
 import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID } from "./constants.mjs";
-import { isGroupActor } from "./group-logic.mjs";
+import { isGeneratedStack, isGroupActor } from "./group-logic.mjs";
 import { addStack } from "./group.mjs";
 import {
   BY_LAIR_CHANCE,
@@ -167,9 +167,17 @@ export const citeOf = (source) => source?.getFlag?.(MODULE_ID, "cookbook")?.cite
  */
 export function countTip(stack, source) {
   const { kind, total } = countOrigin(stack);
+  const formula = stack.size?.formula ?? "";
+  if (isGeneratedStack(stack)) {
+    return loc(`roll.tip.${kind}`, {
+      figure: formula ? `${formula} = ${total}` : String(total),
+      part: stack.gen.part,
+      cite: stack.gen.cite || citeOf(source) || loc("roll.noCite"),
+    });
+  }
   return loc(`roll.tip.${kind}`, {
     total,
-    formula: stack.size?.formula ?? "",
+    formula,
     found: stack.rolled?.state ? loc(`roll.state.${stack.rolled.state}`) : "",
     where: stack.rolled?.context ? loc(`roll.context.${stack.rolled.context}`) : "",
     name: stack.template?.label ?? "",
@@ -209,6 +217,7 @@ export async function rollEncounter(group, stackKey, { context = "wilderness", s
   const stacks = group.system.toObject().stacks;
   const stack = stacks.find((s) => s.key === stackKey);
   if (!isCreatureStack(stack)) return { ok: false, reason: "notStack" };
+  if (isGeneratedStack(stack)) return { ok: false, reason: "generated", name: stack.template?.label ?? "" };
   const refusal = rollRefusal(group, stack);
   if (refusal) return { ok: false, ...refusal };
   const source = await stackSource(stack);

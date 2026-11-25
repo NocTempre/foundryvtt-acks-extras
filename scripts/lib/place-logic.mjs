@@ -241,12 +241,20 @@ export function groupOccupants(rows) {
 }
 
 /**
- * Headcount of a roster. A group row counts its whole stack, not one body — a
- * platoon billeted at an inn is 30 people asleep in it, and a garrison total
- * that says "1" would be worse than no total at all.
+ * How many bodies one roster row stands for. A group row counts its whole count,
+ * not one body — a platoon billeted at an inn is 30 people asleep in it — and an
+ * emptied group counts none. Any other row is worth its quantity, or one. A group
+ * row's quantity is what the reader read of the group now (`liveRows`,
+ * group-logic.mjs); this function reads the row as it is given.
  */
-export const headcount = (rows) =>
-  (rows ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+export const rowHeads = (row) => {
+  const n = Number(row?.quantity);
+  if (row?.kind === OCCUPANT_KIND.GROUP) return n > 0 ? Math.floor(n) : 0;
+  return n > 0 ? n : 1;
+};
+
+/** Headcount of a roster: every row's `rowHeads`. */
+export const headcount = (rows) => (rows ?? []).reduce((sum, row) => sum + rowHeads(row), 0);
 
 /* -------------------------------------------- */
 /*  Stacking                                     */

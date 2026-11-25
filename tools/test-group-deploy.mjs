@@ -57,6 +57,7 @@ globalThis.foundry = {
     },
     mergeObject: (original, other, { inplace = true } = {}) => merge(inplace ? original : structuredClone(original), other),
     randomID: () => uid("rnd"),
+    escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"),
   },
 };
 
@@ -65,8 +66,15 @@ const docs = new Map();
 globalThis.game = {
   actors,
   scenes: [],
-  users: { activeGM: { isSelf: true } },
-  i18n: { localize: (k) => k },
+  users: Object.assign([{ id: "gm1", isGM: true }], { activeGM: { isSelf: true } }),
+  i18n: { localize: (k) => k, format: (k, d = {}) => `${k} ${JSON.stringify(d)}` },
+};
+const cards = [];
+globalThis.ChatMessage = {
+  create: async (data) => {
+    cards.push(data);
+    return data;
+  },
 };
 globalThis.fromUuid = async (uuid) => docs.get(uuid) ?? null;
 globalThis.fromUuidSync = (uuid) => docs.get(uuid) ?? null;
@@ -163,16 +171,17 @@ const { KEEP_HIT_POINTS_OPTION } = await import("../scripts/lib/constants.mjs");
 installRecreatedHitPoints();
 
 /** A group of `size` with one stack of `base`, holding the records given. */
-function groupActor(base, size, roster = []) {
+function groupActor(base, size, roster = [], more = {}) {
   const id = uid("act");
   const system = Object.assign(Object.create(GroupData.prototype), {
-    stacks: [{ key: "s1", size: { current: size, initial: size }, roster, template: { uuid: base.uuid, label: "Soldier" } }],
+    stacks: [{ key: "s1", size: { current: size, initial: size }, roster, template: { uuid: base.uuid, label: "Soldier" }, ...more }],
     toObject() {
       return { stacks: structuredClone(this.stacks) };
     },
   });
   const actor = {
     id,
+    name: "Band",
     uuid: `Actor.${id}`,
     type: `${MODULE_ID}.group`,
     system,
@@ -270,6 +279,40 @@ t("every record names the token carrying its own key, whatever order core hands 
     assert.equal(member.state, "deployed");
     assert.equal(docs.get(member.tokenUuid)?.getFlag(MODULE_ID, "member"), member.key);
   }
+});
+
+t("a stack that prints its hit points sends every body out with that figure and rolls none", async () => {
+  const group = groupActor(monster(), 3, [], { fixedHp: 5 });
+  bodyRolls.length = 0;
+  systemRolls.push(15, 3, 9);
+  const made = await deploy(group, scene(), { count: 3 });
+  assert.deepEqual(recordHp(group), [{ value: 5, max: 5 }, { value: 5, max: 5 }, { value: 5, max: 5 }]);
+  assert.deepEqual(arrivedHp(made), [{ value: 5, max: 5 }, { value: 5, max: 5 }, { value: 5, max: 5 }]);
+});
+
+t("a stack with no printed figure still rolls its hit dice, and a figure below one is no figure", async () => {
+  for (const fixedHp of [null, 0]) {
+    const group = groupActor(monster(), 1, [], { fixedHp });
+    bodyRolls.push(8);
+    systemRolls.push(2);
+    await deploy(group, scene(), { count: 1 });
+    assert.deepEqual(recordHp(group), [{ value: 8, max: 8 }], `fixedHp ${fixedHp}`);
+  }
+});
+
+t("a stack with no creature behind it places nothing and whispers the Judges in place of silence", async () => {
+  const group = groupActor(monster(), 0);
+  group.system.stacks[0] = { key: "s1", size: { current: 4, initial: 4 }, roster: [], template: { uuid: null, type: "", label: "Frobnik", snapshot: {} } };
+  cards.length = 0;
+  const where = scene();
+  const made = await deploy(group, where, { count: 4 });
+  assert.deepEqual(made, []);
+  assert.equal(where.tokens.size, 0);
+  assert.equal(cards.length, 1);
+  assert.deepEqual(cards[0].whisper, ["gm1"]);
+  assert.match(cards[0].content, /warn.noCreature/);
+  assert.match(cards[0].content, /Frobnik/);
+  assert.equal(cards[0].speaker.alias, "Band");
 });
 
 let failures = 0;

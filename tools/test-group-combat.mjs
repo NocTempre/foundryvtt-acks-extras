@@ -77,7 +77,7 @@ globalThis.foundry = {
 };
 
 const MODULE_ID = "acks-extras";
-const actors = new Map();
+const actors = new Coll();
 const docs = new Map();
 const formations = {};
 const registeredSettings = new Set();
@@ -251,7 +251,7 @@ async function endCombat(combat) {
 }
 
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
-const { registerGroupCleanup } = await import("../scripts/lib/group.mjs");
+const { registerGroupCleanup, setParentGroup, addLabelledStack } = await import("../scripts/lib/group.mjs");
 const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
 const { COMBAT_FLAG } = await import("../scripts/lib/group-combat.mjs");
 installRecreatedHitPoints();
@@ -277,15 +277,31 @@ function groupActor(name, rows) {
     name,
     uuid: `Actor.${id}`,
     type: `${MODULE_ID}.group`,
+    isOwner: true,
     system,
     async update(changes) {
       if ("system.stacks" in changes) system.stacks = structuredClone(changes["system.stacks"]);
+      if ("system.unit.parentGroupUuid" in changes) system.unit = { ...system.unit, parentGroupUuid: changes["system.unit.parentGroupUuid"] };
     },
   };
   actors.set(id, actor);
   docs.set(actor.uuid, actor);
   return actor;
 }
+
+/** Stand `inner` inside `outer`, as `setParentGroup` records it. */
+function nest(inner, outer) {
+  inner.system.unit = { parentGroupUuid: outer.uuid };
+  return inner;
+}
+
+/** A stack with no creature behind it: a label and a count, as the labelled stack stores one. */
+const labelledRow = (label, size) => ({
+  key: `lab-${label}`,
+  size: { current: size, initial: size },
+  roster: [],
+  template: { uuid: null, type: "", label, snapshot: {} },
+});
 
 /** The group's own token on a scene, linked to it. */
 function groupToken(where, group, data = {}) {
@@ -523,6 +539,121 @@ t("a token whose group is gone loses the flag when the combat ends", async () =>
   assert.equal(token.hidden, false);
   assert.equal(token.getFlag(MODULE_ID, COMBAT_FLAG), undefined);
   assert.ok(where.tokens.size >= 1);
+});
+
+/** An outer group of two, with a gang of three and a gang of two inside it, and a single inside that second gang. */
+function warband() {
+  const where = scene();
+  const outer = groupActor("Outer", [[monster("Chief"), 2]]);
+  const gangA = nest(groupActor("Gang A", [[monster("Warrior"), 3]]), outer);
+  const gangB = nest(groupActor("Gang B", [[monster("Archer"), 2]]), outer);
+  const scout = nest(groupActor("Scout", [[monster("Runner"), 1]]), gangB);
+  return { where, outer, gangA, gangB, scout, token: groupToken(where, outer), combat: combatIn() };
+}
+
+t("an outer group's token sends out every body of every group inside it, each flagged with its own group", async () => {
+  const { where, outer, gangA, gangB, scout, token, combat } = warband();
+  await addToCombat(combat, token);
+  assert.equal(bodiesOf(where, outer).length, 2);
+  assert.equal(bodiesOf(where, gangA).length, 3);
+  assert.equal(bodiesOf(where, gangB).length, 2);
+  assert.equal(bodiesOf(where, scout).length, 1, "a group two deep is reached");
+  assert.equal(combat.combatants.size, 8, "a combatant per body, none for any group");
+  assert.equal(token.hidden, true);
+  assert.equal(token.getFlag(MODULE_ID, COMBAT_FLAG).combatId, combat.id);
+});
+
+t("ending the combat recalls the bodies of every nested group into the group they came from", async () => {
+  const { where, outer, gangA, gangB, scout, token, combat } = warband();
+  await addToCombat(combat, token);
+  const [wounded] = bodiesOf(where, gangA);
+  wounded.delta.system.hp = { value: 0, max: wounded.delta.system.hp.max };
+  await endCombat(combat);
+  assert.equal([...where.tokens].filter((t) => t.getFlag(MODULE_ID, "member")).length, 0, "no body left on the map");
+  assert.equal(token.hidden, false);
+  assert.equal(token.getFlag(MODULE_ID, COMBAT_FLAG), undefined);
+  assert.equal(gangA.system.stacks[0].size.current, 2, "the body that came back at 0 hp is a casualty of its own gang");
+  assert.equal(rosterStates(gangA).filter((x) => x === "dead").length, 1);
+  assert.equal(rosterStates(outer).every((x) => x === "materialized"), true);
+  assert.equal(rosterStates(gangB).length + rosterStates(scout).length, 3);
+});
+
+t("adding the outer token again gathers every nested body early", async () => {
+  const { where, outer, token, combat } = warband();
+  await addToCombat(combat, token);
+  const again = await addToCombat(combat, token);
+  assert.equal([...where.tokens].filter((t) => t.getFlag(MODULE_ID, "member")).length, 0);
+  assert.deepEqual([...combat.combatants].map((c) => c.id), [again.id]);
+  assert.equal(token.getFlag(MODULE_ID, COMBAT_FLAG), undefined);
+  assert.equal(outer.system.stacks[0].roster.length, 2);
+});
+
+t("a group nested in a loop of its own data still sends out each body once", async () => {
+  const { where, outer, gangA, token, combat } = warband();
+  outer.system.unit = { parentGroupUuid: gangA.uuid };
+  await addToCombat(combat, token);
+  assert.equal([...where.tokens].filter((t) => t.getFlag(MODULE_ID, "member")).length, 8);
+});
+
+t("a labelled stack places nothing and whispers the Judges, while the other stacks still go out", async () => {
+  const where = scene();
+  const group = groupActor("Mixed", [[monster("Axeman"), 3]]);
+  group.system.stacks.push(labelledRow("Frobnik", 4));
+  const token = groupToken(where, group);
+  const combat = combatIn();
+  cards.length = 0;
+  await addToCombat(combat, token);
+  assert.equal(bodiesOf(where, group).length, 3, "the stack with a creature deploys");
+  assert.equal(combat.combatants.size, 3);
+  assert.equal(cards.length, 1);
+  assert.deepEqual(cards[0].whisper, ["gm1"]);
+  assert.match(cards[0].content, /warn.noCreature/);
+  assert.match(cards[0].content, /Frobnik/);
+});
+
+t("a labelled stack alone leaves the group's own combatant and says why twice over", async () => {
+  const where = scene();
+  const group = groupActor("Unknown", []);
+  group.system.stacks.push(labelledRow("Frobnik", 4));
+  const token = groupToken(where, group);
+  const combat = combatIn();
+  cards.length = 0;
+  const own = await addToCombat(combat, token);
+  assert.equal(combat.combatants.has(own.id), true, "the group's own combatant stays");
+  assert.equal(token.hidden, false);
+  assert.equal(cards.length, 2, "the stack's warning, then the group's nothing-to-place");
+});
+
+t("setParentGroup stands a group inside another and refuses a loop, a missing parent and a seat that cannot write", async () => {
+  const outer = groupActor("Outer", []);
+  const inner = groupActor("Inner", []);
+  const deep = groupActor("Deep", []);
+  assert.deepEqual(await setParentGroup(inner, outer.uuid), { ok: true });
+  assert.equal(inner.system.unit.parentGroupUuid, outer.uuid);
+  assert.deepEqual(await setParentGroup(inner, outer.uuid), { ok: false, reason: "same" });
+  assert.deepEqual(await setParentGroup(deep, inner.uuid), { ok: true });
+  assert.deepEqual(await setParentGroup(outer, deep.uuid), { ok: false, reason: "cycle" }, "inside its own grandchild");
+  assert.deepEqual(await setParentGroup(outer, outer.uuid), { ok: false, reason: "cycle" }, "inside itself");
+  assert.equal(outer.system.unit?.parentGroupUuid ?? "", "", "a refused write leaves the group where it stood");
+  assert.deepEqual(await setParentGroup(inner, "Actor.nowhere"), { ok: false, reason: "missing" });
+  deep.isOwner = false;
+  assert.deepEqual(await setParentGroup(deep, outer.uuid), { ok: false, reason: "notOwner" });
+  assert.deepEqual(await setParentGroup(deep, ""), { ok: false, reason: "notOwner" });
+  deep.isOwner = true;
+  assert.deepEqual(await setParentGroup(deep, ""), { ok: true });
+  assert.equal(deep.system.unit.parentGroupUuid, "");
+  assert.deepEqual(await setParentGroup(monster("Lone"), outer.uuid), { ok: false, reason: "notGroup" });
+});
+
+t("a labelled stack is a label and a count with no prototype, and a blank label makes none", async () => {
+  const group = groupActor("Pen", []);
+  const key = await addLabelledStack(group, { label: "  Frobnik ", count: 3, gen: { part: "Q1", cite: "p. 5" } });
+  const [stack] = group.system.stacks;
+  assert.equal(stack.key, key);
+  assert.deepEqual([stack.template.label, stack.template.uuid, stack.template.type, stack.size.current, stack.size.initial], ["Frobnik", null, "", 3, 3]);
+  assert.deepEqual(stack.gen, { part: "Q1", cite: "p. 5" });
+  assert.equal(await addLabelledStack(group, { label: " ", count: 2 }), null);
+  assert.equal(group.system.stacks.length, 1);
 });
 
 let failures = 0;

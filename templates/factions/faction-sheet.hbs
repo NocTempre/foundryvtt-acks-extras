@@ -158,7 +158,7 @@
               {{#if this.missing}}<i class="fas fa-triangle-exclamation" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.memberMissing'}}"></i>{{/if}}
             </td>
             <td>{{this.kindLabel}}</td>
-            <td>{{#if this.quantity}}{{#unless (eq this.quantity 1)}}×{{this.quantity}}{{/unless}}{{/if}}</td>
+            <td>{{#if (eq this.kind "group")}}<span data-tooltip="ACKS-FACTIONS.sheet.memberHeadsTip">×{{this.quantity}}</span>{{else}}{{#if this.quantity}}{{#unless (eq this.quantity 1)}}×{{this.quantity}}{{/unless}}{{/if}}{{/if}}</td>
             <td class="row-actions">
               {{#if this.notes}}<i class="fas fa-note-sticky" data-tooltip="{{this.notes}}"></i>{{/if}}
               {{#if @root.editable}}

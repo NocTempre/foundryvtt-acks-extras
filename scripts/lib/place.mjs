@@ -7,6 +7,7 @@
  * `nodeOf`; nothing downstream knows the difference. See docs/lib/PLACES.md.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { bodyCount, liveRows } from "./group-logic.mjs";
 import { isContainer } from "./item-model.mjs";
 import { coinTotalGC, isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
 import {
@@ -391,18 +392,13 @@ export function occupantRow(actor, { ownerUuid = "", quantity = null, notes = ""
     kind: occupantKindOf(actor),
     // A group's headcount IS its quantity — a platoon billeted here is 30
     // people, and a roster that said 1 would mislead every capacity decision.
-    quantity: quantity ?? (actor.type === `${MODULE_ID}.group` ? groupHeadcount(actor) : 1),
+    // The figure is the group's count at the moment of writing; a reader of the
+    // roster reads the group's count again (`liveRows`).
+    quantity: quantity ?? (actor.type === `${MODULE_ID}.group` ? bodyCount(actor) : 1),
     ownerUuid,
     notes,
     hidden,
   };
-}
-
-/** Living bodies in a group actor, or 1 for anything else. */
-function groupHeadcount(actor) {
-  const stacks = actor?.system?.stacks ?? [];
-  const total = stacks.reduce((sum, s) => sum + (Number(s?.size?.current) || 0), 0);
-  return total > 0 ? total : 1;
 }
 
 /**
@@ -437,7 +433,7 @@ export function sceneOccupants(scene) {
  */
 export function rosterFor(doc, { scene = null, isGM = false, ownedUuids = [] } = {}) {
   const stored = (doc?.system?.roster ?? []).map((r) => r.toObject?.() ?? r);
-  return visibleOccupants(mergeOccupants(stored, sceneOccupants(scene)), { isGM, ownedUuids });
+  return liveRows(visibleOccupants(mergeOccupants(stored, sceneOccupants(scene)), { isGM, ownedUuids }));
 }
 
 /** Put an actor on a place's roster. A second add is a no-op, not a duplicate. */

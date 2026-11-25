@@ -24,6 +24,8 @@
  */
 import { marketClassFromFamilies, clampMarketClass } from "../../henchmen/rules/availability.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
+import { liveRows } from "../../lib/group-logic.mjs";
+import { headcount } from "../../lib/place-logic.mjs";
 // `num`/`str`/`int` are the lib's leaf field-builders; `fields` serves the
 // non-leaf types. `occupantField` is the roster row a place and a faction share.
 import { num, str, int, occupantField } from "../../lib/fields.mjs";
@@ -494,9 +496,9 @@ export class LocationData extends foundry.abstract.TypeDataModel {
     return null;
   }
 
-  /** Living things recorded here, counting a group row as its whole stack. */
+  /** Living things recorded here, counting a group row as the group's living bodies now. */
   get headcount() {
-    return (this.roster ?? []).reduce((sum, row) => sum + (Number(row?.quantity) > 0 ? Number(row.quantity) : 1), 0);
+    return headcount(liveRows((this.roster ?? []).map((r) => r?.toObject?.() ?? r)));
   }
 
   /** How many identical instances this actor stands for. Always at least 1. */

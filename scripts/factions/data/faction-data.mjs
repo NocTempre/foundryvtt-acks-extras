@@ -15,6 +15,7 @@
  */
 import { headcountOf, strengthColumnTotals, strengthRevenue, strengthTotal } from "../standing-logic.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
+import { liveRows } from "../../lib/group-logic.mjs";
 import { num, str, int, occupantField } from "../../lib/fields.mjs";
 import { FACTION_KINDS, RELATION_STANCES, STANDING_SOURCES, SUBJECT_SCOPES } from "../constants.mjs";
 import { isWanted, rowsFor, sumStanding } from "../standing-logic.mjs";
@@ -183,9 +184,9 @@ export class FactionData extends foundry.abstract.TypeDataModel {
     return [...new Set([this.seatUuid, ...(this.holdings ?? []).map((h) => h.uuid)].filter((u) => !!u))];
   }
 
-  /** Members counted with their stacks, the way a place counts its roster. */
+  /** Members counted with their stacks, the way a place counts its roster: a group row is the group's living bodies now. */
   get headcount() {
-    return headcountOf(this.members);
+    return headcountOf(liveRows((this.members ?? []).map((r) => r?.toObject?.() ?? r)));
   }
 
   /** Everyone the strength block counts; 0 when no figures are recorded. */

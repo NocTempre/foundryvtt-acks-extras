@@ -7,7 +7,7 @@
  */
 import { ANIMAL_TYPE } from "./constants.mjs";
 import { countText } from "./encounter-line.mjs";
-import { ecologyOf, sizeFromEcology } from "./group-logic.mjs";
+import { ecologyOf, isGeneratedStack, sizeFromEcology } from "./group-logic.mjs";
 
 /** The two encounter lines a stat block prints. */
 export const ROLL_CONTEXTS = Object.freeze(["dungeon", "wilderness"]);
@@ -101,9 +101,13 @@ export function rollsOver(stack) {
   return stack?.rolled?.total != null || !((stack?.size?.current ?? 0) > 0);
 }
 
-/** Has this stack's row a Roll to press: a creature that gives bodies, on a count no hand set? */
+/**
+ * Has this stack's row a Roll to press: a creature that gives bodies, on a count no
+ * hand set, in a stack the generator did not make? A press on a generated stack would
+ * make its count again from the wrong line, so the row shows a note instead.
+ */
 export function offersRoll(stack, source) {
-  return isCreatureStack(stack) && rollsOver(stack) && rollsBodies(source);
+  return isCreatureStack(stack) && !isGeneratedStack(stack) && rollsOver(stack) && rollsBodies(source);
 }
 
 /**
@@ -145,7 +149,8 @@ export function nextNoun(current, prior, fresh) {
 /**
  * Where one stack's count came from, for its tooltip: `rolled` where the count is
  * the roll's, fallen bodies aside, `edited` where a hand changed it after the
- * roll, `hand` where no roll made it, `empty` where nothing did.
+ * roll, `hand` where no roll made it, `empty` where nothing did, and for a stack
+ * the generator made `generated`, or `generatedEdited` once a hand changed it.
  * @param {object} stack
  * @returns {{kind: string, total?: number}}
  */
@@ -153,6 +158,10 @@ export function countOrigin(stack) {
   const total = stack?.rolled?.total;
   const current = stack?.size?.current ?? 0;
   const initial = stack?.size?.initial ?? 0;
+  if (isGeneratedStack(stack)) {
+    const made = total ?? initial;
+    return { kind: initial === made && current <= made ? "generated" : "generatedEdited", total: made };
+  }
   if (total == null) return { kind: current > 0 ? "hand" : "empty" };
   return { kind: initial === total && current <= total ? "rolled" : "edited", total };
 }

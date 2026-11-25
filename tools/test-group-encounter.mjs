@@ -46,6 +46,7 @@ globalThis.foundry = {
     getProperty: (o, p) => p.split(".").reduce((a, k) => a?.[k], o),
     setProperty,
     randomID: () => uid("rnd"),
+    escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"),
   },
   applications: {
     handlebars: {
@@ -594,6 +595,25 @@ await ok("a synthetic actor's Roll is refused, since it would reach one token", 
   assert.deepEqual(thrown, []);
 });
 
+await ok("a stack the generator made offers no Roll, refuses one, and says where its count came from", async () => {
+  const knot = creature({ encounter: LINES });
+  const made = { ...stackOf(knot, { current: 6, initial: 6, formula: "2d3" }), gen: { part: "Q7", cite: "p. 99" } };
+  assert.equal(offersRoll(stackOf(knot), knot), true, "the same creature, made by nobody, is offered one");
+  assert.equal(offersRoll(made, knot), false);
+  assert.deepEqual(countOrigin(made), { kind: "generated", total: 6 });
+  assert.deepEqual(countOrigin({ ...made, size: { current: 9, initial: 6, formula: "2d3" } }), { kind: "generatedEdited", total: 6 });
+  assert.deepEqual(countOrigin({ ...made, size: { current: 4, initial: 6, formula: "2d3" } }), { kind: "generated", total: 6 }, "casualties leave it standing");
+  const tip = encounter.countTip(made, knot);
+  assert.equal(tip, words("ACKS-LIB.group.roll.tip.generated").replace("{figure}", "2d3 = 6").replace("{part}", "Q7").replace("{cite}", "p. 99"));
+  const group = groupOf([made]);
+  const { roll, thrown } = dice(1);
+  assert.deepEqual(await rollRow(group, { roll }), { ok: false, reason: "generated", name: "Knot" });
+  assert.deepEqual(thrown, [], "no die was thrown");
+  words("ACKS-LIB.group.roll.refused.generated");
+  words("ACKS-LIB.group.roll.note.gen");
+  assert.equal(group.updates.length, 0);
+});
+
 await ok("only a group's creature can be rolled", async () => {
   assert.deepEqual(await rollEncounter(creature(), "any", {}), { ok: false, reason: "notGroup" });
   const person = groupOf([stackOf(creature({ type: "character", encounter: LINES }))]);
@@ -921,6 +941,23 @@ await ok("a drop off the map places nothing and warns nothing", async () => {
   const board = { dimensions: { rect: { contains: () => false } }, get scene() { throw new Error("went on past the bounds"); } };
   dropHook(board, rowDrop, {});
   await settle();
+  assert.deepEqual(warned, []);
+});
+
+await ok("a row with no creature behind it, dropped on the map, places nothing and whispers the Judges", async () => {
+  game.user.can = () => true;
+  const label = { key: "lab", size: { current: 4, initial: 4 }, roster: [], template: { uuid: null, type: "", label: "Frobnik", snapshot: {} } };
+  const lone = { name: "The muster", type: "acks-extras.group", uuid: "Actor.lone", isOwner: true, system: { stackOf: (key) => (key === "lab" ? label : null) } };
+  docs.set(lone.uuid, lone);
+  chat.length = 0;
+  warned.length = 0;
+  const board = { dimensions: { rect: { contains: () => true } }, get scene() { throw new Error("went on to place a token"); } };
+  dropHook(board, { type: STACK_DRAG_TYPE, group: lone.uuid, stackKey: "lab", x: 10, y: 10 }, {});
+  await settle();
+  assert.equal(chat.length, 1);
+  assert.deepEqual(chat[0].whisper, ["judge"]);
+  assert.match(chat[0].content, /Frobnik/);
+  assert.equal(chat[0].content, `<p><em>${game.i18n.format("ACKS-LIB.group.warn.noCreature", { name: "The muster", label: "Frobnik" })}</em></p>`);
   assert.deepEqual(warned, []);
 });
 

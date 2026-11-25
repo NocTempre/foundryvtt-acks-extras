@@ -206,6 +206,27 @@ t("a row joins the stack over the same base, and both sheets' totals hold", asyn
   assert.equal(from.system.invariantHolds && to.system.invariantHolds, true);
 });
 
+t("two gangs' generated rows over one creature stay two rows through a move", async () => {
+  const gen = (part) => ({ gen: { part, cite: "p. 1" } });
+  const gangB = groupActor("Gang B", [stackOf("b", "Actor.base", 4, 4, gen("P1"))]);
+  const warband = groupActor("Warband", [stackOf("a", "Actor.base", 3, 3, gen("P1"))]);
+  const result = await moveStack(gangB, warband, "b");
+  assert.deepEqual([result.ok, result.merged], [true, false]);
+  assert.equal(warband.system.stacks.length, 2, "two rows, counts 3 and 4");
+  assert.deepEqual(warband.system.stacks.map((s) => s.size.current), [3, 4]);
+  assert.equal(warband.system.stacks[1].gen.part, "P1", "the row keeps what made it");
+});
+
+t("a generated row and a hand's row over one creature merge, and the hand's row keeps no generator mark", async () => {
+  const gangB = groupActor("Gang B", [stackOf("b", "Actor.base", 4, 4, { gen: { part: "P1", cite: "p. 1" } })]);
+  const hand = groupActor("Hand", [stackOf("h", "Actor.base", 3, 3)]);
+  const result = await moveStack(gangB, hand, "b");
+  assert.deepEqual([result.ok, result.merged], [true, true]);
+  assert.equal(hand.system.stacks.length, 1);
+  assert.equal(hand.system.stacks[0].size.current, 7);
+  assert.equal(hand.system.stacks[0].gen?.part ?? "", "");
+});
+
 t("a body on the map refuses the whole row and nothing is written", async () => {
   docs.set("Scene.a.Token.out", { documentName: "Token" });
   const roster = [record("m1", 1), record("m2", 2, "deployed", { tokenUuid: "Scene.a.Token.out" }), record("m3", 3, "deployed", { tokenUuid: "Scene.a.Token.out" })];

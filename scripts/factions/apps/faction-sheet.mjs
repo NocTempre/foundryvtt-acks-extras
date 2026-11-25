@@ -31,6 +31,7 @@ import {
   strengthTotal, wouldCycleFaction,
 } from "../standing-logic.mjs";
 import { acksExtras } from "../../namespace.mjs";
+import { liveRows } from "../../lib/group-logic.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { docOf, escape as esc, makeLoc, refOf } from "../../lib/util.mjs";
@@ -181,7 +182,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
       .map((row) => ({ ...row, stanceLabel: loc(`stance.${row.stance}`) }));
 
     // Members: the stored rows, with a live check that the actor still exists.
-    context.members = readableRows(sys.members, isGM)
+    context.members = liveRows(readableRows(sys.members, isGM))
       .map((row) => ({
         ...row,
         missing: !fromUuidSync(row.uuid),

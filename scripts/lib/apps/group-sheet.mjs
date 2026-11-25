@@ -185,6 +185,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
 
   /** What a Roll cannot do with this stack, said on the sheet before anyone presses it. */
   static #rollNotes(stack, source) {
+    if (groups.isGeneratedStack(stack)) return [loc("roll.note.gen", { part: stack.gen.part, cite: stack.gen.cite || citeOf(source) || loc("roll.noCite") })];
     if (!isCreatureStack(stack)) return [];
     if (!rollsOver(stack)) return [loc("roll.note.hand")];
     if (!statesACount(source)) return [];

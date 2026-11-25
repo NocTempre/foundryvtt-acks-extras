@@ -68,6 +68,7 @@ acksExtras.lib = {
   // 54: TURN_BEGAN_HOOK, TURN_ENDED_HOOK, turnLife.{FLAG, EDGES, readTurnLife, turnLifeStep, turnEdges} (below, "Turn hooks and a record's turn life")
   // 70: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
   // 71: rollMods.countsOnce (below, "A condition counted once")
+  // 72: groups.{setParentGroup, addLabelledStack, groupTree, deployedTree, groupNodes, groupDescendants, groupAncestors, wouldCycleGroup, liveRows, isGeneratedStack} (docs/lib/GROUPS.md, "A group inside a group"); addStack takes `gen` and `fixedHp`
 }
 ```
 
@@ -368,6 +369,31 @@ importer made of that entry, one merged into another document included, and null
 when none stands; a consumer treats a null, a throw and no registered provider alike
 and leaves the uuid null. The roll's result carries the uuid as data; no card or
 window draws it yet.
+
+### Contract `encounter-generator` v1
+
+Provider: the monsters feature (its recipe evaluator), which registers it at `init`.
+Consumer: the lib's groups, which ask it to make the stacks of a unit the Judge has not
+filled, and which read nothing else of the provider. No provider registered means
+`get("encounter-generator")` is null and a consumer offers nothing to generate. Lib
+declares the contract and calls nothing through it yet; the shape below is the one
+the provider is built to. It is a name and a shape here and registers nothing in
+`scripts/lib/services.mjs`, since a registration with no provider would read as one.
+
+```
+{
+  generate({unit, count, context, state}) → Promise<{
+    stacks: [{creature, label, count, gen: {part, cite}, fixedHp?}]
+  } | null>
+}
+```
+
+`unit` is the unit word the importer read, `count` how many of it, and `context` and
+`state` the line and side of lib's own Roll. Each answered stack is data for
+`groups.addStack` (a `creature` the provider resolved to an actor) or, with no creature
+resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe part and
+its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
+unit with no recipe, which a consumer treats as no provider.
 
 ## `vocab` — Foundry-free enums (Node-importable)
 

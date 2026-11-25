@@ -14,7 +14,7 @@
  * party token's flag and the formation setting are read here by key.
  */
 import { GROUP_LANG_PREFIX, MODULE_ID } from "./constants.mjs";
-import { MEMBER_FLAG, deployedBodies, isGroupActor } from "./group-logic.mjs";
+import { MEMBER_FLAG, deployedTree, groupTree, isGroupActor } from "./group-logic.mjs";
 import { gmIds, isPrimaryGM, makeLoc, unset } from "./util.mjs";
 
 const loc = makeLoc(GROUP_LANG_PREFIX);
@@ -46,7 +46,7 @@ function belongsToParty(token, group) {
 }
 
 /** One whispered line to the GMs, spoken by the group. */
-async function whisperJudges(group, text) {
+export async function whisperJudges(group, text) {
   await ChatMessage.create({
     content: `<p><em>${foundry.utils.escapeHTML(text)}</em></p>`,
     speaker: { alias: group.name },
@@ -58,21 +58,23 @@ async function whisperJudges(group, text) {
 const released = (fight) => ({ hidden: !!fight.wasHidden, [`flags.${MODULE_ID}.${COMBAT_FLAG}`]: unset() });
 
 /**
- * Put every body the group's stacks hold on the group token's scene, from the
- * token's square, five abreast and one stack after another. A body already out
- * stays where it stands.
+ * Put every body the group's stacks hold, and every body of every group inside
+ * it, on the group token's scene, from the token's square, five abreast and one
+ * stack after another. A body already out stays where it stands.
  * @returns {Promise<number>} how many bodies were placed
  */
 async function placeBodies(token, group, deploy) {
   const scene = token.parent;
   const step = scene.grid?.size ?? 100;
   const spot = (i) => ({ x: token.x + (i % ABREAST) * step, y: token.y + Math.floor(i / ABREAST) * step });
-  const keys = (group.system.stacks ?? []).filter((s) => (s.size?.current ?? 0) > 0).map((s) => s.key);
   let placed = 0;
-  for (const stackKey of keys) {
-    const first = placed;
-    const made = await deploy(group, scene, { stackKey, count: Infinity, place: (k) => spot(first + k) });
-    placed += made.length;
+  for (const owner of groupTree(group)) {
+    const keys = (owner.system.stacks ?? []).filter((s) => (s.size?.current ?? 0) > 0).map((s) => s.key);
+    for (const stackKey of keys) {
+      const first = placed;
+      const made = await deploy(owner, scene, { stackKey, count: Infinity, place: (k) => spot(first + k) });
+      placed += made.length;
+    }
   }
   return placed;
 }
@@ -87,7 +89,7 @@ async function sendOut(combatant, token, group, deploy) {
   const combat = combatant.parent;
   const scene = token.parent;
   await placeBodies(token, group, deploy);
-  const bodies = deployedBodies(group, [scene]);
+  const bodies = deployedTree(group, [scene]);
   if (!bodies.length) {
     await whisperJudges(group, loc("combat.nothing", { name: group.name }));
     return;
@@ -113,7 +115,7 @@ async function sendOut(combatant, token, group, deploy) {
 async function gather(combatant, token, group, recall) {
   const combat = combatant.parent;
   const scene = token.parent;
-  const ids = new Set(deployedBodies(group, [scene]).map((b) => b.id));
+  const ids = new Set(deployedTree(group, [scene]).map((b) => b.id));
   const held = [...combat.combatants].filter((c) => ids.has(c.tokenId)).map((c) => c.id);
   if (held.length) await combat.deleteEmbeddedDocuments("Combatant", held);
   await recall(group, { scene });
