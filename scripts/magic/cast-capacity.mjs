@@ -8,7 +8,9 @@
  * level, spent from the actor's own pool; a points tradition, shown and never
  * spent here; else core's own count, the level's `system.spells.<n>.max`
  * against the `cast` counts of the actor's spells at that level. With none of
- * them the capacity is unknown and no verdict is given.
+ * them the capacity is unknown and no verdict is given. A spell on no list the
+ * class casts from (`isOffList`) has no tradition and the unknown capacity;
+ * `spellCapacity` is the one reading the cast and the Magic tab's row gate share.
  *
  * `spellStanding` answers the Magic tab's grouping from the same inputs: a
  * heading per tradition the class casts from, with its spells, or the sheet's
@@ -37,6 +39,59 @@ export function traditionFor(casting, { extras, lvl, class: systemClass } = {}) 
     return { tradition, spellLevel: levelUnder(extras, lvl, keys) };
   }
   return null;
+}
+
+/** The folded key and label sets of the class's traditions that have a key: the lists the class casts from. */
+const castFrom = (casting) => (casting ?? []).filter((t) => t?.key).map((t) => new Set([foldKey(t.key), foldKey(t.label)].filter(Boolean)));
+
+/**
+ * Is this spell on no list the class casts from? True only where the class's
+ * `casting` names at least one tradition, the spell names at least one
+ * (`spellTraditions`, core's `class` string included) and none of them is one of
+ * the class's. A character with no class bound, a class that casts from no list
+ * and a spell that names no tradition are not off list: the module does not know
+ * the answer there, so nothing is blocked. The Magic tab, the cast's reading and
+ * `spellStanding` all take the answer from here.
+ *
+ * @param {object[]|null|undefined} casting  the class's `system.casting`
+ * @param {object} spell  `{extras, class}`: the spell flag and core's class string
+ * @returns {boolean}
+ */
+export function isOffList(casting, { extras, class: systemClass } = {}) {
+  const lists = castFrom(casting);
+  if (!lists.length) return false;
+  const sources = spellTraditions(extras, systemClass);
+  return sources.length > 0 && !sources.some((s) => lists.some((keys) => keys.has(s)));
+}
+
+/**
+ * The capacity a spell is read at: its tradition, its level under it, whether
+ * it is off list and what that tradition has left. One reading serves the cast
+ * and the Magic tab, so a row's gate and the cast window's verdict agree. The
+ * tradition is the first of the class's the spell stands on, or `prefer` (a
+ * tradition key) where the spell stands on that one too. An off-list spell has
+ * no tradition and an unknown capacity: it is no slot's to spend and core's grid
+ * does not answer for it.
+ *
+ * @param {object} from
+ * @param {object[]} [from.casting]  the class's `system.casting`
+ * @param {object[]} [from.pools]  `poolState`'s answer
+ * @param {Record<string, {max?: number}>|null} [from.coreSpells]  core's `system.spells`
+ * @param {(level: number|null) => number} [from.castsAt]  the sum of `system.cast` over the actor's spells of a level
+ * @param {{extras: object, lvl: *, class: string}} from.spell  the spell flag, core's level and core's class string
+ * @param {string|null} [from.prefer]  the tradition key the cast goes through
+ * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, offList: boolean, capacity: ReturnType<typeof castCapacity>}}
+ */
+export function spellCapacity({ casting = [], pools = [], coreSpells = null, castsAt = () => 0, spell, prefer = null } = {}) {
+  const { extras, lvl } = spell ?? {};
+  const offList = isOffList(casting, spell);
+  const named = prefer ? casting?.find((t) => t?.key === prefer) : null;
+  // A named tradition is used where the spell stands on it; any other name is ignored.
+  const found = offList ? null : ((named ? traditionFor([named], spell) : null) ?? traditionFor(casting, spell));
+  const spellLevel = found?.spellLevel ?? levelUnder(extras, lvl, new Set());
+  if (offList) return { found: null, spellLevel, offList, capacity: castCapacity({ spellLevel }) };
+  const capacity = castCapacity({ pools, coreSpells, castsAtLevel: castsAt(spellLevel), tradition: found?.tradition?.key ?? null, spellLevel });
+  return { found, spellLevel, offList, capacity };
 }
 
 /**
@@ -161,6 +216,6 @@ export function spellStanding({ casting = [], pools = [], spells = [], coreSpell
   const castsFrom = new Set(traditions.flatMap((t) => [foldKey(t.key), foldKey(t.label)]).filter(Boolean));
   const rest = read
     .filter(({ lists }) => !lists.some((l) => castsFrom.has(l.source)))
-    .map(({ s, lists }) => ({ ref: s.ref, name: s.name, level: levelOf(s.lvl), lists, own: null, also: [], offList: lists.length > 0 }));
+    .map(({ s, lists }) => ({ ref: s.ref, name: s.name, level: levelOf(s.lvl), lists, own: null, also: [], offList: isOffList(traditions, s) }));
   return { mode: "lists", levels: [], groups, other: bucketByLevel(rest) };
 }

@@ -58,8 +58,10 @@ function storedSummon(v) {
  * invocation level chosen (null where none was), `procedure` the answer of the
  * tradition's procedure (its field values, its band's controls and its `buckets`;
  * null where it has none) and `procedureKind` the tradition kind whose procedure
- * it is, which the declaration's loss reads to find that procedure again, and
- * `summon` a summoning's pick, `{ref, count}` (the creature as `placeSummons`
+ * it is, which the declaration's loss reads to find that procedure again,
+ * `tradition` the key of the class's tradition the cast was pressed under (null
+ * where it named none, as a record stored before it did), which resolving the
+ * declaration reads the world through again, and `summon` a summoning's pick, `{ref, count}` (the creature as `placeSummons`
  * reads it and how many; null where the cast summons nothing).
  */
 export const ANSWER_FIELDS = Object.freeze({
@@ -69,6 +71,7 @@ export const ANSWER_FIELDS = Object.freeze({
   invocationLevel: invocationFigure,
   procedure: storedProcedure,
   procedureKind: (v) => (typeof v === "string" && v ? v : null),
+  tradition: (v) => (typeof v === "string" && v ? v : null),
   situational: (v) => v ?? null,
   visibility: (v) => v ?? "public",
   pickKind: (v) => v ?? null,

@@ -329,18 +329,18 @@ test("the Magic tab's row marks its standing count and its joined count, each wi
  * The Magic tab's whole context for a caster holding `spells`. `casting` binds an invented class that casts from
  * those rows (null binds none); `spent` is the actor's spent pools; `cite` the class document's own citation.
  */
-const magicContextOf = async ({ spells, casting = null, ladders = [], cite = "", owner = true, spent = {}, level = 1 }) => {
+const magicContextOf = async ({ spells, casting = null, ladders = [], cite = "", owner = true, spent = {}, level = 1, isGM = false, effects = [], fights = {} }) => {
   const priorGame = globalThis.game;
   const priorCanvas = globalThis.canvas;
   const priorUuid = globalThis.fromUuidSync;
-  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` }, combats: { get: () => null }, scenes: { active: null } };
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` }, combats: { get: (id) => fights[id] ?? null }, scenes: { active: null }, user: { isGM } };
   globalThis.canvas = { scene: null };
   const doc = { uuid: "Item.cls1", documentName: "Item", type: "acks-extras.class", name: "Testcaster", system: { casting: casting ?? [], ladders, source: { cite } } };
   globalThis.fromUuidSync = (uuid) => (uuid === "Item.cls1" ? doc : null);
   try {
     const { buildMagicTab } = await import("../scripts/character-sheet/tabs/magic.mjs");
     const actor = {
-      name: "Testcaster", uuid: "Actor.c", type: "character", system: { spells: { enabled: true }, details: { level } }, items: spells, effects: [], isOwner: owner,
+      name: "Testcaster", uuid: "Actor.c", type: "character", system: { spells: { enabled: true }, details: { level } }, items: spells, effects, isOwner: owner,
       getFlag: (m, k) => (casting && m === "acks-extras" && k === "classes" ? { uuid: "Item.cls1", pools: spent } : null),
     };
     return buildMagicTab(actor);
@@ -431,6 +431,82 @@ test("the hand pips write through the sheet's own actions and the strip leaves t
   assert.match(sheet, /"magic", "spell-row", "service"/, "the row partial is preloaded");
   const casting = readFileSync(new URL("../scripts/classes/casting.mjs", import.meta.url), "utf8");
   assert.match(casting, /const strip = castingStripElement\(doc, app\);/, "the system's own sheet keeps its strip whole");
+});
+
+/** Every row of a Magic tab context, with the heading it stands under (null in Other spells and by level). */
+const rowsUnder = (tab) => [
+  ...tab.levels.flatMap((l) => l.rows.map((row) => ({ under: null, row }))),
+  ...tab.groups.flatMap((g) => g.levels.flatMap((l) => l.rows.map((row) => ({ under: g.key, row })))),
+  ...tab.other.flatMap((l) => l.rows.map((row) => ({ under: null, row }))),
+];
+const gateSpells = () => [
+  listedSpell("a", "Aflame", { lists: [["wisp", 1]] }),
+  listedSpell("b", "Bolt", { lists: [["wisp", 2]] }),
+  listedSpell("d", "Dual", { lists: [["wisp", 1], ["tide", 2]] }),
+  listedSpell("h", "Hush", { lists: [["gust", 1]] }),
+  listedSpell("p", "Plain", { lvl: 3 }),
+];
+await testAsync("a Player's off-list row and full-level row are blocked with their sentence on the row; nothing else is", async () => {
+  const tab = await magicContextOf({ spells: gateSpells(), casting: [WISP, TIDE], spent: { wisp: { s1: 2 } } });
+  const gates = rowsUnder(tab).map(({ under, row }) => [row.id, under, row.gate && [row.gate.key, row.gate.blocked, row.gate.text]]);
+  assert.deepEqual(gates, [
+    ["a", "wisp", ["noSlot", true, "ACKS-MAGIC.cast.notice.blocked.noSlot|{}"]],
+    ["d", "wisp", ["noSlot", true, "ACKS-MAGIC.cast.notice.blocked.noSlot|{}"]],
+    ["b", "wisp", null],
+    ["d", "tide", null],
+    ["h", null, ["offList", true, "ACKS-MAGIC.cast.notice.blocked.offList|{}"]],
+    ["p", null, null],
+  ], "a two-list spell is gated by the heading it stands under, and a spell that names no list is not off list");
+});
+await testAsync("a Judge's rows carry the warning and stay on", async () => {
+  const tab = await magicContextOf({ spells: gateSpells(), casting: [WISP, TIDE], spent: { wisp: { s1: 2 } }, isGM: true });
+  const gated = rowsUnder(tab).filter(({ row }) => row.gate).map(({ under, row }) => [row.id, under, row.gate.key, row.gate.blocked, row.gate.text]);
+  assert.deepEqual(gated, [
+    ["a", "wisp", "noSlot", false, "ACKS-MAGIC.cast.notice.verdict.noSlot|{}"],
+    ["d", "wisp", "noSlot", false, "ACKS-MAGIC.cast.notice.verdict.noSlot|{}"],
+    ["h", null, "offList", false, "ACKS-MAGIC.cast.notice.verdict.offList|{}"],
+  ]);
+});
+await testAsync("a row whose spell has a cast declared and waiting is exempt from both gates", async () => {
+  const fights = { k1: { round: 2, scene: { name: "Testyard" } } };
+  const effects = [declaredEffect("c1", "Actor.c.Item.a", {}), declaredEffect("c2", "Actor.c.Item.h", {})];
+  const tab = await magicContextOf({ spells: gateSpells(), casting: [WISP, TIDE], spent: { wisp: { s1: 2 } }, effects, fights });
+  const byId = Object.fromEntries(rowsUnder(tab).filter(({ under }) => under !== "tide").map(({ row }) => [row.id, row]));
+  assert.deepEqual([byId.a.declared !== null, byId.a.gate, byId.h.declared !== null, byId.h.gate], [true, null, true, null]);
+  assert.equal(byId.d.gate.key, "noSlot", "a spell with none declared is still gated");
+});
+await testAsync("a character with no class, or a class that casts from no list, has no gate and no tradition on any row; a row under a heading carries its key and Other spells none", async () => {
+  for (const casting of [null, []]) {
+    const tab = await magicContextOf({ spells: gateSpells(), casting });
+    assert.ok(rowsUnder(tab).every(({ row }) => row.gate === null && row.tradition === ""), "nothing is blocked where the module does not know the answer");
+  }
+  const tab = await magicContextOf({ spells: gateSpells(), casting: [WISP, TIDE] });
+  assert.deepEqual(rowsUnder(tab).map(({ under, row }) => [row.id, under, row.tradition]), [["a", "wisp", "wisp"], ["d", "wisp", "wisp"], ["b", "wisp", "wisp"], ["d", "tide", "tide"], ["h", null, ""], ["p", null, ""]]);
+});
+await testAsync("a row's gate is the verdict the cast window raises for the same spell and tradition", async () => {
+  const { castReading } = await import("../scripts/magic/cast-spell.mjs");
+  const { castVerdicts } = await import("../scripts/magic/cast-plan.mjs");
+  const spells = gateSpells();
+  const tab = await magicContextOf({ spells, casting: [WISP, TIDE], spent: { wisp: { s1: 2 } } });
+  const classItem = { system: { casting: [WISP, TIDE] } };
+  const pools = [{ key: "wisp", slots: [{ n: 1, max: 2, used: 2 }, { n: 2, max: 1, used: 0 }] }, { key: "tide", pool: { max: 4, used: 0 } }];
+  for (const { under, row } of rowsUnder(tab)) {
+    const item = spells.find((s) => s.id === row.id);
+    const read = castReading({ items: spells, system: { spells: { enabled: true } } }, item, { classItem, pools, tradition: under });
+    const window = castVerdicts({ capacity: read.capacity, offList: read.offList, isGM: false }).map((v) => v.key);
+    assert.deepEqual(row.gate ? [row.gate.key] : [], window, `${row.id} under ${under}`);
+  }
+});
+test("the row sends its tradition, and the template turns Cast off on a blocked row and says why on a line of its own", () => {
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  const cast = /static #onSpellCast\(event, target\) \{[\s\S]*?\n  \}/.exec(sheet)?.[0] ?? "";
+  assert.match(cast, /dataset\?\.tradition/, "the row's tradition is read");
+  assert.match(cast, /item\.use\?\.\(\{[^}]*tradition/, "and passed to the system's use");
+  const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
+  assert.match(tpl, /data-item-id="\{\{spell\.id\}\}"\{\{#if spell\.tradition\}\} data-tradition="\{\{spell\.tradition\}\}"\{\{\/if\}\}>/, "the attribute is on the row under a heading only");
+  const button = tpl.split("\n").find((l) => l.includes('data-action="spellCast"'));
+  assert.ok(/\{\{#if spell\.gate\.blocked\}\} disabled\{\{\/if\}\}/.test(button) && /aria-label="\{\{localize 'ACKS-CHARACTER\.magic\.cast'\}\}"/.test(button), "Cast is off for a blocked row and keeps its name");
+  assert.match(tpl, /\n  \{\{#if spell\.gate\}\}<span class="acks-extras-frame__gate"[^>]*>[\s\S]*?\{\{spell\.gate\.text\}\}<\/span>\{\{\/if\}\}\n<\/div>/, "the reason is visible text, a direct child of the row");
 });
 
 /** A caster-side cast record as `castOf` gives it. */

@@ -17,8 +17,9 @@ import { makeLoc } from "../../lib/util.mjs";
 import { poolState } from "../../classes/casting.mjs";
 import { classForActor } from "../../classes/registry.mjs";
 import { LANG_PREFIX as CLASSES_LANG } from "../../classes/constants.mjs";
-import { MODULE_ID, FLAG_SPELL } from "../../magic/constants.mjs";
-import { spellStanding } from "../../magic/cast-capacity.mjs";
+import { MODULE_ID, FLAG_SPELL, LANG_PREFIX as MAGIC_LANG } from "../../magic/constants.mjs";
+import { spellStanding, spellCapacity } from "../../magic/cast-capacity.mjs";
+import { castVerdicts, VERDICT } from "../../magic/cast-plan.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { isSummonSpell } from "../../magic/summon-spell.mjs";
 import { spellEffectOf } from "../../magic/spell-effect.mjs";
@@ -28,6 +29,7 @@ import { summonsOnScene, currentScene } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
 const classesLoc = makeLoc(CLASSES_LANG);
+const castLoc = makeLoc(`${MAGIC_LANG}.cast`);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /**
@@ -149,10 +151,43 @@ export function buildMagicTab(actor) {
     })),
     coreSpells: stored.spells,
   });
-  /** One spell row, for either mode: `entry` is what `spellStanding` gave for its appearance. */
-  const rowOf = (entry) => {
+  const casting = classItem?.system?.casting ?? [];
+  const castsAt = (level) => spells.filter((s) => Number(s.system?.lvl) === level).reduce((sum, s) => sum + (Number(s.system?.cast) || 0), 0);
+  const isGM = game.user?.isGM === true;
+  /**
+   * What the cast window would raise before this row's press, for the two
+   * capacity gates only: the spell is on no list the class casts from, or the
+   * list the row stands under has no slot left at the row's level. The
+   * reading and the verdicts are the cast's own (`spellCapacity`,
+   * `castVerdicts`), so the row and the window cannot disagree. A seat that is
+   * not a GM is blocked and a GM warned. Null where nothing stands in the way.
+   */
+  const gateOf = (entry, tradition) => {
+    const spell = entry.ref;
+    const { offList, capacity } = spellCapacity({
+      casting,
+      pools,
+      coreSpells: sys.spells,
+      castsAt,
+      spell: { extras: spell.flags?.[MODULE_ID]?.[FLAG_SPELL] ?? {}, lvl: spell.system?.lvl, class: spell.system?.class },
+      prefer: tradition,
+    });
+    const found = castVerdicts({ capacity, offList, isGM }).find((v) => v.key === VERDICT.offList || v.key === VERDICT.noSlot);
+    if (!found) return null;
+    const blocked = found.severity === "block";
+    return { key: found.key, blocked, text: castLoc(`notice.${blocked ? "blocked" : "verdict"}.${found.key}`) };
+  };
+  /**
+   * One spell row, for either mode: `entry` is what `spellStanding` gave for its
+   * appearance and `tradition` the key of the list it stands under (none under
+   * "Other spells" and in levels mode). A row carries a gate only where the class
+   * casts from lists, and a spell with a cast declared and waiting is exempt: its
+   * slot was spent at the declaring.
+   */
+  const rowOf = (entry, tradition = null) => {
     const spell = entry.ref;
     const lists = entry.lists ? listsLineOf(entry, spell.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "") : null;
+    const declared = declaredRowOf(records, spell, { name: actor.name, combatOf });
     return {
       id: spell.id,
       name: spell.name,
@@ -163,9 +198,11 @@ export function buildMagicTab(actor) {
       line: [lists ? "" : spell.system?.class, spell.system?.range, spell.system?.duration].filter(Boolean).join(" · "),
       save: spell.system?.save ?? "",
       summon: summonOf(spell),
-      declared: declaredRowOf(records, spell, { name: actor.name, combatOf }),
+      declared,
       lists,
       offList: entry.offList === true,
+      tradition: tradition ?? "",
+      gate: entry.lists && !declared ? gateOf(entry, tradition) : null,
       countTip: loc("magic.castTip", { spell: spell.name }),
     };
   };
@@ -180,7 +217,7 @@ export function buildMagicTab(actor) {
       used: l.used,
       max: l.max,
       maxPath: `system.spells.${l.level}.max`,
-      rows: l.spells.map(rowOf),
+      rows: l.spells.map((entry) => rowOf(entry)),
     })),
     groups: stands.groups.map((g) => ({
       key: g.key,
@@ -194,7 +231,7 @@ export function buildMagicTab(actor) {
         : null,
       levels: g.levels.map((l) => ({
         n: l.level,
-        rows: l.spells.map(rowOf),
+        rows: l.spells.map((entry) => rowOf(entry, g.key)),
         slot: l.slot
           ? {
               used: l.slot.used,
@@ -206,7 +243,7 @@ export function buildMagicTab(actor) {
           : null,
       })),
     })),
-    other: stands.other.map((l) => ({ n: l.level, rows: l.spells.map(rowOf) })),
+    other: stands.other.map((l) => ({ n: l.level, rows: l.spells.map((entry) => rowOf(entry)) })),
     hasSpells: spells.length > 0,
     pools: pools.length,
     editable: actor.isOwner,

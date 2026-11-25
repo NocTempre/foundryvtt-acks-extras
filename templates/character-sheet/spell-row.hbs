@@ -1,8 +1,11 @@
 {{!-- One spell on the Magic tab, under a level or a list's level. The caller passes
       `spell` (a row from `buildMagicTab`), `owns` (the seat owns the character:
       Dismiss) and `sheetEditable` (the sheet takes edits: the count, show, edit
-      and delete). --}}
-<div class="acks-extras-frame__row is-spell draggable" data-item-id="{{spell.id}}">
+      and delete). A row's `gate` (`buildMagicTab`) is the reason the cast would be
+      stopped or warned: a blocked one turns Cast off, and either shows its sentence
+      on a line of its own under the row. A row under a list's heading carries that
+      list's key as `data-tradition`, which Cast sends. --}}
+<div class="acks-extras-frame__row is-spell draggable" data-item-id="{{spell.id}}"{{#if spell.tradition}} data-tradition="{{spell.tradition}}"{{/if}}>
   <img class="acks-extras-frame__gear-img" src="{{spell.img}}" alt="" inert>
   <span class="acks-extras-frame__row-text">
     <a class="acks-extras-frame__row-name" data-action="itemEdit">{{spell.name}}</a>
@@ -19,7 +22,7 @@
   {{/if}}
   <span class="acks-extras-frame__ctls">
     <span class="acks-extras-frame__grp">
-      <button type="button" class="acks-extras-frame__mini" data-action="spellCast" data-tooltip="{{localize 'ACKS-CHARACTER.magic.cast'}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
+      <button type="button" class="acks-extras-frame__mini" data-action="spellCast" aria-label="{{localize 'ACKS-CHARACTER.magic.cast'}}" data-tooltip="{{localize 'ACKS-CHARACTER.magic.cast'}}"{{#if spell.gate.blocked}} disabled{{/if}}><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
       {{#if owns}}{{#if spell.summon.standing}}
       <button type="button" class="acks-extras-frame__mini" data-action="spellDismiss" aria-label="{{localize 'ACKS-CHARACTER.magic.dismiss'}}" data-tooltip=""><i class="fa-solid fa-ghost" inert></i></button>
       {{/if}}{{/if}}
@@ -32,4 +35,5 @@
     </span>
     {{/if}}
   </span>
+  {{#if spell.gate}}<span class="acks-extras-frame__gate" data-gate="{{spell.gate.key}}" role="note"><span aria-hidden="true">&#9830; </span>{{spell.gate.text}}</span>{{/if}}
 </div>

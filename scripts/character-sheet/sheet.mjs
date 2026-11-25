@@ -1461,8 +1461,9 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
   static #onSpellCast(event, target) {
     const item = this.#itemOf(target);
     if (!item) return;
-    // The system's `use` on a spell counts the casting and shows its card.
-    item.use?.({ skipDialog: skipDialogFor(event) });
+    // The system's `use` on a spell counts the casting and shows its card. A row under a list's heading names that list, so a spell on two lists spends the slot of the one it was pressed under.
+    const tradition = target.closest("[data-item-id]")?.dataset?.tradition;
+    item.use?.({ skipDialog: skipDialogFor(event), ...(tradition ? { tradition } : {}) });
   }
 
   /** A summoning spell's Dismiss: every creature its casts left standing on the scene the party cell counts on, riding in a party token included. */

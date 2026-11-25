@@ -48,7 +48,7 @@ import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGo
 import { casterLevel, levelNeeded, invocationLevel, invocationFigure, invocationOffered } from "./cast-level.mjs";
 import { castAbilityLevel } from "./cast-abilities.mjs";
 import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
-import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
+import { spellCapacity, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration, heldByConjuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
@@ -68,7 +68,6 @@ import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInsta
 import { areaExtent } from "./cast-area.mjs";
 import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon, takesTargets, stepOf } from "./cast-kinds.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
-import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell, resolveSummonRef } from "./summon-spell.mjs";
 import { summonRowsOf, summonOffer, judgeSummon, summonIsConjuration } from "./cast-summon.mjs";
 import { SEAL_ROW_TYPE } from "./cast-seal.mjs";
@@ -267,15 +266,13 @@ export function castReach({ figures, level, tokens, gaps = {}, takes = true }) {
  *
  * @param {Actor} actor  the caster
  * @param {Item} spell
- * @param {{classItem?: object|null, pools?: object[], capAt?: ((classItem: object|null, tradition: object|null, level: number) => number|null)|null}} [from]  `classForActor(actor)` and `poolState(actor)`, and the classes feature's `traditionCapAt` where it has one; with none the tradition has no cap
- * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, capacity: ReturnType<typeof castCapacity>, cap: number|null, level: {matched: boolean, classLevel: number, ladder: object|null, monsterLevel: number}}}
+ * @param {{classItem?: object|null, pools?: object[], capAt?: ((classItem: object|null, tradition: object|null, level: number) => number|null)|null, tradition?: string|null}} [from]  `classForActor(actor)` and `poolState(actor)`, and the classes feature's `traditionCapAt` where it has one; with none the tradition has no cap. `tradition` is the key of the class's tradition the cast goes through: where the spell stands on it the reading is taken under it, else under the first the spell stands on
+ * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, offList: boolean, capacity: ReturnType<typeof spellCapacity>["capacity"], cap: number|null, level: {matched: boolean, classLevel: number, ladder: object|null, monsterLevel: number}}}
  */
-export function castReading(actor, spell, { classItem = null, pools = [], capAt = null, ladderOf = null } = {}) {
+export function castReading(actor, spell, { classItem = null, pools = [], capAt = null, ladderOf = null, tradition = null } = {}) {
   const extras = flagOf(spell);
-  const found = traditionFor(classItem?.system?.casting, { extras, lvl: spell.system?.lvl, class: spell.system?.class });
-  const spellLevel = found?.spellLevel ?? levelUnder(extras, spell.system?.lvl, new Set());
-  const castsAtLevel = actor.items.filter((i) => i.type === SPELL_TYPE && Number(i.system?.lvl) === spellLevel).reduce((sum, i) => sum + (Number(i.system?.cast) || 0), 0);
-  const capacity = castCapacity({ pools, coreSpells: actor.system?.spells, castsAtLevel, tradition: found?.tradition?.key ?? null, spellLevel });
+  const castsAt = (level) => actor.items.filter((i) => i.type === SPELL_TYPE && Number(i.system?.lvl) === level).reduce((sum, i) => sum + (Number(i.system?.cast) || 0), 0);
+  const { found, spellLevel, offList, capacity } = spellCapacity({ casting: classItem?.system?.casting, pools, coreSpells: actor.system?.spells, castsAt, spell: { extras, lvl: spell.system?.lvl, class: spell.system?.class }, prefer: tradition });
   const ladderKey = found?.tradition?.casterLevel;
   const ladder = ladderKey ? ((classItem?.system?.ladders ?? []).find((l) => l.key === ladderKey) ?? { values: [] }) : null;
   // The tradition's invocation-level cap at the class level, where the classes feature reads one.
@@ -283,6 +280,7 @@ export function castReading(actor, spell, { classItem = null, pools = [], capAt 
   return {
     found,
     spellLevel,
+    offList,
     capacity,
     cap,
     // The ladder the tradition's cap is read from, `{key, label, top}`, which bounds the invocation-level menu; null where it names none.
@@ -296,14 +294,17 @@ export function castReading(actor, spell, { classItem = null, pools = [], capAt 
   };
 }
 
-/** The reading of the live world a cast needs, in one place. */
-async function readWorld(spell) {
+/**
+ * The reading of the live world a cast needs, in one place. `options.tradition`
+ * is the key of the class's tradition the cast was pressed under.
+ */
+async function readWorld(spell, options = {}) {
   const actor = spell.parent;
   const { classForActor } = await import("../classes/registry.mjs");
   // A namespace, so the cap reads where the classes feature has one and is null where it has not.
   const casting = await import("../classes/casting.mjs");
   const classItem = classForActor(actor);
-  const { found, capacity, level, cap, ladder } = castReading(actor, spell, { classItem, pools: casting.poolState(actor), capAt: casting.traditionCapAt, ladderOf: casting.traditionCapLadder });
+  const { found, offList, capacity, level, cap, ladder } = castReading(actor, spell, { classItem, pools: casting.poolState(actor), capAt: casting.traditionCapAt, ladderOf: casting.traditionCapLadder, tradition: typeof options?.tradition === "string" ? options.tradition : null });
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
   const casterToken = actorToken(actor);
@@ -317,6 +318,8 @@ async function readWorld(spell) {
     prepareSpell: fight?.combatant?.flags?.acks?.prepareSpell === true,
     statuses: [...(actor.statuses ?? [])],
     capacity,
+    // Is the spell on no list the class casts from (`isOffList`)? Such a cast has no tradition and spends no slot.
+    offList,
     cap,
     ladder,
     level,
@@ -673,9 +676,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const fromProject = options.fromProject === true;
   if (extras.ritual === true && !fromProject) return castRitual(spell, deps);
   const { rows: all } = rowsOf(spell, deps.lookups);
-  const read = await deps.read(spell);
+  // The tradition the seat pressed the cast under, where it named one (`options.tradition`).
+  const read = await deps.read(spell, options);
   // A cast from a project was the project: no slot, no turn, no declaration and no tradition procedure (its throw and its spends) stand behind it, so none is read.
-  const world = fromProject ? { ...read, capacity: null, cap: null, tradition: null, combat: null, combatant: null, declarations: [], prepareSpell: false } : read;
+  let world = fromProject ? { ...read, capacity: null, offList: false, cap: null, tradition: null, combat: null, combatant: null, declarations: [], prepareSpell: false } : read;
   // The seat's targets are read apart from the world: the dialog is a bucket the seat fills and empties, and the cast reads them again once it is answered.
   const readSeat = () => deps.targets?.(world) ?? { tokens: world.tokens ?? [], gaps: world.gaps ?? {} };
   let seat = readSeat();
@@ -692,6 +696,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const turnMoment = castMoment({ combat: world.combat, combatant: world.combatant });
   const declaration = declarationOf(world.declarations ?? [], { spellUuid: spell.uuid, combatId: world.combat?.id ?? null, prepareSpell: world.prepareSpell === true });
   const resolving = turnMoment === MOMENT.resolve && Boolean(declaration.valid);
+  // A declaration stored with a tradition is read through it again; a record without one resolves under the tradition the world gave.
+  const declaredThrough = resolving ? (declaration.valid.pending?.tradition ?? null) : null;
+  if (declaredThrough && declaredThrough !== world.tradition?.key) world = await deps.read(spell, { ...options, tradition: declaredThrough });
   // A declaration being resolved answers for itself (below), invocation level included, and the context starts from it.
   const declared = resolving ? answerFromPending(declaration.valid.pending) : null;
   // A stored bucket entry whose document the world no longer holds is dropped without a word: the strip on a lost item (`cast-declare.mjs`) takes most, and what it missed is dropped here. The bucket's own verdicts judge what is left.
@@ -756,6 +763,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     const view = procViewAt(mode, inv, levelValue, praw, at);
     return castVerdicts({
       capacity: world.capacity,
+      offList: world.offList === true,
       targets: seat.tokens,
       rows: rowsForMode(all, mode, picks, atFor(mode, inv)),
       statuses: world.statuses,
@@ -994,7 +1002,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   else if (moment === MOMENT.resolve && declaration.lost) await deps.declare?.finish({ caster, record: declaration.lost, combat: world.combat, combatant: world.combatant });
   else if (declaration.hand) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
   if (moment === MOMENT.declare) {
-    const made = await deps.declare?.declare({ caster, spell, answer: { ...answer, targets: seat.tokens.map((t) => t.uuid), procedureKind }, combat: world.combat, combatant: world.combatant });
+    const made = await deps.declare?.declare({ caster, spell, answer: { ...answer, targets: seat.tokens.map((t) => t.uuid), procedureKind, tradition: typeof options.tradition === "string" && options.tradition ? (world.tradition?.key ?? null) : null }, combat: world.combat, combatant: world.combatant });
     return { ok: true, declared: true, castId: made?.castId };
   }
 

@@ -145,8 +145,12 @@ await ta("a declaration writes a status-only casting record and a status-free pe
 
 t("the stored shape is one table: a declaration stores exactly ANSWER_FIELDS' keys, and reads back as the answer, with a record from before targets were stored read as having none recorded", () => {
   assert.deepEqual(Object.keys(answerStored(answer)), Object.keys(ANSWER_FIELDS));
-  assert.deepEqual(Object.keys(answerStored(answer)).sort(), ["allocation", "casterLevel", "invocationLevel", "items", "mode", "pickKind", "picks", "procedure", "procedureKind", "saveMod", "situational", "summon", "targets", "visibility"]);
+  assert.deepEqual(Object.keys(answerStored(answer)).sort(), ["allocation", "casterLevel", "invocationLevel", "items", "mode", "pickKind", "picks", "procedure", "procedureKind", "saveMod", "situational", "summon", "targets", "tradition", "visibility"]);
   const blank = answerStored({ mode: "normal" });
+  assert.equal(blank.tradition, null, "an answer that names no tradition stores none");
+  assert.deepEqual([answerStored({ tradition: "wisp" }).tradition, answerStored({ tradition: "" }).tradition, answerStored({ tradition: 4 }).tradition], ["wisp", null, null], "a tradition is a key or nothing");
+  assert.equal(answerFromPending({ ...answerStored({ mode: "normal", tradition: "wisp" }), targets: [] }).tradition, "wisp", "the stored tradition reads back as the answer's");
+  assert.equal(answerFromPending({ spellUuid: "S", mode: "normal", picks: {}, combatId: "k1" }).tradition, null, "a record stored before it holds none and resolves as it did");
   assert.equal(blank.invocationLevel, null, "no invocation level answered is stored as none");
   assert.deepEqual([blank.targets, blank.allocation, blank.items, blank.visibility, blank.saveMod, blank.casterLevel], [[], {}, {}, "public", false, null]);
   const back = answerFromPending({ ...answerStored(answer), combatId: "k1", round: 2 });
@@ -156,6 +160,15 @@ t("the stored shape is one table: a declaration stores exactly ANSWER_FIELDS' ke
   const old = answerFromPending({ spellUuid: "S", mode: "normal", picks: {}, casterLevel: null, situational: null, pickKind: null, combatId: "k1" });
   assert.deepEqual([old.targets, old.casterLevel, old.situational, old.pickKind, old.visibility], [null, "", "", null, "public"], "no targets recorded reads as null, which resolves on the seat as it stands");
   assert.deepEqual(answerFromPending({ ...answerStored({ mode: "normal" }), targets: [] }).targets, [], "a declaration of no target is an empty seat, not an unrecorded one");
+});
+
+await ta("a declaration stores the tradition the cast was pressed under, and a cast that named none stores none", async () => {
+  const through = world();
+  await declareCast({ caster, spell, answer: { ...answer, tradition: "wisp" }, combat: combat(), combatant: { id: "cb1", initiative: 5 }, deps: through.deps });
+  assert.equal(spellEffectOf(through.records[1].data).pending.tradition, "wisp");
+  const bare = world();
+  await declareCast({ caster, spell, answer, combat: combat(), combatant: { id: "cb1", initiative: 5 }, deps: bare.deps });
+  assert.equal(spellEffectOf(bare.records[1].data).pending.tradition, null);
 });
 
 await ta("a Judge's second declaration replaces the first: both of its records go before the new ones are written", async () => {

@@ -15,6 +15,7 @@ import { invocationFindings } from "./cast-level.mjs";
 /** The verdict ids. */
 export const VERDICT = Object.freeze({
   noSlot: "noSlot",
+  offList: "offList",
   severalTargets: "severalTargets",
   forbidden: "forbidden",
   oneBearer: "oneBearer",
@@ -45,6 +46,7 @@ export const VERDICT = Object.freeze({
  *
  * @param {object} from
  * @param {{verdict: string}} from.capacity  `castCapacity`'s answer
+ * @param {boolean} [from.offList]  the spell is on no list the class casts from (`isOffList`); it is its own verdict, and no slot is judged where it stands
  * @param {object[]} from.targets  the seat's targeted tokens
  * @param {Array<{row: object}>} from.rows  the rows the cast keeps
  * @param {Iterable<string>} [from.statuses]  the caster's status ids
@@ -61,7 +63,7 @@ export const VERDICT = Object.freeze({
  * @param {{count: number|null, ceiling: number|null, refused?: {reason: string, notice: string}|null}|null} [from.summon]  a summoning's answer: the count asked and its ceiling at the caster level (`summonCeilingFor`), where a count above a stated ceiling is `summonCount`; `refused` is a refusal lib's request check gave before any click, which lib gives again at the placement to every seat, so it blocks a Judge too and carries lib's own words
  * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[], out?: object[], limit?: number, parts?: object[], max?: number, over?: number, notice?: string}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null, procedure = [], summon = null } = {}) {
+export function castVerdicts({ capacity, offList = false, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null, procedure = [], summon = null } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   const resolving = moment === MOMENT.resolve && Boolean(declaration?.valid);
@@ -70,7 +72,8 @@ export function castVerdicts({ capacity, targets = [], rows = [], statuses = [],
     else if (!declaration?.hand) out.push({ key: VERDICT.noDeclaration, severity });
   }
   if (moment === MOMENT.declare && (declaration?.valid || declaration?.other)) out.push({ key: VERDICT.declared, severity });
-  if (!resolving && capacity?.verdict === CAPACITY.none) out.push({ key: VERDICT.noSlot, severity });
+  if (!resolving && offList === true) out.push({ key: VERDICT.offList, severity });
+  else if (!resolving && capacity?.verdict === CAPACITY.none) out.push({ key: VERDICT.noSlot, severity });
   // One throw is aimed at one target; a count above one is split among targets, so only a count of one or a blank one is left with several.
   const thrown = rows.filter(({ row }) => rowNeedsThrow(row));
   if (targets.length > 1 && thrown.some(({ key }) => !(Number(instances?.counts?.[key]) > 1))) out.push({ key: VERDICT.severalTargets, severity });

@@ -1197,3 +1197,10 @@ button.acks-extras-classes-handpip:focus-visible,
 .acks-extras-frame__row.is-spell > .acks-extras-frame__row-text {
   flex: 1 1 12em;
 }
+/* The reason a spell's Cast is stopped or warned stands on a line of its own under the row. */
+.acks-extras-frame__row.is-spell > .acks-extras-frame__gate {
+  flex: 1 0 100%;
+  color: var(--acks-danger-ink);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+}

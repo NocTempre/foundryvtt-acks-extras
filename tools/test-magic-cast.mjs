@@ -29,7 +29,7 @@ const Tables = await import("../scripts/lib/tables.mjs");
 const { TURN_SECONDS, ROUND_SECONDS } = await import("./time-unit-fixture.mjs");
 const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
-const { castCapacity, traditionFor, spendsFromPool, spellStanding } = await import("../scripts/magic/cast-capacity.mjs");
+const { castCapacity, traditionFor, spendsFromPool, spellStanding, isOffList, spellCapacity } = await import("../scripts/magic/cast-capacity.mjs");
 const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
@@ -1295,13 +1295,13 @@ t("the claimant takes a flagged spell with rows on an actor the seat owns, and d
 });
 
 /** The dependencies of a run, recorded. */
-function runDeps({ answer, capacity = { verdict: "ok" }, isGM = false, tokens = [], casterToken = null, gaps = {}, level = { matched: false } } = {}) {
-  const calls = { notices: [], posts: [], spends: 0, pools: [], records: [], applied: [], asked: null };
+function runDeps({ answer, capacity = { verdict: "ok" }, offList = false, isGM = false, tokens = [], casterToken = null, gaps = {}, level = { matched: false } } = {}) {
+  const calls = { notices: [], posts: [], spends: 0, pools: [], records: [], applied: [], asked: null, reads: [] };
   return {
     calls,
     deps: {
       lookups: NO_TWIN,
-      read: async () => ({ actor: {}, tokens, casterToken, gaps, statuses: [], capacity, level }),
+      read: async (_spell, options) => (calls.reads.push(options), { actor: {}, tokens, casterToken, gaps, statuses: [], capacity, offList, level }),
       ask: async (ctx) => {
         calls.asked = ctx;
         return answer;
@@ -2286,6 +2286,111 @@ t("castReading reads the capacity and the caster level of a spell's caster with 
   assert.deepEqual(read.level, { matched: true, classLevel: 4, ladder: null, monsterLevel: undefined });
   const bare = castReading({ items: [spell], system: { details: { level: 2 }, spells: { enabled: true, 1: { max: 1 } } }, getFlag: () => ({ spellcasting: { level: 6 } }) }, spell);
   assert.deepEqual([bare.found, bare.capacity.verdict, bare.capacity.source, bare.level.monsterLevel], [null, "ok", "core", 6]);
+});
+
+/* ------------------------------------------------------------------ */
+/*  The cast gates: off list, and the tradition a cast goes through   */
+/* ------------------------------------------------------------------ */
+
+t("a spell is off list only where the class names a list, the spell names a list, and none is shared; no class, no list and no named list are never off", () => {
+  const casting = [WISP, TIDE];
+  const own = (...sources) => ({ extras: { lists: sources.map((source) => ({ source, level: 1 })) } });
+  assert.equal(isOffList(casting, own("gust")), true, "a list the class does not cast from");
+  assert.equal(isOffList(casting, { extras: {}, class: "Gust" }), true, "core's class string stands in where no list is printed");
+  assert.equal(isOffList(casting, own("gust", "tide")), false, "one shared list is enough");
+  assert.equal(isOffList([{ key: "w1", label: "Wisp Craft" }], own("WISP-craft")), false, "folded, by label");
+  assert.equal(isOffList(casting, { extras: {} }), false, "a spell that names nothing");
+  assert.equal(isOffList(undefined, own("gust")), false, "no class bound");
+  assert.equal(isOffList([], own("gust")), false, "a class that casts from no list");
+  assert.equal(isOffList([{ label: "No key" }], own("gust")), false, "a tradition with no key is no list");
+  assert.deepEqual(spellStanding({ casting, pools: POOLS, spells: [stands("Alien", { lists: [["gust", 1]] }), stands("Bare")] }).other.flatMap((l) => l.spells).map((s) => [s.ref, s.offList]), [["Alien", true], ["Bare", false]], "the standing takes offList from the same predicate");
+});
+
+t("a spell on two lists is read under the tradition named, else the first; one it does not stand on is ignored; an off-list spell has no tradition, no slot and no noSlot from core's grid", () => {
+  const casting = [WISP, TIDE];
+  const spell = { extras: { lists: [{ source: "wisp", level: 1 }, { source: "tide", level: 3 }] }, lvl: 2, class: "" };
+  const pools = [{ key: "wisp", kind: "vancian", slots: [{ n: 1, max: 2, used: 2 }] }, { key: "tide", kind: "vancian", slots: [{ n: 3, max: 1, used: 0 }] }];
+  const first = spellCapacity({ casting, pools, spell });
+  assert.deepEqual([first.found.tradition.key, first.spellLevel, first.capacity.verdict, first.capacity.slotKey, first.offList], ["wisp", 1, "none", "s1", false]);
+  const named = spellCapacity({ casting, pools, spell, prefer: "tide" });
+  assert.deepEqual([named.found.tradition.key, named.spellLevel, named.capacity.verdict, named.capacity.slotKey], ["tide", 3, "ok", "s3"], "the named list's pool and level");
+  assert.equal(spendsFromPool(named.capacity), true);
+  assert.equal(spellCapacity({ casting, pools, spell, prefer: "gust" }).found.tradition.key, "wisp", "a tradition the class lacks is ignored");
+  assert.equal(spellCapacity({ casting: [WISP], pools, spell: { extras: { lists: [{ source: "wisp", level: 1 }] }, lvl: 1 }, prefer: "tide" }).found.tradition.key, "wisp", "so is one the spell does not stand on");
+  const off = spellCapacity({ casting, pools, coreSpells: { 1: { max: 1 } }, castsAt: () => 5, spell: { extras: { lists: [{ source: "gust", level: 1 }] }, lvl: 1 }, prefer: "wisp" });
+  assert.deepEqual([off.offList, off.found, off.capacity.verdict, off.capacity.source, spendsFromPool(off.capacity)], [true, null, "unknown", null, false], "core's full grid does not answer for it");
+});
+
+t("castReading takes the tradition the cast goes through and answers offList", async () => {
+  const { castReading } = await import("../scripts/magic/cast-spell.mjs");
+  const item = { type: "spell", system: { lvl: 2, cast: 0, class: "" }, flags: { "acks-extras": { spell: { lists: [{ source: "wisp", level: 1 }, { source: "tide", level: 3 }] } } } };
+  const actor = { items: [item], system: { details: { level: 4 }, spells: { enabled: false } }, getFlag: () => undefined };
+  const classItem = { system: { casting: [{ key: "wisp", kind: "vancian" }, { key: "tide", kind: "vancian" }], ladders: [] } };
+  const pools = [{ key: "wisp", slots: [{ n: 1, max: 1, used: 1 }] }, { key: "tide", slots: [{ n: 3, max: 2, used: 0 }] }];
+  const by = (tradition) => castReading(actor, item, { classItem, pools, tradition });
+  assert.deepEqual([by(null).found.tradition.key, by(null).capacity.verdict, by(null).offList], ["wisp", "none", false]);
+  assert.deepEqual([by("tide").found.tradition.key, by("tide").spellLevel, by("tide").capacity.verdict], ["tide", 3, "ok"]);
+  const alien = { ...item, flags: { "acks-extras": { spell: { lists: [{ source: "gust", level: 1 }] } } } };
+  const off = castReading({ ...actor, items: [alien], system: { details: { level: 4 }, spells: { enabled: true, 1: { max: 1 } } } }, alien, { classItem, pools, tradition: "wisp" });
+  assert.deepEqual([off.offList, off.found, off.capacity.verdict, spendsFromPool(off.capacity)], [true, null, "unknown", false]);
+});
+
+t("offList blocks a Player and warns a Judge, pre-empts noSlot, and is absent while a declaration resolves", () => {
+  const none = { verdict: "none" };
+  const keyed = (isGM, over) => castVerdicts({ isGM, capacity: { verdict: "ok" }, ...over }).map((v) => `${v.key}:${v.severity}`);
+  assert.deepEqual(keyed(false, { offList: true }), ["offList:block"]);
+  assert.deepEqual(keyed(true, { offList: true }), ["offList:warn"]);
+  assert.deepEqual(keyed(false, { offList: true, capacity: none }), ["offList:block"], "no slot is judged where the spell is off list");
+  assert.deepEqual(keyed(false, { offList: false, capacity: none }), ["noSlot:block"]);
+  assert.deepEqual(keyed(false, { offList: true, moment: "resolve", declaration: { valid: {}, lost: null, other: null, hand: false } }), [], "a resolution is never judged on a list");
+  assert.deepEqual(keyed(false, {}), [], "no flag, no verdict");
+  const foot = (severity) => dialogContext({ modes: ["normal"], groups: { normal: [] }, level: { value: 3, source: "class" }, levelNeeded: false, saves: false, targets: [], verdicts: { normal: [{ key: "offList", severity }] }, capacity: { verdict: "unknown" } }, {}).footer;
+  assert.deepEqual([foot("block").blocked, foot("block").verdicts[0].text.includes("blocked.offList")], [true, true], "the window's foot words it for a Player and stops the button");
+  assert.deepEqual([foot("warn").blocked, foot("warn").verdicts[0].text.includes("verdict.offList")], [false, true], "and for a Judge, who may cast anyway");
+});
+
+await ta("a Player's cast of an off-list spell is refused before the spend, and a Judge's is warned and spends no list's slot", async () => {
+  const s = spell([heal], { duration: { shape: "fixed", value: 1, unit: "minutes" } });
+  let spends = 0;
+  const spend = () => spends++;
+  let r = runDeps({ answer: { mode: "normal", picks: {} }, offList: true, capacity: { verdict: "unknown", tradition: null, slotKey: null, source: null } });
+  const refused = await castSpellRun(s, spend, r.deps);
+  assert.deepEqual([refused.ok, refused.reason, spends], [false, "offList", 0]);
+  assert.deepEqual(r.calls.notices, [["warn", "blocked.offList"]]);
+  r = runDeps({ answer: { mode: "normal", picks: {} }, isGM: true, offList: true, capacity: { verdict: "unknown", tradition: null, slotKey: null, source: null } });
+  const warned = await castSpellRun(s, spend, r.deps);
+  assert.deepEqual([warned.ok, spends, r.calls.pools], [true, 1, []]);
+  assert.deepEqual(r.calls.notices, [["warn", "verdict.offList"]]);
+});
+
+await ta("a cast passes the options it was pressed with to the world's reading, and a declaration stores the tradition the cast named", async () => {
+  const { deps, calls } = fightDeps({ answer: { mode: "normal", picks: {} }, world: IN_FIGHT({ tradition: { key: "tide" } }) });
+  await castSpellRun(spell([heal]), () => {}, deps, { tradition: "tide" });
+  assert.equal(calls.declared.answer.tradition, "tide");
+  const bare = fightDeps({ answer: { mode: "normal", picks: {} }, world: IN_FIGHT({ tradition: { key: "wisp" } }) });
+  await castSpellRun(spell([heal]), () => {}, bare.deps, {});
+  assert.equal(bare.calls.declared.answer.tradition, null, "a cast that named none stores none");
+  const seen = runDeps({ answer: { mode: "normal", picks: {} } });
+  await castSpellRun(spell([heal]), () => {}, seen.deps, { tradition: "tide", skipDialog: true });
+  assert.equal(seen.calls.reads[0].tradition, "tide");
+});
+
+await ta("a declaration stored with a tradition resolves through it; one stored without reads the world once", async () => {
+  const reads = [];
+  const make = (stored) => {
+    const r = fightDeps({ answer: null, world: { ...ON_TURN(), declarations: [pendingRecord(stored)], capacity: { verdict: "none" } } });
+    const inner = r.deps.read;
+    r.deps.read = async (s, o) => (reads.push(o?.tradition ?? null), { ...(await inner(s, o)), tradition: { key: o?.tradition ?? "wisp" } });
+    return r;
+  };
+  const through = make({ tradition: "tide" });
+  const out = await castSpellRun(spell([heal]), () => {}, through.deps, {});
+  assert.equal(out.ok, true);
+  assert.deepEqual(reads, [null, "tide"], "the world is read again through the stored tradition");
+  reads.length = 0;
+  const old = make({});
+  assert.equal((await castSpellRun(spell([heal]), () => {}, old.deps, {})).ok, true);
+  assert.deepEqual(reads, [null], "a record with none resolves as before");
 });
 
 console.log(`\n${n} magic cast tests passed`);
