@@ -145,7 +145,7 @@ await t("the minted filter admits the body the importer's own type mapping makes
     body.actor.getFlag = (scope, key) => (scope === "acks-extras" && key === "extras" ? extras : undefined);
     return { body, extras };
   };
-  const hand = imported("Beastman (Goblin)", "hand");
+  const hand = imported("Beastman (Zorn)", "hand");
   assert.deepEqual(hand.extras.types, ["beastman"], "the importer writes the singular type key");
   assert.ok(creatureKinds(hand.body.actor).has("beastman"));
   const bearer = creature("bearer", ["beastman"], "G1");

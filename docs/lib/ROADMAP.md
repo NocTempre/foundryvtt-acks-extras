@@ -485,7 +485,7 @@ that guards its own write, and re-walk the welcome-version recipe of
 
 ## Circumstances named by the cast engine
 
-A save part narrowed to a circumstance (`when`, with `magical`) is applied only where a caller of `saveSpec`, `saveModParts` or `sheetSaveShift` names the circumstance through `circumstances`, and no caller does: nine call sites pass at most `damage`. So a narrowed part is told on every throw and never added. A spell whose row says what a throw resists (a fear effect) names its circumstance, and the cast engine passes it to `saveSpec` for each saver. Conditions' own `row("save", "all", {when: "fear"})` rows are told the same way and wait on the same caller.
+A save part narrowed to a circumstance (`when`, with `magical`) is applied only where a caller of `saveSpec`, `saveModParts` or `sheetSaveShift` names the circumstance through `circumstances`, and no caller does: every call passes at most `damage`. So a narrowed part is told on every throw and never added. A spell whose row says what a throw resists (a fear effect) names its circumstance, and the cast engine passes it to `saveSpec` for each saver. Conditions' own `row("save", "all", {when: "fear"})` rows are told the same way and wait on the same caller.
 
 ## One home for live figures
 
