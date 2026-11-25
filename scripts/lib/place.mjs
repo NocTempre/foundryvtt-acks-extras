@@ -7,6 +7,7 @@
  * `nodeOf`; nothing downstream knows the difference. See docs/lib/PLACES.md.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { cookbookId } from "./library.mjs";
 import { bodyCount, liveRows } from "./group-logic.mjs";
 import { isContainer } from "./item-model.mjs";
 import { coinTotalGC, isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
@@ -81,6 +82,16 @@ const CONTAINED_IN = "containedIn";
 
 /** Is this actor our location sub-type? */
 export const isLocation = (doc) => doc?.documentName === "Actor" && doc?.type === LOCATION_TYPE;
+
+/**
+ * Is a new place opened to the table by default? Only where its creation data
+ * names no default level and carries no importer stamp. A stamped place is
+ * the importer's own write, which lands in the world where its line's
+ * compendium cannot open, and keeps core's own default, as every world copy
+ * the importer makes does.
+ * @param {{ownership?: {default?: number|null}, flags?: object}} data  the creation data
+ */
+export const placeOpensToTable = (data) => data?.ownership?.default == null && !cookbookId(data);
 
 /**
  * The sub-types whose token marks a body on the map rather than standing for

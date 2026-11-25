@@ -149,7 +149,7 @@ import { SETTING_SEASON_MAP } from "./weather.mjs";
 import { SETTING_STRAGGLING } from "./settlement.mjs";
 import { creditHoledUpDays } from "./settlement-turn.mjs";
 import {
-  SETTING_TRANSIENT_TURNS, TRAVEL_OPTION, dropIncidentNote, expireTransientNotes, installIncidentCardActions,
+  SETTING_TRANSIENT_TURNS, TRAVEL_OPTION, dropIncidentNote, expireTransientNotes, installHiddenPlaceReveal, installIncidentCardActions,
   pickAndTravel, poiTargets, promoteIncident, transientNotesOn, travelToPlace,
 } from "./poi.mjs";
 import { closeDay, offerDayEnd } from "./day-close.mjs";
@@ -217,6 +217,7 @@ Hooks.once("init", () => {
   installRegionPlaceRow();
   installMonsterLevelRow();
   installIncidentCardActions();
+  installHiddenPlaceReveal();
   installHexStockCardActions();
   installNavigationCardActions();
   registerCrossingDriver();

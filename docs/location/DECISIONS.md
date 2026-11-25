@@ -281,3 +281,32 @@ offers Take on every line, which is the surface the 2026-11-19 entry above
 there that the sheet showed no take controls. The surface is the character
 sheet's, and its rulings are in that feature's DECISIONS and MODEL; the take
 itself is still the relayed retrieve.
+
+## 2026-11-25 — The table default for a new place stops at the importer's stamp (T-0813)
+
+**Ruled.** A new location whose creation data names no ownership default is opened to the
+table at Owner (`preCreateActor`). One route brought an imported place to that default with
+its imported text on it: the importer's write to the Actors tab where a line's compendium
+cannot open (`createDoc`, which announces it), since the importer's data names no ownership.
+`placeOpensToTable` (lib `place.mjs`) now answers the hook: creation data that names a
+default, or that carries the importer's stamp (`cookbookId`), is left at core's own default,
+None, which is the level every world copy the importer makes itself already carries. A place
+made by hand carries no stamp and is opened to the table as before. A place dragged out of a
+compendium was never on this route: core 14's import names the default None itself
+(`WorldCollection#fromCompendium`), and the hook yields to a named default.
+[A place's notes answer to ownership](DECISIONS-through-v11.14.5.md#a-places-notes-answer-to-ownership-not-to-the-judges-seat-2026-08-05)
+stands; this decides only which places start owned. The shape was settled between the
+sessions working the 2026-11-25 batch of reports and has not been put to the owner.
+
+**Rejected.** Dropping the table default for every place: a place a Judge makes at the table
+is the party's shared record, and the default is what makes an inn or a vault's hall usable
+without an ownership dialog each. Reading the compendium source (`_stats.compendiumSource`)
+in place of the stamp: the importer's write to the Actors tab carries no source. Naming the
+ownership in each of the importer's place builders: the next builder written would take
+the table default again.
+
+**Cost.** An imported place the importer wrote to the Actors tab is closed to players until
+the Judge opens it (Actors tab, right-click the place, Configure Ownership), and one written
+there before this change is still the table's. An imported place is now stored in its
+compendium with a default of None where it was stored with Owner; core reads a compendium
+document's level from the compendium, so nothing reads the difference.

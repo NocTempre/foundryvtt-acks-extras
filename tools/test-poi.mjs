@@ -12,10 +12,12 @@
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../scripts/lib/constants.mjs";
 import { LOCATION_TYPE } from "../scripts/location/constants.mjs";
-import { isMarkerActor, sceneOccupants } from "../scripts/lib/place.mjs";
+import { isMarkerActor, placeOpensToTable, sceneOccupants } from "../scripts/lib/place.mjs";
+import { adventurePlaceData, districtPlaceData, poiLocationData, regionPlaceData } from "../scripts/importer/poi-binding.mjs";
+import { marketActorData } from "../scripts/importer/market-profile-binding.mjs";
 import {
-  DISTRICT_RELATION, TRANSIENT_FLAG, WILDS_FLAG, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns,
-  promotedPlaceData, ringsTouch, terrainMarkData, transientNoteData, transientOf,
+  DISTRICT_RELATION, HIDDEN_PLACE_FLAG, OPENED_PLACE_OWNERSHIP, TRANSIENT_FLAG, WILDS_FLAG, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns,
+  promotedPlaceData, revealOutcome, ringsTouch, terrainMarkData, transientNoteData, transientOf,
 } from "../scripts/formation/poi-logic.mjs";
 
 let passed = 0;
@@ -223,6 +225,74 @@ ok("an unnamed promotion is named by its label, and nothing is invented for what
   assert.equal(data.system.parentUuid, "");
   assert.equal("img" in data, false, "no icon named, none set — the location hook supplies the default");
   assert.equal(promotedPlaceData({ name: "X" }).system.notes, "", "no text, no paragraph");
+});
+
+ok("a place made behind a hidden token names its own ownership, closed, and carries the flag; a shown one names none", () => {
+  const closed = promotedPlaceData({ name: "X", text: "the Judge's note", hidden: true });
+  assert.deepEqual(closed.ownership, { default: 0 }, "default NONE, so the location hook's table default does not apply");
+  assert.equal(closed.flags[MODULE_ID][HIDDEN_PLACE_FLAG], true);
+  assert.equal(closed.system.notes, "<p>the Judge's note</p>".replace("'", "&#39;"), "the note is kept; who may open the place is what changed");
+  for (const shown of [promotedPlaceData({ name: "X", text: "t" }), promotedPlaceData({ name: "X", text: "t", hidden: false })]) {
+    assert.equal("ownership" in shown, false, "a shown place leaves ownership to the location hook");
+    assert.equal("flags" in shown, false);
+  }
+});
+
+/* ---------------- revealOutcome ---------------- */
+
+ok("showing a flagged place's token opens it while its ownership is as it was made", () => {
+  const isGM = (id) => id === "gm1";
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 0 }, isGM }), "open");
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 0, gm1: 3 }, isGM }), "open", "the creating GM's own level is not a hand's change");
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 0, p1: 0 }, isGM }), "open", "a player named at NONE is raised by nobody");
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: {}, isGM }), "open", "no table reads as default NONE");
+  assert.deepEqual(OPENED_PLACE_OWNERSHIP, { default: 3 }, "what an opened place takes is the table default: OWNER");
+});
+
+ok("a place whose ownership a hand changed keeps it and only loses the flag", () => {
+  const isGM = (id) => id === "gm1";
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 0, p1: 2 }, isGM }), "clear", "one player raised to Observer");
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 1 }, isGM }), "clear", "the default raised");
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 3 }, isGM }), "clear", "already opened by hand");
+  assert.equal(revealOutcome({ shown: true, stamped: true, ownership: { default: 0, p1: 3 } }), "clear", "with no GM lookup, any raised level is a hand's");
+});
+
+ok("nothing is written for a place with no flag, or for an update that did not show a token", () => {
+  assert.equal(revealOutcome({ shown: true, stamped: false, ownership: { default: 0 } }), null, "a place the Judge closed by hand is never opened");
+  assert.equal(revealOutcome({ shown: false, stamped: true, ownership: { default: 0 } }), null, "hiding a token, or moving it, opens nothing");
+  assert.equal(revealOutcome(), null);
+});
+
+/* ---------------- placeOpensToTable ---------------- */
+
+ok("a hand-made place is opened to the table; one that names a default, or carries the importer's stamp, is not", () => {
+  const stamp = { [MODULE_ID]: { cookbook: { id: "def.invented.keyedArea", book: "inv", kind: "kind.location" } } };
+  assert.equal(placeOpensToTable({ name: "Shrine", type: LOCATION_TYPE }), true, "a hand-made place with no stamp still gets the table default");
+  assert.equal(placeOpensToTable({ name: "Shrine", type: LOCATION_TYPE, ownership: {} }), true, "an ownership table naming no default is silent");
+  assert.equal(placeOpensToTable({ name: "Shrine", type: LOCATION_TYPE, flags: { world: { any: 1 } } }), true, "another scope's flag is no stamp");
+  assert.equal(placeOpensToTable({ name: "Vault", type: LOCATION_TYPE, ownership: { default: 0 } }), false, "explicit creation data wins, as a vault's does");
+  assert.equal(placeOpensToTable(promotedPlaceData({ name: "X", hidden: true })), false, "a place behind a hidden token is not opened");
+  // Dragged out of its shelf: core 14's import names the default itself, None, and makes the importing user Owner.
+  assert.equal(placeOpensToTable({ name: "Area", type: LOCATION_TYPE, ownership: { default: 0, gm1: 3 }, flags: stamp, _stats: { compendiumSource: "Compendium.world.x.Actor.y" } }), false, "the drag-out shape, closed by core's own default");
+  assert.equal(placeOpensToTable({ name: "Area", type: LOCATION_TYPE, ownership: { default: 0, gm1: 3 }, _stats: { compendiumSource: "Compendium.world.x.Actor.y" } }), false, "a hand-made place dragged out of a compendium, the same");
+  // Written to the sidebar where no shelf could open: the importer's own data, which names no ownership.
+  assert.equal(placeOpensToTable({ name: "Area", type: LOCATION_TYPE, folder: null, system: { notes: "<p>imported</p>" }, flags: stamp }), false, "the sidebar-fallback shape");
+  assert.equal(placeOpensToTable({ name: "Area", type: LOCATION_TYPE, flags: { [MODULE_ID]: { cookbook: { id: "" } } } }), true, "an empty stamp is no stamp");
+});
+
+ok("every place the importer builds carries its stamp in the data it creates with, and names no ownership", () => {
+  const made = [
+    districtPlaceData({ book: "inv", district: "Quarter" }),
+    regionPlaceData({ book: "inv" }),
+    adventurePlaceData({ book: "inv", bookLabel: "Invented" }),
+    poiLocationData({ name: "Area", entryId: "inv.area.1", book: "inv" }),
+    marketActorData({ name: "Town", entryId: "inv.market.town", book: "inv" }),
+  ];
+  for (const data of made) {
+    assert.equal(data.type, LOCATION_TYPE, data.name);
+    assert.equal(data.ownership, undefined, `${data.name}: the stamp is what answers, since the data names no ownership`);
+    assert.equal(placeOpensToTable(data), false, `${data.name}: written to the sidebar, it keeps core's default`);
+  }
 });
 
 /* ---------------- sceneOccupants ---------------- */

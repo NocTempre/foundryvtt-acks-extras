@@ -2151,11 +2151,21 @@ day's, not the calendar's, and a second number beside it would contradict it.
 The day is a reading: a restock is the Judge's gesture, and nothing restocks
 on the clock.
 
-A found point can be **made a place**: `placeFromPoint` reuses the
+A point can be **made a place**: `placeFromPoint` reuses the
 point-of-interest promotion (`placeTokenAt`, a location actor and its token at
 the hex centre, hidden until someone has found it) and records the
 `placeUuid`; refused while a lost episode is open, for a point already placed,
-and on a label-only hex with no centre. The survey ([hex-stock-run.mjs](../../scripts/formation/hex-stock-run.mjs)
+and on a label-only hex with no centre. A place made while nobody has found
+its point is made closed: the actor's ownership default is None and it carries
+the `hiddenPlace` flag (`promotedPlaceData`), so no player's Actors tab lists
+it and its sheet, which holds the point's note, opens for none of them.
+Showing any token of it opens it to the table at Owner and removes the flag
+(`installHiddenPlaceReveal`, on the leading GM client); a place whose ownership
+a hand changed first keeps that and only loses the flag (`revealOutcome`), and
+hiding the token again closes nothing. Ownership keeps the place off a
+player's screen, not off the wire ([DECISIONS](DECISIONS.md), 2026-11-25).
+
+The survey ([hex-stock-run.mjs](../../scripts/formation/hex-stock-run.mjs)
 `surveyHex`) is §Searching the wild's; its truth is the points as they stand,
 not the count rolled, because the Judge adds and removes points. The GM's
 Points of interest section on the Wilderness tab shows Stock or Restock always and, once

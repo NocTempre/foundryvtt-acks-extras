@@ -15,7 +15,7 @@
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
-import { allPlaces, emptyOfPlaces } from "../lib/place.mjs";
+import { allPlaces, emptyOfPlaces, placeOpensToTable } from "../lib/place.mjs";
 import { thingsOf } from "../lib/place-things.mjs";
 import { hasWrittenNotes } from "./notes.mjs";
 
@@ -131,12 +131,13 @@ Hooks.once("init", () => {
   /**
    * Gives a new location default ownership for the table and a map-marker
    * prototype token. Explicit creation data always wins, which is how the vault
-   * sweep makes a personal vault.
+   * sweep makes a personal vault, and a place carrying the importer's stamp is
+   * left at core's own default (`placeOpensToTable`).
    */
   Hooks.on("preCreateActor", (doc, data) => {
     if (doc.type !== LOCATION_TYPE) return;
     const changes = {};
-    if (data?.ownership?.default == null) {
+    if (placeOpensToTable(data)) {
       changes.ownership = { ...doc.ownership, default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER };
     }
     // A place's token is a map marker, not a creature: named on hover, neutral,

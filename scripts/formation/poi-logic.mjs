@@ -183,18 +183,55 @@ export function expiredNoteIds(notes, now) {
 const escapeText = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+/** The flag a place made behind a hidden token carries, under the module's scope, until its token is shown. */
+export const HIDDEN_PLACE_FLAG = "hiddenPlace";
+
+/** Foundry's ownership levels this file names: nobody's, and an owner's. */
+const LEVEL_NONE = 0;
+const LEVEL_OWNER = 3;
+
 /**
  * The place a marker is promoted into: a location actor named by the Judge,
  * carrying the incident's text as its notes, inside the quarter's place when
  * the quarter has one and the city's otherwise. The name falls back to the
- * marker's own label.
+ * marker's own label. A place made behind a `hidden` token names its own
+ * ownership, default NONE, and carries `HIDDEN_PLACE_FLAG`: its notes are the
+ * Judge's until the token is shown, and the location feature's default for a
+ * new place yields to creation data that names one.
  */
-export function promotedPlaceData({ name = "", text = "", parentUuid = "", img = "" }) {
+export function promotedPlaceData({ name = "", text = "", parentUuid = "", img = "", hidden = false }) {
   const body = escapeText(text);
   return {
     name: String(name ?? "").trim() || noteLabel(text),
     type: LOCATION_TYPE,
     ...(img ? { img } : {}),
     system: { notes: body ? `<p>${body}</p>` : "", parentUuid: parentUuid ?? "" },
+    ...(hidden ? { ownership: { default: LEVEL_NONE }, flags: { [MODULE_ID]: { [HIDDEN_PLACE_FLAG]: true } } } : {}),
   };
 }
+
+/**
+ * What showing a place's token does to the place.
+ * - `"open"`: the place carries the flag and its ownership is still the shape
+ *   it was made with (default NONE, and no level above NONE for anyone who is
+ *   no GM), so it takes the default every other hand-made place has;
+ * - `"clear"`: it carries the flag and a hand has changed its ownership since,
+ *   so the flag goes and the ownership is left as that hand set it;
+ * - `null`: the update did not show a hidden token, or the place carries no flag.
+ * @param {object} o
+ * @param {boolean} o.shown  the token's `hidden` went to false in this update
+ * @param {boolean} o.stamped  the place carries `HIDDEN_PLACE_FLAG`
+ * @param {Record<string, number>} [o.ownership]  the place's stored ownership
+ * @param {(userId: string) => boolean} [o.isGM]  whether a user id is a GM's
+ * @returns {"open"|"clear"|null}
+ */
+export function revealOutcome({ shown, stamped, ownership = {}, isGM = () => false } = {}) {
+  if (!shown || !stamped) return null;
+  const untouched =
+    Number(ownership?.default ?? LEVEL_NONE) === LEVEL_NONE &&
+    Object.entries(ownership ?? {}).every(([who, level]) => who === "default" || Number(level) <= LEVEL_NONE || isGM(who));
+  return untouched ? "open" : "clear";
+}
+
+/** The ownership a shown place takes: the default the location feature gives a new place. */
+export const OPENED_PLACE_OWNERSHIP = Object.freeze({ default: LEVEL_OWNER });

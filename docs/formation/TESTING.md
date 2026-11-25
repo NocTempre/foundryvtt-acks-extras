@@ -5611,3 +5611,43 @@ Drive mechanics: a turn advance moves world time, and the kept party's rest and
 encounter counters accumulate across runs. The cell is found by its glyph inside
 `.acks-extras-party-sheet__rail--figures`; its reading is the sub span, its name
 the tooltip and aria-label.
+
+## A place made from an unfound point
+
+Walked by `tools/live/formation-hidden-place.mjs` on the GM seat and the Player
+seat. The GM seat must be the window that runs the automation (the active GM,
+leading its seat): the reveal is written there.
+
+**Fixtures** (kept, found by marker): the hex scene `formation/hidden-place-scene`,
+written back to its grid; the party `formation/hidden-place-party`, Observer to
+the Player, and its token `formation/hidden-place-party-token`, brought back to
+hex C and to journey mode. Hex C's stock is a flag on the scene, written again
+every run: three invented points, each with a note, P found by this formation
+and Q and R by nobody (`hexStock.writeStock`, the record shape under "The hex
+the party is shown"). Setup is the subject: every place a step makes and its
+token are tracked by uuid as they are read back, and swept at teardown.
+Teardown also returns the party to delve.
+
+| Step | Do | Observable |
+| --- | --- | --- |
+| 1 | GM: party sheet, Wilderness tab, Points of interest, press Q's **Make it a place** | The stock names Q's place. The place is a location with Q's note; its one token is hidden; its stored ownership default is None and it carries `flags.acks-extras.hiddenPlace` |
+| 2 | Player: read the place | `getUserLevel` is None and `testUserPermission(user, "LIMITED")` false; `visible` is false and the Actors tab has no row for it; its sheet does not open. The document is still in `game.actors`: the stated limit |
+| 3 | GM: press P's **Make it a place** (the control: a found point) | Its token is shown, its ownership default is Owner, no flag. The Player owns it and the same Actors tab lists it |
+| 4 | GM: show Q's token | Q's place reads default Owner and no flag. The Player owns it, the Actors tab lists it, its sheet opens |
+| 5 | GM: hide Q's token again | Nothing changes on the place: still the table's |
+| 6 | GM: make R a place, set the Player to Observer on it by hand, then show its token | The flag is gone; the default is still None and the Player still an Observer |
+| 7 | GM: create a location by hand with no ownership in its data; create one carrying an importer stamp and no ownership, the shape the importer writes to the Actors tab; where a compendium holds an imported place, import one into the world | The hand-made one reads default Owner; the stamped one reads None; the imported copy reads None, which is core's own import default and a control |
+
+Drive mechanics: a token is shown and hidden as the token HUD's eye does it, one
+`scene.updateEmbeddedDocuments("Token", [{_id, hidden}])`; the hook reads
+`changes.hidden === false`. The reveal's two writes land after the token's, so
+poll the place's flag, and the Player's level, before reading. Step 2's
+directory check is only worth what step 3's is: the row that is absent for Q
+is present for P on the same rendered directory (`ui.actors.element`,
+`[data-entry-id]`). A GM seat cannot stand in for step 2, since a GM owns every
+actor. Step 7's stamp is invented (`flags.acks-extras.cookbook.id`), and its
+create is the hook's decision and not the importer's own write, which needs a
+compendium that cannot open. The drag out of a shelf is
+`game.actors.importFromCompendium`, which names the default None on core 14
+with or without the stamp; it is skipped with a note where no compendium holds
+an imported place.

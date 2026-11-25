@@ -246,7 +246,12 @@ follow from its being an actor's token rather than a marker's.
 otherwise gets a prototype token whose name shows on hover to anyone, with no
 bars, a neutral disposition, no sight, and core's own house for a picture on
 both the actor and the token (`preCreateActor`, `module.mjs`), each default
-applied only where the creation data was silent. `actorLink` is left alone on
+applied only where the creation data was silent. The same hook opens a new
+place to the table, an ownership default of Owner, where the creation data
+names no default and carries no importer stamp (`placeOpensToTable`, lib
+`place.mjs`): a place made by hand is the table's, and one the importer
+writes to the Actors tab keeps core's None ([DECISIONS](DECISIONS.md),
+2026-11-25). `actorLink` is left alone on
 purpose: `here.mjs` matches a place by the token's base actor id, which an
 unlinked token carries too, so a Judge who drops one shrine on three maps has
 one place on three maps.

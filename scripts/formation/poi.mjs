@@ -16,7 +16,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { turnSeconds } from "../lib/time-unit.mjs";
-import { elementOf, escape as esc, makeLoc, gmIds } from "../lib/util.mjs";
+import { elementOf, escape as esc, makeLoc, gmIds, isPrimaryGM } from "../lib/util.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
@@ -29,8 +29,8 @@ import { joinTolerance } from "../battlemap/roads.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
 import { isDeployed } from "../lib/place.mjs";
 import {
-  districtRelation, expiredNoteIds, noteLabel, poiTravelTurns, promotedPlaceData,
-  ringsTouch, terrainMarkData, transientNoteData, transientOf,
+  HIDDEN_PLACE_FLAG, OPENED_PLACE_OWNERSHIP, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns, promotedPlaceData,
+  revealOutcome, ringsTouch, terrainMarkData, transientNoteData, transientOf,
 } from "./poi-logic.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
@@ -158,17 +158,48 @@ export async function promoteIncident(note, { name = "" } = {}) {
 /**
  * Make a place at a point: a location actor named and noted from the given
  * words under `parentUuid`, and its token on `scene` centred on (`x`, `y`),
- * hidden from players when `hidden`. A token's own x/y is its top-left
- * corner, so the centre is shifted by half a grid cell.
+ * hidden from players when `hidden`. A place behind a hidden token is made
+ * closed to players (`promotedPlaceData`) and opens when its token is shown
+ * (`installHiddenPlaceReveal`). A token's own x/y is its top-left corner, so
+ * the centre is shifted by half a grid cell.
  * @returns {Promise<Actor|null>} the actor, or null when it could not be made
  */
 export async function placeTokenAt({ scene, x, y, name = "", text = "", parentUuid = "", hidden = false } = {}) {
-  const actor = await Actor.create(promotedPlaceData({ name, text, parentUuid, img: PLACE_ICON }));
+  const actor = await Actor.create(promotedPlaceData({ name, text, parentUuid, img: PLACE_ICON, hidden: !!hidden }));
   if (!actor) return null;
   const gs = scene.grid.size;
   const tokenDoc = await actor.getTokenDocument({ x: x - gs / 2, y: y - gs / 2, hidden: !!hidden });
   await scene.createEmbeddedDocuments("Token", [tokenDoc.toObject()]);
   return actor;
+}
+
+/**
+ * Open a place when its hidden token is shown. A place made behind a hidden
+ * token is closed to players and flagged; the Judge showing the token is the
+ * reveal, and the place then takes the default every other hand-made place
+ * has. One way: hiding the token again closes nothing. A place whose
+ * ownership a hand has changed since keeps it and only loses the flag
+ * (`revealOutcome`). The base actor is read, since a place's token is
+ * unlinked by default and the flag is the actor's. Runs on the one GM client
+ * that leads, so the write happens once.
+ */
+export function installHiddenPlaceReveal() {
+  Hooks.on("updateToken", (tokenDoc, changes) => {
+    if (changes?.hidden !== false || !isPrimaryGM()) return;
+    const actor = game.actors?.get(tokenDoc?.actorId);
+    if (actor?.type !== LOCATION_TYPE) return;
+    const outcome = revealOutcome({
+      shown: true,
+      stamped: !!actor.getFlag(MODULE_ID, HIDDEN_PLACE_FLAG),
+      ownership: actor._source?.ownership ?? actor.ownership,
+      isGM: (userId) => !!game.users?.get(userId)?.isGM,
+    });
+    if (!outcome) return;
+    (async () => {
+      if (outcome === "open") await actor.update({ ownership: { ...OPENED_PLACE_OWNERSHIP } });
+      await actor.unsetFlag(MODULE_ID, HIDDEN_PLACE_FLAG);
+    })().catch((err) => console.error(`${MODULE_ID} | could not open the place ${actor.uuid} on its token's reveal`, err));
+  });
 }
 
 /**
