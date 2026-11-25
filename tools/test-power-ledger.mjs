@@ -663,7 +663,10 @@ t("the strip's ledger section: a Player sees entries and no control; a Judge see
   assert.equal((judge.match(/data-power-adjust="-1"/g) ?? []).length, 2);
   assert.equal((judge.match(/data-power-undo=/g) ?? []).length, 1, "Undo on the one spend");
   assert.equal((judge.match(/data-power-count/g) ?? []).length, 1, "the count is arcane's alone");
-  assert.ok(!/\sid=/.test(judge), "no literal id");
+  const ids = [...judge.matchAll(/\sid="([^"]*)"/g)].map((m) => m[1]);
+  assert.equal(ids.length, 2, "one id per panel and no other");
+  assert.ok(ids.every((id) => /-power-(divine|arcane)$/.test(id)), "each is built from the window's base and its kind");
+  assert.deepEqual([...judge.matchAll(/aria-controls="([^"]+)"/g)].map((m) => m[1]), ids, "each disclosure names the panel drawn for its kind");
   const empty = worldActor("Actor.c2");
   assert.ok(C.powerSectionHtml(empty, true).includes(">ACKS-MAGIC.power.empty<"), "a Judge's casting strip on an empty ledger says so");
   assert.equal(C.powerSectionHtml(empty, false), "", "an actor that casts nothing and holds no power draws no ledger");
@@ -858,8 +861,9 @@ t("the strip draws a Fades / Stays pair for a Judge on each tag, Fades pressed, 
   assert.equal((judge.match(/data-power-stay="0" data-power-kind="(divine|arcane)" aria-pressed="true"/g) ?? []).length, 2, "Fades starts pressed");
   assert.equal((judge.match(/data-power-stay="1" data-power-kind="(divine|arcane)" aria-pressed="false"/g) ?? []).length, 2, "Stays starts not pressed");
   assert.equal((judge.match(/aria-label="ACKS-MAGIC.power.stayGroup\{&#34;label&#34;:&#34;ACKS-MAGIC.power.kind.(divine|arcane)&#34;\}"/g) ?? []).length, 2, "each group is named for its power");
-  assert.ok(/data-power="divine"[\s\S]*?data-power-adjust="1"[\s\S]*?data-power-adjust="-1"[\s\S]*?role="group"/.test(judge), "the switch follows the plus and minus it belongs to");
-  assert.ok(!/\sid=/.test(judge), "no literal id");
+  const divinePanel = judge.slice(judge.indexOf('data-power-panel="divine"'), judge.indexOf('data-power-panel="arcane"'));
+  assert.ok(/role="group"[\s\S]*?data-power-amount[\s\S]*?data-power-adjust="1"[\s\S]*?data-power-adjust="-1"/.test(divinePanel), "within one panel the switch, the amount box, Add and Remove stand in that order");
+  assert.ok(!/\sid="(?![^"]*-power-)/.test(judge), "no id but the panels'");
 });
 
 await ta("the switch sets what that tag's plus writes, starts on Fades, and writes nothing itself", async () => {
@@ -1058,7 +1062,8 @@ await ta("the switch holds across a render: kept per window and per tag, never o
   const entries = (kind) => actor.flags["acks-extras"].power?.[kind]?.entries ?? [];
   const windowA = {};
   const windowB = {};
-  assert.deepEqual(C.powerSwitchOf(windowA), { divine: false, arcane: false }, "a window that has not set it reads Fades");
+  const switchesOf = (win) => ({ divine: C.powerSwitchOf(win).divine, arcane: C.powerSwitchOf(win).arcane });
+  assert.deepEqual(switchesOf(windowA), { divine: false, arcane: false }, "a window that has not set it reads Fades");
   assert.equal(C.powerSwitchOf(windowA), C.powerSwitchOf(windowA), "one record per window");
   assert.notEqual(C.powerSwitchOf(windowA), C.powerSwitchOf(windowB), "two windows, two records");
   assert.notEqual(C.powerSwitchOf(null), C.powerSwitchOf(null), "no window, nothing kept");
@@ -1091,14 +1096,14 @@ await ta("the switch holds across a render: kept per window and per tag, never o
   const b = html(windowB);
   assert.ok(/data-power-stay="0" data-power-kind="divine" aria-pressed="true"/.test(b), "the other window's pair is on Fades");
   render2.press("divine", 0);
-  assert.deepEqual(C.powerSwitchOf(windowA), { divine: false, arcane: false }, "pressing Fades puts it back");
+  assert.deepEqual(switchesOf(windowA), { divine: false, arcane: false }, "pressing Fades puts it back");
   render2.press("divine", 1);
   render2.press("arcane", 1);
-  assert.deepEqual(C.powerSwitchOf(windowA), { divine: true, arcane: true }, "each tag holds its own state");
+  assert.deepEqual(switchesOf(windowA), { divine: true, arcane: true }, "each tag holds its own state");
   C.forgetPowerSwitch(windowB);
-  assert.deepEqual(C.powerSwitchOf(windowA), { divine: true, arcane: true }, "closing another window leaves this one's record");
+  assert.deepEqual(switchesOf(windowA), { divine: true, arcane: true }, "closing another window leaves this one's record");
   C.forgetPowerSwitch(windowA);
-  assert.deepEqual(C.powerSwitchOf(windowA), { divine: false, arcane: false }, "a window closed and opened again reads Fades");
+  assert.deepEqual(switchesOf(windowA), { divine: false, arcane: false }, "a window closed and opened again reads Fades");
   C.forgetPowerSwitch(null);
   C.forgetPowerSwitch("not a window");
   assert.equal(actor.updates.length, 4, "still only the four gains were written");
@@ -1179,6 +1184,152 @@ await ta("a Player who owns the character presses twice through the API and the 
   gameState.isGM = true;
   const gm = L.chipModelFor(theirs);
   assert.deepEqual([gm.owns, gm.judge, gm.kinds.map((k) => k.shown)], [true, true, [true, true]], "a Judge owns every character");
+});
+
+/* ------------------------------ the disclosure and the panel ------------------------------ */
+
+/** A strip over `state` whose clicks and inputs are driven with mock targets; its panels are objects. */
+function disclosureStrip(actor, state) {
+  const handlers = {};
+  const panels = Object.fromEntries(["divine", "arcane"].map((kind) => [kind, { hidden: true }]));
+  const strip = { addEventListener: (type, fn) => (handlers[type] = fn), querySelector: (sel) => panels[/data-power-panel="(\w+)"/.exec(sel)?.[1]] ?? null };
+  C.wirePowerChip(strip, actor, state);
+  const event = (hit) => ({ target: { closest: (s) => hit(s) }, preventDefault() {} });
+  return {
+    panels,
+    toggle(kind) {
+      const button = { dataset: { powerKind: kind }, expanded: null, setAttribute(name, value) { if (name === "aria-expanded") this.expanded = value; } };
+      handlers.click(event((s) => (s === "[data-power-toggle]" ? button : null)));
+      return button;
+    },
+    type(kind, value) {
+      const box = { dataset: { powerKind: kind }, value };
+      handlers.input(event((s) => (s === "[data-power-amount]" ? box : null)));
+    },
+    add: (kind) => handlers.click(event((s) => (s === "[data-power-adjust]" ? { dataset: { powerKind: kind, powerAdjust: "1" } } : null))),
+    remove: (kind) => handlers.click(event((s) => (s === "[data-power-adjust]" ? { dataset: { powerKind: kind, powerAdjust: "-1" } } : null))),
+  };
+}
+
+t("each power's panel starts closed with its disclosure named, controlling and collapsed, and the amount starts at one", () => {
+  resetTables();
+  gameState.isGM = true;
+  const actor = worldActor("Actor.d1", { flags: { divine: { entries: [e("a", 2, 5, { by: "judge" })] } } });
+  const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "win-1" }));
+  assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 2, "both disclosures read collapsed");
+  assert.equal((html.match(/aria-expanded="true"/g) ?? []).length, 0);
+  assert.ok(html.includes('aria-controls="win-1-power-divine"') && html.includes('id="win-1-power-divine" data-power-panel="divine" hidden'), "the panel's id is the window's id and its kind, and it is hidden");
+  assert.ok(html.includes('id="win-1-power-arcane" data-power-panel="arcane" hidden'));
+  assert.ok(/aria-label="ACKS-MAGIC\.power\.disclosureLabel[^"]*"/.test(html), "the disclosure is named");
+  assert.ok(/data-power-amount data-power-kind="divine" value="1"/.test(html), "the amount starts at one");
+});
+
+await ta("the open panel and the typed amount are kept per window across a render, and a second window starts closed", async () => {
+  resetTables();
+  gameState.isGM = true;
+  const actor = worldActor("Actor.d2", { flags: { divine: { entries: [e("a", 2, 5, { by: "judge" })] } } });
+  const windowA = { id: "win-a" };
+  const windowB = { id: "win-b" };
+  const first = disclosureStrip(actor, C.powerSwitchOf(windowA));
+  const button = first.toggle("divine");
+  assert.deepEqual([button.expanded, first.panels.divine.hidden, first.panels.arcane.hidden], ["true", false, true], "the press opens its own panel only");
+  first.type("divine", "3");
+  assert.equal(actor.updates.length, 0, "opening a panel and typing an amount write nothing to the actor");
+  const again = C.powerSectionHtml(actor, true, C.powerSwitchOf(windowA));
+  assert.ok(/id="win-a-power-divine" data-power-panel="divine">/.test(again), "a render draws it open");
+  assert.ok(/aria-expanded="true" aria-controls="win-a-power-divine"/.test(again), "and its disclosure expanded");
+  assert.ok(/data-power-panel="arcane" hidden/.test(again), "the other stays closed");
+  assert.ok(/data-power-amount data-power-kind="divine" value="3"/.test(again) && /data-power-amount data-power-kind="arcane" value="1"/.test(again), "the typed amount is drawn back, per kind");
+  const other = C.powerSectionHtml(actor, true, C.powerSwitchOf(windowB));
+  assert.ok(/data-power-panel="divine" hidden/.test(other) && /data-power-amount data-power-kind="divine" value="1"/.test(other), "a second window on the same character starts closed with one");
+  first.toggle("divine");
+  assert.equal(first.panels.divine.hidden, true, "a second press closes it");
+  C.forgetPowerSwitch(windowA);
+  assert.ok(/data-power-panel="divine" hidden/.test(C.powerSectionHtml(actor, true, C.powerSwitchOf(windowA))), "a window closed and opened again starts closed");
+});
+
+t("an owner's panel carries every control and a seat that does not own the character carries none", () => {
+  resetTables();
+  const actor = worldActor("Actor.d3", { flags: { divine: { entries: [e("a", 4, 5, { by: "judge" }), e("s", -1, 5, { name: "Spent" })] }, arcane: { entries: [e("b", 1, 5, { by: "judge" })] } } });
+  gameState.isGM = true;
+  const owner = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" }));
+  const count = (html, re) => (html.match(re) ?? []).length;
+  assert.deepEqual([count(owner, /data-power-stay="/g), count(owner, /data-power-amount /g), count(owner, /data-power-adjust="1"/g), count(owner, /data-power-adjust="-1"/g), count(owner, /data-power-count/g)], [4, 2, 2, 2, 1], "a switch, an amount box, Add and Remove on each panel, and one count");
+  const arcane = owner.slice(owner.indexOf('data-power-panel="arcane"'));
+  assert.ok(arcane.indexOf("data-power-amount") > 0 && arcane.indexOf("data-power-count") > arcane.indexOf("data-power-amount"), "the count sits in the arcane panel after the amount box");
+  assert.ok(!owner.slice(owner.indexOf('data-power-panel="divine"'), owner.indexOf('data-power-panel="arcane"')).includes("data-power-count"), "and not in the divine one");
+  gameState.isGM = false;
+  const viewer = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" }));
+  assert.ok(viewer.includes('data-power-toggle="1" data-power-kind="divine"') && viewer.includes('data-power-toggle="1" data-power-kind="arcane"'), "the tag and the disclosure of each kind with entries");
+  assert.ok(viewer.includes("ACKS-MAGIC.power.entryTip"), "and its rows");
+  for (const control of ["data-power-stay", "data-power-amount", "data-power-adjust", "data-power-undo", "data-power-count", "is-refused"]) assert.ok(!viewer.includes(control), `a seat that does not own the character draws no ${control}`);
+  gameState.isGM = true;
+});
+
+t("a Player who owns the character, and is no Judge, is offered every control; a Player who holds only Observer is offered none", () => {
+  resetTables();
+  const actor = worldActor("Actor.d7", { flags: { divine: { entries: [e("g", 4, 5, { by: "judge", user: "pl1" }), e("s", -1, 5, { name: "Spend" })] } } });
+  gameState.isGM = false;
+  actor.owners = ["pl1"];
+  const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w7" }));
+  for (const control of ["data-power-stay", "data-power-amount", 'data-power-adjust="1"', 'data-power-adjust="-1"', "data-power-undo", "data-power-count"]) assert.ok(html.includes(control), `an owning Player is offered ${control}`);
+  assert.ok(html.includes("-power-arcane"), "and the arcane panel, though it holds no entry");
+  actor.owners = [];
+  const observer = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w7" }));
+  assert.ok(observer.includes('data-power="divine"') && observer.includes("ACKS-MAGIC.power.entryTip"), "an Observer reads the tag and the rows");
+  for (const control of ["data-power-stay", "data-power-amount", "data-power-adjust", "data-power-undo", "data-power-count", "is-refused"]) assert.ok(!observer.includes(control), `and is offered no ${control}`);
+  gameState.isGM = true;
+});
+
+t("a kind with no entries is drawn for an owner and not for a seat that does not own the character", () => {
+  resetTables();
+  const actor = worldActor("Actor.d4", { flags: { divine: { entries: [e("a", 1, 5, { by: "judge" })] } } });
+  gameState.isGM = false;
+  const viewer = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" }));
+  assert.ok(viewer.includes('data-power="divine"') && !viewer.includes('data-power="arcane"') && !viewer.includes("-power-arcane"), "no arcane tag, disclosure or panel");
+  gameState.isGM = true;
+  assert.ok(C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" })).includes("-power-arcane"), "an owner has it");
+});
+
+await ta("Add and Remove send the typed amount as one request", async () => {
+  resetTables();
+  gameState.isGM = true;
+  gameState.warned = [];
+  const actor = worldActor("Actor.d5", { flags: {} });
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const strip = disclosureStrip(actor, C.powerSwitchOf({ id: "w5" }));
+  strip.type("divine", "3");
+  strip.add("divine");
+  await tick();
+  assert.equal(actor.updates.length, 1, "one write");
+  assert.deepEqual(actor.flags["acks-extras"].power.divine.entries.map((x) => [x.amount, x.by, x.user]), [[3, "judge", "gm1"]], "one entry of three under the user who pressed");
+  strip.type("divine", "2");
+  strip.remove("divine");
+  await tick();
+  assert.equal(actor.updates.length, 2, "Remove is one write too");
+  assert.equal(L.powerApi.balance(actor, "divine"), 1);
+  assert.deepEqual(actor.flags["acks-extras"].power.divine.entries.map((x) => x.amount), [3, -2]);
+  strip.type("divine", "");
+  strip.add("divine");
+  await tick();
+  assert.equal(actor.updates.length, 2, "an empty box writes nothing");
+  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.refused.amount"), "and says the amount is wrong");
+  strip.type("arcane", "5");
+  strip.add("arcane");
+  await tick();
+  assert.equal(actor.flags["acks-extras"].power.arcane.entries[0].amount, 5, "each kind keeps its own amount");
+});
+
+t("an entry whose gain was partly spent carries its reason as a line and no Undo, and an owner's other rows keep theirs", () => {
+  resetTables();
+  gameState.isGM = true;
+  const actor = worldActor("Actor.d6", { flags: { divine: { entries: [e("g", 4, 5, { by: "judge", name: "Gain" }), e("s", -1, 5, { name: "Spend" }), e("h", 2, 5, { by: "judge", name: "Whole" })] } } });
+  const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w6" }));
+  const rows = html.split("<li ").slice(1).map((r) => r.split("</li>")[0]);
+  const byName = (name) => rows.find((r) => r.includes(`>${name}<`));
+  assert.ok(byName("Gain").includes('powerline is-refused">ACKS-MAGIC.power.undoSpent<') && !byName("Gain").includes("data-power-undo"), "the partly spent gain says why and has no button");
+  assert.ok(byName("Spend").includes("data-power-undo") && !byName("Spend").includes("is-refused"), "the spend keeps Undo");
+  assert.ok(byName("Whole").includes("data-power-undo") && !byName("Whole").includes("is-refused"), "a gain none of which was spent keeps Undo");
 });
 
 console.log(`\n${n} power-ledger tests passed`);

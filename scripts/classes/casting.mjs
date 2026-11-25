@@ -160,8 +160,9 @@ function stripHtml(actor, switches) {
  * a slot, the +/− pair adjusts a points pool, the bed rests. Null when nothing
  * casts. The core-sheet injector below and the module's own character sheet
  * mount exactly this, so the two cannot drift. `app` is the window that hosts
- * the strip: it keys the power ledger's Fades / Stays switch state, which each
- * render of the strip reads back (`power-chip.mjs`).
+ * the strip: it keys the power ledger's record (Fades / Stays, which panels are
+ * open, the typed amounts, the panel ids), which each render of the strip reads
+ * back (`power-chip.mjs`).
  */
 export function castingStripElement(actor, app) {
   const switches = powerSwitchOf(app);
@@ -211,7 +212,7 @@ function onRenderCharacterSheet(app, element) {
   anchor.insertAdjacentElement("afterend", strip);
 }
 
-/** Register the strip's render hook and the close hook that ends a window's switch state (called once from classes/module.mjs). */
+/** Register the strip's render hook and the close hook that ends a window's power record (called once from classes/module.mjs). */
 export function registerCastingUi() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
   Hooks.on("closeApplicationV2", (app) => forgetPowerSwitch(app));
