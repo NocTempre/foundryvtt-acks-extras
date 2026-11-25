@@ -102,3 +102,35 @@ export function nextLevelKind(view) {
   const kinds = new Set((top?.children ?? []).map((c) => c.kind).filter(Boolean));
   return kinds.size === 1 ? [...kinds][0] : "";
 }
+
+/** The client setting that turns the ask before a multi-row Remove on or off; on by default. */
+export const CONFIRM_REMOVE_SETTING = "confirmRemoveRows";
+
+/**
+ * The rows a Remove of `key` takes: the row and every row beneath it, in reading order.
+ * @param {{rows: object[]}} view `orgChartView`'s answer
+ * @param {string} key
+ * @returns {{key: string, label: string}[]}
+ */
+export function removalRows(view, key) {
+  const rows = view?.rows ?? [];
+  const at = rows.findIndex((r) => r.key === key);
+  if (at < 0) return [];
+  const keep = new Set([key]);
+  const out = [];
+  for (const r of rows.slice(at)) {
+    if (r.key === key || keep.has(r.parentKey)) {
+      keep.add(r.key);
+      out.push({ key: r.key, label: r.rank ?? r.label });
+    }
+  }
+  return out;
+}
+
+/**
+ * Does a Remove ask first? Only where it would take more than one row and the Judge's
+ * setting is on; a row on its own is removed at once.
+ * @param {{key: string}[]} going the rows the Remove takes
+ * @param {boolean} setting the client setting
+ */
+export const asksBeforeRemoving = (going, setting) => !!setting && (going?.length ?? 0) > 1;

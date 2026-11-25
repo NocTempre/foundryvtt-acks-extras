@@ -221,11 +221,15 @@ authority label above fire.
 
 ## The sheet
 
-Five tabs. **Overview** — image, name, kind; the seat, the leader and the
+Seven tabs. **Overview** — image, name, kind; the seat, the leader and the
 parent, each openable and clearable; the places held beneath them, each with a
 note, a Judge's hidden toggle and removal; the districts controlled, with a
-picker listing every district Region on every scene. **Members** — the roster,
-with a hidden toggle and removal, and beneath it the strength table: a column
+picker listing every district Region on every scene. **Org chart** and
+**Locations** — the organisation's chart rows as a tree of cards with the tools that roll, add,
+edit, remove and send them out, and as the places they stand on
+([lib/ORGANISATION.md](../lib/ORGANISATION.md), "The chart's tab"). **Members** — everyone the
+organisation affiliates, its roster then each chart row's holder (`affiliation`), with a hidden
+toggle and removal on a roster row (a row the chart derives has neither), and beneath it the strength table: a column
 per heading, a row per level or label, a total row, revenue where a row states
 one; the Judge edits any cell in place, adds or drops rows and columns, notes
 where the figures come from and hides the table whole. **Relations** — its own rows about the other

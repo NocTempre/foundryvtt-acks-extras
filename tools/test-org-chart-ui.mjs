@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { branchKeys, chartCards, emptyKeys, nextLevelKind, subtreeView, templateOf } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, templateOf } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -57,6 +57,16 @@ t("a joined group shows its row and the rows beneath it, and nothing above", () 
 t("a hand-added row one level down takes the unit word the level already uses, or none", () => {
   assert.equal(nextLevelKind(view), "mid");
   assert.equal(nextLevelKind(orgChartView([row("a", "", "G.v"), row("b", "a", "", { kind: "x" }), row("c", "a", "", { kind: "y" })], () => null)), "");
+});
+
+t("a Remove takes the row and every row beneath it, and asks only for more than one, and only while the setting is on", () => {
+  assert.deepEqual(removalRows(view, "w1").map((r) => r.key), ["w1", "g1", "g2"]);
+  assert.deepEqual(removalRows(view, "g1").map((r) => r.key), ["g1"]);
+  assert.deepEqual(removalRows(view, "zz"), []);
+  assert.equal(asksBeforeRemoving(removalRows(view, "w1"), true), true);
+  assert.equal(asksBeforeRemoving(removalRows(view, "w1"), false), false, "the setting off asks nothing");
+  assert.equal(asksBeforeRemoving(removalRows(view, "g1"), true), false, "a row on its own is removed at once");
+  assert.equal(asksBeforeRemoving([], true), false);
 });
 
 let failures = 0;

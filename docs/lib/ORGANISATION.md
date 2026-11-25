@@ -255,10 +255,47 @@ names as its `template` or `gen.mount`. A group comes off every roster, and the 
 their own and stay (listed in `leaders`); so does every actor the generator did not mint.
 Bodies on a map warn (`warnings: ["onMap"]`, a whisper to the Judges) and refuse nothing.
 
+## The chart's tab
+
+`org-chart-ui.mjs` (context and presses) and `org-chart-ui-logic.mjs` (the pure half:
+`templateOf`, `chartCards`, `emptyKeys`, `subtreeView`) draw the chart on a faction's
+**Org chart** and **Locations** tabs and, through the `org-chart` partial, on a root
+group's sheet, above its stacks; the same sheet lists the groups standing directly inside the
+group (`org-nested`). A group that has joined a faction reads the faction's rows beneath its
+own row, in place and never copied. One set of actions (`ORG_ACTIONS`) serves both sheets;
+each press finds its host from the markup, drives `org.addRow`, `org.editRow`,
+`org.deleteRow`, `org.sendOut` and `org.recall`, and Roll through the generating
+feature's `rollOrganisation`, and writes at once: there is nothing to save, no re-roll and no pin.
+
+- **Roll** on a card fills that card and every card beneath it. It is offered on an empty
+  card whose row, or the nearest row above it, carries a family template in its `gen`.
+  **Roll at random** fills every empty card in reading order, each as a Roll of its own,
+  after one panel: where it was found, its state, the variant, the leaders' grade and which
+  optional rules are on.
+- **+ Warband** adds an empty row under the top row, taking the unit word the level already
+  uses; **Add** on a card adds one beneath it. An empty card's pen gives its row a group of its
+  own and opens the same Edit.
+- **Edit** changes a label, a note, visibility (the Judge's) and each stack's count, through
+  `planEdit` and the `setStack` executor op; a stack's count never goes below the bodies it
+  already records, and bodies on a map keep the figures they went out with until recalled (a
+  whisper, never a refusal).
+- **Remove**, in a card's pen or on its foot, takes the row, its subtree and their groups
+  (`deleteRow`) and draws, above the chart, the leaders left in the world with an Open for
+  each, the prototypes removed and those a stack elsewhere still names, until dismissed.
+- A reader who is no Judge is shown no `hidden` row and nothing beneath one, in the chart
+  and in the Locations rows (`readableUnits`, `readableChartRows`).
+- **Expand all** and **Collapse all** keep their fold on the window (a press redraws the
+  sheet); the tree scrolls sideways in a box of its own.
+- **Locations** lists each place with the groups of the host's rows on its roster, a chip per
+  row, and the rows whose group stands on no place; a chip's Recall brings its group back.
+
+`readHolder`, `orgChartView` and `locationsView` are on the lib api (`org`) for the
+Followers tab's views.
+
 ## What is not here
 
-The sheets that draw the two views are later slices. A character's
-service tree reaches the same nodes through henchmen's `serviceNodes`
+Design by selection (the per-slot panel of board 1b) and a card's troop-type pick. A
+character's service tree reaches the same nodes through henchmen's `serviceNodes`
 ([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom").
 
 ## Verification

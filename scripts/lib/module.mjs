@@ -76,6 +76,7 @@ import * as groups from "./group.mjs";
 import * as groupEncounter from "./group-encounter.mjs";
 import * as org from "./org.mjs";
 import { ORG_PARTIALS } from "./org-chart-ui.mjs";
+import { CONFIRM_REMOVE_SETTING } from "./org-chart-ui-logic.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
@@ -864,6 +865,15 @@ Hooks.once("init", () => {
 
   // Which palette the ACKS surfaces draw in; stands down under `look: core`.
   // See docs/lib/MODEL.md's client-settings section.
+  game.settings.register(MODULE_ID, CONFIRM_REMOVE_SETTING, {
+    name: `${LANG_PREFIX}.settings.confirmRemoveRows.name`,
+    hint: `${LANG_PREFIX}.settings.confirmRemoveRows.hint`,
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register(MODULE_ID, "theme", {
     name: `${LANG_PREFIX}.settings.theme.name`,
     hint: `${LANG_PREFIX}.settings.theme.hint`,

@@ -898,6 +898,13 @@ beside them.
 
 ## The organisation roll
 
+**Generate on a family template** whose variants carry an encounter line makes no creature:
+`generate-host.mjs`, registered as lib's `template-generate` service (docs/lib/API.md), makes
+a faction card holding one empty top row whose `gen` names the template, and the template sheet
+opens it on its Org chart tab. The Judge rolls from that tab (docs/lib/ORGANISATION.md, "The
+chart's tab"). A template with no encounter line is answered "not mine" and generates as before.
+A faction card's picture is the family's `plate` flag where one was imported.
+
 `scripts/monsters/encounter-recipe.mjs` (the evaluator),
 `organisation-logic.mjs` (the optional rules, `planOrganisationRoll`) and
 `outside-reference.mjs` (the resolver and the table-cell readers) make a rolled

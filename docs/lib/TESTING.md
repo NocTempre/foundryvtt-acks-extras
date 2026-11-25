@@ -4578,3 +4578,61 @@ reload comes before any reload of the GM's. The walk is `tools/live/lib-welcome-
 4. Teardown. Set the setting back to the value step 1 read; the scripted walk does this
    in a `finally` and notes the value before and after. A GM's reload also restores the
    current version. There is nothing else to remove.
+
+## The Org chart and Locations tabs
+
+Marker `lib/beastman-warband`. Walked by `tools/live/lib-beastman-warband.mjs`. The family
+template is the Beastman import's (`monsters/beastman-village@p3` reads it); with no template
+that carries an encounter line, the Generate, Roll and Remove steps are not walked.
+
+### Fixtures
+
+- `lib/beastman-warband` — a faction card. Find by marker; build with
+  `api.fixture("lib/beastman-warband", "Actor", {type: "acks-extras.faction", ...})`. The walk
+  rewrites its `system.units` to one empty top row naming the template at the start of the run.
+- `lib/beastman-warband-group` — a root group hosting rows, for the group sheet's Organisation
+  section and Groups in this group.
+- `lib/beastman-warband-place` — a location. It carries a `system.gmNotes`, or the empty-place
+  prune takes it seconds after ready. Build one the same way.
+
+Under `own: <tag>` every marker becomes `<marker>@<tag>`. The Judge seat that sorts first is the
+active GM; read `game.users.activeGM` in the same call as a measure.
+
+### Steps
+
+1. **Generate** — Actors sidebar tab → the family template → Generate. *Observable:* a faction card
+   named for the template exists with one row whose `holderUuid` is empty and `gen.template` is
+   the template; its sheet is open on **Org chart**. No creature was made.
+2. **Add** — on the Org chart tab press **+ Warband**. *Observable:* `units` gains an empty row
+   under the top row; its card reads "Not rolled, not filled in." with a pen and, where a template is
+   known, Roll; a card holding something has no die.
+3. **Roll one card** — press Roll on the empty top card; answer the panel (variant first). *Observable:*
+   the row's `holderUuid` is written at once (nothing to save), rows beneath it hold groups too, and
+   the Judges' card is whispered. **Roll at random** fills every empty card the same way.
+4. **Edit** — press the pen on a filled card, change a stack's count, Save. *Observable:* the
+   group's stack `size.current` is the new figure and never below the bodies it records. With a body
+   on a map the Judges are whispered and the write still lands.
+5. **Send out and Recall** — press Send out on a filled card, pick the place; open the **Locations**
+   tab. *Observable:* the place's roster holds the group and a chip for its row stands on the place;
+   its Recall takes the group off the roster again.
+6. **Expand all, Collapse all** — *Observable:* Collapse all leaves every branch card with
+   `aria-expanded="false"` and a count of rows and bodies beneath it; Expand all leaves none folded.
+7. **Remove** — press the pen on a filled card, press **Remove**, confirm. *Observable:* the row and
+   its subtree leave `units`; a list above the chart names the leaders left in the world, each with an
+   **Open** control, the prototypes removed and those kept (each count with a tooltip); **Dismiss**
+   closes it and changes nothing else.
+8. **A narrow window** — resize the sheet to about 320 wide. *Observable:* `.acks-extras-org__scroll`
+   has `overflow-x: auto` and scrolls, and `.window-content` does not scroll sideways.
+9. **A Player seat** — a row marked hidden, and each row beneath it, is drawn on no Player's
+   sheet and counted in no total; on the root group's sheet the same chart shows above the stacks.
+
+### Teardown
+
+`api.sweepTracked()` removes what the run made: the host Generate made, and the groups, prototypes and
+leaders a Roll made (each tracked from the rows it wrote). The kept fixtures stay.
+
+### Not walked
+
+A Player seat (step 9) and the root group's sheet are read from the context code and the unit suites
+(`tools/test-org-tree.mjs`, `tools/test-org-chart-ui.mjs`), not driven. The plate's picture needs its
+register row, which is not built.

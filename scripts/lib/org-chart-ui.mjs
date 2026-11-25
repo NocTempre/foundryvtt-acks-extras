@@ -16,9 +16,9 @@
 import { MODULE_ID, ORG_LANG_PREFIX } from "./constants.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { branchKeys, chartCards, emptyKeys, nextLevelKind, subtreeView, templateOf } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, templateOf } from "./org-chart-ui-logic.mjs";
 import { isLocation } from "./place.mjs";
-import { docOf, makeLoc } from "./util.mjs";
+import { docOf, escape, makeLoc } from "./util.mjs";
 
 const loc = makeLoc(ORG_LANG_PREFIX);
 
@@ -280,23 +280,29 @@ async function onEdit(_event, target) {
     label: row.label, notes: row.notes, hidden: !!row.hidden, isGM: game.user.isGM, stacks, onMap: isGroupActor(group) && (group.system.stacks ?? []).some((s) => (s.roster ?? []).some((m) => m.tokenUuid)),
   });
   const { DialogV2 } = foundry.applications.api;
-  const change = await DialogV2.prompt({
+  const change = await DialogV2.wait({
     classes: DIALOG_CLASSES,
     window: { title: loc("edit.title") },
     content,
-    ok: {
-      label: loc("edit.press"),
-      callback: (_event_, button) => {
-        const f = button.form.elements;
-        return {
-          fields: { label: f.namedItem("label").value, notes: f.namedItem("notes").value, ...(f.namedItem("hidden") ? { hidden: !!f.namedItem("hidden").checked } : {}) },
-          stacks: stacks.map((s) => ({ stack: s.key, count: Number(f.namedItem(`count-${s.key}`)?.value) })).filter((s, i) => Number.isFinite(s.count) && s.count !== stacks[i].count),
-        };
+    buttons: [
+      {
+        action: "save",
+        label: loc("edit.press"),
+        default: true,
+        callback: (_event_, button) => {
+          const f = button.form.elements;
+          return {
+            fields: { label: f.namedItem("label").value, notes: f.namedItem("notes").value, ...(f.namedItem("hidden") ? { hidden: !!f.namedItem("hidden").checked } : {}) },
+            stacks: stacks.map((s) => ({ stack: s.key, count: Number(f.namedItem(`count-${s.key}`)?.value) })).filter((s, i) => Number.isFinite(s.count) && s.count !== stacks[i].count),
+          };
+        },
       },
-    },
+      { action: "remove", label: loc("edit.remove") },
+    ],
     rejectClose: false,
-  }).then((v) => v || null);
-  if (change) {
+  });
+  if (change === "remove") await removeRow(this, host, key);
+  else if (change && typeof change === "object") {
     const result = await org.editRow(host, key, change);
     if (!result.ok) refuse(result);
   }
@@ -333,26 +339,39 @@ async function onRecall(_event, target) {
   render(this);
 }
 
-/** Delete a card, the cards beneath it and their groups, after a confirmation that says what goes. */
+/**
+ * Remove a card. A row with rows beneath it asks first, naming the count and the rows that
+ * go, unless the Judge turned the ask off in the module's settings; a row on its own asks nothing.
+ */
+async function removeRow(app, host, key) {
+  const going = removalRows(org.orgChart(host, { isGM: true }), key);
+  if (asksBeforeRemoving(going, game.settings.get(MODULE_ID, CONFIRM_REMOVE_SETTING))) {
+    const { DialogV2 } = foundry.applications.api;
+    const yes = await DialogV2.confirm({
+      classes: DIALOG_CLASSES,
+      window: { title: loc("delete.title") },
+      content: `<p>${loc("delete.askMany", { top: escape(going[0].label), n: `<span data-tooltip-text="${escape(loc("delete.countTip"))}">${going.length - 1}</span>`, names: going.slice(1).map((r) => escape(r.label)).join(", ") })}</p>`,
+      rejectClose: false,
+      yes: { label: loc("delete.press"), callback: () => true },
+      no: { callback: () => false },
+    });
+    if (!yes) return null;
+  }
+  return removeFromChart(app, host, key);
+}
+
+/**
+ * The one call a Remove ends in: it takes the row through lib's `deleteRow`, and keeps what
+ * that took and left for the sheet to draw above its chart.
+ */
+async function removeFromChart(_app, _host, _key) {
+  return refuse({ reason: "failed" });
+}
+
+/** The card's trash press: remove it. */
 async function onDelete(_event, target) {
   const { host, key } = await targetOf(target);
-  if (!host) return;
-  const { DialogV2 } = foundry.applications.api;
-  const yes = await DialogV2.confirm({
-    classes: DIALOG_CLASSES,
-    window: { title: loc("delete.title") },
-    content: `<p>${loc("delete.ask")}</p>`,
-    rejectClose: false,
-    yes: { label: loc("delete.press"), callback: () => true },
-    no: { callback: () => false },
-  });
-  if (!yes) return;
-  const result = await org.deleteRow(host, key);
-  if (!result.ok) refuse(result);
-  else {
-    ui.notifications.info(loc("delete.done", { rows: result.rows.length, groups: result.groups.length }));
-    if (result.leaders.length) ui.notifications.info(loc("delete.leaders", { names: result.leaders.map((u) => docOf(u)?.name ?? u).join(", ") }));
-  }
+  if (host) await removeRow(this, host, key);
   render(this);
 }
 
