@@ -2221,3 +2221,29 @@ The owner's go-ahead, 2026-11-25, was a selection among options and not a senten
 **Rejected.** Option B, showing the count and keeping the controls withheld: the storage list would take all three back at once, and a sale would sell one at a time.
 
 **Cost.** A drawn row of three can still be made by typing its Quantity, and the module neither offers that nor refuses it; putting the row away folds all three back into the stack. `storage.offersCount` changes its answer on the public API, so apiVersion is 81. Offline only until the walk on `main`.
+
+## 2026-11-25 — A giver is read only from a fight the bearer is in (T-0827)
+
+`giverOf` returns the combatant acting in an effect's `start.combat` only where
+the bearer holds a combatant in that same fight, matched as the giver already
+is, by the same actor object or the same non-null uuid. Otherwise the state is
+the bearer's own. The same reading feeds `collect` through `gift.statuses`, so
+the supersession a given state causes follows it.
+
+**New evidence.** Found live on 2026-11-25: another walk's kept combat was
+begun and active, with no scene, and a monster was acting in it. A hero not in
+that combat took Defend, and the state read as the monster's gift. The
+monster's shield is unknown, so every shield row went pending. Foundry stamps
+every new effect's `start` with the world's current combat whether or not the
+creature is in it, which the giver's reading did not check.
+
+**Rejected.** *Gating on the combat's scene.* A combat with no scene is
+legitimate and runs a real fight, so a scene test would refuse a real gift; the
+question is whether the bearer is in the fight, which the scene does not answer.
+
+*Cost:* the fight is read live, at read time, and not as it stood when the
+effect was made. A creature stamped while outside a fight that later joins it
+reads the state as that fight's acting combatant's gift from then on, and one
+that leaves loses its giver; a state given to a creature that is on no tracker
+is its own. The membership walk is linear in the fight's combatants for each
+given state a subject read meets.

@@ -469,20 +469,29 @@ export function shieldOf(actor) {
 /**
  * Who gave `actor` the state an effect carries: the combatant that was acting
  * when the effect was made, where that is another creature still in that
- * fight. Null for a state the creature took up itself, one made outside a
- * running fight, one made before that round's initiative was rolled (the
- * tracker's current combatant is not acting then), and one whose giver has
- * left the fight. Foundry records the acting combatant and its initiative on
- * every effect an actor is given (`start`).
+ * fight and `actor` is in that fight too. Null for a state the creature took
+ * up itself, one made outside a running fight, one made while a fight the
+ * creature is not in was the world's current one (Foundry stamps every new
+ * effect with the current fight, on a scene or none), one made before that
+ * round's initiative was rolled (the tracker's current combatant is not acting
+ * then), and one whose giver has left the fight. Foundry records the acting
+ * combatant and its initiative on every effect an actor is given (`start`).
+ * A creature is in a fight when one of its combatants holds the same actor
+ * object or the same non-null uuid, which also reads an unlinked token's
+ * synthetic actor.
  *
  * @returns {{id: string, actor: object}|null} the giver's combatant
  */
 export function giverOf(effect, actor) {
   const start = effect?.start;
   if (start?.initiative == null) return null;
-  const giver = start.combat?.combatants?.get?.(start.combatant) ?? null;
+  const combatants = start.combat?.combatants;
+  const giver = combatants?.get?.(start.combatant) ?? null;
   if (!giver?.actor || !actor) return null;
-  return giver.actor === actor || (giver.actor.uuid != null && giver.actor.uuid === actor.uuid) ? null : giver;
+  const same = (other) => other === actor || (other?.uuid != null && other.uuid === actor.uuid);
+  if (same(giver.actor)) return null;
+  for (const combatant of combatants.values?.() ?? combatants) if (same(combatant?.actor)) return giver;
+  return null;
 }
 
 /**

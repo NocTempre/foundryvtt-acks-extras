@@ -721,6 +721,40 @@ ok("the giver of a state is whoever was acting when it was made, when that is an
   assert.equal(giverOf(made("g"), null), null);
 });
 
+ok("a state made while a fight the bearer is not in was current is the bearer's own, whatever scene that fight is on", () => {
+  const hero = { type: "character", items: [], uuid: "Actor.hero", statuses: new Set(["defending"]) };
+  const guard = { type: "character", items: [armour("shield", true)], uuid: "Actor.guard", statuses: new Set() };
+  const brute = { type: "monster", items: [], uuid: "Actor.brute", statuses: new Set() };
+  const made = (c, combatant) => ({ statuses: new Set(["defending"]), start: { combat: c, combatant, initiative: 7 } });
+  // Another walk's fight: a third creature acts in it and the bearer holds no combatant there.
+  const noScene = { ...fight({ b: brute, g: guard }), scene: null };
+  const otherScene = { ...fight({ b: brute, g: guard }), scene: "scene-elsewhere" };
+  for (const unrelated of [noScene, otherScene]) {
+    assert.equal(giverOf(made(unrelated, "b"), hero), null, "the bearer is not in that fight");
+    hero.appliedEffects = [made(unrelated, "b")];
+    assert.equal(subjectOf(hero).gifts.defending, undefined);
+    assert.deepEqual(subjectOf(hero).gifts, {});
+  }
+  // A bearer with no uuid is matched by the same object alone.
+  const token = { type: "character", items: [], uuid: null, statuses: new Set(["defending"]) };
+  assert.equal(giverOf(made(fight({ g: guard, t: token }), "g"), token)?.id, "g", "matched by the same actor object");
+  assert.equal(giverOf(made(fight({ g: guard, t: { ...token } }), "g"), token), null, "a copy with no uuid is no match");
+});
+
+ok("a state given in a fight the bearer is in reads the giver's shield", () => {
+  const guard = { type: "character", items: [armour("shield", true)], uuid: "Actor.guard", statuses: new Set() };
+  const hero = { type: "character", items: [], uuid: "Actor.hero", statuses: new Set(["defending"]) };
+  const combat = fight({ g: guard, h: hero });
+  const effect = { statuses: new Set(["defending"]), start: { combat, combatant: "g", initiative: 7 } };
+  hero.appliedEffects = [effect];
+  assert.equal(giverOf(effect, hero)?.id, "g");
+  assert.equal(subjectOf(hero).gifts.defending.shield, shieldOf(guard));
+  assert.equal(subjectOf(hero).gifts.defending.shield, true);
+  // A combatant holding another object with the bearer's uuid is the bearer's.
+  const byUuid = fight({ g: guard, h: { ...hero } });
+  assert.equal(giverOf({ ...effect, start: { combat: byUuid, combatant: "g", initiative: 7 } }, hero)?.id, "g");
+});
+
 ok("a defence another gave stands while its bearer casts, and falls when its giver does", () => {
   const guard = { type: "character", items: [armour("shield", true)], uuid: "Actor.guard", statuses: new Set() };
   const ally = { type: "character", items: [], uuid: "Actor.ally", statuses: new Set(["defending", "casting"]) };

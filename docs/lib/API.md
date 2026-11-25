@@ -1065,7 +1065,7 @@ acksExtras.lib.conditions = {
   subjectOf(actor),             // → {statuses, counts, sources, gifts, id, acWaived, implied, shield} | null
   shieldOf(actor),              // → true | false | null: an equipped shield item; none reads false for a character, null for any other type
   acWaivedSet(subject),         // → Set of ids: the conditions whose Armor Class figure the subject does not suffer
-  giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own
+  giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own (null as well when `actor` has no combatant in the fight the effect was stamped with)
   forbiddenBy(set, act),        // → the ids in a closed set that take `act` away
   attackMath({attacker, target?, kind, attackerSize?, targetSize?, values?}),
   rollMath(on, subject, values?, {save}?),   // on: "save" | "throw" | "morale" | "surprise"; save: one of SAVE_KINDS

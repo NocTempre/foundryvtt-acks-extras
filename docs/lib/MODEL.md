@@ -3196,11 +3196,12 @@ records stay on their combat clock.
 
 **Whose state it is.** Foundry writes on every effect an actor is given who
 was acting when it was made (`start.combatant`, `start.initiative`). A `given`
-state made while another combatant of the same fight acts is that combatant's
-(`giverOf`): it is lifted at the giver's turn, and a row's `unless` is read on
-the giver's statuses (`subjectOf(actor).gifts`). Made with nobody acting —
-outside a fight, or before the round's initiative is rolled — it is its
-bearer's own.
+state made while another combatant of a fight its bearer is also in acts is that
+combatant's (`giverOf`): it is lifted at the giver's turn, and a row's `unless`
+is read on the giver's statuses (`subjectOf(actor).gifts`). Made with nobody
+acting — outside a fight, or before the round's initiative is rolled — or while
+the world's current fight is one its bearer holds no combatant in, whatever
+scene that fight is on, it is its bearer's own.
 
 **Lost before it ends.** `lost` on an entry names what takes the state away
 early (`LOSSES`, RR 293-295). Each is caught on the client that made the
