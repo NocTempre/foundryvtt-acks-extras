@@ -84,6 +84,26 @@ t("a card's role is read from its leader and the unit that leader leads: file, c
   assert.equal(roleOf({ officer, parentKey: "p", gen: { tier: 5 }, children: [] }), "sub", "never a chief below the top, however many levels it leads");
 });
 
+t("a folded card keeps its rank: the role is read before the fold empties its children", () => {
+  const boss = { uuid: "A.boss", name: "Boss", img: "" };
+  const lead = { uuid: "A.lead", name: "Lead", img: "" };
+  const world = { "G.top": { name: "Top", img: "", count: 6, officer: boss }, "G.mid": { name: "Mid", img: "", count: 6, officer: lead }, "G.low": { name: "Low", img: "", count: 6 } };
+  const rows = [row("top", "", "G.top"), row("mid", "top", "G.mid"), row("low", "mid", "G.low")];
+  const tree = orgChartView(rows, (u) => world[u] ?? null);
+  const rankOf = (cards, key) => {
+    const find = (list) => list.flatMap((c) => (c.key === key ? [c] : find(c.children)));
+    return find(cards)[0]?.roleKey;
+  };
+  const open = chartCards(tree.roots);
+  const shut = chartCards(tree.roots, { collapsed: new Set(["top", "mid"]) });
+  for (const key of ["top"]) assert.equal(rankOf(shut, key), rankOf(open, key), `${key} reads the same folded and unfolded`);
+  assert.equal(rankOf(open, "top"), "chief");
+  assert.equal(rankOf(shut, "top"), "chief", "a folded top is no champion");
+  const midShut = chartCards(tree.roots, { collapsed: new Set(["mid"]) });
+  assert.equal(rankOf(open, "mid"), "sub");
+  assert.equal(rankOf(midShut, "mid"), "sub", "a folded mid-level card is no champion");
+});
+
 t("a count is set by hand when it differs from the total its Roll threw, and a stack with no record never is", () => {
   const stack = (initial, rolled, label = "Body") => ({ size: { initial, current: 0 }, gen: { rolled }, template: { label } });
   assert.equal(byHandOf([stack(5, 5)]), null, "casualties move current, never the initial the roll set");

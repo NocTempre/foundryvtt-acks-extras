@@ -43,7 +43,7 @@ export const branchKeys = (view) => (view?.rows ?? []).filter((r) => r.children.
  * @param {Object<string, string[]>} [state.outAt] a row's holder uuid → the names of the places it stands on
  * @param {(key: string) => boolean} [state.canRoll] whether a Roll is offered on the row
  * @param {boolean} [state.canEdit] whether this seat writes the host
- * @returns {object[]} the cards, each `{...row, folded, hasKids, below: {rows, bodies}, out, canRoll, canEdit, children}`
+ * @returns {object[]} the cards, each `{...row, roleKey, folded, hasKids, below: {rows, bodies}, out, canRoll, canEdit, children}`; `roleKey` is `roleOf` read before the fold empties `children`, so a folded card keeps its rank
  */
 export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll = () => false, canEdit = true } = {}) {
   const below = (node) => node.children.reduce((sum, c) => {
@@ -58,6 +58,7 @@ export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll =
     return {
       ...node,
       rank,
+      roleKey: roleOf(node),
       folded,
       hasKids: node.children.length > 0,
       below: folded ? below(node) : null,

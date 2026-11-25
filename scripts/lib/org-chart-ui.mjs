@@ -78,7 +78,7 @@ const troopFor = (stack) => services.get("org-chart")?.troopOf?.(stack) ?? null;
  * @returns {{key: string, word: string, label: string, tip: string}|null} null for an empty card
  */
 function roleView(card) {
-  const key = roleOf(card);
+  const key = card.roleKey ?? roleOf(card);
   if (!key) return null;
   const word = loc(`role.${key}`);
   return { key, word, label: loc("role.label", { word, name: card.officer?.name ?? card.name ?? "" }), tip: loc(`role.${key}Tip`) };
