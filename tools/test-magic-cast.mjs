@@ -1061,6 +1061,19 @@ t("a summoning's line is worded per seat from the card's record: the name for a 
   });
 });
 
+t("a summoning that joined a party adds a line naming the party, to every seat and in the stored content, and none where it joined none", () => {
+  withLang(() => {
+    const summoned = { sourceUuid: "Compendium.invented.Actor.zz", name: "Quillback", n: 2, short: 1, duration: "2 hours", party: { id: "pty1", name: "Invented Company" } };
+    const c = card({ summoned });
+    const note = (seat) => castCardView(c, seat, realLoc).footnote;
+    const neutral = LANG["ACKS-LIB.summons.neutral"];
+    assert.equal(note({ isGM: true, canPress: false }), "Summoned: Quillback × 2 · lasts 2 hours · 2 joined Invented Company · 1 not placed", "the joined line follows the summoned line, ahead of the short count");
+    assert.equal(note({ isGM: false, canPress: false }), `Summoned: ${neutral} × 2 · lasts 2 hours · 2 joined Invented Company · 1 not placed`, "a seat that cannot open the creature still reads the party's name");
+    assert.ok(castCardContent(c, realLoc).includes("2 joined Invented Company"), "the stored content names the party");
+    assert.equal(castCardView(card({ summoned: { ...summoned, party: null } }), { isGM: true, canPress: false }, realLoc).footnote, "Summoned: Quillback × 2 · lasts 2 hours · 1 not placed", "a cast that placed tokens has no joined line");
+  });
+});
+
 t("a card stored with a worded summon line and no record renders that line as it was", () => {
   withLang(() => {
     const old = card({ lines: ["Summoned: Quillback × 2 · lasts 2 hours"] });

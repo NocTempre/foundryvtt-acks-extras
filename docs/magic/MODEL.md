@@ -299,7 +299,10 @@ click costs the cast nothing:
    `amount`, with a provenance tooltip, and a blank ceiling leaves the page
    reference alone. The placement line says within the spell's range of the
    caster's token, called from where it stands (a `calling`), or arrives on its
-   own. The footer judges the pick before Cast: `summonCount` blocks a Player and
+   own. Where the caster marches inside a party token with no fight holding it
+   (`joiningParty`, read when the dialog opens and again on its answer, which
+   decides the branch), the line reads `summonJoins`, naming the party, ahead of
+   the calling and range lines, and the footer reads no range. The footer judges the pick before Cast: `summonCount` blocks a Player and
    warns a Judge, and a Player with no GM connected is refused
    (`summonRefused`), since the GM's client makes the tokens.
    A family picked for a cast that places now is made one creature first, at
@@ -315,7 +318,10 @@ click costs the cast nothing:
    creature beyond the range from the centre of the caster's token is refused to
    a Player and warned to a Judge as it is clicked; a calling and a range the
    spell does not state are exempt. The GM's policy measures the same points
-   again.
+   again. A cast that joins a party has no clicks and no range: nothing is
+   placed, so it reads no caster token either. Lib's checks still answer before
+   the spend, but for the canvas: a join waives `noCanvas` as a declaring does,
+   while `paused` and a missing GM still refuse it.
 3. *The spend and the pool.* A summons is declared like any cast
    ("A declaration", below): `ANSWER_FIELDS.summon` (`{ref, count}`) joins the answer, a
    time over a round is a long cast, and a declared summons clicks at its turn,
@@ -323,16 +329,22 @@ click costs the cast nothing:
 4. *`endHeld`, the cast id, `perform`,* and then the creatures, made by the GM's
    client from the picked positions (`placeSummons`, with the cast id and
    `cast {castId, casterLevel, invocationLevel}`, whose levels the GM trusts as
-   the apply relay does) only when the cast proceeds. A refusal after the spend is
-   a line on the card, and the spend stands.
+   the apply relay does) only when the cast proceeds. A cast that joins runs the
+   same step with the party in place of the positions: lib's `joinSummons` makes
+   the creatures members of the party and no token on any scene (lib MODEL,
+   "Summons"), and the made count is the members joined. A refusal after the
+   spend is a line on the card, and the spend stands.
 5. *The card:* the summoning is stored as a record, `card.summoned`
    (`{sourceUuid, name, n, short, duration, party}`: the creature's uuid, its
-   name, how many stand, how many clicks placed none, the spell's printed length
-   and the party they joined, none yet), and is no worded line. The summon row's
+   name, how many stand or joined, how many asked for were not made, the spell's
+   printed length and the party they joined, `{id, name}`, none where tokens
+   were placed), and is no worded line. The summon row's
    own line (which prints its creature ref) is not on the card. `castCardView`
    words the line from the record for the seat reading it: the creature's name
    for a Judge and for a seat that can open the creature (`creatureOpens` on
-   the stored uuid, which the render hook asks), else lib's neutral label. The
+   the stored uuid, which the render hook asks), else lib's neutral label; a
+   record that names a party adds a line naming it (`line.summonedJoined`) to
+   every seat, the party being no creature to hide. The
    stored `content`, which a client with the module off reads, is drawn for a
    seat that opens nothing and carries the neutral label. A card stored with a
    worded line and no record renders that line as it was. The record's `name`

@@ -130,8 +130,12 @@ it against.
 
 **The Magic tab** (`tabs/magic.mjs`) shows on each summoning spell's row how
 many of its creatures stand on the scene the party cell counts on
-(`standingBySpell`), the count's tooltip naming the scene, and, while some
-stand, a *Dismiss* button for them. A spell of any kind that the caster has
+(`standingBySpell`), the count's tooltip naming the scene (the party where every
+one of them is held in a party, `summonRowOf`), and, where some ride stashed in a
+party, a second figure counting them with the party's name; each entry
+`summonsOnScene` lists carries its `party` (`{id, name}` for a held summon, null
+for a scene token), and the figure's tooltip says which party holds them. While some
+stand, a *Dismiss* button covers them. A spell of any kind that the caster has
 declared in a fight and that still waits for the caster's turn also shows a solid
 *Declared* tag and, under its name, the line "Declared in <fight> · waits for
 <caster>'s turn" (`declaredRowOf`; the fight names its scene and the round it was

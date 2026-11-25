@@ -297,6 +297,34 @@ test("the Magic tab's row draws the tag and the line from the declaration and ha
   assert.ok(!/withdraw/i.test(tpl), "no page prints withdrawing a declared cast, so the row has no control for it");
 });
 
+await testAsync("a summoning's row counts what stands and, where some ride in a party, how many joined it; its tooltips say where the count came from", async () => {
+  const priorGame = globalThis.game;
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const { summonRowOf } = await import("../scripts/character-sheet/tabs/magic.mjs");
+    const scene = { name: "Testyard" };
+    const token = { tokenId: "t1", held: null, party: null };
+    const held = (actorId, name = "Hollow Company") => ({ tokenId: null, held: { partyId: "pty", actorId }, party: { id: "pty", name } });
+    assert.deepEqual(summonRowOf([], { scene }), { standing: 0, label: 'ACKS-CHARACTER.magic.standing|{"n":0}', tip: 'ACKS-CHARACTER.magic.standingTip|{"n":0,"scene":"Testyard"}', joined: null }, "nothing standing reads the scene's tooltip and no joined figure");
+    assert.deepEqual(summonRowOf([token, token], { scene: null }).tip, 'ACKS-CHARACTER.magic.standingTip|{"n":2,"scene":"—"}', "tokens read the scene's tooltip, with a dash where there is no scene");
+    assert.equal(summonRowOf([token, token], { scene }).joined, null);
+    const all = summonRowOf([held("m1"), held("m2")], { scene });
+    assert.deepEqual([all.standing, all.label, all.tip], [2, 'ACKS-CHARACTER.magic.standing|{"n":2}', 'ACKS-CHARACTER.magic.standingTipParty|{"n":2,"party":"Hollow Company"}'], "every creature held in the party reads the party's tooltip");
+    assert.deepEqual(all.joined, { n: 2, label: 'ACKS-CHARACTER.magic.joined|{"n":2,"party":"Hollow Company"}', tip: 'ACKS-CHARACTER.magic.standingTipParty|{"n":2,"party":"Hollow Company"}' });
+    const mixed = summonRowOf([token, held("m1")], { scene });
+    assert.deepEqual([mixed.standing, mixed.tip, mixed.joined.n], [2, 'ACKS-CHARACTER.magic.standingTip|{"n":2,"scene":"Testyard"}', 1], "a token among them keeps the scene's tooltip, and only the held one is counted as joined");
+    assert.equal(summonRowOf([held("m1", "Hollow Company"), held("m2", "Second Band")], { scene }).joined.label, 'ACKS-CHARACTER.magic.joined|{"n":2,"party":"Hollow Company, Second Band"}', "two parties are both named");
+  } finally {
+    globalThis.game = priorGame;
+  }
+});
+test("the Magic tab's row marks its standing count and its joined count, each with its provenance on hover, and draws no literal id or title", () => {
+  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  assert.match(tpl, /data-summon="standing" data-tooltip-text="\{\{spell\.summon\.tip\}\}">\{\{spell\.summon\.label\}\}/);
+  assert.match(tpl, /\{\{#if spell\.summon\.joined\}\}<span [^>]*data-summon="joined" data-tooltip-text="\{\{spell\.summon\.joined\.tip\}\}">\{\{spell\.summon\.joined\.label\}\}<\/span>/, "the joined figure shows only where some joined");
+  assert.ok(!/\sid=|\stitle=/.test(tpl), "no literal id (a second copy of the sheet would duplicate it) and no title attribute");
+});
+
 /** A caster-side cast record as `castOf` gives it. */
 const record = (id, extra = {}) => ({ id, name: `Spell ${id}`, img: `icons/${id}.webp`, clock: "3t", remaining: 1.5, total: 3, created: 100, ended: false, ...extra });
 test("a character is a caster by a spell item or a caster-side cast record, and by nothing else", () => {
@@ -1222,7 +1250,7 @@ console.log("character sheet: summons on a scene");
   const { summonsOnScene } = await import("../scripts/character-sheet/snapshot.mjs");
   const summoner = { uuid: "Actor.summoner1" };
   const row = (actorId, summonedBy, castId, stashed = true) => ({ actorId, actor: { img: "i.webp" }, name: `Wolf ${actorId}`, stashed, summonedBy, summon: castId ? castRecord(castId, "spA") : null });
-  const roster = { list: () => [{ id: "here" }, { id: "away" }], members: (id) => (id === "here" ? [row("m1", summoner.uuid, "c1"), row("m2", summoner.uuid, "c1", false), row("m3", "Actor.other", "c1")] : [row("m4", summoner.uuid, "c1")]) };
+  const roster = { list: () => [{ id: "here", name: "Hollow Company" }, { id: "away", name: "Second Band" }], members: (id) => (id === "here" ? [row("m1", summoner.uuid, "c1"), row("m2", summoner.uuid, "c1", false), row("m3", "Actor.other", "c1")] : [row("m4", summoner.uuid, "c1")]) };
   const formations = { here: { id: "here", sceneId: "scnA" }, away: { id: "away", sceneId: "scnB" } };
   const before = globalThis.game;
   const foundryBefore = globalThis.foundry;
@@ -1234,6 +1262,8 @@ console.log("character sheet: summons on a scene");
     test("a held summon is listed only for a party token on the scene, as an entry that names its party and member", () => {
       const out = summonsOnScene(summoner, scene);
       assert.deepEqual(out.map((e) => [e.tokenId, e.held, e.name]), [["tok1", null, "Wolf"], [null, { partyId: "here", actorId: "m1" }, "Wolf m1"]], "the scene token, then the stashed summon of the party standing here; a deployed one and another caster's are not listed again");
+      assert.deepEqual(out.map((e) => e.party), [null, { id: "here", name: "Hollow Company" }], "a held entry names its party as the roster lists it, a scene token none");
+      assert.deepEqual(out[1].held, { partyId: "here", actorId: "m1" }, "and `held` stays what it was");
       assert.deepEqual(summonsOnScene(summoner, { id: "scnC", tokens: [] }), [], "a scene with no party token holds none");
       assert.deepEqual(summonsOnScene(summoner, { id: "scnB", tokens: [] }).map((e) => e.held?.actorId), ["m4"], "each party is read on its own scene");
     });

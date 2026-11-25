@@ -3588,6 +3588,22 @@ summon is the scene token it always was and nothing here runs.
   from the roster; the GM's reading decides. Two casters of the same creature
   never reach each other's: a row names its summoner, and the check is the
   token check's.
+- *Made straight into a party.* A caster the roster names a party they march
+  inside (`joiningParty`, the contract's `summonerParty`) may have a cast's
+  creatures made as that party's members at once (`joinSummons`, the `join`
+  op). The GM's client authorizes it as a placement is, with no places and no
+  scene to hold (a policy reads both as null), re-reads the party from the
+  roster, and stashes each creature as the token it would have been, in the
+  party token's own place and unlinked, carrying the summoner's stamps. It
+  hands the stashes to `admitSummons`, which stores them as members. No token
+  is made on any scene, no range applies, and `SUMMONS_PLACED_HOOK` does not
+  fire, since a stash is no arrival to gather. A world that rolls its summoned
+  monsters' hit points (the system's auto-roll setting) has each stash's roll
+  made here, in the stash's own delta, since no token creation rolls it for a
+  stash; the party's later deployment keeps those hit points
+  (`KEEP_HIT_POINTS_OPTION`) and a recall stashes them again. A party that has
+  gone, entered a fight or lost the caster by the time the request runs is
+  refused `noParty`, and the cast reports the refusal as it does a placement's.
 
 **Which packs a Player seat can open** is decided by pack ownership, not by
 this module: a pack declares `ownership` by role, defaulting to OBSERVER for

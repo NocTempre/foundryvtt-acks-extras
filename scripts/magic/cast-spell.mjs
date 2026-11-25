@@ -24,7 +24,11 @@
  * declaration standing. The creatures are made only after the spend, the end of
  * the caster's concentration and the tradition's step, and only when the cast
  * proceeds (`APPLY_KINDS.summon.step`). A refusal at the placement is a card
- * line, and the spend stands. The cast leaves the caster a record: the held one
+ * line, and the spend stands. A caster who marches inside a party token
+ * (`joiningParty`, read when the dialog opens and again on its answer) makes the
+ * creatures members of that party: no range, no clicks and no canvas are asked
+ * of the cast, and the step joins them instead of placing tokens. The cast
+ * leaves the caster a record: the held one
  * for a concentration, else a core-timed one with no clock of this module's own,
  * so its end is announced with Dismiss (`cast-expiry.mjs`).
  *
@@ -550,8 +554,15 @@ const liveDeps = () => ({
     return sourceReadable(family, game.user) ? { ok: true } : { ok: false, reason: "unreadable", notice: lib.refusalText("unreadable") };
   },
   pickPlacement: async (caster, o) => (await import("../lib/summons.mjs")).pickPlacement(caster, o),
+  // The party the caster marches inside, where a summoning is made as its members (`lib/summons.mjs`, loaded where a summoning is cast).
+  joiningParty: async (caster) => (await import("../lib/summons.mjs")).joiningParty(caster),
   summon: async (ctx) => {
     const lib = await import("../lib/summons.mjs");
+    if (ctx.joining) {
+      const joined = (await lib.joinSummons(ctx.caster, { sourceUuid: ctx.pick.ref, count: ctx.pick.count, spellId: ctx.spell.id, castId: ctx.castId, cast: ctx.cast })) ?? { ok: false, reason: "noGm" };
+      lib.announceJoin(joined);
+      return joined.ok || joined.reason === "noGm" ? joined : { ...joined, notice: lib.refusalText(joined.reason) };
+    }
     const result = (await lib.placeSummons(ctx.caster, { sourceUuid: ctx.pick.ref, count: ctx.positions.length, spellId: ctx.spell.id, positions: ctx.positions, castId: ctx.castId, cast: ctx.cast, rangeFeet: ctx.rangeFeet, calling: ctx.calling, casterToken: ctx.casterToken })) ?? { ok: false, reason: "noGm" };
     lib.announceSummon(result);
     // lib words every refusal but a missing GM; the card says that one itself.
@@ -796,9 +807,12 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The refusal lib gives a request for a creature its user cannot open, read before the press for a pick the band flags `opens: false`; a Judge's seat opens every creature.
   const unreadable = () => ({ reason: "unreadable", notice: game.i18n.localize("ACKS-LIB.summons.refused.unreadable") });
   // The pick as the band holds it, weighed at the level and invocation level the seat holds, for the dialog's footer: the reading the confirm takes, less lib's own checks (they wait for the click), but for the one that says the seat cannot open the creature.
+  // The party the caster marches inside where a cast now would make the creatures its members, none where it would place tokens (a declaring places nothing, and a party in a fight does not join). Read when the dialog opens and read again on its answer, which decides the branch.
+  const joiningNow = async () => (summoning && moment !== MOMENT.declare ? ((await deps.joiningParty?.(caster)) ?? null) : null);
+  let joining = await joiningNow();
   const summonAt = (picked, { mode: form, level: levelValue, inv, declaring = false }) => ({
     ...judgeSummon(summonRows, picked, { source: picked.source ?? null, level: levelValue, at: { invocationLevel: inv }, refused: !deps.isGM() && picked.opens !== true ? unreadable() : !declaring && gmMissing() ? noGm() : null }),
-    range: rangeFeet(figuresAt(form ?? modeKeys[0], inv).range, levelValue)?.value ?? null,
+    range: joining ? null : (rangeFeet(figuresAt(form ?? modeKeys[0], inv).range, levelValue)?.value ?? null),
   });
   const askContext = () => ({
     spell,
@@ -807,7 +821,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     // The fight that holds the caster, named as a declaration made now would name it (its scene, and this round); null with no fight.
     fight: world.combat ? declaredFightOf({ combatId: world.combat.id, declaredRound: world.combat.round }, { combatOf: () => world.combat }) : null,
     // A summoning's creatures and the judge of a pick; null where the cast summons nothing.
-    summon: summoning ? { creatures: offer.creatures, open: !offer.creatures.length ? { amount: Number(openRow?.amount) || 0 } : null, at: summonAt } : null,
+    // `party` is the party the creatures would join (its id and name), null where they are placed.
+    summon: summoning ? { creatures: offer.creatures, open: !offer.creatures.length ? { amount: Number(openRow?.amount) || 0 } : null, at: summonAt, party: joining ? { id: joining.id, name: joining.name } : null } : null,
     // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).
     momentAt: (mode, levelValue, praw, inv = startInv) => momentAt(mode ?? modeKeys[0], inv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
     // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far (and the invocation level it holds); null where the tradition has none.
@@ -882,7 +897,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     answer = { ...answer, summon: pick };
   }
   // The pick weighed: its count against the ceiling the rows state at this caster level, whether the creature is called from where it stands, and the refusal lib gives a request before any click (a declaring is asked too, so a creature the seat cannot observe is refused before the spend; only a declaring's canvas and pause reasons are dropped). The creature's name is the card's.
-  const summonJudged = async ({ pick: picked, level: casterLvl, at: invAt, declaring }) => {
+  const summonJudged = async ({ pick: picked, level: casterLvl, at: invAt, declaring, joins = false }) => {
     const source = (await deps.resolveRef?.(picked.ref)) ?? null;
     // A declared family is made one creature at its turn, so no creature exists yet for lib to weigh: the seat's own level on the family is asked instead, as the relay asks it at the turn.
     const familyDeclared = declaring && source?.type === TEMPLATE_TYPE;
@@ -891,6 +906,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     else if (deps.summonVerdict) asked = await deps.summonVerdict(caster, { sourceUuid: picked.ref, count: picked.count, spellId: spell.id });
     // A declaring places nothing, so a canvas that is not ready or a paused game does not stop it; every other refusal does, before the slot is spent.
     if (declaring && (asked?.reason === "noCanvas" || asked?.reason === "paused")) asked = { ok: true };
+    // A join makes no token, so a canvas that is not ready does not stop it; a paused game and a missing GM still do.
+    if (joins && asked?.reason === "noCanvas") asked = { ok: true };
     if (asked?.ok !== false && !declaring && gmMissing()) asked = { ok: false, ...noGm() };
     const refused = asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null;
     // A conjured creature serves while its caster holds the cast, so the cast is held (`heldByConjuration`).
@@ -920,7 +937,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
   // A summoning's creature and count, judged on the final answer: the ceiling at this caster level, and lib's own refusal before any click. Nothing is placed in a declaring, so its click waits for the turn.
-  const summon = pick ? await summonJudged({ pick, level: level.value, at, declaring: moment === MOMENT.declare }) : null;
+  // The branch follows the party as it stands now: it may have entered a fight, or the caster stepped out of it, while the dialog stood open.
+  joining = await joiningNow();
+  const summon = pick ? await summonJudged({ pick, level: level.value, at, declaring: moment === MOMENT.declare, joins: Boolean(joining) }) : null;
   const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure, summon);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
@@ -935,7 +954,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // A summoning's clicks come before the spend and make nothing: a cancel costs the cast nothing, and a declared summons clicks at its turn, where a cancel leaves the declaration standing. A declaring places nothing, so it clicks nothing. The range is the spell's figure in feet, a number or none.
   let positions = null;
   let rangeLimit = null;
-  if (summon && moment !== MOMENT.declare) {
+  if (summon && moment !== MOMENT.declare && !joining) {
     rangeLimit = rangeFeet(figuresAt(mode, invocation.value).range, level.value)?.value ?? null;
     const picked = await deps.pickPlacement?.(caster, { sourceUuid: pick.ref, count: pick.count, spellId: spell.id, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null });
     if (!picked?.positions?.length) return { ok: false, reason: "cancelled" };
@@ -1032,15 +1051,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   // The creatures stand only once the cast proceeds. The placement is the summon kind's own step (`cast-kinds.mjs`); a refusal now is a line on the card, and the spend stands.
   let placed = null;
-  if (positions) {
-    placed = await stepOf("summon")({ caster, spell, castId, pick, positions, cast: { castId, casterLevel: level.value, invocationLevel: invocation.value }, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null, card }, deps);
+  if (positions || (summon && joining)) {
+    placed = await stepOf("summon")({ caster, spell, castId, pick, positions, cast: { castId, casterLevel: level.value, invocationLevel: invocation.value }, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null, joining, card }, deps);
     if (placed?.ok) {
-      // The card stores the creature, how many stand, how long the spell lasts and how many clicks made no creature as a record; each seat's line is worded from it at render (`castCardView`), so the name is read only by a seat that can open the creature. `party` is the party the creatures joined, none until a cast joins one.
-      const made = placed.tokenUuids?.length ?? positions.length;
+      // The card stores the creature, how many stand (or joined), how long the spell lasts and how many clicks made no creature as a record; each seat's line is worded from it at render (`castCardView`), so the name is read only by a seat that can open the creature. `party` is the party the creatures joined, none where they were placed. A join asked for the pick's count and a click for each position.
+      const asked = positions?.length ?? pick.count;
+      const made = placed.joined?.length ?? placed.tokenUuids?.length ?? positions?.length ?? 0;
       // The spell's own printed length (a level-scaled or concentration one reads as written), none for an instant.
       const shape = durationShapeOf(spell, deps.lookups, mode);
       const lasts = shape?.shape === "instantaneous" ? "" : displayDuration(shape);
-      card.summoned = { sourceUuid: summon.sourceUuid, name: summon.name, n: made, short: Math.max(0, positions.length - made), duration: lasts, party: null };
+      card.summoned = { sourceUuid: summon.sourceUuid, name: summon.name, n: made, short: Math.max(0, asked - made), duration: lasts, party: placed.party ?? null };
     } else card.lines.push(placed?.reason === "noGm" || !placed ? loc("line.summonNoGm") : loc("line.summonRefused", { reason: placed.notice || placed.reason || "" }));
   }
   // The door is sealed only once the cast proceeds. The write is the seal kind's own step (`cast-kinds.mjs`) and carries this cast's id, which the caster's record keeps; a refusal is a line on the card and a notice to the seat, and the spend stands. A Judge's pick past the range states no range, since the GM's client measures any it is given.

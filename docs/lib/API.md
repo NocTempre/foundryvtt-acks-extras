@@ -225,11 +225,12 @@ else importing the definition from its own pipeline — and reports what it
 could not resolve; it never throws on content. The specialty suffix lands
 on the embedded copy's name only. No provider ⇒ consumers skip granting.
 
-### Contract `party-roster` v3
+### Contract `party-roster` v4
 
 Provider: formation (`scripts/formation/party-roster.mjs`). Consumers: the
 hit-point tool (`lib/hp.mjs`), which works on a whole party at once, the
-summons (`lib/summons.mjs`), which reach a summon riding in a party token, and
+summons (`lib/summons.mjs`), which reach a summon riding in a party token and
+make a cast's creatures members of the party the caster marches inside, and
 the treasure pot's party aside and Quick grab (`list`, `members`, `pace`). Shape:
 
 ```
@@ -242,12 +243,31 @@ the treasure pot's party aside and Quick grab (`list`, `members`, `pace`). Shape
   release(partyId, ids) → Promise<{released: number}>,
   // v3 (additive)
   pace(partyId, actorId, {adding6}) → {rank, speed} | null
+  // v4 (additive)
+  summonerParty(actorId) → {id, name, sceneId, tokenId} | null,
+  admitSummons(partyId, summonerUuid, stashes) → Promise<{actorIds: string[], reason?: string}>
 }
 ```
 
-`summonedBy`, `summon`, `memberOfToken`, `release` and `pace` are optional to a
-consumer: each is read with an optional call, and with one absent the consumer
-does what it does with no party in play.
+`summonedBy`, `summon`, `memberOfToken`, `release`, `pace`, `summonerParty` and
+`admitSummons` are optional to a consumer: each is read with an optional call,
+and with one absent the consumer does what it does with no party in play.
+
+`summonerParty(actorId)` names the party the actor marches inside: the party
+that holds the actor as a person (never a summon's own record) neither deployed
+as a token nor out as a stack, whose party token stands on a scene, and which
+no fight holds. `sceneId` and `tokenId` name that token. It is null otherwise,
+and a consumer then places a summoning as it always did. It reads only and runs
+on any seat.
+
+`admitSummons(partyId, summonerUuid, stashes)` makes creatures members of the
+party from `stashes`, plain token data as they would have stood, with no token
+made on any scene. It runs on the GM's client only (`reason: "notGm"` on any
+other). It reads the record again when it runs and refuses with `noParty` (no
+record, or no party token on a scene), `inCombat`, `notInside` (the summoner
+no longer marches inside the party token) or `noStash` (no stash names this
+summoner and carries a cast record); on success it answers the new members'
+`actorId`s. It waits behind a gather of the same party.
 
 A member row:
 
@@ -1257,6 +1277,22 @@ and no scene token. Lib reads and ends it through the `party-roster` contract
 is only the scene token it is. A placement announces itself: `acksExtras.summonsPlaced`
 (`SUMMONS_PLACED_HOOK`, constants) is called with `{summonerUuid, sceneId, tokenIds}`
 on the placing GM's client once the tokens stand.
+
+A caster who marches inside a party token (`joiningParty(summoner)`, the
+contract's `summonerParty` for the actor, null where there is none) may have
+the creatures made as members of that party and not placed.
+`joinSummons(summoner, {sourceUuid, count?, spellId?, castId?, cast?})`, imported
+directly from `scripts/lib/summons.mjs` with `joiningParty` and `announceJoin`
+(the seat's notice of a join, as `announceSummon` is of a placement), runs on the
+seat: it refuses `noParty` where `joiningParty` answers null, else relays a
+`join` to the GM's client, which authorizes it as a placement is, finds or makes
+the world copy, stashes each creature as the token it would have been in the
+party token's own place, and hands the stashes to `admitSummons`. It answers
+`{ok, castId, joined: actorIds, party: {id, name}}`, or `{ok: false, reason}`
+(`noParty` where the party has gone, entered a fight or lost the caster's
+membership meanwhile). No place is picked, no range applies and no
+`SUMMONS_PLACED_HOOK` fires. A registered policy is handed `positions` and
+`scene` as null for a join. `heldSummonsOf` rows carry the party's `partyName`.
 
 `placeSummons` runs on the summoner's owner's seat: core's click-to-place
 (`canvas.tokens.placeTokens`, `create: false`), then a relay to the GM's client

@@ -266,14 +266,17 @@ function outcomeOf(entry, loc) {
 /**
  * The footnote lines a stored summoning (`card.summoned`) is worded as for one
  * seat: the creature's name where the seat is a GM or `opens` says it can open
- * the creature, else the neutral label; a line for the creatures that stand, and
- * one for any click that placed none. A card with no record has none.
+ * the creature, else the neutral label; a line for the creatures that stand, one
+ * naming the party they joined where they joined one, and one for any click that
+ * placed none. A card with no record has none.
  */
 function summonedLines(summoned, seat, loc) {
   if (!summoned) return [];
   const opens = seat.isGM === true || seat.opens?.(summoned.sourceUuid) === true;
   const name = seatLabel({ name: summoned.name || loc("dialog.summonCreature"), opens, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") });
   const lines = [loc(summoned.duration ? "line.summoned" : "line.summonedOpen", { name, n: summoned.n, duration: summoned.duration })];
+  // A cast that joined a party names it to every seat; the party is no creature, so it is not hidden as one.
+  if (summoned.party?.name) lines.push(loc("line.summonedJoined", { n: summoned.n, party: summoned.party.name }));
   if (summoned.short > 0) lines.push(loc("line.summonShort", { n: summoned.short }));
   return lines;
 }

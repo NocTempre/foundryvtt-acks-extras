@@ -4,7 +4,8 @@
  * slot pair core stores (`system.spells.<n>`), and the per-tradition pools
  * the classes feature derives from the class document (mounted as its
  * strip). Present only for a caster. A summoning spell's row also carries how
- * many of its creatures stand on the scene the party cell counts on, and any
+ * many of its creatures stand on the scene the party cell counts on, and how
+ * many of those ride in a party (`summonRowOf`), and any
  * spell's row carries a cast declared in a fight and still waiting for the
  * caster's turn (`declaredRowOf`).
  */
@@ -46,6 +47,31 @@ export function declaredRowOf(records, spell, { name, combatOf }) {
   };
 }
 
+/**
+ * What a summoning spell's row shows of the creatures it left standing: the
+ * count, its label, the count's tooltip and, where some ride in a party, a
+ * second figure for them. The tooltip names the scene the creatures stand on,
+ * or the party where every one of them is held in one; the joined figure names
+ * the parties (an entry's `party`, `summonsOnScene`). Where none is held,
+ * `joined` is null.
+ *
+ * @param {{party?: {name?: string}|null}[]} entries  the spell's `summonsOnScene` entries
+ * @param {{scene: {name?: string}|null}} from  the scene the row is read on
+ * @returns {{standing: number, label: string, tip: string, joined: {n: number, label: string, tip: string}|null}}
+ */
+export function summonRowOf(entries, { scene }) {
+  const n = entries.length;
+  const held = entries.filter((e) => e.party);
+  const party = [...new Set(held.map((e) => e.party.name).filter(Boolean))].join(", ");
+  const tip = held.length === n && n > 0 ? loc("magic.standingTipParty", { n, party }) : loc("magic.standingTip", { n, scene: scene?.name ?? "—" });
+  return {
+    standing: n,
+    label: loc("magic.standing", { n }),
+    tip,
+    joined: held.length ? { n: held.length, label: loc("magic.joined", { n: held.length, party }), tip: loc("magic.standingTipParty", { n: held.length, party }) } : null,
+  };
+}
+
 /** Build the tab's data. */
 export function buildMagicTab(actor) {
   const sys = actor.system ?? {};
@@ -56,8 +82,7 @@ export function buildMagicTab(actor) {
   const standing = standingBySpell(summonsOnScene(actor, scene));
   const summonOf = (spell) => {
     if (!isSummonSpell(spell)) return null;
-    const n = standing.get(spell.id)?.length ?? 0;
-    return { standing: n, label: loc("magic.standing", { n }), tip: loc("magic.standingTip", { n, scene: scene?.name ?? "—" }) };
+    return summonRowOf(standing.get(spell.id) ?? [], { scene });
   };
   const records = [...(actor.effects ?? [])].map((effect) => spellEffectOf(effect)).filter((record) => record?.pending);
   const combatOf = (id) => (id ? (game.combats?.get(id) ?? null) : null);

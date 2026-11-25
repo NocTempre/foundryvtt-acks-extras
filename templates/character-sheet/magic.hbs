@@ -34,7 +34,8 @@
       <span class="acks-extras-frame__fact-label">{{localize "ACKS.spells.Cast"}}</span>
       <input class="acks-input acks-extras-frame__fact-input is-xs acks-nums" type="number" data-item-field="system.cast" value="{{spell.cast}}" {{disabled (not @root.editable)}}>
       {{#if spell.summon}}
-      <span class="acks-extras-frame__fact-label acks-nums" data-tooltip-text="{{spell.summon.tip}}">{{spell.summon.label}}</span>
+      <span class="acks-extras-frame__fact-label acks-nums" data-summon="standing" data-tooltip-text="{{spell.summon.tip}}">{{spell.summon.label}}</span>
+      {{#if spell.summon.joined}}<span class="acks-extras-frame__fact-label acks-nums" data-summon="joined" data-tooltip-text="{{spell.summon.joined.tip}}">{{spell.summon.joined.label}}</span>{{/if}}
       {{/if}}
       <span class="acks-extras-frame__ctls">
         <span class="acks-extras-frame__grp">

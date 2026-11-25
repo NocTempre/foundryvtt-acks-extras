@@ -479,11 +479,14 @@ function summonView(ctx, pick, judged, { cite, level }) {
   const ceiling = judged?.ceiling ?? null;
   const parens = cite ? ` (${cite})` : "";
   const feet = Number.isFinite(judged?.range) ? Math.round(judged.range * 10) / 10 : null;
-  const placement = judged?.calling
-    ? { text: loc("dialog.summonCalled"), tip: "" }
-    : feet !== null
-      ? { text: loc("dialog.summonWithin", { feet, name: ctx.caster?.name ?? "" }), tip: loc(level != null ? "tip.summonRange" : "tip.summonRangeFlat", { feet, level: level ?? "", cite: parens }) }
-      : { text: loc("dialog.summonOpen"), tip: cite };
+  // A caster who marches in a party makes the creatures its members: no place is clicked, so no range or calling line applies.
+  const placement = ctx.summon.party
+    ? { text: loc("dialog.summonJoins", { party: ctx.summon.party.name ?? "" }), tip: "" }
+    : judged?.calling
+      ? { text: loc("dialog.summonCalled"), tip: "" }
+      : feet !== null
+        ? { text: loc("dialog.summonWithin", { feet, name: ctx.caster?.name ?? "" }), tip: loc(level != null ? "tip.summonRange" : "tip.summonRangeFlat", { feet, level: level ?? "", cite: parens }) }
+        : { text: loc("dialog.summonOpen"), tip: cite };
   const creatureLabel = game.i18n.localize("ACKS-LIB.summons.creature");
   // An open band is lib's inventory bucket with one row at most: the creature dropped on it, with an X, and the drop zone (`templates/lib/bucket.hbs`, drawn from this object).
   const dropped = !flat && ctx.summon.open && pick ? { uuid: pick.ref, name: pick.name, img: pick.img ?? "" } : null;

@@ -347,19 +347,21 @@ export function henchmanIds(actor) {
  * character as summoner, with the record the module's own summoning stamped,
  * or null for one bound by hand, then each summon riding in a party token that
  * stands on the scene (`held`: its party and member id, `tokenId` null). A
- * deployed party member is a scene token and is listed once, as a token.
+ * deployed party member is a scene token and is listed once, as a token. An
+ * entry's `party` names the party a held summon rides in (its id and name as
+ * the roster lists it), null for a scene token.
  * @param {Actor} actor
  * @param {Scene|null} [scene]  omitted, the one the party cell counts on
- * @returns {{tokenId: string|null, held: {partyId: string, actorId: string}|null, name: string, img: string|null, record: object|null}[]}
+ * @returns {{tokenId: string|null, held: {partyId: string, actorId: string}|null, party: {id: string, name: string}|null, name: string, img: string|null, record: object|null}[]}
  */
 export function summonsOnScene(actor, scene = currentScene()) {
   const out = [...(scene?.tokens ?? [])]
     .filter((t) => summonerOf(t.actor) === actor.uuid)
-    .map((t) => ({ tokenId: t.id, held: null, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
+    .map((t) => ({ tokenId: t.id, held: null, party: null, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
   if (!scene) return out;
   for (const h of heldSummonsOf(actor)) {
     if (getFormation(h.partyId)?.sceneId !== scene.id) continue;
-    out.push({ tokenId: null, held: { partyId: h.partyId, actorId: h.actorId }, name: h.name, img: h.img, record: h.record });
+    out.push({ tokenId: null, held: { partyId: h.partyId, actorId: h.actorId }, party: { id: h.partyId, name: h.partyName }, name: h.name, img: h.img, record: h.record });
   }
   return out;
 }

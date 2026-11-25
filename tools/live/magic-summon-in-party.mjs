@@ -11,24 +11,31 @@
  * caster (or the party's actor) and no token of the caster stands on the viewed
  * field. A combat that holds either is another session's and is never touched:
  * the walk prints `WALK BLOCKED` with that reason and checks nothing.
+ * The caster marches inside a party that is in no fight, so the cast makes its
+ * creatures members of that party (`joinSummons`) and places no token anywhere.
  *   A. A summoning spell with no range, naming a creature the Player may
- *      observe. The confirm button's label is recorded before the press. After
- *      the press: the cast count rose by exactly one; no pending-declaration
- *      record was written; the creatures joined the party as members (the
- *      member list grew by the count) and no creature token stands on the
- *      field; the caster's Magic tab row reads the standing count; one cast
- *      card exists. The Magic tab's Dismiss control then removes the members.
- *   B. The same with a spell that states a distance range. An OBSERVATION step:
- *      a Player's request here names no caster token to measure from, and what
- *      the cast should do instead is not settled, so the step prints what it
- *      saw (the button's label, the dialog's verdicts, the refusal text, the
- *      placement result, the count before and after, whether a pending record
- *      exists) and fails only on a broken invariant: nothing placed means
- *      nothing spent, no pending record, and a refusal the user can read;
- *      something placed means the count rose by exactly one.
- * Prints booleans, counts and the module's own strings, never a book's. Machine
- * values arrive through ./_env.mjs. The recorders on the seats attach after
- * `ready`, so a clean console here says nothing about `init`, `setup` or `ready`.
+ *      observe. Before the press a GM-seat observer starts counting token
+ *      creations on the field (a count only; nothing is ever deleted by it).
+ *      The dialog's placement line is the joins line naming the party. After
+ *      the press the placement previews stay at zero and no click is made; the
+ *      cast count rose by exactly one; no pending-declaration record was
+ *      written; the creatures are members of the party, stashed (the member
+ *      list grew by the count) and the observer's count is zero; the caster's
+ *      Magic tab row reads the standing count and the joined count, each with
+ *      the party tooltip; the Player's card footnote carries the joined line.
+ *      One joined creature is then deployed and recalled through the party's
+ *      own deployment and its hit points equal the stash's both ways (the first
+ *      token ever made from a stash that was never placed). The Magic tab's
+ *      Dismiss control then removes the members.
+ *   B. The same with a spell that states a distance range. The caster has no
+ *      token to measure a range from, and a join needs none: the dialog's line
+ *      reads the joins text and not the range line, no `noCaster` refusal is
+ *      raised, the cast count rose by exactly one, one member is stashed and
+ *      none stands loose, no pending record exists, and Dismiss removes it.
+ * Prints booleans and counts, never a name or an id; the ledger's own sweep
+ * report is the one place ids print. Machine values arrive through ./_env.mjs.
+ * The recorders on the seats attach after `ready`, so a clean console here says
+ * nothing about `init`, `setup` or `ready`.
  *
  * Fixtures, kept and found by marker (the GM seat builds what is missing):
  * `magic/party-scene` (the field both seats view), `magic/party-creature` (a
@@ -70,8 +77,12 @@ const RANGE_FEET = 30;
 /** How many creatures each spell's row asks for. */
 const COUNT_OPEN = 2;
 const COUNT_RANGED = 1;
+/** The creature's hit points: above 0, since a party member at 0 is carried and never deployed. */
+const CREATURE_HP = 6;
 /** The party fixture's name: the name the formation's own cards speak under. */
 const PARTY_NAME = "QA Party Cast Party";
+/** The caster fixture's name, which the range line the dialog would draw without a party names. */
+const CASTER_NAME = "QA Party Cast Caster";
 
 /* ------------------------------------------------------------------ */
 /*  Page side: each function is stringified and run in a seat's page.  */
@@ -178,12 +189,31 @@ const P = {
 
   /* ---- shapes ---- */
 
-  /** The creature gives the Player's user Observer; answers the level the world reads back. */
-  shapeCreature: async ({ creatureId, playerId }) => {
+  /** The creature gives the Player's user Observer and stands at a hit-point figure above 0 (a member at 0 is carried, never deployed); answers the level the world reads back. */
+  shapeCreature: async ({ creatureId, playerId, hp }) => {
     const actor = game.actors.get(creatureId);
-    await actor.update({ [`ownership.${playerId}`]: 2 });
+    await actor.update({ [`ownership.${playerId}`]: 2, "system.hp.value": hp, "system.hp.max": hp });
     await new Promise((r) => setTimeout(r, 400));
-    return { level: game.actors.get(creatureId).ownership?.[playerId] ?? null, isMonster: actor.type === "monster" };
+    return { level: game.actors.get(creatureId).ownership?.[playerId] ?? null, isMonster: actor.type === "monster", hp: game.actors.get(creatureId).system.hp?.value ?? null };
+  },
+  /** A localized string as this seat reads it. */
+  loc: async ({ key, data }) => game.i18n.format(key, data ?? {}),
+  /** Start counting the tokens created on a scene on this seat (a count only; nothing it sees is ever deleted). */
+  watchTokens: async ({ sceneId }) => {
+    const H = globalThis.__mps;
+    H.created = 0;
+    if (H.createHook) Hooks.off("createToken", H.createHook);
+    H.createHook = Hooks.on("createToken", (token) => { if (token.parent?.id === sceneId) H.created++; });
+    return true;
+  },
+  /** The tokens created on the watched scene since `watchTokens`. */
+  watched: async () => globalThis.__mps.created ?? null,
+  /** Stop counting. */
+  unwatchTokens: async () => {
+    const H = globalThis.__mps;
+    if (H.createHook) Hooks.off("createToken", H.createHook);
+    H.createHook = null;
+    return true;
   },
   /** On the seat: whether it resolves the creature and may observe it. */
   observes: async ({ uuid }) => {
@@ -200,7 +230,7 @@ const P = {
   /** One spell's flag replaced whole (the old flag deleted first): its summon row, its duration and, where given, its distance range in feet. The count is 0 again. */
   reshape: async ({ casterId, spellId, ref, amount, duration, rangeFeet }) => {
     const item = game.actors.get(casterId).items.get(spellId);
-    await item.update({ "flags.acks-extras.-=spell": null });
+    await item.update({ "flags.acks-extras.spell": new foundry.data.operators.ForcedDeletion() });
     const flag = { schools: ["summoning"], effects: [{ type: "summon", ref, amount }], duration };
     if (rangeFeet != null) flag.range = { shape: "distance", value: rangeFeet, unit: "feet" };
     await item.update({ "system.cast": 0, "flags.acks-extras.spell": flag });
@@ -319,6 +349,46 @@ const P = {
     const spell = game.actors.get(casterId).items.get(spellId);
     return rangeFeet(castFiguresOf(spell, {}, null).range, level)?.value ?? null;
   },
+  /**
+   * Deploy one stashed summon member through the party's own deployment, then read the token it made: its hit points beside the
+   * stash's (the stash's own delta figure, else its actor's). Answers the token's uuid so the run can track it.
+   */
+  deployOne: async ({ fid, actorId }) => {
+    const H = globalThis.__mps;
+    const f = H.model.getFormation(fid);
+    const member = f.members.find((m) => m?.actorId === actorId);
+    if (!member || !H.model.isSummonMember(member)) return { ok: false, reason: "no such summon member" };
+    // The stash is lowered by one through the roster's own write first, so the figure the stash holds differs from the copy's and a token that read the copy instead would show it.
+    const svc = (await import("/modules/acks-extras/scripts/lib/services.mjs")).get("party-roster");
+    const lowered = await svc.adjustStashedHp(fid, actorId, (hp) => (hp.value > 1 ? hp.value - 1 : null));
+    // One read of the record, so the member handed to the deployment is one of that record's own.
+    const fresh = H.model.getFormation(fid);
+    const again = fresh.members.find((m) => m?.actorId === actorId);
+    const copyHp = H.model.getMemberActor(again)?.system?.hp?.value ?? null;
+    const stashHp = again.tokenData?.delta?.system?.hp?.value ?? null;
+    const made = await H.dep.deployMembers(fresh, { members: [again] });
+    const token = made[0] ?? null;
+    return { ok: !!token, made: made.length, uuid: token?.uuid ?? null, lowered: !!lowered, copyHp, stashHp, hp: token?.actor?.system?.hp?.value ?? null, deployed: H.dep.isMemberDeployed(H.model.getFormation(fid).members.find((m) => m?.actorId === actorId)) };
+  },
+  /** Recall one deployed summon member through the party's own recall, then read the stash it came back as. */
+  recallOne: async ({ fid, actorId }) => {
+    const H = globalThis.__mps;
+    const f = H.model.getFormation(fid);
+    const member = f.members.find((m) => m?.actorId === actorId);
+    if (!member) return { ok: false, reason: "no such member" };
+    await H.dep.recallMembers(f, { members: [member] });
+    const after = H.model.getFormation(fid).members.find((m) => m?.actorId === actorId);
+    return { ok: !!after, deployed: !!after && H.dep.isMemberDeployed(after), stashed: !!after?.tokenData, stashHp: after?.tokenData?.delta?.system?.hp?.value ?? H.model.getMemberActor(after)?.system?.hp?.value ?? null };
+  },
+  /** What a card's rendered body shows on this seat: its footnote. The card is drawn in the Chat tab, so that tab is brought up first. */
+  cardFootnote: async ({ messageId }) => {
+    const H = globalThis.__mps;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    const el = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"]`), { tries: 40, every: 200 });
+    if (!el) return { found: false };
+    await H.sleep(500);
+    return { found: true, footnote: el.querySelector(".acks-extras-roll-footnote")?.textContent?.trim() ?? null };
+  },
   /** The world copies of a creature source, by uuid. */
   copiesOf: async ({ sourceUuid }) => game.actors.filter((a) => a.getFlag("acks-extras", "summonCopy")?.sourceUuid === sourceUuid).map((a) => a.uuid),
   /** The caster records one cast left on the actor. */
@@ -365,13 +435,6 @@ const P = {
     if (!found) return { dialog: false };
     return { ...H.band(), titled: (H.live()?.querySelector(".window-title")?.textContent ?? "").includes(spellName) };
   },
-  /** Cancel the open dialog, as a user dismisses it. */
-  cancelDialog: async () => {
-    const H = globalThis.__mps;
-    H.live()?.querySelector('button[data-action="cancel"]')?.click();
-    await H.sleep(800);
-    return !H.live();
-  },
   /** Type the count into the open dialog, press its confirm button, then clear every framed window off the map. */
   confirm: async ({ count }) => {
     const H = globalThis.__mps;
@@ -403,49 +466,9 @@ const P = {
     const cards = H.cards(casterId).filter((id) => !H.seen.has(id));
     return { cast: item.system.cast, cards, castCards: cards.filter((id) => !!game.messages.get(id)?.flags?.["acks-extras"]?.castCard) };
   },
-  /**
-   * One client point per entry of `cells`, found by scanning the viewport at least 60 px from every edge
-   * for bare canvas that maps well inside the scene, each apart from the others and from `avoid`.
-   */
-  pointsFor: async ({ cells, avoid = [] }) => {
-    const r = canvas.dimensions.sceneRect;
-    // Core clamps the zoom and an animation can still be moving the view, so the pan repeats until two reads half a second apart agree.
-    const snap = () => `${canvas.stage.scale.x.toFixed(3)}:${Math.round(canvas.stage.pivot.x)}:${Math.round(canvas.stage.pivot.y)}`;
-    let last = "";
-    for (let n = 0; n < 12; n++) {
-      canvas.pan({ x: r.x + r.width / 2, y: r.y + r.height / 2, scale: 0.5 });
-      await new Promise((res) => setTimeout(res, 500));
-      const now = snap();
-      if (now === last) break;
-      last = now;
-    }
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    const found = [];
-    // Core's placement edge-pans the view while the pointer stands within 50 px of an edge, so no point is taken from that band.
-    for (let y = 60; y <= H - 60; y += 30) {
-      for (let x = 60; x <= W - 60; x += 30) {
-        if (document.elementFromPoint(x, y) !== canvas.app.view) continue;
-        const back = canvas.canvasCoordinatesFromClient({ x, y });
-        if (back.x >= r.x + 100 && back.y >= r.y + 100 && back.x <= r.x + r.width - 100 && back.y <= r.y + r.height - 100) found.push({ x, y });
-      }
-    }
-    if (!found.length) return cells.map(() => ({ x: 0, y: 0, onCanvas: false, hidden: document.hidden }));
-    const cx = found.reduce((a, p) => a + p.x, 0) / found.length;
-    const cy = found.reduce((a, p) => a + p.y, 0) / found.length;
-    found.sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy));
-    const apart = Math.max(120, canvas.dimensions.size * canvas.stage.scale.x * 1.5);
-    const out = [];
-    for (const _cell of cells) {
-      const pick = found.find((p) => [...out, ...avoid].every((o) => Math.hypot(p.x - o.x, p.y - o.y) >= apart));
-      out.push(pick ? { x: pick.x, y: pick.y, onCanvas: true } : { x: 0, y: 0, onCanvas: false });
-    }
-    return out;
-  },
-
   /* ---- reads and the Dismiss control ---- */
 
-  /** The Magic tab's rows for these spells: the standing count's face and tooltip, and whether Dismiss is offered. */
+  /** The Magic tab's rows for these spells: the standing count's face and tooltip, the joined count's, and whether Dismiss is offered. */
   magicRows: async ({ actorId, spellIds }) => {
     const H = globalThis.__mps;
     const sheet = game.actors.get(actorId).sheet;
@@ -454,9 +477,10 @@ const P = {
     await H.sleep(700);
     return spellIds.map((id) => {
       const row = H.root(sheet)?.querySelector(`[data-item-id='${id}']`);
-      const count = row?.querySelector("[data-tooltip-text]");
+      const count = row?.querySelector("[data-summon=standing]");
+      const joined = row?.querySelector("[data-summon=joined]");
       const dismiss = row?.querySelector("[data-action='spellDismiss']");
-      return { row: !!row, face: count?.textContent.trim() ?? null, tipped: !!count?.dataset.tooltipText, dismiss: !!dismiss };
+      return { row: !!row, face: count?.textContent.trim() ?? null, tipped: !!count?.dataset.tooltipText, tip: count?.dataset.tooltipText ?? null, joinedFace: joined?.textContent.trim() ?? null, joinedTip: joined?.dataset.tooltipText ?? null, dismiss: !!dismiss };
     });
   },
   /** Press the spell row's Dismiss on the Magic tab; the confirmation is answered apart. */
@@ -548,23 +572,19 @@ async function frontSeat(port) {
   s.close();
   await sleep(1200);
 }
-/** Click points for the Player seat, with its pointer parked in the viewport's middle first: core's placement pans the canvas while the pointer stands in the 50 px edge band. */
-async function pointsFor(args) {
+/**
+ * End a placement that started when none should have, as a user does: a right click in the middle of the Player seat's view.
+ * A join starts no placement, so this runs only on the failure path, and the walk makes no click of its own otherwise.
+ */
+async function cancelPlacement() {
+  await frontSeat(PORTS.player);
   const { x, y } = await run(player, P.middle);
   const s = await pageSession(PORTS.player);
   await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
-  s.close();
-  await sleep(400);
-  return run(player, P.pointsFor, args);
-}
-/** A real click on the Player seat's page: the pointer moves there first, so core's preview follows it. */
-async function clickAt({ x, y }, button = "left") {
-  const s = await pageSession(PORTS.player);
-  await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
   await sleep(250);
-  await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button, buttons: button === "left" ? 1 : 2, clickCount: 1 });
+  await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "right", buttons: 2, clickCount: 1 });
   await sleep(80);
-  await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button, buttons: 0, clickCount: 1 });
+  await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "right", buttons: 0, clickCount: 1 });
   s.close();
   await sleep(700);
 }
@@ -631,7 +651,7 @@ try {
   });
   const creature = await gm.fixture("magic/party-creature", "Actor", { name: "QA Party Cast Creature", type: "monster", ownership: { default: 0 } });
   const caster = await gm.fixture("magic/party-caster", "Actor", {
-    name: "QA Party Cast Caster", type: "character", prototypeToken: { actorLink: true }, system: { spells: { enabled: true }, hp: { value: 9, max: 9 } }, ownership: { default: 0, [playerId]: 3 },
+    name: CASTER_NAME, type: "character", prototypeToken: { actorLink: true }, system: { spells: { enabled: true }, hp: { value: 9, max: 9 } }, ownership: { default: 0, [playerId]: 3 },
   });
   const nameOpen = "QA Party Open Spell";
   const nameRanged = "QA Party Ranged Spell";
@@ -647,8 +667,8 @@ try {
   casterUuid = `Actor.${casterId}`;
   const creatureUuid = `Actor.${creatureId}`;
 
-  const shapedCreature = await run(gm, P.shapeCreature, { creatureId, playerId });
-  check("shape: the creature is a monster and the world reads the Player's user at Observer (level 2)", shapedCreature.isMonster && shapedCreature.level === 2, shapedCreature);
+  const shapedCreature = await run(gm, P.shapeCreature, { creatureId, playerId, hp: CREATURE_HP });
+  check("shape: the creature is a monster standing above 0 hit points and the world reads the Player's user at Observer (level 2)", shapedCreature.isMonster && shapedCreature.level === 2 && shapedCreature.hp === CREATURE_HP, shapedCreature);
   const seatRead = await until(player, P.observes, { uuid: creatureUuid }, (r) => r.observes, { tries: 20, every: 300 });
   check("the Player seat resolves the creature and may observe it", seatRead.resolves && seatRead.observes, seatRead);
   const shapedCaster = await run(gm, P.shapeCaster, { casterId });
@@ -715,30 +735,35 @@ try {
   const sA = await st();
   const pendingA0 = await run(gm, P.pending, { casterId });
   check("A: start shape: no summon member of the caster, none loose, no pending declaration on the caster", sA.mine === 0 && sA.loose === 0 && pendingA0.pending.length === 0, { mine: sA.mine, loose: sA.loose, pending: pendingA0.pending.length });
+  // The words this walk compares against are the module's own, read from the seat that shows them.
+  const joinsLine = await run(player, P.loc, { key: "ACKS-MAGIC.cast.dialog.summonJoins", data: { party: PARTY_NAME } });
+  const joinedFace = (n) => run(player, P.loc, { key: "ACKS-CHARACTER.magic.joined", data: { n, party: PARTY_NAME } });
+  const partyTip = (n) => run(player, P.loc, { key: "ACKS-CHARACTER.magic.standingTipParty", data: { n, party: PARTY_NAME } });
+  await run(gm, P.watchTokens, { sceneId });
   const pressA = await run(player, P.press, { casterId, spellId: openId });
   check("A: the Magic tab's Cast button exists on the spell row", pressA.button && pressA.before === 0, { before: pressA.before });
   if (!pressA.button) throw new Error("no Cast button on the Player's Magic tab");
   const dlgA = await run(player, P.dialog, { spellName: nameOpen });
   check("A: the cast dialog opens, titled for the spell, with a Summon band whose one choice is the spell's row and no Targets band", dlgA.dialog && dlgA.titled && dlgA.summonBand && !dlgA.targetsBand && dlgA.values.length === 1 && dlgA.values[0] === creatureUuid, { choices: dlgA.values?.length, summonBand: dlgA.summonBand });
-  check(`A: the confirm button's label before the press: "${dlgA.castLabel}"`, dlgA.castLabel.length > 0 && !dlgA.castDisabled, { label: dlgA.castLabel, disabled: dlgA.castDisabled, verdicts: dlgA.verdicts, count: dlgA.count });
+  check("A: the dialog's placement line is the joins line naming the party, and no range line stands in its place", dlgA.placement === joinsLine && dlgA.placement.length > 0, { isJoins: dlgA.placement === joinsLine });
+  check("A: the confirm button is on and carries a label before the press, with no verdict against the cast", dlgA.castLabel.length > 0 && !dlgA.castDisabled && dlgA.verdicts.every((v) => v.severity !== "block"), { label: dlgA.castLabel.length > 0, disabled: dlgA.castDisabled, verdicts: dlgA.verdicts.length, count: dlgA.count });
   const midA = await run(player, P.castState, { casterId, spellId: openId });
   check("A: with the dialog up the cast count is unchanged and no card has posted", midA.cast === 0 && midA.cards.length === 0, { cast: midA.cast, cards: midA.cards.length });
   const answeredA = await run(player, P.confirm, { count: COUNT_OPEN });
   check("A: the confirm button is pressed and the windows are cleared off the map", answeredA.dialog && answeredA.pressed, answeredA);
-  await frontSeat(PORTS.player);
-  const previewsA = (await until(player, P.previews, {}, (n) => n > 0, { tries: 20, every: 250 })) ?? 0;
-  note("A: placement previews up on the Player seat after the press, and the warnings the press raised", { previews: previewsA, warns: await run(player, P.warnsTake) });
-  const clickedA = [];
-  for (let i = 0; i < COUNT_OPEN; i++) {
-    const [p] = await pointsFor({ cells: [i], avoid: clickedA });
-    if (!p.onCanvas) {
-      // The placement is still pending: a right click cancels it before the walk stops.
-      try { await clickAt(await run(player, P.middle), "right"); } catch { /* the failure below is the one to report */ }
-      throw new Error(`a click point left the bare canvas before its click: ${JSON.stringify(p)}`);
-    }
-    await clickAt(p);
-    clickedA.push(p);
+  // No placement starts: the previews are sampled over the seconds the cast takes to settle, and the highest read is the one kept.
+  let previewsA = 0;
+  for (let n = 0; n < 8; n++) {
+    previewsA = Math.max(previewsA, await run(player, P.previews));
+    await sleep(250);
   }
+  if (previewsA > 0) {
+    // A placement is pending, so the cast took the click path: a right click ends it before the walk stops.
+    try { await cancelPlacement(); } catch { /* the failure below is the one to report */ }
+    check("A: the placement previews stay at zero: no click is asked of the Player", false, { previews: previewsA });
+    throw new Error("the cast started a placement instead of joining the party");
+  }
+  check("A: the placement previews stay at zero: no click is asked of the Player", previewsA === 0, { previews: previewsA });
   const afterA = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine >= COUNT_OPEN && s.loose === 0, { tries: 80, every: 300 });
   const castA = await until(player, P.castState, { casterId, spellId: openId }, (s) => s.cast > 0 && s.castCards.length >= 1, { tries: 60, every: 200 });
   await sleep(900);
@@ -752,23 +777,38 @@ try {
   check("A: no pending-declaration record was written for the caster, and it does not carry the casting status", pendingA.pending.length === 0 && !pendingA.casting, { pending: pendingA.pending.length, casting: pendingA.casting });
   check("A: the creatures are members of the party: the member list grew by the count, under distinct ids, each naming the caster and one cast", mineA.length === sA.mine + COUNT_OPEN && new Set(mineA.map((x) => x.id)).size === COUNT_OPEN && !!castIdA && mineA.every((x) => x.by === casterUuid && x.cast === castIdA && x.spell === openId && x.stashed), { members: mineA.length });
   check("A: no creature token stands on the field", afterA.loose === 0 && afterA.deployedTokens === 0, { loose: afterA.loose, deployed: afterA.deployedTokens });
+  const createdA = await run(gm, P.watched);
+  check("A: the GM seat's observer saw no token created on the field from the press to the settled cast", createdA === 0, { created: createdA });
+  await run(gm, P.unwatchTokens);
   check("A: the caster is still the party's one person with no token of its own on the field", afterA.persons === 1 && afterA.hasCaster && afterA.casterTokens === 0, { persons: afterA.persons, casterTokens: afterA.casterTokens });
   check("A: one cast card exists for the cast", settledA.castCards.length === 1, { castCards: settledA.castCards.length });
   check("A: the cast left one caster record naming the cast", recordsA.length === 1 && recordsA[0].role === "caster", { n: recordsA.length, role: recordsA[0]?.role });
   await run(player, P.clearWindows);
-  const rowsA = await until(player, P.magicRows, { actorId: casterId, spellIds: [openId] }, (r) => r[0]?.face === `${COUNT_OPEN} standing`, { tries: 20, every: 400 });
-  check(`A: the Magic tab's row for the spell reads "${COUNT_OPEN} standing", with a tooltip and a Dismiss control`, rowsA[0].row && rowsA[0].face === `${COUNT_OPEN} standing` && rowsA[0].tipped && rowsA[0].dismiss, rowsA[0]);
-  const dismissedA = await run(player, P.pressDismiss, { casterId, spellId: openId });
+  const standingFace = await run(player, P.loc, { key: "ACKS-CHARACTER.magic.standing", data: { n: COUNT_OPEN } });
+  const rowsA = await until(player, P.magicRows, { actorId: casterId, spellIds: [openId] }, (r) => r[0]?.face === standingFace && !!r[0]?.joinedFace, { tries: 20, every: 400 });
+  check("A: the Magic tab's row reads the standing count, with the party's tooltip on it and a Dismiss control", rowsA[0].row && rowsA[0].face === standingFace && rowsA[0].tip === (await partyTip(COUNT_OPEN)) && rowsA[0].dismiss, { row: rowsA[0].row, face: rowsA[0].face === standingFace, tip: rowsA[0].tip === (await partyTip(COUNT_OPEN)), dismiss: rowsA[0].dismiss });
+  check("A: the Magic tab's row reads the joined count beside it, with the party tooltip on it", rowsA[0].joinedFace === (await joinedFace(COUNT_OPEN)) && rowsA[0].joinedTip === (await partyTip(COUNT_OPEN)), { face: rowsA[0].joinedFace === (await joinedFace(COUNT_OPEN)), tip: rowsA[0].joinedTip === (await partyTip(COUNT_OPEN)) });
+  const cardA = await run(player, P.cardFootnote, { messageId: settledA.castCards[0] });
+  const joinedLine = await run(player, P.loc, { key: "ACKS-MAGIC.cast.line.summonedJoined", data: { n: COUNT_OPEN, party: PARTY_NAME } });
+  check("A: the cast card, as the Player seat draws it, carries the joined line in its footnote", cardA.found && typeof cardA.footnote === "string" && cardA.footnote.includes(joinedLine), { found: cardA.found, carries: !!cardA.footnote?.includes(joinedLine) });
+  const memberA = mineA[0];
+  const outA = await run(gm, P.deployOne, { fid, actorId: memberA.id });
+  if (outA.uuid) await track(outA.uuid, "Token");
+  check("A: one joined creature is deployed through the party's own deployment: a token is made and the member stands deployed", outA.ok && outA.made === 1 && outA.deployed, { made: outA.made, deployed: outA.deployed });
+  check("A: the deployed token's hit points equal the stash's, which the roster lowered below the copy's, so a token read from the copy would differ (the first token ever made from a stash that was never placed)", outA.lowered && outA.stashHp !== null && outA.stashHp < outA.copyHp && outA.hp === outA.stashHp && outA.hp > 0, { lowered: outA.lowered, belowCopy: outA.stashHp < outA.copyHp, equal: outA.hp === outA.stashHp, positive: outA.hp > 0 });
+  const backA = await run(gm, P.recallOne, { fid, actorId: memberA.id });
+  check("A: the same creature is recalled into the party, stashed again with the same hit points, and no token of it stands", backA.ok && !backA.deployed && backA.stashed && backA.stashHp === outA.stashHp, { deployed: backA.deployed, stashed: backA.stashed, equal: backA.stashHp === outA.stashHp });
+  const dismissedA =await run(player, P.pressDismiss, { casterId, spellId: openId });
   check("A: the Magic tab's Dismiss control is pressed and its confirmation answered Yes", dismissedA.button && (await run(player, P.answerConfirm, { action: "yes" })), dismissedA);
   const goneA = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine === 0 && s.loose === 0, { tries: 40, every: 300 });
   check("A: the dismissed creatures are gone from the party and none stands on the field", goneA.mine === 0 && goneA.loose === 0 && goneA.hasCaster, { mine: goneA.mine, loose: goneA.loose });
   await run(player, P.clearWindows);
   const dA = await run(player, P.drain);
-  note("A: the warnings the Player seat raised after the press", dA.warns);
+  note("A: the count of warnings the Player seat raised after the press", dA.warns.length);
   check("A: no console error or uncaught error on the Player seat", !dA.errors.length && !dA.uncaught.length, { errors: dA.errors.length, uncaught: dA.uncaught.length });
 
   /* ---------------------------------------------------------------- */
-  section("B. a spell that states a distance range, cast from inside the party (observation)");
+  section("B. a spell that states a distance range, cast from inside the party");
   const shapedB = await run(gm, P.reshape, { casterId, spellId: rangedId, ref: creatureUuid, amount: COUNT_RANGED, duration: DURATION, rangeFeet: RANGE_FEET });
   check("B: start shape: the spell reads as a summoning spell with one row, the fixture's distance range, the count at 0", shapedB.isSpell && shapedB.summon && shapedB.rows === 1 && shapedB.range === RANGE_FEET && shapedB.cast === 0, shapedB);
   const sB = await st();
@@ -777,8 +817,8 @@ try {
   await run(player, P.warnsTake);
   const rangeAtPlayer = await until(player, P.rangeRead, { casterId, spellId: rangedId, level: 5 }, (n) => n === RANGE_FEET, { tries: 20, every: 300 });
   if (rangeAtPlayer !== RANGE_FEET) {
-    check("B: start shape: the Player seat's own reading of the spell gives the fixture's range, so the observation is void without it", false, { read: rangeAtPlayer, expected: RANGE_FEET });
-    throw new Error("the module does not read the ranged spell's range on the Player seat; step B's observation is void");
+    check("B: start shape: the Player seat's own reading of the spell gives the fixture's range, without which the step proves nothing about a range", false, { read: rangeAtPlayer, expected: RANGE_FEET });
+    throw new Error("the module does not read the ranged spell's range on the Player seat; step B proves nothing about a range");
   }
   check("B: start shape: the Player seat's own reading of the spell gives the fixture's range in feet", true, { read: rangeAtPlayer });
   const pressB = await run(player, P.press, { casterId, spellId: rangedId });
@@ -786,69 +826,42 @@ try {
   if (!pressB.button) throw new Error("no Cast button on the Player's Magic tab");
   const dlgB = await run(player, P.dialog, { spellName: nameRanged });
   check("B: the cast dialog opens, titled for the spell, with a Summon band", dlgB.dialog && dlgB.titled && dlgB.summonBand, { summonBand: dlgB.summonBand });
-  const obs = { label: dlgB.castLabel, disabled: dlgB.castDisabled, verdicts: dlgB.verdicts, placementLine: dlgB.placement, count: dlgB.count, pressed: false, previews: 0, clicked: false, warnsAfterClick: [], castBefore: pressB.before, castAfter: null, pendingAfter: null, membersAfter: null, looseAfter: null, cards: null, outcome: "" };
-  let spentB = null;
-  if (dlgB.castDisabled) {
-    obs.outcome = "the confirm button was off; nothing pressed";
-    await run(player, P.cancelDialog);
-  } else {
-    const answeredB = await run(player, P.confirm, { count: COUNT_RANGED });
-    obs.pressed = !!answeredB.pressed;
-    obs.warnsAtPress = await run(player, P.warnsTake);
-    await frontSeat(PORTS.player);
-    obs.previews = (await until(player, P.previews, {}, (n) => n > 0, { tries: 20, every: 250 })) ?? 0;
-    const [p] = await pointsFor({ cells: [0], avoid: [] });
-    if (obs.previews > 0 && p.onCanvas) {
-      await clickAt(p);
-      obs.clicked = true;
-      // Either the cast is spent (the click was taken) or the click is refused and the placement stays pending; a spend with nothing placed is read below.
-      for (let n = 0; n < 40; n++) {
-        const s = await run(player, P.castState, { casterId, spellId: rangedId });
-        obs.warnsAfterClick.push(...(await run(player, P.warnsTake)));
-        if (s.cast > 0) { spentB = s; break; }
-        if (obs.warnsAfterClick.length && n >= 8) break;
-        await sleep(300);
-      }
-      if (!spentB) {
-        // The placement is pending after a refused click: a right click cancels it, as a user does.
-        const [q] = await pointsFor({ cells: [0], avoid: [] });
-        await clickAt(q.onCanvas ? q : await run(player, P.middle), "right");
-        await sleep(2500);
-        obs.warnsAfterClick.push(...(await run(player, P.warnsTake)));
-      }
-    } else {
-      obs.outcome = obs.previews > 0 ? "no bare canvas to click" : "no placement started after the press";
-      if (obs.previews > 0) { try { await clickAt(await run(player, P.middle), "right"); } catch { /* reported above */ } }
-    }
+  const withinLine = await run(player, P.loc, { key: "ACKS-MAGIC.cast.dialog.summonWithin", data: { feet: RANGE_FEET, name: CASTER_NAME } });
+  check("B: the dialog's placement line is the joins line and not the range line the spell's distance would give", dlgB.placement === joinsLine && dlgB.placement !== withinLine && !dlgB.placement.includes(`${RANGE_FEET}`), { isJoins: dlgB.placement === joinsLine, isRange: dlgB.placement === withinLine });
+  check("B: the confirm button is on, so a spell with a distance and a caster with no token is not refused before the press", !dlgB.castDisabled && dlgB.verdicts.every((v) => v.severity !== "block"), { disabled: dlgB.castDisabled, verdicts: dlgB.verdicts.length });
+  const answeredB = await run(player, P.confirm, { count: COUNT_RANGED });
+  check("B: the confirm button is pressed and the windows are cleared off the map", answeredB.dialog && answeredB.pressed, answeredB);
+  const warnsB = await run(player, P.warnsTake);
+  const noCaster = await run(player, P.loc, { key: "ACKS-LIB.summons.refused.noCaster" });
+  let previewsB = 0;
+  for (let n = 0; n < 6; n++) {
+    previewsB = Math.max(previewsB, await run(player, P.previews));
+    await sleep(250);
   }
-  const afterB = await until(gm, P.state, { fid, sceneId, casterId }, (s) => spentB ? s.mine >= COUNT_RANGED || s.loose > 0 : true, { tries: spentB ? 40 : 3, every: 300 });
-  await sleep(spentB ? 900 : 0);
+  if (previewsB > 0) {
+    try { await cancelPlacement(); } catch { /* the failure below is the one to report */ }
+    check("B: the placement previews stay at zero", false, { previews: previewsB });
+    throw new Error("the ranged cast started a placement instead of joining the party");
+  }
+  const afterB = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine >= COUNT_RANGED, { tries: 40, every: 300 });
+  await sleep(900);
   const settledB = await run(player, P.castState, { casterId, spellId: rangedId });
+  const warnsB2 = [...warnsB, ...(await run(player, P.warnsTake))];
   const pendingB = await run(gm, P.pending, { casterId });
   const mineB = afterB.summons.filter((s) => s.by === casterUuid);
   const castIdB = mineB[0]?.cast ?? "";
   for (const uuid of await run(gm, P.copiesOf, { sourceUuid: creatureUuid })) if (!copiesBefore.includes(uuid)) await track(uuid, "Actor");
   await trackCast(rangedId, settledB, castIdB);
-  const placedB = afterB.mine > 0 || afterB.loose > 0;
-  Object.assign(obs, { castAfter: settledB.cast, pendingAfter: pendingB.pending.length, membersAfter: afterB.mine, looseAfter: afterB.loose, cards: settledB.cards.length });
-  obs.outcome ||= placedB ? "creatures placed" : (settledB.cast > pressB.before ? "spent with nothing placed" : "nothing placed, nothing spent");
-  const refusalText = [...(obs.warnsAtPress ?? []), ...obs.warnsAfterClick, ...(dlgB.castDisabled ? dlgB.verdicts.map((v) => v.text) : [])].filter(Boolean);
-  note("B observation", { ...obs, refusalText });
-  check(`B observation: confirm label "${obs.label}", outcome "${obs.outcome}", cast ${obs.castBefore} to ${obs.castAfter}, pending record ${obs.pendingAfter ? "present" : "absent"}, refusal text ${refusalText.length ? JSON.stringify(refusalText) : "none"}`, true);
-  if (!placedB) {
-    check("B invariant: nothing placed, so nothing was spent: the cast count is unchanged and no cast card posted", settledB.cast === pressB.before && settledB.castCards.length === 0, { before: pressB.before, after: settledB.cast, castCards: settledB.castCards.length });
-    check("B invariant: nothing placed, so no pending-declaration record exists and the caster does not carry the casting status", pendingB.pending.length === 0 && !pendingB.casting, { pending: pendingB.pending.length, casting: pendingB.casting });
-    check("B invariant: nothing placed, so the user was shown a refusal they can read (a notice or a footer verdict)", refusalText.length > 0 && refusalText.every((t) => t.trim().length > 0), { refusalText });
-  } else {
-    check("B invariant: creatures placed, so the cast count rose by exactly one", settledB.cast === pressB.before + 1, { before: pressB.before, after: settledB.cast });
-    check("B invariant: creatures placed, so no pending-declaration record exists", pendingB.pending.length === 0, { pending: pendingB.pending.length });
-    check("B invariant: creatures placed, so they joined the party as members and none stands on the field", mineB.length === COUNT_RANGED && afterB.loose === 0 && afterB.deployedTokens === 0, { members: mineB.length, loose: afterB.loose });
-    await run(player, P.clearWindows);
-    const dismissedB = await run(player, P.pressDismiss, { casterId, spellId: rangedId });
-    if (dismissedB.button) await run(player, P.answerConfirm, { action: "yes" });
-    const goneB = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine === 0 && s.loose === 0, { tries: 40, every: 300 });
-    check("B: the placed creatures were dismissed through the Magic tab's Dismiss control", dismissedB.button && goneB.mine === 0 && goneB.loose === 0, { button: dismissedB.button, mine: goneB.mine });
-  }
+  check("B: the placement previews stay at zero: no click is asked of the Player", previewsB === 0, { previews: previewsB });
+  check("B: no noCaster refusal was raised on the Player seat", !warnsB2.includes(noCaster), { warnings: warnsB2.length });
+  check("B: the cast count rose by exactly one", settledB.cast === pressB.before + 1, { before: pressB.before, after: settledB.cast });
+  check("B: no pending-declaration record exists and the caster does not carry the casting status", pendingB.pending.length === 0 && !pendingB.casting, { pending: pendingB.pending.length, casting: pendingB.casting });
+  check("B: one member is stashed in the party and none stands loose on the field", mineB.length === COUNT_RANGED && mineB.every((x) => x.stashed && x.by === casterUuid && x.spell === rangedId) && afterB.loose === 0 && afterB.deployedTokens === 0, { members: mineB.length, loose: afterB.loose, deployed: afterB.deployedTokens });
+  await run(player, P.clearWindows);
+  const dismissedB = await run(player, P.pressDismiss, { casterId, spellId: rangedId });
+  if (dismissedB.button) await run(player, P.answerConfirm, { action: "yes" });
+  const goneB = await until(gm, P.state, { fid, sceneId, casterId }, (s) => s.mine === 0 && s.loose === 0, { tries: 40, every: 300 });
+  check("B: the Magic tab's Dismiss control removes the joined creature from the party", dismissedB.button && goneB.mine === 0 && goneB.loose === 0, { button: dismissedB.button, mine: goneB.mine, loose: goneB.loose });
   await run(player, P.clearWindows);
   const dB = await run(player, P.drain);
   check("B: no console error or uncaught error on the Player seat", !dB.errors.length && !dB.uncaught.length, { errors: dB.errors.length, uncaught: dB.uncaught.length });
@@ -884,6 +897,7 @@ try {
       for (const uuid of cards) await track(uuid, "ChatMessage");
     }
   } catch (err) { console.error("leavings:", err?.message ?? err); }
+  try { if (gm) await run(gm, P.unwatchTokens); } catch (err) { console.error("unwatch:", err?.message ?? err); }
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     try { if (seat) note(`restored (${label})`, await run(seat, P.restore)); } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
   }

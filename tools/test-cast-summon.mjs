@@ -90,8 +90,8 @@ const makeSpell = ({ rows = [row()], extra = {}, over = {} } = {}) => {
  * clicks, the verdict, the placement and the shelf prompt are doubles: lib's own
  * are walked in `test-summons.mjs` and live.
  */
-function runDeps({ answer, isGM = false, seat = null, gmOnline = true, level = { matched: false }, capacity = { verdict: "ok" }, tradition: trad = null, world = {}, clicks, verdict, place, pickSummon } = {}) {
-  const calls = { notices: [], texts: [], posts: [], records: [], spends: 0, pools: [], verdicts: [], clicked: [], placed: [], picked: [], declares: [], finishes: 0, ended: 0, asked: 0 };
+function runDeps({ answer, isGM = false, seat = null, gmOnline = true, level = { matched: false }, capacity = { verdict: "ok" }, tradition: trad = null, world = {}, clicks, verdict, place, pickSummon, joining } = {}) {
+  const calls = { notices: [], texts: [], posts: [], records: [], spends: 0, pools: [], verdicts: [], clicked: [], placed: [], picked: [], declares: [], finishes: 0, ended: 0, asked: 0, partyReads: 0 };
   const order = [];
   const deps = {
     lookups: NO_TWIN,
@@ -127,11 +127,19 @@ function runDeps({ answer, isGM = false, seat = null, gmOnline = true, level = {
       return made;
     },
     summon: async (ctx) => {
-      order.push("place");
+      order.push(ctx.joining ? "join" : "place");
       calls.placed.push(ctx);
-      return typeof place === "function" ? place(ctx) : (place ?? { ok: true, castId: ctx.castId, tokenUuids: ctx.positions.map((_, i) => `Scene.s1.Token.t${i}`) });
+      if (typeof place === "function") return place(ctx);
+      if (place) return place;
+      if (ctx.joining) return { ok: true, castId: ctx.castId, joined: Array.from({ length: ctx.pick.count }, (_, i) => `m${i}`), party: { id: ctx.joining.id, name: ctx.joining.name } };
+      return { ok: true, castId: ctx.castId, tokenUuids: ctx.positions.map((_, i) => `Scene.s1.Token.t${i}`) };
     },
   };
+  // `joining` is the party the caster marches inside: one party for every read, or an array of what each read in turn answers (the last one repeats). Left out, the cast has no such seam.
+  if (joining !== undefined) {
+    const reads = Array.isArray(joining) ? joining : [joining];
+    deps.joiningParty = async () => (order.push("party"), reads[Math.min(calls.partyReads++, reads.length - 1)]);
+  }
   const spend = async () => void (order.push("spend"), calls.spends++);
   return { deps, calls, order, spend };
 }
@@ -919,6 +927,99 @@ await ta("a declared family the seat cannot observe is stopped at Declare, with 
   const out = await cast(makeSpell(), r);
   assert.deepEqual([out.ok, out.reason, r.calls.spends, r.calls.declares.length, r.calls.verdicts.length], [false, "summonRefused", 0, 0, 0]);
   assert.deepEqual(r.calls.texts, [["warn", notice]]);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Creatures that join the caster's party                            */
+/* ------------------------------------------------------------------ */
+
+const PARTY = { id: "pty1", name: "Invented Company", sceneId: "s1", tokenId: "ptok" };
+const RANGED = { ...bandCite, range: { shape: "distancePerLevel", value: 10, unit: "feet" } };
+
+await ta("a joining cast makes no clicks and reads no range: the step takes the join, with the party and no positions, and the card records the party", async () => {
+  const r = runDeps({ answer: answerOf(), joining: PARTY });
+  const out = await cast(makeSpell({ extra: { ...RANGED, duration: { shape: "fixed", value: 2, unit: "hours" } } }), r);
+  assert.equal(out.ok, true);
+  assert.deepEqual([r.calls.clicked.length, r.calls.placed.length], [0, 1], "no click is asked for");
+  assert.deepEqual(r.order.filter((k) => ["clicks", "place", "join"].includes(k)), ["join"]);
+  const ctx = r.calls.placed[0];
+  assert.deepEqual([ctx.joining, ctx.positions, ctx.rangeFeet, ctx.pick], [PARTY, null, null, { ref: REF, count: 2 }], "no places and no range go with a join");
+  assert.deepEqual(r.calls.posts[0].summoned, { sourceUuid: GLIMMER.uuid, name: "Glimmerkin", n: 2, short: 0, duration: "2 hours", party: { id: "pty1", name: "Invented Company" } });
+  assert.equal(r.calls.spends, 1);
+  assert.deepEqual(r.calls.verdicts, [{ sourceUuid: REF, count: 2, spellId: "sp1" }], "lib's checks still answer before the spend");
+});
+
+await ta("the party is read before the dialog and again on its answer, so the party's name reaches the dialog and no range does", async () => {
+  const spell = () => makeSpell({ rows: [row()], extra: RANGED });
+  const ctx = await askedWith(spell(), { joining: PARTY });
+  assert.deepEqual(ctx.summon.party, { id: "pty1", name: "Invented Company" });
+  assert.equal(ctx.summon.at({ ref: GLIMMER.uuid, count: 2, opens: true, source: GLIMMER }, { mode: "normal", level: 3, inv: null }).range, null, "the footer reads no range while the creatures join");
+  const view = model.dialogContext(ctx, { casterLevel: "3" }).summon.placement;
+  assert.deepEqual([view.text, view.tip], ['ACKS-MAGIC.cast.dialog.summonJoins|{"party":"Invented Company"}', ""], "the joins line stands where the range line was");
+  const placed = model.dialogContext(await askedWith(spell()), { casterLevel: "3" }).summon.placement;
+  assert.equal(placed.text, 'ACKS-MAGIC.cast.dialog.summonWithin|{"feet":30,"name":"Invented Caster"}', "with no party the range line is unchanged");
+  const calling = model.dialogContext(await askedWith(makeSpell({ rows: [row({ summonFormat: "calling" })], extra: RANGED }), { joining: PARTY }), {}).summon.placement;
+  assert.equal(calling.text, 'ACKS-MAGIC.cast.dialog.summonJoins|{"party":"Invented Company"}', "the joins line comes ahead of the calling line");
+  const r = runDeps({ answer: answerOf(), joining: PARTY });
+  await cast(spell(), r);
+  assert.deepEqual(r.order.slice(0, 4), ["party", "ask", "party", "verdict"], "one read before the dialog, one on its answer, then lib's checks");
+});
+
+await ta("the second read wins: a party at the ask and none at the answer takes the click path, and none at the ask and a party at the answer joins", async () => {
+  let r = runDeps({ answer: answerOf(), joining: [PARTY, null] });
+  let out = await cast(makeSpell({ extra: RANGED }), r);
+  assert.equal(out.ok, true);
+  assert.deepEqual(r.order.filter((k) => ["clicks", "place", "join"].includes(k)), ["clicks", "place"], "the party left while the dialog stood open");
+  assert.deepEqual([r.calls.placed[0].joining, r.calls.posts[0].summoned.party, r.calls.placed[0].positions.length], [null, null, 2]);
+  r = runDeps({ answer: answerOf(), joining: [null, PARTY] });
+  out = await cast(makeSpell({ extra: RANGED }), r);
+  assert.equal(out.ok, true);
+  assert.deepEqual(r.order.filter((k) => ["clicks", "place", "join"].includes(k)), ["join"], "the caster stepped in while the dialog stood open");
+  assert.equal(r.calls.posts[0].summoned.party.id, "pty1");
+  const asked = await askedWith(makeSpell({ extra: RANGED }), { joining: [null, PARTY] });
+  assert.equal(asked.summon.party, null, "the dialog read the first answer");
+});
+
+await ta("a join waives the canvas verdict as a declaring does, and a paused game or a missing GM still block it", async () => {
+  const canvas = runDeps({ answer: answerOf(), joining: PARTY, verdict: { ok: false, reason: "noCanvas", notice: "words" } });
+  assert.deepEqual([(await cast(makeSpell(), canvas)).ok, canvas.calls.spends, canvas.calls.placed.length], [true, 1, 1], "no token is made, so no canvas is needed");
+  const noClick = runDeps({ answer: answerOf(), verdict: { ok: false, reason: "noCanvas", notice: "words" } });
+  assert.equal((await cast(makeSpell(), noClick)).reason, "summonRefused", "with no party the canvas is still needed");
+  const paused = runDeps({ answer: answerOf(), joining: PARTY, verdict: { ok: false, reason: "paused", notice: "words" } });
+  const out = await cast(makeSpell(), paused);
+  assert.deepEqual([out.ok, out.reason, paused.calls.spends, paused.calls.placed.length], [false, "summonRefused", 0, 0]);
+  const noGm = runDeps({ answer: answerOf(), joining: PARTY, gmOnline: false });
+  const none = await cast(makeSpell(), noGm);
+  assert.deepEqual([none.ok, none.reason, noGm.calls.spends, noGm.calls.texts], [false, "summonRefused", 0, [["warn", "ACKS-MAGIC.cast.notice.summonNoGm|{}"]]]);
+  const judge = runDeps({ answer: answerOf(), joining: PARTY, isGM: true, gmOnline: false });
+  assert.equal((await cast(makeSpell(), judge)).ok, true, "a Judge's own seat needs no relay");
+});
+
+await ta("a join that made fewer than asked is short by the difference; a refused join is a line on the card and the spend stands", async () => {
+  const short = runDeps({ answer: answerOf(), joining: PARTY, place: (ctx) => ({ ok: true, castId: ctx.castId, joined: ["m0"], party: { id: "pty1", name: "Invented Company" } }) });
+  await cast(makeSpell(), short);
+  const { n: made, short: missing, party } = short.calls.posts[0].summoned;
+  assert.deepEqual([made, missing, party.name], [1, 1, "Invented Company"]);
+  const refused = runDeps({ answer: answerOf(), joining: PARTY, place: { ok: false, reason: "noParty", notice: "words" } });
+  const out = await cast(makeSpell(), refused);
+  assert.deepEqual([out.ok, refused.calls.spends, refused.calls.posts[0].summoned, refused.calls.posts[0].lines], [true, 1, undefined, ["ACKS-MAGIC.cast.line.summonRefused|{\"reason\":\"words\"}"]]);
+});
+
+await ta("a caster stashed in the party has no token on any scene, and a spell that states a distance still joins: no click, no range read, and the footer does not block Cast", async () => {
+  const noToken = { casterToken: null };
+  const r = runDeps({ answer: answerOf(), joining: PARTY, world: noToken });
+  const out = await cast(makeSpell({ extra: RANGED }), r);
+  assert.equal(out.ok, true);
+  assert.deepEqual([r.calls.clicked.length, r.order.filter((k) => k === "join").length, r.calls.placed[0].casterToken, r.calls.placed[0].rangeFeet], [0, 1, null, null]);
+  const ctx = await askedWith(makeSpell({ extra: RANGED }), { joining: PARTY, world: noToken });
+  const { view, blocked } = footerOf(ctx, { casterLevel: "3" });
+  assert.deepEqual([blocked, view.summon.placement.text], [false, 'ACKS-MAGIC.cast.dialog.summonJoins|{"party":"Invented Company"}']);
+});
+
+await ta("a declaring reads no party: it places nothing, so nothing joins", async () => {
+  const r = runDeps({ answer: answerOf(), joining: PARTY, world: fight("cb2") });
+  const out = await cast(makeSpell(), r);
+  assert.deepEqual([out.declared, r.calls.partyReads, r.calls.placed.length], [true, 0, 0]);
 });
 
 console.log(`\n${n} cast-summon tests passed`);
