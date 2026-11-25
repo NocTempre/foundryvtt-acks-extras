@@ -73,38 +73,65 @@ export function regionOfLocation(location) {
 /* -------------------------------------------- */
 
 /**
+ * Whether the seat owns every document a link write will touch. A missing
+ * entry (no previous place, no held map) is not a write and is skipped.
+ * Foundry answers true on every document for a Judge.
+ */
+const ownsEvery = (...documents) => documents.every((doc) => !doc || doc.isOwner);
+
+/** Say the link needs ownership of each end it writes, and answer false. */
+function refuseLink() {
+  ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.place.linkNotOwner`));
+  return false;
+}
+
+/**
  * Link a scene to a place, writing both ends. Re-linking a scene that already
  * points elsewhere clears the old place's mirror first, so a location never
  * claims a map that has moved on, and a place whose map was another scene lets
  * that scene go, so no scene keeps naming a place that has moved on. A scene
  * that is a part of its place (`isScenePart`) takes the flag alone: the
  * place's mirror is its own map's.
+ *
+ * Every document the link writes must be owned by the seat: the scene, the
+ * place, the place the scene named before and the scene the place held (a part
+ * scene writes only its own flag). Otherwise it warns, changes nothing and
+ * answers false.
  */
 export async function linkScene(scene, location) {
-  if (!scene || !location || !game.user.isGM) return false;
+  if (!scene || !location) return false;
   if (isScenePart(scene)) {
+    if (!scene.isOwner) return refuseLink();
     await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
     return true;
   }
   const held = sceneOfLocation(location);
   const previous = locationOfScene(scene);
-  if (previous && previous.uuid !== location.uuid) {
+  const clearsPrevious = previous && previous.uuid !== location.uuid;
+  const letsGo = held && held.uuid !== scene.uuid;
+  if (!ownsEvery(scene, location, clearsPrevious && previous, letsGo && held)) return refuseLink();
+  if (clearsPrevious) {
     await previous.update({ "system.sceneUuid": "" }).catch(() => null);
   }
   await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
   await location.update({ "system.sceneUuid": scene.uuid });
   // The place's old map is let go only once the mirror names the new one, so
   // the flag hook finds no place still pointing at it to clear.
-  if (held && held.uuid !== scene.uuid) {
+  if (letsGo) {
     await held.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
   }
   return true;
 }
 
-/** Break the link from either end. A part scene (`isScenePart`) clears its flag alone. */
+/**
+ * Break the link from either end. A part scene (`isScenePart`) clears its flag
+ * alone. The seat must own the scene and the place it names, else it warns,
+ * changes nothing and answers false.
+ */
 export async function unlinkScene(scene) {
-  if (!scene || !game.user.isGM) return false;
+  if (!scene) return false;
   const location = isScenePart(scene) ? null : locationOfScene(scene);
+  if (!ownsEvery(scene, location)) return refuseLink();
   await scene.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
   if (location) await location.update({ "system.sceneUuid": "" }).catch(() => null);
   return true;
@@ -138,28 +165,39 @@ export async function createLocationForScene(scene) {
  * Link a Region to a place, writing both ends. A place that pointed at another
  * region lets it go, and a region that pointed at another place clears
  * that place's mirror, so neither end ever claims a link the other denies.
+ *
+ * Every document the link writes must be owned by the seat: the region, the
+ * place, the place the region named before and the region the place held.
+ * Otherwise it warns, changes nothing and answers false.
  */
 export async function linkRegion(region, location) {
-  if (!region || !location || !game.user.isGM) return false;
+  if (!region || !location) return false;
   const held = regionOfLocation(location);
   const previous = locationOfRegion(region);
-  if (previous && previous.uuid !== location.uuid) {
+  const clearsPrevious = previous && previous.uuid !== location.uuid;
+  const letsGo = held && held.uuid !== region.uuid;
+  if (!ownsEvery(region, location, clearsPrevious && previous, letsGo && held)) return refuseLink();
+  if (clearsPrevious) {
     await previous.update({ "system.regionUuid": "" }).catch(() => null);
   }
   await region.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
   await location.update({ "system.regionUuid": region.uuid });
   // The place's old Region is let go only once the mirror names the new one,
   // so the flag hook finds no place still pointing at it to clear.
-  if (held && held.uuid !== region.uuid) {
+  if (letsGo) {
     await held.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
   }
   return true;
 }
 
-/** Break a region's link from either end. */
+/**
+ * Break a region's link from either end. The seat must own the region and the
+ * place it names, else it warns, changes nothing and answers false.
+ */
 export async function unlinkRegion(region) {
-  if (!region || !game.user.isGM) return false;
+  if (!region) return false;
   const location = locationOfRegion(region);
+  if (!ownsEvery(region, location)) return refuseLink();
   await region.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
   if (location) await location.update({ "system.regionUuid": "" }).catch(() => null);
   return true;
@@ -312,14 +350,18 @@ export function registerSceneContextMenu() {
 
 /**
  * A "Place" row in the scene configuration's Basics tab: pick an existing
- * location, make a new one, or clear the link.
+ * location, make a new one, or clear the link. It is drawn for a seat that
+ * owns the scene, lists the places the seat owns (and the one already linked),
+ * and offers the new-place button to a Judge alone, since making a place is
+ * `createLocationForScene`'s own gate. A pick the link refuses redraws the row
+ * as it stands.
  *
  * DOM injection, not a sheet subclass: core declares its parts as statics.
  * Rebuilt on every render, because ApplicationV2 replaces its parts.
  */
 export function registerSceneConfigRow() {
   Hooks.on("renderSceneConfig", (app, element) => {
-    if (game.system?.id !== "acks" || !game.user.isGM) return;
+    if (game.system?.id !== "acks" || !app.document?.isOwner) return;
     const root = elementOf(element);
     if (!root) return;
     root.querySelectorAll(".acks-extras-scene-place").forEach((n) => n.remove());
@@ -335,7 +377,10 @@ export function registerSceneConfigRow() {
 
     const scene = app.document;
     const linked = locationOfScene(scene);
-    const locations = game.actors.filter((a) => a.type === LOCATION_TYPE).sort((a, b) => a.name.localeCompare(b.name));
+    const locations = game.actors
+      .filter((a) => a.type === LOCATION_TYPE && (a.isOwner || a.uuid === linked?.uuid))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const canCreate = game.user.isGM;
 
     const group = document.createElement("div");
     group.className = "form-group acks-extras-scene-place";
@@ -350,9 +395,13 @@ export function registerSceneConfigRow() {
       <label>${game.i18n.localize(`${LANG_PREFIX}.place.sceneLabel`)}</label>
       <div class="form-fields">
         <select class="acks-extras-scene-place-select">${options}</select>
-        <button type="button" class="acks-extras-scene-place-new" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.place.createLocation`)}">
+        ${
+          canCreate
+            ? `<button type="button" class="acks-extras-scene-place-new" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.place.createLocation`)}">
           <i class="fas fa-plus"></i>
-        </button>
+        </button>`
+            : ""
+        }
       </div>
       <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.place.sceneHint`)}</p>`;
     anchor.after(group);
@@ -363,11 +412,12 @@ export function registerSceneConfigRow() {
     // Written immediately, not on form submit: a submit handler could only write the scene's half.
     group.querySelector(".acks-extras-scene-place-select").addEventListener("change", async (ev) => {
       const uuid = ev.currentTarget.value;
-      if (!uuid) return void (await unlinkScene(scene));
-      const actor = game.actors.get(uuid.split(".")[1]);
-      if (actor) await linkScene(scene, actor);
+      const actor = uuid ? game.actors.get(uuid.split(".")[1]) : null;
+      if (uuid && !actor) return;
+      const done = actor ? await linkScene(scene, actor) : await unlinkScene(scene);
+      if (!done) app.render();
     });
-    group.querySelector(".acks-extras-scene-place-new").addEventListener("click", async () => {
+    group.querySelector(".acks-extras-scene-place-new")?.addEventListener("click", async () => {
       const made = await createLocationForScene(scene);
       if (made) app.render();
     });

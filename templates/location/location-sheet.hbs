@@ -701,9 +701,11 @@
       </button>
       {{/if}}
       {{#if scene}}
+      {{#if canUnlinkScene}}
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="unlinkScene">
         <i class="fas fa-link-slash"></i> {{localize "ACKS-LOCATION.place.unlinkScene"}}
       </button>
+      {{/if}}
       {{else}}
       <span class="hint">{{localize "ACKS-LOCATION.place.sceneDropHint"}}</span>
       {{/if}}

@@ -293,12 +293,25 @@ the place mirrors it in `system.regionUuid`. `locationOfRegion` /
 `regionOfLocation` read the pair with the flag-wins repair the scene link has,
 `linkRegion` / `unlinkRegion` / `createLocationForRegion` write it, and the
 `updateRegion` / `deleteRegion` / `deleteScene` hooks keep the mirror true (all
-`scene-link.mjs`). The one Judge surface is the District behaviour's sheet,
+`scene-link.mjs`). The surface is the District behaviour's sheet,
 into which the formation feature injects a **Place** row that calls this
 feature's api: pick a place, or make one named after the Region and nested
 inside the scene's own place. A quarter's place is what answers "where is the
 market" when the party stands on no point of interest at all; the ruling is
 [DECISIONS.md](DECISIONS.md) 2026-09-16.
+
+**A link needs every end it writes.** `linkScene`, `unlinkScene`, `linkRegion` and
+`unlinkRegion` refuse unless the seat owns every document the call writes: the scene or
+Region, the place, the place it named before (whose mirror a re-link clears) and the scene or
+Region the place held before (whose flag a re-link lets go). A scene that is a part of its
+place writes its flag alone and needs the scene alone. A refusal raises the warning
+`ACKS-LOCATION.place.linkNotOwner`, writes nothing and answers `false`; a success answers
+`true`. A Judge owns every document, so the test reads no role. The sheet's **Unlink map**
+control is drawn when the place is editable and the scene it names is owned
+(`canUnlinkScene`), a drop of a scene on the sheet calls `linkScene` and lets it decide, and
+the Scene configuration's Place row is drawn for a scene's owner, lists the places the seat
+owns plus the one already linked, and keeps its new-place button for a Judge. The ruling is
+[DECISIONS.md](DECISIONS.md) 2026-11-25, "A link needs every end it writes".
 
 ## On the ground
 

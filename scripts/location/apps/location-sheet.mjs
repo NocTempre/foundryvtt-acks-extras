@@ -22,8 +22,8 @@ import { countView } from "../../lib/stack-count.mjs";
 import { lairState, rollLair } from "../../lib/lair.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
 import { GATE_ROLE, gateMarketOf } from "../gate.mjs";
-import { linkScene } from "../scene-link.mjs";
-import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, PLACE_ROLES } from "../constants.mjs";
+import { linkScene, unlinkScene } from "../scene-link.mjs";
+import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, PLACE_ROLES } from "../constants.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
 import { RARITY_TIERS } from "../../henchmen/config.mjs";
@@ -327,6 +327,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     context.lair = game.user.isGM ? await LocationSheet.#lairView(actor) : null;
 
     context.scene = scene ? { uuid: scene.uuid, name: scene.name, active: scene.active } : null;
+    // Unlinking writes the place and the scene it names, so the control needs both.
+    context.canUnlinkScene = this.isEditable && (!scene || !!scene.isOwner);
     context.stackCount = actor.system.instanceCount;
     context.isStacked = context.stackCount > 1;
     context.coinRollupGC = places.coinRollupGC(actor, nodes);
@@ -957,9 +959,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     return super._onDropDocument(event, document);
   }
 
-  /** Dropping a SCENE on a place links the map to it (GM only), through `linkScene`, which writes both ends and lets the old ones go. */
+  /** Dropping a SCENE on a place links the map to it, through `linkScene`, which refuses a seat that does not own every end it writes, writes both and lets the old ones go. */
   async _onDropScene(_event, scene) {
-    if (!game.user.isGM || !scene) return;
+    if (!scene) return;
     if (!(await linkScene(scene, this.actor))) return;
     ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.sceneLinked`, { name: scene.name }));
     this.render();
@@ -1275,11 +1277,14 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /** Break the scene link from the place side. The scene's flag is authoritative,
-   *  so BOTH ends are cleared. */
+   *  so BOTH ends are cleared: through `unlinkScene` where the mirror's scene
+   *  resolves (it refuses a seat that does not own it and the place it names),
+   *  and by the place's own mirror alone where it does not. */
   static async #onUnlinkScene() {
+    if (!this.isEditable) return;
     const scene = await fromUuid(this.actor.system.sceneUuid).catch(() => null);
-    if (scene) await scene.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
-    await this.actor.update({ "system.sceneUuid": "" });
+    if (scene && !(await unlinkScene(scene))) return;
+    if (this.actor.system.sceneUuid) await this.actor.update({ "system.sceneUuid": "" });
     this.render();
   }
 

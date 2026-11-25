@@ -6886,6 +6886,7 @@
   "ACKS-LOCATION.place.openLocation": "Open Place",
   "ACKS-LOCATION.place.createLocation": "Create Place for Scene",
   "ACKS-LOCATION.place.sceneLinked": "Linked to the map \"{name}\".",
+  "ACKS-LOCATION.place.linkNotOwner": "You need ownership of the scene and of each place this link changes.",
   "ACKS-LOCATION.place.openSceneHint": "Open this place's map",
   "ACKS-LOCATION.place.unlinkScene": "Unlink map",
   "ACKS-LOCATION.place.sceneDropHint": "Drag a scene onto this sheet to link its map.",

@@ -332,3 +332,44 @@ that ruling describes is unchanged. Which feature writes the default follows hen
 
 **Cost.** None beyond the entry above: the place its Cost line describes is now the place
 the module makes.
+
+## 2026-11-25 — A link needs every end it writes
+
+**Authority** (owner, 2026-11-25, verbatim): "Tool permissions are hardcoded (e.g. summons)
+by server role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". With it, on who owns what (T-0793): "Spell owner can setup the spell
+as needed. Trusted players own their sheet and instances of items within. I guess regular
+Player only gets ownership of the sheet itself and not subitems they don't own? In either
+case the approach is follow foundry permissions, don't invent new ones." The owner's standing
+line on automation stays: "players get blocks, judges get warnings".
+
+**Ruled.** Linking or unlinking a scene or a Region to a place (`linkScene`, `unlinkScene`,
+`linkRegion`, `unlinkRegion`, `scene-link.mjs`) answers to ownership of every document the
+call writes, and not to the seat's role. A link writes the scene's (or Region's) flag, the
+place's mirror, the mirror of the place the scene named before, and the scene the place held
+before; the call refuses unless the seat owns each of those that it would write. A scene
+that is a part of its place writes its flag alone and needs the scene alone. A refusal is a
+warning (`ACKS-LOCATION.place.linkNotOwner`), changes nothing, and the function answers
+`false`; a caller that must know whether a link landed reads that answer. Foundry answers
+OWNER on every document for a Judge, so a Judge passes with no role read. The same test
+draws the sheet's Unlink control (`canUnlinkScene`: the place is editable and the scene it
+names is owned) and the Scene configuration's Place row (drawn for the scene's owner, listing
+the places the seat owns and the one already linked). The row's new-place button stays the
+Judge's, since making a place is a world Actor create that this entry does not change.
+
+**Rejected.** A relay through the Judge's client for the previous place's mirror, which
+would let a Player re-link a scene away from a place they do not own: the write would reach
+a document the seat has no ownership of by way of a Judge's client, where the owner's rule is
+to follow Foundry's ownership. Writing only the ends the seat owns and leaving the mirror to
+the repair hooks: the hooks act only on a Judge's own write, so a Player's half-link would
+stay untrue until a Judge touched it. A role test beside the ownership test: nothing in the link
+is a Judge's secret.
+
+**Cost.** A scene linked to a place the Player does not own cannot be moved by that Player
+to another place; a Judge moves it, or the owner of the old place unlinks it first. The
+mirror hooks (`updateScene`, `updateRegion`, `deleteScene`, `deleteRegion`) are unchanged and
+stay a Judge's repair: a Player's flag write made outside these functions is not repaired,
+as before.
+
+**Stands.** [A location is a PLACE, and a market is an option on one](DECISIONS-through-v11.14.5.md#a-location-is-a-place-and-a-market-is-an-option-on-one-2026-08-02):
+the scene's flag is canonical and the place carries the mirror.

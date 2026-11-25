@@ -21,6 +21,16 @@ by hand.
   `location/ground-scene`. Built by `api.fixture(marker, kind, data)`. A second
   character, `location/ground-hero-b`, is the one that has no token (a Judge's
   tokenless case) and the one the Player does not own (the refusal).
+- **A scene and two places the Player owns, for a place's ownership steps (step
+  29):** a scene (no background needed) marked `location/owner-scene`, and two
+  `acks-extras.location` actors marked `location/owner-place-a` and
+  `location/owner-place-b`, each created with `ownership: {default: 0,
+  [playerId]: 3}` (naming a default keeps the create hook from opening the
+  place to the table). Built by `api.fixture(marker, kind, data)` on the Judge
+  seat. Every step starts by bringing them to its shape from the Judge seat:
+  the scene and both places unlinked (flag unset, mirrors empty) and the
+  Player at the level the step names, written one document at a time with
+  `doc.update({"ownership.<playerId>": level})`. The fixtures are kept.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -599,6 +609,60 @@ by hand.
     `character-sheet/set-down-bystander`).
     *Teardown:* the fixtures by their ledger uuids. Offline:
     `tools/test-location-ground.mjs`, `tools/test-location-reach.mjs`.
+
+29. **A place's tools follow ownership, not the seat's role.** Walked on the
+    **Player seat**: a Judge seat owns every document, so it cannot test an
+    ownership gate, and it is only the control and the reader of what landed.
+    `tools/live/location-place-owner.mjs`
+    (`node tools/live/run.mjs location-place-owner`) holds the steps as groups;
+    each later slice of the place work adds its own. Fixtures:
+    `location/owner-scene`, `location/owner-place-a`, `location/owner-place-b`
+    (Fixtures above).
+    *The scene's link.* Linking writes the scene's flag, the place's mirror,
+    the mirror of the place the scene named before and the scene the place held
+    before, and the seat must own each it would write.
+    - *Player OWNER of the scene and both places:* drop the scene on place A's
+      sheet. *Observable:* the scene's flag names A, A's `system.sceneUuid` is
+      the scene's, B's is empty, no warning. Drop it on B: the flag names B, B
+      mirrors it and A's mirror is empty.
+    - *B set to OBSERVER while linked to the scene:* drop the scene on A.
+      *Observable:* one warning, the text of `ACKS-LOCATION.place.linkNotOwner`,
+      and the flag, B's mirror and A's mirror exactly as before.
+    - *Through the exported functions, as a macro does*
+      (`acksExtras.location.scenes.linkScene(scene, place)`, `unlinkScene(scene)`),
+      each unowned end alone: a scene the seat observes, a place it observes, an
+      old place it observes (`unlinkScene` of a scene linked to it). Each
+      answers `false`, warns once and writes nothing; with every end owned both
+      answer `true` and unlinking clears the flag and the mirror. A scene flagged
+      `scenePart` is linked to a place the seat only observes (its flag alone is
+      written, no mirror) and is refused where the seat does not own the scene.
+    - *The sheet's Unlink map control:* the sheet's context
+      (`await sheet._prepareContext({})`) carries `canUnlinkScene` true with the
+      scene and the place owned, false with the scene only observed. Where the
+      Settings tab is reachable for the seat (it is a Judge's tab until the
+      place work that follows this one), the button is on screen exactly when
+      the flag is true.
+    - *Scene config's Place row:* open the scene's configuration on the Player
+      seat (`scene.sheet.render({force: true})`; a Player has no Scenes tab, so
+      no sidebar route reaches it). **Whether a Player OWNER can open it:** as
+      far as the code shows, yes. Core's `DocumentSheetV2` admits a seat at its
+      `viewPermission` (LIMITED), and `SceneConfig` does not raise that; the
+      walk records the live answer in its `RECORD:` check, which is the one that
+      settles it. When it opens: the Place row is drawn with no new-place
+      button, its select lists the places the seat owns and the place already
+      linked, picking an owned place links it, and picking one while the linked
+      place is observed warns and changes nothing. At OBSERVER of the scene no
+      row is drawn. The Judge seat's row carries the new-place button and every
+      place.
+    *Not walked live:* the Region functions, whose Player-seat picker is the
+    formation feature's (`tools/live/formation-seat-heads.mjs`); they are pinned
+    offline in `tools/test-scene-part.mjs`. A Region carries an ownership of
+    its own (core's `RegionDocument#getUserLevel` reads `region.ownership`,
+    default None, the author at OWNER, and never inherits the scene's), so a
+    Player who owns the scene owns none of its Regions until each is granted;
+    `linkRegion` needs that grant too.
+    *Teardown:* none, the fixtures are kept; the walk ends by leaving them
+    unlinked with the Player at OWNER. Offline: `tools/test-scene-part.mjs`.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin
