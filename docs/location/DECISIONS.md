@@ -310,3 +310,25 @@ the Judge opens it (Actors tab, right-click the place, Configure Ownership), and
 there before this change is still the table's. An imported place is now stored in its
 compendium with a default of None where it was stored with Owner; core reads a compendium
 document's level from the compendium, so nothing reads the difference.
+
+## 2026-11-25 — One hook writes a new place's table default
+
+**Ruled.** The location feature's `preCreateActor` hook is the only writer of a new
+location's ownership default. The henchmen feature's hook of the same kind is removed. It
+opened every new location that named no default, the importer's stamp or not, and it ran
+beside this one, so a stamped place the entry above leaves at None was opened at Owner all
+the same.
+
+**New evidence.** The walk `formation-hidden-place`, run against the entry above as
+landed, read an ownership default of Owner on a place made with the importer's stamp and no
+named ownership. The copy dragged out of a compendium read None in the same run, since
+core's import names that default and both hooks yield to a named one.
+
+**Qualifies** henchmen's
+[Recruiting needs no GM client online](../henchmen/DECISIONS-through-v11.14.5.md#recruiting-needs-no-gm-client-online-2026-07-22):
+a place made by hand is still opened to the table, by this feature's hook, and the routing
+that ruling describes is unchanged. Which feature writes the default follows henchmen's
+[The location sub-type belongs to the location feature](../henchmen/DECISIONS-through-v11.14.5.md#the-location-sub-type-belongs-to-the-location-feature-2026-07-19).
+
+**Cost.** None beyond the entry above: the place its Cost line describes is now the place
+the module makes.
