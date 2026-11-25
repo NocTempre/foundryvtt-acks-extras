@@ -64,6 +64,8 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 export const GROUP_LANG_PREFIX = `${LANG_PREFIX}.group`;
 /** The lang root of a lair's strings. */
 export const LAIR_LANG_PREFIX = `${LANG_PREFIX}.lair`;
+/** The lang root of the organisation chart's strings. */
+export const ORG_LANG_PREFIX = `${LANG_PREFIX}.org`;
 /** The Item sub-type a variation document is — one way an item differs from its plain self. */
 export const VARIATION_TYPE = `${MODULE_ID}.variation`;
 

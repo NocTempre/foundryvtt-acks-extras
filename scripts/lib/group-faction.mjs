@@ -11,11 +11,11 @@
  * Kept out of the sheet class so it imports under Node and is tested offline
  * (tools/test-group-faction.mjs); the sheet only binds the four actions.
  */
-import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, ORG_LANG_PREFIX } from "./constants.mjs";
 import { factionLineOf, joinFaction, leaveFaction, makeFaction, worldFactions } from "./org.mjs";
 import { makeLoc } from "./util.mjs";
 
-const loc = makeLoc(`${LANG_PREFIX}.org`);
+const loc = makeLoc(ORG_LANG_PREFIX);
 
 /** The classes the faction picker carries: the scroll contract and the group dialogs' own. */
 export const FACTION_DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-dialog"];
@@ -43,7 +43,7 @@ export function factionView(group, editable) {
  */
 function refusal(result, { fallbackName = "", verb = "join" } = {}) {
   const reason = result.reason === "failed" ? `failed.${verb}` : result.reason;
-  const key = `${LANG_PREFIX}.org.refused.${reason}`;
+  const key = `${ORG_LANG_PREFIX}.refused.${reason}`;
   const message = game.i18n.has(key) ? game.i18n.format(key, { name: result.name || fallbackName }) : loc("refused.other");
   ui.notifications.warn(message);
   return result;
