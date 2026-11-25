@@ -104,7 +104,7 @@ This supersedes in part "the level cap and the builder's last die level are read
 
 **Cost.** A world that imported the builder tables or materialized a race under the old names shows the field blank until the next import of them.
 
-## 2026-11-15 — A kit links one shared library, and a skin is minted once
+## 2026-11-15 — A kit links one shared library, and a skin is minted once — SUPERSEDED IN PART 2026-11-24
 
 **Reported.** A world's Item library held "Waterskin" 33 times and "Backpack" 34 times under `Class Templates / <Class>`: every class's package minted its own copy of every kit item. The owner, 2026-11-15: "It was done on purpose <- misread, the item should be shared. I think you misunderstood the rule to build individual flavor variants, but the pre-skinned root item or identical entries should be shared." And: "Seems like dedup in general on kits is an issue. Kits contain links to items, sometimes a new skin version that gets registered as a new variant, but the library of items is shared not duplicates". Example: two classes that both print "mossy kitshare tunic" link one tunic skin, and the class that prints a bare "kitshare flask" links the imported flask itself.
 
@@ -138,3 +138,13 @@ This supersedes in part "a template naming a sword copies the imported Sword" in
 **Rejected.**
 - **Falling back to `casterLevel` when `levelCap` is blank.** No other compiled row names a ladder in `casterLevel` on a tradition with neither slots nor a pool, so the fallback would serve nothing and would keep the two axes tied for a homebrew row.
 - **A migration of worlds that hold the old rows.** Earlier-version data is not served (docs/DECISIONS.md §29); repairing the Classes shelf in place (docs/guides/classes.md, "Keeping documents current") rewrites the two rows.
+
+## 2026-11-24 — A skin's key is its name with the last word singular
+
+**Reported.** A world's `Class Templates / Shared` held two skins of one kit item, one named for the singular and one for the plural of the same flask. The evidence is the shared-kit change (2026-11-15): a base whose imported name has a slash is never plain (`plainNameMatch` compares whole), so each spelling is correctly a skin, and the key's name part was `fold(templateItemName(entry))`, which differs by the `s`.
+
+**Ruled.** This qualifies the 2026-11-15 "Keys" bullet. The gear key's name part is `skinNameKey(name, baseName)`: the fold with the last word made singular (`singularsOf`, `lib/vocab.mjs`) when that singular ends in a fold of one of the base's `nameVariants` and the name as written does not. Every other name keeps its plain fold, so a part minted before is still found. A skin whose key was made singular is minted under the singular name. `stripRepresented` compares a row's printed gear by the same key against the skin's `flags["acks-extras"].skin.baseName`, so the plural spelling does not stay on the row after an Update and get granted twice. `plainNameMatch` is unchanged.
+
+**Rejected.** Widening `plainNameMatch` to slash variants: a separate behaviour change, since it makes more entries link the base instead of minting a skin.
+
+*Cost.* A world that built packages since v2026.11.19 may hold both skins. Each bundle links a valid item, so nothing breaks, and no tool repairs them (owner, 2026-11-11: no repair tools for previous-version data). A plural-named skin minted before this change is not found by the new key either, so the next build mints the singular one beside it.

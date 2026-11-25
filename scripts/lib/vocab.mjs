@@ -71,7 +71,7 @@ export function nameVariants(raw) {
 export const nameKeys = (raw) => new Set(nameVariants(raw).map(slug).filter(Boolean));
 
 /** The singular forms an English plural may have stood for, the word itself first. */
-function singularsOf(word) {
+export function singularsOf(word) {
   const w = String(word ?? "");
   const out = [w];
   const add = (s) => s.length > 1 && !out.includes(s) && out.push(s);

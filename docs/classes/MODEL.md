@@ -108,9 +108,12 @@ So: gear that names its base plainly (`isPlainBase`: the base's name or its
 plural, no skin name, no price but the base's) is LINKED — the base itself,
 with the quantity on the bundle row. Any other gear becomes an already-skinned
 copy, a SHARED part: `planKitEntry` looks its key up (`sharedPartKey`: the
-base's ref, the skin name, the printed price) among the parts already minted
+base's ref, the skin name with its last word singular when the base's own name
+variants say so (`skinNameKey`), the printed price) among the parts already minted
 and mints one only when none answers, so every class printing the same
-descriptor links the same document. With no base the copy is built from the
+descriptor links the same document; a skin whose key was made singular is minted
+under the singular name, and a row's represented-entry check compares by the same
+key against the skin's `baseName`. With no base the copy is built from the
 equipment root's strict name classification; gear nothing can
 type stays on the row and is reported unresolved; a plain proficiency the WORLD defines is linked (one
 shared document), one only a pack defines is copied, one with a printed

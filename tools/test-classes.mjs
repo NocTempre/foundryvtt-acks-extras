@@ -1268,6 +1268,7 @@ const {
   plainNameMatch,
   isPlainBase,
   sharedPartKey,
+  skinNameKey,
   planKitEntry,
 } = await import("../scripts/classes/template-packages.mjs");
 
@@ -1561,6 +1562,43 @@ test("a shared part's key names what it is and no class", () => {
     sharedPartKey({ kind: "ability", source, selection: "Beta" }),
   );
   assert.equal(sharedPartKey({ kind: "spell", source }), sharedPartKey({ kind: "spell", source }));
+});
+
+test("the singular and the plural spelling of one kit item share one skin key", () => {
+  const base = { name: "Kitshare flask/jug", uuid: "Item.flaskBase" };
+  const keyOf = (entry) => sharedPartKey({ kind: "gear", entry, base });
+  assert.equal(
+    keyOf({ name: "kitshare flask", qty: 1 }),
+    keyOf({ name: "2 kitshare flasks", qty: 2 }),
+    "a slash-named base makes both spellings skins; they are one skin",
+  );
+  assert.equal(keyOf({ name: "mossy kitshare flask", qty: 1 }), keyOf({ name: "mossy kitshare flasks", qty: 1 }), "an embellished pair");
+  assert.equal(keyOf({ name: "kitshare jugs", qty: 1 }), keyOf({ name: "kitshare jug", qty: 1 }), "either variant of the base");
+  assert.notEqual(keyOf({ name: "kitshare flask", qty: 1 }), keyOf({ name: "mossy kitshare flask", qty: 1 }), "another descriptor still differs");
+  // A name with no plural keeps its plain fold, so a part minted before is still found.
+  assert.equal(skinNameKey("Kitshare flask", "Kitshare flask/jug"), "kitshareflask");
+  assert.equal(skinNameKey("frayed kitshare tunic", "Kitshare tunic"), "frayedkitsharetunic");
+  assert.equal(skinNameKey("mossy kitshare glass", "Kitshare flask/jug"), "mossykitshareglass", "a word the base does not end in");
+  assert.equal(skinNameKey("kitshare flasks", ""), "kitshareflasks", "no base: no reading of the plural");
+});
+
+test("a plural entry is stripped by the singular skin the bundle lists", () => {
+  const prior = globalThis.fromUuidSync;
+  const docs = {
+    "Item.skin": {
+      name: "Kitshare flask",
+      flags: { "acks-extras": { skin: { baseName: "Kitshare flask/jug" }, templatePart: { kind: "gear", key: "k" } } },
+    },
+  };
+  globalThis.fromUuidSync = (uuid) => docs[uuid] ?? null;
+  try {
+    const bundle = { system: { itemList: [{ type: "item", name: "Kitshare flask", uuid: "Item.skin" }] } };
+    const row = { abilities: [], items: [{ name: "2 kitshare flasks", qty: 2 }, { name: "mossy kitshare flask", qty: 1 }], spells: [] };
+    assert.equal(stripRepresented(row, bundle), true);
+    assert.deepEqual(row.items.map((i) => i.name), ["mossy kitshare flask"], "the plural spelling is not granted twice");
+  } finally {
+    globalThis.fromUuidSync = prior;
+  }
 });
 
 test("a kit entry links its plain base, reuses a shared part, or mints", () => {

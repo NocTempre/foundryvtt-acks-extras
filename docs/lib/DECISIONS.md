@@ -1340,3 +1340,9 @@ should join, and the fold only covers a row that was in use).
 
 *Cost:* lib `apiVersion` is 67 (`itemModel` gains `joinInTurn`). A join through
 `joinInTurn` waits behind every divide and fold already queued on the holder.
+
+## 2026-11-24 — `singularsOf` is exported from `vocab`
+
+**Ruled.** The singular forms an English plural may have stood for are read from one place, `vocab.singularsOf`, which `creatureKeys` already used privately. The classes subsystem's shared-skin key reads it too (docs/classes/DECISIONS.md, 2026-11-24), so the name-form rule stays in `lib/vocab.mjs` (2026-08-24).
+
+*Cost:* lib `apiVersion` is 68 (`vocab` gains `singularsOf`).

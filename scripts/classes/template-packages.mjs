@@ -38,7 +38,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
-import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
+import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants, singularsOf } from "../lib/vocab.mjs";
 import { libraryItems, libraryDocs, libraryPacks, cookbookId, isLibraryPack, lineOfPack, openPacks } from "../lib/library.mjs";
 import { ensureLibraryPack, ensureFolderIn } from "../lib/library-target.mjs";
 import { equipmentClass, isUnidentifiedWeapon } from "../equipment/profiles.mjs";
@@ -189,6 +189,37 @@ export function isPlainBase(entry, base) {
 }
 
 /**
+ * A skin's name with its last word made singular, when that singular ends in
+ * one of the base's name variants (`nameVariants`) and the name as written does
+ * not; null otherwise. A slash-named base is never plain, so the singular and
+ * the plural spelling of one kit item each become a skin, and this is the form
+ * they share.
+ */
+function singularSkinName(name, baseName) {
+  const tails = baseName ? nameVariants(baseName).map(fold).filter((f) => f.length >= 3) : [];
+  const words = String(name ?? "").trim().split(/\s+/);
+  const last = words.pop() ?? "";
+  if (!tails.length || !last) return null;
+  const endsInBase = (parts) => {
+    const folded = fold(parts.join(" "));
+    return tails.some((t) => folded.endsWith(t));
+  };
+  if (endsInBase([...words, last])) return null;
+  for (const form of singularsOf(last).slice(1)) if (endsInBase([...words, form])) return [...words, form].join(" ");
+  return null;
+}
+
+/**
+ * The folded name a shared skin is keyed by: `fold(name)`, with the last word
+ * made singular when the base's own name variants say that is the item (a
+ * name with no such plural keeps its plain fold, so a part minted under it is
+ * still found). Two spellings of one kit item share one key.
+ */
+export function skinNameKey(name, baseName) {
+  return fold(singularSkinName(name, baseName) ?? name);
+}
+
+/**
  * The key naming one shared kit part, stored on the part's flag and looked up
  * across the library so no class mints a second copy.
  *
@@ -207,7 +238,7 @@ export function isPlainBase(entry, base) {
 export function sharedPartKey({ kind, entry = null, base = null, rootType = "", source = null, selection = "" }) {
   if (kind === "gear") {
     const origin = base ? refOf(base) : `root:${rootType}`;
-    return ["gear", origin, fold(templateItemName(entry)), entry?.cost > 0 ? String(entry.cost) : ""].join("|");
+    return ["gear", origin, skinNameKey(templateItemName(entry), base?.name), entry?.cost > 0 ? String(entry.cost) : ""].join("|");
   }
   if (kind === "ability") return ["ability", refOf(source), fold(selection)].join("|");
   if (kind === "spell") return ["spell", refOf(source)].join("|");
@@ -592,6 +623,7 @@ export function stripRepresented(row, bundle) {
         r.type !== ITEM_TYPE.ability &&
         r.type !== ITEM_TYPE.spell &&
         (fold(r.name) === key ||
+          (!!key && skinNameKey(r.name, doc?.flags?.[MODULE_ID]?.skin?.baseName) === skinNameKey(printed, doc?.flags?.[MODULE_ID]?.skin?.baseName)) ||
           (entry.name && fold(doc?.flags?.[MODULE_ID]?.skin?.descriptor ?? "") === fold(entry.name)) ||
           // A plain entry links its base itself, which carries no skin and no part stamp.
           (!partOf(doc) && plainNameMatch(printed, r.name))),
@@ -899,6 +931,8 @@ export async function materializeTemplates(
     // reported here, where the descriptor and the base are both in hand.
     if (isUnidentifiedWeapon(data)) report.unidentified.push(templateItemName(entry));
     foundry.utils.setProperty(data, "system.quantity", 1);
+    // The key folds both spellings of one item into one; the skin takes the singular's name.
+    data.name = singularSkinName(data.name, base?.name) ?? data.name;
     stampPart(data, { kind: "gear", key }, stamp);
     return { data, key };
   };
