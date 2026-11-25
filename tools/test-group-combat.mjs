@@ -861,6 +861,27 @@ t("a combat holding a combatant with no token is not grouped and shows its one n
   assert.ok(notes[0].includes("Stray"), "the notice names the row with no token");
 });
 
+t("a row with no token joining a combat that already holds a group shows the combat's one notice, and a combat with no group shows none", async () => {
+  const notes = [];
+  const priorUi = globalThis.ui;
+  globalThis.ui = { ...(priorUi ?? {}), notifications: { warn: (m) => notes.push(m) } };
+  try {
+    const grouped = warband().combat;
+    grouped.getFlag = (ns, key) => grouped.flags?.[ns]?.[key];
+    grouped.flags.acks = { groups: [{ initiative: -1, initiativeBonus: 1000, tokens: ["tA", "tB"] }] };
+    await grouped.createEmbeddedDocuments("Combatant", [{ actorId: "a1", name: "Latecomer" }]);
+    await grouped.createEmbeddedDocuments("Combatant", [{ actorId: "a2", name: "Second" }]);
+    const plain = warband().combat;
+    plain.getFlag = (ns, key) => plain.flags?.[ns]?.[key];
+    await plain.createEmbeddedDocuments("Combatant", [{ actorId: "a3", name: "Loner" }]);
+    await settle();
+  } finally {
+    globalThis.ui = priorUi;
+  }
+  assert.equal(notes.length, 1, "one notice, for the grouped combat only, however many rows join it");
+  assert.ok(notes[0].includes("Latecomer"), "the notice names the row with no token");
+});
+
 t("a call that returns its write is waited on by the call itself, so the next gang reads a list that has the one before", async () => {
   const { where, outer, gangA, gangB, combat } = warband();
   const bodies = [];

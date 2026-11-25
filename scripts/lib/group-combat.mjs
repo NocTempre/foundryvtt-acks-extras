@@ -250,7 +250,10 @@ export function registerGroupCombat(ops) {
     turn = turn.then(work).catch((err) => console.error(`${MODULE_ID} | group combat failed`, err));
   };
   Hooks.on("createCombatant", (combatant) => {
-    if (isPrimaryGM()) inTurn(() => onCombatantCreated(combatant, ops));
+    if (!isPrimaryGM()) return;
+    // A row with no token joining a combat that already holds a group: the Judge sees the combat's one notice.
+    if (!combatant.token && combatant.parent?.getFlag?.("acks", "groups")?.length) noticeOnce(combatant.parent);
+    inTurn(() => onCombatantCreated(combatant, ops));
   });
   Hooks.on("deleteCombat", (combat) => {
     if (isPrimaryGM()) inTurn(() => onCombatDeleted(combat, ops));

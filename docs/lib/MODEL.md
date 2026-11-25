@@ -1915,6 +1915,11 @@ The same wrap guards the roll, on the GM seat whether the card is on or off:
   Foundry's own start and initiative, with no surprise step and no grouping. A roll
   shows it after the roll has landed, so a press that throws announces nothing.
   The combat ids already told are held for the session, so nothing shows twice.
+  The same notice shows on the primary GM's window when a row with no token joins
+  a combat that already holds a group (`group-combat.mjs`'s `createCombatant`
+  hook), and when the automatic gang grouping meets such a combat, which it then
+  leaves ungrouped. It warns and changes nothing: the group stays, and the
+  system's tracker hook still reads that group's rows' tokens at each render.
   The notice, the test for such a combat, the walk to Foundry's methods and the
   lock release are `patches/tokenless-combat.mjs`, shared by the three patches.
 - **The turn-order lock.** The system sets `flags.acks.lock-turns` for the
