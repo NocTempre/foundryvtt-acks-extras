@@ -2802,6 +2802,49 @@ phase. The owner's go-ahead on canvases 2 to 5 released S8b without T10,
 S9a and S9b-2, each after S8a, with the page answering E5's question. They
 are phase 2b's ("Start prompt, phase 2b").
 
+### Hand-over from the planning session, 2026-11-25
+
+The session that wrote this plan and relayed for the phases hands over to
+the release hub. What it holds that no entry above does:
+
+**What `main` gained outside the phases.** `5bed0126`, `c1a965e0`,
+`1cfa6ec7`, `c5226cc9` and `0141bd57`, none pushed. The rounds to a turn, the
+turns to an hour and the battle-map square's feet are constants in source
+(`docs/lib/DECISIONS.md` and `docs/battlemap/DECISIONS.md`, 2026-11-25; the
+owner's test is in `.claude/rules/ip-doctrine.md`). For a topic's next sync:
+lib `apiVersion` 72 is the time unit's, 73 phase 3's, and phase 2b takes the
+next; `sizeSquareFeet()` never answers null; `footprintFeet` and `sizeChips`
+take no `feetPerSquare`; `tools/time-unit-fixture.mjs` exports counts and no
+register or remove function. A size category's frontage stays imported.
+
+**Not exercised live from those commits.** The delayed-damage record whose
+fight ends (`docs/lib/TESTING.md`; its suite passes, no walk covers it); the
+battle-map recipe's steps 6b through the Ruledata Browser, 7a, and step 8's
+chip click, reset arrow and two-scene comparison; the time-unit recipe's T4
+drag. Token sizing (steps 6, 6a, 7, part of 8) and the time unit's T1 to T3
+were walked by one-off probes, since `tools/live/battlemap.mjs` sizes no
+token.
+
+**Registered, not built.** T-0781: the rules-table import carries forward a
+table no recipe produces, so an upgraded world keeps `monsters.sizeSquare`
+listed and unread. The owner was asked twice whether a way to drop such
+tables should be designed and has not answered. T-0782: the battle-map walk's
+G2 failed once and was not rerun alone. Noted on its row: the battle-map
+walk's two L5 checks fail since `1e3bc714` (T-0602), read as a walk written
+before that ruling.
+
+**Seat lanes.** Measured this day and written into the machine's
+`TEST_ENVIRONMENT.md`, "Seat lanes": the active GM is the seated Judge whose
+user id sorts first (lane A, then C, then B), and the kept fixtures the
+committed walks reuse belong to lane A's player. A walk on lane B or C
+without `FIXTURE_OWN` fails its player-seat checks, and a Judge seated on
+lane A takes the automation from a walk on B or C.
+
+**With no session and no brief.** T10's reach: S7's addendum A5 leaves it to
+`architect`, nobody has been given it, and its surface was left off canvas 4,
+so it needs a design board once ruled. Phase 4 (S13, S14) has no start prompt
+here; phase 3's close-out writes it.
+
 ### Start prompt, phase 2
 
 Since this prompt was written, the owner's go-ahead on canvases 2 to 5
