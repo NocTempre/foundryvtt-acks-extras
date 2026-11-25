@@ -809,6 +809,7 @@
   "ACKS-LIB.group.combat.nothing": "{name} holds no bodies to put on the map, so the fight has its token alone.",
   "ACKS-LIB.group.warn.noCreature": "{name} holds \"{label}\", which has no creature behind it, so none of it is placed. Drop a creature on its row to link one.",
   "ACKS-LIB.org.delete.onMap": "{name} had bodies on a map when its row was deleted. Those tokens keep the figures they went out with.",
+  "ACKS-LIB.org.edit.onMap": "{name} had bodies on a map when its row was edited. Those tokens keep the figures they went out with until they are recalled.",
   "ACKS-LIB.org.faction.label": "Faction",
   "ACKS-LIB.org.faction.none": "None",
   "ACKS-LIB.org.faction.listedAs": "listed there as {label}",

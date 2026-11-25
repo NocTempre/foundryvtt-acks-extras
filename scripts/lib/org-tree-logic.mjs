@@ -386,6 +386,41 @@ export function affiliationRows(members, units, resolve = null) {
 /* -------------------------------------------- */
 
 /**
+ * The rows a reader may see. A row marked `hidden` is the Judge's alone, and so is
+ * everything beneath it: a child of a hidden row would otherwise read as a top row
+ * of its own. A Judge sees every row.
+ * @param {object[]} rows a chart's rows, model-backed or plain
+ * @param {boolean} [isGM]
+ * @returns {object[]} the rows the reader keeps, in their order
+ */
+export function readableUnits(rows, isGM = true) {
+  const list = rows ?? [];
+  if (isGM) return list;
+  const nodes = nodesOf(list);
+  const gone = new Set();
+  for (const raw of list) {
+    const row = raw?.toObject?.() ?? raw;
+    if (row?.hidden) for (const key of subtreeKeys(String(row.key ?? ""), nodes)) gone.add(key);
+  }
+  return list.filter((raw) => !gone.has(String((raw?.toObject?.() ?? raw)?.key ?? "")));
+}
+
+/**
+ * Every host's chart rows, flat, with each host's hidden rows and what lies beneath
+ * them left out for a reader who is no Judge. Rows of one host are read together,
+ * since two hosts may hold a twin under one key.
+ * @param {{hostUuid: string, key: string, parentKey?: string, hidden?: boolean}[]} rows
+ * @param {boolean} [isGM]
+ * @returns {object[]}
+ */
+export function readableChartRows(rows, isGM = true) {
+  if (isGM) return rows ?? [];
+  const byHost = new Map();
+  for (const r of rows ?? []) byHost.set(r.hostUuid, [...(byHost.get(r.hostUuid) ?? []), r]);
+  return [...byHost.values()].flatMap((list) => readableUnits(list, false));
+}
+
+/**
  * The org chart: the tree of a host's rows, each with its holder's live count, its
  * officer, whether it is empty and whether it is a twin. A holder that does not
  * resolve reads empty. A holder standing inside another row's group keeps its own
@@ -394,9 +429,11 @@ export function affiliationRows(members, units, resolve = null) {
  * @param {object[]} rows the host's rows
  * @param {(holderUuid: string) => ({name: string, img: string, count: number, ancestors?: string[], officer?: {uuid: string, name: string, img: string}|null}|null)} read the holder as the world has it, null where it does not resolve
  * @param {Iterable<string>} [twins] keys standing on two hosts
+ * @param {{isGM?: boolean}} [options] a reader who is no Judge is shown no hidden row, nor any row beneath one
  * @returns {{roots: object[], rows: object[], total: number, empty: number}} `rows` is the tree flattened in reading order
  */
-export function orgChartView(rows, read, twins = []) {
+export function orgChartView(allRows, read, twins = [], { isGM = true } = {}) {
+  const rows = readableUnits(allRows, isGM);
   const nodes = nodesOf(rows);
   const stored = new Map(copyRows(rows).map((r) => [r.key, r]));
   const twin = new Set(twins);

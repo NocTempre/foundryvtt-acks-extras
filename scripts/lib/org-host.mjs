@@ -24,10 +24,12 @@ export function orgHosts() {
 
 /**
  * Every chart row on every host, flat, in the shape the locations view reads.
- * @returns {{hostUuid: string, key: string, label: string, holderUuid: string}[]}
+ * @returns {{hostUuid: string, key: string, parentKey: string, label: string, holderUuid: string, hidden: boolean}[]}
  */
 export function chartRows() {
-  return orgHosts().flatMap((host) => unitsOf(host).map((r) => ({ hostUuid: host.uuid, key: r.key, label: r.label ?? "", holderUuid: r.holderUuid ?? "" })));
+  return orgHosts().flatMap((host) => unitsOf(host).map((r) => ({
+    hostUuid: host.uuid, key: r.key, parentKey: r.parentKey ?? "", label: r.label ?? "", holderUuid: r.holderUuid ?? "", hidden: !!r.hidden,
+  })));
 }
 
 /* -------------------------------------------- */

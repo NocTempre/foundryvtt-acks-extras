@@ -21,11 +21,11 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { GROUP_ACTOR_TYPE } from "./group-logic.mjs";
-import { addLabelledStack, addStack, setParentGroup } from "./group.mjs";
+import { addLabelledStack, addStack, patchStack, setParentGroup, setStackPrototype } from "./group.mjs";
 import { addOccupant } from "./place.mjs";
 
 /** The ops this executor carries out. */
-const OPS = new Set(["prototype", "createGroup", "parent", "addStack", "addLabelledStack", "makeActor", "setOfficer", "update", "addOccupant"]);
+const OPS = new Set(["prototype", "createGroup", "parent", "addStack", "addLabelledStack", "makeActor", "setOfficer", "setStack", "update", "addOccupant"]);
 
 const isRef = (v) => typeof v === "string" && v.startsWith("new:");
 
@@ -64,7 +64,7 @@ export async function runPlan(plan, { mint = null, makeLeader = null } = {}) {
 
   // Every document a plan writes that already exists must be there, and writable, before the first write.
   for (const op of plan.ops) {
-    const target = op.op === "update" ? op.uuid : op.op === "addOccupant" ? op.place : null;
+    const target = op.op === "update" ? op.uuid : op.op === "addOccupant" ? op.place : op.op === "setStack" || op.op === "setOfficer" ? op.group : null;
     if (!target || isRef(target)) continue;
     const doc = await docOfUuid(target);
     if (!doc) return refused("missing");
@@ -142,6 +142,21 @@ export async function runPlan(plan, { mint = null, makeLeader = null } = {}) {
       } else if (op.op === "setOfficer") {
         const group = await docOfRef(op.group);
         await group.update({ "system.unit.officerUuid": uuidOf(op.officer), "system.unit.officerMoraleBonus": op.moraleBonus ?? null });
+      } else if (op.op === "setStack") {
+        const group = await docOfRef(op.group);
+        if (!group) return result({ ok: false, reason: "missing" });
+        if (op.prototype !== undefined) {
+          const source = await sourceOf(op.prototype);
+          if (!source || !(await setStackPrototype(group, op.stack, source))) return result({ ok: false, reason: "noPrototype", error: String(op.prototype) });
+        }
+        if (op.count !== undefined) {
+          const hit = await patchStack(group, op.stack, (s) => {
+            const n = Math.max(Math.floor(Number(op.count)) || 0, (s.roster ?? []).length);
+            s.size.current = n;
+            s.size.initial = n;
+          });
+          if (!hit) return result({ ok: false, reason: "noStack", error: String(op.stack) });
+        }
       } else if (op.op === "update") {
         const target = await docOfRef(op.uuid);
         if (!target) return result({ ok: false, reason: "missing" });

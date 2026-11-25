@@ -21,15 +21,17 @@ import { GROUP_ACTOR_TYPE, bodyCount, groupAncestors, groupDescendants, groupNod
 import { setParentGroup } from "./group.mjs";
 import { chartRows, orgHostOf, orgHosts, unitsOf } from "./org-host.mjs";
 import {
-  chartToJoin, factionLine, locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, rowAncestors,
-  rowDescendants, twinKeys, withHolder,
+  chartToJoin, factionLine, locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, readableChartRows,
+  rowAncestors, rowDescendants, twinKeys, withHolder,
 } from "./org-tree-logic.mjs";
-import { ORG_PROTOTYPE_FLAG, planDelete } from "./org-write-logic.mjs";
+import { runPlan } from "./org-run.mjs";
+import { ORG_PROTOTYPE_FLAG, planDelete, planEdit } from "./org-write-logic.mjs";
 import { addOccupant, isLocation, removeOccupant } from "./place.mjs";
 import { docOf } from "./util.mjs";
 
 export { chartRows, moraleFromUnitsAbove, orgHostOf, orgHosts, registerOrgIndex, unitsOf } from "./org-host.mjs";
-export { runPlan } from "./org-run.mjs";
+export { runPlan };
+export { locationsView, orgChartView } from "./org-tree-logic.mjs";
 export { ORG_PROTOTYPE_FLAG, keySource, planAddUnit, planDelete, planEdit, planRoll } from "./org-write-logic.mjs";
 export {
   affiliationRows, isEmptyRow, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
@@ -218,6 +220,33 @@ export async function deleteRow(host, key) {
     }
   }
   return { ok: true, rows: plan.keys, groups: groups.map((g) => g.uuid), prototypes, kept, leaders, warnings };
+}
+
+/**
+ * Edit a filled row by hand: its label, note, kind and visibility go to the host's
+ * row, a stack's count or prototype and the officer to the row's group. Bodies of the
+ * group standing on a map keep the figures they went out with until they are recalled;
+ * that is a whisper to the Judges and a `warnings` entry, never a refusal.
+ *
+ * @param {Actor} host a faction or a group hosting a chart
+ * @param {string} key the row
+ * @param {{fields?: object, stacks?: {stack: string, count?: number, prototype?: string}[], officer?: {officer: string, moraleBonus?: number|null}}} [change]
+ * @returns {Promise<{ok: boolean, reason?: string, warnings?: string[], done?: number}>}
+ */
+export async function editRow(host, key, { fields = {}, stacks = [], officer = null } = {}) {
+  if (!hostsChart(host)) return refused("notHost");
+  if (!host.isOwner) return refused("notOwner");
+  const row = rowOn(host, key);
+  if (!row) return refused("noRow");
+  const group = row.holderUuid ? docOf(row.holderUuid) : null;
+  const plan = planEdit({ host: { uuid: host.uuid }, rows: unitsOf(host), key, fields, stacks, officer, onMap: !!group && isGroupActor(group) && onMap(group) });
+  if (!plan.ok) return refused(plan.reason);
+  const run = await runPlan(plan);
+  if (!run.ok) return { ok: false, reason: run.reason, ...(run.name ? { name: run.name } : {}), done: run.done };
+  for (const warning of plan.warnings ?? []) {
+    if (warning === "onMap" && group) await whisperJudges(group, game.i18n.format(`${LANG_PREFIX}.org.edit.onMap`, { name: group.name }));
+  }
+  return { ok: true, warnings: plan.warnings ?? [], done: run.done };
 }
 
 /* -------------------------------------------- */
@@ -445,7 +474,7 @@ export async function leaveFaction(group) {
  * @param {string} uuid
  * @param {object[]} nodes the world's group nodes, read once for a whole view
  */
-function readHolder(uuid, nodes) {
+export function readHolder(uuid, nodes) {
   const actor = docOf(uuid);
   if (!actor) return null;
   const group = isGroupActor(actor);
@@ -465,14 +494,15 @@ function readHolder(uuid, nodes) {
  * its officer, whether it is empty and whether it stands on two hosts. For a
  * sheet to draw; it writes nothing.
  * @param {Actor} host a faction or a group hosting a chart
+ * @param {{isGM?: boolean}} [options] a reader who is no Judge is shown no hidden row
  * @returns {{roots: object[], rows: object[], total: number, empty: number}}
  */
-export function orgChart(host) {
+export function orgChart(host, { isGM = !!game.user?.isGM } = {}) {
   const nodes = groupNodes();
   const twins = [...twinKeys(orgHosts().map((h) => ({ uuid: h.uuid, rows: unitsOf(h) })))]
     .filter(([, hosts]) => hosts.includes(host?.uuid))
     .map(([key]) => key);
-  return orgChartView(unitsOf(host), (uuid) => readHolder(uuid, nodes), twins);
+  return orgChartView(unitsOf(host), (uuid) => readHolder(uuid, nodes), twins, { isGM });
 }
 
 /**
@@ -492,7 +522,7 @@ export function locations({ isGM = !!game.user?.isGM } = {}) {
       roster: (place.system?.roster ?? []).map((r) => r?.toObject?.() ?? r).filter((r) => isGM || !r.hidden),
     }))
     .filter((place) => place.roster.length);
-  return locationsView({ places, rows: chartRows(), read: (uuid) => readHolder(uuid, nodes) });
+  return locationsView({ places, rows: readableChartRows(chartRows(), isGM), read: (uuid) => readHolder(uuid, nodes) });
 }
 
 /**

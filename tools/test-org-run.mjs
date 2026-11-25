@@ -247,11 +247,65 @@ t("a run that fails hands back every id it made, and writes no ref it could not 
 
 t("a plan naming an op the executor does not know, or a document the seat cannot write, writes nothing", async () => {
   reset();
-  assert.equal((await runPlan({ ok: true, ops: [{ op: "setStack" }] }, provider())).reason, "badOp");
+  assert.equal((await runPlan({ ok: true, ops: [{ op: "bogusOp" }] }, provider())).reason, "badOp");
   const theirs = makeDoc(FACTION, "Theirs", { units: [] }, { isOwner: false });
   const run = await runPlan({ ok: true, ops: [{ op: "createGroup", ref: "new:g1", name: "G" }, { op: "update", uuid: theirs.uuid, update: {} }] }, provider());
   assert.equal(run.reason, "notOwner");
   assert.deepEqual(writes, [], "before the first write");
+});
+
+/** A group with one stack of three bodies named by a prototype, for the setStack cases. */
+const oneStack = (roster = []) => {
+  const g = makeDoc(GROUP, "Gang", { ...groupSystem(), stacks: [{ key: "s1", template: { uuid: "P.old", type: "monster", label: "Old", snapshot: {}, snapshotTime: 0 }, size: { current: 3, initial: 3, formula: "" }, gen: {}, roster }] });
+  return g;
+};
+
+t("setStack sets a stack's count and re-points its prototype on the row's group, and refuses a group the seat cannot write before any write", async () => {
+  reset();
+  const g = oneStack();
+  const proto = creature("New proto");
+  const run = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "s1", count: 7, prototype: proto.uuid }] }, provider());
+  assert.equal(run.ok, true, run.error);
+  assert.equal(g.system.stacks[0].size.current, 7);
+  assert.equal(g.system.stacks[0].size.initial, 7);
+  assert.equal(g.system.stacks[0].template.uuid, proto.uuid);
+  assert.equal(g.system.stacks[0].template.label, "New proto");
+  const theirs = makeDoc(GROUP, "Theirs", groupSystem(), { isOwner: false });
+  writes = [];
+  const refused = await runPlan({ ok: true, ops: [{ op: "setStack", group: theirs.uuid, stack: "s1", count: 1 }] }, provider());
+  assert.equal(refused.reason, "notOwner");
+  assert.deepEqual(writes, []);
+});
+
+t("setStack floors a count at the bodies the stack already records and says so for a stack that is not there", async () => {
+  reset();
+  const g = oneStack([{ key: "m1" }, { key: "m2" }]);
+  const run = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "s1", count: 1 }] }, provider());
+  assert.equal(run.ok, true, run.error);
+  assert.equal(g.system.stacks[0].size.current, 2, "never below the recorded bodies");
+  const gone = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "zz", count: 4 }] }, provider());
+  assert.equal(gone.reason, "noStack");
+  const bad = await runPlan({ ok: true, ops: [{ op: "setStack", group: g.uuid, stack: "s1", prototype: "L.nowhere" }] }, provider());
+  assert.equal(bad.reason, "noPrototype");
+});
+
+t("Edit runs through the org writer: a filled row's label and a stack's count land, and bodies on a map warn without refusing", async () => {
+  reset();
+  const g = oneStack();
+  const host = faction("Holdfast", [{ key: "u1", parentKey: "", label: "Old", holderUuid: g.uuid, kind: "", notes: "", hidden: false, gen: {} }]);
+  const done = await org.editRow(host, "u1", { fields: { label: "New" }, stacks: [{ stack: "s1", count: 5 }] });
+  assert.equal(done.ok, true);
+  assert.deepEqual(done.warnings, []);
+  assert.equal(host.system.units[0].label, "New");
+  assert.equal(g.system.stacks[0].size.current, 5);
+  g.system.stacks[0].roster = [{ key: "m", tokenUuid: "Scene.x.Token.y" }];
+  const warned = await org.editRow(host, "u1", { stacks: [{ stack: "s1", count: 6 }] });
+  assert.equal(warned.ok, true);
+  assert.deepEqual(warned.warnings, ["onMap"]);
+  assert.equal(g.system.stacks[0].size.current, 6, "a warning is not a refusal");
+  assert.equal((await org.editRow(host, "zz", {})).reason, "noRow");
+  const empty = faction("Bare", [{ key: "e1", parentKey: "", label: "", holderUuid: "", kind: "", notes: "", hidden: false, gen: {} }]);
+  assert.equal((await org.editRow(empty, "e1", { stacks: [{ stack: "s", count: 1 }] })).reason, "empty");
 });
 
 t("a roll with no host hosts the chart on its top unit's group", async () => {

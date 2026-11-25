@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import {
   affiliationRows, blankRow, isEmptyRow, isOfficerUp, locationsView, moraleFromAbove, nodesOf, orgChartView, planAdd,
   planJoin, planLeave, planRecall, planSendOut, preferredHost, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
-  withHolder, chartToJoin, factionLine,
+  withHolder, chartToJoin, factionLine, readableChartRows, readableUnits,
 } from "../scripts/lib/org-tree-logic.mjs";
 
 /** A stored row, as a model would hand it over. */
@@ -381,6 +381,27 @@ t("a holder on no roster is listed apart, and a group whose container is on the 
   assert.deepEqual(view.places[0].groups.map((g) => [g.uuid, g.covered]), [["G.a", false], ["G.b", true]]);
   assert.equal(view.places[0].total, 5, "the container's count already holds the covered group's bodies");
   assert.deepEqual(view.unplaced.map((r) => r.key), ["c"]);
+});
+
+t("a hidden row is the Judge's alone, and so is everything beneath it: no child of it reads as a top row", () => {
+  const rows = [row("v", "", "G.v"), row("w1", "v", "G.w1", { hidden: true }), row("g1", "w1", "G.g1"), row("w2", "v", "")];
+  assert.deepEqual(readableUnits(rows, true).map((r) => r.key), ["v", "w1", "g1", "w2"]);
+  assert.deepEqual(readableUnits(rows, false).map((r) => r.key), ["v", "w2"]);
+  const seen = orgChartView(rows, read, [], { isGM: false });
+  assert.deepEqual(seen.rows.map((r) => r.key), ["v", "w2"]);
+  assert.equal(seen.roots.length, 1, "the hidden row's child does not surface as a root");
+  assert.equal(seen.total, 9, "the hidden bodies are not counted for a reader");
+  assert.equal(orgChartView(rows, read).rows.length, 4, "a Judge, and a call that names no reader, see every row");
+});
+
+t("the locations view's chart rows drop a hidden row and its subtree per host, never across two hosts holding one key", () => {
+  const flat = [
+    { hostUuid: "H.a", key: "x", parentKey: "", holderUuid: "G.v", hidden: true },
+    { hostUuid: "H.a", key: "y", parentKey: "x", holderUuid: "G.w1", hidden: false },
+    { hostUuid: "H.b", key: "x", parentKey: "", holderUuid: "G.g2", hidden: false },
+  ];
+  assert.deepEqual(readableChartRows(flat, false).map((r) => `${r.hostUuid}:${r.key}`), ["H.b:x"]);
+  assert.equal(readableChartRows(flat, true).length, 3);
 });
 
 let failures = 0;
