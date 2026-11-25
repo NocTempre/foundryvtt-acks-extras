@@ -517,6 +517,70 @@ await t("a use on a Judge's window runs here; a Player's seat relays and, with n
   }
 });
 
+await t("a use runs against the token the pressing seat resolved, however the GM's window is viewing another scene; with none named it falls back to the canvas, then to the actor's one linked token, and refuses two", async () => {
+  stage();
+  seatOf(true);
+  const notes2 = [];
+  const priorUi = globalThis.ui;
+  const priorScenes = gameStub.scenes;
+  const priorActors = bearerActor.getActiveTokens;
+  globalThis.ui = { notifications: { warn: (text) => notes2.push(["warn", text]), error: (text) => notes2.push(["error", text]) } };
+  const otherActor = { uuid: "A.9", id: "a9", effects: [], testUserPermission: () => true };
+  const strangerTok = { ...bearerTok, id: "9", uuid: "T.9", actor: otherActor, baseActor: { uuid: "A.9" } };
+  const linkedTok = (id) => ({ ...bearerTok, id, uuid: `T.${id}`, actorLink: true, actorId: "a1" });
+  const prior = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => (uuid === "T.9" ? strangerTok : prior(uuid));
+  const ran = async (over = {}) => {
+    asks.length = 0;
+    return { out: await run.runUse({ itemUuid: "I.1", ...over }), asked: asks.at(-1)?.[0] ?? null };
+  };
+  try {
+    bearerActor.id = "a1";
+    itemFlags = toggleFlags(down);
+    presented.length = 0;
+    // The GM's window views another scene: the actor has no token on the canvas it sees.
+    bearerActor.getActiveTokens = () => [];
+    const carried = await ran({ tokenUuid: "T.1" });
+    assert.equal(carried.out.ok, true, "the token the seat named is the bearer's, wherever this window looks");
+    assert.equal(carried.asked, bearerTok);
+    // A token of another body is refused, never raised.
+    const wrong = await ran({ tokenUuid: "T.9" });
+    assert.deepEqual(wrong.out, { ok: false, reason: "notCarried" });
+    assert.equal(wrong.asked, null, "nothing was raised on the other body's token");
+    // With none named and none on the canvas, the actor's one linked token on any scene.
+    gameStub.scenes = [{ tokens: [{ actorLink: false, actorId: "a1", uuid: "T.u" }, linkedTok("1"), { actorLink: true, actorId: "other", uuid: "T.o" }] }, { tokens: [] }];
+    const found = await ran();
+    assert.equal(found.out.ok, true);
+    assert.equal(found.asked.uuid, "T.1", "an unlinked token and another actor's are no candidate");
+    gameStub.scenes = [{ tokens: [linkedTok("1")] }, { tokens: [linkedTok("2")] }];
+    notes2.length = 0;
+    assert.deepEqual((await ran()).out, { ok: false, reason: "manyTokens" }, "two linked tokens: no scene is the right one");
+    assert.ok(notes2[0][1].endsWith("itemRun.refused.manyTokens"));
+    gameStub.scenes = [];
+    assert.deepEqual((await ran()).out, { ok: false, reason: "noToken" });
+    // The canvas token wins over a linked one elsewhere, and a seat's token wins over both.
+    bearerActor.getActiveTokens = () => [bearerTok];
+    gameStub.scenes = [{ tokens: [linkedTok("2"), linkedTok("3")] }];
+    assert.equal((await ran()).asked, bearerTok, "the viewed scene's token is read before any scan");
+    // The seat's own resolution travels with the use.
+    gameStub.user = { isGM: false };
+    seatOf(true);
+    const sent = [];
+    gameStub.socket = { emit: (channel, message) => sent.push(message) };
+    await run.useItem(theItem);
+    assert.deepEqual(sent.map((m) => m.payload), [{ itemUuid: "I.1", tokenUuid: "T.1" }], "a relayed use names the token the seat resolved");
+  } finally {
+    delete gameStub.socket;
+    gameStub.user = { isGM: true };
+    gameStub.scenes = priorScenes;
+    bearerActor.getActiveTokens = priorActors;
+    delete bearerActor.id;
+    globalThis.fromUuidSync = prior;
+    globalThis.ui = priorUi;
+    unstage();
+  }
+});
+
 await t("one fixed key names an item kind: the importer's entry id, else the row's", () => {
   assert.equal(run.kindKeyOf({ flags: { "acks-extras": { cookbook: { id: "entry-1" } } } }, { key: "row-1" }), "entry-1");
   assert.equal(run.kindKeyOf({ flags: {} }, { key: "row-1" }), "row-1");

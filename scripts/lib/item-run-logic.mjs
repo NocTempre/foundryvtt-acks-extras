@@ -81,6 +81,25 @@ export function claimsItemUse(item, runnable) {
   return !!run && new Set(runnable).has(run.activation.kind);
 }
 
+/**
+ * Which token is the bearer's for a use. A token the pressing seat resolved and
+ * named is the answer where it is the item's actor's (`carries`), and a refusal
+ * (`notCarried`) where it is another body's. With none named, the token on the
+ * scene this window views; failing that, the actor's one linked token on any
+ * scene (`linked`, read only then), and a refusal where it has none
+ * (`noToken`) or several (`manyTokens`), since no scene is the right one.
+ *
+ * @param {{carried?: object|null, carries?: (token: object) => boolean, canvas?: object|null, linked?: () => object[]}} p
+ * @returns {{ok: true, token: object}|{ok: false, reason: "notCarried"|"noToken"|"manyTokens"}}
+ */
+export function chooseBearerToken({ carried = null, carries = () => true, canvas = null, linked = () => [] } = {}) {
+  if (carried) return carries(carried) ? { ok: true, token: carried } : { ok: false, reason: "notCarried" };
+  if (canvas) return { ok: true, token: canvas };
+  const found = [...linked()];
+  if (found.length === 1) return { ok: true, token: found[0] };
+  return { ok: false, reason: found.length ? "manyTokens" : "noToken" };
+}
+
 /* -------------------------------------------- */
 /*  Records                                      */
 /* -------------------------------------------- */

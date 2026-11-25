@@ -21,11 +21,11 @@
  *   fight that ends moves it to the world clock.
  */
 import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
-import { figureNumber, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { carriesItem, figureNumber, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { dispatchReachMoment, lowerReach, raiseReach, reachSnapshot, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import {
-  actionPartRecordData, activationRecordIds, checkPressRequest, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
+  actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
   immunityDuration, immunityRecordData, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
@@ -43,7 +43,7 @@ import { isMarkerActor } from "./place.mjs";
 const loc = makeLoc(LANG_PREFIX);
 
 /** The refusals the Judge and the Player have a line for; any other reason reads as a plain refusal. */
-const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
+const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
 const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press` });
@@ -79,8 +79,18 @@ export function setFuseBurst(fn) {
 /*  The use                                      */
 /* -------------------------------------------- */
 
-/** The bearer's token document: the actor's own, else the first on a scene. */
-const tokenOf = (actor) => (actor?.isToken ? actor.token : (actor?.getActiveTokens?.(false, true)?.[0] ?? null));
+/** The bearer's token document on the scene this window views: a synthetic actor's own, else the first on the canvas. */
+const canvasTokenOf = (actor) => (actor?.isToken ? actor.token : (actor?.getActiveTokens?.(false, true)?.[0] ?? null));
+
+/** Every linked token of the actor on any scene, wherever it stands. */
+function linkedTokensOf(actor) {
+  const found = [];
+  if (!actor?.id) return found;
+  for (const scene of game.scenes ?? []) {
+    for (const token of scene.tokens ?? []) if (token.actorLink && token.actorId === actor.id) found.push(token);
+  }
+  return found;
+}
 
 /** The one key an item kind's immunity is recorded under: the importer's entry id, else the row's key. */
 export const kindKeyOf = (item, row) => String(item?.flags?.[MODULE_ID]?.cookbook?.id ?? row?.key ?? "");
@@ -165,11 +175,15 @@ async function runOnce({ item, token, judge }) {
  * bearer's token and the kind's runner, run it and hand the result to the
  * presenter. A seat that does not own the item's actor, an item with no runner
  * for its kind and a bearer with no token on a scene are refused with a line.
+ * The bearer's token is the one the pressing seat resolved (`tokenUuid`, which
+ * must be the item's actor's), since this window may view another scene than
+ * the bearer's; with none named it is the token on this window's scene, then
+ * the actor's one linked token on any scene (`chooseBearerToken`).
  *
- * @param {{itemUuid: string, requestUserId?: string|null}} p
+ * @param {{itemUuid: string, tokenUuid?: string, requestUserId?: string|null}} p
  * @returns {Promise<{ok: boolean, reason?: string}>}
  */
-export async function runUse({ itemUuid, requestUserId = null }) {
+export async function runUse({ itemUuid, tokenUuid = "", requestUserId = null }) {
   const item = fromUuidSync(itemUuid);
   const run = itemRunOf(item);
   const actor = item?.actor ?? null;
@@ -182,18 +196,30 @@ export async function runUse({ itemUuid, requestUserId = null }) {
   if (requestUserId && !actor.testUserPermission?.(user, "OWNER")) return refuse("notOwner");
   const runner = runners.get(run.activation.kind);
   if (!runner) return refuse("noRunner");
-  const token = tokenOf(actor);
-  if (!token) return refuse("noToken");
+  const chosen = chooseBearerToken({
+    carried: tokenUuid ? fromUuidSync(tokenUuid) : null,
+    carries: (candidate) => carriesItem(actor, candidate),
+    canvas: canvasTokenOf(actor),
+    linked: () => linkedTokensOf(actor),
+  });
+  if (!chosen.ok) return refuse(chosen.reason);
+  const token = chosen.token;
   const result = await runner({ item, run, actor, token, judge: !requestUserId });
   if (!result.ok) return refuse(result.reason ?? "refused");
   await presenter?.(result);
   return result;
 }
 
-/** Take an item's use: run it here on the GM's window, or relay it from a Player's seat. */
+/**
+ * Take an item's use: run it here on the GM's window, or relay it from a
+ * Player's seat. The request carries the uuid of the bearer's token as this
+ * window resolves it, so the GM's window, which may view another scene, runs
+ * against the token the seat sees.
+ */
 export async function useItem(item) {
-  if (game.user.isGM) return runUse({ itemUuid: item.uuid });
-  return (await executeAsGM(HANDLER.use, { itemUuid: item.uuid })) ?? { ok: false, reason: "relay" };
+  const tokenUuid = canvasTokenOf(item.actor)?.uuid ?? "";
+  if (game.user.isGM) return runUse({ itemUuid: item.uuid, tokenUuid });
+  return (await executeAsGM(HANDLER.use, { itemUuid: item.uuid, tokenUuid })) ?? { ok: false, reason: "relay" };
 }
 
 /* -------------------------------------------- */

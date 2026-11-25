@@ -25,7 +25,7 @@
  * config and does nothing.
  */
 import { AURA_BEHAVIOR_TYPE, BEARER_DOWN_HOOK, MODULE_ID, LANG_PREFIX, TURN_BEGAN_HOOK } from "./constants.mjs";
-import { checkRaise, downCause, figureNumber, readAuraConfig, readReach, reachAdmits, snapshotRegionData } from "./aura-reach-logic.mjs";
+import { carriesItem, checkRaise, downCause, figureNumber, readAuraConfig, readReach, reachAdmits, snapshotRegionData } from "./aura-reach-logic.mjs";
 import { itemRunRowsOf } from "./item-run-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import { executeAsGM, registerHandler } from "./sockets.mjs";
@@ -220,7 +220,7 @@ async function raiseHere({ tokenUuid, sourceUuid, rowKey, activationId, requestU
       supported: support.ok,
       found: !!token && !!item && !!reach,
       ownerIds: ownersOf(token),
-      carries: !!item?.actor && !!token && (item.actor === token.actor || item.actor.uuid === token.actor?.uuid || item.actor.uuid === token.baseActor?.uuid),
+      carries: carriesItem(item?.actor, token),
       down: token ? !!bearerDown(token) : false,
       rangeFeet: reach ? figureNumber(reach.radius) : null,
     },

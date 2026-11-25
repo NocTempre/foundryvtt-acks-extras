@@ -304,6 +304,16 @@ export function snapshotRegionData(centre, range, dimensions) {
 /* -------------------------------------------- */
 
 /**
+ * Whether a token is the body an item's actor plays: the actor itself, or the
+ * actor its synthetic one stands on. The raise and the use of an item ask the
+ * same question of a token a seat named.
+ *
+ * @param {object|null} actor the item's actor
+ * @param {object|null} token a token document
+ */
+export const carriesItem = (actor, token) => !!actor && !!token && (actor === token.actor || actor.uuid === token.actor?.uuid || actor.uuid === token.baseActor?.uuid);
+
+/**
  * Whether a request to raise a reach goes ahead, and at what radius. The
  * Judge's seat asks with no `requestUserId`; a Player's request carries the id
  * the server attested. `world` is what the executing client read live: the
