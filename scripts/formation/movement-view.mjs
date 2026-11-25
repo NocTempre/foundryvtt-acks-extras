@@ -6,6 +6,7 @@
  */
 import { makeLoc } from "../lib/util.mjs";
 import { MOVEMENT_MODES } from "../lib/movement-modes.mjs";
+import { userOwnsMember } from "./player-requests.mjs";
 import {
   carriedLoad,
   cellBodies,
@@ -96,14 +97,16 @@ function paceLine(formation, load, o) {
 
 /**
  * The Movement section: the pace line, the five tiles and the state of the
- * Judge's word. A tile lights for the word where one stands, and otherwise for
+ * group's word. A tile lights for the word where one stands, and otherwise for
  * how the party reads, so a press with nobody moved still shows as pressed.
  * @param {object} formation
  * @param {object} t  the `travelOf` read
- * @returns {object} `pace`, `tiles`, `automatic`, `judge`, `canUndo`
+ * @returns {object} `pace`, `tiles`, `automatic`, `canArrange`, `canUndo`
  */
 export function buildMovementView(formation, t) {
-  const judge = !!game.user?.isGM;
+  // The tiles, Back to automatic and Undo write the party's record, which a
+  // Judge and a seat that owns a member both press.
+  const canArrange = !!game.user?.isGM || userOwnsMember(formation, game.user);
   const lit = t.movement.set ?? t.movement.mode;
   return {
     pace: paceLine(formation, carriedLoad(formation), { pool: carrierPool(), t }),
@@ -114,8 +117,8 @@ export function buildMovementView(formation, t) {
       pressed: key === lit,
     })),
     automatic: !t.movement.set,
-    judge,
-    canUndo: judge && !!t.lastArrangement,
+    canArrange,
+    canUndo: canArrange && !!t.lastArrangement,
   };
 }
 

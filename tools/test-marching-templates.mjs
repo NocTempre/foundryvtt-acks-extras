@@ -244,6 +244,38 @@ await atest("formUp treats a dismissed picker as declined, not as misuse", async
   assert.equal(await refusal(() => formUp(null, anOrder())), null);
 });
 
+/* -------------------------------------------- */
+/*  The picker's Forget button                   */
+/* -------------------------------------------- */
+
+await atest("the load dialog draws Forget only where the seat may change world settings", async () => {
+  const { pickMarchingOrder } = await import("../scripts/formation/marching-templates.mjs");
+  const drawn = [];
+  const wait = async ({ buttons }) => { drawn.push(buttons.map((b) => b.action)); return null; };
+  const priorGame = globalThis.game;
+  const priorFoundry = globalThis.foundry;
+  globalThis.game = {
+    settings: { get: () => ({ abc: anOrder() }) },
+    i18n: { localize: (key) => key, format: (key) => key },
+  };
+  globalThis.foundry = { utils: { escapeHTML: (text) => text }, applications: { api: { DialogV2: { wait } } } };
+  try {
+    for (const [user, options] of [
+      [{ isGM: true }, undefined],
+      [{ isGM: false, can: (permission) => permission === "SETTINGS_MODIFY" }, undefined],
+      [{ isGM: false, can: () => false }, undefined],
+      [{ isGM: false, can: () => true }, { forget: false }],
+    ]) {
+      globalThis.game.user = user;
+      await pickMarchingOrder(options);
+    }
+  } finally {
+    globalThis.game = priorGame;
+    globalThis.foundry = priorFoundry;
+  }
+  assert.deepEqual(drawn, [["apply", "delete"], ["apply", "delete"], ["apply"], ["apply"]], "Forget follows the permission and the caller's say");
+});
+
 console.log(
-  `test-marching-templates: OK (${passed} checks — capture, order, roles, gaps, newcomers, round trip, argument grip)`,
+  `test-marching-templates: OK (${passed} checks — capture, order, roles, gaps, newcomers, round trip, argument grip, the picker's Forget button)`,
 );

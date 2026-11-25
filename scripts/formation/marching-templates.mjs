@@ -363,13 +363,16 @@ export async function promptForOrderName(formation) {
 
 /**
  * Choose one of the saved orders, and whether to march into it or forget it.
- * Forgetting an order writes a world setting, so a seat that may not write one
- * passes `forget: false` and the picker draws no Forget button.
+ * Forgetting an order writes the world setting every party's saved orders
+ * share, so the Forget button is drawn only on a seat that may change world
+ * settings (a Judge always may), and a caller passes `forget: false` to leave
+ * it out on one that may.
  *
- * @param {{forget?: boolean}} [options] `forget`: draw the Forget button; true by default
+ * @param {{forget?: boolean}} [options] `forget`: allow the Forget button; true by default
  * @returns {Promise<{template: object, action: "apply"|"delete"}|null>}
  */
 export async function pickMarchingOrder({ forget = true } = {}) {
+  const mayForget = forget && (!!game.user?.isGM || !!game.user?.can?.("SETTINGS_MODIFY"));
   const saved = listTemplates();
   if (!saved.length) {
     ui.notifications.info(game.i18n.localize("ACKS-FORMATION.marching.none"));
@@ -404,7 +407,7 @@ export async function pickMarchingOrder({ forget = true } = {}) {
         label: game.i18n.localize("ACKS-FORMATION.marching.formUp"),
         callback: (_event, button) => ({ id: button.form.elements.id?.value, action: "apply" }),
       },
-      ...(forget ? [{
+      ...(mayForget ? [{
         action: "delete",
         icon: "fa-solid fa-trash",
         label: game.i18n.localize("ACKS-FORMATION.marching.delete"),

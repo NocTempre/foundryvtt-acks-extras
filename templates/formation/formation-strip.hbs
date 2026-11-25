@@ -87,14 +87,12 @@
         {{/if}}
       {{/unless}}
     </p>
-    {{#if isGM}}
     <p class="acks-extras-formation-settlement-progress">
       {{localize "ACKS-FORMATION.settlement.progress" blocks=strip.settlement.blocks turns=strip.settlement.turns}}
       {{#if strip.settlement.lost}}
       <span class="acks-extras-formation-settlement-astray">{{localize "ACKS-FORMATION.settlement.astray"}}</span>
       {{/if}}
     </p>
-    {{/if}}
     {{#if strip.settlement.clockLine}}
     <p class="hint acks-extras-formation-settlement-clock">{{strip.settlement.clockLine}}</p>
     {{/if}}

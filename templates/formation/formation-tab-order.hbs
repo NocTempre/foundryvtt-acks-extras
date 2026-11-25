@@ -1,6 +1,7 @@
 {{!-- The Order tab (Order, Train or Company by mode): the marching order's own
-      actions at its head, the Judge's alone, Disband last; then the ranks and
-      the train. --}}
+      actions at its head, for a seat that owns a member (Save order for a seat
+      that may change world settings, Disband for the Judge, last); then the
+      ranks and the train. --}}
 <div class="tab acks-extras-party-sheet__panel{{#if tabs.order.active}} active{{/if}}" data-group="primary" data-tab="order">
   {{#if formation}}
   <header class="acks-extras-party-sheet__head">
@@ -11,7 +12,7 @@
         <p class="acks-extras-party-sheet__head-sub">{{frame.heads.order.sub}}</p>
       </div>
     </div>
-    {{#if isGM}}
+    {{#if seat.ownsMember}}
     <div class="acks-extras-party-sheet__head-actions">
       {{#if travel.arrangement}}
       <button type="button" class="acks-extras-party-sheet__head-pill is-gold" data-action="movementFastest"
@@ -49,10 +50,12 @@
                       placeholder="{{localize 'ACKS-FORMATION.app.columnColor.placeholder'}}"></color-picker>
       </label>
       {{/if}}
+      {{#if seat.canSaveOrders}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="saveMarchingOrder"
               data-tooltip="{{localize 'ACKS-FORMATION.marching.saveHint'}}">
         <i class="fa-solid fa-floppy-disk" inert></i> {{localize "ACKS-FORMATION.marching.save"}}
       </button>
+      {{/if}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="loadMarchingOrder"
               data-tooltip="{{localize 'ACKS-FORMATION.marching.loadHint'}}">
         <i class="fa-solid fa-people-line" inert></i> {{localize "ACKS-FORMATION.frame.pill.loadOrder"}}
@@ -65,10 +68,12 @@
               data-tooltip="{{localize 'ACKS-FORMATION.audit.openHint'}}">
         <i class="fa-solid fa-list-check" inert></i> {{localize "ACKS-FORMATION.frame.pill.audit"}}
       </button>
+      {{#if isGM}}
       <button type="button" class="acks-extras-party-sheet__head-pill danger" data-action="disband"
               data-tooltip="{{localize 'ACKS-FORMATION.app.disbandHint'}}">
         <i class="fa-solid fa-people-arrows" inert></i> {{localize "ACKS-FORMATION.app.disband"}}
       </button>
+      {{/if}}
     </div>
     {{/if}}
   </header>
@@ -84,7 +89,7 @@
       {{#if this.blank}}
       <li data-cell-index="{{this.cellIndex}}" class="member blank-cell">
         <span class="hint">{{localize "ACKS-FORMATION.app.blankSlot"}}</span>
-        {{#if @root.isGM}}
+        {{#if @root.seat.ownsMember}}
         <div class="member-controls {{#if this.showHoriz}}grid-controls{{/if}}">
           <button type="button" data-action="memberUp" {{#unless this.canUp}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveUp'}}" data-tooltip=""><i class="fa-solid fa-chevron-up" inert></i></button>
           {{#if this.showHoriz}}

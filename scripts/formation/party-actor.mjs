@@ -99,11 +99,13 @@ function clockTime() {
  * or the mode head's clock, pace and day presses act for the members the seat
  * owns), `ownsEveryMember` (Deal XP credits
  * every participant), `ownsParty` (the description and the image are writes to
- * the party actor), `canBrowse` (the file picker refuses a seat without it).
+ * the party actor), `canBrowse` (the file picker refuses a seat without it),
+ * `canSaveOrders` (the saved marching orders are one world setting every party
+ * shares, so writing it needs the world-settings permission).
  * A Judge's seat holds every ownership field, an empty party's included.
  * @param {Actor} partyActor
  * @param {object} formation
- * @returns {{isGM: boolean, ownsMember: boolean, ownsEveryMember: boolean, ownsParty: boolean, canBrowse: boolean}}
+ * @returns {{isGM: boolean, ownsMember: boolean, ownsEveryMember: boolean, ownsParty: boolean, canBrowse: boolean, canSaveOrders: boolean}}
  */
 function seatOf(partyActor, formation) {
   const isGM = game.user.isGM;
@@ -117,6 +119,7 @@ function seatOf(partyActor, formation) {
     ownsEveryMember: isGM || everyOwned(),
     ownsParty: partyActor.isOwner,
     canBrowse: game.user.can("FILES_BROWSE"),
+    canSaveOrders: game.user.can("SETTINGS_MODIFY"),
   };
 }
 

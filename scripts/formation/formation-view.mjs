@@ -85,6 +85,7 @@ import { streetUnder } from "./zones.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import { findDistrict } from "./district-zone.mjs";
 import { hunterName } from "./hunt.mjs";
+import { userOwnsMember } from "./player-requests.mjs";
 import { TERRAIN, travelMultiplier } from "../vehicles/vehicle-speed.mjs";
 import { carrierPool, wheelsEnter } from "./conveyance.mjs";
 import { buildMemberConveyance, buildMovementView, paceSetterNote } from "./movement-view.mjs";
@@ -1237,9 +1238,10 @@ function buildSettlementView(formation, t) {
     // Which list answers here, and which named lists are gone — `{text, warn}`
     // rows, already formatted.
     listLines,
-    // Whether The city section has anything for a player: the pickers and the
-    // tracker are the Judge's, the places underfoot are the table's.
-    shown: !!game.user?.isGM || !!(districtName || placeHere || districtPlace),
+    // Whether The city section has anything for the seat: the pickers and the
+    // tracker are for a seat that owns a member, the places underfoot are the
+    // table's.
+    shown: !!game.user?.isGM || userOwnsMember(formation, game.user) || !!(districtName || placeHere || districtPlace),
     // The RATE, kept apart from the tally the spread above carries.
     rateBlocks: rate.blocks,
     blocksUnpriced: rate.blocks == null,
@@ -1474,9 +1476,11 @@ export function buildTravelView(formation, { asPlayer = !game.user?.isGM } = {})
     opt(value, game.i18n.localize(`ACKS-FORMATION.travel.following.${value}`), value === t.following));
   view.weather = buildWeatherView(t, opt, view.country.climate);
   view.wheels = wheelRefusals(formation, t);
-  // The Sky group is the Judge's pickers; a player sees it only for what it
-  // already told the table (the chips, the night band, a wagon that cannot roll).
-  view.skyShown = !asPlayer || !!(view.weather.chips.length || view.weather.night || view.wheels.length);
+  // The Sky group's pickers are drawn for a seat that owns a member; any other
+  // seat sees it only for what it already told the table (the chips, the night
+  // band, a wagon that cannot roll).
+  view.skyShown = !asPlayer || userOwnsMember(formation, game.user)
+    || !!(view.weather.chips.length || view.weather.night || view.wheels.length);
 
   // How the order moves. The flight fields appear only for a flier, because
   // hours aloft mean nothing to a party on foot and an always-visible field

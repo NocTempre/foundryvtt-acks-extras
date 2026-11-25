@@ -198,7 +198,7 @@ const cityView = () => ({
 
 /** The seats a party sheet is opened on, as party-actor.mjs's `seatOf` computes them. */
 const SEAT = {
-  judge: { isGM: true, ownsMember: true, ownsEveryMember: true, ownsParty: true, canBrowse: true },
+  judge: { isGM: true, ownsMember: true, ownsEveryMember: true, ownsParty: true, canBrowse: true, canSaveOrders: true },
   /** A seat that owns no member and not the party actor. */
   none: { isGM: false, ownsMember: false, ownsEveryMember: false, ownsParty: false, canBrowse: false },
   /** Owns the party actor with no member of it, as a world where players move the party gives. */
@@ -557,6 +557,7 @@ const frameOf = (view, seat, extra = {}) =>
     );
     const context = {
       isGM,
+      seat: seatFor(seat),
       formation: { id: "f1", name: "The Company" },
       partyName: "The Company",
       strip: { ...view.strip, modeOptions: ["delve", "journey", "settlement"].map((value) => ({ value, label: `M.${value}`, selected: value === view.strip.mode })) },
@@ -635,7 +636,8 @@ const frameOf = (view, seat, extra = {}) =>
     }
     assert.equal((html.match(/data-group-key=/g) ?? []).length, 4, `${name}: the Key's groups`);
     assert.ok(!html.includes("is-judge") && !html.includes('data-tab="judge"'), `${name}: nothing of the Judge's tab`);
-    assert.ok(!/name="(travel\.mode|name)"/.test(html), `${name}: no field of the Judge's`);
+    assert.ok(html.includes('name="travel.mode"') && html.includes('name="name"'), `${name}: the mode picker and the name field, for a seat that owns a member`);
+    assert.ok(!html.includes('name="system.description"'), `${name}: no description editor`);
     const plate = html.slice(html.indexOf("acks-extras-party-sheet__plate "), html.indexOf("acks-extras-party-sheet__rail--figures"));
     assert.equal(plate.includes('data-action="editPartyImage"'), seat.canBrowse, `${name}: the plate is a press only where files may be browsed`);
   }

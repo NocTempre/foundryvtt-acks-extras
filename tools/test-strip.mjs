@@ -588,7 +588,7 @@ const stripOf = (id) => {
         document: { uuid: "Actor.party" },
       };
       // A seat owning nothing unless the caller names the seat it is drawing.
-      const seat = given ?? { isGM: gm, ownsMember: gm, ownsEveryMember: gm, ownsParty: gm, canBrowse: gm };
+      const seat = given ?? { isGM: gm, ownsMember: gm, ownsEveryMember: gm, ownsParty: gm, canBrowse: gm, canSaveOrders: gm };
       context.seat = seat;
       context.frame = buildFrameView({ view: context, seat, headcount: 1, hitPoints: [], clockTime: "" });
       const out = {};
@@ -825,6 +825,111 @@ const stripOf = (id) => {
   assert.ok(ownJourneyHead.includes('name="travel.hexLabel"'), "and the hex field");
   assert.ok(!ownJourneyHead.includes("head-asks"), "a journey's day is the party's own, with nothing to ask");
   assert.ok(!headOf(render(journey, { gm: false })).includes("head-actions"), "a seat that owns no member has no Wilderness head actions");
+
+  // The bodies the seat's ownership opens: what a member's owner draws is Foundry's own ownership of a
+  // member, read through the formation's members (the view's `userOwnsMember`), never a role.
+  const owned = (fn) => {
+    const held = [...actors.values()].map((actor) => actor.testUserPermission);
+    for (const actor of actors.values()) actor.testUserPermission = () => true;
+    try { return fn(); } finally { [...actors.values()].forEach((actor, i) => { actor.testUserPermission = held[i]; }); }
+  };
+  const hunted = makeFormation(scene, token, { mode: "settlement" });
+  settings.formations[hunted].travel.settlement = { huntedBy: "Faction.hunter" };
+  const priorUuid = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => (uuid === "Faction.hunter" ? { name: "Hunter Q" } : null);
+  const forager = makeFormation(scene, token, { day: { activities: ["forage"] } });
+  try {
+    // Band: the mode picker and the name field follow a member's ownership.
+    assert.ok(owned(() => render(journey, { gm: false, seat: OWN })).band.includes('name="travel.mode"'), "a member's owner has the mode picker");
+    assert.ok(owned(() => render(journey, { gm: false, seat: OWN })).band.includes('name="name"'), "and the name field");
+    assert.ok(!render(journey, { gm: false }).band.includes('name="name"'), "a seat that owns no member has neither");
+    const ownBand = owned(() => render(journey, { gm: false, seat: OWN })).band;
+    assert.equal(count(ownBand, "<option "), 3, "the owner's mode picker offers the three modes");
+    assert.equal(count(ownBand, "selected"), 1, "with the party's own mode selected");
+
+    // What the Judge keeps never reaches a member's owner, on any mode.
+    const kept = ["travel.override", "travel.lostNote", "travel.shown", "travel.camp.present", "travel.camp.target", "travel.settlement.wanted", 'name="tableId"', "hexStock"];
+    for (const id of [journey, city, hunted, forager]) {
+      const everything = whole(owned(() => render(id, { gm: false, seat: OWN })));
+      for (const needle of kept) assert.ok(!everything.includes(needle), `${needle} is not drawn for a member's owner`);
+    }
+
+    // The wilderness lost glyph is the Judge's: a party astray shows it to the Judge alone.
+    const astray = makeFormation(scene, token, { travel: { lost: { phase: "astray" } } });
+    assert.ok(render(astray, { gm: true }).mode.includes("acks-extras-formation-travel-lost"), "the Judge's strip carries the lost glyph");
+    assert.ok(!whole(owned(() => render(astray, { gm: false, seat: OWN }))).includes("acks-extras-formation-travel-lost"), "a member's owner has none");
+
+    // The city: the pickers, the road, the tracker and the navigation follow the seat; the hunter's name is the Judge's.
+    const ownCitySection = sectionOf(owned(() => render(hunted, { gm: false, seat: OWN })).mode, "city");
+    assert.ok(ownCitySection, "a member's owner is shown The city on a map with no district");
+    for (const name of ["pace", "where", "route", "hour", "intent", "conveyance"]) {
+      assert.ok(ownCitySection.includes(`name="travel.settlement.${name}"`), `a member's owner picks the city's ${name}`);
+    }
+    assert.ok(ownCitySection.includes("acks-extras-formation-settlement-tracker") && ownCitySection.includes("acks-extras-formation-settlement-nav"),
+      "and reads the tracker and the navigation line");
+    assert.ok(!ownCitySection.includes("settlement-hunter"), "with no hunter named though the board is hunted");
+    assert.ok(sectionOf(render(hunted, { gm: true }).mode, "city").includes("settlement-hunter"), "the Judge reads the hunter");
+    assert.ok(!render(hunted, { gm: false }).mode.includes('data-section="city"'), "a seat that owns no member and stands on no place is shown no city section");
+
+    // The strip's city progress is every seat's; the wilderness lost glyph stays the Judge's.
+    for (const [who, parts] of [["a member's owner", owned(() => render(hunted, { gm: false, seat: OWN }))], ["a seat that owns nothing", render(hunted, { gm: false })], ["the Judge", render(hunted, { gm: true })]]) {
+      assert.ok(parts.mode.includes("acks-extras-formation-settlement-progress"), `${who} reads the city's block and turn progress`);
+    }
+    settings.formations[hunted].travel.settlement.lost = true;
+    assert.ok(render(hunted, { gm: false }).mode.includes("settlement-astray"), "and the turned-around warning");
+    settings.formations[hunted].travel.settlement.lost = false;
+
+    // The wilderness: flight, Sky, Day and the camp's declarations follow the seat; the camp's throw lines are the Judge's.
+    const ownMode = owned(() => render(forager, { gm: false, seat: OWN })).mode;
+    for (const needle of ['name="travel.weather.season"', 'data-action="travelWeatherRoll"', 'name="travel.day.kind"', 'name="travel.hour"',
+      'name="travel.day.traps"', 'name="travel.exposure.hours"', 'name="travel.camp.steal"', 'name="travel.camp.sleepInArmour"']) {
+      assert.ok(ownMode.includes(needle), `a member's owner draws ${needle}`);
+    }
+    assert.ok(sectionOf(ownMode, "sky").includes('data-key="climate"'), "and the Sky's climate card");
+    assert.ok(!ownMode.includes("acks-extras-formation-camp-throw") && !ownMode.includes('name="travel.camp.present"'), "with no camp throw line and no search select");
+    assert.ok(render(forager, { gm: true }).mode.includes("acks-extras-formation-camp-throw"), "the Judge keeps the camp's throw lines");
+    const noneMode = render(forager, { gm: false }).mode;
+    for (const needle of ['name="travel.weather.season"', 'data-action="travelWeatherRoll"', 'name="travel.day.kind"', 'name="travel.exposure.hours"', 'name="travel.camp.steal"']) {
+      assert.ok(!noneMode.includes(needle), `a seat that owns no member does not draw ${needle}`);
+    }
+    const flier = makeFormation(scene, token, { travel: { movement: { set: "flying" }, lastArrangement: { members: [], rows: [], set: null } } });
+    assert.ok(owned(() => render(flier, { gm: false, seat: OWN })).mode.includes('name="travel.movement.hoursAloft"'), "a flier's flight fields reach a member's owner");
+    assert.ok(!render(flier, { gm: false }).mode.includes('name="travel.movement.hoursAloft"'), "and not a seat that owns no member");
+
+    // The movement tiles, Back to automatic and Undo follow the seat as well.
+    const flierMovement = (parts) => sectionOf(parts.mode, "movement");
+    const ownFlier = flierMovement(owned(() => render(flier, { gm: false, seat: OWN })));
+    assert.ok(ownFlier.includes('data-action="movementFastest"') && ownFlier.includes('data-action="movementUndo"'), "a member's owner has Back to automatic and Undo");
+    const noneFlier = flierMovement(render(flier, { gm: false }));
+    assert.ok(!noneFlier.includes('data-action="movementFastest"') && !noneFlier.includes('data-action="movementUndo"'), "a seat that owns no member has neither");
+    const tiles = sectionOf(owned(() => render(journey, { gm: false, seat: OWN })).mode, "movement");
+    assert.equal(tiles.match(/data-action="movementTile"[^>]*disabled/g)?.length ?? 0, 0, "the five tiles are pressable for a member's owner");
+
+    // The Order tab: the head follows the seat, Save order the world-settings permission, Disband the Judge.
+    const orderOf = (id, opts) => render(id, opts).order;
+    settings.formations[journey].members.push({ blank: true });
+    const blankHtml = (html) => html.slice(html.indexOf("blank-cell"), html.indexOf("</li>", html.indexOf("blank-cell")));
+    const ownOrder = owned(() => orderOf(journey, { gm: false, seat: OWN }));
+    for (const action of ["movementFastest", "autoArrange", "loadMarchingOrder", "addBlank", "openSkillAudit"]) {
+      assert.ok(ownOrder.includes(`data-action="${action}"`), `a member's owner has ${action} at the Order head`);
+    }
+    for (const needle of ['name="frontage"', 'name="tokenShape"']) assert.ok(ownOrder.includes(needle), `and ${needle}`);
+    assert.ok(!ownOrder.includes('data-action="saveMarchingOrder"'), "no Save order without the world-settings permission");
+    assert.ok(!ownOrder.includes('data-action="disband"'), "and no Disband");
+    assert.ok(ownOrder.includes("blank-cell") && blankHtml(ownOrder).includes('data-action="removeBlank"') && blankHtml(ownOrder).includes('data-action="memberUp"'),
+      "a blank cell carries its arrows and Remove");
+    const savingOrder = owned(() => orderOf(journey, { gm: false, seat: { ...OWN, canSaveOrders: true } }));
+    assert.ok(savingOrder.includes('data-action="saveMarchingOrder"') && !savingOrder.includes('data-action="disband"'), "Save order follows the permission alone");
+    const gmOrder = orderOf(journey, { gm: true });
+    assert.ok(gmOrder.includes('data-action="saveMarchingOrder"') && gmOrder.includes('data-action="disband"'), "the Judge draws both");
+    const noneOrder = orderOf(journey, { gm: false });
+    for (const action of ["autoArrange", "addBlank", "openSkillAudit", "loadMarchingOrder", "saveMarchingOrder", "disband"]) {
+      assert.ok(!noneOrder.includes(`data-action="${action}"`), `a seat that owns no member has no ${action}`);
+    }
+    assert.ok(noneOrder.includes("blank-cell") && !blankHtml(noneOrder).includes("data-action"), "and a blank cell carries no press");
+  } finally {
+    globalThis.fromUuidSync = priorUuid;
+  }
 
   // Every seat's title carries a tooltip from the same figures, ending in the page it cites.
   for (const [mode, html, key, ending] of [

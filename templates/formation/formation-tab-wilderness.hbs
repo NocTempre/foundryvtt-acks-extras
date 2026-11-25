@@ -164,7 +164,7 @@
     <div class="acks-extras-movement-tiles" role="group" aria-label="{{localize 'ACKS-FORMATION.conveyance.groupLabel'}}">
       {{#each go.tiles}}
       <button type="button" class="acks-extras-movement-tile{{#if pressed}} is-on{{/if}}" data-action="movementTile" data-mode="{{key}}"
-              aria-pressed="{{#if pressed}}true{{else}}false{{/if}}" {{#unless ../judge}}disabled{{/unless}}>
+              aria-pressed="{{#if pressed}}true{{else}}false{{/if}}" {{#unless ../canArrange}}disabled{{/unless}}>
         <i class="{{icon}}" inert></i> {{label}}
       </button>
       {{/each}}
@@ -174,7 +174,7 @@
       <span class="acks-extras-party-sheet__chip is-gold">{{localize "ACKS-FORMATION.conveyance.automatic"}}</span>
       {{else}}
       <span class="acks-extras-party-sheet__chip">{{localize "ACKS-FORMATION.conveyance.groupSet"}}</span>
-      {{#if go.judge}}
+      {{#if go.canArrange}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="movementFastest"
               data-tooltip="{{localize 'ACKS-FORMATION.conveyance.backHint'}}">{{localize "ACKS-FORMATION.conveyance.back"}}</button>
       {{/if}}
@@ -187,7 +187,7 @@
       {{/if}}
     </div>
     {{/with}}
-    {{#if isGM}}{{#if travel.flying}}
+    {{#if seat.ownsMember}}{{#if travel.flying}}
     <div class="acks-extras-formation-travel-pickers">
       <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.aloftHint'}}">{{localize "ACKS-FORMATION.travel.movement.aloft"}}
         <input type="number" min="0" step="1" name="travel.movement.hoursAloft" value="{{travel.movement.hoursAloft}}">
@@ -207,7 +207,7 @@
   {{#if travel.skyShown}}
   <section class="acks-extras-party-sheet__section" data-section="sky">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.sky"}}</h2>
-    {{#if isGM}}
+    {{#if seat.ownsMember}}
     {{#with travel.weather.climate}}
     <div class="acks-extras-country-cards is-single">
       {{> "modules/acks-extras/templates/formation/formation-country-card.hbs"}}
@@ -283,7 +283,7 @@
   </section>
   {{/if}}
 
-  {{#if isGM}}
+  {{#if seat.ownsMember}}
   <section class="acks-extras-party-sheet__section" data-section="day">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.day"}}</h2>
     <div class="acks-extras-formation-travel-day">
@@ -347,7 +347,7 @@
         {{/if}}
       </p>
 
-      {{#if isGM}}
+      {{#if seat.ownsMember}}
       <p class="acks-extras-formation-camp-exposure">
         <label>
           {{localize "ACKS-FORMATION.camp.exposureHours"}}

@@ -9,13 +9,14 @@ import { elementOf } from "../lib/util.mjs";
  * table's formula: a named input the sheet's own Save writes to
  * `flags["acks-extras"].monsterLevel`, which `tableLevel` reads. Never
  * written on change — a write re-renders the sheet from the document and
- * discards the Judge's unsaved edits — and added only to a Summary part that
- * lacks it, so a render of the other parts keeps a typed value. See
- * docs/formation/DECISIONS.md, "A table's monster level is set on the table (2026-09-23)".
+ * discards the editor's unsaved edits — and added only to a Summary part that
+ * lacks it, so a render of the other parts keeps a typed value. The row is
+ * drawn on any sheet that is editable for its seat (`app.isEditable`: a
+ * RollTable update needs OWNER), since the save is the sheet's own.
  */
 export function installMonsterLevelRow() {
   Hooks.on("renderRollTableSheet", (app, element) => {
-    if (!game.user?.isGM) return;
+    if (!app.isEditable) return;
     const root = elementOf(element);
     // The Summary part exists only in the edit view of an editable table.
     const summary = root?.querySelector('.tab[data-tab="summary"]');
