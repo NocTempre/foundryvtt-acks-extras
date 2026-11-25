@@ -1892,7 +1892,28 @@ Three details are load-bearing:
 
 `renderRollCard` prints the Result column only when a row carries an outcome, so
 this card is Name and Total — initiative has no verdict to render. The
-`initiativeCard` world setting gates the patch, read per roll.
+`initiativeCard` world setting gates the card, read per roll.
+
+The same wrap guards the roll, on the GM seat whether the card is on or off:
+
+- **A combatant with no token** (none set, or none on its scene) is rolled by
+  Foundry's own `Combat#rollInitiative`, found by walking the prototype chain up
+  from the wrapped class's parent to `foundry.documents.Combat`, and called with
+  `updateTurn: false`. The system's loop reads `token.id` of every id it is
+  given, so one such id would abort the whole press. An id with no combatant at
+  all takes the same route, where Foundry skips it. The ids that remain go to
+  the wrapped method and are the only ones the card gathers; with none left, it
+  is not called. A tokenless combatant is in no group, since
+  `flags.acks.groups` holds token ids. The system's method also reads the token
+  of every combatant in the combat, not only of its ids, before it writes any
+  number; in a combat that holds a tokenless combatant it still throws for the
+  ids it keeps, and the lock release below is what that case gets.
+- **The turn-order lock.** The system sets `flags.acks.lock-turns` for the
+  length of its roll. A throw out of the wrapped method sets it back to false
+  when it is still set, then goes on to the caller. A roll that completes is not
+  touched, so a second press in flight keeps its own lock.
+- A class whose chain never reaches `foundry.documents.Combat` has nothing to
+  split, and every id goes to the wrapped method.
 
 ## Tied initiative sorts the same on every seat
 

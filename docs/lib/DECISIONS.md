@@ -2247,3 +2247,49 @@ reads the state as that fight's acting combatant's gift from then on, and one
 that leaves loses its giver; a state given to a creature that is on no tracker
 is its own. The membership walk is linear in the fight's combatants for each
 given state a subject read meets.
+
+## 2026-11-25 — A combatant with no token is rolled by Foundry's own method, in the wrap that owns the roll (T-0828)
+
+On the GM seat, `initiative-card.mjs`'s wrap of `rollInitiative` hands every
+id whose combatant has no token to Foundry's `Combat#rollInitiative`, reached
+up the prototype chain from the wrapped class's parent, with `updateTurn:
+false`. The rest goes to the system's method as before, and the card gathers
+only those. Where the system's method throws, the wrap sets
+`flags.acks.lock-turns` back to false when it is still set and lets the error
+through. The owner: "Use exiting foundry code before investigating new designs"
+and "Extend core"; the hub: "a tokenless combatant must not abort the batch, and
+the lock flag must not stay set. The system file is never edited."
+
+**New evidence.** The owner's field report of a press that rolled no one and left
+the tracker locked, and a read of the system's 14.2.0 and `master` method: it
+sets the lock, reads `token.id`, `token.hidden` and `token.name` of every id
+with no guard, and clears the lock last, while Foundry 14's `Combatant#token` is
+null for a combatant with no token on its scene. Foundry's own method does not
+read the token at all. The same read found the limit of this ruling: after its
+loop and before it writes any number, the system's method reads
+`token.disposition` of EVERY combatant in the combat (`#getCombatantPools`,
+`processOutNumbering`), so a press carrying a tokened id throws in a combat that
+holds a tokenless row, however the ids are split.
+
+**Rejected.** *Replacing the system's method*: it owns the groups, the
+out-numbering pass and the lock, and a copy drifts from it. *Skipping the
+tokenless row*: the press then succeeds and the row stays unrolled, which is
+the report again. *A separate patch file*: this wrap is the method's one owner,
+and a second wrapper over one method is two owners.
+
+**Strongest counter, MEDIUM.** A tokenless combatant is rare, and core's tracker
+has no control that adds one, so the guard serves combatants made by script or
+another module. Held, since the failure leaves the tracker's turn order locked,
+which is not the one row's cost.
+
+*Cost:* a tokenless row's message is Foundry's own and is not on the
+consolidated card, and it is never part of a combat group, which the system
+keys by token id. The throw's lock release is a write made after the system's
+own, so a failure of that write is warned and not raised.
+
+*Open, for the owner:* the guard rolls a tokenless row and releases the lock,
+and it does not make a press that carries tokened ids succeed in a combat that
+holds a tokenless row: the system still throws in its all-combatants pass, and
+the tokened rows get no number. Making it succeed means keeping the tokenless
+row out of that pass, which the wrap cannot do without replacing core's method
+or hiding a combatant from it, and neither is ruled.

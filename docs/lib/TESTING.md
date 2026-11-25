@@ -85,7 +85,8 @@ report the same symptom.
   `setupTurns()` bail, and on a combat that was never started that update throws
   inside `foundry.mjs` (`#recordPreviousState`, Object.assign on undefined). It
   reads as a module bug and is not one.
-- **An aborted roll leaves `lock-turns` set**, and every later combatant write on
+- **A roll aborted outside the initiative wrap leaves `lock-turns` set** (the
+  wrap sets it back on a throw), and every later combatant write on
   that combat throws the same way. Clear it and `setupTurns()` before retrying,
   or the next check fails for the reason the last one did.
 - **Core mutates the group flag object in memory as it rolls** (`initiative` goes
@@ -284,6 +285,17 @@ report the same symptom.
     Judges' card is not (`message.visible === false`). Turn `initiativeCard` off
     and roll again: core's one message per roller is back, unchanged. Rolling a
     single combatant posts a one-row card. No console errors on any of it.
+13. Initiative with a combatant that has no token: a started combat of one
+    tokened combatant and one tokenless one, built by
+    `combat.createEmbeddedDocuments("Combatant", [{actorId}])` with no `tokenId`,
+    both with no initiative, marker `lib/initiative-tokenless`.
+    *Observable:* pressing the tokenless combatant's own roll on the GM seat
+    (Combat Tracker sidebar tab) gives it a number with no console error. One
+    Roll All press then leaves the tokenless combatant numbered, and
+    `combat.getFlag("acks", "lock-turns")` reads false afterward; record
+    whether the tokened combatant carries a number, which the system's
+    all-combatants token read prevents on 14.2.0 (docs/lib/DECISIONS.md,
+    2026-11-25, T-0828), and the console's one error with it.
 
 ### The compendium sidebar
 
