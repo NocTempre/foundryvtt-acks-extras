@@ -513,7 +513,7 @@ answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers, a roll with no faction card (boards 1a to 1m) | S12 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers, a roll with no faction card, setup and confirm (boards 1a to 1n) | S12 |
 | [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
@@ -1640,6 +1640,61 @@ what "part of the combat" is measured by (the gang's token already a
 combatant, or standing on the combat's scene), and whether the gang's own
 token is hidden as the warband's is. Both go to `architect`, which is sent
 the two sentences verbatim. Question 4, the re-roll, is unanswered.
+
+### The owner on re-roll: a setup-only tool, 2026-11-24
+
+Asked question 4 again as "A gang is at another place and in no combat: does
+a re-roll of its warband leave it, or get refused?", the owner chose neither
+button and wrote:
+
+"Reroll is only until the element is confirmed. It's a setup only tool."
+
+The words are the owner's own. An element of the chart (a gang, a warband,
+the village) is in setup until it is confirmed. Re-roll exists in setup and
+nowhere else; a confirmed element is never re-rolled. Example: a Judge rolls
+a village, rolls Gang 2 again twice, and confirms it. Gang 2's die is gone
+from its card. Sent to a ford next week, it is as it was confirmed, and no
+re-roll of its warband can reach it.
+
+What it settles: question 4 as asked falls away. Both of its branches
+described a re-roll meeting an entry that is away, and a re-roll no longer
+reaches anything a Judge has confirmed. D's re-roll paragraph (refused where
+a body is deployed, a gang is pinned or away; a re-roll of all leaving held,
+away and pinned entries standing) is to be rewritten on it, and canvas 1's
+question 4 with it.
+
+Read as, and marked as a reading:
+
+- Pinning is a setup tool too: a pin holds a choice through a re-roll, and
+  means nothing once re-rolls are over.
+- Hand edits stay after confirm, on the standing "every count stays
+  editable". Whether Design by selection stays was not said.
+- An element is confirmed before it is sent out, deployed or put in a
+  combat. Without that, a re-roll could still meet an element that is away.
+- The standing per-monster Roll rulings (2026-10-31, 2026-11-01) are not
+  touched: the owner spoke of this generator's re-roll.
+
+Not asked, the drawn shape first where board 1n draws one:
+
+1. What is confirmed: (a) each card on its own, a card's confirm taking
+   every card under it, with a Confirm all at the head, (b) the whole roll
+   at once.
+2. An unconfirmed element: (a) cannot be sent out, deployed or fight until
+   confirmed, (b) is confirmed by the first of those.
+3. Confirm: (a) is final, (b) can be undone while the element has not been
+   sent out or fought.
+4. After confirm, Design by selection: (a) goes with re-roll, hand edits
+   remaining, (b) stays.
+5. `architect`'s question 5 in its new form: (a) an unconfirmed element
+   already exists as its actors, marked in setup, (b) it is staged and its
+   actors are made on confirm.
+
+`architect`, still running, is sent the owner's words verbatim with these.
+**Drawn:**
+[board 1n](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb), a card in
+setup beside the same card confirmed, the Org chart tab's tools in setup and
+after, and a tree partly confirmed. Released: none. Not checked: board 1n's
+rendering.
 
 ### Phase 1, 2026-11-24
 
