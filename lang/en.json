@@ -818,7 +818,7 @@
   "ACKS-LIB.summons.refused.none": "This character has no summons to dismiss.",
   "ACKS-LIB.summons.refused.spellRequired": "Summon through one of this character's spells.",
   "ACKS-LIB.summons.refused.notNamed": "That creature is not one this spell calls.",
-  "ACKS-LIB.summons.refused.controlLost": "This creature's control has ended. Only the Judge can dismiss it.",
+  "ACKS-LIB.summons.refused.controlLost": "This creature turned hostile when its control ended. Only the Judge can dismiss it (RR ch. 5).",
   "ACKS-LIB.combatRound.notYourTurn": "The round did not advance: only a player whose combatant is up can start the next round.",
   "ACKS-LIB.storage.judgeReach": "Judge's override: {why} The automation would have refused this deposit.",
   "ACKS-LIB.storage.duplicated": "The move half-finished and the goods now exist BOTH on the source and at {name}. Delete one copy.",

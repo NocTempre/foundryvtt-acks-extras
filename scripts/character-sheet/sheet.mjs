@@ -995,7 +995,8 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
    * character, cast through the spell's own use (which counts the casting and
    * shows its card, with the dialog skipped on the system's skip key held on
    * the row's click); a summoning spell's Cast or Dismiss, a loose cast's
-   * Dismiss, the GM's spell-less Summon…, and the Release of a creature
+   * Dismiss, the spell-less Summon… (offered to a seat Foundry grants token
+   * creation, `bareSummonAllowed`), and the Release of a creature
    * bound by hand before binding was retired. A summoning cast goes through `castSummon`, so it is spent only
    * once its creatures stand; a dismissal goes through the GM's client
    * (`lib/summons.mjs`); a creature bound by hand is only released, never

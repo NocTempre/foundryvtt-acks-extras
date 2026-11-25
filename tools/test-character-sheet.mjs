@@ -192,12 +192,12 @@ test("a spell that does not summon is cast through its own use, in spell-level t
   assert.deepEqual([items[0].label, items[0].valueKey, items[0].valueData], ["Bolt", "cast.level", { n: 1 }]);
   assert.ok(items.every((i) => i.kind !== "use" || i.tipKey === "cast.levelTip"), "the level on a plain spell's row names where it is read from, and the summoning cast's tip is not hung on it");
 });
-test("the cast menu is the owner's alone; the spell-less Summon… is offered only where the seat may summon bare", () => {
+test("the cast menu is the owner's alone; the spell-less Summon… is offered only where the seat may summon bare, which is where Foundry grants it token creation", () => {
   const party = { summons: [summonEntry("t1", castRecord("c1", "spA"))] };
   const spells = [summonSpell("spA", "Ash Call"), plainSpell("p1", "Bolt")];
   assert.deepEqual(castMenuModel({ party, spells, owner: false, bare: true }), [], "a seat that does not own the character is offered nothing");
-  assert.ok(!castMenuModel({ party, spells, owner: true, bare: false }).some((i) => i.kind === "summon"), "a Player seat is offered no Summon…");
-  assert.ok(castMenuModel({ party, spells, owner: true, bare: true }).some((i) => i.kind === "summon"), "a GM seat is");
+  assert.ok(!castMenuModel({ party, spells, owner: true, bare: false }).some((i) => i.kind === "summon"), "a seat without token creation is offered no Summon…");
+  assert.ok(castMenuModel({ party, spells, owner: true, bare: true }).some((i) => i.kind === "summon"), "a seat with it is, a GM's and a granted Player's alike");
 });
 test("binding by hand is retired: the menu offers no Bind; an owner with nothing to cast gets one disabled row", () => {
   assert.ok(!castMenuModel({ party: {}, owner: true, controlled: [{ id: "x" }] }).some((i) => i.kind === "bind"), "no Bind, whatever is controlled");

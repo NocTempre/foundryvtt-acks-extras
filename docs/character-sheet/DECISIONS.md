@@ -39,7 +39,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-22 — [Morale is the Judge's characters', hired or not](DECISIONS-through-v11.14.5.md#2026-10-22--morale-is-the-judges-characters-hired-or-not)
 - 2026-11-03 — [The Stats tab sets the roll modifiers apart from the targets](DECISIONS-through-v11.14.5.md#2026-11-03--the-stats-tab-sets-the-roll-modifiers-apart-from-the-targets)
 - 2026-11-10 — [A summon is an unlinked token of a GM-made copy](DECISIONS-through-v11.14.5.md#2026-11-10--a-summon-is-an-unlinked-token-of-a-gm-made-copy) — superseded in part by "2026-11-11 — A summoning is tied to its spell"; "2026-11-16 — A summon marches in its summoner's party"; qualified 2026-11-25 (a creature made into a party is the copy with its token data stashed and no token until it deploys) by magic's [A summoning names its creature per seat, lists its creatures as rows and joins a caster's party](../magic/DECISIONS.md#2026-11-25--a-summoning-names-its-creature-per-seat-lists-its-creatures-as-rows-and-joins-a-casters-party-and-a-declared-cast-names-its-fight-board-3)
-- 2026-11-11 — [A summoning is tied to its spell](DECISIONS-through-v11.14.5.md#2026-11-11--a-summoning-is-tied-to-its-spell)
+- 2026-11-11 — [A summoning is tied to its spell](DECISIONS-through-v11.14.5.md#2026-11-11--a-summoning-is-tied-to-its-spell) — qualified 2026-11-25 (the spell-less Summon… is offered to a seat Foundry grants token creation, where it was a GM seat's alone) by lib's [A bare summon reads Foundry's token-create permission, only a hostile creature is the Judge's to dismiss, and a stashed creature's control end is written through the roster](../lib/DECISIONS.md#2026-11-25--a-bare-summon-reads-foundrys-token-create-permission-only-a-hostile-creature-is-the-judges-to-dismiss-and-a-stashed-creatures-control-end-is-written-through-the-roster-t-0792-b1-t-0842)
 - 2026-11-11 — [The party cell's summoning rows are one per spell](DECISIONS-through-v11.14.5.md#2026-11-11--the-party-cells-summoning-rows-are-one-per-spell) — superseded in part by "2026-11-11 — A throw's modifiers are the abilities' rows, and they name their parts"; "2026-11-11 — The party check resolves through the abilities"; "2026-11-16 — Casters get a second right-rail column"; "2026-11-16 — A summon marches in its summoner's party"
 
 ## 2026-11-16 — Casters get a second right-rail column
@@ -206,3 +206,11 @@ quote for the reach beyond the sheet.
 
 *Cost:* a line is longer where an effect sets or multiplies; a change type
 Foundry has no word for is shown as its bare id.
+
+## 2026-11-25 — The cast menu offers Summon… to a seat Foundry grants token creation (T-0792, B1)
+
+The ruling, its example and what it cost are lib's entry of the same date, "A bare summon reads Foundry's token-create permission, only a hostile creature is the Judge's to dismiss, and a stashed creature's control end is written through the roster". This entry holds what it changes here.
+
+**Built.** `#onCastMenu` hands `castMenuModel` `bare: bareSummonAllowed(game.user)` as it did; the answer is now the user's token-creation grant, so a Player the world grants it is offered the spell-less *Summon…* beside the spell rows, and every other Player is not. The menu's other rows, the owner's gate on the menu and the walk of an unowned character are unchanged.
+
+**Supersedes IN PART** the archived "2026-11-11 — A summoning is tied to its spell": its "it allows a GM seat only" and its rejection of "Leaving it to every seat". The 2026-11-11 entry is archived and its file is never edited; its In force row, above, names lib's entry. What stands is that a request naming no spell is held to `bareSummonAllowed`, that the one function is the switch, and that a spell's creatures are policies a feature registers.

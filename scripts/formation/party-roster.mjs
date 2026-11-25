@@ -13,6 +13,10 @@
  * Contract v4 adds `summonerParty` and `admitSummons` (`membership.mjs`): the
  * party a caster marches inside, and the write that makes a cast's creatures
  * members of it with no token on any scene. A reader takes both as optional.
+ *
+ * Contract v5 adds `amendSummons`: the write that rewrites the stashed token
+ * of summon members still riding in the party token, as a cast's control ending
+ * must. A reader takes it as optional.
  */
 import * as services from "../lib/services.mjs";
 import { summonOfData } from "../lib/summons-logic.mjs";
@@ -93,6 +97,40 @@ async function adjustStashedHp(partyId, actorId, next) {
   });
   if (done && summon && done.after <= 0) await release(partyId, [actorId]);
   return done;
+}
+
+/**
+ * Rewrite the stashed tokens of summon members riding in a party. `edit` is
+ * handed a deep copy of each stash and returns the token data to keep in its
+ * place, or anything that is not an object to leave that stash as it is. Only
+ * a summon member stashed and unlinked is written: a person, a deployed
+ * member and a linked one are skipped, since a deployed creature is written
+ * through its token. Every write lands in one patch and membership is never
+ * changed. GM only.
+ * @param {string} partyId
+ * @param {string[]} actorIds  row `actorId`s
+ * @param {(tokenData: object) => object|null} edit
+ * @returns {Promise<{amended: string[]}>}  the row ids whose stash was rewritten
+ */
+async function amendSummons(partyId, actorIds, edit) {
+  const amended = [];
+  if (!game.user?.isGM || typeof edit !== "function") return { amended };
+  const wanted = new Set((actorIds ?? []).filter(Boolean));
+  if (!wanted.size) return { amended };
+  await patchFormation(partyId, (record) => {
+    for (const member of record.members ?? []) {
+      if (!member?.actorId || !wanted.has(member.actorId) || !isSummonMember(member)) continue;
+      if (member.deployedTokenId || member.deployedStack) continue;
+      const stashed = member.tokenData;
+      if (!stashed || stashed.actorLink) continue;
+      const next = edit(foundry.utils.deepClone(stashed));
+      if (!next || typeof next !== "object") continue;
+      member.tokenData = next;
+      amended.push(member.actorId);
+    }
+    if (!amended.length) return false;
+  });
+  return { amended };
 }
 
 /**
@@ -223,5 +261,6 @@ export function registerPartyRoster() {
     pace,
     summonerParty,
     admitSummons,
+    amendSummons,
   });
 }

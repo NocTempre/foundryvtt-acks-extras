@@ -700,6 +700,11 @@ carries it):
 - `summons/scene` — a scene the Player seat VIEWS (`scene.view()`; it need not
   be active, since the relay accepts a scene its sender is viewing or can
   observe), with the summoner's token `summons/summoner-token` on it.
+- The Player user's own `permissions.TOKEN_CREATE`, set to `false` from the GM
+  seat at the start of every run, read back on the Player seat and asserted
+  before step 1, so a first run (unset, which falls to the world's table) and
+  a run a stopped walk left at `true` start alike. Step 10 sets it and resets
+  it.
 - `summons/stranger` — a `character` the Player seat observes and does not own,
   for step 9.
 - `summons/bindable` — an unlinked token of `summons/spike-source` on the scene,
@@ -779,6 +784,19 @@ summoner, the Tokens layer active):
    directly resolves `{ok: false, reason: "notOwner"}` before any click, with
    nothing made; on the GM seat, the summoner's cast menu offers *Summon…* beside
    both *Cast*s.
+10. The grant opens the bare summon. From the GM seat set the Player user's
+   `permissions.TOKEN_CREATE` to `true`, and read it back on the Player seat.
+   *Observable:* the Player's cast menu on the summoner now offers *Summon…*;
+   `placeSummons` with no `spellId` and `spike-source` resolves `ok` and one
+   token stands, its record naming no spell; the source reads OBSERVER for the
+   Player, as the fixtures step asserted (the grant lifts the spell
+   requirement and no other check: a source the Player cannot observe is still
+   refused `unreadable`); on
+   `summons/stranger` the menu and `placeSummons` are unchanged. Reset the grant
+   to `false` from the GM seat, read it back, and remove the token by its
+   ledger entry; the grant is the one thing this step changes outside the
+   ledger, and a run that stopped before the reset finds it `true` at the
+   start, which the first assertion above refuses.
 
 Not walked here: that a summoned token behaves as its Player's (moved, its
 sheet edited, its hit points updated from the Player seat). The magic recipe's

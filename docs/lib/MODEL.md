@@ -3429,8 +3429,11 @@ resolves is under it; a record whose spell is gone, or that never named one, is
 hand, is `bound` and only Release acts on it). A request naming no spell is
 refused `spellRequired` unless `bareSummonAllowed(user)` says so. That function
 is the one switch: the relay's check, the seat's own pre-check and the bare
-Summon… prompt all read it. It answers true for a GM seat only, so a Player
-seat summons through a spell (docs/character-sheet/DECISIONS.md, 2026-11-11).
+Summon… prompt all read it. It answers true for a user Foundry grants token
+creation (`user.can("TOKEN_CREATE")`, which every GM holds by role and a Player
+holds where the world's permission table or the user's own grant says so), so a
+seat without the grant summons through a spell, and no server role is read
+(DECISIONS, "A bare summon reads Foundry's token-create permission …").
 Feature rules over what a spell may call (which creature it names, how many)
 are policies a feature registers (`registerSummonPolicy`), run inside
 `checkPlaceRequest` after the built-in checks on the seat and on the GM's
@@ -3565,7 +3568,11 @@ alphanumeric string, and the time is the GM's clock.
 - `dismiss`: the sender owns the summoner; each named summon is removed only
   if it names this summoner AND carries the module's record: a token by its
   actor's flags, a held summon (below) by its roster row. A creature bound by
-  hand, or summoned by another character, is counted as refused and left.
+  hand, or summoned by another character, is counted as refused and left, and
+  so is one whose control ended and left it hostile (`lost: "hostile"`) where
+  the sender is no GM: only a Judge dismisses it, and an owner whose request
+  names nothing else is refused `controlLost`. A creature that stayed or went
+  is dismissed as any other is.
   A held summon arrives as `{partyId, actorId}` and is judged on the row the
   `party-roster` service answers for it, never on what the request says of it.
 
@@ -3594,6 +3601,16 @@ summon is the scene token it always was and nothing here runs.
   dismissed creature from its pre-deploy stash: lib never deletes a member's
   token itself. With `release` absent a held summon is refused, and a token
   goes by its scene.
+- *Ending control.* `applyControlEnd` stamps each creature of one cast `lost`
+  with the outcome, a token through its actor and a stash through the
+  roster's `amendSummons` (contract v5), and `controlEndPlan` names every step
+  first. A stash is rewritten whole by `stashAfterControlEnd`, a pure copy: the
+  stamp, and for a hostile end its owners at NONE and the hostile disposition,
+  which is what the deployed token's write does. Membership is not changed, so
+  a stashed creature that turned hostile stays in the party until a Judge
+  dismisses it. `amendSummons` writes only an undeployed, unlinked summon
+  member, in one patch, on the GM's client; with no such method on the
+  provider a stash is left as it was and counted `unapplied`.
 - *Authority.* The seat and the GM's client each read the held summon's row
   from the roster; the GM's reading decides. Two casters of the same creature
   never reach each other's: a row names its summoner, and the check is the

@@ -53,6 +53,7 @@ import {
   placedPositions,
   checkPlaceRequest,
   checkDismissRequest,
+  stashAfterControlEnd,
   summonEntries,
   bareSummonAllowed,
   registerSummonPolicy,
@@ -464,11 +465,13 @@ async function dismissOp({ summonerUuid, tokenUuids, held, user }) {
  * that do (`castSummons`), never a name or a type. `outcome` is the caller's
  * reading of the spell's row (`controlEndPlan`): it is never taken from a
  * request, so the caller on the GM's client resolves it first. Every creature
- * is stamped `lost` in its record, which is what a non-GM's dismissal is
- * refused on; a `gone` creature is deleted as a dismissal deletes it, a
- * deployed party member and a stashed one through the roster's `release`; a
+ * is stamped `lost` in its record, which a non-GM's dismissal is refused on
+ * once it is `hostile`; a `gone` creature is deleted as a dismissal deletes it,
+ * a deployed party member and a stashed one through the roster's `release`; a
  * `hostile` token drops its owners and turns hostile. A stashed creature that
- * stays or turns hostile has no token to write and is counted `unapplied`.
+ * stays or turns hostile is amended in its party's record through the roster's
+ * `amendSummons` (`stashAfterControlEnd`) and stays a member; with no such
+ * method it is counted `unapplied`.
  * @param {Actor} summoner
  * @param {{castId: string, outcome: string}} o
  * @returns {Promise<{ok: false, reason: string}|{ok: true, outcome: string, stamped: number, deleted: number, released: number, hostile: number, unapplied: number}>}
@@ -479,21 +482,25 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   const { tokens, held } = castSummons(summoner, castId);
   const service = roster();
   const canRelease = typeof service?.release === "function";
+  const canAmend = typeof service?.amendSummons === "function";
   const plan = controlEndPlan({
     outcome,
     tokens: tokens.map((t) => ({ uuid: t.uuid, ownership: t.delta?._source?.ownership ?? t.actor?.ownership ?? {}, member: canRelease ? (service.memberOfToken?.(t) ?? null) : null })),
     held,
     canRelease,
+    canAmend,
   });
   const byUuid = new Map(tokens.map((t) => [t.uuid, t]));
   const stampPath = `flags.${MODULE_ID}.${SUMMON_RECORD_FLAG}.lost`;
   const done = { stamped: 0, deleted: 0, released: 0, hostile: 0, unapplied: 0 };
   const deletes = new Map();
   const releases = new Map();
+  const amends = new Map();
   for (const step of plan.steps) {
     const token = step.kind === "token" ? byUuid.get(step.uuid) : null;
     if (step.op === "delete" && token) deletes.set(token.parent, [...(deletes.get(token.parent) ?? []), token.id]);
     else if (step.op === "release") releases.set(step.partyId, [...new Set([...(releases.get(step.partyId) ?? []), step.actorId])]);
+    else if (step.kind === "held" && (step.op === "stamp" || step.op === "hostile")) amends.set(step.partyId, [...new Set([...(amends.get(step.partyId) ?? []), step.actorId])]);
     else if (step.op === "stamp" && token?.actor) {
       await token.actor.update({ [stampPath]: step.lost });
       done.stamped++;
@@ -507,6 +514,11 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   }
   for (const [scene, ids] of deletes) done.deleted += (await scene.deleteEmbeddedDocuments("Token", ids)).length;
   for (const [partyId, ids] of releases) done.released += Number((await service.release(partyId, ids))?.released) || 0;
+  for (const [partyId, ids] of amends) {
+    const amended = (await service.amendSummons(partyId, ids, (data) => stashAfterControlEnd(data, plan.outcome)))?.amended ?? [];
+    done.stamped += amended.length;
+    if (plan.outcome === "hostile") done.hostile += amended.length;
+  }
   return { ok: true, outcome: plan.outcome, ...done };
 }
 

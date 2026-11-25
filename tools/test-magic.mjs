@@ -880,8 +880,10 @@ const ta = async (name, fn) => {
   console.log(`ok - ${name}`);
 };
 
-const GM_SEAT = { id: "gm", isGM: true };
-const PLAYER_SEAT = { id: "p1", isGM: false };
+/** A user as Foundry shows one: `can` answers a permission for a GM and for a seat the world grants it, as `User#can` does. */
+const seatOf = (id, isGM, grants = []) => ({ id, isGM, can: (permission) => isGM || grants.includes(permission) });
+const GM_SEAT = seatOf("gm", true);
+const PLAYER_SEAT = seatOf("p1", false);
 const NO_LOOKUPS = { byCookbookId: () => null, fromUuidSync: () => null };
 
 /** A summoning spell item on a character, with its rows and an optional duration. */

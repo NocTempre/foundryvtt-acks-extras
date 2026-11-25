@@ -53,8 +53,10 @@ const ta = async (name, fn) => {
 };
 
 const NO_TWIN = { byCookbookId: () => null, fromUuidSync: () => null };
-const GM_SEAT = { id: "gm", isGM: true };
-const PLAYER_SEAT = { id: "p1", isGM: false };
+/** A user as Foundry shows one: `can` answers a permission for a GM and for a seat the world grants it, as `User#can` does. */
+const seatOf = (id, isGM, grants = []) => ({ id, isGM, can: (permission) => isGM || grants.includes(permission) });
+const GM_SEAT = seatOf("gm", true);
+const PLAYER_SEAT = seatOf("p1", false);
 const REF = "def.invented.glimmerkin";
 /** Foundry's permission ranks, so a double answers `testUserPermission(user, need)` from the user's own `level`. */
 const RANKS = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
@@ -596,7 +598,7 @@ await ta("the policy reads the same ceiling at the request's caster level, an in
   assert.equal(ask(10, { casterLevel: 5 }), null, "the level of the request moves the ceiling");
   assert.equal(ask(30, null), null, "the seat's own pre-check names no level, and a max with no level states no ceiling");
   assert.equal(ask(30, { casterLevel: 3 }, GM_SEAT), null, "a Judge's count is the cast's warning, not a refusal");
-  assert.equal(ask(1, { casterLevel: 3 }, { id: "p", isGM: false }), null);
+  assert.equal(ask(1, { casterLevel: 3 }, seatOf("p", false)), null);
   const ladder = makeSpell({ rows: [row({ amount: 1, max: rungs([1, 2], [3, 5]) })] });
   const asks = (count, invocationLevel) => summonRefusal({ user: PLAYER_SEAT, spell: ladder, source: GLIMMER, count, cast: { casterLevel: 1, invocationLevel } }, NO_TWIN);
   assert.deepEqual([asks(3, 1), asks(5, 3), asks(6, 3)], ["badCount", null, "badCount"]);
@@ -798,7 +800,7 @@ const askedClosed = async (over = {}) => {
 };
 
 await ta("a Player whose picked creature does not open reads the neutral label and the shipped refusal in the footer, with Cast disabled; the ceiling's tooltip does not name it", async () => {
-  const closed = footerOf(await askedClosed({ seat: { id: "p1", isGM: false, level: "LIMITED" } }), {});
+  const closed = footerOf(await askedClosed({ seat: { ...PLAYER_SEAT, level: "LIMITED" } }), {});
   assert.deepEqual(closed.view.summon.creature.options, [{ value: CLOSED.uuid, label: "ACKS-LIB.summons.neutral", opens: false, selected: true }]);
   assert.deepEqual([closed.verdicts, closed.blocked], [[["block", "ACKS-LIB.summons.refused.unreadable"]], true]);
   assert.ok(!closed.view.summon.count.tip.includes(CLOSED.name), "the tooltip names no creature the seat cannot open");
@@ -807,7 +809,7 @@ await ta("a Player whose picked creature does not open reads the neutral label a
 });
 
 await ta("the same pick is named and castable for a Judge, and for a Player who observes the creature", async () => {
-  for (const [who, over] of [["a Judge", { isGM: true, seat: { id: "gm", isGM: true } }], ["an observer", { seat: { id: "p1", isGM: false, level: "OBSERVER" } }], ["an owner", { seat: { id: "p1", isGM: false, level: "OWNER" } }]]) {
+  for (const [who, over] of [["a Judge", { isGM: true, seat: GM_SEAT }], ["an observer", { seat: { ...PLAYER_SEAT, level: "OBSERVER" } }], ["an owner", { seat: { ...PLAYER_SEAT, level: "OWNER" } }]]) {
     const open = footerOf(await askedClosed(over), {});
     assert.deepEqual(open.view.summon.creature.options, [{ value: CLOSED.uuid, label: CLOSED.name, opens: true, selected: true }], who);
     assert.deepEqual([open.verdicts, open.blocked], [[], false], who);
@@ -827,7 +829,7 @@ await ta("a Judge is never refused before the press and a Player is, whether the
 });
 
 await ta("a creature a Player drops on an open band is one the drop handler let through, so it stays castable and is named in the drop row", async () => {
-  const ctx = await askedWith(makeSpell({ rows: [row({ ref: "", amount: 2 })] }), { seat: { id: "p1", isGM: false, level: "NONE" } });
+  const ctx = await askedWith(makeSpell({ rows: [row({ ref: "", amount: 2 })] }), { seat: { ...PLAYER_SEAT, level: "NONE" } });
   const state = { summon: { ref: "Compendium.invented.Actor.z", count: "", name: "Zebra", img: "z.png" } };
   const held = footerOf(ctx, state);
   assert.deepEqual([held.verdicts, held.blocked], [[], false]);

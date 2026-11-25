@@ -102,8 +102,8 @@ then name. A spell that does not summon casts through the spell's own use,
 which counts the casting and shows its card; the system's skip key held on the
 row's click skips its dialog. A summoning spell keeps the rule below. The
 owner rows follow: each loose cast's *Dismiss*, *Dismiss all summons*,
-*Summon…* on a GM seat, and the *Release* of a creature bound by hand before
-binding by hand was retired. An owner with none of these gets one
+*Summon…* on a seat Foundry grants token creation, and the *Release* of a
+creature bound by hand before binding by hand was retired. An owner with none of these gets one
 disabled row.
 
 **Summons go through spells.** Every spell of the character that is a
@@ -124,9 +124,12 @@ on the scene is reached by exactly one of the three.
 
 **A summon is an entry, in either state.** `summonsOnScene` lists the character's summons as `{tokenId, held, name, img, record}`: each scene token whose actor names the character, with `held` null, then each summon riding in a party token that stands on that scene (lib's `heldSummonsOf`), with `tokenId` null and `held` naming its party and member for the relay. A deployed party member is a scene token and is listed once. The party cell counts and lists the held ones (their rows have no token to pick), `standingBySpell` groups the entries by spell, and the cast menu's and the Magic tab's *Dismiss* rows carry `entries` and hand them, with the scene, to `promptDismiss`, so a held summon is dismissed from the sheet as a standing one is. A *Release* row is only ever tokens. The party cell's member count (`membersOnScene`) counts a member that has a token of its own actor on the scene or whose deployed token (`deployedSceneId`) stands there, since a summon member's actor id is minted.
 
-**Summon…**, on a GM seat only (`bareSummonAllowed`), opens a prompt over the
-monster library: the creature, how many, and optionally the spell to record
-it against.
+**Summon…**, on a seat Foundry grants token creation (`bareSummonAllowed`:
+`user.can("TOKEN_CREATE")`, which a GM holds by role and a Player by the
+world's grant), opens a prompt over the monster library: the creature, how
+many, and optionally the spell to record it against. The creature is read by
+the same test every summoning is, so a Player offered the prompt summons only
+what that Player observes (lib MODEL, "Summons").
 
 **The Magic tab** (`tabs/magic.mjs`) shows on each summoning spell's row how
 many of its creatures stand on the scene the party cell counts on

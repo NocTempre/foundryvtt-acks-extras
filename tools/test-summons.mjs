@@ -42,14 +42,17 @@ const hpRolls = [];
 const systemSettings = { autoRollMonsterHP: false };
 const registry = new Map();
 
-const user = (id, isGM = false, viewedScene = null) => ({ id, isGM, viewedScene });
+/** A user as Foundry shows one: `can` answers a permission for a GM and for a seat the world grants it, as `User#can` does. */
+const user = (id, isGM = false, viewedScene = null, grants = []) => ({ id, isGM, viewedScene, can: (permission) => isGM || grants.includes(permission) });
 const gm = user("gm", true);
 const p1 = user("p1");
 const p2 = user("p2");
 const stranger = user("p3");
+/** A Player the world grants token creation. */
+const granted = user("pg", false, null, ["TOKEN_CREATE"]);
 
 const world = {
-  users: new Map([gm, p1, p2, stranger].map((u) => [u.id, u])),
+  users: new Map([gm, p1, p2, stranger, granted].map((u) => [u.id, u])),
   scenes: new Coll(),
   actors: new Coll(),
   folders: new Coll(),
@@ -333,10 +336,14 @@ await t("the spell's name is the item's, never the payload's", async () => {
   assert.equal(calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].spellName, SPELL.name);
 });
 
-await t("a Player seat with no spell is refused spellRequired and nothing is made; a GM seat is not", async () => {
-  setup();
+await t("a seat without token creation is refused spellRequired and nothing is made; a GM seat and a seat granted it are not", async () => {
+  const { summoner } = setup({ source: { readers: [p1.id, granted.id] } });
+  summoner.ownership[granted.id] = OWNER;
   assert.equal(logic.bareSummonAllowed(p1), false);
   assert.equal(logic.bareSummonAllowed(gm), true);
+  assert.equal(logic.bareSummonAllowed(granted), true, "the grant, not the role, answers");
+  assert.equal(logic.bareSummonAllowed({ id: "x", isGM: true }), false, "a role alone is no grant: `can` answers or nothing does");
+  assert.equal(logic.bareSummonAllowed(null), false);
   assert.deepEqual(await summonRelay(place({ spellId: "" })), { ok: false, reason: "spellRequired" });
   assert.equal(calls.actorCreate.length + calls.tokenCreate.length, 0);
   const bare = await summonRelay(place({ spellId: "", requestUserId: null }));
@@ -344,6 +351,9 @@ await t("a Player seat with no spell is refused spellRequired and nothing is mad
   const rec = calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG];
   assert.equal(rec.spellId, undefined);
   assert.equal(rec.spellName, undefined);
+  const grantedOut = await summonRelay(place({ spellId: "", requestUserId: granted.id }));
+  assert.equal(grantedOut.ok, true, "a Player the world grants token creation summons bare");
+  assert.deepEqual(calls.tokenCreate.at(-1).delta.ownership, { p1: OWNER, p2: OWNER, [granted.id]: OWNER }, "the creature is owned as any summons is");
 });
 
 await t("a count or a set of places the relay will not act on is refused", async () => {
@@ -442,9 +452,11 @@ const { registerSummons, heldSummonsOf, castSummons, dismissSummons } = await im
  * A member is `{actorId, name, summonedBy, summon, token}`: `token` is its
  * live deployed token, absent while it is stashed. `events` logs what lib
  * asked of it; `recall()` is the provider's own restore, which brings back
- * only the members that still have a record.
+ * only the members that still have a record. `amendSummons` rewrites a
+ * stashed member's `tokenData` through the edit it is handed and never
+ * touches a deployed one, as the roster's does.
  */
-function fakeProvider(parties, { release = true, memberOfToken = true } = {}) {
+function fakeProvider(parties, { release = true, memberOfToken = true, amend = true } = {}) {
   const events = [];
   const restored = [];
   const rowOf = (m) => ({ actorId: m.actorId, actor: { img: `img/${m.actorId}` }, name: m.name, document: null, stashed: !m.token, unlinked: true, hp: null, summonedBy: m.summonedBy ?? null, summon: m.summon ?? null });
@@ -476,16 +488,40 @@ function fakeProvider(parties, { release = true, memberOfToken = true } = {}) {
       return { released };
     };
   }
+  if (amend) {
+    impl.amendSummons = async (partyId, ids, edit) => {
+      events.push(["amend", partyId, [...ids]]);
+      const amended = [];
+      for (const m of parties.get(partyId) ?? []) {
+        if (!ids.includes(m.actorId) || m.token || !m.tokenData) continue;
+        const next = edit(clone(m.tokenData));
+        if (!next || typeof next !== "object") continue;
+        m.tokenData = next;
+        m.summon = logic.summonOfData(next).summon;
+        amended.push(m.actorId);
+      }
+      return { amended };
+    };
+  }
   const recall = () => {
     for (const members of parties.values()) for (const m of members) restored.push(m.actorId);
   };
   return { impl, events, restored, recall };
 }
 
+/** The token data a party keeps for a stashed summon: unlinked, owned by `p1` and `p2`, friendly, carrying the summoner and the record. */
+const stashOf = (summonerUuid, record) => ({
+  name: "Wolf",
+  actorLink: false,
+  disposition: 1,
+  delta: { ownership: { default: 0, p1: OWNER, p2: OWNER }, flags: { [M]: { [logic.SUMMON_FLAG]: summonerUuid, [logic.SUMMON_RECORD_FLAG]: clone(record) } } },
+});
+
 /** A summon of `summonerUuid` stashed in a party token, or deployed as a token on `scene`. */
 const member = (actorId, summonerUuid, castId, scene = null) => {
   const m = { actorId, name: `Wolf ${actorId}`, summonedBy: summonerUuid, summon: { castId, sourceUuid: "x", at: 1 } };
   if (scene) m.token = summoned(scene, summonerUuid, m.summon);
+  else m.tokenData = stashOf(summonerUuid, m.summon);
   return m;
 };
 
@@ -741,8 +777,17 @@ await t("a placement that throws is refused 'placement', a paused game or a miss
   game.user = p1;
   game.paused = true;
   const clicks = seatCanvas(scene);
-  assert.deepEqual(await promptSummon(summoner), { ok: false, reason: "spellRequired" }, "a Player seat is held to a spell before anything else");
+  assert.deepEqual(await promptSummon(summoner), { ok: false, reason: "spellRequired" }, "a seat without token creation is held to a spell before anything else");
   assert.equal(clicks.length + calls.tokenCreate.length, 0);
+  endSeat();
+});
+
+await t("the bare prompt opens for a Player the world grants token creation", async () => {
+  const { scene } = setup();
+  seatCanvas(scene);
+  game.packs = shelf();
+  game.user = granted;
+  assert.equal(await promptSummon(registry.get("Actor.sum")), null, "a closed prompt: the gate let the seat through to it");
   endSeat();
 });
 
@@ -1078,33 +1123,17 @@ await t("the same checks serve the seat before it asks the GM", () => {
   assert.equal(logic.checkPlaceRequest({ summoner, source, count: 1, spellId }).reason, "noUser");
 });
 
-await t("spellRequired follows the one switch: GM-only as shipped, everyone when it is flipped", async () => {
-  const summoner = makeSummoner("sum", [p1.id], [SPELL]);
-  const source = makeSource("m1");
+await t("spellRequired follows the one switch: token creation as Foundry grants it, ownership first, a spell never held to it", async () => {
+  const summoner = makeSummoner("sum", [p1.id, granted.id], [SPELL]);
+  const source = makeSource("m1", { readers: [p1.id, granted.id, stranger.id] });
   const bare = { summoner, source, count: 1 };
-  assert.equal(logic.checkPlaceRequest({ user: p1, ...bare }).reason, "spellRequired", "shipped: a Player seat needs a spell");
-  assert.equal(logic.checkPlaceRequest({ user: gm, ...bare }).ok, true, "shipped: a GM seat may summon bare");
+  assert.equal(logic.checkPlaceRequest({ user: p1, ...bare }).reason, "spellRequired", "a Player without the grant needs a spell");
+  assert.equal(logic.checkPlaceRequest({ user: gm, ...bare }).ok, true, "a GM seat may summon bare");
+  assert.equal(logic.checkPlaceRequest({ user: granted, ...bare }).ok, true, "a Player the world grants token creation may summon bare");
   assert.equal(logic.checkPlaceRequest({ user: p1, ...bare, spellId: SPELL.id }).ok, true, "a spell is never held to the switch");
-
-  // The other position: the same module with its one switch line rewritten, in a scratch copy.
-  const { mkdtemp, readFile, writeFile, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { pathToFileURL } = await import("node:url");
-  const dir = await mkdtemp(join(tmpdir(), "acks-summons-switch-"));
-  try {
-    const line = "export const bareSummonAllowed = (user) => !!user?.isGM;";
-    const src = await readFile(new URL("../scripts/lib/summons-logic.mjs", import.meta.url), "utf8");
-    assert.ok(src.includes(line), "the switch is one line the test can flip");
-    await writeFile(join(dir, "summons-logic.mjs"), src.replace(line, "export const bareSummonAllowed = (user) => !!user;"));
-    await writeFile(join(dir, "constants.mjs"), await readFile(new URL("../scripts/lib/constants.mjs", import.meta.url), "utf8"));
-    await writeFile(join(dir, "magic-vocab.mjs"), await readFile(new URL("../scripts/lib/magic-vocab.mjs", import.meta.url), "utf8"));
-    const flipped = await import(pathToFileURL(join(dir, "summons-logic.mjs")).href);
-    assert.equal(flipped.checkPlaceRequest({ user: p1, ...bare }).ok, true, "flipped: a Player seat may summon bare");
-    assert.equal(flipped.checkPlaceRequest({ user: stranger, ...bare }).reason, "notOwner", "ownership is still checked first");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
+  assert.equal(logic.checkPlaceRequest({ user: stranger, ...bare }).reason, "notOwner", "ownership is still checked first, with the grant or without it");
+  const strangerGranted = user("pz", false, null, ["TOKEN_CREATE"]);
+  assert.equal(logic.checkPlaceRequest({ user: strangerGranted, ...bare }).reason, "notOwner", "the grant opens no character the seat does not own");
 });
 
 await t("a registered policy refuses with its own reason, on the seat and on the relay", async () => {
@@ -1435,13 +1464,18 @@ await t("the plan names a step for every creature, whatever the outcome, and rea
   const tokens = [{ uuid: "T.plain", ownership: { default: 0, p1: 3, p2: 3 } }, { uuid: "T.deployed", ownership: {}, member: { partyId: "pty", actorId: "m1" } }];
   const held = [{ partyId: "pty", actorId: "h1" }];
   const stays = logic.controlEndPlan({ outcome: "stays", tokens, held });
-  assert.deepEqual(stays.steps.map((s) => [s.kind, s.op, s.lost]), [["token", "stamp", "stays"], ["token", "stamp", "stays"], ["held", "unapplied", "stays"]]);
+  assert.deepEqual(stays.steps.map((s) => [s.kind, s.op, s.lost]), [["token", "stamp", "stays"], ["token", "stamp", "stays"], ["held", "stamp", "stays"]], "a stash is amended through the roster, as a token is stamped");
   const gone = logic.controlEndPlan({ outcome: "gone", tokens, held });
   assert.deepEqual(gone.steps.map((s) => [s.op, s.lost]), [["delete", "gone"], ["release", "gone"], ["release", "gone"]]);
   assert.deepEqual([gone.steps[1].partyId, gone.steps[1].actorId], ["pty", "m1"], "a deployed member goes through the roster");
   assert.deepEqual(logic.controlEndPlan({ outcome: "gone", tokens, held, canRelease: false }).steps.map((s) => s.op), ["delete", "release", "unapplied"], "a stash with no release to call is left unapplied");
   const hostile = logic.controlEndPlan({ outcome: "hostile", tokens, held });
-  assert.deepEqual(hostile.steps.map((s) => s.op), ["hostile", "hostile", "unapplied"]);
+  assert.deepEqual(hostile.steps.map((s) => s.op), ["hostile", "hostile", "hostile"]);
+  assert.deepEqual([hostile.steps[2].kind, hostile.steps[2].partyId, hostile.steps[2].actorId], ["held", "pty", "h1"], "a stash is named by its roster ids");
+  assert.equal(hostile.steps[2].drop, undefined, "the stash is rewritten whole, so its step carries no drop");
+  assert.deepEqual(logic.controlEndPlan({ outcome: "stays", tokens, held, canAmend: false }).steps.map((s) => s.op), ["stamp", "stamp", "unapplied"], "a stash with no amend to call is left unapplied");
+  assert.deepEqual(logic.controlEndPlan({ outcome: "hostile", tokens, held, canAmend: false }).steps.map((s) => s.op), ["hostile", "hostile", "unapplied"]);
+  assert.deepEqual(logic.controlEndPlan({ outcome: "gone", tokens, held, canAmend: false }).steps.map((s) => s.op), ["delete", "release", "release"], "a stash that goes needs no amend");
   assert.deepEqual(hostile.steps[0].drop, ["p1", "p2"], "every owner but the map's default is dropped");
   assert.equal(hostile.steps[0].disposition, logic.HOSTILE_DISPOSITION);
   assert.deepEqual(hostile.steps[1].drop, []);
@@ -1451,19 +1485,40 @@ await t("the plan names a step for every creature, whatever the outcome, and rea
   assert.deepEqual(logic.ownershipDrop(undefined), []);
 });
 
-await t("a creature whose control ended is a Judge's to dismiss: a seat that names only such creatures is refused controlLost", async () => {
+await t("only a creature that turned hostile is a Judge's to dismiss: an owner dismisses one that stayed or is gone, and is refused controlLost for a hostile one", async () => {
   const { summoner, scene } = setup();
-  const lost = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1, lost: "stays" });
+  const stayed = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1, lost: "stays" });
+  const gone = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1, lost: "gone" });
+  const hostile = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1, lost: "hostile" });
   const live = summoned(scene, summoner.uuid, { castId: "c2", sourceUuid: "x", at: 1 });
-  assert.deepEqual(logic.checkDismissRequest({ user: p1, summoner, tokens: [lost] }), { ok: false, reason: "controlLost" });
-  const mixed = logic.checkDismissRequest({ user: p1, summoner, tokens: [lost, live] });
-  assert.deepEqual([mixed.ok, mixed.tokens.map((x) => x.id), mixed.refused], [true, [live.id], 1], "the others go, the lost one is counted refused");
-  const stranded = logic.checkDismissRequest({ user: p1, summoner, tokens: [], held: [{ partyId: "pty", actorId: "h1", summonedBy: summoner.uuid, summon: { castId: "c1", lost: "gone" } }] });
-  assert.deepEqual(stranded, { ok: false, reason: "controlLost" }, "a stashed creature's record is held to the same test");
-  assert.deepEqual(logic.checkDismissRequest({ user: gm, summoner, tokens: [lost] }).tokens.map((x) => x.id), [lost.id], "a GM seat dismisses it");
-  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [lost.uuid] }), { ok: false, reason: "controlLost" }, "the relay refuses it for an owner's request, and deletes nothing");
+  assert.deepEqual(logic.checkDismissRequest({ user: p1, summoner, tokens: [stayed, gone, live] }).tokens.map((x) => x.id), [stayed.id, gone.id, live.id], "an owner takes the ones that stayed or went");
+  assert.deepEqual(logic.checkDismissRequest({ user: p1, summoner, tokens: [hostile] }), { ok: false, reason: "controlLost" });
+  const mixed = logic.checkDismissRequest({ user: p1, summoner, tokens: [hostile, live, stayed] });
+  assert.deepEqual([mixed.ok, mixed.tokens.map((x) => x.id), mixed.refused], [true, [live.id, stayed.id], 1], "the others go, the hostile one is counted refused");
+  const heldRow = (lost) => ({ partyId: "pty", actorId: "h1", summonedBy: summoner.uuid, summon: { castId: "c1", lost } });
+  assert.deepEqual(logic.checkDismissRequest({ user: p1, summoner, tokens: [], held: [heldRow("hostile")] }), { ok: false, reason: "controlLost" }, "a stashed creature's record is held to the same test");
+  assert.equal(logic.checkDismissRequest({ user: p1, summoner, tokens: [], held: [heldRow("stays")] }).held.length, 1, "a stashed creature that stayed is dismissed by its owner");
+  assert.equal(logic.checkDismissRequest({ user: p1, summoner, tokens: [], held: [heldRow("gone")] }).held.length, 1);
+  assert.deepEqual(logic.checkDismissRequest({ user: gm, summoner, tokens: [hostile] }).tokens.map((x) => x.id), [hostile.id], "a GM seat dismisses it");
+  assert.equal(logic.checkDismissRequest({ user: gm, summoner, tokens: [], held: [heldRow("hostile")] }).held.length, 1);
+  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [hostile.uuid] }), { ok: false, reason: "controlLost" }, "the relay refuses it for an owner's request, and deletes nothing");
   assert.equal(calls.tokenDelete.length, 0);
-  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [lost.uuid], requestUserId: undefined }), { ok: true, deleted: 1, refused: 0 }, "a request from the GM seat removes it");
+  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [stayed.uuid, gone.uuid] }), { ok: true, deleted: 2, refused: 0 }, "the relay removes the ones that stayed or went for an owner");
+  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [hostile.uuid], requestUserId: undefined }), { ok: true, deleted: 1, refused: 0 }, "a request from the GM seat removes the hostile one");
+});
+
+await t("the relay's dismiss answers a hostile stash as the door does: controlLost to an owner, the member released for the GM seat", async () => {
+  const { summoner } = setup();
+  const hostile = member("h1", summoner.uuid, "cA");
+  hostile.summon = { ...hostile.summon, lost: "hostile" };
+  const stayed = member("h2", summoner.uuid, "cA");
+  stayed.summon = { ...stayed.summon, lost: "stays" };
+  const provider = fakeProvider(new Map([["pty", [hostile, stayed]]]));
+  services.register("party-roster", provider.impl);
+  assert.deepEqual(await dismissAs(summoner, { held: [{ partyId: "pty", actorId: "h1" }] }), { ok: false, reason: "controlLost" });
+  assert.deepEqual(await dismissAs(summoner, { held: [{ partyId: "pty", actorId: "h2" }] }), { ok: true, deleted: 1, refused: 0 }, "a stash that stayed is the owner's to dismiss");
+  assert.deepEqual(await dismissAs(summoner, { held: [{ partyId: "pty", actorId: "h1" }], requestUserId: undefined }), { ok: true, deleted: 1, refused: 0 });
+  assert.deepEqual(provider.events.map((e) => [e[0], e[2]]), [["release", ["h2"]], ["release", ["h1"]]]);
 });
 
 /** A summons of `summonerUuid` on `scene` whose delta names these owners. */
@@ -1510,16 +1565,24 @@ await t("a creature that goes is deleted by the cast's own recorded tokens: a de
   assert.deepEqual(provider.events.map((e) => [e[0], e[1], e[2]]), [["release", "pty", ["m1", "h1"]]], "the deployed member and the stash by roster ids, and the other cast's stash is not named");
 });
 
-await t("a creature that stays is stamped lost and nothing else is written", async () => {
+await t("a creature that stays is stamped lost, a stashed one in its party's record through the roster, and nothing else is written", async () => {
   const { summoner, scene } = setup();
   const a1 = summoned(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 });
   const decoy = summoned(scene, summoner.uuid, { castId: "cB", sourceUuid: "x", at: 1 });
-  services.register("party-roster", fakeProvider(new Map([["pty", [member("h1", summoner.uuid, "cA")]]])).impl);
+  const stash = member("h1", summoner.uuid, "cA");
+  const decoyStash = member("h2", summoner.uuid, "cB");
+  const provider = fakeProvider(new Map([["pty", [stash, decoyStash]]]));
+  services.register("party-roster", provider.impl);
   const out = await applyControlEnd(summoner, { castId: "cA", outcome: "stays" });
-  assert.deepEqual(out, { ok: true, outcome: "stays", stamped: 1, deleted: 0, released: 0, hostile: 0, unapplied: 1 }, "a stash has no token to stamp and is counted");
+  assert.deepEqual(out, { ok: true, outcome: "stays", stamped: 2, deleted: 0, released: 0, hostile: 0, unapplied: 0 }, "the token and the stash are each stamped");
   assert.deepEqual(calls.actorUpdate, [{ id: a1.id, patch: { [`flags.${M}.${logic.SUMMON_RECORD_FLAG}.lost`]: "stays" } }]);
   assert.equal(calls.tokenUpdate.length + calls.tokenDelete.length, 0);
   assert.equal(calls.actorUpdate.some((u) => u.id === decoy.id), false);
+  assert.deepEqual(provider.events.map((e) => [e[0], e[1], e[2]]), [["amend", "pty", ["h1"]]], "the roster is asked for this cast's stash alone");
+  assert.equal(stash.tokenData.delta.flags[M][logic.SUMMON_RECORD_FLAG].lost, "stays");
+  assert.deepEqual(stash.tokenData.delta.ownership, { default: 0, p1: OWNER, p2: OWNER }, "a creature that stays keeps its owners");
+  assert.equal(stash.tokenData.disposition, 1);
+  assert.equal(decoyStash.tokenData.delta.flags[M][logic.SUMMON_RECORD_FLAG].lost, undefined, "another cast's stash is untouched");
 });
 
 await t("a creature that turns hostile sets every owner to NONE, turns hostile and is stamped lost", async () => {
@@ -1535,6 +1598,54 @@ await t("a creature that turns hostile sets every owner to NONE, turns hostile a
   assert.ok(Object.values(patch.ownership).every((v) => v === CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE), "a synthetic actor's ownership is a delta over the world copy's, so each owner is set to NONE: a forced deletion writes nothing there");
   assert.deepEqual(calls.tokenUpdate, [{ id: a1.id, patch: { disposition: logic.HOSTILE_DISPOSITION } }]);
   assert.equal(calls.actorUpdate.concat(calls.tokenUpdate).some((u) => u.id === decoy.id), false, "another cast's creature is untouched");
+});
+
+await t("a stashed creature that turns hostile is stamped, loses its owners and turns hostile in its party's record, and stays a member", async () => {
+  const { summoner, scene } = setup();
+  summonedBy(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 }, { p1: 3 });
+  const stash = member("h1", summoner.uuid, "cA");
+  const provider = fakeProvider(new Map([["pty", [stash]]]));
+  services.register("party-roster", provider.impl);
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "hostile" });
+  assert.deepEqual(out, { ok: true, outcome: "hostile", stamped: 2, deleted: 0, released: 0, hostile: 2, unapplied: 0 });
+  assert.deepEqual(provider.events.map((e) => [e[0], e[1], e[2]]), [["amend", "pty", ["h1"]]]);
+  assert.equal(stash.tokenData.delta.flags[M][logic.SUMMON_RECORD_FLAG].lost, "hostile");
+  assert.deepEqual(stash.tokenData.delta.ownership, { default: 0, p1: 0, p2: 0 }, "every owner is set to NONE, the default kept");
+  assert.equal(stash.tokenData.disposition, logic.HOSTILE_DISPOSITION);
+  assert.equal(provider.impl.members("pty").length, 1, "no ejection: the party still holds it");
+  const rows = provider.impl.members("pty").map((r) => ({ partyId: "pty", ...r }));
+  assert.deepEqual(logic.checkDismissRequest({ user: p1, summoner, tokens: [], held: rows }), { ok: false, reason: "controlLost" }, "and its owner cannot dismiss it");
+});
+
+await t("with no roster amend a stashed creature that stays or turns hostile is left, counted unapplied", async () => {
+  const { summoner } = setup();
+  const stash = member("h1", summoner.uuid, "cA");
+  services.register("party-roster", fakeProvider(new Map([["pty", [stash]]]), { amend: false }).impl);
+  for (const outcome of ["stays", "hostile"]) {
+    assert.deepEqual(await applyControlEnd(summoner, { castId: "cA", outcome }), { ok: true, outcome, stamped: 0, deleted: 0, released: 0, hostile: 0, unapplied: 1 }, outcome);
+  }
+  assert.equal(stash.tokenData.delta.flags[M][logic.SUMMON_RECORD_FLAG].lost, undefined);
+});
+
+await t("stashAfterControlEnd stamps and turns a copy, never the stash it is handed, and answers null for what it cannot write", () => {
+  const data = stashOf("Actor.sum", { castId: "c1", sourceUuid: "x", at: 1 });
+  const frozen = clone(data);
+  const stayed = logic.stashAfterControlEnd(data, "stays");
+  assert.deepEqual(data, frozen, "the argument is never mutated");
+  assert.equal(stayed.delta.flags[M][logic.SUMMON_RECORD_FLAG].lost, "stays");
+  assert.deepEqual(stayed.delta.ownership, frozen.delta.ownership);
+  assert.equal(stayed.disposition, 1);
+  const turned = logic.stashAfterControlEnd(data, "hostile");
+  assert.deepEqual(data, frozen);
+  assert.deepEqual(turned.delta.ownership, { default: 0, p1: 0, p2: 0 });
+  assert.equal(turned.disposition, logic.HOSTILE_DISPOSITION);
+  assert.notEqual(turned.delta.flags, data.delta.flags, "the copy shares nothing with the stash");
+  const bare = { name: "x", actorLink: false, delta: { flags: { [M]: { [logic.SUMMON_FLAG]: "Actor.sum", [logic.SUMMON_RECORD_FLAG]: { castId: "c1" } } } } };
+  assert.equal(logic.stashAfterControlEnd(bare, "hostile").delta.ownership, undefined, "a stash with no ownership map gets none made up");
+  assert.equal(logic.stashAfterControlEnd({ ...data, actorLink: true }, "stays"), null, "a linked token's flags are its actor's");
+  assert.equal(logic.stashAfterControlEnd({ name: "x", delta: null }, "stays"), null, "a token that matches its actor has no record");
+  assert.equal(logic.stashAfterControlEnd(null, "stays"), null);
+  assert.equal(logic.stashAfterControlEnd(data, "gone"), null, "a creature that goes is released, never amended");
 });
 
 await t("with no roster release a stashed creature that should go is left, counted unapplied, and a cast with nothing standing is a no-op", async () => {

@@ -189,7 +189,7 @@ export const isCaster = ({ spells = [], records = [], summons = [] } = {}) => sp
  * spell that does not summon is cast through the spell's own use. A summoning
  * spell is Cast while none of its creatures stand, else Dismiss with the count
  * standing, which covers every cast of that spell. A recorded summon whose
- * spell is no summoning spell of the character (deleted, or a GM's bare
+ * spell is no summoning spell of the character (deleted, or a bare
  * summoning) is a loose cast, dismissed cast by cast. A creature bound to the
  * character before binding by hand was retired carries no record, and only
  * Release lets it go. Each standing summon is

@@ -2,7 +2,9 @@
  * The `party-roster` contract's `pace` member (`scripts/formation/party-roster.mjs`):
  * a member's pace if it bore more weight, answered by formation's own pace code
  * and core's movement calculation, so no encumbrance step is stated in treasure.
- * Documents are stand-ins; every step, tier and weight here is this file's own
+ * Also its v5 `amendSummons`: the write a cast's control ending makes into the
+ * stashed token of a summon riding in the party, GM only and never to a person
+ * or a deployed member. Documents are stand-ins; every step, tier and weight here is this file's own
  * invention (QQ names), so the tests prove the machinery and never the book.
  *
  * Run: node tools/test-roster-pace.mjs
@@ -94,6 +96,7 @@ const { carriedLoad, getFormation, memberPace } =await import("../scripts/format
 const { chooseConveyance } = await import("../scripts/formation/conveyance.mjs");
 const { ROLES } = await import("../scripts/formation/constants.mjs");
 const { registerPartyRoster } = await import("../scripts/formation/party-roster.mjs");
+const { stashAfterControlEnd } = await import("../scripts/lib/summons-logic.mjs");
 const { STONE } = await import("../scripts/lib/item-model.mjs");
 const { holdOf } = await import("../scripts/vehicles/hold.mjs");
 
@@ -268,6 +271,99 @@ await t("a member the party does not hold has no pace", () => {
   const id = party([walker("a", 36)]);
   assert.equal(roster.pace(id, "nobody"), null);
   assert.equal(roster.pace("no-such-party", "a"), null);
+});
+
+/** A summon member stashed in the party: plain token data carrying the summoner and the cast record, owned by `p1`. */
+const summonMember = (id, extra = {}) => ({
+  actorId: id,
+  baseActorId: "copy",
+  roles: [],
+  tokenData: {
+    name: id,
+    actorLink: false,
+    disposition: 1,
+    delta: { ownership: { default: 0, p1: 3 }, flags: { [SCOPE]: { summonedBy: "Actor.caster", summon: { castId: "cast1", name: "Wisp" } } } },
+  },
+  ...extra,
+});
+const stashOf = (id, actorId) => getFormation(id).members.find((m) => m.actorId === actorId).tokenData;
+const stamp = (data) => stashAfterControlEnd(data, "stays");
+const turn = (data) => stashAfterControlEnd(data, "hostile");
+
+await t("the v5 member, amendSummons, is registered", () => {
+  assert.equal(typeof roster.amendSummons, "function");
+});
+
+await t("amendSummons stamps a stashed summon and leaves membership as it was", async () => {
+  const id = party([walker("c", 36), summonMember("s1")]);
+  const before = clone(getFormation(id).members.map((m) => m.actorId));
+  const answer = await roster.amendSummons(id, ["s1"], stamp);
+  assert.deepEqual(answer, { amended: ["s1"] });
+  assert.equal(stashOf(id, "s1").delta.flags[SCOPE].summon.lost, "stays");
+  assert.deepEqual(stashOf(id, "s1").delta.ownership, { default: 0, p1: 3 }, "a creature that stays keeps its owners");
+  assert.equal(stashOf(id, "s1").disposition, 1);
+  assert.deepEqual(getFormation(id).members.map((m) => m.actorId), before);
+});
+
+await t("amendSummons turns a hostile stash: owners at NONE, disposition hostile, still a member", async () => {
+  const id = party([walker("c", 36), summonMember("s1")]);
+  const answer = await roster.amendSummons(id, ["s1"], turn);
+  assert.deepEqual(answer, { amended: ["s1"] });
+  const stash = stashOf(id, "s1");
+  assert.equal(stash.delta.flags[SCOPE].summon.lost, "hostile");
+  assert.deepEqual(stash.delta.ownership, { default: 0, p1: 0 });
+  assert.equal(stash.disposition, -1);
+  assert.ok(getFormation(id).members.some((m) => m.actorId === "s1"), "no ejection");
+});
+
+await t("amendSummons hands the edit a copy, and keeps the stash when the edit answers nothing", async () => {
+  const id = party([summonMember("s1")]);
+  const seen = [];
+  const answer = await roster.amendSummons(id, ["s1"], (data) => {
+    seen.push(data);
+    data.name = "scribbled";
+    return null;
+  });
+  assert.deepEqual(answer, { amended: [] });
+  assert.equal(seen.length, 1);
+  assert.equal(stashOf(id, "s1").name, "s1", "a copy was edited, and its result was not kept");
+});
+
+await t("amendSummons skips a person, a deployed summon, a linked stash and an id the party lacks", async () => {
+  const id = party([
+    walker("c", 36),
+    summonMember("deployed", { deployedTokenId: "tok", deployedSceneId: "sc" }),
+    summonMember("stacked", { deployedStack: "k" }),
+    summonMember("linked", { tokenData: { ...summonMember("x").tokenData, actorLink: true } }),
+    summonMember("s1"),
+  ]);
+  // An edit that marks whatever it is handed, so a skip is the roster's and not the stamp's.
+  const answer = await roster.amendSummons(id, ["c", "deployed", "stacked", "linked", "ghost", "s1"], (data) => ({ ...data, marked: true }));
+  assert.deepEqual(answer, { amended: ["s1"] });
+  assert.equal(getFormation(id).members.find((m) => m.actorId === "c").tokenData, undefined, "a person has no stash to rewrite");
+  for (const skipped of ["deployed", "stacked", "linked"]) assert.equal(stashOf(id, skipped).marked, undefined, skipped);
+  assert.equal(stashOf(id, "s1").marked, true);
+  assert.deepEqual(await roster.amendSummons("no-such-party", ["s1"], stamp), { amended: [] });
+});
+
+await t("amendSummons writes nothing for a stash that carries no summon record", async () => {
+  const bare = summonMember("s1");
+  delete bare.tokenData.delta.flags[SCOPE].summon;
+  const id = party([bare]);
+  assert.deepEqual(await roster.amendSummons(id, ["s1"], stamp), { amended: [] });
+  assert.equal(stashOf(id, "s1").delta.flags[SCOPE].summon, undefined);
+});
+
+await t("a seat that is no GM amends nothing", async () => {
+  const id = party([summonMember("s1")]);
+  const user = game.user;
+  game.user = { id: "p1", isGM: false };
+  try {
+    assert.deepEqual(await roster.amendSummons(id, ["s1"], stamp), { amended: [] });
+  } finally {
+    game.user = user;
+  }
+  assert.equal(stashOf(id, "s1").delta.flags[SCOPE].summon.lost, undefined);
 });
 
 console.log(`\n${checks.length} checks passed`);

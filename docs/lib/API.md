@@ -228,12 +228,13 @@ else importing the definition from its own pipeline — and reports what it
 could not resolve; it never throws on content. The specialty suffix lands
 on the embedded copy's name only. No provider ⇒ consumers skip granting.
 
-### Contract `party-roster` v4
+### Contract `party-roster` v5
 
 Provider: formation (`scripts/formation/party-roster.mjs`). Consumers: the
 hit-point tool (`lib/hp.mjs`), which works on a whole party at once, the
 summons (`lib/summons.mjs`), which reach a summon riding in a party token and
-make a cast's creatures members of the party the caster marches inside, and
+make a cast's creatures members of the party the caster marches inside and end
+the control of a stashed one, and
 the treasure pot's party aside and Quick grab (`list`, `members`, `pace`). Shape:
 
 ```
@@ -248,12 +249,14 @@ the treasure pot's party aside and Quick grab (`list`, `members`, `pace`). Shape
   pace(partyId, actorId, {adding6}) → {rank, speed} | null
   // v4 (additive)
   summonerParty(actorId) → {id, name, sceneId, tokenId} | null,
-  admitSummons(partyId, summonerUuid, stashes) → Promise<{actorIds: string[], reason?: string}>
+  admitSummons(partyId, summonerUuid, stashes) → Promise<{actorIds: string[], reason?: string}>,
+  // v5 (additive)
+  amendSummons(partyId, actorIds, edit) → Promise<{amended: string[]}>
 }
 ```
 
-`summonedBy`, `summon`, `memberOfToken`, `release`, `pace`, `summonerParty` and
-`admitSummons` are optional to a consumer: each is read with an optional call,
+`summonedBy`, `summon`, `memberOfToken`, `release`, `pace`, `summonerParty`,
+`admitSummons` and `amendSummons` are optional to a consumer: each is read with an optional call,
 and with one absent the consumer does what it does with no party in play.
 
 `summonerParty(actorId)` names the party the actor marches inside: the party
@@ -262,6 +265,18 @@ as a token nor out as a stack, whose party token stands on a scene, and which
 no fight holds. `sceneId` and `tokenId` name that token. It is null otherwise,
 and a consumer then places a summoning as it always did. It reads only and runs
 on any seat.
+
+`amendSummons(partyId, actorIds, edit)` rewrites the stashed token of summon
+members still riding inside the party token. `edit(tokenData)` is handed a deep
+copy of each named member's stash and returns the token data to keep in its
+place, or anything that is not an object to leave that stash as it is
+(`stashAfterControlEnd`, `lib/summons-logic.mjs`, is the edit a cast's control
+ending hands it). It writes only a summon member that is stashed and unlinked:
+a person, a member deployed as a token or out as a stack, a linked stash and an
+id the party does not hold are skipped. Every write lands in one patch, and
+membership is never changed. It runs on the GM's client only, and answers
+`amended: []` on any other seat. It answers `amended`, the row `actorId`s whose
+stash was rewritten.
 
 `admitSummons(partyId, summonerUuid, stashes)` makes creatures members of the
 party from `stashes`, plain token data as they would have stood, with no token
@@ -1338,14 +1353,21 @@ reason in the seat's own words, for a caller that tells it in a place of its own
 (a cast's verdict). `applyControlEnd(summoner, {castId, outcome})`, also imported
 directly, runs on the GM's client alone and ends the control of one cast's
 creatures, named by their own recorded cast and never by a name or a type:
-each is stamped `lost`, then `outcome` (one of `CONTROL_ENDS`, read by the
-caller from the spell's row) removes it (`gone`), turns it hostile with its
-owners dropped (`hostile`) or leaves it (`stays`). A stamped creature is
-refused to a non-GM's `dismissSummons` as `controlLost`. A deployed member's token
-and a held summon are removed through the roster's `release`, and any other
-token from its scene; with `release` absent, a held summon is refused and
+each is stamped `lost` with `outcome` (one of `CONTROL_ENDS`, read by the
+caller from the spell's row), and `outcome` removes it (`gone`), turns it hostile
+with its owners set to NONE (`hostile`) or leaves it (`stays`). Only a creature
+that turned hostile is refused to a non-GM's `dismissSummons` as `controlLost`,
+the door and the relay's `dismiss` alike; one that stayed or went is dismissed
+by an owner of its summoner as any other is. A deployed member's token
+and a held summon that goes are removed through the roster's `release`, and any
+other token from its scene; with `release` absent, a held summon is refused and
 counted in `refused`, and a token is deleted from its scene. `deleted` counts
-every one removed. `reason` is one of `noUser`, `notSummoner`,
+every one removed. A held summon that stays or turns hostile is rewritten in its
+party's record through the roster's `amendSummons` (`stashAfterControlEnd`: the
+stamp, and for `hostile` its owners at NONE and the hostile disposition), and it
+stays a member until a Judge dismisses it; with `amendSummons` absent it is left
+as it was and counted in `unapplied`. `stamped` counts each creature stamped,
+token or stash, and `hostile` each turned. `reason` is one of `noUser`, `notSummoner`,
 `notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `spellRequired`,
 `badScene`, `badPositions`, `outOfRange`, `noCaster`, `noCopy`, `badOp`, `noCanvas`, `paused`,
 `placement`, `none`, `cancelled`, `declined`, `noGm`, or a reason id a
@@ -1355,7 +1377,9 @@ A summoning belongs to the spell that calls it: `spellId` names a spell item of
 the summoner, and the record the cast stamps keeps `spellId` and `spellName`.
 A request naming no spell is refused `spellRequired` unless
 `bareSummonAllowed(user)` (summons-logic.mjs) answers true, which it does for a
-GM seat; that function is the one place the choice is made.
+user Foundry grants token creation (`user.can("TOKEN_CREATE")`): a GM by role,
+a Player by the world's permission table or the user's own grant. That function
+is the one place the choice is made, and it reads no role.
 
 `registerSummonPolicy(fn)` adds a refusal a feature owns, so lib imports no
 feature. `fn({user, summoner, source, count, spellId, spell, cast, positions, scene})`
@@ -1396,7 +1420,8 @@ empty with no provider. They are exported from `scripts/lib/summons.mjs` and
 imported directly. The Foundry-free
 checks (`summonOfData(tokenData)`, `{summonedBy, summon}` read off a token's
 plain data, `checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
-`groupBySpell`, `bareSummonAllowed`, `summonOwnership`, and `summonRefName`,
+`groupBySpell`, `bareSummonAllowed`, `summonOwnership`, `stashAfterControlEnd`
+(a stash's token data after its control ends, a copy), and `summonRefName`,
 the name of the creature a row's ref names, or null) are in
 `scripts/lib/summons-logic.mjs`, imported directly.
 
