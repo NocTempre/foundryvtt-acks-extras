@@ -31,7 +31,7 @@ import {
   dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
-import { freshKey, patchOut, safeKey } from "./item-run-card-logic.mjs";
+import { admittedWithCount, freshKey, patchCountIn, patchOut, safeKey } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
@@ -270,6 +270,12 @@ export function cardOf(messageId) {
   const message = messageId ? (game.messages?.get?.(messageId) ?? null) : null;
   const card = message?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN_CARD) ?? message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD] ?? null;
   return { message, card };
+}
+
+/** The raised card posted for an activation, as `{message, card}` (nulls where none is stored): found by the activation id its flag carries. */
+export function cardOfActivation(activationId) {
+  const found = activationId ? Array.from(game.messages ?? []).find((m) => (m?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD] ?? m?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN_CARD))?.activationId === activationId) : null;
+  return found ? cardOf(found.id) : { message: null, card: null };
 }
 
 /** Card writes in flight, by message: one chain each, so decisions read what the one before wrote. */
@@ -518,22 +524,65 @@ async function countBearerOut({ itemUuid, rowKey, messageId, requestUserId = nul
 }
 
 /**
- * Count a body a once-only use's filter could not settle in for this use, on the
- * GM's window: the body leaves the card's undetermined list and joins its
- * subjects. A use that applies a part with no save writes that part's record at
+ * Count a body a raised reach's filter could not settle in for this raise, on the
+ * GM's window: the body leaves the card's undetermined list, is listed as in
+ * reach and is recorded under `counted`, so every later moment of the reach reads
+ * it as a body the filter admits (a prompt at its turn start, a standing part on
+ * its entry). A standing reach holds its part on the body at once, as an admitted
+ * entry does. The body must be inside the reach's Region now; one that left is
+ * dropped from the list and refused. Nothing is written to the item, and
+ * lowering returns the body to undetermined.
+ */
+async function countSubjectInRaised({ messageId, message, card, item, subject }) {
+  const key = safeKey(subject);
+  if (!card.undetermined?.[key]) return { ok: false, reason: "applied" };
+  const row = itemRunRowsOf(item).find((r) => r?.key === card.rowKey);
+  const reach = readReach(row?.reach);
+  const token = subjectOf(subject);
+  const region = card.regionUuid ? fromUuidSync(card.regionUuid) : null;
+  if (!row || !reach || !token?.actor || !region) return { ok: false, reason: "gone" };
+  const standing = reach.pulse === "standing";
+  if (standing) {
+    const figures = reachFigures(row);
+    if (!(figures ? reachParts(figures.on, figures.modifier, figures.saveWhen) : []).length) return { ok: false, reason: "noFigure" };
+  }
+  const outcome = await serialized(messageId, async () => {
+    const fresh = cardOf(messageId).card;
+    if (!fresh || fresh.lowered) return { ok: false, reason: "gone" };
+    const held = fresh.undetermined?.[key];
+    if (!held) return { ok: false, reason: "applied" };
+    if (![...(region.tokens ?? [])].some((t) => t.uuid === subject)) {
+      await patchCard(message, { [`undetermined.-=${key}`]: null });
+      return { ok: false, reason: "gone" };
+    }
+    if (standing) await holdStanding({ config: { activationId: fresh.activationId }, item, row, subject: { token, actor: token.actor } });
+    await patchCard(message, patchCountIn(fresh, { uuid: subject, name: held.name }));
+    return { ok: true };
+  });
+  if (outcome.ok) await pressListener?.({ message, key, entry: null, early: false, counted: true, item });
+  return outcome;
+}
+
+/**
+ * Count a body a use's filter could not settle in, on the GM's window. On a
+ * once-only use's card the body leaves the undetermined list and joins its
+ * subjects: a use that applies a part with no save writes that part's record at
  * once, under an applied entry the card's Undo takes back; a use with a save
- * leaves the body's Save press open. Nothing is written to the item. Whoever
- * owns the ITEM, by Foundry's own test on the relayed seat, may press it.
+ * leaves the body's Save press open. On a raised item's card the count lasts
+ * until the item is lowered (`countSubjectInRaised`). Nothing is written to the
+ * item. Whoever owns the ITEM, by Foundry's own test on the relayed seat, may
+ * press it.
  *
  * @param {{messageId: string, subject: string, requestUserId?: string|null}} p
  */
 async function countSubjectIn({ messageId, subject, requestUserId = null }) {
   const { message, card } = cardOf(messageId);
-  if (!message || card?.kind !== "once") return { ok: false, reason: "noCard" };
+  if (!message || !["once", "toggle"].includes(card?.kind)) return { ok: false, reason: "noCard" };
   const item = fromUuidSync(card.itemUuid);
   const user = requestUserId ? game.users.get(requestUserId) : game.user;
   if (!item) return { ok: false, reason: "gone" };
   if (!item.testUserPermission?.(user, "OWNER")) return { ok: false, reason: "notOwner" };
+  if (card.kind === "toggle") return countSubjectInRaised({ messageId, message, card, item, subject });
   const key = safeKey(subject);
   const held = card.undetermined?.[key];
   if (!held) return { ok: false, reason: "applied" };
@@ -555,9 +604,9 @@ async function countSubjectIn({ messageId, subject, requestUserId = null }) {
 }
 
 /**
- * Count an undetermined body in for a once-only use, from any seat: the GM's
- * window runs it, a Player's seat relays it and the GM checks the seat owns
- * the item.
+ * Count an undetermined body in for a once-only use or a raised item's raise,
+ * from any seat: the GM's window runs it, a Player's seat relays it and the GM
+ * checks the seat owns the item.
  * @param {{messageId: string, subject: string}} p
  */
 export async function tickSubject(p) {
@@ -600,15 +649,17 @@ export async function tickBearer(p) {
  */
 export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region }) {
   const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
-  const act = pulseAct({ pulse: reach.pulse, moment, admitted, immune });
+  const undecided = admitted === null || admitted === undefined;
+  const verdict = undecided ? admittedWithCount(admitted, cardOfActivation(config.activationId).card, subject.token?.uuid) : admitted;
+  const counted = undecided && verdict === true;
+  const act = pulseAct({ pulse: reach.pulse, moment, admitted: verdict, immune });
   if (act === "none" || !subject.actor) return null;
   if (act === "refuse" && isMarkerActor(subject.actor)) return null;
-  if (act === "on") {
-    await holdStanding({ config, item, row, subject });
-    return act;
-  }
-  if (act === "off") {
-    await releaseStanding({ item, row, subject, region });
+  if (act === "on" || act === "off") {
+    if (act === "on") await holdStanding({ config, item, row, subject });
+    else await releaseStanding({ item, row, subject, region });
+    // A standing reach lists nobody; a body counted in is the one row its card keeps current.
+    if (counted) await presenter?.({ ok: true, kind: "reach", act: act === "on" ? "list" : "out", moment, config, rowKey: row.key, item, subject });
     return act;
   }
   const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject };

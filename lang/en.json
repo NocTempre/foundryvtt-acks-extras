@@ -576,6 +576,8 @@
   "ACKS-LIB.itemRun.card.countInTip": "Count the bearer as one of its own item's subjects. It is read at the bearer's own turn start, and the item's row keeps the choice.",
   "ACKS-LIB.itemRun.card.countOutTip": "Stop counting the bearer as a subject of its own item. Prompts still open for it are struck, what a save wrote stays, and lowering does not change this choice.",
   "ACKS-LIB.itemRun.card.countSubjectTip": "The filter could not settle this body, so the item has not reached it. Count it in for this use, and it is treated as reached.",
+  "ACKS-LIB.itemRun.card.countSubjectRaisedTip": "The filter could not settle this body, so the item has not reached it. Count it in, and it is treated as reached for as long as the item stays raised.",
+  "ACKS-LIB.itemRun.card.counted": "Counted in",
   "ACKS-LIB.itemRun.card.bearerTip": "The bearer's own row. Core never counts the bearer inside its own reach, so it is not counted until an owner of the item counts it in.",
   "ACKS-LIB.itemRun.card.checkTip": "Read who is inside the reach now. Rows are listed or muted to match; nobody is asked.",
   "ACKS-LIB.itemRun.card.lowerTip": "Lower the reach. Its conditions end; a pass's window stays.",

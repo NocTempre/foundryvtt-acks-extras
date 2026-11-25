@@ -10,7 +10,7 @@
  * Usage: node tools/test-item-run-cards.mjs
  */
 import assert from "node:assert/strict";
-import { applyPatch, blankTip, freshKey, importTip, moraleLine, newCard, patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
+import { admittedWithCount, applyPatch, blankTip, freshKey, importTip, isCountedIn, moraleLine, newCard, patchCountIn, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
 
 let passed = 0;
 const t = (name, fn) => {
@@ -95,6 +95,38 @@ t("the bearer sits in a section of its own, undetermined and uncounted, with a t
   assert.equal(counted.sections[1].rows[0].outcome, "Waits", "counted in, the bearer is an ordinary row");
   const noOne = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { judge: false, ownsSubject: () => false } });
   assert.equal(noOne.sections.length, 1, "a seat with no claim on the bearer sees no row of it");
+});
+
+t("the raised card's undetermined section lists each body the filter could not settle with a Count in for the owners of the item alone, none once the reach is lowered", () => {
+  const w = { ...words, countSubjectRaisedTip: "raised tip", counted: "Counted in" };
+  const list = [{ key: "T.u", name: "Unsure" }, { key: "T.v", name: "Vague" }];
+  const model = (seat, over = {}) => reachCardModel({ title: "Item", words: w, rows, undetermined: list, ids, seat, ...over });
+  const card = model(judge);
+  const section = card.sections.find((s) => s.title === "Could not be settled");
+  assert.deepEqual(section.rows.map((r) => r.name), ["Unsure", "Vague"]);
+  assert.deepEqual(section.rows[0].actions.map((a) => [a.action, a.label, a.data.subject, a.data.activationId, a.tooltip]), [["itemRun.tickSubject", "Count in", "T.u", "act", "raised tip"]], "a Count in that names the body and says in its tooltip how long it lasts");
+  assert.equal(section.rows[0].outcome, "Could not be settled");
+  const bodyOnly = model({ judge: true, ownsSubject: () => true, ownsBearer: true, ownsItem: false });
+  assert.equal(bodyOnly.sections.some((s) => s.title === "Could not be settled"), false, "a seat that owns the bodies and not the item sees no row and no Count in, whatever its role");
+  assert.equal(model(judge, { lowered: true }).sections.some((s) => s.title === "Could not be settled"), false, "a lowered reach offers no Count in");
+  assert.equal(model(judge, { undetermined: [] }).sections.some((s) => s.title === "Could not be settled"), false, "no body, no section");
+  const held = reachCardModel({ title: "Item", words: w, rows: [{ key: "T.u", name: "Unsure", state: "held" }], ids, seat: judge }).sections[0].rows[0];
+  assert.deepEqual([held.outcome, held.emphasis, held.actions], ["Counted in", "success", undefined], "a body counted in under a standing reach reads as counted, with no Save to press");
+});
+
+t("a count lasts for one raise: the count is recorded beside the body's listing, only a card still raised reads it, a filter that settled the body stands, and lowering returns each counted body to undetermined", () => {
+  const raised = applyPatch(newCard({ itemUuid: "I.1", rowKey: "t", activationId: "act", bearer: { uuid: "T.bear", name: "Bearer" } }), { "undetermined.T~u": { uuid: "T.u", name: "Unsure" } });
+  assert.deepEqual(raised.counted, {}, "a new card counts nobody");
+  const counted = applyPatch(raised, patchCountIn(raised, { uuid: "T.u", name: "Unsure" }));
+  assert.deepEqual([counted.undetermined["T~u"], counted.subjects["T~u"].state, counted.counted["T~u"].name], [undefined, "in", "Unsure"], "the body leaves undetermined, is listed as in reach and is recorded as counted");
+  assert.equal(isCountedIn(counted, "T.u"), true);
+  assert.equal(isCountedIn({ ...counted, lowered: true }, "T.u"), false, "a lowered card counts nobody");
+  assert.equal(isCountedIn(counted, "T.zz"), false);
+  assert.deepEqual([admittedWithCount(null, counted, "T.u"), admittedWithCount(undefined, counted, "T.u"), admittedWithCount(null, counted, "T.zz")], [true, true, null], "an undetermined body is admitted when counted");
+  assert.deepEqual([admittedWithCount(false, counted, "T.u"), admittedWithCount(true, counted, "T.zz")], [false, true], "a verdict the filter settled stands, whatever the count");
+  const wake = applyPatch(counted, patchUncount(counted));
+  assert.deepEqual([wake.counted, wake.undetermined["T~u"]], [{}, { uuid: "T.u", name: "Unsure" }], "lowering holds the body undetermined again and counts nobody");
+  assert.deepEqual(patchUncount(raised), {}, "a card that counted nobody writes nothing on lowering");
 });
 
 t("a failed save's well is a line naming what was written, with no press", () => {

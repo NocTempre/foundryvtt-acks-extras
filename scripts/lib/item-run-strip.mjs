@@ -22,7 +22,7 @@ import { FLAG_ITEM_RUN, FLAG_ROLL_MODS, LANG_PREFIX, MODULE_ID, AURA_BEHAVIOR_TY
 import { figureNumber, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import { itemCite, itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
-import { blankTip, importTip, rowStateOf, safeKey, shownTokenName, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
+import { admittedWithCount, blankTip, importTip, rowStateOf, safeKey, shownTokenName, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
 import { cardOf, pressRoll } from "./item-run.mjs";
 import { messageIdFor, refusal, saveFigureOf } from "./item-run-presenter.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
@@ -67,7 +67,9 @@ function readReachOn({ behavior, region }, token, actor) {
   const reach = readReach(row?.reach);
   const bearerToken = region?.parent?.tokens?.get?.(region.attachment?.token) ?? null;
   if (!reach || !bearerToken || bearerToken.id === token.id || isMarkerActor(actor)) return null;
-  const admitted = reachAdmits({ token: bearerToken, actor: bearerToken.actor }, { token, actor }, reach.filter, { isMarker: isMarkerActor });
+  const messageId = messageIdFor(config.activationId);
+  const card = messageId ? cardOf(messageId).card : null;
+  const admitted = admittedWithCount(reachAdmits({ token: bearerToken, actor: bearerToken.actor }, { token, actor }, reach.filter, { isMarker: isMarkerActor }), card, token.uuid);
   if (admitted !== true) return null;
   const kindKey = kindKeyOf(item, row);
   const shown = shownTokenName(
@@ -92,8 +94,6 @@ function readReachOn({ behavior, region }, token, actor) {
     const pieces = [item.name, loc("itemRun.strip.tip.from", { source }), feet === null ? "" : loc("itemRun.strip.tip.away", { feet }), radius === null ? "" : loc("itemRun.strip.tip.reach", { radius }), value === null ? "" : `${rolls} ${signed(value)}`, cite];
     return { ...out, tag: "always", part: value === null ? null : { value: signed(value), rolls, tip: pieces.filter(Boolean).join(" · ") } };
   }
-  const messageId = messageIdFor(config.activationId);
-  const card = messageId ? cardOf(messageId).card : null;
   const state = card ? rowStateOf(card, token.uuid) : "waiting";
   const entryKey = card?.subjects?.[safeKey(token.uuid)]?.latest ?? "";
   const entry = card?.entries?.[entryKey] ?? null;

@@ -1348,6 +1348,129 @@ await t("counting an undetermined body in for a once-only use is an item owner's
   }
 });
 
+await t("counting an undetermined body in on a raised card is an item owner's press that outlasts no raise: the relay refuses a seat that does not own the item, a body the card does not hold, a body outside the Region and a lowered card, a standing reach writes its part once and a prompting reach keeps the body for its moments", async () => {
+  stage();
+  seatOf(true);
+  const { applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const made = [];
+  const holder = { effects: [], createEmbeddedDocuments: async (...args) => { made.push(args); return [{ id: "NEW1" }]; } };
+  subjects["T.u1"] = { uuid: "T.u1", actor: holder, testUserPermission: (user) => user?.id === "bodyOwner" };
+  subjects["S.R9"] = { tokens: [{ uuid: "T.u1" }] };
+  const message = {
+    id: "M9",
+    flags: { "acks-extras": { itemRunCard: { kind: "toggle", itemUuid: "I.1", rowKey: "s", activationId: "act9", regionUuid: "S.R9", bearer: { uuid: "T.1", name: "Bearer" }, lowered: false, subjects: {}, undetermined: { "T~u1": { uuid: "T.u1", name: "Unsure" } }, counted: {}, entries: {} } } },
+    getFlag(scope, key) { return this.flags[scope][key]; },
+    async update(data) {
+      const patch = Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]));
+      this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, patch);
+    },
+  };
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  gameStub.messages = [message];
+  gameStub.messages.get = (id) => (id === "M9" ? message : null);
+  const priorPerm = theItem.testUserPermission;
+  theItem.testUserPermission = (user) => user?.id === "owner";
+  seatOf(true, [{ id: "owner" }, { id: "other" }, { id: "bodyOwner" }]);
+  const standingRow = { key: "s", reach: { pulse: "standing", radius: { value: "10" }, modifier: { value: "-1" }, on: ["morale"], filter: {} } };
+  itemFlags = toggleFlags(down, [standingRow, { key: "t", reach: { pulse: "turnStart+moveIn", radius: { value: "10" }, filter: {} } }]);
+  updates.length = 0;
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  try {
+    const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+    const tick = (over = {}) => executeAsGM("acks-extras.itemRun.tickSubject", { messageId: "M9", subject: "T.u1", ...over });
+    assert.equal((await tick({ requestUserId: "bodyOwner" })).reason, "notOwner", "the owner of the body is not the owner of the item");
+    assert.equal((await tick({ requestUserId: "other" })).reason, "notOwner", "a relayed press from a seat that owns neither is refused on the GM's window");
+    assert.deepEqual([made.length, Object.keys(card().undetermined), card().counted], [0, ["T~u1"], {}], "a refused press writes nothing and counts nobody");
+    assert.equal((await tick({ requestUserId: "owner", subject: "T.zz" })).reason, "applied", "a body the card does not hold undetermined, a not-target one included");
+    // A body that left the Region is dropped from the list and refused.
+    subjects["S.R9"].tokens = [];
+    assert.equal((await tick({ requestUserId: "owner" })).reason, "gone", "a body outside the Region now is refused");
+    assert.deepEqual([Object.keys(card().undetermined), made.length], [[], 0], "and it leaves the undetermined list with nothing written");
+    subjects["S.R9"].tokens = [{ uuid: "T.u1" }];
+    card().undetermined = { "T~u1": { uuid: "T.u1", name: "Unsure" } };
+    // A lowered card counts nobody.
+    card().lowered = true;
+    assert.equal((await tick({ requestUserId: "owner" })).reason, "gone", "a lowered card is refused");
+    card().lowered = false;
+    // A standing reach with no figure imported has no part to hold: the body is not counted and nothing is written.
+    const blank = itemFlags;
+    itemFlags = toggleFlags(down, [{ key: "s", reach: { pulse: "standing", radius: { value: "10" }, on: ["morale"], filter: {} } }]);
+    assert.equal((await tick({ requestUserId: "owner" })).reason, "noFigure", "a standing reach whose figure is blank refuses the count");
+    assert.deepEqual([made.length, Object.keys(card().undetermined), card().counted], [0, ["T~u1"], {}], "with the body left undetermined");
+    itemFlags = blank;
+    // The standing reach writes its part on the body once, under the card's activation.
+    assert.equal((await tick({ requestUserId: "owner" })).ok, true);
+    assert.equal(made.length, 1, "the standing part is held on the body");
+    assert.equal(made[0][1][0].flags["acks-extras"].itemRun.activationId, "act9", "under the raise's own activation, so lowering lifts it");
+    assert.deepEqual([card().subjects["T~u1"].state, card().undetermined["T~u1"], card().counted["T~u1"].name], ["in", undefined, "Unsure"], "the body is listed in reach and recorded as counted");
+    assert.deepEqual(updates, [], "nothing is written to the item");
+    assert.equal((await tick({ requestUserId: "owner" })).reason, "applied", "a second press is refused");
+    assert.equal(made.length, 1, "and writes no second record");
+    // A prompting reach keeps the body for its moments and writes no part.
+    card().rowKey = "t";
+    card().undetermined = { "T~u1": { uuid: "T.u1", name: "Unsure" } };
+    card().counted = {};
+    card().subjects = {};
+    made.length = 0;
+    assert.equal((await tick({ requestUserId: "owner" })).ok, true);
+    assert.deepEqual([made.length, card().subjects["T~u1"].state, card().entries["T~u1"]], [0, "in", undefined], "no record is written and nobody is asked now: the body is asked at its moment");
+  } finally {
+    theItem.testUserPermission = priorPerm;
+    run.setUsePresenter(null);
+    delete subjects["T.u1"]; delete subjects["S.R9"];
+    delete gameStub.messages;
+    itemFlags = {};
+    unstage();
+  }
+});
+
+await t("a body counted in is read as admitted at every later moment of its raise and by no other: a turn start prompts it, a standing entry holds its part and an exit lists it out, while a lowered card, another raise and a filter that settles the body leave it as the filter says", async () => {
+  seatOf(true);
+  const held = [];
+  const holder = { effects: [], createEmbeddedDocuments: async (...args) => { held.push(args); return [{ id: "NEW1" }]; }, deleteEmbeddedDocuments: async () => {} };
+  const token = { uuid: "T.u1", actor: holder };
+  const subject = { token, actor: holder };
+  const cardOf = (over = {}) => ({ kind: "toggle", activationId: "actC", lowered: false, counted: { "T~u1": { uuid: "T.u1", name: "Unsure" } }, ...over });
+  const post = (card) => {
+    const list = [{ id: "M5", flags: { "acks-extras": { itemRunCard: card } }, getFlag(scope, key) { return this.flags[scope][key]; } }];
+    list.get = (id) => list.find((m) => m.id === id) ?? null;
+    gameStub.messages = list;
+  };
+  const item = { uuid: "I.1", flags: { "acks-extras": { cookbook: { id: "kindC" } } } };
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  const moment = (pulse, momentName, admitted, activationId = "actC", row = { key: "r", reach: { pulse, on: ["morale"], modifier: { value: "-1" } } }) => run.handleReachMoment({ moment: momentName, config: { activationId }, item, row, reach: { pulse }, subject, admitted });
+  try {
+    post(cardOf());
+    assert.equal(await moment("turnStart+moveIn", "turnStart", null), "prompt", "a turn start asks the counted body, as it asks one the filter admits");
+    assert.equal(seen.at(-1).act, "prompt");
+    assert.equal(await moment("turnStart+moveIn", "enter", null), "list", "its entry lists it");
+    assert.equal(await moment("turnStart+moveIn", "turnStart", false), null, "a filter that settles the body as no target stands");
+    post(cardOf({ lowered: true }));
+    assert.equal(await moment("turnStart+moveIn", "turnStart", null), "undetermined", "a lowered raise counts nobody");
+    post(cardOf());
+    assert.equal(await moment("turnStart+moveIn", "turnStart", null, "actOther"), "undetermined", "another raise's moments do not read this raise's count");
+    post(cardOf({ counted: {} }));
+    assert.equal(await moment("turnStart+moveIn", "turnStart", null), "undetermined", "a body not counted stays undetermined");
+    post(cardOf());
+    seen.length = 0;
+    assert.equal(await moment("standing", "enter", null), "on", "a standing entry holds the counted body's part");
+    assert.equal(held.length, 1, "one record written");
+    assert.deepEqual(seen.map((r) => r.act), ["list"], "and the card lists the body as in reach");
+    assert.equal(await moment("standing", "exit", null), "off", "an exit takes it off");
+    assert.equal(seen.at(-1).act, "out", "and mutes its row");
+    seen.length = 0;
+    post(cardOf({ counted: {} }));
+    assert.equal(await moment("standing", "enter", null), "undetermined", "an uncounted body keeps going to the card's undetermined section");
+    assert.equal(await moment("standing", "enter", true), "on");
+    assert.deepEqual(seen.map((r) => r.act), ["undetermined"], "a body the filter admits is held without a card row, as before");
+  } finally {
+    run.setUsePresenter(null);
+    delete gameStub.messages;
+  }
+});
+
 await t("the bearer's row is changed to count only where the item has the row, an ability's rows in their own place", async () => {
   const rows = [{ key: "a", reach: { pulse: "turnStart+moveIn", filter: { kinds: ["x"] } } }, { key: "b" }];
   const item = { type: "item", flags: { "acks-extras": { itemRun: { rows } } } };

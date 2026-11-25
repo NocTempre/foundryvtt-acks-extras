@@ -26,7 +26,7 @@ import { renderRollCard } from "./roll-card.mjs";
 import { figureNumber, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { lowerReach, releaseReachMoment } from "./aura-reach.mjs";
 import { itemCite, itemRunRowsOf, promptCardModel } from "./item-run-logic.mjs";
-import { patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard } from "./item-run-card-logic.mjs";
+import { admittedWithCount, countSubjectAction, isCountedIn, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, unsettledRows } from "./item-run-card-logic.mjs";
 import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
@@ -40,7 +40,7 @@ const HANDLER = Object.freeze({ recheck: `${MODULE_ID}.itemRun.recheck` });
 
 /** The card's words, localized: `itemRun.card.<key>` for each. */
 const WORD_KEYS = [
-  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "countSubjectTip", "bearer", "well", "check", "lower", "colDistance", "given",
+  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "countSubjectTip", "countSubjectRaisedTip", "counted", "bearer", "well", "check", "lower", "colDistance", "given",
   "earlyTip", "saveTip", "undoTip", "countInTip", "countOutTip", "bearerTip", "checkTip", "lowerTip",
 ];
 const words = () => ({ ...Object.fromEntries(WORD_KEYS.map((key) => [key, loc(`itemRun.card.${key}`)])), tick: loc("itemRun.card.countIn"), tickTip: loc("itemRun.card.countInTip") });
@@ -195,7 +195,7 @@ async function onPressed({ message, entry, early, item, subjectToken }) {
 /** Whether this window is the primary GM's, the one that writes cards. */
 const isGMWindow = () => isPrimaryGM();
 
-/** An activation was lifted: its card is marked lowered and every row goes out, open entries struck. */
+/** An activation was lifted: its card is marked lowered, every row goes out with its open entries struck, and each body counted in goes back to undetermined. */
 async function onLifted(config) {
   const messageId = messageIdFor(config.activationId);
   if (!messageId) return;
@@ -203,7 +203,7 @@ async function onLifted(config) {
   await serialized(messageId, async () => {
     const { message, card } = cardOf(messageId);
     if (!message || !card) return;
-    const patch = { lowered: true };
+    const patch = { lowered: true, ...patchUncount(card) };
     for (const sub of Object.values(card.subjects ?? {})) {
       const out = patchOut(card, { uuid: sub.uuid, name: sub.name });
       Object.assign(patch, out.patch);
@@ -237,7 +237,7 @@ async function recheckHere({ messageId, requestUserId = null }) {
     const bearer = { token: bearerToken, actor: bearerToken.actor };
     for (const token of inside) {
       if (isMarkerActor(token.actor)) continue;
-      const admitted = reachAdmits(bearer, { token, actor: token.actor }, reach.filter, { isMarker: isMarkerActor });
+      const admitted = admittedWithCount(reachAdmits(bearer, { token, actor: token.actor }, reach.filter, { isMarker: isMarkerActor }), fresh, token.uuid);
       const subject = { uuid: token.uuid, name: token.name };
       Object.assign(patch, admitted === null ? patchUndetermined(fresh, subject) : patchSubject(fresh, { ...subject, state: admitted ? "in" : "notTarget" }));
     }
@@ -271,11 +271,16 @@ function reachNote(item, reach) {
   return { note: line, noteTooltip: cite };
 }
 
-/** The rows a raised card draws, read live: each listed subject's state, distance, save figure and history. */
-function rowsOf(card, row, item, bearerToken) {
-  const rowFor = (sub, { distance }) => {
+/**
+ * The rows a raised card draws, read live: each listed subject's state, distance,
+ * save figure and history. A standing reach asks no save, so a body counted in
+ * under it (a listed row that would wait for a moment) reads `held`.
+ */
+function rowsOf(card, row, item, bearerToken, reach) {
+  const rowFor = (sub, { distance, bearer = false }) => {
     const token = fromUuidSync(sub.uuid);
-    const state = rowStateOf(card, sub.uuid);
+    const listed = rowStateOf(card, sub.uuid);
+    const state = listed === "waiting" && reach?.pulse === "standing" && !bearer && isCountedIn(card, sub.uuid) ? "held" : listed;
     const entry = card.entries?.[sub.latest] ?? null;
     const gap = distance && bearerToken && token ? tokenEdgeGapFeet(bearerToken, token) : null;
     const feet = gap === null ? null : Math.round(gap);
@@ -305,21 +310,18 @@ function raisedBody(message, card) {
   const bearerToken = card.bearer?.uuid ? fromUuidSync(card.bearer.uuid) : null;
   const owns = (doc) => doc?.testUserPermission?.(game.user, "OWNER") === true;
   const seat = { judge: judgeDeclares(), ownsSubject: (key) => owns(fromUuidSync(key)), ownsBearer: owns(bearerToken), ownsItem: owns(item), mayUndo: (entry, key) => entry?.presser === game.user.id || owns(fromUuidSync(key)) };
-  const { rowFor, subjects } = rowsOf(card, row, item, bearerToken);
+  const { rowFor, subjects } = rowsOf(card, row, item, bearerToken, reach);
   const bearerSub = card.subjects?.[safeKey(card.bearer?.uuid)];
   // The item's own filter says whether the bearer is counted, so a re-raise after a lowering reads the choice the item kept.
   const counted = reach?.filter?.self === "count";
-  const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted, ...(counted ? { row: bearerSub ? rowFor(bearerSub, { distance: false }) : { state: "waiting", feet: null } } : {}) } : null;
+  const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted, ...(counted ? { row: bearerSub ? rowFor(bearerSub, { distance: false, bearer: true }) : { state: "waiting", feet: null } } : {}) } : null;
   const { note, noteTooltip } = reachNote(item, reach);
   const model = reachCardModel({
     title: item?.name ?? "", subtitle: card.bearer?.name, note, noteTooltip, words: { ...words(), bearerTip: loc("itemRun.card.bearerTip") },
-    rows: subjects.map((s) => rowFor(s, { distance: true })), bearer, well: wellOf(card), ids: { itemUuid: card.itemUuid, rowKey: card.rowKey, activationId: card.activationId }, seat, lowered: card.lowered === true,
+    rows: subjects.map((s) => rowFor(s, { distance: true })), undetermined: Object.values(card.undetermined ?? {}).map((s) => ({ key: s.uuid, name: s.name })), bearer, well: wellOf(card), ids: { itemUuid: card.itemUuid, rowKey: card.rowKey, activationId: card.activationId }, seat, lowered: card.lowered === true,
   });
   return renderRollCard(model);
 }
-
-/** The press that counts an undetermined body in for a once-only use, offered by ownership of the item. */
-const countSubjectAction = (w, ids, subject) => ({ action: "itemRun.tickSubject", label: w.tick, icon: "fa-solid fa-check", data: { ...ids, subject }, tooltip: w.countSubjectTip });
 
 /** Build the body of a once-only use's card for a seat. */
 function onceBody(message, card) {
@@ -336,7 +338,7 @@ function onceBody(message, card) {
       const undo = mayUndo(entry, s.uuid) && entry?.state === "applied" && entry.recordIds?.length ? [{ action: "itemRun.undo", label: w.undo, icon: "fa-solid fa-rotate-left", data: { ...ids, subject: s.uuid, entryKey: safeKey(s.uuid) }, tooltip: w.undoTip }] : [];
       return entry?.state === "undone" ? { name: s.name, total: "", outcome: w.undone, emphasis: "muted" } : { name: s.name, total: "", outcome: w.given, emphasis: "success", actions: undo };
     });
-    const unsettled = ownsItem ? Object.values(card.undetermined ?? {}).map((s) => ({ name: s.name, total: "", outcome: w.undetermined, emphasis: "muted", actions: [countSubjectAction(w, ids, s.uuid)] })) : [];
+    const unsettled = ownsItem ? unsettledRows(Object.values(card.undetermined ?? {}).map((s) => ({ key: s.uuid, name: s.name })), w, ids) : [];
     return renderRollCard({ title: card.title, subtitle: card.bearer?.name, bare: true, sections: [{ rows }, ...(unsettled.length ? [{ title: w.undetermined, rows: unsettled }] : [])] });
   }
   const entries = Object.fromEntries(subjects.map((s) => [s.uuid, card.entries?.[safeKey(s.uuid)]]));

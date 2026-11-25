@@ -59,13 +59,19 @@ export function freshKey(entries, base) {
  * `in`, `out` or `notTarget` and `latest` the key of its newest entry) and the
  * entries keyed by moment (`{subject, moment, momentKey, state, saved, total,
  * target, recordIds, names, life, early, whisperId}`, `state` `open`, `applied`
- * or `undone`).
+ * or `undone`). `undetermined` holds the bodies the item's filter could not
+ * settle, `{uuid, name}` by key, and `counted` those among them an owner of the
+ * item counted in for this raise: the card belongs to one activation, so a count
+ * lasts until the item is lowered and a re-raise starts with none.
  *
  * @param {{itemUuid: string, rowKey: string, activationId: string, kind?: string, bearer: {uuid: string, name: string}, regionUuid?: string, cardId?: string}} p
  */
 export const newCard = ({ itemUuid, rowKey, activationId, kind = "toggle", bearer, regionUuid = "", cardId = "" }) => ({
-  itemUuid, rowKey, activationId, kind, cardId, regionUuid, bearer, selfCount: false, lowered: false, subjects: {}, undetermined: {}, entries: {},
+  itemUuid, rowKey, activationId, kind, cardId, regionUuid, bearer, selfCount: false, lowered: false, subjects: {}, undetermined: {}, counted: {}, entries: {},
 });
+
+/** Whether a raised card holds a body as counted in for its raise: the item's filter could not settle it and an owner of the item counted it. A lowered card counts nobody. */
+export const isCountedIn = (card, uuid) => card?.lowered !== true && !!card?.counted?.[safeKey(uuid)];
 
 /** Apply a dotted patch to a card, as the message's update applies it: a `-=` segment deletes the key after it. Returns a new card. */
 export function applyPatch(card, patch) {
@@ -81,6 +87,13 @@ export function applyPatch(card, patch) {
   return next;
 }
 
+/**
+ * What a reach's filter admits of a body, read with the raised card: a body the
+ * filter left undetermined (null) that an owner of the item counted in for this
+ * raise is admitted. A verdict the filter settled stands, true or false.
+ */
+export const admittedWithCount = (admitted, card, uuid) => ((admitted === null || admitted === undefined) && isCountedIn(card, uuid) ? true : admitted);
+
 /** The patch that lists a subject on the card, as in reach (`state` `in`) or as no target, keeping its newest entry. */
 export function patchSubject(card, { uuid, name, state = "in" }) {
   const key = safeKey(uuid);
@@ -89,6 +102,23 @@ export function patchSubject(card, { uuid, name, state = "in" }) {
 
 /** The patch that lists a subject the filter could not settle, for the Judge's tick. */
 export const patchUndetermined = (card, { uuid, name }) => (card?.subjects?.[safeKey(uuid)] ? {} : { [`undetermined.${safeKey(uuid)}`]: { uuid, name } });
+
+/**
+ * The patch that counts an undetermined body in for a raised card's raise: it is
+ * listed as in reach (as `patchSubject` lists it) and recorded under `counted`,
+ * so each later moment of the reach reads the body as one the filter admits.
+ */
+export const patchCountIn = (card, { uuid, name }) => ({ ...patchSubject(card, { uuid, name }), [`counted.${safeKey(uuid)}`]: { uuid, name } });
+
+/**
+ * The patch that lowers a raised card's counts: each counted body leaves
+ * `counted` and is held undetermined again, so nothing carries into another raise.
+ */
+export function patchUncount(card) {
+  const patch = {};
+  for (const [key, held] of Object.entries(card?.counted ?? {})) Object.assign(patch, { [`counted.-=${key}`]: null, [`undetermined.${key}`]: { uuid: held.uuid, name: held.name } });
+  return patch;
+}
 
 /** The entries of a subject that are still open. */
 const openEntriesOf = (card, uuid) => Object.entries(card?.entries ?? {}).filter(([, e]) => e.subject === uuid && e.state === "open");
@@ -142,6 +172,16 @@ export function rowStateOf(card, uuid) {
 /*  The raised card                              */
 /* -------------------------------------------- */
 
+/**
+ * The press that counts an undetermined body in, offered by ownership of the
+ * item. `tooltip` says how long the count lasts: for a once-only use its own,
+ * for a raised item until it is lowered.
+ */
+export const countSubjectAction = (words, ids, subject, tooltip = words.countSubjectTip) => ({ action: "itemRun.tickSubject", label: words.tick, icon: "fa-solid fa-check", data: { ...ids, subject }, tooltip });
+
+/** The rows of an undetermined section, one per body the filter could not settle, each with its Count in. `list` is `[{key, name}]`; the caller offers it to the owners of the item alone. */
+export const unsettledRows = (list, words, ids, tooltip) => list.map(({ key, name }) => ({ name, total: "", outcome: words.undetermined, emphasis: "muted", actions: [countSubjectAction(words, ids, key, tooltip)] }));
+
 /** One row of the raised card's table as the renderer takes it, for a row the caller has read live. See `reachCardModel`. */
 function reachRowOf(r, { words, ids, seat }) {
   const data = { ...ids, subject: r.key };
@@ -152,6 +192,7 @@ function reachRowOf(r, { words, ids, seat }) {
   switch (r.state) {
     case "out": return { ...base, outcome: words.out, emphasis: "muted" };
     case "notTarget": return { ...base, outcome: words.notTarget, emphasis: "muted" };
+    case "held": return { ...base, outcome: words.counted, emphasis: "success" };
     case "waiting": return { ...base, ...history, outcome: words.waiting, actions: seat.judge === true ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data, tooltip: words.earlyTip }] : [] };
     case "open": return { ...base, ...history, ...target, outcome: words.asked, actions: mayPress ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...data, entryKey: r.entryKey }, tooltip: words.saveTip }] : [] };
     case "undone": return { ...base, ...history, ...target, outcome: words.undone, emphasis: "muted" };
@@ -170,7 +211,8 @@ function reachRowOf(r, { words, ids, seat }) {
  * The model a raised-item card (board 4b) is rendered from, for one seat: a
  * section of the bodies in reach (a Judge sees every row, a seat the rows of the
  * tokens it owns), each with its distance as an aside, its save's total and
- * target, its result and its press; a section of the bearer's own row, which is
+ * target, its result and its press; a section of the bodies the filter could not
+ * settle, with a Count in for the owners of the item; a section of the bearer's own row, which is
  * undetermined and not counted until an owner of the item ticks it; a line that
  * names what a failed save wrote and for how long; and the bearer's owners'
  * Check range again and Lower. Data only; the words are the caller's, localized.
@@ -187,16 +229,18 @@ function reachRowOf(r, { words, ids, seat }) {
  * @param {string} [p.note]
  * @param {string} [p.noteTooltip]
  * @param {object} p.words every word and tooltip the card shows (`itemRun.card.*`)
- * @param {Array<{key: string, name: string, state: string, entryKey?: string, entry?: object, feet?: number|null, feetTip?: string, target?: number|null, targetTip?: string, history?: string}>} p.rows
+ * @param {Array<{key: string, name: string, state: string, entryKey?: string, entry?: object, feet?: number|null, feetTip?: string, target?: number|null, targetTip?: string, history?: string}>} p.rows `state` `held` is a body counted in under a standing reach, which asks no save
+ * @param {Array<{key: string, name: string}>} [p.undetermined] the bodies the filter could not settle, listed with a Count in for the owners of the item; none once the reach is lowered
  * @param {{key: string, name: string, counted: boolean, row?: object}} [p.bearer] the bearer's row; `row` is its row where counted
  * @param {string[]} [p.well] the lines of what failed saves wrote
  * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
  * @param {{judge?: boolean, ownsSubject?: (key: string) => boolean, ownsBearer?: boolean, ownsItem?: boolean, mayUndo?: (entry: object, key: string) => boolean}} p.seat
  * @param {boolean} [p.lowered] the reach is lowered: no footer
  */
-export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows, bearer, well = [], ids, seat = {}, lowered = false }) {
+export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows, undetermined = [], bearer, well = [], ids, seat = {}, lowered = false }) {
   const mine = (key) => seat.ownsSubject?.(key) === true;
   const sections = [{ rows: rows.filter((r) => mine(r.key)).map((r) => reachRowOf(r, { words, ids, seat })) }];
+  if (!lowered && seat.ownsItem === true && undetermined.length) sections.push({ title: words.undetermined, rows: unsettledRows(undetermined, words, ids, words.countSubjectRaisedTip) });
   if (bearer && (seat.ownsBearer === true || seat.ownsItem === true)) {
     const countOut = seat.ownsItem === true ? [{ action: "itemRun.untick", label: words.countOut, icon: "fa-solid fa-xmark", data: { ...ids, subject: bearer.key }, tooltip: words.countOutTip }] : [];
     const counted = bearer.counted && bearer.row ? reachRowOf({ ...bearer.row, key: bearer.key, name: bearer.name }, { words, ids, seat: { ...seat, ownsSubject: () => seat.ownsBearer === true } }) : null;

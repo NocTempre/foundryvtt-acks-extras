@@ -224,6 +224,116 @@ await t("a once-only use's card lists the bodies its filter could not settle, wi
   me.current = users[0];
 });
 
+await t("a raised card lists the bodies its filter could not settle with a Count in for the owners of the item, a body counted in reads as held under a standing reach, and lowering returns it to undetermined for the next raise's card to start without it", async () => {
+  const { patchCountIn } = await import("../scripts/lib/item-run-card-logic.mjs");
+  tokens["S.c"] = { id: "c", uuid: "S.c", name: "Gamma", actor: {}, testUserPermission: ownedBy("gm", "pb") };
+  const own = { activationId: "act3" };
+  const at = (act, key, over = {}) => ({ ...moment(act, key, over), config: own });
+  const rowReach = item.flags["acks-extras"].itemRun.rows[0].reach;
+  await presenter.presentUse({ ok: true, kind: "toggle", active: true, activationId: "act3", itemUuid: "I.1", rowKey: "t", tokenUuid: "S.bear", regionUuid: "S.R3" });
+  const message = messages.at(-1);
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  await presenter.presentReach(at("undetermined", "S.c"));
+  assert.deepEqual(Object.keys(card().undetermined), ["S~c"], "the filter's null is kept on the raised card");
+  const bodyFor = (user) => {
+    me.current = user;
+    return presenter.raisedBody(message, card());
+  };
+  const judge = bodyFor(users[0]);
+  assert.ok(judge.includes("Gamma") && judge.includes('data-action="itemRun.tickSubject"') && judge.includes("ACKS-LIB.itemRun.card.undetermined"), "an owner of the item sees the undetermined section with a Count in on the row");
+  assert.ok(judge.includes("ACKS-LIB.itemRun.card.countSubjectRaisedTip") && !judge.includes("ACKS-LIB.itemRun.card.countSubjectTip"), "its tooltip says the count lasts while the item stays raised, not for a use");
+  assert.ok(bodyFor(users[1]).includes('data-action="itemRun.tickSubject"'), "an owner of the item that owns no body sees it as well");
+  const bodyOwner = bodyFor(users[2]);
+  assert.ok(!bodyOwner.includes("Gamma") && !bodyOwner.includes("itemRun.tickSubject"), "the owner of the undetermined body who does not own the item sees neither its row nor a Count in");
+  await message.update({ "flags.acks-extras.itemRunCard.lowered": true });
+  assert.ok(!bodyFor(users[0]).includes("itemRun.tickSubject"), "a lowered card offers no Count in");
+  await message.update({ "flags.acks-extras.itemRunCard.lowered": false });
+  // Counted in: the row joins the table and the section empties.
+  const countIn = async () => {
+    const patch = patchCountIn(card(), { uuid: "S.c", name: "Gamma" });
+    await message.update(Object.fromEntries(Object.entries(patch).map(([path, value]) => [`flags.acks-extras.itemRunCard.${path}`, value])));
+  };
+  await countIn();
+  assert.deepEqual([Object.keys(card().undetermined), Object.keys(card().counted)], [[], ["S~c"]], "the body moves from undetermined to counted");
+  const prompting = bodyFor(users[0]);
+  assert.ok(prompting.includes("Gamma") && prompting.includes("ACKS-LIB.itemRun.card.waiting") && !prompting.includes("itemRun.tickSubject"), "under a prompting reach the counted body waits for its moment");
+  rowReach.pulse = "standing";
+  try {
+    const standing = bodyFor(users[0]);
+    assert.ok(standing.includes("ACKS-LIB.itemRun.card.counted") && !standing.includes("ACKS-LIB.itemRun.card.waiting"), "under a standing reach, which asks no save, it reads as counted in");
+    await presenter.presentReach(at("list", "S.a"));
+    assert.ok(bodyFor(users[0]).includes("ACKS-LIB.itemRun.card.waiting"), "a body the filter admitted keeps the row it had: only a counted one is relabelled");
+  } finally {
+    rowReach.pulse = "turnStart+moveIn";
+  }
+  // Lowering returns the counted body to undetermined, and the next raise's card starts empty.
+  await presenter.onLifted(own);
+  assert.deepEqual([card().lowered, Object.keys(card().counted), Object.keys(card().undetermined)], [true, [], ["S~c"]], "a lowered card holds the body undetermined again and counts nobody");
+  await presenter.presentUse({ ok: true, kind: "toggle", active: true, activationId: "act4", itemUuid: "I.1", rowKey: "t", tokenUuid: "S.bear", regionUuid: "S.R3" });
+  const next = messages.at(-1).flags["acks-extras"].itemRunCard;
+  assert.deepEqual([next.activationId, next.counted, next.undetermined], ["act4", {}, {}], "a re-raise posts a card of its own that counts nobody");
+  await presenter.onLifted({ activationId: "act4" });
+  delete tokens["S.c"];
+  me.current = users[0];
+});
+
+await t("the strip reads a body its filter could not settle only once an owner of the item counted it in for the raise", async () => {
+  const { reachStripFor } = await import("../scripts/lib/item-run-strip.mjs");
+  const { patchCountIn } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const rowReach = item.flags["acks-extras"].itemRun.rows[0].reach;
+  const cell = (v) => Math.floor(v / 100);
+  const scene = { id: "sc3", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) }, tokens: { get: (id) => Object.values(tokens).find((tk) => tk.id === id) } };
+  const region = { hidden: false, parent: scene, attachment: { token: "bear" }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.1", bearerUuid: "A.bear", activationId: "act", rowKey: "t" } }] };
+  scene.regions = [region];
+  globalThis.CONST = { TOKEN_DISPLAY_MODES: { NONE: 0, OWNER_HOVER: 20, OWNER: 40, ALWAYS: 50 } };
+  const prior = { regions: tokens["S.a"].regions, parent: tokens["S.a"].parent, bearer: tokens["S.bear"].parent, actor: tokens["S.a"].actor };
+  tokens["S.a"].regions = new Set([region]);
+  tokens["S.a"].parent = scene;
+  tokens["S.bear"].parent = scene;
+  tokens["S.a"].actor = { testUserPermission: ownedBy("gm", "pa"), getActiveTokens: () => [tokens["S.a"]], effects: [] };
+  const card = messages[0];
+  rowReach.filter = { kinds: ["zzz"] };
+  me.current = users[1];
+  try {
+    assert.equal(reachStripFor(tokens["S.a"].actor), null, "a body the filter leaves undetermined has no row");
+    const patch = patchCountIn(card.flags["acks-extras"].itemRunCard, { uuid: "S.a", name: "Alpha" });
+    await card.update(Object.fromEntries(Object.entries(patch).map(([path, value]) => [`flags.acks-extras.itemRunCard.${path}`, value])));
+    assert.deepEqual(reachStripFor(tokens["S.a"].actor)?.rows.map((r) => r.name), ["Gear"], "counted in, the reach is read over it as over an admitted body");
+  } finally {
+    rowReach.filter = {};
+    Object.assign(tokens["S.a"], { regions: prior.regions, parent: prior.parent, actor: prior.actor });
+    tokens["S.bear"].parent = prior.bearer;
+    await card.update({ "flags.acks-extras.itemRunCard.counted.-=S~a": null });
+    me.current = users[0];
+  }
+});
+
+await t("Check range again reads a counted body as admitted, so a body that went out and came back is listed again, and lists an uncounted undetermined one for the Count in", async () => {
+  tokens["S.c"] = { id: "c", uuid: "S.c", name: "Gamma", actor: {}, testUserPermission: ownedBy("gm", "pb") };
+  tokens["S.d"] = { id: "d", uuid: "S.d", name: "Delta", actor: {}, testUserPermission: ownedBy("gm") };
+  tokens["S.R5"] = { tokens: [tokens["S.c"], tokens["S.d"]] };
+  const rowReach = item.flags["acks-extras"].itemRun.rows[0].reach;
+  await presenter.presentUse({ ok: true, kind: "toggle", active: true, activationId: "act5", itemUuid: "I.1", rowKey: "t", tokenUuid: "S.bear", regionUuid: "S.R5" });
+  const message = messages.at(-1);
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  const write = (patch) => message.update(Object.fromEntries(Object.entries(patch).map(([path, value]) => [`flags.acks-extras.itemRunCard.${path}`, value])));
+  const { patchCountIn, patchOut } = await import("../scripts/lib/item-run-card-logic.mjs");
+  rowReach.filter = { kinds: ["zzz"] };
+  try {
+    await write(patchCountIn(card(), { uuid: "S.c", name: "Gamma" }));
+    await write(patchOut(card(), { uuid: "S.c", name: "Gamma" }).patch);
+    assert.equal(card().subjects["S~c"].state, "out", "the counted body left");
+    me.current = users[0];
+    assert.equal((await presenter.recheckHere({ messageId: message.id })).ok, true);
+    assert.equal(card().subjects["S~c"].state, "in", "back inside, a counted body is listed again");
+    assert.deepEqual([Object.keys(card().undetermined), card().subjects["S~d"], card().counted["S~d"]], [["S~d"], undefined, undefined], "a body no one counted stays undetermined for its Count in");
+  } finally {
+    rowReach.filter = {};
+    await presenter.onLifted({ activationId: "act5" });
+    delete tokens["S.c"]; delete tokens["S.d"]; delete tokens["S.R5"];
+  }
+});
+
 await t("lowering marks the card lowered, mutes every row and strikes what was open", async () => {
   await presenter.presentReach(moment("prompt", "S.a", { momentKey: "k9" }));
   assert.equal(stored().entries.k9.state, "open");
