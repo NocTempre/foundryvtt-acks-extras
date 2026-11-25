@@ -477,7 +477,8 @@ t("unlisting a group's own top row writes the host once and never empties it a s
   assert.equal(out.ok, true);
   assert.equal(writes.filter((w) => w === "Top:system.units").length, 1, "the host is written once");
   assert.deepEqual(out.units.map((u) => u.uuid), [a.uuid, b.uuid], "each group under the top row hosts its own subtree");
-  assert.deepEqual(out.dropped, ["t"]);
+  assert.deepEqual(out.dropped, [], "the host's own row is no row that named no group");
+  assert.deepEqual(out.own, ["t"]);
   assert.deepEqual(top.system.units, [], "the group hosts nothing");
   assert.deepEqual(a.system.units.map((r) => [r.key, r.parentKey]), [["a", ""], ["l", "a"]]);
   assert.deepEqual(b.system.units.map((r) => [r.key, r.parentKey]), [["b", ""]]);

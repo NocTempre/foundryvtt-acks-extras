@@ -46,6 +46,16 @@ const P = {
     chartApi: !!globalThis.acksExtras?.lib?.org?.editRow && !!globalThis.acksExtras?.monsters?.rollOrganisation,
   }),
 
+  /** Two groups, the first standing on its own top row over the second; unlist that top row through lib's writer and read what is left. */
+  ownTop: async ({ hostUuid, subUuid }) => {
+    const rowOf = (key, parentKey, holderUuid) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen: {} });
+    const host = fromUuidSync(hostUuid);
+    const sub = fromUuidSync(subUuid);
+    await host.update({ "system.units": [rowOf("t", "", host.uuid), rowOf("s", "t", sub.uuid)] });
+    const out = await globalThis.acksExtras.lib.org.unlistRow(host, "t");
+    return { ok: out.ok, own: out.own, hostRows: host.system.units.length, subRows: sub.system.units.map((r) => r.key), both: !!fromUuidSync(host.uuid) && !!fromUuidSync(sub.uuid) };
+  },
+
   /** Wait for a condition in the page, polling, and answer whether it held. */
   until: async ({ expr, ms }) => {
     const end = Date.now() + (ms ?? 8000);
@@ -463,12 +473,10 @@ try {
   }
 
   section("remove on a group's own top row");
-  const rowOf = (key, parentKey, holderUuid) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen: {} });
-  const host = await gm.create("Actor", { name: named("own top"), type: "acks-extras.group", items: [] });
-  const sub = await gm.create("Actor", { name: named("own sub"), type: "acks-extras.group", items: [] });
-  await gm.eval(`(async () => { const h = fromUuidSync("${host.uuid}"); await h.update({ "system.units": [${JSON.stringify(rowOf("t", "", host.uuid))}, ${JSON.stringify(rowOf("s", "t", sub.uuid))}] }); })()`);
-  const own = await gm.eval(`(async () => { const h = fromUuidSync("${host.uuid}"); const out = await acksExtras.lib.org.unlistRow(h, "t"); return { ok: out.ok, hostRows: h.system.units.length, subRows: fromUuidSync("${sub.uuid}").system.units.map((r) => r.key), both: !!fromUuidSync("${host.uuid}") && !!fromUuidSync("${sub.uuid}") }; })()`);
-  check("Remove on a group's own top row leaves the group hosting nothing, never emptied by a second write, and the group beneath it hosts its own row; both stay in the Actors tab", own.ok && own.hostRows === 0 && own.subRows.join() === "s" && own.both, own);
+  const ownHost = await gm.create("Actor", { name: named("own top"), type: "acks-extras.group", items: [] });
+  const ownSub = await gm.create("Actor", { name: named("own sub"), type: "acks-extras.group", items: [] });
+  const own = await run(gm, P.ownTop, { hostUuid: ownHost.uuid, subUuid: ownSub.uuid });
+  check("org.unlistRow on a group's own top row (the API the Remove press ends in) leaves the group hosting nothing, never emptied by a second write, and the group beneath it hosts its own row; both stay in the Actors tab", own.ok && own.hostRows === 0 && own.subRows.join() === "s" && own.both, own);
 
   note("not walked", "the family template sheet's own Generate button (Generate is driven through the service the button calls), the root group's sheet, and a Player seat's view of a hidden card");
   walkDone();

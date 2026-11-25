@@ -265,15 +265,15 @@ export function planDelete({ host, rows, key } = {}) {
  * rows beneath it move onto that holder, which hosts them from then on (every key as it
  * was, the top row at the top). A row above the units that names no holder, and a subtree
  * naming none, is dropped; no group is made for it. A row held by the host itself (a group
- * standing on its own top row) has nowhere to move to, so it is read as naming no holder:
- * it is dropped and the rows beneath it move onto their own holders, and the host is
- * written once, with what is left.
+ * standing on its own top row) has nowhere to move to: it leaves the chart as `own`, which is
+ * no row that named no group, and the rows beneath it move onto their own holders, and the host
+ * is written once, with what is left.
  *
  * @param {object} args
  * @param {object[]} args.rows the host's rows
  * @param {string} args.key the row to unlist
  * @param {string[]} [args.hostUuids] the uuids the host itself answers to
- * @returns {{ok: boolean, reason?: "noRow", units?: {key: string, holderUuid: string, rows: object[]}[], dropped?: string[], kept?: object[]}}
+ * @returns {{ok: boolean, reason?: "noRow", units?: {key: string, holderUuid: string, rows: object[]}[], dropped?: string[], own?: string[], kept?: object[]}}
  */
 export function planUnlist({ rows, key, hostUuids = [] } = {}) {
   const list = copyRows(rows);
@@ -282,6 +282,7 @@ export function planUnlist({ rows, key, hostUuids = [] } = {}) {
   const byKey = new Map(list.map((r) => [r.key, r]));
   const units = [];
   const dropped = [];
+  const own = [];
   const walk = (k) => {
     const row = byKey.get(k);
     if (row.holderUuid && !hostUuids.includes(row.holderUuid)) {
@@ -289,12 +290,12 @@ export function planUnlist({ rows, key, hostUuids = [] } = {}) {
       units.push({ key: k, holderUuid: row.holderUuid, rows: list.filter((r) => inside.includes(r.key)).map((r) => (r.key === k ? { ...r, parentKey: "" } : r)) });
       return;
     }
-    dropped.push(k);
+    (row.holderUuid ? own : dropped).push(k);
     for (const c of list.filter((r) => r.parentKey === k)) walk(c.key);
   };
   walk(key);
   const gone = new Set(subtreeKeys(key, nodes));
-  return { ok: true, units, dropped, kept: list.filter((r) => !gone.has(r.key)) };
+  return { ok: true, units, dropped, own, kept: list.filter((r) => !gone.has(r.key)) };
 }
 
 /**

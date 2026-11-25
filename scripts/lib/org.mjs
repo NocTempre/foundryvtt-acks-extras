@@ -397,7 +397,7 @@ export async function leave(faction, key) {
  *
  * @param {Actor} host a faction or a group hosting a chart
  * @param {string} key the subtree's top row
- * @returns {Promise<{ok: boolean, reason?: string, name?: string, units?: {key: string, uuid: string, name: string}[], dropped?: string[]}>}
+ * @returns {Promise<{ok: boolean, reason?: string, name?: string, units?: {key: string, uuid: string, name: string}[], dropped?: string[], own?: string[]}>} `own` is a group's own top row, which it held itself
  */
 export async function unlistRow(host, key) {
   if (!hostsChart(host)) return refused("notHost");
@@ -417,7 +417,7 @@ export async function unlistRow(host, key) {
   for (const [i, u] of plan.units.entries()) await groups[i].update({ "system.units": u.write });
   await host.update({ "system.units": plan.kept });
   if (isGroupActor(host)) for (const g of groups) if (g.system?.unit?.parentGroupUuid) await setParentGroup(g, null);
-  return { ok: true, units: plan.units.map((u, i) => ({ key: u.key, uuid: groups[i].uuid, name: groups[i].name ?? "" })), dropped: plan.dropped };
+  return { ok: true, units: plan.units.map((u, i) => ({ key: u.key, uuid: groups[i].uuid, name: groups[i].name ?? "" })), dropped: plan.dropped, own: plan.own };
 }
 
 /* -------------------------------------------- */
