@@ -764,6 +764,66 @@ await ok("the reader knows no ids of its own: with none in core's list it reads 
   assert.deepEqual(conditionSteps(null, AC), { steps: [], waived: [] });
 });
 
+/* --- One line per effect that moves a field ------------------------------------- */
+
+const { effectLines, stepLabel, lineLabel } = mods;
+const condName = (id) => `ACKS-LIB.condition.${id}`;
+const namedBy = (effect, id) => format("ACKS-LIB.conditionRoll.targetAc.named", { effect, condition: condName(id) });
+const plainOf = (line) => ({ name: line.name, condition: line.condition, value: line.value });
+
+await ok("an effect's line carries its own name and the signed step read from the effect, with no condition where it is its own", () => {
+  const rage = conditionEffect("berserk", { name: condName("berserk") });
+  const lines = effectLines(monsterOf([rage]), AC);
+  assert.deepEqual(lines.map(plainOf), [{ name: condName("berserk"), condition: undefined, value: conditionValue("berserk", AC) }]);
+  assert.ok(!("condition" in lines[0]), "no condition key where the effect is its condition's own");
+  assert.equal(lines[0].effect, rage, "the document rides along for a caller that lists its changes itself");
+  assert.deepEqual(effectLines(monsterOf([]), AC), []);
+  assert.deepEqual(effectLines(null, AC), []);
+});
+
+await ok("two effects are listed in the order Foundry applied them, and a disabled one not at all", () => {
+  const first = conditionEffect("shaken", { name: condName("shaken") });
+  const second = conditionEffect("berserk", { name: condName("berserk") });
+  const off = conditionEffect("blessed", { name: condName("blessed"), disabled: true });
+  const lines = effectLines(monsterOf([first, off, second]), AC);
+  assert.deepEqual(lines.map((l) => [l.name, l.value]), [[condName("shaken"), conditionValue("shaken", AC)], [condName("berserk"), conditionValue("berserk", AC)]]);
+  const late = { ...conditionEffect("berserk", { name: "Test Late" }), changes: [{ key: AC, type: "add", value: 3, priority: 1 }] };
+  const early = { ...conditionEffect("shaken", { name: "Test Early" }), changes: [{ key: AC, type: "add", value: 4, priority: -1 }], statuses: new Set() };
+  assert.deepEqual(effectLines(monsterOf([late, early]), AC).map((l) => l.name), ["Test Early", "Test Late"], "priority orders the lines, document order breaks a tie");
+});
+
+await ok("a charge's Armor Class step is named with the condition it belongs to, and an effect with no name by its condition", () => {
+  const charge = implyingEffect("charging", { name: "Test Charge" });
+  const [line] = effectLines(monsterOf([charge]), AC);
+  assert.deepEqual(plainOf(line), { name: "Test Charge", condition: "disordered", value: conditionValue("disordered", AC) });
+  assert.equal(lineLabel(line), namedBy("Test Charge", "disordered"));
+  assert.equal(stepLabel(charge, "disordered"), namedBy("Test Charge", "disordered"), "the label a saving throw's part takes is the same");
+  assert.equal(stepLabel(conditionEffect("disordered", { name: condName("disordered") }), "disordered"), condName("disordered"), "named as its condition once");
+  assert.equal(effectLines(monsterOf([conditionEffect("disordered", { name: "" })]), AC)[0].name, condName("disordered"));
+  assert.equal(stepLabel({ name: "Test Hand" }, null), "Test Hand", "a step that belongs to no condition has only the effect");
+  assert.equal(stepLabel(null, "disordered"), condName("disordered"));
+});
+
+await ok("a condition two effects carry is one line, under the first carrier", () => {
+  const state = implyingEffect("starving", { name: "Test State" });
+  const hand = conditionEffect("hungry", { name: condName("hungry") });
+  for (const order of [[state, hand], [hand, state]]) {
+    const lines = effectLines(monsterOf(order), SAVE);
+    assert.deepEqual(lines.map((l) => l.effect), [order[0]], "the later carrier makes no line");
+    assert.equal(lines[0].value, conditionValue("hungry", SAVE));
+  }
+});
+
+await ok("an effect's changes on the field are one line, a net of nothing is none, and an override replays from the stored value", () => {
+  const two = { id: "fxTwo", name: "Test Two", disabled: false, statuses: new Set(), changes: [{ key: AC, type: "add", value: 5 }, { key: AC, type: "subtract", value: 2 }] };
+  assert.deepEqual(effectLines(monsterOf([two]), AC).map((l) => [l.name, l.value]), [["Test Two", 3]]);
+  const cancels = { id: "fxNone", name: "Test None", disabled: false, statuses: new Set(), changes: [{ key: AC, type: "add", value: 5 }, { key: AC, type: "subtract", value: 5 }] };
+  assert.deepEqual(effectLines(monsterOf([cancels]), AC), []);
+  const set = { id: "fxSet", name: "Test Set", disabled: false, statuses: new Set(), changes: [{ key: AC, type: "override", value: 9 }] };
+  assert.deepEqual(effectLines(monsterOf([set]), AC, { base: 4 }).map((l) => l.value), [5], "the step is the shift the override made from the stored value");
+  assert.deepEqual(effectLines(monsterOf([set]), AC, { base: 9 }), [], "an override that moves nothing is no line");
+});
+
 await ok("a directly waived condition's step lands in waived with its effect, valued as the field takes it; a change the rule cannot attribute is not waived on a guess", () => {
   const step = conditionValue("disordered", AC);
   const own = conditionEffect("disordered");

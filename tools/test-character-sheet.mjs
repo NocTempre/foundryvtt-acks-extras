@@ -727,13 +727,14 @@ test("morale is carried by a serving hireling and by a character no player owns,
 /** A character with one loadout part per change and abilities carrying typed modifiers. Figures invented. */
 function typedActor({ changes = [], parts = [], abilities = [], save = { stored: 0, inForce: 0 } } = {}) {
   const flag = { "acks-extras": { loadout: true, loadoutParts: parts } };
+  const loadout = { id: "acksExtLoadout00", flags: flag, getFlag: (m, k) => flag[m]?.[k], changes, statuses: new Set() };
   return {
     type: "character",
     _source: { system: { save: { mod: save.stored }, initiative: { mod: 0 }, surprise: { avoidsurprise: 0, surpriseothers: 0 } } },
     system: { save: { mod: save.inForce }, initiative: { value: changes.filter((c) => c.key === "system.initiative.mod").reduce((s, c) => s + Number(c.value), 0), mod: 0 }, scores: { dex: { mod: 0 } }, surprise: {}, details: { level: 1 } },
     items: abilities.map((a, i) => ({ id: `a${i}`, type: "ability", name: a.name, flags: { "acks-extras": { extras: { effects: a.effects, effectsFrom: a.from ?? "recipe" } } } })),
-    effects: [{ id: "acksExtLoadout00", flags: flag, getFlag: (m, k) => flag[m]?.[k], changes }],
-    appliedEffects: [],
+    effects: [loadout],
+    appliedEffects: [loadout],
   };
 }
 test("the Stats tab names each typed part the loadout wrote, marks a scan's unverified, and lists what it left out", () => {
@@ -768,7 +769,7 @@ test("the save row carries the shared modifier in force and a tooltip naming the
     const t = buildThrows(actor);
     assert.equal(t.saveMod, 1, "the input holds the stored value");
     assert.equal(t.saveModNow.value, "+3", "the note is the figure in force");
-    assert.ok(t.saveModNow.tip.includes('"stored":"+1","effects":"+2","value":"+3"'), "the tip names the stored value and the effects' share");
+    assert.ok(t.saveModNow.tip.includes('modifierTipListed|{"stored":"+1","value":"+3"}') && !t.saveModNow.tip.includes('"effects"'), "the tip names the stored value and states no lump of the effects");
     assert.ok(t.saveModNow.tip.includes('stats.part|{"label":"Steady","value":"+2"}'), "the recipe's part is named, unmarked");
     const plain = buildThrows({ _source: { system: { save: { mod: 0 } } }, system: { save: { mod: 0 } } });
     assert.equal(plain.saveModNow.value, "+0", "a record with nothing on it reads +0");
@@ -879,6 +880,82 @@ test("the armour the tooltip lists is core's set: every equipped armour not type
     delete globalThis.game;
   }
 });
+
+console.log("character sheet: what each effect adds, named on the figure it moved");
+const { signed: signedFigure } = await import("../scripts/character-sheet/view-model.mjs");
+const { actorOf: fixtureActor, conditionValue: fixtureValue, coreConditions: fixtureConditions, effectOf: fixtureEffect, implyingEffect: fixtureImplying } = conditionFixture;
+const mockGame = () => ({ i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } });
+const condName = (id) => `ACKS-LIB.condition.${id}`;
+const namedEffect = (effect, id) => `ACKS-LIB.conditionRoll.targetAc.named|${JSON.stringify({ effect, condition: condName(id) })}`;
+const partText = (label, value) => `ACKS-CHARACTER.stats.part|${JSON.stringify({ label, value })}`;
+const OTHER_EFFECTS = "ACKS.throw.modifier.otherEffects";
+const withConditions = (fn) => () => {
+  const prior = globalThis.CONFIG;
+  globalThis.CONFIG = { ...(prior ?? {}), ACKS: { ...(prior?.ACKS ?? {}), conditions: fixtureConditions() } };
+  globalThis.game = mockGame();
+  try {
+    fn();
+  } finally {
+    globalThis.CONFIG = prior;
+    delete globalThis.game;
+  }
+};
+const noTyped = { parts: [], listed: [] };
+/** The lines of an Armor Class tooltip after its head, one string each. */
+const acLinesOf = (actor, over = {}) => acTips(actor, { ...actor.system, ...over }, { ac: { mod: 0 } }, noTyped, []).armour.split(" · ").slice(1);
+
+test("the AC tooltip names each effect that moves it, in order, a charge's step with the condition it belongs to", withConditions(() => {
+  const rage = fixtureValue("berserk", "system.ac.mod");
+  const disorder = fixtureValue("disordered", "system.ac.mod");
+  const hero = fixtureActor("character", [fixtureEffect("berserk", { name: condName("berserk") }), fixtureImplying("charging", { name: "Test Charge" })], { ac: 10 });
+  assert.deepEqual(
+    acLinesOf(hero),
+    [partText(condName("berserk"), signedFigure(rage)), partText(namedEffect("Test Charge", "disordered"), signedFigure(disorder))],
+    "one line per effect, in the order Foundry applied them; the effect named as its own condition is named once",
+  );
+  const head = acTips(hero, hero.system, { ac: { mod: 0 } }, noTyped, []).armour.split(" · ")[0];
+  assert.ok(head.includes('"stored":"+0"') && !head.includes("effects"), "the head states the stored bonus and no lump of the effects");
+  assert.ok(acLinesOf(fixtureActor("character", [], { ac: 10 })).length === 0, "no effect, no line");
+}));
+test("a condition two effects carry is listed once, and a disabled effect not at all", withConditions(() => {
+  const disorder = fixtureValue("disordered", "system.ac.mod");
+  const hero = fixtureActor("character", [fixtureImplying("charging", { name: "Test Charge" }), fixtureEffect("disordered", { name: condName("disordered") }), fixtureEffect("berserk", { disabled: true })], { ac: 10 });
+  // Foundry applied the step once; the mock folded both carriers, so the prepared figure is set to what Foundry holds.
+  hero.system.ac.mod = disorder;
+  assert.deepEqual(acLinesOf(hero), [partText(namedEffect("Test Charge", "disordered"), signedFigure(disorder))]);
+}));
+test("a remainder line, core's Other Effects, is added only where the lines do not sum to what the effects moved", withConditions(() => {
+  const rage = fixtureValue("berserk", "system.ac.mod");
+  const hero = fixtureActor("character", [fixtureEffect("berserk", { name: condName("berserk") })], { ac: 10 });
+  assert.equal(acLinesOf(hero).length, 1, "the lines account for the whole figure: no remainder");
+  hero.system.ac.mod = rage + 5;
+  assert.deepEqual(acLinesOf(hero).slice(1), [partText(OTHER_EFFECTS, "+5")], "what no effect line states is the remainder");
+}));
+test("the loadout effect keeps its own parts and gets no second line", withConditions(() => {
+  const rage = fixtureValue("berserk", "system.ac.mod");
+  const base = typedActor({
+    changes: [{ key: "system.ac.mod", type: "add", value: "2" }],
+    parts: [{ label: "Steady", itemId: "a0", unverified: false }],
+    abilities: [{ name: "Steady", effects: [{ type: "modifier", target: "ac", value: { kind: "flat", flat: 2 } }] }],
+  });
+  const hero = fixtureActor("character", [...base.effects, fixtureEffect("berserk", { name: condName("berserk") })], { ac: 10, extra: { items: base.items } });
+  const lines = acTips(hero, hero.system, { ac: { mod: 0 } }, noTyped, []).armour.split(" · ").slice(1);
+  assert.deepEqual(lines, [partText(condName("berserk"), signedFigure(rage)), partText("Steady", "+2")], "the effect's line, then the loadout's part once; no remainder for the loadout's share");
+}));
+test("the save row's tooltip states the stored value, a line per effect in order, and a remainder only where one exists", withConditions(() => {
+  const step = fixtureValue("hungry", "system.save.mod");
+  const hand = { statuses: [], name: "Test Hand", changes: [{ key: "system.save.mod", type: "add", value: 3 }] };
+  const hero = fixtureActor("character", [fixtureEffect("hungry", { name: condName("hungry") }), fixtureEffect("hungry", hand)], { saveMod: 0, extra: { _source: { system: { save: { mod: 0 } } } } });
+  const tip = buildThrows(hero).saveModNow.tip.split(" · ");
+  assert.equal(tip[0], `ACKS-CHARACTER.stats.modifierTipListed|${JSON.stringify({ stored: "+0", value: signedFigure(step + 3) })}`);
+  assert.deepEqual(tip.slice(1), [partText(condName("hungry"), signedFigure(step)), partText("Test Hand", "+3")]);
+  hero.system.save.mod += 4;
+  assert.deepEqual(buildThrows(hero).saveModNow.tip.split(" · ").filter((l) => l.includes(OTHER_EFFECTS)), [partText(OTHER_EFFECTS, "+4")]);
+  assert.ok(!tip.some((l) => l.includes(OTHER_EFFECTS)), "no remainder where the lines sum to the figure");
+  const bare = fixtureActor("character", [], { saveMod: 2, extra: { _source: { system: { save: { mod: 2 } } } } });
+  assert.equal(buildThrows(bare).saveModNow.value, "+2");
+  assert.ok(buildThrows(bare).saveModNow.tip.startsWith("ACKS-CHARACTER.stats.modifierTipPlain|"), "no effect: the plain tip");
+}));
 
 console.log("character sheet: adding a proficiency by hand");
 const atest = async (name, fn) => {

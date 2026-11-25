@@ -30,6 +30,7 @@ import { ATTRIBUTES, slug } from "../../lib/vocab.mjs";
 import { carriesMorale, signed, storedSystem } from "../view-model.mjs";
 import { blankLoyaltyCite } from "../../lib/score-bounds.mjs";
 import { saveSystemKey, saveLabel, saveModifiers } from "../snapshot.mjs";
+import { effectLines, lineLabel } from "../../lib/roll-mods.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -227,15 +228,49 @@ function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited 
 /**
  * The figure Rolls uses for one modifier row, as a signed note and the tooltip
  * that names where it comes from: the stored value the input holds, then the
- * effects that move it. `stored` and `inForce` are numbers.
+ * effects that move it. `stored` and `inForce` are numbers. With `lines`
+ * (`effectBreakdown`, empty or not) the tip states the stored value alone
+ * wherever an effect moves the figure, and the caller appends the lines and
+ * the loadout's parts, which carry the effects' share.
  */
-function inForceFigure(stored, inForce) {
+function inForceFigure(stored, inForce, lines = null) {
   const value = signed(inForce);
   const effects = inForce - stored;
+  if (lines && (lines.length || effects)) return { value, tip: loc("stats.modifierTipListed", { stored: signed(stored), value }) };
   const tip = effects
     ? loc("stats.modifierTip", { stored: signed(stored), effects: signed(effects), value })
     : loc("stats.modifierTipPlain", { value });
   return { value, tip };
+}
+
+/**
+ * The lines under a figure an actor's effects move, in the shape of the
+ * system's own attack-card breakdown: one line per active effect that changes
+ * `key`, named by the effect (`effectLines`), then one for what the effects do
+ * that the lines do not account for, so the lines and the stored value add up
+ * to the prepared one. The loadout effect is counted in that sum and listed by
+ * its own parts (`typedLines`), never twice. A record whose effects cannot be
+ * read has no lines.
+ * @param {Actor} actor
+ * @param {string} key  the change key (`system.ac.mod`)
+ * @param {number} stored  the stored value, which the effects replay from
+ * @param {number} prepared  the value in force
+ * @returns {string[]}
+ */
+function effectBreakdown(actor, key, stored, prepared) {
+  let lines = [];
+  try {
+    lines = effectLines(actor, key, { base: stored });
+  } catch {
+    return [];
+  }
+  const loadout = findLoadoutEffect(actor);
+  const out = lines
+    .filter((line) => !loadout || line.effect !== loadout)
+    .map((line) => loc("stats.part", { label: lineLabel(line), value: signed(line.value) }));
+  const other = prepared - stored - lines.reduce((sum, line) => sum + line.value, 0);
+  if (other) out.push(loc("stats.part", { label: game.i18n.localize("ACKS.throw.modifier.otherEffects"), value: signed(other) }));
+  return out;
 }
 
 /** Why a typed modifier is listed and not applied, as `loc` keys; a figure not imported states none. */
@@ -329,8 +364,9 @@ export function summedArmour(actor) {
 /**
  * The AC rows' tooltips: core's sum in its parts with the actor's numbers —
  * the armour it sums, each piece by name with its own figure and the total,
- * Dexterity, the shield, the stored bonus and what effects add — then each part
- * the loadout effect wrote to `system.ac.mod`.
+ * Dexterity, the shield and the stored bonus — then one line per effect that
+ * changes `system.ac.mod` (`effectBreakdown`) and each part the loadout effect
+ * wrote to it.
  * @param {Actor} actor
  * @param {object} sys the prepared system data
  * @param {object} stored the stored system data
@@ -352,9 +388,8 @@ export function acTips(actor, sys, stored, typed, armour = summedArmour(actor)) 
       : loc("stats.acBaseNone"),
     dex: signed(dex),
     stored: signed(storedMod),
-    effects: signed(num(sys.ac?.mod) - storedMod),
   };
-  const lines = typedLines(actor, ["system.ac.mod"], "ac", typed);
+  const lines = [...effectBreakdown(actor, "system.ac.mod", storedMod, num(sys.ac?.mod)), ...typedLines(actor, ["system.ac.mod"], "ac", typed)];
   return {
     shield: withLines(loc("stats.acTip", { ...parts, shield: signed(shield), value: total }), lines),
     armour: withLines(loc("stats.acTipNoShield", { ...parts, value: total - shield }), lines),
@@ -371,7 +406,7 @@ export function acTips(actor, sys, stored, typed, armour = summedArmour(actor)) 
  * Dexterity modifier; what is left over is the effects'. Each tooltip then
  * names the typed modifiers the loadout applied to that field and those an
  * ability carries for it and does not apply. The save row's figure is the
- * shared modifier in force; a save that a narrower modifier or a condition
+ * shared modifier in force, its effects named a line each (`effectBreakdown`); a save that a narrower modifier or a condition
  * moves further is named beside it.
  */
 export function buildThrows(actor) {
@@ -395,7 +430,8 @@ export function buildThrows(actor) {
   );
   const saveModStored = num(stored.save?.mod);
   const saveModInForce = num(sys.save?.mod, saveModStored);
-  const saveFigure = inForceFigure(saveModStored, saveModInForce);
+  const saveEffects = effectBreakdown(actor, "system.save.mod", saveModStored, saveModInForce);
+  const saveFigure = inForceFigure(saveModStored, saveModInForce, saveEffects);
   let perSave = {};
   try {
     perSave = actor.items ? saveModifiers(actor) : {};
@@ -411,7 +447,7 @@ export function buildThrows(actor) {
   return {
     saves: SAVE_KEYS.map((k) => ({ key: k, label: saveLabel(k), value: num(stored.saves?.[saveSystemKey(k)]?.value), path: `system.saves.${saveSystemKey(k)}.value` })),
     saveMod: saveModStored,
-    saveModNow: { value: saveFigure.value, tip: withLines(saveFigure.tip, [...further, ...typedLines(actor, savePaths, "save", typed)]) },
+    saveModNow: { value: saveFigure.value, tip: withLines(saveFigure.tip, [...saveEffects, ...further, ...typedLines(actor, savePaths, "save", typed)]) },
     adventuring: ADVENTURING_KEYS.map((k) => ({ key: k, label: game.i18n.localize(`ACKS.adventuring.${k}`), value: num(stored.adventuring?.[k]), path: `system.adventuring.${k}` })),
     initiativeMod: num(stored.initiative?.mod),
     initiative,

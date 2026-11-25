@@ -10,7 +10,7 @@
  * Wisdom modifier, only when the throw is against magic), the creature's
  * conditions through `rollMath("save", …)` the way the conditions' own
  * wrapper lowers the target, the steps the system's condition effects make to
- * the save modifier (`conditionSteps`, on every save), the `save` parts of the creature's records
+ * the save modifier (`conditionSteps`, on every save, each part named by its effect: `stepLabel`), the `save` parts of the creature's records
  * (`roll-mods.mjs`, scoped against what the throw is made against), the
  * creature's defenses against the damage the throw resists (`defenses.mjs`,
  * only when the caller names the damage), and whatever the caller adds.
@@ -23,7 +23,7 @@ import { LANG_PREFIX } from "./constants.mjs";
 import { rollMath, subjectOf } from "./conditions.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { actorDefenses, defenseFigures, defenseSaveParts } from "./defenses.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, ownSaveParts, saveModParts, sumSteps } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, ownSaveParts, saveModParts, stepLabel, sumSteps } from "./roll-mods.mjs";
 import { locOr } from "./util.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 
@@ -99,7 +99,7 @@ export function saveSpec(
     rollParts.push({ key: "wis", label: word("wis", "Wisdom"), value: actor.system?.scores?.wis?.mod ?? 0, side: "roll" });
   }
   if (character) {
-    for (const step of steps) rollParts.push({ key: step.condition, label: locOr(`${LANG_PREFIX}.condition.${step.condition}`, step.condition), value: step.value, side: "roll" });
+    for (const step of steps) rollParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition), value: step.value, side: "roll" });
   }
   if (situational !== null && situational !== undefined && String(situational).trim() !== "") {
     rollParts.push({ key: "situational", label: word("situational", "Situational"), value: situational, side: "roll" });
@@ -120,7 +120,7 @@ export function saveSpec(
   if (conditions) {
     if (!character) {
       for (const step of steps) {
-        targetParts.push({ key: step.condition, label: locOr(`${LANG_PREFIX}.condition.${step.condition}`, step.condition), value: step.value, side: "target" });
+        targetParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition), value: step.value, side: "target" });
         shift += step.value;
       }
     }

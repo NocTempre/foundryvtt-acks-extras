@@ -136,3 +136,39 @@ across a map redraws the sheet at each step though nothing it shows changed).
 
 *Cost:* each of the character's own moves, on a world holding any pile, runs
 one reach scan per open sheet of that character.
+
+## 2026-11-25 — An effect's step is named on the figure it moved
+
+**Ruled** (owner, 2026-11-24). Shown the provenance-tooltip board, verbatim:
+"Use exiting foundry code before investigating new designs...". Read as: no new
+surface. The AC rows' and the save modifier's tooltips the sheet already draws
+take their lines in the shape the system's own attack card uses for an
+attacker's modifiers (`getEffectModifierBreakdown`): the stored value, one line
+per active effect by the effect's name, and a remainder line only where the
+lines do not account for the figure. For example: a character under a charge
+reads the stored bonus, then "Charge (Disordered) +N", with no lump of what
+effects add.
+
+- The module rebuilds the shape (`effectLines`, `roll-mods.mjs`) because the
+  system ships as one bundle and its function cannot be imported. It reads the
+  module's own reader (`activeNumericChanges`, narrowed by `countsOnce`) rather
+  than only `add` and `subtract` changes, so an override or a multiply is
+  listed under its effect as the shift it made; the remainder holds only what
+  no effect line states.
+- A line adds the condition's name where it differs from the effect's, the
+  naming the attack card's target line already used (`stepLabel`), so a reader
+  holding the book finds the condition a step belongs to. A line carries no page
+  reference of its own: the AC tooltip's head keeps its reference and the save
+  modifier's tooltip has none, which is registered as a tooltip finding.
+- The remainder reuses the system's "Other Effects" string; the module ships
+  none of its own.
+- The loadout effect keeps its own parts and is counted in the remainder's sum.
+- A saving throw's condition parts and the notice a monster's save step is told
+  by take the same name, so one effect reads alike everywhere it is shown.
+
+**Rejected:** a new provenance row, chip or window (the board the owner
+answered), and a lump of "effects" beside the stored value, which names nothing.
+
+*Cost:* a tooltip with several effects is longer, and it lists a condition
+effect by the name its holder gave it; an override's line shows the shift it
+made, where the system's own breakdown would call it Other Effects.

@@ -754,6 +754,12 @@ await (async () => {
     assert.equal(hungryActor("character").rollSave("breath"), 15, "a character's step is core's alone");
     assert.equal(hungryActor("monster").rollSave("breath"), 15 - conditionValue("hungry", "system.save.mod"), "a monster's step is read once, from the effect");
     assert.equal(hungryActor("monster").rollSave("death"), 14 - conditionValue("hungry", "system.save.mod"), "on every save");
+    said.length = 0;
+    hungryActor("monster").rollSave("breath");
+    assert.ok(said.some((line) => line.includes("notice.applied") && line.includes("targetAc.named") && line.includes("effect.hungry") && line.includes("ACKS-LIB.condition.hungry")),"the notice names the step by its effect and the condition it belongs to");
+    said.length = 0;
+    hungryActor("character").rollSave("breath");
+    assert.ok(!said.some((line) => line.includes("effect.hungry")), "a character's roll is core's alone and names none");
     // Every one of the eleven: the module adds a figure to a saving throw from one place only. A character's
     // roll is core's, so the wrapper adds none; a monster's takes the effect's step when it carries one.
     for (const id of CONDITION_ORDER) {

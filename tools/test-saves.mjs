@@ -326,6 +326,9 @@ await ok("a condition's step on the save modifier reaches every save: a characte
     const beast = actorOf("monster", [effectOf("hungry")]);
     const spec = saveSpec(beast, "death");
     assert.deepEqual(spec.parts.map((p) => [p.key, p.value, p.side]), [["hungry", step, "target"]]);
+    assert.deepEqual(spec.parts.map((p) => p.label), ["effect.hungry (hungry)"], "the part is named by its effect, with the condition where the two differ");
+    assert.deepEqual(magic.parts.map((p) => p.label).slice(1), ["effect.hungry (hungry)"], "a character's roll part takes the same name");
+    assert.deepEqual(saveSpec(actorOf("monster", [effectOf("hungry", { name: "hungry" })]), "death").parts.map((p) => p.label), ["hungry"], "an effect named as its condition is named once");
     assert.equal(spec.target, 14 - step, "a monster's step lowers the number to roll");
     assert.equal(saveSpec(beast, "death", { magical: false }).target, 14 - step, "on a throw that is not against magic too");
     assert.equal(saveSpec(beast, "death", { conditions: false }).target, 14, "the party's throw reads none of it");

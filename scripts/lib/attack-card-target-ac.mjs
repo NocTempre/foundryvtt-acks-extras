@@ -18,8 +18,7 @@
  */
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { TARGET_AC_FLAG, setTargetAcReader } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps } from "./roll-mods.mjs";
-import { conditionNameKey } from "./status-effects.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, stepLabel } from "./roll-mods.mjs";
 import { signed } from "./frame-model.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { el, elementOf } from "./util.mjs";
@@ -40,18 +39,6 @@ const MADE_ATTRIBUTE = "data-acks-extras-footer";
 const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.${key}`, data);
 
 /**
- * A row's name: the effect's own name, with the name of the condition the step
- * belongs to where the two differ (a charge's step is its disorder's). An
- * effect with no name is named by its condition.
- */
-function rowName(effect, condition) {
-  const own = String(effect?.name ?? "").trim();
-  const named = game.i18n.localize(conditionNameKey(condition));
-  if (!own) return named;
-  return own === named ? own : text("named", { effect: own, condition: named });
-}
-
-/**
  * The condition effects inside a target's Armor Class, as `[{name, value}]`:
  * each step the system's condition effects make to `system.ac.mod` that
  * Foundry applied (`conditionSteps`), by the effect's name and the step as it
@@ -66,7 +53,7 @@ function rowName(effect, condition) {
 export function targetAcRows(actor) {
   if (actor?.type !== ACTOR_TYPE.character) return [];
   const read = conditionSteps(actor, CONDITION_STEP_KEYS.ac);
-  return [...read.steps, ...read.waived].map((step) => ({ name: rowName(step.effect, step.condition), value: step.value }));
+  return [...read.steps, ...read.waived].map((step) => ({ name: stepLabel(step.effect, step.condition), value: step.value }));
 }
 
 /**

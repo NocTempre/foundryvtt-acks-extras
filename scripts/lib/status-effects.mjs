@@ -38,7 +38,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, sheetSaveShift, sumSteps, tellRollMods } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { impliedStatuses } from "./held-condition.mjs";
 import {
@@ -539,13 +539,20 @@ function recordSaveShift(actor, save) {
 /**
  * The figure the system's condition effects put on a non-character's saving
  * throw: core's roll adds `system.save.mod` for a character only, so a
- * monster's steps (`conditionSteps`) are this module's to add. Zero for a
- * character, whose roll already carries them.
+ * monster's steps (`conditionSteps`) are this module's to add, and the notice
+ * names each by its effect (`stepLabel`), since core's card shows one bare
+ * number. Zero for a character, whose roll already carries them.
  */
 function monsterSaveSteps(actor) {
   if (!actor || actor.type === ACTOR_TYPE.character) return 0;
   try {
-    return sumSteps(conditionSteps(actor, CONDITION_STEP_KEYS.save).steps);
+    const { steps } = conditionSteps(actor, CONDITION_STEP_KEYS.save);
+    const total = sumSteps(steps);
+    if (steps.length) {
+      const rows = steps.map((step) => `${stepLabel(step.effect, step.condition)} ${signed(step.value)}`).join(", ");
+      globalThis.ui?.notifications?.info(loc("notice.applied", { name: actor.name, roll: loc("roll.save"), rows }));
+    }
+    return total;
   } catch (err) {
     console.error(`${MODULE_ID} | a condition's saving-throw step could not be read; the throw rolls without it`, err);
     return 0;

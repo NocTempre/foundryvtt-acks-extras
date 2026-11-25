@@ -212,6 +212,72 @@ export function conditionSteps(actor, key) {
 /** The figures of `steps` summed. */
 export const sumSteps = (steps) => steps.reduce((total, step) => total + step.value, 0);
 
+/** A condition's name: its lang string, or its id before any translation is loaded. */
+const conditionName = (id) => globalThis.game?.i18n?.localize?.(`${LANG_PREFIX}.condition.${id}`) ?? id;
+
+/**
+ * How one effect's step is named, as `{name, condition?}`: the effect's own
+ * name, with `condition` set to the condition the step belongs to only where
+ * that condition's name differs from the effect's. An effect with no name is
+ * named by its condition, and a step that belongs to no condition has none.
+ */
+function stepName(effect, condition) {
+  const own = String(effect?.name ?? "").trim();
+  if (!condition) return { name: own };
+  const named = conditionName(condition);
+  if (!own) return { name: named };
+  return own === named ? { name: own } : { name: own, condition };
+}
+
+/** The text of a named step: the effect's name, followed by its condition's in brackets where `stepName` kept one. */
+export function lineLabel({ name, condition }) {
+  if (!condition) return name;
+  const data = { effect: name, condition: conditionName(condition) };
+  const i18n = globalThis.game?.i18n;
+  return i18n?.format ? i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.named`, data) : `${data.effect} (${data.condition})`;
+}
+
+/** The label of one effect's step to a field: its effect named, plus the condition the step belongs to where the two differ (a charge's Armor Class step is its disorder's). */
+export const stepLabel = (effect, condition) => lineLabel(stepName(effect, condition));
+
+/**
+ * What every active effect does to one field of an actor, one line per effect
+ * in the order Foundry applied them: the shape of the system's own attack-card
+ * breakdown (the stored value, a line per effect, the remainder), rebuilt from
+ * the module's reader because the system's function cannot be imported. The
+ * changes are `activeNumericChanges` narrowed to the ones Foundry applied
+ * (`countsOnce`), so a condition two effects carry is listed once, and an
+ * effect's changes on the key are summed into its one line. An effect whose
+ * changes net to nothing has no line. Every figure is read from the effect
+ * documents at the call.
+ *
+ * `condition` is the condition the effect's change belongs to
+ * (`statusOfChange`, else the first status of the effect that carries
+ * changes), and is present only where its name differs from the effect's
+ * (`stepName`).
+ *
+ * @param {object} actor
+ * @param {string} key  a field an effect changes (`CONDITION_STEP_KEYS`)
+ * @param {{base?: number}} [options]  `base` is the field's value before any effect, which an override or a multiply replays from
+ * @returns {Array<{name: string, condition?: string, value: number, effect: object}>}
+ *   `value` is the signed step, a bonus positive; `effect` is the document, for
+ *   a caller that lists some effect's changes itself and so drops its line
+ */
+export function effectLines(actor, key, { base = 0 } = {}) {
+  const ids = changeCarrying();
+  const lines = new Map();
+  for (const step of activeNumericChanges(actor, key, { base, admit: countsOnce })) {
+    const line = lines.get(step.effect);
+    if (line) {
+      line.value += step.value;
+      continue;
+    }
+    const condition = statusOfChange(step.effect, key) ?? [...(step.effect?.statuses ?? [])].find((id) => ids.has(id)) ?? null;
+    lines.set(step.effect, { ...stepName(step.effect, condition), value: step.value, effect: step.effect });
+  }
+  return [...lines.values()].filter((line) => line.value !== 0);
+}
+
 /* -------------------------------------------- */
 /*  The weapon's own bonus                       */
 /* -------------------------------------------- */

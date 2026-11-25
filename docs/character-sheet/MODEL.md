@@ -447,7 +447,18 @@ modifier and the two surprise modifiers. This is the pen for what Rolls
 shows. Initiative and the two surprise rows carry a note beside the label, the
 signed figure Rolls adds (prepared data), each with a `data-tooltip-text`:
 surprise names the stored value and the effects' share, initiative (whose
-total folds in more than its stored modifier) names no parts. A retainer gets its wage and loyalty fields. Every field the tab can write holds
+total folds in more than its stored modifier) names no parts. The AC rows and
+the save modifier carry no lump of what effects add: their tooltips state the
+stored value, then one line per active effect that changes the field, in the
+order Foundry applied the changes (`effectBreakdown` over `effectLines`,
+docs/lib/MODEL.md, "A non-character's Armor Class and save"), each by the
+effect's name with the condition its change belongs to where the two differ,
+and the signed step read from the effect at render. A line for what the effects
+moved and no line accounts for follows only where one exists, labelled with the
+system's own "Other Effects" string. The shape is the system's attack-card
+breakdown; the loadout effect is counted in the sum and listed by its own parts
+(`typedLines`), never twice. The overridden-input tooltip (`stats.effectiveTip`)
+states the figure in force, no share, and is unchanged. A retainer gets its wage and loyalty fields. Every field the tab can write holds
 the STORED value (`storedSystem` in view-model.mjs — `actor._source.system`),
 never the prepared one an Active Effect has already added to; the AC
 breakdown, the initiative display and every other read-only figure stay on
