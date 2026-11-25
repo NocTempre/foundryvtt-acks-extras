@@ -2097,6 +2097,11 @@ design is `architect`'s ruling of this date.
   `isShield` and `isWorn` from `item-model.mjs`: `vocab.mjs` reads the
   catalogue at load, so `conditions.mjs` imports nothing that reaches it. A
   test pins the two readings together.
+- The retired mark's printed words match no condition: the matcher answers
+  `null` for "Defending with a Shield" and nothing is written on a guess.
+  Counted at this ruling: no compiled cookbook entry and no tracked file prints
+  the phrase, and no section of RR, JJ or MM does, so the null reaches no
+  imported entry. A later book that prints it is told apart then.
 
 **Corrects** addendum 2, section 5, of
 `docs/wip/20261124-core-14.2.0-repair-plan.md`, which read a character's shield
