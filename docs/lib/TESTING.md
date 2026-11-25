@@ -1268,6 +1268,12 @@ feature's; each of those recipes carries its own coin steps.
     drags from anywhere on it: dropped on the Hero's other Gold row it joins
     as in step 3. Render the sheet twice: a coin row is marked once and the
     Sword row is never marked.
+    Walked alone, the step takes a character created with no items and given
+    one weapon row of two, kept under `lib/drag-handle`. The sheet draws again
+    a few seconds after its first render and moves its rows, so the pointer is
+    placed after that. A press on the input and a drag across the figure
+    selects it: a digit typed next replaces the figure, the write lands, and
+    no `dragstart` reaches the row.
 
 **Teardown.** `api.sweepTracked()`. Deleting the actors takes their coin with
 them, and deleting Coin Scene takes the tokens. The Bank and the vault each
