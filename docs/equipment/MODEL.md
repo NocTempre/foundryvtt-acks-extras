@@ -1251,3 +1251,16 @@ the resting row of the same thing (`foldIntoRest`). A stack core cannot equip
 (a flask, a torch, a garment) still splits on the EQP cell (`canSplit`,
 `splitOne`, `restack`). `placement.mjs` offers no take-out for a core-equippable
 item, and the weapon and armour rows draw no count control (`offersCount`).
+
+The cancelled equip lands later than the hook returns, and a fold lands after the
+unequip that asked for it, so each is counted per row while it is in flight
+(`holdWhile` in `item-sheet/stack.mjs`: `takeOneToEquip` counts a `draw`,
+`foldOnUnequip` a `fold`, each until its promise settles). The first branch of
+`onPreUpdateEquip` holds a write against that count by direction (`holdsWrite`):
+a write setting `system.equipped` to false while a draw is in flight, and a write
+setting it to true while a fold is in flight. The hook returns false and
+`afterTurn` issues the whole change set again on the row as found by id, in the
+holder's queue after the work it waited for; the re-issue is a plain update, so
+the original write's options are not carried. The draw's own write sets the
+equip and the fold never writes it, so neither work meets its own hold. The count
+is held per client: only writes made on the seat that started the work wait.

@@ -2745,6 +2745,129 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   delete globalThis.game.user;
 }
 
+// A write issued while a divide or a fold is still landing waits for it: an unequip during the divide, an equip during the fold.
+{
+  const { onPreUpdateEquip, foldOnUnequip } = await import(new URL("enforce.mjs", S));
+  const { holdWhile, holdsWrite } = await import(new URL("item-sheet/stack.mjs", S));
+  globalThis.game.user = { id: "me" };
+  const settle = async () => { for (let n = 0; n < 6; n++) await new Promise((resolve) => setImmediate(resolve)); };
+  const flagsOf = (u) => u.flags?.["acks-extras"] ?? {};
+
+  // A holder whose rows run every update through the hook, drop an empty diff as Foundry does, and land the
+  // draw's own write (count one, equipped) or a count rising to join a fold only when its gate opens.
+  const build = ({ qty = 3, equipped = false } = {}) => {
+    const items = [];
+    const landed = [];
+    const gates = { draw: null, fold: null };
+    const open = (kind) => { let release; gates[kind] = new Promise((resolve) => { release = resolve; }); return () => { gates[kind] = null; release(); }; };
+    const holder = {
+      documentName: "Actor",
+      items: Object.assign(items, { get: (id) => items.find((i) => i.id === id) }),
+      createEmbeddedDocuments: async (_k, rows) => rows.map((r, n) => mk(`rest${items.length + n}`, r.system.quantity, r.system.equipped)),
+    };
+    function mk(id, count, isEquipped) {
+      const row = {
+        id, name: "Sword", type: "weapon", parent: holder, effects: [],
+        system: { cost: 0, weight6: 0, equipped: isEquipped, quantity: count }, flags: { "acks-extras": {} },
+        getFlag: (m, k) => row.flags[m]?.[k],
+        toObject: () => structuredClone({ name: row.name, type: row.type, system: row.system, flags: row.flags }),
+        delete: async () => { items.splice(items.indexOf(row), 1); },
+        update: async (u) => {
+          if (onPreUpdateEquip(row, u) === false) return undefined;
+          const eq = foundry.utils.getProperty(u, "system.equipped");
+          const count2 = foundry.utils.getProperty(u, "system.quantity") ?? u["system.quantity"];
+          const diff = {};
+          if (eq !== undefined && eq !== row.system.equipped) diff.equipped = eq;
+          if (count2 !== undefined && count2 !== row.system.quantity) diff.quantity = count2;
+          for (const [k, v] of Object.entries(flagsOf(u))) if (row.flags["acks-extras"][k] !== v) diff[k] = v;
+          if (!Object.keys(diff).length) return undefined;
+          if (eq === true && count2 === 1 && gates.draw) await gates.draw;
+          if (eq === undefined && count2 > row.system.quantity && gates.fold) await gates.fold;
+          if ("equipped" in diff) row.system.equipped = diff.equipped;
+          if ("quantity" in diff) row.system.quantity = diff.quantity;
+          Object.assign(row.flags["acks-extras"], flagsOf(u));
+          landed.push([id, structuredClone(u)]);
+          if (diff.equipped === false) foldOnUnequip(row, u, "me");
+          return row;
+        },
+      };
+      items.push(row);
+      return row;
+    }
+    const row = mk("row", qty, equipped);
+    return { row, items, landed, open };
+  };
+  const equipWrites = (landed) => landed.filter(([, u]) => foundry.utils.getProperty(u, "system.equipped") !== undefined).map(([, u]) => u);
+
+  // An unequip while the divide is landing is held, and lands after it.
+  {
+    const { row, items, landed, open } = build();
+    const release = open("draw");
+    row.update({ system: { equipped: true } });
+    await settle();
+    check("the divide is in flight: the row still reads resting, the rest made", row.system.equipped === false && items.length === 2);
+    check("an unequip during the divide is held: the hook returns false", onPreUpdateEquip(row, { system: { equipped: false } }) === false);
+    release();
+    await settle();
+    const writes = equipWrites(landed);
+    check("after it lands the log reads the divide's write, then the unequip", writes.length === 2 && writes[0].system.quantity === 1 && writes[0].system.equipped === true && JSON.stringify(writes[1]) === JSON.stringify({ system: { equipped: false } }));
+    check("the row ends unequipped with the stack whole", row.system.equipped === false && row.system.quantity === 3 && items.length === 1);
+  }
+
+  // A mixed write is held whole, so its other change is not lost beside the unequip.
+  {
+    const { row, items, landed, open } = build();
+    const release = open("draw");
+    row.update({ system: { equipped: true } });
+    await settle();
+    const thrown = { system: { equipped: false }, flags: { "acks-extras": { thrown: true } } };
+    check("a write that unequips and flags together is held whole", onPreUpdateEquip(row, thrown) === false);
+    release();
+    await settle();
+    check("it lands whole afterwards: the flag is set and the row is unequipped", row.flags["acks-extras"].thrown === true && row.system.equipped === false && items.length === 2);
+    check("and lands once, after the divide's own write", equipWrites(landed).length === 2 && JSON.stringify(equipWrites(landed)[1]) === JSON.stringify(thrown));
+  }
+
+  // The divide's own write is never held, and the rest row survives it.
+  {
+    const { row, items, landed, open } = build();
+    const release = open("draw");
+    row.update({ system: { equipped: true } });
+    await settle();
+    check("the divide's own write is not held by its own hold: it is waiting to land, not refused", landed.length === 0 && items.length === 2);
+    release();
+    await settle();
+    check("it lands, and the rest row stays beside the drawn one", row.system.equipped === true && row.system.quantity === 1 && items.length === 2 && items[1].system.quantity === 2);
+    check("settled, an unequip is let through", onPreUpdateEquip(row, { system: { equipped: false } }) === true);
+  }
+
+  // An equip while the fold is landing is held until the row holds the whole stack, then divides it.
+  {
+    const { row, items, landed, open } = build({ qty: 1, equipped: true });
+    await row.parent.createEmbeddedDocuments("Item", [{ system: { quantity: 2, equipped: false } }]);
+    const release = open("fold");
+    row.update({ system: { equipped: false } });
+    await settle();
+    check("the fold is in flight: the row reads one, unequipped", row.system.equipped === false && row.system.quantity === 1 && items.length === 2);
+    check("an equip during the fold is held: the hook returns false", onPreUpdateEquip(row, { system: { equipped: true } }) === false);
+    release();
+    await settle();
+    check("the equip arrives at the row of three and is divided: one drawn, two resting", row.system.equipped === true && row.system.quantity === 1 && items.length === 2 && items.find((i) => i.id !== "row").system.quantity === 2);
+    check("the whole stack was never drawn", !landed.some(([id, u]) => id === "row" && foundry.utils.getProperty(u, "system.equipped") === true && foundry.utils.getProperty(u, "system.quantity") === undefined));
+  }
+
+  // The count drops when the work fails as well as when it succeeds.
+  {
+    const stand = { parent: {} };
+    holdWhile(stand, "draw", Promise.reject(new Error("failed")).catch(() => {}));
+    holdWhile(stand, "fold", Promise.reject(new Error("failed")));
+    check("work still in flight holds its direction", holdsWrite(stand, { system: { equipped: true } }) === true && holdsWrite(stand, { system: { equipped: false } }) === true);
+    await settle();
+    check("work that has failed holds nothing", holdsWrite(stand, { system: { equipped: true } }) === false && holdsWrite(stand, { system: { equipped: false } }) === false);
+  }
+  delete globalThis.game.user;
+}
+
 // A thrown-away weapon's weight leaves the encumbrance total until recovered.
 const heavyAxe = { ...trackItem("Hand Axe", { flags: { thrownAway: true } }), type: "weapon", system: { weight6: 6, cost: 5, quantity: 1 } };
 heavyAxe.getFlag = (_m, k) => (k === "thrownAway" ? true : undefined);

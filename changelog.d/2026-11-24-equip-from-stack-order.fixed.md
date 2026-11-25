@@ -1,0 +1,1 @@
+- **A script or macro that equips from a weapon or armour stack and at once unequips it, or the reverse, now ends in the state it asked for.** The second write used to be dropped while the first was still landing, leaving a drawn row after an unequip, or the whole stack drawn after an equip. It now waits for the first to land and is applied after it.

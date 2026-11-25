@@ -240,3 +240,35 @@ on first, as before, and now by the system's own sum. A world that stays on
 14.1.0 reads the old base and would see the helmet stand in for the suit; the
 module's minimum is 14.2.0. Every shield worn beyond the first is now cut
 (or kept) by the same two rules rather than ignored.
+
+
+## 2026-11-24 — A write during a divide or a fold waits for it
+
+**Ruled.** The equip hook returns false at once and the divide lands 15 to 90 ms
+later, so a script that equips a stack and immediately unequips it wrote
+`system.equipped: false` against a row still reading resting. Foundry runs the
+preUpdate hooks before it diffs, and an empty diff is skipped, so the unequip was
+dropped and the row ended drawn; a mixed write (`markThrown`, `sheatheItem`)
+landed its flag and lost the unequip. The reverse, an unequip followed by an
+equip while the fold is still joining the rest back, sent an equip the hook did
+not divert (the count was 1), and the fold then raised the drawn row to the whole
+stack. The ruling that weapons and armour fold into stacks and that equipping
+takes one from the stack stands; this makes it hold for scripts and macros. A
+draw in flight holds a write that unequips the row, a fold in flight holds a
+write that equips it, and the held write is issued again, whole, when the
+holder's queue has finished the work (`holdWhile`, `holdsWrite`, `afterTurn` in
+`item-sheet/stack.mjs`; the first branch of `onPreUpdateEquip`). The direction
+split is the rule: holding every equip write would hold the divide's own write,
+refuse the reduce and lose the rest of the stack.
+
+**Rejected.** Mutating `changes` inside the hook to carry the held write: the rest
+row cannot be awaited there, which breaks "made before reduced" in `stack.mjs`.
+An awaited wrap of the document's `_preUpdate`: a new wrap of a core method, and
+a double click inside the create would divide twice.
+
+**What it cost.** `await item.update()` on a held write still resolves
+`undefined` before the write lands, as it already did for the diverted equip; a
+caller that must read the result awaits the holder's turn, not the update. The
+count is per client, so two seats equipping one stack inside the window could
+each divide it; that is registered separately. The re-issue is a plain update and
+drops the held write's options.

@@ -17,6 +17,11 @@
  *
  * Nothing is lost either way: the other row is made before the stack is
  * reduced, and the stack's own quantity is the only count that moves.
+ *
+ * The equip hook returns before a divide lands, and a fold lands after the
+ * unequip that asked for it. A write that would be judged against the row
+ * during either is held until the holder's queue has finished it
+ * (`holdsWrite`, `afterTurn`).
  */
 import { MODULE_ID } from "../constants.mjs";
 import { setWorn, siblingsOf, stackCountOf, isEquippable, canDivide, divideStack, oneAtATime } from "../../lib/item-model.mjs";
@@ -78,12 +83,78 @@ export function divertsEquip(item, changes) {
  */
 export function takeOneToEquip(item, changes) {
   if (!item?.parent) return Promise.resolve(null);
-  return oneAtATime(item.parent, async () => {
+  return holdWhile(item, "draw", oneAtATime(item.parent, async () => {
     if (item.system.equipped || !canDivide(item)) return null;
     const pending = foundry.utils.deepClone(changes);
     delete pending._id;
     unstowOnUse(item, pending);
     return divideStack(item, (stackCountOf(item) ?? 0) - 1, { also: pending });
+  }));
+}
+
+/**
+ * The divides and folds in flight on each row, by kind. The hook that cancels an
+ * equip returns before the divide lands, so for that long the row still reads
+ * as it did before; a write issued then is judged against a state that is about
+ * to change.
+ * @type {WeakMap<Item, {draw: number, fold: number}>}
+ */
+const inFlight = new WeakMap();
+
+/**
+ * Count `promise` as a divide (`"draw"`) or a fold (`"fold"`) in flight on
+ * `item` until it settles, then stop counting, whether it resolved or threw.
+ * The count drops in the same tick the holder's queue frees, ahead of any task
+ * queued behind it, so a write re-issued by `afterTurn` is never held by the
+ * work it waited for.
+ * @param {Item} item the row the work is done on
+ * @param {"draw"|"fold"} kind
+ * @param {Promise} promise the work, already queued
+ * @returns {Promise} `promise`, unchanged
+ */
+export function holdWhile(item, kind, promise) {
+  if (!item || typeof item !== "object") return promise;
+  const held = inFlight.get(item) ?? { draw: 0, fold: 0 };
+  held[kind] += 1;
+  inFlight.set(item, held);
+  promise.finally(() => { held[kind] -= 1; }).catch(() => {});
+  return promise;
+}
+
+/**
+ * Is this write one the row must wait out? While one is being taken off the
+ * row's stack, a write that unequips it would find the row still resting and be
+ * dropped as no change; while a fold is joining the rest back into it, a write
+ * that equips it would meet a count of one and take nothing. The direction is
+ * the whole test: the divide's own write sets the equip and the fold never
+ * writes it, so neither meets its own hold.
+ * @param {Item} item the row about to be updated
+ * @param {object} changes the pending update, expanded
+ */
+export function holdsWrite(item, changes) {
+  const held = inFlight.get(item);
+  if (!held) return false;
+  const equipped = foundry.utils.getProperty(changes, "system.equipped");
+  return (equipped === false && held.draw > 0) || (equipped === true && held.fold > 0);
+}
+
+/**
+ * Write `changes` to `item` once the holder's queued divides and folds have
+ * finished, on the row as it then stands: the row is looked up again by id, and
+ * a row that is gone takes nothing. The write goes out as a plain update, so the
+ * options the original carried are not kept, as in `takeOneToEquip`.
+ * @param {Item} item the row the write was held for
+ * @param {object} changes the whole pending update, expanded
+ * @returns {Promise<Item|null>} the updated row, or null when it no longer exists
+ */
+export function afterTurn(item, changes) {
+  if (!item?.parent) return Promise.resolve(null);
+  return oneAtATime(item.parent, async () => {
+    const row = item.parent.items?.get?.(item.id);
+    if (!row) return null;
+    const pending = foundry.utils.deepClone(changes);
+    delete pending._id;
+    return row.update(pending);
   });
 }
 

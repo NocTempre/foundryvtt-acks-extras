@@ -1746,7 +1746,7 @@ record. Nothing else is written.
 
 Walked by `tools/live/equipment-weapon-stacks.mjs`: steps 1, 2, 3, 5 and 6, a
 delivery that folds into a resting row, and the equip and the put-away as a
-plain update from the Player seat. Step 1's item-sheet control and step 4 are
+plain update from the Player seat. Step 1's item-sheet control, step 4 and steps 7 to 9 are
 unwalked. The walk's fixture carries a blade and a pack of invented names; its
 packed case uses the same row, stored and taken out, and no second marker.
 
@@ -1762,4 +1762,7 @@ packed case uses the same row, stored and taken out, and no second marker.
 4. Draw a stack where a placement veto applies (a hand already full). *Observable:* the veto message shows and the row still holds 3 with no second row.
 5. Put the drawn sword away. *Observable:* the drawn row folds into the resting row, which holds 3 again, and one row remains.
 6. Throw a drawn sword from a stack of 3 and recover it. *Observable:* the recovered row folds into the resting row; the count is 3.
-7. Teardown. The run's tracked documents are swept by ledger; the kept fixture is restored to one resting row of 3 for the next walk.
+7. From a script on the Player seat, equip the sword row of 3 and unequip it in the next statement, without awaiting between them (`row.update({"system.equipped": true}); row.update({"system.equipped": false})`), then wait a second. *Observable:* one row holding 3, unequipped; no drawn row remains. The unequip is held while the divide lands and issued after it.
+8. From a script, equip the row of 3 and wait a second, then run `await row.update({"system.equipped": false}); await row.update({"system.equipped": true})` on the drawn row and wait a second again. *Observable:* a drawn row holding 1 and a resting row holding 2, the sum 3; never a drawn row of 3. The equip is held while the fold lands and divides the whole stack when it is issued.
+9. Drag a drawn sword onto its own resting row in Carried (character sheet → Equipment tab → Carried). *Observable:* one row holding the whole count of 3; neither row is deleted.
+10. Teardown. The run's tracked documents are swept by ledger; the kept fixture is restored to one resting row of 3 for the next walk.

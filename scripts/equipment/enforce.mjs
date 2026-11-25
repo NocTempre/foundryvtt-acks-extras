@@ -18,7 +18,7 @@ import { isEquippable, foldIntoRest } from "../lib/item-model.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
 import { isLeadClient } from "../lib/automation-client.mjs";
-import { divertsEquip, takeOneToEquip } from "./item-sheet/stack.mjs";
+import { divertsEquip, takeOneToEquip, holdsWrite, afterTurn, holdWhile } from "./item-sheet/stack.mjs";
 import { unstowOnUse } from "./containers.mjs";
 
 /**
@@ -97,15 +97,22 @@ export function onPreUpdateItem(item, changes) {
 }
 
 /**
- * The whole preUpdate for an item, in its order. The veto runs first, so an
- * equip the limits refuse takes nothing off its stack and moves nothing out of
- * its container. Then an equip of a stack takes one: the write is cancelled and
- * one write on this row, with the count at one, replaces it once the rest are
- * made (`takeOneToEquip`). Last, gear entering use leaves the container holding
- * it in this same write (`unstowOnUse`).
+ * The whole preUpdate for an item, in its order. A write the row's own divide
+ * or fold in flight would make wrong is held first, and re-issued when that
+ * work is done (`holdsWrite`, `afterTurn`); the re-issue is a plain update, so
+ * the held write's options are not carried over. Then the veto, so an equip the
+ * limits refuse takes nothing off its stack and moves nothing out of its
+ * container. Then an equip of a stack takes one: the write is cancelled and one
+ * write on this row, with the count at one, replaces it once the rest are made
+ * (`takeOneToEquip`). Last, gear entering use leaves the container holding it
+ * in this same write (`unstowOnUse`).
  * @returns {boolean} false to cancel the update
  */
 export function onPreUpdateEquip(item, changes) {
+  if (holdsWrite(item, changes)) {
+    afterTurn(item, changes).catch((err) => console.error(`${MODULE_ID} | re-issuing a held equip write failed`, err));
+    return false;
+  }
   if (onPreUpdateItem(item, changes) === false) return false;
   if (divertsEquip(item, changes)) {
     takeOneToEquip(item, changes).catch((err) => console.error(`${MODULE_ID} | taking one off a stack failed`, err));
@@ -119,12 +126,14 @@ export function onPreUpdateEquip(item, changes) {
  * updateItem: a row taken out of use folds back into the stack it was drawn
  * from. Acts on the client that wrote the change only, since the fold writes
  * (the count, then a delete) are the writer's to make, once; none of them sets
- * `equipped`, so the fold never triggers itself.
+ * `equipped`, so the fold never triggers itself. The fold is counted as in
+ * flight on the row until it settles, so an equip issued meanwhile is held
+ * (`holdsWrite`).
  * @returns {Promise<Item|null>|null} the fold's outcome, or null where nothing was asked
  */
 export function foldOnUnequip(item, changes, userId) {
   if (userId !== game.user?.id || foundry.utils.getProperty(changes, "system.equipped") !== false) return null;
-  return foldIntoRest(item);
+  return holdWhile(item, "fold", foldIntoRest(item));
 }
 
 /**
