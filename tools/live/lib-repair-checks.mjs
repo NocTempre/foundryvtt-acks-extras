@@ -12,7 +12,8 @@
  * `lib/two-handed-row-none`, `lib/two-handed-row-free`, the character
  * `lib/two-handed-row-bearer` and its weapon `lib/two-handed-row-bearer-copy`;
  * the scene `lib/turn-order-scene` and the combats `lib/turn-order-combat` and
- * `lib/turn-order-combat-reversed`. A kept combat is read as it stands, rows,
+ * `lib/turn-order-combat-reversed`, both on that scene, where the run puts each
+ * at its start if it has none. A kept combat is read as it stands, rows,
  * tokens and sides from whoever built it, and the census prints their markers;
  * only a combat this run builds gets the monsters `lib/turn-order-a` to `-d`,
  * their tokens `lib/turn-order-<x>-token` and rows `lib/turn-order-<x>-row`.
@@ -189,6 +190,18 @@ const P = {
     const out = { found: !!input, value: input?.value ?? null };
     await item.sheet.close({ animate: false });
     return out;
+  },
+
+  /**
+   * Put a kept combat on the walk's own scene where it still has none. A combat with no scene is shown by every
+   * seat's tracker on every scene, and a seat that deletes a combat activates the one its tracker shows.
+   */
+  place: async ({ combatId, sceneId }) => {
+    const combat = game.combats.get(combatId);
+    if (!combat) return { found: false, after: null };
+    const before = combat._source.scene ?? null;
+    if (before !== sceneId) await combat.update({ scene: sceneId });
+    return { found: true, before, after: game.combats.get(combatId)?._source.scene ?? null };
   },
 
   /** Bring a combat and its rows to the shape the steps start from. */
@@ -431,7 +444,9 @@ try {
   // what the steps use, whoever built them. Only a combat this run builds is
   // given the monsters, tokens and rows below.
   const scene = await gm.fixture("lib/turn-order-scene", "Scene", { name: "QA Turn Order", width: 1000, height: 600, grid: { size: 100 }, ownership: { default: 2 } });
-  const combat = await gm.fixture("lib/turn-order-combat", "Combat", { scene: null });
+  const combat = await gm.fixture("lib/turn-order-combat", "Combat", { scene: scene.id });
+  const placed = await run(gm, P.place, { combatId: combat.id, sceneId: scene.id });
+  check("setup: the kept combat belongs to the walk's own scene", placed.after === scene.id, placed);
   if (combat.built) {
     const SIDES = { a: -1, b: -1, c: 1, d: 1 };
     let x = 100;
@@ -445,7 +460,9 @@ try {
   const census = await run(gm, P.census, { combatId: combat.id, sceneId: scene.id });
   note("kept combat", census);
   const rows = await run(gm, P.rows, { combatId: combat.id });
-  const reversed = await gm.fixture("lib/turn-order-combat-reversed", "Combat", { scene: null });
+  const reversed = await gm.fixture("lib/turn-order-combat-reversed", "Combat", { scene: scene.id });
+  const placedReversed = await run(gm, P.place, { combatId: reversed.id, sceneId: scene.id });
+  check("setup: the reversed combat belongs to the walk's own scene", placedReversed.after === scene.id, placedReversed);
   if (reversed.built) {
     for (const [n, r] of [...census.rows].reverse().entries()) {
       await gm.fixture(`lib/turn-order-row-${n + 1}-reversed`, "Combatant", { tokenId: r.tokenId, sceneId: r.sceneId, actorId: r.actorId }, { parent: reversed.uuid });

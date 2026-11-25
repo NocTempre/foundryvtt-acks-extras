@@ -3880,10 +3880,14 @@ steps 1, 2, 3, 5 and 6.
 - Four `monster` actors the GM owns, `lib/turn-order-a` to `lib/turn-order-d`,
   each with a linked token on the scene (`lib/turn-order-a-token` and so on):
   `a` and `b` hostile, `c` and `d` friendly.
-- The unlinked combat `lib/turn-order-combat` (`scene: null`), with a row per
+- The combat `lib/turn-order-combat`, on `lib/turn-order-scene`, with a row per
   token (`lib/turn-order-a-row` and so on), the Player seat an observer of it.
-- The unlinked combat `lib/turn-order-combat-reversed`, step 2's, built from the
-  same tokens.
+- The combat `lib/turn-order-combat-reversed`, step 2's, on the same scene and
+  built from the same tokens.
+
+The walk puts each combat on that scene at its start where it has none: a
+client that deletes a combat activates the one its tracker shows, and a combat
+with no scene is shown on every scene.
 
 Each run brings them to shape at its start: `flags.acks.initDone` set,
 `lock-turns` cleared, every row's initiative 4, no row carrying
@@ -3901,7 +3905,7 @@ lower id first.
    be libWrapper's wrapper reading `this`; core would then fail on every combat
    update. The path with libWrapper disabled is a separate run of this step.
 2. **Any arrival sequence.** On the GM seat, build the second kept combat
-   `lib/turn-order-combat-reversed` (`scene: null`) from the same four tokens, its
+   `lib/turn-order-combat-reversed` on the scene from the same four tokens, its
    rows created in the reverse order and set to the same shape. *Observable:* its
    `combat.turns` follows the same rule as step 1 over its own rows, hostile
    before friendly and the lower combatant id first. The tie breaks on the
