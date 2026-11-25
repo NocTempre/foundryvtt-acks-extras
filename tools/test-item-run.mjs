@@ -1220,6 +1220,84 @@ await t("a lowering hands a condition on to another raised reach of the same ite
   }
 });
 
+await t("a bearer counted into its own standing reach keeps its part when it leaves, or its host lowers, another bearer's reach of the same kind, and a bearer counted out or a lowering of its own reach does not", async () => {
+  seatOf(true);
+  const aura = await import("../scripts/lib/aura-reach.mjs");
+  aura.setReachHandler(async () => null);
+  const partId = logic.standingPartId("kindK");
+  const rowOf = (self) => ({ key: "s", reach: { pulse: "standing", radius: { value: "10" }, modifier: { value: "-1" }, on: ["morale"], filter: { self } } });
+  const itemOf = (uuid, activationId, self) => ({ uuid, name: `Gear ${uuid}`, type: "item", update: async () => {}, flags: { "acks-extras": { cookbook: { id: "kindK" }, itemRun: { activation: { kind: "toggle", state: { active: true, activationId, regionId: `R.${uuid}` } }, rows: [rowOf(self)] } } } });
+  const held = (actor) => actor.effects.get(partId);
+  const stageBearer = (self) => {
+    const own = itemOf("I.k1", "act1", self);
+    const host = itemOf("I.k2", "act2", "no");
+    const effects = Object.assign([], { get: (id) => effects.find((e) => e.id === id) });
+    const actor = {
+      id: "A.k1", uuid: "Actor.Ak1", isToken: false, items: [own], effects, getActiveTokens: () => [],
+      createEmbeddedDocuments: async (kind, data) => data.map((d) => { const e = { ...d, id: d._id, update: async (u) => { if (u.flags) e.flags = u.flags; if (u["flags.acks-extras.itemRun"]) e.flags["acks-extras"].itemRun = u["flags.acks-extras.itemRun"]; } }; effects.push(e); return e; }),
+      deleteEmbeddedDocuments: async (kind, ids) => { for (const id of ids) effects.splice(effects.findIndex((e) => e.id === id), 1); },
+    };
+    const region = { id: "R2", hidden: false, attachment: { token: "B2" }, behaviors: [{ type: AURA, system: { sourceUuid: "I.k2", bearerUuid: "A.k2", activationId: "act2", rowKey: "s" } }] };
+    const scene = { regions: [region], tokens: { get: () => undefined } };
+    region.parent = scene;
+    const token = { actorLink: true, actorId: "A.k1", id: "Tk1", uuid: "S.Tk1", actor, parent: scene, regions: new Set([region]) };
+    return { own, host, actor, region, token };
+  };
+  const priorFrom = globalThis.fromUuidSync;
+  const priorActors = gameStub.actors;
+  const priorScenes = gameStub.scenes;
+  let world = null;
+  globalThis.fromUuidSync = (uuid) => (uuid === "I.k1" ? world.own : uuid === "I.k2" ? world.host : priorFrom(uuid));
+  const enterHost = async () => { await run.holdStanding({ config: { activationId: "act2" }, item: world.host, row: world.host.flags["acks-extras"].itemRun.rows[0], subject: { token: world.token, actor: world.actor } }); };
+  const leaveHost = async () => {
+    world.token.regions = new Set();
+    await run.releaseStanding({ item: world.host, row: world.host.flags["acks-extras"].itemRun.rows[0], subject: { token: world.token, actor: world.actor }, region: world.region });
+  };
+  const lift = () => run.liftActivation({ config: { activationId: "act2", sourceUuid: "I.k2" } });
+  const from = (self) => {
+    world = stageBearer(self);
+    gameStub.actors = [world.actor];
+    gameStub.scenes = [{ tokens: [world.token] }];
+  };
+  const activationOf = (actor) => held(actor)?.flags["acks-extras"].itemRun.activationId ?? null;
+  try {
+    from("count");
+    await world.actor.createEmbeddedDocuments("ActiveEffect", [logic.standingPartRecordData({ kindKey: "kindK", name: world.own.name, parts: [{ on: "morale", value: -1 }], source: "I.k1", activationId: "act1", rowKey: "s" })]);
+    await enterHost();
+    assert.equal(activationOf(world.actor), "act2", "inside the other reach, the record is the other reach's");
+    await leaveHost();
+    assert.equal(activationOf(world.actor), "act1", "leaving it, the record goes back to the bearer's own counted reach");
+    assert.equal(held(world.actor).flags["acks-extras"].itemRun.source, "I.k1");
+
+    from("count");
+    await world.actor.createEmbeddedDocuments("ActiveEffect", [logic.standingPartRecordData({ kindKey: "kindK", name: world.own.name, parts: [{ on: "morale", value: -1 }], source: "I.k1", activationId: "act1", rowKey: "s" })]);
+    await enterHost();
+    await lift();
+    assert.equal(activationOf(world.actor), "act1", "the other reach lowered while the bearer is inside it, the record goes back to the bearer's own counted reach");
+    assert.equal(held(world.actor).flags["acks-extras"].itemRun.source, "I.k1");
+
+    from("no");
+    await world.actor.createEmbeddedDocuments("ActiveEffect", [logic.standingPartRecordData({ kindKey: "kindK", name: world.own.name, parts: [{ on: "morale", value: -1 }], source: "I.k1", activationId: "act1", rowKey: "s" })]);
+    await enterHost();
+    await leaveHost();
+    assert.equal(held(world.actor), undefined, "a bearer its own filter does not count has no own reach to fall back to");
+    await enterHost();
+    await lift();
+    assert.equal(held(world.actor), undefined, "nor when the other reach lowers");
+
+    from("count");
+    await world.actor.createEmbeddedDocuments("ActiveEffect", [logic.standingPartRecordData({ kindKey: "kindK", name: world.own.name, parts: [{ on: "morale", value: -1 }], source: "I.k1", activationId: "act1", rowKey: "s" })]);
+    world.token.regions = new Set();
+    await run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.k1" } });
+    assert.equal(held(world.actor), undefined, "the bearer's own reach lowered is no candidate for the record it held");
+  } finally {
+    globalThis.fromUuidSync = priorFrom;
+    gameStub.actors = priorActors;
+    gameStub.scenes = priorScenes;
+    aura.setReachHandler(run.handleReachMoment);
+  }
+});
+
 await t("a lifted activation is told to its listener, and one that throws spares the rest", async () => {
   seatOf(true);
   const heard = [];

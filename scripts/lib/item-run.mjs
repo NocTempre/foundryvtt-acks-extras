@@ -726,7 +726,33 @@ export async function holdStanding({ config, item, row, subject }) {
   return { written: true };
 }
 
-/** The standing reaches other than `except` that hold a subject now and are of the item kind `kindKey`: `[{config, item, row}]`. */
+/**
+ * The standing reach of item kind `kindKey` that holds an actor on its own body:
+ * a raised item of the actor's, other than activation `exceptActivationId`, with
+ * a standing row whose filter counts the bearer (`filter.self` `count`).
+ * `{config, item, row}`, or null. Core never reports a bearer inside its own
+ * Region, so `behaviorsUnder` never lists this reach and it is read from the
+ * item's state instead.
+ */
+function ownCountedStanding(actor, kindKey, exceptActivationId = "") {
+  for (const item of [...(actor?.items ?? [])]) {
+    const { active, activationId } = itemRunOf(item)?.activation.state ?? {};
+    if (!active || !activationId || activationId === exceptActivationId) continue;
+    const row = itemRunRowsOf(item).find((r) => {
+      const reach = readReach(r?.reach);
+      return reach?.pulse === "standing" && reach.filter?.self === "count" && kindKeyOf(item, r) === kindKey;
+    });
+    if (row) return { config: { activationId, sourceUuid: item.uuid, rowKey: row.key }, item, row };
+  }
+  return null;
+}
+
+/**
+ * The standing reaches other than `except` that hold a subject now and are of
+ * the item kind `kindKey`: `[{config, item, row}]`. The Regions the subject
+ * stands in come first; its own counted reach (`ownCountedStanding`) comes last,
+ * unless its Region is `except`.
+ */
 function otherStanding(subjectToken, kindKey, except) {
   const out = [];
   for (const { region, behavior } of behaviorsUnder(subjectToken, AURA_BEHAVIOR_TYPE)) {
@@ -737,14 +763,18 @@ function otherStanding(subjectToken, kindKey, except) {
     if (!row || readReach(row.reach)?.pulse !== "standing" || kindKeyOf(other, row) !== kindKey) continue;
     out.push({ config, item: other, row });
   }
+  const own = ownCountedStanding(subjectToken.actor, kindKey);
+  if (own && !(except?.id && itemRunOf(own.item).activation.state.regionId === except.id)) out.push(own);
   return out;
 }
 
 /**
- * A subject left a standing reach: take its part off, unless it is still inside
- * another reach of the same item kind, in which case the record is rewritten to
+ * A subject left a standing reach: take its part off, unless another reach of
+ * the same item kind still holds it, in which case the record is rewritten to
  * that reach (its source and activation) so the first bearer's lowering does not
- * take a part another bearer still gives.
+ * take a part another bearer still gives. The reaches that hold it are the
+ * Regions it stands in and its own raised reach that counts it (`filter.self`
+ * `count`), which no Region reports.
  */
 export async function releaseStanding({ item, row, subject, region }) {
   const kindKey = kindKeyOf(item, row);
@@ -762,8 +792,10 @@ export async function releaseStanding({ item, row, subject, region }) {
 /**
  * The other raised reach of the same item kind and pulse that still holds a
  * subject token, other than `activationId`'s: `{config, item, row}`, or null.
- * A condition a grouped prompt wrote is handed on to it at its own reach's
- * teardown.
+ * The Regions the tokens stand in are read first; for a standing pulse, a
+ * raised reach of the tokens' own actor that counts its bearer
+ * (`ownCountedStanding`) is the last candidate. A condition a grouped prompt
+ * wrote is handed on to it at its own reach's teardown.
  */
 function otherRaisedOfKind(tokens, { source, rowKey }, activationId) {
   const item = source ? fromUuidSync(source) : null;
@@ -779,6 +811,11 @@ function otherRaisedOfKind(tokens, { source, rowKey }, activationId) {
       if (otherRow && readReach(otherRow.reach)?.pulse === pulse && kindKeyOf(other, otherRow) === kindKeyOf(item, row)) return { config, item: other, row: otherRow };
     }
   }
+  if (pulse !== "standing") return null;
+  for (const token of tokens) {
+    const own = ownCountedStanding(token.actor, kindKeyOf(item, row), activationId);
+    if (own) return own;
+  }
   return null;
 }
 
@@ -786,10 +823,12 @@ function otherRaisedOfKind(tokens, { source, rowKey }, activationId) {
  * Take a lowered activation's records off every actor that may hold one, and its
  * toggle state off the item. A condition a prompt wrote, where its subject is
  * still inside another raised reach of the same item kind, is handed on to that
- * reach (its source, activation and row) and stays; every other record is
- * deleted. Then each subject that lost a standing part and is still inside
- * another reach is offered to that reach again, so a part another bearer gives
- * is written back at once, and what hears a lifted activation is told.
+ * reach (its source, activation and row) and stays, and so does a standing part
+ * whose subject is held by another raised reach of the kind or counted by its own
+ * raised one (`ownCountedStanding`); every other record is deleted. Then each
+ * subject that lost a standing part and is still inside another reach is offered
+ * to that reach again, so a part another bearer gives is written back at once,
+ * and what hears a lifted activation is told.
  */
 export async function liftActivation({ config }) {
   const { worldActors } = await import("./repair.mjs");
