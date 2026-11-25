@@ -25,14 +25,14 @@ import {
   rowAncestors, rowDescendants, twinKeys, withHolder,
 } from "./org-tree-logic.mjs";
 import { runPlan } from "./org-run.mjs";
-import { ORG_PROTOTYPE_FLAG, planDelete, planEdit } from "./org-write-logic.mjs";
+import { ORG_PROTOTYPE_FLAG, planDelete, planEdit, planUnlist } from "./org-write-logic.mjs";
 import { addOccupant, isLocation, removeOccupant } from "./place.mjs";
 import { docOf } from "./util.mjs";
 
 export { chartRows, moraleFromUnitsAbove, orgHostOf, orgHosts, registerOrgIndex, unitsOf } from "./org-host.mjs";
 export { runPlan };
 export { locationsView, orgChartView } from "./org-tree-logic.mjs";
-export { ORG_PROTOTYPE_FLAG, keySource, planAddUnit, planDelete, planEdit, planRoll } from "./org-write-logic.mjs";
+export { ORG_PROTOTYPE_FLAG, keySource, planAddUnit, planDelete, planEdit, planRoll, planUnlist } from "./org-write-logic.mjs";
 export {
   affiliationRows, isEmptyRow, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
 } from "./org-tree-logic.mjs";
@@ -378,6 +378,39 @@ export async function leave(faction, key) {
   const plan = planLeave({ uuid: faction.uuid, rows: unitsOf(faction) }, key, { uuid: doc.uuid, rows: unitsOf(doc) });
   const result = await carryOut(plan);
   return plan.ok ? { ...result, moved: plan.moved, group: doc } : result;
+}
+
+/**
+ * Unlist a row: it and every row beneath it come off the host's chart, and no document is
+ * deleted. The leave of a faction widened to any host: each group that held a row at the top
+ * of the removed subtree now hosts that subtree as its own chart, and where the host is a group
+ * it is taken out of the group that nested it. A subtree that names no holder is only
+ * dropped, and no group is made for it. Every seat is checked before the first write.
+ * Delete stays in this file as `deleteRow`, for the API alone; no sheet calls it.
+ *
+ * @param {Actor} host a faction or a group hosting a chart
+ * @param {string} key the subtree's top row
+ * @returns {Promise<{ok: boolean, reason?: string, name?: string, units?: {key: string, uuid: string, name: string}[], dropped?: string[]}>}
+ */
+export async function unlistRow(host, key) {
+  if (!hostsChart(host)) return refused("notHost");
+  if (!host.isOwner) return refused("notOwner");
+  const plan = planUnlist({ rows: unitsOf(host), key });
+  if (!plan.ok) return refused(plan.reason);
+  const groups = plan.units.map((u) => docOf(u.holderUuid));
+  if (groups.some((g) => !isGroupActor(g))) return refused("holderNotGroup");
+  const foreign = groups.find((g) => !g.isOwner);
+  if (foreign) return { ...refused("notOwner"), name: foreign.name ?? "" };
+
+  plan.units.forEach((u, i) => {
+    const own = unitsOf(groups[i]).map((r) => r?.toObject?.() ?? r);
+    const held = new Set(own.map((r) => r.key));
+    u.write = [...own, ...u.rows.filter((r) => !held.has(r.key))];
+  });
+  for (const [i, u] of plan.units.entries()) await groups[i].update({ "system.units": u.write });
+  await host.update({ "system.units": plan.kept });
+  if (isGroupActor(host)) for (const g of groups) if (g.system?.unit?.parentGroupUuid) await setParentGroup(g, null);
+  return { ok: true, units: plan.units.map((u, i) => ({ key: u.key, uuid: groups[i].uuid, name: groups[i].name ?? "" })), dropped: plan.dropped };
 }
 
 /* -------------------------------------------- */

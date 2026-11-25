@@ -432,6 +432,68 @@ t("leave refuses a row that is not there, a lone actor, and a group as the facti
   assert.equal((await org.leave(war, "w")).reason, "notFaction");
 });
 
+t("unlisting a subtree of a faction moves it onto its top group and deletes nothing", async () => {
+  const { war, g1, g2, vil, f } = warbandWorld();
+  await org.join(war, f, "v");
+  const before = world.size;
+  writes = [];
+  const out = await org.unlistRow(f, "w");
+  assert.equal(out.ok, true);
+  assert.deepEqual(out.units.map((u) => u.uuid), [war.uuid]);
+  assert.deepEqual(writes, ["Warband:system.units", "Village:system.units"], "the group first, then the faction");
+  assert.deepEqual(war.system.units.map((r) => [r.key, r.parentKey]), [["w", ""], ["g1", "w"], ["g2", "w"]]);
+  assert.deepEqual(f.system.units.map((r) => r.key), ["v"]);
+  assert.equal(world.size, before, "no document was deleted");
+  for (const d of [war, g1, g2, vil]) assert.ok(world.has(d.uuid));
+});
+
+t("unlisting from a group host takes the top group out of the group that nested it", async () => {
+  reset();
+  const top = group("Top");
+  const mid = group("Mid", { parent: top.uuid });
+  const leaf = group("Leaf", { parent: mid.uuid });
+  top.system.units = [row("t", "", top.uuid), row("m", "t", mid.uuid), row("l", "m", leaf.uuid)];
+  const out = await org.unlistRow(top, "m");
+  assert.equal(out.ok, true);
+  assert.equal(mid.system.unit.parentGroupUuid, "", "un-nested");
+  assert.equal(leaf.system.unit.parentGroupUuid, mid.uuid, "its own gang stays inside it");
+  assert.deepEqual(mid.system.units.map((r) => [r.key, r.parentKey]), [["m", ""], ["l", "m"]]);
+  assert.deepEqual(top.system.units.map((r) => r.key), ["t"]);
+  assert.equal(world.size, 3);
+});
+
+t("a subtree that names no holder is dropped and no group is made", async () => {
+  const { f } = warbandWorld();
+  await org.addRow(f, "v", { label: "Open slot" });
+  const open = f.system.units.find((r) => r.label === "Open slot");
+  await org.addRow(f, open.key, { label: "Open child" });
+  writes = [];
+  const out = await org.unlistRow(f, open.key);
+  assert.equal(out.ok, true);
+  assert.deepEqual(out.units, []);
+  assert.equal(out.dropped.length, 2);
+  assert.deepEqual(writes, ["Village:system.units"], "only the host is written; nothing is created");
+  assert.deepEqual(f.system.units.map((r) => r.key), ["v"]);
+});
+
+t("unlist refuses a seat that cannot write, a holder it cannot write, a lone actor and a missing row, before any write", async () => {
+  const { war, f } = warbandWorld();
+  await org.join(war, f, "v");
+  writes = [];
+  war.isOwner = false;
+  const shut = await org.unlistRow(f, "w");
+  assert.deepEqual([shut.ok, shut.reason, shut.name], [false, "notOwner", "Warband"]);
+  war.isOwner = true;
+  f.isOwner = false;
+  assert.equal((await org.unlistRow(f, "w")).reason, "notOwner");
+  f.isOwner = true;
+  assert.equal((await org.unlistRow(f, "gone")).reason, "noRow");
+  const lone = makeActor("character", "Leader", {});
+  f.system.units.push(row("lone", "v", lone.uuid));
+  assert.equal((await org.unlistRow(f, "lone")).reason, "holderNotGroup");
+  assert.deepEqual(writes, [], "nothing was written");
+});
+
 /* -------------------------------------------- */
 /*  A group's own gestures                       */
 /* -------------------------------------------- */

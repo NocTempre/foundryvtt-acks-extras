@@ -2042,3 +2042,15 @@ path makes the status active and clears none first. A second GM seat with the pr
 open is not in this seat's count: its start is cleaned if this seat presses Begin
 Combat on the same combat while that prompt is open. The change is walked live in
 `docs/lib/TESTING.md`, "A cancelled declaration".
+
+## 2026-11-25 — Remove unlists; deleteRow is API only
+
+The owner, asked whether removing a chart row should delete any actor from the world: "No, unlist
+only", with the earlier "deleting from an org chart is no the same as deleting the referenced
+item". A Remove press ends in `org.unlistRow`, `leave` widened to any host: the rows come off the
+chart, the group that held the top of the removed subtree now hosts it as its own chart (and is
+taken out of the group that nested it, where the host is a group), and a subtree naming no group is
+dropped without making one. No group, prototype or leader is deleted. `org.deleteRow` stays in lib
+for the API and has no caller on any sheet. *Rejected:* a Remove that deletes the groups and the
+prototypes only this generator minted (the held 09513066), since a chart row is a listing and a
+group is a document with its own bodies.

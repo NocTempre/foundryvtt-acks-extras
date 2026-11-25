@@ -253,6 +253,40 @@ export function planDelete({ host, rows, key } = {}) {
 }
 
 /**
+ * The Unlist: a row and every row beneath it leave the host's chart and nothing is
+ * deleted. Each topmost row of the subtree that names a holder becomes a unit: it and the
+ * rows beneath it move onto that holder, which hosts them from then on (every key as it
+ * was, the top row at the top). A row above the units that names no holder, and a subtree
+ * naming none, is dropped; no group is made for it.
+ *
+ * @param {object} args
+ * @param {object[]} args.rows the host's rows
+ * @param {string} args.key the row to unlist
+ * @returns {{ok: boolean, reason?: "noRow", units?: {key: string, holderUuid: string, rows: object[]}[], dropped?: string[], kept?: object[]}}
+ */
+export function planUnlist({ rows, key } = {}) {
+  const list = copyRows(rows);
+  if (!key || !list.some((r) => r.key === key)) return { ok: false, reason: "noRow" };
+  const nodes = nodesOf(list);
+  const byKey = new Map(list.map((r) => [r.key, r]));
+  const units = [];
+  const dropped = [];
+  const walk = (k) => {
+    const row = byKey.get(k);
+    if (row.holderUuid) {
+      const inside = subtreeKeys(k, nodes);
+      units.push({ key: k, holderUuid: row.holderUuid, rows: list.filter((r) => inside.includes(r.key)).map((r) => (r.key === k ? { ...r, parentKey: "" } : r)) });
+      return;
+    }
+    dropped.push(k);
+    for (const c of list.filter((r) => r.parentKey === k)) walk(c.key);
+  };
+  walk(key);
+  const gone = new Set(subtreeKeys(key, nodes));
+  return { ok: true, units, dropped, kept: list.filter((r) => !gone.has(r.key)) };
+}
+
+/**
  * The Edit: a filled row changed by hand. Its label, note, kind or visibility go
  * to the host's row; a stack's count or prototype, and the officer, go to the
  * unit's group. A change to a stack, or to the officer, while bodies of the unit
