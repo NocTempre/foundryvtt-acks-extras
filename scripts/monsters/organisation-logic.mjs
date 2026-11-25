@@ -128,6 +128,26 @@ export function lowerLoneUnit(top) {
 }
 
 /**
+ * The shares the optional three-way split divides a level by: with the troops rule on and every
+ * share's figure imported, the imported three replace the recipe's own; with the rule off, or a
+ * figure missing, there are none and the evaluator reads the recipe's split parts. The one reader
+ * `planOrganisationRoll` and the Roll panel both ask.
+ *
+ * @param {object} args
+ * @param {object} [args.org] `importedOrganisation()`
+ * @param {{troops?: boolean}} [args.rules]
+ * @returns {{shares: {key: string, percent: number, round: string}[]|null, missing: string[]}} `missing` names the shares whose figure was not imported, where the rule is on
+ */
+export function splitShares({ org = {}, rules = {} } = {}) {
+  if (!rules.troops) return { shares: null, missing: [] };
+  const f = org.organisation?.figures ?? {};
+  const trio = [["archers", "archerShare", "archerRound"], ["warriors", "warriorShare", "warriorRound"], [SPECIAL, "specialShare", "specialRound"]];
+  const read = trio.map(([key, share, how]) => ({ key, percent: whole(f[share]), round: f[how] ?? "" }));
+  const missing = trio.filter(([, share]) => whole(f[share]) === null).map(([key]) => key);
+  return { shares: read.every((s) => s.percent !== null) ? read : null, missing };
+}
+
+/**
  * Roll an organisation: the recipe evaluated for a unit, the optional rules
  * layered on, every creature a prototype. `tree` is what `lib/org-write-logic.mjs`
  * carries out; `gen` is the record a later Roll of an empty row under it needs.
@@ -159,14 +179,8 @@ export function planOrganisationRoll({
   const on = { troops: !!rules.troops, traits: !!rules.traits, gear: !!rules.gear };
   const parts = villageSource === "table" && org.village?.rows?.length ? withTableVillage(recipe, org.village.rows, variant, org.village.cite ?? "") : recipe;
 
-  let shares = null;
-  if (on.troops) {
-    const f = org.organisation?.figures ?? {};
-    const trio = [["archers", "archerShare", "archerRound"], ["warriors", "warriorShare", "warriorRound"], [SPECIAL, "specialShare", "specialRound"]];
-    const read = trio.map(([key, share, how]) => ({ key, percent: whole(f[share]), round: f[how] ?? "" }));
-    if (read.every((s) => s.percent !== null)) shares = read;
-    else findings.push({ what: "split", missing: trio.filter(([, share]) => whole(f[share]) === null).map(([key]) => key) });
-  }
+  const { shares, missing: unsplit } = splitShares({ org, rules: on });
+  if (on.troops && !shares) findings.push({ what: "split", missing: unsplit });
 
   const evaluated = evaluateRecipe({ recipe: parts, encounter, context, state, unit, kind: inherit.shareKind ?? "", rng, shares, choices });
   if (!evaluated.ok) return { ok: false, reason: evaluated.reason, lair: evaluated.lair ?? null };

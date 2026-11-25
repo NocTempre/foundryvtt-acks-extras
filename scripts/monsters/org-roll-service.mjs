@@ -9,9 +9,10 @@
 import { MODULE_ID } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { registryBands } from "../lib/template-bands.mjs";
-import { SPECIAL } from "./organisation-logic.mjs";
+import { splitShares } from "./organisation-logic.mjs";
+import { importedOrganisation } from "./organisation.mjs";
 import { troopOptions } from "./org-chart-logic.mjs";
-import { silentChoices, slotOptions, willMake } from "./organisation-preview.mjs";
+import { silentChoices, slotOptions, slotUnit, willMake } from "./organisation-preview.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
 
@@ -26,10 +27,12 @@ function encounterOf(family, variant) {
 export const orgRollService = {
   /**
    * The panel's two sections and the unit slots for a variant at the picks made so far.
-   * @param {{family: Actor, variant: string, context?: string, state?: string, rules?: object, chosen?: object}} args
-   * @returns {{choices: object[], make: {line: object|null, rows: object[]}, shares: object[], troops: object[], special: string}|null} null where the variant carries no encounter line
+   * `slots` are the empty unit rows a Design panel lists, each its key, its depth below the chart's top
+   * and the word the top row holds; `slotUnits` answers each the unit word a Roll of that row rolls.
+   * @param {{family: Actor, variant: string, context?: string, state?: string, rules?: object, chosen?: object, slots?: {key: string, depth: number, topKind?: string}[]}} args
+   * @returns {{choices: object[], make: {line: object|null, rows: object[]}, shares: object[], troops: object[], special: string, slotUnits: Object<string, {word: string, sure: boolean}>}|null} `shares` are the ones the evaluator splits by in this state and under these rules, `special` the share a troop pick is read for (blank where none is); null where the variant carries no encounter line
    */
-  describe({ family, variant, context = "wilderness", state = "wandering", rules = {}, chosen = {} } = {}) {
+  describe({ family, variant, context = "wilderness", state = "wandering", rules = {}, chosen = {}, slots = [] } = {}) {
     const encounter = encounterOf(family, variant);
     if (!encounter) return null;
     const recipe = encounter.recipe ?? [];
@@ -39,7 +42,9 @@ export const orgRollService = {
       tip: loc(c.group ? "organisation.choice.branchTip" : `organisation.choice.${c.key}Tip`),
       options: c.options.map((o) => ({ key: o.key, label: o.label ?? loc(`organisation.choice.${c.key}.${o.key}`), selected: o.key === c.current })),
     }));
-    const made = willMake({ recipe, encounter, context, state, chosen });
+    const org = importedOrganisation();
+    const { shares: imported } = splitShares({ org, rules });
+    const made = willMake({ recipe, encounter, context, state, chosen, shares: imported, shareCite: org.organisation?.cite ?? "" });
     const rows = made.rows.map((r) => ({
       label: r.label,
       formula: r.formula,
@@ -47,8 +52,9 @@ export const orgRollService = {
       tip: loc("organisation.willMake.rowTip", { label: r.label, cite: r.cite }),
     }));
     const line = made.line ? { text: `${made.line.noun} ${made.line.number}`, tip: loc("organisation.willMake.lineTip", { where: `${variant}, ${context}, ${state}` }) } : null;
-    const { shares } = slotOptions({ recipe, troops: rules.troops, share: SPECIAL });
+    const { shares, troopShare } = slotOptions({ recipe, encounter, context, state, shares: imported });
+    const slotUnits = Object.fromEntries(slots.map((s) => [s.key, slotUnit({ recipe, encounter, context, state, topKind: s.topKind ?? "", depth: s.depth })]));
     const system = family?.system?.toObject?.() ?? family?.system;
-    return { choices, make: { line, rows }, shares, troops: troopOptions({ system, variant, bandOf: registryBands() }), special: SPECIAL };
+    return { choices, make: { line, rows }, shares, troops: troopOptions({ system, variant, bandOf: registryBands() }), special: troopShare, slotUnits };
   },
 };

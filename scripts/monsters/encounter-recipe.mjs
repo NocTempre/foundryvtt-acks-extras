@@ -131,7 +131,58 @@ export function sidesOf(recipe, encounter) {
 }
 
 const isSize = (p) => String(p?.key ?? "").startsWith("size-");
-const appliesTo = (p, word) => (p.when?.units ?? []).some((u) => unitWord(u) === word);
+/** Does a part apply to a unit word? The one test the evaluator gates every part but a size and a split share by. */
+export const appliesTo = (p, word) => (p.when?.units ?? []).some((u) => unitWord(u) === word);
+
+/**
+ * The line the evaluator reads for a unit word: the side the roll is on for the top unit, else
+ * a side of the same place that states the word, else any side that does.
+ * @param {object[]} sides `sidesOf`'s answer
+ * @param {string} context
+ * @param {object|undefined} own the side the roll is on
+ * @returns {(word: string, top: boolean) => object|null}
+ */
+export const lineReader = (sides, context, own) => (word, top) => {
+  if (top && own && own.word === word) return own;
+  return sides.find((s) => s.word === word && s.place === context) ?? sides.find((s) => s.word === word) ?? null;
+};
+
+/** The unit words the recipe's split shares name; empty where none names one, which leaves every level open to a split. */
+export const splitUnitsOf = (recipe) => new Set((recipe ?? []).filter((p) => p?.role === "body" && p.count?.ratioOf === "unit").flatMap((p) => p.when?.units ?? []).map(unitWord));
+
+/**
+ * The unit words the evaluator's tree stands on for a side, top first, each with the line the
+ * evaluator reads for it (null where the line states no count, which the evaluator reports as a
+ * missing size). The same walk `evaluateRecipe` builds its tree by, without a throw: a level's
+ * word is its parent's `childWord`, and the walk stops at bodies, at a missing line, at a word
+ * already above it and at the depth cap.
+ *
+ * @param {object} args
+ * @param {object[]} args.recipe
+ * @param {object|null} args.encounter
+ * @param {"dungeon"|"wilderness"} [args.context]
+ * @param {"wandering"|"lair"} [args.state] a side; `chance` is two sides and is read by the caller
+ * @param {string} [args.unit] start from this unit word instead of the side's own noun
+ * @returns {{word: string, line: object|null}[]}
+ */
+export function reachedWords({ recipe = [], encounter = null, context = "wilderness", state = "wandering", unit = "" } = {}) {
+  const sides = sidesOf(recipe, encounter);
+  const own = sides.find((s) => s.place === context && s.state === state);
+  const first = unit ? unitWord(unit) : own?.word;
+  if (!first || (!unit && !own)) return [];
+  const lineFor = lineReader(sides, context, own);
+  const out = [];
+  let word = first;
+  let chain = [];
+  while (word) {
+    const line = chain.length > MAX_DEPTH ? null : lineFor(word, !out.length);
+    out.push({ word, line });
+    if (!line || !line.childWord || chain.includes(line.childWord)) break;
+    chain = [...chain, word];
+    word = line.childWord;
+  }
+  return out;
+}
 /** The formula a part's count states, or "" where it states none a roll reads. */
 const formulaOf = (p) => (p.count?.dice ? String(p.count.dice) : p.count?.literal != null ? String(p.count.literal) : "");
 
@@ -176,10 +227,7 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
   const topWord = unit ? unitWord(unit) : own?.word;
   if (!topWord || (!unit && !own)) return { ok: false, reason: "side", lair };
 
-  const lineFor = (word, top) => {
-    if (top && own && own.word === word) return own;
-    return sides.find((s) => s.word === word && s.place === context) ?? sides.find((s) => s.word === word) ?? null;
-  };
+  const lineFor = lineReader(sides, context, own);
 
   let serial = 0;
   const build = (word, parentKey, chain, top) => {
@@ -215,7 +263,7 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
   const sizeBodyKey = (recipe ?? []).find((p) => isSize(p) && p.role === "body" && p.when?.state === found && p.when?.place === context)?.key ?? "bodies";
 
   // The level the shares divide: the first with more than one unit, else the deepest, among levels whose words the shares name.
-  const splitUnits = new Set((recipe ?? []).filter((p) => p?.role === "body" && p.count?.ratioOf === "unit").flatMap((p) => p.when?.units ?? []).map(unitWord));
+  const splitUnits = splitUnitsOf(recipe);
   const named = (node) => !splitUnits.size || splitUnits.has(node.unit);
   if (kind) {
     for (const node of all) node.kind = kind;
