@@ -2193,6 +2193,25 @@ where it changed nothing, copies those fields onto the step, and answers a
 judge stage with `applied: null`, the steps before it and the stage as
 `judge`; nothing after it runs and nothing is rounded.
 
+**A reduction per die.** An ability can carry a `modifier` row `{target:
+"damageReduction", perDie: true, value, gate?}` (`actorReductions`), the figure
+the carrier's own and imported. `reductionStage(reductions, damage)` turns the
+ones that hold against a hit into one stage, `{key: "perDie", label, band:
+"reduction", minus, per, dice, source, cite}`, with `minus` the carriers'
+figures added times the dice the damage roll held; `amountAfter` takes `minus`
+off and stops at zero, and keeps the step with its source and page like a
+defense's. The gate is one of the weapon's item gates, `weaponMundane` or
+`weaponMagical` (`roll-mods.mjs` registers both, reading `isMagical`). The weapon
+is not in hand at the press, so the attack seam stamps their verdicts on the
+card (`gates`, `weaponGatesOf`) beside the die count of the damage roll the card
+holds (`dice`, `damageDiceOf`: the roll core marks as the damage's, each term's
+own number, so a critical's doubled dice count). A gate the stamp cannot answer,
+and a card with no die count (an older one), give no stage and a `skipped`
+list on the plan, `[{source, why}]`, `why` being `gate` or `dice`: nothing is
+reduced on a guess. `planAttackApply` runs the reduction BEFORE the defenses'
+stage, since it acts on the dice and a defense on what is left; the order is the
+module's, not a page's.
+
 **The save.** `defenseSaveParts(sources, damage, figures)` reads the same
 coverage: immune is an `auto` success; resist is a target part of `saveBonus`;
 susceptible is a target part of the creature's `save`; a figure that is blank,

@@ -43,6 +43,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "../vocab.mjs";
 import { silverOf } from "../damage-type.mjs";
+import { gateVerdict } from "../typed-modifiers.mjs";
 
 /** The attack kind a spell's damage is made under. Core has three; this is the fourth, registered by this seam. */
 export const MAGIC_ATTACK_TYPE = "magic";
@@ -451,6 +452,29 @@ export function attackDamageOf(item) {
   };
 }
 
+/** The `rollOrder` core gives the damage roll of an attack card (the attack's is 1). */
+const DAMAGE_ROLL_ORDER = 2;
+
+/**
+ * The dice a damage roll held, counting each term's own number (a critical's
+ * doubled dice included), or null where no roll is the damage roll or none can
+ * be read. The roll is the one core marked `rollOrder` 2.
+ *
+ * @param {Array<{options?: object, dice?: object[], terms?: object[]}>} [rolls]  a message's rolls
+ */
+export function damageDiceOf(rolls) {
+  const roll = Array.from(rolls ?? []).find((r) => r?.options?.rollOrder === DAMAGE_ROLL_ORDER);
+  if (!roll) return null;
+  const terms = Array.from(roll.dice ?? (roll.terms ?? []).filter((t) => Number.isFinite(t?.faces)));
+  const total = terms.reduce((sum, t) => sum + (Number.isFinite(Number(t?.number)) ? Number(t.number) : 0), 0);
+  return total > 0 ? total : null;
+}
+
+/** The verdicts of the item gates a reduction may name (`defenses.mjs` `REDUCTION_GATES`) for the weapon of an attack: true, false, or null for a kind nothing answers. */
+export function weaponGatesOf(item) {
+  return Object.fromEntries(["weaponMundane", "weaponMagical"].map((kind) => [kind, item ? gateVerdict(null, { kind }, { item }) : null]));
+}
+
 /** The attribute `name` of the first apply-damage button in a card's markup, or null. */
 function applyAttribute(content, name) {
   const tag = /<button\b[^>]*data-action="applyDamage"[^>]*>/.exec(content)?.[0];
@@ -468,14 +492,19 @@ function applyAttribute(content, name) {
  * @param {Map<string, {types: string[], extraordinary: boolean, silver: boolean}>} byUuid
  * @returns {{targetUuid: string, rolled: number, types: string[], extraordinary: boolean, silver: boolean}|null}
  */
-export function attackApplyMatch({ actorUuids = [], content = "" } = {}, byUuid = attackDamageInFlight) {
+export function attackApplyMatch({ actorUuids = [], content = "", rolls } = {}, byUuid = attackDamageInFlight) {
   if (typeof content !== "string" || !content.includes("attack-throw-card")) return null;
   const damage = heldUnder(actorUuids, byUuid);
   const targetUuid = applyAttribute(content, "target-uuid");
   const text = applyAttribute(content, "damage");
   const rolled = text === null || text.trim() === "" ? NaN : Number(text);
   if (!damage || !targetUuid || !Number.isFinite(rolled) || rolled < 0) return null;
-  return { targetUuid, rolled, types: [...damage.types], extraordinary: damage.extraordinary, silver: damage.silver };
+  const dice = damageDiceOf(rolls);
+  return {
+    targetUuid, rolled, types: [...damage.types], extraordinary: damage.extraordinary, silver: damage.silver,
+    ...(damage.gates ? { gates: damage.gates } : {}),
+    ...(dice !== null ? { dice } : {}),
+  };
 }
 
 /**
@@ -487,7 +516,7 @@ export function attackApplyMatch({ actorUuids = [], content = "" } = {}, byUuid 
 function onPreCreateMessage(message) {
   try {
     const actor = ChatMessage.getSpeakerActor(message?.speaker);
-    const data = { actorUuids: speakerActorUuids(actor), content: message?.content };
+    const data = { actorUuids: speakerActorUuids(actor), content: message?.content, rolls: message?.rolls };
     const info = carrierCardMatch(data, carrierInFlight);
     if (info) {
       message.updateSource({
@@ -602,7 +631,7 @@ async function onMakeAttackThrow(wrapped, options = {}) {
   if (carried) carrierInFlight.set(this.uuid, { castId: carried.castId, rowKey: carried.rowKey, spellUuid: carried.spellUuid });
   // Any other attack is known by its weapon's damage, for the card's Apply press.
   const priorDamage = carried ? null : (attackDamageInFlight.get(this.uuid) ?? null);
-  if (!carried) attackDamageInFlight.set(this.uuid, attackDamageOf(ctx.item));
+  if (!carried) attackDamageInFlight.set(this.uuid, { ...attackDamageOf(ctx.item), gates: weaponGatesOf(ctx.item) });
   let outcome = null;
   try {
     outcome = await wrapped({ ...options, item: ctx.item, attackType: ctx.type ?? undefined });

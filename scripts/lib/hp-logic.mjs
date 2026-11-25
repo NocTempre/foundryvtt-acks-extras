@@ -84,7 +84,7 @@ export function roundHalfEven(x) {
 }
 
 /** The fields of a stage that its step keeps, so a card can say what the stage was (`defenses.mjs` writes them). */
-const STEP_DETAIL = ["band", "types", "source", "cite", "why"];
+const STEP_DETAIL = ["band", "types", "source", "cite", "why", "per", "dice"];
 
 /**
  * The amount a creature takes from a rolled amount: the save's `fraction`
@@ -93,6 +93,9 @@ const STEP_DETAIL = ["band", "types", "source", "cite", "why"];
  * is skipped. A stage that names a `band` is a defense (`defenses.mjs`
  * `defenseStage`): its step is kept even where it changed nothing, and carries
  * the stage's `band`, `types`, `source`, `cite` and `why`. A stage with `judge`
+ * A stage with `minus` takes that much off the amount and never below zero
+ * (`defenses.mjs` `reductionStage`); it names a `band` like a defense, so its
+ * step is kept with its `per`, `dice`, `source` and `cite`. A stage with `judge`
  * set is a case the module does not compute: the answer has `applied: null`,
  * the steps taken so far and the stage as `judge`, and nothing is rounded.
  * No floor is applied: the amount may come out zero.
@@ -108,7 +111,7 @@ export function amountAfter(rolled, { fraction = 1, stages = [] } = {}) {
   const steps = [];
   let amount = start;
   const apply = (key, next, label, stage = null) => {
-    const kept = stage?.band ? Object.fromEntries(STEP_DETAIL.filter((k) => stage[k] != null).map((k) => [k, stage[k]])) : null;
+    const kept = stage?.band || stage?.minus != null ? Object.fromEntries(STEP_DETAIL.filter((k) => stage[k] != null).map((k) => [k, stage[k]])) : null;
     if (next !== amount || kept) steps.push({ key, ...(label ? { label } : {}), ...(kept ?? {}), before: amount, after: next });
     amount = next;
   };
@@ -117,7 +120,8 @@ export function amountAfter(rolled, { fraction = 1, stages = [] } = {}) {
   for (const [i, stage] of stages.entries()) {
     if (!stage) continue;
     if (stage.judge) return { rolled: start, applied: null, steps, judge: stage };
-    const next = typeof stage === "function" ? Number(stage(amount)) : amount * Number(stage?.factor);
+    const next =
+      typeof stage === "function" ? Number(stage(amount)) : stage?.minus != null ? Math.max(0, amount - Number(stage.minus)) : amount * Number(stage?.factor);
     if (Number.isFinite(next)) apply(stage?.key ?? `stage${i}`, next, stage?.label, typeof stage === "function" ? null : stage);
   }
   apply("round", roundHalfEven(amount));

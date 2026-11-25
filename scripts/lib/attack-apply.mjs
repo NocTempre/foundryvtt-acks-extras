@@ -20,7 +20,7 @@
  */
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { amountAfter, HP_MODE } from "./hp-logic.mjs";
-import { actorDefenses, defenseFigures, defenseStage } from "./defenses.mjs";
+import { actorDefenses, actorReductions, defenseFigures, defenseStage, reductionStage } from "./defenses.mjs";
 import { ATTACK_APPLY_FLAG } from "./patches/attack-throw.mjs";
 import { docOf, el, elementOf, locOr } from "./util.mjs";
 
@@ -56,20 +56,26 @@ const damageOfFlag = (flag) => ({ types: flag?.types ?? [], extraordinary: flag?
 
 /**
  * What a press would apply to `actor` now: `amountAfter` over the stamp's
- * rolled figure and the stage the actor's defenses make for its damage.
+ * rolled figure and two stages in this order: the actor's reductions per die
+ * (`reductionStage`, over the stamp's die count and weapon gates), then the stage
+ * the actor's defenses make for its damage. A reduction that could not be
+ * decided comes back as `skipped`, `[{source, why}]`, on the plan.
  *
- * @param {{rolled: number, types?: string[], extraordinary?: boolean, silver?: boolean}} flag  the stamp
+ * @param {{rolled: number, types?: string[], extraordinary?: boolean, silver?: boolean, dice?: number, gates?: object}} flag  the stamp
  * @param {Actor|null} actor
- * @param {{sources?: object[], figures?: object}} [read]  in place of the actor's defenses and the world's resistance figures
+ * @param {{sources?: object[], figures?: object, reductions?: object[]}} [read]  in place of the actor's defenses, the world's resistance figures and the actor's reductions
  * @returns {ReturnType<typeof amountAfter>}
  */
 export function planAttackApply(flag, actor, read = {}) {
   const stage = defenseStage(read.sources ?? actorDefenses(actor), damageOfFlag(flag), read.figures ?? defenseFigures());
-  return amountAfter(flag.rolled, { stages: [stage] });
+  const reduced = reductionStage(read.reductions ?? actorReductions(actor), flag);
+  const plan = amountAfter(flag.rolled, { stages: [reduced.stage, stage] });
+  return reduced.skipped.length ? { ...plan, skipped: reduced.skipped } : plan;
 }
 
 /** One step as a line of a tooltip. */
 function stepLine(step, named, loc) {
+  if (step.key === "perDie") return loc("step.perDie", { source: step.source ?? "", cite: step.cite ?? "", per: step.per, dice: step.dice, before: step.before, after: step.after });
   if (step.key === "defense") return loc("step.defense", { defense: defenseWord(step, named, loc), before: step.before, after: step.after });
   return loc("step.round", { before: step.before, after: step.after });
 }

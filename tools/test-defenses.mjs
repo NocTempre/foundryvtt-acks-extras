@@ -18,8 +18,11 @@ import * as T from "../scripts/lib/tables.mjs";
 import {
   DEFENSES_DOC, RESISTANCE_TABLE, actorDefenses, damageOf, defenseCite, defenseCoverage, defenseFigures, defenseSaveParts, defenseStage,
 } from "../scripts/lib/defenses.mjs";
-import { amountAfter } from "../scripts/lib/hp-logic.mjs";
 import { applyAttackHit, defenseWord, namesDefense, planAttackApply, stepsTip, undoAttackHit } from "../scripts/lib/attack-apply.mjs";
+import { amountAfter } from "../scripts/lib/hp-logic.mjs";
+import { actorReductions, reductionStage } from "../scripts/lib/defenses.mjs";
+import { registerGate } from "../scripts/lib/typed-modifiers.mjs";
+import { weaponGatesOf } from "../scripts/lib/patches/attack-throw.mjs";
 
 let passed = 0;
 const t = async (name, fn) => {
@@ -375,6 +378,68 @@ await t("planAttackApply reduces the stamped figure through the one reducer", as
   assert.deepEqual(plan.steps.map((s) => s.key), ["defense"]);
   assert.equal(planAttackApply(STAMP, actorOf(), { sources: [], figures: FIGURES }).applied, 10, "no defense, the rolled figure");
   assert.equal(planAttackApply({ ...STAMP, rolled: 0 }, actorOf(), { sources: [], figures: FIGURES }).applied, 0);
+});
+
+/* --- a reduction per die ---------------------------------------------------- */
+
+const reduction = (source, per, { gate = null, cite = "" } = {}) => ({ source, cite, per, gate });
+
+await t("a reduction is read off an ability's row: per die, a positive figure, one of the weapon gates, copies once", () => {
+  const row = (extra = {}) => ({ type: "modifier", target: "damageReduction", perDie: true, value: 2, ...extra });
+  const ability = (name, effects, cite = "") => ({ type: "ability", name, flags: { "acks-extras": { extras: { effects }, ...(cite ? { cookbook: { cite } } : {}) } } });
+  const read = (...items) => actorReductions({ type: "monster", items });
+  assert.deepEqual(read(ability("Hide", [row({ gate: { kind: "weaponMundane" } })], "Pg 2")), [{ source: "Hide", cite: "Pg 2", per: 2, gate: "weaponMundane" }]);
+  assert.deepEqual(read(ability("Hide", [row()])), [{ source: "Hide", cite: "", per: 2, gate: null }], "no gate: every hit");
+  assert.deepEqual(read(ability("Odd", [row({ gate: { kind: "unregistered" } })])).map((r) => r.gate), ["?"], "a gate it cannot read is kept to be refused");
+  assert.deepEqual(read(ability("Flat", [row({ perDie: false })]), ability("None", [row({ value: null })]), ability("Zero", [row({ value: 0 })]), ability("Theirs", [row({ appliesTo: "opponent" })])), [], "not per die, no figure, a zero, or the opponent's");
+  assert.equal(read(ability("Hide", [row()]), ability("Hide", [row()])).length, 1);
+  assert.deepEqual(actorReductions(null), []);
+});
+
+await t("the stage takes the figure for each die, never below zero, for the gated kind only", () => {
+  const stamp = { dice: 3, gates: { weaponMundane: true, weaponMagical: false } };
+  const mundane = reduction("Hide", 2, { gate: "weaponMundane", cite: "Pg 2" });
+  const { stage, skipped } = reductionStage([mundane], stamp);
+  assert.deepEqual([stage.key, stage.minus, stage.per, stage.dice, stage.source, stage.cite, stage.band], ["perDie", 6, 2, 3, "Hide", "Pg 2", "reduction"], "2 per die over 3 dice");
+  assert.deepEqual(skipped, []);
+  assert.equal(amountAfter(10, { stages: [stage] }).applied, 4);
+  const floored = amountAfter(5, { stages: [stage] });
+  assert.equal(floored.applied, 0, "never below zero");
+  assert.deepEqual(floored.steps.find((s) => s.key === "perDie"), { key: "perDie", label: stage.label, band: "reduction", source: "Hide", cite: "Pg 2", per: 2, dice: 3, before: 5, after: 0 }, "the step names source, page and the figures");
+  assert.equal(reductionStage([mundane], { ...stamp, gates: { weaponMundane: false } }).stage, null, "a weapon of the other kind is not reduced");
+  assert.deepEqual(reductionStage([mundane], { ...stamp, gates: { weaponMundane: false } }).skipped, [], "and that is not news");
+  assert.equal(reductionStage([reduction("Any", 1)], { dice: 2 }).stage.minus, 2, "no gate: every hit");
+  const two = reductionStage([reduction("A", 1, { cite: "p1" }), reduction("B", 2, { cite: "p1" }), reduction("C", 5, { gate: "weaponMagical" })], stamp).stage;
+  assert.deepEqual([two.minus, two.source, two.cite], [9, "A, B", "p1"], "carriers add, and a gate that does not hold leaves one out");
+});
+
+await t("no die count, or a gate nothing can answer, is no stage and a reason", () => {
+  const mundane = reduction("Hide", 2, { gate: "weaponMundane" });
+  assert.deepEqual(reductionStage([mundane], { gates: { weaponMundane: true } }), { stage: null, skipped: [{ source: "Hide", why: "dice" }] }, "an older card carries no dice");
+  assert.deepEqual(reductionStage([mundane], { dice: 0, gates: { weaponMundane: true } }).skipped, [{ source: "Hide", why: "dice" }]);
+  assert.deepEqual(reductionStage([mundane], { dice: 3, gates: { weaponMundane: null } }), { stage: null, skipped: [{ source: "Hide", why: "gate" }] }, "a weapon whose magic nothing could say");
+  assert.deepEqual(reductionStage([mundane], { dice: 3 }).skipped, [{ source: "Hide", why: "gate" }]);
+  assert.deepEqual(reductionStage([reduction("Odd", 1, { gate: "?" })], { dice: 3 }).skipped, [{ source: "Odd", why: "gate" }]);
+  assert.deepEqual(reductionStage([], { dice: 3 }), { stage: null, skipped: [] });
+});
+
+await t("the weapon's gates are stamped from the registered gate kinds, and the plan runs the reduction before the defense", () => {
+  registerGate("weaponMundane", (_a, _g, ctx) => (ctx?.item ? !ctx.item.magic : null), { at: "item" });
+  registerGate("weaponMagical", (_a, _g, ctx) => (ctx?.item ? ctx.item.magic === true : null), { at: "item" });
+  assert.deepEqual(weaponGatesOf({ magic: false }), { weaponMundane: true, weaponMagical: false });
+  assert.deepEqual(weaponGatesOf({ magic: true }), { weaponMundane: false, weaponMagical: true });
+  assert.deepEqual(weaponGatesOf(null), { weaponMundane: null, weaponMagical: null }, "an attack with no weapon states neither");
+  const stamp = { ...STAMP, rolled: 10, dice: 2, gates: { weaponMundane: true, weaponMagical: false } };
+  const hide = [reduction("Hide", 1, { gate: "weaponMundane", cite: "Pg 2" })];
+  const mantle = [source("Mantle", { resist: { damage: ["fire"] } })];
+  const plan = planAttackApply(stamp, actorOf(), { sources: mantle, figures: FIGURES, reductions: hide });
+  assert.deepEqual(plan.steps.map((s) => s.key).slice(0, 2), ["perDie", "defense"], "the reduction acts on the dice first");
+  assert.equal(plan.applied, 6, "10 less 2, then the resistant fraction");
+  assert.equal(plan.skipped, undefined);
+  assert.equal(planAttackApply({ ...stamp, dice: undefined }, actorOf(), { sources: [], figures: FIGURES, reductions: hide }).skipped[0].why, "dice");
+  assert.equal(planAttackApply(stamp, actorOf(), { sources: [], figures: FIGURES, reductions: [] }).applied, 10, "no reduction, the rolled figure");
+  const tip = stepsTip(10, plan.steps, true, (key, data) => `${key}|${data.source ?? data.defense ?? ""}|${data.per ?? ""}|${data.after}`);
+  assert.match(tip, /step\.perDie\|Hide\|1\|8/, "the card's tooltip names the reduction");
 });
 
 await t("a press writes once through the writer at multiplier 1 and stores the result", async () => {

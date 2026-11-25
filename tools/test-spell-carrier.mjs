@@ -429,7 +429,16 @@ await ok("a weapon attack's card loses its Apply and gains the stamp in one upda
   assert.equal(during.updates[0].content, '<section class="acksii chat-card attack-throw-card"><footer>after</footer></section>');
   assert.deepEqual(during.updates[0][`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}`], {
     targetUuid: "Scene.s1.Token.t9", rolled: 11, types: ["slashing"], extraordinary: false, silver: true,
+    gates: { weaponMundane: null, weaponMagical: null },
   });
+  const rolled = message();
+  rolled.rolls = [{ options: { rollOrder: 1 }, dice: [{ number: 1, faces: 20 }] }, { options: { rollOrder: 2 }, dice: [{ number: 2, faces: 6 }, { number: 1, faces: 4 }] }];
+  await makeAttackThrow.call(actor, async () => { hook(rolled); return null; }, { item: blade });
+  assert.equal(rolled.updates[0][`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}`].dice, 3, "the stamp carries the dice of the damage roll, not the attack's");
+  assert.equal(seam.damageDiceOf([{ options: { rollOrder: 1 }, dice: [{ number: 1, faces: 20 }] }]), null, "no damage roll, no die count");
+  assert.equal(seam.damageDiceOf([{ options: { rollOrder: 2 }, dice: [] }]), null, "a flat roll holds no die");
+  assert.equal(seam.damageDiceOf([{ options: { rollOrder: 2 }, terms: [{ number: 4, faces: 6 }, { number: 3 }] }]), 4, "terms with faces are dice");
+  assert.equal(seam.damageDiceOf(undefined), null);
   assert.equal(`flags.acks-extras.${MAGIC_ATTACK_FLAG}` in during.updates[0], false, "it is no cast's card");
   const after = message();
   hook(after);

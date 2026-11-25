@@ -32,6 +32,7 @@
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { getMonsterExtras } from "./senses.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
+import { consumedRows } from "./typed-modifiers.mjs";
 import { locOr, numOrNull } from "./util.mjs";
 
 /** The registered document resistance's printed figures arrive in. */
@@ -313,6 +314,76 @@ export function defenseStage(sources, damage, figures = {}) {
   const factor = c.outcome === DEFENSE_OUTCOME.resist ? numOrNull(figures?.fraction) : c.factor;
   if (factor == null) return judge(JUDGE_WHY.figure);
   return { ...detail(c, c.outcome, figures), factor };
+}
+
+/* -------------------------------------------- */
+/*  A reduction per die                          */
+/* -------------------------------------------- */
+
+/** The `modifier` target of an ability row that takes an amount off each damage die. */
+export const REDUCTION_TARGET = "damageReduction";
+
+/** The item gates a reduction may name, each answered at the attack and stamped on its card (`roll-mods.mjs` registers both). */
+export const REDUCTION_GATES = Object.freeze(["weaponMundane", "weaponMagical"]);
+
+/**
+ * The reductions an actor's abilities carry: a `modifier` row `{target:
+ * "damageReduction", perDie: true, value, gate?: {kind}}`, the figure the
+ * carrier's own, imported. `[{source, cite, per, gate}]`, `gate` the kind or
+ * null; a row with no positive figure, or not per die, is left out, and a gate
+ * of another kind is kept as `gate: "?"` for `reductionStage` to refuse.
+ *
+ * @param {object} actor
+ * @param {{resolve?: Function}} [options]
+ */
+export function actorReductions(actor, options = {}) {
+  const out = [];
+  for (const { item, spec, value } of consumedRows(actor, REDUCTION_TARGET, options)) {
+    if (spec.perDie !== true || typeof value !== "number" || !(value > 0) || spec.appliesTo === "opponent") continue;
+    const kind = spec.gate?.kind ?? null;
+    const cite = String(item?.getFlag?.(MODULE_ID, "cookbook")?.cite ?? item?.flags?.[MODULE_ID]?.cookbook?.cite ?? "").trim();
+    out.push({ source: String(item?.name ?? ""), cite, per: value, gate: kind === null ? null : REDUCTION_GATES.includes(kind) ? kind : "?" });
+  }
+  return out;
+}
+
+/**
+ * The stage `amountAfter` takes for the reductions that hold against this hit,
+ * or null: `{stage, skipped}`. The stage is `{key: "perDie", label, band:
+ * "reduction", minus, per, dice, source, cite}`, `minus` the carriers' figures
+ * added times the dice the damage roll held, which `amountAfter` takes off and
+ * floors at zero. A gate the stamp answers false is not news; one it cannot
+ * answer (no verdict, an unregistered kind) is `skipped` with `why: "gate"`, and
+ * a hit whose die count is unknown skips every reduction that would apply with
+ * `why: "dice"`. Nothing is reduced on a guess.
+ *
+ * @param {Array<{source: string, cite: string, per: number, gate: string|null}>} reductions  `actorReductions`
+ * @param {{dice?: number|null, gates?: Record<string, boolean|null>}} damage  the stamp's die count and item-gate verdicts
+ */
+export function reductionStage(reductions, damage = {}) {
+  const skipped = [];
+  const holding = [];
+  for (const r of reductions ?? []) {
+    const verdict = r.gate === null ? true : (r.gate === "?" ? null : (damage?.gates?.[r.gate] ?? null));
+    if (verdict === true) holding.push(r);
+    else if (verdict === null) skipped.push({ source: r.source, why: "gate" });
+  }
+  if (!holding.length) return { stage: null, skipped };
+  const dice = numOrNull(damage?.dice);
+  if (dice === null || dice < 1) return { stage: null, skipped: [...skipped, ...holding.map((r) => ({ source: r.source, why: "dice" }))] };
+  const per = holding.reduce((sum, r) => sum + r.per, 0);
+  const cites = [...new Set(holding.map((r) => r.cite).filter(Boolean))];
+  const stage = {
+    key: "perDie",
+    label: word("band.perDie", "Reduced per die"),
+    band: "reduction",
+    minus: per * dice,
+    per,
+    dice,
+    source: [...new Set(holding.map((r) => r.source).filter(Boolean))].join(", "),
+    cite: cites.length ? cites.join(" · ") : null,
+  };
+  return { stage, skipped };
 }
 
 /* -------------------------------------------- */

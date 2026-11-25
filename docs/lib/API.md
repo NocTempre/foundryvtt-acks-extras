@@ -1373,6 +1373,22 @@ A window draws `bucketView`'s result with the `TEMPLATE` partial and binds `loc`
 `makeLoc(BUCKET_LANG_PREFIX)`; it wires `BUCKET_ACTIONS` (`bucketRemove`, `bucketFit`, `bucketPick`)
 and the `data-bucket-drop` zone itself.
 
+## A reduction per die (`defenses.mjs`; not on the lib api yet)
+
+The model is docs/lib/MODEL.md, "Damage against defenses".
+
+```
+REDUCTION_TARGET, REDUCTION_GATES     // "damageReduction"; ["weaponMundane", "weaponMagical"]
+actorReductions(actor) → [{source, cite, per, gate}]
+reductionStage(reductions, {dice, gates}) → {stage: {key: "perDie", label, band, minus, per, dice, source, cite} | null, skipped: [{source, why}]}
+planAttackApply(stamp, actor, {sources?, figures?, reductions?}) → amountAfter's answer, plus skipped when a reduction could not be decided
+patches/attack-throw.mjs: damageDiceOf(rolls) → number | null; weaponGatesOf(item) → {weaponMundane, weaponMagical}
+```
+
+The attack card's stamp (`flags["acks-extras"].attackApply`) gains `dice` (absent
+where no die count could be read) and `gates`. `amountAfter` takes a stage with
+`minus`.
+
 ## Delayed damage (`scripts/lib/delayed-damage.mjs`, Foundry-free but `installDelayedDamage`; not on the lib api yet)
 
 The model is docs/lib/MODEL.md, "Damage that lands later".
