@@ -1597,6 +1597,34 @@ staged). The Org chart tab is the tree. `architect` has seen none of these
 answers; a fresh one is given them verbatim, and its result is the next
 entry.
 
+### The owner on "absorbed", not yet understood, 2026-11-24
+
+Asked `architect`'s question 4 as "On a re-roll, does an entry that is away
+stand as if pinned, or is the re-roll refused?", with the buttons "Stands as
+pinned" and "Refuse the re-roll" and the gloss "a gang that is away (sent out
+or deployed)", the owner chose neither and wrote:
+
+"It gets absorbed if part of the combat"
+
+The design session cannot tell which question this answers, and builds on
+neither reading until the owner says:
+
+- (a) It is about the combat, and adds to "Every body": a gang that is out
+  as a group of its own, and is part of the combat its warband joins, is
+  taken into the warband's side of that combat as one of its gangs, with its
+  one initiative, and has no separate entry there. Example: Gang 1 stands on
+  the map as its own token; the warband's token joins the same combat; Gang
+  1's bodies come in with the rest and Gang 1 is one initiative group among
+  the warband's.
+- (b) It is about the re-roll: a gang whose bodies are deployed in a combat
+  beside its warband is not away at all, and a re-roll treats it as part of
+  the warband. What happens to a gang at another place is then still
+  unanswered.
+
+Question 4 stays open either way for a gang that is at another place and in
+no combat. `architect`, already running, was not sent these words. Released:
+none.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
