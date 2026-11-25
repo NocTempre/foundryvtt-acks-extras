@@ -739,10 +739,12 @@ try {
     cards3.map((c) => ({ toJudges: c.toJudges, isPublic: c.isPublic, mentions: c.mentions })),
   );
   const listed3 = await run(gm, P.assignments, { fid });
-  check("the hasty entries are gone from the plan", !st3.plan?.[skilledId] && !st3.plan?.[plainId] && listed3.length === 0, { plan: Object.keys(st3.plan ?? {}).length });
+  // The round's resolver stamps each due entry and keeps it; the next turn's count drops it.
+  const stampedHasty = (st, id) => st.plan?.[id]?.key === "sceneHasty" && st.plan[id].resolvedTurn != null;
+  check("the hasty entries stay in the plan stamped resolved, and the assignments list them resolved", stampedHasty(st3, skilledId) && stampedHasty(st3, plainId) && listed3.length === 2 && listed3.every((a) => a.resolved), { plan: Object.keys(st3.plan ?? {}).length, listed: listed3.length, resolved: listed3.map((a) => a.resolved) });
   const again = await run(gm, P.assign, { fid, actorId: plainId, layer: "hasty", entryKey: "thing:floor-1" });
   const stAgain = await run(gm, P.state, { fid, partyId, placeId });
-  check("a second searcher at the floor already found is refused alreadyFound and logs nothing", again.reason === "scene:alreadyFound" && (stAgain.log ?? []).length === rows3.length && !stAgain.plan?.[plainId], { reason: again.reason });
+  check("a second searcher at the floor already found is refused alreadyFound and logs nothing", again.reason === "scene:alreadyFound" && (stAgain.log ?? []).length === rows3.length && stampedHasty(stAgain, plainId), { reason: again.reason, kept: stampedHasty(stAgain, plainId) });
   const methodicalAssign = await run(gm, P.assign, { fid, actorId: plainId, layer: "methodical", entryKey: "thing:fixture-1" });
   const stM = await run(gm, P.state, { fid, partyId, placeId });
   check("the plain searcher is assigned the fixture's methodical check", methodicalAssign.ok && stM.plan?.[plainId]?.key === "sceneMethodical" && stM.plan[plainId].option === "thing:fixture-1", { reason: methodicalAssign.reason });
@@ -756,7 +758,7 @@ try {
   await claimCards(since);
   const failed = layerIn(st4, "floor-2", "hasty").failed ?? {};
   check("the failed throw is recorded: the floor's hasty state holds the character's id and the level it failed at, and the lot stays unfound", toFail.ok && round2.results.length === 1 && Number(failed[skilledId]) === 2 && layerIn(st4, "floor-2", "hasty").found !== true, { failed: Object.keys(failed).length });
-  check("the round press left the plain searcher's methodical entry in the plan, unresolved", st4.plan?.[plainId]?.key === "sceneMethodical" && st4.plan[plainId].resolvedTurn == null && !st4.plan?.[skilledId], { plan: Object.keys(st4.plan ?? {}).length });
+  check("the round press left the plain searcher's methodical entry in the plan, unresolved", st4.plan?.[plainId]?.key === "sceneMethodical" && st4.plan[plainId].resolvedTurn == null && (!st4.plan?.[skilledId] || st4.plan[skilledId].resolvedTurn != null), { plan: Object.keys(st4.plan ?? {}).length, skilledStamped: st4.plan?.[skilledId]?.resolvedTurn ?? null });
   const locked = await run(gm, P.assign, { fid, actorId: skilledId, layer: "hasty", entryKey: "thing:floor-2" });
   const optLocked = await run(gm, P.options, { fid, actorId: skilledId, key: "thing:floor-2" });
   check("assigning the same character to that check again is refused hastyLocked, and the options show it", locked.reason === "scene:hastyLocked" && optLocked.hasty?.refusal === "scene:hastyLocked", { assign: locked.reason, options: optLocked.hasty?.refusal });

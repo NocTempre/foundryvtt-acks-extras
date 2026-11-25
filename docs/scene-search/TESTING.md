@@ -196,7 +196,9 @@ Judge seat:
    is true; the plain searcher's entry gave no roll and the log row is
    `scene:vague` (a second searcher at the floor already found would be refused
    `scene:alreadyFound` and log nothing); the Judges received one whispered card
-   for the throw, the table none; the hasty entries are gone from the plan.
+   for the throw, the table none; each hasty entry stays in the plan stamped
+   resolved (`resolvedTurn` set, `assignments` lists it `resolved`), and the
+   next turn's count drops it.
    Then assign the plain searcher to the container's methodical check.
 4. **The lock.** Repeat with the die at a 1 on a second floor thing: the thing's
    `state.layers.hasty.failed` holds the character's id and level, and assigning
@@ -888,6 +890,7 @@ What driving it taught:
 
 - The primary GM is whichever lane's GM Foundry elects, and a seat on another lane outranks this one while it is connected. Check `activeGM` before the reload; never move another lane's seat to get the trigger.
 - Never call the prune for real from a walk: it takes every empty place in the world. The reload is the trigger, and the dry count says beforehand what it will take (1 here: the bare place alone).
+- The prune's delete has no fixed arrival after `ready`. It waits for the primary GM to settle and deletes one place at a time, and it has landed after a fixed five-second sleep. Poll for the bare place's absence, bounded, and log the seconds it took.
 
 ## What this walk does not reach
 

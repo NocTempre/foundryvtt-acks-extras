@@ -130,6 +130,19 @@ try {
   const mind = { "acks-extras": { extras: { secondary: { intelligence: "sapient" } } } };
   const lawful = await gm.fixture("magic/sacrifice-lawful", "Actor", { name: "QA Sacrifice Lawful", type: "monster", prototypeToken: { actorLink: true }, system: { hp: { value: 9, max: 9 }, details: { xp: 100, alignment: "Lawful" } }, flags: mind, ownership: { default: 2 } });
   const chaotic = await gm.fixture("magic/sacrifice-chaotic", "Actor", { name: "QA Sacrifice Chaotic", type: "monster", prototypeToken: { actorLink: true }, system: { hp: { value: 9, max: 9 }, details: { xp: 40, alignment: "Chaotic" } }, flags: mind, ownership: { default: 2 } });
+  // A kept caster carries whichever Player seat built it: the seated Player is made its owner here, and the
+  // Player seat's own read of its permission is the proof, since a GM-side write can report and not land.
+  const owned = await gm.eval(`(async () => {
+    const a = fromUuidSync(${JSON.stringify(caster.uuid)});
+    const was = a.ownership?.[${JSON.stringify(playerId)}] ?? 0;
+    if (was !== 3) await a.update({ [\`ownership.${playerId}\`]: 3 });
+    return { was };
+  })()`);
+  const seen = await player.eval(`(async () => {
+    for (let i = 0; i < 40; i++) { if (fromUuidSync(${JSON.stringify(caster.uuid)})?.isOwner) return true; await new Promise((r) => setTimeout(r, 100)); }
+    return false;
+  })()`);
+  check("the kept caster is owned by the seated Player, as the Player seat reads it", seen === true, { ...owned, seen });
   const U = caster.uuid;
   const ids = { lawful: lawful.uuid, chaotic: chaotic.uuid, stranger: stranger.uuid };
   overrode = true;

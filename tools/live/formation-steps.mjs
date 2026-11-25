@@ -1483,7 +1483,8 @@ try {
   }
   check("After dark: a total only the shift reaches appears, with its own row", shiftSeen, { shiftOnly: shiftSeen });
 
-  note("cityTravel target 7", await run(gm, P.registerCity, { target: 7 }));
+  // registerCity seeds the street die as 1d8 and the throw is the bare die against the target, so 9 is one past its top face.
+  note("cityTravel target 9", await run(gm, P.registerCity, { target: 9 }));
   b = await run(gm, P.settleBoard, { fid: f4 });
   t0 = Date.now();
   await adv(86400);

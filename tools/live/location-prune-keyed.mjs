@@ -162,8 +162,15 @@ try {
   if (census.primary && census.setting) {
     note("trigger", "this seat is the primary GM and the setting is on: the recorded reload runs the prune");
     await reloadRecorded(gm);
-    await sleep(5000);
-    const after = await run(gm, P.exists, { uuids: [keyed.uuid, bare.uuid] });
+    // The prune waits for the primary GM to settle and deletes one place at a time, so its delete of the bare
+    // place has no fixed arrival: the walk polls for it, bounded, and logs how long it took.
+    const t1 = Date.now();
+    let after = await run(gm, P.exists, { uuids: [keyed.uuid, bare.uuid] });
+    while (after[bare.uuid] && Date.now() - t1 < 60000) {
+      await sleep(1000);
+      after = await run(gm, P.exists, { uuids: [keyed.uuid, bare.uuid] });
+    }
+    note("prune's delete seen after (s)", after[bare.uuid] ? "not within 60" : Math.round((Date.now() - t1) / 1000));
     check("after the primary GM's ready, the keyed place stands", after[keyed.uuid], after);
     check("after the primary GM's ready, the bare place is gone", !after[bare.uuid], after);
   } else {

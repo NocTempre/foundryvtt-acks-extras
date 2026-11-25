@@ -198,7 +198,7 @@ const P = {
   /** The placement's live state on this seat, after a click that should have placed. */
   diag: async () => {
     const H = globalThis.__mc;
-    return { mouse: canvas.mousePosition ? { x: Math.round(canvas.mousePosition.x), y: Math.round(canvas.mousePosition.y) } : null, view: canvas.stage ? { x: Math.round(canvas.stage.pivot.x), y: Math.round(canvas.stage.pivot.y), s: canvas.stage.scale.x } : null, canvasReady: !!canvas.ready, paused: game.paused, previews: canvas.tokens?.preview?.children?.length ?? null, layerActive: !!canvas.tokens?.active, warns: H.warns.length, errors: H.errors.length, framed: [...foundry.applications.instances.values()].filter((a) => a.hasFrame && a.rendered).length };
+    return { mouse: canvas.mousePosition ? { x: Math.round(canvas.mousePosition.x), y: Math.round(canvas.mousePosition.y) } : null, view: canvas.stage ? { x: Math.round(canvas.stage.pivot.x), y: Math.round(canvas.stage.pivot.y), s: canvas.stage.scale.x } : null, canvasReady: !!canvas.ready, paused: game.paused, previews: canvas.tokens?.preview?.children?.length ?? null, layerActive: !!canvas.tokens?.active, warns: H.warns.slice(), errors: H.errors.length, framed: [...foundry.applications.instances.values()].filter((a) => a.hasFrame && a.rendered).length };
   },
   /** Close every framed window, open the caster's sheet on its Magic tab and press the spell row's Cast button as a user does. Nothing is awaited: the prompt is the answer. */
   press: async ({ casterId, spellId }) => {
@@ -788,7 +788,7 @@ try {
   if (!creatureCopiesBefore.length) for (const c of copies) await track(c.uuid, "Actor");
   check("2: the GM's client made the one world copy of a creature the Player could not open, owned by no player", copies.length === 1 && copies[0].noDefault && copies[0].playerLevels === 0, { copies: copies.length });
   const d1 = await run(player, P.drain);
-  check("2: no console error, uncaught error or warning on the Player seat", !d1.errors.length && !d1.uncaught.length && !d1.warns.length, { errors: d1.errors.length, uncaught: d1.uncaught.length, warns: d1.warns.length });
+  check("2: no console error, uncaught error or warning on the Player seat", !d1.errors.length && !d1.uncaught.length && !d1.warns.length, { errors: d1.errors.length, uncaught: d1.uncaught.length, warns: d1.warns });
   await run(player, P.clearWindows);
 
   section("3. a right click at the clicks and a cancelled dialog each leave the count where it was");
@@ -803,7 +803,7 @@ try {
   const cancelled = await run(player, P.state, { casterId, spellId });
   const afterCancel = await tokens(gm);
   const dc = await run(player, P.drain);
-  check("3: a right click makes no token, leaves the count, posts no card and shows no warning", cancelled.cast === baseCast && cancelled.cards.length === 0 && afterCancel.length === 2 && !dc.warns.length && !dc.errors.length, { cast: cancelled.cast, cards: cancelled.cards.length, tokens: afterCancel.length, warns: dc.warns.length, errors: dc.errors.length });
+  check("3: a right click makes no token, leaves the count, posts no card and shows no warning", cancelled.cast === baseCast && cancelled.cards.length === 0 && afterCancel.length === 2 && !dc.warns.length && !dc.errors.length, { cast: cancelled.cast, cards: cancelled.cards.length, tokens: afterCancel.length, warns: dc.warns, errors: dc.errors.length });
   await run(player, P.clearWindows);
   const press3b = await run(player, P.press, { casterId, spellId });
   check("3: the Cast button is pressed a third time", press3b.button);
