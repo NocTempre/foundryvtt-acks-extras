@@ -589,7 +589,7 @@ const restoredStamp = (name) => ({ [`flags.${MODULE_ID}.${CAST_HELD_END_FLAG}.re
  * and when the card was not authored by a GM it writes only the actors the
  * requester owns, so a seat's card cannot put a record on a character the seat
  * does not own. The card is stamped restored only when nothing was refused, so
- * the owners of what remains can press Restore again.
+ * a GM seat, which may write every actor, can press Restore again.
  *
  * @param {{requestUserId?: string, messageId?: string}} payload
  * @returns {Promise<{ok: true, restored: number, refused: number}|{ok: false, reason: string}>}

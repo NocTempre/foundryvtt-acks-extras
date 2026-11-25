@@ -286,10 +286,19 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     stationary concentration. The Player casts one creature and the Judge ends
     the concentration by the status's toggle. *Observable:* one funnel card; on
     the Judge's seat it lists the one standing creature with Dismiss and
-    Restore, on the Player's seat the creature with no Dismiss. After `stays` the
+    Restore. The Player owns the caster, so after `stays` the Player's seat
+    draws the creature with Dismiss and Restore, and after `hostile` Restore and
+    no Dismiss. After `stays` the
     creature stands, is stamped `lost`, keeps the Player's ownership and its
-    disposition. After `hostile` it stands, is stamped `lost`, the Player's
-    ownership is gone and its disposition is hostile.
+    disposition; pressing the Player's Dismiss and answering Yes removes it (the
+    token is in the sweep's `could not find`). After `hostile` it stands, is
+    stamped `lost`, the Player's ownership is gone and its disposition is
+    hostile, and the Player's sheet Dismiss for it is refused `controlLost`.
+    The timed end follows the same test: the clock advanced past a cast whose
+    row's `controlEnd` is `stays` posts a card whose Player rendering draws
+    Dismiss (pressing it removes the creature), and past one whose row says
+    `hostile` a card whose flag `outcome` is `hostile`, which the Player's
+    rendering draws with no Dismiss and the Judge's with one.
 12. The delete path, cast from `magic/summon-spell-gone`, whose row's `controlEnd` is `gone` (duration two hours; the standing spell is first put back to its standing shape).
     The Player casts two creatures; the Judge places by hand a token of the same
     creature (the decoy, which carries no summons record) and the world clock
@@ -389,6 +398,10 @@ other summoning walk's field assertions are not shared.
   written) with one summon row naming the creature by uuid and a fixed two
   hours. The open one asks for two and states no range; the ranged one asks for
   one and states a distance the fixture sets.
+- `magic/summon-party-held` is a `spell` on that character for steps 3 and 4,
+  rewritten whole by each (the flag deleted first, then written) with one summon
+  row naming the creature by uuid, `amount` 1, a stationary concentration
+  duration, and the row's `controlEnd` that step needs.
 - `magic/party` is an `acks-extras.party` actor whose formation holds the caster
   alone, delving. `magic/party-token` is its token on `magic/party-scene`, the
   caster stashed inside it.
@@ -400,9 +413,9 @@ standing. A summon member a past run left is dismissed through the Magic tab's
 Dismiss before the walk.
 
 What the run makes and sweeps by uuid, never kept: the cast cards, the caster
-records that appear during the run and the world copy of the creature where
-none stood. A member a failed step leaves in the party is released by the run's
-own cast id. The world clock is not moved.
+records that appear during the run, the token step 4's deployment makes and the
+world copy of the creature where none stood. A member a failed step leaves in
+the party is released by the run's own cast id. The world clock is not moved.
 
 `tools/live/magic-summon-in-party.mjs` walks the steps on the GM and Player
 seats. Its recorders attach after `ready`, so a clean console there says nothing
@@ -448,6 +461,29 @@ own, driven through the travel API the party sheet's buttons call.
    raised; no placement preview stands; the cast count rose by exactly 1; one
    member is stashed in the party, naming the caster and the spell, and none
    stands loose; no pending record exists; Dismiss removes the member.
+3. A held end that leaves the creature (T-0842). The Judge's seat sets
+   `magic/summon-party-held`'s row to `controlEnd` `stays` (spell sheet →
+   Mechanics tab → the summon row's "When control ends"). The Player casts
+   from inside the party, and the Player's seat ends the concentration by the
+   status's toggle. *Observable:* the party's stashed member carries
+   `summon.lost === "stays"` in its stash (`tokenData.delta`, the actor's
+   `flags["acks-extras"].summon`), still a member, its ownership for the
+   Player and its disposition as they were; one funnel card, which the Player's
+   seat draws listing the creature with Dismiss and Restore; pressing Dismiss
+   and answering Yes releases the member and the party's member list shrinks
+   by one.
+4. A held end that turns the creature hostile (T-0842). The same, with the row
+   set to `hostile`. *Observable:* the stash carries `summon.lost === "hostile"`,
+   `delta.ownership` holds 0 for the Player's user id and the stash's
+   `disposition` reads hostile, and the creature is still a member. The
+   Player's seat draws the funnel card with Restore and no Dismiss; the Magic
+   tab's row Dismiss, pressed on the Player's sheet and answered Yes, is refused
+   with `ACKS-LIB.summons.refused.controlLost` and the member stands. From the
+   Judge's seat the party is deployed through the travel API, as step 1 does
+   for its one creature: the token made from the stash reads hostile, and the
+   Player's `testUserPermission(user, "OWNER")` on it is false. The Judge's seat
+   then dismisses the member through the Magic tab's row Dismiss on the caster's
+   sheet, and the token is gone, the party holding the caster alone again.
 
 Not walked: a party that enters a fight between the window's opening and its
 answer, where the cast follows the second reading and places by click.
@@ -817,13 +853,26 @@ records the world holds after the end, plus the one card of concentration's end
    on the GM client. *Observable:* the status and every record of the cast
    (the caster's and both recipients') are gone, exactly one card of the cast
    with cause `damage` lists both recipients as ended; the GM's rendering of it
-   has the Restore button and the Player's has none; pressing Restore puts the
-   same records back under the same ids and the status on again.
+   has the Restore button, and so has the Player's, since the Player owns the
+   caster. Pressing Restore on the Player's seat, which owns neither the GM-authored
+   card nor the ally, is relayed to the GM's client (`magicHeldEnd`, `op:
+   "restore"`) and puts the same records back under the same ids and the status
+   on again, both recipients' included; the card then reads `restored` with the
+   Player's user name.
 7. **The Player hurts its own caster.** The same lowering from the Player's
    client. *Observable:* every record gone and one card listing both
    recipients, authored by the Player, though the Player owns neither the ally's
    token nor its actor: the Player's client ended what it can write and the GM's
    client, asked through `magicHeldEnd`, ended the ally's.
+7a. **A partial restore.** On step 7's card, the Player presses Restore. The
+   card is the Player's word, so the GM's client writes only the actors the
+   Player owns. *Observable:* the caster's records are back under their own ids
+   and the ally's is not; the Player's seat shows the `restorePartial` notice
+   counting what was restored and what was left; the card is not stamped
+   `restored` and still draws Restore. The Judge's seat then presses Restore:
+   the ally's record is back under its id, the caster's records are left as they
+   stand (none written twice), and the card reads `restored` with the Judge's
+   user name.
 8. **A time after concentration.** The copy carries a tail of three minutes.
    *Observable:* the caster's record carries the tail in its flag; after the
    loss the caster's record is gone and each recipient's is flag-timed from the
@@ -838,6 +887,57 @@ records the world holds after the end, plus the one card of concentration's end
     warning with Cast on; confirming it posts the cast card, and the held
     records end with one card whose cause is `cast`, the caster holding
     nothing of the circle.
+
+### The ownership presses (Undo and Revert)
+
+On the fixtures of this section; Undo and Revert are read where Foundry's
+ownership puts them, never where the server role does. The three seats of the
+question are the Player who authored the card and owns the caster (the apply
+seat), a Player who owns the target and nothing else, and a Player who owns
+neither. Every card is found by its cast id, the Undo or Revert button by its
+`data-action` in the card's `[data-message-id]` with the chat tab up, and the
+entry settles when none is `pending` or `applying`.
+
+U1. **The apply seat undoes a hit point entry on a monster.** The Player casts the
+   damage spell at `magic/cast-target-a`, which only the GM owns. *Observable:*
+   the Player's rendering of the card draws Undo on the entry; pressing it (the
+   press is relayed, since the Player cannot write the target) restores the
+   target's hit points to what they were before the cast and the entry is no
+   longer applied, with no notice.
+U2. **The relay keeps what the card's figures do not bound.** A fresh cast, as in
+   U1; before the press the Judge's seat lowers `magic/cast-target-a`'s hit
+   points by one. *Observable:* the Player's press is kept: the `undoKept`
+   warning shows, the target's hit points are as the Judge left them and the
+   entry stays applied.
+U3. **The target's owner undoes an entry on a card the GM cast.** The GM's seat
+   casts `magic/cast-foe-spell` from `magic/cast-foe` at `magic/cast-caster`'s
+   token, which the Player owns. *Observable:* the Player, who owns neither the
+   caster nor the card, draws Undo on the entry; the press is relayed and the
+   character's hit points return to what they were.
+U4. **Owning neither draws nothing.** The GM's seat casts the same spell at
+   `magic/cast-ally`. *Observable:* the Player's rendering draws no Undo on the
+   entry; a request sent straight to the relay (`magicCastUndo`, through lib's
+   socket transport) answers `notOwner` and writes nothing, and the card's
+   `magicCastUndo` action driven from the Player's seat shows the `undoRefused`
+   warning.
+   Cleanup (U1 to U4): every card, record and token the steps made is swept by
+   the run's ledger.
+
+R1. **A registered procedure's Revert, for the author who owns the caster.** A
+   tradition procedure whose `perform` returns `undo` data and whose `revert`
+   records its call is registered on both seats for the run
+   (`acksExtras.magic.registerCastProcedure`, as "The Invocation band (R-c)"
+   registers its own), since the Player's client runs the revert. The Player
+   casts a spell of that tradition. *Observable:* the card carries
+   `procedure.undo`, the Player's rendering draws Revert, and pressing it calls
+   the procedure's `revert` once with the card's data, the recorded `ctx`
+   holding no `isGM`, `ownsCaster` or `ownsCard`, and the card reads `reverted`;
+   Revert is then no longer drawn.
+R2. **A GM-cast card for the Player's character offers no Revert.** The GM's seat
+   casts the same spell as that character. *Observable:* the Player's rendering
+   draws no Revert; the card's `magicCastRevert` action driven from the Player's
+   seat answers `notOwner` and the procedure's `revert` is not called; the
+   Judge's rendering draws Revert.
 
 ### The declaration steps
 
@@ -1218,7 +1318,7 @@ token beyond the spell's range, and is no bearer.
    as a cast's, and the caster's record stands. Advance to the next caster turn
    and press Save rigged to pass. *Observable:* the caster's held record is gone,
    the target's records of the cast are gone, and the end card names the cause "A
-   passed saving throw" and lists what ended; Restore (GM) puts them back.
+   passed saving throw" and lists what ended; Restore (an owner of the caster) puts them back.
 6. Cast Magic Missile and advance to the caster's turn. *Observable:* a prompt at
    `moment: "casterTurn"` with one line and a Roll and no target. As the caster's
    Player, target one token within range and press Roll: the damage is rolled
@@ -1334,8 +1434,8 @@ the copies and the fixtures stay.
   with `active: false` (the HUD), and the clock (`game.time.advance`). A card of
   the end is found by its flag and cast id with a `timestamp` at or after the
   step's start; the funnel posts it asynchronously, so poll for it. Restore is
-  pressed in the chat tab on the GM seat, which has the button; the Player's
-  rendering of the same message has none.
+  pressed in the chat tab; the GM seat and the Player seat, which owns the caster,
+  both draw the button.
 - The declaration is made by clicking the dialog's confirm, and a Player cannot
   update a combatant, so the flag lands only after the GM's client has handled
   `magicDeclareFlag`: poll for it. A resolving cast is started with
@@ -1456,9 +1556,9 @@ fails that check; re-import it (the Spells repair).
 6. *Ending the held summons, on the Player seat, by the status's toggle.*
    *Observable:* one funnel card for the cast with the cause `removed`, drawn
    with Restore and Dismiss; rendered on the Judge's seat it lists the cast's one
-   standing creature with Dismiss, on the Player's seat the same list with no
-   Dismiss; every creature still stands, since the hand-built spells state no
-   control end.
+   standing creature with Dismiss, and on the Player's seat, which owns the
+   caster, the same list with Dismiss; every creature still stands, since the
+   hand-built spells state no control end.
 7. *A summons in a begun fight is declared.* *Observable:* with a fight begun and
    the target first in the order, the Player's dialog button reads Declare;
    confirming leaves one pending record and the casting status, spends once and

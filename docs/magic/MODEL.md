@@ -369,17 +369,25 @@ summoner's own spell, found through the creatures' recorded `spellId` (`cast-con
 carries it out on the creatures the cast's own record names: each is stamped
 `lost`, then `gone` deletes it as a dismissal does, `hostile` empties its
 ownership and turns its disposition hostile, and `stays` leaves it with its
-owners. A creature stamped `lost` is refused to a seat that is no GM
-(`controlLost`). With no GM connected nothing is applied. It runs at both ends of
-a cast. At the *held end* (every `HELD_CAUSES`) the funnel's card
+owners. A creature stashed in a party is written the same way through the party
+roster's `amendSummons` (`stashAfterControlEnd` is the edit): `stays` stamps it
+and `hostile` also sets its owners to NONE and its disposition hostile, and it
+stays a member either way until it is dismissed. A creature stamped `hostile` is
+refused to a seat that is no GM (`controlLost`); one that stays is its owner's to
+dismiss as any other is. With no GM connected nothing is applied. It runs at both
+ends of a cast. At the *held end* (every `HELD_CAUSES`) the funnel's card
 (`templates/magic/cast-held-card.hbs`) lists the cast's standing creatures
-(`castSummons`) with a Dismiss each and Dismiss all, drawn on a GM seat only
-(`isGM`, display only; the render hook removes the rest), the line of the
-outcome (`controlLostLine`), and Restore, which puts the records back and
-nothing else. At the *timed end* a `gone` summons is removed by the module with
-no card, and `stays` and `hostile` keep their card, whose Dismiss is drawn on a
-GM seat only ("A cast's end", below). Each spell's outcome and its page are
-[DECISIONS.md](DECISIONS.md), "A summons' control ends as its page says (1d.7)".
+(`castSummons`) with a Dismiss each and Dismiss all, drawn for an owner of the
+caster and, after a hostile end, on a GM seat only (display only; the render hook
+removes the rest, and lib's dismissal decides), the line of the outcome
+(`controlLostLine`), and Restore, which puts the records back and nothing else
+and is drawn for an owner of the caster on every outcome ("Concentration's end",
+below). At the *timed end* a `gone` summons is removed by the module with no
+card, and `stays` and `hostile` keep their card, whose Dismiss follows the same
+test ("A cast's end", below). Each spell's outcome and its page are
+[DECISIONS.md](DECISIONS.md), "A summons' control ends as its page says (1d.7)",
+and who may press which control is the entry "A summons' Dismiss and Restore, and
+a cast card's Undo and Revert, follow ownership".
 
 **The five built summons** carry a `summon` row in the register: a calling and
 a summoning that each name their creature by cookbook id (`ref`), a conjuration
@@ -430,14 +438,17 @@ keeps its own end (`endAction`: announce, delete or nothing). A record past its 
 is stamped `ended` (the world time, in the `spellEffect` flag; `spellEffectOf`
 reads it back) and only then, where its cast still has creatures standing on
 any scene, one card is whispered to every GM and every other owner of the
-caster: the spell, the caster, the count, and a Dismiss button, drawn on a GM seat
-only, that runs lib's
+caster: the spell, the caster, the count, and a Dismiss button, drawn for an owner
+of the caster (`bindCard`, display only), that runs lib's
 `promptDismiss` on that cast's tokens and the summons held in a party token
 (`castSummons`, matched by the summons' `castId`); the count the card states
-includes the held. Before it is posted the GM's client reads the spell's `controlEnd`
+includes the held. The card's flag carries the cast's `outcome`, and where it is
+`hostile` only a GM seat keeps Dismiss; a card posted with no outcome draws it for
+owners and lib's dismissal still refuses a hostile creature to a non-GM. Before it
+is posted the GM's client reads the spell's `controlEnd`
 ("Casting a summoning spell", above): a `gone` cast is removed by its recorded
 creatures with no card, and any other keeps its card, which tells while the
-creatures stay until a Judge presses Dismiss. A
+creatures stay until Dismiss is pressed. A
 recipient's record is never announced, since it carries the same cast. Combat
 does not move this system's clock, so a combat's rounds age no record by the
 clock; a record anchored to turns is aged by turns instead ("A record that
@@ -918,7 +929,7 @@ cancel at any point before the spend costs nothing:
    not what is lifted. Two casts of one condition leave two records and one
    condition, which stays while either record stands. A target's modifier and
    ward entries are one group: they are applied in one request, write one buff
-   record, and each entry names that record, so the Judge's Undo on one of them
+   record, and each entry names that record, so Undo on one of them
    takes the record off for all (its tooltip says so). A buff is not resisted
    and has no amount, so the save is not rolled for it and the amount bounds
    skip it.
@@ -956,9 +967,26 @@ client (step 8); nothing of it is taken from the request but the rolled figure w
 its bounds. With no GM connected the entry stays
 pending and the card's Apply stays. A card cast with nothing targeted posts the
 rolls and an Apply that takes the presser's targets; a thrown row waits on a
-Throw press. Apply and Throw are for a GM and the user who cast; Undo is the
-GM's: the hit points return to what they were and the records are deleted by
-id.
+Throw press. Apply and Throw are for a GM and the user who cast.
+
+*Undo* (`entryActions`, `undoBy`) is offered to a seat that owns the target's
+actor (`"target"`) and to the card's author who owns the caster (`"apply"`), and
+a GM is both: the hit points return to what they were, the records the entry made
+are deleted, lifted effects are recreated and a destroyed mark is cleared. The
+apply seat is drawn none for an entry that lifted effects, marked a weapon
+destroyed or timed a life, since those sit on a target it does not own. A seat
+that can write both the card and the target's actor takes the entry back itself;
+any other asks the GM's client through `magicCastUndo` `{messageId, targetKey,
+rowKey}`. `checkUndoRequest` (pure) refuses `noCard`, `badTarget`, `notUndoable`
+and `notOwner`; for a requester who does not own the target it also refuses
+`needsOwner` (an entry that lifted, destroyed or timed something, or whose row has
+no bound), `moved` (the target's hit points are not where the entry left them)
+and `overBound` (a change against the row's direction or beyond its reach, from
+`boundsOf` over the spell's own rows). On every client `deleteRecords` deletes
+only the target's effects whose spell-effect mark carries the card's `castId` and
+`casterUuid`, and an in-flight set keyed by message and entry passes a second
+press by. A press kept by the check is told `undoKept`, one refused for ownership
+`undoRefused`; with no GM connected the transport says so.
 
 **A cast the window does not take** (`cast-gate.mjs`, registered at `init`
 after the cast claimant, so it is offered only what that one declined). The
@@ -1072,9 +1100,10 @@ context}`, a partial for what a field cannot say), `verdicts(ctx, answer)`
 `lost(ctx, declaration)`, `revert(ctx, undo)` and `buckets(ctx)`, and a `label`, a
 lang key the tradition owns that names the band's heading (a string, never a
 function; the registration refuses any other). The `ctx` is
-`{actor, spell, tradition, classItem, invocationLevel, casterLevel, isGM, moment,
-combat, source, roll, now}` (`castId` too for `perform`); a ctx whose `source` is
-not `spell` is given no procedure. The procedure is found by the kind of the
+`{actor, spell, tradition, classItem, invocationLevel, casterLevel, moment,
+combat, source, roll, now}` (`castId` too for `perform`), and carries no role: a
+procedure reads the actor and the documents, never the seat's server role. A ctx
+whose `source` is not `spell` is given no procedure. The procedure is found by the kind of the
 tradition that cast the spell (`world.tradition`), and the claimant finds it the
 same way, synchronously, through the classes feature's `classForActor` injected at
 registration (`registerCastSpell({classFor})`). The answer to a procedure is one plain
@@ -1118,9 +1147,12 @@ declaration stores the answer and the kind and the turn performs on them.
 above the rows' sections, `rolls` ride the message and `undo` is data on
 `card.procedure {kind, section, undo}`. `proceed: false` posts a card with only the
 section, with no row, record or application, and a throw posts a card with no
-section and a line saying the step did not complete. A Judge's Revert button
-(`magicCastRevert`, shown to a Judge for a card with `undo` not yet reverted) calls
-`revert(ctx, undo)` with that data and marks `card.procedure.reverted`.
+section and a line saying the step did not complete. A Revert button
+(`magicCastRevert`, shown to the card's author or a GM who owns the caster, for a card with
+`undo` not yet reverted) calls `revert(ctx, undo)` with that data and marks
+`card.procedure.reverted`. The press runs on the seat and is never relayed:
+`runRevert` takes the seat's two answers (`ownsCaster`, `ownsCard`) and refuses
+`notOwner` unless both hold, before the procedure runs, and does not pass them on.
 
 **The Invocation band** (`apps/cast-dialog-model.mjs`, `apps/cast-dialog.mjs`,
 `templates/magic/cast-dialog.hbs`). One band between the spell and the saves, headed
@@ -1192,13 +1224,23 @@ owns the caster once no held record of the cast remains. With no GM connected th
 records stay and are listed with End. One card is posted after the relay answers,
 whispered to the GMs and the caster's owners, in plain HTML: the cause, what ended,
 what runs on (each figure with a tooltip carrying the page reference), what still
-stands with End (the record's owners and GMs), and Restore (GMs only), which puts
+stands with End (the record's owners and GMs), and Restore (an owner of the caster,
+on every outcome), which puts
 back the caster's record and each ended one with its own id and undoes the
 re-timings. Its flag `castHeldEnd` holds the cause, those lists with each ended
 record's data, and the caster record's data. Restore keeps only the keys this
 module writes of a record whose mark carries the card's own cast and caster, with
 an empty change list; the press then sets a condition record's statuses and
-`system.changes` from the builder (`restoredAs`), never from the card. A cast's recipient records are not found when the caster's
+`system.changes` from the builder (`restoredAs`), never from the card. A seat that
+owns the card and every actor in the plan writes it itself; any other asks the
+GM's client through `magicHeldEnd` `{op: "restore", messageId}`, dispatched before
+the end request's own check. That client reads the caster and the records from the
+stored card, refuses `noCard`, `restored` and `notOwner` (`checkRestoreRequest`),
+and for a card whose author is not a GM writes only the actors the presser owns
+(`restoreSplit`), since such a card is the seat's own word. It stamps the card
+`restored {by}` only when nothing was left over, and answers `{ok, restored,
+refused}`; a partial restore is told `restorePartial` and the card keeps its
+Restore. A cast's recipient records are not found when the caster's
 whole actor is deleted, since Foundry fires no per-record hook for it
 ([ROADMAP.md](ROADMAP.md)).
 

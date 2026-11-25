@@ -700,11 +700,21 @@ carries it):
 - `summons/scene` — a scene the Player seat VIEWS (`scene.view()`; it need not
   be active, since the relay accepts a scene its sender is viewing or can
   observe), with the summoner's token `summons/summoner-token` on it.
-- The Player user's own `permissions.TOKEN_CREATE`, set to `false` from the GM
-  seat at the start of every run, read back on the Player seat and asserted
-  before step 1, so a first run (unset, which falls to the world's table) and
-  a run a stopped walk left at `true` start alike. Step 10 sets it and resets
-  it.
+- The Player user's own `permissions.TOKEN_CREATE`, which other sessions drive
+  as a seat, so the run neither assumes a value nor leaves one. At the start it
+  reads the key from the user's `_source.permissions` on the GM seat (`true`,
+  `false` or no key), prints it and keeps it. Steps 1 to 9 need the Player
+  seat to read `game.user.can("TOKEN_CREATE")` false: where it already does,
+  nothing is written, and where the key stands at `true` (a stopped run leaves
+  it so) or the world's role table grants Players the permission, the run writes
+  the key `false` explicitly, which Foundry reads ahead of the table, and
+  asserts `can` false on the Player seat before step 1.
+  Step 10 sets it `true`. A `finally` at the end of the run puts back exactly
+  the starting value: a key that was set is written back as it was, and a key
+  that was absent is deleted with `new foundry.data.operators.ForcedDeletion()`
+  (the `-=` form), and the run reads back no key in `_source.permissions` on
+  both seats. A run stopped before its `finally` is found by the printed
+  starting value in its log.
 - `summons/stranger` — a `character` the Player seat observes and does not own,
   for step 9.
 - `summons/bindable` — an unlinked token of `summons/spike-source` on the scene,
@@ -734,8 +744,9 @@ seats, after a reload of each seat under a boot recorder.
   cast-end watch ignores a backward step, and the walk leaves the world clock
   62 seconds on. The card is read by its `castEnded` flag's `castId`, never by
   its text.
-- The card's *Dismiss* is drawn on a GM seat only, so it is pressed in the GM
-  seat's rendered chat log, and the confirmation is answered by its Yes button.
+- The card's *Dismiss* is drawn for an owner of the caster, so the Player seat
+  and the GM seat both draw it and it is pressed in the Player seat's rendered
+  chat log; the confirmation is answered by its Yes button.
 
 At the start the summoner has no summons on the scene; a leftover token is a
 past run's, read by its `summon` record and removed through *Dismiss all*
@@ -767,10 +778,12 @@ summoner, the Tokens layer active):
    card, whispered to the Player and to the GM, for the named cast; that
    cast's record is stamped `ended`; no card for the open cast. A further step
    of the clock posts no second card. All three tokens still stand.
-6. On the Player seat, the card is visible and draws no *Dismiss* (a creature
-   whose control ended is the Judge's to dismiss). On the GM seat press the
-   card's *Dismiss* and answer No. *Observable:* nothing is removed. Press it
-   again and answer Yes.
+6. On the Player seat, the card is visible and draws *Dismiss*: the named
+   spell's row ends with its creatures standing and the Player owns the caster
+   (a creature that turned hostile at its end is the one the Judge alone
+   dismisses; the magic recipe's step 11 walks that card). On the Player seat
+   press the card's *Dismiss* and answer No. *Observable:* nothing is removed.
+   Press it again and answer Yes.
    *Observable:* the named cast's two tokens are gone and the open cast's one
    stands.
 7. Magic tab → the open spell's *Dismiss*, answer Yes. *Observable:* no summons
@@ -792,11 +805,11 @@ summoner, the Tokens layer active):
    Player, as the fixtures step asserted (the grant lifts the spell
    requirement and no other check: a source the Player cannot observe is still
    refused `unreadable`); on
-   `summons/stranger` the menu and `placeSummons` are unchanged. Reset the grant
-   to `false` from the GM seat, read it back, and remove the token by its
-   ledger entry; the grant is the one thing this step changes outside the
-   ledger, and a run that stopped before the reset finds it `true` at the
-   start, which the first assertion above refuses.
+   `summons/stranger` the menu and `placeSummons` are unchanged. Put the grant
+   back to the starting value the fixtures bullet kept (the `finally` does it
+   for a step that throws), read it back on the Player seat, and remove the
+   token by its ledger entry; the grant is the one thing this step changes
+   outside the ledger.
 
 Not walked here: that a summoned token behaves as its Player's (moved, its
 sheet edited, its hit points updated from the Player seat). The magic recipe's
