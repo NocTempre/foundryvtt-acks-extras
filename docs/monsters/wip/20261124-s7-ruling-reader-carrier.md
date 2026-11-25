@@ -1326,3 +1326,316 @@ no HUD control.
 
 No `module.json` change. S8b's brief names E4's figures `reach.save` and
 `reach.immunity`, so one name serves both.
+
+### A9. S8b-1's open choices, ruled 2026-11-25
+
+`architect`, read-only, at `topic/beastman-gear` d0136678 (S8b-1); Foundry
+14.370 as S7 read it, the system at `release-14.2.0`. Code is cited by
+symbol. Tags: [S] read in source; [R] read off the page's structure, with no
+words or figures carried; [I] inferred; [W] for the walk to prove.
+
+**The owner's words, with one example each from this addendum.**
+
+1. "I want the beastmen template fixed with special attention towards
+   capturing everything in this document mechanically (plus arranging art
+   correctly, etc)." Example: E9's save part is written and told on every
+   save rather than dropped, though no roll can apply it yet (point 3).
+2. "... Many of these items generate ranged aura effects or require an
+   action to activate. All of that game surface is in scope." Example: E4
+   asks its save at the two moments the page names, and its card lists every
+   body the ring holds from the raise on (point 2).
+3. "Furthermore, creating kits (including random ones suited to matching
+   roles and custom as a group, as a unit type, or as an individual) is
+   desired." Example: a kit handing E3 or E9 to a stack's bodies works only
+   if the item's kind key matches those bodies, which point 4 makes true.
+4. 2026-11-24, "owner can use the controls, don't hard code permissions
+   unless explictly asked"; 2026-11-25, "follow foundry permissions, don't
+   invent new ones". Example: Save is offered to the owners of the subject's
+   actor, which in Foundry includes every GM, and no role is read (point 1).
+
+**1. A save press writes. A save prompt has no Apply.**
+
+- The Save press writes on its verdict, as `pressHere` does now [S
+  `item-run.mjs`]: a failure writes one condition record per key the row
+  names; a pass writes the immunity window.
+- Why: canvas 4's answer 3, approved with the board, makes the save "the
+  carrier's prompt with a Save press for the saver's owners and the GMs, as
+  the cast card's recurring prompt has it" (plan, "Canvas 4"). That prompt's
+  entries have no Apply [S `docs/magic/MODEL.md`, "Recurring rows";
+  `cast-card.mjs` `castCardView`]. An Apply after the saver's own press asks
+  the same seat twice; an Apply for another seat is a confirming step the
+  owner never asked for (2026-11-24).
+- 4b's "On a failed save" well stays as a line naming what was written and
+  its interval, with no press (Departures, 1).
+- Scope: save prompts only (E4 now; T10 and E5's prompt later). 4b's E2 card
+  keeps Apply and Apply all: a damage roll applied per subject is the cast
+  card's own Apply, and S9a builds it.
+- Who sees what:
+  - **Save**: the owners of the subject token's actor; a GM owns every
+    document. `checkPressRequest` already holds a relayed press to
+    `subjectOwnerIds` [S].
+  - **Lower** and **Check range again**: the bearer's owners. `lowerReach`
+    tests the relayed seat, which `sockets.mjs` `runRelayed` stamps from the
+    server-attested sender as `requestUserId` [S]. Check range again re-reads
+    the Region's tokens and lists or mutes rows to match; it prompts nobody.
+  - **The undetermined tick**: a GM, under the owner's 2026-11-14 rule
+    "automation blocks a player, warns a Judge".
+  - **Undo**: stays A7.6's, GM only, as on the cast card. The owner's "sweep
+    now, decide after" (T-0792) takes both cards' Undo into that sweep
+    together, so players never see two Undo audiences.
+- What Undo removes: exactly the entry's `recordIds` still on the subject
+  (`undoPlan`), a failure's condition records or a pass's window; never the
+  Region, the activation state, the quantity or a standing part (A7.6). The
+  entry becomes `undone` and offers no second press; the subject's next
+  moment asks again (point 2).
+- Counter, MEDIUM: 4b is approved as drawn, and its Apply would hold a
+  record for a second look before it lands. Not strong: the owner's own
+  answer on the same canvas names a model with no Apply, and Undo gives the
+  second look afterwards. Strong if the owner says the well's Apply was
+  meant.
+
+**2. Raising prompts nobody. It lists.**
+
+- This keeps A2, with the page's reason. The raise, and the bearer walking
+  up, fire `tokenEnter` without `tokenMoveIn`. The page names two moments: a
+  creature starting its initiative within the reach, and one moving within
+  it [R, MM p. 56]. The first covers a body already inside at the raise.
+- A prompt at the raise adds a save the page does not print; a failure there
+  lasts to the body's next initiative start, where the page asks again: two
+  saves before the body has acted [R].
+- Listing is kept apart from prompting. For `turnStart+moveIn`, `pulseAct`
+  gains `enter` → `list` (a waiting row on the raised card, no Player press,
+  its Result a word saying it waits for its moment) and `exit` → `out` (the
+  row muted). Core fires `tokenEnter` for every token inside when the
+  behavior becomes active (A2), so the raise's own events fill the card [W].
+  Prompts stay on `moveIn` and `turnStart`. A row runs waiting → open →
+  applied or undone, and goes `out` from any state.
+- Entries are keyed by moment, not subject. Today they are keyed by subject
+  alone and `checkPressRequest` refuses any entry not `open` [S], so a body
+  asked again at its next initiative could never be pressed. Each prompt's
+  entry is keyed by its moment key; the whispered card carries that key and
+  `entryStateOf` reads under it. The raised card's row shows the subject's
+  latest entry; an earlier one keeps its result in the row's tooltip and its
+  own Undo by key.
+- With no fight there is no initiative, so only a move within asks [R, I]. A
+  Judge may press Save on a waiting row: it goes through with a line saying
+  the body was asked before its moment; a Player is shown no press there
+  (owner, 2026-11-14). A failure outside a fight gets no turn-life (`lifeOf`
+  finds no combatant [S]), so the record carries a mark that lib's turn start
+  lifts at the subject's first initiative in a fight.
+- Dedupe (A8.4's, extended to E4): one prompt per subject, per kind key, per
+  initiative, keyed `combatId:round:turn:subjectUuid:kindKey` by one pure
+  function shared with T10, held on the primary GM, cleared when answered or
+  struck, pruned at each turn start. Outside a fight the key is subject and
+  kind, held while the prompt is open. `onTurnBegan` groups a subject's live
+  reaches by kind and dispatches once per kind, the page's own grain: a pass
+  is immune to every such item [R].
+- A grouped prompt's condition carries the activation of the reach the moment
+  came through (for a turn start, the first admitting reach in
+  `behaviorsUnder` order). At that reach's teardown it is retargeted to
+  another raised reach of the same kind still holding the subject, by
+  `releaseStanding`'s rule, else deleted.
+- Departs from 4c's caption, which has the whisper come "when the item is
+  raised" (Departures, 2). The card's face is unchanged.
+- Counter, WEAK: at a table, a body beside the item as it goes up feels it at
+  once. Weak: the page's two moments decide, the caption is a board note, and
+  the Judge's early press serves a table that reads it that way. Medium if
+  the owner reads the caption as the rule.
+
+**3. E9's narrowed save part: a narrowing field in `narrow()`.**
+
+- No caller names what a throw resists beyond damage types [S]: nine call
+  sites of `saveSpec`/`saveThrow` pass at most `damage` (`crossing.mjs` ×2,
+  `turn-engine.mjs`, `item-run.mjs` ×2, the ward notice in `roll-mods.mjs`,
+  `cast-apply.mjs`, `cast-spell.mjs` ×2). So today a field and a Judge-ticked
+  part behave alike: pending on every save.
+- Ruled: the part is `{on: "save", value, when: "fear", magical: true}`.
+  `fear` is the conditions catalogue's circumstance word and an `EFFECT_KEYS`
+  key; `conditions.mjs` `shaken` carries `row("save", "all", {when:
+  "fear"})`, returned pending and told through `conditionRoll.when.fear` [S].
+- Tested in `narrow()` (does the part reach this roll; runs before stacking),
+  not `partHolds` (the bearer's state). A declared `when` holds only where
+  the caller names it through a new option `circumstances` on `saveSpec`,
+  `saveModParts` and `sheetSaveShift`, null otherwise; `magical` holds only
+  where the circumstance is named and `saveSpec`'s `magical` says the throw is
+  against magic. Null sends the part to `pending` carrying both, told and
+  never added.
+- Readers: `saveModParts` (every module save through `saveSpec`/`saveThrow`)
+  and `sheetSaveShift` (the system sheet's save through `rollSave`).
+  `ownSaveParts` shares `narrow()`, but no stored part declares `when` today.
+- The row gets `reach.saveWhen = {when, magical}`, read by `reachParts` onto
+  the `save` part only. The recipe gains two text values read off E9's
+  paragraph, the circumstance word and the magic qualifier; `gear-run.mjs`
+  resolves the word onto the catalogue's `when` words and writes `save` only
+  where both resolve, else a `miss`. `test-recipe-content.mjs` pins both on
+  the real extraction [W].
+- Rejected: a Judge-ticked part (a new control on every save surface, on no
+  board); no save part (drops a printed mechanic, owner sentence 1).
+- Counter, MEDIUM: the part is told and never applied today. Medium: E4's own
+  row behaves so, and it applies itself once a caller names the circumstance
+  (lib ROADMAP row). Strong if the walk shows the notice is missed in play.
+
+**4. The printed qualifier resolves to a module vocabulary key.**
+
+- The key does not match [S]: the recipe captures the printed plural
+  (`table-extract.mjs` `extractProseValues`); `kindToken` slugs without
+  singularizing; `creatureKinds` reads `extras.types`, where the importer
+  writes the singular type key (`stats-map.mjs`). `kindsClause` answers false
+  where the body has type keys and null where it has none: E3 and E9 admit no
+  imported beastman. The suite (`tools/test-gear-run.mjs`) folds an invented
+  word and never tests it against a creature's kinds.
+- Where a generated body's template writes `extras.types` was not traced
+  (`template-logic.mjs` `resolveActor`) [I]; the walk reads `creatureKinds` on
+  a generated body [W].
+- Ruled: A8.4's `matchKinds`, built now, shared by E3, E9 and T10's writer,
+  with two amendments:
+  - **Placement**: lib `actor-read.mjs`, beside `kindToken`, not
+    `organisation.mjs`, which imports `gear-run.mjs` [S] (a cycle). It takes
+    the consumer's types as an argument, so lib imports no monsters file.
+  - **Plurals**: A8.4's "drops a plural s" cannot reach an irregular plural
+    [S, R]. Plurals are generated from the closed keys alone (the key, key+s
+    or +es, and the men plural of a key on the man stem) over
+    `RACE_CATEGORIES`, `MEN_RACES`, `DEMI_HUMAN_RACES` and the passed types. No
+    open singularizer runs on the page's word.
+- The filter stores the matched key; no match writes no item and records
+  `miss("reachKind", word)`. A qualifier that is a proper name matches no key,
+  so no page name becomes a filter key (`ip-doctrine.md`).
+- Counter, WEAK: a little English grammar in source. Weak: the forms come from
+  the module's own keys, a miss writes nothing, and the tree today admits
+  nobody.
+
+**5. E4's empty filter is what the page says. Allies are reached. The bearer
+goes to the Judge's tick.**
+
+- [R] E4 names its subject as any creature, with no kind, side or unit clause
+  (MM p. 56). `{kinds: [], exceptKinds: [], side: "any", unit: "any"}` is the
+  page. Allies, the bearer's own unit included, are prompted; a table that
+  reads it otherwise sets "Who counts" in 4d, a control, not a rule (owner,
+  2026-11-24). Departs from 4b's greyed ally and 4d's foes (Departures, 3).
+- The page does not settle the bearer [R]; RR's spell text says inclusion
+  both ways. `reachAdmits` drops the bearer first [S], and core never counts
+  the attached token as inside its own Region (A2).
+- **Proposed beyond A6's four keys, for the orchestrator to accept**: a key
+  `self`, `no` (default, kept by every existing row) or `ask`. E3 writes `no`
+  (its subordinates exclude the bearer [R]); E4 and E9 write `ask`, which
+  lists the bearer as undetermined with the Judge's tick. A ticked bearer is
+  a subject until lowering.
+- Counter, MEDIUM: allies saving against their side's item reads oddly, and
+  the drawn example says otherwise. Medium: no side clause is printed, no
+  house rule ships (owner, 2026-11-11), and the Judge narrows it per item.
+
+**6. Board 4b's distance and grey rows: extend the shared renderer.**
+
+- `detail` cannot carry them [S]: a distance is a figure and needs a tooltip
+  (`ui-tooltips.md`), and `detail` has no tooltip slot; `reachCardModel` marks
+  out and refused rows `neutral`, which prints bold on a tint, the reverse of
+  4b's grey.
+- Ruled: two additive fields on `renderRollCard`: a row's `aside` and
+  `asideTooltip`, in a column after Name headed by `labels.aside`, printed
+  only where some row has one; and a fourth emphasis `muted` (`is-muted`),
+  one rule in `styles/lib.css` on `--acks-ink-soft`, never bold.
+- Cost to the others: none. 22 files and 35 calls render through it; none
+  passes either field, so each gets byte-identical HTML, pinned by
+  `tools/test-roll-card.mjs`. A lib DECISIONS entry qualifies the in-force
+  row "2026-08-11 — One renderer for every card where several people roll"
+  from three emphases to four, naming 4b.
+- The distance's tooltip is computed: measured now, edge to edge
+  (`tokenGapFeet`), and the ring decides who is in reach (S7 point 1).
+- `reachCardModel` takes a seat `{ownsSubject, ownsBearer, isGM}` and renders
+  per seat on `renderChatMessageHTML`, as `cast-card.mjs` `onRender` does.
+- The renderer keeps Total and Target as two columns and the presses in an
+  Actions column, as on the cast card (Departures, 4).
+- Counter, WEAK: a renderer 22 files use, for one card. Weak: additive, the
+  suite pins old output byte for byte, and an untouched card is checked live
+  by identical captures [W].
+
+**7. The figures under `effectField.reach` stay there; `on` and `showReach`
+are corrected.**
+
+- `save`, `immunity` (and T10's `lasts`) stay under `reach` (A8.4, A8.6, a day
+  old, no new evidence). `modifier` stays: a live `figureRefField` only pulses
+  read, where the row's `value` is a stated field the cast engine reads.
+- `on` stays as import-written structure. Its comment says `ROLL_MODS_ON` but
+  it holds `morale` [S]: it is the reach's own list, `ROLL_MODS_ON` keys plus
+  `morale`, and `readReach` keeps only those words (today `words(raw.on)`
+  keeps any).
+- `showReach` is on 4d and in answer 2 but not in the group, and `raiseHere`
+  always writes `GAMEMASTER` [S]. It joins the group as a boolean, imported
+  false, read by `raiseHere`.
+- A lib ROADMAP row names the merge of live-figure homes.
+- Counter, MEDIUM: three homes for live figures. Medium: each has one reader
+  now, and the merge is a roadmap row.
+
+**8. Also found in S8b-1, ruled here, built in S8b-1b.**
+
+- (a) **Lowering lifts the immunity window** [S]: `pressHere` writes the window
+  with the activation id and `liftActivation` lifts every record carrying it.
+  The page ties only the condition to lowering or the bearer's death [R, MM
+  p. 56]. The window takes a per-card id, as A8.3 rules for T10. Supersedes in
+  part S7 point 2's "Records" for the window, on that ending clause [R] and
+  the teardown as built [S].
+- (b) **The window's clock**: S8b-1 writes a core `duration` that no lib path
+  lifts [S]; whether core 14 does was not read. It takes A8.4's module clock
+  (`itemRun.dueAt`, `liftDueRecords` on `onWorldTimeAdvanced`), built once for
+  both. Qualifies A7.3's "and a duration", on A8.4's evidence.
+- (c) **No page reference on records** [S]: `immunityRecordData`,
+  `actionPartRecordData` and `standingPartRecordData` write `cite: ""`. Each
+  takes the item's `cookbook.cite`.
+- (d) **E9's unit is too narrow**: E9's page names two unit levels [R], the
+  bearer's unit and those under it. `unit: "own"` answers false across group
+  flags silently; `under` answers true for the bearer's group and null for the
+  rest (the Judge's tick until S10 and S11). E9 writes `under`.
+
+**Departures from approved boards** (canvas 4, Version 7):
+
+1. 4b: the "On a failed save" well loses its Apply (point 1).
+2. 4c: the whispered card comes at the body's initiative start or when it
+   moves within, not "when the item is raised" (point 2).
+3. 4b and 4d: for E4 an ally is a subject, and "Who counts" is written as
+   Everyone (point 5).
+4. 4b: the save shows in Total and Target columns with the press in an
+   Actions column, as the cast card renders it (point 6).
+
+**UI states no board draws**: a) the waiting row and the word in its Result
+cell (a label the orchestrator may approve); b) the Judge's press on a
+waiting row and its warning line; c) the raised card's undetermined section
+with the Judge's tick, holding the bearer's row where `self` is `ask`. (b)
+and (c) are new control states and go to the owner with the departures, in
+one message. Each reversal is local: departure 1 adds a press, 2 a moment to
+`pulseAct`, 3 one import default, 4 only the reach card's model.
+
+**What S8b-1b builds** (`implementer`, on `topic/beastman-gear`):
+
+1. The presenter (`setUsePresenter`, new lib file): the raised card from
+   `list` moments, opening a row and whispering 4c's card on a prompt, muting
+   on `out` or refusal, the undetermined section, E3's `once` card; one
+   moment-keyed entry store on the raised card's message.
+2. The reach logic: `list`/`out` acts, the shared dedupe key, `onTurnBegan`
+   grouping by kind, the condition's retarget at teardown, the `self` key, the
+   ticked bearer's own reach at its turn start.
+3. Per-seat rendering on `renderChatMessageHTML`.
+4. The shared renderer: `aside` and `muted`, the CSS rule and suite cases, the
+   lib DECISIONS entry, the distance tooltip, the well as a written line.
+5. The "In reach of" strip on character and monster sheets (4c).
+6. The morale line with each record's label and cite; `moraleLine` used or
+   removed.
+7. Point 3; 8. point 4; 9. point 8; 10. point 7.
+
+**What the walk adds** (a Player seat for every ownership-gated step): W1 the
+raise outside a fight (listed, waiting, distances, bearer undetermined, zero
+whispers); W2 the fight starts (one whisper per initiative, recipients equal
+the owners); W3 the press from the Player seat (writes read back, second press
+refused, no Apply, a non-owner sees no Save, asked again next initiative); W4
+two overlapping bearers (one prompt, retarget on lowering); W5 lowering
+(conditions go, windows stay, re-raise skips the immune); W6 muted rows; W7
+Undo removes exactly the stored ids; W8 the early press; W9 E9 (parts on the
+bearer's group, another group undetermined, the told narrowed part, the
+morale line, the strip); W10 kinds on a generated beastman; W11 an untouched
+card hashes the same; W12 `showReach`.
+
+**Not checked**: nothing here was walked; where the importer writes a
+template's `extras.types`; whether core 14 lifts an effect whose `duration`
+ran; whether the printed type line carries the type word as the wiki shows;
+the group flags of a generated warband's bodies and leader; the order of
+lib's turn-life lift and the reach's turn-start prompt within one turn start;
+board 4a was not read in full for an undetermined control.
