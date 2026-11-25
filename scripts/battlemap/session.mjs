@@ -62,6 +62,12 @@ class CalibrationSession {
   /** The two hex probes last asked of the scene and the choice they answered; see `hexProbe`. */
   #probeCache = null;
 
+  /** Open `batch` calls; notifications are held while it is above zero. */
+  #holds = 0;
+
+  /** Whether a `notify` was held back by an open batch. */
+  #pendingNotify = false;
+
   /**
    * How the SQUARE family's fit reads its samples. "Allow skew" and
    * "Independent X / Y" are that family's controls and steer only its fit: on
@@ -317,13 +323,49 @@ class CalibrationSession {
   /*  Change notification                         */
   /* -------------------------------------------- */
 
+  /**
+   * Run `fn` with notifications held: every `notify` inside it coalesces into
+   * one, fired when the outermost batch ends (also when `fn` throws, so a
+   * failure never leaves the session mute). Listeners read the session as it
+   * stands then, so a change that must be seen whole belongs in one batch.
+   * @returns {boolean} whether a notification fired at the end of this call; a
+   *   nested batch leaves the firing to the outer one and answers false.
+   */
+  batch(fn) {
+    this.#holds++;
+    let notified = false;
+    try {
+      fn();
+    } finally {
+      this.#holds--;
+      notified = this.#flush();
+    }
+    return notified;
+  }
+
+  /** Fire the notification a batch held back, once no batch is open. */
+  #flush() {
+    if (this.#holds || !this.#pendingNotify) return false;
+    this.#pendingNotify = false;
+    this.notify();
+    return true;
+  }
+
   /** @returns {() => void} an unsubscribe function */
   subscribe(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
+  /**
+   * Tell every listener the session changed. Inside a `batch` the call is only
+   * remembered, and the batch tells them once when it ends.
+   */
   notify() {
+    if (this.#holds) {
+      this.#pendingNotify = true;
+      return;
+    }
     for (const fn of [...this.listeners]) {
       try {
         fn(this);

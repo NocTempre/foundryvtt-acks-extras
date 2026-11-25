@@ -231,7 +231,7 @@ nothing rewrites it.
 | `token-scale.mjs` | The ONE writer of width/height for generic tokens: scene-wide rescale, the Token sizes section's selection stamp and reset, and `preCreateToken` auto-sizing gated on the scene's `autoScale` flag. |
 | `scene-image.mjs` | The one place that knows where a scene's background lives: reads it off the active Level, writes it through that Level's own update. Every background read and write in the feature goes through here. |
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines for an affine one, hex outlines from the probe's vertices for a hex fit, capped at `HEX_PREVIEW_MAX`), eraser and undo; it leaves Ctrl+Z and Escape to a field being typed in (`isEditableTarget`). |
-| `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
+| `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change, and `batch` holds the notifications of several writes to one, which is how a form submit renders the window once. |
 | `assistant-app.mjs` | The Map setup window, a VIEW over the session: the Grid and scale section (the family, the units and cell worth, the needs list, the fit card and the samples), the Scale section, the fit toggles and Bake, "Saved as you choose" (the party system and the country), the Token sizes section (its chips and the whole-scene rescale), and a pinned footer carrying the Apply action and the rows it rewrites. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes. One side-effect-free solve per family, `solveGridCalibration` (square), `solveHexCalibration` (hex) and `solveScaleOnly` (no geometry), each answering the solution and its exact update; `writeSetup`, the one writer (confirm, one `scene.update` under `autoReposition`, read back, re-key every grid-shape cell, done notice); plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, the lattice basis and one hex's vertex offsets, measured off a clone rather than restated. |
@@ -309,9 +309,12 @@ nothing rewrites it.
   nothing else — the window outlives it, because core drops a layerless group
   on every canvas redraw and the apply redraws (DECISIONS). Escape, the
   panel's stop button and a refused mode select `off` as they disarm
-  (`requestDisarm`); leaving the group does not, so core's per-control tool
-  memory can bring the GM back to the mode or brush last armed (ledger
-  T-0633).
+  (`requestDisarm`). Leaving the group selects nothing, and core remembers the
+  tool last used there and re-activates it when the group's button is pressed
+  again; each canvas-arming tool (the capture modes and the Country brush)
+  answers that press by resting the group at `off` on the next tick instead
+  of arming (`isGroupPress`, `restAtOff`). A tool pressed on its own button,
+  or entered by a scripted `activate`, arms as usual.
 - **Applying writes core fields directly** — `width`, `height`, `shiftX`,
   `shiftY`, `grid.size`, `grid.type`, `grid.distance`, `grid.units` — in one
   `scene.update`, plus the module's scene flag

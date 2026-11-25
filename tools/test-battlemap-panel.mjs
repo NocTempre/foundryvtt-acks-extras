@@ -1405,6 +1405,80 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
+  // One submit is one render, however many counts it posts: the writes run in a batch and the session announces once.
+  const scene = makeScene({ type: 1 });
+  setup({ family: "square", scene, samples: { squares: [squareBox(0, 0), squareBox(0, 1), squareBox(0, 2)] } });
+  const heard = [];
+  const stop = session.subscribe(() => heard.push(session.samples.squares.map((b) => `${b.across}x${b.down}`).join(",")));
+  await submit.call(app, null, null, {
+    object: { mapCellFeet: "8", "boxCells.0.x": "2", "boxCells.0.y": "3", "boxCells.1.x": "4", "boxCells.1.y": "1", "boxCells.2.x": "5", "boxCells.2.y": "6" },
+  });
+  stop();
+  assert.equal(app.renders, 1, "three boxes' counts on the square family render the window once");
+  assert.equal(heard.length, 1, "and every other subscriber is told once");
+  assert.equal(heard[0], "2x3,4x1,5x6", "after the last count is stored");
+}
+
+{
+  // The same on a hex family, where each render also reads the scene for its probes.
+  const scene = makeScene();
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  await submit.call(app, null, null, { object: { gridFamily: "hexCols", mapCellFeet: "4" } });
+  assert.equal(app.renders, 1, "a field change on a hex family renders the window once");
+  assert.equal(session.gridFamily, "hexCols");
+  assert.equal(session.opts.mapCellFeet, 4);
+}
+
+{
+  // A submit the session ignores still re-draws the window, once.
+  const scene = makeScene({ type: 1 });
+  setup({ family: "square", scene, samples: { squares: [squareBox(0, 0)] } });
+  const setSetup = session.setSetup;
+  session.setSetup = () => {};
+  try {
+    await submit.call(app, null, null, { object: { mapCellFeet: "8" } });
+  } finally {
+    session.setSetup = setSetup;
+  }
+  assert.equal(app.renders, 1, "nothing announced: the submit renders the window itself");
+}
+
+{
+  // session.batch: notifications inside it coalesce into one, nested batches fire at the outermost end, a throw releases the hold.
+  const scene = makeScene({ type: 1 });
+  setup({ family: "square", scene, samples: { squares: [squareBox(0, 0)] } });
+  let heard = 0;
+  const stop = session.subscribe(() => heard++);
+  try {
+    const during = [];
+    const fired = session.batch(() => {
+      session.setSetup({ units: "ft" });
+      session.setBoxSpan(0, "x", 2);
+      during.push(heard);
+      session.batch(() => session.setBoxSpan(0, "y", 3));
+      during.push(heard);
+    });
+    assert.deepEqual(during, [0, 0], "nothing is announced while the batch is open, a nested one included");
+    assert.equal(heard, 1, "two notifying calls inside one batch fire the listeners once");
+    assert.equal(fired, true, "and the batch says it announced");
+
+    heard = 0;
+    assert.equal(session.batch(() => {}), false, "a batch that changed nothing announces nothing");
+    assert.equal(heard, 0);
+
+    assert.throws(() => session.batch(() => {
+      session.setBoxSpan(0, "x", 4);
+      throw new Error("boom");
+    }), /boom/);
+    assert.equal(heard, 1, "a throw inside still announces what changed before it");
+    session.setBoxSpan(0, "x", 5);
+    assert.equal(heard, 2, "and releases the hold: a later change announces at once");
+  } finally {
+    stop();
+  }
+}
+
+{
   // A hex the scene cannot report closes by changing the family and changing back; the cache holds until then.
   clones.broken = true;
   try {

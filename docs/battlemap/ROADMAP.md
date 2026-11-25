@@ -56,7 +56,6 @@ Re-issued 2026-11-14.
    - T-0628: "px" names image pixels on the card and the box rows, and canvas
      pixels in the grid-size fields and the measured scale.
    - T-0629: a sample row's delete button has no spoken name.
-   - T-0630: a field change renders the window twice, plus once per box.
    - T-0631: a custom size typed and confirmed with one click may be lost
      (inferred, not walked).
    - T-0591: the square family's loose-fit warning names no sample.
@@ -66,8 +65,6 @@ Re-issued 2026-11-14.
    only leaves the family to the shape fallback, which misreads rows
    stretched 1.25 times).
    The capture tools and the group:
-   - T-0633: leaving the group does not select `off`, so coming back re-arms
-     the last mode or the brush.
    - T-0634: the corners hint promises rotation and skew without naming
      Allow skew.
    - T-0635: three names for removing: Wipe clears every sample unasked and

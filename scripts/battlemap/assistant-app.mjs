@@ -945,23 +945,30 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     if (present("independentXY")) session.independentXY = !!d.independentXY;
     if (present("allowSkew")) session.allowSkew = !!d.allowSkew;
     // Every slot is taken before the first notification: a listener that
-    // renders on it must plan from the values this submit carries.
-    for (const slot of ["mapCellFeet", "scaleValue", "outputFeet", "gridSizePx", "customFeet"]) {
-      if (present(slot)) session.opts[slot] = num(d[slot]);
-    }
-    session.setSetup({ gridFamily: d.gridFamily, hexEven: d.hexEven, units: d.units, mapSystem: d.mapSystem });
-    // A box's two counts post as `boxCells.<index>.x` and `.y`; one the
-    // panel did not render is absent, and its count stays.
-    for (const [index, counts] of Object.entries(d.boxCells ?? {})) {
-      for (const axis of ["x", "y"]) {
-        if (Object.hasOwn(counts ?? {}, axis)) session.setBoxSpan(index, axis, Number(counts[axis]));
+    // renders on it must plan from the values this submit carries. The
+    // writes run in one batch, so the session's subscribers (this window
+    // among them) are told once, after the last of them, and that one
+    // notification is the window's render.
+    const notified = session.batch(() => {
+      for (const slot of ["mapCellFeet", "scaleValue", "outputFeet", "gridSizePx", "customFeet"]) {
+        if (present(slot)) session.opts[slot] = num(d[slot]);
       }
-    }
-    // A statement ABOUT THE SCENE, not part of the calibration arithmetic,
-    // so it lands the moment it is chosen.
-    BattlemapAssistant.#writeSystem(d.mapSystem || null);
-    if (present("country")) this.#writeCountry(d.country ?? {});
-    this.render();
+      session.setSetup({ gridFamily: d.gridFamily, hexEven: d.hexEven, units: d.units, mapSystem: d.mapSystem });
+      // A box's two counts post as `boxCells.<index>.x` and `.y`; one the
+      // panel did not render is absent, and its count stays.
+      for (const [index, counts] of Object.entries(d.boxCells ?? {})) {
+        for (const axis of ["x", "y"]) {
+          if (Object.hasOwn(counts ?? {}, axis)) session.setBoxSpan(index, axis, Number(counts[axis]));
+        }
+      }
+      // A statement ABOUT THE SCENE, not part of the calibration arithmetic,
+      // so it lands the moment it is chosen.
+      BattlemapAssistant.#writeSystem(d.mapSystem || null);
+      if (present("country")) this.#writeCountry(d.country ?? {});
+    });
+    // Only a submit that changed nothing the session announces still owes the
+    // window its render: a field the session ignores can change what it shows.
+    if (!notified) this.render();
   }
 
   /** Persist the scene's declared travel system, if it changed. */

@@ -213,6 +213,28 @@ const MODE_ICONS = {
 };
 
 /**
+ * True when `event` is a press on the Battlemap group's own button in the
+ * scene-controls column. Core remembers each control's last tool and, on that
+ * press, calls the group's `onChange` and then the remembered tool's with
+ * `active` true; a scripted `activate` hands no event, and a press on a tool
+ * button targets the tool's own control, so neither matches.
+ */
+function isGroupPress(event) {
+  return event?.target?.closest?.("[data-control]")?.dataset?.control === CONTROL_GROUP;
+}
+
+/**
+ * Puts the group back on its resting tool on the next tick. A canvas-arming
+ * tool whose remembered activation arrives with a press on the group's button
+ * calls this instead of arming; core's `activate` then disarms that tool and
+ * runs `off`, which disarms the session. It runs after the press, because
+ * core is still inside its own activation when the tool's handler is called.
+ */
+function restAtOff() {
+  setTimeout(() => ui.controls.activate({ tool: TOOL_OFF }), 0);
+}
+
+/**
  * Calibration gets a control group of its own. Each capture mode IS a
  * scene-control tool (Foundry keeps one active at a time for free); the
  * group carries no `layer`, since it drives the calibration overlay, not a
@@ -220,15 +242,21 @@ const MODE_ICONS = {
  * disarms and nothing else — the window is dismissed only by its own close
  * control.
  *
+ * Entering the group arms nothing, by two means. `activeTool` is `off` for a
+ * group entered for the first time; for one entered again, core re-activates
+ * the tool last used there, and each canvas-arming tool (the capture modes and
+ * the country brush) answers that press on the group's button by resting the
+ * group at `off` instead of arming. A tool picked on purpose, by a press on its
+ * own button or by a scripted `activate`, arms as usual.
+ *
  * See docs/battlemap/DECISIONS.md, "The panel is a window again, dismissed
  * by the toolbar."
  */
-function installSceneControls() {
+export function installSceneControls() {
   Hooks.on("getSceneControlButtons", (controls) => {
     if (!game.user.isGM) return;
     const tools = {};
-    // The group's resting state — without it, every tool in the group draws
-    // on the map and core's per-control memory would re-arm one on return.
+    // The group's resting state: every other tool in the group draws on the map.
     tools[TOOL_OFF] = {
       name: TOOL_OFF,
       title: game.i18n.localize(`${LANG_PREFIX}.mode.off`),
@@ -245,10 +273,11 @@ function installSceneControls() {
         icon: MODE_ICONS[mode],
         order: i + 1,
         // A mode tool is the ACTIVE tool while armed, so Foundry's own
-        // one-at-a-time handling is the arming logic; `active` is what it
-        // hands back when the group is re-entered.
-        onChange: (_event, active) => {
-          if (active) session.arm(mode);
+        // one-at-a-time handling is the arming logic. A press on the group's
+        // button re-activates the remembered tool, and that arms nothing.
+        onChange: (event, active) => {
+          if (active && isGroupPress(event)) restAtOff();
+          else if (active) session.arm(mode);
           else if (session.mode === mode) session.disarm();
         },
       };
@@ -262,8 +291,9 @@ function installSceneControls() {
       title: game.i18n.localize(`${LANG_PREFIX}.terrain.tool`),
       icon: "fa-solid fa-paintbrush",
       order: CAPTURE_MODES.length + 1,
-      onChange: (_event, active) => {
-        if (active) openCountryBrush({ by: "tool" });
+      onChange: (event, active) => {
+        if (active && isGroupPress(event)) restAtOff();
+        else if (active) openCountryBrush({ by: "tool" });
         else terrainPaint.disarm();
       },
     };
@@ -340,8 +370,9 @@ function installSceneControls() {
       icon: "fa-solid fa-ruler-combined",
       order: Object.keys(controls).length,
       visible: game.user.isGM,
-      // Entering the group arms NOTHING. Opening a toolbar must not start
-      // drawing on the map, and the panel is readable without a mode armed.
+      // Entering the group arms NOTHING: the first entry lands on `off`, and
+      // a later one is rested at `off` by the canvas-arming tools above, since
+      // core re-activates the tool last used in the group.
       activeTool: TOOL_OFF,
       tools,
       onChange: (_event, active) => {
