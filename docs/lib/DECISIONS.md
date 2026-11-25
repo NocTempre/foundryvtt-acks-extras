@@ -1604,3 +1604,42 @@ deploys and recalls its tree, as a group token's combat does.
 the Judge may not expect, and the stored figure had the merit of being what a hand
 wrote. Not HIGH: the figure was stale after any casualty, which was the defect, and the
 formation already sized cells by the group's living count.
+
+## 2026-11-25 — The chart's controls, and where its reader sits
+
+Ruled where the beastman plan left the chart's shape open (docs/lib/ORGANISATION.md
+is the mechanics). A send out writes the place's roster, then lets every other
+roster that held the group go, then clears the group's parent: a group stands in
+one place, and a stale second roster row would count its bodies twice. A recall
+refuses where there is no group to go back under (a top row, a parent row with no
+holder, a parent holder that is no group, a lone actor, which stands inside no
+group) and says which; it is the one place a control answers a refusal, since the
+write cannot be made. A press on an empty row makes its group in send out and in
+leave alike, so no press refuses it.
+
+A join and a leave are idempotent by key. A row the target already holds is the
+first write having landed, so a second press writes no row twice and only
+completes the clearing, and the faction's copy stands where the two differ. Two
+writes with no transaction can stop between them; the faction answers, the view
+marks the twin, and the Judge presses again, as moveStack's order leaves bodies
+standing twice rather than nowhere.
+
+The morale part from above is read from the units above a group, and an
+ancestor's part counts only while that ancestor's officer is up (resolved, above
+zero hit points, not marked dead). A group's own officer stays `commandMorale`'s
+ungated term, as the henchmen engine writes it today. The reader lives in
+`org-host.mjs`, apart from the writes, because the group's data model calls it and
+the writes import the group's operations.
+
+A faction's `affiliation` resolves each chart holder and drops one the world no
+longer answers for, so `hasMember` and `headcount` agree that a deleted holder
+affiliates nobody. A member row for the same actor wins over its chart row.
+
+**Strongest counter, MEDIUM.** Gating the ancestors on the officer being up and not
+the group's own gives one officer two rules: a gang's champion keeps leading at
+zero hit points while the chieftain's part falls away. Not HIGH: the own term
+predates the chart and the hire writes it from a cached figure, so a change is the
+henchmen feature's to rule, and the owner's page reading (the part is the
+chieftain's, and it ends with him) is the ancestor case alone. A recall that
+refuses a top row may read as a gate; the alternative, writing nothing and
+reporting success, leaves a group nowhere.

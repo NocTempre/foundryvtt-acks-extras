@@ -69,6 +69,7 @@ acksExtras.lib = {
   // 70: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
   // 71: rollMods.countsOnce (below, "A condition counted once")
   // 72: groups.{setParentGroup, addLabelledStack, groupTree, deployedTree, groupNodes, groupDescendants, groupAncestors, wouldCycleGroup, liveRows, isGeneratedStack} (docs/lib/GROUPS.md, "A group inside a group"); addStack takes `gen` and `fixedHp`
+  // 72: fields.unitField; org.{orgHostOf, orgHosts, unitsOf, chartRows, addRow, setHolder, sendOut, recall, join, leave, orgChart, locations, chartOf, rostersHolding, moraleFromUnitsAbove, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys, isEmptyRow, affiliationRows, registerOrgIndex} (below, "`org` — the organisation chart"); a faction and a group carry `system.units`
 }
 ```
 
@@ -394,6 +395,29 @@ the provider is built to. It is a name and a shape here and registers nothing in
 resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe part and
 its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
 unit with no recipe, which a consumer treats as no provider.
+
+## `org` — the organisation chart (apiVersion 72)
+
+`acksExtras.lib.org`. The shape, the rules of each control and the reasons they
+answer are docs/lib/ORGANISATION.md's; this is the surface.
+
+| Call | Answers |
+|---|---|
+| `orgHostOf(holderUuid)` | `{host, row}`, the actor hosting the chart and a plain copy of the row that names the holder, or null. The faction answers where a row stands on both a faction and a group. Reads affiliation, never location |
+| `unitsOf(host)`, `orgHosts()`, `chartRows()` | A host's rows as plain objects; every actor hosting a chart; every row of every chart, flat |
+| `addRow(host, parentKey, {label, kind, notes})` | `{ok, key}`: an empty row under any row, or at the top |
+| `setHolder(host, key, holderUuid)` | `{ok}`: names the actor holding a row, blank to empty it |
+| `sendOut(host, key, placeUuid)` | `{ok, group, made}`: the group onto a place's roster, out of its parent group; an empty row's group is made |
+| `recall(host, key)` | `{ok}`: the group back under its parent row's group, off every roster |
+| `join(group, faction, underKey)`, `leave(faction, key)` | `{ok, moved}`: a chart joins a faction, or a subtree leaves onto its top row's group; each writes one host, then the other |
+| `orgChart(host)`, `locations()` | The two view models |
+| `chartOf(group)` | `{host, row, above, below}`: the group's place in whichever chart names it |
+| `moraleFromUnitsAbove(group)` | The part the units above a group bring while their officers are up |
+
+A refusal is `{ok: false, reason}` and nothing is written. The pure half is
+`nodesOf`, `rowAncestors`, `rowDescendants`, `rowRoots`, `subtreeKeys`, `twinKeys`,
+`isEmptyRow` and `affiliationRows`. `fields.unitField()` is the row both
+`FactionData.units` and `GroupData.units` store.
 
 ## `vocab` — Foundry-free enums (Node-importable)
 

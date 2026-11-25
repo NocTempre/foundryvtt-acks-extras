@@ -16,7 +16,7 @@ print is [DECISIONS.md](DECISIONS.md); what is not built is
 | File | Owns |
 |---|---|
 | `scripts/factions/constants.mjs` | The sub-type id, the kinds, the standing sources and scopes, the relation stances, the setting key, the hook names. |
-| `scripts/factions/data/faction-data.mjs` | `FactionData` — the sub-type's schema and its own readers (`standingFor`, `wants`, `controlsRegion`, `hasMember`, `headcount`, `relationTo`, `holdsPlace`, `placeUuids`, `strengthTotal`, `strengthColumnTotals`, `strengthRevenue`). |
+| `scripts/factions/data/faction-data.mjs` | `FactionData` — the sub-type's schema and its own readers (`standingFor`, `wants`, `controlsRegion`, `affiliation`, `hasMember`, `headcount`, `relationTo`, `holdsPlace`, `placeUuids`, `strengthTotal`, `strengthColumnTotals`, `strengthRevenue`). |
 | `scripts/factions/standing-logic.mjs` | The pure derivations: subject sets, row matching, sums, hunters, market steps, the parent-loop guard, the relation readers (`relationOf`, `regardedBy`, `placesHeld`) and the strength readers (`normalizeStrength`, `strengthTotal`, `strengthColumnTotals`, `strengthRevenue`). Foundry-free. |
 | `scripts/factions/standing.mjs` | The world-facing readers, the Judge's writers (the ledger's, the relations', the holdings'), and `marketClassShift`. |
 | `scripts/factions/influence-listener.mjs` | The reception rows, pushed through the influence feature's modifier hook. |
@@ -35,8 +35,8 @@ print is [DECISIONS.md](DECISIONS.md); what is not built is
 - **Extend**: the `acks-extras.faction` sub-type (TypeDataModel) — `kind`,
   `notes` and a Judge-only `gmNotes`, a `seatUuid` (a place), `holdings` (the
   other places it keeps), a `leaderUuid`, a `parentUuid` (a faction,
-  loop-guarded), `members` (roster rows), `strength` (the unnamed people,
-  counted), `relations` (its stance toward each other organisation), `controls`
+  loop-guarded), `members` (roster rows), `units` (its organisation chart),
+  `strength` (the unnamed people, counted), `relations` (its stance toward each other organisation), `controls`
   (district Region uuids) and `standing` (the ledger). Every array defaults to
   empty and the strength block to an empty table, so an actor with none of
   them stored loads with the defaults. Its prototype token draws as a
@@ -124,6 +124,21 @@ fire `acksExtras.factionRelationsChanged`.
 **Members** are the same roster rows a place keeps. A row marked hidden is
 omitted from a player's view of the sheet; `factionsOfMember(actorUuid)`
 finds the factions rostering an actor, hidden or not.
+
+**Units** are the faction's organisation chart: `units` is a list of
+`unitField` rows (`key`, `parentKey`, `label`, `holderUuid`, `kind`, `notes`,
+`hidden`, `gen`), each naming the group that holds that unit's bodies, and a
+village's chart lives here, on its faction card. A row with no holder is empty and
+waits to be decided. The rows, the controls over them (add, send out, recall, join
+and leave) and the reader that finds a holder's host are
+[lib/ORGANISATION.md](../lib/ORGANISATION.md)'s.
+
+**Who belongs** is one list, `affiliation`: the members, then the holder of each
+chart row that no member row names, a stored member row winning for the same actor
+and an empty or unresolved row naming nobody. `hasMember`, `headcount`,
+`factionRecord`, `readableLeaderUuid` and the reaction listener's concealed-member
+test all read it; the headcount counts each holder group live, nested groups
+included, each body once.
 
 ## Strength
 

@@ -206,22 +206,22 @@ t("a row standing on two hosts is a twin, and a row on one is not", () => {
 
 t("a unit takes the part of each ancestor row whose officer is up, and none from itself", () => {
   const nodes = nodesOf(CHART);
-  const parts = { "G.v": { bonus: 2, up: true }, "G.w1": { bonus: 1, up: true }, "G.g1": { bonus: 4, up: true } };
+  const parts = { "G.v": { bonus: 3, up: true }, "G.w1": { bonus: 1, up: true }, "G.g1": { bonus: 4, up: true } };
   const read = (uuid) => parts[uuid] ?? null;
-  assert.equal(moraleFromAbove("g1", nodes, read), 3, "the village's and the warband's, not the gang's own");
-  assert.equal(moraleFromAbove("w1", nodes, read), 2);
+  assert.equal(moraleFromAbove("g1", nodes, read), 4, "the village's and the warband's, not the gang's own");
+  assert.equal(moraleFromAbove("w1", nodes, read), 3);
   assert.equal(moraleFromAbove("v", nodes, read), 0, "a top row has nothing above");
 });
 
 t("a fallen officer's part is gone, and a part read as null adds nothing", () => {
   const nodes = nodesOf(CHART);
-  const read = (uuid) => ({ "G.v": { bonus: 2, up: false }, "G.w1": { bonus: null, up: true } })[uuid] ?? null;
+  const read = (uuid) => ({ "G.v": { bonus: 3, up: false }, "G.w1": { bonus: null, up: true } })[uuid] ?? null;
   assert.equal(moraleFromAbove("g1", nodes, read), 0);
 });
 
 t("an empty ancestor row adds nothing and the walk goes on past it", () => {
   const nodes = nodesOf([row("v", "", "G.v"), row("w", "v", ""), row("g", "w", "G.g")]);
-  assert.equal(moraleFromAbove("g", nodes, (u) => (u === "G.v" ? { bonus: 2, up: true } : null)), 2);
+  assert.equal(moraleFromAbove("g", nodes, (u) => (u === "G.v" ? { bonus: 3, up: true } : null)), 3);
 });
 
 t("an officer is up unless resolved and fallen", () => {

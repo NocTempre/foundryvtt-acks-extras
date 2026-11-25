@@ -22,7 +22,7 @@ this file only indexes what this repo has.
 Per-feature: `abilities`, `battlemap`, `character-sheet`, `classes`,
 `domains`, `equipment`, `factions`, `formation`, `henchmen`, `importer`, `influence`, `lib`,
 `location`, `magic`, `magic-items`, `markets`, `monsters`, `scene-search`, `treasure`, `vehicles`.
-The `lib` feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)
+The `lib` feature additionally splits by topic (API, GROUPS, ORGANISATION, PLACES, FOLLOWER-CARD)
 because it is the shared surface every other feature reads. The `importer`
 feature additionally splits by topic (COOKBOOK, RECIPES, BINDING-FOUNDRY, EXTRACTION)
 because it is the extraction pipeline with multiple independently-versioned surfaces.

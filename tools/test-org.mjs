@@ -101,10 +101,10 @@ function makeActor(type, name, system, { isOwner = true } = {}) {
 }
 
 /** Take a document out of the world as a deletion does. */
-function remove(doc) {
+function remove(doc, { announce = true } = {}) {
   world.delete(doc.uuid);
   actors.delete(doc.id);
-  fire("deleteActor", doc);
+  if (announce) fire("deleteActor", doc);
 }
 
 const group = (name, { bodies = 0, parent = "", units = [], officer = "" } = {}, opts) =>
@@ -179,6 +179,18 @@ t("a deleted holder or a deleted host no longer answers", () => {
   assert.equal(org.orgHostOf(kept.uuid).host, f, "its sibling still answers");
   remove(f);
   assert.equal(org.orgHostOf(kept.uuid), null, "the host is gone: nothing names the holder");
+});
+
+t("a deletion no hook announced reads empty too, since every hit is read against the world", () => {
+  reset();
+  const gang = group("Gang");
+  const f = faction("Village", [row("g", "", gang.uuid)]);
+  const kept = group("Kept", { units: [row("k", "", gang.uuid)] });
+  assert.equal(org.orgHostOf(gang.uuid).host, f);
+  remove(f, { announce: false });
+  assert.equal(org.orgHostOf(gang.uuid).host, kept, "the stale entry for the deleted host is passed over");
+  remove(gang, { announce: false });
+  assert.equal(org.orgHostOf(gang.uuid), null);
 });
 
 t("a deleted faction leaves the group's own chart to answer", () => {

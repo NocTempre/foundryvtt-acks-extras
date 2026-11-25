@@ -156,6 +156,12 @@ Data written around it and looping is read safely and counted once.
 
 The leader of a unit is the group's `unit.officerUuid`; nesting adds no field for it.
 
+A group may also host an organisation chart, `units`: the rows of the units under
+it, each naming the group that holds its bodies. It is affiliation, where nesting is
+location, and it never moves a group. [ORGANISATION.md](ORGANISATION.md) owns the
+rows, the controls over them and the morale part a group takes from the units
+above it.
+
 ### A count read now
 
 A group's `bodyCount` is its own living bodies plus those of every group inside it,

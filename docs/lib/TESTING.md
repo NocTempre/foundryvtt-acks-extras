@@ -4163,3 +4163,108 @@ now". Walked on the primary GM seat, which acts on a group token's combat.
 8. Teardown. `api.sweepTracked()` for the scene, token and combat; quote its result.
    Set the inner's count back to 3, take the labelled stack off the outer and clear
    the roster rows.
+
+## The organisation chart through the API
+
+The model is [ORGANISATION.md](ORGANISATION.md). No sheet draws the chart yet, so
+every step is a page-context call on `acksExtras.lib.org` and the observable is the
+stored rows or the call's answer. Walked on the primary GM seat; step 10 also
+wants a player seat.
+
+### Fixtures
+
+- **Kept, `lib/org-faction`**: an `acks-extras.faction` actor, the village's card.
+- **Kept, `lib/org-warband`**: an `acks-extras.group` actor holding one stack of four
+  bodies over any world monster (`acksExtras.lib.groups.addStack(warband, monster,
+  {count: 4})`).
+- **Kept, `lib/org-gang`**: an `acks-extras.group` actor holding one stack of three
+  bodies, built the same way.
+- **Kept, `lib/org-chief`**: a world character actor, the warband's officer, with
+  hit points above zero.
+- **Kept, `lib/org-place`**: an `acks-extras.location` actor with an empty roster.
+
+Each is `api.fixture(marker, "Actor", {name, type})`. Each step starts by asserting
+the shape it needs and writing it where it differs: the faction's and the group
+actors' `system.units` are `[]`, the gang's `system.unit.parentGroupUuid` is blank,
+the warband's `system.unit` names the chief as `officerUuid` with
+`officerMoraleBonus` 3 (an invented figure), the gang's `officerUuid` and
+`officerMoraleBonus` are blank and null, and the place's `system.roster` is `[]`.
+Two disposable groups and one disposable faction (step 9) are made through
+`api.create` and swept by the ledger.
+
+### Steps
+
+1. Add a row on each kind of host. `const org = acksExtras.lib.org;`
+   `const top = await org.addRow(faction, "", {label: "Village row"})`, then
+   `const band = await org.addRow(faction, top.key, {label: "Band row"})` and
+   `const lone = await org.addRow(warband, "", {label: "Gang row"})`. *Observable:*
+   each answers `{ok: true, key}`, the faction's `system.units` holds two rows, the
+   second with `parentKey` the first's key, the warband's holds one, and every row's
+   `holderUuid` is blank. `await org.addRow(faction, "nope")` answers
+   `{ok: false, reason: "noRow"}` and writes nothing.
+2. Fill the rows and find a holder. `await org.setHolder(faction, top.key, warband.uuid)`,
+   `await org.setHolder(faction, band.key, gang.uuid)` and
+   `await org.setHolder(warband, lone.key, chief.uuid)`. *Observable:*
+   `org.orgHostOf(gang.uuid)` is `{host, row}` with `host.uuid` the faction's and
+   `row.key` the band row's; `org.orgHostOf(warband.uuid).row.key` is the top row's;
+   `org.orgHostOf(chief.uuid)` names the warband as host and the lone row, and
+   `org.orgHostOf(faction.uuid)` is null.
+3. Nest and count. `await acksExtras.lib.groups.setParentGroup(gang, warband.uuid)`,
+   then `org.orgChart(faction)`. *Observable:* the top row's `count` is 7, the band
+   row's is 3 and is `covered: true`, the chart's `total` is 7, the top row's
+   `officer.name` is the chief's, and `empty` is 0.
+4. A chieftain's part reaches a gang. Read `gang.system.commandMorale`.
+   *Observable:* it is the gang's own `unit.morale` plus 3, the warband's part, with
+   no faction chart change. Set the chief's hit points to 0
+   (`chief.update({"system.hp.value": 0})`) and read it again: the 3 is gone. Set them
+   back and mark the chief dead instead (`chief.toggleStatusEffect("dead", {active:
+   true})`): the 3 is gone again. Clear the status and the part returns on the next
+   read.
+5. Send out. `const before = foundry.utils.deepClone(faction.system.units)`, then
+   `await org.sendOut(faction, band.key, place.uuid)`. *Observable:* `{ok: true}`, the
+   place's roster holds the gang's row, the gang's `unit.parentGroupUuid` is blank,
+   `faction.system.units` equals `before`, the warband's row now counts 4 and the
+   gang's row is no longer `covered`, and `org.locations()` lists the place with the
+   gang as an outermost group carrying the band row (`inside: false`). A second
+   press changes nothing.
+6. Recall. `await org.recall(faction, band.key)`. *Observable:* the gang's parent is
+   the warband's uuid and the place's roster is empty again. `await org.recall(faction,
+   top.key)` answers `{ok: false, reason: "topRow"}` and writes nothing.
+7. Send out of an empty row. Add a row under the top row labelled "Open band" and
+   `await org.sendOut(faction, open.key, place.uuid)`. *Observable:* `{ok: true, made:
+   true}`; a group actor named "Open band" exists and the row names it
+   (`api.track(result.group.uuid, "Actor")` at once); the place's roster holds it.
+   Pressing again answers `made: false`.
+8. Join, a twin and leave. `await org.join(warband, faction, top.key)`. *Observable:*
+   `{ok: true, moved: [lone.key]}`, the faction's rows hold the lone row under the
+   top row with its key as it was, and the warband's `system.units` is `[]`;
+   `org.chartOf(warband).below` names the faction's rows beneath its own, and
+   `org.orgHostOf(chief.uuid).host` is now the faction. Write the lone row back on
+   the warband by hand (`warband.update({"system.units": [rowCopy]})`) and read
+   `org.orgChart(faction).rows`: the row is marked `twin: true`, and
+   `org.orgHostOf(chief.uuid).host` is still the faction. Press `org.join` again.
+   *Observable:* `moved: []`, no row twice on the faction and the warband's rows
+   cleared. Then `await org.leave(faction, lone.key)`: the warband hosts the row at
+   the top of its own chart and the faction no longer holds it.
+9. The delete path. With `api.create` make a disposable group and a disposable
+   faction, give the faction a row naming the group, and read `org.orgHostOf` for
+   it. Delete the group. *Observable:* `org.orgHostOf(groupUuid)` is null and the
+   row reads `empty: true` in `org.orgChart(faction)`. Delete the faction.
+   *Observable:* a second disposable group named by it answers null at once.
+10. Who belongs. With the gang's row on the faction, `faction.system.hasMember(gang.uuid)`
+    is true and `faction.system.headcount` counts the warband's 7 once, the gang
+    inside it not added again. Record a nonzero standing on the faction toward the
+    party (`acksExtras.factions.addStanding`), then set the band row hidden
+    (`hidden: true` on the row, `system.units` written whole) and open a reaction
+    roll against the gang from a player seat. *Observable:* the faction's standing
+    row is absent from the player's dialog and present in the Judge's.
+11. Teardown. `api.sweepTracked()` for the disposables and the made group; quote
+    its result. Reset the kept fixtures to the shape the fixtures section names,
+    remove the standing row step 10 wrote, and clear the chief's status.
+
+### Not walked
+
+The sheets that draw the two views, the gestures for join, leave and "make its
+own", and the Roll are later slices. The influence feature's Morale button reads
+`commandMorale` through `moraleRatingOf`, which is unchanged; the step 4 read is
+the proof, and the button itself is not walked.

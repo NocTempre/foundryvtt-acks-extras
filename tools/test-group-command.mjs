@@ -101,9 +101,9 @@ function village({ chiefHp = 6, chiefDead = false, host = "faction" } = {}) {
   const chief = officerDoc("chief", { hp: chiefHp, dead: chiefDead });
   const sub = officerDoc("sub");
   const champion = officerDoc("champion");
-  const v = groupDoc("v", { unit: { officerUuid: chief.uuid, officerMoraleBonus: 2 } });
+  const v = groupDoc("v", { unit: { officerUuid: chief.uuid, officerMoraleBonus: 3 } });
   const w = groupDoc("w", { unit: { officerUuid: sub.uuid, officerMoraleBonus: 1, morale: 1 } });
-  const g = groupDoc("g", { unit: { officerUuid: champion.uuid, officerMoraleBonus: 3, morale: 0 } });
+  const g = groupDoc("g", { unit: { officerUuid: champion.uuid, officerMoraleBonus: 2, morale: 0 } });
   const rows = [unitRow("v", "", v.uuid), unitRow("w", "v", w.uuid), unitRow("g", "w", g.uuid)];
   if (host === "faction") world.set("Actor.f", { id: "f", uuid: "Actor.f", type: "acks-extras.faction", system: { units: rows } });
   else v.system.units = rows;
@@ -113,28 +113,28 @@ function village({ chiefHp = 6, chiefDead = false, host = "faction" } = {}) {
 
 t("a gang's morale takes the part of each unit above it while that unit's officer is up", () => {
   const { g, w, v } = village();
-  assert.equal(g.system.commandMorale, 3 + 1 + 2, "its own officer's part, the warband's and the village's");
-  assert.equal(w.system.commandMorale, 1 + 1 + 2, "the warband's own morale and part, and the village's");
-  assert.equal(v.system.commandMorale, 2, "a top unit takes only its own officer's");
+  assert.equal(g.system.commandMorale, 2 + 1 + 3, "its own officer's part, the warband's and the village's");
+  assert.equal(w.system.commandMorale, 1 + 1 + 3, "the warband's own morale and part, and the village's");
+  assert.equal(v.system.commandMorale, 3, "a top unit takes only its own officer's");
 });
 
 t("a chieftain who falls takes the part from every unit under it", () => {
   const down = village({ chiefHp: 0 });
-  assert.equal(down.g.system.commandMorale, 3 + 1, "at zero hit points");
+  assert.equal(down.g.system.commandMorale, 2 + 1, "at zero hit points");
   assert.equal(down.w.system.commandMorale, 1 + 1);
   const dead = village({ chiefDead: true });
-  assert.equal(dead.g.system.commandMorale, 3 + 1, "marked dead");
+  assert.equal(dead.g.system.commandMorale, 2 + 1, "marked dead");
   const up = village();
   up.chief.system.hp.value = 1;
   assert.equal(up.g.system.commandMorale, 6, "a wounded chieftain who still stands leads");
   up.chief.system.hp.value = 0;
-  assert.equal(up.g.system.commandMorale, 4, "and the part is gone the moment he falls");
+  assert.equal(up.g.system.commandMorale, 3, "and the part is gone the moment he falls");
 });
 
 t("a chart hosted on a group reads the same, with no faction", () => {
   const { g, w } = village({ host: "group" });
   assert.equal(g.system.commandMorale, 6);
-  assert.equal(w.system.commandMorale, 4);
+  assert.equal(w.system.commandMorale, 5);
 });
 
 t("a group no chart names, and an officer that does not resolve, take nothing from above", () => {
@@ -142,20 +142,20 @@ t("a group no chart names, and an officer that does not resolve, take nothing fr
   assert.equal(lone.system.commandMorale, 1);
   const { g, chief } = village();
   world.delete(chief.uuid);
-  assert.equal(g.system.commandMorale, 3 + 1, "the village's officer is gone");
+  assert.equal(g.system.commandMorale, 2 + 1, "the village's officer is gone");
 });
 
 t("the part reaches a single-stack gang's unit morale", () => {
   const { g } = village();
   g.system.stacks = [{ baseMorale: 1 }];
-  assert.equal(g.system.unitMoraleOf(g.system.stacks[0]), 1 + 3 + 1 + 2);
+  assert.equal(g.system.unitMoraleOf(g.system.stacks[0]), 1 + 2 + 1 + 3);
 });
 
 t("a gang's unlinked token reads its base actor's chart", () => {
   const { g } = village();
-  const synthetic = Object.assign(Object.create(GroupData.prototype), { stacks: [], unit: { morale: 0, officerMoraleBonus: 3 } });
+  const synthetic = Object.assign(Object.create(GroupData.prototype), { stacks: [], unit: { morale: 0, officerMoraleBonus: 2 } });
   synthetic.parent = { uuid: "Scene.s.Token.t.Actor.g", isToken: true, baseActor: g };
-  assert.equal(synthetic.commandMorale, 3 + 1 + 2);
+  assert.equal(synthetic.commandMorale, 2 + 1 + 3);
 });
 
 t("a row on a faction and on a group answers by the faction", () => {
