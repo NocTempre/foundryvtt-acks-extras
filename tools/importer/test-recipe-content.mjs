@@ -811,8 +811,10 @@ const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
 VERIFY["monsters.beastmanTroopRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [5, 5, 2, 4, 4, 3, 2], keysFrom: "monsters.beastmanSpecialTroops" });
 VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [1, 5, 2, 2, 4, 2, 2, 1, 1, 5], keysFrom: "monsters.beastmanTraits" });
 VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
-  paragraphRows(out, recipe, fail, { counts: [5, 9, 4, 7, 7, 4, 3, 6, 4] });
+  paragraphRows(out, recipe, fail, { counts: [5, 9, 5, 7, 7, 4, 3, 6, 5] });
   const rows = Object.values(out ?? {});
+  const kinds = rows.filter((r) => r.reachKind !== undefined);
+  if (kinds.length !== 2 || kinds.some((r) => typeof r.reachKind !== "string" || !isText(r.reachKind))) fail("the reach qualifier is read as a word for the two paragraphs that name who a reach meets");
   if (rows.filter((r) => r.figuresFrom).length !== 1) fail("exactly one paragraph should point at the recipe that reads its figures");
   if (rows.some((r) => !Array.isArray(r.carry) || !r.carry.length)) fail("a paragraph prints no carry chance");
   for (const r of rows) for (const t of r.troops ?? []) if (!Object.keys(READS["monsters.beastmanSpecialTroops"] ?? {}).includes(t)) fail("a troop key is not a row of the special-troop table");

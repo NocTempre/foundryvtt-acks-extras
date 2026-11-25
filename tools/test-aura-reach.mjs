@@ -327,7 +327,8 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.equal(field.options.nullable, true);
   assert.equal(field.options.initial, null);
   assert.equal(field.options.required, false);
-  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "pulse", "radius"]);
+  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "immunity", "modifier", "on", "pulse", "radius", "save"]);
+  for (const key of ["save", "immunity", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
   assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "side", "unit"]);
   assert.equal(field.fields.filter.fields.side.options.initial, "any");

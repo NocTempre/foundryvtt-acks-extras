@@ -90,6 +90,10 @@ const BEASTMAN_EQUIPMENT_RULES = {
     { key: "radius", find: "subordinate beastmen within", take: "int", span: 6 },
     { key: "radius", find: "or moves within", take: "int", span: 8 },
     { key: "radius", find: "village within", take: "int", span: 6 },
+    // The printed qualifier of who a reach meets (the kind its sentence names), read as the
+    // word and folded to a kind key at generation (`monsters/gear-run.mjs`).
+    { key: "reachKind", findRe: "subordinate ([a-z]+) within", group: 1, take: "text" },
+    { key: "reachKind", findRe: "([a-z]+) gain a\\b", group: 1, take: "text" },
     { key: "damage", find: "damage on their next attack", before: true, take: "signed", span: 8 },
     { key: "damage", find: "or suffer", take: "dice", span: 8 },
     { key: "immunityTurns", findRe: "battlefield for (\\d+) turn", group: 1, take: "int" },

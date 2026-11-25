@@ -31,7 +31,7 @@
  * the roll's other party; one that cannot be settled adds nothing and is told.
  * Foundry-free except for the notices (`ui`) and the translations (`game`).
  */
-import { MODULE_ID, LANG_PREFIX, FLAG_ROLL_MODS } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_ROLL_MODS, MORALE_ROLL_KEY } from "./constants.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
 import { gateVerdict, registerGate, resolveStacking, stackingPart } from "./typed-modifiers.mjs";
 import { ACTOR_TYPE, capabilityForId, hasScope, satisfies, scopeApplies } from "./vocab.mjs";
@@ -1024,6 +1024,24 @@ export function sheetSaveShift(actor, { save, occasion } = {}) {
     told.push({ level: "info", lang: "notice.saveApplied", data: { name: actor?.name ?? "", rows } });
   }
   return { total, parts, pending, told };
+}
+
+/**
+ * What a morale roll takes from the creature's records: the `reaction` parts
+ * that name the morale roll (`MORALE_ROLL_KEY`), resolved among themselves, whose
+ * `total` joins the morale score. A part that names no roll is a reaction roll's
+ * and is never read here, and one whose gate cannot be told is left out. `told`
+ * is a notice for `tellRollMods` naming each part, empty where none applies.
+ *
+ * @param {object} actor
+ * @returns {{total: number, parts: {key: string, label: string, value: number}[], told: {level: string, lang: string, data: object}[]}}
+ */
+export function moraleShift(actor) {
+  const { kept } = recordParts(actor, "reaction", { rollKey: MORALE_ROLL_KEY });
+  const parts = kept.filter((p) => p.value !== null);
+  const total = parts.reduce((sum, p) => sum + p.value, 0);
+  const told = parts.length ? [{ level: "info", lang: "notice.moraleApplied", data: { name: actor?.name ?? "", rows: parts.map((p) => `${p.label} ${signed(p.value)}`).join(", ") } }] : [];
+  return { total, parts, told };
 }
 
 /** Say notices `sheetSaveShift` returned, through the notification bar. */

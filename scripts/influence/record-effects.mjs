@@ -60,14 +60,15 @@ export function liveRecordIds(subject) {
  * @param {object|null} subject  whose records feed the page
  * @param {object} [page]
  * @param {string|null} [page.tone]  the page's tone, null on a page with none
+ * @param {string|null} [page.rollKey]  the roll the page is, `morale` on a morale page: its parts that name this roll are read and the page's other record parts are not; null on a reaction page, which reads the parts that name no roll
  * @param {Set<string>|string[]} [page.kinds]  the target's kind tokens
  * @param {string|null} [page.alignment]  the target's alignment
  * @param {Record<string, boolean>} [page.optionalRules]
  * @returns {object[]}
  */
-export function getRecordReactionMods(subject, { tone = null, kinds = [], alignment = null, optionalRules = {} } = {}) {
+export function getRecordReactionMods(subject, { tone = null, kinds = [], alignment = null, optionalRules = {}, rollKey = null } = {}) {
   if (!subject) return [];
-  const { kept, dropped } = recordParts(subject, "reaction");
+  const { kept, dropped } = recordParts(subject, "reaction", rollKey ? { rollKey } : {});
   const order = recordOrder(subject);
   const at = (p) => order.get(`${p.effect?.id}|${p.key ?? ""}`) ?? Number.MAX_SAFE_INTEGER;
   const candidates = [...kept, ...dropped].map(({ yieldsTo: _yieldsTo, ...p }) => p).sort((a, b) => at(a) - at(b));
@@ -109,7 +110,7 @@ export function getRecordReactionMods(subject, { tone = null, kinds = [], alignm
       itemId: null,
       label: c.label,
       value: c.value,
-      family: ROLL_FAMILY.REACTION,
+      family: rollKey ? ROLL_FAMILY.MORALE : ROLL_FAMILY.REACTION,
       appliesTo: "self",
       situational: false,
       vsKinds: c.vsKinds ?? [],

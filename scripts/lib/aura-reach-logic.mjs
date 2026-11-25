@@ -77,12 +77,24 @@ export function readFilter(raw) {
 }
 
 /**
- * A row's stored `reach` as `{radius, filter, pulse}`, or null for a row with
- * none or one whose pulse is no `REACH_PULSES` key (it acts on nothing).
+ * A row's stored `reach` as `{radius, save, immunity, modifier, on, filter,
+ * pulse}`, or null for a row with none or one whose pulse is no `REACH_PULSES`
+ * key (it acts on nothing). `radius`, `save`, `immunity` and `modifier` are
+ * figure references (`resolveFigure` reads each), null where absent; `on` is
+ * the list of `ROLL_MODS_ON` keys the modifier rides on.
  */
 export function readReach(raw) {
   if (!raw || typeof raw !== "object" || !(raw.pulse in REACH_PULSES)) return null;
-  return { radius: raw.radius ?? null, filter: readFilter(raw.filter), pulse: raw.pulse };
+  const ref = (key) => (raw[key] && typeof raw[key] === "object" ? raw[key] : null);
+  return {
+    radius: raw.radius ?? null,
+    save: ref("save"),
+    immunity: ref("immunity"),
+    modifier: ref("modifier"),
+    on: words(raw.on),
+    filter: readFilter(raw.filter),
+    pulse: raw.pulse,
+  };
 }
 
 /**

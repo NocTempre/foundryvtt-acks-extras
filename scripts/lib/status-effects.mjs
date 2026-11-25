@@ -38,7 +38,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, kindedLabel, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, kindedLabel, moraleShift, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { impliedStatuses } from "./held-condition.mjs";
 import {
@@ -647,7 +647,24 @@ export function withMoraleConditions(actor, run) {
   } catch (err) {
     console.error(`${MODULE_ID} | conditions could not read a morale roll; it rolls without them`, err);
   }
-  return withShift(actor?.system?.details, "morale", math?.total ?? 0, run);
+  return withShift(actor?.system?.details, "morale", (math?.total ?? 0) + recordMoraleShift(actor), run);
+}
+
+/**
+ * The figure the creature's records (`roll-mods.mjs` `moraleShift`) add to a
+ * morale roll, told to the table. Read whether or not the creature holds a
+ * condition, since a record's part needs no status; zero where nothing applies
+ * or a record cannot be read.
+ */
+function recordMoraleShift(actor) {
+  try {
+    const shift = moraleShift(actor);
+    tellRollMods(shift.told);
+    return shift.total;
+  } catch (err) {
+    console.error(`${MODULE_ID} | a record's morale figure could not be read; the roll goes without it`, err);
+    return 0;
+  }
 }
 
 /**

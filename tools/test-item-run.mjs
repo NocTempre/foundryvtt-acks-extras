@@ -675,7 +675,7 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
   subjects["T.s1"] = subject;
   const target = saveSpec(actor, "paralysis").target;
   assert.equal(typeof target, "number");
-  const row = { key: "k", target: "paralysis", conditions: ["held", "held"], reach: { pulse: "action", radius: { value: "5" } } };
+  const row = { key: "k", target: "paralysis", conditions: ["held", "held"], reach: { pulse: "action", radius: { value: "5" }, immunity: { value: "2" } } };
   itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [row] } };
   const press = (over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1", total: target - 1, target, ...over });
   try {
@@ -700,25 +700,45 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
     await press();
     assert.equal(created[0][1][0].flags["acks-extras"].turnLife, undefined, "no fight, no clock");
     created.length = 0;
-    const win = () => ({ name: "Pass", duration: { seconds: 60 } });
-    const saved = await press({ total: target, window: win });
+    const forged = () => ({ name: "Forged", duration: { seconds: 1 } });
+    const saved = await press({ total: target, window: forged, entryState: "applied" });
     assert.equal(saved.saved, true);
     assert.deepEqual(saved.entry.recordIds, ["E0"]);
     const immunity = created[0][1][0];
     assert.equal(immunity.origin, "I.1");
-    assert.deepEqual(immunity.duration, { seconds: 60 });
+    assert.deepEqual(immunity.duration, { value: 2 * 600, units: "seconds" }, "the window is the row's own figure read here, in turns, never the request's");
+    assert.equal(immunity.name, "Gear", "named by the item");
     assert.deepEqual(immunity.flags["acks-extras"].rollMods.parts, [{ on: "immune", spells: ["kindX"] }], "the kind's key, never the row's");
     assert.deepEqual(immunity.flags["acks-extras"].itemRun, { source: "I.1", activationId: "act", rowKey: "k" });
     created.length = 0;
+    itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ ...row, reach: { pulse: "action", radius: { value: "5" } } }] } };
     const bare = await press({ total: target });
     assert.deepEqual(bare.entry.recordIds, [], "no window to write: nothing is created");
     assert.deepEqual(created, []);
     // What is refused is refused before anything is written.
     for (const [over, reason] of [
-      [{ target: target + 1 }, "figure"], [{ requestUserId: "other" }, "notOwner"], [{ entryState: "applied" }, "applied"],
+      [{ target: target + 1 }, "figure"], [{ requestUserId: "other" }, "notOwner"],
       [{ itemUuid: "I.none" }, "gone"], [{ rowKey: "none" }, "noRow"], [{ total: "x" }, "noRoll"],
     ]) assert.equal((await press(over)).reason, reason, reason);
-    assert.equal((await press({ requestUserId: "owner" })).ok, true, "the subject's owner");
+    assert.equal((await press({ requestUserId: "owner" })).reason, "noCard", "a relayed press names a card that holds the row");
+    // The card is the entry state's only source: the GM reads it, writes the entry back, and a second press of the row is refused.
+    const flagged = {};
+    const message = { flags: { "acks-extras": { itemRunCard: { itemUuid: "I.1", rowKey: "k", activationId: "act", entries: {} } } }, getFlag(scope, key) { return this.flags[scope][key]; }, async setFlag(scope, key, value) { this.flags[scope][key] = value; flagged[key] = value; } };
+    gameStub.messages = { get: (id) => (id === "M1" ? message : null) };
+    created.length = 0;
+    const first = await press({ requestUserId: "owner", messageId: "M1", total: target, target });
+    assert.equal(first.ok, true, "the subject's owner, on a card");
+    assert.equal(flagged.itemRunCard.entries["T.s1"].state, "applied", "the GM writes the entry onto the card");
+    const second = await press({ requestUserId: "owner", messageId: "M1", total: target - 1, entryState: "open" });
+    assert.equal(second.reason, "applied", "a second press is refused from the card, whatever the request says");
+    const own = message.flags["acks-extras"].itemRunCard.itemUuid;
+    message.flags["acks-extras"].itemRunCard.itemUuid = "I.other";
+    assert.equal((await press({ requestUserId: "owner", messageId: "M1" })).reason, "noCard", "a card that holds another item is no card for this one");
+    message.flags["acks-extras"].itemRunCard.itemUuid = own;
+    const ids = await press({ messageId: "M1", total: target - 1, rowKey: "forged", activationId: "forged" });
+    assert.equal(ids.reason, "applied", "the card's own ids and entries decide, not the request's");
+    delete gameStub.messages;
+    created.length = 0;
     created.length = 0;
     itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", conditions: ["held"] }] } };
     assert.equal((await press()).reason, "noFigure", "a row naming no save has no figure to check");
@@ -739,7 +759,7 @@ await t("a press is thrown on the presser's seat: the Judge's runs here with the
   actor.createEmbeddedDocuments = async (kind, records) => { created.push(records); return records.map((_, i) => ({ id: `E${i}` })); };
   subjects["T.s1"] = { id: "s1", uuid: "T.s1", actor, testUserPermission: () => true };
   const target = saveSpec(actor, "paralysis").target;
-  itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "k", target: "paralysis", conditions: ["held"], reach: { pulse: "action" } }, { key: "bare", reach: { pulse: "action" } }] } };
+  itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "k", target: "paralysis", conditions: ["held"], reach: { pulse: "action", immunity: { value: "2" } } }, { key: "bare", reach: { pulse: "action" } }] } };
   const priorRoll = globalThis.Roll;
   let thrown = 0;
   globalThis.Roll = class { async evaluate() { return { total: thrown }; } };
@@ -753,9 +773,9 @@ await t("a press is thrown on the presser's seat: the Judge's runs here with the
     assert.equal(failed.saved, false);
     thrown = target;
     created.length = 0;
-    const passed2 = await run.pressRoll({ ...base, window: () => ({ name: "Pass", duration: { seconds: 5 } }) });
+    const passed2 = await run.pressRoll({ ...base, window: () => ({ name: "Forged", duration: { seconds: 5 } }) });
     assert.equal(passed2.saved, true);
-    assert.equal(created[0][0].duration.seconds, 5, "the Judge's window is honoured");
+    assert.deepEqual(created[0][0].duration, { value: 1200, units: "seconds" }, "the window is the row's own figure, never a callback of the caller's");
     assert.deepEqual(await run.pressRoll({ ...base, rowKey: "bare" }), { ok: false, reason: "noFigure" }, "a row naming no save");
     assert.deepEqual(await run.pressRoll({ ...base, subject: "T.none" }), { ok: false, reason: "noFigure" }, "a subject with no actor");
     assert.deepEqual(await run.pressRoll({ ...base, rowKey: "none" }), { ok: false, reason: "noFigure" });
@@ -819,9 +839,7 @@ await t("a reach's moment: a standing part comes off at an exit by the kind's ke
     assert.deepEqual(dels, [], "the row's key names no part");
     const subject = { actor: actorOf() };
     await moment("standing", "enter", true, subject);
-    assert.equal(seen.length, 1);
-    assert.deepEqual([seen[0].kind, seen[0].act, seen[0].moment, seen[0].rowKey, seen[0].item, seen[0].subject, seen[0].config], ["reach", "on", "enter", "k", item, subject, config]);
-    seen.length = 0;
+    assert.deepEqual(seen, [], "a standing part is written by the carrier itself and presents nothing (tools/test-gear-run.mjs holds the write)");
     await moment("standing", "moveIn", true, subject);
     assert.deepEqual(seen, [], "a moment its pulse does not hear");
     await moment("turnStart+moveIn", "turnStart", null, subject);
@@ -977,7 +995,7 @@ await t("the installed carrier answers a Player's relayed use as that seat, hear
     const walker = { id: "w", uuid: "T.w", flags: { "acks-extras": {} }, disposition: -1, actor: monster(["alpha"]) };
     itemFlags = { itemRun: { activation: { kind: "toggle" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "5" }, filter: { kinds: ["alpha"] } } }] } };
     await auraReach.dispatchReachMoment({ sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act1", rowKey: "s", region }, "enter", walker);
-    assert.deepEqual(seen.map((r) => [r.kind, r.act, r.moment]), [["reach", "on", "enter"]]);
+    assert.deepEqual(seen, [], "the moment reached the carrier's own handler, which writes a standing part itself and presents nothing (a row with no modifier writes none)");
     // A Region's deletion lifts its activation's records through the carrier's teardown.
     const removed = [];
     const priorActors = gameStub.actors;

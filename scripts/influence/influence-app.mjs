@@ -45,6 +45,7 @@ import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } 
 import { attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
 import { hasScope, scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { MORALE_ROLL_KEY } from "../lib/constants.mjs";
 import { signed } from "../lib/frame-model.mjs";
 import { sinkCoin, spendableGp, transferCoin } from "../lib/money.mjs";
 
@@ -266,9 +267,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   #buildModConfig() {
     // The spell records' rows, per page: a record's figure is settled against
     // the tone and the target, so each tone gets its own (see record-effects).
-    const recordRows = (tone) =>
+    const recordRows = (tone, rollKey = null) =>
       getRecordReactionMods(this.#effectSubject(), {
         tone,
+        rollKey,
         kinds: this.#targetCategories(),
         alignment: toLibAlignment(classifyAlignment(this.#targetActor?.system?.details?.alignment)),
         optionalRules: this.#optionalRules(),
@@ -404,7 +406,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         family,
         claimed: new Set([...itemsWithProficiencyRows(this.#actor, groups), ...held.claimed]),
       });
-      const fromRecords = family === ROLL_FAMILY.REACTION ? recordRows(null) : [];
+      const fromRecords = family === ROLL_FAMILY.REACTION ? recordRows(null) : family === ROLL_FAMILY.MORALE ? recordRows(null, MORALE_ROLL_KEY) : [];
       if (forFamily.length || fromRecords.length) {
         groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: [...forFamily, ...fromRecords].map((m) => effectModRow(m, null)) });
       }

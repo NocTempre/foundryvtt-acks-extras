@@ -160,6 +160,21 @@ export const BEARER_DOWN_HOOK = `${NAMESPACE}.bearerDown`;
 export const FLAG_ITEM_RUN = "itemRun";
 
 /**
+ * Flag key under `flags["acks-extras"]` on a chat message that is an item
+ * carrier's prompt card: `{itemUuid, rowKey, activationId, entries}`, `entries`
+ * keyed by subject uuid. The GM's client reads a relayed press's entry state
+ * from it and writes the entry back, so a press is held to what the card holds.
+ */
+export const FLAG_ITEM_RUN_CARD = "itemRunCard";
+
+/**
+ * The `rollKey` a morale part carries: a `reaction` part naming it is read on
+ * a morale roll and never on a reaction roll, since `recordParts` sends a part
+ * that names a roll to `pending` while its caller names none.
+ */
+export const MORALE_ROLL_KEY = "morale";
+
+/**
  * Flag key under `flags["acks-extras"]` on an Active Effect of a bearer whose
  * item is burning toward a burst: `{source, activationId, spot, clock}`
  * (`item-run-logic.mjs`). Its own key and never `FLAG_TURN_LIFE`: the tracker

@@ -20,12 +20,14 @@
  *   is deleted first, then the registered burst runs (`setFuseBurst`), and a
  *   fight that ends moves it to the world clock.
  */
-import { FLAG_FUSE, FLAG_ITEM_RUN, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
-import { figureNumber, pulseAct, readReach, reachAdmits } from "./aura-reach-logic.mjs";
-import { lowerReach, raiseReach, reachSnapshot, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
+import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
+import { figureNumber, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { dispatchReachMoment, lowerReach, raiseReach, reachSnapshot, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
+import { behaviorsUnder } from "./regions.mjs";
 import {
-  activationRecordIds, checkPressRequest, claimsItemUse, conditionRecordData, fuseDue, fuseStep, fuseToWorld, immunityRecordData,
-  itemRunOf, itemRunRowsOf, promptCardModel, readFuse, standingPartId, undoPlan,
+  actionPartRecordData, activationRecordIds, checkPressRequest, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
+  immunityDuration, immunityRecordData, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
+  standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
@@ -33,7 +35,7 @@ import { statusEffectData } from "./held-condition.mjs";
 import { recordImmunity } from "./roll-mods.mjs";
 import { saveSpec, saveThrow } from "./saves.mjs";
 import { executeAsGM, registerHandler } from "./sockets.mjs";
-import { roundSeconds } from "./time-unit.mjs";
+import { roundSeconds, turnSeconds } from "./time-unit.mjs";
 import { isPrimaryGM, makeLoc, unset } from "./util.mjs";
 import { onWorldTimeAdvanced } from "./world-time.mjs";
 import { isMarkerActor } from "./place.mjs";
@@ -41,7 +43,7 @@ import { isMarkerActor } from "./place.mjs";
 const loc = makeLoc(LANG_PREFIX);
 
 /** The refusals the Judge and the Player have a line for; any other reason reads as a plain refusal. */
-const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "noRow", "noRange", "snapshot", "unsupported", "notCarried", "down"]);
+const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
 const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press` });
@@ -116,6 +118,10 @@ async function runOnce({ item, token, judge }) {
   if (!reach) return { ok: false, reason: "noRow" };
   const range = figureNumber(reach.radius);
   if (range === null || !(range > 0)) return { ok: false, reason: "noRange" };
+  const figures = reachFigures(row);
+  const direct = !figures.save && figures.on.length > 0;
+  const parts = direct ? reachParts(figures.on, figures.modifier) : [];
+  if (direct && !parts.length) return { ok: false, reason: "noFigure" };
   const snap = reachSnapshot(token.parent, { token }, range);
   if (!snap.ok) return { ok: false, reason: snap.reason };
   const bearer = { token, actor: token.actor };
@@ -131,6 +137,16 @@ async function runOnce({ item, token, judge }) {
     else if (act === "undetermined") undetermined.push(entry);
   }
   const activationId = foundry.utils.randomID();
+  if (direct) {
+    const written = [];
+    for (const subject of admitted.filter((s) => !s.immune)) {
+      const actor = subjectOf(subject.key)?.actor;
+      if (!actor) continue;
+      const made = await actor.createEmbeddedDocuments("ActiveEffect", [actionPartRecordData({ name: item.name, parts, source: item.uuid, activationId, rowKey: row.key })]);
+      written.push({ ...subject, recordIds: made.map((e) => e.id) });
+    }
+    return { ok: true, kind: "once", activationId, rowKey: row.key, subjects: admitted, written, undetermined };
+  }
   const words = Object.fromEntries(["roll", "undo", "undetermined", "tick", "saved", "failed"].map((key) => [key, loc(`itemRun.card.${key}`)]));
   const card = promptCardModel({
     title: item.name,
@@ -184,43 +200,71 @@ export async function useItem(item) {
 /*  A press, and Undo                            */
 /* -------------------------------------------- */
 
-/** The save a row's reach asks of a subject: the row's `target` name. */
-export const saveNameOf = (row) => String(row?.target ?? "");
+/** Presses being written, `messageId|subject`: a second press of the same row while the first is mid-write is refused as applied. */
+const writing = new Set();
+
+/** The save a row asks of a subject: the reach's own reference read now, else the row's `target`. */
+export const saveNameOf = (row) => reachFigures(row)?.save ?? String(row?.target ?? "");
 
 /** The subject's token document, from the id a card button names. */
 const subjectOf = (uuid) => fromUuidSync(uuid);
 
+/** The prompt card a press names: its chat message and the state it holds (`FLAG_ITEM_RUN_CARD`), or nulls. */
+function cardOf(messageId) {
+  const message = messageId ? (game.messages?.get?.(messageId) ?? null) : null;
+  const card = message?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN_CARD) ?? message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD] ?? null;
+  return { message, card };
+}
+
 /**
- * The GM's side of a press: read the item's own row live, check the figure,
- * and on a verdict write the records a failed save (a condition per condition
- * key the row names) or a passed one (an immunity window, where `window`
- * supplies one) calls for. Answers `{ok, entry}` with the ids written, for the
- * card to store; nothing but the records is written.
+ * The GM's side of a press. The request names ids and two figures the seat
+ * rolled (`total`, `target`); everything else is read here: the item and its
+ * row by id, the save's target recomputed from the row's live reference, the
+ * entry's state and the card's own ids from the card the message holds, and the
+ * immunity window from the row's `reach.immunity`. A relayed press names a card
+ * that holds the row, and a card entry already written is refused. On a verdict
+ * it writes the records a failed save (a condition per condition key the row
+ * names) or a passed one (the immunity window) calls for, and the entry onto the
+ * card. Answers `{ok, saved, entry}`.
  */
 async function pressHere(payload) {
-  const { itemUuid, rowKey, activationId, subject: subjectUuid, total, target, requestUserId = null, entryState, window: windowOf } = payload;
-  const item = fromUuidSync(itemUuid);
-  const row = itemRunRowsOf(item).find((r) => r?.key === rowKey) ?? null;
-  const subjectToken = subjectOf(subjectUuid);
-  const actor = subjectToken?.actor ?? null;
-  const spec = actor && row ? saveSpecOf(actor, row) : null;
-  const verdict = checkPressRequest(
-    { requestUserId, total, target },
-    { item, row, subjectOwnerIds: (game.users ?? []).filter((u) => subjectToken?.testUserPermission?.(u, "OWNER")).map((u) => u.id), target: spec?.target ?? null, entryState },
-  );
-  if (!verdict.ok) return verdict;
-  const flags = { source: itemUuid, activationId, rowKey };
-  const records = [];
-  if (!verdict.saved) {
-    for (const status of row.conditions ?? []) {
-      records.push(conditionRecordData({ statusData: await statusEffectData(status), ...flags, life: lifeOf(subjectToken) }));
+  const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
+  const { message, card: named } = cardOf(messageId);
+  const card = named?.itemUuid === itemUuid ? named : null;
+  const rowKey = card?.rowKey ?? payload.rowKey;
+  const activationId = card?.activationId ?? payload.activationId;
+  const claim = `${messageId}|${subjectUuid}`;
+  if (writing.has(claim)) return { ok: false, reason: "applied" };
+  writing.add(claim);
+  try {
+    const item = fromUuidSync(itemUuid);
+    const row = itemRunRowsOf(item).find((r) => r?.key === rowKey) ?? null;
+    const subjectToken = subjectOf(subjectUuid);
+    const actor = subjectToken?.actor ?? null;
+    const spec = actor && row ? saveSpecOf(actor, row) : null;
+    const verdict = checkPressRequest(
+      { requestUserId, total, target },
+      { item, row, subjectOwnerIds: (game.users ?? []).filter((u) => subjectToken?.testUserPermission?.(u, "OWNER")).map((u) => u.id), target: spec?.target ?? null, entryState: entryStateOf(card, subjectUuid) },
+    );
+    if (!verdict.ok) return verdict;
+    if (requestUserId && !card) return { ok: false, reason: "noCard" };
+    const flags = { source: itemUuid, activationId, rowKey };
+    const records = [];
+    if (!verdict.saved) {
+      for (const status of row.conditions ?? []) {
+        records.push(conditionRecordData({ statusData: await statusEffectData(status), ...flags, life: lifeOf(subjectToken) }));
+      }
+    } else {
+      const duration = immunityDuration(reachFigures(row)?.immunityTurns, turnSeconds());
+      if (duration) records.push(immunityRecordData({ name: item.name, spellKey: kindKeyOf(item, row), duration, ...flags }));
     }
-  } else {
-    const made = windowOf?.(row, item);
-    if (made) records.push(immunityRecordData({ name: made.name, spellKey: kindKeyOf(item, row), duration: made.duration, ...flags }));
+    const made = records.length ? await actor.createEmbeddedDocuments("ActiveEffect", records) : [];
+    const entry = { state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id) };
+    if (message && card) await message.setFlag(MODULE_ID, FLAG_ITEM_RUN_CARD, { ...card, entries: { ...(card.entries ?? {}), [subjectUuid]: entry } });
+    return { ok: true, saved: verdict.saved, entry };
+  } finally {
+    writing.delete(claim);
   }
-  const made = records.length ? await actor.createEmbeddedDocuments("ActiveEffect", records) : [];
-  return { ok: true, saved: verdict.saved, entry: { state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id) } };
 }
 
 /** The save's spec for a subject: the row's save name through `saveSpec`. */
@@ -238,10 +282,11 @@ function lifeOf(subjectToken) {
 
 /**
  * A press on a prompt card's row, from the presser's seat: roll the subject's
- * save here and relay the total, never a verdict; the GM checks the figure
- * against the item's own row and writes. A Judge's press runs here.
+ * save here and relay the ids and the total, never a verdict, a window or an
+ * entry state; the GM reads those from the card and the item and writes. A
+ * Judge's press runs here.
  *
- * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, window?: Function}} p
+ * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, messageId?: string}} p
  * @returns {Promise<{ok: boolean, entry?: object, reason?: string}>}
  */
 export async function pressRoll(p) {
@@ -252,8 +297,8 @@ export async function pressRoll(p) {
   if (!actor || !name) return { ok: false, reason: "noFigure" };
   const thrown = await saveThrow(actor, name);
   if (thrown.target === null) return { ok: false, reason: "noFigure" };
-  const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, total: thrown.total, target: thrown.target };
-  if (game.user.isGM) return pressHere({ ...payload, window: p.window });
+  const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", total: thrown.total, target: thrown.target };
+  if (game.user.isGM) return pressHere(payload);
   return (await executeAsGM(HANDLER.press, payload)) ?? { ok: false, reason: "relay" };
 }
 
@@ -284,24 +329,96 @@ export async function undoEntry({ subject, entry }) {
  * prompt, a standing part to write, an undetermined subject) handed to the
  * presenter as `{kind: "reach", ...}`.
  */
-export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted }) {
+export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region }) {
   const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
   const act = pulseAct({ pulse: reach.pulse, moment, admitted, immune });
   if (act === "none" || !subject.actor) return;
+  if (act === "on") {
+    await holdStanding({ config, item, row, subject });
+    return;
+  }
   if (act === "off") {
-    const id = standingPartId(kindKeyOf(item, row));
-    if (subject.actor.effects.get?.(id)) await subject.actor.deleteEmbeddedDocuments("ActiveEffect", [id], managedDelete());
+    await releaseStanding({ item, row, subject, region });
     return;
   }
   await presenter?.({ ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject });
 }
 
-/** Take a lowered activation's records off every actor that may hold one, and its toggle state off the item. */
+/**
+ * Hold a standing part on a subject that is inside a reach: one record per
+ * subject per item kind under the fixed id `standingPartId`, whose parts are
+ * the row's modifier read now. Written only where the record is absent or
+ * differs, so a re-entry or a second bearer of the kind rewrites nothing and
+ * never stacks a second record. A blank modifier writes nothing.
+ */
+export async function holdStanding({ config, item, row, subject }) {
+  const figures = reachFigures(row);
+  const parts = figures ? reachParts(figures.on, figures.modifier) : [];
+  if (!parts.length) return { written: false, reason: "noFigure" };
+  const kindKey = kindKeyOf(item, row);
+  const wanted = standingPartRecordData({ kindKey, name: item.name, parts, source: item.uuid, activationId: config.activationId, rowKey: row.key });
+  const existing = subject.actor.effects.get?.(wanted._id) ?? null;
+  if (!standingPartDiffers(existing, wanted)) return { written: false, reason: "same" };
+  if (existing) await existing.update({ name: wanted.name, origin: wanted.origin, flags: wanted.flags }, managedDelete());
+  else await subject.actor.createEmbeddedDocuments("ActiveEffect", [wanted], { keepId: true });
+  return { written: true };
+}
+
+/** The standing reaches other than `except` that hold a subject now and are of the item kind `kindKey`: `[{config, item, row}]`. */
+function otherStanding(subjectToken, kindKey, except) {
+  const out = [];
+  for (const { region, behavior } of behaviorsUnder(subjectToken, AURA_BEHAVIOR_TYPE)) {
+    if (!region || region.id === except?.id) continue;
+    const config = readAuraConfig(behavior.system);
+    const other = config ? fromUuidSync(config.sourceUuid) : null;
+    const row = itemRunRowsOf(other).find((r) => r?.key === config?.rowKey);
+    if (!row || readReach(row.reach)?.pulse !== "standing" || kindKeyOf(other, row) !== kindKey) continue;
+    out.push({ config, item: other, row });
+  }
+  return out;
+}
+
+/**
+ * A subject left a standing reach: take its part off, unless it is still inside
+ * another reach of the same item kind, in which case the record is rewritten to
+ * that reach (its source and activation) so the first bearer's lowering does not
+ * take a part another bearer still gives.
+ */
+export async function releaseStanding({ item, row, subject, region }) {
+  const kindKey = kindKeyOf(item, row);
+  const id = standingPartId(kindKey);
+  if (!subject.actor.effects.get?.(id)) return { released: false };
+  const still = subject.token ? otherStanding(subject.token, kindKey, region) : [];
+  if (still.length) {
+    await holdStanding({ ...still[0], subject });
+    return { released: false, retargeted: true };
+  }
+  await subject.actor.deleteEmbeddedDocuments("ActiveEffect", [id], managedDelete());
+  return { released: true };
+}
+
+/**
+ * Take a lowered activation's records off every actor that may hold one, and its
+ * toggle state off the item; then offer each subject that lost a standing part
+ * and is still inside another reach to that reach again, so a part another
+ * bearer gives is written back at once.
+ */
 export async function liftActivation({ config }) {
   const { worldActors } = await import("./repair.mjs");
+  const lifted = [];
   for (const actor of worldActors()) {
     const ids = activationRecordIds([...actor.effects], config.activationId);
-    if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
+    if (!ids.length) continue;
+    await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
+    lifted.push(actor);
+  }
+  for (const actor of lifted) {
+    for (const token of actor.isToken ? [actor.token] : (actor.getActiveTokens?.(false, true) ?? [])) {
+      for (const { region, behavior } of behaviorsUnder(token, AURA_BEHAVIOR_TYPE)) {
+        if (readAuraConfig(behavior.system)?.activationId === config.activationId) continue;
+        await dispatchReachMoment({ ...behavior.system, region }, "enter", token);
+      }
+    }
   }
   const item = fromUuidSync(config.sourceUuid);
   if (item && itemRunOf(item)?.activation.state.activationId === config.activationId) await setState(item, { active: false, activationId: "", regionId: "" });

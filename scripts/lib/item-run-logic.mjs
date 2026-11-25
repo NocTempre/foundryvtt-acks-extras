@@ -11,11 +11,12 @@
  * {source, activationId, rowKey}`, so the Region's deletion lifts all of an
  * activation's records and an Undo removes a card row's own ids. Foundry-free.
  */
-import { FLAG_ENDS_ON, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ROLL_MODS, FLAG_TURN_LIFE, MODULE_ID } from "./constants.mjs";
+import { FLAG_ENDS_ON, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ROLL_MODS, FLAG_TURN_LIFE, MODULE_ID, MORALE_ROLL_KEY } from "./constants.mjs";
 import { ITEM_RUN_ACTIVATIONS, ITEM_TYPE } from "./vocab.mjs";
 import { turnLifeStep } from "./turn-life.mjs";
 import { conditionEffectId } from "./status-effects.mjs";
 import { numOrNull } from "./util.mjs";
+import { readReach, resolveFigure } from "./aura-reach-logic.mjs";
 
 /* -------------------------------------------- */
 /*  Reading an item                              */
@@ -158,6 +159,57 @@ export function undoPlan(entry, existingIds) {
   const stored = [...new Set(entry?.recordIds ?? [])];
   return { ids: stored.filter((id) => have.has(id)), gone: stored.filter((id) => !have.has(id)) };
 }
+
+/**
+ * The figures a row's reach names, resolved now through `read` (the registry by
+ * default): `radius` and `modifier` as numbers, `immunityTurns` as a number,
+ * `save` as the save's name (the reach's own reference, else the row's `target`
+ * for a Judge's own item), `on` the roll kinds. Each is null where nothing
+ * resolves; nothing stands in for a figure nobody imported or wrote.
+ *
+ * @returns {{radius: number|null, modifier: number|null, immunityTurns: number|null, save: string|null, on: string[]}|null} null for a row with no reach
+ */
+export function reachFigures(row, read) {
+  const reach = readReach(row?.reach);
+  if (!reach) return null;
+  const num = (ref) => numOrNull(resolveFigure(ref, read));
+  const saveName = resolveFigure(reach.save, read) ?? row?.target;
+  return { radius: num(reach.radius), modifier: num(reach.modifier), immunityTurns: num(reach.immunity), save: saveName ? String(saveName) : null, on: reach.on };
+}
+
+/**
+ * The `rollMods` parts a reach's modifier writes: one per roll kind named in
+ * `on`, each worth `value`. `morale` is a `reaction` part that names the
+ * morale roll (`MORALE_ROLL_KEY`), so a reaction roll never reads it; the
+ * other keys are `ROLL_MODS_ON` keys as they stand. No parts for a blank figure.
+ *
+ * @param {string[]} on
+ * @param {number|null} value
+ */
+export function reachParts(on, value) {
+  const figure = numOrNull(value);
+  if (figure === null) return [];
+  return (on ?? []).map((key) => (key === "morale" ? { on: "reaction", key: "morale", rollKey: MORALE_ROLL_KEY, value: figure } : { on: key, value: figure }));
+}
+
+/** An immunity window's clock: `turns` of `secondsPerTurn`, as Foundry stores a duration; null for no whole positive count. */
+export function immunityDuration(turns, secondsPerTurn) {
+  const count = numOrNull(turns);
+  const unit = numOrNull(secondsPerTurn);
+  return count !== null && unit !== null && count > 0 && unit > 0 ? { value: count * unit, units: "seconds" } : null;
+}
+
+/** Whether a stored standing part differs from the one wanted: its parts, its source or its name. A part that is absent differs. */
+export function standingPartDiffers(existing, wanted) {
+  if (!existing) return true;
+  const flag = existing.flags?.[MODULE_ID] ?? {};
+  const want = wanted.flags[MODULE_ID];
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  return !same(flag[FLAG_ROLL_MODS]?.parts, want[FLAG_ROLL_MODS].parts) || !same(flag[FLAG_ITEM_RUN], want[FLAG_ITEM_RUN]) || existing.name !== wanted.name;
+}
+
+/** The state a prompt card holds for one subject, `open` where it holds none. */
+export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?? "open";
 
 /* -------------------------------------------- */
 /*  A press, relayed                             */

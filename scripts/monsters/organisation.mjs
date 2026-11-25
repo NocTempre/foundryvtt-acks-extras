@@ -24,6 +24,7 @@ import { ITEM_FLAGS } from "../equipment/constants.mjs";
 import { shotStack } from "../equipment/ammo.mjs";
 import { classifyWeapon } from "../equipment/profiles.mjs";
 import { DEFAULT_IMG } from "../importer/constants.mjs";
+import { gearRunItem } from "./gear-run.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -357,6 +358,10 @@ function flagLauncherStack(items, onHit) {
  *   - `figuresFrom` the hooked-weapon table: the module's hooked flag on each
  *     melee weapon item of `resolved.items` (mutated; missile weapons stay).
  *
+ *   - `radius` (an item whose reach the carrier runs): one gear item minted by
+ *     `gear-run.mjs` `gearRunItem`, its figures live registry references, in
+ *     `reachItems`; a row whose condition word or printed qualifier does not
+ *     resolve writes no item and is listed in `unresolved`;
  *   - `healDice` (a consumable to drink): one item named by the row, its page
  *     on `cookbook.cite` and its figures on the `drink` flag, the printed
  *     condition word stored as the catalogue id `matchCondition` folds it to
@@ -369,14 +374,15 @@ function flagLauncherStack(items, onHit) {
  *     recorded on `extras.organisation.gear`.
  *
  * A figure the import left blank writes nothing. Returns `{abilities, ac,
- * armourRows, hooked, consumables, onHit, unresolved}`: the ability items to
+ * armourRows, hooked, consumables, reachItems, onHit, unresolved}`: the ability items to
  * add, the summed bump (null where no row has one), the `{label, cite}` of each
  * row that gave it, the count of weapons flagged, the consumable items to add,
+ * the reach items to add,
  * the count of ammunition stacks flagged, and the `{kind, key, figure, word}` of
  * each figure that did not resolve.
  */
 export function gearPayloads(gear, resolved, { fights = true } = {}) {
-  const out = { abilities: [], ac: null, armourRows: [], hooked: 0, consumables: [], onHit: 0, unresolved: [] };
+  const out = { abilities: [], ac: null, armourRows: [], hooked: 0, consumables: [], reachItems: [], onHit: 0, unresolved: [] };
   if (!fights) return out;
   for (const row of Array.isArray(gear) ? gear : []) {
     const f = row.figures ?? {};
@@ -394,6 +400,8 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
     }
     const drink = drinkFlag(f, (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }));
     if (drink) out.consumables.push(drinkItem(row, drink));
+    const reachItem = gearRunItem(row, { doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.equipment, fold: matchCondition, miss: (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }) });
+    if (reachItem) out.reachItems.push(reachItem);
     const hit = onHitFlag(row, f);
     if (hit && flagLauncherStack(resolved?.items, hit)) out.onHit++;
     if (f.figuresFrom === MANEUVER_TABLES.hooked) {
@@ -728,6 +736,7 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
   }
   if (built.abilities.length) (resolved.items ??= []).push(...built.abilities);
   if (built.consumables.length) (resolved.items ??= []).push(...built.consumables);
+  if (built.reachItems.length) (resolved.items ??= []).push(...built.reachItems);
   unresolved.push(...built.unresolved);
   for (const u of unresolved) warn(`${u.kind}: no gated figure written, the printed ${u.figure} does not resolve`);
   if (unresolved.length) record.unresolved = unresolved;

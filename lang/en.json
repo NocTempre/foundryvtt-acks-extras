@@ -1289,6 +1289,7 @@
   "ACKS-LIB.rollMods.notice.wardSave": "{target} is under {spell}'s ward, and {attacker} is within its scope. {attacker}'s save target ({save}): {number}.",
   "ACKS-LIB.rollMods.notice.saveScoped": "{name}: {spell}'s saving-throw figure depends on what is resisted and is left out.",
   "ACKS-LIB.rollMods.notice.saveApplied": "{name}, saving throw: {rows}.",
+  "ACKS-LIB.rollMods.notice.moraleApplied": "{name}, morale: {rows}.",
   "ACKS-LIB.rollMods.notice.savePending": "{name}, saving throw: {spell}'s figure ({value}) cannot be told to apply to this throw and is left out.",
   "ACKS-LIB.damageType.bludgeoning": "Bludgeoning",
   "ACKS-LIB.damageType.slashing": "Slashing",
