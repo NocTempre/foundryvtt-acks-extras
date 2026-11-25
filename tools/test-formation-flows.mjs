@@ -7510,6 +7510,23 @@ await scenario("summon joining: a doubled trigger stores one member per creature
   assert.equal(new Set(summonMembers().map((m) => m.actorId)).size, 2);
 });
 
+await scenario("summon joining: a creature whose control ended hostile is left on the scene; one that stays is gathered", async () => {
+  const rig = await summonRig("JoinLost");
+  const hostile = await rig.wolf(rig.caster, "c1", 1200);
+  const stays = await rig.wolf(rig.caster, "c1", 1300);
+  const stamp = (token, lost) => token.update({ [`delta.flags.${MODULE_ID}.summon.lost`]: lost });
+  await stamp(hostile, "hostile");
+  await stamp(stays, "stays");
+  assert.equal(hostile.toObject().delta.flags[MODULE_ID].summon.lost, "hostile", "the stamp is where lib writes it");
+  const joined = await membership.gatherSummons(rig.formation(), [rig.caster.id]);
+  await drain();
+  assert.equal(joined, 1, "one creature is gathered");
+  assert.ok(scene.tokens.get(hostile.id), "the hostile one stands on the scene");
+  assert.ok(!scene.tokens.get(stays.id), "the one that stays went into the party token");
+  assert.equal(summonMembers().length, 1, "one member");
+  assert.equal(summonMembers()[0].tokenData.delta.flags[MODULE_ID].summon.lost, "stays", "and it is the one that stays");
+});
+
 /** A fake token actor, as core's `updateActor` hands one for an unlinked token's delta. */
 const syntheticOf = (token, value) => ({ isToken: true, token, id: token.actorId, system: { hp: { value } } });
 

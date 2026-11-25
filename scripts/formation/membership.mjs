@@ -175,6 +175,13 @@ const heldByAMember = (token) =>
   Object.values(getFormations()).some((f) => f.members.some((m) => m?.deployedTokenId === token.id && m.deployedSceneId === token.parent?.id));
 
 /**
+ * Does a cast record let its creature be gathered: one whose control ended
+ * hostile (the record's `lost`, stamped by lib's `controlEndPlan`) has turned
+ * on the party and never joins; one whose control ended and stays still does.
+ */
+const gatherable = (summon) => !!summon && summon.lost !== "hostile";
+
+/**
  * Bring the summoned creatures of these summoners into a party as members.
  * A creature joins only while its summoner is a real member inside the party
  * token, the party token stands on its scene, and its token carries a cast
@@ -198,7 +205,7 @@ export function gatherSummons(formation, summonerIds) {
   if (!scene || !summoners.size) return Promise.resolve(0);
   const tokens = scene.tokens.filter((token) => {
     const { summonedBy, summon } = summonOfData(token.toObject());
-    return summon && summoners.has(summonedBy) && !claimed.has(claimKey(token)) && !heldByAMember(token);
+    return gatherable(summon) && summoners.has(summonedBy) && !claimed.has(claimKey(token)) && !heldByAMember(token);
   });
   if (!tokens.length) return Promise.resolve(0);
   for (const token of tokens) claimed.add(claimKey(token));
@@ -206,7 +213,10 @@ export function gatherSummons(formation, summonerIds) {
     // The record as it stands now: a summoner may have left or gone out meanwhile.
     const fresh = getFormation(id);
     const still = fresh ? gatheringSummoners(fresh, summonerIds ?? []) : new Set();
-    const joining = tokens.filter((token) => still.has(summonOfData(token.toObject()).summonedBy));
+    const joining = tokens.filter((token) => {
+      const { summonedBy, summon } = summonOfData(token.toObject());
+      return gatherable(summon) && still.has(summonedBy);
+    });
     if (!joining.length) return 0;
     await addSummonMembers(id, joining, formation);
     return joining.length;
