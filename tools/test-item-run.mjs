@@ -856,6 +856,11 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
     assert.notEqual(earlyKey, "mk", "the early press opens an entry of its own and makes it the subject's newest");
     assert.equal(entries()[earlyKey].state, "applied");
     assert.equal(entries().mk.state, "applied", "the earlier answer stays beside it");
+    // A once-only use's card holds no entry before a press: its Roll names the subject's own key and is not struck.
+    message.flags["acks-extras"].itemRunCard = { kind: "once", itemUuid: "I.1", rowKey: "k", activationId: "act", subjects: { "T~s1": { uuid: "T.s1", name: "One", state: "in", latest: "" } }, undetermined: {}, entries: {} };
+    const onceEntry = await press({ requestUserId: "owner", messageId: "M1", entryKey: "T~s1", total: target, target });
+    assert.equal(onceEntry.ok, true, "a once-only card's first press is written, not refused as a struck prompt");
+    assert.equal(entries()["T~s1"].state, "applied");
     delete gameStub.messages;
     created.length = 0;
     created.length = 0;
@@ -1285,6 +1290,60 @@ await t("counting the bearer in writes the item's self filter for an owner of th
     delete subjects["T.s1"];
     run.setPressListener(null);
     gameStub.user = { isGM: true };
+    unstage();
+  }
+});
+
+await t("counting an undetermined body in for a once-only use is an item owner's press: a use with no save writes its part under an applied entry, a use with a save leaves the Save open, and nothing is written to the item", async () => {
+  stage();
+  seatOf(true);
+  const { applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const made = [];
+  const holder = { effects: [], createEmbeddedDocuments: async (...args) => { made.push(args); return [{ id: "NEW1" }]; } };
+  subjects["T.u1"] = { uuid: "T.u1", actor: holder, testUserPermission: (user) => user?.id === "bodyOwner" };
+  const message = {
+    flags: { "acks-extras": { itemRunCard: { kind: "once", direct: true, itemUuid: "I.1", rowKey: "d", activationId: "o1", bearer: { uuid: "", name: "" }, subjects: {}, undetermined: { "T~u1": { uuid: "T.u1", name: "Unsure" } }, entries: {} } } },
+    getFlag(scope, key) { return this.flags[scope][key]; },
+    async update(data) {
+      const patch = Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]));
+      this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, patch);
+    },
+  };
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  gameStub.messages = { get: (id) => (id === "M8" ? message : null) };
+  const priorPerm = theItem.testUserPermission;
+  theItem.testUserPermission = (user) => user?.id === "owner";
+  seatOf(true, [{ id: "owner" }, { id: "other" }, { id: "bodyOwner" }]);
+  itemFlags = toggleFlags(down, [{ key: "d", reach: { pulse: "action", radius: { value: "10" }, modifier: { value: "-1" }, on: ["morale"], filter: {} } }]);
+  updates.length = 0;
+  try {
+    const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+    const tick = (over = {}) => executeAsGM("acks-extras.itemRun.tickSubject", { messageId: "M8", subject: "T.u1", ...over });
+    assert.equal((await tick({ requestUserId: "bodyOwner" })).reason, "notOwner", "the owner of the body is not the owner of the item");
+    assert.equal((await tick({ requestUserId: "other" })).reason, "notOwner");
+    assert.deepEqual([made.length, Object.keys(card().undetermined)], [0, ["T~u1"]], "a refused press writes nothing");
+    assert.equal((await tick({ requestUserId: "owner", subject: "T.zz" })).reason, "applied", "a body the card does not hold undetermined");
+    assert.equal((await tick({ requestUserId: "owner" })).ok, true);
+    assert.equal(made.length, 1, "the part's record is written on the body");
+    assert.deepEqual([card().subjects["T~u1"].state, card().undetermined["T~u1"], card().entries["T~u1"].state, card().entries["T~u1"].recordIds], ["in", undefined, "applied", ["NEW1"]], "the body is a subject now, with an applied entry its Undo reads");
+    assert.deepEqual(updates, [], "nothing is written to the item");
+    assert.equal((await tick({ requestUserId: "owner" })).reason, "applied", "a second press is refused");
+    // A use with a save: the body joins the subjects with its Save press open, and nothing is written.
+    card().direct = false;
+    card().undetermined = { "T~u2": { uuid: "T.u2", name: "Other" } };
+    subjects["T.u2"] = { uuid: "T.u2", actor: holder, testUserPermission: () => false };
+    made.length = 0;
+    assert.equal((await tick({ requestUserId: "owner", subject: "T.u2" })).ok, true);
+    assert.deepEqual([made.length, card().subjects["T~u2"].state, card().entries["T~u2"]], [0, "in", undefined], "no record is written and no entry opened: the press the card draws is the body's own Save");
+    // A body holding the item's immunity is not counted in.
+    card().direct = true;
+    card().undetermined = { "T~u3": { uuid: "T.u3", name: "Immune" } };
+    subjects["T.u3"] = { uuid: "T.u3", actor: { effects: [{ id: "I1", disabled: false, flags: { "acks-extras": { rollMods: { id: "t", label: "Gear", parts: [{ on: "immune", spells: ["d"] }] } } } }], appliedEffects: [{ id: "I1", disabled: false, flags: { "acks-extras": { rollMods: { id: "t", label: "Gear", parts: [{ on: "immune", spells: ["d"] }] } } } }], createEmbeddedDocuments: holder.createEmbeddedDocuments }, testUserPermission: () => false };
+    assert.equal((await tick({ requestUserId: "owner", subject: "T.u3" })).reason, "immune", "a body holding the item's immunity is refused with its reason");
+  } finally {
+    theItem.testUserPermission = priorPerm;
+    delete subjects["T.u1"]; delete subjects["T.u2"]; delete subjects["T.u3"];
+    itemFlags = {};
     unstage();
   }
 });

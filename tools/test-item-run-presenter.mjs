@@ -199,6 +199,31 @@ await t("a re-raise after a lowering reads the choice the item kept: a bearer it
   rowReach.filter = {};
 });
 
+await t("a once-only use's card lists the bodies its filter could not settle, with a Count in offered by ownership of the ITEM and not of the body or a role, for a use with a save and one without", async () => {
+  const post = async (activationId, over) => {
+    await presenter.presentUse({ ok: true, kind: "once", itemUuid: "I.1", rowKey: "t", activationId, subjects: [{ key: "S.a", name: "Alpha" }], undetermined: [{ key: "S.b", name: "Beta" }], ...over });
+    const message = messages.at(-1);
+    return { message, card: message.flags["acks-extras"].itemRunCard };
+  };
+  const bodyFor = (posted, user) => {
+    me.current = user;
+    return presenter.onceBody(posted.message, posted.card);
+  };
+  const withSave = await post("o1", { card: { title: "Gear", subtitle: "Bearer" } });
+  const direct = await post("o2", { written: [{ key: "S.a", name: "Alpha", recordIds: ["E1"] }] });
+  assert.equal(direct.card.direct, true);
+  for (const posted of [withSave, direct]) {
+    const owner = bodyFor(posted, users[1]);
+    assert.ok(owner.includes("Beta") && owner.includes('data-action="itemRun.tickSubject"'), "an owner of the item sees the undetermined body and its Count in, owning neither body");
+    assert.ok(owner.includes("ACKS-LIB.itemRun.card.countSubjectTip"), "the control says what it does in its tooltip");
+    const bodyOwner = bodyFor(posted, users[2]);
+    assert.ok(!bodyOwner.includes("Beta") && !bodyOwner.includes("itemRun.tickSubject"), "the owner of the undetermined body who does not own the item sees neither the row nor the tick");
+    assert.ok(bodyFor(posted, users[0]).includes('data-action="itemRun.tickSubject"'), "a Judge owns the item here, so it is offered by that");
+  }
+  assert.ok(!bodyFor(withSave, users[1]).includes('data-action="itemRun.tick"'), "no bearer tick leaks into a once-only card");
+  me.current = users[0];
+});
+
 await t("lowering marks the card lowered, mutes every row and strikes what was open", async () => {
   await presenter.presentReach(moment("prompt", "S.a", { momentKey: "k9" }));
   assert.equal(stored().entries.k9.state, "open");

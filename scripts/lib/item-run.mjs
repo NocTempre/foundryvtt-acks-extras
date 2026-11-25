@@ -49,7 +49,7 @@ const loc = makeLoc(LANG_PREFIX);
 const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
-const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, undo: `${MODULE_ID}.itemRun.undo` });
+const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, tickSubject: `${MODULE_ID}.itemRun.tickSubject`, undo: `${MODULE_ID}.itemRun.undo` });
 
 /** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
 const runners = new Map();
@@ -333,7 +333,7 @@ async function pressHere(payload) {
       { requestUserId, total, target },
       {
         item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting, judge: judgeDeclares(requestUserId),
-        struck: !!asked && !!card?.entries && !card.entries[asked],
+        struck: card?.kind !== "once" && !!asked && !!card?.entries && !card.entries[asked],
       },
     );
     if (!verdict.ok) return verdict;
@@ -515,6 +515,54 @@ async function countBearerOut({ itemUuid, rowKey, messageId, requestUserId = nul
   }
   await pressListener?.({ message, key: "", entry: null, early: false, counted: false, item });
   return { ok: true };
+}
+
+/**
+ * Count a body a once-only use's filter could not settle in for this use, on the
+ * GM's window: the body leaves the card's undetermined list and joins its
+ * subjects. A use that applies a part with no save writes that part's record at
+ * once, under an applied entry the card's Undo takes back; a use with a save
+ * leaves the body's Save press open. Nothing is written to the item. Whoever
+ * owns the ITEM, by Foundry's own test on the relayed seat, may press it.
+ *
+ * @param {{messageId: string, subject: string, requestUserId?: string|null}} p
+ */
+async function countSubjectIn({ messageId, subject, requestUserId = null }) {
+  const { message, card } = cardOf(messageId);
+  if (!message || card?.kind !== "once") return { ok: false, reason: "noCard" };
+  const item = fromUuidSync(card.itemUuid);
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  if (!item) return { ok: false, reason: "gone" };
+  if (!item.testUserPermission?.(user, "OWNER")) return { ok: false, reason: "notOwner" };
+  const key = safeKey(subject);
+  const held = card.undetermined?.[key];
+  if (!held) return { ok: false, reason: "applied" };
+  const row = itemRunRowsOf(item).find((r) => r?.key === card.rowKey);
+  const actor = subjectOf(subject)?.actor;
+  if (!row || !actor) return { ok: false, reason: "gone" };
+  const patch = { [`subjects.${key}`]: { uuid: subject, name: held.name, state: "in", latest: "" }, [`undetermined.-=${key}`]: null };
+  if (card.direct) {
+    if (recordImmunity(actor, { spell: { id: kindKeyOf(item, row) } }).spell) return { ok: false, reason: "immune" };
+    const figures = reachFigures(row);
+    const parts = figures ? reachParts(figures.on, figures.modifier, figures.saveWhen) : [];
+    if (!parts.length) return { ok: false, reason: "noFigure" };
+    const made = await actor.createEmbeddedDocuments("ActiveEffect", [actionPartRecordData({ name: item.name, parts, source: item.uuid, activationId: card.activationId, rowKey: row.key, cite: itemCite(item) })]);
+    patch[`entries.${key}`] = { subject, state: "applied", recordIds: made.map((e) => e.id), presser: requestUserId ?? game.user?.id ?? "" };
+  }
+  await serialized(messageId, () => patchCard(message, patch));
+  await pressListener?.({ message, key, entry: null, early: false, counted: true, item });
+  return { ok: true };
+}
+
+/**
+ * Count an undetermined body in for a once-only use, from any seat: the GM's
+ * window runs it, a Player's seat relays it and the GM checks the seat owns
+ * the item.
+ * @param {{messageId: string, subject: string}} p
+ */
+export async function tickSubject(p) {
+  if (game.user.isGM) return countSubjectIn(p);
+  return (await executeAsGM(HANDLER.tickSubject, { messageId: p.messageId, subject: p.subject })) ?? { ok: false, reason: "relay" };
 }
 
 /**
@@ -800,6 +848,7 @@ export function installItemRun() {
   registerHandler(HANDLER.press, (payload) => pressHere(payload));
   registerHandler(HANDLER.tick, (payload) => countBearerIn(payload));
   registerHandler(HANDLER.untick, (payload) => countBearerOut(payload));
+  registerHandler(HANDLER.tickSubject, (payload) => countSubjectIn(payload));
   registerHandler(HANDLER.undo, (payload) => undoHere(payload));
   setReachHandler(handleReachMoment);
   setReachTeardown(liftActivation);

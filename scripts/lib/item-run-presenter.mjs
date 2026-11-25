@@ -27,7 +27,7 @@ import { figureNumber, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { lowerReach, releaseReachMoment } from "./aura-reach.mjs";
 import { itemCite, itemRunRowsOf, promptCardModel } from "./item-run-logic.mjs";
 import { patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard } from "./item-run-card-logic.mjs";
-import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, undoCardEntry, untickBearer } from "./item-run.mjs";
+import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
@@ -40,7 +40,7 @@ const HANDLER = Object.freeze({ recheck: `${MODULE_ID}.itemRun.recheck` });
 
 /** The card's words, localized: `itemRun.card.<key>` for each. */
 const WORD_KEYS = [
-  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "bearer", "well", "check", "lower", "colDistance", "given",
+  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "countSubjectTip", "bearer", "well", "check", "lower", "colDistance", "given",
   "earlyTip", "saveTip", "undoTip", "countInTip", "countOutTip", "bearerTip", "checkTip", "lowerTip",
 ];
 const words = () => ({ ...Object.fromEntries(WORD_KEYS.map((key) => [key, loc(`itemRun.card.${key}`)])), tick: loc("itemRun.card.countIn"), tickTip: loc("itemRun.card.countInTip") });
@@ -318,11 +318,15 @@ function raisedBody(message, card) {
   return renderRollCard(model);
 }
 
+/** The press that counts an undetermined body in for a once-only use, offered by ownership of the item. */
+const countSubjectAction = (w, ids, subject) => ({ action: "itemRun.tickSubject", label: w.tick, icon: "fa-solid fa-check", data: { ...ids, subject }, tooltip: w.countSubjectTip });
+
 /** Build the body of a once-only use's card for a seat. */
 function onceBody(message, card) {
   const w = words();
-  const isGM = game.user.isGM === true;
-  const owns = (key) => isGM || fromUuidSync(key)?.testUserPermission?.(game.user, "OWNER") === true;
+  const item = fromUuidSync(card.itemUuid ?? "") ?? null;
+  const ownsItem = item?.testUserPermission?.(game.user, "OWNER") === true;
+  const owns = (key) => fromUuidSync(key)?.testUserPermission?.(game.user, "OWNER") === true;
   const mayUndo = (entry, key) => entry?.presser === game.user.id || fromUuidSync(key)?.testUserPermission?.(game.user, "OWNER") === true;
   const subjects = Object.values(card.subjects ?? {}).filter((s) => owns(s.uuid));
   const ids = { itemUuid: card.itemUuid, rowKey: card.rowKey, activationId: card.activationId };
@@ -332,12 +336,12 @@ function onceBody(message, card) {
       const undo = mayUndo(entry, s.uuid) && entry?.state === "applied" && entry.recordIds?.length ? [{ action: "itemRun.undo", label: w.undo, icon: "fa-solid fa-rotate-left", data: { ...ids, subject: s.uuid, entryKey: safeKey(s.uuid) }, tooltip: w.undoTip }] : [];
       return entry?.state === "undone" ? { name: s.name, total: "", outcome: w.undone, emphasis: "muted" } : { name: s.name, total: "", outcome: w.given, emphasis: "success", actions: undo };
     });
-    const unsettled = isGM ? Object.values(card.undetermined ?? {}).map((s) => ({ name: s.name, total: "", outcome: w.undetermined, emphasis: "muted" })) : [];
+    const unsettled = ownsItem ? Object.values(card.undetermined ?? {}).map((s) => ({ name: s.name, total: "", outcome: w.undetermined, emphasis: "muted", actions: [countSubjectAction(w, ids, s.uuid)] })) : [];
     return renderRollCard({ title: card.title, subtitle: card.bearer?.name, bare: true, sections: [{ rows }, ...(unsettled.length ? [{ title: w.undetermined, rows: unsettled }] : [])] });
   }
   const entries = Object.fromEntries(subjects.map((s) => [s.uuid, card.entries?.[safeKey(s.uuid)]]));
-  const model = promptCardModel({ title: card.title, subtitle: card.bearer?.name, words: { ...w, roll: w.save }, subjects: subjects.map((s) => ({ key: s.uuid, name: s.name })), undetermined: isGM ? Object.values(card.undetermined ?? {}).map((s) => ({ key: s.uuid, name: s.name })) : [], entries, ids, isGM: true });
-  for (const section of model.sections) for (const r of section.rows) if (r.actions) r.actions = r.actions.filter((a) => a.action !== "itemRun.tick" && (a.action !== "itemRun.undo" || mayUndo(card.entries?.[safeKey(a.data.subject)], a.data.subject))).map((a) => ({ ...a, data: { ...a.data, entryKey: safeKey(a.data.subject) } }));
+  const model = promptCardModel({ title: card.title, subtitle: card.bearer?.name, words: { ...w, roll: w.save }, subjects: subjects.map((s) => ({ key: s.uuid, name: s.name })), undetermined: ownsItem ? Object.values(card.undetermined ?? {}).map((s) => ({ key: s.uuid, name: s.name })) : [], entries, ids, isGM: true });
+  for (const section of model.sections) for (const r of section.rows) if (r.actions) r.actions = r.actions.filter((a) => a.action !== "itemRun.undo" || mayUndo(card.entries?.[safeKey(a.data.subject)], a.data.subject)).map((a) => (a.action === "itemRun.tick" ? countSubjectAction(w, ids, a.data.subject) : { ...a, data: { ...a.data, entryKey: safeKey(a.data.subject) } }));
   return renderRollCard({ ...model, bare: true });
 }
 
@@ -360,7 +364,7 @@ function whisperBody(w) {
 
 /** Say why a press was refused. */
 function refusal(reason) {
-  const key = ["waiting", "struck", "applied", "notOwner", "noCard", "gone", "figure", "noFigure"].includes(reason) ? reason : "press";
+  const key = ["waiting", "struck", "applied", "immune", "notOwner", "noCard", "gone", "figure", "noFigure"].includes(reason) ? reason : "press";
   ui.notifications?.warn?.(loc(`itemRun.refused.${key}`));
 }
 
@@ -374,6 +378,7 @@ async function press(message, button) {
     case "itemRun.roll": return fail(await pressRoll({ ...ids, subject: d.subject, messageId, entryKey: d.entryKey ?? "" }));
     case "itemRun.undo": return fail(await undoCardEntry({ messageId, entryKey: d.entryKey || safeKey(d.subject) }));
     case "itemRun.tick": return fail(await tickBearer({ itemUuid: ids.itemUuid, rowKey: ids.rowKey, messageId }));
+    case "itemRun.tickSubject": return fail(await tickSubject({ messageId, subject: d.subject }));
     case "itemRun.untick": return fail(await untickBearer({ itemUuid: ids.itemUuid, rowKey: ids.rowKey, messageId }));
     case "itemRun.lower": return lowerReach({ tokenUuid: cardOf(messageId).card?.bearer?.uuid, activationId: ids.activationId });
     case "itemRun.recheck": return fail(await recheck({ messageId }));
