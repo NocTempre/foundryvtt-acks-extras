@@ -26,7 +26,7 @@ const part = (key, over = {}) => ({
   source: { uuid: "", templateCell: "", stat: "", name: "" },
   count: { dice: "1d4", literal: null, ratioOf: "", percent: null, round: "", perUnit: "" },
   chance: null, when: { state: "", place: "", units: [] }, branch: { group: "", band: "" },
-  moraleWhileAlive: null, cite: "XX p.1", basis: "page", ...over,
+  moraleWhileAlive: null, fixedHp: null, cite: "XX p.1", basis: "page", ...over,
 });
 /** The same part after a hand changed it: its figure moved and its origin cleared. */
 const byHand = (p, dice) => ({ ...p, origin: "", count: { ...p.count, dice } });
@@ -48,6 +48,14 @@ t("a part changed by hand survives a repair and an untouched part is refreshed",
   assert.equal(second.count.dice, "3d3", "the untouched part takes the fresh read");
   assert.equal(second.origin, "register");
   assert.deepEqual(plan.keptRows.map((r) => [r.path, r.key]), [[PATH, "a"]], "the held part is listed, under the recipe's path");
+});
+
+t("a part whose only change is a typed fixed hit-point figure is a hand's and survives a repair", () => {
+  const a = part("a");
+  const typed = { ...a, origin: "", fixedHp: 12 };
+  const plan = refreshPlan(stored([typed]), built([a]), REPAIR.monster);
+  assert.deepEqual(after(plan).map((p) => [p.key, p.origin, p.fixedHp]), [["a", "", 12]], "the figure stands under the blank origin");
+  assert.deepEqual(plan.keptRows.map((r) => r.key), ["a"]);
 });
 
 t("a part the hand left equal to the page is not held, and a part the build lost goes with its origin", () => {

@@ -11868,7 +11868,7 @@
   "ACKS-MONSTERS.recipe.problem.chance": "A chance is a percentage, or blank for always.",
   "ACKS-MONSTERS.recipe.problem.count": "A count is a number, dice, or a share of another part.",
   "ACKS-MONSTERS.recipe.problem.link": "A linked creature is an Actor entry.",
-
+  "ACKS-MONSTERS.recipe.problem.fixedHp": "A whole number of hit points, or blank to roll.",
   "ACKS-LIB.org.chart.scrollLabel": "Organisation tree, scrolls sideways",
   "ACKS-LIB.org.role.label": "{word}: {name}",
   "ACKS-LIB.org.role.file": "Rank and file",

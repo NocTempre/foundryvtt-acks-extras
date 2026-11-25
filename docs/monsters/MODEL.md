@@ -85,6 +85,7 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
   creature's own imported entry, whose figures and recipe are read there and
   never copied in. The roll treats both as a part that is no body: one stack
   each, never counted in a share of bodies and never ridden.
+- `fixedHp` is a hit-point figure every body of the part's stack takes in place of a roll: a whole number from 1 that a Judge types, never written by the import, blank (null) where the bodies roll. It wins over the figure a prototype's own page prints, for a labelled stack and an entry's alike, and typing or clearing it moves the part's `origin` like any other figure.
 - `source` is the creature the part is made of: `templateCell` names a Role
   cell of the family template (`variant|role`, never a copy of its figures),
   `name` a creature as printed, and `uuid` and `stat` are for a Judge's own

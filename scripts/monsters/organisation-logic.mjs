@@ -270,11 +270,14 @@ export function planOrganisationRoll({
     } else proto = protoOf({ kind: "label", label: src.name || p.label || p.part });
     const spec = prototypes[proto];
     // A mount or beast part names its creature by a link; with none it is the labelled stack, listed once however many units it applies to.
-    if (LINKED_ROLES.has(p.role) && spec.kind === "label" && !unlinked.has(p.part)) {
+    // A word the library could not resolve already carries a `reference` finding for this part; `unlinked` is for a part with no source at all.
+    if (LINKED_ROLES.has(p.role) && spec.kind === "label" && !unlinked.has(p.part) && !findings.some((f) => f.what === "reference" && f.why === p.part)) {
       unlinked.add(p.part);
       findings.push({ what: "unlinked", part: p.part, label: spec.label, role: p.role });
     }
-    const hp = spec.kind === "entry" ? null : printedHp(spec);
+    // A Judge's fixed figure on the part wins over the prototype's printed one, for an entry's stack too.
+    const typed = Number.isInteger(p.fixedHp) && p.fixedHp >= 1 ? p.fixedHp : null;
+    const hp = typed ?? (spec.kind === "entry" ? null : printedHp(spec));
     return { proto, label: spec.kind === "label" ? spec.label : p.label, count: p.count, role: p.role, gen: { part: p.part, cite: p.cite ?? "", ...(p.formula ? { formula: String(p.formula) } : {}) }, ...(Number.isFinite(hp) ? { fixedHp: hp } : {}), ...(p.chance != null ? { chance: p.chance } : {}) };
   };
 

@@ -30,7 +30,7 @@ const part = (key, role, over = {}) => ({
   chance: over.chance ?? null,
   when: { state: "", place: "", units: [], ...(over.when ?? {}) },
   branch: { group: "", band: "" },
-  moraleWhileAlive: over.moraleWhileAlive ?? null, cite: over.cite ?? "XX p. 1", basis: over.basis ?? "page",
+  moraleWhileAlive: over.moraleWhileAlive ?? null, fixedHp: over.fixedHp ?? null, cite: over.cite ?? "XX p. 1", basis: over.basis ?? "page",
 });
 
 const IMPORT = [
@@ -120,6 +120,18 @@ t("a count is blank, a die, a whole figure or a share, and only one of them", ()
   for (const no of [{ dice: "lots" }, { dice: "d" }, { literal: 1.5 }, { literal: -1 }, { dice: "1d4", literal: 2 }, { ratioOf: "unit" }, { percent: 40 }, { ratioOf: "unit", percent: "x" }]) assert.deepEqual(bad(no), ["count"], JSON.stringify(no));
 });
 
+t("a fixed hit-point figure is blank or a whole number from 1; a form's text is read as the figure", () => {
+  const bad = (fixedHp) => validatePart({ fixedHp }).map((p) => p.field);
+  for (const ok of [null, undefined, "", " ", 1, 7, "7", 120]) assert.deepEqual(bad(ok), [], String(ok));
+  for (const no of [0, "0", -3, 2.5, "2.5", "abc"]) assert.deepEqual(bad(no), ["fixedHp"], String(no));
+  assert.equal(validatePart({ fixedHp: 0 })[0].key, "ACKS-MONSTERS.recipe.problem.fixedHp");
+  assert.equal(RECIPE_TEXT.problemFixedHp, "ACKS-MONSTERS.recipe.problem.fixedHp");
+  assert.equal(shapePart({ fixedHp: "7" }).fixedHp, 7);
+  for (const none of ["", " ", null, undefined]) assert.equal(shapePart({ fixedHp: none }).fixedHp, null, JSON.stringify(none));
+  assert.equal(editorRows({ recipe: [part("steed", "mount", { fixedHp: 9 })], state: "lair" }).parts[0].fixedHp, 9, "a row carries the figure");
+  assert.equal(editorRows({ recipe: IMPORT, state: "lair" }).parts[0].fixedHp, null, "and null where the part holds none");
+});
+
 t("a mount or beast link is an Actor uuid, a world actor's or a compendium's; another role is not checked", () => {
   const bad = (role, uuid) => validatePart({ role, source: { uuid } }).map((p) => p.field);
   assert.deepEqual(LINKED_ROLES, ["mount", "beast"]);
@@ -153,6 +165,21 @@ t("a save that differs from the import blanks origin; the same figures put back 
   const back = savePart(edited, IMPORT, "guard-qux", { chance: "30", count: { dice: "1 D 4" } });
   assert.equal(back.find((p) => p.key === "guard-qux").origin, REGISTER_ORIGIN, "string figures and a spaced die equal the import's");
   assert.deepEqual(back, IMPORT, "the whole recipe is as the import wrote it");
+});
+
+t("a typed fixed hit-point figure blanks origin, and clearing it restores it; a figure that is not whole saves nothing", () => {
+  const typed = savePart(IMPORT, IMPORT, "guard-qux", { fixedHp: "12" });
+  const g = typed.find((p) => p.key === "guard-qux");
+  assert.deepEqual([g.origin, g.fixedHp], ["", 12], "the figure is the only difference, and it is a hand's");
+  assert.equal(handCount(typed).hand, 1);
+  const cleared = savePart(typed, IMPORT, "guard-qux", { fixedHp: "" });
+  assert.deepEqual([cleared.find((p) => p.key === "guard-qux").origin, cleared.find((p) => p.key === "guard-qux").fixedHp], [REGISTER_ORIGIN, null]);
+  assert.deepEqual(cleared, IMPORT);
+  assert.equal(savePart(IMPORT, IMPORT, "guard-qux", { fixedHp: "0" }), null);
+  assert.equal(samePart(part("a", "guard"), { ...part("a", "guard"), fixedHp: 4 }), false);
+  const stored = { ...part("a", "guard") };
+  delete stored.fixedHp;
+  assert.equal(samePart(stored, part("a", "guard")), true, "a part stored before the field existed reads as null");
 });
 
 t("a blank form value is null, so a blank chance put on a part the import read with none is no change", () => {

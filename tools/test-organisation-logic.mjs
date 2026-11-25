@@ -160,7 +160,7 @@ const part = (key, role, over = {}) => ({
   chance: over.chance ?? null,
   when: { state: "", place: "", units: [], ...(over.when ?? {}) },
   branch: { group: "", band: "", ...(over.branch ?? {}) },
-  moraleWhileAlive: over.moraleWhileAlive ?? null, cite: "XX p. 1", basis: "page",
+  moraleWhileAlive: over.moraleWhileAlive ?? null, fixedHp: over.fixedHp ?? null, cite: "XX p. 1", basis: "page",
 });
 const RECIPE = [
   part("archers", "body", { count: { ratioOf: "unit", percent: 50, round: "up" }, when: { units: ["cell", "band"] } }),
@@ -262,6 +262,32 @@ t("a mount or beast part with no link is the labelled stack and one unlinked fin
   assert.equal(protoOfStack(r, pair).uuid, "L.gleaf", "a word the library resolves is linked");
   const other = roll({ recipe: [...RECIPE, part("gard", "guard", { count: { dice: "1d4" }, when: { units: ["hold"] } })] });
   assert.equal(other.findings.some((f) => f.what === "unlinked"), false, "no other role is listed");
+});
+
+t("a part's fixed hit points are its stack's, over a printed figure, for a labelled stack and an entry stack alike; a blank one adds none", () => {
+  const typed = (key, over) => part(key, "guard", { count: { dice: "1d4" }, when: { units: ["hold"] }, ...over });
+  const r = roll({
+    recipe: [...RECIPE, typed("fixed-label", { source: { name: "snarks" }, fixedHp: 11 }), typed("fixed-entry", { source: { uuid: "Actor.qaFixed" }, fixedHp: 13 }), typed("plain-entry", { source: { uuid: "Actor.qaPlain" } })],
+  });
+  const by = (k) => stacksOf(r).find((s) => s.gen.part === k);
+  assert.deepEqual([protoOfStack(r, by("fixed-label")).kind, by("fixed-label").fixedHp], ["label", 11], "a labelled stack takes the typed figure");
+  assert.deepEqual([protoOfStack(r, by("fixed-entry")).kind, by("fixed-entry").fixedHp], ["entry", 13], "an entry's stack takes it too");
+  assert.equal("fixedHp" in by("plain-entry"), false, "a part with none leaves the stack to roll");
+  assert.equal(by("escort").fixedHp, 7, "a part with none keeps the printed figure its prototype carries");
+  const over = roll({ recipe: RECIPE.map((p) => (p.key === "escort" ? { ...p, fixedHp: 5 } : p)) });
+  assert.equal(stacksOf(over).find((s) => s.gen.part === "escort").fixedHp, 5, "the typed figure wins over the printed one");
+  const bad = roll({ recipe: RECIPE.map((p) => (p.key === "escort" ? { ...p, fixedHp: 0 } : p)) });
+  assert.equal(stacksOf(bad).find((s) => s.gen.part === "escort").fixedHp, 7, "a figure below 1 is not a figure");
+});
+
+t("a mount or beast word the library cannot resolve is a reference finding and no unlinked one; a part with no source at all stays unlinked", () => {
+  const extra = [
+    part("pair", "mount", { source: { name: "snarks" }, count: { literal: 1 }, when: { units: ["hold"] } }),
+    part("hound", "beast", { count: { dice: "1d4" }, when: { units: ["hold"] } }),
+  ];
+  const r = roll({ recipe: [...RECIPE, ...extra] });
+  assert.equal(r.findings.some((f) => f.what === "reference" && f.why === "pair"), true, "no entry answers the word, so it is a reference finding");
+  assert.deepEqual(r.findings.filter((f) => f.what === "unlinked").map((f) => f.part), ["hound"], "the word's part is not listed twice");
 });
 
 t("a leader is an officer of its unit with its morale part, never a stack; an out-of-range figure is null and a finding", () => {

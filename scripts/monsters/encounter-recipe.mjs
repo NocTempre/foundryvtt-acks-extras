@@ -381,7 +381,7 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
           if (recorded && times > 1) recorded = Array.from({ length: times }, () => `(${recorded})`).join("+");
         }
       }
-      node.parts.push({ part: p.key, role: p.role, label: p.label ?? "", count: count ?? 0, formula: recorded, source: p.source ?? {}, chance: p.chance ?? null, cite: p.cite ?? "", basis: p.basis ?? "page", branch: group ?? "", perUnit: p.count?.perUnit ?? "" });
+      node.parts.push({ part: p.key, role: p.role, label: p.label ?? "", count: count ?? 0, formula: recorded, source: p.source ?? {}, chance: p.chance ?? null, fixedHp: p.fixedHp ?? null, cite: p.cite ?? "", basis: p.basis ?? "page", branch: group ?? "", perUnit: p.count?.perUnit ?? "" });
     }
   }
   return { ok: true, context, state: found, requested: state, lair, top: root, choices: chosen, missing, steps };

@@ -110,7 +110,7 @@ function countWord(word) {
 /** The key a Role cell of the family template carries: `variant|role`, or the role alone with no variant. */
 const cellOf = (variant, role) => (variant ? `${variant}|${role}` : role);
 
-/** One part in the stored shape, every field present. */
+/** One part in the stored shape, every field present. `fixedHp` is always null here: only a Judge types one, and a stored figure then differs from the page's null. */
 function part({ key, label = "", role, source = {}, count = {}, chance = null, units = [], state = "", place = "", branch = {}, moraleWhileAlive = null, cite = "" }) {
   return {
     key,
@@ -123,6 +123,7 @@ function part({ key, label = "", role, source = {}, count = {}, chance = null, u
     when: { state, place, units: [...units] },
     branch: { group: "", band: "", ...branch },
     moraleWhileAlive,
+    fixedHp: null,
     cite,
     basis: RECIPE_BASIS,
   };

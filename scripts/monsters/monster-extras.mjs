@@ -66,7 +66,9 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
     // fields). `source` and `count` are each one of several shapes, so every
     // member is optional and blank until its shape uses it. `origin` is
     // "register" on a part as the import wrote it and blank once a hand has
-    // changed it, the mark a repair keeps a changed part by.
+    // changed it, the mark a repair keeps a changed part by. `fixedHp` is a
+    // hit-point figure every body of this part's stack takes in place of a roll,
+    // typed by a Judge and never written by the import; null means the bodies roll.
     const recipePart = () =>
       new SchemaField({
         key: str(),
@@ -86,6 +88,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         when: new SchemaField({ state: choice(RECIPE_STATES), place: choice(RECIPE_PLACES), units: wordList() }),
         branch: new SchemaField({ group: str(), band: str() }),
         moraleWhileAlive: num({ integer: true }),
+        fixedHp: num({ integer: true, min: 1 }),
         cite: str(),
         basis: choice(RECIPE_BASES),
       });

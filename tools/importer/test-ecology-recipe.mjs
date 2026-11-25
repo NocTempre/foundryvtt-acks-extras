@@ -54,7 +54,7 @@ const ENCOUNTER = {
 const read = (over = {}) => readEcologyRecipe({ combat: COMBAT, ecology: ECOLOGY, encounter: ENCOUNTER, variant: "zorb", cite: "XX p.1", ...over });
 const byKey = (recipe) => Object.fromEntries(recipe.map((p) => [p.key, p]));
 /** The fields a stored part carries, in the order the reader writes them. */
-const FIELDS = ["key", "origin", "label", "role", "source", "count", "chance", "when", "branch", "moraleWhileAlive", "cite", "basis"];
+const FIELDS = ["key", "origin", "label", "role", "source", "count", "chance", "when", "branch", "moraleWhileAlive", "fixedHp", "cite", "basis"];
 
 let passed = 0;
 const check = (name, fn) => {

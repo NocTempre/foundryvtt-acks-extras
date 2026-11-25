@@ -32,6 +32,7 @@ export const RECIPE_TEXT = Object.freeze({
   problemChance: "ACKS-MONSTERS.recipe.problem.chance",
   problemCount: "ACKS-MONSTERS.recipe.problem.count",
   problemLink: "ACKS-MONSTERS.recipe.problem.link",
+  problemFixedHp: "ACKS-MONSTERS.recipe.problem.fixedHp",
 });
 
 /** The roles whose part names its creature by a link to that creature's own entry. */
@@ -84,6 +85,7 @@ export function shapePart(part = {}) {
     when: { state: text(p.when?.state), place: text(p.when?.place), units: (p.when?.units ?? []).map(text).filter((u) => u.trim()) },
     branch: { group: text(p.branch?.group), band: text(p.branch?.band) },
     moraleWhileAlive: figure(p.moraleWhileAlive),
+    fixedHp: figure(p.fixedHp),
     cite: text(p.cite),
     basis: text(p.basis),
   };
@@ -149,7 +151,7 @@ function tipOf(part, copy) {
 
 /**
  * One row, with the figures a table shows: `label` (as stored, blank where a Judge has not typed one; the window names such a row by its `key`), `role` (the key) and
- * `roleLabel`, `madeOf` (what a Units row counts: the unit the part names, or
+ * `roleLabel`, `fixedHp` (a whole figure or null), `madeOf` (what a Units row counts: the unit the part names, or
  * `""` for bodies), `count` (`{text, share, of, round, perUnit}`), `chance`
  * (a percent or null), `when` (`{state, place, units}`), `morale`, `cite` (the
  * page), `from` (`hand`, or the part's `basis`), `hand` (origin blank) and `tip`.
@@ -166,6 +168,7 @@ function rowOf(part, readCopy) {
     chance: Number.isFinite(part.chance) ? part.chance : null,
     when: { state: part.when?.state ?? "", place: part.when?.place ?? "", units: [...(part.when?.units ?? [])] },
     morale: Number.isFinite(part.moraleWhileAlive) ? part.moraleWhileAlive : null,
+    fixedHp: Number.isFinite(part.fixedHp) ? part.fixedHp : null,
     cite: String(part.cite ?? ""),
     from: hand ? "hand" : part.basis || "",
     hand,
@@ -229,9 +232,9 @@ export function parseCount(input) {
 
 /**
  * The problems with a part's figures, as `{field, key}` (`field` is `chance`,
- * `count` or `link`; `key` a lang key). Runs over what a form hands back, so a
+ * `count`, `link` or `fixedHp`; `key` a lang key). Runs over what a form hands back, so a
  * string where a number belongs is read as one. A chance must be blank or 0 to
- * 100. A count must be blank or one of a die, a whole figure, or a share (a
+ * 100. A fixed hit-point figure must be blank or a whole number from 1. A count must be blank or one of a die, a whole figure, or a share (a
  * `ratioOf` with its `percent`). A mount or beast part's link, if it has one,
  * must be an Actor uuid.
  * @param {object} part
@@ -256,6 +259,10 @@ export function validatePart(part) {
     (blank(c.ratioOf) && !blank(c.percent)) ||
     (!blank(c.percent) && !(Number.isFinite(percent) && percent >= 0));
   if (bad) problems.push({ field: "count", key: RECIPE_TEXT.problemCount });
+  if (!blank(p.fixedHp)) {
+    const n = Number(p.fixedHp);
+    if (!Number.isInteger(n) || n < 1) problems.push({ field: "fixedHp", key: RECIPE_TEXT.problemFixedHp });
+  }
   if (LINKED_ROLES.includes(p.role) && !blank(p.source?.uuid) && !ACTOR_UUID_RX.test(String(p.source.uuid).trim())) {
     problems.push({ field: "link", key: RECIPE_TEXT.problemLink });
   }
