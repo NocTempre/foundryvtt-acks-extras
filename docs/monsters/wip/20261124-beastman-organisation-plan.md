@@ -1757,6 +1757,54 @@ roll or choose it there and then, (b) it is rolled for the Judge. Board 1n
 gains an undecided card and the moment it is needed. Not checked: the
 board's rendering. Released: none.
 
+### The owner's correction: controls, not gates, 2026-11-24
+
+Asked that last point as "When an undecided card is needed, is the Judge
+asked to roll or choose it, or is it rolled for them?", the owner answered
+neither and wrote:
+
+"This is the same question again and again and again. Stop reinventing
+wheel, owner can use the controls, don't hard code permissions unless
+explictly asked"
+
+This is a correction of the design session, and it binds the rest of this
+plan. Three things, each with what it undoes here:
+
+- **The Judge has the controls and uses them.** A surface offers Roll,
+  Choose, Edit, Confirm, Send out and Recall, and the Judge presses what the
+  moment needs. Example: Warband 3 is undecided and the Judge wants it at a
+  ford. The Judge rolls it, or chooses it, and sends it out, in whatever
+  order the controls allow. No dialog stands between the two presses to ask
+  which.
+- **No permission, refusal or ordering rule is built unless the owner asked
+  for it in words.** The one such rule the owner has given on this surface is
+  "Reroll is only until the element is confirmed": Confirm takes the die off
+  a card. Everything the design session added around it is withdrawn: that a
+  card must be confirmed before it is sent out or fights, the prompt drawn on
+  board 1n for "the moment it is needed", whether Confirm can be undone as a
+  rule, and whether Design by selection is taken away. The repo's standing
+  rule is the same one ("players get blocks, judges get warnings",
+  2026-11-14), and these are a Judge's tools.
+- **Use what exists.** The owner had already pointed at the open language
+  slot. An undecided card is that pattern: a row that offers the pick. The
+  design session drew a new mechanism around it and asked about each part.
+
+What it closes, without a further question to the owner:
+
+- Board 1n's points 2 to 6 and the "not asked" point above. They were one
+  question asked five ways: what the module should stop a Judge from doing.
+  The answer to all of them is nothing.
+- `architect`'s D, where it refuses: a re-roll of one gang "refused before
+  any die where a body is deployed, the gang is pinned, or it is away", and
+  S10a's "a labelled stack refused the map with a reason". Each is to be
+  re-read against this correction; `architect` is sent the words.
+- The layout points still open on boards 1j, 1k, 1l and 1m. They are taken
+  as drawn. The owner corrects a drawing by saying so; none is put as a
+  question again one at a time.
+
+Still the owner's, and not a permission: adopting the data shape and the
+slice table once `architect` has revised them. Released: none.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
