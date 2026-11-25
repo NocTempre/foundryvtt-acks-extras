@@ -2843,6 +2843,30 @@ computation. Only the Armor Class figure is waived: the condition's own throw
 figure, what it forbids and what it implies are as before. A gated row is not
 read, so no waiver is applied on a guess.
 
+**The attack card names a target's condition.** A character target's `ac.value`
+already holds the steps of its condition effects and the system's card prints
+that one figure, so the card names none of them. The attack seam asks a reader
+slot (`setTargetAcReader`, filled by `attack-card-target-ac.mjs` with
+`targetAcRows`) for the target's rows before the system rolls: each step the
+condition effects make to `system.ac.mod`, as `{name, value}`, the effect's own
+name and the step as it stands in the effect. A monster target has none (its
+steps are terms on the throw), and a step the Armor Class waiver spares is not
+listed. The seam holds the answer by the attacker's uuid beside the weapon's
+damage, for a weapon attack and a spell carrier's alike, and stamps it as
+`flags["acks-extras"].targetAc`, `{target, rows}`, on the system's attack card
+when the message is created, with or without an Apply. The stamp is the record:
+the render hook draws from it and never reads the target again, so the line on
+an old card is what that throw counted.
+
+A render hook appends two spans to the card's footer (the footer is made where
+the card has none): `data-acks-visibility="target-ac-shown"` names each
+condition with its signed step, and `target-ac-hidden` names them alone. The
+system's chat message removes the one the viewer may not see once the render
+hooks have run, so the module tests no setting. A re-render removes the line it
+drew before it draws again. The tooltip of the shown span names the effect, the
+target, the step and that the step is already in the Armor Class shown, with the
+page; the hidden span's names no step. The line adds nothing to the throw.
+
 **Where each roll takes it.**
 
 | Roll | Seam | How the figure rides |

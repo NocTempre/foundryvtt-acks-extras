@@ -66,6 +66,7 @@ acksExtras.lib = {
   spellUse,            // lib/patches/spell-use.mjs — the cast seam (below); 36
   // 51: attack.{MAGIC_ATTACK_TYPE, spellCarrier, isSpellCarrier, carrierOf, magicDamageSpec}, saves, loseStates, STATES_LOST_HOOK (below)
   // 54: TURN_BEGAN_HOOK, TURN_ENDED_HOOK, turnLife.{FLAG, EDGES, readTurnLife, turnLifeStep, turnEdges} (below, "Turn hooks and a record's turn life")
+  // 69: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
 }
 ```
 
@@ -1234,7 +1235,8 @@ acksExtras.lib.attack = {
   spellCarrier(actor, row, cast) → Item,   // cast: {spell, castId, rowKey, delivery}; unsaved, parented to actor
   isSpellCarrier(item) → boolean,          // identity, never a flag
   carrierOf(item) → {castId, rowKey, spellUuid, delivery, row} | null,
-  magicDamageSpec(actor, carrier, {terms}) → Promise<{formula, data, modifiers, types, extraordinary} | null>
+  magicDamageSpec(actor, carrier, {terms}) → Promise<{formula, data, modifiers, types, extraordinary} | null>,
+  TARGET_AC_FLAG                           // 69: "targetAc"
 }
 acksExtras.lib.saves = {
   saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values,
@@ -1268,6 +1270,18 @@ acksExtras.lib.lift(actor, ids) → Promise<void>                // statuses off
 acksExtras.lib.loseRecords(actor, cause) → Promise<string[]>   // cause: "damage" | "attack"; the ids deleted
 acksExtras.lib.endsOn = {FLAG: "endsOn", CAUSES, readEndsOn(flag) → string[], endedBy(effects, cause) → string[]}
 ```
+
+**The attack card's Armor Class line** (apiVersion 69). The card of an attack
+whose target is a character holding condition effects that move its Armor Class
+carries `flags["acks-extras"][attack.TARGET_AC_FLAG]`, `{target, rows: [{name,
+value}]}`: the target's name, and each effect's own name with its signed step as
+it stood when the attack was rolled. Absent where there is none (a monster
+target, no effect, a card that is not the system's attack card). The seam reads
+the rows through a reader slot, `setTargetAcReader(reader)` in
+`patches/attack-throw.mjs` (not on the api object), which
+`attack-card-target-ac.mjs` fills with `targetAcRows(actor)`; lib draws the line
+on the card in the Chat tab from the stamp alone. The model is
+docs/lib/MODEL.md, "The attack card names a target's condition".
 
 **The `rollMods` flag** is `{id, label, cite, sourceAlignment, parts}`, `id` the
 definition id the record stacks as. A part is `{key, on, value, itemId, gate,

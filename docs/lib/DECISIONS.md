@@ -1427,3 +1427,31 @@ holder slice writes one. Two effects naming one condition each carry the
 system's changes and the system applies both; the module deduplicates none of
 it, which is the writers' slice's. A waiver on a character who holds the
 condition directly is not applied (the roadmap).
+
+## 2026-11-24 — The attack card names a condition inside a character target's Armor Class
+
+Shown the design and asked "Board 1, attack card on a character target: A (as
+ruled) or B (one line names the condition)?", the owner: "B, name it". The
+system folds a character's condition effects into its `ac.value` and its card
+prints that figure alone, so after "Core's condition effects carry the figures
+they reach" (above) the card names a condition inside a character target's
+Armor Class nowhere. The module adds one footer line to the system's attack card
+naming each condition effect inside it, with the step as it stood in the effect
+when the card was made, and the names alone where the card hides the target's
+Armor Class. The line adds nothing to the throw. This goes past section D of the
+14.2.0 repair plan, which left the card to the system.
+
+- The attack seam reads the rows at the roll, holds them by attacker uuid beside
+  the weapon's damage and stamps them under `flags["acks-extras"].targetAc`; the
+  line is drawn from the stamp and the target is never read again. The seam
+  takes the reader through a slot instead of importing it, since the step reader
+  imports the seam.
+- Both spans are drawn and the system's chat message removes the one the viewer
+  may not see, so no setting is read here.
+
+**Rejected.** A term on the attacker's throw for a character target: it would
+count a figure the system already applied. A line recomputed from the target at
+render: an old card would change with the target's effects.
+
+**Cost.** One module line on the system's card, and a render hook on it: a
+change to the card's footer markup in a later system version can displace it.

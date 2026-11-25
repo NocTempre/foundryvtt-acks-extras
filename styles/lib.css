@@ -656,6 +656,14 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   font-style: italic;
 }
 
+/* The attack card's footer line naming a condition inside the target's Armor
+   Class (attack-card-target-ac.mjs): fine print in the card's footer. */
+.acks-extras-attack-card-target-ac {
+  font-size: var(--acks-fs-fine);
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
 /* A section's chips: labels with no figure, wrapped under its table. */
 .acks-extras-roll-chips {
   display: flex;

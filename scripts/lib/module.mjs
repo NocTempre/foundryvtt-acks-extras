@@ -96,6 +96,7 @@ import {
   MAGIC_ATTACK_TYPE,
   PRE_ATTACK_HOOK,
   POST_ATTACK_HOOK,
+  TARGET_AC_FLAG,
 } from "./patches/attack-throw.mjs";
 import * as saves from "./saves.mjs";
 import { drawQuietly } from "./roll-audience.mjs";
@@ -103,6 +104,7 @@ import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import { installAnimationBridge } from "./animations.mjs";
 import { installAttackApply } from "./attack-apply.mjs";
+import { installAttackCardTargetAc } from "./attack-card-target-ac.mjs";
 import { installDelayedDamage } from "./delayed-damage.mjs";
 import { declareDefenseTables } from "./defenses.mjs";
 import { declareThrowTables } from "./throws.mjs";
@@ -432,6 +434,7 @@ const localImpl = Object.freeze({
     isSpellCarrier,
     carrierOf,
     magicDamageSpec,
+    TARGET_AC_FLAG,
   },
   /**
    * A saving throw as named parts (saves.mjs): `saveSpec` composes the
@@ -1030,6 +1033,7 @@ Hooks.once("ready", () => {
   // system's Actor class and data models are final here.
   installAttackThrowPatch();
   installAttackApply();
+  installAttackCardTargetAc();
   installDelayedDamage();
   installAnimationBridge();
 

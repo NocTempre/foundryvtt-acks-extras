@@ -39,6 +39,12 @@
  * the card of every attack in flight loses it before it is stored and gains a
  * stamp of the weapon's damage (`ATTACK_APPLY_FLAG`); `attack-apply.mjs` draws
  * the press that applies it through the target's defenses.
+ *
+ * The card of every attack in flight whose target holds condition steps inside
+ * its Armor Class also gains a stamp naming them (`TARGET_AC_FLAG`), read at
+ * the roll through a reader slot (`setTargetAcReader`) so that this file
+ * imports nothing from the conditions' readers; `attack-card-target-ac.mjs`
+ * draws the line.
  */
 import { MODULE_ID } from "../constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "../vocab.mjs";
@@ -475,6 +481,65 @@ export function weaponGatesOf(item) {
   return Object.fromEntries(["weaponMundane", "weaponMagical"].map((kind) => [kind, item ? gateVerdict(null, { kind }, { item }) : null]));
 }
 
+/**
+ * The key under `flags[MODULE_ID]` that holds what a card names inside its
+ * target's Armor Class: `{target, rows: [{name, value}]}`, the target's name
+ * and each condition effect's own name with its signed step, as they stood when
+ * the attack was rolled.
+ */
+export const TARGET_AC_FLAG = "targetAc";
+
+/** The attacks in flight whose target holds condition steps inside its Armor Class, by the attacker's uuid: `{target, rows}`. */
+const targetAcInFlight = new Map();
+
+/** The function that reads a target actor's condition steps, or null until a feature installs one. */
+let targetAcReader = null;
+
+/**
+ * Install the reader of the condition steps inside a target's Armor Class:
+ * `reader(targetActor)` answers `[{name, value}]`, empty for none. The seam
+ * calls it once per attack, before the system rolls, and holds the answer for
+ * the card the attack posts. Passing a non-function removes the reader.
+ */
+export function setTargetAcReader(reader) {
+  targetAcReader = typeof reader === "function" ? reader : null;
+}
+
+/**
+ * What an attack names inside its target's Armor Class, or null: a reader is
+ * installed, the context has a target actor, and the reader answers at least
+ * one row. A reader that throws is reported and the attack goes ahead unnamed.
+ *
+ * @param {{targetActor?: Actor|null, targetName?: string|null}} ctx
+ * @returns {{target: string, rows: Array<{name: string, value: number}>}|null}
+ */
+export function targetAcOf(ctx) {
+  if (!targetAcReader || !ctx?.targetActor) return null;
+  try {
+    const read = targetAcReader(ctx.targetActor);
+    const rows = (Array.isArray(read) ? read : []).filter((r) => r && Number.isFinite(r.value)).map((r) => ({ name: String(r.name ?? ""), value: r.value }));
+    return rows.length ? { target: String(ctx.targetName ?? ""), rows } : null;
+  } catch (err) {
+    console.error(`${MODULE_ID} | the target's Armor Class could not be read for the card; the card names none`, err);
+    return null;
+  }
+}
+
+/**
+ * What a card about to be created carries for its Armor Class line, or null:
+ * the speaker's actor has an attack in flight that held rows (`byUuid`) and the
+ * content is the system's attack card. Pure over what it is given.
+ *
+ * @param {{actorUuids?: string[], content?: string}} data  the uuids the speaker's actor may be held under, most exact first (`speakerActorUuids`), and the message's content
+ * @param {Map<string, {target: string, rows: Array<{name: string, value: number}>}>} byUuid
+ * @returns {{target: string, rows: Array<{name: string, value: number}>}|null}
+ */
+export function targetAcMatch({ actorUuids = [], content = "" } = {}, byUuid = targetAcInFlight) {
+  if (typeof content !== "string" || !content.includes("attack-throw-card")) return null;
+  const held = heldUnder(actorUuids, byUuid);
+  return held ? { target: held.target, rows: held.rows.map((r) => ({ ...r })) } : null;
+}
+
 /** The attribute `name` of the first apply-damage button in a card's markup, or null. */
 function applyAttribute(content, name) {
   const tag = /<button\b[^>]*data-action="applyDamage"[^>]*>/.exec(content)?.[0];
@@ -512,25 +577,26 @@ export function attackApplyMatch({ actorUuids = [], content = "", rolls } = {}, 
  * Apply and is marked as a cast's; the card of any other attack in flight that
  * still has an Apply loses it, in the same update that stamps what lib's own
  * Apply (`attack-apply.mjs`) needs, so a card is never stripped without it.
+ * Either card, with or without an Apply, also takes the stamp of what its
+ * target's Armor Class holds (`TARGET_AC_FLAG`) when the attack held any.
  */
 function onPreCreateMessage(message) {
   try {
     const actor = ChatMessage.getSpeakerActor(message?.speaker);
     const data = { actorUuids: speakerActorUuids(actor), content: message?.content, rolls: message?.rolls };
+    const update = {};
     const info = carrierCardMatch(data, carrierInFlight);
+    const apply = info ? null : attackApplyMatch(data, attackDamageInFlight);
     if (info) {
-      message.updateSource({
-        content: stripApplyDamage(message.content),
-        [`flags.${MODULE_ID}.${MAGIC_ATTACK_FLAG}`]: { ...info },
-      });
-      return;
+      update.content = stripApplyDamage(message.content);
+      update[`flags.${MODULE_ID}.${MAGIC_ATTACK_FLAG}`] = { ...info };
+    } else if (apply) {
+      update.content = stripApplyDamage(message.content);
+      update[`flags.${MODULE_ID}.${ATTACK_APPLY_FLAG}`] = apply;
     }
-    const apply = attackApplyMatch(data, attackDamageInFlight);
-    if (!apply) return;
-    message.updateSource({
-      content: stripApplyDamage(message.content),
-      [`flags.${MODULE_ID}.${ATTACK_APPLY_FLAG}`]: apply,
-    });
+    const targetAc = targetAcMatch(data, targetAcInFlight);
+    if (targetAc) update[`flags.${MODULE_ID}.${TARGET_AC_FLAG}`] = targetAc;
+    if (Object.keys(update).length) message.updateSource(update);
   } catch (err) {
     console.error(`${MODULE_ID} | an attack card could not be marked; it keeps its apply button`, err);
   }
@@ -632,6 +698,11 @@ async function onMakeAttackThrow(wrapped, options = {}) {
   // Any other attack is known by its weapon's damage, for the card's Apply press.
   const priorDamage = carried ? null : (attackDamageInFlight.get(this.uuid) ?? null);
   if (!carried) attackDamageInFlight.set(this.uuid, { ...attackDamageOf(ctx.item), gates: weaponGatesOf(ctx.item) });
+  // What the target's Armor Class holds is read before the system rolls, for any attack, and stamped on its card.
+  const priorTargetAc = targetAcInFlight.get(this.uuid) ?? null;
+  const targetAc = targetAcOf(ctx);
+  if (targetAc) targetAcInFlight.set(this.uuid, targetAc);
+  else targetAcInFlight.delete(this.uuid);
   let outcome = null;
   try {
     outcome = await wrapped({ ...options, item: ctx.item, attackType: ctx.type ?? undefined });
@@ -648,6 +719,8 @@ async function onMakeAttackThrow(wrapped, options = {}) {
     } else {
       attackDamageInFlight.delete(this.uuid);
     }
+    if (priorTargetAc) targetAcInFlight.set(this.uuid, priorTargetAc);
+    else targetAcInFlight.delete(this.uuid);
   }
   if (outcome) {
     try {
