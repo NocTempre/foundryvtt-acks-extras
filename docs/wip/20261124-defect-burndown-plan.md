@@ -67,8 +67,19 @@ rows and no more. It follows `acks-bug-triage` §3 to §5 with these limits:
 - **Four dispositions.** A row closes as a false report, a docs gap or style
   feedback as readily as a fix, each with its evidence.
 - **Design before build.** Every row in the batch that changes what a user
-  sees goes on one board (`/design`) and waits for the owner's word. Rows
-  with no visible change are built meanwhile.
+  sees goes on one board (`/design`). Rows with no visible change are built
+  meanwhile. The owner, 2026-11-24, to the session that starts the batches:
+  "You can approve design boards for simple items". So a batch session sends
+  its board's link to that session with each item marked simple or not, and
+  that session reads the board and answers. **Simple**, as that session reads
+  the word: a label, a tooltip, an accessible name, a hint's wording, a
+  missing disabled or empty state, a figure's format, on a control that
+  already exists where it already is. **Not simple**, and still the owner's:
+  a new control or window, a control moved or removed, a changed layout, a
+  changed order of steps, a new setting, anything a Judge or player must
+  relearn, and anything the approving session is unsure of. An approval is
+  recorded in the batch's Results as the planning session's, with the item,
+  and never as the owner's.
 - **A printed figure found in source** is moved by `acks-printed-value`, in
   the batch that finds it.
 - **Tree.** A fix is written on `topic/defects-b<nn>`, opened and landed with
