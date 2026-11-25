@@ -240,7 +240,8 @@ export async function deleteRow(host, key) {
  * Edit a filled row by hand: its label, note, kind and visibility go to the host's
  * row, a stack's count or prototype and the officer to the row's group. Bodies of the
  * group standing on a map keep the figures they went out with until they are recalled;
- * that is a whisper to the Judges and a `warnings` entry, never a refusal.
+ * that is a whisper to the Judges and a `warnings` entry, never a refusal. Clearing the officer of
+ * a faction host's own leader clears the host's `leaderUuid` in the same write.
  *
  * @param {Actor} host a faction or a group hosting a chart
  * @param {string} key the row
@@ -253,7 +254,11 @@ export async function editRow(host, key, { fields = {}, stacks = [], officer = n
   const row = rowOn(host, key);
   if (!row) return refused("noRow");
   const group = row.holderUuid ? docOf(row.holderUuid) : null;
-  const plan = planEdit({ host: { uuid: host.uuid }, rows: unitsOf(host), key, fields, stacks, officer, onMap: !!group && isGroupActor(group) && onMap(group) });
+  const isFaction = !isGroupActor(host);
+  const plan = planEdit({
+    host: { uuid: host.uuid, ...(isFaction ? { kind: "faction", leaderUuid: host.system?.leaderUuid ?? "" } : {}) }, rows: unitsOf(host), key, fields, stacks, officer,
+    onMap: !!group && isGroupActor(group) && onMap(group), currentOfficer: isGroupActor(group) ? group.system?.unit?.officerUuid ?? "" : "",
+  });
   if (!plan.ok) return refused(plan.reason);
   const run = await runPlan(plan);
   if (!run.ok) return { ok: false, reason: run.reason, ...(run.name ? { name: run.name } : {}), done: run.done };

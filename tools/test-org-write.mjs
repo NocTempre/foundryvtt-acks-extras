@@ -219,6 +219,23 @@ t("Edit changes a filled row by hand, and a change under bodies on a map warns a
   assert.equal(planEdit({ host: HOST, rows, key: "zz" }).reason, "noRow");
 });
 
+t("clearing the officer that is the faction's leader clears the faction's leader in the same plan, and clearing any other officer leaves it", () => {
+  const rows = [row("u1", "", "G.1"), row("u2", "u1", "G.2")];
+  const faction = { uuid: "F.1", kind: "faction", leaderUuid: "A.1" };
+  const own = planEdit({ host: faction, rows, key: "u1", officer: { officer: "", moraleBonus: null }, currentOfficer: "A.1" });
+  assert.deepEqual(own.ops.map((o) => o.op), ["update", "setOfficer"]);
+  assert.deepEqual(own.ops[0], { op: "update", uuid: "F.1", update: { "system.leaderUuid": "" } });
+  const both = planEdit({ host: faction, rows, key: "u1", fields: { label: "Renamed" }, officer: { officer: "", moraleBonus: null }, currentOfficer: "A.1" });
+  assert.deepEqual(both.ops.map((o) => o.op), ["update", "setOfficer"], "the rows and the leader are one write to the host");
+  assert.deepEqual(Object.keys(both.ops[0].update), ["system.units", "system.leaderUuid"]);
+  const other = planEdit({ host: faction, rows, key: "u2", officer: { officer: "", moraleBonus: null }, currentOfficer: "A.9" });
+  assert.deepEqual(other.ops.map((o) => o.op), ["setOfficer"], "an officer that is not the faction's leader");
+  const set = planEdit({ host: faction, rows, key: "u1", officer: { officer: "A.2", moraleBonus: null }, currentOfficer: "A.1" });
+  assert.deepEqual(set.ops.map((o) => o.op), ["setOfficer"], "naming another officer is no clear");
+  const group = planEdit({ host: { uuid: "G.0", kind: "group", leaderUuid: "A.1" }, rows, key: "u1", officer: { officer: "", moraleBonus: null }, currentOfficer: "A.1" });
+  assert.deepEqual(group.ops.map((o) => o.op), ["setOfficer"], "only a faction has a leader to clear");
+});
+
 t("a Roll that names the host's own group as the top holder makes no group for the top, and the host stands on its own top row without nesting itself", () => {
   const GROUP = { uuid: "G.host", kind: "group" };
   const rows = [row("top", "", "", { gen: { template: "T.1" } })];

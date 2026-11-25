@@ -4649,8 +4649,9 @@ with all below it and removes the slot; the other units stay empty. A pick left 
    anywhere below it. The four lines differ in weight and style, so they read without colour. A badge's press
    puts its tooltip text in a notice, which a keyboard cannot otherwise reach.
    **Clear the leader.** In a card's pen, a button "Clear the <rank> (<name>)" is drawn only where the card's group
-   has an officer. *Observable:* pressing it blanks `system.unit.officerUuid` at once and leaves a faction's
-   `leaderUuid` as it was; no checkbox or empty tick is drawn in the form. (Minting a champion by tick is S12b's.)
+   has an officer. *Observable:* pressing it blanks `system.unit.officerUuid` at once, and where that officer is the host faction's
+   `leaderUuid` (the village chieftain on the top card) blanks `leaderUuid` in the same press, while a lower card's
+   officer leaves it as it was; no checkbox or empty tick is drawn in the form. (Minting a champion by tick is S12b's.)
 5. **Send out and Recall** — press Send out on a filled card, pick the place; open the **Locations**
    tab. *Observable:* the place's roster holds the group and a chip for its row stands on the place;
    its Recall takes the group off the roster again. **Nested chips (board 1i):** a group sent whole that holds

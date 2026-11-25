@@ -388,13 +388,17 @@ try {
       check("the pen changes a stack's count on the row's group", moved, { was: stackBefore[0] });
       await run(gm, P.press, { id: fid, action: "orgEdit", key: filledRow.key, wait: 600 });
       const holder = filledRow.holderUuid;
-      const hadOfficer = await gm.eval(`!!fromUuidSync("${holder}").system.unit?.officerUuid`);
+      const holderOfficer = await gm.eval(`fromUuidSync("${holder}").system.unit?.officerUuid ?? ""`);
+      const hadOfficer = !!holderOfficer;
+      const hadLeader = await gm.eval(`game.actors.get("${fid}").system.leaderUuid ?? ""`);
       const clear = await run(gm, P.clearLeader, { id: fid, key: filledRow.key, press: false });
       check("the clear-leader control is drawn where an officer exists and nowhere else, named for its rank, and no empty tick is drawn", clear.drawn === hadOfficer && clear.emptyTick === false && (!hadOfficer || /\S/.test(clear.name)), clear);
       if (hadOfficer) {
         await run(gm, P.clearLeader, { id: fid, key: filledRow.key, press: true });
         const cleared = await waitFor(gm, `!fromUuidSync("${holder}").system.unit.officerUuid`, 8000);
-        check("pressing it clears the group's officer, writes at once and keeps the faction's own leader", cleared);
+        check("pressing it clears the group's officer and writes at once", cleared);
+        const leaderNow = await gm.eval(`game.actors.get("${fid}").system.leaderUuid ?? ""`);
+        check("the faction's leader is cleared with it where the officer was that leader, and is left as it was for any other card", hadLeader === holderOfficer ? leaderNow === "" : leaderNow === hadLeader, { was: hadLeader, officer: holderOfficer, now: leaderNow });
       }
       await run(gm, P.press, { id: fid, action: "orgEditDone", key: filledRow.key, wait: 600 });
     } else note("not walked", "the filled card holds no stack");

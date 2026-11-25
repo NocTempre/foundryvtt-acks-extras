@@ -308,6 +308,27 @@ t("Edit runs through the org writer: a filled row's label and a stack's count la
   assert.equal((await org.editRow(empty, "e1", { stacks: [{ stack: "s", count: 1 }] })).reason, "empty");
 });
 
+t("clearing the officer of the faction's own leader clears the faction's leader in the same press, and clearing another officer leaves it", async () => {
+  reset();
+  const chief = creature("Chief");
+  const other = creature("Other");
+  const top = group("Top");
+  const low = group("Low");
+  await top.update({ "system.unit": { officerUuid: chief.uuid } });
+  await low.update({ "system.unit": { officerUuid: other.uuid } });
+  const host = faction("Holdfast", [{ key: "t", parentKey: "", label: "T", holderUuid: top.uuid, kind: "", notes: "", hidden: false, gen: {} }, { key: "l", parentKey: "t", label: "L", holderUuid: low.uuid, kind: "", notes: "", hidden: false, gen: {} }]);
+  await host.update({ "system.leaderUuid": chief.uuid });
+  const quiet = await org.editRow(host, "l", { officer: { officer: "", moraleBonus: null } });
+  assert.equal(quiet.ok, true);
+  assert.equal(low.system.unit.officerUuid, "");
+  assert.equal(host.system.leaderUuid, chief.uuid, "another unit's officer was not the faction's leader");
+  const cleared = await org.editRow(host, "t", { officer: { officer: "", moraleBonus: null } });
+  assert.equal(cleared.ok, true);
+  assert.equal(top.system.unit.officerUuid, "");
+  assert.equal(host.system.leaderUuid, "", "the faction no longer names the actor the group let go");
+  assert.equal(world.has(chief.uuid), true, "the actor stays in the world");
+});
+
 t("a roll with no host hosts the chart on its top unit's group", async () => {
   reset();
   const tree = rollTree({ context: "dungeon", state: "wandering" });

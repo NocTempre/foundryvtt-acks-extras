@@ -306,16 +306,17 @@ export function planUnlist({ rows, key, hostUuids = [] } = {}) {
  * (empty) refuses only what needs a group.
  *
  * @param {object} args
- * @param {{uuid: string}} args.host
+ * @param {{uuid: string, kind?: string, leaderUuid?: string}} args.host `kind` and `leaderUuid` are a faction's, read only to clear its leader with the officer
  * @param {object[]} args.rows
  * @param {string} args.key the row
  * @param {{label?: string, notes?: string, kind?: string, hidden?: boolean, gen?: object}} [args.fields] `gen` is a patch of the row's own record: a blank value removes the key
  * @param {{stack: string, count?: number, prototype?: string}[]} [args.stacks]
  * @param {{officer: string, moraleBonus?: number|null}} [args.officer]
  * @param {boolean} [args.onMap] a body of the row's group stands on a map
+ * @param {string} [args.currentOfficer] the uuid of the row's group's officer now; a blank `officer.officer` clears it, and where it is the faction host's `leaderUuid` the same host write clears that too
  * @returns {{ok: boolean, reason?: "noRow"|"empty", ops: object[], warnings?: string[]}}
  */
-export function planEdit({ host, rows, key, fields = {}, stacks = [], officer = null, onMap = false } = {}) {
+export function planEdit({ host, rows, key, fields = {}, stacks = [], officer = null, onMap = false, currentOfficer = "" } = {}) {
   const list = copyRows(rows);
   const row = list.find((r) => r.key === key);
   if (!row) return REFUSED("noRow");
@@ -331,9 +332,10 @@ export function planEdit({ host, rows, key, fields = {}, stacks = [], officer = 
     }
     if (JSON.stringify(next) !== JSON.stringify(row.gen ?? {})) changes.gen = next;
   }
-  if (Object.keys(changes).length) {
-    ops.push({ op: "update", uuid: host.uuid, update: { "system.units": list.map((r) => (r.key === key ? { ...r, ...changes } : r)) } });
-  }
+  const hostUpdate = {};
+  if (Object.keys(changes).length) hostUpdate["system.units"] = list.map((r) => (r.key === key ? { ...r, ...changes } : r));
+  if (officer && !officer.officer && currentOfficer && host?.kind === "faction" && host.leaderUuid === currentOfficer) hostUpdate["system.leaderUuid"] = "";
+  if (Object.keys(hostUpdate).length) ops.push({ op: "update", uuid: host.uuid, update: hostUpdate });
   for (const s of stacks) {
     const change = { op: "setStack", group: row.holderUuid, stack: s.stack };
     if (s.count !== undefined) change.count = Math.max(0, Math.floor(Number(s.count)) || 0);
