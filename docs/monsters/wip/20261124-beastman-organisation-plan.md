@@ -1417,6 +1417,40 @@ points; canvas 1's questions 4 and 6. Board 1f's window frame is still the
 first drawing's Generate window, and its cards and 1h's are not redrawn on
 the Follower Card. Released: none. Not checked: any board's rendering.
 
+### The owner on a warband's group, 2026-11-24
+
+Asked "Is a warband's group made at Generate, or only when the warband is
+sent out whole?", with the buttons "At Generate" and "When sent out", the
+owner chose:
+
+"At Generate"
+
+The words are the button's; the choice is the owner's. It answers
+`architect`'s question 1 with (a), its own pick: every warband has a group
+actor from Generate, and that group holds no bodies and lists its gangs'
+groups. Example: Generate makes Warband 1's group at the village's site with
+Gang 1's and Gang 2's groups inside it. Gang 1 sent alone to a ford leaves
+Warband 1's group and stands on the ford's roster, and the Org chart still
+lists it under Warband 1. Warband 2 sent whole is one move of one group, its
+gangs inside it.
+
+What follows, as a reading: a group that lists groups exists from the first
+roll and not only on a send-out, so C's `unit.parentGroupUuid` is written by
+Generate (C is still proposed), and E's count of a village's actors, which
+already has a group for each warband, stands. Board 1i drew (b) and is
+changed: its Locations tab and Place A's roster show Warband 1's group at
+home.
+
+Not asked, and open on board 1i: a warband's group whose gangs were all sent
+out alone lists nothing. It stays on its place's row empty, or it leaves the
+row until a gang is recalled. The second listed defect above
+(`groupHeadcount` reads an emptied group as one) would count such a group as
+a body.
+
+S11b needed the owner's questions 1 and 2; 1 is answered and 2, a wandering
+warband or a lair roll, is not. Released: none. Not checked: board 1i's
+rendering.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
