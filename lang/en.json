@@ -8608,7 +8608,7 @@
   "ACKS-IMPORTER.organisation.sourceTableUncited": "Leader table",
   "ACKS-IMPORTER.tables.gmOnly": "Only a GM can import rules tables into the world.",
   "ACKS-IMPORTER.tables.noProvider": "No rules-table host is active. Reload, and report it if it persists.",
-  "ACKS-IMPORTER.tables.imported": "ACKS Extras | imported {tables} rules table(s) from your books into this world ({docs}). Market and hiring automation now uses your book values.",
+  "ACKS-IMPORTER.tables.imported": "ACKS Extras | imported {tables} rules table(s) from your books into this world ({docs}).",
   "ACKS-IMPORTER.tables.missingBooks": "ACKS Extras | some tables need books not connected on this seat ({books}). Connect them and re-run the import to fill the rest.",
   "ACKS-IMPORTER.tables.builderApplied": "Class builder applied: {races} race(s) materialized, {builds} Ready-for-Play build(s) stamped onto their classes.",
   "ACKS-IMPORTER.gs.title": "Getting Started — ACKS II Content",
