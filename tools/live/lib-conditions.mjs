@@ -630,6 +630,106 @@ const P = {
       ui.notifications.info = info;
     }
   },
+  /**
+   * The Stats tab's tooltips on a character under three hand-made effects of the walk's own: one that adds to the Armor Class field, one that sets it, and
+   * one that bounds the save modifier. A line for the setting and the bounding effect carries Foundry's word for its change type, the adding one's line does
+   * not, the bare line of each is absent, and no remainder shows. The figures are the walk's own, set from the stored values. The effects are deleted by id.
+   */
+  kind: async ({ bearer }) => {
+    const H = globalThis.__lc;
+    const VM = await import("/modules/acks-extras/scripts/character-sheet/view-model.mjs");
+    const actor = (await fromUuid(bearer)).actor;
+    const acKey = H.RM.CONDITION_STEP_KEYS.ac;
+    const saveKey = H.RM.CONDITION_STEP_KEYS.save;
+    const at = (key) => Number(foundry.utils.getProperty(actor, key)) || 0;
+    const before = { ac: at(acKey), save: at(saveKey) };
+    const word = (type) => game.i18n.localize(`EFFECT.CHANGES.TYPES.${type}`);
+    const plain = (label, value) => game.i18n.format("ACKS-CHARACTER.stats.part", { label, value: VM.signed(value) });
+    const kinded = (label, type, value) => game.i18n.format("ACKS-CHARACTER.stats.partKind", { label, kind: word(type), value: VM.signed(value) });
+    const other = game.i18n.localize("ACKS.throw.modifier.otherEffects");
+    const saveLabel = game.i18n.localize("ACKS-CHARACTER.stats.saveMod");
+    const names = { adds: "Walk kind: adds", sets: "Walk kind: sets", bounds: "Walk kind: bounds" };
+    const made = await actor.createEmbeddedDocuments("ActiveEffect", [
+      { name: names.adds, changes: [{ key: acKey, type: "add", value: "1" }] },
+      { name: names.sets, changes: [{ key: acKey, type: "override", value: String(before.ac + 3) }] },
+      { name: names.bounds, changes: [{ key: saveKey, type: "upgrade", value: String(before.save + 2) }] },
+    ]);
+    const ids = made.map((e) => e.id);
+    const sheet = actor.sheet;
+    const rootOf = () => (sheet.element?.nodeType === 1 ? sheet.element : sheet.element?.[0] ?? null);
+    const count = (tip, line) => String(tip ?? "").split(" · ").filter((part) => part === line).length;
+    try {
+      await H.sleep(400);
+      const moved = { ac: at(acKey) - before.ac, save: at(saveKey) - before.save };
+      await sheet.render(true);
+      for (let n = 0; n < 40 && !rootOf()?.isConnected; n++) await H.sleep(150);
+      sheet.changeTab("stats", "primary");
+      await H.sleep(700);
+      const tab = rootOf()?.querySelector("section[data-tab='stats']") ?? null;
+      const acEls = [...(tab?.querySelectorAll(".acks-extras-frame__fact-value[data-tooltip-text]") ?? [])];
+      const label = [...(tab?.querySelectorAll(".acks-extras-frame__fact-label") ?? [])].find((l) => l.firstChild?.textContent.trim() === saveLabel) ?? null;
+      const saveTip = label?.querySelector("[data-tooltip-text]")?.dataset.tooltipText ?? null;
+      const ac = acEls.map((n) => n.dataset.tooltipText);
+      const lines = { adds: plain(names.adds, 1), sets: kinded(names.sets, "override", 2), bounds: kinded(names.bounds, "upgrade", 2) };
+      const bare = { sets: plain(names.sets, 2), bounds: plain(names.bounds, 2) };
+      const hovered = acEls.find((n) => count(n.dataset.tooltipText, lines.sets) === 1) ?? null;
+      let hover = null;
+      if (hovered) {
+        hovered.scrollIntoView({ block: "center" });
+        await H.sleep(250);
+        hovered.dispatchEvent(new PointerEvent("pointerenter"));
+        await H.sleep(foundry.helpers.interaction.TooltipManager.TOOLTIP_ACTIVATION_MS + 500);
+        hover = { active: game.tooltip.element === hovered, same: (game.tooltip.tooltip?.textContent ?? "") === hovered.dataset.tooltipText, title: hovered.hasAttribute("title") };
+        hovered.dispatchEvent(new PointerEvent("pointerleave"));
+        await H.sleep(200);
+      }
+      await sheet.close();
+      return {
+        made: ids.length, tab: !!tab, acRows: ac.length, saveTip: saveTip !== null,
+        words: ["override", "upgrade"].every((type) => word(type) !== `EFFECT.CHANGES.TYPES.${type}` && word(type).trim() !== ""),
+        moved: moved.ac === 3 && moved.save === 2,
+        adds: ac.some((t) => count(t, lines.adds) === 1),
+        sets: ac.some((t) => count(t, lines.sets) === 1),
+        bounds: count(saveTip, lines.bounds) === 1,
+        noBare: ac.every((t) => count(t, bare.sets) === 0) && count(saveTip, bare.bounds) === 0,
+        noRemainder: [...ac, saveTip ?? ""].every((t) => !t.includes(other)),
+        hover,
+      };
+    } finally {
+      const left = ids.filter((id) => actor.effects.has(id));
+      if (left.length) await actor.deleteEmbeddedDocuments("ActiveEffect", left);
+      await H.sleep(350);
+    }
+  },
+  /**
+   * One saving throw of a monster under a hand-made effect of the walk's own that carries a condition's status and sets the save modifier, and the notices
+   * told while it rolled, counted by whether they name the effect, the condition in brackets, then Foundry's word for the change type. The effect is deleted by id.
+   */
+  kindNotice: async ({ bearer, id }) => {
+    const H = globalThis.__lc;
+    const actor = (await fromUuid(bearer)).actor;
+    const saveKey = H.RM.CONDITION_STEP_KEYS.save;
+    const name = "Walk kind: ward";
+    const label = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.named", { effect: name, condition: game.i18n.localize(`ACKS-LIB.condition.${id}`) });
+    const named = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.kinded", { label, kind: game.i18n.localize("EFFECT.CHANGES.TYPES.override") });
+    const said = [];
+    const info = ui.notifications.info;
+    ui.notifications.info = function (message, ...rest) { said.push(String(message)); return info.call(this, message, ...rest); };
+    let made = [];
+    try {
+      const stored = Number(foundry.utils.getProperty(actor._source, saveKey)) || 0;
+      made = await actor.createEmbeddedDocuments("ActiveEffect", [{ name, statuses: [id], changes: [{ key: saveKey, type: "override", value: String(stored + 2) }] }]);
+      await H.sleep(400);
+      await H.save(actor);
+      const during = said.splice(0);
+      return { type: actor.type, made: made.length, naming: during.filter((m) => m.includes(named)).length, bare: during.filter((m) => m.includes(name) && !m.includes(named)).length };
+    } finally {
+      ui.notifications.info = info;
+      const left = made.map((e) => e.id).filter((eid) => actor.effects.has(eid));
+      if (left.length) await actor.deleteEmbeddedDocuments("ActiveEffect", left);
+      await H.sleep(350);
+    }
+  },
   drain: async () => ({ posted: globalThis.__lc?.posted?.slice() ?? [] }),
   restore: async () => {
     const H = globalThis.__lc;
@@ -887,6 +987,22 @@ try {
     note("notices", { monster: onMon, character: onPc });
     check("12: a monster's save under the condition tells one notice naming the effect, and none before the condition is set", onMon.named && onMon.before === 0 && onMon.naming === 1 && onMon.back, onMon);
     check("12: a character's save under it tells none, since the system's own roll carries the step", onPc.named && onPc.naming === 0 && onPc.back, onPc);
+  }
+
+  section("13. an effect that sets or bounds a figure says its change's type");
+  const k = await run(gm, P.kind, { bearer: pcTok.uuid });
+  note("kind", k);
+  check("13: three effects of the walk's own move the character's fields by the walk's figures, and Foundry has a word for each type", k.made === 3 && k.moved && k.words, { made: k.made, moved: k.moved, words: k.words });
+  check("13: the sheet renders its Stats tab with the Armor Class rows and the save modifier's note", k.tab && k.acRows > 0 && k.saveTip, { tab: k.tab, acRows: k.acRows, saveTip: k.saveTip });
+  check("13: the effect that sets Armor Class and the one that bounds the save modifier each have one line with Foundry's word for the type", k.sets && k.bounds, { sets: k.sets, bounds: k.bounds });
+  check("13: the effect that adds has its line with no word, and neither typed line shows bare", k.adds && k.noBare, { adds: k.adds, noBare: k.noBare });
+  check("13: no remainder line shows, so the typed lines account for the whole figure", k.noRemainder);
+  check("13: hovering the Armor Class figure shows core's tooltip with the same text, and the figure has no title attribute", !!k.hover && k.hover.active && k.hover.same && !k.hover.title, k.hover);
+  if (!saveId) check("13: the system ships a condition with a save change", false);
+  else {
+    const kn = await run(gm, P.kindNotice, { bearer: monTok.uuid, id: saveId });
+    note("kind notice", kn);
+    check("13: a monster's save under an effect that sets the save modifier tells one notice naming the effect with the word, and none naming it bare", kn.made === 1 && kn.naming === 1 && kn.bare === 0, kn);
   }
   walkDone();
 } catch (err) {

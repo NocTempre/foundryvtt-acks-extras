@@ -2658,7 +2658,7 @@ waiver's decision (`conditions.mjs` `acWaivedSet`), and the attack card's
 line for a character target (`attack-card-target-ac.mjs`), the lines the
 character sheet's Armor Class and save modifier tooltips draw (`roll-mods.mjs`
 `effectLines`, `stepLabel`) and the notice a monster's save step is told by.
-`tools/live/lib-conditions.mjs` walks steps 1–12. The module's own rows (morale, surprise, speed, the states of a
+`tools/live/lib-conditions.mjs` walks steps 1–13. The module's own rows (morale, surprise, speed, the states of a
 round) are "Conditions on the palette and on a roll", above.
 
 **Drive notes:**
@@ -2835,20 +2835,38 @@ round) are "Conditions on the palette and on a roll", above.
     **Observable:** the monster's second roll tells one notice naming the
     effect and its first tells none; the character's tells none, since the
     system's own roll carries the step.
+13. **An effect that sets or bounds a figure says its change's type.** On
+    the character make three effects of the walk's own, by
+    `createEmbeddedDocuments`: one that adds to `system.ac.mod`, one that
+    overrides it and one that upgrades `system.save.mod`, each figure set
+    from the field's value at that moment; open the Stats tab and read the
+    tooltips, hover the Armor Class figure, then delete the three by id. On
+    the monster make one effect that carries the status of a condition with
+    a save change and overrides `system.save.mod`, roll a save with core's
+    notices recorded, and delete it by id. The expected lines are built from
+    the effect's name and Foundry's `EFFECT.CHANGES.TYPES` word through the
+    lang strings.
+    **Observable:** the overriding and the upgrading effect each have one
+    line with the word after the name; the adding effect's line has none;
+    neither typed line shows bare; "Other Effects" does not show; the hover
+    shows core's tooltip with the attribute's text and no `title`; the
+    monster's save tells one notice naming the effect, its condition in
+    brackets, then the word.
 
 **Not walked by the script:** missile and thrown attacks; a damage roll's
 own lines; a spell carrier's card; the line in a detached chat window; an
 effect of one of the five states made before the palette named what it
 brings (its tile stays unlit and a click makes a second effect); a world
 with libWrapper where the walk's does not have it, or the reverse (the
-walk's census notes which); a tooltip line for an effect that overrides or
-multiplies the field; the remainder line where an effect the lines cannot
+walk's census notes which); a tooltip line for an effect that multiplies or
+downgrades the field; the change's type on the attack card's line and on a
+saving throw's parts; the remainder line where an effect the lines cannot
 read moves the figure; a monster's save that carries a condition part of the
 module's own beside the system's step.
 
 **Teardown.** Restore the die and remove the walk's hooks in each seat, clear
-the target, and sweep the tracked cards and step 5's effect. The fixtures
-stay. Step 10's reload leaves the Player seat without the walk's hooks, so
+the target, and sweep the tracked cards and step 5's effect. Step 13 deletes
+its own effects by id before it returns. The fixtures stay. Step 10's reload leaves the Player seat without the walk's hooks, so
 nothing is restored there.
 
 ## The Surprise Matrix with a combatant that cannot roll
