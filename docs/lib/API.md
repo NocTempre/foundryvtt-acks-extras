@@ -1,4 +1,4 @@
-# lib API (apiVersion 69)
+# lib API (apiVersion 70)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 69,
+  apiVersion: 70,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -66,7 +66,7 @@ acksExtras.lib = {
   spellUse,            // lib/patches/spell-use.mjs — the cast seam (below); 36
   // 51: attack.{MAGIC_ATTACK_TYPE, spellCarrier, isSpellCarrier, carrierOf, magicDamageSpec}, saves, loseStates, STATES_LOST_HOOK (below)
   // 54: TURN_BEGAN_HOOK, TURN_ENDED_HOOK, turnLife.{FLAG, EDGES, readTurnLife, turnLifeStep, turnEdges} (below, "Turn hooks and a record's turn life")
-  // 69: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
+  // 70: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
 }
 ```
 
@@ -1240,7 +1240,7 @@ acksExtras.lib.attack = {
   isSpellCarrier(item) → boolean,          // identity, never a flag
   carrierOf(item) → {castId, rowKey, spellUuid, delivery, row} | null,
   magicDamageSpec(actor, carrier, {terms}) → Promise<{formula, data, modifiers, types, extraordinary} | null>,
-  TARGET_AC_FLAG                           // 69: "targetAc"
+  TARGET_AC_FLAG                           // 70: "targetAc"
 }
 acksExtras.lib.saves = {
   saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values,
@@ -1275,7 +1275,7 @@ acksExtras.lib.loseRecords(actor, cause) → Promise<string[]>   // cause: "dama
 acksExtras.lib.endsOn = {FLAG: "endsOn", CAUSES, readEndsOn(flag) → string[], endedBy(effects, cause) → string[]}
 ```
 
-**The attack card's Armor Class line** (apiVersion 69). The card of an attack
+**The attack card's Armor Class line** (apiVersion 70). The card of an attack
 whose target is a character holding condition effects that move its Armor Class
 carries `flags["acks-extras"][attack.TARGET_AC_FLAG]`, `{target, rows: [{name,
 value}]}`: the target's name, and each effect's own name with its signed step as
