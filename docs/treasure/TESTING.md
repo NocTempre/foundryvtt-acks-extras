@@ -67,8 +67,10 @@ swept with `api.sweepTracked()`.
 4. **Mode:** press Table, then Judge. Observable: `pot.mode` follows; the hint
    changes.
 5. **Open to the table.** Observables: phase `open`; `order` now holds the
-   replace card and the add card as well, the add card at a position that
-   varies between runs; both buckets empty; the pile's ownership is LIMITED
+   replace card and the add card as well, the staged cards in their staged
+   order; a replace seed that strikes no lot lands at a position that varies
+   between runs, as the add card does, and one that strikes a lot takes the
+   first struck lot's slot; both buckets empty; the pile's ownership is LIMITED
    for each non-Judge user and the Judge's own is unchanged; one chat card,
    "Treasure on the table", shows "0 of N turned".
 

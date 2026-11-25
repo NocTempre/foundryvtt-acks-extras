@@ -101,7 +101,7 @@ export const P = {
   },
 
   /** Resolve a control and report where a real pointer would land on it. `scope`: `doc`, `sheet` (the pot's window) or `dialog`. */
-  locate: async ({ scope, potId, sel, nth = 0 }) => {
+  locate: async ({ scope, potId, sel, nth = 0, scroll = true }) => {
     const H = globalThis.__tk;
     const root = scope === "sheet" ? H.root(H.sheet(potId)) : scope === "dialog" ? H.root(H.dialog()) : document;
     if (!root) return { found: false, why: "no scope" };
@@ -109,8 +109,11 @@ export const P = {
     const el = list[nth] ?? null;
     H.target = el;
     if (!el) return { found: false, count: list.length };
-    el.scrollIntoView({ block: "center", inline: "center" });
-    await H.sleep(150);
+    // A second reading, taken after the pointer arrived, leaves the scroll alone: it reports where the control is now.
+    if (scroll) {
+      el.scrollIntoView({ block: "center", inline: "center" });
+      await H.sleep(150);
+    }
     const r = el.getBoundingClientRect();
     const x = Math.round(r.left + r.width / 2);
     const y = Math.round(r.top + r.height / 2);
@@ -305,26 +308,42 @@ export async function record(port, label, api) {
   return seconds;
 }
 
-/** Press a control with a real pointer when its centre is the control, else `click()` and say so. */
+/**
+ * Press a control with a real pointer when its centre is the control, else `click()` and say so.
+ * The control is read again once the pointer has arrived, and the press lands at that reading;
+ * where its centre is no longer the control the press is not made and nothing is retried, so a
+ * control that moves under the pointer stays visible. Resolves to
+ * `{found, disabled?, real?, aimed?, moved?, now?}`.
+ */
 export async function press(api, port, spec, label) {
   const at = await run(api, P.locate, spec);
   if (!at?.found) return { found: false, count: at?.count ?? 0 };
   if (at.disabled) return { found: true, disabled: true };
   if (at.ok) {
     const s = await cdp(port);
+    let now = null;
     try {
       await s.send("Page.bringToFront");
       await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: at.x, y: at.y });
       await sleep(120);
-      await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x: at.x, y: at.y, button: "left", buttons: 1, clickCount: 1 });
-      await sleep(60);
-      await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x, y: at.y, button: "left", buttons: 0, clickCount: 1 });
+      now = await run(api, P.locate, { ...spec, scroll: false });
+      if (now?.found && now.ok) {
+        await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x: now.x, y: now.y, button: "left", buttons: 1, clickCount: 1 });
+        await sleep(60);
+        await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: now.x, y: now.y, button: "left", buttons: 0, clickCount: 1 });
+      }
     } finally {
       s.close();
     }
+    const aimed = { x: at.x, y: at.y };
+    if (!now?.found || !now.ok) {
+      note(`press not made (the control moved or was covered after the pointer arrived)`, { label: label ?? spec.sel, aimed, now });
+      await sleep(300);
+      return { found: true, real: false, moved: true, aimed, now };
+    }
     clicks.real++;
     await sleep(300);
-    return { found: true, real: true };
+    return { found: true, real: true, aimed, now: { x: now.x, y: now.y } };
   }
   await run(api, P.pressTarget);
   clicks.scripted++;

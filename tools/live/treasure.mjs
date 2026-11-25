@@ -240,7 +240,7 @@ const P = {
 
   /* ---- Finding and clicking a control --------------------------------- */
   /** Resolve a control and report where a real pointer would land on it. `scope`: `doc`, `sheet` (the pot's window) or `dialog`. */
-  locate: async ({ scope, potId, sel, nth = 0 }) => {
+  locate: async ({ scope, potId, sel, nth = 0, scroll = true }) => {
     const H = globalThis.__tw;
     const root = scope === "sheet" ? H.root(H.sheet(potId)) : scope === "dialog" ? H.root(H.dialog()) : document;
     if (!root) return { found: false, why: "no scope" };
@@ -248,8 +248,11 @@ const P = {
     const el = list[nth] ?? null;
     H.target = el;
     if (!el) return { found: false, count: list.length };
-    el.scrollIntoView({ block: "center", inline: "center" });
-    await H.sleep(150);
+    // A second reading, taken after the pointer arrived, leaves the scroll alone: it reports where the control is now.
+    if (scroll) {
+      el.scrollIntoView({ block: "center", inline: "center" });
+      await H.sleep(150);
+    }
     const r = el.getBoundingClientRect();
     const x = Math.round(r.left + r.width / 2);
     const y = Math.round(r.top + r.height / 2);
@@ -261,6 +264,32 @@ const P = {
     if (!H.target) return false;
     H.target.click();
     return true;
+  },
+  /** Record every click that reaches a doorway's Open button, and which copy of the card it was (the chat log's, or the chat notification's). */
+  watchDoorClicks: async () => {
+    globalThis.__doorClicks = [];
+    if (globalThis.__doorWatch) return true;
+    globalThis.__doorWatch = true;
+    document.addEventListener("click", (event) => {
+      const btn = event.target?.closest?.(".acks-extras-treasure-door [data-action='openTable']");
+      if (!btn) return;
+      const copies = document.querySelectorAll(".acks-extras-treasure-door [data-action='openTable']").length;
+      globalThis.__doorClicks.push({ inNotification: !!btn.closest("#chat-notifications"), inLog: !!btn.closest(".chat-log"), copies, connected: btn.isConnected });
+    }, true);
+    return true;
+  },
+  /** Why a seat's doorway press opened no window: the clicks the doorway heard, each copy of the button with its rect now, the focused element, and the sheet's state. */
+  doorDiag: async ({ potId }) => {
+    const pile = game.cards.get(potId);
+    const rectOf = (el) => { const r = el.getBoundingClientRect(); return { left: Math.round(r.left), top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; };
+    const active = document.activeElement;
+    return {
+      clicks: globalThis.__doorClicks ?? null,
+      copies: [...document.querySelectorAll(".acks-extras-treasure-door [data-action='openTable']")].map((b) => ({ in: b.closest("#chat-notifications") ? "notification" : b.closest(".chat-log") ? "log" : "other", rect: rectOf(b) })),
+      active: active ? { tag: active.tagName.toLowerCase(), cls: String(active.className ?? "").slice(0, 80) } : null,
+      limited: pile ? pile.testUserPermission(game.user, "LIMITED") : null,
+      sheet: pile?.sheet ? { rendered: !!pile.sheet.rendered, state: pile.sheet.state ?? null } : null,
+    };
   },
 
   /* ---- Reading the pot ------------------------------------------------ */
@@ -277,6 +306,7 @@ const P = {
       mode: f.mode ?? null,
       order: f.order ?? [],
       buckets: { add: f.buckets?.add ?? [], replace: f.buckets?.replace ?? [] },
+      replaced: f.replaced ?? [],
       audience: f.audience ?? [],
       messageId: f.messageId ?? null,
       sheetClass: pile.flags?.core?.sheetClass ?? null,
@@ -365,6 +395,9 @@ const P = {
     // Not rendered: say what the seat holds, so a failure names its cause.
     const pile = H.pile(potId);
     const s = pile?.sheet;
+    // The two reads come before the render below, so they report what the press left and not the walk's own render.
+    const appRendered = !!s?.rendered;
+    const root = !!H.root(s);
     // A press's render is not awaited, so what it threw reached no recorder: render once more and catch it.
     let threw = null;
     try { await s?.render(true); } catch (err) { threw = String(err?.stack ?? err).slice(0, 700); }
@@ -374,8 +407,8 @@ const P = {
       pile: !!pile,
       limited: !!pile?.testUserPermission(game.user, "LIMITED"),
       sheetClass: s?.constructor?.name ?? null,
-      appRendered: !!s?.rendered,
-      root: !!H.root(s),
+      appRendered,
+      root,
       threw,
       errors: H.errors.slice(-5),
     };
@@ -729,7 +762,10 @@ const clicks = { real: 0, scripted: 0 };
 /**
  * Press a control the way a user does: a real pointer press at its centre when
  * that point is the control (or inside it), else `click()` and a note saying so.
- * Resolves to `{found, disabled?, real?}`.
+ * The control is read again once the pointer has arrived, and the press lands at
+ * that reading; where its centre is no longer the control the press is not made
+ * and nothing is retried, so a control that moves under the pointer stays visible.
+ * Resolves to `{found, disabled?, real?, aimed?, moved?, now?}`.
  */
 async function press(api, port, spec, label) {
   const at = await run(api, P.locate, spec);
@@ -737,19 +773,29 @@ async function press(api, port, spec, label) {
   if (at.disabled) return { found: true, disabled: true };
   if (at.ok) {
     const s = await cdp(port);
+    let now = null;
     try {
       await s.send("Page.bringToFront");
       await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: at.x, y: at.y });
       await sleep(120);
-      await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x: at.x, y: at.y, button: "left", buttons: 1, clickCount: 1 });
-      await sleep(60);
-      await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x, y: at.y, button: "left", buttons: 0, clickCount: 1 });
+      now = await run(api, P.locate, { ...spec, scroll: false });
+      if (now?.found && now.ok) {
+        await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x: now.x, y: now.y, button: "left", buttons: 1, clickCount: 1 });
+        await sleep(60);
+        await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: now.x, y: now.y, button: "left", buttons: 0, clickCount: 1 });
+      }
     } finally {
       s.close();
     }
+    const aimed = { x: at.x, y: at.y };
+    if (!now?.found || !now.ok) {
+      note(`press not made (the control moved or was covered after the pointer arrived)`, { label: label ?? spec.sel, aimed, now });
+      await sleep(300);
+      return { found: true, real: false, moved: true, aimed, now };
+    }
     clicks.real++;
     await sleep(300);
-    return { found: true, real: true };
+    return { found: true, real: true, aimed, now: { x: now.x, y: now.y } };
   }
   await run(api, P.pressTarget);
   clicks.scripted++;
@@ -929,8 +975,16 @@ try {
   const s5 = await run(gm, P.stage, { potId });
   const idx = (id) => s5.order.indexOf(id);
   check("Open to the table pressed: the pot's phase is open", open5.found && w5.met && s5.phase === "open", { phase: s5.phase });
-  check("order now holds the replace card and the add card as well, the others in their staged order and the add card among them", s5.order.length === 5 && [C.item, C.coin, C.value, C.replace].every((id) => idx(id) >= 0) && idx(C.item) < idx(C.coin) && idx(C.coin) < idx(C.value) && idx(C.value) < idx(C.replace) && idx(C.add) >= 0, { order: s5.order.length, addAt: idx(C.add) });
-  note("the add card's position (it varies between runs)", idx(C.add));
+  // A seed that strikes no lot joins the add cards and lands at a random place; one that strikes a lot takes the first struck lot's slot.
+  const seedRow = s5.replaced.find((p) => p.seedId === C.replace);
+  const struckIds = seedRow?.struck ?? [];
+  const staged = before5.order;
+  const firstStruck = staged.find((id) => struckIds.includes(id));
+  const expectBase = struckIds.length ? staged.filter((id) => !struckIds.includes(id) || id === firstStruck).map((id) => (id === firstStruck ? C.replace : id)) : staged;
+  const baseNow = s5.order.filter((id) => id !== C.add && (struckIds.length || id !== C.replace));
+  const holdsAll = struckIds.length ? struckIds.every((id) => idx(id) < 0) : s5.order.length === 5 && new Set(s5.order).size === 5 && [C.item, C.coin, C.value, C.add, C.replace].every((id) => idx(id) >= 0);
+  check("order holds the staged cards in their staged order, the add card among them, and the replace card in the first struck lot's slot, or anywhere when it strikes none", !!seedRow && idx(C.add) >= 0 && idx(C.replace) >= 0 && new Set(s5.order).size === s5.order.length && holdsAll && baseNow.join() === expectBase.join(), { order: s5.order.length, struck: struckIds.length, replaceAt: idx(C.replace), addAt: idx(C.add) });
+  note("the add card's position and the replace card's (a seed that strikes no lot lands at random)", { add: idx(C.add), replace: idx(C.replace) });
   check("both buckets are empty", s5.buckets.add.length === 0 && s5.buckets.replace.length === 0, s5.buckets);
   const lim = 1;
   check("the pile's ownership is LIMITED for every seat but the Judge's and never higher, the Judge's own entry unchanged, the default still none", users.others.length > 0 && users.others.every((id) => s5.ownership[id] === lim) && (s5.ownership[users.gm] ?? null) === gmOwnBefore && s5.ownership.default === 0, { others: users.others.map((id) => s5.ownership[id]), gm: s5.ownership[users.gm] ?? null, gmBefore: gmOwnBefore, default: s5.ownership.default });
@@ -950,10 +1004,15 @@ try {
   section("Player seat 1. the doorway");
   const doorP = await run(player, P.waitDoorway, { messageId, turned: tTurned0 });
   check("the doorway card is on the Player seat and reads 0 of 5 turned", doorP.found && doorP.door && doorP.turned === tTurned0, { found: doorP.found, turned: doorP.turned === tTurned0 });
+  await run(player, P.watchDoorClicks);
   const openP = await press(player, PORTS.player, { scope: "doc", sel: `[data-message-id='${messageId}'] [data-action='openTable']` }, "the doorway's Open the table, on the Player seat");
   const sheetP = await run(player, P.waitSheet, { potId });
-  check("Open the table opened the window on the Player seat (LIMITED is enough to render it)", openP.found && sheetP.rendered, { found: openP.found, real: openP.real, ...sheetP });
-  if (!sheetP.rendered) throw new Error("the Player seat has no pot window; the steps below read it");
+  check("Open the table opened the window on the Player seat (LIMITED is enough to render it)", openP.found && sheetP.rendered, { found: openP.found, real: openP.real, moved: openP.moved ?? false, ...sheetP });
+  if (!sheetP.rendered) {
+    note("the doorway press opened no window; the press aimed at, and the press's second reading", { aimed: openP.aimed ?? null, now: openP.now ?? null });
+    note("the doorway press opened no window; the Player seat", await run(player, P.doorDiag, { potId }));
+    throw new Error("the Player seat has no pot window; the steps below read it");
+  }
   const p1 = await run(player, P.sheetRead, { potId });
   const tMagic = await t(player, "pool.magic");
   const tItemPool = await t(player, "pool.item");
