@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
+import { planUnlist } from "../scripts/lib/org-write-logic.mjs";
 import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, leaderRoleOf, nextLevelKind, officerControls, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
@@ -76,6 +77,12 @@ t("a Remove moves only the rows directly beneath up to the row's parent, and ask
   assert.equal(asksBeforeRemoving(mid.lifted, false), false, "the setting off asks nothing");
   assert.equal(asksBeforeRemoving(liftedBy(view, "g1").lifted, true), false, "a row with none beneath it is removed at once");
   assert.equal(asksBeforeRemoving([], true), false);
+});
+
+t("removing the row that carries the chart's template leaves the rows lifted from it with none", () => {
+  assert.equal(templateOf(ROWS, "w1").template, "T.fam", "read from the top row above it");
+  const kept = planUnlist({ rows: ROWS, key: "v" }).kept;
+  assert.deepEqual(templateOf(kept, "w1"), { template: "", variant: "" }, "no row above w1 carries it once v is gone");
 });
 
 t("a card's role is read from its leader and the unit that leader leads: file, champion, sub-chief, chief", () => {

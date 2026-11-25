@@ -1078,7 +1078,7 @@ beasts, beasts that fight beside riders, a morale part out of range, a missing f
 the treasure line; what was written; and links to the group and the pot. It has no
 re-roll, pin or confirm.
 
-**Remove** is lib's `org.unlistRow`: it takes one row off the chart and deletes nothing (docs/lib/ORGANISATION.md). `org.deleteRow(host, key)` is API only and removes: the row, every row beneath it, the group
+**Remove** is lib's `org.unlistRow`: it takes one row off the chart and deletes nothing (docs/lib/ORGANISATION.md). `org.deleteRow(host, key)` is what the card form's Delete… calls, and removes: the row, every row beneath it, the group
 each holds and every prototype carrying the marker that no remaining stack names
 (its `template` or its `gen.mount`). A group comes off every roster that held it and the
 faction's leader is cleared where it was a deleted group's officer. The leaders stay in
