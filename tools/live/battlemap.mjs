@@ -3,8 +3,8 @@
  *   docs/battlemap/TESTING.md  "The country's layers and water" 1-8 and 10, and the changed
  *                              step 1 of "Terrain painting"                       (part "layers")
  *   docs/battlemap/TESTING.md  "Map modes" 1-8                                    (part "modes")
- *   docs/battlemap/TESTING.md  steps 6-7a: the square read from the import, not imported,
- *                              overridden, and a stamped footprint with no square (part "footprint",
+ *   docs/battlemap/TESTING.md  steps 6-7a: the frontage read from the import, not imported,
+ *                              overridden, and a stamped footprint with no frontage (part "footprint",
  *                              named in WALK_PLAN; not in the default parts)
  *   docs/formation/TESTING.md  "The country" 1-9, then on the same fixtures the changed
  *                              steps 5-7 of battlemap "Terrain painting" and step 12
@@ -330,25 +330,25 @@ const P = {
 
   unregisterTravel: async () => globalThis.__rb.m.tables.unregisterTable("travel", { priority: 30 }),
 
-  /** The monsters document's override layer: whether one is held now (the walk never writes over a Judge's), and the imported square as a boolean. */
+  /** The monsters document's override layer: whether one is held now (the walk never writes over a Judge's), and the imported frontage as a boolean. */
   footprintLayer: async () => {
     const T = globalThis.acksExtras.lib.tables;
     const doc = T.hasDoc("monsters") ? T.getDoc("monsters") : null;
-    return { overrideHeld: !!T.getLayer("monsters", T.PRIORITY.OVERRIDE), hasSquareRow: !!doc?.tables?.sizeSquare?.squares?.feet, hasFrontageRow: !!doc?.tables?.sizeFrontage?.squares };
+    return { overrideHeld: !!T.getLayer("monsters", T.PRIORITY.OVERRIDE), hasFrontageRow: !!doc?.tables?.sizeFrontage?.squares };
   },
 
-  /** Writes or clears the walk's override layer of the size tables. The layer replaces the imported `sizeSquare` table whole: `feet` a number sets the square, "missing" marks its row unread, null clears the layer. */
-  footprintOverride: async ({ feet }) => {
+  /** Writes or clears the walk's override layer of the size tables. The layer replaces the imported `sizeFrontage` table whole: `cell` a string sets the Large cell, "missing" marks the row unread, null clears the layer. */
+  footprintOverride: async ({ cell }) => {
     const T = globalThis.acksExtras.lib.tables;
-    if (feet === null) { T.unregisterTable("monsters", { priority: T.PRIORITY.OVERRIDE }); return { cleared: true }; }
-    const row = feet === "missing" ? { __missing: true } : { feet };
-    T.registerTable({ id: "monsters", tables: { sizeSquare: { squares: row } } }, { priority: T.PRIORITY.OVERRIDE, source: "battlemap-walk" });
+    if (cell === null) { T.unregisterTable("monsters", { priority: T.PRIORITY.OVERRIDE }); return { cleared: true }; }
+    const row = cell === "missing" ? { __missing: true } : { large: cell };
+    T.registerTable({ id: "monsters", tables: { sizeFrontage: { squares: row } } }, { priority: T.PRIORITY.OVERRIDE, source: "battlemap-walk" });
     return { set: true };
   },
 
   /**
    * What token sizing does with one actor's token on a scene: the token is placed, the scene rescaled through the
-   * module's own writer, and the width read back, with the span the imported cells and square predict beside it.
+   * module's own writer, and the width read back, with the span the Large cell and the stated square predict beside it.
    * An actor with a stamped footprint override is placed carrying it.
    */
   footprintRead: async ({ sceneId, actorId, stamp }) => {
@@ -361,12 +361,12 @@ const P = {
     const rescaled = await bm.rescaleSceneTokens(scene);
     const after = scene.tokens.get(token.id);
     const doc = T.hasDoc("monsters") ? T.getDoc("monsters") : null;
-    const feet = Number(doc?.tables?.sizeSquare?.squares?.feet);
+    const feet = bm.footprintFeet({}).w;
     const cell = doc?.tables?.sizeFrontage?.squares?.large;
     const first = /(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)/.exec(String(cell ?? ""));
     const span = (squares) => Math.max(0.25, Math.round((squares * feet) / scene.grid.distance / 0.25) * 0.25);
     return {
-      tokenId: token.id, tokenUuid: token.uuid, before, answer, rescaled,
+      tokenId: token.id, tokenUuid: token.uuid, before, answer, rescaled, squareFeet: feet,
       after: { width: after.width, height: after.height },
       predicted: first && feet > 0 ? { width: span(Math.max(1, Number(first[1]))), height: span(Math.max(1, Number(first[2]))) } : null,
       unsized: bm.unsizedTokenCount?.(scene) ?? null,
@@ -2213,13 +2213,13 @@ async function walkWaterShot(W) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Part: token sizing reads the imported square (TESTING 6-8)          */
+/*  Part: token sizing reads the imported frontage (TESTING 6-8)        */
 /* ------------------------------------------------------------------ */
 
 async function walkFootprint(W) {
   const { gm } = W;
   const layer = await page(gm, P.footprintLayer);
-  note("size tables", { hasSquareRow: layer.hasSquareRow, hasFrontageRow: layer.hasFrontageRow, overrideHeld: layer.overrideHeld });
+  note("size tables", { hasFrontageRow: layer.hasFrontageRow, overrideHeld: layer.overrideHeld });
   if (layer.overrideHeld) blocked("a Judge's override layer of the monsters tables is held; the walk writes its own and would clear it");
   // A square scene in feet at an invented distance, rebuilt every run: its tokens go with it.
   const scene = await rebuiltScene(gm, "battlemap/footprint-scene", sceneData("QA Footprint", { type: 1, distance: 4, units: "ft" }));
@@ -2227,31 +2227,32 @@ async function walkFootprint(W) {
   const plain = await gm.fixture("battlemap/footprint-plain", "Actor", { name: "QA Footprint plain", type: "monster" });
   let held = false;
   try {
-    // 6. Imported: the token takes the cell times the imported square, over the scene's distance.
-    if (layer.hasSquareRow && layer.hasFrontageRow) {
+    // 6. Imported: the token takes the cell times the stated square, over the scene's distance.
+    if (layer.hasFrontageRow) {
       const r = await page(gm, P.footprintRead, { sceneId: scene.id, actorId: large.id });
       note("6 imported", { answer: !!r.answer, rescaled: r.rescaled, predicted: !!r.predicted });
       check("F6: with the monsters tables imported the Large token takes the cell times the square over the scene's distance", !!r.predicted && same(r.after, r.predicted), { after: r.after, predicted: r.predicted });
     } else {
-      note("6 skipped", "the monsters tables are not imported in this world; steps 6b and 7 run against the override alone");
+      note("6 skipped", "the monsters tables are not imported in this world; steps 6a, 6b and 7a run against the override alone");
     }
-    // 6a. The square not imported: nothing is written and the answer is null.
-    await page(gm, P.footprintOverride, { feet: "missing" });
+    // 6a. The frontage not imported: a categorised token is not written and its answer is null, and a token with no category is one square, so it is sized.
+    await page(gm, P.footprintOverride, { cell: "missing" });
     held = true;
     const none = await page(gm, P.footprintRead, { sceneId: scene.id, actorId: large.id });
-    check("F6a: with the square unread the module answers null and the token keeps the size it had", none.answer === null && none.rescaled === 0 && same(none.after, none.before), { answer: none.answer, rescaled: none.rescaled, before: none.before, after: none.after });
+    check("F6a: with the frontage unread the module answers null for a categorised token and it keeps the size it had", none.answer === null && none.rescaled === 0 && same(none.after, none.before), { answer: none.answer, rescaled: none.rescaled, before: none.before, after: none.after });
     const noneCat = await page(gm, P.footprintRead, { sceneId: scene.id, actorId: plain.id });
-    check("F6a: a token with no size category keeps its size too, since a square is worth nothing unread", noneCat.answer === null && same(noneCat.after, noneCat.before), { answer: noneCat.answer });
-    // 7a. A stamped override needs no square.
+    const oneSquare = Math.max(0.25, Math.round(noneCat.squareFeet / 4 / 0.25) * 0.25);
+    check("F6a: a token with no size category is one square over the scene's distance with nothing imported", !!noneCat.answer && noneCat.after.width === oneSquare && noneCat.after.height === oneSquare, { answer: noneCat.answer, after: noneCat.after, squareFeet: noneCat.squareFeet });
+    // 7a. A stamped override needs no frontage.
     const stamped = await page(gm, P.footprintRead, { sceneId: scene.id, actorId: plain.id, stamp: { w: 8, h: 8 } });
-    check("F7a: a token carrying a footprint override is sized by it with the square unread", !!stamped.answer && stamped.after.width === 2 && stamped.after.height === 2, { answer: stamped.answer, after: stamped.after });
-    // 6b. A Judge's override of the square wins and is the scene's own conversion.
-    await page(gm, P.footprintOverride, { feet: null });
-    await page(gm, P.footprintOverride, { feet: 6 });
-    const over = await page(gm, P.footprintRead, { sceneId: scene.id, actorId: plain.id });
-    check("F6b: with the square overridden a token with no category is one such square over the scene's distance", !!over.answer && over.after.width === 1.5 && over.after.height === 1.5, { answer: over.answer, after: over.after });
+    check("F7a: a token carrying a footprint override is sized by it with the frontage unread", !!stamped.answer && stamped.after.width === 2 && stamped.after.height === 2, { answer: stamped.answer, after: stamped.after });
+    // 6b. A Judge's override of a frontage cell wins and is the scene's own conversion.
+    await page(gm, P.footprintOverride, { cell: null });
+    await page(gm, P.footprintOverride, { cell: "2 × 2" });
+    const over = await page(gm, P.footprintRead, { sceneId: scene.id, actorId: large.id });
+    check("F6b: with the Large cell overridden the token takes that many squares over the scene's distance", !!over.answer && !!over.predicted && same(over.after, over.predicted), { answer: over.answer, after: over.after, predicted: over.predicted });
   } finally {
-    if (held) note("override cleared", await page(gm, P.footprintOverride, { feet: null }));
+    if (held) note("override cleared", await page(gm, P.footprintOverride, { cell: null }));
   }
 }
 

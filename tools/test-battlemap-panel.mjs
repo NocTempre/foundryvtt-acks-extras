@@ -999,16 +999,16 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 
   // Below it: what the chips do, the size categories, the resize, the auto-size line.
   const { PRIORITY, registerTable, resetTables } = await import(root("scripts/lib/tables.mjs").href);
-  const { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE } = await import(root("scripts/monsters/sizes.mjs").href);
+  const { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_FEET } = await import(root("scripts/monsters/sizes.mjs").href);
   const { tokenSpan } = await import(root("scripts/battlemap/footprint.mjs").href);
-  /** An import in invented figures: a 7 ft square; small is one square, large 3 × 2, gigantic has no frontage; the rest are absent. */
+  /** An import in invented figures over the stated square: small is one square, large 3 × 2, gigantic has no frontage; the rest are absent. */
   const importSizes = ({ priority = PRIORITY.WORLD, pages = "XX 1" } = {}) => {
     resetTables();
     registerTable(
       {
         id: SIZE_DOC,
         ...(pages ? { source: { pages } } : {}),
-        tables: { [SIZE_TABLE]: { [SIZE_ROW]: { small: "1 sq", large: "3 × 2", gigantic: "n/a" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 7 } } },
+        tables: { [SIZE_TABLE]: { [SIZE_ROW]: { small: "1 sq", large: "3 × 2", gigantic: "n/a" } } },
       },
       { priority },
     );
@@ -1043,13 +1043,14 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const got = await sectionOf(hundred);
   assert.deepEqual(got.c.sizeChips.map((chip) => chip.key), ["small", "large"], "a category with no frontage, or none imported, has no chip");
   const large = got.c.sizeChips.find((chip) => chip.key === "large");
-  assert.deepEqual([large.w, large.h], [21, 14], "the large chip is its frontage times the square, in feet");
+  const SQ = SQUARE_FEET;
+  assert.deepEqual([large.w, large.h], [3 * SQ, 2 * SQ], "the large chip is its frontage times the square, in feet");
   assert.equal(large.label, "Large", "labelled by the category's name");
   const tip = figures(large.tip);
-  assert.ok(tip.source.includes('"size":"Large","w":"3","h":"2","feet":"7"'), "the tooltip carries the mark's own source line: the frontage and the square");
+  assert.ok(tip.source.includes(`"size":"Large","w":"3","h":"2","feet":"${SQ}"`), "the tooltip carries the mark's own source line: the frontage and the square");
   assert.ok(tip.source.includes("XX 1"), "and the page the import was read from");
-  assert.deepEqual([tip.fw, tip.fh], [21, 14], "the footprint it stamps");
-  assert.deepEqual([tip.w, tip.h], [tokenSpan(21, 100), tokenSpan(14, 100)], "and the size it draws at, in cells, from the sizer's own rounding");
+  assert.deepEqual([tip.fw, tip.fh], [3 * SQ, 2 * SQ], "the footprint it stamps");
+  assert.deepEqual([tip.w, tip.h], [tokenSpan(3 * SQ, 100), tokenSpan(2 * SQ, 100)], "and the size it draws at, in cells, from the sizer's own rounding");
   assert.equal(tip.w, 0.25, "which on a 100 ft cell is the floor");
   assert.ok(large.aria.startsWith("apply.aria"), "named for assistive technology too");
   assert.equal((got.section.match(/data-action="sizeChip"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="tokens\.sizeChipTip/g) ?? []).length, 2, "every chip carries its aria-label and tooltip");
@@ -1057,24 +1058,24 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 
   // A press stamps the chip's own width and height, read off the markup it was drawn from.
   const pressed = [...got.section.matchAll(/data-action="sizeChip" data-key="([^"]*)" data-w="([^"]*)" data-h="([^"]*)"/g)].find((m) => m[1] === "large");
-  assert.deepEqual([pressed?.[2], pressed?.[3]], ["21", "14"], "the markup carries the footprint's two sides");
+  assert.deepEqual([pressed?.[2], pressed?.[3]], [String(3 * SQ), String(2 * SQ)], "the markup carries the footprint's two sides");
   const written = [];
   setup({ family: "hexRows", scene: hundred, units: "ft" });
   globalThis.canvas.tokens = { controlled: [{ document: { id: "t1", parent: hundred, getFlag: () => undefined, update: async (data) => written.push(data) } }] };
   notes.length = 0;
   await App.DEFAULT_OPTIONS.actions.sizeChip.call(app, null, { dataset: { key: pressed[1], w: pressed[2], h: pressed[3] } });
   delete globalThis.canvas.tokens;
-  assert.deepEqual(written[0][`flags.${MODULE_ID}.footprint`], { w: 21, h: 14 }, "a press stamps the footprint, both sides");
-  assert.equal(written[0].width, tokenSpan(21, 100), "and sizes the token by the sizer");
+  assert.deepEqual(written[0][`flags.${MODULE_ID}.footprint`], { w: 3 * SQ, h: 2 * SQ }, "a press stamps the footprint, both sides");
+  assert.equal(written[0].width, tokenSpan(3 * SQ, 100), "and sizes the token by the sizer");
   const said = figures(notes.at(-1)[1]);
   assert.deepEqual([notes.at(-1)[0], keyOf(notes.at(-1)[1])], ["info", "tokens.applied"]);
-  assert.ok(said.size.includes("Large") && said.size.includes('"w":21,"h":14'), "the notice names the category and its sides");
+  assert.ok(said.size.includes("Large") && said.size.includes(`"w":${3 * SQ},"h":${2 * SQ}`), "the notice names the category and its sides");
 
   // A value the override layer holds reads with no page, and nothing throws.
   importSizes({ priority: PRIORITY.OVERRIDE, pages: null });
   const over = await sectionOf(hundred);
   assert.deepEqual(over.c.sizeChips.map((chip) => chip.key), ["small", "large"], "the override layer's figures draw chips");
-  for (const chip of over.c.sizeChips) assert.ok(!figures(chip.tip).source.includes("scaleMark.cite"), "and cite no page");
+  for (const chip of over.c.sizeChips) assert.ok(figures(chip.tip).source.includes("tokens.sizesCite") && !figures(chip.tip).source.includes("XX"), "and cite the shipped reference, not a page of the import");
   assert.ok(over.c.sizesTip.startsWith("tokens.sizesCite"), "the caption falls back to the shipped reference");
 
   // A mile or more a cell: the line, and no chip, whatever is imported.
@@ -1133,18 +1134,16 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
-  // The rescale notice is a warning when it left a token alone, and names which
-  // import that token is waiting on; with nothing kept it is the plain count.
+  // The rescale notice is a warning when it left a token alone, and names the
+  // import that token is waiting on, the frontage; with nothing kept it is the
+  // plain count.
   const { PRIORITY, registerTable, resetTables } = await import(root("scripts/lib/tables.mjs").href);
-  const { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE } = await import(root("scripts/monsters/sizes.mjs").href);
-  const importSizes = ({ frontage = null, square = null } = {}) => {
+  const { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_FEET } = await import(root("scripts/monsters/sizes.mjs").href);
+  const importSizes = ({ frontage = null } = {}) => {
     resetTables();
-    const tables = {};
-    if (frontage) tables[SIZE_TABLE] = { [SIZE_ROW]: frontage };
-    if (square) tables[SQUARE_TABLE] = { [SIZE_ROW]: { feet: square } };
-    if (Object.keys(tables).length) registerTable({ id: SIZE_DOC, tables }, { priority: PRIORITY.WORLD });
+    if (frontage) registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: frontage } } }, { priority: PRIORITY.WORLD });
   };
-  const scene = makeScene({ units: "ft", distance: 5 });
+  const scene = makeScene({ units: "ft", distance: SQUARE_FEET });
   setup({ family: "hexRows", scene, units: "ft" });
   const tokenOf = (id, sizeKey = null) => {
     const extras = sizeKey ? { size: sizeKey } : undefined;
@@ -1162,39 +1161,30 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   await rescale.call(app);
   assert.deepEqual([lastNote().level, lastNote().key], ["info", "tokens.rescaled"], "nothing left alone: the plain count");
 
-  // Nothing imported: every token that is ours is kept, and the warning names both.
+  // Nothing imported: a token with no category is one square and is sized, a
+  // categorised one is kept for want of its frontage, and the warning names it.
   scene.tokens = [tokenOf("t1", "large"), tokenOf("t2")];
   await rescale.call(app);
   let note = lastNote();
   assert.deepEqual([note.level, note.key], ["warn", "tokens.rescaledKept"], "a token with no imported footprint is a warning, not an info");
-  assert.equal(note.data.count, 0, "nothing was resized");
-  assert.equal(note.data.kept, 2, "both tokens kept their size");
-  assert.equal(keyOf(note.data.missing), "tokens.missingBoth", "neither the square nor the frontage is imported, and the warning says both");
+  assert.equal(note.data.count, 0, "the token with no category already stands at one square, so nothing was resized");
+  assert.equal(note.data.kept, 1, "the categorised token kept its size");
+  assert.equal(keyOf(note.data.missing), "tokens.missingFrontage", "the frontage is what is named");
 
-  // The square alone: a token with no category is sized, a categorised one is kept for want of a frontage.
-  importSizes({ square: 4 });
+  // A token with no category that is not one square is resized with nothing imported.
+  scene.tokens = [{ ...tokenOf("t3"), width: 2, height: 2 }];
   await rescale.call(app);
   note = lastNote();
-  assert.deepEqual([note.level, note.key], ["warn", "tokens.rescaledKept"]);
+  assert.deepEqual([note.level, note.key], ["info", "tokens.rescaled"], "nothing kept: the plain count");
   assert.equal(note.data.count, 1, "the token with no category took the square's size");
-  assert.equal(note.data.kept, 1);
-  assert.equal(keyOf(note.data.missing), "tokens.missingFrontage", "the square is imported, so the frontage is what is named");
 
-  // The frontage alone: no token has a footprint without the square.
+  // The frontage imported: every token is sized, and the notice is the plain count.
   importSizes({ frontage: { large: "2 x 2" } });
-  await rescale.call(app);
-  note = lastNote();
-  assert.equal(note.level, "warn");
-  assert.equal(note.data.kept, 2);
-  assert.equal(keyOf(note.data.missing), "tokens.missingSquare", "the frontage is imported, so the square is what is named");
-
-  // Both imported: every token is sized, and the notice is the plain count.
-  importSizes({ frontage: { large: "2 x 2" }, square: 4 });
   scene.tokens = [tokenOf("t1", "large"), tokenOf("t2")];
   await rescale.call(app);
   note = lastNote();
   assert.deepEqual([note.level, note.key], ["info", "tokens.rescaled"], "all imported: an info with no kept clause");
-  assert.equal(note.data.count, 2);
+  assert.equal(note.data.count, 1, "the 2 × 2 token grew to its frontage; the one-square token already stood at one square");
   resetTables();
 }
 

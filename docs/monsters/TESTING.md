@@ -813,7 +813,7 @@ templates stay.
 
 ## The size frontage and its square
 
-The Monster Size table's squares row and its unit (MODEL, "The size
+The Monster Size table's squares row (MODEL, "The size
 frontage"). Needs the Monstrous Manual connected on a GM seat and the Rules
 tables import run (Settings tab → Game Settings → ACKS II — Extras → Manage
 imports → Rules tables). The battlemap's walk of the same figures is
@@ -825,19 +825,19 @@ imports → Rules tables). The battlemap's walk of the same figures is
 
 1. Open the Ruledata Browser (Settings tab → Game Settings → ACKS II — Extras →
    Imported Rules Tables → Open Ruledata Browser) on `monsters`.
-   *Observable:* `sizeFrontage` and `sizeSquare` are listed, each with one
-   `squares` row; the first holds a cell per size category and the second a
-   `feet` figure, both citing the Monster Size table's page. In the console,
-   `acksExtras.lib.tables.getDoc("monsters").tables.sizeSquare.squares.feet`
-   is a positive number and the frontage cells parse through `sizes.mjs`.
-2. Override `sizeSquare`'s `feet` with a figure of your own and read it back.
+   *Observable:* `sizeFrontage` is listed with one `squares` row holding a
+   cell per size category and citing the Monster Size table's page, and no
+   `sizeSquare` table is listed. In the console the frontage cells parse
+   through `sizes.mjs` `sizeSquares`.
+2. Override `sizeFrontage`'s Large cell with a pair of your own and read it
+   back.
    *Observable:* the override wins and its cite is empty; clearing it returns
-   the imported figure.
+   the imported cell.
 3. Take the world layer of `monsters` off the registry, as in battlemap
    TESTING 6a, and read both.
-   *Observable:* `sizeSquareFeet()` and `sizeSquares("large")` are null, and a
-   monster imported now carries Foundry's default prototype token. Re-import
-   to restore.
+   *Observable:* `sizeSquares("large")` is null while `sizeSquareFeet()` still
+   answers the stated square, and a monster imported now carries Foundry's
+   default prototype token. Re-import to restore.
 
 ## Natural weapons and extraordinary damage
 

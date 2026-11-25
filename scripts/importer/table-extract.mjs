@@ -283,13 +283,6 @@ export function applyCellPattern(text, pattern = "raw") {
       const gp = (s) => Math.round(Number(s.replace(/,/g, "")) * scale * 100) / 100;
       return { min: gp(m[1]), max: gp(m[2] ?? m[1]), per: m[4].trim().replace(/\s+/g, " ").toLowerCase() };
     }
-    case "squareFeet": {
-      // A row label naming the unit its cells count, a figure and a foot mark
-      // before "squares": "(<n>'-squares)" -> {feet: <n>}. The labelPattern of
-      // a row that carries no cells of its own.
-      const m = t.match(/(\d+(?:\.\d+)?)\s*[’'′]?\s*[-–]?\s*squares?\b/i);
-      return m ? { feet: Number(m[1]) } : null;
-    }
     case "signedList": {
       // A modifier cell of one figure, or one per band its row names,
       // slash-separated: "+a" -> [a]; "-a/-b/-c" -> [-a, -b, -c].

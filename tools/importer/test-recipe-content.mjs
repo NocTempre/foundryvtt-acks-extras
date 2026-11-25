@@ -120,7 +120,7 @@ const TABLES = {
   // default attribute score; the natural weapons each damage type is listed
   // against, the edges of the extraordinary-damage rule, the body forms, and
   // the beastman organisation grids (village, leaders, special troops, traits).
-  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits", "beastmanEquipment", "beastmanTroopRules", "beastmanTraitRules", "beastmanOrganisation"],
+  monsters: ["sizeFrontage", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits", "beastmanEquipment", "beastmanTroopRules", "beastmanTraitRules", "beastmanOrganisation"],
   // The armour limits on abilities, and the weapon-narrowing penalty's two figures.
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
@@ -631,13 +631,6 @@ VERIFY["monsters.sizeFrontage"] = (out, recipe, fail) => {
   }
   for (const col of recipe.cellColumns) if (!SIZES[col.key]) fail(`${col.key}: not a size category the monsters feature declares`);
   for (const key of Object.keys(SIZES)) if (!recipe.cellColumns.some((col) => col.key === key)) fail(`${key}: a declared size category the recipe does not read`);
-};
-// The size row's unit: one row read, holding a positive figure. Shape only; no
-// figure is named.
-VERIFY["monsters.sizeSquare"] = (out, recipe, fail) => {
-  const row = out?.[recipe.rows[0].key];
-  if (!row || isMissingRow(row)) return fail("squares: row not read");
-  if (!(Number(row.feet) > 0)) fail("feet: the label's unit is not read as a positive figure");
 };
 // The load rule: a multiple above one and a share between none and all, each a
 // figure `loadRule` accepts. Shape only; no figure is named.

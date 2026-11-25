@@ -55,7 +55,7 @@ const traits = { sleeper: { label: "Sleeper", alba: { min: 61, max: 62 }, brex: 
 resetTables();
 let got = importedOrganisation();
 check("no document: every table is empty and uncited", JSON.stringify(got) === EMPTY);
-world({ sizeSquare: { squares: { feet: 5 } } });
+world({ sizeFrontage: { squares: { small: "1 sq" } } });
 check("a document without the tables is the same state", JSON.stringify(importedOrganisation()) === EMPTY);
 resetTables();
 world({ beastmanVillage: {}, beastmanLeaders: "text", beastmanSpecialTroops: [], beastmanTraits: { r: { __missing: true } } });

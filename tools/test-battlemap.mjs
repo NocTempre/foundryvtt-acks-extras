@@ -11,7 +11,7 @@ import { hexPreviewOutlines, HEX_PREVIEW_MAX, CaptureOverlay, isEditableTarget }
 import { footprintFeet, sizeChips, tokenSpan, scaleMismatch, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
-import { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE, sizeSquares, sizeSquareFeet, sizeCite, parseFrontage } from "../scripts/monsters/sizes.mjs";
+import { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_FEET, sizeSquares, sizeSquareFeet, sizeCite, parseFrontage } from "../scripts/monsters/sizes.mjs";
 import { PRIORITY, registerTable, unregisterTable, resetTables } from "../scripts/lib/tables.mjs";
 import { cellGrid, paintRegion, paintScene } from "./region-fixture.mjs";
 
@@ -302,18 +302,15 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 /* -------------------------------------------- */
 
 {
-  // The frontage cells and the square are invented here, in shapes the
-  // readers take: a pair with its mirror, a lone figure, a fraction, a cell
-  // with no figure, and a square of 4 feet. A `feet` of null imports no square.
-  const SQUARE = 4;
-  const frontage = (cells, priority = PRIORITY.WORLD, feet = SQUARE) => registerTable(
+  // The frontage cells are invented here, in shapes the readers take: a pair
+  // with its mirror, a lone figure, a fraction and a cell with no figure. The
+  // square is the stated one.
+  const SQUARE = SQUARE_FEET;
+  const frontage = (cells, priority = PRIORITY.WORLD) => registerTable(
     {
       id: SIZE_DOC,
       source: { pages: "XX 1" },
-      tables: {
-        [SIZE_TABLE]: { [SIZE_ROW]: cells },
-        ...(feet === null ? {} : { [SQUARE_TABLE]: { [SIZE_ROW]: { feet } } }),
-      },
+      tables: { [SIZE_TABLE]: { [SIZE_ROW]: cells } },
     },
     { priority },
   );
@@ -325,29 +322,25 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     gigantic: "n/a",
   };
 
-  // Nothing imported: a size category has no footprint, and says so with null.
+  // Nothing imported: a size category has no footprint, and says so with null;
+  // the square is stated, so it is there whatever the world holds.
   resetTables();
   assert.equal(sizeSquares("large"), null, "no document, no squares");
-  assert.equal(sizeSquareFeet(), null, "no document, no square");
-  assert.equal(footprintFeet({ sizeKey: "large", feetPerSquare: 4 }), null, "no frontage imported: no footprint");
+  assert.equal(sizeSquareFeet(), SQUARE_FEET, "no document: the square is the stated figure");
+  assert.ok(SQUARE_FEET > 0, "and a positive one");
+  assert.equal(footprintFeet({ sizeKey: "large" }), null, "no frontage imported: no footprint");
   assert.equal(sizeCite(), null, "and no page to cite");
   // Override wins outright; a token with no size category is one square.
   assert.deepEqual(footprintFeet({ override: { w: 12, h: 8 } }), { w: 12, h: 8 });
   assert.deepEqual(footprintFeet({ override: { w: 12, h: 8 }, sizeKey: "large" }), { w: 12, h: 8 }, "an override needs no table");
-  assert.deepEqual(footprintFeet({ feetPerSquare: 4 }), { w: 4, h: 4 });
-  // No square, no footprint: nothing stands in for it, whatever the category.
-  assert.equal(footprintFeet(), null, "no square and no override: no footprint");
-  assert.equal(footprintFeet({ sizeKey: "large" }), null, "a category with no square has no footprint");
-  assert.equal(footprintFeet({ feetPerSquare: null }), null, "a null square is no square");
-  assert.equal(footprintFeet({ feetPerSquare: 0, sizeKey: "large" }), null, "a zero square is no square");
-  assert.deepEqual(footprintFeet({ override: { w: 12, h: 8 }, feetPerSquare: null }), { w: 12, h: 8 }, "an override needs no square either");
+  assert.deepEqual(footprintFeet(), { w: SQUARE, h: SQUARE }, "no category and nothing imported: one square");
 
   // Imported: the first printed arrangement, in squares, times what a square is worth.
   frontage(CELLS);
   assert.deepEqual(sizeSquares("large"), { w: 7, h: 3 });
-  assert.equal(sizeSquareFeet(), SQUARE, "the square is the imported row's figure");
-  assert.deepEqual(footprintFeet({ sizeKey: "large", feetPerSquare: SQUARE }), { w: 28, h: 12 });
-  assert.deepEqual(footprintFeet({ sizeKey: "huge", feetPerSquare: 6 }), { w: 54, h: 54 }, "a lone figure fills both sides");
+  assert.equal(sizeSquareFeet(), SQUARE, "the square is the stated figure with a frontage imported too");
+  assert.deepEqual(footprintFeet({ sizeKey: "large" }), { w: 7 * SQUARE, h: 3 * SQUARE });
+  assert.deepEqual(footprintFeet({ sizeKey: "huge" }), { w: 9 * SQUARE, h: 9 * SQUARE }, "a lone figure fills both sides");
   // A body never occupies less than one token square.
   assert.deepEqual(sizeSquares("small"), { w: 1, h: 1 });
   assert.deepEqual(sizeSquares("man"), { w: 1, h: 1 }, "a fraction of a square reads as one");
@@ -355,29 +348,32 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(sizeSquares("gigantic"), null, "a cell with no figure");
   assert.equal(sizeSquares("colossal"), null, "a category the row does not carry");
   assert.equal(sizeSquares("constructor"), null, "an inherited name is no category");
-  assert.equal(footprintFeet({ sizeKey: "nonsense", feetPerSquare: SQUARE }), null, "an unknown category has no footprint");
+  assert.equal(footprintFeet({ sizeKey: "nonsense" }), null, "an unknown category has no footprint");
   assert.equal(sizeCite(), "XX 1", "the cite is the page the import recorded");
 
-  // A row the import could not read is not a row; nor is a figure that is no number.
-  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { __missing: true } }, [SQUARE_TABLE]: { [SIZE_ROW]: { __missing: true } } } }, { priority: PRIORITY.WORLD });
+  // A row the import could not read is not a row.
+  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { __missing: true } } } }, { priority: PRIORITY.WORLD });
   assert.equal(sizeSquares("large"), null, "a missing-row placeholder answers nothing");
-  assert.equal(sizeSquareFeet(), null, "a missing square row answers nothing");
-  for (const feet of [0, -4, "n/a"]) {
-    frontage(CELLS, PRIORITY.WORLD, feet);
-    assert.equal(sizeSquareFeet(), null, `a square of ${String(feet)} is no square`);
-  }
-  frontage(CELLS, PRIORITY.WORLD, null);
-  assert.equal(sizeSquareFeet(), null, "a document holding frontage and no square has none");
+  assert.equal(sizeSquareFeet(), SQUARE, "and the square is the stated one beside it");
 
   // A Judge's override of one cell wins over the import and is the printed shape.
   frontage(CELLS);
-  frontage({ ...CELLS, large: "2 x 5" }, PRIORITY.OVERRIDE, 6);
+  frontage({ ...CELLS, large: "2 x 5" }, PRIORITY.OVERRIDE);
   assert.deepEqual(sizeSquares("large"), { w: 2, h: 5 }, "the override layer wins");
-  assert.equal(sizeSquareFeet(), 6, "and so does an override of the square");
   assert.equal(sizeCite(), null, "an override has no page");
   unregisterTable(SIZE_DOC, { priority: PRIORITY.OVERRIDE });
   assert.deepEqual(sizeSquares("large"), { w: 7, h: 3 }, "and reverts");
-  assert.equal(sizeSquareFeet(), SQUARE, "the square reverts with it");
+
+  // The square is stated, not read: a document registered with a `sizeSquare`
+  // table of its own, on any layer, moves neither it nor a footprint.
+  const otherSquare = { sizeSquare: { [SIZE_ROW]: { feet: SQUARE + 3 } } };
+  registerTable({ id: SIZE_DOC, tables: otherSquare }, { priority: PRIORITY.OVERRIDE });
+  registerTable({ id: SIZE_DOC, source: { pages: "XX 1" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: CELLS }, ...otherSquare } }, { priority: PRIORITY.WORLD });
+  assert.equal(sizeSquareFeet(), SQUARE, "a registered square of another size does not move the stated one");
+  assert.deepEqual(footprintFeet({ sizeKey: "large" }), { w: 7 * SQUARE, h: 3 * SQUARE }, "nor a footprint built on it");
+  assert.deepEqual(footprintFeet(), { w: SQUARE, h: SQUARE });
+  unregisterTable(SIZE_DOC, { priority: PRIORITY.OVERRIDE });
+  frontage(CELLS);
 
   assert.equal(parseFrontage(""), null);
   assert.equal(parseFrontage(null), null);
@@ -398,28 +394,21 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(sizeForToken(scene.tokens[2], scene), null, "a category without one is left alone");
   assert.deepEqual(sizeForToken(scene.tokens[3], scene), { width: 1, height: 1 }, "a token with no category is one square");
   assert.equal(unsizedTokenCount(scene), 2, "two sized creatures have no footprint");
-  // The frontage imported without the square sizes nothing; the square without
-  // the frontage sizes only a token with no category.
-  frontage(CELLS, PRIORITY.WORLD, null);
-  assert.equal(sizeForToken(scene.tokens[0], scene), null, "no square: a categorised token keeps its size");
-  assert.equal(sizeForToken(scene.tokens[3], scene), null, "no square: a token with no category keeps its size too");
-  assert.equal(unsizedTokenCount(scene), 4, "with no square every token that is ours is unsized");
-  resetTables(); // the square alone, below
-  registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQUARE } } } }, { priority: PRIORITY.WORLD });
-  assert.equal(sizeForToken(scene.tokens[0], scene), null, "no frontage: a categorised token keeps its size");
-  assert.deepEqual(sizeForToken(scene.tokens[3], scene), { width: 1, height: 1 });
+  // Nothing imported: a categorised token waits on its frontage, and a token
+  // with no category is one square.
   resetTables();
-  assert.equal(unsizedTokenCount(scene), 4, "with nothing imported, every token that is ours is unsized");
+  assert.equal(sizeForToken(scene.tokens[0], scene), null, "no frontage: a categorised token keeps its size");
+  assert.deepEqual(sizeForToken(scene.tokens[3], scene), { width: 1, height: 1 }, "a token with no category is sized with nothing imported");
+  assert.equal(unsizedTokenCount(scene), 3, "with nothing imported, the three categorised tokens that are ours are unsized");
   assert.equal(unsizedTokenCount(null), 0);
 
   // A write is counted against what a token STORES. Core's token animation
   // merges its frames into the document, so the prepared width is the tween's
   // start right after an update (and stays there while the ticker is frozen):
   // it can read the old size while `_source` already holds the new one, and the
-  // reverse. The square alone is imported, so every token here is one square
-  // and a cell worth two squares makes the target half a cell.
+  // reverse. Nothing is imported, so every token here is one square and a cell
+  // worth two squares makes the target half a cell.
   resetTables();
-  registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQUARE } } } }, { priority: PRIORITY.WORLD });
   const half = { grid: { distance: SQUARE * 2, units: "ft" }, getFlag: () => ({ autoScale: true }) };
   const written = [];
   const stored = (id, prepared, source, extra = {}) => ({
@@ -502,22 +491,22 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 /* --- the footprint a token is judged by ----------------------------------------
-   Four sources over an invented square and frontage; the party token, a
-   marker's token and a scene with no distance are not judged at all. */
+   Four sources over the stated square and an invented frontage; the party
+   token, a marker's token and a scene with no distance are not judged at all. */
 {
   const { footprintOf, sizeForToken, unsizedTokenCount } = await import("../scripts/battlemap/token-scale.mjs");
-  const SQ = 7;
-  const grid = { grid: { distance: 7, units: "ft" } };
+  const SQ = SQUARE_FEET;
+  const grid = { grid: { distance: SQ, units: "ft" } };
   const tokenFor = ({ token = {}, actor = {}, sizeKey = null, type = "monster", locked = false, party = false } = {}) => ({
     getFlag: (_ns, key) => (key === "footprintLock" ? locked || undefined : key === "formationId" ? party || undefined : token[key]),
     actor: { documentName: "Actor", type, getFlag: (_ns, key) => (key === "extras" ? (sizeKey ? { size: sizeKey } : undefined) : actor[key]) },
   });
   resetTables();
-  registerTable({ id: SIZE_DOC, source: { pages: "XX 9" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQ } } } }, { priority: PRIORITY.WORLD });
+  registerTable({ id: SIZE_DOC, source: { pages: "XX 9" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } } } }, { priority: PRIORITY.WORLD });
 
   const fp = footprintOf(tokenFor({ sizeKey: "large" }), grid);
-  assert.deepEqual(fp, { judged: true, feet: { w: 35, h: 14 }, feetPerCell: 7, source: "size", sizeKey: "large" }, "a category over the imported square");
-  assert.deepEqual(footprintOf(tokenFor(), grid), { judged: true, feet: { w: 7, h: 7 }, feetPerCell: 7, source: "square", sizeKey: null }, "the imported square alone");
+  assert.deepEqual(fp, { judged: true, feet: { w: 5 * SQ, h: 2 * SQ }, feetPerCell: SQ, source: "size", sizeKey: "large" }, "a category's frontage over the square");
+  assert.deepEqual(footprintOf(tokenFor(), grid), { judged: true, feet: { w: SQ, h: SQ }, feetPerCell: SQ, source: "square", sizeKey: null }, "the square alone");
   assert.equal(footprintOf(tokenFor({ actor: { footprint: { w: 9, h: 3 } }, sizeKey: "large" }), grid).source, "actor", "the actor's flag over its category");
   const both = footprintOf(tokenFor({ token: { footprint: { w: 12, h: 6 } }, actor: { footprint: { w: 9, h: 3 } } }), grid);
   assert.deepEqual([both.source, both.feet], ["token", { w: 12, h: 6 }], "the token's flag over the actor's");
@@ -537,13 +526,15 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(footprintOf(tokenFor({ locked: true, sizeKey: "large" }), grid).judged, true, "a locked token is judged");
   assert.equal(sizeForToken(tokenFor({ locked: true, sizeKey: "large" }), grid), null, "and still not ours to size");
 
-  // Nothing imported: judged, with no figure, and so no mark to be had.
+  // Nothing imported: a categorised token is judged with no figure, and so no
+  // mark to be had; one with no category is one square.
   resetTables();
-  assert.deepEqual(footprintOf(tokenFor({ sizeKey: "large" }), grid), { judged: true, feet: null, feetPerCell: 7, source: null, sizeKey: "large" });
+  assert.deepEqual(footprintOf(tokenFor({ sizeKey: "large" }), grid), { judged: true, feet: null, feetPerCell: SQ, source: null, sizeKey: "large" });
+  assert.deepEqual(footprintOf(tokenFor(), grid), { judged: true, feet: { w: SQ, h: SQ }, feetPerCell: SQ, source: "square", sizeKey: null }, "a token with no category needs no import");
   assert.deepEqual(footprintOf(tokenFor({ token: { footprint: { w: 12, h: 6 } } }), grid).source, "token", "a flag needs no import");
 
   // The sizer answers as it did.
-  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQ } } } }, { priority: PRIORITY.WORLD });
+  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } } } }, { priority: PRIORITY.WORLD });
   assert.deepEqual(sizeForToken(tokenFor({ sizeKey: "large" }), grid), { width: 5, height: 2 });
   assert.deepEqual(sizeForToken(tokenFor(), { grid: { distance: 1, units: "mi" } }), { width: SPAN_MIN, height: SPAN_MIN }, "a man at a mile a cell is floored");
   assert.equal(sizeForToken(tokenFor({ party: true }), grid), null);
@@ -637,7 +628,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
       i18n: { localize: (key) => key, format: (key, data) => `${key} ${JSON.stringify(data)}` },
     };
     resetTables();
-    registerTable({ id: SIZE_DOC, source: { pages: "XX 9" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 6 } } } }, { priority: PRIORITY.WORLD });
+    registerTable({ id: SIZE_DOC, source: { pages: "XX 9" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } } } }, { priority: PRIORITY.WORLD });
 
     // The setting: a client choice, on by default, gating the drawing.
     registerScaleMarkSetting();
@@ -675,7 +666,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 
     // The verdict reads the stored size, not the animated one: at an exact fit
     // the stored size says on-scale while the prepared width is mid-tween.
-    scene.grid = { distance: 6, units: "ft" };
+    scene.grid = { distance: SQUARE_FEET, units: "ft" };
     man.document.width = 3;
     man.document._source = { width: 1, height: 1 };
     refreshMark(man);
@@ -696,7 +687,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     // for the Judge or the owner the footprint and where it comes from.
     const found = (token) => ({
       verdict: { dir: "larger", exact: { w: 0.0002, h: 0.0002 } },
-      fp: { feet: { w: 6, h: 6 }, source: "square", sizeKey: null },
+      fp: { feet: { w: SQUARE_FEET, h: SQUARE_FEET }, source: "square", sizeKey: null },
       scene,
       width: 1,
       height: 1,
@@ -706,19 +697,22 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     assert.equal(gm.length, 4);
     assert.ok(gm[0].startsWith("ACKS-BATTLEMAP.scaleMark.larger"));
     assert.ok(gm[1].includes('"w":"6","h":"6","units":"mi"'), "the drawn size is in the scene's units");
-    assert.ok(gm[2].includes('"w":"6","h":"6"'));
-    assert.ok(gm[3].startsWith("ACKS-BATTLEMAP.scaleMark.sourceSquare") && gm[3].includes('"feet":"6"') && gm[3].includes("XX 9"), "the imported square and its page");
+    assert.ok(gm[2].includes(`"w":"${SQUARE_FEET}","h":"${SQUARE_FEET}"`));
+    assert.ok(gm[3].startsWith("ACKS-BATTLEMAP.scaleMark.sourceSquare") && gm[3].includes(`"feet":"${SQUARE_FEET}"`) && gm[3].includes("XX 9"), "the stated square and the frontage's page");
+    assert.ok(!gm[3].includes("tokens.sizesCite"), "with a page imported the shipped reference is not said beside it");
     assert.equal(readoutLines(found(man), false).length, 2, "a seat that is not the Judge or the owner sees two lines");
     const sized = { ...found(man), fp: { feet: { w: 30, h: 12 }, source: "size", sizeKey: "large" } };
     const line = readoutLines(sized, true)[3];
     assert.ok(line.startsWith("ACKS-BATTLEMAP.scaleMark.sourceSize") && line.includes('"w":"5","h":"2"') && line.includes("XX 9"), "the category's frontage and the page");
+    assert.ok(line.includes(`"feet":"${SQUARE_FEET}"`) && !line.includes("tokens.sizesCite"), "the stated square, and the page said once");
     for (const source of ["token", "actor"]) {
       const l = readoutLines({ ...found(man), fp: { feet: { w: 6, h: 6 }, source, sizeKey: null } }, true)[3];
       assert.ok(l.startsWith(`ACKS-BATTLEMAP.scaleMark.source${source === "token" ? "Token" : "Actor"}`), `${source} as the source`);
     }
-    registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 6 } } } }, { priority: PRIORITY.OVERRIDE });
+    registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } } } }, { priority: PRIORITY.OVERRIDE });
     unregisterTable(SIZE_DOC, { priority: PRIORITY.WORLD });
-    assert.ok(!readoutLines(found(man), true)[3].includes("XX 9"), "an override has no page to cite, and none is said");
+    const unpaged = readoutLines(found(man), true)[3];
+    assert.ok(!unpaged.includes("XX 9") && unpaged.includes("tokens.sizesCite"), "an override has no page to cite, so the shipped reference is said");
 
     // Hover shows the lines under the nameplate and takes them away on leaving.
     onHover(man, true);
@@ -758,11 +752,15 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     refreshMark(stated);
     assert.equal(markOf(stated), null, "a token drawn at its footprint carries none");
     resetTables();
-    refreshMark(fresh);
-    assert.equal(markOf(fresh), null, "nothing imported: no figure, no mark");
-    registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 6 } } } }, { priority: PRIORITY.WORLD });
-    refreshMark(fresh);
-    assert.ok(markOf(fresh), "and the import brings it");
+    const plain = tokenOf();
+    refreshMark(plain);
+    assert.ok(markOf(plain), "nothing imported: a token with no category is one square, and a mile cell marks it");
+    const categorised = tokenOf({ actorFlags: { extras: { size: "large" } } });
+    refreshMark(categorised);
+    assert.equal(markOf(categorised), null, "a category with no frontage imported has no figure, so no mark");
+    registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } } } }, { priority: PRIORITY.WORLD });
+    refreshMark(categorised);
+    assert.ok(markOf(categorised), "and the frontage's import brings it");
     settings[SETTING_SCALE_MARK] = false;
     canvas.tokens.placeables = [fresh, man];
     registered[0].data.onChange();
@@ -3516,8 +3514,9 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
 /* -------------------------------------------- */
 
 {
-  // Invented figures: a 7 ft square; small is one square, large 3 × 2, huge is
-  // a fraction of one; gigantic prints no frontage and the rest are absent.
+  // Invented frontage over the stated square: small is one square, large 3 × 2,
+  // huge is a fraction of one; gigantic prints no frontage and the rest are absent.
+  const SQ = SQUARE_FEET;
   const keys = Object.keys(SIZES);
   const imported = (priority = PRIORITY.WORLD, pages = "XX 1") => {
     resetTables();
@@ -3525,7 +3524,7 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
       {
         id: SIZE_DOC,
         ...(pages ? { source: { pages } } : {}),
-        tables: { [SIZE_TABLE]: { [SIZE_ROW]: { small: "1 sq", large: "3 × 2", huge: "1/2 sq", gigantic: "n/a" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 7 } } },
+        tables: { [SIZE_TABLE]: { [SIZE_ROW]: { small: "1 sq", large: "3 × 2", huge: "1/2 sq", gigantic: "n/a" } } },
       },
       { priority },
     );
@@ -3533,27 +3532,25 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
 
   // Nothing imported: no chip (the cell-multiple ladder this replaced drew six on every scene).
   resetTables();
-  assert.deepEqual(sizeChips({ keys, feetPerSquare: sizeSquareFeet(), feetPerCell: 100 }), [], "no import, no chips");
-  assert.deepEqual(sizeChips({ keys, feetPerSquare: 7, feetPerCell: 100 }), [], "a square with no frontage imported offers none");
+  assert.deepEqual(sizeChips({ keys, feetPerCell: 100 }), [], "no import, no chips");
 
   imported();
-  const chips = sizeChips({ keys, feetPerSquare: sizeSquareFeet(), feetPerCell: 100 });
+  const chips = sizeChips({ keys, feetPerCell: 100 });
   assert.deepEqual(chips.map((c) => c.key), ["small", "large", "huge"], "in the category order, and only those the import answers: gigantic has no frontage");
   const large = chips.find((c) => c.key === "large");
-  assert.deepEqual(large.feet, { w: 21, h: 14 }, "frontage times the square: 3 × 2 squares of 7 ft");
-  assert.deepEqual(large.span, { w: tokenSpan(21, 100), h: tokenSpan(14, 100) }, "drawn by the sizer's own rounding");
+  assert.deepEqual(large.feet, { w: 3 * SQ, h: 2 * SQ }, "frontage times the square: 3 × 2 squares");
+  assert.deepEqual(large.span, { w: tokenSpan(3 * SQ, 100), h: tokenSpan(2 * SQ, 100) }, "drawn by the sizer's own rounding");
   assert.deepEqual(large.span, { w: SPAN_MIN, h: SPAN_MIN }, "which on a 100 ft cell is the floor");
-  assert.deepEqual(chips.find((c) => c.key === "small").feet, { w: 7, h: 7 });
-  assert.deepEqual(chips.find((c) => c.key === "huge").feet, { w: 7, h: 7 }, "a fraction of a square is held to one");
-  assert.deepEqual(sizeChips({ keys, feetPerSquare: 7, feetPerCell: 5 }).find((c) => c.key === "large").span, { w: 4.25, h: 2.75 }, "and on a 5 ft cell, quarter-cell steps");
-  assert.deepEqual(sizeChips({ keys: ["large"], feetPerSquare: 7, feetPerCell: 0 })[0].span, { w: SPAN_MIN, h: SPAN_MIN }, "a cell with no worth draws at the floor and does not throw");
-  assert.deepEqual(sizeChips({ keys, feetPerSquare: null, feetPerCell: 100 }), [], "the frontage without the square offers none");
+  assert.deepEqual(chips.find((c) => c.key === "small").feet, { w: SQ, h: SQ });
+  assert.deepEqual(chips.find((c) => c.key === "huge").feet, { w: SQ, h: SQ }, "a fraction of a square is held to one");
+  assert.deepEqual(sizeChips({ keys, feetPerCell: 4 }).find((c) => c.key === "large").span, { w: tokenSpan(3 * SQ, 4), h: tokenSpan(2 * SQ, 4) }, "and on a small cell, quarter-cell steps");
+  assert.deepEqual(sizeChips({ keys: ["large"], feetPerCell: 0 })[0].span, { w: SPAN_MIN, h: SPAN_MIN }, "a cell with no worth draws at the floor and does not throw");
   assert.deepEqual(sizeChips(), [], "no arguments, no chips");
 
   // The same figures held by the override layer alone: chips, and no page to cite.
   imported(PRIORITY.OVERRIDE, null);
   assert.equal(sizeCite(), null, "a hand-set value cites no page");
-  assert.deepEqual(sizeChips({ keys, feetPerSquare: sizeSquareFeet(), feetPerCell: 100 }).find((c) => c.key === "large").feet, { w: 21, h: 14 });
+  assert.deepEqual(sizeChips({ keys, feetPerCell: 100 }).find((c) => c.key === "large").feet, { w: 3 * SQ, h: 2 * SQ });
   resetTables();
 }
 

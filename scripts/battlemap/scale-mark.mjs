@@ -27,9 +27,9 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { footprintOf } from "./token-scale.mjs";
 import { scaleMismatch } from "./footprint.mjs";
-import { SIZE_DOC, SQUARE_TABLE, sizeCite, sizeSquares, sizeSquareFeet } from "../monsters/sizes.mjs";
+import { SIZE_DOC, sizeCite, sizeSquares, sizeSquareFeet } from "../monsters/sizes.mjs";
 import { SIZES } from "../monsters/config.mjs";
-import { citeOf, onTablesChanged } from "../lib/tables.mjs";
+import { onTablesChanged } from "../lib/tables.mjs";
 
 /** The name of the mark's child on a token, which is how a page script finds it. */
 export const SCALE_MARK_NAME = "acks-extras-scale-mark";
@@ -58,6 +58,7 @@ const KEYS = Object.freeze({
   sourceSize: `${LANG_PREFIX}.scaleMark.sourceSize`,
   sourceSquare: `${LANG_PREFIX}.scaleMark.sourceSquare`,
   cite: `${LANG_PREFIX}.scaleMark.cite`,
+  sizesCite: `${LANG_PREFIX}.tokens.sizesCite`,
 });
 
 /** Whether a token refresh's render flags carry one the mark answers. */
@@ -217,14 +218,12 @@ function guarded(work) {
 const fmt = (n) => String(Number(Number(n).toFixed(2)));
 
 /**
- * The page reference of the figures behind a footprint, where the world holds
- * one: the frontage's and the square's, once each. Empty where the world holds
- * none, so a value set by hand reads without a page.
+ * The page reference of the figures behind a footprint: the page the frontage
+ * table was imported from, else the reference the module ships for the size
+ * table. The square is stated, so the line always has a page to name.
  */
-export function citeText(sizeKey) {
-  const cites = [sizeKey ? sizeCite() : null, citeOf(SIZE_DOC, SQUARE_TABLE)].filter(Boolean);
-  const unique = [...new Set(cites)];
-  return unique.length ? ` ${game.i18n.format(KEYS.cite, { cite: unique.join(", ") })}` : "";
+export function citeText() {
+  return ` ${game.i18n.format(KEYS.cite, { cite: sizeCite() ?? game.i18n.localize(KEYS.sizesCite) })}`;
 }
 
 /**
@@ -241,9 +240,9 @@ export function sourceLine(fp) {
   if (source === "size") {
     const squares = sizeSquares(sizeKey);
     const size = game.i18n.localize(SIZES[sizeKey]?.label ?? sizeKey);
-    return game.i18n.format(KEYS.sourceSize, { size, w: fmt(squares?.w), h: fmt(squares?.h), feet: fmt(feet) }) + citeText(sizeKey);
+    return game.i18n.format(KEYS.sourceSize, { size, w: fmt(squares?.w), h: fmt(squares?.h), feet: fmt(feet) }) + citeText();
   }
-  return game.i18n.format(KEYS.sourceSquare, { feet: fmt(feet) }) + citeText(null);
+  return game.i18n.format(KEYS.sourceSquare, { feet: fmt(feet) }) + citeText();
 }
 
 /**
@@ -349,7 +348,7 @@ export function registerScaleMarkSetting() {
  * Register the setting and the hooks. Called once, at `init`. The mark is
  * re-judged when a token's or an actor's flags change (a footprint set or
  * cleared), when the scene's grid changes (what a cell is worth), when the
- * monsters tables change (the imported square and frontage) and when the
+ * monsters tables change (the imported frontage) and when the
  * setting changes.
  */
 export function installScaleMark() {

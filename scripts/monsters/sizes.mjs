@@ -4,8 +4,8 @@
  * battle-grid squares). The figures are imported into the `monsters` registry
  * document's `sizeFrontage` table, one printed cell per category, and read
  * here; nothing in source states one. What one of those squares is worth in
- * feet is the unit the same row's label prints, imported into `sizeSquare` and
- * read by `sizeSquareFeet`. Foundry-free.
+ * feet is the unit the frontage is counted in: it is stated here as
+ * `SQUARE_FEET` and read by `sizeSquareFeet`. Foundry-free.
  *
  * A cell is the page's own text. It prints a pair of squares, the first
  * arrangement being the one read, or a single figure for a body that fills at
@@ -23,13 +23,17 @@ export const SIZE_TABLE = "sizeFrontage";
 /** The row of the frontage and square tables the cells sit on. */
 export const SIZE_ROW = "squares";
 
-/** The table holding what one battle-grid square is worth in feet, on the same row. */
-export const SQUARE_TABLE = "sizeSquare";
+/**
+ * What one battle-grid square is worth in feet (MM p. 11, Monster Size). It is
+ * the unit of measure the frontage cells are written in, stated here and not
+ * imported. The ruling is in `docs/battlemap/DECISIONS.md`.
+ */
+export const SQUARE_FEET = 5;
 
-// Declared where it is read, so the import names the tables as outstanding
-// whichever feature loads first. The ids are SIZE_TABLE and SQUARE_TABLE,
-// written as literals because the producers gate reads this call from source.
-expectTables(SIZE_DOC, ["sizeFrontage", "sizeSquare"]);
+// Declared where it is read, so the import names the table as outstanding
+// whichever feature loads first. The id is SIZE_TABLE, written as a literal
+// because the producers gate reads this call from source.
+expectTables(SIZE_DOC, ["sizeFrontage"]);
 
 const PAIR = /(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)/;
 const FRACTION = /(\d+)\s*\/\s*(\d+)/;
@@ -69,19 +73,8 @@ export function sizeSquares(sizeKey) {
   return Object.hasOwn(row, sizeKey) ? parseFrontage(row[sizeKey]) : null;
 }
 
-/**
- * What one battle-grid square is worth in feet, or null where the world holds
- * no `sizeSquare` table, its row was not read, or the row holds no positive
- * figure. Reads the layer a Judge's override sits on; nothing stands in for a
- * square that was not imported.
- */
-export function sizeSquareFeet() {
-  if (!hasDoc(SIZE_DOC)) return null;
-  const row = getDoc(SIZE_DOC)?.tables?.[SQUARE_TABLE]?.[SIZE_ROW];
-  if (!row || typeof row !== "object" || isMissingRow(row)) return null;
-  const feet = Number(row.feet);
-  return feet > 0 ? feet : null;
-}
+/** What one battle-grid square is worth in feet: `SQUARE_FEET`, whatever the world holds, and never null. */
+export const sizeSquareFeet = () => SQUARE_FEET;
 
 /** The page the frontage table was read from, or null where it was not read from one. */
 export function sizeCite() {

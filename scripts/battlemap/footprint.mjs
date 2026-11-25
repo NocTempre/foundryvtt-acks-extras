@@ -7,7 +7,7 @@
  * squares. `token-scale.mjs` supplies the documents.
  */
 
-import { sizeSquares } from "../monsters/sizes.mjs";
+import { sizeSquareFeet, sizeSquares } from "../monsters/sizes.mjs";
 
 /**
  * Token spans are quantized to quarter squares with a quarter-square floor: a
@@ -21,22 +21,19 @@ export const SPAN_MIN = 0.25;
 /**
  * Resolve a token's footprint in feet. A size category's squares are the
  * imported frontage cells (`monsters/sizes.mjs`) and a square's worth is the
- * imported square (`sizeSquareFeet`); with no square, or a category the world
- * holds no frontage for, there is no footprint, so the answer is null and the
- * caller leaves the token as it is. A token with no category is one square.
- * An override needs neither.
+ * stated one (`sizeSquareFeet`); a category the world holds no frontage for
+ * has no footprint, so the answer is null and the caller leaves the token as
+ * it is. A token with no category is one square. An override needs neither.
  * @param {object} input
  * @param {{w:number,h:number}|null} [input.override]  Explicit feet (token or
  *   actor flag) — wins outright.
  * @param {string|null} [input.sizeKey]  Monster size-category key.
- * @param {number|null} [input.feetPerSquare]  What one footprint square is
- *   worth; the caller reads it from the import and there is no default.
- * @returns {{w:number,h:number}|null} feet, or null where the square or the
- *   category's frontage is not imported.
+ * @returns {{w:number,h:number}|null} feet, or null where the category's
+ *   frontage is not imported.
  */
-export function footprintFeet({ override = null, sizeKey = null, feetPerSquare = null } = {}) {
+export function footprintFeet({ override = null, sizeKey = null } = {}) {
   if (override && override.w > 0 && override.h > 0) return { w: override.w, h: override.h };
-  if (!(feetPerSquare > 0)) return null;
+  const feetPerSquare = sizeSquareFeet();
   if (!sizeKey) return { w: feetPerSquare, h: feetPerSquare };
   const squares = sizeSquares(sizeKey);
   return squares ? { w: squares.w * feetPerSquare, h: squares.h * feetPerSquare } : null;
@@ -45,20 +42,18 @@ export function footprintFeet({ override = null, sizeKey = null, feetPerSquare =
 /**
  * The size-category chips a scene can offer: one per category whose footprint
  * the world's import answers, in the order `keys` gives. A category with no
- * imported frontage, or any category while no square is imported, is left out,
- * so nothing imported offers none.
+ * imported frontage is left out, so nothing imported offers none.
  * @param {object} input
  * @param {string[]} [input.keys]  The size-category keys, in display order.
- * @param {number|null} [input.feetPerSquare]  The imported square's worth in feet.
  * @param {number} [input.feetPerCell]  What one cell of the scene is worth in feet.
  * @returns {{key:string, feet:{w:number,h:number}, span:{w:number,h:number}}[]}
  *   `feet` is what a press stamps; `span` the size it draws at in this scene's
  *   cells, by the sizer's own rounding (`tokenSpan`).
  */
-export function sizeChips({ keys = [], feetPerSquare = null, feetPerCell = 0 } = {}) {
+export function sizeChips({ keys = [], feetPerCell = 0 } = {}) {
   const chips = [];
   for (const key of keys) {
-    const feet = footprintFeet({ sizeKey: key, feetPerSquare });
+    const feet = footprintFeet({ sizeKey: key });
     if (!feet) continue;
     chips.push({ key, feet, span: { w: tokenSpan(feet.w, feetPerCell), h: tokenSpan(feet.h, feetPerCell) } });
   }

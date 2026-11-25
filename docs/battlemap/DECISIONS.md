@@ -38,7 +38,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-25 — [A layer can derive the territory](DECISIONS-through-v11.14.5.md#2026-10-25--a-layer-can-derive-the-territory)
 - 2026-10-28 — [The map's declaration is on its navigation card](DECISIONS-through-v11.14.5.md#2026-10-28--the-maps-declaration-is-on-its-navigation-card)
 
-## 2026-11-13 — The footprint's square is the book's; the assistant's ladders are the scene's — SUPERSEDED IN PART 2026-11-15, 2026-11-16
+## 2026-11-13 — The footprint's square is the book's; the assistant's ladders are the scene's — SUPERSEDED IN PART 2026-11-15, 2026-11-16, 2026-11-25
 
 **Ruled** (owner): "Fix backed values to imports and also expose somewhere as
 editable (this is a global rule applying here, fix whenever caught)"; and, on
@@ -463,3 +463,43 @@ them.
 
 **Cost.** A Judge who picks Terrain to look under a territory brush and then
 paints sees the view switch back on the first stroke.
+
+## 2026-11-25 — The square's size in feet is a unit of measure and stays in source
+
+The owner, the same day, on the import of the rounds to a dungeon turn: "Too
+aggressive, rounds per turn is very generic rules, not IP", and as the test:
+"If it is a generic concept that actual IP relies on to describe itself
+mechanically, it's likely it doesn't need imported." (`docs/lib/DECISIONS.md`,
+2026-11-25; the test is in `.claude/rules/ip-doctrine.md`.) An audit of what
+was already imported found one more such concept, the size in feet of one
+square of the battle map: the size categories' frontage cells are counts of
+squares, so the square is the unit they are written in. Asked "Move the
+battle-map square's size in feet back into source as well?", with the buttons
+"Yes, move it" and "Keep it imported", the owner chose:
+
+"Yes, move it"
+
+The words are the button's; the choice is the owner's.
+
+This supersedes in part "The footprint's square is the book's" (2026-11-13,
+above): its first Decision bullet, that the square is read and not stated, its
+second, on a world with no square, and the first bullet of its Cost. The
+ladders, and what that entry rejected, stand.
+
+**Ruled.**
+- The square's feet is a constant in `monsters/sizes.mjs` with its page
+  reference (MM p. 11), and `sizeSquareFeet()` answers it and never null. The
+  `monsters` / `sizeSquare` table, its recipe and its declaration are gone.
+- A category's frontage stays imported (`sizeFrontage`): it is a figure the
+  page sets. A token with no category is one square and is sized in a world
+  that has imported nothing; a token with a category still waits on its
+  frontage.
+
+**Cost.**
+- The Judge no longer edits the square in the Ruledata Browser, and a hover
+  that cited the import shows the page reference stated in source.
+- The formation's wide frontage (`formation` / `wideFrontageFeet`, RR p. 288)
+  is a second import that the audit read as the same unit. It is left
+  imported: the march frontage and the rank interval beside it are figures the
+  page sets, and a column needs all three.
+

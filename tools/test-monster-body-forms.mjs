@@ -37,7 +37,7 @@ let view = bodyFormView("zorvine", loc);
 check("no document: no rows and a missing origin", bodyFormRows().length === 0 && bodyFormOrigin().state === "missing");
 check("the select is empty and unavailable, the stored key is not offered", view.imported === false && Object.keys(view.options).length === 0);
 check("the band shows no name and the tooltip is the page reference alone", view.label === "" && view.tip === "bodyForm.page");
-world({ sizeSquare: { squares: { feet: 5 } } });
+world({ sizeFrontage: { squares: { small: "1 sq" } } });
 check("a document without the table is the same state", bodyFormView("zorvine", loc).imported === false && bodyFormOrigin().state === "missing");
 resetTables();
 world({ bodyForms: {} });

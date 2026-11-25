@@ -209,36 +209,37 @@ part is blocked without it.
    scene flag `acks-extras.battlemap` reads `{calibrated: true, autoScale:
    true, distance: <D>}`.
 6. With the Monstrous Manual connected and the `monsters` tables imported
-   (`sizeFrontage` and `sizeSquare` among them), drop the Large monster onto
+   (`sizeFrontage` among them), drop the Large monster onto
    the calibrated scene.
    *Observable:* its token lands at the squares the imported Large cell gives
-   times the imported square's feet, over the scene's `grid.distance` (the
-   `squares` rows of `sizeFrontage` and `sizeSquare`, read from
-   `acksExtras.lib.tables` `getDoc("monsters")`; `sizeSquareFeet()` returns the
-   square), preCreateToken having sized it. Toggle autoScale off in scene
+   times the stated square's feet, over the scene's `grid.distance` (the
+   `squares` row of `sizeFrontage`, read from `acksExtras.lib.tables`
+   `getDoc("monsters")`; `footprintFeet({})` returns the stated square on each
+   side), preCreateToken having sized it. Toggle autoScale off in scene
    config and drop again: the token keeps its prototype size.
-6a. **Square or frontage not imported.** Take the world layer of the
+6a. **Frontage not imported.** Take the world layer of the
    `monsters` document off the registry (`unregisterTable("monsters",
    {priority: 20})` from `acksExtras.lib.tables`), then drop the Large monster
    again and press "Rescale tokens on scene" with the Large monster's token and
    the character token present.
-   *Observable:* neither token is written (`width`/`height` unchanged;
-   `sizeSquareFeet()` is null), and the one notification is a warning that
-   names what is not imported: the footprint square, and with the frontage
-   off as well, both. The Token sizes section shows no size chips, and the
+   *Observable:* the Large monster's token is not written (`width`/`height`
+   unchanged), the character token, which has no size category, is one square
+   and is sized, and the one notification is a warning that names what is not
+   imported: a size category's frontage. The Token sizes section shows no size chips, and the
    "Size categories" caption's tooltip is the page reference alone. Restore by importing the rules
    tables again (Settings tab → Game Settings → ACKS II — Extras → Manage
    imports → Rules tables).
 6b. **A Judge's override.** In the Ruledata Browser, override the `sizeFrontage`
-   row's Large cell with a pair of your own and the `sizeSquare` row's `feet`
-   with a figure of your own, then press "Rescale tokens on scene".
+   row's Large cell with a pair of your own, then press "Rescale tokens on scene".
    *Observable:* the Large monster's token takes the override's squares at the
-   override's square; clear the overrides and it returns to the imported cells.
-7. With the square imported, press "Rescale tokens on scene" with the
+   stated square; clear the override and it returns to the imported cells.
+   The Ruledata Browser lists no `sizeSquare` table.
+7. Press "Rescale tokens on scene" with the
    character token and the party token present.
-   *Observable:* the character token resizes to one imported square at the
-   scene's scale; the party token is UNTOUCHED by this path.
-7a. **An override needs no square.** With the world layer off the registry as
+   *Observable:* the character token resizes to one square at the
+   scene's scale, with or without the monsters tables imported; the party
+   token is UNTOUCHED by this path.
+7a. **An override needs no frontage.** With the world layer off the registry as
    in 6a, select the character token, stamp a footprint through the custom size field and its ✓, then press
    "Rescale tokens on scene".
    *Observable:* the stamped token carries `flags.acks-extras.footprint` and
@@ -246,7 +247,7 @@ part is blocked without it.
 8. Open Map setup on two scenes of different `grid.distance` (Scene config
    → Grid), no scale bar measured.
    *Observable:* `app._prepareContext({})` returns `sizeChips`, one per size
-   category whose frontage and the square are imported, each labelled with the
+   category whose frontage is imported, each labelled with the
    category and stamping its footprint (frontage times the square, in feet);
    its tooltip names the source, the page and the cells it draws at here, the
    same on both scenes. The two square-size chip rows read 1, 2, 10 and 20

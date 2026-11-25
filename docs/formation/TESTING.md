@@ -5578,7 +5578,7 @@ Fixtures: a kept delve party, marker `formation/time-unit` (a party actor with o
 
 | Step | Do | Observable |
 | --- | --- | --- |
-| T1 | In the console, read `game.acksExtras.lib.timeUnit` | `roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263; they answer the same in a world whose `formation` ruledata document carries other counts |
+| T1 | In the console, read `acksExtras.lib.timeUnit` | `roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263; they answer the same in a world whose `formation` ruledata document carries other counts |
 | T2 | Press the Dungeon tab's advance-turn and advance-round buttons | The turn count and its round count move; the card's elapsed line shows a time; the world clock moves by `turnSeconds()` for a turn |
 | T3 | Hover the strip's elapsed figure and its carry-over figure | The elapsed tip names the turns, the rounds and the page; the carry tip names a round's feet |
 | T4 | Drag the party token one turn's distance on the dungeon-scale scene | The turn count moves by one and the world clock by `turnSeconds()` |

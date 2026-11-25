@@ -24,7 +24,7 @@ import { backgroundTexture } from "./scene-image.mjs";
 import { sizeChips } from "./footprint.mjs";
 import { sourceLine } from "./scale-mark.mjs";
 import { SIZES } from "../monsters/config.mjs";
-import { sizeCite, sizeSquareFeet } from "../monsters/sizes.mjs";
+import { sizeCite } from "../monsters/sizes.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS, isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
@@ -47,14 +47,14 @@ const px1 = (n) => Number(n).toFixed(1);
  * The size chips for a scene: one per size category the world's import answers
  * (`sizeChips`), none at all where nothing is imported. `w` and `h` are the
  * footprint a press stamps, in feet; `label` is the category's name; `tip`
- * names the parts (the imported frontage and square, with the page they were
- * read from, and the size it draws at in this scene's cells), and `aria` is the
+ * names the parts (the imported frontage and the square, with the page they
+ * are cited to, and the size it draws at in this scene's cells), and `aria` is the
  * label with the tip. A scene with no usable distance offers none.
  */
 const sizeChipViews = (scene) => {
   const feetPerCell = sceneFeetPerCell(scene);
   if (!(feetPerCell > 0)) return [];
-  return sizeChips({ keys: Object.keys(SIZES), feetPerSquare: sizeSquareFeet(), feetPerCell }).map(({ key, feet, span }) => {
+  return sizeChips({ keys: Object.keys(SIZES), feetPerCell }).map(({ key, feet, span }) => {
     const label = game.i18n.localize(SIZES[key].label);
     const tip = loc("tokens.sizeChipTip", {
       source: sourceLine({ source: "size", sizeKey: key }),
@@ -1057,20 +1057,19 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
   /**
    * The whole-scene resize. The tokens whose footprint is not imported keep the
-   * size they have, and the notice is then a warning that names which import is
-   * missing, the square, a size category's frontage, or both. A Judge is told,
-   * never blocked.
+   * size they have, and the notice is then a warning that names the import
+   * they wait on, a size category's frontage. A Judge is told, never blocked.
    */
   static async #onRescaleTokens() {
     const scene = canvas?.scene;
     if (!scene) return;
     const count = await rescaleSceneTokens(scene);
-    const { count: kept, square, frontage } = unsizedTokenReport(scene);
+    const { count: kept } = unsizedTokenReport(scene);
     if (!(kept > 0)) {
       ui.notifications.info(loc("tokens.rescaled", { count }));
       return;
     }
-    const missing = loc(square && frontage ? "tokens.missingBoth" : square ? "tokens.missingSquare" : "tokens.missingFrontage");
+    const missing = loc("tokens.missingFrontage");
     ui.notifications.warn(loc("tokens.rescaledKept", { count, kept, missing }));
   }
 

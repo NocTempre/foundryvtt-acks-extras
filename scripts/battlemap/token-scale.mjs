@@ -11,7 +11,7 @@ import { sceneSetup } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
-import { sizeSquareFeet, sizeSquares } from "../monsters/sizes.mjs";
+import { sizeSquares } from "../monsters/sizes.mjs";
 import { FLAG_FORMATION_ID, PARTY_TYPE } from "../formation/constants.mjs";
 import { unset } from "../lib/util.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
@@ -31,15 +31,14 @@ export function autoScaleEnabled(scene) {
  * creature with a size category to fit to the scene's squares), and a scene
  * without a usable grid distance. A `footprintLock` token IS judged: the lock
  * stops writes to its size, not the reading of it. Judged with `feet` null:
- * the monster book's square, or the actor's size category frontage, is not
- * imported.
+ * the actor's size category frontage is not imported.
  * @param {object} tokenDoc  The token document.
  * @param {object} [scene]  The scene the token is on.
  * @returns {{judged: boolean, feet: {w:number,h:number}|null, feetPerCell: number,
  *   source: "token"|"actor"|"size"|"square"|null, sizeKey: string|null}}
  *   `source` names what `footprintFeet` took the figure from: the flag on the
- *   token, the flag on the actor, the size category over the imported square,
- *   or the imported square alone; null where `feet` is. `feetPerCell` is the
+ *   token, the flag on the actor, the size category's frontage over the
+ *   square, or the square alone; null where `feet` is. `feetPerCell` is the
  *   scene's cell in feet, since footprints are in FEET and a scene's cells are
  *   in its own units: six MILES per hex is the case that makes an unconverted
  *   distance size a man as though he were a county.
@@ -59,7 +58,7 @@ export function footprintOf(tokenDoc, scene = tokenDoc?.parent) {
   // unusable override is no override: the figure then comes from the category.
   const override = tokenFlag ?? actorFlag ?? null;
   const sizeKey = tokenDoc.actor?.getFlag(MODULE_ID, FLAG_EXTRAS)?.size ?? null;
-  const feet = footprintFeet({ override, sizeKey, feetPerSquare: sizeSquareFeet() });
+  const feet = footprintFeet({ override, sizeKey });
   let source = null;
   if (feet) {
     if (override && override.w > 0 && override.h > 0) source = tokenFlag != null ? "token" : "actor";
@@ -86,8 +85,8 @@ function resolveSize(tokenDoc, scene) {
 /**
  * The size (in grid squares) this token should occupy on its scene, or null
  * when the token is not ours to size (party tokens, locked tokens, markers,
- * scenes without a usable grid distance) or the square or its actor's size
- * category frontage is not imported.
+ * scenes without a usable grid distance) or its actor's size category
+ * frontage is not imported.
  * @returns {{width:number, height:number}|null}
  */
 export function sizeForToken(tokenDoc, scene = tokenDoc?.parent) {
@@ -96,29 +95,24 @@ export function sizeForToken(tokenDoc, scene = tokenDoc?.parent) {
 
 /**
  * How many tokens on the scene are ours to size but have no footprint because
- * the square or their size category's frontage is not imported: they keep the
- * size they have.
+ * their size category's frontage is not imported: they keep the size they have.
  */
 export function unsizedTokenCount(scene) {
   return unsizedTokenReport(scene).count;
 }
 
 /**
- * The tokens `unsizedTokenCount` counts, and which import each is waiting on:
- * `square` where the footprint square is not imported (every token that is ours
- * and has no override lacks it), `frontage` where a kept token's size category
- * has no frontage cell. Both can hold at once, and neither does when no token
- * is kept.
- * @returns {{count: number, square: boolean, frontage: boolean}}
+ * The tokens `unsizedTokenCount` counts, and what they wait on: `frontage`
+ * where a kept token's size category has no frontage cell, which is true
+ * whenever any token is kept.
+ * @returns {{count: number, frontage: boolean}}
  */
 export function unsizedTokenReport(scene) {
-  const report = { count: 0, square: false, frontage: false };
-  const squareImported = sizeSquareFeet() > 0;
+  const report = { count: 0, frontage: false };
   for (const token of scene?.tokens ?? []) {
     const { ours, size, sizeKey } = resolveSize(token, scene);
     if (!ours || size) continue;
     report.count++;
-    if (!squareImported) report.square = true;
     if (sizeKey && !sizeSquares(sizeKey)) report.frontage = true;
   }
   return report;

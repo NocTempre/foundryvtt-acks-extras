@@ -5364,20 +5364,6 @@ const SHARED_TABLE_RECIPES = {
         ],
         rows: [{ key: "squares", labelRe: "\\(\\d+\\W+squares" }],
       },
-      // The unit of that same row (MM Overview p. 11): its bracketed label
-      // names what one battle-grid square is worth in feet, read by the
-      // `squareFeet` label pattern into `{feet}`. The row has no cells here, so
-      // `cellColumns` is empty; `monsters/sizes.mjs` `sizeSquareFeet` reads it.
-      sizeSquare: {
-        shape: "gridRows",
-        book: "mm",
-        printedPage: 11,
-        locate: "Monster Size",
-        column: { xMin: 40, xMax: 570, yMin: 640, yMax: 720 },
-        labelMaxX: 140,
-        cellColumns: [],
-        rows: [{ key: "squares", labelRe: "\\(\\d+\\W+squares", labelPattern: "squareFeet" }],
-      },
       // The normal load entry (MM Overview p. 13): the multiple of the normal
       // load a creature can carry at most, and the share of its speed it keeps
       // above the normal load. `monsters/load-rule.mjs` `loadRule` reads both.

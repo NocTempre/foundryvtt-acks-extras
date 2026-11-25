@@ -212,13 +212,14 @@ rescales. Pressed with nothing selected, each says so.
 **Rescale tokens on scene**, below the chips, resizes every token to its
 real footprint at the scene's scale: a monster by its size category, anything
 else one footprint square. A formation's party token is left to the
-formation rules, which size it by its frontage. The footprint square and
-each size category's frontage come from the Monster Size table of the
-Monstrous Manual (MM ch. 1), which arrives with the Monstrous Manual import
+formation rules, which size it by its frontage. Each size category's frontage
+comes from the Monster Size table of the Monstrous Manual (MM ch. 1), which
+arrives with the Monstrous Manual import
 (Settings tab → Game Settings → ACKS II — Extras → Manage imports; see
 [Managing imports](importer.md#managing-imports)). Until it is imported there
-are no chips, tokens keep the size they have, and Rescale says how many kept
-their size and what is missing. Edit the table in the Ruledata Browser
+are no chips, a token with a size category keeps the size it has, and Rescale
+says how many kept their size and what is missing; a token with no size
+category is one footprint square whatever has been imported. Edit the table in the Ruledata Browser
 (Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables →
 Open Ruledata Browser) and your figure wins.
 
@@ -236,8 +237,8 @@ six-mile map has it, so nobody judges distance by the size of the token.
 Hover the token to read which way it is off and the size it is drawn at in
 the scene's units; you, and the token's owner, also read its footprint in
 feet and where that comes from. A party token and a place's, organisation's
-or domain's token never carry it, and nothing does until the Monstrous
-Manual's square is imported. Every player sees it; each can turn it off for
+or domain's token never carry it, and a token with a size category does not
+until the Monstrous Manual's frontage is imported. Every player sees it; each can turn it off for
 themselves in **Settings tab → Game Settings → ACKS II — Extras →
 Not-to-scale mark on tokens**.
 

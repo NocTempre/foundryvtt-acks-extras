@@ -339,18 +339,18 @@ table (MM Overview p. 11), imported into registry document `monsters`, table
 `scripts/monsters/sizes.mjs` `sizeSquares(key)` reads a cell as `{w, h}`
 squares: the first printed pair, else a lone figure or fraction, each side held
 to one square at the least (a body never occupies less than a token square).
-The unit of that row's label, what one of its squares is worth in feet, is
-read from the label itself into table `sizeSquare` (`squares: {feet}`, the
-`squareFeet` label pattern of the importer's `gridRows`), and
-`sizes.mjs` `sizeSquareFeet()` answers it. Two readers take them: the
-battlemap's `footprintFeet`, which multiplies the one by the other
-(`docs/battlemap/MODEL.md`, "Token sizing"), and the importer, which sets a
-monster's prototype token to the squares. The Judge edits both in the Ruledata
-Browser like any imported table, and the override wins. A world with no table,
-an unread row, or a cell holding no figure answers null for that category, and
-a world with no square answers null for every one, so the battlemap leaves the
-token as it is and a monster is imported with Foundry's default token. The
-weight, length and feet lines of the same table are not read.
+What one of its squares is worth in feet, the unit the row's label names, is
+stated and not imported: `sizes.mjs` `SQUARE_FEET` (MM p. 11), which
+`sizeSquareFeet()` answers whatever the world holds. No table carries it, so
+the Ruledata Browser lists none and a registered `sizeSquare` table moves
+nothing. Two readers take the frontage: the battlemap's `footprintFeet`, which
+multiplies it by the square (`docs/battlemap/MODEL.md`, "Token sizing"), and
+the importer, which sets a monster's prototype token to the squares. The Judge
+edits the frontage in the Ruledata Browser like any imported table, and the
+override wins. A world with no table, an unread row, or a cell holding no
+figure answers null for that category, so the battlemap leaves the token as it
+is and a monster is imported with Foundry's default token. The weight, length
+and feet lines of the same table are not read.
 
 **The body forms** are the Monster Body Form table (MM Monster Creation p.
 389), imported into the same `monsters` document as table `bodyForms`: one row

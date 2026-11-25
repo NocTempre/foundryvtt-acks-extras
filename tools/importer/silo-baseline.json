@@ -72,7 +72,7 @@
       "rule": "book-roles",
       "file": "scripts/importer/table-recipes.mjs",
       "target": "book: mm",
-      "count": 11
+      "count": 10
     },
     {
       "rule": "book-roles",
