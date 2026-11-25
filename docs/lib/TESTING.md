@@ -4165,7 +4165,84 @@ now". Walked on the primary GM seat, which acts on a group token's combat.
    Set the inner's count back to 3, take the labelled stack off the outer and clear
    the roster rows.
 
-## The organisation chart through the API
+## A warband's token in a combat
+
+The model is [GROUPS.md](GROUPS.md), "In a fight" and "Initiative groups". Walked on the
+primary GM seat, which acts on a group token's combat. The grouping is the system's
+`combat.manageGroup`, so the observable is the system's own stored list, read in page
+context as `game.combat.flags.acks.groups` (an array of `{initiative, initiativeBonus,
+tokens}`), and the tracker's group mark beside each name.
+
+### Fixtures
+
+- **Kept, `lib/combat-monster-a` and `lib/combat-monster-b`**: two world monsters
+  whose initiative modifiers differ (`system.initiative.value`, read from the system's
+  own field), so that a bonus taken from the wrong gang shows as a different number.
+  Found by marker.
+- **Kept, `lib/combat-gang-a`**: an `acks-extras.group` actor holding one stack of three
+  bodies over monster A (`acksExtras.lib.groups.addStack(gang, monsterA, {count: 3})`).
+- **Kept, `lib/combat-gang-b`**: the same over monster B.
+- **Kept, `lib/combat-warband`**: an `acks-extras.group` actor holding one stack of one
+  body over monster A, both gangs nested in it
+  (`acksExtras.lib.groups.setParentGroup(gang, warband.uuid)`). Built with
+  `api.fixture(marker, "Actor", {name, type: "acks-extras.group"})`. Each step asserts
+  its shape at its start: each gang's `system.unit.parentGroupUuid` is the warband's uuid,
+  the stacks hold their full counts, no token of any of them stands on the scene, and a
+  stale combat of the run's own is gone.
+- A disposable scene, a token on it for the warband and one for each gang (linked, from
+  the group's creation), and a disposable combat, made through `api.create` and swept by
+  ledger.
+
+### Steps
+
+1. Add the warband's token to the combat (`combat.createEmbeddedDocuments("Combatant",
+   [{tokenId, actorId, sceneId}])`, or the tracker's HUD button). *Observable:* seven body
+   tokens (the warband's one, each gang's three), seven combatants and none for any group,
+   the warband's token hidden. `game.combat.flags.acks.groups` holds exactly two groups,
+   one with the three tokens of gang A and one with gang B's three. The warband's single
+   body is in neither, and the tracker shows no group mark beside it.
+2. Tell the system's defect apart from ours. *Observable:* a group's `initiativeBonus`
+   is the lowest `system.initiative.value` among its own tokens' actors. Where gang A's
+   stored bonus equals gang B's lowest value and the two gangs' values differ, the
+   system's second call has overwritten the first's (T-0734; record it, do not fix it).
+   Where a gang is missing from the list and the other is present, either the
+   system's unawaited write dropped it (T-0735) or lib's wait ended at its limit, which
+   leaves a console warning naming the gang. Where a group holds tokens of the wrong gang
+   or of a body that is no combatant, lib's partition is at fault.
+3. Roll all initiative (the tracker's Roll All). *Observable:* each gang rolls once:
+   one roll for the gang, every one of its three combatants showing the same initiative,
+   and the warband's lone body rolls its own. The initiative card prints one row for
+   each group.
+4. **First observation: does a group roll again each round?** Advance to round 2 and
+   roll all again. *Observable, to record:* whether each gang's combatants show a new
+   initiative and whether the stored group's `initiative` changed. The system's roll
+   reuses a stored group `initiative` above zero and nothing in its roll clears it, so
+   the expected reading is that the gang keeps its first roll; this walk says whether it
+   does, and the answer goes to the plan's owner.
+5. A gang already in the fight. Delete the combat and its leavings by ledger, make a new
+   combat and add gang A's own token to it. *Observable:* three bodies out and combatants,
+   one stored group, gang A's token hidden. Roll gang A alone
+   (`combat.rollInitiative([anyOfItsCombatantIds])`) and read the group's `initiative`.
+   Add the warband's token.
+   *Observable:* four more bodies come out, gang B is grouped, gang A's stored group has
+   the same three tokens and the `initiative` it rolled (a call would have reset it to
+   -1), and no combatant stands for gang A's token or the warband's.
+6. A gang as one row. Repeat step 5 up to gang A's token, then add it again so the bodies
+   gather and it stands as one row, then add the warband's token. *Observable:* gang A's
+   row is gone from the tracker, its token is hidden and flagged to the combat, its three
+   bodies fight, and its group is stored with them.
+7. Regroup with the system's control. Select two bodies of different gangs on the map
+   and press the tracker's group control. *Observable:* the system's own notice, a group
+   of those two, and each of the two gangs' groups loses the body taken from it (a group
+   left with one body is dropped by the system's rule). Lib makes no call; the Judge's
+   regroup stands.
+8. A group of one. Add a group actor holding one body to a combat. *Observable:* the body
+   comes out, and `game.combat.flags.acks` is unset: no call was made.
+9. End the combat. *Observable:* every body is recalled into its own gang, every token is
+   visible and unflagged.
+10. Teardown. `api.sweepTracked()` for the scene, tokens and combat; quote its result.
+    Put each kept group's counts back.
+
 
 The model is [ORGANISATION.md](ORGANISATION.md). No sheet draws the chart yet, so
 every step is a page-context call on `acksExtras.lib.org` and the observable is the

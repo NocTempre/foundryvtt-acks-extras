@@ -273,11 +273,38 @@ window acts, one piece of work at a time.
 | The token is added to a second combat | The combatant is deleted and the Judges are whispered that it fights elsewhere |
 | The group holds nothing to place | The Judges are whispered, and nothing is written: the combatant stays, the token stays visible and no flag is set |
 | A group stands inside it | Every group inside it sends out its bodies the same way, after its own stacks, and each body carries its own group's flags and gets its combatant. The end and the early gather recall them all into the groups they came from |
+| A group inside it is a combatant already | Its token, fighting as one row, goes out as a token added to the combat does: its bodies out, the token hidden and flagged, its row deleted. It fights as one of the joining group's gangs with no entry of its own. A token fighting in another combat, and a party's, stay as they are |
+| The bodies are in | Each group in the tree with two or more bodies fighting is grouped for initiative by one `combat.manageGroup(tokens)` over that group's own bodies, as many calls as there are such groups, the root's own bodies included |
 
 A body already on the map stays where it stands and fights with the rest, and the end
 recalls it with them. The flag is written before the combatants exist, so a deploy that
 fails part way still leaves the combat's end the bodies to gather. A flag naming a
 combat no longer in the world holds nothing back.
+
+### Initiative groups
+
+The grouping is the system's. `manageGroup` is the call behind the group control of the
+Combat Tracker sidebar tab, and the Judge regroups with that control. Lib writes no list
+of its own and no initiative: the system rolls once for each group and prints a group
+mark beside each name, and `patches/initiative-card.mjs` reads the same list to print a
+group as one row. The partition is `gangPartition` (`group-logic.mjs`), the calls are
+`groupGangs` (`group-combat.mjs`).
+
+- A group is every group in the tree, nested or not. A gang that joins alone is the root of
+  its own tree and is grouped the same way.
+- A group with one body fighting makes no call, since the system refuses a single token.
+  A lone leader rolls alone. A token that is no combatant is never passed: the system
+  refuses the whole call over one.
+- A group the stored list already holds, with exactly those tokens, is left alone. A call
+  replaces a group with a fresh one that has not rolled, so repeating it would clear a
+  roll a gang already carries; this is how a gang already in the fight keeps its roll when
+  its warband joins.
+- The call does not return its write. After each one, the stored list is read until it
+  holds the group, so the next call starts from a list that has it. The wait is ordering
+  and writes nothing. If the list never holds the group, the wait ends at three seconds, a
+  line goes to the console and the next gang goes on.
+- A body that joins a combat on its own, as a monster added by hand, is no group's and is
+  never grouped.
 
 A formation member that holds a group deploys and recalls the same tree, its bodies
 laid into the member's cells one stack after another.

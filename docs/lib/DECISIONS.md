@@ -46,7 +46,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-14 — [Tokens split colour from structure; the light palette is a real branch](DECISIONS-through-v11.14.5.md#2026-08-14--tokens-split-colour-from-structure-the-light-palette-is-a-real-branch)
 - 2026-08-14 — [Money is physical; four rulings land at once](DECISIONS-through-v11.14.5.md#2026-08-14--money-is-physical-four-rulings-land-at-once) — superseded in part by "2026-09-01 — the system's compendium tree is the system's, and the library can be put back"; "2026-09-02 — hiding compendiums was a BAD DIRECTION"; "2026-10-01 — Currency is one stack with one count, weighed by how many make a stone"; "2026-11-11 — A spoil is released by the Judge, not claimed by a throw" (docs/location/DECISIONS.md)
 - 2026-08-18 — [One owner for the attack roll, and one seam for future modifiers](DECISIONS-through-v11.14.5.md#2026-08-18--one-owner-for-the-attack-roll-and-one-seam-for-future-modifiers) — superseded in part by "2026-10-20 — The attack seam rides the system's labelled modifiers"
-- 2026-08-24 — [Initiative reuses the roll CARD, not an invented grouping](DECISIONS-through-v11.14.5.md#2026-08-24--initiative-reuses-the-roll-card-not-an-invented-grouping)
+- 2026-08-24 — [Initiative reuses the roll CARD, not an invented grouping](DECISIONS-through-v11.14.5.md#2026-08-24--initiative-reuses-the-roll-card-not-an-invented-grouping) — superseded in part by "2026-11-25 — A group's bodies in a combat are grouped by the system's own call" (its rejection of auto-grouping); the roll card and the note on the system's namespace stand
 - 2026-08-25 — [A window never names its own ground; the dress does](DECISIONS-through-v11.14.5.md#2026-08-25--a-window-never-names-its-own-ground-the-dress-does) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md)
 - 2026-08-29 — [Thirst charges a rolled toll; hunger charges a flat one](DECISIONS-through-v11.14.5.md#2026-08-29--thirst-charges-a-rolled-toll-hunger-charges-a-flat-one)
 - 2026-08-29 — [An i18n key is a leaf or a parent, never both](DECISIONS-through-v11.14.5.md#2026-08-29--an-i18n-key-is-a-leaf-or-a-parent-never-both)
@@ -1667,3 +1667,51 @@ above.
 
 *Cost:* the row is longer where a change sets, multiplies or bounds the
 figure. The step's own figure on that row is not changed by this entry.
+
+## 2026-11-25 — A group's bodies in a combat are grouped by the system's own call
+
+**Ruled.** Supersedes in part "2026-08-24 — Initiative reuses the roll CARD, not an
+invented grouping": only its rejection of auto-grouping a deployed stack. When a
+group's token puts its bodies into a combat, lib makes the call the Combat Tracker's
+group control makes, `combat.manageGroup(tokens)`, once for each group in the tree
+that has two or more bodies fighting (docs/lib/GROUPS.md, "Initiative groups").
+The new evidence is the owner's word on a warband's token: "gangs should
+automatically join combat as groups for group initiative". It is one path with no
+condition on which group: a gang is a group, a gang that joins alone is one, and the
+Judge regroups with the same control. Where the owner asked "Every body" of a
+warband's token, the bodies come in and are grouped gang by gang, and the owner's "It
+gets absorbed if part of the combat", "Into the combat" is read so: a group inside
+the one that joined that is already a combatant fights as one of its gangs, with no
+entry of its own; a group whose bodies are already in the combat is held as the
+system stores it.
+
+What stands of the 2026-08-24 entry: its main ruling (the module builds no grouping
+of its own beside the system's) is followed, and so is its note on the system's
+namespace, a plain property read of `combat.flags?.acks?.groups` and never a
+write. Lib writes no list, no initiative and no tie key in `turn-order.mjs`; a tie key
+is built only if a live walk shows two groups on one total interleaving.
+
+**Two defects of the system's are the system's, and nothing here works round them.**
+T-0734: a second `manageGroup` recomputes every stored group's `initiativeBonus`
+from the tokens it was just passed, so grouping a second gang hands the first gang
+the second's bonus. T-0735: `manageGroup` does not await its flag write, so a call made
+before the last one has landed reads the stored list without it and its write drops
+that group. Between calls lib reads the stored list until it holds the group just
+made, which is ordering; it does not write the flag. A group the stored list already
+holds as it is makes no call, because a call replaces the group with one that has
+not rolled.
+
+**Rejected.** Core's `CombatantGroup` document (`Combatant#_prepareGroup`): the system
+does not use it, its tracker draws nothing for one, and it would be a second
+grouping beside the system's. Writing the system's list from lib: the 2026-08-24
+ruling, not reversed. A scope narrower than "every group actor whose token joins":
+the owner's wording draws no line between a gang and another group.
+
+**Strongest counter, STRONG.** The 2026-08-24 rejection was the maintainer's own
+ruling, and going past gangs reverses it for groups the owner did not name, a
+mercenary unit outside a formation among them; the system offers no ungroup, so a
+Judge who wanted a unit to roll singly regroups the others by hand. Held anyway on
+the owner's words and on the system's feature being one control that any Judge uses
+both ways. **Cost:** until the system repairs T-0734 a Judge's second gang takes the
+first's bonus, and a group of the system's that the Judge made by hand and that holds
+a body of ours is replaced when the body's group is made.

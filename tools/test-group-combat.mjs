@@ -19,6 +19,7 @@ const sleep = (ms = 1) => new Promise((r) => setTimeout(r, ms));
 /** Let every queued hook finish: the mock's work is all microtasks. */
 const settle = async () => {
   for (let i = 0; i < 6; i++) await sleep(1);
+  await sleep(60);
 };
 let nextId = 0;
 const uid = (p) => `${p}${(++nextId).toString().padStart(4, "0")}`;
@@ -216,6 +217,32 @@ function combatIn() {
   const combat = {
     id: uid("cbt"),
     combatants: new Coll(),
+    flags: {},
+    /** How late the system's write lands, in ms: its call does not return it. */
+    lateMs: 0,
+    /** Each call's token ids and the stored list it read, as the system's call reads it. */
+    manageCalls: [],
+    /**
+     * The system's tracker call: it refuses a token that is no combatant, reads the stored
+     * list now, takes the tokens out of every other group, drops a group under two, and
+     * writes the whole list later without returning the write.
+     */
+    manageGroup(groupTokens) {
+      const ids = groupTokens.map((t) => t.id);
+      const present = new Set([...combat.combatants].map((c) => c.tokenId));
+      const read = structuredClone(combat.flags.acks?.groups ?? []);
+      combat.manageCalls.push({ ids, read: structuredClone(read) });
+      if (ids.some((id) => !present.has(id))) return;
+      const groups = read;
+      groups.push({ initiative: -1, initiativeBonus: 1000, tokens: ids });
+      groups.forEach((g, i) => {
+        if (i !== groups.length - 1) g.tokens = g.tokens.filter((id) => !ids.includes(id));
+      });
+      const kept = groups.filter((g) => g.tokens.length > 1);
+      setTimeout(() => {
+        combat.flags.acks = { groups: kept };
+      }, combat.lateMs);
+    },
     async createEmbeddedDocuments(type, rows) {
       const made = rows.map((row) => {
         const c = {
@@ -253,7 +280,8 @@ async function endCombat(combat) {
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
 const { registerGroupCleanup, setParentGroup, addLabelledStack } = await import("../scripts/lib/group.mjs");
 const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
-const { COMBAT_FLAG } = await import("../scripts/lib/group-combat.mjs");
+const { COMBAT_FLAG, groupGangs } = await import("../scripts/lib/group-combat.mjs");
+const { gangPartition } = await import("../scripts/lib/group-logic.mjs");
 installRecreatedHitPoints();
 registerGroupCleanup();
 
@@ -654,6 +682,134 @@ t("a labelled stack is a label and a count with no prototype, and a blank label 
   assert.deepEqual(stack.gen, { part: "Q1", cite: "p. 5" });
   assert.equal(await addLabelledStack(group, { label: " ", count: 2 }), null);
   assert.equal(group.system.stacks.length, 1);
+});
+
+/** The token ids of each group the system's tracker holds, sorted, as a comparable list. */
+const storedSets = (combat) => (combat.flags.acks?.groups ?? []).map((g) => [...g.tokens].sort().join(",")).sort();
+const idsOf = (tokens) => tokens.map((b) => b.id).sort().join(",");
+
+t("gangPartition cuts the fight's bodies into one set per group, leaves out a lone body and a token no combatant holds", async () => {
+  const { where, outer, gangA, gangB, scout, token, combat } = warband();
+  await addToCombat(combat, token);
+  const all = [...where.tokens].filter((x) => x.getFlag(MODULE_ID, "member"));
+  const fighting = new Set([...combat.combatants].map((c) => c.tokenId));
+  const parts = gangPartition(outer, all, fighting);
+  assert.deepEqual(parts.map((p) => p.group.name), ["Outer", "Gang A", "Gang B"], "the group first, those inside nearest first, the scout alone left out");
+  assert.deepEqual(parts.map((p) => idsOf(p.tokens)), [idsOf(bodiesOf(where, outer)), idsOf(bodiesOf(where, gangA)), idsOf(bodiesOf(where, gangB))]);
+  assert.equal(bodiesOf(where, scout).length, 1);
+  // One of Gang A's three is no combatant: two still make a group, and the missing one is not passed.
+  const [out] = bodiesOf(where, gangA);
+  fighting.delete(out.id);
+  assert.equal(gangPartition(outer, all, fighting).find((p) => p.group === gangA).tokens.length, 2);
+  fighting.delete(bodiesOf(where, gangA)[1].id);
+  assert.equal(gangPartition(outer, all, fighting).some((p) => p.group === gangA), false, "one body fights alone");
+});
+
+t("a warband's token groups each gang by one call of the system's tracker, and the lone scout makes none", async () => {
+  const { where, outer, gangA, gangB, scout, token, combat } = warband();
+  await addToCombat(combat, token);
+  assert.equal(combat.manageCalls.length, 3, "one call per group of two or more");
+  assert.deepEqual(
+    combat.manageCalls.map((c) => c.ids.slice().sort().join(",")).sort(),
+    [idsOf(bodiesOf(where, outer)), idsOf(bodiesOf(where, gangA)), idsOf(bodiesOf(where, gangB))].sort(),
+  );
+  assert.deepEqual(storedSets(combat), [idsOf(bodiesOf(where, outer)), idsOf(bodiesOf(where, gangA)), idsOf(bodiesOf(where, gangB))].sort());
+  const grouped = new Set(combat.flags.acks.groups.flatMap((g) => g.tokens));
+  assert.equal(grouped.has(bodiesOf(where, scout)[0].id), false);
+  assert.equal(combat.combatants.size, 8, "every body fights, and no group has an entry");
+});
+
+t("a group of one body makes no call, since the system refuses a single token", async () => {
+  const where = scene();
+  const lone = groupActor("Leader", [[monster("Chief"), 1]]);
+  const token = groupToken(where, lone);
+  const combat = combatIn();
+  await addToCombat(combat, token);
+  assert.equal(bodiesOf(where, lone).length, 1);
+  assert.equal(combat.manageCalls.length, 0);
+  assert.equal(combat.flags.acks, undefined);
+});
+
+t("a gang already in the fight is one of the warband's groups and keeps the roll it carries", async () => {
+  const { where, outer, gangA, gangB, token, combat } = warband();
+  const gangToken = groupToken(where, gangA, { x: 900, y: 900 });
+  await addToCombat(combat, gangToken);
+  assert.equal(combat.manageCalls.length, 1, "the gang alone is grouped when it joins");
+  combat.flags.acks.groups[0].initiative = 4;
+  await addToCombat(combat, token);
+  assert.equal(combat.manageCalls.length, 3, "the gang's group is held as it stands, and the warband's other two are made");
+  assert.deepEqual(storedSets(combat), [idsOf(bodiesOf(where, outer)), idsOf(bodiesOf(where, gangA)), idsOf(bodiesOf(where, gangB))].sort());
+  assert.equal(combat.flags.acks.groups.find((g) => g.tokens.length === 3).initiative, 4, "its rolled initiative is not cleared");
+  assert.equal([...combat.combatants].filter((c) => c.tokenId === gangToken.id).length, 0, "no entry of its own");
+  assert.equal(combat.combatants.size, 8);
+});
+
+t("a gang fighting as one token row is sent out with the warband's bodies and has no entry of its own", async () => {
+  const { where, gangA, token, combat } = warband();
+  const gangToken = groupToken(where, gangA, { x: 900, y: 900 });
+  await addToCombat(combat, gangToken);
+  await addToCombat(combat, gangToken);
+  assert.equal([...combat.combatants].filter((c) => c.tokenId === gangToken.id).length, 1, "gathered early: one row");
+  assert.equal(bodiesOf(where, gangA).length, 0);
+  await addToCombat(combat, token);
+  assert.equal([...combat.combatants].filter((c) => c.tokenId === gangToken.id).length, 0, "its row is gone");
+  assert.equal(bodiesOf(where, gangA).length, 3);
+  assert.equal(gangToken.hidden, true);
+  assert.equal(gangToken.getFlag(MODULE_ID, COMBAT_FLAG).combatId, combat.id);
+  assert.ok(storedSets(combat).includes(idsOf(bodiesOf(where, gangA))), "its bodies are one group");
+  assert.equal(combat.combatants.size, 8);
+});
+
+t("a gang token fighting in another combat, or a party's, keeps its row when the warband joins", async () => {
+  const { where, gangA, gangB, token, combat } = warband();
+  const away = groupToken(where, gangA, { x: 900, y: 900 });
+  const party = groupToken(where, gangB, { x: 800, y: 800, flags: { [MODULE_ID]: { formationId: "f1" } } });
+  const other = combatIn();
+  await addToCombat(other, away);
+  const [row] = await combat.createEmbeddedDocuments("Combatant", [{ tokenId: party.id, actorId: party.actorId, sceneId: where.id, hidden: false }]);
+  await settle();
+  assert.equal(combat.combatants.has(row.id), true, "a party's token is left to the party");
+  await addToCombat(combat, token);
+  assert.equal(combat.combatants.has(row.id), true);
+  assert.equal(away.getFlag(MODULE_ID, COMBAT_FLAG).combatId, other.id, "the other combat keeps it");
+});
+
+t("each call waits for the stored list to hold the group before the next reads it, however late the system writes", async () => {
+  const { where, outer, gangA, gangB, token, combat } = warband();
+  combat.lateMs = 25;
+  await addToCombat(combat, token);
+  assert.deepEqual(
+    combat.manageCalls.map((c) => c.read.length),
+    [0, 1, 2],
+    "every call read the groups the calls before it had made",
+  );
+  assert.deepEqual(storedSets(combat), [idsOf(bodiesOf(where, outer)), idsOf(bodiesOf(where, gangA)), idsOf(bodiesOf(where, gangB))].sort(), "no group lost to a stale read");
+});
+
+t("a system that never stores the group is waited on to the limit, warned about on the console, and the next gang goes on", async () => {
+  const { where, outer, gangA, combat } = warband();
+  const bodies = [];
+  for (const g of [outer, gangA]) {
+    for (let i = 0; i < 2; i++) {
+      const b = tokenDoc(where, { actorId: g.id, flags: { [MODULE_ID]: { group: g.uuid, member: `m${i}` } } });
+      where.tokens.set(b.id, b);
+      bodies.push(b);
+    }
+  }
+  await combat.createEmbeddedDocuments("Combatant", bodies.map((b) => ({ tokenId: b.id, actorId: b.actorId, sceneId: where.id })));
+  const calls = [];
+  combat.manageGroup = (tokens) => calls.push(tokens.map((x) => x.id));
+  const warned = [];
+  const was = console.warn;
+  console.warn = (m) => warned.push(m);
+  try {
+    await groupGangs(combat, outer, bodies, { interval: 2, timeout: 20 });
+  } finally {
+    console.warn = was;
+  }
+  assert.equal(calls.length, 2, "the second gang is still grouped");
+  assert.equal(warned.length, 2);
+  await groupGangs({ combatants: combat.combatants }, outer, bodies);
 });
 
 let failures = 0;

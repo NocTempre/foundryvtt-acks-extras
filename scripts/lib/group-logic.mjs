@@ -148,6 +148,24 @@ export function deployedTree(group, scenes) {
 }
 
 /**
+ * A fight's bodies cut into gangs, one set of tokens per group in `group`'s tree. A
+ * body belongs to the group its group flag names, the group itself first and the groups
+ * inside it after, nearest first. Only a body that is a combatant counts, since the
+ * system's grouping refuses a token that is not, and a group with fewer than two such
+ * bodies is left out, since the system refuses a group of one.
+ * @param {object} group the group actor whose token joined
+ * @param {Iterable<TokenDocument>} bodies the tokens of the group's tree on the scene
+ * @param {Set<string>} fighting the ids of the tokens that are combatants in the combat
+ * @returns {{group: object, tokens: TokenDocument[]}[]}
+ */
+export function gangPartition(group, bodies, fighting) {
+  const held = [...bodies].filter((b) => fighting.has(b.id));
+  return groupTree(group)
+    .map((owner) => ({ group: owner, tokens: held.filter((b) => b.getFlag?.(MODULE_ID, GROUP_FLAG) === owner.uuid) }))
+    .filter((gang) => gang.tokens.length > 1);
+}
+
+/**
  * The living bodies one group holds in its own stacks, none for an emptied one.
  * Reads the derived total when the data model is live and falls back to summing
  * the raw stacks, so a plain source object answers the same.

@@ -7,14 +7,16 @@
  * docs/lib/GROUPS.md, "In a fight".
  *
  * Only the primary GM acts, since a deploy places tokens and a recall writes the
- * group. `deploy` and `recall` arrive as arguments to `registerGroupCombat`, so this
+ * group. Each gang among the bodies, a group of two or more, is then grouped for
+ * initiative by the system's own tracker call, `groupGangs`; a group inside the one
+ * that joined, already in the combat, fights as one of its gangs. `deploy` and `recall` arrive as arguments to `registerGroupCombat`, so this
  * file imports nothing from group.mjs, which registers it.
  *
  * A party's group is left to the party: lib cannot import the formation, so the
  * party token's flag and the formation setting are read here by key.
  */
 import { GROUP_LANG_PREFIX, MODULE_ID } from "./constants.mjs";
-import { MEMBER_FLAG, deployedTree, groupTree, isGroupActor } from "./group-logic.mjs";
+import { MEMBER_FLAG, deployedTree, gangPartition, groupTree, isGroupActor } from "./group-logic.mjs";
 import { gmIds, isPrimaryGM, makeLoc, unset } from "./util.mjs";
 
 const loc = makeLoc(GROUP_LANG_PREFIX);
@@ -105,6 +107,79 @@ async function sendOut(combatant, token, group, deploy) {
     .map((b) => ({ tokenId: b.id, actorId: b.actorId, sceneId: scene.id, hidden: combatant.hidden }));
   if (created.length) await combat.createEmbeddedDocuments("Combatant", created);
   if (combat.combatants.has(combatant.id)) await combatant.delete();
+  await absorbNested(combat, group, deploy);
+  await groupGangs(combat, group, deployedTree(group, [scene]));
+}
+
+/**
+ * A group inside the one that joined whose own token is a combatant here fights as one
+ * of the joining group's gangs: it goes out the way a token added to the combat does,
+ * which leaves it no entry of its own. A token fighting in another combat is left to
+ * it, and so is a party's.
+ */
+async function absorbNested(combat, group, deploy) {
+  const inside = new Set(groupTree(group).slice(1).map((g) => g.uuid));
+  if (!inside.size) return;
+  const rows = [...combat.combatants].filter((c) => {
+    const token = c.token;
+    return inside.has(token?.actor?.uuid) && !token.getFlag(MODULE_ID, MEMBER_FLAG) && !belongsToParty(token, token.actor);
+  });
+  for (const row of rows) {
+    const token = row.token;
+    const fight = token.getFlag(MODULE_ID, COMBAT_FLAG);
+    if (fight && game.combats.has(fight.combatId)) continue;
+    await sendOut(row, token, token.actor, deploy);
+  }
+}
+
+/** The groups the system's tracker holds for `combat`; a plain read, since the namespace is the system's. */
+const storedGroups = (combat) => combat.flags?.acks?.groups ?? [];
+
+/** Does the stored list hold a group of exactly these token ids? */
+function holdsGroup(combat, ids) {
+  return storedGroups(combat).some((g) => g?.tokens?.length === ids.length && ids.every((id) => g.tokens.includes(id)));
+}
+
+/** Poll `test` every `interval` ms until it holds or `timeout` ms pass; says whether it held. */
+async function until(test, { interval, timeout }) {
+  const end = Date.now() + timeout;
+  while (!test()) {
+    if (Date.now() >= end) return false;
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  return true;
+}
+
+/**
+ * Group each gang of a fight for initiative by the system's own call, the one the
+ * tracker's group control makes, `combat.manageGroup(tokens)`, once for each group in
+ * `group`'s tree that has two bodies fighting. A group the stored list already holds as
+ * it is stands untouched, because a call replaces it and clears the roll it carried.
+ *
+ * The system's call does not return its write, so the stored list is read after each
+ * call until it holds the group, and the next call starts from a list that has it. That
+ * wait is ordering and writes nothing. Where the list never holds the group the wait
+ * ends at `timeout` and the next gang goes on.
+ * @param {Combat} combat
+ * @param {object} group the group actor whose token joined
+ * @param {Iterable<TokenDocument>} bodies the tokens of the group's tree on the scene
+ * @param {{interval?: number, timeout?: number}} [options] polling step and limit, in ms
+ */
+export async function groupGangs(combat, group, bodies, { interval = 10, timeout = 3000 } = {}) {
+  if (typeof combat?.manageGroup !== "function") return;
+  try {
+    const fighting = new Set([...combat.combatants].map((c) => c.tokenId));
+    for (const { group: gang, tokens } of gangPartition(group, bodies, fighting)) {
+      const ids = tokens.map((t) => t.id);
+      if (holdsGroup(combat, ids)) continue;
+      combat.manageGroup(tokens);
+      if (!(await until(() => holdsGroup(combat, ids), { interval, timeout }))) {
+        console.warn(`${MODULE_ID} | the tracker never stored a group for ${gang.name}`);
+      }
+    }
+  } catch (err) {
+    console.error(`${MODULE_ID} | grouping a fight's gangs failed`, err);
+  }
 }
 
 /**
