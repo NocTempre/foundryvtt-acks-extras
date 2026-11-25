@@ -23,7 +23,7 @@
  *   fight that ends moves it to the world clock.
  */
 import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
-import { carriesItem, figureNumber, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { carriesItem, figureNumber, isEngagedActivation, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseReach, reachSnapshot, releaseReachMoment, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import {
@@ -31,7 +31,7 @@ import {
   dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoGuard, undoPlan,
 } from "./item-run-logic.mjs";
-import { admittedWithCount, freshKey, patchCountIn, patchOut, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
+import { admittedWithCount, freshKey, patchCountIn, patchEngagedClose, patchEngagedReopen, patchOut, ownsEveryBearer, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
@@ -49,7 +49,7 @@ const loc = makeLoc(LANG_PREFIX);
 const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
-const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, tickSubject: `${MODULE_ID}.itemRun.tickSubject`, undo: `${MODULE_ID}.itemRun.undo` });
+const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, tickSubject: `${MODULE_ID}.itemRun.tickSubject`, undo: `${MODULE_ID}.itemRun.undo`, notEngaged: `${MODULE_ID}.itemRun.notEngaged` });
 
 /** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
 const runners = new Map();
@@ -322,11 +322,13 @@ export const ownerIdsOf = (doc) => (game.users ?? []).filter((u) => doc?.testUse
 async function pressHere(payload) {
   const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
   const { message, card: named } = cardOf(messageId);
-  const card = named?.itemUuid === itemUuid ? named : null;
-  const rowKey = card?.rowKey ?? payload.rowKey;
-  const activationId = card?.activationId ?? payload.activationId;
-  const subKey = safeKey(subjectUuid);
   const asked = payload.entryKey ? String(payload.entryKey) : "";
+  // An engaged card names no item, row or activation of its own: the entry it holds names them, and the press must match the entry's item.
+  const engagedEntry = named?.kind === "engaged" ? (named.entries?.[asked] ?? null) : null;
+  const card = named?.itemUuid === itemUuid || (engagedEntry?.itemUuid && engagedEntry.itemUuid === itemUuid) ? named : null;
+  const rowKey = engagedEntry?.rowKey ?? card?.rowKey ?? payload.rowKey;
+  const activationId = engagedEntry?.activationId ?? card?.activationId ?? payload.activationId;
+  const subKey = safeKey(subjectUuid);
   const waiting = !!card?.subjects?.[subKey] && !asked;
   const claim = `${messageId}|${asked || subKey}`;
   if (writing.has(claim)) return { ok: false, reason: "applied" };
@@ -354,6 +356,7 @@ async function pressHere(payload) {
     const records = [];
     const names = [];
     let life = "raised";
+    let immune = null;
     if (timed) {
       // A row with `reach.lasts` writes under fixed ids (one condition and one window per item kind, a later entry replacing the earlier one) and both records carry the card's id and never the activation's, so lowering the reach leaves them.
       const kindKey = kindKeyOf(item, row);
@@ -370,7 +373,10 @@ async function pressHere(payload) {
         }
       } else {
         const dueAt = dueAtAfter(figures.immunityTurns, turnSeconds(), game.time?.worldTime);
-        if (dueAt !== null) records.push(immunityRecordData({ name: item.name, spellKey: kindKey, dueAt, cite: itemCite(item), ...flags, activationId: cardId, id: immuneRecordId(kindKey), ...own }));
+        if (dueAt !== null) {
+          immune = figures.immunityTurns;
+          records.push(immunityRecordData({ name: item.name, spellKey: kindKey, dueAt, cite: itemCite(item), ...flags, activationId: cardId, id: immuneRecordId(kindKey), ...own }));
+        }
       }
       const earlier = records.map((r) => r._id).filter((id) => actor.effects?.get?.(id));
       if (earlier.length) await actor.deleteEmbeddedDocuments("ActiveEffect", earlier, managedDelete());
@@ -388,7 +394,7 @@ async function pressHere(payload) {
     }
     const made = !records.length ? [] : timed ? await actor.createEmbeddedDocuments("ActiveEffect", records, { keepId: true }) : await actor.createEmbeddedDocuments("ActiveEffect", records);
     const prior = card?.entries?.[key] ?? {};
-    const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(verdict.early ? { early: true } : {}) };
+    const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
     if (message && card) {
       const patch = { [`entries.${key}`]: entry };
@@ -481,12 +487,73 @@ async function undoHere({ messageId, entryKey, requestUserId = null }) {
   if (!entry) return { ok: false, reason: "gone" };
   const user = requestUserId ? game.users.get(requestUserId) : game.user;
   if (!mayUndoEntry(entry, user?.id, ownerIdsOf(subjectOf(entry.subject)))) return { ok: false, reason: "notOwner" };
+  if (entry.state === "closed") return reopenEngaged({ message, card, entryKey, entry });
   if (entry.state !== "applied") return { ok: false, reason: "applied" };
   const done = await undoEntry({ subject: entry.subject, entry, entryKey });
   if (!done.ok) return { ok: false, reason: "gone" };
   await serialized(messageId, () => patchCard(message, { [`entries.${entryKey}.state`]: "undone", [`entries.${entryKey}.recordIds`]: [] }));
   await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "undone" }, undone: true, early: false });
   return { ok: true, removed: done.removed };
+}
+
+/**
+ * Reopen a row an engaged card's Not engaged closed, on the GM's window: the row
+ * is open again with its Save and Not engaged, its moment key held again, and
+ * the whispered card reads it open. Nothing is deleted, since the close wrote
+ * nothing.
+ */
+async function reopenEngaged({ message, card, entryKey, entry }) {
+  await serialized(message.id, () => patchCard(message, patchEngagedReopen(entryKey)));
+  if (entry.momentKey) holdReachMoment(entry.momentKey, card.stamp || null);
+  await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "open" }, undone: true, early: false });
+  return { ok: true, removed: [] };
+}
+
+/**
+ * Close an open row of an engaged card as not engaged, on the GM's window: the
+ * seat must own EVERY bearer the row names (Foundry's ownership on the relayed
+ * seat, never a role), and the row must still be open. It strikes the open
+ * prompt (the row is closed, so its Save and Not engaged are gone), releases
+ * the moment key, answers the whispered card, and writes no save and no record.
+ * The row keeps its bearers and says who closed it; Undo reopens it.
+ *
+ * @param {{messageId: string, entryKey: string, requestUserId?: string|null}} p
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+export async function notEngagedHere({ messageId, entryKey, requestUserId = null }) {
+  const { message, card } = cardOf(messageId);
+  const entry = card?.kind === "engaged" ? (card.entries?.[entryKey] ?? null) : null;
+  if (!message || !entry) return { ok: false, reason: "struck" };
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  if (!user || !ownsEveryBearer(entry, (uuid) => fromUuidSync(uuid)?.testUserPermission?.(user, "OWNER") === true)) return { ok: false, reason: "notBearer" };
+  const claim = `${messageId}|${entryKey}`;
+  if (writing.has(claim)) return { ok: false, reason: "applied" };
+  writing.add(claim);
+  try {
+    const closed = await serialized(messageId, async () => {
+      const fresh = cardOf(messageId).card?.entries?.[entryKey];
+      if (fresh?.state !== "open") return false;
+      await patchCard(message, patchEngagedClose(entryKey, { id: user.id, name: user.name ?? "" }));
+      return true;
+    });
+    if (!closed) return { ok: false, reason: "applied" };
+    if (entry.momentKey) releaseReachMoment(entry.momentKey);
+    await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "closed" }, early: false });
+    return { ok: true };
+  } finally {
+    writing.delete(claim);
+  }
+}
+
+/**
+ * Close a row of an engaged card as not engaged, from any seat: the GM's window
+ * runs it, a Player's seat asks through the carrier's own relay and the GM's
+ * window checks ownership of every bearer again on the server-attested sender.
+ *
+ * @param {{messageId: string, entryKey: string}} p
+ */
+export async function notEngaged(p) {
+  return (await executeAsGM(HANDLER.notEngaged, { messageId: p.messageId, entryKey: p.entryKey })) ?? { ok: false, reason: "relay" };
 }
 
 /**
@@ -709,7 +776,7 @@ export async function tickBearer(p) {
  * item kind and initiative; a prompt already held is answered `held`. Answers
  * the act taken, or null where there was none.
  */
-export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region, engagedBy = null }) {
+export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region, engagedBy = null, bearer = null }) {
   const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
   const undecided = admitted === null || admitted === undefined;
   const { card } = cardOfActivation(config.activationId);
@@ -727,7 +794,9 @@ export async function handleReachMoment({ moment, config, item, row, reach, subj
     if (cardAct) await presenter?.({ ok: true, kind: "reach", act: cardAct, moment, config, rowKey: row.key, item, subject });
     return act;
   }
-  const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject, ...(engagedBy ? { engagedBy } : {}) };
+  // The turn start's group dispatch names every bearer that engages; a step-in names the one reach it came through.
+  const engaging = engagedBy ?? (isEngagedActivation(config.activationId) && verdict === true && bearer?.token?.uuid ? [bearer.token.uuid] : null);
+  const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject, ...(engaging ? { engagedBy: engaging } : {}) };
   if (act === "prompt") {
     const key = momentKey({ ...fightNow(), subjectUuid: subject.token?.uuid, kindKey: kindKeyOf(item, row) });
     if (!holdReachMoment(key, currentStamp())) return "held";
@@ -1011,6 +1080,7 @@ export function installItemRun() {
   registerHandler(HANDLER.untick, (payload) => countBearerOut(payload));
   registerHandler(HANDLER.tickSubject, (payload) => countSubjectIn(payload));
   registerHandler(HANDLER.undo, (payload) => undoHere(payload));
+  registerHandler(HANDLER.notEngaged, (payload) => notEngagedHere(payload));
   setReachHandler(handleReachMoment);
   setReachTeardown(liftActivation);
   const on = (kind) => (combat, combatantId) => {

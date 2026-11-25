@@ -5,6 +5,12 @@
  * once-only use's card. Registered with `setUsePresenter`, and heard by the
  * carrier's press, lift and tick listeners.
  *
+ * - An always-on engaged reach (T10, `isEngagedActivation`) raises no card: its
+ *   prompt posts, or joins, the engaged card of its subject's moment, one row per
+ *   item kind with every bearer of the kind named on it (board 5b), and whispers
+ *   the same save card. The row's "Not engaged" closes it with no save and no
+ *   record; the bearers' owners alone are offered it.
+ *
  * - A raise posts one message holding the card's state (`FLAG_ITEM_RUN_CARD`,
  *   `item-run-card-logic.mjs` `newCard`): the subjects it lists and ONE
  *   moment-keyed entry store. A reach's `list`, `refuse`, `out`, `forget` and
@@ -23,16 +29,16 @@
  */
 import { FLAG_ITEM_RUN_CARD, FLAG_ITEM_RUN_WHISPER, LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { renderRollCard } from "./roll-card.mjs";
-import { figureNumber, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { figureNumber, isEngagedActivation, readReach, reachAdmits, turnStamp } from "./aura-reach-logic.mjs";
 import { lowerReach, releaseReachMoment } from "./aura-reach.mjs";
-import { itemCite, itemRunRowsOf, promptCardModel } from "./item-run-logic.mjs";
-import { admittedWithCount, countSubjectAction, isCountedIn, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
-import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
+import { itemCite, itemRunRowsOf, promptCardModel, reachFigures } from "./item-run-logic.mjs";
+import { admittedWithCount, blankTip, countSubjectAction, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
+import { cardOf, kindKeyOf, notEngaged, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { isMarkerActor } from "./place.mjs";
-import { isPrimaryGM, makeLoc } from "./util.mjs";
+import { isPrimaryGM, makeLoc, unset } from "./util.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -42,6 +48,7 @@ const HANDLER = Object.freeze({ recheck: `${MODULE_ID}.itemRun.recheck` });
 const WORD_KEYS = [
   "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "countSubjectTip", "countSubjectRaisedTip", "counted", "always", "bearer", "well", "check", "lower", "colDistance", "given",
   "earlyTip", "saveTip", "undoTip", "countInTip", "countOutTip", "bearerTip", "checkTip", "lowerTip",
+  "engagedBy", "notEngaged", "notEngagedTip", "engagedRead",
 ];
 const words = () => ({ ...Object.fromEntries(WORD_KEYS.map((key) => [key, loc(`itemRun.card.${key}`)])), tick: loc("itemRun.card.countIn"), tickTip: loc("itemRun.card.countInTip") });
 
@@ -113,6 +120,7 @@ function momentPatch(card, result) {
 /** A moment of a reach reaches its raised card: list, mute or ask; a moment that comes before the card waits for it. */
 async function onReach(result) {
   const { config } = result;
+  if (isEngagedActivation(config.activationId)) return onEngaged(result);
   const messageId = messageIdFor(config.activationId);
   if (!messageId) {
     waitingMoments.set(config.activationId, [...(waitingMoments.get(config.activationId) ?? []), result].slice(-200));
@@ -126,6 +134,62 @@ async function onReach(result) {
     for (const entry of struck) releaseReachMoment(entry.momentKey);
     await patchCard(message, patch);
     if (asked) await whisperSave({ message, key: asked, subjectToken: result.subject.token, item: result.item, rowKey: result.rowKey, activationId: config.activationId });
+  });
+}
+
+/** The engaged cards this window posted, by `engagedCardKey`: the message id of the card of one subject's moment. */
+const engagedPosted = new Map();
+
+/** The chat messages that hold an engaged card. */
+const engagedMessages = () => [...(game.messages ?? [])].filter((m) => m?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD]?.kind === "engaged");
+
+/** The message id of the engaged card for a subject's moment, found or posted. Posting is serialized per card key, so two kinds asked together land on one card. */
+function engagedCardFor({ cardKey, stamp, round, moment, subject, title }) {
+  return serialized(`engaged:${cardKey ?? foundry.utils.randomID()}`, async () => {
+    const known = cardKey ? (engagedPosted.get(cardKey) ?? engagedMessages().find((m) => m.flags[MODULE_ID][FLAG_ITEM_RUN_CARD].cardKey === cardKey)?.id) : null;
+    if (known && game.messages?.get?.(known)) return known;
+    const card = newEngagedCard({ cardKey, stamp, round, moment, subject, title, cardId: foundry.utils.randomID() });
+    const token = fromUuidSync(subject.uuid);
+    const message = await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ token }), content: storedContent(loc("itemRun.card.engagedTitle", { item: title }), subject.name), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
+    if (cardKey && message?.id) engagedPosted.set(cardKey, message.id);
+    return message?.id ?? null;
+  });
+}
+
+/**
+ * An always-on engaged reach's moment: only a prompt draws anything. It opens a
+ * row, for the item kind, on the engaged card of the subject's moment (posted
+ * for the first kind asked), naming every bearer that engages the subject; the
+ * subject's open rows of the same kind on earlier moments' cards are struck and
+ * their held keys released; and the save card is whispered to the owners of the
+ * subject's token. A skip, an undetermined subject or a listing posts nothing.
+ */
+async function onEngaged(result) {
+  const { item, rowKey, subject, momentKey: key, moment, config } = result;
+  if (result.act !== "prompt" || !item || !subject?.token) return;
+  const row = itemRunRowsOf(item).find((r) => r?.key === rowKey);
+  if (!row) return;
+  const combat = game.combat?.started ? game.combat : null;
+  const stamp = turnStamp({ combatId: combat?.id ?? null, round: combat?.round, turn: combat?.turn });
+  const subjectInfo = { uuid: subject.token.uuid, name: subject.token.name };
+  const kindKey = kindKeyOf(item, row);
+  const messageId = await engagedCardFor({ cardKey: engagedCardKey({ stamp, subjectUuid: subjectInfo.uuid }), stamp, round: combat?.round ?? null, moment, subject: subjectInfo, title: item.name });
+  if (!messageId) return;
+  const bearers = (result.engagedBy ?? []).map((uuid) => ({ uuid, name: fromUuidSync(uuid)?.name ?? "" }));
+  const entry = engagedEntry({ subject: subjectInfo.uuid, moment, momentKey: key, kindKey, itemUuid: item.uuid, rowKey, activationId: config.activationId, bearers });
+  for (const other of engagedMessages()) {
+    if (other.id === messageId) continue;
+    const stale = openEngagedOf(other.flags[MODULE_ID][FLAG_ITEM_RUN_CARD], { subjectUuid: subjectInfo.uuid, kindKey });
+    if (!stale.length) continue;
+    await serialized(other.id, () => patchCard(other, Object.fromEntries(stale.map(([old]) => [`entries.${old}`, unset()]))));
+    for (const [, old] of stale) releaseReachMoment(old.momentKey);
+  }
+  await serialized(messageId, async () => {
+    const { message, card } = cardOf(messageId);
+    if (!message || !card) return;
+    const { key: entryKey, patch } = patchEngagedPrompt(card, { momentKey: key, entry });
+    await patchCard(message, patch);
+    await whisperSave({ message, key: entryKey, subjectToken: subject.token, item, rowKey, activationId: config.activationId, engaged: true });
   });
 }
 
@@ -144,11 +208,18 @@ function saveFigureOf(actor, row, item) {
 /** The names of the conditions a row's failure writes, localized. */
 const conditionNames = (row) => (row?.conditions ?? []).map((key) => game.i18n.localize(CONFIG.statusEffects?.find?.((s) => s.id === key)?.name ?? String(key)));
 
-/** What a failed save lasts, in words: the subject's next turn start in a fight, else its first one in a fight. */
-const lifeWord = (life) => loc(`itemRun.card.life.${life === "turn" || life === "mark" ? life : "raised"}`);
+/** What a failed save lasts, in words: the subject's next turn start in a fight, else its first one in a fight; a timed row's interval; else until the item is lowered. */
+const lifeWord = (life) => loc(`itemRun.card.life.${life === "turn" || life === "mark" || life === "timed" ? life : "raised"}`);
+
+/** What a failed save of a row lasts as the press will write it: a row that names its own interval holds for it (untimed where none was imported), any other row to the subject's next turn start in a fight or its first one in a fight. */
+function failLife(row, inFight) {
+  const figures = reachFigures(row);
+  if (figures?.lastsNamed === true) return figures.lasts !== null ? "timed" : "raised";
+  return inFight ? "turn" : "mark";
+}
 
 /** Whisper the save card for an opened entry to the owners of the subject's token, and keep its id on the entry. */
-async function whisperSave({ message, key, subjectToken, item, rowKey, activationId }) {
+async function whisperSave({ message, key, subjectToken, item, rowKey, activationId, engaged = false }) {
   const recipients = ownerIdsOf(subjectToken);
   if (!recipients.length || !item) return;
   const row = itemRunRowsOf(item).find((r) => r?.key === rowKey);
@@ -157,14 +228,14 @@ async function whisperSave({ message, key, subjectToken, item, rowKey, activatio
   const inFight = !!game.combat?.combatants?.find?.((c) => c.tokenId === subjectToken.id);
   const names = conditionNames(row).join(", ");
   const model = saveCardModel({
-    title: loc("itemRun.card.whisperTitle", { item: item.name }), subtitle: subjectToken.name, words: w, target, targetTip: tip, ids: { itemUuid: item.uuid, rowKey, activationId }, subject: subjectToken.uuid, entryKey: key, messageId: message.id,
-    ifFails: names ? loc("itemRun.card.ifFails", { names, life: lifeWord(inFight ? "turn" : "mark") }) : "",
+    title: loc(engaged ? "itemRun.card.engagedTitle" : "itemRun.card.whisperTitle", { item: item.name }), subtitle: subjectToken.name, words: w, target, targetTip: tip, ids: { itemUuid: item.uuid, rowKey, activationId }, subject: subjectToken.uuid, entryKey: key, messageId: message.id,
+    ifFails: names ? loc("itemRun.card.ifFails", { names, life: lifeWord(failLife(row, inFight)) }) : "",
   });
   const whisper = await ChatMessage.create({
     whisper: recipients,
     speaker: ChatMessage.getSpeaker?.({ token: subjectToken }),
     content: renderRollCard(model),
-    flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_WHISPER]: { messageId: message.id, entryKey: key, subject: subjectToken.uuid, itemUuid: item.uuid, rowKey, activationId } } },
+    flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_WHISPER]: { messageId: message.id, entryKey: key, subject: subjectToken.uuid, itemUuid: item.uuid, rowKey, activationId, ...(engaged ? { engaged: true } : {}) } } },
   });
   if (whisper?.id) await patchCard(message, { [`entries.${key}.whisperId`]: whisper.id });
 }
@@ -345,6 +416,49 @@ function raisedBody(message, card) {
   return renderRollCard(model);
 }
 
+/** The lines the engaged card's well names: what each failed save wrote and for how long. */
+const engagedWellOf = (card) => Object.values(card.entries ?? {})
+  .filter((e) => e.state === "applied" && e.saved === false && e.names?.length)
+  .map((e) => `${card.subject?.name ?? ""}: ${e.names.join(", ")}, ${lifeWord(e.life)}`);
+
+/**
+ * Build the body of an engaged card for a seat: one row per item kind asked,
+ * read live. A save's target is the subject's own save of the kind the row
+ * names, its tooltip computed with the page; a blank one is a blank cell whose
+ * tooltip is the page alone. The "Engaged by" tooltip names the bearers, the
+ * adjacent square and the pages.
+ */
+function engagedBody(message, card) {
+  const w = words();
+  const owns = (uuid) => fromUuidSync(uuid)?.testUserPermission?.(game.user, "OWNER") === true;
+  const seat = { ownsSubject: owns, ownsBearers: (entry) => ownsEveryBearer(entry, owns), mayUndo: (entry, key) => entry?.presser === game.user.id || owns(key) };
+  const subjectName = card.subject?.name ?? "";
+  const rows = Object.entries(card.entries ?? {}).map(([entryKey, entry]) => {
+    const item = fromUuidSync(entry.itemUuid ?? "");
+    const row = itemRunRowsOf(item).find((r) => r?.key === entry.rowKey);
+    const cite = itemCite(item);
+    const state = ["open", "applied", "undone", "closed"].includes(entry.state) ? entry.state : "open";
+    const figure = state === "closed" ? { target: null, tip: null } : saveFigureOf(fromUuidSync(entry.subject)?.actor, row, item);
+    const bearerNames = (entry.bearers ?? []).map((b) => b.name).join(", ");
+    const tip = loc("itemRun.card.engagedByTip", { names: bearerNames, subject: subjectName, item: item?.name ?? "" });
+    const holds = entry.saved === true ? (entry.immune !== undefined && entry.immune !== null
+      ? { text: loc("itemRun.card.engagedHolds", { turns: entry.immune }), tip: loc("itemRun.card.engagedHoldsTip", { turns: entry.immune, item: item?.name ?? "" }) + (cite ? ` (${cite})` : "") }
+      : { text: w.saved, ...(blankTip({ cite }) ? { tip: blankTip({ cite }) } : {}) }) : null;
+    return {
+      entryKey, entry, state, bearerNames, bearersTip: tip + (cite ? ` (${cite})` : ""), target: figure.target, targetTip: figure.tip ?? blankTip({ cite }),
+      ids: { itemUuid: entry.itemUuid, rowKey: entry.rowKey, activationId: entry.activationId }, ...(holds ? { holds } : {}),
+      closedWord: loc("itemRun.card.closedBy", { name: entry.closedBy?.name ?? "" }), notEngagedAria: loc("itemRun.card.notEngagedAria", { subject: subjectName, bearers: bearerNames }),
+    };
+  });
+  const at = loc(card.moment === "turnStart" ? "itemRun.card.engagedAtTurnStart" : "itemRun.card.engagedAtEnter");
+  const model = engagedCardModel({
+    title: loc("itemRun.card.engagedTitle", { item: card.title ?? "" }),
+    subtitle: card.round === null || card.round === undefined ? loc("itemRun.card.engagedSubtitle", { name: subjectName, at }) : loc("itemRun.card.engagedSubtitleRound", { name: subjectName, at, round: card.round }),
+    note: loc("itemRun.card.engagedNote"), noteTooltip: loc("itemRun.card.engagedNoteTip"), words: w, rows, well: engagedWellOf(card), seat,
+  });
+  return renderRollCard(model);
+}
+
 /** Build the body of a once-only use's card for a seat. */
 function onceBody(message, card) {
   const w = words();
@@ -380,15 +494,16 @@ function whisperBody(w) {
   const mine = token?.testUserPermission?.(game.user, "OWNER") === true;
   const names = conditionNames(row).join(", ");
   return renderRollCard(saveCardModel({
-    title: loc("itemRun.card.whisperTitle", { item: item?.name ?? "" }), subtitle: token?.name ?? "", words: words(), target, targetTip: tip, ids: { itemUuid: w.itemUuid, rowKey: w.rowKey, activationId: w.activationId },
+    title: loc(w.engaged ? "itemRun.card.engagedTitle" : "itemRun.card.whisperTitle", { item: item?.name ?? "" }), subtitle: token?.name ?? "", words: words(), target, targetTip: tip, ids: { itemUuid: w.itemUuid, rowKey: w.rowKey, activationId: w.activationId },
     subject: w.subject, entryKey: w.entryKey, messageId: w.messageId, entry: card ? entry : null, canPress: mine && (entry?.state ?? "open") === "open" && !!entry,
-    ifFails: names ? loc("itemRun.card.ifFails", { names, life: lifeWord(game.combat?.combatants?.find?.((c) => c.tokenId === token?.id) ? "turn" : "mark") }) : "",
+    ifFails: names ? loc("itemRun.card.ifFails", { names, life: lifeWord(failLife(row, !!game.combat?.combatants?.find?.((c) => c.tokenId === token?.id))) }) : "",
+    ...(entry?.state === "closed" ? { closedWord: loc("itemRun.card.closedBy", { name: entry.closedBy?.name ?? "" }) } : {}),
   }));
 }
 
 /** Say why a press was refused. */
 function refusal(reason) {
-  const key = ["waiting", "struck", "applied", "immune", "notOwner", "noCard", "gone", "figure", "noFigure"].includes(reason) ? reason : "press";
+  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure"].includes(reason) ? reason : "press";
   ui.notifications?.warn?.(loc(`itemRun.refused.${key}`));
 }
 
@@ -406,6 +521,7 @@ async function press(message, button) {
     case "itemRun.untick": return fail(await untickBearer({ itemUuid: ids.itemUuid, rowKey: ids.rowKey, messageId }));
     case "itemRun.lower": return lowerReach({ tokenUuid: cardOf(messageId).card?.bearer?.uuid, activationId: ids.activationId });
     case "itemRun.recheck": return fail(await recheck({ messageId }));
+    case "itemRun.notEngaged": return fail(await notEngaged({ messageId, entryKey: d.entryKey ?? "" }));
     default: return null;
   }
 }
@@ -418,7 +534,7 @@ function onRender(message, html) {
   const root = html?.nodeType === 1 ? html : (html?.[0] ?? null);
   const body = root?.querySelector?.(".message-content");
   if (!body || !(card || whisper)) return;
-  body.innerHTML = whisper ? whisperBody(whisper) : card.kind === "once" ? onceBody(message, card) : raisedBody(message, card);
+  body.innerHTML = whisper ? whisperBody(whisper) : card.kind === "once" ? onceBody(message, card) : card.kind === "engaged" ? engagedBody(message, card) : raisedBody(message, card);
   body.querySelectorAll("[data-action^='itemRun.']").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -445,4 +561,4 @@ export function installItemRunPresenter() {
   Hooks.on("renderChatMessageHTML", onRender);
 }
 
-export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, messageIdFor, refusal, saveFigureOf };
+export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, lifeWord, messageIdFor, refusal, saveFigureOf };

@@ -38,12 +38,14 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  * @property {string} [icon]
  * @property {Record<string, string|number|boolean>} [data]
  * @property {string} [tooltip]
+ * @property {string} [ariaLabel] The button's accessible name where its face does not name it in full.
  * @property {boolean} [disabled]
  */
 
 /**
  * @typedef {object} RollCardRow
  * @property {string}  name       Who rolled. Escaped here.
+ * @property {string} [nameTooltip] Hover text for the name, assembled at render and written as text, never read as a lang key.
  * @property {number|string} total  What they rolled.
  * @property {number} [target]     The number they needed; the Target column
  *                                 appears only if some row in the section has one.
@@ -87,8 +89,9 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
 const dataName = (key) => `data-${String(key).replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
 
 /** One button of a row or of the card's footer. */
-function buttonHtml({ action, label, icon, data, tooltip, disabled }) {
+function buttonHtml({ action, label, icon, data, tooltip, ariaLabel, disabled }) {
   let attrs = ` data-action="${esc(action)}"`;
+  if (ariaLabel) attrs += ` aria-label="${esc(ariaLabel)}"`;
   for (const [key, value] of Object.entries(data ?? {})) attrs += ` ${esc(dataName(key))}="${esc(value)}"`;
   if (tooltip) attrs += ` data-tooltip-text="${esc(tooltip)}"`;
   if (disabled) attrs += " disabled";
@@ -125,7 +128,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
   for (const row of rows) {
     const tip = row.tooltipText ? ` data-tooltip-text="${esc(row.tooltipText)}"` : row.tooltip ? ` data-tooltip="${esc(row.tooltip)}"` : "";
     html += `<tr class="${EMPHASIS[row.emphasis] ?? ""}">`;
-    html += `<td>${esc(row.name)}`;
+    html += `<td${row.nameTooltip ? ` data-tooltip-text="${esc(row.nameTooltip)}"` : ""}>${esc(row.name)}`;
     if (row.detail) html += `<span class="acks-extras-roll-detail">${esc(row.detail)}</span>`;
     html += `</td>`;
     if (showAside) html += `<td class="acks-nums"${row.aside && row.asideTooltip ? ` data-tooltip-text="${esc(row.asideTooltip)}"` : ""}>${esc(row.aside)}</td>`;
@@ -163,6 +166,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
  * @param {Array<{title?: string, titleTooltip?: string, rows: RollCardRow[], chips?: Array<{label: string, tooltipText?: string}>}>} card.sections
  *                                    A section's `chips` print under its table, as a list of labels with no figure.
  * @param {string}  [card.footnote]   Small print at the foot (who could not roll).
+ * @param {string[]} [card.lines]     More small print, one paragraph each, under the footnote: a line a seat sees and another does not is its own entry.
  * @param {string}  [card.empty]      What the card says when no section has a row,
  *                                    already localized. A card with no rows
  *                                    returns "" unless this is given, in which
@@ -179,7 +183,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
  *                                    Column headings in place of the defaults, already localized.
  * @returns {string} HTML, or "" if there is nothing to show.
  */
-export function renderRollCard({ title, subtitle, note, noteTooltip, sections = [], footnote, empty, bare, buttons, labels = {} } = {}) {
+export function renderRollCard({ title, subtitle, note, noteTooltip, sections = [], footnote, lines, empty, bare, buttons, labels = {} } = {}) {
   const tables = sections.map((section) => sectionHtml(section, labels)).join("");
   if (!tables && !empty && !bare) return "";
   let html = `<div class="acks-extras-roll-card acks-chat">`;
@@ -189,6 +193,7 @@ export function renderRollCard({ title, subtitle, note, noteTooltip, sections = 
   if (note) html += `<p class="acks-extras-roll-note"${noteTooltip ? ` data-tooltip-text="${esc(noteTooltip)}"` : ""}>${esc(note)}</p>`;
   html += tables || (empty ? `<p class="acks-extras-roll-note">${esc(empty)}</p>` : "");
   if (footnote) html += `<p class="acks-extras-roll-footnote">${esc(footnote)}</p>`;
+  for (const line of lines ?? []) html += `<p class="acks-extras-roll-footnote">${esc(line)}</p>`;
   if (buttons?.length) html += `<footer class="acks-extras-roll-actions">${buttons.map(buttonHtml).join("")}</footer>`;
   return `${html}</div></div>`;
 }

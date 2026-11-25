@@ -326,19 +326,162 @@ export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows
  * applied it reads the total, the target and the result, and once undone it says
  * so. The press names the raised card's message and the entry's key.
  *
- * @param {{title: string, subtitle: string, words: object, target: number|null, targetTip?: string|null, ids: object, subject: string, entryKey: string, messageId: string, entry?: object|null, ifFails?: string, canPress?: boolean}} p
+ * @param {{title: string, subtitle: string, words: object, target: number|null, targetTip?: string|null, ids: object, subject: string, entryKey: string, messageId: string, entry?: object|null, ifFails?: string, canPress?: boolean, closedWord?: string}} p `closedWord` is what a row closed as not engaged reads, with who closed it.
  */
-export function saveCardModel({ title, subtitle, words, target, targetTip = null, ids, subject, entryKey, messageId, entry = null, ifFails = "", canPress = false }) {
+export function saveCardModel({ title, subtitle, words, target, targetTip = null, ids, subject, entryKey, messageId, entry = null, ifFails = "", canPress = false, closedWord = "" }) {
   const tgt = numOrNull(target) !== null ? { target, ...(targetTip ? { targetTooltip: targetTip } : {}) } : {};
   const state = entry?.state ?? "open";
   const line = { name: words.save, total: "", ...tgt };
   if (state === "applied") Object.assign(line, { total: entry.total ?? "", outcome: entry.saved ? words.saved : words.failed, emphasis: entry.saved ? "success" : "failure" });
   else if (state === "undone") Object.assign(line, { outcome: words.undone, emphasis: "muted" });
+  else if (state === "closed") Object.assign(line, { outcome: closedWord || words.asked, emphasis: "muted" });
   else if (canPress) line.actions = [{ action: "itemRun.roll", label: words.rollSave, icon: "fa-solid fa-dice-d20", data: { ...ids, subject, entryKey, messageId }, tooltip: words.saveTip }];
   else line.outcome = words.asked;
   return { title, subtitle, sections: [{ rows: [line] }], bare: true, ...(ifFails ? { footnote: ifFails } : {}) };
 }
 
+
+/* -------------------------------------------- */
+/*  The engaged card (T10)                       */
+/* -------------------------------------------- */
+
+/**
+ * The key one engaged card is found under: the initiative's stamp and the
+ * subject, so a subject has one card per moment and every kind it is asked is a
+ * row of it. Null outside a fight, where nothing could be told apart and a card
+ * is never reused.
+ *
+ * @param {{stamp?: string|null, subjectUuid: string}} p `stamp` as `turnStamp` reads it
+ * @returns {string|null}
+ */
+export const engagedCardKey = ({ stamp = null, subjectUuid }) => (stamp && subjectUuid ? `${stamp}|${subjectUuid}` : null);
+
+/**
+ * A new engaged card's stored state (`FLAG_ITEM_RUN_CARD`, `kind: "engaged"`):
+ * one per subject per moment, holding the subject, the initiative it was asked
+ * in and one entry per item kind it was asked, keyed by that entry's moment key
+ * (`engagedEntry`). The card names no item, row or activation of its own: each
+ * entry carries its own, so a lowered reach's lifting never finds this card and
+ * its records outlive the Region.
+ *
+ * @param {{cardKey: string|null, stamp: string|null, round: number|null, moment: string, subject: {uuid: string, name: string}, title: string, cardId: string}} p
+ */
+export const newEngagedCard = ({ cardKey, stamp, round, moment, subject, title, cardId }) => ({
+  ...newCard({ itemUuid: "", rowKey: "", activationId: "", kind: "engaged", bearer: { uuid: "", name: "" }, cardId }),
+  cardKey: cardKey ?? "", stamp: stamp ?? "", round: round ?? null, moment, subject, title,
+});
+
+/**
+ * One row's entry on an engaged card, open: what was asked (`itemUuid`,
+ * `rowKey`, the Region's `activationId` and the item's kind key) and the
+ * bearers that engage the subject, `[{uuid, name}]`, in the order they were read.
+ */
+export const engagedEntry = ({ subject, moment, momentKey, kindKey, itemUuid, rowKey, activationId, bearers }) => ({
+  subject, moment, momentKey: momentKey ?? "", state: "open", kindKey, itemUuid, rowKey, activationId, bearers,
+});
+
+/**
+ * The patch that opens a row on an engaged card, under a fresh key from its
+ * moment key. Answers `{key, patch}`.
+ */
+export function patchEngagedPrompt(card, { momentKey, entry }) {
+  const key = freshKey(card?.entries, safeKey(momentKey ?? `${entry.subject}:prompt`));
+  return { key, patch: { [`entries.${key}`]: entry } };
+}
+
+/**
+ * The patch that closes an open row as not engaged: its state, and who closed
+ * it (`closedBy` `{id, name}`, also its `presser`, so the seat that closed it
+ * may Undo it). Writes no save and no record; the row keeps its bearers.
+ */
+export const patchEngagedClose = (key, { id, name }) => ({ [`entries.${key}.state`]: "closed", [`entries.${key}.closedBy`]: { id, name }, [`entries.${key}.presser`]: id });
+
+/** The patch that reopens a closed row: open again, its closer forgotten. */
+export const patchEngagedReopen = (key) => ({ [`entries.${key}.state`]: "open", [`entries.${key}.closedBy`]: unset(), [`entries.${key}.presser`]: unset() });
+
+/** The entries of one subject and item kind that are still open on a card. */
+export const openEngagedOf = (card, { subjectUuid, kindKey }) => Object.entries(card?.entries ?? {}).filter(([, e]) => e.subject === subjectUuid && e.kindKey === kindKey && e.state === "open");
+
+/**
+ * Whether a seat owns every bearer an entry names, by the caller's test of one
+ * token's uuid. An entry that names no bearer is owned by nobody: nothing says
+ * whose call it is.
+ */
+export const ownsEveryBearer = (entry, owns) => (entry?.bearers ?? []).length > 0 && entry.bearers.every((b) => owns(b.uuid) === true);
+
+/**
+ * One row of the engaged card as the renderer takes it. `r` is read live by
+ * the caller (see `engagedCardModel`). The Save is the subject's owners' and
+ * the Not engaged the bearers' owners'.
+ */
+function engagedRowOf(r, { words, seat }) {
+  const subject = r.entry.subject;
+  const mineSubject = seat.ownsSubject?.(subject) === true;
+  const mineBearers = seat.ownsBearers?.(r.entry) === true;
+  const data = { ...r.ids, subject, entryKey: r.entryKey };
+  const base = { name: r.bearerNames, ...(r.bearersTip ? { nameTooltip: r.bearersTip } : {}), total: "" };
+  // A blank save is a blank cell whose tooltip is the page alone; a no-break space keeps the Save column and its tooltip without a figure.
+  const target = numOrNull(r.target) !== null ? { target: r.target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : { targetText: " ", ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) };
+  const undo = seat.mayUndo?.(r.entry, subject) === true ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data, tooltip: words.undoTip }] : [];
+  switch (r.state) {
+    case "open": return {
+      ...base, ...target, outcome: words.asked,
+      actions: [
+        ...(mineSubject ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data, tooltip: words.saveTip }] : []),
+        ...(mineBearers ? [{ action: "itemRun.notEngaged", label: words.notEngaged, icon: "fa-solid fa-ban", data, tooltip: words.notEngagedTip, ...(r.notEngagedAria ? { ariaLabel: r.notEngagedAria } : {}) }] : []),
+      ],
+    };
+    case "closed": return { ...base, outcome: r.closedWord, emphasis: "muted", ...(undo.length ? { actions: undo } : {}) };
+    case "undone": return { ...base, ...target, outcome: words.undone, emphasis: "muted" };
+    default: {
+      const saved = r.entry.saved === true;
+      return {
+        ...base, ...target, total: r.entry.total ?? "", outcome: saved ? (r.holds?.text ?? words.saved) : words.failed, emphasis: saved ? "success" : "failure",
+        ...(saved && r.holds?.tip ? { outcomeTooltip: r.holds.tip } : {}),
+        ...(undo.length && r.entry.recordIds?.length ? { actions: undo } : {}),
+      };
+    }
+  }
+}
+
+/**
+ * The model the engaged card (board 5b: 4b's raised card recut for the T10
+ * reach) is rendered from, for one seat: a banner naming the subject and its
+ * moment, the note saying what engaged is, one row per item kind asked, with
+ * "Engaged by" in the name column (the bearers' names, comma-joined, with a
+ * computed tooltip), the Save target, the total, the Result and the presses;
+ * the well naming what a failed save wrote; and, for a seat that owns every
+ * bearer on a row, the line saying what the module read. `seat` reads Foundry's
+ * ownership alone (`ownsSubject(key)`, `ownsBearers(entry)`, `mayUndo(entry,
+ * key)`) and reads no role. A seat that owns neither the subject nor every
+ * bearer of a row is shown no row. Data only; the words are the caller's.
+ *
+ * @param {object} p
+ * @param {string} p.title
+ * @param {string} [p.subtitle]
+ * @param {string} [p.note]
+ * @param {string} [p.noteTooltip]
+ * @param {object} p.words every word and tooltip the card shows (`itemRun.card.*`)
+ * @param {Array<{entryKey: string, entry: object, state: "open"|"applied"|"undone"|"closed", bearerNames: string, bearersTip?: string, target: number|null, targetTip?: string|null, ids: {itemUuid: string, rowKey: string, activationId: string}, holds?: {text: string, tip?: string}, closedWord?: string, notEngagedAria?: string}>} p.rows
+ * @param {string[]} [p.well] the lines of what failed saves wrote
+ * @param {{ownsSubject?: (key: string) => boolean, ownsBearers?: (entry: object) => boolean, mayUndo?: (entry: object, key: string) => boolean}} p.seat
+ */
+export function engagedCardModel({ title, subtitle, note, noteTooltip, words, rows, well = [], seat = {} }) {
+  const shown = rows.filter((r) => seat.ownsSubject?.(r.entry.subject) === true || seat.ownsBearers?.(r.entry) === true);
+  const lines = shown.some((r) => seat.ownsBearers?.(r.entry) === true) ? [words.engagedRead] : [];
+  const told = well.filter(Boolean);
+  return {
+    title,
+    ...(subtitle ? { subtitle } : {}),
+    ...(note ? { note } : {}),
+    ...(noteTooltip ? { noteTooltip } : {}),
+    sections: [{ rows: shown.map((r) => engagedRowOf(r, { words, seat })) }],
+    bare: true,
+    ...(told.length ? { footnote: `${words.well}: ${told.join(" · ")}` } : {}),
+    ...(lines.length ? { lines } : {}),
+    labels: { name: words.engagedBy, target: words.save },
+  };
+}
 
 /* -------------------------------------------- */
 /*  The "In reach of" strip                      */

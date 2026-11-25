@@ -10,7 +10,7 @@
  * Usage: node tools/test-item-run-cards.mjs
  */
 import assert from "node:assert/strict";
-import { admittedWithCount, applyPatch, blankTip, freshKey, importTip, isCountedIn, moraleLine, newCard, patchCountIn, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, signedFigure, standingCardAct, standingPartTip, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
+import { admittedWithCount, applyPatch, blankTip, engagedCardKey, engagedCardModel, engagedEntry, freshKey, importTip, isCountedIn, moraleLine, newCard, newEngagedCard, openEngagedOf, ownsEveryBearer, patchCountIn, patchEngagedClose, patchEngagedPrompt, patchEngagedReopen, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, signedFigure, standingCardAct, standingPartTip, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
 
 class ForcedDeletion {}
 globalThis.foundry = { data: { operators: { ForcedDeletion } } };
@@ -323,6 +323,89 @@ t("a figure's tooltip says where it came from: the import's row and page, the co
   assert.equal(saveTip({ save: "Alpha", target: 12 }), "Alpha 12+");
   assert.equal(blankTip({ cite: "XX p. 4" }), "XX p. 4");
   assert.equal(blankTip({}), null);
+});
+
+
+/* --- T10: the engaged card (board 5b) --- */
+const engagedWords = { ...words, engagedBy: "Engaged by", notEngaged: "Not engaged", notEngagedTip: "not engaged tip", engagedRead: "read line", asked: "Asked", saved: "Saved", failed: "Failed" };
+const bearerList = [{ uuid: "B.1", name: "Champion 1" }, { uuid: "B.2", name: "Champion 2" }];
+const engagedRow = (over = {}) => ({
+  entryKey: "k1", state: "open", bearerNames: "Champion 1, Champion 2", bearersTip: "by tip", target: 11, targetTip: "ttip", ids: { itemUuid: "I.t", rowKey: "engaged", activationId: "engaged:x" }, closedWord: "Not engaged · Judge", notEngagedAria: "aria",
+  ...over, entry: { subject: "T.s", state: over.state ?? "open", bearers: bearerList, ...(over.entry ?? {}) },
+});
+const ownerOf = (...keys) => (key) => keys.includes(key);
+const seatOf = ({ subject = [], bearers = [], undo = false } = {}) => ({ ownsSubject: ownerOf(...subject), ownsBearers: (entry) => ownsEveryBearer(entry, ownerOf(...bearers)), mayUndo: () => undo });
+const cardFor = (rowsIn, seat, over = {}) => engagedCardModel({ title: "T10 · engaged", subtitle: "Subject", note: "note", noteTooltip: "ntip", words: engagedWords, rows: rowsIn, seat, ...over });
+const actionsOf = (card) => card.sections[0].rows.flatMap((r) => (r.actions ?? []).map((a) => a.action));
+
+t("the engaged card's store: one card per subject per initiative, one entry per kind under its moment key, the card names no item of its own, and a row is closed and reopened by patches that touch only its state", () => {
+  assert.equal(engagedCardKey({ stamp: "c1:2:1", subjectUuid: "T.s" }), "c1:2:1|T.s");
+  assert.equal(engagedCardKey({ stamp: null, subjectUuid: "T.s" }), null, "outside a fight nothing is reused");
+  assert.equal(engagedCardKey({ stamp: "c1:2:1", subjectUuid: "" }), null);
+  const card = newEngagedCard({ cardKey: "c1:2:1|T.s", stamp: "c1:2:1", round: 2, moment: "turnStart", subject: { uuid: "T.s", name: "Subject" }, title: "T10", cardId: "cid" });
+  assert.deepEqual([card.kind, card.itemUuid, card.activationId, card.cardId, card.subject.name, card.round, card.lowered], ["engaged", "", "", "cid", "Subject", 2, false]);
+  const entry = engagedEntry({ subject: "T.s", moment: "turnStart", momentKey: "c1:2:1:T.s:kindT", kindKey: "kindT", itemUuid: "I.t", rowKey: "engaged", activationId: "engaged:x", bearers: bearerList });
+  const first = patchEngagedPrompt(card, { momentKey: "c1:2:1:T.s:kindT", entry });
+  assert.equal(first.key, "c1:2:1:T~s:kindT", "keyed by the moment key, free of dots");
+  let next = applyPatch(card, first.patch);
+  assert.deepEqual([next.entries[first.key].state, next.entries[first.key].bearers.length], ["open", 2]);
+  assert.equal(patchEngagedPrompt(next, { momentKey: "c1:2:1:T.s:kindT", entry }).key, "c1:2:1:T~s:kindT#2", "a key held is not overwritten");
+  next = applyPatch(next, patchEngagedClose(first.key, { id: "u1", name: "Judge" }));
+  assert.deepEqual([next.entries[first.key].state, next.entries[first.key].closedBy, next.entries[first.key].presser, next.entries[first.key].bearers.length], ["closed", { id: "u1", name: "Judge" }, "u1", 2], "closed by whom, keeping its bearers");
+  next = applyPatch(next, patchEngagedReopen(first.key));
+  assert.deepEqual([next.entries[first.key].state, "closedBy" in next.entries[first.key], "presser" in next.entries[first.key]], ["open", false, false], "reopened, its closer forgotten");
+  assert.equal(openEngagedOf(next, { subjectUuid: "T.s", kindKey: "kindT" }).length, 1);
+  assert.equal(openEngagedOf(next, { subjectUuid: "T.s", kindKey: "kindU" }).length, 0, "by kind");
+  assert.equal(openEngagedOf(applyPatch(next, patchEngagedClose(first.key, { id: "u1", name: "J" })), { subjectUuid: "T.s", kindKey: "kindT" }).length, 0, "a closed row is no longer open");
+  assert.deepEqual([ownsEveryBearer(entry, ownerOf("B.1", "B.2")), ownsEveryBearer(entry, ownerOf("B.1")), ownsEveryBearer({ bearers: [] }, () => true), ownsEveryBearer(null, () => true)], [true, false, false, false], "every bearer, and nobody where none is named");
+});
+
+t("the engaged card by seat: the row shows to the subject's owners and to a seat owning every bearer, the Save to the subject's owners, Not engaged and the read line to a seat owning every bearer, and a seat owning one of two sees neither", () => {
+  const rowsIn = [engagedRow()];
+  const kinds = (seat) => ({ shown: cardFor(rowsIn, seat).sections[0].rows.length, actions: actionsOf(cardFor(rowsIn, seat)), line: cardFor(rowsIn, seat).lines ?? [] });
+  assert.deepEqual(kinds(seatOf({ subject: ["T.s"], bearers: ["B.1", "B.2"] })), { shown: 1, actions: ["itemRun.roll", "itemRun.notEngaged"], line: ["read line"] }, "a seat owning all of it");
+  assert.deepEqual(kinds(seatOf({ subject: ["T.s"], bearers: ["B.1"] })), { shown: 1, actions: ["itemRun.roll"], line: [] }, "one of two bearers: neither the control nor the line");
+  assert.deepEqual(kinds(seatOf({ subject: ["T.s"] })), { shown: 1, actions: ["itemRun.roll"], line: [] }, "the subject's owner alone");
+  assert.deepEqual(kinds(seatOf({ bearers: ["B.1", "B.2"] })), { shown: 1, actions: ["itemRun.notEngaged"], line: ["read line"] }, "the bearers' owners alone: the row, no Save");
+  assert.deepEqual(kinds(seatOf()), { shown: 0, actions: [], line: [] }, "a seat owning neither is shown no row");
+  const card = cardFor(rowsIn, seatOf({ subject: ["T.s"], bearers: ["B.1", "B.2"] }));
+  const [row] = card.sections[0].rows;
+  assert.deepEqual([card.labels, card.title, card.subtitle, card.note, card.noteTooltip, card.bare], [{ name: "Engaged by", target: "Save" }, "T10 · engaged", "Subject", "note", "ntip", true], "Engaged by and Save head the columns, and the banner is 4b's");
+  assert.deepEqual([row.name, row.nameTooltip, row.target, row.targetTooltip, row.outcome], ["Champion 1, Champion 2", "by tip", 11, "ttip", "Asked"], "the bearers are one comma-joined name with a computed tooltip, the target has its own");
+  const notEngaged = row.actions.find((a) => a.action === "itemRun.notEngaged");
+  assert.deepEqual([notEngaged.label, notEngaged.tooltip, notEngaged.ariaLabel, notEngaged.data.entryKey, notEngaged.data.itemUuid, notEngaged.data.subject], ["Not engaged", "not engaged tip", "aria", "k1", "I.t", "T.s"]);
+  assert.ok(!("buttons" in card) && !JSON.stringify(card).includes("itemRun.lower") && !JSON.stringify(card).includes("itemRun.recheck"), "no Lower and no Check range again");
+  assert.equal(JSON.stringify(card).includes("aside"), false, "and no distance column");
+  const judge = { ownsSubject: () => true, ownsBearers: () => false, mayUndo: () => true, judge: true };
+  assert.deepEqual(kinds(judge).actions, ["itemRun.roll"], "a Judge's role adds nothing: ownership alone offers Not engaged");
+});
+
+t("the engaged card's row states: a closed row keeps its bearers, reads who closed it in the muted look with no Save and no Not engaged and 4b's Undo, an answered one reads its result, a blank save is a blank cell with the page alone, and a pass reads its immunity", () => {
+  const seat = seatOf({ subject: ["T.s"], bearers: ["B.1", "B.2"], undo: true });
+  const closed = cardFor([engagedRow({ state: "closed", target: 11 })], seat).sections[0].rows[0];
+  assert.deepEqual([closed.name, closed.outcome, closed.emphasis, closed.actions.map((a) => a.action), closed.target, closed.targetText], ["Champion 1, Champion 2", "Not engaged · Judge", "muted", ["itemRun.undo"], undefined, undefined], "no Save figure either");
+  assert.equal(cardFor([engagedRow({ state: "closed" })], seatOf({ subject: ["T.s"], bearers: ["B.1", "B.2"] })).sections[0].rows[0].actions, undefined, "the Undo is offered to whoever may undo it");
+  const failed = cardFor([engagedRow({ state: "applied", entry: { saved: false, total: 7, recordIds: ["E1"] } })], seat).sections[0].rows[0];
+  assert.deepEqual([failed.outcome, failed.emphasis, failed.total, failed.target, failed.actions.map((a) => a.action)], ["Failed", "failure", 7, 11, ["itemRun.undo"]]);
+  const held = cardFor([engagedRow({ state: "applied", entry: { saved: true, total: 15, recordIds: [] }, holds: { text: "Saved · immune 2 turns", tip: "immune tip" } })], seat).sections[0].rows[0];
+  assert.deepEqual([held.outcome, held.outcomeTooltip, held.emphasis, held.actions], ["Saved · immune 2 turns", "immune tip", "success", undefined], "a pass that wrote nothing has no Undo");
+  const bare = cardFor([engagedRow({ state: "applied", entry: { saved: true, total: 15, recordIds: [] } })], seat).sections[0].rows[0];
+  assert.equal(bare.outcome, "Saved");
+  const blank = cardFor([engagedRow({ target: null, targetTip: "MM p. 57" })], seat).sections[0].rows[0];
+  assert.deepEqual([blank.target, blank.targetText, blank.targetTooltip], [undefined, " ", "MM p. 57"], "a blank cell whose tooltip is the page reference alone");
+  const undone = cardFor([engagedRow({ state: "undone" })], seat).sections[0].rows[0];
+  assert.deepEqual([undone.outcome, undone.emphasis], ["Undone", "muted"]);
+  const unnamed = cardFor([engagedRow({ bearersTip: "" })], seat).sections[0].rows[0];
+  assert.equal("nameTooltip" in unnamed, false);
+  const well = cardFor([engagedRow({ state: "applied", entry: { saved: false, total: 7, recordIds: ["E1"] } })], seat, { well: ["Subject: Held, until its timed interval runs out"] });
+  assert.equal(well.footnote, "On a failed save: Subject: Held, until its timed interval runs out");
+});
+
+t("the whispered save card of a closed engaged row reads who closed it and offers no roll, and an open row keeps its roll", () => {
+  const closed = saveCardModel({ title: "T10 · engaged", subtitle: "Subject", words, target: 11, ids, subject: "T.s", entryKey: "k", messageId: "M1", entry: { state: "closed" }, closedWord: "Not engaged · Judge" });
+  assert.deepEqual([closed.sections[0].rows[0].outcome, closed.sections[0].rows[0].emphasis, closed.sections[0].rows[0].actions], ["Not engaged · Judge", "muted", undefined], "no roll once the row is closed");
+  const open = saveCardModel({ title: "x", subtitle: "y", words, target: 11, ids, subject: "T.s", entryKey: "k", messageId: "M1", entry: { state: "open" }, canPress: true });
+  assert.equal(open.sections[0].rows[0].actions[0].action, "itemRun.roll", "an open row's roll is as it was");
 });
 
 console.log(`\ntest-item-run-cards: ${passed} checks passed.`);

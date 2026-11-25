@@ -190,4 +190,21 @@ ok("a verdict's tooltip is written as text on the Result cell, and a row with no
   assert.ok(!html.includes("no verdict, no cell tip"), "a tooltip on a row with no verdict shows nowhere");
 });
 
+
+ok("a name's tooltip is written as text on the name cell, a button names itself for assistive technology, and further small print is a paragraph each; a card naming none of them is as it was", () => {
+  const html = renderRollCard({
+    title: "T",
+    sections: [{ rows: [{ name: "A & B", nameTooltip: "who <engaged>", total: "", outcome: "Asked", actions: [{ action: "x.y", label: "Go", ariaLabel: "Go: A" }] }, { name: "C", total: "" }] }],
+    footnote: "first",
+    lines: ["second", "third <3>"],
+  });
+  assert.ok(html.includes('<td data-tooltip-text="who &lt;engaged&gt;">A &amp; B</td>'), "text, escaped, on the name cell");
+  assert.ok(html.includes("<td>C</td>"), "a row with none keeps the plain cell");
+  assert.ok(html.includes('data-action="x.y" aria-label="Go: A"'), "the button carries its accessible name");
+  assert.ok(html.indexOf("first") < html.indexOf("second") && html.indexOf("second") < html.indexOf("third &lt;3&gt;"), "the lines follow the footnote in order");
+  assert.equal((html.match(/acks-extras-roll-footnote/g) ?? []).length, 3, "one paragraph each");
+  const plain = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: "", actions: [{ action: "x.y", label: "Go" }] }] }] });
+  assert.ok(!plain.includes("aria-label") && !plain.includes("footnote") && !plain.includes("data-tooltip-text"), "nothing is added where none is asked");
+});
+
 console.log(`\n${passed} passed`);

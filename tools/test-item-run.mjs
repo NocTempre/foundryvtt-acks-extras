@@ -2153,4 +2153,113 @@ await t("the installed carrier answers a Player's relayed use as that seat, hear
   }
 });
 
+
+await t("an engaged card's entry names its own item: a Save press writes under the entry's ids and the card's own id and never the Region's, a forged item is no card, and Not engaged is refused by the handler for any seat that does not own every bearer, a Judge's role included, writes no record and closes the row a Save then refuses, and Undo reopens it", async () => {
+  stage();
+  seatOf(true, [{ id: "owner" }, { id: "other" }, { id: "both" }, { id: "half" }]);
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const { applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const { holdReachMoment, releaseReachMoment } = await import("../scripts/lib/aura-reach.mjs");
+  const made = [];
+  const actor = monster(["alpha"]);
+  actor.createEmbeddedDocuments = async (kind, records, options) => { made.push([records, options]); return records.map((r, i) => ({ id: `E${made.length}-${i}`, flags: r.flags })); };
+  subjects["T.s1"] = { id: "s1", uuid: "T.s1", actor, testUserPermission: (user) => user?.id === "owner" };
+  subjects["T.b1"] = { id: "b1", uuid: "T.b1", name: "B1", actor: {}, testUserPermission: (user) => ["both", "half"].includes(user?.id) };
+  subjects["T.b2"] = { id: "b2", uuid: "T.b2", name: "B2", actor: {}, testUserPermission: (user) => user?.id === "both" };
+  const target = saveSpec(actor, "paralysis").target;
+  itemFlags = { cookbook: { id: "kindT" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "k", target: "paralysis", conditions: ["held"], reach: { pulse: "turnStart+enter", engaged: true, immunity: { value: "2" }, lasts: { value: "3" } } }] } };
+  const entry = (over = {}) => ({ subject: "T.s1", moment: "turnStart", momentKey: "mk", state: "open", kindKey: "kindT", itemUuid: "I.1", rowKey: "k", activationId: "engaged:x", bearers: [{ uuid: "T.b1", name: "B1" }, { uuid: "T.b2", name: "B2" }], ...over });
+  const message = {
+    flags: { "acks-extras": { itemRunCard: { kind: "engaged", cardId: "cardX", itemUuid: "", rowKey: "", activationId: "", stamp: "c1:1:0", subject: { uuid: "T.s1", name: "One" }, subjects: {}, undetermined: {}, counted: {}, entries: { a: entry(), b: entry({ momentKey: "mb" }), c: entry({ momentKey: "mc" }) } } } },
+    getFlag(scope, key) { return this.flags[scope][key]; },
+    async update(data) {
+      const patch = Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]));
+      this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, patch);
+    },
+  };
+  const entries = () => message.flags["acks-extras"].itemRunCard.entries;
+  gameStub.messages = { get: (id) => (id === "M5" ? message : null) };
+  const press = (over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "forged", activationId: "forged", subject: "T.s1", messageId: "M5", entryKey: "a", total: target - 1, target, requestUserId: "owner", ...over });
+  const close = (over = {}) => executeAsGM("acks-extras.itemRun.notEngaged", { messageId: "M5", entryKey: "c", ...over });
+  const undo = (over = {}) => executeAsGM("acks-extras.itemRun.undo", { messageId: "M5", entryKey: "c", ...over });
+  try {
+    const failed = await press();
+    assert.equal(failed.ok, true, "the subject's owner presses a row of a card that names no item of its own");
+    assert.deepEqual([entries().a.state, entries().a.saved, entries().a.life, entries().a.names], ["applied", false, "timed", ["Held Name"]], "a timed failure");
+    const [[records, options]] = made;
+    assert.deepEqual([records[0].flags["acks-extras"].itemRun.source, records[0].flags["acks-extras"].itemRun.rowKey, records[0].flags["acks-extras"].itemRun.activationId, records[0].flags["acks-extras"].itemRun.dueAt, options], ["I.1", "k", "cardX", 1800, { keepId: true }], "the entry's own item and row, the card's id and never the Region's, on the module's clock");
+    made.length = 0;
+    const held = await press({ entryKey: "b", total: target });
+    assert.deepEqual([held.ok, held.saved, entries().b.immune], [true, true, 2], "a pass writes the window and the entry keeps the figure it read");
+    assert.equal(made[0][0][0].flags["acks-extras"].itemRun.activationId, "cardX", "under the card's id too");
+    await message.update({ "flags.acks-extras.itemRunCard.entries.c.itemUuid": "I.other" });
+    assert.equal((await press({ entryKey: "c" })).reason, "noCard", "an entry that names another item is no card for this press");
+    await message.update({ "flags.acks-extras.itemRunCard.entries.c.itemUuid": "I.1" });
+    made.length = 0;
+    // Not engaged: the handler reads ownership of every bearer from the relayed seat, and a Judge owning none is refused.
+    holdReachMoment("mc", "c1:1:0");
+    assert.equal((await close({ requestUserId: "half" })).reason, "notBearer", "one of two bearers");
+    assert.equal((await close({ requestUserId: "owner" })).reason, "notBearer", "the subject's owner");
+    assert.equal((await close({ requestUserId: "other" })).reason, "notBearer", "a seat that owns nothing");
+    assert.equal((await close()).reason, "notBearer", "a Judge's own seat: no role is read");
+    assert.equal((await close({ entryKey: "none", requestUserId: "both" })).reason, "struck");
+    assert.equal(entries().c.state, "open");
+    assert.equal(holdReachMoment("mc", "c1:1:0"), false, "a refused press releases no key");
+    assert.equal((await close({ entryKey: "a", requestUserId: "both" })).reason, "applied", "an answered row is not closed");
+    const closed = await close({ requestUserId: "both" });
+    assert.equal(closed.ok, true, "the seat that owns every bearer");
+    assert.deepEqual([entries().c.state, entries().c.closedBy.id, entries().c.presser], ["closed", "both", "both"]);
+    assert.deepEqual(made, [], "no record is written");
+    assert.equal(holdReachMoment("mc", "c1:1:0"), true, "the moment key was released");
+    releaseReachMoment("mc");
+    assert.equal((await press({ entryKey: "c" })).reason, "applied", "a closed row refuses a Save");
+    assert.equal((await close({ requestUserId: "both" })).reason, "applied", "and a second close");
+    assert.equal((await undo({ requestUserId: "other" })).reason, "notOwner", "Undo is the closer's or the subject's owners'");
+    const reopened = await undo({ requestUserId: "both" });
+    assert.deepEqual([reopened.ok, reopened.removed, entries().c.state, "closedBy" in entries().c], [true, [], "open", false], "Undo reopens it and deletes nothing");
+    assert.equal(holdReachMoment("mc", "c1:1:0"), false, "its key is held again");
+    releaseReachMoment("mc");
+    assert.equal((await press({ entryKey: "c" })).ok, true, "and the Save works again");
+    assert.deepEqual(await executeAsGM("acks-extras.itemRun.notEngaged", { messageId: "M9", entryKey: "c", requestUserId: "both" }), { ok: false, reason: "struck" }, "a card that is gone");
+  } finally {
+    delete gameStub.messages;
+    delete subjects["T.s1"];
+    delete subjects["T.b1"];
+    delete subjects["T.b2"];
+    unstage();
+  }
+});
+
+
+await t("an engaged reach's prompt names its bearers: a step-in on the subject's own turn names the reach it came through, a turn start's group dispatch names every bearer it states, and a raised reach names none", async () => {
+  seatOf(true);
+  const { releaseReachMoment } = await import("../scripts/lib/aura-reach.mjs");
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  gameStub.combat = { id: "c1", started: true, round: 1, turn: 0, combatant: { tokenId: "s1" } };
+  const item = { uuid: "I.1", flags: { "acks-extras": { cookbook: { id: "kindE" } } } };
+  const row = { key: "k", reach: { pulse: "turnStart+enter" } };
+  const subject = { token: { id: "s1", uuid: "T.s1" }, actor: monster(["alpha"]) };
+  const key = "c1:1:0:T.s1:kindE";
+  const hear = (over) => run.handleReachMoment({ config: { activationId: "engaged:x" }, item, row, reach: { pulse: "turnStart+enter" }, subject, admitted: true, bearer: { token: { uuid: "T.b1" } }, ...over });
+  try {
+    assert.equal(await hear({ moment: "enter" }), "prompt");
+    assert.deepEqual([seen.at(-1).act, seen.at(-1).engagedBy, seen.at(-1).momentKey], ["prompt", ["T.b1"], key], "a step-in names the bearer of the reach it came through");
+    releaseReachMoment(key);
+    await hear({ moment: "turnStart", engagedBy: ["T.b1", "T.b2"] });
+    assert.deepEqual(seen.at(-1).engagedBy, ["T.b1", "T.b2"], "the group dispatch states its own bearers and they are kept");
+    releaseReachMoment(key);
+    await hear({ moment: "turnStart", config: { activationId: "act" }, engagedBy: null });
+    assert.equal("engagedBy" in seen.at(-1), false, "a reach that is not an engaged one names no bearers");
+    releaseReachMoment(key);
+    await hear({ moment: "enter", admitted: null });
+    assert.deepEqual([seen.at(-1).act, "engagedBy" in seen.at(-1)], ["undetermined", false], "a body the filter could not settle is no engaged prompt");
+  } finally {
+    releaseReachMoment(key);
+    gameStub.combat = null;
+    run.setUsePresenter(async (result) => presented.push(result));
+  }
+});
+
 console.log(`\ntest-item-run: ${passed} checks passed.`);

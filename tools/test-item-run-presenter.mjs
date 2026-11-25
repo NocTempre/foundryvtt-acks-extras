@@ -505,4 +505,242 @@ await t("lowering marks the card lowered, mutes every row and strikes what was o
   assert.equal(typeof run.setUsePresenter, "function");
 });
 
+
+await t("the cards no T10 slice touched render byte for byte as before: an E4 raised card open and answered with its whisper, an E9 standing card and an E3 once-only card are pinned by their hash", async () => {
+  const { createHash } = await import("node:crypto");
+  const hash = (html) => createHash("sha256").update(html).digest("hex").slice(0, 16);
+  const mk = (rows, activation = { kind: "toggle" }) => ({ uuid: "P.item", name: "Gear", type: "item", testUserPermission: ownedBy("gm", "pa"), flags: { "acks-extras": { itemRun: { activation, rows } } } });
+  const kinds = {
+    e4: mk([{ key: "t", conditions: ["held"], reach: { pulse: "turnStart+moveIn", radius: { value: "30" }, filter: {} } }]),
+    e9: mk([{ key: "t", reach: { pulse: "standing", radius: { value: "20" }, modifier: { value: "-1" }, on: ["morale"], filter: {} } }]),
+    e3: mk([{ key: "t", conditions: ["held"], reach: { pulse: "action", radius: { value: "30" }, filter: {} } }], { kind: "once" }),
+  };
+  let current = kinds.e4;
+  const prior = globalThis.fromUuidSync;
+  const pinTokens = { "P.bear": { id: "pbear", uuid: "P.bear", name: "Bearer", actor: {}, testUserPermission: ownedBy("gm") }, "P.a": { id: "pa1", uuid: "P.a", name: "Alpha", actor: {}, testUserPermission: ownedBy("gm", "pa") } };
+  globalThis.fromUuidSync = (uuid) => (uuid === "P.item" ? current : pinTokens[uuid] ?? null);
+  const card = (over) => ({ itemUuid: "P.item", rowKey: "t", activationId: "pact", kind: "toggle", cardId: "c", regionUuid: "", bearer: { uuid: "P.bear", name: "Bearer" }, selfCount: false, lowered: false, subjects: {}, undetermined: {}, counted: {}, entries: {}, ...over });
+  const sub = { "P~a": { uuid: "P.a", name: "Alpha", state: "in", latest: "k1" } };
+  const open = card({ subjects: sub, entries: { k1: { subject: "P.a", moment: "turnStart", momentKey: "k1", state: "open" } } });
+  const done = card({ subjects: sub, entries: { k1: { subject: "P.a", moment: "turnStart", momentKey: "k1", state: "applied", saved: false, total: 4, target: 11, recordIds: ["E1"], names: ["Held"], life: "turn", presser: "gm" } } });
+  messages.push({ id: "PIN1", flags: { "acks-extras": { itemRunCard: open } }, getFlag: () => open });
+  try {
+    me.current = users[0];
+    const pins = {
+      e4Open: hash(presenter.raisedBody({ id: "PIN1" }, open)),
+      e4Done: hash(presenter.raisedBody({ id: "PIN1" }, done)),
+      e4Whisper: hash(presenter.whisperBody({ messageId: "PIN1", entryKey: "k1", subject: "P.a", itemUuid: "P.item", rowKey: "t", activationId: "pact" })),
+    };
+    current = kinds.e9;
+    pins.e9 = hash(presenter.raisedBody({ id: "PIN2" }, card({ subjects: { "P~a": { uuid: "P.a", name: "Alpha", state: "in", latest: "" } } })));
+    current = kinds.e3;
+    pins.e3 = hash(presenter.onceBody({ id: "PIN3" }, { ...card({ kind: "once" }), title: "Gear", subjects: { "P~a": { uuid: "P.a", name: "Alpha", state: "in", latest: "" } }, entries: { "P~a": { subject: "P.a", state: "open" } } }));
+    assert.deepEqual(pins, { e4Open: "315cb1defc703ba0", e4Done: "10f5560dd9abefdb", e4Whisper: "64fa2f13746bf948", e9: "ad4f3776a3832bff", e3: "2053bac0b727e37b" });
+  } finally {
+    messages.splice(messages.findIndex((m) => m.id === "PIN1"), 1);
+    globalThis.fromUuidSync = prior;
+  }
+});
+
+
+/* --- T10: the engaged card (board 5b) --- */
+const engagedMessages = () => messages.filter((m) => m.flags["acks-extras"]?.itemRunCard?.kind === "engaged");
+const engagedCard = (message) => message.flags["acks-extras"].itemRunCard;
+const t10 = {};
+
+await t("T10: a prompt of an always-on engaged reach posts one card per subject per moment, one row per item kind with every same-kind bearer named on it, and whispers 4c's save card titled for the trait to the subject's owners", async () => {
+  const reach = await import("../scripts/lib/aura-reach.mjs");
+  const run2 = await import("../scripts/lib/item-run.mjs");
+  presenter.installItemRunPresenter();
+  run2.installItemRun();
+  users.push({ id: "pe" }, { id: "pn" }, { id: "pbb" }, { id: "pall" });
+  game.combat = { id: "c1", started: true, round: 2, turn: 1, combatants: { find: () => null } };
+  const created = [];
+  const actorOf = (saves) => ({ type: "monster", system: { saves }, effects: [], createEmbeddedDocuments: async (...args) => { created.push(args); return []; } });
+  Object.assign(t10, {
+    reach, run: run2, created, actorOf,
+    tokens: {
+      "E.s": { id: "es", uuid: "E.s", name: "Subject One", actor: actorOf({ paralysis: { value: 12 } }), testUserPermission: ownedBy("gm", "pe", "pall") },
+      "E.s2": { id: "es2", uuid: "E.s2", name: "Subject Two", actor: actorOf({ paralysis: { value: 12 } }), testUserPermission: ownedBy("gm", "pn") },
+      "E.b1": { id: "eb1", uuid: "E.b1", name: "Champion 1", actor: {}, testUserPermission: ownedBy("pbb", "pe", "pall") },
+      "E.b2": { id: "eb2", uuid: "E.b2", name: "Champion 2", actor: {}, testUserPermission: ownedBy("pbb", "pall") },
+    },
+  });
+  const itemOf = (uuid, name, kind) => ({ uuid, name, type: "item", testUserPermission: ownedBy("pbb"), flags: { "acks-extras": { cookbook: { id: kind, cite: "MM p. 57" }, itemRun: { rows: [{ key: "engaged", target: "paralysis", conditions: ["held"], reach: { engaged: true, pulse: "turnStart+enter", filter: {}, lasts: { value: "3" }, immunity: { value: "2" } } }] } } } });
+  t10.items = { "I.t10": itemOf("I.t10", "T10", "kindT"), "I.t11": itemOf("I.t11", "Other", "kindU") };
+  t10.prior = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => t10.items[uuid] ?? t10.tokens[uuid] ?? t10.prior(uuid);
+  t10.prompt = (over = {}) => {
+    const item = over.item ?? t10.items["I.t10"];
+    const token = over.token ?? t10.tokens["E.s"];
+    const turn = game.combat.turn;
+    return { ok: true, kind: "reach", act: "prompt", moment: "turnStart", config: { activationId: "engaged:r1" }, rowKey: "engaged", item, subject: { token, actor: token.actor }, momentKey: `c1:2:${turn}:${token.uuid}:${item.flags["acks-extras"].cookbook.id}`, engagedBy: ["E.b1", "E.b2"], ...over };
+  };
+  const key = "c1:2:1:E.s:kindT";
+  reach.holdReachMoment(key, "c1:2:1");
+  await presenter.presentReach(t10.prompt());
+  assert.equal(engagedMessages().length, 1, "one card for the subject's moment");
+  const [message] = engagedMessages();
+  const card = engagedCard(message);
+  assert.equal(card.kind, "engaged");
+  assert.deepEqual(Object.keys(card.entries), ["c1:2:1:E~s:kindT"], "the entry is keyed by its moment key, free of dots");
+  const entry = card.entries["c1:2:1:E~s:kindT"];
+  assert.deepEqual([entry.state, entry.itemUuid, entry.rowKey, entry.activationId, entry.kindKey], ["open", "I.t10", "engaged", "engaged:r1", "kindT"], "each entry names its own item, row and the Region's activation");
+  assert.deepEqual(entry.bearers.map((b) => b.name), ["Champion 1", "Champion 2"], "several bearers of one kind are one row");
+  assert.equal(card.activationId, "", "the card names no activation of its own, so a lifted Region never finds it");
+  assert.equal(message.whisper, undefined, "the card is posted as 4b's is, to the chat; each seat's body shows what it may press");
+  const whisperNow = whispers().at(-1);
+  assert.deepEqual([...whisperNow.whisper], ["gm", "pe", "pall"], "the save card goes to the owners of the subject's token, as 4b's does");
+  assert.ok(whisperNow.content.includes("itemRun.card.engagedTitle") && !whisperNow.content.includes("itemRun.card.whisperTitle"), "titled for the trait");
+  assert.equal(whisperNow.flags["acks-extras"].itemRunWhisper.engaged, true);
+  assert.equal(whisperNow.flags["acks-extras"].itemRunWhisper.messageId, message.id);
+  assert.equal(card.entries["c1:2:1:E~s:kindT"].whisperId, whisperNow.id, "the card keeps the whisper's id");
+  // A second kind asked at the same moment is a second row of the same card.
+  await presenter.presentReach(t10.prompt({ item: t10.items["I.t11"], engagedBy: ["E.b2"] }));
+  assert.equal(engagedMessages().length, 1, "still one card");
+  assert.deepEqual(Object.keys(engagedCard(message).entries), ["c1:2:1:E~s:kindT", "c1:2:1:E~s:kindU"], "one row per kind key");
+  assert.equal(whispers().at(-1).flags["acks-extras"].itemRunWhisper.itemUuid, "I.t11", "and its own whisper");
+  // Another subject, and the same subject at another moment, each get a card of their own.
+  reach.holdReachMoment("c1:2:1:E.s2:kindT", "c1:2:1");
+  await presenter.presentReach(t10.prompt({ token: t10.tokens["E.s2"] }));
+  assert.equal(engagedMessages().length, 2, "another subject, another card");
+  game.combat.turn = 2;
+  reach.holdReachMoment("c1:2:2:E.s2:kindT", "c1:2:2");
+  await presenter.presentReach(t10.prompt({ token: t10.tokens["E.s2"] }));
+  assert.equal(engagedMessages().length, 3, "the same subject at its next moment, another card");
+  assert.deepEqual(Object.keys(engagedCard(engagedMessages()[1]).entries), [], "the earlier card's open row of the same kind is struck");
+  assert.equal(reach.holdReachMoment("c1:2:1:E.s2:kindT", "c1:2:2"), true, "and its held key is released");
+  reach.releaseReachMoment("c1:2:1:E.s2:kindT");
+  reach.releaseReachMoment("c1:2:2:E.s2:kindT");
+  game.combat.turn = 1;
+  // Acts that draw nothing: a skip, an undetermined body and a listing post no card and are not parked for a raised card.
+  const before = messages.length;
+  for (const act of ["skip", "undetermined", "list", "out"]) await presenter.presentReach(t10.prompt({ act, token: t10.tokens["E.s2"] }));
+  assert.equal(messages.length, before, "nothing is drawn for an act that is no prompt");
+  assert.equal(presenter.messageIdFor("engaged:r1"), null, "no raised card is found by the Region's activation");
+  assert.equal(presenter.lifeWord("timed"), "ACKS-LIB.itemRun.card.life.timed", "a timed row's failed save has a word of its own");
+  assert.deepEqual(["turn", "mark", "raised", "nonsense"].map(presenter.lifeWord), ["ACKS-LIB.itemRun.card.life.turn", "ACKS-LIB.itemRun.card.life.mark", "ACKS-LIB.itemRun.card.life.raised", "ACKS-LIB.itemRun.card.life.raised"], "and the others are as they were");
+});
+
+await t("T10: each seat's body shows the row to the subject's owners and to a seat that owns every bearer, the Save to the subject's owners alone, and the read line and Not engaged to a seat that owns every bearer on the row, by Foundry's ownership and never by role", async () => {
+  const [message] = engagedMessages();
+  const card = engagedCard(message);
+  const body = (id) => {
+    me.current = users.find((u) => u.id === id);
+    return presenter.engagedBody(message, card);
+  };
+  const shape = (html) => [html.includes("Champion 1, Champion 2"), html.includes('data-action="itemRun.roll"'), html.includes('data-action="itemRun.notEngaged"'), html.includes("itemRun.card.engagedRead")];
+  assert.deepEqual(shape(body("gm")), [true, true, false, false], "the Judge owns the subject and not the bearers here: a Save, and neither the read line nor Not engaged, whatever the role");
+  assert.deepEqual(shape(body("pe")), [true, true, false, false], "a seat owning the subject and one of two bearers sees neither");
+  assert.deepEqual(shape(body("pall")), [true, true, true, true], "a seat owning the subject and every bearer sees all of it");
+  assert.deepEqual(shape(body("pbb")), [true, false, true, true], "the bearers' owners see the row, Not engaged and the line, and no Save");
+  assert.equal(body("pn").includes("Champion 1"), false, "a seat that owns neither sees no row of this subject's");
+  assert.equal(body("pa").includes('data-action'), false, "and no press");
+  const html = body("pall");
+  assert.ok(html.includes("itemRun.card.engagedBy</th>") && html.includes("itemRun.card.save</th>"), "the columns read Engaged by and Save");
+  assert.ok(html.includes('itemRun.card.engagedByTip (MM p. 57)"'), "Engaged by's tooltip is computed and cites the item's page");
+  assert.ok(html.includes('itemRun.card.notEngagedAria"'), "Not engaged is named for assistive technology");
+  assert.ok(html.includes('itemRun.card.notEngagedTip"'), "and carries its tooltip");
+  assert.ok(html.includes('itemRun.card.engagedNoteTip"') && html.includes("itemRun.card.engagedNote"), "the note says what engaged is, with the pages in its tooltip");
+  assert.ok(!html.includes("itemRun.card.lower") && !html.includes("itemRun.card.check") && !html.includes("itemRun.card.colDistance"), "no Lower, no Check range again, no distance column");
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const target = saveSpec(t10.tokens["E.s"].actor, "paralysis").target;
+  assert.ok(html.includes(`>${target}+</td>`), "the Save column holds the subject's own target");
+  assert.match(html, /data-tooltip-text="[^"]*\(MM p\. 57\)"[^>]*>\d+\+/, "its tooltip cites the page that prints the row");
+  assert.equal(shape(body("pall"))[3], true);
+  me.current = users[0];
+});
+
+await t("T10: a blank save leaves the Save target blank with the page reference alone in its tooltip, and its press is refused for every seat", async () => {
+  const { actorOf } = t10;
+  t10.tokens["E.blank"] = { id: "eblank", uuid: "E.blank", name: "Blank", actor: actorOf({}), testUserPermission: ownedBy("gm", "pall") };
+  game.combat.turn = 4;
+  await presenter.presentReach(t10.prompt({ token: t10.tokens["E.blank"], momentKey: "c1:2:4:E.blank:kindT" }));
+  const blankMessage = engagedMessages().at(-1);
+  me.current = users.find((u) => u.id === "pall");
+  const html = presenter.engagedBody(blankMessage, engagedCard(blankMessage));
+  assert.ok(html.includes('data-tooltip-text="MM p. 57"> </td>'), "a blank cell whose tooltip is the page alone, with no words saying it is missing");
+  assert.ok(!html.includes('data-tooltip-text="paralysis'), "no figure stands in for it");
+  const row = Object.values(engagedCard(blankMessage).entries)[0];
+  const key = Object.keys(engagedCard(blankMessage).entries)[0];
+  const priorRoll = globalThis.Roll;
+  globalThis.Roll = class { async evaluate() { return { total: 1 }; } };
+  for (const [seat, isGM] of [["Judge", true], ["Player", false]]) {
+    me.current = isGM ? users[0] : users.find((u) => u.id === "pall");
+    const out = await t10.run.pressRoll({ itemUuid: row.itemUuid, rowKey: row.rowKey, activationId: row.activationId, subject: row.subject, messageId: blankMessage.id, entryKey: key });
+    assert.deepEqual(out, { ok: false, reason: "noFigure" }, `refused for the ${seat}'s seat`);
+  }
+  globalThis.Roll = priorRoll;
+  me.current = users[0];
+  game.combat.turn = 1;
+  t10.reach.releaseReachMoment("c1:2:4:E.blank:kindT");
+});
+
+await t("T10: Not engaged closes a row for a seat that owns every bearer: the row keeps its bearers and says who closed it, no save and no record is written, the moment key is released and the whisper is answered; any other seat is refused, a Judge included; Undo reopens it", async () => {
+  const [message] = engagedMessages();
+  const key = "c1:2:1:E~s:kindT";
+  const card = () => engagedCard(message);
+  const whisperOf = () => messages.find((m) => m.id === card().entries[key].whisperId);
+  t10.reach.holdReachMoment("c1:2:1:E.s:kindT", "c1:2:1");
+  const press = (userId) => t10.run.notEngagedHere({ messageId: message.id, entryKey: key, requestUserId: userId });
+  const writes = t10.created.length;
+  assert.deepEqual(await press("pe"), { ok: false, reason: "notBearer" }, "one of two bearers is refused by the handler");
+  assert.deepEqual(await press("pa"), { ok: false, reason: "notBearer" }, "a seat that owns no bearer");
+  me.current = users[0];
+  assert.deepEqual(await press(null), { ok: false, reason: "notBearer" }, "the Judge's own seat, which owns the subject and no bearer here: no role is read");
+  assert.equal(card().entries[key].state, "open", "refused presses change nothing");
+  assert.equal(t10.reach.holdReachMoment("c1:2:1:E.s:kindT", "c1:2:1"), false, "and release no key");
+  assert.deepEqual(await t10.run.notEngagedHere({ messageId: message.id, entryKey: "gone", requestUserId: "pall" }), { ok: false, reason: "struck" }, "a row the card no longer holds");
+  assert.deepEqual(await press("pall"), { ok: true }, "a seat owning every bearer closes it");
+  const closed = card().entries[key];
+  assert.deepEqual([closed.state, closed.closedBy.id, closed.presser], ["closed", "pall", "pall"], "closed, by whom, and the closer may Undo it");
+  assert.deepEqual(closed.bearers.map((b) => b.name), ["Champion 1", "Champion 2"], "the row keeps its bearers");
+  assert.equal(t10.created.length, writes, "no condition, no immunity window and no record is written");
+  assert.equal(t10.reach.holdReachMoment("c1:2:1:E.s:kindT", "c1:2:2"), true, "the moment key is released");
+  t10.reach.releaseReachMoment("c1:2:1:E.s:kindT");
+  assert.equal(whisperOf().flags["acks-extras"].itemRunWhisper.answered, "closed", "the whispered card is answered");
+  assert.deepEqual(await press("pall"), { ok: false, reason: "applied" }, "a second press is refused");
+  me.current = users.find((u) => u.id === "pall");
+  const closedBody = presenter.engagedBody(message, card());
+  assert.ok(closedBody.includes("Champion 1, Champion 2") && closedBody.includes("itemRun.card.closedBy") && closedBody.includes('class="is-muted"'), "the row keeps its names, reads Not engaged and who closed it, in the muted look");
+  const closedRow = closedBody.split("<tr").find((r) => r.includes("itemRun.card.closedBy"));
+  assert.ok(!closedRow.includes('data-action="itemRun.roll"') && !closedRow.includes('data-action="itemRun.notEngaged"') && closedRow.includes('data-action="itemRun.undo"'), "no Save and no Not engaged on a closed row, and 4b's Undo to reopen it");
+  me.current = users[0];
+  const whisperHtml = presenter.whisperBody(whisperOf().flags["acks-extras"].itemRunWhisper);
+  assert.ok(!whisperHtml.includes("itemRun.card.rollSave") && whisperHtml.includes("itemRun.card.closedBy"), "the whispered card offers no roll once the row is closed");
+  const undone = await t10.run.undoCardEntry({ messageId: message.id, entryKey: key });
+  assert.deepEqual([undone.ok, card().entries[key].state, card().entries[key].closedBy], [true, "open", undefined], "Undo reopens it");
+  assert.equal(t10.reach.holdReachMoment("c1:2:1:E.s:kindT", "c1:2:1"), false, "its moment key is held again");
+  t10.reach.releaseReachMoment("c1:2:1:E.s:kindT");
+  me.current = users.find((u) => u.id === "pall");
+  const reopened = presenter.engagedBody(message, card());
+  const reopenedRow = reopened.split("<tr").find((r) => r.includes("Champion 1, Champion 2"));
+  assert.ok(reopenedRow.includes('data-action="itemRun.roll"') && reopenedRow.includes('data-action="itemRun.notEngaged"'), "the reopened row has its Save and its Not engaged again");
+  me.current = users[0];
+  assert.equal(presenter.whisperBody(whisperOf().flags["acks-extras"].itemRunWhisper).includes("itemRun.card.rollSave"), true, "and its whisper offers the roll");
+});
+
+await t("T10: the failed save's well names the condition and the timed interval, a pass reads its immunity with its tooltip, and a pass with none imported cites the page alone", async () => {
+  const [message] = engagedMessages();
+  const key = "c1:2:1:E~s:kindT";
+  const keep = engagedCard(message).entries[key];
+  me.current = users.find((u) => u.id === "pall");
+  const set = async (patch) => message.update(Object.fromEntries(Object.entries(patch).map(([k, v]) => [`flags.acks-extras.itemRunCard.entries.${key}.${k}`, v])));
+  await set({ state: "applied", saved: false, total: 4, target: 12, recordIds: ["E1"], names: ["Held Name"], life: "timed", presser: "pall" });
+  let html = presenter.engagedBody(message, engagedCard(message));
+  assert.ok(html.includes("itemRun.card.failed") && html.includes("itemRun.card.well: Subject One: Held Name, ACKS-LIB.itemRun.card.life.timed"), "a failure reads Failed and the well says what it wrote and that it is timed");
+  assert.ok(html.includes('data-action="itemRun.undo"'), "with 4b's Undo");
+  await set({ saved: true, total: 15, recordIds: [], names: [], life: "raised", immune: 2 });
+  html = presenter.engagedBody(message, engagedCard(message));
+  assert.ok(html.includes("itemRun.card.engagedHolds") && html.includes('itemRun.card.engagedHoldsTip (MM p. 57)"'), "a pass reads Saved with its immunity and where that figure came from");
+  assert.ok(!html.includes('data-action="itemRun.undo"'), "a pass that wrote no record has nothing to undo");
+  await set({ immune: unset() });
+  html = presenter.engagedBody(message, engagedCard(message));
+  assert.ok(html.includes("itemRun.card.saved") && html.includes('data-tooltip-text="MM p. 57"'), "a pass with no window imported says Saved and cites the page alone");
+  await message.update({ [`flags.acks-extras.itemRunCard.entries.${key}`]: keep });
+  me.current = users[0];
+  globalThis.fromUuidSync = t10.prior;
+  game.combat = null;
+});
+
 console.log(`\ntest-item-run-presenter: ${passed} checks passed.`);
