@@ -1883,6 +1883,16 @@ tab's headings.
   gate claimant never refuses it. The module blocks only where it knows the answer. *Counter
   (medium):* a hand-made spell with its list left blank spends no slot of any list; naming its
   list on the spell is the Judge's remedy.
+- **Only a spell's own lists can put it off list; the system's class field cannot.** The system
+  fills that field with a class word on every new spell, so a spell made with the tab's own add
+  button would have been off list on any class that casts from a list, and its owner blocked. The
+  field still places a spell under a list it matches. *Counter (medium):* a hand-made spell whose
+  class field names another class's list is cast by a Player and spends no slot; the field is free
+  text and proves nothing about a list.
+- **The casting strip's rest control, pips and points pair answer a seat that owns the
+  character.** The strip drew its rest anchor for every seat, and a press from a seat that could
+  not write the actor failed. *Counter (low):* none found; the tab's own Rest was already the
+  owner's.
 - **The row and the gate claimant judge a list's own slots, never the system's count**
   (`listGate`, `cast-plan.mjs`). On a class that casts from lists the system's grid is one row of
   maxima for every list, and every list's casts count against it, so a refusal read from it would

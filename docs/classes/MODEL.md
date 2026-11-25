@@ -949,7 +949,9 @@ character's level); the actor stores only what is SPENT
 per-tradition strip (`castingStripElement`) — slot pips to spend/refund, a +/− pair on a points
 pool, a capacity line for a tradition whose `levelCap` names a ladder (the
 gnostic invocation level), and a rest control that DELETES the pools key (update merges
-objects, so writing an empty object resets nothing). The module's own sheet
+objects, so writing an empty object resets nothing). The rest control is drawn
+for a seat that owns the character, and a pip or the points pair answers that
+seat alone. The module's own sheet
 mounts the same strip with `{traditions: false}`, which leaves the rest
 control and the power line: there the pips sit on the Magic tab, one row per
 level under each list's heading, and write through the same `adjustPool`

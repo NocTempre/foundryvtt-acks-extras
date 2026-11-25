@@ -2296,7 +2296,7 @@ t("a spell is off list only where the class names a list, the spell names a list
   const casting = [WISP, TIDE];
   const own = (...sources) => ({ extras: { lists: sources.map((source) => ({ source, level: 1 })) } });
   assert.equal(isOffList(casting, own("gust")), true, "a list the class does not cast from");
-  assert.equal(isOffList(casting, { extras: {}, class: "Gust" }), true, "core's class string stands in where no list is printed");
+  assert.equal(isOffList(casting, { extras: {}, class: "Gust" }), false, "core's class string never puts a spell off list: the system fills it on every new spell");
   assert.equal(isOffList(casting, own("gust", "tide")), false, "one shared list is enough");
   assert.equal(isOffList([{ key: "w1", label: "Wisp Craft" }], own("WISP-craft")), false, "folded, by label");
   assert.equal(isOffList(casting, { extras: {} }), false, "a spell that names nothing");

@@ -689,8 +689,9 @@ cancel at any point before the spend costs nothing:
    Magic tab's row sends), else the first of the class's traditions whose key
    or label a list of the spell names; its slot at the level that list gives
    the spell less what the actor spent; a
-   points tradition is shown and not spent; a spell that names a list and none
-   of the class's (`isOffList`) has no tradition, spends no slot and is not
+   points tradition is shown and not spent; a spell whose own flag names a list
+   and none of the class's (`isOffList`; the system's class field never puts a
+   spell off list) has no tradition, spends no slot and is not
    read against core's count; with no tradition otherwise, core's
    `system.spells` count less the summed `cast`; else unknown and no verdict).
    The spend also ends what the caster holds by concentration (`concentrating`

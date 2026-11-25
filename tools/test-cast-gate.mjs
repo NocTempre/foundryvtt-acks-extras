@@ -178,6 +178,13 @@ await ta("the system's own slot count, used up, refuses nothing here: a spell th
   assert.deepEqual([rowless.result, rowless.calls.spends, rowless.calls.pools, rowless.calls.notices], [{ ok: true }, 1, [], []], "a listed spell whose list has no slot row is not judged by the system's grid");
 });
 
+await ta("a hand-made spell whose class field matches none of the class's lists is not off list: a Player casts it", async () => {
+  const spell = owned([]);
+  spell.system.class = "Elsewhere";
+  const { result, calls } = await run(spell, {}, { pools: poolsOf(["alpha", 1, 2, 2]) });
+  assert.deepEqual([result, calls.spends, calls.pools, calls.notices], [{ ok: true }, 1, [], []]);
+});
+
 await ta("a cast the system did not run writes no pool", async () => {
   const { result, calls } = await run(owned([["alpha", 2]]), {}, { pools: poolsOf(["alpha", 2, 2, 0]), spent: false });
   assert.deepEqual(result, { ok: false, reason: "notSpent" });

@@ -152,12 +152,15 @@ function stripHtml(actor, switches, { traditions = true } = {}) {
     // Capacity-only (the gnostic invocation level): shown, never spent.
     return `<div class="acks-extras-classes-tradition"><label>${foundry.utils.escapeHTML(t.label)}</label><span class="acks-extras-classes-slotgroup">${foundry.utils.escapeHTML(t.capacity ?? "")}</span></div>`;
   });
-  return `<div class="acks-extras-classes-strip">${parts.join("")}<a class="acks-extras-classes-rest" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.restTip`)}"><i class="fa-solid fa-bed"></i></a>${power}</div>`;
+  // The rest control is drawn for a seat that owns the character; any other seat reads the strip.
+  const rest = actor.isOwner === true ? `<a class="acks-extras-classes-rest" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.restTip`)}"><i class="fa-solid fa-bed"></i></a>` : "";
+  return `<div class="acks-extras-classes-strip">${parts.join("")}${rest}${power}</div>`;
 }
 
 /**
  * The strip as an element with its controls wired — a pip spends or refunds
- * a slot, the +/− pair adjusts a points pool, the bed rests. Null when nothing
+ * a slot, the +/− pair adjusts a points pool, the bed rests — for a seat that
+ * owns the character (`actor.isOwner`); any other seat reads it. Null when nothing
  * casts. The core-sheet injector below and the module's own character sheet
  * mount exactly this, so the two cannot drift. `app` is the window that hosts
  * the strip: it keys the power ledger's record (Fades / Stays, which panels are
@@ -176,6 +179,8 @@ export function castingStripElement(actor, app, { traditions = true } = {}) {
   const strip = holder.firstElementChild;
   wirePowerChip(strip, actor, switches);
   strip.addEventListener("click", (event) => {
+    // A pip, the points pair and the rest write the actor, so they answer only a seat that owns it.
+    if (actor.isOwner !== true) return;
     const pip = event.target.closest(".acks-extras-classes-pip");
     if (pip) {
       event.preventDefault();

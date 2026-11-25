@@ -56,20 +56,22 @@ const castFrom = (casting) => (casting ?? []).filter((t) => t?.key).map((t) => n
 /**
  * Is this spell on no list the class casts from? True only where the class's
  * `casting` names at least one tradition, the spell names at least one
- * (`spellTraditions`, core's `class` string included) and none of them is one of
- * the class's. A character with no class bound, a class that casts from no list
- * and a spell that names no tradition are not off list: the module does not know
- * the answer there, so nothing is blocked. The Magic tab, the cast's reading and
- * `spellStanding` all take the answer from here.
+ * in its own flag (`spellTraditions` over the flag's lists) and none of them is
+ * one of the class's. A character with no class bound, a class that casts from no
+ * list and a spell whose flag names no list are not off list: the module does not
+ * know the answer there, so nothing is blocked. Core's `class` string places a
+ * spell under a list it matches and never puts one off list: the system fills it
+ * on every new spell, so it says nothing of a spell a hand made. The Magic tab,
+ * the cast's reading and `spellStanding` all take the answer from here.
  *
  * @param {object[]|null|undefined} casting  the class's `system.casting`
- * @param {object} spell  `{extras, class}`: the spell flag and core's class string
+ * @param {object} spell  `{extras}`: the spell flag
  * @returns {boolean}
  */
-export function isOffList(casting, { extras, class: systemClass } = {}) {
+export function isOffList(casting, { extras } = {}) {
   const lists = castFrom(casting);
   if (!lists.length) return false;
-  const sources = spellTraditions(extras, systemClass);
+  const sources = spellTraditions(extras, "");
   return sources.length > 0 && !sources.some((s) => lists.some((keys) => keys.has(s)));
 }
 

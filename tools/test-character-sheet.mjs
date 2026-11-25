@@ -431,6 +431,8 @@ test("the hand pips write through the sheet's own actions and the strip leaves t
   assert.match(sheet, /"magic", "spell-row", "service"/, "the row partial is preloaded");
   const casting = readFileSync(new URL("../scripts/classes/casting.mjs", import.meta.url), "utf8");
   assert.match(casting, /const strip = castingStripElement\(doc, app\);/, "the system's own sheet keeps its strip whole");
+  assert.match(casting, /const rest = actor\.isOwner === true \? /, "the strip's rest control is drawn for an owner of the character");
+  assert.match(casting, /if \(actor\.isOwner !== true\) return;/, "and its pips and points pair answer an owner alone");
 });
 
 /** Every row of a Magic tab context, with the heading it stands under (null in Other spells and by level). */
