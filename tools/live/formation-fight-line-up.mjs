@@ -9,7 +9,10 @@
  * whose token is on the map (recorded deployed in this fight, token kept);
  * leaves that member behind and goes back for them (`left` flips each way, one
  * public line each time, no whisper); and presses Form up, which the Judge's
- * client answers `inCombat` and writes nothing for. The fight's end then
+ * client answers `inCombat` and writes nothing for. The Judge then drops a
+ * summoned creature's token, its summoner a member, on the party sheet: it is
+ * refused with the summon-in-combat warning, its token stays and the roster is
+ * as it was. The fight's end then
  * gathers the members, the one brought in included, and leaves the taken-out
  * member's token on the map outside the party. No load error lands on either
  * seat under a recorder added before reload.
@@ -19,11 +22,13 @@
  * `formation/combat-party` with its token `formation/combat-party-token` and the
  * members `formation/combat-member-2` and `-3`; and the Player seat's own
  * `formation/fight-member-player`, the member it takes out, and
- * `formation/fight-joiner`, in no party. A shared member's ownership is never
+ * `formation/fight-joiner`, in no party; and the creature copy
+ * `formation/fight-summon-copy`, whose token the Judge drops. A shared member's ownership is never
  * changed. The walk brings them to its start
  * shape itself: no fight in the record, the three members in order and not
  * deployed, the party token shown, the joiner's token on the map.
  * Writes outside the ledger: the fight, its combat, the joiner's token, the
+ * summoned creature's token (a copy's token a stopped run left is re-tracked), the
  * token the taken-out member leaves on the map, a joiner token a stopped run
  * left standing (re-tracked at the start; a member's token found standing
  * blocks the walk instead, since the members are shared fixtures), one saved
@@ -320,6 +325,42 @@ const P = {
     .filter((m) => m.timestamp >= since && words.some((w) => (m.content ?? "").includes(w)))
     .map((m) => ({ id: m.id, whisper: (m.whisper ?? []).length > 0, text: (m.content ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() })),
 
+  /** An unlinked token of the creature copy, stamped as a summoning of `summonerId` stamps it, by the module's own builder. */
+  summonToken: async ({ sceneId, copyId, summonerId, x, y }) => {
+    const logic = await import("/modules/acks-extras/scripts/lib/summons-logic.mjs");
+    const scene = game.scenes.get(sceneId);
+    const copy = game.actors.get(copyId);
+    const flags = logic.summonFlags(`Actor.${summonerId}`, { sourceUuid: copy.getFlag("acks-extras", "summonCopy")?.sourceUuid, name: copy.name, castId: "qaFightDrop", at: game.time.worldTime });
+    const doc = await copy.getTokenDocument({ x, y, actorLink: false, hidden: false, delta: { flags } }, { parent: scene });
+    const data = doc.toObject();
+    delete data._id;
+    const [made] = await scene.createEmbeddedDocuments("Token", [data]);
+    return { uuid: made.uuid, id: made.id };
+  },
+
+  /**
+   * The Judge's drop of a token on the open party sheet, as the browser sends it.
+   * Answers the warnings shown, the warning a summon-in-combat refusal words,
+   * and the roster (every member's ids, a summon's base included) before and after.
+   */
+  judgeDrop: async ({ fid, partyId, tokenUuid, copyId }) => {
+    const H = globalThis.__fl;
+    const roster = () => JSON.stringify(H.model.getFormation(fid).members.map((m) => m ? [m.actorId ?? null, m.baseActorId ?? null] : null));
+    const before = roster();
+    const warns = [];
+    const warn = ui.notifications.warn;
+    ui.notifications.warn = (msg, ...rest) => { warns.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+    try {
+      const el = H.root(game.actors.get(partyId).sheet);
+      const dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ type: "Token", uuid: tokenUuid }));
+      el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      await H.sleep(2000);
+    } finally { ui.notifications.warn = warn; }
+    const expected = game.i18n.format("ACKS-FORMATION.warn.summonInCombat", { name: game.actors.get(copyId)?.name ?? "", party: H.model.getFormation(fid).name });
+    return { warns, expected, before, after: roster(), standing: !!(await fromUuid(tokenUuid)) };
+  },
+
   /** A request line with its name filled in, as the relay words it. */
   line: async ({ key, name }) => game.i18n.format(`ACKS-FORMATION.request.${key}`, { name }),
 
@@ -403,6 +444,7 @@ try {
   const members = [playerMember];
   for (const n of [2, 3]) members.push(await gm.fixture(`formation/combat-member-${n}`, "Actor", character(`QA Fighter ${n}`)));
   const joiner = await gm.fixture("formation/fight-joiner", "Actor", character("QA Joiner", yours));
+  const summonCopy = await gm.fixture("formation/fight-summon-copy", "Actor", { name: "QA Fight Hound", type: "monster", system: { hp: { value: 4, max: 4 } }, flags: { [SCOPE]: { summonCopy: { sourceUuid: "Actor.qaFightHoundSource" } } } });
   const [leaver, stayer, third] = members;
   held.partyId = party.id;
   await run(gm, P.grant, { actorId: leaver.id, userId: census.player.userId });
@@ -414,11 +456,11 @@ try {
   const pt = await run(gm, P.partyToken, { fid, partyId: party.id, sceneId: scene.id, x: 500, y: 400 });
   if (pt.made) await gm.mark(pt.made, "formation/combat-party-token");
   const wanted = members.map((m) => m.id);
-  const own = [...wanted, joiner.id];
+  const own = [...wanted, joiner.id, summonCopy.id];
   const shape = await run(gm, P.startShape, { fid, sceneId: scene.id, wanted, own });
   note("start shape", shape);
-  // Only the joiner and the Player seat's member are this walk's alone; a member's token standing is a shared fixture's, and is reported, never swept.
-  const memberStrays = shape.strays.filter((t) => t.actorId !== joiner.id && t.actorId !== playerMember.id);
+  // Only the joiner, the Player seat's member and the creature copy are this walk's alone; a member's token standing is a shared fixture's, and is reported, never swept.
+  const memberStrays = shape.strays.filter((t) => t.actorId !== joiner.id && t.actorId !== playerMember.id && t.actorId !== summonCopy.id);
   if (memberStrays.length) blocked(`tokens of the combat members stand on the scene, left by an earlier run: ${memberStrays.map((t) => t.uuid).join(", ")}`);
   for (const stray of shape.strays) tracked.push(gm.track(stray.uuid, "Token"));
   check("the walk starts with the three members in order, no fight in the record, the party token shown", JSON.stringify(shape.members) === JSON.stringify(wanted) && !shape.combat && shape.partyShown, shape);
@@ -508,6 +550,18 @@ try {
   posted = await run(gm, P.cards, { since, words: ["forms up in", "QA Fight Order"] });
   for (const c of posted) tracked.push(gm.track(c.id, "ChatMessage"));
   check("and nothing is written: the order stands and no card announces it", JSON.stringify(r.order) === JSON.stringify(orderBefore) && !posted.length, { before: orderBefore, after: r.order, cards: posted.length });
+
+  section("a summoned creature dropped on the party in the fight is refused");
+  const hound = await run(gm, P.summonToken, { sceneId: scene.id, copyId: summonCopy.id, summonerId: stayer.id, x: 1200, y: 700 });
+  tracked.push(gm.track(hound.uuid, "Token"));
+  await run(gm, P.close, { partyId: party.id });
+  const judgeSheet = await run(gm, P.open, { partyId: party.id });
+  check("the Judge's party sheet is open", judgeSheet.rendered, judgeSheet);
+  const dropped = await run(gm, P.judgeDrop, { fid, partyId: party.id, tokenUuid: hound.uuid, copyId: summonCopy.id });
+  note("drop", dropped);
+  check("the drop is refused with the summon-in-combat warning", dropped.warns.includes(dropped.expected), { warns: dropped.warns });
+  check("its token stands and the roster is as it was", dropped.standing && dropped.after === dropped.before, { standing: dropped.standing });
+  await run(gm, P.close, { partyId: party.id });
 
   section("5. end the combat");
   await run(player, P.close, { partyId: party.id });

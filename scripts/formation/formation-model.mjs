@@ -1166,6 +1166,12 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
   if (actor.getFlag?.(MODULE_ID, SUMMON_COPY_FLAG)) {
     const token = tokenDoc ?? actor.token ?? null;
     const { summonedBy, summon } = token ? summonOfData(token.toObject?.() ?? token) : {};
+    // A party in a fight is no place a summoning joins, whoever drops it: the
+    // token stays in the fight and nothing is written.
+    if (summon && formation.combat?.active) {
+      ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.summonInCombat", { name: actor.name, party: formation.name }));
+      return formation;
+    }
     // A summon marches only in its own summoner's party.
     const summonerIn = summon && formation.members.some((m) => m?.actorId && !isSummonMember(m) && `Actor.${m.actorId}` === summonedBy);
     if (summonerIn) return addSummonMembers(formation.id, [token], formation);

@@ -7276,6 +7276,22 @@ await scenario("summon members: a creature whose summoner is not in the party is
   assert.ok(notices.slice(warned).some(([, m]) => m.startsWith("ACKS-FORMATION.warn.summonerAbsent")), "and the refusal is said");
 });
 
+await scenario("summon members: a creature dropped on a party in a fight is refused, its token and the roster as they were", async () => {
+  const rig = await summonRig("Fight");
+  const wolf = await rig.wolf(rig.caster, "c1", 1200);
+  const fighting = rig.formation();
+  fighting.combat = { active: true, combatId: "stub" };
+  await model.updateFormation(fighting);
+  await drain();
+  const before = JSON.stringify(rig.formation().members);
+  const warned = notices.length;
+  await model.addMember(rig.formation(), rig.copy, wolf);
+  await drain();
+  assert.equal(JSON.stringify(rig.formation().members), before, "the roster is as it was");
+  assert.ok(scene.tokens.get(wolf.id), "its token stands in the fight");
+  assert.ok(notices.slice(warned).some(([, m]) => m.startsWith("ACKS-FORMATION.warn.summonInCombat")), "and the refusal is said");
+});
+
 await scenario("summon members: the fallback never stashes another caster's creature", async () => {
   const rig = await summonRig("Fall");
   const stranger = await member("Fall Stranger");

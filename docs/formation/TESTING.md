@@ -3661,7 +3661,8 @@ The party stays in delve, where a player's choice of who comes along matters.
     combat" (`formation/combat-scene`, `formation/combat-party`,
     `formation/combat-party-token`, `formation/combat-member-2` and `-3`), with
     the walk's own `formation/fight-member-player` (the Player seat's, the one
-    taken out) and `formation/fight-joiner`; a shared member's ownership is
+    taken out), `formation/fight-joiner` and the creature copy
+    `formation/fight-summon-copy`; a shared member's ownership is
     never changed. Start the combat so the party deploys. On the
     Player seat, take the owned member out. *Observable:* they leave the record;
     their deployed token stays where it stood and its combatant still resolves
@@ -3671,13 +3672,17 @@ The party stays in delve, where a player's choice of who comes along matters.
     owned member behind and go back for them. *Observable:* `left` flips both
     ways, a public line each time, no whisper. Send `formUp` with a saved order.
     *Observable:* `{ ok: false, refused: "inCombat" }`, and the order unchanged.
-    End the combat. *Observable:* `reform` gathers the members, the one brought
+    Make an unlinked token of the copy stamped with `summonFlags` for
+    `formation/combat-member-2`, and drop it on the Judge's open party sheet
+    (a `drop` DragEvent on the sheet root carrying `{type: "Token", uuid}`).
+    *Observable:* the `warn.summonInCombat` warning; the token stands; the
+    roster is unchanged. End the combat. *Observable:* `reform` gathers the members, the one brought
     in included; the one taken out stays on the map outside the party; nothing
     throws under a recorder added before reload.
 
 Teardown: the combat flag is cleared and the cards are swept by id; step 10
-forgets its saved order by id and deletes its combat by its tracked id. The nine
-fixtures stay. The lead ends in the party, and the next run's start takes them out.
+forgets its saved order by id and deletes its combat and the creature's token by
+their tracked ids. The fixtures stay. The lead ends in the party, and the next run's start takes them out.
 
 ## A seat's presses follow what it owns (added with T-0792 slice 1)
 
