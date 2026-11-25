@@ -66,7 +66,7 @@ import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
-import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon, takesTargets, stepOf } from "./cast-kinds.mjs";
+import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon, takesTargets, stepOf, lightRowsOnCaster } from "./cast-kinds.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { isSummonSpell, resolveSummonRef } from "./summon-spell.mjs";
 import { summonRowsOf, summonOffer, judgeSummon, summonIsConjuration } from "./cast-summon.mjs";
@@ -1196,12 +1196,15 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   card.recurs = kept.some(({ row }) => isRecurring(row));
   // A summoning leaves its record whatever its rows are, carrying the id its creatures carry. Unless held it is core-timed with no `startTime` of this module's own, so its end is announced with Dismiss and never deleted silently (`cast-expiry.mjs`).
   // A door sealed leaves its record too, whatever the rows are, since the wall's stamp is ended by that record's deletion and a stamp with no record is ended at the next GM `ready`. It carries the id the stamp carries and names the wall. With no clock of its own to run on, the seal holds until its owner deletes the record.
-  if (held || summon || timed || untimedRecord || sealed?.ok) {
+  // A light row of the spell's own form sheds its light from the caster's record, which the same cast already writes: a reversed cast, a concentration and a summoning write none, and a cast with no clock leaves a bare record the light stays on until its owner deletes it.
+  const lightBands = mode === CAST_MODES.normal && !held && !summon ? lightRowsOnCaster(kept) : null;
+  if (held || summon || timed || untimedRecord || sealed?.ok || lightBands) {
     const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: sealed?.ok ? castId : placed?.castId || castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}), ...(sealed?.ok ? { seal: { sceneId: sealPick.sceneId, wallId: sealPick.wallId } } : {}) };
-    const bare = untimedRecord || (sealed?.ok && !timed && !summon);
+    const bare = untimedRecord || (sealed?.ok && !timed && !summon) || (lightBands && !timed);
+    const made = summon ? { ...mark, duration: card.duration } : bare ? mark : { ...mark, startTime: deps.now(), duration: card.duration };
     const data = held
       ? heldRecordData(mark, { held, now: deps.now(), tail: card.duration.tail, cap: card.duration.cap })
-      : spellEffectData(summon ? { ...mark, duration: card.duration } : bare ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
+      : spellEffectData(lightBands ? { ...made, light: { bands: lightBands, cite: card.cite } } : made);
     try {
       await deps.record(caster, data);
     } catch (err) {

@@ -640,6 +640,23 @@ t("conditionRecords takes what was built for each status and writes a status-fre
   assert.equal(anchor.system, undefined);
 });
 
+t("conditionRecords writes a recipient's light row with its bands and the card's page, in the normal form only", () => {
+  const light = { type: "light", key: "lamp", appliesTo: "recipient", lasts: "duration", lightBands: { daylight: null, bright: 15, dim: 30 } };
+  const c = card({ cite: "RR 99", mode: "normal" });
+  const [record] = conditionRecords(light, c, { startTime: 1, spell: { img: "i" }, key: "lamp" });
+  assert.deepEqual(record.changes.map((ch) => ch.value), ["", "15", "30"]);
+  assert.equal(record.flags["acks-extras"].magicLightCite, "RR 99");
+  assert.equal(record.statuses, undefined);
+  assert.equal(record.flags["acks-extras"].spellEffect.role, "recipient");
+  assert.deepEqual(spellEffectOf(record).duration, c.duration, "it keeps the clock it had");
+  const [reversedCard] = conditionRecords(light, card({ cite: "RR 99", mode: "reversed" }), { startTime: 1, spell: { img: "i" }, key: "lamp" });
+  assert.deepEqual(reversedCard.changes, [], "a reversed cast writes no light");
+  const [reversedRow] = conditionRecords({ ...light, reversed: true }, c, { startTime: 1, spell: { img: "i" }, key: "lamp" });
+  assert.deepEqual(reversedRow.changes, [], "nor does a row marked reversed");
+  const [other] = conditionRecords({ type: "detect", key: "d", appliesTo: "recipient", lasts: "duration" }, c, { startTime: 1, spell: { img: "i" }, key: "d" });
+  assert.deepEqual(other.changes, [], "no other kind carries a light");
+});
+
 await ta("the loss a failed save costs runs before the cast's own condition is written", async () => {
   const grant = { type: "conditionGrant", key: "dread", conditions: ["afraid"], lasts: "duration" };
   const resist = { kind: "save", category: "spell", formula: "1d20", total: 2, target: 13, success: false, parts: [] };

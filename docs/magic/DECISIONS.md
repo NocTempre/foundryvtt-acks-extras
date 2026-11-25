@@ -1956,3 +1956,44 @@ from the code and a mock context and not from a world.
 **Strongest counter, MEDIUM.** The author of a card can edit its entries, so a seat that owns only the caster can forge an entry's `before`, `lifted` or `recordIds` and press an Undo the GM's client then carries out. Held: for a seat that does not own the target the GM's client writes hit points only where they stand at the entry's own `after`, and only within the row's reach, refuses every entry that lifted, destroyed or timed anything, and deletes only records marked with this card's cast. What the check cannot see is a forged `before` within the reach. A second counter, LOW: the hostile exception for Dismiss reads the role in a ruling that says only secrets do. Held by the page (RR ch. 5), which leaves a creature no control once its control has ended hostile, and by the creature's owners having been dropped by the end itself; no owner ruling on the exception is recorded.
 
 *Cost:* a card the Judge cast for a Player's character offers that Player no Revert, since the Player cannot edit the card ([ROADMAP.md](ROADMAP.md)). A partial restore leaves the card unstamped, and a GM seat finishes it: the card is whispered only to the GMs and the caster's owners, so the owners of the other characters are never offered it. A procedure written to read `ctx.isGM` reads nothing; none ships and the API is the only way to register one. A creature stashed in a party and left hostile stays a member until a Judge dismisses it, and a consumer of the party roster at contract v4 leaves its control end unwritten, as before.
+
+## 2026-11-25 — A light spell's cast writes its light, sized on the spell's light row (board 2, T-0791)
+
+**Ruled.** A cast of a spell whose rows hold a light row of its own form puts
+the light on the record the cast already writes: the caster's record, or the
+recipient's where the row names a recipient (`spellEffectData`'s `light`,
+`cast-kinds.mjs` `lightRowsOnCaster`, `cast-apply.mjs` `conditionRecords`). The
+record carries lib's three magic-light changes and the spell's page reference
+(`magicLightRecord`), so it is a magic light by the lib ruling of 2026-11-10 and
+shines, shutters and stows by that of 2026-11-11 (lib DECISIONS, "In force");
+it ends with the record. The reach is typed on the spell's light row, in three
+fields that start blank (`lightBands`: Daylight, Bright and Dim radius); a cast
+from a blank row writes a light with no reach, whose Kit cell is blank and whose
+tooltip is the page reference alone. A spell with no duration writes its light
+on a bare record that lasts until its owner deletes it. The party sheet's Kit
+tab offers the cast ("Cast a light spell"): every such spell a member carries
+that the seat owns, read and gated by the Magic tab's own reading
+(`magicStanding`, `listGate`), opening the caster's own cast window.
+
+The owner's words this rests on: "In the party (exploration party) interface we
+need an option for magical light: Light spell, continual light, etc." (T-0791),
+and "follow foundry permissions, don't invent new ones." The release hub
+approved the corrected board (design canvas, board 2, version 14) with its three
+decisions, on the condition that a blank radius's tooltip is the page reference
+alone.
+
+**Adds to** lib's 2026-11-10 and 2026-11-11 magic-light rulings, which left a
+cast light unbuilt: the 2026-11-10 entry's "the light belongs to whatever item
+it was cast on" is not built here (below).
+
+**Rejected.** A light on an item: the cast window has no item pick, so a cast
+light sits on a creature, and an item pick is a board of its own (ROADMAP). A
+reach read from the page at import: a radius is a printed value, and until a
+recipe reads it the row stays blank and a Judge types it (ROADMAP). A Kit row
+for a light already burning, with no cast and no slot, for the perpetual spell
+the importer authors no row for: the owner's card selection was "Importer recipe
+later, by hand until then".
+
+**Cost.** A Judge types each light spell's reach once on its row. A reversed
+cast and a cast held by concentration write no light, and a dispel does not end
+one (ROADMAP).

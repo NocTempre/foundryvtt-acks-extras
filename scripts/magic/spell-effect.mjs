@@ -15,6 +15,7 @@ import { FLAG_ROLL_MODS, FLAG_TURN_LIFE, FLAG_ENDS_ON } from "../lib/constants.m
 import { readTurnLife } from "../lib/turn-life.mjs";
 import { readEndsOn } from "../lib/ends-on.mjs";
 import { sealMark } from "./cast-seal.mjs";
+import { magicLightRecord } from "../lib/light.mjs";
 
 /** The two sides of a cast a record can sit on. */
 export const SPELL_EFFECT_ROLES = Object.freeze(["caster", "recipient"]);
@@ -91,6 +92,8 @@ const sameData = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  * @param {{sceneId: string, wallId: string}} [cast.seal]  The door the cast sealed, written into the mark on the caster's record (`sealMark`); a pick missing either id is not written.
  * @param {string[]} [cast.endsOn]
  *   What ends the record (`lib/ends-on.mjs` `ENDS_ON_CAUSES`), written at lib's flag, where lib's loss hooks delete it by id. Words that are no cause are not written, and none writes no flag.
+ * @param {{bands: {daylight?: number|null, bright?: number|null, dim?: number|null}, cite?: string}} [cast.light]
+ *   The light this record sheds (`magicLightRecord`, `lib/light.mjs`): its three band changes join `changes` and its page flag joins the module's flags. Such a record holds no status, no buff and no declaration, so the record's own deletion is the light's end.
  * @returns {object}
  */
 export function spellEffectData({
@@ -118,12 +121,15 @@ export function spellEffectData({
   turnLife,
   endsOn,
   seal,
+  light,
 }) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
   const figures = Array.from(system?.changes ?? []);
-  if (rollMods && (statuses.length || changes.length || figures.length)) throw new Error("spellEffectData: a buff record holds no status and no changes");
-  if (pending && (statuses.length || changes.length || figures.length)) throw new Error("spellEffectData: a pending declaration holds no status and no changes");
-  if (statuses.length && changes.length) throw new Error("spellEffectData: a record that holds a status holds the entry's system changes and no others");
+  const shed = light ? magicLightRecord(light) : null;
+  const written = shed ? [...changes, ...shed.changes] : changes;
+  if (rollMods && (statuses.length || written.length || figures.length)) throw new Error("spellEffectData: a buff record holds no status and no changes");
+  if (pending && (statuses.length || written.length || figures.length)) throw new Error("spellEffectData: a pending declaration holds no status and no changes");
+  if (statuses.length && written.length) throw new Error("spellEffectData: a record that holds a status holds the entry's system changes and no others");
   if (statuses.length > 1 || figures.length) {
     const same = sameData(statuses, condition?.statuses ?? []) && sameData(figures, condition?.system?.changes ?? []);
     if (!statuses.length || !same) throw new Error("spellEffectData: a record's brought statuses and changes are exactly what the builder returned for its one condition");
@@ -145,8 +151,8 @@ export function spellEffectData({
     origin: spell.uuid,
     transfer,
     disabled: false,
-    changes,
-    flags: { [MODULE_ID]: { [FLAG_SPELL_EFFECT]: mark } },
+    changes: written,
+    flags: { [MODULE_ID]: { [FLAG_SPELL_EFFECT]: mark, ...shed?.flags } },
   };
   if (rollMods) data.flags[MODULE_ID][FLAG_ROLL_MODS] = rollMods;
   const life = readTurnLife(turnLife);
@@ -160,7 +166,7 @@ export function spellEffectData({
     data.system = { changes: figures.map((change) => ({ ...change })) };
   }
   const timed = duration && !duration.none && Number.isFinite(duration.value) && duration.units;
-  const flagTimed = statuses.length > 0 || changes.length > 0 || Number.isFinite(startTime);
+  const flagTimed = statuses.length > 0 || written.length > 0 || Number.isFinite(startTime);
   if (Number.isFinite(startTime)) mark.startTime = startTime;
   if (timed && flagTimed) mark.duration = { value: duration.value, units: duration.units };
   else if (timed) data.duration = { value: duration.value, units: duration.units };

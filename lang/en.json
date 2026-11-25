@@ -2933,6 +2933,7 @@
       "magicLightNotSet": "reach not set",
       "magicLightNotSetTip": "The effect \"{effect}\" on {source} names a light but carries no reach. Open the effect and type the feet in its changes.",
       "magicLightTip": "Set by the effect \"{effect}\" on {source}: {reach}.",
+      "magicLightCastTip": "From the light row of {spell}, on {source} ({cite}): {reach}.",
       "elapsed": "Elapsed",
       "rest": "Rest",
       "sinceRest": "turns since rest",

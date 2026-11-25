@@ -60,7 +60,7 @@
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { amountAfter, HP_MODE } from "../lib/hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "../lib/defenses.mjs";
-import { rowsOf, rowsForMode, castAt, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage, awaitsFail } from "./cast-rows.mjs";
+import { rowsOf, rowsForMode, castAt, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage, awaitsFail, CAST_MODES } from "./cast-rows.mjs";
 import { spellEffectData, spellEffectOf } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData, modifierFigure } from "./cast-mods.mjs";
 import { liftPlan, isDestroyed, chosenWeapon } from "./cast-kinds.mjs";
@@ -156,6 +156,8 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
   const statuses = row.type === "conditionGrant" && !anchor ? Array.from(row.conditions ?? []) : [undefined];
   const free = new Set(Array.from(row.untimed ?? []));
   const endsOn = Array.from(row.endsOn ?? []);
+  // A light row of the spell's own form sheds its light from the recipient's record; the card's mode says which form was cast.
+  const light = row.type === "light" && !row.reversed && card.mode !== CAST_MODES.reversed ? { bands: row.lightBands, cite: card.cite } : undefined;
   return statuses.map((status) => {
     const clocked = timed && !free.has(status);
     const condition = status ? (built?.[status] ?? null) : null;
@@ -174,6 +176,7 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
       startTime: clocked ? startTime : undefined,
       turnLife: lived && clocked ? (life.turnLife ?? undefined) : undefined,
       endsOn,
+      light,
     });
   });
 }

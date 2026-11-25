@@ -151,7 +151,10 @@ import { hexStockKey } from "./hex-stock.mjs";
  * `actorId` and `effectId` for the button's action to find the effect again.
  * `label` is the item the effect rides on, else the effect's own name; a light
  * whose effect states no reach says so and shows no figure. The `tip` names
- * the effect and where it sits, the way a figure's tooltip owes its source.
+ * the effect and where it sits, the way a figure's tooltip owes its source. A
+ * light a cast wrote carries the spell's page (`cite`): its tip names the spell,
+ * the bearer and that page, and where no reach is typed its cell is blank and
+ * the page alone is the tip.
  * The state badge, the button and every name in them speak of the item, never
  * the effect.
  */
@@ -173,7 +176,9 @@ export function magicLightRows(formation) {
         const reachKey = light.bright != null && light.dim != null ? "magicLightReach" : light.bright != null ? "magicLightBrightOnly" : "magicLightDimOnly";
         parts.push(game.i18n.format(`ACKS-FORMATION.app.${reachKey}`, { ...(light.bright != null ? { bright: light.bright } : {}), ...(light.dim != null ? { dim: light.dim } : {}) }));
       }
-      const reachText = set ? parts.join(" · ") : game.i18n.localize("ACKS-FORMATION.app.magicLightNotSet");
+      // A light a cast wrote names the page its reach was read from: with no reach typed its cell stays blank and the page is the tooltip, since no words stand in for the figure.
+      const cited = Boolean(light.cite);
+      const reachText = set ? parts.join(" · ") : cited ? "" : game.i18n.localize("ACKS-FORMATION.app.magicLightNotSet");
       // A player is not told an item-borne effect's own name: on an item not yet
       // identified it is what the item sheet hides. The item's name is the one
       // the player already sees, a disguise's included.
@@ -189,7 +194,11 @@ export function magicLightRows(formation) {
         bearer: actor.name,
         set,
         reachText,
-        tip: game.i18n.format(set ? "ACKS-FORMATION.app.magicLightTip" : "ACKS-FORMATION.app.magicLightNotSetTip", args),
+        tip: cited
+          ? set
+            ? game.i18n.format("ACKS-FORMATION.app.magicLightCastTip", { spell: light.label, source: actor.name, cite: light.cite, reach: reachText })
+            : light.cite
+          : game.i18n.format(set ? "ACKS-FORMATION.app.magicLightTip" : "ACKS-FORMATION.app.magicLightNotSetTip", args),
         ...control,
       });
     }

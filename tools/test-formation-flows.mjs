@@ -2241,6 +2241,27 @@ await scenario("template renders live controls for a member-owner", async () => 
     dave.effects.length = 0;
   }
 
+  // A light a cast wrote carries the spell's page: with a reach its tip names the
+  // spell, the bearer and the page; with none its cell is blank and the page alone
+  // is the tip; an effect carrying no page reads as it always did.
+  const castFlag = { "acks-extras": { magicLightCite: "RR 99" } };
+  dave.effects.push(
+    ownedBy({ id: "fxcast", name: "Spell Glow", disabled: false, parent: { documentName: "Actor" }, flags: castFlag, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "30"), change(MAGIC_LIGHT_CHANGE_KEYS.dim, "")] }, "PL1"),
+    ownedBy({ id: "fxcastblank", name: "Spell Blank", disabled: false, parent: { documentName: "Actor" }, flags: castFlag, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "")] }, "PL1"),
+    ownedBy({ id: "fxplain", name: "Plain", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "")] }, "PL1"),
+  );
+  try {
+    const castRows = view.magicLightRows(formation);
+    const cast = castRows.find((r) => r.effectId === "fxcast");
+    const blank = castRows.find((r) => r.effectId === "fxcastblank");
+    const plain = castRows.find((r) => r.effectId === "fxplain");
+    assert.ok(cast.set && cast.tip.startsWith("ACKS-FORMATION.app.magicLightCastTip") && cast.tip.includes("Spell Glow") && cast.tip.includes("RR 99") && cast.tip.includes(dave.name) && cast.tip.includes("magicLightBrightOnly"), "a cast light's tip names the spell, its bearer, the page and the reach");
+    assert.ok(!blank.set && blank.reachText === "" && blank.tip === "RR 99", "a cast light with no reach shows a blank cell and the page alone as its tip");
+    assert.ok(!plain.set && plain.reachText === "ACKS-FORMATION.app.magicLightNotSet" && plain.tip.startsWith("ACKS-FORMATION.app.magicLightNotSetTip"), "a light with no page keeps the not-set words and tip");
+  } finally {
+    dave.effects.length = 0;
+  }
+
   // The owner's seat is offered a shutter on each of their own lights; an
   // observer of another member's light sees its state and no button.
   assert.ok(rows.slice(0, 3).every((row) => row.includes('data-action="shutterMagicLight"')), "the owner sees a shutter on each of their lights");

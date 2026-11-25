@@ -179,6 +179,30 @@ export function takesTargets(keyed) {
   });
 }
 
+/**
+ * The light a cast writes on its caster's own record: the bands of its kept
+ * `light` rows of the spell's own form that name no recipient and last the
+ * spell's duration (a row that lasts only the instant of the cast leaves no
+ * light). Several such rows
+ * combine to the largest figure each band holds, the way the engine keeps the
+ * largest of lights on one bearer; a band no row types stays null. Null where
+ * the cast has no such row. A row of the reverse form and a row aimed at a
+ * recipient (`recordKind`, which writes that recipient's own record) are not
+ * the caster's.
+ *
+ * @param {Array<{row: object}>} kept  the cast's kept rows (`rowsForMode`)
+ * @returns {{daylight: number|null, bright: number|null, dim: number|null}|null}
+ */
+export function lightRowsOnCaster(kept) {
+  const rows = (kept ?? []).map(({ row }) => row).filter((row) => row?.type === "light" && !row.reversed && row.appliesTo !== "recipient" && row.lasts === "duration");
+  if (!rows.length) return null;
+  const largest = (band) => {
+    const figures = rows.map((row) => row.lightBands?.[band]).filter((n) => Number.isFinite(n));
+    return figures.length ? Math.max(...figures) : null;
+  };
+  return { daylight: largest("daylight"), bright: largest("bright"), dim: largest("dim") };
+}
+
 /** Where a spell's row goes on the card: its kind's place, else null (the caller's own rules). */
 export const placeOf = (row) => kindOf(row?.type)?.place(row) ?? null;
 

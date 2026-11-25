@@ -641,4 +641,19 @@ await ta("a purify, a seal and a recipient-aimed delay apply through the dispatc
   assert.deepEqual(log.hp, [], "no hit points move");
 });
 
+t("the light a cast writes on its caster is the kept light rows of its own form that name no recipient, the largest figure of each band", () => {
+  const { lightRowsOnCaster } = kinds;
+  const row = (over = {}) => ({ row: { key: "k", type: "light", appliesTo: "caster", lasts: "duration", lightBands: { bright: 20, dim: 40 }, ...over } });
+  assert.equal(lightRowsOnCaster([]), null, "no rows");
+  assert.equal(lightRowsOnCaster(undefined), null);
+  assert.equal(lightRowsOnCaster([{ row: { type: "detect" } }]), null, "no light row");
+  assert.deepEqual(lightRowsOnCaster([row()]), { daylight: null, bright: 20, dim: 40 }, "one row, a band it types nothing for stays null");
+  assert.deepEqual(lightRowsOnCaster([row(), row({ lightBands: { daylight: 5, bright: 10, dim: 90 } })]), { daylight: 5, bright: 20, dim: 90 }, "two rows combine to the largest per band");
+  assert.deepEqual(lightRowsOnCaster([row({ lightBands: {} })]), { daylight: null, bright: null, dim: null }, "a row typed with no figure still answers, blank");
+  assert.equal(lightRowsOnCaster([row({ reversed: true, lightBands: { bright: 99 } })]), null, "the reverse form's row is not the caster's");
+  assert.deepEqual(lightRowsOnCaster([row({ appliesTo: "recipient", lightBands: { bright: 99 } }), row()]), { daylight: null, bright: 20, dim: 40 }, "a recipient's row writes that recipient's own record");
+  assert.equal(lightRowsOnCaster([row({ appliesTo: "recipient" })]), null);
+  assert.equal(lightRowsOnCaster([row({ lasts: "instant" })]), null, "a row that lasts only the instant of the cast leaves no light");
+});
+
 console.log(`\n${n} cast-kinds tests passed`);

@@ -190,4 +190,69 @@ await ta("a dispel row with no delivery is a line, not a throw row: no section, 
   assert.equal(view.footnote, card.lines[0]);
 });
 
+// A light row's cast puts its light on the caster's record, the one the cast already writes.
+const { MAGIC_LIGHT_CHANGE_KEYS } = await import("../scripts/lib/light.mjs");
+const LIT = { daylight: null, bright: 30, dim: 60 };
+const lit = (over = {}) => track("light", { key: "lamp", appliesTo: "caster", lightBands: LIT, ...over });
+const litSpell = (rows, duration = TIMED) => {
+  const item = spell(rows, duration);
+  item.flags["acks-extras"].spell.cite = "RR 99";
+  return item;
+};
+const figuresOf = (data) => Object.fromEntries((data.changes ?? []).map((c) => [c.key, c.value]));
+
+await ta("a timed light cast writes its bands and the spell's page on the caster's record, with the clock the record already had", async () => {
+  const { calls, card } = await cast(litSpell([lit()]));
+  assert.equal(card.cite, "RR 99");
+  assert.equal(calls.records.length, 1);
+  const [data] = calls.records;
+  assert.deepEqual(figuresOf(data), { [MAGIC_LIGHT_CHANGE_KEYS.daylight]: "", [MAGIC_LIGHT_CHANGE_KEYS.bright]: "30", [MAGIC_LIGHT_CHANGE_KEYS.dim]: "60" });
+  assert.equal(data.flags["acks-extras"].magicLightCite, "RR 99");
+  assert.equal(data.statuses, undefined, "no status");
+  const record = spellEffectOf(data);
+  assert.deepEqual([record.role, record.startTime, record.duration], ["caster", 10, { value: 3, units: "rounds" }]);
+});
+
+await ta("an untimed light cast writes a bare record with no clock, and the light stays on it", async () => {
+  assert.deepEqual(castDuration(UNTIMED), { none: NONE.untimed });
+  const { calls } = await cast(litSpell([lit()], UNTIMED));
+  assert.equal(calls.records.length, 1);
+  const record = spellEffectOf(calls.records[0]);
+  assert.deepEqual([record.startTime, record.duration], [undefined, undefined]);
+  assert.equal(figuresOf(calls.records[0])[MAGIC_LIGHT_CHANGE_KEYS.bright], "30");
+  assert.equal(calls.records[0].flags["acks-extras"].magicLightCite, "RR 99");
+});
+
+await ta("several light rows on the caster write the largest figure of each band", async () => {
+  const { calls } = await cast(litSpell([lit({ key: "a", lightBands: { bright: 20, dim: 80 } }), lit({ key: "b", lightBands: { bright: 40, dim: 10 } })]));
+  assert.equal(calls.records.length, 1);
+  assert.deepEqual([figuresOf(calls.records[0])[MAGIC_LIGHT_CHANGE_KEYS.bright], figuresOf(calls.records[0])[MAGIC_LIGHT_CHANGE_KEYS.dim]], ["40", "80"]);
+});
+
+await ta("a reversed cast writes no light, and the normal cast of the same spell writes its own", async () => {
+  const item = litSpell([lit(), lit({ key: "gloom", reversed: true, lightBands: { bright: 99, dim: 99 } })]);
+  const normal = await cast(item, "normal");
+  const reversed = await cast(item, "reversed");
+  assert.equal(figuresOf(normal.calls.records[0])[MAGIC_LIGHT_CHANGE_KEYS.bright], "30");
+  assert.equal(reversed.calls.records.length, 1, "the reverse's timed row still leaves its record");
+  assert.deepEqual(reversed.calls.records[0].changes, [], "no light on it");
+  assert.equal(reversed.calls.records[0].flags["acks-extras"].magicLightCite, undefined);
+  const alone = await cast(litSpell([lit(), track("detect", { key: "rev", reversed: true })]), "reversed");
+  assert.deepEqual(alone.calls.records[0].changes, []);
+});
+
+await ta("a light cast held by concentration writes the held record and no light", async () => {
+  const held = { shape: "concentration", concentration: "mobile", value: null, unit: "", dice: "", plus: { value: null, unit: "" }, maxPerLevel: false };
+  const { calls } = await cast(litSpell([lit()], held));
+  assert.equal(calls.records.length, 1);
+  assert.equal(spellEffectOf(calls.records[0]).held, "mobile");
+  assert.deepEqual(calls.records[0].changes, []);
+  assert.equal(calls.records[0].flags["acks-extras"].magicLightCite, undefined);
+});
+
+await ta("a light row aimed at a recipient writes none on the caster", async () => {
+  const { calls } = await cast(litSpell([lit({ appliesTo: "recipient" })]));
+  assert.deepEqual(calls.records.flatMap((d) => d.changes), [], "the recipient's record carries it, at apply");
+});
+
 console.log(`\n${n} magic tracked tests passed`);

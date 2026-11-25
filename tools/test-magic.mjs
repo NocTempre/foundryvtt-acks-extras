@@ -35,6 +35,7 @@ import { areaExtent } from "../scripts/magic/cast-area.mjs";
 import { DISTANCE_UNITS as SCENE_UNITS } from "../scripts/lib/distance-units.mjs";
 import { castDuration, NONE } from "../scripts/magic/cast-duration.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "../scripts/magic/spell-effect.mjs";
+import { MAGIC_LIGHT_CHANGE_KEYS } from "../scripts/lib/light.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef, SUMMONING_TYPE } from "../scripts/magic/summon-spell.mjs";
 import * as timeUnit from "../scripts/lib/time-unit.mjs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
@@ -706,6 +707,30 @@ t("the cast record leaves the duration alone when the cast has none, and rejects
   assert.equal("duration" in spellEffectData({ spell, caster, castId: "c", role: "caster", duration: { none: NONE.untimed } }), false);
   assert.equal("duration" in spellEffectData({ spell, caster, castId: "c", role: "caster" }), false);
   assert.throws(() => spellEffectData({ spell, caster, castId: "c", role: "bystander" }), /unknown role/);
+});
+
+t("a record given a light carries its three band changes and its page flag, holds no status, and is flag-timed when started", () => {
+  const spell = { uuid: "Actor.a.Item.b", name: "X", img: "" };
+  const caster = { uuid: "Actor.a" };
+  const light = { bands: { daylight: null, bright: 30, dim: 60 }, cite: "RR 99" };
+  const data = spellEffectData({ spell, caster, castId: "c", role: "caster", light, startTime: 5, duration: { value: 6, units: "turns" } });
+  assert.deepEqual(data.changes.map((c) => [c.key, c.type, c.value]), [
+    [MAGIC_LIGHT_CHANGE_KEYS.daylight, "upgrade", ""],
+    [MAGIC_LIGHT_CHANGE_KEYS.bright, "upgrade", "30"],
+    [MAGIC_LIGHT_CHANGE_KEYS.dim, "upgrade", "60"],
+  ]);
+  assert.equal(data.flags["acks-extras"].magicLightCite, "RR 99");
+  assert.equal(spellEffectOf(data).castId, "c", "the cast mark stands beside the light's flag");
+  assert.equal(data.statuses, undefined, "a light record carries no status");
+  assert.deepEqual(spellEffectOf(data).duration, { value: 6, units: "turns" }, "a record with changes keeps its clock in the flag");
+  assert.equal("duration" in data, false);
+  const bare = spellEffectData({ spell, caster, castId: "c", role: "caster", light });
+  assert.equal(spellEffectOf(bare).startTime, undefined, "a bare light record has no clock");
+  assert.equal(bare.changes.length, 3);
+  assert.deepEqual(spellEffectData({ spell, caster, castId: "c", role: "caster", light: { bands: {} } }).flags["acks-extras"].magicLightCite, undefined, "no page, no flag");
+  assert.throws(() => spellEffectData({ spell, caster, castId: "c", role: "caster", light, statuses: ["x"] }), /holds a status/, "a light record holds no status");
+  assert.throws(() => spellEffectData({ spell, caster, castId: "c", role: "caster", light, rollMods: { parts: [] } }), /buff record/, "a light record is no buff");
+  assert.throws(() => spellEffectData({ spell, caster, castId: "c", role: "caster", light, pending: { spellUuid: "s" } }), /pending/, "a light record is no declaration");
 });
 
 t("an effect no cast made reads as null", () => {
