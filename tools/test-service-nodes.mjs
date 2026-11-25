@@ -145,6 +145,7 @@ await test("the actor nodes are the Followers tab's cards, and the unit nodes ar
   const w = buildWorld();
   const nodes = serviceNodes(w.boss);
   const cards = await cardIds(w.boss);
+  assert.deepEqual(cards, ["lead", "plain", "beast", "sworn", "captain"], "the tab's own order: henchmen, then the roster's monsters, mercenaries, specialists");
   const tabIds = cards.map((id) => `Actor.${id}`);
   const nested = [w.under.uuid];
   const actorNodes = nodes
