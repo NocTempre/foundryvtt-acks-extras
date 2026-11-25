@@ -117,7 +117,7 @@ longer the flag (monsters DECISIONS, "2026-11-17 — A monster weapon's damage
 type and extraordinary mark are core's fields"). An old `extraordinary` flag
 answers nothing.
 
-## 2026-11-17 — A weapon with no damage formula stays blank, and its first attack asks
+## 2026-11-17 — A weapon with no damage formula stays blank, and its first attack asks — SUPERSEDED IN PART 2026-11-25
 
 **Ruled** (owner, answering the phase-3 assessment's note that a named weapon
 with no damage formula had a die written for it): "A no default should stay
@@ -272,3 +272,33 @@ caller that must read the result awaits the holder's turn, not the update. The
 count is per client, so two seats equipping one stack inside the window could
 each divide it; that is registered separately. The re-issue is a plain update and
 drops the held write's options.
+
+## 2026-11-25 — The strike and a spell carrier are never asked for a formula
+
+Supersedes in part "2026-11-17 — A weapon with no damage formula stays blank,
+and its first attack asks": its reading that every blank weapon asks. Two
+rulings meet here. "2026-11-11 — Capacities, finesse sizes and the unarmed die
+are read, not shipped" (archived in `DECISIONS-through-v11.14.5.md`, "In
+force") says a blank unarmed die means an attack throw and no damage roll. The
+2026-11-17 entry says a blank weapon asks, and saves the answer.
+
+**Ruled** (the release orchestrator, on the owner's delegation, pending the
+owner). The prompt is for a weapon that can keep the answer. The unarmed strike
+(`actions.mjs` `rollUnarmed`) and a spell carrier (lib `spellCarrier`) are
+unsaved weapons built for each throw, so an answer typed for one is kept in
+memory only and the next throw asks again. They are never asked and take the
+2026-11-11 reading: a blank formula is an attack throw with no damage roll. Each
+is told by identity (`isUnarmedStrike`, `isSpellCarrier`), not by a missing id,
+since an unsaved weapon from anywhere else still takes an answer in memory. An
+example for each: a character with no unarmed die imported presses Unarmed
+Strike and the throw is made with no prompt; a stored club with no formula still
+asks once, saves what is typed and asks no more.
+
+**New evidence.** The live walk was held from 2026-11-18 on the strike's own
+prompt: the strike cannot save the answer, so it asked on every throw, and
+`skipDialog` does not skip it. The 2026-11-17 entry was written for a weapon that
+can save the answer.
+
+**What it cost.** A Judge who wants the strike to roll damage imports the die;
+there is no prompt to type one into. A spell carrier whose row states no roll
+makes an attack throw and no damage, as before the prompt existed.

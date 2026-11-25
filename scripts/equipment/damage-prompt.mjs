@@ -15,7 +15,8 @@
  */
 import { LANG } from "./constants.mjs";
 import { makeLoc, escape as esc } from "../lib/util.mjs";
-import { addAttackContributor } from "../lib/patches/attack-throw.mjs";
+import { addAttackContributor, isSpellCarrier } from "../lib/patches/attack-throw.mjs";
+import { isUnarmedStrike } from "./actions.mjs";
 import { needsDamageFormula, damageAnswer, savedFormulaUpdates, DAMAGE_FIELD } from "./damage-blank.mjs";
 import { recomputeItemFields } from "./properties.mjs";
 import * as named from "./overlays/named.mjs";
@@ -64,10 +65,14 @@ async function saveFormula(item, formula) {
 /**
  * The contributor's `prepare`: a weapon with no damage formula is asked for
  * one before the attack is built. Resolves false, cancelling the attack, when
- * the prompt is closed or the weapon cannot be written by this user.
+ * the prompt is closed or the weapon cannot be written by this user. The
+ * unarmed strike and a spell carrier are built for each throw and cannot keep
+ * an answer, so they are never asked: a blank formula there is an attack throw
+ * with no damage roll.
  */
 export async function prepareDamageFormula(ctx) {
   const item = ctx?.weapon;
+  if (isUnarmedStrike(item) || isSpellCarrier(item)) return true;
   if (!needsDamageFormula(item)) return true;
   const live = item.id ? (item.collection?.get?.(item.id) ?? null) : null;
   if (live && !live.isOwner) {

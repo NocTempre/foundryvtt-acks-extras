@@ -40,7 +40,11 @@ truth behind the code enums; local-only, never in the repo).
   weapon is told so and the attack is cancelled. A copy an attack rolls in
   place of the stored weapon (a Follower Card override) writes the stored
   weapon and takes the formula in memory; an unsaved weapon takes it in memory
-  only.
+  only. Two unsaved weapons are never asked, because each is built per throw
+  and cannot keep an answer: the unarmed strike (`actions.mjs`
+  `isUnarmedStrike`, a set `rollUnarmed` fills) and a spell carrier (lib
+  `isSpellCarrier`), both known by identity. Their blank formula is an attack
+  throw with no damage roll.
 - **The non-proficient package's figures are imported.** `attack-mods.mjs`
   reads the throw a non-proficient character fights with and the further
   penalty a character of no level takes from the equipment document's
@@ -1044,7 +1048,7 @@ reader's own book gave them. Nothing falls back to a shipped number.
   apart), and the ledger row carries no tooltip for it. `unarmedStrikeDie()` answers the
   imported die or null; `unarmedStrikeData` then carries a blank formula (an
   attack throw with no damage roll, core's reading of a blank formula) and
-  `rollUnarmed` says "no die imported".
+  `rollUnarmed` says "no die imported"; the damage prompt skips the strike.
 - **Item loss from damage** (JJ p. 398, the optional rule; `overlays/item-loss.mjs`,
   gated by `overlayItemLoss`). The `equipment` doc carries two tables read from
   that page: `itemLoss` (`proseValues`: the threshold, the step, what a layer of

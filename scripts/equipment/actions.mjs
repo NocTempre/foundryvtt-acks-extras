@@ -132,10 +132,22 @@ export function unarmedStrikeData() {
 }
 
 /**
+ * The strikes `rollUnarmed` built, by item. Membership is the whole of "is an
+ * unarmed strike": the weapon is built per throw and cannot keep a formula
+ * typed for it, and it carries no id to tell it by.
+ */
+const strikes = new WeakSet();
+
+/** Whether `item` is a strike `rollUnarmed` built, by identity. */
+export const isUnarmedStrike = (item) => item !== null && typeof item === "object" && strikes.has(item);
+
+/**
  * Make an unarmed attack: build an UNSAVED weapon on the actor and run it
  * through the system's own attack throw (targets, throw, damage). No document
  * is persisted — the item exists only for the roll — and because it has no
- * id, the per-weapon modifiers that read the loadout cleanly skip it.
+ * id, the per-weapon modifiers that read the loadout cleanly skip it. A blank
+ * formula stays blank: the throw is made and no damage is rolled, and the
+ * strike is never asked for a formula (`isUnarmedStrike`).
  *
  * @param {Actor} actor
  * @param {{event?: Event, skipDialog?: boolean}} [options]
@@ -146,6 +158,7 @@ export function rollUnarmed(actor, options = {}) {
   if (!cls) return null;
   const data = unarmedStrikeData();
   const weapon = new cls(data, { parent: actor });
+  strikes.add(weapon);
   return actor.makeAttackThrow({ item: weapon, attackType: "melee", skipDialog: options.skipDialog ?? skipDialogFor(options.event) });
 }
 

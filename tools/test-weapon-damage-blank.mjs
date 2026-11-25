@@ -105,4 +105,47 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
   assert.equal(S.toItemUpdates(weapon("1d6"), cond)[DAMAGE_FIELD], "1d6-1");
 });
 
+// The prompt is for a weapon that can keep the answer. The strike and a spell
+// carrier are built per throw: they are known by identity and never asked.
+{
+  const prompts = [];
+  globalThis.foundry = { applications: { api: { DialogV2: { prompt: async () => { prompts.push(1); return null; } } } } };
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k) => k } };
+  globalThis.ui = { notifications: { warn() {}, info() {} } };
+  globalThis.Roll = { validate: () => true };
+  globalThis.CONFIG = { Item: { documentClass: class { constructor(data) { Object.assign(this, data); } } } };
+  const { prepareDamageFormula } = await import("../scripts/equipment/damage-prompt.mjs");
+  const { rollUnarmed, isUnarmedStrike } = await import("../scripts/equipment/actions.mjs");
+  const { spellCarrier } = await import("../scripts/lib/patches/attack-throw.mjs");
+
+  const struck = [];
+  const striker = { makeAttackThrow: (o) => { struck.push(o.item); return true; } };
+  rollUnarmed(striker, { skipDialog: true });
+  const strike = struck[0];
+
+  assert.equal(isUnarmedStrike(strike), true);
+  assert.equal(strike.system.damage.base.formula, "", "no die imported: the strike's formula is blank");
+  assert.equal(needsDamageFormula(strike), true, "a blank weapon is one that needs a formula");
+  assert.equal(await prepareDamageFormula({ weapon: strike }), true, "the attack goes ahead");
+  assert.deepEqual(prompts, [], "and the prompt is not opened");
+
+  const caster = {};
+  const carrier = spellCarrier(caster, { key: "row", delivery: "melee" }, { castId: "c1" });
+  assert.equal(needsDamageFormula(carrier), true, "a carrier whose row has no roll is blank");
+  assert.equal(await prepareDamageFormula({ weapon: carrier }), true, "the attack goes ahead");
+  assert.deepEqual(prompts, [], "a carrier is not asked either");
+  passed++;
+  console.log("ok   a strike and a spell carrier are never asked for a formula");
+
+  const plain = new CONFIG.Item.documentClass({ type: "weapon", name: "blank", system: { damage: { base: { formula: "" } } } });
+  assert.equal(isUnarmedStrike(plain), false);
+  assert.equal(await prepareDamageFormula({ weapon: plain }), false, "an ordinary blank weapon still asks, and a closed prompt cancels the attack");
+  assert.equal(prompts.length, 1, "the prompt opened once");
+  const copy = new CONFIG.Item.documentClass({ ...strike });
+  assert.equal(isUnarmedStrike(copy), false, "a copy of the strike is an ordinary unsaved weapon and still asks");
+  assert.equal(isUnarmedStrike(null), false);
+  passed++;
+  console.log("ok   an ordinary blank weapon, a saved or an unsaved one, still asks");
+}
+
 console.log(`\n${passed} passed`);
