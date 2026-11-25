@@ -10,20 +10,12 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-
-/** Normalize a race/kind token to a lowercase slug ("Demi-Human " → "demi-human"). */
-export function slugKind(value) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_]+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-}
+import { DEMI_HUMAN_RACES, MEN_RACES, kindToken } from "../lib/actor-read.mjs";
 
 /** Parse a comma-separated kind list into slug tokens. */
 export function parseKindList(value) {
   const raw = Array.isArray(value) ? value : String(value ?? "").split(",");
-  return raw.map(slugKind).filter(Boolean);
+  return raw.map(kindToken).filter(Boolean);
 }
 
 /**
@@ -43,9 +35,6 @@ export function inferRace(actor) {
   return globalThis.acksExtras?.classes?.raceKeyOfClass?.(cls) || "human";
 }
 
-const DEMI_HUMAN_RACES = new Set(["dwarf", "elf", "gnome"]);
-// Races of men: they count as human where a rule tells men from demi-humans.
-const HUMAN_RACES = new Set(["human", "people1", "people2"]);
 // Specific beastman kinds recognisable from a monster's name/subtype.
 const BEASTMAN_KINDS = ["hobgoblin", "goblin", "kobold", "orc", "gnoll", "bugbear", "ogre", "troll"];
 
@@ -84,7 +73,7 @@ export function kindOf(actor) {
     const race = inferRace(actor);
     categories.add(race);
     if (DEMI_HUMAN_RACES.has(race)) categories.add("demi-human");
-    if (HUMAN_RACES.has(race)) categories.add("human");
+    if (MEN_RACES.has(race)) categories.add("human");
     if (race === "beastman") categories.add("beastman");
     return { race, categories };
   }
@@ -98,10 +87,10 @@ export function kindOf(actor) {
   const types = extras?.types;
   const typeList = types instanceof Set ? [...types] : Array.isArray(types) ? types : [];
   for (const t of typeList) {
-    const token = slugKind(t);
+    const token = kindToken(t);
     if (token) categories.add(token);
   }
-  const subtype = slugKind(extras?.subtype);
+  const subtype = kindToken(extras?.subtype);
   if (subtype) {
     categories.add(subtype);
     race = subtype;
@@ -146,8 +135,8 @@ export function registerRaceRelations(rows, { source = "api" } = {}) {
   if (!Array.isArray(rows)) return 0;
   let added = 0;
   for (const row of rows) {
-    const from = slugKind(row?.from);
-    const to = slugKind(row?.to);
+    const from = kindToken(row?.from);
+    const to = kindToken(row?.to);
     const value = Number(row?.value) || 0;
     if (!from || !to || !value) continue;
     registeredRelations.push({ from, to, value, label: row.label ? String(row.label) : "", source });
@@ -164,8 +153,8 @@ function settingRelations() {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .map((row) => ({
-        from: slugKind(row?.from),
-        to: slugKind(row?.to),
+        from: kindToken(row?.from),
+        to: kindToken(row?.to),
         value: Number(row?.value) || 0,
         label: row?.label ? String(row.label) : "",
         source: "setting",

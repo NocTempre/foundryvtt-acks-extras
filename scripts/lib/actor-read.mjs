@@ -113,20 +113,90 @@ export const sizeRank = (actor) => rankOfSize(sizeKeyOf(actor));
 const ENCHANTED_TYPES = Object.freeze(["construct", "enchanted", "incarnation", "undead"]);
 
 /**
+ * The race keys that count as men where a rule tells men from demi-humans
+ * (RR ch. 2). The classes feature answers a race key per class; this is the
+ * category each key falls in.
+ */
+export const MEN_RACES = new Set(["human", "people1", "people2"]);
+
+/** The race keys that count as demi-humans (RR ch. 2). */
+export const DEMI_HUMAN_RACES = new Set(["dwarf", "elf", "gnome"]);
+
+/** The two race categories `raceCategoryOf` answers, as the kind tokens `creatureKinds` carries. */
+export const RACE_CATEGORIES = Object.freeze(["human", "demi-human"]);
+
+/** The category a race key falls in, `"human"` or `"demi-human"`, or null for a key in neither set. */
+export function raceCategoryOf(key) {
+  const race = String(key ?? "").trim().toLowerCase();
+  if (MEN_RACES.has(race)) return "human";
+  if (DEMI_HUMAN_RACES.has(race)) return "demi-human";
+  return null;
+}
+
+/** A race or kind word as a lowercase slug (`"Demi-Human "` becomes `"demi-human"`). */
+export function kindToken(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+/** The classes feature's answer from a class name to a race key, or null where none is registered. */
+let characterRace = null;
+
+/**
+ * Register the reader of a character's race: `fn(className)` answers the race
+ * key of the class that name stands for, or null where it is unknown. The
+ * classes feature registers it at `init`; a call with a non-function clears it.
+ * @param {((className: string) => string|null)|null} fn
+ */
+export function registerCharacterRace(fn) {
+  characterRace = typeof fn === "function" ? fn : null;
+}
+
+/** A character's race key from its class name through the registered reader, lowercase, or "". */
+function raceOfCharacter(actor) {
+  const name = String(actor?.system?.details?.class ?? "").trim();
+  if (!name || !characterRace) return "";
+  try {
+    return String(characterRace(name) ?? "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/**
  * The kind tokens a creature answers to, lowercase, as `scopeApplies` reads
- * them in `ctx.kinds`: a monster's types, `summoned` where a character
- * summoned it, `enchanted` when any of those makes it one (the defined term:
- * a construct, an incarnation, undead, any summoned creature, or a monster typed
- * enchanted), and `character` for a character. An untyped monster that nobody
- * summoned gives an empty set, which a scope reads as undetermined.
+ * them in `ctx.kinds`: a monster's types and then its `subtype` (split on
+ * commas, each folded by `kindToken`), `summoned` where a character summoned
+ * it, `enchanted` when any of those makes it one (the defined term: a
+ * construct, an incarnation, undead, any summoned creature, or a monster typed
+ * enchanted), and for a character `character`, the race key its class answers
+ * and that key's category (`raceCategoryOf`). An untyped monster that nobody
+ * summoned gives an empty set, which a scope reads as undetermined. A character
+ * whose class names no race carries neither a race nor a category.
  * @returns {Set<string>}
  */
 export function creatureKinds(actor) {
   const kinds = new Set();
   if (!actor) return kinds;
-  if (actor.type === ACTOR_TYPE.character) kinds.add("character");
-  const types = actor.getFlag?.(MONSTER_EXTRAS.scope, MONSTER_EXTRAS.key)?.types;
+  if (actor.type === ACTOR_TYPE.character) {
+    kinds.add("character");
+    const race = raceOfCharacter(actor);
+    if (race) {
+      kinds.add(race);
+      const category = raceCategoryOf(race);
+      if (category) kinds.add(category);
+    }
+  }
+  const extras = actor.getFlag?.(MONSTER_EXTRAS.scope, MONSTER_EXTRAS.key);
+  const types = extras?.types;
   for (const type of types ? [...types] : []) kinds.add(String(type).toLowerCase());
+  for (const part of String(extras?.subtype ?? "").split(",")) {
+    const token = kindToken(part);
+    if (token) kinds.add(token);
+  }
   if (summonerOf(actor)) kinds.add("summoned");
   if (kinds.has("summoned") || ENCHANTED_TYPES.some((type) => kinds.has(type))) kinds.add("enchanted");
   return kinds;

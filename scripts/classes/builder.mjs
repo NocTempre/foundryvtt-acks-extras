@@ -45,6 +45,20 @@ export function raceKeyOfClass(nameOrKey) {
   return key ? String(key).toLowerCase() : null;
 }
 
+/**
+ * The race key a character's class field answers to, for the reader lib's
+ * `creatureKinds` takes (`registerCharacterRace`): the class's own race key
+ * where it is bound to one, `"human"` for a library class bound to none (a
+ * class with no race is a human one; RR ch. 2 defines the demi-human classes
+ * by their race), and null for a name no class in the library answers to.
+ * @param {string} name a class name or key
+ * @returns {string|null}
+ */
+export function raceOfCharacterClass(name) {
+  if (!classNamed(name)) return null;
+  return raceKeyOfClass(name) ?? "human";
+}
+
 /** The builder ruledata tables, or null when no world layer carries them. */
 export function builderTables() {
   return hasDoc(BUILDER_DOC_ID) ? (getDoc(BUILDER_DOC_ID).tables ?? null) : null;

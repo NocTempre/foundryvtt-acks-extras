@@ -18,6 +18,7 @@ import ClassSheet from "./class-sheet.mjs";
 import RaceData from "./race-data.mjs";
 import RaceSheet from "./race-sheet.mjs";
 import * as builder from "./builder.mjs";
+import { registerCharacterRace } from "../lib/actor-read.mjs";
 import { BUILDER_DOC_ID, derivePlan, xpSchedule } from "./builder-logic.mjs";
 import * as registry from "./registry.mjs";
 import { applyClass, classUpdateData, normalizeHd, syncClassTraining } from "./apply.mjs";
@@ -72,6 +73,8 @@ Hooks.once("init", () => {
   CONFIG.Item.dataModels[CLASS_TYPE] = ClassData;
   CONFIG.Item.dataModels[RACE_TYPE] = RaceData;
   builder.registerBuilderExpectations();
+  // Lib's creature-kind reader asks for a character's race through this.
+  registerCharacterRace(builder.raceOfCharacterClass);
   registerHitPointExpectations();
   registerXpBonusExpectations();
   // Picks a character owes, drawn on the sheet and answerable from it.
