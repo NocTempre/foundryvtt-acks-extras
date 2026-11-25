@@ -49,6 +49,7 @@ import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration, heldByConjuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
+import { declaredFightOf } from "./declared-fight.mjs";
 import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, withoutMissing, BUCKETS_KEY } from "./cast-procedure.mjs";
 import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare, answerFromPending, ANSWER_FIELDS } from "./cast-declare.mjs";
@@ -803,6 +804,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     spell,
     caster,
     moment,
+    // The fight that holds the caster, named as a declaration made now would name it (its scene, and this round); null with no fight.
+    fight: world.combat ? declaredFightOf({ combatId: world.combat.id, declaredRound: world.combat.round }, { combatOf: () => world.combat }) : null,
     // A summoning's creatures and the judge of a pick; null where the cast summons nothing.
     summon: summoning ? { creatures: offer.creatures, open: !offer.creatures.length ? { amount: Number(openRow?.amount) || 0 } : null, at: summonAt } : null,
     // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).

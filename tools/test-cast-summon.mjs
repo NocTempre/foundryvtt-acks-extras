@@ -765,6 +765,18 @@ await ta("no GM connected shows in a Player's footer before the confirm and bloc
   assert.deepEqual(footerOf(await askedWith(makeSpell(), { gmOnline: false, world: fight("cb2") }), {}).verdicts, [], "nothing is placed at a declaring");
 });
 
+await ta("a summoning declared in a fight has a footer note naming the fight and round and saying its creatures are placed at the turn; the context carries the fight only where one holds the caster", async () => {
+  const declared = await askedWith(makeSpell(), { world: fight("cb2") });
+  assert.deepEqual(declared.fight, { state: "noScene", scene: "", round: 1 }, "a fight with no scene, in the round it stands at");
+  const note = model.dialogContext(declared, {}).footer.declaring;
+  assert.match(note, /^ACKS-MAGIC\.cast\.dialog\.declaringIn\|/, "a summoning's note says placed, not the other cast's");
+  assert.ok(note.includes("fightNoSceneRound"), "and names the fight and its round");
+  const onScene = await askedWith(makeSpell(), { world: { ...fight("cb2"), combat: { ...fight("cb2").combat, scene: { name: "Testyard" } } } });
+  assert.deepEqual(onScene.fight, { state: "scene", scene: "Testyard", round: 1 });
+  assert.equal((await askedWith(makeSpell())).fight, null, "no fight holds the caster");
+  assert.equal(model.dialogContext(await askedWith(makeSpell()), {}).footer.declaring, "", "a cast made at once has no note");
+});
+
 const CLOSED = { uuid: "Actor.closedHound", name: "Hidden Hound", type: "monster", flags: {}, testUserPermission: holdsAt };
 
 /** The context asked for a spell naming one creature the seat resolves to `CLOSED`, with the seat's own user. */

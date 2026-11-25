@@ -6,7 +6,8 @@
  * at its confirm, writes a status-only `casting` record (lib's condition: it
  * ends at the caster's turn and is lost to damage and a failed save) and a
  * status-free pending record naming the spell, the answers the seat gave and the
- * fight, and posts no card. The pending record alone is the declaration; core's
+ * fight (its id, the round it lapses in and the round the cast was declared in),
+ * and posts no card. The pending record alone is the declaration; core's
  * combatant flag `acks.prepareSpell`, the tracker's own Casting toggle, follows
  * it, written by the GM's client because a Player cannot update a combatant. With
  * no GM connected the flag is left alone and nothing depends on it.
@@ -197,6 +198,7 @@ export async function declareCast({ caster, spell, answer, combat, combatant, de
     ...answerStored(answer),
     combatId: combat.id,
     round,
+    declaredRound: combat.round,
     at: now,
   };
   await deps.create(caster, [spellEffectData({ ...base, statuses: [CASTING] }), spellEffectData({ ...base, pending })]);

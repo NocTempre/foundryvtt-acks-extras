@@ -316,15 +316,15 @@ t("the footer reads a procedure's finding in its own words, and the casting time
   const { procedure } = logging();
   const verdictsAt = (mode, picks, level, typed, inv, praw) => castVerdicts({ capacity: { verdict: "ok" }, procedure: praw?.pace === "hasty" ? [{ key: "tooHasty", notice: "Too hasty here." }] : [] });
   const momentAt = (mode, level, praw) => (praw?.pace === "slow" ? MOMENT.long : MOMENT.declare);
-  const ctx = dialogCtx(procedure, { moment: MOMENT.declare, verdictsAt, momentAt });
+  const ctx = dialogCtx(procedure, { moment: MOMENT.declare, verdictsAt, momentAt, fight: { state: "scene", scene: "Testyard", round: 2 } });
   const hasty = dialogContext(ctx, { procedure: { pace: "hasty" } });
   assert.deepEqual(hasty.footer.verdicts.map((v) => [v.severity, v.text]), [["block", "Too hasty here."]]);
   assert.equal(hasty.footer.blocked, true);
   assert.equal(hasty.footer.cast, "ACKS-MAGIC.cast.dialog.declare|{}");
-  assert.ok(hasty.declaring);
+  assert.ok(hasty.footer.declaring);
   const slow = dialogContext(ctx, { procedure: { pace: "slow" } });
   assert.equal(slow.footer.cast, "ACKS-MAGIC.cast.dialog.cast|{}", "a long cast is cast, not declared");
-  assert.equal(slow.declaring, "");
+  assert.equal(slow.footer.declaring, "");
 });
 
 /* ------------------------------------------------------------------ */

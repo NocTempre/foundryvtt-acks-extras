@@ -681,6 +681,12 @@
   margin-inline-end: auto;
 }
 
+/* A declaration's note takes the row's slack and wraps above the buttons once the window is too narrow to hold it beside them. */
+.acks-extras-cast-foot__bar .acks-extras-cast-foot__note {
+  flex: 1 1 16em;
+  min-inline-size: 0;
+}
+
 .acks-extras-cast-foot__bar button {
   width: auto;
   flex: none;

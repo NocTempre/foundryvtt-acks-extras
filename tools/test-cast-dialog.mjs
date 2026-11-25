@@ -13,6 +13,7 @@
  * Usage: node tools/test-cast-dialog.mjs
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const hooks = new Map();
 let hookId = 0;
@@ -173,6 +174,23 @@ const baseCtx = (over = {}) => ({
   cite: "p. 9",
   isGM: false,
   ...over,
+});
+
+t("a declaring's note is in the pinned footer and names the fight and the round; the body holds no declaring line, and a cast that is not declared has no note", () => {
+  const declare = baseCtx({ moment: "declare", fight: { state: "scene", scene: "Testyard", round: 2 } });
+  const view = dialogContext(declare, {});
+  assert.equal(view.footer.declaring, 'ACKS-MAGIC.cast.dialog.declaringInCast|{"fight":"ACKS-MAGIC.cast.dialog.fightOnRound|{\\"scene\\":\\"Testyard\\",\\"round\\":2}","name":"Testcaster"}', "a cast that summons nothing says it is cast at the caster's turn, in the fight and round");
+  assert.equal(view.footer.cast, "ACKS-MAGIC.cast.dialog.declare|{}");
+  assert.equal(view.declaring, undefined, "the body context carries no declaring line");
+  const body = readFileSync(new URL("../templates/magic/cast-dialog.hbs", import.meta.url), "utf8");
+  const foot = readFileSync(new URL("../templates/magic/cast-dialog-footer.hbs", import.meta.url), "utf8");
+  assert.ok(!/declaring/.test(body), "the body template draws no declaring line");
+  assert.ok(/\{\{f\.declaring\}\}/.test(foot), "the footer template draws it");
+  assert.match(dialogContext(baseCtx({ moment: "declare", fight: { state: "noScene", scene: "", round: null } }), {}).footer.declaring, /fightNoScene\|/, "a fight with no scene is named as one");
+  assert.equal(dialogContext(baseCtx({ moment: "declare", fight: { state: "gone", scene: "", round: 2 } }), {}).footer.declaring, "", "no fight named, no note");
+  assert.equal(dialogContext(baseCtx({ moment: "declare" }), {}).footer.declaring, "", "no fight read, no note");
+  assert.equal(dialogContext(baseCtx({ moment: "free", fight: { state: "scene", scene: "Testyard", round: 2 } }), {}).footer.declaring, "", "a cast that is not declared has no note");
+  assert.equal(dialogContext(baseCtx({ moment: "resolve", fight: { state: "scene", scene: "Testyard", round: 2 } }), {}).footer.declaring, "", "nor one that resolves a declaration");
 });
 
 t("an effect row wears the sheet's cell in its tone: a condition is negative with its status image, a buff positive, anything else the spell's own", () => {

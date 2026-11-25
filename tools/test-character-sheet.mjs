@@ -242,6 +242,61 @@ test("the Magic tab's standing count carries its tooltip and its Dismiss is name
   assert.match(sheet, /spellDismiss: AcksCharacterSheet\.#onSpellDismiss/);
 });
 
+/** The Magic tab's rows for a caster holding the given spells and effects, with the fights `fights` names standing in the world. */
+const magicTabOf = async ({ spells, effects = [], fights = {} }) => {
+  const priorGame = globalThis.game;
+  const priorCanvas = globalThis.canvas;
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` }, combats: { get: (id) => fights[id] ?? null }, scenes: { active: null } };
+  globalThis.canvas = { scene: null };
+  try {
+    const { buildMagicTab } = await import("../scripts/character-sheet/tabs/magic.mjs");
+    const actor = { name: "Testcaster", uuid: "Actor.c", type: "character", system: { spells: { enabled: true } }, items: spells, effects, isOwner: true, getFlag: () => null };
+    return buildMagicTab(actor).levels.flatMap((level) => level.rows);
+  } finally {
+    globalThis.game = priorGame;
+    globalThis.canvas = priorCanvas;
+  }
+};
+const magicSpell = (id, name, { summoning = false } = {}) => ({ id, uuid: `Actor.c.Item.${id}`, name, img: "", type: "spell", parent: { type: "character" }, system: { lvl: 1 }, flags: summoning ? { "acks-extras": { spell: { type: "summoning" } } } : {} });
+const declaredEffect = (castId, spellUuid, pending) => ({ id: `e${castId}`, flags: { "acks-extras": { spellEffect: { spellUuid, castId, casterUuid: "Actor.c", role: "caster", pending: { spellUuid, combatId: "k1", round: 2, declaredRound: 2, at: 10, ...pending } } } } });
+const declaredOf = async (spells, effects, fights = { k1: { round: 2, scene: { name: "Testyard" } } }) => Object.fromEntries((await magicTabOf({ spells, effects, fights })).map((row) => [row.id, row.declared]));
+
+const testAsync = async (name, fn) => {
+  await fn();
+  passed++;
+  console.log(`  ✓ ${name}`);
+};
+await testAsync("a spell with a pending declaration shows the Declared tag, a line naming the fight and the caster's turn, and a tooltip assembled at render; a summoning is placed and any other cast is cast", async () => {
+  const spells = [magicSpell("sp1", "Ash Call", { summoning: true }), magicSpell("sp2", "Testbolt"), magicSpell("sp3", "Idle")];
+  const rows = await declaredOf(spells, [declaredEffect("c1", "Actor.c.Item.sp1", {}), declaredEffect("c2", "Actor.c.Item.sp2", { declaredRound: undefined })]);
+  assert.deepEqual(rows.sp3, null, "a spell with no declaration shows nothing");
+  const fight = 'ACKS-MAGIC.cast.dialog.fightOnRound|{\\"scene\\":\\"Testyard\\",\\"round\\":2}';
+  assert.deepEqual(rows.sp1, {
+    tag: "ACKS-CHARACTER.magic.declared|{}",
+    line: `ACKS-CHARACTER.magic.declaredLine|{"fight":"${fight}","name":"Testcaster"}`,
+    tip: `ACKS-CHARACTER.magic.declaredTip|{"spell":"Ash Call","fight":"${fight}","name":"Testcaster"}`,
+  }, "a summoning's tooltip says it is placed");
+  assert.match(rows.sp2.tip, /^ACKS-CHARACTER\.magic\.declaredTipCast\|/, "any other spell's says it is cast");
+  assert.ok(rows.sp2.line.includes("fightOn|") && !rows.sp2.line.includes("fightOnRound"), "a record written before the round was stored names the fight without a round");
+});
+await testAsync("a lost declaration shows nothing (a lapsed one is deleted with its records), one still standing shows whatever round its fight is in, and one whose fight is gone still shows, naming no fight", async () => {
+  const spells = [magicSpell("sp1", "Testbolt")];
+  const standing = await declaredOf(spells, [declaredEffect("c1", "Actor.c.Item.sp1", { round: 1 })]);
+  assert.ok(standing.sp1, "the record stands until the caster's turn that reaches its lapse round ends, and the cast would still resolve it");
+  const lost = await declaredOf(spells, [declaredEffect("c1", "Actor.c.Item.sp1", { lost: { cause: "damage", at: 11 } })]);
+  assert.equal(lost.sp1, null);
+  const gone = await declaredOf(spells, [declaredEffect("c1", "Actor.c.Item.sp1", { combatId: "k9" })], {});
+  assert.deepEqual([gone.sp1.tag, gone.sp1.line, gone.sp1.tip], ["ACKS-CHARACTER.magic.declared|{}", 'ACKS-CHARACTER.magic.declaredLineNoFight|{"fight":"","name":"Testcaster"}', 'ACKS-CHARACTER.magic.declaredTipCastNoFight|{"spell":"Testbolt","fight":"","name":"Testcaster"}'], "Declared, with no fight named");
+  const other = await declaredOf(spells, [{ id: "plain", flags: {} }, declaredEffect("c1", "Actor.c.Item.other", {})]);
+  assert.equal(other.sp1, null, "an effect no cast wrote, and another spell's declaration, are not this row's");
+});
+test("the Magic tab's row draws the tag and the line from the declaration and has no control to withdraw it", () => {
+  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  assert.match(tpl, /<span class="acks-tag acks-tag--solid" data-tooltip-text="\{\{spell\.declared\.tip\}\}">\{\{spell\.declared\.tag\}\}<\/span>/, "the tag shows its provenance on hover");
+  assert.match(tpl, /\{\{spell\.declared\.line\}\}/);
+  assert.ok(!/withdraw/i.test(tpl), "no page prints withdrawing a declared cast, so the row has no control for it");
+});
+
 /** A caster-side cast record as `castOf` gives it. */
 const record = (id, extra = {}) => ({ id, name: `Spell ${id}`, img: `icons/${id}.webp`, clock: "3t", remaining: 1.5, total: 3, created: 100, ended: false, ...extra });
 test("a character is a caster by a spell item or a caster-side cast record, and by nothing else", () => {

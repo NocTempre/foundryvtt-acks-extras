@@ -28,7 +28,9 @@
       <span class="acks-extras-frame__row-text">
         <a class="acks-extras-frame__row-name" data-action="itemEdit">{{spell.name}}</a>
         {{#if spell.line}}<span class="acks-extras-frame__row-line">{{spell.line}}</span>{{/if}}
+        {{#if spell.declared}}<span class="acks-extras-frame__row-line">{{spell.declared.line}}</span>{{/if}}
       </span>
+      {{#if spell.declared}}<span class="acks-tag acks-tag--solid" data-tooltip-text="{{spell.declared.tip}}">{{spell.declared.tag}}</span>{{/if}}
       <span class="acks-extras-frame__fact-label">{{localize "ACKS.spells.Cast"}}</span>
       <input class="acks-input acks-extras-frame__fact-input is-xs acks-nums" type="number" data-item-field="system.cast" value="{{spell.cast}}" {{disabled (not @root.editable)}}>
       {{#if spell.summon}}

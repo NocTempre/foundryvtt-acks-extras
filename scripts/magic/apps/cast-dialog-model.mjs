@@ -23,6 +23,7 @@ import { makeLoc } from "../../lib/util.mjs";
 import { invocationFigure } from "../cast-level.mjs";
 import { procedureHeading } from "../cast-procedure.mjs";
 import { seatLabel } from "../../lib/summons-logic.mjs";
+import { fightPhrase } from "../declared-fight.mjs";
 
 /** The visibility modes the dialog offers, as lib's roll dialog offers them. */
 export const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
@@ -236,7 +237,6 @@ function ritualContext(ctx, st) {
       hasModes: false,
       modes: [],
     },
-    declaring: "",
     ritual: {
       show: true,
       legend: loc("dialog.ritualLegend"),
@@ -251,7 +251,7 @@ function ritualContext(ctx, st) {
     invocation: { show: false },
     saves: { show: false },
     bucket: { count: { n: 0, over: false, text: "", tip: "" }, rows: [], empty: true, rangeNote: "" },
-    footer: { visibility: [], capacity: {}, verdicts: [], blocked: none, cast: loc("dialog.openRitual"), ritual: true },
+    footer: { declaring: "", visibility: [], capacity: {}, verdicts: [], blocked: none, cast: loc("dialog.openRitual"), ritual: true },
   };
 }
 
@@ -574,6 +574,9 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   // An open Summon band with no creature dropped on it has nothing to cast: Cast waits for the drop, on every seat.
   const verdicts = ctx.summon?.open && !pick ? [...found, { severity: "block", key: "summonNone" }] : found;
   const blocks = verdicts.some((v) => v.severity === "block");
+  // At any moment of a begun fight but the caster's turn the button declares the spell: the footer's note names the fight and says what the turn does (a summoning's creatures are placed there, any other cast is cast).
+  const fight = moment === "declare" ? fightPhrase(ctx.fight, (key, data) => loc(`dialog.${key}`, data)) : "";
+  const declaring = fight ? loc(ctx.summon ? "dialog.declaringIn" : "dialog.declaringInCast", { fight, name: ctx.caster?.name ?? "" }) : "";
 
   // The saves: the situational figure, ruling 126's toggle, and the parts that stand.
   const modifier = saveModifierOf({ modifier: ctx.saveModifier }, resolved);
@@ -643,8 +646,6 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       hasModes: (ctx.modes?.length ?? 0) > 1,
       modes: (ctx.modes ?? []).map((key) => ({ key, label: modeLabel(key), selected: key === mode })),
     },
-    // At any moment of a begun fight but the caster's turn the button declares the spell.
-    declaring: moment === "declare" ? loc("dialog.declaring", { name: ctx.caster?.name ?? "" }) : "",
     spell: {
       show: groups.length > 0 || kind.options.length > 0 || Boolean(ctx.levelNeeded && !stand.value),
       groups,
@@ -685,6 +686,7 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       rangeNote: ctx.rangeUnmeasured ? loc("dialog.rangeUnmeasured") : "",
     },
     footer: {
+      declaring,
       visibility: VISIBILITY_MODES.map((key) => ({ key, label: visibilityLabel(key), selected: key === st.visibility })),
       capacity: (() => {
         const cap = ctx.capacity;

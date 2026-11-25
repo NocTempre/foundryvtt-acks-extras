@@ -1,5 +1,5 @@
 {{!-- The cast dialog's pinned footer: where the cast is seen, what stands in its
-      way, and the two answers. A separate part so it stays put while the body
+      way, the note a declaration carries, and the two answers. A separate part so it stays put while the body
       scrolls. --}}
 <footer class="acks-extras-cast-foot">
   {{#with footer as |f|}}
@@ -9,6 +9,7 @@
   </ul>
   {{/if}}
   <div class="acks-extras-cast-foot__bar">
+    {{#if f.declaring}}<p class="acks-extras-cast-hint acks-extras-cast-foot__note">{{f.declaring}}</p>{{/if}}
     {{#unless f.ritual}}
     {{#if f.capacity.line}}<span class="acks-extras-cast-hint" data-tooltip-text="{{f.capacity.tip}}">{{f.capacity.line}}</span>{{/if}}
     <label class="acks-extras-cast-vis">

@@ -17,6 +17,7 @@ const { lapseRound, turnEnded, staleDeclarations, checkDeclareFlagRequest, decla
 const { LOST_ITEM_HANDLER } = await import("../scripts/magic/constants.mjs");
 const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
+const { declaredFightOf, fightPhrase, declarationShown } = await import("../scripts/magic/declared-fight.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -130,6 +131,11 @@ await ta("a declaration writes a status-only casting record and a status-free pe
   const read = spellEffectOf(pending);
   assert.deepEqual([read.castId, read.role, read.pending.spellUuid, read.pending.combatId, read.pending.at, read.pending.round], ["d1", "caster", spell.uuid, "k1", 77, 2]);
   assert.deepEqual([read.pending.mode, read.pending.picks, read.pending.casterLevel, read.pending.situational, read.pending.visibility, read.pending.pickKind, read.pending.items, read.pending.saveMod], ["normal", { g: "k" }, "3", 2, "gm", "beast", { "Scene.s.Token.k1": "w1" }, true]);
+  assert.equal(read.pending.declaredRound, 2, "the round the cast was declared in is stored beside the round it lapses in");
+  const later = world();
+  await declareCast({ caster, spell, answer, combat: combat({ turn: 1, round: 3 }), combatant: { id: "cb1", initiative: 5 }, deps: later.deps });
+  const stored = spellEffectOf(later.records[1].data).pending;
+  assert.deepEqual([stored.declaredRound, stored.round], [3, 4], "declared in round 3 after the caster's turn, lapsing in round 4");
   assert.equal(read.pending.invocationLevel, 4, "the invocation level is stored in the pending record");
   assert.deepEqual(read.pending.targets, ["Scene.s.Token.k1", "Scene.s.Token.k2"], "the seat's targets at the answer are stored by token uuid");
   assert.deepEqual(read.pending.allocation, answer.allocation, "and so is the throw split");
@@ -161,6 +167,44 @@ await ta("a Judge's second declaration replaces the first: both of its records g
   assert.equal(w.log[0].length - 1, 2, "the first declaration's casting and pending records");
   assert.equal(w.records.length, 2);
   assert.equal(spellEffectOf(w.records[1].data).castId, "d2");
+});
+
+t("the fight a declaration names: its scene, a fight with no scene, a record with no round, and a fight no document answers", () => {
+  const fights = { k1: { round: 2, scene: { name: "Testyard" } }, k2: { round: 1, scene: null }, k3: { round: 1, scene: { name: "  " } } };
+  const lookups = { combatOf: (id) => fights[id] ?? null };
+  assert.deepEqual(declaredFightOf({ combatId: "k1", declaredRound: 2 }, lookups), { state: "scene", scene: "Testyard", round: 2 });
+  assert.deepEqual(declaredFightOf({ combatId: "k2", declaredRound: 1 }, lookups), { state: "noScene", scene: "", round: 1 }, "a fight on no scene");
+  assert.equal(declaredFightOf({ combatId: "k3", declaredRound: 1 }, lookups).state, "noScene", "a blank scene name is no scene");
+  assert.deepEqual(declaredFightOf({ combatId: "k1" }, lookups), { state: "scene", scene: "Testyard", round: null }, "an older record has no round");
+  assert.equal(declaredFightOf({ combatId: "k1", declaredRound: 0 }, lookups).round, null, "a fight's rounds count from one");
+  assert.equal(declaredFightOf({ combatId: "k1", declaredRound: "2" }, lookups).round, null, "a round is a stored number");
+  assert.deepEqual(declaredFightOf({ combatId: "k9", declaredRound: 4 }, lookups), { state: "gone", scene: "", round: 4 }, "no fight answers its id");
+  assert.equal(declaredFightOf({}, lookups).state, "gone");
+  const named = { combatOf: () => ({ scene: { name: "Vault", navName: "Testyard gate" } }) };
+  assert.equal(declaredFightOf({ combatId: "k1" }, named).scene, "Testyard gate", "a scene's navigation name stands for its name");
+  const say = (key, data) => `${key}|${JSON.stringify(data)}`;
+  assert.equal(fightPhrase({ state: "scene", scene: "Testyard", round: 2 }, say), 'fightOnRound|{"scene":"Testyard","round":2}');
+  assert.equal(fightPhrase({ state: "scene", scene: "Testyard", round: null }, say), 'fightOn|{"scene":"Testyard","round":""}');
+  assert.equal(fightPhrase({ state: "noScene", scene: "", round: 3 }, say), 'fightNoSceneRound|{"round":3}');
+  assert.equal(fightPhrase({ state: "noScene", scene: "", round: null }, say), 'fightNoScene|{"round":""}');
+  assert.deepEqual([fightPhrase({ state: "gone", scene: "", round: 2 }, say), fightPhrase(null, say)], ["", ""], "no fight, no phrase");
+});
+
+t("a spell's row shows its latest declaration that is not lost, whatever round its fight has reached, and a fight that is gone does not hide it", () => {
+  const fights = { k1: { round: 2, scene: { name: "Testyard" } } };
+  const lookups = { combatOf: (id) => fights[id] ?? null };
+  const rec = (castId, over = {}) => ({ castId, pending: { spellUuid: "S1", combatId: "k1", round: 2, declaredRound: 2, at: 10, ...over } });
+  assert.equal(declarationShown([rec("a")], "S2", lookups), null, "another spell's");
+  assert.equal(declarationShown([rec("a", { lost: { cause: "damage", at: 11 } })], "S1", lookups), null, "a lost declaration is waiting for nothing");
+  const resolvable = declarationOf([rec("a", { round: 1 })], { spellUuid: "S1", combatId: "k1" }).valid;
+  assert.equal(declarationShown([rec("a", { round: 1 })], "S1", lookups)?.record.castId, resolvable.castId, "a record the cast would still resolve shows, even with its fight past the round it lapses in (the caster's turn has not ended)");
+  const early = { k1: { round: 1, scene: { name: "Testyard" } } };
+  assert.equal(declarationShown([rec("a", { round: 0, declaredRound: 0 })], "S1", { combatOf: (id) => early[id] ?? null })?.fight.round, null, "declared before round one: the round is unknown, the row stays");
+  assert.deepEqual(declarationShown([rec("a"), rec("b", { at: 20 })], "S1", lookups).record.castId, "b", "the latest of two");
+  const gone = declarationShown([rec("a", { combatId: "k9" })], "S1", lookups);
+  assert.deepEqual([gone.record.castId, gone.fight.state, gone.fight.round], ["a", "gone", 2], "the row still shows, naming no fight");
+  assert.equal(declarationShown([rec("a", { declaredRound: undefined })], "S1", lookups).fight.round, null, "an older record shows the fight without a round");
+  assert.equal(declarationShown([{ castId: "x" }, null], "S1", lookups), null);
 });
 
 await ta("ending a declaration clears the flag while the pending record stands, then deletes both records of it and none of another cast's", async () => {

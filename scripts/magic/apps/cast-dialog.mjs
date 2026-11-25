@@ -7,7 +7,7 @@
  * character sheet's tones, a summons' Summon band (creature, count and ceiling,
  * placement; it takes the Targets bucket's place), the tradition's band (the fields and the band of its
  * procedure, `cast-procedure.mjs`, headed by the tradition's name), the saves, and the targets bucket; the footer holds
- * what stands in the way, the visibility, Cancel and Cast (or Declare). A
+ * what stands in the way, a declaration's note naming its fight, the visibility, Cancel and Cast (or Declare). A
  * verdict that blocks a Player disables the button, and a Judge reads it as a
  * warning. Cancel and a closed window both answer null, so nothing is spent.
  *

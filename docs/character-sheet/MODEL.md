@@ -131,7 +131,16 @@ it against.
 **The Magic tab** (`tabs/magic.mjs`) shows on each summoning spell's row how
 many of its creatures stand on the scene the party cell counts on
 (`standingBySpell`), the count's tooltip naming the scene, and, while some
-stand, a *Dismiss* button for them. A cast that runs out on the world clock
+stand, a *Dismiss* button for them. A spell of any kind that the caster has
+declared in a fight and that still waits for the caster's turn also shows a solid
+*Declared* tag and, under its name, the line "Declared in <fight> · waits for
+<caster>'s turn" (`declaredRowOf`; the fight names its scene and the round it was
+declared in, and a fight with no scene or a record without a round is worded as
+such). The tag's tooltip is assembled at render and says the spell was declared in
+the fight and is placed (a summoning) or cast (any other spell) on the caster's turn.
+A lost declaration shows nothing, and a lapsed one is gone with its records; one
+whose fight no longer exists still shows, naming no fight. The row has no *Withdraw*: no page prints withdrawing a
+declared cast (RR 179, 291 to 293). A cast that runs out on the world clock
 posts a whispered card with its own *Dismiss* (magic MODEL, "A cast's end").
 
 Every glyph is a Font Awesome icon the platform ships; the figure-in-glyph

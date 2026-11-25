@@ -1713,12 +1713,12 @@ await ta("a hand-set declaration lets a fresh cast through, which asks, spends a
   assert.deepEqual([spends, calls.asked !== null, log.includes("clearHand")], [1, true, true]);
 });
 
-t("the dialog says Declare's hint at a declaration and names the caster in the concentration verdict", () => {
-  const ctx = { modes: ["normal"], moment: "declare", caster: { name: "Testcaster" }, verdicts: { normal: [{ key: "concentrating", severity: "warn" }] } };
+t("the dialog says Declare's hint in its footer at a declaration and names the caster in the concentration verdict", () => {
+  const ctx = { modes: ["normal"], moment: "declare", fight: { state: "noScene", scene: "", round: 1 }, caster: { name: "Testcaster" }, verdicts: { normal: [{ key: "concentrating", severity: "warn" }] } };
   const out = dialogContext(ctx, {});
-  assert.ok(out.declaring.includes("dialog.declaring"));
+  assert.ok(out.footer.declaring.includes("dialog.declaringInCast"));
   assert.ok(out.footer.verdicts[0].text.includes("verdict.concentrating"));
-  assert.equal(dialogContext({ ...ctx, moment: "free" }, {}).declaring, "");
+  assert.equal(dialogContext({ ...ctx, moment: "free" }, {}).footer.declaring, "");
 });
 
 /* ------------------------------------------------------------------ */

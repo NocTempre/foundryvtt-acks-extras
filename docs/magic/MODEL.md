@@ -951,7 +951,14 @@ declaration being resolved stays `resolve`. A summons is declared like any other
 button reads Declare and, at its confirm, the cast checks capacity, spends once,
 ends the caster's concentration, writes a status-only `casting` record and a
 status-free pending record (`pending {spellUuid, <the answer's fields>, combatId,
-round, at}`), and posts no card. The answer's fields are one table,
+round, declaredRound, at}`), and posts no card. The dialog's pinned footer carries
+a note at `declare`, left of Cancel and Declare, that names the fight, says what the
+caster's turn does (a summoning's creatures are placed, any other cast is cast) and
+says the slot is spent at Declare; the body holds no such line. `ctx.fight` feeds it:
+`declaredFightOf` (`declared-fight.mjs`, Foundry-free) turns a fight and a round
+into `{state, scene, round}`, `fightPhrase` words it ("the fight on <scene>", "a
+fight with no scene", each with ", round <n>" where the round is known), and the
+note reads empty where no fight answers. The answer's fields are one table,
 `ANSWER_FIELDS` in `cast-declare.mjs`: mode, picks, casterLevel, invocationLevel, situational,
 visibility, pickKind, items, saveMod, the uuids of the seat's `targets` at the
 answer, the throw `allocation` by row key and token uuid, the tradition's
@@ -959,7 +966,13 @@ answer, the throw `allocation` by row key and token uuid, the tradition's
 added to that table and nowhere else. `round`
 is the round whose turn of the caster's takes the declaration back (`lapseRound`:
 this round where the caster's turn is still to come or its initiative unrolled,
-the next once it has passed). The pending record alone is the declaration.
+the next once it has passed); `declaredRound` is the fight's own round at the
+declaration, and a record written before it was stored reads as "round unknown".
+The pending record alone is the declaration. The caster's Magic tab shows it
+(character-sheet MODEL, "The Magic tab"): `declarationShown` picks, of the spell's
+records, the latest that is not lost (a lapsed declaration is deleted with its
+records at the caster's turn, so one that stands waits for it); a record whose fight
+no document answers is still shown, naming no fight.
 Core's combatant flag `acks.prepareSpell` follows it, written by the GM's client:
 a Player cannot update a combatant, so a seat asks through `magicDeclareFlag`,
 which accepts it from a user who owns the combatant's actor (and, to set the flag,
