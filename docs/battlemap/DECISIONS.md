@@ -494,6 +494,13 @@ ladders, and what that entry rejected, stand.
   page sets. A token with no category is one square and is sized in a world
   that has imported nothing; a token with a category still waits on its
   frontage.
+- The owner, asked whether the six frontages should be stated in source as
+  well: "Size category to scale is probably safe to treat as IP, rounding
+  conventions only if it creates no extra work beyond the one import." The
+  row the import reads is the page's frontage in squares, which is each
+  category's frontage already rounded by the page. So the one import carries
+  both, and no second import or source table is built for the rounding. That
+  reading of the second clause is the session's.
 
 **Cost.**
 - The Judge no longer edits the square in the Ruledata Browser, and a hover
