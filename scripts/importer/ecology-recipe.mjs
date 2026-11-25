@@ -128,8 +128,8 @@ function part({ key, label = "", role, source = {}, count = {}, chance = null, u
   };
 }
 
-/** Sentences of a paragraph, split where a full stop meets a capital or a bracket. */
-const sentencesOf = (paragraph) =>
+/** Sentences of a paragraph, split where a full stop meets a capital or a bracket; the index a part's sentence report names. */
+export const sentencesOf = (paragraph) =>
   String(paragraph ?? "")
     .replace(/\s+/g, " ")
     .trim()

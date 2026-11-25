@@ -6831,7 +6831,8 @@
           "alongside": "{unit}: beasts fight beside its riders; add them by hand",
           "morale": "{part}: morale part {figure} is outside the group field",
           "missing": "{part}{unit}: no figure to roll",
-          "split": "Shares not imported: {missing}"
+          "split": "Shares not imported: {missing}",
+          "unlinked": "{label}: no creature is linked to this {role} part, so the roll wrote a stack with that name. Link the part to a creature in the recipe editor, or give the stack its creature by hand."
         }
       },
       "note": "{kind}: {label} ({cite})",
@@ -11861,6 +11862,13 @@
   "ACKS-LIB.org.unlisted.dismiss": "Dismiss",
   "ACKS-MONSTERS.organisation.badge.rolled": "{axis}: {label}, rolled",
   "ACKS-MONSTERS.organisation.badge.byHand": "{axis}: {label}, chosen by hand",
+  "ACKS-MONSTERS.recipe.tip.hand": "{label}: set by a hand. The import read {read}. {cite}",
+  "ACKS-MONSTERS.recipe.tip.handOnly": "{label}: added or changed by a hand.",
+  "ACKS-MONSTERS.recipe.tip.read": "{label}: {read}, as the import read it. {cite}",
+  "ACKS-MONSTERS.recipe.problem.chance": "A chance is a percentage, or blank for always.",
+  "ACKS-MONSTERS.recipe.problem.count": "A count is a number, dice, or a share of another part.",
+  "ACKS-MONSTERS.recipe.problem.link": "A linked creature is an Actor entry.",
+
   "ACKS-LIB.org.chart.scrollLabel": "Organisation tree, scrolls sideways",
   "ACKS-LIB.org.role.label": "{word}: {name}",
   "ACKS-LIB.org.role.file": "Rank and file",

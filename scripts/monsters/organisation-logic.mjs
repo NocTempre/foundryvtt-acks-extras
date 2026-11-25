@@ -43,6 +43,8 @@ export const SPECIAL = "special";
 
 /** The morale field's range on a group's officer (`unit.officerMoraleBonus`). */
 const MORALE_BONUS_RANGE = [0, 4];
+/** The roles whose part names its creature by a link to that creature's entry. */
+const LINKED_ROLES = new Set(["mount", "beast"]);
 
 const whole = (v) => (Number.isFinite(Number(v)) && v !== null && v !== "" ? Number(v) : null);
 
@@ -255,6 +257,7 @@ export function planOrganisationRoll({
   // Build the write plan's nodes.
   let serial = 0;
   const cellProto = (cell, troop, extra = {}) => ({ kind: "cell", variant, role: roleOfCell(cell), partKey: "", troop, trait, grade: "", ...extra });
+  const unlinked = new Set();
   const stackOfPart = (p, troop) => {
     const src = p.source ?? {};
     let proto;
@@ -266,6 +269,11 @@ export function planOrganisationRoll({
       proto = protoOf(r.status === REFERENCE.resolved ? { kind: "entry", uuid: r.entry.uuid ?? "" } : { kind: "label", label: src.name });
     } else proto = protoOf({ kind: "label", label: src.name || p.label || p.part });
     const spec = prototypes[proto];
+    // A mount or beast part names its creature by a link; with none it is the labelled stack, listed once however many units it applies to.
+    if (LINKED_ROLES.has(p.role) && spec.kind === "label" && !unlinked.has(p.part)) {
+      unlinked.add(p.part);
+      findings.push({ what: "unlinked", part: p.part, label: spec.label, role: p.role });
+    }
     const hp = spec.kind === "entry" ? null : printedHp(spec);
     return { proto, label: spec.kind === "label" ? spec.label : p.label, count: p.count, role: p.role, gen: { part: p.part, cite: p.cite ?? "", ...(p.formula ? { formula: String(p.formula) } : {}) }, ...(Number.isFinite(hp) ? { fixedHp: hp } : {}), ...(p.chance != null ? { chance: p.chance } : {}) };
   };

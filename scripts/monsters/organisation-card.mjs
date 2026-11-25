@@ -62,7 +62,7 @@ export function cardView({ tree, text, troops = [], group = null, pot = null, st
     tip: text("organisation.card.tip.unit", { word: n.word, bodies: bodiesOf(n), leaders: n.officers.length }),
   }));
   const findings = (tree.findings ?? []).map((f) => {
-    const data = { word: f.word ?? "", status: f.status ?? "", unit: f.unit ?? "", table: f.table ?? "", roll: f.roll ?? "", part: f.part ?? "", gear: f.gear ?? "", role: f.role ?? "", figure: f.figure ?? "", trait: f.trait ?? "", dice: f.dice ?? "", n: f.candidates?.length ?? 0, missing: (f.missing ?? []).join(", ") };
+    const data = { label: f.label ?? "", word: f.word ?? "", status: f.status ?? "", unit: f.unit ?? "", table: f.table ?? "", roll: f.roll ?? "", part: f.part ?? "", gear: f.gear ?? "", role: f.role ?? "", figure: f.figure ?? "", trait: f.trait ?? "", dice: f.dice ?? "", n: f.candidates?.length ?? 0, missing: (f.missing ?? []).join(", ") };
     return { what: f.what, text: text(`organisation.card.finding.${f.what}`, data), candidates: f.candidates ?? [] };
   });
   return {

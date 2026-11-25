@@ -247,6 +247,23 @@ t("a mount part and a beast part are no body: one stack each, a link answering i
   assert.deepEqual(bodies(r), bodies(base), "no share of bodies counts them");
 });
 
+t("a mount or beast part with no link is the labelled stack and one unlinked finding, however many units it applies to; a linked one adds none", () => {
+  const extra = [
+    part("steed", "mount", { source: { uuid: "Actor.qaSteed" }, count: { literal: 2 }, when: { units: ["hold"] } }),
+    part("hound", "beast", { count: { dice: "1d4" }, when: { units: ["hold"] } }),
+    part("gleaf-pair", "mount", { source: { name: "gleaves" }, count: { literal: 1 }, when: { units: ["hold"] } }),
+  ];
+  const r = roll({ recipe: [...RECIPE, ...extra] });
+  const unlinked = r.findings.filter((f) => f.what === "unlinked");
+  assert.deepEqual(unlinked, [{ what: "unlinked", part: "hound", label: "hound", role: "beast" }], "only the part with no link and no resolvable word");
+  const hound = stacksOf(r).find((s) => s.gen.part === "hound");
+  assert.deepEqual([protoOfStack(r, hound).kind, hound.label], ["label", "hound"], "the stack is still built, named by the label");
+  const pair = stacksOf(r).find((s) => s.gen.part === "gleaf-pair");
+  assert.equal(protoOfStack(r, pair).uuid, "L.gleaf", "a word the library resolves is linked");
+  const other = roll({ recipe: [...RECIPE, part("gard", "guard", { count: { dice: "1d4" }, when: { units: ["hold"] } })] });
+  assert.equal(other.findings.some((f) => f.what === "unlinked"), false, "no other role is listed");
+});
+
 t("a leader is an officer of its unit with its morale part, never a stack; an out-of-range figure is null and a finding", () => {
   const r = roll();
   assert.equal(r.top.officers[0].moraleBonus, 2);

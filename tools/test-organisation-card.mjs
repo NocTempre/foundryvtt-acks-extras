@@ -8,6 +8,7 @@
  * Run: node tools/test-organisation-card.mjs
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { cardView, withHoards } from "../scripts/monsters/organisation-card.mjs";
 
 const tests = [];
@@ -40,6 +41,19 @@ t("the findings are listed in the order they were made, each with its words", ()
   const v = cardView({ tree: tree(), text });
   assert.deepEqual(v.findings.map((f) => f.what), ["reference", "gap"]);
   assert.match(v.findings[0].text, /zorps/);
+});
+
+t("an unlinked finding renders its own text key with the part's label and role, and the lang holds that key", () => {
+  const v = cardView({ tree: tree({ findings: [{ what: "unlinked", part: "hound", label: "QA hounds", role: "beast" }] }), text });
+  assert.equal(v.findings[0].what, "unlinked");
+  assert.match(v.findings[0].text, /^organisation.card.finding.unlinked /);
+  assert.match(v.findings[0].text, /"label":"QA hounds"/);
+  assert.match(v.findings[0].text, /"role":"beast"/);
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const root = "ACKS-MONSTERS";
+  const held = "organisation.card.finding.unlinked".split(".").reduce((o, k) => o?.[k], lang[root]);
+  assert.equal(typeof held, "string", "the card's text key is in the lang");
+  assert.match(held, /{label}/, "and it names the part's label");
 });
 
 t("the treasure line and the links belong to the roll", () => {

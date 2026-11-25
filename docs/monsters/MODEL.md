@@ -1084,6 +1084,14 @@ Against this machine's own Monstrous Manual (`C:\Proj\acks-rules\acks-monsters\b
 local only) the resolver resolves every reference the phase 1 census named
 resolved and leaves every one it named unresolved a finding.
 
+A `mount` or `beast` part names its creature by `source.uuid`. One built as a
+labelled stack (no link, and no word the library resolves) is also an `unlinked`
+finding, `{part, label, role}`, listed once however many units the part applies
+to; the stack is written as before and the card says what to do (link the part in
+the recipe editor, or give the stack its creature by hand). A part with a printed
+word the library cannot resolve carries the `reference` finding as well. No other
+role is listed.
+
 **Shared prototypes.** A creature is a prototype spec (`kind` `cell`, `entry` or
 `label`, with its variant, role, part, troop, trait and grade), and `protoKey`
 is its fields in a fixed order, so identical creatures across the whole roll share
