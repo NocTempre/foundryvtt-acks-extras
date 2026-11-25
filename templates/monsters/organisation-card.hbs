@@ -1,0 +1,35 @@
+{{!-- One organisation Roll, whispered to the Judges (board 1e): what was thrown, the
+      units made, what could not be settled, the treasure and what was written. --}}
+<div class="acks-extras-org-card">
+  <header class="acks-extras-org-card__head">
+    <strong>{{title}}</strong>
+    <span class="hint">{{where}}</span>
+  </header>
+  {{#if steps.length}}
+    <ul class="acks-extras-org-card__steps">
+      {{#each steps}}
+        <li data-tooltip-text="{{tip}}"><span>{{label}}</span> <span class="acks-extras-org-card__fig">{{figure}} = {{total}}</span>{{#if cite}} <span class="hint">{{cite}}</span>{{/if}}</li>
+      {{/each}}
+    </ul>
+  {{/if}}
+  {{#if units.length}}
+    <table class="acks-extras-org-card__units">
+      <tbody>
+        {{#each units}}
+          <tr data-tooltip-text="{{tip}}"><td>{{label}}</td><td>{{bodies}}</td><td>{{share}}</td><td>{{troop}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{/if}}
+  {{#if findings.length}}
+    <ul class="acks-extras-org-card__findings">
+      {{#each findings}}<li data-finding="{{what}}">{{text}}</li>{{/each}}
+    </ul>
+  {{/if}}
+  {{#if treasure}}<p>{{treasure}}</p>{{/if}}
+  <p class="hint">{{wrote}}</p>
+  <p>
+    {{#if group}}@UUID[{{group.uuid}}]{ {{group.name}} }{{/if}}
+    {{#if pot}}@UUID[{{pot.uuid}}]{ {{localize "ACKS-MONSTERS.organisation.card.pot"}} }{{/if}}
+  </p>
+</div>

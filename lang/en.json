@@ -6483,6 +6483,36 @@
       "note": "Kit: {label} ({cite}): {note}"
     },
     "organisation": {
+      "camp": "Camp",
+      "card": {
+        "speaker": "Organisation",
+        "title": "Roll: {name}",
+        "pot": "Open pot",
+        "context": {
+          "dungeon": "Dungeon",
+          "wilderness": "Wilderness"
+        },
+        "state": {
+          "wandering": "Wandering",
+          "lair": "In lair"
+        },
+        "tip": {
+          "step": "{part}: {formula} thrown, {total}",
+          "unit": "{word}: {bodies} bodies, {leaders} leaders, as rolled"
+        },
+        "treasure": "Treasure: {n} to the pot",
+        "wrote": "Wrote {stacks} stacks, {bodies} bodies.",
+        "finding": {
+          "reference": "{word}: reference {status}, {n} candidates, link it by hand",
+          "gap": "{table} roll {roll} falls in no band for {unit}",
+          "hd": "{gear}: {role} has no Hit Dice to throw against",
+          "traitBeasts": "Trait {trait} adds {dice} beasts; name the creature to add them",
+          "alongside": "{unit}: beasts fight beside its riders; add them by hand",
+          "morale": "{part}: morale part {figure} is outside the group field",
+          "missing": "{part}{unit}: no figure to roll",
+          "split": "Shares not imported: {missing}"
+        }
+      },
       "note": "{kind}: {label} ({cite})",
       "natural": "{label} attack {n}",
       "kind": {

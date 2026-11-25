@@ -563,3 +563,27 @@
   gap: var(--acks-sp-2);
   align-items: center;
 }
+
+/* The organisation Roll's whispered card. */
+.acks-extras-org-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  align-items: baseline;
+}
+
+.acks-extras-org-card__steps,
+.acks-extras-org-card__findings {
+  margin: var(--acks-sp-2) 0;
+  padding-left: var(--acks-sp-4);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-org-card__units {
+  width: 100%;
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-org-card__fig {
+  font-weight: bold;
+}

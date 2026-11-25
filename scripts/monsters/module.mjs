@@ -12,6 +12,7 @@
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
+import { rollOrganisation } from "./organisation-run.mjs";
 import { createFullMonsterSheet, MONSTER_SHEET_TEMPLATES } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
@@ -86,6 +87,8 @@ Hooks.once("init", () => {
     config,
     /** Read the extended stat block for an actor (a MonsterExtras instance). */
     getExtras: (actor) => MonsterExtras.fromActor(actor),
+    /** Roll an organisation into a chart row (docs/monsters/MODEL.md, "The organisation roll"). */
+    rollOrganisation,
   };
   acksExtras.monsters = api;
 
