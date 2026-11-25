@@ -1027,6 +1027,65 @@ await t("a lowered activation's records come off every actor that holds one, by 
   }
 });
 
+await t("a lowering re-offers the subject's other reaches to every token the actor stands as, a linked token on a scene nobody views included", async () => {
+  seatOf(true);
+  const aura = await import("../scripts/lib/aura-reach.mjs");
+  const heard = [];
+  aura.setReachHandler(async (ctx) => heard.push([ctx.subject.token.uuid, ctx.moment, ctx.config.activationId]));
+  const actor = { id: "A.9", uuid: "Actor.A9", isToken: false, effects: [{ id: "e1", flags: { "acks-extras": { itemRun: { activationId: "act1" } } } }], getActiveTokens: () => [], deleteEmbeddedDocuments: async () => [] };
+  const bearerOnFar = { id: "B2", uuid: "Far.B2", actor: monster(["alpha"]) };
+  const region = { id: "R2", hidden: false, attachment: { token: "B2" }, behaviors: [{ type: AURA, system: { sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act2", rowKey: "t" } }] };
+  const far = { tokens: { get: (id) => (id === "B2" ? bearerOnFar : undefined) }, regions: [region] };
+  region.parent = far;
+  const linked = { actorLink: true, actorId: "A.9", id: "T9", uuid: "Far.T9", actor, parent: far, regions: new Set([region]) };
+  const priorActors = gameStub.actors;
+  const priorScenes = gameStub.scenes;
+  gameStub.actors = [actor];
+  gameStub.scenes = [{ tokens: [linked] }];
+  itemFlags = toggleFlags(down);
+  try {
+    assert.deepEqual(run.tokensOfActor(actor).map((tok) => tok.uuid), ["Far.T9"], "the viewed canvas holds none; the linked token is found on its own scene");
+    await run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.1" } });
+    assert.deepEqual(heard, [["Far.T9", "enter", "act2"]], "the other activation's reach hears the subject enter, on a scene the window does not view");
+    const sameOnCanvas = { ...linked, uuid: "Far.T9" };
+    actor.getActiveTokens = () => [sameOnCanvas];
+    assert.equal(run.tokensOfActor(actor).length, 1, "a token on the canvas and linked is one token");
+    assert.deepEqual(run.tokensOfActor({ isToken: true, token: { uuid: "S.T" } }).map((tok) => tok.uuid), ["S.T"], "a synthetic actor is its own token");
+  } finally {
+    gameStub.actors = priorActors;
+    gameStub.scenes = priorScenes;
+    aura.setReachHandler(run.handleReachMoment);
+  }
+});
+
+await t("a once-only use with no save writes the row's save narrowing onto the part it hands each subject", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  const written = [];
+  try {
+    const subject = { id: "s1", uuid: "T.s1", name: "Tok s1", flags: { "acks-extras": {} }, disposition: -1, actor: { ...monster(["alpha"]), createEmbeddedDocuments: async (kind, data) => { written.push(...data); return data.map((_, i) => ({ id: `e${i}` })); } }, testInsideRegion: () => true };
+    subjects["T.s1"] = subject;
+    const area = sceneOf([bearerTok, subject]);
+    bearerTok.parent = area;
+    bearerTok.testInsideRegion = () => true;
+    const reach = { pulse: "action", radius: { value: "15" }, on: ["save", "attack"], modifier: { value: "2" }, filter: {} };
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", reach: { ...reach, saveWhen: { when: "Fear", magical: true } } }] } };
+    const out = await run.runUse({ itemUuid: "I.1" });
+    assert.equal(out.ok, true);
+    assert.deepEqual(written[0].flags["acks-extras"].rollMods.parts, [{ on: "save", value: 2, when: "fear", magical: true }, { on: "attack", value: 2 }], "the save part alone carries the narrowing, the circumstance word lowercased");
+    written.length = 0;
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", reach }] } };
+    await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual(written[0].flags["acks-extras"].rollMods.parts, [{ on: "save", value: 2 }, { on: "attack", value: 2 }], "no narrowing, none written");
+  } finally {
+    delete subjects["T.s1"];
+    bearerTok.parent = null;
+    delete bearerTok.testInsideRegion;
+    unstage();
+  }
+});
+
 await t("the fuse is stepped from the turn hooks on the primary GM's window alone, a fight's end moves it to the world clock, and the clock reaching it bursts it", async () => {
   const burst = [];
   run.setFuseBurst(async ({ record }) => { burst.push(record.activationId); });

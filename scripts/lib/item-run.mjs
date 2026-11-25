@@ -94,6 +94,19 @@ function linkedTokensOf(actor) {
   return found;
 }
 
+/**
+ * Every token an actor stands as, wherever it stands: a synthetic actor's own, else
+ * those on the scene this window views and the actor's linked tokens on any scene,
+ * each once. A lowering reads these, since the bearer's other bodies may stand on a
+ * scene nobody views.
+ */
+export function tokensOfActor(actor) {
+  if (actor?.isToken) return actor.token ? [actor.token] : [];
+  const found = new Map();
+  for (const token of [...(actor?.getActiveTokens?.(false, true) ?? []), ...linkedTokensOf(actor)]) found.set(token.uuid ?? token.id, token);
+  return [...found.values()];
+}
+
 /** The one key an item kind's immunity is recorded under: the importer's entry id, else the row's key. */
 export const kindKeyOf = (item, row) => String(item?.flags?.[MODULE_ID]?.cookbook?.id ?? row?.key ?? "");
 
@@ -443,7 +456,7 @@ export async function liftActivation({ config }) {
     lifted.push(actor);
   }
   for (const actor of lifted) {
-    for (const token of actor.isToken ? [actor.token] : (actor.getActiveTokens?.(false, true) ?? [])) {
+    for (const token of tokensOfActor(actor)) {
       for (const { region, behavior } of behaviorsUnder(token, AURA_BEHAVIOR_TYPE)) {
         if (readAuraConfig(behavior.system)?.activationId === config.activationId) continue;
         await dispatchReachMoment({ ...behavior.system, region }, "enter", token);
