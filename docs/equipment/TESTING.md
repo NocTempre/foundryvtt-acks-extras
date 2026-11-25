@@ -355,6 +355,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   an `armor` ("Chainmail"), an `item` "Backpack", an `item` "Torch" with
   `system.quantity` 3, an `item` "Flask of Oil", a `money` "Gold Pieces".
 - A WORLD `item` "Crowbar" (no actor) and a disposable Scene.
+- **Kept, steps 18 to 25** (`tools/live/equipment-weapon-quantity.mjs` walks them, every name invented): `equipment/s11-holder`, a `character` every seat owns; `equipment/s11-place`, an `acks-extras.location` that holds goods and has a market; `equipment/s11-monster`, a `monster`. Every row they carry has `flags.world.fixtureItem` set to `equipment/s11`, and a step's shape deletes the tagged rows by id and writes the baseline again: on the holder a spear stack of 3, a single spear, a suit of armour holding 2, a spear stack of 4 to stash, a spear stack of 3 to sell, and a pack holding a stack of 3 and a single rope; on the monster a sack of 3 and a rope of 1. Asserting the baseline is each step's first check.
 
 ### Drive mechanics (non-obvious, learned live)
 
@@ -399,6 +400,57 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **Roll automation is a world setting read at `setup`.** Turning it off takes
   a page reload to act, and so does turning it back on. Read the value first
   and restore it.
+- **A stack's count controls (steps 18 to 25), by surface and handler.**
+  - *Character sheet's Equipment tab.* Open the module's own sheet, as
+    `equipment.mjs` does: `new acksExtras.characterSheet.Sheet({document: actor})`
+    with `tabGroups.primary = "equipment"`. `actor.sheet` is not shown to be that
+    class. A row is `.acks-extras-frame__gear[data-item-id]`. Its count is
+    `.acks-extras-frame__gear-name .acks-nums`, tipped through
+    `data-tooltip-text`. Its state buttons are `toggleEquip` and `divideStack`,
+    and carry `data-tooltip` and the same text as `aria-label`. `divideStack`
+    is `#onDivideStack`, which opens `promptDivide` (`lib/stack-prompt.mjs`), a
+    `DialogV2.prompt`: `input[name="count"]` (min 1, max the count less one,
+    default half rounded down) and `button[data-action="ok"]`.
+  - *A row in use of more than one.* An equip divides, so a drawn row of 3 is
+    made by drawing a stack and then typing the drawn row's Quantity (a write
+    that does not touch `equipped`, which is what the item sheet's field does);
+    creating a row with `equipped` already set is not the path under test.
+  - *Item sheet.* The field is `input[name="system.quantity"]` and is the first
+    of the fields after the rule titled Record, on the Details tab. The title
+    band's `input[name="acksBandQty"]` exists only above one. The pencil is
+    `[data-action="edit"]`. Type with a `change` event and read the document.
+  - *Stash.* The place sheet's Storage tab holds `[data-action="depositHere"]`,
+    which opens a `DialogV2.prompt` carrying `.acks-location-stash-dialog`. On
+    a GM seat it opens on a chooser of every character the seat owns, with the
+    first selected: set `select[name="source"]` and dispatch `change` before
+    ticking `input[name="pick_<id>"]` and typing `input[name="qty_<id>"]`. A
+    row's count is `.acks-location-pick-qty`. The stored row is a new document
+    on the place: `acksExtras.lib.storage.storedItems(place, {ownerUuid})`.
+  - *Take back.* On the place sheet it is `.acks-location-row[data-item-id]`
+    with `input[data-pick="qty-<id>"]` and `[data-action="retrieveRow"]`
+    (`#onRetrieveRow` reads the input's value; a blank one takes the whole
+    stack). The character sheet's injected Storage tab uses the same input with
+    `data-acksl-action="retrieve"`, and the storage manager
+    (`openStorageManager(place)`) uses `input[data-quantity-for="<id>"]`.
+  - *Sale.* The Trade tab's `openSell` needs a trader picked, so the dialog is
+    built as `window-contract.mjs` builds it:
+    `new SellDialog({location, seller, item}).render({force: true})` from
+    `scripts/markets/apps/sell-dialog.mjs`. Its root is the form; the field is
+    `input[name="qty"]` (type `hidden` for a row in use) and the button is
+    `button[type="submit"]`. A GM seat sells locally and is not asked for
+    reach by the sale itself. The sale needs a market on the place
+    (`system.market` written from `emptyMarket()`, then `marketClassOverride`)
+    and the importer's price tables: before its first step the walk probes
+    `salePlan`, `availabilityFor` and `awayFromMarket` (asked as the Judge's
+    seat asks it), and stops blocked where they read as missing or refuse. The coin it pays and the cards it posts
+    are made by the run's own client, caught by a `createChatMessage` hook
+    filtered to the seat's own user, tracked by id and swept with
+    `sweepTracked({only})`.
+  - *Follower Card.* `new acksExtras.lib.followerCard.Sheet({document: actor})`;
+    the wear control is `[data-action="fcToggleEquip"][data-item-id]`, tipped
+    through `data-tooltip-text` and carrying `aria-label`.
+  - *Monster Inventory.* It lists `item` rows only; core's lists keep weapons
+    and armour apart. A count is `.acksm-inv-meta [data-tooltip-text]`.
 
 ### Steps
 
@@ -562,12 +614,75 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     names the page the importer read (or says the rows were set by hand in
     the Ruledata Browser), and a pick writes that row's mechanics onto the
     item. Clear the condition before the next step.
+18. **A weapon's or armour's Quantity on its item sheet.** On `equipment/s11-holder`
+    (steps 18 to 25 are walked by `tools/live/equipment-weapon-quantity.mjs`),
+    open the single spear's sheet on its Details tab. *Observable:* the first field
+    under Record is Quantity, reading 1, a whole-number field from 0, its label
+    tipped with the band's string, disabled, and the title band shows no count. Press the
+    pencil: the field is enabled and the pencil reads pressed. Type 3. *Observable:*
+    `system.quantity` is 3 and the title band shows 3. Press the pencil again.
+    *Observable:* the field is disabled and still 3. Open the suit of armour's
+    sheet. *Observable:* Quantity is first, reads 2, with the band showing 2 and the
+    field disabled; armed and typed 5, the document and the band read 5.
+19. **The Equipment tab's count, Divide and Draw** (character sheet → Equipment
+    tab, on the spear stack of 3 and the armour holding 2). *Observable:* the
+    spear row reads ×3 and its tooltip is "3 in the stack: the item's Quantity.";
+    it offers Divide; Draw's tooltip and `aria-label` read "Draw one (equip). The
+    stack keeps 2."; no state button on the row lacks an `aria-label`. The armour
+    row reads ×2, offers Divide, and Equip reads "Equip one. The stack keeps 1.".
+    Press Divide on the spear row and type 1. *Observable:* the prompt offers 1 to 2,
+    and two resting rows stand, 1 and 2, the whole still 3. Press Draw on the 2.
+    *Observable:* exactly one drawn row holds 1, the row pressed, and the resting
+    rows hold 2 between them. The drawn row offers no Divide and no ×n, and its
+    control reads Sheathe. Type the drawn row's Quantity to 3. *Observable:* it
+    reads ×3 with the tooltip and is still offered no Divide. Put it back to 1 and
+    press Sheathe. *Observable:* no drawn row, the three are all there, and there
+    are fewer rows than while it was drawn.
+20. **Stash part of a stack, then take back 2 of 3** (the stack of 4, the place
+    holding goods). From the place sheet's Storage tab press Leave something here.
+    *Observable:* the picker lists the stack as ×4 with the count's tooltip and a
+    how-many box whose maximum is 4. Stash 3. *Observable:* the holder keeps a
+    resting row of 1 and the place stores a row of 3. The place sheet's Storage tab
+    (Actors sidebar tab → the place → Storage tab) reads ×3 with the tooltip, a
+    take field with maximum 3 named by its prompt, and a take control; the
+    storage manager lists the same row ×3 with the same tooltip and a take
+    field. Type 2 in the take field and press the take control. *Observable:* the
+    holder holds one resting row of 3, the 2 having folded into the row it kept, and the place
+    stores 1, which reads no count.
+21. **A row in use is offered no count control.** Draw a stack of spears and type the
+    drawn row's Quantity to 3, and wear the suit of armour and type its Quantity
+    to 3. *Observable:* on the Equipment tab each reads ×3 and neither offers
+    Divide. The stash picker lists the drawn row ×3 with no how-many box. A drawn
+    row stored at the place reads ×3 on the place sheet's Storage tab and in the
+    storage manager, and offers neither a take field. The sale dialog for the
+    drawn row holds its quantity as a hidden field of 1.
+22. **The Follower Card's wear control.** Open the card on the holder. *Observable:*
+    the spear stack of 3's wear control says it wears one and the stack keeps 2,
+    carries that text as its `aria-label`, and its row reads ×3; the single
+    spear's keeps the plain carried text.
+23. **Contents and Inventory print a count only above one.** Open the pack's Contents tab.
+    *Observable:* the stored spear stack reads ×3 with the tooltip and the single
+    rope reads no count. Open the monster's Inventory tab (Actors sidebar tab →
+    the monster → Inventory tab). *Observable:* the sack of 3 reads ×3 with the
+    tooltip and the rope of 1 reads no count.
+24. **The Player seat.** As the Player, open the module's character sheet on the
+    holder's Equipment tab. *Observable:* the spear stack reads ×3 with its tooltip,
+    offers Divide, and Draw reads "Draw one (equip). The stack keeps 2."; Divide 1
+    from that seat gives rows of 1 and 2, and the GM seat reads the same two.
+25. **Sell part of a stack** (walked last; it needs a priced market). Open the
+    sale dialog on the spear stack of 3 at the place. *Observable:* Quantity is a
+    number field from 1 to 3 and the label names 3 as carried. Type 2 and press
+    Sell. *Observable:* one row remains and holds 1. Without the importer's price
+    tables the walk stops blocked before its first step and none of this is reached.
 
 ## Teardown
 
 Delete the disposable character, its items and the variation item. Confirm
 no fixture items remain in `game.items`. The kept fixture
-(`equipment/hands-probe`) stays, reset to its start shape.
+(`equipment/hands-probe`) stays, reset to its start shape. Steps 18 to 25 keep
+their three fixtures: each shape deletes the tagged rows by id and writes the
+baseline again, the coin and cards a sale makes are the run's own and are swept
+by their tracked ids, and the walk quotes the sweep's result.
 
 
 ## The mounted overlay (added with its first release)
@@ -1759,7 +1874,7 @@ packed case uses the same row, stored and taken out, and no second marker.
 
 ### Steps
 
-1. As the player, click Draw on the sword row holding 3 (the EQP cell on the character sheet, and again from the item sheet). *Observable:* two rows, a resting one holding 2 and a drawn one holding 1 in the slot; never a drawn row of 3. Hovering the quantity badge on each names the count.
+1. As the player, click Draw on the sword row holding 3 (the EQP cell on the character sheet, and again from the item sheet). *Observable:* two rows, a resting one holding 2 and a drawn one holding 1 in the slot; never a drawn row of 3. Hovering the resting row's ×2 names the count; the drawn row of 1 prints none.
 2. Click Draw twice quickly on a fresh row of 3. *Observable:* the same two rows as step 1, the second click taking nothing; the sum of both rows is 3.
 3. Repeat step 1 with the stack inside a carried container, then with it loose. *Observable:* the resting remainder sits in the same container as the stack it came from, and the drawn row is placed as an unstow of a drawn item is. The packed and the loose case are walked apart, since the unstow rides the same write.
 4. Draw a stack where a placement veto applies (a hand already full). *Observable:* the veto message shows and the row still holds 3 with no second row.

@@ -4219,7 +4219,9 @@ made, by the ledger; the fixtures stay.
 A delivery of weapons that folds into a resting row, and one that arrives as
 one row, are walked in `tools/live/equipment-weapon-stacks.mjs`
 ([../equipment/TESTING.md](../equipment/TESTING.md), "Equipping a stack of
-weapons"). The steps below are unwalked.
+weapons"). The count controls of steps 3 and 6 are walked on both seats in
+[../equipment/TESTING.md](../equipment/TESTING.md), "The item sheet", steps 18
+to 25. The rest of the steps below are unwalked.
 
 ### Fixtures
 
@@ -4232,7 +4234,7 @@ weapons"). The steps below are unwalked.
 3. Open the character sheet equipment tab and the location's storage tab on the sword rows. *Observable:* the resting row of 3 and the resting armour row of 2 are offered the divide, take-how-many and sale count controls, and a drawn row is offered none; the row's weight and value read for the whole count.
 4. Stash the stack at the location and retrieve it. *Observable:* it moves whole and merges into a resting row of the same thing; a row holding a variation moves whole and never merges.
 5. Import the same character PDF twice. *Observable:* the second import finds the rows and adds no row; the count stays what the PDF states.
-6. Open a sword row's item sheet. *Observable:* no count control appears; the quantity shown is the whole row's count.
+6. Open a sword row's item sheet. *Observable:* its Details tab opens with a Quantity field holding the whole row's count, a whole number from 0, and the title band shows the same count above one; the pencil locks the field. Walked in [../equipment/TESTING.md](../equipment/TESTING.md), "The item sheet", step 18.
 7. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.
 
 ## A delayed-damage record whose fight ends before it is due
