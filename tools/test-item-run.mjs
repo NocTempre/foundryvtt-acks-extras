@@ -258,4 +258,713 @@ await t("a use is refused for a seat that does not own the item's actor and for 
   }
 });
 
+/* --- the pure half, pinned where a clause could be dropped unseen --- */
+
+await t("an item's run reads its figures only as references, its rows as a copy of a list, and its flags by either hand", () => {
+  const read = logic.readItemRun({ activation: { kind: "fuse", throw: { doc: "d" }, fumble: { doc: "f" }, fuseDice: "1d4", uses: { value: "3" } }, rows: "none" });
+  assert.deepEqual(read.activation.throw, { doc: "d" });
+  assert.deepEqual(read.activation.fumble, { doc: "f" });
+  assert.equal(read.activation.fuseDice, null, "a bare string is no reference");
+  assert.deepEqual(read.activation.uses, { value: "3" });
+  assert.deepEqual(read.rows, [], "rows that are no list are none");
+  assert.equal(logic.readItemRun({ activation: { kind: "once", state: { active: "yes", activationId: 7, regionId: 8 } } }).activation.state.active, false, "only true is active");
+  assert.deepEqual(logic.readItemRun({ activation: { kind: "once", state: { activationId: 7, regionId: 8 } } }).activation.state, { active: false, activationId: "7", regionId: "8" });
+  const stored = [{ key: "a" }];
+  const copy = logic.itemRunRowsOf(gear({ itemRun: { rows: stored } }));
+  copy.push({ key: "extra" });
+  assert.equal(stored.length, 1, "an item's rows are handed over as a copy");
+  const abilityStored = [{ key: "b" }];
+  const abilityCopy = logic.itemRunRowsOf(gear({ extras: { effects: abilityStored } }, "ability"));
+  abilityCopy.push({ key: "extra" });
+  assert.equal(abilityStored.length, 1, "so are an ability's");
+  assert.deepEqual(logic.itemRunRowsOf(gear({ extras: { effects: "x" } }, "ability")), []);
+  assert.deepEqual(logic.itemRunRowsOf(gear({ itemRun: { rows: "x" } })), []);
+  const viaGetFlag = { type: "item", flags: {}, getFlag: (scope, key) => (key === "itemRun" ? { activation: { kind: "once" }, rows: [{ key: "g" }] } : undefined) };
+  assert.equal(logic.itemRunOf(viaGetFlag).activation.kind, "once", "a document's own getFlag");
+  assert.equal(logic.claimsItemUse(viaGetFlag, ["once"]), true);
+});
+
+await t("every record names its item, activation and row, and each kind carries what it is for", () => {
+  const flagsOf = (rec) => rec.flags["acks-extras"];
+  const wholeIds = { source: "I.1", activationId: "act", rowKey: "k" };
+  const imm = logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", duration: { seconds: 60 }, ...wholeIds });
+  assert.equal(imm.origin, "I.1");
+  assert.deepEqual(imm.duration, { seconds: 60 });
+  assert.equal(flagsOf(imm).rollMods.id, "kind-1", "the key is the kind's");
+  assert.equal(flagsOf(imm).rollMods.label, "Pass");
+  assert.deepEqual(flagsOf(imm).itemRun, wholeIds);
+  assert.equal("duration" in logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", ...wholeIds }), false, "no clock, no duration");
+  const act = logic.actionPartRecordData({ name: "Edge", parts: [{ on: "damage", value: 1 }], ...wholeIds });
+  assert.equal(act.origin, "I.1");
+  assert.equal(flagsOf(act).rollMods.id, "k", "an action part is the row's");
+  assert.deepEqual(flagsOf(act).itemRun, wholeIds);
+  assert.equal(flagsOf(act).managed, true);
+  const standing = logic.standingPartRecordData({ kindKey: "kind-1", name: "Aura", parts: [{ on: "damage", value: 2 }], ...wholeIds });
+  assert.equal(standing.origin, "I.1");
+  assert.equal(flagsOf(standing).rollMods.id, "kind-1", "a standing part is the kind's");
+  assert.deepEqual(flagsOf(standing).rollMods.parts, [{ on: "damage", value: 2 }]);
+  assert.deepEqual(flagsOf(standing).itemRun, wholeIds);
+  assert.equal(flagsOf(standing).managed, true);
+  const cond = logic.conditionRecordData({ statusData: { name: "Held", flags: { other: { keep: 1 } } }, ...wholeIds });
+  assert.deepEqual(cond.flags.other, { keep: 1 }, "another scope's flags stay");
+  assert.equal("duration" in cond, false);
+  assert.equal(flagsOf(cond).itemRun.activationId, "act");
+});
+
+await t("an activation's records are found by its id from either flag shape, and the empty id finds only what was stamped empty", () => {
+  const withGet = { id: "g", flags: {}, getFlag: (scope, key) => (key === "itemRun" ? { activationId: "x" } : undefined) };
+  const noId = { flags: { "acks-extras": { itemRun: { activationId: "x" } } } };
+  assert.deepEqual(logic.activationRecordIds([withGet, noId], "x"), ["g"], "a record with no id is not a record to delete");
+  const stamped = { id: "e", flags: { "acks-extras": { itemRun: { activationId: "" } } } };
+  assert.deepEqual(logic.activationRecordIds([stamped], ""), [], "an empty activation names nothing");
+});
+
+await t("a press without its seat's owners is refused, the card shows what was thrown, and the Judge's tick names its subject", () => {
+  assert.equal(logic.checkPressRequest({ requestUserId: "u1", total: 5, target: 5 }, { item: {}, row: {}, target: 5 }).reason, "notOwner");
+  const words = { roll: "R", undo: "U", undetermined: "?", tick: "T", saved: "S", failed: "F" };
+  const ids = { itemUuid: "I", rowKey: "k", activationId: "a" };
+  const open = logic.promptCardModel({ title: "G", words, ids, subjects: [{ key: "s1", name: "One" }], entries: { s1: { state: "open" } } });
+  assert.equal(open.sections[0].rows[0].actions[0].action, "itemRun.roll", "an open entry is still to roll");
+  const rolled = logic.promptCardModel({ title: "G", words, ids, isGM: true, subjects: [{ key: "s1", name: "One" }], entries: { s1: { state: "applied", saved: true, total: 14, target: 9, recordIds: [] } } });
+  assert.equal(rolled.sections[0].rows[0].total, 14);
+  assert.equal(rolled.sections[0].rows[0].target, 9);
+  const noTarget = logic.promptCardModel({ title: "G", words, ids, subjects: [{ key: "s1", name: "One" }], entries: { s1: { state: "applied", saved: true, total: 14 } } });
+  assert.equal("target" in noTarget.sections[0].rows[0], false);
+  const judge = logic.promptCardModel({ title: "G", words, ids, isGM: true, subjects: [], undetermined: [{ key: "u1", name: "Odd" }] });
+  assert.deepEqual(judge.sections[1].rows[0].actions[0].data, { ...ids, subject: "u1" });
+  assert.equal(logic.promptCardModel({ title: "G", words, ids, isGM: true, subjects: [], undetermined: [] }).sections.length, 1, "no undetermined, no section");
+  assert.equal("subtitle" in logic.promptCardModel({ title: "G", words, ids }), false);
+});
+
+await t("a fuse is read as floors, on the end edge, and only whole", () => {
+  const f = flag();
+  assert.equal(f.source, "I.1");
+  assert.equal(f.activationId, "act");
+  assert.deepEqual(f.spot, spot);
+  const odd = logic.readFuse({ ...f, clock: { combatId: "c1", combatantId: "m1", edge: "start", count: 2.7, seen: -3 } });
+  assert.deepEqual(odd.clock, { combatId: "c1", combatantId: "m1", edge: "end", count: 2, seen: 0 }, "a whole count, no negative seen, the end edge");
+  assert.equal(logic.readFuse({ ...f, clock: { ...f.clock, seen: 1.9 } }).clock.seen, 1);
+  assert.equal(logic.readFuse({ ...f, clock: { ...f.clock, count: 0.5 } }), null, "half a turn is none");
+  for (const lacking of ["source", "activationId", "spot"]) assert.equal(logic.readFuse({ ...f, [lacking]: undefined }), null, `no ${lacking}`);
+  for (const lacking of ["combatId", "combatantId"]) assert.equal(logic.readFuse({ ...f, clock: { ...f.clock, [lacking]: "" } }), null, `no ${lacking}`);
+  assert.deepEqual(logic.readFuse({ ...f, dueAt: 40 }).dueAt, 40, "a world-clock time wins over the clock");
+  assert.equal(logic.fuseDue({ ...f, dueAt: 0 }, null), false, "no reading is no due");
+  assert.equal(logic.fuseDue({ ...f, dueAt: 0 }, ""), false);
+  assert.equal(logic.fuseDue(f, 9999), false, "a combat-clock fuse is never due by the world's");
+  assert.equal(logic.fuseToWorld({ ...f, clock: { ...f.clock, seen: 0 } }, "c1", { now: 10, roundSeconds: 2.2 }).dueAt, 15, "4.4 seconds past 10 is 15, not 14");
+  const stepped = logic.fuseStep({ ...f, clock: { ...f.clock, seen: 2 } }, { kind: "ended", combatId: "c1", combatantId: "m1" });
+  assert.deepEqual(stepped.record.clock, { combatId: "c1", combatantId: "m1", edge: "end", count: 2, seen: 2 }, "the burst hands on the record");
+});
+
+/* --- the Foundry half: a use, the two kinds lib runs, a press, Undo, a moment, the teardown and the fuse's wiring --- */
+const AURA = "acks-extras.aura";
+class Users extends Array {
+  get(id) { return this.find((u) => u.id === id); }
+}
+const seatOf = (primaryGM, list = [{ id: "owner" }, { id: "other" }]) => {
+  const users = Users.from(list);
+  users.activeGM = primaryGM ? { isSelf: true } : undefined;
+  gameStub.users = users;
+};
+const quiet = async (fn) => {
+  const prior = console.error;
+  console.error = () => {};
+  try { return await fn(); } finally { console.error = prior; }
+};
+const asks = [];
+const raisedRegion = { id: "R1", uuid: "S.R1" };
+const regionDeletes = [];
+const regionOf = (id, activationId, type = AURA) => ({ id, behaviors: [{ type, system: { sourceUuid: "I.1", bearerUuid: "A.1", activationId, rowKey: "t" } }], delete: async () => { regionDeletes.push(id); } });
+const monster = (types, effects = []) => ({ documentName: "Actor", type: "monster", system: { details: { class: "" }, saves: { paralysis: { value: 12 } } }, effects, getFlag: () => (types ? { types } : undefined) });
+const sceneOf = (tokens, dimensions = { distance: 5, distancePixels: 10 }) => ({ dimensions, tokens });
+const bearerActor = { uuid: "A.1", isToken: false, testUserPermission: (user) => user?.id === "owner", effects: [], getActiveTokens: () => [bearerTok] };
+const bearerTok = {
+  id: "1", uuid: "T.1", name: "Bearer", hidden: false, actor: bearerActor, parent: null,
+  baseActor: { uuid: "A.1", system: { hp: { value: 5, max: 9 } }, statuses: new Set() },
+  testUserPermission: (user) => user?.id === "owner", attachments: { regions: new Set() },
+};
+let itemFlags = {};
+const updates = [];
+const theItem = {
+  uuid: "I.1", name: "Gear", type: "item", actor: bearerActor, update: async (data) => { updates.push(data); },
+  get flags() { return { "acks-extras": itemFlags }; },
+};
+const subjects = {};
+globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? theItem : uuid === "T.1" ? bearerTok : subjects[uuid] ?? null);
+const stage = () => {
+  globalThis.CONST = { REGION_VISIBILITY: { GAMEMASTER: 1 } };
+  globalThis.CONFIG = {
+    Region: {
+      documentClass: class {
+        constructor(data, options) { this.data = data; this.options = options; madeRegions.push(this); }
+        static schema = { fields: { attachment: { fields: { token: {} } } } };
+        static createTokenEmanation = async (...args) => { asks.push(args); return raisedRegion; };
+      },
+    },
+    specialStatusEffects: {},
+    statusEffects: [{ id: "held", name: "Held Name", img: "held.svg" }],
+  };
+  globalThis.foundry.data = { operators: { ForcedDeletion }, EmanationShapeData: class {} };
+};
+const madeRegions = [];
+const unstage = () => { delete globalThis.CONST; delete globalThis.CONFIG; globalThis.foundry.data = { operators: { ForcedDeletion } }; };
+const rowsToggle = [
+  { key: "a", reach: { pulse: "action", radius: { value: "10" } } },
+  { key: "t", reach: { pulse: "turnStart+moveIn", radius: { value: "30" } } },
+  { key: "s", reach: { pulse: "standing", radius: { value: "40" } } },
+];
+const toggleFlags = (state, rows = rowsToggle) => ({ itemRun: { activation: { kind: "toggle", state }, rows } });
+const down = { active: false, activationId: "", regionId: "" };
+const hooked = {};
+const consts = await import("../scripts/lib/constants.mjs");
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+const presented = [];
+
+await t("installing registers the two kinds, the two relays and the reach's handler and teardown, and the carrier takes a use through to the kind's runner", async () => {
+  const priorOn = globalThis.Hooks.on;
+  globalThis.Hooks.on = (name, fn) => { (hooked[name] ??= []).push(fn); };
+  try {
+    run.installItemRun();
+    run.installItemRun();
+  } finally {
+    globalThis.Hooks.on = priorOn;
+  }
+  for (const name of [consts.TURN_BEGAN_HOOK, consts.TURN_ENDED_HOOK, "deleteCombat", "updateWorldTime"]) assert.equal(hooked[name]?.length, 1, `${name} once`);
+  run.setUsePresenter(async (result) => presented.push(result));
+});
+
+await t("a use is refused with its own line for an item or actor that is gone, a bearer with no token, a runner that says no, and an unknown reason; and it relays from a Player's seat", async () => {
+  stage();
+  seatOf(true);
+  const notes2 = [];
+  const priorUi = globalThis.ui;
+  globalThis.ui = { notifications: { warn: (text) => notes2.push(["warn", text]), error: (text) => notes2.push(["error", text]) } };
+  try {
+    itemFlags = toggleFlags(down);
+    const refused = async (over, reason, kind) => {
+      notes2.length = 0;
+      presented.length = 0;
+      const out = await run.runUse({ itemUuid: "I.1", ...over });
+      assert.deepEqual(out, { ok: false, reason });
+      assert.equal(notes2[0][0], kind);
+      assert.ok(notes2[0][1].endsWith(`itemRun.refused.${reason}`), `${reason}'s line`);
+      assert.deepEqual(presented, [], "a refusal is not presented");
+    };
+    await refused({ itemUuid: "I.none" }, "gone", "warn");
+    itemFlags = {};
+    await refused({}, "gone", "warn");
+    itemFlags = toggleFlags(down);
+    const actor = theItem.actor;
+    theItem.actor = null;
+    await refused({}, "gone", "warn");
+    theItem.actor = actor;
+    bearerActor.getActiveTokens = () => [];
+    await refused({}, "noToken", "warn");
+    bearerActor.getActiveTokens = () => [bearerTok];
+    itemFlags = toggleFlags(down, [{ key: "a", reach: { pulse: "action", radius: { value: "10" } } }]);
+    await refused({ requestUserId: "owner" }, "noRow", "error");
+    await refused({ requestUserId: "other" }, "notOwner", "error");
+    itemFlags = { itemRun: { activation: { kind: "fuse" }, rows: [] } };
+    await refused({}, "noRunner", "warn");
+    run.registerActivationRunner("fuse", async () => ({ ok: false, reason: "oddReason" }));
+    notes2.length = 0;
+    assert.deepEqual(await run.runUse({ itemUuid: "I.1" }), { ok: false, reason: "oddReason" });
+    assert.ok(notes2[0][1].endsWith("itemRun.refused.refused"), "a reason it has no line for reads as a plain refusal");
+    run.registerActivationRunner("fuse", async () => ({ ok: false }));
+    assert.deepEqual(await run.runUse({ itemUuid: "I.1" }), { ok: false, reason: "refused" });
+    for (const reason of ["noRange", "down", "unsupported", "notCarried", "snapshot"]) {
+      run.registerActivationRunner("fuse", async () => ({ ok: false, reason }));
+      await refused({}, reason, "warn");
+    }
+  } finally {
+    run.registerActivationRunner("fuse", null);
+    globalThis.ui = priorUi;
+    run.setUsePresenter(async (result) => presented.push(result));
+    unstage();
+  }
+});
+
+await t("a use on a Judge's window runs here; a Player's seat relays and, with no Judge seated, is told so; a Player's token is the synthetic actor's own", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  itemFlags = toggleFlags(down);
+  try {
+    const ran = await run.useItem({ uuid: "I.1" });
+    assert.equal(ran.ok, true, "the Judge's own window");
+    assert.equal(presented.length, 1);
+    gameStub.user = { isGM: false };
+    seatOf(false);
+    presented.length = 0;
+    assert.deepEqual(await run.useItem({ uuid: "I.1" }), { ok: false, reason: "relay" });
+    assert.deepEqual(presented, []);
+    gameStub.user = { isGM: true };
+    seatOf(true);
+    const synthetic = { ...bearerActor, isToken: true, token: { ...bearerTok, uuid: "T.syn" }, getActiveTokens: () => { throw new Error("a synthetic actor has its token"); } };
+    const actor = theItem.actor;
+    theItem.actor = synthetic;
+    globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? theItem : uuid === "T.syn" ? synthetic.token : null);
+    asks.length = 0;
+    itemFlags = toggleFlags(down, [rowsToggle[2]]);
+    const out = await run.runUse({ itemUuid: "I.1" });
+    assert.equal(out.ok, true);
+    assert.equal(asks.at(-1)[0].uuid, "T.syn", "the synthetic actor's own token, found without asking the scene");
+    theItem.actor = actor;
+    globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? theItem : uuid === "T.1" ? bearerTok : subjects[uuid] ?? null);
+  } finally {
+    gameStub.user = { isGM: true };
+    unstage();
+  }
+});
+
+await t("one fixed key names an item kind: the importer's entry id, else the row's", () => {
+  assert.equal(run.kindKeyOf({ flags: { "acks-extras": { cookbook: { id: "entry-1" } } } }, { key: "row-1" }), "entry-1");
+  assert.equal(run.kindKeyOf({ flags: {} }, { key: "row-1" }), "row-1");
+  assert.equal(run.kindKeyOf(null, null), "");
+});
+
+await t("a toggle raises the first row that acts while raised, writes its state, and lowers only its own activation's Regions", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  asks.length = 0;
+  updates.length = 0;
+  try {
+    itemFlags = toggleFlags(down);
+    const on = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual(on, { ok: true, kind: "toggle", active: true, activationId: "rid" });
+    assert.equal(asks.length, 1);
+    assert.equal(asks[0][1], 30, "the first row that acts while raised, never the action row");
+    assert.equal(asks[0][2].behaviors[0].system.rowKey, "t");
+    assert.equal(asks[0][2].behaviors[0].system.activationId, "rid");
+    assert.deepEqual(updates, [{ "flags.acks-extras.itemRun.activation.state": { active: true, activationId: "rid", regionId: "R1" } }]);
+    assert.deepEqual(presented.map((p) => p.kind), ["toggle"]);
+    // Only a standing row also raises; only an action row has nothing to raise.
+    updates.length = 0;
+    itemFlags = toggleFlags(down, [rowsToggle[0], rowsToggle[2]]);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.equal(asks.at(-1)[2].behaviors[0].system.rowKey, "s");
+    itemFlags = toggleFlags(down, [rowsToggle[1]]);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true, "a turnStart+moveIn row alone raises");
+    updates.length = 0;
+    asks.length = 0;
+    itemFlags = toggleFlags(down, [rowsToggle[0]]);
+    assert.deepEqual(await quiet(() => run.runUse({ itemUuid: "I.1" })), { ok: false, reason: "noRow" });
+    assert.deepEqual([asks.length, updates.length], [0, 0], "no row to raise: nothing asked, nothing written");
+    itemFlags = toggleFlags(down, [{ key: "t", reach: { pulse: "standing", radius: { value: "" } } }]);
+    assert.deepEqual(await quiet(() => run.runUse({ itemUuid: "I.1" })), { ok: false, reason: "noRange" }, "the raise's own refusal is the use's");
+    assert.deepEqual([asks.length, updates.length], [0, 0], "a refused raise leaves the item down");
+    // Down again: only this activation's Regions go, and the state is cleared.
+    bearerTok.attachments.regions = new Set([regionOf("r1", "act1"), regionOf("r2", "act2"), regionOf("r3", "act1", "other")]);
+    regionDeletes.length = 0;
+    itemFlags = toggleFlags({ active: true, activationId: "act1", regionId: "r1" });
+    const off = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual(off, { ok: true, kind: "toggle", active: false });
+    assert.deepEqual(regionDeletes, ["r1"], "its own Region alone");
+    assert.deepEqual(updates.at(-1), { "flags.acks-extras.itemRun.activation.state": { active: false, activationId: "", regionId: "" } });
+  } finally {
+    bearerTok.attachments.regions = new Set();
+    unstage();
+  }
+});
+
+await t("a once-only use takes who the action row's reach meets: the admitted to roll, the unsettled to the Judge's tick", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  try {
+    const tok = (id, types, extra = {}) => ({ id, uuid: `T.${id}`, name: `Tok ${id}`, flags: { "acks-extras": {} }, disposition: -1, actor: monster(types, extra.effects), testInsideRegion: () => true });
+    const s1 = tok("s1", ["alpha"]);
+    const s2 = tok("s2", ["beta"]);
+    const s3 = tok("s3", ["alpha"]);
+    const s4 = tok("s4", undefined);
+    const friend = tok("s6", ["alpha"]);
+    friend.disposition = 1;
+    const marker = { ...tok("s5", ["alpha"]), actor: { ...monster(["alpha"]), type: "acks-extras.faction" } };
+    const area = sceneOf([bearerTok, s1, s2, s3, s4, friend, marker]);
+    bearerTok.parent = area;
+    bearerTok.disposition = 1;
+    bearerTok.testInsideRegion = () => true;
+    const row = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" } } };
+    itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "5" } } }, row] } };
+    const judge = await run.runUse({ itemUuid: "I.1" });
+    assert.equal(judge.ok, true);
+    assert.equal(judge.kind, "once");
+    assert.equal(judge.rowKey, "k", "the action row, not the first row");
+    assert.equal(judge.activationId, "rid");
+    assert.equal(madeRegions.at(-1).data.shapes[0].radius, 150, "15 units at 10 pixels each, on the bearer's own scene");
+    assert.equal(madeRegions.at(-1).options.parent, area);
+    assert.deepEqual(judge.subjects.map((s) => s.key), ["T.s1", "T.s3"], "the alpha creatures on the other side, never the bearer's own side");
+    assert.deepEqual(judge.undetermined.map((s) => s.key), ["T.s4"], "no kinds: the Judge's tick");
+    assert.equal(judge.card.title, "Gear");
+    assert.equal(judge.card.subtitle, "Bearer");
+    assert.deepEqual(judge.card.sections[0].rows.map((r) => r.name), ["Tok s1", "Tok s3"], "each admitted subject is asked");
+    assert.deepEqual(judge.card.sections[0].rows[0].actions[0].data, { itemUuid: "I.1", rowKey: "k", activationId: "rid", subject: "T.s1" });
+    assert.equal(judge.card.sections.length, 2, "a Judge sees the unsettled");
+    assert.equal(judge.card.sections[1].rows[0].actions[0].data.subject, "T.s4");
+    assert.deepEqual(presented.map((p) => p.kind), ["once"]);
+    const player = await run.runUse({ itemUuid: "I.1", requestUserId: "owner" });
+    assert.equal(player.card.sections.length, 1, "a Player sees no tick");
+    // What stops it.
+    const fail = async (reason) => assert.deepEqual(await quiet(() => run.runUse({ itemUuid: "I.1" })), { ok: false, reason });
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "5" } } }] } };
+    await fail("noRow");
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", reach: { pulse: "action", radius: { value: "0" } } }] } };
+    await fail("noRange");
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", reach: { pulse: "action", radius: { value: "" } } }] } };
+    await fail("noRange");
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [row] } };
+    bearerTok.parent = sceneOf([bearerTok], {});
+    await fail("scale");
+  } finally {
+    bearerTok.parent = null;
+    delete bearerTok.testInsideRegion;
+    delete bearerTok.disposition;
+    unstage();
+  }
+});
+
+await t("a press writes what the throw's verdict calls for, on the item's own row: conditions on a failure, an immunity window on a success, the fight's clock where there is one", async () => {
+  stage();
+  seatOf(true);
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const created = [];
+  const actor = monster(["alpha"]);
+  actor.createEmbeddedDocuments = async (kind, records) => { created.push([kind, records]); return records.map((_, i) => ({ id: `E${i}` })); };
+  const subject = { id: "s1", uuid: "T.s1", actor, testUserPermission: (user) => user?.id === "owner" };
+  subjects["T.s1"] = subject;
+  const target = saveSpec(actor, "paralysis").target;
+  assert.equal(typeof target, "number");
+  const row = { key: "k", target: "paralysis", conditions: ["held", "held"], reach: { pulse: "action", radius: { value: "5" } } };
+  itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [row] } };
+  const press = (over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1", total: target - 1, target, ...over });
+  try {
+    gameStub.combat = { id: "c9", combatants: [{ id: "m9", tokenId: "s1" }] };
+    const failed = await press();
+    assert.deepEqual(failed, { ok: true, saved: false, entry: { state: "applied", saved: false, total: target - 1, target, recordIds: ["E0", "E1"] } });
+    const [kind, records] = created[0];
+    assert.equal(kind, "ActiveEffect");
+    assert.equal(records.length, 2, "one record per condition the row names");
+    const flags = records[0].flags["acks-extras"];
+    assert.deepEqual(flags.itemRun, { source: "I.1", activationId: "act", rowKey: "k" });
+    assert.equal(flags.managed, true);
+    assert.deepEqual(flags.turnLife, { combatId: "c9", combatantId: "m9", edge: "start", count: 1 }, "ends with the subject's next turn start");
+    assert.equal(records[0].origin, "I.1");
+    assert.deepEqual(records[0].statuses, ["held"]);
+    created.length = 0;
+    gameStub.combat = { id: "c9", combatants: [{ id: "m9", tokenId: "other" }] };
+    await press();
+    assert.equal(created[0][1][0].flags["acks-extras"].turnLife, undefined, "a subject not in the fight has no clock");
+    created.length = 0;
+    gameStub.combat = null;
+    await press();
+    assert.equal(created[0][1][0].flags["acks-extras"].turnLife, undefined, "no fight, no clock");
+    created.length = 0;
+    const win = () => ({ name: "Pass", duration: { seconds: 60 } });
+    const saved = await press({ total: target, window: win });
+    assert.equal(saved.saved, true);
+    assert.deepEqual(saved.entry.recordIds, ["E0"]);
+    const immunity = created[0][1][0];
+    assert.equal(immunity.origin, "I.1");
+    assert.deepEqual(immunity.duration, { seconds: 60 });
+    assert.deepEqual(immunity.flags["acks-extras"].rollMods.parts, [{ on: "immune", spells: ["kindX"] }], "the kind's key, never the row's");
+    assert.deepEqual(immunity.flags["acks-extras"].itemRun, { source: "I.1", activationId: "act", rowKey: "k" });
+    created.length = 0;
+    const bare = await press({ total: target });
+    assert.deepEqual(bare.entry.recordIds, [], "no window to write: nothing is created");
+    assert.deepEqual(created, []);
+    // What is refused is refused before anything is written.
+    for (const [over, reason] of [
+      [{ target: target + 1 }, "figure"], [{ requestUserId: "other" }, "notOwner"], [{ entryState: "applied" }, "applied"],
+      [{ itemUuid: "I.none" }, "gone"], [{ rowKey: "none" }, "noRow"], [{ total: "x" }, "noRoll"],
+    ]) assert.equal((await press(over)).reason, reason, reason);
+    assert.equal((await press({ requestUserId: "owner" })).ok, true, "the subject's owner");
+    created.length = 0;
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", conditions: ["held"] }] } };
+    assert.equal((await press()).reason, "noFigure", "a row naming no save has no figure to check");
+    assert.deepEqual(created, []);
+  } finally {
+    gameStub.combat = null;
+    delete subjects["T.s1"];
+    unstage();
+  }
+});
+
+await t("a press is thrown on the presser's seat: the Judge's runs here with the row's window, a Player's relays, and a row with no save or a subject with no actor throws nothing", async () => {
+  stage();
+  seatOf(true);
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const created = [];
+  const actor = monster(["alpha"]);
+  actor.createEmbeddedDocuments = async (kind, records) => { created.push(records); return records.map((_, i) => ({ id: `E${i}` })); };
+  subjects["T.s1"] = { id: "s1", uuid: "T.s1", actor, testUserPermission: () => true };
+  const target = saveSpec(actor, "paralysis").target;
+  itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "k", target: "paralysis", conditions: ["held"], reach: { pulse: "action" } }, { key: "bare", reach: { pulse: "action" } }] } };
+  const priorRoll = globalThis.Roll;
+  let thrown = 0;
+  globalThis.Roll = class { async evaluate() { return { total: thrown }; } };
+  const base = { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1" };
+  try {
+    thrown = target - 1;
+    const failed = await run.pressRoll(base);
+    assert.equal(failed.ok, true);
+    assert.equal(failed.entry.total, target - 1, "the total thrown here");
+    assert.equal(failed.entry.target, target, "against the target read here");
+    assert.equal(failed.saved, false);
+    thrown = target;
+    created.length = 0;
+    const passed2 = await run.pressRoll({ ...base, window: () => ({ name: "Pass", duration: { seconds: 5 } }) });
+    assert.equal(passed2.saved, true);
+    assert.equal(created[0][0].duration.seconds, 5, "the Judge's window is honoured");
+    assert.deepEqual(await run.pressRoll({ ...base, rowKey: "bare" }), { ok: false, reason: "noFigure" }, "a row naming no save");
+    assert.deepEqual(await run.pressRoll({ ...base, subject: "T.none" }), { ok: false, reason: "noFigure" }, "a subject with no actor");
+    assert.deepEqual(await run.pressRoll({ ...base, rowKey: "none" }), { ok: false, reason: "noFigure" });
+    created.length = 0;
+    gameStub.user = { isGM: false };
+    seatOf(false);
+    assert.deepEqual(await run.pressRoll(base), { ok: false, reason: "relay" }, "a Player's seat with no Judge seated");
+    assert.deepEqual(created, [], "and writes nothing");
+  } finally {
+    gameStub.user = { isGM: true };
+    globalThis.Roll = priorRoll;
+    delete subjects["T.s1"];
+    unstage();
+  }
+});
+
+await t("an Undo needs a subject with an actor and takes no delete where the row stored no ids", async () => {
+  seatOf(true);
+  const deletes = [];
+  const actor = { effects: [{ id: "a" }], deleteEmbeddedDocuments: async (...args) => deletes.push(args) };
+  globalThis.fromUuidSync = (uuid) => (uuid === "T.1" ? { actor } : null);
+  try {
+    assert.deepEqual(await run.undoEntry({ subject: "T.none", entry: { recordIds: ["a"] } }), { ok: false, removed: [] });
+    assert.deepEqual(await run.undoEntry({ subject: "T.1", entry: { recordIds: ["gone"] } }), { ok: true, removed: [] });
+    assert.deepEqual(await run.undoEntry({ subject: "T.1", entry: {} }), { ok: true, removed: [] });
+    assert.equal(deletes.length, 0, "no stored id still on the subject, no delete");
+    const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+    await run.undoEntry({ subject: "T.1", entry: { recordIds: ["a"] } });
+    assert.deepEqual(deletes[0], ["ActiveEffect", ["a"], managedDelete()], "a managed delete");
+  } finally {
+    globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? theItem : uuid === "T.1" ? bearerTok : subjects[uuid] ?? null);
+  }
+});
+
+await t("a reach's moment: a standing part comes off at an exit by the kind's key, every other act reaches the presenter, and a subject with no actor is passed over", async () => {
+  seatOf(true);
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const { standingPartId } = logic;
+  const item = { uuid: "I.1", flags: { "acks-extras": { cookbook: { id: "kindX" } } } };
+  const row = { key: "k" };
+  const dels = [];
+  const held = new Set([standingPartId("kindX")]);
+  const actorOf = (effects = []) => ({ effects: Object.assign([...effects], { get: (id) => (held.has(id) ? { id } : undefined) }), deleteEmbeddedDocuments: async (...args) => dels.push(args) });
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  const config = { activationId: "act" };
+  const moment = (pulse, momentName, admitted, subject) => run.handleReachMoment({ moment: momentName, config, item, row, reach: { pulse }, subject, admitted });
+  try {
+    await moment("standing", "exit", false, { actor: actorOf() });
+    assert.deepEqual(dels, [["ActiveEffect", [standingPartId("kindX")], managedDelete()]], "the kind's part, deleted as a managed delete");
+    assert.deepEqual(seen, [], "an exit that takes a part off presents nothing");
+    held.clear();
+    dels.length = 0;
+    await moment("standing", "exit", true, { actor: actorOf() });
+    assert.deepEqual(dels, [], "no part, no delete");
+    held.add(standingPartId("row-key-is-not-it"));
+    await moment("standing", "exit", true, { actor: actorOf() });
+    assert.deepEqual(dels, [], "the row's key names no part");
+    const subject = { actor: actorOf() };
+    await moment("standing", "enter", true, subject);
+    assert.equal(seen.length, 1);
+    assert.deepEqual([seen[0].kind, seen[0].act, seen[0].moment, seen[0].rowKey, seen[0].item, seen[0].subject, seen[0].config], ["reach", "on", "enter", "k", item, subject, config]);
+    seen.length = 0;
+    await moment("standing", "moveIn", true, subject);
+    assert.deepEqual(seen, [], "a moment its pulse does not hear");
+    await moment("turnStart+moveIn", "turnStart", null, subject);
+    assert.equal(seen.at(-1).act, "undetermined");
+    await moment("turnStart+moveIn", "turnStart", true, subject);
+    assert.equal(seen.at(-1).act, "prompt");
+    seen.length = 0;
+    await moment("turnStart+moveIn", "turnStart", true, { actor: null });
+    await moment("standing", "enter", true, { actor: null });
+    assert.deepEqual(seen, [], "a subject with no actor");
+  } finally {
+    run.setUsePresenter(async (result) => presented.push(result));
+  }
+});
+
+await t("a lowered activation's records come off every actor that holds one, by the managed delete, and the item's state clears only where it is that activation's", async () => {
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const dels = [];
+  const rec = (id, activationId) => ({ id, flags: { "acks-extras": activationId ? { itemRun: { activationId } } : {} } });
+  const holderOf = (effects) => ({ effects, deleteEmbeddedDocuments: async (...args) => dels.push(args) });
+  const priorActors = gameStub.actors;
+  const priorScenes = gameStub.scenes;
+  gameStub.actors = [holderOf([rec("e1", "act1"), rec("e2", "act2"), rec("e3")]), holderOf([rec("e4", "act9")])];
+  gameStub.scenes = [{ tokens: [{ actorLink: false, actor: holderOf([rec("e5", "act1")]) }, { actorLink: true, actor: holderOf([rec("e6", "act1")]) }] }];
+  updates.length = 0;
+  try {
+    itemFlags = toggleFlags({ active: true, activationId: "act1", regionId: "r1" });
+    await run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.1" } });
+    assert.deepEqual(dels, [["ActiveEffect", ["e1"], managedDelete()], ["ActiveEffect", ["e5"], managedDelete()]], "each holder's own records, never one with no record and never a linked token's actor twice");
+    assert.deepEqual(updates, [{ "flags.acks-extras.itemRun.activation.state": { active: false, activationId: "", regionId: "" } }]);
+    updates.length = 0;
+    itemFlags = toggleFlags({ active: true, activationId: "act2", regionId: "r2" });
+    await run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.1" } });
+    assert.deepEqual(updates, [], "another activation's state stands");
+    await run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.none" } });
+    assert.deepEqual(updates, [], "an item that is gone");
+  } finally {
+    gameStub.actors = priorActors;
+    gameStub.scenes = priorScenes;
+  }
+});
+
+await t("the fuse is stepped from the turn hooks on the primary GM's window alone, a fight's end moves it to the world clock, and the clock reaching it bursts it", async () => {
+  const burst = [];
+  run.setFuseBurst(async ({ record }) => { burst.push(record.activationId); });
+  const fuseOf = (seen, over = {}) => ({ ...flag(), clock: { ...flag().clock, seen }, ...over });
+  try {
+    seatOf(true);
+    log.length = 0;
+    await hooked[consts.TURN_BEGAN_HOOK][0](combatOf([holder(fuseOf(0))]), "m1");
+    await settle();
+    assert.deepEqual(log, [["set", "e1", 1]], "a turn that began is counted");
+    log.length = 0;
+    await hooked[consts.TURN_ENDED_HOOK][0](combatOf([holder(fuseOf(0))]), "m1");
+    await settle();
+    assert.deepEqual(log, [], "an end that no start preceded is not a turn");
+    await hooked[consts.TURN_ENDED_HOOK][0](combatOf([holder(fuseOf(2))]), "m1");
+    await settle();
+    assert.deepEqual(log, [["delete", "e1"]]);
+    assert.deepEqual(burst, ["act"]);
+    seatOf(false);
+    log.length = 0;
+    burst.length = 0;
+    await hooked[consts.TURN_ENDED_HOOK][0](combatOf([holder(fuseOf(2))]), "m1");
+    await settle();
+    await hooked[consts.TURN_BEGAN_HOOK][0](combatOf([holder(fuseOf(0))]), "m1");
+    await settle();
+    assert.deepEqual([log, burst], [[], []], "not the primary GM's window");
+    // The fight ends.
+    seatOf(true);
+    gameStub.time = { worldTime: 1000 };
+    const priorActors = gameStub.actors;
+    const world = holder(fuseOf(0, { clock: undefined, dueAt: 900 }), "w1");
+    gameStub.actors = [world];
+    log.length = 0;
+    const ending = holder(fuseOf(1), "e1");
+    await hooked.deleteCombat[0]({ id: "c1", combatants: [{ id: "m1", actor: ending }] });
+    const update = log.find((entry) => entry[0] === "update");
+    assert.equal(update[2]["flags.acks-extras.fuse"].dueAt, 1000 + 1 * (await import("../scripts/lib/time-unit.mjs")).roundSeconds(), "one round left at the world's round");
+    assert.ok(log.some((entry) => entry[0] === "delete" && entry[1] === "w1"), "a fuse already due on the world clock goes at once");
+    assert.deepEqual(burst, ["act"]);
+    gameStub.actors = priorActors;
+    log.length = 0;
+    burst.length = 0;
+    seatOf(false);
+    await hooked.deleteCombat[0]({ id: "c1", combatants: [{ id: "m1", actor: holder(fuseOf(1)) }] });
+    assert.deepEqual(log, [], "not the primary GM's window");
+    // The world clock moves.
+    seatOf(true);
+    gameStub.actors = [holder(fuseOf(0, { clock: undefined, dueAt: 1500 }), "w2")];
+    await hooked.updateWorldTime[0](1400, 100);
+    await settle();
+    assert.deepEqual(burst, [], "not yet due");
+    await hooked.updateWorldTime[0](1500, 100);
+    await settle();
+    assert.deepEqual(burst, ["act"], "due now");
+    gameStub.actors = priorActors;
+  } finally {
+    run.setFuseBurst(null);
+    seatOf(true);
+    gameStub.time = { worldTime: 0 };
+  }
+});
+
+await t("fuses of one effect are counted once, a fight's end leaves another fight's fuse, a burst hands on the record it read, and no burst steps nothing on either clock", async () => {
+  const burst = [];
+  const shared = holder(flag());
+  const twin = { name: "Twin", effects: shared.effects, deleteEmbeddedDocuments: shared.deleteEmbeddedDocuments };
+  log.length = 0;
+  const due = { ...flag(), clock: { ...flag().clock, seen: 2 } };
+  const loose = { ...flag(), clock: { combatId: "c1", combatantId: "m1", edge: "start", count: 2.9, seen: 2 } };
+  const result = await run.liftFuses({ id: "c1", combatants: [{ id: "m1", actor: holder(loose) }] }, "m1", "ended", { burst: async ({ record }) => burst.push(record) });
+  assert.deepEqual(result[0].clock, { combatId: "c1", combatantId: "m1", edge: "end", count: 2, seen: 2 }, "the record read, as it was read");
+  log.length = 0;
+  await run.liftFuses({ id: "c1", combatants: [{ id: "m1", actor: shared }, { id: "m2", actor: twin }] }, "m1", "began", { burst: async () => {} });
+  assert.deepEqual(log, [["set", "e1", 1]], "one effect on two actors is one fuse");
+  log.length = 0;
+  const other = await run.convertFuses({ id: "c-other" }, [holder(flag())], { now: 5, roundSeconds: 6 });
+  assert.deepEqual([other, log], [[], []], "another fight's fuse stays on its clock");
+  log.length = 0;
+  const worldFuse = { ...flag(), clock: undefined, dueAt: 10 };
+  assert.deepEqual(await run.liftWorldFuses([holder(worldFuse)], 99, { burst: null }), []);
+  assert.deepEqual(log, [], "with no burst a due fuse stays");
+  const counted = await run.liftFuses({ id: "c1", combatants: [{ id: "m1", actor: holder(flag()) }] }, "m1", "began", { burst: async () => {} });
+  assert.deepEqual(counted, [], "counting is not bursting");
+  log.length = 0;
+  const failed = holder(due);
+  failed.deleteEmbeddedDocuments = async () => { throw new Error("gone"); };
+  const lines = [];
+  const priorError = console.error;
+  console.error = (...args) => lines.push(args.map(String).join(" "));
+  try {
+    assert.deepEqual(await run.liftFuses({ id: "c1", combatants: [{ id: "m1", actor: failed }] }, "m1", "ended", { burst: async () => { throw new Error("burst failed"); } }), []);
+  } finally {
+    console.error = priorError;
+  }
+  assert.ok(lines.some((line) => line.includes("could not be run")), "a fuse that cannot run is logged and the rest go on");
+  assert.deepEqual(await run.liftFuses({ id: "c1", combatants: [] }, "m1", "ended", { burst: null }), []);
+});
+
+await t("the installed carrier answers a Player's relayed use as that seat, hears the reach's moments and lifts a deleted Region's records, and ignores a presenter or burst that is no function", async () => {
+  stage();
+  seatOf(true);
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const auraReach = await import("../scripts/lib/aura-reach.mjs");
+  try {
+    itemFlags = toggleFlags(down);
+    assert.deepEqual(await executeAsGM("acks-extras.itemRun.use", { itemUuid: "I.1", requestUserId: "other" }), { ok: false, reason: "notOwner" }, "the relayed seat is checked, not taken for the Judge");
+    // The reach's moment reaches the carrier's own handler.
+    const seen = [];
+    run.setUsePresenter(async (result) => seen.push(result));
+    const region = { parent: { tokens: { get: () => bearerTok } }, attachment: { token: "1" } };
+    const walker = { id: "w", uuid: "T.w", flags: { "acks-extras": {} }, disposition: -1, actor: monster(["alpha"]) };
+    itemFlags = { itemRun: { activation: { kind: "toggle" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "5" }, filter: { kinds: ["alpha"] } } }] } };
+    await auraReach.dispatchReachMoment({ sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act1", rowKey: "s", region }, "enter", walker);
+    assert.deepEqual(seen.map((r) => [r.kind, r.act, r.moment]), [["reach", "on", "enter"]]);
+    // A Region's deletion lifts its activation's records through the carrier's teardown.
+    const removed = [];
+    const priorActors = gameStub.actors;
+    gameStub.actors = [{ effects: [{ id: "e1", flags: { "acks-extras": { itemRun: { activationId: "act1" } } } }], deleteEmbeddedDocuments: async (...args) => removed.push(args[1]) }];
+    const priorOn = globalThis.Hooks.on;
+    const regionHooks = {};
+    globalThis.Hooks.on = (name, fn) => { (regionHooks[name] ??= []).push(fn); };
+    try {
+      auraReach.installAuraReach();
+    } finally {
+      globalThis.Hooks.on = priorOn;
+    }
+    await regionHooks.deleteRegion[0]({ behaviors: [{ type: AURA, system: { sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act1", rowKey: "s" } }] });
+    assert.deepEqual(removed, [["e1"]], "the records of the deleted Region's activation");
+    gameStub.actors = priorActors;
+    // A presenter or a burst that is no function is no presenter and no burst.
+    run.setUsePresenter("not a function");
+    itemFlags = toggleFlags(down);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true, "a use with no presenter still runs");
+    run.setFuseBurst("not a function");
+    log.length = 0;
+    const due = { ...flag(), clock: { ...flag().clock, seen: 2 } };
+    assert.deepEqual(await run.liftFuses(combatOf([holder(due)]), "m1", "ended"), []);
+    assert.deepEqual(log, [], "no burst is registered, so the fuse is left alone");
+  } finally {
+    run.setFuseBurst(null);
+    run.setUsePresenter(async (result) => presented.push(result));
+    unstage();
+  }
+});
+
 console.log(`\ntest-item-run: ${passed} checks passed.`);

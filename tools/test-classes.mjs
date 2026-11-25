@@ -3402,4 +3402,23 @@ await atest("two classes printing one kit link one shared library: the plain bas
   }
 });
 
+/* ---------------------- the race of a class's name ------------------- */
+
+const { raceOfCharacterClass } = await import("../scripts/classes/builder.mjs");
+
+test("raceOfCharacterClass answers the race a class is bound to, human for a library class bound to none, and null for a name no class answers to", () => {
+  const items = globalThis.game.items;
+  const cls = (name, key, race) => ({ type: CLASS_TYPE, name, system: { key, race: "" }, flags: race ? { "acks-extras": { tongues: { race } } } : {} });
+  globalThis.game.items = [cls("Axeman", "axeman", "Dwarf"), cls("Wanderer", "wanderer", "")];
+  try {
+    assert.equal(raceOfCharacterClass("Axeman"), "dwarf", "the class's race key, lowercase");
+    assert.equal(raceOfCharacterClass("axeman"), "dwarf", "by key as well as by name");
+    assert.equal(raceOfCharacterClass("Wanderer"), "human", "a class bound to no race is a human one");
+    assert.equal(raceOfCharacterClass("Stranger"), null, "a name no class answers to");
+    assert.equal(raceOfCharacterClass(""), null);
+  } finally {
+    globalThis.game.items = items;
+  }
+});
+
 console.log(`test-classes: ${passed} assertion groups passed.`);

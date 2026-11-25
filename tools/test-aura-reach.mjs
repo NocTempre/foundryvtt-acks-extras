@@ -355,4 +355,558 @@ await t("the vocabularies hold exactly the keys the logic reads", () => {
   assert.equal(constants.AURA_BEHAVIOR_TYPE, "acks-extras.aura");
 });
 
+/* --- the pure half, pinned where a clause could be dropped unseen --- */
+
+await t("a figure's own value is trimmed, a missing part of its reference names nothing, and the default read goes to the registry", async () => {
+  const any = () => 12;
+  const ref = (extra) => ({ doc: "d", table: "t", row: "r", figure: "f", ...extra });
+  assert.equal(logic.resolveFigure(ref({ value: "  40 " }), any), "40", "the own value is trimmed");
+  assert.equal(logic.resolveFigure(ref({ value: "   " }), any), 12, "a value of spaces is blank");
+  for (const part of ["doc", "table", "row", "figure"]) assert.equal(logic.resolveFigure(ref({ [part]: "" }), any), null, `no ${part}, no read`);
+  const tables = await import("../scripts/lib/tables.mjs");
+  tables.registerTable({ id: "fixture.fig", tables: { grid: { rowA: { size: 7 } } } });
+  try {
+    assert.equal(logic.resolveFigure({ doc: "fixture.fig", table: "grid", row: "rowA", figure: "size" }), 7, "the registry's table, row and figure in that order");
+    assert.equal(logic.resolveFigure({ doc: "fixture.fig", table: "rowA", row: "grid", figure: "size" }), null, "the path is not interchangeable");
+    assert.equal(logic.resolveFigure({ doc: "fixture.none", table: "grid", row: "rowA", figure: "size" }), null, "an unregistered document is blank, never a throw");
+  } finally {
+    tables.unregisterTable("fixture.fig");
+  }
+});
+
+await t("a stored filter and config read as written: sets and blanks, a stranger unit, a radius kept, a config trimmed", () => {
+  assert.deepEqual(logic.readFilter({ kinds: new Set(["A", " "]), exceptKinds: ["", "B "], unit: "stranger", side: "opposing" }), { kinds: ["a"], exceptKinds: ["b"], side: "opposing", unit: "any" });
+  assert.deepEqual(logic.readFilter(null), { kinds: [], exceptKinds: [], side: "any", unit: "any" });
+  assert.deepEqual(logic.readReach({ pulse: "burst", radius: { value: "5" } }).radius, { value: "5" });
+  assert.equal(logic.readReach({ pulse: "burst" }).radius, null);
+  assert.equal(logic.readAuraConfig({ sourceUuid: "a", bearerUuid: "b", activationId: "c", rowKey: "   " }), null, "spaces are no row key");
+  assert.deepEqual(logic.readAuraConfig({ sourceUuid: " a ", bearerUuid: "b", activationId: "c", rowKey: "d" }).sourceUuid, "a");
+});
+
+await t("a kinds clause tells a monster from a character, matches any of its names, and reads a token's group and identity from either shape", () => {
+  const mon = body({ id: "s", kinds: ["alpha"] });
+  assert.equal(logic.reachAdmits(bearer, mon, { kinds: ["human"] }, deps), false, "a monster against a race category is a plain miss");
+  assert.equal(logic.reachAdmits(bearer, mon, { kinds: ["zeta", "alpha"] }, deps), true, "any of the names");
+  assert.equal(logic.reachAdmits(bearer, mon, { exceptKinds: ["zeta", "alpha"] }, deps), false);
+  const viaGetFlag = (id, group) => ({ token: { id, uuid: `T.${id}`, getFlag: () => group, flags: {} }, actor: { type: "monster", kinds: new Set(["alpha"]) } });
+  assert.equal(logic.reachAdmits(viaGetFlag("b", "g1"), viaGetFlag("s", "g1"), { unit: "own" }, deps), true, "a token document's own getFlag");
+  assert.equal(logic.reachAdmits(viaGetFlag("b", "g1"), viaGetFlag("s", "g2"), { unit: "own" }, deps), false);
+  const twin = { ...bearer, token: { ...bearer.token } };
+  assert.equal(logic.reachAdmits(bearer, twin, {}, deps), false, "the same uuid on another object is the bearer");
+  const plain = (id, parent) => ({ token: { id, parent, flags: {} }, actor: { type: "monster", kinds: new Set(["alpha"]) } });
+  const sceneA = {};
+  const sceneB = {};
+  assert.equal(logic.reachAdmits(plain("x", sceneA), plain("x", sceneA), {}, deps), false, "one id in one scene is one token");
+  assert.equal(logic.reachAdmits(plain("x", sceneA), plain("x", sceneB), {}, deps), true, "the same id in another scene is another token");
+});
+
+await t("a unit registration that answers false answers false, and a side with no answer is null whether it says null or nothing", () => {
+  const other = body({ id: "s", group: "g2" });
+  logic.registerUnitAncestry(() => false);
+  assert.equal(logic.reachAdmits(bearer, other, { unit: "under" }, deps), false);
+  logic.registerUnitAncestry(null);
+  const silent = { kindsOf, enemies: () => undefined };
+  assert.equal(logic.reachAdmits(bearer, body({ id: "s" }), { side: "opposing" }, silent), null);
+});
+
+await t("with the defaults, a neutral or secret token is a null side, and the kinds read the real creature", () => {
+  const monster = (id, disp, types) => ({
+    token: { id, uuid: `T.${id}`, flags: { "acks-extras": {} }, disposition: disp },
+    actor: { type: "monster", system: { details: { class: "" } }, getFlag: () => (types ? { types } : undefined) },
+  });
+  const me = monster("me", -1, ["beta"]);
+  assert.equal(logic.reachAdmits(me, monster("a", 1, ["alpha"]), { side: "opposing", kinds: ["alpha"] }), true);
+  assert.equal(logic.reachAdmits(me, monster("a", -1, ["alpha"]), { side: "opposing" }), false);
+  assert.equal(logic.reachAdmits(me, monster("a", 0, ["alpha"]), { side: "opposing" }), null, "neutral");
+  assert.equal(logic.reachAdmits(me, monster("a", -2, ["alpha"]), { side: "own" }), null, "secret");
+  assert.equal(logic.reachAdmits(me, monster("a", 1, ["alpha"]), { kinds: ["beta"] }), false, "its own kinds");
+  assert.equal(logic.reachAdmits(me, monster("a", 1, undefined), { kinds: ["beta"] }), null, "no kinds at all");
+});
+
+await t("a pulse's act holds at the edges: nothing given, a truthy non-true, an immune subject by pulse, and an exit with no verdict", () => {
+  assert.equal(logic.pulseAct({ pulse: "burst", moment: "burst" }), "undetermined", "no verdict is undetermined");
+  assert.equal(logic.pulseAct({ pulse: "burst", moment: "burst", admitted: 1 }), "none", "only true admits");
+  assert.equal(logic.pulseAct({ pulse: "burst", moment: "burst", admitted: true }), "prompt", "immune is off unless said");
+  for (const pulse of ["action", "turnStart+moveIn", "burst"]) {
+    const moment = { action: "press", "turnStart+moveIn": "turnStart", burst: "burst" }[pulse];
+    assert.equal(logic.pulseAct({ pulse, moment, admitted: true, immune: true }), "skip", `${pulse} skips an immune subject`);
+  }
+  assert.equal(logic.pulseAct({ pulse: "standing", moment: "enter", admitted: true, immune: true }), "on", "a standing part is not an immunity's to skip");
+  assert.equal(logic.pulseAct({ pulse: "standing", moment: "exit", admitted: null }), "off", "an exit takes the part off whatever the filter says");
+  assert.equal(logic.pulseAct({ pulse: "standing", moment: "exit", admitted: true }), "off");
+  assert.equal(logic.pulseAct({ pulse: "action", moment: "exit", admitted: false }), "none", "only a standing pulse has an exit");
+  assert.equal(logic.pulseAct({ pulse: "standing", moment: "enter", admitted: null }), "undetermined");
+});
+
+await t("the snapshot's area carries the token's elevation and level, a point's elevation and level, and refuses a point with no x or y or a scene with no scale", () => {
+  const dims = { distance: 5, distancePixels: 20 };
+  const high = logic.snapshotRegionData({ token: { x: 0, y: 0, width: 1, height: 1, shape: 4, elevation: 10, depth: 2 } }, 10, dims);
+  assert.deepEqual(high.data.elevation, { bottom: 0, top: 30 }, "10 up, two squares of 5 tall, 10 either way");
+  assert.deepEqual(high.data.levels, [], "no level, none named");
+  const point = logic.snapshotRegionData({ point: { x: 1, y: 2, elevation: 8, level: "L2" } }, 10, dims);
+  assert.deepEqual(point.data.elevation, { bottom: -2, top: 18 });
+  assert.deepEqual(point.data.levels, ["L2"]);
+  assert.deepEqual(logic.snapshotRegionData({ point: { x: 1, y: 2 } }, 10, dims).data.levels, []);
+  assert.deepEqual(logic.snapshotRegionData({ point: { x: 1 } }, 10, dims), { ok: false, reason: "centre" });
+  assert.deepEqual(logic.snapshotRegionData({ point: { y: 1 } }, 10, dims), { ok: false, reason: "centre" });
+  assert.deepEqual(logic.snapshotRegionData({ point: { x: 1, y: 1 } }, 10, { distancePixels: 0 }), { ok: false, reason: "scale" });
+  assert.equal(logic.snapshotRegionData({ token: { x: 0, y: 0, shape: 4, level: "L3" } }, 10, dims).data.levels[0], "L3");
+});
+
+await t("a Player's raise with no owners listed is refused, never thrown, and a bearer at no hit points and defeated reads defeated when its points are unknown", () => {
+  assert.equal(logic.checkRaise({ requestUserId: "u1" }, { supported: true, found: true, carries: true, rangeFeet: 10 }).reason, "notOwner");
+  assert.equal(logic.downCause({ hp: null, defeated: true }), "defeated");
+});
+
+/* --- the Foundry half: the behavior, a moment, the listeners and the lowering --- */
+const AURA = constants.AURA_BEHAVIOR_TYPE;
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const seat = (primaryGM) => { globalThis.game.users.activeGM = primaryGM ? { isSelf: true } : undefined; };
+const quiet = async (fn) => {
+  const prior = console.error;
+  const lines = [];
+  console.error = (...args) => lines.push(args.map(String).join(" "));
+  try { await fn(); } finally { console.error = prior; }
+  return lines;
+};
+const monsterActor = (types, type = "monster") => ({ documentName: "Actor", type, system: { details: { class: "" } }, getFlag: () => (types ? { types } : undefined) });
+const tokenOf = (id, types, over = {}) => ({ id, uuid: `T.${id}`, name: `Tok ${id}`, flags: { "acks-extras": {} }, disposition: -1, actor: monsterActor(types), ...over });
+const bearerTok = tokenOf("bt", undefined, { disposition: 1 });
+const cfg = { sourceUuid: "I.9", bearerUuid: "A.1", activationId: "act1", rowKey: "k" };
+const reachRow = (over = {}) => ({ key: "k", reach: { pulse: "standing", radius: { value: "20" }, filter: { kinds: ["alpha"] }, ...over } });
+let currentItem = { uuid: "I.9", name: "Charm", type: "item", flags: { "acks-extras": { itemRun: { rows: [reachRow()] } } } };
+globalThis.fromUuidSync = (uuid) => (uuid === "I.9" ? currentItem : uuid === bearerTok.uuid ? bearerTok : null);
+const scene = { tokens: { get: (id) => (id === "bt" ? bearerTok : null) }, regions: [] };
+const holder = { id: "R9", hidden: false, parent: scene, attachment: { token: "bt" }, behaviors: [] };
+const sys = (over = {}) => ({ ...cfg, region: holder, ...over });
+
+await t("the aura behavior registers its type, its icon and its four config fields, and core's three events become enter, moveIn and exit for the primary GM alone", async () => {
+  const saved = { data: globalThis.foundry.data, config: globalThis.CONFIG, events: globalThis.CONST.REGION_EVENTS };
+  class Str { constructor(options) { this.options = options; } }
+  globalThis.CONST.REGION_EVENTS = { TOKEN_ENTER: "evEnter", TOKEN_MOVE_IN: "evMoveIn", TOKEN_EXIT: "evExit", TOKEN_MOVE_OUT: "evMoveOut" };
+  globalThis.foundry.data = { regionBehaviors: { RegionBehaviorType: class {} }, fields: { StringField: Str } };
+  globalThis.CONFIG = { RegionBehavior: { dataModels: {}, typeIcons: {} } };
+  const seen = [];
+  try {
+    reach.registerAuraReach();
+    const Model = globalThis.CONFIG.RegionBehavior.dataModels[AURA];
+    assert.equal(typeof Model, "function");
+    assert.equal(globalThis.CONFIG.RegionBehavior.typeIcons[AURA], "fa-solid fa-circle-dot");
+    assert.deepEqual(Object.keys(Model.defineSchema()).sort(), ["activationId", "bearerUuid", "rowKey", "sourceUuid"]);
+    assert.deepEqual(Object.keys(Model.events).sort(), ["evEnter", "evExit", "evMoveIn"], "tokenMoveOut is not heard");
+    const walker = tokenOf("w", ["alpha"]);
+    holder.behaviors = [];
+    reach.setReachHandler((ctx) => { seen.push([ctx.moment, ctx.subject.token.id]); });
+    seat(true);
+    for (const [event, moment] of [["evEnter", "enter"], ["evMoveIn", "moveIn"], ["evExit", "exit"]]) {
+      seen.length = 0;
+      await Model.events[event].call(sys(), { data: { token: walker } });
+      assert.deepEqual(seen, [[moment, "w"]], `${event} is ${moment}`);
+    }
+    seat(false);
+    seen.length = 0;
+    await Model.events.evEnter.call(sys(), { data: { token: walker } });
+    assert.deepEqual(seen, [], "a window that is not the primary GM's does nothing");
+    globalThis.CONFIG = { RegionBehavior: { dataModels: null } };
+    reach.registerAuraReach();
+    globalThis.CONFIG = {};
+    reach.registerAuraReach();
+  } finally {
+    reach.setReachHandler(null);
+    seat(false);
+    globalThis.foundry.data = saved.data;
+    globalThis.CONFIG = saved.config;
+    globalThis.CONST.REGION_EVENTS = saved.events;
+  }
+});
+
+await t("a moment reaches the one handler with the config, item, row, reach, bearer, subject, verdict and region, and anything unreadable reaches nothing", async () => {
+  const got = [];
+  reach.setReachHandler((ctx) => { got.push(ctx); });
+  try {
+    const walker = tokenOf("w", ["alpha"]);
+    await reach.dispatchReachMoment(sys(), "enter", walker);
+    assert.equal(got.length, 1);
+    const [ctx] = got;
+    assert.equal(ctx.moment, "enter");
+    assert.deepEqual(ctx.config, cfg);
+    assert.equal(ctx.item, currentItem);
+    assert.equal(ctx.row.key, "k");
+    assert.equal(ctx.reach.pulse, "standing");
+    assert.equal(ctx.bearer.token, bearerTok);
+    assert.equal(ctx.subject.token, walker);
+    assert.equal(ctx.admitted, true);
+    assert.equal(ctx.region, holder);
+    got.length = 0;
+    await reach.dispatchReachMoment(sys(), "enter", tokenOf("w", ["beta"]));
+    assert.equal(got[0].admitted, false, "a kind the filter does not name");
+    await reach.dispatchReachMoment(sys(), "enter", tokenOf("w", ["alpha"], { actor: monsterActor(["alpha"], "acks-extras.faction") }));
+    assert.equal(got.at(-1).admitted, false, "a marker token is never a subject");
+    got.length = 0;
+    await reach.dispatchReachMoment({ ...cfg, parent: { region: holder } }, "exit", walker);
+    assert.equal(got.length, 1, "a behavior reaches its Region through its parent as well");
+    got.length = 0;
+    await reach.dispatchReachMoment({ ...cfg }, "enter", walker);
+    await reach.dispatchReachMoment(sys({ rowKey: "gone" }), "enter", walker);
+    await reach.dispatchReachMoment(sys({ sourceUuid: "I.none" }), "enter", walker);
+    await reach.dispatchReachMoment(sys(), "enter", null);
+    await reach.dispatchReachMoment({ ...sys(), region: { ...holder, attachment: { token: "absent" } } }, "enter", walker);
+    currentItem = { ...currentItem, flags: { "acks-extras": { itemRun: { rows: [{ key: "k", reach: { pulse: "nope" } }] } } } };
+    await reach.dispatchReachMoment(sys(), "enter", walker);
+    currentItem = { ...currentItem, flags: { "acks-extras": { itemRun: { rows: [{ key: "k" }] } } } };
+    await reach.dispatchReachMoment(sys(), "enter", walker);
+    assert.equal(got.length, 0, "no region, no row, no reach, no source, no subject: nothing is handed on");
+    currentItem = { uuid: "I.9", name: "Charm", type: "item", flags: { "acks-extras": { itemRun: { rows: [reachRow()] } } } };
+    reach.setReachHandler(() => { throw new Error("handler broke"); });
+    const lines = await quiet(() => reach.dispatchReachMoment(sys(), "enter", walker));
+    assert.ok(lines.some((line) => line.includes("could not be run")), "a throwing handler is contained and logged");
+    reach.setReachHandler(null);
+    assert.deepEqual(await quiet(() => reach.dispatchReachMoment(sys(), "enter", walker)), [], "no handler registered: nothing is attempted or logged");
+  } finally {
+    reach.setReachHandler(null);
+    currentItem = { uuid: "I.9", name: "Charm", type: "item", flags: { "acks-extras": { itemRun: { rows: [reachRow()] } } } };
+  }
+});
+
+/** A bearer token with an actor at `hp` and the given statuses on its base actor, and the Regions attached to it. */
+const downable = (id, hp, statuses = [], regions = []) => ({
+  uuid: `T.${id}`, actorLink: true, baseActor: { system: { hp: { value: hp, max: 9 } }, statuses: new Set(statuses) },
+  attachments: { regions: new Set(regions) },
+});
+const regionWith = (id, behaviors) => ({ id, behaviors, delete: async () => { deleted.push(id); } });
+const hooksSeen = {};
+
+await t("installing wires lib's turn start, the Region's deletion, hit points and the defeated status, once, each on the primary GM alone", async () => {
+  const priorOn = globalThis.Hooks.on;
+  globalThis.Hooks.on = (name, fn) => { (hooksSeen[name] ??= []).push(fn); };
+  try {
+    reach.installAuraReach();
+    reach.installAuraReach();
+  } finally {
+    globalThis.Hooks.on = priorOn;
+  }
+  for (const name of [constants.TURN_BEGAN_HOOK, "deleteRegion", "updateActor", "createActiveEffect", "updateActiveEffect"]) assert.equal(hooksSeen[name]?.length, 1, `${name} once`);
+
+  // A turn begins: every aura a combatant's token stands in hears it, the live ones of the type alone.
+  const aura = (extra = {}) => ({ type: AURA, system: sys(extra) });
+  holder.behaviors = [aura(), { type: "other", system: sys({ activationId: "other-act" }) }, { ...aura(), disabled: true }];
+  const walker = tokenOf("w", ["alpha"], { regions: new Set([holder]), parent: { regions: [holder], tokens: scene.tokens } });
+  const combat = { combatants: { get: (id) => (id === "cm1" ? { token: walker } : id === "cm0" ? {} : undefined) } };
+  const heard = [];
+  reach.setReachHandler((ctx) => { heard.push([ctx.moment, ctx.subject.token.id, ctx.config.activationId]); });
+  try {
+    seat(true);
+    await hooksSeen[constants.TURN_BEGAN_HOOK][0](combat, "cm1");
+    assert.deepEqual(heard, [["turnStart", "w", "act1"]], "one live aura of the type, as turnStart");
+    heard.length = 0;
+    await hooksSeen[constants.TURN_BEGAN_HOOK][0](combat, "cm0");
+    await hooksSeen[constants.TURN_BEGAN_HOOK][0](combat, "cm-none");
+    assert.deepEqual(heard, [], "a combatant with no token hears nothing");
+    seat(false);
+    await hooksSeen[constants.TURN_BEGAN_HOOK][0](combat, "cm1");
+    assert.deepEqual(heard, [], "off the primary GM's window nothing runs");
+  } finally {
+    reach.setReachHandler(null);
+    holder.behaviors = [];
+  }
+
+  // A reach's Region is deleted: each aura config on it is torn down, once; a throw spares the rest.
+  const torn = [];
+  reach.setReachTeardown(async ({ config, region }) => {
+    torn.push([config?.activationId ?? "none", region.id]);
+    if (config.activationId === "act1") throw new Error("lift failed");
+  });
+  try {
+    const gone = regionWith("R7", [{ type: AURA, system: cfg }, { type: AURA, system: { ...cfg, activationId: "act2" } }, { type: AURA, system: {} }, { type: "other", system: cfg }]);
+    seat(true);
+    const lines = await quiet(() => hooksSeen.deleteRegion[0](gone));
+    assert.deepEqual(torn, [["act1", "R7"], ["act2", "R7"]], "both configs, never the hand-made one or another type, and the first's throw does not stop the second");
+    assert.ok(lines.some((line) => line.includes("could not be lifted")));
+    torn.length = 0;
+    seat(false);
+    await hooksSeen.deleteRegion[0](gone);
+    assert.deepEqual(torn, []);
+    seat(true);
+    reach.setReachTeardown(null);
+    await hooksSeen.deleteRegion[0](gone);
+    assert.deepEqual(torn, [], "no teardown registered");
+    assert.deepEqual(await quiet(() => hooksSeen.deleteRegion[0](gone)), [], "and nothing is logged for it");
+  } finally {
+    reach.setReachTeardown(null);
+  }
+
+  // A bearer's hit points change, or it takes the defeated status.
+  const aurasOn = () => [regionWith("r1", [aura()]), regionWith("r2", [{ type: "other", system: {} }])];
+  const asked = [];
+  const linkedActor = (token) => ({ isToken: false, getDependentTokens: (opts) => { asked.push(opts); return [token]; } });
+  const lowered = async (fire) => {
+    deleted.length = 0;
+    hookCalls.length = 0;
+    await fire();
+    await tick();
+    return { deleted: [...deleted], hooks: hookCalls.map(([name, tok, info]) => [name, tok.uuid, info.cause]) };
+  };
+  seat(true);
+  const down = downable("dn", 0, [], aurasOn());
+  const after = await lowered(() => hooksSeen.updateActor[0](linkedActor(down), { system: { hp: { value: 0 } } }));
+  assert.deepEqual(after.deleted, ["r1"], "only the aura Region");
+  assert.deepEqual(after.hooks, [[constants.BEARER_DOWN_HOOK, "T.dn", "hp"]]);
+  const direct = await reach.lowerForBearer(linkedActor(downable("dr", 0, [], aurasOn())));
+  assert.deepEqual(direct.map((d) => [d.token.uuid, d.cause]), [["T.dr", "hp"]], "the bearers it lowered, with the cause");
+  assert.deepEqual(asked.at(-1), { linked: true }, "the linked tokens of the actor");
+  for (const change of [{ system: { other: 1 } }, { name: "x" }, undefined]) {
+    assert.deepEqual((await lowered(() => hooksSeen.updateActor[0](linkedActor(down), change))).deleted, [], `${JSON.stringify(change)} is no hit-point change`);
+  }
+  seat(false);
+  assert.deepEqual((await lowered(() => hooksSeen.updateActor[0](linkedActor(down), { system: { hp: {} } }))).deleted, [], "not the primary GM");
+  seat(true);
+  const synthetic = { isToken: true, token: downable("sy", -3, [], aurasOn()), getDependentTokens: () => { throw new Error("a synthetic actor has its one token"); } };
+  assert.deepEqual((await lowered(() => hooksSeen.updateActor[0](synthetic, { system: { hp: {} } }))).hooks, [[constants.BEARER_DOWN_HOOK, "T.sy", "hp"]]);
+  const noToken = { isToken: false, getDependentTokens: () => [null, downable("ok", 0, [], aurasOn())] };
+  assert.deepEqual((await lowered(() => hooksSeen.updateActor[0](noToken, { system: { hp: {} } }))).hooks, [[constants.BEARER_DOWN_HOOK, "T.ok", "hp"]], "a missing token is passed over");
+  const standing = downable("up", 5, [], aurasOn());
+  assert.deepEqual(await lowered(() => hooksSeen.updateActor[0](linkedActor(standing), { system: { hp: {} } })), { deleted: [], hooks: [] }, "a bearer still up keeps its reaches");
+
+  // The defeated status, enabled, on an effect of an actor or of a token's delta.
+  const fallen = downable("fl", 5, ["dead"], aurasOn());
+  const effect = (over = {}) => ({ disabled: false, statuses: new Set(["dead"]), parent: linkedActor(fallen), ...over });
+  for (const name of ["createActiveEffect", "updateActiveEffect"]) {
+    const out = await lowered(() => hooksSeen[name][0](effect()));
+    assert.deepEqual(out.hooks, [[constants.BEARER_DOWN_HOOK, "T.fl", "defeated"]], name);
+  }
+  const viaDelta = await lowered(() => hooksSeen.createActiveEffect[0](effect({ parent: { documentName: "ActorDelta", parent: { actor: linkedActor(fallen) } } })));
+  assert.equal(viaDelta.hooks.length, 1, "a token's delta reaches the token's actor");
+  assert.deepEqual((await lowered(() => hooksSeen.createActiveEffect[0](effect({ disabled: true })))).hooks, [], "a disabled effect defeats nobody");
+  assert.deepEqual((await lowered(() => hooksSeen.createActiveEffect[0](effect({ statuses: new Set(["prone"]) })))).hooks, [], "another status");
+  seat(false);
+  assert.deepEqual((await lowered(() => hooksSeen.createActiveEffect[0](effect()))).hooks, [], "not the primary GM");
+  seat(true);
+  const priorConfig = globalThis.CONFIG;
+  globalThis.CONFIG = { specialStatusEffects: { DEFEATED: "fallen" } };
+  try {
+    const custom = downable("cu", 5, ["fallen"], aurasOn());
+    const named = await lowered(() => hooksSeen.createActiveEffect[0](effect({ statuses: new Set(["fallen"]), parent: linkedActor(custom) })));
+    assert.deepEqual(named.hooks, [[constants.BEARER_DOWN_HOOK, "T.cu", "defeated"]], "core's own name for the defeated status");
+    assert.deepEqual((await lowered(() => hooksSeen.createActiveEffect[0](effect()))).hooks, [], "lib's default is only the fallback");
+    const onlyDead = downable("od", 5, ["dead"], aurasOn());
+    assert.deepEqual((await lowered(() => hooksSeen.updateActor[0](linkedActor(onlyDead), { system: { hp: {} } }))).hooks, [], "the status read is core's name too");
+  } finally {
+    globalThis.CONFIG = priorConfig;
+    seat(false);
+  }
+});
+
+await t("lowering a bearer's reaches deletes the aura Regions of one activation or all, checks a Player's seat owns the token, and skips a Region already going", async () => {
+  const users = globalThis.game.users;
+  users.push({ id: "u1" }, { id: "u2" });
+  const mk = () => {
+    const r = (id, activationId, type = AURA) => regionWith(id, [{ type, system: { ...cfg, activationId } }]);
+    const token = { uuid: "T.L", testUserPermission: (u) => u.id === "u1", attachments: { regions: new Set([r("a1", "act1"), r("a2", "act2"), r("o1", "act1", "other"), r("a3", "act1")]) } };
+    return token;
+  };
+  let token = mk();
+  const priorLookup = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => (uuid === "T.L" ? token : null);
+  try {
+    deleted.length = 0;
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L", activationId: "act1" }), ["a1", "a3"], "one activation's aura Regions, not another's or another type");
+    token = mk();
+    deleted.length = 0;
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L" }), ["a1", "a2", "a3"], "without an activation, every aura Region");
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.none" }), [], "no token");
+    token = mk();
+    deleted.length = 0;
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L", requestUserId: "u2" }), [], "a seat that does not own the token");
+    assert.deepEqual(deleted, []);
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L", requestUserId: "u1", activationId: "act2" }), ["a2"], "its owner");
+    const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+    token = mk();
+    assert.deepEqual(await executeAsGM("acks-extras.aura.lower", { tokenUuid: "T.L", activationId: "act2", requestUserId: "u2" }), [], "a relayed lower carries the seat that asked");
+    assert.deepEqual(await executeAsGM("acks-extras.aura.lower", { tokenUuid: "T.L", activationId: "act2", requestUserId: "u1" }), ["a2"], "and the activation it names");
+    // A delete that fails is contained and releases the Region; a delete that loops back skips itself.
+    token = mk();
+    const [first] = token.attachments.regions;
+    first.delete = async () => { throw new Error("refused"); };
+    const lines = await quiet(async () => assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L", activationId: "act1" }), ["a3"]));
+    assert.ok(lines.some((line) => line.includes("could not be lowered")));
+    first.delete = async () => { deleted.push("a1-again"); };
+    deleted.length = 0;
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L", activationId: "act1" }), ["a1", "a3"], "a Region whose delete failed is lowered by the next call");
+    token = mk();
+    const [again] = token.attachments.regions;
+    let inner = null;
+    again.delete = async () => { inner = await reach.lowerReach({ tokenUuid: "T.L", activationId: "act1" }); };
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L", activationId: "act1" }), ["a1", "a3"]);
+    assert.ok(!inner.includes("a1"), "the nested call skipped the Region already being deleted");
+    // A Player's seat relays and gets nothing where no Judge is seated.
+    token = mk();
+    deleted.length = 0;
+    globalThis.game.user = { isGM: false };
+    seat(false);
+    assert.deepEqual(await reach.lowerReach({ tokenUuid: "T.L" }), []);
+    assert.deepEqual(deleted, [], "a Player's seat deletes nothing itself");
+  } finally {
+    globalThis.game.user = { isGM: true };
+    globalThis.fromUuidSync = priorLookup;
+    users.splice(0);
+  }
+});
+
+await t("raising refuses a token, an item or a row that is gone, a carrier that is not the bearer, a seat that is not an owner and a build without core's parts, with the right line, and hands back the Region", async () => {
+  const users = globalThis.game.users;
+  users.push({ id: "u1" }, { id: "u2" });
+  const asked = [];
+  const bearerActor = { uuid: "A.1" };
+  const tok = { uuid: "T.R", id: "R", hidden: false, actor: bearerActor, baseActor: { uuid: "A.1", system: { hp: { value: 5, max: 9 } }, statuses: new Set() }, testUserPermission: (u) => u.id === "u1" };
+  const itemFor = (actor, radius = "45") => ({ uuid: "I.R", name: "Charm", actor, flags: { "acks-extras": { itemRun: { rows: [reachRow({ radius: { value: radius } })] } } } });
+  let item = itemFor(bearerActor);
+  const priorLookup = globalThis.fromUuidSync;
+  const priorConfig = globalThis.CONFIG;
+  const priorData = globalThis.foundry.data;
+  const notes = [];
+  const priorUi = globalThis.ui;
+  globalThis.ui = { notifications: { warn: (text) => notes.push(["warn", text]), error: (text) => notes.push(["error", text]) } };
+  globalThis.fromUuidSync = (uuid) => (uuid === "T.R" ? tok : uuid === "I.R" ? item : null);
+  const build = (over = {}) => ({
+    Region: { documentClass: { schema: { fields: { attachment: { fields: { token: {} } } } }, createTokenEmanation: async (...args) => { asked.push(args); return { id: "R5", uuid: "S.R5" }; }, ...over } },
+    specialStatusEffects: {},
+  });
+  globalThis.CONFIG = build();
+  globalThis.foundry.data = { ...priorData, EmanationShapeData: class {} };
+  const ask = (over = {}) => reach.raiseReach({ tokenUuid: "T.R", sourceUuid: "I.R", rowKey: "k", activationId: "act", ...over });
+  const lastNote = () => notes.at(-1);
+  try {
+    const made = await ask();
+    assert.deepEqual([made.ok, made.regionId, made.regionUuid], [true, "R5", "S.R5"]);
+    assert.equal(asked.at(-1)[1], 45, "this row's radius, not another's");
+    assert.equal(asked.at(-1)[2].name, "Charm");
+    assert.equal(asked.at(-1)[2].hidden, false, "hidden as the token is");
+    assert.equal(asked.at(-1)[2].behaviors[0].name, "Charm");
+    notes.length = 0;
+    const refuse = async (over, reason, kind = "warn") => {
+      const out = await ask(over);
+      assert.equal(out.ok, false);
+      assert.equal(out.reason, reason);
+      assert.equal(lastNote()[0], kind, `${reason} is a ${kind}`);
+      assert.ok(lastNote()[1].endsWith(`aura.refused.${reason}`), `${reason}'s line`);
+    };
+    await refuse({ tokenUuid: "T.none" }, "gone");
+    await refuse({ sourceUuid: "I.none" }, "gone");
+    await refuse({ rowKey: "none" }, "gone");
+    item = itemFor({ uuid: "A.other" });
+    await refuse({}, "notCarried");
+    item = itemFor({ uuid: "A.1" });
+    tok.baseActor.uuid = "A.x";
+    assert.equal((await ask()).ok, true, "the same actor by uuid carries it");
+    tok.baseActor.uuid = "A.1";
+    item = itemFor({ uuid: "A.9" });
+    tok.actor = null;
+    tok.baseActor.uuid = "A.9";
+    assert.equal((await ask()).ok, true, "a token's base actor by uuid carries it");
+    tok.actor = bearerActor;
+    tok.baseActor.uuid = "A.1";
+    item = itemFor(null);
+    await refuse({}, "notCarried");
+    item = itemFor(bearerActor, "");
+    await refuse({}, "noRange");
+    item = itemFor(bearerActor);
+    notes.length = 0;
+    await refuse({ requestUserId: "u2" }, "notOwner", "error");
+    assert.equal((await ask({ requestUserId: "u1" })).ok, true, "an owner's request");
+    tok.baseActor.system.hp.value = 0;
+    await refuse({ requestUserId: "u1" }, "down", "error");
+    notes.length = 0;
+    const warned = await ask();
+    assert.equal(warned.ok, true, "a Judge goes on");
+    assert.ok(notes.some(([kind, text]) => kind === "warn" && text.endsWith("aura.refused.downWarn")), "with a line");
+    tok.baseActor.system.hp.value = 5;
+    globalThis.CONFIG = build({ createTokenEmanation: undefined });
+    const unsupported = await ask();
+    assert.equal(unsupported.reason, "unsupported");
+    assert.deepEqual(unsupported.missing, ["createTokenEmanation"]);
+    globalThis.CONFIG = build({ schema: undefined });
+    assert.deepEqual((await ask()).missing, ["attachment.token"], "a Region that cannot attach to a token");
+    globalThis.CONFIG = build();
+    globalThis.foundry.data = { ...priorData };
+    assert.deepEqual((await ask()).missing, ["emanation"], "no emanation shape");
+    globalThis.foundry.data = { ...priorData, EmanationShapeData: class {} };
+    globalThis.CONFIG = build();
+    globalThis.game.user = { isGM: false };
+    seat(false);
+    const before = asked.length;
+    const relayed = await ask();
+    assert.deepEqual(relayed, { ok: false, reason: "relay" }, "a Player's seat with no Judge seated");
+    assert.equal(asked.length, before, "and creates nothing itself");
+  } finally {
+    globalThis.game.user = { isGM: true };
+    globalThis.fromUuidSync = priorLookup;
+    globalThis.CONFIG = priorConfig;
+    globalThis.foundry.data = priorData;
+    globalThis.ui = priorUi;
+    users.splice(0);
+  }
+});
+
+await t("a snapshot leaves out the centre token itself, builds the Region with the scene as its parent and the token's own source, and answers the reason a shape was refused", () => {
+  const made = [];
+  const priorConfig = globalThis.CONFIG;
+  globalThis.CONFIG = { Region: { documentClass: class { constructor(data, options) { this.name = data.name; this.data = data; this.options = options; made.push(this); } } } };
+  try {
+    const inside = new Set(["c", "n"]);
+    const tok = (id) => ({ id, actor: { documentName: "Actor", type: "monster" }, testInsideRegion: () => inside.has(id) });
+    const centre = tok("c");
+    centre._source = { x: 7, y: 8, width: 1, height: 1, shape: 4 };
+    centre.x = 99;
+    const area = { dimensions: { distance: 5, distancePixels: 10 }, tokens: [centre, tok("n"), tok("z")] };
+    const found = reach.reachSnapshot(area, { token: centre }, 20);
+    assert.deepEqual(found.tokens.map((x) => x.id), ["n"], "the centre is inside its own area and is not a subject");
+    assert.equal(made[0].name, "reach");
+    assert.equal(made[0].options.parent, area);
+    assert.equal(made[0].data.shapes[0].base.x, 7, "the token's source, not its prepared position");
+    assert.deepEqual(reach.reachSnapshot(area, { token: centre }, 0), { ok: false, reason: "range" });
+    assert.deepEqual(reach.reachSnapshot({ dimensions: {}, tokens: [] }, { token: centre }, 5), { ok: false, reason: "scale" });
+    assert.equal(made.length, 1, "a refused shape builds no Region");
+  } finally {
+    globalThis.CONFIG = priorConfig;
+  }
+});
+
+await t("a race is told into its category from the two race sets, a creature's kinds read the registered key as it is written, and a subtype that is an enchanted type makes the creature enchanted", () => {
+  for (const key of ["human", "people1", "people2", " People1 "]) assert.equal(actorRead.raceCategoryOf(key), "human", key);
+  for (const key of ["dwarf", "elf", "gnome", " GNOME "]) assert.equal(actorRead.raceCategoryOf(key), "demi-human", key);
+  for (const key of ["people3", "", null, undefined]) assert.equal(actorRead.raceCategoryOf(key), null, String(key));
+  assert.deepEqual([...actorRead.MEN_RACES].sort(), ["human", "people1", "people2"]);
+  assert.deepEqual([...actorRead.DEMI_HUMAN_RACES].sort(), ["dwarf", "elf", "gnome"]);
+  assert.deepEqual([...actorRead.RACE_CATEGORIES], ["human", "demi-human"]);
+  const creature = (type, extras, cls = "") => ({ type, system: { details: { class: cls } }, getFlag: (scope, key) => (key === "extras" ? extras : undefined) });
+  assert.deepEqual([...actorRead.creatureKinds(creature("monster", { subtype: "Construct, Odd" }))].sort(), ["construct", "enchanted", "odd"], "a subtype is read before the enchanted step");
+  assert.equal(actorRead.creatureKinds(creature("monster", { subtype: "Odd" })).has("enchanted"), false);
+  try {
+    actorRead.registerCharacterRace(() => " Dwarf ");
+    assert.deepEqual([...actorRead.creatureKinds(creature("character", undefined, "Any"))], ["character", "dwarf", "demi-human"], "the key is lowercased and trimmed");
+    actorRead.registerCharacterRace(() => "People1");
+    assert.deepEqual([...actorRead.creatureKinds(creature("character", undefined, "Any"))], ["character", "people1", "human"]);
+    assert.deepEqual([...actorRead.creatureKinds(creature("character", undefined, ""))], ["character"], "a class field that is blank names no race");
+    actorRead.registerCharacterRace(() => "");
+    assert.deepEqual([...actorRead.creatureKinds(creature("character", undefined, "Any"))], ["character"]);
+  } finally {
+    actorRead.registerCharacterRace(null);
+  }
+  assert.equal(actorRead.kindToken("A  b_c"), "a-b-c");
+  assert.equal(actorRead.kindToken(" X!y "), "xy");
+});
+
+await t("a reach's pulse, side and unit are choices of their own vocabularies, and the filter and figure reference carry the fields the logic reads", () => {
+  const field = effectField().fields.reach;
+  const keysOf = (f) => Object.keys(f.options.choices);
+  assert.deepEqual(keysOf(field.fields.pulse), Object.keys(vocab.REACH_PULSES));
+  assert.deepEqual(keysOf(field.fields.filter.fields.side), Object.keys(vocab.REACH_SIDES));
+  assert.deepEqual(keysOf(field.fields.filter.fields.unit), Object.keys(vocab.REACH_UNITS));
+  assert.equal(field.fields.pulse.options.initial, "", "a pulse nobody chose acts on nothing");
+  assert.equal(field.fields.filter.fields.unit.options.initial, "any");
+  assert.equal(field.fields.filter.fields.side.options.initial, "any");
+  assert.ok(field.fields.filter.fields.kinds instanceof List && field.fields.filter.fields.exceptKinds instanceof List);
+  assert.ok(field.fields.radius instanceof Schema, "the radius is a figure reference");
+});
+
 console.log(`\ntest-aura-reach: ${passed} checks passed.`);

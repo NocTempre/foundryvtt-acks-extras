@@ -253,4 +253,66 @@ await t("the carrier declines every spell, every ability with no activation and 
   });
 });
 
+await t("a claimant's system call that is not awaited is still waited for, and a missing Item#use is warned about and not wrapped", async () => {
+  await run(async (FakeItem) => {
+    claimant("x", { run: async (item, options, system) => { system(); } });
+    const item = new FakeItem("spell");
+    item._useSpell = async (options) => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      item.spellRuns.push(options);
+    };
+    await item.use({ n: 1 });
+    assert.deepEqual(item.spellRuns, [{ n: 1 }], "the use finishes before the seam returns");
+  });
+  const warned = [];
+  const priorWarn = console.warn;
+  const prior = { CONFIG: globalThis.CONFIG, libWrapper: globalThis.libWrapper };
+  class NoUse {}
+  globalThis.CONFIG = { Item: { documentClass: NoUse } };
+  delete globalThis.libWrapper;
+  console.warn = (...args) => warned.push(args.map(String).join(" "));
+  try {
+    seam.installItemUsePatch();
+    assert.equal(typeof NoUse.prototype.use, "undefined", "nothing is invented to wrap");
+    assert.equal(warned.length, 1);
+  } finally {
+    console.warn = priorWarn;
+    globalThis.CONFIG = prior.CONFIG;
+    globalThis.libWrapper = prior.libWrapper;
+  }
+});
+
+await t("the carrier's claimant is the one named itemRun and runs the use through its kind's runner", async () => {
+  await run(async (FakeItem) => {
+    const ran = [];
+    itemRun.registerActivationRunner("once", async (ctx) => (ran.push(ctx.item.uuid), { ok: true, kind: "once" }));
+    itemRun.registerItemRunClaimant();
+    const flagged = new FakeItem("item", activation("once"));
+    flagged.uuid = "I.1";
+    flagged.actor = { testUserPermission: () => true, getActiveTokens: () => [{ uuid: "T.1" }] };
+    const priorLookup = globalThis.fromUuidSync;
+    globalThis.fromUuidSync = () => flagged;
+    try {
+      await flagged.use({});
+      assert.deepEqual(ran, ["I.1"], "the runner of the item's kind");
+      assert.equal(flagged.systemRuns.length, 0);
+      assert.equal(seam.removeItemUseClaimant("itemRun"), true, "registered under its own key");
+    } finally {
+      globalThis.fromUuidSync = priorLookup;
+      itemRun.registerActivationRunner("once", null);
+    }
+  });
+});
+
+await t("a runner that was cleared no longer claims its kind", async () => {
+  await run(async (FakeItem) => {
+    itemRun.registerActivationRunner("once", async () => {});
+    itemRun.registerActivationRunner("once", null);
+    itemRun.registerItemRunClaimant();
+    const item = new FakeItem("item", activation("once"));
+    await item.use({});
+    assert.equal(item.systemRuns.length, 1, "nobody runs it, so the system's use does");
+  });
+});
+
 console.log(`\ntest-item-use: ${passed} checks passed.`);
