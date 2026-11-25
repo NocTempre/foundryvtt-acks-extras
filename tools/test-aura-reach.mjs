@@ -131,6 +131,22 @@ await t("a pulse takes its own moments: enter alone does not prompt a turn-start
   assert.equal(act("nonsense", "burst"), "none");
 });
 
+await t("a moment's key is combat, round, turn, subject and kind inside a fight, and subject and kind outside one", () => {
+  const base = { combatId: "c1", round: 2, turn: 3, subjectUuid: "T.s", kindKey: "k" };
+  assert.equal(logic.momentKey(base), "c1:2:3:T.s:k");
+  assert.notEqual(logic.momentKey(base), logic.momentKey({ ...base, turn: 4 }), "another initiative is another prompt");
+  assert.notEqual(logic.momentKey(base), logic.momentKey({ ...base, round: 3 }), "another round is another prompt");
+  assert.notEqual(logic.momentKey(base), logic.momentKey({ ...base, kindKey: "j" }), "another item kind is another prompt");
+  assert.notEqual(logic.momentKey(base), logic.momentKey({ ...base, subjectUuid: "T.u" }));
+  assert.equal(logic.momentKey({ ...base, combatId: null }), "T.s:k", "no fight: the subject and the kind");
+  assert.equal(logic.momentKey({ ...base, combatId: "" }), "T.s:k");
+  assert.equal(logic.momentKey({ subjectUuid: "T.s", kindKey: "k" }), "T.s:k");
+  assert.equal(logic.momentKey({ ...base, round: 0, turn: 0 }), "c1:0:0:T.s:k", "round and turn zero are kept");
+  assert.equal(logic.momentKey({ ...base, subjectUuid: "" }), null);
+  assert.equal(logic.momentKey({ ...base, kindKey: "  " }), null);
+  assert.equal(logic.momentKey(), null);
+});
+
 await t("a hand-made behavior (empty config) reads as none and a handler is never reached", async () => {
   assert.equal(logic.readAuraConfig({}), null);
   assert.equal(logic.readAuraConfig({ sourceUuid: "a", bearerUuid: "b", activationId: "c" }), null, "all four are needed");

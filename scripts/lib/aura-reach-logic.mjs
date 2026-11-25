@@ -236,6 +236,24 @@ export function pulseAct({ pulse, moment, admitted, immune = false } = {}) {
   return immune ? "skip" : "prompt";
 }
 
+/**
+ * The key one prompt is held and deduped under: `combatId:round:turn:subjectUuid:kindKey`
+ * inside a fight, so a subject is asked once per item kind per initiative, and
+ * `subjectUuid:kindKey` outside one, held while that prompt is open. Pure; the
+ * reach's carrier and the engagement reach share it. A blank subject or kind
+ * has no key (null), since nothing could be told apart under it.
+ *
+ * @param {{combatId?: string|null, round?: number|null, turn?: number|null, subjectUuid: string, kindKey: string}} p
+ * @returns {string|null}
+ */
+export function momentKey({ combatId = null, round = null, turn = null, subjectUuid, kindKey } = {}) {
+  const subject = String(subjectUuid ?? "").trim();
+  const kind = String(kindKey ?? "").trim();
+  if (!subject || !kind) return null;
+  const inFight = combatId !== null && combatId !== undefined && String(combatId) !== "";
+  return inFight ? [combatId, round ?? "", turn ?? "", subject, kind].join(":") : `${subject}:${kind}`;
+}
+
 /* -------------------------------------------- */
 /*  The area a snapshot tests                    */
 /* -------------------------------------------- */
