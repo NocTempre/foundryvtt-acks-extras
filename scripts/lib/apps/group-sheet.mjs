@@ -98,7 +98,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
   };
 
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/lib/group-sheet.hbs`, scrollable: [""] },
+    body: { template: `modules/${MODULE_ID}/templates/lib/group-sheet.hbs`, scrollable: ["", ".acks-extras-org__scroll"] },
   };
 
   /** @override */

@@ -11513,5 +11513,6 @@
   "ACKS-LIB.org.unlisted.droppedTip": "Rows that held nothing had no group to move; no group was made for them.",
   "ACKS-LIB.org.unlisted.dismiss": "Dismiss",
   "ACKS-MONSTERS.organisation.badge.rolled": "{axis}: {label}, rolled",
-  "ACKS-MONSTERS.organisation.badge.byHand": "{axis}: {label}, chosen by hand"
+  "ACKS-MONSTERS.organisation.badge.byHand": "{axis}: {label}, chosen by hand",
+  "ACKS-LIB.org.chart.scrollLabel": "Organisation tree, scrolls sideways"
 }

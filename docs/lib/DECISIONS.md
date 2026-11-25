@@ -2054,3 +2054,19 @@ dropped without making one. No group, prototype or leader is deleted. `org.delet
 for the API and has no caller on any sheet. *Rejected:* a Remove that deletes the groups and the
 prototypes only this generator minted (the held 09513066), since a chart row is a listing and a
 group is a document with its own bodies.
+
+## 2026-11-25 — The tree scrolls sideways in a box of its own, and the box is a declared scroller of its part
+
+The owner's canvas-1 go-ahead, whole: "the tree in a window narrower than it scrolls in its part
+root". The faction sheet's body part and the group sheet's body part both draw the chart, and both
+frames scroll vertically through `acks-extras-scroll`, so the sideways scroll cannot be the frame's
+(`overflow-x: hidden` stays). The tree sits in `.acks-extras-org__scroll`, a box with `overflow-x:
+auto`, a region role, a label and a tab stop, so the keyboard reaches it and the browser scrolls a
+focused control into view. Core keeps a part's scroll positions only for the selectors its
+`scrollable` names (`scrollTop` and `scrollLeft`, the first match of each), so the box is named
+there beside the part root (`scrollable: ["", ".acks-extras-org__scroll"]` on both sheets), and the
+chart's position survives the redraw each press makes. *Reading, for the hub:* the box is a
+declared descendant scroller of the part, not literally the part's root element; the part root is
+the vertical scroller's child and stays declared as it was. *Rejected:* making the part root itself
+the sideways scroller, which would give two scrolling frames inside one window and move the tools
+strip and every other section with the tree.

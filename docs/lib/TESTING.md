@@ -4636,8 +4636,13 @@ active GM; read `game.users.activeGM` in the same call as a measure.
    leader the subtree named is still in the Actors tab, checked by uuid**; a line above the chart names
    each group now hosting its own chart with an **Open**, and the count of rows dropped; **Dismiss**
    closes it and changes nothing else.
-8. **A narrow window** — resize the sheet to about 320 wide. *Observable:* `.acks-extras-org__scroll`
-   has `overflow-x: auto` and scrolls, and `.window-content` does not scroll sideways.
+8. **A narrow window, on a freshly opened one** — close the sheet, reopen it and resize it to about 320 wide
+   (an open window's descendants keep the sizes they had before a type change, so measure the new one).
+   *Observable:* `.acks-extras-org__scroll` has `overflow-x: auto` and scrolls, and `.window-content` does not
+   scroll sideways. **Reach:** focus each button and link in the box in turn; each one's rectangle meets the box's
+   after the focus scrolls it into view, so every control on the tree is reached by keyboard and by scroll.
+   **Position survives a re-render:** set the box's `scrollLeft` to a nonzero figure, press Expand all (which redraws
+   the sheet); the box reads the same `scrollLeft`, because `scrollable` names it (`faction-sheet.mjs`, `group-sheet.mjs`).
 9. **A Player seat** — a row marked hidden, and each row beneath it, is drawn on no Player's
    sheet and counted in no total; on the root group's sheet the same chart shows above the stacks.
 

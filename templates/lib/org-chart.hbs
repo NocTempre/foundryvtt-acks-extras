@@ -36,7 +36,7 @@
       <span data-tooltip="ACKS-LIB.org.chart.totalTip">{{localize "ACKS-LIB.org.chart.total" n=total}}</span>
       {{#if emptyCards}} · {{localize "ACKS-LIB.org.chart.emptyCards" n=emptyCards}}{{/if}}
     </p>
-    <div class="acks-extras-org__scroll">
+    <div class="acks-extras-org__scroll" role="region" tabindex="0" aria-label="{{localize 'ACKS-LIB.org.chart.scrollLabel'}}">
       <ul class="acks-extras-org__tree" role="tree" aria-label="{{localize 'ACKS-LIB.org.chart.label'}}">
         {{#each cards}}{{> "modules/acks-extras/templates/lib/org-card.hbs"}}{{/each}}
       </ul>

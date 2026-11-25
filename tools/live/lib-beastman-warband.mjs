@@ -165,6 +165,41 @@ const P = {
     };
   },
 
+  /** Close the sheet and open a fresh one at a width, so nothing measured is an old window's. */
+  reopen: async ({ id, width, tab }) => {
+    const actor = game.actors.get(id);
+    await actor.sheet.close();
+    actor.sheet.tabGroups.primary = tab;
+    await actor.sheet.render({ force: true, position: { width } });
+    await new Promise((r) => setTimeout(r, 900));
+    return true;
+  },
+
+  /** Focus every control in the tree box in turn: does each meet the box's rectangle once focused? */
+  reach: async ({ id }) => {
+    const el = game.actors.get(id).sheet.element;
+    const box = el.querySelector(".acks-extras-org__scroll");
+    if (!box) return { box: false };
+    const controls = [...box.querySelectorAll("button, a[href], [tabindex='0']")];
+    let missed = 0;
+    for (const c of controls) {
+      c.focus();
+      const a = c.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      if (!(a.right > b.left && a.left < b.right)) missed += 1;
+    }
+    return { box: true, controls: controls.length, missed, tabStop: box.tabIndex === 0, role: box.getAttribute("role") };
+  },
+
+  /** Scroll the tree box sideways and read where it is, and what it is after a redraw. */
+  scrollTo: async ({ id, left }) => {
+    const box = game.actors.get(id).sheet.element.querySelector(".acks-extras-org__scroll");
+    if (!box) return null;
+    box.scrollLeft = left;
+    return { max: box.scrollWidth - box.clientWidth, now: box.scrollLeft };
+  },
+  scrolled: async ({ id }) => game.actors.get(id).sheet.element.querySelector(".acks-extras-org__scroll")?.scrollLeft ?? null,
+
   size: async ({ id, width }) => {
     const sheet = game.actors.get(id).sheet;
     await sheet.setPosition({ width });
@@ -278,10 +313,18 @@ try {
   const unfolded = await run(gm, P.read, { id: fid });
   check("Expand all opens every branch again", unfolded.folded === 0, unfolded.folded);
 
-  section("a narrow window");
-  await run(gm, P.size, { id: fid, width: 320 });
+  section("a narrow window, freshly opened");
+  await run(gm, P.reopen, { id: fid, width: 320, tab: "orgChart" });
   const narrow = await run(gm, P.read, { id: fid });
   check("the tree scrolls in its own box and the frame does not scroll sideways", narrow.scrollBox?.overflowX === "auto" && narrow.frameScrollsSideways === false, narrow.scrollBox);
+  const reach = await run(gm, P.reach, { id: fid });
+  check("every control in the tree is reached by keyboard focus at the floor width, and the box is a tab stop", reach.box && reach.missed === 0 && reach.tabStop, reach);
+  const moved = await run(gm, P.scrollTo, { id: fid, left: 80 });
+  if (moved && moved.max > 0) {
+    await run(gm, P.press, { id: fid, action: "orgExpandAll", wait: 900 });
+    const kept = await run(gm, P.scrolled, { id: fid });
+    check("the box's scroll position survives the redraw a press makes", kept === moved.now, { was: moved.now, now: kept });
+  } else note("not walked", "the tree fits the window at this width, so there is no position to keep: narrow the window or roll a larger tree");
 
   section("remove in edit: unlist, delete nothing");
   if (filledRow) {

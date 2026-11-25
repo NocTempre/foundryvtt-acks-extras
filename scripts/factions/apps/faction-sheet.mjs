@@ -99,7 +99,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
   };
 
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/factions/faction-sheet.hbs`, scrollable: [""] },
+    body: { template: `modules/${MODULE_ID}/templates/factions/faction-sheet.hbs`, scrollable: ["", ".acks-extras-org__scroll"] },
   };
 
   static TABS = {
