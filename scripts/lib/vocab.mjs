@@ -1604,12 +1604,14 @@ function inferLevelKind(lv) {
 /**
  * When a reach acts on a subject (`effectField.reach.pulse`): `action` once, at
  * the press; `turnStart+moveIn` when a subject starts its turn inside or moves
- * in; `standing` for as long as a subject is inside; `burst` once, at a
- * detonation.
+ * in; `turnStart+enter` when a subject starts its turn inside, or enters while
+ * it is the combatant whose turn it is; `standing` for as long as a subject is
+ * inside; `burst` once, at a detonation.
  */
 export const REACH_PULSES = Object.freeze({
   action: { label: "Once, at the press" },
   "turnStart+moveIn": { label: "At a turn start, and on moving in" },
+  "turnStart+enter": { label: "At a turn start, and on entering during one's own turn" },
   standing: { label: "While inside" },
   burst: { label: "Once, at a burst" },
 });

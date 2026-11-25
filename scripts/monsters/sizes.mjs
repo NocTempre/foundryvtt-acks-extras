@@ -4,14 +4,16 @@
  * battle-grid squares). The figures are imported into the `monsters` registry
  * document's `sizeFrontage` table, one printed cell per category, and read
  * here; nothing in source states one. What one of those squares is worth in
- * feet is the unit the frontage is counted in: it is stated here as
- * `SQUARE_FEET` and read by `sizeSquareFeet`. Foundry-free.
+ * feet is the unit the frontage is counted in: it is stated in
+ * `lib/distance-units.mjs` as `SQUARE_FEET`, re-exported here, and read by
+ * `sizeSquareFeet`. Foundry-free.
  *
  * A cell is the page's own text. It prints a pair of squares, the first
  * arrangement being the one read, or a single figure for a body that fills at
  * most one square. A body never occupies less than one token square, so every
  * figure is held to one at the least.
  */
+import { SQUARE_FEET } from "../lib/distance-units.mjs";
 import { citeOf, expectTables, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
 
 /** The registry document the frontage cells are read from. */
@@ -23,12 +25,8 @@ export const SIZE_TABLE = "sizeFrontage";
 /** The row of the frontage and square tables the cells sit on. */
 export const SIZE_ROW = "squares";
 
-/**
- * What one battle-grid square is worth in feet (MM p. 11, Monster Size). It is
- * the unit of measure the frontage cells are written in, stated here and not
- * imported. The ruling is in `docs/battlemap/DECISIONS.md`.
- */
-export const SQUARE_FEET = 5;
+/** What one battle-grid square is worth in feet (MM p. 11): the constant lives in `lib/distance-units.mjs`, and this module keeps exporting it for its readers. */
+export { SQUARE_FEET };
 
 // Declared where it is read, so the import names the table as outstanding
 // whichever feature loads first. The id is SIZE_TABLE, written as a literal

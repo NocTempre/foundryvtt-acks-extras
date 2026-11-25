@@ -438,10 +438,11 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.equal(field.options.nullable, true);
   assert.equal(field.options.initial, null);
   assert.equal(field.options.required, false);
-  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "immunity", "modifier", "on", "pulse", "radius", "save", "saveWhen", "showReach"]);
+  assert.deepEqual(Object.keys(field.fields).sort(), ["engaged", "filter", "immunity", "lasts", "modifier", "on", "pulse", "radius", "save", "saveWhen", "showReach"]);
+  assert.equal(field.fields.engaged.options.initial, false, "a reach engages only where a row says so");
   assert.equal(field.fields.showReach.options.initial, false, "a Region is the Judge's alone unless a row says otherwise");
   assert.deepEqual(Object.keys(field.fields.saveWhen.fields).sort(), ["magical", "when"]);
-  for (const key of ["save", "immunity", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
+  for (const key of ["save", "immunity", "lasts", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
   assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "self", "side", "unit"]);
   assert.equal(field.fields.filter.fields.side.options.initial, "any");
@@ -462,7 +463,7 @@ await t("no editor field list offers reach, for any type in any domain, and an e
 });
 
 await t("the vocabularies hold exactly the keys the logic reads", () => {
-  assert.deepEqual(Object.keys(vocab.REACH_PULSES), ["action", "turnStart+moveIn", "standing", "burst"]);
+  assert.deepEqual(Object.keys(vocab.REACH_PULSES), ["action", "turnStart+moveIn", "turnStart+enter", "standing", "burst"]);
   assert.deepEqual(Object.keys(vocab.REACH_SIDES), ["any", "own", "opposing"]);
   assert.deepEqual(Object.keys(vocab.REACH_UNITS), ["any", "own", "under"]);
   assert.deepEqual(Object.keys(vocab.ITEM_RUN_ACTIVATIONS), ["once", "toggle", "fuse", "consume"]);
@@ -1131,6 +1132,156 @@ await t("a turn start asks a subject once per item kind, prunes the keys of an e
   } finally {
     holder.behaviors = [];
     delete bearerTok.attachments;
+    globalThis.fromUuidSync = priorFrom;
+    reach.setReachHandler(null);
+    seat(false);
+  }
+});
+
+await t("every pulse the vocabulary held before answers as it did: onTurn is read by turnStart+enter alone", () => {
+  const act = (pulse, moment, admitted, immune, onTurn) => logic.pulseAct({ pulse, moment, admitted, immune, onTurn });
+  const pinned = {
+    action: { press: ["prompt", "skip"], enter: ["none", "none"] },
+    "turnStart+moveIn": { turnStart: ["prompt", "skip"], moveIn: ["prompt", "skip"], enter: ["list", "list"], exit: ["out", "out"] },
+    standing: { enter: ["on", "on"], exit: ["off", "off"], moveIn: ["none", "none"] },
+    burst: { burst: ["prompt", "skip"] },
+  };
+  for (const [pulse, moments] of Object.entries(pinned)) {
+    for (const [moment, [open, immune]] of Object.entries(moments)) {
+      for (const onTurn of [false, true, undefined]) {
+        assert.equal(act(pulse, moment, true, false, onTurn), open, `${pulse} ${moment} onTurn ${onTurn}`);
+        assert.equal(act(pulse, moment, true, true, onTurn), immune, `${pulse} ${moment} immune onTurn ${onTurn}`);
+      }
+    }
+  }
+  assert.equal(act("turnStart+moveIn", "enter", false, false, true), "refuse");
+  assert.equal(act("turnStart+moveIn", "enter", null, false, true), "undetermined");
+});
+
+await t("turnStart+enter prompts at a turn start, and on an enter only for the combatant whose turn it is", () => {
+  const act = (moment, admitted = true, immune = false, onTurn) => logic.pulseAct({ pulse: "turnStart+enter", moment, admitted, immune, onTurn });
+  assert.equal(act("turnStart"), "prompt");
+  assert.equal(act("turnStart", true, true), "skip", "an immune subject is skipped");
+  assert.equal(act("turnStart", false), "none");
+  assert.equal(act("turnStart", null), "undetermined");
+  assert.equal(act("enter", true, false, true), "prompt", "walking in on its own turn asks at once");
+  assert.equal(act("enter", true, true, true), "skip");
+  assert.equal(act("enter", false, false, true), "none");
+  assert.equal(act("enter", null, false, true), "undetermined");
+  assert.equal(act("enter", true, false, false), "none", "walking in on another's turn waits for its own");
+  assert.equal(act("enter", true), "none", "onTurn is off unless said");
+  assert.equal(act("enter", null, false, false), "none", "no prompt and no listing off its turn");
+  for (const moment of ["moveIn", "exit", "press", "burst"]) assert.equal(act(moment, true, false, true), "none", `${moment} is no moment of this pulse`);
+  assert.equal(logic.readReach({ pulse: "turnStart+enter" }).pulse, "turnStart+enter", "a stored reach with this pulse reads");
+});
+
+await t("engagement fails for a hidden side or a helpless bearer, and reads the conditions through conditionSet so what paralysis implies counts", async () => {
+  const { conditionSet } = await import("../scripts/lib/conditions.mjs");
+  const held = (statuses) => ({ token: { id: "x" }, actor: { statuses: new Set(statuses) } });
+  const conditionsOf = (actor) => conditionSet(actor?.statuses ?? []);
+  const holds = (b, s) => logic.engagementHolds(held(b), held(s), { conditionsOf });
+  assert.equal(holds([], []), true, "two bodies in the open engage");
+  assert.equal(holds(["hidden"], []), false, "a hidden bearer engages nobody");
+  assert.equal(holds([], ["hidden"]), false, "a hidden subject is engaged by nobody");
+  assert.equal(holds(["helpless"], []), false, "a helpless bearer engages nobody");
+  assert.equal(holds(["paralyzed"], []), false, "paralysis implies helpless");
+  assert.equal(holds([], ["helpless"]), true, "a helpless subject can still be engaged");
+  assert.equal(holds([], ["paralyzed"]), true);
+  assert.equal(logic.engagementHolds(held([]), held([])), true, "no reader of conditions reads none");
+  assert.equal(logic.engagementHolds(null, null, { conditionsOf }), true, "no bodies hold nothing");
+});
+
+await t("one verdict from many bearers: any true wins, else any null, else false", () => {
+  assert.equal(logic.groupVerdict([false, true, null]), true);
+  assert.equal(logic.groupVerdict([false, null, false]), null);
+  assert.equal(logic.groupVerdict([false, undefined]), null, "no answer is unsettled");
+  assert.equal(logic.groupVerdict([false, false]), false);
+  assert.equal(logic.groupVerdict([]), false);
+  assert.equal(logic.groupVerdict(undefined), false);
+  assert.equal(logic.groupVerdict([null]), null);
+});
+
+await t("a reach reads its lasts figure and its engaged flag, and a figure reference names one only with a value or a whole address", () => {
+  const read = logic.readReach({ pulse: "turnStart+enter", lasts: { value: "3" }, engaged: true, immunity: { value: "2" } });
+  assert.deepEqual(read.lasts, { value: "3" });
+  assert.equal(read.engaged, true);
+  assert.equal(logic.readReach({ pulse: "standing" }).lasts, null);
+  assert.equal(logic.readReach({ pulse: "standing" }).engaged, false);
+  assert.equal(logic.readReach({ pulse: "standing", engaged: "yes" }).engaged, false, "only true engages");
+  assert.equal(logic.namesFigure({ value: "3" }), true);
+  assert.equal(logic.namesFigure({ value: 0 }), true);
+  assert.equal(logic.namesFigure({ doc: "d", table: "t", row: "r", figure: "f" }), true);
+  assert.equal(logic.namesFigure({ value: "", doc: "d", table: "t", row: "r", figure: "" }), false, "a cleaned reference that names nothing");
+  assert.equal(logic.namesFigure({ value: "  " }), false);
+  assert.equal(logic.namesFigure(null), false);
+});
+
+await t("a turn start settles a turnStart+enter kind once from every bearer's answer, carries who engaged, and a hidden or helpless bearer is none", async () => {
+  const turnBegan = hooksSeen[constants.TURN_BEGAN_HOOK][0];
+  const row = (pulse, over = {}) => ({ key: "k", reach: { pulse, radius: { value: "5" }, filter: { side: "opposing" }, ...over } });
+  const itemOf = (uuid, rows, kind) => ({ uuid, name: "Gaze", type: "item", flags: { "acks-extras": { itemRun: { rows }, cookbook: { id: kind } } } });
+  const items = {
+    "I.e1": itemOf("I.e1", [row("turnStart+enter")], "kind-e"),
+    "I.e2": itemOf("I.e2", [row("turnStart+enter")], "kind-e"),
+    "I.e3": itemOf("I.e3", [row("turnStart+enter")], "kind-e"),
+    "I.m1": itemOf("I.m1", [row("turnStart+moveIn")], "kind-m"),
+    "I.m2": itemOf("I.m2", [row("turnStart+moveIn")], "kind-m"),
+  };
+  const priorFrom = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => items[uuid] ?? priorFrom(uuid);
+  const bearers = { b1: tokenOf("b1", undefined, { disposition: 1 }), b2: tokenOf("b2", undefined, { disposition: 1 }), b3: tokenOf("b3", undefined, { disposition: 1 }) };
+  const world = { tokens: { get: (id) => bearers[id] ?? null }, regions: [] };
+  const holderOf = (id, uuids) => ({ id: `R.${id}`, hidden: false, parent: world, attachment: { token: id }, behaviors: uuids.map((u) => ({ type: AURA, system: { ...cfg, sourceUuid: u, rowKey: "k", activationId: `act-${u}`, region: null } })) });
+  const heard = [];
+  reach.setReachHandler((ctx) => { heard.push({ moment: ctx.moment, subject: ctx.subject.token.id, item: ctx.item.uuid, admitted: ctx.admitted, engagedBy: ctx.engagedBy }); return "prompt"; });
+  const run = async (regions, subject) => {
+    const walker = tokenOf("w", undefined, { regions: new Set(regions), parent: { regions, tokens: world.tokens }, actor: { ...monsterActor(undefined), statuses: new Set(subject) } });
+    for (const region of regions) for (const behavior of region.behaviors) behavior.system.region = region;
+    heard.length = 0;
+    await turnBegan({ id: "c1", round: 1, turn: 0, combatants: { get: () => ({ token: walker }) } }, "cm");
+    return heard.map((h) => ({ ...h }));
+  };
+  try {
+    seat(true);
+    const r1 = holderOf("b1", ["I.e1"]);
+    const r2 = holderOf("b2", ["I.e2"]);
+    const r3 = holderOf("b3", ["I.e3"]);
+    let got = await run([r1, r2, r3], []);
+    assert.equal(got.length, 1, "three bearers of one kind ask a subject once");
+    assert.deepEqual([got[0].moment, got[0].admitted, got[0].engagedBy], ["turnStart", true, ["T.b1", "T.b2", "T.b3"]], "every admitting bearer is named, in the order met");
+
+    bearers.b2.actor = { ...bearers.b2.actor, statuses: new Set(["helpless"]) };
+    got = await run([r1, r2, r3], []);
+    assert.deepEqual(got.map((g) => g.engagedBy), [["T.b1", "T.b3"]], "a helpless bearer engages nobody");
+    bearers.b1.actor = { ...bearers.b1.actor, statuses: new Set(["hidden"]) };
+    bearers.b3.actor = { ...bearers.b3.actor, statuses: new Set(["paralyzed"]) };
+    got = await run([r1, r2, r3], []);
+    assert.deepEqual(got.map((g) => [g.admitted, g.engagedBy]), [[false, []]], "no bearer engages: one dispatch, admitted false, nobody named");
+    bearers.b1.actor = monsterActor(undefined);
+    bearers.b2.actor = monsterActor(undefined);
+    bearers.b3.actor = monsterActor(undefined);
+    got = await run([r1], ["hidden"]);
+    assert.deepEqual(got.map((g) => g.admitted), [false], "a hidden subject is engaged by nobody");
+
+    // A bearer the filter cannot settle (a neutral one) is null for the group where no other admits.
+    const priorDisposition = bearers.b1.disposition;
+    bearers.b1.disposition = 0;
+    got = await run([r1], []);
+    assert.deepEqual(got.map((g) => [g.admitted, g.engagedBy]), [[null, []]], "unsettled: null, and nobody named");
+    got = await run([r1, r2], []);
+    assert.deepEqual(got.map((g) => [g.admitted, g.engagedBy]), [[true, ["T.b2"]]], "one bearer admitting settles it for the group");
+    bearers.b1.disposition = priorDisposition;
+
+    // The other pulse's serial loop is untouched: two bearers of one kind are offered in turn and the first prompt settles the kind.
+    const m1 = holderOf("b1", ["I.m1"]);
+    const m2 = holderOf("b2", ["I.m2"]);
+    got = await run([m1, m2], []);
+    assert.deepEqual(got.map((g) => [g.item, g.engagedBy]), [["I.m1", undefined]], "E4's reaches settle on the first prompt and carry no engagedBy");
+    // Mixed on one body: each pulse keeps its own handling.
+    got = await run([m1, m2, r1, r2], []);
+    assert.deepEqual(got.map((g) => g.item), ["I.m1", "I.e1"], "the serial kind first, then one dispatch for the engaging kind");
+    assert.equal(got[1].engagedBy.length, 2);
+  } finally {
     globalThis.fromUuidSync = priorFrom;
     reach.setReachHandler(null);
     seat(false);

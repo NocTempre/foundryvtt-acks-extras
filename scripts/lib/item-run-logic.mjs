@@ -16,7 +16,7 @@ import { ITEM_RUN_ACTIVATIONS, ITEM_TYPE } from "./vocab.mjs";
 import { turnLifeStep } from "./turn-life.mjs";
 import { conditionEffectId } from "./status-effects.mjs";
 import { numOrNull } from "./util.mjs";
-import { readReach, resolveFigure } from "./aura-reach-logic.mjs";
+import { namesFigure, readReach, resolveFigure } from "./aura-reach-logic.mjs";
 
 /* -------------------------------------------- */
 /*  Reading an item                              */
@@ -107,11 +107,12 @@ export function chooseBearerToken({ carried = null, carries = () => true, canvas
 /**
  * The flags every record the runner writes carries: its source, its activation
  * (or, for a record that outlives its activation, the id of the card that wrote
- * it), its row, `dueAt` where the record ends on the world clock, and
- * `managed` (what a recall drops from a body).
+ * it), its row, `dueAt` where the record ends on the world clock, `managed`
+ * (what a recall drops from a body), and, on a record kept under a fixed id,
+ * the `cardId` and the `entryKey` that wrote it (`undoGuard` reads them).
  */
-export const recordFlags = ({ source, activationId, rowKey, dueAt = null }, extra = {}) => ({
-  [FLAG_ITEM_RUN]: { source, activationId, rowKey, ...(numOrNull(dueAt) !== null ? { dueAt: numOrNull(dueAt) } : {}) },
+export const recordFlags = ({ source, activationId, rowKey, dueAt = null, cardId = "", entryKey = "" }, extra = {}) => ({
+  [FLAG_ITEM_RUN]: { source, activationId, rowKey, ...(numOrNull(dueAt) !== null ? { dueAt: numOrNull(dueAt) } : {}), ...(cardId ? { cardId } : {}), ...(entryKey ? { entryKey } : {}) },
   managed: true,
   ...extra,
 });
@@ -126,14 +127,17 @@ export const itemCite = (item) => String(flagsOf(item, "cookbook")?.cite ?? "");
  * clock reaches it, `liftDueRecords`) or `{mark: true}` (written outside a
  * fight: it carries a turn mark, which lib's turn start lifts at the subject's
  * first initiative in a fight); with none the record stands until the
- * activation's Region goes. No core duration is written.
+ * activation's Region goes. No core duration is written. `id` keeps the record
+ * under a fixed `_id` (`lastsRecordId`), with the `cardId` and `entryKey` that
+ * wrote it.
  */
-export function conditionRecordData({ statusData, source, activationId, rowKey, life = {} }) {
+export function conditionRecordData({ statusData, source, activationId, rowKey, life = {}, id = "", cardId = "", entryKey = "" }) {
   const own = { ...(statusData.flags?.[MODULE_ID] ?? {}) };
   return {
     ...statusData,
+    ...(id ? { _id: id } : {}),
     origin: source,
-    flags: { ...(statusData.flags ?? {}), [MODULE_ID]: { ...own, ...recordFlags({ source, activationId, rowKey, dueAt: life.dueAt }, life.turnLife ? { [FLAG_TURN_LIFE]: life.turnLife } : life.mark ? { [FLAG_TURN_MARK]: { edge: "start" } } : {}) } },
+    flags: { ...(statusData.flags ?? {}), [MODULE_ID]: { ...own, ...recordFlags({ source, activationId, rowKey, dueAt: life.dueAt, cardId, entryKey }, life.turnLife ? { [FLAG_TURN_LIFE]: life.turnLife } : life.mark ? { [FLAG_TURN_MARK]: { edge: "start" } } : {}) } },
   };
 }
 
@@ -143,13 +147,15 @@ export function conditionRecordData({ statusData, source, activationId, rowKey, 
  * kind's and never the bearer's, so one pass covers every such item on the
  * field. `activationId` is the id of the card that wrote the window, never the
  * raised activation's, so lowering the item lifts the condition and leaves the
- * window. `cite` is the item's page reference.
+ * window. `cite` is the item's page reference. `id` keeps the window under a
+ * fixed `_id` (`immuneRecordId`), with the `cardId` and `entryKey` that wrote it.
  */
-export function immunityRecordData({ name, spellKey, source, activationId, rowKey, dueAt = null, cite = "" }) {
+export function immunityRecordData({ name, spellKey, source, activationId, rowKey, dueAt = null, cite = "", id = "", cardId = "", entryKey = "" }) {
   return {
+    ...(id ? { _id: id } : {}),
     name,
     origin: source,
-    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey, dueAt }), [FLAG_ROLL_MODS]: { id: spellKey, label: name, cite, sourceAlignment: null, parts: [{ on: "immune", spells: [spellKey] }] } } },
+    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey, dueAt, cardId, entryKey }), [FLAG_ROLL_MODS]: { id: spellKey, label: name, cite, sourceAlignment: null, parts: [{ on: "immune", spells: [spellKey] }] } } },
   };
 }
 
@@ -160,6 +166,35 @@ export function actionPartRecordData({ name, parts, source, activationId, rowKey
     origin: source,
     flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey }, { [FLAG_ENDS_ON]: ["attack"] }), [FLAG_ROLL_MODS]: { id: rowKey, label: name, cite, sourceAlignment: null, parts } } },
   };
+}
+
+/**
+ * The fixed `_id` of the condition a failed save of a row with `reach.lasts`
+ * writes, one per item kind: a later failure replaces it. The first condition of
+ * the row takes `itemRun:<kind>:lasts`; a row that names more takes one id each,
+ * suffixed with the condition's key, so the records never share one.
+ */
+export const lastsRecordId = (kindKey, status = "", index = 0) => conditionEffectId(index === 0 || !status ? `itemRun:${kindKey}:lasts` : `itemRun:${kindKey}:lasts:${status}`);
+
+/** The fixed `_id` of the immunity window a passed save of a row with `reach.lasts` writes, one per item kind: a later pass replaces it. */
+export const immuneRecordId = (kindKey) => conditionEffectId(`itemRun:${kindKey}:immune`);
+
+/**
+ * Which of an Undo's stored ids it may delete: an id whose record carries an
+ * `entryKey` (one kept under a fixed id, which a later entry may have replaced)
+ * only where that key is this entry's; a record with none is the entry's own and
+ * stays. `byId` maps an id to the record now on the subject.
+ *
+ * @param {string[]} ids
+ * @param {(id: string) => object|undefined} byId
+ * @param {string} entryKey
+ * @returns {string[]}
+ */
+export function undoGuard(ids, byId, entryKey) {
+  return (ids ?? []).filter((id) => {
+    const kept = runFlagOf(byId(id))?.entryKey;
+    return !kept || kept === entryKey;
+  });
 }
 
 /** The fixed `_id` of the one standing part of an item kind, so a second bearer's never stacks beside it. */
@@ -202,14 +237,18 @@ export function undoPlan(entry, existingIds) {
  * for a Judge's own item), `on` the roll kinds, `saveWhen` what the save part is narrowed to. Each is null where nothing
  * resolves; nothing stands in for a figure nobody imported or wrote.
  *
- * @returns {{radius: number|null, modifier: number|null, immunityTurns: number|null, save: string|null, on: string[], saveWhen: {when: string, magical: boolean}|null}|null} null for a row with no reach
+ * `lasts` is the turns a failed save's condition holds, and `lastsNamed` whether
+ * the row names that figure at all, resolved or not: a row that names one is
+ * timed, and a blank figure on it is a blank, never the other kind of row.
+ *
+ * @returns {{radius: number|null, modifier: number|null, immunityTurns: number|null, lasts: number|null, lastsNamed: boolean, save: string|null, on: string[], saveWhen: {when: string, magical: boolean}|null}|null} null for a row with no reach
  */
 export function reachFigures(row, read) {
   const reach = readReach(row?.reach);
   if (!reach) return null;
   const num = (ref) => numOrNull(resolveFigure(ref, read));
   const saveName = resolveFigure(reach.save, read) ?? row?.target;
-  return { radius: num(reach.radius), modifier: num(reach.modifier), immunityTurns: num(reach.immunity), save: saveName ? String(saveName) : null, on: reach.on, saveWhen: reach.saveWhen };
+  return { radius: num(reach.radius), modifier: num(reach.modifier), immunityTurns: num(reach.immunity), lasts: num(reach.lasts), lastsNamed: namesFigure(reach.lasts), save: saveName ? String(saveName) : null, on: reach.on, saveWhen: reach.saveWhen };
 }
 
 /**
@@ -308,9 +347,11 @@ export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?
  * A subject that is `waiting` (listed, its moment not come) is pressed only where
  * `world.judge` (`judgeDeclares(requestUserId)`) holds, and it goes through as an
  * `early` press; any other seat is
- * refused `waiting`. An entry the card no longer holds is `struck`.
+ * refused `waiting`. An entry the card no longer holds is `struck`. A row that
+ * names `reach.lasts` and holds no figure for it (`world.blankLasts`) refuses a
+ * press from any seat but the Judge's own, which writes the condition untimed.
  *
- * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string, waiting?: boolean, judge?: boolean, struck?: boolean}} world
+ * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string, waiting?: boolean, judge?: boolean, struck?: boolean, blankLasts?: boolean}} world
  * @returns {{ok: true, total: number, target: number, saved: boolean, early: boolean}|{ok: false, reason: string}}
  */
 export function checkPressRequest(req, world) {
@@ -321,6 +362,7 @@ export function checkPressRequest(req, world) {
   if (world.waiting && world.judge !== true) return { ok: false, reason: "waiting" };
 
   if (world.entryState && world.entryState !== "open") return { ok: false, reason: "applied" };
+  if (world.blankLasts === true && world.judge !== true) return { ok: false, reason: "noFigure" };
   const target = numOrNull(world.target);
   if (target === null) return { ok: false, reason: "noFigure" };
   if (numOrNull(req?.target) !== target) return { ok: false, reason: "figure" };

@@ -92,14 +92,30 @@ export function readSaveWhen(raw) {
 }
 
 /**
- * A row's stored `reach` as `{radius, save, immunity, modifier, on, filter,
- * pulse, showReach, saveWhen}`, or null for a row with none or one whose pulse
- * is no `REACH_PULSES` key (it acts on nothing). `radius`, `save`, `immunity`
- * and `modifier` are figure references (`resolveFigure` reads each), null where
- * absent; `on` is the reach's own list of rolls the modifier rides on
- * (`REACH_ON`: the `ROLL_MODS_ON` keys and `morale`), any other word dropped;
- * `showReach` is true only where the Region is shown to everyone; `saveWhen` is
- * what the save part is narrowed to (`readSaveWhen`).
+ * Whether a figure reference names a figure: its own `value`, or the whole
+ * address of a registered table's figure. A reference a cleaned schema left
+ * empty names none, so a row whose import wrote no figure reads as having none.
+ * Whether the figure resolves to anything is `resolveFigure`'s question.
+ */
+export function namesFigure(ref) {
+  if (!ref || typeof ref !== "object") return false;
+  const own = typeof ref.value === "string" ? ref.value.trim() : ref.value;
+  if (own !== undefined && own !== null && own !== "") return true;
+  return !!(ref.doc && ref.table && ref.row && ref.figure);
+}
+
+/**
+ * A row's stored `reach` as `{radius, save, immunity, lasts, modifier, on,
+ * filter, pulse, engaged, showReach, saveWhen}`, or null for a row with none or
+ * one whose pulse is no `REACH_PULSES` key (it acts on nothing). `radius`,
+ * `save`, `immunity`, `lasts` and `modifier` are figure references
+ * (`resolveFigure` reads each), null where absent; `lasts` is how many turns a
+ * failed save's condition holds, and `namesFigure` tells a row that has one;
+ * `engaged` is true for a reach whose subjects are the bearer's engaged
+ * opponents (`engagementHolds`); `on` is the reach's own list of rolls the
+ * modifier rides on (`REACH_ON`: the `ROLL_MODS_ON` keys and `morale`), any
+ * other word dropped; `showReach` is true only where the Region is shown to
+ * everyone; `saveWhen` is what the save part is narrowed to (`readSaveWhen`).
  */
 export function readReach(raw) {
   if (!raw || typeof raw !== "object" || !(raw.pulse in REACH_PULSES)) return null;
@@ -108,6 +124,8 @@ export function readReach(raw) {
     radius: raw.radius ?? null,
     save: ref("save"),
     immunity: ref("immunity"),
+    lasts: ref("lasts"),
+    engaged: raw.engaged === true,
     modifier: ref("modifier"),
     on: words(raw.on).filter((word) => REACH_ON.includes(word)),
     filter: readFilter(raw.filter),
@@ -222,6 +240,39 @@ export function reachAdmits(bearer, subject, filter, deps = {}) {
   return verdicts.includes(null) ? null : true;
 }
 
+/**
+ * Whether a body engages another, once `reachAdmits` has said the subject is an
+ * opponent in reach: false where either side is hidden (RR p. 291) or the
+ * bearer is helpless (RR p. 509), true otherwise. Facing, a ward, flight and the
+ * optional size table are the Judge's (RR p. 291) and are not read. A false
+ * here beats whatever `reachAdmits` answered, a null included.
+ *
+ * @param {{token?: object, actor?: object}} bearer
+ * @param {{token?: object, actor?: object}} subject
+ * @param {{conditionsOf?: (actor: object) => Iterable<string>}} deps `conditionsOf(actor)` the condition ids the actor holds, implied ones included (`conditionSet`)
+ * @returns {boolean}
+ */
+export function engagementHolds(bearer, subject, { conditionsOf = () => [] } = {}) {
+  const held = (side) => new Set(conditionsOf(side?.actor) ?? []);
+  const mine = held(bearer);
+  if (mine.has("hidden") || mine.has("helpless")) return false;
+  return !held(subject).has("hidden");
+}
+
+/**
+ * One verdict from the several bearers that may engage a subject: true where
+ * any admits, else null where any could not be settled, else false. An empty
+ * list is false.
+ *
+ * @param {Array<boolean|null|undefined>} admissions each bearer's `reachAdmits` answer
+ * @returns {boolean|null}
+ */
+export function groupVerdict(admissions) {
+  const list = [...(admissions ?? [])];
+  if (list.includes(true)) return true;
+  return list.some((v) => v === null || v === undefined) ? null : false;
+}
+
 /* -------------------------------------------- */
 /*  What a moment does                           */
 /* -------------------------------------------- */
@@ -233,6 +284,7 @@ export const REACH_MOMENTS = Object.freeze(["press", "enter", "moveIn", "exit", 
 const PULSE_MOMENTS = Object.freeze({
   action: ["press"],
   "turnStart+moveIn": ["enter", "moveIn", "exit", "turnStart"],
+  "turnStart+enter": ["enter", "turnStart"],
   standing: ["enter", "exit"],
   burst: ["burst"],
 });
@@ -251,11 +303,17 @@ const PULSE_MOMENTS = Object.freeze({
  * an `exit` is `out` for whoever the filter says. A prompt happens only on
  * `moveIn` and `turnStart`.
  *
- * @param {{pulse: string, moment: string, admitted: boolean|null, immune?: boolean}} p
+ * A `turnStart+enter` reach prompts at a turn start, and on an `enter` only
+ * where `onTurn` holds: the subject is the current combatant of a started
+ * combat, so a body that walks into reach on another's turn waits for its own.
+ * Every other pulse ignores `onTurn`.
+ *
+ * @param {{pulse: string, moment: string, admitted: boolean|null, immune?: boolean, onTurn?: boolean}} p
  * @returns {"none"|"undetermined"|"skip"|"prompt"|"on"|"off"|"list"|"refuse"|"out"}
  */
-export function pulseAct({ pulse, moment, admitted, immune = false } = {}) {
+export function pulseAct({ pulse, moment, admitted, immune = false, onTurn = false } = {}) {
   if (!(PULSE_MOMENTS[pulse] ?? []).includes(moment)) return "none";
+  if (pulse === "turnStart+enter" && moment === "enter" && onTurn !== true) return "none";
   if (pulse === "standing" && moment === "exit") return "off";
   if (pulse === "turnStart+moveIn" && moment === "exit") return "out";
   if (pulse === "turnStart+moveIn" && moment === "enter") {

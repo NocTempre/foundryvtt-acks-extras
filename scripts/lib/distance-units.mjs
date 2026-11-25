@@ -26,6 +26,23 @@ export const DISTANCE_UNITS = Object.freeze({
 });
 
 /**
+ * What one battle-grid square is worth in feet (MM p. 11, Monster Size). It is
+ * the unit of measure the frontage cells are written in, and the square an
+ * engaged opponent stands in (`engagementFeet`), stated here and not imported.
+ * The ruling is in `docs/battlemap/DECISIONS.md`, and where it sits in
+ * `docs/lib/DECISIONS.md`.
+ */
+export const SQUARE_FEET = 5;
+
+/**
+ * How far an engaged opponent is, in FEET: the adjacent square of the battle
+ * map (RR p. 288 sizes that square from it; RR p. 291 prints engagement and
+ * p. 509 restates it). It is `SQUARE_FEET`, stated in source and never imported.
+ * Facing, wards, flight and the optional size table are the Judge's (RR p. 291).
+ */
+export const engagementFeet = () => SQUARE_FEET;
+
+/**
  * The table key a written unit names, or null when nothing matches. Matching
  * folds case and punctuation, so "Ft.", "feet" and "FEET" are one unit.
  */

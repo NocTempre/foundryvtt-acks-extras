@@ -28,8 +28,8 @@ import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseRe
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
-  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
-  standingPartId, standingPartRecordData, undoPlan,
+  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
+  standingPartId, standingPartRecordData, undoGuard, undoPlan,
 } from "./item-run-logic.mjs";
 import { admittedWithCount, freshKey, patchCountIn, patchOut, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
@@ -338,11 +338,14 @@ async function pressHere(payload) {
     const actor = subjectToken?.actor ?? null;
     const spec = actor && row ? saveSpecOf(actor, row) : null;
     const key = asked || (waiting ? freshKey(card.entries, safeKey(momentKey({ ...fightNow(), subjectUuid, kindKey: kindKeyOf(item, row) }) ?? subKey)) : subKey);
+    const figures = row ? reachFigures(row) : null;
+    const timed = figures?.lastsNamed === true;
     const verdict = checkPressRequest(
       { requestUserId, total, target },
       {
         item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting, judge: judgeDeclares(requestUserId),
         struck: card?.kind !== "once" && !!asked && !!card?.entries && !card.entries[asked],
+        blankLasts: timed && figures.lasts === null,
       },
     );
     if (!verdict.ok) return verdict;
@@ -351,7 +354,27 @@ async function pressHere(payload) {
     const records = [];
     const names = [];
     let life = "raised";
-    if (!verdict.saved) {
+    if (timed) {
+      // A row with `reach.lasts` writes under fixed ids (one condition and one window per item kind, a later entry replacing the earlier one) and both records carry the card's id and never the activation's, so lowering the reach leaves them.
+      const kindKey = kindKeyOf(item, row);
+      const cardId = card?.cardId || foundry.utils.randomID();
+      const own = { cardId, entryKey: key };
+      if (!verdict.saved) {
+        const dueAt = dueAtAfter(figures.lasts, turnSeconds(), game.time?.worldTime);
+        life = dueAt !== null ? "timed" : "raised";
+        let index = 0;
+        for (const status of row.conditions ?? []) {
+          const statusData = await statusEffectData(status);
+          names.push(statusData?.name ?? String(status));
+          records.push(conditionRecordData({ statusData, ...flags, activationId: cardId, life: dueAt !== null ? { dueAt } : {}, id: lastsRecordId(kindKey, status, index++), ...own }));
+        }
+      } else {
+        const dueAt = dueAtAfter(figures.immunityTurns, turnSeconds(), game.time?.worldTime);
+        if (dueAt !== null) records.push(immunityRecordData({ name: item.name, spellKey: kindKey, dueAt, cite: itemCite(item), ...flags, activationId: cardId, id: immuneRecordId(kindKey), ...own }));
+      }
+      const earlier = records.map((r) => r._id).filter((id) => actor.effects?.get?.(id));
+      if (earlier.length) await actor.deleteEmbeddedDocuments("ActiveEffect", earlier, managedDelete());
+    } else if (!verdict.saved) {
       const lifeFor = lifeOf(subjectToken);
       life = lifeFor.turnLife ? "turn" : "mark";
       for (const status of row.conditions ?? []) {
@@ -363,7 +386,7 @@ async function pressHere(payload) {
       const dueAt = dueAtAfter(reachFigures(row)?.immunityTurns, turnSeconds(), game.time?.worldTime);
       if (dueAt !== null) records.push(immunityRecordData({ name: item.name, spellKey: kindKeyOf(item, row), dueAt, cite: itemCite(item), ...flags, activationId: card?.cardId || foundry.utils.randomID() }));
     }
-    const made = records.length ? await actor.createEmbeddedDocuments("ActiveEffect", records) : [];
+    const made = !records.length ? [] : timed ? await actor.createEmbeddedDocuments("ActiveEffect", records, { keepId: true }) : await actor.createEmbeddedDocuments("ActiveEffect", records);
     const prior = card?.entries?.[key] ?? {};
     const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
@@ -413,6 +436,8 @@ export async function pressRoll(p) {
   const actor = subjectOf(p.subject)?.actor;
   const name = saveNameOf(row);
   if (!actor || !name) return { ok: false, reason: "noFigure" };
+  const figures = reachFigures(row);
+  if (figures?.lastsNamed === true && figures.lasts === null && !judgeDeclares()) return { ok: false, reason: "noFigure" };
   const thrown = await saveThrow(actor, name);
   if (thrown.target === null) return { ok: false, reason: "noFigure" };
   const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", entryKey: p.entryKey ?? "", total: thrown.total, target: thrown.target };
@@ -426,13 +451,18 @@ export async function pressRoll(p) {
  * row stored that still exist on the subject, passing `managedDelete()`. The
  * Region, the activation's state and the item's quantity are never touched.
  *
- * @param {{subject: string, entry: {recordIds?: string[]}}} p
+ * A record kept under a fixed id (`reach.lasts`) is deleted only while the
+ * `entryKey` it carries is this entry's: a later entry may have replaced it.
+ *
+ * @param {{subject: string, entry: {recordIds?: string[]}, entryKey?: string}} p
  * @returns {Promise<{ok: boolean, removed: string[]}>}
  */
-export async function undoEntry({ subject, entry }) {
+export async function undoEntry({ subject, entry, entryKey }) {
   const actor = subjectOf(subject)?.actor;
   if (!actor) return { ok: false, removed: [] };
-  const { ids } = undoPlan(entry, [...actor.effects].map((e) => e.id));
+  const present = new Map([...actor.effects].map((e) => [e.id, e]));
+  const planned = undoPlan(entry, [...present.keys()]).ids;
+  const ids = entryKey === undefined ? planned : undoGuard(planned, (id) => present.get(id), entryKey);
   if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
   return { ok: true, removed: ids };
 }
@@ -452,7 +482,7 @@ async function undoHere({ messageId, entryKey, requestUserId = null }) {
   const user = requestUserId ? game.users.get(requestUserId) : game.user;
   if (!mayUndoEntry(entry, user?.id, ownerIdsOf(subjectOf(entry.subject)))) return { ok: false, reason: "notOwner" };
   if (entry.state !== "applied") return { ok: false, reason: "applied" };
-  const done = await undoEntry({ subject: entry.subject, entry });
+  const done = await undoEntry({ subject: entry.subject, entry, entryKey });
   if (!done.ok) return { ok: false, reason: "gone" };
   await serialized(messageId, () => patchCard(message, { [`entries.${entryKey}.state`]: "undone", [`entries.${entryKey}.recordIds`]: [] }));
   await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "undone" }, undone: true, early: false });
@@ -679,13 +709,14 @@ export async function tickBearer(p) {
  * item kind and initiative; a prompt already held is answered `held`. Answers
  * the act taken, or null where there was none.
  */
-export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region }) {
+export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region, engagedBy = null }) {
   const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
   const undecided = admitted === null || admitted === undefined;
   const { card } = cardOfActivation(config.activationId);
   const verdict = undecided ? admittedWithCount(admitted, card, subject.token?.uuid) : admitted;
   const counted = undecided && verdict === true;
-  const act = pulseAct({ pulse: reach.pulse, moment, admitted: verdict, immune });
+  const onTurn = !!game.combat?.started && !!subject.token?.id && game.combat.combatant?.tokenId === subject.token.id;
+  const act = pulseAct({ pulse: reach.pulse, moment, admitted: verdict, immune, onTurn });
   if (act === "none" || !subject.actor) return null;
   if (act === "refuse" && isMarkerActor(subject.actor)) return null;
   if (act === "on" || act === "off") {
@@ -696,7 +727,7 @@ export async function handleReachMoment({ moment, config, item, row, reach, subj
     if (cardAct) await presenter?.({ ok: true, kind: "reach", act: cardAct, moment, config, rowKey: row.key, item, subject });
     return act;
   }
-  const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject };
+  const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject, ...(engagedBy ? { engagedBy } : {}) };
   if (act === "prompt") {
     const key = momentKey({ ...fightNow(), subjectUuid: subject.token?.uuid, kindKey: kindKeyOf(item, row) });
     if (!holdReachMoment(key, currentStamp())) return "held";

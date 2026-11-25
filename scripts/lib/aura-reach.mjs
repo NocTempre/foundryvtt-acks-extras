@@ -29,7 +29,7 @@
  * config and does nothing.
  */
 import { AURA_BEHAVIOR_TYPE, BEARER_DOWN_HOOK, MODULE_ID, LANG_PREFIX, TURN_BEGAN_HOOK } from "./constants.mjs";
-import { carriesItem, checkRaise, downCause, figureNumber, groupByKind, holdMoment, pruneMoments, readAuraConfig, readReach, reachAdmits, releaseMoment, snapshotRegionData, turnStamp } from "./aura-reach-logic.mjs";
+import { carriesItem, checkRaise, downCause, engagementHolds, figureNumber, groupByKind, groupVerdict, holdMoment, pruneMoments, readAuraConfig, readReach, reachAdmits, releaseMoment, snapshotRegionData, turnStamp } from "./aura-reach-logic.mjs";
 import { itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import { executeAsGM, registerHandler } from "./sockets.mjs";
@@ -37,6 +37,7 @@ import { tokenHasStatus, tokenHitPoints } from "./hp-logic.mjs";
 import { STATUS_DEAD } from "./status-effects.mjs";
 import { isPrimaryGM, makeLoc } from "./util.mjs";
 import { isMarkerActor } from "./place.mjs";
+import { conditionSet } from "./conditions.mjs";
 import { feetToUnits } from "./distance-units.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
@@ -171,6 +172,21 @@ const bodyOf = (token) => ({ token, actor: token?.actor ?? null });
  * @returns {Promise<*>} what the handler answered (the act it took), or null where nothing was handed on or the handler threw
  */
 export async function dispatchReachMoment(system, moment, subjectToken) {
+  const context = reachContext(system, subjectToken);
+  return context ? handOn(moment, context) : null;
+}
+
+/** The condition ids an actor holds, what it implies included: the reader `engagementHolds` takes. */
+const conditionsOfActor = (actor) => conditionSet(actor?.statuses ?? []);
+
+/**
+ * What a moment of one subject against one `aura` behavior hands the handler,
+ * `{config, item, row, reach, bearer, subject, admitted, region}`, or null where
+ * the behavior's config is empty, its source or row or reach is gone, or the
+ * bearer's token is. A `turnStart+enter` reach's `admitted` is false wherever
+ * `engagementHolds` says so, which beats the filter's answer.
+ */
+function reachContext(system, subjectToken) {
   const config = readAuraConfig(system);
   if (!config || !subjectToken || !momentHandler) return null;
   const region = system?.region ?? system?.parent?.region ?? null;
@@ -182,13 +198,26 @@ export async function dispatchReachMoment(system, moment, subjectToken) {
   if (!bearerToken) return null;
   const bearer = bodyOf(bearerToken);
   const subject = bodyOf(subjectToken);
-  const admitted = reachAdmits(bearer, subject, reach.filter, { isMarker: isMarkerActor });
+  let admitted = reachAdmits(bearer, subject, reach.filter, { isMarker: isMarkerActor });
+  if (reach.pulse === ENGAGING_PULSE && !engagementHolds(bearer, subject, { conditionsOf: conditionsOfActor })) admitted = false;
+  return { config, item, row, reach, bearer, subject, admitted, region };
+}
+
+/** Hand a moment's context to the registered handler; its answer, or null where it threw. */
+async function handOn(moment, context) {
   try {
-    return await momentHandler({ moment, config, item, row, reach, bearer, subject, admitted, region });
+    return await momentHandler({ moment, ...context });
   } catch (err) {
     console.error(`${MODULE_ID} | a reach's ${moment} could not be run`, err);
     return null;
   }
+}
+
+/** The pulse of the row a behavior's config names, "" where the item, row or reach is gone. */
+function pulseOfBehavior(behavior) {
+  const config = readAuraConfig(behavior?.system);
+  const item = config ? fromUuidSync(config.sourceUuid) : null;
+  return readReach(itemRunRowsOf(item).find((r) => r?.key === config?.rowKey)?.reach)?.pulse ?? "";
 }
 
 /** The kind key of the item a behavior's config names, "" where the item or row is gone. */
@@ -221,11 +250,17 @@ function attachedCounting(token) {
 /** The acts that settle a kind for a subject at a turn start: it was asked, holds an immunity, or was already asked. */
 const SETTLES = new Set(["prompt", "skip", "held"]);
 
+/** The pulse whose reaches of one kind are settled together at a turn start (`groupVerdict`) instead of one after another. */
+const ENGAGING_PULSE = "turnStart+enter";
+
 /**
  * A turn began: the keys held for another initiative are pruned, then every
  * reach the combatant's token stands in, and its own attached reach where its
  * filter counts the bearer, hears it. A subject is asked once per item kind:
  * the reaches of one kind are offered in the order met until one settles it.
+ * The reaches of the `turnStart+enter` pulse are not offered in turn: each kind
+ * is settled once from every bearer's answer (`groupVerdict`), and the one
+ * dispatch carries `engagedBy`, the token uuids of the bearers that admit.
  */
 async function onTurnBegan(combat, combatantId) {
   if (!isPrimaryGM()) return;
@@ -234,10 +269,18 @@ async function onTurnBegan(combat, combatantId) {
   if (!token) return;
   const heard = behaviorsUnder(token, AURA_BEHAVIOR_TYPE);
   for (const own of attachedCounting(token)) if (!heard.some((h) => h.behavior === own.behavior)) heard.push(own);
-  for (const group of groupByKind(heard, ({ behavior }) => kindOfBehavior(behavior))) {
+  const engaging = heard.filter(({ behavior }) => pulseOfBehavior(behavior) === ENGAGING_PULSE);
+  for (const group of groupByKind(heard.filter((h) => !engaging.includes(h)), ({ behavior }) => kindOfBehavior(behavior))) {
     for (const { behavior } of group) {
       if (SETTLES.has(await dispatchReachMoment(behavior.system, "turnStart", token))) break;
     }
+  }
+  for (const group of groupByKind(engaging, ({ behavior }) => kindOfBehavior(behavior))) {
+    const contexts = group.map(({ behavior }) => reachContext(behavior.system, token)).filter(Boolean);
+    if (!contexts.length) continue;
+    const lead = contexts.find((c) => c.admitted === true) ?? contexts.find((c) => c.admitted === null || c.admitted === undefined) ?? contexts[0];
+    const engagedBy = contexts.filter((c) => c.admitted === true).map((c) => c.bearer.token.uuid);
+    await handOn("turnStart", { ...lead, admitted: groupVerdict(contexts.map((c) => c.admitted)), engagedBy });
   }
 }
 
