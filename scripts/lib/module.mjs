@@ -132,7 +132,7 @@ import * as auraReach from "./aura-reach.mjs";
 import * as auraReachLogic from "./aura-reach-logic.mjs";
 import * as itemRun from "./item-run.mjs";
 import { installItemRunPresenter } from "./item-run-presenter.mjs";
-import { installItemRunStrip } from "./item-run-strip.mjs";
+import { installItemRunStrip, reachStripFor } from "./item-run-strip.mjs";
 import * as itemRunLogic from "./item-run-logic.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
@@ -581,6 +581,9 @@ const localImpl = Object.freeze({
     setFuseBurst: itemRun.setFuseBurst,
     pressRoll: itemRun.pressRoll,
     undoEntry: itemRun.undoEntry,
+    untickBearer: itemRun.untickBearer,
+    tickSubject: itemRun.tickSubject,
+    reachStrip: reachStripFor,
     rowsOf: itemRunLogic.itemRunRowsOf,
     logic: itemRunLogic,
   },
