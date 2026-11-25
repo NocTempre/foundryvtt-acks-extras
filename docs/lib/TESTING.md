@@ -4487,3 +4487,29 @@ The faction's own sheet drawing the joined group's tree is S12's.
 8. A spell, an ability with no activation and an unflagged item still act as before (the system's card; the cast engine for a spell).
 
 Teardown: `api.sweepTracked()`.
+
+## A Player's welcome-version write
+
+Covers `patches/welcome-version.mjs`. The walk needs both seats at once, the GM's and a
+real Player's, and it only shows anything while the stored welcome version is older than
+the running system version. A GM reload during the walk ends that window, so the Player's
+reload comes before any reload of the GM's.
+
+**Fixtures.** None. The subject is the world setting `acks.welcomeMessageVersion`.
+
+### Steps
+
+1. GM seat. Read `game.settings.get("acks", "welcomeMessageVersion")`; where it is not
+   "14.1.0", set it, `await game.settings.set("acks", "welcomeMessageVersion", "14.1.0")`.
+   A GM reload rewrites it to the current version and the world is shared, so the value
+   is asserted at the start of every walk and not trusted from the last.
+2. Player seat, a real one, with its console recorder attached before the page loads
+   (a recorder attached after `ready` saw none of `init`, `setup` or `ready`). Reload it.
+   *Observables:* the welcome dialog shows; the console holds no "lacks permission" line
+   naming the setting; and `game.settings.get("acks", "welcomeMessageVersion")` on the
+   Player's seat still reads "14.1.0".
+3. GM seat, without reloading it: read the setting again. *Observable:* "14.1.0", the
+   value the Player's load left alone.
+4. Teardown. The GM's next reload restores the current version; there is nothing else to
+   remove. A walk started after that reload shows no dialog on the Player's seat, so it
+   begins again from step 1.

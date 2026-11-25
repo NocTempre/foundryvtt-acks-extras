@@ -466,3 +466,13 @@ corrects the first and returns the write for the second. Delete the patch, its i
 `scripts/lib/module.mjs`, its README row and `tools/test-group-initiative.mjs` once the
 system minimum names a release that carries both fixes. `groupGangs` keeps its await. Re-walk the group-initiative recipe of
 `docs/lib/TESTING.md` without it.
+
+## The system's welcome-version write
+
+`displayWelcomeMessage` stores the system version in the world setting
+`acks.welcomeMessageVersion` from every seat, and a Player's write is refused.
+`scripts/lib/patches/welcome-version.mjs` answers it from a seat without the
+settings permission. Delete the patch, its install in `scripts/lib/module.mjs`, its
+README row and `tools/test-welcome-version.mjs` once the system minimum names a release
+that guards its own write, and re-walk the welcome-version recipe of
+`docs/lib/TESTING.md` without it.

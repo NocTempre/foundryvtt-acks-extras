@@ -1965,6 +1965,35 @@ combat") reports. `groupGangs` awaits the call and polls the stored list after i
 The ruling is in docs/lib/DECISIONS.md, and the row that retires the patch is in
 docs/lib/ROADMAP.md.
 
+## A Player's welcome-version write is not sent
+
+`scripts/lib/patches/welcome-version.mjs` is the one wrapper on Foundry's
+`ClientSettings#set`; no other patch in the family wraps it. It is installed at
+`init`, since the system's `ready` handler makes the call it answers.
+
+The system's `displayWelcomeMessage` stores `game.system.version` in the world
+setting `acks.welcomeMessageVersion` on every seat whose stored value is absent or
+older, unawaited, and then shows the welcome dialog. Foundry refuses a world
+setting's write from a user without `SETTINGS_MODIFY`, so a Player's write ends
+in "lacks permission" in that seat's console. The window lasts from a system update
+until a user allowed to modify settings has loaded the world.
+
+The wrapper matches one call: namespace `acks`, key `welcomeMessageVersion`, and
+`game.user` without `SETTINGS_MODIFY`, read when the call is made and never held.
+On a match it does not call Foundry's method: it sends no request and relays nothing
+through a Judge's client or a socket, and it returns a promise for what `set` would
+return, `this.get` of the same setting with the options' `document` flag, which is
+the stored value or its Setting document. The permission covers the update of a
+stored setting and the create of one not stored yet alike. Every other call, and the
+same call from a seat with the permission, reaches Foundry's method unchanged.
+
+A Player sees the welcome dialog on each load until a user allowed to modify settings
+has loaded the world on that version, and nothing is logged. The wrapper uses
+Foundry's own check and adds no permission. Once the system guards its own write, no
+seat without the permission reaches the match and the wrapper never fires. It adds
+nothing to the lib API. The ruling is in docs/lib/DECISIONS.md, the row that retires
+it is in docs/lib/ROADMAP.md, and the live recipe is in docs/lib/TESTING.md.
+
 ## The roll dialog
 
 `scripts/lib/roll-dialog.mjs` is the one dialog a roll this module makes asks

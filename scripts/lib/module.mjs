@@ -120,6 +120,7 @@ import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
 import { installCompendiumEmptyLoadPatch } from "./patches/compendium-empty-load.mjs";
 import { installWeaponAlternatePatch } from "./patches/weapon-alternate.mjs";
+import { installWelcomeVersionPatch } from "./patches/welcome-version.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "./patches/spell-use.mjs";
 import { addItemUseClaimant, installItemUsePatch, removeItemUseClaimant } from "./patches/item-use.mjs";
 import * as auraReach from "./aura-reach.mjs";
@@ -647,6 +648,8 @@ Hooks.once("init", () => {
   installCompendiumEmptyLoadPatch();
   // Before any weapon is built from a record that states no alternate.
   installWeaponAlternatePatch();
+  // Before the system's ready handler stores its welcome version.
+  installWelcomeVersionPatch();
   installSpellUsePatch();
   // The seam on `Item#use`, with the carrier its one claimant, and the reach's behavior type.
   installItemUsePatch();

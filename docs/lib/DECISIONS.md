@@ -1943,3 +1943,48 @@ and a replacement of the method could never stand down. **Cost:** the module rea
 group list and the combatants' initiative values to correct a write, and a system release that
 changes the stored shape of a group (the `tokens` array or `initiativeBonus`) is passed through
 uncorrected.
+
+## 2026-11-25 — A seat without the settings permission does not send the system's welcome-version write
+
+Ruled by the owner's words on a defect found in the `acks` system: "patch and
+include found fixes with the issue reports". The module patches each system defect
+for its own users now, and the upstream report carries the same fix. For this
+defect: `patches/welcome-version.mjs` wraps `ClientSettings#set` and answers the
+system's write of `acks.welcomeMessageVersion` from a seat without
+`SETTINGS_MODIFY` with the stored value, and the report to the system carries the
+fix of guarding that write. The release hub relayed the owner's 2026-11-25 ruling
+as the condition of this patch: "follow foundry permissions, don't invent new ones".
+
+**Ruled.** One MIXED wrap (libWrapper `foundry.helpers.ClientSettings.prototype.set`,
+with the prototype-assign fallback), installed in lib's `init` beside the other
+patches, since the system's `ready` handler makes the call. It matches exactly
+namespace `acks`, key `welcomeMessageVersion` and `!game.user?.can("SETTINGS_MODIFY")`,
+the check the server applies to a world setting, read at call time. On a match it skips
+Foundry's method, sends nothing and relays nothing, through no Judge's client and no
+socket, and returns a promise for `this.get(namespace, key, {document})`. Every other
+call passes unchanged. The file is the one owner of `ClientSettings#set`. A missing
+class warns once at `init` and stands down; the patch never throws there.
+
+**Retired by.** The system's minimum reaching a release that guards its own write. No
+seat without the permission then reaches the match, and `docs/lib/ROADMAP.md` carries
+the row that deletes the patch.
+
+**Rejected.**
+- A `preUpdateSetting` hook. It covers only the update of a stored setting, and on the
+  create path a veto turns the refusal into a TypeError: `set` reads `.value` of what
+  `Setting.implementation.create` returns.
+- A silencer for the rejection. The request still goes out, and it matches on error text.
+- Rescoping the setting or rewriting the system's local copy of it. It invents behaviour
+  and hides the welcome dialog.
+- Relaying the write through a Gamemaster. It invents a permission the Player was never
+  given.
+
+**Strongest counter, MODERATE.** The wrap claims Foundry's settings API to silence a
+console line that goes away at the first Gamemaster load, and a hook alone would cover
+the realistic case, a stored setting. Held because the hook leaves the create path, and
+because lib's compendium-empty-load entry already accepted the same kind of exact-match
+wrap on a Foundry method.
+
+**Cost.** The Player's welcome dialog shows on each load until a user allowed to modify
+settings has loaded the world on the new version; nothing remembers it for the Player.
+The change is walked live in `docs/lib/TESTING.md`, "A Player's welcome-version write".
