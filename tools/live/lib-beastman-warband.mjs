@@ -204,6 +204,40 @@ const P = {
     };
   },
 
+  /** The open Roll panel's two readings: the labels of what it will make, the silent choices, and its slots; and what the world's chat and Actors tab hold. */
+  panel: async () => {
+    const dlg = [...document.querySelectorAll("dialog.application, .application.dialog-v2")].at(-1);
+    return {
+      open: !!dlg,
+      choices: [...(dlg?.querySelectorAll('[name^="choice-"]') ?? [])].map((el) => el.name),
+      make: [...(dlg?.querySelectorAll(".acks-lib-roll-make li") ?? [])].map((li) => li.textContent.trim().replace(/\s+/g, " ")),
+      tips: [...(dlg?.querySelectorAll(".acks-lib-roll-make li") ?? [])].filter((li) => li.dataset.tooltipText).length,
+      slots: [...(dlg?.querySelectorAll("[data-slot]") ?? [])].map((el) => el.dataset.slot),
+      troopHidden: [...(dlg?.querySelectorAll("[name^='troop-']") ?? [])].every((el) => el.hidden),
+      actors: game.actors.size,
+      chat: game.messages.size,
+    };
+  },
+
+  /** Set a field of the open dialog and fire its change, as a hand does. */
+  setField: async ({ name, value }) => {
+    const dlg = [...document.querySelectorAll("dialog.application, .application.dialog-v2")].at(-1);
+    const el = dlg?.querySelector(`[name="${name}"]`);
+    if (!el) return false;
+    if (el.type === "checkbox") el.checked = !!value;
+    else el.value = value;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 600));
+    return true;
+  },
+
+  closeDialog: async () => {
+    const dlg = [...document.querySelectorAll("dialog.application, .application.dialog-v2")].at(-1);
+    dlg?.querySelector('[data-action="cancel"], .header-control[data-action="close"]')?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    return true;
+  },
+
   /** Close the sheet and open a fresh one at a width, so nothing measured is an old window's. */
   reopen: async ({ id, width, tab }) => {
     const actor = game.actors.get(id);
@@ -293,6 +327,24 @@ try {
     check("rows beneath it are filled by the same press", after.units.filter((r) => r.holderUuid).length >= 1, after.units.length);
     before = after;
   } else note("not walked", "no family template carries an encounter line in this world: Generate, Roll and Remove need the import");
+
+  section("the Roll panel's two readings, and Design by selection");
+  if (census.template) {
+    await run(gm, P.host, { id: fid, template: census.template, tab: "orgChart" });
+    await run(gm, P.press, { id: fid, action: "orgRollAll", wait: 700 });
+    const panel = await run(gm, P.panel, null);
+    check("Roll at random opens a panel that lists what the roll will make, each row with a provenance tooltip", panel.open && panel.make.length > 0 && panel.tips === panel.make.length, { make: panel.make.length, tips: panel.tips });
+    note("where the page is silent: the choices this variant reaches", panel.choices);
+    const state = await run(gm, P.setField, { name: "state", value: "lair" });
+    const again = await run(gm, P.panel, null);
+    check("changing the state redraws the readings, and nothing was rolled or made to draw them", state && again.actors === panel.actors && again.chat === panel.chat, { actors: [panel.actors, again.actors], chat: [panel.chat, again.chat] });
+    await run(gm, P.closeDialog, null);
+    await run(gm, P.press, { id: fid, action: "orgAddWarband", wait: 500 });
+    await run(gm, P.press, { id: fid, action: "orgDesign", wait: 700 });
+    const design = await run(gm, P.panel, null);
+    check("Design by selection opens the panel with a slot for each empty unit below the top, and no troop select shown until the troops rule and the special share both stand", design.open && design.slots.length >= 0 && design.troopHidden, design.slots);
+    await run(gm, P.closeDialog, null);
+  } else note("not walked", "no family template carries an encounter line in this world");
 
   section("generate a village on a root group, then roll it");
   if (census.template) {

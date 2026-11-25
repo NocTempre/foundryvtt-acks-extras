@@ -305,7 +305,7 @@ export function planUnlist({ rows, key } = {}) {
  * @param {{uuid: string}} args.host
  * @param {object[]} args.rows
  * @param {string} args.key the row
- * @param {{label?: string, notes?: string, kind?: string, hidden?: boolean}} [args.fields]
+ * @param {{label?: string, notes?: string, kind?: string, hidden?: boolean, gen?: object}} [args.fields] `gen` is a patch of the row's own record: a blank value removes the key
  * @param {{stack: string, count?: number, prototype?: string}[]} [args.stacks]
  * @param {{officer: string, moraleBonus?: number|null}} [args.officer]
  * @param {boolean} [args.onMap] a body of the row's group stands on a map
@@ -319,6 +319,14 @@ export function planEdit({ host, rows, key, fields = {}, stacks = [], officer = 
   const ops = [];
   const changes = {};
   for (const f of ["label", "notes", "kind", "hidden"]) if (f in fields && fields[f] !== row[f]) changes[f] = fields[f];
+  if (fields.gen && typeof fields.gen === "object") {
+    const next = { ...(row.gen ?? {}) };
+    for (const [k, v] of Object.entries(fields.gen)) {
+      if (v === "" || v === null || v === undefined) delete next[k];
+      else next[k] = v;
+    }
+    if (JSON.stringify(next) !== JSON.stringify(row.gen ?? {})) changes.gen = next;
+  }
   if (Object.keys(changes).length) {
     ops.push({ op: "update", uuid: host.uuid, update: { "system.units": list.map((r) => (r.key === key ? { ...r, ...changes } : r)) } });
   }

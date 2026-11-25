@@ -1,0 +1,23 @@
+{{!-- Roll panel's two readings: where the page is silent, and what the roll will make. Redrawn when the variant,
+      the place, the state or a rule changes. Nothing here is rolled. --}}
+<section data-org-sections>
+  {{#if choices.length}}
+  <fieldset>
+    <legend>{{localize "ACKS-LIB.org.roll.silent"}}</legend>
+    {{#each choices}}
+      <label data-tooltip-text="{{tip}}">{{label}}
+        <select name="choice-{{name}}">{{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+      </label>
+    {{/each}}
+  </fieldset>
+  {{/if}}
+  {{#if make}}
+  <fieldset>
+    <legend>{{localize "ACKS-LIB.org.roll.willMake"}}</legend>
+    <ul class="acks-lib-roll-make">
+      {{#if make.line}}<li data-tooltip-text="{{make.line.tip}}">{{make.line.text}}</li>{{/if}}
+      {{#each make.rows}}<li data-tooltip-text="{{tip}}"><span>{{label}}</span> <span class="acks-lib-roll-make__formula">{{formula}}</span>{{#if chance}} <span class="cite">{{chance}}</span>{{/if}}</li>{{/each}}
+    </ul>
+  </fieldset>
+  {{/if}}
+</section>

@@ -4621,6 +4621,20 @@ active GM; read `game.users.activeGM` in the same call as a measure.
 3. **Roll one card** — press Roll on the empty top card; answer the panel (variant first). *Observable:*
    the row's `holderUuid` is written at once (nothing to save), rows beneath it hold groups too, and
    the Judges' card is whispered. **Roll at random** fills every empty card the same way.
+**The Roll panel's two readings (board 1a).** Press Roll at random (a card's Roll on a chart with no variant yet opens
+the same panel). *Observable:* between Optional rules and the buttons, **Where the page is silent** lists the choices the
+picked variant can reach (a rounding, the two choices of a split, each branch group of the line), each a select preset to
+what the evaluator takes, and **This roll will make** lists the line read for the place and state, then each part with its
+die expression, its chance and a tooltip carrying its page reference; **no number is thrown to draw it** (the Actors tab
+and the world's chat are unchanged until Roll is pressed). Change the variant, Found in, State or a rule: both sections
+redraw to that pick's figures. Roll is never held waiting on a choice.
+
+**Design by selection (board 1b).** Press **Design by selection** in the tools strip (drawn only while an empty card has a
+family to roll). *Observable:* the same panel with a **Units** fieldset: a row for each empty card below the top with a
+share select and a die; a troop select appears for a unit only while Optional rules → Special troops is on and its share
+is the special one (the one case a troop pick is read). Pick a share on a unit and press OK: the unit's row `gen`
+holds `shareKind` (and `troop`) before the Roll, and the filled unit takes the share. The unit's die rolls that row alone
+with all below it and removes the slot; the other units stay empty. A pick left on "Rolled" writes no key.
 4. **Edit** — press the pen on a filled card: the card turns to a form (troop select with off-the-bands
    types marked, bodies, Champion, Remove, Done); change the bodies, press Done. *Observable:* the
    group's stack `size.initial` and `size.current` are the new figure, the card reads **set by hand** with a

@@ -15,6 +15,7 @@ import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
 import { rollOrganisation } from "./organisation-run.mjs";
 import { generateHost } from "./generate-host.mjs";
 import { orgChartService } from "./org-chart-service.mjs";
+import { orgRollService } from "./org-roll-service.mjs";
 import * as services from "../lib/services.mjs";
 import { createFullMonsterSheet, MONSTER_SHEET_TEMPLATES } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
@@ -98,6 +99,8 @@ Hooks.once("init", () => {
   services.register("template-generate", { generate: generateHost });
   // What the organisation chart asks of the generator: badges, troop options and a troop change's prototype (contract `org-chart`, docs/lib/API.md).
   services.register("org-chart", orgChartService);
+  // What the Roll panel shows before a roll: the choices a variant can reach and what a Roll will make (contract `org-roll`, docs/lib/API.md).
+  services.register("org-roll", orgRollService);
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply

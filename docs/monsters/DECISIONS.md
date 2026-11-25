@@ -475,3 +475,27 @@ ships its page number and nothing else.
   way; it is inferred from the code and is reproduced after a reload before it is fixed.
 - *Cost:* the second art op runs on every `executeEntry` of the overview, so a direct import
   of that row decodes the plate page too; a caller that skips the `art` op skips it.
+
+## 2026-11-25 — The Roll panel reads what a roll will make and where the page is silent; Design by selection maps what a Roll reads
+
+Hub rulings, whole: "BUILD in S12, through the service pattern. Both are held to the doctrine: the panel names what the Judge
+decides and what will be made, with page references, and carries no sentence of the page." And: "BUILD the mapped slots in S12
+(troop and share as the row's gen; variant, rules and choices as rollOrganisation args). The unmapped inputs ... are NOT
+rendered, since an input with nothing behind it is a bug."
+
+- **`org-roll`**, a service monsters registers (`docs/lib/API.md`), reads the family's recipe for the panel: lib never learns
+  what a part is. "This roll will make" lists the line and each part as its imported expression, chance and page reference;
+  nothing is thrown (no preview roll, the owner dropped them).
+- **Departure from board 1a, for the hub:** the board draws Generate disabled until the open choice is answered. The evaluator
+  asks nothing and defaults every choice (`DEFAULT_CHOICES`), so each select starts at the default or at what an earlier roll of
+  the chart recorded, and Roll is never held.
+- **Design by selection is the same Roll.** A unit's share and troop are written to its empty row's `gen` through `org.editRow`
+  (`planEdit` takes a `gen` patch), which `rollOrganisation` already reads as `inherit`; variant, rules and choices are its own
+  arguments; a slot's die is a Roll of that one row. A troop select is offered only where the troops rule is on and the
+  unit's share is the special one, since the evaluator reads the pick under no other condition.
+- **Not rendered, with what each would need (for the owner):** a per-unit trait (the Roll reads a trait for the unit that holds
+  units only through `inherit.trait`, written by an ancestor's roll: a slot needs the evaluator to honour a trait on a unit it
+  rolls itself); the village row (a `villageSource` per row, today one for the roll); guard, caster and dependant counts (no
+  `inherit` field carries a count: each needs the evaluator to take a count override per part); bodies typed on an empty row (a
+  `count` in `inherit`; a count is set by hand on a filled row, Edit); 1b's Build (a Roll writes at once, there is nothing to
+  build).

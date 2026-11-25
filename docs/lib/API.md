@@ -389,6 +389,16 @@ Provider: monsters (`scripts/monsters/org-chart-service.mjs`). Consumer: the org
 troop)` answers the uuid of the prototype for the stack with that troop, found or made by the Roll's own
 mint. No provider means no badge and no troop select; the chart still draws and edits.
 
+### Contract `org-roll` v1
+
+Provider: monsters (`scripts/monsters/org-roll-service.mjs`). Consumer: the organisation chart's Roll and Design panels.
+`describe({family, variant, context, state, rules, chosen})` answers `{choices, make, shares, troops, special}` or null where
+the variant carries no encounter line: `choices` are the choices where the page is silent that the variant can reach, each
+`{name, label, tip, options: [{key, label, selected}]}`; `make` is `{line, rows}`, what a Roll will make, read from the
+imported parts as expressions, chances and page references and never rolled; `shares` and `troops` are the options of a unit
+slot and `special` is the share a troop pick is read under. Pure reads: nothing is rolled or written. A chart with no provider
+draws neither section.
+
 ### Contract `encounter-generator` v1
 
 Provider: the monsters feature (its recipe evaluator), which registers it at `init`.

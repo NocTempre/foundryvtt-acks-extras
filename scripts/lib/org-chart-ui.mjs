@@ -28,7 +28,7 @@ const loc = makeLoc(ORG_LANG_PREFIX);
 const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-dialog"];
 
 /** The partials the two sheets include; lib loads them at init. */
-export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-locations", "org-nested", "org-roll-panel", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
+export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-locations", "org-nested", "org-roll-panel", "org-roll-sections", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
 
 /** The folded branches of each open window, by window: a press redraws the sheet and the fold stays. */
 const folds = new WeakMap();
@@ -153,6 +153,7 @@ export async function chartContext(actor, app, { isGM }) {
     unlisted: unlistedOf(app),
     tools: {
       roll: editable && !!monsters?.rollOrganisation && emptyKeys(view).some(canRoll),
+      design: editable && !!monsters?.rollOrganisation && emptyKeys(view).some(canRoll) && !!services.get("org-roll"),
       warband: editable && !!view.roots.length,
       expand: view.rows.length > 0,
       recipe: editable && typeof monsters?.openRecipeEditor === "function" && !!top,
@@ -232,34 +233,109 @@ function refuse(result, scope = "refused") {
 
 const render = (app) => app.render();
 
-/** Roll at random's panel or a card's first Roll: the choices a roll takes, or null where the dialog closed. */
-async function askRoll(family, defaults = {}) {
+/** The Roll panel's two readings and the slots' options for a set of picks, through the generator's service; null where it has none. */
+const describeRoll = (args) => services.get("org-roll")?.describe?.(args) ?? null;
+
+/** What the panel's controls hold now: the variant, place, state, rules and the choices where the page is silent. */
+function readPanel(form) {
+  const f = form.elements;
+  const choices = { branch: {} };
+  for (const el of form.querySelectorAll('[name^="choice-"]')) {
+    const name = el.name.slice("choice-".length);
+    if (name.startsWith("branch:")) choices.branch[name.slice("branch:".length)] = el.value;
+    else choices[name] = el.value;
+  }
+  return {
+    variant: f.namedItem("variant")?.value ?? "",
+    context: f.namedItem("context")?.value ?? "wilderness",
+    state: f.namedItem("state")?.value ?? "wandering",
+    leaderSource: f.namedItem("leaderSource")?.value ?? "",
+    rules: Object.fromEntries(["troops", "traits", "gear"].map((k) => [k, !!f.namedItem(`rules-${k}`)?.checked])),
+    choices,
+  };
+}
+
+/** The slots' picks: a share and a troop for each unit row the panel lists, blank where the Judge left it to the roll. */
+function readSlots(form) {
+  const picks = {};
+  for (const el of form.querySelectorAll("[data-slot]")) {
+    const key = el.dataset.slot;
+    const share = form.elements.namedItem(`share-${key}`)?.value ?? "";
+    const troop = form.elements.namedItem(`troop-${key}`);
+    picks[key] = { shareKind: share, troop: troop && !troop.hidden ? troop.value : "" };
+  }
+  return picks;
+}
+
+/**
+ * Roll at random's panel, a card's first Roll and Design by selection: the choices a roll takes,
+ * or null where the dialog closed. The two readings redraw when anything they depend on changes;
+ * the choices where the page is silent start at what the evaluator takes, so a Roll never waits
+ * on them. `slots` (Design) lists unit rows whose share and troop the Judge may pick, and `onSlot`
+ * carries a slot's die out.
+ */
+async function askRoll(family, defaults = {}, { slots = [], title = loc("roll.title"), onSlot = null } = {}) {
   const axis = (family?.system?.toObject?.().axes ?? family?.system?.axes ?? []).find((a) => a.key === "variant");
+  const variants = (axis?.options ?? []).map((o) => ({ key: o.key, label: o.label ?? o.key, selected: o.key === defaults.variant }));
+  const first = defaults.variant || variants[0]?.key || "";
+  const rules = Object.fromEntries(["troops", "traits", "gear"].map((k) => [k, defaults.rules?.[k] !== false]));
+  const described = describeRoll({ family, variant: first, context: defaults.context ?? "wilderness", state: defaults.state ?? "wandering", rules, chosen: defaults.choices ?? {} });
   const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/org-roll-panel.hbs`, {
     family: family?.name ?? "",
-    variants: (axis?.options ?? []).map((o) => ({ key: o.key, label: o.label ?? o.key, selected: o.key === defaults.variant })),
+    variants,
     context: ["dungeon", "wilderness"].map((k) => ({ key: k, label: loc(`roll.context.${k}`), selected: k === (defaults.context ?? "wilderness") })),
     state: ["wandering", "lair", "chance"].map((k) => ({ key: k, label: loc(`roll.state.${k}`), selected: k === (defaults.state ?? "wandering") })),
-    rules: ["troops", "traits", "gear"].map((k) => ({ key: k, label: loc(`roll.rules.${k}`), checked: defaults.rules?.[k] !== false })),
+    rules: ["troops", "traits", "gear"].map((k) => ({ key: k, label: loc(`roll.rules.${k}`), checked: rules[k] })),
+    choices: described?.choices ?? [],
+    make: described?.make ?? null,
+    slots,
+    shares: described?.shares ?? [],
+    troops: described?.troops ?? [],
   });
   const { DialogV2 } = foundry.applications.api;
+  const sectionsTemplate = `modules/${MODULE_ID}/templates/lib/org-roll-sections.hbs`;
   return DialogV2.prompt({
     classes: DIALOG_CLASSES,
-    window: { title: loc("roll.title") },
+    window: { title },
     content,
-    ok: {
-      label: loc("roll.press"),
-      callback: (_event, button) => {
-        const f = button.form.elements;
-        return {
-          variant: f.namedItem("variant")?.value ?? "",
-          context: f.namedItem("context")?.value ?? "wilderness",
-          state: f.namedItem("state")?.value ?? "wandering",
-          leaderSource: f.namedItem("leaderSource")?.value ?? "",
-          rules: Object.fromEntries(["troops", "traits", "gear"].map((k) => [k, !!f.namedItem(`rules-${k}`)?.checked])),
-        };
-      },
+    render: (_event, dialog) => {
+      const root = dialog.element;
+      const form = root.querySelector("form");
+      if (!form) return;
+      const special = described?.special ?? "";
+      const syncSlots = () => {
+        const troops = !!form.elements.namedItem("rules-troops")?.checked;
+        for (const el of form.querySelectorAll("[data-slot]")) {
+          const troop = form.elements.namedItem(`troop-${el.dataset.slot}`);
+          if (troop) troop.hidden = !(troops && special && form.elements.namedItem(`share-${el.dataset.slot}`)?.value === special);
+        }
+      };
+      const redraw = async () => {
+        const now = readPanel(form);
+        const out = describeRoll({ family, variant: now.variant, context: now.context, state: now.state, rules: now.rules, chosen: now.choices });
+        const holder = root.ownerDocument.createElement("div");
+        holder.innerHTML = await foundry.applications.handlebars.renderTemplate(sectionsTemplate, { choices: out?.choices ?? [], make: out?.make ?? null });
+        const old = form.querySelector("[data-org-sections]");
+        if (old && holder.firstElementChild) old.replaceWith(holder.firstElementChild);
+        syncSlots();
+      };
+      form.addEventListener("change", (event) => {
+        const name = event.target?.name ?? "";
+        if (/^(variant|context|state|rules-|choice-)/.test(name)) redraw();
+        else syncSlots();
+      });
+      for (const die of form.querySelectorAll("[data-org-slot-roll]")) {
+        die.addEventListener("click", async () => {
+          die.disabled = true;
+          const key = die.dataset.orgSlotRoll;
+          const ok = await onSlot?.(key, { ...readPanel(form), picks: { [key]: readSlots(form)[key] } });
+          if (ok) die.closest("[data-slot]")?.remove();
+          else die.disabled = false;
+        });
+      }
+      syncSlots();
     },
+    ok: { label: loc("roll.press"), callback: (_event, button) => ({ ...readPanel(button.form), picks: readSlots(button.form) }) },
     rejectClose: false,
   }).then((v) => v || null);
 }
@@ -276,7 +352,7 @@ async function rollRow(host, key, options) {
 function familyOf(host, key) {
   const { template, variant } = templateOf(org.unitsOf(host), key);
   const began = org.unitsOf(host).map((r) => r?.toObject?.() ?? r).find((r) => r.gen?.variant)?.gen ?? {};
-  return { family: template ? fromUuidSync(template) : null, defaults: { variant: variant || began.variant, context: began.context, state: began.state, rules: began.rules } };
+  return { family: template ? fromUuidSync(template) : null, defaults: { variant: variant || began.variant, context: began.context, state: began.state, rules: began.rules, choices: began.choices } };
 }
 
 /**
@@ -308,6 +384,58 @@ async function onRollAll(_event, target) {
     const view = org.orgChart(host, { isGM: true });
     const view_ = root ? subtreeView(view, root) : view;
     const key = emptyKeys(view_).find((k) => templateOf(org.unitsOf(host), k).template);
+    if (!key) break;
+    const run = await rollRow(host, key, options);
+    if (!run.ok) break;
+    filled++;
+  }
+  if (filled) ui.notifications.info(loc("roll.doneAll", { n: filled }));
+  render(this);
+}
+
+/**
+ * Write a slot's picks to its row's own record: the share and troop a Roll of that row reads as what
+ * its ancestors fixed. Blank clears the key. Same writer as every hand edit, so a filled row refuses.
+ */
+async function writeSlot(host, key, pick) {
+  const gen = { shareKind: pick?.shareKind ?? "", troop: pick?.troop ?? "" };
+  return org.editRow(host, key, { fields: { gen } });
+}
+
+/**
+ * Design by selection: the same panel as Roll at random with each empty unit row's share and troop as
+ * slots, written to the row's record before a Roll reads it. A slot's die rolls that one row; the
+ * button rolls every row still blank. Same Roll, no second path.
+ */
+async function onDesign(_event, target) {
+  const { host, root } = await targetOf(target);
+  if (!host || !generator()?.rollOrganisation) return;
+  const view = org.orgChart(host, { isGM: true });
+  const scope = root ? subtreeView(view, root) : view;
+  const rows = org.unitsOf(host);
+  const slotKeys = emptyKeys(scope).filter((k) => templateOf(rows, k).template && rows.find((r) => r.key === k)?.parentKey);
+  const { family, defaults } = familyOf(host, emptyKeys(scope)[0] ?? slotKeys[0] ?? "");
+  const slots = slotKeys.map((k) => ({ key: k, label: scope.rows.find((r) => r.key === k)?.label ?? k }));
+  const onSlot = async (key, options) => {
+    const wrote = await writeSlot(host, key, options.picks[key]);
+    if (!wrote.ok) {
+      refuse(wrote);
+      return false;
+    }
+    const run = await rollRow(host, key, options);
+    return !!run.ok;
+  };
+  const options = await askRoll(family, defaults, { slots, title: loc("design.title"), onSlot });
+  if (!options) return render(this);
+  for (const key of slotKeys) {
+    if (org.unitsOf(host).find((r) => r.key === key)?.holderUuid) continue;
+    const wrote = await writeSlot(host, key, options.picks?.[key]);
+    if (!wrote.ok) refuse(wrote);
+  }
+  let filled = 0;
+  for (let guard = 0; guard < 200; guard++) {
+    const now = org.orgChart(host, { isGM: true });
+    const key = emptyKeys(root ? subtreeView(now, root) : now).find((k) => templateOf(org.unitsOf(host), k).template);
     if (!key) break;
     const run = await rollRow(host, key, options);
     if (!run.ok) break;
@@ -527,6 +655,7 @@ async function onCollapseAll(_event, target) {
 export const ORG_ACTIONS = Object.freeze({
   orgRoll: onRoll,
   orgRollAll: onRollAll,
+  orgDesign: onDesign,
   orgAdd: onAdd,
   orgAddWarband: onAddWarband,
   orgEdit: onEdit,

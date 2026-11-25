@@ -254,6 +254,17 @@ t("a topHolder is ignored for a row below the top, and a host that is a faction 
   assert.ok(plain.rows.find((r) => r.key === "top").holderUuid.startsWith("new:"));
 });
 
+t("Edit writes a patch of an empty row's own record: a share and a troop are kept, a blank clears the key, and an unchanged patch writes nothing", () => {
+  const rows = [row("u1", "", "G.1"), row("u2", "u1", "", { gen: { shareKind: "a", tier: 0 } })];
+  const set = planEdit({ host: HOST, rows, key: "u2", fields: { gen: { shareKind: "b", troop: "t1" } } });
+  assert.equal(set.ok, true);
+  assert.deepEqual(set.ops[0].update["system.units"].find((r) => r.key === "u2").gen, { shareKind: "b", tier: 0, troop: "t1" });
+  const cleared = planEdit({ host: HOST, rows, key: "u2", fields: { gen: { shareKind: "", troop: "" } } });
+  assert.deepEqual(cleared.ops[0].update["system.units"].find((r) => r.key === "u2").gen, { tier: 0 }, "a blank pick is no pick");
+  assert.equal(planEdit({ host: HOST, rows, key: "u2", fields: { gen: { shareKind: "a" } } }).ops.length, 0, "the same pick writes nothing");
+  assert.equal(planEdit({ host: HOST, rows, key: "u1", fields: { gen: { troop: "t" } } }).ok, true, "a filled row's record is a field like its label");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {

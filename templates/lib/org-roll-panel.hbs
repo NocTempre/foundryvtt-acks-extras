@@ -19,4 +19,24 @@
     <legend>{{localize "ACKS-LIB.org.roll.rules"}}</legend>
     {{#each rules}}<label><input type="checkbox" name="rules-{{key}}" {{#if checked}}checked{{/if}} /> {{label}}</label>{{/each}}
   </fieldset>
+  {{> "modules/acks-extras/templates/lib/org-roll-sections.hbs" this}}
+  {{#if slots.length}}
+  <fieldset data-org-slots>
+    <legend>{{localize "ACKS-LIB.org.design.units"}}</legend>
+    {{#each slots}}
+      <div class="acks-lib-roll-slot" data-slot="{{key}}" data-share="{{share}}">
+        <span>{{label}}</span>
+        <select name="share-{{key}}" aria-label="{{localize 'ACKS-LIB.org.design.share' name=label}}" data-tooltip="ACKS-LIB.org.design.shareTip">
+          <option value="">{{localize "ACKS-LIB.org.design.rolled"}}</option>
+          {{#each @root.shares}}<option value="{{key}}">{{label}}</option>{{/each}}
+        </select>
+        <select name="troop-{{key}}" aria-label="{{localize 'ACKS-LIB.org.design.troop' name=label}}" data-tooltip="ACKS-LIB.org.design.troopTip" hidden>
+          <option value="">{{localize "ACKS-LIB.org.design.rolled"}}</option>
+          {{#each @root.troops}}<option value="{{key}}">{{label}}{{#if offBands}} · {{localize "ACKS-LIB.org.edit.offBands"}}{{/if}}</option>{{/each}}
+        </select>
+        <button type="button" data-org-slot-roll="{{key}}" data-tooltip="ACKS-LIB.org.design.dieTip" aria-label="{{localize 'ACKS-LIB.org.design.die' name=label}}"><i class="fas fa-dice" aria-hidden="true"></i></button>
+      </div>
+    {{/each}}
+  </fieldset>
+  {{/if}}
 </div>

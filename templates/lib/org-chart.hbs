@@ -7,6 +7,9 @@
       {{#if tools.roll}}
         <button type="button" data-action="orgRollAll" data-tooltip="ACKS-LIB.org.chart.rollAllTip"><i class="fas fa-dice" aria-hidden="true"></i> {{localize "ACKS-LIB.org.chart.rollAll"}}</button>
       {{/if}}
+      {{#if tools.design}}
+        <button type="button" data-action="orgDesign" data-tooltip="ACKS-LIB.org.chart.designTip"><i class="fas fa-sliders" aria-hidden="true"></i> {{localize "ACKS-LIB.org.chart.design"}}</button>
+      {{/if}}
       {{#if tools.warband}}
         <button type="button" data-action="orgAddWarband" data-tooltip="ACKS-LIB.org.chart.addWarbandTip"><i class="fas fa-plus" aria-hidden="true"></i> {{localize "ACKS-LIB.org.chart.addWarband"}}</button>
       {{else}}
