@@ -1,4 +1,4 @@
-# lib API (apiVersion 85)
+# lib API (apiVersion 86)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 85,
+  apiVersion: 86,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -71,6 +71,7 @@ acksExtras.lib = {
   // 73: groups.{setParentGroup, addLabelledStack, groupTree, deployedTree, groupNodes, groupDescendants, groupAncestors, wouldCycleGroup, liveRows, isGeneratedStack} (docs/lib/GROUPS.md, "A group inside a group"); addStack takes `gen` and `fixedHp`
   // 74: org.{runPlan, deleteRow, planRoll, planAddUnit, planEdit, planDelete, keySource, ORG_PROTOTYPE_FLAG} (below, "`org` — the organisation chart"); a stack's `gen` carries `mount`, `carry` and `speakers`
   // 73: fields.unitField; org.{orgHostOf, orgHosts, unitsOf, chartRows, addRow, setHolder, sendOut, recall, join, leave, orgChart, locations, chartOf, rostersHolding, moraleFromUnitsAbove, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys, isEmptyRow, affiliationRows, registerOrgIndex} (below, "`org` — the organisation chart"); a faction and a group carry `system.units`
+  // 86: a stack's `gen` carries `formula` and `thrown`; org.editRow's and planEdit's stack change takes `thrown` (below, "`org` — the organisation chart")
 }
 ```
 
@@ -453,7 +454,7 @@ resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe 
 its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
 unit with no recipe, which a consumer treats as no provider.
 
-## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views; 84 changes `unlistRow` to take one row and adds `deletePreview`, `deleteSnapshot`, `undoDelete`, `hostGenOf`, `ORG_GEN_FLAG` and `planRoll({topIsHost})`)
+## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views; 84 changes `unlistRow` to take one row and adds `deletePreview`, `deleteSnapshot`, `undoDelete`, `hostGenOf`, `ORG_GEN_FLAG` and `planRoll({topIsHost})`; 86: a stack change carries a count die's `thrown`)
 
 `acksExtras.lib.org`. The shape, the rules of each control and the reasons they
 answer are docs/lib/ORGANISATION.md's; this is the surface.
