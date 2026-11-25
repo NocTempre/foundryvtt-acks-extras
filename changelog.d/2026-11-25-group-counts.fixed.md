@@ -1,0 +1,1 @@
+- **A group with no bodies left no longer counts as one.** On a location's Occupants tab, a faction's Members tab and the headcount above them, a group whose bodies have all fallen reads ×0 and adds nothing to the total, and a group's count follows its bodies as they fall instead of the figure it was added with.

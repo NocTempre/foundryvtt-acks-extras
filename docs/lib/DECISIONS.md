@@ -1584,3 +1584,23 @@ printed-value sweep that meets these two constants leaves them.
 owner's test beside that sentence, and the test needs a reviewer every time:
 nothing mechanical tells a unit the rules are written in from a figure the
 rules set.
+
+## 2026-11-25 — Two generated stacks never merge, and a group's count is read when asked
+
+Ruled where the beastman plan left the shape open. A stack the generator made
+carries `gen: {part, cite}`, and a move compares it: the plan said to compare the
+part where both carry one. Two gangs of one breed hold the same part over the same
+base, so equal parts would merge the very rows the plan keeps apart. Two generated
+stacks therefore never match, and a generated stack still merges into a plain one
+over the same base. A group's count is read from its stacks and its nested groups
+each time, in the place roster, the faction members and the location's headcount,
+and a stored roster figure is no longer read for a group. A row whose group stands
+inside another row's group counts none, since the outer count holds those bodies.
+A row whose group does not resolve keeps its stored figure: a deleted group's last
+known count stays visible, struck through. A formation member holding a group
+deploys and recalls its tree, as a group token's combat does.
+
+**Strongest counter, MEDIUM.** A formation member's cells now grow with nested bodies
+the Judge may not expect, and the stored figure had the merit of being what a hand
+wrote. Not HIGH: the figure was stale after any casualty, which was the defect, and the
+formation already sized cells by the group's living count.

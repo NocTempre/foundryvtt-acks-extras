@@ -91,7 +91,7 @@ the formation feature all read it with no special-casing.
 | `applyCasualties(group, n)` | pristine fall first (no record lost), then records → `dead` |
 | `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied, its hit points kept over the system's roll |
 | `canDeploy(group)` | whether this seat can: it owns the group and may create tokens |
-| `recall(group)` | fold `token.delta` back in, drop ≤0-HP bodies, delete tokens |
+| `recall(group)` | fold `token.delta` back in, drop ≤0-HP bodies, delete tokens; every group inside it is recalled with it |
 | `detach(group, key)` | promote a member to a standalone actor; `size.current--` |
 | `moveStack(from, to, stackKey)` | the row and everything beneath it to another group ("A row moved between groups") |
 
@@ -136,6 +136,39 @@ before the other's write, and one fold is lost. A body sent out and straight
 back is two deletions before the first write lands, and the second one's
 guard is the uuid the first one recorded.
 
+### A group inside a group
+
+`unit.parentGroupUuid` names the group this one stands inside, blank for none: a gang
+inside a warband. It is a pointer and nothing is copied, so each group keeps its own
+stacks, records and tokens, and a body's flags name the group it belongs to.
+
+One walker serves every reader. It is place-logic's `ancestorUuids` and
+`descendantUuids`, the walk a place's parent and a faction's parent already use, over
+`{uuid, parentUuid, own}` nodes read from the world's group actors (`groupNodes`).
+Its visited set ends it on data that loops, so no reader can hang. `groupDescendants`,
+`groupAncestors`, `wouldCycleGroup` and `groupTree` (a group and every group inside it,
+as actors, the group first) are that walk.
+
+`setParentGroup(group, parentUuid)` is the one writer. It refuses a loop (a group
+inside itself or inside its own descendant), a parent that is no group, and a seat that
+cannot write the group, and answers `{ok, reason}`. A blank parent takes the group out.
+Data written around it and looping is read safely and counted once.
+
+The leader of a unit is the group's `unit.officerUuid`; nesting adds no field for it.
+
+### A count read now
+
+A group's `bodyCount` is its own living bodies plus those of every group inside it,
+read when asked and never from a stored figure. An emptied group counts none. A roster
+row that names a group (a place's occupants, a faction's members, a location's
+headcount) is read through `liveRows`: its `quantity` is that group's `bodyCount`
+whatever the row was written with, and a row whose group stands inside another row's
+group counts none of its own, since the outer count holds those bodies already. A row
+that does not resolve (a deleted group, a pack not loaded) keeps the figure it stored.
+`headcount`, `headcountOf` and the location's `headcount` count a group row at its
+quantity, none included, and any other row at its quantity or one. An emptied group
+stays on its roster.
+
 ## The sheet
 
 The group sheet reads as an inventory. A stack is one row: its art, its name, what it
@@ -155,6 +188,34 @@ actor, the first body centred on the cursor and snapped unless Shift is held, hi
 where a Judge holds Alt, the rest five abreast. The row's Deploy takes its Count, for
 part of a stack. The fields stay outside the grip, because a field inside a dragged
 element loses its text selection to the drag.
+
+### A generated stack
+
+A stack the generator made carries `gen: {part, cite}`, the recipe part's key and the
+page that prints it; a blank part is a stack nothing generated. Its count's tooltip
+names the formula and total, the part and its page. Its row offers no per-monster Roll,
+since a press would make the count again from the creature's own line, and shows a note
+in the Roll's place; `rollEncounter` refuses it as `generated`.
+
+Two generated stacks never merge in a move, whatever their base: the same creature in
+two units is two rows, and a generated stack that meets a plain one over the same base
+merges into it as any two do.
+
+`fixedHp` on a stack is a printed hit-point figure. Every body the stack makes
+individual takes it in place of a roll of the prototype's hit dice; null, the default,
+rolls. Only a part that prints hit points sets it, and it is read at the moment a body
+gets its record.
+
+### A stack with no creature
+
+A stack with no prototype is a label and a count (`addLabelledStack`): the word an
+import read for a creature no library entry matched, which arrives from data. It has no
+snapshot, so no base actor can be minted from it and nothing of it is placed. Sending it
+to the map, by a row dropped there, the row's Deploy or its group's token joining a
+combat, whispers the Judges that the stack has no creature behind it, in the form a
+group holding nothing to place is whispered, and places nothing of that stack while the
+group's other stacks still go. It is a warning and no refusal. Dropping a creature on
+its row (`setStackPrototype`) gives it one.
 
 ### A row moved between groups
 
@@ -204,11 +265,15 @@ window acts, one piece of work at a time.
 | The token is added again to the combat it fights in | The bodies gather early. Their combatants leave the combat, `recall` folds them back and the token returns, while the combatant just added stays, so the group fights as one token. Adding it once more sends them out again |
 | The token is added to a second combat | The combatant is deleted and the Judges are whispered that it fights elsewhere |
 | The group holds nothing to place | The Judges are whispered, and nothing is written: the combatant stays, the token stays visible and no flag is set |
+| A group stands inside it | Every group inside it sends out its bodies the same way, after its own stacks, and each body carries its own group's flags and gets its combatant. The end and the early gather recall them all into the groups they came from |
 
 A body already on the map stays where it stands and fights with the rest, and the end
 recalls it with them. The flag is written before the combatants exist, so a deploy that
 fails part way still leaves the combat's end the bodies to gather. A flag naming a
 combat no longer in the world holds nothing back.
+
+A formation member that holds a group deploys and recalls the same tree, its bodies
+laid into the member's cells one stack after another.
 
 Left alone: a body (its token carries the member flag and its actor is no group), a
 token that is no group, the party's own token (it carries the formation's flag), and a
@@ -297,6 +362,10 @@ documented and read by nothing.
   system's damage application is a follow-up, live-tested.
 - **A split** of a stack into two, within a group or across → not built. A drag takes
   the whole row, as the owner ruled, so nothing asks for one yet.
+- **The generator.** `encounter-generator` v1 (docs/lib/API.md) is the contract through
+  which a provider will make a unit's stacks. Lib declares it, registers nothing and calls
+  it nowhere yet; what it answers arrives as `addStack` (with `gen` and `fixedHp`) or
+  `addLabelledStack` data.
 - **Socket routing** — these ops write documents on the calling client under
   Foundry's own permissions; a consumer needing GM-routed writes wraps them.
   The lib layer writes on the calling client and owns no socket of its own;
@@ -312,7 +381,10 @@ documented and read by nothing.
   scene. `tools/test-group-encounter.mjs` drives the Roll, Make Encounter and
   the token hooks, its dice asserted by the formula thrown.
   `tools/test-group-move.mjs` drives a row's move between groups, and
-  `tools/test-group-combat.mjs` a group token's joining, gathering and ending a combat.
+  `tools/test-group-combat.mjs` a group token's joining, gathering and ending a combat,
+  nested groups, `setParentGroup` and the labelled stack. `tools/test-lib.mjs` covers the
+  walker, the live counts and the roster floors; `tools/test-group-deploy.mjs`, `fixedHp`
+  and a stack with no creature.
 - Live: a body moved between scenes is docs/lib/TESTING.md, "A group body
   moved between scenes"; the Roll, the reveal, a row's drag and its move are "The
   encounter group", and a group token in a fight is "A group token in a fight".

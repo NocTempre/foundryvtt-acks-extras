@@ -4109,3 +4109,54 @@ record". Walked on the primary GM seat; a player seat sees only the card.
    actor.
 6. Teardown. `api.sweepTracked()` for the scene, token, combat and effects;
    quote its result. Restore the kept fixture's hit points.
+
+## A group inside a group
+
+The model is [GROUPS.md](GROUPS.md), "A group inside a group" and "A count read
+now". Walked on the primary GM seat, which acts on a group token's combat.
+
+### Fixtures
+
+- **Kept, `lib/nested-group-outer`**: a `group` actor of two bodies of one stack
+  over any world monster, linked token. Found by marker.
+- **Kept, `lib/nested-group-inner`**: a `group` actor of three bodies of one stack,
+  with its parent set to the outer one through the API. Built with
+  `api.fixture(marker, "Actor", data)`; the nesting is written after it, by
+  `acksExtras.lib.groups.setParentGroup(inner, outer.uuid)`. Each step asserts its
+  shape at its start: the inner's `system.unit.parentGroupUuid` is the outer's uuid,
+  the stacks hold their full counts, and no token of either stands on the scene.
+- A disposable scene, the outer group's token on it, and a disposable combat, made
+  through `api.create` and swept by ledger. A labelled stack needs no fixture of its
+  own: step 6 adds one to the outer and removes it.
+
+### Steps
+
+1. Read `acksExtras.lib.groups.bodyCount(outer)`. *Observable:* 5, the outer's two and
+   the inner's three. `acksExtras.lib.groups.bodyCount(inner)` is 3.
+2. Add a roster row for each group to a location's roster
+   (`acksExtras.lib.places.addOccupant`) and open the location's sheet. *Observable:*
+   the outer's row reads ×5 and the inner's ×0 beside it, since the outer's count
+   holds the inner's bodies; the Occupants tab's total is 5.
+3. Add the outer group's token to the combat from the combat tracker's HUD.
+   *Observable:* five body tokens on the scene, the outer's two flagged with the
+   outer's uuid and the inner's three with the inner's
+   (`token.getFlag("acks-extras", "group")`), five combatants and none for either
+   group, the outer's token hidden.
+4. Add the outer's token to the same combat again. *Observable:* every body token
+   leaves, the combatants of the bodies go, the outer's token is back and the roster
+   of each group holds its bodies resting.
+5. Add it once more and delete the combat. *Observable:* every body token is gone,
+   each group's records are back in its own stacks and the token is visible.
+6. Write a count of 0 on the inner's only stack and read the location's sheet and
+   a faction's members tab holding the same two rows. *Observable:* the inner's
+   row reads ×0, an emptied group still stands on both rosters and neither total
+   counts it as a body. Then add a labelled stack
+   (`acksExtras.lib.groups.addLabelledStack(outer, {label: "Test creature", count: 2})`)
+   and add the outer's token to a combat again. *Observable:* the outer's own bodies
+   deploy, one whisper to the Judges names the label and says it has no creature
+   behind it, and no token stands for the labelled stack.
+7. Refusal: `await acksExtras.lib.groups.setParentGroup(outer, inner.uuid)`.
+   *Observable:* `{ok: false, reason: "cycle"}` and the outer's parent is unchanged.
+8. Teardown. `api.sweepTracked()` for the scene, token and combat; quote its result.
+   Set the inner's count back to 3, take the labelled stack off the outer and clear
+   the roster rows.
