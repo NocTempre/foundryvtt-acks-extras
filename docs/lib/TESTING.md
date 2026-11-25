@@ -4781,11 +4781,11 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
    file proves nothing: it **asserts a leader exists after the Roll** (the rolled variant's recipe names a leader
    that reaches a unit word), and then the chieftain frame on the top card and a champion frame where a unit of
    bodies has an officer.
-   **Clear the leader.** In a card's pen, a button "Clear the <rank> (<name>)" is drawn only where the card's group
-   has an officer. *Observable:* pressing it blanks `system.unit.officerUuid` at once, and where that officer is the host faction's
+   **Clear the leader.** In a card's pen, the officer line's **Clear** is drawn only where the card's group
+   has an officer and the seat owns the host and the group. *Observable:* pressing it blanks `system.unit.officerUuid` at once, and where that officer is the host faction's
    `leaderUuid` (the village chieftain on the top card) blanks `leaderUuid` in the same press, while a lower card's
    officer leaves it as it was (the walk clears a lower card first, then the top); no checkbox or empty tick is
-   drawn in the form. (Minting a champion by tick is S12b's.)
+   drawn in the form. The rest of the officer line is walked in "The officer line", below.
 5. **Send out and Recall** — **start by emptying the kept place's roster and reading that it is empty**, and
    change tabs without writing (`sheet.changeTab("locations", "primary")`, never the host-rewriting setup).
    Press Send out on the **top** card, pick the place; open the **Locations**
@@ -4835,3 +4835,82 @@ A Player seat (step 9) and the root group's sheet are read from the context code
 (`tools/test-org-tree.mjs`, `tools/test-org-chart-ui.mjs`), not driven. The Judges' chat card a Roll whispers
 is not in the Roll's result, so it is neither tracked nor swept from it. The plate's picture needs its
 register row, which is not built.
+
+## The officer line
+
+Marker `lib/officer-line`. Walked by `tools/live/lib-officer-line.mjs`. Boards 1q and 1r of the chart-row
+verbs board. Where: Actors sidebar tab → a faction → Org chart tab → a card's pen → the officer line.
+
+### Fixtures
+
+- The library's family template, as in "The Org chart and Locations tabs": read, never marked or written;
+  the walk stops as blocked where the library holds none or two, or where no variant's leader part reaches
+  a unit word.
+- `lib/officer-line` — a faction host. Find by marker; build with
+  `api.fixture("lib/officer-line", "Actor", {type: "acks-extras.faction", ...})`. The walk rewrites its
+  `system.units` to one empty top row naming the template at its start, rolls that top card with all below it
+  through the page's own `rollOrganisation` (wrapped for the run, so every document the Roll makes is
+  tracked from the Roll's result), and rewrites the units to one empty row again in its teardown. That Roll
+  leaves one row whose group names an officer and records `gen.leader`, which is the row Make mints for.
+  A row rolled before the record existed has no `gen.leader` and offers no Make.
+- A library actor other than the template, for the compendium officer of step 6. Read only; the step is
+  not walked where the library holds none.
+
+**The rule the steps assert:** each control is rendered only where Foundry's own test passes and is not
+rendered at all otherwise. The tests are the actor's limited permission (Open), the actor's delete
+permission (Delete actor…), `game.user.can("ACTOR_CREATE")` (+ Make), and ownership of the host and of
+the card's group for Make, Clear and Delete actor… (the two documents `org.editRow` checks and writes).
+No test reads `isGM`.
+
+### Steps
+
+1. **Make** — in a card's pen whose line is empty (step 3 empties one). Press **+ Make the <officer>**.
+   *Observable:* the group's `officerUuid` is a new world actor, not the cleared one and not any other
+   row's officer; it carries `flags["acks-extras"].generated.templateUuid` of the chart's template, no
+   `organisationPrototype` mark (so no Delete treats it as a minted prototype), and the morale part the row
+   recorded in `gen.leader.moraleBonus`. The line then reads live. The button's tooltip says it makes an
+   actor in the world. The walk tracks the uuid at once, read from the group.
+2. **Open** — press **Open** on a live line. *Observable:* the officer's own sheet renders.
+3. **Clear** — press **Clear** on a live line. *Observable:* the group's `officerUuid` is blank and the
+   actor is still in the world; the line reads empty ("No <officer>") with **+ Make** and no Open or Delete
+   actor….
+4. **Delete actor…** — press it on a live line. *Observable:* a confirm opens (the dialog count rises by
+   one); **No** changes nothing, the link stands and the actor is in the world; pressing again and answering
+   **Yes** deletes the actor and blanks the link, and the line reads empty with + Make, not deleted. Only a
+   delete made outside the chart leaves a dangling link.
+5. **Deleted by hand** — close the card's pen (Done), then delete the officer from the world as the Actors
+   tab's delete does, and press nothing. *Observable:* the open sheet redraws by itself; the card's officer
+   line reads deleted with **+ Make** and **Clear** and no Open or Delete actor…, the card's head frame is
+   marked deleted, and the group still names the deleted uuid (the redraw writes nothing). Deleting the
+   faction's leader the same way shows the faction's leader line as deleted with its own **Clear** and a
+   tooltip, and no Make (the faction line's Make is built with the village-as-faction slice); Clear blanks
+   `leaderUuid`. + Make on the deleted card line sets a new officer in place of the dead link.
+   **Driven by API:** the delete is the call the Actors tab's delete ends in, not a click on the tab.
+6. **After a reload** — set a compendium actor as a second row's officer through `org.editRow`, then reload the
+   GM seat with the browser's own reload (`location.reload()`, a timed wait for ready). *Observable:* on the
+   first draw of the card's pen a world officer and the compendium officer both read live, neither deleted
+   (the chart's read is `readAfterIndex`, never `fromUuidSync` alone, so a pack that has not built its index
+   is not read as empty); the compendium officer offers Clear and no Delete actor….
+7. **The Player seat** — the Player must own the host and the row's group, or there is no pen and the step
+   passes for nothing: the GM sets both to Owner by API, and sets the officer to Observer for the Player with
+   an Observer default, so the Player has no delete right over it. *Observable:* on the Player's own page
+   `host.isOwner`, `group.isOwner` and the officer's limited permission are true and its delete permission is
+   false; the Player sees **Open** and **Clear** and **Delete actor…** is not in the DOM. **Read the world's
+   `ACTOR_CREATE` permission on the Player's page and record it** (the roles that may create, from the
+   `core` `permissions` setting). With the officer cleared by the GM, **+ Make** is in the DOM where Players
+   may create actors and absent where they may not; where it is shown the walk presses it, tracks the actor
+   it made, and reads the officer written. The branch the world's permission does not give is not walked,
+   since the walk reads the permission and never changes it.
+
+### Teardown
+
+`api.sweepTracked({only})` removes the run's own products by id: each Roll's `created` and each minted leader
+read from its group. The wrapped `rollOrganisation` is restored first, the kept host's rows go back to one
+empty top row and the Player's ownership of it is dropped. The marked host stays.
+
+### Not walked
+
+The faction leader line's **+ Make** (it is built with the village-as-faction slice). A press by a seat that
+lost ownership between the render and the press (the press checks again before its first write; unit-tested
+as `officerControls` and read from the handlers). A compendium officer's Open, which needs a document the seat
+may test.

@@ -91,18 +91,28 @@ function roleView(card) {
 }
 
 /**
- * Does the actor a uuid names still exist? Read after the pack that would hold it has built its
- * index, so an actor in a compendium is never read as deleted before the index is there.
+ * What a uuid names now: the document, or the index entry of one in a compendium, read after the
+ * pack that holds it has built its index so a compendium actor is never missed before the index is
+ * there. Null where nothing answers.
+ * @param {string} uuid
+ * @returns {Promise<{name?: string}|null>}
+ */
+async function readActor(uuid) {
+  if (!uuid) return null;
+  try {
+    return (await readAfterIndex(uuid, { pack: game.packs?.get(packIdOf(uuid)), read: fromUuidSync })) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Does the actor a uuid names still exist? The read of `readActor`, never `fromUuidSync` alone.
  * @param {string} uuid
  * @returns {Promise<boolean>}
  */
 export async function actorExists(uuid) {
-  if (!uuid) return false;
-  try {
-    return !!(await readAfterIndex(uuid, { pack: game.packs?.get(packIdOf(uuid)), read: fromUuidSync }));
-  } catch {
-    return false;
-  }
+  return !!(await readActor(uuid));
 }
 
 /**
@@ -119,7 +129,8 @@ async function officerLineOf(card, { holder, editable, rows }) {
   const user = game.user;
   const officerUuid = card.officerUuid ?? "";
   const doc = card.officer ? docOf(card.officer.uuid) : null;
-  const state = officerStateOf({ officerUuid, resolves: !!doc || (officerUuid ? await actorExists(officerUuid) : false) });
+  const found = doc ?? (officerUuid ? await readActor(officerUuid) : null);
+  const state = officerStateOf({ officerUuid, resolves: !!found });
   const group = isGroupActor(holder) ? holder : null;
   const controls = officerControls({
     state,
@@ -132,7 +143,7 @@ async function officerLineOf(card, { holder, editable, rows }) {
   const role = card.leaderRoleKey || leaderRoleOf(card);
   const title = loc(`role.${role}`);
   const word = title.toLocaleLowerCase();
-  const name = card.officer?.name ?? "";
+  const name = card.officer?.name ?? found?.name ?? "";
   return {
     state,
     uuid: officerUuid,
