@@ -97,8 +97,8 @@ Hooks.once("init", () => {
   // place held in a pack can be asked what is inside it without loading the
   // pack's documents. The fields reach an index only through a client
   // `pack.getIndex()`; the server's startup index carries core fields alone, so
-  // a reader awaits `getIndex()` first. Declared at init so that call is built
-  // with them.
+  // a pack is read with them only after a `getIndex()`. Declared at init so
+  // that call is built with them.
   const indexed = CONFIG.Actor.compendiumIndexFields;
   for (const field of ["system.parentUuid", `flags.${MODULE_ID}.place`]) {
     if (!indexed.includes(field)) indexed.push(field);

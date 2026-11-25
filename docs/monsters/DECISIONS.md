@@ -517,11 +517,14 @@ is applied by a client `pack.getIndex()`, which core never calls at startup.
 - **Not changed:** `place.mjs` `packPlaces` reads its index fields the same way and has the same gap;
   an index per pack at ready is a cost the hub weighs.
 - **A Recall is drawn only where it can succeed** (`recallOffered`): a top row has no row to go back
-  under and `recall` refuses it with `topRow`, so a card or chip there draws none.
+  under and `recall` refuses it with `topRow`, so a card or chip there draws none; so does a row whose parent row holds no group. A parent holding a lone actor still refuses, with its reason.
 
 - **A body is minted as the rank and file.** A body's spec names no role, and a Role axis with neither
   a default nor a pin rolls among every option, leaders included. A body's mint pins the rank-and-file
   key (`STANDARD_ROLE`) when the template's Role axis has no default and lists that key; an axis that
-  names its own default is left to it. The key is the importer's structural name for the axis's
+  names its own default is left to it. A pin is honoured only where a cell names the option (an option
+  is available when it is the axis default or a cell names it), so an axis with no default and no
+  rank-and-file cell still rolls a leader: its remedy is the default, written where the importer's
+  `roleAxis` adds the axis, and is not made here. The key is the importer's structural name for the axis's
   first option, not a printed figure. Whether the walk's champion came from such an axis is not
   established offline; the test pins the procedure.

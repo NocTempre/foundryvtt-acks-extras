@@ -300,7 +300,7 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
 - **Expand all** and **Collapse all** keep their fold on the window (a press redraws the
   sheet); the tree scrolls sideways in a box of its own.
 - **Locations** lists each place with the groups of the host's rows on its roster, a chip per
-  row, and the rows whose group stands on no place; a chip's Recall brings its group back, and is drawn only where `recall` can succeed (`recallOffered`: not a top row, and a parent row that holds a group), so no chip or card carries a control that can only refuse.
+  row, and the rows whose group stands on no place; a chip's Recall brings its group back, and is drawn only where `recall` can succeed (`recallOffered`: not a top row, and a parent row that holds a group). A parent that holds a lone actor, or a cut chart's root whose parent is out of view, can still refuse and says why.
 
 `readHolder`, `orgChartView` and `locationsView` are on the lib api (`org`) for the
 Followers tab's views.

@@ -458,6 +458,8 @@ t("a body is minted as the rank and file, never as a leader the Role axis rolls,
   assert.equal(pinsOf(body, {}, named).role, undefined, "an axis that names its own default is left to it");
   assert.equal(pinsOf(body, {}, { system: { axes: [] } }).role, undefined, "no Role axis, no pin");
   assert.equal(pinsOf(body, {}, null).role, undefined);
+  const leadersOnly = { system: { ...family({}).system, cells: ["lead", "chief"].map((r) => ({ by: ["variant", "role"], key: `alba|${r}` })) } };
+  assert.deepEqual(rolls.map((r) => roleAt(leadersOnly, pinsOf(body, {}, leadersOnly), r)), ["lead", "lead", "chief", "chief"], "a rank and file no cell names is unavailable and the pin cannot carry it: the default is what makes it so");
   const bare = { system: { axes: [{ key: "role", options: [{ key: "lead" }] }] } };
   assert.equal(pinsOf(body, {}, bare).role, undefined, "an axis that lists no rank and file is left alone");
 });
