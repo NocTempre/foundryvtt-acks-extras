@@ -37,12 +37,8 @@ import { castDuration, NONE } from "../scripts/magic/cast-duration.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "../scripts/magic/spell-effect.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef, SUMMONING_TYPE } from "../scripts/magic/summon-spell.mjs";
 import * as timeUnit from "../scripts/lib/time-unit.mjs";
-import {
-  INVENTED_TIME, INVENTED_TURN_SECONDS as TURN_SECONDS, INVENTED_ROUND_SECONDS as ROUND_SECONDS,
-  registerInventedTime, removeInventedTime,
-} from "./time-unit-fixture.mjs";
-
-registerInventedTime();
+import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
+import { TIME_COUNTS, TURN_SECONDS, ROUND_SECONDS } from "./time-unit-fixture.mjs";
 
 const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 const ENUM_PREFIX = "ACKS-LIB.enum.";
@@ -574,23 +570,19 @@ t("a frequency phrase reads to its key", () => {
 /*  Cast durations                                                     */
 /* ------------------------------------------------------------------ */
 
-t("the time unit is read from the registry, and answers null for every figure it cannot derive when nothing is imported", () => {
-  assert.equal(timeUnit.roundsPerTurn(), INVENTED_TIME.roundsPerTurn);
-  assert.equal(timeUnit.turnsPerHour(), INVENTED_TIME.turnsPerHour);
-  assert.equal(timeUnit.turnSeconds(), TURN_SECONDS);
-  assert.equal(timeUnit.roundSeconds(), ROUND_SECONDS);
-  assert.equal(timeUnit.turnsPerDay(), INVENTED_TIME.turnsPerHour * timeUnit.HOURS_PER_DAY);
-  registerInventedTime({ turnsPerHour: undefined });
-  assert.deepEqual([timeUnit.turnsPerHour(), timeUnit.turnSeconds(), timeUnit.roundSeconds(), timeUnit.turnsPerDay()], [null, null, null, null], "the rounds alone price no second");
-  assert.equal(timeUnit.roundsPerTurn(), INVENTED_TIME.roundsPerTurn);
-  registerInventedTime({ roundsPerTurn: 7.5 });
-  assert.equal(timeUnit.roundsPerTurn(), null, "a count that is not whole is no count");
-  removeInventedTime();
-  assert.deepEqual([timeUnit.roundsPerTurn(), timeUnit.turnsPerHour(), timeUnit.turnSeconds(), timeUnit.roundSeconds()], [null, null, null, null]);
-  assert.equal(timeUnit.timeUnitCite(), null, "and no page is named");
-  assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "turns" }), { none: NONE.noFigure }, "a duration in turns counts no seconds");
-  assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "hours" }), { value: 2, units: "hours" }, "a duration in hours does not need them");
-  registerInventedTime();
+t("the time unit answers a positive number from its own constants, and a registered formation document moves none of it", () => {
+  const readers = () => [timeUnit.roundsPerTurn(), timeUnit.turnsPerHour(), timeUnit.turnsPerDay(), timeUnit.turnSeconds(), timeUnit.roundSeconds()];
+  const bare = readers();
+  assert.ok(bare.every((n) => typeof n === "number" && n > 0), "with nothing registered, every reader answers a positive number");
+  assert.deepEqual(bare, [TIME_COUNTS.roundsPerTurn, TIME_COUNTS.turnsPerHour, TIME_COUNTS.turnsPerHour * timeUnit.HOURS_PER_DAY, TURN_SECONDS, ROUND_SECONDS]);
+  assert.equal(timeUnit.timeUnitCite(), "RR p.263");
+  registerTable({ id: "formation", tables: { roundsPerTurn: 20, turnsPerHour: 12 } }, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    assert.deepEqual(readers(), bare, "a formation document carrying other counts does not move the unit");
+  } finally {
+    unregisterTable("formation", { priority: PRIORITY.WORLD });
+  }
+  assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "turns" }), { value: 2 * TURN_SECONDS, units: "seconds" }, "a duration in turns counts the unit's seconds");
 });
 
 t("every duration shape has a row in the duration table, and an untimed one answers none", () => {
@@ -1041,12 +1033,9 @@ t("a record ends at its start plus its duration on the world clock, by the calen
   assert.equal(castRecordEnd(castRecordDoc(), secondsOf), 1150);
   assert.equal(castRecordEnd(castRecordDoc({ units: "hours", value: 1 }), secondsOf), 3000);
 });
-t("a rounds record counts its rounds at the imported round, a turn's seconds over its rounds, and never ends without one", () => {
-  assert.equal(ROUND_SECONDS, TURN_SECONDS / INVENTED_TIME.roundsPerTurn);
+t("a rounds record counts its rounds at the unit's round, a turn's seconds over its rounds", () => {
+  assert.equal(ROUND_SECONDS, TURN_SECONDS / TIME_COUNTS.roundsPerTurn);
   assert.equal(castRecordEnd(castRecordDoc({ units: "rounds", value: 4 }), () => null), 1000 + 4 * ROUND_SECONDS);
-  removeInventedTime();
-  assert.equal(castRecordEnd(castRecordDoc({ units: "rounds", value: 4 }), () => null), null, "no round length, no end");
-  registerInventedTime();
 });
 t("a record with no duration, no start, a combat turn or a unit the calendar does not answer never ends on the clock", () => {
   assert.equal(castRecordEnd(castRecordDoc({ value: null }), secondsOf), null);

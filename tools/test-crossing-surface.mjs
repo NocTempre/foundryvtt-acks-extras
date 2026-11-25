@@ -130,9 +130,6 @@ globalThis.foundry = {
 
 const tables = await import("../scripts/lib/tables.mjs");
 const { registerTable, resetTables, PRIORITY } = tables;
-const { INVENTED_TIME, registerInventedTime } = await import("./time-unit-fixture.mjs");
-/** Feet a round at the member's exploration speed: that speed is this many feet to each of the invented rounds to a turn. */
-const EXPLORE_PER_ROUND = 9;
 const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const { OUTCOMES_TABLE } = await import("../scripts/formation/obstacles.mjs");
 const crossing = await import("../scripts/formation/crossing.mjs");
@@ -253,7 +250,6 @@ const FALL = { die: "1d8", feetPerDie: 15 };
 const PACE = { climbPacePenalties: [3, 8], crawlPacePenalties: [4, 9], balancePacePenalties: [6, 12] };
 const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING, fall = FALL, pace = null } = {}) => {
   resetTables();
-  registerInventedTime();
   registerTable(
     {
       id: FORMATION_DOC,
@@ -293,7 +289,6 @@ const reset = () => {
   for (const id of Object.keys(formations)) delete formations[id];
   game.actors.clear();
   resetTables();
-  registerInventedTime();
 };
 const rowOf = (view, name) => view.rows.find((r) => r.name === name);
 
@@ -1861,7 +1856,6 @@ const SWIMFIG = {
 };
 const loadSwimTables = (figures = SWIMFIG) => {
   resetTables();
-  registerInventedTime();
   registerTable(
     { id: FORMATION_DOC, source: { pages: "XX p.1" }, cites: { swimmingBonus: "XX p.7" }, tables: figures },
     { priority: PRIORITY.WORLD, source: "test" },
@@ -2238,7 +2232,6 @@ await ok("a drowning row: the breath and the sink rate with their working, Vulne
 await ok("a breath or a sink rate nobody imported is blank and its tooltip is the page alone", async () => {
   const { formation } = await swimWorld([["Alder", { stone: 9 }]]);
   resetTables();
-  registerInventedTime();
   naturals.push(3);
   await throwFor(formation, "Alder");
   const row = rowOf(swimView(formation), "Alder");
@@ -2424,7 +2417,6 @@ const { SQUEEZE_KIND } = crossing;
 const SQZ = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2, bashStrengthFactor: 3 };
 const loadSqueezeTables = (figures = SQZ) => {
   resetTables();
-  registerInventedTime();
   registerTable(
     { id: FORMATION_DOC, source: { pages: "XX p.1" }, cites: { contortionismBonus: "XX p.8", escapeFeet: "XX p.8" }, tables: figures },
     { priority: PRIORITY.WORLD, source: "test" },
@@ -2974,9 +2966,9 @@ const TIMED_OUTCOMES = {
   sheerClimb: { fail: { text: "Holds on", falls: false, advances: false, rounds: 3 }, botch: { text: "Plummets", falls: true, rounds: 6 } },
   easyClimb: { fail: { text: "Inch along", falls: false, advances: true } },
 };
-/** A member's own speeds, as core derives them, and the effects list the clock's turn bookkeeping reads: an exploration speed of nine feet a round over the invented rounds to a turn, combat 30 and run 60 a round. */
+/** A member's own speeds, as core derives them, and the effects list the clock's turn bookkeeping reads: exploration 90 a turn is nine feet a round, combat 30 and run 60 a round. */
 const withSpeeds = (actor) => {
-  actor.system.movementacks = { exploration: EXPLORE_PER_ROUND * INVENTED_TIME.roundsPerTurn, combat: 30, chargerun: 60 };
+  actor.system.movementacks = { exploration: 90, combat: 30, chargerun: 60 };
   actor.effects ??= [];
   return actor;
 };
@@ -3008,14 +3000,14 @@ await ok("a made stretch spends its feet over the exploration rate, the whole to
   const { formation } = await timeWorld([["Alder", {}]]);
   assert.equal(roundsOnClock(), 0);
   assert.equal((await press(formation)).ok, true);
-  assert.ok(Math.abs(recordOf(formation).elapsed - 40 / EXPLORE_PER_ROUND) < 1e-6, "forty feet at the exploration speed over the imported rounds to a turn");
+  assert.ok(Math.abs(recordOf(formation).elapsed - 40 / 9) < 1e-6, "forty feet at nine a round");
   assert.equal(readCrossing(formation).rounds, 5);
   assert.equal(roundsOnClock(), 5, "4.44 rounds is five on the clock");
   assert.equal(clockOf().movedThisTurn, true, "the turn counts as moved, as a drag of the party token makes it");
   await press(formation);
   assert.equal(roundsOnClock(), 9, "8.89 rounds owes four more, not five");
   await press(formation);
-  assert.ok(Math.abs(recordOf(formation).elapsed - 100 / EXPLORE_PER_ROUND) < 1e-5, "the last stretch is the twenty feet left");
+  assert.ok(Math.abs(recordOf(formation).elapsed - 100 / 9) < 1e-5, "the last stretch is the twenty feet left");
   assert.deepEqual([readCrossing(formation).rounds, roundsOnClock(), recordOf(formation).state], [12, 12, "across"], "11.1 rounds is twelve; rounding each stretch up would be thirteen");
   assert.equal(recordOf(formation).timed.length, 3);
   assert.deepEqual(recordOf(formation).timed[2], { rounds: 2.222222, feet: 20, share: 1, speed: "exploration" });
@@ -3084,7 +3076,7 @@ await ok("nothing is spent or billed while the party is in a fight or its clock 
     assert.equal(await billCrossing("f1", readCrossing(formation).id), 0, "and a bill asked for in it pays nothing");
     clear();
     await press(formation);
-    assert.ok(Math.abs(recordOf(formation).elapsed - 40 / EXPLORE_PER_ROUND) < 1e-6, `${what}: only the press made after it is timed`);
+    assert.ok(Math.abs(recordOf(formation).elapsed - 40 / 9) < 1e-6, `${what}: only the press made after it is timed`);
     assert.equal(roundsOnClock(), 5);
   }
 });

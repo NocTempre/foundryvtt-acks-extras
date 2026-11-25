@@ -35,7 +35,7 @@ import { SIZES } from "../../scripts/monsters/config.mjs";
 import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
 import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
-import { assembleFormationTables, SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, assembleBash, assembleDoors, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, assembleBash, assembleDoors, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import * as RT from "../../scripts/magic/research-tables.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -126,7 +126,7 @@ const TABLES = {
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
   // and their missed-throw outcomes, and the street's two dice.
   // The door grid and the bash paragraph likewise.
-  formation: ["timeProse", "jumpingProse", "jumpingLandingProse", "squeezingProse", "climbPaceProse", "crawlPaceProse", "balancePaceProse", "spelunkingGrid", "spelunkingOutcomeGrid", "doorGrid", "bashProse"],
+  formation: ["jumpingProse", "jumpingLandingProse", "squeezingProse", "climbPaceProse", "crawlPaceProse", "balancePaceProse", "spelunkingGrid", "spelunkingOutcomeGrid", "doorGrid", "bashProse"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
   // The cultures' name lists and appearance palettes, each read by the keys of
   // its page; a culture's name list may be in a supplement. The supplement's
@@ -836,14 +836,6 @@ for (const id of [
 /** Names each key of `keys` the assembled table does not hold. */
 const missingFigures = (table, keys, fail) => {
   for (const key of keys) if (table?.[key] === undefined) fail(`${key}: the binding reads no figure from the window`);
-};
-// The time-keeping sentence: it must read through the binding's own parsers
-// into the rounds to a turn and the turns to an hour, each a whole number above
-// zero. Shape only; no figure is named.
-VERIFY["formation.timeProse"] = (out, recipe, fail) => {
-  proseKeys(out, recipe, fail);
-  const figures = assembleFormationTables({ timeProse: out });
-  missingFigures(figures, ["roundsPerTurn", "turnsPerHour"], fail);
 };
 VERIFY["formation.jumpingProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);

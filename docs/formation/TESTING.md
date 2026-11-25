@@ -5574,14 +5574,13 @@ Teardown: nothing the walks built is swept; the fixtures stay. `api.sweepTracked
 
 ## The turn's unit: rounds to a turn and turns to an hour (RR p. 263)
 
-Fixtures: a kept delve party, marker `formation/time-unit` (a party actor with one member holding a torch, on a dungeon-scale scene). The Judge's own book connected for the import step; a world whose `formation` ruledata document carries no `roundsPerTurn` and no `turnsPerHour` for the blank steps. Find the document with `game.acksExtras.lib.tables.getDoc("formation")`; the figures are `getDoc("formation").tables.roundsPerTurn` and `.turnsPerHour`.
+Fixtures: a kept delve party, marker `formation/time-unit` (a party actor with one member holding a torch, on a dungeon-scale scene). Nothing is imported for this surface: the unit is stated in `lib/time-unit.mjs`.
 
 | Step | Do | Observable |
 | --- | --- | --- |
-| T1 | Settings tab → Game Settings → Acks Extras → the importer menu: run the formation import with the book connected | `lib.timeUnit.roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263 |
+| T1 | In the console, read `game.acksExtras.lib.timeUnit` | `roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263; they answer the same in a world whose `formation` ruledata document carries other counts |
 | T2 | Press the Dungeon tab's advance-turn and advance-round buttons | The turn count and its round count move; the card's elapsed line shows a time; the world clock moves by `turnSeconds()` for a turn |
 | T3 | Hover the strip's elapsed figure and its carry-over figure | The elapsed tip names the turns, the rounds and the page; the carry tip names a round's feet |
-| T4 | Open the Ruledata Browser (Settings tab → Game Settings → Acks Extras → Ruledata Browser), set an override on `roundsPerTurn` for the `formation` document | The strip's denominator and the next round's billing follow it; removing the override reverts them |
-| T5 | Remove the `formation` document's two tables (`api.retire`-style: unregister the world layer, never delete the Judge's own document) and reload | Nothing throws at `init`, `setup` or `ready`; the strip shows the turns alone (no elapsed time, no round denominator) and its tips name the page (RR p. 263); advance-turn ticks a whole turn and spends a light; advance-round does nothing; dragging the party token bills whole turns; the world clock does not move; the encounter card names no minute |
+| T4 | Drag the party token one turn's distance on the dungeon-scale scene | The turn count moves by one and the world clock by `turnSeconds()` |
 
-Drive mechanics: the unit tests cover the arithmetic; the live pass proves the registry layer and the strip. A reload is needed after step T5's removal because the strip reads at render.
+Drive mechanics: the unit tests cover the arithmetic; the live pass proves the strip and the clock on a real scene.

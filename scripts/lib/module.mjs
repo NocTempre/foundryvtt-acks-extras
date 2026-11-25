@@ -167,7 +167,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 71,
+  apiVersion: 72,
   vocab,
   fields,
   /**
@@ -349,7 +349,7 @@ const localImpl = Object.freeze({
   senses,
   /** The kinds of light, their imported figures, and who is bearing one (light.mjs). */
   light,
-  /** The dungeon turn and the round: the imported rounds to a turn and turns to an hour, and the seconds they make (time-unit.mjs). */
+  /** The dungeon turn and the round: the rounds to a turn and turns to an hour, and the seconds they make (time-unit.mjs). */
   timeUnit,
   /** The ACKS senses as Foundry vision/detection modes (perception.mjs). */
   perception,
@@ -586,7 +586,6 @@ Hooks.once("init", () => {
   declareDefenseTables();
   declareThrowTables();
   movementScales.declareMovementTables();
-  timeUnit.declareTimeTables();
   vocab.declareWearSlotTables();
   vocab.declareGearAccessTables();
   capacity.declareCapacityTables();

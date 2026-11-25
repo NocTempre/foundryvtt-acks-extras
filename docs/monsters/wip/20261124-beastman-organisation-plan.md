@@ -2760,8 +2760,14 @@ staged books. The fixtures `equipment/onhit-archer` and
 
 **Findings and choices for the owner:**
 
-- **Open, for the owner: T-0730 is committed before its cost was put to
-  you.** With its figures not imported, round-level play advances nothing
+- **Answered by the owner, 2026-11-25: T-0730's import is undone.** Asked
+  whether to keep it as committed, the owner: "Too aggressive, rounds per
+  turn is very generic rules, not IP". The rounds to a turn and the turns to
+  an hour are constants in `lib/time-unit.mjs` again, under the same reader
+  names, never null; the ruling and its reading are in `docs/lib/DECISIONS.md`
+  (2026-11-25). The rest of this bullet is the cost as it was put, and no
+  longer holds: T-0730 was committed before its cost was put to
+  you. With its figures not imported, round-level play advances nothing
   (advance-round, hasty actions and combat rounds move no clock, and the
   delve counts whole turns), a spell duration counted in turns has no
   figure, a record counted in rounds never ends, and the world clock is not
@@ -2787,7 +2793,9 @@ staged books. The fixtures `equipment/onhit-archer` and
   duplicates lib's kind reader), T-0765 (the importer's two private
   turns-to-an-hour copies, `city-travel-binding.mjs` and
   `survival-binding.mjs`, found by T-0730's work and not moved, against
-  `ip-doctrine.md`'s "fixed by the work that finds it").
+  `ip-doctrine.md`'s "fixed by the work that finds it"). On the owner's
+  2026-11-25 ruling above, T-0765 is no printed-value finding: the two
+  copies read lib's constant.
 
 **Held, then released.** S8a, S8b, S9a and S9b-2 were held through this
 phase. The owner's go-ahead on canvases 2 to 5 released S8b without T10,

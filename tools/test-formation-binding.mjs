@@ -24,7 +24,7 @@ import {
   FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, assembleFall, assembleFormationTables,
   assembleTrapFigures, parseBandTop, parseBotchBand,
   assembleJumping, assembleSpelunking, assembleSqueezing, assemblePacePenalties, parsePacePenalties, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
-  parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseRoundsPerTurn, parseTurnsPerHour, parseShareOf, parseStandingShare,
+  parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
   parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap, parseProgressCell, PROGRESS_SPEED_WORDS,
   assemblePaceRates, parsePaceBase, parsePaceRates, PACE_SPEED_WORDS,
@@ -359,12 +359,6 @@ check("else the count its cadence is stated per",
 check("the threshold the clock compares against wins over the cadence",
   parseRestInterval(" nap every 3 turns, or past more than 7 turns the lot of you wheeze.") === 7);
 check("a rest with no count of turns is no interval", parseRestInterval(" rest when you like.") === null);
-check("the rounds to a turn", parseRoundsPerTurn(" 7 rounds per turn and 5 turns per hour.") === 7);
-check("the turns to an hour", parseTurnsPerHour(" 7 rounds per turn and 5 turns per hour.") === 5);
-check("a count may be a word", parseRoundsPerTurn(" six rounds per turn") === 6 && parseTurnsPerHour(" four turns per hour") === 4);
-check("a fraction is no count of rounds", parseRoundsPerTurn(" 7.5 rounds per turn") === null);
-check("neither is read where the sentence states the other", parseRoundsPerTurn(" 5 turns per hour") === null && parseTurnsPerHour(" 7 rounds per turn") === null);
-check("nothing is read from nothing", parseRoundsPerTurn(undefined) === null && parseTurnsPerHour("") === null);
 
 /* --- end to end: invented pages through the shipped recipes ---------------- */
 // One run per line, stacked down the right-hand column the recipes read.
@@ -383,14 +377,8 @@ const REST_PAGE = [
   "Rest and Recuperation",
   "The ogre union demands a 2 turn lunch. A troupe that marches more than 4 turns unrested starts to wheeze.",
 ];
-// The time-keeping sentence sits in the page's left column; a figure past its full stop is no part of it.
-const TIME_PAGE = [
-  "Turns and rounds",
-  "In the ogres' time-keeping, however, there are always 7 rounds per turn and 5 turns per hour of in-game time. A lunch is 9 rounds per turn, they say.",
-].map((str, i) => ({ x: 72, y: 100 + i * 12, str }));
 const recipes = TABLE_RECIPES.formation.tables;
 const raw = {
-  timeProse: extractTable(TIME_PAGE, recipes.timeProse),
   swimmingProse: extractTable(page(SWIM_PAGE), recipes.swimmingProse),
   restProse: extractTable(page(REST_PAGE), recipes.restProse),
 };
@@ -408,8 +396,6 @@ const DOOR_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => DOOR_PRO
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
     .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS, ...PACE_KEYS, ...RATE_KEYS, ...DOOR_KEYS].includes(k)).sort());
-eq("the time-keeping sentence's two counts, and not the figure past its full stop", [engine.roundsPerTurn, engine.turnsPerHour], [7, 5]);
-eq("an absent time-keeping window assembles neither", ["roundsPerTurn", "turnsPerHour"].filter((k) => k in assembleFormationTables({ restProse: raw.restProse })), []);
 eq("the water penalty sizes, three conditions named and two sizes printed", engine.swimWaterPenaltySteps, [6, 11]);
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -692,7 +678,7 @@ eq("nor from an undefined raw", assembleFormationTables(), {});
 eq("a partial read assembles only what it read",
   Object.keys(assembleFormationTables({ swimmingProse: { water: raw.swimmingProse.water } })), ["swimWaterPenaltySteps"]);
 eq("a drifted window costs its own figure and nothing beside it",
-  Object.keys(assembleFormationTables({ ...raw, swimmingProse: { ...raw.swimmingProse, breath: " whatever her lungs allow" } })).length, 9);
+  Object.keys(assembleFormationTables({ ...raw, swimmingProse: { ...raw.swimmingProse, breath: " whatever her lungs allow" } })).length, 7);
 
 /* --- the import writes the WORLD layer, citing the raw tables' page -------- */
 services.resetServices();
@@ -710,16 +696,15 @@ unregisterTable(FORMATION_DOC_ID);
 check("nothing registered reads as no rest owed", restInterval() === null);
 eq("nor any carried-body figure", carriedBody(), { stone: null, gearShare: null });
 
-const cites = { swimmingProse: recipeCite(recipes.swimmingProse), restProse: recipeCite(recipes.restProse), timeProse: recipeCite(recipes.timeProse) };
+const cites = { swimmingProse: recipeCite(recipes.swimmingProse), restProse: recipeCite(recipes.restProse) };
 registerTable({ id: FORMATION_DOC_ID, source: TABLE_RECIPES.formation.source, cites, tables: raw }, { priority: PRIORITY.WORLD });
 const applied = await applyFormationImport();
-check("the import assembles all ten", applied.assembled.length === 10);
+check("the import assembles all eight", applied.assembled.length === 8);
 const written = writes.at(-1);
 check("into the WORLD layer", written?.opts.priority === PRIORITY.WORLD);
 check("the raw windows stay beside the engine tables", "swimmingProse" in written.doc.tables && "restInterval" in written.doc.tables);
 check("each engine table cites the page its window was read from",
   written.doc.cites.restInterval === cites.restProse && written.doc.cites.breathRounds === cites.swimmingProse
-  && written.doc.cites.roundsPerTurn === cites.timeProse && written.doc.cites.turnsPerHour === cites.timeProse
   && /^RR p\.\d+$/.test(cites.swimmingProse));
 check("the layer read back is the written one", getLayer(FORMATION_DOC_ID, PRIORITY.WORLD)?.tables?.restInterval === 4);
 

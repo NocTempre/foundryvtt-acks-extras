@@ -15,6 +15,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
+import { TURNS_PER_HOUR } from "../lib/time-unit.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
@@ -43,9 +44,6 @@ export const PRODUCES = Object.freeze({
     smuggling: "businessProse",
   },
 });
-
-/** Turns in an hour, for a cadence the page states in hours. */
-const TURNS_PER_HOUR = 6;
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */

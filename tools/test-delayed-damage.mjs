@@ -10,15 +10,15 @@
  * act on the primary GM's client alone.
  *
  * The world clock is pinned beside it: a fight that ends before a record is due
- * moves it onto `dueAt`, at the invented round length of
- * `time-unit-fixture.mjs`; the clock lifts it once, in the same order; a world
- * with no round length deletes it and warns the Judge once; and a fight whose
- * combatants are gone still releases the record its actor holds.
+ * moves it onto `dueAt`, at the round length of `time-unit-fixture.mjs`; the
+ * clock lifts it once, in the same order; a fight's end handed no round length
+ * deletes it and warns the Judge once; and a fight whose combatants are gone
+ * still releases the record its actor holds.
  */
 import assert from "node:assert/strict";
 import { MODULE_ID, FLAG_DELAYED_DAMAGE, FLAG_TURN_LIFE, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "../scripts/lib/constants.mjs";
 import { turnEdges } from "../scripts/lib/turn-life.mjs";
-import { INVENTED_ROUND_SECONDS, registerInventedTime, removeInventedTime } from "./time-unit-fixture.mjs";
+import { ROUND_SECONDS } from "./time-unit-fixture.mjs";
 
 let passed = 0;
 const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
@@ -196,7 +196,6 @@ await ok("the hooks are installed once", async () => {
 /*  The world clock                              */
 /* -------------------------------------------- */
 
-const { roundSeconds } = await import("../scripts/lib/time-unit.mjs");
 const world = (over = {}) => ({ dueAt: 100, amount: 7, source: "Venom", cite: "Pg 3", ...over });
 const Unset = globalThis.foundry.data.operators.ForcedDeletion;
 
@@ -248,10 +247,10 @@ await ok("the world clock brings a record due at its reading and not before, and
 });
 
 await ok("a fight's end turns the rounds still to run into seconds at the round length", () => {
-  const at = { now: 1000, roundSeconds: INVENTED_ROUND_SECONDS };
+  const at = { now: 1000, roundSeconds: ROUND_SECONDS };
   const moved = delayedDamageToWorld(record({ count: 4, seen: 1 }), "f", at);
   assert.equal(moved.act, "convert");
-  assert.deepEqual(moved.record, { dueAt: 1000 + 3 * INVENTED_ROUND_SECONDS, amount: 7, formula: "", source: "Venom", cite: "Pg 3" }, "three rounds to run, and no combat key left");
+  assert.deepEqual(moved.record, { dueAt: 1000 + 3 * ROUND_SECONDS, amount: 7, formula: "", source: "Venom", cite: "Pg 3" }, "three rounds to run, and no combat key left");
   assert.equal(delayedDamageToWorld(record({ count: 2, seen: 5 }), "f", at).record.dueAt, 1000, "a count already reached is due now");
   assert.equal(delayedDamageToWorld(record({ edge: "end", count: 2, seen: 2 }), "f", at).record.dueAt, 1000, "an end record waiting on its turn's end is due now");
   assert.equal(delayedDamageToWorld(record({ count: 2 }), "f", { now: 1000, roundSeconds: 0.4 }).record.dueAt, 1001, "a part of a second is a whole one");
@@ -259,18 +258,7 @@ await ok("a fight's end turns the rounds still to run into seconds at the round 
   assert.equal(delayedDamageToWorld(world(), "f", at).act, "none", "already on the world clock");
   assert.equal(delayedDamageToWorld(record(), "f", { ...at, down: true }).act, "drop", "a bearer that is down is owed nothing");
   for (const blank of [null, undefined, 0, -3, "x"]) assert.equal(delayedDamageToWorld(record(), "f", { now: 1000, roundSeconds: blank }).act, "owed", `a round length of ${String(blank)} cannot convert`);
-  assert.equal(delayedDamageToWorld(record(), "f", { now: null, roundSeconds: INVENTED_ROUND_SECONDS }).act, "owed", "no clock reading");
-});
-
-await ok("the round length is read from the imported figures at the moment, and is null with none", () => {
-  removeInventedTime();
-  assert.equal(roundSeconds(), null, "nothing imported");
-  registerInventedTime();
-  try {
-    assert.equal(roundSeconds(), INVENTED_ROUND_SECONDS);
-  } finally {
-    removeInventedTime();
-  }
+  assert.equal(delayedDamageToWorld(record(), "f", { now: null, roundSeconds: ROUND_SECONDS }).act, "owed", "no clock reading");
 });
 
 /** A fight with the bearer's combatant and one other; `bearer` is the actor the combatant stands for. */
@@ -285,18 +273,18 @@ await ok("a fight that ends before the record is due moves it to the world clock
   const h = holder({ raw: record({ count: 3, seen: 1 }) });
   const w = warnings();
   const before = { ...h.flag() };
-  const done = await convertDelayedDamage(fightEnd(h.actor), [h.actor], { now: 1000, roundSeconds: INVENTED_ROUND_SECONDS }, w.deps);
+  const done = await convertDelayedDamage(fightEnd(h.actor), [h.actor], { now: 1000, roundSeconds: ROUND_SECONDS }, w.deps);
   assert.deepEqual(done, [{ name: "Bearer", act: "convert" }]);
   assert.equal(before.combatId, "f", "before: a combat clock");
-  assert.deepEqual(h.flag(), { dueAt: 1000 + 2 * INVENTED_ROUND_SECONDS, amount: 7, formula: "", source: "Venom", cite: "Pg 3" }, "after: a world clock and nothing of the fight");
+  assert.deepEqual(h.flag(), { dueAt: 1000 + 2 * ROUND_SECONDS, amount: 7, formula: "", source: "Venom", cite: "Pg 3" }, "after: a world clock and nothing of the fight");
   assert.deepEqual([h.deleted, w.log], [[], []], "the record stays, and nobody is warned");
   const { deps, log } = hands();
   const order = [];
   const traced = { roll: deps.roll, damage: async (a) => { order.push("damage"); return deps.damage(a); }, post: async (e) => { order.push("post"); return deps.post(e); } };
   const gone = h.actor.deleteEmbeddedDocuments;
   h.actor.deleteEmbeddedDocuments = async (...args) => { order.push("delete"); return gone(...args); };
-  assert.deepEqual(await liftWorldDelayedDamage([h.actor], 1000 + 2 * INVENTED_ROUND_SECONDS - 1, traced), [], "not before");
-  const landed = await liftWorldDelayedDamage([h.actor], 1000 + 2 * INVENTED_ROUND_SECONDS, traced);
+  assert.deepEqual(await liftWorldDelayedDamage([h.actor], 1000 + 2 * ROUND_SECONDS - 1, traced), [], "not before");
+  const landed = await liftWorldDelayedDamage([h.actor], 1000 + 2 * ROUND_SECONDS, traced);
   assert.deepEqual(order, ["delete", "damage", "post"], "delete first, then the hit points, then the card");
   assert.equal(landed.length, 1);
   assert.deepEqual(log.damage, [7]);
@@ -308,7 +296,7 @@ await ok("a fight that ends before the record is due moves it to the world clock
 await ok("a record due at the fight's end is due at once, and a bearer that left the fight is still struck", async () => {
   const h = holder({ raw: record({ count: 2, seen: 2 }) });
   const stranger = { id: "f", combatants: Object.assign([], { get: () => undefined }) };
-  assert.equal((await convertDelayedDamage(stranger, [h.actor], { now: 500, roundSeconds: INVENTED_ROUND_SECONDS }, warnings().deps))[0].act, "convert", "no combatant in the fight, the actor still holds it");
+  assert.equal((await convertDelayedDamage(stranger, [h.actor], { now: 500, roundSeconds: ROUND_SECONDS }, warnings().deps))[0].act, "convert", "no combatant in the fight, the actor still holds it");
   assert.equal(h.flag().dueAt, 500);
   const { deps, log } = hands();
   await liftWorldDelayedDamage([h.actor], 500, deps);
@@ -319,7 +307,7 @@ await ok("a fight's end leaves another fight's record and a world-clock record a
   const other = holder({ raw: record({ combatId: "g" }), name: "Other" });
   const already = holder({ raw: world(), name: "Already" });
   const w = warnings();
-  const at = { now: 1000, roundSeconds: INVENTED_ROUND_SECONDS };
+  const at = { now: 1000, roundSeconds: ROUND_SECONDS };
   assert.deepEqual(await convertDelayedDamage(fightEnd(other.actor), [other.actor, already.actor], at, w.deps), []);
   assert.equal(other.flag().combatId, "g");
   assert.equal(already.flag().dueAt, 100);
@@ -333,11 +321,10 @@ await ok("a fight's end leaves another fight's record and a world-clock record a
   assert.equal((await convertDelayedDamage(fightOf, [twice.actor, twice.actor], at, w.deps)).length, 1, "an actor listed twice holds its record once");
 });
 
-await ok("a world with no round length deletes the record and warns the Judge once, naming bearer, amount, source and page", async () => {
+await ok("a fight's end with no round length to convert at deletes the record and warns the Judge once, naming bearer, amount, source and page", async () => {
   const flat = holder({ raw: record() });
   const w = warnings();
-  const done = await convertDelayedDamage(fightEnd(flat.actor), [flat.actor], { now: 1000, roundSeconds: roundSeconds() }, w.deps);
-  assert.equal(roundSeconds(), null, "nothing is imported in this check");
+  const done = await convertDelayedDamage(fightEnd(flat.actor), [flat.actor], { now: 1000, roundSeconds: null }, w.deps);
   assert.deepEqual(done, [{ name: "Bearer", act: "owed" }]);
   assert.deepEqual(flat.deleted, ["e1"], "the record is deleted, never converted");
   assert.deepEqual(w.log, [{ name: "Bearer", amount: 7, source: "Venom", cite: "Pg 3" }], "one warning, with what is owed");

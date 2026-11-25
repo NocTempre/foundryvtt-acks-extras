@@ -158,7 +158,6 @@ const { registerTable, unregisterTable, resetTables, PRIORITY } = await import("
 const { getFormation } = await import("../scripts/formation/formation-model.mjs");
 const { travelOf, freshDay, endDay, DAY_SECONDS } = await import("../scripts/formation/travel.mjs");
 const journey = await import("../scripts/formation/journey.mjs");
-const { INVENTED_TIME, INVENTED_TURN_SECONDS, registerInventedTime, removeInventedTime } = await import("./time-unit-fixture.mjs");
 const { travelReadout } = await import("../scripts/formation/formation-view.mjs");
 const { partySpeed } = await import("../scripts/formation/formation-model.mjs");
 const { offerDayEnd } = await import("../scripts/formation/day-close.mjs");
@@ -693,24 +692,15 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   const id = makeFormation(null, null);
   settings.formations[id].lights = [{ id: "l1", type: "torch", bearerId: "x", remaining: 3, lit: true }];
   settings.formations[id].spells = [{ id: "s1", name: "Ward", casterId: "x", remaining: 2 }];
-  // Two whole imported turns and a remainder of 100 seconds, which is kept.
-  registerInventedTime();
-  const r = await journey.advanceJourneyClock(id, 2 * INVENTED_TURN_SECONDS + 100);
-  assert.equal(r.seconds, 2 * INVENTED_TURN_SECONDS + 100);
+  // 25 minutes: two whole turns, 300 seconds kept.
+  const r = await journey.advanceJourneyClock(id, 1500);
+  assert.equal(r.seconds, 1500);
   const f = getFormation(id);
   assert.equal(f.lights[0].remaining, 1, "two turns burned off the torch");
   assert.equal(f.spells.length, 0, "the ward ran out and was dropped");
-  assert.equal(f.clock.journeySeconds, 100, "the remainder waits for the next step.");
+  assert.equal(f.clock.journeySeconds, 300, "the remainder waits for the next step");
   assert.equal(f.clock.turnsTotal, 0, "no turn was counted");
   assert.ok(r.notes.length >= 1, "an expiry is reported");
-  // With the turns to an hour not imported no turn is counted and nothing burns, and the seconds wait.
-  removeInventedTime();
-  const blank = makeFormation(null, null);
-  settings.formations[blank].lights = [{ id: "l2", type: "torch", bearerId: "x", remaining: 3, lit: true }];
-  await journey.advanceJourneyClock(blank, 5000);
-  const kept = getFormation(blank);
-  assert.equal(kept.lights[0].remaining, 3, "nothing burns without a turn's length");
-  assert.equal(kept.clock.journeySeconds, 5000, "the seconds are kept");
 }
 
 /* -------------------------------------------- */
@@ -807,9 +797,8 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   const token = makeToken(scene, "t.crypt");
   const id = makeFormation(scene, token, { mode: "delve" });
   // Two hundred and forty feet is two 120-foot exploration moves.
-  registerInventedTime();
   const r = await drag(token, id, 48 * CELL, 0);
-  assert.equal(r.seconds, 2 * INVENTED_TURN_SECONDS, "two dungeon turns of world time");
+  assert.equal(r.seconds, 1200, "two dungeon turns of world time");
   assert.equal(getFormation(id).clock.turnsTotal, 2, "a delve on a small map is billed in turns");
   assert.equal(travelOf(getFormation(id)).day.miles, 0, "and spends none of the journey's day");
   assert.equal(r.cards.length, 0, "with no encounter card");
@@ -861,9 +850,7 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
     { min: 16, max: 40, target: 15 },
     { min: 41, max: null, target: 8 },
   ];
-  registerInventedTime();
-  // One throw an hour: the cadence is the imported turns to an hour.
-  registerTable({ id: SEARCHING_DOC, tables: { targets, turnsPerThrow: INVENTED_TIME.turnsPerHour } }, { priority: PRIORITY.WORLD, source: "test" });
+  registerTable({ id: SEARCHING_DOC, tables: { targets, turnsPerThrow: 6 } }, { priority: PRIORITY.WORLD, source: "test" });
 
   const scene = makeScene("S.search", { kind: "hex", miles: 7 });
   const token = makeToken(scene, "t.search");

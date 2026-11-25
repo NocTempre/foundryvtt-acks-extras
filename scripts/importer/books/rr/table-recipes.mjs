@@ -3,8 +3,7 @@
  * paces a proficient climber moves at, read from the exploration chapter's
  * climbing, crawling and balancing paragraphs (RR pp. 269-270), and the door
  * figures of the chapter's Doors section (RR pp. 266-267): the door grid and
- * the bash paragraph, and the Turns and Rounds sentence that counts a turn's
- * rounds and an hour's turns (RR p. 263). Geometry and anchors only; every size, share and row is
+ * the bash paragraph. Geometry and anchors only; every size, share and row is
  * read from the Judge's own copy at import (docs/importer/RECIPES.md), and
  * `formation-binding.mjs` parses the windows into the engine figures.
  *
@@ -17,8 +16,7 @@
 /**
  * The Revised Rulebook's contribution, `{docId: {pages, tables}}`: three
  * prose-window recipes, one per way of crossing, each on its own page and
- * column, the door grid with the bash paragraph's windows, and the time-keeping
- * window.
+ * column, and the door grid with the bash paragraph's windows.
  */
 export const tableRecipes = {
   formation: {
@@ -116,21 +114,6 @@ export const tableRecipes = {
         values: [
           { key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 },
           { key: "base", find: "an adventurer can move at", take: "window", span: 30 },
-        ],
-      },
-      // RR ch. 6, Turns and Rounds: one sentence states the rounds a turn
-      // counts for time-keeping and the turns an hour holds. The window opens
-      // after the words that lead into it (no figure in the anchor) and runs
-      // to the sentence's end; the binding parses both counts out of it. The
-      // passage is in the page's left column.
-      timeProse: {
-        shape: "proseValues",
-        book: "rr",
-        printedPage: 263,
-        locate: "time-keeping",
-        column: { xMin: 40, xMax: 320 },
-        values: [
-          { key: "pace", find: "there are always", take: "window", span: 100 },
         ],
       },
     },

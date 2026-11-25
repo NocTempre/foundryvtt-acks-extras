@@ -1533,3 +1533,54 @@ applies no figure and refuses only a second copy of one condition's change. It
 is the method Foundry offers modules ("to introduce additional conditions under
 which a change is applied"), and without the module every effect is plain
 Foundry.
+
+## 2026-11-25 — The rounds to a turn and the turns to an hour are units of measure and stay in source
+
+A review during the Beastman work asked whether the rounds a dungeon turn
+counts for time-keeping were a printed value, ruled that they were, and moved
+them and the turns to an hour onto the importer (2726bf8d, ledger T-0730,
+never released). A world with nothing imported then had no turn length and no
+round length: round-level play advanced nothing, a spell duration counted in
+turns had no figure, and a record counted in rounds never ended. Asked whether
+to keep that, the owner:
+
+"Too aggressive, rounds per turn is very generic rules, not IP"
+
+**Ruled.**
+- The rounds to a turn and the turns to an hour are stated in
+  `lib/time-unit.mjs` as constants, beside the hour's seconds and the day's
+  hours. They are not imported, no table declares them, and no reader of them
+  answers null. The page reference stays (RR p. 263).
+- The readers keep their names (`roundsPerTurn`, `turnsPerHour`,
+  `turnsPerDay`, `turnSeconds`, `roundSeconds`, `timeUnitCite`).
+- The importer's own copies of the turns to an hour read lib's constant
+  (ledger T-0765).
+
+Told the change would take the turns to an hour with it and no other figure,
+the owner gave the test:
+
+"If it is a generic concept that actual IP relies on to describe itself
+mechanically, it's likely it doesn't need imported."
+
+**Reading, the session's and not the owner's words.** The owner named the
+rounds to a turn. The turns to an hour are taken with it: one sentence prints
+both, a turn's seconds follow from the second figure alone, and a round's from
+both, so restoring one would leave the world clock blank. Under the test both
+are units the book's own procedures count in. This entry moves these two
+figures and no other; the test is stated in `.claude/rules/ip-doctrine.md`,
+and "likely" is the owner's word, so a figure that is not plainly such a unit
+is put to the owner before its import or its constant is built. A
+printed-value sweep that meets these two constants leaves them.
+
+**Rejected.**
+- The import with a constant to fall back on: one figure with two owners, and
+  a table the importer would keep naming as missing.
+- Keeping a Judge's override of either figure. The Ruledata Browser edits
+  imported tables, and these are no longer tables; the override T-0730 gave
+  goes with the import. The owner was not asked about it.
+
+**Cost.** `ip-doctrine.md` said every number read off a page is content,
+"however small and however alone", with no exception. It now carries the
+owner's test beside that sentence, and the test needs a reviewer every time:
+nothing mechanical tells a unit the rules are written in from a figure the
+rules set.

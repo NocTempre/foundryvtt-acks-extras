@@ -852,7 +852,7 @@ const SHARED_TABLE_RECIPES = {
   // each figure; formation-binding.mjs parses them into the engine shape
   // declared via expectTables.
   formation: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 263, 265, 267-271, 288, 293; JJ 239" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 265, 267-271, 288, 293; JJ 239" },
     tables: {
       // RR ch. 6 combatant frontage and interval: prose only. One sentence names
       // the wide frontage and the march frontage together, so each window opens on

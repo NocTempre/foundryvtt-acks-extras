@@ -14,6 +14,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
+import { TURNS_PER_HOUR } from "../lib/time-unit.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 
@@ -97,9 +98,6 @@ export function parseShare(text, re) {
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 }
-
-/** Turns → hours, the unit the exposure clock is kept in. */
-const TURNS_PER_HOUR = 6;
 
 /**
  * A duration in the exposure prose, normalized to HOURS. The page gives one

@@ -17,6 +17,15 @@ and it is finer than it looks:
   score and that the landing is a Paralysis save, and it takes `dexCap` and
   `saveBonus` as arguments because what Acrobatics is *worth* is printed, not
   structural.
+- **A generic concept the rules are written in is not a value.** The owner:
+  "If it is a generic concept that actual IP relies on to describe itself
+  mechanically, it's likely it doesn't need imported." The rounds to a turn
+  and the turns to an hour are the case it was said of. The book's procedures
+  count in them, and they are constants in `lib/time-unit.mjs` with their page
+  reference. "Likely" is the owner's word: a figure that is not plainly such a
+  concept is put to the owner before its import or its constant is built, and
+  so is an import whose blank case would stop basic play. The ruling is in
+  `docs/lib/DECISIONS.md` (2026-11-25).
 - **A table of options a reader picks from** — tiers, variants, qualities —
   is content whatever it is made of, and is registered rather than shipped.
   `lib/tables.mjs` has said "no book values, no fallback samples" since the
