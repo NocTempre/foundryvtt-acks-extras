@@ -2,8 +2,8 @@
  * Live walk, equipment-add-effect: the item sheet's one Add Effect control.
  * Walks docs/equipment/TESTING.md step 8 on the GM seat: an item with no
  * effect opens in the simple view, whose footer offers Add Effect and no
- * Add Light; the choice it opens makes a Magic Light (two empty `upgrade`
- * radius changes) and opens it; the item then shows its tab strip, and the
+ * Add Light; the choice it opens makes a Magic Light (one empty `upgrade`
+ * radius change per band the module defines) and opens it; the item then shows its tab strip, and the
  * Effects tab's one Add Effect makes a blank effect; closing the choice by
  * its header button makes nothing. Machine values arrive through ./_env.mjs.
  *
@@ -102,7 +102,8 @@ const P = {
       uuid: made?.uuid ?? null,
       transfer: made ? !!made.transfer : null,
       changes: keys.length,
-      lightKeys: made ? keys.includes(H.LT.MAGIC_LIGHT_CHANGE_KEYS.bright) && keys.includes(H.LT.MAGIC_LIGHT_CHANGE_KEYS.dim) : null,
+      bands: H.LT.MAGIC_LIGHT_BANDS.length,
+      lightKeys: made ? H.LT.MAGIC_LIGHT_BANDS.every((band) => keys.includes(H.LT.MAGIC_LIGHT_CHANGE_KEYS[band])) : null,
       upgradeEmpty: made ? (made.changes ?? []).every((c) => (c.type ?? c.mode) === H.ES.CHANGE.UPGRADE && String(c.value ?? "") === "") : null,
       sheetOpen,
     };
@@ -165,7 +166,7 @@ try {
   const light = await run(gm, P.add, { itemId, answer: "light" });
   if (light.uuid) { made.push(light.uuid); await gm.track(light.uuid, "ActiveEffect"); }
   check("the control opens one choice, Blank Effect or Magic Light, inside the scroll contract", light.dialog && light.scroll && light.buttons.join(",") === "blank,light", { buttons: light.buttons, scroll: light.scroll });
-  check("Magic Light makes one transferred effect with both radius changes, upgrade and empty, and opens it", light.created === 1 && light.transfer && light.changes === 2 && light.lightKeys && light.upgradeEmpty && light.sheetOpen, light);
+  check("Magic Light makes one transferred effect with one radius change per band, upgrade and empty, and opens it", light.created === 1 && light.transfer && light.bands > 0 && light.changes === light.bands && light.lightKeys && light.upgradeEmpty && light.sheetOpen, light);
 
   section("8. the Effects tab");
   const second = await run(gm, P.open, { itemId });
