@@ -1359,6 +1359,29 @@ and which stay two. Open on the board, the drawn shape first:
 The cards of boards 1f and 1h are still the design session's own and are not
 redrawn on the Follower Card. Not checked: board 1l's rendering.
 
+### The owner on the Followers tab, 2026-11-24
+
+Asked "Does the Followers tab get the two views as part of this work?", with
+the buttons "Yes, with this work" and "Later", the owner chose:
+
+"Yes, with this work"
+
+The words are the button's, written by the design session; the choice is the
+owner's. It answers `architect`'s question 6 with (a) and closes point 1 of
+board 1l. S12b is part of this plan and is not left for later work. Example:
+a lord's sheet, on its Followers tab, shows its henchmen and units by who
+serves whom and by place, in the views the village's faction sheet shows.
+
+Read as, and no wider: the scope of S12b is ruled, its shape is not. The
+answer leans on H, since S12b is drawn over views built once in lib, and the
+owner was not asked about H's parts one by one. Still open and S12b's to wait
+for: points 2 and 3 of board 1l, and whether the Org chart tab is rows (1i)
+or a tree (1f), which decides both sheets at once.
+
+Section 3's table above stays proposed. S12b's row is the one row this answer
+covers, and it keeps its needs: S10c, S12 and an approved design. Released:
+none. Board 1l's first callout and the note beside it carry the answer.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
