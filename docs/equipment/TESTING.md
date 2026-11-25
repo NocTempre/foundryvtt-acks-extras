@@ -1746,8 +1746,11 @@ record. Nothing else is written.
 
 Walked by `tools/live/equipment-weapon-stacks.mjs`: steps 1, 2, 3, 5 and 6, a
 delivery that folds into a resting row, and the equip and the put-away as a
-plain update from the Player seat. Step 1's item-sheet control, step 4 and steps 7 to 9 are
-unwalked. The walk's fixture carries a blade and a pack of invented names; its
+plain update from the Player seat. Step 1's item-sheet control and step 4 are
+unwalked, and steps 7 to 9 are not in the walk: a scripted check reaches step 9
+by calling the character sheet's `_onDropItem({ target }, drawnRow)` with the
+resting row's element under `[data-drop="loose"]` as the target, which drives
+the drop handler and not the pointer drag. The walk's fixture carries a blade and a pack of invented names; its
 packed case uses the same row, stored and taken out, and no second marker.
 
 ### Fixtures

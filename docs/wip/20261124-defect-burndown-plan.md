@@ -110,3 +110,37 @@ Both GitHub queues were empty. The repair's Phase 1 findings were registered
 or joined to the rows they repeat, one stale claim was closed against the tag
 that shipped its work, and B01's rows were claimed. Two ledger rows parse to
 a field count other than the header's, before and after; not repaired.
+
+### 2026-11-24, B01
+
+Eleven rows worked. Eight are fixed, and one more found on the way is fixed
+with them: 0f9fcdfb, d3a2b1f1, 5ffb241a, ac846dc9, e63dc295, 3e572086,
+74a05be2, 43f6a2b8, and the item sheet's dead Uses row in 8c979fd0, e29ceb3f
+and this commit. One is a docs gap (907159e5), one is deferred, and one is a
+false report. The Uses row was removed on the owner's ruling, "Remove the
+row", which also approved its design board (option B). Four more findings
+were registered and left `new` for a later batch. All on `main`, not pushed.
+
+Walked live on `main`, lane A:
+
+- 5ffb241a and d3a2b1f1: `equipment-weapon-stacks` passed 19 of 19, after a
+  first run that errored at the GM seat's login. The same recipe's steps 7
+  to 9 were run as a scripted check, 9 of 9. Step 9 drove the character
+  sheet's drop handler, not a pointer drag.
+- ac846dc9: `importer-forced-places` passed 28 of 28, after the same login
+  error, and `importer-book-actors` passed 16 of 16.
+- The Uses row: a scripted check passed 7 of 7. A plain item with charges and
+  a weapon both render the Durability tab with no Uses row and no page error.
+  The key is gone from the loaded strings, and the item's charges are still
+  stored.
+- 43f6a2b8, in part: an ability created with the unattended option reaches
+  `createItem` carrying it, and the picker offers no slot. A plain create
+  still offers one. The probe saw no picker window open in either case, so
+  the dialog itself is not observed.
+
+Checked offline only: 0f9fcdfb, e63dc295, 74a05be2, 907159e5, and 3e572086.
+3e572086 is Remove ALL imports: walking it would come close to emptying the
+shared world, which is the owner's call.
+
+Not checked: the companion picker's dialog opening or staying shut, as
+above.
