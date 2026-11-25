@@ -190,7 +190,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
       .map((row) => ({ ...row, stanceLabel: loc(`stance.${row.stance}`) }));
 
     // The organisation's chart and the places its rows stand on.
-    context.orgChart = chartContext(actor, this, { isGM });
+    context.orgChart = await chartContext(actor, this, { isGM });
     context.orgLocations = locationsContext(actor, { isGM });
 
     // Members: everyone the organisation affiliates (its roster, then each chart row's holder), with a live check that the actor still exists.

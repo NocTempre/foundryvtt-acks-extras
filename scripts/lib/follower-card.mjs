@@ -141,10 +141,13 @@ export function isSpellcaster(actor) {
  *   them, so controls that dispatch an action are drawn only when it is set.
  *   `controls` draws the employer's own controls on a read-only card — the
  *   dismissal and the two throws — for a host whose seat may use them; the
- *   Show control is drawn regardless.
+ *   Show control is drawn regardless. `frame` is `{role, badges}` for a host that
+ *   draws the portrait in a role frame with upgrade badges on its corners
+ *   (the organisation chart): `role` a frame class suffix, each badge
+ *   `{corner, label, tip, icon, byHand}`.
  * @returns {Promise<object>} a flat view model consumed by follower-card.hbs
  */
-export async function followerCardContext(actor, { editable = false, interactive = false, controls = !editable } = {}) {
+export async function followerCardContext(actor, { editable = false, interactive = false, controls = !editable, frame = null } = {}) {
   const sys = actor?.system ?? {};
   const items = actor?.items?.contents ?? [];
   // Ability scores are the card's one structural fork: a model that declares them
@@ -238,6 +241,7 @@ export async function followerCardContext(actor, { editable = false, interactive
     editable,
     interactive,
     controls,
+    frame,
     caster,
     id: actor?.id,
     uuid: actor?.uuid,
@@ -483,7 +487,7 @@ export async function followerCardContext(actor, { editable = false, interactive
  * @param {{editable?: boolean, interactive?: boolean, controls?: boolean}} [opts] as `followerCardContext`
  * @returns {Promise<string>}
  */
-export async function renderFollowerCard(actor, { editable = false, interactive = false, controls = !editable } = {}) {
-  const ctx = await followerCardContext(actor, { editable, interactive, controls });
+export async function renderFollowerCard(actor, { editable = false, interactive = false, controls = !editable, frame = null } = {}) {
+  const ctx = await followerCardContext(actor, { editable, interactive, controls, frame });
   return foundry.applications.handlebars.renderTemplate(FOLLOWER_CARD_TEMPLATE, ctx);
 }

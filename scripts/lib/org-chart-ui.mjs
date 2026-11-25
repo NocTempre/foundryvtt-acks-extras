@@ -14,9 +14,11 @@
  * `chartContext` / `locationsContext` in `_prepareContext`.
  */
 import { MODULE_ID, ORG_LANG_PREFIX } from "./constants.mjs";
+import { renderFollowerCard } from "./follower-card.mjs";
+import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, templateOf } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, frameOf, nextLevelKind, removalRows, subtreeView, templateOf, unlistedView } from "./org-chart-ui-logic.mjs";
 import { isLocation } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
@@ -26,7 +28,7 @@ const loc = makeLoc(ORG_LANG_PREFIX);
 const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-dialog"];
 
 /** The partials the two sheets include; lib loads them at init. */
-export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-locations", "org-nested", "org-edit", "org-roll-panel", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
+export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-locations", "org-nested", "org-roll-panel", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
 
 /** The folded branches of each open window, by window: a press redraws the sheet and the fold stays. */
 const folds = new WeakMap();
@@ -34,6 +36,15 @@ const foldOf = (app) => {
   if (!folds.has(app)) folds.set(app, new Set());
   return folds.get(app);
 };
+
+/** The cards in edit of each open window, and what its last Remove unlisted: a press redraws the sheet and both stay. */
+const edits = new WeakMap();
+const editsOf = (app) => {
+  if (!edits.has(app)) edits.set(app, new Set());
+  return edits.get(app);
+};
+const unlisteds = new WeakMap();
+const unlistedOf = (app) => unlisteds.get(app) ?? null;
 
 /** The module api of the generating feature, where one is loaded. */
 const generator = () => globalThis.acksExtras?.monsters ?? null;
@@ -57,14 +68,26 @@ function citesOf(holder) {
   return [...new Set(cites)].join(" · ");
 }
 
+/** The troop choice of a stack's prototype and its options, through the generator's service; null where it has none. */
+const troopFor = (stack) => services.get("org-chart")?.troopOf?.(stack) ?? null;
+
+/** One card's leader as the chart draws it: the follower card in a role frame with its badges, or null where the row has none. */
+async function leaderHtml(card) {
+  const actor = card.officer ? docOf(card.officer.uuid) : null;
+  if (!actor) return "";
+  const badges = (services.get("org-chart")?.badges?.({ actor, row: card }) ?? []).map((b) => ({ corner: b.corner, label: b.label, tip: b.tip, icon: b.icon, byHand: b.byHand }));
+  const html = await renderFollowerCard(actor, { editable: false, controls: false, frame: { role: frameOf(card), badges } });
+  return `<div class="acks-extras-org-card__leader" data-uuid="${escape(actor.uuid)}">${html}</div>`;
+}
+
 /**
  * What the Organisation partial draws for a sheet, or null where the sheet has no chart
  * to show (a group with no rows that no faction lists keeps its sheet as it was).
  * @param {Actor} actor the faction or group whose sheet it is
- * @param {object} app the sheet, for its folds
+ * @param {object} app the sheet, for its folds, the cards in edit and what a Remove left
  * @param {{isGM: boolean}} options
  */
-export function chartContext(actor, app, { isGM }) {
+export async function chartContext(actor, app, { isGM }) {
   const { host, rootKey } = hostFor(actor);
   const rows = org.unitsOf(host);
   const editable = !!host.isOwner;
@@ -81,11 +104,25 @@ export function chartContext(actor, app, { isGM }) {
   const monsters = generator();
   const canRoll = (key) => !!monsters?.rollOrganisation && !!templateOf(rows, key).template;
   const cards = chartCards(view.roots, { collapsed: foldOf(app), outAt, canRoll, canEdit: editable });
-  const decorate = (cards_) => cards_.map((c) => ({
-    ...c,
-    cites: citesOf(docOf(c.holderUuid)),
-    countTip: loc("card.countTip", { name: c.name, cites: citesOf(docOf(c.holderUuid)) }),
-    children: decorate(c.children),
+  const editing = editsOf(app);
+  const decorate = async (list) => Promise.all(list.map(async (c) => {
+    const holder = docOf(c.holderUuid);
+    const stacks = isGroupActor(holder) ? (holder.system.stacks ?? []) : [];
+    const cites = citesOf(holder);
+    const hand = byHandOf(stacks);
+    const inEdit = editable && editing.has(c.key);
+    return {
+      ...c,
+      cites,
+      countTip: loc("card.countTip", { name: c.name, cites }),
+      byHand: !!hand,
+      handTip: hand ? loc("card.handTip", { n: hand.now, rolled: hand.rolled, cites }) : "",
+      leader: await leaderHtml(c),
+      frame: frameOf(c),
+      editing: inEdit,
+      edit: inEdit ? await editOf(c, holder, stacks) : null,
+      children: await decorate(c.children),
+    };
   }));
   const top = templateOf(rows, view.rows[0]?.key ?? "").template;
   const plate = top ? (fromUuidSync(top)?.flags?.[MODULE_ID]?.plate ?? "") : "";
@@ -95,16 +132,34 @@ export function chartContext(actor, app, { isGM }) {
     editable,
     isGM,
     empty,
-    cards: decorate(cards),
+    cards: await decorate(cards),
     total: view.total,
     emptyCards: view.empty,
     plate,
+    unlisted: unlistedOf(app),
     tools: {
       roll: editable && !!monsters?.rollOrganisation && emptyKeys(view).some(canRoll),
       warband: editable && !!view.roots.length,
       expand: view.rows.length > 0,
       recipe: editable && typeof monsters?.openRecipeEditor === "function" && !!top,
     },
+  };
+}
+
+/** What a card in edit shows: its label, each stack's bodies and troop options, and whether it has a champion to keep. */
+async function editOf(card, holder, stacks) {
+  return {
+    label: card.label,
+    stacks: await Promise.all(stacks.map(async (s) => {
+      const troop = await troopFor(s);
+      return {
+        key: s.key,
+        name: s.template?.label ?? "",
+        count: s.size?.initial ?? 0,
+        troop: troop ? { options: troop.options.map((o) => ({ ...o, selected: o.key === troop.current })) } : null,
+      };
+    })),
+    hasOfficer: !!card.officer,
   };
 }
 
@@ -218,6 +273,7 @@ async function onRoll(_event, target) {
   if (!defaults.variant && !options) return;
   const run = await rollRow(host, key, options ?? {});
   if (run.ok) ui.notifications.info(loc("roll.done", { rows: run.rows?.length ?? 0 }));
+  if (run.faction) (await fromUuid(run.faction).catch(() => null))?.sheet?.render(true);
   render(this);
 }
 
@@ -263,48 +319,60 @@ async function onAddWarband(_event, target) {
   render(this);
 }
 
-/** Open the Edit dialog on a card: label, note, visibility, and each stack's count. An empty card is given its group first. */
+/** The pen: open the card's own form. An empty card is given its group first, so its form has somewhere to write. */
 async function onEdit(_event, target) {
   const { host, key } = await targetOf(target);
   if (!host) return;
-  let row = org.unitsOf(host).find((r) => r.key === key);
+  const row = org.unitsOf(host).find((r) => r.key === key);
   if (!row) return refuse({ reason: "noRow" });
-  if (!row.holderUuid) {
-    const made = await org.ensureHolder(host, key);
-    if (!made) return refuse({ reason: "failed" });
-    row = org.unitsOf(host).find((r) => r.key === key);
+  if (!row.holderUuid && !(await org.ensureHolder(host, key))) return refuse({ reason: "failed" });
+  editsOf(this).add(key);
+  render(this);
+}
+
+/**
+ * Done on a card in edit: its label, each stack's bodies and troop, and its champion, read from
+ * the card's own controls and carried out by `org.editRow`. A troop change names the prototype the
+ * generator finds or makes as its Roll does; bodies already on a map keep what they went out with.
+ */
+async function onEditDone(_event, target) {
+  const { host, key } = await targetOf(target);
+  const card = target.closest("[data-key]");
+  if (!host || !card) return;
+  const field = (el, name) => el.querySelector(`[data-org-field="${name}"]`);
+  const row = org.unitsOf(host).find((r) => r.key === key);
+  const group = docOf(row?.holderUuid);
+  const had = isGroupActor(group) ? group.system.stacks ?? [] : [];
+  const stacks = [];
+  for (const el of card.querySelectorAll("[data-org-stack]")) {
+    const stack = had.find((s) => s.key === el.dataset.orgStack);
+    if (!stack) continue;
+    const change = { stack: stack.key };
+    const count = Number(field(el, "count")?.value);
+    if (Number.isFinite(count) && count !== (stack.size?.initial ?? 0)) change.count = count;
+    const troop = field(el, "troop");
+    if (troop && troop.value !== troop.dataset.was) {
+      const uuid = await services.get("org-chart")?.prototypeFor?.(stack, troop.value);
+      if (uuid) change.prototype = uuid;
+      else ui.notifications.warn(loc("edit.noTroop"));
+    }
+    if (change.count !== undefined || change.prototype !== undefined) stacks.push(change);
   }
-  const group = docOf(row.holderUuid);
-  const stacks = isGroupActor(group) ? (group.system.stacks ?? []).map((s) => ({ key: s.key, label: s.template?.label ?? "", count: s.size?.current ?? 0 })) : [];
-  const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/org-edit.hbs`, {
-    label: row.label, notes: row.notes, hidden: !!row.hidden, isGM: game.user.isGM, stacks, onMap: isGroupActor(group) && (group.system.stacks ?? []).some((s) => (s.roster ?? []).some((m) => m.tokenUuid)),
-  });
-  const { DialogV2 } = foundry.applications.api;
-  const change = await DialogV2.wait({
-    classes: DIALOG_CLASSES,
-    window: { title: loc("edit.title") },
-    content,
-    buttons: [
-      {
-        action: "save",
-        label: loc("edit.press"),
-        default: true,
-        callback: (_event_, button) => {
-          const f = button.form.elements;
-          return {
-            fields: { label: f.namedItem("label").value, notes: f.namedItem("notes").value, ...(f.namedItem("hidden") ? { hidden: !!f.namedItem("hidden").checked } : {}) },
-            stacks: stacks.map((s) => ({ stack: s.key, count: Number(f.namedItem(`count-${s.key}`)?.value) })).filter((s, i) => Number.isFinite(s.count) && s.count !== stacks[i].count),
-          };
-        },
-      },
-      { action: "remove", label: loc("edit.remove") },
-    ],
-    rejectClose: false,
-  });
-  if (change === "remove") await removeRow(this, host, key);
-  else if (change && typeof change === "object") {
-    const result = await org.editRow(host, key, change);
-    if (!result.ok) refuse(result);
+  const change = { fields: { label: field(card, "label")?.value ?? row?.label ?? "" }, stacks };
+  const champion = field(card, "champion");
+  if (champion && !champion.checked) change.officer = { officer: "", moraleBonus: null };
+  const result = await org.editRow(host, key, change);
+  if (!result.ok) return refuse(result);
+  editsOf(this).delete(key);
+  render(this);
+}
+
+/** Remove from inside a card in edit: the same Remove the card's trash makes, with its confirm. */
+async function onEditRemove(_event, target) {
+  const { host, key } = await targetOf(target);
+  if (host) {
+    editsOf(this).delete(key);
+    await removeRow(this, host, key);
   }
   render(this);
 }
@@ -361,11 +429,21 @@ async function removeRow(app, host, key) {
 }
 
 /**
- * The one call a Remove ends in: it takes the row through lib's `deleteRow`, and keeps what
- * that took and left for the sheet to draw above its chart.
+ * The one call a Remove ends in: it takes the row and the rows beneath it off the chart and
+ * deletes no document. The groups that now host what came off, and the rows dropped for naming
+ * no holder, are kept for the sheet to draw above its chart until dismissed.
  */
-async function removeFromChart(_app, _host, _key) {
-  return refuse({ reason: "failed" });
+async function removeFromChart(app, host, key) {
+  const result = await org.unlistRow(host, key);
+  if (!result.ok) return refuse(result);
+  unlisteds.set(app, unlistedView(result));
+  return result;
+}
+
+/** Put away the line a Remove left above the chart. */
+function onDismissUnlisted() {
+  unlisteds.delete(this);
+  render(this);
 }
 
 /** The card's trash press: remove it. */
@@ -418,6 +496,11 @@ export const ORG_ACTIONS = Object.freeze({
   orgAdd: onAdd,
   orgAddWarband: onAddWarband,
   orgEdit: onEdit,
+  orgEditDone: onEditDone,
+  orgEditRemove: onEditRemove,
+  orgDismissUnlisted: onDismissUnlisted,
+  orgBadge: () => {},
+  hirelingShow: onOpen,
   orgSendOut: onSendOut,
   orgRecall: onRecall,
   orgDelete: onDelete,

@@ -377,9 +377,17 @@ window draws it yet.
 Provider: monsters (`scripts/monsters/generate-host.mjs`). Consumer: the template
 sheet's Generate press. `generate(template)` answers `{handled: false}` for a
 template it does not own, and lib then generates a creature as it always has. For
-one it owns it makes a host (a faction card holding an empty top row whose `gen`
-names the template) and answers `{handled: true, actor, tab}`; the sheet opens
-`actor` on tab `tab` and generates nothing. Lib never learns what a recipe is.
+one it owns it makes a host (a root group holding an empty top row whose `gen`
+names the template) and answers `{handled: true, actor, tab?}`; the sheet opens
+`actor` (on `tab` where it names one) and generates nothing. Lib never learns what a recipe is.
+
+### Contract `org-chart` v1
+
+Provider: monsters (`scripts/monsters/org-chart-service.mjs`). Consumer: the organisation chart.
+`badges({actor, row})` answers `[{corner, label, tip, icon, byHand}]` for a leader's head;
+`troopOf(stack)` answers `{current, options: [{key, label, offBands}]}` or null; `prototypeFor(stack,
+troop)` answers the uuid of the prototype for the stack with that troop, found or made by the Roll's own
+mint. No provider means no badge and no troop select; the chart still draws and edits.
 
 ### Contract `encounter-generator` v1
 

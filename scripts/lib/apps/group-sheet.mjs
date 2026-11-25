@@ -173,7 +173,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     );
     context.reveal = judge && sys.reveal ? this.#revealView() : null;
     context.faction = factionView(this.actor, this.isEditable);
-    context.orgChart = chartContext(this.actor, this, { isGM: game.user.isGM });
+    context.orgChart = await chartContext(this.actor, this, { isGM: game.user.isGM });
     context.nestedGroups = nestedGroups(this.actor);
     return context;
   }

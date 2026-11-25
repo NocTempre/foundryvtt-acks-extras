@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { asksBeforeRemoving, branchKeys, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, templateOf } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, frameOf, nextLevelKind, removalRows, subtreeView, templateOf, unlistedView } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -67,6 +67,27 @@ t("a Remove takes the row and every row beneath it, and asks only for more than 
   assert.equal(asksBeforeRemoving(removalRows(view, "w1"), false), false, "the setting off asks nothing");
   assert.equal(asksBeforeRemoving(removalRows(view, "g1"), true), false, "a row on its own is removed at once");
   assert.equal(asksBeforeRemoving([], true), false);
+});
+
+t("a leader's frame follows the tier its unit stands at, or the rows beneath it where none was recorded", () => {
+  assert.deepEqual([0, 1, 2, 5].map((tier) => frameOf({ gen: { tier } })), ["champion", "sub", "chief", "chief"]);
+  const kid = { children: [], gen: {} };
+  assert.equal(frameOf(kid), "champion");
+  assert.equal(frameOf({ gen: {}, children: [kid] }), "sub");
+  assert.equal(frameOf({ gen: {}, children: [{ gen: {}, children: [kid] }] }), "chief");
+});
+
+t("a count is set by hand when it differs from the total its Roll threw, and a stack with no record never is", () => {
+  const stack = (initial, rolled, label = "Body") => ({ size: { initial, current: 0 }, gen: { rolled }, template: { label } });
+  assert.equal(byHandOf([stack(5, 5)]), null, "casualties move current, never the initial the roll set");
+  assert.deepEqual(byHandOf([stack(5, 5), stack(7, 4, "Kind")]), { byHand: true, rolled: 4, now: 7, label: "Kind" });
+  assert.equal(byHandOf([{ size: { initial: 3 }, gen: { rolled: null } }, { size: { initial: 3 }, gen: {} }]), null);
+  assert.equal(byHandOf([]), null);
+});
+
+t("an unlist reads as the groups now hosting what came off and the rows dropped, or as nothing", () => {
+  assert.deepEqual(unlistedView({ ok: true, units: [{ uuid: "G.a", name: "A", key: "k" }], dropped: ["x", "y"] }), { groups: [{ uuid: "G.a", name: "A" }], dropped: 2 });
+  assert.equal(unlistedView({ ok: true, units: [], dropped: [] }), null);
 });
 
 let failures = 0;

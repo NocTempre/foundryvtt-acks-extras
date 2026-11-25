@@ -245,7 +245,14 @@ document the seat cannot write, refuse the plan before the first write (`badOp`,
 id made (`created`, `made.{groups,prototypes,leaders}`) in either case, and a string still
 starting `new:` is never written.
 
-## Delete
+## Unlist, and Delete as API
+
+`unlistRow(host, key)` is what every Remove press ends in: the row and every row beneath it come off the
+host's chart and **no document is deleted**. It is `leave` widened to any host: each topmost row of the
+subtree that names a holder moves, with the rows beneath it, onto that holder, which hosts them as its own
+chart; where the host is a group that holder is taken out of the group that nested it
+(`setParentGroup(null)`); a subtree naming no holder is only dropped and no group is made for it. Every
+seat is checked before the first write. `org.deleteRow` stays as API only, with no caller on any sheet.
 
 `deleteRow(host, key)` removes a row and every row beneath it (a group nests inside its
 parent row's group, so a row taken alone would leave its subtree inside a deleted group),
@@ -279,9 +286,15 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   `planEdit` and the `setStack` executor op; a stack's count never goes below the bodies it
   already records, and bodies on a map keep the figures they went out with until recalled (a
   whisper, never a refusal).
-- **Remove**, in a card's pen or on its foot, takes the row, its subtree and their groups
-  (`deleteRow`) and draws, above the chart, the leaders left in the world with an Open for
-  each, the prototypes removed and those a stack elsewhere still names, until dismissed.
+- **Remove**, in a card in edit, unlists the row and its subtree (`unlistRow`) and deletes nothing. A
+  line above the chart names each group that now hosts what came off, with an Open, and the count of rows
+  dropped for naming no group, until dismissed.
+- The tree is board 1f's chart: leader cards joined top-down by connector lines, children side by side, in a
+  box that scrolls sideways. A leader's card is the Follower Card's compact face (`frame` option) inside the
+  role frame of its tier (`gen.tier`, read from the evaluated line), with troop, trait and kit badges drawn
+  by the generator's `org-chart` service. A card in edit is a form in the card: troop, bodies, champion,
+  Remove and Done. A count is **set by hand** when it differs from the total its Roll threw (`gen.rolled` on
+  the stack), derived each draw and never stored.
 - A reader who is no Judge is shown no `hidden` row and nothing beneath one, in the chart
   and in the Locations rows (`readableUnits`, `readableChartRows`).
 - **Expand all** and **Collapse all** keep their fold on the window (a press redraws the

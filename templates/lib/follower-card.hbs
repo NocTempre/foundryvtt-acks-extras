@@ -249,7 +249,7 @@
   {{!-- The compact card: name, rank and the host's controls on the head row;
         the six readings; the attacks; what the Judge starred; the build. --}}
   <div class="acks-lib-follower-card__head">
-    {{#if img}}<img class="acks-lib-follower-card__portrait" src="{{img}}" alt="" inert>{{/if}}
+    {{#if img}}{{#if frame}}<span class="acks-extras-pf acks-extras-pf--{{frame.role}}"><img class="acks-lib-follower-card__portrait" src="{{img}}" alt="" inert>{{#each frame.badges}}<button type="button" class="acks-extras-pf__badge acks-extras-pf__badge--{{this.corner}}{{#if this.byHand}} is-hand{{/if}}" data-action="orgBadge" data-tooltip-text="{{this.tip}}" aria-label="{{this.label}}"><img src="{{this.icon}}" alt="" inert></button>{{/each}}</span>{{else}}<img class="acks-lib-follower-card__portrait" src="{{img}}" alt="" inert>{{/if}}{{/if}}
     <div class="acks-lib-follower-card__who">
       <button type="button" class="acks-lib-follower-card__name" data-action="hirelingShow" data-tooltip="{{localize 'ACKS-LIB.followerCard.open'}}">{{name}}{{#if pending}}<i class="acks-extras-frame__dot" data-tooltip="{{pending.title}}" inert></i>{{/if}}</button>
       {{#if rank}}<span class="acks-lib-follower-card__rank">{{rank}}</span>{{/if}}

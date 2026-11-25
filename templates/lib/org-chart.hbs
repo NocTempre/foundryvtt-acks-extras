@@ -23,6 +23,14 @@
       </span>
     {{/if}}
   </div>
+  {{#if unlisted}}
+    <div class="acks-extras-org__unlisted" role="status">
+      <span data-tooltip="ACKS-LIB.org.unlisted.tip">{{localize "ACKS-LIB.org.unlisted.title"}}</span>
+      {{#each unlisted.groups}}<span class="acks-extras-org__unlisted-row"><span data-tooltip="ACKS-LIB.org.unlisted.hostTip">{{name}}</span> <button type="button" data-action="orgOpen" data-uuid="{{uuid}}" data-tooltip="ACKS-LIB.org.unlisted.openTip">{{localize "ACKS-LIB.org.card.open"}}</button></span>{{/each}}
+      {{#if unlisted.dropped}}<span class="cite" data-tooltip="ACKS-LIB.org.unlisted.droppedTip">{{localize "ACKS-LIB.org.unlisted.dropped" n=unlisted.dropped}}</span>{{/if}}
+      <button type="button" data-action="orgDismissUnlisted" aria-label="{{localize 'ACKS-LIB.org.unlisted.dismiss'}}" data-tooltip="ACKS-LIB.org.unlisted.dismiss"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+    </div>
+  {{/if}}
   {{#if cards.length}}
     <p class="hint">
       <span data-tooltip="ACKS-LIB.org.chart.totalTip">{{localize "ACKS-LIB.org.chart.total" n=total}}</span>

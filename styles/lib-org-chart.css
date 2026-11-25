@@ -6,6 +6,7 @@
 
 .acks-extras-org {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 0.4rem;
   margin-bottom: 0.5rem;
@@ -35,78 +36,139 @@
   margin-inline-start: auto;
 }
 
+/* The tree: leader cards joined top-down by connector lines, children side by side. It
+   scrolls sideways in a box of its own when wider than the window (min-width: 0 lets the
+   box shrink below the tree inside the flex frame). */
 .acks-extras-org__scroll {
   overflow-x: auto;
+  min-width: 0;
   min-height: 0;
-  padding-bottom: 0.3rem;
+  padding: 0.25rem 0 0.6rem;
 }
 
-.acks-extras-org__tree,
+.acks-extras-org__tree {
+  width: max-content;
+  min-width: 100%;
+}
+
 .acks-extras-org__tree ul {
-  list-style: none;
+  display: flex;
+  justify-content: center;
   margin: 0;
-  padding: 0;
+  padding: 0.9rem 0 0;
+  list-style: none;
+  position: relative;
 }
 
-.acks-extras-org__tree ul {
-  margin-inline-start: 1.25em;
-  padding-inline-start: 0.6em;
-  border-inline-start: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
-}
+.acks-extras-org__tree > li { padding-top: 0; }
+.acks-extras-org__tree > li::before,
+.acks-extras-org__tree > li::after { display: none; }
 
 .acks-extras-org__tree li {
-  margin: 0.3rem 0;
+  position: relative;
+  margin: 0;
+  padding: 0.9rem 0.3rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.acks-extras-org__tree li::before,
+.acks-extras-org__tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 0.9rem;
+  border-top: 1px solid var(--acks-ink-soft);
+}
+
+.acks-extras-org__tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 1px solid var(--acks-ink-soft);
+}
+
+.acks-extras-org__tree li:first-child::before,
+.acks-extras-org__tree li:last-child::after { border-top: 0; }
+.acks-extras-org__tree li:last-child::before { border-right: 1px solid var(--acks-ink-soft); }
+.acks-extras-org__tree li:only-child::before { border-right: 0; }
+.acks-extras-org__tree li:only-child::after { border-top: 0; }
+
+.acks-extras-org__tree ul ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 0.9rem;
+  border-left: 1px solid var(--acks-ink-soft);
 }
 
 .acks-extras-org-card {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 14em;
-  max-width: 28em;
-  padding: 0.3rem 0.5rem;
-  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
-  font-size: var(--acks-fs-body);
+  width: 11em;
+  border: 1px solid var(--acks-ink-soft);
+  background: var(--acks-paper-pure);
+  font-size: var(--acks-fs-label);
+  line-height: var(--acks-lh-snug);
+  text-align: left;
 }
 
-.acks-extras-org-card.is-empty {
-  outline: 2px dashed var(--acks-ink-soft);
-  outline-offset: 2px;
-}
-
-.acks-extras-org-card.is-hidden {
-  opacity: 0.75;
-}
+.acks-extras-org-card.is-leader { width: 19em; }
+.acks-extras-org-card.is-on { border: var(--acks-rule) solid var(--acks-spot); background: var(--acks-tint); }
+.acks-extras-org-card.is-hand { box-shadow: inset 0 3px 0 var(--acks-warning); }
+.acks-extras-org-card.is-empty { outline: 2px dashed var(--acks-ink-soft); outline-offset: 2px; }
+.acks-extras-org-card.is-hidden { opacity: 0.75; }
 
 .acks-extras-org-card__head,
 .acks-extras-org-card__body,
-.acks-extras-org-card__foot {
+.acks-extras-org-card__foot,
+.acks-extras-org-card__stack {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.5rem;
+  gap: 0.2rem 0.4rem;
 }
 
-.acks-extras-org-card__art {
-  width: 2em;
-  height: 2em;
-  object-fit: cover;
-  border: 0;
+.acks-extras-org-card__head {
+  padding: 0.25rem 0.3rem;
+  background: var(--acks-tint-2);
+  border-bottom: var(--acks-border-soft);
 }
+
+.acks-extras-org-card__body,
+.acks-extras-org-card__form { padding: 0.3rem; }
+.acks-extras-org-card__form { display: flex; flex-direction: column; gap: 0.25rem; border-top: var(--acks-border-soft); }
+.acks-extras-org-card__form select,
+.acks-extras-org-card__form input[type="text"] { min-width: 0; max-width: 100%; }
+.acks-extras-org-card__bodies { width: 4.5em; text-align: center; }
+.acks-extras-org-card__count.is-hand { border-bottom: 1px dotted var(--acks-warning); cursor: help; }
+
+.acks-extras-org-card__art { width: 2em; height: 2em; object-fit: cover; border: 0; }
 
 .acks-extras-org-card__rank {
   flex: 1 1 auto;
-  font-weight: bold;
+  min-width: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: var(--acks-caps);
+  color: var(--acks-spot);
 }
 
 .acks-extras-org-card__more,
 .acks-extras-org-card__out {
+  padding: 0.2rem 0.3rem;
   color: var(--acks-ink-soft);
   font-size: var(--acks-fs-fine);
 }
 
 .acks-extras-org-card__foot {
   justify-content: flex-end;
+  padding: 0.1rem 0.2rem;
+  border-top: var(--acks-border-soft);
 }
 
 .acks-extras-org-card__foot button,
@@ -117,6 +179,54 @@
   line-height: 1.4;
   padding: 0.1rem 0.5rem;
 }
+
+/* A leader's head is the Follower Card's own, framed by rank: hair line for the ranks, solid for a
+   champion, double for a sub-chieftain, double in the spot colour for a chieftain; an upgrade is a
+   badge on a corner (troop top right, trait bottom right, kit bottom left), ringed when a hand chose it. */
+.acks-extras-pf {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--acks-ink-soft);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-pf--champion { border: 2px solid var(--acks-ink); }
+.acks-extras-pf--sub { border: 4px double var(--acks-ink); }
+.acks-extras-pf--chief { border: 4px double var(--acks-spot); outline: 1px solid var(--acks-spot); outline-offset: 2px; }
+
+.acks-extras-pf__badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.2em;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--acks-ink);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-pf__badge img { width: 70%; height: 70%; border: 0; }
+.acks-extras-pf__badge--tr { top: -0.5em; right: -0.5em; }
+.acks-extras-pf__badge--br { bottom: -0.5em; right: -0.5em; }
+.acks-extras-pf__badge--bl { bottom: -0.5em; left: -0.5em; }
+.acks-extras-pf__badge.is-hand { border-color: var(--acks-warning); box-shadow: 0 0 0 1px var(--acks-warning); }
+
+.acks-extras-org__unlisted {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  padding: 0.3rem 0.5rem;
+  border: var(--acks-border-soft);
+  background: var(--acks-tint);
+}
+
+.acks-extras-org__unlisted-row { display: inline-flex; align-items: center; gap: 0.3rem; }
 
 .acks-extras-org-place {
   margin-bottom: 0.4rem;

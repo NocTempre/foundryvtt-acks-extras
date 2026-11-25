@@ -48,6 +48,24 @@ function pinsOf(spec, extra = {}) {
 const mintedFor = (key) => [...game.actors].find((a) => a.flags?.[MODULE_ID]?.[ORG_PROTOTYPE_FLAG] === key) ?? null;
 
 /**
+ * The world actor of one prototype spec: the one already minted for its key, else a new one
+ * generated from the family with every axis the spec decided pinned and marked with the key.
+ * The Roll mints through it, and so does an Edit that changes a stack's troop.
+ * @param {Actor} family the family template
+ * @param {object} spec the prototype spec
+ * @param {string} protoKey its key
+ * @returns {Promise<{actor: Actor, made: boolean}|null>}
+ */
+export async function mintPrototype(family, spec, protoKey) {
+  const held = mintedFor(protoKey);
+  if (held) return { actor: held, made: false };
+  const actor = await generateFromTemplate(family, { pins: pinsOf(spec) });
+  if (!actor) return null;
+  await actor.update({ [`flags.${MODULE_ID}.${ORG_PROTOTYPE_FLAG}`]: protoKey });
+  return { actor, made: true };
+}
+
+/**
  * Roll an organisation into a chart row.
  *
  * @param {object} args
@@ -107,14 +125,7 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   if (!plan.ok) return refused(plan.reason);
 
   const provider = {
-    async mint(spec, { key: protoKey }) {
-      const held = mintedFor(protoKey);
-      if (held) return { actor: held, made: false };
-      const actor = await generateFromTemplate(family, { pins: pinsOf(spec) });
-      if (!actor) return null;
-      await actor.update({ [`flags.${MODULE_ID}.${ORG_PROTOTYPE_FLAG}`]: protoKey });
-      return { actor, made: true };
-    },
+    mint: (spec, { key: protoKey }) => mintPrototype(family, spec, protoKey),
     async makeLeader(op, spec, mount) {
       const actor = await generateFromTemplate(family, { pins: pinsOf({ ...spec, role: spec.role || op.role, troop: op.troop, trait: op.trait }, op.gear?.length ? { gear: op.gear } : {}) });
       if (!actor) return null;

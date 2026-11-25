@@ -463,6 +463,7 @@ export function orgChartView(allRows, read, twins = [], { isGM = true } = {}) {
       holderUuid: n.holderUuid,
       notes: stored.get(n.key)?.notes ?? "",
       hidden: !!stored.get(n.key)?.hidden,
+      gen: stored.get(n.key)?.gen ?? {},
       depth,
       empty: !held,
       name: held?.name ?? n.label,

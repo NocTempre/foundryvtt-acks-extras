@@ -134,3 +134,46 @@ export function removalRows(view, key) {
  * @param {boolean} setting the client setting
  */
 export const asksBeforeRemoving = (going, setting) => !!setting && (going?.length ?? 0) > 1;
+
+/**
+ * The frame a leader's head is drawn in, by the tier its unit stands at (`gen.tier`, how
+ * many levels of units lie beneath it): a unit of bodies is a champion's solid frame, a
+ * unit of those a sub-chieftain's double one, and anything above a chieftain's. A row with
+ * no recorded tier reads from the rows beneath it, so a hand-added card is framed too.
+ * @param {{gen?: {tier?: number}, children?: object[]}} node a view row
+ * @returns {"champion"|"sub"|"chief"}
+ */
+export function frameOf(node) {
+  const tierOf = (n) => Math.max(-1, ...(n.children ?? []).map(tierOf)) + 1;
+  const tier = Number.isInteger(node?.gen?.tier) ? node.gen.tier : tierOf(node);
+  return tier <= 0 ? "champion" : tier === 1 ? "sub" : "chief";
+}
+
+/**
+ * Is a count one set by hand? A stack records the total its Roll threw (`gen.rolled`); a
+ * stack whose total differs, and a stack nothing rolled (no record), reads the first as
+ * by hand and the second as not. Derived each time and never stored.
+ * @param {{size?: {initial?: number}, gen?: {rolled?: number|null}, template?: {label?: string}}[]} stacks a group's stacks
+ * @returns {{byHand: boolean, rolled: number, now: number, label: string}|null} the first stack that differs, or null
+ */
+export function byHandOf(stacks) {
+  for (const s of stacks ?? []) {
+    const rolled = s?.gen?.rolled;
+    if (rolled === null || rolled === undefined) continue;
+    const now = s.size?.initial ?? 0;
+    if (now !== rolled) return { byHand: true, rolled, now, label: s.template?.label ?? "" };
+  }
+  return null;
+}
+
+/**
+ * What an Unlist left, for the line above the chart: each group that now hosts what was
+ * unlisted and how many rows were dropped for naming no holder.
+ * @param {{units?: {uuid: string, name: string}[], dropped?: string[]}} result `org.unlistRow`'s answer
+ * @returns {{groups: {uuid: string, name: string}[], dropped: number}|null} null where nothing came off
+ */
+export function unlistedView(result) {
+  const groups = (result?.units ?? []).map((u) => ({ uuid: u.uuid, name: u.name }));
+  const dropped = result?.dropped?.length ?? 0;
+  return groups.length || dropped ? { groups, dropped } : null;
+}

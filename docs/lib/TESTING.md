@@ -4600,26 +4600,32 @@ active GM; read `game.users.activeGM` in the same call as a measure.
 
 ### Steps
 
-1. **Generate** — Actors sidebar tab → the family template → Generate. *Observable:* a faction card
+1. **Generate** — Actors sidebar tab → the family template → Generate. *Observable:* a root group
    named for the template exists with one row whose `holderUuid` is empty and `gen.template` is
-   the template; its sheet is open on **Org chart**. No creature was made.
+   the template; its sheet is open and shows the Organisation section. No creature and no faction card was
+   made. A Roll of the top card that makes a village then writes two documents, the faction and then the
+   group's rows: **wait for the faction to hold the top row, and for its notice, before reading**; a roll
+   of a gang or warband makes no faction card, and a roll on a host already on a faction makes no second.
 2. **Add** — on the Org chart tab press **+ Warband**. *Observable:* `units` gains an empty row
    under the top row; its card reads "Not rolled, not filled in." with a pen and, where a template is
    known, Roll; a card holding something has no die.
 3. **Roll one card** — press Roll on the empty top card; answer the panel (variant first). *Observable:*
    the row's `holderUuid` is written at once (nothing to save), rows beneath it hold groups too, and
    the Judges' card is whispered. **Roll at random** fills every empty card the same way.
-4. **Edit** — press the pen on a filled card, change a stack's count, Save. *Observable:* the
-   group's stack `size.current` is the new figure and never below the bodies it records. With a body
+4. **Edit** — press the pen on a filled card: the card turns to a form (troop select with off-the-bands
+   types marked, bodies, Champion, Remove, Done); change the bodies, press Done. *Observable:* the
+   group's stack `size.initial` and `size.current` are the new figure, the card reads **set by hand** with a
+   tooltip naming the total the Roll threw (`gen.rolled`) and never below the bodies it records. With a body
    on a map the Judges are whispered and the write still lands.
 5. **Send out and Recall** — press Send out on a filled card, pick the place; open the **Locations**
    tab. *Observable:* the place's roster holds the group and a chip for its row stands on the place;
    its Recall takes the group off the roster again.
 6. **Expand all, Collapse all** — *Observable:* Collapse all leaves every branch card with
    `aria-expanded="false"` and a count of rows and bodies beneath it; Expand all leaves none folded.
-7. **Remove** — press the pen on a filled card, press **Remove**, confirm. *Observable:* the row and
-   its subtree leave `units`; a list above the chart names the leaders left in the world, each with an
-   **Open** control, the prototypes removed and those kept (each count with a tooltip); **Dismiss**
+7. **Remove** — Org chart tab → a card's pen → **Remove**; a row with rows beneath it asks first, a row on
+   its own does not. *Observable:* the row and its subtree leave `units`; **every group, prototype and
+   leader the subtree named is still in the Actors tab, checked by uuid**; a line above the chart names
+   each group now hosting its own chart with an **Open**, and the count of rows dropped; **Dismiss**
    closes it and changes nothing else.
 8. **A narrow window** — resize the sheet to about 320 wide. *Observable:* `.acks-extras-org__scroll`
    has `overflow-x: auto` and scrolls, and `.window-content` does not scroll sideways.

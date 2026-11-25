@@ -900,8 +900,10 @@ beside them.
 
 **Generate on a family template** whose variants carry an encounter line makes no creature:
 `generate-host.mjs`, registered as lib's `template-generate` service (docs/lib/API.md), makes
-a faction card holding one empty top row whose `gen` names the template, and the template sheet
-opens it on its Org chart tab. The Judge rolls from that tab (docs/lib/ORGANISATION.md, "The
+a root group (never a faction card) holding one empty top row whose `gen` names the template, and the
+template sheet opens it on its Organisation section. A Roll that makes a village (its top unit holds
+units that hold units) then ends with lib's Make its own, which makes the faction card and moves the
+rows onto it; a gang or warband roll makes none (`generate-host.mjs` `needsFactionCard`). The Judge rolls from that tab (docs/lib/ORGANISATION.md, "The
 chart's tab"). A template with no encounter line is answered "not mine" and generates as before.
 A faction card's picture is the family's `plate` flag where one was imported.
 
@@ -1063,7 +1065,7 @@ beasts, beasts that fight beside riders, a morale part out of range, a missing f
 the treasure line; what was written; and links to the group and the pot. It has no
 re-roll, pin or confirm.
 
-**Delete** is lib's `org.deleteRow(host, key)`: the row, every row beneath it, the group
+**Remove** is lib's `org.unlistRow` and deletes nothing (docs/lib/ORGANISATION.md). `org.deleteRow(host, key)` is API only and removes: the row, every row beneath it, the group
 each holds and every prototype carrying the marker that no remaining stack names
 (its `template` or its `gen.mount`). A group comes off every roster that held it and the
 faction's leader is cleared where it was a deleted group's officer. The leaders stay in

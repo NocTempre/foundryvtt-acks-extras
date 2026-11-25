@@ -103,12 +103,23 @@ const P = {
       cards: cards.length,
       empty: el.querySelectorAll(".acks-extras-org-card.is-empty").length,
       folded: el.querySelectorAll('li[role="treeitem"][aria-expanded="false"]').length,
-      removedList: el.querySelector(".acks-extras-org__removed")?.innerText ?? null,
-      removedOpens: el.querySelectorAll(".acks-extras-org__removed [data-action='orgOpen']").length,
+      unlistedList: el.querySelector(".acks-extras-org__unlisted")?.innerText ?? null,
+      unlistedOpens: el.querySelectorAll(".acks-extras-org__unlisted [data-action='orgOpen']").length,
+      framedHeads: el.querySelectorAll(".acks-extras-pf").length,
+      badges: el.querySelectorAll(".acks-extras-pf__badge").length,
+      connectors: getComputedStyle(el.querySelector(".acks-extras-org__tree li") ?? el, "::after").content,
       scrollBox: scroll ? { scrolls: scroll.scrollWidth > scroll.clientWidth, overflowX: getComputedStyle(scroll).overflowX } : null,
       frameScrollsSideways: frame ? frame.scrollWidth > frame.clientWidth + 1 : null,
       chips: [...el.querySelectorAll(".acks-extras-org-chip")].length,
     };
+  },
+
+  field: async ({ id, key, stack, field, value }) => {
+    const card = game.actors.get(id).sheet.element.querySelector(`li[data-key="${key}"]`);
+    const el = card?.querySelector(`[data-org-stack="${stack}"] [data-org-field="${field}"]`) ?? card?.querySelector(`[data-org-field="${field}"]`);
+    if (!el) return false;
+    el.value = value;
+    return true;
   },
 
   size: async ({ id, width }) => {
@@ -157,6 +168,9 @@ try {
     check("a card's Roll with no variant yet opens the roll panel, and answering it rolls", asked.answered === true, asked);
     const filled = await waitFor(gm, `game.actors.get("${fid}").system.units.some((r) => r.key === "top" && r.holderUuid)`, 20000);
     check("the card's group is written to the row at once, with nothing to save", filled);
+    // A Roll that makes a village ends with Make its own, which writes the faction and then the group: wait for the second write before reading.
+    const card = await waitFor(gm, `game.actors.contents.some((a) => a.type === "acks-extras.faction" && a.system.units.some((r) => r.key === "top" && r.holderUuid))`, 6000);
+    note("a village's faction card", card ? "made, with the chart moved onto it" : "none: the roll made no village");
     const after = await run(gm, P.read, { id: fid });
     for (const u of after.units.filter((r) => r.holderUuid)) await gm.track(u.holderUuid, "Actor");
     check("rows beneath it are filled by the same press", after.units.filter((r) => r.holderUuid).length >= 1, after.units.length);
@@ -170,7 +184,8 @@ try {
     if (stackBefore.length) {
       await run(gm, P.press, { id: fid, action: "orgEdit", key: filledRow.key, wait: 600 });
       const first = await gm.eval(`(() => { const g = fromUuidSync("${filledRow.holderUuid}"); return g.system.stacks[0].key; })()`);
-      await run(gm, P.dialog, { fields: { [`count-${first}`]: String(stackBefore[0] + 2) }, button: "save" });
+      await run(gm, P.field, { id: fid, key: filledRow.key, stack: first, field: "count", value: String(stackBefore[0] + 2) });
+      await run(gm, P.press, { id: fid, action: "orgEditDone", key: filledRow.key, wait: 600 });
       const moved = await waitFor(gm, `fromUuidSync("${filledRow.holderUuid}").system.stacks[0].size.current === ${stackBefore[0] + 2}`, 8000);
       check("the pen changes a stack's count on the row's group", moved, { was: stackBefore[0] });
     } else note("not walked", "the filled card holds no stack");
@@ -203,18 +218,22 @@ try {
   const narrow = await run(gm, P.read, { id: fid });
   check("the tree scrolls in its own box and the frame does not scroll sideways", narrow.scrollBox?.overflowX === "auto" && narrow.frameScrollsSideways === false, narrow.scrollBox);
 
-  section("remove in edit");
+  section("remove in edit: unlist, delete nothing");
   if (filledRow) {
+    const named = await gm.eval(`(() => { const h = game.actors.get("${fid}"); const subtree = (k) => [k, ...h.system.units.filter((r) => r.parentKey === k).flatMap((r) => subtree(r.key))]; const keys = subtree("${filledRow.key}"); const holders = h.system.units.filter((r) => keys.includes(r.key) && r.holderUuid).map((r) => r.holderUuid); const stacks = holders.flatMap((u) => fromUuidSync(u)?.system.stacks ?? []); const leaders = holders.map((u) => fromUuidSync(u)?.system.unit?.officerUuid).filter(Boolean); const protos = stacks.map((s) => s.template?.uuid).filter(Boolean); return { rows: keys.length, uuids: [...new Set([...holders, ...leaders, ...protos])] }; })()`);
     await run(gm, P.press, { id: fid, action: "orgEdit", key: filledRow.key, wait: 600 });
-    await run(gm, P.dialog, { fields: {}, button: "remove" });
-    await run(gm, P.dialog, { fields: {}, button: "yes" });
+    await run(gm, P.press, { id: fid, action: "orgEditRemove", key: filledRow.key, wait: 600 });
+    if (named.rows > 1) await run(gm, P.dialog, { fields: {}, button: "yes" });
+    else check("a row on its own is removed with no confirm", true);
     const gone = await waitFor(gm, `!game.actors.get("${fid}").system.units.some((r) => r.key === "${filledRow.key}")`, 8000);
     check("Remove takes the row and its subtree off the host", gone);
+    const still = await gm.eval(`(${JSON.stringify(named.uuids)}).map((u) => !!fromUuidSync(u))`);
+    check("every group, prototype and leader the subtree named is still in the Actors tab, by uuid", still.every(Boolean), still);
     const listed = await run(gm, P.read, { id: fid });
-    check("the sheet lists what it removed, with an Open control for each leader left in the world", typeof listed.removedList === "string" && listed.removedList.length > 0, { opens: listed.removedOpens, text: listed.removedList });
-    await run(gm, P.press, { id: fid, action: "orgDismiss" });
+    check("the sheet lists what was unlisted, with an Open control for each group now hosting its own chart", typeof listed.unlistedList === "string" && listed.unlistedList.length > 0, { opens: listed.unlistedOpens, text: listed.unlistedList });
+    await run(gm, P.press, { id: fid, action: "orgDismissUnlisted" });
     const dismissed = await run(gm, P.read, { id: fid });
-    check("Dismiss closes the list and changes nothing else", dismissed.removedList === null);
+    check("Dismiss closes the line and changes nothing else", dismissed.unlistedList === null);
   }
 
   note("not walked", "Generate from the family template's Generate button, the root group's sheet, and a Player seat's view of a hidden card: each needs a world step this script does not drive");
