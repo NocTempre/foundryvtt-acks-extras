@@ -80,6 +80,9 @@ async function postRaised({ itemUuid, rowKey, activationId, tokenUuid, regionUui
   const token = fromUuidSync(tokenUuid);
   if (!item || !token) return;
   const card = newCard({ itemUuid, rowKey, activationId, kind: "toggle", bearer: { uuid: tokenUuid, name: token.name }, regionUuid, cardId: foundry.utils.randomID() });
+  // A bearer a standing item's filter counts holds its part from the raise (`runToggle`), so its row is listed as a Count in lists it.
+  const reach = readReach(itemRunRowsOf(item).find((r) => r?.key === rowKey)?.reach);
+  if (reach?.pulse === "standing" && reach.filter.self === "count") Object.assign(card, { selfCount: true, subjects: { [safeKey(tokenUuid)]: { uuid: tokenUuid, name: token.name, state: "in", latest: "" } } });
   const message = await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ token }), content: storedContent(item.name, token.name), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
   posted.set(activationId, message?.id ?? null);
   const early = waitingMoments.get(activationId) ?? [];
@@ -298,7 +301,7 @@ function rowsOf(card, row, item, bearerToken, reach) {
   const rowFor = (sub, { distance }) => {
     const token = fromUuidSync(sub.uuid);
     const listed = rowStateOf(card, sub.uuid);
-    const state = listed === "waiting" && reach?.pulse === "standing" ? "held" : listed;
+    const state = listed === "waiting" && reach?.pulse === "standing" && card.lowered !== true ? "held" : listed;
     const entry = card.entries?.[sub.latest] ?? null;
     const gap = distance && bearerToken && token ? tokenEdgeGapFeet(bearerToken, token) : null;
     const feet = gap === null ? null : Math.round(gap);

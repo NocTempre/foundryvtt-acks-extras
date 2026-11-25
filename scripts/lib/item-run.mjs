@@ -145,6 +145,9 @@ async function runToggle({ item, run, token }) {
   const raised = await raiseReach({ tokenUuid: token.uuid, sourceUuid: item.uuid, rowKey: row.key, activationId });
   if (!raised?.ok) return { ok: false, reason: raised?.reason ?? "refused" };
   await setState(item, { active: true, activationId, regionId: raised.regionId ?? "" });
+  // Core never reports the bearer inside its own Region, so a bearer the item's filter counts (a choice kept across raises) has its standing part held here, as a Count in holds it.
+  const reach = readReach(row.reach);
+  if (reach?.pulse === "standing" && reach.filter.self === "count" && token.actor) await holdStanding({ config: { activationId }, item, row, subject: { token, actor: token.actor } });
   return { ok: true, kind: "toggle", active: true, activationId, itemUuid: item.uuid, rowKey: row.key, tokenUuid: token.uuid, regionUuid: raised.regionUuid ?? "" };
 }
 
@@ -474,8 +477,10 @@ export async function undoCardEntry(p) {
  * prompting reach the bearer waits for its own turn start; under a standing
  * reach its part is held on it at once, under the card's activation as an
  * admitted body's is, so lowering lifts it, and a standing reach with no figure
- * imported refuses the count. Whoever owns the ITEM, by Foundry's own test on
- * the relayed seat, may press it; a seat that does not is refused.
+ * imported refuses the count; on a lowered card nothing is held and the choice
+ * is kept for the next raise (`runToggle` holds it then). Whoever owns the ITEM,
+ * by Foundry's own test on the relayed seat, may press it; a seat that does not
+ * is refused.
  *
  * @param {{itemUuid: string, rowKey: string, messageId: string, requestUserId?: string|null}} p
  */
@@ -490,10 +495,10 @@ async function countBearerIn({ itemUuid, rowKey, messageId, requestUserId = null
   const row = itemRunRowsOf(item).find((r) => r?.key === rowKey);
   const reach = readReach(row?.reach);
   if (reach?.filter.self === "count") return { ok: false, reason: "applied" };
-  const holds = !!(message && card) && reach?.pulse === "standing";
+  const holds = !!(message && card) && reach?.pulse === "standing" && card.lowered !== true;
   const token = holds ? fromUuidSync(card.bearer?.uuid ?? "") : null;
   if (holds) {
-    if (card.lowered || !token?.actor) return { ok: false, reason: "gone" };
+    if (!token?.actor) return { ok: false, reason: "gone" };
     const figures = reachFigures(row);
     if (!(figures ? reachParts(figures.on, figures.modifier, figures.saveWhen) : []).length) return { ok: false, reason: "noFigure" };
   }

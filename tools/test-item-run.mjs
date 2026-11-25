@@ -597,6 +597,34 @@ await t("a use runs against the token the pressing seat resolved, however the GM
   }
 });
 
+await t("a raise holds the standing part on a bearer the item's filter counts, a choice kept across raises, under the raise's activation, and none on a bearer it does not count or under a prompting reach", async () => {
+  stage();
+  seatOf(true);
+  const kept = new Map();
+  const prior = { effects: bearerActor.effects, create: bearerActor.createEmbeddedDocuments };
+  bearerActor.effects = { get: (id) => kept.get(id), [Symbol.iterator]: () => kept.values() };
+  bearerActor.createEmbeddedDocuments = async (kind, data) => { for (const d of data) kept.set(d._id, { ...d, id: d._id }); return data.map((d) => ({ id: d._id })); };
+  const row = (pulse, filter) => ({ key: "s", reach: { pulse, radius: { value: "40" }, modifier: { value: "-1" }, on: ["morale"], filter } });
+  presented.length = 0;
+  try {
+    itemFlags = toggleFlags(down, [row("standing", { self: "count" })]);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual([...kept.values()].map((e) => e.flags["acks-extras"].itemRun.activationId), ["rid"], "the bearer holds its part from the raise, under the raise's activation so lowering lifts it");
+    kept.clear();
+    itemFlags = toggleFlags(down, [row("standing", { self: "no" })]);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual([...kept.keys()], [], "a bearer the filter does not count holds nothing");
+    itemFlags = toggleFlags(down, [row("turnStart+moveIn", { self: "count" })]);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual([...kept.keys()], [], "a prompting reach asks the bearer at its turn start and holds no part");
+  } finally {
+    bearerActor.effects = prior.effects;
+    if (prior.create) bearerActor.createEmbeddedDocuments = prior.create; else delete bearerActor.createEmbeddedDocuments;
+    itemFlags = {};
+    unstage();
+  }
+});
+
 await t("one fixed key names an item kind: the importer's entry id, else the row's", () => {
   assert.equal(run.kindKeyOf({ flags: { "acks-extras": { cookbook: { id: "entry-1" } } } }, { key: "row-1" }), "entry-1");
   assert.equal(run.kindKeyOf({ flags: {} }, { key: "row-1" }), "row-1");
@@ -1340,12 +1368,15 @@ await t("counting the bearer in under a standing reach holds its part on it unde
     itemFlags = toggleFlags(down, [standing({ modifier: undefined })]);
     assert.equal((await press("tick")).reason, "noFigure", "a blank figure refuses the count");
     assert.deepEqual([updates, [...kept.keys()], card().selfCount, card().subjects], [[], ["other-part", "unrelated"], false, {}], "and writes nothing, to the item, the body or the card");
-    // A lowered card holds nothing.
+    // A lowered card holds nothing: the choice is kept for the next raise and no part is written for a reach that is down.
     itemFlags = toggleFlags(down, [standing(), prompting]);
     card().lowered = true;
-    assert.equal((await press("tick")).reason, "gone", "a lowered card is refused");
+    assert.equal((await press("tick")).ok, true);
+    assert.deepEqual([updates.length, [...kept.keys()]], [1, ["other-part", "unrelated"]], "the item keeps the choice and the actor holds no part");
     card().lowered = false;
-    assert.deepEqual(updates, []);
+    card().selfCount = false;
+    card().subjects = {};
+    updates.length = 0;
     // Counted in: the part is held on the bearer under the card's activation, once.
     assert.equal((await press("tick")).ok, true);
     assert.deepEqual([...kept.keys()], ["other-part", "unrelated", partId], "the bearer's part is written beside what the actor already holds");
@@ -1378,11 +1409,13 @@ await t("counting the bearer in under a standing reach holds its part on it unde
     card().selfCount = false;
     card().subjects = {};
     itemFlags = toggleFlags(down, [standing(), prompting]);
+    const promptPart = logic.standingPartId(logic.kindKeyOf(theItem, { key: "t" }));
     assert.equal((await press("tick", { rowKey: "t" })).ok, true);
     assert.deepEqual([[...kept.keys()], card().subjects["T~9"].state], [[], "in"], "a prompting reach is asked at its turn start and writes no part now");
+    kept.set(promptPart, { id: promptPart, flags: { "acks-extras": { itemRun: { activationId: "act9" } } } });
     itemFlags = toggleFlags(down, updates.at(-1)["flags.acks-extras.itemRun.rows"]);
     assert.equal((await press("untick", { rowKey: "t" })).ok, true);
-    assert.deepEqual(dels.slice(1), [], "and counting it out releases nothing");
+    assert.deepEqual([dels.slice(1), [...kept.keys()]], [[], [promptPart]], "and counting it out releases nothing, a record of that kind on the bearer staying");
   } finally {
     gameStub.actors = priorActors;
     gameStub.scenes = priorScenes;

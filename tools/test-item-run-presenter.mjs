@@ -432,8 +432,8 @@ await t("a counted bearer reads by its reach's kind: under a standing reach its 
   const format = game.i18n.format;
   game.i18n.format = (key, data) => (data && Object.keys(data).length ? `${key}${JSON.stringify(data)}` : key);
   try {
-    // Counted in: the bearer's row is listed on the card, as the count-in writes it.
-    await message.update({ "flags.acks-extras.itemRunCard.selfCount": true, "flags.acks-extras.itemRunCard.subjects.S~bear": { uuid: "S.bear", name: "Bearer", state: "in", latest: "" } });
+    // The item's filter counts the bearer (a choice kept across raises): the raise lists its row, as a Count in does.
+    assert.deepEqual([card().selfCount, card().subjects["S~bear"].state], [true, "in"], "the raised card lists the counted bearer without a press");
     for (const user of users) {
       const body = bodyFor(user);
       if (user.id === "pb") { assert.ok(!body.includes("ACKS-LIB.itemRun.card.bearer"), "a seat that owns neither the bearer nor the item sees no bearer row"); continue; }
@@ -443,16 +443,19 @@ await t("a counted bearer reads by its reach's kind: under a standing reach its 
     }
     const judge = bodyFor(users[0]);
     assert.ok(judge.includes('data-action="itemRun.untick"') && !judge.includes('data-action="itemRun.tick"'), "the owners of the item are offered Count out, and no Count in");
-    assert.ok(!judge.includes("ACKS-LIB.itemRun.card.counted\""), "the bearer reads held in the held word, not as a body an owner counted in");
+    assert.equal(judge.split("ACKS-LIB.itemRun.card.always").length - 1, 1, "the bearer reads held in the held word");
+    assert.ok(!judge.includes("ACKS-LIB.itemRun.card.counted"), "and not as a body an owner counted in");
     // Under a prompting reach the same row waits for its turn start, and a Judge keeps the early Save.
     reachRow.pulse = "turnStart+moveIn";
     const prompting = bodyFor(users[0]);
     assert.ok(prompting.includes("ACKS-LIB.itemRun.card.waiting") && prompting.includes('data-action="itemRun.roll"') && !prompting.includes("ACKS-LIB.itemRun.card.tip.held"), "a prompting reach's bearer waits and holds no part");
     reachRow.pulse = "standing";
-    // Lowered, the row is muted whatever the pulse.
+    // Lowered, the row is muted whatever the pulse, and a Count in pressed on the dead card lists a row that is not read as held.
     await presenter.onLifted(own);
     assert.equal(card().subjects["S~bear"].state, "out");
     assert.ok(!bodyFor(users[0]).includes("ACKS-LIB.itemRun.card.always"), "a lowered card holds nothing");
+    await message.update({ "flags.acks-extras.itemRunCard.subjects.S~bear.state": "in" });
+    assert.ok(!bodyFor(users[0]).includes("ACKS-LIB.itemRun.card.always"), "a bearer listed on a lowered card is not read as held");
   } finally {
     game.i18n.format = format;
     globalThis.fromUuidSync = priorFrom;
