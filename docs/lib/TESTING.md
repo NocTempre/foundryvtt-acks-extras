@@ -4608,18 +4608,23 @@ reload comes before any reload of the GM's. The walk is `tools/live/lib-welcome-
 ## The Org chart and Locations tabs
 
 Marker `lib/beastman-warband`. Walked by `tools/live/lib-beastman-warband.mjs`. The family
-template is the Beastman import's (`monsters/beastman-village@p3` reads it); with no template
-that carries an encounter line, the Generate, Roll and Remove steps are not walked.
+template is the library's own Beastman template, found by its cookbook id as `monsters/family-roles`
+describes (`docs/monsters/TESTING.md`); it is read, never marked or written. The walk rolls that
+template, since that is what a user's import produces, and stops as blocked where the library holds
+none or two.
 
 ### Fixtures
 
+- The library's family template — the one library document whose `flags["acks-extras"].cookbook.id`
+  is the family's. **Its shape is asserted before anything is rolled** (the walk's first step): for each
+  variant option it prints the recipe parts with role `leader` and their `when.units`, and fails by name
+  where no variant has a leader part that reaches a unit word the variant's encounter lines name.
 - `lib/beastman-warband` — a faction card. Find by marker; build with
   `api.fixture("lib/beastman-warband", "Actor", {type: "acks-extras.faction", ...})`. The walk
   rewrites its `system.units` to one empty top row naming the template at the start of the run.
-- `lib/beastman-warband-group` — a root group hosting rows, for the group sheet's Organisation
-  section and Groups in this group.
 - `lib/beastman-warband-place` — a location. It carries a `system.gmNotes`, or the empty-place
-  prune takes it seconds after ready. Build one the same way.
+  prune takes it seconds after ready. Build one the same way. Its roster is emptied at the start of the
+  Locations step, and again at its end.
 
 Under `own: <tag>` every marker becomes `<marker>@<tag>`. The Judge seat that sorts first is the
 active GM; read `game.users.activeGM` in the same call as a measure.
@@ -4633,20 +4638,27 @@ active GM; read `game.users.activeGM` in the same call as a measure.
    group's rows: **wait for the faction to hold the top row, and for its notice, before reading**; a roll
    of a gang or warband makes no faction card, and a roll on a host already on a faction makes no second.
    **The Roll on that root group fills the top row with the root group itself.** Count the Actors tab before
-   Generate, after Generate (one more: the root group) and after the Roll, and name every document the
-   Roll made. A village Roll's expected list: the faction card, one group for each row below the top (the
+   Generate and after Generate (one more: the root group), and name what the Roll made from the Roll's own
+   result (`created`, `made`), never from a diff of the Actors tab. A village Roll's expected list: the faction card, one group for each row below the top (the
    top's group is the root group), each prototype its stacks name, and each leader; **no other group**.
    *Observable:* the faction's top row holds the root group; the root group hosts no row; its `unit.officerUuid`
    is the faction's `leaderUuid`; the faction's `img` is the root group's (the plate where one was imported);
-   every group in the diff is some row's holder. A Roll on a faction host, a row below the top, or a root
+   every group in the Roll's `made.groups` is some row's holder. A Roll on a faction host, a row below the top, or a root
    group already holding stacks or a second row makes its groups as before (unit-tested, `tools/test-org-write.mjs`
    and `tools/test-generate-host.mjs`).
 2. **Add** — on the Org chart tab press **+ Warband**. *Observable:* `units` gains an empty row
    under the top row; its card reads "Not rolled, not filled in." with a pen and, where a template is
    known, Roll; a card holding something has no die.
-3. **Roll one card** — press Roll on the empty top card; answer the panel (variant first). *Observable:*
-   the row's `holderUuid` is written at once (nothing to save), rows beneath it hold groups too, and
-   the Judges' card is whispered. **Roll at random** fills every empty card the same way.
+3. **Roll one card** — press Roll on the empty top card; answer the panel (variant first, Found in
+   Wilderness, State Lair, so the top unit is one a leader part can name). *Observable:*
+   the row's `holderUuid` is written at once (nothing to save), rows beneath it hold groups too, the top
+   row records the variant it rolled, and the Judges' card is whispered. A Roll on a host already on a
+   faction makes no second faction card. **Roll at random** fills every empty card the same way.
+   **What a Roll made is read from the Roll's own result.** The walk wraps the page's
+   `acksExtras.monsters.rollOrganisation` for the run and keeps each resolved result; it tracks every uuid in
+   the result's `created` (groups, prototypes, leaders, the faction card, a pot) the moment the Roll resolves,
+   never from a census of the Actors tab, and restores the original in its teardown. A prototype the Roll
+   reused (`reused`) is not the run's and is not tracked.
 **The Roll panel's two readings (board 1a).** Press Roll at random (a card's Roll on a chart with no variant yet opens
 the same panel). *Observable:* between Optional rules and the buttons, **Where the page is silent** lists the choices the
 picked variant can reach (a rounding, the two choices of a split, each branch group of the line), each a select preset to
@@ -4671,11 +4683,13 @@ left on "Rolled" writes no key. A slot whose level the state does not name one u
 differently, or a level below the bodies) shows "Not offered" with no controls and is left empty by OK.
 The unmapped inputs (a unit's trait, the village row, guard, caster and dependant counts) are not drawn: each would need a
 row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `troop` only).
-4. **Edit** — press the pen on a filled card: the card turns to a form (troop select with off-the-bands
+4. **Edit** — press the pen on the first filled card whose group has stacks (a unit of units has none, so the
+   top card of a village is not it): the card turns to a form (troop select with off-the-bands
    types marked, bodies, Clear the leader where one exists, Remove, Done); change the bodies, press Done. *Observable:* the
    group's stack `size.initial` and `size.current` are the new figure, the card reads **set by hand** with a
    tooltip naming the total the Roll threw (`gen.rolled`) and never below the bodies it records. With a body
-   on a map the Judges are whispered and the write still lands.
+   on a map the Judges are whispered and the write still lands. A badge on a card, where the roll drew one,
+   puts its tooltip text in a notice when pressed (`#notifications .notification`).
    **Rank frames (board 1h).** *Observable:* each leader's head and each rank-and-file card's art sits in a
    frame whose class is `acks-extras-pf--file` (hairline), `--champion` (solid), `--sub` (double) or `--chief`
    (double, spot colour); the frame's `aria-label` and a word on the card say the rank ("Rank and file",
@@ -4683,14 +4697,26 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
    is read from the officer and the unit it leads, never from a name: no leader is the rank and file; a unit
    of bodies only is a champion's; a unit of units is the chieftain's at the top of the chart and a sub-chieftain's
    anywhere below it. The four lines differ in weight and style, so they read without colour. A badge's press
-   puts its tooltip text in a notice, which a keyboard cannot otherwise reach.
+   puts its tooltip text in a notice, which a keyboard cannot otherwise reach. The walk derives each card's
+   expected role from the world's data (the group's officer, the rows beneath the card, its `parentKey`, or the
+   `gen.tier` the Roll recorded) and asserts the drawn frame equals it, so a chart that draws only the rank and
+   file proves nothing: it **asserts a leader exists after the Roll** (the rolled variant's recipe names a leader
+   that reaches a unit word), and then the chieftain frame on the top card and a champion frame where a unit of
+   bodies has an officer.
    **Clear the leader.** In a card's pen, a button "Clear the <rank> (<name>)" is drawn only where the card's group
    has an officer. *Observable:* pressing it blanks `system.unit.officerUuid` at once, and where that officer is the host faction's
    `leaderUuid` (the village chieftain on the top card) blanks `leaderUuid` in the same press, while a lower card's
-   officer leaves it as it was; no checkbox or empty tick is drawn in the form. (Minting a champion by tick is S12b's.)
-5. **Send out and Recall** — press Send out on a filled card, pick the place; open the **Locations**
-   tab. *Observable:* the place's roster holds the group and a chip for its row stands on the place;
-   its Recall takes the group off the roster again. **Nested chips (board 1i):** a group sent whole that holds
+   officer leaves it as it was (the walk clears a lower card first, then the top); no checkbox or empty tick is
+   drawn in the form. (Minting a champion by tick is S12b's.)
+5. **Send out and Recall** — **start by emptying the kept place's roster and reading that it is empty**, and
+   change tabs without writing (`sheet.changeTab("locations", "primary")`, never the host-rewriting setup).
+   Press Send out on the **top** card, pick the place; open the **Locations**
+   tab and read the chips with it active. *Observable:* the place's roster holds the group and a chip for its row stands on
+   the place. Recall on the top row is refused by design (`org.recall` answers `topRow`), so the top group stays
+   on the roster until the step's end empties it. Then press Send out on a **row below the top whose group stands
+   inside its parent row's group**: the roster holds it and its `unit.parentGroupUuid` is blank; its chip row on the
+   Locations tab offers Recall; Recall on that chip takes the group off the roster and puts it back under the group its
+   parent row holds. **Nested chips (board 1i):** a group sent whole that holds
    other rows' groups draws one chip with its held groups' chips inside it (`.acks-extras-org-chip--holds`
    holding `.acks-extras-org-chip--inner`, each with a count whose tooltip names the group and the place). On a
    freshly opened sheet about 320 wide the chips wrap under one another: no chip's right edge passes the frame's
@@ -4698,7 +4724,10 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
 6. **Expand all, Collapse all** — *Observable:* Collapse all leaves every branch card with
    `aria-expanded="false"` and a count of rows and bodies beneath it; Expand all leaves none folded.
 7. **Remove** — Org chart tab → a card's pen → **Remove**; a row with rows beneath it asks first, a row on
-   its own does not. *Observable:* the row and its subtree leave `units`; **every group, prototype and
+   its own does not, and with the client setting `confirmRemoveRows` off ("Ask before removing several chart rows", Settings tab → Game Settings → ACKS Extras)
+   nothing asks. The walk reads the setting first, forces it on, answers one multi-row ask, removes a row on its
+   own, turns it off for the top row's multi-row Remove (counting open dialogs before and after the press), and
+   restores the value read, in a `finally` too. *Observable:* the row and its subtree leave `units`; **every group, prototype and
    leader the subtree named is still in the Actors tab, checked by uuid**; a line above the chart names
    each group now hosting its own chart with an **Open**, and the count of rows dropped; **Dismiss**
    closes it and changes nothing else. **On a group's own top row** (a group whose first row names itself),
@@ -4718,11 +4747,13 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
 
 ### Teardown
 
-`api.sweepTracked()` removes what the run made: the host Generate made, and the groups, prototypes and
-leaders a Roll made (each tracked from the rows it wrote). The kept fixtures stay.
+`api.sweepTracked({only})` removes what the run made without a marker: the host Generate made, and the
+groups, prototypes, leaders, faction card and pot a Roll made (each tracked from the `created` of the Roll's own
+result). The kept fixtures stay, the setting is put back and the wrapped `rollOrganisation` is restored first.
 
 ### Not walked
 
 A Player seat (step 9) and the root group's sheet are read from the context code and the unit suites
-(`tools/test-org-tree.mjs`, `tools/test-org-chart-ui.mjs`), not driven. The plate's picture needs its
+(`tools/test-org-tree.mjs`, `tools/test-org-chart-ui.mjs`), not driven. The Judges' chat card a Roll whispers
+is not in the Roll's result, so it is neither tracked nor swept from it. The plate's picture needs its
 register row, which is not built.
