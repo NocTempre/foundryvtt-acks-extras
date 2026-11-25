@@ -66,6 +66,7 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
  * @param {{actor: object, token?: object}|null} [options.against]  what the throw is made against: the saver's scoped `save` parts (`roll-mods.mjs`) are settled against it
  * @param {object|null} [options.bearerToken]  the saver's token, read for an enemy test against `against.token`
  * @param {boolean} [options.rollMods=conditions]  the saver's records' `save` parts join the target; off with the conditions, so a caller that opts out of the one opts out of the other. A part narrowed to some saves (`saves`) is read against `save`, and one under a gate is tested through `partHolds`
+ * @param {Iterable<string>|null} [options.circumstances]  the conditions catalogue's circumstance words this throw is made under (`fear`): a part of the saver's records narrowed to one (`when`) applies only where it is named, and one that also says `magical` only where this throw is against magic. Named by no caller yet, so such a part is `pending` and told, never added
  * @param {string} [options.occasion]  the occasion this throw is (a gate marked `occasion` holds only where the throw names its status)
  * @param {object[]} [options.ownRows]  the rows of the spell's own save (rows marked `ownSave`: `{label, cite, value, gate, ifHas, saves}`), each tested for this saver (`ownSaveParts`): one that holds lowers the target, one that cannot be told is `pending`. Independent of `rollMods`
  * @param {{types?: Iterable<string>, extraordinary?: boolean|null, silver?: boolean}|null} [options.damage]  the damage the throw resists (`extraordinary` null or absent is a quality not stated, which a band waiting on it sends to `pending`): the saver's defenses (`defenses.mjs`) then join the throw, and the spec carries `auto`. Absent, the spec has no defense part and no `auto` key
@@ -81,7 +82,7 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
 export function saveSpec(
   actor,
   save,
-  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions, damage = null, defenses = null, occasion, ownRows = null } = {},
+  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions, damage = null, defenses = null, occasion, ownRows = null, circumstances = null } = {},
 ) {
   const kind = saveKindOf(save);
   const stored = actor?.system?.saves?.[save]?.value;
@@ -136,7 +137,7 @@ export function saveSpec(
     }
   }
   if (rollMods) {
-    const mods = saveModParts(actor, { against, bearerToken, save: kind, occasion });
+    const mods = saveModParts(actor, { against, bearerToken, save: kind, occasion, circumstances, magical });
     for (const p of mods.parts) {
       targetParts.push(p);
       shift += p.value;

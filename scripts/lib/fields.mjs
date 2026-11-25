@@ -580,6 +580,11 @@ export function effectField() {
         on: wordList(),
         // Whether the raised Region is drawn for everyone, not the Judge alone. The import writes it false.
         showReach: bool(),
+        // What the `save` part the modifier writes is narrowed to: the conditions catalogue's
+        // circumstance word it holds under and whether only against magic. Both read off the
+        // ability's own page by the import; a throw that names no circumstance is told of the
+        // part and never has it added.
+        saveWhen: new SchemaField({ when: str(), magical: bool() }),
         filter: new SchemaField({
           kinds: wordList(),
           exceptKinds: wordList(),

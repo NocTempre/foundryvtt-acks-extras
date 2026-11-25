@@ -17,7 +17,7 @@
  *
  * Every other roll reads a record through `recordParts`: `throw`, `reaction`,
  * `grant` and `immune` parts, and the saving throw's `save` parts. It narrows by
- * `ref`, `rollKey`, `saves` and `attackKinds` first, tests `partHolds` (a gate,
+ * `ref`, `rollKey`, `saves`, `attackKinds`, `when` and `magical` first, tests `partHolds` (a gate,
  * `ifHas`, an `occasion`), then resolves what applies, so a larger part for
  * another roll never takes a smaller one's place. A part may also carry `mode`
  * (`add`, `set` or `auto`) and the narrowing fields above.
@@ -492,6 +492,9 @@ const figureOf = (part) => {
 /** The tokens a part's `ref` (or `refs`) names. */
 const refsOf = (part) => [].concat(part?.ref ?? [], part?.refs ?? []).filter((r) => typeof r === "string" && r);
 
+/** What a part's `when` and `magical` say, carried on a pending row so the notice names what was missing; empty for a part declaring neither. */
+const narrowedBy = (part) => (part?.when || part?.magical === true ? { circumstance: String(part.when ?? ""), magical: part.magical === true } : {});
+
 /** A part's list field as an array of non-blank strings. */
 const listOf = (value) => (Array.isArray(value) ? value : []).map(String).filter(Boolean);
 
@@ -502,9 +505,13 @@ const listOf = (value) => (Array.isArray(value) ? value : []).map(String).filter
  * declared and the caller named nothing to test it against). The fields are
  * `ref` and `refs` (matched through `satisfies` against `subject`, `{id,
  * provides}`; skipped with `byRef: false`), `rollKey`, `saves` (compared as
- * `saveKindOf` reads them), and `attackKinds` (against `kind`).
+ * `saveKindOf` reads them), `attackKinds` (against `kind`), `when` (a
+ * circumstance of the conditions catalogue, against the `circumstances` the
+ * caller names) and `magical` (true: the throw must be against magic, which
+ * only a caller that names the circumstance can settle). A part declaring `when`
+ * or `magical` where the caller named no circumstance is null, never applied.
  */
-function narrow(part, { subject = null, rollKey, save, kind, byRef = true } = {}) {
+function narrow(part, { subject = null, rollKey, save, kind, byRef = true, circumstances = null, magical } = {}) {
   const checks = [];
   const refs = byRef ? refsOf(part) : [];
   if (refs.length) checks.push(subject ? refs.some((r) => satisfies([subject], r)) : null);
@@ -513,6 +520,10 @@ function narrow(part, { subject = null, rollKey, save, kind, byRef = true } = {}
   if (saves.length) checks.push(save == null ? null : saves.map(saveKindOf).includes(saveKindOf(save)));
   const kinds = listOf(part?.attackKinds);
   if (kinds.length) checks.push(kind == null ? null : kinds.includes(kind));
+  const named = listOf(circumstances ? [...circumstances] : []);
+  const circumstance = String(part?.when ?? "").trim();
+  if (circumstance) checks.push(named.length ? named.includes(circumstance) : null);
+  if (part?.magical === true) checks.push(named.length && magical != null ? magical === true : null);
   if (checks.includes(false)) return false;
   return checks.includes(null) ? null : true;
 }
@@ -944,28 +955,31 @@ function targetParts(applying) {
  * apply, and the applying ones are resolved among themselves, so two records of
  * one kind give one figure. Pure.
  *
- * A part is narrowed by the save rolled (`save`, against the part's `saves`)
- * and tested through `partHolds` before anything is resolved: one whose gate is
- * off adds nothing, and one whose `saves` the caller named nothing to test, or
- * whose gate cannot be told (an `occasion` gate the roll does not name), is
- * `pending` as `{label, value, when: "save"|"gate"}`.
+ * A part is narrowed by the save rolled (`save`, against the part's `saves`),
+ * by the `circumstances` the throw is made under (against its `when`) and by
+ * whether it is against magic (`magical`), and tested through `partHolds`
+ * before anything is resolved: one whose gate is off adds nothing, and one whose
+ * `saves` or `when` the caller named nothing to test, or whose gate cannot be
+ * told (an `occasion` gate the roll does not name), is `pending` as `{label,
+ * value, when: "save"|"gate"}`, with the part's own `circumstance` and
+ * `magical` beside them where it declares either.
  *
  * @param {object} saver
- * @param {{against?: {actor: object, token?: object}|null, bearerToken?: object|null, save?: string, occasion?: string}} [options]
- *   `bearerToken` is the saver's token, read for `vsEnemy` against `against.token`; `save` is the system's key for the throw; `occasion` names the occasion the roll is (`partHolds`)
+ * @param {{against?: {actor: object, token?: object}|null, bearerToken?: object|null, save?: string, occasion?: string, circumstances?: Iterable<string>|null, magical?: boolean}} [options]
+ *   `bearerToken` is the saver's token, read for `vsEnemy` against `against.token`; `save` is the system's key for the throw; `occasion` names the occasion the roll is (`partHolds`); `circumstances` are the conditions catalogue's circumstance words the throw is made under (none by default: no caller names one yet); `magical` says the throw is against magic
  * @returns {{parts: {key: string, label: string, value: number, side: "target"}[], pending: {label: string, value: number, when: "source"|"save"|"gate"}[]}}
  */
-export function saveModParts(saver, { against = null, bearerToken = null, save, occasion } = {}) {
+export function saveModParts(saver, { against = null, bearerToken = null, save, occasion, circumstances = null, magical } = {}) {
   const applying = [];
   const pending = [];
   for (const entry of rollModsOf(saver).filter((e) => e.part.on === "save")) {
     const { part } = entry;
-    const fit = narrow(part, { save, byRef: false });
+    const fit = narrow(part, { save, byRef: false, circumstances, magical });
     if (fit === false) continue;
     const holds = partHolds(saver, part, { token: bearerToken, occasion });
     if (holds === false) continue;
     if (fit === null || holds === null) {
-      pending.push({ label: entry.label, value: Number(part.value), when: fit === null ? "save" : "gate" });
+      pending.push({ label: entry.label, value: Number(part.value), when: fit === null ? "save" : "gate", ...(fit === null ? narrowedBy(part) : {}) });
       continue;
     }
     if (!hasScope(part)) {
@@ -992,20 +1006,20 @@ export function saveModParts(saver, { against = null, bearerToken = null, save, 
  * list of notices for `tellRollMods`.
  *
  * @param {object} actor
- * @param {{save?: string, occasion?: string}} [options]  `save` is the system's key for the throw rolled; `occasion` is `partHolds`'s
+ * @param {{save?: string, occasion?: string, circumstances?: Iterable<string>|null}} [options]  `save` is the system's key for the throw rolled; `occasion` is `partHolds`'s; `circumstances` are the circumstance words the throw is made under (none by default). The sheet's throw does not say whether it is against magic, so a part that declares `magical` is never settled here
  * @returns {{total: number, parts: {key: string, label: string, value: number}[], pending: {label: string, value: number, when: "save"|"gate"}[], told: {level: string, lang: string, data: object}[]}}
  */
-export function sheetSaveShift(actor, { save, occasion } = {}) {
+export function sheetSaveShift(actor, { save, occasion, circumstances = null } = {}) {
   const applying = [];
   const pending = [];
   const told = [];
   for (const entry of rollModsOf(actor).filter((e) => e.part.on === "save")) {
-    const fit = narrow(entry.part, { save, byRef: false });
+    const fit = narrow(entry.part, { save, byRef: false, circumstances });
     if (fit === false) continue;
     const holds = partHolds(actor, entry.part, { occasion });
     if (holds === false) continue;
     if (fit === null || holds === null) {
-      pending.push({ label: entry.label, value: Number(entry.part.value), when: fit === null ? "save" : "gate" });
+      pending.push({ label: entry.label, value: Number(entry.part.value), when: fit === null ? "save" : "gate", ...(fit === null ? narrowedBy(entry.part) : {}) });
       told.push({ level: "info", lang: "notice.savePending", data: { name: actor?.name ?? "", spell: entry.label, value: signed(Number(entry.part.value)) } });
       continue;
     }

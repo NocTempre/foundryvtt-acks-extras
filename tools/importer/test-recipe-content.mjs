@@ -37,6 +37,8 @@ import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
 import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, assembleBash, assembleDoors, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import * as RT from "../../scripts/magic/research-tables.mjs";
+import { resolveSaveWhen } from "../../scripts/monsters/gear-run.mjs";
+import { circumstanceOf } from "../../scripts/lib/conditions.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -768,6 +770,7 @@ const FIGURE_KINDS = {
   vulnerableAttack: isSigned, damageDiceTimes: Number.isInteger, opponentSurprise: isSigned, initiative: isSigned,
   avoidSurprise: isSigned, overrunPenaltyCut: Number.isInteger, opponentSave: isSigned, proficiency: isPlainText,
   morale: isSigned, strategy: isSigned, proficiencyRanks: Number.isInteger, treasurePct: isPct, beastDice: isDiceText,
+  saveQualifier: isPlainText, saveCircumstance: isPlainText,
   saveKind: isPlainText, immunityTurns: Number.isInteger, condition: isPlainText, durationTurns: Number.isInteger,
   durationMinutes: Number.isInteger, round: Number.isInteger, riderDice: isDiceText, wearerLevel: Number.isInteger,
   throw: Number.isInteger, fuseDice: isDiceText, fumble: Number.isInteger, saveFraction: (v) => v > 0 && v < 1,
@@ -811,10 +814,14 @@ const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
 VERIFY["monsters.beastmanTroopRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [5, 5, 2, 4, 4, 3, 2], keysFrom: "monsters.beastmanSpecialTroops" });
 VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [1, 5, 2, 2, 4, 2, 2, 1, 1, 5], keysFrom: "monsters.beastmanTraits" });
 VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
-  paragraphRows(out, recipe, fail, { counts: [5, 9, 5, 7, 7, 4, 3, 6, 5] });
+  paragraphRows(out, recipe, fail, { counts: [5, 9, 5, 7, 7, 4, 3, 6, 7] });
   const rows = Object.values(out ?? {});
   const kinds = rows.filter((r) => r.reachKind !== undefined);
   if (kinds.length !== 2 || kinds.some((r) => typeof r.reachKind !== "string" || !isText(r.reachKind))) fail("the reach qualifier is read as a word for the two paragraphs that name who a reach meets");
+  // The two words a saving-throw bonus is against: one paragraph names both, and both resolve through the generator's own resolver (the circumstance onto the catalogue, the qualifier onto the magic flag).
+  const against = rows.filter((r) => r.saveQualifier !== undefined || r.saveCircumstance !== undefined);
+  if (against.length !== 1 || against[0].saveQualifier === undefined || against[0].saveCircumstance === undefined) fail("exactly one paragraph should name both the circumstance and the qualifier a saving-throw bonus is against");
+  else if (!resolveSaveWhen(against[0], { circumstance: circumstanceOf })) fail("the saving-throw bonus's circumstance and qualifier do not both resolve to the catalogue and the magic flag");
   if (rows.filter((r) => r.figuresFrom).length !== 1) fail("exactly one paragraph should point at the recipe that reads its figures");
   if (rows.some((r) => !Array.isArray(r.carry) || !r.carry.length)) fail("a paragraph prints no carry chance");
   for (const r of rows) for (const t of r.troops ?? []) if (!Object.keys(READS["monsters.beastmanSpecialTroops"] ?? {}).includes(t)) fail("a troop key is not a row of the special-troop table");

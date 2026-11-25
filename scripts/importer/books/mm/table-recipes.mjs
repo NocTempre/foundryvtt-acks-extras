@@ -107,6 +107,10 @@ const BEASTMAN_EQUIPMENT_RULES = {
     { key: "reductionPerDie", findRe: "taken by (\\d+) points? per die", group: 1, take: "int" },
     { key: "delayTurns", find: "damage after", take: "int", span: 6 },
     { key: "bonus", find: "beastmen gain a", take: "signed", span: 6 },
+    // What a saving-throw bonus is against: the qualifier and the circumstance, the two words after
+    // the anchor, read as printed and resolved at generation (`monsters/gear-run.mjs`).
+    { key: "saveQualifier", findRe: "saving throws against ([a-z]+)\\s+[a-z]+", group: 1, take: "text" },
+    { key: "saveCircumstance", findRe: "saving throws against [a-z]+\\s+([a-z]+)", group: 1, take: "text" },
   ],
 };
 

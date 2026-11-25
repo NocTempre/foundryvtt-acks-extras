@@ -77,13 +77,27 @@ export function readFilter(raw) {
 }
 
 /**
+ * A stored `saveWhen` as `{when, magical}`: the circumstance word the save part
+ * a reach writes is narrowed to (a lowercase word, "" for none) and whether the
+ * part holds only against magic. Null where it names neither.
+ *
+ * @returns {{when: string, magical: boolean}|null}
+ */
+export function readSaveWhen(raw) {
+  const when = String(raw?.when ?? "").trim().toLowerCase();
+  const magical = raw?.magical === true;
+  return when || magical ? { when, magical } : null;
+}
+
+/**
  * A row's stored `reach` as `{radius, save, immunity, modifier, on, filter,
- * pulse, showReach}`, or null for a row with none or one whose pulse
+ * pulse, showReach, saveWhen}`, or null for a row with none or one whose pulse
  * is no `REACH_PULSES` key (it acts on nothing). `radius`, `save`, `immunity`
  * and `modifier` are figure references (`resolveFigure` reads each), null where
  * absent; `on` is the reach's own list of rolls the modifier rides on
  * (`REACH_ON`: the `ROLL_MODS_ON` keys and `morale`), any other word dropped;
- * `showReach` is true only where the Region is shown to everyone.
+ * `showReach` is true only where the Region is shown to everyone; `saveWhen` is
+ * what the save part is narrowed to (`readSaveWhen`).
  */
 export function readReach(raw) {
   if (!raw || typeof raw !== "object" || !(raw.pulse in REACH_PULSES)) return null;
@@ -97,6 +111,7 @@ export function readReach(raw) {
     filter: readFilter(raw.filter),
     pulse: raw.pulse,
     showReach: raw.showReach === true,
+    saveWhen: readSaveWhen(raw.saveWhen),
   };
 }
 

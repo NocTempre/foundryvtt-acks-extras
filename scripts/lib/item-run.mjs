@@ -132,7 +132,7 @@ async function runOnce({ item, token, judge }) {
   if (range === null || !(range > 0)) return { ok: false, reason: "noRange" };
   const figures = reachFigures(row);
   const direct = !figures.save && figures.on.length > 0;
-  const parts = direct ? reachParts(figures.on, figures.modifier) : [];
+  const parts = direct ? reachParts(figures.on, figures.modifier, figures.saveWhen) : [];
   if (direct && !parts.length) return { ok: false, reason: "noFigure" };
   const snap = reachSnapshot(token.parent, { token }, range);
   if (!snap.ok) return { ok: false, reason: snap.reason };
@@ -383,7 +383,7 @@ export async function handleReachMoment({ moment, config, item, row, reach, subj
  */
 export async function holdStanding({ config, item, row, subject }) {
   const figures = reachFigures(row);
-  const parts = figures ? reachParts(figures.on, figures.modifier) : [];
+  const parts = figures ? reachParts(figures.on, figures.modifier, figures.saveWhen) : [];
   if (!parts.length) return { written: false, reason: "noFigure" };
   const kindKey = kindKeyOf(item, row);
   const wanted = standingPartRecordData({ kindKey, name: item.name, parts, source: item.uuid, activationId: config.activationId, rowKey: row.key, cite: itemCite(item) });

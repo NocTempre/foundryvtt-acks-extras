@@ -301,6 +301,30 @@ export const CONDITIONS = Object.freeze({
 export const CONDITION_IDS = Object.freeze(Object.keys(CONDITIONS));
 
 /**
+ * The circumstance words the catalogue's rows wait on (`when`), read off the
+ * rows themselves: the ones no roll can see (`fear`, `sight`, `voice`), never
+ * the two a roll settles by itself (`source`, `shield`). A caller that knows it
+ * is making a throw under one names it (`saveSpec`'s `circumstances`).
+ */
+export const CIRCUMSTANCES = Object.freeze([
+  ...new Set(
+    Object.values(CONDITIONS)
+      .flatMap((condition) => (condition.mods ?? []).map((mod) => mod.when))
+      .filter((when) => when && when !== "source" && when !== "shield"),
+  ),
+]);
+
+/**
+ * The circumstance word a printed word names, or null: a word folds to letters
+ * only and must equal a `CIRCUMSTANCES` word. No inflection and no near match,
+ * so a word that is not one writes nothing on a guess.
+ */
+export function circumstanceOf(word) {
+  const folded = String(word ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  return CIRCUMSTANCES.find((circumstance) => circumstance.toLowerCase() === folded) ?? null;
+}
+
+/**
  * The system's own entry for status `id`, from `CONFIG.ACKS.conditions` then
  * `CONFIG.ACKS.combatStates`, read at the call; undefined where the system
  * ships no such id (or is not loaded).

@@ -197,32 +197,40 @@ export function undoPlan(entry, existingIds) {
  * The figures a row's reach names, resolved now through `read` (the registry by
  * default): `radius` and `modifier` as numbers, `immunityTurns` as a number,
  * `save` as the save's name (the reach's own reference, else the row's `target`
- * for a Judge's own item), `on` the roll kinds. Each is null where nothing
+ * for a Judge's own item), `on` the roll kinds, `saveWhen` what the save part is narrowed to. Each is null where nothing
  * resolves; nothing stands in for a figure nobody imported or wrote.
  *
- * @returns {{radius: number|null, modifier: number|null, immunityTurns: number|null, save: string|null, on: string[]}|null} null for a row with no reach
+ * @returns {{radius: number|null, modifier: number|null, immunityTurns: number|null, save: string|null, on: string[], saveWhen: {when: string, magical: boolean}|null}|null} null for a row with no reach
  */
 export function reachFigures(row, read) {
   const reach = readReach(row?.reach);
   if (!reach) return null;
   const num = (ref) => numOrNull(resolveFigure(ref, read));
   const saveName = resolveFigure(reach.save, read) ?? row?.target;
-  return { radius: num(reach.radius), modifier: num(reach.modifier), immunityTurns: num(reach.immunity), save: saveName ? String(saveName) : null, on: reach.on };
+  return { radius: num(reach.radius), modifier: num(reach.modifier), immunityTurns: num(reach.immunity), save: saveName ? String(saveName) : null, on: reach.on, saveWhen: reach.saveWhen };
 }
 
 /**
  * The `rollMods` parts a reach's modifier writes: one per roll kind named in
  * `on`, each worth `value`. `morale` is a `reaction` part that names the
  * morale roll (`MORALE_ROLL_KEY`), so a reaction roll never reads it; the
- * other keys are `ROLL_MODS_ON` keys as they stand. No parts for a blank figure.
+ * other keys are `ROLL_MODS_ON` keys as they stand. The `save` part alone
+ * carries `saveWhen`'s `when` and `magical` (`roll-mods.mjs` `narrow`), so it is
+ * told on every throw and applied only where a caller names the circumstance.
+ * No parts for a blank figure.
  *
  * @param {string[]} on
  * @param {number|null} value
+ * @param {{when?: string, magical?: boolean}|null} [saveWhen]
  */
-export function reachParts(on, value) {
+export function reachParts(on, value, saveWhen = null) {
   const figure = numOrNull(value);
   if (figure === null) return [];
-  return (on ?? []).map((key) => (key === "morale" ? { on: "reaction", key: "morale", rollKey: MORALE_ROLL_KEY, value: figure } : { on: key, value: figure }));
+  const narrowing = saveWhen ? { ...(saveWhen.when ? { when: saveWhen.when } : {}), ...(saveWhen.magical === true ? { magical: true } : {}) } : {};
+  return (on ?? []).map((key) => {
+    if (key === "morale") return { on: "reaction", key: "morale", rollKey: MORALE_ROLL_KEY, value: figure };
+    return { on: key, value: figure, ...(key === "save" ? narrowing : {}) };
+  });
 }
 
 /**

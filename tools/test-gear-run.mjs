@@ -184,12 +184,12 @@ await t("generation copies the minted item onto a creature whose gear axis chose
 await t("a row's figures resolve live from the registry, an override reaches them at once, and a blank resolves to nothing", () => {
   registerRows();
   const banner = gearRunItem(rows.banner, BASE).flags["acks-extras"].itemRun.rows[0];
-  assert.deepEqual(logic.reachFigures(banner), { radius: 9, modifier: null, immunityTurns: 3, save: "paralysis", on: [] });
+  assert.deepEqual(logic.reachFigures(banner), { radius: 9, modifier: null, immunityTurns: 3, save: "paralysis", on: [], saveWhen: null });
   registerTable({ id: DOC, tables: { [TABLE]: { r2: { label: "Beta Item", radius: 4, saveKind: "death", immunityTurns: 1 } } } }, { priority: PRIORITY.OVERRIDE });
   const live = logic.reachFigures(banner);
   assert.deepEqual([live.radius, live.save, live.immunityTurns], [4, "death", 1]);
   resetTables();
-  assert.deepEqual(logic.reachFigures(banner), { radius: null, modifier: null, immunityTurns: null, save: null, on: [] }, "nothing imported, nothing stands in");
+  assert.deepEqual(logic.reachFigures(banner), { radius: null, modifier: null, immunityTurns: null, save: null, on: [], saveWhen: null }, "nothing imported, nothing stands in");
   assert.deepEqual(logic.reachFigures({ key: "own", target: "paralysis", reach: { pulse: "action", radius: { value: "5" } } }).save, "paralysis", "a Judge's own item names its save on the row");
   assert.equal(logic.reachFigures({ key: "x" }), null);
 });
@@ -472,6 +472,52 @@ await t("E9: a standing part is held once per subject and kind, written only whe
   sub.actor.writes.created.length = 0;
   await moment("enter");
   assert.deepEqual(sub.actor.writes.created, [], "a blank figure writes no part");
+});
+
+await t("E9's save part: the printed circumstance and qualifier resolve onto the catalogue and the magic flag, the save part is written narrowed and told on every throw, and an unresolved word writes no save and is reported", async () => {
+  const { circumstanceOf } = await import("../scripts/lib/conditions.mjs");
+  const { saveModParts } = rollMods;
+  const missed = [];
+  const miss = (figure, word) => missed.push([figure, word]);
+  const deps = { ...BASE, circumstance: circumstanceOf, miss };
+  const shape = (figures) => gearRunItem({ ...rows.drum, figures: { ...rows.drum.figures, ...figures } }, deps)?.flags["acks-extras"].itemRun.rows[0].reach;
+  const named = shape({ saveQualifier: "magical", saveCircumstance: "fear" });
+  assert.deepEqual(named.on, [...STANDING_ROLLS, "save"], "the save joins the rolls the bonus rides on");
+  assert.deepEqual(named.saveWhen, { when: "fear", magical: true });
+  assert.deepEqual(missed, []);
+  const bare = shape({});
+  assert.deepEqual(bare.on, [...STANDING_ROLLS]);
+  assert.equal("saveWhen" in bare, false, "a row naming neither writes no save part and reports nothing");
+  assert.deepEqual(missed, []);
+  assert.deepEqual(shape({ saveQualifier: "magical", saveCircumstance: "zorn" }).on, [...STANDING_ROLLS], "an unresolved circumstance: the item still stands, with no save part");
+  assert.deepEqual(shape({ saveQualifier: "mundane", saveCircumstance: "fear" }).on, [...STANDING_ROLLS]);
+  assert.deepEqual(shape({ saveCircumstance: "fear" }).on, [...STANDING_ROLLS], "one value alone writes no save");
+  assert.deepEqual(shape({ saveQualifier: "magical" }).on, [...STANDING_ROLLS]);
+  assert.deepEqual(missed, [["saveCircumstance", "zorn"], ["saveQualifier", "mundane"], ["saveQualifier", null], ["saveCircumstance", null]]);
+  const once = gearRunItem({ ...rows.encourage, figures: { ...rows.encourage.figures, saveQualifier: "magical", saveCircumstance: "fear" } }, deps).flags["acks-extras"].itemRun.rows[0].reach;
+  assert.deepEqual(once.on, ["damage"], "only the standing shape takes a save part");
+  assert.deepEqual(logic.reachParts(["ac", "save"], 1, { when: "fear", magical: true }), [{ on: "ac", value: 1 }, { on: "save", value: 1, when: "fear", magical: true }], "the save part alone carries the narrowing");
+  assert.deepEqual(logic.reachParts(["save"], 1, { when: "", magical: true }), [{ on: "save", value: 1, magical: true }]);
+  assert.deepEqual(logic.reachParts(["save"], 1), [{ on: "save", value: 1 }]);
+
+  // Written to a subject, it reaches the real saving-throw reader: told and not added, then applied where the caller names the circumstance.
+  registerTable({ id: DOC, cites: { [TABLE]: "XX p. 4" }, tables: { [TABLE]: { r3: { label: "Gamma Item", radius: 11, bonus: 1 } } } }, { priority: PRIORITY.WORLD });
+  seatOf(true);
+  install();
+  minted = gearRunItem({ ...rows.drum, figures: { ...rows.drum.figures, saveQualifier: "magical", saveCircumstance: "fear" } }, deps);
+  const row = minted.flags["acks-extras"].itemRun.rows[0];
+  const bearer = creature("bearer", ["beastman"], "G1");
+  const sub = creature("sub", ["beastman"], "G1");
+  scene(bearer, sub);
+  theItem.actor = bearer.actor;
+  await run.handleReachMoment({ moment: "enter", config: { activationId: "act" }, item: theItem, row, reach: { pulse: "standing" }, subject: { actor: sub.actor, token: sub.token }, admitted: true, region: { id: "RA" } });
+  const parts = sub.actor.writes.created[0].flags["acks-extras"].rollMods.parts;
+  assert.deepEqual(parts.find((x) => x.on === "save"), { on: "save", value: 1, when: "fear", magical: true });
+  assert.equal(parts.filter((x) => x.on !== "save").some((x) => "when" in x || "magical" in x), false, "no other roll is narrowed");
+  const told = saveModParts(sub.actor, { save: "death" });
+  assert.deepEqual([told.parts, told.pending.map((q) => [q.when, q.circumstance, q.magical])], [[], [["save", "fear", true]]], "on every throw that names no circumstance it is told and never added");
+  assert.deepEqual(saveModParts(sub.actor, { save: "death", circumstances: ["fear"], magical: true }).parts.map((q) => q.value), [1], "named, against magic: it applies");
+  assert.deepEqual(saveModParts(sub.actor, { save: "death", circumstances: ["fear"], magical: false }), { parts: [], pending: [] });
 });
 
 await t("E9: a subject inside two reaches of one kind keeps its part when it leaves one, and the first bearer lowering hands the part to the other", async () => {

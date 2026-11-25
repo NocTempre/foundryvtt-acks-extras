@@ -1072,6 +1072,49 @@ await ok("the sheet's throw takes the save and the occasion: a held occasion app
   assert.deepEqual([waiting.total, waiting.pending.length, waiting.told.map((t) => t.lang)], [0, 1, ["notice.savePending"]]);
 });
 
+await ok("a save part narrowed to a circumstance and to magic is pending and told with both fields where no caller names the circumstance, and applies only where it is named and the throw is against magic", () => {
+  const narrowed = (over = {}) => part("save", 1, { when: "fear", magical: true, ...over });
+  const saver = bearer([rec("alpha", [narrowed()])]);
+  const field = { label: "Alpha", value: 1, when: "save", circumstance: "fear", magical: true };
+  assert.deepEqual(saveModParts(saver, { save: "death" }), { parts: [], pending: [field] }, "nothing named: pending, carrying both fields");
+  assert.deepEqual(saveModParts(saver, { save: "death", circumstances: [] }).pending, [field], "an empty list names nothing");
+  assert.deepEqual(saveModParts(saver, { save: "death", circumstances: ["fear"] }).pending, [field], "the throw does not say whether it is against magic");
+  assert.deepEqual(saveModParts(saver, { save: "death", circumstances: ["fear"], magical: true }).parts.map((p) => [p.label, p.value]), [["Alpha", 1]], "named, and against magic: it applies");
+  assert.deepEqual(saveModParts(saver, { save: "death", circumstances: ["fear"], magical: false }), { parts: [], pending: [] }, "a throw not against magic is not this part's");
+  assert.deepEqual(saveModParts(saver, { save: "death", circumstances: ["sight"], magical: true }), { parts: [], pending: [] }, "another circumstance is not this part's");
+  assert.deepEqual(saveModParts(saver, { save: "death", circumstances: new Set(["sight", "fear"]), magical: true }).parts.length, 1, "any iterable, any of the named words");
+  const whenOnly = bearer([rec("alpha", [part("save", 1, { when: "fear" })])]);
+  assert.deepEqual(saveModParts(whenOnly, { save: "death" }).pending, [{ label: "Alpha", value: 1, when: "save", circumstance: "fear", magical: false }], "a part declaring only a circumstance carries magical false");
+  assert.equal(saveModParts(whenOnly, { save: "death", circumstances: ["fear"] }).parts.length, 1, "no magic clause: the circumstance alone decides");
+  const plain = bearer([rec("alpha", [part("save", 1)])]);
+  assert.deepEqual(saveModParts(plain, { save: "death" }).pending, [], "a part declaring neither is unchanged");
+  assert.equal(saveModParts(plain, { save: "death" }).parts.length, 1);
+  assert.deepEqual(saveModParts(bearer([rec("alpha", [part("save", 1, { saves: ["blast"], when: "fear" })])]), { save: "death", circumstances: ["fear"] }), { parts: [], pending: [] }, "the other narrowing fields still decide first");
+});
+
+await ok("the sheet's throw tells a narrowed save part on every throw and never applies it, since it names no circumstance, and applies a circumstance-only part where one is named", () => {
+  const saver = bearer([rec("alpha", [part("save", 1, { when: "fear", magical: true })])]);
+  const shift = sheetSaveShift(saver, { save: "death" });
+  assert.deepEqual([shift.total, shift.parts, shift.pending, shift.told.map((t) => t.lang)], [0, [], [{ label: "Alpha", value: 1, when: "save", circumstance: "fear", magical: true }], ["notice.savePending"]]);
+  assert.equal(sheetSaveShift(saver, { save: "death", circumstances: ["fear"] }).total, 0, "against magic is unknown on the sheet's throw: still pending");
+  const whenOnly = bearer([rec("alpha", [part("save", 1, { when: "fear" })])]);
+  assert.equal(sheetSaveShift(whenOnly, { save: "death", circumstances: ["fear"] }).total, 1);
+  assert.equal(sheetSaveShift(whenOnly, { save: "death" }).total, 0);
+});
+
+await ok("saveSpec hands its circumstances and its magical flag to the records' save parts", async () => {
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const saver = bearer([rec("alpha", [part("save", 2, { when: "fear", magical: true })])]);
+  saver.system = { ...saver.system, saves: { death: { value: 12 } } };
+  const spec = (options) => saveSpec(saver, "death", options);
+  assert.equal(spec({}).target, 12, "no circumstance named: the part is not added");
+  assert.deepEqual(spec({}).pending.map((p) => p.label), ["Alpha"], "and is pending");
+  assert.equal(spec({ circumstances: ["fear"] }).target, 10, "named, and the throw is against magic by default: added");
+  assert.equal(spec({ circumstances: ["fear"], magical: false }).target, 12, "not against magic: left out");
+  assert.deepEqual(spec({ circumstances: ["fear"], magical: false }).pending, []);
+  assert.equal(spec({ circumstances: ["fear"], rollMods: false }).target, 12, "a caller that opts out of the records opts out of the part");
+});
+
 await ok("ownSaveParts tests each row per saver: a holding row is a target part, an undecided one is pending, the rest add nothing", () => {
   const rows = [
     { label: "Test Edge", cite: "Test cite", value: 2, ifHas: ["kw:tumbling"], key: "mine" },

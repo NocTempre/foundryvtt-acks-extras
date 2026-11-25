@@ -16,7 +16,7 @@ import { mergePatch } from "../lib/template-logic.mjs";
 import { leaderCell, roleKeyOf, splitWeaponModifier, STANDARD_ROLE } from "../importer/leader-roles.mjs";
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { damageModOf, UNARMOURED } from "./kits.mjs";
-import { CONDITIONS, CONDITION_IDS } from "../lib/conditions.mjs";
+import { CONDITIONS, CONDITION_IDS, circumstanceOf } from "../lib/conditions.mjs";
 import { RANGE_BANDS } from "../lib/roll-gate-kinds.mjs";
 import { namesakeAbility } from "../importer/stats-map.mjs";
 import { MANEUVER_TABLES } from "../equipment/overlays/maneuvers.mjs";
@@ -400,7 +400,7 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
     }
     const drink = drinkFlag(f, (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }));
     if (drink) out.consumables.push(drinkItem(row, drink));
-    const reachItem = gearRunItem(row, { doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.equipment, fold: matchCondition, miss: (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }) });
+    const reachItem = gearRunItem(row, { doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.equipment, fold: matchCondition, circumstance: circumstanceOf, miss: (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }) });
     if (reachItem) out.reachItems.push(reachItem);
     const hit = onHitFlag(row, f);
     if (hit && flagLauncherStack(resolved?.items, hit)) out.onHit++;

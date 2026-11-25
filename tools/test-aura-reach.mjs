@@ -192,6 +192,16 @@ await t("a reach's own list of rolls keeps the roll keys and morale and drops an
   assert.equal(logic.readReach({ pulse: "standing", showReach: "true" }).showReach, false, "only the boolean counts");
 });
 
+await t("a reach's save narrowing reads as a lowercase circumstance word and a magic flag, and is none where it names neither", () => {
+  assert.deepEqual(logic.readReach({ pulse: "standing", saveWhen: { when: " Fear ", magical: true } }).saveWhen, { when: "fear", magical: true });
+  assert.deepEqual(logic.readReach({ pulse: "standing", saveWhen: { when: "fear" } }).saveWhen, { when: "fear", magical: false });
+  assert.deepEqual(logic.readReach({ pulse: "standing", saveWhen: { magical: true } }).saveWhen, { when: "", magical: true });
+  assert.equal(logic.readReach({ pulse: "standing", saveWhen: { when: "", magical: false } }).saveWhen, null);
+  assert.equal(logic.readReach({ pulse: "standing", saveWhen: { magical: "true" } }).saveWhen, null, "only the boolean counts");
+  assert.equal(logic.readReach({ pulse: "standing" }).saveWhen, null);
+  assert.equal(logic.readSaveWhen(null), null);
+});
+
 await t("a reach reads only with a known pulse; a filter reads its words lowercase and defaults to any", () => {
   assert.equal(logic.readReach({ pulse: "nope", filter: {} }), null);
   assert.equal(logic.readReach(null), null);
@@ -381,8 +391,9 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.equal(field.options.nullable, true);
   assert.equal(field.options.initial, null);
   assert.equal(field.options.required, false);
-  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "immunity", "modifier", "on", "pulse", "radius", "save", "showReach"]);
+  assert.deepEqual(Object.keys(field.fields).sort(), ["filter", "immunity", "modifier", "on", "pulse", "radius", "save", "saveWhen", "showReach"]);
   assert.equal(field.fields.showReach.options.initial, false, "a Region is the Judge's alone unless a row says otherwise");
+  assert.deepEqual(Object.keys(field.fields.saveWhen.fields).sort(), ["magical", "when"]);
   for (const key of ["save", "immunity", "modifier"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
   assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "side", "unit"]);
