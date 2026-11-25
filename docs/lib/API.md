@@ -714,18 +714,37 @@ the import fills, never from source.
 |---|---|---|---|
 | `targetCondition` | `condition`: condition ids of `conditions.mjs`, a list stored as written (a bare string from a caller is one) | `targetActor.statuses`, closed over what each condition implies (`conditionSet`) | the target carries any named condition. An id the catalogue lacks is ignored; none left is null |
 | `combatRound` | `round`: `{from, to}`, either bound optional, equal bounds one round (the schema stores the span; a caller's bare number is read as that round) | the `round` of the combat the token fights in: `token.combatant`'s, else the combat on the token's scene that holds it, the active one first (core's getter sees only the combat this client's tracker views; `outnumbering` reads the same combat) | the round is inside the span. A token in no combat, or a combat at round 0, is null |
-| `outnumbering` | `ratio`, and `side: "against"` to read the opposing side | the dispositions of the undefeated combatants of the token's own combat (`areEnemies`: friendly against hostile; neutral and secret tokens count for neither side) | the bearer's side, itself included, is at least `ratio` times the other side's (with `against`, the other side at least `ratio` times the bearer's). A neutral or secret bearer, no combat, or nobody on the other side is null |
+| `outnumbering` | `ratio`, and `side: "against"` to read the opposing side; `strict: true` for a clause that prints no ratio | the dispositions of the undefeated combatants of the token's own combat (`areEnemies`: friendly against hostile; neutral and secret tokens count for neither side), each counting the bodies it stands for (`bodyCount`: a stack its living bodies, any other actor one; a combatant whose actor cannot be read counts one) | the bearer's side, itself included, is at least `ratio` times the other side's (with `against`, the other side at least `ratio` times the bearer's). With no ratio and `strict`, strictly more than the other side (the other side strictly more than the bearer's, with `against`); a ratio that is read wins over `strict`. With neither a ratio nor `strict`, null, since that is a ratio the import failed to read. A neutral or secret bearer, no combat, or nobody on the other side is null |
 | `rangeBand` | `band`: `melee`, `short`, `medium` or `long`, a list stored as written | the delivery `type`; for `missile` and `thrown` the gap between `token` and `target` (`tokenGapFeet`) against the weapon's `system.range` reaches, in feet | the attack's band is the one named. The band is the nearest whose reach the gap does not exceed, not the choice made in the system's attack dialog, which no contributor sees. No target, no weapon reaches, another scene, or beyond the long reach is null |
+| `allOf` | `of`: a list of gates | each gate of the list, asked through `gateVerdict` with the same context | every gate in the list is true. Any false is false; with none false and one undecided, null; an empty or missing list is null |
 
 `roll-gates.mjs` `gateLabel(gate)` names the gate for the row's label by kind
-(`ACKS-LIB.gate.*`; the light level for `light`, the kind itself for a kind
-with no phrase). Two readers ask a gate: the throw's contributor in `roll-gates.mjs`
-(the whole context above) and `roll-mods.mjs`' record parts, which hand a gate
-`{item, token}` only, so a record part under `targetCondition` or `rangeBand`
-answers null and `combatRound` and `outnumbering` read the attacker's token.
-No damage contributor reads a gate yet: the seam's `damage(ctx, attackType,
-modifiers)` question is where one would, with `rollGatedModifiers(actor, "damage")`
-for its rows.
+(`ACKS-LIB.gate.*`; the light level for `light`, the children's phrases joined
+for `allOf`, the kind itself for a kind with no phrase). Two readers ask a gate:
+the throw's contributor in `roll-gates.mjs` (the whole context above) and
+`roll-mods.mjs`' record parts, which hand a gate `{item, token}` only, so a record
+part under `targetCondition` or `rangeBand` answers null and `combatRound` and
+`outnumbering` read the attacker's token. The surprise reader
+(`surprise-parts.mjs`) and the social-roll reader (`influence/ability-effects.mjs`)
+ask with the context they hold (`{}` and `{token}`), so a gate that needs more
+answers null there.
+
+**What the roll-gates contributor answers** (the attack seam's questions, one owner):
+
+- `attack`: a labelled row for each `attackThrow` modifier whose roll gate answers
+  true; it also records the delivery on the context in flight (`ctx.delivery`),
+  which the formula answer reads.
+- `damage(ctx, attackType, rows)`: the same for `damage` modifiers
+  (`rollGateDamageRows`), with the same label, `{name} · {gate} ({page})`. The
+  contributor's `carriers` stays `["attack"]`: a spell's damage is the spell's own.
+- `damageFormula(item, mode, formula)`: for `damageDice` rows, a `CONSUMED_TARGETS`
+  entry whose consumer is `roll-gates`, read with `consumedRows` and asked
+  `gateVerdict` under `type: ctx.delivery` (`diceMultipleOf`). The count of every
+  dice term in the formula is multiplied by the largest whole value of two or more
+  among the rows that answer true (`multiplyDice`); a flat term, a formula with no
+  dice term, a row with no delivery recorded, and a row whose gate cannot decide
+  are left alone, and `ui.notifications.info` names the part once per attack
+  (`ACKS-LIB.gate.diceMultiplied`). A row with no gate always answers.
 
 `stackingPart({value, label, ref, stacksWith, notStacksWith, ...rest})` is the
 one way to build a part for `resolveStacking`: it always gives `caps`

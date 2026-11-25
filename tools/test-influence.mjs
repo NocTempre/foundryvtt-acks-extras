@@ -199,6 +199,39 @@ t("a page with no tone offers a tone-scoped row rather than excluding it", () =>
   assert.equal(effectRowsForPage(mods, { family: ROLL_FAMILY.REACTION, tone: INFLUENCE_TONE.SEDUCTION }).length, 0);
 });
 
+t("a gated morale row is pre-ticked where its gate holds, left out where it does not, and offered unticked where it cannot be told", () => {
+  /** Two tokens fighting, `own` on the bearer's side, `foes` on the other. */
+  const sides = (own, foes) => {
+    const scene = { grid: { size: 100, distance: 10, units: "ft" }, tokens: [] };
+    const token = (id, disposition) => ({ id, parent: scene, disposition, x: 0, y: 0, width: 1, height: 1 });
+    const mine = Array.from({ length: own }, (_, i) => token(`m${i}`, -1));
+    const theirs = Array.from({ length: foes }, (_, i) => token(`f${i}`, 1));
+    const combat = { round: 1, combatants: [] };
+    for (const tk of [...mine, ...theirs]) {
+      const combatant = { id: `c${tk.id}`, tokenId: tk.id, token: tk, isDefeated: false, parent: combat };
+      tk.combatant = combatant;
+      combat.combatants.push(combatant);
+    }
+    return mine[0];
+  };
+  const gated = ability("i-gated", "Gated", [
+    { type: "modifier", target: ROLL_FAMILY.MORALE, value: { kind: "flat", flat: -1 }, appliesTo: "self", gate: { kind: "outnumbering", side: "against", strict: true } },
+  ]);
+  const bearer = (token) => ({ items: [gated], token, system: { details: { level: 1 } } });
+  const ask = (token) => getAbilityReactionMods(bearer(token));
+  const outnumbered = ask(sides(1, 2));
+  assert.deepEqual(outnumbered.map((r) => [r.family, r.value, r.situational]), [[ROLL_FAMILY.MORALE, -1, false]], "outnumbered: pre-ticked");
+  assert.deepEqual(ask(sides(2, 1)), [], "not outnumbered: left out");
+  assert.deepEqual(ask(sides(1, 1)), [], "parity is not outnumbered: left out");
+  const loose = { id: "loose", parent: { grid: { size: 100, distance: 10 }, tokens: [] }, disposition: -1, x: 0, y: 0, width: 1, height: 1 };
+  assert.deepEqual(ask(loose).map((r) => r.situational), [true], "in no combat: offered, unticked");
+  assert.deepEqual(getAbilityReactionMods({ items: [gated] }).map((r) => r.situational), [true], "no token at all: offered, unticked");
+  const unknown = ability("i-unknown", "Unknown", [{ type: "modifier", target: ROLL_FAMILY.MORALE, value: { kind: "flat", flat: 1 }, appliesTo: "self", gate: { kind: "noSuchGate" } }]);
+  assert.deepEqual(getAbilityReactionMods({ items: [unknown] }).map((r) => r.situational), [true], "a gate nothing evaluates: offered, unticked");
+  const plain = ability("i-plain", "Plain", [reactionMod(1)]);
+  assert.deepEqual(getAbilityReactionMods({ items: [plain] }).map((r) => r.situational), [false], "an ungated row is as before");
+});
+
 t("a power standing in for a proficiency is claimed by the box it fills", () => {
   // The replacer shape that hides from a name match: the power is named for
   // itself, declares actsAs on an effect carrying no change of its own, and

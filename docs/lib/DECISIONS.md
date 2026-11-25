@@ -54,6 +54,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-10 — [Every writer of the library opens its shelf through one door](DECISIONS-through-v11.14.5.md#2026-09-10--every-writer-of-the-library-opens-its-shelf-through-one-door)
 - 2026-09-11 — [A deletion is the operator, spelled once](DECISIONS-through-v11.14.5.md#2026-09-11--a-deletion-is-the-operator-spelled-once)
 - 2026-09-16 — [The setting is the same word as the prompt](DECISIONS-through-v11.14.5.md#2026-09-16--the-setting-is-the-same-word-as-the-prompt) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md); "2026-10-22 — A hireling opens on its type's sheet; the card is picked"; "2026-10-28 — The merge residue check removes what it lists"; "2026-10-21 — The non-proficient package's figures are imported" (docs/equipment/DECISIONS.md)
+- 2026-10-20 — [The attack seam rides the system's labelled modifiers](DECISIONS-through-v11.14.5.md#the-attack-seam-rides-the-systems-labelled-modifiers-2026-10-20) — qualified by "2026-11-24 — A multiple of a weapon's dice rides the formula seam" (below): a multiple of the dice is applied, not told
 - 2026-10-21 — [The flank and the subjacent target are the system dialog's choices](DECISIONS-through-v11.14.5.md#2026-10-21--the-flank-and-the-subjacent-target-are-the-system-dialogs-choices) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md); "2026-11-24 — The system migrates a stamped record, so the module reads none" (its nested "A stamped record's old combat fields are read at load (2026-10-28)")
 - 2026-10-30 — [Automated Animations is told what a card cannot say](DECISIONS-through-v11.14.5.md#2026-10-30--automated-animations-is-told-what-a-card-cannot-say)
 - 2026-11-01 — [The drag corner is asked for once](DECISIONS-through-v11.14.5.md#2026-11-01--the-drag-corner-is-asked-for-once)
@@ -1266,3 +1267,49 @@ palette takes the states of a round" (2026-10-10: Foundry's ids offered off the
 palette and "the repair check renames them on sight"), both in
 DECISIONS-through-v11.14.5.md. The new evidence is `acks` 14.2.0's
 `configureStatusEffects` and its migration m6. Neither has an In-force row.
+
+## 2026-11-24 — A multiple of a weapon's dice rides the formula seam
+
+**Ruled (architect).** The attack seam's `damageFormula` answer carries a
+gated multiple of a weapon's dice, and the table is told once per attack which
+part did it. `roll-gates.mjs` answers `damageFormula` for a `damageDice` row
+(a `CONSUMED_TARGETS` entry, so `modifierDisposition` answers consumed and
+`rollGatedModifiers` never returns it): the rows whose gate `gateVerdict` answers
+true are read with `consumedRows`, the count of every dice term in the formula is
+multiplied by the largest whole value (two rows multiply once), and flat terms are
+left alone. The gate is asked under the delivery the `attack` answer records on the
+context (`ctx.delivery`), since the system's builder asks the actor model's
+`getAttackThrowModifiers(attackType)` and then the weapon's
+`getDamageFormula(mode)` in one build; with no delivery recorded the gate is
+undecided and nothing is multiplied. No wrapper is added: `attack-throw.mjs`
+stays the one owner of `getDamageFormula`.
+
+**Qualifies "The attack seam rides the system's labelled modifiers"
+(2026-10-20), and does not supersede it.** That entry tells the table about "a
+scaled damage roll", whose case is a factor on the total, which no labelled row
+can carry (`shrunk`'s `damageFactor`, still told by `notice.unplaced`). A
+multiple of the DICE is a formula, and the entry's own list of contributor
+answers already includes `damageFormula`, so it is applied rather than told. The
+entry's row under "In force" is added here for that reason: it had none.
+
+**New evidence.** S6b's per-die reduction stage (`defenses.mjs`) counts the dice
+stamped on the card (`damageDiceOf`). A multiple the table applies by hand never
+reaches that count, so the reduction would be taken per die of the un-multiplied
+roll.
+
+**Built with it.** A conjunction gate, `allOf`, registered at the roll beside the
+other four: `gate.of` is a list of gates, each asked through `gateVerdict`; any
+false is false, all true is true, otherwise undecided. `outnumbering` counts the
+bodies a combatant stands for (`bodyCount`) and gains `strict`: a clause that
+prints no ratio means strictly more, and a gate with neither a ratio nor
+`strict` stays undecided. The roll-gates contributor answers `damage` for a
+gated `damage` row, as it answers `attack` for `attackThrow`.
+
+**Rejected.** Telling the multiple instead of applying it (the per-die stage
+would count the wrong dice). A new wrapper on `getDamageFormula` (one owner per
+wrapped core method).
+
+*Cost:* a formula silently doubled reads on the system's card as a bigger weapon;
+the notice names the part and its page, and is the only place the card's reader
+sees it. A multiple under a gate the context cannot decide (no target, no
+delivery) is not applied and not told.

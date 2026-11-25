@@ -2,8 +2,8 @@
  * The roll gates that describe an attack's moment, registered through
  * `typed-modifiers.mjs` `registerGate` with `at: "roll"`: the target's
  * condition (`targetCondition`), the encounter's round (`combatRound`), the
- * two sides of the fight (`outnumbering`) and the distance to the target
- * (`rangeBand`). They are the roll-gate half of `roll-gates.mjs`, which asks
+ * two sides of the fight (`outnumbering`), the distance to the target
+ * (`rangeBand`) and a conjunction of those (`allOf`). They are the roll-gate half of `roll-gates.mjs`, which asks
  * them with the attack's context and labels the row they admit.
  *
  * Each evaluator answers true, false, or null, and null whenever the context
@@ -18,10 +18,11 @@
  *
  * Foundry-free: every read goes through the objects the context holds.
  */
-import { registerGate } from "./typed-modifiers.mjs";
+import { registerGate, gateVerdict } from "./typed-modifiers.mjs";
 import { CONDITIONS, conditionSet } from "./conditions.mjs";
 import { areEnemies } from "./actor-read.mjs";
 import { tokenGapFeet } from "./distance-units.mjs";
+import { bodyCount } from "./group-logic.mjs";
 
 /** The bands a `rangeBand` gate names: melee, and the three bands of a ranged weapon, nearest first. */
 export const RANGE_BANDS = Object.freeze(["melee", "short", "medium", "long"]);
@@ -92,25 +93,52 @@ const isDown = (combatant) => (combatant?.isDefeated ?? combatant?.defeated) ===
  *
  * Sides are the friendly and the hostile token dispositions (`areEnemies`),
  * counted among the undefeated combatants of the attacker's own combat, the
- * attacker included in its side. A neutral or secret attacker, a token in no
- * combat, a gate with no ratio, and a fight with nobody on the other side are
+ * attacker included in its side. A combatant counts the bodies it stands for
+ * (`bodyCount`: a stack its living bodies, any other actor one; a combatant
+ * whose actor cannot be read counts one). A neutral or secret attacker, a token
+ * in no combat, a gate that is no clause, and a fight with nobody on the other
+ * side are undecided.
+ *
+ * A gate with no ratio is a clause that prints none (`gate.strict`): the
+ * comparison is then strictly more, the attacker's side over the opposing one
+ * (or with `side: "against"` the opposing over the attacker's). With neither a
+ * ratio nor `strict` the gate is a ratio the import failed to read, and
  * undecided.
  */
 export function outnumberingHolds(gate, ctx) {
   const ratio = Number(gate?.ratio);
+  const strict = gate?.strict === true && !(ratio > 0);
   const combat = combatOf(ctx?.token);
-  if (!(ratio > 0) || !combat || !ctx?.token || areEnemies(ctx.token, ctx.token) === null) return null;
+  if ((!(ratio > 0) && !strict) || !combat || !ctx?.token || areEnemies(ctx.token, ctx.token) === null) return null;
   let own = 0;
   let opposing = 0;
   for (const combatant of combat.combatants ?? []) {
     const token = combatant?.token;
     if (!token || isDown(combatant)) continue;
     const enemies = areEnemies(ctx.token, token);
-    if (enemies === true) opposing += 1;
-    else if (enemies === false) own += 1;
+    if (enemies === null) continue;
+    const actor = combatant.actor ?? token.actor ?? null;
+    const bodies = actor ? bodyCount(actor) : 1;
+    if (enemies === true) opposing += bodies;
+    else own += bodies;
   }
   if (opposing === 0) return null;
+  if (strict) return gate?.side === "against" ? opposing > own : own > opposing;
   return gate?.side === "against" ? opposing >= ratio * own : own >= ratio * opposing;
+}
+
+/**
+ * Whether every gate of `gate.of` (a list of gates, each asked through
+ * `gateVerdict` with the same context) holds. Any gate false is false; all true
+ * is true; otherwise, with none false and one undecided, the answer is
+ * undecided. An empty or missing list is undecided.
+ */
+export function allOfHolds(actor, gate, ctx) {
+  const parts = Array.isArray(gate?.of) ? gate.of : [];
+  if (!parts.length) return null;
+  const verdicts = parts.map((part) => gateVerdict(actor, part, ctx));
+  if (verdicts.includes(false)) return false;
+  return verdicts.every((v) => v === true) ? true : null;
 }
 
 /**
@@ -144,3 +172,4 @@ registerGate("targetCondition", (_actor, gate, ctx) => targetConditionHolds(gate
 registerGate("combatRound", (_actor, gate, ctx) => combatRoundHolds(gate, ctx), { at: "roll" });
 registerGate("outnumbering", (_actor, gate, ctx) => outnumberingHolds(gate, ctx), { at: "roll" });
 registerGate("rangeBand", (_actor, gate, ctx) => rangeBandHolds(gate, ctx), { at: "roll" });
+registerGate("allOf", (actor, gate, ctx) => allOfHolds(actor, gate, ctx), { at: "roll" });

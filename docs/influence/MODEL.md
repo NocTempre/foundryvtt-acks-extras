@@ -250,6 +250,15 @@ not imported has no row). The system's own roll takes the same figures as a shif
 score (`docs/lib/MODEL.md`), so the two paths agree and the page is the one
 that shows its work. Only `morale` declares it.
 
+An ability's `reaction`, `loyalty` or `morale` row under a `gate` is decided
+when the page reads it (`getAbilityReactionMods`: `gateVerdict` with the
+subject's own token). A gate that holds offers the row pre-ticked; one that does
+not leaves it out; one that cannot decide (no token, no combat, a kind nothing
+evaluates) offers it unticked, as a free-text condition does. The core roll's
+own path (the morale page off, or its skip key) reads no ability row for any
+creature, so a gated morale row, like an ungated one, reaches the roll only
+through this page.
+
 Three things open the morale page: the system's own morale roll, through the
 lib's `morale-roll` contract (`docs/lib/API.md`); a group actor's directory
 context menu (the henchmen feature's `openMoraleViaInfluence`); and

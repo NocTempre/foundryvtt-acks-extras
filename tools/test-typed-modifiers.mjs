@@ -619,6 +619,8 @@ check("every phrase gateLabel uses is a key en.json holds, placeholders and all"
     assert.equal(gateLabel({ kind: "rangeBand", band: ["short", "long"] }), "~at ~short, ~long range");
     assert.equal(gateLabel({ kind: "rangeBand", band: ["medium"] }), "~at ~medium range");
     assert.equal(gateLabel({ kind: "rangeBand", band: ["melee"] }), "~in melee");
+    assert.equal(gateLabel({ kind: "rangeBand", band: ["melee", "short"] }), "~at ~melee, ~short range");
+    assert.equal(gateLabel({ kind: "allOf", of: [{ kind: "targetCondition", condition: "webbed" }, { kind: "combatRound", round: 3 }] }), "~against a target that is Webbed, ~in round 3");
     assert.equal(gateLabel({ kind: "light", light: "dim" }), "~Dim light", "the light level reads its own key");
   } finally {
     globalThis.game = prior;
@@ -653,6 +655,132 @@ check("a modifier under each gate adds its labelled row to the throw only while 
   assert.deepEqual(rowsFor(yes[1][0], base, "missile"), [], "a combat not begun");
   assert.deepEqual(rowsFor(yes[0][0], base, "missile", { forWhat: "melee" }), [], "a row narrowed to melee does not ride a missile attack");
   assert.deepEqual(rowsFor(yes[0][0], base, "melee", { forWhat: "melee" }), row("against a target that is Webbed"));
+});
+
+/* --- Conjunction, strict sides, bodies, damage rows ---------------------- */
+
+const { rollGateDamageRows, diceMultipleOf, multiplyDice, DAMAGE_DICE_TARGET } = await import("../scripts/lib/roll-gates.mjs");
+const GROUP_TYPE = "acks-extras.group";
+
+check("allOf is a roll gate, never written as standing, and damageDice is roll-gates' consumed target", () => {
+  assert.equal(isRollGate("allOf"), true);
+  assert.equal(modifierDisposition(gated({ kind: "allOf", of: [] }), { actorType: "monster" }).kind, DISPOSITION.AT_ROLL);
+  assert.equal(modifierDisposition(mod({ target: DAMAGE_DICE_TARGET, value: 2 })).consumer, "roll-gates");
+});
+
+check("allOf: any false is false, all true is true, otherwise undecided; an empty list is undecided", () => {
+  const actor = asActor([]);
+  const webbed = { targetActor: { statuses: new Set(["webbed"]) }, type: "melee" };
+  const yes = { kind: "targetCondition", condition: "webbed" };
+  const no = { kind: "targetCondition", condition: "blinded" };
+  const band = { kind: "rangeBand", band: ["melee", "short"] };
+  const later = { kind: "rangeBand", band: "long" };
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [yes, band] }, webbed), true);
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [yes, later] }, webbed), false, "a band the attack is not in");
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [no, band] }, webbed), false);
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [yes, band] }, { ...webbed, type: undefined }), null, "no delivery: the band cannot say");
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [no, band] }, { ...webbed, type: undefined }), false, "one false settles it");
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [] }, webbed), null);
+  assert.equal(gateVerdict(actor, { kind: "allOf" }, webbed), null);
+  assert.equal(gateVerdict(actor, { kind: "allOf", of: [yes, { kind: "noSuchGate" }] }, webbed), null, "a gate nothing evaluates is undecided");
+});
+
+check("outnumbering strict: more than, with no ratio; a ratio wins over strict; neither is undecided", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0, -1);
+  const mate = fighter(scene, "mate", 1, -1);
+  const foe = fighter(scene, "foe", 2, 1);
+  const other = fighter(scene, "other", 3, 1);
+  const actor = asActor([]);
+  const ask = (gate, token = me) => gateVerdict(actor, { kind: "outnumbering", ...gate }, { token });
+  combatOf(1, [[me, false], [mate, false], [foe, false]]);
+  assert.equal(ask({ strict: true }), true, "two against one");
+  assert.equal(ask({ strict: true, side: "against" }), false, "the other side is not larger");
+  assert.equal(ask({ strict: true, side: "against" }, foe), true, "the same fight from the other seat");
+  combatOf(1, [[me, false], [foe, false]]);
+  assert.equal(ask({ strict: true }), false, "parity is not more");
+  assert.equal(ask({ strict: true, side: "against" }), false, "parity is not more, either way");
+  combatOf(1, [[me, false], [mate, false], [foe, false], [other, false]]);
+  assert.equal(ask({ strict: true }), false);
+  assert.equal(ask({}), null, "neither a ratio nor strict: the import failed to read a ratio");
+  assert.equal(ask({ ratio: 1, strict: true }), true, "a ratio read is used, parity passing it");
+  assert.equal(ask({ strict: false }), null);
+  assert.equal(ask({ strict: true }, fighter(scene, "loose", 6)), null, "no combat");
+});
+
+check("outnumbering counts the bodies a combatant stands for, an actor that cannot be read counting one", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0, -1);
+  const foe = fighter(scene, "foe", 1, 1);
+  const stack = (n) => ({ type: GROUP_TYPE, system: { totalCurrent: n } });
+  const actor = asActor([]);
+  const gate = { kind: "outnumbering", ratio: 3 };
+  const fight = combatOf(1, [[me, false], [foe, false]]);
+  fight.combatants[0].actor = stack(6);
+  assert.equal(gateVerdict(actor, gate, { token: me }), true, "a stack of six against one");
+  fight.combatants[0].actor = stack(2);
+  assert.equal(gateVerdict(actor, gate, { token: me }), false, "a stack of two against one");
+  fight.combatants[1].actor = stack(0);
+  assert.equal(gateVerdict(actor, gate, { token: me }), null, "nobody left standing on the other side");
+  fight.combatants[1].actor = stack(1);
+  fight.combatants[0].actor = { type: "monster" };
+  assert.equal(gateVerdict(actor, { kind: "outnumbering", ratio: 1 }, { token: me }), true, "any other actor is one body");
+  delete fight.combatants[0].actor;
+  me.actor = stack(4);
+  assert.equal(gateVerdict(actor, gate, { token: me }), true, "the token's own actor answers where the combatant has none");
+});
+
+check("gateLabel joins a conjunction's phrases", () => {
+  assert.equal(
+    gateLabel({ kind: "allOf", of: [{ kind: "targetCondition", condition: "webbed" }, { kind: "rangeBand", band: ["melee", "short"] }] }),
+    "against a target that is Webbed, at melee, short range",
+  );
+  assert.equal(gateLabel({ kind: "allOf", of: [] }), "");
+});
+
+/** A character with one gated ability; `over` replaces its spec fields. */
+const damageActor = (specs) => asActor([ability("Cunning", specs)], "monster");
+
+check("a damage modifier adds its labelled row only under a gate that answers yes", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0, -1);
+  const mate = fighter(scene, "mate", 1, -1);
+  const foe = fighter(scene, "foe", 2, 1);
+  combatOf(1, [[me, false], [mate, false], [foe, false]]);
+  const actor = damageActor([mod({ target: "damage", value: 2, gate: { kind: "outnumbering", ratio: 2 } }), mod({ target: "damage", value: 1, gate: { kind: "outnumbering", ratio: 3 } })]);
+  assert.deepEqual(rollGateDamageRows({ actor, token: me }, "melee"), [{ label: "Cunning · while outnumbering", value: 2 }]);
+  assert.deepEqual(rollGateDamageRows({ actor, token: null }, "melee"), [], "no token, no guess");
+  assert.deepEqual(rollGateRows({ actor, token: me }, "melee"), [], "a damage row is not the throw's");
+});
+
+check("multiplyDice multiplies every dice term's count and leaves flat terms, null where there is no dice term", () => {
+  assert.equal(multiplyDice("1d6 + 2", 2), "2d6 + 2");
+  assert.equal(multiplyDice("d8", 2), "2d8");
+  assert.equal(multiplyDice("2d4+1d6-1", 3), "6d4+3d6-1");
+  assert.equal(multiplyDice("1d6x", 2), "2d6x", "a modifier on the die stays");
+  assert.equal(multiplyDice("12d6", 2), "24d6", "a count of two digits is one count");
+  assert.equal(multiplyDice("3 + @str", 2), null);
+  assert.equal(multiplyDice("By weapon", 2), null, "a bare marker holds no dice term");
+  assert.equal(multiplyDice("", 2), null);
+  assert.equal(multiplyDice("1d6 + @mod.d", 2), "2d6 + @mod.d");
+});
+
+check("diceMultipleOf: the largest whole multiple under a yes gate; none without a delivery or an answer", () => {
+  const scene = arena();
+  const me = fighter(scene, "me", 0, -1);
+  const foe = fighter(scene, "foe", 2, 1);
+  const bow = { system: { range: { short: 20, medium: 40, long: 60 } } };
+  const wanted = { kind: "allOf", of: [{ kind: "targetCondition", condition: "webbed" }, { kind: "rangeBand", band: ["melee", "short"] }] };
+  const actor = asActor([ability("Twice", [mod({ target: "damageDice", value: 2, gate: wanted })]), ability("Thrice", [mod({ target: "damageDice", value: 3, gate: wanted })])], "monster");
+  const ctx = { actor, token: me, target: foe, targetActor: { statuses: new Set(["webbed"]) }, delivery: "missile" };
+  assert.equal(diceMultipleOf(ctx, bow)?.times, 3, "two rows multiply once, by the largest");
+  assert.equal(diceMultipleOf({ ...ctx, delivery: null }, bow), null, "no delivery recorded");
+  assert.equal(diceMultipleOf({ ...ctx, targetActor: { statuses: new Set() } }, bow), null, "the target is not in the condition");
+  assert.equal(diceMultipleOf({ ...ctx, token: fighter(scene, "far", 8) }, bow), null, "beyond the short band");
+  assert.equal(diceMultipleOf({ ...ctx, delivery: "melee" }, bow)?.times, 3, "melee is in the band list");
+  assert.equal(diceMultipleOf({ ...ctx, target: undefined }, bow), null, "no target to read the band from");
+  const odd = asActor([ability("Odd", [mod({ target: "damageDice", value: 1, gate: wanted }), mod({ target: "damageDice", value: 2.5, gate: wanted })])], "monster");
+  assert.equal(diceMultipleOf({ ...ctx, actor: odd }, bow), null, "one and a fraction multiply nothing");
 });
 
 /* --- Keys ------------------------------------------------------------ */

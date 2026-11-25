@@ -16,6 +16,9 @@
  */
 import { CHANGE_KEY_FAMILY, ROLL_FAMILY } from "./constants.mjs";
 import { resolveLevelValue } from "../lib/vocab.mjs";
+import { gateVerdict } from "../lib/typed-modifiers.mjs";
+import { actorToken } from "../lib/patches/attack-throw.mjs";
+import "../lib/roll-gate-kinds.mjs";
 
 const ABILITIES_FLAG = "acks-extras";
 
@@ -35,6 +38,11 @@ function actorLevel(actor) {
  * so an item carrying both is not counted twice. See
  * docs/influence/DECISIONS.md, "A hand-added Active Effect overrides an
  * imported ability's own".
+ *
+ * A row under a `gate` is asked of the actor (`gateVerdict`, the context its own
+ * token): a gate that holds offers the row pre-ticked, one that does not leaves
+ * it out, and one that cannot decide (no token, no combat, no evaluator) offers
+ * it unticked, as a free-text condition does.
  *
  * @param {Actor|null} actor
  * @param {Set<string>} [skipItemIds]
@@ -62,6 +70,14 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
       const value = resolveLevelValue(effect.value, level, { level, rank: 1 });
       if (!Number.isFinite(value) || value === 0) continue;
 
+      // A gated row is decided here: yes pre-ticks it, no drops it, undecided offers it.
+      let undecided = false;
+      if (effect.gate?.kind) {
+        const verdict = gateVerdict(actor, effect.gate, { token: actorToken(actor) });
+        if (verdict === false) continue;
+        undecided = verdict === null;
+      }
+
       out.push({
         id: `abil:${item.id}:${i}`,
         itemId: item.id,
@@ -74,7 +90,7 @@ export function getAbilityReactionMods(actor, skipItemIds = new Set()) {
         appliesTo: effect.appliesTo || "self",
         // A free-text `condition` marks a situational modifier; an audited
         // effect with none applies unconditionally.
-        situational: Boolean(effect.condition) || Boolean(extras.unaudited),
+        situational: Boolean(effect.condition) || Boolean(extras.unaudited) || undecided,
         // Scope fields are already the lib subsystem's vocabulary — passed
         // straight to scopeApplies with no translation, unlike the AE path.
         vsKinds: (effect.vsKinds ?? []).map((k) => String(k).toLowerCase()),

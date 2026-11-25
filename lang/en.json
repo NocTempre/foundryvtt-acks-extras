@@ -692,6 +692,8 @@
   "ACKS-LIB.gate.outnumbered": "while outnumbered",
   "ACKS-LIB.gate.rangeBand": "at {band} range",
   "ACKS-LIB.gate.melee": "in melee",
+  "ACKS-LIB.gate.diceMultiplied": "Damage dice ×{times}: {part}",
+  "ACKS-LIB.gate.band.melee": "melee",
   "ACKS-LIB.gate.band.short": "short",
   "ACKS-LIB.gate.band.medium": "medium",
   "ACKS-LIB.gate.band.long": "long",
