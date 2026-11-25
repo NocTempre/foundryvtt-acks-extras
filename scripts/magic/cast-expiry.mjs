@@ -3,12 +3,13 @@
  * When a summoning's cast runs out. A cast leaves a record on its caster
  * (`spell-effect.mjs`) whose duration is the spell's imported one
  * (`cast-duration.mjs`); once the world clock passes the record's end, the
- * caster's owners and the GMs get one whispered card saying so, with a Judge's
- * Dismiss button for the creatures that cast left standing. What becomes of
+ * caster's owners and the GMs get one whispered card saying so, with a Dismiss
+ * button for the creatures that cast left standing. What becomes of
  * the creatures is the spell's row's word (`cast-control.mjs`), applied by the
  * clock's window: creatures that go are removed by the cast's own recorded
  * tokens and no card is posted; creatures that stay or turn hostile stay until
- * a Judge presses Dismiss.
+ * Dismiss is pressed, by an owner of the caster, or by a Judge for creatures
+ * that turned hostile.
  *
  * The end is this file's own reading of the record, start time plus duration
  * on the world clock, never core's `duration.expired`. A `rounds` record counts
@@ -227,8 +228,15 @@ function calendarSeconds(value, units) {
 /** The record's stamp, written by the GM's own window. */
 const stampEnded = (effect, worldTime) => effect.update({ [`flags.${MODULE_ID}.${FLAG_SPELL_EFFECT}.ended`]: worldTime });
 
-/** The whispered card: the spell, the count still standing, a line where they turned hostile, and Dismiss, which only a GM seat is shown (`bindCard`). */
-async function postEnded({ effect, record, tokens, held = [], outcome = null }) {
+/**
+ * The whispered card: the spell, the count still standing, a line where they
+ * turned hostile, and Dismiss, which `bindCard` draws for the seats that may use
+ * it. The flag carries the cast's `outcome`, the one fact that decision reads.
+ *
+ * @param {{effect: object, record: object, tokens: object[], held?: object[], outcome?: string|null}} o  `announceEndedCast`'s post argument
+ * @returns {Promise<object>} the created message
+ */
+export async function postEnded({ effect, record, tokens, held = [], outcome = null }) {
   const caster = effect.parent;
   // A spell since deleted reads by the name its record was made with.
   const spellName = docOf(record.spellUuid)?.name ?? effect.name;
@@ -241,7 +249,7 @@ async function postEnded({ effect, record, tokens, held = [], outcome = null }) 
     speaker: ChatMessage.getSpeaker({ actor: caster }),
     whisper: castEndedRecipients(caster?.ownership, game.users.filter((u) => u.isGM).map((u) => u.id), isGM),
     content,
-    flags: { [MODULE_ID]: { [CAST_ENDED_FLAG]: { casterUuid: record.casterUuid || caster?.uuid, castId: record.castId } } },
+    flags: { [MODULE_ID]: { [CAST_ENDED_FLAG]: { casterUuid: record.casterUuid || caster?.uuid, castId: record.castId, ...(outcome ? { outcome } : {}) } } },
   });
 }
 
@@ -266,12 +274,24 @@ const liveDeps = (worldTime) => ({
   post: postEnded,
 });
 
-/** Wire a cast-ended card's Dismiss: the cast's creatures on every scene, through the summons dismissal. It is drawn for a GM seat only, since a creature whose control ended is the Judge's to remove. */
-function bindCard(message, html) {
+/**
+ * Wire a cast-ended card's Dismiss: the cast's creatures on every scene, through
+ * the summons dismissal. It is drawn for an owner of the caster, and for a card
+ * whose creatures turned hostile (the flag's `outcome`) only on a GM seat, since
+ * a hostile creature is the Judge's to remove (RR ch. 5); a card with no outcome
+ * draws it for owners. The button is display only: lib's dismissal decides who
+ * may remove.
+ *
+ * @param {object} message  the chat message
+ * @param {HTMLElement} html  its rendered body
+ */
+export function bindCard(message, html) {
   const flag = message?.getFlag?.(MODULE_ID, CAST_ENDED_FLAG);
   if (!flag?.castId) return;
+  const owner = fromUuidSync(flag.casterUuid)?.isOwner === true;
+  const may = owner && (flag.outcome !== "hostile" || game.user?.isGM === true);
   for (const button of html?.querySelectorAll?.(`[${DISMISS_ATTR}]`) ?? []) {
-    if (!game.user?.isGM) {
+    if (!may) {
       button.remove();
       continue;
     }

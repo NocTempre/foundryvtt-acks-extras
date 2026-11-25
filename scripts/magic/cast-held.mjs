@@ -1,4 +1,4 @@
-/* global game, ChatMessage, Hooks, foundry, fromUuid, fromUuidSync */
+/* global game, ui, ChatMessage, Hooks, foundry, fromUuid, fromUuidSync */
 /**
  * Concentration's end. A spell held by concentration leaves a status-only
  * record on its caster (`concentrating`, or `concentrating-and-stationary`) carrying
@@ -21,13 +21,22 @@
  * records it cannot write go to the GM's client through `magicHeldEnd`; with no
  * GM connected they stay and are listed with End. One card, whispered to the GMs
  * and the caster's owners, says why and what ended, what runs on, what still
- * stands, and carries the Judge's Restore (every record it lists, put back with
- * its own id, the re-timings undone). A held summons' control ends with the
- * concentration, and what becomes of its creatures is the spell's row's word
- * (`cast-control.mjs`): the GM's client applies it, and the card says which and
- * lists the creatures the cast left, one row each with the Judge's Dismiss
- * (not drawn for creatures that went) and the Judge's Dismiss all; Restore puts
- * back the records only. The card is `templates/magic/cast-held-card.hbs`.
+ * stands, and carries Restore for an owner of the caster (every record it lists,
+ * put back with its own id, the re-timings undone). A held summons' control ends
+ * with the concentration, and what becomes of its creatures is the spell's row's
+ * word (`cast-control.mjs`): the GM's client applies it, and the card says which
+ * and lists the creatures the cast left, one row each with Dismiss (not drawn
+ * for creatures that went) and Dismiss all, for an owner of the caster, and on a
+ * card whose creatures turned hostile for the Judge alone (RR ch. 5); Restore
+ * puts back the records only, so it is offered on every outcome. The card is
+ * `templates/magic/cast-held-card.hbs`.
+ *
+ * A Restore the seat cannot carry out itself (the card or a listed actor is not
+ * its own) is relayed to the GM's client as `{op: "restore", messageId}`. That
+ * client reads the caster and the records from the stored card, never from the
+ * request, and writes only the actors the sender owns when the card was not
+ * authored by a GM: a seat's card is the seat's word, so its records are not
+ * written onto a character the seat does not own.
  *
  * The GM's client takes the tail from the spell, never from the request, and
  * accepts the request only from a user who owns the caster once no held record
@@ -187,6 +196,37 @@ export function restorePlan(flag) {
   }
   for (const r of flag?.retimed ?? []) if (r.actorUuid && r.id && r.was) out.undo.push({ actorUuid: r.actorUuid, id: r.id, was: r.was });
   return out;
+}
+
+/**
+ * Is a relayed Restore good? The card must still be in the world, must not be
+ * restored already, and the requester must own the caster the card names (a GM's
+ * own request carries no user id and always does). Pure.
+ *
+ * @param {{requestUserId?: string|null}} req
+ * @param {{flag: object|undefined, ownsCaster: boolean}} world  the stored card's flag, and whether the requester owns its caster
+ * @returns {{ok: true}|{refused: "noCard"|"restored"|"notOwner"}}
+ */
+export function checkRestoreRequest(req, { flag, ownsCaster } = {}) {
+  if (!flag) return { refused: "noCard" };
+  if (flag.restored) return { refused: "restored" };
+  if (req?.requestUserId && !ownsCaster) return { refused: "notOwner" };
+  return { ok: true };
+}
+
+/**
+ * Split a restore plan by what its writer may write: the records on actors
+ * `mayWrite` accepts stay in `plan`, and the others are counted in `refused`.
+ * Pure; the plan's `skipped` rides along.
+ *
+ * @param {{create: Array<{actorUuid: string}>, undo: Array<{actorUuid: string}>, skipped: number}} plan  `restorePlan`'s
+ * @param {(actorUuid: string) => boolean} mayWrite
+ * @returns {{plan: object, refused: number}}
+ */
+export function restoreSplit(plan, mayWrite) {
+  const create = plan.create.filter((c) => mayWrite(c.actorUuid));
+  const undo = plan.undo.filter((u) => mayWrite(u.actorUuid));
+  return { plan: { ...plan, create, undo }, refused: plan.create.length - create.length + plan.undo.length - undo.length };
 }
 
 /**
@@ -448,10 +488,13 @@ const liveDeps = () => ({
  * by the tail the spell gives, never the request's.
  * The same request with `op: "control"` asks the GM's client to end the cast's
  * creatures' control instead (`cast-control.mjs`), and answers its outcome.
- * @param {object} payload  `{requestUserId, casterUuid, castId, cause, op?}`
- * @returns {Promise<{ok: boolean, reason?: string, ended?: object[], retimed?: object[], open?: object[]}>}
+ * With `op: "restore"` it puts back the records of the card `messageId` names
+ * (`restoreFromCard`), taking nothing else from the request.
+ * @param {object} payload  `{requestUserId, casterUuid, castId, cause, op?}`, or `{requestUserId, op: "restore", messageId}`
+ * @returns {Promise<{ok: boolean, reason?: string, ended?: object[], retimed?: object[], open?: object[], restored?: number, refused?: number}>}
  */
 export async function magicHeldEnd(payload = {}) {
+  if (payload.op === "restore") return restoreFromCard(payload);
   const caster = payload.casterUuid ? fromUuidSync(payload.casterUuid) : null;
   const user = game.users.get(payload.requestUserId);
   const heldRemains = [...(caster?.effects ?? [])].some((e) => {
@@ -515,26 +558,80 @@ export async function endCasterHeld(caster) {
   return held.map((e) => e.id);
 }
 
-/** Restore press: the Judge's. Puts back every record the card lists and undoes its re-timings. */
-async function pressRestore(message) {
-  if (!game.user.isGM) return;
-  const flag = message.flags?.[MODULE_ID]?.[CAST_HELD_END_FLAG];
-  if (!flag || flag.restored) return;
-  const plan = restorePlan(flag);
+/** Write a restore plan's records back and undo its re-timings, answering how many records it wrote. A record already on its actor is left as it is. */
+async function applyRestore(plan) {
+  let written = 0;
   for (const { actorUuid, data } of plan.create) {
     const actor = await fromUuid(actorUuid);
     if (!actor?.effects || actor.effects.has(data._id)) continue;
     const first = data.statuses?.[0];
     const restored = first ? restoredAs(data, await statusEffectData(first)) : data;
     await actor.createEmbeddedDocuments("ActiveEffect", [restored], { keepId: true });
+    written++;
   }
   for (const { actorUuid, id, was } of plan.undo) {
     const effect = (await fromUuid(actorUuid))?.effects?.get(id);
     if (!effect) continue;
     const path = `flags.${MODULE_ID}.${FLAG_SPELL_EFFECT}`;
     await effect.update({ [`${path}.startTime`]: was.startTime, ...(was.duration ? { [`${path}.duration`]: was.duration } : { [`${path}.duration`]: unset() }) });
+    written++;
   }
-  await message.update({ [`flags.${MODULE_ID}.${CAST_HELD_END_FLAG}.restored`]: { by: game.user.name } });
+  return written;
+}
+
+/** The card's stamp that it was restored, and by whom. */
+const restoredStamp = (name) => ({ [`flags.${MODULE_ID}.${CAST_HELD_END_FLAG}.restored`]: { by: name } });
+
+/**
+ * The GM's client puts back a card's records for a seat that could not write
+ * them itself. The caster and the records come from the stored card; the request
+ * names only the card. The requester must own the caster (`checkRestoreRequest`),
+ * and when the card was not authored by a GM it writes only the actors the
+ * requester owns, so a seat's card cannot put a record on a character the seat
+ * does not own. The card is stamped restored only when nothing was refused, so
+ * the owners of what remains can press Restore again.
+ *
+ * @param {{requestUserId?: string, messageId?: string}} payload
+ * @returns {Promise<{ok: true, restored: number, refused: number}|{ok: false, reason: string}>}
+ */
+async function restoreFromCard(payload) {
+  const message = payload.messageId ? game.messages?.get(payload.messageId) : null;
+  const flag = message?.flags?.[MODULE_ID]?.[CAST_HELD_END_FLAG];
+  const sender = payload.requestUserId ? game.users.get(payload.requestUserId) : null;
+  const gm = !payload.requestUserId || sender?.isGM === true;
+  const owns = (doc) => gm || (Boolean(sender) && doc?.testUserPermission?.(sender, "OWNER") === true);
+  const caster = flag?.casterUuid ? fromUuidSync(flag.casterUuid) : null;
+  const verdict = checkRestoreRequest(payload, { flag, ownsCaster: owns(caster) });
+  if (verdict.refused) return { ok: false, reason: verdict.refused };
+  const authored = message.author?.isGM === true;
+  const split = restoreSplit(restorePlan(flag), (actorUuid) => authored || owns(fromUuidSync(actorUuid)));
+  const restored = await applyRestore(split.plan);
+  if (!split.refused) await message.update(restoredStamp(sender?.name ?? game.user.name));
+  return { ok: true, restored, refused: split.refused };
+}
+
+/**
+ * Restore press, for an owner of the caster. Puts back every record the card
+ * lists and undoes its re-timings: written here when this seat owns the card and
+ * every actor the plan touches, else asked of the GM's client (`magicHeldEnd`,
+ * `op: "restore"`), which writes what the seat owns and answers what it left. A
+ * partial answer is told to the presser.
+ *
+ * @param {object} message  the card's chat message
+ */
+export async function pressRestore(message) {
+  const flag = message.flags?.[MODULE_ID]?.[CAST_HELD_END_FLAG];
+  if (!flag || flag.restored) return;
+  const plan = restorePlan(flag);
+  const direct = message.isOwner === true && [...plan.create, ...plan.undo].every((p) => fromUuidSync(p.actorUuid)?.isOwner === true);
+  if (direct) {
+    await applyRestore(plan);
+    await message.update(restoredStamp(game.user.name));
+    return;
+  }
+  const { executeAsGM } = await import("../lib/sockets.mjs");
+  const answer = await executeAsGM(HELD_END_HANDLER, { op: "restore", messageId: message.id });
+  if (answer?.ok && answer.refused > 0) ui.notifications.warn(loc("notice.restorePartial", { done: answer.restored, left: answer.refused }));
 }
 
 /** An End press: one listed record deleted by id. */
@@ -565,12 +662,24 @@ export async function pressDismiss(flag, dataset, deps = {}) {
   return lib.promptDismiss(caster, { entries: [entry], castId: flag.castId });
 }
 
-/** Wire a card's buttons for this seat: Restore and Dismiss for a GM alone, End for the record's owners and GMs. Dismiss is drawn for a GM seat and display only: lib's dismissal decides who may remove. A seat that keeps no Dismiss loses the footer that held it, whitespace defeating `:empty`. */
+/**
+ * Wire a card's buttons for this seat: Restore for an owner of the caster, on
+ * every outcome since it touches no creature; Dismiss for an owner of the
+ * caster, except on a card whose creatures turned hostile, where only a GM seat
+ * keeps it (RR ch. 5); End for the record's owners. Dismiss is display only:
+ * lib's dismissal decides who may remove. A seat that keeps no button loses the
+ * footer that held them, whitespace defeating `:empty`.
+ *
+ * @param {object} message  the chat message
+ * @param {HTMLElement} html  its rendered body
+ */
 export function bindCard(message, html) {
   const flag = message?.flags?.[MODULE_ID]?.[CAST_HELD_END_FLAG];
   if (!flag || !html?.querySelectorAll) return;
+  const owner = fromUuidSync(flag.casterUuid)?.isOwner === true;
+  const mayDismiss = owner && (flag.outcome !== "hostile" || game.user.isGM === true);
   for (const button of html.querySelectorAll(`[${DISMISS_ATTR}]`)) {
-    if (!game.user.isGM) button.remove();
+    if (!mayDismiss) button.remove();
     else {
       button.addEventListener("click", (event) => {
         event.preventDefault();
@@ -585,7 +694,7 @@ export function bindCard(message, html) {
     }
   }
   for (const button of html.querySelectorAll(`[${RESTORE_ATTR}]`)) {
-    if (!game.user.isGM) button.remove();
+    if (!owner) button.remove();
     else if (flag.restored) {
       button.disabled = true;
       button.textContent = loc("restored", { name: flag.restored.by ?? "" });
@@ -597,8 +706,7 @@ export function bindCard(message, html) {
     }
   }
   for (const button of html.querySelectorAll(`[${END_ATTR}]`)) {
-    const owner = game.user.isGM || fromUuidSync(button.dataset.actorUuid)?.isOwner === true;
-    if (!owner) button.remove();
+    if (fromUuidSync(button.dataset.actorUuid)?.isOwner !== true) button.remove();
     else {
       button.addEventListener("click", (event) => {
         event.preventDefault();

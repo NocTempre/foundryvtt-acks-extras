@@ -20,7 +20,7 @@ globalThis.foundry = {
 };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, restoredAs, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
+const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, checkRestoreRequest, restoreSplit, restorePlan, restoredAs, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { conditionChanges } = await import("./core-conditions-fixture.mjs");
 
@@ -361,38 +361,197 @@ await ta("a row's Dismiss asks the dismissal for that creature alone, of this ca
   delete globalThis.game.scenes;
 });
 
-await ta("on a seat, Dismiss and Dismiss all are kept for a GM seat alone, whoever owns the caster; Restore follows the same seat, and the lib dismissal is what decides who may remove", async () => {
+await ta("on a seat, Restore, Dismiss and Dismiss all follow ownership of the caster, End follows ownership of its record, and a hostile card keeps Dismiss for a GM seat alone; the lib dismissal is what decides who may remove", async () => {
   const html0 = await heldEndContent({ ...FLAG(), summons: SUMMONS() }, loc);
   const asked = [];
   const button = (attrs = {}) => ({ removed: false, listeners: 0, dataset: attrs, remove() { this.removed = true; }, addEventListener() { this.listeners += 1; } });
-  const seat = (isGM, owner) => {
+  const seat = ({ isGM = false, owner = false, end = owner, outcome } = {}) => {
     globalThis.game.user = { isGM };
-    globalThis.fromUuidSync = () => ({ isOwner: owner });
+    globalThis.fromUuidSync = (uuid) => ({ isOwner: uuid === "Actor.c2" ? end : owner });
     const dismiss = [button({ tokenUuid: "a" }), button({ tokenUuid: "b" }), button({ partyId: "p", memberId: "m" }), button({ all: "1" })];
     const restore = button();
-    const end = button({ actorUuid: "Actor.c2" });
-    const foot = { removed: false, children: isGM ? [{}, {}] : [], remove() { this.removed = true; } };
-    const message = { flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS() } } } };
+    const endButton = button({ actorUuid: "Actor.c2" });
+    const foot = { removed: false, children: owner ? [{}, {}] : [], remove() { this.removed = true; } };
+    const message = { flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS(), ...(outcome ? { outcome } : {}) } } } };
     const html = {
-      querySelectorAll: (sel) => (asked.push(sel), sel.includes("dismiss") ? dismiss : sel.includes("restore") ? [restore] : [end]),
+      querySelectorAll: (sel) => (asked.push(sel), sel.includes("dismiss") ? dismiss : sel.includes("restore") ? [restore] : [endButton]),
       querySelector: () => foot,
     };
     bindCard(message, html);
-    return { dismiss, restore, end, foot };
+    return { dismiss, restore, end: endButton, foot };
   };
-  const gm = seat(true, false);
-  assert.deepEqual(gm.dismiss.map((d) => [d.removed, d.listeners]), [[false, 1], [false, 1], [false, 1], [false, 1]], "a GM seat keeps every Dismiss and wires it");
-  assert.equal(gm.foot.removed, false);
-  const owner = seat(false, true);
-  assert.deepEqual(owner.dismiss.map((d) => [d.removed, d.listeners]), [[true, 0], [true, 0], [true, 0], [true, 0]], "an owner's seat is not a GM's: every Dismiss is removed");
-  assert.deepEqual([owner.restore.removed, owner.end.removed], [true, false], "End keeps its own owner test, which Dismiss does not copy");
-  assert.equal(owner.foot.removed, true, "the footer Restore and Dismiss all left is taken away empty");
-  const other = seat(false, false);
-  assert.ok(other.dismiss.every((d) => d.removed));
+  const kept = (seatResult) => [seatResult.dismiss.map((d) => !d.removed && d.listeners === 1), !seatResult.restore.removed, !seatResult.end.removed];
+  const ownerSeat = seat({ owner: true, outcome: "stays" });
+  assert.deepEqual(kept(ownerSeat), [[true, true, true, true], true, true], "an owner of the caster keeps every Dismiss, Restore and its End, with no GM seat");
+  assert.equal(ownerSeat.foot.removed, false);
+  assert.deepEqual(kept(seat({ owner: true })), [[true, true, true, true], true, true], "a card with no outcome draws Dismiss for an owner");
+  assert.deepEqual(kept(seat({ owner: true, outcome: "gone" })), [[true, true, true, true], true, true], "so does one whose creatures went");
+  const hostile = seat({ owner: true, outcome: "hostile" });
+  assert.deepEqual(kept(hostile), [[false, false, false, false], true, true], "an owner of a hostile card loses Dismiss and keeps Restore, which touches no creature");
+  assert.deepEqual(kept(seat({ isGM: true, owner: true, outcome: "hostile" })), [[true, true, true, true], true, true], "a GM seat keeps Dismiss on a hostile card");
+  const stranger = seat({ owner: false, outcome: "stays" });
+  assert.deepEqual(kept(stranger), [[false, false, false, false], false, false], "a seat that owns nothing keeps nothing");
+  assert.equal(stranger.foot.removed, true, "the footer nothing is left in is taken away empty");
+  assert.deepEqual(kept(seat({ owner: true, end: false })).slice(1), [true, false], "End keeps its own record's ownership test");
   assert.ok(asked.includes("[data-acks-extras-held-dismiss]"), "the hook asks for the attribute the template draws");
   for (const attr of ["data-acks-extras-held-dismiss", "data-acks-extras-held-restore", "data-acks-extras-held-end"]) assert.ok(html0.includes(attr), `the template draws ${attr}`);
   delete globalThis.game.user;
   delete globalThis.fromUuidSync;
+});
+
+t("a relayed Restore is refused for a card no longer in the world, then one already restored, then a requester who does not own its caster; a GM's own request carries no user id and always passes the owner test", () => {
+  const flag = FLAG();
+  const req = { requestUserId: "u1", op: "restore", messageId: "m" };
+  assert.deepEqual(checkRestoreRequest(req, { flag, ownsCaster: true }), { ok: true });
+  assert.deepEqual(checkRestoreRequest(req, { flag: undefined, ownsCaster: true }), { refused: "noCard" });
+  assert.deepEqual(checkRestoreRequest(req, { flag: { ...flag, restored: { by: "x" } }, ownsCaster: false }), { refused: "restored" }, "restored is named before the owner test");
+  assert.deepEqual(checkRestoreRequest(req, { flag: undefined, ownsCaster: false }), { refused: "noCard" }, "no card is named before the owner test");
+  assert.deepEqual(checkRestoreRequest(req, { flag, ownsCaster: false }), { refused: "notOwner" });
+  assert.deepEqual(checkRestoreRequest({ ...req, requestUserId: null }, { flag, ownsCaster: false }), { ok: true });
+  assert.deepEqual(checkRestoreRequest(undefined, undefined), { refused: "noCard" });
+});
+
+t("a restore plan splits by who may write each actor: the records kept are the writer's, the rest are counted and nothing is lost to the count", () => {
+  const plan = restorePlan(FLAG());
+  const all = restoreSplit(plan, () => true);
+  assert.deepEqual([all.plan.create.length, all.plan.undo.length, all.refused], [2, 1, 0]);
+  const some = restoreSplit(plan, (uuid) => uuid === "Actor.c");
+  assert.deepEqual(some.plan.create.map((c) => c.data._id), ["rk"]);
+  assert.deepEqual([some.plan.undo.length, some.refused, some.plan.skipped], [0, 2, plan.skipped]);
+  const none = restoreSplit(plan, () => false);
+  assert.deepEqual([none.plan.create.length, none.plan.undo.length, none.refused], [0, 0, 3]);
+  assert.deepEqual(plan.create.length + plan.undo.length, 3, "the plan it was given is not changed");
+});
+
+/** The Restore tests' world: a card, its users and the actors its records belong to. */
+const restoreWorld = ({ authorGM = true, owned = {}, cardOwner = true } = {}) => {
+  const log = { created: [], undone: [], messageUpdates: [] };
+  const actors = {};
+  const actorDoc = (uuid, effects = []) => {
+    const own = new Map(effects.map((e) => [e.id, e]));
+    actors[uuid] = {
+      uuid,
+      get isOwner() { return owned[game.user?.id]?.includes(uuid) === true; },
+      effects: { has: (id) => own.has(id), get: (id) => own.get(id) },
+      testUserPermission: (user) => owned[user.id]?.includes(uuid) === true,
+      createEmbeddedDocuments: async (_kind, docs) => { for (const d of docs) { log.created.push([uuid, d._id]); own.set(d._id, d); } return docs; },
+    };
+  };
+  actorDoc("Actor.c");
+  actorDoc("Actor.a");
+  actorDoc("Actor.b", [{ id: "rb", update: async (patch) => log.undone.push(patch) }]);
+  const message = { id: "m1", flags: { "acks-extras": { castHeldEnd: FLAG() } }, isOwner: cardOwner, author: { isGM: authorGM }, update: async (patch) => log.messageUpdates.push(patch) };
+  const users = new Map([["gm", { id: "gm", name: "Judge", isGM: true }], ["p1", { id: "p1", name: "Player One", isGM: false }], ["p2", { id: "p2", name: "Player Two", isGM: false }]]);
+  globalThis.fromUuid = async (uuid) => actors[uuid] ?? null;
+  globalThis.fromUuidSync = (uuid) => actors[uuid] ?? null;
+  Object.assign(globalThis.game, { users, messages: { get: (id) => (id === "m1" ? message : null) }, user: { id: "p1", name: "Player One", isGM: false } });
+  return { log, message, actors };
+};
+const restoreWorldDown = () => {
+  delete globalThis.fromUuid;
+  delete globalThis.fromUuidSync;
+  delete globalThis.game.users;
+  delete globalThis.game.messages;
+  delete globalThis.game.user;
+};
+const { magicHeldEnd, pressRestore } = await import("../scripts/magic/cast-held.mjs");
+
+await ta("the GM's client restores a GM-authored card in full for an owner of its caster, and stamps it restored by that user", async () => {
+  const w = restoreWorld({ authorGM: true, owned: { p1: ["Actor.c"] } });
+  const answer = await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "p1" });
+  assert.deepEqual(answer, { ok: true, restored: 3, refused: 0 });
+  assert.deepEqual(w.log.created, [["Actor.c", "rk"], ["Actor.a", "ra"]], "every record the card lists is put back, on actors the sender does not own too");
+  assert.equal(w.log.undone.length, 1, "and the re-timing is undone");
+  assert.deepEqual(w.log.messageUpdates, [{ "flags.acks-extras.castHeldEnd.restored": { by: "Player One" } }]);
+  restoreWorldDown();
+});
+
+await ta("a card a seat authored writes only the actors the sender owns, counts the rest and is not stamped restored", async () => {
+  const w = restoreWorld({ authorGM: false, owned: { p1: ["Actor.c"] } });
+  const answer = await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "p1" });
+  assert.deepEqual(answer, { ok: true, restored: 1, refused: 2 });
+  assert.deepEqual(w.log.created, [["Actor.c", "rk"]], "the caster's own record goes back, the others' do not");
+  assert.deepEqual([w.log.undone.length, w.log.messageUpdates.length], [0, 0], "nothing is undone on an actor the sender does not own, and the card stays open for its owners");
+  const again = await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "p1" });
+  assert.deepEqual(again, { ok: true, restored: 0, refused: 2 }, "a repeat finds the record already back");
+  w.actors["Actor.a"].testUserPermission = () => true;
+  w.actors["Actor.b"].testUserPermission = () => true;
+  const whole = await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "p1" });
+  assert.deepEqual([whole.ok, whole.refused, w.log.messageUpdates.length], [true, 0, 1], "once everything is owned it is whole, and stamped");
+  restoreWorldDown();
+});
+
+await ta("a seat-authored card restored with no requester id (a GM's own call) writes every actor", async () => {
+  const w = restoreWorld({ authorGM: false });
+  const answer = await magicHeldEnd({ op: "restore", messageId: "m1" });
+  assert.deepEqual(answer, { ok: true, restored: 3, refused: 0 });
+  assert.equal(w.log.messageUpdates.length, 1);
+  restoreWorldDown();
+});
+
+await ta("a Restore request is refused with no card, an already restored card and a user who owns neither the caster, and is checked before the held-end head that wants a casterUuid", async () => {
+  const w = restoreWorld({ authorGM: true, owned: { p1: ["Actor.c"] } });
+  assert.deepEqual(await magicHeldEnd({ op: "restore", messageId: "gone", requestUserId: "p1" }), { ok: false, reason: "noCard" });
+  assert.deepEqual(await magicHeldEnd({ op: "restore", requestUserId: "p1" }), { ok: false, reason: "noCard" }, "a request that names no card");
+  assert.deepEqual(await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "p2" }), { ok: false, reason: "notOwner" });
+  assert.deepEqual(await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "nobody" }), { ok: false, reason: "notOwner" }, "an id no user answers to owns nothing");
+  assert.deepEqual([w.log.created.length, w.log.messageUpdates.length], [0, 0], "a refusal writes nothing");
+  w.message.flags["acks-extras"].castHeldEnd.restored = { by: "Judge" };
+  assert.deepEqual(await magicHeldEnd({ op: "restore", messageId: "m1", requestUserId: "p1" }), { ok: false, reason: "restored" });
+  restoreWorldDown();
+});
+
+await ta("a Restore press writes directly when the seat owns the card and every actor in the plan, and relays {op: \"restore\", messageId} otherwise, telling the presser what was left", async () => {
+  const once = {};
+  const priorHooks = globalThis.Hooks;
+  const priorSocketlib = globalThis.socketlib;
+  const priorUi = globalThis.ui;
+  globalThis.Hooks = { once: (name, fn) => (once[name] = fn), on() {} };
+  const sent = [];
+  let reply;
+  globalThis.socketlib = { registerModule: () => ({ register() {}, executeAsGM: async (action, payload) => (sent.push([action, payload]), reply) }) };
+  const warned = [];
+  globalThis.ui = { notifications: { warn: (text) => warned.push(text) } };
+  await import("../scripts/lib/sockets.mjs");
+  once["socketlib.ready"]();
+  const priorFormat = globalThis.game.i18n.format;
+  globalThis.game.i18n.format = (key, data) => (data ? `${key} ${JSON.stringify(data)}` : key);
+  const mine = restoreWorld({ authorGM: false, owned: { p1: ["Actor.c", "Actor.a", "Actor.b"] } });
+  globalThis.game.users.activeGM = { id: "gm" };
+  await pressRestore(mine.message);
+  assert.equal(sent.length, 0, "a seat that owns the card and every actor writes itself");
+  assert.deepEqual(mine.log.created, [["Actor.c", "rk"], ["Actor.a", "ra"]]);
+  assert.deepEqual(mine.log.messageUpdates, [{ "flags.acks-extras.castHeldEnd.restored": { by: "Player One" } }]);
+  restoreWorldDown();
+
+  const partial = restoreWorld({ authorGM: true, owned: { p1: ["Actor.c"] } });
+  globalThis.game.users.activeGM = { id: "gm" };
+  reply = { ok: true, restored: 1, refused: 2 };
+  await pressRestore(partial.message);
+  assert.deepEqual(sent, [["magicHeldEnd", { op: "restore", messageId: "m1" }]], "an actor the seat does not own sends the card's id and nothing else");
+  assert.equal(partial.log.created.length, 0, "and the seat writes nothing itself");
+  assert.deepEqual(warned, ['ACKS-MAGIC.castHeld.notice.restorePartial {"done":1,"left":2}'], "a partial answer is told to the presser");
+  restoreWorldDown();
+
+  const notMine = restoreWorld({ authorGM: true, cardOwner: false, owned: { p1: ["Actor.c", "Actor.a", "Actor.b"] } });
+  globalThis.game.users.activeGM = { id: "gm" };
+  reply = { ok: true, restored: 3, refused: 0 };
+  await pressRestore(notMine.message);
+  assert.equal(sent.length, 2, "a card the seat cannot edit is relayed even when every actor is its own");
+  assert.equal(warned.length, 1, "a whole restore says nothing more");
+  restoreWorldDown();
+
+  const closed = restoreWorld({ authorGM: true, owned: { p1: ["Actor.c"] } });
+  closed.message.flags["acks-extras"].castHeldEnd.restored = { by: "Judge" };
+  await pressRestore(closed.message);
+  assert.equal(sent.length, 2, "a restored card is not pressed again");
+  restoreWorldDown();
+
+  globalThis.game.i18n.format = priorFormat;
+  for (const [key, value] of [["Hooks", priorHooks], ["socketlib", priorSocketlib], ["ui", priorUi]]) {
+    if (value === undefined) delete globalThis[key];
+    else globalThis[key] = value;
+  }
 });
 
 console.log(`\n${n} cast-held tests passed`);

@@ -1013,7 +1013,7 @@ await ta("a row naming a creature grants nothing: a named creature the asking se
 /*  A cast's end                                                       */
 /* ------------------------------------------------------------------ */
 
-const { castRecordEnd, castEnded, castTokens, castEndedRecipients, announceEndedCast, sweepEndedCasts } = await import("../scripts/magic/cast-expiry.mjs");
+const { castRecordEnd, castEnded, castTokens, castEndedRecipients, announceEndedCast, sweepEndedCasts, postEnded, bindCard: bindEndedCard } = await import("../scripts/magic/cast-expiry.mjs");
 
 /** An invented calendar: a minute of 50 seconds, an hour of 40 minutes; any other unit is unknown. */
 const SECS = { seconds: 1, minutes: 50, hours: 2000 };
@@ -1123,6 +1123,56 @@ await ta("a sweep announces only the ended, open caster records, and one that th
   }
   assert.deepEqual(posted, ["cast7", "cast9"]);
   assert.equal(errors.length, 1, "the throw is logged");
+});
+await ta("the ended card's flag carries the outcome the control ended in, and a card with no outcome carries none", async () => {
+  const prior = { game: globalThis.game, ChatMessage: globalThis.ChatMessage, fromUuidSync: globalThis.fromUuidSync };
+  const made = [];
+  globalThis.game = { i18n: { format: (key) => key, localize: (key) => key }, users: [{ id: "gm1", isGM: true }, { id: "p1", isGM: false }] };
+  globalThis.game.users.get = (id) => globalThis.game.users.find((u) => u.id === id);
+  globalThis.ChatMessage = { getSpeaker: () => ({}), create: async (data) => (made.push(data), data) };
+  globalThis.fromUuidSync = () => null;
+  try {
+    const effect = { name: "Invented", parent: { uuid: "Actor.c1", name: "Invented Caster", ownership: { default: 0, p1: 3 } } };
+    const record = { spellUuid: "Actor.c1.Item.sp1", castId: "cast7", casterUuid: "Actor.c1" };
+    await postEnded({ effect, record, tokens: [{}], outcome: "hostile" });
+    await postEnded({ effect, record, tokens: [{}], outcome: "stays" });
+    await postEnded({ effect, record, tokens: [{}] });
+    assert.deepEqual(made.map((m) => m.flags["acks-extras"].castEnded), [
+      { casterUuid: "Actor.c1", castId: "cast7", outcome: "hostile" },
+      { casterUuid: "Actor.c1", castId: "cast7", outcome: "stays" },
+      { casterUuid: "Actor.c1", castId: "cast7" },
+    ]);
+    assert.deepEqual([...made[0].whisper].sort(), ["gm1", "p1"], "the card still goes to the GMs and the caster's owners");
+  } finally {
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
+});
+t("the ended card's Dismiss is drawn for an owner of the caster, for a GM seat alone once the creatures turned hostile, and for nobody else", () => {
+  const prior = { game: globalThis.game, fromUuidSync: globalThis.fromUuidSync };
+  const seat = ({ isGM = false, owner = false, outcome } = {}) => {
+    globalThis.game = { user: { isGM } };
+    globalThis.fromUuidSync = (uuid) => (uuid === "Actor.c1" ? { isOwner: owner } : null);
+    const button = { removed: false, listeners: 0, remove() { this.removed = true; }, addEventListener() { this.listeners += 1; } };
+    const flag = { casterUuid: "Actor.c1", castId: "cast7", ...(outcome ? { outcome } : {}) };
+    bindEndedCard({ getFlag: (scope, key) => (scope === "acks-extras" && key === "castEnded" ? flag : undefined) }, { querySelectorAll: (sel) => (sel === "[data-acks-extras-cast-dismiss]" ? [button] : []) });
+    return !button.removed && button.listeners === 1;
+  };
+  try {
+    assert.equal(seat({ owner: true, outcome: "stays" }), true, "an owner of the caster keeps it with no GM seat");
+    assert.equal(seat({ owner: true }), true, "a card made with no outcome draws it for an owner");
+    assert.equal(seat({ owner: true, outcome: "hostile" }), false, "an owner loses it where the creatures turned hostile");
+    assert.equal(seat({ isGM: true, owner: true, outcome: "hostile" }), true, "a GM seat keeps it there");
+    assert.equal(seat({ owner: false, outcome: "stays" }), false, "a seat that owns nothing is shown none");
+    assert.equal(seat({ isGM: false, owner: false }), false);
+  } finally {
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
 });
 t("the cast-end card's strings exist, and the record's stamp is read back", () => {
   for (const key of ["ACKS-MAGIC.castEnded.text", "ACKS-MAGIC.castEnded.dismiss"]) assert.equal(typeof lang[key], "string", key);

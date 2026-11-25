@@ -11096,6 +11096,7 @@
   "ACKS-MAGIC.castHeld.aria.dismiss": "Dismiss {name}",
   "ACKS-MAGIC.castHeld.aria.dismissAll": "Dismiss every creature this cast left standing",
   "ACKS-MAGIC.castHeld.restored": "Restored by {name}",
+  "ACKS-MAGIC.castHeld.notice.restorePartial": "Restored {done} record(s). {left} are on characters you do not own; their owners or the Judge can restore them from this card.",
   "ACKS-MAGIC.sacrifice.title": "Blood sacrifice: {name}",
   "ACKS-MAGIC.sacrifice.victims": "Victims",
   "ACKS-MAGIC.sacrifice.empty": "No victims yet. Drop a creature or token.",
