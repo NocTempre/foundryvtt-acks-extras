@@ -7123,6 +7123,132 @@ await scenario("summon members: the party sheet and the experience share read a 
   assert.ok(xp.divideXp(xp.participantsOf(formation)).excluded.some((r) => r.actor === rig.copy), "and is left out of the division");
 });
 
+/* -------------------------------------------- */
+/*  Creatures made straight into the party       */
+/* -------------------------------------------- */
+
+/** The stash of one creature a summoning makes inside the party token: plain token data, no id, the summoner and cast record in its delta. */
+const stashFor = (rig, by, castId, extra = {}) => ({
+  name: "Wolf",
+  actorId: rig.copy.id,
+  actorLink: false,
+  x: 1100,
+  y: 1100,
+  delta: { flags: { [MODULE_ID]: { summonedBy: by.uuid, summon: { sourceUuid: "Compendium.test.Actor.wolf", name: "Wolf", castId, at: 1 } } } },
+  ...extra,
+});
+const asPlayer = async (fn) => {
+  game.user = game.users.get("PL1");
+  try {
+    return await fn();
+  } finally {
+    game.user = game.users.get("GM1");
+  }
+};
+
+await scenario("summon party: a caster who marches inside a party token has its party, and nobody else has one", async () => {
+  const rig = await summonRig("PartyOf");
+  const stored = rig.formation();
+  assert.deepEqual(membership.summonerParty(rig.caster.id), { id: rig.id, name: stored.name, sceneId: scene.id, tokenId: stored.tokenId });
+  assert.equal(membership.summonerParty("nobody"), null, "an actor no party holds");
+  assert.equal(membership.summonerParty(""), null);
+  await rig.wolf(rig.caster, "c1", 1200);
+  placed(rig.caster);
+  await drain();
+  const [wolf] = summonMembers();
+  assert.equal(membership.summonerParty(wolf.actorId), null, "a summon is no caster");
+  assert.equal(membership.marchesInside(wolf), false);
+  assert.equal(membership.marchesInside(stored.members.find((m) => m.actorId === rig.caster.id)), true);
+});
+
+await scenario("summon party: a deployed caster, a party in a fight and a party with no token on its scene have none", async () => {
+  const rig = await summonRig("PartyNone");
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "detached");
+  await drain();
+  assert.equal(membership.summonerParty(rig.caster.id), null, "out on the map, the caster marches inside nothing");
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "recalled");
+  await drain();
+  assert.ok(membership.summonerParty(rig.caster.id), "recalled, it is back");
+
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  const stored = rig.formation();
+  await combat.createEmbeddedDocuments("Combatant", [{ tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false }]);
+  await drain();
+  assert.ok(rig.formation().combat?.active, "the party is in a fight");
+  assert.equal(membership.summonerParty(rig.caster.id), null, "a party in a fight answers none, so a click places as it always did");
+  await combat.delete();
+  await drain();
+  assert.ok(membership.summonerParty(rig.caster.id), "the fight over, it answers again");
+
+  await model.patchFormation(rig.id, (rec) => {
+    rec.tokenId = null;
+  });
+  assert.equal(membership.summonerParty(rig.caster.id), null, "no party token standing on a scene");
+});
+
+await scenario("summon party: admitting stashes stores members with no token made, keeping only what names this summoner with a cast record", async () => {
+  const rig = await summonRig("Admit");
+  const other = await member("Admit Other");
+  const good = [stashFor(rig, rig.caster, "c1"), stashFor(rig, rig.caster, "c1")];
+  const foreign = stashFor(rig, other, "c9");
+  const bare = stashFor(rig, rig.caster, "c1");
+  delete bare.delta.flags[MODULE_ID].summon;
+  const tokensBefore = scene.tokens.size;
+  const out = await membership.admitSummons(rig.id, rig.caster.uuid, [good[0], foreign, bare, good[1], null]);
+  await drain();
+  assert.equal(out.reason, undefined);
+  assert.equal(out.actorIds.length, 2, "the two of this summoner's cast, no other");
+  assert.deepEqual(summonMembers().map((m) => m.actorId), out.actorIds, "the minted ids are the members' own");
+  assert.equal(new Set(out.actorIds).size, 2);
+  assert.ok(summonMembers().every((m) => m.baseActorId === rig.copy.id && m.actorId !== rig.copy.id), "each names the copy and is not it");
+  assert.ok(summonMembers().every((m) => m.tokenData?.delta?.flags?.[MODULE_ID]?.summonedBy === rig.caster.uuid && m.tokenData.delta.flags[MODULE_ID].summon.castId === "c1"), "the stash keeps the flags");
+  assert.equal(scene.tokens.size, tokensBefore, "no token was made on any scene");
+  assert.equal(model.getMemberActor(summonMembers()[0]), rig.copy, "a member's actor is its copy");
+  const rows = servicesApi.get("party-roster").members(rig.id).filter((r) => r.stashed && r.summonedBy === rig.caster.uuid);
+  assert.equal(rows.length, 2, "the roster reads them as held summons of the caster");
+
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), summonMembers()[0].actorId), "detached", "a stashed one deploys like any other");
+  await drain();
+  assert.equal(wolvesOn(rig.copy).length, 1);
+});
+
+await scenario("summon party: admission is refused for a player's client, a summoner gone out, a fight, an unknown party and a stash that is none", async () => {
+  const rig = await summonRig("AdmitNo");
+  const stash = () => stashFor(rig, rig.caster, "c1");
+  assert.deepEqual(await asPlayer(() => membership.admitSummons(rig.id, rig.caster.uuid, [stash()])), { actorIds: [], reason: "notGm" });
+  assert.deepEqual((await membership.admitSummons("no-party", rig.caster.uuid, [stash()])).reason, "noParty");
+  assert.equal((await membership.admitSummons(rig.id, rig.caster.uuid, [])).reason, "noStash");
+  assert.equal((await membership.admitSummons(rig.id, "Actor.nobody", [stash()])).reason, "notInside", "a summoner no member of the party");
+
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "detached");
+  await drain();
+  assert.deepEqual(await membership.admitSummons(rig.id, rig.caster.uuid, [stash()]), { actorIds: [], reason: "notInside" }, "the summoner has gone out since the seat asked");
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "recalled");
+  await drain();
+
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  const stored = rig.formation();
+  await combat.createEmbeddedDocuments("Combatant", [{ tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false }]);
+  await drain();
+  assert.equal((await membership.admitSummons(rig.id, rig.caster.uuid, [stash()])).reason, "inCombat");
+  await combat.delete();
+  await drain();
+  assert.equal(summonMembers().length, 0, "nothing was stored by any refusal");
+});
+
+await scenario("summon party: two admissions for one party queue, and both stand", async () => {
+  const rig = await summonRig("AdmitQueue");
+  const [a, b] = await Promise.all([
+    membership.admitSummons(rig.id, rig.caster.uuid, [stashFor(rig, rig.caster, "c1")]),
+    membership.admitSummons(rig.id, rig.caster.uuid, [stashFor(rig, rig.caster, "c2"), stashFor(rig, rig.caster, "c2")]),
+  ]);
+  await drain();
+  assert.deepEqual([a.actorIds.length, b.actorIds.length], [1, 2]);
+  assert.equal(summonMembers().length, 3, "no write replaced the other's");
+});
+
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);

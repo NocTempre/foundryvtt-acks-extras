@@ -19,7 +19,10 @@
  * token but a member record the `party-roster` service (docs/lib/API.md) hands
  * over, and lib reaches it through that service alone, with every call
  * optional: where the provider lacks a method, a summon is the scene token it
- * always was. A deployed party member's token is deleted through the
+ * always was. A caster who marches inside a party token may make the creatures
+ * as members of that party at once (`joinSummons`): the GM's client stashes
+ * each as the token it would have been and the service stores them, so no
+ * token stands on any scene. A deployed party member's token is deleted through the
  * service's `release`, which drops the member record first, so a recall has
  * nothing to restore it from.
  *
@@ -105,6 +108,7 @@ export function summonsOf(summoner, { scene = sceneNow() } = {}) {
  * @typedef {object} HeldSummon
  * A summon riding in its summoner's party token, as its roster row names it.
  * @property {string} partyId  the party holding it
+ * @property {string} partyName  that party's name, as the roster lists it
  * @property {string} actorId  the member's id in that party (the roster row's `actorId`)
  * @property {string} name
  * @property {string|null} img
@@ -127,10 +131,23 @@ export function heldSummonsOf(summoner) {
   for (const party of service.list() ?? []) {
     for (const row of service.members(party.id) ?? []) {
       if (!row?.stashed || row.summonedBy !== summoner.uuid || !row.summon?.castId) continue;
-      out.push({ partyId: party.id, actorId: row.actorId, name: String(row.name ?? ""), img: row.actor?.img ?? null, record: row.summon });
+      out.push({ partyId: party.id, partyName: String(party.name ?? ""), actorId: row.actorId, name: String(row.name ?? ""), img: row.actor?.img ?? null, record: row.summon });
     }
   }
   return out;
+}
+
+/**
+ * The party this caster marches inside, where their summoning may be made as
+ * members of it (`party-roster` `summonerParty`): null where the caster has no
+ * such party, the party is in a fight, or no provider answers.
+ * @param {Actor} summoner
+ * @returns {{id: string, name: string, sceneId: string, tokenId: string}|null}
+ */
+export function joiningParty(summoner) {
+  const service = roster();
+  if (!summoner?.id || typeof service?.summonerParty !== "function") return null;
+  return service.summonerParty(summoner.id) ?? null;
 }
 
 /**
@@ -244,6 +261,52 @@ async function createTokens({ copy, scene, positions, flags, ownership }) {
 }
 
 /**
+ * The flags and the ownership every token or stash of one summoning carries in
+ * its delta, the one place both are decided. The spell's name is read here,
+ * from the summoner's own item, never taken from the payload; the owners are
+ * the summoner's own non-GM owners and the requester.
+ * @returns {{flags: object, ownership: object}}
+ */
+function summonStamps({ summoner, source, spellId, cast, user }) {
+  const spellName = spellId ? (summoner.items.get(spellId)?.name ?? "") : "";
+  return {
+    flags: summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, spellName, castId: cast.castId, at: game.time.worldTime }),
+    ownership: summonOwnership(summoner.ownership, [user.id], (id) => !!game.users.get(id)?.isGM),
+  };
+}
+
+/**
+ * The stash of each creature a summoning makes inside a party token: plain
+ * token data, built as the token it would have been and standing where the
+ * party token stands, with its id dropped. A monster of a world that rolls its
+ * summoned monsters' hit points gets its own roll in its delta, as core gives
+ * a token it creates.
+ * @param {object} o
+ * @param {Actor} o.copy  the summon's world copy
+ * @param {Scene} o.scene  the party token's scene
+ * @param {TokenDocument} o.at  the party token, whose place the stashes take
+ * @returns {Promise<object[]>}
+ */
+async function stashTokens({ copy, scene, at, count, flags, ownership }) {
+  const rolling = copy.type === "monster" && !!game.settings.get("acks", "autoRollMonsterHP");
+  const stashes = [];
+  for (let i = 0; i < count; i++) {
+    const place = { x: at.x, y: at.y, actorLink: false, hidden: false, delta: { ownership, flags } };
+    for (const key of ["elevation", "level"]) if (at[key] !== undefined) place[key] = at[key];
+    const doc = await copy.getTokenDocument(place, { parent: scene });
+    const data = doc.toObject();
+    delete data._id;
+    if (rolling) {
+      const roll = await copy.rollHP(false);
+      data.delta ??= {};
+      data.delta.system = { ...data.delta.system, hp: { ...data.delta.system?.hp, max: roll.total, value: roll.total } };
+    }
+    stashes.push(data);
+  }
+  return stashes;
+}
+
+/**
  * The creature document a request names: the document its uuid names, else,
  * for a request that names a spell, the library creature carrying that importer
  * cookbook id. A bare request names a document or nothing, so it never reaches
@@ -304,15 +367,39 @@ async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, sp
   }
   const copy = await worldCopy(source);
   if (!copy) return refused("noCopy");
-  // The spell's name is read here, from the summoner's own item, never taken from the payload.
-  const spellName = spellId ? (summoner.items.get(spellId)?.name ?? "") : "";
-  const flags = summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, spellName, castId: cast.castId, at: game.time.worldTime });
-  const ownership = summonOwnership(summoner.ownership, [user.id], (id) => !!game.users.get(id)?.isGM);
+  const { flags, ownership } = summonStamps({ summoner, source, spellId, cast, user });
   const tokenUuids = await createTokens({ copy, scene, positions, flags, ownership });
   if (tokenUuids.length) {
     Hooks.callAll(SUMMONS_PLACED_HOOK, { summonerUuid: summoner.uuid, sceneId: scene.id, tokenIds: tokenUuids.map((uuid) => uuid.split(".").pop()) });
   }
   return { ok: true, castId: cast.castId, tokenUuids };
+}
+
+/**
+ * Make summoned creatures members of the party their caster marches inside:
+ * authorize as a placement is, with no places to hold, then stash each creature
+ * as the token it would have been, in the party token's own place, and hand the
+ * stashes to the roster, which stores them as members. No token is made on any
+ * scene and no `SUMMONS_PLACED_HOOK` fires, since a stash is no arrival to
+ * gather. The range does not apply: nothing is placed on the map.
+ */
+async function joinOp({ summonerUuid, sourceUuid, count, spellId = "", castId = "", cast: stated = null, user }) {
+  const summoner = await fromUuid(summonerUuid);
+  const source = await resolveSource(sourceUuid, spellId, user);
+  const cast = normalizeCast({ ...stated, castId: stated?.castId ?? castId }, foundry.utils.randomID());
+  const verdict = checkPlaceRequest({ user, summoner, source, count, spellId, cast });
+  if (!verdict.ok) return refused(verdict.reason);
+  const party = joiningParty(summoner);
+  const scene = party ? game.scenes.get(party.sceneId) : null;
+  const partyToken = scene?.tokens?.get?.(party.tokenId) ?? null;
+  if (!partyToken || typeof roster()?.admitSummons !== "function") return refused("noParty");
+  const copy = await worldCopy(source);
+  if (!copy) return refused("noCopy");
+  const { flags, ownership } = summonStamps({ summoner, source, spellId, cast, user });
+  const stashes = await stashTokens({ copy, scene, at: partyToken, count, flags, ownership });
+  const admitted = await roster().admitSummons(party.id, summoner.uuid, stashes);
+  if (!admitted?.actorIds?.length) return refused("noParty");
+  return { ok: true, castId: cast.castId, joined: admitted.actorIds, party: { id: party.id, name: party.name } };
 }
 
 /**
@@ -438,6 +525,7 @@ export async function summonRelay({ op, requestUserId = null, ...rest } = {}) {
   const user = requestUserId ? game.users.get(requestUserId) : game.user;
   if (!user) return refused("noUser");
   if (op === "place") return placeOp({ ...rest, user });
+  if (op === "join") return joinOp({ ...rest, user });
   if (op === "dismiss") return dismissOp({ ...rest, user });
   if (op === "variant") return variantOp({ ...rest, user });
   return refused("badOp");
@@ -677,6 +765,29 @@ export async function placeSummons(summoner, { sourceUuid, count = 1, spellId = 
 }
 
 /**
+ * Summon creatures straight into the party the caster marches inside, the
+ * seat's half: a party check (`joiningParty`), then the request to the GM's
+ * client, which authorizes it as a placement is and makes the creatures
+ * members of the party. No place is picked and no token is made. Refused
+ * `noParty` where the caster marches inside no party token.
+ * @param {Actor} summoner  the character summoning
+ * @param {object} o
+ * @param {string} o.sourceUuid  the creature, as `placeSummons` reads it
+ * @param {number} [o.count=1]
+ * @param {string} [o.spellId]
+ * @param {string} [o.castId]  the cast's id; the GM's client replaces one that is malformed
+ * @param {{castId?: string, casterLevel?: number, invocationLevel?: number}} [o.cast]  as `placeSummons` takes it
+ * @returns {Promise<{ok: boolean, reason?: string, castId?: string, joined?: string[], party?: {id: string, name: string}}>}
+ *   `joined` is the ids of the members made, in the party named
+ */
+export async function joinSummons(summoner, { sourceUuid, count = 1, spellId = "", castId, cast } = {}) {
+  if (!joiningParty(summoner)) return refused("noParty");
+  const payload = { op: "join", summonerUuid: summoner.uuid, sourceUuid, count, spellId, castId: castId ?? cast?.castId ?? foundry.utils.randomID() };
+  if (cast) payload.cast = { castId: payload.castId, casterLevel: cast.casterLevel ?? null, invocationLevel: cast.invocationLevel ?? null };
+  return send(payload);
+}
+
+/**
  * The token one dismissal entry names: its `tokenUuid` when it carries one,
  * else its `tokenId` on the entry's `sceneId`, else on the given scene.
  */
@@ -763,6 +874,17 @@ export const refusalText = (reason) => loc(`refused.${reason}`);
  */
 export function announceSummon(result) {
   if (result?.ok) ui.notifications.info(loc("placed", { n: result.tokenUuids?.length ?? 0 }));
+  else warnRefusal(result?.reason ?? "noGm");
+}
+
+/**
+ * Tell the seat how a join went: the count that joined and the party's name, or
+ * the reason it was refused in the seat's own words. For a caller that runs
+ * `joinSummons` itself, as `announceSummon` is for `placeSummons`.
+ * @param {{ok: boolean, reason?: string, joined?: string[], party?: {name: string}}|null} result  `joinSummons`' answer
+ */
+export function announceJoin(result) {
+  if (result?.ok) ui.notifications.info(loc("joined", { n: result.joined?.length ?? 0, party: result.party?.name ?? "" }));
   else warnRefusal(result?.reason ?? "noGm");
 }
 

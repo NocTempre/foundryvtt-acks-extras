@@ -37,7 +37,8 @@ const policies = new Set();
  * count, spellId, spell, cast, positions, scene}) => string|null`: `cast` is
  * the request's `{castId, casterLevel, invocationLevel}` (a level the seat did
  * not state is null), `positions` the places chosen and `scene` the scene they
- * are on, the last two null on the seat's own pre-check. null (or anything that is not a
+ * are on, the last two null wherever no place is chosen: the seat's own pre-check
+ * and a join into a party, on the GM's client too. null (or anything that is not a
  * non-empty string) allows, a string is the refusal's reason id. It runs after
  * every built-in check, on the requesting seat and on the GM's client alike,
  * so it must answer from documents both can read, and synchronously: a
@@ -298,7 +299,7 @@ export function sourceReadable(source, user) {
  *   creature grants nothing
  * @param {object} [req.scene]  the scene to place on
  * @param {number} req.count
- * @param {{x: number, y: number}[]} [req.positions]  omitted when the seat is only asking whether it may
+ * @param {{x: number, y: number}[]} [req.positions]  omitted where no place is chosen: the seat only asking whether it may, and a join into a party
  * @param {string} [req.spellId]  the summoner's spell item the cast is made from; empty is a bare
  *   summoning, which only a seat `bareSummonAllowed` answers true for may make (`spellRequired`)
  * @param {{castId?: string, casterLevel?: number, invocationLevel?: number}|null} [req.cast]  the cast the

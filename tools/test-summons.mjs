@@ -35,7 +35,11 @@ const merge = (a, b) => {
 const flagOf = (data) => (scope, key) => data.flags?.[scope]?.[key];
 
 let serial = 0;
-const calls = { actorCreate: [], folderCreate: [], tokenCreate: [], tokenDelete: [], actorUpdate: [], tokenUpdate: [] };
+const calls = { actorCreate: [], folderCreate: [], tokenCreate: [], tokenDelete: [], actorUpdate: [], tokenUpdate: [], rollHP: [] };
+/** The totals the next hit-point rolls answer, in order; a roll with none left answers 7. */
+const hpRolls = [];
+/** The system settings the mock answers, by key. */
+const systemSettings = { autoRollMonsterHP: false };
 const registry = new Map();
 
 const user = (id, isGM = false, viewedScene = null) => ({ id, isGM, viewedScene });
@@ -60,6 +64,7 @@ globalThis.game = {
   folders: world.folders,
   packs: [],
   time: { worldTime: 42 },
+  settings: { get: (scope, key) => (scope === "acks" ? systemSettings[key] : undefined) },
   i18n: { localize: (k) => k, format: (k) => k },
 };
 class ForcedDeletion {}
@@ -87,8 +92,13 @@ globalThis.Actor = {
     const actor = {
       id,
       uuid: `Actor.${id}`,
+      type: data.type,
       data,
       getFlag: flagOf(data),
+      rollHP: async (autoUpdate) => {
+        calls.rollHP.push({ id, autoUpdate });
+        return { total: hpRolls.shift() ?? 7 };
+      },
       getTokenDocument: async (place) => ({ toObject: () => ({ _id: `tmp${++serial}`, name: data.name, actorId: id, ...clone(place) }) }),
     };
     world.actors.set(id, actor);
@@ -187,6 +197,8 @@ const reset = () => {
   world.folders.clear();
   registry.clear();
   world.scenes.clear();
+  hpRolls.length = 0;
+  systemSettings.autoRollMonsterHP = false;
   services.resetServices();
 };
 
@@ -1564,6 +1576,214 @@ await t("creatureOpens: a Judge always opens; a seat needs OBSERVER on the docum
 await t("seatLabel: the name where the seat opens the creature, the neutral label where it does not", () => {
   assert.equal(logic.seatLabel({ name: "Hound", opens: true, neutral: "A creature" }), "Hound");
   assert.equal(logic.seatLabel({ name: "Hound", opens: false, neutral: "A creature" }), "A creature");
+});
+
+/* -------------------------------------------- */
+/*  Joining the caster's party                   */
+/* -------------------------------------------- */
+
+const { joinSummons, announceJoin, joiningParty } = await import("../scripts/lib/summons.mjs");
+
+const join = (over = {}) => ({
+  op: "join",
+  summonerUuid: "Actor.sum",
+  sourceUuid: "Compendium.test.Actor.m1",
+  count: 2,
+  spellId: SPELL.id,
+  requestUserId: p1.id,
+  ...over,
+});
+
+/**
+ * A party-roster provider with the v4 members: the caster `sum` marches inside
+ * party `pty`, whose token `ptok` stands on `scene` at (300, 400). `admitSummons`
+ * records what it was handed and answers one member id per stash.
+ */
+function joinProvider(scene, { party = true, admit = true, token = true } = {}) {
+  const seen = [];
+  if (token) scene.tokens.set("ptok", { id: "ptok", x: 300, y: 400, elevation: 5, level: "lvlA" });
+  const impl = {
+    list: () => [{ id: "pty", name: "Test Company" }],
+    members: () => [],
+    summonerParty: (actorId) => (party && actorId === "sum" ? { id: "pty", name: "Test Company", sceneId: scene.id, tokenId: "ptok" } : null),
+  };
+  if (admit) {
+    impl.admitSummons = async (partyId, summonerUuid, stashes) => {
+      seen.push({ partyId, summonerUuid, stashes });
+      return { actorIds: stashes.map((_, i) => `mem${seen.length}.${i}`) };
+    };
+  }
+  services.register("party-roster", impl);
+  return seen;
+}
+
+const nothingMade = () => assert.equal(calls.actorCreate.length + calls.tokenCreate.length + calls.folderCreate.length, 0, "no copy, folder or token was made");
+
+await t("a join is refused for what a placement is refused for, and makes nothing", async () => {
+  const { scene } = setup();
+  joinProvider(scene);
+  assert.deepEqual(await summonRelay(join({ requestUserId: stranger.id })), { ok: false, reason: "notOwner" });
+  assert.deepEqual(await summonRelay(join({ requestUserId: "ghost" })), { ok: false, reason: "noUser" });
+  assert.equal((await summonRelay(join({ spellId: "" }))).reason, "spellRequired");
+  assert.equal((await summonRelay(join({ spellId: "nope" }))).reason, "badSpell");
+  assert.equal((await summonRelay(join({ count: 0 }))).reason, "badCount");
+  assert.equal((await summonRelay(join({ count: logic.MAX_SUMMONS + 1 }))).reason, "badCount");
+  assert.equal((await summonRelay(join({ sourceUuid: "Compendium.test.Actor.none" }))).reason, "badSource");
+  nothingMade();
+});
+
+await t("a join is refused noParty where the caster marches inside no party token, and makes nothing", async () => {
+  const { scene } = setup();
+  assert.deepEqual(await summonRelay(join()), { ok: false, reason: "noParty" }, "no provider");
+  services.register("party-roster", { list: () => [], members: () => [] });
+  assert.equal((await summonRelay(join())).reason, "noParty", "a provider with no summonerParty");
+  joinProvider(scene, { party: false });
+  assert.equal((await summonRelay(join())).reason, "noParty", "no party for this caster");
+  scene.tokens.clear();
+  joinProvider(scene, { token: false });
+  assert.equal((await summonRelay(join())).reason, "noParty", "the party token is not on the scene");
+  joinProvider(scene, { admit: false });
+  assert.equal((await summonRelay(join())).reason, "noParty", "a provider that cannot admit");
+  nothingMade();
+});
+
+await t("a join hands the roster stashes stamped as a placement stamps its tokens, in the party token's place, and creates no token", async () => {
+  const { summoner, scene } = setup();
+  const seen = joinProvider(scene);
+  hookCalls.length = 0;
+  const out = await summonRelay(join({ castId: "castJ1", cast: { castId: "castJ1", casterLevel: 5 } }));
+  assert.equal(out.ok, true);
+  assert.equal(out.castId, "castJ1");
+  assert.deepEqual(out.joined, ["mem1.0", "mem1.1"]);
+  assert.deepEqual(out.party, { id: "pty", name: "Test Company" });
+  assert.equal(out.tokenUuids, undefined);
+  assert.equal(calls.tokenCreate.length, 0, "no token was made");
+  assert.equal(scene.tokens.size, 1, "only the party token stands");
+  assert.deepEqual(hookCalls, [], "a stash is no arrival to gather");
+  assert.equal(calls.actorCreate.length, 1, "one world copy, as a placement makes it");
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].partyId, "pty");
+  assert.equal(seen[0].summonerUuid, summoner.uuid);
+  const copyId = [...world.actors.keys()][0];
+  assert.equal(seen[0].stashes.length, 2);
+  for (const d of seen[0].stashes) {
+    assert.equal(d._id, undefined);
+    assert.equal(d.actorId, copyId, "each stash names the world copy");
+    assert.equal(d.actorLink, false);
+    assert.equal(d.hidden, false);
+    assert.deepEqual([d.x, d.y, d.elevation, d.level], [300, 400, 5, "lvlA"], "the party token's place");
+    assert.deepEqual(d.delta.ownership, { p1: OWNER, p2: OWNER }, "every owner of the character, never a GM");
+    const rec = d.delta.flags[M][logic.SUMMON_RECORD_FLAG];
+    assert.equal(d.delta.flags[M][logic.SUMMON_FLAG], summoner.uuid);
+    assert.deepEqual([rec.castId, rec.at, rec.sourceUuid, rec.spellId, rec.spellName], ["castJ1", 42, "Compendium.test.Actor.m1", SPELL.id, SPELL.name]);
+  }
+  // The same request placed on the map stamps the same flags and the same owners.
+  await summonRelay(place({ castId: "castJ1", positions: [{ x: 5, y: 5 }], count: 1 }));
+  assert.deepEqual(calls.tokenCreate[0].delta, seen[0].stashes[0].delta, "one stamp, whichever way the creature is made");
+});
+
+await t("a join from a Judge stamps no GM as an owner, and a Player's co-owner is kept", async () => {
+  const { scene } = setup();
+  const seen = joinProvider(scene);
+  const out = await summonRelay(join({ requestUserId: null, spellId: "" }));
+  assert.equal(out.ok, true, "a Judge may summon bare");
+  assert.deepEqual(seen[0].stashes[0].delta.ownership, { p1: OWNER, p2: OWNER });
+  assert.equal(seen[0].stashes[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].spellId, undefined);
+});
+
+await t("a join gives a monster its own hit-point roll where the world rolls summoned monsters', and none where it does not", async () => {
+  const { scene } = setup();
+  const seen = joinProvider(scene);
+  await summonRelay(join());
+  assert.equal(calls.rollHP.length, 0, "the setting is off");
+  assert.equal(seen[0].stashes[0].delta.system, undefined);
+
+  systemSettings.autoRollMonsterHP = true;
+  hpRolls.push(11, 13);
+  await summonRelay(join());
+  assert.deepEqual(calls.rollHP.map((c) => c.autoUpdate), [false, false], "rolled for the stash alone, never written to the copy");
+  assert.deepEqual(seen[1].stashes.map((d) => d.delta.system.hp), [{ max: 11, value: 11 }, { max: 13, value: 13 }], "each creature its own roll");
+  assert.equal(calls.actorUpdate.length, 0);
+});
+
+await t("a join of a creature that is no monster rolls no hit points even with the setting on", async () => {
+  const { scene } = setup({ source: { type: `${M}.animal` } });
+  const seen = joinProvider(scene);
+  systemSettings.autoRollMonsterHP = true;
+  const out = await summonRelay(join());
+  assert.equal(out.ok, true);
+  assert.equal(calls.rollHP.length, 0);
+  assert.equal(seen[0].stashes[0].delta.system, undefined);
+});
+
+await t("a join reaches the policies with no places and no scene, as the seat's pre-check does", async () => {
+  const { scene } = setup();
+  const seen = joinProvider(scene);
+  const asked = [];
+  const off = logic.registerSummonPolicy((req) => {
+    asked.push([req.positions, req.scene, req.count]);
+    return null;
+  });
+  try {
+    await summonRelay(join());
+    assert.deepEqual(asked, [[null, null, 2]]);
+  } finally {
+    off();
+  }
+  const refuse = logic.registerSummonPolicy(() => "policyNo");
+  try {
+    assert.equal((await summonRelay(join())).reason, "policyNo");
+    assert.equal(seen.length, 1, "the refused join admitted nothing");
+  } finally {
+    refuse();
+  }
+});
+
+await t("a roster that refuses the admission refuses the join noParty", async () => {
+  const { scene } = setup();
+  joinProvider(scene);
+  services.register("party-roster", { ...services.get("party-roster"), admitSummons: async () => ({ actorIds: [], reason: "notInside" }) });
+  assert.deepEqual(await summonRelay(join()), { ok: false, reason: "noParty" });
+});
+
+await t("joiningParty answers the roster's party for the caster, and null with no such method", async () => {
+  const { summoner, scene } = setup();
+  assert.equal(joiningParty(summoner), null, "no provider");
+  joinProvider(scene);
+  assert.deepEqual(joiningParty(summoner), { id: "pty", name: "Test Company", sceneId: scene.id, tokenId: "ptok" });
+  assert.equal(joiningParty({ id: "other" }), null);
+  assert.equal(joiningParty(null), null);
+  services.register("party-roster", { list: () => [], members: () => [] });
+  assert.equal(joiningParty(summoner), null, "a provider of an older contract");
+});
+
+await t("the seat's joinSummons refuses noParty before any request, and otherwise relays the join and tells the seat", async () => {
+  const { scene } = setup();
+  game.user = gm;
+  const summoner = registry.get("Actor.sum");
+  assert.deepEqual(await joinSummons(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id }), { ok: false, reason: "noParty" });
+  nothingMade();
+  const seen = joinProvider(scene);
+  const out = await joinSummons(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 2, spellId: SPELL.id, cast: { castId: "castJ2", casterLevel: 4 } });
+  assert.deepEqual(out, { ok: true, castId: "castJ2", joined: ["mem1.0", "mem1.1"], party: { id: "pty", name: "Test Company" } });
+  assert.equal(seen[0].stashes[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].castId, "castJ2");
+  const minted = await joinSummons(summoner, { sourceUuid: "Compendium.test.Actor.m1", spellId: SPELL.id });
+  assert.match(minted.castId, /^rid\d+$/, "the seat mints a cast id when none is named");
+  assert.equal(minted.joined.length, 1, "a count of one by default");
+  announceJoin(out);
+  announceJoin({ ok: false, reason: "noParty" });
+  assert.deepEqual(notes.info, [`ACKS-LIB.summons.joined`], "the localized key is what the mock returns");
+  assert.deepEqual(notes.warn, ["ACKS-LIB.summons.refused.noParty"]);
+  endSeat();
+});
+
+await t("heldSummonsOf names the party each held summon rides in", () => {
+  const { summoner } = setup();
+  services.register("party-roster", {
+    list: () => [{ id: "pty", name: "Test Company" }, { id: "nameless" }],
+    members: (id) => (id === "pty" ? [member("m1", summoner.uuid, "c1")].map((m) => ({ actorId: m.actorId, name: m.name, stashed: true, summonedBy: m.summonedBy, summon: m.summon })) : [{ actorId: "m2", name: "Wolf m2", stashed: true, summonedBy: summoner.uuid, summon: { castId: "c2" } }]),
+  });
+  assert.deepEqual(heldSummonsOf(summoner).map((h) => [h.partyId, h.partyName, h.actorId]), [["pty", "Test Company", "m1"], ["nameless", "", "m2"]]);
 });
 
 console.log(`\ntest-summons: ${n} tests passed`);

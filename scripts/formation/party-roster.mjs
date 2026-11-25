@@ -9,6 +9,10 @@
  * that member's hit points are written here, into the stash. A member made
  * from a summoning cast is read for its summoner and cast record
  * (`summonOfData`), and one of them is let go by `release`.
+ *
+ * Contract v4 adds `summonerParty` and `admitSummons` (`membership.mjs`): the
+ * party a caster marches inside, and the write that makes a cast's creatures
+ * members of it with no token on any scene. A reader takes both as optional.
  */
 import * as services from "../lib/services.mjs";
 import { summonOfData } from "../lib/summons-logic.mjs";
@@ -19,6 +23,7 @@ import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { ROLES } from "./constants.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { findDeployedMember } from "./deployment.mjs";
+import { admitSummons, summonerParty } from "./membership.mjs";
 import {
   carriedLoad,
   carrierSpeedFor,
@@ -216,5 +221,7 @@ export function registerPartyRoster() {
     memberOfToken,
     release,
     pace,
+    summonerParty,
+    admitSummons,
   });
 }

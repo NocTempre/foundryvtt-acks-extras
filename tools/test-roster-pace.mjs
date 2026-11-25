@@ -173,6 +173,11 @@ await t("pace is an optional member the roster provides", () => {
   assert.equal(typeof roster.pace, "function");
 });
 
+await t("the v4 members, summonerParty and admitSummons, are registered", () => {
+  assert.equal(typeof roster.summonerParty, "function");
+  assert.equal(typeof roster.admitSummons, "function");
+});
+
 await t("a character on automatic movement is priced by core's calculation at the stone it will hold", () => {
   const a = walker("a", 36);
   const id = party([a]);

@@ -1236,25 +1236,64 @@ export async function addSummonMembers(formationId, tokenDocs, copy = null) {
     token,
     member: { actorId: foundry.utils.randomID(), baseActorId: token.actorId, roles: [], tokenData: token.toObject() },
   }));
-  const record = await patchFormation(formationId, (stored) => {
-    for (const { member } of joining) {
-      const blank = stored.members.findIndex((m) => m?.blank);
-      if (blank >= 0) stored.members[blank] = member;
-      else stored.members.push(member);
-    }
-  });
+  const record = await storeSummonMembers(formationId, joining.map(({ member }) => member), copy);
   if (!record) return formation;
-  if (copy) {
-    copy.members = foundry.utils.deepClone(record.members);
-    const read = readAs.get(copy);
-    if (read) read.members = foundry.utils.deepClone(record.members);
-  }
   // Stash before destroy: the members are in storage before any token goes.
   const perScene = new Map();
   for (const { token } of joining) perScene.set(token.parent, [...(perScene.get(token.parent) ?? []), token.id]);
   for (const [scene, ids] of perScene) await scene.deleteEmbeddedDocuments("Token", ids);
   await syncPartyActorSpeed(record);
   return formation;
+}
+
+/**
+ * Store summon members in ONE patch, blank cells first, and bring the caller's
+ * copy of the record into line with what was stored so a later write of it
+ * keeps them.
+ * @param {string} formationId
+ * @param {object[]} members  rows shaped `{actorId, baseActorId, roles, tokenData}`
+ * @param {object|null} copy  the caller's copy of the record
+ * @returns {Promise<object|null>} the stored record, or null where the party is gone
+ */
+async function storeSummonMembers(formationId, members, copy) {
+  const record = await patchFormation(formationId, (stored) => {
+    for (const member of members) {
+      const blank = stored.members.findIndex((m) => m?.blank);
+      if (blank >= 0) stored.members[blank] = member;
+      else stored.members.push(member);
+    }
+  });
+  if (record && copy) {
+    copy.members = foundry.utils.deepClone(record.members);
+    const read = readAs.get(copy);
+    if (read) read.members = foundry.utils.deepClone(record.members);
+  }
+  return record;
+}
+
+/**
+ * Bring summoned creatures into a formation as members straight from their
+ * stashed token data, with no token on any scene: the creature was made inside
+ * the party token. Each stash is plain token data (an unlinked token of the
+ * summon's world copy, its `delta` carrying the summoner and the cast record),
+ * and a stash with no cast record is skipped. A party with no token on the
+ * canvas takes none. Stores, then syncs the party speed; no
+ * `acksExtras.memberJoined`, for the reason `addSummonMembers` gives.
+ *
+ * @param {string} formationId
+ * @param {object[]} stashes  token data, each with an `actorId` naming the world copy
+ * @param {object} [copy] the caller's copy of the record, as `addSummonMembers` takes it
+ * @returns {Promise<string[]>} the minted member ids, one per stash stored; empty where none was
+ */
+export async function addSummonStashes(formationId, stashes, copy = null) {
+  const formation = copy ?? getFormation(formationId);
+  const kept = (stashes ?? []).filter((s) => s && typeof s === "object" && summonOfData(s).summon);
+  if (!kept.length || !formation || !getPartyToken(formation)) return [];
+  const members = kept.map((stash) => ({ actorId: foundry.utils.randomID(), baseActorId: stash.actorId, roles: [], tokenData: stash }));
+  const record = await storeSummonMembers(formationId, members, copy);
+  if (!record) return [];
+  await syncPartyActorSpeed(record);
+  return members.map((m) => m.actorId);
 }
 
 /**
