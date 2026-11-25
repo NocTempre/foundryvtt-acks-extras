@@ -4425,3 +4425,22 @@ writes read back from the stored rows. Step 8 also wants a player seat.
 A group that is a row in another group's chart shows no line, which is read from the
 stored shape (`org.factionLineOf(gang)` answers `hidden`) and not walked on a sheet.
 The faction's own sheet drawing the joined group's tree is S12's.
+
+## The aura reach and the item carrier
+
+**What offline proves** (`tools/test-aura-reach.mjs`, `test-item-use.mjs`, `test-item-run.mjs`): the filter and its null cases, the pulse table, the snapshot's area in pixels, the raise's verdict and the Region asked of core, the seam's contract and the claim, the records, the press check, Undo, the card model and the fuse. It proves nothing of Foundry's own behavior.
+
+**Fixtures.** Marker `lib/aura-bearer`: a monster token on a gridded scene, linked, carrying a gear item whose `flags["acks-extras"].itemRun` is `{activation: {kind: "toggle"}, rows: [{key, reach: {pulse: "standing", radius: {value: "<invented feet>"}, filter: {}}}]}`; two more tokens (an ally, a foe) at known distances; one unlinked body. Build them by API with `api.fixture`; invented figures only.
+
+**Steps and observables** (world relaunch first: `documentTypes.RegionBehavior.aura` is read at launch).
+
+1. Relaunch the world; `game.documentTypes.RegionBehavior.includes("acks-extras.aura")` is true; `ready` is clean; core's Create Behavior list shows "ACKS Item Reach".
+2. `acksExtras.lib.auraReach.support()` answers `{ok: true, missing: []}` on the world's build.
+3. `raise` on the fixture token: a Region attached to the token exists with one aura behavior; move the token and the Region follows; hide the token and the Region hides; delete the token and the Region is gone. Raise with a blank radius: refused with the line, nothing created.
+4. A hand-made aura behavior (core's Create Behavior, empty config) does nothing when a token crosses it.
+5. Set the bearer's hit points to 0: its Region is deleted and `acksExtras.bearerDown` fires with `hp`; repeat with the defeated status alone (cause `defeated`). [I] the effect's parent may be an `ActorDelta` for an unlinked body: check the unlinked fixture.
+6. `snapshot(scene, {token}, range)` and `snapshot(scene, {point}, range)`: the tokens inside, not the bearer; a range in pixels from a probe contains none.
+7. Delete the Region by hand while a toggle is up: the item's `state` clears and the records carrying its activation id are gone.
+8. A spell, an ability with no activation and an unflagged item still act as before (the system's card; the cast engine for a spell).
+
+Teardown: `api.sweepTracked()`.

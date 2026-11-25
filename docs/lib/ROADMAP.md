@@ -445,3 +445,6 @@ starts with `/design`.
 - **Foundry's own Font Size setting.** It sets only `html { font-size }`, so
   this module's text follows `--acks-fs-base` and not core's knob. Whether
   System style should follow core's knob is not ruled.
+
+- **The cast engine's recurring prompt may move onto the carrier's lib card.** The cast card, its recurring prompts and Undo are spell-bound and walked, and the carrier (`item-run.mjs`) builds a second prompt, relay and apply loop over lib's `roll-card.mjs` and `sockets.mjs`. Folding the cast's non-spell-bound half onto the carrier's card would leave one loop; it is a refactor of a shipped surface with its own walk and is not scheduled.
+- **A standing part's parts from a row.** `standingPartRecordData` builds the record under its kind's fixed id, and `handleReachMoment` takes it off at an exit; turning a row's modifier rows into the part's `rollMods` parts, and writing it on an `on`, comes with the first item that carries one.

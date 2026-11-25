@@ -1,4 +1,4 @@
-# lib API (apiVersion 74)
+# lib API (apiVersion 75)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 74,
+  apiVersion: 75,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -2185,3 +2185,13 @@ pin makes it roll though it names a default, passing over derive too; an axis
 without `bandsFrom` then rolls by its printed option bands, else uniform. The
 group sheet's variant dialog lists a banded axis's every option, since the
 variant is not yet chosen there; `chooseAxes` drops one with no band.
+
+## `itemUse`, `itemRun` and `auraReach` — the item carrier and the live reach
+
+Rows on the lib api from `apiVersion` 75.
+
+- `itemUse.addClaimant({key, claims, run})` / `removeClaimant(key)`: the seam on `Item#use`. The first claimant whose synchronous `claims(item, options)` answers exactly `true` runs `run(item, options, system)`; `system()` is the system's own use, once. A claimant must decline every spell.
+- `itemRun.useItem(item)`, `registerRunner(kind, fn)`, `setPresenter(fn)`, `setFuseBurst(fn)`, `pressRoll({itemUuid, rowKey, activationId, subject})`, `undoEntry({subject, entry})` (GM only), `rowsOf(item)`, and `logic` (the pure half: `readItemRun`, the record builders, `checkPressRequest`, `promptCardModel`, the fuse functions). An item carries `flags["acks-extras"].itemRun = {activation: {kind: once|toggle|fuse|consume, state, throw, fumble, fuseDice, uses}, rows}`; an ability keeps its rows in `extras.effects`.
+- `auraReach.raise({tokenUuid, sourceUuid, rowKey, activationId})`, `lower({tokenUuid, activationId?})`, `snapshot(scene, {token}|{point}, rangeFeet)`, `support()`, and `logic` (`reachAdmits(bearer, subject, filter, deps)` true, false or null; `registerUnitAncestry(fn)`; `resolveFigure(ref)` and `figureNumber(ref)`; `pulseAct`).
+- Vocabularies `REACH_PULSES`, `REACH_SIDES`, `REACH_UNITS`, `ITEM_RUN_ACTIVATIONS`; constants `AURA_BEHAVIOR_TYPE` and `BEARER_DOWN_HOOK` (`acksExtras.bearerDown`, `(token, {cause})`, cause `hp` or `defeated`).
+- `actor-read.mjs` (internal): `creatureKinds` reads a character's race key and category and a monster's `subtype`; `registerCharacterRace(fn)`, `raceCategoryOf`, `kindToken`, `MEN_RACES`, `DEMI_HUMAN_RACES`.
