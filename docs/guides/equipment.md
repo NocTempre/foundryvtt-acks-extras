@@ -448,7 +448,9 @@ that names what it accepts.*
   know (found / aura seen / identified) and its aura school; and the
   **disguise**: tick *Can be disguised*, drop any item on the panel, and players
   see that item's name, art, description and price while the real effects keep
-  working. *Preview As Player* shows what they see.
+  working. *Preview As Player* shows what they see. An item that is neither
+  magical nor disguisable has no Appearance tab: tick *Can be disguised* on its
+  **Details** tab first, and the tab appears.
 - **Details** — the price ledger (listed price, plating, masterwork, variations,
   condition, final) with the value mode (Priced / Unknown / N/A), the applied
   variations, the feature switches (*Holds other items*, capacity, *Will
