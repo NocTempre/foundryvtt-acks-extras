@@ -1,9 +1,9 @@
 /**
- * The open blood sacrifice's shared record (model): what a Judge has set and what has been dropped, kept on the
+ * The open blood sacrifice's shared record (model): what an owner of the caster has set and what has been dropped, kept on the
  * caster while a sacrifice is open so every window for that caster draws the same thing. Foundry-free: the live
  * half (`sacrifice-record-live.mjs`) reads and writes the flag `flags["acks-extras"].magic.sacrifice`.
  *
- * The record is `{site, power, list}`. `site` and `power` are the Judge's two facts about the sacrifice (a
+ * The record is `{site, power, list}`. `site` and `power` are the two facts an owner sets about the sacrifice (a
  * qualifying site, the class power) and `list` is the victims in the order they were dropped, each
  * `{uuid, willing, helpless, young, traits, value}` (`cleanState` plus the uuid), so a victim's facts travel with
  * it. A list is an array on purpose: a flag update merges objects key by key and would keep a removed victim,
@@ -11,32 +11,32 @@
  * `planOf` takes (`stateOf`), so the model of the act is the one that has always read it.
  *
  * A record changes by an op applied to the freshest record, never by a whole record written from a window's copy,
- * so a Player's drop and a Judge's tick made together both land (`applyOp`). Who may make which op is decided where
- * the write is made, from the sender Foundry attested (`checkRecordRequest`): a victim's drop, removal and the clear
- * belong to the owner of the caster or a Judge, and the Judge's facts to a Judge alone.
+ * so one seat's drop and another's tick made together both land (`applyOp`). Who may make an op is decided where
+ * the write is made, from the sender Foundry attested (`checkRecordRequest`): every op, the facts included, belongs to
+ * an owner of the caster or a Judge.
  */
 import { MODULE_ID } from "./constants.mjs";
 
 /** A figure as a finite number, else null. */
 export const num = (n) => (n === null || n === undefined || n === "" || !Number.isFinite(Number(n)) ? null : Number(n));
 
-/** A victim's state as the window holds it, cleaned: the toggles, the ticked trait rows, and a Judge's value and young mark. */
+/** A victim's state as the window holds it, cleaned: the toggles, the ticked trait rows, and the hand-set value and young mark. */
 export function cleanState(raw) {
   const traits = Array.isArray(raw?.traits) ? [...new Set(raw.traits.map(Number).filter((i) => Number.isInteger(i) && i >= 0))].sort((a, b) => a - b) : [];
   return { willing: raw?.willing === true, helpless: raw?.helpless === true, young: raw?.young === true, traits, value: num(raw?.value) };
 }
 
-/** The ops a record takes: a victim dropped, a victim removed, the Judge's facts, and the record cleared. */
+/** The ops a record takes: a victim dropped, a victim removed, the owner's facts (`judge`, the op's name), and the record cleared. */
 export const OP = Object.freeze({ add: "add", remove: "remove", judge: "judge", clear: "clear" });
 
-/** The facts of one victim a Judge sets: the toggles, the ticked trait rows and a hand-set value. */
+/** The facts of one victim an owner sets: the toggles, the ticked trait rows and a hand-set value. */
 export const VICTIM_FIELDS = Object.freeze(["willing", "helpless", "young", "traits", "value"]);
 
-/** The sacrifice's own two Judge-set facts. */
+/** The sacrifice's own two facts an owner sets. */
 export const SACRIFICE_FIELDS = Object.freeze(["site", "power"]);
 
 /** Why a write to the record is refused, each the last segment of a lang key in the sacrifice window's `refused` group. */
-export const REFUSED = Object.freeze({ noCaster: "noCaster", owner: "owner", judgeOnly: "judgeOnly", op: "op", victim: "victim", self: "self", duplicate: "duplicate" });
+export const REFUSED = Object.freeze({ noCaster: "noCaster", owner: "owner", op: "op", victim: "victim", self: "self", duplicate: "duplicate" });
 
 /** The record as it is when nothing is open. */
 export const emptyRecord = () => ({ site: false, power: false, list: [] });
@@ -75,7 +75,7 @@ export function stateOf(record) {
   };
 }
 
-/** One victim's fields of a Judge's op, cleaned, and only those named. */
+/** One victim's fields of a facts op, cleaned, and only those named. */
 function pickFields(raw) {
   const out = {};
   const clean = cleanState(raw);
@@ -84,9 +84,9 @@ function pickFields(raw) {
 }
 
 /**
- * The record after an op, or null where the op clears it. A clear keeps the Judge's class-power mark, which belongs to
+ * The record after an op, or null where the op clears it. A clear keeps the class-power mark, which belongs to
  * the caster and not to one sacrifice, so a caster so marked keeps an empty record holding it. A victim already held is not added twice, one that is
- * not held is not removed, and a Judge's facts for a victim that is not on the list change nothing. The result is a
+ * not held is not removed, and facts for a victim that is not on the list change nothing. The result is a
  * new record and the argument is never changed.
  * @param {object} record a stored record
  * @param {{op: string, uuid?: string, site?: boolean, power?: boolean, victims?: object}} op
@@ -113,10 +113,10 @@ export function applyOp(record, op) {
 }
 
 /**
- * The Judge's op for what a form reads against the record, or null where nothing differs. `read` is
+ * The facts op (`OP.judge`) for what a form reads against the record, or null where nothing differs. `read` is
  * `{site?, power?, victims?: {uuid: {willing?, helpless?, young?, traits?, value?}}}` with only the controls that
  * were drawn enabled, so a field the form did not carry is never compared and never sent. Only what differs goes
- * into the op, so a Judge's tick does not carry the rest of the form over a Player's drop made meanwhile.
+ * into the op, so one seat's tick does not carry the rest of the form over a drop another seat made meanwhile.
  */
 export function diffJudge(record, read) {
   const rec = cleanRecord(record);
@@ -143,8 +143,8 @@ export function diffJudge(record, read) {
 
 /**
  * Whether a request to write the record is one the GM's client may run, decided from what that client reads
- * and the sender Foundry attested, never what the payload claims: a Judge, or an owner of the caster for a drop,
- * a removal or the clear; the Judge's facts are a Judge's alone.
+ * and the sender Foundry attested, never what the payload claims: a Judge, or an owner of the caster, for every op,
+ * the facts (`OP.judge`) included.
  * @param {{casterUuid?: string, op?: object}} req
  * @param {{caster: object|null, fromJudge: boolean, owns: boolean, resolved?: {creature: boolean, held: boolean}}} from
  *   `resolved` is, for a drop, whether the uuid resolves to a creature here and whether the list already holds that creature
@@ -155,7 +155,6 @@ export function checkRecordRequest(req, { caster, fromJudge, owns, resolved = nu
   if (!fromJudge && !owns) return { refused: REFUSED.owner };
   const kind = req?.op?.op;
   if (!Object.values(OP).includes(kind)) return { refused: REFUSED.op };
-  if (kind === OP.judge && !fromJudge) return { refused: REFUSED.judgeOnly };
   if (kind === OP.add) {
     if (!resolved?.creature) return { refused: REFUSED.victim };
     if (req.op.uuid === req.casterUuid || resolved.self === true) return { refused: REFUSED.self };

@@ -355,10 +355,14 @@ t("the GM's client marks for a Judge or the caster's owner, and only creatures i
 /* ------------------------------ the window's model ------------------------------ */
 
 const PARTIAL = "modules/acks-extras/templates/magic/sacrifice-victim.hbs";
-const panel = (over = {}) => S.panelModel({ caster: CASTER, victims: [victim("A")], state: state({ victims: { A: { helpless: true, traits: [0] } } }), tables: TABLES, judge: true, loc: echo, bucketLoc: echo, cites: { sacrifice: "Invented p. 3", value: "Invented p. 5" }, rowPartial: PARTIAL, ...over });
+const panel = (over = {}) => S.panelModel({ caster: CASTER, victims: [victim("A")], state: state({ victims: { A: { helpless: true, traits: [0] } } }), tables: TABLES, judge: true, editable: true, loc: echo, bucketLoc: echo, cites: { sacrifice: "Invented p. 3", value: "Invented p. 5" }, rowPartial: PARTIAL, ...over });
+/** A seat that cannot edit the caster: severity as a Player, permission off. */
+const readOnly = (over = {}) => panel({ judge: false, editable: false, ...over });
+/** A Player who owns the caster: severity as a Player, permission on. */
+const owning = (over = {}) => panel({ judge: false, editable: true, ...over });
 const extraOf = (p, i = 0) => p.bucket.rows[i].extra;
 
-t("the bucket's rows are the victims, each with its value; the checks ride inside each row, as the Judge's controls or a Player's text", () => {
+t("the bucket's rows are the victims, each with its value; the checks ride inside each row, as an owner's controls or a read-only seat's text", () => {
   const judge = panel();
   assert.equal(judge.bucket.rows.length, 1);
   assert.equal(judge.bucket.rows[0].valueText.length > 0, true);
@@ -366,23 +370,59 @@ t("the bucket's rows are the victims, each with its value; the checks ride insid
   assert.equal("states" in judge, false, "no section of victim states under the bucket");
   const e = extraOf(judge);
   assert.equal(e.partial, PARTIAL);
-  assert.equal(e.judge, true);
+  assert.equal(e.editable, true);
+  assert.equal("judge" in e, false, "the row's flag is permission, and severity is not in it");
   assert.deepEqual(e.checks.map((c) => [c.field, c.checked]), [["helpless", true]]);
   assert.deepEqual(e.traits.map((x) => [x.index, x.checked]), [[0, true], [1, false], [2, false]]);
-  assert.notEqual(e.value, null, "a Judge may set a value");
+  assert.notEqual(e.value, null, "an owner may set a value");
   assert.equal(e.said, undefined);
   assert.equal(judge.site.disabled, false);
-  const player = panel({ judge: false });
+  const player = readOnly();
   const q = extraOf(player);
-  assert.equal(q.judge, false);
+  assert.equal(q.editable, false);
   assert.equal(q.said, "helpless · Trait A", "the set checks as text, in the order drawn");
-  assert.equal(q.value, undefined, "a Player is given no value box; the row's own value line is its text");
+  assert.equal(q.value, undefined, "a seat that cannot edit is given no value box; the row's own value line is its text");
   assert.equal(q.young, undefined);
   assert.equal(player.site.disabled, true);
-  assert.equal(player.power.shown, false, "the class-power check is a Judge's, and a Player sees it only where it is ticked");
-  assert.equal(panel({ judge: false, state: state({ power: true, victims: { A: HELPLESS } }) }).power.shown, true);
-  assert.equal(panel({ judge: false, state: state({ power: true, victims: { A: HELPLESS } }) }).power.disabled, true);
+  assert.equal(player.power.shown, false, "the class-power check is an owner's, and a seat that cannot edit sees it only where it is ticked");
+  assert.equal(readOnly({ state: state({ power: true, victims: { A: HELPLESS } }) }).power.shown, true);
+  assert.equal(readOnly({ state: state({ power: true, victims: { A: HELPLESS } }) }).power.disabled, true);
   assert.equal(judge.power.shown, true);
+});
+
+t("a Player who owns the caster edits: the checks, the value box and young are drawn, site and power are enabled, and nothing waits; severity still reads the role", () => {
+  const model = owning({ victims: [victim("A", { alignment: "chaotic", isMonster: true })], state: state({ site: false, victims: { A: {} } }) });
+  const e = extraOf(model);
+  assert.equal(e.editable, true);
+  assert.deepEqual(e.checks.map((c) => c.field), ["willing"]);
+  assert.equal(e.traits.length, 3, "the imported trait rows are drawn as controls");
+  assert.notEqual(e.value, null, "the value box is drawn");
+  assert.equal(e.young.label, "young", "young is drawn for a creature");
+  assert.equal(e.said, undefined, "no read-only text beside the controls");
+  assert.equal(model.site.disabled, false);
+  assert.equal(model.power.disabled, false);
+  assert.equal(model.power.shown, true, "the class-power check is drawn though nothing ticked it");
+  assert.equal(model.lines.some((l) => l.severity === "wait"), false, "no waiting line");
+  assert.equal(model.lines.some((l) => /^waiting/.test(l.text)), false);
+  assert.deepEqual(model.lines.map((l) => l.severity), ["block"], "the missing site blocks a Player, as it reads the role");
+  assert.equal(model.blocked, true);
+  const set = owning({ state: state({ site: true, victims: { A: HELPLESS } }) });
+  assert.deepEqual([set.blocked, set.lines.length], [false, 0], "once the checks are set nothing stands in the way");
+});
+
+t("a seat that cannot edit reads text, is told what waits, and has site and power disabled, whatever its role", () => {
+  for (const judge of [false, true]) {
+    const model = panel({ judge, editable: false, state: state({ site: false, victims: { A: { helpless: true } } }) });
+    const e = extraOf(model);
+    assert.equal(e.said, "helpless", `judge ${judge}: the set checks as text`);
+    assert.equal(e.value, undefined);
+    assert.equal(e.young, undefined);
+    assert.equal(model.site.disabled, true);
+    assert.equal(model.power.disabled, true);
+    assert.equal(model.power.shown, false);
+    assert.deepEqual(model.lines.map((l) => l.severity), ["wait"], "one waiting line");
+    assert.match(model.why, /^waiting\{/);
+  }
 });
 
 t("with no row partial named no row carries a slot", () => {
@@ -411,9 +451,9 @@ t("a hand-set value is edited, and its tooltip names the figure it replaced, or 
 });
 
 t("a Player's row reads a creature's young mark and a ticked trait as text beside the checks", () => {
-  const p = panel({ judge: false, victims: [victim("A", { alignment: "chaotic", isMonster: true })], state: state({ victims: { A: { willing: true, young: true, traits: [1] } } }) });
+  const p = readOnly({victims: [victim("A", { alignment: "chaotic", isMonster: true })], state: state({ victims: { A: { willing: true, young: true, traits: [1] } } }) });
   assert.equal(extraOf(p).said, "willing · Trait B · young");
-  assert.equal(extraOf(panel({ judge: false, state: state({ victims: { A: {} } }) })).said, "", "nothing set reads as nothing");
+  assert.equal(extraOf(readOnly({state: state({ victims: { A: {} } }) })).said, "", "nothing set reads as nothing");
 });
 
 t("with no trait table imported no trait check is drawn and the bonus line is blank", () => {
@@ -435,25 +475,25 @@ t("the yield lines: the figure now, the bonus on a success, each with where it c
 
 t("a Player waits on the Judge for what a Judge's check settles, in one footer line; a Judge's is enabled with the warning", () => {
   const over = { state: state({ site: false, victims: { A: {} } }) };
-  const player = panel({ ...over, judge: false });
+  const player = readOnly(over);
   assert.equal(player.blocked, true, "the Sacrifice button stays disabled");
   assert.deepEqual(player.lines.map((l) => l.severity), ["wait"]);
   assert.equal(player.why, 'waiting{"what":"wait.noSite{\\"name\\":\\"\\"}; wait.notHelpless{\\"name\\":\\"Victim A\\"}"}', "the site and the victim, said once");
   const judge = panel({ ...over, judge: true });
   assert.equal(judge.blocked, false);
   assert.deepEqual(judge.lines.map((l) => l.severity), ["warn", "warn"], "a Judge reads each limit as it stands");
-  const done = panel({ judge: false, state: state({ site: true, victims: { A: HELPLESS } }) });
+  const done = readOnly({state: state({ site: true, victims: { A: HELPLESS } }) });
   assert.deepEqual([done.blocked, done.lines.length], [false, 0], "once the Judge has set both, nothing waits and the button is free");
 });
 
 t("a limit no check of a Judge settles is a block, not a wait, and a victim's value the Judge must enter is a wait", () => {
-  const refused = panel({ judge: false, caster: { ...CASTER, alignment: "lawful" }, state: state({ victims: { A: HELPLESS } }) });
+  const refused = readOnly({caster: { ...CASTER, alignment: "lawful" }, state: state({ victims: { A: HELPLESS } }) });
   assert.deepEqual(refused.lines.map((l) => l.severity), ["block"], "a refused victim is the rules' limit, not the Judge's to set");
-  const blank = panel({ judge: false, victims: [victim("A", { value: { gp: null, source: "none", cite: "Invented p. 8" } })], state: state({ victims: { A: HELPLESS } }) });
+  const blank = readOnly({victims: [victim("A", { value: { gp: null, source: "none", cite: "Invented p. 8" } })], state: state({ victims: { A: HELPLESS } }) });
   assert.deepEqual(blank.lines.map((l) => l.severity), ["wait"]);
   assert.match(blank.why, /wait\.values/);
   assert.equal(blank.blocked, true);
-  const none = panel({ judge: false, state: state({ victims: {} }), victims: [] });
+  const none = readOnly({state: state({ victims: {} }), victims: [] });
   assert.deepEqual(none.lines.map((l) => l.severity), ["block"], "no victim dropped is the Player's own to fix");
 });
 
@@ -662,12 +702,13 @@ t("a form's op carries only what differs from the record, so a Judge's tick does
   assert.equal(R.diffJudge(rec, { site: undefined, victims: { A: {} } }), null, "a control the form did not carry is not compared");
 });
 
-t("who may write the record, decided from the attested sender: a Judge or the caster's owner for a drop, a removal and the clear; a Judge alone for the facts", () => {
+t("who may write the record, decided from the attested sender: a Judge or an owner of the caster for every op, the facts included; no one else for any", () => {
   const ask = (op, o = {}) => R.checkRecordRequest({ casterUuid: "C", op }, { caster: { uuid: "C" }, fromJudge: false, owns: true, resolved: { creature: true, held: false }, ...o });
   assert.deepEqual(ask({ op: "add", uuid: "A" }), { ok: true });
   assert.deepEqual(ask({ op: "remove", uuid: "A" }), { ok: true });
   assert.deepEqual(ask({ op: "clear" }), { ok: true });
-  assert.deepEqual(ask({ op: "judge", site: true }), { refused: "judgeOnly" }, "an owning Player still cannot set the Judge's facts");
+  assert.deepEqual(ask({ op: "judge", site: true }), { ok: true }, "an owning Player sets the facts");
+  assert.equal("judgeOnly" in R.REFUSED, false, "no refusal is left for the facts op");
   assert.deepEqual(ask({ op: "judge", site: true }, { fromJudge: true, owns: false }), { ok: true });
   assert.deepEqual(ask({ op: "add", uuid: "A" }, { owns: false }), { refused: "owner" });
   assert.deepEqual(ask({ op: "judge", site: true }, { owns: false }), { refused: "owner" });
@@ -784,7 +825,7 @@ await ta("a drop the GM's client cannot read as a creature, the caster itself, a
   assert.deepEqual(stored(caster).list.length, 1);
 });
 
-await ta("a Player's seat asks the GM's client for every write; the GM's client refuses the Judge's facts from an owner and a stranger's drop, and writes the owner's drop", async () => {
+await ta("a Player's seat asks the GM's client for every write; the GM's client writes an owner's facts and drop, and refuses a stranger's", async () => {
   const caster = casterDoc("Actor.rc3", { owner: "pl1" });
   creature("Actor.rv3");
   world.isGM = false;
@@ -797,14 +838,22 @@ await ta("a Player's seat asks the GM's client for every write; the GM's client 
   assert.deepEqual(world.emitted.map((m) => [m.action, m.payload.casterUuid, m.payload.op.op]), [["magicSacrifice", "Actor.rc3", "judge"], ["magicSacrifice", "Actor.rc3", "add"]], "each rides the sacrifice's own handler");
   world.isGM = true;
   const ask = (op, requestUserId) => L.sacrificeHandler({ casterUuid: "Actor.rc3", op, requestUserId });
-  assert.deepEqual(await ask({ op: "judge", site: true, power: true }, "pl1"), { ok: false, reason: "judgeOnly" });
-  assert.equal(stored(caster), undefined, "the owner's attempt at the Judge's facts changed nothing");
+  assert.deepEqual(await ask({ op: "judge", site: true, power: true }, "pl9"), { ok: false, reason: "owner" });
+  assert.equal(stored(caster), undefined, "a stranger's facts changed nothing");
+  assert.deepEqual(await ask({ op: "judge", site: true, power: true }, "pl1"), { ok: true }, "the owner's facts are written");
+  assert.deepEqual([stored(caster).site, stored(caster).power], [true, true]);
+  assert.deepEqual(await ask({ op: "clear" }, "pl1"), { ok: true });
+  assert.deepEqual(stored(caster), { site: false, power: true, list: [] }, "cleared down to the class-power mark");
+  assert.deepEqual(await ask({ op: "judge", power: false }, "pl1"), { ok: true });
+  assert.deepEqual(await ask({ op: "clear" }, "pl1"), { ok: true });
+  assert.equal(stored(caster), undefined);
   assert.deepEqual(await ask({ op: "add", uuid: "Actor.rv3" }, "pl9"), { ok: false, reason: "owner" });
   assert.equal(stored(caster), undefined, "a stranger's drop changed nothing");
   assert.deepEqual(await ask({ op: "add", uuid: "Actor.rv3" }, "pl1"), { ok: true });
   assert.deepEqual(stored(caster).list.map((v) => v.uuid), ["Actor.rv3"]);
-  assert.deepEqual(await ask({ op: "judge", site: true }, "pl1"), { ok: false, reason: "judgeOnly" });
-  assert.deepEqual(await ask({ op: "judge", site: true }, null), { ok: true }, "the same facts from a Judge");
+  assert.deepEqual(await ask({ op: "judge", site: true }, "pl9"), { ok: false, reason: "owner" });
+  assert.deepEqual(await ask({ op: "judge", site: true }, "pl1"), { ok: true }, "the owner's facts land beside the drop");
+  assert.deepEqual(await ask({ op: "judge", site: true }, null), { ok: true }, "the same facts from a Judge change nothing more");
   assert.equal(stored(caster).site, true);
   assert.deepEqual(await ask({ op: "clear" }, "pl9"), { ok: false, reason: "owner" });
   assert.equal(stored(caster).site, true, "a stranger's clear is refused");
@@ -914,15 +963,28 @@ t("a Judge's victim row holds its checks under the value line, each wrapped in i
 });
 
 t("a Player's row reads the same facts as text, with no control in it", () => {
-  const model = panel({ judge: false, state: state({ victims: { A: { helpless: true, traits: [0] } } }) });
+  const model = readOnly({state: state({ victims: { A: { helpless: true, traits: [0] } } }) });
   const { bucket, whole } = renderWindow(model);
   const row = bucket.slice(bucket.indexOf("<li"), bucket.indexOf("</li>"));
   assert.match(row, /<span class="acks-extras-sacrifice-readonly">helpless · Trait A<\/span>/);
   assert.doesNotMatch(row, /<input|data-value/, "no check and no value box at a Player's seat");
   assert.match(whole, /name="site"[^>]*disabled/, "the site check is read-only");
   assert.doesNotMatch(whole, /name="power"/, "and the class-power check is not drawn unless a Judge ticked it");
-  const marked = renderWindow(panel({ judge: false, state: state({ power: true, victims: { A: HELPLESS } }) })).whole;
+  const marked = renderWindow(readOnly({state: state({ power: true, victims: { A: HELPLESS } }) })).whole;
   assert.match(marked, /name="power"[^>]*checked[^>]*disabled/);
+});
+
+t("an owning Player's window draws the controls: checks and the value box in the row, site and power enabled, and a footer with no waiting line", () => {
+  const { bucket, whole, foot } = renderWindow(owning({ victims: [victim("A", { isMonster: true })], state: state({ site: false, victims: { A: {} } }) }));
+  const row = bucket.slice(bucket.indexOf("<li"), bucket.indexOf("</li>"));
+  assert.match(row, /data-field="helpless"/);
+  assert.match(row, /data-field="young"/);
+  assert.match(row, /data-victim="A" data-value/);
+  assert.doesNotMatch(row, /acks-extras-sacrifice-readonly/);
+  assert.doesNotMatch(whole, /name="site"[^>]*disabled/);
+  assert.match(whole, /name="power"/);
+  assert.doesNotMatch(whole, /name="power"[^>]*disabled/);
+  assert.doesNotMatch(foot, /is-wait|waiting\{/);
 });
 
 t("the class-power check reads as the board words it and sets the yield to arcane power", () => {
@@ -937,18 +999,18 @@ t("the class-power check reads as the board words it and sets the yield to arcan
 });
 
 t("the footer: a Player's waiting line is named and its button stays disabled, described by it; once nothing waits the button is free", () => {
-  const waiting = panel({ judge: false, state: state({ site: false, victims: { A: HELPLESS } }) });
+  const waiting = readOnly({state: state({ site: false, victims: { A: HELPLESS } }) });
   const held = renderWindow(waiting).foot;
   assert.match(held, /<li data-severity="wait" class="is-wait"><i class="fa-solid fa-hourglass-half" inert><\/i> waiting\{/);
   assert.match(held, /data-action="sacrifice" aria-disabled="true" aria-describedby="p-why"/);
-  const freed = renderWindow(panel({ judge: false, state: state({ site: true, victims: { A: HELPLESS } }) })).foot;
+  const freed = renderWindow(readOnly({state: state({ site: true, victims: { A: HELPLESS } }) })).foot;
   assert.doesNotMatch(freed, /aria-disabled|<li /, "no hold, no line, a button that acts");
   assert.doesNotMatch(held, /\sid="(?!\{|p-why)/);
 });
 
 t("the record's round trip through the window's model: what a Judge sets is what a Player's window draws, and the Player's Sacrifice frees itself", () => {
   const rec = { site: false, power: false, list: [{ uuid: "A" }] };
-  const asPlayer = (record) => panel({ judge: false, state: R.stateOf(record) });
+  const asPlayer = (record) => readOnly({state: R.stateOf(record) });
   const waiting = asPlayer(rec);
   assert.deepEqual([waiting.blocked, waiting.lines.map((l) => l.severity)], [true, ["wait"]]);
   const afterSite = R.applyOp(rec, { op: "judge", site: true });
@@ -978,13 +1040,18 @@ t("the template and the sheet of styles hold to the layout contract; every strin
   const win = fs.readFileSync("scripts/magic/apps/sacrifice-window.mjs", "utf8");
   assert.match(win, /"acks-extras-scroll"/, "the window joins the scroll contract");
   assert.match(win, /resizable: true/);
-  assert.doesNotMatch(win, /isOwner/, "no ownership gate: a verdict is a verdict");
+  assert.match(win, /editable: this\.#actor\.isOwner === true/, "the model's permission reads ownership of the caster");
+  assert.match(win, /judge: game\.user\.isGM === true/, "and its severity still reads the role");
+  assert.match(win, /if \(!this\.#actor\.isOwner\) return;/, "a change in a control is written only by an owner");
+  assert.doesNotMatch(win.slice(win.indexOf("static async #onForm"), win.indexOf("static async #onRemove")), /isGM/, "the form's gate is not the server role");
   for (const f of ["sacrifice-record.mjs", "sacrifice-record-live.mjs", "sacrifice-live.mjs"]) assert.doesNotMatch(fs.readFileSync(`scripts/magic/${f}`, "utf8"), /isOwner/, `${f} writes no ownership gate`);
   assert.doesNotMatch(win, /#held|instanceof [A-Z]/, "the window holds nothing of its own, and tells a node by nodeType");
-  assert.match(win, /if \(game\.user\.isGM\) void clearRecord/, "a Judge's close ends the open sacrifice");
+  assert.match(win, /if \(this\.#actor\.isOwner\) void clearRecord/, "an owner's close ends the open sacrifice");
   assert.match(win, /if \(!result\.nothing\) await clearRecord/, "a sacrifice that was made ends it too");
   for (const w of ["noSite", "notHelpless", "values"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.wait.${w}`], "string", w);
-  for (const r of ["noCaster", "owner", "judgeOnly", "op", "victim", "self", "duplicate", "noGm"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.refused.${r}`], "string", r);
+  for (const r of ["noCaster", "owner", "op", "victim", "self", "duplicate", "noGm"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.refused.${r}`], "string", r);
+  assert.equal(lang["ACKS-MAGIC.sacrifice.refused.judgeOnly"], undefined, "no string for a refusal that no longer exists");
+  assert.equal(lang["ACKS-MAGIC.sacrifice.waiting"], "Waiting on the caster's owner: {what}");
   assert.equal(lang[["ACKS-MAGIC", "sacrifice", "states"].join(".")], undefined, "the states section is gone");
   const used = new Set();
   for (const file of [tpl, foot, victimTpl]) for (const m of file.matchAll(/ACKS-MAGIC\.sacrifice\.([\w.]+)/g)) used.add(m[1]);

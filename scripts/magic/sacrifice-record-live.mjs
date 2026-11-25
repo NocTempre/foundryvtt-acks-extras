@@ -4,13 +4,13 @@
  * flag `flags["acks-extras"].magic.sacrifice` on the caster, the one write path every seat takes, the GM's
  * half of it, the redraw of every open window when it changes, and the casting strip's Sacrifice button.
  *
- * The flag is `{site, power, list}` (`cleanRecord`) and exists only while a sacrifice is open: the Judge's
- * facts and the dropped victims are stored on the caster so a Judge's seat and a Player's seat draw the same
- * window. Only the GM's client writes it. A Judge's own seat runs the same handler a Player's relayed request
- * reaches, so one function decides who may change what, from the sender Foundry attested (`judgeDeclares`),
- * never from a claim in the payload and never from a check made on the asking seat. Foundry itself lets an
+ * The flag is `{site, power, list}` (`cleanRecord`) and exists only while a sacrifice is open: the facts an
+ * owner set and the dropped victims are stored on the caster so every seat's window draws the same thing. Only the
+ * GM's client writes it. A GM's own seat runs the same handler an owning Player's relayed request reaches, so one
+ * function decides who may change what, from the sender Foundry attested (`judgeDeclares`) and an owner of the
+ * caster, never from a claim in the payload and never from a check made on the asking seat. Foundry itself lets an
  * owner update a flag of their own actor directly; nothing on a client can stop a hand-made call, which is why
- * this module's seats write only through here and the window draws a Player's checks as text.
+ * this module's seats write only through here and the window draws a seat's checks as text where it cannot edit.
  *
  * Every window the module has open for a caster is registered here (`openWindows`), so the update hook can redraw
  * it without importing the window.
@@ -53,8 +53,8 @@ export const readRecord = (actor) => cleanRecord(storedRecord(actor));
 export const castsDivine = (actor) => (classForActor(actor)?.system?.casting ?? []).some((t) => foldKey(t?.key) === "divine");
 
 /**
- * The GM's client writes the record: it checks who sent the request, applies the op to the freshest flag and
- * writes the result. A Judge's own request reaches this function directly. A drop is checked against what this client
+ * The GM's client writes the record: it checks who sent the request (a GM, or an owner of the caster), applies the op
+ * to the freshest flag and writes the result. A GM's own request reaches this function directly. A drop is checked against what this client
  * reads, a creature that is not the caster and not already held, and never what the payload says.
  * @param {{casterUuid?: string, op?: object, requestUserId?: string|null}} payload
  * @returns {Promise<{ok: boolean, reason?: string}>}
@@ -84,7 +84,7 @@ export async function recordHandler(payload = {}) {
 }
 
 /**
- * Write the record: the Judge's own seat runs the handler here, and a Player's seat asks the GM's client, which refuses
+ * Write the record: a GM's own seat runs the handler here, and any other seat asks the GM's client, which refuses
  * what its attested sender may not do. A request nobody answered is `{ok: false, reason: "noGm"}`.
  * @param {Actor} actor the caster
  * @param {{op: string}} op one of `OP`

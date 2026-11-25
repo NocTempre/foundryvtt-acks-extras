@@ -4,14 +4,14 @@
  * dependencies, so a test or a consumer supplies its own.
  *
  * What ships is the procedure. A victim is a bucket row (lib's `bucket.mjs`) worth its component value
- * (`bucket-value.mjs`, never a figure of this file). The sacrifice happens at a site the Judge says
+ * (`bucket-value.mjs`, never a figure of this file). The sacrifice happens at a site the caster's owner says
  * qualifies. A lawful or neutral victim must be helpless and a chaotic victim willing, and an unwilling
  * chaotic victim counts for nothing without being refused. A lawful or neutral caster never gains from a
  * sapient victim. The yield is the sum of the counted victims' values, kept as divine power for a divine
  * caster and as arcane power through the imported multiple for the holder of the class power. A research
  * throw then follows, made by the caster as a research throw is (`throwPlan`, with no level of effect and
- * no facility): on a success each counted victim adds its component value once for each trait the Judge
- * ticked, by the imported table's factor, and a failure adds nothing. Victims are marked with core's dead
+ * no facility): on a success each counted victim adds its component value once for each trait the caster's
+ * owner ticked, by the imported table's factor, and a failure adds nothing. Victims are marked with core's dead
  * status and never deleted.
  *
  * A figure that is not read is `null`. A throw is never made, and a yield never written, with a figure it
@@ -73,7 +73,7 @@ export function sapientOf({ isCharacter = false, intelligence = "" } = {}) {
 }
 
 /**
- * Which power the caster gains: arcane where the Judge says the caster holds the class power, else divine for a
+ * Which power the caster gains: arcane where the record says the caster holds the class power, else divine for a
  * divine caster, else null (the caster has nothing to gain).
  * @returns {"divine"|"arcane"|null}
  */
@@ -203,14 +203,14 @@ export function victimEntry(row, { loc = (key) => key } = {}) {
 }
 
 /**
- * What a victim's row carries inside lib's bucket row (its `extra` slot): for a Judge the checks and the value box,
- * for a Player the same facts as read-only text. The first line is helpless or willing and the imported trait checks;
+ * What a victim's row carries inside lib's bucket row (its `extra` slot): for a seat that can edit (an owner of the
+ * caster, a GM included) the checks and the value box, for a seat that cannot the same facts as read-only text. The first line is helpless or willing and the imported trait checks;
  * the second is `young` (a creature's mark, since a character's value is not read by its age) and the value box. A hand-set value
  * is `edited`, and its tooltip names the figure it replaced, or says none was read, with the page. Nothing here is a
  * figure of the book: the labels are the procedure's, and the trait rows and their factors are the imported table's.
  * @returns {object}
  */
-export function victimExtra(row, { judge, partial, tables, loc, cites = {} }) {
+export function victimExtra(row, { editable, partial, tables, loc, cites = {} }) {
   const st = row.state;
   const traitRows = tables.sacrifice?.rows ?? [];
   const page = cites.sacrifice ?? "";
@@ -218,8 +218,8 @@ export function victimExtra(row, { judge, partial, tables, loc, cites = {} }) {
   if (row.alignment === ALIGN.chaotic) checks.push({ field: "willing", label: loc("willing"), tip: loc("willingTip", { cite: page }), checked: st.willing });
   else if (row.alignment) checks.push({ field: "helpless", label: loc("helpless"), tip: loc("helplessTip", { cite: page }), checked: st.helpless });
   const traits = traitRows.map((t, i) => ({ index: i, label: t.label, checked: st.traits.includes(i), tip: t.times === null ? page : loc("traitTip", { times: t.times, cite: tables.sacrifice?.cite ?? page }) }));
-  const extra = { partial, uuid: row.uuid, judge: judge === true, checks, traits };
-  if (judge === true) {
+  const extra = { partial, uuid: row.uuid, editable: editable === true, checks, traits };
+  if (editable === true) {
     const was = row.value?.basis?.was ?? null;
     const edited = st.value !== null;
     const valueTip = !edited ? loc("valueBoxTip", { cite: row.value?.cite ?? "" }) : was === null ? loc("valueBoxNoneRead", { cite: row.value?.cite ?? "" }) : loc("valueBoxWas", { was, cite: row.value?.cite ?? "" });
@@ -235,15 +235,16 @@ export function victimExtra(row, { judge, partial, tables, loc, cites = {} }) {
 /**
  * The window's model: the bucket as lib draws it (its head replaced by the yield, each victim's checks inside its
  * own row through `rowPartial`), the site and class-power checks, the two yield lines with their provenance, the
- * verdicts and the footer's state. A Judge's seat sets every check; a Player's seat sees them as text, and what only
- * a Judge can settle, it is told it waits on (`wait`). `rowPartial` is the loaded partial a victim's checks are drawn by;
- * with none given no row carries a slot.
+ * verdicts and the footer's state. `editable` is whether the seat owns the caster (a GM included): that seat sets every
+ * check; a seat that cannot edit sees them as text, and what only an owner can settle, it is told it waits on (`wait`).
+ * `judge` is the seat's severity and nothing else: it ranks a limit as a block or a warning (`planOf`). `rowPartial` is
+ * the loaded partial a victim's checks are drawn by; with none given no row carries a slot.
  * @returns {object}
  */
-export function panelModel({ caster, victims, state, tables, judge, loc, bucketLoc, cites = {}, rowPartial = "" }) {
+export function panelModel({ caster, victims, state, tables, judge, editable, loc, bucketLoc, cites = {}, rowPartial = "" }) {
   const plan = planOf({ caster, victims, state, tables, judge, loc });
   const entries = plan.rows.map((r) => victimEntry(r, { loc }));
-  const slots = rowPartial ? Object.fromEntries(plan.rows.map((r) => [r.uuid, { extra: victimExtra(r, { judge, partial: rowPartial, tables, loc, cites }) }])) : {};
+  const slots = rowPartial ? Object.fromEntries(plan.rows.map((r) => [r.uuid, { extra: victimExtra(r, { editable, partial: rowPartial, tables, loc, cites }) }])) : {};
   const bucket = bucketView({ accepts: { kinds: VICTIM_KINDS }, due: null }, entries, { key: "victims", loc: bucketLoc, legend: loc("victims"), icon: "fa-droplet", emptyText: loc("empty"), dropText: loc("drop"), locked: false, rows: slots });
   bucket.head = null;
   bucket.rows.forEach((row, i) => {
@@ -261,12 +262,12 @@ export function panelModel({ caster, victims, state, tables, judge, loc, bucketL
     now: { label: loc(`yield.now.${unit}`), text: entries.length ? text(y.now) : "", tip: yieldTip(plan, loc, cites, tables) },
     bonus: { label: loc("yield.bonus"), text: entries.length && tables.sacrifice?.present ? text(y.onSuccess) : "", tip: loc("yield.bonusTip", { cite: cite || (cites.sacrifice ?? "") }) },
   };
-  const lines = footerLines(plan, { judge, loc, tables, cites });
+  const lines = footerLines(plan, { editable, loc, tables, cites });
   return {
     plan,
     bucket,
-    site: { checked: state.site === true, disabled: judge !== true, label: loc("site"), tip: loc("siteTip", { cite: cites.sacrifice ?? "" }) },
-    power: { shown: judge === true || state.power === true, checked: state.power === true, disabled: judge !== true, label: loc("power"), tip: loc("powerTip", { cite: tables.powerOfSacrifice?.cite ?? cites.power ?? "" }) },
+    site: { checked: state.site === true, disabled: editable !== true, label: loc("site"), tip: loc("siteTip", { cite: cites.sacrifice ?? "" }) },
+    power: { shown: editable === true || state.power === true, checked: state.power === true, disabled: editable !== true, label: loc("power"), tip: loc("powerTip", { cite: tables.powerOfSacrifice?.cite ?? cites.power ?? "" }) },
     yield: yieldRows,
     lines,
     why: lines[0]?.text ?? "",
@@ -274,18 +275,19 @@ export function panelModel({ caster, victims, state, tables, judge, loc, bucketL
   };
 }
 
-/** The findings a Judge settles by a check or a figure, and so a Player waits on instead of being blocked by. */
+/** The findings an owner of the caster settles by a check or a figure, and so a seat that cannot edit waits on instead of being blocked by. */
 export const JUDGE_SETTLES = Object.freeze([FINDING.noSite, FINDING.notHelpless]);
 
 /**
- * The footer's lines: each verdict, then the hold. A Player is told what waits on the Judge in one line, "Waiting on
- * the Judge: ...", for the findings a Judge's check settles (`JUDGE_SETTLES`) and a victim's value left to the Judge to enter; those
- * lines are severity `wait`, the rest keep their block. A Judge reads every one as it stands.
+ * The footer's lines: each verdict, then the hold. A seat that cannot edit is told what waits on the caster's owner in
+ * one line, "Waiting on the caster's owner: ...", for the findings an owner's check settles (`JUDGE_SETTLES`) and a victim's
+ * value left to an owner to enter; those lines are severity `wait`, the rest keep their block. A seat that can edit
+ * (`editable`) reads every one as it stands.
  */
-export function footerLines(plan, { judge, loc, tables, cites = {} }) {
+export function footerLines(plan, { editable, loc, tables, cites = {} }) {
   const verdictLines = plan.verdicts.map((v) => ({ severity: v.severity, text: v.notice, key: v.key }));
   const holdLine = plan.hold.ok ? null : { severity: "block", text: loc(`hold.${plan.hold.why}`, { cite: holdCite(plan.hold.why, tables, cites) }) };
-  if (judge === true) return [...verdictLines, ...(holdLine ? [holdLine] : [])].map(({ key, ...line }) => line);
+  if (editable === true) return [...verdictLines, ...(holdLine ? [holdLine] : [])].map(({ key, ...line }) => line);
   const waits = plan.findings.filter((f) => f.severity !== "warn" && JUDGE_SETTLES.includes(f.key)).map((f) => loc(`wait.${f.key}`, { name: f.name ?? "" }));
   const valueWait = !plan.hold.ok && plan.hold.why === HOLD.values;
   if (valueWait) waits.push(loc("wait.values"));

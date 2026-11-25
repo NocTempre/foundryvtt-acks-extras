@@ -1,9 +1,9 @@
 {{!-- What the Blood sacrifice window draws inside one victim's bucket row (lib's `bucket-row.hbs` `extra` slot,
-      scripts/magic/sacrifice.mjs `victimExtra`). A Judge's seat has two lines of controls: helpless or willing and
-      the imported traits, then young and a value box, a hand-set value carrying the gold edge. A Player's seat has
-      the same facts as text. Every check is wrapped in its own label, so no id is written, and a control is read
+      scripts/magic/sacrifice.mjs `victimExtra`). A seat that can edit (an owner of the caster) has two lines of controls: helpless or willing and
+      the imported traits, then young and a value box, a hand-set value carrying the gold edge. A seat that cannot
+      has the same facts as text. Every check is wrapped in its own label, so no id is written, and a control is read
       back by its data-* hooks (`apps/sacrifice-window.mjs`). --}}
-{{#if judge}}
+{{#if editable}}
 <span class="acks-extras-sacrifice-checks">
   {{#each checks}}
   <label class="acks-extras-sacrifice-check" data-tooltip-text="{{tip}}"><input type="checkbox" data-victim="{{../uuid}}" data-field="{{field}}"{{#if checked}} checked{{/if}}> <span>{{label}}</span></label>

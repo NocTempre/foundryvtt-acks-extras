@@ -1,17 +1,18 @@
 /* global game, foundry, fromUuid, ui */
 /**
- * The Blood sacrifice window: a caster, a bucket of victims dropped from the sidebar or the canvas, what a Judge
- * says of each (willing or helpless, the traits that apply, the value, young) inside the victim's own row and of the
+ * The Blood sacrifice window: a caster, a bucket of victims dropped from the sidebar or the canvas, what an owner of
+ * the caster (a GM included) says of each (willing or helpless, the traits that apply, the value, young) inside the victim's own row and of the
  * sacrifice (the site, the class power), the yield, and the verdicts that stand in the way. ApplicationV2 over a
  * scrolling body and a pinned footer, the cast dialog's shape. `sacrifice.mjs` answers every question the window asks
  * (`panelModel`) and decides the act; the live half (`sacrifice-live.mjs`) reads the documents and makes the writes.
  *
  * The window holds nothing of its own. Everything it draws is the caster's shared record (`sacrifice-record.mjs`),
  * written through `writeRecord` and drawn again by the update hook whenever it changes, so every window open for
- * the caster shows the same facts as the Judge sets them. The checks are a Judge's: a Player's seat reads them as
- * text and its Sacrifice button is disabled with the reason in the footer, the way the cast plan's verdicts disable
- * the cast button, until nothing waits on the Judge. The record goes when the sacrifice is made, and when a Judge
- * closes the window. One window serves one caster.
+ * the caster shows the same facts as an owner sets them. The checks belong to an owner of the caster (`isOwner`, a GM
+ * included): a seat that cannot edit reads them as text and its Sacrifice button is disabled with the reason in the
+ * footer, the way the cast plan's verdicts disable the cast button, until nothing waits on an owner. Severity reads the
+ * role and permission reads ownership: a Player who owns the caster edits, and meets a limit as a block. The record goes
+ * when the sacrifice is made, and when an owner closes the window. One window serves one caster.
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { entryFromDrop, BUCKET_ACTIONS, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, BUCKET_LANG_PREFIX } from "../../lib/bucket.mjs";
@@ -104,7 +105,7 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     const caster = await casterFacts(this.#actor);
     const state = this.#shared;
     const victims = await victimsOf(state.list, state);
-    const panel = panelModel({ caster, victims, state, tables: tablesNow(), judge: game.user.isGM === true, loc, bucketLoc: makeLoc(BUCKET_LANG_PREFIX), cites: sacrificeCites(), rowPartial: ROW_PARTIAL });
+    const panel = panelModel({ caster, victims, state, tables: tablesNow(), judge: game.user.isGM === true, editable: this.#actor.isOwner === true, loc, bucketLoc: makeLoc(BUCKET_LANG_PREFIX), cites: sacrificeCites(), rowPartial: ROW_PARTIAL });
     const { plan, ...view } = panel;
     return { ...context, ...view, caster: { name: caster.name, img: caster.img }, acting: this.#acting };
   }
@@ -120,7 +121,7 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     super._onClose?.(options);
     // Leave the registry first: the clear this close writes is a change the update hook draws, and it must not find this window.
     openWindows.delete(this.#actor.uuid);
-    if (game.user.isGM) void clearRecord(this.#actor);
+    if (this.#actor.isOwner) void clearRecord(this.#actor);
   }
 
   /* -------------------------------------------- */
@@ -128,7 +129,7 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   /* -------------------------------------------- */
 
   /**
-   * Read the Judge's controls off the window as the model's `read` (`diffJudge`): the site and the class power where they
+   * Read the owner's controls off the window as the model's `read` (`diffJudge`): the site and the class power where they
    * were drawn enabled, and each victim's checks, trait rows and value. A control that is disabled or not on the page is
    * left out, so it is never sent. A node is told by `nodeType`, never `instanceof`, so a window built in a browser window
    * of its own reads the same.
@@ -184,9 +185,9 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   /*  Actions                                     */
   /* -------------------------------------------- */
 
-  /** A change in a Judge's control: only what differs from the record is written, and the record's update draws every window again. */
+  /** A change in a control an owner of the caster sets: only what differs from the record is written, and the record's update draws every window again. */
   static async #onForm() {
-    if (!game.user.isGM) return;
+    if (!this.#actor.isOwner) return;
     const read = this.#read();
     const op = read ? diffJudge(readRecord(this.#actor), read) : null;
     if (op) this.#refused(await writeRecord(this.#actor, op));
@@ -205,7 +206,7 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * Make the sacrifice. The gates are asked again on what the record holds now, so a stale window cannot act on a plan
    * that no longer stands. A sacrifice that yielded something ends the open sacrifice and its record; one that yielded
-   * nothing changes nothing, and the record stays for the Judge to correct.
+   * nothing changes nothing, and the record stays for an owner to correct.
    */
   static async #onSacrifice() {
     if (this.#acting) return;
