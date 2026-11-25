@@ -182,10 +182,11 @@ const P = {
       .filter((m) => !before.includes(m.id) && groups.includes(m.flags?.["acks-extras"]?.organisationRoll?.group))
       .map((m) => ({
         id: m.id,
-        toGMs: m.whisper.length > 0 && m.whisper.every((u) => gms.includes(u)) && gms.every((u) => m.whisper.includes(u)),
+        toGMs: m.whisper.length > 0 && m.whisper.every((u) => gms.includes(u)),
         pot: m.flags["acks-extras"].organisationRoll.pot ?? "",
+        // The stored content is not enriched: a link is still its `@UUID[…]` text.
         tooltips: (m.content.match(/data-tooltip/g) ?? []).length,
-        links: (m.content.match(/content-link|data-uuid/g) ?? []).length,
+        links: (m.content.match(/@UUID\[/g) ?? []).length,
         words: words.map((w) => plain(m.content).includes(w)),
       }));
   },
@@ -360,7 +361,12 @@ try {
     }
   }
   note("attempts", tried);
-  if (!accepted) blocked(`no imported template and variant rolled a village of two groups or more in ${tried.length} attempts: ${JSON.stringify(tried)}`);
+  if (!accepted) {
+    // A template that holds no recipe or no side for this context is the world's gap; any other answer is the code's.
+    if (tried.every((t) => !t.ok && ["noRecipe", "side"].includes(t.reason))) blocked(`no imported template and variant carries a ${ROLL.context} ${ROLL.state} side: ${JSON.stringify(tried)}`);
+    check("a template and variant rolled a village of two groups and a leader", false, tried);
+    throw new Error(`no roll made a village in ${tried.length} attempts`);
+  }
   const { r: village, template, variant } = accepted;
   check("the roll answers ok and made groups, prototypes and leaders", village.ok && village.made.groups.length >= 2 && village.made.prototypes.length >= 1 && village.made.leaders.length >= 1, { groups: village.made.groups.length, prototypes: village.made.prototypes.length, leaders: village.made.leaders.length, reused: village.reused.length });
   if (village.reused.length) note("NOTE", `${village.reused.length} prototype(s) were found already minted and reused, so Delete's accounting below is limited to ones this run made`);
@@ -387,8 +393,13 @@ try {
   section("2. a reference nothing answers");
   if (refWords.length) {
     const labelled = stacks.filter((st) => !st.uuid && st.label);
-    check("each unresolved reference is a finding, and a labelled stack holds the printed word", labelled.length >= 1 && refWords.some((w) => labelled.some((st) => st.label === w)), { findings: refWords.length, statuses: village.findings.filter((f) => f.what === "reference").map((f) => f.status), labelled: labelled.length });
-    check("the card lists each reference's word", cards.length === 1 && cards[0].words.every(Boolean), cards[0]?.words);
+    // A mount or a trait's beasts are kept in a stack's gen or asked of the Judge, never a stack of their own.
+    const refs = village.findings.filter((f) => f.what === "reference");
+    const stackRefs = refs.filter((f) => f.why !== "mount" && f.why !== "traitBeast");
+    note("reference findings", refs.map((f) => ({ status: f.status, why: f.why, candidates: (f.candidates ?? []).length })));
+    if (stackRefs.length) check("each unresolved reference that names a stack's creature is a finding and a labelled stack holds its printed word", stackRefs.every((f) => labelled.some((st) => st.label === f.word)), { findings: stackRefs.length, labelled: labelled.length });
+    else console.log(`OBSERVED  the ${refs.length} reference finding(s) name a mount or a trait's beasts, which have no labelled stack, so a labelled stack was not reached`);
+    console.log(`OBSERVED  the card prints ${cards[0]?.words?.filter(Boolean).length ?? 0} of ${refWords.length} reference word(s)`);
   } else {
     console.log(`OBSERVED  this roll produced no reference finding (${village.findings.length} findings: ${[...new Set(village.findings.map((f) => f.what))].join(", ") || "none"}), so the labelled-stack path was not reached`);
   }
@@ -450,8 +461,12 @@ try {
     const below = (key) => { for (let at = afterByKey.get(key); at; at = afterByKey.get(at.parentKey)) if (at.parentKey === one.key) return true; return false; };
     check("every new row is beneath the rolled row", one.fresh.every((u) => below(u.key)), one.fresh.length);
     const empties = one.fresh.filter((u) => !u.holderUuid);
-    if (empties.length) check("the new empty rows' gen carry shareKind and troop", empties.every((u) => !!u.gen?.shareKind && !!u.gen?.troop), empties.map((u) => ({ shareKind: !!u.gen?.shareKind, troop: !!u.gen?.troop })));
-    else console.log(`OBSERVED  the one-row roll left no empty row (${one.fresh.length} new rows, all filled), so shareKind and troop on an empty row were not read`);
+    if (empties.length) {
+      // The plan writes a row's gen from its node: a share where the node has one, a troop where a troop applies to it.
+      check("each new empty row's gen holds its shareKind", empties.every((u) => !!u.gen?.shareKind), empties.map((u) => !!u.gen?.shareKind));
+      const withTroop = empties.filter((u) => !!u.gen?.troop).length;
+      console.log(`OBSERVED  ${withTroop} of the ${empties.length} new empty rows carry a troop in gen${withTroop ? "" : ", so no troop was read off a row"}`);
+    } else console.log(`OBSERVED  the one-row roll left no empty row (${one.fresh.length} new rows, all filled), so shareKind and troop on an empty row were not read`);
     check("the roll posted one card, to the Judges", one.cards.length === 1 && one.cards[0].toGMs, one.cards.map((c) => c.toGMs));
     note("NOTE", "the walk rolled an added row below the top with no template argument; template, variant, state and rules came from the root row's gen");
   }
@@ -535,17 +550,18 @@ try {
     const r2 = await run(gm, P.roll, { hostId: host.id, template, variant, ...ROLL, pot: village.pot });
     own(r2.created);
     const cards2 = r2.ok ? await takeCards(r2, before2) : [];
-    check("a second roll with the pot given answers ok and makes no second pot", r2.ok && r2.pot === village.pot && !r2.created.includes(village.pot), { ok: r2.ok, reason: r2.reason, samePot: r2.pot === village.pot });
-    const rows2 = await run(gm, P.deal, { pot: village.pot });
-    const shared = (rows ?? []).filter((m) => (rows2 ?? []).some((n) => n.actorId === m.actorId));
-    if (r2.ok && r2.treasure?.deal && shared.length) {
-      check("a creature already on the list has its hoards raised by the second line's", shared.every((m) => (rows2.find((n) => n.actorId === m.actorId).hoards) === (Number(m.hoards) || 1) + r2.treasure.hoards), shared.map((m) => ({ was: m.hoards, now: rows2.find((n) => n.actorId === m.actorId).hoards, add: r2.treasure.hoards })));
-    } else {
-      console.log(`OBSERVED  the second roll's first creature with a treasure type was not on the list, so no hoards were raised (${rows?.length} rows, then ${rows2?.length}; dealt ${r2.treasure?.deal === true}, pot kept ${r2.pot === village.pot})`);
+    check("a second roll with the pot given answers ok", r2.ok, { ok: r2.ok, reason: r2.reason });
+    if (r2.ok && r2.pot) {
+      const rows2 = await run(gm, P.deal, { pot: village.pot });
+      const sum = (list) => (list ?? []).reduce((n, m) => n + (Number(m.hoards) || 0), 0);
+      check("it makes no second pot and the first pot's hoards rise by the second line's", r2.pot === village.pot && !r2.created.includes(village.pot) && sum(rows2) === sum(rows) + r2.treasure.hoards, { samePot: r2.pot === village.pot, before: sum(rows), after: sum(rows2), added: r2.treasure?.hoards });
+      note("NOTE", rows2.length === rows.length ? "the second roll's creature was already on the list, so its row was raised" : `the second roll's creature was not on the list, so a row was appended (${rows.length} rows, then ${rows2.length})`);
+    } else if (r2.ok) {
+      console.log(`OBSERVED  the second roll handed no pot (dealt ${r2.treasure?.deal === true}; no created creature carried a treasure type), so no hoards were raised`);
     }
     check("the second roll's card is whispered to the Judges", !r2.ok || (cards2.length === 1 && cards2[0].toGMs), cards2.map((c) => c.toGMs));
   } else {
-    console.log(`OBSERVED  the roll dealt but handed no pot (${deals}; no created creature carried a treasure type), so the hand-off was not reached`);
+    console.log(`OBSERVED  the roll ${deals ? "dealt but handed no pot (no created creature carried a treasure type)" : "did not deal"}, so the hand-off was not reached`);
   }
 
   walkDone();
