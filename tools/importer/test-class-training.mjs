@@ -11,6 +11,7 @@
 import assert from "node:assert/strict";
 import { parseCombatTraining, bindClass } from "../../scripts/importer/cookbook.mjs";
 import { trainingOf } from "../../scripts/classes/training-logic.mjs";
+import { refreshPlan, REPAIR } from "../../scripts/importer/refresh.mjs";
 
 let n = 0;
 const check = (label, got, want) => {
@@ -232,5 +233,23 @@ const named = groupOf({ runin: RUNIN, labelHeader: "Lodge" });
 check("a declared heading names the group", [named.key, named.label], ["lodge", "Lodge"]);
 check("and the header line is no option of it", named.options.map((o) => o.key), ["fenwick"]);
 check("no heading declared: the generic group", [groupOf({ runin: RUNIN }).key, groupOf({ runin: RUNIN }).label], ["variant", "Variant"]);
+
+/* --- a class repair names no builder and no race link --------------------- */
+// The update merges, so a key the build leaves out stays on the document: the
+// class's builds and race link survive a repair only while neither side names them.
+const built = bindClass(entry, { fields: {} }, "def.class.inventedYak");
+const held = {
+  name: "Invented Yak",
+  type: "acks-extras.class",
+  system: {
+    race: "def.race.inventedYak",
+    builder: { enabled: true, hdValue: 2, race: { value: 2 }, notes: "a Judge's note" },
+  },
+  flags: { "acks-extras": { cookbook: { id: "def.class.inventedYak" } } },
+};
+const repaired = refreshPlan(held, built, REPAIR.class).update.system ?? {};
+check("a repair's system update names no builder", "builder" in repaired, false);
+check("a repair's system update names no race link", "race" in repaired, false);
+check("the control: it does name what the build names", "levels" in repaired, true);
 
 console.log(`test-class-training: all ${n} checks passed`);

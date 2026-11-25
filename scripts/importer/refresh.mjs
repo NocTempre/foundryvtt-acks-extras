@@ -189,9 +189,12 @@ export const REPAIR = Object.freeze({
     top: ["prototypeToken"],
     minted: ["items"],
   },
-  // A class is rewritten whole; only a description a Judge wrote, an effect a
-  // Judge took over, and a level's experience or title the build could not
-  // read and a Judge typed stay.
+  // A class write carries what the build names, and an array it names is
+  // written whole. The update merges, so a field the build does not name stays,
+  // the class's builder fields and race link among them. Of what the build
+  // does name, only a description a Judge wrote, an effect a Judge took over,
+  // and a level's experience or title the build could not read and a Judge
+  // typed stay.
   class: {
     prose: ["description"],
     flags: ["tongues", "xpBuild"],

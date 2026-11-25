@@ -624,7 +624,7 @@ read one scene per id, so the pass has to visit every import.
 - Only `@UUID` and `data-uuid` links are rewritten; the importer writes no
   other link form.
 
-## 2026-11-13 — The rules tables are read first and applied after the classes
+## 2026-11-13 — The rules tables are read first and applied after the classes — SUPERSEDED IN PART 2026-11-24
 
 **Ruled by the owner.** Two rulings, verbatim:
 
@@ -3202,3 +3202,39 @@ unchanged.
 - An imported sidebar class's parts come back with a re-import.
 - Shared parts stay after the last class that used them is removed, and a part
   whose class can no longer be found stays.
+
+## 2026-11-24 — A class repair writes what the build names; the tables apply waits for another reason
+
+Qualifies "2026-11-13 — The rules tables are read first and applied after the
+classes", whose Repair everything paragraph and evidence paragraph say a class
+repair rewrites the class's whole system, so a second pass would wipe the builds
+an earlier apply had stamped.
+
+**New evidence.** A report took that wording at its word and claimed a repair
+wipes a class's builds and race links. An offline probe replayed
+`refreshPlan(source, built, REPAIR.class).update` through Foundry 14.370's own
+`common/` update code against `ClassData`, and the update does not wipe them.
+`refreshImported` calls `doc.update(plan.update)`, and Foundry's update merges
+recursively. `bindClass`'s `system` names neither `race` nor `builder`, so
+`system.race` and every `builder` leaf stand after the write. What a repair
+writes whole is each array the build names: with a stored template row carrying
+a `bundle` uuid and a built row without one, the row comes back without it. The
+wording "rewritten whole" held only of what the build names.
+
+**Ruled.** The reason stated for the ordering is withdrawn: a second pass that
+re-ran the class step would not undo an earlier apply. The ordering stands for
+the reasons the entry also gives. Class pricing reads the builder tables only
+the read assembles, and a class a repair creates has no build until a tables
+apply runs, so the apply follows the last pass that can create one. The model
+and the comments that said "a class repair rewrites the class whole" now say
+what the build names is written, and what it does not name stays; `tools/importer/test-class-training.mjs` pins
+that `refreshPlan`'s `update.system` for a class carries no `builder` and no
+`race` key.
+
+**Rejected.**
+- Moving the apply into pass one: its premise was the wipe, which does not
+  happen, but a class created in pass two would then have no build, and the one
+  apply after the last pass costs nothing.
+
+**Costs.** None to behaviour. The 2026-11-13 entry keeps its text, and its
+"rewrites the class's whole system" lines are read through this entry.

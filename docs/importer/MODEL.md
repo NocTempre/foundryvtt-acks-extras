@@ -137,8 +137,11 @@ questions. Five tabs:
   them held are put to the Judge together. The rules tables are read once,
   after the Yes and before the first part runs (`before`), and applied once in
   `finish`, after the last pass and before each adventure book's Adventure is
-  written. A class repair rewrites the class whole, so an apply run in pass one
-  would be undone by pass two; a No reads and writes nothing.
+  written. A class repair writes what the build names, arrays it names whole,
+  and leaves the fields it does not name, the class's builder fields and race
+  link among them. A class a repair creates has no build until a tables apply
+  runs, and the apply stays after the last pass so it follows every class the
+  passes make; a No reads and writes nothing.
 - **Rebuild** — the shelf, book and rules-table options of
   `rebuildOptions()`, run by `runRebuildPick(value)`: a shelf or a book runs
   the merged repair, the rules tables are re-read in place. The Reimport One Shelf dialog draws

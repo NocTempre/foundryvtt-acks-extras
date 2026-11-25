@@ -2022,12 +2022,14 @@ export async function importTemplatePackages() {
 
 /**
  * Re-execute and REWRITE every imported class document's generated surface
- * (name, img, the whole system object, its minted effects) through
- * `refreshImported` under `REPAIR.class`. Hand edits are replaced, and the
- * confirm says so. Three things stay: a description a Judge wrote in, an effect
- * a Judge took over (the training editor unmints what it writes), which also
- * stops the build's twin of it being added, and a level's experience or title
- * the build could not read.
+ * (name, img, the `system` fields the build names, its minted effects) through
+ * `refreshImported` under `REPAIR.class`. The update merges: an array the
+ * build names is written whole, and a field it does not name stays, the
+ * class's builder fields and race link among them. Hand edits to what the
+ * build names are replaced, and the confirm says so. Three things stay: a
+ * description a Judge wrote in, an effect a Judge took over (the training
+ * editor unmints what it writes), which also stops the build's twin of it
+ * being added, and a level's experience or title the build could not read.
  *
  * A class whose book is not open on this seat, or whose entry read nothing, is
  * left as it is: this write takes the build's rows whole.
@@ -2103,8 +2105,8 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
   }
   await inheritRaceTongues(written, await heldImportedClasses());
   await syncHeldRaceTongues();
-  // The update above replaced each document's whole `system`, wiping the rows'
-  // cached bundle uuids; this re-derives them from the bundles' own flags and
+  // The update above wrote each template array whole, so the rows' cached
+  // bundle uuids are gone; this re-derives them from the bundles' own flags and
   // re-strips the arrays it restored, so a package is never handed over twice.
   await materializeClassTemplates(written);
   ui.notifications?.info(
