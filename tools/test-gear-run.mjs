@@ -97,7 +97,7 @@ await t("a row is the shape its value keys make it, never its key: an action ite
   assert.equal(drum.activation.kind, "toggle");
   assert.equal(drum.rows[0].reach.pulse, "standing");
   assert.deepEqual(drum.rows[0].reach.on, [...STANDING_ROLLS]);
-  assert.equal(drum.rows[0].reach.filter.unit, "own");
+  assert.equal(drum.rows[0].reach.filter.unit, "under", "the bearer's unit and those under it, not its own group alone");
   assert.deepEqual(missed, []);
   for (const item of [once, gearRunItem(rows.banner, BASE), gearRunItem(rows.drum, BASE)]) {
     assert.equal(item.type, "item");
@@ -161,9 +161,11 @@ await t("a modifier becomes parts on the named rolls, morale as a reaction part 
   assert.deepEqual(logic.reachParts(["damage"], 2), [{ on: "damage", value: 2 }]);
   assert.deepEqual(logic.reachParts(["ac", "attack", "morale"], 1), [{ on: "ac", value: 1 }, { on: "attack", value: 1 }, { on: "reaction", key: "morale", rollKey: MORALE_ROLL_KEY, value: 1 }]);
   assert.deepEqual(logic.reachParts(["ac"], null), []);
-  assert.deepEqual(logic.immunityDuration(3, 600), { value: 1800, units: "seconds" });
-  assert.equal(logic.immunityDuration(0, 600), null);
-  assert.equal(logic.immunityDuration(null, 600), null);
+  assert.equal(logic.dueAtAfter(3, 600, 1000), 2800, "turns of the world's turn length from now");
+  assert.equal(logic.dueAtAfter(0, 600, 1000), null);
+  assert.equal(logic.dueAtAfter(null, 600, 1000), null);
+  assert.equal(logic.dueAtAfter(3, 600, undefined), null, "no reading of the clock, no moment");
+  assert.equal(logic.dueAtAfter(3, 0, 1000), null);
   const ids = { source: "I.1", activationId: "act", rowKey: "reach" };
   const a = logic.standingPartRecordData({ kindKey: "k", name: "N", parts: [{ on: "ac", value: 1 }], ...ids });
   assert.equal(logic.standingPartDiffers(null, a), true);
@@ -271,6 +273,7 @@ await t("the action item writes its part on each subject the filter admits, the 
   assert.equal(mine.actor.writes.created.length, 1);
   const record = mine.actor.writes.created[0];
   assert.deepEqual(record.flags["acks-extras"].rollMods.parts, [{ on: "damage", value: 2 }], "the registry's figure");
+  assert.equal(record.flags["acks-extras"].rollMods.cite, "XX p. 4", "the item's page reference, from its cookbook cite");
   assert.deepEqual(record.flags["acks-extras"].endsOn, ["attack"]);
   assert.equal(record.flags["acks-extras"].itemRun.source, "I.1");
   assert.equal(record.flags["acks-extras"].managed, true);
@@ -337,7 +340,10 @@ await t("E4's press: a failed save writes the condition on the subject's next-tu
     assert.equal(passed2.saved, true);
     const [window] = subject.actor.writes.created;
     assert.deepEqual(window.flags["acks-extras"].rollMods.parts, [{ on: "immune", spells: ["organisation.gear.r2"] }], "the kind's key");
-    assert.deepEqual(window.duration, { value: 3 * 600, units: "seconds" }, "the imported window, in turns");
+    assert.equal("duration" in window, false, "no core duration is written");
+    assert.equal(window.flags["acks-extras"].itemRun.dueAt, 3 * 600, "the imported window, in turns, on the module's clock");
+    assert.equal(window.flags["acks-extras"].rollMods.cite, "XX p. 4", "the item's page reference, from its cookbook cite");
+    assert.notEqual(window.flags["acks-extras"].itemRun.activationId, "act", "the window is not the raised activation's, so lowering leaves it");
 
     // The reach's next moment on an immune subject asks for nothing.
     presented.length = 0;
@@ -368,8 +374,8 @@ await t("the relayed press carries ids and a total only: a forged window, entry 
   try {
     const first = await press();
     assert.equal(first.ok, true);
-    assert.deepEqual(subject.actor.writes.created[0].duration, { value: 1800, units: "seconds" }, "the GM's reading of the row, not the request's window");
-    assert.deepEqual(subject.actor.writes.created[0].flags["acks-extras"].itemRun, { source: "I.1", activationId: "act", rowKey: "reach" }, "the card's own ids");
+    assert.equal(subject.actor.writes.created[0].flags["acks-extras"].itemRun.dueAt, 1800, "the GM's reading of the row, not the request's window");
+    assert.deepEqual(subject.actor.writes.created[0].flags["acks-extras"].itemRun, { source: "I.1", activationId: "rid", rowKey: "reach", dueAt: 1800 }, "the card's own row and a window id of its own");
     assert.equal((await press({ total: 1 })).reason, "applied", "the second press is refused from the card");
     assert.equal(subject.actor.writes.created.length, 1);
     // Two presses that overlap: the second is refused while the first is mid-write.
@@ -409,6 +415,7 @@ await t("E9: a standing part is held once per subject and kind, written only whe
   const record = sub.actor.writes.created[0];
   assert.equal(record._id, logic.standingPartId("organisation.gear.r3"), "the fixed id of the kind");
   assert.deepEqual(record.flags["acks-extras"].rollMods.parts.map((p) => [p.on, p.value, p.rollKey ?? null]), [["ac", 1, null], ["attack", 1, null], ["reaction", 1, MORALE_ROLL_KEY]]);
+  assert.equal(record.flags["acks-extras"].rollMods.cite, "XX p. 5", "the standing part carries the item's page reference");
   await moment("enter");
   assert.equal(sub.actor.writes.created.length, 1, "written only when it differs");
   assert.equal(sub.actor.writes.updated, undefined);

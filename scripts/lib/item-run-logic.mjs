@@ -104,45 +104,59 @@ export function chooseBearerToken({ carried = null, carries = () => true, canvas
 /*  Records                                      */
 /* -------------------------------------------- */
 
-/** The flags every record the runner writes carries: its source, its activation, its row, and `managed` (what a recall drops from a body). */
-export const recordFlags = ({ source, activationId, rowKey }, extra = {}) => ({ [FLAG_ITEM_RUN]: { source, activationId, rowKey }, managed: true, ...extra });
+/**
+ * The flags every record the runner writes carries: its source, its activation
+ * (or, for a record that outlives its activation, the id of the card that wrote
+ * it), its row, `dueAt` where the record ends on the world clock, and
+ * `managed` (what a recall drops from a body).
+ */
+export const recordFlags = ({ source, activationId, rowKey, dueAt = null }, extra = {}) => ({
+  [FLAG_ITEM_RUN]: { source, activationId, rowKey, ...(numOrNull(dueAt) !== null ? { dueAt: numOrNull(dueAt) } : {}) },
+  managed: true,
+  ...extra,
+});
+
+/** The page reference an item carries from the importer (`cookbook.cite`), or "". */
+export const itemCite = (item) => String(flagsOf(item, "cookbook")?.cite ?? "");
 
 /**
  * A condition record: the status data of the catalogue key the row names, owned
  * by the item. `life` is either `{turnLife: {combatId, combatantId, edge,
- * count}}` (ends with a combatant's turns) or `{duration}` (a clock); with
- * neither the record stands until the activation's Region goes.
+ * count}}` (ends with a combatant's turns) or `{dueAt}` (ends when the world
+ * clock reaches it, `liftDueRecords`); with neither the record stands until the
+ * activation's Region goes. No core duration is written.
  */
 export function conditionRecordData({ statusData, source, activationId, rowKey, life = {} }) {
   const own = { ...(statusData.flags?.[MODULE_ID] ?? {}) };
   return {
     ...statusData,
     origin: source,
-    ...(life.duration ? { duration: life.duration } : {}),
-    flags: { ...(statusData.flags ?? {}), [MODULE_ID]: { ...own, ...recordFlags({ source, activationId, rowKey }, life.turnLife ? { [FLAG_TURN_LIFE]: life.turnLife } : {}) } },
+    flags: { ...(statusData.flags ?? {}), [MODULE_ID]: { ...own, ...recordFlags({ source, activationId, rowKey, dueAt: life.dueAt }, life.turnLife ? { [FLAG_TURN_LIFE]: life.turnLife } : {}) } },
   };
 }
 
 /**
  * An immunity window: no status, one `immune` part naming the item kind's key,
- * and a clock. The key is the kind's and never the bearer's, so one pass covers
- * every such item on the field.
+ * and the world-clock moment it ends (`dueAt`, `liftDueRecords`). The key is the
+ * kind's and never the bearer's, so one pass covers every such item on the
+ * field. `activationId` is the id of the card that wrote the window, never the
+ * raised activation's, so lowering the item lifts the condition and leaves the
+ * window. `cite` is the item's page reference.
  */
-export function immunityRecordData({ name, spellKey, source, activationId, rowKey, duration }) {
+export function immunityRecordData({ name, spellKey, source, activationId, rowKey, dueAt = null, cite = "" }) {
   return {
     name,
     origin: source,
-    ...(duration ? { duration } : {}),
-    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey }), [FLAG_ROLL_MODS]: { id: spellKey, label: name, cite: "", sourceAlignment: null, parts: [{ on: "immune", spells: [spellKey] }] } } },
+    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey, dueAt }), [FLAG_ROLL_MODS]: { id: spellKey, label: name, cite, sourceAlignment: null, parts: [{ on: "immune", spells: [spellKey] }] } } },
   };
 }
 
 /** An action part: `rollMods` parts that end with the bearer's next attack. */
-export function actionPartRecordData({ name, parts, source, activationId, rowKey }) {
+export function actionPartRecordData({ name, parts, source, activationId, rowKey, cite = "" }) {
   return {
     name,
     origin: source,
-    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey }, { [FLAG_ENDS_ON]: ["attack"] }), [FLAG_ROLL_MODS]: { id: rowKey, label: name, cite: "", sourceAlignment: null, parts } } },
+    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey }, { [FLAG_ENDS_ON]: ["attack"] }), [FLAG_ROLL_MODS]: { id: rowKey, label: name, cite, sourceAlignment: null, parts } } },
   };
 }
 
@@ -150,19 +164,19 @@ export function actionPartRecordData({ name, parts, source, activationId, rowKey
 export const standingPartId = (kindKey) => conditionEffectId(`itemRun:${kindKey}`);
 
 /** A standing part: `rollMods` parts under the kind's one fixed id, written only while a subject stands in a reach of the kind. */
-export function standingPartRecordData({ kindKey, name, parts, source, activationId, rowKey }) {
+export function standingPartRecordData({ kindKey, name, parts, source, activationId, rowKey, cite = "" }) {
   return {
     _id: standingPartId(kindKey),
     name,
     origin: source,
-    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey }), [FLAG_ROLL_MODS]: { id: kindKey, label: name, cite: "", sourceAlignment: null, parts } } },
+    flags: { [MODULE_ID]: { ...recordFlags({ source, activationId, rowKey }), [FLAG_ROLL_MODS]: { id: kindKey, label: name, cite, sourceAlignment: null, parts } } },
   };
 }
 
 /** The ids of an activation's records among a list of effects (any carrying the activation id). */
 export function activationRecordIds(effects, activationId) {
   if (!activationId) return [];
-  return [...(effects ?? [])].filter((e) => e?.id && (e.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN]?.activationId ?? e.getFlag?.(MODULE_ID, FLAG_ITEM_RUN)?.activationId) === activationId).map((e) => e.id);
+  return [...(effects ?? [])].filter((e) => e?.id && runFlagOf(e)?.activationId === activationId).map((e) => e.id);
 }
 
 /**
@@ -211,11 +225,32 @@ export function reachParts(on, value) {
   return (on ?? []).map((key) => (key === "morale" ? { on: "reaction", key: "morale", rollKey: MORALE_ROLL_KEY, value: figure } : { on: key, value: figure }));
 }
 
-/** An immunity window's clock: `turns` of `secondsPerTurn`, as Foundry stores a duration; null for no whole positive count. */
-export function immunityDuration(turns, secondsPerTurn) {
+/**
+ * The world-clock moment a record of `turns` turns ends, `secondsPerTurn` long
+ * each, counted from `now` (`game.time.worldTime`); null for no positive count,
+ * turn length or reading of the clock. One clock for every timed record the
+ * runner writes.
+ */
+export function dueAtAfter(turns, secondsPerTurn, now) {
   const count = numOrNull(turns);
   const unit = numOrNull(secondsPerTurn);
-  return count !== null && unit !== null && count > 0 && unit > 0 ? { value: count * unit, units: "seconds" } : null;
+  const start = numOrNull(now);
+  return count !== null && unit !== null && start !== null && count > 0 && unit > 0 ? start + count * unit : null;
+}
+
+/** A record's `itemRun` flag, whichever way the effect hands flags over. */
+const runFlagOf = (effect) => effect?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN] ?? effect?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN);
+
+/** The ids, among a list of effects, of the runner's records whose `dueAt` the world clock has reached. */
+export function dueRecordIds(effects, worldTime) {
+  const now = numOrNull(worldTime);
+  if (now === null) return [];
+  return [...(effects ?? [])]
+    .filter((e) => {
+      const due = numOrNull(runFlagOf(e)?.dueAt);
+      return !!e?.id && due !== null && now >= due;
+    })
+    .map((e) => e.id);
 }
 
 /** Whether a stored standing part differs from the one wanted: its parts, its source or its name. A part that is absent differs. */

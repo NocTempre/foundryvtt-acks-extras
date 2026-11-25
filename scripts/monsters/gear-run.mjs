@@ -79,8 +79,8 @@ const kindsOf = (figures) => {
  *     subordinates (`unit: under`) of the printed kind, an action part on
  *     `damage` that ends with the next attack;
  *   - `radius` with a numeric `bonus` (a reach that holds a part): a `toggle`
- *     item, row pulse `standing`, the filter the bearer's own unit of the
- *     printed kind, the part riding on `STANDING_ROLLS`.
+ *     item, row pulse `standing`, the filter the bearer's unit and those under
+ *     it (`unit: under`) of the printed kind, the part riding on `STANDING_ROLLS`.
  *
  * A row holding no `radius` is no reach item (null, nothing reported). A row
  * with one that fits no shape, whose condition word folds to no catalogue key
@@ -124,7 +124,7 @@ export function gearRunItem(row, { doc, table, fold, miss = () => {} }) {
     radius,
     modifier: refTo(base, row.key, modifier),
     on: once ? ["damage"] : [...STANDING_ROLLS],
-    filter: { kinds, exceptKinds: [], side: "any", unit: once ? "under" : "own" },
+    filter: { kinds, exceptKinds: [], side: "any", unit: "under" },
     pulse: once ? "action" : "standing",
   };
   const rowData = { key: "reach", type: "modifier", reach, ...(once ? { endsOn: ["attack"] } : {}) };

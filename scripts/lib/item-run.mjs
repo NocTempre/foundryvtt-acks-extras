@@ -16,6 +16,8 @@
  *   (`checkPressRequest`), and an Undo removes the row's own record ids.
  * - The reach's moments land in `handleReachMoment`: a standing part is taken
  *   off at an exit, and every other act is offered to the presenter.
+ * - A timed record (the immunity window) ends on the world clock: it carries
+ *   `itemRun.dueAt` and `liftDueRecords` deletes it once the clock reaches it.
  * - The fuse is stepped from lib's turn hooks as delayed damage is: the record
  *   is deleted first, then the registered burst runs (`setFuseBurst`), and a
  *   fight that ends moves it to the world clock.
@@ -26,7 +28,7 @@ import { dispatchReachMoment, lowerReach, raiseReach, reachSnapshot, setReachHan
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
-  immunityDuration, immunityRecordData, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
+  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
@@ -152,7 +154,7 @@ async function runOnce({ item, token, judge }) {
     for (const subject of admitted.filter((s) => !s.immune)) {
       const actor = subjectOf(subject.key)?.actor;
       if (!actor) continue;
-      const made = await actor.createEmbeddedDocuments("ActiveEffect", [actionPartRecordData({ name: item.name, parts, source: item.uuid, activationId, rowKey: row.key })]);
+      const made = await actor.createEmbeddedDocuments("ActiveEffect", [actionPartRecordData({ name: item.name, parts, source: item.uuid, activationId, rowKey: row.key, cite: itemCite(item) })]);
       written.push({ ...subject, recordIds: made.map((e) => e.id) });
     }
     return { ok: true, kind: "once", activationId, rowKey: row.key, subjects: admitted, written, undetermined };
@@ -251,7 +253,9 @@ function cardOf(messageId) {
  * that holds the row, and a card entry already written is refused. On a verdict
  * it writes the records a failed save (a condition per condition key the row
  * names) or a passed one (the immunity window) calls for, and the entry onto the
- * card. Answers `{ok, saved, entry}`.
+ * card. The immunity window carries the card's own id (`cardId`, else a fresh
+ * one), never the activation's, so lowering the item takes its conditions and
+ * leaves the window. Answers `{ok, saved, entry}`.
  */
 async function pressHere(payload) {
   const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
@@ -281,8 +285,8 @@ async function pressHere(payload) {
         records.push(conditionRecordData({ statusData: await statusEffectData(status), ...flags, life: lifeOf(subjectToken) }));
       }
     } else {
-      const duration = immunityDuration(reachFigures(row)?.immunityTurns, turnSeconds());
-      if (duration) records.push(immunityRecordData({ name: item.name, spellKey: kindKeyOf(item, row), duration, ...flags }));
+      const dueAt = dueAtAfter(reachFigures(row)?.immunityTurns, turnSeconds(), game.time?.worldTime);
+      if (dueAt !== null) records.push(immunityRecordData({ name: item.name, spellKey: kindKeyOf(item, row), dueAt, cite: itemCite(item), ...flags, activationId: card?.cardId || foundry.utils.randomID() }));
     }
     const made = records.length ? await actor.createEmbeddedDocuments("ActiveEffect", records) : [];
     const entry = { state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id) };
@@ -382,7 +386,7 @@ export async function holdStanding({ config, item, row, subject }) {
   const parts = figures ? reachParts(figures.on, figures.modifier) : [];
   if (!parts.length) return { written: false, reason: "noFigure" };
   const kindKey = kindKeyOf(item, row);
-  const wanted = standingPartRecordData({ kindKey, name: item.name, parts, source: item.uuid, activationId: config.activationId, rowKey: row.key });
+  const wanted = standingPartRecordData({ kindKey, name: item.name, parts, source: item.uuid, activationId: config.activationId, rowKey: row.key, cite: itemCite(item) });
   const existing = subject.actor.effects.get?.(wanted._id) ?? null;
   if (!standingPartDiffers(existing, wanted)) return { written: false, reason: "same" };
   if (existing) await existing.update({ name: wanted.name, origin: wanted.origin, flags: wanted.flags }, managedDelete());
@@ -509,6 +513,23 @@ export async function convertFuses(combat, actors, clock) {
   return moved;
 }
 
+/**
+ * The world clock reached the runner's timed records on these actors: delete
+ * each whose `dueAt` has passed (`managedDelete()`, so no teardown hook reads
+ * the lifting as an edit). One clock for the immunity window and every record a
+ * later kind writes with a `dueAt`. Answers the ids lifted.
+ */
+export async function liftDueRecords(actors, worldTime) {
+  const lifted = [];
+  for (const actor of actors ?? []) {
+    const ids = dueRecordIds([...(actor?.effects ?? [])], worldTime);
+    if (!ids.length) continue;
+    await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
+    lifted.push(...ids);
+  }
+  return lifted;
+}
+
 /** The world clock reached these fuses: delete each that is due, then burst. */
 export async function liftWorldFuses(actors, worldTime, deps = { burst: burster }) {
   if (!deps.burst) return [];
@@ -552,7 +573,9 @@ export function installItemRun() {
   });
   onWorldTimeAdvanced(async (worldTime) => {
     const { worldActors } = await import("./repair.mjs");
-    await liftWorldFuses(worldActors(), worldTime);
+    const actors = worldActors();
+    await liftWorldFuses(actors, worldTime);
+    await liftDueRecords(actors, worldTime);
   });
 }
 

@@ -70,9 +70,11 @@ await t("every record carries its source, activation, row and the managed mark",
   assert.deepEqual(cond.flags["acks-extras"].turnLife, life.turnLife);
   assert.equal(cond.origin, "I.1");
   assert.deepEqual(cond.statuses, ["held"]);
-  assert.deepEqual(logic.conditionRecordData({ statusData: status, ...ids, life: { duration: { rounds: 3 } } }).duration, { rounds: 3 });
+  const timed = logic.conditionRecordData({ statusData: status, ...ids, life: { dueAt: 900 } });
+  assert.equal(timed.flags["acks-extras"].itemRun.dueAt, 900, "a timed condition ends on the module's clock");
+  assert.equal("duration" in timed, false, "no core duration is written");
   assert.equal(logic.conditionRecordData({ statusData: status, ...ids }).flags["acks-extras"].turnLife, undefined, "no clock until the Region goes");
-  const window = logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", duration: { seconds: 60 }, ...ids });
+  const window = logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", dueAt: 60, ...ids });
   assert.deepEqual(window.flags["acks-extras"].rollMods.parts, [{ on: "immune", spells: ["kind-1"] }]);
   assert.equal(window.statuses, undefined, "an immunity window carries no status");
   assert.equal(window.flags["acks-extras"].managed, true);
@@ -287,13 +289,19 @@ await t("an item's run reads its figures only as references, its rows as a copy 
 await t("every record names its item, activation and row, and each kind carries what it is for", () => {
   const flagsOf = (rec) => rec.flags["acks-extras"];
   const wholeIds = { source: "I.1", activationId: "act", rowKey: "k" };
-  const imm = logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", duration: { seconds: 60 }, ...wholeIds });
+  const imm = logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", dueAt: 60, cite: "XX p. 4", ...wholeIds });
   assert.equal(imm.origin, "I.1");
-  assert.deepEqual(imm.duration, { seconds: 60 });
+  assert.equal("duration" in imm, false, "the clock is the module's own, never core's duration");
+  assert.equal(flagsOf(imm).itemRun.dueAt, 60);
+  assert.equal(flagsOf(imm).rollMods.cite, "XX p. 4", "the item's page reference rides on the record");
   assert.equal(flagsOf(imm).rollMods.id, "kind-1", "the key is the kind's");
   assert.equal(flagsOf(imm).rollMods.label, "Pass");
-  assert.deepEqual(flagsOf(imm).itemRun, wholeIds);
-  assert.equal("duration" in logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", ...wholeIds }), false, "no clock, no duration");
+  assert.deepEqual(flagsOf(imm).itemRun, { ...wholeIds, dueAt: 60 });
+  assert.equal("dueAt" in flagsOf(logic.immunityRecordData({ name: "Pass", spellKey: "kind-1", ...wholeIds })).itemRun, false, "no clock, no dueAt");
+  const cited = (rec) => flagsOf(rec).rollMods.cite;
+  assert.equal(cited(logic.actionPartRecordData({ name: "Edge", parts: [], cite: "XX p. 5", ...wholeIds })), "XX p. 5");
+  assert.equal(cited(logic.standingPartRecordData({ kindKey: "kind-1", name: "Aura", parts: [], cite: "XX p. 6", ...wholeIds })), "XX p. 6");
+  assert.equal(cited(logic.actionPartRecordData({ name: "Edge", parts: [], ...wholeIds })), "", "no page reference read, none made up");
   const act = logic.actionPartRecordData({ name: "Edge", parts: [{ on: "damage", value: 1 }], ...wholeIds });
   assert.equal(act.origin, "I.1");
   assert.equal(flagsOf(act).rollMods.id, "k", "an action part is the row's");
@@ -698,7 +706,7 @@ await t("a window the carrier itself wrote makes its subject immune: the once-on
   stage();
   seatOf(true);
   presented.length = 0;
-  const windowFor = (spellKey) => logic.immunityRecordData({ name: "Pass", spellKey, duration: { seconds: 60 }, ...ids });
+  const windowFor = (spellKey) => logic.immunityRecordData({ name: "Pass", spellKey, dueAt: 60, ...ids });
   const row = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" } } };
   const kindItem = { uuid: "I.1", flags: { "acks-extras": { cookbook: { id: "kindX" } } } };
   const key = run.kindKeyOf(kindItem, row);
@@ -746,7 +754,10 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
   const target = saveSpec(actor, "paralysis").target;
   assert.equal(typeof target, "number");
   const row = { key: "k", target: "paralysis", conditions: ["held", "held"], reach: { pulse: "action", radius: { value: "5" }, immunity: { value: "2" } } };
-  itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [row] } };
+  itemFlags = { cookbook: { id: "kindX", cite: "XX p. 9" }, itemRun: { activation: { kind: "once" }, rows: [row] } };
+  const priorRandom = globalThis.foundry.utils.randomID;
+  let minted = 0;
+  globalThis.foundry.utils.randomID = () => `card-${++minted}`;
   const press = (over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1", total: target - 1, target, ...over });
   try {
     gameStub.combat = { id: "c9", combatants: [{ id: "m9", tokenId: "s1" }] };
@@ -776,10 +787,19 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
     assert.deepEqual(saved.entry.recordIds, ["E0"]);
     const immunity = created[0][1][0];
     assert.equal(immunity.origin, "I.1");
-    assert.deepEqual(immunity.duration, { value: 2 * 600, units: "seconds" }, "the window is the row's own figure read here, in turns, never the request's");
+    assert.equal("duration" in immunity, false, "no core duration: the module's own clock ends the window");
+    assert.equal(immunity.flags["acks-extras"].itemRun.dueAt, 2 * 600, "the window is the row's own figure read here, in turns from the clock, never the request's");
+    assert.equal(immunity.flags["acks-extras"].rollMods.cite, "XX p. 9", "the item's page reference rides on the window");
     assert.equal(immunity.name, "Gear", "named by the item");
     assert.deepEqual(immunity.flags["acks-extras"].rollMods.parts, [{ on: "immune", spells: ["kindX"] }], "the kind's key, never the row's");
-    assert.deepEqual(immunity.flags["acks-extras"].itemRun, { source: "I.1", activationId: "act", rowKey: "k" });
+    assert.equal(immunity.flags["acks-extras"].itemRun.activationId, "card-1", "the window carries a card id of its own");
+    assert.notEqual(immunity.flags["acks-extras"].itemRun.activationId, "act", "never the raised activation's, which lowering lifts");
+    created.length = 0;
+    // The window's end is read from the clock at the moment of the press.
+    gameStub.time = { worldTime: 5000 };
+    await press({ total: target });
+    assert.equal(created[0][1][0].flags["acks-extras"].itemRun.dueAt, 5000 + 2 * 600, "counted from now");
+    gameStub.time = { worldTime: 0 };
     created.length = 0;
     itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ ...row, reach: { pulse: "action", radius: { value: "5" } } }] } };
     const bare = await press({ total: target });
@@ -815,6 +835,61 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
     assert.deepEqual(created, []);
   } finally {
     gameStub.combat = null;
+    globalThis.foundry.utils.randomID = priorRandom;
+    delete subjects["T.s1"];
+    unstage();
+  }
+});
+
+await t("lowering lifts the activation's conditions and leaves the immunity window, and the world clock lifts the window once it is due", async () => {
+  stage();
+  seatOf(true);
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const priorRandom = globalThis.foundry.utils.randomID;
+  let minted = 0;
+  globalThis.foundry.utils.randomID = () => `card-${++minted}`;
+  const store = [];
+  const actor = monster(["alpha"], store);
+  actor.createEmbeddedDocuments = async (kind, records) => records.map((r, i) => { const rec = { id: `E${store.length}`, flags: r.flags }; store.push(rec); return rec; });
+  const dels = [];
+  actor.deleteEmbeddedDocuments = async (kind, ids, options) => { dels.push([ids, options]); ids.forEach((id) => store.splice(store.findIndex((e) => e.id === id), 1)); };
+  subjects["T.s1"] = { id: "s1", uuid: "T.s1", actor, testUserPermission: () => true };
+  const target = saveSpec(actor, "paralysis").target;
+  const row = { key: "k", target: "paralysis", conditions: ["held"], reach: { pulse: "action", radius: { value: "5" }, immunity: { value: "2" } } };
+  itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [row] } };
+  const press = (total) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1", total, target });
+  const priorActors = gameStub.actors;
+  const priorScenes = gameStub.scenes;
+  try {
+    await press(target - 1);
+    await press(target);
+    assert.equal(store.length, 2, "a failure's condition and a pass's window");
+    gameStub.actors = [actor];
+    gameStub.scenes = [];
+    await run.liftActivation({ config: { activationId: "act", sourceUuid: "I.none" } });
+    assert.deepEqual(dels, [[["E0"], managedDelete()]], "only the condition, which carries the activation's id");
+    assert.deepEqual(store.map((e) => e.id), ["E1"], "the window stays");
+    dels.length = 0;
+    assert.deepEqual(await run.liftDueRecords([actor], 1199), [], "not due yet");
+    assert.deepEqual(await run.liftDueRecords([actor], 1200), ["E1"], "due at the moment itself");
+    assert.deepEqual(dels, [[["E1"], managedDelete()]], "a managed delete");
+    assert.deepEqual(store, []);
+    assert.deepEqual(await run.liftDueRecords([actor, null], 99999), [], "nothing left to lift, and a missing actor is passed over");
+    // The installed clock hook reaches the same lift: a window written now ends when the world clock does.
+    await press(target);
+    assert.equal(store.length, 1);
+    hooked.updateWorldTime[0](1199, 10);
+    await settle();
+    assert.equal(store.length, 1, "the clock has not reached it");
+    hooked.updateWorldTime[0](1200, 10);
+    await settle();
+    assert.equal(store.length, 0, "the world clock's advance lifts the due window");
+  } finally {
+    gameStub.actors = priorActors;
+    gameStub.scenes = priorScenes;
+    globalThis.foundry.utils.randomID = priorRandom;
     delete subjects["T.s1"];
     unstage();
   }
@@ -845,7 +920,7 @@ await t("a press is thrown on the presser's seat: the Judge's runs here with the
     created.length = 0;
     const passed2 = await run.pressRoll({ ...base, window: () => ({ name: "Forged", duration: { seconds: 5 } }) });
     assert.equal(passed2.saved, true);
-    assert.deepEqual(created[0][0].duration, { value: 1200, units: "seconds" }, "the window is the row's own figure, never a callback of the caller's");
+    assert.equal(created[0][0].flags["acks-extras"].itemRun.dueAt, 1200, "the window is the row's own figure, never a callback of the caller's");
     assert.deepEqual(await run.pressRoll({ ...base, rowKey: "bare" }), { ok: false, reason: "noFigure" }, "a row naming no save");
     assert.deepEqual(await run.pressRoll({ ...base, subject: "T.none" }), { ok: false, reason: "noFigure" }, "a subject with no actor");
     assert.deepEqual(await run.pressRoll({ ...base, rowKey: "none" }), { ok: false, reason: "noFigure" });
