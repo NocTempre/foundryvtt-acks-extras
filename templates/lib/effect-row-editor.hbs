@@ -70,6 +70,33 @@
           <p class="hint">{{localize "ACKS-LIB.effectEditor.value.ladder"}}</p>
         {{/if}}
       </fieldset>
+    {{else if (eq f.kind "creatures")}}
+      {{!-- The creature list of a spell's summon row. Its boxes carry no name: the form never submits them, the list writes them. --}}
+      <fieldset class="acks-extras-summon-list" data-acks-extras-summon-list>
+        <legend>{{f.label}}</legend>
+        <ul class="acks-extras-summon-lines">
+          {{#each f.lines as |line|}}
+            <li class="acks-extras-summon-line">
+              <div class="acks-extras-summon-who">
+                <span class="acks-extras-summon-name{{#if line.blank}} is-blank{{/if}}">{{line.label}}</span>
+                {{#if line.source}}<span class="acks-extras-summon-from">{{line.source}}</span>{{/if}}
+                {{#if line.note}}<span class="acks-extras-summon-from">{{line.note}}</span>{{/if}}
+              </div>
+              <div class="acks-extras-summon-ends">
+                <input type="number" step="1" min="0" class="acks-extras-summon-amount" data-summon-amount data-index="{{line.index}}" value="{{line.amount}}" placeholder="—" aria-label="{{line.amountAria}}"{{#if line.tip}} data-tooltip-text="{{line.tip}}"{{/if}}>
+                {{#if line.removable}}
+                  <button type="button" class="acks-extras-summon-remove" data-action="summonRemove" data-index="{{line.index}}" aria-label="{{line.removeAria}}" data-tooltip><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                {{/if}}
+              </div>
+            </li>
+          {{/each}}
+        </ul>
+        <p class="hint">{{localize "ACKS-LIB.effectEditor.creaturesDrop"}}</p>
+        <div class="acks-extras-summon-add">
+          <input type="text" class="acks-extras-summon-uuid" data-summon-add placeholder="{{localize 'ACKS-LIB.effectEditor.addRef'}}" aria-label="{{localize 'ACKS-LIB.effectEditor.addRef'}}">
+          <button type="button" data-action="summonAdd">{{localize "ACKS-LIB.effectEditor.add"}}</button>
+        </div>
+      </fieldset>
     {{else if (eq f.kind "readonly")}}
       <div class="form-group"{{#if f.tip}} data-tooltip-text="{{f.tip}}"{{/if}}>
         {{!-- label-ok: read-only text, not a control a label can name --}}

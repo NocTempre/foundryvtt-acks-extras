@@ -104,9 +104,12 @@ shows its kind, its reading from `describeSpellEffect`, its option where it has
 a `pickOption`, a mark for where it came from (the register's, or a hand's: a
 Judge's edit clears `origin`), and each field the import left blank (`unread`)
 beside the spell's page reference, which is also that blank's tooltip. A summon row names its creature
-where the world can open it: `describeSpellEffect(e, {nameOf})` takes the
-sheet's lookup (lib's `summonRefName`), and with none, or none found, prints
-the ref. `acksExtras.magic` exposes the
+as the seat reads it: `describeSpellEffect(e, {nameOf})` takes the sheet's
+lookup (lib's `seatNameOf`), which answers the name where the seat can open the
+creature and the neutral label where it cannot, and a Judge's ref nothing
+resolves prints as written; with no lookup the ref prints. A spell's summon rows
+are edited as a list of creatures in the row window (lib MODEL, "A spell's
+creature list"). `acksExtras.magic` exposes the
 model, the stat-line readers and writers, the traditions and dedupe key the
 class picker uses, and `stripModuleData`.
 

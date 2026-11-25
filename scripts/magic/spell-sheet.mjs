@@ -22,7 +22,8 @@ import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { RungDrafts, isInvocationLadder, withKindChoice } from "../lib/rung-ladder.mjs";
 import { RUNG_ACTIONS, actionsContext, isJudge, kindAllowed, kindContext, ladderContext, wireRungs } from "../lib/rung-view.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
-import { summonRefName } from "../lib/summons-logic.mjs";
+import { packIdOfUuid } from "../lib/summons-logic.mjs";
+import { resolveCreature, seatNameOf } from "../lib/summon-list.mjs";
 import { classItems } from "../classes/registry.mjs";
 import * as V from "../lib/vocab.mjs";
 import { vocabChoices, vocabLabel } from "../lib/magic-vocab.mjs";
@@ -380,8 +381,10 @@ export function createSpellSheet(Base) {
       };
       const id = cookbookId(this.item);
       context.provenance = { id, imported: !!id, cite: data.cite ?? "" };
-      // A summon row names its creature as the world resolves its ref.
-      const nameOf = (ref) => summonRefName(ref, { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId });
+      // A summon row names its creature as this seat reads it: the name where the seat can open the creature, the neutral label where it cannot.
+      const lookups = { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId };
+      const seat = { resolve: (ref) => resolveCreature(ref, lookups), user: game.user, packOf: (uuid) => game.packs?.get?.(packIdOfUuid(uuid)) ?? null, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") };
+      const nameOf = (ref) => seatNameOf(ref, seat);
       context.effectRows = (data.effects ?? []).map((e, i) => effectRowView(e, i, { nameOf, cite: data.cite ?? "", fieldLabel, say: loc }));
       return context;
     }

@@ -1,4 +1,4 @@
-/* global foundry, game, fromUuidSync */
+/* global foundry, game, fromUuid, fromUuidSync, ui */
 /**
  * The effect-row editor — one window per row of an `effectsField()` list,
  * and the sheet actions that add, open, delete and reorder rows.
@@ -30,6 +30,19 @@
  * compendium, as its uuid, and says under it which creature the ref names.
  * A companion row's `ref` is the importer's entry id and takes no drop.
  *
+ * In a spell, a summon row's `ref` and `amount` give way to the list of the
+ * creatures the spell may call (`lib/summon-list.mjs`): the summon rows that
+ * share the open row's invocation band, format and control, one line each with
+ * its creature, where it is from, a Number box and Remove, and under them the
+ * drop zone and a uuid box with Add. The list is edited as rows: a Number box
+ * writes its row's `amount`, and Add and Remove change the row list, so they
+ * close every editor on the store and reopen this row at its new index. Each
+ * creature reads as the seat can open it: a seat with no Observer on it reads
+ * the neutral label and no source, never the name or the ref. The boxes carry
+ * no `name`, so the form never submits them; a Number box writes through
+ * `writeOnChange`, and a press on Add or Remove folds the other boxes' typed
+ * figures into its own write.
+ *
  * A spell row's cast behaviour is edited here too: what a passed save does
  * (`saveEffect`), the attack throw it waits on (`delivery`), whether it lasts
  * or repeats (with where a repeat resolves, what its bearer throws first and
@@ -51,10 +64,12 @@
  * not a "no": its select offers unset, yes and no, and unset stores null. A
  * row's `key` is shown and never edited.
  */
-import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
+import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
 import * as V from "../vocab.mjs";
 import { vocabChoices } from "../magic-vocab.mjs";
-import { summonRefName } from "../summons-logic.mjs";
+import { SUMMON_SOURCE_TYPES, packIdOfUuid, summonRefName } from "../summons-logic.mjs";
+import { addSummonCreature, amountFromBox, amountTip, creatureView, removeSummonCreature, resolveCreature, summonListOf } from "../summon-list.mjs";
+import { writeOnChange } from "../press-safe-change.mjs";
 import { byCookbookId } from "../library.mjs";
 import { SLOT_VOCAB } from "../proficiency-strip.mjs";
 import { LIGHT_LEVELS } from "../light.mjs";
@@ -452,6 +467,15 @@ export function anyOfText(anyOf, say) {
   return (anyOf ?? []).map(branchText).join(` ${say("scope.or")} `);
 }
 
+/** The Number boxes whose typed figure a write has already taken, so the press-held write that follows it does nothing. */
+const taken = new WeakSet();
+
+/** The compendium a uuid is in, from the world's pack registry; null with none. */
+const worldPackOf = (uuid) => game.packs?.get?.(packIdOfUuid(uuid)) ?? null;
+
+/** A stored `amount` as a Number box compares it: blank is null. */
+const storedAmount = (value) => (String(value ?? "").trim() === "" ? null : Number(value));
+
 /** One row of one list, in a window of its own. */
 export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
@@ -471,7 +495,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     position: { width: 480, height: "auto" },
     window: { icon: "fa-solid fa-gears", contentClasses: ["standard-form"], resizable: true },
     form: { handler: EffectRowEditor.#onChange, submitOnChange: true, closeOnSubmit: false },
-    actions: { ...RUNG_ACTIONS, figureKind: EffectRowEditor.#onFigureKind },
+    actions: { ...RUNG_ACTIONS, figureKind: EffectRowEditor.#onFigureKind, summonAdd: EffectRowEditor.#onSummonAdd, summonRemove: EffectRowEditor.#onSummonRemove },
   };
 
   // The body is the scroller and the footer a part of its own, so the rungs' Save row stays pinned below the fields.
@@ -489,6 +513,21 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** The type the window rendered with, so a change event reads the fields that are on screen. */
   #shownType = null;
+
+  /** Set once the window is closing: a write held from a press waits for nothing after it. */
+  #gone = false;
+
+  /** @override */
+  async close(options) {
+    this.#gone = true;
+    return super.close(options);
+  }
+
+  /** @override — a box of the creature list is written by the list, never by the form's submit. */
+  _onChangeForm(formConfig, event) {
+    if (event?.target?.closest?.("[data-acks-extras-summon-list]")) return;
+    return super._onChangeForm(formConfig, event);
+  }
 
   /** @override */
   get title() {
@@ -519,11 +558,14 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     // select would fall to its first option and the next change rewrite it.
     if (row.type && !context.types[row.type]) context.types[row.type] = V.EFFECT_TYPES[row.type]?.label ?? row.type;
     context.none = loc("none");
-    const names = [...(row.key ? ["key"] : []), ...fieldsForType(row.type, domain)];
+    // A spell's summon row lists its creatures in one block where `ref` stood, and its number rides on each line.
+    const listed = domain === "spell" && row.type === "summon";
+    const names = [...(row.key ? ["key"] : []), ...fieldsForType(row.type, domain)].filter((name) => !(listed && name === "amount"));
     const cite = citeOfStore(this.store);
     // The row's ladders, in the order shown: one Save row writes every changed one.
     const ladders = domain === "spell" ? names.filter((name) => FIELD_SPECS[name]?.kind === "levelValue" && isInvocationLadder(foundry.utils.getProperty(row, name))) : [];
     context.fields = names.filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
+      if (listed && name === "ref") return { name, kind: "creatures", label: loc("creatures"), lines: this.#creatureLines(cite) };
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
       const value = foundry.utils.getProperty(row, name);
       const field = { name, kind: spec.kind, label: loc(`field.${name}`) };
@@ -588,6 +630,41 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     return context;
   }
 
+  /**
+   * One line per creature of the open row's list, as this seat reads it. A row
+   * that names no creature reads as the empty list does and keeps its Number
+   * box; Remove is offered on a line that names a creature and on any line of
+   * a list of more than one.
+   */
+  #creatureLines(cite) {
+    const rows = this.store.read();
+    const list = summonListOf(rows, this.index);
+    const lookups = { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId };
+    const seat = { resolve: (ref) => resolveCreature(ref, lookups), user: game.user, packOf: worldPackOf, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") };
+    const from = (source) => {
+      if (source?.kind === "pack") return game.packs?.get?.(source.pack)?.title ?? source.pack;
+      if (source?.kind === "world") return loc("worldActor");
+      return source?.kind === "unknown" ? loc("refUnknown") : "";
+    };
+    return list.map((at) => {
+      const row = rows[at];
+      const seen = creatureView(row, seat);
+      const label = seen.blank ? loc("noCreature") : seen.label;
+      return {
+        index: at,
+        blank: seen.blank,
+        label,
+        source: from(seen.source),
+        note: seen.opens ? "" : game.i18n.localize("ACKS-LIB.summons.refused.unreadable"),
+        amount: row.amount ?? "",
+        tip: amountTip(row, { cite, say: loc }),
+        amountAria: loc("amountOf", { name: label }),
+        removeAria: loc("remove", { name: label }),
+        removable: !seen.blank || list.length > 1,
+      };
+    });
+  }
+
   /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
@@ -596,6 +673,139 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       group.addEventListener("dragover", (event) => event.preventDefault());
       group.addEventListener("drop", (event) => this.#onDropRef(event, group));
     }
+    for (const list of this.element?.querySelectorAll?.("[data-acks-extras-summon-list]") ?? []) this.#wireCreatureList(list);
+  }
+
+  /**
+   * The creature list's listeners. Its block is replaced on every render, so
+   * binding on it never stacks. Enter in the uuid box adds and never submits.
+   */
+  #wireCreatureList(list) {
+    list.addEventListener("dragover", (event) => event.preventDefault());
+    list.addEventListener("drop", (event) => this.#onDropCreature(event));
+    list.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || !event.target?.matches?.("[data-summon-add]")) return;
+      event.preventDefault();
+      return this.#addTyped();
+    });
+    writeOnChange(list, (field) => this.#writeAmount(field));
+  }
+
+  /**
+   * An Actor or a Token dropped on the list is added as a creature, as the
+   * cast window reads a drop on its summon band: an unlinked token's creature
+   * is its base actor, and only a creature type a summon is made from, or a
+   * family, is taken. A creature this seat cannot open is listed under the
+   * neutral label and refused at the cast, so no ownership check is made here.
+   */
+  async #onDropCreature(event) {
+    event.preventDefault();
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    if (!data?.uuid || (data.type !== "Actor" && data.type !== "Token")) return;
+    const found = await fromUuid(data.uuid).catch(() => null);
+    const actor = data.type === "Token" ? (found?.actorLink ? found.actor : (found?.baseActor ?? found?.actor ?? null)) : found;
+    if (!actor) return;
+    if (actor.documentName !== "Actor" || ![...SUMMON_SOURCE_TYPES, TEMPLATE_TYPE].includes(actor.type)) {
+      ui.notifications?.warn(game.i18n.localize("ACKS-LIB.summons.refused.badSource"));
+      return;
+    }
+    await this.#addCreature(actor.uuid);
+  }
+
+  /** Add what the uuid box holds. */
+  async #addTyped() {
+    const box = this.element?.querySelector?.("[data-summon-add]");
+    await this.#addCreature(box?.value ?? "");
+  }
+
+  /**
+   * The typed figure of every Number box laid over its row, in `rows`: one
+   * write then carries them with the change a press makes.
+   * @returns {boolean} whether a row changed
+   */
+  #takeAmounts(rows) {
+    let changed = false;
+    for (const box of this.element?.querySelectorAll?.("[data-summon-amount]") ?? []) {
+      const row = rows[Number(box.dataset.index)];
+      const amount = amountFromBox(box.value);
+      if (amount === undefined || row?.type !== "summon" || storedAmount(row.amount) === amount) continue;
+      rows[Number(box.dataset.index)] = mergeRowEdit(row, { amount });
+      changed = true;
+    }
+    return changed;
+  }
+
+  /**
+   * Mark every Number box as written by the press that is about to write the
+   * rows, before its first await: the write a box's own change event holds runs
+   * on the next task and must find it taken.
+   */
+  #markTaken() {
+    for (const box of this.element?.querySelectorAll?.("[data-summon-amount]") ?? []) taken.add(box);
+  }
+
+  /**
+   * Write the figure a Number box changed to its own row. A box a write has
+   * taken, or one in a window that has closed, writes nothing: its row index
+   * may mean another row by now. A box left behind by a redraw writes what it
+   * holds, since the redraw changed no index.
+   */
+  async #writeAmount(field) {
+    if (this.#gone || taken.has(field) || !field?.matches?.("[data-summon-amount]")) return;
+    const rows = this.store.read();
+    const at = Number(field.dataset.index);
+    const amount = amountFromBox(field.value);
+    const row = rows[at];
+    if (amount === undefined || row?.type !== "summon" || storedAmount(row.amount) === amount) return;
+    rows[at] = mergeRowEdit(row, { amount });
+    await this.store.write(rows);
+    this.render();
+  }
+
+  /**
+   * Add a creature to the list: the rows change, every editor on the store
+   * closes, and this row opens again at its index. A blank or repeated ref adds
+   * nothing, and a Number box typed into meanwhile is still written.
+   */
+  async #addCreature(ref) {
+    const rows = this.store.read();
+    const typed = this.#takeAmounts(rows);
+    const out = addSummonCreature(rows, this.index, ref, { newKey: () => `_${foundry.utils.randomID(8)}` });
+    if (!out.added && !typed) return;
+    this.#markTaken();
+    if (!out.added) {
+      await this.store.write(rows);
+      this.render();
+      return;
+    }
+    await this.#rewrite(out.rows, out.index);
+  }
+
+  /** Write a changed row list, close the store's editors (their indexes are stale) and open this row at its new place. */
+  async #rewrite(rows, index, options) {
+    const { store } = this;
+    await closeEffectEditors(store);
+    await store.write(rows, options);
+    openEffectEditor(store, index);
+  }
+
+  static async #onSummonAdd() {
+    await this.#addTyped();
+  }
+
+  /** Remove a line from the list; the row that went is handed to the store, so a register's row is retired. */
+  static async #onSummonRemove(event, target) {
+    const rows = this.store.read();
+    const typed = this.#takeAmounts(rows);
+    const out = removeSummonCreature(rows, this.index, Number(target.dataset.index));
+    if (out.rows === rows && !typed) return;
+    this.#markTaken();
+    if (out.rows === rows) {
+      await this.store.write(rows);
+      this.render();
+      return;
+    }
+    await this.#rewrite(out.rows, out.index, out.removed ? { removed: out.removed } : undefined);
   }
 
   /** A dropped Actor becomes the row's creature, by uuid; anything else is ignored. */

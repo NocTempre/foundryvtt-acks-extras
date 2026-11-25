@@ -1301,6 +1301,74 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   margin: 0;
 }
 
+/* A spell's summon row: the creatures it may call. Each line stacks the
+   creature's label over where it is from, with the Number box and Remove to
+   the right; the line wraps, so in a narrow window they drop under the label. */
+.acks-extras-summon-list {
+  min-width: 0;
+}
+
+.acks-extras-summon-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-summon-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-1) var(--acks-sp-2);
+}
+
+.acks-extras-summon-who {
+  display: flex;
+  flex: 1 1 10em;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.acks-extras-summon-name {
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-summon-name.is-blank {
+  font-style: italic;
+}
+
+.acks-extras-summon-from {
+  font-size: var(--acks-fs-fine);
+  opacity: 0.8;
+}
+
+.acks-extras-summon-ends {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras-summon-amount {
+  /* A figure of a few digits: the box is as wide as five of them, and no more. */
+  width: 5em;
+}
+
+.acks-extras-summon-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras-summon-uuid {
+  flex: 1 1 10em;
+  min-width: 0;
+}
+
 /* --- The inline rung editor ---
    A level value's kind switch (a button group) and, under it on the
    invocation scale, the drafted rungs with their Save and Cancel bar. The

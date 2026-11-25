@@ -1591,6 +1591,27 @@ t("a delete retires a register row's key and nothing else", () => {
       assert.ok(!bare.find((f) => f.name === "rounds").tip.includes("tip.cite"), "a spell that names no page adds none");
     });
 
+    await awaitedHere("the Mechanics line of a summon row names its creature as the seat reads it: the name where the seat can open it, the neutral label where it cannot, and never the ref", async () => {
+      const creature = { uuid: "Actor.invented", documentName: "Actor", name: "Creature one", testUserPermission: (user) => user.sees === true };
+      globalThis.fromUuidSync = (uuid) => (uuid === "Actor.invented" ? creature : null);
+      const effects = [{ type: "summon", ref: "Actor.invented", amount: 2 }, { type: "summon", ref: "cook.gone", amount: 1 }];
+      const linesAs = async (user) => {
+        globalThis.game.user = user;
+        return (await contextOf({ effects })).effectRows.map((r) => r.text);
+      };
+      try {
+        const judge = await linesAs({ isGM: true });
+        assert.ok(judge[0].includes("Creature one") && judge[1].includes("cook.gone"), "a Judge reads the name, and the ref where nothing resolves");
+        const shut = await linesAs({ isGM: false });
+        assert.ok(shut.every((text) => text.includes("ACKS-LIB.summons.neutral") && !text.includes("Creature one") && !text.includes("Actor.invented") && !text.includes("cook.gone")), "a seat that cannot open it reads the neutral label");
+        const open = await linesAs({ isGM: false, sees: true });
+        assert.ok(open[0].includes("Creature one") && open[1].includes("ACKS-LIB.summons.neutral"));
+      } finally {
+        delete globalThis.fromUuidSync;
+        delete globalThis.game.user;
+      }
+    });
+
     await awaitedHere("the Hit Dice below which a target is exempt is edited on the Overview like the cap, and a blank one carries the page alone", async () => {
       const set = await contextOf({ cite: "p. 5", target: { hdBelow: { kind: "flat", flat: 7 } } });
       assert.equal(set.levelValues.hdBelow.name, "flags.acks-extras.spell.target.hdBelow");

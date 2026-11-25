@@ -1102,4 +1102,290 @@ await t("the tracked kinds' words are in the lang file", () => {
   for (const key of ["tip.lastsTracked", "tip.effectsDelay", "lastsTracked.duration", "lastsTracked.instant", "field.lasts", "field.effects", "tip.cite", "field.controlEnd", "tip.controlEnd"]) assert.ok(`${root}.effectEditor.${key}` in lang, `${key} is missing from the lang file`);
 });
 
+/* ------------------------------------------------------------------ */
+/*  A spell's summon row: the list of creatures it may call            */
+/* ------------------------------------------------------------------ */
+
+const NEUTRAL = "ACKS-LIB.summons.neutral";
+const creatureDocs = {
+  "Actor.one": { uuid: "Actor.one", documentName: "Actor", type: "monster", name: "Creature one", testUserPermission: (user) => user.sees === true },
+  "Compendium.mod.pack.Actor.two": { uuid: "Compendium.mod.pack.Actor.two", name: "Creature two" },
+  "Actor.fam": { uuid: "Actor.fam", documentName: "Actor", type: "acks-extras.template", name: "Family one" },
+  "Actor.pc": { uuid: "Actor.pc", documentName: "Actor", type: "character", name: "Person one" },
+};
+globalThis.fromUuidSync = (uuid) => creatureDocs[uuid] ?? null;
+globalThis.fromUuid = async (uuid) => creatureDocs[uuid] ?? null;
+const warnings = [];
+globalThis.ui = { notifications: { warn: (message) => warnings.push(message) } };
+const asSeat = (user) => {
+  globalThis.game.user = user;
+  globalThis.game.packs = { get: (id) => (id === "mod.pack" ? { title: "Pack one", testUserPermission: () => user.packs === true } : null) };
+};
+foundry.applications.ux ??= {};
+foundry.applications.ux.TextEditor = { implementation: { getDragEventData: (event) => event.data } };
+// Core's own change-to-submit hook, which the editor overrides for the list's boxes.
+const submitted = [];
+foundry.applications.api.ApplicationV2.prototype._onChangeForm = function (config, event) { submitted.push(event.target); };
+
+const SUMMON = (extra = {}) => ({ type: "summon", summonFormat: "calling", control: "cooperative", ...extra });
+const listRows = () => ({ current: [SUMMON({ key: "creature", ref: "Actor.one", name: "Creature one", amount: 2, origin: "register" }), SUMMON({ key: "b", ref: "Compendium.mod.pack.Actor.two", amount: 3 }), { type: "damage", key: "d" }] });
+
+/** The window's element as far as the list reads it: its boxes, its uuid box, and the block's listeners. */
+function listDom(boxes = [], addValue = "") {
+  const heard = {};
+  const docHeard = {};
+  const block = { addEventListener: (type, fn) => (heard[type] ??= []).push(fn), ownerDocument: { addEventListener: (type, fn) => (docHeard[type] ??= []).push(fn) } };
+  const addBox = { value: addValue };
+  const element = { querySelectorAll: (sel) => (sel === "[data-acks-extras-summon-list]" ? [block] : sel === "[data-summon-amount]" ? boxes : []), querySelector: (sel) => (sel === "[data-summon-add]" ? addBox : null) };
+  const fire = (type, event) => Promise.all((heard[type] ?? []).map((fn) => fn(event)));
+  /** The pointer goes up anywhere in the document: the press ends. */
+  const release = () => (docHeard.pointerup ?? []).forEach((fn) => fn());
+  return { element, block, addBox, heard, fire, release };
+}
+const amountBox = (index, value) => ({ dataset: { index: String(index) }, value, matches: (sel) => sel === "[data-summon-amount]", closest: (sel) => (sel === "[data-acks-extras-summon-list]" ? {} : null) });
+const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+const openAt = (store) => [...instances.values()].filter((app) => app.store?.key === store.key).map((app) => app.index);
+
+await t("a spell's summon row shows one creature block where the reference stood, with its number on each line; an ability's summon row keeps both fields", async () => {
+  asSeat({ isGM: true });
+  const rows = listRows();
+  const ctx = await rowEditor(rows).editor._prepareContext({});
+  const names = ctx.fields.map((f) => f.name);
+  assert.ok(names.includes("creatures") === false && names.includes("ref"), "the field keeps the reference's place under its own name");
+  const block = fieldOf(ctx, "ref");
+  assert.equal(block.kind, "creatures");
+  assert.ok(!names.includes("amount"), "the number is on the lines");
+  assert.deepEqual(block.lines.map((l) => [l.index, l.label, l.source, l.amount, l.removable, l.note]), [
+    [0, "Creature one", "ACKS-LIB.effectEditor.worldActor", 2, true, ""],
+    [1, "Creature two", "Pack one", 3, true, ""],
+  ]);
+  const ability = await rowEditor({ current: [SUMMON({ ref: "Actor.one", amount: 2 })] }, { domain: "ability" }).editor._prepareContext({});
+  assert.deepEqual([fieldOf(ability, "ref").kind, fieldOf(ability, "amount").kind], ["text", "number"], "outside a spell the window is as it was");
+});
+
+await t("a ref nothing finds reads the unknown-reference words to a Judge and carries the row's name; a row with no creature reads the empty list and keeps its number", async () => {
+  asSeat({ isGM: true });
+  const rows = { current: [SUMMON({ ref: "cook.gone", name: "Creature three", amount: 1 }), SUMMON({ amount: 4 })] };
+  const lines = fieldOf(await rowEditor(rows).editor._prepareContext({}), "ref").lines;
+  assert.deepEqual(lines.map((l) => [l.label, l.source, l.blank, l.removable]), [["Creature three", "ACKS-LIB.effectEditor.refUnknown", false, true], ["ACKS-LIB.effectEditor.noCreature", "", true, true]]);
+  const alone = fieldOf(await rowEditor({ current: [SUMMON({ amount: 4 })] }).editor._prepareContext({}), "ref").lines;
+  assert.deepEqual([alone.length, alone[0].removable, alone[0].amount], [1, false, 4], "no Remove on a list that holds no creature");
+});
+
+await t("a seat that cannot open a creature reads the neutral label and its note, and neither the name nor the ref reaches the window; a seat that can reads the name", async () => {
+  asSeat({ isGM: false });
+  const rows = { current: [SUMMON({ ref: "Actor.one", name: "Creature one", amount: 2 }), SUMMON({ ref: "Compendium.mod.pack.Actor.two", name: "Creature two", amount: 3 }), SUMMON({ ref: "cook.gone", name: "Creature three", amount: 1 })] };
+  const ctx = await rowEditor(rows).editor._prepareContext({});
+  const lines = fieldOf(ctx, "ref").lines;
+  assert.deepEqual(lines.map((l) => [l.label, l.source, l.note]), Array(3).fill([NEUTRAL, "", "ACKS-LIB.summons.refused.unreadable"]));
+  const html = render("lib/effect-row-editor", { ...ctx, partId: "p" });
+  for (const secret of ["Creature one", "Creature two", "Creature three", "Actor.one", "Pack one", "cook.gone", "mod.pack"]) assert.ok(!html.includes(secret), `${secret} is not in what this seat is handed`);
+  assert.equal((html.match(new RegExp(NEUTRAL, "g")) ?? []).length >= 3, true);
+  assert.match(html, /ACKS-LIB\.summons\.refused\.unreadable/, "the note is on the surface");
+  asSeat({ isGM: false, sees: true, packs: true });
+  const opens = fieldOf(await rowEditor(rows).editor._prepareContext({}), "ref").lines;
+  assert.deepEqual(opens.map((l) => [l.label, l.note]), [["Creature one", ""], ["Creature two", ""], [NEUTRAL, "ACKS-LIB.summons.refused.unreadable"]]);
+  assert.ok(opens[0].amountAria.includes("Creature one") && opens[2].amountAria.includes(NEUTRAL) && !opens[2].removeAria.includes("Creature three"));
+  asSeat({ isGM: true });
+});
+
+await t("the block renders its boxes with no name, the aria labels, the drop hint and the add row, every control named", async () => {
+  asSeat({ isGM: true });
+  const ctx = await rowEditor(listRows()).editor._prepareContext({});
+  const html = render("lib/effect-row-editor", { ...ctx, partId: "p" });
+  const block = html.slice(html.indexOf("<fieldset class=\"acks-extras-summon-list\""), html.indexOf("</fieldset>", html.indexOf("acks-extras-summon-list")));
+  assert.match(block, /<legend>ACKS-LIB\.effectEditor\.creatures<\/legend>/);
+  assert.equal((block.match(/<input/g) ?? []).length, 3, "two Number boxes and the uuid box");
+  assert.ok(!/<input[^>]*\sname=/.test(block) && !/<button[^>]*\sname=/.test(block), "nothing in the block is a form field");
+  assert.ok(!/\stitle=/.test(block) && !/<label/.test(block));
+  assert.match(block, /type="number" step="1" min="0"[^>]*data-index="0" value="2"[^>]*aria-label="ACKS-LIB\.effectEditor\.amountOf \{&quot;name&quot;:&quot;Creature one&quot;\}"/);
+  assert.equal((block.match(/data-action="summonRemove"/g) ?? []).length, 2);
+  assert.match(block, /data-action="summonAdd"/);
+  assert.match(block, /type="text"[^>]*data-summon-add[^>]*aria-label="ACKS-LIB\.effectEditor\.addRef"/);
+  assert.match(block, /ACKS-LIB\.effectEditor\.creaturesDrop/);
+  assert.ok(!/<button[^>]*type="submit"/.test(block) && (block.match(/<button/g) ?? []).every((_, i, all) => block.split("<button")[i + 1].includes('type="button"')));
+  assert.ok(!/ id=/.test(block));
+});
+
+await t("the Number box's tooltip is worded per row, and a blank one carries the store's page alone", async () => {
+  asSeat({ isGM: true });
+  const rows = { current: [SUMMON({ ref: "Actor.one", amount: 2, origin: "register" }), SUMMON({ ref: "Compendium.mod.pack.Actor.two", amount: 3 }), SUMMON({ ref: "cook.gone", amount: null })] };
+  const lines = fieldOf(await rowEditor(rows).editor._prepareContext({}), "ref").lines;
+  assert.deepEqual(lines.map((l) => l.tip), ['ACKS-LIB.effectEditor.tip.amountRead · ACKS-LIB.effectEditor.tip.cite {"cite":"Book p. 9"}', "ACKS-LIB.effectEditor.tip.amountHand", 'ACKS-LIB.effectEditor.tip.cite {"cite":"Book p. 9"}']);
+});
+
+await t("a change in a Number box or the uuid box never reaches the form's submit; any other field's still does", () => {
+  const { editor } = rowEditor(listRows());
+  submitted.length = 0;
+  editor._onChangeForm({}, { target: amountBox(0, "5") });
+  assert.equal(submitted.length, 0);
+  const other = { closest: () => null };
+  editor._onChangeForm({}, { target: other });
+  assert.deepEqual(submitted, [other]);
+});
+
+await t("a Number box writes its own row's amount through the store; blank writes null, never 0, and the importer's mark comes off that row alone", async () => {
+  asSeat({ isGM: true });
+  const rows = listRows();
+  const { editor, writes } = rowEditor(rows);
+  const dom = listDom();
+  editor.element = dom.element;
+  await editor._onRender({}, {});
+  await dom.fire("change", { target: amountBox(0, "7") });
+  assert.equal(writes.length, 1);
+  assert.deepEqual([writes[0][0].amount, writes[0][0].origin, writes[0][1].amount], [7, "", 3]);
+  await dom.fire("change", { target: amountBox(1, "") });
+  assert.strictEqual(writes[1][1].amount, null);
+  await dom.fire("change", { target: amountBox(1, "x") });
+  await dom.fire("change", { target: { dataset: { index: "1" }, value: "9", matches: () => false } });
+  assert.equal(writes.length, 2, "text that is no number, and a box that is not a Number box, write nothing");
+  await dom.fire("change", { target: amountBox(0, "7") });
+  assert.equal(writes.length, 2, "a figure the row already holds is no write");
+});
+
+await t("a Number box changed under a pressed button writes after the press, on the next task", async () => {
+  asSeat({ isGM: true });
+  const { editor, writes } = rowEditor(listRows());
+  const dom = listDom();
+  editor.element = dom.element;
+  await editor._onRender({}, {});
+  await dom.fire("pointerdown", { target: { closest: () => ({}) } });
+  await dom.fire("change", { target: amountBox(1, "6") });
+  assert.equal(writes.length, 0, "held while the press is under way");
+  dom.release();
+  assert.equal(writes.length, 0, "and not written before the click is dispatched");
+  await tick();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0][1].amount, 6);
+});
+
+await t("Add through the uuid box inserts a row after the list, closes every editor and opens this row again; Enter adds and never submits", async () => {
+  asSeat({ isGM: true });
+  const rows = listRows();
+  const { editor, store, writes } = rowEditor(rows);
+  editor.render(true);
+  const dom = listDom([], " Actor.fam ");
+  editor.element = dom.element;
+  await editor._onRender({}, {});
+  const keydown = { key: "Enter", target: { matches: (sel) => sel === "[data-summon-add]" }, prevented: false, preventDefault() { this.prevented = true; } };
+  await dom.fire("keydown", keydown);
+  assert.equal(keydown.prevented, true, "Enter in the box does not submit the form");
+  assert.equal(editor.closed, true);
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0].map((r) => r.ref ?? r.type), ["Actor.one", "Compendium.mod.pack.Actor.two", "Actor.fam", "damage"], "after the list's last row");
+  assert.match(writes[0][2].key, /^_/);
+  assert.deepEqual([writes[0][2].origin, writes[0][2].name, writes[0][2].amount], ["", "", 2]);
+  assert.deepEqual(openAt(store), [0], "this row is open again at its index");
+  const other = { ...keydown, key: "a", prevented: false };
+  await dom.fire("keydown", other);
+  assert.equal(other.prevented, false);
+});
+
+await t("Add of a blank or repeated ref writes nothing and leaves the window; Add on a row with no creature fills that row", async () => {
+  asSeat({ isGM: true });
+  const { editor, writes } = rowEditor(listRows());
+  editor.render(true);
+  editor.element = listDom([], "   ").element;
+  await rowActions.summonAdd.call(editor);
+  editor.element = listDom([], "uuid:Actor.one").element;
+  await rowActions.summonAdd.call(editor);
+  assert.deepEqual([writes.length, editor.closed], [0, false]);
+  const empty = rowEditor({ current: [SUMMON({ key: "creature", amount: 4, origin: "register" })] });
+  empty.editor.render(true);
+  empty.editor.element = listDom([], "Actor.one").element;
+  await rowActions.summonAdd.call(empty.editor);
+  assert.deepEqual(empty.writes[0].map((r) => [r.ref, r.amount, r.origin, r.key]), [["Actor.one", 4, "", "creature"]]);
+});
+
+await t("a creature dropped on the block is added: an Actor, a family, a token's base actor; another kind is refused with the shipped words, and no ownership refusal is made", async () => {
+  asSeat({ isGM: false });
+  creatureDocs["Token.t"] = { documentName: "Token", actorLink: false, baseActor: creatureDocs["Actor.one"], actor: { uuid: "Actor.synthetic" } };
+  const drop = (data) => ({ data, prevented: false, preventDefault() { this.prevented = true; } });
+  for (const [data, ref] of [[{ type: "Actor", uuid: "Actor.one" }, "Actor.one"], [{ type: "Actor", uuid: "Actor.fam" }, "Actor.fam"], [{ type: "Token", uuid: "Token.t" }, "Actor.one"]]) {
+    const { editor, writes } = rowEditor({ current: [SUMMON({ ref: "Actor.zzz" })] });
+    editor.render(true);
+    const dom = listDom();
+    editor.element = dom.element;
+    await editor._onRender({}, {});
+    const event = drop(data);
+    await dom.fire("drop", event);
+    assert.equal(event.prevented, true);
+    assert.equal(writes[0]?.[1]?.ref, ref, JSON.stringify(data));
+  }
+  const { editor, writes } = rowEditor({ current: [SUMMON({ ref: "Actor.zzz" })] });
+  const dom = listDom();
+  editor.element = dom.element;
+  await editor._onRender({}, {});
+  for (const data of [{ type: "Actor", uuid: "Actor.pc" }, { type: "Item", uuid: "Item.x" }, { type: "Actor" }, { type: "Actor", uuid: "Actor.none" }]) await dom.fire("drop", drop(data));
+  assert.equal(writes.length, 0);
+  assert.deepEqual(warnings, ["ACKS-LIB.summons.refused.badSource"], "only the wrong creature type is said");
+  const over = dom.heard.dragover[0]({ prevented: false, preventDefault() { this.prevented = true; } });
+  assert.equal(over, undefined);
+  asSeat({ isGM: true });
+});
+
+await t("Remove of a sibling writes the rows with the one that went; the open row reopens at its new place", async () => {
+  asSeat({ isGM: true });
+  const rows = { current: [SUMMON({ key: "a", ref: "Actor.one" }), SUMMON({ key: "b", ref: "Compendium.mod.pack.Actor.two" }), SUMMON({ key: "c", ref: "Actor.fam" })] };
+  const { editor, store } = rowEditor(rows, { index: 2 });
+  const calls = [];
+  store.write = async (next, options) => (calls.push([structuredClone(next), options]), (rows.current = structuredClone(next)));
+  editor.render(true);
+  editor.element = listDom().element;
+  await rowActions.summonRemove.call(editor, {}, { dataset: { index: "0" } });
+  assert.deepEqual(calls[0][0].map((r) => r.key), ["b", "c"]);
+  assert.equal(calls[0][1].removed.key, "a");
+  assert.deepEqual(openAt(store), [1]);
+});
+
+await t("Remove of the only row keeps it with no creature and hands the store no removed row; a target outside the list does nothing", async () => {
+  asSeat({ isGM: true });
+  const rows = { current: [SUMMON({ key: "creature", ref: "Actor.one", name: "Creature one", amount: 3 }), { type: "damage", key: "d" }] };
+  const { editor, store, writes } = rowEditor(rows);
+  const calls = [];
+  const write = store.write;
+  store.write = async (next, options) => (calls.push(options), write(next, options));
+  editor.render(true);
+  editor.element = listDom().element;
+  await rowActions.summonRemove.call(editor, {}, { dataset: { index: "1" } });
+  assert.equal(writes.length, 0);
+  await rowActions.summonRemove.call(editor, {}, { dataset: { index: "0" } });
+  assert.deepEqual([writes[0][0].ref, writes[0][0].name, writes[0][0].amount], ["", "", 3]);
+  assert.equal(calls[0], undefined);
+  assert.deepEqual(openAt(store), [0]);
+});
+
+await t("a figure typed in a Number box and not yet written is carried by the Add or Remove pressed next, in its one write; the box's own held write then does nothing", async () => {
+  asSeat({ isGM: true });
+  const rows = { current: [SUMMON({ key: "a", ref: "Actor.one", amount: 1 }), SUMMON({ key: "b", ref: "Actor.fam", amount: 1 })] };
+  const { editor, writes } = rowEditor(rows);
+  editor.render(true);
+  const boxes = [amountBox(0, "8"), amountBox(1, "9")];
+  const dom = listDom(boxes);
+  editor.element = dom.element;
+  await editor._onRender({}, {});
+  await dom.fire("pointerdown", { target: { closest: () => ({}) } });
+  await dom.fire("change", { target: boxes[1] });
+  dom.release();
+  await rowActions.summonRemove.call(editor, {}, { dataset: { index: "0" } });
+  assert.equal(writes.length, 1, "one write for the press");
+  assert.deepEqual(writes[0].map((r) => [r.key, r.amount]), [["b", 9]], "the removed row's figure is gone with it, the other row's carried");
+  await tick();
+  await tick();
+  assert.equal(writes.length, 1, "the held write finds its figure taken, and its window closed, and writes nothing");
+  const again = rowEditor({ current: [SUMMON({ key: "a", ref: "Actor.one", amount: 1 }), SUMMON({ key: "b", ref: "Actor.fam", amount: 1 })] });
+  again.editor.render(true);
+  const second = [amountBox(0, "5"), amountBox(1, "1")];
+  again.editor.element = listDom(second, "Actor.new").element;
+  await rowActions.summonAdd.call(again.editor);
+  assert.deepEqual(again.writes[0].map((r) => [r.ref, r.amount]), [["Actor.one", 5], ["Actor.fam", 1], ["Actor.new", 5]], "the typed figure rides the same write, and a copy of the open row takes it");
+});
+
+await t("every key the list reads is in the lang file, and the neutral label is the shipped one", () => {
+  const root = ["ACKS", "LIB"].join("-");
+  for (const key of ["creatures", "worldActor", "addRef", "add", "remove", "amountOf", "noCreature", "tip.amountRead", "tip.amountHand", "creaturesDrop", "refDrop", "refUnknown"]) assert.ok(`${root}.effectEditor.${key}` in lang, `${key} is missing`);
+  assert.match(lang[`${root}.effectEditor.creaturesDrop`], /Actors tab, a compendium or the map/);
+  assert.ok(`${root}.summons.neutral` in lang && `${root}.summons.refused.unreadable` in lang);
+});
+
 console.log(`\n${n} passed`);

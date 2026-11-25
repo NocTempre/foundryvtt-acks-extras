@@ -3477,8 +3477,43 @@ effect-row editor (`apps/effect-row-editor.mjs`) makes a `summon` row's `ref`
 field a drop target: an Actor dropped there writes its uuid, and the field's
 hint names the creature the ref reaches, or says none in this world does. A
 companion row's `ref` is an importer id and takes no drop. The spell sheet
-names the creature in its effect rows the same way (magic MODEL, "The
-sheet").
+names the creature in its effect rows through the seat's reading below (magic
+MODEL, "The sheet").
+
+**A spell's creature list.** In a spell, a summon row's `ref` and `amount` give
+way, in the editor, to a block of the creatures the spell may call
+(`summon-list.mjs`; no schema holds a list and one row still holds one creature
+and one number). The list is the summon rows that share the open row's
+`invocationFrom`, `invocationTo`, `summonFormat` and `control` (blank and missing
+compare equal), the open row among them, in store order. Each line shows the
+creature's label, a small line saying where it is from (the compendium's label,
+"World actor", or the unknown-reference words), a Number box and Remove; under
+the lines are the drop hint, a uuid box and Add. A creature reads through
+`creatureView`: its name where the seat can open it (`creatureOpens`, Foundry's
+own Observer test, a Judge always), else the neutral label with no source line
+and the note `ACKS-LIB.summons.refused.unreadable`, and never the name or the
+ref, in the label, the aria labels or the tooltips. A Judge's ref nothing
+resolves reads the row's imported `name`, else the ref. The block gates nothing
+on `isJudge`: the spell's owner sets it up under Foundry's own permissions.
+
+The list is edited as rows. A drop (an Actor, a family, or a token's base
+actor, held to the cast window's source-type check, with no ownership refusal:
+a creature the seat cannot open is listed under the neutral label and refused
+at the cast) or a typed ref goes through `addSummonCreature`: a blank or
+repeated ref (compared through `normalizeRef`) changes nothing, a row that
+names no creature takes the ref, and otherwise a copy of the open row (no name,
+no importer mark, no unread note, a hand key) is inserted after the list's last
+row. `removeSummonCreature` splices a sibling out, and the only row keeps its
+format, number and control and blanks its creature. Add and Remove change the
+row list, so each closes every editor on the store, writes, and opens the row
+again at its new index; a row an edit changes loses its `origin`, as any edit
+of a row does. The Number box and the uuid box carry no `name`, so the form
+never submits them (`_onChangeForm` skips them); a Number box writes its own
+row's `amount` through `writeOnChange`, blank as null, and a press on Add or
+Remove carries every typed figure in its one write, so the box's held write
+finds it taken. The Number box's tooltip is worded for its row alone
+(`amountTip`): written by the import, with the store's page reference after
+it, or set by hand, and a blank figure carries the page reference alone.
 
 **Placing.** The seat picks the creature and a count: `pickSummon` for a cast
 from a spell (the spell's named creatures, preselected with their amount, else
