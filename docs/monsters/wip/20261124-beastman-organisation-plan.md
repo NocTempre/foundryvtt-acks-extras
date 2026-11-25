@@ -513,7 +513,7 @@ answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers (boards 1a to 1l) | S12 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers, a roll with no faction card (boards 1a to 1m) | S12 |
 | [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
@@ -1450,6 +1450,68 @@ a body.
 S11b needed the owner's questions 1 and 2; 1 is answered and 2, a wandering
 warband or a lair roll, is not. Released: none. Not checked: board 1i's
 rendering.
+
+### The owner on a roll with no village, 2026-11-24
+
+Asked "Does a wandering warband or a lair roll get a faction card of its
+own?", with the buttons "Yes, its own card" and "Groups only", the owner
+chose the second, against the design session's lean, and then wrote:
+
+"Groups only"
+
+"Or more specifically, not by default nor required"
+
+The first is the button's words and the owner's choice; the second is the
+owner's own. It answers `architect`'s question 2 with (b), and says more than
+(b) did: such a roll makes groups and no faction card, nothing it does
+afterwards needs one, and a faction card for it is neither made unasked nor
+ruled out. Example: a Judge rolls a wandering warband and gets the warband's
+group with its gangs' groups inside it and no faction. It is re-rolled,
+edited, sent to a place and fought from those groups alone. Later the Judge
+may put it under a faction, and never has to.
+
+Read as, and marked as a reading:
+
+- "Not required" binds the build: the Org chart view, both tools, re-roll,
+  pin, send out, recall and a leader's morale parts all work on a roll that
+  has no faction. In `architect`'s G(b) the roll's record rides on the root
+  group as a flag, and D reads a leader's parts "through `units`", which such
+  a roll does not have. That reader needs a second source, the root group's
+  record. `architect` has not been asked.
+- "Not by default" leaves the Judge two optional gestures: join the roll to
+  a faction that exists, or make it a faction card of its own. G(b) has the
+  first only. Whether the second is wanted was not asked.
+- With "At Generate", a wandering warband's root is the warband's own group.
+  A roll with several warbands at its top (a lair roll, as G has it) has no
+  such group. What its root is stays open, and G warns that a root group made
+  for it is close to the withdrawn "home group".
+- The Org chart view gets a third host, the root group's sheet, beside the
+  faction's sheet and a character's Followers tab.
+
+Section 3, as a consequence and still proposed: S11c applies. Its row reads
+"branch (b) only: a root group's record joins a faction", with `/design` "if
+it adds a gesture"; it does, and S12 grows by the root group's sheet as a
+host. Both of S11b's owner questions are answered. Released: none, since
+`architect`'s shape and section 3's table are proposed and the owner has not
+been asked to adopt them.
+
+**Drawn:**
+[board 1m](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb), a wandering
+warband on its root group's sheet with the tree and the tools, the two
+optional faction gestures, and the same group once joined. Open on the
+board, the drawn shape first:
+
+1. On a group's sheet the tree is: (a) a section above the stack rows, (b) a
+   tab of its own.
+2. A roll with several warbands at its top: (a) each warband's group is a
+   root with its own record, and the roll is that many records, (b) one root
+   group is made for the roll and lists them.
+3. The optional faction gestures: (a) both, join one that exists and make
+   one of its own, (b) join only.
+4. Once joined, the tree and its tools: (a) show on both sheets, the
+   group's and the faction's, (b) leave the group's sheet for the faction's.
+
+Not checked: board 1m's rendering.
 
 ### Phase 1, 2026-11-24
 
