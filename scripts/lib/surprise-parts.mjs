@@ -12,9 +12,10 @@
  * row's own, imported; a row that resolves to none, or to zero, adds nothing.
  *
  * The sides are the matrix's: hostile, neutral and secret combatants against
- * friendly ones (`patches/surprise-card.mjs`). Each combatant's roll gains the
- * SUM of the parts carried by the other side's combatants, so two carriers add
- * where core's own field takes the highest. A row under a gate or a free-text
+ * friendly ones (`patches/surprise-card.mjs`). Each combatant's roll gains ONE
+ * part from the other side's combatants, the most adverse (`mostAdverse`), as
+ * core takes one `surpriseothers` among a side's opponents: carriers do not
+ * stack, and two with the same figure give it once. A row under a gate or a free-text
  * condition that nothing at the matrix can decide is not applied: it comes back
  * in `left` for the caller to tell. Foundry-free.
  */
@@ -25,6 +26,21 @@ export const SURPRISE_TARGET = "surprise";
 
 /** The side of the matrix each pool of combatants rolls on. */
 const SIDE_OF_POOL = Object.freeze({ friendly: "adventurers", hostile: "monsters", neutral: "monsters", secret: "monsters" });
+
+/**
+ * The one part of a list that governs: the largest in magnitude, and where a
+ * penalty and a bonus of one size tie, the penalty (the figure that lowers the
+ * roll). The first of equals wins. Null for no part.
+ *
+ * @param {Array<{value: number}>} parts
+ */
+export function mostAdverse(parts) {
+  let best = null;
+  for (const part of parts ?? []) {
+    if (best === null || Math.abs(part.value) > Math.abs(best.value) || (Math.abs(part.value) === Math.abs(best.value) && part.value < best.value)) best = part;
+  }
+  return best;
+}
 
 /** The side a matrix pool rolls on, or null for a key that is no pool. */
 export const sideOfPool = (pool) => SIDE_OF_POOL[pool] ?? null;
@@ -69,9 +85,10 @@ export function opposingSurpriseParts(actor, options = {}) {
 
 /**
  * What each side of the matrix is imposed on, from the combatants of the pools:
- * `{imposedOn: {monsters, adventurers}, left}`. `imposedOn.monsters` is every
- * part an adventurer carries, `[{source, cite, value, bearer}]`, and the other
- * side's the monsters'; `left` is what `opposingSurpriseParts` could not decide,
+ * `{imposedOn: {monsters, adventurers}, left}`. `imposedOn.monsters` is the most
+ * adverse part an adventurer carries (a list of one, or none), `[{source, cite,
+ * value, bearer, others}]` with `others` the count of other carriers it
+ * outweighs, and the other side's the monsters'; `left` is what `opposingSurpriseParts` could not decide,
  * each with its `bearer`. A combatant with no actor, and a key that is no pool,
  * contribute nothing.
  *
@@ -92,8 +109,12 @@ export function surpriseAgainst(pools, { read = opposingSurpriseParts, resolve }
       for (const note of found.left) left.push({ ...note, bearer });
     }
   }
-  return { imposedOn: { monsters: carried[other("monsters")], adventurers: carried[other("adventurers")] }, left };
+  const governing = (parts) => {
+    const best = mostAdverse(parts);
+    return best ? [{ ...best, others: parts.length - 1 }] : [];
+  };
+  return { imposedOn: { monsters: governing(carried[other("monsters")]), adventurers: governing(carried[other("adventurers")]) }, left };
 }
 
-/** The sum of the figures of a list of parts. */
+/** The sum of the figures of a list of parts (the one governing part, as `surpriseAgainst` gives it). */
 export const sumOfParts = (parts) => (parts ?? []).reduce((sum, p) => sum + p.value, 0);

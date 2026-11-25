@@ -4,7 +4,7 @@
  *
  * Every figure, name and page below is INVENTED: the real ones arrive on an
  * imported ability's row. What this pins is the structure: a monster's row is
- * read and a character's is core's; each side takes the SUM of the other side's
+ * read and a character's is core's; each side takes the MOST ADVERSE of the other side's
  * carriers and never its own; a carrier with no figure adds nothing; a gate
  * nothing here can decide is left out and told; and a combatant with no
  * conditions of its own is still shifted, and put back afterwards.
@@ -26,7 +26,7 @@ globalThis.game = {
 };
 globalThis.ui = { notifications: { info: (m) => notices.info.push(m), error() {}, warn() {} } };
 
-const { opposingSurpriseParts, surpriseAgainst, sumOfParts, sideOfPool, SURPRISE_TARGET } = await import("../scripts/lib/surprise-parts.mjs");
+const { opposingSurpriseParts, surpriseAgainst, sumOfParts, mostAdverse, sideOfPool, SURPRISE_TARGET } = await import("../scripts/lib/surprise-parts.mjs");
 const { withSurpriseConditions } = await import("../scripts/lib/status-effects.mjs");
 
 const row = (value, extra = {}) => ({ type: "modifier", target: SURPRISE_TARGET, appliesTo: "opponent", value, ...extra });
@@ -61,7 +61,7 @@ await ok("a gate the matrix can decide is asked; one it cannot, and a free-text 
   assert.deepEqual(opposingSurpriseParts(gated(undefined, { condition: "while it holds" })).left, [{ source: "Banner", why: "condition" }]);
 });
 
-await ok("each side takes the sum of the other side's carriers and none of its own", () => {
+await ok("each side takes the most adverse of the other side's carriers once, and none of its own", () => {
   const pools = {
     friendly: [combatant(creature("Scout", [ability("Quiet", [row(-1)], "Pg 9")]))],
     hostile: [combatant(creature("A", [ability("Banner", [row(2)], "Pg 1")])), combatant(creature("B", [ability("Banner", [row(3)], "Pg 1")]))],
@@ -69,8 +69,14 @@ await ok("each side takes the sum of the other side's carriers and none of its o
     secret: [combatant(creature("D", [ability("Drum", [row(4)])]))],
   };
   const found = surpriseAgainst(pools);
-  assert.deepEqual(found.imposedOn.adventurers.map((p) => [p.bearer, p.value]), [["A", 2], ["B", 3], ["D", 4]], "the monsters' carriers, whichever of their three pools");
-  assert.equal(sumOfParts(found.imposedOn.adventurers), 9, "two carriers add");
+  assert.deepEqual(found.imposedOn.adventurers.map((p) => [p.bearer, p.value, p.others]), [["D", 4, 2]], "the monsters' carriers, whichever of their three pools: the largest governs");
+  assert.equal(sumOfParts(found.imposedOn.adventurers), 4, "two or three carriers give the most adverse, once");
+  const twin = surpriseAgainst({ hostile: [combatant(creature("A", [ability("Banner", [row(3)])])), combatant(creature("B", [ability("Banner", [row(3)])]))] });
+  assert.equal(sumOfParts(twin.imposedOn.adventurers), 3, "two carriers with the same figure give it once");
+  assert.deepEqual([twin.imposedOn.adventurers[0].bearer, twin.imposedOn.adventurers[0].others], ["A", 1], "the first of equals, naming how many it outweighs");
+  assert.equal(mostAdverse([{ value: 2 }, { value: -3 }, { value: 1 }]).value, -3, "by magnitude, a penalty or a bonus");
+  assert.equal(mostAdverse([{ value: 2 }, { value: -2 }]).value, -2, "a tie goes to the figure that lowers the roll");
+  assert.equal(mostAdverse([]), null);
   assert.deepEqual(found.imposedOn.monsters.map((p) => [p.bearer, p.source, p.cite, p.value]), [["Scout", "Quiet", "Pg 9", -1]]);
   assert.deepEqual(found.left, []);
   assert.equal(sumOfParts(surpriseAgainst({ friendly: [combatant(creature("P"))], hostile: [combatant(creature("Q"))] }).imposedOn.monsters), 0, "no carrier, nothing");
@@ -92,10 +98,10 @@ await ok("the matrix's roll holds each combatant's figure shifted by the other s
   await withSurpriseConditions(pools, async () => {
     for (const actor of [...party, ...warband]) seen[actor.name] = actor.system.surprise.avoidsurprise;
   });
-  assert.deepEqual(seen, { Fighter: 5, Scout: 5, Brute: 0, "Brute 2": 0, Cub: 0 }, "the party takes both carriers; the warband takes none, its own carriers included");
+  assert.deepEqual(seen, { Fighter: 3, Scout: 3, Brute: 0, "Brute 2": 0, Cub: 0 }, "the party takes the most adverse carrier once; the warband takes none, its own carriers included");
   for (const actor of [...party, ...warband]) assert.equal(actor.system.surprise.avoidsurprise, 0, `${actor.name} is put back`);
   assert.equal(notices.info.length, 1, "told once");
-  assert.match(notices.info[0], /Fighter: term\.imposedCited\|source=Banner,cite=Pg 1,value=\+2, term\.imposedCited\|source=Banner,cite=Pg 1,value=\+3;/, "each part is named with its source and page");
+  assert.match(notices.info[0], /Fighter: term\.imposedCited\|source=Banner,cite=Pg 1,value=\+3;/, "each part is named with its source and page");
   assert.match(notices.info[0], /Scout: /, "a creature with conditions of its own is named too");
 });
 

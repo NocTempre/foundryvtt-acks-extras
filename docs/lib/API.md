@@ -989,7 +989,9 @@ answers `{parts: [{source, cite, value}], left: [{source, why}]}`, `why` being
 `gate` or `condition` for a row nothing at the matrix can decide;
 `surpriseAgainst(pools)` answers `{imposedOn: {monsters, adventurers}, left}`,
 the parts each side's roll gains, from the other side's combatants (`sideOfPool`:
-hostile, neutral and secret against friendly); `sumOfParts(parts)` adds them.
+hostile, neutral and secret against friendly); `imposedOn` holds one part per side, the most adverse (`mostAdverse`: largest
+magnitude, a penalty first on a tie) with `others`, how many carriers it
+outweighs; `sumOfParts(parts)` adds a list, which here is that one part.
 
 The roll wrappers and the two helpers a roll's owner calls
 (`withMoraleConditions`, `withSurpriseConditions`) are
