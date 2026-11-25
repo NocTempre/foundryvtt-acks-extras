@@ -1,0 +1,22 @@
+{{!-- Roll at random's panel: where and how a roll is made. Every slot not chosen here is rolled. --}}
+<div class="acks-lib-group-roll">
+  {{#if family}}<p class="hint">{{family}}</p>{{/if}}
+  <label>{{localize "ACKS-LIB.org.roll.variant"}}
+    <select name="variant">{{#each variants}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+  </label>
+  <label>{{localize "ACKS-LIB.org.roll.foundIn"}}
+    <select name="context">{{#each context}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+  </label>
+  <label>{{localize "ACKS-LIB.org.roll.state"}}
+    <select name="state">{{#each state}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+  </label>
+  <fieldset>
+    <legend>{{localize "ACKS-LIB.org.roll.leaders"}}</legend>
+    <label><input type="radio" name="leaderSource" value="" checked /> {{localize "ACKS-LIB.org.roll.leadersBreed"}}</label>
+    <label><input type="radio" name="leaderSource" value="table" /> {{localize "ACKS-LIB.org.roll.leadersTable"}}</label>
+  </fieldset>
+  <fieldset>
+    <legend>{{localize "ACKS-LIB.org.roll.rules"}}</legend>
+    {{#each rules}}<label><input type="checkbox" name="rules-{{key}}" {{#if checked}}checked{{/if}} /> {{label}}</label>{{/each}}
+  </fieldset>
+</div>

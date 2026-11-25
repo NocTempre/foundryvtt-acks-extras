@@ -2,10 +2,14 @@
 /**
  * FactionSheet — ActorSheetV2 for the `acks-extras.faction` sub-type.
  *
- * Five tabs. OVERVIEW: kind, seat, other holdings, leader, parent organisation
- * and controlled quarters. MEMBERS: the roster (drag an actor onto the sheet),
- * with the STRENGTH table of unnamed people counted by level beneath it; the
- * Judge edits it cell by cell and a player reads it unless it is hidden whole.
+ * Seven tabs. OVERVIEW: kind, seat, other holdings, leader, parent organisation
+ * and controlled quarters. ORG CHART and LOCATIONS: the organisation's rows as a
+ * tree of cards with the tools that roll, add, edit and send them out, and as
+ * the places they stand on (lib's org-chart-ui.mjs draws both). MEMBERS: everyone
+ * the organisation affiliates, its roster and then each chart row's holder (drag
+ * an actor onto the sheet), with the STRENGTH table of unnamed people counted by
+ * level beneath it; the Judge edits it cell by cell and a player reads it unless
+ * it is hidden whole.
  * RELATIONS: its own stance toward other organisations, the reverse view, and
  * totals per subject. STANDING: the Judge's ledger of valued, reasoned rows
  * about a party, a character or an organisation, totalled per subject. NOTES:
@@ -32,6 +36,7 @@ import {
 } from "../standing-logic.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { liveRows } from "../../lib/group-logic.mjs";
+import { ORG_ACTIONS, chartContext, locationsContext } from "../../lib/org-chart-ui.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { docOf, escape as esc, makeLoc, refOf } from "../../lib/util.mjs";
@@ -70,6 +75,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
     window: { resizable: true },
     form: { submitOnChange: true },
     actions: {
+      ...ORG_ACTIONS,
       openDoc: FactionSheet.#onOpenDoc,
       clearSeat: FactionSheet.#onClearSeat,
       clearLeader: FactionSheet.#onClearLeader,
@@ -100,6 +106,8 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
     primary: {
       tabs: [
         { id: "overview", icon: "fas fa-flag" },
+        { id: "orgChart", icon: "fas fa-sitemap" },
+        { id: "locations", icon: "fas fa-map-location-dot" },
         { id: "members", icon: "fas fa-user-group" },
         { id: "relations", icon: "fas fa-handshake" },
         { id: "standing", icon: "fas fa-scale-balanced" },
@@ -181,8 +189,12 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
     context.regardedBy = readableRows(regardedByFactions(actor), isGM)
       .map((row) => ({ ...row, stanceLabel: loc(`stance.${row.stance}`) }));
 
-    // Members: the stored rows, with a live check that the actor still exists.
-    context.members = liveRows(readableRows(sys.members, isGM))
+    // The organisation's chart and the places its rows stand on.
+    context.orgChart = chartContext(actor, this, { isGM });
+    context.orgLocations = locationsContext(actor, { isGM });
+
+    // Members: everyone the organisation affiliates (its roster, then each chart row's holder), with a live check that the actor still exists.
+    context.members = liveRows(readableRows(sys.affiliation ?? sys.members, isGM))
       .map((row) => ({
         ...row,
         missing: !fromUuidSync(row.uuid),

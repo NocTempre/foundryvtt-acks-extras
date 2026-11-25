@@ -1,0 +1,36 @@
+{{!-- The Locations rows (docs/lib/ORGANISATION.md): a row per place, a chip for each chart
+      row of this faction standing there. A row wraps; nothing scrolls sideways. --}}
+<section class="acks-extras-org" data-org-host="{{hostUuid}}">
+  {{#if isEmpty}}
+    <p class="acks-empty">{{localize "ACKS-LIB.org.locations.none"}}</p>
+  {{/if}}
+  {{#each places}}
+    <div class="acks-extras-org-place">
+      <div class="acks-extras-org-place__head">
+        <a data-action="orgOpen" data-uuid="{{uuid}}">{{name}}</a>
+        <span class="acks-extras-org-place__total" data-tooltip="ACKS-LIB.org.locations.totalTip">{{localize "ACKS-LIB.org.card.bodies" n=total}}</span>
+      </div>
+      <ul class="acks-extras-org-place__groups">
+        {{#each groups}}
+          <li class="acks-extras-org-chip{{#if covered}} is-covered{{/if}}" data-uuid="{{uuid}}">
+            <a data-action="orgOpen" data-uuid="{{uuid}}">{{name}}</a>
+            <span class="acks-extras-org-chip__count" data-tooltip-text="{{countTip}}">{{count}}</span>
+            {{#each rows}}
+              <span class="acks-extras-org-chip__row{{#if inside}} is-inside{{/if}}" data-key="{{key}}">{{label}}
+                {{#unless inside}}{{#if @root.editable}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}{{/unless}}
+              </span>
+            {{/each}}
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/each}}
+  {{#if unplaced.length}}
+    <div class="acks-extras-org-place">
+      <div class="acks-extras-org-place__head"><span>{{localize "ACKS-LIB.org.locations.unplaced"}}</span></div>
+      <ul class="acks-extras-org-place__groups">
+        {{#each unplaced}}<li class="acks-extras-org-chip" data-key="{{key}}"><a data-action="orgOpen" data-uuid="{{holderUuid}}">{{label}}</a></li>{{/each}}
+      </ul>
+    </div>
+  {{/if}}
+</section>

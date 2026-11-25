@@ -39,6 +39,9 @@
     </div>
   {{/if}}
 
+  {{#if orgChart}}{{> "modules/acks-extras/templates/lib/org-chart.hbs" orgChart}}{{/if}}
+  {{#if nestedGroups.length}}{{> "modules/acks-extras/templates/lib/org-nested.hbs" nestedGroups}}{{/if}}
+
   {{!-- Group summary: totals across every stack, and the collective noun. --}}
   <section class="acks-lib-group-summary">
     <div class="size-figure">

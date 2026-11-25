@@ -1,0 +1,45 @@
+{{!-- One card of the chart and, beneath it, its unfolded cards. A card with nothing in it
+      offers Roll and a pen; a filled card a pen and Send out, and no die. Recursive. --}}
+<li role="treeitem" {{#if hasKids}}aria-expanded="{{#if folded}}false{{else}}true{{/if}}"{{/if}} data-key="{{key}}">
+  <div class="acks-extras-org-card{{#if empty}} is-empty{{/if}}{{#if hidden}} is-hidden{{/if}}{{#if twin}} is-twin{{/if}}">
+    <div class="acks-extras-org-card__head">
+      {{#if officer.img}}<img class="acks-extras-org-card__art" src="{{officer.img}}" alt="" />{{else if img}}<img class="acks-extras-org-card__art" src="{{img}}" alt="" />{{/if}}
+      <span class="acks-extras-org-card__rank">{{rank}}</span>
+      {{#if hasKids}}
+        <button type="button" class="acks-extras-org-card__fold" data-action="orgToggle" aria-expanded="{{#if folded}}false{{else}}true{{/if}}" aria-label="{{localize 'ACKS-LIB.org.card.fold' name=rank}}" data-tooltip="ACKS-LIB.org.card.foldTip"><i class="fas {{#if folded}}fa-chevron-right{{else}}fa-chevron-down{{/if}}" aria-hidden="true"></i></button>
+      {{/if}}
+    </div>
+    {{#if empty}}
+      <div class="acks-extras-org-card__more">{{localize "ACKS-LIB.org.card.empty"}}</div>
+    {{else}}
+      <div class="acks-extras-org-card__body">
+        <span class="acks-extras-org-card__count" data-tooltip-text="{{countTip}}">{{localize "ACKS-LIB.org.card.bodies" n=count}}</span>
+        {{#if officer}}<a class="acks-extras-org-card__officer" data-action="orgOpen" data-uuid="{{officer.uuid}}" data-tooltip="ACKS-LIB.org.card.officerTip">{{officer.name}}</a>{{/if}}
+        {{#if hidden}}<span class="acks-tag" data-tooltip="ACKS-LIB.org.card.hiddenTip">{{localize "ACKS-LIB.org.card.hidden"}}</span>{{/if}}
+        {{#if twin}}<span class="acks-tag" data-tooltip="ACKS-LIB.org.card.twinTip">{{localize "ACKS-LIB.org.card.twin"}}</span>{{/if}}
+      </div>
+      {{#if folded}}<div class="acks-extras-org-card__more" data-tooltip="ACKS-LIB.org.card.belowTip">{{localize "ACKS-LIB.org.card.below" rows=below.rows bodies=below.bodies}}</div>{{/if}}
+    {{/if}}
+    <div class="acks-extras-org-card__foot">
+      {{#if isOut}}<span class="acks-extras-org-card__out" data-tooltip="ACKS-LIB.org.card.outTip">{{localize "ACKS-LIB.org.card.out" place=out.[0]}}</span>{{/if}}
+      {{#if holderUuid}}<button type="button" data-action="orgOpen" data-uuid="{{holderUuid}}" data-tooltip="ACKS-LIB.org.card.openTip">{{localize "ACKS-LIB.org.card.open"}}</button>{{/if}}
+      {{#if canEdit}}
+        {{#if canRoll}}<button type="button" data-action="orgRoll" data-tooltip="ACKS-LIB.org.card.rollTip"><i class="fas fa-dice" aria-hidden="true"></i> {{localize "ACKS-LIB.org.card.roll"}}</button>{{/if}}
+        <button type="button" data-action="orgAdd" data-tooltip="ACKS-LIB.org.card.addTip" aria-label="{{localize 'ACKS-LIB.org.card.add'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
+        <button type="button" data-action="orgEdit" data-tooltip="{{#if empty}}ACKS-LIB.org.card.fillTip{{else}}ACKS-LIB.org.card.editTip{{/if}}" aria-label="{{localize 'ACKS-LIB.org.card.edit'}}"><i class="fas fa-pen" aria-hidden="true"></i></button>
+        {{#unless empty}}
+          {{#if isOut}}
+            <button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>
+          {{/if}}
+          <button type="button" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.card.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>
+        {{/unless}}
+        <button type="button" data-action="orgDelete" data-tooltip="ACKS-LIB.org.card.deleteTip" aria-label="{{localize 'ACKS-LIB.org.card.delete'}}"><i class="fas fa-trash" aria-hidden="true"></i></button>
+      {{/if}}
+    </div>
+  </div>
+  {{#if children.length}}
+    <ul role="group">
+      {{#each children}}{{> "modules/acks-extras/templates/lib/org-card.hbs"}}{{/each}}
+    </ul>
+  {{/if}}
+</li>

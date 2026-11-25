@@ -142,6 +142,16 @@
     </details>
   </section>
 
+  {{!-- --------------------------- Org chart -------------------------- --}}
+  <section class="tab faction-tab {{tabs.orgChart.cssClass}}" data-group="primary" data-tab="orgChart">
+    {{> "modules/acks-extras/templates/lib/org-chart.hbs" orgChart}}
+  </section>
+
+  {{!-- --------------------------- Locations -------------------------- --}}
+  <section class="tab faction-tab {{tabs.locations.cssClass}}" data-group="primary" data-tab="locations">
+    {{> "modules/acks-extras/templates/lib/org-locations.hbs" orgLocations}}
+  </section>
+
   {{!-- --------------------------- Members ---------------------------- --}}
   <section class="tab faction-tab {{tabs.members.cssClass}}" data-group="primary" data-tab="members">
     <details class="section" open>
@@ -161,14 +171,14 @@
             <td>{{#if (eq this.kind "group")}}<span data-tooltip="ACKS-FACTIONS.sheet.memberHeadsTip">×{{this.quantity}}</span>{{else}}{{#if this.quantity}}{{#unless (eq this.quantity 1)}}×{{this.quantity}}{{/unless}}{{/if}}{{/if}}</td>
             <td class="row-actions">
               {{#if this.notes}}<i class="fas fa-note-sticky" data-tooltip="{{this.notes}}"></i>{{/if}}
-              {{#if @root.editable}}
+              {{#if @root.editable}}{{#unless this.derived}}
               {{#if @root.isGM}}
               <a data-action="toggleMemberHidden" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.hideHint'}}">
                 <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
               </a>
               {{/if}}
               <a data-action="removeMember" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.removeMemberHint'}}"><i class="fas fa-xmark"></i></a>
-              {{/if}}
+              {{/unless}}{{/if}}
             </td>
           </tr>
           {{/each}}

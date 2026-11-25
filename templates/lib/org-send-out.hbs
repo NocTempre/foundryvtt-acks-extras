@@ -1,0 +1,8 @@
+{{!-- The place a card's group is sent to, picked from the world's. --}}
+<div class="acks-lib-group-roll">
+  <label>{{localize "ACKS-LIB.org.send.label"}}
+    <select name="place">
+      {{#each places}}<option value="{{uuid}}">{{name}}</option>{{/each}}
+    </select>
+  </label>
+</div>

@@ -75,6 +75,7 @@ import TemplateData from "./data/template-data.mjs";
 import * as groups from "./group.mjs";
 import * as groupEncounter from "./group-encounter.mjs";
 import * as org from "./org.mjs";
+import { ORG_PARTIALS } from "./org-chart-ui.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
@@ -664,6 +665,7 @@ Hooks.once("init", () => {
   void registerSummons();
   registerGroupCleanup();
   org.registerOrgIndex();
+  foundry.applications.handlebars.loadTemplates([...ORG_PARTIALS]);
   registerStackDrop();
   registerEncounterTokens();
 

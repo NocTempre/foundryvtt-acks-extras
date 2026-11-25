@@ -45,6 +45,7 @@ import {
   unitSides,
 } from "../group-encounter-logic.mjs";
 import { factionView, pressJoin, pressLeave, pressMakeOwn, pressOpen } from "../group-faction.mjs";
+import { ORG_ACTIONS, chartContext, nestedGroups } from "../org-chart-ui.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
 import { makeLoc } from "../util.mjs";
 import { coinCount, coinTotalGC } from "../money-logic.mjs";
@@ -88,6 +89,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       deleteRecord: GroupSheet.#onDeleteRecord,
       removeStack: GroupSheet.#onRemoveStack,
       rollEncounter: GroupSheet.#onRollEncounter,
+      ...ORG_ACTIONS,
       joinFaction: GroupSheet.#onJoinFaction,
       makeFaction: GroupSheet.#onMakeFaction,
       leaveFaction: GroupSheet.#onLeaveFaction,
@@ -171,6 +173,8 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     );
     context.reveal = judge && sys.reveal ? this.#revealView() : null;
     context.faction = factionView(this.actor, this.isEditable);
+    context.orgChart = chartContext(this.actor, this, { isGM: game.user.isGM });
+    context.nestedGroups = nestedGroups(this.actor);
     return context;
   }
 

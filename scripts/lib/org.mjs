@@ -164,6 +164,20 @@ async function holderOf(host, row) {
   return { doc, made: true };
 }
 
+/**
+ * The group that holds a row, made and written to the row where it has none: what an
+ * empty card's Edit opens on. Null where the host is no chart, the seat cannot write
+ * it, or the row is not there.
+ * @param {Actor} host
+ * @param {string} key
+ * @returns {Promise<Actor|null>}
+ */
+export async function ensureHolder(host, key) {
+  if (!hostsChart(host) || !host.isOwner) return null;
+  const row = rowOn(host, key);
+  return row ? (await holderOf(host, row)).doc : null;
+}
+
 /** Does any body of this group stand on a map? */
 const onMap = (group) => (group.system?.stacks ?? []).some((s) => (s.roster ?? []).some((m) => m.tokenUuid));
 

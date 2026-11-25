@@ -1,0 +1,13 @@
+{{!-- Groups in this group: a row for each group standing directly inside this one. --}}
+<section class="acks-extras-org-nested" aria-label="{{localize 'ACKS-LIB.org.nested.label'}}">
+  <h3>{{localize "ACKS-LIB.org.nested.label"}}</h3>
+  <ul>
+    {{#each this}}
+      <li data-uuid="{{uuid}}">
+        <span>{{name}}</span>
+        <span class="acks-extras-org-nested__count" data-tooltip-text="{{countTip}}">{{count}}</span>
+        <button type="button" data-action="orgOpen" data-tooltip="ACKS-LIB.org.nested.openTip">{{localize "ACKS-LIB.org.card.open"}}</button>
+      </li>
+    {{/each}}
+  </ul>
+</section>

@@ -1,0 +1,40 @@
+{{!-- The organisation chart: its tools and the tree of cards (docs/lib/ORGANISATION.md).
+      Drawn on a faction's Org chart tab and on a root group's sheet, from `chartContext`. --}}
+<section class="acks-extras-org" data-org-host="{{hostUuid}}" data-org-root="{{rootKey}}" aria-label="{{localize 'ACKS-LIB.org.chart.label'}}">
+  {{#if plate}}<img class="acks-extras-org__plate" src="{{plate}}" alt="" />{{/if}}
+  <div class="acks-extras-org__tools" role="group" aria-label="{{localize 'ACKS-LIB.org.chart.tools'}}">
+    {{#if editable}}
+      {{#if tools.roll}}
+        <button type="button" data-action="orgRollAll" data-tooltip="ACKS-LIB.org.chart.rollAllTip"><i class="fas fa-dice" aria-hidden="true"></i> {{localize "ACKS-LIB.org.chart.rollAll"}}</button>
+      {{/if}}
+      {{#if tools.warband}}
+        <button type="button" data-action="orgAddWarband" data-tooltip="ACKS-LIB.org.chart.addWarbandTip"><i class="fas fa-plus" aria-hidden="true"></i> {{localize "ACKS-LIB.org.chart.addWarband"}}</button>
+      {{else}}
+        <button type="button" data-action="orgAdd" data-key="" data-tooltip="ACKS-LIB.org.chart.addTopTip"><i class="fas fa-plus" aria-hidden="true"></i> {{localize "ACKS-LIB.org.chart.addTop"}}</button>
+      {{/if}}
+      {{#if tools.recipe}}
+        <button type="button" data-action="orgRecipe" data-tooltip="ACKS-LIB.org.chart.recipeTip">{{localize "ACKS-LIB.org.chart.recipe"}}</button>
+      {{/if}}
+    {{/if}}
+    {{#if tools.expand}}
+      <span class="acks-extras-org__tools-end">
+        <button type="button" data-action="orgExpandAll" data-tooltip="ACKS-LIB.org.chart.expandTip">{{localize "ACKS-LIB.org.chart.expand"}}</button>
+        <button type="button" data-action="orgCollapseAll" data-tooltip="ACKS-LIB.org.chart.collapseTip">{{localize "ACKS-LIB.org.chart.collapse"}}</button>
+      </span>
+    {{/if}}
+  </div>
+  {{#if cards.length}}
+    <p class="hint">
+      <span data-tooltip="ACKS-LIB.org.chart.totalTip">{{localize "ACKS-LIB.org.chart.total" n=total}}</span>
+      {{#if emptyCards}} · {{localize "ACKS-LIB.org.chart.emptyCards" n=emptyCards}}{{/if}}
+    </p>
+    <div class="acks-extras-org__scroll">
+      <ul class="acks-extras-org__tree" role="tree" aria-label="{{localize 'ACKS-LIB.org.chart.label'}}">
+        {{#each cards}}{{> "modules/acks-extras/templates/lib/org-card.hbs"}}{{/each}}
+      </ul>
+    </div>
+  {{else}}
+    <p class="acks-empty">{{localize "ACKS-LIB.org.chart.none"}}</p>
+  {{/if}}
+  <p class="hint">{{localize "ACKS-LIB.org.chart.foot"}}</p>
+</section>

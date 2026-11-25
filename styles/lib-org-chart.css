@@ -1,0 +1,174 @@
+/*
+ * The organisation chart's surface (templates/lib/org-chart.hbs, org-card.hbs,
+ * org-locations.hbs, org-nested.hbs). Type is a ramp step off the one size knob;
+ * the tree scrolls sideways in a box of its own, so the window's frame never does.
+ */
+
+.acks-extras-org {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.acks-extras-org__plate {
+  display: block;
+  max-width: 100%;
+  max-height: 9em;
+  object-fit: cover;
+  align-self: center;
+}
+
+.acks-extras-org__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-org__tools-end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-inline-start: auto;
+}
+
+.acks-extras-org__scroll {
+  overflow-x: auto;
+  min-height: 0;
+  padding-bottom: 0.3rem;
+}
+
+.acks-extras-org__tree,
+.acks-extras-org__tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras-org__tree ul {
+  margin-inline-start: 1.25em;
+  padding-inline-start: 0.6em;
+  border-inline-start: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-org__tree li {
+  margin: 0.3rem 0;
+}
+
+.acks-extras-org-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 14em;
+  max-width: 28em;
+  padding: 0.3rem 0.5rem;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-org-card.is-empty {
+  outline: 2px dashed var(--acks-ink-soft);
+  outline-offset: 2px;
+}
+
+.acks-extras-org-card.is-hidden {
+  opacity: 0.75;
+}
+
+.acks-extras-org-card__head,
+.acks-extras-org-card__body,
+.acks-extras-org-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.acks-extras-org-card__art {
+  width: 2em;
+  height: 2em;
+  object-fit: cover;
+  border: 0;
+}
+
+.acks-extras-org-card__rank {
+  flex: 1 1 auto;
+  font-weight: bold;
+}
+
+.acks-extras-org-card__more,
+.acks-extras-org-card__out {
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-org-card__foot {
+  justify-content: flex-end;
+}
+
+.acks-extras-org-card__foot button,
+.acks-extras-org__tools button,
+.acks-extras-org-card__fold {
+  width: auto;
+  height: auto;
+  line-height: 1.4;
+  padding: 0.1rem 0.5rem;
+}
+
+.acks-extras-org-place {
+  margin-bottom: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-org-place__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  font-weight: bold;
+}
+
+.acks-extras-org-place__total {
+  margin-inline-start: auto;
+  font-weight: normal;
+}
+
+.acks-extras-org-place__groups,
+.acks-extras-org-nested ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+}
+
+.acks-extras-org-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-org-chip.is-covered {
+  opacity: 0.7;
+}
+
+.acks-extras-org-chip__row.is-inside {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-org-nested li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}

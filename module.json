@@ -23,6 +23,7 @@
     "styles/lib-sheet-theme.css",
     "styles/lib-frame.css",
     "styles/lib-follower-card.css",
+    "styles/lib-org-chart.css",
     "styles/lib-bucket.css",
     "styles/abilities.css",
     "styles/battlemap.css",
