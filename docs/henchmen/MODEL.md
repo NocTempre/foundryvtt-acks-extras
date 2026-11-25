@@ -738,8 +738,11 @@ whose `unit.employerUuid` names the employer, which the payroll reads as well. T
 `org-tree-logic.mjs`'s `orgChartView` draws the tree with no henchmen-specific
 code. The employer is the root. Under each actor stand its hired units, then its
 hirelings in the tab's order, and each hireling is an employer in turn, so a
-henchman's own henchmen nest beneath them. A unit's officer stands once, under
-the unit it leads, even when the roster holds them too. `key` and `holderUuid`
+henchman's own henchmen nest beneath them. A unit's officer has no node: the
+unit's `officerUuid` names the leader, and lib's holder read draws it as the head
+of the unit's row, so the actor the roster also lists as a specialist is left out
+of the hirelings and a hired unit's officer is drawn once. An officer's own
+hirelings, if any, are therefore not walked from this tree. `key` and `holderUuid`
 are the actor's or group's uuid; `kind` is the category the data carries
 (`retainer.category`, `unit.category`), blank at the root. A holder met a second
 time is skipped, so a chain that loops ends. It reads and writes nothing: no
