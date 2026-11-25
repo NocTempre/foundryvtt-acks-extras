@@ -390,7 +390,6 @@ async function procedureLost(actor, record) {
     spell,
     tradition,
     classItem,
-    isGM: game.user.isGM,
     combat: game.combats?.get(record.pending.combatId) ?? null,
     now: () => game.time.worldTime,
     roll: (formula) => new Roll(formula).evaluateSync().total,

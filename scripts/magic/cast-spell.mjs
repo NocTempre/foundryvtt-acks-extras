@@ -59,7 +59,7 @@ import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare, answerFromPending, ANSWER_FIELDS } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
-import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
+import { requestApply, requestUndo, registerCastRelay, entryId } from "./cast-apply.mjs";
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard, markReverted } from "./cast-card.mjs";
 import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, spellSaveParts, saveModifierOf, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
@@ -720,7 +720,6 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     classItem: world.classItem ?? null,
     invocationLevel: inv ?? null,
     casterLevel: levelValue ?? null,
-    isGM,
     moment: at,
     combat: world.combat ?? null,
     source: "spell",
@@ -1286,9 +1285,6 @@ function rowOfCard(card, rowKey) {
   return { spell, caster, keyed };
 }
 
-/** The writes of a card's entries, from this client. */
-const writer = (message) => (id, entry) => updateEntry(message, id, entry);
-
 /** Apply on a press: the card's targets stand, or the presser's targeted tokens become them (the card had none). */
 async function pressApply(message, { target, row }) {
   const card = cardOf(message);
@@ -1353,23 +1349,30 @@ async function pressThrow(message, { target, row }) {
   if (made.entry.state === "pending") await requestApply(message, targetKey, [requestOf(row, made.entry, card)]);
 }
 
-/** An Undo press: the Judge's. */
+/**
+ * An Undo press. The entry is taken back here where this seat can write the card and the target's actor, and by the
+ * GM's client (`requestUndo`) where it cannot. A refusal of ownership, or of what the GM's client may write, is told
+ * to the presser; a missing GM is told by the transport.
+ */
 async function pressUndo(message, { target, row }) {
-  if (!game.user.isGM) return;
   const card = cardOf(message);
-  const deps = await liveApplyDeps(message.id, { writeEntry: writer(message) });
-  const next = await undoEntries(card, target, row, deps);
-  for (const [id, entry] of Object.entries(next)) await updateEntry(message, id, entry);
+  const result = await requestUndo(message, target, row);
+  const kept = ["needsOwner", "moved", "overBound"].includes(result.reason);
+  // A card, target or entry gone, or already being taken back, shows in the card's own re-render: no notice.
+  if (result.ok || (!kept && result.reason !== "notOwner")) return;
+  const name = card?.targets?.[target]?.name ?? "";
+  ui.notifications?.warn(loc(kept ? "notice.undoKept" : "notice.undoRefused", { name }));
 }
 
-/** A Revert press: the Judge's. The tradition's procedure puts back what its performed step did, once. */
+/** A Revert press, for a seat that owns the caster and can edit the card. The tradition's procedure puts back what its performed step did, once. */
 async function pressRevert(message) {
-  if (!game.user.isGM) return;
   const card = cardOf(message);
+  const actor = fromUuidSync(card?.casterUuid);
   const done = await runRevert(card, {
-    actor: fromUuidSync(card?.casterUuid),
+    actor,
     spell: fromUuidSync(card?.spellUuid),
-    isGM: game.user.isGM,
+    ownsCaster: actor?.isOwner === true,
+    ownsCard: message.isOwner === true,
     kind: card?.procedure?.kind,
     castId: card?.castId,
     now: () => game.time.worldTime,

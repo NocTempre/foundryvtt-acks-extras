@@ -40,8 +40,16 @@
  * buff record (`cast-mods.mjs`) that every entry of the group names, and Undo on
  * one of them takes the record off for all.
  *
- * The card's flag (`cast-card.mjs`) keeps what each entry did, and the Judge's
- * Undo puts the hit points back and deletes the records by id.
+ * The card's flag (`cast-card.mjs`) keeps what each entry did, and Undo puts the
+ * hit points back and deletes the records by id, only those the cast itself
+ * wrote on that target (the spell-effect mark's `castId` and `casterUuid` are the
+ * card's). The target's owner undoes an entry where that seat can write both the
+ * target and the card; otherwise the GM's client does it through the
+ * `magicCastUndo` handler (`checkUndoRequest`, pure), for the target's owner or
+ * for the card's author who owns the caster. A request from a seat that does not
+ * own the target reaches only what the card's own figures bound: hit points that
+ * stand where the entry left them and within the row's reach, and the cast's own
+ * records.
  *
  * A damage entry meets the defenses of the actor the writing client resolves,
  * read there and then; the types and the extraordinary mark are the spell's own
@@ -62,9 +70,13 @@ import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife, readsFight } from "./cast-life.mjs";
 import { fightHolding } from "./cast-moment.mjs";
 import { anchorsNeeded } from "./cast-recur.mjs";
+import { undoableEntry } from "./cast-card.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
+
+/** The undo relay's handler name on lib's socket transport. */
+export const CAST_UNDO_HANDLER = "magicCastUndo";
 
 /** The id of one entry of the card: a target's key and a row's key. */
 export const entryId = (targetKey, rowKey) => `${targetKey}_${rowKey}`;
@@ -322,6 +334,65 @@ export function checkApplyRequest(req, world) {
     if (card.item?.targetKey === req.targetKey && !world.item) return { refused: "badItem" };
     if (missingGroupKeys(card, req.targetKey, req.entries, world.rows).length) return { refused: "badGroup" };
   }
+  return { ok: true };
+}
+
+/**
+ * The most hit points an applied entry could have written, from the spell's own
+ * row: a thrown row's hits sum, each at its own reach. Null where the row cannot
+ * be bounded.
+ */
+function entryReach(entry, keyed, world) {
+  if (!keyed) return null;
+  if (Array.isArray(entry.instances)) {
+    let total = 0;
+    for (const hit of entry.instances.filter((i) => i.state === "applied")) {
+      const bounds = world.boundsOf(keyed, hit.critical === true);
+      if (!bounds) return null;
+      total += bounds.max;
+    }
+    return total;
+  }
+  return world.boundsOf(keyed, entry.critical === true)?.max ?? null;
+}
+
+/**
+ * Check a relayed Undo before the GM's client writes anything. Pure: the world's
+ * answers arrive in `world`. The seat that owns the target is let through. The
+ * card's author who owns the caster is let through only for what the card's own
+ * figures bound: the entry holds no lifted effect, destroyed mark or timed life,
+ * the target's hit points stand where the entry left them, and the entry's change
+ * lies in the direction of its row and within that row's reach.
+ *
+ * @param {object} req  `{requestUserId, messageId, targetKey, rowKey}`
+ * @param {object} world
+ * @param {{authorId: string}|null} world.message
+ * @param {object|null} world.card  the message's cast card
+ * @param {boolean} world.ownsCaster  the requesting user owns the card's caster
+ * @param {boolean} world.ownsTarget  the requesting user owns the target's actor
+ * @param {number|null} [world.targetHp]  the target's hit points as they stand now, null where unread
+ * @param {Array<{row: object, key: string}>} [world.rows]  the spell's rows for the card's mode and picks
+ * @param {(keyed: {row: object, key: string}, critical: boolean) => {min: number, max: number}|null} [world.boundsOf]
+ * @returns {{ok: true}|{refused: "noCard"|"badTarget"|"notUndoable"|"notOwner"|"needsOwner"|"moved"|"overBound"}}
+ */
+export function checkUndoRequest(req, world) {
+  const { card, message } = world;
+  if (!message || !card?.castId) return { refused: "noCard" };
+  if (!card.targets?.[req.targetKey]) return { refused: "badTarget" };
+  const entry = card.entries?.[entryId(req.targetKey, req.rowKey)];
+  if (!undoableEntry(entry)) return { refused: "notUndoable" };
+  if (world.ownsTarget === true) return { ok: true };
+  if (!(message.authorId === req.requestUserId && world.ownsCaster === true)) return { refused: "notOwner" };
+  if (entry.lifted?.length || entry.destroyed || entry.life) return { refused: "needsOwner" };
+  const changes = Number.isFinite(entry.before) && Number.isFinite(entry.after) && entry.before !== entry.after;
+  if (!changes) return { ok: true };
+  const keyed = world.rows?.find((r) => r.key === req.rowKey) ?? null;
+  const reach = world.boundsOf ? entryReach(entry, keyed, world) : null;
+  if (reach === null) return { refused: "needsOwner" };
+  if (world.targetHp !== entry.after) return { refused: "moved" };
+  const heals = keyed.row.type === "heal";
+  if (heals ? entry.after < entry.before : entry.after > entry.before) return { refused: "overBound" };
+  if (Math.abs(entry.before - entry.after) > reach) return { refused: "overBound" };
   return { ok: true };
 }
 
@@ -695,7 +766,7 @@ async function applyInstances({ card, keyed, hits, resist, found, deps, existing
  * Take one applied entry back: the hit points return to what they were before,
  * the records it made are deleted by id, the effects it lifted are recreated under
  * their own ids (`restoreRecords`) and the weapon it marked destroyed is cleared
- * (`clearDestroyed`). The Judge's tool.
+ * (`clearDestroyed`).
  * @param {object} entry  an entry the card holds
  * @param {object} deps  `{resolve, restoreHp, deleteRecords(actor, ids), restoreRecords(actor, datas), clearDestroyed(actor, itemId)}` and the card's target
  * @param {{uuid: string}} target
@@ -720,7 +791,7 @@ export async function undoEntry(entry, target, deps) {
  *
  * @param {object} card
  * @param {string} targetKey
- * @param {string} rowKey  the entry the Judge pressed
+ * @param {string} rowKey  the entry that was pressed
  * @param {object} deps  as `undoEntry`
  * @returns {Promise<Record<string, object>>} the entries to write, by id
  */
@@ -749,8 +820,30 @@ const foundryBounds = (formula) => ({
   max: new Roll(formula).evaluateSync({ maximize: true }).total,
 });
 
-/** The dependencies of a live write, on whichever client runs it. */
-export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
+/**
+ * The ids, of those a card names, of effects the cast itself wrote: each one held
+ * by `effects` whose spell-effect mark carries the anchor's `castId` and
+ * `casterUuid`. With no anchor, none.
+ * @param {{get: (id: string) => object|undefined}} effects  an actor's effects
+ * @param {string[]} ids
+ * @param {{castId: string, casterUuid: string}|null} anchor
+ * @returns {string[]}
+ */
+export function anchoredRecordIds(effects, ids, anchor) {
+  if (!anchor?.castId) return [];
+  return ids.filter((id) => {
+    const mark = spellEffectOf(effects.get(id));
+    return Boolean(mark) && mark.castId === anchor.castId && mark.casterUuid === (anchor.casterUuid ?? "");
+  });
+}
+
+/**
+ * The dependencies of a live write, on whichever client runs it. `anchor` is the
+ * cast's `{castId, casterUuid}`: `deleteRecords` deletes only the effects whose
+ * spell-effect mark carries both, so a record id the card names reaches nothing
+ * the cast did not write. Without an anchor it deletes none.
+ */
+export async function liveApplyDeps(messageId, { writeEntry, by = null, anchor = null } = {}) {
   const { adjustHp, restoreHp, resolveTargets } = await import("../lib/hp.mjs");
   const { loseStates, lift, STATUS_DEAD } = await import("../lib/status-effects.mjs");
   const { statusEffectData, impliedStatuses } = await import("../lib/held-condition.mjs");
@@ -790,7 +883,10 @@ export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
       return held ? { combatId: held.combat.id, combatantId: held.combatant.id } : null;
     },
     createRecords: async (actor, datas) => (await actor.createEmbeddedDocuments("ActiveEffect", datas)).map((e) => e.id),
-    deleteRecords: async (actor, ids) => actor.deleteEmbeddedDocuments("ActiveEffect", ids.filter((id) => actor.effects.has(id))),
+    deleteRecords: async (actor, ids) => {
+      const own = anchoredRecordIds(actor.effects, ids, anchor);
+      if (own.length) await actor.deleteEmbeddedDocuments("ActiveEffect", own);
+    },
   };
 }
 
@@ -954,12 +1050,77 @@ export async function requestApply(message, targetKey, requests) {
   return answer?.ok ? { ok: true } : { ok: false, reason: answer?.reason ?? "noAnswer" };
 }
 
+/** The actor a stored card target names, read as the world stands. */
+const targetActorOf = (card, targetKey) => actorOfTarget(card?.targets?.[targetKey] ? fromUuidSync(card.targets[targetKey].uuid) : null);
+
+/**
+ * Take one entry back on this client: the target's hit points and records and then
+ * the card's entries are written here. The records deleted are the cast's own
+ * (`anchoredRecordIds`), and the entry is claimed in flight so a second press passes it by.
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function undoHere(message, targetKey, rowKey, by) {
+  const key = `undo:${message.id}:${entryId(targetKey, rowKey)}`;
+  if (inFlight.has(key)) return { ok: false, reason: "inFlight" };
+  inFlight.add(key);
+  try {
+    const card = message.flags?.[MODULE_ID]?.castCard;
+    const { updateEntry } = await import("./cast-card.mjs");
+    const deps = await liveApplyDeps(message.id, { writeEntry: (id, entry) => updateEntry(message, id, entry), by, anchor: { castId: card.castId, casterUuid: card.casterUuid } });
+    const next = await undoEntries(card, targetKey, rowKey, deps);
+    for (const [id, entry] of Object.entries(next)) await updateEntry(message, id, entry);
+    return { ok: true };
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
+/**
+ * The relay's Undo handler, on the GM's client: check, then take the entry back.
+ * Answers `{ok}` or `{ok: false, reason}`.
+ * @param {object} payload  `{requestUserId, messageId, targetKey, rowKey}`
+ */
+export async function magicCastUndo(payload = {}) {
+  const message = game.messages.get(payload.messageId);
+  const world = await worldFor(payload, message);
+  const card = world.card;
+  const found = card?.targets?.[payload.targetKey] ? await fromUuid(card.targets[payload.targetKey].uuid) : null;
+  const token = found?.documentName === "Token" ? found : null;
+  const actor = token?.actor ?? (found?.documentName === "Actor" ? found : null);
+  let targetHp = null;
+  if (actor) {
+    const { resolveTargets } = await import("../lib/hp.mjs");
+    targetHp = resolveTargets(token ? { tokens: [token] } : { actors: [actor] })[0]?.hp?.value ?? null;
+  }
+  const verdict = checkUndoRequest(payload, { ...world, targetHp });
+  if (verdict.refused) return { ok: false, reason: verdict.refused };
+  return undoHere(message, payload.targetKey, payload.rowKey, payload.requestUserId ?? game.user.id);
+}
+
+/**
+ * Take one entry of a card back, on the right client: here when this seat can
+ * write both the card and the target's actor, through the GM's client when it
+ * cannot, and not at all when no GM is connected (the transport's own notice
+ * says so, and the reason is `noGm`).
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+export async function requestUndo(message, targetKey, rowKey) {
+  const card = message.flags?.[MODULE_ID]?.castCard;
+  if (!card?.targets?.[targetKey]) return { ok: false, reason: "badTarget" };
+  if (message.isOwner && targetActorOf(card, targetKey)?.isOwner === true) return undoHere(message, targetKey, rowKey, game.user.id);
+  const { executeAsGM } = await import("../lib/sockets.mjs");
+  // With no GM connected the transport tells the user and answers nothing.
+  const answer = await executeAsGM(CAST_UNDO_HANDLER, { messageId: message.id, targetKey, rowKey });
+  return answer?.ok ? { ok: true } : { ok: false, reason: answer === undefined ? "noGm" : (answer.reason ?? "noAnswer") };
+}
+
 let registered = false;
 
-/** Register the relay's handler on lib's socket transport. Once, at `init`. */
+/** Register the relay's handlers on lib's socket transport. Once, at `init`. */
 export async function registerCastRelay() {
   if (registered) return;
   registered = true;
   const { registerHandler } = await import("../lib/sockets.mjs");
   registerHandler(CAST_APPLY_HANDLER, magicCastRelay);
+  registerHandler(CAST_UNDO_HANDLER, magicCastUndo);
 }

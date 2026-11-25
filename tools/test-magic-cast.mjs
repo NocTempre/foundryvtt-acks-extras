@@ -34,8 +34,8 @@ const { castVerdicts, blocked, listGate } = await import("../scripts/magic/cast-
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
 const { castControlOutcome, applyCastControl } = await import("../scripts/magic/cast-control.mjs");
-const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
-const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
+const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords, checkUndoRequest, anchoredRecordIds, CAST_UNDO_HANDLER } = await import("../scripts/magic/cast-apply.mjs");
+const { castCardView, castCardContent, CARD_ACTIONS, undoableEntry } = await import("../scripts/magic/cast-card.mjs");
 const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, castReach, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
 const { takesTargets } = await import("../scripts/magic/cast-kinds.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
@@ -1198,16 +1198,88 @@ t("a save passed by a defense shows no total, names the band to the seats that m
 
 const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
 
-t("the card shows each seat the buttons it may press, and a Judge's Undo; none is the system's own", () => {
+t("the card shows each seat the buttons it may press, and the Undo its ownership gives it; none is the system's own", () => {
   const applied = card({ entries: { t1_burn: { state: "applied", rolled: 7, applied: 4, fraction: 0.5, saved: true, before: 20, after: 16 } } });
   const press = (view) => view.sections.flatMap((s) => s.rows.flatMap((r) => r.actions.map((a) => a.action)));
-  assert.deepEqual(press(castCardView(applied, { isGM: true, canPress: true }, loc)), [CARD_ACTIONS.undo]);
+  assert.deepEqual(press(castCardView(applied, { isGM: true, canPress: true, ownsTarget: () => true }, loc)), [CARD_ACTIONS.undo]);
   assert.deepEqual(press(castCardView(applied, { isGM: false, canPress: true }, loc)), []);
+  assert.deepEqual(press(castCardView(applied, { isGM: true, canPress: true }, loc)), [], "a role with no ownership is offered none");
   assert.deepEqual(press(castCardView(card(), { isGM: false, canPress: true }, loc)), [CARD_ACTIONS.apply]);
   assert.deepEqual(press(castCardView(card(), { isGM: false, canPress: false }, loc)), []);
   const html = castCardContent(card(), loc);
   assert.ok(!html.includes("card-buttons"));
   assert.ok(!html.includes('data-action="applyDamage"'));
+});
+
+t("Undo is offered to a target's owner, and to the author who owns the caster for an entry that writes no target it may not own", () => {
+  const entry = (over = {}) => ({ state: "applied", rolled: 7, applied: 4, before: 20, after: 16, ...over });
+  const undoOf = (e, seat) => castCardView(card({ entries: { t1_burn: e } }), seat, loc).sections[0].rows[0].actions.map((a) => a.action);
+  const author = { isGM: false, canPress: true, ownsCaster: true, ownsTarget: () => false };
+  const targetOwner = { isGM: false, canPress: false, ownsCaster: false, ownsTarget: () => true };
+  assert.deepEqual(undoOf(entry(), author), [CARD_ACTIONS.undo], "the author who owns the caster, on a hit point entry of a target it does not own");
+  assert.deepEqual(undoOf(entry({ recordIds: ["r1"] }), author), [CARD_ACTIONS.undo], "and on its records");
+  for (const over of [{ lifted: [{ _id: "e1" }] }, { destroyed: { id: "w1" } }, { life: { kind: "followingTurn" } }]) {
+    const what = Object.keys(over)[0];
+    assert.deepEqual(undoOf(entry(over), author), [], `none for ${what}: the target's owner takes that back`);
+    assert.deepEqual(undoOf(entry(over), targetOwner), [CARD_ACTIONS.undo], `the target's owner has it for ${what}`);
+  }
+  assert.deepEqual(undoOf(entry(), targetOwner), [CARD_ACTIONS.undo], "the target's owner who did not author the card");
+  assert.deepEqual(undoOf(entry(), { isGM: false, canPress: false, ownsCaster: true, ownsTarget: () => false }), [], "the caster's owner who did not author the card and owns no target");
+  assert.deepEqual(undoOf(entry(), { isGM: false, canPress: true, ownsCaster: false, ownsTarget: () => false }), [], "an author who owns neither");
+  assert.deepEqual(undoOf(entry({ state: "pending", applied: undefined }), targetOwner), [], "nothing applied, nothing to undo");
+  assert.deepEqual(undoOf(entry({ state: "undone" }), targetOwner), [], "nor once undone");
+  assert.deepEqual([undoableEntry(entry()), undoableEntry(entry({ applied: 0 })), undoableEntry(entry({ applied: 0, recordIds: ["r"] })), undoableEntry(entry({ applied: 0, destroyed: { id: "w" } })), undoableEntry({ state: "pending", applied: 3 }), undoableEntry(undefined)], [true, false, true, true, false, false]);
+  assert.equal(CAST_UNDO_HANDLER, "magicCastUndo");
+});
+
+t("the relay refuses an Undo in order: no card, no target, nothing to undo, a seat that owns neither, then what the card's figures cannot bound for a seat that owns only the caster", () => {
+  const rows = [{ row: dmg(), key: "burn" }, { row: { key: "mend", type: "heal", roll: "1d6" }, key: "mend" }];
+  const hit = (over = {}) => ({ state: "applied", rolled: 7, applied: 4, before: 20, after: 16, ...over });
+  const world = (entry = hit(), over = {}) => ({ message: { authorId: "p1" }, card: card({ entries: { t1_burn: entry } }), ownsCaster: true, ownsTarget: false, targetHp: 16, rows, boundsOf: () => ({ min: 0, max: 8 }), ...over });
+  const req = (over = {}) => ({ requestUserId: "p1", messageId: "m", targetKey: "t1", rowKey: "burn", ...over });
+  assert.deepEqual(checkUndoRequest(req(), world()), { ok: true }, "the author who owns the caster, hit points standing and within the row's reach");
+  assert.equal(checkUndoRequest(req(), world(hit(), { message: null })).refused, "noCard");
+  assert.equal(checkUndoRequest(req(), world(hit(), { card: { ...card(), castId: undefined } })).refused, "noCard");
+  assert.equal(checkUndoRequest(req({ targetKey: "t9" }), world()).refused, "badTarget");
+  assert.equal(checkUndoRequest(req(), world({ state: "pending" })).refused, "notUndoable");
+  assert.equal(checkUndoRequest(req({ rowKey: "nothing" }), world()).refused, "notUndoable", "an entry the card does not hold");
+  assert.equal(checkUndoRequest(req(), world({ state: "pending" }, { ownsCaster: false })).refused, "notUndoable", "before the seat is asked about");
+  assert.equal(checkUndoRequest(req({ requestUserId: "p2" }), world(hit(), { targetHp: 5 })).refused, "notOwner", "a seat that is not the author, before any figure is read");
+  assert.equal(checkUndoRequest(req(), world(hit(), { ownsCaster: false, targetHp: 5 })).refused, "notOwner", "the author who owns no caster");
+  assert.deepEqual(checkUndoRequest(req({ requestUserId: "p2" }), world(hit({ lifted: [{ _id: "e1" }], destroyed: { id: "w" }, life: { kind: "x" } }), { ownsTarget: true, ownsCaster: false, targetHp: 1, boundsOf: () => null })), { ok: true }, "the target's owner needs no bound and may undo what it was never the author of");
+  assert.deepEqual(checkUndoRequest({ ...req(), requestUserId: undefined }, world(hit(), { ownsTarget: true })), { ok: true }, "the Judge's own client, with no sender to check");
+  for (const over of [{ lifted: [{ _id: "e1" }] }, { destroyed: { id: "w" } }, { life: { kind: "x" } }]) assert.equal(checkUndoRequest(req(), world(hit(over))).refused, "needsOwner", Object.keys(over)[0]);
+  assert.equal(checkUndoRequest(req(), world(hit(), { boundsOf: () => null })).refused, "needsOwner", "a row with no bound");
+  assert.equal(checkUndoRequest(req(), world(hit(), { boundsOf: undefined })).refused, "needsOwner");
+  assert.equal(checkUndoRequest(req(), world(hit(), { boundsOf: () => null, targetHp: 9 })).refused, "needsOwner", "what only the owner may take back is named before where the hit points stand");
+  assert.equal(checkUndoRequest(req(), world(hit(), { rows: [] })).refused, "needsOwner", "a row the spell no longer holds");
+  assert.equal(checkUndoRequest(req(), world(hit(), { targetHp: 9 })).refused, "moved", "the target's hit points are no longer where the entry left them");
+  assert.equal(checkUndoRequest(req(), world(hit(), { targetHp: null })).refused, "moved", "or cannot be read");
+  assert.equal(checkUndoRequest(req(), world(hit({ before: 16, after: 20 }), { targetHp: 20 })).refused, "overBound", "a damage entry that raised hit points");
+  assert.equal(checkUndoRequest(req({ rowKey: "mend" }), { ...world(), card: card({ entries: { t1_mend: hit({ before: 20, after: 16 }) } }) }).refused, "overBound", "a heal entry that lowered them");
+  assert.deepEqual(checkUndoRequest(req({ rowKey: "mend" }), { ...world(), card: card({ entries: { t1_mend: hit({ before: 12, after: 16 }) } }) }), { ok: true }, "a heal entry that raised them");
+  assert.equal(checkUndoRequest(req(), world(hit({ before: 30, after: 16 }))).refused, "overBound", "a change past the row's reach");
+  assert.deepEqual(checkUndoRequest(req(), world(hit({ before: 28, after: 20 }), { targetHp: 20 })), { ok: true }, "a change at the reach");
+  assert.deepEqual(checkUndoRequest(req(), world({ state: "applied", recordIds: ["r1"], before: null, after: null }, { targetHp: null, boundsOf: () => null })), { ok: true }, "an entry that changed no hit points needs none read");
+  assert.deepEqual(checkUndoRequest(req(), world({ state: "applied", recordIds: ["r1"], before: 16, after: 16, applied: 0 }, { targetHp: 3 })), { ok: true }, "nor one whose hit points did not move");
+  const hits = (n, over = {}) => hit({ instances: Array.from({ length: n }, () => ({ state: "applied", rolled: 6, critical: false })), ...over });
+  assert.deepEqual(checkUndoRequest(req(), world(hits(2, { before: 30, after: 16 }))), { ok: true }, "a thrown row's hits sum their reach: two of 8");
+  assert.equal(checkUndoRequest(req(), world(hits(2, { before: 40, after: 16 }))).refused, "overBound");
+  assert.equal(checkUndoRequest(req(), world({ ...hits(2, { before: 30, after: 16 }), instances: [{ state: "pending" }, { state: "pending" }] })).refused, "overBound", "a hit that never applied adds no reach");
+});
+
+t("a delete anchored by the cast reaches only the records that cast wrote on the target", () => {
+  const mark = (over = {}) => spellEffectData({ ...base, role: "recipient", ...over });
+  const effects = new Map([
+    ["own", mark()],
+    ["otherCast", mark({ castId: "cast2" })],
+    ["otherCaster", mark({ caster: { uuid: "Actor.c9" } })],
+    ["plain", { flags: {} }],
+  ]);
+  const anchor = { castId: "cast1", casterUuid: "Actor.c1" };
+  assert.deepEqual(anchoredRecordIds(effects, ["own", "otherCast", "otherCaster", "plain", "gone"], anchor), ["own"], "another cast's, another caster's, an effect no cast made and an id the target lacks are left");
+  assert.deepEqual(anchoredRecordIds(effects, ["own"], null), [], "no anchor, no delete");
+  assert.deepEqual(anchoredRecordIds(effects, ["own"], { castId: "", casterUuid: "Actor.c1" }), []);
 });
 
 t("every figure on the card carries a tooltip naming where it came from; a blank figure carries the page reference alone", () => {
@@ -1512,7 +1584,7 @@ t("the card shows a modifier section per row: the part's figure with the spell, 
     rows: { ...modCard().rows, save: { type: "modifier", key: "save", total: null, blank: true, conditions: [] } },
     entries: { t1_ac: { state: "applied", recordIds: ["r1"] }, t1_ward: { state: "applied", recordIds: ["r1"] } },
   });
-  const view = castCardView(applied, { isGM: true, canPress: true }, loc);
+  const view = castCardView(applied, { isGM: true, canPress: true, ownsTarget: () => true }, loc);
   const [acRow, saveRow, wardRow] = view.sections.map((s) => s.rows[0]);
   assert.equal(acRow.total, 2);
   assert.ok(acRow.tooltipText.includes("tip.part|") && acRow.tooltipText.includes("Testblade"), "the spell, the weapon and the page");

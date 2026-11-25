@@ -19,7 +19,7 @@
  *
  * The stored content is the card as a viewer with no rights sees it. A render
  * hook rebuilds the body per seat, so each seat gets exactly the buttons it
- * may press: Apply and Throw for the caster's author and a GM, Undo for a GM. A
+ * may press: Apply and Throw for the caster's author and a GM, Undo for a target's owner and for the author who owns the caster, Revert for the author who owns the caster. A
  * defense an amount or a save met is named to a GM and to the target's owners;
  * every other seat reads "a defense" and the figures. A summoning is stored as
  * a record (`card.summoned`), never as a worded line, and each seat's line names
@@ -230,13 +230,27 @@ function kindTip(row, entry, card, loc) {
   return cite;
 }
 
-/** The buttons one entry offers this seat. A modifier entry's Undo says it takes the whole group off. */
-function entryActions(entry, ids, { isGM, canPress }, loc, { group = false, name = "" } = {}) {
+/**
+ * Does an applied entry hold something an Undo takes back: an amount, records, lifted effects or a destroyed mark.
+ * @param {object} [entry]  an entry the card holds
+ * @returns {boolean}
+ */
+export function undoableEntry(entry) {
+  return entry?.state === "applied" && Boolean(entry.applied > 0 || entry.recordIds?.length || entry.lifted?.length || entry.destroyed);
+}
+
+/**
+ * The buttons one entry offers this seat. A modifier entry's Undo says it takes the whole group off.
+ * `undoBy` is how the seat reaches the Undo: `"target"` where it owns the target's actor, `"apply"` where it is the
+ * card's author and owns its caster, null for neither. The apply seat has no Undo for an entry that lifted effects,
+ * marked a weapon destroyed or timed a life: those are written on a target it does not own.
+ */
+function entryActions(entry, ids, { canPress, undoBy }, loc, { group = false, name = "" } = {}) {
   const out = [];
   const data = { target: ids.targetKey, row: ids.rowKey };
   if (entry?.state === "pending" && canPress) out.push({ action: CARD_ACTIONS.apply, label: loc("button.apply"), icon: "fa-solid fa-check", data });
   if (entry?.state === "throw" && canPress) out.push({ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data });
-  if (entry?.state === "applied" && isGM && (entry.applied > 0 || entry.recordIds?.length || entry.lifted?.length || entry.destroyed)) {
+  if (undoBy && undoableEntry(entry) && (undoBy === "target" || !(entry.lifted?.length || entry.destroyed || entry.life))) {
     const tooltip = group ? loc("tip.undoGroup", { name }) : entry.destroyed ? loc("tip.undoDestroyed") : entry.lifted?.length ? loc("tip.undoLifted") : loc("tip.undo");
     out.push({ action: CARD_ACTIONS.undo, label: loc("button.undo"), icon: "fa-solid fa-rotate-left", data, tooltip });
   }
@@ -285,7 +299,7 @@ function summonedLines(summoned, seat, loc) {
  * The roll card a cast card is drawn as, for one seat.
  *
  * @param {object} card  the model
- * @param {{isGM: boolean, canPress: boolean, ownsTarget?: (target: object) => boolean, opens?: (uuid: string) => boolean}} seat  `ownsTarget` says whether the seat owns a card target's actor; absent, no target is. `opens` says whether the seat can open the creature a summoning's uuid names; absent, none can but a GM
+ * @param {{isGM: boolean, canPress: boolean, ownsCaster?: boolean, ownsTarget?: (target: object) => boolean, opens?: (uuid: string) => boolean}} seat  `ownsCaster` says whether the seat owns the card's caster; absent, it does not. `ownsTarget` says whether the seat owns a card target's actor; absent, no target is. `opens` says whether the seat can open the creature a summoning's uuid names; absent, none can but a GM
  * @param {(key: string, data?: object) => string} loc  the cast's strings, under the magic root's `cast` branch
  * @returns {object} `renderRollCard`'s argument
  */
@@ -313,6 +327,8 @@ export function castCardView(card, seat, loc) {
       if (card.recur && !entry) continue;
       const mayRoll = seat.isGM === true || seat.ownsCaster === true;
       const maySave = seat.isGM === true || seat.ownsTarget?.(target) === true;
+      // Undo reaches the target's owner, and the card's author who owns the caster; the recur branch below clears `canPress`, so it is read here.
+      const undoBy = seat.ownsTarget?.(target) === true ? "target" : seat.canPress === true && seat.ownsCaster === true ? "apply" : null;
       const line = isMod
         ? {
             name: target.name,
@@ -320,7 +336,7 @@ export function castCardView(card, seat, loc) {
             tooltipText: exempt || partTip(row, card, targetKey, loc),
             detail: yields ? loc("detail.yields", { name: yields }) : row.mode === "set" ? loc("detail.setFigure") : "",
             ...outcomeOf(entry, loc),
-            actions: entryActions(entry, { targetKey, rowKey }, seat, loc, { group: true, name: target.name }),
+            actions: entryActions(entry, { targetKey, rowKey }, { canPress: seat.canPress, undoBy }, loc, { group: true, name: target.name }),
           }
         : {
             name: target.name,
@@ -337,10 +353,10 @@ export function castCardView(card, seat, loc) {
               .filter(Boolean)
               .join(" · "),
             ...outcomeOf(entry, loc),
-            // A prompt's entries are pressed through Save and Roll, never Apply; its applied entries keep the Judge's Undo.
+            // A prompt's entries are pressed through Save and Roll, never Apply; its applied entries keep their Undo.
             actions: card.recur
-              ? [...recurActions(entry, { targetKey, rowKey }, row, { maySave, mayRoll }, loc), ...entryActions(entry, { targetKey, rowKey }, { ...seat, canPress: false }, loc)]
-              : entryActions(entry, { targetKey, rowKey }, seat, loc),
+              ? [...recurActions(entry, { targetKey, rowKey }, row, { maySave, mayRoll }, loc), ...entryActions(entry, { targetKey, rowKey }, { canPress: false, undoBy }, loc)]
+              : entryActions(entry, { targetKey, rowKey }, { canPress: seat.canPress, undoBy }, loc),
           };
       if (resist?.noSave) {
         Object.assign(line, { targetText: loc("save.none"), targetTooltip: gateTip(resist.noSave, loc, { name: target.name, cite: card.cite }), detail: [loc("detail.noSave"), line.detail].filter(Boolean).join(" · ") });
@@ -378,8 +394,8 @@ export function castCardView(card, seat, loc) {
   if (card.recurs && !card.recur && (seat.isGM === true || seat.ownsCaster === true)) {
     buttons.push({ action: CARD_ACTIONS.nextRound, label: loc("button.nextRound"), icon: "fa-solid fa-forward-step", tooltip: loc("tip.nextRound") });
   }
-  // The Judge's revert of a performed step, until it has been pressed.
-  if (seat.isGM === true && card.procedure && card.procedure.undo != null && card.procedure.reverted !== true) {
+  // The revert of a performed step, until it has been pressed: the caster's owner who can edit the card.
+  if (seat.canPress === true && seat.ownsCaster === true && card.procedure && card.procedure.undo != null && card.procedure.reverted !== true) {
     buttons.push({ action: CARD_ACTIONS.revert, label: loc("button.revert"), icon: "fa-solid fa-rotate-left", tooltip: loc("tip.revert") });
   }
   return {

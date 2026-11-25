@@ -558,7 +558,7 @@ const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
 const rowOf = (view, i = 0) => view.sections[0].rows[i];
 
 t("the card names the weapon before a destroy entry is applied, what it destroyed or kept after, and offers a GM Undo only where a mark was made", () => {
-  const view = (entry) => castCardView(cardFor([SMASH], { t1_smash: entry }), { isGM: true, canPress: true }, loc);
+  const view = (entry) => castCardView(cardFor([SMASH], { t1_smash: entry }), { isGM: true, canPress: true, ownsTarget: () => true }, loc);
   assert.match(rowOf(view({ state: "pending", item: named })).detail, /detail\.weapon\|\{"name":"Sample blade"\}/);
   const done = rowOf(view({ state: "applied", saved: false, item: named, destroyed: named, recordIds: [] }));
   assert.match(done.detail, /detail\.destroyed\|\{"name":"Sample blade"\}/);
@@ -574,15 +574,15 @@ t("the card names the weapon before a destroy entry is applied, what it destroye
 });
 
 t("the card tells what a lifting row lifted and left, with the reasons, and a slay's hit points and death; a GM may Undo each", () => {
-  const lift = castCardView(cardFor([LIFT], { t1_calm: { state: "applied", saved: null, lifted: [{ _id: "e1", name: "Plain dread" }], listed: [{ status: "dread", name: "Twin", reason: "twoStatus" }], recordIds: [] } }), { isGM: true, canPress: true }, loc);
+  const lift = castCardView(cardFor([LIFT], { t1_calm: { state: "applied", saved: null, lifted: [{ _id: "e1", name: "Plain dread" }], listed: [{ status: "dread", name: "Twin", reason: "twoStatus" }], recordIds: [] } }), { isGM: true, canPress: true, ownsTarget: () => true }, loc);
   const line = rowOf(lift);
   assert.match(line.detail, /detail\.lifted\|\{"names":"Plain dread"\}/);
   assert.match(line.detail, /detail\.listed\|\{"names":"Twin \(detail\.reason\.twoStatus\)"\}/);
   assert.deepEqual(line.actions.map((a) => [a.action, a.tooltip]), [["magicCastUndo", "tip.undoLifted"]]);
-  const none = rowOf(castCardView(cardFor([LIFT], { t1_calm: { state: "applied", saved: null, lifted: [], listed: [], recordIds: [] } }), { isGM: true, canPress: true }, loc));
+  const none = rowOf(castCardView(cardFor([LIFT], { t1_calm: { state: "applied", saved: null, lifted: [], listed: [], recordIds: [] } }), { isGM: true, canPress: true, ownsTarget: () => true }, loc));
   assert.match(none.detail, /detail\.nothingToLift/);
   assert.deepEqual(none.actions, []);
-  const slain = rowOf(castCardView(cardFor([SLAY], { t1_fell: { state: "applied", saved: false, applied: 11, before: 11, after: 0, recordIds: ["r1"] } }), { isGM: true, canPress: true }, loc));
+  const slain = rowOf(castCardView(cardFor([SLAY], { t1_fell: { state: "applied", saved: false, applied: 11, before: 11, after: 0, recordIds: ["r1"] } }), { isGM: true, canPress: true, ownsTarget: () => true }, loc));
   assert.match(slain.detail, /detail\.slain/);
   assert.match(slain.tooltipText, /tip\.slayHp\|\{"before":11,"after":0\}/);
   assert.match(slain.tooltipText, /tip\.cite\|\{"cite":"p\. 9"\}/, "with the page");

@@ -40,7 +40,7 @@
  * `pick: "one"` bucket. A bucket's entry exists only by a drag of a real document
  * (lib's `bucket.entryFromDrop`): no control and no field writes `buckets`, so
  * a typed or free-text entry has no path in. A `ctx` is `{actor, spell,
- * tradition, classItem, invocationLevel, casterLevel, isGM, moment, combat,
+ * tradition, classItem, invocationLevel, casterLevel, moment, combat,
  * source, roll, now, resolve}` (`resolve(uuid)` reads a document synchronously); a ctx whose `source` is not `spell` is never given a
  * procedure.
  */
@@ -351,21 +351,24 @@ export async function runPerform(procedure, ctx, answer) {
 }
 
 /**
- * The Judge's revert of a performed step. Only a Judge reverts, only a card that
- * carries undo data, and only once.
+ * The revert of a performed step. Only a seat that owns the caster and can edit
+ * the card reverts, only a card that carries undo data, and only once. The two
+ * ownership answers are the caller's (`ownsCaster`, `ownsCard`); they gate the
+ * revert here and are not handed on, so a procedure's `ctx` carries no seat.
  *
  * @param {{procedure?: {kind: string, undo: *, reverted?: boolean}}} card
- * @param {object} ctx  carries `isGM`
- * @returns {Promise<{ok: boolean, reason?: "notGM"|"nothing"|"noRevert"|"threw"}>}
+ * @param {object} ctx  a procedure's ctx, with `ownsCaster` (the seat owns the caster) and `ownsCard` (the seat can edit the card)
+ * @returns {Promise<{ok: boolean, reason?: "notOwner"|"nothing"|"noRevert"|"threw"}>}
  */
 export async function runRevert(card, ctx) {
   const done = card?.procedure;
-  if (ctx?.isGM !== true) return { ok: false, reason: "notGM" };
+  const { ownsCaster, ownsCard, ...rest } = ctx ?? {};
+  if (ownsCaster !== true || ownsCard !== true) return { ok: false, reason: "notOwner" };
   if (!done || done.undo === null || done.undo === undefined || done.reverted === true) return { ok: false, reason: "nothing" };
   const procedure = procedureOfKind(done.kind);
   if (!procedure?.revert) return { ok: false, reason: "noRevert" };
   try {
-    await procedure.revert({ ...ctx, source: SPELL_SOURCE }, done.undo);
+    await procedure.revert({ ...rest, source: SPELL_SOURCE }, done.undo);
     return { ok: true };
   } catch (err) {
     console.error(`${MODULE_ID} | a cast procedure's revert threw`, err);

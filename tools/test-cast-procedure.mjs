@@ -3,7 +3,7 @@
  * places the cast reads it): the registry, the claims, a long casting time in a
  * fight, the verdicts and their severity, the Invocation band the dialog draws,
  * `perform`'s place in the cast, what a declaration stores and a resolution
- * restores, the Judge's revert, a lost declaration, a stored bucket the world no
+ * restores, the revert, a lost declaration, a stored bucket the world no
  * longer holds, and a ritual. Foundry-free; the tradition kind, the procedure,
  * the spells and every figure are invented, so this file carries no book content.
  *
@@ -362,7 +362,8 @@ await ta("perform runs once, after the cast has its id and before the first row 
   assert.equal(log.performs.length, 1);
   const { ctx, answer } = log.performs[0];
   assert.deepEqual(answer, { pace: "calm", bonus: 3 });
-  assert.deepEqual([ctx.castId, ctx.source, ctx.moment, ctx.isGM, ctx.tradition.kind, ctx.actor.name, ctx.spell.name, typeof ctx.roll, typeof ctx.now], ["castX", "spell", "free", false, KIND, "Tester", "Testrite", "function", "function"]);
+  assert.deepEqual([ctx.castId, ctx.source, ctx.moment, ctx.tradition.kind, ctx.actor.name, ctx.spell.name, typeof ctx.roll, typeof ctx.now], ["castX", "spell", "free", KIND, "Tester", "Testrite", "function", "function"]);
+  assert.deepEqual(["isGM", "ownsCaster", "ownsCard"].filter((k) => k in ctx), [], "a procedure's ctx carries no seat's role or ownership");
   const card = r.calls.posts[0].card;
   assert.deepEqual(card.procedure, { kind: KIND, section: { title: "Rite", rows: [{ name: "Tester", total: 4 }] }, undo: { marks: 2 } });
   assert.deepEqual(card.order, ["mend"], "the rows ran after it");
@@ -470,29 +471,37 @@ await ta("perform is not run at a declaration; the declaration stores the proced
   off();
 });
 
-await ta("the Judge's revert: the card carries the undo data, only a Judge sees the button and may press it, the procedure gets the data, and a second press does nothing", async () => {
+await ta("the revert: the card carries the undo data, only a seat that owns the caster and can edit the card sees the button and may press it, the procedure gets the data and no seat, and a second press does nothing", async () => {
   const { procedure, log } = logging();
   const off = registerCastProcedure(KIND, procedure);
   const r = runDeps({ answer: { mode: "normal", picks: {} } });
   await cast(spell([heal()]), r.deps);
   const card = r.calls.posts[0].card;
   const buttons = (seat, c = card) => castCardView(c, seat, (k) => k).buttons.map((b) => b.action);
-  assert.equal(buttons({ isGM: false, canPress: true, ownsCaster: true }).includes(CARD_ACTIONS.revert), false, "not on a Player's seat, the caster's owner included");
-  assert.ok(buttons({ isGM: true, canPress: true }).includes(CARD_ACTIONS.revert), "on the Judge's");
-  assert.deepEqual(buttons({ isGM: true, canPress: true }, { ...card, procedure: { ...card.procedure, reverted: true } }).includes(CARD_ACTIONS.revert), false, "gone once reverted");
-  assert.equal(buttons({ isGM: true, canPress: true }, { ...card, procedure: { ...card.procedure, undo: null } }).includes(CARD_ACTIONS.revert), false, "gone with nothing to put back");
+  const owner = { isGM: false, canPress: true, ownsCaster: true };
+  assert.ok(buttons(owner).includes(CARD_ACTIONS.revert), "on the card's author who owns the caster, a Player included");
+  assert.equal(buttons({ ...owner, ownsCaster: false }).includes(CARD_ACTIONS.revert), false, "not on a seat that owns no caster, a GM-role seat included");
+  assert.equal(buttons({ isGM: true, canPress: true }).includes(CARD_ACTIONS.revert), false, "the role decides nothing: a GM seat that owns no caster has none");
+  assert.equal(buttons({ ...owner, canPress: false }).includes(CARD_ACTIONS.revert), false, "not on the caster's owner who cannot edit the card");
+  assert.deepEqual(buttons(owner, { ...card, procedure: { ...card.procedure, reverted: true } }).includes(CARD_ACTIONS.revert), false, "gone once reverted");
+  assert.equal(buttons(owner, { ...card, procedure: { ...card.procedure, undo: null } }).includes(CARD_ACTIONS.revert), false, "gone with nothing to put back");
   assert.match(CARD_ACTIONS.revert, /^magicCast/, "named so the card's render hook binds it");
-  assert.deepEqual(await runRevert(card, { isGM: false }), { ok: false, reason: "notGM" });
-  assert.equal(log.reverts.length, 0, "a Player's press reverts nothing");
-  assert.deepEqual(await runRevert(card, { isGM: true, actor: "a" }), { ok: true });
+  assert.deepEqual(await runRevert(card, {}), { ok: false, reason: "notOwner" });
+  assert.deepEqual(await runRevert(card, { ownsCaster: true, ownsCard: false }), { ok: false, reason: "notOwner" }, "the caster's owner who cannot edit the card");
+  assert.deepEqual(await runRevert(card, { ownsCaster: false, ownsCard: true }), { ok: false, reason: "notOwner" }, "an editor of the card who owns no caster");
+  assert.deepEqual(await runRevert(card, { isGM: true }), { ok: false, reason: "notOwner" }, "a role names no owner");
+  assert.equal(log.reverts.length, 0, "a refused press reverts nothing, and nothing is read from the card first");
+  assert.deepEqual(await runRevert(card, { ownsCaster: true, ownsCard: true, actor: "a" }), { ok: true });
   assert.deepEqual([log.reverts.length, log.reverts[0].undo, log.reverts[0].ctx.actor, log.reverts[0].ctx.source], [1, { marks: 2 }, "a", "spell"]);
-  assert.deepEqual(await runRevert({ ...card, procedure: { ...card.procedure, reverted: true } }, { isGM: true }), { ok: false, reason: "nothing" });
-  assert.deepEqual(await runRevert({ ...card, procedure: { kind: "elsewhere", undo: 1 } }, { isGM: true }), { ok: false, reason: "noRevert" });
+  assert.deepEqual(["isGM", "ownsCaster", "ownsCard"].filter((k) => k in log.reverts[0].ctx), [], "the procedure's ctx carries no ownership or role");
+  const own = { ownsCaster: true, ownsCard: true };
+  assert.deepEqual(await runRevert({ ...card, procedure: { ...card.procedure, reverted: true } }, own), { ok: false, reason: "nothing" });
+  assert.deepEqual(await runRevert({ ...card, procedure: { kind: "elsewhere", undo: 1 } }, own), { ok: false, reason: "noRevert" });
   const was = console.error;
   console.error = () => {};
   try {
     const bad = registerCastProcedure("badkind", { revert: async () => { throw new Error("x"); } });
-    assert.deepEqual(await runRevert({ procedure: { kind: "badkind", undo: 1 } }, { isGM: true }), { ok: false, reason: "threw" });
+    assert.deepEqual(await runRevert({ procedure: { kind: "badkind", undo: 1 } }, own), { ok: false, reason: "threw" });
     bad();
   } finally {
     console.error = was;

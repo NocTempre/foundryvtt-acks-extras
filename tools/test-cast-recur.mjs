@@ -159,14 +159,17 @@ t("each seat is offered only the press it may make: Save to a bearer's owner, Ro
   assert.match(gm.note, /recur\.moment\.casterTurn/);
 });
 
-t("a Roll row of a bearer is the caster's; a pressed entry offers Undo to the Judge and no press to anyone", () => {
+t("a Roll row of a bearer is the caster's; a pressed entry offers Undo to the bearer's owner and to the author who owns the caster, and no press to anyone", () => {
   const model = prompt("start", "Actor.b");
   assert.deepEqual(model.order, ["sear"]);
   const seat = { isGM: false, canPress: false, ownsTarget: () => true, ownsCaster: true };
   assert.deepEqual(labels(lines(castCardView(model, seat, loc))), ["magicCastRoll"]);
   const done = { ...model, entries: { tk1_sear: { state: "applied", applied: 3, rolled: 3, recordIds: [] } } };
   assert.deepEqual(labels(lines(castCardView(done, { ...seat, isGM: true, canPress: true }, loc))), ["magicCastUndo"]);
-  assert.deepEqual(labels(lines(castCardView(done, seat, loc))), []);
+  assert.deepEqual(labels(lines(castCardView(done, seat, loc))), ["magicCastUndo"], "the bearer's owner, whatever the role and whoever authored the prompt");
+  assert.deepEqual(labels(lines(castCardView(done, { ...seat, ownsTarget: () => false }, loc))), [], "the caster's owner who did not author the prompt and owns no bearer");
+  assert.deepEqual(labels(lines(castCardView(done, { ...seat, ownsTarget: () => false, canPress: true }, loc))), ["magicCastUndo"], "the author who owns the caster, for a bearer it does not own");
+  assert.deepEqual(labels(lines(castCardView(done, { isGM: true, canPress: true, ownsTarget: () => false, ownsCaster: false }, loc))), [], "a role alone is no owner");
 });
 
 t("a cast with a recurring row offers its caster's seat and the Judge Next round; a prompt and a stranger's seat do not", () => {
@@ -703,9 +706,9 @@ t("the prompt offers the bearer's owner the Save press for the floor, and the ca
   const view = castCardView(model, { isGM: false, canPress: false, ownsTarget: () => true, ownsCaster: false }, loc);
   assert.deepEqual(labels(lines(view)), ["magicCastSave"]);
   const cast = castCard([FLOOR], { t1_floor: { state: "applied", saved: null, awaits: true, recordIds: ["a1"] } }, { rows: { floor: { type: "conditionGrant", key: "floor", conditions: ["prone"], lasts: "instant" } } });
-  const [line] = lines(castCardView(cast, { isGM: true, canPress: true }, loc));
+  const [line] = lines(castCardView(cast, { isGM: true, canPress: true, ownsTarget: () => true }, loc));
   assert.match(line.detail, /detail\.awaitsFail/);
-  assert.deepEqual(labels([line]), ["magicCastUndo"], "the Judge's Undo takes the anchor off");
+  assert.deepEqual(labels([line]), ["magicCastUndo"], "the bearer's owner's Undo takes the anchor off");
 });
 
 console.log(`\n${n} recurring-row tests passed`);
