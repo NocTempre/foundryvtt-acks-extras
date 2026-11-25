@@ -306,3 +306,64 @@ wrestle: applying it stays the Judge's call.
 **What it cost.** Nothing rolls a manoeuvre's saving throw, so the hooked
 figures' save part reaches only the Rolls tab's tooltip. The penalty a human or
 demi-human takes from wearing the armour is not built.
+
+## 2026-11-25 — The organisation roll: references fold to one entry or stay findings, shares divide the first level with more than one unit
+
+The slice that builds the evaluator, the optional rules and the write plans
+(`docs/monsters/MODEL.md`, "The organisation roll") ruled what the plan left open.
+Owner words it follows: "Make sure to include the outside references such as to
+[two creatures a section names]" (a stack built from the other creature's own entry), "Just drop
+the reroll entirely. You can roll some or all of the org chart up to village and
+you can manually edit or add from there" (Roll fills an empty row and nothing
+re-rolls), "Don't overcomplicate. A lair is just an encounter flag for size and
+loot when RNG generated" (nothing is named a lair), and "Look at how languages can
+be left undecided until needed" (an empty row waits).
+
+- **A reference resolves on equality with exactly one entry, and on nothing less.**
+  The word and each entry's name fold to sorted singular tokens, a training
+  adjective dropped from the page's side (`QUALIFIERS`). Two entries of one fold,
+  or an entry that carries every printed word and more, are findings with their
+  candidates, for board 1j's hand link. *Rejected:* taking the first of two
+  entries; resolving a lone entry that merely contains the word (it would invent
+  the category word the page leaves out); dropping leading words until something
+  matches (it turns a qualified creature into its plain kin). Measured against
+  the phase 1 census on this machine's Monstrous Manual: every row it called
+  resolved resolves, every row it left unresolved stays one.
+- **Cells are read at generation, not written to parts at import.** The village
+  makeup and the mount row are registry tables a Judge can override; reading them
+  when a roll runs makes the override count without a repair and keeps the import
+  path out of this slice. A cell is read by its grammar and never by its row key.
+- **Shares divide the first level, from the top, that holds more than one unit.**
+  The page says "gangs or warbands" without saying of what. A unit that holds
+  exactly one unit (a side whose noun is a unit holding one) would otherwise take
+  one kind for its whole warband, so the division passes down to the first level
+  with several. Where the printed roundings leave units over, the largest dropped
+  fraction takes them (`remainder`), and a unit alone in its level takes the
+  shares' own roundings (`loneSplit: "printed"`); both, and the default rounding of
+  a share the page prints none for (`nearest`), are the Judge's choices in `gen`.
+- **A unit's non-body parts go to a camp node of its own.** The unit's group
+  holds its bodies and its leader, the camp (dependants, guards, captives,
+  casters) is a row and group under it, as the plan's section 3 draws it. A chance
+  `perUnit` is thrown once and its count once for each unit of that word.
+- **A side whose noun is a unit holding one unit is a unit.** The line that
+  counts one warband under a lair-noun is evaluated as printed, with its own
+  leader and the warband beneath. The adopted example reads it as "a warband's
+  group with its gangs inside"; a surface may collapse the single-child level. A
+  rule that collapsed it in the evaluator would drop the leader the recipe gives
+  that unit.
+- **A trait goes to the top unit when it holds units**, and everything under it
+  takes it ("one trait per warband or village"); a lone gang rolls none. A Roll of
+  an empty row below reads the ancestor's from `inherit`.
+- **A mount beside its riders writes no stack.** The page prints no count for
+  beasts that fight beside a rider, so the roll lists the finding and a Judge adds
+  them. A trait's added beasts need the Judge's word for the creature.
+- **A piece a leader's table does not give is listed on the leader (`gearNot`)
+  and never rolled onto** (T-0720); a Judge may add it by hand.
+- **Coverage rows 11 and 24, and section 2b, re-read on "a leader is an actor".**
+  Row 11: the chieftain part's morale goes to the group's `unit.officerMoraleBonus`
+  and the shipped walk (`moraleFromUnitsAbove`) carries it down; no provider reads
+  a leader stack. Row 24: a leader per unit is the officer actor of its unit's
+  group, made from a Role cell prototype; no leader is a stack. Section 2b's need
+  of a printed leader's fixed hit points in `rollBodyHp` falls with it. `fixedHp`
+  stays for a part that is a stack and prints its hit points (an escort
+  statistically equal to a rank).

@@ -66,9 +66,9 @@ creature is made of. The importer writes it, at the same two places
 family template. `scripts/importer/ecology-recipe.mjs` reads the creature's
 Combat and Ecology paragraphs and its parsed encounter lines; shipped locators
 find each structure, and every figure and every creature word is the page's.
-The evaluator that rolls a recipe into stacks, and the Judge's editor for it,
-are later slices (`docs/monsters/wip/20261124-beastman-organisation-plan.md`,
-S11 and S4b; the design is `docs/lib/wip/20261031-encounter-group.md`, §3d).
+The evaluator that rolls a recipe into a tree of units is "The organisation
+roll", below; the Judge's editor for it is a later slice
+(`docs/monsters/wip/20261124-beastman-organisation-plan.md`, S4b).
 
 A part carries `key`, `label` (the word as printed), `role`, `source`, `count`,
 `chance` (percent; null for always), `when`, `branch`, `moraleWhileAlive`,
@@ -727,7 +727,7 @@ with none of them gains them on the repair, since the build is whole.
   matches.
 - **Optional equipment** (`gear`): a multi axis keyed by the rows of
   `beastmanEquipment`, after the trait, with no bands. Who may carry a piece is
-  the generator's carry roll (not built); a Judge's pin is the Judge's call.
+  the organisation roll's carry roll ("The organisation roll"); a Judge's pin is the Judge's call.
 - **Leader table** (`table`, the third option of Leader figures, labelled with
   the page): never the default, the breed page stays it. Its cells,
   `variant|role|table`, exist for each breed and rank `beastmanLeaders` holds a
@@ -895,3 +895,123 @@ and each source's part). Their tooltips (`derivationTips`) name the parts with
 the actor's own numbers and the page, only while the actor still holds the
 figure, and are unwound first, so the kit's and the leader's own tips stand
 beside them.
+
+## The organisation roll
+
+`scripts/monsters/encounter-recipe.mjs` (the evaluator),
+`organisation-logic.mjs` (the optional rules, `planOrganisationRoll`) and
+`outside-reference.mjs` (the resolver and the table-cell readers) make a rolled
+tree of units from a variant's recipe, pure and with `rng` injected. The write
+plans that carry the tree out are lib's
+([../lib/ORGANISATION.md](../lib/ORGANISATION.md), "The Roll, Add and Edit
+plans"). **Roll** fills an empty row and re-rolls nothing; the Judge edits or adds
+by hand from there.
+
+**The unit rolled.** The Roll takes lib's own `context` and `state`
+(`group-encounter-logic.mjs`), `state: "chance"` throwing the lair chance first.
+The line of that context and side names the unit (its noun), and the line's count
+is how many of the unit it counts it holds, or its bodies where it counts no
+unit. A sub-unit is sized by whichever line carries its noun, in either context.
+A `size-*` part of the recipe stands in for the line it was read from, so a
+Judge's correction counts. Nothing is named a lair: a side whose noun is a unit
+holding one unit is a unit like any other, and the state alone decides which side
+is read and whether treasure is dealt (`treasure.deal`). A side with no count
+rolls nothing (`reason: "side"`).
+
+**Shares.** The recipe's `ratioOf: "unit"` parts (or, with the optional split on,
+the shares the imported split figures give) divide the units of the first level,
+going down from the top, that holds more than one unit and whose unit words the
+sentences name; a tree with none divides its deepest level. Each share takes its
+percent of the units, rounded as the share prints, never more than are left
+(`apportion`), and everything under a unit takes its kind. The page does not say
+what to do where the printed roundings leave a unit over, or where a unit stands
+alone, so these are the Judge's choices, kept in the root row's `gen.choices`
+with a default the roll returns: `remainder` (`largest`: one each to the shares
+that dropped the largest fraction; `none`), `loneSplit` (`printed`: the shares'
+own roundings; `roll`: a percentile over the shares), `unprintedRound` (`nearest`,
+half up; `up`; `down`, for a share the page prints no rounding for, a dependant
+included) and `branch` (which alternative of a branch group is present, the first
+unless named). The evaluator never asks; the surface that shows the choices does.
+
+**Parts.** A leader attaches to each unit of its word (`leaders`; the chieftain's
+`moraleWhileAlive` rides on it). A chance is one throw of 1d100 for the part, or
+for its branch group's chosen alternative. A count `perUnit` is rolled for each
+unit of that word under the unit, after one chance throw. A dependant is its
+percent of the bodies of the part it names under the unit. A part that is no body
+(guards, captives, dependants, casters) goes to the unit's **camp**, a node of its
+own under the unit that holds those stacks, so the unit's group holds its bodies
+and its leader. A figure the recipe lacks leaves the part at zero and is listed in
+`findings` (`what: "missing"`); nothing throws.
+
+**Leaders.** A unit's first leader is made an actor and named as its group's
+officer; the others are actors too. A leader is never a stack. The officer carries
+its `moraleBonus` when that is a whole number the group field holds (0 to 4), else
+null and a `morale` finding.
+
+**The optional rules** (`planOrganisationRoll`), each read from the imported
+tables and listed in `findings` where a figure is missing:
+
+- *Special troops* (`rules.troops`): the split figures give three shares and the
+  third's units each roll a troop on the variant's bands (`rollBanded`: the die the
+  bands imply, a throw outside every band a `gap`). The units under it, its
+  leader and its gangs take the troop; a leader above special units takes the
+  first one's. A mounted troop (a troop row holding `mounts`) has its bodies ride
+  one beast each and each unit above has its leader ride; a row holding
+  `alongside` is a finding and writes no stack, since the page prints no count
+  for beasts beside riders.
+- *Trait* (`rules.traits`): one for a unit that holds units, rolled on the
+  variant's bands and taken by everything under it. A Roll of an empty row below
+  the top takes `inherit.trait` from the nearest ancestor's `gen` and rolls none.
+  A trait row that adds beasts (`beastDice`) adds them only where the Judge named
+  the creature (`choices.traitBeast`, a word, resolved like any outside
+  reference); until then the question is a `traitBeasts` finding.
+- *Gear* (`rules.gear`): who may carry a piece is the equipment table's, by rank,
+  troop and scope. A leader carries a piece by its row's `carry` entries when the
+  row names its rank and, if it names troops, its troop; a unit-scope entry is
+  thrown for each unit of that word; a chance per Hit Die needs the leader's Hit
+  Dice (`hdOf`) and without them is an `hd` finding. A troop's `carry` figures
+  give the number of bodies in a stack that carry a piece (`stack.carry`). A piece
+  the table does not give a leader is listed on it (`gearNot`) and never rolled
+  onto; a Judge may still add it by hand.
+- *Speech*: the imported speech figures give the speakers of Common among each
+  body stack (`stack.speakers`) and whether a leader speaks it, by Hit Die.
+- *Village source* (`villageSource`): `page` (default) reads the breed's parts;
+  `table` replaces the page's guards and captives with the village table's cells
+  (`withTableVillage`). Cells are read by their grammar, never by their row key.
+- *Leader source*: `table` marks each leader prototype with the leader table's
+  grade (`grade: "table"`) for the Leader figures axis; blank is the variant's own.
+
+**Outside references.** A part that names a creature outside the family (a
+village's guard beasts, a table cell's beasts, a mount) keeps the printed word in
+`source.name`, and the library's entry exists only once the Judge has imported it,
+so the match is made at generation: `resolveOutside` folds the word and each
+entry's name to sorted singular tokens (case, punctuation, order and plurals fall
+away; qualifier words such as a training adjective are dropped from the page's
+side) and answers an entry only when its tokens equal the word's and no other
+entry's do. Two entries of one fold are `ambiguous`; an entry that carries every
+word the page prints and more (a qualifier or a category word the page leaves out)
+is `partial` and never resolves; both come back with their candidates, and a word
+nothing answers is `none`. A resolved reference is a stack built from that entry
+(its own figures and picture) and an unresolved one a labelled stack; each is a
+`reference` finding the Judge links by hand. A count of no named kind (captives)
+is no reference. The table cells are read at generation over the imported rows,
+so a Judge's override counts without a repair: `readBeastCell` reads a chance, a
+count and a word, or an extra leader rank, or a count per unit, and any other cell
+is null; `readMountCell` reads the creature a breed rides or has fight beside it.
+Against this machine's own Monstrous Manual (`C:\Proj\acks-rules\acks-monsters\beastman-outside-refs\`,
+local only) the resolver resolves every reference the phase 1 census named
+resolved and leaves every one it named unresolved a finding.
+
+**Shared prototypes.** A creature is a prototype spec (`kind` `cell`, `entry` or
+`label`, with its variant, role, part, troop, trait and grade), and `protoKey`
+is its fields in a fixed order, so identical creatures across the whole roll share
+one prototype. The write plan mints each key once.
+
+**The `gen` record.** Only what a later Roll of an empty row needs rides on the
+row where a roll began: `variant`, `context`, `state`, which optional rules are
+on, the leader and village sources, the trait, and the Judge's `choices`. An empty
+row a one-level roll leaves keeps its own `shareKind`, `troop` and `trait`. There
+is no roll key, no pin and no log.
+
+Verification: `tools/test-encounter-recipe.mjs`, `tools/test-organisation-logic.mjs`
+and `tools/test-org-write.mjs`, all on invented recipes, tables and creature words.

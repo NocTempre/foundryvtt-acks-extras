@@ -94,6 +94,13 @@ t("shares whose roundings do not sum to the units leave the rest by the largest 
   assert.equal(Object.values(apportion(7, three).counts).reduce((a, b) => a + b, 0), 7);
 });
 
+t("shares that all round up never take more units than there are", () => {
+  const over = [{ key: "a", percent: 60, round: "up" }, { key: "b", percent: 60, round: "up" }];
+  const { counts, left } = apportion(1, over);
+  assert.deepEqual(counts, { a: 1, b: 0 });
+  assert.equal(left, 0);
+});
+
 t("a rounding the page does not print takes the Judge's default", () => {
   const share = [{ key: "a", percent: 50 }];
   assert.equal(apportion(3, share, { remainder: "none" }).counts.a, 2, "nearest, half up");

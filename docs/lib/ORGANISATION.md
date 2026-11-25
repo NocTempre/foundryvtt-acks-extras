@@ -10,6 +10,7 @@ and the faction that hosts a village's chart is [factions/MODEL.md](../factions/
 |---|---|
 | `scripts/lib/fields.mjs` | `unitField()`, the row. |
 | `scripts/lib/org-tree-logic.mjs` | Foundry-free: the node, the walks, the ordered write plans, the host preference, the morale walk, `affiliationRows`, the two view models. |
+| `scripts/lib/org-write-logic.mjs` | Foundry-free: the Roll, Add and Edit plans of a generated organisation. |
 | `scripts/lib/org-host.mjs` | The reads over the world: `orgHostOf` and its index, `unitsOf`, `orgHosts`, `chartRows`, `moraleFromUnitsAbove`. Imports nothing that writes, so a group's data model can read it. |
 | `scripts/lib/org.mjs` | The writes (`addRow`, `setHolder`, `sendOut`, `recall`, `join`, `leave`), the two views over a world (`orgChart`, `locations`) and `chartOf`. Exposed as `acksExtras.lib.org`. |
 
@@ -148,11 +149,49 @@ held to the character's morale range as before.
 means for a faction, who reads it and how its headcount counts is
 [factions/MODEL.md](../factions/MODEL.md), "Who belongs".
 
+## The Roll, Add and Edit plans
+
+`org-write-logic.mjs` plans the three hand controls over a generated
+organisation and carries nothing out. What is rolled, and why, is the generating
+feature's ([monsters/MODEL.md](../monsters/MODEL.md), "The organisation roll");
+this file owns what the plans write. A plan is `{ok, reason?, ops}` as above, and
+an executor carries the ops out in order. A document a plan makes does not exist
+yet, so the plan names it by a ref, `"new:<id>"`: the executor creates it,
+remembers its uuid under the ref and puts that uuid wherever the ref stands in a
+later op, a row's `holderUuid` included. Ops: `prototype` (one creature to mint,
+once per `key`), `createGroup`, `parent`, `addStack` and `addLabelledStack`,
+`makeActor` and `setOfficer`, `update` (the host's rows, and a faction host's
+`leaderUuid`) and `addOccupant`.
+
+- **Roll** (`planRoll`) fills an **empty** row, or starts a chart, from a rolled
+  tree. A row with a holder is refused (`filled`): there is no re-roll. With
+  `scope: "one"` the row's own unit is made (its group, bodies, leader, and its
+  camp, the unit's parts that are no sub-unit) and each unit beneath it becomes
+  an empty row that keeps what the roll fixed in its `gen`; with `"below"` every
+  unit beneath is made too. Nothing outside the row and its new descendants is
+  written: every other row comes back as it went in. The generation record rides
+  as `gen` on the row the roll began at, and lib stores it and never reads it.
+  A roll with no host is hosted by its top unit's group; a faction host's top row
+  also writes the faction's `leaderUuid`.
+- **One prototype per creature.** The tree's creatures are keyed by their own
+  fields, so identical creatures across the whole roll are one `prototype` op and
+  every stack and leader names its ref. A library entry needs no op: its stack
+  names the entry's uuid. A creature no entry answered is an `addLabelledStack`,
+  the printed word arriving in the tree.
+- **A leader is an actor.** Its `makeActor` is followed, for a unit's first
+  leader, by `setOfficer` with the morale part the tree carries (null where the
+  figure is out of the group field's range).
+- **Add** (`planAddUnit`) is `planAdd` with the next free key chosen and the host
+  write named.
+- **Edit** (`planEdit`) changes a filled row by hand: its label, note, kind or
+  visibility on the host's row, a stack's count or prototype and the officer on
+  the unit's group. Bodies on a map keep the figures they went out with until
+  they are recalled, which comes back as `warnings: ["onMap"]` and no refusal.
+
 ## What is not here
 
-The Roll that fills an empty row, the plans that make groups and stacks from a
-recipe (`lib/org-write-logic.mjs`), Delete, the sheets that draw the two views,
-and the gestures for join, leave and "make its own" are later slices. A character's
+Delete, the sheets that draw the two views, and the gestures for join, leave and
+"make its own" are later slices. A character's
 service tree reaches the same nodes through henchmen's `serviceNodes`
 ([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom").
 
@@ -162,5 +201,6 @@ Offline: `tools/test-org-tree.mjs` (the node, the plans, the views, the morale w
 and the affiliation list), `tools/test-org.mjs` (the index and its deletes, the
 writes over mocked documents and their order, the twin a stopped join leaves),
 `tools/test-group-command.mjs` (command morale through the real getter) and
-`tools/test-factions.mjs` (the affiliation readers). Live: docs/lib/TESTING.md,
+`tools/test-factions.mjs` (the affiliation readers) and `tools/test-org-write.mjs` (the
+Roll, Add and Edit plans). Live: docs/lib/TESTING.md,
 "The organisation chart through the API".
