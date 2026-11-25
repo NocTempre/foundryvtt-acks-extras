@@ -2323,3 +2323,20 @@ is a write made after the system's own, so a failure of that write is warned and
 not raised. The warning shows after the roll has landed, so a press that throws
 announces nothing. `groupGangs` calls the refused `manageGroup` once for each
 gang and waits out its timeout for each.
+
+## 2026-11-25 — A seat's view of a creature, the creature list and the join are lib's
+
+The ruling these serve, with the owner's selections and what it qualifies, is magic's entry of the same date, "A summoning names its creature per seat, lists its creatures as rows and joins a caster's party, and a declared cast names its fight (board 3)". This entry holds what was decided for lib in building it. None of it was put to the owner.
+
+**Built.**
+
+- **One test says whether a seat opens a creature.** `creatureOpens(doc, user, {packOf})` in `summons-logic.mjs` is the test `checkPlaceRequest` refuses `unreadable` by, lifted out so a window, a card and a sheet ask what the relay asks. It joins `api.summons`, and `seatLabel({name, opens, neutral})` is the one place a name gives way to the neutral label. A surface that words a creature for a seat reads both and never the row's ref.
+- **A spell's creature list is its summon rows.** `summon-list.mjs` is Foundry-free: `summonListOf` groups the rows sharing the open row's invocation band, `summonFormat` and `control`, and `addSummonCreature` and `removeSummonCreature` answer the rows as they then stand. The row editor shows the list in place of the row's `ref` and `amount` and writes rows back. `effectField` is unchanged.
+- **The relay gains `join`.** `joinOp` authorizes the request as `placeOp` does, by `checkPlaceRequest` on the user the socket attests, and makes each creature a stash: the token data `placeOp` would have created, where the party token stands. The flags and the ownership both write come from one helper (`summonStamps`). The stashes go to the `party-roster` service's `admitSummons`.
+- **`party-roster` is contract v4.** It adds `summonerParty(actorId)` and `admitSummons(partyId, summonerUuid, stashes)`, both optional to a consumer: with neither, a summoning is placed as before.
+
+**Rejected.** *A second socket or a service of formation's own for the join.* The relay already attests the sender and holds the one authorization of a summoning; a second path would be a second place to keep it. *Placing the tokens and letting the party gather them.* Tokens appear and vanish on the party's scene, the placement hook fires for creatures that never stand, and a gather that is refused strands them. *A list field on the row.* Magic's entry.
+
+**Strongest counter, MEDIUM.** A stash is token data no scene ever validated: `joinOp` builds it with `getTokenDocument` and stores its object, so a field core adds at a token's creation is first written when the party deploys the creature. Held, since a member stashed by the gather is the same object one step later, and the walk deploys a creature that was never placed and reads its hit points back.
+
+**Cost.** `summonRelay` now answers four requests, and a session that changes its permission test changes it for all four. A consumer on contract v3 reads no party for a caster and places by click.

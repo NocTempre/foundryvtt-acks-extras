@@ -20,8 +20,8 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-24 — [An unread stat line reaches core's string; `unlimited` is a range shape (2026-09-24)](DECISIONS-through-v11.14.5.md#an-unread-stat-line-reaches-cores-string-unlimited-is-a-range-shape-2026-09-24)
 - 2026-09-25 — [An "and" can be a title's own word (2026-09-25)](DECISIONS-through-v11.14.5.md#an-and-can-be-a-titles-own-word-2026-09-25)
 - 2026-09-25 — [A creature's repertoire is drawn to its slots (2026-09-25)](DECISIONS-through-v11.14.5.md#a-creatures-repertoire-is-drawn-to-its-slots-2026-09-25)
-- 2026-09-25 — [The order, and the scoping's eleven questions, ruled (2026-09-25)](DECISIONS-through-v11.14.5.md#the-order-and-the-scopings-eleven-questions-ruled-2026-09-25)
-- 2026-11-11 — [A summoning spell's creature resolves on the GM's client (2026-11-11)](DECISIONS-through-v11.14.5.md#a-summoning-spells-creature-resolves-on-the-gms-client-2026-11-11) — its cast and its count qualified 2026-11-19 by [Summons join the spell cast](#2026-11-19--summons-join-the-spell-cast-1d-b-rulings-157-to-163); its exemption of a spell-named creature from the shelf-readable check withdrawn 2026-11-25 by lib's [A summon is refused by the casting user's level on the creature](../lib/DECISIONS.md#2026-11-25--a-summon-is-refused-by-the-casting-users-level-on-the-creature-and-a-spells-row-grants-nothing-t-0793)
+- 2026-09-25 — [The order, and the scoping's eleven questions, ruled (2026-09-25)](DECISIONS-through-v11.14.5.md#the-order-and-the-scopings-eleven-questions-ruled-2026-09-25) — its answer 3 (click-to-place as the baseline) qualified 2026-11-25 (a caster marching inside a party is asked for no click) by [A summoning names its creature per seat, lists its creatures as rows and joins a caster's party](#2026-11-25--a-summoning-names-its-creature-per-seat-lists-its-creatures-as-rows-and-joins-a-casters-party-and-a-declared-cast-names-its-fight-board-3)
+- 2026-11-11 — [A summoning spell's creature resolves on the GM's client (2026-11-11)](DECISIONS-through-v11.14.5.md#a-summoning-spells-creature-resolves-on-the-gms-client-2026-11-11) — its cast and its count qualified 2026-11-19 by [Summons join the spell cast](#2026-11-19--summons-join-the-spell-cast-1d-b-rulings-157-to-163); its exemption of a spell-named creature from the shelf-readable check withdrawn 2026-11-25 by lib's [A summon is refused by the casting user's level on the creature](../lib/DECISIONS.md#2026-11-25--a-summon-is-refused-by-the-casting-users-level-on-the-creature-and-a-spells-row-grants-nothing-t-0793); its "Creature N" label for an unresolved choice qualified 2026-11-25 (a seat that cannot open the creature reads the neutral label) by [A summoning names its creature per seat, lists its creatures as rows and joins a caster's party](#2026-11-25--a-summoning-names-its-creature-per-seat-lists-its-creatures-as-rows-and-joins-a-casters-party-and-a-declared-cast-names-its-fight-board-3)
 - 2026-11-11 — [A cast's end is told on a card, read from the module's own clock math (2026-11-11)](DECISIONS-through-v11.14.5.md#a-casts-end-is-told-on-a-card-read-from-the-modules-own-clock-math-2026-11-11) — its cost line ("a combat's rounds do not age a record") qualified 2026-11-17 by [A condition row can last turns, and lib ends it](#2026-11-17--a-condition-row-can-last-turns-and-lib-ends-it); its rejection of deleting the creatures on expiry SUPERSEDED IN PART 2026-11-19 ("Remove automatically": a `gone` summons is removed at the timed end) by [A summons' control ends as its page says (1d.7)](#2026-11-19--a-summons-control-ends-as-its-page-says-1d7)
 - undated — [Where the lang-key convention is recorded](DECISIONS-through-v11.14.5.md#where-the-lang-key-convention-is-recorded)
 
@@ -1520,3 +1520,113 @@ pending declaration still hold no status and no change.
   such a double beside an "other effects" line of the opposite sign. A record of a state that brings a condition lights
   no HUD tile and is under no static `_id`, so a click on that state's tile does not find it. The held concentration
   and casting records (`cast-held.mjs`, `cast-declare.mjs`) keep their one status and do not go through the builder.
+
+## 2026-11-25 — A summoning names its creature per seat, lists its creatures as rows and joins a caster's party, and a declared cast names its fight (board 3)
+
+**Ruled.** The owner was shown the Summoning board of the 2026-11-25 bug-batch canvas and, on the release hub's
+cards, selected "Build as drawn"; for a caster marching inside a party, "Creatures join the party"; for a creature
+the seat cannot open, "Neutral label". These are selections of a card's wording. The owner's own words on who sets a
+spell up are in lib's entry "A summon is refused by the casting user's level on the creature" (T-0793): "follow
+foundry permissions, don't invent new ones."
+
+**Where the board was wrong.** It was drawn before it was read against the code, and three of its "shipped" claims
+did not hold. What is built in place of each is a direction of the release hub's and no selection of the owner's;
+the hub told the owner of each as a fact.
+
+- *"The field already stores a list; no migration."* A summon row holds one creature (`ref`) and one number
+  (`amount`). What is a list is the spell's `effects`, which may hold several summon rows, and every reader loops over
+  them. **Built:** those rows are the list. The window of an open row lists the summon rows that share its invocation
+  band, `summonFormat` and `control`; Add makes a row that copies the open one, and Remove deletes a row. No schema,
+  importer or migration change.
+- *The Creature menu and the drop bucket, drawn together.* They are either/or (`summonView`), and stay so: the bucket
+  shows where no row names a creature.
+- *The Number, drawn as dice.* The row's `amount` and the cast's count are whole numbers and stay whole. Dice the cast
+  rolls are a ROADMAP row.
+
+**Built.**
+
+- **A seat's view of a creature.** `summonOffer` marks each offered creature with whether the seat's user can open
+  it, by lib's `creatureOpens` (Observer on the creature, Foundry's own record). A seat that cannot reads the neutral
+  label in the Creature menu and in the ceiling tooltip, and a Player who picks such a creature is refused
+  `unreadable` on the window's foot, with Cast off, before the press and so before the spend. The refusal after the
+  press (`summonJudged`, and the GM's client in the relay) is unchanged and remains the test that binds.
+- **The card is worded per seat.** A cast stores its summoning as a record on the card (`card.summoned`: the
+  creature's uuid and name, the count made and short, the duration, the party joined), and `summonedLines` words the
+  line at render for the seat reading it. The stored `content` is the view of a seat that opens nothing, so the
+  neutral label is what a log export or a module reading the message's HTML gets. The summon row's own describe line,
+  which printed the row's raw ref, leaves the card: a cookbook id spells its creature. A card stored before this keeps
+  its worded line.
+- **The limit of the neutral label.** Foundry gates no read: the creature's name is in the message flag and in the
+  spell's row, and any seat can read both from the console. The label keeps the name off the screen and does nothing
+  more. The owner selected it over printing the name to whoever owns the character.
+- **A declared cast names its fight.** The pending record gains `declaredRound`, the fight's round when the cast was
+  declared (`round` stays the round it lapses in). The cast window's foot, beside Cancel and Declare, names the fight
+  by its scene and that round and says what the caster's turn does; the line that stood in the body is gone. The
+  scene is named as core's navigation names it to every seat (`navName`, else `name`). The Magic tab's row of any
+  spell with a declaration standing shows a Declared tag, a line and a tooltip that name the fight. A record written
+  before this names its fight without a round.
+- **No Withdraw.** No page prints withdrawing or changing a declared cast, or what becomes of its slot (RR 179, 291
+  to 293). The row reads and offers nothing; the declaration lapses as ruled 2026-11-16 ("A declaration spends at its
+  confirm and lapses with the caster's next turn").
+- **A lapse is not read from the round.** The primary GM's client deletes a declaration's records when the caster's
+  turn that reaches its lapse round ends, so a record that stands is shown as waiting. A lost declaration shows no
+  row. A record whose fight no document answers shows, naming no fight.
+- **The creature list is edited as rows.** In a spell's row window the summon row's `ref` and `amount` give way to
+  the list (lib `summon-list.mjs`): one line per row with the creature as the seat can open it, where it is from, a
+  Number box and Remove, then a drop zone and a uuid box with Add. Add copies the open row for the new creature;
+  Remove splices a row out, and on a list of one keeps the row and blanks its creature, since the row's format,
+  number and control are the spell's setup. Add and Remove change the row list, so the window closes and reopens at
+  the row's new index, and a rung draft not yet saved is dropped. Nothing in the block reads the seat's role: the
+  spell's owner sets it up under Foundry's own permissions, and a creature the seat cannot open is listed under the
+  neutral label and refused at the cast.
+- **Creatures join the caster's party.** A caster who marches inside a party token (a member neither deployed nor
+  out as a stack, of a party whose token stands on its scene and is in no fight) has a summoning made as members of
+  that party: the relay's `join` request is authorized on the GM's client as a placement is (`checkPlaceRequest`,
+  with no places), each creature is stashed as the token it would have been, where the party token stands, and the
+  `party-roster` service stores the stashes (`admitSummons`, contract v4). No token is made on any scene, no place is
+  picked and no range is read. The relay is Foundry's own requirement here and no new permission: the party's record
+  is a world setting and the creature's world copy an Actor create. The cast reads the party before the window opens
+  and again when it answers, and follows the second reading. The window's placement line, the card and the Magic
+  tab's row name the party. How lib builds it is lib's entry of the same date, "A seat's view of a creature, the
+  creature list and the join are lib's".
+
+**Decided in the build, not selected by the owner.** The party's name is shown to every seat: its record is a world
+setting every client reads and its token's name shows on hover. A party in a fight answers no party, and the click
+placement stays, since a party that joins a combat deploys its members and the caster then has a token. The Magic
+row keeps its scene filter, and the creatures of one cast share one appended number; both are ROADMAP rows. The
+row's tooltip reads "creature(s)" where the board drew "creatures", which is wrong for one.
+
+**Qualifies.** It supersedes none.
+
+- Ruling 160 of "Summons join the spell cast (1d-B, rulings 157 to 163)" (2026-11-19): a summoning made into a party
+  picks no point, so no range is read, and a spell that states a range is not refused for want of a caster token.
+  The ruling stands for every summoning that is placed.
+- The archived "A summoning spell's creature resolves on the GM's client (2026-11-11)": its line that an unresolved
+  choice is labelled by the row's `name`, else "Creature N", holds for a seat that can open the creature. A seat that
+  cannot reads the neutral label, whether or not the row carries a name.
+- Answer 3 of the archived "The order, and the scoping's eleven questions, ruled (2026-09-25)", click-to-place as the
+  baseline: the baseline stands, and a caster marching inside a party is the one cast that asks for no click.
+- Lib's "A summon is refused by the casting user's level on the creature" (2026-11-25, T-0793): its cost line ends
+  "its name still prints on the row". The Mechanics tab now names a row's creature through the seat test; the name
+  stays in the row's data, as that line's first half says.
+- Character-sheet's "A summon marches in its summoner's party" (2026-11-16): its cost line "A cast's `tokenUuids`
+  names tokens deleted once the creatures join" describes a summoning that is placed and then gathered. One made
+  into the party made no token and names none.
+- Character-sheet's archived "A summon is an unlinked token of a GM-made copy (2026-11-10)": a creature made into a
+  party is the GM-made copy with its token data stashed and no token; it is that unlinked token once the party
+  deploys it.
+
+**New evidence**, which the entries of 2026-11-19 and 2026-11-25 above did not have: the owner's selections on the
+board's cards, relayed by the release hub on 2026-11-25, and the reading of the board against the code that found
+its three errors.
+
+**Rejected.** *An array of creatures on one row.* Every reader of a summon row, the importer's bind and the stored
+spells would change, and the family builds no migration. *Placing the tokens and letting the party gather them*,
+which is what a cast from inside a party did before: the board says no token is placed, a click on a map was asked
+of a caster who has no token on it, and a spell that states a range was refused to a Player for want of one. *Naming the creature to whoever owns
+the character.* The owner selected the neutral label. *A Withdraw on the Declared row.* No page prints one.
+
+**Cost.** An imported summon row edited through the list loses its importer mark, as any edit of a row does. A
+summoning made into a party fires no `acksExtras.summonsPlaced`, so a module that listens for arrivals does not hear
+it. A monster's hit points are rolled into its stash where the system's own setting rolls a new monster token's; one
+deployed later keeps that roll.

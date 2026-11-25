@@ -1046,12 +1046,12 @@ t("a summoning's line is worded per seat from the card's record: the name for a 
     const c = card({ summoned, lines: ["Another line"] });
     const note = (seat) => castCardView(c, seat, realLoc).footnote;
     const neutral = LANG["ACKS-LIB.summons.neutral"];
-    assert.equal(note({ isGM: true, canPress: false }), `Summoned: Quillback × 2 · lasts 2 hours · 1 not placed · Another line`, "a Judge reads the name, ahead of the card's other lines");
+    assert.equal(note({ isGM: true, canPress: false }), `Summoned: Quillback × 2 · lasts 2 hours · 1 not summoned · Another line`, "a Judge reads the name, ahead of the card's other lines");
     const asked = [];
     assert.equal(note({ isGM: false, canPress: false, opens: (uuid) => (asked.push(uuid), true) }), note({ isGM: true, canPress: false }), "a seat that opens the creature reads the name");
     assert.ok(asked.length > 0 && asked.every((uuid) => uuid === summoned.sourceUuid), "the seat is asked about the stored uuid");
     const closed = note({ isGM: false, canPress: false, opens: () => false });
-    assert.equal(closed, `Summoned: ${neutral} × 2 · lasts 2 hours · 1 not placed · Another line`, "a seat that cannot open it reads the neutral label");
+    assert.equal(closed, `Summoned: ${neutral} × 2 · lasts 2 hours · 1 not summoned · Another line`, "a seat that cannot open it reads the neutral label");
     assert.equal(note({ isGM: false, canPress: false }), closed, "a seat with no test opens nothing");
     const content = castCardContent(c, realLoc);
     assert.ok(!content.includes("Quillback") && content.includes(neutral), "the stored content carries the neutral label, never the name");
@@ -1067,10 +1067,10 @@ t("a summoning that joined a party adds a line naming the party, to every seat a
     const c = card({ summoned });
     const note = (seat) => castCardView(c, seat, realLoc).footnote;
     const neutral = LANG["ACKS-LIB.summons.neutral"];
-    assert.equal(note({ isGM: true, canPress: false }), "Summoned: Quillback × 2 · lasts 2 hours · 2 joined Invented Company · 1 not placed", "the joined line follows the summoned line, ahead of the short count");
-    assert.equal(note({ isGM: false, canPress: false }), `Summoned: ${neutral} × 2 · lasts 2 hours · 2 joined Invented Company · 1 not placed`, "a seat that cannot open the creature still reads the party's name");
+    assert.equal(note({ isGM: true, canPress: false }), "Summoned: Quillback × 2 · lasts 2 hours · 2 joined Invented Company · 1 not summoned", "the joined line follows the summoned line, ahead of the short count");
+    assert.equal(note({ isGM: false, canPress: false }), `Summoned: ${neutral} × 2 · lasts 2 hours · 2 joined Invented Company · 1 not summoned`, "a seat that cannot open the creature still reads the party's name");
     assert.ok(castCardContent(c, realLoc).includes("2 joined Invented Company"), "the stored content names the party");
-    assert.equal(castCardView(card({ summoned: { ...summoned, party: null } }), { isGM: true, canPress: false }, realLoc).footnote, "Summoned: Quillback × 2 · lasts 2 hours · 1 not placed", "a cast that placed tokens has no joined line");
+    assert.equal(castCardView(card({ summoned: { ...summoned, party: null } }), { isGM: true, canPress: false }, realLoc).footnote, "Summoned: Quillback × 2 · lasts 2 hours · 1 not summoned", "a cast that placed tokens has no joined line");
   });
 });
 

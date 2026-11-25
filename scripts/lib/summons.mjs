@@ -516,10 +516,10 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
  * token data is rebuilt here from the world copy, the cast id is the sender's
  * only if it is well formed, and the time is the GM's clock.
  * @param {object} payload
- * @param {"place"|"dismiss"} payload.op
+ * @param {"place"|"join"|"dismiss"|"variant"} payload.op
  * @param {string} payload.summonerUuid
  * @param {{partyId: string, actorId: string}[]} [payload.held]  a dismissal's held summons, named by party and member id
- * @returns {Promise<{ok: boolean, reason?: string, castId?: string, tokenUuids?: string[], deleted?: number, refused?: number}>}
+ * @returns {Promise<{ok: boolean, reason?: string, castId?: string, tokenUuids?: string[], joined?: string[], party?: {id: string, name: string}, deleted?: number, refused?: number}>}  `joined` and `party` answer a `join`: the new members' ids and the party they joined
  */
 export async function summonRelay({ op, requestUserId = null, ...rest } = {}) {
   const user = requestUserId ? game.users.get(requestUserId) : game.user;

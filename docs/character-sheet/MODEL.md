@@ -143,8 +143,8 @@ declared in, and a fight with no scene or a record without a round is worded as
 such). The tag's tooltip is assembled at render and says the spell was declared in
 the fight and is placed (a summoning) or cast (any other spell) on the caster's turn.
 A lost declaration shows nothing, and a lapsed one is gone with its records; one
-whose fight no longer exists still shows, naming no fight. The row has no *Withdraw*: no page prints withdrawing a
-declared cast (RR 179, 291 to 293). A cast that runs out on the world clock
+whose fight no longer exists still shows, naming no fight. The row has no
+*Withdraw* (magic DECISIONS, 2026-11-25, "No Withdraw"). A cast that runs out on the world clock
 posts a whispered card with its own *Dismiss* (magic MODEL, "A cast's end").
 
 Every glyph is a Font Awesome icon the platform ships; the figure-in-glyph

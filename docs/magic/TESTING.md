@@ -273,11 +273,15 @@ one reading the cast's refusal takes. The relay itself is not exercised.
    it stands, and the Player's click beyond the range places a creature with no
    range notice.
 10. A declaration. A fight is begun with the bystander first, so the caster is
-    not on turn. *Observable:* the dialog's button reads Declare; confirming
-    leaves one pending record and the casting status, spends once, places
-    nothing and posts no cast card. Moving the tracker to the caster's turn and
-    casting again opens no dialog; the click places the declared creature, the
-    count is the declaration's, one card posts and no pending record is left.
+    not on turn. *Observable:* the dialog's button reads Declare, and the foot's
+    note (`.acks-extras-cast-foot__note`) names the fight by its scene, as core's
+    navigation names it, and its round; confirming leaves one pending record and
+    the casting status, spends once, places nothing and posts no cast card. The
+    Magic tab's row of the spell then shows the solid Declared tag with a tooltip,
+    a line under the spell's name, and no control to withdraw it. Moving the
+    tracker to the caster's turn and casting again opens no dialog; the click
+    places the declared creature, the count is the declaration's, one card posts,
+    no pending record is left, and the row's tag and line are gone.
 11. The held end. The row's `controlEnd` is `stays`, then `hostile`, with a
     stationary concentration. The Player casts one creature and the Judge ends
     the concentration by the status's toggle. *Observable:* one funnel card; on
@@ -317,24 +321,28 @@ one reading the cast's refusal takes. The relay itself is not exercised.
        sent straight to the relay and the seat's own `placeSummons` both name the
        closed creature. *Observable:* each answers `unreadable`, the relay's
        request made nothing.
-    3. The real Cast press is blocked (the row back on its uuid). *Observable:*
-       the Cast button is pressed on the Magic tab and then in the cast dialog, and
-       the Player seat's warning list holds the string
-       `ACKS-LIB.summons.refused.unreadable` (lib's verdict is asked at that
-       press, so the dialog's footer does not show it beforehand); `system.cast` is unchanged, no card
-       posted, no token stands beyond the earlier ones, and no world copy of the
-       closed creature exists (`summonCopy.sourceUuid`). The four requests of
-       sub-step 2 are counted in the same read.
+    3. The cast is refused in the window (the row back on its uuid). *Observable:*
+       the Cast button is pressed on the Magic tab; the cast dialog's one creature
+       option reads lib's neutral label (`ACKS-LIB.summons.neutral`) and never the
+       creature's name, its foot shows `ACKS-LIB.summons.refused.unreadable` as a
+       verdict and Cast is off, so no press is made in the window. `system.cast`
+       is unchanged, no card posted, no token stands beyond the earlier ones, and
+       no world copy of the closed creature exists (`summonCopy.sourceUuid`). The
+       four requests of sub-step 2 are counted in the same read. The walk still
+       presses Cast where it finds it on, and then takes the refusal from the
+       seat's warning list.
     4. Observer granted. The Judge's seat writes `ownership.<Player's user id>` 2
        on `magic/summon-other`. *Observable:* the Player seat reads
        `testUserPermission(user, "OBSERVER")` true, the dialog offers the row's
        creature with no refusal and Cast on, and the same press with one click
        places one token, `system.cast` rises by exactly 1, one cast card posts,
        and the one world copy is owned by no player.
-    5. The grant is removed in a `finally` with the `-=` form. *Observable:* the
-       document's `_source.ownership` holds no key for the Player and
-       `default` 0, and the Player seat reads Observer false again, so the next
-       run starts from the shape step 4's refusals need.
+    5. The grant is removed in a `finally`, by replacing the ownership map whole
+       without the Player's key (`ForcedReplacement`, as core's ownership form
+       does; on core 14 a deletion of the one key leaves it standing).
+       *Observable:* the document's `_source.ownership` holds no key for the
+       Player and `default` 0, and the Player seat reads Observer false again, so
+       the next run starts from the shape step 4's refusals need.
     6. Read only: the Player seat reads an imported creature's shelf (the Judge
        seat's first monster shelf entry, the creature step 5 summons, which must
        carry the importer's `cookbook` flag on the Judge seat). *Observable:* the
@@ -343,6 +351,11 @@ one reading the cast's refusal takes. The relay itself is not exercised.
        the document will not open, and asserts the shelf is visible at Observer
        or better. It prints `SKIP` with the reason when the Judge's seat opens no
        monster compendium or that creature is not an import.
+    7. The card per seat, read after sub-step 5 has taken the grant off.
+       *Observable:* the card of sub-step 4's cast, as the Player seat draws it,
+       holds the neutral label and not the creature's name; as the Judge's seat
+       draws it, it holds the name; the message's stored `content` does not hold
+       the name.
 
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
 caster records, the fight, the walk's own token, the generated creature and
@@ -353,10 +366,11 @@ note that the tokens the module removed are among its `could not find`.
 
 Built for a summoner whose token is stashed in a formation party token and that
 no combat holds: the cast has no combatant to resolve against and no token of
-the caster on the field to measure from. A mock cannot prove that the cast
-reads as a free cast there, that the creatures join the party and leave no
-token on the field, or what a Player is told when a range has no caster token
-to start from.
+the caster on the field to measure from, and its creatures are made as members
+of the party (MODEL, "Casting a summoning spell"). A mock cannot prove that the
+cast reads as a free cast there, that no token is ever made on the field, that
+a creature stashed without ever standing deploys as itself, or that a spell
+with a range is not refused for want of a caster token.
 
 **Fixtures** (kept; found by marker, built when none carries it). The walk
 keeps a party and a field of its own: the formation walk's disband and the
@@ -392,42 +406,136 @@ own cast id. The world clock is not moved.
 seats. Its recorders attach after `ready`, so a clean console there says nothing
 about `init`, `setup` or `ready`.
 
-**Drive mechanics.** The cast is the real window: the Magic tab's Cast, the
-dialog's `button[data-action="cast"]`, then real pointer clicks on the
-placement, as "Casting a summoning spell" drives it. The party gathers a
-placed creature after the GM's client has made its token, so a read of the
-party's members polls until the count lands and the field holds no token. The
-Dismiss is the Magic tab row's `[data-action="spellDismiss"]`, shown only while
-the row reads a standing count, and its confirmation is the `yes` button.
+**Drive mechanics.** The cast is the real window: the Magic tab's Cast and the
+dialog's `button[data-action="cast"]`. No click on the map follows: the walk
+reads the placement previews after the press and fails the step where one
+stands, cancelling it with a right click. Before each press the GM seat starts
+an observer that counts token creations on the field; it is a count, and
+nothing is ever deleted by it. The members land when the GM's client answers
+the relay, so a read of the party's members polls until the count lands. The
+Magic tab's row carries the two figures as `[data-summon="standing"]` and
+`[data-summon="joined"]`. The Dismiss is the row's
+`[data-action="spellDismiss"]`, shown only while the row reads a standing
+count, and its confirmation is the `yes` button. The deployment is the party's
+own, driven through the travel API the party sheet's buttons call.
 
 **Steps, from the Player seat:**
 
-1. The spell with no range (the walk labels it A). Record the confirm button's label first.
-   *Observable:* the cast count rose by exactly 1; no pending-declaration
-   record exists on the caster and it carries no casting status; the party's
-   member list grew by the count (under distinct ids, each naming the caster and
-   one cast), and no creature token stands on the field; the caster is still
-   the party's one person with no token of its own; the Magic tab's row reads
-   "2 standing"; one cast card and one caster record exist. The row's Dismiss,
-   answered Yes, removes the members.
+1. The spell with no range (the walk labels it A). *Observable:* the dialog's
+   placement line is the joins line naming the party
+   (`ACKS-MAGIC.cast.dialog.summonJoins`), with Cast on and no verdict against
+   the cast. After the press no placement preview stands and no click is
+   asked; the cast count rose by exactly 1; no pending-declaration record
+   exists on the caster and it carries no casting status; the party's member
+   list grew by the count (under distinct ids, each naming the caster and one
+   cast), the GM seat's observer counted no token created on the field and no
+   creature token stands there; the caster is still the party's one person
+   with no token of its own; the Magic tab's row reads the standing count and
+   the joined count, each with the party's tooltip; one cast card exists, and
+   as the Player seat draws it its footnote carries the joined line
+   (`ACKS-MAGIC.cast.line.summonedJoined`); one caster record exists. One joined
+   creature is then deployed through the party's own deployment and recalled:
+   a token is made from the stash, the first one this creature ever had, and
+   its hit points equal the stash's on the way out and on the way back. The
+   row's Dismiss, answered Yes, removes the members.
 2. The spell with a distance range (the walk labels it B). The step first reads
    the spell as the Player seat's own module reads it and requires the
-   fixture's range back, so an observation of a spell with no range is never
-   taken. An observation: a Player's request here
-   names no caster token to measure from, and what the cast does then is not
-   settled, so the step records what it sees and fails only a broken
-   invariant. It prints the button's label, the dialog's verdicts and the
-   refusal text a notice or the footer showed, the placement result, the cast
-   count before and after, and whether a pending record exists. Invariants:
-   nothing placed means nothing spent (the count unchanged, no cast card, no
-   pending record, no casting status) and a refusal the user can read; creatures
-   placed means the count rose by exactly 1, no pending record, the members in
-   the party and none on the field, and they are dismissed through the same
-   control. A click the range gate refuses leaves the placement pending, which
-   the walk cancels with a right click.
+   fixture's range back, so a spell with no range is never mistaken for it.
+   *Observable:* the dialog's placement line is the joins line and not the
+   range line the distance would give, Cast is on, and no `noCaster` refusal is
+   raised; no placement preview stands; the cast count rose by exactly 1; one
+   member is stashed in the party, naming the caster and the spell, and none
+   stands loose; no pending record exists; Dismiss removes the member.
+
+Not walked: a party that enters a fight between the window's opening and its
+answer, where the cast follows the second reading and places by click.
 
 **Teardown.** The fixtures stay, the party back to the caster alone. Delete only
 what the run tracked, and quote `gm.sweepTracked({only})`'s result.
+
+## A summoning spell's creature list
+
+Built for the creature block of a spell's row window (lib MODEL, "Summons";
+MODEL, "Casting a summoning spell"): the summon rows that share a row's
+invocation band, format and control, shown as one list and written back as
+rows. A mock cannot prove that Add closes the window and reopens it on the
+right row, that a drop reaches the list, that a Number box writes one row and
+no other, or that a Player who owns the spell reads the neutral label for a
+creature the seat cannot open, on the window and on the Mechanics tab.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+- `magic/list-creature-a` and `magic/list-creature-b` are `monster` actors at
+  `ownership.default` 0 that the Player holds Observer on. The fixtures step
+  writes `ownership.<Player's user id>` 2 from the Judge seat (the id is read
+  from the Player seat, never stored in a file) and asserts on the Player seat
+  that it observes each.
+- `magic/list-creature-closed` is a `monster` at `ownership.default` 0 with no
+  entry for the Player. The step asserts that the Player's client resolves it
+  by uuid and does not observe it; a stray entry is taken off by replacing the
+  ownership map whole.
+- `magic/list-caster` is a `character` the Player owns, spells enabled.
+- `magic/list-spell` is a `spell` on that character. Each step that needs a
+  known shape rewrites its flag whole (the flag deleted first, then written).
+  The standing shape is one summon row naming creature a, `amount` 2, with no
+  importer mark.
+
+The run makes no document: every step writes the one spell's rows.
+
+`tools/live/magic-summon-list.mjs` walks the steps on the GM and Player seats.
+Its recorders attach after `ready`, so a clean console there says nothing about
+`init`, `setup` or `ready`.
+
+**Drive mechanics.** The row window is opened as "The rung editor" opens it.
+The list is `[data-acks-extras-summon-list]`, a line is
+`.acks-extras-summon-line`, its Number box `[data-summon-amount][data-index]`
+and its Remove `[data-action="summonRemove"][data-index]`; the uuid box is
+`[data-summon-add]` and Add is `[data-action="summonAdd"]`. The boxes carry no
+`name`, so the form never submits them: a Number is written by a `change`
+event on its box. Add and Remove close the window and open it again on the
+row's new index, so every read after one waits for the new window. A drop is a
+real `DragEvent("drop")` carrying `{type: "Actor", uuid}` dispatched on the
+list. A creature's name is compared in the page and never printed.
+
+**Steps:**
+
+1. Judge seat, the standing shape. *Observable:* the window holds the creature
+   block with one line, naming the creature, with a note of where it is from, a
+   Number box reading 2 with a tooltip, and a Remove; the form holds no `ref`
+   and no `amount` control.
+2. Add by uuid: creature b's uuid typed in the box, Add pressed.
+   *Observable:* the spell holds two summon rows; the new one names creature b
+   and carries the open row's format, control, band and amount, a key of its
+   own, and neither an importer mark nor a name; the window is open on the same
+   row and shows two lines.
+3. Add the same uuid again, then Add with the box blank. *Observable:* the
+   spell's rows are unchanged both times.
+4. Drop the closed creature on the list. *Observable:* three summon rows, and
+   on the Judge's seat the third line names the creature.
+5. Number. Line 2's box set to 3. *Observable:* that row's `amount` is 3 and no
+   other row's changed. Set blank: the row's `amount` is null, never 0. A
+   negative figure and a letter: nothing is written.
+6. The importer's mark. The spell is rewritten to one summon row carrying the
+   importer's mark. *Observable:* the Number box's tooltip opens with
+   `ACKS-LIB.effectEditor.tip.amountRead`; after the box is set to 4 the row
+   carries no mark and the tooltip is `ACKS-LIB.effectEditor.tip.amountHand`.
+7. Two lists. The spell is rewritten to two summon rows that differ in control.
+   *Observable:* the window on either row shows one line.
+8. Player seat, three rows naming a, b and the closed creature. *Observable:*
+   on the spell sheet's Mechanics tab (Character sheet → Magic tab → the spell
+   → Mechanics tab) the closed creature's line holds the neutral label and
+   neither its name nor its uuid. In the row window the first two lines name
+   their creatures; the third holds the neutral label, neither name nor uuid,
+   and `ACKS-LIB.summons.refused.unreadable` in place of where it is from.
+9. Player seat, Number and Remove. *Observable:* line 1's box set to 5 reads 5
+   on the Judge's seat. Remove on line 3 leaves two rows, neither naming the
+   closed creature; Remove on line 2 leaves one; Remove on the last line leaves
+   that one row with a blank `ref` and its amount, format and control as they
+   were, and the window then shows one line with no Remove.
+10. *Observable:* no console error and no uncaught error on either seat.
+
+**Teardown.** The fixtures stay. Close the windows the walk opened, and quote
+`gm.sweepTracked({only})`'s result, which names nothing where the walk tracked
+nothing.
 
 ## Spell effect rows (the recipe channel)
 
