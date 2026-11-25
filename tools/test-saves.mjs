@@ -18,7 +18,7 @@ const ok = async (name, fn) => {
 };
 
 /** Invented sizes for the conditions below. */
-const VALUES = { fatigued: { all: -3 }, covered: { blast: 3 }, blessed: { all: 3 } };
+const VALUES = { fatigued: { all: -3 }, "cover-waist-high": { blast: 3 }, blessed: { all: 3 } };
 
 const character = ({ mod = 0, wis = 0, saves = { blast: { value: 14 } }, statuses = [] } = {}) => ({
   type: "character",
@@ -73,9 +73,9 @@ await ok("the conditions lower the target as the system's own throw lowers it, a
   assert.equal(spec.baseTarget, 14);
   assert.equal(spec.target, 17, "a penalty of 3 on the roll raises the number to roll");
   assert.deepEqual(spec.parts.filter((p) => p.side === "target").map((p) => [p.key, p.value]), [["fatigued", -3]]);
-  const covered = saveSpec(monster({ statuses: ["covered"] }), "blast", { values: VALUES });
+  const covered = saveSpec(monster({ statuses: ["cover-waist-high"] }), "blast", { values: VALUES });
   assert.equal(covered.target, 11, "a bonus of 3 lowers it");
-  assert.equal(saveSpec(monster({ saves: { blast: { value: 14 }, death: { value: 14 } }, statuses: ["covered"] }), "death", { values: VALUES }).target, 14, "a row that names its saves reaches only those");
+  assert.equal(saveSpec(monster({ saves: { blast: { value: 14 }, death: { value: 14 } }, statuses: ["cover-waist-high"] }), "death", { values: VALUES }).target, 14, "a row that names its saves reaches only those");
   const left = saveSpec(character({ statuses: ["fatigued"] }), "blast", { values: VALUES, conditions: false });
   assert.equal(left.target, 14, "the party's throw reads the stored number alone");
   assert.deepEqual(left.parts, []);
@@ -103,7 +103,7 @@ await ok("a creature with no stored target has no throw to make", async () => {
 });
 
 await ok("a saving-throw key an earlier schema used reaches the throw the conditions name it", () => {
-  const spec = saveSpec(monster({ saves: { breath: { value: 15 } }, statuses: ["covered"] }), "breath", { values: VALUES });
+  const spec = saveSpec(monster({ saves: { breath: { value: 15 } }, statuses: ["cover-waist-high"] }), "breath", { values: VALUES });
   assert.equal(spec.kind, "blast");
   assert.equal(spec.target, 12, "cover's row for Blast reaches the earlier key");
 });
@@ -338,11 +338,24 @@ await ok("a condition's step on the save modifier reaches every save: a characte
   }
 });
 
+await ok("a condition's target part is named by the system's key for an id it ships and by the module's for any other", () => {
+  const was = { CONFIG: globalThis.CONFIG, game: globalThis.game };
+  globalThis.CONFIG = { ACKS: { conditions: [{ id: "fatigued", name: "qa.name.fatigued" }] } };
+  globalThis.game = { i18n: { has: () => true, localize: (key) => `<${key}>` } };
+  try {
+    const labels = (statuses) => saveSpec(monster({ statuses }), "blast", { values: VALUES }).parts.filter((p) => p.side === "target").map((p) => [p.key, p.label]);
+    assert.deepEqual(labels(["fatigued"]), [["fatigued", "<qa.name.fatigued>"]], "a shipped id takes the system's key");
+    assert.deepEqual(labels(["cover-waist-high"]), [["cover-waist-high", `<ACKS-LIB.condition.${"cover-waist-high"}>`]], "an id the system does not ship takes the module's");
+  } finally {
+    for (const [key, value] of Object.entries(was)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; }
+  }
+});
+
 await ok("a part names the change's type in Foundry's word where the effect sets or multiplies the modifier, and a plain add keeps its name", () => {
   globalThis.CONFIG = { ACKS: { conditions: coreConditions() } };
-  // Invented words, so the label proves it is read from Foundry's strings; the condition keeps its id as its name.
+  // Invented words, so the label proves it is read from Foundry's strings; the condition keeps its id as its name (the mock system's key without its prefix).
   const words = { "EFFECT.CHANGES.TYPES.override": "Replacer", "EFFECT.CHANGES.TYPES.multiply": "Scaler" };
-  globalThis.game = { i18n: { localize: (k) => words[k] ?? k.replace("ACKS-LIB.condition.", "") } };
+  globalThis.game = { i18n: { localize: (k) => words[k] ?? k.replace("core.", "") } };
   try {
     const set = effectOf("hungry", { name: "Test Ring", changes: [{ key: SAVE_MOD, type: "override", value: 4 }] });
     const add = effectOf("hungry", { name: "Test Band", changes: [{ key: SAVE_MOD, type: "add", value: 2 }] });

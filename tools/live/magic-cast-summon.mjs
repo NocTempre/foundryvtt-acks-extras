@@ -1051,7 +1051,7 @@ try {
     check(`11 ${outcome}: the held cast placed one creature and wrote a concentration record`, fresh11.length === 1 && fin11.records.length >= 1, { placed: fresh11.length, records: fin11.records.length });
     const pre = (await run(gm, P.summonTokens, { sceneId, summonerUuid: casterUuid, playerId })).find((t) => t.uuid === fresh11[0]?.uuid);
     check(`11 ${outcome}: before the end the Player holds ownership and the creature's control is not lost`, pre && pre.playerLevel >= 3 && !pre.lost, { level: pre?.playerLevel });
-    await run(gm, P.endHeld, { casterId, status: "concentratingStationary" });
+    await run(gm, P.endHeld, { casterId, status: "concentrating-and-stationary" });
     const cards = await until(gm, P.endCards, { castId: fin11.castId }, (l) => l.some((c) => c.held), { tries: 40, every: 250 });
     for (const c of cards) await track(c.uuid, "ChatMessage");
     check(`11 ${outcome}: ending the concentration posts the one funnel card`, cards.filter((c) => c.held).length === 1, { cards: cards.length });

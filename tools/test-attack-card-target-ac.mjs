@@ -147,8 +147,8 @@ const waiverRow = (...conditions) => ({ type: "ability", flags: { "acks-extras":
 const character = (effects, name = "Target Person", extra = {}) => actorOf("character", effects, { extra: { name, ...extra } });
 const monster = (effects) => actorOf("monster", effects);
 const step = (id) => conditionValue(id, AC);
-/** A condition's name as the card says it. */
-const cond = (id) => LANG[`ACKS-LIB.condition.${id}`];
+/** A condition's name as the card says it: the mock system's name key, which the test's lang does not hold, so it reads as itself. */
+const cond = (id) => `core.${id}`;
 /** A row's name where the effect's own name differs from its condition's. */
 const named = (effect, id) => format("ACKS-LIB.conditionRoll.targetAc.named", { effect, condition: cond(id) });
 

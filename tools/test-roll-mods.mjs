@@ -754,6 +754,36 @@ await ok("the reader reads each of the eleven's step on its fields from the effe
   }
 });
 
+await ok("the reader replays a field's changes from its stored value: an override or a multiply reads as the shift it makes, an add reads as before", () => {
+  const change = (type, value, key = AC) => ({ key, type, value });
+  const held = (changes, stored, { type = "monster" } = {}) => {
+    const actor = conditionActor(type, [conditionEffect("shaken", { changes })], { acMod: stored.ac ?? 0, saveMod: stored.save ?? 0 });
+    // The prepared fields differ from the stored ones, so a reader that took them would answer another figure.
+    actor.system.ac.mod = 777;
+    actor.system.save.mod = 888;
+    return actor;
+  };
+  const valuesOf = (actor, key) => conditionSteps(actor, key).steps.map((s) => s.value);
+  // A stored figure of 5 and an override to 12: the step is 7, never 12.
+  assert.deepEqual(valuesOf(held([change("override", 12)], { ac: 5 }), AC), [7], "override minus stored");
+  assert.deepEqual(valuesOf(held([change("override", 12, SAVE)], { save: -4 }), SAVE), [16], "the save modifier too, from a negative stored one");
+  // A multiply and a bound read from the same stored figure.
+  assert.deepEqual(valuesOf(held([change("multiply", 3)], { ac: 5 }), AC), [10], "multiply: stored times 3 less stored");
+  assert.deepEqual(valuesOf(held([change("upgrade", 9)], { ac: 5 }), AC), [4], "an upgrade raises a lower figure");
+  assert.deepEqual(valuesOf(held([change("upgrade", 3)], { ac: 5 }), AC), [], "and moves nothing from a higher one");
+  assert.deepEqual(valuesOf(held([change("add", 6), change("override", 10)], { ac: 5 }), AC), [6, -1], "an add, then an override that replays from the figure the add reached");
+  // An add is the same whatever is stored; a stored zero reads as before.
+  assert.deepEqual(valuesOf(held([change("add", 6)], { ac: 5 }), AC), [6]);
+  assert.deepEqual(valuesOf(held([change("add", 6)], { ac: 0 }), AC), [6]);
+  assert.deepEqual(valuesOf(held([change("override", 12)], { ac: 0 }), AC), [12], "a stored zero: the override's own figure, as from zero");
+  // The stored figure is read for a character as well: its prepared field already holds the steps, so it is never the base.
+  assert.deepEqual(valuesOf(held([change("override", 12)], { ac: 5 }, { type: "character" }), AC), [7]);
+  // An actor with no stored data replays from zero.
+  const bare = held([change("override", 12)], { ac: 5 });
+  delete bare._source;
+  assert.deepEqual(valuesOf(bare, AC), [12]);
+});
+
 await ok("the reader knows no ids of its own: with none in core's list it reads nothing", () => {
   const was = CONFIG.ACKS.conditions;
   CONFIG.ACKS.conditions = was.filter((entry) => entry.id !== "disordered");
@@ -770,7 +800,7 @@ await ok("the reader knows no ids of its own: with none in core's list it reads 
 /* --- One line per effect that moves a field ------------------------------------- */
 
 const { effectLines, stepLabel, lineLabel, kindWords, kindedLabel } = mods;
-const condName = (id) => `ACKS-LIB.condition.${id}`;
+const condName = (id) => `core.${id}`;
 const namedBy = (effect, id) => format("ACKS-LIB.conditionRoll.targetAc.named", { effect, condition: condName(id) });
 const plainOf = (line) => ({ name: line.name, condition: line.condition, value: line.value });
 
@@ -805,6 +835,7 @@ await ok("a charge's Armor Class step is named with the condition it belongs to,
   assert.equal(effectLines(monsterOf([conditionEffect("disordered", { name: "" })]), AC)[0].name, condName("disordered"));
   assert.equal(stepLabel({ name: "Test Hand" }, null), "Test Hand", "a step that belongs to no condition has only the effect");
   assert.equal(stepLabel(null, "disordered"), condName("disordered"));
+  assert.equal(stepLabel(null, "casting"), `ACKS-LIB.condition.${"casting"}`, "an id the system does not ship is named by the module's key, one it ships by the system's");
 });
 
 await ok("a condition two effects carry is one line, under the first carrier", () => {

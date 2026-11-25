@@ -338,10 +338,11 @@ t("a row's lasting, repeat, size exemption and ignite kind read as card lines, a
   const line = (e) => describeSpellEffect(e).text;
   assert.equal(line({ type: "damage", roll: "1d4", damage: ["fire"], recur: "laterRounds", recurAt: "bearerStart" }), "1d4 fire (Each later round, At the start of the bearer's turn)");
   assert.equal(line({ type: "damage", roll: "1d4", recur: "eachRound", recurAt: "casterTurn", recurSave: "cast", recurTarget: "pick" }), "1d4 (Each round, On the caster's turn, A pass ends the cast, A target the caster picks)");
-  assert.equal(line({ type: "conditionGrant", appliesTo: "area", conditions: ["blinded"], lasts: "nextTurn" }), "Everything in the area: Blinded (Until the bearer's next turn ends)");
-  assert.equal(line({ type: "conditionGrant", conditions: ["blinded"], lasts: "rounds", rounds: "1d3" }), "Blinded (For a number of rounds 1d3)");
-  assert.equal(line({ type: "conditionGrant", conditions: ["blinded"], lasts: "rounds" }), "Blinded (For a number of rounds)", "a blank formula reads as the lasting alone");
-  assert.equal(line({ type: "conditionGrant", conditions: ["prone"], exemptSizeFrom: "huge" }), "Prone (exempt from size: huge)");
+  // No lang or system is loaded here, so a condition the system names reads as its id.
+  assert.equal(line({ type: "conditionGrant", appliesTo: "area", conditions: ["blinded"], lasts: "nextTurn" }), "Everything in the area: blinded (Until the bearer's next turn ends)");
+  assert.equal(line({ type: "conditionGrant", conditions: ["blinded"], lasts: "rounds", rounds: "1d3" }), "blinded (For a number of rounds 1d3)");
+  assert.equal(line({ type: "conditionGrant", conditions: ["blinded"], lasts: "rounds" }), "blinded (For a number of rounds)", "a blank formula reads as the lasting alone");
+  assert.equal(line({ type: "conditionGrant", conditions: ["prone"], exemptSizeFrom: "huge" }), "prone (exempt from size: huge)");
   assert.equal(line({ type: "ignite", appliesTo: "target", lasts: "rounds", rounds: "1d2" }), "The target: (For a number of rounds 1d2)");
   assert.equal(line({ type: "ignite" }), "—");
   assert.equal(describeSpellEffect({ type: "ignite" }).kind, "Ignite");

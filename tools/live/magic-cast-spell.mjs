@@ -1136,7 +1136,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   const seen1 = await run(gm, P.seenMods, { messageId: c1.messageId, spellName: c1.model?.spellName ?? "" });
   check("buff 1: every modifier entry on the card carries a tooltip naming the spell", seen1.found && seen1.cells > 0 && seen1.named === seen1.cells, { cells: seen1.cells, named: seen1.named });
   const held1 = await run(gm, P.heldRecords, { actorId: casterId });
-  check("buff 1: the caster holds one status-only concentratingStationary record of the cast, with the kind held in its flag", held1.records.filter((h) => h.castId === c1.model?.castId).length === 1 && held1.records.every((h) => h.statuses.length === 1 && h.statuses[0] === "concentratingStationary" && h.changes === 0 && h.held === "stationary" && !h.rollMods) && held1.statuses.includes("concentratingStationary"), { records: held1.records.length });
+  check("buff 1: the caster holds one status-only concentrating-and-stationary record of the cast, with the kind held in its flag", held1.records.filter((h) => h.castId === c1.model?.castId).length === 1 && held1.records.every((h) => h.statuses.length === 1 && h.statuses[0] === "concentrating-and-stationary" && h.changes === 0 && h.held === "stationary" && !h.rollMods) && held1.statuses.includes("concentrating-and-stationary"), { records: held1.records.length });
 
   const circleRec = rec1.ally[0];
   const acPart = partsOf(circleRec, "ac")[0];
@@ -1372,7 +1372,7 @@ async function walkHeld(K) {
   section("held 6. the caster is hurt (GM client): the cast ends with one card, and Restore puts it back");
   // Step 1's own record still stands: deleting it through the status toggle, as the HUD does, ends a cast whose recipients were undone earlier.
   const sinceToggle = Date.now();
-  await run(gm, async ({ casterId: id }) => { await game.actors.get(id).toggleStatusEffect("concentratingStationary", { active: false }); return true; }, { casterId });
+  await run(gm, async ({ casterId: id }) => { await game.actors.get(id).toggleStatusEffect("concentrating-and-stationary", { active: false }); return true; }, { casterId });
   check("held 6: the status toggle's end posted one card of its cast, with no cause but removed", (await run(gm, P.waitEnd, { castId: c1castId, since: sinceToggle })) && only(await endCardsSince(sinceToggle, c1castId), c1castId).length === 1);
   const toggled = only(await run(gm, P.endCards, { since: sinceToggle, castId: c1castId }), c1castId);
   check("held 6: that card's cause is removed and the caster holds nothing", toggled[0]?.cause === "removed" && (await heldOf()).records.length === 0, { cause: toggled[0]?.cause });
@@ -1386,7 +1386,7 @@ async function walkHeld(K) {
   const ended6 = await run(gm, P.waitEnd, { castId: id6, since: since6 });
   const after6 = await standingOf(id6);
   const status6 = await heldOf();
-  check("held 6: the concentration status is gone and the caster's record and every recipient's record of the cast are gone", ended6 && empty(after6) && !status6.statuses.includes("concentratingStationary"), { caster: after6.caster.length, ally: after6.ally.length, held: after6.held.length });
+  check("held 6: the concentration status is gone and the caster's record and every recipient's record of the cast are gone", ended6 && empty(after6) && !status6.statuses.includes("concentrating-and-stationary"), { caster: after6.caster.length, ally: after6.ally.length, held: after6.held.length });
   const cards6 = only(await endCardsSince(since6, id6), id6);
   check("held 6: exactly one card of the cast's end, its cause damage, listing both recipients", cards6.length === 1 && cards6[0].cause === "damage" && cards6[0].ended.length === 2, { cards: cards6.length, cause: cards6[0]?.cause });
   const seenGm = cards6[0] ? await run(gm, P.heldCard, { messageId: cards6[0].id }) : null;
@@ -1396,7 +1396,7 @@ async function walkHeld(K) {
   const back6 = await standingOf(id6);
   const idsBack = [...back6.caster, ...back6.ally, ...back6.held].map((r) => r.id).sort();
   const idsWere = [...before6.caster, ...before6.ally, ...before6.held].map((r) => r.id).sort();
-  check("held 6: Restore put back the same records under the same ids and the status is on again", restored.button && full(back6) && JSON.stringify(idsBack) === JSON.stringify(idsWere) && (await heldOf()).statuses.includes("concentratingStationary"), { ids: idsBack.length });
+  check("held 6: Restore put back the same records under the same ids and the status is on again", restored.button && full(back6) && JSON.stringify(idsBack) === JSON.stringify(idsWere) && (await heldOf()).statuses.includes("concentrating-and-stationary"), { ids: idsBack.length });
 
   section("held 7. the Player hurts its own caster (Player client): the Player's client ends what it can write and the GM's the rest");
   await hp(gm, 9);

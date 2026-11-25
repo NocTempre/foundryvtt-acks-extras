@@ -65,6 +65,15 @@ t("nothing imported: a shadowy sense still goes out under deafness", () => {
   assert.deepEqual([profile.sightRange, profile.seesInDark, profile.suppressed], [0, false, true]);
 });
 
+t("nothing imported: Mute alone does not suppress a shadowy sense, which only Deafened and Running do", () => {
+  const muted = senseProfile(mockActor(null, ["Shadowy Senses"], ["mute"]));
+  const free = senseProfile(mockActor(null, ["Shadowy Senses"]));
+  assert.deepEqual([muted.sightRange, muted.seesInDark, muted.suppressed], [free.sightRange, free.seesInDark, false], "a muted creature reads as one under no condition");
+  assert.equal(muted.suppressed === free.suppressed, true);
+  const both = senseProfile(mockActor(null, ["Shadowy Senses"], ["mute", "deafened"]));
+  assert.equal(both.suppressed, true, "Mute beside Deafened still suppresses, by Deafened");
+});
+
 t("nothing imported: a dark sense with no recorded range has none, and one that has a range still wins", () => {
   const named = senseProfile(mockActor(null, ["Infravision"]));
   assert.deepEqual([named.sightRange, named.seesInDark, named.visionMode], [null, true, VISION_MODES.LIGHTLESS], "the sense is there with no reach");

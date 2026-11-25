@@ -507,10 +507,10 @@ const conditionFixture = await import("./core-conditions-fixture.mjs");
 test("a condition joins every save it reaches, and one that reaches a single save colours that cell alone", () => {
   const { registerTable, unregisterTable, PRIORITY } = conditionTables;
   // Invented figures.
-  const modifiers = { covered: { against: -3, blast: 3 }, fatigued: { all: -2 }, hungry: { all: -5 } };
+  const modifiers = { "cover-waist-high": { against: -3, blast: 3 }, fatigued: { all: -2 }, hungry: { all: -5 } };
   registerTable({ id: "conditions", source: "invented", tables: { modifiers } }, { priority: PRIORITY.WORLD, source: "test" });
   try {
-    const actor = { ...withEffects(), uuid: "Actor.covered", statuses: new Set(["covered", "fatigued"]) };
+    const actor = { ...withEffects(), uuid: "Actor.covered", statuses: new Set(["cover-waist-high", "fatigued"]) };
     assert.deepEqual(saveModifiers(actor), { paralysis: -2, death: -2, blast: 1, implements: -2, spell: -2 });
     // A condition core's effect applies to the save modifier is read from its effect's change, once: the
     // module's table has no save row for it, whatever the table holds for the condition's other rolls.
@@ -885,7 +885,7 @@ console.log("character sheet: what each effect adds, named on the figure it move
 const { signed: signedFigure } = await import("../scripts/character-sheet/view-model.mjs");
 const { actorOf: fixtureActor, conditionValue: fixtureValue, coreConditions: fixtureConditions, effectOf: fixtureEffect, implyingEffect: fixtureImplying } = conditionFixture;
 const mockGame = () => ({ i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } });
-const condName = (id) => `ACKS-LIB.condition.${id}`;
+const condName = (id) => `core.${id}`;
 const namedEffect = (effect, id) => `ACKS-LIB.conditionRoll.targetAc.named|${JSON.stringify({ effect, condition: condName(id) })}`;
 const partText = (label, value) => `ACKS-CHARACTER.stats.part|${JSON.stringify({ label, value })}`;
 const OTHER_EFFECTS = "ACKS.throw.modifier.otherEffects";

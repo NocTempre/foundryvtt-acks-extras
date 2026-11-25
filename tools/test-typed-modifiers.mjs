@@ -588,8 +588,8 @@ check("rangeBand: melee by the delivery, a ranged band by the gap to the target 
 
 check("gateLabel names each kind, and the light level and an unknown kind as before", () => {
   assert.equal(gateLabel({ kind: "light", light: "daylight" }), "daylight");
-  assert.equal(gateLabel({ kind: "targetCondition", condition: "webbed" }), "against a target that is Webbed");
-  assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed", "blinded"] }), "against a target that is Webbed, Blinded");
+  assert.equal(gateLabel({ kind: "targetCondition", condition: "webbed" }), "against a target that is webbed");
+  assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed", "blinded"] }), "against a target that is webbed, blinded");
   assert.equal(gateLabel({ kind: "combatRound", round: 3 }), "in round 3");
   assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: 2 } }), "in round 2");
   assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: 4 } }), "in rounds 2 to 4");
@@ -605,12 +605,23 @@ check("gateLabel names each kind, and the light level and an unknown kind as bef
 
 const { readFileSync } = await import("node:fs");
 const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+check("a gate names a condition as the system does where it ships one, and by the catalogue's label where it does not", () => {
+  const prior = { CONFIG: globalThis.CONFIG, game: globalThis.game };
+  globalThis.CONFIG = { ACKS: { conditions: [{ id: "webbed", name: "qa.name.webbed" }] } };
+  globalThis.game = { i18n: { has: () => false, localize: (key) => (key === "qa.name.webbed" ? "Qa Webbed" : key) } };
+  try {
+    assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed", "casting"] }), "against a target that is Qa Webbed, Casting");
+  } finally {
+    for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; }
+  }
+});
+
 check("every phrase gateLabel uses is a key en.json holds, placeholders and all", () => {
   const prior = globalThis.game;
-  // A stub that answers only from en.json and marks each answer, so a key the file lacks falls back unmarked.
-  globalThis.game = { i18n: { has: (key) => key in lang, localize: (key) => `~${lang[key]}` } };
+  // A stub that answers only from en.json and marks each answer, so a key the file lacks falls back unmarked (a condition the system names, whose key is not in en.json, reads as its id).
+  globalThis.game = { i18n: { has: (key) => key in lang, localize: (key) => (key in lang ? `~${lang[key]}` : key) } };
   try {
-    assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed"] }), "~against a target that is Webbed");
+    assert.equal(gateLabel({ kind: "targetCondition", condition: ["webbed"] }), "~against a target that is webbed");
     assert.equal(gateLabel({ kind: "combatRound", round: 3 }), "~in round 3");
     assert.equal(gateLabel({ kind: "combatRound", round: { from: 2, to: 4 } }), "~in rounds 2 to 4");
     assert.equal(gateLabel({ kind: "combatRound", round: { from: 2 } }), "~from round 2");
@@ -621,7 +632,7 @@ check("every phrase gateLabel uses is a key en.json holds, placeholders and all"
     assert.equal(gateLabel({ kind: "rangeBand", band: ["medium"] }), "~at ~medium range");
     assert.equal(gateLabel({ kind: "rangeBand", band: ["melee"] }), "~in melee");
     assert.equal(gateLabel({ kind: "rangeBand", band: ["melee", "short"] }), "~at ~melee, ~short range");
-    assert.equal(gateLabel({ kind: "allOf", of: [{ kind: "targetCondition", condition: "webbed" }, { kind: "combatRound", round: 3 }] }), "~against a target that is Webbed, ~in round 3");
+    assert.equal(gateLabel({ kind: "allOf", of: [{ kind: "targetCondition", condition: "webbed" }, { kind: "combatRound", round: 3 }] }), "~against a target that is webbed, ~in round 3");
     assert.equal(gateLabel({ kind: "light", light: "dim" }), "~Dim light", "the light level reads its own key");
   } finally {
     globalThis.game = prior;
@@ -637,7 +648,7 @@ check("a modifier under each gate adds its labelled row to the throw only while 
   const base = { token: me, target: foe, targetActor: { statuses: new Set(["webbed"]) }, item: bow };
   const row = (label) => [{ label: `Cunning · ${label}`, value: 2 }];
   const yes = [
-    [{ kind: "targetCondition", condition: "webbed" }, "against a target that is Webbed"],
+    [{ kind: "targetCondition", condition: "webbed" }, "against a target that is webbed"],
     [{ kind: "combatRound", round: { from: 2, to: 4 } }, "in rounds 2 to 4"],
     [{ kind: "outnumbering", ratio: 1 }, "while outnumbering"],
     [{ kind: "rangeBand", band: "short" }, "at short range"],
@@ -655,7 +666,7 @@ check("a modifier under each gate adds its labelled row to the throw only while 
   combat.round = 0;
   assert.deepEqual(rowsFor(yes[1][0], base, "missile"), [], "a combat not begun");
   assert.deepEqual(rowsFor(yes[0][0], base, "missile", { forWhat: "melee" }), [], "a row narrowed to melee does not ride a missile attack");
-  assert.deepEqual(rowsFor(yes[0][0], base, "melee", { forWhat: "melee" }), row("against a target that is Webbed"));
+  assert.deepEqual(rowsFor(yes[0][0], base, "melee", { forWhat: "melee" }), row("against a target that is webbed"));
 });
 
 /* --- Conjunction, strict sides, bodies, damage rows ---------------------- */
@@ -745,7 +756,7 @@ check("outnumbering counts the bodies a combatant stands for, an actor that cann
 check("gateLabel joins a conjunction's phrases", () => {
   assert.equal(
     gateLabel({ kind: "allOf", of: [{ kind: "targetCondition", condition: "webbed" }, { kind: "rangeBand", band: ["melee", "short"] }] }),
-    "against a target that is Webbed, at melee, short range",
+    "against a target that is webbed, at melee, short range",
   );
   assert.equal(gateLabel({ kind: "allOf", of: [] }), "");
 });

@@ -40,7 +40,7 @@ const rec = (id, over = {}) => ({ id, actorUuid: `Actor.${id}`, name: `Actor ${i
 const TAIL = { value: 2, units: "rounds" };
 
 t("the status a held record carries follows the kind held", () => {
-  assert.equal(heldStatusOf("stationary"), "concentratingStationary");
+  assert.equal(heldStatusOf("stationary"), "concentrating-and-stationary");
   assert.equal(heldStatusOf("mobile"), "concentrating");
   assert.equal(heldStatusOf(undefined), "concentrating");
 });
@@ -51,11 +51,11 @@ t("a held record is the caster's status-only record: the status for its kind, th
   const cap = { value: 12, units: "rounds" };
   const tail = { value: 2, units: "rounds" };
   const data = heldRecordData(MARK, { held: "stationary", now: 40, tail, cap });
-  assert.deepEqual(data, spellEffectData({ ...MARK, startTime: 40, statuses: ["concentratingStationary"], held: "stationary", tail, duration: cap }));
-  assert.deepEqual(data.statuses, ["concentratingStationary"]);
+  assert.deepEqual(data, spellEffectData({ ...MARK, startTime: 40, statuses: ["concentrating-and-stationary"], held: "stationary", tail, duration: cap }));
+  assert.deepEqual(data.statuses, ["concentrating-and-stationary"]);
   assert.equal(data.changes.length, 0);
   assert.equal(data.system, undefined, "a held record holds the one status of its kind and no figure");
-  assert.throws(() => spellEffectData({ ...MARK, startTime: 40, statuses: ["concentratingStationary", "other"], held: "stationary" }), /exactly what the builder returned/);
+  assert.throws(() => spellEffectData({ ...MARK, startTime: 40, statuses: ["concentrating-and-stationary", "other"], held: "stationary" }), /exactly what the builder returned/);
   const back = spellEffectOf(data);
   assert.deepEqual([back.role, back.held, back.tail, back.duration, back.startTime], ["caster", "stationary", tail, cap, 40]);
   const bare = spellEffectOf(heldRecordData(MARK, { held: "mobile", now: 7 }));

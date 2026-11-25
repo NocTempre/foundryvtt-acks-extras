@@ -104,9 +104,11 @@ export function implyingEffect(id, extra = {}) {
  * `save.mod` into `system.save.mod`, from the stored `ac` and `saveMod`. A
  * monster is shown as core leaves it: the stored figures, no step folded in.
  * Each effect is given its actor (`effect.actor`, which a live document has),
- * and the actor answers `allApplicableEffects` as Foundry's does.
+ * and the actor answers `allApplicableEffects` as Foundry's does. The stored
+ * Armor Class modifier (`acMod`) and saving-throw modifier (`saveMod`) are
+ * what `_source` holds, which the effects' changes replay from.
  */
-export function actorOf(type, effects, { ac = 100, saveMod = 0, extra = {} } = {}) {
+export function actorOf(type, effects, { ac = 100, acMod = 0, saveMod = 0, extra = {} } = {}) {
   const sum = (key) => effects
     .filter((e) => !e.disabled)
     .flatMap((e) => e.changes ?? [])
@@ -124,11 +126,12 @@ export function actorOf(type, effects, { ac = 100, saveMod = 0, extra = {} } = {
     *allApplicableEffects() { yield* effects; },
     items: [],
     system: {
-      ac: { value: ac + (folded ? sum("system.ac.mod") : 0), mod: folded ? sum("system.ac.mod") : 0 },
+      ac: { value: ac + (folded ? sum("system.ac.mod") : 0), mod: acMod + (folded ? sum("system.ac.mod") : 0) },
       save: { mod: saveMod + (folded ? sum("system.save.mod") : 0) },
       saves: { death: { value: 14 }, blast: { value: 15 }, spell: { value: 16 } },
       scores: { dex: { mod: 0 }, wis: { mod: 0 } },
     },
+    _source: { system: { ac: { mod: acMod }, save: { mod: saveMod } } },
     ...extra,
   };
   for (const effect of effects) Object.defineProperty(effect, "actor", { value: actor, enumerable: false, configurable: true, writable: true });

@@ -240,10 +240,15 @@ export function matchProficiency(word, candidates) {
   return new Set(inflected.map((c) => foldName(c.name))).size === 1 ? inflected[0] : null;
 }
 
-/** The names a catalogue condition answers to: its id and each `/`-separated part of its label. */
+/**
+ * The names a catalogue condition answers to: its id, which folds to the printed
+ * name of every id the system ships, and each `/`-separated part of the label
+ * of a row the module keeps. Never the system's localized name: a printed word
+ * is matched against English and the matcher runs with no lang loaded.
+ */
 const CONDITION_NAMES = Object.freeze(Object.fromEntries(CONDITION_IDS.map((id) => [
   id,
-  [id, ...String(CONDITIONS[id].label ?? "").split("/")].map((name) => ({ name: name.trim() })),
+  [id, ...String(CONDITIONS[id].label ?? "").split("/")].map((name) => name.trim()).filter(Boolean).map((name) => ({ name })),
 ])));
 
 /**

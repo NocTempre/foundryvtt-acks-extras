@@ -13,8 +13,8 @@ import { readFileSync } from "node:fs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
   ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, LOSSES, SAVE_KINDS,
-  STACKS_FLAG, acMath, acWaivedSet, attackMath, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
-  giverOf, lostTo, rollMath, speedMath, subjectOf,
+  STACKS_FLAG, acMath, acWaivedSet, attackMath, conditionLabel, conditionNameKey, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
+  giverOf, lostTo, rollMath, speedMath, subjectOf, systemEntryOf,
 } from "../scripts/lib/conditions.mjs";
 import { CONDITION_KEYS } from "../scripts/lib/vocab.mjs";
 import {
@@ -38,8 +38,8 @@ const VALUES = {
   blinded: { surprise: -5, proficiency: -8, speedFactor: 0.4 },
   clambering: { attack: -3, against: 5 },
   countercharging: { attack: 5 },
-  covered: { against: -3, blast: 3 },
-  coveredGreater: { against: -7, blast: 6 },
+  "cover-waist-high": { against: -3, blast: 3 },
+  "cover-chest-high": { against: -7, blast: 6 },
   deafened: { surprise: -2, proficiency: -7 },
   defending: { melee: 5 },
   defendingShield: { thrown: 3, missile: 8, blast: 4 },
@@ -67,7 +67,7 @@ const termOf = (math, condition) => math.terms.find((t) => t.condition === condi
 /* --- the catalogue --------------------------------------------------------- */
 
 ok("the catalogue is internally consistent", () => {
-  assert.equal(CONDITION_IDS.length, 73);
+  assert.equal(CONDITION_IDS.length, 74);
   for (const mark of ["diseased", "frostbitten"]) {
     assert.ok(CONDITIONS[mark], mark);
     assert.deepEqual([CONDITIONS[mark].mods, CONDITIONS[mark].forbids, CONDITIONS[mark].implies], [undefined, undefined, undefined], mark);
@@ -94,12 +94,68 @@ ok("the catalogue is internally consistent", () => {
   for (const cause of LOSSES) assert.ok(lang[`ACKS-LIB.conditionRoll.lost.${cause}`], `words for ${cause}`);
 });
 
-ok("every condition has its own icon and a name in lang, and lang names nothing else", () => {
-  const icons = CONDITION_IDS.map((key) => CONDITIONS[key].img);
-  assert.equal(new Set(icons).size, icons.length);
-  for (const key of CONDITION_IDS) assert.equal(lang[`ACKS-LIB.condition.${key}`], CONDITIONS[key].label, key);
+/** The ids the system ships no entry for: the only rows that carry their own name and icon. */
+const MODULE_IDS = [
+  "casting", "countercharging", "cover-chest-high", "cover-waist-high", "defending", "defendingShield", "diseased",
+  "frostbitten", "immune", "resistant", "retreating", "subjacent", "withdrawing",
+];
+
+ok("a row carries its own name and icon only where the system ships none, and lang names exactly those rows", () => {
+  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].label !== undefined || CONDITIONS[key].img !== undefined).sort(), MODULE_IDS);
+  for (const key of MODULE_IDS) assert.ok(CONDITIONS[key].label && CONDITIONS[key].img, key);
+  const icons = MODULE_IDS.map((key) => CONDITIONS[key].img);
+  assert.equal(new Set(icons).size, icons.length, "the module's own icons are distinct from one another");
+  for (const key of MODULE_IDS) assert.equal(lang[`ACKS-LIB.condition.${key}`], CONDITIONS[key].label, key);
   const named = Object.keys(lang).filter((k) => k.startsWith("ACKS-LIB.condition.")).map((k) => k.slice("ACKS-LIB.condition.".length));
-  assert.deepEqual(named.sort(), [...CONDITION_IDS].sort());
+  assert.deepEqual(named.sort(), [...MODULE_IDS].sort(), "no lang key remains for a shipped id, and every module-only id has one");
+  for (const old of ["concentratingStationary", "covered", "coveredGreater"]) assert.equal(CONDITIONS[old], undefined, `${old} is no id`);
+  for (const id of ["vomiting", "concentrating-and-stationary"]) assert.deepEqual(CONDITION_IDS.filter((key) => key === id), [id], `${id} is known once`);
+  assert.deepEqual(CONDITIONS.vomiting, CONDITIONS.choking, "vomiting has choking's structure");
+});
+
+ok("the rows the palette files under States are marked, and the rest of the catalogue is not", () => {
+  const states = CONDITION_IDS.filter((key) => CONDITIONS[key].state);
+  assert.deepEqual(states.sort(), [
+    "casting", "countercharging", "cover-chest-high", "cover-waist-high", "defending", "defendingShield", "diseased", "frostbitten", "retreating", "withdrawing",
+  ]);
+  for (const key of ["immune", "resistant", "subjacent"]) assert.equal(CONDITIONS[key].state, undefined, key);
+});
+
+ok("one reader answers a condition's name key and name: the system's for an id it ships, the module's for any other", () => {
+  const was = { CONFIG: globalThis.CONFIG, game: globalThis.game };
+  try {
+    delete globalThis.CONFIG;
+    delete globalThis.game;
+    assert.equal(systemEntryOf("hungry"), undefined, "no system, no entry");
+    assert.equal(conditionNameKey("hungry"), `ACKS-LIB.condition.${"hungry"}`, "with no system the module's key stands");
+    assert.equal(conditionLabel("hungry"), "hungry", "with no lang and no catalogue label, the id");
+    assert.equal(conditionLabel("casting"), "Casting", "with no lang, the catalogue's English label");
+    globalThis.CONFIG = {
+      ACKS: {
+        conditions: [{ id: "hungry", name: "qa.cond.hungry", img: "qa/hungry.svg" }, { id: "cover-waist-high", name: "qa.cond.shadow" }],
+        combatStates: [{ id: "readied", name: "qa.state.readied", img: "qa/readied.svg", hud: false }],
+      },
+    };
+    assert.equal(conditionNameKey("hungry"), "qa.cond.hungry");
+    assert.equal(conditionNameKey("readied"), "qa.state.readied", "a combat state is the system's too");
+    assert.equal(conditionNameKey("casting"), "ACKS-LIB.condition.casting", "an id the system does not ship keeps the module's key");
+    assert.equal(systemEntryOf("readied").img, "qa/readied.svg");
+    globalThis.game = { i18n: { localize: (k) => ({ "qa.cond.hungry": "Qa Hungry", "ACKS-LIB.condition.casting": "Qa Casting" })[k] ?? k } };
+    assert.equal(conditionLabel("hungry"), "Qa Hungry", "the system's name, localized");
+    assert.equal(conditionLabel("casting"), "Qa Casting", "the module's name, localized");
+    assert.equal(conditionLabel("readied"), "readied", "a key lang cannot resolve falls to the id for a row with no label");
+    assert.equal(conditionLabel("qa-unknown"), "qa-unknown");
+    // The catalogue's list reads the name when asked, so one built before lang and the system loaded answers now.
+    assert.equal(CONDITION_KEYS.hungry.label, "Qa Hungry");
+    assert.equal(CONDITION_KEYS.casting.label, "Qa Casting");
+    assert.ok(Object.getOwnPropertyDescriptor(CONDITION_KEYS.hungry, "label").enumerable, "the label is an enumerable field");
+    delete globalThis.CONFIG;
+    delete globalThis.game;
+    assert.equal(CONDITION_KEYS.hungry.label, "hungry", "and always a string");
+  } finally {
+    if (was.CONFIG) globalThis.CONFIG = was.CONFIG; else delete globalThis.CONFIG;
+    if (was.game) globalThis.game = was.game; else delete globalThis.game;
+  }
 });
 
 ok("every circumstance a row waits on, and every roll it reaches, has its words", () => {
@@ -134,7 +190,7 @@ ok("a figure core's condition effect applies has no row here: the eleven keep on
 });
 
 ok("an ability's condition choices are the catalogue, with the stored keys kept", () => {
-  for (const key of CONDITION_IDS) assert.equal(CONDITION_KEYS[key].label, CONDITIONS[key].label);
+  for (const key of CONDITION_IDS) assert.equal(CONDITION_KEYS[key].label, CONDITIONS[key].label ?? key, key);
   for (const key of ["fear", "sleep", "paralysis"]) assert.ok(CONDITION_KEYS[key], key);
 });
 
@@ -335,10 +391,10 @@ ok("a condition only an effect carrying the status that implies it carries is im
 });
 
 ok("a superseded row stands down", () => {
-  assert.equal(termOf(attack([], ["covered"], "missile"), "covered").value, -3);
-  const both = attack([], ["covered", "coveredGreater"], "missile");
-  assert.equal(termOf(both, "covered"), undefined);
-  assert.equal(termOf(both, "coveredGreater").value, -7);
+  assert.equal(termOf(attack([], ["cover-waist-high"], "missile"), "cover-waist-high").value, -3);
+  const both = attack([], ["cover-waist-high", "cover-chest-high"], "missile");
+  assert.equal(termOf(both, "cover-waist-high"), undefined);
+  assert.equal(termOf(both, "cover-chest-high").value, -7);
 });
 
 ok("a flank and a subjacent target carry no row: the system's attack dialog prices both", () => {
@@ -451,30 +507,30 @@ ok("a declared spell gives up what defending gave", () => {
 });
 
 ok("cover is against what is shot or thrown, and the greater cover supersedes the lesser", () => {
-  assert.deepEqual(attack([], ["covered"], "missile").terms, [{ condition: "covered", value: -3, side: "target" }]);
-  assert.equal(termOf(attack([], ["covered"], "thrown"), "covered").value, -3);
-  assert.deepEqual(attack([], ["covered"], "melee").terms, []);
-  assert.deepEqual(attack([], ["covered", "coveredGreater"], "missile").terms, [
-    { condition: "coveredGreater", value: -7, side: "target" },
+  assert.deepEqual(attack([], ["cover-waist-high"], "missile").terms, [{ condition: "cover-waist-high", value: -3, side: "target" }]);
+  assert.equal(termOf(attack([], ["cover-waist-high"], "thrown"), "cover-waist-high").value, -3);
+  assert.deepEqual(attack([], ["cover-waist-high"], "melee").terms, []);
+  assert.deepEqual(attack([], ["cover-waist-high", "cover-chest-high"], "missile").terms, [
+    { condition: "cover-chest-high", value: -7, side: "target" },
   ]);
   // Cover is the target's: the one behind it shoots out at no cost.
-  assert.deepEqual(attack(["covered"], [], "missile").terms, []);
+  assert.deepEqual(attack(["cover-waist-high"], [], "missile").terms, []);
 });
 
 ok("a row on a saving throw reaches only the saves it names", () => {
-  assert.equal(saveOf(["covered"], "blast").total, 3);
-  assert.equal(saveOf(["covered"], "death").total, 0);
+  assert.equal(saveOf(["cover-waist-high"], "blast").total, 3);
+  assert.equal(saveOf(["cover-waist-high"], "death").total, 0);
   // A roll that names no save takes no row that names its saves.
-  assert.equal(saveOf(["covered"]).total, 0);
-  assert.equal(saveOf(["covered", "coveredGreater"], "blast").total, 6);
+  assert.equal(saveOf(["cover-waist-high"]).total, 0);
+  assert.equal(saveOf(["cover-waist-high", "cover-chest-high"], "blast").total, 6);
   assert.equal(saveOf(["defendingShield"], "blast").total, 4);
   assert.equal(saveOf(["defending"], "blast").total, 0);
   // A row that names no save still reaches every one.
-  assert.deepEqual(saveOf(["fatigued", "covered"], "blast").parts, [
-    { condition: "covered", value: 3 },
+  assert.deepEqual(saveOf(["fatigued", "cover-waist-high"], "blast").parts, [
+    { condition: "cover-waist-high", value: 3 },
     { condition: "fatigued", value: -2 },
   ]);
-  assert.equal(saveOf(["fatigued", "covered"], "spell").total, -2);
+  assert.equal(saveOf(["fatigued", "cover-waist-high"], "spell").total, -2);
 });
 
 ok("a countercharge and a retreat leave their maker disordered, and a withdrawal does not", () => {
@@ -496,11 +552,11 @@ ok("the tracker lifts what ends, by the ids actually on the creature", () => {
 
 ok("what a combatant declared or took up ends at its turn; cover and a held initiative stand", () => {
   const round = ["casting", "countercharging", "defending", "defendingShield", "readied", "retreating", "withdrawing"];
-  assert.deepEqual(endingAt([...round, "covered", "coveredGreater", "delayed"], "turn").sort(), round);
+  assert.deepEqual(endingAt([...round, "cover-waist-high", "cover-chest-high", "delayed"], "turn").sort(), round);
 });
 
 ok("a state another combatant gave ends at the giver's turn, and the rest at their bearer's", () => {
-  const on = ["defending", "readied", "covered"];
+  const on = ["defending", "readied", "cover-waist-high"];
   assert.deepEqual(endingAtTurn(on, { self: "ally", acting: "ally" }), ["defending", "readied"]);
   assert.deepEqual(endingAtTurn(on, { self: "ally", acting: "ally", givers: { defending: "guard" } }), ["readied"]);
   assert.deepEqual(endingAtTurn(on, { self: "ally", acting: "guard", givers: { defending: "guard" } }), ["defending"]);
@@ -511,18 +567,18 @@ ok("a state another combatant gave ends at the giver's turn, and the rest at the
 });
 
 ok("damage and a failed save cost a caster its spell and a readied creature its action; a move costs only the second", () => {
-  const on = ["casting", "readied", "defending", "covered"];
+  const on = ["casting", "readied", "defending", "cover-waist-high"];
   assert.deepEqual(lostTo(on, "damage"), ["casting", "readied"]);
   assert.deepEqual(lostTo(on, "save"), ["casting", "readied"]);
   assert.deepEqual(lostTo(on, "moved"), ["readied"]);
   assert.deepEqual(lostTo(null, "damage"), []);
-  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].lost), ["casting", "concentrating", "concentratingStationary", "readied", "slumbering"]);
+  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].lost), ["casting", "concentrating", "concentrating-and-stationary", "readied", "slumbering"]);
 });
 
 ok("both concentration states are lost to damage and to a failed save, and never to a move", () => {
-  const on = ["concentrating", "concentratingStationary", "covered"];
-  assert.deepEqual(lostTo(on, "damage"), ["concentrating", "concentratingStationary"]);
-  assert.deepEqual(lostTo(on, "save"), ["concentrating", "concentratingStationary"]);
+  const on = ["concentrating", "concentrating-and-stationary", "cover-waist-high"];
+  assert.deepEqual(lostTo(on, "damage"), ["concentrating", "concentrating-and-stationary"]);
+  assert.deepEqual(lostTo(on, "save"), ["concentrating", "concentrating-and-stationary"]);
   assert.deepEqual(lostTo(on, "moved"), []);
 });
 
@@ -733,13 +789,13 @@ await (async () => {
   registerTable(DOC, { priority: PRIORITY.WORLD, source: "test" });
   try {
     installConditionRolls();
-    const covered = new SystemActor(["covered"]);
+    const covered = new SystemActor(["cover-waist-high"]);
     assert.equal(covered.rollSave("breath"), 12, "the released key for Blast takes cover's figure");
     assert.equal(covered.rollSave("blast"), 12, "and so does the key a renamed schema uses");
     assert.equal(covered.rollSave("death"), 14, "another throw takes none");
     assert.equal(covered.rollSave("wand"), 16);
     assert.deepEqual(covered.system.saves.breath, { value: 15 }, "the stored target is put back");
-    assert.equal(new SystemActor(["covered", "coveredGreater"]).rollSave("breath"), 9, "greater cover supersedes");
+    assert.equal(new SystemActor(["cover-waist-high", "cover-chest-high"]).rollSave("breath"), 9, "greater cover supersedes");
     assert.equal(new SystemActor(["defendingShield"]).rollSave("breath"), 11);
     assert.equal(new SystemActor(["defendingShield", "casting"]).rollSave("breath"), 15, "a caster's shield is down");
     assert.equal(new SystemActor(["fatigued"]).rollSave("breath"), 17, "a figure on every throw reaches this one");
@@ -756,7 +812,7 @@ await (async () => {
     assert.equal(hungryActor("monster").rollSave("death"), 14 - conditionValue("hungry", "system.save.mod"), "on every save");
     said.length = 0;
     hungryActor("monster").rollSave("breath");
-    assert.ok(said.some((line) => line.includes("notice.applied") && line.includes("targetAc.named") && line.includes("effect.hungry") && line.includes("ACKS-LIB.condition.hungry")),"the notice names the step by its effect and the condition it belongs to");
+    assert.ok(said.some((line) => line.includes("notice.applied") && line.includes("targetAc.named") && line.includes("effect.hungry") && line.includes("core.hungry")),"the notice names the step by its effect and the condition it belongs to");
     // A step whose change overrides is named with the change's type in Foundry's word (invented here); a plain add is not.
     const localize = game.i18n.localize;
     game.i18n.localize = (k) => (k === "EFFECT.CHANGES.TYPES.override" ? "Replacer" : k);
@@ -795,7 +851,7 @@ await (async () => {
     console.log("ok   a saving throw rolled under the system's key takes the figures that reach that throw");
 
     // A failed save: the die against the number the roll was made against, cover's figure included.
-    const held = () => ["readied", "casting", "covered"];
+    const held = () => ["readied", "casting", "cover-waist-high"];
     const failed = new SystemActor(held(), { die: 11 });
     await failed.rollSave("breath");
     await settle();
@@ -836,7 +892,7 @@ await (async () => {
     assert.equal(told.length, 1, "one announcement");
     assert.equal(told[0][0], caster);
     assert.deepEqual(told[0].slice(1), [["readied", "casting"], "save"], "the ids and the cause");
-    const bare = new SystemActor(["covered"]);
+    const bare = new SystemActor(["cover-waist-high"]);
     assert.deepEqual(await loseStates(bare, "save"), [], "nothing to lose answers an empty list");
     assert.deepEqual(await loseStates(null, "damage"), [], "no actor, nothing lost");
     assert.equal(told.length, 1, "and announces nothing");
@@ -903,7 +959,7 @@ await (async () => {
     for (const [why, changed, actor] of [
       ["healing", { system: { hp: { value: 12 } } }, new SystemActor(held())],
       ["no change of hit points", { name: "Renamed" }, new SystemActor(held())],
-      ["a creature with nothing to lose", { system: { hp: { value: 1 } } }, new SystemActor(["covered"])],
+      ["a creature with nothing to lose", { system: { hp: { value: 1 } } }, new SystemActor(["cover-waist-high"])],
     ]) {
       const options = {};
       fire("preUpdateActor", actor, changed, options);
@@ -951,14 +1007,14 @@ await (async () => {
     console.log("ok   a token moved while another combatant acts is no longer readied");
 
     // The tracker: a combatant's turn lifts its own states and the ones it gave.
-    const guard = new SystemActor(["readied", "covered"], { uuid: "Actor.guard" });
+    const guard = new SystemActor(["readied", "cover-waist-high"], { uuid: "Actor.guard" });
     const ally = new SystemActor(["defending", "readied"], { uuid: "Actor.ally" });
     const cg = { id: "g", actor: guard, initiative: 7 };
     const ca = { id: "a", actor: ally, initiative: 4 };
     const pair = [cg, ca];
     const bout = { id: "bout", combatants: Object.assign(pair, { get: (id) => pair.find((c) => c.id === id) }) };
     ally.effects = [{ statuses: new Set(["defending"]), start: { combat: bout, combatant: "g", initiative: 7, round: 1 } }, { statuses: new Set(["readied"]) }];
-    guard.effects = [{ statuses: new Set(["readied"]) }, { statuses: new Set(["covered"]) }];
+    guard.effects = [{ statuses: new Set(["readied"]) }, { statuses: new Set(["cover-waist-high"]) }];
     fire("combatTurnChange", bout, { round: 1 }, { round: 1, combatantId: "a" });
     await settle();
     assert.deepEqual([ally.lifted, guard.lifted], [["readied"], []], "the ally's turn leaves the guard's defence on it");
@@ -1109,14 +1165,14 @@ await (async () => {
       }, { item: BLADE });
       return out;
     };
-    const named = (rows, id) => rows.filter((r) => r.label.includes(`condition.${id}`));
+    const named = (rows, id) => rows.filter((r) => r.label.includes(`core.${id}`));
 
     // The attacker holds the effect: core's effect puts the figure on its throw and its damage, so the module's
     // own contribution is its rows alone, and for the eleven that is Berserk's thrown throw and nothing else.
     for (const id of CONDITION_ORDER) {
       for (const kind of ATTACK_KINDS) {
         const out = await rowsOf(holding("character", [id], "Striker"), holding("character", [], "Foe"), kind);
-        const own = id === "berserk" && kind === "thrown" ? [{ label: `ACKS-LIB.condition.${id}`, value: 7 }] : [];
+        const own = id === "berserk" && kind === "thrown" ? [{ label: `core.${id}`, value: 7 }] : [];
         assert.deepEqual(named(out.attack, id), own, `${id} ${kind}: the attacker's throw`);
         assert.deepEqual(named(out.damage, id), [], `${id} ${kind}: the attacker's damage`);
         const alone = await rowsOf(holding("monster", [id], "Beast"), null, kind);
@@ -1175,7 +1231,7 @@ await (async () => {
       const overriding = holdingEffects("monster", [conditionEffect("disordered", setting())], "Beast");
       const withKind = await rowsOf(striker, overriding, "melee");
       assert.equal(named(withKind.attack, "disordered").length, 1, "one term for the overriding step");
-      assert.deepEqual(labels(withKind.attack), [`ACKS-LIB.conditionRoll.targetAc.kinded ${JSON.stringify({ label: `ACKS-LIB.conditionRoll.term.target ${JSON.stringify({ name: "ACKS-LIB.condition.disordered" })}`, kind: "Replacer" })}`], "the term is the condition's name, marked as the target's, then the word");
+      assert.deepEqual(labels(withKind.attack), [`ACKS-LIB.conditionRoll.targetAc.kinded ${JSON.stringify({ label: `ACKS-LIB.conditionRoll.term.target ${JSON.stringify({ name: "core.disordered" })}`, kind: "Replacer" })}`], "the term is the condition's name, marked as the target's, then the word");
       assert.deepEqual(seen.terms.filter((t) => t.condition === "disordered").map((t) => t.type), ["override"], "the term carries the change's type");
       assert.ok(seen.terms.every((t) => t.condition === "disordered" || !("type" in t)), "the module's own terms carry none");
 

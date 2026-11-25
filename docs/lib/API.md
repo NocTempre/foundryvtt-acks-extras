@@ -1,4 +1,4 @@
-# lib API (apiVersion 76)
+# lib API (apiVersion 77)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 75,
+  apiVersion: 77,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1019,7 +1019,10 @@ parts and names the condition in `unpriced`.
 
 ```
 acksExtras.lib.conditions = {
-  CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label, implies?, mods?, forbids?, ends?, given?, lost?, …}
+  CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label?, img?, state?, implies?, mods?, forbids?, ends?, given?, lost?, …}
+  systemEntryOf(id),            // → the system's entry for an id it ships (CONFIG.ACKS.conditions, combatStates), or undefined
+  conditionNameKey(id),         // → the lang key of a condition's name: the system's for an id it ships, the module's otherwise
+  conditionLabel(id),           // → that name, localized
   CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_SLOTS,  // where the figures are read, and which each condition wants
   ACTS, ATTACK_KINDS, SAVE_KINDS, LOSSES, STACKS_FLAG, AC_WAIVER_TARGET,
   conditionSet(statuses),       // → Set of ids, closed under `implies`, in catalogue order
@@ -1074,7 +1077,7 @@ once", below). A subject with no `acWaived` reads as before. The rule is in docs
 **The steps the system's condition effects make.** `conditionSteps(actor, key)`
 (`roll-mods.mjs`, used inside lib and not a member of the api object) answers
 `{steps, waived}` for any actor type. `steps` is `activeNumericChanges(actor,
-key, {admit: countsOnce})` narrowed to the effects whose statuses include an id
+key, {base, admit: countsOnce})`, `base` the field's stored value (`_source`), narrowed to the effects whose statuses include an id
 whose entry in `CONFIG.ACKS.conditions` carries `system.changes`, each step the
 effect's own with `condition` added (the status its change belongs to, below,
 else the first such status), valued as the field takes it, a bonus positive. On
@@ -1131,8 +1134,20 @@ outweighs; `sumOfParts(parts)` adds a list, which here is that one part.
 
 The roll wrappers and the two helpers a roll's owner calls
 (`withMoraleConditions`, `withSurpriseConditions`) are
-`scripts/lib/status-effects.mjs`, imported directly; `conditionNameKey(id)`
-there is the lang key of a condition's name.
+`scripts/lib/status-effects.mjs`, imported directly; it re-exports
+`conditionNameKey(id)`.
+
+**A condition's name, icon and id come from the system** (apiVersion 77). A
+catalogue row carries `label` and `img` only where the system ships no entry
+for its id; `conditionNameKey(id)` answers the system's `name` key for an id in
+`CONFIG.ACKS.conditions` or `combatStates`, read at the call, and the module's
+`ACKS-LIB.condition.<id>` for any other. `CONDITION_KEYS[id].label` (`vocab`)
+is the localized name, read when asked. Three ids changed: `concentratingStationary`
+is `concentrating-and-stationary`, `covered` is `cover-waist-high` and
+`coveredGreater` is `cover-chest-high`; `vomiting` is a new id beside `choking`.
+A consumer that stored or compared an old id, or built a name key from the
+pattern `ACKS-LIB.condition.<id>`, reads the new id or `conditionNameKey`. A row
+marked `state` is filed under States on the palette.
 
 ## `statusPalette` — the token palette as the Judge arranged it (apiVersion 29)
 

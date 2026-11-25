@@ -21,7 +21,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { addAttackContributor, attackInFlight } from "./patches/attack-throw.mjs";
 import { consumedRows, gateVerdict, rollGatedModifiers } from "./typed-modifiers.mjs";
-import { CONDITIONS } from "./conditions.mjs";
+import { conditionLabel } from "./conditions.mjs";
 import { locOr } from "./util.mjs";
 import "./roll-gate-kinds.mjs";
 
@@ -84,7 +84,7 @@ function reaches(forWhat, attackType) {
 export function gateLabel(gate) {
   switch (gate?.kind) {
     case "targetCondition":
-      return phrase(GATE_PHRASES.targetCondition, { condition: listed(gate.condition, (id) => CONDITIONS[id]?.label ?? id) });
+      return phrase(GATE_PHRASES.targetCondition, { condition: listed(gate.condition, conditionLabel) });
     case "combatRound": {
       const round = gate.round;
       if (round && typeof round === "object") {

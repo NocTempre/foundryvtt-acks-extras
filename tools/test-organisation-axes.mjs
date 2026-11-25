@@ -442,10 +442,11 @@ const run = (choices, o, extra = {}) => {
 const specOf = (specs, target) => specs.find((s) => s.target === target);
 
 eq("a catalogue id answers itself", matchCondition("charging"), "charging");
-eq("an exact fold of a label part answers its id, whatever the case", matchCondition("  VOMITING "), "choking");
+eq("an exact fold of an id answers it, whatever the case", [matchCondition("  VOMITING "), matchCondition("Choking"), matchCondition("Choking / Vomiting")], ["vomiting", "choking", null]);
+eq("the printed words of a hyphenated id fold to it, and a row the module keeps answers its own label", [matchCondition("Concentrating and Stationary"), matchCondition("cover waist high"), matchCondition("Cover, chest-high"), matchCondition("Defending with a Shield")], ["concentrating-and-stationary", "cover-waist-high", "cover-chest-high", "defendingShield"]);
 eq("an inflected word answers the one entry it differs from by an ending", matchCondition("burnings"), "burning");
 eq("a word no entry answers, a short stem and a blank give null", [matchCondition("zzzzzz"), matchCondition("bur"), matchCondition(""), matchCondition(null)], [null, null, null, null]);
-check("every id and every label part folds back to its own id", CONDITION_IDS.every((id) => [id, ...CONDITIONS[id].label.split("/")].every((n) => matchCondition(n) === id)));
+check("every id and every label part folds back to its own id", CONDITION_IDS.every((id) => [id, ...String(CONDITIONS[id].label ?? "").split("/")].filter(Boolean).every((n) => matchCondition(n.trim()) === id)));
 
 const fullTroop = { opponentSurprise: -3, vulnerableAttack: 5, damageDiceTimes: 3, attack: 1, targetCondition: "Blinded", targetBand: "medium" };
 let u = run({ troop: "xa", role: "standard" }, orgWith([{ key: "xa", label: "Troop X", figures: fullTroop }], []));

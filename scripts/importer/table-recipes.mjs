@@ -1522,8 +1522,8 @@ const SHARED_TABLE_RECIPES = {
         // The second figure has no lead-in of its own: it follows the example
         // that closes the first.
         values: [
-          { key: "coveredAgainst", find: "targets in cover suffer a", take: "window", span: 20 },
-          { key: "coveredGreaterAgainst", find: "a hedge) and", take: "window", span: 12 },
+          { key: "cover-waist-highAgainst", find: "targets in cover suffer a", take: "window", span: 20 },
+          { key: "cover-chest-highAgainst", find: "a hedge) and", take: "window", span: 12 },
         ],
       },
       coverBlastProse: {
@@ -1534,8 +1534,8 @@ const SHARED_TABLE_RECIPES = {
         column: { xMin: 40, xMax: 300 },
         // The same lead-in twice: the lesser cover's figure, then the greater's.
         values: [
-          { key: "coveredBlast", find: "the bonus is", take: "window", span: 10 },
-          { key: "coveredGreaterBlast", find: "the bonus is", occurrence: 2, take: "window", span: 10 },
+          { key: "cover-waist-highBlast", find: "the bonus is", take: "window", span: 10 },
+          { key: "cover-chest-highBlast", find: "the bonus is", occurrence: 2, take: "window", span: 10 },
         ],
       },
       berserkProse: {

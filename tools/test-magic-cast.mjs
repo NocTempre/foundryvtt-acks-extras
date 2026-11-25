@@ -1424,8 +1424,8 @@ t("a per-level concentration maximum asks for a caster level; a flat one does no
 
 t("a caster record round-trips the kind held, its tail and a pending declaration with its lost stamp; a pending record holds no status", () => {
   const base = { spell: { uuid: "Actor.c1.Item.s1", name: "Testhold", img: "i.png" }, caster: { uuid: "Actor.c1" }, castId: "c1", role: "caster" };
-  const held = spellEffectData({ ...base, statuses: ["concentratingStationary"], held: "stationary", tail: { value: 2, units: "rounds" }, duration: { value: 10, units: "minutes" }, startTime: 100 });
-  assert.deepEqual(held.statuses, ["concentratingStationary"]);
+  const held = spellEffectData({ ...base, statuses: ["concentrating-and-stationary"], held: "stationary", tail: { value: 2, units: "rounds" }, duration: { value: 10, units: "minutes" }, startTime: 100 });
+  assert.deepEqual(held.statuses, ["concentrating-and-stationary"]);
   assert.equal(held.duration, undefined, "core's own duration stays unset");
   const back = spellEffectOf(held);
   assert.deepEqual([back.held, back.tail, back.duration, back.startTime], ["stationary", { value: 2, units: "rounds" }, { value: 10, units: "minutes" }, 100]);
@@ -1513,7 +1513,7 @@ await ta("a concentration cast ends the caster's held records after the spend an
   assert.deepEqual(log.slice(0, 3), ["spend", "endHeld", "record"], "the old concentration ends after the spend and before any record of this cast");
   const record = spellEffectOf(calls.records[0]);
   assert.deepEqual([record.role, record.held, record.tail], ["caster", "stationary", { value: 2, units: "rounds" }]);
-  assert.deepEqual(calls.records[0].statuses, ["concentratingStationary"]);
+  assert.deepEqual(calls.records[0].statuses, ["concentrating-and-stationary"]);
   assert.equal(calls.records[0].changes.length, 0);
   assert.equal(record.duration, undefined, "a plus shape has no cap");
   const read = castDuration(HOLD, {});

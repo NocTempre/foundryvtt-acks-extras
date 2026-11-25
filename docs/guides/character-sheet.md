@@ -59,7 +59,7 @@ Clicking rolls the save.
 
 ![](../releases/v11.2.0/character-sheet-saves.png)
 
-*The rails of a character In Cover: the cover reaches one saving throw, and
+*The rails of a character in cover: the cover reaches one saving throw, and
 only that cell is coloured, with the figure the imported table gives it.*
 
 Down the right: hit points inside the heart with the fill as the fraction
@@ -379,7 +379,7 @@ and what the export wrote.*
 
 The status palette on a token is the ACKS II conditions (RR Appendix B) and
 the states a combatant declares or takes up in a round (RR 291-303: Readied,
-Delayed, Casting, Defending, Countercharging, In Cover, Retreating,
+Delayed, Casting, Defending, Countercharging, Cover (waist-high or chest-high), Retreating,
 Withdrawing), in place of Foundry's generic list. Click one to put it on the
 creature and again to take it off; rest the pointer on an icon for its name.
 

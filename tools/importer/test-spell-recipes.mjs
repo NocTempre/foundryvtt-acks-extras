@@ -599,7 +599,7 @@ t("a row's each expands once per match in page order into keyed rows and options
   assert.deepEqual(rows.map((r) => r.key), ["mood1", "mood3"], "the second option names no condition; its number is left unused");
   assert.deepEqual(rows.map((r) => r.pickOption), ["1", "3"], "pickOption is the match's place, as a string");
   assert.deepEqual(rows[0].conditions, ["blinded"], "a word no catalogue member answers to is skipped inside a list");
-  assert.deepEqual(rows[1].conditions, ["deafened", "concentratingStationary", "berserk"], "a label of several words reads whole, in printed order");
+  assert.deepEqual(rows[1].conditions, ["deafened", "concentrating-and-stationary", "berserk"], "a label of several words reads whole, in printed order");
   assert.ok(rows.every((r) => r.pick === "mood" && !("each" in r) && r.type === "conditionGrant"), "the structure ships, the template locator does not");
   assert.deepEqual(materializeEffects([{ ...EACH_ROW, onMiss: "blank" }], OPTIONS).map((r) => r.key), ["mood1", "mood3"], "onMiss blank never keeps an option with no condition");
 });
@@ -627,7 +627,8 @@ t("each yields no row with no page, no match or a malformed pattern, and never t
 t("the conditions locator maps words onto catalogue keys, singular or plural, and a row with none known is a miss", () => {
   const one = (body, extra = {}) => materializeEffects([{ type: "conditionGrant", ...extra, from: { into: "conditions", pattern: "(\\w[\\w ,/]*)\\." } }], paras(body));
   assert.deepEqual(one("Mute, prone, and zorbed.")[0].conditions, ["mute", "prone"]);
-  assert.deepEqual(one("Choking / Vomiting.")[0].conditions, ["choking"], "a label punctuated as printed maps to its key");
+  assert.deepEqual(one("Choking / Vomiting.")[0].conditions, ["choking", "vomiting"], "a doubled heading as printed reads as its two names, each an id");
+  assert.deepEqual(one("Concentrating and Stationary, cover waist high.")[0].conditions, ["concentrating-and-stationary", "cover-waist-high"], "a hyphenated id answers the words it is made of");
   assert.deepEqual(one("Mute, mute, mute.")[0].conditions, ["mute"], "each key once");
   assert.deepEqual(one("Zorbed and flumped."), [], "no known word drops the row");
   assert.deepEqual(one("Zorbed and flumped.", { onMiss: "blank" })[0].unread, ["conditions"], "or lists the field as unread under onMiss blank");

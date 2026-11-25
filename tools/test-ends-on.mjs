@@ -45,7 +45,7 @@ const effect = (id, causes) => ({ id, name: `record ${id}`, flags: causes === un
 
 {
   assert.deepEqual(CONDITIONS.slumbering.lost, ["damage", "moved"]);
-  assert.deepEqual(lostTo(["slumbering", "covered"], "damage"), ["slumbering"]);
+  assert.deepEqual(lostTo(["slumbering", "cover-waist-high"], "damage"), ["slumbering"]);
   assert.deepEqual(lostTo(["slumbering"], "moved"), ["slumbering"]);
   assert.deepEqual(lostTo(["slumbering"], "save"), [], "a failed save does not wake it");
   ok("slumbering is lost to damage and to a move");

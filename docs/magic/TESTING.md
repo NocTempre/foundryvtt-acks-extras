@@ -581,7 +581,7 @@ its step as an import finding (the walk never supplies one).
    the GM's user and the Player's `isOwner` on the ally is false; every
    modifier entry on the rendered card carries a tooltip naming the spell.
    The caster holds one more record of the cast: status-only, the
-   `concentratingStationary` status alone, no change, no `rollMods`, with the
+   `concentrating-and-stationary` status alone, no change, no `rollMods`, with the
    kind held in its flag, and the actor stands under the status.
 2. **The foe's claw at the ally** (GM seat, the ally targeted, the dice rigged
    to a hit). *Observable:* the stored attack card's modifier list holds one

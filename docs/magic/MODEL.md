@@ -841,7 +841,7 @@ cancel at any point before the spend costs nothing:
    is written first. For a concentration (`castDuration`'s `held`, with its `cap`
    and `tail`, which leave the duration untimed for every caller that tests
    `none`) it is written whatever the rows are: status-only, `concentrating` or
-   `concentratingStationary` by the kind held, with `held` and `tail` in the flag,
+   `concentrating-and-stationary` by the kind held, with `held` and `tail` in the flag,
    flag-timed by the cap where there is one. For any other duration it is written
    only where the duration is timed and a row lasts, or where a row recurs on the
    caster's turn ("Recurring rows", below).

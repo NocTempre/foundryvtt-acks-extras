@@ -43,6 +43,7 @@ import { ACTOR_TYPE } from "./vocab.mjs";
 import { impliedStatuses } from "./held-condition.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
+  conditionNameKey, systemEntryOf,
   attackMath, conditionSet, forbiddenBy, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
 } from "./conditions.mjs";
 import { isArranged, normalizePalette, resolvePalette } from "./status-palette.mjs";
@@ -53,8 +54,8 @@ export const STATUS_DEAD = "dead";
 /** Foundry's invisibility status, which its detection modes read. */
 export const STATUS_INVISIBLE = "invisible";
 
-/** The i18n key naming one condition. */
-export const conditionNameKey = (id) => `${LANG_PREFIX}.condition.${id}`;
+/** The i18n key naming one condition: the system's for an id it ships, the module's otherwise (`conditions.mjs`). */
+export { conditionNameKey };
 
 /**
  * The palette entries that are not Appendix B conditions: each is here because
@@ -159,8 +160,12 @@ function broughtWithChanges(id, entries) {
  * is on the palette before the Judge arranges anything.
  *
  * The catalogue, the engine's states and the Judge's own statuses are always
- * registered, because code toggles them by id. The system's combat states and
- * conditions (`CONFIG.ACKS`) are registered too, because its tracker and its
+ * registered, because code toggles them by id. A catalogue id the system ships
+ * (`CONFIG.ACKS`) takes the system's name and image and carries its entry as
+ * data, under "condition" (under "system" for the tracker's `readied` and
+ * `delayed`, which are on the palette by default); a row marked `state` is
+ * filed under "state" with the module's own name and image. The system's other
+ * combat states and conditions are registered too, because its tracker and its
  * macros toggle them by id, and are off the palette until the Judge puts them
  * on, carrying the system's own effect `changes`. The statuses Foundry and
  * earlier packages offered are registered only while they are on the palette,
@@ -169,10 +174,9 @@ function broughtWithChanges(id, entries) {
  * (`SYSTEM_KEPT_STATUS_IDS`) stay registered off the palette. A status another package registered after this module took the
  * palette is on it by default and stays registered off it. An id already
  * offered is not offered a second time, so the catalogue's entry stands where
- * the system names the same condition, and it carries the system's entry as
- * its data: an effect made from the palette holds the system's `changes`,
- * which is where those figures are applied. A catalogue status that brings a
- * condition carrying changes (`broughtWithChanges`) also names the brought
+ * the system names the same condition: an effect made from the palette holds
+ * the system's `changes`, which is where those figures are applied. A
+ * catalogue status that brings a condition carrying changes (`broughtWithChanges`) also names the brought
  * statuses, takes a static `_id` (`conditionEffectId`) and carries its own
  * changes followed by each brought entry's, so one toggle makes the one effect
  * holding both; the set is derived from the catalogue and the system's list.
@@ -192,14 +196,18 @@ export function knownStatuses(setting = storedPalette()) {
     seen.add(entry.id);
     known.push(entry);
   };
-  // The system's entry for an id it ships rides as the catalogue entry's data, so a status toggled from
-  // the palette makes an effect carrying the system's changes; the name and the image stay the catalogue's.
+  // The system's entry for an id it ships is the catalogue entry's name, image and data, so a status
+  // toggled from the palette makes an effect carrying the system's changes; a catalogue id the system does
+  // not ship keeps the catalogue's own name and image. The system's tracker marks the catalogue names
+  // (`readied`, `delayed`) are offered under "system", on the palette by default.
   const ofCondition = new Map();
   for (const status of CONFIG.ACKS?.conditions ?? []) if (status?.id) ofCondition.set(status.id, status);
+  const ofCombat = new Set((CONFIG.ACKS?.combatStates ?? []).map((status) => status?.id).filter(Boolean));
   for (const [id, c] of Object.entries(CONDITIONS)) {
-    const { hud: _hud, ...core } = ofCondition.get(id) ?? {};
+    const shipped = systemEntryOf(id);
+    const { hud: _hud, ...core } = shipped ?? {};
     const brought = broughtWithChanges(id, ofCondition);
-    let data = ofCondition.has(id) ? core : null;
+    let data = shipped ? core : null;
     if (brought.length) {
       data = {
         ...core,
@@ -208,7 +216,8 @@ export function knownStatuses(setting = storedPalette()) {
         system: { ...core.system, changes: [...entryChanges(core), ...brought.flatMap((other) => entryChanges(ofCondition.get(other)))] },
       };
     }
-    offer({ id, source: "condition", name: conditionNameKey(id), img: c.img, defaultOn: true, keep: true, ...(data ? { data } : {}) });
+    const source = ofCombat.has(id) ? "system" : c.state ? "state" : "condition";
+    offer({ id, source, name: conditionNameKey(id), img: shipped?.img ?? c.img, defaultOn: true, keep: true, ...(data ? { data } : {}) });
   }
   for (const state of STATES) offer({ ...state, source: "state", defaultOn: true, keep: true });
   for (const c of normalizePalette(setting).custom) {

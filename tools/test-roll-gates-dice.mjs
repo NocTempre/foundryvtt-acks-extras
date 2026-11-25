@@ -89,14 +89,14 @@ async function attack({ actor = attacker(), statuses = [], cell = 1, type = "mel
 await ok("a gated multiple doubles the dice and a gated damage row joins the roll, in melee against a target in the condition", async () => {
   const r = await attack({ statuses: ["webbed"], type: "melee" });
   assert.deepEqual(r.formulas, ["2d6 + 2"]);
-  assert.deepEqual(r.damage, [{ label: "Twice · against a target that is Webbed (XX p. 1)", value: 1 }]);
+  assert.deepEqual(r.damage, [{ label: "Twice · against a target that is webbed (XX p. 1)", value: 1 }]);
 });
 
 await ok("the table is told once per attack which part multiplied, however often the formula is asked", async () => {
   const r = await attack({ statuses: ["webbed"], asks: 3 });
   assert.deepEqual(r.formulas, ["2d6 + 2", "2d6 + 2", "2d6 + 2"]);
   assert.equal(r.told.length, 1);
-  assert.match(r.told[0], /^Damage dice ×2: Twice · against a target that is Webbed, at melee, short range \(XX p\. 1\)$/);
+  assert.match(r.told[0], /^Damage dice ×2: Twice · against a target that is webbed, at melee, short range \(XX p\. 1\)$/);
   const next = await attack({ statuses: ["webbed"] });
   assert.equal(next.told.length, 1, "the next attack is told again");
 });

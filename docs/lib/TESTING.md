@@ -2530,13 +2530,13 @@ The morale page's condition rows are influence's own recipe.
 14. **The states of a round on a roll.** With the invented figures: attack a
     Defending Hero as Goblin, and a Defending Goblin with Hero's missile
     weapon; a Goblin Defending with a Shield with the missile weapon, the
-    thrown one and the melee one; a Defending and Casting Goblin; a Goblin In
-    Cover with the missile weapon and with the melee one, then In Cover and In
-    Greater Cover; attack as a Countercharging Hero, then attack that Hero,
+    thrown one and the melee one; a Defending and Casting Goblin; a Goblin in
+    Cover, waist-high with the missile weapon and with the melee one, then
+    Cover, waist-high and Cover, chest-high; attack as a Countercharging Hero, then attack that Hero,
     and a Retreating one; attack as a Readied, Delayed, Withdrawing and
-    Casting Hero. Roll the Blast save and another as a Hero In Cover, In both
-    covers, Defending with a Shield, that and Casting, and In Cover and
-    Hungry. Open Hero's sheet and read the `[data-roll^='save']` cells.
+    Casting Hero. Roll the Blast save and another as a Hero in Cover, waist-high,
+    in both covers, Defending with a Shield, that and Casting, and in
+    Cover, waist-high and Hungry. Open Hero's sheet and read the `[data-roll^='save']` cells.
     **Observable:** a "Defending (target)" term in melee and none for the
     missile; the shield's missile figure, its thrown figure, and Defending's
     own in melee; no term for the caster; cover's term on the missile and none
@@ -2550,7 +2550,7 @@ The morale page's condition rows are influence's own recipe.
     sheet's Blast cell shows cover's figure where the other four show none.
 15. **The tracker and the round's states.** In a started combat (drive notes),
     on Hero's own turn mark Hero with every state of step 14, and on the
-    Goblin's own turn mark its token Defending, Readied, In Cover and Delayed.
+    Goblin's own turn mark its token Defending, Readied, Cover, waist-high and Delayed.
     Advance over the round's end, roll the new round (`combat.rollInitiative`),
     and advance to each turn.
     **Observable:** as the round opens, before its roll, Delayed comes off
@@ -2574,8 +2574,18 @@ The morale page's condition rows are influence's own recipe.
     then Yes. Shrink the window to a phone's width. Delete both statuses,
     Reset, Save.
     **Observable:** one window however it is opened, listing the catalogue and
-    the three states by name with Save disabled, and the tracker's two other
-    marks and Foundry's own statuses in groups under *Off the palette*. Each
+    the states by name with Save disabled, and the tracker's two other
+    marks and Foundry's own statuses in groups under *Off the palette*. Every
+    id the system ships (`CONFIG.ACKS.conditions` and `combatStates`) shows
+    the system's localized `name` and its `img`, on its tile and on the HUD,
+    under Conditions, or under Combat tracker for Readied and Delayed, which are
+    on the palette by default; the module's own marks (Casting, Countercharging,
+    the two Cover grades, Defending, Defending with a Shield, Retreating,
+    Withdrawing, Diseased, Frostbitten, Dead, Invisible, Running) are under
+    States with the module's names, and Immune, Resistant and Subjacent stay
+    under Conditions with the module's. No tile carries `covered`,
+    `coveredGreater` or `concentratingStationary`, and `vomiting` and
+    `concentrating-and-stationary` are there once. Each
     drag and each key moves the one tile, the focus stays on it, and Save
     comes alive. The filter leaves the matching tiles and keeps the caret.
     *Add all* empties its group onto the end of the palette. The new status is
@@ -2624,8 +2634,8 @@ The morale page's condition rows are influence's own recipe.
     one unrolled, or none, pressing Next takes Readied from the combatant the
     tracker left and leaves the Defending it took up that round, and takes
     Readied from the one it lands on.
-20. **Lost before it ends.** Mark Hero Readied, Casting and In Cover and the
-    Goblin token Readied and In Cover. Heal Hero, then `hero.applyDamage(3,
+20. **Lost before it ends.** Mark Hero Readied, Casting and Cover, waist-high and the
+    Goblin token Readied and Cover, waist-high. Heal Hero, then `hero.applyDamage(3,
     1)`; damage the Goblin token's actor. Mark again and roll a save with the
     die rigged to 20, then to 1. Mark again and, with Guard acting, drag
     Hero's token and update the Goblin's position; on Hero's own turn move

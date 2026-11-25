@@ -17,7 +17,7 @@
 // Pure modules only, so this file stays Node-importable.
 import { citeOf, expectTables, getDoc, getLayer, hasDoc, PRIORITY } from "./tables.mjs";
 import { cookbookId } from "./library.mjs";
-import { CONDITIONS } from "./conditions.mjs";
+import { CONDITIONS, conditionLabel } from "./conditions.mjs";
 
 // The magic families live in their own Foundry-free file, re-exported here.
 export * from "./magic-vocab.mjs";
@@ -796,10 +796,12 @@ export const EFFECT_KEYS = {
 /**
  * Conditions an ability can grant or make one immune to: the condition
  * catalogue, and three keys stored abilities already carry that name an
- * effect and no condition of their own.
+ * effect and no condition of their own. A catalogue entry's `label` is read
+ * when asked (`conditionLabel`): the system's own name for an id it ships,
+ * which no one can know when this module loads.
  */
 export const CONDITION_KEYS = {
-  ...Object.fromEntries(Object.entries(CONDITIONS).map(([key, c]) => [key, { label: c.label }])),
+  ...Object.fromEntries(Object.keys(CONDITIONS).map((key) => [key, { get label() { return conditionLabel(key); } }])),
   fear: { label: "Fear" },
   sleep: { label: "Sleep" },
   paralysis: { label: "Paralysis" },

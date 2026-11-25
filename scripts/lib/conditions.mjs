@@ -22,9 +22,10 @@
  * `per`, where the rule itself counts causes.
  *
  * Foundry-free: the status-effect registration and the roll seams are
- * `status-effects.mjs`.
+ * `status-effects.mjs`. A condition's name is read from `globalThis` at the
+ * call (`conditionNameKey`, `conditionLabel`), as the figures it reads are.
  */
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { getDoc, hasDoc } from "./tables.mjs";
 import { numOrNull } from "./util.mjs";
 
@@ -82,10 +83,21 @@ const HURT_OR_FAILED = Object.freeze(["damage", "save"]);
 const row = (on, slot, extra = {}) => Object.freeze({ on, slot, ...extra });
 
 /**
- * The conditions, keyed by status id. `surprised`, `slumbering`, `readied` and
- * `delayed` are the system's own ids for the same four, so the system's
- * tracker and this catalogue mark one thing.
+ * The conditions, keyed by status id. An id the system ships in
+ * `CONFIG.ACKS.conditions` or `combatStates` takes the system's name and icon,
+ * so its row carries neither `label` nor `img` (`conditionNameKey`,
+ * `conditionLabel`); `surprised`, `slumbering`, `readied` and `delayed` are the
+ * system's own ids for the same four, so the system's tracker and this
+ * catalogue mark one thing. A row for an id the system does not ship carries
+ * its own `label` and `img`, and a lang name of the module's own
+ * (`conditionNameKey`).
  *
+ *  - `label`    the English name of a row the system does not ship: what a
+ *               printed word is matched against, and the name before lang loads.
+ *  - `img`      the icon of a row the system does not ship.
+ *  - `state`    the palette files it under States rather than Conditions:
+ *               a posture, a cover or a mark the weather leaves, not an
+ *               Appendix B entry.
  *  - `implies`  conditions the creature also has while it has this one.
  *  - `forbids`  members of `ACTS`.
  *  - `shuts`    conditions this one makes the creature immune to.
@@ -101,107 +113,94 @@ const row = (on, slot, extra = {}) => Object.freeze({ on, slot, ...extra });
  *  - `noMorale` the creature never checks morale.
  */
 export const CONDITIONS = Object.freeze({
-  beholding: { label: "Beholding", img: "icons/svg/eye.svg" },
+  beholding: {},
   berserk: {
-    label: "Berserk", img: "icons/svg/combat.svg",
     shuts: ["cowering", "faltering", "frightened"], noMorale: true, ends: "combat",
     // The melee and missile throws are core's Active Effect; the thrown throw is the module's.
     mods: [row("attack", "attack", { scope: THROWN })],
   },
-  bewitched: { label: "Bewitched", img: "icons/svg/heal.svg" },
+  bewitched: {},
   blessed: {
-    label: "Blessed", img: "icons/svg/angel.svg",
     mods: [row("morale", "all"), row("save", "all", { when: "fear" })],
   },
   blinded: {
-    label: "Blinded", img: "icons/svg/blind.svg", forbids: ["missile"],
+    forbids: ["missile"],
     mods: [
       row("surprise", "surprise"), row("throw", "proficiency", { when: "sight" }), row("speedFactor", "speedFactor"),
     ],
   },
-  burning: { label: "Burning", img: "icons/svg/fire.svg" },
+  burning: {},
   // A spell declared before initiative (RR 291, 293). Declaring one ends what
   // a Defend action gave (RR 294), which is the `unless` on those rows.
-  casting: { label: "Casting", img: "icons/svg/book.svg", ends: "turn", lost: HURT_OR_FAILED },
-  charging: {
-    label: "Charging", img: "icons/svg/thrust.svg", implies: ["disordered"], ends: "turn",
-  },
-  choking: { label: "Choking / Vomiting", img: "icons/svg/acid.svg", forbids: ["act", "speak"] },
+  casting: { label: "Casting", img: "icons/svg/book.svg", state: true, ends: "turn", lost: HURT_OR_FAILED },
+  charging: { implies: ["disordered"], ends: "turn" },
+  choking: { forbids: ["act", "speak"] },
   clambering: {
-    label: "Clambering", img: "icons/svg/ladder.svg", exposes: "vulnerable",
+    exposes: "vulnerable",
     mods: [row("attack", "attack", { when: "source" }), row("attack", "against", { side: "against", when: "source" })],
   },
-  concentrating: { label: "Concentrating", img: "icons/svg/aura.svg", lost: HURT_OR_FAILED },
-  concentratingStationary: {
-    label: "Concentrating and Stationary", img: "icons/svg/obelisk.svg", lost: HURT_OR_FAILED,
-  },
+  concentrating: { lost: HURT_OR_FAILED },
+  "concentrating-and-stationary": { lost: HURT_OR_FAILED },
   // A readied attack made against a charge (RR 295). It leaves its maker
   // Disordered, whose Armor Class figure is the system's effect.
   countercharging: {
-    label: "Countercharging", img: "icons/svg/jump.svg", implies: ["disordered"], ends: "turn",
+    label: "Countercharging", img: "icons/svg/jump.svg", state: true, implies: ["disordered"], ends: "turn",
     mods: [row("attack", "attack")],
   },
-  // Cover comes in two grades (RR 297, 303); the greater supersedes the lesser.
-  covered: {
-    label: "In Cover", img: "icons/svg/wall-direction.svg",
+  // Cover comes in two grades (RR 297, 303); the chest-high grade supersedes the waist-high.
+  "cover-waist-high": {
+    label: "Cover, waist-high", img: "icons/svg/wall-direction.svg", state: true,
     mods: [
-      row("attack", "against", { side: "against", scope: MISSILE_THROWN, unless: "coveredGreater" }),
-      row("save", "blast", { saves: BLAST, unless: "coveredGreater" }),
+      row("attack", "against", { side: "against", scope: MISSILE_THROWN, unless: "cover-chest-high" }),
+      row("save", "blast", { saves: BLAST, unless: "cover-chest-high" }),
     ],
   },
-  coveredGreater: {
-    label: "In Greater Cover", img: "icons/svg/castle.svg",
+  "cover-chest-high": {
+    label: "Cover, chest-high", img: "icons/svg/castle.svg", state: true,
     mods: [row("attack", "against", { side: "against", scope: MISSILE_THROWN }), row("save", "blast", { saves: BLAST })],
   },
-  cowering: { label: "Cowering", img: "icons/svg/cowled.svg", implies: ["vulnerable"], forbids: ["act"] },
+  cowering: { implies: ["vulnerable"], forbids: ["act"] },
   deafened: {
-    label: "Deafened", img: "icons/svg/deaf.svg",
     mods: [row("surprise", "surprise"), row("throw", "proficiency", { when: "voice" })],
   },
   // The Defend action (RR 294), on whoever it protects: the defender, or the
   // ally it stands beside. A shield adds to what the action gives.
   defending: {
-    label: "Defending", img: "icons/svg/tower.svg", ends: "turn", given: true,
+    label: "Defending", img: "icons/svg/tower.svg", state: true, ends: "turn", given: true,
     mods: [row("ac", "melee", { scope: MELEE, unless: "casting" })],
   },
   defendingShield: {
-    label: "Defending with a Shield", img: "icons/svg/ice-shield.svg", implies: ["defending"], ends: "turn", given: true,
+    label: "Defending with a Shield", img: "icons/svg/ice-shield.svg", state: true, implies: ["defending"], ends: "turn", given: true,
     mods: [
       row("ac", "thrown", { scope: ["thrown"], unless: "casting" }),
       row("ac", "missile", { scope: ["missile"], unless: "casting" }),
       row("save", "blast", { saves: BLAST, unless: "casting" }),
     ],
   },
-  dehydrated: {
-    label: "Dehydrated", img: "icons/svg/sun.svg", forbids: ["forceMarch", "naturalHealing"],
-  },
+  dehydrated: { forbids: ["forceMarch", "naturalHealing"] },
   // Holding an initiative for later in the round (RR 292). The system's
   // tracker sets and clears it.
-  delayed: { label: "Delayed", img: "icons/svg/stone-path.svg" },
+  delayed: {},
   // `diseased` and `frostbitten` are marks the weather leaves (RR 277-279), not
   // Appendix B entries: they carry no figures and forbid nothing, and name a
   // body the Judge resolves from the book.
-  diseased: { label: "Diseased", img: "icons/svg/pill.svg" },
-  disfavored: { label: "Disfavored", img: "icons/svg/holy-shield.svg" },
-  disordered: { label: "Disordered", img: "icons/svg/downgrade.svg", ends: "turn" },
-  dominated: { label: "Dominated", img: "icons/svg/direction.svg" },
-  drowning: {
-    label: "Drowning", img: "icons/svg/waterfall.svg", implies: ["vulnerable"], forbids: ["act"],
-  },
-  enervated: { label: "Enervated", img: "icons/svg/degen.svg" },
-  engaged: { label: "Engaged", img: "icons/svg/sword.svg", forbids: ["charge"] },
-  enlarged: { label: "Enlarged", img: "icons/svg/up.svg", mods: [row("attack", "attack", { scope: MELEE })] },
-  enslaved: { label: "Enslaved", img: "icons/svg/anchor.svg" },
-  enthralled: { label: "Enthralled", img: "icons/svg/wing.svg", forbids: ["attack", "cast", "speak"] },
+  diseased: { label: "Diseased", img: "icons/svg/pill.svg", state: true },
+  disfavored: {},
+  disordered: { ends: "turn" },
+  dominated: {},
+  drowning: { implies: ["vulnerable"], forbids: ["act"] },
+  enervated: {},
+  engaged: { forbids: ["charge"] },
+  enlarged: { mods: [row("attack", "attack", { scope: MELEE })] },
+  enslaved: {},
+  enthralled: { forbids: ["attack", "cast", "speak"] },
   faltering: {
-    label: "Faltering", img: "icons/svg/leg.svg",
     mods: [
       row("attack", "all", { when: "source" }), row("throw", "all", { when: "source" }),
       row("save", "all", { when: "source" }),
     ],
   },
   fatigued: {
-    label: "Fatigued", img: "icons/svg/clockwork.svg",
     mods: [
       row("attack", "all", { per: "stack" }), row("throw", "all", { per: "stack" }),
       row("save", "all", { per: "stack" }), row("damage", "all", { per: "stack" }),
@@ -210,109 +209,136 @@ export const CONDITIONS = Object.freeze({
   // The bonus for attacking a flanked creature is the system's own: the attack
   // dialog's direction choice carries it, so the status marks the state and
   // puts no row of its own on the throw.
-  flanked: { label: "Flanked", img: "icons/svg/target.svg" },
-  forgetful: { label: "Forgetful", img: "icons/svg/light-off.svg" },
-  frightened: { label: "Frightened", img: "icons/svg/terror.svg", forbids: ["attack", "cast", "speak"] },
-  frostbitten: { label: "Frostbitten", img: "icons/svg/ice-aura.svg" },
-  grabbed: {
-    label: "Grabbed", img: "icons/svg/pawprint.svg", implies: ["vulnerable"], forbids: ["attack", "cast", "move"],
-  },
-  helpless: { label: "Helpless", img: "icons/svg/trap.svg", implies: ["vulnerable"], forbids: ["act"], autoHit: MELEE },
+  flanked: {},
+  forgetful: {},
+  frightened: { forbids: ["attack", "cast", "speak"] },
+  frostbitten: { label: "Frostbitten", img: "icons/svg/ice-aura.svg", state: true },
+  grabbed: { implies: ["vulnerable"], forbids: ["attack", "cast", "move"] },
+  helpless: { implies: ["vulnerable"], forbids: ["act"], autoHit: MELEE },
   hidden: {
-    label: "Hidden", img: "icons/svg/mystery-man.svg", shields: ["missile", "thrown"],
+    shields: ["missile", "thrown"],
     mods: [row("attack", "against", { side: "against", scope: MELEE })],
   },
   hungry: {
-    label: "Hungry", img: "icons/svg/tankard.svg",
     mods: [row("throw", "all")],
   },
-  hypothermic: {
-    label: "Hypothermic", img: "icons/svg/frozen.svg", forbids: ["forceMarch", "naturalHealing"],
-  },
+  hypothermic: { forbids: ["forceMarch", "naturalHealing"] },
   immune: { label: "Immune", img: "icons/svg/shield.svg" },
   incapacitated: {
-    label: "Incapacitated", img: "icons/svg/blood.svg", forbids: ["attack", "cast", "run", "forceMarch"],
+    forbids: ["attack", "cast", "run", "forceMarch"],
     mods: [row("speedFactor", "speedFactor")],
   },
-  infuriated: {
-    label: "Infuriated", img: "icons/svg/explosion.svg", shuts: ["cowering", "frightened"], noMorale: true, forbids: ["speak"],
-  },
+  infuriated: { shuts: ["cowering", "frightened"], noMorale: true, forbids: ["speak"] },
   inspired: {
-    label: "Inspired", img: "icons/svg/sound.svg",
     mods: [row("morale", "all"), row("save", "all", { when: "fear" })],
   },
-  mad: { label: "Mad", img: "icons/svg/card-joker.svg" },
-  mesmerized: { label: "Mesmerized", img: "icons/svg/daze.svg", implies: ["mute"], forbids: ["act"] },
-  mute: { label: "Mute", img: "icons/svg/silenced.svg", forbids: ["speak", "cast"] },
-  paralyzed: { label: "Paralyzed", img: "icons/svg/paralysis.svg", implies: ["helpless", "mute"] },
-  petrified: { label: "Petrified", img: "icons/svg/statue.svg", implies: ["helpless"] },
-  prone: {
-    label: "Prone", img: "icons/svg/falling.svg", implies: ["vulnerable"], forbids: ["run", "charge"],
-  },
+  mad: {},
+  mesmerized: { implies: ["mute"], forbids: ["act"] },
+  mute: { forbids: ["speak", "cast"] },
+  paralyzed: { implies: ["helpless", "mute"] },
+  petrified: { implies: ["helpless"] },
+  prone: { implies: ["vulnerable"], forbids: ["run", "charge"] },
   queasy: {
-    label: "Queasy", img: "icons/svg/poison.svg",
     mods: [row("throw", "all")],
   },
   // An action held for a trigger (RR 295): it lasts until the creature's own
   // initiative comes round again.
-  readied: { label: "Readied", img: "icons/svg/lever.svg", ends: "turn", lost: LOSSES },
+  readied: { ends: "turn", lost: LOSSES },
   resistant: { label: "Resistant", img: "icons/svg/mage-shield.svg" },
   restrained: {
-    label: "Restrained", img: "icons/svg/padlock.svg", implies: ["vulnerable"], forbids: ["move"],
+    implies: ["vulnerable"], forbids: ["move"],
     mods: [row("attack", "perCause", { per: "extraCause" })],
   },
   // The two defensive movements, declared before initiative (RR 291, 293-294).
-  retreating: { label: "Retreating", img: "icons/svg/door-exit.svg", implies: ["disordered"], ends: "turn" },
+  retreating: { label: "Retreating", img: "icons/svg/door-exit.svg", state: true, implies: ["disordered"], ends: "turn" },
   shaken: {
-    label: "Shaken", img: "icons/svg/lightning.svg",
     mods: [row("morale", "all"), row("save", "all", { when: "fear" })],
   },
   shrunk: {
-    label: "Shrunk", img: "icons/svg/down.svg",
     mods: [row("attack", "attack", { scope: MELEE }), row("damageFactor", "damageFactor")],
   },
   slumbering: {
-    label: "Slumbering", img: "icons/svg/sleep.svg", implies: ["helpless", "blinded", "deafened", "mute"],
+    implies: ["helpless", "blinded", "deafened", "mute"],
     lost: ["damage", "moved"],
   },
-  sneaking: { label: "Sneaking", img: "icons/svg/mole.svg" },
+  sneaking: {},
   starving: {
-    label: "Starving", img: "icons/svg/bones.svg", implies: ["hungry"],
+    implies: ["hungry"],
     forbids: ["forceMarch", "naturalHealing"],
   },
-  stuck: { label: "Stuck", img: "icons/svg/cave.svg", implies: ["vulnerable"], forbids: ["attack", "cast", "move"] },
+  stuck: { implies: ["vulnerable"], forbids: ["attack", "cast", "move"] },
   // A subjacent target's modifier is the attack dialog's own checkbox, as the
   // flank's bonus is its direction choice.
   subjacent: { label: "Subjacent", img: "icons/svg/mountain.svg" },
   surprised: {
-    label: "Surprised", img: "systems/acks/assets/icons/surprised.svg", implies: ["vulnerable"],
+    implies: ["vulnerable"],
     forbids: ["act"],
   },
   unconscious: {
-    label: "Unconscious", img: "icons/svg/unconscious.svg",
     implies: ["helpless", "blinded", "deafened", "mute"],
   },
   underfed: {
-    label: "Underfed", img: "icons/svg/barrel.svg", implies: ["hungry"],
+    implies: ["hungry"],
     forbids: ["forceMarch", "naturalHealing"],
   },
-  vexed: { label: "Vexed", img: "icons/svg/biohazard.svg" },
+  vexed: {},
+  vomiting: { forbids: ["act", "speak"] },
   vulnerable: {
-    label: "Vulnerable", img: "icons/svg/hazard.svg", mods: [row("attack", "against", { side: "against" })],
+    mods: [row("attack", "against", { side: "against" })],
   },
   webbed: {
-    label: "Webbed", img: "icons/svg/net.svg", implies: ["vulnerable"], forbids: ["move"],
+    implies: ["vulnerable"], forbids: ["move"],
     mods: [row("attack", "perCause", { per: "extraCause" })],
   },
-  winded: { label: "Winded", img: "icons/svg/walk.svg", forbids: ["run", "charge"] },
-  withdrawing: { label: "Withdrawing", img: "icons/svg/door-open-outline.svg", ends: "turn" },
-  wrestled: {
-    label: "Wrestled", img: "icons/svg/stoned.svg", implies: ["vulnerable"], forbids: ["attack", "cast", "move"],
-  },
+  winded: { forbids: ["run", "charge"] },
+  withdrawing: { label: "Withdrawing", img: "icons/svg/door-open-outline.svg", state: true, ends: "turn" },
+  wrestled: { implies: ["vulnerable"], forbids: ["attack", "cast", "move"] },
 });
 
 /** Every condition key, in catalogue order. */
 export const CONDITION_IDS = Object.freeze(Object.keys(CONDITIONS));
+
+/**
+ * The system's own entry for status `id`, from `CONFIG.ACKS.conditions` then
+ * `CONFIG.ACKS.combatStates`, read at the call; undefined where the system
+ * ships no such id (or is not loaded).
+ *
+ * @param {string} id
+ * @returns {{id: string, name?: string, img?: string}|undefined}
+ */
+export function systemEntryOf(id) {
+  const acks = globalThis.CONFIG?.ACKS;
+  for (const list of [acks?.conditions, acks?.combatStates]) {
+    for (const entry of list ?? []) if (entry?.id === id) return entry;
+  }
+  return undefined;
+}
+
+/**
+ * The i18n key naming one condition: the system's own `name` key for an id it
+ * ships, the module's `ACKS-LIB.condition.<id>` for any other. The one place a
+ * condition's name key is built.
+ *
+ * @param {string} id
+ * @returns {string}
+ */
+export const conditionNameKey = (id) => systemEntryOf(id)?.name || `${LANG_PREFIX}.condition.${id}`;
+
+/**
+ * A condition's name as a reader shows it: the localized name where lang
+ * resolves the key, else the catalogue's English `label` (a row the system does
+ * not ship), else the id. Read at the call, so a name asked before lang or the
+ * system has loaded is not frozen.
+ *
+ * @param {string} id
+ * @returns {string}
+ */
+export function conditionLabel(id) {
+  const key = conditionNameKey(id);
+  const word = globalThis.game?.i18n?.localize?.(key);
+  if (typeof word === "string" && word && word !== key) return word;
+  return CONDITIONS[id]?.label ?? String(id);
+}
 
 /**
  * The slots each condition's registered row is read by — the contract the

@@ -2704,9 +2704,9 @@ Judge resolves from the book. What else the palette offers, and in what order,
 is the Judge's ("The palette is arranged by the Judge", below).
 
 **The states of a round.** Readied, Delayed, Casting, Defending (and Defending
-with a Shield, which brings Defending), Countercharging, In Cover (and In
-Greater Cover), Retreating and Withdrawing are catalogue entries like any
-condition, toggled from the palette. Four of them carry figures: a Defend
+with a Shield, which brings Defending), Countercharging, Cover, waist-high
+(and Cover, chest-high), Retreating and Withdrawing are catalogue entries like
+any condition, toggled from the palette. Four of them carry figures: a Defend
 action's are on the Armor Class of whoever it protects, by the kind of attack,
 and on its Blast saves; cover's are on what is shot or thrown at the creature
 behind it and on its Blast saves; a countercharge's is on its maker's throw.
@@ -2833,7 +2833,10 @@ the row's, imported; no figure, or a zero, adds nothing.
 to a character's saving throw only, and leaves a monster's `ac.value` as its
 stat line. So for a non-character the module reads the condition effects' steps
 itself, through one reader (`conditionSteps` in `roll-mods.mjs`):
-`activeNumericChanges` on the field, narrowed to the changes `countsOnce`
+`activeNumericChanges` on the field, replayed from the field's stored value
+(the system's preparation derives neither `ac.mod` nor `save.mod`, so an
+override, a multiply or a bound reads as the shift it makes to what the
+creature stores), narrowed to the changes `countsOnce`
 admits and to the effects whose statuses include an id whose system entry
 carries changes, an id set read from `CONFIG.ACKS.conditions` at the call. A
 step's `condition` is the status its change belongs to (the Armor Class step on
@@ -3131,10 +3134,10 @@ list, empties it, and writes the palette.
 
 | Source | What it is | By default | Off the palette |
 |---|---|---|---|
-| `condition` | the catalogue | on | registered, hidden from the HUD |
-| `state` | `dead`, `invisible`, Running | on | registered, hidden |
+| `condition` | the catalogue's conditions: every one the system ships, and `immune`, `resistant` and `subjacent` | on | registered, hidden from the HUD |
+| `state` | `dead`, `invisible`, Running, and the catalogue's rows marked `state` | on | registered, hidden |
 | `custom` | a status the Judge made | on | registered, hidden |
-| `system` | `CONFIG.ACKS.combatStates` and `CONFIG.ACKS.conditions` the catalogue does not hold, as the system wrote them | off | registered, hidden |
+| `system` | `CONFIG.ACKS.combatStates` (Readied and Delayed, which the catalogue names, are on by default), and any `CONFIG.ACKS.conditions` the catalogue does not hold, as the system wrote them | off, but Readied and Delayed | registered, hidden |
 | `foreign` | what `CONFIG.statusEffects` held when this module took it, less the above: Foundry's own list | on exactly when the system's setting is on, and never for `dead`, `invisible`, `fly`, `burrow` or `hover` | not registered, but for those five, which the system keeps: registered, hidden |
 | `foreign` | what another package registered afterwards | on | registered, hidden |
 
@@ -3142,13 +3145,32 @@ A status that code toggles by id stays registered off the palette, so the
 toggle still finds it; the HUD is told to leave it out (`hud: false`). The
 system's combat states are such statuses: its tracker's Done, Readied and
 Delayed controls toggle them by id, and the `hud` flag the system gives them
-does not follow them onto the palette. Where the catalogue and the system name
-one id (the catalogue holds Readied and Delayed, and every system condition
-but two), the catalogue's entry is the one offered: its name and icon stand,
-and the effect `changes` the system attaches to eleven of its conditions do
-not reach `CONFIG.statusEffects`, since this module's rolls read the status
-(see "Conditions"). `SYSTEM_KEPT_STATUS_IDS` mirrors the system's private list
-of the five Foundry ids it keeps.
+does not follow them onto the palette, though Readied and Delayed, which the
+catalogue also names, are on it by default.
+
+**A condition's name, icon and id are the system's.** The catalogue holds an
+id's `label` and `img` only where the system ships no entry for it
+(`CONFIG.ACKS.conditions`, `combatStates`): a shipped id is offered with the
+system's `name` key and `img`, and its whole entry, less `hud`, as the data an
+effect made from the palette carries, so the effect `changes` the system
+attaches to eleven of its conditions ride on it (this module's rolls still read
+the status; see "Conditions"). `conditionNameKey(id)` (`conditions.mjs`) is the
+one place a name key is built, read from `CONFIG.ACKS` at the call: the system's
+key for a shipped id, the module's `ACKS-LIB.condition.<id>` for the rest, which
+are the only lang keys the catalogue has. `conditionLabel(id)` is the localized
+name, and `CONDITION_KEYS[id].label` (the lib API's list of conditions an
+ability can grant) answers it when read, never when the module loads. The ids
+are the system's: `concentrating-and-stationary`, and `vomiting` beside
+`choking`; cover's two grades are `cover-waist-high` and `cover-chest-high`,
+named as the book grades them. A row marked `state` is filed under States, with
+the module's own name and icon: the states of a round, the two cover grades, and
+the weather's `diseased` and `frostbitten`. `immune`, `resistant` and
+`subjacent`, which the system does not ship, stay under Conditions with the
+module's own. The two importer matchers that turn a printed word into an id
+(`conditionKeysIn` and `matchCondition`) fold the id to its letters and never
+read the localized name, since they run with no lang loaded; a row the module
+keeps answers to its own `label` as well. `SYSTEM_KEPT_STATUS_IDS` mirrors the
+system's private list of the five Foundry ids it keeps.
 
 The arrangement is one world setting, `statusPalette`:
 `{layout, off, custom}`. `layout` is the ids on the palette in order, `off`

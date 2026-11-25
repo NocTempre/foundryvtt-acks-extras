@@ -38,7 +38,7 @@ import { ACTOR_TYPE, capabilityForId, hasScope, satisfies, scopeApplies } from "
 import { vocabLabel } from "./magic-vocab.mjs";
 import { saveSpec } from "./saves.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
-import { acMath, acWaivedSet, subjectOf } from "./conditions.mjs";
+import { acMath, acWaivedSet, conditionNameKey, subjectOf } from "./conditions.mjs";
 import { hasCapability } from "./capabilities.mjs";
 import { actorAlignment, areEnemies, creatureKinds } from "./actor-read.mjs";
 import { activeNumericChanges, appliedEffects, CHANGE } from "./effect-scan.mjs";
@@ -117,6 +117,23 @@ function changeCarrying() {
   return ids;
 }
 
+/**
+ * A field's value before any effect applies: its stored value. The system's
+ * actor preparation derives neither `system.ac.mod` nor `system.save.mod`, so
+ * the stored figure is what its changes replay from, on a monster and on a
+ * character alike. Zero where the actor holds no stored data.
+ *
+ * @param {object} actor
+ * @param {string} key  a change key, `system.<path>`
+ * @returns {number}
+ */
+function storedFigure(actor, key) {
+  let at = actor?._source?.system;
+  for (const part of String(key).replace(/^system\./, "").split(".")) at = at?.[part];
+  const figure = Number(at);
+  return Number.isFinite(figure) ? figure : 0;
+}
+
 /** The Active Effect changes an effect carries, as Foundry applies them: `system.changes`, else the plain `changes`. */
 const changesOf = (effect) => Array.from(effect?.system?.changes ?? effect?.changes ?? []);
 
@@ -175,7 +192,9 @@ export function countsOnce(effect, change) {
  * and a step Foundry did not apply is no step here. A character already holds
  * them in the prepared field; a monster's field has none of them, so a caller
  * that puts them on a roll asks for a monster. The reader looks at no actor
- * type, its callers do.
+ * type, its callers do. The changes replay from the field's stored value, so an
+ * override, a multiply or a bound reads as the shift it makes to what the actor
+ * stores.
  *
  * A step belongs to the status its change is attributed to (`statusOfChange`):
  * the Armor Class step on a charging effect is Disordered's. On
@@ -198,7 +217,7 @@ export function conditionSteps(actor, key) {
   const ids = changeCarrying();
   if (!actor || !ids.size) return out;
   const decided = key === CONDITION_STEP_KEYS.ac ? acWaivedSet(subjectOf(actor)) : new Set();
-  for (const step of activeNumericChanges(actor, key, { admit: countsOnce })) {
+  for (const step of activeNumericChanges(actor, key, { base: storedFigure(actor, key), admit: countsOnce })) {
     const statuses = [...(step.effect?.statuses ?? [])];
     const owner = statusOfChange(step.effect, key);
     const condition = owner ?? statuses.find((id) => ids.has(id));
@@ -214,7 +233,7 @@ export function conditionSteps(actor, key) {
 export const sumSteps = (steps) => steps.reduce((total, step) => total + step.value, 0);
 
 /** A condition's name: its lang string, or its id before any translation is loaded. */
-const conditionName = (id) => globalThis.game?.i18n?.localize?.(`${LANG_PREFIX}.condition.${id}`) ?? id;
+const conditionName = (id) => globalThis.game?.i18n?.localize?.(conditionNameKey(id)) ?? id;
 
 /**
  * How one effect's step is named, as `{name, condition?}`: the effect's own

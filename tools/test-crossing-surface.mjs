@@ -44,7 +44,10 @@ const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + nam
 
 /* --- the real strings, so a key that does not exist fails here ------------- */
 const LANG = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+/** The prefix of the stand-in system's invented condition names: its key answers the id's own word, capitalised. */
+const SYSTEM_NAME = "qa.system.";
 const lookup = (key) => {
+  if (key.startsWith(SYSTEM_NAME)) return key.slice(SYSTEM_NAME.length).replace(/^./, (c) => c.toUpperCase());
   if (key in LANG) return LANG[key];
   const [root, ...rest] = key.split(".");
   return rest.reduce((at, part) => at?.[part], LANG[root]);
@@ -1611,7 +1614,12 @@ function withEffects(actor) {
   };
   return actor;
 }
-globalThis.CONFIG = { statusEffects: [{ id: "vulnerable", name: "EFFECT.Vulnerable", img: "icons/svg/hazard.svg" }] };
+const { CONDITIONS: CATALOGUE } = await import("../scripts/lib/conditions.mjs");
+globalThis.CONFIG = {
+  statusEffects: [{ id: "vulnerable", name: "EFFECT.Vulnerable", img: "icons/svg/hazard.svg" }],
+  // The system ships every catalogue id that carries no name of its own, under a name key of its own.
+  ACKS: { conditions: Object.keys(CATALOGUE).filter((id) => CATALOGUE[id].label === undefined).map((id) => ({ id, name: `${SYSTEM_NAME}${id}`, img: `qa/${id}.svg` })) },
+};
 
 /** The spelunking table with a grid row saying which obstacles leave a climber helpless. */
 const VULNERABLE = { ...SPELUNKING, vulnerable: { sheerClimb: true, easyClimb: false } };

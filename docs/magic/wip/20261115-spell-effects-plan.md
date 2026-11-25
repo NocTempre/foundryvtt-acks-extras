@@ -445,7 +445,7 @@ counter, as above.
     at resolution or loss. *Counter (medium):* a misclicked declaration is
     spent; the Judge lowers core's count by hand.
 24. **Concentration** (ruling 11). `concentrating` and
-    `concentratingStationary` gain `lost: HURT_OR_FAILED` (not `moved`, which
+    `concentrating-and-stationary` gain `lost: HURT_OR_FAILED` (not `moved`, which
     means moved out of turn). Automated: damage, a failed save, the caster's
     next cast through the module. Left to the Judge, with a ROADMAP row:
     attacking, other actions, movement (`POST_ATTACK_HOOK` is the route for
@@ -822,7 +822,7 @@ its rejected alternative and counter. Tests use invented spells only.
     `concentrationPlus`. `levelNeeded` asks for a level where `maxPerLevel`.
 57. **Records of a held cast and of a buff.** `spellEffectData` gains `held`,
     `tail`, `item`, `pending`, `rollMods`. A held cast writes a status-only
-    caster record (`concentrating` or `concentratingStationary`), flag-timed by
+    caster record (`concentrating` or `concentrating-and-stationary`), flag-timed by
     `cap`. A cast's modifier and ward rows for one recipient are one record,
     free of statuses and changes, carrying `rollMods` and a `startTime`, timed
     only where the cast is timed; its entries are one group, applied in one

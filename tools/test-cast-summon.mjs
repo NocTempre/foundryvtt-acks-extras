@@ -451,7 +451,7 @@ await ta("a held summons writes the record heldRecordData returns, whatever its 
   await cast(spell, r);
   const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: spell.parent.uuid }, castId: "castX", role: "caster" };
   assert.deepEqual(r.calls.records[0], heldRecordData(mark, { held: read.held, now: 10, tail: read.tail, cap: read.cap }));
-  assert.deepEqual(r.calls.records[0].statuses, ["concentratingStationary"]);
+  assert.deepEqual(r.calls.records[0].statuses, ["concentrating-and-stationary"]);
 });
 
 await ta("a held summons' end card lists the creatures the cast placed, and each row's Dismiss names that creature and that cast", async () => {

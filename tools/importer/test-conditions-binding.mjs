@@ -138,8 +138,8 @@ const signs = rows({
   [rawKey("hidden", "against")]: "-5 penalty",
   [rawKey("restrained", "perCause")]: "-3 penalty for each",
   [rawKey("defending", "melee")]: ", whoever it shelters gains a +6 ac against",
-  [rawKey("covered", "blast")]: " +7. if the",
-  [rawKey("coveredGreater", "against")]: " -9 if the",
+  [rawKey("cover-waist-high", "blast")]: " +7. if the",
+  [rawKey("cover-chest-high", "against")]: " -9 if the",
 });
 eq("a figure reduced by a number is that number negated", signs.faltering.all, -6);
 eq("a penalty is signed as written", signs.berserk.attack, -17);
@@ -147,7 +147,7 @@ eq("a bonus to attackers is positive", signs.vulnerable.against, 8);
 eq("a penalty on attackers is negative", signs.hidden.against, -5);
 eq("a per-cause penalty is negative", signs.restrained.perCause, -3);
 eq("a bonus to AC against one kind of attack is positive", signs.defending.melee, 6);
-eq("a marked figure with no wording of its own keeps its mark", [signs.covered.blast, signs.coveredGreater.against], [7, -9]);
+eq("a marked figure with no wording of its own keeps its mark", [signs["cover-waist-high"].blast, signs["cover-chest-high"].against], [7, -9]);
 
 /* ----------------------- the recipes and the map ----------------------- */
 

@@ -20,7 +20,7 @@
  * place decides who is asked to write it.
  */
 import { LANG_PREFIX } from "./constants.mjs";
-import { rollMath, subjectOf } from "./conditions.mjs";
+import { conditionNameKey, rollMath, subjectOf } from "./conditions.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { actorDefenses, defenseFigures, defenseSaveParts } from "./defenses.mjs";
 import { CONDITION_STEP_KEYS, conditionSteps, ownSaveParts, saveModParts, stepLabel, sumSteps } from "./roll-mods.mjs";
@@ -131,7 +131,7 @@ export function saveSpec(
       pending = math.pending;
       unpriced = math.unpriced;
       for (const p of math.parts) {
-        if (p.value) targetParts.push({ key: p.condition, label: locOr(`${LANG_PREFIX}.condition.${p.condition}`, p.condition), value: p.value, side: "target" });
+        if (p.value) targetParts.push({ key: p.condition, label: locOr(conditionNameKey(p.condition), p.condition), value: p.value, side: "target" });
       }
     }
   }

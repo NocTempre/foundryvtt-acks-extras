@@ -1347,7 +1347,7 @@ should join, and the fold only covers a row that was in use).
 
 *Cost:* lib `apiVersion` is 68 (`vocab` gains `singularsOf`).
 
-## 2026-11-24 — Core's condition effects carry the figures they reach — SUPERSEDED IN PART 2026-11-24
+## 2026-11-24 — Core's condition effects carry the figures they reach — SUPERSEDED IN PART 2026-11-24, 2026-11-25
 
 Supersedes, in part, "The palette is an adapter over the system's conditions,
 combat states and setting" (2026-11-24, above): its first bullet's last
@@ -1752,3 +1752,75 @@ Slice S8a of the beastman plan (ruling: the S7 ruling's points 1 and 2 and its a
 **Strongest counter, STRONG on cost and not decisive (carrier).** The cast engine already has a walked prompt, relay and Undo, so the carrier writes a second loop. The parts that are not spell-bound are already lib's and shared, and the ROADMAP row names the merge.
 
 **Not verified offline.** The Region the live build makes, the `ActorDelta` effect parent of the defeated-status hook, core 14.364 (only 14.370 was read), and every Foundry-side path; the walk recipe is `docs/lib/TESTING.md`, "The aura reach and the item carrier".
+
+## 2026-11-25 — A condition's name, icon and id are the system's
+
+Supersedes, in part, "Core's condition effects carry the figures they reach"
+(2026-11-24, above): its first bullet's sentence that the name and the image
+stay the catalogue's until the naming slice moves them, and its clause that
+Readied and Delayed stay on the palette as the catalogue's entries. Neither
+archived ruling it cites has an In-force row.
+
+**New evidence.** That entry is under seven days old and deferred the names to
+this slice by name; what it did not know is the owner's answer on the drawn
+board and the readers it would reach. The owner, on the
+system's conditions: "Revert to core now that it available, repair
+implementations and ties to automation that are downstream", then "Extend
+core"; on condition ids: "Should match RAW"; and on how to build: "Use exiting
+foundry code before investigating new designs...". Asked "Board 4 (S6: names,
+icons and ids from the system, on the HUD and the palette window) is
+unanswered: build it as drawn, or will you answer its open points first?", the
+owner: "Build as drawn". The enumeration of that slice found one
+builder of a name key in the module's own lang (`status-effects.mjs`), two more
+that rebuilt it inline (`roll-mods.mjs`, `saves.mjs`), and several readers of a
+catalogue row's `label`.
+
+**Ruled.**
+- An id the system ships in `CONFIG.ACKS.conditions` or `combatStates` takes the
+  system's `name` key and `img`, on the token HUD and in the palette window. The
+  catalogue row for it carries neither, and lang holds no key for it. A row for
+  an id the system does not ship keeps its `label`, `img` and lang key: Casting,
+  Countercharging, Defending, Defending with a Shield, Retreating, Withdrawing,
+  the two cover grades, Diseased, Frostbitten, Immune, Resistant and Subjacent.
+- `conditionNameKey(id)` (`conditions.mjs`) is the one builder of a name key. It
+  reads the system's lists at the call, never a pattern of the key, so a
+  consumer, `roll-mods.mjs`, `saves.mjs` and the catalogue's own readers go
+  through it. `CONDITION_KEYS[id].label` is a getter that answers the localized
+  name when read, because the list is built before the system and lang exist.
+- Palette groups: States hold the module's own marks (a catalogue row marked
+  `state`, and `dead`, `invisible` and Running), Conditions hold every condition
+  the system ships and Immune, Resistant and Subjacent, and Combat tracker holds
+  the system's four marks. Readied and Delayed move there from Conditions and
+  stay on the palette by default; the other two stay off it.
+- Ids follow the system and the printed grade: `concentratingStationary` is
+  `concentrating-and-stationary`, `covered` is `cover-waist-high`,
+  `coveredGreater` is `cover-chest-high`, and `vomiting` is added with
+  `choking`'s structure. The importer's recipe keys for the two grades' figures
+  follow the ids. `defendingShield` is untouched; it folds into `defending` in
+  its own slice.
+- The two matchers that turn a printed word into an id never read the system's
+  localized name, since they run offline and a book's English word would miss
+  it in any other client language. For an id the system ships the id folded to
+  its letters is the match; a row the module keeps also matches on its `label`.
+  The doubled heading as the book prints it now reads as two names, Choking
+  and Vomiting, and the one spell row that grants Choking names it as a literal
+  and is left as it is.
+- A monster's condition step replays from the field's stored value
+  (`conditionSteps`), the value the system's own breakdown starts from, so an
+  override, a multiply or a bound is read as the shift it makes to what the
+  creature stores (T-0769).
+
+**Rejected.** An alias, a migration or a repair check for an old id: the owner
+ruled that nothing carries previous-version data. Keeping lang keys for shipped
+ids as a fallback: it is a second source that drifts from the system's. Matching
+a printed word against the localized system name. Moving `readied` and
+`delayed` off the palette to follow the system's `hud: false`: the system hides
+them from its own HUD, and the owner's drawn default kept them on ours.
+
+**Cost.** An effect, a token status or a stored palette arrangement under an old
+id stops being recognised, as does a defence's or an effect row's `conditions`
+set, a `status` gate's text and an imported conditions row keyed by an old id; a
+Judge sets the mark again and re-runs the Rules tables import. Wording a Judge
+read before ("In Cover", "Choking / Vomiting") now reads as the system words it,
+in the system's language. A creature's `silence` status is the system's Mute,
+and Mute does not suppress the shadowy senses; Deafened does (T-0741).

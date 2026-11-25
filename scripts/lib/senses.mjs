@@ -143,9 +143,10 @@ export function canSeeInDark(actor) {
 
 /**
  * The condition that suppresses the shadowy senses (RULES §4: they fail
- * running or deafened; a creature in magical silence is marked Deafened).
- * Magical darkness is enforced in `perception.mjs` instead — a property of
- * the ground, not the creature.
+ * running or deafened). Mute does not suppress them, and the system maps
+ * Foundry's silence status to Mute, so a creature in magical silence has them
+ * only until its Judge sets Deafened. Magical darkness is enforced in
+ * `perception.mjs` instead — a property of the ground, not the creature.
  */
 const SHADOWY_SUPPRESSOR = "deafened";
 

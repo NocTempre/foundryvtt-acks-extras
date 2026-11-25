@@ -630,14 +630,16 @@ function readDice(raw) {
 
 /**
  * The key of the vocabulary member a captured word names, by key or by label,
- * singular or plural; null when none, or when the member is in `skip`.
+ * singular or plural; null when none, or when the member is in `skip`. A key
+ * and a label are compared by their letters alone, so a hyphenated id names the
+ * words it is made of.
  */
 function memberOf(vocab, word, skip = []) {
   const w = String(word ?? "").toLowerCase().replace(/[^a-z]/g, "");
   if (!w) return null;
   for (const form of [w, w.replace(/s$/, "")]) {
     const hit = Object.entries(vocab).find(
-      ([key, v]) => !skip.includes(key) && (key.toLowerCase() === form || String(v.label ?? "").toLowerCase().replace(/[^a-z]/g, "") === form),
+      ([key, v]) => !skip.includes(key) && (key.toLowerCase().replace(/[^a-z]/g, "") === form || String(v.label ?? "").toLowerCase().replace(/[^a-z]/g, "") === form),
     );
     if (hit) return hit[0];
   }

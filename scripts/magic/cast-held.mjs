@@ -1,7 +1,7 @@
 /* global game, ChatMessage, Hooks, foundry, fromUuid, fromUuidSync */
 /**
  * Concentration's end. A spell held by concentration leaves a status-only
- * record on its caster (`concentrating`, or `concentratingStationary`) carrying
+ * record on its caster (`concentrating`, or `concentrating-and-stationary`) carrying
  * the kind held and the time its effects outlast it (`tail`), and each recipient
  * of the cast carries a record of its own. However the caster's record goes (the
  * system's hit-point loss path, a failed save, the status's own toggle, a hand
@@ -49,7 +49,7 @@ import { CONTROL_ENDS } from "../lib/magic-vocab.mjs";
 export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved"]);
 
 /** The status a held record carries, by the kind of concentration. */
-export const heldStatusOf = (held) => (held === "stationary" ? "concentratingStationary" : "concentrating");
+export const heldStatusOf = (held) => (held === "stationary" ? "concentrating-and-stationary" : "concentrating");
 
 /**
  * The caster record a concentration leaves, the one composition every cast that

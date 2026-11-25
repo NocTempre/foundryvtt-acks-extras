@@ -1029,7 +1029,7 @@ async function holdFlow(who, { endIt }) {
   for (const e of ends) await track(e.uuid, "ChatMessage");
   check(`${L}: the old concentration's end posted one card, caused by the new cast`, ends.length === 1 && ends[0].cause === "cast", ends.map((e) => e.cause));
   const nowRecords = await recordsOf();
-  check(`${L}: the old record is gone and the new one is the one concentration held, of its own kind`, !nowRecords.some((r) => r.castId === a.castId) && nowRecords.filter((r) => r.held).length === 1 && recB.length === 1 && rb.held === "stationary" && rb.statuses.includes("concentratingStationary"), { held: nowRecords.filter((r) => r.held).length, kind: rb?.held });
+  check(`${L}: the old record is gone and the new one is the one concentration held, of its own kind`, !nowRecords.some((r) => r.castId === a.castId) && nowRecords.filter((r) => r.held).length === 1 && recB.length === 1 && rb.held === "stationary" && rb.statuses.includes("concentrating-and-stationary"), { held: nowRecords.filter((r) => r.held).length, kind: rb?.held });
   check(`${L}: the second summoning placed its creature and spent its own count`, b.fresh.length === 1 && b.cast === 1, { tokens: b.fresh.length, cast: b.cast });
   const standingB = await tokensOf();
   check(`${L}: the first summoning's creature still stands beside the second's`, standingB.length === standingA.length + 1 && standingA.every((t) => standingB.some((s) => s.uuid === t.uuid)), { before: standingA.length, after: standingB.length });
@@ -1038,7 +1038,7 @@ async function holdFlow(who, { endIt }) {
     // The end of a held summons by its real trigger (the status's toggle): the funnel's card listing the standing creatures, Dismiss on the Judge's seat only, and nothing removed from the map.
     await run(seat, P.mark, { casterId: W.caster });
     const since2 = Date.now() - 1000;
-    await run(seat, P.endHeld, { casterId: W.caster, status: "concentratingStationary" });
+    await run(seat, P.endHeld, { casterId: W.caster, status: "concentrating-and-stationary" });
     const cards = await until(() => run(seat, P.endCards, { since: since2 }), (l) => l.some((e) => e.castId === b.castId), { tries: 40, every: 250 });
     const end = cards.filter((e) => e.castId === b.castId);
     for (const e of end) await track(e.uuid, "ChatMessage");

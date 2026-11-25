@@ -533,7 +533,7 @@ const P = {
     const saveKey = H.RM.CONDITION_STEP_KEYS.save;
     const brought = H.family(state).find((x) => x !== state && H.ownByKey(x)[acKey]) ?? null;
     const set = async (id, on) => { await actor.toggleStatusEffect(id, { active: on }); await H.sleep(350); };
-    const condName = (id) => game.i18n.localize(`ACKS-LIB.condition.${id}`);
+    const condName = (id) => game.i18n.localize(acksExtras.lib.conditions.conditionNameKey(id));
     const other = game.i18n.localize("ACKS.throw.modifier.otherEffects");
     const saveLabel = game.i18n.localize("ACKS-CHARACTER.stats.saveMod");
     const sheet = actor.sheet;
@@ -710,7 +710,7 @@ const P = {
     const actor = (await fromUuid(bearer)).actor;
     const saveKey = H.RM.CONDITION_STEP_KEYS.save;
     const name = "Walk kind: ward";
-    const label = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.named", { effect: name, condition: game.i18n.localize(`ACKS-LIB.condition.${id}`) });
+    const label = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.named", { effect: name, condition: game.i18n.localize(acksExtras.lib.conditions.conditionNameKey(id)) });
     const named = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.kinded", { label, kind: game.i18n.localize("EFFECT.CHANGES.TYPES.override") });
     const said = [];
     const info = ui.notifications.info;
@@ -741,7 +741,7 @@ const P = {
     const foeTok = await fromUuid(foe);
     const actor = tok.actor;
     const acKey = H.RM.CONDITION_STEP_KEYS.ac;
-    const bare = game.i18n.format("ACKS-LIB.conditionRoll.term.target", { name: game.i18n.localize(`ACKS-LIB.condition.${id}`) });
+    const bare = game.i18n.format("ACKS-LIB.conditionRoll.term.target", { name: game.i18n.localize(acksExtras.lib.conditions.conditionNameKey(id)) });
     const named = game.i18n.format("ACKS-LIB.conditionRoll.targetAc.kinded", { label: bare, kind: game.i18n.localize("EFFECT.CHANGES.TYPES.override") });
     let made = [];
     try {

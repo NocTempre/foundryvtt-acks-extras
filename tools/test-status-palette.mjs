@@ -13,7 +13,7 @@ import {
   CUSTOM_EFFECT_FIELDS, PALETTE_SOURCES, isArranged, isDefaultPalette, normalizeCustom, normalizePalette,
   paletteSetting, resolvePalette, slugStatusId, statusIdError,
 } from "../scripts/lib/status-palette.mjs";
-import { CONDITION_IDS, CONDITIONS } from "../scripts/lib/conditions.mjs";
+import { CONDITION_IDS, CONDITIONS, conditionNameKey } from "../scripts/lib/conditions.mjs";
 import { LANG_PREFIX } from "../scripts/lib/constants.mjs";
 import { BROUGHT, CONDITION_ORDER, IMPLYING_IDS, actorOf, conditionChanges, coreConditions, effectOf, implyingEffect } from "./core-conditions-fixture.mjs";
 
@@ -176,9 +176,12 @@ globalThis.game = {
 };
 // The system's own lists, in the shape core 14.2.0 gives them. The figures are invented.
 const CORE_CHANGES = [{ key: "system.invented.mod", type: "add", value: 7 }];
+// The ids the system ships and the catalogue holds with no name of its own, apart from the tracker's two.
+const SHIPPED_BY_CATALOGUE = CONDITION_IDS.filter((id) => CONDITIONS[id].label === undefined && !["readied", "delayed"].includes(id));
 const CORE_CONDITIONS = [
-  // The ids the catalogue also holds: the eleven carry changes (invented), a few more carry none.
+  // The ids the catalogue also holds: the eleven carry changes (invented), the rest carry none.
   ...coreConditions(),
+  ...SHIPPED_BY_CATALOGUE.filter((id) => !coreConditions().some((entry) => entry.id === id)).map((id) => ({ id, name: `core.${id}`, img: `core/${id}.svg` })),
   { id: "coreonly", name: "ACKS.conditions.coreonly", img: "sys/coreonly.svg", system: { changes: CORE_CHANGES } },
 ];
 const CORE_COMBAT_STATES = [
@@ -230,9 +233,12 @@ ok("the system's combat states are registered with nothing arranged, so the trac
   assert.equal(config("done").name, "ACKS.combatStates.done");
   const all = new Map(fx.knownStatuses().map((s) => [s.id, s]));
   assert.deepEqual([all.get("done").source, all.get("done").defaultOn, all.get("done").keep], ["system", false, true]);
-  // The catalogue holds Readied and Delayed, so its entries stand, on the palette.
-  assert.deepEqual([all.get("readied").source, all.get("delayed").source], ["condition", "condition"]);
-  assert.deepEqual([config("readied").hud, config("delayed").hud], [undefined, undefined]);
+  // The catalogue names Readied and Delayed too: each is offered once, under "system", on the palette, with the system's name and image.
+  for (const id of ["readied", "delayed"]) {
+    assert.equal(fx.knownStatuses().filter((entry) => entry.id === id).length, 1, `${id} is known once`);
+    assert.deepEqual([all.get(id).source, all.get(id).defaultOn, all.get(id).keep], ["system", true, true], id);
+    assert.deepEqual([config(id).name, config(id).img, config(id).hud], [`ACKS.combatStates.${id}`, CORE_COMBAT_STATES.find((c) => c.id === id).img, undefined], id);
+  }
 });
 
 ok("a system condition the catalogue lacks is registered and off the HUD, with the figures it carries", () => {
@@ -243,22 +249,69 @@ ok("a system condition the catalogue lacks is registered and off the HUD, with t
   assert.equal(fx.readStatusPalette().find((e) => e.id === "coreonly").on, false);
 });
 
-ok("an id the catalogue offers keeps the catalogue's name and image", () => {
-  assert.deepEqual([config("blinded").name, config("blinded").img], [`${LANG_PREFIX}.condition.blinded`, CONDITIONS.blinded.img]);
+ok("an id the system ships takes the system's name and image; an id it does not ship keeps the catalogue's", () => {
+  assert.deepEqual([config("blinded").name, config("blinded").img], ["core.blinded", "core/blinded.svg"]);
+  assert.deepEqual([config("beholding").name, config("beholding").img], ["core.beholding", "core/beholding.svg"], "one the mock list gives no change");
   assert.equal(fx.knownStatuses().filter((s) => s.id === "blinded").length, 1);
   assert.equal(fx.knownStatuses().find((s) => s.id === "blinded").source, "condition");
+  for (const id of ["casting", "immune"]) {
+    assert.deepEqual([config(id).name, config(id).img], [`${LANG_PREFIX}.condition.${id}`, CONDITIONS[id].img], id);
+  }
+  // The system's entry rides as the whole of the entry's data, less its `hud`.
+  assert.deepEqual(config("beholding").system, undefined);
+  assert.equal(config("beholding").hud, undefined);
+});
+
+ok("the status module re-exports the one name reader", () => {
+  assert.equal(fx.conditionNameKey, conditionNameKey);
+  assert.equal(fx.conditionNameKey("blinded"), "core.blinded");
+  assert.equal(fx.conditionNameKey("casting"), `${LANG_PREFIX}.condition.${"casting"}`);
+});
+
+ok("the palette's groups: States hold the module's own marks, Conditions hold the rest, the tracker's four marks sit under Combat tracker", () => {
+  const all = new Map(fx.knownStatuses().map((s) => [s.id, s]));
+  const under = (source) => [...all.values()].filter((s) => s.source === source).map((s) => s.id).sort();
+  assert.deepEqual(under("state"), [
+    "acks-extras.running", "casting", "countercharging", "cover-chest-high", "cover-waist-high", "dead", "defending", "defendingShield",
+    "diseased", "frostbitten", "invisible", "retreating", "withdrawing",
+  ]);
+  assert.deepEqual(under("system"), ["coreonly", "delayed", "done", "overnumbering", "readied"]);
+  assert.deepEqual(under("condition"), CONDITION_IDS.filter((id) => !CONDITIONS[id].state && !["readied", "delayed"].includes(id)).sort());
+  for (const id of ["immune", "resistant", "subjacent", "vomiting", "concentrating-and-stationary"]) assert.equal(all.get(id).source, "condition", id);
+  // Every mark the module files under States, and Readied and Delayed, is on the palette by default; the system's other two are not.
+  for (const id of [...under("state"), "readied", "delayed"]) assert.deepEqual([all.get(id).defaultOn, all.get(id).keep], [true, true], id);
+  assert.deepEqual(["done", "overnumbering"].map((id) => all.get(id).defaultOn), [false, false]);
+  // The three ids the catalogue renamed are not known, and the two it added are known once.
+  for (const old of ["concentratingStationary", "covered", "coveredGreater"]) assert.equal(all.has(old), false, old);
+  assert.equal(fx.knownStatuses().filter((s) => s.id === "vomiting" || s.id === "concentrating-and-stationary").length, 2);
+  assert.deepEqual([config("vomiting").name, config("vomiting").img], ["core.vomiting", "core/vomiting.svg"]);
+});
+
+ok("with no system loaded a catalogue id is still known and registered, under the module's own key and with no image", () => {
+  const was = CONFIG.ACKS;
+  delete CONFIG.ACKS;
+  try {
+    const all = new Map(fx.knownStatuses().map((s) => [s.id, s]));
+    const id = "hungry";
+    assert.deepEqual([all.get(id).name, all.get(id).img, all.get(id).source], [`${LANG_PREFIX}.condition.${id}`, undefined, "condition"]);
+    assert.deepEqual([all.get("casting").img, all.get("casting").source], [CONDITIONS.casting.img, "state"]);
+    assert.equal(all.get("readied").source, "condition", "with no tracker list the tracker's marks are filed with the conditions");
+    assert.equal(all.get("hungry").data, undefined);
+  } finally {
+    CONFIG.ACKS = was;
+  }
 });
 
 ok("an id the system ships carries the system's changes on the catalogue's entry, so a toggled status holds them", () => {
   for (const id of CONDITION_ORDER.filter((candidate) => !IMPLYING_IDS.includes(candidate))) {
     assert.deepEqual(config(id).system?.changes, conditionChanges(id), id);
-    assert.deepEqual([config(id).name, config(id).img], [`${LANG_PREFIX}.condition.${id}`, CONDITIONS[id].img], `${id} keeps the catalogue's name and image`);
+    assert.deepEqual([config(id).name, config(id).img], [`core.${id}`, `core/${id}.svg`], `${id} takes the system's name and image`);
     assert.equal(config(id).hud, undefined, `${id} stays on the palette`);
   }
   // A system id with no change adds none; an id the system does not ship carries nothing of its own.
   assert.equal(config("restrained").system, undefined);
   assert.equal(config("diseased").system, undefined);
-  // Readied and Delayed are combat states in the system and stay the catalogue's entries, on the palette.
+  // Readied and Delayed are combat states in the system: on the palette, with the system's entry as their data.
   for (const id of ["readied", "delayed"]) assert.deepEqual([config(id).system, config(id).hud], [undefined, undefined], id);
   // The changes ride off the palette and under an arrangement too.
   store({ layout: ["stun"], off: ["berserk"] });
@@ -300,7 +353,8 @@ ok("the states that bring a condition are derived from the catalogue and the sys
     assert.deepEqual(config(id).statuses, [BROUGHT[id]], id);
     assert.equal(config(id)._id, PINNED_IDS[id], id);
     assert.deepEqual(config(id).system.changes, mergedChanges(id), `${id}: its own changes, then the brought condition's`);
-    assert.deepEqual([config(id).name, config(id).img], [`${LANG_PREFIX}.condition.${id}`, CONDITIONS[id].img], `${id} keeps the catalogue's name and image`);
+    const ofModule = CONDITIONS[id].label !== undefined;
+    assert.deepEqual([config(id).name, config(id).img], ofModule ? [`${LANG_PREFIX}.condition.${id}`, CONDITIONS[id].img] : [`core.${id}`, `core/${id}.svg`], id);
   }
   // A state the system's list does not ship still carries what it brings.
   assert.equal(CORE_CONDITIONS.some((entry) => entry.id === "countercharging"), false);
