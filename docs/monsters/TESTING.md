@@ -1078,3 +1078,47 @@ name: "Claw"}, {type: "ability", name: "Gaze"}, {type: "item", name:
    no-tab view; `flags.acks-extras.spoil` is true.
 
 **Teardown.** The fixture stays.
+
+
+## The organisation roll through the API
+
+The provider, the executor and Delete, driven through `acksExtras.monsters.rollOrganisation`
+and `acksExtras.lib.org`. There is no user surface yet beyond the whispered card.
+
+**Fixtures.** The beastman family template with the organisation tables imported (a world
+whose tables predate a recipe change re-imports them first), and a faction
+`monsters/beastman-village` as the host, found or built with
+`api.fixture("monsters/beastman-village", "Actor", {type: "acks-extras.faction", name: <any>})`,
+and a location `monsters/beastman-village-place` for the send-out. Every document a roll
+makes is `api.track`ed from `result.created` (and `result.pot` as a Cards document); the
+host and the place are the kept fixtures. A step that needs an empty host empties its rows
+first (`host.update({"system.units": []})`) after tracking and sweeping what they held.
+
+**Steps.** Each observable is read back from the documents, not from the return value.
+
+1. Roll a village: `const r = await acksExtras.monsters.rollOrganisation({host, template, variant, context: "wilderness", state: "lair", scope: "below", rules: {troops: true, traits: true, gear: true}})`,
+   then `r.created.forEach((u) => api.track(u, "Actor"))`. Observe: each of the host's
+   `system.units` rows names an existing group; the top row's group names an officer actor and
+   the faction's `leaderUuid` is that actor; every stack's `template.uuid` resolves; two stacks
+   of one body kind copy one prototype; a whispered card is in the chat log with its links and
+   its tooltips.
+2. A reference nothing answers: the card lists a `reference` finding and the group holds a
+   labelled stack (`template.uuid` null, `template.label` the printed word).
+3. Send a gang out with `acksExtras.lib.org.sendOut(host, key, placeUuid)` and observe its group
+   on the roster; take a casualty (`acksExtras.lib.groups.applyCasualties`); `recall(host, key)`
+   and read the count live.
+4. A one-row Roll leaves the others byte-identical: `org.addRow(host, parentKey, {kind})`,
+   snapshot every other row with `JSON.stringify`, `rollOrganisation({host, rowKey})` with no
+   `template` argument and compare. Only that row and its new descendants differ, and the new
+   empty rows' `gen` hold their share and troop.
+5. Rolling a filled row returns `{ok: false, reason: "filled"}` and writes nothing.
+6. Delete with `org.deleteRow(host, key)`: the row, its subtree, its groups and a prototype no
+   stack names are gone; a prototype another stack names stays (`result.kept`); an actor the
+   roll did not mint stays. With a body on the map the result carries `warnings: ["onMap"]`
+   and the Judges are whispered.
+7. `gen` survives a reload: reload the client and read the root row's `gen.template`, then
+   roll an empty row below it as in step 4.
+8. Hand-off: with `state: "lair"` the pot's `deal.monsters` holds the creature with `hoards`
+   the count the line gave; a second Roll with `pot` given raises that row.
+
+**Teardown.** `api.sweepTracked()`, and quote its result.

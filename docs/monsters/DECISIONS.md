@@ -307,7 +307,7 @@ wrestle: applying it stays the Judge's call.
 figures' save part reaches only the Rolls tab's tooltip. The penalty a human or
 demi-human takes from wearing the armour is not built.
 
-## 2026-11-25 — The organisation roll: references fold to one entry or stay findings, shares divide the first level with more than one unit
+## 2026-11-25 — The organisation roll: references fold to one entry or stay findings, shares divide the first level with more than one unit — SUPERSEDED IN PART 2026-11-25
 
 The slice that builds the evaluator, the optional rules and the write plans
 (`docs/monsters/MODEL.md`, "The organisation roll") ruled what the plan left open.
@@ -367,3 +367,46 @@ be left undecided until needed" (an empty row waits).
   of a printed leader's fixed hit points in `rollBodyHp` falls with it. `fixedHp`
   stays for a part that is a stack and prints its hit points (an escort
   statistically equal to a rank).
+
+
+Superseded in part by "The organisation provider" below: the bullet "A side whose noun is a
+unit holding one unit is a unit", for a fixed count.
+
+## 2026-11-25 — The organisation provider: a lone counted unit is the root, prototypes are marked, Delete takes the subtree
+
+The slice that carries the roll out (docs/monsters/MODEL.md, "The organisation roll", "The
+provider") ruled what the plan left open.
+
+- **A line counting one unit by a fixed figure is lowered to that unit.** *New evidence for
+  superseding the same day's reading:* the adopted shape's own example, "a warband's group,
+  gangs inside" ("A wandering warband is Warband 1's group with its gangs' groups inside
+  it"), is the counted unit at the root with no wrapper above it. The wrapper's leader comes
+  first among the root's leaders, so it is the group's officer; the wrapper's non-body parts
+  join the unit's camp. The test is the line's count formula having no dice: a count of dice
+  that came up one is not lowered, since the dice could as well have made several.
+  *Rejected:* lowering on any single child (a village that rolled one warband would lose its
+  chieftain's level); a wrapper group kept (the owner: "only group needed"); a Judge's Add
+  makes a row above where one is wanted. For the owner: this reverses the evaluator's reading
+  recorded above for fixed counts.
+- **A Roll of a row below the top takes the share and troop its ancestor fixed.** The empty
+  row's `gen` keeps `shareKind`, `troop` and `trait`; without them a lone unit would be split
+  again and a special unit would throw its troop again, which is a re-roll.
+- **The template rides on the root row's `gen`.** A later Roll of an empty row cannot find
+  the recipe otherwise.
+- **A minted prototype carries its key as a flag.** The flag is how a later Roll reuses it and
+  the only mark that lets Delete remove an actor, so a library entry and a hand-made actor
+  are never removed. A prototype is minted only when a stack names it; each leader is
+  generated directly, one actor, not a prototype and a copy.
+- **A stack's mount, carried pieces and speakers live in its `gen`.** The stack schema had no
+  field for them, and with no re-roll a figure dropped by a roll is gone for good. *Not done:*
+  materialising the carriers as roster members, and binding a mount actor to a leader (the
+  leader records the mount; no second actor is made).
+- **Delete takes the subtree.** A group nests inside its parent row's group; a row taken
+  alone would leave its subtree's groups inside a deleted one. *Rejected:* lifting the
+  children to the parent row. The leaders stay in the world, since the plan's sentence names
+  the row, its group and the prototypes only. Both are readings and are put to the owner.
+- **The treasure hand-off is one row for the first creature the roll made that carries a
+  treasure type**, raised by the hoards the line counts, to the pot given or a new staged
+  pot. A row for each creature would deal a hoard for every kind of beast in a camp.
+- **`officerLevel` is not written.** It drives the command-capacity rule of a personally led
+  unit, and nothing here gives a beastman leader a command level.

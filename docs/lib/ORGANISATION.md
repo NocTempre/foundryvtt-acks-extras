@@ -188,9 +188,34 @@ once per `key`), `createGroup`, `parent`, `addStack` and `addLabelledStack`,
   the unit's group. Bodies on a map keep the figures they went out with until
   they are recalled, which comes back as `warnings: ["onMap"]` and no refusal.
 
+## The executor
+
+`runPlan(plan, {mint, makeLeader})` (`org-run.mjs`) carries a Roll or Add plan out in order
+with a ref map: every `"new:<id>"` the plan names becomes the uuid of the document made
+for it, wherever it stands in a later op (a row's `holderUuid`, a faction's `leaderUuid`,
+an update's own target). Lib names no creature, so the caller supplies `mint(spec, {key})`,
+which finds or makes the actor of a prototype spec and answers `{actor, made}`, and
+`makeLeader(op, spec, mount)`, which makes a leader's actor. A prototype is minted when a
+stack first names it. A library entry is read, never minted. A stack's `gen` also stores
+the `mount`, `carry` and `speakers` the op carried. An op the executor does not know, and a
+document the seat cannot write, refuse the plan before the first write (`badOp`, `missing`,
+`notOwner`). A write that fails stops the run with `reason: "failed"`; the result lists every
+id made (`created`, `made.{groups,prototypes,leaders}`) in either case, and a string still
+starting `new:` is never written.
+
+## Delete
+
+`deleteRow(host, key)` removes a row and every row beneath it (a group nests inside its
+parent row's group, so a row taken alone would leave its subtree inside a deleted group),
+the group each holds, and each prototype carrying `ORG_PROTOTYPE_FLAG` that no group's stack
+names as its `template` or `gen.mount`. A group comes off every roster, and the faction's
+`leaderUuid` is cleared where it was a deleted group's officer. The officers are actors of
+their own and stay (listed in `leaders`); so does every actor the generator did not mint.
+Bodies on a map warn (`warnings: ["onMap"]`, a whisper to the Judges) and refuse nothing.
+
 ## What is not here
 
-Delete, the sheets that draw the two views, and the gestures for join, leave and
+The sheets that draw the two views, and the gestures for join, leave and
 "make its own" are later slices. A character's
 service tree reaches the same nodes through henchmen's `serviceNodes`
 ([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom").
@@ -200,7 +225,7 @@ service tree reaches the same nodes through henchmen's `serviceNodes`
 Offline: `tools/test-org-tree.mjs` (the node, the plans, the views, the morale walk
 and the affiliation list), `tools/test-org.mjs` (the index and its deletes, the
 writes over mocked documents and their order, the twin a stopped join leaves),
-`tools/test-group-command.mjs` (command morale through the real getter) and
+`tools/test-org-run.mjs` (the executor and Delete), `tools/test-group-command.mjs` (command morale through the real getter) and
 `tools/test-factions.mjs` (the affiliation readers) and `tools/test-org-write.mjs` (the
 Roll, Add and Edit plans). Live: docs/lib/TESTING.md,
 "The organisation chart through the API".

@@ -911,11 +911,16 @@ by hand from there.
 (`group-encounter-logic.mjs`), `state: "chance"` throwing the lair chance first.
 The line of that context and side names the unit (its noun), and the line's count
 is how many of the unit it counts it holds, or its bodies where it counts no
-unit. A sub-unit is sized by whichever line carries its noun, in either context.
+unit. A line that counts exactly one unit by a fixed figure, no dice, is **lowered**:
+the counted unit stands at the root, its group is the roll's top, the line's own
+leader comes first among the root's leaders (so it is the group's officer) and the
+line's non-body parts join the unit's camp. A count of dice is never lowered, whatever
+came up. A sub-unit is sized by whichever line carries its noun, in either context.
 A `size-*` part of the recipe stands in for the line it was read from, so a
-Judge's correction counts. Nothing is named a lair: a side whose noun is a unit
-holding one unit is a unit like any other, and the state alone decides which side
-is read and whether treasure is dealt (`treasure.deal`). A side with no count
+Judge's correction counts. Nothing is named a lair: the state alone decides which side is read and
+whether treasure is dealt (`treasure.deal`, with `hoards`: one for each unit the line
+counts, one for a unit that counts bodies; a Roll of a row below the top deals none,
+its ancestor's roll having dealt for it). A side with no count
 rolls nothing (`reason: "side"`).
 
 **Shares.** The recipe's `ratioOf: "unit"` parts (or, with the optional split on,
@@ -961,7 +966,8 @@ tables and listed in `findings` where a figure is missing:
   for beasts beside riders.
 - *Trait* (`rules.traits`): one for a unit that holds units, rolled on the
   variant's bands and taken by everything under it. A Roll of an empty row below
-  the top takes `inherit.trait` from the nearest ancestor's `gen` and rolls none.
+  the top takes `inherit.trait` from the nearest ancestor's `gen`, and the
+  `shareKind` and `troop` its own `gen` holds, and rolls none of them again.
   A trait row that adds beasts (`beastDice`) adds them only where the Judge named
   the creature (`choices.traitBeast`, a word, resolved like any outside
   reference); until then the question is a `traitBeasts` finding.
@@ -1008,10 +1014,55 @@ is its fields in a fixed order, so identical creatures across the whole roll sha
 one prototype. The write plan mints each key once.
 
 **The `gen` record.** Only what a later Roll of an empty row needs rides on the
-row where a roll began: `variant`, `context`, `state`, which optional rules are
+row where a roll began: `template` (the family's uuid), `variant`, `context`, `state`, which optional rules are
 on, the leader and village sources, the trait, and the Judge's `choices`. An empty
 row a one-level roll leaves keeps its own `shareKind`, `troop` and `trait`. There
 is no roll key, no pin and no log.
 
-Verification: `tools/test-encounter-recipe.mjs`, `tools/test-organisation-logic.mjs`
-and `tools/test-org-write.mjs`, all on invented recipes, tables and creature words.
+**The provider** (`organisation-run.mjs`, `api.monsters.rollOrganisation`). A Roll names a
+host (a faction or a root group, or none: the top unit's group is then the host), an
+empty row or none, the family template and the breed, lib's `context` and `state`, and
+the rules on. For an empty row below the top the template, breed, state, rules and
+choices are read from the nearest ancestor row whose `gen` holds them. The provider
+rolls, plans with lib's `planRoll` and hands the ops to lib's `org.runPlan`
+([../lib/ORGANISATION.md](../lib/ORGANISATION.md), "The executor"), supplying two callbacks:
+
+- **`mint`** makes the world actor of a prototype spec by generating from the family
+  template with every axis the roll decided pinned (troop and trait `none` where the
+  roll chose none), so a mint never rolls beside the evaluator. The actor is marked
+  `flags["acks-extras"].organisationPrototype` with its key: a later Roll finds it by
+  the key instead of making a second, and Delete may remove only an actor that
+  carries it. A prototype is minted when a stack first names it.
+- **`makeLeader`** generates one actor for each leader, directly, with its rolled gear
+  as the Gear axis's pins; a unit's first leader is its group's `unit.officerUuid` and a
+  village chieftain also the faction's `leaderUuid`. The mount a leader rides and
+  whether it speaks the common tongue are recorded on it, `flags["acks-extras"].leaderRoll`;
+  no second actor is made for the mount.
+
+A stack's mount, how many of its bodies carry each piece and how many speak the common
+tongue are stored in its `gen` (`mount`, `carry`, `speakers`). The result lists every id
+the run made (`created`), on a failure too, so a walk can track them.
+
+**The treasure hand-off.** A Roll whose `treasure.deal` is true adds one row to a staged
+treasure pot's deal list for the first creature the roll made that carries a treasure type,
+its hoards raised by `treasure.hoards`: to the pot given, else to a new staged pot.
+A roll that made no creature with a type deals none.
+
+**The Judges' card** (`organisation-card.mjs`, `templates/monsters/organisation-card.hbs`,
+board 1e) is whispered for each Roll: the throws, each with a tooltip naming the part and
+its page; a row for each unit with its bodies, share and troop; the findings (references
+with their candidate counts, a table gap, a missing Hit Dice figure, a trait's unnamed
+beasts, beasts that fight beside riders, a morale part out of range, a missing figure);
+the treasure line; what was written; and links to the group and the pot. It has no
+re-roll, pin or confirm.
+
+**Delete** is lib's `org.deleteRow(host, key)`: the row, every row beneath it, the group
+each holds and every prototype carrying the marker that no remaining stack names
+(its `template` or its `gen.mount`). A group comes off every roster that held it and the
+faction's leader is cleared where it was a deleted group's officer. The leaders stay in
+the world. Bodies on a map are a whisper to the Judges and no refusal.
+
+Verification: `tools/test-encounter-recipe.mjs`, `tools/test-organisation-logic.mjs`,
+`tools/test-org-write.mjs`, `tools/test-organisation-card.mjs` and lib's
+`tools/test-org-run.mjs`, all on invented recipes, tables and creature words. The live
+recipe is TESTING.md, "The organisation roll through the API".

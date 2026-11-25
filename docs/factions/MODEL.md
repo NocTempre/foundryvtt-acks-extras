@@ -35,7 +35,7 @@ print is [DECISIONS.md](DECISIONS.md); what is not built is
 - **Extend**: the `acks-extras.faction` sub-type (TypeDataModel) — `kind`,
   `notes` and a Judge-only `gmNotes`, a `seatUuid` (a place), `holdings` (the
   other places it keeps), a `leaderUuid`, a `parentUuid` (a faction,
-  loop-guarded), `members` (roster rows), `units` (its organisation chart),
+  loop-guarded), `members` (roster rows), `units` (its organisation chart; a Roll fills it and Delete empties a row, [../monsters/MODEL.md](../monsters/MODEL.md) "The organisation roll"),
   `strength` (the unnamed people, counted), `relations` (its stance toward each other organisation), `controls`
   (district Region uuids) and `standing` (the ledger). Every array defaults to
   empty and the strength block to an empty table, so an actor with none of
