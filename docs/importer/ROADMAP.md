@@ -452,10 +452,10 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    Tome's chain replaces the Journal's lists by list id") and is built whole, in
    three batches: Random Type, the eight category lists, the five rarity lists
    and every subtable of folios 30 to 50, and the scroll sub-tables of folios 94
-   to 98. Every list places on the author's copy and none waits. Not yet:
-   the Tome's entries, and the generators that use them
-   (a gem or jewelry RollTable still rolls one die, its description carrying
-   the legend)
+   to 98. Every list places on the author's copy and none waits. The Tome's
+   and the Journal's magic-item entries are imported (MODEL, `kind.magicItem`).
+   Not yet: a gem or jewelry RollTable that throws each kind on its own die
+   (one still rolls one die, its description carrying the legend)
    (`docs/importer/wip/20261116-tt-importer-plan.md`).
 8. **The custom-class, custom-spell and magic-type remainders**, gated on the
    magic work.
