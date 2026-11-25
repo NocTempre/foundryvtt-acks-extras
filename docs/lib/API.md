@@ -1,4 +1,4 @@
-# lib API (apiVersion 82)
+# lib API (apiVersion 83)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 82,
+  apiVersion: 83,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1238,7 +1238,7 @@ rest. `source` is `condition`, `state`, `custom`, `system` or `foreign`;
 setting `acks-extras.statusPalette`; the Foundry-free model that reads and
 writes its shape is `scripts/lib/status-palette.mjs`, imported directly.
 
-## `summons` — a character's summoned creatures (apiVersion 64)
+## `summons` — a character's summoned creatures (apiVersion 64; 83 adds `creatureOpens`)
 
 The model is docs/lib/MODEL.md, "Summons"; the ruling is
 docs/character-sheet/DECISIONS.md, "A summon is an unlinked token of a GM-made copy".
