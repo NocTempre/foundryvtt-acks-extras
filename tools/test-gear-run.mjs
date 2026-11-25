@@ -7,8 +7,9 @@
  * pass, fail and immune cases, a standing part held once per subject and kind,
  * lifted at an exit and kept while another reach of the kind still holds the
  * subject), the relayed press resolving its window and entry state on the GM's
- * side, and the morale read. Foundry-free with stand-ins; every name, key and
- * figure below is invented.
+ * side, and the morale read. Foundry-free with stand-ins; every name and figure
+ * below is invented, and the only kind key used is the module's own (the type
+ * key a printed qualifier resolves to, checked against the real creature kinds).
  *
  * Usage: node tools/test-gear-run.mjs
  */
@@ -52,9 +53,9 @@ const BASE = { doc: DOC, table: TABLE, fold };
 
 /** An invented equipment row of each shape, figures as `importedOrganisation` reads them. */
 const rows = {
-  encourage: { key: "r1", label: "Alpha Item", cite: "XX p. 4", figures: { radius: 7, damage: 2, reachKind: "Alphas" } },
+  encourage: { key: "r1", label: "Alpha Item", cite: "XX p. 4", figures: { radius: 7, damage: 2, reachKind: "Beastmen" } },
   banner: { key: "r2", label: "Beta Item", cite: "XX p. 4", figures: { radius: 9, saveKind: "paralysis", immunityTurns: 3, condition: "blinded" } },
-  drum: { key: "r3", label: "Gamma Item", cite: "XX p. 5", figures: { radius: 11, bonus: 1, reachKind: "alphas" } },
+  drum: { key: "r3", label: "Gamma Item", cite: "XX p. 5", figures: { radius: 11, bonus: 1, reachKind: "beastmen" } },
 };
 const registerRows = (over = {}) => {
   resetTables();
@@ -79,7 +80,7 @@ await t("a row is the shape its value keys make it, never its key: an action ite
   const flag = once.flags["acks-extras"].itemRun;
   assert.equal(flag.activation.kind, "once");
   assert.equal(flag.rows[0].reach.pulse, "action");
-  assert.deepEqual(flag.rows[0].reach.filter, { kinds: ["alphas"], exceptKinds: [], side: "any", unit: "under" }, "the printed qualifier folded by kindToken, the bearer's subordinates");
+  assert.deepEqual(flag.rows[0].reach.filter, { kinds: ["beastman"], exceptKinds: [], side: "any", unit: "under" }, "the printed plural resolved onto its kind key, the bearer's subordinates");
   assert.deepEqual(flag.rows[0].reach.on, ["damage"]);
   assert.deepEqual(flag.rows[0].endsOn, ["attack"]);
   assert.deepEqual(flag.rows[0].reach.modifier, { doc: DOC, table: TABLE, row: "r1", figure: "damage" });
@@ -118,6 +119,41 @@ await t("a row that cannot be resolved writes no reach and is reported, never gu
   assert.equal(gearRunItem({ ...rows.banner, figures: { ...rows.banner.figures, radius: "far" } }, BASE), null, "a radius that is no number");
   const noWindow = gearRunItem({ ...rows.banner, figures: { radius: 9, saveKind: "paralysis", condition: "blinded" } }, BASE);
   assert.equal(noWindow.flags["acks-extras"].itemRun.rows[0].reach.immunity, undefined, "no window printed, none referenced");
+});
+
+await t("a printed qualifier that matches no kind key writes no item and is reported with its word, whole or in part", () => {
+  const missed = [];
+  const miss = (figure, word) => missed.push([figure, word]);
+  const once = (reachKind) => gearRunItem({ ...rows.encourage, figures: { radius: 7, damage: 2, reachKind } }, { ...BASE, miss });
+  assert.equal(once("Alphas"), null, "a word that is no key of the module's vocabulary");
+  assert.equal(once("Beastmen and Alphas"), null, "one part unresolved: no partial filter that admits other bodies");
+  assert.deepEqual(missed, [["reachKind", "Alphas"], ["reachKind", "Beastmen and Alphas"]]);
+  const wide = once("Beastmen, undead or humanoids");
+  assert.deepEqual(wide.flags["acks-extras"].itemRun.rows[0].reach.filter.kinds, ["beastman", "undead", "humanoid"], "every part resolved, each to its key");
+  assert.equal(missed.length, 2);
+});
+
+await t("the minted filter admits the body the importer's own type mapping makes, and refuses another, through the real creature kinds", async () => {
+  const { mapPairs } = await import("../scripts/importer/stats-map.mjs");
+  const { creatureKinds } = await import("../scripts/lib/actor-read.mjs");
+  const { reachAdmits } = await import("../scripts/lib/aura-reach-logic.mjs");
+  /** A body whose `extras` the importer wrote from a printed Type line. */
+  const imported = (typeLine, name) => {
+    const { extras } = mapPairs(typeLine ? [{ label: "Type", value: typeLine }] : []);
+    const body = creature(name, undefined, "G1");
+    body.actor.getFlag = (scope, key) => (scope === "acks-extras" && key === "extras" ? extras : undefined);
+    return { body, extras };
+  };
+  const hand = imported("Beastman (Goblin)", "hand");
+  assert.deepEqual(hand.extras.types, ["beastman"], "the importer writes the singular type key");
+  assert.ok(creatureKinds(hand.body.actor).has("beastman"));
+  const bearer = creature("bearer", ["beastman"], "G1");
+  for (const shape of [rows.encourage, rows.drum]) {
+    const filter = gearRunItem(shape, BASE).flags["acks-extras"].itemRun.rows[0].reach.filter;
+    assert.equal(reachAdmits(bearer, hand.body, filter, {}), true, "the real kinds of an imported beastman meet the filter the printed plural minted");
+    assert.equal(reachAdmits(bearer, imported("Undead", "dead").body, filter, {}), false, "another type is outside it");
+    assert.equal(reachAdmits(bearer, imported("", "blank").body, filter, {}), null, "a body with no type is the Judge's tick, never silently in or out");
+  }
 });
 
 await t("generation copies the minted item onto a creature whose gear axis chose it, and a basic entry gains nothing", () => {
@@ -254,9 +290,9 @@ await t("the action item writes its part on each subject the filter admits, the 
   registerRows();
   seatOf(true);
   install();
-  const bearer = creature("bearer", ["alphas"], "G1");
-  const mine = creature("mine", ["alphas"], "G1");
-  const other = creature("other", ["alphas"], "G2");
+  const bearer = creature("bearer", ["beastman"], "G1");
+  const mine = creature("mine", ["beastman"], "G1");
+  const other = creature("other", ["beastman"], "G2");
   const stranger = creature("stranger", ["betas"], "G1");
   const unknown = creature("unknown", null, "G1");
   scene(bearer, mine, other, stranger, unknown);
@@ -302,8 +338,8 @@ const stagePress = () => {
   registerRows();
   seatOf(true);
   install();
-  const subject = creature("subject", ["alphas"]);
-  const bearer = creature("bearer", ["alphas"]);
+  const subject = creature("subject", ["beastman"]);
+  const bearer = creature("bearer", ["beastman"]);
   scene(bearer, subject);
   theItem.actor = bearer.actor;
   subjects[subject.token.uuid] = subject.token;
@@ -404,8 +440,8 @@ await t("E9: a standing part is held once per subject and kind, written only whe
   install();
   minted = gearRunItem(rows.drum, BASE);
   const row = minted.flags["acks-extras"].itemRun.rows[0];
-  const bearer = creature("bearer", ["alphas"], "G1");
-  const sub = creature("sub", ["alphas"], "G1");
+  const bearer = creature("bearer", ["beastman"], "G1");
+  const sub = creature("sub", ["beastman"], "G1");
   scene(bearer, sub);
   theItem.actor = bearer.actor;
   const moment = (name, admitted = true, region = { id: "RA" }) => run.handleReachMoment({ moment: name, config: { activationId: "act" }, item: theItem, row, reach: { pulse: "standing" }, subject: { actor: sub.actor, token: sub.token }, admitted, region });
@@ -443,8 +479,8 @@ await t("E9: a subject inside two reaches of one kind keeps its part when it lea
   install();
   minted = gearRunItem(rows.drum, BASE);
   const row = minted.flags["acks-extras"].itemRun.rows[0];
-  const bearer = creature("bearer", ["alphas"], "G1");
-  const sub = creature("sub", ["alphas"], "G1");
+  const bearer = creature("bearer", ["beastman"], "G1");
+  const sub = creature("sub", ["beastman"], "G1");
   const sc = scene(bearer, sub);
   theItem.actor = bearer.actor;
   const AURA = (await import("../scripts/lib/constants.mjs")).AURA_BEHAVIOR_TYPE;
@@ -488,7 +524,7 @@ await t("E9: a subject inside two reaches of one kind keeps its part when it lea
 /* -------------------------------------------- */
 
 await t("a morale roll reads the creature's morale part, and a reaction roll never does", async () => {
-  const sub = creature("sub", ["alphas"]);
+  const sub = creature("sub", ["beastman"]);
   const effect = { id: "E", disabled: false, active: true, flags: { "acks-extras": { rollMods: { id: "k", label: "Gamma Item", cite: "", sourceAlignment: null, parts: logic.reachParts(["ac", "morale"], 1) } } }, getFlag(scope, key) { return this.flags[scope][key]; } };
   sub.actor.effects.push(effect);
   const shift = rollMods.moraleShift(sub.actor);
@@ -498,7 +534,7 @@ await t("a morale roll reads the creature's morale part, and a reaction roll nev
   const reaction = rollMods.recordParts(sub.actor, "reaction");
   assert.deepEqual(reaction.kept, [], "a reaction roll that names no roll reads no morale part");
   assert.equal(reaction.pending.length, 1, "it waits, naming nothing to roll");
-  const other = creature("other", ["alphas"]);
+  const other = creature("other", ["beastman"]);
   assert.equal(rollMods.moraleShift(other.actor).total, 0);
   assert.deepEqual(rollMods.moraleShift(other.actor).told, []);
 

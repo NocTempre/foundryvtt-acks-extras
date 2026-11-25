@@ -14,12 +14,13 @@
  * table the row came from, resolved at the moment of use, so an override or a
  * revert in the Ruledata Browser reaches every item and no figure sits on one.
  * The condition word a row prints is folded onto a catalogue key at generation
- * (`fold`) and a printed qualifier onto kind keys with lib's `kindToken`; a row
+ * (`fold`) and a printed qualifier onto kind keys with lib's `matchKinds`; a row
  * whose word or qualifier does not resolve writes no reach and is reported
  * through `miss`, never guessed. Pure and Foundry-free.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { kindToken } from "../lib/actor-read.mjs";
+import { matchKinds } from "../lib/actor-read.mjs";
+import { MONSTER_TYPES } from "./config.mjs";
 import { DEFAULT_IMG } from "../importer/constants.mjs";
 
 /** The registry figure keys each shape is built from; a row holding them is that shape. */
@@ -59,12 +60,17 @@ function itemData(row, kind, rowData) {
 }
 
 /**
- * The kind keys a reach's filter names: the row's printed qualifier folded with
- * `kindToken`, or null where the import read none.
+ * The kind keys a reach's filter names: the row's printed qualifier resolved
+ * onto the keys `creatureKinds` carries (`matchKinds` over the race
+ * categories and `MONSTER_TYPES`), or null where the import read none or a part
+ * of it names no key. A qualifier that matches nothing writes no filter, so a
+ * printed name never becomes a key.
  */
 const kindsOf = (figures) => {
-  const token = kindToken(word(figures[FIGURE.reachKind]));
-  return token ? [token] : null;
+  const printed = word(figures[FIGURE.reachKind]);
+  if (!printed) return null;
+  const { kinds, unresolved } = matchKinds(printed, Object.keys(MONSTER_TYPES));
+  return kinds.length && !unresolved.length ? kinds : null;
 };
 
 /**
@@ -116,7 +122,7 @@ export function gearRunItem(row, { doc, table, fold, miss = () => {} }) {
   }
   const kinds = kindsOf(f);
   if (!kinds) {
-    miss(FIGURE.reachKind, null);
+    miss(FIGURE.reachKind, word(f[FIGURE.reachKind]));
     return null;
   }
   const once = modifier === FIGURE.damage;

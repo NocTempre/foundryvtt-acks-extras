@@ -147,6 +147,30 @@ await t("a moment's key is combat, round, turn, subject and kind inside a fight,
   assert.equal(logic.momentKey(), null);
 });
 
+await t("a printed qualifier resolves onto the closed kind keys, plurals generated from those keys alone, and nothing else becomes a key", () => {
+  const types = ["gamma", "warman"];
+  const match = (text, given = types) => actorRead.matchKinds(text, given);
+  assert.deepEqual(match("gamma"), { kinds: ["gamma"], unresolved: [] }, "the key");
+  assert.deepEqual(match("Gammas"), { kinds: ["gamma"], unresolved: [] }, "the key and s, folded");
+  assert.deepEqual(match("gammaes").kinds, ["gamma"], "the key and es");
+  assert.deepEqual(match("warmen").kinds, ["warman"], "the men plural of a key on the man stem");
+  assert.deepEqual(match("humans").kinds, ["human"], "a race category the module holds");
+  assert.deepEqual(match("Demi-Humans").kinds, ["demi-human"]);
+  assert.deepEqual(match("dwarfs").kinds, ["dwarf"], "a race key of the closed sets");
+  assert.deepEqual(match("people1s").kinds, ["people1"]);
+  assert.deepEqual(match("dwarves"), { kinds: [], unresolved: ["dwarves"] }, "an irregular plural is no generated form, and no singularizer runs on the page's word");
+  assert.deepEqual(match("gammaren"), { kinds: [], unresolved: ["gammaren"] });
+  assert.deepEqual(match("gammas", []), { kinds: [], unresolved: ["gammas"] }, "a type the consumer did not pass is no key");
+  assert.deepEqual(match("gamma, humans or demi-humans and gammas"), { kinds: ["gamma", "human", "demi-human"], unresolved: [] }, "split on commas, or and and, none twice, in the text's order");
+  assert.deepEqual(match("warmen, zeta and gamma"), { kinds: ["warman", "gamma"], unresolved: ["zeta"] }, "an unresolved part is listed and the rest still resolve");
+  assert.deepEqual(match("sorcerers or gammas", [...types, "sorcerer"]).kinds, ["sorcerer", "gamma"], "or inside a word splits nothing");
+  assert.deepEqual(match("candor", [...types, "can"]), { kinds: [], unresolved: ["candor"] });
+  assert.deepEqual(match(""), { kinds: [], unresolved: [] });
+  assert.deepEqual(match(null), { kinds: [], unresolved: [] });
+  assert.deepEqual(actorRead.matchKinds("gammas", new Set(types)).kinds, ["gamma"], "any iterable of keys");
+  assert.deepEqual(actorRead.matchKinds("humans").kinds, ["human"], "no types passed: the race keys alone");
+});
+
 await t("a hand-made behavior (empty config) reads as none and a handler is never reached", async () => {
   assert.equal(logic.readAuraConfig({}), null);
   assert.equal(logic.readAuraConfig({ sourceUuid: "a", bearerUuid: "b", activationId: "c" }), null, "all four are needed");

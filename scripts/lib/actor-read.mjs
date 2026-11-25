@@ -142,6 +142,47 @@ export function kindToken(value) {
     .replace(/[^a-z0-9-]/g, "");
 }
 
+/**
+ * The printed forms each closed kind key answers to: the key, the key with an
+ * `s` or an `es`, and, for a key on the `man` stem, its `men` plural. Only
+ * the keys given are inflected; no word the page prints is ever singularized.
+ */
+function formsOf(key) {
+  const forms = [key, `${key}s`, `${key}es`];
+  if (key.endsWith("man")) forms.push(`${key.slice(0, -3)}men`);
+  return forms;
+}
+
+/**
+ * Resolve a printed qualifier to the module's kind keys, the vocabulary
+ * `creatureKinds` carries. The text is split on commas, `or` and `and`, each
+ * part folded by `kindToken` and matched against the forms of the closed keys:
+ * the race categories, `MEN_RACES`, `DEMI_HUMAN_RACES` and the `types` the caller
+ * passes (lib imports no feature's vocabulary). A part that matches no form is
+ * listed in `unresolved` and writes no key, so a printed proper name never
+ * becomes a filter key.
+ *
+ * @param {string} text  the printed qualifier
+ * @param {Iterable<string>} [types]  the consumer's own type keys (the monsters feature's `MONSTER_TYPES`)
+ * @returns {{kinds: string[], unresolved: string[]}}  `kinds` keys in the text's order, none twice
+ */
+export function matchKinds(text, types = []) {
+  const byForm = new Map();
+  for (const key of [...RACE_CATEGORIES, ...MEN_RACES, ...DEMI_HUMAN_RACES, ...types].map((k) => kindToken(k)).filter(Boolean)) {
+    for (const form of formsOf(key)) if (!byForm.has(form)) byForm.set(form, key);
+  }
+  const kinds = [];
+  const unresolved = [];
+  for (const part of String(text ?? "").split(/,|\bor\b|\band\b/i)) {
+    const token = kindToken(part);
+    if (!token) continue;
+    const key = byForm.get(token);
+    if (!key) unresolved.push(token);
+    else if (!kinds.includes(key)) kinds.push(key);
+  }
+  return { kinds, unresolved };
+}
+
 /** The classes feature's answer from a class name to a race key, or null where none is registered. */
 let characterRace = null;
 
