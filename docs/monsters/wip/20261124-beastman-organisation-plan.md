@@ -1532,6 +1532,18 @@ speak of the rolls the question named, a wandering warband and a lair roll.
 A generated village keeps its faction card, as the owner ruled it ("Faction
 card"). Whether a village's card is optional too was not asked.
 
+Then asked: "Does a generated village always get its faction card, or is the
+card optional there too?", with the buttons "Village always has one" and
+"Optional there too", the owner chose:
+
+"Village always has one"
+
+The reading above stands as the owner's choice. A generated village is always
+a faction card with its chart on it; only a roll with no village runs from a
+group alone. Example: Generate for a village makes the faction card, the
+warbands' groups and the gangs' groups in one go, and the tree shows on the
+faction's sheet; no group of the village's carries its chart. Released: none.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
