@@ -35,7 +35,7 @@ const rows = [
   { key: "T.g", name: "Eta", feet: 6, state: "undone", entryKey: "k4" },
 ];
 const bearer = { key: "T.bear", name: "Bearer", counted: false };
-const judge = { isGM: true, ownsSubject: () => true, ownsBearer: true, ownsItem: true, mayUndo: () => true };
+const judge = { judge: true, ownsSubject: () => true, ownsBearer: true, ownsItem: true, mayUndo: () => true };
 const names = (card, section = 0) => card.sections[section].rows.map((r) => r.name);
 
 t("the raised-item card by row state: a Save on an open row, a result and a Judge's Undo on an applied one, a muted word out of reach or no target, a waiting word with the Judge's early press", () => {
@@ -58,17 +58,17 @@ t("the raised-item card by row state: a Save on an open row, a result and a Judg
 });
 
 t("a seat sees the rows of the tokens it owns, an owner who is no Judge sees a waiting row with no press, and a Judge's buttons are the bearer's owners'", () => {
-  const owner = { isGM: false, ownsSubject: (key) => key === "T.a" || key === "T.f", ownsBearer: false, ownsItem: false };
+  const owner = { judge: false, ownsSubject: (key) => key === "T.a" || key === "T.f", ownsBearer: false, ownsItem: false };
   const card = reachCardModel({ title: "Item", words, rows, bearer, ids, seat: owner });
   assert.deepEqual(names(card), ["Alpha", "Zeta"], "only its own rows");
   assert.deepEqual(card.sections[0].rows[0].actions.map((a) => a.action), ["itemRun.roll"], "the owner of the subject saves");
   assert.deepEqual(card.sections[0].rows[1].actions, [], "a waiting row has no press for an owner who is not a Judge");
   assert.equal(card.buttons, undefined, "no footer for a seat that does not own the bearer");
   assert.equal(card.sections.length, 1, "nor the bearer's section");
-  const bearerOwner = reachCardModel({ title: "Item", words, rows, bearer, ids, seat: { isGM: false, ownsSubject: () => false, ownsBearer: true, ownsItem: false } });
+  const bearerOwner = reachCardModel({ title: "Item", words, rows, bearer, ids, seat: { judge: false, ownsSubject: () => false, ownsBearer: true, ownsItem: false } });
   assert.deepEqual(bearerOwner.buttons.map((b) => b.action), ["itemRun.recheck", "itemRun.lower"], "Check range again and Lower: the bearer's owners, no role read");
   assert.deepEqual(bearerOwner.sections[0].rows, [], "its rows are none of its own");
-  const presser = { isGM: false, ownsSubject: (key) => key === "T.b", mayUndo: (entry) => entry.presser === "u1" };
+  const presser = { judge: false, ownsSubject: (key) => key === "T.b", mayUndo: (entry) => entry.presser === "u1" };
   const mixed = [{ ...rows[1], entry: { ...rows[1].entry, presser: "u1" } }, { ...rows[2], entry: { saved: true, total: 15, recordIds: ["E9"], presser: "u2" } }];
   const seen = reachCardModel({ title: "Item", words, rows: mixed, ids, seat: { ...presser, ownsSubject: () => true } }).sections[0].rows;
   assert.deepEqual(seen.map((r) => r.actions?.map((a) => a.action)), [["itemRun.undo"], undefined], "Undo for the seat that applied the entry, none for a seat that did not and does not own the body");
@@ -79,18 +79,18 @@ t("a seat sees the rows of the tokens it owns, an owner who is no Judge sees a w
 });
 
 t("the bearer sits in a section of its own, undetermined and uncounted, with a tick for the item's owners alone; counted in it reads as a row", () => {
-  const holder = { isGM: false, ownsSubject: () => false, ownsBearer: false, ownsItem: true };
+  const holder = { judge: false, ownsSubject: () => false, ownsBearer: false, ownsItem: true };
   const card = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: holder });
   assert.equal(card.sections[1].title, "The bearer");
   assert.equal(card.sections[1].titleTooltip, "bearer tip");
   const [own] = card.sections[1].rows;
   assert.deepEqual([own.name, own.outcome, own.emphasis], ["Bearer", "Could not be settled", "muted"]);
   assert.deepEqual(own.actions.map((a) => [a.action, a.label, a.data.subject, a.tooltip]), [["itemRun.tick", "Count in", "T.bear", "tick tip"]]);
-  const other = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { isGM: true, ownsSubject: () => true, ownsBearer: true, ownsItem: false } });
+  const other = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { judge: true, ownsSubject: () => true, ownsBearer: true, ownsItem: false } });
   assert.deepEqual(other.sections[1].rows[0].actions, [], "no tick for a seat that does not own the item, whatever its role");
   const counted = reachCardModel({ title: "Item", words, rows: [], bearer: { ...bearer, counted: true, row: { state: "waiting", feet: null } }, ids, seat: judge });
   assert.equal(counted.sections[1].rows[0].outcome, "Waits", "counted in, the bearer is an ordinary row");
-  const noOne = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { isGM: false, ownsSubject: () => false } });
+  const noOne = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { judge: false, ownsSubject: () => false } });
   assert.equal(noOne.sections.length, 1, "a seat with no claim on the bearer sees no row of it");
 });
 
@@ -98,6 +98,25 @@ t("a failed save's well is a line naming what was written, with no press", () =>
   const card = reachCardModel({ title: "Item", words, rows, bearer, well: ["Beta: Held, to its next turn", ""], ids, seat: judge });
   assert.equal(card.footnote, "On a failed save: Beta: Held, to its next turn");
   assert.equal(reachCardModel({ title: "Item", words, rows, ids, seat: judge }).footnote, undefined);
+});
+
+t("a Save is offered by ownership of the body saving and no role is read; the early Save on a waiting row is the Judge's alone, and a Player's waiting row says in words that it waits", () => {
+  const modelFor = (seat, list) => reachCardModel({ title: "Item", words, rows: list, ids, seat });
+  const open = rows[0];
+  const waiting = rows[5];
+  assert.deepEqual(modelFor({ judge: true, ownsSubject: () => false }, [open, waiting]).sections[0].rows, [], "a seat that owns no body sees none of its rows, the Judge's declaration giving it none");
+  const owner = { judge: false, ownsSubject: (key) => key === "T.a" || key === "T.f" };
+  const seen = modelFor(owner, [open, waiting]).sections[0].rows;
+  assert.deepEqual(seen[0].actions.map((a) => a.action), ["itemRun.roll"], "a due Save follows ownership of the body");
+  assert.equal(seen[1].outcome, "Waits", "the waiting row's visible Result says the save waits for the body's moment");
+  assert.deepEqual(seen[1].actions, [], "a Player's waiting row carries no press");
+  const early = modelFor({ judge: true, ownsSubject: () => true }, [waiting]).sections[0].rows[0];
+  assert.deepEqual([early.outcome, early.actions.map((a) => a.tooltip)], ["Waits", ["early tip"]], "the Judge's seat has the same word and the early press, its warning in the tooltip");
+  assert.deepEqual(modelFor({ ownsSubject: () => true }, [waiting]).sections[0].rows[0].actions, [], "a seat that does not declare as the Judge is offered no early press, whatever else it owns");
+  assert.equal(modelFor({ judge: true, ownsSubject: (k) => k === "T.a" }, [open]).sections[0].rows[0].actions.length, 1, "an open row's Save is the owner's");
+  const counted = { ...bearer, counted: true, row: { state: "open", entryKey: "kb", target: 11 } };
+  const holder = reachCardModel({ title: "Item", words, rows: [], bearer: counted, ids, seat: { judge: true, ownsSubject: () => false, ownsBearer: false, ownsItem: true } });
+  assert.deepEqual(holder.sections[1].rows[0].actions, [], "the bearer's own due Save is its owners', not the declaring Judge's and not the item owner's");
 });
 
 t("the whispered save card names the target and its tooltip, carries the one Roll while its entry is open, then the result", () => {

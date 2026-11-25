@@ -146,13 +146,13 @@ export function rowStateOf(card, uuid) {
 function reachRowOf(r, { words, ids, seat }) {
   const data = { ...ids, subject: r.key };
   const base = { name: r.name, total: "", ...(r.feet === null || r.feet === undefined ? {} : { aside: `${r.feet}′`, ...(r.feetTip ? { asideTooltip: r.feetTip } : {}) }) };
-  const mayPress = seat.isGM === true || seat.ownsSubject?.(r.key) === true;
+  const mayPress = seat.ownsSubject?.(r.key) === true;
   const target = numOrNull(r.target) !== null ? { target: r.target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : {};
   const history = r.history ? { tooltipText: r.history } : {};
   switch (r.state) {
     case "out": return { ...base, outcome: words.out, emphasis: "muted" };
     case "notTarget": return { ...base, outcome: words.notTarget, emphasis: "muted" };
-    case "waiting": return { ...base, ...history, outcome: words.waiting, actions: seat.isGM === true ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data, tooltip: words.earlyTip }] : [] };
+    case "waiting": return { ...base, ...history, outcome: words.waiting, actions: seat.judge === true ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data, tooltip: words.earlyTip }] : [] };
     case "open": return { ...base, ...history, ...target, outcome: words.asked, actions: mayPress ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...data, entryKey: r.entryKey }, tooltip: words.saveTip }] : [] };
     case "undone": return { ...base, ...history, ...target, outcome: words.undone, emphasis: "muted" };
     default: {
@@ -175,8 +175,11 @@ function reachRowOf(r, { words, ids, seat }) {
  * names what a failed save wrote and for how long; and the bearer's owners'
  * Check range again and Lower. Data only; the words are the caller's, localized.
  * `seat` reads Foundry's ownership (`ownsSubject(key)`, `ownsBearer`,
- * `ownsItem`, `mayUndo(entry, key)`) and reads `isGM` only for the Judge's own
- * early press on a waiting row, which warns.
+ * `ownsItem`, `mayUndo(entry, key)`) and reads no role: a Save is offered by
+ * ownership of the body saving, a Judge's seat owning every body. `judge`
+ * (`judgeDeclares()`) is read for one control alone, the Judge's own early Save
+ * on a waiting row, which warns; a waiting row on any other seat says in words
+ * that the save waits for the body's moment and offers no press.
  *
  * @param {object} p
  * @param {string} p.title
@@ -188,13 +191,13 @@ function reachRowOf(r, { words, ids, seat }) {
  * @param {{key: string, name: string, counted: boolean, row?: object}} [p.bearer] the bearer's row; `row` is its row where counted
  * @param {string[]} [p.well] the lines of what failed saves wrote
  * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
- * @param {{isGM?: boolean, ownsSubject?: (key: string) => boolean, ownsBearer?: boolean, ownsItem?: boolean, mayUndo?: (entry: object, key: string) => boolean}} p.seat
+ * @param {{judge?: boolean, ownsSubject?: (key: string) => boolean, ownsBearer?: boolean, ownsItem?: boolean, mayUndo?: (entry: object, key: string) => boolean}} p.seat
  * @param {boolean} [p.lowered] the reach is lowered: no footer
  */
 export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows, bearer, well = [], ids, seat = {}, lowered = false }) {
-  const mine = (key) => seat.isGM === true || seat.ownsSubject?.(key) === true;
+  const mine = (key) => seat.ownsSubject?.(key) === true;
   const sections = [{ rows: rows.filter((r) => mine(r.key)).map((r) => reachRowOf(r, { words, ids, seat })) }];
-  if (bearer && (seat.isGM === true || seat.ownsBearer === true || seat.ownsItem === true)) {
+  if (bearer && (seat.ownsBearer === true || seat.ownsItem === true)) {
     const own = bearer.counted && bearer.row
       ? reachRowOf({ ...bearer.row, key: bearer.key, name: bearer.name }, { words, ids, seat: { ...seat, ownsSubject: () => seat.ownsBearer === true } })
       : { name: bearer.name, total: "", outcome: words.undetermined, emphasis: "muted", actions: seat.ownsItem === true ? [{ action: "itemRun.tick", label: words.tick, icon: "fa-solid fa-check", data: { ...ids, subject: bearer.key }, tooltip: words.tickTip }] : [] };

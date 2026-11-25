@@ -1284,8 +1284,9 @@ await t("the bearer's row is changed to count only where the item has the row, a
   const ability = { type: "ability", flags: { "acks-extras": { extras: { effects: rows } } } };
   assert.equal(logic.selfCountUpdate(ability, "a").path, "flags.acks-extras.extras.effects");
   assert.deepEqual(logic.checkPressRequest({ total: 1, target: 1, requestUserId: "u" }, { item: {}, row: {}, subjectOwnerIds: ["u"], target: 1, waiting: true }), { ok: false, reason: "waiting" });
-  assert.equal(logic.checkPressRequest({ total: 1, target: 1 }, { item: {}, row: {}, target: 1, waiting: true }).early, true, "a Judge's own seat on a waiting row is early");
+  assert.equal(logic.checkPressRequest({ total: 1, target: 1 }, { item: {}, row: {}, target: 1, waiting: true, judge: true }).early, true, "a Judge's own seat on a waiting row is early");
   assert.equal(logic.checkPressRequest({ total: 1, target: 1 }, { item: {}, row: {}, target: 1, struck: true }).reason, "struck");
+  assert.equal(logic.checkPressRequest({ total: 1, target: 1 }, { item: {}, row: {}, target: 1, waiting: true }).reason, "waiting", "a world that does not declare the Judge refuses a press before the moment, with no relayed id as well");
 });
 
 await t("the fuse is stepped from the turn hooks on the primary GM's window alone, a fight's end moves it to the world clock, and the clock reaching it bursts it", async () => {

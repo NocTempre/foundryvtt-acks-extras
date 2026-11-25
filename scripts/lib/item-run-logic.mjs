@@ -305,11 +305,12 @@ export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?
  * applied is refused. A Judge's own press carries no `requestUserId`.
  *
  * @param {{requestUserId?: string|null, total: *, target: *}} req
- * A subject that is `waiting` (listed, its moment not come) is pressed only by a
- * Judge's own seat, which goes through as an `early` press; a relayed seat is
+ * A subject that is `waiting` (listed, its moment not come) is pressed only where
+ * `world.judge` (`judgeDeclares(requestUserId)`) holds, and it goes through as an
+ * `early` press; any other seat is
  * refused `waiting`. An entry the card no longer holds is `struck`.
  *
- * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string, waiting?: boolean, struck?: boolean}} world
+ * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string, waiting?: boolean, judge?: boolean, struck?: boolean}} world
  * @returns {{ok: true, total: number, target: number, saved: boolean, early: boolean}|{ok: false, reason: string}}
  */
 export function checkPressRequest(req, world) {
@@ -317,7 +318,7 @@ export function checkPressRequest(req, world) {
   if (!world.row) return { ok: false, reason: "noRow" };
   if (req?.requestUserId && !(world.subjectOwnerIds ?? []).includes(req.requestUserId)) return { ok: false, reason: "notOwner" };
   if (world.struck) return { ok: false, reason: "struck" };
-  if (world.waiting && req?.requestUserId) return { ok: false, reason: "waiting" };
+  if (world.waiting && world.judge !== true) return { ok: false, reason: "waiting" };
 
   if (world.entryState && world.entryState !== "open") return { ok: false, reason: "applied" };
   const target = numOrNull(world.target);

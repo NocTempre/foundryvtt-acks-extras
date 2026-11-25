@@ -37,7 +37,7 @@ import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
 import { recordImmunity } from "./roll-mods.mjs";
 import { saveSpec, saveThrow } from "./saves.mjs";
-import { executeAsGM, registerHandler } from "./sockets.mjs";
+import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { roundSeconds, turnSeconds } from "./time-unit.mjs";
 import { isPrimaryGM, makeLoc, unset } from "./util.mjs";
 import { onWorldTimeAdvanced } from "./world-time.mjs";
@@ -332,7 +332,7 @@ async function pressHere(payload) {
     const verdict = checkPressRequest(
       { requestUserId, total, target },
       {
-        item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting,
+        item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting, judge: judgeDeclares(requestUserId),
         struck: !!asked && !!card?.entries && !card.entries[asked],
       },
     );

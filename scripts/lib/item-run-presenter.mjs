@@ -30,7 +30,7 @@ import { patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel,
 import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, undoCardEntry } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenGapFeet } from "./distance-units.mjs";
-import { executeAsGM, registerHandler } from "./sockets.mjs";
+import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { isMarkerActor } from "./place.mjs";
 import { isPrimaryGM, makeLoc } from "./util.mjs";
 
@@ -304,7 +304,7 @@ function raisedBody(message, card) {
   const reach = readReach(row?.reach);
   const bearerToken = card.bearer?.uuid ? fromUuidSync(card.bearer.uuid) : null;
   const owns = (doc) => doc?.testUserPermission?.(game.user, "OWNER") === true;
-  const seat = { isGM: game.user.isGM, ownsSubject: (key) => owns(fromUuidSync(key)), ownsBearer: owns(bearerToken), ownsItem: owns(item), mayUndo: (entry, key) => entry?.presser === game.user.id || owns(fromUuidSync(key)) };
+  const seat = { judge: judgeDeclares(), ownsSubject: (key) => owns(fromUuidSync(key)), ownsBearer: owns(bearerToken), ownsItem: owns(item), mayUndo: (entry, key) => entry?.presser === game.user.id || owns(fromUuidSync(key)) };
   const { rowFor, subjects } = rowsOf(card, row, item, bearerToken);
   const bearerSub = card.subjects?.[safeKey(card.bearer?.uuid)];
   const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted: card.selfCount === true, ...(card.selfCount && bearerSub ? { row: rowFor(bearerSub, { distance: false }) } : {}) } : null;
@@ -347,7 +347,7 @@ function whisperBody(w) {
   const row = itemRunRowsOf(item).find((r) => r?.key === w.rowKey);
   const token = fromUuidSync(w.subject);
   const { target, tip } = saveFigureOf(token?.actor, row, item);
-  const mine = game.user.isGM === true || token?.testUserPermission?.(game.user, "OWNER") === true;
+  const mine = token?.testUserPermission?.(game.user, "OWNER") === true;
   const names = conditionNames(row).join(", ");
   return renderRollCard(saveCardModel({
     title: loc("itemRun.card.whisperTitle", { item: item?.name ?? "" }), subtitle: token?.name ?? "", words: words(), target, targetTip: tip, ids: { itemUuid: w.itemUuid, rowKey: w.rowKey, activationId: w.activationId },
