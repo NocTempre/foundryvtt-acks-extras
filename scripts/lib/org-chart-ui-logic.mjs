@@ -136,17 +136,24 @@ export function removalRows(view, key) {
 export const asksBeforeRemoving = (going, setting) => !!setting && (going?.length ?? 0) > 1;
 
 /**
- * The frame a leader's head is drawn in, by the tier its unit stands at (`gen.tier`, how
- * many levels of units lie beneath it): a unit of bodies is a champion's solid frame, a
- * unit of those a sub-chieftain's double one, and anything above a chieftain's. A row with
- * no recorded tier reads from the rows beneath it, so a hand-added card is framed too.
- * @param {{gen?: {tier?: number}, children?: object[]}} node a view row
- * @returns {"champion"|"sub"|"chief"}
+ * The role a card's head is framed and worded as, read from the chart's own data and from no
+ * name table. A card with no leader that holds something is **file** (the rank and file, a
+ * hairline frame); an empty card has none. A leader is the officer of the card's group, and
+ * the unit it leads decides the rest: the officer of a unit of bodies only is a **champion**;
+ * the officer of a unit that holds units is the **chief** where its card is the top of the
+ * chart (no `parentKey`) and a **sub** chief anywhere below. How many levels of units lie
+ * beneath is `gen.tier` where the Roll recorded it, else the rows beneath the card, so a
+ * leader set by hand on a hand-added card reads the same way.
+ * @param {{officer?: object|null, empty?: boolean, parentKey?: string, gen?: {tier?: number}, children?: object[]}} node a view row
+ * @returns {"file"|"champion"|"sub"|"chief"|""}
  */
-export function frameOf(node) {
+export function roleOf(node) {
+  if (node?.empty) return "";
+  if (!node?.officer) return "file";
   const tierOf = (n) => Math.max(-1, ...(n.children ?? []).map(tierOf)) + 1;
   const tier = Number.isInteger(node?.gen?.tier) ? node.gen.tier : tierOf(node);
-  return tier <= 0 ? "champion" : tier === 1 ? "sub" : "chief";
+  if (tier <= 0) return "champion";
+  return node.parentKey ? "sub" : "chief";
 }
 
 /**

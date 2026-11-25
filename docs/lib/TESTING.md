@@ -4626,6 +4626,17 @@ active GM; read `game.users.activeGM` in the same call as a measure.
    group's stack `size.initial` and `size.current` are the new figure, the card reads **set by hand** with a
    tooltip naming the total the Roll threw (`gen.rolled`) and never below the bodies it records. With a body
    on a map the Judges are whispered and the write still lands.
+   **Rank frames (board 1h).** *Observable:* each leader's head and each rank-and-file card's art sits in a
+   frame whose class is `acks-extras-pf--file` (hairline), `--champion` (solid), `--sub` (double) or `--chief`
+   (double, spot colour); the frame's `aria-label` and a word on the card say the rank ("Rank and file",
+   "Champion", "Sub-chieftain", "Chieftain"), and the word's tooltip says what the chart read it from. The role
+   is read from the officer and the unit it leads, never from a name: no leader is the rank and file; a unit
+   of bodies only is a champion's; a unit of units is the chieftain's at the top of the chart and a sub-chieftain's
+   anywhere below it. The four lines differ in weight and style, so they read without colour. A badge's press
+   puts its tooltip text in a notice, which a keyboard cannot otherwise reach.
+   **Clear the leader.** In a card's pen, a button "Clear the <rank> (<name>)" is drawn only where the card's group
+   has an officer. *Observable:* pressing it blanks `system.unit.officerUuid` at once and leaves a faction's
+   `leaderUuid` as it was; no checkbox or empty tick is drawn in the form. (Minting a champion by tick is S12b's.)
 5. **Send out and Recall** — press Send out on a filled card, pick the place; open the **Locations**
    tab. *Observable:* the place's roster holds the group and a chip for its row stands on the place;
    its Recall takes the group off the roster again.

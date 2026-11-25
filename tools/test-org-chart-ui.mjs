@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, frameOf, nextLevelKind, removalRows, subtreeView, templateOf, unlistedView } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, roleOf, templateOf, unlistedView } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -69,12 +69,19 @@ t("a Remove takes the row and every row beneath it, and asks only for more than 
   assert.equal(asksBeforeRemoving([], true), false);
 });
 
-t("a leader's frame follows the tier its unit stands at, or the rows beneath it where none was recorded", () => {
-  assert.deepEqual([0, 1, 2, 5].map((tier) => frameOf({ gen: { tier } })), ["champion", "sub", "chief", "chief"]);
-  const kid = { children: [], gen: {} };
-  assert.equal(frameOf(kid), "champion");
-  assert.equal(frameOf({ gen: {}, children: [kid] }), "sub");
-  assert.equal(frameOf({ gen: {}, children: [{ gen: {}, children: [kid] }] }), "chief");
+t("a card's role is read from its leader and the unit that leader leads: file, champion, sub-chief, chief", () => {
+  const officer = { uuid: "A.1" };
+  const kid = { officer, empty: false, parentKey: "p", children: [], gen: {} };
+  assert.equal(roleOf({ empty: true }), "", "an empty card has no head");
+  assert.equal(roleOf({ empty: false, officer: null, children: [] }), "file", "a filled card with no leader is the rank and file");
+  assert.equal(roleOf(kid), "champion", "the officer of a unit of bodies only");
+  assert.equal(roleOf({ ...kid, gen: { tier: 0 } }), "champion");
+  assert.equal(roleOf({ officer, parentKey: "p", gen: { tier: 1 }, children: [] }), "sub", "a unit of units below the top: recorded tier");
+  assert.equal(roleOf({ officer, parentKey: "p", gen: {}, children: [kid] }), "sub", "and read from the rows beneath where none was recorded");
+  assert.equal(roleOf({ officer, parentKey: "", gen: { tier: 2 }, children: [] }), "chief", "the top of the chart over units");
+  assert.equal(roleOf({ officer, parentKey: "", gen: {}, children: [{ gen: {}, children: [kid] }] }), "chief");
+  assert.equal(roleOf({ officer, parentKey: "", gen: {}, children: [] }), "champion", "a lone unit of bodies at the top leads bodies only");
+  assert.equal(roleOf({ officer, parentKey: "p", gen: { tier: 5 }, children: [] }), "sub", "never a chief below the top, however many levels it leads");
 });
 
 t("a count is set by hand when it differs from the total its Roll threw, and a stack with no record never is", () => {

@@ -11501,7 +11501,6 @@
   "ACKS-LIB.org.edit.troopTip": "The troop type of these bodies. A type the variant has no band for is marked and can still be chosen.",
   "ACKS-LIB.org.edit.offBands": "off the bands",
   "ACKS-LIB.org.edit.bodiesTip": "How many bodies the card holds. A number typed here is kept as set by hand.",
-  "ACKS-LIB.org.edit.champion": "Champion",
   "ACKS-LIB.org.edit.done": "Done",
   "ACKS-LIB.org.edit.doneTip": "Write the card as it stands. Bodies already on a map keep the figures they went out with until recalled.",
   "ACKS-LIB.org.edit.noTroop": "That troop type could not be made, so the bodies keep the one they had.",
@@ -11514,5 +11513,16 @@
   "ACKS-LIB.org.unlisted.dismiss": "Dismiss",
   "ACKS-MONSTERS.organisation.badge.rolled": "{axis}: {label}, rolled",
   "ACKS-MONSTERS.organisation.badge.byHand": "{axis}: {label}, chosen by hand",
-  "ACKS-LIB.org.chart.scrollLabel": "Organisation tree, scrolls sideways"
+  "ACKS-LIB.org.chart.scrollLabel": "Organisation tree, scrolls sideways",
+  "ACKS-LIB.org.role.label": "{word}: {name}",
+  "ACKS-LIB.org.role.file": "Rank and file",
+  "ACKS-LIB.org.role.champion": "Champion",
+  "ACKS-LIB.org.role.sub": "Sub-chieftain",
+  "ACKS-LIB.org.role.chief": "Chieftain",
+  "ACKS-LIB.org.role.fileTip": "Read from the chart: this card holds bodies and has no leader.",
+  "ACKS-LIB.org.role.championTip": "Read from the chart: this leader's unit holds bodies only.",
+  "ACKS-LIB.org.role.subTip": "Read from the chart: this leader's unit holds units, and the card is below the top of the chart.",
+  "ACKS-LIB.org.role.chiefTip": "Read from the chart: this leader's unit holds units, and the card is the top of the chart.",
+  "ACKS-LIB.org.edit.clearLeader": "Clear the {word} ({name})",
+  "ACKS-LIB.org.edit.clearLeaderTip": "Take this leader off the card's group at once. The actor stays in the world, and the faction's own leader is not changed."
 }

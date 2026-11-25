@@ -192,9 +192,16 @@
   background: var(--acks-paper-pure);
 }
 
+.acks-extras-pf--file { border: 1px solid var(--acks-ink-soft); }
 .acks-extras-pf--champion { border: 2px solid var(--acks-ink); }
 .acks-extras-pf--sub { border: 4px double var(--acks-ink); }
 .acks-extras-pf--chief { border: 4px double var(--acks-spot); outline: 1px solid var(--acks-spot); outline-offset: 2px; }
+
+.acks-extras-pf__word {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  cursor: help;
+}
 
 .acks-extras-pf__badge {
   position: absolute;

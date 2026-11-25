@@ -165,6 +165,29 @@ const P = {
     };
   },
 
+  /** Each card's frame: its role class, accessible name, the word written beside it, and the frame's own line. */
+  frames: async ({ id }) => {
+    const el = game.actors.get(id).sheet.element;
+    return [...el.querySelectorAll(".acks-extras-pf")].filter((f) => !f.classList.contains("acks-extras-pf__badge")).map((f) => {
+      const role = [...f.classList].find((c) => c.startsWith("acks-extras-pf--"))?.replace("acks-extras-pf--", "") ?? "";
+      const card = f.closest("li[data-key]");
+      const cs = getComputedStyle(f);
+      return {
+        key: card?.dataset.key, role, label: f.getAttribute("aria-label"),
+        word: card?.querySelector(".acks-extras-pf__word")?.textContent?.trim() ?? "",
+        line: `${cs.borderTopWidth} ${cs.borderTopStyle} ${cs.borderTopColor}`, root: !card?.parentElement?.closest("li[data-key]"), kids: !!card?.querySelector(":scope > ul > li"),
+      };
+    });
+  },
+
+  /** Whether a card in edit offers the clear-leader control, and press it. */
+  clearLeader: async ({ id, key, press }) => {
+    const card = game.actors.get(id).sheet.element.querySelector(`li[data-key="${key}"]`);
+    const btn = card?.querySelector('[data-action="orgClearLeader"]');
+    if (press && btn) { btn.click(); await new Promise((r) => setTimeout(r, 900)); }
+    return { drawn: !!btn, name: btn?.textContent?.trim() ?? "", emptyTick: !!card?.querySelector('input[type="checkbox"][data-org-field]') };
+  },
+
   /** Close the sheet and open a fresh one at a width, so nothing measured is an old window's. */
   reopen: async ({ id, width, tab }) => {
     const actor = game.actors.get(id);
@@ -288,8 +311,27 @@ try {
       await run(gm, P.press, { id: fid, action: "orgEditDone", key: filledRow.key, wait: 600 });
       const moved = await waitFor(gm, `fromUuidSync("${filledRow.holderUuid}").system.stacks[0].size.current === ${stackBefore[0] + 2}`, 8000);
       check("the pen changes a stack's count on the row's group", moved, { was: stackBefore[0] });
+      await run(gm, P.press, { id: fid, action: "orgEdit", key: filledRow.key, wait: 600 });
+      const holder = filledRow.holderUuid;
+      const hadOfficer = await gm.eval(`!!fromUuidSync("${holder}").system.unit?.officerUuid`);
+      const clear = await run(gm, P.clearLeader, { id: fid, key: filledRow.key, press: false });
+      check("the clear-leader control is drawn where an officer exists and nowhere else, named for its rank, and no empty tick is drawn", clear.drawn === hadOfficer && clear.emptyTick === false && (!hadOfficer || /\S/.test(clear.name)), clear);
+      if (hadOfficer) {
+        await run(gm, P.clearLeader, { id: fid, key: filledRow.key, press: true });
+        const cleared = await waitFor(gm, `!fromUuidSync("${holder}").system.unit.officerUuid`, 8000);
+        check("pressing it clears the group's officer, writes at once and keeps the faction's own leader", cleared);
+      }
+      await run(gm, P.press, { id: fid, action: "orgEditDone", key: filledRow.key, wait: 600 });
     } else note("not walked", "the filled card holds no stack");
   }
+
+  section("rank frames, with their words");
+  const frames = await run(gm, P.frames, { id: fid });
+  const roles = new Set(frames.map((f) => f.role));
+  check("every framed head carries its rank as an accessible name and as a word written on the card", frames.length > 0 && frames.every((f) => f.label && f.word && f.label.includes(f.word)), frames.map((f) => [f.role, f.word]));
+  check("the top card with units beneath it is the chieftain's frame, a card holding bodies only a champion's, a card with no leader the rank and file's", frames.filter((f) => f.root && f.kids).every((f) => f.role === "chief" || f.role === "file") && frames.filter((f) => !f.kids && f.role !== "file").every((f) => f.role === "champion"), [...roles]);
+  const lines = new Map(frames.map((f) => [f.role, f.line]));
+  check("the frames differ in line weight and style as well as colour, so they read without colour", new Set([...lines.values()].map((l) => l.split(" ").slice(0, 2).join(" "))).size >= Math.min(lines.size, 3) || lines.size < 2, [...lines]);
 
   section("send out and recall");
   if (filledRow) {

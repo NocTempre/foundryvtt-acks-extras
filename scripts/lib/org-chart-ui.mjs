@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, frameOf, nextLevelKind, removalRows, subtreeView, templateOf, unlistedView } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, roleOf, subtreeView, templateOf, unlistedView } from "./org-chart-ui-logic.mjs";
 import { isLocation } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
@@ -71,12 +71,25 @@ function citesOf(holder) {
 /** The troop choice of a stack's prototype and its options, through the generator's service; null where it has none. */
 const troopFor = (stack) => services.get("org-chart")?.troopOf?.(stack) ?? null;
 
+/**
+ * A card's role as its head shows it: the frame class, the word that is always written beside the
+ * frame, the accessible name of both, and the tooltip saying what the role was read from.
+ * @param {object} card a view row
+ * @returns {{key: string, word: string, label: string, tip: string}|null} null for an empty card
+ */
+function roleView(card) {
+  const key = roleOf(card);
+  if (!key) return null;
+  const word = loc(`role.${key}`);
+  return { key, word, label: loc("role.label", { word, name: card.officer?.name ?? card.name ?? "" }), tip: loc(`role.${key}Tip`) };
+}
+
 /** One card's leader as the chart draws it: the follower card in a role frame with its badges, or null where the row has none. */
 async function leaderHtml(card) {
   const actor = card.officer ? docOf(card.officer.uuid) : null;
   if (!actor) return "";
   const badges = (services.get("org-chart")?.badges?.({ actor, row: card }) ?? []).map((b) => ({ corner: b.corner, label: b.label, tip: b.tip, icon: b.icon, byHand: b.byHand }));
-  const html = await renderFollowerCard(actor, { editable: false, controls: false, frame: { role: frameOf(card), badges } });
+  const html = await renderFollowerCard(actor, { editable: false, controls: false, frame: { role: card.role.key, word: card.role.word, label: card.role.label, tip: card.role.tip, badges } });
   return `<div class="acks-extras-org-card__leader" data-uuid="${escape(actor.uuid)}">${html}</div>`;
 }
 
@@ -111,16 +124,17 @@ export async function chartContext(actor, app, { isGM }) {
     const cites = citesOf(holder);
     const hand = byHandOf(stacks);
     const inEdit = editable && editing.has(c.key);
+    const role = roleView(c);
     return {
       ...c,
       cites,
       countTip: loc("card.countTip", { name: c.name, cites }),
       byHand: !!hand,
       handTip: hand ? loc("card.handTip", { n: hand.now, rolled: hand.rolled, cites }) : "",
-      leader: await leaderHtml(c),
-      frame: frameOf(c),
+      role,
+      leader: await leaderHtml({ ...c, role }),
       editing: inEdit,
-      edit: inEdit ? await editOf(c, holder, stacks) : null,
+      edit: inEdit ? await editOf(c, holder, stacks, role) : null,
       children: await decorate(c.children),
     };
   }));
@@ -146,8 +160,8 @@ export async function chartContext(actor, app, { isGM }) {
   };
 }
 
-/** What a card in edit shows: its label, each stack's bodies and troop options, and whether it has a champion to keep. */
-async function editOf(card, holder, stacks) {
+/** What a card in edit shows: its label, each stack's bodies and troop options, and the leader it can clear, named by its role. */
+async function editOf(card, holder, stacks, role) {
   return {
     label: card.label,
     stacks: await Promise.all(stacks.map(async (s) => {
@@ -160,6 +174,7 @@ async function editOf(card, holder, stacks) {
       };
     })),
     hasOfficer: !!card.officer,
+    clearLabel: card.officer ? loc("edit.clearLeader", { word: role?.word ?? "", name: card.officer.name }) : "",
   };
 }
 
@@ -359,12 +374,28 @@ async function onEditDone(_event, target) {
     if (change.count !== undefined || change.prototype !== undefined) stacks.push(change);
   }
   const change = { fields: { label: field(card, "label")?.value ?? row?.label ?? "" }, stacks };
-  const champion = field(card, "champion");
-  if (champion && !champion.checked) change.officer = { officer: "", moraleBonus: null };
   const result = await org.editRow(host, key, change);
   if (!result.ok) return refuse(result);
   editsOf(this).delete(key);
   render(this);
+}
+
+/**
+ * The control a card in edit offers for its leader: it clears the card's group's officer and writes at
+ * once, as every press does. The actor stays in the world, and a faction's own leader is not touched.
+ */
+async function onClearLeader(_event, target) {
+  const { host, key } = await targetOf(target);
+  if (!host) return;
+  const result = await org.editRow(host, key, { officer: { officer: "", moraleBonus: null } });
+  if (!result.ok) refuse(result);
+  render(this);
+}
+
+/** A badge's press: say where the upgrade came from, which a pointer's tooltip says and a keyboard's cannot. */
+function onBadge(_event, target) {
+  const tip = target.dataset.tooltipText;
+  if (tip) ui.notifications.info(tip);
 }
 
 /** Remove from inside a card in edit: the same Remove the card's trash makes, with its confirm. */
@@ -499,7 +530,8 @@ export const ORG_ACTIONS = Object.freeze({
   orgEditDone: onEditDone,
   orgEditRemove: onEditRemove,
   orgDismissUnlisted: onDismissUnlisted,
-  orgBadge: () => {},
+  orgBadge: onBadge,
+  orgClearLeader: onClearLeader,
   hirelingShow: onOpen,
   orgSendOut: onSendOut,
   orgRecall: onRecall,
