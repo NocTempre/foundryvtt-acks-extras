@@ -16,6 +16,12 @@ rules tables (`node tools/live/run.mjs formation-day`) and
 its declared typography" (`tools/live/README.md` is the contract); the rest is
 walked by hand.
 
+A scripted drive waits for `acksExtras.importer` before its first call: the
+importer's `ready` hook awaits the cookbook's load before it assigns the api,
+so on a seat past `ready` the api is absent for some seconds (14 s to more than
+30 s measured on 2026-11-25), with nothing logged. Poll for the function the
+drive needs, as `tools/live/henchmen.mjs` does for `connectBookUrl`.
+
 ## The Books tab
 
 The Books tab of the import manager (`openImportManager({tab: "books"})`) is
