@@ -89,7 +89,9 @@ const D = {
         if (box) { box.checked = !!a.tick; box.dispatchEvent(new Event("change", { bubbles: true })); }
         const face = win.querySelector('button[data-action="attack"] span')?.textContent.trim() ?? "";
         win.querySelector('button[data-action="attack"]').click();
-        await H.sleep(500);
+        // An answer that is taken closes the window after its writes land (a keep on every copy writes each blank copy first); a refused one leaves it open.
+        if (a.closes) await H.poll(() => (document.contains(win) && H.dieWindow() ? null : true), { tries: 60, every: 150 });
+        else await H.sleep(500);
         const open = document.contains(win) && !!H.dieWindow();
         out.attempts.push({ stillOpen: open, errorShown: win.querySelector("[data-spell-die-error]")?.hidden === false, invalidMarked: win.querySelector('input[name="formula"]')?.getAttribute("aria-invalid") === "true", faceIsSave: face === game.i18n.localize("ACKS-MAGIC.spellDie.save") });
         if (!open) break;
@@ -187,18 +189,27 @@ async function stageSetup() {
 
 /** The kept die and the flag's own roll of each fixture spell, read on the GM seat. */
 const keptNow = () => run(gm, D.kept, { uuids: Object.values(W.item) });
+/** The same read, repeated until `done(read)` holds or six seconds pass: a write made on the Player seat reaches the GM seat's copy a moment after the card posts. */
+async function keptUntil(done) {
+  let read = await keptNow();
+  for (let n = 0; n < 24 && !done(read); n++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    read = await keptNow();
+  }
+  return read;
+}
 
 /* ---------------------------- the owner's save ----------------------- */
 async function stageOwner() {
   const since = Date.now();
   W.since = since;
-  const c = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.mine, attempts: [{ answer: "a lot", tick: true }, { answer: FLAT, tick: true }] });
+  const c = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.mine, attempts: [{ answer: "a lot", tick: true }, { answer: FLAT, tick: true, closes: true }] });
   if (c.messageId) await ledger.track(`ChatMessage.${c.messageId}`, "ChatMessage");
   if (c.model?.castId) ledger.castIds.push(c.model.castId);
   check("owner: a spell row that states no die opens a window, in the scroll contract, with a hint and the character's-copy box", c.window?.opened && c.window.inScroll && c.window.hasHint && c.window.hasKeep && c.window.keepIsCopy && !c.window.keepIsAll && c.window.errorHiddenAtStart, { opened: c.window?.opened, scroll: c.window?.inScroll, keep: [c.window?.keepIsCopy, c.window?.keepIsAll] });
   check("owner: a word is refused on the window, which stays open and marks the field; ticking the box turns the button to Save and attack", !!c.window?.attempts?.[0]?.stillOpen && !!c.window.attempts[0].errorShown && !!c.window.attempts[0].invalidMarked && !!c.window.attempts[0].faceIsSave, c.window?.attempts?.[0]);
   check("owner: a flat figure is taken, the window closes and the card rolls it", c.window?.attempts?.[1] && !c.window.attempts[1].stillOpen && c.card && Number(c.rows?.bolt?.total) === Number(FLAT), { attempt: c.window?.attempts?.[1], rolled: c.rows?.bolt?.total === Number(FLAT) });
-  const k = await keptNow();
+  const k = await keptUntil((read) => read[W.item.mine].kept === FLAT);
   check("owner: the figure is kept on that copy alone, and the source and the other copies are as they were", k[W.item.mine].kept === FLAT && k[W.item.source].kept === null && k[W.item.blank].kept === null && k[W.item.has].kept === null, Object.fromEntries(Object.entries(k).map(([u, v]) => [u.split(".").pop(), v.kept])));
   const again = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.mine, noWindowMs: 2500 });
   if (again.messageId) await ledger.track(`ChatMessage.${again.messageId}`, "ChatMessage");
@@ -214,7 +225,8 @@ async function stageOffer() {
   if (o?.id) await ledger.track(`ChatMessage.${o.id}`, "ChatMessage");
   check("offer: the Judge's seat holds the whispered card, drawn with its press", !!o && o.whisperedToMe && o.drawn && o.pressShown, o);
   const seen = await run(player, D.offers, { since: W.since });
-  check("offer: the Player seat is not shown the card", !seen.some((x) => x.drawn), seen.map((x) => ({ drawn: x.drawn })));
+  // The seat that sent a whisper holds it, as Foundry gives an author; what it is not given is the press, which only a seat that may write world settings has.
+  check("offer: the Player seat, which sent it, is shown no press", seen.length > 0 && !seen.some((x) => x.pressShown), seen.map((x) => ({ drawn: x.drawn, press: x.pressShown })));
   const lock = await run(gm, D.shelfLock);
   note("importer shelf of Items", lock);
   const pressed = await run(gm, D.pressOffer, { messageId: o?.id });
@@ -227,7 +239,7 @@ async function stageOffer() {
 async function stageJudge() {
   await run(gm, D.reset, { items: [{ uuid: W.item.source, flag: flagFor(), roll: "" }, { uuid: W.item.mine, flag: flagFor(), roll: "" }, { uuid: W.item.blank, flag: flagFor(), roll: "" }, { uuid: W.item.has, flag: flagFor(), roll: "1d8" }] });
   await run(gm, P.setSpent, { casterId: W.caster.b });
-  const c = await run(gm, D.castAsk, { casterId: W.caster.b, spellId: W.id.blank, attempts: [{ answer: FORMULA, tick: true }] });
+  const c = await run(gm, D.castAsk, { casterId: W.caster.b, spellId: W.id.blank, attempts: [{ answer: FORMULA, tick: true, closes: true }] });
   if (c.messageId) await ledger.track(`ChatMessage.${c.messageId}`, "ChatMessage");
   if (c.model?.castId) ledger.castIds.push(c.model.castId);
   check("judge: the Judge's window offers the every-copy box, and a ticked press closes it and rolls a formula", c.window?.opened && c.window.keepIsAll && !c.window.keepIsCopy && c.window.attempts?.[0] && !c.window.attempts[0].stillOpen && c.card && Number.isFinite(c.rows?.bolt?.total), { keep: [c.window?.keepIsAll, c.window?.keepIsCopy], total: c.rows?.bolt?.total });
@@ -241,11 +253,14 @@ async function stageJudge() {
 
 /* ---------------------------- a thrown row ---------------------------- */
 async function stageThrown() {
-  const scene = await gm.fixture("magic/spell-die-scene", "Scene", { name: "QA Die Field", active: false, navigation: true, width: 1000, height: 700, padding: 0, backgroundColor: "#55606b", grid: { type: 1, size: 100, distance: 5, units: "ft" }, tokenVision: false, environment: { globalLight: { enabled: true } }, ownership: { default: 2 } });
+  const scene = await gm.fixture("magic/spell-die-scene", "Scene", { name: "QA Die Field", active: false, navigation: true, width: 1400, height: 900, padding: 0, backgroundColor: "#55606b", grid: { type: 1, size: 100, distance: 5, units: "ft" }, tokenVision: false, environment: { globalLight: { enabled: true } }, ownership: { default: 2 } });
   const foe = await gm.fixture("magic/spell-die-foe", "Actor", { name: "QA Die Foe", type: "monster", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
   W.scene = idOf(scene);
   await run(gm, P.shapeMonster, { actorId: idOf(foe), hp: 40, hd: 2, kinds: [], saveTarget: SAVE_TARGET });
-  check("thrown: both seats view the field", (await run(player, P.view, { sceneId: W.scene })) && (await run(gm, P.view, { sceneId: W.scene })));
+  // A scene a first run built at another size is brought to the one the other walks view.
+  await run(gm, D.sizeScene, { sceneId: W.scene, width: 1400, height: 900 });
+  const viewed = [await run(player, P.view, { sceneId: W.scene }), await run(gm, P.view, { sceneId: W.scene })];
+  check("thrown: both seats view the field", viewed.every(Boolean), viewed);
   const made = await run(gm, P.placeTokens, { sceneId: W.scene, specs: [{ actorId: W.caster.a, name: "Die Caster", x: 100, y: 200, disposition: 1 }, { actorId: idOf(foe), name: "Die Foe", x: 400, y: 200 }] });
   for (const t of made) await ledger.track(t.uuid, "Token");
   const foeTok = made.find((t) => t.actorId === idOf(foe));
@@ -261,17 +276,22 @@ async function stageThrown() {
   const entry = Object.keys(c.model?.targets ?? {})[0];
   const row = c.model?.order?.[0] ?? "bolt";
   const press = await run(player, D.pressThrow, { messageId: c.messageId, target: entry, row });
-  const win = await run(player, D.drive, { attempts: [{ answer: FLAT, tick: true }] });
+  const win = await run(player, D.drive, { attempts: [{ answer: FLAT, tick: true, closes: true }] });
   check("thrown: pressing Throw opens one damage window, which takes the figure and closes", press.pressed && win.opened && win.attempts?.[0] && !win.attempts[0].stillOpen, { pressed: press.pressed, opened: win.opened });
   const k = await keptNow();
   check("thrown: the figure is kept on the character's copy of the thrown spell", k[W.item.thrown].kept === FLAT, k[W.item.thrown]);
 }
 D.dieOpen = async () => !!globalThis.__mck.dieWindow();
+D.sizeScene = async ({ sceneId, width, height }) => {
+  const scene = game.scenes.get(sceneId);
+  if (scene && (scene.width !== width || scene.height !== height)) await scene.update({ width, height });
+  return !!scene;
+};
 
 /* ---------------------------- a recurring row ------------------------- */
 async function stageRecur() {
   await run(gm, P.setSpent, { casterId: W.caster.a });
-  const c = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.recur, attempts: [{ answer: FORMULA, tick: false }] });
+  const c = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.recur, attempts: [{ answer: FORMULA, tick: false, closes: true }] });
   if (c.messageId) await ledger.track(`ChatMessage.${c.messageId}`, "ChatMessage");
   if (c.model?.castId) ledger.castIds.push(c.model.castId);
   check("recur: a recurring damage row that states no die opens the window at the cast and takes a formula", c.window?.opened && c.window.attempts?.[0] && !c.window.attempts[0].stillOpen && c.card, { opened: c.window?.opened });
