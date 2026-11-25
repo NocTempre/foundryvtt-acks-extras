@@ -1812,3 +1812,97 @@ the role test guarded a button and never the data; and a hand entry now names wh
 *Cost:* the walk's last pass is untrue and the walk is rewritten with this entry. The
 chip is built and unit-tested (`tools/test-power-ledger.mjs`); until its walk has run on `main`,
 the two seats' views are read from the code and a mock DOM and not from a world.
+
+## 2026-11-25 — A caster's spells stand under the list they are cast from, and a cast is gated by its list (board 1)
+
+**The evidence.**
+
+- A field report from the owner (T-0790 on the intake ledger): "Different magic sources (Arcane,
+  Divine, Eldritch, Gnostic, etc) spells are not grouped and tracked separately, especially
+  important for spells that have different levels based on source". Reading the shipped tab from
+  source for that report found two defects under it (T-0795, T-0797): the tab filed a spell under
+  the level of the first list it names, whichever list the caster's class casts from, and a class
+  with two casting rows had the system's one slot grid written from the first row alone, so the
+  second list's casts were counted against the first list's maxima.
+- Board 1 of the 2026-11-25 canvas, on which the owner selected "Build as drawn", and one
+  selection on the release hub's card: for a spell on no list the character casts from, "Listed,
+  Cast blocked for a Player". Both quoted phrases are the cards' own wording, selected, not
+  sentences the owner wrote.
+- The standing automation rule ([lib DECISIONS](../lib/DECISIONS.md), 2026-11-14, "Where the
+  automation would refuse, a player is blocked and a Judge is warned"), and the owner's words the
+  same day, as the release hub's session quoted them to this build: "follow foundry permissions,
+  don't invent new ones." and "owner can use the controls, don't hard code permissions unless
+  explictly asked".
+
+**Ruled.**
+
+- **A spell stands under the list it is cast from.** Where the character's class casts from a
+  list, the Magic tab is a heading per list, in the class's order, and under it the spells that
+  name that list at the level that list gives them. A spell on two of the class's lists stands
+  under both.
+- **Slots are counted per list.** Each list's levels carry that list's own used and maximum, read
+  from the class's slot row and the character's pools, never from the system's one grid.
+- **A spell on no list the character casts from is listed, and its Cast is blocked for a
+  Player.** It stands under "Other spells". A Judge is warned and may cast it, by the automation
+  rule.
+
+**Built.**
+
+- `spellStanding` (`scripts/magic/cast-capacity.mjs`) answers the tab's groups, and the tab
+  (`scripts/character-sheet/tabs/magic.mjs`) draws them; a character with no class bound, or a
+  class that casts from no list, keeps the tab by level with the system's slot pair.
+- The hand slot pips sit on the list's heading, one row per level, and are the character's
+  owner's by Foundry's own ownership test. The casting strip on this sheet draws none; the
+  system's own sheet keeps its strip.
+- A row sends the list it stands under with its Cast, and the cast reads and spends that list's
+  slot (`castReading`'s `tradition`). A spell on two lists pressed under the second spends the
+  second's.
+- `isOffList` is one predicate for the tab, the row's gate and the cast; `VERDICT.offList` is
+  raised in its place by `castVerdicts`, blocks a Player and warns a Judge, and pre-empts the slot
+  verdict. A row shows the cast's own verdict before the press, as text on a line of its own.
+- A declared cast stores the list it was declared through and resolves through it. A record
+  stored before this has none and resolves as it did; none is migrated.
+
+**Decided in the build, not selected by the owner**, each with its counter:
+
+- **A spell the cast window does not open for is gated and spends too**
+  (`scripts/magic/cast-gate.mjs`, a second claimant on the cast seam). Without it the tab's row
+  would say a spell is blocked while a hotbar macro cast it, and a hand-made spell on a class
+  caster would spend no slot of its list. It adds no window: core's own cast runs, and the gate
+  shows a notification at most. *Counter (medium):* it changes what a cast costs in a world that
+  already holds such spells; the release says so under Upgrading, and the hand pips give a slot
+  back.
+- **A spell that names no list at all is not off list.** It keeps the system's own slot reading
+  and carries no gate, on the tab and in the cast. The module blocks only where it knows the
+  answer. *Counter (medium):* a hand-made spell with its list left blank spends no slot of any
+  list; naming its list on the spell is the Judge's remedy.
+- **Where the world holds no slot maximum for a list, nothing blocks.** The used count rises and
+  the cast goes through. *Counter (low):* a class made by hand with no slot rows never refuses a
+  cast; a refusal there would rest on a figure nobody imported.
+- **An off-list spell leaves the castable-spell register** (`repertoire.mjs`), since the register
+  reads the same reading the cast does. *Counter (medium):* a surface that offers spells from the
+  register will not offer one a Judge could still cast from the tab with a warning.
+- **A row's lists line names every other list the spell stands on**, the class's or not, and a
+  spell whose list is read from the system's class field carries the line too, its tooltip naming
+  that field. Where the line is drawn the row drops the system's class string, which would say
+  the same list twice. *Counter (low):* a list the class does not cast from is of no use to the
+  Player; it is kept because it is where the spell's level differs.
+- **The cast count stays one figure on the spell.** A spell on two lists shows the same count
+  under both headings; the per-list figure is the slot row's. *Counter (low):* the count beside
+  a row reads as that list's.
+- **A points pool's minus and plus sit on its list's heading**, and a pool that is a ladder shows
+  its line there, with no slot row per level. The board draws slots only.
+- **Cast stays the icon button the sheet ships**, and the row keeps every control it had; the
+  board's text button is not built. These two, and that the hand pips stay per level, are the
+  release hub's corrections to the board, not the owner's.
+
+**Strongest counter to the ruling (medium).** A Player holding a spell from a list their class
+does not cast from cannot cast it without the Judge, where before the press went through. It is
+not strong: the selection on the card chose exactly that, the Judge's own press goes through with
+a warning, and the row says why in words read without hovering.
+
+*Cost:* the tab's markup changed under every walk that presses its Cast; those walks are named
+in the landing report and are rerun after it. The tab, the gates and the claimant are unit-tested
+(`tools/test-magic-cast.mjs`, `tools/test-character-sheet.mjs`, `tools/test-cast-gate.mjs`,
+`tools/test-cast-declare.mjs`); until the tab's walk has run on `main`, what two seats see is read
+from the code and a mock context and not from a world.

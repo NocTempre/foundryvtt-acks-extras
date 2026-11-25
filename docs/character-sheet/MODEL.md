@@ -503,9 +503,48 @@ one select per group, writing the choice to the class ledger.
 
 **Magic** appears when the system's spells are enabled or the bound class has
 a casting tradition. The classes feature's casting strip mounts at the top
-(pips to spend, a rest control); the repertoire lists by level with the
-system's slot pair (used, and the editable maximum), each spell with its
-cast count, a Cast control that spends it, show, edit and delete.
+with its per-list pips off (`castingStripElement(actor, app, {traditions:
+false})`): the rest control and the power line. Under it `buildMagicTab`
+(`tabs/magic.mjs`) draws the repertoire from `spellStanding`
+(`scripts/magic/cast-capacity.mjs`), in one of two modes.
+
+*By list*, where the bound class casts from at least one list: a group per
+list, in the class's order (`[data-list]`), headed by the list's label and
+the class's name. Each level under it that has a slot row or a spell carries
+that list's slot figure, used over the maximum, read from the class's slot row
+at the character's level and the actor's pools; its tooltip names the class,
+the level and the class document's own page reference. Beside the figure is
+one hand pip per slot: a button for a seat that owns the character
+(`actor.isOwner`), an empty one spending that slot and a filled one giving it
+back (`poolSlot`, the classes feature's `adjustPool`), and a mark with no
+control for any other seat. A list that is a points pool carries its figure
+and a minus and a plus on the heading (`poolPoints`), a ladder its line, and
+neither has a slot row per level. A spell stands under every list of the class
+it names, at the level that list gives it (`levelUnder`), so a spell on two
+lists is two rows with one item id. Each row carries its list as
+`data-tradition`, and a lists line that names the other lists the spell
+stands on, with the spell's own page reference in its tooltip. Spells that
+name no list the class casts from follow under "Other spells"
+(`[data-list-other]`), by the level on the spell.
+
+*By level*, for a character with no class bound or a class that casts from no
+list: the repertoire by level with the system's slot pair (used, and the
+editable maximum).
+
+A row (`spell-row.hbs`) carries the spell's cast count, which is one figure
+on the spell and so the same under each list, a Cast control, show, edit and
+delete, a summoning spell's figures and the Declared tag. In the by-list mode
+it also carries the cast's gate (`gateOf`): the verdict the cast itself would
+raise for its two capacity gates, read with the cast's own functions
+(`spellCapacity`, `castVerdicts`). The list's slots at that level are all
+used, or the spell names a list and none of them is the class's. A seat that
+is not a GM reads the reason on a line of its own under the row and a Cast
+that is off; a GM reads the warning there and a Cast that is on. A spell that
+names no list at all, and a spell with a cast declared and waiting, carry no
+gate. Cast sends the row's list (`item.use({skipDialog, tradition})`), and the
+cast spends the slot of the heading it was pressed under
+([magic MODEL](../magic/MODEL.md), "Casting a spell" and "A cast the window
+does not take").
 
 **Service** is the hireling's side of its record, shown while
 `system.retainer.enabled`: the henchmen feature's Service panel

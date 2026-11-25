@@ -26,9 +26,8 @@ the code, not missing from it; the rulings behind the built half are
   records HOW MANY a class may pick or which tier the picks belong to. The
   slots need that count, which the imported option lists carry (`pick` and
   `total` on each list of the `weaponLists` options table).
-- **Undrawn boards**: the Magic tab and a caster's Effects tab were never drawn
-  on the canvas. Both are built here from the tab vocabulary; a design pass
-  on them is owed.
+- **An undrawn board**: a caster's Effects tab was never drawn on the canvas.
+  It is built here from the tab vocabulary; a design pass on it is owed.
 - **The pin bar's cap.** The folded bar wraps; nothing limits how many pins a
   character carries. A cap, or a "more" fold, once a table hits the ceiling.
 - **The light cell's disabled state** for a character carrying no light source

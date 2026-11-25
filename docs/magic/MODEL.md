@@ -652,7 +652,9 @@ cancel at any point before the spend costs nothing:
    the count's parts; the total is read as it is typed, and a total over the
    count shows its verdict and stops a Player (a split shown for a choice's
    option or a form not chosen is hidden and answers none).
-2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: no
+2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: the
+   spell on a list and on none the class casts from (`offList`, which stands
+   in place of the slot verdict), no
    slot at the spell's level, several targets for a thrown row whose count is
    one or blank, a split of throws over the row's count (`tooManyInstances`,
    judged on the answer, before the spend), a
@@ -682,9 +684,14 @@ cancel at any point before the spend costs nothing:
    at the caster level) caps the targets, and `tooManyTargets` says how many are
    over; a blank count caps nothing.
 3. *The spend*, once: the seam's `spend()`, and `adjustPool` for a vancian
-   tradition (`cast-capacity.mjs`: the tradition whose key or label a list of the
-   spell names, its slot at the spell's level less what the actor spent; a
-   points tradition is shown and not spent; with no tradition, core's
+   tradition (`cast-capacity.mjs` `spellCapacity`: the tradition the cast was
+   pressed under where the spell stands on it (`options.tradition`, which the
+   Magic tab's row sends), else the first of the class's traditions whose key
+   or label a list of the spell names; its slot at the level that list gives
+   the spell less what the actor spent; a
+   points tradition is shown and not spent; a spell that names a list and none
+   of the class's (`isOffList`) has no tradition, spends no slot and is not
+   read against core's count; with no tradition otherwise, core's
    `system.spells` count less the summed `cast`; else unknown and no verdict).
    The spend also ends what the caster holds by concentration (`concentrating`
    always warns and never refuses): the caster's held records are deleted by id,
@@ -952,6 +959,28 @@ Throw press. Apply and Throw are for a GM and the user who cast; Undo is the
 GM's: the hit points return to what they were and the records are deleted by
 id.
 
+**A cast the window does not take** (`cast-gate.mjs`, registered at `init`
+after the cast claimant, so it is offered only what that one declined). The
+gate takes the cast of a spell item on an actor the seat owns whose bound class
+casts from at least one list (`listTraditions`): in practice a spell made by
+hand, with no effect rows, reached from any cast door. It reads the standing
+with `castReading`, the list the cast was pressed under included, and judges
+it with `castVerdicts`, keeping the two verdicts the Magic tab's row shows
+(`offList`, `noSlot`). A Player's blocked cast shows the reason as a
+notification, and the seam's `spend()` is never called, so no count rises and
+nothing is written. A Judge's shows the warning and goes on. The cast itself
+stays the system's (`spend()`: its count and its card), and where it ran and
+the cast spends from a list's slots (`spendsFromPool`) the list's used count
+rises by one, the write the cast window makes. No window opens. A spell that
+names no list keeps the system's own reading and writes no pool; where the
+world holds no slot maximum the capacity is unknown and nothing blocks; and a
+character with no class bound, a class that casts from no list and a monster
+are declined, so the system's cast runs as it did.
+
+**What a caster can cast now** (`repertoire.mjs`, the castable-spell source)
+reads the same `castReading`, so a spell that is off the class's lists is not
+in the register.
+
 **A declaration** (`cast-moment.mjs`, `cast-declare.mjs`, registered at `init`).
 `castMoment({combat, combatant, castingTime})` answers where a cast falls: `free`
 where no begun fight (`started`, or core's `acks.initDone`) holds the caster's
@@ -969,7 +998,9 @@ declaration being resolved stays `resolve`. A summons is declared like any other
 button reads Declare and, at its confirm, the cast checks capacity, spends once,
 ends the caster's concentration, writes a status-only `casting` record and a
 status-free pending record (`pending {spellUuid, <the answer's fields>, combatId,
-round, declaredRound, at}`), and posts no card. The dialog's pinned footer carries
+round, declaredRound, at}`), and posts no card. The answer's fields include the list the
+cast was declared through (`tradition`), and the resolving cast reads the world through that list
+again; a record stored with none resolves through the first list the spell stands on. The dialog's pinned footer carries
 a note at `declare`, left of Cancel and Declare, that names the fight, says what the
 caster's turn does (a summoning's creatures are placed, any other cast is cast) and
 says the slot is spent at Declare; the body holds no such line. `ctx.fight` feeds it:

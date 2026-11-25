@@ -945,13 +945,18 @@ this and minting a placeholder into the library (DECISIONS 2026-08-29).
 [scripts/classes/casting.mjs](../../scripts/classes/casting.mjs): the class
 document is authoritative for CAPACITY (slot row or pool schedule at the
 character's level); the actor stores only what is SPENT
-(`flags["acks-extras"].classes.pools`). The character sheet gains a
-per-tradition strip — slot pips to spend/refund, a +/− pair on a points
+(`flags["acks-extras"].classes.pools`). The system's character sheet gains a
+per-tradition strip (`castingStripElement`) — slot pips to spend/refund, a +/− pair on a points
 pool, a capacity line for a tradition whose `levelCap` names a ladder (the
 gnostic invocation level), and a rest control that DELETES the pools key (update merges
-objects, so writing an empty object resets nothing). It is the only surface
-that can show two traditions at once. The system's own `spells.1..6.max`
-grid stays the single-tradition compatibility surface applyClass writes.
+objects, so writing an empty object resets nothing). The module's own sheet
+mounts the same strip with `{traditions: false}`, which leaves the rest
+control and the power line: there the pips sit on the Magic tab, one row per
+level under each list's heading, and write through the same `adjustPool`
+([character-sheet MODEL](../character-sheet/MODEL.md), "The tabs", Magic). The
+system's own `spells.1..6.max` grid stays the single-tradition compatibility
+surface applyClass writes; the Magic tab reads it only for a character whose
+class casts from no list.
 
 A casting row carries two ladder keys on separate axes. `casterLevel` names
 the ladder the cast engine reads for the caster level (blank: the class
