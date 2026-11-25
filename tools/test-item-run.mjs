@@ -474,20 +474,20 @@ await t("a use is refused with its own line for an item or actor that is gone, a
     itemFlags = toggleFlags(down, [{ key: "a", reach: { pulse: "action", radius: { value: "10" } } }]);
     await refused({ requestUserId: "owner" }, "noRow", "error");
     await refused({ requestUserId: "other" }, "notOwner", "error");
-    itemFlags = { itemRun: { activation: { kind: "fuse" }, rows: [] } };
+    itemFlags = { itemRun: { activation: { kind: "consume" }, rows: [] } };
     await refused({}, "noRunner", "warn");
-    run.registerActivationRunner("fuse", async () => ({ ok: false, reason: "oddReason" }));
+    run.registerActivationRunner("consume", async () => ({ ok: false, reason: "oddReason" }));
     notes2.length = 0;
     assert.deepEqual(await run.runUse({ itemUuid: "I.1" }), { ok: false, reason: "oddReason" });
     assert.ok(notes2[0][1].endsWith("itemRun.refused.refused"), "a reason it has no line for reads as a plain refusal");
-    run.registerActivationRunner("fuse", async () => ({ ok: false }));
+    run.registerActivationRunner("consume", async () => ({ ok: false }));
     assert.deepEqual(await run.runUse({ itemUuid: "I.1" }), { ok: false, reason: "refused" });
     for (const reason of ["noRange", "down", "unsupported", "notCarried", "snapshot"]) {
-      run.registerActivationRunner("fuse", async () => ({ ok: false, reason }));
+      run.registerActivationRunner("consume", async () => ({ ok: false, reason }));
       await refused({}, reason, "warn");
     }
   } finally {
-    run.registerActivationRunner("fuse", null);
+    run.registerActivationRunner("consume", null);
     globalThis.ui = priorUi;
     run.setUsePresenter(async (result) => presented.push(result));
     unstage();
@@ -2263,6 +2263,341 @@ await t("an engaged reach's prompt names its bearers: a step-in on the subject's
     releaseReachMoment(key);
     gameStub.combat = null;
     run.setUsePresenter(async (result) => presented.push(result));
+  }
+});
+
+/* --- the fuse's light, its burst, an Apply and its Undo, a lit fuse's controls, and a hand-on --- */
+class RollStub {
+  static queue = [];
+  static posted = [];
+  static validate(formula) { return /^\d+d\d+$/.test(String(formula)); }
+  constructor(formula) { this.formula = formula; }
+  async evaluate() { this.total = RollStub.queue.shift(); return this; }
+  async toMessage() { RollStub.posted.push(this.formula); }
+}
+const figs = { throw: { value: "12" }, fumble: { value: "2" }, fuseDice: { value: "1d4" }, proficiency: { value: "Skill A" }, sizes: { value: { kindA: 7 } }, blast: { value: [{ lb: 7, dice: "3d5", radius: 15, types: ["typeA"] }] } };
+const fuseFlags = (over = {}, reach = {}) => ({ itemRun: { activation: { kind: "fuse", ...figs, variant: "kindA", ...over }, rows: [{ key: "burst", reach: { pulse: "burst", save: { value: "paralysis" }, fraction: { value: "0.5" }, ...reach } }] } });
+const hpActor = (id, owner, value = 20, type = "monster") => {
+  const actor = {
+    ...monster(["alpha"]), id, uuid: `A.${id}`, name: `Body ${id}`, img: "", type, items: [], system: { hp: { value, max: 20 }, saves: { paralysis: { value: 12 } } },
+    testUserPermission: (user) => user?.id === owner || user?.isGM === true,
+    async applyDamage(amount, multiplier) { actor.system.hp.value = Math.min(actor.system.hp.value - Math.ceil(amount * multiplier), actor.system.hp.max); },
+    async update() {},
+  };
+  return actor;
+};
+const bodyTok = (id, actor) => ({ id, uuid: `T.${id}`, name: `Tok ${id}`, actor, flags: { "acks-extras": {} }, testInsideRegion: () => true, testUserPermission: (user) => actor?.testUserPermission(user) ?? false });
+const spotOne = { sceneId: "S1", x: 150, y: 250, elevation: 0, level: "L1" };
+
+/** The world a fuse is lit and bursts in: the bearer's token on scene S1, a Roll that answers from a queue, and the item's quantity. */
+function stageFuseWorld(tokens = []) {
+  const prior = { Roll: globalThis.Roll, ChatMessage: globalThis.ChatMessage, scenes: gameStub.scenes, actors: gameStub.actors, user: gameStub.user, perm: bearerActor.testUserPermission, itemSystem: theItem.system, itemDelete: theItem.delete, itemUpdate: theItem.update };
+  globalThis.Roll = RollStub;
+  globalThis.ChatMessage = { getSpeaker: () => ({}) };
+  RollStub.queue.length = 0;
+  RollStub.posted.length = 0;
+  const scene = { id: "S1", grid: { size: 100 }, dimensions: { distance: 5, distancePixels: 10 }, tokens };
+  gameStub.scenes = Object.assign([scene], { get: (id) => (id === "S1" ? scene : null) });
+  gameStub.user = { id: "gm", isGM: true };
+  bearerActor.testUserPermission = (user) => user?.id === "owner" || user?.isGM === true;
+  bearerActor.name = "Bearer";
+  bearerActor.uuid = "A.1";
+  bearerActor.items = [];
+  Object.assign(bearerTok, { x: 100, y: 200, width: 1, height: 1, elevation: 0, level: "L1", parent: scene });
+  const ops = { updates: [], deleted: [] };
+  theItem.system = { quantity: 3 };
+  theItem.update = async (data) => { ops.updates.push(data); };
+  theItem.delete = async () => { ops.deleted.push("I.1"); };
+  stage();
+  seatOf(true);
+  return {
+    scene, ops,
+    restore() {
+      Object.assign(globalThis, { Roll: prior.Roll, ChatMessage: prior.ChatMessage });
+      Object.assign(gameStub, { scenes: prior.scenes, actors: prior.actors, user: prior.user, combat: null });
+      bearerActor.testUserPermission = prior.perm;
+      Object.assign(theItem, { system: prior.itemSystem, delete: prior.itemDelete, update: prior.itemUpdate });
+      for (const key of ["x", "y", "width", "height", "elevation", "level"]) delete bearerTok[key];
+      delete bearerTok.testInsideRegion;
+      bearerTok.parent = null;
+      delete bearerActor.createEmbeddedDocuments;
+      delete bearerActor.deleteEmbeddedDocuments;
+      bearerActor.effects = [];
+      run.setProficiencyReader(null);
+      run.setUsePresenter(async (result) => presented.push(result));
+      unstage();
+    },
+  };
+}
+
+await t("the fuse's light writes nothing for a blank figure, an unlit throw or a fumble's burst, and writes the fuse on the fight's clock in a fight and the world's out of one", async () => {
+  const world = stageFuseWorld([bearerTok]);
+  bearerTok.testInsideRegion = () => true;
+  const written = [];
+  bearerActor.createEmbeddedDocuments = async (kind, data) => { written.push(...data); return data.map((_, i) => ({ id: `fx${written.length - data.length + i}` })); };
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  run.setProficiencyReader(async () => ({ proficient: true, bonus: 2, parts: [{ label: "Skill A", value: 2, cite: "ZZ p. 1" }] }));
+  try {
+    itemFlags = fuseFlags({ fumble: { value: "" } });
+    const blank = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual([blank.ok, blank.kind, blank.outcome, blank.roll, blank.fuse, blank.blank], [true, "fuse", null, null, null, ["fumble"]], "a blank fumble figure is the Judge's: nothing rolled");
+    assert.deepEqual(RollStub.posted, []);
+    RollStub.queue.push(9);
+    itemFlags = fuseFlags({ throw: { value: "" } });
+    const noTarget = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual([noTarget.outcome, noTarget.light, noTarget.blank], [null, null, ["throw"]], "a die the target is needed for, with no target");
+    assert.equal(noTarget.roll.natural, 9, "the die is rolled and shown for the Judge");
+    itemFlags = fuseFlags();
+    RollStub.queue.push(9);
+    const unlit = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual([unlit.outcome, unlit.fuse], ["unlit", null]);
+    assert.deepEqual(unlit.roll, { natural: 9, total: 9, formula: "1d20", target: 10, base: 12, modifiers: [{ label: "Skill A", value: 2, cite: "ZZ p. 1" }], proficient: true, proficiency: "Skill A" }, "the target is the item's figure less the proficiency's standing modifiers");
+    assert.deepEqual(written, [], "an unlit fuse writes nothing");
+    // In a fight the record counts the bearer's turns.
+    gameStub.combat = { id: "c9", started: true, combatants: [{ id: "m9", tokenId: "1" }] };
+    RollStub.queue.push(10, 3);
+    const lit = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual([lit.outcome, lit.fuse], ["lit", { count: 3, combat: true, spot: spotOne }], "a die on the lowered target");
+    assert.deepEqual(written[0].flags["acks-extras"].fuse, logic.fuseFlag({ source: "I.1", activationId: "rid", spot: spotOne, combatId: "c9", combatantId: "m9", count: 3 }), "the spot is the token's centre");
+    assert.equal(written[0].origin, "I.1");
+    assert.equal(lit.recordId, "fx0");
+    // Outside one it is due on the world clock.
+    gameStub.combat = null;
+    gameStub.time = { worldTime: 1000 };
+    RollStub.queue.push(12, 2);
+    const world2 = await run.runUse({ itemUuid: "I.1" });
+    const { roundSeconds } = await import("../scripts/lib/time-unit.mjs");
+    assert.deepEqual([world2.outcome, world2.fuse.combat, world2.fuse.dueAt], ["lit", false, Math.ceil(1000 + 2 * roundSeconds())]);
+    assert.deepEqual(written[1].flags["acks-extras"].fuse, logic.fuseWorldFlag({ source: "I.1", activationId: "rid", spot: spotOne, rounds: 2, now: 1000, roundSeconds: roundSeconds() }));
+    // A fuse the dice cannot make is the Judge's, and nothing is written.
+    written.length = 0;
+    itemFlags = fuseFlags({ fuseDice: { value: "words" } });
+    RollStub.queue.push(15);
+    const badDice = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual([badDice.outcome, badDice.light, badDice.blank, written.length], [null, "lit", ["fuseDice"], 0]);
+    itemFlags = fuseFlags();
+    RollStub.queue.push(15, 0);
+    assert.deepEqual([(await run.runUse({ itemUuid: "I.1" })).outcome, written.length], [null, 0], "a count under one");
+    // A fumble bursts at once at the bearer's token centre and writes no fuse; the presenter hears the fuse result, then the burst.
+    seen.length = 0;
+    RollStub.queue.push(2, 11);
+    const fumbled = await run.runUse({ itemUuid: "I.1" });
+    assert.deepEqual([fumbled.outcome, fumbled.fuse, fumbled.presented, written.length], ["fumble", null, true, 0]);
+    assert.deepEqual(seen.map((r) => r.kind + (r.outcome ?? "")), ["fusefumble", "burst"]);
+    assert.deepEqual(fumbled.burst.spot, spotOne, "at the bearer's token centre");
+    assert.deepEqual([fumbled.burst.rolled, fumbled.burst.dice, fumbled.burst.subjects.map((s) => s.key)], [11, "3d5", ["T.1"]], "the bearer's own token is in its blast");
+    assert.deepEqual(world.ops.updates.at(-1), { "system.quantity": 2 }, "one off the stack");
+  } finally {
+    world.restore();
+  }
+});
+
+await t("a burst rolls once over the spot's area, sends vehicles to their own rows, consumes one of the item, and says nothing rolled where a figure is blank, its scene gone or the item gone", async () => {
+  const one = hpActor("one", "owner");
+  const veh = hpActor("veh", "owner", 20, "acks-extras.vehicle");
+  const world = stageFuseWorld([bodyTok("one", one), bodyTok("veh", veh), bodyTok("none", null)]);
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  const record = { source: "I.1", activationId: "act", spot: spotOne };
+  try {
+    itemFlags = fuseFlags();
+    RollStub.queue.push(11);
+    const done = await run.burstFuse({ actor: bearerActor, record });
+    assert.deepEqual(RollStub.posted, ["3d5"], "the dice are rolled once and shown");
+    assert.deepEqual([done.ok, done.kind, done.blank, done.rolled, done.dice, done.types, done.radius, done.saveName, done.reduction], [true, "burst", false, 11, "3d5", ["typeA"], 15, "paralysis", 0.5]);
+    assert.deepEqual(done.subjects, [{ key: "T.one", name: "Tok one" }], "bodies with hit points; a token with no actor is no subject");
+    assert.deepEqual(done.vehicles, [{ uuid: "T.veh", name: "Tok veh" }], "a vehicle is handed on, never rolled for");
+    assert.equal(madeRegions.at(-1).data.shapes[0].radius, 150, "the blast's radius at the scene's scale, centred on the spot");
+    assert.deepEqual([madeRegions.at(-1).data.shapes[0].x, madeRegions.at(-1).data.shapes[0].y], [150, 250]);
+    assert.deepEqual([done.card.kind, done.card.rolled, done.card.spot, done.card.reduction, done.card.saveName, done.card.title, done.card.subtitle], ["burst", 11, spotOne, 0.5, "paralysis", "Gear", "Bearer"]);
+    assert.deepEqual(done.card.sections[0].rows[0].actions[0].data, { itemUuid: "I.1", rowKey: "burst", activationId: "act", subject: "T.one" });
+    assert.deepEqual(seen, [done], "handed to the presenter");
+    assert.deepEqual(world.ops.updates, [{ "system.quantity": 2 }]);
+    theItem.system = { quantity: 1 };
+    RollStub.queue.push(4);
+    await run.burstFuse({ actor: bearerActor, record });
+    assert.deepEqual(world.ops.deleted, ["I.1"], "the last of a stack is deleted");
+    // Where the Judge decides nothing is rolled or consumed.
+    RollStub.posted.length = 0;
+    world.ops.deleted.length = 0;
+    const blankOf = async (over, why, record2 = record) => {
+      itemFlags = fuseFlags(over);
+      const out = await run.burstFuse({ actor: bearerActor, record: record2 });
+      assert.deepEqual([out.ok, out.blank, out.why, out.card], [true, true, why, null], why);
+    };
+    await blankOf({ variant: "unknown" }, "figure");
+    await blankOf({ blast: { value: [{ lb: 7, dice: "words", radius: 15 }] } }, "dice");
+    itemFlags = {};
+    const gone = await run.burstFuse({ actor: bearerActor, record });
+    assert.deepEqual([gone.blank, gone.why], [true, "gone"], "an item whose activation is no more");
+    assert.deepEqual([RollStub.posted, world.ops.deleted], [[], []]);
+    itemFlags = fuseFlags();
+    const none = await run.burstFuse({ actor: bearerActor, record: { ...record, spot: { ...spotOne, sceneId: "S9" } } });
+    assert.deepEqual([none.ok, none.reason, none.itemName, none.actorName, none.activationId], [false, "noScene", "Gear", "Bearer", "act"], "nothing bursts where the spot's scene is gone, and the presenter is told which fuse");
+    assert.equal(seen.at(-1), none);
+    assert.deepEqual([RollStub.posted, world.ops.deleted], [[], []]);
+  } finally {
+    world.restore();
+  }
+});
+
+await t("a burst card's Save writes no damage; an Apply, by an owner of the subject, writes it through the card's own figures, Undo gives the hit points back, and a judge case writes nothing", async () => {
+  const one = hpActor("one", "owner");
+  const two = hpActor("two", "other");
+  const world = stageFuseWorld([bodyTok("one", one), bodyTok("two", two)]);
+  gameStub.actors = Users.from([one, two]);
+  subjects["T.one"] = bodyTok("one", one);
+  subjects["T.two"] = bodyTok("two", two);
+  subjects["A.one"] = one;
+  subjects["A.two"] = two;
+  const { newCard } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const { applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const target = 12;
+  const stored = (over = {}) => ({ ...newCard({ itemUuid: "I.1", rowKey: "burst", activationId: "act", kind: "burst", bearer: { uuid: "", name: "Bearer" }, cardId: "c" }), title: "Gear", rolled: 11, dice: "3d5", types: ["typeA"], reduction: 0.5, saveName: "paralysis", subjects: { "T~one": { uuid: "T.one", name: "Tok one", state: "in", latest: "" }, "T~two": { uuid: "T.two", name: "Tok two", state: "in", latest: "" } }, ...over });
+  const message = { flags: { "acks-extras": { itemRunCard: stored() } }, getFlag(scope, key) { return this.flags[scope][key]; }, async update(data) { this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]))); } };
+  gameStub.messages = { get: (id) => (id === "MB" ? message : null) };
+  const entries = () => message.flags["acks-extras"].itemRunCard.entries;
+  const press = (subject, total, over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "burst", activationId: "act", subject: `T.${subject}`, messageId: "MB", entryKey: `T~${subject}`, total, target, requestUserId: subject === "one" ? "owner" : "other", ...over });
+  const act = (name, payload) => executeAsGM(`acks-extras.itemRun.${name}`, { messageId: "MB", ...payload });
+  const priorLookup = globalThis.fromUuidSync;
+  try {
+    itemFlags = {};
+    globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? null : priorLookup(uuid));
+    assert.equal((await press("one", 5, { target: target + 1 })).reason, "figure", "the card's save is recomputed here, not taken from the request");
+    const failed = await press("one", 5);
+    assert.deepEqual([failed.ok, failed.saved, failed.entry.state, failed.entry.recordIds, failed.entry.hp], [true, false, "rolled", [], undefined], "the item is gone and the card's own save stands; the verdict is the entry's, nothing is written");
+    assert.equal(one.system.hp.value, 20, "a Save writes no damage");
+    assert.equal((await press("one", 5)).reason, "applied", "a second Save is refused");
+    assert.equal((await press("two", 15)).entry.saved, true);
+    assert.equal((await act("apply", { entryKey: "T~one", requestUserId: "other" })).reason, "notOwner", "a seat that does not own the subject");
+    assert.equal((await act("apply", { entryKey: "T~gone" })).reason, "gone");
+    const some = await act("applyAll", { requestUserId: "owner" });
+    assert.deepEqual([some.applied, some.refused], [["T~one"], [{ key: "T~two", reason: "notOwner" }]], "Apply all applies the rows the seat owns and names the rest");
+    assert.deepEqual([one.system.hp.value, entries()["T~one"].state, entries()["T~one"].hp, entries()["T~one"].amount], [9, "applied", [{ uuid: "A.one", amount: 11 }], 11], "a failed save takes the whole roll, and the hit points actually taken are stored");
+    assert.equal((await act("apply", { entryKey: "T~one" })).reason, "applied", "a second Apply is refused");
+    // Undo gives them back, by the stored amount.
+    assert.equal((await act("undo", { entryKey: "T~one", requestUserId: "other" })).reason, "notOwner");
+    const undone = await act("undo", { entryKey: "T~one", requestUserId: "owner" });
+    assert.equal(undone.ok, true);
+    assert.deepEqual([one.system.hp.value, entries()["T~one"].state, entries()["T~one"].hp], [20, "undone", []]);
+    assert.equal((await act("undo", { entryKey: "T~one", requestUserId: "owner" })).reason, "applied", "an undone entry is not undone twice");
+    assert.equal((await act("apply", { entryKey: "T~one" })).reason, "applied", "nor applied again");
+    // The Judge's Apply all takes the rest: a saved subject keeps the share the save leaves.
+    const rest = await act("applyAll", {});
+    assert.deepEqual([rest.applied, rest.refused], [["T~two"], []]);
+    assert.deepEqual([two.system.hp.value, entries()["T~two"].amount], [14, 6], "11 less half, one rounding at the end");
+    // A saved subject with no reduction imported is the Judge's: nothing is written.
+    message.flags["acks-extras"].itemRunCard = stored({ reduction: null });
+    two.system.hp.value = 20;
+    assert.equal((await press("two", 15)).entry.state, "rolled");
+    const judged = await act("apply", { entryKey: "T~two" });
+    assert.deepEqual([judged.ok, judged.state, entries()["T~two"].why, two.system.hp.value, "hp" in entries()["T~two"]], [true, "judge", "figure", 20, false]);
+    assert.equal((await act("undo", { entryKey: "T~two", requestUserId: "other" })).reason, "applied", "a judge entry wrote nothing to undo");
+    // A body the card lists that is gone is the Judge's too.
+    message.flags["acks-extras"].itemRunCard = stored();
+    assert.equal((await press("one", 5)).entry.state, "rolled");
+    delete subjects["T.one"];
+    assert.deepEqual([(await act("apply", { entryKey: "T~one" })).state, entries()["T~one"].why], ["judge", "gone"]);
+  } finally {
+    globalThis.fromUuidSync = priorLookup;
+    delete gameStub.messages;
+    delete subjects["T.one"];
+    delete subjects["T.two"];
+    delete subjects["A.one"];
+    delete subjects["A.two"];
+    world.restore();
+  }
+});
+
+await t("a fuse's owner moves its spot and sets it off, a seat that does not own the bearer is refused by ownership, the record goes before the burst, and a gone scene bursts nothing", async () => {
+  const world = stageFuseWorld([bearerTok]);
+  bearerTok.testInsideRegion = () => true;
+  const order = [];
+  const effect = { id: "fe", uuid: "E.fe", flags: { "acks-extras": { fuse: { source: "I.1", activationId: "act9", spot: spotOne, dueAt: 5 } } }, update: async (data) => { order.push(["update", data]); } };
+  bearerActor.effects = [effect];
+  bearerActor.deleteEmbeddedDocuments = async (kind, ids) => { order.push(["delete", ...ids]); bearerActor.effects = []; };
+  gameStub.actors = Users.from([bearerActor]);
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const seen = [];
+  run.setUsePresenter(async (result) => { order.push(["present", result.kind, result.ok]); seen.push(result); });
+  const as = (name, payload, requestUserId) => executeAsGM(`acks-extras.itemRun.${name}`, { activationId: "act9", ...payload, requestUserId });
+  try {
+    itemFlags = fuseFlags();
+    const to = { sceneId: "S1", x: 5, y: 6 };
+    assert.equal((await as("moveSpot", { spot: to }, "other")).reason, "notOwner", "ownership of the bearer's actor, by Foundry's test");
+    assert.equal((await as("moveSpot", { spot: { x: 1, y: 2 } }, "owner")).reason, "noSpot");
+    assert.equal((await as("moveSpot", { spot: { sceneId: "S9", x: 1, y: 2 } }, "owner")).reason, "noScene");
+    assert.equal((await as("moveSpot", { spot: to, activationId: "none" }, "owner")).reason, "gone");
+    assert.deepEqual(order, [], "nothing written by a refusal");
+    const moved = await as("moveSpot", { spot: to }, "owner");
+    assert.deepEqual([moved.ok, moved.spot], [true, { sceneId: "S1", x: 5, y: 6, elevation: 0, level: "" }], "every key is written, so a stale level never survives");
+    assert.deepEqual(order, [["update", { "flags.acks-extras.fuse.spot": moved.spot }]]);
+    assert.deepEqual((await run.moveFuseSpot({ activationId: "act9", spot: spotOne })).spot, spotOne, "the Judge's own seat, through the exported control");
+    order.length = 0;
+    assert.equal((await as("setOff", {}, "other")).reason, "notOwner");
+    assert.deepEqual(order, [], "the record is still there");
+    RollStub.queue.push(8);
+    const off = await as("setOff", {}, "owner");
+    assert.deepEqual([off.ok, off.burst.kind, off.burst.blank], [true, "burst", false]);
+    assert.deepEqual(order, [["delete", "fe"], ["present", "burst", true]], "the record is deleted first, then it bursts");
+    assert.equal((await as("setOff", {}, "owner")).reason, "gone", "a fuse set off is no fuse");
+    // A spot whose scene is gone: the record goes, nothing bursts, and the Judge is told.
+    bearerActor.effects = [{ ...effect, flags: { "acks-extras": { fuse: { source: "I.1", activationId: "act9", spot: { ...spotOne, sceneId: "S9" }, dueAt: 5 } } } }];
+    order.length = 0;
+    RollStub.posted.length = 0;
+    const lost = await run.setFuseOffNow({ activationId: "act9" });
+    assert.deepEqual([lost.ok, lost.burst.ok, lost.burst.reason, RollStub.posted], [true, false, "noScene", []]);
+    assert.deepEqual(order, [["delete", "fe"], ["present", "burst", false]]);
+    // A world-clock fuse that comes due over a gone scene is the same.
+    bearerActor.effects = [{ ...effect, flags: { "acks-extras": { fuse: { source: "I.1", activationId: "act8", spot: { ...spotOne, sceneId: "S9" }, dueAt: 5 } } } }];
+    order.length = 0;
+    await run.liftWorldFuses([bearerActor], 6, { burst: run.burstFuse });
+    assert.deepEqual(order, [["delete", "fe"], ["present", "burst", false]], "the stepper's own burst says so too");
+  } finally {
+    world.restore();
+  }
+});
+
+await t("a burst's vehicle row is handed on by an owner of the vehicle to the one registered structure writer, once, with the burst's rolled total, and is refused where nothing is registered or the writer refuses", async () => {
+  const veh = hpActor("veh", "owner", 20, "acks-extras.vehicle");
+  const veh2 = hpActor("veh2", "owner", 20, "acks-extras.vehicle");
+  const world = stageFuseWorld([]);
+  subjects["T.veh"] = bodyTok("veh", veh);
+  subjects["T.veh2"] = bodyTok("veh2", veh2);
+  const { newCard, applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const message = {
+    flags: { "acks-extras": { itemRunCard: { ...newCard({ itemUuid: "I.1", rowKey: "burst", activationId: "act", kind: "burst", bearer: { uuid: "", name: "Bearer" }, cardId: "c" }), rolled: 11, vehicles: { "T~veh": { uuid: "T.veh", name: "Tok veh", state: "open" }, "T~veh2": { uuid: "T.veh2", name: "Tok veh2", state: "open" } } } } },
+    getFlag(scope, key) { return this.flags[scope][key]; },
+    async update(data) { this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]))); },
+  };
+  gameStub.messages = { get: (id) => (id === "MV" ? message : null) };
+  const hand = (vehicleUuid, requestUserId) => executeAsGM("acks-extras.itemRun.handOn", { messageId: "MV", vehicleUuid, requestUserId });
+  const rows = () => message.flags["acks-extras"].itemRunCard.vehicles;
+  const calls = [];
+  try {
+    assert.equal((await hand("T.veh", "owner")).reason, "noStructure", "nothing registered: refused");
+    run.registerStructureDamage(async (call) => { calls.push(call); return call.vehicleUuid === "T.veh2" ? { ok: false, reason: "hull" } : undefined; });
+    assert.equal((await hand("T.veh", "other")).reason, "notOwner", "ownership of the vehicle, never a role");
+    assert.equal((await hand("T.none", "owner")).reason, "gone", "a vehicle the card does not list");
+    assert.deepEqual(calls, []);
+    assert.deepEqual(await hand("T.veh", "owner"), { ok: true, state: "handed" });
+    assert.deepEqual(calls, [{ vehicleUuid: "T.veh", total: 11, userId: "owner" }], "the burst's own rolled total, and who handed it on");
+    assert.deepEqual([rows()["T~veh"].state, rows()["T~veh"].handedBy], ["handed", "owner"]);
+    assert.equal((await hand("T.veh", "owner")).reason, "applied", "handed once");
+    assert.equal((await run.handOn({ messageId: "MV", vehicleUuid: "T.veh" })).reason, "applied", "the Judge's seat is told the same");
+    assert.equal((await hand("T.veh2", "owner")).reason, "hull", "the writer's own refusal");
+    assert.equal(rows()["T~veh2"].state, "open", "a refused row stays open");
+    run.registerStructureDamage(null);
+    assert.equal((await hand("T.veh2", "owner")).reason, "noStructure", "clearing it unregisters");
+  } finally {
+    run.registerStructureDamage(null);
+    delete gameStub.messages;
+    delete subjects["T.veh"];
+    delete subjects["T.veh2"];
+    world.restore();
   }
 });
 

@@ -184,4 +184,39 @@ await t("Undo plans the ids still there and gives back the hit points a press to
   assert.deepEqual(logic.undoPlan({ hp: [{ uuid: "Actor.1", amount: "5" }] }, []).hp, [{ uuid: "Actor.1", amount: -5 }], "an amount stored as text");
 });
 
+await t("a fuse's spot is five whole keys, a lit fuse's record carries only the fuse flag, and a blank scene or position is no spot", () => {
+  assert.deepEqual(logic.fuseSpot({ sceneId: "s1", x: 10, y: "20" }), { sceneId: "s1", x: 10, y: 20, elevation: 0, level: "" }, "a stale level is overwritten by an explicit empty one");
+  assert.deepEqual(logic.fuseSpot({ sceneId: "s1", x: 1, y: 2, elevation: 4, level: "l9" }), { sceneId: "s1", x: 1, y: 2, elevation: 4, level: "l9" });
+  for (const bad of [{}, { sceneId: "", x: 1, y: 2 }, { sceneId: "s1", x: "x", y: 2 }, { sceneId: "s1", x: 1 }]) assert.equal(logic.fuseSpot(bad), null);
+  assert.equal(logic.fuseSpot(), null);
+  const flag = logic.fuseFlag({ source: "I.1", activationId: "act", spot, combatId: "c1", combatantId: "m1", count: 2 });
+  const data = logic.fuseRecordData({ name: "Gear", source: "I.1", flag });
+  assert.deepEqual(data, { name: "Gear", origin: "I.1", flags: { "acks-extras": { fuse: flag } } });
+  assert.equal(logic.FUSE_KEY, "fuse");
+  assert.deepEqual(logic.readFuse(data.flags["acks-extras"][logic.FUSE_KEY]).spot, spot, "the stepper reads what the light wrote");
+});
+
+await t("a proficiency's standing share is summed and itemized per ability, and a source that names none is named by its kind", () => {
+  const out = logic.proficiencyBonus([
+    { kind: "abilities", label: "", value: 3, parts: [{ label: "Skill A", value: 2, cite: "ZZ p. 1" }, { label: "Skill B", value: 1 }] },
+    { kind: "conditions", label: "Cond", value: -1 },
+    { kind: "score", label: "", value: 0 },
+  ]);
+  assert.equal(out.bonus, 2);
+  assert.deepEqual(out.parts, [{ label: "Skill A", value: 2, cite: "ZZ p. 1" }, { label: "Skill B", value: 1, cite: "" }, { label: "Cond", value: -1, cite: "" }]);
+  assert.deepEqual(logic.proficiencyBonus(undefined), { bonus: 0, parts: [] });
+});
+
+await t("an Apply is for a rolled entry, by an owner of the subject, or the Judge's own press", () => {
+  const ask = (entry, over) => logic.checkApplyRequest(entry, { subjectOwnerIds: ["u1"], ...over });
+  assert.deepEqual(ask({ state: "rolled" }, { requestUserId: "u1" }), { ok: true });
+  assert.deepEqual(ask({ state: "rolled" }, { judge: true }), { ok: true }, "a Judge's own press carries no seat");
+  assert.equal(ask({ state: "rolled" }, { requestUserId: "u2" }).reason, "notOwner", "a seat that does not own the subject");
+  assert.equal(ask({ state: "rolled" }, { requestUserId: "u2", judge: true }).reason, "notOwner", "a relayed seat is never read as the Judge");
+  assert.equal(ask({ state: "rolled" }, {}).reason, "notOwner");
+  for (const state of ["applied", "undone", "judge"]) assert.equal(ask({ state }, { requestUserId: "u1" }).reason, "applied", state);
+  assert.equal(ask({ state: "open" }, { requestUserId: "u1" }).reason, "noVerdict");
+  assert.equal(ask(null, { requestUserId: "u1" }).reason, "gone");
+});
+
 console.log(`\ntest-item-run-fuse: ${passed} checks passed.`);

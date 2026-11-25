@@ -573,8 +573,13 @@ const localImpl = Object.freeze({
    * item's use over; the carrier's claimant declines every spell, every ability
    * with no activation and every unflagged item. `registerRunner(kind, fn)` adds
    * an activation kind's runner, `setPresenter` posts a use's result, `setFuseBurst`
-   * runs a fuse's burst, `pressRoll` and `undoEntry` are a card row's press and
+   * runs a fuse's burst (`burstFuse` is lib's own), `pressRoll` and `undoEntry` are a card row's press and
    * Undo, `rowsOf` is an item's one row list, and `logic` is the pure half.
+   * `registerPressOutcome(cardKind, fn)` names what writes a card kind's outcome,
+   * and `registerStructureDamage(fn)` what writes a structure's damage when a
+   * burst is handed on (`handOn`); `applyEntry` and `applyAllEntries` apply a
+   * burst card's rows, and `moveFuseSpot` and `setFuseOffNow` are a lit fuse's
+   * owner's controls.
    * A card's presses are on the block too, each callable from any seat and run
    * on the GM's window, which checks the relayed seat's ownership again:
    * `undoCardEntry` takes one entry back, `tickBearer` and `untickBearer` count
@@ -587,6 +592,14 @@ const localImpl = Object.freeze({
     registerRunner: itemRun.registerActivationRunner,
     setPresenter: itemRun.setUsePresenter,
     setFuseBurst: itemRun.setFuseBurst,
+    registerPressOutcome: itemRun.registerPressOutcome,
+    registerStructureDamage: itemRun.registerStructureDamage,
+    burstFuse: itemRun.burstFuse,
+    moveFuseSpot: itemRun.moveFuseSpot,
+    setFuseOffNow: itemRun.setFuseOffNow,
+    applyEntry: itemRun.applyEntry,
+    applyAllEntries: itemRun.applyAllEntries,
+    handOn: itemRun.handOn,
     pressRoll: itemRun.pressRoll,
     undoEntry: itemRun.undoEntry,
     undoCardEntry: itemRun.undoCardEntry,

@@ -502,7 +502,8 @@ export function readFuse(raw) {
 /**
  * What one turn event does to a fuse on the combat clock: `{act, seen, record}`,
  * `act` being `none`, `count` (write `seen`) or `burst` (delete, then burst).
- * A bearer that is gone or down does not stop it: the fuse burns at its spot.
+ * A bearer that is down does not stop it: the fuse burns at its spot. A spot
+ * whose scene is gone bursts nothing, and the burst says so (`burstFuse`).
  * A fuse on the world clock is never touched by a turn.
  */
 export function fuseStep(raw, event) {
@@ -627,6 +628,60 @@ export function burstAmount({ rolled, saved, reduction, stages = [] }) {
 
 /** The fuse flag key, named once for the writer and the steppers. */
 export const FUSE_KEY = FLAG_FUSE;
+
+/**
+ * Where a fuse bursts, `{sceneId, x, y, elevation, level}` as `readFuse` carries it:
+ * every key written, so an update that replaces the spot never leaves an earlier
+ * `level` behind. Null where the scene is blank or a position is no number;
+ * `elevation` is 0 and `level` "" where none is given.
+ *
+ * @param {{sceneId: string, x: number, y: number, elevation?: number, level?: string}} p
+ * @returns {{sceneId: string, x: number, y: number, elevation: number, level: string}|null}
+ */
+export function fuseSpot({ sceneId, x, y, elevation = 0, level = "" } = {}) {
+  const px = numOrNull(x);
+  const py = numOrNull(y);
+  if (!sceneId || px === null || py === null) return null;
+  return { sceneId: String(sceneId), x: px, y: py, elevation: numOrNull(elevation) ?? 0, level: level ? String(level) : "" };
+}
+
+/** The Active Effect data of a lit fuse on its bearer: named for the item, owned by it, carrying the fuse flag (`FUSE_KEY`) and nothing else the runner reads. */
+export const fuseRecordData = ({ name, source, flag }) => ({ name, origin: source, flags: { [MODULE_ID]: { [FUSE_KEY]: flag } } });
+
+/**
+ * The bearer's standing share of a proficiency throw, from the modifier sources
+ * `abilities/ability-rolls.mjs` `targetModifiers` lists (`[{kind, label, value,
+ * parts?}]`): `{bonus, parts}`, `bonus` the sum, `parts` one `{label, value, cite}`
+ * per contributing ability, or per source where it names none. A bonus lowers the
+ * target an "above" throw is read against; it is never added to the die.
+ *
+ * @param {Array<{kind?: string, label?: string, value: number, parts?: Array<{label: string, value: number, cite?: string}>}>} sources
+ * @returns {{bonus: number, parts: Array<{label: string, value: number, cite: string}>}}
+ */
+export function proficiencyBonus(sources) {
+  const kept = (Array.isArray(sources) ? sources : []).filter((s) => numOrNull(s?.value));
+  const parts = kept.flatMap((s) => (s.parts?.length ? s.parts.map((p) => ({ label: String(p.label ?? ""), value: numOrNull(p.value) ?? 0, cite: String(p.cite ?? "") })) : [{ label: String(s.label ?? ""), value: numOrNull(s.value) ?? 0, cite: "" }]));
+  return { bonus: kept.reduce((sum, s) => sum + numOrNull(s.value), 0), parts: parts.filter((p) => p.value) };
+}
+
+/**
+ * Whether a seat may apply a burst card's entry, and why not: the entry must
+ * hold a verdict and no write yet (`rolled`), and the seat must be one of the
+ * owners of the subject (`subjectOwnerIds`, Foundry's own test; a GM owns
+ * everything), `requestUserId` being the relayed sender. A Judge's own press
+ * carries none and is read as the Judge's.
+ *
+ * @param {{state?: string}|null} entry
+ * @param {{requestUserId?: string|null, subjectOwnerIds?: string[], judge?: boolean}} p
+ * @returns {{ok: true}|{ok: false, reason: "gone"|"applied"|"noVerdict"|"notOwner"}}
+ */
+export function checkApplyRequest(entry, { requestUserId = null, subjectOwnerIds = [], judge = false } = {}) {
+  if (!entry) return { ok: false, reason: "gone" };
+  if (entry.state === "applied" || entry.state === "undone" || entry.state === "judge") return { ok: false, reason: "applied" };
+  if (entry.state !== "rolled") return { ok: false, reason: "noVerdict" };
+  if (requestUserId ? !subjectOwnerIds.includes(requestUserId) : !judge) return { ok: false, reason: "notOwner" };
+  return { ok: true };
+}
 
 /**
  * The update that counts a row's bearer in as a subject of its own reach

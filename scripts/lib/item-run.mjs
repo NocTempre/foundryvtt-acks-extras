@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry, fromUuidSync, ui */
+/* global game, Hooks, foundry, fromUuidSync, ui, Roll */
 /**
  * The item runner's Foundry half: the carrier that takes the use of an item
  * whose `itemRun.activation` is set (`patches/item-use.mjs` is its one door),
@@ -9,8 +9,15 @@
  * - `once` takes a snapshot of who the row's reach meets (`reachSnapshot`) and
  *   returns the prompt card's model; `toggle` raises or lowers the attached
  *   reach (`aura-reach.mjs`). Both hand their result to the registered presenter
- *   (`setUsePresenter`), which posts the card; nothing here posts one. `fuse`
- *   and `consume` are kinds a later runner registers (`registerActivationRunner`).
+ *   (`setUsePresenter`), which posts the card; nothing here posts one. `consume`
+ *   is a kind a later runner registers (`registerActivationRunner`).
+ * - `fuse` rolls the bearer's proficiency throw (`runFuse`) and, on a lit result,
+ *   writes the fuse record; the burst (`burstFuse`) rolls the blast once over the
+ *   spot's area and answers the "burst" card. A burst card's Save is the common
+ *   press; its damage is written by an explicit Apply (`registerPressOutcome`),
+ *   which an Undo gives back. Structures the blast reaches are handed on
+ *   (`registerStructureDamage`, `handOn`), and a fuse's spot and fuse are the
+ *   owner's to move or set off (`moveFuseSpot`, `setFuseOffNow`).
  * - A save is rolled on the presser's seat and relayed (`pressRoll`); the GM
  *   checks the figure against the item's own row, resolved live, before writing
  *   (`checkPressRequest`), and an Undo removes the row's own record ids.
@@ -23,14 +30,19 @@
  *   fight that ends moves it to the world clock.
  */
 import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
-import { carriesItem, figureNumber, isEngagedActivation, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { carriesItem, figureNumber, isEngagedActivation, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits, resolveFigure } from "./aura-reach-logic.mjs";
 import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseReach, reachSnapshot, releaseReachMoment, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import {
-  actionPartRecordData, activationRecordIds, alwaysOn, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
-  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
+  actionPartRecordData, activationRecordIds, alwaysOn, blastOf, burstAmount, checkApplyRequest, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseFlag, fuseLight, fuseRecordData, fuseSpot, fuseStep, fuseToWorld, fuseWorldFlag,
+  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, proficiencyBonus, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoGuard, undoPlan,
 } from "./item-run-logic.mjs";
+import { adjustHp, resolveTargets } from "./hp.mjs";
+import { HP_MODE, HP_REASON, hpEligibility } from "./hp-logic.mjs";
+import { actorDefenses, defenseFigures, defenseStage } from "./defenses.mjs";
+import { tokenCentre } from "./token-centre.mjs";
+import { quantityOf } from "./storage-logic.mjs";
 import { admittedWithCount, freshKey, patchCountIn, patchEngagedClose, patchEngagedReopen, patchOut, ownsEveryBearer, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
@@ -39,7 +51,8 @@ import { recordImmunity } from "./roll-mods.mjs";
 import { saveSpec, saveThrow } from "./saves.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { roundSeconds, turnSeconds } from "./time-unit.mjs";
-import { isPrimaryGM, makeLoc, unset } from "./util.mjs";
+import { isPrimaryGM, makeLoc, plainRoll, unset } from "./util.mjs";
+import { ITEM_TYPE } from "./vocab.mjs";
 import { onWorldTimeAdvanced } from "./world-time.mjs";
 import { isMarkerActor } from "./place.mjs";
 
@@ -49,7 +62,10 @@ const loc = makeLoc(LANG_PREFIX);
 const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
-const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, tickSubject: `${MODULE_ID}.itemRun.tickSubject`, undo: `${MODULE_ID}.itemRun.undo`, notEngaged: `${MODULE_ID}.itemRun.notEngaged` });
+const HANDLER = Object.freeze({
+  use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, tickSubject: `${MODULE_ID}.itemRun.tickSubject`, undo: `${MODULE_ID}.itemRun.undo`, notEngaged: `${MODULE_ID}.itemRun.notEngaged`,
+  apply: `${MODULE_ID}.itemRun.apply`, applyAll: `${MODULE_ID}.itemRun.applyAll`, moveSpot: `${MODULE_ID}.itemRun.moveSpot`, setOff: `${MODULE_ID}.itemRun.setOff`, handOn: `${MODULE_ID}.itemRun.handOn`,
+});
 
 /** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
 const runners = new Map();
@@ -91,9 +107,49 @@ export function onActivationLifted(fn) {
   if (typeof fn === "function") liftListeners.push(fn);
 }
 
-/** Register the burst of a fuse: `fn({actor, record})` runs after the fuse's record is deleted; a non-function clears it, and an unset burst leaves every fuse unstepped. */
+/** Register the burst of a fuse: `fn({actor, record})` runs after the fuse's record is deleted; a non-function clears it, and an unset burst leaves every fuse unstepped. `installItemRun` registers `burstFuse`. */
 export function setFuseBurst(fn) {
   burster = typeof fn === "function" ? fn : null;
+}
+
+/** What writes a card kind's outcome, by `card.kind`; a kind with none is written the common way (conditions and the immunity window). */
+const outcomes = new Map();
+
+/**
+ * Register what writes a card kind's outcome, keyed on the stored card's `kind`
+ * (`installItemRun` registers `burst`). The common press (`pressHere`) keeps its
+ * lock, its verdict, its relay and its entry, and asks `fn` what to write:
+ * `fn({phase, card, entry, key, saved, subjectToken, actor, userId})` answers
+ * `{records, names, life, hp?, state?, judge?, why?}`, awaited.
+ *
+ * - `phase` "verdict" is the Save press, whose answer's `state` becomes the
+ *   entry's (default "applied"): a kind that writes at an explicit Apply answers
+ *   `state: "rolled"` and writes nothing here.
+ * - `phase` "apply" is the Apply press (`applyEntry`), over an entry in state
+ *   "rolled": the answer's `records` are created on the subject's actor,
+ *   `hp: [{uuid, amount}]` is what the press took (stored on the entry, which
+ *   an Undo gives back), and `judge: true` leaves nothing written and the
+ *   entry in state "judge", `why` naming the reason.
+ *
+ * A kind with an outcome also holds its own save and facts on the card: the
+ * press reads them there and not off the item, which may be gone. A
+ * non-function clears the kind.
+ */
+export function registerPressOutcome(cardKind, fn) {
+  if (typeof fn === "function") outcomes.set(cardKind, fn);
+  else outcomes.delete(cardKind);
+}
+
+let structureDamage = null;
+
+/**
+ * Register what writes a structure's damage: `fn({vehicleUuid, total, userId})`,
+ * awaited, where `total` is the burst's rolled figure and `userId` the seat that
+ * handed it on. One function, filled by vehicles; a non-function clears it, and
+ * with none registered `handOn` is refused (`noStructure`).
+ */
+export function registerStructureDamage(fn) {
+  structureDamage = typeof fn === "function" ? fn : null;
 }
 
 /* -------------------------------------------- */
@@ -242,7 +298,7 @@ export async function runUse({ itemUuid, tokenUuid = "", requestUserId = null })
   const token = chosen.token;
   const result = await runner({ item, run, actor, token, judge: !requestUserId });
   if (!result.ok) return refuse(result.reason ?? "refused");
-  await presenter?.(result);
+  if (!result.presented) await presenter?.(result);
   return result;
 }
 
@@ -320,7 +376,9 @@ export const ownerIdsOf = (doc) => (game.users ?? []).filter((u) => doc?.testUse
  * passed one (the immunity window) calls for, and the entry onto the card. The
  * immunity window carries the card's own id (`cardId`, else a fresh one), never
  * the activation's, so lowering the item takes its conditions and leaves the
- * window. Answers `{ok, saved, entry}`.
+ * window. A card whose kind has a registered outcome (`registerPressOutcome`)
+ * reads its save off the card, the item and row being gone with a consumed
+ * item, and asks that writer what the entry holds. Answers `{ok, saved, entry}`.
  */
 async function pressHere(payload) {
   const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
@@ -329,6 +387,8 @@ async function pressHere(payload) {
   // An engaged card names no item, row or activation of its own: the entry it holds names them, and the press must match the entry's item.
   const engagedEntry = named?.kind === "engaged" ? (named.entries?.[asked] ?? null) : null;
   const card = named?.itemUuid === itemUuid || (engagedEntry?.itemUuid && engagedEntry.itemUuid === itemUuid) ? named : null;
+  // A card kind with a registered outcome holds its own save and facts, so its press stands where the item, which a burst consumes, is gone.
+  const outcome = outcomes.get(card?.kind) ?? null;
   const rowKey = engagedEntry?.rowKey ?? card?.rowKey ?? payload.rowKey;
   const activationId = engagedEntry?.activationId ?? card?.activationId ?? payload.activationId;
   const subKey = safeKey(subjectUuid);
@@ -337,11 +397,11 @@ async function pressHere(payload) {
   if (writing.has(claim)) return { ok: false, reason: "applied" };
   writing.add(claim);
   try {
-    const item = fromUuidSync(itemUuid);
-    const row = itemRunRowsOf(item).find((r) => r?.key === rowKey) ?? null;
+    const item = fromUuidSync(itemUuid) ?? (outcome ? { uuid: itemUuid, name: card.title ?? "" } : null);
+    const row = itemRunRowsOf(item).find((r) => r?.key === rowKey) ?? (outcome ? { key: rowKey } : null);
     const subjectToken = subjectOf(subjectUuid);
     const actor = subjectToken?.actor ?? null;
-    const spec = actor && row ? saveSpecOf(actor, row) : null;
+    const spec = actor && row ? (outcome ? (card.saveName ? saveSpec(actor, card.saveName) : null) : saveSpecOf(actor, row)) : null;
     const key = asked || (waiting ? freshKey(card.entries, safeKey(momentKey({ ...fightNow(), subjectUuid, kindKey: kindKeyOf(item, row) }) ?? subKey)) : subKey);
     const figures = row ? reachFigures(row) : null;
     const timed = figures?.lastsNamed === true;
@@ -349,7 +409,7 @@ async function pressHere(payload) {
       { requestUserId, total, target },
       {
         item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting, judge: judgeDeclares(requestUserId),
-        struck: card?.kind !== "once" && !!asked && !!card?.entries && !card.entries[asked],
+        struck: card?.kind !== "once" && !outcome && !!asked && !!card?.entries && !card.entries[asked],
         blankLasts: timed && figures.lasts === null,
       },
     );
@@ -360,7 +420,16 @@ async function pressHere(payload) {
     const names = [];
     let life = "raised";
     let immune = null;
-    if (timed) {
+    let state = "applied";
+    let hp = null;
+    if (outcome) {
+      const done = await outcome({ phase: "verdict", card, entry: card.entries?.[key] ?? null, key, saved: verdict.saved, subjectToken, actor, userId: requestUserId });
+      records.push(...(done?.records ?? []));
+      names.push(...(done?.names ?? []));
+      life = done?.life ?? life;
+      state = done?.state ?? "applied";
+      hp = done?.hp ?? null;
+    } else if (timed) {
       // A row with `reach.lasts` writes under fixed ids (one condition and one window per item kind, a later entry replacing the earlier one) and both records carry the card's id and never the activation's, so lowering the reach leaves them.
       const kindKey = kindKeyOf(item, row);
       const cardId = card?.cardId || foundry.utils.randomID();
@@ -397,7 +466,7 @@ async function pressHere(payload) {
     }
     const made = !records.length ? [] : timed ? await actor.createEmbeddedDocuments("ActiveEffect", records, { keepId: true }) : await actor.createEmbeddedDocuments("ActiveEffect", records);
     const prior = card?.entries?.[key] ?? {};
-    const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
+    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(hp ? { hp } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
     if (message && card) {
       const patch = { [`entries.${key}`]: entry };
@@ -443,9 +512,10 @@ export async function pressRoll(p) {
   const item = fromUuidSync(p.itemUuid);
   const row = itemRunRowsOf(item).find((r) => r?.key === p.rowKey);
   const actor = subjectOf(p.subject)?.actor;
-  const name = saveNameOf(row);
+  const stored = outcomes.has(cardOf(p.messageId).card?.kind) ? cardOf(p.messageId).card : null;
+  const name = stored ? String(stored.saveName ?? "") : saveNameOf(row);
   if (!actor || !name) return { ok: false, reason: "noFigure" };
-  const figures = reachFigures(row);
+  const figures = stored ? null : reachFigures(row);
   if (figures?.lastsNamed === true && figures.lasts === null && !judgeDeclares()) return { ok: false, reason: "noFigure" };
   const thrown = await saveThrow(actor, name);
   if (thrown.target === null) return { ok: false, reason: "noFigure" };
@@ -463,17 +533,39 @@ export async function pressRoll(p) {
  * A record kept under a fixed id (`reach.lasts`) is deleted only while the
  * `entryKey` it carries is this entry's: a later entry may have replaced it.
  *
- * @param {{subject: string, entry: {recordIds?: string[]}, entryKey?: string}} p
- * @returns {Promise<{ok: boolean, removed: string[]}>}
+ * An entry that took hit points (`hp: [{uuid, amount}]`, `amount` what the press
+ * took from the body `uuid` names) has them given back through `adjustHp`, each
+ * as a heal (a heal an entry made is taken back as damage). `restored` is then
+ * `[{uuid, amount, ok}]`, `amount` `undoPlan`'s own (damage written back is
+ * negative: -11 heals 11), and `ok` false for
+ * a body that is gone or whose write did not land; `ok` is false for the whole
+ * if any did not. It is absent from an entry that took none.
+ *
+ * @param {{subject: string, entry: {recordIds?: string[], hp?: Array<{uuid: string, amount: number}>}, entryKey?: string}} p
+ * @returns {Promise<{ok: boolean, removed: string[], restored?: Array<{uuid: string, amount: number, ok: boolean}>}>}
  */
 export async function undoEntry({ subject, entry, entryKey }) {
   const actor = subjectOf(subject)?.actor;
-  if (!actor) return { ok: false, removed: [] };
-  const present = new Map([...actor.effects].map((e) => [e.id, e]));
-  const planned = undoPlan(entry, [...present.keys()]).ids;
-  const ids = entryKey === undefined ? planned : undoGuard(planned, (id) => present.get(id), entryKey);
+  const present = new Map([...(actor?.effects ?? [])].map((e) => [e.id, e]));
+  const plan = undoPlan(entry, [...present.keys()]);
+  if (!actor && !plan.hp.length) return { ok: false, removed: [] };
+  const ids = !actor ? [] : entryKey === undefined ? plan.ids : undoGuard(plan.ids, (id) => present.get(id), entryKey);
   if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
-  return { ok: true, removed: ids };
+  if (!plan.hp.length) return { ok: true, removed: ids };
+  const restored = await giveBackHp(plan.hp);
+  return { ok: restored.every((r) => r.ok), removed: ids, restored };
+}
+
+/** Give back the hit points an `undoPlan` lists, one body at a time; `[{uuid, amount, ok}]`. */
+async function giveBackHp(plan) {
+  const restored = [];
+  for (const { uuid, amount } of plan) {
+    const actor = fromUuidSync(uuid);
+    const target = actor ? resolveTargets({ actors: [actor] })[0] : null;
+    const [written] = target ? await adjustHp([{ target, amount: Math.abs(amount) }], { mode: amount < 0 ? HP_MODE.heal : HP_MODE.damage }) : [];
+    restored.push({ uuid, amount, ok: written?.ok === true });
+  }
+  return restored;
 }
 
 /**
@@ -493,10 +585,100 @@ async function undoHere({ messageId, entryKey, requestUserId = null }) {
   if (entry.state === "closed") return reopenEngaged({ message, card, entryKey, entry });
   if (entry.state !== "applied") return { ok: false, reason: "applied" };
   const done = await undoEntry({ subject: entry.subject, entry, entryKey });
-  if (!done.ok) return { ok: false, reason: "gone" };
-  await serialized(messageId, () => patchCard(message, { [`entries.${entryKey}.state`]: "undone", [`entries.${entryKey}.recordIds`]: [] }));
+  if (!done.ok) return { ok: false, reason: done.restored ? "failed" : "gone" };
+  await serialized(messageId, () => patchCard(message, { [`entries.${entryKey}.state`]: "undone", [`entries.${entryKey}.recordIds`]: [], ...(entry.hp?.length ? { [`entries.${entryKey}.hp`]: [] } : {}) }));
   await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "undone" }, undone: true, early: false });
   return { ok: true, removed: done.removed };
+}
+
+/**
+ * The GM's side of an Apply, over one entry of a card whose kind has a registered
+ * outcome: the entry must hold a verdict and nothing written (`rolled`), and the
+ * seat must own the subject by Foundry's test on the relayed sender
+ * (`checkApplyRequest`). The entry is re-read under the same lock a Save press
+ * takes, the writer is asked (`phase` "apply"), and the entry becomes `applied`
+ * (`hp`, `amount` and the records it made stored, so an Undo gives them back) or
+ * `judge` (nothing written, `why` the reason, which a Judge settles by hand). A
+ * subject that is gone is `judge` with `why: "gone"`.
+ * Answers `{ok: true, state, entry}`, or `{ok: false, reason}` with `gone`,
+ * `applied` (already written, or a second press in flight), `noVerdict` or `notOwner`.
+ */
+async function applyHere({ messageId, entryKey, requestUserId = null }) {
+  const { message, card } = cardOf(messageId);
+  const outcome = outcomes.get(card?.kind);
+  const entry = card?.entries?.[entryKey];
+  if (!message || !outcome || !entry) return { ok: false, reason: "gone" };
+  const subjectToken = subjectOf(entry.subject);
+  const check = checkApplyRequest(entry, { requestUserId, subjectOwnerIds: ownerIdsOf(subjectToken), judge: judgeDeclares(requestUserId) });
+  if (!check.ok) return check;
+  const claim = `${messageId}|${entryKey}`;
+  if (writing.has(claim)) return { ok: false, reason: "applied" };
+  writing.add(claim);
+  try {
+    const fresh = cardOf(messageId).card?.entries?.[entryKey];
+    if (fresh?.state !== "rolled") return { ok: false, reason: "applied" };
+    const actor = subjectToken?.actor ?? null;
+    const done = actor ? await outcome({ phase: "apply", card, entry: fresh, key: entryKey, saved: fresh.saved === true, subjectToken, actor, userId: requestUserId }) : { judge: true, why: "gone" };
+    const made = !done?.judge && done?.records?.length ? await actor.createEmbeddedDocuments("ActiveEffect", done.records) : [];
+    const patch = done?.judge
+      ? { state: "judge", why: String(done.why ?? "") }
+      : { state: "applied", recordIds: made.map((e) => e.id), names: done?.names ?? [], life: done?.life ?? fresh.life, ...(done?.hp ? { hp: done.hp } : {}), ...(Number.isFinite(done?.amount) ? { amount: done.amount } : {}), appliedBy: requestUserId ?? game.user?.id ?? "" };
+    await serialized(messageId, () => patchCard(message, Object.fromEntries(Object.entries(patch).map(([k, v]) => [`entries.${entryKey}.${k}`, v]))));
+    const next = { ...fresh, ...patch };
+    await pressListener?.({ message, key: entryKey, entry: next, early: false, applied: true, subjectToken });
+    return { ok: true, state: next.state, entry: next };
+  } finally {
+    writing.delete(claim);
+  }
+}
+
+/**
+ * The GM's side of Apply all: every entry of the card in state `rolled` goes
+ * through `applyHere` as the relayed seat, one at a time, so an entry the seat
+ * does not own is refused with its own reason and the rest still land. Answers
+ * `{ok: true, applied: string[], refused: Array<{key: string, reason: string}>}`,
+ * or `{ok: false, reason: "gone"}` for a card that is not there.
+ */
+async function applyAllHere({ messageId, requestUserId = null }) {
+  const { card } = cardOf(messageId);
+  if (!card || !outcomes.has(card.kind)) return { ok: false, reason: "gone" };
+  const applied = [];
+  const refused = [];
+  for (const [key, entry] of Object.entries(card.entries ?? {})) {
+    if (entry?.state !== "rolled") continue;
+    const done = await applyHere({ messageId, entryKey: key, requestUserId });
+    if (done.ok) applied.push(key);
+    else refused.push({ key, reason: done.reason });
+  }
+  return { ok: true, applied, refused };
+}
+
+/**
+ * Apply one entry of a burst card (its damage, as the card's writer computes it),
+ * from any seat: the GM's window runs it, a Player's seat relays it and the GM
+ * checks that seat owns the subject (Foundry's own test, never a role). The
+ * request carries the ids and nothing the seat could claim.
+ *
+ * @param {{messageId: string, entryKey: string}} p
+ * @returns {Promise<{ok: boolean, state?: string, entry?: object, reason?: string}>}
+ */
+export async function applyEntry(p) {
+  const payload = { messageId: p.messageId, entryKey: p.entryKey };
+  if (game.user.isGM) return applyHere(payload);
+  return (await executeAsGM(HANDLER.apply, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/**
+ * Apply every entry of a burst card that holds a verdict and that the seat owns
+ * the subject of, from any seat (see `applyEntry`).
+ *
+ * @param {{messageId: string}} p
+ * @returns {Promise<{ok: boolean, applied?: string[], refused?: Array<{key: string, reason: string}>, reason?: string}>}
+ */
+export async function applyAllEntries(p) {
+  const payload = { messageId: p.messageId };
+  if (game.user.isGM) return applyAllHere(payload);
+  return (await executeAsGM(HANDLER.applyAll, payload)) ?? { ok: false, reason: "relay" };
 }
 
 /**
@@ -997,8 +1179,8 @@ function* fuseEffects(actors) {
  * Apply a turn event to every fuse on the actors of `combat`: a turn that is
  * counted writes `seen`, one that is due deletes the record FIRST (a client
  * whose delete fails burst nothing) and then runs the registered burst. A
- * bearer that is gone or down does not stop a fuse. With no burst registered
- * nothing is stepped.
+ * bearer that is down does not stop a fuse; a spot whose scene is gone bursts
+ * nothing (`burstFuse` says so). With no burst registered nothing is stepped.
  */
 export async function liftFuses(combat, combatantId, kind, deps = { burst: burster }) {
   if (!deps.burst) return [];
@@ -1066,6 +1248,349 @@ export async function liftWorldFuses(actors, worldTime, deps = { burst: burster 
 }
 
 /* -------------------------------------------- */
+/*  Lighting a fuse                              */
+/* -------------------------------------------- */
+
+/**
+ * The bearer's proficiency as the light reads it: `{proficient, bonus, parts}`.
+ * The default folds the activation's proficiency word to the ability the bearer
+ * holds (`monsters/organisation.mjs` `matchProficiency`) and reads that ability's
+ * standing throw modifiers (`abilities/ability-rolls.mjs` `targetModifiers`),
+ * both loaded on first use so lib carries no import of either feature. A bearer
+ * without the proficiency is `{proficient: false, bonus: 0, parts: []}`.
+ */
+async function readProficiency(actor, word) {
+  const held = word ? (await import("../monsters/organisation.mjs")).matchProficiency(String(word), [...(actor?.items ?? [])].filter((i) => i.type === ITEM_TYPE.ability)) : null;
+  if (!held) return { proficient: false, bonus: 0, parts: [] };
+  const { targetModifiers } = await import("../abilities/ability-rolls.mjs");
+  return { proficient: true, ...proficiencyBonus(targetModifiers({ rollType: "above" }, actor, held)) };
+}
+
+let proficiencyReader = readProficiency;
+
+/** Replace what reads the bearer's proficiency (`fn(actor, word)`, awaited, answering `{proficient, bonus, parts}`); a non-function restores the default. */
+export function setProficiencyReader(fn) {
+  proficiencyReader = typeof fn === "function" ? fn : readProficiency;
+}
+
+/** The spot at a token's centre: `{sceneId, x, y, elevation, level}`, or null for a token on no scene. */
+function spotAt(token) {
+  const centre = tokenCentre(token, token?.parent);
+  return fuseSpot({ sceneId: token?.parent?.id, x: centre.x, y: centre.y, elevation: token?.elevation ?? 0, level: token?.level ?? "" });
+}
+
+/**
+ * `fuse`: the bearer's proficiency throw lights the item's fuse. A d20 is rolled
+ * and shown, the throw's target is the item's `throw` figure less the
+ * proficiency's standing modifiers (`proficiencyBonus`), and `fuseLight` reads the
+ * unmodified die against the item's `fumble` figure. A blank `fumble` or `fuseDice`
+ * is the Judge's: nothing is rolled for a blank `fumble`, and nothing is written.
+ *
+ * Answers `{ok: true, kind: "fuse", outcome, light, activationId, itemUuid,
+ * tokenUuid, roll, fuse, blank, [recordId], [burst], [presented]}`:
+ * - `outcome` is "unlit" (nothing written), "fumble" (it burst at once at the
+ *   bearer's token centre, no fuse record; `burst` is the burst result and
+ *   `presented` is true, the presenter having been given this result and then the
+ *   burst's), "lit" (the fuse record is written, `recordId` its effect's id) or
+ *   null (the Judge decides: nothing written, `blank` names the figures that were
+ *   blank, a subset of "throw", "fumble", "fuseDice" and "round");
+ * - `light` is `fuseLight`'s answer, which `outcome` equals unless a lit fuse
+ *   could not be written (`outcome` null);
+ * - `roll` is `{natural, total, formula, target, base, modifiers, proficient,
+ *   proficiency}`: the die, the target it was read against (null when blank),
+ *   `base` the item's own figure, `modifiers` `[{label, value, cite}]` and
+ *   `proficiency` the word read; null where nothing was rolled;
+ * - `fuse` is `{count, combat, dueAt?, spot}` for a lit fuse (`combat` true on the
+ *   bearer's combat clock, else `dueAt` the world-clock moment it is due), else null.
+ */
+async function runFuse({ item, run, actor, token }) {
+  const a = run.activation;
+  const result = { ok: true, kind: "fuse", outcome: null, light: null, activationId: foundry.utils.randomID(), itemUuid: item.uuid, tokenUuid: token.uuid, roll: null, fuse: null, blank: [] };
+  const target = figureNumber(a.throw);
+  const fumble = figureNumber(a.fumble);
+  result.blank = [...(target === null ? ["throw"] : []), ...(fumble === null ? ["fumble"] : [])];
+  if (fumble === null) return result;
+  const word = resolveFigure(a.proficiency);
+  const prof = await proficiencyReader(actor, word);
+  const die = await plainRoll(actor, "1d20", {}, item.name);
+  const natural = Number(die.total);
+  const effective = target === null ? null : target - (prof?.bonus ?? 0);
+  result.light = fuseLight({ natural, total: natural, target: effective, fumble, proficient: prof?.proficient === true });
+  result.roll = { natural, total: natural, formula: "1d20", target: effective, base: target, modifiers: prof?.parts ?? [], proficient: prof?.proficient === true, proficiency: word === null ? "" : String(word) };
+  result.outcome = result.light;
+  const spot = spotAt(token);
+  if (result.light === "fumble") {
+    if (!spot) return { ...result, outcome: null, blank: [...result.blank, "spot"] };
+    await presenter?.(result);
+    const burst = await burstFuse({ actor, record: { source: item.uuid, activationId: result.activationId, spot } });
+    return { ...result, burst, presented: true };
+  }
+  if (result.light !== "lit") return result;
+  const dice = resolveFigure(a.fuseDice);
+  if (dice === null || !Roll.validate(String(dice))) return { ...result, outcome: null, blank: [...result.blank, "fuseDice"] };
+  const count = Math.floor(Number((await plainRoll(actor, String(dice), {}, item.name)).total));
+  if (!(count >= 1) || !spot) return { ...result, outcome: null, blank: [...result.blank, count >= 1 ? "spot" : "fuseDice"] };
+  const combat = game.combat?.started ? game.combat : null;
+  const combatant = combat?.combatants?.find?.((c) => c.tokenId === token.id) ?? null;
+  const source = item.uuid;
+  const activationId = result.activationId;
+  const flag = combatant ? fuseFlag({ source, activationId, spot, combatId: combat.id, combatantId: combatant.id, count }) : fuseWorldFlag({ source, activationId, spot, rounds: count, now: game.time?.worldTime, roundSeconds: roundSeconds() });
+  if (!flag) return { ...result, outcome: null, blank: [...result.blank, "round"] };
+  const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [fuseRecordData({ name: item.name, source, flag })]);
+  return { ...result, recordId: made?.id ?? "", fuse: { count, combat: !!combatant, ...(combatant ? {} : { dueAt: flag.dueAt }), spot } };
+}
+
+/* -------------------------------------------- */
+/*  The burst                                    */
+/* -------------------------------------------- */
+
+/** One off a stack, or the item deleted at the last. */
+async function consumeOne(item) {
+  const held = quantityOf(item);
+  if (held && held.value > 1) await item.update({ [held.path]: held.value - 1 });
+  else await item.delete();
+}
+
+/** The row a burst reads its save and fraction from: the first with a `burst` reach, else the one keyed `burst`. */
+const burstRow = (item) => itemRunRowsOf(item).find((r) => readReach(r?.reach)?.pulse === "burst") ?? itemRunRowsOf(item).find((r) => r?.key === "burst") ?? null;
+
+/**
+ * A fuse's burst, after its record is gone (`liftFuses` and `liftWorldFuses` run
+ * it, so does a fumble and `setFuseOffNow`): `{actor, record}`, `record` read by
+ * `readFuse` (`source`, `activationId`, `spot`). It reads the activation's
+ * `sizes`, `blast` and `variant` now (`blastOf`), takes a snapshot of the tokens
+ * the blast's circle holds at the spot (`reachSnapshot`, the bearer's own token
+ * among them), rolls the blast's dice ONCE (a shown Foundry Roll), consumes one of
+ * the item, and hands the result to the presenter, which posts the card. The
+ * burst's save is the burst row's, resolved here and stored on the card with the
+ * figures an Apply needs, since the item may be gone by then.
+ *
+ * Answers one of:
+ * - `{ok: true, kind: "burst", blank: false, activationId, itemUuid, itemName,
+ *   actorName, actorUuid, rowKey, rolled, dice, types, radius, spot, formula,
+ *   saveName, reduction, subjects, vehicles, card}`: `subjects` is `[{key, name}]`
+ *   (the tokens in the area whose bodies take hit points, `key` the token uuid),
+ *   `vehicles` `[{uuid, name}]` (vehicle tokens, which are handed on, never
+ *   rolled for), `card` the prompt card's model (`promptCardModel`, Roll per
+ *   subject) with `kind: "burst"` and the same `rolled`, `dice`, `types`,
+ *   `radius`, `spot`, `reduction` (the share a passed save takes off, or null)
+ *   and `saveName` ("" where the row names none, which leaves the save to the
+ *   Judge) that the stored card holds;
+ * - `{ok: true, kind: "burst", blank: true, why, ...}` where the Judge decides:
+ *   nothing is rolled or consumed. `why` is "gone" (the item or its activation
+ *   is no more), "figure" (the variant's size or blast row is blank) or "dice";
+ * - `{ok: false, kind: "burst", reason, activationId, itemUuid, itemName,
+ *   actorName, actorUuid}` with `reason` "noScene" (the spot's scene is gone, so
+ *   nothing bursts and the Judge is told which fuse) or "snapshot".
+ */
+export async function burstFuse({ actor, record }) {
+  const item = record?.source ? fromUuidSync(record.source) : null;
+  const base = { kind: "burst", activationId: record?.activationId ?? "", itemUuid: record?.source ?? "", itemName: item?.name ?? "", actorName: actor?.name ?? "", actorUuid: actor?.uuid ?? "" };
+  const answer = async (result) => {
+    await presenter?.(result);
+    return result;
+  };
+  const scene = game.scenes?.get?.(record?.spot?.sceneId) ?? null;
+  if (!scene) return answer({ ok: false, ...base, reason: "noScene" });
+  const activation = itemRunOf(item)?.activation ?? null;
+  const row = item ? burstRow(item) : null;
+  const blast = activation ? blastOf({ sizes: resolveFigure(activation.sizes), blast: resolveFigure(activation.blast), variant: activation.variant }) : null;
+  const blank = (why) => answer({ ok: true, ...base, blank: true, why, subjects: [], vehicles: [], card: null });
+  if (!activation) return blank("gone");
+  if (!blast) return blank("figure");
+  if (!Roll.validate(blast.dice)) return blank("dice");
+  const snap = reachSnapshot(scene, { point: record.spot }, blast.radius);
+  if (!snap.ok) return answer({ ok: false, ...base, reason: snap.reason });
+  const rolled = Number((await plainRoll(actor, blast.dice, {}, item.name)).total);
+  const subjects = [];
+  const vehicles = [];
+  for (const token of snap.tokens) {
+    if (!token.actor) continue;
+    if (hpEligibility(token.actor) === HP_REASON.vehicle) vehicles.push({ uuid: token.uuid, name: token.name });
+    else subjects.push({ key: token.uuid, name: token.name });
+  }
+  const figures = row ? reachFigures(row) : null;
+  const saveName = figures?.save ?? "";
+  const reduction = figures?.fraction ?? null;
+  const rowKey = row?.key ?? "burst";
+  const words = Object.fromEntries(["roll", "undo", "undetermined", "tick", "saved", "failed"].map((key) => [key, loc(`itemRun.card.${key}`)]));
+  const facts = { rolled, dice: blast.dice, types: blast.types, radius: blast.radius, spot: record.spot, reduction, saveName };
+  const card = { ...promptCardModel({ title: item.name, subtitle: actor?.name ?? "", words, subjects, ids: cardIds(item, { key: rowKey }, base.activationId), isGM: true }), kind: "burst", ...facts };
+  const result = { ok: true, ...base, blank: false, rowKey, ...facts, formula: blast.dice, subjects, vehicles, card };
+  try {
+    await consumeOne(item);
+  } catch (err) {
+    console.error(`${MODULE_ID} | the burst's item could not be consumed`, err);
+  }
+  return answer(result);
+}
+
+/**
+ * The burst card's writer (`registerPressOutcome("burst", …)`). The Save press
+ * (`phase` "verdict") writes nothing: the entry is `rolled` and waits for an
+ * Apply. The Apply (`phase` "apply") takes the card's `rolled` down through the
+ * save's `reduction` (`burstAmount`) and the subject's defenses against the
+ * card's `types` (`defenseStage`), and writes the amount through `adjustHp` as
+ * damage. It answers `{hp: [{uuid, amount}], amount}`, `uuid` the body's actor
+ * and `amount` the hit points actually taken (what the write was clamped to, so
+ * an Undo gives back exactly that); or `{judge: true, why}`, nothing written,
+ * where the reduction is blank for a saved subject (`figure`), a stage is the
+ * Judge's (`figure`), the token stands for several bodies (`several`), the body
+ * takes no hit points here (a `HP_REASON`) or the write did not land (a `HP_WHY`).
+ */
+async function burstOutcome({ phase, card, saved, actor, subjectToken }) {
+  if (phase === "verdict") return { records: [], names: [], life: "raised", state: "rolled" };
+  const stage = defenseStage(actorDefenses(actor), { types: card.types ?? [] }, defenseFigures());
+  const plan = burstAmount({ rolled: card.rolled, saved, reduction: card.reduction, stages: [stage] });
+  if (plan.judge) return { judge: true, why: "figure" };
+  // A party or stack token resolves to several bodies, which this one token's place in the area does not place: the Judge settles it.
+  const targets = resolveTargets({ tokens: [subjectToken] });
+  const target = targets.length === 1 ? targets[0] : null;
+  if (!target || target.reason) return { judge: true, why: targets.length > 1 ? "several" : (target?.reason ?? "gone") };
+  let taken = 0;
+  if (plan.amount > 0) {
+    const [written] = await adjustHp([{ target, amount: plan.amount }], { mode: HP_MODE.damage });
+    if (!written?.ok) return { judge: true, why: written?.why ?? "failed" };
+    taken = written.before - written.after;
+  }
+  return { records: [], names: [], life: "raised", hp: taken ? [{ uuid: target.key, amount: taken }] : [], amount: plan.amount };
+}
+
+/* -------------------------------------------- */
+/*  A lit fuse's controls                        */
+/* -------------------------------------------- */
+
+/** The actors a lit fuse may be on: every combat's and the world's (`worldActors`: each actor and each unlinked token's own), each effect read once. */
+async function fuseHolders() {
+  const { worldActors } = await import("./repair.mjs");
+  const inFights = [...(game.combats ?? [])].flatMap((combat) => [...(combat?.combatants ?? [])].map((c) => c?.actor));
+  return [...inFights, ...worldActors()].filter(Boolean);
+}
+
+/** The lit fuse of an activation, `{actor, effect, raw}`, or null. */
+async function findFuse(activationId) {
+  if (!activationId) return null;
+  for (const hit of fuseEffects(await fuseHolders())) if (readFuse(hit.raw)?.activationId === activationId) return hit;
+  return null;
+}
+
+/** The seat a relayed request came from, or this window's own user for a Judge's press. */
+const requesterOf = (requestUserId) => (requestUserId ? game.users.get(requestUserId) : game.user);
+
+/**
+ * The GM's side of Move the spot: a fuse's owner (Foundry's ownership of the
+ * bearer's actor on the relayed seat, a GM included) rewrites where it bursts,
+ * all five keys written. No range check. Answers `{ok: true, spot}`, or `{ok:
+ * false, reason}` with `gone` (no such lit fuse), `notOwner`, `noSpot` (the spot
+ * is not a scene and two positions) or `noScene` (the scene is not in the world).
+ */
+async function moveSpotHere({ activationId, spot, requestUserId = null }) {
+  const found = await findFuse(activationId);
+  if (!found) return { ok: false, reason: "gone" };
+  if (!found.actor.testUserPermission?.(requesterOf(requestUserId), "OWNER")) return { ok: false, reason: "notOwner" };
+  const next = fuseSpot(spot ?? {});
+  if (!next) return { ok: false, reason: "noSpot" };
+  if (!game.scenes?.get?.(next.sceneId)) return { ok: false, reason: "noScene" };
+  await found.effect.update({ [`flags.${MODULE_ID}.${FLAG_FUSE}.spot`]: next });
+  return { ok: true, spot: next };
+}
+
+/**
+ * The GM's side of Set off now: the fuse's owner (as `moveSpotHere`) sets it
+ * off. The record is deleted FIRST, then the burst runs, as a due fuse's does;
+ * where the spot's scene is gone nothing bursts and the burst's result says so
+ * (`burstFuse`). Answers `{ok: true, burst}`, `burst` the burst's result, or
+ * `{ok: false, reason}` with `gone` or `notOwner`.
+ */
+async function setOffHere({ activationId, requestUserId = null }) {
+  const found = await findFuse(activationId);
+  if (!found) return { ok: false, reason: "gone" };
+  if (!found.actor.testUserPermission?.(requesterOf(requestUserId), "OWNER")) return { ok: false, reason: "notOwner" };
+  const record = readFuse(found.raw);
+  await found.actor.deleteEmbeddedDocuments("ActiveEffect", [found.effect.id]);
+  return { ok: true, burst: await burstFuse({ actor: found.actor, record }) };
+}
+
+/**
+ * Move a lit fuse's spot, from any seat: the GM's window runs it, a Player's seat
+ * relays it and the GM checks the seat owns the bearer's actor.
+ *
+ * @param {{activationId: string, spot: {sceneId: string, x: number, y: number, elevation?: number, level?: string}}} p
+ * @returns {Promise<{ok: boolean, spot?: object, reason?: string}>}
+ */
+export async function moveFuseSpot(p) {
+  const payload = { activationId: p.activationId, spot: p.spot };
+  if (game.user.isGM) return moveSpotHere(payload);
+  return (await executeAsGM(HANDLER.moveSpot, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/**
+ * Set a lit fuse off now, from any seat (see `setOffHere`).
+ *
+ * @param {{activationId: string}} p
+ * @returns {Promise<{ok: boolean, burst?: object, reason?: string}>}
+ */
+export async function setFuseOffNow(p) {
+  const payload = { activationId: p.activationId };
+  if (game.user.isGM) return setOffHere(payload);
+  return (await executeAsGM(HANDLER.setOff, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/* -------------------------------------------- */
+/*  Handing a burst on to a structure            */
+/* -------------------------------------------- */
+
+/**
+ * The GM's side of Hand on, a burst card's press on one vehicle row: the card's
+ * `vehicles[<safeKey of the uuid>]` must hold the vehicle open, the seat must
+ * own the vehicle's actor (Foundry's ownership on the relayed seat, a GM
+ * included), and the registered structure writer (`registerStructureDamage`) is
+ * called with the burst's rolled figure. The row is marked `handed` under the
+ * same lock a press takes, so a second press is refused. A writer that answers
+ * `{ok: false, reason}` leaves the row open and the press refused with that
+ * reason. Answers `{ok: true, state: "handed"}` or `{ok: false, reason}`:
+ * `gone`, `notOwner`, `applied` (handed already), `noStructure` (nothing is
+ * registered), or the writer's.
+ */
+async function handOnHere({ messageId, vehicleUuid, requestUserId = null }) {
+  const { message, card } = cardOf(messageId);
+  const key = safeKey(vehicleUuid);
+  const row = card?.kind === "burst" ? card.vehicles?.[key] : null;
+  if (!message || !row) return { ok: false, reason: "gone" };
+  const doc = fromUuidSync(vehicleUuid);
+  const actor = doc?.actor ?? doc;
+  if (!actor) return { ok: false, reason: "gone" };
+  if (!actor.testUserPermission?.(requesterOf(requestUserId), "OWNER")) return { ok: false, reason: "notOwner" };
+  if (!structureDamage) return { ok: false, reason: "noStructure" };
+  const claim = `${messageId}|vehicle|${key}`;
+  if (writing.has(claim)) return { ok: false, reason: "applied" };
+  writing.add(claim);
+  try {
+    if (cardOf(messageId).card?.vehicles?.[key]?.state !== "open") return { ok: false, reason: "applied" };
+    const done = await structureDamage({ vehicleUuid, total: card.rolled, userId: requestUserId ?? game.user?.id ?? "" });
+    if (done?.ok === false) return { ok: false, reason: done.reason ?? "refused" };
+    await serialized(messageId, () => patchCard(message, { [`vehicles.${key}.state`]: "handed", [`vehicles.${key}.handedBy`]: requestUserId ?? game.user?.id ?? "" }));
+    return { ok: true, state: "handed" };
+  } finally {
+    writing.delete(claim);
+  }
+}
+
+/**
+ * Hand a burst's rolled total on to a vehicle in its area, from any seat: the
+ * GM's window runs it, a Player's seat relays it and the GM checks the seat owns
+ * the vehicle.
+ *
+ * @param {{messageId: string, vehicleUuid: string}} p
+ * @returns {Promise<{ok: boolean, state?: string, reason?: string}>}
+ */
+export async function handOn(p) {
+  const payload = { messageId: p.messageId, vehicleUuid: p.vehicleUuid };
+  if (game.user.isGM) return handOnHere(payload);
+  return (await executeAsGM(HANDLER.handOn, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/* -------------------------------------------- */
 /*  Install                                      */
 /* -------------------------------------------- */
 
@@ -1077,6 +1602,14 @@ export function installItemRun() {
   installed = true;
   registerActivationRunner("once", runOnce);
   registerActivationRunner("toggle", runToggle);
+  registerActivationRunner("fuse", runFuse);
+  setFuseBurst(burstFuse);
+  registerPressOutcome("burst", burstOutcome);
+  registerHandler(HANDLER.apply, (payload) => applyHere(payload));
+  registerHandler(HANDLER.applyAll, (payload) => applyAllHere(payload));
+  registerHandler(HANDLER.moveSpot, (payload) => moveSpotHere(payload));
+  registerHandler(HANDLER.setOff, (payload) => setOffHere(payload));
+  registerHandler(HANDLER.handOn, (payload) => handOnHere(payload));
   registerHandler(HANDLER.use, (payload) => runUse(payload));
   registerHandler(HANDLER.press, (payload) => pressHere(payload));
   registerHandler(HANDLER.tick, (payload) => countBearerIn(payload));
