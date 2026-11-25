@@ -1563,9 +1563,35 @@ It keeps C's walk as proposed: group combat and formation deployment count a
 group's nested bodies. Not asked: how the bodies of a gang are told apart
 from another gang's once they stand in the same combat. Released: none.
 
+The owner then answered what was not asked:
+
+"BUT! gangs should automatically join combat as groups for group initiative"
+
+Read as: every body still comes in, and the bodies come in gang by gang, each
+gang one group for initiative, with no gesture from the Judge to make it so.
+Example: the warband's token joins a combat; Gang 1's bodies stand on the map
+and act on one initiative, Gang 2's on another, and the warband's leader on
+its own. The 2026-11-03 ruling ("A group token in a combat deploys the whole
+group") says nothing of initiative, so this adds to it and reverses none of
+it.
+
+Two shapes fit the words, and the owner was not asked which:
+
+- (a) every body is a row in the tracker, and a gang's rows share one
+  initiative;
+- (b) a gang is one row in the tracker for all its bodies, which stand on the
+  map without rows of their own.
+
+Not checked by the design session: what core 14 and the `acks` system offer
+for a shared initiative, and what lib's combat patches (`turn-order.mjs`,
+`initiative-card.mjs`) do with one. That goes to `architect` with the rest.
+Whether a gang that joins a combat on its own, with no warband, is one
+initiative group the same way is taken as yes, as a reading.
+
 **Where the owner's questions stand.** Of `architect`'s six: 1 (at
 Generate), 2 (only a group is needed, a faction card optional), 3 (every
-body) and 6 (the Followers tab, with this work) are answered. Open: 4 (an
+body, each gang one group for initiative) and 6 (the Followers tab, with this
+work) are answered. Open: 4 (an
 entry that is away, on a re-roll) and 5 (Generate writes at once or is
 staged). The Org chart tab is the tree. `architect` has seen none of these
 answers; a fresh one is given them verbatim, and its result is the next
