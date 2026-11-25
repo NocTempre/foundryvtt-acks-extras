@@ -1382,6 +1382,41 @@ Section 3's table above stays proposed. S12b's row is the one row this answer
 covers, and it keeps its needs: S10c, S12 and an approved design. Released:
 none. Board 1l's first callout and the note beside it carry the answer.
 
+### The owner on the Org chart tab's layout, 2026-11-24
+
+Asked "Is the Org chart tab drawn as rows (board 1i) or as a tree (board
+1f)?", with the buttons "Rows, as 1i" and "Tree, as 1f", the owner chose:
+
+"Tree, as 1f"
+
+The words are the button's; the choice is the owner's, and it went against
+the design session's lean to rows. The Org chart tab is board 1f's tree: a
+leader's card at the head, the cards under it spread beside one another
+beneath, each opening and closing. Example: on the village's sheet the
+chieftain's card heads the tab, the warbands' cards stand in a line under it,
+and each warband's gangs hang under their own warband.
+
+Read as, and marked as a reading:
+
+- The Followers tab's Org chart is the same tree, since H draws both sheets
+  from one view. Board 1l's tab is redrawn as one. H is still proposed.
+- The Locations tab keeps board 1i's rows. The owner's "I'd rather have tabs
+  with horizontal spread and rows than columns of vertical spread" was said
+  of 1i's first drawing and is taken to stand there, not against the tree.
+  The owner was not asked to square the two.
+- Board 1i's Org chart rows are not the tab. Its model, its Locations rows
+  and its place roster stay.
+
+This closes point 1 of board 1k and the open point of board 1i, and settles
+the earlier words "It should look like and org chart with a tree grouping and
+expanding into leader cards with their gangs" as the tab's layout. Still open
+for S12 and S12b: what the tree does in a window narrower than itself (it
+scrolls sideways in its own box, or it falls to the outline of boards 1c and
+1d); points 2 to 4 of board 1k; points 2 and 3 of board 1l; board 1j's three
+points; canvas 1's questions 4 and 6. Board 1f's window frame is still the
+first drawing's Generate window, and its cards and 1h's are not redrawn on
+the Follower Card. Released: none. Not checked: any board's rendering.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
