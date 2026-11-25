@@ -1978,6 +1978,14 @@
   opacity: 0.75;
 }
 
+/* A figure left blank keeps a cell to hover: its tooltip is the page the figure
+   is printed on, and an empty inline span has no box for the pointer to enter. */
+.acks-extras:is(.party-sheet, .skill-audit) .light .remaining:empty {
+  display: inline-block;
+  min-inline-size: 2em;
+  min-block-size: 1em;
+}
+
 /* The status glyph that opens a .light row — the flame, the spell wand and the
    map sheet all sit in this slot, in the lights, spells and maps sections
    alike. Running is the spot colour on a solid glyph; spent is faint ink on an
