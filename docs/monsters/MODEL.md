@@ -75,17 +75,16 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
 `moraleWhileAlive`, `cite` (the page) and `basis`.
 
 - `origin` is `register` on a part the importer wrote and blank once a hand has
-  changed it. A repair rewrites the first and holds the second
-  (`docs/importer/MODEL.md`, "A monster's recipe parts ride the same per-row
-  mechanism"); the recipe as read is stored whole in `cookbook.read.recipe`.
+  changed it; what a repair does with each is
+  `docs/importer/MODEL.md`, "A monster's recipe parts ride the same per-row
+  mechanism".
 - `role` is one of `RECIPE_ROLES` (`config.mjs`, each with a label): the eight
   the reader writes (`body`, `unit`, `leader`, `young`, `dependant`, `guard`,
   `captive`, `caster`) and the two a Judge adds, `mount` and `beast`. A `mount`
   or `beast` part names its creature by `source.uuid`, the link to that
   creature's own imported entry, whose figures and recipe are read there and
-  never copied in. The roll treats both as parts that are no body: one stack
-  each, unridden and uncounted in any share of bodies; with no link the stack is
-  labelled by the part's label.
+  never copied in. The roll treats both as a part that is no body: one stack
+  each, never counted in a share of bodies and never ridden.
 - `source` is the creature the part is made of: `templateCell` names a Role
   cell of the family template (`variant|role`, never a copy of its figures),
   `name` a creature as printed, and `uuid` and `stat` are for a Judge's own

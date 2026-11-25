@@ -230,6 +230,23 @@ t("each stack records the expression its count was thrown from, as given, and a 
   assert.equal(stacksOf(named).find((x) => x.gen.part === "trait-x1").gen.formula, "2d4", "a trait's beasts record the beast dice");
 });
 
+t("a mount part and a beast part are no body: one stack each, a link answering its entry, and the bodies as they were", () => {
+  const base = roll();
+  const extra = [
+    part("steed", "mount", { source: { uuid: "Actor.qaSteed" }, count: { literal: 2 }, when: { units: ["hold"] } }),
+    part("hound", "beast", { count: { dice: "1d4" }, when: { units: ["hold"] } }),
+  ];
+  const r = roll({ recipe: [...RECIPE, ...extra] });
+  assert.equal(r.ok, true);
+  const stacks = stacksOf(r);
+  const steed = stacks.find((s) => s.gen.part === "steed");
+  const hound = stacks.find((s) => s.gen.part === "hound");
+  assert.deepEqual([steed.role, steed.count, protoOfStack(r, steed).kind, protoOfStack(r, steed).uuid], ["mount", 2, "entry", "Actor.qaSteed"], "a linked part answers its link");
+  assert.deepEqual([hound.role, protoOfStack(r, hound).kind, protoOfStack(r, hound).label], ["beast", "label", "hound"], "an unlinked part is a labelled stack");
+  const bodies = (x) => stacksOf(x).filter((s) => s.role === "body").map((s) => s.count);
+  assert.deepEqual(bodies(r), bodies(base), "no share of bodies counts them");
+});
+
 t("a leader is an officer of its unit with its morale part, never a stack; an out-of-range figure is null and a finding", () => {
   const r = roll();
   assert.equal(r.top.officers[0].moraleBonus, 2);
