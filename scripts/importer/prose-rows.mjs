@@ -27,6 +27,7 @@
  * never a string of this repo.
  */
 import { roleKeyOf } from "./leader-roles.mjs";
+import { glyphTypes } from "./weapon-binding.mjs";
 
 /** Reading order within a window: left column, then right, each top to bottom. */
 const byColumn = (split) => (a, b) => ((a.x < split ? 0 : 1) - (b.x < split ? 0 : 1)) || (a.y - b.y) || (a.x - b.x);
@@ -256,13 +257,14 @@ export function rowTake(window, take, spec, recipe) {
       return Object.fromEntries(breeds.map((b, i) => [b, sizes[i]]));
     }
     case "matches": {
-      // Every match of `spec.re`, as an object over `spec.fields`, a figure a number.
+      // Every match of `spec.re`, as an object over `spec.fields`, a figure a number. A field
+      // named `types` holds the damage types the icons in its group stand for.
       const out = [];
       for (const m of window.matchAll(new RegExp(spec.re, "g"))) {
         const row = {};
         spec.fields.forEach((f, i) => {
           const raw = m[i + 1];
-          row[f] = /^\d+$/.test(raw) ? Number(raw) : raw;
+          row[f] = f === "types" ? glyphTypes(raw ?? "") : /^\d+$/.test(raw) ? Number(raw) : raw;
         });
         out.push(row);
       }

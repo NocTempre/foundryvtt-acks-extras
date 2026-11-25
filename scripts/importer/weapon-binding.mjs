@@ -340,7 +340,7 @@ export function parseDealtBy(window) {
 const diceIn = (s) => /\b(\d+d\d+)\b/.exec(s)?.[1] ?? null;
 
 /** Every damage type whose icon a sentence holds, once each, in reading order. */
-function glyphTypes(sentence) {
+export function glyphTypes(sentence) {
   const out = [];
   for (const ch of sentence) {
     const type = damageTypeOf(ch);

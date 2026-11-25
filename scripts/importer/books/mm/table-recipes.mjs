@@ -82,7 +82,9 @@ const BEASTMAN_EQUIPMENT_RULES = {
     { key: "throw", find: "proficiency throw of", take: "int", span: 6 },
     { key: "fuseDice", find: "initiative in", take: "dice", span: 12 },
     { key: "fumble", find: "unmodified", take: "int", span: 4 },
-    { key: "blast", find: "", take: "matches", re: "(\\d+)\\s*lb\\s+\\w+\\s+deals\\s+(\\d+d\\d+)[^.]*?within\\s+(\\d+)", fields: ["lb", "dice", "radius"], span: 4000 },
+    { key: "blast", find: "", take: "matches", re: "(\\d+)\\s*lb\\s+\\w+\\s+deals\\s+(\\d+d\\d+)([^.]*?)within\\s+(\\d+)", fields: ["lb", "dice", "types", "radius"], span: 4000 },
+    // The proficiency a throw is made with: the words between the article and "proficiency throw".
+    { key: "proficiency", findRe: "make an? ([a-z]+(?: [a-z]+){0,2}) proficiency throw", group: 1, take: "text" },
     { key: "saveKind", findRe: "(?:can|must) make an? ([a-z]+) saving throw", group: 1, take: "text" },
     { key: "saveKind", findRe: "make an? ([a-z]+) save\\b", group: 1, take: "text" },
     { key: "saveFraction", find: "saving throw to reduce the damage by", take: "fractionWord", span: 8 },

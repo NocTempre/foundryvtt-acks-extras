@@ -783,7 +783,7 @@ const FIGURE_KINDS = {
   outnumberedMorale: isSigned, targetCondition: isPlainText, targetBand: isPlainText, waivesCharge: isPlainText, waivesRun: isPlainText,
   outnumber: (v) => Array.isArray(v) && v.length === 2 && v.every(Number.isInteger),
   damage: (v) => Number.isInteger(v) || isDiceText(v) || (v && typeof v === "object" && Object.values(v).every((d) => Array.isArray(d) && d.length > 0 && d.every(isText))),
-  blast: (v) => Array.isArray(v) && v.length > 1 && v.every((b) => Number.isInteger(b.lb) && isDiceText(b.dice) && Number.isInteger(b.radius)),
+  blast: (v) => Array.isArray(v) && v.length > 1 && v.every((b) => Number.isInteger(b.lb) && isDiceText(b.dice) && Number.isInteger(b.radius) && Array.isArray(b.types) && b.types.length > 0 && b.types.every((t) => DAMAGE_TYPES[t])),
 };
 const READS = {};
 const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
@@ -832,7 +832,7 @@ VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => {
   if (rows.filter((r) => r.subjectKinds !== undefined || r.whileEngaged !== undefined).length !== engaging.length) fail("a paragraph with no save holds a subject or an engagement key");
 };
 VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
-  paragraphRows(out, recipe, fail, { counts: [5, 9, 5, 7, 7, 4, 3, 6, 7] });
+  paragraphRows(out, recipe, fail, { counts: [5, 10, 5, 7, 7, 4, 3, 6, 7] });
   const rows = Object.values(out ?? {});
   const kinds = rows.filter((r) => r.reachKind !== undefined);
   if (kinds.length !== 2 || kinds.some((r) => typeof r.reachKind !== "string" || !isText(r.reachKind))) fail("the reach qualifier is read as a word for the two paragraphs that name who a reach meets");
@@ -840,6 +840,7 @@ VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
   const against = rows.filter((r) => r.saveQualifier !== undefined || r.saveCircumstance !== undefined);
   if (against.length !== 1 || against[0].saveQualifier === undefined || against[0].saveCircumstance === undefined) fail("exactly one paragraph should name both the circumstance and the qualifier a saving-throw bonus is against");
   else if (!resolveSaveWhen(against[0], { circumstance: circumstanceOf })) fail("the saving-throw bonus's circumstance and qualifier do not both resolve to the catalogue and the magic flag");
+  if (rows.filter((r) => r.proficiency !== undefined).length !== 1) fail("exactly one paragraph should name the proficiency its throw is made with");
   if (rows.filter((r) => r.figuresFrom).length !== 1) fail("exactly one paragraph should point at the recipe that reads its figures");
   if (rows.some((r) => !Array.isArray(r.carry) || !r.carry.length)) fail("a paragraph prints no carry chance");
   for (const r of rows) for (const t of r.troops ?? []) if (!Object.keys(READS["monsters.beastmanSpecialTroops"] ?? {}).includes(t)) fail("a troop key is not a row of the special-troop table");
