@@ -514,6 +514,20 @@ check("combatRound: an exact round, a span and open ends decide from the token's
   const loose = fighter(scene, "b", 1);
   assert.equal(gateVerdict(actor, { kind: "combatRound", round: 1 }, { token: loose }), null, "a token in no combat");
   assert.equal(gateVerdict(actor, { kind: "combatRound", round: 1 }, {}), null, "no token");
+  // A combat the tracker does not view: core's `token.combatant` is null, so the token is found among every combat.
+  const unseen = fighter(scene, "c", 2);
+  const prior = globalThis.game;
+  try {
+    const elsewhere = { round: 2, active: false, scene: { id: "other" }, combatants: [{ tokenId: "c", sceneId: "other" }] };
+    const here = { round: 3, active: false, scene: { id: scene.id }, combatants: [{ tokenId: "c", sceneId: scene.id }] };
+    globalThis.game = { combats: [elsewhere, here] };
+    assert.equal(gateVerdict(actor, { kind: "combatRound", round: 3 }, { token: unseen }), true, "a combat on the token's scene, not viewed");
+    assert.equal(gateVerdict(actor, { kind: "combatRound", round: 2 }, { token: unseen }), false, "never another scene's");
+    globalThis.game = { combats: [elsewhere] };
+    assert.equal(gateVerdict(actor, { kind: "combatRound", round: 2 }, { token: unseen }), null, "no combat on its scene holds it");
+  } finally {
+    globalThis.game = prior;
+  }
 });
 
 check("outnumbering: the attacker's side against the other by token disposition among the undefeated, null where it cannot be told", () => {

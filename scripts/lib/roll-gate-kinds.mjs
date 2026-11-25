@@ -30,10 +30,21 @@ export const RANGE_BANDS = Object.freeze(["melee", "short", "medium", "long"]);
 const wordsOf = (value) =>
   (Array.isArray(value) ? value : [value]).map((w) => (typeof w === "string" ? w.trim() : "")).filter(Boolean);
 
-/** The encounter the attacker's token fights in, or null: its combatant's own combat. */
+/**
+ * The encounter the attacker's token fights in, or null. Core's
+ * `token.combatant` reads only the combat this client's tracker views, so a
+ * token fighting in another one is looked for among every combat: a combatant
+ * of that token on that scene, the active combat first, then a begun one.
+ */
 function combatOf(token) {
   const combatant = token?.combatant;
-  return combatant?.parent ?? combatant?.combat ?? null;
+  const own = combatant?.parent ?? combatant?.combat ?? null;
+  if (own || !token?.id) return own;
+  const sceneId = token.parent?.id ?? null;
+  const holds = (combat) => [...(combat?.combatants ?? [])].some((c) =>
+    c?.tokenId === token.id && (!sceneId || (c.sceneId ?? combat.scene?.id ?? combat.scene ?? sceneId) === sceneId));
+  const found = [...(globalThis.game?.combats ?? [])].filter(holds);
+  return found.find((c) => c.active) ?? found.find((c) => c.round > 0) ?? found[0] ?? null;
 }
 
 /**
