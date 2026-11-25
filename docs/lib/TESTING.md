@@ -2433,6 +2433,10 @@ The morale page's condition rows are influence's own recipe.
   monster reads null like none at all. A kept shield item on an unlinked
   token's actor is found by marker in `tokenDoc.actor.items` and built there,
   and brought to its equipped state at the start of every step.
+- **A monster's shield is equipped from its Follower Card.** A monster's
+  default sheet is lib's Follower Card; its gear row's worn toggle is
+  `[data-action="fcToggleEquip"][data-item-id]`. The system's own monster
+  sheet draws no equip control at all.
 - **A given state is proven before it is read.** The effect's `start` names the
   walk's combat, the giver's combatant and a non-null initiative.
 - **Take a creature's own Defend on its own turn, in the walk's combat.**

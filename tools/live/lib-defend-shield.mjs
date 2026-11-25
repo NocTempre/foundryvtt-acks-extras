@@ -41,7 +41,6 @@ const check = (label, ok, detail) => {
   checks.push([label, !!ok]);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 };
-const gap = (label, why) => console.log(`GAP  ${label}  ${why}`);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The attack kinds a Defend reads the shield for, in the order the walk rolls them. */
@@ -251,6 +250,30 @@ const P = {
     const blast = [];
     for (const uuid of tokens) blast.push(Number.isFinite(Number((await fromUuid(uuid)).actor.system?.saves?.blast?.value)));
     return { lifted: lifted.reduce((a, b) => a + b, 0), shields: read, clean: clean.every(Boolean), blastStored: blast.every(Boolean) };
+  },
+
+  /**
+   * Equip a shield the way a Judge does on a monster: open the token's own sheet (a monster's default is lib's Follower Card) and
+   * press the row's worn toggle. Reads which sheet opened, whether the control was there, and the item's state after the press.
+   */
+  sheetEquip: async ({ token, marker }) => {
+    const H = globalThis.__ld;
+    const actor = (await fromUuid(token)).actor;
+    const item = actor.items.find((i) => i.flags?.world?.fixture === marker) ?? null;
+    if (!item) return { found: false };
+    const before = !!item.system.equipped;
+    const sheet = actor.sheet;
+    await sheet.render({ force: true });
+    let button = null;
+    for (let n = 0; n < 30 && !button; n++) {
+      await H.sleep(100);
+      button = sheet.element?.querySelector(`[data-action="fcToggleEquip"][data-item-id="${item.id}"]`) ?? null;
+    }
+    if (button) button.click();
+    for (let n = 0; n < 30 && !!item.system.equipped === before; n++) await H.sleep(100);
+    const out = { found: true, sheet: sheet.constructor.name, control: !!button, before, after: !!item.system.equipped, shield: H.CL.shieldOf(actor) };
+    await sheet.close();
+    return out;
   },
 
   /** One shield read for each combination of equipped and an Armor Class, for one token's actor. */
@@ -546,13 +569,15 @@ try {
       && G0.on.kinds.missile.pending.some((p) => p.condition === "defending") && G0.on.blastMath.pending.some((p) => p.condition === "defending"),
     { told: toldAll(G0.on), moved: blastBy(G0) },
   );
-  await shape("Goblin equipped on its own actor", { hero: false, guard: false, goblin: true });
+  await shape("Goblin before its sheet's press", { hero: false, guard: false, goblin: false });
+  const pressed = await run(gm, P.sheetEquip, { token: goblinTok.uuid, marker: goblinShieldMarker });
+  note("the Goblin token's own sheet", pressed);
+  check("21: the worn toggle on the Goblin token's own sheet equips its shield", pressed.found && pressed.control && !pressed.before && pressed.after && pressed.shield === true, pressed);
   const G1 = await run(gm, P.state, { victim: goblinTok.uuid, attacker: raiderTok.uuid, ...own, row: rowGoblin.id });
   sound("Goblin equipped", G1.on);
   note("Goblin equipped", { shield: G1.shield, terms: terms(G1.on), blastMoved: blastBy(G1), told: toldAll(G1.on) });
   check("21: equipped on the token's own actor, the Goblin's rows apply and its Blast target moves by the Blast figure", G1.shield === true && carries(G1.on) && blastBy(G1) === -FIGURES.blast, { shield: G1.shield, terms: terms(G1.on), moved: blastBy(G1) });
   check("21: equipped on the token's own actor, the notice stops", Object.values(toldAll(G1.on)).every((n) => n === 0) && nothingWaits(G1.on), toldAll(G1.on));
-  gap("21: the shield equipped from the token's own sheet", "the walk writes system.equipped on the token's actor item, which is the field the sheet's control writes; the click itself is not driven");
 
   section("21c. a Defend given on Guard's turn");
   await shape("given, Guard holds the shield", { hero: false, guard: true, goblin: false });
