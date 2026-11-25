@@ -513,7 +513,7 @@ answered the questions below or approved a canvas.
 
 | Canvas | Surface | Slices |
 |---|---|---|
-| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers, a roll with no faction card, setup and confirm (boards 1a to 1n) | S12 |
+| [1](https://claude.ai/artifact/UGfWMFuhLm7hcLGMC3YhXb) | Generate window, organisation chart, re-roll, pin, edit, deploy, role frames and upgrade badges, affiliation and place, a stack that is another creature, views and tools, the overlap with followers, a roll with no faction card, roll then edit or add with no re-roll (boards 1a to 1n) | S12 |
 | [2](https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY) | The three kit scopes, the random pick, what a kit suits, what a kit holds, the optional inventory (boards 2a to 2d) | S14 |
 | [3](https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL) | The recipe editor | S4b |
 | [4](https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v) | An item raised or thrown, its cards, a body in reach | S8, S9a |
@@ -1804,6 +1804,55 @@ What it closes, without a further question to the owner:
 
 Still the owner's, and not a permission: adopting the data shape and the
 slice table once `architect` has revised them. Released: none.
+
+### The owner drops re-roll, 2026-11-24
+
+After the correction above the owner wrote:
+
+"Just drop the reroll entirely. You can roll some or all of the org chart up
+to village and you can manually edit or add from there."
+
+The words are the owner's own, and they replace the owner's earlier
+"Reroll is only until the element is confirmed. It's a setup only tool" of
+the same day: there is no re-roll at all, in setup or after. What is new
+since that sentence is this one. Example: a Judge rolls a whole village, or
+only Warband 1 and its gangs. Gang 2 came out wrong for the table, so the
+Judge changes its troop type and its count by hand. A fourth warband is
+wanted, so the Judge adds one, and rolls it or fills it in.
+
+What it is, in three verbs:
+
+- **Roll.** A part of the chart that has nothing in it yet can be rolled:
+  one gang, one warband with what is under it, or everything up to the
+  village. A part left unrolled is the open language slot's pattern and
+  waits.
+- **Edit.** A part that has been rolled or filled is changed by hand.
+- **Add.** A warband, a gang or a body is added by hand, and can then be
+  rolled or filled.
+
+What goes with re-roll, since each existed only for it:
+
+- The pin, which held a choice through a re-roll.
+- Confirm, the setup state, and "Confirm all", which ended re-rolling. The
+  owner's "Either" answered a question about Confirm and falls with it.
+- Canvas 1's question 4 and `architect`'s question 4, in every form.
+- In `architect`'s D, the whole re-roll paragraph, and whatever part of the
+  generation record was kept only to replace a roll's stacks. What a card
+  needs for its tooltip, the roll it came from, is a separate matter and
+  stays `architect`'s to rule.
+
+Read as, and marked as a reading: Roll at random is the roll, of some or of
+all; Design by selection is the owner's "manually edit or add", done slot by
+slot. Both names are the owner's from earlier and neither was withdrawn. A
+filled part shows no die. Changing it is an edit, or a delete and an add.
+
+On canvas 1: board 1n is redrawn as roll, edit and add, with no die on a
+filled card, no pin and no Confirm. Boards 1f, 1j, 1k, 1l and 1m lose their
+re-roll dice, pins and the wording about them, and 1f loses its Generate
+window frame, its "Roll all again" and its "Save the village". Boards 1a to
+1e and 1g were drawn before this and still show a re-roll or a pin in
+places; they are not redrawn and are read without them. Not checked: any
+board's rendering. Released: none.
 
 ### Phase 1, 2026-11-24
 
