@@ -1710,6 +1710,53 @@ everything left with one press. The other reading, that the owner has no
 preference and leaves the pick to the build, ends at the same drawing. Point
 1 is closed on board 1n; points 2 to 5 are open.
 
+The owner then pointed at a pattern the module already has:
+
+"Look at how languages can be left undecided until needed"
+
+What was looked at: `docs/classes/MODEL.md`, "Languages", and
+`docs/character-sheet/MODEL.md` on the Abilities tab. A character is granted
+a count of tongues and may leave picks open. One carrier item holds the open
+slots as `languageSlots = {capacity, filled, source}`; the sheet shows each
+open slot as a *Choose: a language* row whose button runs the picker
+(`scripts/abilities/language-slots.mjs`); a pick makes the `language`
+document then and not before, and clearing a slot deletes the document the
+slot bought. Nothing ever forces the picks to be made.
+
+Read as, with one example: an element of the chart may stay undecided for as
+long as the Judge likes, and is decided when it is needed and not before.
+The chart knows the element is there, as the carrier knows a slot is there,
+and shows it as a row that asks to be decided. Example: a village is rolled
+with three warbands. The Judge decides Warband 1 and its gangs, since the
+party is about to meet them, and leaves Warbands 2 and 3 as undecided cards
+for weeks. The day Warband 2 is sent to a ford, it is decided then.
+
+What this changes on board 1n, as a reading:
+
+- Nothing asks for a Confirm all, and a chart with undecided cards is a
+  finished state, not a half-done setup.
+- Point 2 leans to its second branch: sending out, deploying or fighting is
+  the need, and the element is decided at that moment.
+- Point 5 leans to its second branch: an undecided element holds no group
+  yet, as an open slot holds no language, and its group is made when it is
+  decided.
+
+Tensions the design session does not resolve, both sent to `architect`:
+
+- "At Generate" has a warband's group made at Generate. Read together: a
+  decided warband has its group at once and never waits for a send-out; an
+  undecided one has none yet. The owner was not asked to square the two.
+- How much may stay undecided: (a) a whole element, a gang or a warband,
+  whose place on the chart is known and whose contents are not; (b) single
+  slots inside a decided element, such as a gang's size with its troop type
+  already chosen. The language pattern is (b) in kind, a known count with
+  open picks; board 1n draws (a).
+
+Not asked: when an undecided element is needed, (a) the Judge is asked to
+roll or choose it there and then, (b) it is rolled for the Judge. Board 1n
+gains an undecided card and the moment it is needed. Not checked: the
+board's rendering. Released: none.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
