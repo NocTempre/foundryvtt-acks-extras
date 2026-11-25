@@ -38,7 +38,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, kindedLabel, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { impliedStatuses } from "./held-condition.mjs";
 import {
@@ -378,7 +378,8 @@ function attackKind(item, type) {
  * effects add to it, so core's throw counts it; a monster's does not, so each
  * step its condition effects make to `system.ac.mod` is a term here, sign
  * reversed as the module's own Armor Class rows are, and the steps the waiver
- * spares join `waived` the same way.
+ * spares join `waived` the same way. Each of those carries its change's `type`,
+ * which the module's own terms do not.
  */
 function attackConditions(actor, targetActor, item, type) {
   const attacker = subjectOf(actor);
@@ -391,8 +392,8 @@ function attackConditions(actor, targetActor, item, type) {
   return {
     kind,
     ...math,
-    terms: [...math.terms, ...read.steps.map((step) => ({ condition: step.condition, value: -step.value, side: "target" }))],
-    waived: [...math.waived, ...read.waived.map((step) => ({ condition: step.condition, value: -step.value }))],
+    terms: [...math.terms, ...read.steps.map((step) => ({ condition: step.condition, value: -step.value, side: "target", type: step.type }))],
+    waived: [...math.waived, ...read.waived.map((step) => ({ condition: step.condition, value: -step.value, type: step.type }))],
   };
 }
 
@@ -400,8 +401,13 @@ function attackConditions(actor, targetActor, item, type) {
 /*  Telling the table                            */
 /* -------------------------------------------- */
 
-/** A condition's name as a term carries it: the target's are marked as the target's. */
-const termLabel = (part) => (part.side === "target" ? loc("term.target", { name: nameOf(part.condition) }) : nameOf(part.condition));
+/**
+ * A condition's name as a term carries it: the target's are marked as the
+ * target's, and a term built from a step ends with the change's type where it
+ * is not `add` or `subtract` (`kindedLabel`). A term with no `type` reads bare.
+ */
+const termLabel = (part) =>
+  kindedLabel(part.side === "target" ? loc("term.target", { name: nameOf(part.condition) }) : nameOf(part.condition), part.type);
 
 const list = (ids) => [...new Set(ids)].map(nameOf).join(", ");
 const partList = (parts) => parts.map((p) => `${termLabel(p)} ${signed(p.value)}`).join(", ");

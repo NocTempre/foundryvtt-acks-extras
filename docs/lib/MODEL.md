@@ -2857,11 +2857,16 @@ change type is none of `add` and `subtract` (it sets, multiplies or bounds the
 figure), the label ends with the type in Foundry's own word, the localized
 `EFFECT.CHANGES.TYPES.<type>` that `kindWords` gives for every surface, the
 character sheet's tooltips included; a step that adds or subtracts is named
-without one. `conditionSteps` carries each step's `type`, a waived step's
-too. The attack card's
+without one. `kindedLabel(label, type)` is the one place a name takes the word
+(`stepLabel` calls it). `conditionSteps` carries each step's `type`, a waived
+step's too. The attack card's
 line, a saving throw's condition parts (`saveSpec`) and the notice a monster's
 save step is told by (`onRollSave`) take their names from it, so one effect
-reads alike on all of them. `effectLines(actor, key, {base})` is the same
+reads alike on all of them. A monster target's Armor Class step is a term of the
+attacker's throw named by its condition, marked as the target's
+(`termLabel`, `status-effects.mjs`), and it gains the same word through
+`kindedLabel`: the term and its waived entry carry the step's `type`, and a
+term of the module's own carries none and reads bare. `effectLines(actor, key, {base})` is the same
 reading for a whole field, in the shape of the system's own attack-card
 breakdown (the stored value, a line per effect, the remainder), rebuilt here
 because the system ships as one bundle and its function cannot be imported:

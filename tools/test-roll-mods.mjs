@@ -769,7 +769,7 @@ await ok("the reader knows no ids of its own: with none in core's list it reads 
 
 /* --- One line per effect that moves a field ------------------------------------- */
 
-const { effectLines, stepLabel, lineLabel, kindWords } = mods;
+const { effectLines, stepLabel, lineLabel, kindWords, kindedLabel } = mods;
 const condName = (id) => `ACKS-LIB.condition.${id}`;
 const namedBy = (effect, id) => format("ACKS-LIB.conditionRoll.targetAc.named", { effect, condition: condName(id) });
 const plainOf = (line) => ({ name: line.name, condition: line.condition, value: line.value });
@@ -853,6 +853,14 @@ await ok("a step label says the change's type in Foundry's word where it is not 
   assert.equal(kindWords(["multiply", "override"]), "Scaler, Replacer");
   const waivedSet = { id: "fxWaivedSet", name: "Test Waived", disabled: false, statuses: new Set(["disordered"]), changes: [{ key: AC, type: "override", value: 9 }] };
   assert.deepEqual(conditionSteps(monsterOf([waivedSet], ["disordered"]), AC).waived.map((w) => w.type), ["override"], "a waived step carries its type through");
+});
+
+await ok("kindedLabel ends a name with the type's word where it is not add or subtract, and gives the name as it is otherwise", () => {
+  for (const type of [undefined, null, "", "add", "subtract"]) assert.equal(kindedLabel("Test Name", type), "Test Name", `type ${JSON.stringify(type)}`);
+  assert.equal(kindedLabel("Test Name", "override"), "Test Name, Replacer");
+  assert.equal(kindedLabel("Test Name", "multiply"), "Test Name, Scaler");
+  assert.equal(kindedLabel("Test Name", "upgrade"), "Test Name, upgrade", "a type Foundry has no word for here reads as itself");
+  assert.equal(stepLabel({ name: "Test Hand" }, null, "override"), kindedLabel("Test Hand", "override"), "a step label is the helper's");
 });
 
 await ok("a directly waived condition's step lands in waived with its effect, valued as the field takes it; a change the rule cannot attribute is not waived on a guess", () => {

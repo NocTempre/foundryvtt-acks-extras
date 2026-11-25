@@ -261,20 +261,31 @@ export function kindWords(types) {
 }
 
 /**
+ * A name that ends with the change's type in Foundry's word, "{label}, {kind}",
+ * where the type is not `add` or `subtract`; the label as given otherwise. The
+ * one place a name takes the word, for `stepLabel` and for the terms an attack
+ * builds from a step (`status-effects.mjs`).
+ * @param {string} label
+ * @param {string} [type]  a step's change type (`conditionSteps`)
+ */
+export function kindedLabel(label, type) {
+  if (!namesKind(type)) return label;
+  const data = { label, kind: kindWords([type]) };
+  const i18n = globalThis.game?.i18n;
+  return i18n?.format ? i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.kinded`, data) : `${data.label}, ${data.kind}`;
+}
+
+/**
  * The label of one effect's step to a field: its effect named, plus the
  * condition the step belongs to where the two differ (a charge's Armor Class
  * step is its disorder's), plus the change's type in Foundry's word where the
- * type is not `add` or `subtract`.
+ * type is not `add` or `subtract` (`kindedLabel`).
  * @param {object} effect
  * @param {string|null} condition
  * @param {string} [type]  the step's change type (`conditionSteps`)
  */
 export function stepLabel(effect, condition, type) {
-  const label = lineLabel(stepName(effect, condition));
-  if (!namesKind(type)) return label;
-  const data = { label, kind: kindWords([type]) };
-  const i18n = globalThis.game?.i18n;
-  return i18n?.format ? i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.kinded`, data) : `${data.label}, ${data.kind}`;
+  return kindedLabel(lineLabel(stepName(effect, condition)), type);
 }
 
 /**

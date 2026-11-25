@@ -1159,6 +1159,39 @@ await (async () => {
     }
     passed++;
     console.log("ok   each of the eleven's figure reaches an attack from one place: core's effect for a character, the step read once for a monster target");
+
+    // A step that sets the target's Armor Class is a term (and a waived entry) that names the change's type in
+    // Foundry's word (invented here), still by its condition; a step that adds reads as before.
+    const { addAttackContributor } = await import("../scripts/lib/patches/attack-throw.mjs");
+    let seen = null;
+    addAttackContributor({ carriers: ["attack"], attack: (ctx, kind) => { seen = ctx.conditions?.[kind] ?? null; return null; } });
+    const localize = game.i18n.localize;
+    game.i18n.localize = (k) => (k === "EFFECT.CHANGES.TYPES.override" ? "Replacer" : k);
+    try {
+      const setting = (extra = {}) => ({ changes: [{ key: "system.ac.mod", type: "override", value: 9 }], name: "Test Ring", ...extra });
+      const striker = holding("character", [], "Striker");
+      const labels = (rows) => named(rows, "disordered").map((r) => r.label);
+
+      const overriding = holdingEffects("monster", [conditionEffect("disordered", setting())], "Beast");
+      const withKind = await rowsOf(striker, overriding, "melee");
+      assert.equal(named(withKind.attack, "disordered").length, 1, "one term for the overriding step");
+      assert.deepEqual(labels(withKind.attack), [`ACKS-LIB.conditionRoll.targetAc.kinded ${JSON.stringify({ label: `ACKS-LIB.conditionRoll.term.target ${JSON.stringify({ name: "ACKS-LIB.condition.disordered" })}`, kind: "Replacer" })}`], "the term is the condition's name, marked as the target's, then the word");
+      assert.deepEqual(seen.terms.filter((t) => t.condition === "disordered").map((t) => t.type), ["override"], "the term carries the change's type");
+      assert.ok(seen.terms.every((t) => t.condition === "disordered" || !("type" in t)), "the module's own terms carry none");
+
+      const adding = await rowsOf(striker, holding("monster", ["disordered"], "Beast"), "melee");
+      assert.ok(labels(adding.attack).every((l) => !l.includes("targetAc.kinded") && !l.includes("Replacer")), "an adding step reads as before");
+
+      const waiverItems = [{ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions: ["charging"] }] } } } }];
+      const spared = holdingEffects("monster", [implyingEffect("charging", { changes: [{ key: "system.ac.mod", type: "override", value: 9 }] })], "Beast", { items: waiverItems });
+      const sparedRows = await rowsOf(striker, spared, "melee");
+      assert.deepEqual(named(sparedRows.attack, "disordered"), [], "a waived step is no term");
+      assert.deepEqual(seen.waived.map((w) => [w.condition, w.type]), [["disordered", "override"]], "the waived entry carries its type");
+    } finally {
+      game.i18n.localize = localize;
+    }
+    passed++;
+    console.log("ok   an attack's term for a monster target's overriding step names the change's type; an adding step and the module's own terms read as before");
   } finally {
     unregisterTable(CONDITIONS_DOC, "test");
     Object.assign(globalThis, was);
