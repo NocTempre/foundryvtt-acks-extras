@@ -214,12 +214,28 @@ export function removalRows(view, key) {
 }
 
 /**
- * Does a Remove ask first? Only where it would take more than one row and the Judge's
- * setting is on; a row on its own is removed at once.
- * @param {{key: string}[]} going the rows the Remove takes
+ * What a Remove of `key` does to the chart: the row leaves, the rows directly beneath it stay and
+ * move up to its parent row, or to the top where it has none.
+ * @param {{rows: object[]}} view `orgChartView`'s answer
+ * @param {string} key
+ * @returns {{row: {key: string, label: string}|null, lifted: {key: string, label: string}[], under: {key: string, label: string}|null}}
+ */
+export function liftedBy(view, key) {
+  const rows = view?.rows ?? [];
+  const row = rows.find((r) => r.key === key);
+  if (!row) return { row: null, lifted: [], under: null };
+  const named = (r) => ({ key: r.key, label: r.rank ?? r.label });
+  const parent = rows.find((r) => r.key === row.parentKey);
+  return { row: named(row), lifted: rows.filter((r) => r.parentKey === key).map(named), under: parent ? named(parent) : null };
+}
+
+/**
+ * Does a Remove ask first? Only where rows move (the rows directly beneath the removed one) and
+ * the Judge's setting is on; a row with none beneath it goes at once.
+ * @param {{key: string}[]} lifted the rows the Remove moves up
  * @param {boolean} setting the client setting
  */
-export const asksBeforeRemoving = (going, setting) => !!setting && (going?.length ?? 0) > 1;
+export const asksBeforeRemoving = (lifted, setting) => !!setting && (lifted?.length ?? 0) > 0;
 
 /**
  * The role a card's head is framed and worded as, read from the chart's own data and from no
@@ -317,13 +333,14 @@ export function byHandOf(stacks) {
 }
 
 /**
- * What an Unlist left, for the line above the chart: each group that now hosts what was
- * unlisted and how many rows were dropped for naming no holder.
- * @param {{units?: {uuid: string, name: string}[], dropped?: string[]}} result `org.unlistRow`'s answer
- * @returns {{groups: {uuid: string, name: string}[], dropped: number}|null} null where nothing came off
+ * What a Remove left, for the line above the chart: the row that left and the rows that moved up,
+ * with the row they now stand beneath (null for the top). Null where no row moved, so a leaf's
+ * Remove says nothing.
+ * @param {{removed?: {label: string}, under?: {label: string}|null, lifted?: {label: string}[]}} result `org.unlistRow`'s answer
+ * @returns {{removed: string, under: string|null, lifted: string[], names: string}|null} `names` is the moved rows' labels joined for the line
  */
 export function unlistedView(result) {
-  const groups = (result?.units ?? []).map((u) => ({ uuid: u.uuid, name: u.name }));
-  const dropped = result?.dropped?.length ?? 0;
-  return groups.length || dropped ? { groups, dropped } : null;
+  const lifted = (result?.lifted ?? []).map((r) => r.label);
+  if (!lifted.length) return null;
+  return { removed: result.removed?.label ?? "", under: result.under?.label ?? null, lifted, names: lifted.join(" · ") };
 }

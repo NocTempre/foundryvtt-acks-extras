@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, leaderRoleOf, nextLevelKind, officerControls, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, leaderRoleOf, liftedBy, nextLevelKind, officerControls, officerStateOf, readAfterIndex, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
@@ -116,6 +116,16 @@ export async function actorExists(uuid) {
 }
 
 /**
+ * Is this card's group gone: a row that names a holder no document answers for, as against a row
+ * never filled, which names none. Read after the pack index, never by `fromUuidSync` alone.
+ * @param {{empty?: boolean, holderUuid?: string}} card a view row
+ * @returns {Promise<boolean>}
+ */
+async function groupGoneOf(card) {
+  return !!card.empty && !!card.holderUuid && !(await actorExists(card.holderUuid));
+}
+
+/**
  * A card's officer line: where the link stands and the controls this seat is offered on it, each
  * by Foundry's own test. A write of the line reaches the host and the card's group, so both must
  * be the seat's to own for Make, Clear and Delete actor; Open needs the actor's own limited
@@ -203,11 +213,14 @@ export async function chartContext(actor, app, { isGM }) {
     const inEdit = editable && editing.has(c.key);
     const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows });
     const officerGone = !!officerLine?.gone;
+    const groupGone = await groupGoneOf(c);
     const role = roleView({ ...c, officerGone });
     return {
       ...c,
       officerLine,
       officerGone,
+      groupGone,
+      canRoll: c.canRoll && (!groupGone || !!game.user?.can?.("ACTOR_CREATE")),
       cites,
       countTip: loc("card.countTip", { name: c.name, cites }),
       byHand: !!hand,
@@ -452,8 +465,16 @@ async function askRoll(family, defaults = {}, { slots = [], title = loc("roll.ti
   }).then((v) => v || null);
 }
 
-/** Roll one empty row with everything beneath it; the answer is the provider's. */
+/**
+ * Roll one empty row with everything beneath it; the answer is the provider's. A row whose group
+ * was deleted outside the chart is emptied first, since the Roll refuses a row that names a holder.
+ */
 async function rollRow(host, key, options) {
+  const named = org.unitsOf(host).find((r) => r.key === key);
+  if (named?.holderUuid && !(await actorExists(named.holderUuid))) {
+    const cleared = await org.setHolder(host, key, "");
+    if (!cleared.ok) return refuse(cleared);
+  }
   const { template, variant } = templateOf(org.unitsOf(host), key);
   const run = await generator().rollOrganisation({ host, rowKey: key, template, scope: "below", ...options, variant: options.variant || variant });
   if (!run.ok) refuse(run, "roll.refused");
@@ -722,8 +743,8 @@ function onBadge(_event, target) {
   if (tip) ui.notifications.info(tip);
 }
 
-/** Remove from inside a card in edit: the same Remove the card's trash makes, with its confirm. */
-async function onEditRemove(_event, target) {
+/** Remove, from a card in edit or from a card whose group is gone: the row alone leaves the chart, after the confirm where rows move. */
+async function onRemove(_event, target) {
   const { host, key } = await targetOf(target);
   if (host) {
     editsOf(this).delete(key);
@@ -763,20 +784,27 @@ async function onRecall(_event, target) {
 }
 
 /**
- * Remove a card. A row with rows beneath it asks first, naming the count and the rows that
- * go, unless the Judge turned the ask off in the module's settings; a row on its own asks nothing.
+ * Remove a card: the row alone leaves the chart and the rows directly beneath it move up to its
+ * parent. It asks first, naming the rows that move and where they go, only where rows move and
+ * the Judge left the ask on in the module's settings; a row with none beneath it goes at once.
  */
 async function removeRow(app, host, key) {
-  const going = removalRows(org.orgChart(host, { isGM: true }), key);
-  if (asksBeforeRemoving(going, game.settings.get(MODULE_ID, CONFIRM_REMOVE_SETTING))) {
+  const { row, lifted, under } = liftedBy(org.orgChart(host, { isGM: true }), key);
+  if (row && asksBeforeRemoving(lifted, game.settings.get(MODULE_ID, CONFIRM_REMOVE_SETTING))) {
     const { DialogV2 } = foundry.applications.api;
+    const content = loc(under ? "remove.askUnder" : "remove.askTop", {
+      name: escape(row.label),
+      n: `<span data-tooltip-text="${escape(loc("remove.countTip"))}">${lifted.length}</span>`,
+      names: lifted.map((r) => escape(r.label)).join(" · "),
+      under: escape(under?.label ?? ""),
+    });
     const yes = await DialogV2.confirm({
       classes: DIALOG_CLASSES,
-      window: { title: loc("delete.title") },
-      content: `<p>${loc("delete.askMany", { top: escape(going[0].label), n: `<span data-tooltip-text="${escape(loc("delete.countTip"))}">${going.length - 1}</span>`, names: going.slice(1).map((r) => escape(r.label)).join(", ") })}</p>`,
+      window: { title: loc("remove.title", { name: row.label }) },
+      content: `<p>${content}</p>`,
       rejectClose: false,
-      yes: { label: loc("delete.press"), callback: () => true },
-      no: { callback: () => false },
+      yes: { label: loc("remove.press"), icon: "fa-solid fa-xmark", callback: () => true },
+      no: { label: loc("remove.cancel"), callback: () => false },
     });
     if (!yes) return null;
   }
@@ -784,9 +812,9 @@ async function removeRow(app, host, key) {
 }
 
 /**
- * The one call a Remove ends in: it takes the row and the rows beneath it off the chart and
- * deletes no document. The groups that now host what came off, and the rows dropped for naming
- * no holder, are kept for the sheet to draw above its chart until dismissed.
+ * The one call a Remove ends in: it takes the row off the chart and deletes no document. The rows
+ * that moved up, and the row they now stand beneath, are kept for the sheet to draw above its
+ * chart until dismissed.
  */
 async function removeFromChart(app, host, key) {
   const result = await org.unlistRow(host, key);
@@ -798,13 +826,6 @@ async function removeFromChart(app, host, key) {
 /** Put away the line a Remove left above the chart. */
 function onDismissUnlisted() {
   unlisteds.delete(this);
-  render(this);
-}
-
-/** The card's trash press: remove it. */
-async function onDelete(_event, target) {
-  const { host, key } = await targetOf(target);
-  if (host) await removeRow(this, host, key);
   render(this);
 }
 
@@ -853,7 +874,7 @@ export const ORG_ACTIONS = Object.freeze({
   orgAddWarband: onAddWarband,
   orgEdit: onEdit,
   orgEditDone: onEditDone,
-  orgEditRemove: onEditRemove,
+  orgRemove: onRemove,
   orgDismissUnlisted: onDismissUnlisted,
   orgBadge: onBadge,
   orgClearLeader: onClearLeader,
@@ -862,7 +883,6 @@ export const ORG_ACTIONS = Object.freeze({
   hirelingShow: onOpen,
   orgSendOut: onSendOut,
   orgRecall: onRecall,
-  orgDelete: onDelete,
   orgOpen: onOpen,
   orgRecipe: onRecipe,
   orgToggle: onToggle,

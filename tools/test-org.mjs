@@ -434,37 +434,23 @@ t("leave refuses a row that is not there, a lone actor, and a group as the facti
   assert.equal((await org.leave(war, "w")).reason, "notFaction");
 });
 
-t("unlisting a subtree of a faction moves it onto its top group and deletes nothing", async () => {
+t("removing a middle row of a faction writes the host alone, lifts its rows to the row's parent and deletes nothing", async () => {
   const { war, g1, g2, vil, f } = warbandWorld();
   await org.join(war, f, "v");
   const before = world.size;
   writes = [];
   const out = await org.unlistRow(f, "w");
   assert.equal(out.ok, true);
-  assert.deepEqual(out.units.map((u) => u.uuid), [war.uuid]);
-  assert.deepEqual(writes, ["Warband:system.units", "Village:system.units"], "the group first, then the faction");
-  assert.deepEqual(war.system.units.map((r) => [r.key, r.parentKey]), [["w", ""], ["g1", "w"], ["g2", "w"]]);
-  assert.deepEqual(f.system.units.map((r) => r.key), ["v"]);
+  assert.deepEqual(out.removed, { key: "w", label: "Row w" });
+  assert.deepEqual(out.under, { key: "v", label: "Row v" });
+  assert.deepEqual(out.lifted.map((r) => r.key), ["g1", "g2"]);
+  assert.deepEqual(writes, ["Village:system.units"], "only the host is written");
+  assert.deepEqual(f.system.units.map((r) => [r.key, r.parentKey]), [["v", ""], ["g1", "v"], ["g2", "v"]]);
   assert.equal(world.size, before, "no document was deleted");
   for (const d of [war, g1, g2, vil]) assert.ok(world.has(d.uuid));
 });
 
-t("unlisting from a group host takes the top group out of the group that nested it", async () => {
-  reset();
-  const top = group("Top");
-  const mid = group("Mid", { parent: top.uuid });
-  const leaf = group("Leaf", { parent: mid.uuid });
-  top.system.units = [row("t", "", top.uuid), row("m", "t", mid.uuid), row("l", "m", leaf.uuid)];
-  const out = await org.unlistRow(top, "m");
-  assert.equal(out.ok, true);
-  assert.equal(mid.system.unit.parentGroupUuid, "", "un-nested");
-  assert.equal(leaf.system.unit.parentGroupUuid, mid.uuid, "its own gang stays inside it");
-  assert.deepEqual(mid.system.units.map((r) => [r.key, r.parentKey]), [["m", ""], ["l", "m"]]);
-  assert.deepEqual(top.system.units.map((r) => r.key), ["t"]);
-  assert.equal(world.size, 3);
-});
-
-t("unlisting a group's own top row writes the host once and never empties it a second time", async () => {
+t("removing a group's top row lifts its rows to the top, leaves every group nested as it was and writes the host once", async () => {
   reset();
   const top = group("Top");
   const a = group("A", { parent: top.uuid });
@@ -475,30 +461,36 @@ t("unlisting a group's own top row writes the host once and never empties it a s
   writes = [];
   const out = await org.unlistRow(top, "t");
   assert.equal(out.ok, true);
-  assert.equal(writes.filter((w) => w === "Top:system.units").length, 1, "the host is written once");
-  assert.deepEqual(out.units.map((u) => u.uuid), [a.uuid, b.uuid], "each group under the top row hosts its own subtree");
-  assert.deepEqual(out.dropped, [], "the host's own row is no row that named no group");
-  assert.deepEqual(out.own, ["t"]);
-  assert.deepEqual(top.system.units, [], "the group hosts nothing");
-  assert.deepEqual(a.system.units.map((r) => [r.key, r.parentKey]), [["a", ""], ["l", "a"]]);
-  assert.deepEqual(b.system.units.map((r) => [r.key, r.parentKey]), [["b", ""]]);
-  assert.equal(a.system.unit.parentGroupUuid, "", "taken out of the group that nested it");
+  assert.equal(out.under, null, "a top row's rows go to the top");
+  assert.deepEqual(writes, ["Top:system.units"]);
+  assert.deepEqual(top.system.units.map((r) => [r.key, r.parentKey]), [["a", ""], ["b", ""], ["l", "a"]]);
+  assert.equal(a.system.unit.parentGroupUuid, top.uuid, "no group is un-nested");
   assert.equal(leaf.system.unit.parentGroupUuid, a.uuid);
   assert.equal(world.size, before, "no document was deleted");
 });
 
-t("unlisting a group's lone top row leaves the group hosting nothing", async () => {
+t("removing a row two levels down lifts its child one level and keeps the rows beneath that child", async () => {
+  reset();
+  const top = group("Top");
+  top.system.units = [row("t", "", top.uuid), row("m", "t", ""), row("l", "m", ""), row("c", "l", "")];
+  const out = await org.unlistRow(top, "l");
+  assert.equal(out.ok, true);
+  assert.deepEqual(top.system.units.map((r) => [r.key, r.parentKey]), [["t", ""], ["m", "t"], ["c", "m"]]);
+});
+
+t("removing a group's lone top row leaves the group hosting nothing", async () => {
   reset();
   const top = group("Top");
   top.system.units = [row("t", "", top.uuid)];
   writes = [];
   const out = await org.unlistRow(top, "t");
   assert.equal(out.ok, true);
+  assert.deepEqual(out.lifted, []);
   assert.deepEqual(writes, ["Top:system.units"]);
   assert.deepEqual(top.system.units, []);
 });
 
-t("a subtree that names no holder is dropped and no group is made", async () => {
+t("a row that names no holder is removed alone and no group is made", async () => {
   const { f } = warbandWorld();
   await org.addRow(f, "v", { label: "Open slot" });
   const open = f.system.units.find((r) => r.label === "Open slot");
@@ -506,28 +498,26 @@ t("a subtree that names no holder is dropped and no group is made", async () => 
   writes = [];
   const out = await org.unlistRow(f, open.key);
   assert.equal(out.ok, true);
-  assert.deepEqual(out.units, []);
-  assert.equal(out.dropped.length, 2);
+  assert.deepEqual(out.lifted.map((r) => r.label), ["Open child"]);
   assert.deepEqual(writes, ["Village:system.units"], "only the host is written; nothing is created");
-  assert.deepEqual(f.system.units.map((r) => r.key), ["v"]);
+  assert.deepEqual(f.system.units.map((r) => [r.label, r.parentKey]), [["Row v", ""], ["Open child", "v"]]);
 });
 
-t("unlist refuses a seat that cannot write, a holder it cannot write, a lone actor and a missing row, before any write", async () => {
+t("remove refuses a seat that cannot write the host and a missing row, before any write, and no longer cares who owns the groups", async () => {
   const { war, f } = warbandWorld();
   await org.join(war, f, "v");
   writes = [];
   war.isOwner = false;
-  const shut = await org.unlistRow(f, "w");
-  assert.deepEqual([shut.ok, shut.reason, shut.name], [false, "notOwner", "Warband"]);
+  assert.equal((await org.unlistRow(f, "w")).ok, true, "a group the seat does not own is not written");
   war.isOwner = true;
   f.isOwner = false;
-  assert.equal((await org.unlistRow(f, "w")).reason, "notOwner");
+  assert.equal((await org.unlistRow(f, "g1")).reason, "notOwner");
   f.isOwner = true;
   assert.equal((await org.unlistRow(f, "gone")).reason, "noRow");
   const lone = makeActor("character", "Leader", {});
   f.system.units.push(row("lone", "v", lone.uuid));
-  assert.equal((await org.unlistRow(f, "lone")).reason, "holderNotGroup");
-  assert.deepEqual(writes, [], "nothing was written");
+  assert.equal((await org.unlistRow(f, "lone")).ok, true, "a row naming a lone actor is a row like any other");
+  assert.deepEqual(writes, ["Village:system.units", "Village:system.units"]);
 });
 
 /* -------------------------------------------- */

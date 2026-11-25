@@ -160,7 +160,10 @@
 .acks-extras-org-officer.is-none .acks-extras-org-officer__name { color: var(--acks-ink-soft); }
 .acks-extras-org-officer__controls { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
 .acks-extras-org-officer button { width: auto; height: auto; line-height: 1.4; padding: 0.1rem 0.5rem; }
-.acks-extras-org-officer__delete { border-color: var(--acks-danger); color: var(--acks-danger-ink); }
+.acks-extras-org-officer__delete,
+.acks-extras-org-card__delete { border-color: var(--acks-danger); color: var(--acks-danger-ink); }
+.acks-extras-org-card.is-gone { border-color: var(--acks-danger); background: var(--acks-danger-tint); }
+.acks-extras-org-card__finding { color: var(--acks-danger-ink); }
 .acks-extras-pf.is-gone { border-style: dotted; border-color: var(--acks-danger); }
 .acks-extras-pf__gone { color: var(--acks-danger-ink); }
 .acks-extras-org-card__count.is-hand { border-bottom: 1px dotted var(--acks-warning); cursor: help; }

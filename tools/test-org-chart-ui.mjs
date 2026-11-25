@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, leaderRoleOf, nextLevelKind, officerControls, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, leaderRoleOf, nextLevelKind, officerControls, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -59,13 +59,22 @@ t("a hand-added row one level down takes the unit word the level already uses, o
   assert.equal(nextLevelKind(orgChartView([row("a", "", "G.v"), row("b", "a", "", { kind: "x" }), row("c", "a", "", { kind: "y" })], () => null)), "");
 });
 
-t("a Remove takes the row and every row beneath it, and asks only for more than one, and only while the setting is on", () => {
+t("a Delete lists the row and every row beneath it, in reading order", () => {
   assert.deepEqual(removalRows(view, "w1").map((r) => r.key), ["w1", "g1", "g2"]);
   assert.deepEqual(removalRows(view, "g1").map((r) => r.key), ["g1"]);
   assert.deepEqual(removalRows(view, "zz"), []);
-  assert.equal(asksBeforeRemoving(removalRows(view, "w1"), true), true);
-  assert.equal(asksBeforeRemoving(removalRows(view, "w1"), false), false, "the setting off asks nothing");
-  assert.equal(asksBeforeRemoving(removalRows(view, "g1"), true), false, "a row on its own is removed at once");
+});
+
+t("a Remove moves only the rows directly beneath up to the row's parent, and asks only where rows move, and only while the setting is on", () => {
+  const mid = liftedBy(view, "w1");
+  assert.deepEqual([mid.row.key, mid.lifted.map((r) => r.key), mid.under.key], ["w1", ["g1", "g2"], "v"], "a middle row's children move up under its parent");
+  const top = liftedBy(view, "v");
+  assert.deepEqual([top.lifted.map((r) => r.key), top.under], [["w1", "w2"], null], "a top row's children move to the top");
+  assert.deepEqual(liftedBy(view, "g1").lifted, [], "a leaf moves nothing");
+  assert.deepEqual(liftedBy(view, "zz"), { row: null, lifted: [], under: null });
+  assert.equal(asksBeforeRemoving(mid.lifted, true), true);
+  assert.equal(asksBeforeRemoving(mid.lifted, false), false, "the setting off asks nothing");
+  assert.equal(asksBeforeRemoving(liftedBy(view, "g1").lifted, true), false, "a row with none beneath it is removed at once");
   assert.equal(asksBeforeRemoving([], true), false);
 });
 
@@ -174,9 +183,11 @@ t("a count is set by hand when it differs from the total its Roll threw, and a s
   assert.equal(byHandOf([]), null);
 });
 
-t("an unlist reads as the groups now hosting what came off and the rows dropped, or as nothing", () => {
-  assert.deepEqual(unlistedView({ ok: true, units: [{ uuid: "G.a", name: "A", key: "k" }], dropped: ["x", "y"] }), { groups: [{ uuid: "G.a", name: "A" }], dropped: 2 });
-  assert.equal(unlistedView({ ok: true, units: [], dropped: [] }), null);
+t("a Remove reads as the row that left, the rows that moved up and the row they stand beneath, or as nothing for a leaf", () => {
+  const out = { ok: true, removed: { key: "w", label: "W" }, under: { key: "v", label: "V" }, lifted: [{ key: "a", label: "A" }, { key: "b", label: "B" }] };
+  assert.deepEqual(unlistedView(out), { removed: "W", under: "V", lifted: ["A", "B"], names: "A · B" });
+  assert.equal(unlistedView({ ...out, under: null }).under, null, "the top names no parent");
+  assert.equal(unlistedView({ ok: true, removed: { key: "w", label: "W" }, under: null, lifted: [] }), null);
 });
 
 t("a card's Recall is drawn only where it can succeed: out on a place, under a row that holds a group", () => {

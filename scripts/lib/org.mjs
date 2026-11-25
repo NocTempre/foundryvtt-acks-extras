@@ -386,38 +386,21 @@ export async function leave(faction, key) {
 }
 
 /**
- * Unlist a row: it and every row beneath it come off the host's chart, and no document is
- * deleted. The leave of a faction widened to any host: each group that held a row at the top
- * of the removed subtree now hosts that subtree as its own chart, and where the host is a group
- * it is taken out of the group that nested it. A subtree that names no holder is only
- * dropped, and no group is made for it. A group's own top row, held by the group itself, is
- * dropped the same way and the rows beneath it go to their own groups, so the host is written once
- * and hosts nothing after. Every seat is checked before the first write.
- * Delete stays in this file as `deleteRow`, for the API alone; no sheet calls it.
+ * Remove a row from a chart: it alone leaves the host's list, and no document is deleted. The
+ * rows directly beneath it stay, lifted to its parent row or to the top, so the host is the only
+ * document written and no group is moved or un-nested. Delete stays in this file as `deleteRow`.
  *
  * @param {Actor} host a faction or a group hosting a chart
- * @param {string} key the subtree's top row
- * @returns {Promise<{ok: boolean, reason?: string, name?: string, units?: {key: string, uuid: string, name: string}[], dropped?: string[], own?: string[]}>} `own` is a group's own top row, which it held itself
+ * @param {string} key the row to remove
+ * @returns {Promise<{ok: boolean, reason?: string, removed?: {key: string, label: string}, under?: {key: string, label: string}|null, lifted?: {key: string, label: string}[]}>} `under` is the row the lifted rows now stand beneath, null for the top
  */
 export async function unlistRow(host, key) {
   if (!hostsChart(host)) return refused("notHost");
   if (!host.isOwner) return refused("notOwner");
-  const plan = planUnlist({ rows: unitsOf(host), key, hostUuids: [host.uuid, host.baseActor?.uuid].filter(Boolean) });
+  const plan = planUnlist({ rows: unitsOf(host), key });
   if (!plan.ok) return refused(plan.reason);
-  const groups = plan.units.map((u) => docOf(u.holderUuid));
-  if (groups.some((g) => !isGroupActor(g))) return refused("holderNotGroup");
-  const foreign = groups.find((g) => !g.isOwner);
-  if (foreign) return { ...refused("notOwner"), name: foreign.name ?? "" };
-
-  plan.units.forEach((u, i) => {
-    const own = unitsOf(groups[i]).map((r) => r?.toObject?.() ?? r);
-    const held = new Set(own.map((r) => r.key));
-    u.write = [...own, ...u.rows.filter((r) => !held.has(r.key))];
-  });
-  for (const [i, u] of plan.units.entries()) await groups[i].update({ "system.units": u.write });
   await host.update({ "system.units": plan.kept });
-  if (isGroupActor(host)) for (const g of groups) if (g.system?.unit?.parentGroupUuid) await setParentGroup(g, null);
-  return { ok: true, units: plan.units.map((u, i) => ({ key: u.key, uuid: groups[i].uuid, name: groups[i].name ?? "" })), dropped: plan.dropped, own: plan.own };
+  return { ok: true, removed: plan.removed, under: plan.under, lifted: plan.lifted };
 }
 
 /* -------------------------------------------- */

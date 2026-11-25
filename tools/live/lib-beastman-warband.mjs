@@ -107,14 +107,14 @@ const P = {
     return { restored: !api?.rollOrganisation?.__orig, left: globalThis.__warbandRolls?.splice(0) ?? [] };
   },
 
-  /** Two groups, the first standing on its own top row over the second; unlist that top row through lib's writer and read what is left. */
+  /** Two groups, the first standing on its own top row over the second; remove that top row through lib's writer and read what is left. */
   ownTop: async ({ hostUuid, subUuid }) => {
     const rowOf = (key, parentKey, holderUuid) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen: {} });
     const host = fromUuidSync(hostUuid);
     const sub = fromUuidSync(subUuid);
     await host.update({ "system.units": [rowOf("t", "", host.uuid), rowOf("s", "t", sub.uuid)] });
     const out = await globalThis.acksExtras.lib.org.unlistRow(host, "t");
-    return { ok: out.ok, own: out.own, hostRows: host.system.units.length, subRows: sub.system.units.map((r) => r.key), both: !!fromUuidSync(host.uuid) && !!fromUuidSync(sub.uuid) };
+    return { ok: out.ok, lifted: out.lifted?.map((r) => r.key), hostRows: host.system.units.map((r) => `${r.key}<${r.parentKey}`), subRows: sub.system.units.length, nested: sub.system.unit?.parentGroupUuid ?? "", both: !!fromUuidSync(host.uuid) && !!fromUuidSync(sub.uuid) };
   },
 
   /** Wait for a condition in the page, polling, and answer whether it held. */
@@ -703,27 +703,32 @@ try {
     check("the box's scroll position survives the redraw a press makes", kept === movedBox.now, { was: movedBox.now, now: kept });
   } else note("not walked", "the tree fits the window at this width, so there is no position to keep: narrow the window or roll a larger tree");
 
-  section("remove in edit: unlist, delete nothing");
+  section("remove in edit: the one row leaves, the rows beneath it move up, delete nothing");
   confirmWas = await run(gm, P.setting, {});
   await run(gm, P.setting, { set: true });
   const removeStep = async (label, key, { ask, many }) => {
     const named = await run(gm, P.subtree, { id: fid, key });
     check(`${label}: the row stands in the shape the step needs`, many ? named.rows > 1 : named.rows === 1, { rows: named.rows });
     await run(gm, P.press, { id: fid, action: "orgEdit", key, wait: 600 });
+    const rowsBefore = await run(gm, P.rows, { id: fid });
+    const parentOf = rowsBefore.find((r) => r.key === key)?.parentKey ?? "";
+    const movers = rowsBefore.filter((r) => r.parentKey === key).map((r) => r.key);
     const dialogsBefore = await run(gm, P.dialogCount, null);
-    await run(gm, P.press, { id: fid, action: "orgEditRemove", key, wait: 900 });
+    await run(gm, P.press, { id: fid, action: "orgRemove", key, wait: 900 });
     const dialogsAfter = await run(gm, P.dialogCount, null);
-    if (named.rows > 1 && ask) {
+    if (movers.length && ask) {
       check(`${label}: a row with rows beneath it asks first`, dialogsAfter === dialogsBefore + 1, { before: dialogsBefore, after: dialogsAfter });
       await run(gm, P.dialog, { fields: {}, button: "yes" });
     } else check(`${label}: it asks nothing`, dialogsAfter === dialogsBefore, { before: dialogsBefore, after: dialogsAfter });
     const gone = await waitFor(gm, `!game.actors.get("${fid}").system.units.some((r) => r.key === "${key}")`, 8000);
-    check(`${label}: Remove takes the row and its subtree off the host`, gone, { rows: named.rows });
+    check(`${label}: Remove takes that one row off the host`, gone, { rows: named.rows });
+    const rowsAfter = await run(gm, P.rows, { id: fid });
+    check(`${label}: the rows that stood beneath it are all still on the host, the direct ones moved up to its parent, and no other row changed parent`, rowsAfter.length === rowsBefore.length - 1 && movers.every((k) => rowsAfter.find((r) => r.key === k)?.parentKey === parentOf) && rowsBefore.filter((r) => r.key !== key && !movers.includes(r.key)).every((r) => rowsAfter.find((x) => x.key === r.key)?.parentKey === r.parentKey), { movers, parentOf });
     const still = await gm.eval(`(${JSON.stringify(named.uuids)}).map((u) => !!fromUuidSync(u))`);
     check(`${label}: every group, prototype and leader the subtree named is still in the Actors tab, by uuid`, still.length >= 1 && still.every(Boolean), still);
     const listed = await run(gm, P.read, { id: fid });
-    check(`${label}: the sheet lists what was unlisted, with an Open control for each group now hosting its own chart`, typeof listed.unlistedList === "string" && listed.unlistedList.length > 0 && listed.unlistedOpens >= 1, { opens: listed.unlistedOpens, text: listed.unlistedList });
-    await run(gm, P.press, { id: fid, action: "orgDismissUnlisted" });
+    check(`${label}: the sheet names the rows that moved up and where, or says nothing where none moved`, movers.length ? typeof listed.unlistedList === "string" && listed.unlistedList.length > 0 : listed.unlistedList === null, { text: listed.unlistedList });
+    if (listed.unlistedList !== null) await run(gm, P.press, { id: fid, action: "orgDismissUnlisted" });
     const dismissed = await run(gm, P.read, { id: fid });
     check(`${label}: Dismiss closes the line and changes nothing else`, dismissed.unlistedList === null);
   };
@@ -742,11 +747,11 @@ try {
   await run(gm, P.setting, { set: confirmWas });
   confirmWas = null;
 
-  section("remove on a group's own top row");
+  section("remove on a group's own top row: its rows move to the top and no group is un-nested");
   const ownHost = await gm.create("Actor", { name: named("own top"), type: "acks-extras.group", items: [] });
   const ownSub = await gm.create("Actor", { name: named("own sub"), type: "acks-extras.group", items: [] });
   const own = await run(gm, P.ownTop, { hostUuid: ownHost.uuid, subUuid: ownSub.uuid });
-  check("org.unlistRow on a group's own top row (the API the Remove press ends in) leaves the group hosting nothing, never emptied by a second write, and the group beneath it hosts its own row; both stay in the Actors tab", own.ok && own.hostRows === 0 && own.subRows.join() === "s" && own.both, own);
+  check("org.unlistRow on a group's own top row (the API the Remove press ends in) leaves the group hosting the row beneath it at the top, writes no other group, and both groups stay in the Actors tab", own.ok && own.hostRows.join() === "s<" && own.lifted.join() === "s" && own.subRows === 0 && own.both, own);
 
   note("not walked", "the family template sheet's own Generate button (Generate is driven through the service the button calls), the root group's sheet, a Player seat's view of a hidden card, and the Judges' chat card a Roll whispers (it is not in the Roll's result)");
   walkDone();

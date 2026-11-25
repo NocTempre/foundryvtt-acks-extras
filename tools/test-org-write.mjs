@@ -14,7 +14,7 @@
  * Run: node tools/test-org-write.mjs
  */
 import assert from "node:assert/strict";
-import { keySource, leaderRecord, planAddUnit, planEdit, planRoll } from "../scripts/lib/org-write-logic.mjs";
+import { keySource, leaderRecord, planAddUnit, planEdit, planRoll, planUnlist } from "../scripts/lib/org-write-logic.mjs";
 import { planReparent, wouldCycle } from "../scripts/lib/place-logic.mjs";
 
 const tests = [];
@@ -292,6 +292,43 @@ t("Edit writes a patch of an empty row's own record: a share and a troop are kep
   assert.deepEqual(cleared.ops[0].update["system.units"].find((r) => r.key === "u2").gen, { tier: 0 }, "a blank pick is no pick");
   assert.equal(planEdit({ host: HOST, rows, key: "u2", fields: { gen: { shareKind: "a" } } }).ops.length, 0, "the same pick writes nothing");
   assert.equal(planEdit({ host: HOST, rows, key: "u1", fields: { gen: { troop: "t" } } }).ok, true, "a filled row's record is a field like its label");
+});
+
+/** A chart four levels deep: top v, mid m beneath it, leaf l beneath m, and l's own child c, with a second top row s. */
+const DEEP = () => [row("v", "", "G.v"), row("m", "v", "G.m"), row("l", "m", "G.l"), row("c", "l", "G.c"), row("s", "", "G.s")];
+const shape = (rows) => rows.map((r) => `${r.key}<${r.parentKey}`);
+
+t("an unlisted leaf takes nothing with it and lifts nothing", () => {
+  const plan = planUnlist({ rows: DEEP(), key: "c" });
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.lifted, []);
+  assert.deepEqual(shape(plan.kept), ["v<", "m<v", "l<m", "s<"]);
+});
+
+t("an unlisted middle row lifts its children to its parent and leaves the structure beneath them standing", () => {
+  const plan = planUnlist({ rows: DEEP(), key: "m" });
+  assert.deepEqual(plan.lifted, [{ key: "l", label: "Row l" }]);
+  assert.deepEqual(plan.under, { key: "v", label: "Row v" });
+  assert.deepEqual(plan.removed, { key: "m", label: "Row m" });
+  assert.deepEqual(shape(plan.kept), ["v<", "l<v", "c<l", "s<"], "l moved up under v and c stayed under l");
+});
+
+t("an unlisted top row lifts its children to the top, and a second top row is untouched", () => {
+  const plan = planUnlist({ rows: DEEP(), key: "v" });
+  assert.equal(plan.under, null);
+  assert.deepEqual(shape(plan.kept), ["m<", "l<m", "c<l", "s<"]);
+});
+
+t("an unlisted row two levels down lifts its child one level and writes no holder", () => {
+  const plan = planUnlist({ rows: DEEP(), key: "l" });
+  assert.deepEqual(shape(plan.kept), ["v<", "m<v", "c<m", "s<"]);
+  assert.deepEqual(plan.kept.map((r) => r.holderUuid), ["G.v", "G.m", "G.c", "G.s"], "every group stays named by its row");
+});
+
+t("an unlist of a row that is not there refuses and changes nothing", () => {
+  const rows = DEEP();
+  assert.deepEqual(planUnlist({ rows, key: "zz" }), { ok: false, reason: "noRow" });
+  assert.equal(rows.length, 5);
 });
 
 let failures = 0;
