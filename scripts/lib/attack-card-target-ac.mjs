@@ -54,7 +54,7 @@ export function targetAcRows(actor) {
   }));
 }
 
-/** A string of the `ACKS-LIB.conditionRoll.targetAc` branch, with its `{name}` placeholders filled. */
+/** A string of the card line's own lang branch (`targetAc`), with its `{name}` placeholders filled. */
 const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.${key}`, data);
 
 /**
