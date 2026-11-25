@@ -70,7 +70,7 @@ globalThis.foundry = {
   utils: { randomID: () => "x", getProperty, setProperty, deepClone: (o) => structuredClone(o), escapeHTML: (s) => s, mergeObject },
 };
 const say = (key, data) => (data && Object.keys(data).length ? `${key} ${JSON.stringify(data)}` : key);
-globalThis.game = { user: { isGM: true }, i18n: { format: say, localize: (key) => key, has: () => false } };
+globalThis.game = { user: { isGM: false }, i18n: { format: say, localize: (key) => key, has: () => false } };
 
 const L = await import("../scripts/lib/rung-ladder.mjs");
 const V = await import("../scripts/lib/rung-view.mjs");
@@ -89,7 +89,17 @@ const t = async (name, fn) => {
 const ladder = (...rungs) => ({ kind: "conditional", on: "invocationLevel", breakpoints: rungs.map(([atLevel, value, extra]) => ({ atLevel, value, ...(extra ?? {}) })) });
 const IMPORTED = () => ladder([1, 3], [3, 5], [5, 8]);
 const as = (lv, level) => resolveLevelValue(lv, 1, { invocationLevel: level });
-const asGM = (isGM) => (globalThis.game.user = { isGM });
+/**
+ * Whether the seat under test may write the document: what a spell sheet's
+ * `isEditable` and a store's `editable()` answer. The seat's role is set to the
+ * opposite, so a window that read the role instead of the edit right fails.
+ */
+let editing = true;
+const canEdit = (yes) => {
+  editing = yes;
+  globalThis.game.user = { isGM: !yes };
+};
+const mayEdit = () => editing;
 
 /* ------------------------------------------------------------------ */
 /*  The ladder model                                                   */
@@ -332,7 +342,7 @@ await t("a viewer who may not edit changes nothing: every mutator refuses and to
 /* ------------------------------------------------------------------ */
 
 await t("a ladder's context has a row per rung, marks the level boxes that block a save, and carries the page in the imported tooltip", () => {
-  asGM(true);
+  canEdit(true);
   const d = holder({ fig: IMPORTED() });
   d.change("fig", 1, { at: 1 });
   d.change("fig", 2, { value: 10 });
@@ -354,7 +364,7 @@ await t("an imported rung with no figure carries the page reference alone, and n
 });
 
 await t("the Save / Cancel context names the first fault in the footer and turns Save off, and a Player has no bar", () => {
-  asGM(true);
+  canEdit(true);
   const d = holder({ fig: IMPORTED() });
   d.change("fig", 1, { at: 1 });
   const bar = V.actionsContext(d, { group: "row", keys: ["fig"], idBase: "w", saveLabel: "saveRow" });
@@ -363,31 +373,37 @@ await t("the Save / Cancel context names the first fault in the footer and turns
   d.change("fig", 1, { at: 2 });
   const fixed = V.actionsContext(d, { group: "row", keys: ["fig"], idBase: "w" });
   assert.deepEqual([fixed.canSave, fixed.error], [true, ""]);
-  asGM(false);
-  const player = V.actionsContext(holder({ fig: IMPORTED() }, V.isJudge), { group: "row", keys: ["fig"], idBase: "w" });
+  canEdit(false);
+  const player = V.actionsContext(holder({ fig: IMPORTED() }, mayEdit), { group: "row", keys: ["fig"], idBase: "w" });
   assert.deepEqual([player.editable, player.canSave], [false, false]);
-  asGM(true);
+  canEdit(true);
 });
 
-await t("the kind switch is a button group: the chosen kind pressed, By invocation level offered only to a spell, and a Player kept off the invocation scale", () => {
-  asGM(true);
-  const spell = V.kindContext("value", "Damage", IMPORTED(), { invocation: true, field: "value" });
+await t("the kind switch is a button group: the chosen kind pressed, By invocation level offered only to a spell, and a seat that cannot edit kept off the invocation scale", () => {
+  canEdit(true);
+  const spell = V.kindContext("value", "Damage", IMPORTED(), { invocation: true, field: "value", editable: true });
   assert.deepEqual(spell.buttons.map((b) => [b.kind, b.pressed, b.disabled]), [["flat", false, false], ["perLevel", false, false], ["invocation", true, false]]);
   assert.equal(spell.choice, "invocation");
-  assert.equal(V.kindContext("value", "Damage", { kind: "flat", flat: 2 }, { invocation: true }).choice, "flat");
-  assert.equal(V.kindContext("value", "Damage", 4, { invocation: true }).choice, "flat");
-  const ability = V.kindContext("value", "Bonus", { kind: "perLevel" }, { invocation: false });
+  assert.equal(V.kindContext("value", "Damage", { kind: "flat", flat: 2 }, { invocation: true, editable: true }).choice, "flat");
+  assert.equal(V.kindContext("value", "Damage", 4, { invocation: true, editable: true }).choice, "flat");
+  const ability = V.kindContext("value", "Bonus", { kind: "perLevel" }, { invocation: false, editable: true });
   assert.deepEqual(ability.buttons.map((b) => b.kind), ["flat", "perLevel"]);
   assert.equal(ability.choice, "perLevel");
-  assert.equal(V.kindContext("value", "Bonus", IMPORTED(), { invocation: false }).choice, "conditional", "an ability row holding the ladder keeps the kind it is stored under");
-  asGM(false);
-  const onLadder = V.kindContext("value", "Damage", IMPORTED(), { invocation: true });
-  assert.deepEqual(onLadder.buttons.map((b) => b.disabled), [true, true, true], "a Player may not move a figure off the ladder");
-  const flatPlayer = V.kindContext("value", "Damage", { kind: "flat", flat: 1 }, { invocation: true });
-  assert.deepEqual(flatPlayer.buttons.map((b) => b.disabled), [false, false, true], "nor onto it, but may still choose between the others");
-  assert.equal(V.kindAllowed({ kind: "flat" }, "invocation"), false);
-  asGM(true);
-  assert.equal(V.kindAllowed({ kind: "flat" }, "invocation"), true);
+  assert.equal(V.kindContext("value", "Bonus", IMPORTED(), { invocation: false, editable: true }).choice, "conditional", "an ability row holding the ladder keeps the kind it is stored under");
+  canEdit(false);
+  const onLadder = V.kindContext("value", "Damage", IMPORTED(), { invocation: true, editable: false });
+  assert.deepEqual(onLadder.buttons.map((b) => b.disabled), [true, true, true], "a seat that cannot edit may not move a figure off the ladder");
+  const flatReader = V.kindContext("value", "Damage", { kind: "flat", flat: 1 }, { invocation: true, editable: false });
+  assert.deepEqual(flatReader.buttons.map((b) => b.disabled), [false, false, true], "nor onto it, but may still choose between the others");
+  assert.deepEqual(V.kindContext("value", "Damage", { kind: "flat", flat: 1 }, { invocation: true }).buttons.map((b) => b.disabled), [false, false, true], "an answer left out is not an edit right");
+  assert.equal(V.kindAllowed({ kind: "flat" }, "invocation", false), false);
+  assert.equal(V.kindAllowed({ kind: "flat" }, "invocation"), false, "no answer is not an edit right");
+  assert.equal(V.kindAllowed({ kind: "flat" }, "invocation", "yes"), false, "only true is an edit right");
+  assert.equal(V.kindAllowed({ kind: "flat" }, "perLevel", false), true, "a flat figure may still move between the other kinds");
+  assert.equal(V.kindAllowed(IMPORTED(), "flat", false), false, "a figure on the ladder may not be moved off it");
+  assert.equal(V.kindAllowed({ kind: "flat" }, "invocation", true), true);
+  assert.equal(V.kindAllowed(IMPORTED(), "flat", true), true);
+  assert.equal("isJudge" in V, false, "the view reads no role");
 });
 
 await t("choosing By invocation level writes the conditional, and re-submitting it keeps the rungs", () => {
@@ -468,7 +484,7 @@ function ladderDom(count = 3) {
 }
 
 await t("a typed rung updates the draft and repaints in place: the level mark, the edited mark and tooltip, Restore, and the footer's verdict and Save", () => {
-  asGM(true);
+  canEdit(true);
   const dom = ladderDom();
   const host = { element: dom.element, rungs: holder({ fig: IMPORTED() }), rungCite: () => "Book p. 9" };
   V.wireRungs(host);
@@ -505,7 +521,7 @@ await t("a typed rung updates the draft and repaints in place: the level mark, t
 });
 
 await t("a rung box's change event is stopped below the form, Enter is kept from submitting it, and a ladder is wired once", () => {
-  asGM(true);
+  canEdit(true);
   const dom = ladderDom();
   const host = { element: dom.element, rungs: holder({ fig: IMPORTED() }), rungCite: () => "" };
   V.wireRungs(host);
@@ -517,7 +533,7 @@ await t("a rung box's change event is stopped below the form, Enter is kept from
 });
 
 await t("a bad number in a box is no figure and blocks the save; a Player's typing reaches nothing", () => {
-  asGM(true);
+  canEdit(true);
   const dom = ladderDom();
   const host = { element: dom.element, rungs: holder({ fig: IMPORTED() }), rungCite: () => "" };
   V.wireRungs(host);
@@ -526,15 +542,15 @@ await t("a bad number in a box is no figure and blocks the save; a Player's typi
   dom.figures[0].fire("input");
   assert.ok(Number.isNaN(host.rungs.draft("fig")[0].value), "bad input is flagged, not blanked");
   assert.match(dom.text.textContent, /error\.figure/);
-  asGM(false);
+  canEdit(false);
   const playerDom = ladderDom();
-  const player = { element: playerDom.element, rungs: holder({ fig: IMPORTED() }, V.isJudge), rungCite: () => "" };
+  const player = { element: playerDom.element, rungs: holder({ fig: IMPORTED() }, mayEdit), rungCite: () => "" };
   V.wireRungs(player);
   playerDom.ats[0].value = "7";
   playerDom.ats[0].fire("input");
   assert.equal(player.rungs.draft("fig")[0].at, 1, "the draft is as stored");
   assert.equal(playerDom.text.textContent, "", "and nothing repaints");
-  asGM(true);
+  canEdit(true);
 });
 
 /* ------------------------------------------------------------------ */
@@ -545,12 +561,13 @@ const rowActions = EffectRowEditor.DEFAULT_OPTIONS.actions;
 const keys = (...names) => ({ dataset: { rungKeys: names.join(" ") } });
 
 /** A row editor over rows kept in one object, recording every write the store receives. */
-function rowEditor(rows, { domain = "spell", index = 0 } = {}) {
+function rowEditor(rows, { domain = "spell", index = 0, editable = mayEdit } = {}) {
   const writes = [];
   const store = {
     key: "spell:fx",
     label: "Invented Spell",
     domain,
+    editable,
     cite: () => "Book p. 9",
     read: () => structuredClone(rows.current),
     write: async (next) => {
@@ -564,7 +581,7 @@ function rowEditor(rows, { domain = "spell", index = 0 } = {}) {
 const fieldOf = (ctx, name) => ctx.fields.find((f) => f.name === name);
 
 await t("a row on the invocation scale shows the button group on it, the rungs inline and the pinned footer; any other kind opens as before", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", value: IMPORTED() }] };
   const { editor } = rowEditor(rows);
   const ctx = await editor._prepareContext({});
@@ -585,7 +602,7 @@ await t("a row on the invocation scale shows the button group on it, the rungs i
 });
 
 await t("a Player sees the ladder read-only: no footer, the kind buttons off, and no write ever reaches the store", async () => {
-  asGM(false);
+  canEdit(false);
   const rows = { current: [{ key: "a", type: "damage", value: IMPORTED() }] };
   const { editor, writes } = rowEditor(rows);
   const ctx = await editor._prepareContext({});
@@ -601,11 +618,11 @@ await t("a Player sees the ladder read-only: no footer, the kind buttons off, an
   assert.deepEqual(writes, [], "nothing was written");
   assert.equal(editor.renders, 0, "and nothing was redrawn");
   assert.equal(editor.rungs.draft("value").length, 3);
-  asGM(true);
+  canEdit(true);
 });
 
 await t("add, remove and change draft the rungs with no write, and a redraw by another field's write keeps the draft", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", value: IMPORTED(), note: "kept" }] };
   const { editor, writes } = rowEditor(rows);
   rowActions.rungAdd.call(editor, null, { dataset: { rungKey: "value" } });
@@ -623,7 +640,7 @@ await t("add, remove and change draft the rungs with no write, and a redraw by a
 });
 
 await t("Save row validates, writes the row once with the by-hand marks, makes the row the Judge's, and drops the draft", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", origin: "register", value: IMPORTED(), note: "kept" }] };
   const { editor, writes } = rowEditor(rows);
   editor.rungs.change("value", 2, { value: 10 });
@@ -644,7 +661,7 @@ await t("Save row validates, writes the row once with the by-hand marks, makes t
 });
 
 await t("an invalid draft is never written: Save refuses, the footer names why, and Cancel puts the stored ladder back", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", value: IMPORTED() }] };
   const { editor, writes } = rowEditor(rows);
   editor.rungs.change("value", 1, { at: 1 });
@@ -661,7 +678,7 @@ await t("an invalid draft is never written: Save refuses, the footer names why, 
 });
 
 await t("a row with a figure and a ceiling both on ladders saves both in one write, and an invalid one blocks both", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", value: IMPORTED(), max: ladder([1, 2], [4, 3]) }] };
   const { editor, writes } = rowEditor(rows);
   const ctx = await editor._prepareContext({});
@@ -679,7 +696,7 @@ await t("a row with a figure and a ceiling both on ladders saves both in one wri
 });
 
 await t("the kind buttons apply at once: onto the ladder writes it, off it keeps the rungs and drops the draft, and a Player is refused", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", value: { kind: "flat", flat: 2 } }] };
   const { editor, writes } = rowEditor(rows);
   await rowActions.figureKind.call(editor, null, { dataset: { field: "value", kind: "invocation" } });
@@ -696,6 +713,38 @@ await t("the kind buttons apply at once: onto the ladder writes it, off it keeps
   await rowActions.figureKind.call(editor, null, { dataset: { field: "nonsense", kind: "flat" } });
   assert.equal(writes.length, before, "a field that is no level value is refused");
 });
+
+await t("the edit right is the store's, never the role: an owner who is no Judge gets the footer, the ladder and the invocation choice; a store that cannot write, or answers nothing, keeps even a Judge read-only", async () => {
+  const fresh = () => ({ current: [{ key: "a", type: "damage", value: IMPORTED() }, { key: "b", type: "damage", value: { kind: "flat", flat: 2 } }] });
+  const invocation = { dataset: { field: "value", kind: "invocation" } };
+
+  globalThis.game.user = { isGM: false };
+  const owner = rowEditor(fresh(), { editable: () => true });
+  const onLadder = await owner.editor._prepareContext({});
+  assert.deepEqual([onLadder.footer.show, onLadder.footer.canSave, fieldOf(onLadder, "value").ladder.editable], [true, true, true], "an owner's row shows the footer with Save on and the ladder editable");
+  const flat = rowEditor(fresh(), { index: 1, editable: () => true });
+  assert.deepEqual(fieldOf(await flat.editor._prepareContext({}), "value").kindGroup.buttons.map((b) => b.disabled), [false, false, false], "and the invocation button is on for a flat figure");
+  await rowActions.figureKind.call(flat.editor, null, invocation);
+  assert.equal(flat.writes.length, 1, "pressing it writes");
+
+  globalThis.game.user = { isGM: true };
+  for (const [what, store] of [["a store that answers no", { editable: () => false }], ["a store with no editable", { editable: null }]]) {
+    const { editor, writes } = rowEditor(fresh(), { index: 1, ...store });
+    const ctx = await editor._prepareContext({});
+    assert.deepEqual(fieldOf(ctx, "value").kindGroup.buttons.map((b) => [b.kind, b.disabled]), [["flat", false], ["perLevel", false], ["invocation", true]], `${what}: the invocation kind is off on a non-invocation figure`);
+    await rowActions.figureKind.call(editor, null, invocation);
+    assert.deepEqual(writes, [], `${what}: pressing it writes nothing`);
+    const ladderRow = rowEditor(fresh(), store);
+    const ladderCtx = await ladderRow.editor._prepareContext({});
+    assert.deepEqual([ladderCtx.footer.show, ladderCtx.footer.canSave, fieldOf(ladderCtx, "value").ladder.editable, fieldOf(ladderCtx, "value").ladder.canRestore], [false, false, false, false], `${what}: no footer and a read-only ladder`);
+    assert.ok(fieldOf(ladderCtx, "value").kindGroup.buttons.every((b) => b.disabled), `${what}: every kind is off on an invocation figure`);
+    ladderRow.editor.rungs.add("value");
+    await rowActions.rungSave.call(ladderRow.editor, null, keys("value"));
+    assert.deepEqual(ladderRow.writes, [], `${what}: Save writes nothing`);
+  }
+  canEdit(true);
+});
+
 
 await t("deleting or moving a row closes the open editors of its store and leaves another store's alone", async () => {
   const mk = (key) => {
@@ -740,6 +789,9 @@ const Sheet = sheet.createSpellSheet(
     get item() {
       return this._item;
     }
+    get isEditable() {
+      return editing;
+    }
     render(arg) {
       this.lastRender = arg;
     }
@@ -763,8 +815,21 @@ await t("the overview's figures are the eight level values, each with a path its
   assert.deepEqual([...sheet.LEVEL_VALUE_PATHS], ["target.count", "target.hdPool", "target.area.size", "target.area.width", "save.modifier", "target.hdCap", "target.hdBelow", "save.exemptBelowHd"]);
 });
 
+await t("a spell's effect store answers editable from the pack's lock and the user's ownership, and a GM's role adds nothing", () => {
+  const store = (extra, isGM) => {
+    globalThis.game.user = { isGM };
+    return sheet.spellEffectStore({ ...spellItem({}), uuid: "Item.s", ...extra }).editable();
+  };
+  assert.equal(store({ isOwner: true }, false), true, "an owner of a world spell");
+  assert.equal(store({ isOwner: true, compendium: { locked: false } }, false), true, "an owner of an unlocked pack's spell");
+  assert.equal(store({ isOwner: true, compendium: { locked: true } }, false), false, "a locked pack");
+  assert.equal(store({ isOwner: false }, true), false, "a user who does not own it, a GM seat included");
+  assert.equal(store({}, true), false, "nothing read off the document is not an edit right");
+  canEdit(true);
+});
+
 await t("an overview figure on the invocation scale shows the button group, its rungs and its own bar; the others show their own controls", async () => {
-  asGM(true);
+  canEdit(true);
   const view = sheetOf(spellItem({ cite: "Book p. 9", target: { model: "creature", count: IMPORTED(), hdCap: { kind: "flat", flat: 4 } } }));
   const ctx = await view._prepareContext({});
   const count = ctx.levelValues.count;
@@ -774,14 +839,14 @@ await t("an overview figure on the invocation scale shows the button group, its 
   assert.equal(count.ladderActions.saveLabel, "ACKS-LIB.rungEditor.saveRungs");
   const hdCap = ctx.levelValues.hdCap;
   assert.deepEqual([hdCap.isInvocation, hdCap.isFlat, hdCap.ladder, hdCap.ladderActions, hdCap.kindGroup.choice], [false, true, null, null, "flat"]);
-  asGM(false);
+  canEdit(false);
   const player = (await sheetOf(spellItem({ target: { count: IMPORTED() } }))._prepareContext({})).levelValues.count;
   assert.deepEqual([player.ladder.editable, player.ladderActions.editable, player.kindGroup.buttons.every((b) => b.disabled)], [false, false, true]);
-  asGM(true);
+  canEdit(true);
 });
 
 await t("overview rungs are drafted: no write on add, remove or change, and the draft survives the sheet's redraws and its own submit", async () => {
-  asGM(true);
+  canEdit(true);
   const item = spellItem({ target: { model: "creature", count: IMPORTED() } });
   const view = sheetOf(item);
   sheetActions.rungAdd.call(view, null, { dataset: { rungKey: COUNT } });
@@ -798,7 +863,7 @@ await t("overview rungs are drafted: no write on add, remove or change, and the 
 });
 
 await t("Save writes the figure's flag path once through the spell's normalisation, with the by-hand marks, and drops the draft", async () => {
-  asGM(true);
+  canEdit(true);
   const item = spellItem({ target: { model: "creature", count: IMPORTED() } });
   const view = sheetOf(item);
   view.rungs.change(COUNT, 1, { value: 6 });
@@ -815,7 +880,7 @@ await t("Save writes the figure's flag path once through the spell's normalisati
 });
 
 await t("an invalid overview draft is never written, Cancel drops it, and a Player's save writes nothing", async () => {
-  asGM(true);
+  canEdit(true);
   const item = spellItem({ target: { count: IMPORTED() } });
   const view = sheetOf(item);
   view.rungs.change(COUNT, 2, { at: 3 });
@@ -826,14 +891,14 @@ await t("an invalid overview draft is never written, Cancel drops it, and a Play
   assert.equal(view.rungs.dirty(COUNT), false);
   assert.deepEqual(item.updates, [], "Cancel writes nothing");
   view.rungs.change(COUNT, 0, { value: 1 });
-  asGM(false);
+  canEdit(false);
   await sheetActions.rungSave.call(view, null, keys(COUNT));
   assert.deepEqual(item.updates, [], "a Player's save is closed");
-  asGM(true);
+  canEdit(true);
 });
 
 await t("two overview figures are drafted and saved apart", async () => {
-  asGM(true);
+  canEdit(true);
   const item = spellItem({ target: { model: "creature", count: IMPORTED(), hdPool: ladder([1, 2], [4, 6]) } });
   const view = sheetOf(item);
   view.rungs.change(COUNT, 0, { value: 9 });
@@ -846,7 +911,7 @@ await t("two overview figures are drafted and saved apart", async () => {
 });
 
 await t("an overview kind button sets the figure's kind input and submits the sheet, dropping the draft; a Player and a stray path are refused", async () => {
-  asGM(true);
+  canEdit(true);
   const item = spellItem({ target: { model: "creature", count: IMPORTED(), hdCap: { kind: "flat", flat: 2 } } });
   const view = sheetOf(item);
   const input = { value: "flat" };
@@ -857,13 +922,13 @@ await t("an overview kind button sets the figure's kind input and submits the sh
   assert.deepEqual([input.value, view.submits, view.rungs.dirty(COUNT)], ["perLevel", 1, false]);
   await sheetActions.figureKind.call(view, null, button("effects.0.value", "flat"));
   assert.equal(view.submits, 1, "a path that is no overview figure is refused");
-  asGM(false);
+  canEdit(false);
   await sheetActions.figureKind.call(view, null, button("target.hdCap", "invocation"));
   await sheetActions.figureKind.call(view, null, button(COUNT, "flat"));
   assert.equal(view.submits, 1, "a Player may not move a figure on or off the ladder");
   await sheetActions.figureKind.call(view, null, button("target.hdCap", "perLevel"));
   assert.equal(view.submits, 2, "but may still switch between the other kinds");
-  asGM(true);
+  canEdit(true);
 });
 
 await t("the overview's kind switch is converted on submit: By invocation level becomes the stored ladder, keeping its rungs", () => {
@@ -891,7 +956,7 @@ for (const name of TEMPLATES) Handlebars.registerPartial(`modules/acks-extras/te
 const render = (name, context) => Handlebars.compile(read(`templates/${name}.hbs`))(context);
 
 await t("the rungs render a box per level and figure with no form name, a gold edge and tooltip on an edited one, and a remove control per rung", () => {
-  asGM(true);
+  canEdit(true);
   const d = holder({ fig: IMPORTED() });
   d.change("fig", 1, { value: 6 });
   const html = render("lib/rung-ladder", V.ladderContext(d, "fig", { group: "row", keys: ["fig"], cite: "Book p. 9", idBase: "w" }));
@@ -907,7 +972,7 @@ await t("the rungs render a box per level and figure with no form name, a gold e
 });
 
 await t("an invalid draft marks its level box and Save points at the footer's verdict; an empty ladder says so; a Player gets read-only boxes and no buttons", () => {
-  asGM(true);
+  canEdit(true);
   const d = holder({ fig: IMPORTED() });
   d.change("fig", 1, { at: 1 });
   const html = render("lib/rung-ladder", V.ladderContext(d, "fig", { group: "row", keys: ["fig"], idBase: "w" }));
@@ -921,15 +986,15 @@ await t("an invalid draft marks its level box and Save points at the footer's ve
   const empty = render("lib/rung-ladder", V.ladderContext(holder({ fig: ladder() }), "fig", { group: "row", keys: ["fig"], idBase: "w" }));
   assert.match(empty, /rungEditor\.empty/);
   assert.match(empty, /data-action="rungAdd"/, "an empty ladder still offers Add");
-  asGM(false);
-  const player = render("lib/rung-ladder", V.ladderContext(holder({ fig: IMPORTED() }, V.isJudge), "fig", { group: "row", keys: ["fig"], idBase: "w" }));
+  canEdit(false);
+  const player = render("lib/rung-ladder", V.ladderContext(holder({ fig: IMPORTED() }, mayEdit), "fig", { group: "row", keys: ["fig"], idBase: "w" }));
   assert.equal((player.match(/readonly/g) ?? []).length, 6);
   assert.ok(!/data-action="rung(Add|Remove|Restore)"/.test(player), "no write control is drawn");
-  asGM(true);
+  canEdit(true);
 });
 
 await t("the kind switch renders a pressed group with the form's hidden kind beside it, and the pinned footer is hidden for a ladder-less row and a Player", () => {
-  asGM(true);
+  canEdit(true);
   const group = render("lib/figure-kind", V.kindContext("value", "Damage", IMPORTED(), { invocation: true, field: "value" }));
   assert.match(group, /<input type="hidden" name="value\.kind" value="invocation" data-kind-input>/);
   assert.equal((group.match(/aria-pressed="/g) ?? []).length, 3);
@@ -944,7 +1009,7 @@ await t("the kind switch renders a pressed group with the form's hidden kind bes
 });
 
 await t("the row window renders the figure's button group, the ladder inline and no Save in its body; a flat figure renders its box", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "damage", value: IMPORTED() }, { key: "b", type: "damage", value: { kind: "flat", flat: 2 } }] };
   const body = async (index) => render("lib/effect-row-editor", { ...(await rowEditor(rows, { index }).editor._prepareContext({})), partId: "p" });
   const html = await body(0);
@@ -957,7 +1022,7 @@ await t("the row window renders the figure's button group, the ladder inline and
 });
 
 await t("the overview's figure partial renders the group and, for a ladder, the rungs with their own bar; a flat figure its box", async () => {
-  asGM(true);
+  canEdit(true);
   const ctx = (await sheetOf(spellItem({ target: { model: "creature", count: IMPORTED(), hdCap: { kind: "flat", flat: 4 } } }))._prepareContext({})).levelValues;
   const ladderHtml = render("magic/level-value", ctx.count);
   assert.match(ladderHtml, /data-figure="target\.count"/);
@@ -968,10 +1033,10 @@ await t("the overview's figure partial renders the group and, for a ladder, the 
   const flatHtml = render("magic/level-value", ctx.hdCap);
   assert.match(flatHtml, /\.hdCap\.flat" value="4"/);
   assert.ok(!/data-rung/.test(flatHtml));
-  asGM(false);
+  canEdit(false);
   const player = render("magic/level-value", (await sheetOf(spellItem({ target: { count: IMPORTED() } }))._prepareContext({})).levelValues.count);
   assert.ok(!/data-action="rung/.test(player), "a Player's overview has no rung control and no bar");
-  asGM(true);
+  canEdit(true);
 });
 
 await t("every partial a template draws is registered by the part that renders it, and no template carries a literal id", () => {
@@ -1027,7 +1092,7 @@ await t("Lasts is a tracked kind's field in a spell and nothing else's: purify k
 });
 
 await t("a tracked row's Lasts offers the duration or the instant, keeps a stored other value, carries the page, and a blank stays blank", async () => {
-  asGM(true);
+  canEdit(true);
   const field = async (row) => fieldOf(await rowEditor({ current: [row] }).editor._prepareContext({}), "lasts");
   const wall = await field({ key: "a", type: "wall", lasts: "duration" });
   assert.deepEqual(Object.keys(wall.choices), ["duration", "instant"]);
@@ -1041,7 +1106,7 @@ await t("a tracked row's Lasts offers the duration or the instant, keeps a store
 });
 
 await t("the delayed affliction's effect checks write the array on change, with Lasts beside them, and the redraw shows it", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "afflictionDelay", appliesTo: "recipient", lasts: "duration", effects: ["poison"] }] };
   const { editor, writes } = rowEditor(rows);
   const effects = fieldOf(await editor._prepareContext({}), "effects");
@@ -1062,18 +1127,18 @@ await t("the delayed affliction's effect checks write the array on change, with 
 });
 
 await t("a Player's view of a tracked row has the same fields and no footer: no gate of ownership is added to the editor", async () => {
-  asGM(false);
+  canEdit(false);
   const rows = { current: [{ key: "a", type: "afflictionDelay", lasts: "duration", effects: ["poison"] }] };
   const ctx = await rowEditor(rows).editor._prepareContext({});
   assert.deepEqual(ctx.fields.map((f) => f.name).filter((name) => name !== "key").slice(0, 3), ["appliesTo", "effects", "lasts"]);
   assert.equal(ctx.footer.show, false, "no ladder, so no footer for a Player");
   assert.ok(!/data-action="rung/.test(render("lib/effect-row-editor", { ...ctx, partId: "p" })));
   assert.ok(!/isOwner/.test(read("scripts/lib/apps/effect-row-editor.mjs")), "the editor tests no ownership");
-  asGM(true);
+  canEdit(true);
 });
 
 await t("the tracked row renders its Lasts select and the effect checks under their legend, every control named, no literal id and no fixed type size", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "afflictionDelay", appliesTo: "recipient", lasts: "instant", effects: ["poison"] }] };
   const html = render("lib/effect-row-editor", { ...(await rowEditor(rows).editor._prepareContext({})), partId: "p" });
   assert.match(html, /<select name="lasts" aria-label="ACKS-LIB\.effectEditor\.field\.lasts">/);
@@ -1091,7 +1156,7 @@ await t("the tracked row renders its Lasts select and the effect checks under th
 /* ------------------------------------------------------------------ */
 
 await t("a spell's summon row edits When control ends as a select of stays, gone and hostile, after Control, with a tooltip; an ability's summon row has none", async () => {
-  asGM(true);
+  canEdit(true);
   const row = { key: "a", type: "summon", control: "obedient", controlEnd: "hostile" };
   const field = fieldOf(await rowEditor({ current: [row] }).editor._prepareContext({}), "controlEnd");
   assert.equal(field.kind, "select");
@@ -1107,7 +1172,7 @@ await t("a spell's summon row edits When control ends as a select of stays, gone
 });
 
 await t("choosing When control ends writes the row's controlEnd and keeps the rest, in the rendered select with its own name", async () => {
-  asGM(true);
+  canEdit(true);
   const rows = { current: [{ key: "a", type: "summon", control: "obedient", controlEnd: "stays", ref: "x.ref" }] };
   const { editor, writes } = rowEditor(rows);
   const html = render("lib/effect-row-editor", { ...(await editor._prepareContext({})), partId: "p" });

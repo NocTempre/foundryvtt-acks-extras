@@ -19,7 +19,7 @@ globalThis.foundry = {
   applications: { api: { HandlebarsApplicationMixin: (B) => B, ApplicationV2: class {}, DialogV2: class {} } },
 };
 
-const { describeEffect, rollScopeChip, capabilityLabel, nameForSelections, settleLanguageGrant } = await import("../scripts/abilities/ability-sheet.mjs");
+const { describeEffect, rollScopeChip, capabilityLabel, nameForSelections, settleLanguageGrant, abilityEffectStore } =await import("../scripts/abilities/ability-sheet.mjs");
 const { default: AbilityExtras, selectionsOf, storedSelections } = await import("../scripts/abilities/ability-extras.mjs");
 const { registerSelectionVocab, selectionVocabFor } = await import("../scripts/lib/vocab.mjs");
 
@@ -191,6 +191,18 @@ check("the language-grant input is stored as a whole number, blank removes the f
   const unrendered = { flags: { "acks-extras": { extras: {} } } };
   assert.deepEqual(settleLanguageGrant(unrendered, 2), { flags: { "acks-extras": { extras: {} } } });
   assert.deepEqual(settleLanguageGrant({}, 2), {});
+});
+
+check("an ability's effect store answers editable from the pack's lock and the user's ownership, never the role", () => {
+  const editable = (extra, isGM) => {
+    globalThis.game.user = { isGM };
+    return abilityEffectStore({ uuid: "Item.a", name: "Invented", ...extra }).editable();
+  };
+  assert.equal(editable({ isOwner: true }, false), true, "an owner of a world ability, no Judge");
+  assert.equal(editable({ isOwner: true, compendium: { locked: false } }, false), true, "an owner of an unlocked pack's ability");
+  assert.equal(editable({ isOwner: true, compendium: { locked: true } }, true), false, "a locked pack, a GM seat included");
+  assert.equal(editable({ isOwner: false }, true), false, "a user who does not own it, a GM seat included");
+  assert.equal(editable({}, true), false, "nothing read off the document is not an edit right");
 });
 
 console.log(`test-ability-sheet: ${pass} passed`);

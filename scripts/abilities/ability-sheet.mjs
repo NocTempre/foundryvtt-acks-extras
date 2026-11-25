@@ -346,7 +346,9 @@ export function nameForSelections(name, stored, picks, vocab) {
  * stored `extras.effects` flag, read and written whole and uncoerced, so a row
  * the window did not touch is written back exactly as it was stored.
  * @param {Item} item
- * @returns {{key: string, label: string, domain: string, read: Function, write: Function}}
+ * @returns {{key: string, label: string, domain: string, read: Function, write: Function, editable: Function}}
+ *   `editable()` answers whether this user may write the item: its pack is not
+ *   locked and the user owns it.
  */
 export function abilityEffectStore(item) {
   const path = `flags.${MODULE_ID}.${FLAG_EXTRAS}.effects`;
@@ -354,6 +356,7 @@ export function abilityEffectStore(item) {
     key: `${item.uuid}:${FLAG_EXTRAS}.effects`,
     label: item.name,
     domain: "ability",
+    editable: () => !item.compendium?.locked && item.isOwner === true,
     read: () => foundry.utils.deepClone(item.getFlag(MODULE_ID, FLAG_EXTRAS)?.effects ?? []),
     write: async (rows) => {
       await item.update({ [path]: rows });

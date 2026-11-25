@@ -1,10 +1,10 @@
 /**
- * The rungs of an invocation-level ladder as a Judge edits them: a LevelValue
+ * The rungs of an invocation-level ladder as a hand edits them: a LevelValue
  * `{kind: "conditional", on: "invocationLevel", breakpoints}` where each rung
  * is a level and the figure that holds from it up to the next rung. Foundry-free.
  *
  * The editor works on a DRAFT, a list of rungs held apart from the stored
- * value until the Judge saves. A rung carries what the import wrote (`outcome`,
+ * value until it is saved. A rung carries what the import wrote (`outcome`,
  * `text`) through every rewrite, and a mark of its own once a hand touches it:
  * `hand` is `"edited"` or `"added"` (blank for a rung as imported), `was` the
  * figure an edit replaced and `wasAt` the level it stood at. A figure left blank
@@ -212,7 +212,7 @@ export function sameAsStored(draft, lv) {
  * window until it is saved or discarded; a draft nothing has changed follows the
  * stored ladder, one a hand changed does not. Every change goes through a method
  * that refuses a viewer who may not edit, so no write path past this class
- * exists for a Player. Foundry-free: the window hands in how a ladder is read
+ * exists for a seat that cannot edit the document. Foundry-free: the window hands in how a ladder is read
  * and who may edit.
  */
 export class RungDrafts {

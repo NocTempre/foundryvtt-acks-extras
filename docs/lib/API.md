@@ -607,7 +607,7 @@ effect-row editor offers both fields on every spell-domain kind.
 
 A rung of a `conditional` ladder (`breakpoints[]`) may also carry `hand`
 (`"edited"` or `"added"`, blank as imported), `was` and `wasAt` (the figure and
-level an edit replaced): display marks a Judge's edit in the rung editor
+level an edit replaced): display marks a hand's edit in the rung editor
 leaves, read by nothing that resolves. The rung editor is not on the lib api;
 its model is `rung-ladder.mjs` (magic MODEL, "The rung editor").
 

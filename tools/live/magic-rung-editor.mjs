@@ -1,5 +1,5 @@
 /**
- * Live walk, magic-rung-editor: the Judge's inline editor for an imported
+ * Live walk, magic-rung-editor: the inline editor for an imported
  * invocation-level ladder. Walks docs/magic/TESTING.md "The rung editor" on the
  * GM seat and a Player seat: the kind switch is a button group (Flat, By caster
  * level, By invocation level) and no window of its own opens; in the effect-row
@@ -8,13 +8,16 @@
  * standing, an invalid draft keeps Save row off with its verdict in a pinned
  * footer, Restore puts edited rungs back and drops added ones, Cancel drops the
  * draft, and Save row writes the row once with the by-hand marks. The Overview's
- * figure behaves the same inline, and its own submit leaves the draft alone. A
- * Player (owner of the spell, so `isOwner` would pass) sees the same rungs
- * read-only, with no footer and no write sent.
+ * figure behaves the same inline, and its own submit leaves the draft alone.
+ * The edit right is the document's, never the role: a Player who owns the spell
+ * edits its rungs, puts a figure on the invocation scale, saves, and ticks the
+ * Overview's Unaudited mark; a Player who only observes a second spell sees its
+ * rungs read-only, with no footer, no Unaudited mark and no write sent.
  *
- * Fixture: one spell Item the walk creates, owned by everyone, and tracks by
- * uuid so the closing sweep deletes exactly it. It names no book word and holds
- * invented figures. Prints counts and booleans only.
+ * Fixtures: two spell Items the walk creates, one owned by everyone and one
+ * every player only observes, tracked by uuid so the closing sweep deletes
+ * exactly them. They name no book word and hold invented figures. Prints counts
+ * and booleans only.
  */
 import { connect } from "./_driver.mjs";
 import { seats, PORTS } from "./_env.mjs";
@@ -112,6 +115,20 @@ try {
   await track(created.uuid, "Item");
   const U = created.uuid;
   await gm.eval(`globalThis.__rungWalk = { updates: 0, keys: [], hook: Hooks.on("updateItem", (item, changes) => { if (item.uuid !== ${JSON.stringify(U)}) return; __rungWalk.updates++; __rungWalk.keys.push(...Object.keys(foundry.utils.flattenObject(changes ?? {})).filter((k) => k !== "_id")); }) }`);
+  // A second spell every player only observes: the read-only half of the Player's walk.
+  const observed = await gm.create(
+    "Item",
+    {
+      name: "QA Rung Spell Observed",
+      type: "spell",
+      ownership: { default: 2 },
+      flags: { "acks-extras": { spell: { target: { model: "creature", count: FIGURE() }, effects: [{ key: "_walk-rung", type: "damage", origin: "", value: FIGURE() }] } } },
+    },
+    {},
+  );
+  await track(observed.uuid, "Item");
+  const O = observed.uuid;
+  await gm.eval(`__rungWalk.observed = 0; __rungWalk.observedHook = Hooks.on("updateItem", (item) => { if (item.uuid === ${JSON.stringify(O)}) __rungWalk.observed++; });`);
   const start = await run(gm, U, `return { made: !!doc(), rows: (flag().effects ?? []).length, count: marks(flag().target?.count), row: marks(rowValue()) };`);
   check("the fixture spell holds the invented ladder on its row and on the overview's count", start.made && start.rows === 1 && start.row.length === 3 && start.count.length === 3, start);
 
@@ -288,54 +305,87 @@ try {
   check("Save wrote the figure once with the edited rung marked", o2.wrote === 1 && JSON.stringify(o2.stored) === JSON.stringify([[1, 3, "", null], [3, 5, "", null], [5, 12, "edited", 8]]) && o2.clean, { wrote: o2.wrote, stored: o2.stored });
   await run(gm, U, `await closeAll();`);
 
-  section("player 1. a Player who owns the spell sees the rungs read-only, with no footer, and no write is sent");
+  section("player 1. a Player who owns the spell edits its rungs and saves them, with no GM press");
   const g0 = await gm.eval(`${counter}`);
   const p1 = await run(player, U, `
     const ed = await openEditor();
     const root = ed.element;
     const footer = root.querySelector(".acks-extras-rung-footer");
+    const rect = footer?.getBoundingClientRect();
     const boxes = [...root.querySelectorAll("[data-rung-at], [data-rung-value]")];
+    const kinds = [...root.querySelectorAll('[data-action="figureKind"]')].map((b) => [b.dataset.field, b.dataset.kind, b.disabled]);
     const actions = ed.constructor.DEFAULT_OPTIONS.actions;
-    const dropped = [];
-    dropped.push(ed.rungs.add("value"), ed.rungs.change("value", 0, { value: 99 }), ed.rungs.remove("value", 0), ed.rungs.restore("value"));
-    let threw = false;
-    try { ed.rungs.toSave(["value"]); } catch { threw = true; }
+    const changed = ed.rungs.change("value", 0, { value: 77 });
     await actions.rungSave.call(ed, null, { dataset: { rungKeys: "value" } });
-    await actions.figureKind.call(ed, null, { dataset: { field: "value", kind: "flat" } });
-    await sleep(800);
-    return {
-      isGM: game.user.isGM, isOwner: doc().isOwner, boxes: boxes.length, readonly: boxes.every((b) => b.readOnly),
-      buttons: root.querySelectorAll('[data-action^="rung"]').length, footerHidden: !footer || footer.hidden || footer.getBoundingClientRect().height === 0,
-      kinds: [...root.querySelectorAll('[data-action="figureKind"]')].map((b) => [b.dataset.field, b.dataset.kind, b.disabled]),
-      dropped, threw,
-      draft: ed.rungs.draft("value").length, stored: marks(rowValue()).length,
-    };`);
-  check("the Player owns the spell and is no GM, so only `isGM` can be what gates", p1.isGM === false && p1.isOwner === true, { isGM: p1.isGM, isOwner: p1.isOwner });
-  // A Player's kind buttons are off only where a click would move a figure on or off the invocation scale: all of the ladder's own, and "By invocation level" of every figure.
-  const ladderKinds = p1.kinds.filter(([field]) => field === "value");
-  check("the rungs show read-only with no write control and no footer, the ladder's own kind buttons are off and no figure can be put on the scale", p1.boxes > 0 && p1.readonly && p1.buttons === 0 && p1.footerHidden && ladderKinds.length === 3 && ladderKinds.every(([, , off]) => off) && p1.kinds.filter(([, kind]) => kind === "invocation").every(([, , off]) => off), p1);
-  check("every draft change, save and kind switch a Player calls is refused", p1.dropped.every((v) => v === false) && p1.threw && p1.draft === p1.stored, { dropped: p1.dropped, draft: p1.draft, stored: p1.stored });
+    await until(() => marks(rowValue())[0]?.[1] === 77, 50);
+    const out = {
+      isGM: game.user.isGM, isOwner: doc().isOwner, boxes: boxes.length, editable: boxes.length > 0 && boxes.every((b) => !b.readOnly),
+      footerShown: !!footer && !footer.hidden && (rect?.height ?? 0) > 0, kinds, changed, first: marks(rowValue())[0],
+    };
+    await closeAll();
+    return out;`);
+  const g1 = await gm.eval(`${counter}`);
+  check("the Player owns the spell and is no GM, so only ownership can be what opens the editor", p1.isGM === false && p1.isOwner === true, { isGM: p1.isGM, isOwner: p1.isOwner });
+  check("the rungs are editable with the pinned footer drawn and every kind button on", p1.editable && p1.footerShown && p1.kinds.length > 0 && p1.kinds.every(([, , off]) => !off), p1);
+  check("the Player's Save wrote the edited rung once, marked as a hand's edit", p1.changed === true && p1.first?.[1] === 77 && p1.first?.[2] === "edited" && g1 - g0 === 1, { first: p1.first, writes: g1 - g0 });
+
+  section("player 2. on the Overview the owner puts the count on the invocation scale and ticks Unaudited");
+  const g2 = await gm.eval(`${counter}`);
   const p2 = await run(player, U, `
+    const sheet = await openOverview();
+    const root = sheet.element;
+    const K = "target.count";
+    const boxes = [...(ladderEl(root, K)?.querySelectorAll("[data-rung-at], [data-rung-value]") ?? [])];
+    const kinds = [...root.querySelectorAll('[data-figure="' + K + '"] [data-action="figureKind"]')].map((b) => [b.dataset.kind, b.disabled]);
+    const box = root.querySelector('input[type="checkbox"][name$=".unaudited"]');
+    const was = flag().unaudited === true;
+    if (box) { box.checked = !was; fire(box, "change"); }
+    await until(() => (flag().unaudited === true) === !was, 50);
+    await closeAll();
+    const again = await openOverview();
+    const reopened = again.element.querySelector('input[type="checkbox"][name$=".unaudited"]')?.checked;
+    await closeAll();
+    return { boxes: boxes.length, editable: boxes.length > 0 && boxes.every((b) => !b.readOnly), kinds, box: !!box, was, now: flag().unaudited === true, reopened };`);
+  const g3 = await gm.eval(`${counter}`);
+  check("the Overview's ladder is editable and the count's kind buttons are on", p2.editable && p2.kinds.length === 3 && p2.kinds.every(([, off]) => !off), p2);
+  check("the Unaudited mark is drawn for the owner, its tick persists across a reopen", p2.box && p2.now === !p2.was && p2.reopened === p2.now && g3 > g2, { ...p2, writes: g3 - g2 });
+
+  section("player 3. a Player who only observes a spell sees its rungs read-only, no Unaudited mark, and sends no write");
+  const w0 = await gm.eval(`__rungWalk.observed`);
+  // A seat that cannot edit the spell is drawn no row Edit at all, so the row editor is not reachable from it; the Overview is where its rungs show.
+  const p3 = await run(player, O, `
+    const d = doc();
+    await d.sheet.render({ force: true, tab: "mechanics" });
+    await until(() => d.sheet.rendered);
+    d.sheet.changeTab?.("mechanics", "primary");
+    await sleep(300);
+    const rowEdit = !!d.sheet.element.querySelector('[data-action="effectEdit"]');
     await closeAll();
     const sheet = await openOverview();
     const root = sheet.element;
     const K = "target.count";
     const boxes = [...(ladderEl(root, K)?.querySelectorAll("[data-rung-at], [data-rung-value]") ?? [])];
-    type(boxes[1], 40);
+    if (boxes[1]) type(boxes[1], 40);
     await sleep(500);
-    const kinds = [...root.querySelectorAll('[data-figure="' + K + '"] [data-action="figureKind"]')].map((b) => [b.dataset.kind, b.disabled]);
-    const out = { boxes: boxes.length, readonly: boxes.every((b) => b.readOnly), kinds, buttons: root.querySelectorAll('[data-figure="' + K + '"] [data-action^="rung"]').length, bar: !!root.querySelector('[data-figure="' + K + '"] [data-rung-actions]'), draft: sheet.rungs.draft(K).map((r) => r.at), stored: marks(flag().target?.count).map((r) => r[0]) };
+    const view = {
+      isOwner: doc().isOwner, rowEdit, boxes: boxes.length, readonly: boxes.every((b) => b.readOnly),
+      kinds: [...root.querySelectorAll('[data-figure="' + K + '"] [data-action="figureKind"]')].map((b) => [b.dataset.kind, b.disabled]),
+      buttons: root.querySelectorAll('[data-figure="' + K + '"] [data-action^="rung"]').length,
+      unaudited: !!root.querySelector('input[type="checkbox"][name$=".unaudited"]'),
+      draft: sheet.rungs.draft(K).map((r) => r.at), stored: marks(flag().target?.count).map((r) => r[0]),
+    };
     await closeAll();
-    return out;`);
-  const g1 = await gm.eval(`${counter}`);
-  check("the Overview shows a Player the same rungs read-only, with no control and no bar, the count's three kind buttons off, and typing changes nothing", p2.boxes > 0 && p2.readonly && p2.kinds.length === 3 && p2.kinds.every(([, off]) => off) && p2.buttons === 0 && p2.bar === false && JSON.stringify(p2.draft) === JSON.stringify(p2.stored), p2);
-  check("the GM seat heard no write from the Player's seat", g1 === g0, { before: g0, after: g1 });
+    return view;`);
+  const w1 = await gm.eval(`__rungWalk.observed`);
+  check("the observer does not own the spell and is drawn no row Edit", p3.isOwner === false && p3.rowEdit === false, { isOwner: p3.isOwner, rowEdit: p3.rowEdit });
+  check("the Overview shows its rungs read-only with no control, the count's kind buttons off, and typing changes nothing", p3.boxes > 0 && p3.readonly && p3.kinds.length === 3 && p3.kinds.every(([, off]) => off) && p3.buttons === 0 && JSON.stringify(p3.draft) === JSON.stringify(p3.stored), p3);
+  check("no Unaudited mark is drawn and the GM seat heard no write", p3.unaudited === false && w1 === w0, { unaudited: p3.unaudited, writes: w1 - w0 });
 
   section("Teardown");
-  await gm.eval(`Hooks.off("updateItem", __rungWalk.hook); delete globalThis.__rungWalk;`);
+  await gm.eval(`Hooks.off("updateItem", __rungWalk.hook); Hooks.off("updateItem", __rungWalk.observedHook); delete globalThis.__rungWalk;`);
   const swept = await sweepStep([...own]);
   console.log(`sweep: ${JSON.stringify(swept)}`);
-  check("the sweep removed the walk's spell and left nothing missing or refused", (swept.removed?.length ?? 0) === 1 && !(swept.failed?.length) && !(swept.missing?.length), swept);
+  check("the sweep removed the walk's two spells and left nothing missing or refused", (swept.removed?.length ?? 0) === 2 && !(swept.failed?.length) && !(swept.missing?.length), swept);
   walkDone();
 } catch (e) {
   if (!(e instanceof WalkBlocked)) console.log("WALK ERROR:", e?.stack ?? e);

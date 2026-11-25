@@ -9,8 +9,8 @@
  *
  * The same ladder, bar and button group render in the effect-row editor (a
  * row's `value` and `max`) and in the spell sheet's overview (each spell-wide
- * figure), so the two behave alike: the rungs are drafted until Save, a
- * Player sees them read-only with no bar, and every other field of the window
+ * figure), so the two behave alike: the rungs are drafted until Save, a seat
+ * that cannot edit the document sees them read-only with no bar, and every other field of the window
  * keeps writing on change.
  */
 import { LANG_PREFIX } from "./constants.mjs";
@@ -20,9 +20,6 @@ const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.rungEditor.${key}`, 
 
 /** The figure as a box shows it: blank for none. */
 const shown = (n) => (typeof n === "number" && Number.isFinite(n) ? String(n) : "");
-
-/** Whether the viewer is a Judge: the one gate on a rung edit and on the invocation choice. */
-export const isJudge = () => game.user?.isGM === true;
 
 /** An id-safe form of a figure key (`target.area.size` to `target-area-size`). */
 const slug = (key) => String(key).replace(/[^A-Za-z0-9_-]+/g, "-");
@@ -96,13 +93,15 @@ export function actionsContext(drafts, { group, keys, idBase, saveLabel = "saveR
 
 /**
  * Whether the viewer may choose this kind for a figure. Moving a figure on or
- * off the invocation scale is a Judge's edit; a Player's switch still chooses
- * between the other kinds.
+ * off the invocation scale takes the window's own edit right (`editable`, the
+ * window's answer to whether its user may write the document); a window
+ * without it still chooses between the other kinds.
  * @param {object|number|undefined} stored the figure as stored
  * @param {string} kind the kind chosen
+ * @param {boolean} editable whether the window lets its user edit the document
  */
-export function kindAllowed(stored, kind) {
-  return isJudge() || (kind !== INVOCATION_KIND && !isInvocationLadder(stored));
+export function kindAllowed(stored, kind, editable) {
+  return editable === true || (kind !== INVOCATION_KIND && !isInvocationLadder(stored));
 }
 
 /**
@@ -110,9 +109,9 @@ export function kindAllowed(stored, kind) {
  * @param {string} name the figure's form name, its `.kind` hidden input beside the group
  * @param {string} label the figure's name
  * @param {object|number|undefined} stored the figure as stored
- * @param {{invocation: boolean, field?: string}} options `invocation` offers "By invocation level"
+ * @param {{invocation: boolean, field?: string, editable?: boolean}} options `invocation` offers "By invocation level"; `editable` is `kindAllowed`'s
  */
-export function kindContext(name, label, stored, { invocation, field = "" }) {
+export function kindContext(name, label, stored, { invocation, field = "", editable }) {
   const choice = invocation ? kindChoiceOf(stored) : (typeof stored === "number" ? "flat" : stored?.kind || "flat");
   const kinds = ["flat", "perLevel", ...(invocation ? [INVOCATION_KIND] : [])];
   return {
@@ -125,7 +124,7 @@ export function kindContext(name, label, stored, { invocation, field = "" }) {
       label: game.i18n.localize(`${LANG_PREFIX}.figureKind.${kind}`),
       pressed: kind === choice,
       ladder: kind === INVOCATION_KIND,
-      disabled: !kindAllowed(stored, kind),
+      disabled: !kindAllowed(stored, kind, editable),
     })),
   };
 }
@@ -240,8 +239,8 @@ const keysOf = (target) => (target.dataset.rungKeys ?? "").split(" ").filter(Boo
  * The actions a window mixes into its `DEFAULT_OPTIONS.actions`; each runs with
  * the window as `this`. Add, remove and restore change a draft and redraw; Cancel
  * drops it; Save validates, hands the window's `rungWrite` every changed figure
- * at once, and drops the drafts after the write lands. A Player's call changes
- * and writes nothing.
+ * at once, and drops the drafts after the write lands. A call from a window
+ * whose drafts are not editable changes and writes nothing.
  */
 export const RUNG_ACTIONS = {
   rungAdd(event, target) {

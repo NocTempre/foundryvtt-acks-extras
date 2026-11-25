@@ -16,8 +16,8 @@
  * offers "By invocation level", and the rungs of the ladder it holds are edited
  * inline and kept as a draft until the pinned footer's "Save row", which writes
  * every changed ladder of the row at once. A figure that is no ladder, and every
- * other field, keeps applying on change. A Player sees the rungs read-only, with
- * no footer (`rung-view.mjs`).
+ * other field, keeps applying on change. A user the store does not let
+ * write sees the rungs read-only, with no footer (`rung-view.mjs`).
  *
  * A modifier or ward row edits its scope: the kinds it applies against, an
  * alignment (a fixed one or the source's) with its mode, and the enemy test. A
@@ -77,7 +77,7 @@ import { LIGHT_LEVELS } from "../light.mjs";
 import { ATTACK_KINDS } from "../conditions.mjs";
 import { ENDS_ON_CAUSES } from "../ends-on.mjs";
 import { RungDrafts, isInvocationLadder, withKindChoice } from "../rung-ladder.mjs";
-import { RUNG_ACTIONS, actionsContext, isJudge, kindAllowed, kindContext, ladderContext, wireRungs } from "../rung-view.mjs";
+import { RUNG_ACTIONS, actionsContext, kindAllowed, kindContext, ladderContext, wireRungs } from "../rung-view.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -481,7 +481,8 @@ const storedAmount = (value) => (String(value ?? "").trim() === "" ? null : Numb
 export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * @param {object} options
-   * @param {{key: string, label: string, domain: string, read: Function, write: Function}} options.store
+   * @param {{key: string, label: string, domain: string, read: Function, write: Function, editable: Function}} options.store
+   *   `editable()` answers whether this user may write the store's document; a store without it is read-only.
    * @param {number} options.index the row's position in `store.read()`
    */
   constructor({ store, index, ...options } = {}) {
@@ -510,7 +511,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
    * They live on the window, apart from the form, so a redraw after any other
    * field's write keeps them; closing the window drops them.
    */
-  rungs = new RungDrafts({ read: (field) => foundry.utils.getProperty(this.store.read()[this.index] ?? {}, field), editable: isJudge });
+  rungs = new RungDrafts({ read: (field) => foundry.utils.getProperty(this.store.read()[this.index] ?? {}, field), editable: () => this.store.editable?.() === true });
 
   /** The type the window rendered with, so a change event reads the fields that are on screen. */
   #shownType = null;
@@ -589,7 +590,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         field.isInvocation = domain === "spell" && isInvocationLadder(v);
         field.isFlat = kind === "flat";
         field.isPerLevel = kind === "perLevel";
-        field.kindGroup = kindContext(name, field.label, v, { invocation: domain === "spell", field: name });
+        field.kindGroup = kindContext(name, field.label, v, { invocation: domain === "spell", field: name, editable: this.rungs.editable() });
         field.rounds = V.choicesOf(V.VALUE_ROUNDING);
         if (field.isInvocation) field.ladder = ladderContext(this.rungs, name, { group: "row", keys: ladders, cite, idBase: this.id });
       } else if (spec.kind === "list") {
@@ -627,7 +628,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     });
     // A set offering nothing (conditions the row does not list) is left off the window.
     context.fields = context.fields.filter((field) => !(FIELD_SPECS[field.name]?.hideEmpty && !field.options?.length));
-    context.footer = { show: ladders.length > 0 && isJudge(), ...actionsContext(this.rungs, { group: "row", keys: ladders, idBase: this.id, saveLabel: "saveRow" }) };
+    context.footer = { show: ladders.length > 0 && this.rungs.editable(),...actionsContext(this.rungs, { group: "row", keys: ladders, idBase: this.id, saveLabel: "saveRow" }) };
     return context;
   }
 
@@ -874,14 +875,15 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * A kind button of a level-value figure: applies the kind at once, as any
    * other field does, and drops the figure's drafted rungs, since the figure
-   * is no longer the ladder they were drafted for. A Player's switch is refused
-   * where it would move a figure on or off the invocation scale.
+   * is no longer the ladder they were drafted for. A store its user cannot
+   * write refuses the switch where it would move a figure on or off the
+   * invocation scale.
    */
   static async #onFigureKind(event, target) {
     const field = target.dataset.field;
     const kind = target.dataset.kind;
     if (!LEVEL_VALUE_FIELDS.includes(field) || !kind) return;
-    if (!kindAllowed(this.store.read()[this.index]?.[field], kind)) return;
+    if (!kindAllowed(this.store.read()[this.index]?.[field], kind, this.rungs.editable())) return;
     const form = this.#fromForm() ?? {};
     this.rungs.discard([field]);
     await this.#apply({ [field]: { ...(form[field] ?? {}), kind } });

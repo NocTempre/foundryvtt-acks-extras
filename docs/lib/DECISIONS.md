@@ -814,7 +814,7 @@ one `locationOfRegion` lookup at entry and a redraw hook.
 reads as a missing document rather than vanishing; nothing migrates, since no
 earlier shape shipped.
 
-## 2026-11-18 — The rung editor is inline, with a draft and its own Save
+## 2026-11-18 — The rung editor is inline, with a draft and its own Save — SUPERSEDED IN PART 2026-11-25
 
 Slice R-e (rework R-e2) of the spell-effects plan. The owner, asked "Ship a
 Judge editor for imported invocation level tables in this minor?": "Yes, build
@@ -2340,3 +2340,13 @@ The ruling these serve, with the owner's selections and what it qualifies, is ma
 **Strongest counter, MEDIUM.** A stash is token data no scene ever validated: `joinOp` builds it with `getTokenDocument` and stores its object, so a field core adds at a token's creation is first written when the party deploys the creature. Held on the reading that a member stashed by the gather is the same object one step later. The walk is written to deploy a creature that was never placed and read its hit points back (magic TESTING, "Casting a summoning spell from inside a party"); until it has run, this counter is answered by reading and not by a deployment.
 
 **Cost.** `summonRelay` now answers four requests, and a session that changes its permission test changes it for all four. A consumer on contract v3 reads no party for a caster and places by click.
+
+## 2026-11-25 — The rung editor and the invocation kind follow the sheet's own editability (T-0792, B1)
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule", and of spells (T-0793): "Spell owner can setup the spell as needed. … In either case the approach is follow foundry permissions, don't invent new ones." A figure's rung ladder, its kind buttons and its Save are edited by whoever may edit the document that holds them, in the spell sheet's Overview and in the effect row editor alike. An example: a Player who owns a magic-user opens that character's spell, switches a figure to the invocation scale and saves its rungs; the same spell opened from a locked compendium stays read-only for every seat.
+
+**Built.** The effect-row store's contract gains `editable()`, which answers whether this user may write the store's document; both stores (`spellEffectStore`, `abilityEffectStore`) answer the item's own: not in a locked pack, and `isOwner`. The editor's `RungDrafts` and its pinned Save read it, the Overview's drafts read the sheet's `isEditable`, and `kindAllowed` takes the caller's answer in place of a role. `isJudge` leaves `rung-view.mjs`. Neither is on lib's API, so `apiVersion` does not move.
+
+**Supersedes IN PART** "2026-11-18 — The rung editor is inline, with a draft and its own Save": its bullet "A Player sees it read-only, by `game.user.isGM` (never `isOwner` …)". That bullet was one of the calls the build made, not a ruling of the owner's; the gate stays in every draft mutator and in Save, and now reads `editable()`.
+
+**Strongest counter, LOW.** An owner can now move an imported figure onto the invocation scale and type rungs the book does not print, which the Judge-only editor prevented. Held: the owner's words give the spell to its owner, the figure is a field of an item that owner can already rewrite from the console, and Restore imported puts the import's rungs back.

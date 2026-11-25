@@ -1625,6 +1625,11 @@ t("a delete retires a register row's key and nothing else", () => {
       for (const key of ["hdBelow", "hdBelowHint"]) assert.ok(lang[`ACKS-MAGIC.overview.${key}`], key);
     });
 
+    t("the Overview's Unaudited mark follows the sheet's own edit right, and no control on the Overview reads the role", () => {
+      assert.match(overview, /\{\{#if editable\}\}\s*<div class="form-group">\s*<label>\{\{localize "ACKS-MAGIC\.overview\.unauditedField"\}\}<\/label>[^]*?name="\{\{x\}\}\.unaudited"/);
+      assert.ok(!/\bisGM\b/.test(overview), "the overview tab tests no role");
+    });
+
     await awaitedHere("a reversed duration has the duration's own controls, submitted under its own path, and shows only on a reversible spell", async () => {
       const ctx = await contextOf({ reversible: true, duration: { shape: "fixed", value: 3, unit: "turns" }, reversedDuration: { shape: "dice", dice: "1d4", unit: "rounds" } });
       assert.equal(ctx.durations.main.name, "flags.acks-extras.spell.duration");

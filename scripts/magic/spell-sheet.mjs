@@ -20,7 +20,7 @@ import { effectRowView } from "./describe.mjs";
 import { displayRange, displayDuration, coreFieldsFrom, retiredWith } from "./spell-logic.mjs";
 import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { RungDrafts, isInvocationLadder, withKindChoice } from "../lib/rung-ladder.mjs";
-import { RUNG_ACTIONS, actionsContext, isJudge, kindAllowed, kindContext, ladderContext, wireRungs } from "../lib/rung-view.mjs";
+import { RUNG_ACTIONS, actionsContext, kindAllowed, kindContext, ladderContext, wireRungs } from "../lib/rung-view.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
 import { packIdOfUuid } from "../lib/summons-logic.mjs";
 import { resolveCreature, seatNameOf } from "../lib/summon-list.mjs";
@@ -51,13 +51,15 @@ const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
  * row the editor hands back is cleaned exactly as a sheet submit would clean
  * it. A write that names the row a delete took out (`removed`) retires its key
  * in the same update when it is a register's (`retiredWith`), so a repair does
- * not write the row back.
+ * not write the row back. `editable()` answers whether this user may write
+ * the spell: its pack is not locked and the user owns it.
  */
 export function spellEffectStore(item) {
   return {
     key: `${item.uuid}:${FLAG_SPELL}.effects`,
     label: item.name,
     domain: "spell",
+    editable: () => !item.compendium?.locked && item.isOwner === true,
     // The page the spell is read from: a blank located figure's tooltip names it.
     cite: () => SpellExtras.fromItem(item).toObject().cite,
     read: () => SpellExtras.fromItem(item).toObject().effects,
@@ -92,9 +94,10 @@ export const LEVEL_VALUE_PATHS = Object.freeze([
  * A level value as the template's control context. `path` is its place in the
  * flag and its draft's key, `cite` the page the spell is read from, and
  * `drafts` the sheet's rungs: a figure on the invocation scale shows its
- * ladder, drafted inline, with its own Save and Cancel under it.
+ * ladder, drafted inline, with its own Save and Cancel under it. `editable` is
+ * the sheet's own answer, which the kind buttons read for the invocation choice.
  */
-function levelValue(path, value, label, { cite = "", drafts, idBase }) {
+function levelValue(path, value, label, { cite = "", drafts, idBase, editable }) {
   const v = value ?? {};
   const kind = v.kind || "flat";
   const name = `${FLAG_PATH}.${path}`;
@@ -106,7 +109,7 @@ function levelValue(path, value, label, { cite = "", drafts, idBase }) {
     label,
     value: v,
     isInvocation,
-    kindGroup: kindContext(name, label, v, { invocation: true }),
+    kindGroup: kindContext(name, label, v, { invocation: true, editable }),
     ladder: isInvocation ? ladderContext(drafts, path, { ...scope, cite }) : null,
     ladderActions: isInvocation ? actionsContext(drafts, { ...scope, saveLabel: "saveRungs" }) : null,
     isFlat: kind === "flat",
@@ -287,7 +290,7 @@ export function createSpellSheet(Base) {
     tabGroups = { primary: tabList[0].id };
 
     /** The rungs of the Overview's ladders as drafts, keyed by their path in the flag; they outlive every redraw and the sheet's own submit, and closing the sheet drops them. */
-    rungs = new RungDrafts({ read: (path) => spellFigureStore(this.item).read(path), editable: isJudge });
+    rungs = new RungDrafts({ read: (path) => spellFigureStore(this.item).read(path), editable: () => this.isEditable === true });
 
     /** The page the spell is read from, for a rung's tooltip. */
     rungCite() {
@@ -351,7 +354,7 @@ export function createSpellSheet(Base) {
       };
       context.rangeText = displayRange(data.range);
       context.durations = { main: durationView("duration", data.duration), reversed: durationView("reversedDuration", data.reversedDuration) };
-      const lv = { cite: data.cite ?? "", drafts: this.rungs, idBase: this.id };
+      const lv = { cite: data.cite ?? "", drafts: this.rungs, idBase: this.id, editable: this.isEditable === true };
       context.levelValues = {
         count: levelValue("target.count", data.target?.count, loc("overview.count"), lv),
         hdPool: levelValue("target.hdPool", data.target?.hdPool, loc("overview.hdPool"), lv),
@@ -471,15 +474,15 @@ export function createSpellSheet(Base) {
     /**
      * A kind button of a figure: sets the figure's hidden kind input and submits
      * the sheet, as the select it replaces did on change, and drops the figure's
-     * drafted rungs. A Player's switch is refused where it would move a figure
-     * on or off the invocation scale.
+     * drafted rungs. A sheet its user cannot edit refuses the switch where it
+     * would move a figure on or off the invocation scale.
      */
     static async #onFigureKind(event, target) {
       const box = target.closest("[data-figure]");
       const path = box?.dataset.figure;
       const input = box?.querySelector("input[data-kind-input]");
       if (!input || !LEVEL_VALUE_PATHS.includes(path) || !target.dataset.kind) return;
-      if (!kindAllowed(spellFigureStore(this.item).read(path), target.dataset.kind)) return;
+      if (!kindAllowed(spellFigureStore(this.item).read(path), target.dataset.kind, this.isEditable === true)) return;
       this.rungs.discard([path]);
       input.value = target.dataset.kind;
       await this.submit();
