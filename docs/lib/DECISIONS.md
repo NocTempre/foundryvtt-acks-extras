@@ -2530,9 +2530,15 @@ seat (`requestUserId`); a payload claims nothing. It closes the row with no save
 and no record, releases the moment key and answers the whisper, and 4b's Undo
 reopens it.
 
-The row is shown to the owners of the subject and to a seat that owns every
-bearer; the Save is the subject's owners' alone. A seat that owns neither sees
-no row.
+Open, built as the slice's reading and put to the hub: who is shown the row. As
+built, the owners of the subject and a seat that owns every bearer are shown it,
+and the Save is the subject's owners' alone, so that a Player who owns every
+bearer can reach "Not engaged". The cost is that such a seat reads the Save
+target, total and result of a body it does not own. The other reading shows the
+row to the subject's owners only (4b's audience), which hides it from a Player
+who owns the bearers and not the subject, so "Not engaged" is reachable only by
+a seat that owns the subject and every bearer, a Judge always. A seat that owns
+neither sees no row in either reading.
 
 A blank save stays refused for every seat: the press needs a save figure, and
 the Judge closes the row or sets the condition by hand. This replaces the Judge's

@@ -582,7 +582,9 @@ await t("T10: a prompt of an always-on engaged reach posts one card per subject 
     },
   });
   const itemOf = (uuid, name, kind) => ({ uuid, name, type: "item", testUserPermission: ownedBy("pbb"), flags: { "acks-extras": { cookbook: { id: kind, cite: "MM p. 57" }, itemRun: { rows: [{ key: "engaged", target: "paralysis", conditions: ["held"], reach: { engaged: true, pulse: "turnStart+enter", filter: {}, lasts: { value: "3" }, immunity: { value: "2" } } }] } } } });
-  t10.items = { "I.t10": itemOf("I.t10", "T10", "kindT"), "I.t11": itemOf("I.t11", "Other", "kindU") };
+  const nameless = itemOf("I.t12", "Third", "kindV");
+  delete nameless.flags["acks-extras"].itemRun.rows[0].target;
+  t10.items = { "I.t10": itemOf("I.t10", "T10", "kindT"), "I.t11": itemOf("I.t11", "Other", "kindU"), "I.t12": nameless };
   t10.prior = globalThis.fromUuidSync;
   globalThis.fromUuidSync = (uuid) => t10.items[uuid] ?? t10.tokens[uuid] ?? t10.prior(uuid);
   t10.prompt = (over = {}) => {
@@ -690,6 +692,17 @@ await t("T10: a blank save leaves the Save target blank with the page reference 
     const out = await t10.run.pressRoll({ itemUuid: row.itemUuid, rowKey: row.rowKey, activationId: row.activationId, subject: row.subject, messageId: blankMessage.id, entryKey: key });
     assert.deepEqual(out, { ok: false, reason: "noFigure" }, `refused for the ${seat}'s seat`);
   }
+  // A save kind that was never imported leaves the row with no save name at all: the same blank cell and the same refusal.
+  game.combat.turn = 5;
+  await presenter.presentReach(t10.prompt({ item: t10.items["I.t12"], token: t10.tokens["E.s2"], momentKey: "c1:2:5:E.s2:kindV" }));
+  const bareMessage = engagedMessages().at(-1);
+  me.current = users.find((u) => u.id === "gm");
+  const bareHtml = presenter.engagedBody(bareMessage, engagedCard(bareMessage));
+  assert.ok(bareHtml.includes('data-tooltip-text="MM p. 57">\u00a0</td>'), "no save name: a blank cell with the page alone");
+  const bareKey = Object.keys(engagedCard(bareMessage).entries)[0];
+  assert.deepEqual(await t10.run.pressRoll({ itemUuid: "I.t12", rowKey: "engaged", activationId: "engaged:r1", subject: "E.s2", messageId: bareMessage.id, entryKey: bareKey }), { ok: false, reason: "noFigure" }, "and the Judge's press is refused");
+  t10.reach.releaseReachMoment("c1:2:5:E.s2:kindV");
+  game.combat.turn = 4;
   globalThis.Roll = priorRoll;
   me.current = users[0];
   game.combat.turn = 1;
