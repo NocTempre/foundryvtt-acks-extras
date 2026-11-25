@@ -10,7 +10,7 @@ behavior.
 | Stat block line | Storage | Path |
 |---|---|---|
 | Name / image | core | `name`, `img` |
-| Armor Class | core | `system.ac.value` / `.mod` (authored on the header; core's `computeAC()` hard-returns for non-character actors, so nothing carried on Inventory derives or changes it) |
+| Armor Class | core | `system.ac.value` / `.mod` (authored on the header; core's `computeAC()` hard-returns for non-character actors, so nothing carried on Inventory derives or changes it; a Defend action's thrown, missile and Blast terms read an equipped shield item there, lib MODEL "A Defend reads the shield at the roll") |
 | Hit points (rolled) | core | `system.hp.hd` (formula — rewritten from the Hit Dice rating on submit whenever the rating's count, die or bonus changes, via `lib/actor-read.mjs` `hdFormula`; the rating's dice button submits and calls core `rollHP`), `.value`, `.max`, `.bhr` |
 | Saving throws (values) | core | `system.saves.{paralysis,death,blast,implements,spell}.value` |
 | Morale | core | `system.details.morale` |

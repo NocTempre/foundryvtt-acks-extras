@@ -163,6 +163,21 @@ const windowKeys = new Set(Object.values(recipe.tables).flatMap((t) => t.values.
 const wanted = Object.entries(CONDITION_SLOTS).flatMap(([c, slots]) => slots.map((s) => rawKey(SHARED_HEADING[c] ?? c, s)));
 eq("every slot the assembler reads has a window in a recipe", [...new Set(wanted)].filter((k) => !windowKeys.has(k)), []);
 eq("every window a recipe takes is read by the assembler", [...windowKeys].filter((k) => !wanted.includes(k)), []);
+eq(
+  "the Defend recipe reads one window for each slot of the one Defend row",
+  recipe.tables.defendProse.values.map((v) => v.key).sort(),
+  CONDITION_SLOTS.defending.map((slot) => rawKey("defending", slot)).sort(),
+);
+eq(
+  "the shield's windows assemble under Defend, as invented figures",
+  rows({
+    [rawKey("defending", "melee")]: "+61 ac against",
+    [rawKey("defending", "thrown")]: "+23 ac against",
+    [rawKey("defending", "missile")]: "+37 ac against",
+    [rawKey("defending", "blast")]: "+41 bonus",
+  }).defending,
+  { melee: 61, thrown: 23, missile: 37, blast: 41 },
+);
 
 for (const [id, table] of Object.entries(recipe.tables)) {
   check(`${id}: a prose-values table on a cited page`, table.shape === "proseValues" && table.printedPage > 0 && !!table.locate);

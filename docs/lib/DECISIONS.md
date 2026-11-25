@@ -2070,3 +2070,55 @@ declared descendant scroller of the part, not literally the part's root element;
 the vertical scroller's child and stays declared as it was. *Rejected:* making the part root itself
 the sideways scroller, which would give two scrolling frames inside one window and move the tools
 strip and every other section with the tree.
+
+## 2026-11-25 — A Defend is one condition, and the shield is read at the roll
+
+Board 4 of the design canvas drew the "Defending with a Shield" tile struck and
+`defendingShield` folded into `defending`: "one action; the shield is read at
+the roll". The owner was asked "Board 4 (S6: names, icons and ids from the
+system, on the HUD and the palette window) is unanswered: build it as drawn, or
+will you answer its open points first?" and answered "Build as drawn". The
+design is `architect`'s ruling of this date.
+
+- `defending` carries the melee row unconditionally and the thrown, missile and
+  Blast rows under `when: "shield"`; `defendingShield` is deleted. One test
+  serves every actor type, `shieldOf(actor)`: an equipped armour item of the
+  shield type is `true`; with none, a character is `false` and any other actor
+  type is `null`. In `collect` a known `false` leaves a shield row out beside
+  the scope filters, so it is never named unpriced; `null` returns it in
+  `pending` as `when: "shield"`, through the notice the module already raises;
+  `true` applies it. No gate, no prompt, no new surface.
+- A given Defend reads the giver's shield (`gifts.defending.shield`), and the
+  bearer's own where no giver is found; a subject with no `shield` field is
+  unknown, never absent.
+- The importer's Defend windows are keyed `defendingMelee`, `defendingThrown`,
+  `defendingMissile` and `defendingBlast`, one for each slot of the one row.
+- `shieldOf` spells the item test out with bare literals instead of importing
+  `isShield` and `isWorn` from `item-model.mjs`: `vocab.mjs` reads the
+  catalogue at load, so `conditions.mjs` imports nothing that reaches it. A
+  test pins the two readings together.
+
+**Corrects** addendum 2, section 5, of
+`docs/wip/20261124-core-14.2.0-repair-plan.md`, which read a character's shield
+from the system's `system.ac.shield`. **New evidence:** that field is a derived
+sum of the equipped shields' Armor Class values, so an equipped shield whose
+Armor Class was never imported reads as none. The item is read instead.
+
+**Rejected.** Reading `system.ac.shield` (above). Bare possession of a shield
+item as a shield held: it contradicts the character rule and `isWorn`.
+A monster's gear rows or a leader's armour words as its shield: imported book
+text only generated creatures carry, which is content read as structure.
+Pending alone, with no way to settle a monster: it ignores a control a Judge
+already has, since a shield item can be equipped on a monster's own sheet. A
+migration, an alias or a repair check for `defendingShield`: the owner ruled
+that nothing carries previous-version data.
+
+**Cost.** The counter-argument, rated MEDIUM: most monsters hold no shield
+item, and the pending notice reaches only the roller's client, usually a
+player's. Before the fold the Judge's one tile applied these rows to a monster;
+after it nothing does until someone equips a shield or adds a situational
+modifier. A Judge equips a shield once per monster, melee still applies, and
+"unapplied, and told" is how the module treats what it cannot decide. An effect
+still holding `defendingShield`, a stored palette, a `conditions` set, a
+`status` gate's text and a registry row filed under it stop meaning anything; a
+Judge sets the mark again and re-runs the Rules tables import.

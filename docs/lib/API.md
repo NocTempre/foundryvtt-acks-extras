@@ -1058,7 +1058,8 @@ acksExtras.lib.conditions = {
   conditionSet(statuses),       // → Set of ids, closed under `implies`, in catalogue order
   conditionValues(),            // → the registered rows, {} when none
   conditionsReady(),            // → whether any row is registered
-  subjectOf(actor),             // → {statuses, counts, sources, gifts, id, acWaived, implied} | null
+  subjectOf(actor),             // → {statuses, counts, sources, gifts, id, acWaived, implied, shield} | null
+  shieldOf(actor),              // → true | false | null: an equipped shield item; none reads false for a character, null for any other type
   acWaivedSet(subject),         // → Set of ids: the conditions whose Armor Class figure the subject does not suffer
   giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own
   forbiddenBy(set, act),        // → the ids in a closed set that take `act` away
@@ -1073,8 +1074,9 @@ acksExtras.lib.conditions = {
 ```
 
 `subjectOf(actor).gifts` maps a state another combatant gave the creature to
-`{statuses}`, that giver's statuses, which is where a row's `unless` is read
-for it. `endingAtTurn` takes the bearer's combatant id as `self` and, for
+`{statuses, shield}`, that giver's statuses, which is where a row's `unless` is
+read for it, and `shieldOf` of that giver, which is where a row's
+`when: "shield"` is read for it. `endingAtTurn` takes the bearer's combatant id as `self` and, for
 each given state, its giver's combatant id in `givers`. `giverOf`,
 `endingAtTurn`, `lostTo`, `LOSSES` and `gifts` are the conditions surface's.
 
@@ -1178,6 +1180,21 @@ is `concentrating-and-stationary`, `covered` is `cover-waist-high` and
 A consumer that stored or compared an old id, or built a name key from the
 pattern `ACKS-LIB.condition.<id>`, reads the new id or `conditionNameKey`. A row
 marked `state` is filed under States on the palette.
+
+**Defend is one condition and its shield is read at the roll** (apiVersion 78).
+`defendingShield` is gone from the catalogue: `defending` carries the melee row
+and, under `when: "shield"`, the thrown, missile and Blast rows.
+`subjectOf(actor).shield` is `shieldOf(actor)`: `true` for an equipped armour
+item of the shield type, else `false` for a character and `null` for any other
+actor type, which reads as unknown. A subject with no `shield` field is also
+unknown. A `shield` row is applied for `true`, left out for `false`, and
+returned in `pending` as `when: "shield"` for `null`. For a state another
+combatant gave, the row reads the gift's `shield` (the giver's); where no giver
+is found it reads the creature's own. The importer's Defend windows are
+`defendingMelee`, `defendingThrown`, `defendingMissile` and `defendingBlast`.
+`itemModel.isShield(item)` is the shield test `profiles.mjs` re-exports. A
+consumer that stored or compared `defendingShield`, or read an effect's figure
+under it, reads `defending`.
 
 ## `statusPalette` — the token palette as the Judge arranged it (apiVersion 29)
 
@@ -1797,7 +1814,7 @@ const { isPhysical, isEquippable, isEquipped, weight6Of, weightStoneOf,
         physicalItems, equippedItems, setEquipped, STONE,
         isGoods, isStowable, isClothing, encumbering6,
         hasStock, findCarried, carriesItem,
-        isWearable, isWorn, slotsOf, declaresSlots, wornSlotOf, setWorn,
+        isShield, isWearable, isWorn, slotsOf, declaresSlots, wornSlotOf, setWorn,
         gearOf, itemsInSlot, slotOverfilled,
         isCurrency, stackCountOf, perStoneOf, systemCoinsPerStone, sumWeight6,
         divideStack, joinStacks } = acksExtras.lib.itemModel;

@@ -272,7 +272,7 @@ ok("the palette's groups: States hold the module's own marks, Conditions hold th
   const all = new Map(fx.knownStatuses().map((s) => [s.id, s]));
   const under = (source) => [...all.values()].filter((s) => s.source === source).map((s) => s.id).sort();
   assert.deepEqual(under("state"), [
-    "acks-extras.running", "casting", "countercharging", "cover-chest-high", "cover-waist-high", "dead", "defending", "defendingShield",
+    "acks-extras.running", "casting", "countercharging", "cover-chest-high", "cover-waist-high", "dead", "defending",
     "diseased", "frostbitten", "invisible", "retreating", "withdrawing",
   ]);
   assert.deepEqual(under("system"), ["coreonly", "delayed", "done", "overnumbering", "readied"]);
@@ -381,7 +381,10 @@ ok("a state whose closure takes away acting, and one that brings only conditions
   assert.ok(CONDITIONS.prone.implies.length);
   assert.deepEqual([config("prone")._id, config("prone").statuses], [undefined, undefined]);
   assert.deepEqual(config("prone").system.changes, conditionChanges("prone"));
-  assert.deepEqual([config("defendingShield")._id, config("defendingShield").statuses], [undefined, undefined]);
+  // The folded Defend has no palette entry of its own.
+  const folded = ["defending", "Shield"].join("");
+  assert.equal(fx.knownStatuses().some((s) => s.id === folded), false);
+  assert.equal(config(folded), undefined);
 });
 
 ok("the set follows the system's list at registration: with the brought condition's changes gone, the state brings nothing", () => {

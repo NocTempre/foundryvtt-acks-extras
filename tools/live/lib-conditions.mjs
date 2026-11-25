@@ -180,6 +180,8 @@ const P = {
       keysRead: H.RM.CONDITION_STEP_KEYS,
       libWrapper: !!globalThis.libWrapper?.register,
       playersSeeTargetAc: !!game.settings.get("acks", "showTargetACToPlayers"),
+      // Every picture the HUD draws, with the entries that draw it: two tiles under one picture cannot be told apart.
+      sharedImages: Object.entries(Object.groupBy(CONFIG.statusEffects.filter((e) => e.hud !== false), (e) => String(e.img))).filter(([, list]) => list.length > 1).map(([img, list]) => ({ img, ids: list.map((e) => e.id) })),
     };
   },
   /** Bring a fixture token to the shape every step starts from: none of the conditions, no target. */
@@ -865,6 +867,7 @@ try {
   const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
   check("1: the states that bring a condition name it on their entry, and no other entry names one", sorted(brings) === sorted(BRINGS), brings);
   check("1: each such entry has a fixed id of sixteen letters and digits, its own, and brings only conditions that carry changes", census.implying.every((e) => e.idOk && e.bringsCarry) && new Set(census.implying.map((e) => e.effectId)).size === census.implying.length, census.implying.filter((e) => !e.idOk || !e.bringsCarry).map((e) => e.id));
+  check("1: no two entries the Token HUD shows share a picture", census.sharedImages.length === 0, census.sharedImages);
 
   const failing = (rows, key) => rows.filter((r) => !r[key]).map((r) => r.id);
   for (const [n, kind, bearer, foe] of [[2, "a character", pcTok, monTok], [3, "an unlinked monster token", monTok, pcTok]]) {

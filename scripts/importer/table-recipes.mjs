@@ -1498,9 +1498,9 @@ const SHARED_TABLE_RECIPES = {
         // that leads into its own figure and stops before the next.
         values: [
           { key: "defendingMelee", find: "does not have a shield", take: "window", span: 50 },
-          { key: "defendingShieldMissile", find: "combatant has a shield", take: "window", span: 50 },
-          { key: "defendingShieldThrown", find: "other than thrown weapons", take: "window", span: 20 },
-          { key: "defendingShieldBlast", find: "thrown missile attacks", take: "window", span: 30 },
+          { key: "defendingMissile", find: "combatant has a shield", take: "window", span: 50 },
+          { key: "defendingThrown", find: "other than thrown weapons", take: "window", span: 20 },
+          { key: "defendingBlast", find: "thrown missile attacks", take: "window", span: 30 },
         ],
       },
       counterchargeProse: {

@@ -14,8 +14,9 @@ import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.
 import {
   ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, LOSSES, SAVE_KINDS,
   STACKS_FLAG, acMath, acWaivedSet, attackMath, conditionLabel, conditionNameKey, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
-  giverOf, lostTo, rollMath, speedMath, subjectOf, systemEntryOf,
+  giverOf, lostTo, rollMath, shieldOf, speedMath, subjectOf, systemEntryOf,
 } from "../scripts/lib/conditions.mjs";
+import { isShield, isWorn } from "../scripts/lib/item-model.mjs";
 import { CONDITION_KEYS } from "../scripts/lib/vocab.mjs";
 import {
   CONDITION_ORDER, CONDITION_KEYS as EFFECT_KEYS, actorOf as conditionActor, conditionValue, coreConditions, effectOf as conditionEffect,
@@ -41,8 +42,7 @@ const VALUES = {
   "cover-waist-high": { against: -3, blast: 3 },
   "cover-chest-high": { against: -7, blast: 6 },
   deafened: { surprise: -2, proficiency: -7 },
-  defending: { melee: 5 },
-  defendingShield: { thrown: 3, missile: 8, blast: 4 },
+  defending: { melee: 5, thrown: 3, missile: 8, blast: 4 },
   enlarged: { attack: 4 },
   faltering: { all: -6 },
   fatigued: { all: -2 },
@@ -67,7 +67,7 @@ const termOf = (math, condition) => math.terms.find((t) => t.condition === condi
 /* --- the catalogue --------------------------------------------------------- */
 
 ok("the catalogue is internally consistent", () => {
-  assert.equal(CONDITION_IDS.length, 74);
+  assert.equal(CONDITION_IDS.length, 73);
   for (const mark of ["diseased", "frostbitten"]) {
     assert.ok(CONDITIONS[mark], mark);
     assert.deepEqual([CONDITIONS[mark].mods, CONDITIONS[mark].forbids, CONDITIONS[mark].implies], [undefined, undefined, undefined], mark);
@@ -96,7 +96,7 @@ ok("the catalogue is internally consistent", () => {
 
 /** The ids the system ships no entry for: the only rows that carry their own name and icon. */
 const MODULE_IDS = [
-  "casting", "countercharging", "cover-chest-high", "cover-waist-high", "defending", "defendingShield", "diseased",
+  "casting", "countercharging", "cover-chest-high", "cover-waist-high", "defending", "diseased",
   "frostbitten", "immune", "resistant", "retreating", "subjacent", "withdrawing",
 ];
 
@@ -116,7 +116,7 @@ ok("a row carries its own name and icon only where the system ships none, and la
 ok("the rows the palette files under States are marked, and the rest of the catalogue is not", () => {
   const states = CONDITION_IDS.filter((key) => CONDITIONS[key].state);
   assert.deepEqual(states.sort(), [
-    "casting", "countercharging", "cover-chest-high", "cover-waist-high", "defending", "defendingShield", "diseased", "frostbitten", "retreating", "withdrawing",
+    "casting", "countercharging", "cover-chest-high", "cover-waist-high", "defending", "diseased", "frostbitten", "retreating", "withdrawing",
   ]);
   for (const key of ["immune", "resistant", "subjacent"]) assert.equal(CONDITIONS[key].state, undefined, key);
 });
@@ -318,29 +318,26 @@ ok("both sides stack on one throw", () => {
 });
 
 ok("a waiver leaves a module-owned Armor Class row out and reports it, the shape otherwise as it was", () => {
-  // The rows left on Armor Class are Defend's: the shield's defence implies the plain one.
-  const waiving = (statuses, acWaived) => who(statuses, { acWaived });
+  // The rows left on Armor Class are Defend's; a shield is held, so every one of them is read.
+  const waiving = (statuses, acWaived) => who(statuses, { acWaived, shield: true });
   const melee = { kind: "melee" };
-  const plain = acMath(who(["defendingShield"]), VALUES, melee);
+  const plain = acMath(waiving(["defending"], []), VALUES, melee);
   assert.deepEqual(plain, { total: 5, parts: [{ condition: "defending", value: 5 }], unpriced: [], waived: [] }, "no waiver: the same total and parts, an empty list");
-  // The shield has no melee row of its own; the defence it implies is what it costs.
-  const waived = acMath(waiving(["defendingShield"], ["defendingShield"]), VALUES, melee);
+  const waived = acMath(waiving(["defending"], ["defending"]), VALUES, melee);
   assert.deepEqual(waived, { total: 0, parts: [], unpriced: [], waived: [{ condition: "defending", value: 5 }] });
-  assert.deepEqual(acMath(waiving(["defendingShield"], ["defendingShield"]), VALUES, { kind: "thrown" }).waived, [{ condition: "defendingShield", value: 3 }], "its own row is waived by name");
-  assert.equal(acMath(waiving(["defendingShield"], ["casting"]), VALUES, melee).total, 5, "a waiver for what the creature is not doing waives nothing");
-  assert.equal(acMath(waiving(["defending"], ["defending"]), VALUES, melee).total, 0, "naming the row's own condition waives it");
-  assert.equal(acMath(waiving(["defendingShield", "defending"], ["defendingShield"]), VALUES, melee).total, 5, "a defence carried in its own right is suffered");
+  assert.deepEqual(acMath(waiving(["defending"], ["defending"]), VALUES, { kind: "thrown" }).waived, [{ condition: "defending", value: 3 }], "a shield row is waived with it");
+  assert.equal(acMath(waiving(["defending"], ["casting"]), VALUES, melee).total, 5, "a waiver for what the creature is not doing waives nothing");
   // Only the Armor Class figure: every other row of the creature stands.
-  assert.equal(rollMath("save", waiving(["defendingShield"], ["defendingShield"]), VALUES, { save: "blast" }).total, 4);
+  assert.equal(rollMath("save", waiving(["defending"], ["defending"]), VALUES, { save: "blast" }).total, 4);
   const counter = attackMath({ attacker: waiving(["countercharging"], ["countercharging"]), kind: "melee", values: VALUES });
   assert.equal(termOf(counter, "countercharging").value, 5, "the attack row of a waived condition still applies");
   // An id that is no condition names nothing.
   assert.equal(acMath(waiving(["defending"], ["no-such-condition"]), VALUES, melee).total, 5);
   // The same reading on the target's side of an attack throw.
-  const target = waiving(["defendingShield"], ["defendingShield"]);
+  const target = waiving(["defending"], ["defending"]);
   const theirs = attackMath({ attacker: who([]), target, kind: "melee", values: VALUES });
   assert.deepEqual([theirs.terms, theirs.waived], [[], [{ condition: "defending", value: -5 }]], "the figure as a term would have carried it");
-  assert.deepEqual(attackMath({ attacker: who([]), target: who(["defendingShield"]), kind: "melee", values: VALUES }).waived, []);
+  assert.deepEqual(attackMath({ attacker: who([]), target: who(["defending"]), kind: "melee", values: VALUES }).waived, []);
 });
 
 ok("the waiver's decision: a named condition, what only it implies, never what stands in its own right", () => {
@@ -491,17 +488,140 @@ ok("a row on Armor Class stands against only the kinds of attack it names", () =
   assert.equal(acMath(who(["defending", "disordered"]), VALUES, { kind: "melee" }).total, 5);
 });
 
-ok("a shield adds to what defending gives, by the kind of attack", () => {
-  assert.deepEqual([...conditionSet(["defendingShield"])].sort(), ["defending", "defendingShield"]);
-  assert.equal(sumOf(attack([], ["defendingShield"], "melee")), -5);
-  assert.equal(sumOf(attack([], ["defendingShield"], "thrown")), -3);
-  assert.equal(sumOf(attack([], ["defendingShield"], "missile")), -8);
+/** An armour item as an actor holds it; `ac` is the sheet's Armor Class figure, blank where never imported. */
+const armour = (type, equipped, ac = null) => ({ type: "armor", system: { type, equipped, ac: { value: ac } } });
+/** An actor as `subjectOf` reads it, defending. */
+const defender = (type, items, extra = {}) => ({ type, items, uuid: `Actor.${type}`, statuses: new Set(["defending"]), ...extra });
+const defence = (actor, kind) => attackMath({ attacker: who([]), target: subjectOf(actor), kind, values: VALUES });
+const blastOf = (actor) => rollMath("save", subjectOf(actor), VALUES, { save: "blast" });
+
+ok("a character's Defend reads its equipped shield at the roll: the thrown, missile and blast rows with one, the melee row without", () => {
+  const shielded = defender("character", [armour("shield", true)]);
+  assert.deepEqual([conditionSet(["defending"]).size, [...conditionSet(["defending"])][0]], [1, "defending"], "one condition, whatever the shield");
+  assert.equal(sumOf(defence(shielded, "melee")), -5);
+  assert.equal(sumOf(defence(shielded, "thrown")), -3);
+  assert.equal(sumOf(defence(shielded, "missile")), -8);
+  assert.equal(blastOf(shielded).total, 4);
+  assert.deepEqual(defence(shielded, "missile").terms, [{ condition: "defending", value: -8, side: "target" }]);
+  // Carried and not equipped, it is not held: the melee row only, and nothing is left unpriced or pending.
+  const carried = defender("character", [armour("shield", false)]);
+  assert.equal(sumOf(defence(carried, "melee")), -5);
+  for (const kind of ["thrown", "missile"]) {
+    const math = defence(carried, kind);
+    assert.deepEqual([math.terms, math.pending, math.unpriced], [[], [], []], kind);
+  }
+  assert.deepEqual([blastOf(carried).total, blastOf(carried).pending, blastOf(carried).unpriced], [0, [], []]);
+  // A suit of armour is no shield, and a character with nothing is known to hold none.
+  assert.equal(shieldOf(defender("character", [armour("plate", true)])), false);
+  assert.equal(shieldOf(defender("character", [])), false);
+  assert.equal(sumOf(defence(defender("character", []), "missile")), 0);
+  // An equipped shield whose Armor Class was never imported still counts: the item is read, not the sheet's sum.
+  const blank = defender("character", [armour("shield", true, null)]);
+  assert.equal(blank.items[0].system.ac.value, null);
+  assert.equal(sumOf(defence(blank, "missile")), -8);
+  assert.equal(blastOf(blank).total, 4);
+});
+
+ok("a monster's shield is read from its items; with none the shield rows are pending, never dropped and never applied", () => {
+  const bare = defender("monster", []);
+  assert.equal(shieldOf(bare), null, "nothing recorded is unknown, not absent");
+  assert.equal(sumOf(defence(bare, "melee")), -5, "the melee row is the action's own");
+  for (const [kind, value] of [["thrown", -3], ["missile", -8]]) {
+    const math = defence(bare, kind);
+    assert.deepEqual([math.terms, math.pending, math.unpriced], [[], [{ condition: "defending", value, when: "shield" }], []], kind);
+  }
+  const blast = blastOf(bare);
+  assert.deepEqual([blast.total, blast.pending, blast.unpriced], [0, [{ condition: "defending", value: 4, when: "shield" }], []]);
+  // Armour that is no shield, equipped, says nothing about one.
+  assert.equal(shieldOf(defender("monster", [armour("plate", true)])), null);
+  const held = defender("monster", [armour("shield", true)]);
+  assert.equal(shieldOf(held), true);
+  assert.equal(sumOf(defence(held, "missile")), -8);
+  assert.equal(sumOf(defence(held, "thrown")), -3);
+  assert.equal(blastOf(held).total, 4);
+  assert.deepEqual([defence(held, "missile").pending, blastOf(held).pending], [[], []]);
+  // A monster's shield carried and not equipped is no more held than a character's, but nobody records the rest.
+  assert.equal(shieldOf(defender("monster", [armour("shield", false)])), null);
+  assert.equal(shieldOf(null), null);
+});
+
+ok("shieldOf tells an armour item as lib's isShield and isWorn do", () => {
+  for (const system of [{ type: "shield", equipped: true }, { type: "shield", equipped: false }, { type: "plate", equipped: true }, { type: "shield" }]) {
+    const item = { type: "armor", system };
+    assert.equal(shieldOf({ type: "character", items: [item] }), isShield(item) && isWorn(item), JSON.stringify(system));
+  }
+  // Only armour is a shield.
+  assert.equal(shieldOf({ type: "character", items: [{ type: "weapon", system: { type: "shield", equipped: true } }] }), false);
+});
+
+ok("a hand-built subject with no shield field is unknown, and a stated one is read as stated", () => {
+  const subject = (extra) => who(["defending"], extra);
+  const math = (extra) => attackMath({ attacker: who([]), target: subject(extra), kind: "missile", values: VALUES });
+  assert.deepEqual(math({}).pending, [{ condition: "defending", value: -8, when: "shield" }]);
+  assert.deepEqual(math({ shield: null }).pending, [{ condition: "defending", value: -8, when: "shield" }]);
+  assert.deepEqual([math({ shield: false }).terms, math({ shield: false }).pending], [[], []]);
+  assert.equal(sumOf(math({ shield: true })), -8);
+});
+
+ok("a Defend an ally gave reads the giver's shield, and the bearer's own where the giver cannot be found", () => {
+  const given = (guard, ally) => {
+    const combat = fight({ g: guard, a: ally });
+    ally.appliedEffects = [{ statuses: new Set(["defending"]), start: { combat, combatant: "g", initiative: 7 } }];
+    return ally;
+  };
+  const guard = (items, type = "character") => defender(type, items, { uuid: "Actor.guard", statuses: new Set() });
+  const ally = (items, type = "character") => defender(type, items, { uuid: "Actor.ally" });
+  // A shielded giver defends an unshielded ally: the rows apply.
+  const lent = given(guard([armour("shield", true)]), ally([]));
+  assert.equal(subjectOf(lent).gifts.defending.shield, true);
+  assert.equal(sumOf(defence(lent, "missile")), -8);
+  assert.equal(blastOf(lent).total, 4);
+  // An unshielded giver defends a shielded ally: the melee row only, and no pending either.
+  const bare = given(guard([]), ally([armour("shield", true)]));
+  assert.equal(subjectOf(bare).gifts.defending.shield, false);
+  assert.equal(sumOf(defence(bare, "melee")), -5);
+  const missile = defence(bare, "missile");
+  assert.deepEqual([missile.terms, missile.pending], [[], []]);
+  assert.deepEqual([blastOf(bare).total, blastOf(bare).pending], [0, []]);
+  // A monster giver with no shield item is unknown, and the ally's own shield is not read in its place.
+  const unknown = given(guard([], "monster"), ally([armour("shield", true)]));
+  assert.equal(subjectOf(unknown).gifts.defending.shield, null);
+  assert.deepEqual(defence(unknown, "missile").pending, [{ condition: "defending", value: -8, when: "shield" }]);
+  // A giver who is not in the fight is no giver: the bearer's own shield is read.
+  const alone = ally([armour("shield", true)]);
+  alone.appliedEffects = [{ statuses: new Set(["defending"]), start: { combat: fight({ a: alone }), combatant: "gone", initiative: 7 } }];
+  assert.deepEqual(subjectOf(alone).gifts, {});
+  assert.equal(subjectOf(alone).shield, true);
+  assert.equal(sumOf(defence(alone, "missile")), -8);
+  const none = ally([]);
+  none.appliedEffects = [{ statuses: new Set(["defending"]), start: { combat: fight({ a: none }), combatant: "gone", initiative: 7 } }];
+  assert.deepEqual(defence(none, "missile").terms, []);
+  assert.deepEqual(defence(none, "missile").pending, []);
+});
+
+ok("a status id the catalogue no longer holds contributes nothing and throws nothing", () => {
+  // The retired id is spelled from parts so no name key is written out whole.
+  const legacy = ["defending", "Shield"].join("");
+  assert.equal(CONDITIONS[legacy], undefined);
+  assert.deepEqual([...conditionSet([legacy])], []);
+  const actor = { type: "character", items: [armour("shield", true)], uuid: "Actor.old", statuses: new Set([legacy]), appliedEffects: [{ statuses: new Set([legacy]) }] };
+  const math = defence(actor, "missile");
+  assert.deepEqual([math.terms, math.pending, math.unpriced, math.forbidden], [[], [], [], []]);
+  assert.equal(blastOf(actor).total, 0);
+  assert.deepEqual(Object.keys(subjectOf(actor).counts), [], "no count is taken for an id that names no condition");
+  assert.equal(lang[`ACKS-LIB.condition.${legacy}`], undefined, "its name key is gone");
+});
+
+ok("the pending notice has a word for a shield row", () => {
+  assert.ok(lang["ACKS-LIB.conditionRoll.when.shield"]);
+  for (const mod of CONDITIONS.defending.mods.filter((m) => m.when)) assert.ok(lang[`ACKS-LIB.conditionRoll.when.${mod.when}`], mod.when);
 });
 
 ok("a declared spell gives up what defending gave", () => {
   assert.deepEqual(attack([], ["defending", "casting"], "melee").terms, []);
-  assert.deepEqual(attack([], ["defendingShield", "casting"], "missile").terms, []);
-  assert.equal(saveOf(["defendingShield", "casting"], "blast").total, 0);
+  const shielded = attackMath({ attacker: who([]), target: who(["defending", "casting"], { shield: true }), kind: "missile", values: VALUES });
+  assert.deepEqual([shielded.terms, shielded.pending], [[], []]);
+  assert.equal(rollMath("save", who(["defending", "casting"], { shield: true }), VALUES, { save: "blast" }).total, 0);
   // Casting alone has no figure, and is not named as unpriced for having none.
   assert.deepEqual(attackMath({ attacker: who(["casting"]), kind: "melee", values: {} }).unpriced, []);
 });
@@ -523,8 +643,8 @@ ok("a row on a saving throw reaches only the saves it names", () => {
   // A roll that names no save takes no row that names its saves.
   assert.equal(saveOf(["cover-waist-high"]).total, 0);
   assert.equal(saveOf(["cover-waist-high", "cover-chest-high"], "blast").total, 6);
-  assert.equal(saveOf(["defendingShield"], "blast").total, 4);
-  assert.equal(saveOf(["defending"], "blast").total, 0);
+  assert.equal(rollMath("save", who(["defending"], { shield: true }), VALUES, { save: "blast" }).total, 4);
+  assert.equal(rollMath("save", who(["defending"], { shield: false }), VALUES, { save: "blast" }).total, 0);
   // A row that names no save still reaches every one.
   assert.deepEqual(saveOf(["fatigued", "cover-waist-high"], "blast").parts, [
     { condition: "cover-waist-high", value: 3 },
@@ -551,7 +671,7 @@ ok("the tracker lifts what ends, by the ids actually on the creature", () => {
 });
 
 ok("what a combatant declared or took up ends at its turn; cover and a held initiative stand", () => {
-  const round = ["casting", "countercharging", "defending", "defendingShield", "readied", "retreating", "withdrawing"];
+  const round = ["casting", "countercharging", "defending", "readied", "retreating", "withdrawing"];
   assert.deepEqual(endingAt([...round, "cover-waist-high", "cover-chest-high", "delayed"], "turn").sort(), round);
 });
 
@@ -563,7 +683,6 @@ ok("a state another combatant gave ends at the giver's turn, and the rest at the
   assert.deepEqual(endingAtTurn(on, { self: "ally", acting: "other", givers: { defending: "guard" } }), []);
   // Only a state the catalogue marks as given follows a giver.
   assert.deepEqual(endingAtTurn(on, { self: "ally", acting: "guard", givers: { readied: "guard" } }), []);
-  assert.deepEqual(endingAtTurn(["defendingShield"], { self: "ally", acting: "guard", givers: { defendingShield: "guard" } }), ["defendingShield"]);
 });
 
 ok("damage and a failed save cost a caster its spell and a readied creature its action; a move costs only the second", () => {
@@ -603,18 +722,18 @@ ok("the giver of a state is whoever was acting when it was made, when that is an
 });
 
 ok("a defence another gave stands while its bearer casts, and falls when its giver does", () => {
-  const guard = { uuid: "Actor.guard", statuses: new Set() };
-  const ally = { uuid: "Actor.ally", statuses: new Set(["defendingShield", "casting"]) };
+  const guard = { type: "character", items: [armour("shield", true)], uuid: "Actor.guard", statuses: new Set() };
+  const ally = { type: "character", items: [], uuid: "Actor.ally", statuses: new Set(["defending", "casting"]) };
   const combat = fight({ g: guard, a: ally });
   ally.appliedEffects = [
-    { statuses: new Set(["defendingShield"]), start: { combat, combatant: "g", initiative: 7 } },
+    { statuses: new Set(["defending"]), start: { combat, combatant: "g", initiative: 7 } },
     { statuses: new Set(["casting"]), start: { combat, combatant: "a", initiative: 4 } },
   ];
   const melee = () => attackMath({ attacker: who([]), target: subjectOf(ally), kind: "melee", values: VALUES }).terms;
   const blast = () => rollMath("save", subjectOf(ally), VALUES, { save: "blast" }).total;
-  assert.deepEqual(Object.keys(subjectOf(ally).gifts).sort(), ["defending", "defendingShield"], "the shield's defence came with it");
+  assert.deepEqual(Object.keys(subjectOf(ally).gifts), ["defending"]);
   assert.deepEqual(melee(), [{ condition: "defending", value: -5, side: "target" }], "the bearer's own spell does not lower it");
-  assert.equal(blast(), 4);
+  assert.equal(blast(), 4, "the giver's shield reaches it");
   guard.statuses.add("casting");
   assert.deepEqual(melee(), [], "the giver's spell does");
   assert.equal(blast(), 0);
@@ -623,13 +742,6 @@ ok("a defence another gave stands while its bearer casts, and falls when its giv
   guard.statuses.clear();
   assert.deepEqual(subjectOf(ally).gifts, {});
   assert.deepEqual(melee(), []);
-  // A defence of its own beside a given shield keeps its own reading.
-  ally.statuses = new Set(["defending", "defendingShield"]);
-  ally.appliedEffects = [
-    { statuses: new Set(["defending"]), start: { combat, combatant: "a", initiative: 4 } },
-    { statuses: new Set(["defendingShield"]), start: { combat, combatant: "g", initiative: 7 } },
-  ];
-  assert.deepEqual(Object.keys(subjectOf(ally).gifts), ["defendingShield"]);
 });
 
 ok("an actor is read as its statuses, its causes and their sources", () => {
@@ -796,8 +908,13 @@ await (async () => {
     assert.equal(covered.rollSave("wand"), 16);
     assert.deepEqual(covered.system.saves.breath, { value: 15 }, "the stored target is put back");
     assert.equal(new SystemActor(["cover-waist-high", "cover-chest-high"]).rollSave("breath"), 9, "greater cover supersedes");
-    assert.equal(new SystemActor(["defendingShield"]).rollSave("breath"), 11);
-    assert.equal(new SystemActor(["defendingShield", "casting"]).rollSave("breath"), 15, "a caster's shield is down");
+    const holding = (statuses, items) => Object.assign(new SystemActor(statuses), { type: "character", items });
+    assert.equal(holding(["defending"], [armour("shield", true)]).rollSave("breath"), 11, "an equipped shield takes Blast's figure");
+    assert.equal(holding(["defending"], []).rollSave("breath"), 15, "none is held, so the figure is left out");
+    assert.equal(holding(["defending", "casting"], [armour("shield", true)]).rollSave("breath"), 15, "a caster's shield is down");
+    said.length = 0;
+    assert.equal(Object.assign(new SystemActor(["defending"]), { type: "monster", items: [] }).rollSave("breath"), 15, "a monster with no shield item takes none");
+    assert.ok(said.some((line) => line.includes("notice.pending") && line.includes("when.shield")), "and is told the figure waits on a shield");
     assert.equal(new SystemActor(["fatigued"]).rollSave("breath"), 17, "a figure on every throw reaches this one");
     // Hungry's save figure is core's effect. A character's roll adds it itself, so the wrapper adds nothing;
     // a monster's roll does not, so the wrapper reads the effect's step and lowers the number by it.

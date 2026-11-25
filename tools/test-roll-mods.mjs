@@ -684,14 +684,29 @@ await ok("a character's Armor Class already holds the system's step, so the lift
 });
 
 await ok("the module's own Armor Class rows still compete with the set: Defend's", () => {
-  registerTable({ id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { defendingShield: { thrown: 3, missile: 8 } } } }, { priority: PRIORITY.WORLD, source: "test" });
+  registerTable({ id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { defending: { melee: 5, thrown: 3, missile: 8 } } } }, { priority: PRIORITY.WORLD, source: "test" });
+  const shield = (equipped) => [{ type: "armor", system: { type: "shield", equipped } }];
   try {
     const small = armoured([setAc(14)], { ac: 12, dex: 2 });
-    small.statuses = new Set(["defendingShield"]);
+    small.statuses = new Set(["defending"]);
+    small.items = shield(true);
     assert.deepEqual(against(small).rows, [], "14 against 12 - 2 + 8 leaves nothing to lift");
     const bigger = armoured([setAc(30)], { ac: 12, dex: 2 });
-    bigger.statuses = new Set(["defendingShield"]);
+    bigger.statuses = new Set(["defending"]);
+    bigger.items = shield(true);
     assert.deepEqual(labelsOf(against(bigger).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(30 - (12 - 2 + 8))}`]);
+    // No shield held: the row is left out, so the set lifts over the target's own figure alone.
+    const bare = armoured([setAc(30)], { ac: 12, dex: 2 });
+    bare.statuses = new Set(["defending"]);
+    bare.items = shield(false);
+    assert.deepEqual(labelsOf(against(bare).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(30 - (12 - 2))}`]);
+    // A monster with no shield item has an unknown one: the row is pending, and a pending row is not counted.
+    const monster = armoured([setAc(30)], { ac: 12, type: "monster" });
+    monster.statuses = new Set(["defending"]);
+    monster.items = [];
+    assert.deepEqual(labelsOf(against(monster).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(30 - 12)}`]);
+    monster.items = shield(true);
+    assert.deepEqual(labelsOf(against(monster).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(30 - (12 + 8))}`], "equipped on the monster, the row stands");
   } finally {
     unregisterTable(CONDITIONS_DOC, "test");
   }

@@ -648,6 +648,15 @@ export function isWorn(item) {
 }
 
 /**
+ * Is this armour item a shield?
+ *
+ * Read from core's `system.type`, which carries the armour ladder plus `shield`.
+ */
+export function isShield(item) {
+  return item?.system?.type === "shield";
+}
+
+/**
  * Which slot it occupies now, or null. Only ever a slot the item declares: a
  * `wornAt` left behind by an edit that removed the slot reads as not worn there
  * rather than as worn somewhere impossible.

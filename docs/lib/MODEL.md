@@ -2809,13 +2809,13 @@ applies them): they carry no figures and forbid nothing, and name a body the
 Judge resolves from the book. What else the palette offers, and in what order,
 is the Judge's ("The palette is arranged by the Judge", below).
 
-**The states of a round.** Readied, Delayed, Casting, Defending (and Defending
-with a Shield, which brings Defending), Countercharging, Cover, waist-high
-(and Cover, chest-high), Retreating and Withdrawing are catalogue entries like
-any condition, toggled from the palette. Four of them carry figures: a Defend
-action's are on the Armor Class of whoever it protects, by the kind of attack,
-and on its Blast saves; cover's are on what is shot or thrown at the creature
-behind it and on its Blast saves; a countercharge's is on its maker's throw.
+**The states of a round.** Readied, Delayed, Casting, Defending,
+Countercharging, Cover, waist-high (and Cover, chest-high), Retreating and
+Withdrawing are catalogue entries like any condition, toggled from the
+palette. Four of them carry figures: a Defend action's are on the Armor Class
+of whoever it protects, by the kind of attack, and on its Blast saves; cover's
+are on what is shot or thrown at the creature behind it and on its Blast
+saves; a countercharge's is on its maker's throw.
 Countercharging and Retreating bring Disordered with them. A declared spell
 stands down what Defending gave, and the greater cover stands down the lesser.
 The ones a combatant declares or takes up for a round are lifted when its turn
@@ -2827,6 +2827,21 @@ and `slumbering` are also the ids the system's tracker writes, so a mark the
 tracker sets and one toggled from the palette are one status, and Delayed is
 the system's to lift: its tracker clears it from every combatant as a round
 begins.
+
+**A Defend reads the shield at the roll.** Defending is one condition, one tile
+on the palette. Its melee row applies unconditionally; its thrown, missile and
+Blast rows are marked `when: "shield"` and apply only for a creature that holds
+an equipped shield (`shieldOf`): an armour item of the shield type that is
+equipped, read off the items and never off `system.ac.shield`, which is the sum
+of the shields' Armor Class values and reads as none for an equipped shield
+whose Armor Class was never imported. With none, a character is known to hold
+no shield and the rows are left out, as the scope filters leave a row out, so
+they are not reported unpriced; any other actor type is unknown, since a
+monster's Armor Class is typed by hand and no importer writes armour onto one,
+and the rows are returned in `pending` for the roll's notice (`reportPending`).
+A Judge settles a monster by equipping a shield item on it. A Defend an ally
+was given reads the giver's shield, and the bearer's own where no giver is
+found; a hand-built subject with no `shield` field is unknown, never absent.
 
 **The catalogue is structure; every size is imported.** An entry says what a
 condition carries with it (`implies`), what it takes away (`forbids`), what it

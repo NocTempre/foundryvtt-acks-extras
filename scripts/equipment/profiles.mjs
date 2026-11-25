@@ -20,7 +20,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { SIZE, STYLE, WEAPON_CATEGORY, IMPROVISED_THROWN, gearProfileFor, clothingSlotsFor } from "./config.mjs";
-import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
+import { slotsOf, declaresSlots, isClothing, isShield } from "../lib/item-model.mjs";
 import { ownDamageType } from "../lib/damage-type.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE, retrievalAccess } from "../lib/vocab.mjs";
 import { weaponRow, weaponKeys, keyForName, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
@@ -30,14 +30,8 @@ import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 /*  Armour classification                        */
 /* -------------------------------------------- */
 
-/**
- * Is this armour item a shield?
- *
- * Read from core's `system.type`, which carries the armour ladder plus `shield`.
- */
-export function isShield(item) {
-  return item?.system?.type === "shield";
-}
+/** Is this armour item a shield? Defined in `lib/item-model.mjs`; re-exported for this module's importers. */
+export { isShield };
 
 /**
  * Is this armour item a helmet?

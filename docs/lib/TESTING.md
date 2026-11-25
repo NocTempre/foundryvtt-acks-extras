@@ -2529,22 +2529,24 @@ The morale page's condition rows are influence's own recipe.
     attack warns and rolls.
 14. **The states of a round on a roll.** With the invented figures: attack a
     Defending Hero as Goblin, and a Defending Goblin with Hero's missile
-    weapon; a Goblin Defending with a Shield with the missile weapon, the
+    weapon; a Defending Goblin holding an equipped shield, with the missile weapon, the
     thrown one and the melee one; a Defending and Casting Goblin; a Goblin in
     Cover, waist-high with the missile weapon and with the melee one, then
     Cover, waist-high and Cover, chest-high; attack as a Countercharging Hero, then attack that Hero,
     and a Retreating one; attack as a Readied, Delayed, Withdrawing and
     Casting Hero. Roll the Blast save and another as a Hero in Cover, waist-high,
-    in both covers, Defending with a Shield, that and Casting, and in
+    in both covers, Defending with a shield equipped, that and Casting, and in
     Cover, waist-high and Hungry. Open Hero's sheet and read the `[data-roll^='save']` cells.
     **Observable:** a "Defending (target)" term in melee and none for the
-    missile; the shield's missile figure, its thrown figure, and Defending's
-    own in melee; no term for the caster; cover's term on the missile and none
+    missile, Hero holding no shield; against the Goblin with no shield item,
+    melee only and a notice that Defending's missile figure waits on a shield;
+    with a shield equipped, Defending's missile
+    figure, its thrown figure, and its melee figure; no term for the caster; cover's term on the missile and none
     in melee, and only the greater cover's when both are set; the
     countercharge's own term, and no Disordered term against it or against
     the retreat; no term and no warning for the four that carry no figure. The
-    Blast target moves by cover's figure, by the greater alone, by the
-    shield's, and not at all for the caster; the other save's target does not
+    Blast target moves by cover's figure, by the greater alone, by
+    Defending's with a shield equipped, and not at all for the caster; the other save's target does not
     move, Hungry's step being on the system's roll; the stored target and
     `_source` read the same afterwards. The
     sheet's Blast cell shows cover's figure where the other four show none.
@@ -2555,7 +2557,7 @@ The morale page's condition rows are influence's own recipe.
     and advance to each turn.
     **Observable:** as the round opens, before its roll, Delayed comes off
     both (the system's doing) and nothing else comes off anyone. In the rolled
-    round each one's turn takes its Readied, Casting, both Defending states,
+    round each one's turn takes its Readied, Casting, Defending,
     Countercharging, Retreating and Withdrawing, and cover is still on both.
     No error is logged.
 16. **The palette editor.** Assert nothing is stored. Open **Arrange the
@@ -2580,11 +2582,11 @@ The morale page's condition rows are influence's own recipe.
     the system's localized `name` and its `img`, on its tile and on the HUD,
     under Conditions, or under Combat tracker for Readied and Delayed, which are
     on the palette by default; the module's own marks (Casting, Countercharging,
-    the two Cover grades, Defending, Defending with a Shield, Retreating,
+    the two Cover grades, Defending, Retreating,
     Withdrawing, Diseased, Frostbitten, Dead, Invisible, Running) are under
     States with the module's names, and Immune, Resistant and Subjacent stay
     under Conditions with the module's. No tile carries `covered`,
-    `coveredGreater` or `concentratingStationary`, and `vomiting` and
+    `coveredGreater`, `concentratingStationary` or `defendingShield`, and `vomiting` and
     `concentrating-and-stationary` are there once. Each
     drag and each key moves the one tile, the focus stays on it, and Save
     comes alive. The filter leaves the matching tiles and keeps the caret.
@@ -2609,17 +2611,17 @@ The morale page's condition rows are influence's own recipe.
     `game.settings.set("acks-extras", "statusPalette", …)`.
     **Observable:** no *Arrange the palette* entry; the call returns null with
     a warning that only a GM arranges the palette; Foundry refuses the write.
-18. **A defence given to an ally.** In a rolled round of the three, on Guard's
-    turn mark Hero Defending with a Shield and Readied. Read each effect's
-    `start`, `subjectOf(hero).gifts`, and the melee terms and the Blast figure
-    against Hero (`attackMath`, `rollMath`). Mark Hero Casting, then Guard
-    Casting, then lift Guard's. Press the tracker's Next Combatant to Hero's
-    turn, on through the round, and to Guard's next turn.
+18. **A defence given to an ally.** Give Guard an equipped shield. In a rolled
+    round of the three, on Guard's turn mark Hero Defending and Readied. Read
+    each effect's `start`, `subjectOf(hero).gifts`, and the melee terms and the
+    Blast figure against Hero (`attackMath`, `rollMath`). Mark Hero Casting,
+    then Guard Casting, then lift Guard's. Press the tracker's Next Combatant to
+    Hero's turn, on through the round, and to Guard's next turn.
     **Observable:** both effects' `start.combatant` is Guard's combatant;
-    `gifts` holds `defending` and `defendingShield` and not `readied`. The
-    defence's term and the shield's Blast figure stand while Hero casts, go
-    while Guard casts, and come back. Hero's turn takes its Readied and
-    Casting and leaves the shield; Guard's next turn takes the shield.
+    `gifts` holds `defending`, whose `shield` is true, and not `readied`. The
+    defence's term and its Blast figure stand while Hero casts, go while Guard
+    casts, and come back. Hero's turn takes its Readied and Casting and leaves
+    the defence; Guard's next turn takes it.
 19. **A round opens before it is rolled.** On each round's last turn mark all
     three Readied, then advance. One round each: roll everyone at once; roll
     one combatant at a time; roll two of the three and press Next Combatant;
@@ -2649,6 +2651,29 @@ The morale page's condition rows are influence's own recipe.
     Casting, by a drag (`movement.method` is `dragging`) and by an update;
     moved on its own turn it keeps both. The Player's client lifts and is told
     for the changes it makes, and the GM's client says nothing for them.
+
+21. **A Defend reads the shield at the roll.** With the invented figures
+    registered, mark Hero and the Goblin token Defending; Hero holds a shield
+    item (armour, shield type) with its Armor Class left blank, equipped, and
+    the Goblin token (a monster) holds none. Attack each with the missile, thrown and melee
+    weapons and roll each one's Blast save; read `subjectOf(actor).shield`.
+    Unequip Hero's shield and repeat; equip it again. With the Goblin token still
+    holding none, attack it with the missile weapon and roll its Blast save, then equip a
+    shield item on the token's own sheet and repeat. In a rolled round, on Guard's turn mark Hero Defending with Guard
+    holding the shield and Hero not, then with Hero holding it and Guard not.
+    Last, make an effect on Hero through the API whose `statuses` holds the
+    retired `defendingShield` id, then attack Hero and roll its Blast save.
+    **Observable:** Hero's `shield` is true while equipped and false when
+    carried, blank Armor Class or not; equipped, Hero's terms carry Defending's
+    missile, thrown and melee figures and its Blast target moves by the Blast
+    figure; unequipped, melee only, with no notice and nothing named unpriced.
+    The Goblin token has `shield` null: melee only, and each missile attack
+    and Blast save raises an info notice that names Defending and "where an
+    equipped shield is held" and applies nothing; equipped on its own sheet,
+    the rows apply and the notice stops. Given, the rows follow Guard's shield
+    in both directions (`gifts.defending.shield` is Guard's). The retired id
+    contributes no term and logs no error, and its icon stays on Hero until it
+    is removed by hand.
 
 **Teardown.** `unregisterTable("conditions", {priority: PRIORITY.OVERRIDE +
 1})` in every seat that registered, then `api.sweepTracked()`. The scene takes its tokens with it and
@@ -2748,7 +2773,8 @@ round) are "Conditions on the palette and on a roll", above.
    brings; Readied and Delayed are on the palette. Charging, Countercharging
    and Retreating name Disordered in `statuses`, Starving and Underfed name
    Hungry, and no other entry names a status; each of the five has an `_id`
-   of sixteen letters and digits, all different.
+   of sixteen letters and digits, all different. No two entries the Token
+   HUD shows share an `img`.
 2. **Each condition on a character.** For each such id: read the fields its
    changes name and `ac.value`, roll a save, attack the monster token and have
    it attack back; toggle the condition on the character and do the same;

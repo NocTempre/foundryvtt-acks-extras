@@ -57,6 +57,7 @@ export const LOSSES = Object.freeze(["damage", "save", "moved"]);
 
 const MELEE = Object.freeze(["melee"]);
 const THROWN = Object.freeze(["thrown"]);
+const MISSILE = Object.freeze(["missile"]);
 const MISSILE_THROWN = Object.freeze(["missile", "thrown"]);
 const BLAST = Object.freeze(["blast"]);
 const HURT_OR_FAILED = Object.freeze(["damage", "save"]);
@@ -74,9 +75,12 @@ const HURT_OR_FAILED = Object.freeze(["damage", "save"]);
  *  - `saves`  the saving throws a `save` row reaches; absent for all of them.
  *  - `per`    `stack` multiplies by the number of causes, `extraCause` by the
  *             causes past the first.
- *  - `when`   `source`: only against what imposed the condition. Any other
- *             value names a circumstance no roll can see (`fear`, `sight`,
- *             `voice`) and is returned as pending rather than applied.
+ *  - `when`   `source`: only against what imposed the condition. `shield`:
+ *             only for a creature known to hold an equipped shield (`shieldOf`);
+ *             known not to, the row is left out, and unknown, it is returned as
+ *             pending. Any other value names a circumstance no roll can see
+ *             (`fear`, `sight`, `voice`) and is returned as pending rather than
+ *             applied.
  *  - `unless` a condition that supersedes this row: on the same creature,
  *             or on whoever gave the creature the state.
  */
@@ -164,17 +168,15 @@ export const CONDITIONS = Object.freeze({
     mods: [row("surprise", "surprise"), row("throw", "proficiency", { when: "voice" })],
   },
   // The Defend action (RR 294), on whoever it protects: the defender, or the
-  // ally it stands beside. A shield adds to what the action gives.
+  // ally it stands beside. The melee figure is the action's own; the other
+  // three wait on a shield, read at the roll (`shieldOf`).
   defending: {
     label: "Defending", img: "icons/svg/tower.svg", state: true, ends: "turn", given: true,
-    mods: [row("ac", "melee", { scope: MELEE, unless: "casting" })],
-  },
-  defendingShield: {
-    label: "Defending with a Shield", img: "icons/svg/ice-shield.svg", state: true, implies: ["defending"], ends: "turn", given: true,
     mods: [
-      row("ac", "thrown", { scope: ["thrown"], unless: "casting" }),
-      row("ac", "missile", { scope: ["missile"], unless: "casting" }),
-      row("save", "blast", { saves: BLAST, unless: "casting" }),
+      row("ac", "melee", { scope: MELEE, unless: "casting" }),
+      row("ac", "thrown", { scope: THROWN, when: "shield", unless: "casting" }),
+      row("ac", "missile", { scope: MISSILE, when: "shield", unless: "casting" }),
+      row("save", "blast", { saves: BLAST, when: "shield", unless: "casting" }),
     ],
   },
   dehydrated: { forbids: ["forceMarch", "naturalHealing"] },
@@ -212,7 +214,7 @@ export const CONDITIONS = Object.freeze({
   flanked: {},
   forgetful: {},
   frightened: { forbids: ["attack", "cast", "speak"] },
-  frostbitten: { label: "Frostbitten", img: "icons/svg/ice-aura.svg", state: true },
+  frostbitten: { label: "Frostbitten", img: "icons/svg/frozen.svg", state: true },
   grabbed: { implies: ["vulnerable"], forbids: ["attack", "cast", "move"] },
   helpless: { implies: ["vulnerable"], forbids: ["act"], autoHit: MELEE },
   hidden: {
@@ -406,10 +408,11 @@ export const conditionsReady = () => Object.keys(conditionValues()).length > 0;
  * @property {Iterable<string>} statuses  status ids on the creature
  * @property {Record<string, number>} [counts]  causes per condition, where more than one
  * @property {Record<string, string[]>} [sources]  the origin uuid of each effect imposing a condition
- * @property {Record<string, {statuses: Iterable<string>}>} [gifts]  for a state another combatant gave, that giver's statuses
+ * @property {Record<string, {statuses: Iterable<string>, shield?: boolean|null}>} [gifts]  for a state another combatant gave, that giver's statuses and `shieldOf`
  * @property {string} [id]  the creature's own uuid, matched against another's `sources`
  * @property {string[]} [acWaived]  condition ids whose Armor Class figure the creature does not suffer (`AC_WAIVER_TARGET`)
  * @property {string[]} [implied]  condition ids carried only by effects that also carry a status implying them
+ * @property {boolean|null} [shield]  `shieldOf` for the creature; absent reads as unknown
  */
 
 /** Flag key under `flags["acks-extras"]` on an effect: how many causes it stands for. */
@@ -436,6 +439,31 @@ function waivedBy(actor) {
     }
   }
   return [...ids];
+}
+
+/**
+ * Does the actor hold an equipped shield? True for an armour item of the
+ * shield type that is equipped. With none, false for a character, whose
+ * armour the sheet records, and null for any other actor type, whose Armor
+ * Class is typed by hand and whose carried gear nothing imports: no item reads
+ * as unknown there, not as absent. Read off the items, never off
+ * `system.ac.shield`, which is the sum of the shields' Armor Class values and
+ * reads as none for an equipped shield whose Armor Class is blank.
+ *
+ * The item test is `item-model.mjs`'s `isShield` and `isWorn` for an armour
+ * item, spelled out here with bare literals as `waivedBy` does: `vocab.mjs`
+ * reads this catalogue at load, so this file imports nothing that reaches it,
+ * and `item-model.mjs` does.
+ *
+ * @param {object|null} actor
+ * @returns {boolean|null}
+ */
+export function shieldOf(actor) {
+  if (!actor) return null;
+  for (const item of actor.items ?? []) {
+    if (item?.type === "armor" && item.system?.type === "shield" && item.system.equipped) return true;
+  }
+  return actor.type === "character" ? false : null;
 }
 
 /**
@@ -485,14 +513,14 @@ export function subjectOf(actor) {
       if (effect.origin) (sources[status] ??= []).push(String(effect.origin));
       const giver = entry.given ? giverOf(effect, actor) : null;
       if (!giver) continue;
-      const gift = { statuses: giver.actor.statuses ?? [] };
+      const gift = { statuses: giver.actor.statuses ?? [], shield: shieldOf(giver.actor) };
       gifts[status] = gift;
       // What a given state implies came with it, unless the creature has that in its own right.
       for (const implied of entry.implies ?? []) if (CONDITIONS[implied]?.given && !own.has(implied)) gifts[implied] = gift;
     }
   }
   const implied = [...held].filter((status) => !ownRight.has(status));
-  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null, acWaived: waivedBy(actor), implied };
+  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null, acWaived: waivedBy(actor), implied, shield: shieldOf(actor) };
 }
 
 const emptyMath = () => ({ total: 0, parts: [], pending: [], unpriced: [], waived: [] });
@@ -545,6 +573,17 @@ function reaches(key, subject, opponent) {
 }
 
 /**
+ * Whose shield a `when: "shield"` row reads: the giver's for a state another
+ * combatant gave, else the creature's own. A subject or gift that records none
+ * is unknown, and so is a gift whose giver's shield is unknown: the creature's
+ * own is never read in its place.
+ */
+function shieldAt(subject, gift) {
+  const held = gift ? gift.shield : subject?.shield;
+  return held === true || held === false ? held : null;
+}
+
+/**
  * Walk one creature's rows for one roll, collecting what applies.
  *
  * @param {object} p
@@ -571,6 +610,8 @@ function collect({ set, subject, on, side, kind, save, opponent, values, out, si
       if (mod.scope && !mod.scope.includes(kind)) continue;
       if (mod.saves && !mod.saves.includes(save)) continue;
       if (mod.unless && superseding.has(mod.unless)) continue;
+      const shield = mod.when === "shield" ? shieldAt(subject, gift) : undefined;
+      if (shield === false) continue;
       const figure = numOrNull(values?.[key]?.[mod.slot]);
       if (figure == null) {
         out.unpriced.push(key);
@@ -582,7 +623,7 @@ function collect({ set, subject, on, side, kind, save, opponent, values, out, si
         (out.waived ??= []).push({ condition: key, value });
         continue;
       }
-      if (mod.when && mod.when !== "source") {
+      if (mod.when && mod.when !== "source" && shield !== true) {
         out.pending.push({ condition: key, value, when: mod.when });
         continue;
       }
