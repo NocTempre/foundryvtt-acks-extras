@@ -6,6 +6,10 @@
  * then does the `preCreateToken` hook fire, with the data and the create's
  * options. Lib's hook (scripts/lib/hp.mjs) is the one installed.
  *
+ * What a body is sent out with beyond its record (the caller's `extraDelta`, and the
+ * items a stack's `gen.carry` names, through the registered carry resolver) is
+ * checked on the token and on the record, across a recall and a second deploy.
+ *
  * Run: node tools/test-group-deploy.mjs
  */
 import assert from "node:assert/strict";
@@ -146,6 +150,9 @@ function scene({ shuffled = false } = {}) {
           const total = systemRolls.shift();
           delta.updateSource({ system: { hp: { max: total, value: total } } });
         }
+        // A token document answers `toObject` with its stored delta, which a gather reads.
+        const stored = delta._source;
+        Object.defineProperty(stored, "toObject", { value: () => structuredClone(stored), enumerable: false });
         const allowed = Hooks.call("preCreateToken", { delta }, createData, { ...options, action: "create", documentName: "Token" }, "u1");
         if (!allowed) continue;
         const token = {
@@ -182,7 +189,7 @@ function scene({ shuffled = false } = {}) {
 }
 
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
-const { deploy, recall } = await import("../scripts/lib/group.mjs");
+const { deploy, recall, registerCarryResolver } = await import("../scripts/lib/group.mjs");
 const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
 const { KEEP_HIT_POINTS_OPTION } = await import("../scripts/lib/constants.mjs");
 installRecreatedHitPoints();
@@ -450,6 +457,209 @@ t("a hand's scale is remembered alone, with no lock on the way out", async () =>
   systemRolls.push(4);
   const [made] = await deploy(group, again, { count: 1 });
   assert.deepEqual([made.texture.scaleX, made.texture.scaleY, lockOf(made)], [1.5, 1.5, undefined]);
+});
+
+/* -------------------------------------------- */
+/*  What a body goes out with                   */
+/* -------------------------------------------- */
+
+const itemsOf = (delta) => delta?.items ?? [];
+const namesOf = (delta) => itemsOf(delta).map((i) => i.name);
+const rosterOf = (group) => group.system.stacks[0].roster;
+/** A carry resolver over `answers`, a row key to the item (or list) it answers; every call is logged. */
+function resolver(answers) {
+  const calls = [];
+  registerCarryResolver((grp, stackKey, rowKey) => {
+    calls.push([grp.uuid, stackKey, rowKey]);
+    const answer = answers[rowKey];
+    if (answer instanceof Error) throw answer;
+    return answer ?? null;
+  });
+  return calls;
+}
+const lantern = { name: "Lantern", type: "item", system: { quantity: 1 } };
+/** Recall every body on `where`. */
+async function gather(group, where) {
+  game.scenes = [where];
+  await recall(group, { scene: where });
+  game.scenes = [];
+}
+
+t("an extraDelta merges into a resting body and a new one alike, on the token and in the record", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 3, [record("m1", { value: 4, max: 4 })]);
+  bodyRolls.push(6);
+  systemRolls.push(4, 6);
+  const made = await deploy(group, where, { count: 2, extraDelta: { flags: { world: { marked: true } }, items: [{ _id: "gift1", name: "Whistle", type: "item" }] } });
+  assert.equal(made.length, 2);
+  for (const token of made) {
+    assert.equal(token.delta.flags.world.marked, true);
+    assert.deepEqual(namesOf(token.delta), ["Whistle"]);
+  }
+  assert.deepEqual(made.map((tk) => tk.delta.system.hp), [{ value: 4, max: 4 }, { value: 6, max: 6 }], "the record's hit points ride on");
+  for (const rec of rosterOf(group)) {
+    assert.equal(rec.delta.flags.world.marked, true);
+    assert.deepEqual(namesOf(rec.delta), ["Whistle"]);
+  }
+});
+
+t("an extraDelta function is asked once per body, in order, with the record", async () => {
+  const group = groupActor(monster(), 2, [record("m1", { value: 4, max: 4 })]);
+  bodyRolls.push(6);
+  systemRolls.push(4, 6);
+  const asked = [];
+  const made = await deploy(group, scene(), {
+    count: 2,
+    extraDelta: (member, i) => {
+      asked.push([i, member.key]);
+      return i === 0 ? { flags: { world: { first: true } } } : null;
+    },
+  });
+  assert.deepEqual(asked.map(([i]) => i), [0, 1]);
+  assert.equal(asked[0][1], "m1");
+  assert.equal(made[0].delta.flags.world.first, true);
+  assert.equal(made[1].delta.flags, undefined, "a null answer adds nothing");
+});
+
+t("an item given at deploy survives a recall and a second deploy once", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1);
+  bodyRolls.push(5);
+  systemRolls.push(5, 5);
+  const gift = { items: [{ _id: "gift1", name: "Whistle", type: "item" }] };
+  await deploy(group, where, { count: 1, extraDelta: gift });
+  await gather(group, where);
+  assert.deepEqual(namesOf(rosterOf(group)[0].delta), ["Whistle"], "the gather folded the token's delta back, item included");
+  const [made] = await deploy(group, scene(), { count: 1, extraDelta: gift });
+  assert.deepEqual(namesOf(made.delta), ["Whistle"], "the same id replaces, it is not added twice");
+});
+
+t("a body keeps the items its delta already holds when an extraDelta brings another", async () => {
+  const group = groupActor(monster(), 1, [{ ...record("m1", { value: 4, max: 4 }), delta: { system: { hp: { value: 4, max: 4 } }, items: [{ _id: "own1", name: "Sling", type: "item" }] } }]);
+  systemRolls.push(4);
+  const [made] = await deploy(group, scene(), { count: 1, extraDelta: { items: [{ _id: "gift1", name: "Whistle", type: "item" }] } });
+  assert.deepEqual(namesOf(made.delta), ["Sling", "Whistle"]);
+});
+
+t("with no carry resolver registered a stack that names a carry sends its bodies out plain", async () => {
+  registerCarryResolver(null);
+  const group = groupActor(monster(), 2, [], { gen: { carry: { rowA: 2 } } });
+  bodyRolls.push(5, 5);
+  systemRolls.push(5, 5);
+  const made = await deploy(group, scene(), { count: 2 });
+  assert.deepEqual(made.map((tk) => itemsOf(tk.delta)), [[], []]);
+  assert.deepEqual(rosterOf(group).map((m) => m.carries ?? []), [[], []]);
+});
+
+t("the resolver is asked once per carried row, and a null or a throw sends the body out without it", async () => {
+  const warned = console.warn;
+  console.warn = () => {};
+  try {
+    const calls = resolver({ rowA: lantern, rowB: null, rowC: new Error("no such row") });
+    const group = groupActor(monster(), 3, [], { gen: { carry: { rowA: 2, rowB: 3, rowC: 1 } } });
+    bodyRolls.push(5, 5, 5);
+    systemRolls.push(5, 5, 5);
+    const made = await deploy(group, scene(), { count: 3 });
+    assert.deepEqual(calls.map((c) => c[2]).sort(), ["rowA", "rowB", "rowC"], "one call per row, not per body");
+    assert.equal(calls[0][0], group.uuid);
+    assert.equal(calls[0][1], "s1");
+    assert.deepEqual(made.map((tk) => namesOf(tk.delta)), [["Lantern"], ["Lantern"], []]);
+    assert.deepEqual(rosterOf(group).map((m) => m.carries), [["rowA"], ["rowA"], undefined], "a row nothing answered spends no slot");
+    assert.notEqual(made[0].delta.items[0]._id, made[1].delta.items[0]._id, "each body holds a copy of its own");
+  } finally {
+    console.warn = warned;
+    registerCarryResolver(null);
+  }
+});
+
+t("a resolver answering a list gives each carrier every item of it", async () => {
+  try {
+    resolver({ rowA: [lantern, { name: "Flask", type: "item" }] });
+    const group = groupActor(monster(), 2, [], { gen: { carry: { rowA: 1 } } });
+    bodyRolls.push(5, 5);
+    systemRolls.push(5, 5);
+    const made = await deploy(group, scene(), { count: 2 });
+    assert.deepEqual(made.map((tk) => namesOf(tk.delta)), [["Lantern", "Flask"], []]);
+  } finally {
+    registerCarryResolver(null);
+  }
+});
+
+t("a carry's share holds across two deploys, a recall and a deploy of everyone, with no second copy", async () => {
+  try {
+    const calls = resolver({ rowA: lantern });
+    const group = groupActor(monster(), 4, [], { gen: { carry: { rowA: 2 } } });
+    bodyRolls.push(5, 5, 5, 5);
+    systemRolls.push(5, 5, 5, 5);
+    const first = scene();
+    const [one] = await deploy(group, first, { count: 1 });
+    const [two] = await deploy(group, first, { count: 1 });
+    const rest = await deploy(group, first, { count: 2 });
+    assert.deepEqual([one, two].map((tk) => namesOf(tk.delta)), [["Lantern"], ["Lantern"]]);
+    assert.deepEqual(rest.map((tk) => namesOf(tk.delta)), [[], []], "the share was spent on the first two");
+    assert.equal(calls.length, 2, "a spent share asks nothing");
+    assert.equal(rosterOf(group).filter((m) => m.carries?.includes("rowA")).length, 2);
+
+    await gather(group, first);
+    const second = scene();
+    systemRolls.push(5, 5, 5, 5);
+    const all = await deploy(group, second, { count: Infinity });
+    assert.equal(all.length, 4);
+    assert.equal(all.filter((tk) => namesOf(tk.delta).length).length, 2, "the same two carry, and no one else is given one");
+    assert.ok(all.every((tk) => itemsOf(tk.delta).length <= 1), "no body holds two");
+    assert.equal(calls.length, 2);
+  } finally {
+    registerCarryResolver(null);
+  }
+});
+
+t("a stamped body goes out with the item it holds and is given none, whether or not the item is still there", async () => {
+  try {
+    const calls = resolver({ rowA: lantern });
+    const used = { ...record("m1", { value: 4, max: 4 }), carries: ["rowA"] };
+    const spare = record("m2", { value: 4, max: 4 });
+    const group = groupActor(monster(), 2, [used, spare], { gen: { carry: { rowA: 1 } } });
+    systemRolls.push(4, 4);
+    const made = await deploy(group, scene(), { count: 2 });
+    assert.deepEqual(made.map((tk) => namesOf(tk.delta)), [[], []], "the stamp is the authority: an item used in the field does not come back");
+    assert.deepEqual(calls, []);
+  } finally {
+    registerCarryResolver(null);
+  }
+});
+
+t("a slot spent by a fallen body stays spent", async () => {
+  try {
+    const calls = resolver({ rowA: lantern });
+    const fallen = { ...record("m1", { value: 0, max: 4 }), state: "dead", carries: ["rowA"] };
+    const group = groupActor(monster(), 2, [fallen], { gen: { carry: { rowA: 1 } } });
+    bodyRolls.push(5, 5);
+    systemRolls.push(5, 5);
+    const made = await deploy(group, scene(), { count: 2 });
+    assert.deepEqual(made.map((tk) => namesOf(tk.delta)), [[], []]);
+    assert.deepEqual(calls, []);
+  } finally {
+    registerCarryResolver(null);
+  }
+});
+
+t("a body whose token vanished is given its item once: record and stamp were written together", async () => {
+  try {
+    const calls = resolver({ rowA: lantern });
+    const where = scene();
+    const group = groupActor(monster(), 1, [], { gen: { carry: { rowA: 1 } } });
+    bodyRolls.push(5);
+    systemRolls.push(5, 5);
+    const [made] = await deploy(group, where, { count: 1 });
+    // The token is gone with no fold: the record is freed in place, as a hand-cleared board leaves it.
+    where.tokens.delete(made.id);
+    docs.delete(made.uuid);
+    const [again] = await deploy(group, scene(), { count: 1 });
+    assert.deepEqual(namesOf(again.delta), ["Lantern"]);
+    assert.equal(calls.length, 1);
+  } finally {
+    registerCarryResolver(null);
+  }
 });
 
 let failures = 0;

@@ -26,7 +26,8 @@ import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
-import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, importedOrganisation, matchProficiency } from "./organisation.mjs";
+import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, carriedGearItems, importedOrganisation, matchProficiency } from "./organisation.mjs";
+import { registerCarryResolver } from "../lib/group.mjs";
 import { importedThrowLadder } from "../importer/leader-roles.mjs";
 import { libraryItems } from "../lib/library.mjs";
 
@@ -101,6 +102,8 @@ Hooks.once("init", () => {
   services.register("org-chart", orgChartService);
   // What the Roll panel shows before a roll: the choices a variant can reach and what a Roll will make (contract `org-roll`, docs/lib/API.md).
   services.register("org-roll", orgRollService);
+  // What a body of a generated stack carries when it is sent out (lib's deploy asks per `gen.carry` row).
+  registerCarryResolver((group, stackKey, rowKey) => carriedGearItems(rowKey));
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply

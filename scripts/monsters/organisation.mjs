@@ -420,6 +420,26 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
 }
 
 /**
+ * The item sources a body carries for one optional-equipment row, which lib's
+ * deploy puts on a body of a stack whose `gen.carry` names the row: the row run
+ * through `gearPayloads` as a fighting creature's choice is (the path a generated
+ * leader's gear takes in `applyGeneratedOrganisation`), keeping the items it
+ * mints, reach items first, then consumables, then abilities. Null where the
+ * row is not in the imported table, or where it writes no item (a figure that
+ * only changes a statistic, a flag on a weapon, a reach that does not resolve),
+ * so the body goes without it. `org` is the imported table read, `importedOrganisation()` by default.
+ *
+ * @returns {object[]|null}
+ */
+export function carriedGearItems(rowKey, org = importedOrganisation()) {
+  const row = (org?.equipment?.rows ?? []).find((r) => r.key === rowKey);
+  if (!row) return null;
+  const built = gearPayloads([{ key: row.key, label: row.label, cite: org.equipment.cite ?? "", figures: row.figures ?? {} }], { items: [] }, { fights: true });
+  const items = [...built.reachItems, ...built.consumables, ...built.abilities];
+  return items.length ? items : null;
+}
+
+/**
  * The always-on engaged reach a trait row prints: an effect row, on the trait's
  * ability, whose reach is `engaged` on the `turnStart+enter` pulse, filtered to
  * the opposing side and the printed kinds, calling `reach.save` of each subject

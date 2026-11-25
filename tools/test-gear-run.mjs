@@ -177,6 +177,19 @@ await t("generation copies the minted item onto a creature whose gear axis chose
   assert.equal(warned.length, 1);
 });
 
+await t("a body sent out of a stack carries the item its row mints, the one a leader's gear row writes, and no row means no item", () => {
+  const gear = Object.values(rows).map((r) => ({ ...r }));
+  const orgStub = { equipment: { rows: [...gear, { key: "r4", label: "Delta Item", figures: { ac: 1 } }], cite: "XX p. 4" } };
+  const [leaderItem] = org.gearPayloads([gear[1]], { items: [] }).reachItems;
+  const carried = org.carriedGearItems("r2", orgStub);
+  assert.deepEqual(carried, [leaderItem], "the same item, built by the same path");
+  assert.equal(org.carriedGearItems("r9", orgStub), null, "a key the table does not hold");
+  assert.equal(org.carriedGearItems("r4", orgStub), null, "a row that changes a statistic and mints no item");
+  assert.equal(org.carriedGearItems("r1", { equipment: { rows: [], cite: null } }), null, "nothing imported");
+  const odd = { equipment: { rows: [{ ...rows.banner, figures: { ...rows.banner.figures, condition: "unheardof" } }], cite: "" } };
+  assert.equal(org.carriedGearItems("r2", odd), null, "an unresolved row is carried by no one");
+});
+
 /* -------------------------------------------- */
 /*  Figures, parts and the diff                  */
 /* -------------------------------------------- */

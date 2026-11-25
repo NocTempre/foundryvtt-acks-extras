@@ -754,6 +754,100 @@ function applyBodySize(tokenData, kept) {
   }
 }
 
+/** The registered answer to "what does a body of this `gen.carry` row carry", or null. */
+let carryResolver = null;
+
+/**
+ * Register the one function that tells a deploy what a stack's bodies carry.
+ * `fn(group, stackKey, rowKey)` answers the item the `gen.carry` row `rowKey`
+ * stands for: a plain Item source object, an array of them, or null where it
+ * cannot name one (the bodies then go without it and keep their share). It may
+ * be async. A feature that mints the items registers it; lib reads only this
+ * slot. A second registration replaces the first, and `null` clears it.
+ *
+ * @param {((group: Actor, stackKey: string, rowKey: string) => object|object[]|null|Promise<object|object[]|null>)|null} fn
+ * @returns {() => void} undoes this registration
+ */
+export function registerCarryResolver(fn) {
+  carryResolver = typeof fn === "function" ? fn : null;
+  return () => {
+    if (carryResolver === fn) carryResolver = null;
+  };
+}
+
+/** What the resolver answers for one row as item sources; empty on a null, a throw or a malformed answer. */
+async function carriedItems(group, stackKey, rowKey) {
+  let answer = null;
+  try {
+    answer = await carryResolver(group, stackKey, rowKey);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | the carry resolver failed for ${rowKey}`, err);
+  }
+  return (Array.isArray(answer) ? answer : [answer]).filter((item) => item && typeof item === "object" && item.type);
+}
+
+/** Item sources as one body's own copies, each with an id of its own. */
+const copiesOf = (items) => items.map((item) => ({ ...foundry.utils.deepClone(item), _id: foundry.utils.randomID() }));
+
+/** A share as a count of bodies: a whole number, zero where it is no figure. */
+const shareOf = (n) => (Number.isFinite(Number(n)) ? Math.max(0, Math.floor(Number(n))) : 0);
+
+/**
+ * Who of the bodies going out is given what the stack's `gen.carry` says its
+ * bodies carry. For each row, every record of the roster that is stamped with it
+ * (in any state, since a slot once spent is spent) counts against the row's
+ * share; a body going out unstamped is given the row's items, and stamped, only
+ * while that count is below the share. The stamp, never the delta, is what says
+ * a body has had its item. A row the resolver cannot answer gives nothing and
+ * spends no slot.
+ *
+ * @returns {Promise<Map<string, {rows: string[], items: object[]}>>} by member key
+ */
+async function planCarry(group, stackKey, stack, going) {
+  const plan = new Map();
+  const shares = Object.entries(stack?.gen?.carry ?? {});
+  if (!carryResolver || !shares.length) return plan;
+  for (const [rowKey, raw] of shares) {
+    let spent = (stack.roster ?? []).filter((m) => m.carries?.includes(rowKey)).length;
+    const slots = shareOf(raw);
+    let answer = null;
+    for (const member of going) {
+      if (spent >= slots) break;
+      if (member.carries?.includes(rowKey)) continue;
+      answer ??= await carriedItems(group, stackKey, rowKey);
+      if (!answer.length) break;
+      const given = plan.get(member.key) ?? { rows: [], items: [] };
+      given.rows.push(rowKey);
+      given.items.push(...copiesOf(answer));
+      plan.set(member.key, given);
+      spent++;
+    }
+  }
+  return plan;
+}
+
+/**
+ * A delta with an addition laid on it, as a copy. `extra` merges by key as
+ * `mergeObject` does, except `items`, whose entries join the delta's own list
+ * (an entry replaces the one with its `_id`, so a body given the same item twice
+ * holds it once); `items` is the carried list from `planCarry`, joined the same way.
+ */
+function giveDelta(delta, extra, items = []) {
+  const out = foundry.utils.deepClone(delta ?? {});
+  const { items: extraItems, ...rest } = extra && typeof extra === "object" ? extra : {};
+  foundry.utils.mergeObject(out, rest);
+  const added = [...(Array.isArray(extraItems) ? extraItems : []), ...items].map((item) => foundry.utils.deepClone(item));
+  if (!added.length) return out;
+  const list = Array.isArray(out.items) ? [...out.items] : [];
+  for (const item of added) {
+    const at = item?._id ? list.findIndex((own) => own?._id === item._id) : -1;
+    if (at >= 0) list[at] = item;
+    else list.push(item);
+  }
+  out.items = list;
+  return out;
+}
+
 /**
  * Put `count` members of ONE stack onto a scene as unlinked tokens, each
  * carrying its member delta, hit points included. Resting records go out
@@ -761,6 +855,13 @@ function applyBodySize(tokenData, kept) {
  * hold their token link and rolled HP); stranded records are freed first so a
  * stack that took casualties can march again. One creation call and one
  * roster write however many bodies deploy.
+ *
+ * Two things are laid on the delta of whichever body goes, on its token and in
+ * its record, so a gather (which folds the token's delta back) keeps both: the
+ * caller's `extraDelta`, and the items a stack that records `gen.carry` says its
+ * bodies carry (`registerCarryResolver`; a stamp on the record, `carries`, keeps
+ * a body from being given a row's item twice, and no more bodies are given a
+ * row's item than its share). With no resolver registered the bodies go plain.
  *
  * @param {Actor} group
  * @param {Scene} scene
@@ -772,9 +873,12 @@ function applyBodySize(tokenData, kept) {
  * @param {number} [opts.y] anchor for the default five-abreast placement
  * @param {(i: number) => {x: number, y: number}} [opts.place] the caller's own
  *   layout, asked once per body in order
+ * @param {object|((member: object, i: number) => object|null)|null} [opts.extraDelta]
+ *   merged into each going body's delta as `mergeObject` merges, its `items` joined
+ *   to the body's own list by `_id`; a function is asked once per body in order
  * @returns {Promise<TokenDocument[]>}
  */
-export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, place = null } = {}) {
+export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, place = null, extraDelta = null } = {}) {
   if (!isGroup(group) || !scene) return [];
   const key = stackKey ?? group.system.primaryStack?.key;
   if (!key) return [];
@@ -796,13 +900,17 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
 
   const at = typeof place === "function" ? place : defaultPlacer(scene, x, y);
   const named = group.system.stackOf(key);
+  // What each body is given on top of its record's delta, worked out once and laid
+  // on its token and (below) its record alike: the caller's, then what it carries.
+  const carried = await planCarry(group, key, named, going);
+  const given = new Map(going.map((member, i) => [member.key, { extra: typeof extraDelta === "function" ? extraDelta(member, i) : extraDelta, ...carried.get(member.key) }]));
   const toCreate = [];
   for (let i = 0; i < going.length; i++) {
     const member = going[i];
     const tokenData = (await base.getTokenDocument(at(i) ?? { x, y })).toObject();
     delete tokenData._id;
     tokenData.actorLink = false;
-    tokenData.delta = foundry.utils.deepClone(member.delta ?? {});
+    tokenData.delta = giveDelta(member.delta, given.get(member.key).extra, given.get(member.key).items);
     tokenData.name = memberName(named, member);
     applyBodySize(tokenData, member.tokenSize);
     foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${GROUP_FLAG}`, group.uuid);
@@ -818,6 +926,9 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
     for (const tokenDoc of created) {
       const record = s.roster.find((m) => m.key === tokenDoc?.getFlag(MODULE_ID, MEMBER_FLAG));
       if (!record) continue;
+      const gift = given.get(record.key);
+      record.delta = giveDelta(record.delta, gift?.extra, gift?.items);
+      if (gift?.rows?.length) record.carries = [...new Set([...(record.carries ?? []), ...gift.rows])];
       record.state = GROUP_STATE.deployed;
       record.tokenUuid = tokenDoc.uuid;
     }

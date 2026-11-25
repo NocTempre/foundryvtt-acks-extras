@@ -136,6 +136,9 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
             tokenUuid: str(), // while deployed
             actorUuid: str(), // if detached to a standalone actor
             note: str(), // free text for the report ("felled by the ogre")
+            // The `gen.carry` row keys this body was given the item of. Each is one slot of that
+            // row's share spent for good, whatever later becomes of the item or the body.
+            carries: new ArrayField(str()),
           })
         ),
       });
