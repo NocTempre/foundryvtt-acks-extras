@@ -270,7 +270,7 @@ export function validatePart(part) {
 }
 
 /** `base` with `changes` laid over it: a plain object merges key by key, an array or a figure replaces. */
-function laid(base, changes) {
+export function laid(base, changes) {
   const out = { ...(base ?? {}) };
   for (const [k, v] of Object.entries(changes ?? {})) {
     if (v === undefined) continue;

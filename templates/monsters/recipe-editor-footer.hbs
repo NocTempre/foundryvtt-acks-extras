@@ -1,0 +1,9 @@
+{{!-- The recipe editor's foot: what the last write did, Reset all, Close. A
+      separate part, so it stays pinned below the scrolling body. --}}
+<footer class="form-footer acks-extras-recipe-foot">
+  <span class="acks-extras-recipe-status {{#if foot.error}}is-error{{/if}}" aria-live="polite">{{foot.line}}</span>
+  {{#if foot.canResetAll}}
+  <button type="button" data-action="resetAll"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{localize "ACKS-MONSTERS.recipe.resetAll"}}</button>
+  {{/if}}
+  <button type="button" data-action="close"><i class="fa-solid fa-xmark" aria-hidden="true"></i> {{localize "ACKS-MONSTERS.recipe.close"}}</button>
+</footer>

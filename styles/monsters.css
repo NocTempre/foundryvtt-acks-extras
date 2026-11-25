@@ -587,3 +587,381 @@
 .acks-extras-org-card__fig {
   font-weight: bold;
 }
+
+/* --- The recipe editor: a scrolling body over a pinned footer ---
+   The body part is the scroller, so a re-render after each change keeps its
+   place; the footer never shrinks. The body is a size container: two columns
+   (tables, reading pane) at 700px of body width and above, one below. Each
+   column is a size container of its own, and a row lays out as a grid once its
+   column is wide enough, as wrapping cells below that. */
+
+.acks-extras-recipe.application .window-content {
+  padding: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--acks-sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-5);
+  container: recipe / inline-size;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-recipe .acks-extras-recipe-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  border-top: var(--acks-border-soft);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-recipe .acks-extras-recipe-status {
+  flex: 1 1 10em;
+  min-width: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-recipe .acks-extras-recipe-status.is-error {
+  color: var(--acks-warning-ink);
+}
+
+/* Core pins the type size of buttons and form controls; re-take it so they ride the knob. */
+.acks-extras-recipe button,
+.acks-extras-recipe select,
+.acks-extras-recipe input[type="text"],
+.acks-extras-recipe input[type="number"] {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-recipe .acks-extras-recipe-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-recipe .acks-extras-recipe-art {
+  width: 2.5em;
+  height: 2.5em;
+  flex: none;
+  object-fit: cover;
+  border: var(--acks-border-hair);
+}
+
+.acks-extras-recipe .acks-extras-recipe-headtext {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-name,
+.acks-extras-recipe .acks-extras-recipe-strong {
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-recipe .acks-extras-recipe-strong.is-muted {
+  font-weight: normal;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-recipe .acks-extras-recipe-hint {
+  margin: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  line-height: var(--acks-lh-snug);
+}
+
+.acks-extras-recipe .acks-extras-recipe-cite {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+.acks-extras-recipe .acks-extras-recipe-cap {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: var(--acks-caps);
+  color: var(--acks-ink);
+}
+
+.acks-extras-recipe .acks-extras-recipe-place {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-recipe .acks-extras-recipe-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  border-bottom: var(--acks-border-hair);
+}
+
+.acks-extras-recipe .acks-extras-recipe-tab.is-on {
+  background: var(--acks-tint-2);
+  box-shadow: inset 0 -2px 0 var(--acks-spot);
+}
+
+.acks-extras-recipe .acks-extras-recipe-cols {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-5);
+  min-width: 0;
+}
+
+@container recipe (min-width: 700px) {
+  .acks-extras-recipe .acks-extras-recipe-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14em, 20em);
+    align-items: start;
+  }
+}
+
+.acks-extras-recipe .acks-extras-recipe-col {
+  container: recipecol / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-5);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-side,
+.acks-extras-recipe .acks-extras-recipe-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-h {
+  margin: 0;
+  padding-bottom: var(--acks-sp-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--acks-sp-2) var(--acks-sp-4);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: var(--acks-caps);
+  color: var(--acks-spot);
+  border-bottom: var(--acks-border-hair);
+}
+
+.acks-extras-recipe .acks-extras-recipe-h small {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-recipe .acks-extras-recipe-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-item {
+  border-top: var(--acks-border-soft);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-item.is-on {
+  background: var(--acks-tint-2);
+  box-shadow: inset 3px 0 0 var(--acks-spot);
+}
+
+/* A part a hand changed or added: the warning edge, the design system's own token. */
+.acks-extras-recipe .acks-extras-recipe-item.is-hand {
+  box-shadow: inset 3px 0 0 var(--acks-warning);
+}
+
+.acks-extras-recipe .acks-extras-recipe-part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-2) var(--acks-sp-3) var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-who {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+}
+
+.acks-extras-recipe .acks-extras-recipe-tag {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  border: var(--acks-border-soft);
+  padding: 0 var(--acks-sp-3);
+}
+
+@container recipecol (min-width: 32em) {
+  .acks-extras-recipe .acks-extras-recipe-part {
+    display: grid;
+    grid-template-columns: minmax(8em, 1.4fr) minmax(5em, 1fr) minmax(5em, 1fr) minmax(4em, 0.8fr) auto;
+  }
+  .acks-extras-recipe .acks-extras-recipe-who {
+    flex: none;
+  }
+}
+
+.acks-extras-recipe .acks-extras-recipe-fig {
+  border-bottom: 1px dotted var(--acks-ink-soft);
+  cursor: help;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-extras-recipe .acks-extras-recipe-blank {
+  display: inline-block;
+  min-width: 5ch;
+  border-bottom: 1px solid var(--acks-ink);
+  cursor: help;
+}
+
+.acks-extras-recipe .acks-extras-recipe-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  margin: 0 var(--acks-sp-2) var(--acks-sp-3) var(--acks-sp-4);
+  padding: var(--acks-sp-4);
+  border: var(--acks-border-hair);
+  background: var(--acks-paper-pure);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11em, 1fr));
+  gap: var(--acks-sp-4) var(--acks-sp-5);
+}
+
+.acks-extras-recipe .acks-extras-recipe-field,
+.acks-extras-recipe .acks-extras-recipe-units {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-field > input,
+.acks-extras-recipe .acks-extras-recipe-field > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-units {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-recipe .acks-extras-recipe-error {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-recipe .acks-extras-recipe-line,
+.acks-extras-recipe .acks-extras-recipe-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-end {
+  justify-content: flex-end;
+}
+
+.acks-extras-recipe .acks-extras-recipe-grow {
+  flex: 1 1 10em;
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-recipe .acks-extras-recipe-find {
+  border-bottom: 1px solid var(--acks-ink);
+  cursor: help;
+}
+
+.acks-extras-recipe .acks-extras-recipe-box {
+  border: var(--acks-border-hair);
+  background: var(--acks-paper-pure);
+  padding: var(--acks-sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-recipe .acks-extras-recipe-well {
+  border: var(--acks-border-soft);
+  background: var(--acks-tint);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-recipe .acks-extras-recipe-prose {
+  margin: 0;
+  font-family: var(--acks-font-body);
+  line-height: var(--acks-lh-body);
+}
+
+/* A sentence is a button where the seat can write: it takes the text's own look; a read one is underlined by the accent, an unread one by the warning. */
+.acks-extras-recipe .acks-extras-recipe-sentence {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: inherit;
+  color: var(--acks-ink);
+  height: auto;
+  line-height: inherit;
+}
+
+.acks-extras-recipe .acks-extras-recipe-sentence.is-read {
+  background: var(--acks-tint-2);
+  box-shadow: inset 0 -2px 0 var(--acks-spot);
+}
+
+.acks-extras-recipe .acks-extras-recipe-sentence.is-unread {
+  background: var(--acks-warning-tint);
+  box-shadow: inset 0 -2px 0 var(--acks-warning);
+}
+
+.acks-extras-recipe .acks-extras-recipe-sentence.is-selected {
+  outline: var(--acks-rule) solid var(--acks-spot);
+}

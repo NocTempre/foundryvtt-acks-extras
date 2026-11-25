@@ -1,0 +1,73 @@
+{{!-- The recipe editor's body: header, the state tabs, the Units and Parts tables
+      with the part in edit under its row, and the reading pane. The part root
+      is the scroller. Every boolean is computed in recipe-editor-view.mjs. --}}
+<div class="acks-extras-recipe-body">
+  <div class="acks-extras-recipe-head">
+    {{#if art}}<img class="acks-extras-recipe-art" src="{{art}}" alt="">{{/if}}
+    <div class="acks-extras-recipe-headtext">
+      <div class="acks-extras-recipe-name">{{name}}{{#if optionName}} <span class="acks-extras-recipe-cite">{{optionName}}</span>{{/if}}</div>
+      <p class="acks-extras-recipe-hint" {{#if head.tip}}data-tooltip-text="{{head.tip}}"{{/if}}>{{head.line}}</p>
+    </div>
+    {{#if places.length}}
+    <label class="acks-extras-recipe-place">
+      <span class="acks-extras-recipe-cap">{{localize "ACKS-MONSTERS.recipe.foundIn"}}</span>
+      <select data-field="place">
+        {{#each places as |p|}}<option value="{{p.value}}" {{#if p.selected}}selected{{/if}}>{{p.label}}</option>{{/each}}
+      </select>
+    </label>
+    {{/if}}
+  </div>
+
+  <div class="acks-extras-recipe-tabs" role="tablist" aria-label="{{localize 'ACKS-MONSTERS.recipe.states'}}">
+    {{#each states as |s|}}
+    <button type="button" role="tab" class="acks-extras-recipe-tab {{#if s.active}}is-on{{/if}}" data-action="state" data-state="{{s.key}}" aria-selected="{{#if s.active}}true{{else}}false{{/if}}">{{s.label}}</button>
+    {{/each}}
+  </div>
+
+  <div class="acks-extras-recipe-cols">
+    <div class="acks-extras-recipe-col">
+
+      <section class="acks-extras-recipe-sec">
+        <h3 class="acks-extras-recipe-h">{{localize "ACKS-MONSTERS.recipe.units"}} <small>{{localize "ACKS-MONSTERS.recipe.unitsHint"}}</small></h3>
+        <ul class="acks-extras-recipe-list">
+          {{#each units}}{{> "modules/acks-extras/templates/monsters/recipe-row.hbs" isUnits=true}}{{/each}}
+        </ul>
+      </section>
+
+      <section class="acks-extras-recipe-sec">
+        <h3 class="acks-extras-recipe-h">{{localize "ACKS-MONSTERS.recipe.parts"}} <small>{{partsCount}}</small></h3>
+        <ul class="acks-extras-recipe-list">
+          {{#each parts}}{{> "modules/acks-extras/templates/monsters/recipe-row.hbs" isUnits=false}}{{/each}}
+        </ul>
+        {{#if canWrite}}
+        <div class="acks-extras-recipe-row">
+          <button type="button" data-action="addPart"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{localize "ACKS-MONSTERS.recipe.add"}}</button>
+          <span class="acks-extras-recipe-hint acks-extras-recipe-grow">{{localize "ACKS-MONSTERS.recipe.addHint"}}</span>
+        </div>
+        {{/if}}
+      </section>
+
+    </div>
+    <aside class="acks-extras-recipe-side">
+      <h3 class="acks-extras-recipe-h">{{localize "ACKS-MONSTERS.recipe.pane.title"}} {{#if paneCite}}<small>{{paneCite}}</small>{{/if}}</h3>
+      <div class="acks-extras-recipe-box">
+        {{#each pane.paragraphs as |para|}}
+        <p class="acks-extras-recipe-prose">
+          {{#each para.sentences as |s|}}{{#if s.press}}<button type="button" class="acks-extras-recipe-sentence {{#if s.read}}is-read{{else}}is-unread{{/if}} {{#if s.selected}}is-selected{{/if}}" data-action="sentence" data-field-name="{{s.field}}" data-paragraph="{{s.paragraph}}" data-sentence="{{s.sentence}}" data-keys="{{s.keys}}" data-tooltip-text="{{s.tip}}">{{s.text}}</button>{{else}}<span class="acks-extras-recipe-sentence {{#if s.read}}is-read{{else}}is-unread{{/if}} {{#if s.selected}}is-selected{{/if}}" data-keys="{{s.keys}}" data-tooltip-text="{{s.tip}}">{{s.text}}</span>{{/if}} {{/each}}
+        </p>
+        {{/each}}
+      </div>
+      {{#if pane.hasUnread}}
+      <div class="acks-extras-recipe-well" data-tooltip-text="{{localize 'ACKS-MONSTERS.recipe.pane.unreadTip'}}{{#if paneCite}} {{paneCite}}{{/if}}">
+        {{localize "ACKS-MONSTERS.recipe.pane.unreadCount"}} <strong>{{pane.unread}}</strong>.{{#if canWrite}} {{localize "ACKS-MONSTERS.recipe.pane.unreadPress"}}{{/if}}
+      </div>
+      {{/if}}
+      {{#if pane.selected.length}}
+      <h3 class="acks-extras-recipe-h">{{localize "ACKS-MONSTERS.recipe.pane.selected"}} <small>{{selectedName}}</small></h3>
+      <div class="acks-extras-recipe-box">
+        {{#each pane.selected as |s|}}<p class="acks-extras-recipe-prose"><span class="acks-extras-recipe-sentence is-read">{{s.text}}</span></p>{{/each}}
+      </div>
+      {{/if}}
+    </aside>
+  </div>
+</div>

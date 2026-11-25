@@ -1,0 +1,93 @@
+{{!-- One row of the recipe editor's Units or Parts table, and the part's edit
+      box beneath it when it is the one in edit. Included by recipe-editor.hbs
+      with `isUnits`; a seat that cannot write gets the row without its edit
+      button and without the box. --}}
+<li class="acks-extras-recipe-item {{#if hand}}is-hand{{/if}} {{#if inEdit}}is-on{{/if}}" data-key="{{key}}">
+  <div class="acks-extras-recipe-part">
+    <span class="acks-extras-recipe-who">
+      <span class="acks-extras-recipe-strong {{#if muted}}is-muted{{/if}}" data-tooltip-text="{{tip}}">{{name}}</span>
+      {{#unless isUnits}}{{#unless muted}}<span class="acks-extras-recipe-tag">{{role}}</span>{{/unless}}{{/unless}}
+    </span>
+    {{#if isUnits}}<span class="acks-extras-recipe-made">{{madeOf}}</span>{{/if}}
+    <span class="acks-extras-recipe-count">
+      {{#if countBlank}}<span class="acks-extras-recipe-blank" {{#if countTip}}tabindex="0" aria-label="{{countTip}}" data-tooltip=""{{/if}}></span>{{else}}<span class="acks-extras-recipe-fig" data-tooltip-text="{{countTip}}">{{countText}}</span>{{/if}}
+    </span>
+    {{#unless isUnits}}<span class="acks-extras-recipe-when" data-tooltip-text="{{whenTip}}">{{whenText}}</span>{{/unless}}
+    <span class="acks-extras-recipe-from">{{#if hand}}{{fromText}}{{else}}{{#unless isUnits}}{{fromText}} {{/unless}}<span class="acks-extras-recipe-cite">{{cite}}</span>{{/if}}</span>
+    {{#if @root.canWrite}}
+    <button type="button" class="acks-extras-recipe-iconbtn" data-action="editPart" data-key="{{key}}" data-tooltip="" aria-label="{{editLabel}}" aria-pressed="{{#if inEdit}}true{{else}}false{{/if}}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+    {{/if}}
+  </div>
+  {{#if edit}}
+  <div class="acks-extras-recipe-edit">
+    <div class="acks-extras-recipe-fields">
+      {{#each edit.fields as |f|}}
+      <label class="acks-extras-recipe-field" {{#if f.tip}}data-tooltip-text="{{f.tip}}"{{/if}}>
+        <span class="acks-extras-recipe-cap">{{f.label}}</span>
+        {{#if f.isSelect}}
+        <select name="{{f.name}}" data-field="{{f.name}}">
+          {{#each f.options as |o|}}<option value="{{o.value}}" {{#if o.selected}}selected{{/if}}>{{o.label}}</option>{{/each}}
+        </select>
+        {{else if f.isNumber}}
+        <input type="number" name="{{f.name}}" data-field="{{f.name}}" value="{{f.value}}" step="1" autocomplete="off" {{#if f.error}}aria-invalid="true"{{/if}}>
+        {{else}}
+        <input type="text" name="{{f.name}}" data-field="{{f.name}}" value="{{f.value}}" autocomplete="off" {{#if f.error}}aria-invalid="true"{{/if}}>
+        {{/if}}
+        <small class="acks-extras-recipe-hint">{{f.hint}}</small>
+        {{#if f.error}}<small class="acks-extras-recipe-error" role="alert">{{f.error}}</small>{{/if}}
+      </label>
+      {{/each}}
+    </div>
+
+    {{#if edit.units.length}}
+    <fieldset class="acks-extras-recipe-units">
+      <legend class="acks-extras-recipe-cap">{{localize "ACKS-MONSTERS.recipe.field.units"}}</legend>
+      <small class="acks-extras-recipe-hint">{{localize "ACKS-MONSTERS.recipe.hint.units"}}</small>
+      {{#each edit.units as |u|}}
+      <label class="acks-extras-recipe-check"><input type="checkbox" data-field="unit" data-word="{{u.word}}" {{#if u.checked}}checked{{/if}}> {{u.word}}</label>
+      {{/each}}
+    </fieldset>
+    {{/if}}
+
+    {{#if edit.leaderNote}}
+    <div class="acks-extras-recipe-line">
+      <span class="acks-extras-recipe-cap">{{localize "ACKS-MONSTERS.recipe.leaderFigures"}}</span>
+      <span class="acks-extras-recipe-hint">{{localize "ACKS-MONSTERS.recipe.leaderNote"}}</span>
+    </div>
+    {{/if}}
+
+    {{#if edit.link}}
+    <div class="acks-extras-recipe-link">
+      <div class="acks-extras-recipe-line">
+        <span class="acks-extras-recipe-cap">{{localize "ACKS-MONSTERS.recipe.field.creature"}}</span>
+        {{#if edit.link.isLinked}}
+        <button type="button" data-action="openCreature" data-uuid="{{edit.link.uuid}}" data-tooltip="" aria-label="{{edit.link.openAria}}"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> {{edit.link.name}}</button>
+        <button type="button" data-action="changeLink">{{localize "ACKS-MONSTERS.recipe.link.change"}}</button>
+        {{else}}
+        <span class="acks-extras-recipe-find" tabindex="0" data-tooltip="{{localize 'ACKS-MONSTERS.recipe.link.noneTip'}}" aria-label="{{localize 'ACKS-MONSTERS.recipe.link.noneTip'}}">{{localize "ACKS-MONSTERS.recipe.link.none"}}</span>
+        {{/if}}
+      </div>
+      {{#if edit.link.open}}
+      <label class="acks-extras-recipe-field">
+        <span class="acks-extras-recipe-cap">{{localize "ACKS-MONSTERS.recipe.link.search"}}</span>
+        <input type="text" name="linkQuery" data-field="linkQuery" value="{{edit.link.query}}" autocomplete="off">
+      </label>
+      {{#if edit.link.entries.length}}
+      <ul class="acks-extras-recipe-entries">
+        {{#each edit.link.entries as |e|}}
+        <li><span>{{e.name}}</span> <button type="button" data-action="linkEntry" data-uuid="{{e.uuid}}" data-name="{{e.name}}" aria-label="{{e.aria}}">{{localize "ACKS-MONSTERS.recipe.link.link"}}</button></li>
+        {{/each}}
+      </ul>
+      {{/if}}
+      {{/if}}
+      <p class="acks-extras-recipe-hint">{{#if edit.link.isLinked}}{{localize "ACKS-MONSTERS.recipe.link.linkedNote"}}{{else}}{{localize "ACKS-MONSTERS.recipe.link.unlinkedNote"}}{{/if}}</p>
+    </div>
+    {{/if}}
+
+    <div class="acks-extras-recipe-line acks-extras-recipe-end">
+      {{#if edit.canReset}}<button type="button" data-action="resetPart" data-key="{{key}}">{{localize "ACKS-MONSTERS.recipe.resetPart"}}</button>{{/if}}
+      <button type="button" data-action="donePart">{{localize "ACKS-MONSTERS.recipe.done"}}</button>
+    </div>
+  </div>
+  {{/if}}
+</li>
