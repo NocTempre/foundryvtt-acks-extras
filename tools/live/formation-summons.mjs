@@ -754,6 +754,8 @@ const track = async (uuid, kind) => {
  * the run's list, so the final sweep never names a uuid the ledger no longer holds.
  */
 const sweepNow = async (uuids) => {
+  // The tracker shows no combat while one goes, so the delete activates no kept combat (docs/lib/TESTING.md, the round-combat fixture).
+  await gm.eval("(() => { ui.combat.viewed = null; return true; })()");
   const out = await gm.sweepTracked({ only: uuids });
   for (const e of [...out.removed, ...out.missing]) {
     const at = own.indexOf(e.uuid);

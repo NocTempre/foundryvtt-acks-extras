@@ -216,7 +216,10 @@ const P = {
   /** On the Judge's seat: write a user's level on a world document, or take the entry off (`level` null), and read what the document stores. */
   setLevel: async ({ uuid, userId, level }) => {
     const doc = await fromUuid(uuid);
-    await doc.update(level === null ? { [`ownership.-=${userId}`]: null } : { [`ownership.${userId}`]: level });
+    // A user's entry is taken off as core's own ownership form takes it off: the map is replaced whole without the key. A deletion of the one key leaves it standing.
+    const rest = { ...doc._source.ownership };
+    delete rest[userId];
+    await doc.update(level === null ? { ownership: new foundry.data.operators.ForcedReplacement(rest) } : { [`ownership.${userId}`]: level });
     const source = doc._source.ownership ?? {};
     return { stored: source[userId] ?? null, keyed: Object.hasOwn(source, userId), def: source.default ?? null };
   },
@@ -386,7 +389,8 @@ const P = {
     await new Promise((r) => setTimeout(r, 1200));
     return { round: combat.round, onTurn: combat.combatant?.tokenId ?? null };
   },
-  combatDrop: async ({ combatId }) => { await game.combats.get(combatId)?.delete(); return !game.combats.get(combatId); },
+  // The tracker shows no combat while this one goes, so the delete activates no kept combat (docs/lib/TESTING.md, the round-combat fixture).
+  combatDrop: async ({ combatId }) => { ui.combat.viewed = null; await game.combats.get(combatId)?.delete(); return !game.combats.get(combatId); },
   /** Declared spells waiting on the caster: the pending records and the casting status. */
   pending: async ({ casterId }) => {
     const a = game.actors.get(casterId);
@@ -1256,6 +1260,7 @@ try {
 
   const pEnd = await run(player, P.drain);
   const gEnd = await run(gm, P.drain);
+  if (gEnd.errors.length || gEnd.uncaught.length) note("the GM seat's errors, as recorded", { errors: gEnd.errors, uncaught: gEnd.uncaught });
   check("no console error or uncaught error on the Player seat over the rest of the walk", !pEnd.errors.length && !pEnd.uncaught.length, { errors: pEnd.errors.length, uncaught: pEnd.uncaught.length });
   check("no console error or uncaught error on the GM seat over the walk", !gEnd.errors.length && !gEnd.uncaught.length, { errors: gEnd.errors.length, uncaught: gEnd.uncaught.length });
 

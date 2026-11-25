@@ -604,6 +604,8 @@ const P = {
   doorPoint: async ({ sceneId, wallId }) => {
     const H = globalThis.__mct;
     const r = canvas.dimensions.sceneRect;
+    // An expanded sidebar stands its tab column over the field's right half, where the near doors land.
+    if (ui.sidebar?.expanded) ui.sidebar.collapse();
     canvas.pan({ x: r.x + r.width / 2, y: r.y + r.height / 2, scale: 0.5 });
     await H.sleep(1200);
     const wall = canvas.walls.get(wallId);
@@ -611,7 +613,9 @@ const P = {
     if (!c) return { x: 0, y: 0, onCanvas: false };
     const p = canvas.clientCoordinatesFromCanvas({ x: c.x, y: c.y });
     const inside = p.x > 40 && p.y > 40 && p.x < window.innerWidth - 40 && p.y < window.innerHeight - 40;
-    return { x: Math.round(p.x), y: Math.round(p.y), onCanvas: inside && document.elementFromPoint(p.x, p.y) === canvas.app.view };
+    const top = document.elementFromPoint(p.x, p.y);
+    const onCanvas = inside && top === canvas.app.view;
+    return { x: Math.round(p.x), y: Math.round(p.y), onCanvas, ...(onCanvas ? {} : { over: `${top?.tagName ?? "none"}.${String(top?.className ?? "").slice(0, 80)}`, view: [window.innerWidth, window.innerHeight] }) };
   },
   /** The door pick's banner, as the page shows it: open or not, its words and whether it reads as a refusal. */
   banner: async () => {
@@ -698,7 +702,8 @@ const P = {
   /** Whether any combatant of the fight carries a declared-spell flag of this module (the flag names are read, not guessed). */
   declared: async ({ combatId }) => game.combats.get(combatId)?.combatants.filter((c) => Object.keys(c.flags?.["acks-extras"] ?? {}).some((k) => /declar/iu.test(k))).length ?? null,
   /** Delete the Combat; true once the world no longer holds it. */
-  combatDrop: async ({ combatId }) => { await game.combats.get(combatId)?.delete(); return !game.combats.get(combatId); },
+  // The tracker shows no combat while this one goes, so the delete activates no kept combat (docs/lib/TESTING.md, the round-combat fixture).
+  combatDrop: async ({ combatId }) => { ui.combat.viewed = null; await game.combats.get(combatId)?.delete(); return !game.combats.get(combatId); },
   restore: async () => {
     const H = globalThis.__mct;
     if (!H?.patched) return "never installed";
@@ -1299,7 +1304,8 @@ async function stageSeal() {
     const port = who === "gm" ? PORTS.gm : PORTS.player;
     await frontSeat(port);
     await centerPointer(seat, port);
-    const p = await run(seat, P.doorPoint, { sceneId: W.scene, wallId: id });
+    // A notice or a card from the step before may still stand over the point; it is waited out, and what covers the point is named where it stays.
+    const p = await until(() => run(seat, P.doorPoint, { sceneId: W.scene, wallId: id }), (x) => x.onCanvas, { tries: 24, every: 500 });
     if (!p.onCanvas) throw new Error(`the door's control is not on bare canvas for a click: ${JSON.stringify(p)}`);
     await clickAt(port, p);
   };
