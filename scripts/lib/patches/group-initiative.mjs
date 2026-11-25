@@ -41,6 +41,7 @@
  * initiative modifier and returns its write".
  */
 import { MODULE_ID } from "../constants.mjs";
+import { tokenlessNames, noticeOnce } from "./tokenless-combat.mjs";
 
 /** The wrapped method's path, as libWrapper takes it. */
 const TARGET = "CONFIG.Combat.documentClass.prototype.manageGroup";
@@ -94,8 +95,19 @@ function corrected(combat, groups, passed) {
  * WRAPPER form: the system's method runs unmodified, with `setFlag` shadowed for
  * its synchronous call. Returns the system's own return when it wrote nothing,
  * else a promise for the real write.
+ *
+ * In a combat holding a combatant with no token the method is not called: it
+ * reads the token of every combatant and throws on that one. The Judge is shown
+ * the combat's one notice, naming the row, and the call returns undefined, as the
+ * system's own refusals do. The initiative wrap sends such a combat's rolls to
+ * Foundry's roll, which makes no groups, so a group made there would never be
+ * rolled as one.
  */
 function onManageGroup(wrapped, ...args) {
+  if (tokenlessNames(this).length) {
+    noticeOnce(this);
+    return undefined;
+  }
   const real = this.setFlag;
   const prior = Object.getOwnPropertyDescriptor(this, "setFlag");
   let written = null;

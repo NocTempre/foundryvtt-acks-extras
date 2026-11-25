@@ -1239,6 +1239,7 @@
   "ACKS-LIB.initiative.cardTitle": "Initiative",
   "ACKS-LIB.initiative.group": "Group {n}",
   "ACKS-LIB.initiative.hiddenNote": "Hidden — Judges only",
+  "ACKS-LIB.initiative.tokenless": "No token on the scene for: {names}. While it is in this combat, the combat runs on Foundry's own start and initiative, with no surprise step and no grouping.",
   "ACKS-LIB.storedInput.effectiveTip": "The stored value; with the effects in force it is {value}",
   "ACKS-LIB.attack.unarmed": "Unarmed",
   "ACKS-LIB.attack.improvised": "Improvised",

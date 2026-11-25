@@ -1896,24 +1896,34 @@ this card is Name and Total — initiative has no verdict to render. The
 
 The same wrap guards the roll, on the GM seat whether the card is on or off:
 
-- **A combatant with no token** (none set, or none on its scene) is rolled by
-  Foundry's own `Combat#rollInitiative`, found by walking the prototype chain up
-  from the wrapped class's parent to `foundry.documents.Combat`, and called with
-  `updateTurn: false`. The system's loop reads `token.id` of every id it is
-  given, so one such id would abort the whole press. An id with no combatant at
-  all takes the same route, where Foundry skips it. The ids that remain go to
-  the wrapped method and are the only ones the card gathers; with none left, it
-  is not called. A tokenless combatant is in no group, since
-  `flags.acks.groups` holds token ids. The system's method also reads the token
-  of every combatant in the combat, not only of its ids, before it writes any
-  number; in a combat that holds a tokenless combatant it still throws for the
-  ids it keeps, and the lock release below is what that case gets.
+- **A combat that holds a combatant with no token** (none set, or none on its
+  scene) sends the WHOLE press, every id given, to Foundry's own
+  `Combat#rollInitiative`, with the caller's options as given. The method is
+  found by walking the prototype chain up from the wrapped class's parent to
+  `foundry.documents.Combat`. The wrapped method and the card are not used for
+  that press, so every row gets a number from Foundry's roll and Foundry posts
+  its own messages. The system's method reads the token of every combatant in
+  the combat, not only of the ids pressed, before it writes any number, so no
+  split of the ids lets it number a tokened row there; the trigger is the
+  combat's rows, never the ids. No group number is applied, since
+  `flags.acks.groups` holds token ids. The system's rollAll refuses a
+  combat whose `flags.acks.initDone` is unset (Begin Combat sets it) before it
+  calls this method.
+- **The notice.** The first time a combat on this client meets any of the three
+  paths (Begin Combat, a roll, the group control), one notification names the
+  tokenless rows (`combatant.name`, joined with ", ") and says the combat runs on
+  Foundry's own start and initiative, with no surprise step and no grouping. A roll
+  shows it after the roll has landed, so a press that throws announces nothing.
+  The combat ids already told are held for the session, so nothing shows twice.
+  The notice, the test for such a combat, the walk to Foundry's methods and the
+  lock release are `patches/tokenless-combat.mjs`, shared by the three patches.
 - **The turn-order lock.** The system sets `flags.acks.lock-turns` for the
-  length of its roll. A throw out of the wrapped method sets it back to false
-  when it is still set, then goes on to the caller. A roll that completes is not
+  length of its roll. A throw out of either path sets it back to false when it
+  is still set, then goes on to the caller. A roll that completes is not
   touched, so a second press in flight keeps its own lock.
-- A class whose chain never reaches `foundry.documents.Combat` has nothing to
-  split, and every id goes to the wrapped method.
+- A class whose chain never reaches `foundry.documents.Combat` has no Foundry
+  method to hand a press to, and every press goes to the wrapped method with no
+  warning.
 
 ## Tied initiative sorts the same on every seat
 
@@ -1986,6 +1996,14 @@ combat") reports. `groupGangs` awaits the call and polls the stored list after i
 The ruling is in docs/lib/DECISIONS.md, and the row that retires the patch is in
 docs/lib/ROADMAP.md.
 
+In a combat that holds a combatant with no token the method is not called at all:
+the system reads the token of every combatant and throws on that one. The wrapper
+shows the combat's one notice naming the tokenless rows (shown once, as the roll's
+is), writes nothing and returns undefined, as the system's own refusals do. The
+initiative wrap sends such a combat's rolls to Foundry's method, which makes no
+groups. `groupGangs` awaits that return, finds the list without the group and
+waits out its timeout for each gang it tried.
+
 ## A cancelled declaration leaves the combat unstarted
 
 `scripts/lib/patches/combat-start.mjs` is the one wrapper on the system's
@@ -2009,6 +2027,33 @@ thrown. The wrapper on `startCombat` does the same before the call goes through 
 combat at round 0 with the flag set and no start in flight, which is a start
 abandoned by a reload of the seat while the prompt was open. A start in flight is
 never cleaned, since its prompt may be open.
+
+**A combat holding a combatant with no token** is begun by Foundry's own
+`Combat#startCombat`, found by the walk up the prototype chain that the initiative
+wrap uses (`patches/tokenless-combat.mjs`). The system's `startCombat` reads the
+token of every combatant (`#getCombatantPools`) before its matrix opens and throws
+on that one, so on a GM seat the wrapper does not call it. Foundry's start plays the
+start sound, calls the `combatStart` hook, updates the combat to round 1, turn 0 and
+refreshes the effect registry. There is no declaration prompt and no Surprise Matrix
+on this path, and the combat's one notice says so. The system's own start would have
+left two flags that its later rolls read, so the wrapper sets them before it rolls:
+
+- `flags.acks.initDone` is set true. The system's `internalStartCombat` sets it,
+  and the system's `rollAll` and `rollNPC` refuse a combat without it, so a begun
+  combat that lacked it would refuse its own Roll All.
+- `flags.acks.lock-turns` is set false where it stands set, as a failed roll left it,
+  since a combatant write throws while it is set.
+
+It then calls `rollAll()`, the system's override, which passes its check and calls
+Foundry's `rollAll`, whose `rollInitiative` is the initiative wrap, which hands the
+press to Foundry's roll, so every row has a number. The next round reads no
+token: `nextRound` reads each turn's actor and calls `resetInitiative`, which is
+Foundry's `resetAll`, and the combat's `pools` (which only the system's roll and
+its matrix read) are never set on this path. The one read of a combatant's token on
+that path's later surfaces is the tracker's colouring hook in the system's
+`combat-helper.mjs`, which reads `combatant.token.id` for each combatant when a
+group exists and tracker colours are on; this path makes no group, and the
+colouring hook is left as it is.
 
 The status lift reaches every Surprised on the combatants, including one a Judge set
 by hand before pressing Begin Combat. The matrix's own apply path does not tell that

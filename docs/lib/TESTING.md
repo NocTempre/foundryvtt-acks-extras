@@ -285,17 +285,32 @@ report the same symptom.
     Judges' card is not (`message.visible === false`). Turn `initiativeCard` off
     and roll again: core's one message per roller is back, unchanged. Rolling a
     single combatant posts a one-row card. No console errors on any of it.
-13. Initiative with a combatant that has no token: a started combat of one
-    tokened combatant and one tokenless one, built by
-    `combat.createEmbeddedDocuments("Combatant", [{actorId}])` with no `tokenId`,
-    both with no initiative, marker `lib/initiative-tokenless`.
-    *Observable:* pressing the tokenless combatant's own roll on the GM seat
-    (Combat Tracker sidebar tab) gives it a number with no console error. One
-    Roll All press then leaves the tokenless combatant numbered, and
-    `combat.getFlag("acks", "lock-turns")` reads false afterward; record
-    whether the tokened combatant carries a number, which the system's
-    all-combatants token read prevents on 14.2.0 (docs/lib/DECISIONS.md,
-    2026-11-25, T-0828), and the console's one error with it.
+13. Begin Combat and initiative in a combat that holds a combatant with no token:
+    a combat of one tokened combatant and one tokenless one, built by
+    `combat.createEmbeddedDocuments("Combatant", [{actorId}])` with no
+    `tokenId`, both with no initiative, marker `lib/initiative-tokenless`. Make
+    the tracker show the step's own combat (`ui.combat.viewed = combat`) before
+    pressing anything, and press the tracker's footer
+    `[data-action="startCombat"]` on the GM seat.
+    *Observable, Begin Combat:* `combat.started` is true, `combat.round` is 1,
+    each row's initiative is a number, one notice names the tokenless row and says
+    the combat runs on Foundry's own start and initiative with no surprise step and
+    no grouping, no Surprise Matrix or declaration prompt opens, the console
+    records no error, `flags.acks.lock-turns` reads false and `flags.acks.initDone`
+    reads true.
+    *Observable, rolls:* the combat is now begun, which the system's rollAll
+    requires (`flags.acks.initDone`). Set both initiatives to null, press Roll All,
+    then set them to null again and press Roll NPCs, then null them again and press
+    each row's own roll: after each press every row the press covers carries a
+    number, no second notice shows for the combat, and `flags.acks.lock-turns`
+    reads false. (Roll NPCs numbers only the NPC rows, so build the actors with
+    that in mind.)
+    *Observable, grouping:* press the tracker's group control on the two rows: no
+    group is stored (`combat.getFlag("acks", "groups")` reads as it did) and no
+    second notice shows.
+    *Teardown:* `api.sweepTracked()` deletes the combat, and core's
+    `Combat#_onDelete` activates the combat the deleting client has viewed, so the
+    tracker must view none before the sweep (`ui.combat.viewed = null`).
 
 ### The compendium sidebar
 

@@ -16,9 +16,9 @@
  * written them, not off the captured messages, so a grouped member core kept
  * silent about still has a number and still belongs on the card.
  *
- * The same wrap guards the roll: a combatant with no token goes to Foundry's own
- * `Combat#rollInitiative` instead of the system's loop, which aborts on it, and
- * a throw out of the system's roll releases the turn-order lock it held.
+ * The same wrap guards the roll: a combat holding a combatant with no token goes
+ * whole to Foundry's own `Combat#rollInitiative` instead of the system's, which
+ * aborts on it, and a throw out of a roll releases the turn-order lock.
  *
  * Privacy is preserved by splitting, not widening: a hidden combatant's row
  * travels on a second, Judges-only card. See docs/lib/DECISIONS.md,
@@ -27,6 +27,7 @@
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { gmIds, makeLoc } from "../util.mjs";
 import { renderRollCard } from "../roll-card.mjs";
+import { tokenlessNames, foundryCombatMethod, noticeOnce, releaseLock } from "./tokenless-combat.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -204,32 +205,6 @@ async function postCards({ open, secret, whisper }) {
   }
 }
 
-/** The system's flag scope and key for the turn-order lock its `rollInitiative` holds while it runs. */
-const LOCK_SCOPE = "acks";
-const LOCK_KEY = "lock-turns";
-
-/**
- * Foundry's own `Combat#rollInitiative`, reached by walking the prototype chain
- * up from the wrapped class's parent to `foundry.documents.Combat`; null when
- * the chain never reaches it, which leaves every id to the wrapped method.
- * Starting at the parent keeps the wrapper itself out of the walk.
- */
-function foundryRollInitiative() {
-  const base = globalThis.foundry?.documents?.Combat?.prototype;
-  let at = Object.getPrototypeOf(CONFIG.Combat?.documentClass?.prototype ?? null);
-  while (at && at !== base) at = Object.getPrototypeOf(at);
-  return at && Object.hasOwn(at, "rollInitiative") ? at.rollInitiative : null;
-}
-
-/** Sets the system's turn-order lock back to false where a failed roll left it set. */
-async function releaseLock(combat) {
-  try {
-    if (combat.getFlag(LOCK_SCOPE, LOCK_KEY)) await combat.setFlag(LOCK_SCOPE, LOCK_KEY, false);
-  } catch (err) {
-    console.warn(`${MODULE_ID} | could not release the combat's turn-order lock`, err);
-  }
-}
-
 /**
  * The card's half: core rolls, and this only gathers its messages onto one card.
  * Runs with the card setting read per roll; off, it is core's roll untouched.
@@ -274,33 +249,28 @@ async function rollWithCard(wrapped, ids, options) {
  * the GM over its own socket and returns, so there is nothing to gather there
  * and the card is posted once, by the client that did the rolling.
  *
- * On the GM seat a combatant with no token (none on the scene, or none set) is
- * rolled by Foundry's own `Combat#rollInitiative`, since the system's loop reads
- * the token of every id it is given and a null one aborts the whole press. The
- * remaining ids go to the wrapped method, and the card gathers only those.
- * Such a combatant belongs to no group, which `flags.acks.groups` keys by token
- * id. Should the wrapped method throw, the turn-order lock it holds is set back
- * to false and the error goes on to the caller.
+ * On the GM seat, a combat holding a combatant with no token (none on the scene,
+ * or none set) sends the WHOLE press, every id given, to Foundry's own
+ * `Combat#rollInitiative` with the caller's options as given. The system's roll
+ * reads the token of every combatant in the combat, not only of the ids pressed,
+ * so no split of the ids lets it number a tokened row there. The wrapped method
+ * and the card are not used for that press, and no group number is applied. The
+ * Judge is told once per combat, per client, which rows have no token and that
+ * the roll was not grouped.
  *
- * The system's pools and out-numbering passes read the token of every combatant
- * in the combat, not only of the ids it rolls, so while a combat holds a
- * tokenless combatant the wrapped method can still throw for the ids it keeps;
- * the lock release is what that case gets.
+ * A throw out of either path sets the turn-order lock back to false, where the
+ * system's roll left it set, and the error goes on to the caller.
  */
 async function onRollInitiative(wrapped, ids, options) {
   if (!game.user.isGM) return wrapped(ids, options);
 
-  const all = typeof ids === "string" ? [ids] : [...(ids ?? [])];
-  const foundryRoll = foundryRollInitiative();
-  const tokenless = foundryRoll ? all.filter((id) => !this.combatants.get(id)?.token) : [];
-  if (tokenless.length) {
-    await foundryRoll.call(this, tokenless, { ...options, updateTurn: false });
-    ids = all.filter((id) => !tokenless.includes(id));
-    if (!ids.length) return this;
-  }
-
+  const foundryRoll = foundryCombatMethod("rollInitiative");
+  const names = foundryRoll ? tokenlessNames(this) : [];
   try {
-    return await rollWithCard.call(this, wrapped, ids, options);
+    if (!names.length) return await rollWithCard.call(this, wrapped, ids, options);
+    const result = await foundryRoll.call(this, ids, options);
+    noticeOnce(this);
+    return result;
   } catch (err) {
     await releaseLock(this);
     throw err;
@@ -312,7 +282,7 @@ async function onRollInitiative(wrapped, ids, options) {
  *
  * Installed UNCONDITIONALLY: the wrapper reads the card setting per roll and
  * posts core's own messages untouched when off, so the toggle needs no reload.
- * The tokenless split and the lock release run either way.
+ * The tokenless combat's hand-off and the lock release run either way.
  */
 export function installInitiativeCardPatch() {
   const proto = CONFIG.Combat?.documentClass?.prototype;

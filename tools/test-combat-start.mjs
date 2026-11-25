@@ -49,7 +49,7 @@ function makeClass() {
       this.round = 0;
       this.flags = {};
       this.prompts = [];
-      this.combatants = [0, 1].map(() => ({ actor: { statuses: new Set(["surprised", "other"]) } }));
+      this.combatants = [0, 1].map(() => ({ token: {}, actor: { statuses: new Set(["surprised", "other"]) } }));
       this.cleanupFails = false;
       this.unsetFails = false;
       game.combats.set(this.id, this);

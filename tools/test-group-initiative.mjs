@@ -10,7 +10,9 @@
  * What this pins is the correction's fingerprint, that the fixed system's list
  * is written untouched, that the shadow on `setFlag` is confined to one call and
  * to one write, and that the call hands back its write. That the system's real
- * method behaves so is the live recipe's to prove (docs/lib/TESTING.md).
+ * method behaves so is the live recipe's to prove (docs/lib/TESTING.md). A combat
+ * holding a combatant with no token is refused before the system's method, which
+ * reads every combatant's token and throws on that one, is called.
  */
 import assert from "node:assert/strict";
 
@@ -20,6 +22,10 @@ const test = async (name, fn) => { await fn(); passed++; console.log("ok   " + n
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const warnings = [];
 console.warn = (text) => warnings.push(String(text));
+/** Every `ui.notifications.warn` text. */
+const notices = [];
+globalThis.ui = { notifications: { warn: (text) => notices.push(String(text)) } };
+globalThis.game = { i18n: { format: (key, data = {}) => `${key} ${JSON.stringify(data)}` } };
 
 /** Calls libWrapper registered, and the layers the fallback or libWrapper put on a prototype. */
 const registrations = [];
@@ -40,9 +46,12 @@ globalThis.libWrapper = {
 /** Every write the base's real `setFlag` received, in order. */
 const realWrites = [];
 
+let combatCount = 0;
+
 /** A combat stand-in: its combatants resolve each token id to an actor with an initiative value. */
 class Base {
   constructor(inits) {
+    this.id = `combat-${++combatCount}`;
     this.flags = {};
     this.combatants = Object.entries(inits).map(([id, value]) => ({ id: `c-${id}`, token: { id }, actor: { system: { initiative: { value } } } }));
   }
@@ -287,17 +296,55 @@ await test("a call the system refuses before it writes returns what the system r
   assert.equal(Object.hasOwn(combat, "setFlag"), false);
 });
 
-await test("a combatant held by tokenId alone is found, and one with no actor is skipped", async () => {
+await test("a combatant with no actor is not counted in its group's lowest value", async () => {
   const groups = () => [{ initiative: -1, initiativeBonus: 3, tokens: ["a1", "a2", "x9"] }];
   const Cls = patched(writingClass([["acks", "groups", groups()]]));
-  const combat = new Cls(INITS);
-  combat.combatants = combat.combatants.map((c) => (c.token.id === "a1" ? { id: c.id, tokenId: "a1", actor: c.actor } : c));
-  await combat.manageGroup(tok("b1", "b2"));
-  assert.equal(stored(combat)[0].initiativeBonus, 1, "a1 is matched by its tokenId");
   const bare = new Cls(INITS);
   bare.combatants.find((c) => c.token.id === "a1").actor = null;
   await bare.manageGroup(tok("b1", "b2"));
   assert.equal(stored(bare)[0].initiativeBonus, 2, "the combatant with no actor is not counted");
+});
+
+/** A system stand-in whose method reads the token of every combatant, as the system's does, and records its calls. */
+function readingClass() {
+  const calls = [];
+  const Cls = class extends fixedClass() {
+    async manageGroup(groupTokens) {
+      calls.push(groupTokens);
+      for (const c of this.combatants) void c.token.id;
+      return super.manageGroup(groupTokens);
+    }
+  };
+  return { Cls, calls };
+}
+
+await test("a combat holding a tokenless row refuses the group before the system's method, shows its one notice naming the row and does not throw", async () => {
+  const { Cls, calls } = readingClass();
+  patched(Cls);
+  const combat = new Cls(INITS);
+  combat.combatants.push({ id: "c-none", name: "Birch", token: null, actor: null });
+  notices.length = 0;
+  realWrites.length = 0;
+  const returned = await combat.manageGroup(tok("a1", "a2"));
+  assert.equal(returned, undefined, "returns what the system's own refusals return");
+  assert.equal(calls.length, 0, "the system's method is not called");
+  assert.equal(realWrites.length, 0, "nothing is written");
+  assert.equal(notices.length, 1);
+  assert.match(notices[0], /Birch/);
+  assert.equal(Object.hasOwn(combat, "setFlag"), false);
+  await combat.manageGroup(tok("a1", "a2"));
+  assert.equal(notices.length, 1, "the combat is told once, and a second press is refused as quietly");
+  assert.equal(calls.length, 0);
+});
+
+await test("a combat whose combatants all have tokens is not refused, and is not warned about", async () => {
+  const { Cls, calls } = readingClass();
+  const combat = new (patched(Cls))(INITS);
+  notices.length = 0;
+  await combat.manageGroup(tok("a1", "a2"));
+  assert.equal(calls.length, 1);
+  assert.equal(notices.length, 0);
+  assert.deepEqual(stored(combat).map((g) => g.tokens.join("+")), ["a1+a2"]);
 });
 
 await test("a second install adds no second layer", async () => {

@@ -2248,48 +2248,78 @@ that leaves loses its giver; a state given to a creature that is on no tracker
 is its own. The membership walk is linear in the fight's combatants for each
 given state a subject read meets.
 
-## 2026-11-25 — A combatant with no token is rolled by Foundry's own method, in the wrap that owns the roll (T-0828)
+## 2026-11-25 — A combat holding a combatant with no token is rolled whole by Foundry's own method (T-0828)
 
-On the GM seat, `initiative-card.mjs`'s wrap of `rollInitiative` hands every
-id whose combatant has no token to Foundry's `Combat#rollInitiative`, reached
-up the prototype chain from the wrapped class's parent, with `updateTurn:
-false`. The rest goes to the system's method as before, and the card gathers
-only those. Where the system's method throws, the wrap sets
-`flags.acks.lock-turns` back to false when it is still set and lets the error
-through. The owner: "Use exiting foundry code before investigating new designs"
-and "Extend core"; the hub: "a tokenless combatant must not abort the batch, and
-the lock flag must not stay set. The system file is never edited."
+On the GM seat, `initiative-card.mjs`'s wrap of `rollInitiative` hands the
+whole press, every id given, to Foundry's `Combat#rollInitiative` whenever the
+combat holds a combatant with no token, card setting on or off. Foundry's
+method is reached up the prototype chain from the wrapped class's parent, and
+the caller's options go through as given. The system's method and the card are
+not used for that press, every row gets a number, and the Judge is warned once
+per combat per client, naming the tokenless rows and saying the combat runs on
+Foundry's own start and initiative, with no surprise step and no grouping. `manageGroup` in such a combat is refused with the same notice and no throw
+(`group-initiative.mjs`). Begin Combat in such a combat skips the system's start
+and goes through Foundry's `Combat#startCombat` (`combat-start.mjs`), sets
+`flags.acks.initDone` true so the system's `rollAll` accepts the combat, sets
+`flags.acks.lock-turns` false where it stands set, and rolls through `rollAll`,
+which the roll wrap then hands to Foundry's roll. The three paths share one lang
+key and one notice per combat (`patches/tokenless-combat.mjs`). A throw out of either roll path
+sets `flags.acks.lock-turns` back to false when it is still set and lets the
+error through. The system file is never edited.
 
-**New evidence.** The owner's field report of a press that rolled no one and left
-the tracker locked, and a read of the system's 14.2.0 and `master` method: it
-sets the lock, reads `token.id`, `token.hidden` and `token.name` of every id
+The owner: "Use exiting foundry code before investigating new designs" and
+"Extend core", and, as a standing rule, "players get blocks, judges get
+warnings". The hub ruled this Option A under them: "When the combat holds a
+tokenless combatant, the wrap sends the whole press to Foundry's base
+Combat#rollInitiative, every row gets a number, lock-turns is never left set,
+and the Judge is warned once per combat, naming the row with no token and saying
+that this press was not grouped." And: "manageGroup in such a combat: refuse
+with the same notice instead of letting the system throw; do not patch around it
+further." And: "Not C". For Begin Combat the hub ruled: "Begin Combat with a tokenless
+row present: skip the system's start and go through Foundry's base startCombat,
+then roll as Option A does. ... A Judge's fight is never held." and "One notice
+for all three paths (Begin Combat, Roll All or a row's roll, manageGroup), one
+lang key, shown once per combat." The owner's second standing rule applies to it:
+"owner can use the controls, don't hard code permissions unless explictly asked".
+
+**New evidence.** Begin Combat on a combat holding an actor-only row threw in
+the system before its matrix opened ("Cannot read properties of null (reading
+'disposition')"): `startCombat` calls `#getCombatantPools()` first, which reads
+`token.disposition` of every combatant. The owner's field report of a press that rolled no one and
+left the tracker locked, and a read of the system's 14.2.0 and `master` method:
+it sets the lock, reads `token.id`, `token.hidden` and `token.name` of every id
 with no guard, and clears the lock last, while Foundry 14's `Combatant#token` is
 null for a combatant with no token on its scene. Foundry's own method does not
-read the token at all. The same read found the limit of this ruling: after its
-loop and before it writes any number, the system's method reads
-`token.disposition` of EVERY combatant in the combat (`#getCombatantPools`,
-`processOutNumbering`), so a press carrying a tokened id throws in a combat that
-holds a tokenless row, however the ids are split.
+read the token at all. Option B, the first build, split the ids, and the same read found
+why that cannot work: after its loop and before it writes any number, the
+system's method reads `token.disposition` of EVERY combatant in the combat
+(`#getCombatantPools`, `processOutNumbering`), and `manageGroup` reads every
+combatant's `token.id` the same way, so no choice of ids gets a tokened row a
+number while the combat holds a tokenless one.
 
-**Rejected.** *Replacing the system's method*: it owns the groups, the
-out-numbering pass and the lock, and a copy drifts from it. *Skipping the
-tokenless row*: the press then succeeds and the row stays unrolled, which is
-the report again. *A separate patch file*: this wrap is the method's one owner,
-and a second wrapper over one method is two owners.
+**Rejected.** *Option B*, rolling the tokenless rows by Foundry's method and
+leaving the rest to the system: the system still throws in its all-combatants
+pass and the tokened rows are left unrolled, which is the field report again.
+*Refusing Begin Combat*, as `manageGroup` is refused: it holds the Judge's fight
+for a row the Judge may want in it. *Option C*, hiding the combatant from the system's pass by overriding `token` or
+`combatants`: it patches core's reads from outside and leaves a combatant the
+system believes is absent. *Replacing the system's method*: it owns the groups,
+the out-numbering pass and the lock, and a copy drifts from it. *A separate patch
+file*: this wrap is the method's one owner, and a second wrapper over one method
+is two owners.
 
-**Strongest counter, MEDIUM.** A tokenless combatant is rare, and core's tracker
-has no control that adds one, so the guard serves combatants made by script or
+**Strongest counter, MEDIUM.** A Judge running groups in that fight gets
+ungrouped numbers for that press and cannot make a group there, and the notice
+names why. It holds because a tokenless combatant is rare and core's tracker has no
+control that adds one, so the guard serves combatants made by script or
 another module. Held, since the failure leaves the tracker's turn order locked,
 which is not the one row's cost.
 
-*Cost:* a tokenless row's message is Foundry's own and is not on the
-consolidated card, and it is never part of a combat group, which the system
-keys by token id. The throw's lock release is a write made after the system's
-own, so a failure of that write is warned and not raised.
-
-*Open, for the owner:* the guard rolls a tokenless row and releases the lock,
-and it does not make a press that carries tokened ids succeed in a combat that
-holds a tokenless row: the system still throws in its all-combatants pass, and
-the tokened rows get no number. Making it succeed means keeping the tokenless
-row out of that pass, which the wrap cannot do without replacing core's method
-or hiding a combatant from it, and neither is ruled.
+*Cost:* a combat begun there has no surprise roll and no declaration prompt, and
+the notice says so. Foundry's own
+messages are posted for such a press, not the consolidated card, and the
+out-numbering pass is the system's, so it does not run. The throw's lock release
+is a write made after the system's own, so a failure of that write is warned and
+not raised. The warning shows after the roll has landed, so a press that throws
+announces nothing. `groupGangs` calls the refused `manageGroup` once for each
+gang and waits out its timeout for each.

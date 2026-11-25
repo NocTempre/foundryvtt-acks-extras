@@ -39,10 +39,16 @@
  * on the combatants, including one a Judge set by hand before pressing Begin
  * Combat.
  *
+ * A combat holding a combatant with no token is begun by Foundry's own
+ * `Combat#startCombat`, never by the system's, which reads the token of every
+ * combatant before its matrix opens and throws on that one (see `startOnFoundry`).
+ *
  * See docs/lib/DECISIONS.md, "A cancelled declaration leaves the combat
- * unstarted and lifts its surprise".
+ * unstarted and lifts its surprise", and, for the tokenless combat, "A combat
+ * holding a combatant with no token is rolled whole by Foundry's own method".
  */
 import { MODULE_ID } from "../constants.mjs";
+import { tokenlessNames, foundryCombatMethod, noticeOnce, releaseLock } from "./tokenless-combat.mjs";
 
 /** The wrapped methods' paths, as libWrapper takes them. */
 const TARGET_START = "CONFIG.Combat.documentClass.prototype.startCombat";
@@ -98,8 +104,28 @@ async function onInternalStartCombat(wrapped, ...args) {
   return result;
 }
 
+/**
+ * Begin Combat in a combat holding a combatant with no token, on Foundry's own
+ * start: its sound, its `combatStart` hook and the update to round 1, turn 0.
+ * Neither the declaration prompt nor the Surprise Matrix runs. Two flags the
+ * system's start would have left are set before the roll, since its roll refuses
+ * without the first: `flags.acks.initDone` is set true, and `flags.acks.lock-turns`
+ * is set false where a failed roll left it set. Then `rollAll`, the system's
+ * override, rolls every row, and the initiative wrap hands that roll to Foundry's.
+ */
+async function startOnFoundry(combat, foundryStart, args) {
+  const result = await foundryStart.apply(combat, args);
+  noticeOnce(combat);
+  await combat.setFlag(SCOPE, KEY, true);
+  await releaseLock(combat);
+  await combat.rollAll();
+  return result;
+}
+
 /** The tracker's Begin Combat: an abandoned start is cleared before the matrix opens. */
 async function onStartCombat(wrapped, ...args) {
+  const foundryStart = isGM() && tokenlessNames(this).length ? foundryCombatMethod("startCombat") : null;
+  if (foundryStart) return startOnFoundry(this, foundryStart, args);
   if (isGM() && !inFlight.has(this.id) && markedUnstarted(this)) await leaveUnstarted(this);
   return wrapped(...args);
 }
