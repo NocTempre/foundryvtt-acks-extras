@@ -1470,12 +1470,22 @@ The model is docs/lib/MODEL.md, "Damage that lands later".
 
 ```
 FLAG_DELAYED_DAMAGE                  // "delayedDamage", from constants.mjs
-readDelayedDamage(flag) → {combatId, combatantId, edge, count, seen, amount|null, formula, source, cite} | null
+readDelayedDamage(flag) → {combatId, combatantId, edge, count, seen, amount|null, formula, source, cite}
+                          | {dueAt, amount|null, formula, source, cite} | null
+                                     // dueAt (world seconds) wins over combat fields beside it
 delayedDamageStep(flag, {kind, combatId, combatantId}, {gone?, down?}?) → {act, seen, record}
-                                     // act: "none" | "count" | "apply" | "drop"
-delayedDamageEffectData({amount?, formula?, source, cite?, combatId, combatantId, count, edge?, name?, img?}) → ActiveEffect data | null
+                                     // act: "none" | "count" | "apply" | "drop"; "none" for a dueAt record
+delayedDamageDue(flag, worldTime, {down?}?) → {act, record}
+                                     // act: "none" | "apply" | "drop"; only a dueAt record is ever due
+delayedDamageToWorld(flag, combatId, {now, roundSeconds, gone?, down?}) → {act, record}
+                                     // act: "none" | "drop" | "convert" (record: the dueAt record) | "owed" (no round length or reading)
+delayedDamageEffectData({amount?, formula?, source, cite?, dueAt?, combatId?, combatantId?, count?, edge?, name?, img?}) → ActiveEffect data | null
+                                     // dueAt in place of the combat fields starts it on the world clock
 liftDelayedDamage(combat, combatantId, kind, {roll, damage, post}) → Promise<[{name, source, cite, amount, result}]>
-installDelayedDamage()               // the two turn hooks, once; called from module.mjs
+liftWorldDelayedDamage(actors, worldTime, {roll, damage, post}) → Promise<[{name, source, cite, amount, result}]>
+convertDelayedDamage(combat, actors, {now, roundSeconds}, {warn}) → Promise<[{name, act}]>
+                                     // act: "convert" | "drop" | "owed"; warn({name, amount, source, cite}) once per owed record
+installDelayedDamage()               // the two turn hooks, deleteCombat and the world clock, once; called from module.mjs
 ```
 
 ## Turn hooks and a record's turn life (apiVersion 54)

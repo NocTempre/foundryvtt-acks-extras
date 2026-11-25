@@ -3946,3 +3946,56 @@ weapons"). The steps below are unwalked.
 5. Import the same character PDF twice. *Observable:* the second import finds the rows and adds no row; the count stays what the PDF states.
 6. Open a sword row's item sheet. *Observable:* no count control appears; the quantity shown is the whole row's count.
 7. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.
+
+## A delayed-damage record whose fight ends before it is due (unwalked)
+
+The model is [MODEL.md](MODEL.md), "The world clock, the second clock of that
+record". Walked on the primary GM seat; a player seat sees only the card.
+
+### Fixtures
+
+- **Kept, `lib/delayed-damage-bearer`**: a `character` actor with hit points
+  above the figure read in step 1, found by marker. Each step asserts its shape
+  at its start: no effect carrying `flags["acks-extras"].delayedDamage`, and the
+  hit points it opens with, written down.
+- A disposable scene with a token of that actor, and a disposable combat of it,
+  made with `active: true`: lib's turn edges fire only for an active combat, and
+  only on the primary GM seat, so `await primaryGMSettled()` (lib's `util.mjs`)
+  comes before the first turn. Both are made through `api.create` and swept by
+  ledger.
+
+### Steps
+
+1. Read `roundSeconds()` through the formation tables (`time-unit.mjs`). It must
+   be a number for steps 2 to 5; note it. Create the effect by hand on the actor
+   (`actor.createEmbeddedDocuments("ActiveEffect", [data])`, the uuid tracked)
+   with the flag `{combatId, combatantId, edge: "start", count: 3, seen: 0,
+   amount, source, cite}`, the ids those of the combat and the token's
+   combatant. The helper `delayedDamageEffectData` is not on the lib api, so a
+   scripted check writes the flag shape of the API page itself. *Observable:*
+   the flag reads back whole.
+2. Start the combat and advance one turn so the record counts once, then delete
+   the combat (`combat.delete()`). *Observable:* the effect's flag is now
+   `{dueAt, amount, formula, source, cite}` with no `combatId`, `combatantId`,
+   `edge`, `count` or `seen`, and `dueAt` equals the clock's reading at the
+   deletion plus two rounds of `roundSeconds()`, rounded up. The hit points are
+   unchanged and no card is posted.
+3. Advance the world clock to one second before `dueAt`
+   (`game.time.advance(<seconds>)` on the GM seat). *Observable:* the effect is
+   still there, the hit points unchanged.
+4. Advance one more second. *Observable:* the effect is deleted, the hit points
+   fall by the amount, one card posts naming the source, the page and the
+   amount, and advancing again lands nothing.
+5. Repeat steps 1 and 2 with the combat's scene deleted in place of the combat
+   (core deletes the combat with it), then step 4. *Observable:* the record
+   moved and lands though the token and combatant are gone, since it lives on the
+   actor.
+6. The blank case: with the formation figures not imported (remove that import
+   from Settings tab → Game Settings → ACKS II — Extras → Manage imports and
+   restore it afterwards; `roundSeconds()` reads `null`), repeat step 1 and
+   delete the combat. *Observable:* the effect is gone, the hit points are
+   unchanged, and one warning notification appears on the GM seat naming the
+   bearer, the amount, the source and the page; none appears a second time.
+7. Teardown. `api.sweepTracked()` for the scene, token, combat and effects;
+   quote its result. Restore the kept fixture's hit points and the imported
+   figures.

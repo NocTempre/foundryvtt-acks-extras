@@ -31,7 +31,8 @@ export const FLAG_TURN_LIFE = "turnLife";
 /**
  * Flag key under `flags["acks-extras"]` on an Active Effect that holds damage
  * to land on its bearer after a count of its turns (`delayed-damage.mjs`):
- * `{combatId, combatantId, edge, count, seen, amount|formula, source, cite}`.
+ * `{combatId, combatantId, edge, count, seen, amount|formula, source, cite}`, or
+ * `{dueAt, amount|formula, source, cite}` on the world clock.
  * Its own key and never `FLAG_TURN_LIFE`: the tracker deletes a turn-life record
  * as it comes due, before anything could apply the damage.
  */
