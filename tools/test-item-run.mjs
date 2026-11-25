@@ -1294,6 +1294,106 @@ await t("counting the bearer in writes the item's self filter for an owner of th
   }
 });
 
+await t("counting the bearer in under a standing reach holds its part on it under the card's activation and counting it out releases exactly that part, a prompting reach holds none, a blank figure refuses the count, and lowering lifts the part", async () => {
+  stage();
+  seatOf(true);
+  const { applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const kept = new Map();
+  const dels = [];
+  const holderOf = () => ({
+    effects: { get: (id) => kept.get(id), [Symbol.iterator]: () => kept.values() },
+    createEmbeddedDocuments: async (kind, data) => { for (const d of data) kept.set(d._id, { ...d, id: d._id }); return data.map((d) => ({ id: d._id })); },
+    deleteEmbeddedDocuments: async (kind, ids, options) => { dels.push([kind, ids, options]); for (const id of ids) kept.delete(id); },
+  });
+  const holder = holderOf();
+  subjects["T.9"] = { uuid: "T.9", id: "9", name: "Carrier", actor: holder, testUserPermission: () => false };
+  // Another body's part and an unrelated effect on the bearer: neither is the bearer's part.
+  kept.set("other-part", { id: "other-part", flags: { "acks-extras": { itemRun: { activationId: "act9" } } } });
+  kept.set("unrelated", { id: "unrelated", flags: {} });
+  const message = {
+    id: "M9",
+    flags: { "acks-extras": { itemRunCard: { kind: "toggle", itemUuid: "I.1", rowKey: "s", activationId: "act9", regionUuid: "", bearer: { uuid: "T.9", name: "Carrier" }, selfCount: false, lowered: false, subjects: {}, undetermined: {}, counted: {}, entries: {} } } },
+    getFlag(scope, key) { return this.flags[scope][key]; },
+    async update(data) {
+      const patch = Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]));
+      this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, patch);
+    },
+  };
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  gameStub.messages = [message];
+  gameStub.messages.get = (id) => (id === "M9" ? message : null);
+  const priorPerm = theItem.testUserPermission;
+  theItem.testUserPermission = (user) => user?.id === "owner";
+  seatOf(true, [{ id: "owner" }, { id: "other" }]);
+  const standing = (over = {}) => ({ key: "s", reach: { pulse: "standing", radius: { value: "10" }, modifier: { value: "-1" }, on: ["morale"], filter: {}, ...over } });
+  const prompting = { key: "t", reach: { pulse: "turnStart+moveIn", radius: { value: "10" }, filter: {} } };
+  itemFlags = toggleFlags(down, [standing(), prompting]);
+  updates.length = 0;
+  const priorActors = gameStub.actors;
+  const priorScenes = gameStub.scenes;
+  try {
+    const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+    const press = (name, over = {}) => executeAsGM(`acks-extras.itemRun.${name}`, { itemUuid: "I.1", rowKey: "s", messageId: "M9", requestUserId: "owner", ...over });
+    const partId = logic.standingPartId(logic.kindKeyOf(theItem, { key: "s" }));
+    // A standing reach with no figure imported has no part to hold: nothing is counted and nothing is written.
+    itemFlags = toggleFlags(down, [standing({ modifier: undefined })]);
+    assert.equal((await press("tick")).reason, "noFigure", "a blank figure refuses the count");
+    assert.deepEqual([updates, [...kept.keys()], card().selfCount, card().subjects], [[], ["other-part", "unrelated"], false, {}], "and writes nothing, to the item, the body or the card");
+    // A lowered card holds nothing.
+    itemFlags = toggleFlags(down, [standing(), prompting]);
+    card().lowered = true;
+    assert.equal((await press("tick")).reason, "gone", "a lowered card is refused");
+    card().lowered = false;
+    assert.deepEqual(updates, []);
+    // Counted in: the part is held on the bearer under the card's activation, once.
+    assert.equal((await press("tick")).ok, true);
+    assert.deepEqual([...kept.keys()], ["other-part", "unrelated", partId], "the bearer's part is written beside what the actor already holds");
+    assert.equal(kept.get(partId).flags["acks-extras"].itemRun.activationId, "act9", "under the raise's own activation, so lowering lifts it");
+    assert.deepEqual([card().selfCount, card().subjects["T~9"].state], [true, "in"], "and the card lists the bearer");
+    itemFlags = toggleFlags(down, updates[0]["flags.acks-extras.itemRun.rows"]);
+    assert.equal((await press("tick")).reason, "applied", "a second press is refused");
+    assert.deepEqual([...kept.keys()].filter((k) => k === partId).length, 1, "and holds no second part");
+    // Counted out: exactly the bearer's part goes, by the managed delete; another body's part and an unrelated effect stay.
+    assert.equal((await press("untick", { requestUserId: "other" })).reason, "notOwner");
+    assert.deepEqual(dels, [], "a refused count out releases nothing");
+    assert.equal((await press("untick")).ok, true);
+    assert.deepEqual(dels, [["ActiveEffect", [partId], managedDelete()]], "the bearer's own part and nothing else");
+    assert.deepEqual([...kept.keys()], ["other-part", "unrelated"]);
+    assert.deepEqual([card().selfCount, card().subjects["T~9"]], [false, undefined]);
+    // Counted in again, then the item is lowered: lowering lifts the part with the activation's other records and leaves the rest.
+    itemFlags = toggleFlags(down, [standing(), prompting]);
+    assert.equal((await press("tick")).ok, true);
+    assert.ok(kept.has(partId), "held again");
+    gameStub.actors = [holder];
+    gameStub.scenes = [];
+    dels.length = 0;
+    await run.liftActivation({ config: { activationId: "act9", sourceUuid: "I.1" } });
+    assert.deepEqual(dels, [["ActiveEffect", ["other-part", partId], managedDelete()]], "every record of the activation goes, the bearer's part among them");
+    assert.deepEqual([...kept.keys()], ["unrelated"], "and an effect of no activation stays");
+    gameStub.actors = priorActors;
+    // A prompting reach keeps the bearer for its own turn start and holds no part.
+    kept.clear();
+    card().rowKey = "t";
+    card().selfCount = false;
+    card().subjects = {};
+    itemFlags = toggleFlags(down, [standing(), prompting]);
+    assert.equal((await press("tick", { rowKey: "t" })).ok, true);
+    assert.deepEqual([[...kept.keys()], card().subjects["T~9"].state], [[], "in"], "a prompting reach is asked at its turn start and writes no part now");
+    itemFlags = toggleFlags(down, updates.at(-1)["flags.acks-extras.itemRun.rows"]);
+    assert.equal((await press("untick", { rowKey: "t" })).ok, true);
+    assert.deepEqual(dels.slice(1), [], "and counting it out releases nothing");
+  } finally {
+    gameStub.actors = priorActors;
+    gameStub.scenes = priorScenes;
+    theItem.testUserPermission = priorPerm;
+    delete subjects["T.9"];
+    delete gameStub.messages;
+    itemFlags = {};
+    unstage();
+  }
+});
+
 await t("counting an undetermined body in for a once-only use is an item owner's press: a use with no save writes its part under an applied entry, a use with a save leaves the Save open, and nothing is written to the item", async () => {
   stage();
   seatOf(true);

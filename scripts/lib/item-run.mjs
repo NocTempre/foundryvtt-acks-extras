@@ -470,9 +470,12 @@ export async function undoCardEntry(p) {
 
 /**
  * Count the bearer in as a subject of its own reach, on the GM's window: the
- * item's row takes `filter.self` `count`, and the card lists the bearer as
- * waiting for its own turn start. Whoever owns the ITEM, by Foundry's own test
- * on the relayed seat, may press it; a seat that does not is refused.
+ * item's row takes `filter.self` `count`, and the card lists the bearer. Under a
+ * prompting reach the bearer waits for its own turn start; under a standing
+ * reach its part is held on it at once, under the card's activation as an
+ * admitted body's is, so lowering lifts it, and a standing reach with no figure
+ * imported refuses the count. Whoever owns the ITEM, by Foundry's own test on
+ * the relayed seat, may press it; a seat that does not is refused.
  *
  * @param {{itemUuid: string, rowKey: string, messageId: string, requestUserId?: string|null}} p
  */
@@ -484,11 +487,23 @@ async function countBearerIn({ itemUuid, rowKey, messageId, requestUserId = null
   const update = selfCountUpdate(item, rowKey);
   if (!update) return { ok: false, reason: "noRow" };
   const { message, card } = cardOf(messageId);
-  if (readReach(itemRunRowsOf(item).find((r) => r?.key === rowKey)?.reach)?.filter.self === "count") return { ok: false, reason: "applied" };
+  const row = itemRunRowsOf(item).find((r) => r?.key === rowKey);
+  const reach = readReach(row?.reach);
+  if (reach?.filter.self === "count") return { ok: false, reason: "applied" };
+  const holds = !!(message && card) && reach?.pulse === "standing";
+  const token = holds ? fromUuidSync(card.bearer?.uuid ?? "") : null;
+  if (holds) {
+    if (card.lowered || !token?.actor) return { ok: false, reason: "gone" };
+    const figures = reachFigures(row);
+    if (!(figures ? reachParts(figures.on, figures.modifier, figures.saveWhen) : []).length) return { ok: false, reason: "noFigure" };
+  }
   await item.update({ [update.path]: update.value });
   if (message && card) {
     const bearer = card.bearer ?? {};
-    await serialized(messageId, () => patchCard(message, { selfCount: true, [`subjects.${safeKey(bearer.uuid)}`]: { uuid: bearer.uuid, name: bearer.name, state: "in", latest: "" } }));
+    await serialized(messageId, async () => {
+      if (holds) await holdStanding({ config: { activationId: card.activationId }, item, row, subject: { token, actor: token.actor } });
+      await patchCard(message, { selfCount: true, [`subjects.${safeKey(bearer.uuid)}`]: { uuid: bearer.uuid, name: bearer.name, state: "in", latest: "" } });
+    });
   }
   await pressListener?.({ message, key: "", entry: null, early: false, counted: true, item });
   return { ok: true };
@@ -497,9 +512,12 @@ async function countBearerIn({ itemUuid, rowKey, messageId, requestUserId = null
 /**
  * Count the bearer out again, on the GM's window: the item's row takes
  * `filter.self` `no`, the bearer's row leaves the card and every entry still
- * open for it is struck, its held moment released. What an answered entry wrote
- * stays, with its Undo, and lowering never resets the choice. Whoever owns the
- * ITEM, by Foundry's own test on the relayed seat, may press it.
+ * open for it is struck, its held moment released. Under a standing reach the
+ * part held on the bearer is released (`releaseStanding`: that one record, and
+ * none where another reach of the kind still holds the bearer, which then keeps
+ * it). What an answered entry wrote stays, with its Undo, and lowering never
+ * resets the choice. Whoever owns the ITEM, by Foundry's own test on the
+ * relayed seat, may press it.
  *
  * @param {{itemUuid: string, rowKey: string, messageId: string, requestUserId?: string|null}} p
  */
@@ -510,14 +528,21 @@ async function countBearerOut({ itemUuid, rowKey, messageId, requestUserId = nul
   if (!item.testUserPermission?.(user, "OWNER")) return { ok: false, reason: "notOwner" };
   const update = selfCountUpdate(item, rowKey, false);
   if (!update) return { ok: false, reason: "noRow" };
-  if (readReach(itemRunRowsOf(item).find((r) => r?.key === rowKey)?.reach)?.filter.self !== "count") return { ok: false, reason: "applied" };
+  const row = itemRunRowsOf(item).find((r) => r?.key === rowKey);
+  const reach = readReach(row?.reach);
+  if (reach?.filter.self !== "count") return { ok: false, reason: "applied" };
   await item.update({ [update.path]: update.value });
   const { message, card } = cardOf(messageId);
   if (message && card) {
     const bearer = card.bearer ?? {};
     const out = patchOut(card, { uuid: bearer.uuid, name: bearer.name });
     for (const entry of out.struck) releaseReachMoment(entry.momentKey);
-    await serialized(messageId, () => patchCard(message, { selfCount: false, ...out.patch, [`subjects.-=${safeKey(bearer.uuid)}`]: null }));
+    const token = reach.pulse === "standing" ? fromUuidSync(bearer.uuid ?? "") : null;
+    const region = token && card.regionUuid ? fromUuidSync(card.regionUuid) : null;
+    await serialized(messageId, async () => {
+      if (token?.actor) await releaseStanding({ item, row, subject: { token, actor: token.actor }, region });
+      await patchCard(message, { selfCount: false, ...out.patch, [`subjects.-=${safeKey(bearer.uuid)}`]: null });
+    });
   }
   await pressListener?.({ message, key: "", entry: null, early: false, counted: false, item });
   return { ok: true };

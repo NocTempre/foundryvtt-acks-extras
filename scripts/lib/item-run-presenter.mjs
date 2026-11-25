@@ -290,14 +290,15 @@ function heldTipOf(item, reach) {
  * save figure and history. A standing reach asks no save and waits for no
  * moment, so every listed body of it reads `held` (counted in by an owner of the
  * item, or admitted by the filter), whatever the card stores, with no press for
- * any seat. The bearer's own row keeps the state its card stores.
+ * any seat. The bearer's own row, listed once it is counted in, reads held too:
+ * counting it in holds its part (`countBearerIn`).
  */
 function rowsOf(card, row, item, bearerToken, reach) {
   const heldTip = reach?.pulse === "standing" ? heldTipOf(item, reach) : null;
-  const rowFor = (sub, { distance, bearer = false }) => {
+  const rowFor = (sub, { distance }) => {
     const token = fromUuidSync(sub.uuid);
     const listed = rowStateOf(card, sub.uuid);
-    const state = listed === "waiting" && reach?.pulse === "standing" && !bearer ? "held" : listed;
+    const state = listed === "waiting" && reach?.pulse === "standing" ? "held" : listed;
     const entry = card.entries?.[sub.latest] ?? null;
     const gap = distance && bearerToken && token ? tokenEdgeGapFeet(bearerToken, token) : null;
     const feet = gap === null ? null : Math.round(gap);
@@ -332,7 +333,7 @@ function raisedBody(message, card) {
   const bearerSub = card.subjects?.[safeKey(card.bearer?.uuid)];
   // The item's own filter says whether the bearer is counted, so a re-raise after a lowering reads the choice the item kept.
   const counted = reach?.filter?.self === "count";
-  const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted, ...(counted ? { row: bearerSub ? rowFor(bearerSub, { distance: false, bearer: true }) : { state: "waiting", feet: null } } : {}) } : null;
+  const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted, ...(counted ? { row: bearerSub ? rowFor(bearerSub, { distance: false }) : { state: "waiting", feet: null } } : {}) } : null;
   const { note, noteTooltip } = reachNote(item, reach);
   const model = reachCardModel({
     title: item?.name ?? "", subtitle: card.bearer?.name, note, noteTooltip, words: { ...words(), bearerTip: loc("itemRun.card.bearerTip") },

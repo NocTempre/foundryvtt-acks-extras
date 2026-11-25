@@ -100,8 +100,18 @@ export function patchSubject(card, { uuid, name, state = "in" }) {
   return { [`subjects.${key}`]: { uuid, name, state, latest: card?.subjects?.[key]?.latest ?? "" }, [`undetermined.-=${key}`]: null };
 }
 
-/** The patch that lists a subject the filter could not settle, for the Judge's tick. */
-export const patchUndetermined = (card, { uuid, name }) => (card?.subjects?.[safeKey(uuid)] ? {} : { [`undetermined.${safeKey(uuid)}`]: { uuid, name } });
+/**
+ * The patch that lists a subject the filter could not settle, for the Judge's
+ * tick. A body with a row in reach or as no target is already listed and keeps
+ * it; a body whose row was muted at its exit is listed here and the muted row
+ * leaves, so that a body is in one list of the card.
+ */
+export function patchUndetermined(card, { uuid, name }) {
+  const key = safeKey(uuid);
+  const row = card?.subjects?.[key];
+  if (row && row.state !== "out") return {};
+  return { [`undetermined.${key}`]: { uuid, name }, ...(row ? { [`subjects.-=${key}`]: null } : {}) };
+}
 
 /** The patch that drops a body from the card's undetermined list, empty where it is not on it. */
 export const patchForget = (card, { uuid }) => (card?.undetermined?.[safeKey(uuid)] ? { [`undetermined.-=${safeKey(uuid)}`]: null } : {});
@@ -184,13 +194,13 @@ export function patchPrompt(card, { uuid, name, moment, momentKey }) {
   return { key, patch, struck: struck.map(([, e]) => e) };
 }
 
-/** The patch that takes a subject out of reach: its row muted and every open entry of it struck. Answers `{patch, struck}`. */
+/** The patch that takes a subject out of reach: its row muted, every open entry of it struck, and the body dropped from the undetermined list where it is held there, so that it is in one list. Answers `{patch, struck}`. */
 export function patchOut(card, { uuid, name }) {
   const key = safeKey(uuid);
   const struck = openEntriesOf(card, uuid);
   const gone = new Set(struck.map(([old]) => old));
   const kept = Object.keys(card?.entries ?? {}).filter((k) => card.entries[k].subject === uuid && !gone.has(k));
-  const patch = { [`subjects.${key}`]: { uuid, name, state: "out", latest: kept.at(-1) ?? "" } };
+  const patch = { [`subjects.${key}`]: { uuid, name, state: "out", latest: kept.at(-1) ?? "" }, ...(card?.undetermined?.[key] ? { [`undetermined.-=${key}`]: null } : {}) };
   for (const [old] of struck) patch[`entries.-=${old}`] = null;
   return { patch, struck: struck.map(([, e]) => e) };
 }

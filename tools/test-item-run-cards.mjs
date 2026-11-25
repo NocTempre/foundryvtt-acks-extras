@@ -153,6 +153,32 @@ t("a standing reach's entry and exit read the card: a listed or counted body com
   assert.deepEqual(applyPatch(unsure, patchForget(unsure, { uuid: "T.u" })).undetermined, {});
 });
 
+t("an exit leaves a body in one list of the card: it drops the body from undetermined where it is held there and writes nothing about that where it is not, and a re-entry the filter cannot settle lists it undetermined again with its muted row gone", () => {
+  const base = () => newCard({ itemUuid: "I.1", rowKey: "t", activationId: "act", bearer: { uuid: "T.bear", name: "Bearer" } });
+  // A body held in both lists (a row listed, and held undetermined): its exit leaves it in the muted row alone.
+  const both = applyPatch(applyPatch(base(), { "undetermined.T~u": { uuid: "T.u", name: "Unsure" } }), { "subjects.T~u": { uuid: "T.u", name: "Unsure", state: "in", latest: "" } });
+  const out = patchOut(both, { uuid: "T.u", name: "Unsure" });
+  assert.deepEqual(out.patch["undetermined.-=T~u"], null, "the exit drops it from undetermined");
+  const after = applyPatch(both, out.patch);
+  assert.deepEqual([after.undetermined, after.subjects["T~u"].state], [{}, "out"], "it is in the muted row and in no other list");
+  // A body not held undetermined: the exit writes its row alone, and so does the lowering that follows a count.
+  const listed = applyPatch(base(), patchSubject(base(), { uuid: "T.a", name: "Alpha" }));
+  assert.deepEqual(Object.keys(patchOut(listed, { uuid: "T.a", name: "Alpha" }).patch), ["subjects.T~a"], "nothing to drop, nothing written");
+  const counted = applyPatch(applyPatch(base(), { "undetermined.T~u": { uuid: "T.u", name: "Unsure" } }), patchCountIn(base(), { uuid: "T.u", name: "Unsure" }));
+  const lowered = applyPatch(counted, { ...patchUncount(counted), ...patchOut(counted, { uuid: "T.u", name: "Unsure" }).patch });
+  assert.deepEqual([lowered.undetermined["T~u"]?.name, lowered.subjects["T~u"].state, lowered.counted], ["Unsure", "out", {}], "lowering still returns a counted body to undetermined, its exit not taking the listing back");
+  // Re-entry: a muted row gives way to the undetermined listing, a row in reach or as no target is kept as it is.
+  const reentry = patchUndetermined(after, { uuid: "T.u", name: "Unsure" });
+  const back = applyPatch(after, reentry);
+  assert.deepEqual([back.undetermined["T~u"]?.name, back.subjects["T~u"]], ["Unsure", undefined], "the body is listed undetermined and its muted row is gone");
+  assert.equal(rowStateOf(back, "T.u"), "waiting");
+  const again = applyPatch(back, patchOut(back, { uuid: "T.u", name: "Unsure" }).patch);
+  assert.deepEqual([again.undetermined, again.subjects["T~u"].state], [{}, "out"], "and a second exit mutes it and drops it again");
+  assert.deepEqual(patchUndetermined(listed, { uuid: "T.a", name: "Alpha" }), {}, "a body listed in reach is not listed undetermined as well");
+  const refused = applyPatch(base(), patchSubject(base(), { uuid: "T.n", name: "Nu", state: "notTarget" }));
+  assert.deepEqual(patchUndetermined(refused, { uuid: "T.n", name: "Nu" }), {}, "nor is one the filter refused");
+});
+
 t("a held body's tooltip names the part and the page, the page alone where no figure was imported, and nothing where there is neither", () => {
   assert.equal(standingPartTip({ line: "Item holds morale throws −1", cite: "XX p. 6" }), "Item holds morale throws −1 (XX p. 6)");
   assert.equal(standingPartTip({ line: "", cite: "XX p. 6" }), "XX p. 6", "no figure: the reference alone");

@@ -416,6 +416,77 @@ await t("a standing reach's raised card reads every body in reach as held, with 
   }
 });
 
+await t("a counted bearer reads by its reach's kind: under a standing reach its row is held, in the held word with the part in the tooltip, no Save for any seat and a Count out for the owners of the item, and under a prompting reach it waits for its turn start", async () => {
+  const standingItem = { uuid: "I.3", name: "Aura", type: "item", testUserPermission: ownedBy("gm", "pa"), flags: { "acks-extras": { cookbook: { cite: "XX p. 6" }, itemRun: { activation: { kind: "toggle" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "20" }, modifier: { value: "-1" }, on: ["morale"], filter: { self: "count" } } }] } } } };
+  const priorFrom = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => (uuid === "I.3" ? standingItem : priorFrom(uuid));
+  const reachRow = standingItem.flags["acks-extras"].itemRun.rows[0].reach;
+  const own = { activationId: "act7" };
+  await presenter.presentUse({ ok: true, kind: "toggle", active: true, activationId: "act7", itemUuid: "I.3", rowKey: "s", tokenUuid: "S.bear", regionUuid: "S.R7" });
+  const message = messages.at(-1);
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  const bodyFor = (user) => {
+    me.current = user;
+    return presenter.raisedBody(message, card());
+  };
+  const format = game.i18n.format;
+  game.i18n.format = (key, data) => (data && Object.keys(data).length ? `${key}${JSON.stringify(data)}` : key);
+  try {
+    // Counted in: the bearer's row is listed on the card, as the count-in writes it.
+    await message.update({ "flags.acks-extras.itemRunCard.selfCount": true, "flags.acks-extras.itemRunCard.subjects.S~bear": { uuid: "S.bear", name: "Bearer", state: "in", latest: "" } });
+    for (const user of users) {
+      const body = bodyFor(user);
+      if (user.id === "pb") { assert.ok(!body.includes("ACKS-LIB.itemRun.card.bearer"), "a seat that owns neither the bearer nor the item sees no bearer row"); continue; }
+      assert.ok(body.includes("ACKS-LIB.itemRun.card.always"), `${user.id}: the bearer's row reads held`);
+      assert.ok(!body.includes("ACKS-LIB.itemRun.card.waiting") && !body.includes("itemRun.roll"), `${user.id}: it waits for no moment and offers no Save or early Save`);
+      assert.ok(body.includes("ACKS-LIB.itemRun.card.tip.held") && body.includes("XX p. 6"), `${user.id}: the Result's tooltip names the part and the page`);
+    }
+    const judge = bodyFor(users[0]);
+    assert.ok(judge.includes('data-action="itemRun.untick"') && !judge.includes('data-action="itemRun.tick"'), "the owners of the item are offered Count out, and no Count in");
+    assert.ok(!judge.includes("ACKS-LIB.itemRun.card.counted\""), "the bearer reads held in the held word, not as a body an owner counted in");
+    // Under a prompting reach the same row waits for its turn start, and a Judge keeps the early Save.
+    reachRow.pulse = "turnStart+moveIn";
+    const prompting = bodyFor(users[0]);
+    assert.ok(prompting.includes("ACKS-LIB.itemRun.card.waiting") && prompting.includes('data-action="itemRun.roll"') && !prompting.includes("ACKS-LIB.itemRun.card.tip.held"), "a prompting reach's bearer waits and holds no part");
+    reachRow.pulse = "standing";
+    // Lowered, the row is muted whatever the pulse.
+    await presenter.onLifted(own);
+    assert.equal(card().subjects["S~bear"].state, "out");
+    assert.ok(!bodyFor(users[0]).includes("ACKS-LIB.itemRun.card.always"), "a lowered card holds nothing");
+  } finally {
+    game.i18n.format = format;
+    globalThis.fromUuidSync = priorFrom;
+    me.current = users[0];
+  }
+});
+
+await t("under a prompting reach an exit leaves a body in one list and a re-entry lists it again: a body held undetermined that leaves goes off the list, one that is listed in reach and held undetermined at once is muted in a row alone, and one that comes back unsettled is listed undetermined without the muted row", async () => {
+  tokens["S.c"] = { id: "c", uuid: "S.c", name: "Gamma", actor: {}, testUserPermission: ownedBy("gm", "pb") };
+  const own = { activationId: "act8" };
+  const at = (act, key) => ({ ...moment(act, key), config: own });
+  await presenter.presentUse({ ok: true, kind: "toggle", active: true, activationId: "act8", itemUuid: "I.1", rowKey: "t", tokenUuid: "S.bear", regionUuid: "S.R8" });
+  const message = messages.at(-1);
+  const card = () => message.flags["acks-extras"].itemRunCard;
+  const lists = (key) => [card().undetermined[key] !== undefined, card().subjects[key] !== undefined];
+  try {
+    await presenter.presentReach(at("undetermined", "S.c"));
+    assert.deepEqual(lists("S~c"), [true, false], "held undetermined");
+    await presenter.presentReach(at("out", "S.c"));
+    assert.deepEqual([lists("S~c"), card().subjects["S~c"].state], [[false, true], "out"], "its exit mutes a row and leaves the undetermined list: one list");
+    await presenter.presentReach(at("undetermined", "S.c"));
+    assert.deepEqual(lists("S~c"), [true, false], "back inside and unsettled, it is listed undetermined and the muted row is gone");
+    await presenter.presentReach(at("list", "S.c"));
+    assert.deepEqual(lists("S~c"), [false, true], "listed in reach once the filter settles it");
+    await message.update({ "flags.acks-extras.itemRunCard.undetermined.S~c": { uuid: "S.c", name: "Gamma" } });
+    assert.deepEqual(lists("S~c"), [true, true], "a body in both lists, as a card kept before the fix held it");
+    await presenter.presentReach(at("out", "S.c"));
+    assert.deepEqual([lists("S~c"), card().subjects["S~c"].state], [[false, true], "out"], "its exit leaves it in the one");
+  } finally {
+    await presenter.onLifted(own);
+    delete tokens["S.c"];
+  }
+});
+
 await t("lowering marks the card lowered, mutes every row and strikes what was open", async () => {
   await presenter.presentReach(moment("prompt", "S.a", { momentKey: "k9" }));
   assert.equal(stored().entries.k9.state, "open");
