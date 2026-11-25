@@ -190,8 +190,8 @@ function record(ctx, name, over = {}) {
     treeEnd: tree,
     walkBlob: walkBlob(ctx.root, name),
     partial: false,
-    startedAt: "2026-11-12T10:00:00.000Z",
-    endedAt: "2026-11-12T10:05:00.000Z",
+    startedAt: "2099-11-12T10:00:00.000Z",
+    endedAt: "2099-11-12T10:05:00.000Z",
     ...over,
   });
 }

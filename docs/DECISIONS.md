@@ -83,7 +83,7 @@ Toolchain rulings made in `acks-module-template` before it was folded into this 
 - 2026-11-12 — [A release is versioned by its day](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-is-versioned-by-its-day--in-force)
 - 2026-11-12 — [Changelog fragments, and a major rolls the logs](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--changelog-fragments-and-a-major-rolls-the-logs--in-force)
 - 2026-11-12 — [A later roll carries the live index forward](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-later-roll-carries-the-live-index-forward--in-force)
-- 2026-11-12 — [A tag needs a recorded walk result for every required walk](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-tag-needs-a-recorded-walk-result-for-every-required-walk--in-force)
+- 2026-11-12 — [A tag needs a recorded walk result for every required walk](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-tag-needs-a-recorded-walk-result-for-every-required-walk--in-force) — except that a result goes stale on any runtime byte, which now holds for a major only (superseded in part 2026-11-25)
 - 2026-11-12 — [A release commits before its live session and tags its docs commit](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-commits-before-its-live-session-and-tags-its-docs-commit--in-force-r15s-by-procedure-qualified-2026-11-15-a-topics-landing-is-guarded) — R15's "by procedure" qualified 2026-11-15 (a topic's landing is guarded)
 - 2026-11-12 — [Topic and parked branches return, opened and landed by one tool](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--topic-and-parked-branches-return-opened-and-landed-by-one-tool--in-force-except-which-work-takes-a-branch-superseded-in-part-2026-11-15) — except which work takes a branch (superseded in part 2026-11-15)
 - 2026-11-12 — [A new phase is a clean session, its own orchestrator](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-new-phase-is-a-clean-session-its-own-orchestrator--in-force)
@@ -496,3 +496,34 @@ The rejection is the session's that wrote the rule, not the owner's.
 **Cost.** A slice that carries a migration, a setting or a new surface is no
 longer flagged for the owner's eye while it is built. The release that ships
 it names them in one line when it is cut (`acks-minor` §1).
+
+## 2026-11-25 — A minor's walk is run once, and again after a fix
+
+**Problem.** A walk's result was bound to the whole runtime tree, so one byte
+anywhere in the module made every recorded walk stale. A minor with a dozen
+landings walked each surface after its own landing and then all of them again
+after the last one. The owner: "A walk result goes stale on any runtime byte
+changing, anywhere in the module = bad rule for anything non audit", then "one
+walk for bug detection and a repeat post-fixes is enough" and "This is hobby
+grade, does not need byte hardened".
+
+**Ruled.** For a minor and a hotfix, a required walk's result is current when
+its attempt started after the last release's tag. A walk that did not pass is
+run again after its fix, and the latest attempt wins, as before. A major keeps
+the whole-tree binding: it is the audit. In every kind a result is still
+refused where the runtime changed during the run, where the walk's own file
+changed since, where the run was partial, and where a non-pass is not
+classified. `evaluate` in `tools/walk-results.mjs` takes the tag's time as
+`since`; the preflight passes it for a minor and a hotfix, and the runner's
+`--list` judges the same way.
+
+**Rejected.** Binding each walk to the paths its feature can reach, by folder
+or by import graph. It is the general answer, and the nine topics open on the
+day all wrote `lang/en.json` and most wrote `scripts/lib/`, so a scope that
+includes those two stales nearly as much as the whole tree, and one that
+traces imports is a tool to build and keep. The owner's rule needs neither.
+
+**Cost.** In a minor, a landing can break a surface that was walked before
+it, and nothing marks that walk as owed again. A release's landings therefore
+come before its walks where that is possible, and a session that knows a
+landing reached a walked surface runs that walk again without being told to.

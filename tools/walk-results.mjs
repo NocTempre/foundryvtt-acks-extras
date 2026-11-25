@@ -16,8 +16,9 @@
  * the release zip ships, with `packs/_source` standing in for the compiled
  * packs and with the files a release edits as a matter of course left out
  * (changelog, readme, licence, and `module.json`'s version, download and
- * manifest). The id is taken at the walk's start and again at its end, and a
- * result whose id differs from the current one is stale. The walk's own file
+ * manifest). The id is taken at the walk's start and again at its end, and
+ * under a major's audit a result whose id differs from the current one is
+ * stale (`evaluate` says what a minor and a hotfix hold it to). The walk's own file
  * sits outside that tree (`tools/` is not shipped), so an edit to the walk is
  * a separate hash. Line endings are normalized before hashing, so the id of a
  * working tree and of the commit it becomes agree under any `core.autocrlf`.
@@ -403,15 +404,24 @@ export function recordClassification(root, name, { row, as, status, version } = 
  * that differ between two tree ids. A walk is ok when it is current and either
  * passed or classified for this release; a defect is ok only when its ledger
  * row is `deferred`.
+ *
+ * What "current" means depends on `since`. Without it the result is held to
+ * the whole runtime tree: any byte that differs makes it stale, which is the
+ * audit a major runs. With `since`, the ISO time of the last release, a result
+ * is current when its attempt started after that time, whatever the tree has
+ * become, so a walk is run once in a release and again only after a fix to
+ * what it found (the latest attempt wins).
  */
-export function evaluate({ data, required, tree, walkBlobs = {}, version, diffPaths }) {
+export function evaluate({ data, required, tree, walkBlobs = {}, version, diffPaths, since }) {
   return required.map((walk) => {
     const e = data?.walks?.[walk];
     const refuse = (why) => ({ walk, state: e?.state ?? "not run", ok: false, why });
     if (!e) return refuse("not run");
     if (e.walkBlob !== (walkBlobs[walk] ?? null)) return refuse("stale: the walk changed since it ran");
     if (e.treeStart !== e.treeEnd) return refuse("the runtime changed during its run");
-    if (e.treeStart !== tree) {
+    if (since !== undefined) {
+      if (!(Date.parse(e.startedAt) > Date.parse(since))) return refuse(`stale: it ran before the last release (${since})`);
+    } else if (e.treeStart !== tree) {
       let paths = [];
       try {
         paths = diffPaths?.(e.treeStart, tree) ?? [];

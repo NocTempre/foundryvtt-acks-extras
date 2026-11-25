@@ -118,7 +118,12 @@ function list() {
   const read = readResults(ROOT);
   const { tree } = runtimeTree(ROOT);
   const walkBlobs = Object.fromEntries(all.map((n) => [n, walkBlob(ROOT, n)]));
-  const verdicts = evaluate({ data: read.data, required: all, tree, walkBlobs, version: version(), diffPaths });
+  // The listing judges as a minor's gate does: an attempt since the last
+  // release is current. A major's whole-tree audit is the preflight's.
+  const tag = spawnSync("git", ["describe", "--tags", "--abbrev=0", "--match", "v*"], { cwd: ROOT, encoding: "utf8" });
+  const at = tag.status === 0 ? spawnSync("git", ["log", "-1", "--format=%cI", tag.stdout.trim()], { cwd: ROOT, encoding: "utf8" }).stdout.trim() : "";
+  const since = at || "1970-01-01T00:00:00Z";
+  const verdicts = evaluate({ data: read.data, required: all, tree, walkBlobs, version: version(), diffPaths, since });
   if (read.error) console.log(`result file: ${read.error}`);
   const width = Math.max(...all.map((n) => n.length), 4);
   for (const v of verdicts) {

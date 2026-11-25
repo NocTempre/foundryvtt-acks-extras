@@ -291,9 +291,12 @@ kind and reads only the file the runner writes,
 walk, the latest attempt wins). No ledger and no machine path enters a repo.
 The states, the runtime tree id and the walk-file hash are defined in the
 header of `tools/walk-results.mjs`; in short, a walk ends `passed`
-only on a `WALK END` line, at least one PASS, no FAIL and exit 0, and a result
-goes stale on any runtime byte or an edit to the walk's own file, with no age
-limit. The preflight refuses a result file that is missing, tracked or of an
+only on a `WALK END` line, at least one PASS, no FAIL and exit 0. For a minor
+and a hotfix a result is current when its attempt started after the last
+release: a walk is run once, and again only after a fix to what it found. A
+major audits each result against the whole runtime tree, so any runtime byte
+makes it stale. An edit to the walk's own file makes its result stale in every
+kind. The preflight refuses a result file that is missing, tracked or of an
 unknown schema; a required walk that was not run, is stale, changed during its
 run or is partial; and a non-pass that is not classified. On a clear run it
 prints the walk table the release report quotes under "exercised live".

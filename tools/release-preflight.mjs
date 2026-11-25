@@ -102,9 +102,10 @@
  *      it cannot be read or where its schema is not the one `walk-results.mjs`
  *      knows; a missing file is refused too. Each required walk is then held
  *      to the verdict `walk-results.mjs` gives: it was run, it ended on a
- *      runtime tree that its start shared, that tree is the current one (a
- *      path named in the refusal), the walk's own file is unchanged, it ran
- *      every check, and it passed. A walk that did not pass counts only when
+ *      runtime tree that its start shared, it is current, the walk's own file
+ *      is unchanged, it ran every check, and it passed. Current, for a major,
+ *      is that tree being the present one (a path named in the refusal); for
+ *      a minor and a hotfix it is an attempt started after the last release. A walk that did not pass counts only when
  *      it is classified through the runner (`node tools/live/run.mjs
  *      --classify <walk> <T-id> defect|world-state|stale-walk|environment`,
  *      which reads the ledger; this check reads only the result file), for
@@ -641,7 +642,10 @@ function liveWalks() {
       return [];
     }
   };
-  const rows = evaluate({ data, required, tree, walkBlobs, version: releaseVersion, diffPaths });
+  // A major audits every result against the whole runtime tree; a minor and a
+  // hotfix take any attempt made since the last release.
+  const since = kind === "major" ? undefined : lastTag ? git("log", "-1", "--format=%cI", lastTag) : "1970-01-01T00:00:00Z";
+  const rows = evaluate({ data, required, tree, walkBlobs, version: releaseVersion, diffPaths, since });
   for (const row of rows) if (!row.ok && !livePending) fail(`live-walks: ${row.walk} — ${row.why}`);
   return rows;
 }
