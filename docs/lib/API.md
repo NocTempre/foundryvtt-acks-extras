@@ -1,4 +1,4 @@
-# lib API (apiVersion 81)
+# lib API (apiVersion 82)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 81,
+  apiVersion: 82,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1065,7 +1065,7 @@ acksExtras.lib.conditions = {
   subjectOf(actor),             // → {statuses, counts, sources, gifts, id, acWaived, implied, shield} | null
   shieldOf(actor),              // → true | false | null: an equipped shield item; none reads false for a character, null for any other type
   acWaivedSet(subject),         // → Set of ids: the conditions whose Armor Class figure the subject does not suffer
-  giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own (null as well when `actor` has no combatant in the fight the effect was stamped with)
+  giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own (apiVersion 82: null as well when `actor` has no combatant in the fight the effect was stamped with)
   forbiddenBy(set, act),        // → the ids in a closed set that take `act` away
   attackMath({attacker, target?, kind, attackerSize?, targetSize?, values?}),
   rollMath(on, subject, values?, {save}?),   // on: "save" | "throw" | "morale" | "surprise"; save: one of SAVE_KINDS
