@@ -874,6 +874,51 @@ await t("a snapshot leaves out the centre token itself, builds the Region with t
   }
 });
 
+await t("a reach stored in feet is sized in the scene's own units, by the raise and by the snapshot: a metre scene gets metres, a feet or unnamed scene the figure as it stands", async () => {
+  const { feetToUnits } = await import("../scripts/lib/distance-units.mjs");
+  const asked = [];
+  const made = [];
+  const priorConfig = globalThis.CONFIG;
+  const priorLookup = globalThis.fromUuidSync;
+  const priorData = globalThis.foundry.data;
+  globalThis.CONFIG = {
+    Region: {
+      documentClass: class {
+        static schema = { fields: { attachment: { fields: { token: {} } } } };
+        static createTokenEmanation = async (...args) => { asked.push(args); return { id: "R1", uuid: "S.R1" }; };
+        constructor(data, options) { this.name = data.name; this.data = data; this.options = options; made.push(this); }
+      },
+    },
+    specialStatusEffects: {},
+  };
+  globalThis.foundry.data = { ...priorData, EmanationShapeData: class {} };
+  try {
+    for (const [units, expected] of [["m", feetToUnits(30, "m")], ["ft", 30], [undefined, 30]]) {
+      asked.length = 0;
+      const token = { uuid: "T.1", id: "1", hidden: false, actor: { uuid: "A.1" }, parent: { grid: { units } }, testUserPermission: () => true };
+      const item = { uuid: "I.1", name: "Gear", actor: token.actor, type: "item", flags: { "acks-extras": { itemRun: { rows: [{ key: "k", reach: { pulse: "standing", radius: { value: "30" } } }] } } } };
+      globalThis.fromUuidSync = (uuid) => (uuid === "T.1" ? token : uuid === "I.1" ? item : null);
+      assert.equal((await reach.raiseReach({ tokenUuid: "T.1", sourceUuid: "I.1", rowKey: "k", activationId: "act" })).ok, true);
+      assert.equal(asked[0][1], expected, `${units}: core is handed the range in the scene's units`);
+    }
+    assert.ok(Math.abs(feetToUnits(30, "m") - 9.144) < 0.001, "30 feet is about 9.14 metres, never 30");
+    for (const [units, expected] of [["m", feetToUnits(20, "m") * 10], ["ft", 20 * 10]]) {
+      made.length = 0;
+      const centre = { id: "c", actor: { documentName: "Actor", type: "monster" }, testInsideRegion: () => false, _source: { x: 0, y: 0, width: 1, height: 1, shape: 4 } };
+      const scene = { grid: { units }, dimensions: { distance: 5, distancePixels: 10 }, tokens: [centre] };
+      assert.equal(reach.reachSnapshot(scene, { token: centre }, 20).ok, true);
+      assert.equal(made[0].data.shapes[0].radius, expected, `${units}: the snapshot's radius is the converted range times the pixels per unit`);
+      made.length = 0;
+      assert.equal(reach.reachSnapshot(scene, { point: { x: 1, y: 1 } }, 20).ok, true);
+      assert.equal(made[0].data.shapes[0].radius, expected, `${units}: a point's circle likewise`);
+    }
+  } finally {
+    globalThis.CONFIG = priorConfig;
+    globalThis.fromUuidSync = priorLookup;
+    globalThis.foundry.data = priorData;
+  }
+});
+
 await t("a race is told into its category from the two race sets, a creature's kinds read the registered key as it is written, and a subtype that is an enchanted type makes the creature enchanted", () => {
   for (const key of ["human", "people1", "people2", " People1 "]) assert.equal(actorRead.raceCategoryOf(key), "human", key);
   for (const key of ["dwarf", "elf", "gnome", " GNOME "]) assert.equal(actorRead.raceCategoryOf(key), "demi-human", key);

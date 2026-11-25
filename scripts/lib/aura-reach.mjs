@@ -33,6 +33,7 @@ import { tokenHasStatus, tokenHitPoints } from "./hp-logic.mjs";
 import { STATUS_DEAD } from "./status-effects.mjs";
 import { isPrimaryGM, makeLoc } from "./util.mjs";
 import { isMarkerActor } from "./place.mjs";
+import { feetToUnits } from "./distance-units.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -204,6 +205,8 @@ function bearerDown(token) {
  * The raise itself, on the primary GM's window: check the request against what
  * is live, then create the Region through core's `createTokenEmanation`, grid
  * based, hidden as the token is, GM-visible, holding the `aura` behavior.
+ * The reach is stored in feet and core takes the scene's own units, so the
+ * range goes through `feetToUnits` first.
  */
 async function raiseHere({ tokenUuid, sourceUuid, rowKey, activationId, requestUserId = null }) {
   const token = fromUuidSync(tokenUuid);
@@ -230,7 +233,7 @@ async function raiseHere({ tokenUuid, sourceUuid, rowKey, activationId, requestU
   const behavior = { type: AURA_BEHAVIOR_TYPE, name: item.name, system: { sourceUuid, bearerUuid: item.actor.uuid, activationId, rowKey } };
   const region = await CONFIG.Region.documentClass.createTokenEmanation(
     token,
-    verdict.rangeFeet,
+    feetToUnits(verdict.rangeFeet, token.parent?.grid?.units),
     { name: item.name, hidden: token.hidden, visibility: CONST.REGION_VISIBILITY.GAMEMASTER, behaviors: [behavior] },
     { gridBased: true },
   );
@@ -358,7 +361,7 @@ const defeating = (effect) => !effect?.disabled && effect?.statuses?.has?.(globa
  */
 export function reachSnapshot(scene, centre, rangeFeet) {
   try {
-    const shape = snapshotRegionData(centre?.token ? { token: centre.token._source ?? centre.token } : centre, rangeFeet, scene?.dimensions);
+    const shape = snapshotRegionData(centre?.token ? { token: centre.token._source ?? centre.token } : centre, feetToUnits(rangeFeet, scene?.grid?.units), scene?.dimensions);
     if (!shape.ok) return shape;
     const region = new CONFIG.Region.documentClass({ name: "reach", ...shape.data }, { parent: scene });
     const tokens = [...(scene.tokens ?? [])].filter((token) => token !== centre?.token && !isMarkerActor(token.actor) && token.testInsideRegion(region));

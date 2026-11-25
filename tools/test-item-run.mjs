@@ -624,6 +624,45 @@ await t("a once-only use takes who the action row's reach meets: the admitted to
   }
 });
 
+await t("a window the carrier itself wrote makes its subject immune: the once-only use and the reach's moment both skip it, and another kind's window or none prompts", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  const windowFor = (spellKey) => logic.immunityRecordData({ name: "Pass", spellKey, duration: { seconds: 60 }, ...ids });
+  const row = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" } } };
+  const kindItem = { uuid: "I.1", flags: { "acks-extras": { cookbook: { id: "kindX" } } } };
+  const key = run.kindKeyOf(kindItem, row);
+  assert.equal(key, "kindX");
+  try {
+    const tok = (id, effects) => ({ id, uuid: `T.${id}`, name: `Tok ${id}`, flags: { "acks-extras": {} }, disposition: -1, actor: monster(["alpha"], effects), testInsideRegion: () => true });
+    const immune = tok("s1", [windowFor(key)]);
+    const open = tok("s2", []);
+    const other = tok("s3", [windowFor("kindY")]);
+    bearerTok.parent = sceneOf([bearerTok, immune, open, other]);
+    bearerTok.disposition = 1;
+    bearerTok.testInsideRegion = () => true;
+    itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [row] } };
+    const out = await run.runUse({ itemUuid: "I.1" });
+    assert.equal(out.ok, true);
+    assert.deepEqual(out.subjects.map((s) => [s.key, s.immune]), [["T.s1", true], ["T.s2", false], ["T.s3", false]], "only the kind's own window marks a subject immune");
+    assert.deepEqual(out.card.sections[0].rows.map((r) => r.name), ["Tok s2", "Tok s3"], "an immune subject is never asked to roll");
+    // The reach's moment reads the same record through the same key.
+    const seen = [];
+    run.setUsePresenter(async (result) => seen.push(result));
+    const moment = (subject) => run.handleReachMoment({ moment: "turnStart", config: { activationId: "act" }, item: kindItem, row, reach: { pulse: "turnStart+moveIn" }, subject, admitted: true });
+    await moment({ actor: immune.actor });
+    await moment({ actor: open.actor });
+    await moment({ actor: other.actor });
+    assert.deepEqual(seen.map((s) => s.act), ["skip", "prompt", "prompt"]);
+  } finally {
+    run.setUsePresenter(async (result) => presented.push(result));
+    bearerTok.parent = null;
+    delete bearerTok.testInsideRegion;
+    delete bearerTok.disposition;
+    unstage();
+  }
+});
+
 await t("a press writes what the throw's verdict calls for, on the item's own row: conditions on a failure, an immunity window on a success, the fight's clock where there is one", async () => {
   stage();
   seatOf(true);

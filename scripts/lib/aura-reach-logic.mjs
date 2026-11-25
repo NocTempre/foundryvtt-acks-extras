@@ -237,7 +237,7 @@ export function pulseAct({ pulse, moment, admitted, immune = false } = {}) {
  * feet passed as the radius contains almost nothing.
  *
  * @param {{token?: object, point?: object}} centre
- * @param {number} range grid units (feet)
+ * @param {number} range in the scene's own units (`grid.units`), never raw feet
  * @param {{distance: number, distancePixels: number}} dimensions the scene's
  * @returns {{ok: true, data: object}|{ok: false, reason: string}}
  */

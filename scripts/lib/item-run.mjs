@@ -125,7 +125,7 @@ async function runOnce({ item, token, judge }) {
     const subject = { token: subjectToken, actor: subjectToken.actor };
     const verdict = reachAdmits(bearer, subject, reach.filter, { isMarker: isMarkerActor });
     const entry = { key: subjectToken.uuid, name: subjectToken.name };
-    const immune = !!recordImmunity(subject.actor, { spell: kindKeyOf(item, row) }).spell;
+    const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
     const act = pulseAct({ pulse: reach.pulse, moment: "press", admitted: verdict, immune });
     if (act === "prompt" || act === "skip") admitted.push({ ...entry, immune: act === "skip" });
     else if (act === "undetermined") undetermined.push(entry);
@@ -285,7 +285,7 @@ export async function undoEntry({ subject, entry }) {
  * presenter as `{kind: "reach", ...}`.
  */
 export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted }) {
-  const immune = !!recordImmunity(subject.actor, { spell: kindKeyOf(item, row) }).spell;
+  const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
   const act = pulseAct({ pulse: reach.pulse, moment, admitted, immune });
   if (act === "none" || !subject.actor) return;
   if (act === "off") {
