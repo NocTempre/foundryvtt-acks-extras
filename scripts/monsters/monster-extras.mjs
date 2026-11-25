@@ -64,10 +64,13 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
 
     // One part of an encounter recipe (`importer/ecology-recipe.mjs` names the
     // fields). `source` and `count` are each one of several shapes, so every
-    // member is optional and blank until its shape uses it.
+    // member is optional and blank until its shape uses it. `origin` is
+    // "register" on a part as the import wrote it and blank once a hand has
+    // changed it, the mark a repair keeps a changed part by.
     const recipePart = () =>
       new SchemaField({
         key: str(),
+        origin: str(),
         label: str(),
         role: choice(RECIPE_ROLES),
         source: new SchemaField({ uuid: str(), templateCell: str(), stat: str(), name: str() }),

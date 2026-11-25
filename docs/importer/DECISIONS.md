@@ -3238,3 +3238,38 @@ that `refreshPlan`'s `update.system` for a class carries no `builder` and no
 
 **Costs.** None to behaviour. The 2026-11-13 entry keeps its text, and its
 "rewrites the class's whole system" lines are read through this entry.
+
+## 2026-11-25 — A recipe part rides the per-row held edits, and no restamp is built
+
+**Ruled** (the architect, 2026-11-25; the hub guard the same day). An
+`extras.encounter.recipe` part is a register row like a spell's effect row:
+`recipePart` declares `origin`, the reader stamps `register`, and
+`REPAIR.monster` gets a `mergeByOrigin` entry for the recipe, so a repair
+rewrites the parts the import wrote and holds a part a hand changed (its origin
+blank). The entry takes no `retired` list, since no delete is drawn. The
+recipe as read is stored whole in `cookbook.read.recipe`, on every import and
+repair, as the copy a held part is compared with and reset from.
+`decidedPolicy` reads a held row through the describer its entry names
+(`ROW_DESCRIBERS`), and a decision's `takeRows` are named by path and key
+(`rowTakeKey`) so two row lists that carry one key stay apart; the spell entry's
+behaviour is unchanged. `retractRecipe` is removed: the merge writes a recipe
+of only the held parts where the page yields none, which `tools/importer/test-ecology-recipe.mjs`
+pins. Guard parts are keyed by the creature word as printed
+(`guard-<word>`), not by read order, so a re-read keeps a part's key; a word
+named twice takes a numbered suffix.
+
+**Hub guard.** The owner, 2026-11-11: no migrations or repair checks for
+previous-version data. Recipe parts have never shipped, so a part with no
+`origin` is test-world data only, and no restamp path is built in shipped code:
+such a part reads as a part a hand changed, and a fixture is re-imported. No
+change here writes a spell effect row that already carries an `origin`.
+
+**Rejected.**
+- A `hand` boolean on a part: a second row-merge rule beside the walked one.
+- Deciding by equality with the stored copy alone (strongest counter,
+  moderate): fragile to null-versus-blank cleaning, and a second rule.
+- Restamping origin-less parts that equal the page (`sameValue`): it would
+  also reach spell rows, and no shipped world holds such a part.
+
+**Costs.** A test world holding origin-less parts keeps them beside the
+re-keyed guard parts until it is imported again.

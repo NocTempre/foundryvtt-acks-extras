@@ -1254,6 +1254,24 @@ no current side, a leaf shows the figures. Stat-block fields outside `values`
 ([DECISIONS.md](DECISIONS.md), 2026-11-16, "A repair holds a spell's edited
 and deleted rows, and its edited `values`").
 
+*A monster's recipe parts ride the same per-row mechanism.* `REPAIR.monster`
+carries a `mergeByOrigin` entry for `extras.encounter.recipe` (no `retired`
+list: no delete is drawn), so `mergeRowsByOrigin` pairs parts by `key` exactly
+as it pairs effect rows. `ecology-recipe.mjs` stamps every part
+`origin: "register"`; a part a hand changed has a blank origin and is held,
+offered as an edit when it no longer covers the page's part, and a Judge's
+own part (key `_…`) stays. A decision's `takeRows` are named by path and key
+(`rowTakeKey`), and an entry's `describe` names the line a held row reads as
+(`ROW_DESCRIBERS`: `spellEffect`, or `recipePart`, which gives role and label
+with the figures the stored row holds). Where the page yields no recipe the
+merge writes the parts a hand holds and nothing else, so no separate
+retraction of a stale recipe is written. The recipe as read is stored whole in
+`cookbook.read.recipe` on every import and repair (`recipeReadStamp`; an empty
+copy on a repair that reads none), the copy a held part is compared with and
+reset from. An import writes the copy only where it read a recipe. A part
+stored with no `origin` is not restamped by any repair: it reads as a part a
+hand changed.
+
 **A borrowed throw.** A roll spec whose `target` has a locator proving the page
 prints the borrowing and a `progression` object (`{as, table, fraction?,
 round?}`) materializes a `progression` target: `{kind: "progression", as,

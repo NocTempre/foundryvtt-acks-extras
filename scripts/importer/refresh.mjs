@@ -19,6 +19,7 @@ import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
 import { coversFigure, decides, heldEdit, readPath, sameValue } from "./held-edits.mjs";
 import { describeSpellEffect } from "../magic/describe.mjs";
+import { describeRecipePart } from "../monsters/recipe-describe.mjs";
 import { setPath } from "../lib/dotted-path.mjs";
 
 /** The value at a dotted path, or undefined. */
@@ -146,10 +147,12 @@ export function withBlockSums(data) {
  *   document's own.
  * - `rows: "replace"` — write array rows as built, without filling their
  *   unbuilt fields from the stored rows.
- * - `mergeByOrigin` — `{rows, retired}` paths under the module's flags (a bare
- *   path is `rows` alone): rows with an `origin` and a `key`, and the keys a
- *   Judge deleted. `mergeRowsByOrigin` says how the build's rows meet the
- *   stored ones.
+ * - `mergeByOrigin` — `{rows, retired, describe}` paths under the module's flags
+ *   (a bare path is `rows` alone): rows with an `origin` and a `key`, the keys a
+ *   Judge deleted (none where the kind draws no delete), and the name of the
+ *   `ROW_DESCRIBERS` entry that reads a row as one line when a held edit is
+ *   offered (`spellEffect` where none is named). `mergeRowsByOrigin` says how
+ *   the build's rows meet the stored ones.
  * - `readStamped` — `{path, stamp}`: a node under the module's flags whose
  *   leaves the build wrote and recorded in the cookbook stamp at `stamp`
  *   (`read.spell`). A leaf a Judge changed since is held, not written over.
@@ -188,6 +191,10 @@ export const REPAIR = Object.freeze({
     flags: ["extras", "moraleNA"],
     top: ["prototypeToken"],
     minted: ["items"],
+    // An encounter recipe part the import wrote carries `origin: "register"`
+    // and is rewritten; one a hand changed (origin blank) is held, and a part a
+    // Judge added stays. No delete is drawn, so there is no retired list.
+    mergeByOrigin: [{ rows: "extras.encounter.recipe", describe: "recipePart" }],
   },
   // A class write carries what the build names, and an array it names is
   // written whole. The update merges, so a field the build does not name stays,
@@ -211,7 +218,7 @@ export const REPAIR = Object.freeze({
     keep: ["cast", "memorized", "favorite"],
     prose: ["description"],
     flags: ["spell"],
-    mergeByOrigin: [{ rows: "spell.effects", retired: "spell.retired" }],
+    mergeByOrigin: [{ rows: "spell.effects", retired: "spell.retired", describe: "spellEffect" }],
     readStamped: [{ path: "spell", stamp: "read.spell" }],
   },
   // The rows a printed table builds: its figures, its page reference and the
@@ -292,7 +299,7 @@ export function unstampedTwins(have = [], built = []) {
  *   `keptRows` the register rows a Judge took over or deleted
  *   (`mergeRowsByOrigin`'s `kept`, each with its `path`) and `keptLeaves` the
  *   `values` leaves a Judge changed (`{path, leaf, current, page}`), each left
- *   as it stands unless `policy.takeRows` / `policy.takeLeaves` names it.
+ *   as it stands unless `policy.takeRows` (a `rowTakeKey`) / `policy.takeLeaves` names it.
  *   `refused` when the build is another document type, which no update can
  *   change.
  */
@@ -364,7 +371,7 @@ export function refreshPlan(source, built, policy = {}) {
     const fresh = getPath(flagUpdate, path);
     const have = getPath(heldFlags, path);
     const retiredHave = retiredPath ? getPath(heldFlags, retiredPath) : undefined;
-    const merged = mergeRowsByOrigin(have, fresh, { retired: retiredHave, take: policy.takeRows, force: policy.force });
+    const merged = mergeRowsByOrigin(have, fresh, { retired: retiredHave, take: takenKeys(policy.takeRows, path), force: policy.force });
     keptRows.push(...merged.kept.map((held) => ({ ...held, path })));
     if (retiredPath && !sameValue(merged.retired, retiredHave ?? [])) setPath(flagUpdate, retiredPath.split("."), merged.retired);
     if (!merged.rows.length && !(Array.isArray(have) && have.length)) continue; // nothing stored, nothing built
@@ -420,6 +427,23 @@ export function refreshPlan(source, built, policy = {}) {
     };
   }
   return { update, retract: retracted, replace, keptProse, keptRows, keptLeaves };
+}
+
+/**
+ * The name a decision takes a held register row under (`policy.takeRows`): its
+ * rows' path under the module's flags and its key, so two row lists that carry
+ * the same key stay apart.
+ * @param {string} path a `mergeByOrigin` entry's `rows`
+ * @param {string} key a row's `key`
+ * @returns {string}
+ */
+export const rowTakeKey = (path, key) => `${path}[${key}]`;
+
+/** The keys `takeRows` holds for the rows at `path`. */
+function takenKeys(takeRows, path) {
+  const out = new Set();
+  for (const name of takeRows ?? []) if (name.startsWith(`${path}[`) && name.endsWith("]")) out.add(name.slice(path.length + 1, -1));
+  return out;
 }
 
 /** A row without the fields that say who wrote it, for comparing a Judge's row with the register's. */
@@ -578,6 +602,15 @@ export const repairCounts = (tally) => ({
 /** The policy a run writes under: `policy`, forced when the tally is. */
 export const policyFor = (policy, tally) => (tally?.force ? { ...policy, force: true } : policy);
 
+/** How a held register row reads as one line in an offered edit, by the name a `mergeByOrigin` entry gives. */
+const ROW_DESCRIBERS = Object.freeze({
+  spellEffect: (row) => {
+    const { kind, text } = describeSpellEffect(row);
+    return `${kind}: ${text}`;
+  },
+  recipePart: describeRecipePart,
+});
+
 /**
  * The policy a write runs under once a caller's decision has met the Judge's
  * edits: every prose field the unforced plan would keep as hand-written is an
@@ -618,17 +651,18 @@ export function decidedPolicy(source, built, policy, { decision = null, uuid = "
   // description on both sides.
   const takeRows = new Set();
   const takeLeaves = new Set();
-  const describe = (row) => {
-    if (!row) return undefined;
-    const { kind, text } = describeSpellEffect(row);
-    return `${kind}: ${text}`;
+  const describeAt = (path) => {
+    const entry = (policy.mergeByOrigin ?? []).find((e) => (typeof e === "string" ? e : e.rows) === path);
+    const read = ROW_DESCRIBERS[(typeof entry === "object" ? entry.describe : null) ?? "spellEffect"] ?? ROW_DESCRIBERS.spellEffect;
+    return (row) => (row ? read(row) : undefined);
   };
   for (const { path, key, current, page, retired } of plan.keptRows) {
+    const describe = describeAt(path);
     const edit = heldEdit({
       uuid, name: source?.name ?? "", path: `flags.${MODULE_ID}.${path}[${key}]`,
       current: retired ? undefined : describe(current), page: describe(page), cite,
     });
-    if (decides(decision, edit.key) === "take") takeRows.add(key);
+    if (decides(decision, edit.key) === "take") takeRows.add(rowTakeKey(path, key));
     else edits.push(edit);
   }
   for (const { path, leaf, current, page } of plan.keptLeaves) {

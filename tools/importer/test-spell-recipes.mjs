@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { materializeEffects } from "../../scripts/importer/executor.mjs";
 import { bindSpell, bindSpellNamed, summonNamesOf } from "../../scripts/importer/cookbook/variations.mjs";
-import { REPAIR, decidedPolicy, mergeRowsByOrigin, refreshPlan } from "../../scripts/importer/refresh.mjs";
+import { REPAIR, decidedPolicy, mergeRowsByOrigin, refreshPlan, rowTakeKey } from "../../scripts/importer/refresh.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { SPELL_NARROWING_WORDS, spellRecipeProblems, spellcastingModProblems } from "./spell-recipe-rules.mjs";
 
@@ -269,7 +269,7 @@ t("a retired key is skipped and held, and a decision that takes it writes the ro
   assert.deepEqual(rowsAfter(plan), [judge], "the repair writes no row for a retired key");
   assert.deepEqual(plan.keptRows.map((r) => [r.key, r.retired]), [["a", true]]);
   assert.ok(!("retired" in plan.update.flags[MODULE_ID].spell), "and leaves the retired list as it stands");
-  const restored = refreshPlan(stored([judge], { retired: ["a"] }), freshBuild([reg("a", "2d2")]), { ...REPAIR.spell, takeRows: new Set(["a"]) });
+  const restored = refreshPlan(stored([judge], { retired: ["a"] }), freshBuild([reg("a", "2d2")]), { ...REPAIR.spell, takeRows: new Set([rowTakeKey("spell.effects", "a")]) });
   assert.deepEqual(rowsAfter(restored), [reg("a", "2d2"), judge]);
   assert.deepEqual(restored.update.flags[MODULE_ID].spell.retired, []);
 });

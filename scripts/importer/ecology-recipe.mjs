@@ -20,11 +20,14 @@
  * band naming the share of a die where the page prints one), `moraleWhileAlive`
  * (a bonus while the part lives), `cite` and `basis` (`page`; `table` is the
  * evaluator's, for a printed table). A rounding the page does not print is
- * left blank.
+ * left blank. `origin` is `REGISTER_ORIGIN` on every part this reader writes: a
+ * repair replaces a part that carries it and keeps one a hand changed (its
+ * origin blank).
  *
  * Rulings and the part kinds: docs/monsters/MODEL.md, "The encounter recipe".
  */
 import { roleKeyOf } from "./leader-roles.mjs";
+import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 
 /** Where every part this reader writes was read from. */
 export const RECIPE_BASIS = "page";
@@ -111,6 +114,7 @@ const cellOf = (variant, role) => (variant ? `${variant}|${role}` : role);
 function part({ key, label = "", role, source = {}, count = {}, chance = null, units = [], state = "", place = "", branch = {}, moraleWhileAlive = null, cite = "" }) {
   return {
     key,
+    origin: REGISTER_ORIGIN,
     label,
     role,
     source: { uuid: "", templateCell: "", stat: "", name: "", ...source },
@@ -159,6 +163,13 @@ function sizeParts(encounter, cite) {
   return out;
 }
 
+/** A creature word as a key segment: lowercase letters and digits, runs of anything else one hyphen. */
+const wordKey = (word) =>
+  String(word ?? "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+
 /**
  * Every recipe part a creature's prose and encounter lines state. `combat` and
  * `ecology` are the creature's paragraphs of those sections, `encounter` its
@@ -169,17 +180,46 @@ function sizeParts(encounter, cite) {
  * @param {{combat?: string[], ecology?: string[], encounter?: object|null, variant?: string, cite?: string}} [args]
  * @returns {object[]}
  */
-export function readEcologyRecipe({ combat = [], ecology = [], encounter = null, variant = "", cite = "" } = {}) {
+export function readEcologyRecipe(args = {}) {
+  return readEcologyRecipeWithSentences(args).parts;
+}
+
+/**
+ * `readEcologyRecipe`'s parts, and beside them where each was read from:
+ * `sentences` maps a part's key to every sentence that stated it, as
+ * `{field, paragraph, sentence}` (`field` is `"combat"` or `"ecology"`,
+ * `paragraph` the index in that argument's list, `sentence` the index among that
+ * paragraph's `sentencesOf`). The first entry is the sentence that made the
+ * part; a later one added a unit to it or its morale bonus. A part the
+ * encounter lines made has no entry. The parts are the stored rows, so nothing
+ * here changes what a recipe holds.
+ *
+ * @param {{combat?: string[], ecology?: string[], encounter?: object|null, variant?: string, cite?: string}} [args]
+ * @returns {{parts: object[], sentences: Object<string, {field: string, paragraph: number, sentence: number}[]>}}
+ */
+export function readEcologyRecipeWithSentences({ combat = [], ecology = [], encounter = null, variant = "", cite = "" } = {}) {
   const parts = new Map();
+  const sentences = {};
+  let at = null;
+  const touch = (key) => {
+    const seen = (sentences[key] ??= []);
+    if (!seen.some((r) => r.field === at.field && r.paragraph === at.paragraph && r.sentence === at.sentence)) seen.push({ ...at });
+  };
   const add = (p) => {
-    if (!parts.has(p.key)) parts.set(p.key, p);
+    if (parts.has(p.key)) return;
+    parts.set(p.key, p);
+    touch(p.key);
   };
   const cell = (role) => ({ templateCell: cellOf(variant, role) });
 
-  for (const paragraph of [...combat, ...ecology]) {
+  const paragraphs = [
+    ...combat.map((text, paragraph) => ({ text, field: "combat", paragraph })),
+    ...ecology.map((text, paragraph) => ({ text, field: "ecology", paragraph })),
+  ];
+  for (const { text: paragraph, field, paragraph: pi } of paragraphs) {
     let here = [];
-    const sentences = sentencesOf(paragraph);
-    for (const sentence of sentences) {
+    for (const [si, sentence] of sentencesOf(paragraph).entries()) {
+      at = { field, paragraph: pi, sentence: si };
       const encountered = ENCOUNTERED_IN_RX.exec(sentence);
       if (encountered) here = [encountered[1].toLowerCase()];
 
@@ -200,7 +240,11 @@ export function readEcologyRecipe({ combat = [], ecology = [], encounter = null,
           const key = `leader-${role}`;
           const have = parts.get(key);
           if (have) {
-            for (const u of unitsIn(lead[1])) if (!have.when.units.includes(u)) have.when.units.push(u);
+            for (const u of unitsIn(lead[1])) {
+              if (have.when.units.includes(u)) continue;
+              have.when.units.push(u);
+              touch(key);
+            }
           } else {
             add(part({ key, label: lead[3], role: "leader", source: cell(role), count: { literal: countWord(lead[2]) }, units: unitsIn(lead[1]), cite }));
           }
@@ -211,7 +255,10 @@ export function readEcologyRecipe({ combat = [], ecology = [], encounter = null,
       if (morale) {
         const role = roleKeyOf(morale[1]);
         const holder = role ? parts.get(`leader-${role}`) : null;
-        if (holder && holder.moraleWhileAlive == null) holder.moraleWhileAlive = parseInt(morale[2].replace(/\s+/g, ""), 10);
+        if (holder && holder.moraleWhileAlive == null) {
+          holder.moraleWhileAlive = parseInt(morale[2].replace(/\s+/g, ""), 10);
+          touch(holder.key);
+        }
       }
 
       const dep = DEPENDANT_RX.exec(sentence);
@@ -245,7 +292,10 @@ export function readEcologyRecipe({ combat = [], ecology = [], encounter = null,
           alternatives.forEach((alt) => {
             const beast = BEAST_RX.exec(alt.trim());
             if (!beast) return;
-            const key = `guard-${[...parts.keys()].filter((k) => k.startsWith("guard-")).length + 1}`;
+            // Keyed by the creature word as printed, so a re-read keeps a part's key in any order; the same word again takes a numbered suffix.
+            const base = `guard-${wordKey(beast[2])}`;
+            let key = base;
+            for (let n = 2; parts.has(key); n++) key = `${base}-${n}`;
             add(part({
               key, label: beast[2], role: "guard", source: { name: beast[2] }, count: countOf(beast[1]), chance, units,
               branch: alternatives.length > 1 ? { group: `guard-or-${ci + 1}` } : {}, cite,
@@ -266,8 +316,8 @@ export function readEcologyRecipe({ combat = [], ecology = [], encounter = null,
       }
     }
   }
-  if (!parts.size) return [];
-  return [...sizeParts(encounter, cite), ...parts.values()];
+  if (!parts.size) return { parts: [], sentences: {} };
+  return { parts: [...sizeParts(encounter, cite), ...parts.values()], sentences };
 }
 
 /** The part kinds the local check counts, by the key a reader gives each. */
@@ -294,15 +344,19 @@ export function attachRecipe(extras, recipe) {
 }
 
 /**
- * `extras` that clear the recipe a document holds when the build reads none: an
- * update merges objects and leaves a leaf the build does not carry, so the
- * stale parts stand unless the build writes an empty list. `held` is the
- * document's stored extras. A build that reads a recipe, or a document holding
- * none, is returned as it is.
+ * The `cookbook` stamp's `read` node that keeps the recipe as the import read
+ * it (`cookbook.read.recipe`), whole: the copy a held part is compared with and
+ * reset from. `{}` where nothing was read, unless `replace` is set, which
+ * writes an empty copy so a repair's update (it merges objects, replaces
+ * arrays) clears one a former read left.
+ * @param {object[]} recipe the parts `readEcologyRecipe` returned
+ * @param {{replace?: boolean}} [options]
+ * @returns {{read?: {recipe: object[]}}}
  */
-export function retractRecipe(extras, held) {
-  if (extras?.encounter?.recipe?.length || !held?.encounter?.recipe?.length) return extras;
-  return { ...extras, encounter: { ...(extras?.encounter ?? {}), recipe: [] } };
+export function recipeReadStamp(recipe, { replace = false } = {}) {
+  const parts = Array.isArray(recipe) ? recipe : [];
+  if (!parts.length && !replace) return {};
+  return { read: { recipe: structuredClone(parts) } };
 }
 
 /**

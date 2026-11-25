@@ -15,8 +15,9 @@
 import assert from "node:assert/strict";
 import {
   readEcologyRecipe,
+  readEcologyRecipeWithSentences,
   attachRecipe,
-  retractRecipe,
+  recipeReadStamp,
   memberVariant,
   partKind,
   unitsIn,
@@ -53,7 +54,7 @@ const ENCOUNTER = {
 const read = (over = {}) => readEcologyRecipe({ combat: COMBAT, ecology: ECOLOGY, encounter: ENCOUNTER, variant: "zorb", cite: "XX p.1", ...over });
 const byKey = (recipe) => Object.fromEntries(recipe.map((p) => [p.key, p]));
 /** The fields a stored part carries, in the order the reader writes them. */
-const FIELDS = ["key", "label", "role", "source", "count", "chance", "when", "branch", "moraleWhileAlive", "cite", "basis"];
+const FIELDS = ["key", "origin", "label", "role", "source", "count", "chance", "when", "branch", "moraleWhileAlive", "cite", "basis"];
 
 let passed = 0;
 const check = (name, fn) => {
@@ -106,15 +107,15 @@ check("dependants: a share of the warriors per word, the rounding blank where th
 });
 
 check("village guard beasts: chance, dice, and the creature as printed, per clause", () => {
-  assert.equal(parts["guard-1"].role, "guard");
-  assert.deepEqual(parts["guard-1"].source, { uuid: "", templateCell: "", stat: "", name: "mossy blimps" });
-  assert.equal(parts["guard-1"].count.dice, "2d12");
-  assert.equal(parts["guard-1"].chance, 41);
-  assert.equal(parts["guard-2"].count.dice, "1d5+2");
-  assert.equal(parts["guard-2"].chance, 17);
-  assert.equal(parts["guard-2"].source.name, "tall zorbles");
-  assert.deepEqual(parts["guard-1"].when.units, ["village"]);
-  assert.equal(parts["guard-1"].branch.group, "");
+  assert.equal(parts["guard-mossy-blimps"].role, "guard");
+  assert.deepEqual(parts["guard-mossy-blimps"].source, { uuid: "", templateCell: "", stat: "", name: "mossy blimps" });
+  assert.equal(parts["guard-mossy-blimps"].count.dice, "2d12");
+  assert.equal(parts["guard-mossy-blimps"].chance, 41);
+  assert.equal(parts["guard-tall-zorbles"].count.dice, "1d5+2");
+  assert.equal(parts["guard-tall-zorbles"].chance, 17);
+  assert.equal(parts["guard-tall-zorbles"].source.name, "tall zorbles");
+  assert.deepEqual(parts["guard-mossy-blimps"].when.units, ["village"]);
+  assert.equal(parts["guard-mossy-blimps"].branch.group, "");
 });
 
 check("the chieftain's escort points at the Role cell it is equivalent to", () => {
@@ -176,26 +177,26 @@ check("'one' before a rank, an unspaced or welded rank word, and a rank in the p
 
 check("a second guard clause worded 'and a N% chance it will be guarded by'", () => {
   const r = byKey(read({ combat: [], ecology: ["There is a 22% chance a zorb village will be guarded by 2d5+1 mossy blimps and a 31% chance it will be guarded by 2d9 lank vores."] }));
-  assert.equal(r["guard-1"].chance, 22);
-  assert.equal(r["guard-2"].chance, 31);
-  assert.equal(r["guard-2"].count.dice, "2d9");
-  assert.equal(r["guard-2"].source.name, "lank vores");
+  assert.equal(r["guard-mossy-blimps"].chance, 22);
+  assert.equal(r["guard-lank-vores"].chance, 31);
+  assert.equal(r["guard-lank-vores"].count.dice, "2d9");
+  assert.equal(r["guard-lank-vores"].source.name, "lank vores");
 });
 
 check("beasts joined by 'or' share one chance and one branch group, with no band invented", () => {
   const r = byKey(read({ combat: [], ecology: ["There is a 64% chance a zorb village will be guarded by 3d7 lank vores or 2d3 pale jugs."] }));
-  assert.equal(r["guard-1"].chance, 64);
-  assert.equal(r["guard-2"].chance, 64);
-  assert.equal(r["guard-1"].branch.group, "guard-or-1");
-  assert.equal(r["guard-2"].branch.group, "guard-or-1");
-  assert.equal(r["guard-1"].branch.band, "");
-  assert.equal(r["guard-2"].source.name, "pale jugs");
+  assert.equal(r["guard-lank-vores"].chance, 64);
+  assert.equal(r["guard-pale-jugs"].chance, 64);
+  assert.equal(r["guard-lank-vores"].branch.group, "guard-or-1");
+  assert.equal(r["guard-pale-jugs"].branch.group, "guard-or-1");
+  assert.equal(r["guard-lank-vores"].branch.band, "");
+  assert.equal(r["guard-pale-jugs"].source.name, "pale jugs");
 });
 
 check("a clause that gives only a figure is a literal count", () => {
   const r = byKey(read({ combat: [], ecology: ["There is a 22% chance a zorb village will be guarded by 3 mossy blimps."] }));
-  assert.equal(r["guard-1"].count.literal, 3);
-  assert.equal(r["guard-1"].count.dice, "");
+  assert.equal(r["guard-mossy-blimps"].count.literal, 3);
+  assert.equal(r["guard-mossy-blimps"].count.dice, "");
 });
 
 check("a caster worded 'a N% chance to have a shaman present'", () => {
@@ -259,7 +260,7 @@ const MUTATIONS = [
   ["lair leader", LAIR, LAIR.replace("lair or village", "den or hamlet"), ["leader-chieftain"]],
   ["dependants", DEPENDANTS, DEPENDANTS.replace("of the number of warriors", "of the number of coins"), ["dependant-drudge", "dependant-whelp"]],
   ["escort", ESCORT, ESCORT.replace("will be defended by", "will be admired by"), ["chieftain-guard"]],
-  ["guard beasts", GUARD, GUARD.replace("will be guarded by", "will be admired by"), ["guard-1", "guard-2"]],
+  ["guard beasts", GUARD, GUARD.replace("will be guarded by", "will be admired by"), ["guard-mossy-blimps", "guard-tall-zorbles"]],
   ["captives", CAPTIVES, CAPTIVES.replace("per gang", "in a row"), ["captives"]],
   ["casters", CASTERS, CASTERS.replace(/chance of a shaman/, "chance of a sunrise").replace(/chance of a witch doctor/, "chance of a rainbow"), ["caster-shaman", "caster-witchDoctor"]],
 ];
@@ -296,24 +297,69 @@ check("attachRecipe leaves a creature with no parts as it is, and sets the list 
   assert.equal(attachRecipe({}, recipe).encounter.recipe, recipe);
 });
 
-check("retractRecipe writes an empty list only where the document holds parts and the build reads none", () => {
-  const built = { encounter: { lairChance: 10 } };
-  assert.deepEqual(retractRecipe(built, heldExtras).encounter, { lairChance: 10, recipe: [] });
-  assert.deepEqual(retractRecipe({}, heldExtras).encounter, { recipe: [] });
-  assert.equal(retractRecipe(built, { encounter: { recipe: [] } }), built);
-  assert.equal(retractRecipe(built, {}), built);
-  assert.equal(retractRecipe(built, undefined), built);
-  const read_ = { encounter: { recipe } };
-  assert.equal(retractRecipe(read_, heldExtras), read_);
-});
-
-check("a repair's update merges, so the stale parts stand without the empty list and go with it", () => {
+check("a repair whose build reads no recipe clears the parts the import wrote and keeps a part a hand changed", () => {
   const source = { type: "monster", system: {}, flags: { [MODULE]: { extras: heldExtras } } };
   const build = (extras) => ({ type: "monster", system: {}, flags: { [MODULE]: { extras } } });
-  const bare = refreshPlan(source, build({ encounter: { lairChance: 10 } }), REPAIR.monster);
-  assert.equal(bare.update.flags[MODULE].extras.encounter.recipe, undefined, "an update carrying no list leaves the stored one");
-  const cleared = refreshPlan(source, build(retractRecipe({ encounter: { lairChance: 10 } }, heldExtras)), REPAIR.monster);
-  assert.deepEqual(cleared.update.flags[MODULE].extras.encounter.recipe, []);
+  const cleared = refreshPlan(source, build({ encounter: { lairChance: 10 } }), REPAIR.monster);
+  assert.deepEqual(cleared.update.flags[MODULE].extras.encounter.recipe, [], "no list in the build, an empty one in the update");
+  assert.equal(cleared.update.flags[MODULE].extras.encounter.lairChance, 10);
+  const hand = { ...recipe[1], key: "_qa1", origin: "" };
+  const kept = refreshPlan({ ...source, flags: { [MODULE]: { extras: { encounter: { recipe: [...recipe, hand] } } } } }, build({ encounter: { lairChance: 10 } }), REPAIR.monster);
+  assert.deepEqual(kept.update.flags[MODULE].extras.encounter.recipe, [hand]);
+  const bare = refreshPlan({ ...source, flags: { [MODULE]: { extras: { encounter: {} } } } }, build({ encounter: { lairChance: 10 } }), REPAIR.monster);
+  assert.equal(bare.update.flags[MODULE].extras.encounter.recipe, undefined, "a document holding none gets no list written");
+});
+
+/* ---- origin, the sentence report, the guard keys and the read copy ---- */
+
+check("every part the reader writes carries the register origin", () => {
+  assert.ok(recipe.length > 0 && recipe.every((p) => p.origin === "register"));
+});
+
+check("the guard parts are keyed by the creature word as read, in whatever order the clauses come", () => {
+  const A = "There is a 41% chance a zorb village will be guarded by 2d12 mossy blimps.";
+  const B = "There is a 17% chance a zorb village will be guarded by 1d5+2 tall zorbles.";
+  const one = readEcologyRecipe({ combat: [], ecology: [`${A} ${B}`] }).filter((p) => p.role === "guard");
+  const two = readEcologyRecipe({ combat: [], ecology: [`${B} ${A}`] }).filter((p) => p.role === "guard");
+  assert.deepEqual(one.map((p) => p.key).sort(), ["guard-mossy-blimps", "guard-tall-zorbles"]);
+  assert.deepEqual(two.map((p) => p.key).sort(), ["guard-mossy-blimps", "guard-tall-zorbles"]);
+  const byWord = (list) => Object.fromEntries(list.map((p) => [p.source.name, p.key]));
+  assert.deepEqual(byWord(one), byWord(two), "a creature word keeps its key across the two reads");
+  assert.ok(!one.some((p) => p.key.startsWith("_")), "no key is the shape of a Judge's own row");
+});
+
+check("a creature word named twice keeps both parts, the second under a numbered suffix", () => {
+  const r = readEcologyRecipe({ combat: [], ecology: ["There is a 22% chance a zorb village will be guarded by 2d5 mossy blimps and a 31% chance it will be guarded by 1d3 mossy blimps."] }).filter((p) => p.role === "guard");
+  assert.deepEqual(r.map((p) => [p.key, p.chance]), [["guard-mossy-blimps", 22], ["guard-mossy-blimps-2", 31]]);
+});
+
+check("the sentence report names, for each part, the field, paragraph and sentence that stated it", () => {
+  const { parts, sentences } = readEcologyRecipeWithSentences({ combat: [SPLIT], ecology: ECOLOGY, encounter: ENCOUNTER, variant: "zorb", cite: "XX p.1" });
+  assert.deepEqual(parts, recipe, "the parts are the ones readEcologyRecipe returns");
+  assert.deepEqual(sentences.archers, [{ field: "combat", paragraph: 0, sentence: 0 }]);
+  assert.deepEqual(sentences["guard-mossy-blimps"], [{ field: "ecology", paragraph: 2, sentence: 2 }]);
+  assert.deepEqual(sentences["dependant-drudge"], [{ field: "ecology", paragraph: 1, sentence: 0 }]);
+  assert.equal(sentences["size-dungeon-lair"], undefined, "a part the encounter lines made names no sentence");
+  assert.deepEqual(sentences["leader-chieftain"], [{ field: "ecology", paragraph: 0, sentence: 2 }, { field: "ecology", paragraph: 0, sentence: 3 }],
+    "the sentence that made it, then the one that gave it its morale bonus");
+});
+
+check("a leader gaining a unit from a later sentence reports that sentence too", () => {
+  const { sentences } = readEcologyRecipeWithSentences({ combat: [], ecology: ["Each zorb gang will be led by one champion. Each zorb warband will be led by one champion."] });
+  assert.deepEqual(sentences["leader-champion"], [{ field: "ecology", paragraph: 0, sentence: 0 }, { field: "ecology", paragraph: 0, sentence: 1 }]);
+});
+
+check("no prose, no sentences", () => {
+  assert.deepEqual(readEcologyRecipeWithSentences({ combat: ["Nothing here is read."], ecology: [] }), { parts: [], sentences: {} });
+});
+
+check("the read copy is the recipe whole, kept apart from the parts, and an empty copy is written only on request", () => {
+  const stamp = recipeReadStamp(recipe);
+  assert.deepEqual(stamp, { read: { recipe } });
+  assert.notEqual(stamp.read.recipe, recipe, "a copy, so a later edit of the parts leaves it as read");
+  assert.notEqual(stamp.read.recipe[0], recipe[0]);
+  assert.deepEqual(recipeReadStamp([]), {});
+  assert.deepEqual(recipeReadStamp([], { replace: true }), { read: { recipe: [] } });
 });
 
 /* ---- the key the Role cells are filed under, on every path ---- */
@@ -356,6 +402,10 @@ check("a member's variant is found in the cookbooks it is declared in, and an en
   }
   assert.ok(f.when.options.units instanceof ArrayField, "the units are a list of words");
   assert.deepEqual(Object.keys(f.role.options.choices), Object.keys(RECIPE_ROLES));
+  assert.deepEqual(Object.keys(f.role.options.choices).slice(-2), ["mount", "beast"], "a mount and a beast are roles a part may take");
+  assert.deepEqual(f.role.options.choices.mount, "Mount");
+  assert.ok(Object.values(f.role.options.choices).every((label) => typeof label === "string" && label), "every role carries a label");
+  assert.ok(f.origin.options && "origin" in f, "a part declares its origin");
   assert.deepEqual(Object.keys(f.basis.options.choices), Object.keys(RECIPE_BASES));
   assert.deepEqual(Object.keys(f.count.options.round.options.choices), Object.keys(RECIPE_ROUNDS));
   assert.deepEqual(Object.keys(f.when.options.state.options.choices), Object.keys(RECIPE_STATES));

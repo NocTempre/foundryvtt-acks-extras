@@ -17,7 +17,7 @@ import {
 } from "../leader-roles.mjs";
 import { deriveLeader, importedLeaderProcedure } from "../../monsters/leader-derive.mjs";
 import { kitPresets, unionKitAxis } from "../kit-presets.mjs";
-import { readEcologyRecipe, attachRecipe, retractRecipe, memberVariant } from "../ecology-recipe.mjs";
+import { readEcologyRecipe, attachRecipe, recipeReadStamp, memberVariant } from "../ecology-recipe.mjs";
 import { importedKits } from "../../monsters/kits.mjs";
 import { importedOrganisation, ORGANISATION_AXES } from "../../monsters/organisation.mjs";
 import { orderAxes, organisationAxes, unionOrganisationAxes } from "../organisation-axes.mjs";
@@ -511,6 +511,8 @@ export function bindMonster(node) {
  * routed onto its fields plus the classification, senses and defenses block).
  * Shared by `importOne` and the family importer. The page reference closes the
  * last field in FIELD_ORDER that received text, so the creature carries it once.
+ * `recipe` is the parts the prose and encounter lines state, as read: the copy
+ * the cookbook stamp keeps (`recipeReadStamp`).
  */
 export function monsterProseChannels(node, id, cite, { variant = null } = {}) {
   const paras = node.fields.description ?? [];
@@ -532,8 +534,8 @@ export function monsterProseChannels(node, id, cite, { variant = null } = {}) {
   // A page that matched but yielded no prose still says where it was read from.
   if (!description[last]) description[last] = bookText([], cite, where);
   const built = { ...buildExtras(node), description };
-  const extras = attachRecipe(built, recipeOf(node, id, cite, built.encounter, variant));
-  return { biography: bookText(nodeParagraphs(node), cite, where), extras };
+  const recipe = recipeOf(node, id, cite, built.encounter, variant);
+  return { biography: bookText(nodeParagraphs(node), cite, where), extras: attachRecipe(built, recipe), recipe };
 }
 
 /**
@@ -1402,8 +1404,8 @@ export async function refillMonster(actor, { whole = false, force = false, repai
   await warmSpellPacksOnce();
   const { system, items, flags, prototypeToken } = bindMonster(node);
   if (whole) {
-    // A recipe the page no longer yields is written empty, or the update's merge keeps the old parts.
-    const extras = retractRecipe(monsterProseChannels(node, id, found.entry.cite).extras, actor.getFlag(MODULE_ID, "extras"));
+    // The recipe merges by origin (`REPAIR.monster`): a part the page no longer yields goes, a part a hand changed stays.
+    const { extras, recipe } = monsterProseChannels(node, id, found.entry.cite);
     const typed = primaryTypeOf(node);
     const plan = await repairWrite(
       actor,
@@ -1414,7 +1416,8 @@ export async function refillMonster(actor, { whole = false, force = false, repai
         items,
         flags: {
           [MODULE_ID]: {
-            cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}) },
+            // The recipe as read is stored whole, an empty copy where the page yields none, so a copy an earlier read left does not stand.
+            cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}), ...recipeReadStamp(recipe, { replace: true }) },
             // Written either way, so a stale "no morale" does not outlive a corrected read.
             moraleNA: !!flags?.[MODULE_ID]?.moraleNA,
             extras,

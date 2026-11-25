@@ -6,6 +6,7 @@ import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { entryText, sumsUpdate } from "../prose.mjs";
 import { playStamp } from "../held-edits.mjs";
 import { printedNameOf } from "../printed-name.mjs";
+import { recipeReadStamp } from "../ecology-recipe.mjs";
 import { BOOKS } from "../books.mjs";
 import { executeEntry, convertName } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
@@ -87,7 +88,7 @@ export async function importOne(bookId, id, folderId) {
 
   // Prose routes to the Full Monster Sheet's extras flag, never to
   // system.details.biography.
-  const { extras } = monsterProseChannels(node, id, found.entry.cite);
+  const { extras, recipe } = monsterProseChannels(node, id, found.entry.cite);
 
   // FILE IT NOW: the stat block's type decides the destination, and nothing
   // afterwards does.
@@ -115,7 +116,8 @@ export async function importOne(bookId, id, folderId) {
       // filed by it, and one with no extras has nothing else to group on.
       [MODULE_ID]: {
         ...((flags ?? {})[MODULE_ID] ?? {}),
-        cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}) },
+        // The recipe as read is stored whole beside the parts a hand may change.
+        cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}), ...recipeReadStamp(recipe) },
         extras,
       },
     },

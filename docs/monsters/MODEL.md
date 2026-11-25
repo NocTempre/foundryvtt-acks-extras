@@ -70,10 +70,22 @@ The evaluator that rolls a recipe into a tree of units is "The organisation
 roll", below; the Judge's editor for it is a later slice
 (`docs/monsters/wip/20261124-beastman-organisation-plan.md`, S4b).
 
-A part carries `key`, `label` (the word as printed), `role`, `source`, `count`,
-`chance` (percent; null for always), `when`, `branch`, `moraleWhileAlive`,
-`cite` (the page) and `basis`.
+A part carries `key`, `origin`, `label` (the word as printed), `role`,
+`source`, `count`, `chance` (percent; null for always), `when`, `branch`,
+`moraleWhileAlive`, `cite` (the page) and `basis`.
 
+- `origin` is `register` on a part the importer wrote and blank once a hand has
+  changed it. A repair rewrites the first and holds the second
+  (`docs/importer/MODEL.md`, "A monster's recipe parts ride the same per-row
+  mechanism"); the recipe as read is stored whole in `cookbook.read.recipe`.
+- `role` is one of `RECIPE_ROLES` (`config.mjs`, each with a label): the eight
+  the reader writes (`body`, `unit`, `leader`, `young`, `dependant`, `guard`,
+  `captive`, `caster`) and the two a Judge adds, `mount` and `beast`. A `mount`
+  or `beast` part names its creature by `source.uuid`, the link to that
+  creature's own imported entry, whose figures and recipe are read there and
+  never copied in. The roll treats both as parts that are no body: one stack
+  each, unridden and uncounted in any share of bodies; with no link the stack is
+  labelled by the part's label.
 - `source` is the creature the part is made of: `templateCell` names a Role
   cell of the family template (`variant|role`, never a copy of its figures),
   `name` a creature as printed, and `uuid` and `stat` are for a Judge's own
@@ -97,7 +109,7 @@ A part carries `key`, `label` (the word as printed), `role`, `source`, `count`,
 | `archers`, `warriors` | `body` | each share (`ratioOf: unit`) of the gangs or warbands the sentence names, in whole units, with its printed rounding |
 | `leader-<role>` | `leader` | the rank that leads each unit and how many; the chieftain's part carries `moraleWhileAlive`, the printed bonus while that rank lives |
 | `dependant-drudge`, `dependant-whelp` | `dependant` | each share of the warriors; the rounding stays blank where the page prints none |
-| `guard-<n>` | `guard` | a village guard's chance, dice and creature; beasts joined by "or" share one `branch.group` |
+| `guard-<creature word>` | `guard` | a village guard's chance, dice and creature, the key made from the creature word as printed (a numbered suffix where the same word is named again); beasts joined by "or" share one `branch.group` |
 | `chieftain-guard` | `guard` | the chieftain's escort, pointing at the Role cell the page says it is equivalent to |
 | `captives` | `captive` | chance and dice per unit |
 | `caster-shaman`, `caster-witchDoctor` | `caster` | each caster's chance, pointing at the Role cell that holds its level die |
@@ -109,10 +121,13 @@ size parts join only a recipe the prose started. A morale sentence with no
 leader part to carry it adds nothing. Any creature whose pages state the same
 structures gets the same read, so the recipe is not limited to one family.
 
-A whole repair writes the recipe it reads. Where the page no longer yields one
-and the document holds parts, the build writes an empty list, since an update
-merges and would otherwise leave the old parts standing (`retractRecipe`). A
-refill that rewrites only the stat leaves does not touch it. The extras schema
+A whole repair merges the recipe it reads by origin: the parts the import
+wrote are rewritten or dropped as the page now reads, and a part a hand changed
+or a Judge added stays. A refill that rewrites only the stat leaves does not
+touch it. `readEcologyRecipeWithSentences` returns the parts beside a
+`sentences` map (part key to the `{field, paragraph, sentence}` of each
+sentence that stated it) for a surface that marks the prose read and unread;
+`readEcologyRecipe` is its parts alone. The extras schema
 declares the field, so a sheet submit keeps the parts it does not render.
 `tools/importer/check-ecology-recipe.mjs` reads the local Monstrous Manual
 through the importer's path and reports the parts read per breed.
