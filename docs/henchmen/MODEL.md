@@ -724,12 +724,36 @@ is the recommended UI; fallback "Advance 1 week" buttons are gated by lib's
 world-clock policy ([../lib/MODEL.md](../lib/MODEL.md)), the same switch dungeon
 turns obey, and say so in a notice rather than doing nothing when it is off.
 
+## 5b. Who serves whom
+
+`engine/service-tree.mjs` reads the service pointers once for every surface that
+shows them. `hirelingBuckets(employer)` is the Followers tab's and the
+Hirelings grid's gathering: core's `getHirelings` resolved to live actors (it
+returns snapshots), the monsters on the roster flag after the henchmen, then
+the mercenaries and specialists. `hiredUnitsOf(employer)` is the group actors
+whose `unit.employerUuid` names the employer, which the payroll reads as well. The tab draws a card for each hireling and none for a unit.
+
+`serviceNodes(employer)` reduces both to lib's organisation node
+(`{key, parentKey, label, holderUuid, kind}`, docs/lib/ORGANISATION.md), so
+`org-tree-logic.mjs`'s `orgChartView` draws the tree with no henchmen-specific
+code. The employer is the root. Under each actor stand its hired units, then its
+hirelings in the tab's order, and each hireling is an employer in turn, so a
+henchman's own henchmen nest beneath them. A unit's officer stands once, under
+the unit it leads, even when the roster holds them too. `key` and `holderUuid`
+are the actor's or group's uuid; `kind` is the category the data carries
+(`retainer.category`, `unit.category`), blank at the root. A holder met a second
+time is skipped, so a chain that loops ends. It reads and writes nothing: no
+employer pointer is added to any actor, and a generated monster never gains one.
+It is on the API as `serviceNodes`; lib's views take their rows from a host's
+`units` and have no supplier for it, so a surface passes the nodes to
+`orgChartView` itself.
+
 ## 6. Public API & hooks
 
 `game.modules.get("acks-extras").api.henchmen` (mirrored to `globalThis.acksExtras.henchmen`):
 apps (`openPostingDialog`, `openRecruitDialog`, `openThrowDialog`…), engine
 (`createPosting`, `processLocation`, `processAllLocations`, `hire`,
-`checkHenchmanLimit`, candidate rollers, `payWagesFor`, `wageBill`,
+`checkHenchmanLimit`, candidate rollers, `payWagesFor`, `wageBill`, `serviceNodes`,
 `payOwedSigningBonus`, `forgiveSigningBonus`),
 `getRecord(actor)`, pure `rules.*`, `tables`, `adapter`, `effects`, `time`.
 

@@ -23,6 +23,7 @@ import {
 import { optCite, optOrigin } from "../rules/tables.mjs";
 import { henchmanWage, mercenaryWage, levelMoraleBumps } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
+import { hiredUnitsOf } from "./service-tree.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag, unvaluedDialogModifiers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
@@ -399,9 +400,6 @@ export async function recordCalamity(actor, note = "") {
 const rosterOf = (employer) =>
   [...adapter.getHenchmenIds(employer), ...(employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])].map((id) => game.actors.get(id)).filter(Boolean);
 
-/** The units an employer pays: the group actors whose `unit.employerUuid` names it. */
-const unitsOf = (employer) => game.actors.filter((a) => a.type === GROUP_TYPE && a.system?.unit?.employerUuid === employer.uuid);
-
 /**
  * The roster entries an employer pays a wage to, each with its record and
  * what a month of it costs. RAW: the FULL monthly wage (RR 168) — the agreed
@@ -464,7 +462,7 @@ function groupMonthlyWage(group) {
  *  it costs no PC henchman-cap slot. */
 function dueGroups(employer, currentTime) {
   const due = [];
-  for (const group of unitsOf(employer)) {
+  for (const group of hiredUnitsOf(employer)) {
     const monthly = groupMonthlyWage(group);
     if (monthly <= 0) continue;
     const pay = group.getFlag(MODULE_ID, FLAG_GROUP_PAY) ?? {};
@@ -490,7 +488,7 @@ function nextDueOf(employer, currentTime) {
   const month = secondsPerMonth();
   const clocks = [
     ...wagedOf(employer).map(({ record }) => record.terms?.lastPaidTime ?? record.hiredTime),
-    ...unitsOf(employer)
+    ...hiredUnitsOf(employer)
       .filter((group) => groupMonthlyWage(group) > 0)
       .map((group) => group.getFlag(MODULE_ID, FLAG_GROUP_PAY)?.lastPaidTime),
   ].filter((last) => last != null);
@@ -509,7 +507,7 @@ function nextDueOf(employer, currentTime) {
  */
 export function wageBill(employer, currentTime = now()) {
   const due = dueOf(employer, currentTime);
-  const monthly = wagedOf(employer).reduce((s, w) => s + w.monthly, 0) + unitsOf(employer).reduce((s, g) => s + groupMonthlyWage(g), 0);
+  const monthly = wagedOf(employer).reduce((s, w) => s + w.monthly, 0) + hiredUnitsOf(employer).reduce((s, g) => s + groupMonthlyWage(g), 0);
   return { due: due.reduce((s, d) => s + d.amount, 0), count: due.length, monthly, nextDue: nextDueOf(employer, currentTime) };
 }
 
@@ -548,7 +546,7 @@ export async function enrollNewcomers(employer, currentTime = now()) {
     await HenchmanRecord.logEvent(actor, { type: "adopted" });
     console.log(`${MODULE_ID} | adopted pre-existing hireling "${actor.name}" — wage clock starts now.`);
   }
-  for (const group of unitsOf(employer)) {
+  for (const group of hiredUnitsOf(employer)) {
     const pay = group.getFlag(MODULE_ID, FLAG_GROUP_PAY) ?? {};
     if (pay.lastPaidTime != null) continue;
     await group.setFlag(MODULE_ID, FLAG_GROUP_PAY, { ...pay, lastPaidTime: currentTime, arrearsGp: pay.arrearsGp ?? 0 });
@@ -565,7 +563,7 @@ export function allEmployers() {
       !a.system?.retainer?.enabled &&
       (a.system?.henchmenList?.length ||
         (a.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? []).length ||
-        (anyGroups && unitsOf(a).length)),
+        (anyGroups && hiredUnitsOf(a).length)),
   );
 }
 
@@ -607,7 +605,7 @@ export async function forgiveWageDebts(employer) {
     summary.arrearsGp += arrears;
     summary.calamities += forgiven;
   }
-  for (const group of unitsOf(employer)) {
+  for (const group of hiredUnitsOf(employer)) {
     const pay = group.getFlag(MODULE_ID, FLAG_GROUP_PAY) ?? {};
     const arrears = Number(pay.arrearsGp ?? 0);
     if (!arrears) continue;
@@ -619,7 +617,7 @@ export async function forgiveWageDebts(employer) {
 }
 
 /** The documents a payday writes besides the employer: each managed hireling and each paid unit. */
-const payrollOf = (employer) => [...rosterOf(employer).filter((a) => adapter.isRetainer(a)), ...unitsOf(employer)];
+const payrollOf = (employer) => [...rosterOf(employer).filter((a) => adapter.isRetainer(a)), ...hiredUnitsOf(employer)];
 
 /**
  * Tell this seat's user what a payday did. One handed to no GM has already

@@ -18,6 +18,7 @@
  */
 import { MODULE_ID, FLAG_MONSTER_LIST, HOOKS } from "../constants.mjs";
 import { openLoyaltyRoll } from "../engine/events.mjs";
+import { hirelingBuckets } from "../engine/service-tree.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -43,18 +44,11 @@ async function gridifyHirelings(app, element) {
   // Core's getHirelings returns `foundry.utils.duplicate()` snapshots, not live
   // actors — no Item collection, no prepared derived data. Resolve each back to
   // its document or a card shows AC 0 and an unarmed attack list.
-  const live = (h) => game.actors.get(h?._id ?? h?.id) ?? null;
-  const rawBuckets = employer.getHirelings?.() ?? {};
-  const buckets = Object.fromEntries(
-    Object.entries(rawBuckets).map(([k, list]) => [k, (list ?? []).map(live).filter(Boolean)]),
-  );
-  const monsters = (employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])
-    .map((id) => game.actors.get(id))
-    .filter((a) => a && a.type === ACTOR_TYPE.monster);
+  const buckets = hirelingBuckets(employer);
   const groups = [
-    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: [...(buckets.henchman ?? []), ...monsters] },
-    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenary ?? [] },
-    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.specialists"), list: buckets.specialist ?? [] },
+    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: buckets.henchmen },
+    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenaries },
+    { title: game.i18n.localize("ACKS-HENCHMEN.bucket.specialists"), list: buckets.specialists },
   ].filter((g) => g.list.length);
   if (!groups.length) return; // nothing to show — leave core's own empty state
 

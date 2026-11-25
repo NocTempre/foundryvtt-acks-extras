@@ -38,6 +38,7 @@ import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
 
 import { registerEventEngine, installWagePayment, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, wageBill, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
+import { serviceNodes } from "./engine/service-tree.mjs";
 import { elementOf, findActor, ownsSheet, primaryGMSettled } from "../lib/util.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
 import { recruitMonster, hireMonster, validateMonsterRecruit } from "./engine/monster.mjs";
@@ -147,6 +148,8 @@ Hooks.once("setup", async () => {
     allEmployers,
     effectiveLoyaltyFor,
     effectiveMoraleFor,
+    // who serves whom, as lib's organisation nodes
+    serviceNodes,
     // monsters, followers, integrations
     recruitMonster,
     hireMonster,

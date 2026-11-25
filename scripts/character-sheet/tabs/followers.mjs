@@ -10,8 +10,8 @@
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { renderFollowerCard } from "../../lib/follower-card.mjs";
-import { FLAG_MONSTER_LIST } from "../../henchmen/constants.mjs";
 import { wageBill } from "../../henchmen/engine/events.mjs";
+import { hirelingBuckets } from "../../henchmen/engine/service-tree.mjs";
 import { daysUntil } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
@@ -29,17 +29,11 @@ export function wageLineKey(actor) {
 
 /** Build the tab's data (async: the cards render through a template). */
 export async function buildFollowersTab(actor) {
-  // Core's getHirelings returns duplicated snapshots; resolve each to its live document.
-  const live = (h) => game.actors.get(h?._id ?? h?.id) ?? null;
-  const raw = actor.getHirelings?.() ?? {};
-  const buckets = Object.fromEntries(Object.entries(raw).map(([k, list]) => [k, (list ?? []).map(live).filter(Boolean)]));
-  const monsters = (actor.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])
-    .map((id) => game.actors.get(id))
-    .filter((a) => a && a.type === ACTOR_TYPE.monster);
+  const buckets = hirelingBuckets(actor);
   const defs = [
-    { key: "henchmen", title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: [...(buckets.henchman ?? []), ...monsters] },
-    { key: "mercenaries", title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenary ?? [] },
-    { key: "specialists", title: game.i18n.localize("ACKS-HENCHMEN.bucket.specialists"), list: buckets.specialist ?? [] },
+    { key: "henchmen", title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: buckets.henchmen },
+    { key: "mercenaries", title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenaries },
+    { key: "specialists", title: game.i18n.localize("ACKS-HENCHMEN.bucket.specialists"), list: buckets.specialists },
   ].filter((g) => g.list.length);
 
   const groups = [];

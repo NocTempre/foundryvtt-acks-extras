@@ -152,8 +152,9 @@ means for a faction, who reads it and how its headcount counts is
 
 The Roll that fills an empty row, the plans that make groups and stacks from a
 recipe (`lib/org-write-logic.mjs`), Delete, the sheets that draw the two views,
-the gestures for join, leave and "make its own", and henchmen's `serviceNodes`
-(which feeds the same nodes) are later slices.
+and the gestures for join, leave and "make its own" are later slices. A character's
+service tree reaches the same nodes through henchmen's `serviceNodes`
+([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom").
 
 ## Verification
 
