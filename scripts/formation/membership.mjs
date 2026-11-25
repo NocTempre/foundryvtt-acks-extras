@@ -14,7 +14,7 @@ import { MODULE_ID, FLAG_FORMATION_ID, PARTY_TYPE } from "./constants.mjs";
 import { addSummonMembers, addSummonStashes, getFormation, getFormations, getMemberActor, getPartyToken, isPerson, isSummonMember } from "./formation-model.mjs";
 import { isGroupActor } from "../lib/group-logic.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
-import { summonOfData } from "../lib/summons-logic.mjs";
+import { summonOfData, summonRecordOf } from "../lib/summons-logic.mjs";
 
 /** Can this actor stand in a party at all? A party cannot, and a marker's body marks a place. */
 export const canMarch = (actor) => !!actor && actor.type !== PARTY_TYPE && !isMarkerActor(actor);
@@ -175,11 +175,11 @@ const heldByAMember = (token) =>
   Object.values(getFormations()).some((f) => f.members.some((m) => m?.deployedTokenId === token.id && m.deployedSceneId === token.parent?.id));
 
 /**
- * Does a cast record let its creature be gathered: one whose control ended
- * hostile (the record's `lost`, stamped by lib's `controlEndPlan`) has turned
- * on the party and never joins; one whose control ended and stays still does.
+ * May this summoned creature's token be gathered: one whose control ended
+ * hostile (its record's `lost`, read through lib's `summonRecordOf`) has turned
+ * on the party and never joins; one stamped `stays`, or not stamped, does.
  */
-const gatherable = (summon) => !!summon && summon.lost !== "hostile";
+const gatherable = (token) => summonRecordOf(token.actor)?.lost !== "hostile";
 
 /**
  * Bring the summoned creatures of these summoners into a party as members.
@@ -205,7 +205,7 @@ export function gatherSummons(formation, summonerIds) {
   if (!scene || !summoners.size) return Promise.resolve(0);
   const tokens = scene.tokens.filter((token) => {
     const { summonedBy, summon } = summonOfData(token.toObject());
-    return gatherable(summon) && summoners.has(summonedBy) && !claimed.has(claimKey(token)) && !heldByAMember(token);
+    return summon && gatherable(token) && summoners.has(summonedBy) && !claimed.has(claimKey(token)) && !heldByAMember(token);
   });
   if (!tokens.length) return Promise.resolve(0);
   for (const token of tokens) claimed.add(claimKey(token));
@@ -215,7 +215,7 @@ export function gatherSummons(formation, summonerIds) {
     const still = fresh ? gatheringSummoners(fresh, summonerIds ?? []) : new Set();
     const joining = tokens.filter((token) => {
       const { summonedBy, summon } = summonOfData(token.toObject());
-      return gatherable(summon) && still.has(summonedBy);
+      return summon && gatherable(token) && still.has(summonedBy);
     });
     if (!joining.length) return 0;
     await addSummonMembers(id, joining, formation);

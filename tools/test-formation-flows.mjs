@@ -7515,6 +7515,8 @@ await scenario("summon joining: a creature whose control ended hostile is left o
   const hostile = await rig.wolf(rig.caster, "c1", 1200);
   const stays = await rig.wolf(rig.caster, "c1", 1300);
   const stamp = (token, lost) => token.update({ [`delta.flags.${MODULE_ID}.summon.lost`]: lost });
+  // Core hands an unlinked token a synthetic actor whose flags are its delta's; the mock hands the copy, so these two read their own.
+  for (const token of [hostile, stays]) Object.defineProperty(token, "actor", { get: () => ({ id: token.actorId, getFlag: (ns, key) => token.delta?.flags?.[ns]?.[key] }) });
   await stamp(hostile, "hostile");
   await stamp(stays, "stays");
   assert.equal(hostile.toObject().delta.flags[MODULE_ID].summon.lost, "hostile", "the stamp is where lib writes it");
