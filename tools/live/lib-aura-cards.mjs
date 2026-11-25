@@ -1584,6 +1584,11 @@ try {
     if (gm) {
       const claimed = await gmRun(P.claim, { itemUuids: Object.values(I).map((i) => i.uuid), aliases: Object.values(ROLES).map((r) => r.name), names: [...new Set(Object.values(ITEMS).map((s) => s.name))] });
       for (const u of claimed) disposables.push(gm.track(u, "ChatMessage"));
+      // The Player page records the cards it posted itself; the GM seat deletes them by those ids.
+      if (pl) {
+        const posted = await plRun(P.claim, { itemUuids: Object.values(I).map((i) => i.uuid), aliases: Object.values(ROLES).map((r) => r.name), names: [...new Set(Object.values(ITEMS).map((s) => s.name))] });
+        for (const u of posted) if (!claimed.includes(u)) disposables.push(gm.track(u, "ChatMessage"));
+      }
       const left = [];
       for (const scene of [SC.main, SC.hex, SC.gridless].filter(Boolean)) left.push(...(await gmRun(P.regions, { sceneUuid: scene })).map((r) => r.uuid));
       for (const u of left) disposables.push(gm.track(u, "Region"));
