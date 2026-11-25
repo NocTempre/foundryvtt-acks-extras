@@ -10,10 +10,16 @@
  */
 import { getDoc, hasDoc, bracketRow } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";
-import { TURNS_PER_HOUR } from "./constants.mjs";
+import { turnsPerHour } from "../lib/time-unit.mjs";
 
 /** The registered document these derivations read. */
 export const SEARCHING_DOC = "searching";
+
+/** A count of turns as hours, or null where the turns to an hour are not imported. */
+function hourShare(turns) {
+  const perHour = turnsPerHour();
+  return perHour == null ? null : turns / perHour;
+}
 
 /**
  * What a party can be looking for. All three take the same throw; they differ
@@ -135,7 +141,7 @@ export function searchSpec({
 
   return {
     ok: true, target, modifier, parts, subject, mode, notes,
-    turnsPerThrow, costsHours: turnsPerThrow / TURNS_PER_HOUR, owesEncounterThrow: true,
+    turnsPerThrow, costsHours: hourShare(turnsPerThrow), owesEncounterThrow: true,
   };
 }
 

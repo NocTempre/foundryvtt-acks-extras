@@ -38,6 +38,7 @@ const { saveGoverns } = await import("../scripts/magic/cast-rows.mjs");
 const { writesRecipientRecord } = await import("../scripts/magic/cast-spell.mjs");
 const { levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { sizeRank, sizeKeyOf, rankOfSize } = await import("../scripts/lib/actor-read.mjs");
+const { registerInventedTime, INVENTED_TURN_SECONDS } = await import("./time-unit-fixture.mjs");
 const { rollResist, buildTargets, castSpellRun, castGateExtrasOf } = await import("../scripts/magic/cast-spell.mjs");
 const { castCardView } = await import("../scripts/magic/cast-card.mjs");
 const { checkApplyRequest, applyOnTarget } = await import("../scripts/magic/cast-apply.mjs");
@@ -699,7 +700,8 @@ await ta("the cast's card takes the reverse's own duration in the reversed mode 
     assert.equal(out.ok, true);
     return r.calls.posts[0];
   };
-  assert.deepEqual((await cardOf("normal")).duration, { value: 1800, units: "seconds" });
+  registerInventedTime();
+  assert.deepEqual((await cardOf("normal")).duration, { value: 3 * INVENTED_TURN_SECONDS, units: "seconds" });
   assert.deepEqual((await cardOf("reversed")).duration, { value: 2, units: "rounds" });
   assert.equal(writesRecipientRecord({ type: "ignite", lasts: "followingTurn", appliesTo: "target" }), true);
   assert.equal(writesRecipientRecord({ type: "ignite", lasts: "instant", appliesTo: "target" }), false);

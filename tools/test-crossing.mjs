@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
+import { INVENTED_TIME, registerInventedTime, removeInventedTime } from "./time-unit-fixture.mjs";
 import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/obstacles.mjs";
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
@@ -42,6 +43,7 @@ const PACES = { climbPacePenalties: [3, 8], crawlPacePenalties: [4, 9], balanceP
 
 const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING, fall = FALL, pace = null } = {}) => {
   resetTables();
+  registerInventedTime();
   registerTable(
     {
       id: FORMATION_DOC,
@@ -1291,7 +1293,11 @@ await ok("stretchFeetAt: the stretch, then what is left of the length from the s
 
 await ok("pressRate: the base pace moves at the exploration branch, a faster pace at its own cell, each way of crossing from its own table", () => {
   withProgress();
-  assert.deepEqual(pressRate({ kind: "sheerClimb", speeds: SPEEDS }), { share: 1, speed: "exploration", perRound: 9 }, "exploration is per turn, so ten rounds divide it");
+  assert.deepEqual(pressRate({ kind: "sheerClimb", speeds: SPEEDS }), { share: 1, speed: "exploration", perRound: SPEEDS.exploration / INVENTED_TIME.roundsPerTurn }, "exploration is per turn, so the imported rounds to a turn divide it");
+  removeInventedTime();
+  assert.equal(pressRate({ kind: "sheerClimb", speeds: SPEEDS }), null, "with the rounds to a turn not imported an exploration rate is unknown");
+  assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "faster", speeds: SPEEDS }), { share: 3 / 13, speed: "combat", perRound: (3 / 13) * 30 }, "while a rate on a per-round speed stands");
+  registerInventedTime();
   assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "faster", speeds: SPEEDS }), { share: 3 / 13, speed: "combat", perRound: (3 / 13) * 30 });
   assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "fastest", speeds: SPEEDS }), { share: 5 / 11, speed: "combat", perRound: (5 / 11) * 30 });
   assert.deepEqual(pressRate({ kind: "crawl", pace: "faster", speeds: SPEEDS }), { share: 3 / 7, speed: "run", perRound: (3 / 7) * 60 }, "the crawl's table, not the climb's");
@@ -1334,9 +1340,10 @@ await ok("pressRounds: a made stretch is its feet over the rate, the last stretc
   withProgress();
   const made = { success: true, outcome: "progress" };
   const at = (before, covered = before + 1, extra = {}) => pressRounds({ kind: "sheerClimb", speeds: SPEEDS, length: 100, read: made, ...stepFrom(before, "climbing", covered), ...extra });
-  assert.equal(at(0).rounds, 40 / 9);
-  assert.deepEqual(at(0).part, { rounds: 40 / 9, feet: 40, share: 1, speed: "exploration" });
-  assert.equal(at(2, 3, {}).rounds, 20 / 9, "the stretch left, from the stretches covered before the throw");
+  const perRound = SPEEDS.exploration / INVENTED_TIME.roundsPerTurn;
+  assert.equal(at(0).rounds, 40 / perRound);
+  assert.deepEqual(at(0).part, { rounds: 40 / perRound, feet: 40, share: 1, speed: "exploration" });
+  assert.equal(at(2, 3, {}).rounds, 20 / perRound, "the stretch left, from the stretches covered before the throw");
   assert.equal(at(0, 1, { pace: "fastest" }).rounds, 40 / ((5 / 11) * 30));
   const fell = pressRounds({ kind: "sheerClimb", speeds: SPEEDS, length: 100, read: { success: false, outcome: { falls: true, text: "x", rounds: 4 } }, ...stepFrom(1, "fell", 1) });
   assert.deepEqual(fell, { rounds: 0, part: null }, "a fall spends none, whatever duration its outcome carries");

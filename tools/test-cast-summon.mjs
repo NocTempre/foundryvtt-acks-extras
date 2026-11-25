@@ -40,6 +40,9 @@ const { ANSWER_FIELDS, answerStored, answerFromPending } = await import("../scri
 const { registerCastProcedure } = await import("../scripts/magic/cast-procedure.mjs");
 const { heldRecordData, endHeldCast, heldEndContent, pressDismiss } = await import("../scripts/magic/cast-held.mjs");
 const { castDuration } = await import("../scripts/magic/cast-duration.mjs");
+const { registerInventedTime } = await import("./time-unit-fixture.mjs");
+// A duration counted in turns is priced in the imported turn's seconds.
+registerInventedTime();
 const { stepOf } = await import("../scripts/magic/cast-kinds.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { sweepEndedCasts } = await import("../scripts/magic/cast-expiry.mjs");

@@ -253,7 +253,10 @@ const speedOf = (id) => {
 const { buildStripView, buildWarnings, buildFormationView, buildGMExtras, buildPlayerPanel } =
   await import("../scripts/formation/formation-view.mjs");
 const { dayBudget } = await import("../scripts/formation/travel.mjs");
-const { ROUNDS_PER_TURN } = await import("../scripts/formation/constants.mjs");
+const { INVENTED_TIME, registerInventedTime, removeInventedTime } = await import("./time-unit-fixture.mjs");
+/** The invented rounds to a turn the strip reads from the registry. */
+const ROUNDS_PER_TURN = INVENTED_TIME.roundsPerTurn;
+registerInventedTime();
 const { unregisterTable } = await import("../scripts/lib/tables.mjs");
 
 const tenths = (n) => Math.round(n * 10) / 10;
@@ -389,6 +392,14 @@ const stripOf = (id) => {
   registerTable({ id: "formation", tables: { restInterval: INVENTED_REST } }, { priority: PRIORITY.OVERRIDE, source: "test" });
   assert.match(stripOf(delve).delve.tips.rest, /strip.tip.rest [^]*cite[^]*lightJudgeTable/, "a limit the Judge set by hand is credited to the Judge's table, not a page");
   unregisterTable("formation");
+
+  // Nothing imported: no denominator, no elapsed time, and the tips name only the turns and the page.
+  const blank = stripOf(delve).delve;
+  assert.equal(blank.roundsPerTurn, null, "no rounds to a turn is shown");
+  assert.equal(blank.elapsed, null, "and no elapsed time");
+  assert.match(blank.tips.elapsed, /strip.tip.elapsedTurns [^]*"turns":12[^]*refExploration/, "the tip names the turns and the page alone");
+  assert.doesNotMatch(blank.tips.carry, /strip.tip.carry /, "and no round's feet");
+  registerInventedTime();
 
   settings.formations[delve].clock.pausedBy = "judge";
   settings.formations[delve].clock.paused = false;

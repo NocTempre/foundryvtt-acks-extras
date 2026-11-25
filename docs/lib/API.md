@@ -1,4 +1,4 @@
-# lib API (apiVersion 68)
+# lib API (apiVersion 69)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 68,
+  apiVersion: 69,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -798,6 +798,21 @@ read from, null where it is the Judge's own. The importer reads both ([docs/lib/
 ## `capacity` — what a document can hold and is holding (apiVersion 47)
 
 `capacity6`, `load6`, `overCapacity`, `capacityStone` and `loadStone` answer for a character, a monster or mount and a container item. A man-sized body's weight is imported (`capacity` ruledata document, table `riderBody`, RR p. 161), so `riderBody6()`, `borneBy6(actor)` (body plus kit) and, for a mount bearing such a rider, `load6` and `loadStone` answer **null** where the weight is unknown; `overCapacity` reads a null load as not over. `bodyWeight6(actor)` is one body, `statedBodyStone(actor)` the creature's own stated weight, `riderBodySource()` and `riderBodyTip(actor)` say where the figure came from. `RIDER_BODY6` is gone. See [MODEL](MODEL.md), "Capacity".
+
+## `timeUnit` — the dungeon turn and the round (apiVersion 69)
+
+`TURN_SECONDS` and `ROUNDS_PER_TURN` are gone from `constants`: both are
+printed (RR p. 263) and arrive through the importer in the `formation` ruledata
+document, tables `roundsPerTurn` and `turnsPerHour` (`ROUNDS_TABLE`,
+`PER_HOUR_TABLE`; `declareTimeTables()` registers the expectation).
+`roundsPerTurn()` and `turnsPerHour()` return a whole number or null;
+`turnSeconds()` (the hour, `SECONDS_PER_HOUR`, over the turns it holds),
+`roundSeconds()` and `turnsPerDay()` (`HOURS_PER_DAY` to a day) derive from
+them and are null where an input is. `timeUnitCite()` is the page, null for a
+Judge's override. A caller tests `== null` before it multiplies or divides: a
+null in arithmetic is a zero or an infinity, not a failure. A consumer
+converting rounds to world seconds reads `roundSeconds()` at the time it
+converts.
 
 ## `movementScales` — the expedition figures
 

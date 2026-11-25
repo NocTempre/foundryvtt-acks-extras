@@ -26,6 +26,8 @@ globalThis.Roll = class {
 
 const { keyedRows, rowsOf, rowKeyOf, rowsForMode, pickGroups, optionTokenOf, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows, damageOfRow, resistedDamage } = await import("../scripts/magic/cast-rows.mjs");
 const Tables = await import("../scripts/lib/tables.mjs");
+const { INVENTED_TURN_SECONDS, registerInventedTime } = await import("./time-unit-fixture.mjs");
+registerInventedTime();
 const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { castCapacity, traditionFor, spendsFromPool } = await import("../scripts/magic/cast-capacity.mjs");
@@ -1333,7 +1335,7 @@ t("a concentration answers its kind held, a maximum its cap and a plus shape its
   assert.equal(castDuration({ ...blank, shape: "concentration", concentration: "stationary" }).held, "stationary");
   assert.deepEqual(castDuration({ ...blank, shape: "concentrationMax", concentration: "mobile", value: 3, unit: "rounds" }).cap, { value: 3, units: "rounds" }, "a flat maximum needs no level");
   const perLevel = { ...blank, shape: "concentrationMax", value: 2, unit: "turns", maxPerLevel: true };
-  assert.deepEqual(castDuration(perLevel, { casterLevel: 4 }).cap, { value: 2 * 4 * 600, units: "seconds" }, "times the caster level, in the clock's own seconds");
+  assert.deepEqual(castDuration(perLevel, { casterLevel: 4 }).cap, { value: 2 * 4 * INVENTED_TURN_SECONDS, units: "seconds" }, "times the caster level, in the clock's own seconds");
   assert.deepEqual(castDuration(perLevel).cap, { none: NONE.noLevel }, "a per-level maximum with no level is not guessed");
   assert.deepEqual(castDuration({ ...blank, shape: "concentrationPlus", plus: { value: 2, unit: "rounds" } }).tail, { value: 2, units: "rounds" });
   assert.deepEqual(castDuration({ ...blank, shape: "concentrationPlus", plus: { value: null, unit: "rounds" } }).tail, { none: NONE.noFigure }, "a tail the import did not read is a none");
@@ -1745,7 +1747,7 @@ await ta("a cast keeps every row of the picked option on the card", async () => 
 const { lifeOf, lifeEntry, roundsBounds, roundsCount } = await import("../scripts/magic/cast-life.mjs");
 const { fightHolding } = await import("../scripts/magic/cast-moment.mjs");
 const { requestOf } = await import("../scripts/magic/cast-throw.mjs");
-const { ROUND_SECONDS } = await import("../scripts/magic/cast-expiry.mjs");
+const { INVENTED_ROUND_SECONDS: ROUND_SECONDS } = await import("./time-unit-fixture.mjs");
 
 /** A card whose one row is an invented condition that lasts as the given fields say. */
 const lifeCard = (fields, entry = { state: "pending" }) =>
@@ -2018,15 +2020,15 @@ await ta("a reversed cast reads the reverse's own duration where the spell print
   const reverse = { shape: "perLevel", value: 2, unit: "rounds" };
   const none = { byCookbookId: () => null };
   const spell = flag(plain, reverse);
-  assert.deepEqual(castDurationOf(spell, none, 4, undefined, "normal"), { value: 1800, units: "seconds" });
+  assert.deepEqual(castDurationOf(spell, none, 4, undefined, "normal"), { value: 3 * INVENTED_TURN_SECONDS, units: "seconds" });
   assert.deepEqual(castDurationOf(spell, none, 4, undefined, "reversed"), { value: 8, units: "rounds" }, "the reverse's own, at the caster level");
-  assert.deepEqual(castDurationOf(spell, none, 4), { value: 1800, units: "seconds" }, "no mode reads the plain duration");
-  assert.deepEqual(castDurationOf(flag(plain), none, 4, undefined, "reversed"), { value: 1800, units: "seconds" }, "a spell printing no reverse duration keeps the plain one");
-  assert.deepEqual(castDurationOf(flag(plain, { shape: "", value: 9 }), none, 4, undefined, "reversed"), { value: 1800, units: "seconds" }, "a reverse with no shape is none");
+  assert.deepEqual(castDurationOf(spell, none, 4), { value: 3 * INVENTED_TURN_SECONDS, units: "seconds" }, "no mode reads the plain duration");
+  assert.deepEqual(castDurationOf(flag(plain), none, 4, undefined, "reversed"), { value: 3 * INVENTED_TURN_SECONDS, units: "seconds" }, "a spell printing no reverse duration keeps the plain one");
+  assert.deepEqual(castDurationOf(flag(plain, { shape: "", value: 9 }), none, 4, undefined, "reversed"), { value: 3 * INVENTED_TURN_SECONDS, units: "seconds" }, "a reverse with no shape is none");
   const twin = flag(plain, reverse);
   const bare = flag(null);
   assert.deepEqual(castDurationOf(bare, { byCookbookId: () => twin }, 4, undefined, "reversed"), { value: 8, units: "rounds" }, "the twin's reverse");
-  assert.deepEqual(castDurationOf(bare, { byCookbookId: () => twin }, 4, undefined, "normal"), { value: 1800, units: "seconds" }, "the twin's plain duration, as before");
+  assert.deepEqual(castDurationOf(bare, { byCookbookId: () => twin }, 4, undefined, "normal"), { value: 3 * INVENTED_TURN_SECONDS, units: "seconds" }, "the twin's plain duration, as before");
 });
 
 t("a row's reading names a following turn, a row no save governs, what ends its record and the conditions it writes with no clock", () => {

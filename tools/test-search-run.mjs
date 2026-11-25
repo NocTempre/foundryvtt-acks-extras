@@ -136,6 +136,7 @@ globalThis.game = {
 /* -------------------------------------------- */
 
 const { registerTable, resetTables, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { INVENTED_TIME, registerInventedTime, removeInventedTime } = await import("./time-unit-fixture.mjs");
 const { ENCOUNTERS_DOC } = await import("../scripts/formation/encounters.mjs");
 const { SEARCHING_DOC } = await import("../scripts/formation/searching.mjs");
 const { freshDay } = await import("../scripts/formation/travel.mjs");
@@ -162,7 +163,7 @@ const ENCOUNTER_TABLES = {
 const SEARCH_TABLES = (extra = {}) => ({
   targets: [{ min: 0, max: null, target: 12 }],
   specificTarget: -2,
-  turnsPerThrow: 6,
+  turnsPerThrow: INVENTED_TIME.turnsPerHour,
   aerialTurnsPerThrow: 3,
   canopyTerrains: ["forest"],
   canopyPenalty: -4,
@@ -174,6 +175,7 @@ const SEARCH_TABLES = (extra = {}) => ({
 
 function register({ searching = SEARCH_TABLES(), milesBreak = null } = {}) {
   resetTables();
+  registerInventedTime();
   registerTable({ id: ENCOUNTERS_DOC, tables: ENCOUNTER_TABLES }, { priority: PRIORITY.WORLD, source: "test" });
   const tables = milesBreak == null
     ? searching
@@ -426,9 +428,10 @@ await t("an empty hex still credits the throw that beat the target, once per thr
   const { scene, formation } = world({ movement: { set: "flying", hoursAloft: 8 } });
   await stockHere(formation, 1, { found: { 0: { f1: 5 } } });
   const r = await search(formation, { present: "stock" });
-  assert.equal(r.attempts.length, 2, "an open-ground flight buys two throws");
+  const throws = INVENTED_TIME.turnsPerHour / 3;
+  assert.equal(r.attempts.length, throws, "an open-ground flight buys an hour's turns over its cadence in throws");
   assert.equal(r.found, false);
-  assert.equal(stockOf(scene).searches.f1, 2, "one credit for each throw that beat the target");
+  assert.equal(stockOf(scene).searches.f1, throws, "one credit for each throw that beat the target");
 });
 
 await t("a hit under yes or no writes nothing to the scene", async () => {
@@ -506,7 +509,7 @@ await t("the flight mode alone makes the search aerial", async () => {
   const foot = world();
   assert.equal((await search(foot.formation, { present: "no" })).attempts.length, 1);
   const flying = world({ movement: { set: "flying", hoursAloft: 8 } });
-  assert.equal((await search(flying.formation, { present: "no" })).attempts.length, 2, "open ground over a flier");
+  assert.equal((await search(flying.formation, { present: "no" })).attempts.length, INVENTED_TIME.turnsPerHour / 3, "open ground over a flier");
 });
 
 await t("a hex painted at the book's grain reads as its ground for the canopy", async () => {
@@ -538,7 +541,7 @@ await t("the canopy is read at the hex the party really stands in while astray",
 
   const home = world({ movement: { set: "flying", hoursAloft: 8 }, regions });
   const h = await search(home.formation, { present: "no" });
-  assert.equal(h.attempts.length, 2, "standing where it believes, the same flier sees open ground");
+  assert.equal(h.attempts.length, INVENTED_TIME.turnsPerHour / 3, "standing where it believes, the same flier sees open ground");
 });
 
 await t("a tracker in the order adds the figure; a missing figure adds no line", async () => {
@@ -728,6 +731,13 @@ await t("a player's panel carries no stock, no point name, and neither select", 
   assert.ok(!html.includes('data-section="poi"'), "no Points of interest section");
   assert.ok(!html.includes("camp.present") && !html.includes("camp.target"));
   assert.ok(!/data-action="hex/.test(html), "none of the hex actions");
+});
+
+await t("with the turns to an hour not imported a search throws once, flier or not", async () => {
+  removeInventedTime();
+  const flying = world({ movement: { set: "flying", hoursAloft: 8 } });
+  assert.equal((await search(flying.formation, { present: "no" })).attempts.length, 1);
+  registerInventedTime();
 });
 
 console.log(`\ntest-search-run: all ${passed} checks passed`);

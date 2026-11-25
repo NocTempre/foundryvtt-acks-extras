@@ -32,7 +32,7 @@ import { advanceRounds, storedPosition } from "./turn-engine.mjs";
  * gathered as Carrier cargo or left behind. A fight no combat in the world
  * still holds a body of is over too, and the party's next drag or deploy
  * reforms it (`reformIfOver`). Combat rounds feed the round-level clock
- * (10 rounds = 1 turn).
+ * (the imported rounds to a turn, `lib/time-unit.mjs`).
  */
 
 

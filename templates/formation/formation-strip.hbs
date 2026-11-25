@@ -55,7 +55,7 @@
     <div class="stat" data-tooltip-text="{{strip.delve.tips.elapsed}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.elapsed"}}</span>
       <span class="value">{{strip.delve.turns}}</span>
-      <span class="sub">{{localize "ACKS-FORMATION.app.turns"}} ({{strip.delve.elapsed}}) · {{localize "ACKS-FORMATION.app.roundShort"}} {{strip.delve.roundsPartial}}/{{strip.delve.roundsPerTurn}}</span>
+      <span class="sub">{{localize "ACKS-FORMATION.app.turns"}}{{#if strip.delve.elapsed}} ({{strip.delve.elapsed}}){{/if}}{{#if strip.delve.roundsPerTurn}} · {{localize "ACKS-FORMATION.app.roundShort"}} {{strip.delve.roundsPartial}}/{{strip.delve.roundsPerTurn}}{{/if}}</span>
     </div>
     {{#if strip.delve.restOn}}
     <div class="stat {{#if strip.delve.winded}}bad{{/if}}" data-tooltip-text="{{strip.delve.tips.rest}}">

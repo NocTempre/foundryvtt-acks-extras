@@ -6,8 +6,9 @@
  * the spell and the caster and nowhere else.
  *
  * Foundry's effect duration has no `weeks` unit and its `turns` unit is a
- * combat turn, so a week is seven days and an ACKS turn is `TURN_SECONDS` of
- * world time. A `rounds` duration maps onto Foundry's `rounds`, which the
+ * combat turn, so a week is seven days and an ACKS turn is the imported turn's
+ * length in world seconds (`lib/time-unit.mjs`); with that not imported a
+ * duration counted in turns answers `noFigure`. A `rounds` duration maps onto Foundry's `rounds`, which the
  * engine ages only through a combat's own round counter; outside combat it
  * does not expire on the world clock, because the world's round length is
  * zero. The pair is right either way; the aging is Foundry's.
@@ -22,7 +23,7 @@
  * unchanged and the cast reads the rest.
  */
 import { TIME_UNITS } from "../lib/magic-vocab.mjs";
-import { TURN_SECONDS } from "../lib/constants.mjs";
+import { turnSeconds } from "../lib/time-unit.mjs";
 
 /** Why a duration yields no effect duration. Ids, not user-visible strings. */
 export const NONE = Object.freeze({
@@ -40,7 +41,8 @@ export const NONE = Object.freeze({
 /** Foundry unit and the multiplier from an ACKS unit's count, one row per `TIME_UNITS` member. */
 const UNIT_MAP = Object.freeze({
   rounds: { units: "rounds", factor: 1 },
-  turns: { units: "seconds", factor: TURN_SECONDS },
+  // The factor of a turn is the imported turn's length, read when a duration is converted.
+  turns: { units: "seconds", factor: null },
   minutes: { units: "minutes", factor: 1 },
   hours: { units: "hours", factor: 1 },
   days: { units: "days", factor: 1 },
@@ -64,7 +66,10 @@ const none = (reason) => ({ none: reason });
 function convert(count, unit) {
   if (!(unit in TIME_UNITS) || !(unit in UNIT_MAP)) return none(NONE.unknownUnit);
   if (!Number.isFinite(count) || count <= 0) return none(NONE.noFigure);
-  const { units, factor } = UNIT_MAP[unit];
+  const { units } = UNIT_MAP[unit];
+  const factor = unit === "turns" ? turnSeconds() : UNIT_MAP[unit].factor;
+  // A turn with no imported length has no seconds to count.
+  if (factor == null) return none(NONE.noFigure);
   const value = count * factor;
   // The effect's duration value is an integer; a fraction is refused, not rounded.
   if (!Number.isInteger(value)) return none(NONE.fractional);

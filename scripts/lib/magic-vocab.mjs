@@ -80,8 +80,8 @@ export const DURATION_SHAPES = Object.freeze({
 });
 
 /**
- * ACKS time units. An ACKS `turns` is ten minutes of game time, never a
- * Foundry combat turn; the mapping onto Foundry's effect durations is the
+ * ACKS time units. An ACKS `turns` is the dungeon turn (`lib/time-unit.mjs`),
+ * never a Foundry combat turn; the mapping onto Foundry's effect durations is the
  * cast engine's, not this table's.
  */
 export const TIME_UNITS = Object.freeze({

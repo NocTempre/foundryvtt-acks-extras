@@ -236,15 +236,15 @@ defaulted: a shape that needs one without it answers `noLevel`. Instantaneous,
 every concentration, perpetual, indefinite, permanent and special have no time
 to count and answer `untimed`. The unit map has one row per `TIME_UNITS`
 member: rounds stay rounds, an ACKS turn becomes seconds through
-`TURN_SECONDS` (Foundry's `turns` is a combat turn), a week becomes seven days,
+the imported turn's length (`turnSeconds()`, `lib/time-unit.mjs`; a duration in
+turns answers `noFigure` while nothing is imported; Foundry's `turns` is a combat turn), a week becomes seven days,
 and minutes, hours, days, months and years pass through. Core 14's effect
 duration has no seconds-only shape beside `{value, units}`, so a `seconds`
 count is a `value` in the `seconds` unit. A `rounds` duration is correct data
 that Foundry ages only through a combat's round counter: the world's
 round length is zero, so outside combat it does not run down on the clock.
-`TURN_SECONDS` and `ROUNDS_PER_TURN` are the module's own time unit, owned by
-`lib/constants.mjs`; `formation/constants.mjs` re-exports them under the same
-names.
+The turn and the round are the module's own time unit: two imported figures
+(RR p. 263) owned by `lib/time-unit.mjs`, null where nothing is imported.
 `spell-effect.mjs` is the cast record: `spellEffectData({spell, caster, castId,
 role, duration, changes, transfer, name})` returns Active Effect creation data
 with `origin` the spell's uuid, the spell's name and image, the cast's
@@ -389,7 +389,7 @@ step of the world clock, read on the one GM window lib's `onWorldTimeAdvanced`
 fires on, the cast records of every world actor and every unlinked token's actor
 (lib's `worldActors`) are checked against their end: the record's `start.time` plus its stored duration, a calendar unit
 converted by the world's calendar the way core converts one, `rounds` at
-`ROUND_SECONDS` (`TURN_SECONDS` over `ROUNDS_PER_TURN`). A record with no
+the imported round's seconds (`roundSeconds()`, read when checked; a rounds record never ends while it is not imported). A record with no
 duration, or one in a unit the clock cannot count, never ends here. Core's own
 `duration.expired` is not read (DECISIONS, 2026-11-11). A record the cast
 engine timed itself carries its `duration` and `startTime` in the flag and is

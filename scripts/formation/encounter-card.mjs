@@ -42,7 +42,7 @@ import {
   runEncounter,
   visibilityMax,
 } from "./encounters.mjs";
-import { TURN_SECONDS } from "./constants.mjs";
+import { turnSeconds as importedTurnSeconds } from "../lib/time-unit.mjs";
 import { cadenceOf } from "./march.mjs";
 import { conditionsOf } from "./weather.mjs";
 import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
@@ -230,14 +230,14 @@ export async function postEncounterThrow(formation, { activity = "travel", night
  * @param {boolean} [o.night]  a rest through the dark rather than the light
  * @param {number|null} [o.mileHex]
  * @param {number|null} [o.secondsPerHour]
- * @param {number} [o.turnSeconds]
+ * @param {number|null} [o.turnSeconds]  the imported turn's length; a search names no turn line without it
  * @param {object|null} [o.clock]
  * @param {number} [o.nights]
  * @param {() => number} [o.rng]
  * @returns {Array<{key: string, n: number, of?: number}>}
  */
 export function encounterWhen({
-  activity, night = false, mileHex = null, secondsPerHour = null, turnSeconds = TURN_SECONDS,
+  activity, night = false, mileHex = null, secondsPerHour = null, turnSeconds = importedTurnSeconds(),
   clock = null, nights = 0, rng = Math.random,
 } = {}) {
   if (activity === "travel") {
@@ -246,7 +246,7 @@ export function encounterWhen({
   }
   if (activity === "search") {
     const perHour = numOrNull(secondsPerHour) > 0 ? Number(secondsPerHour) : DAY_SECONDS / 24;
-    const turns = Math.floor(perHour / turnSeconds);
+    const turns = numOrNull(turnSeconds) > 0 ? Math.floor(perHour / turnSeconds) : 0;
     return turns >= 1 ? [{ key: "turn", n: die(turns, rng) }] : [];
   }
   if (activity !== "rest") return [];

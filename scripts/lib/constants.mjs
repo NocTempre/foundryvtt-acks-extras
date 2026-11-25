@@ -89,16 +89,6 @@ export const unattendedOperation = (unattended) => (unattended ? { [MODULE_ID]: 
 /** Do these operation options mark the create as unattended? */
 export const isUnattended = (options) => options?.[MODULE_ID]?.[UNATTENDED_OPTION] === true;
 
-/**
- * Seconds in one dungeon turn, the module's own unit of game time. An ACKS
- * `turns` duration is this many seconds on the world clock, never a Foundry
- * combat turn.
- */
-export const TURN_SECONDS = 600;
-
-/** Combat rounds per dungeon turn for time-keeping (RR p. 263). */
-export const ROUNDS_PER_TURN = 10;
-
 /** The prefix every custom hook this module fires is named under. */
 const NAMESPACE = "acksExtras";
 

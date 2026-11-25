@@ -12,7 +12,8 @@
  *
  * The end is this file's own reading of the record, start time plus duration
  * on the world clock, never core's `duration.expired`. A `rounds` record counts
- * its rounds at `ROUND_SECONDS`; a record with no duration never ends here.
+ * its rounds at the imported round's length in seconds (`lib/time-unit.mjs`
+ * `roundSeconds`), and never ends while that is not imported; a record with no duration never ends here.
  * Only a step of the clock decides, read on the one window that runs the
  * automation (`onWorldTimeAdvanced`).
  *
@@ -30,15 +31,12 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_SPELL_EFFECT } from "./constants.mjs";
 import { spellEffectOf } from "./spell-effect.mjs";
-import { TURN_SECONDS, ROUNDS_PER_TURN } from "../lib/constants.mjs";
+import { roundSeconds } from "../lib/time-unit.mjs";
 import { summonerOf, summonRecordOf, summonOwnership } from "../lib/summons-logic.mjs";
 import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { castSummons } from "../lib/summons.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { docOf, escape as esc } from "../lib/util.mjs";
-
-/** Seconds in one combat round on the world clock: a dungeon turn's seconds over its rounds, both structural. */
-export const ROUND_SECONDS = TURN_SECONDS / ROUNDS_PER_TURN;
 
 /** The chat-message flag a cast-ended card carries: `{casterUuid, castId}`. */
 export const CAST_ENDED_FLAG = "castEnded";
@@ -65,7 +63,7 @@ export function castRecordEnd(effect, secondsOf) {
   const { value, units } = own ? mark.duration : (effect?._source?.duration ?? effect?.duration ?? {});
   const n = Number(value);
   if (time == null || time === "" || !Number.isFinite(start) || value == null || !Number.isFinite(n) || !units) return null;
-  const seconds = units === "rounds" ? n * ROUND_SECONDS : units === "turns" ? null : secondsOf?.(n, units);
+  const seconds = units === "rounds" ? n * (roundSeconds() ?? NaN) : units === "turns" ? null : secondsOf?.(n, units);
   return Number.isFinite(seconds) ? start + seconds : null;
 }
 

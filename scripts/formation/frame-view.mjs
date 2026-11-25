@@ -374,7 +374,7 @@ function headsOf(view, { headcount }) {
   const turns = strip.delve?.turns ?? 0;
   const modeHead = {
     journey: { title: loc("head.journey", { day: dayOf(strip) }), sub: loc("head.journeySub") },
-    delve: { title: loc("head.delve", { turns, elapsed: strip.delve?.elapsed ?? "" }), sub: loc("head.delveSub") },
+    delve: { title: strip.delve?.elapsed == null ? loc("head.delveBare", { turns }) : loc("head.delve", { turns, elapsed: strip.delve.elapsed }), sub: loc("head.delveSub") },
     settlement: { title: loc("head.city", { turns }), sub: loc("head.citySub") },
   }[mode];
   return {

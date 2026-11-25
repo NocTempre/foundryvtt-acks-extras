@@ -1,12 +1,12 @@
 /* global game, canvas, fromUuidSync */
 import { defaultPartyShape, isCasualty, isDead, partyTokenShape } from "./formation-model.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
+import { roundsPerTurn } from "../lib/time-unit.mjs";
 import { lightCite, lightControl, lightFigures, magicLights } from "../lib/light.mjs";
 import {
   FORMATION_DOC,
   LIGHT_SOURCES,
   PARTY_TOKEN_SHAPES,
-  ROUNDS_PER_TURN,
   restEnforced,
   restInterval,
   ROLE_HINTS,
@@ -823,14 +823,18 @@ export function delveTips(formation, delve, mode) {
     : say("rest", { since: delve.sinceRest ?? 0, max: delve.restMax, cite: citeOf(FORMATION_DOC, "restInterval") ?? game.i18n.localize("ACKS-FORMATION.app.lightJudgeTable") });
 
   const feet = delve.carryFeet ?? 0;
-  const roundFeet = mode === "delve" && delve.effSpeed > 0 ? tenths(delve.effSpeed / ROUNDS_PER_TURN) : null;
+  // The rounds to a turn and the turn's elapsed length are imported figures;
+  // each tip names only the parts that stand, and the page either way.
+  const perTurn = roundsPerTurn();
+  const roundFeet = mode === "delve" && delve.effSpeed > 0 && perTurn != null ? tenths(delve.effSpeed / perTurn) : null;
+  const elapsedKey = perTurn == null ? (delve.elapsed == null ? "elapsedTurns" : "elapsedTimed") : (delve.elapsed == null ? "elapsedRounds" : "elapsed");
   return {
     speed: speedParts.length ? say("speed", { parts: speedParts.join(" · "), cite }) : cite,
-    elapsed: say("elapsed", { turns: delve.turns ?? 0, time: delve.elapsed, rounds: delve.roundsPartial, perTurn: ROUNDS_PER_TURN, cite }),
+    elapsed: say(elapsedKey, { turns: delve.turns ?? 0, time: delve.elapsed, rounds: delve.roundsPartial, perTurn, cite }),
     rest,
     carry: roundFeet == null
       ? say("carryBare", { feet, cite })
-      : say("carry", { feet, round: roundFeet, speed: delve.effSpeed, rounds: ROUNDS_PER_TURN, cite }),
+      : say("carry", { feet, round: roundFeet, speed: delve.effSpeed, rounds: perTurn, cite }),
   };
 }
 
@@ -895,7 +899,7 @@ export function buildStripView(formation, speed, travelView = null) {
       restOn: restEnforced(),
       winded: !!clock.winded,
       carryFeet: clock.carryFeet,
-      roundsPerTurn: ROUNDS_PER_TURN,
+      roundsPerTurn: roundsPerTurn(),
     };
     strip.delve.tips = delveTips(formation, strip.delve, mode);
   }

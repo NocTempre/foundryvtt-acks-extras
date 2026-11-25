@@ -113,11 +113,27 @@ All paths are under `scripts/formation/` unless noted.
 
 Before the turn engine bills a delve it reads the scene's scale: a declared delve on a map whose cell is a mile or more across (`isExpeditionScale`) bills nothing, follows the token, and whispers the scale guard once per arrival (`clock.scaleWarned`), because a turn per exploration speed's worth of feet across a mile-scale cell is not a dungeon turn. A scene that declares no system is inferred on arrival (`inferredTravelSystem`, [travel.mjs](../../scripts/formation/travel.mjs)): a mile-scale cell means a journey and a district Region means a settlement; neither means silence, and the party keeps the mode it arrived in.
 
+## The turn's unit (RR p. 263)
+
+The rounds a turn counts for and the turns an hour holds are printed in one
+sentence of Turns and Rounds, and are read by the `timeProse` recipe into the
+`roundsPerTurn` and `turnsPerHour` tables of the `formation` document. Lib
+reads them (`lib/time-unit.mjs`: `roundsPerTurn`, `turnsPerHour`,
+`turnSeconds` as the hour over the turns it holds, `roundSeconds`,
+`turnsPerDay`, `timeUnitCite`); each answers null for a figure not imported,
+and so does everything derived from it. Nothing falls back to a literal. With
+nothing imported:
+
+- **The clock counts whole turns, not rounds.** `advanceTurns` ticks turns with no round count between them; `advanceRounds` (a hand round, a hasty action, a combat's rounds, a crossing's rounds) does nothing, since a round cannot be counted into a turn. A party token drag is billed in whole turns of its turn distance.
+- **World time does not move** from the clock (no turn length), and the day-boundary reminder is not given. An encounter's minute is not rolled or scheduled and its card names none.
+- **The strip** shows the turns alone: no elapsed time, no round denominator, and the tooltips name the turns and the page (RR p. 263).
+- **A search throws once**, and its cost in hours is unknown. A journey's seconds are kept but burn no light or spell. A city incident marker is not dropped. A cast duration counted in turns, and a record counted in rounds, have no seconds to count.
+
 ## Turn tick (`advanceTurns`)
 
 Per turn, in order (mirrors JJ sequence of play step 5):
 
-1. `game.time.advance(600)` (setting-gated) — snapshot member effects with `duration.remaining > 0` beforehand, report the ones that hit ≤ 0 after.
+1. `game.time.advance(<the imported turn's seconds>)` (setting-gated; nothing moves while that is not imported) — snapshot member effects with `duration.remaining > 0` beforehand, report the ones that hit ≤ 0 after.
 2. Rest counter (or reset when `resting`); winded once the counter passes the imported `restInterval`, and never while none is imported; marker Active Effect applied/removed on members (members holding the `kw:endurance` capability skipped, `hasEndurance` in `turn-engine.mjs`). The world setting `restRequired` (default on) gates the whole step: off, the counter is held at 0 and `clock.winded` is cleared on the next turn (the marker comes off with it, silently), so no rest is counted, announced or penalised. It gates only the rest. Turns, lights, spells and the wandering throw tick as before, a Rest turn still advances one, and the settlement tick is not touched. Every surface that shows the rest reads `restEnforced()` (`constants.mjs`): the turn card's rest line, the warnings strip's winded and rest-due lines, the strip's Rest stat (`strip.delve.restOn`) and the title-bar bar (`bandBar` returns null).
 3. Lit lights `remaining--`, guttering warning at 1, burnout at 0. A light lit while its kind's burn time was not imported (lib's light table) carries no count: it burns on uncounted, the turn card lists it as burning with no count, and the Kit tab leaves its count blank with the page reference as its tooltip.
 4. Encounter counter; every N turns throw the resolved die against the resolved target (JJ p. 36; `turn-engine.mjs` `encounterCheck`), whispered to GMs; on encounter, pre-roll the imported distance dice (none imported, no distance) and the minute of the turn, then draw privately from the resolved RollTable. Parameters resolve zone → formation → world settings: an `encounterZone` region behavior under the party token overrides frequency/target (0 = inherit) and supplies a table UUID; else the formation's `tableId`; else announce-only.
@@ -1446,7 +1462,9 @@ blank and Batter disabled) and `tooSolid` for a row whose notes give no time. `b
 the wall (`ds: 1`) and charges the plan's `rounds` through
 `advanceRounds(formation, rounds, { reason: "action" })` to the formation
 holding the basher (`getFormationForActor`); a count of turns is `count` times
-`ROUNDS_PER_TURN`. With no basher selected, or no formation holding them, the
+the imported rounds to a turn, and a row counted in turns is spent through
+`advanceTurns`, so it spends whole turns with those not imported (its `rounds`
+and the result's `spent` are then null). With no basher selected, or no formation holding them, the
 door still opens, no clock moves, and the notification says so. Whether the
 party holds the tool is the Judge's call. Spiking a door past the imported limit
 is refused, and with no limit imported nothing is hammered.
@@ -3095,8 +3113,9 @@ as `NdM` or `NdM*K`, rebuilt from its integers. Without a die, an interval or
 a target the turn counts nothing toward a throw and schedules none, and the
 party sheet's Encounter throw tool throws nothing and shows no notice.
 Without distance dice an encounter still stands and its minute
-is still rolled, on the turn's own length (`ROUNDS_PER_TURN`); no distance is
-rolled, and the card carries the minute alone. The throw card's die,
+is still rolled, on the turn's own length (the imported rounds to a turn;
+without them no minute is rolled, none is scheduled and the card names none);
+no distance is rolled, and the card carries the minute alone. The throw card's die,
 target and rolled distance each carry a tooltip naming the layer they came
 from, and the page for an imported one (`cadenceProvenance`). The throw is the
 die as stated: the party's light and pace add nothing to it. The card's
@@ -3544,7 +3563,7 @@ A throw on an obstacle puts rounds on the party's clock. `pressRounds`
   A blank length, a rate or duration not imported, or a speed the member has
   not, spends nothing: no stand-in figure.
 - **The rate (`pressRate`).** The base pace is the exploration-speed cell of
-  `paceRates(kind).normal` over `ROUNDS_PER_TURN`, the way a drag of the party
+  `paceRates(kind).normal` over the imported rounds to a turn (null without them), the way a drag of the party
   token is billed; `faster` and `fastest` are their own cells, each a share of
   the speed it names (exploration is a figure per turn, combat and run per round).
   A rappel prices no pace and reads the grid's success row. A member's speeds are

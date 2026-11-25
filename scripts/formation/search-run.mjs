@@ -21,7 +21,7 @@ import { getFormation, getMemberActor, getPartyScene, hasAbility, realMembers } 
 import { hasCapability } from "./ability-bridge.mjs";
 import { hexContext, spendSearchHour } from "./journey.mjs";
 import { searchSpec, searchOutcome, SEARCH_SUBJECTS } from "./searching.mjs";
-import { TURNS_PER_HOUR } from "./constants.mjs";
+import { turnsPerHour } from "../lib/time-unit.mjs";
 import { conditionsOf } from "./weather.mjs";
 import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
@@ -119,8 +119,11 @@ export async function runSearchHour(formation, {
   const hasStock = mode === "stock" && !!record?.stocked;
   const thereIsOne = !elsewhere && (mode === "yes" || pool.length > 0);
 
-  // An hour is six turns; a faster cadence buys proportionally more throws.
-  const throws = Math.max(1, Math.round(TURNS_PER_HOUR / (spec.turnsPerThrow || TURNS_PER_HOUR)));
+  // A search throws once an hour at the base cadence and a faster cadence buys
+  // proportionally more throws. With the turns to an hour not imported the
+  // cadence cannot be priced against the hour, so the search throws once.
+  const perHour = turnsPerHour();
+  const throws = perHour == null ? 1 : Math.max(1, Math.round(perHour / (spec.turnsPerThrow || perHour)));
   const attempts = [];
   let found = false;
   for (let n = 0; n < throws && !found; n++) {

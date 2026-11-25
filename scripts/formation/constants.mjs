@@ -8,11 +8,11 @@
  * lang/en.json.
  */
 
-import { MODULE_ID, TURN_SECONDS, ROUNDS_PER_TURN } from "../lib/constants.mjs";
+import { MODULE_ID } from "../lib/constants.mjs";
 import { getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
-// The turn's length and its rounds are the module's own time unit, owned by
-// lib (`lib/constants.mjs`); formation reads them under the names it always did.
-export { MODULE_ID, TURN_SECONDS, ROUNDS_PER_TURN };
+// The turn's length and its rounds are the module's own time unit, imported
+// and read through lib (`lib/time-unit.mjs`); nothing here states them.
+export { MODULE_ID };
 
 /** Flag on the party TokenDocument / party Actor pointing back at a formation. */
 export const FLAG_FORMATION_ID = "formationId";
@@ -20,11 +20,6 @@ export const FLAG_FORMATION_ID = "formationId";
 export const PARTY_TYPE = `${MODULE_ID}.party`;
 /** Flag on member actors while the party is winded (marker Active Effect id). */
 export const WINDED_EFFECT_NAME = "Winded";
-
-/** Dungeon turns in an hour of game time (a turn's length is `TURN_SECONDS`). */
-export const TURNS_PER_HOUR = 6;
-/** Dungeon turns in a day of game time. */
-export const TURNS_PER_DAY = 144;
 
 /** The registered document this feature's printed figures arrive in. */
 export const FORMATION_DOC = "formation";

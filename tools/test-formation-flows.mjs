@@ -9,6 +9,10 @@
  */
 import assert from "node:assert/strict";
 import { standOnRegions } from "./region-fixture.mjs";
+import { INVENTED_TIME, registerInventedTime, removeInventedTime } from "./time-unit-fixture.mjs";
+
+// The dungeon turn's counts, invented: the clock converts rounds to turns by the imported figure.
+registerInventedTime();
 
 // One namespace now, not eight globals; stubs below hang off it.
 globalThis.acksExtras ??= {};
@@ -2553,7 +2557,7 @@ await scenario("moving the party token advances the clock", async () => {
   assert.ok(speed > 0, "party has a usable exploration speed");
 
   const before = onlyFormation().clock;
-  const roundsBefore = (before.turnsTotal * 10) + (before.roundsPartial ?? 0);
+  const roundsBefore = (before.turnsTotal * INVENTED_TIME.roundsPerTurn) + (before.roundsPartial ?? 0);
 
   // Drag one full exploration move (speed feet) → should be a whole turn.
   const gs = scene.grid.size;
@@ -2563,7 +2567,7 @@ await scenario("moving the party token advances the clock", async () => {
   await drain();
 
   const after = onlyFormation().clock;
-  const roundsAfter = (after.turnsTotal * 10) + (after.roundsPartial ?? 0);
+  const roundsAfter = (after.turnsTotal * INVENTED_TIME.roundsPerTurn) + (after.roundsPartial ?? 0);
   console.log(`      [probe] rounds ${roundsBefore} -> ${roundsAfter}`);
   assert.ok(roundsAfter > roundsBefore, "movement advanced the dungeon clock");
 
@@ -2571,7 +2575,7 @@ await scenario("moving the party token advances the clock", async () => {
   // shared one, written only through lib's gate. A minute per round.
   const worldSeconds = game.time.advanced.reduce((a, b) => a + b, 0);
   console.log(`      [probe] world clock +${worldSeconds}s`);
-  assert.equal(worldSeconds, (roundsAfter - roundsBefore) * 60, "world clock moved a minute per round");
+  assert.equal(worldSeconds, (roundsAfter - roundsBefore) * (3600 / INVENTED_TIME.turnsPerHour / INVENTED_TIME.roundsPerTurn), "world clock moved a turn's seconds over its rounds per round");
 
   await model.disband(model.getFormation(id));
   await drain();
@@ -2597,10 +2601,10 @@ await scenario("a move the primary GM's client is drawing is billed, and trap-ch
   const gs = scene.grid.size;
   const squares = Math.round(speed / scene.grid.distance);
   const turnFeet = squares * scene.grid.distance;
-  const roundsFor = (feet) => Math.floor((feet * 10) / speed);
+  const roundsFor = (feet) => Math.floor((feet * INVENTED_TIME.roundsPerTurn) / speed);
   const start = { x: partyToken.x, y: partyToken.y };
   const end = { x: start.x + squares * gs, y: start.y };
-  const roundsOf = (c) => c.turnsTotal * 10 + (c.roundsPartial ?? 0);
+  const roundsOf = (c) => c.turnsTotal * INVENTED_TIME.roundsPerTurn + (c.roundsPartial ?? 0);
   const roundsBefore = roundsOf(onlyFormation().clock);
 
   // An armed trap wall across the middle of the move. The trap check meets a
@@ -2674,7 +2678,7 @@ async function drawnParty(name, on = scene) {
   partyToken.rendered = true;
   const speed = model.partySpeed(model.getFormation(id));
   const squares = Math.round(speed / on.grid.distance);
-  return { id, walker, partyToken, step: squares * on.grid.size, turnRounds: Math.floor((squares * on.grid.distance * 10) / speed) };
+  return { id, walker, partyToken, step: squares * on.grid.size, turnRounds: Math.floor((squares * on.grid.distance * INVENTED_TIME.roundsPerTurn) / speed) };
 }
 
 /** Land the drawn move, stop drawing, and disband. */
@@ -2686,7 +2690,7 @@ async function dismissDrawn({ id, partyToken }) {
   await drain();
 }
 
-const clockRounds = (clock) => clock.turnsTotal * 10 + (clock.roundsPartial ?? 0);
+const clockRounds = (clock) => clock.turnsTotal * INVENTED_TIME.roundsPerTurn + (clock.roundsPartial ?? 0);
 
 await scenario("the Judge's un-pause re-anchors the clock where a drawn move put the party", async () => {
   // See docs/formation/DECISIONS.md, "A re-anchor reads the party token's
@@ -3206,7 +3210,7 @@ await scenario("a move held on the world clock keeps the party token the telepor
   assert.ok(origin, "party token placed");
   const landing = new SceneMock("Landing");
   game.scenes.set(landing.id, landing);
-  const roundsOf = (clock) => clock.turnsTotal * 10 + (clock.roundsPartial ?? 0);
+  const roundsOf = (clock) => clock.turnsTotal * INVENTED_TIME.roundsPerTurn + (clock.roundsPartial ?? 0);
 
   const advance = game.time.advance;
   let open = null;
@@ -3372,7 +3376,7 @@ await scenario("a mode change made while a move waits on the world clock keeps i
   // own tick produces live.
   const { id } = await isolatedParty("Switching Party", "Pathfinder");
   const travel = await import("../scripts/formation/travel.mjs");
-  const roundsOf = (clock) => clock.turnsTotal * 10 + (clock.roundsPartial ?? 0);
+  const roundsOf = (clock) => clock.turnsTotal * INVENTED_TIME.roundsPerTurn + (clock.roundsPartial ?? 0);
   assert.equal(travel.travelOf(onlyFormation()).mode, "delve", "the party starts in a delve");
   const party = scene.tokens.get(onlyFormation().tokenId);
   assert.ok(party, "party token placed");
@@ -3882,7 +3886,7 @@ async function fightingParty(name, ...people) {
   await partyToken.update({ x: partyToken.x + step });
   await drain();
   const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
-  return { id, actors, partyToken, step, turnRounds: Math.floor((squares * scene.grid.distance * 10) / speed), cell };
+  return { id, actors, partyToken, step, turnRounds: Math.floor((squares * scene.grid.distance * INVENTED_TIME.roundsPerTurn) / speed), cell };
 }
 
 /** End the combats a `fightingParty` used that are still in the world, then disband it and delete its people. */
@@ -4703,16 +4707,17 @@ await scenario("a city block walked on a metre map costs exactly one turn", asyn
     const partyToken = city.tokens.get(onlyFormation().tokenId);
     assert.ok(partyToken, "party token placed on the city scene");
     const before = onlyFormation().clock;
-    const roundsBefore = before.turnsTotal * 10 + (before.roundsPartial ?? 0);
+    const perTurn = INVENTED_TIME.roundsPerTurn;
+    const roundsBefore = before.turnsTotal * perTurn + (before.roundsPartial ?? 0);
 
     // One block: 30 m at 5 m to the cell is six cells.
     await partyToken.update({ x: partyToken.x + 6 * city.grid.size });
     await drain();
 
     const after = onlyFormation().clock;
-    const rounds = after.turnsTotal * 10 + (after.roundsPartial ?? 0) - roundsBefore;
-    console.log(`      [probe] one block dragged -> ${rounds} round(s), ${rounds / 10} turn(s)`);
-    assert.equal(rounds, 10, "one block is one turn, not one per 3.28 metres");
+    const rounds = after.turnsTotal * perTurn + (after.roundsPartial ?? 0) - roundsBefore;
+    console.log(`      [probe] one block dragged -> ${rounds} round(s), ${rounds / perTurn} turn(s)`);
+    assert.equal(rounds, perTurn, "one block is one turn, not one per 3.28 metres");
 
     await model.disband(model.getFormation(id));
     await drain();
@@ -5614,7 +5619,7 @@ await scenario("a door's construction and marks persist, a botch reports its dam
   const { default: DoorApp } = await import("../scripts/formation/door-app.mjs");
   const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
   const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
-  const { ROUNDS_PER_TURN } = await import("../scripts/formation/constants.mjs");
+  const ROUNDS_PER_TURN = INVENTED_TIME.roundsPerTurn;
 
   // Every figure below is INVENTED and registered the way an import registers
   // it, each different from the others and from any page's, so a figure left in
@@ -5913,6 +5918,20 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     assert.deepEqual([solid.ok, solid.reason], [false, "tooSolid"], "a row whose notes give no time spends nothing");
     assert.equal(onlyFormation().clock.turnsTotal, turnsBefore + 2 * plan.count + Math.floor(5 / ROUNDS_PER_TURN));
     assert.equal((await app._prepareContext()).batter.tooSolid, true, "the window refuses it, naming nothing missing");
+
+    // With the rounds to a turn not imported a time counted in turns still spends whole turns,
+    // and its rounds are unknown rather than zero.
+    removeInventedTime();
+    await doors.setDoorTraits(wall, { kind: "1:Door A" });
+    const blankPlan = doors.batterPlan(wall);
+    assert.deepEqual([blankPlan.ok, blankPlan.count, blankPlan.unit, blankPlan.rounds], [true, 2, "turn", null]);
+    const turnsNow = onlyFormation().clock.turnsTotal;
+    wall.ds = 0;
+    const byTurns = await doors.batterDoor(wall, basher);
+    await drain();
+    assert.deepEqual([byTurns.ok, byTurns.spent], [true, null], "the rounds spent are unknown");
+    assert.equal(onlyFormation().clock.turnsTotal, turnsNow + 2, "two whole turns are spent");
+    registerInventedTime();
 
     await model.disband(model.getFormation(id));
     await drain();

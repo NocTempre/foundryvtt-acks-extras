@@ -221,7 +221,8 @@ const P = {
     return R.rangeFeet(range, level)?.value ?? null;
   },
   roundSeconds: async () => {
-    try { return (await import("/modules/acks-extras/scripts/magic/cast-expiry.mjs")).ROUND_SECONDS ?? 60; } catch { return 60; }
+    // The imported round's seconds; null where the world has not imported the time-keeping figures.
+    try { return (await import("/modules/acks-extras/scripts/lib/time-unit.mjs")).roundSeconds(); } catch { return null; }
   },
   /** Whether the recurring prompts' card actions are in this build. */
   hasActions: async ({ actions }) => {

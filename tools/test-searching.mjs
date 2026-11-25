@@ -8,6 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
+import { INVENTED_TIME, registerInventedTime, removeInventedTime } from "./time-unit-fixture.mjs";
 import {
   SEARCHING_DOC, SEARCH_SUBJECTS, SEARCH_MODES, searchTarget, searchSpec,
   searchesAvailable, searchOutcome, searchingReady, splitSearch, surveySpec, surveyOutcome,
@@ -38,6 +39,7 @@ const SAMPLE = {
   },
 };
 const load = () => registerTable(SAMPLE, { priority: PRIORITY.WORLD, source: "test" });
+registerInventedTime();
 
 ok("the three quarries share one throw and differ in kind", () => {
   assert.deepEqual(Object.keys(SEARCH_SUBJECTS), ["pointOfInterest", "landmark", "lostGroup"]);
@@ -75,7 +77,7 @@ ok("a bracket answers at its own edges", () => {
 ok("a search costs its imported cadence in hours and always owes an encounter throw", () => {
   unregisterTable(SEARCHING_DOC); load();
   const spec = searchSpec({ milesPerDay: 30 });
-  assert.equal(spec.costsHours, 4 / 6, "the invented four turns, in hours of six turns");
+  assert.equal(spec.costsHours, 4 / INVENTED_TIME.turnsPerHour, "the invented four turns, in hours of the imported turns to an hour");
   assert.equal(spec.owesEncounterThrow, true, "looking around gets you noticed");
 });
 
@@ -162,7 +164,7 @@ ok("over open country the air buys MORE throws, not a better target", () => {
   assert.equal(flown.target, walked.target, "the target is the same");
   assert.equal(walked.turnsPerThrow, 4);
   assert.equal(flown.turnsPerThrow, 3, "but the throws come more often");
-  assert.equal(flown.costsHours, 0.5);
+  assert.equal(flown.costsHours, 3 / INVENTED_TIME.turnsPerHour);
   assert.ok(flown.notes.includes("openGround"));
 });
 
@@ -299,6 +301,16 @@ ok("a heavily penalised miss is silence, not a lie — only a natural 1 lies", (
   assert.equal(bad.state, "inconclusive", "worse than a 1 in total, but not a 1 on the die");
   assert.equal(surveyOutcome({ natural: 1, total: 99, target: 17 }).state, "misread",
     "and a 1 lies however large the bonus");
+});
+
+ok("with the turns to an hour not imported a search's cost in hours is unknown, and the rest of the spec stands", () => {
+  unregisterTable(SEARCHING_DOC); load();
+  removeInventedTime();
+  const spec = searchSpec({ milesPerDay: 30 });
+  assert.equal(spec.ok, true);
+  assert.equal(spec.costsHours, null);
+  assert.equal(spec.turnsPerThrow, 4);
+  registerInventedTime();
 });
 
 console.log("\ntest-searching: all " + passed + " checks passed");

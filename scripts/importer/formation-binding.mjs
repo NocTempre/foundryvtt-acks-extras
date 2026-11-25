@@ -68,6 +68,8 @@ export const FORMATION_DOC_ID = "formation";
 export const PRODUCES = Object.freeze({
   [FORMATION_DOC_ID]: {
     restInterval: "restProse",
+    roundsPerTurn: "timeProse",
+    turnsPerHour: "timeProse",
     carriedBodyStone: "swimmingProse",
     carriedGearShare: "swimmingProse",
     swimWaterPenaltySteps: "swimmingProse",
@@ -346,6 +348,24 @@ export function parseRestInterval(window) {
   }
   return null;
 }
+
+/**
+ * The whole count a time-keeping sentence gives for a unit: the figure before
+ * `<unit> per <per>`. Null when the window states no such count, or a count
+ * that is not a positive whole number.
+ */
+function perCount(window, unit, per) {
+  const t = String(window ?? "").toLowerCase().replace(/\s+/g, " ");
+  const m = new RegExp(`(?<![\\w./-])(${COUNT})\\s+${unit}s?\\s+per\\s+${per}\\b`).exec(t);
+  const n = m ? parseCount(m[1]) : null;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** Rounds to a turn for time-keeping, from the Turns and Rounds sentence; null when it states none. */
+export const parseRoundsPerTurn = (window) => perCount(window, "round", "turn");
+
+/** Turns to an hour of game time, from the same sentence; null when it states none. */
+export const parseTurnsPerHour = (window) => perCount(window, "turn", "hour");
 
 /**
  * The first dice the text prints, as `NdM` rebuilt from its integers; null
@@ -927,6 +947,11 @@ export function assembleFormationTables(raw = {}) {
 
   const rest = parseRestInterval(raw.restProse?.cadence);
   if (rest != null) out.restInterval = rest;
+
+  const rounds = parseRoundsPerTurn(raw.timeProse?.pace);
+  if (rounds != null) out.roundsPerTurn = rounds;
+  const perHour = parseTurnsPerHour(raw.timeProse?.pace);
+  if (perHour != null) out.turnsPerHour = perHour;
 
   const jumping = assembleJumping(raw.jumpingProse, raw.jumpingLandingProse);
   if (Object.keys(jumping).length) out.jumping = jumping;

@@ -5571,3 +5571,17 @@ Teardown for H7 and H8: arm a `createItem` hook as an OBSERVER only, `api.track`
 Walked so far: H1 to H8 (two passes), the Place row's steps on the plan's record of 14 of 14 checks (this table is written from the row's code and that record, since the walk's own step list was not kept), E1 to E8 and P1 to P8. E9 is written from the code.
 
 Teardown: nothing the walks built is swept; the fixtures stay. `api.sweepTracked()` takes the run's own tracked ids, the cards of each move among them, and the report quotes what it removed, could not find and refused. A run that lost its ledger on a reload lists its own cards by author, minute and the party's alias, and sweeps that list by id. A walk leaves things changed: restore a wall to its armed trap, re-arm the thing, take back a member's Thieves' tools, restore the links P8 moved, and keep no unsaved Region-window edit.
+
+## The turn's unit: rounds to a turn and turns to an hour (RR p. 263)
+
+Fixtures: a kept delve party, marker `formation/time-unit` (a party actor with one member holding a torch, on a dungeon-scale scene). The Judge's own book connected for the import step; a world whose `formation` ruledata document carries no `roundsPerTurn` and no `turnsPerHour` for the blank steps. Find the document with `game.acksExtras.lib.tables.getDoc("formation")`; the figures are `getDoc("formation").tables.roundsPerTurn` and `.turnsPerHour`.
+
+| Step | Do | Observable |
+| --- | --- | --- |
+| T1 | Settings tab → Game Settings → Acks Extras → the importer menu: run the formation import with the book connected | `lib.timeUnit.roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263 |
+| T2 | Press the Dungeon tab's advance-turn and advance-round buttons | The turn count and its round count move; the card's elapsed line shows a time; the world clock moves by `turnSeconds()` for a turn |
+| T3 | Hover the strip's elapsed figure and its carry-over figure | The elapsed tip names the turns, the rounds and the page; the carry tip names a round's feet |
+| T4 | Open the Ruledata Browser (Settings tab → Game Settings → Acks Extras → Ruledata Browser), set an override on `roundsPerTurn` for the `formation` document | The strip's denominator and the next round's billing follow it; removing the override reverts them |
+| T5 | Remove the `formation` document's two tables (`api.retire`-style: unregister the world layer, never delete the Judge's own document) and reload | Nothing throws at `init`, `setup` or `ready`; the strip shows the turns alone (no elapsed time, no round denominator) and its tips name the page (RR p. 263); advance-turn ticks a whole turn and spends a light; advance-round does nothing; dragging the party token bills whole turns; the world clock does not move; the encounter card names no minute |
+
+Drive mechanics: the unit tests cover the arithmetic; the live pass proves the registry layer and the strip. A reload is needed after step T5's removal because the strip reads at render.

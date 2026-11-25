@@ -34,7 +34,8 @@
 import { OBSTACLES, obstaclePlan, obstacleStep, progressRate, stretchFeet, throwsFor } from "./obstacles.mjs";
 import { canClear, fallFigures, landingFailure, landingSave } from "./jumping.mjs";
 import { pitDamage } from "./trap-rules.mjs";
-import { ROUNDS_PER_TURN, carriedBody } from "./constants.mjs";
+import { carriedBody } from "./constants.mjs";
+import { roundsPerTurn } from "../lib/time-unit.mjs";
 import { PACES, PACE_SPEEDS, pacePrices, paceOfPick, paceRates } from "./climb-pace.mjs";
 import {
   breathRounds, drowning, rescueStone, sinkFeetPerStone, swimSpeed as paceOf, swimSpeedShare, swimmingThrow, waterPenaltyAllowed,
@@ -430,12 +431,14 @@ export function stretchFeetAt({ length = null, covered = 0 } = {}) {
   return Math.max(0, Math.min(stretch, left));
 }
 
-/** A named speed as feet per round: exploration is a figure per turn, the others per round. Null for a name no pace reads or a speed that is no positive number. */
+/** A named speed as feet per round: exploration is a figure per turn, the others per round. Null for a name no pace reads, a speed that is no positive number, or an exploration speed while the rounds to a turn are not imported. */
 function feetPerRound(speeds, name) {
   if (!PACE_SPEEDS.includes(name)) return null;
   const speed = Number(speeds?.[name]);
   if (!Number.isFinite(speed) || speed <= 0) return null;
-  return name === "exploration" ? speed / ROUNDS_PER_TURN : speed;
+  if (name !== "exploration") return speed;
+  const rounds = roundsPerTurn();
+  return rounds == null ? null : speed / rounds;
 }
 
 /** A rate cell `{share, speed}` against a member's speeds: `{share, speed, perRound}`, or null where the speed is not known. */
