@@ -1565,9 +1565,13 @@ prints booleans and counts, never a page figure or a row's name.
    taken and the other three refused; a value that is not a list counts as
    none.
 6. The unarmed strike. *Observable:* imported, the strike's formula is the
-   table's die. With an override holding none, the formula is blank and
-   `rollUnarmed` says nothing and posts its attack card (tracked, swept
-   by id). An invented die in the override wins; text that is not `NdM` counts
+   table's die and no window opens. With an override holding none, `rollUnarmed`
+   opens the strike's prompt (field, keep box and hint on the Judge's seat):
+   an answer that is not one `NdM` die is refused on the window, which stays
+   open; Attack with the box unticked posts the attack card and keeps nothing
+   (tracked, swept by id); ticked, the die is the world's override and the next
+   press opens no window. On the Player's seat the box is absent and nothing is
+   kept. An invented die in the override wins; text that is not `NdM` counts
    as none.
 7. Clear the run's two overrides. *Observable:* none left, and the registry
    serves the imported counts again on both seats.

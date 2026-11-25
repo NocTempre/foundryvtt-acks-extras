@@ -1,6 +1,7 @@
 /* global foundry, ui, Roll */
 /**
- * The first attack with a weapon that has no damage formula asks for one.
+ * The first attack with a weapon that has no damage formula asks for one; an
+ * unarmed strike with no die imported asks through its own window.
  *
  * Registered as an attack contributor's `prepare` on the lib's seam
  * (`lib/patches/attack-throw.mjs`), which owns the one wrapper of the system's
@@ -17,6 +18,7 @@ import { LANG } from "./constants.mjs";
 import { makeLoc, escape as esc } from "../lib/util.mjs";
 import { addAttackContributor, isSpellCarrier } from "../lib/patches/attack-throw.mjs";
 import { isUnarmedStrike } from "./actions.mjs";
+import { prepareUnarmedStrike } from "./unarmed-prompt.mjs";
 import { needsDamageFormula, damageAnswer, savedFormulaUpdates, DAMAGE_FIELD } from "./damage-blank.mjs";
 import { recomputeItemFields } from "./properties.mjs";
 import * as named from "./overlays/named.mjs";
@@ -66,14 +68,16 @@ async function saveFormula(item, formula) {
  * The contributor's `prepare`: a weapon with no damage formula is asked for
  * one before the attack is built. Resolves false, cancelling the attack, when
  * the prompt is closed or the weapon cannot be written by this user. The
- * unarmed strike and a spell carrier are built for each throw and cannot keep
- * an answer, so they are never asked: a blank formula there is an attack throw
- * with no damage roll.
+ * unarmed strike is built for each throw and has no item to save to, so it has
+ * a window of its own (`unarmed-prompt.mjs`) that keeps the answer on the
+ * world. A spell carrier is built per cast and is never asked: a blank formula
+ * there is an attack throw with no damage roll.
  */
 export async function prepareDamageFormula(ctx) {
   const item = ctx?.weapon;
-  if (isUnarmedStrike(item) || isSpellCarrier(item)) return true;
+  if (isSpellCarrier(item)) return true;
   if (!needsDamageFormula(item)) return true;
+  if (isUnarmedStrike(item)) return prepareUnarmedStrike(item);
   const live = item.id ? (item.collection?.get?.(item.id) ?? null) : null;
   if (live && !live.isOwner) {
     ui.notifications?.warn(loc("damagePrompt.notOwner", { name: item.name ?? "" }));

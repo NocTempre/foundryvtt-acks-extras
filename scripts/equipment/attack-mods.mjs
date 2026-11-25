@@ -78,13 +78,23 @@ export function finesseTakes(size) {
 export const finesseSizesImported = () => finesseTakes(SIZE.MEDIUM) !== null;
 
 /**
+ * `text` as the unarmed strike's die, or null: a die is `NdM` and nothing else.
+ * The one test for what the table may hold, so what the damage prompt keeps is
+ * what `unarmedStrikeDie` reads back.
+ * @param {unknown} text
+ * @returns {string|null}
+ */
+export function asUnarmedDie(text) {
+  return typeof text === "string" && /^\d*d\d+$/i.test(text.trim()) ? text.trim() : null;
+}
+
+/**
  * The unarmed strike's damage die as the Judge's import holds it, or null when
  * it is not imported. A die is `NdM`; anything else counts as not imported.
  * @returns {string|null}
  */
 export function unarmedStrikeDie() {
-  const die = equipmentTable(PRINTED_FIGURE_TABLES.unarmed).damage;
-  return typeof die === "string" && /^\d*d\d+$/i.test(die.trim()) ? die.trim() : null;
+  return asUnarmedDie(equipmentTable(PRINTED_FIGURE_TABLES.unarmed).damage);
 }
 
 /**

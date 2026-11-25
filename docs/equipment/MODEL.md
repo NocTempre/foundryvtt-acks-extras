@@ -40,11 +40,21 @@ truth behind the code enums; local-only, never in the repo).
   weapon is told so and the attack is cancelled. A copy an attack rolls in
   place of the stored weapon (a Follower Card override) writes the stored
   weapon and takes the formula in memory; an unsaved weapon takes it in memory
-  only. Two unsaved weapons are never asked, because each is built per throw
-  and cannot keep an answer: the unarmed strike (`actions.mjs`
-  `isUnarmedStrike`, a set `rollUnarmed` fills) and a spell carrier (lib
-  `isSpellCarrier`), both known by identity. Their blank formula is an attack
-  throw with no damage roll.
+  only. Two unsaved weapons are built per throw and cannot keep an answer on
+  the item, and both are known by identity. A spell carrier (lib
+  `isSpellCarrier`) is never asked: its blank formula is an attack throw with no
+  damage roll. The unarmed strike (`actions.mjs` `isUnarmedStrike`, a set
+  `rollUnarmed` fills) with no die imported has a window of its own
+  (`unarmed-prompt.mjs`): the field, a refusal shown on the window for any
+  answer that is not one `NdM` die (`attack-mods.mjs` `asUnarmedDie`, the test
+  `unarmedStrikeDie` reads with), and Attack. Where the seat has Foundry's
+  `SETTINGS_MODIFY` permission it also offers an unticked "Save as this world's
+  unarmed die"; ticked, the die is written as the Judge's override of the
+  `equipment` doc's `unarmedStrike` table through the `ruledata-import`
+  contract's `setOverride`, which the Ruledata Browser shows and clears, and
+  the next press asks nothing. A seat without the permission has the field and
+  Attack and a line saying nothing is saved: its die is this throw's and the
+  next press asks again. Closing the window cancels the attack.
 - **The non-proficient package's figures are imported.** `attack-mods.mjs`
   reads the throw a non-proficient character fights with and the further
   penalty a character of no level takes from the equipment document's
@@ -1046,9 +1056,10 @@ reader's own book gave them. Nothing falls back to a shipped number.
   `finesseTakes(size)` is true, false or null: only false refuses, a size or
   list the import cannot answer never does (`finesseSizesImported` tells the two
   apart), and the ledger row carries no tooltip for it. `unarmedStrikeDie()` answers the
-  imported die or null; `unarmedStrikeData` then carries a blank formula (an
-  attack throw with no damage roll, core's reading of a blank formula) and
-  `rollUnarmed` says "no die imported"; the damage prompt skips the strike.
+  imported die or null; `unarmedStrikeData` then carries a blank formula and
+  `rollUnarmed` says "no die imported"; the damage prompt then asks for the
+  die through the strike's own window (the damage-formula prompt above) before
+  the throw is built.
 - **Item loss from damage** (JJ p. 398, the optional rule; `overlays/item-loss.mjs`,
   gated by `overlayItemLoss`). The `equipment` doc carries two tables read from
   that page: `itemLoss` (`proseValues`: the threshold, the step, what a layer of

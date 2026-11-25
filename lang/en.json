@@ -1718,7 +1718,19 @@
       "hint": "This weapon has no damage formula. What you enter is saved to the weapon as its base damage and used for this attack; it is not asked again.",
       "save": "Save and attack",
       "invalid": "\"{formula}\" is not a dice formula. Enter one the dice roller accepts, or close the window to cancel the attack.",
-      "notOwner": "{name} has no damage formula, and you cannot edit it. Ask the Judge to enter one."
+      "notOwner": "{name} has no damage formula, and you cannot edit it. Ask the Judge to enter one.",
+      "hintStrike": "No unarmed die is imported. What you enter is used for this attack.",
+      "hintStrikePlayer": "No unarmed die is imported. What you enter is used for this attack only. Only a Judge can keep one for the world.",
+      "fieldTip": "Unarmed strike damage (RR 299)",
+      "keepLabel": "Save as this world's unarmed die",
+      "keepHint": "Kept in the Ruledata Browser, where you can change or clear it.",
+      "keepTip": "Writes this die as the Judge's override of the unarmed strike's damage (RR 299). Every character's Unarmed Strike then rolls it. Clear it in the Ruledata Browser.",
+      "attack": "Attack",
+      "attackTip": "Attack with this formula. Nothing is kept.",
+      "attackTipPlayer": "Attack with this formula. It is not kept.",
+      "saveTip": "Save this die for the world, then attack with it.",
+      "invalidDie": "\"{formula}\" is not a die. Enter one die written NdM, or close the window to cancel the attack.",
+      "keepFailed": "The die could not be saved for the world. The attack goes ahead with it this once."
     },
     "settings": {
       "enforceMode": {

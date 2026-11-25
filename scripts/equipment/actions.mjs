@@ -133,8 +133,9 @@ export function unarmedStrikeData() {
 
 /**
  * The strikes `rollUnarmed` built, by item. Membership is the whole of "is an
- * unarmed strike": the weapon is built per throw and cannot keep a formula
- * typed for it, and it carries no id to tell it by.
+ * unarmed strike": the weapon is built per throw, so an answer typed for it
+ * cannot be kept on it (`unarmed-prompt.mjs` keeps it on the world instead),
+ * and it carries no id to tell it by.
  */
 const strikes = new WeakSet();
 
@@ -145,9 +146,9 @@ export const isUnarmedStrike = (item) => item !== null && typeof item === "objec
  * Make an unarmed attack: build an UNSAVED weapon on the actor and run it
  * through the system's own attack throw (targets, throw, damage). No document
  * is persisted — the item exists only for the roll — and because it has no
- * id, the per-weapon modifiers that read the loadout cleanly skip it. A blank
- * formula stays blank: the throw is made and no damage is rolled, and the
- * strike is never asked for a formula (`isUnarmedStrike`).
+ * id, the per-weapon modifiers that read the loadout cleanly skip it. With no
+ * die imported the formula is blank and the damage prompt asks for one
+ * (`unarmed-prompt.mjs`); a closed prompt cancels the throw.
  *
  * @param {Actor} actor
  * @param {{event?: Event, skipDialog?: boolean}} [options]

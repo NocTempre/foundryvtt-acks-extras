@@ -2468,7 +2468,7 @@ const SHARED_TABLE_RECIPES = {
       },
       // The unarmed strike's damage die (RR ch. 6).
       // `equipment/actions.mjs` `unarmedStrikeData` rolls it; with none
-      // imported the strike makes its attack throw and rolls no damage.
+      // imported the strike asks for a die (`equipment/unarmed-prompt.mjs`).
       unarmedStrike: {
         shape: "proseValues",
         book: "rr",

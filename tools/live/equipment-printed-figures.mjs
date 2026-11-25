@@ -15,7 +15,8 @@
  * are imported, the finesse gate refuses only a size the list does not name,
  * and with either table absent (a Judge's override layer, written through the
  * Ruledata Browser's own `setOverride`) the gate refuses nothing, the unarmed
- * strike carries a blank die and raises no notice, and clearing the override gives the
+ * strike carries a blank die and asks for one in a window of its own (a refusal stays on the window; a Judge's seat may
+ * keep the die as the world's override and a Player's seat may not), and clearing the override gives the
  * imported figures back. Machine values arrive through ./_env.mjs.
  *
  * Fixture, kept and found by marker: `equipment/printed-figures-actor`, a
@@ -23,7 +24,7 @@
  * whose gear flag the walk brings to what the importer writes for a price row
  * that states a capacity, a container that only declares it holds gear, and a
  * plain sack. Each run brings all three to that shape before its first check.
- * The walk's own documents (the cards an unarmed throw posts) are tracked by
+ * The walk's own documents (the cards an unarmed throw posts, on either seat) are tracked by
  * id and swept by that list; its override is cleared in a `finally`. Every
  * figure printed is a boolean or a count: no book figure and no book name
  * leaves the page.
@@ -421,6 +422,72 @@ P.unarmed = async ({ actorId, roll }) => {
     threw,
   };
 };
+/**
+ * The unarmed strike's own prompt, driven as a hand drives it: start the throw (not awaited, since the window waits
+ * for a click), find the window by its formula field, then for each attempt tick or untick the keep box, type
+ * the answer and press Attack. A window still open after the last attempt is closed, which cancels the attack.
+ * Reports booleans and strings only.
+ */
+P.strikePrompt = async ({ actorId, attempts }) => {
+  const H = globalThis.__pf;
+  const actor = game.actors.get(actorId);
+  const cardsBefore = H.cards.length;
+  const seen = new Set(foundry.applications.instances.keys());
+  let done = false;
+  let threw = null;
+  const rolled = H.ACT.rollUnarmed(actor, { skipDialog: true })
+    .catch((e) => { threw = String(e?.message ?? e).slice(0, 120); })
+    .then(() => { done = true; });
+  const dialog = await H.poll(() => [...foundry.applications.instances.entries()].find(([id, app]) => !seen.has(id)
+    && app instanceof foundry.applications.api.DialogV2 && H.root(app)?.querySelector('input[name="formula"]'))?.[1] ?? null, { tries: 25, every: 200 });
+  if (!dialog) {
+    await Promise.race([rolled, H.sleep(5000)]);
+    return { opened: false, settled: done, threw, cards: H.cards.slice(cardsBefore) };
+  }
+  const root = H.root(dialog);
+  const q = (selector) => root.querySelector(selector);
+  const faceOf = () => q('button[data-action="attack"] span')?.textContent?.trim() ?? "";
+  const attackFace = game.i18n.localize("ACKS-EQUIPMENT.damagePrompt.attack");
+  const saveFace = game.i18n.localize("ACKS-EQUIPMENT.damagePrompt.save");
+  const out = {
+    opened: true,
+    hasKeep: !!q('input[name="keep"]'),
+    hasHint: !!q("p.hint")?.textContent?.trim(),
+    inScrollContract: root.classList.contains("acks-extras-scroll"),
+    errorHiddenAtStart: q("[data-strike-error]")?.hidden === true,
+    startsAsAttack: faceOf() === attackFace,
+    attempts: [],
+  };
+  for (const attempt of attempts ?? []) {
+    if (!foundry.applications.instances.has(dialog.id)) break;
+    const box = q('input[name="keep"]');
+    const step = {};
+    if (box && attempt.tick !== undefined) {
+      box.checked = attempt.tick;
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+      step.faceIsSave = faceOf() === saveFace;
+      step.faceIsAttack = faceOf() === attackFace;
+    }
+    q('input[name="formula"]').value = attempt.answer;
+    q('button[data-action="attack"]')?.click();
+    await H.sleep(700);
+    step.stillOpen = foundry.applications.instances.has(dialog.id);
+    step.errorShown = step.stillOpen && q("[data-strike-error]")?.hidden === false && !!q("[data-strike-error]")?.textContent?.trim();
+    step.invalidMarked = step.stillOpen && q('input[name="formula"]')?.getAttribute("aria-invalid") === "true";
+    out.attempts.push(step);
+  }
+  out.leftOpen = foundry.applications.instances.has(dialog.id);
+  if (out.leftOpen) { try { await dialog.close({ animate: false }); } catch { /* already closed */ } }
+  await Promise.race([rolled, H.sleep(5000)]);
+  out.settled = done;
+  out.threw = threw;
+  await H.sleep(800);
+  out.cards = H.cards.slice(cardsBefore);
+  out.die = H.AM.unarmedStrikeDie();
+  out.overrideStands = H.STORE.hasOverride("equipment", "unarmedStrike");
+  H.mine.override.add("unarmedStrike");
+  return out;
+};
 P.drain = async () => ({ errors: globalThis.__pf.errors.slice(), cards: globalThis.__pf.cards.slice() });
 P.closeAll = async () => globalThis.__pf.closeAll();
 P.restore = async () => {
@@ -662,16 +729,46 @@ try {
   const junkTables = await run(gm, P.tables);
   check("a list that is not a list counts as not imported and refuses nothing", junk.set && !junkTables.finesseSizesImported && junkTables.refuses === 0, junkTables);
 
-  section("6. the unarmed strike: the imported die, none, a Judge's die");
+  section("6. the unarmed strike: the imported die, none and its prompt, a Judge's die");
   let u = await run(gm, P.unarmed, { actorId, roll: false });
   check("with the die imported the strike carries it", u.die !== null && u.formula === u.die, { hasDie: u.die !== null, agrees: u.formula === u.die });
   const noDie = await run(gm, P.override, { table: UNARMED, data: {} });
   check("a Judge's override that holds no die is served", noDie.set && noDie.served, noDie);
-  u = await run(gm, P.unarmed, { actorId, roll: true });
-  for (const id of u.cards) { await gm.track(id, "ChatMessage"); own.push(`ChatMessage.${id}`); }
+  u = await run(gm, P.unarmed, { actorId, roll: false });
   check("with no die imported the strike carries a blank formula and no figure", u.die === null && u.formula === "", { die: u.die, formula: u.formula });
-  check("6: the unarmed strike's throw opens no damage-formula prompt", !u.asked, { asked: u.asked, settled: u.settled });
-  check("the throw raises no notice about the missing die", u.settled && u.noticesRaised === 0 && u.threw === null, { settled: u.settled, noticesRaised: u.noticesRaised, threw: u.threw });
+  const trackCards = async (ids) => { for (const id of ids) { await gm.track(id, "ChatMessage"); own.push(`ChatMessage.${id}`); } };
+
+  // A seat that may modify world settings: the window, the refusals, then Attack once without keeping.
+  let sp = await run(gm, P.strikePrompt, { actorId, attempts: [
+    { answer: "a lot", tick: true },
+    { answer: "2d6+1", tick: false },
+    { answer: INVENTED_DIE, tick: false },
+  ] });
+  await trackCards(sp.cards ?? []);
+  check("6: with no die the strike opens its own prompt, in the scroll contract, with the keep box, a hint and no error showing", sp.opened && sp.hasKeep && sp.hasHint && sp.inScrollContract && sp.errorHiddenAtStart && sp.startsAsAttack, { opened: sp.opened, hasKeep: sp.hasKeep, hasHint: sp.hasHint, scroll: sp.inScrollContract, errorHidden: sp.errorHiddenAtStart, attack: sp.startsAsAttack });
+  check("6: ticking the box turns the button to Save and attack, unticking it back to Attack", !!sp.attempts?.[0]?.faceIsSave && !!sp.attempts?.[1]?.faceIsAttack, sp.attempts?.map((a) => ({ save: a.faceIsSave, attack: a.faceIsAttack })));
+  check("6: a word and a die with a flat figure are refused on the window, which stays open and marks the field", !!sp.attempts?.[0]?.stillOpen && !!sp.attempts?.[0]?.errorShown && !!sp.attempts?.[0]?.invalidMarked && !!sp.attempts?.[1]?.stillOpen && !!sp.attempts?.[1]?.errorShown, sp.attempts?.slice(0, 2));
+  check("6: a die, attacked once with the box unticked, closes the window, posts the attack card and keeps nothing", sp.attempts?.[2] && !sp.attempts[2].stillOpen && !sp.leftOpen && sp.settled && sp.threw === null && sp.cards.length >= 1 && sp.die === null, { attempt: sp.attempts?.[2], settled: sp.settled, threw: sp.threw, cards: sp.cards?.length, die: sp.die });
+
+  // A seat without the permission: the field and Attack alone, and nothing kept even with the box asked for.
+  const sq = await run(player, P.strikePrompt, { actorId, attempts: [{ answer: INVENTED_DIE, tick: true }] });
+  await trackCards(sq.cards ?? []);
+  check("6: the Player seat's prompt has the field, the hint and Attack, and no keep box", sq.opened && !sq.hasKeep && sq.hasHint && sq.startsAsAttack, { opened: sq.opened, hasKeep: sq.hasKeep, hasHint: sq.hasHint, attack: sq.startsAsAttack });
+  check("6: its die applies to that throw alone: the attack was made and the world holds no die", sq.attempts?.[0] && !sq.attempts[0].stillOpen && sq.settled && sq.threw === null && sq.die === null, { attempt: sq.attempts?.[0], settled: sq.settled, threw: sq.threw, die: sq.die });
+  await sleep(800);
+  const afterPlayer = await run(gm, P.tables);
+  check("6: the Judge seat still has no die after the Player's throw", !afterPlayer.dieImported, { dieImported: afterPlayer.dieImported });
+
+  // Ticked: the die is the world's override, and the next press asks nothing.
+  sp = await run(gm, P.strikePrompt, { actorId, attempts: [{ answer: INVENTED_DIE, tick: true }] });
+  await trackCards(sp.cards ?? []);
+  check("6: a die attacked with the box ticked is kept as the world's override", sp.opened && sp.attempts?.[0] && !sp.attempts[0].stillOpen && sp.settled && sp.overrideStands && sp.die === INVENTED_DIE, { attempt: sp.attempts?.[0], overrideStands: sp.overrideStands, kept: sp.die === INVENTED_DIE });
+  u = await run(gm, P.unarmed, { actorId, roll: true });
+  await trackCards(u.cards ?? []);
+  check("6: the next press finds the die, opens no prompt and posts its card", !u.asked && u.settled && u.die === INVENTED_DIE && u.cards.length >= 1 && u.threw === null, { asked: u.asked, settled: u.settled, kept: u.die === INVENTED_DIE, cards: u.cards.length, threw: u.threw });
+  await sleep(800);
+  const seenKept = await run(player, P.tables);
+  check("6: the Player seat's registry serves the kept die, so its press asks nothing either", seenKept.dieImported, { dieImported: seenKept.dieImported });
   const invented = await run(gm, P.override, { table: UNARMED, data: { damage: INVENTED_DIE } });
   u = await run(gm, P.unarmed, { actorId, roll: false });
   check("a Judge's own die wins over the page's", invented.set && u.die === INVENTED_DIE && u.formula === INVENTED_DIE, { set: invented.set, die: u.die === INVENTED_DIE });

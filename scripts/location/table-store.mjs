@@ -133,11 +133,18 @@ export const ruledataImport = {
     const docs = [...new Set(Object.values(readStore()).map((e) => e?.doc?.id).filter(Boolean))];
     return { layers, docs };
   },
+
+  /**
+   * Contract v1.5 (additive): set one table's override, a Judge's own figure
+   * over an import. Needs the permission to modify world settings.
+   * `setOverride(docId, tableId, data, meta = {}) → Promise<void>`
+   */
+  setOverride: (docId, tableId, data, meta = {}) => setOverride(docId, tableId, data, meta),
 };
 
 /* ------------------------- override layer (priority 30) ------------------------- */
 /**
- * GM tweaks live as PARTIAL docs at OVERRIDE priority in the same store —
+ * Tweaks live as PARTIAL docs at OVERRIDE priority in the same store —
  * one entry per docId holding only the overridden tables (the registry
  * layers per table, so the world import shows through underneath).
  * `_meta[tableKey]` records where each override came from (source uuid).
@@ -157,9 +164,12 @@ export function hasOverride(docId, tableKey) {
   return !!(entry?.doc?.tables && tableKey in entry.doc.tables);
 }
 
+/** Whether this user may write the override layer: the permission Foundry asks of a world-setting write. */
+const mayWriteOverride = () => !!game.user?.can?.("SETTINGS_MODIFY");
+
 /** Set (or replace) one table's override. tableKey = tableId. */
 export async function setOverride(docId, tableId, data, meta = {}) {
-  if (!game.user.isGM) throw new Error(`${MODULE_ID}: GM only`);
+  if (!mayWriteOverride()) throw new Error(`${MODULE_ID}: needs the permission to modify world settings`);
   const P = lib().tables.PRIORITY.OVERRIDE;
   const store = readStore();
   const entry = store[overrideKey(docId)] ?? { doc: { id: docId, tables: {}, _meta: {} }, priority: P, source: "override" };
@@ -171,7 +181,7 @@ export async function setOverride(docId, tableId, data, meta = {}) {
 
 /** Remove one table's override; drops the layer when nothing is left. */
 export async function clearOverride(docId, tableId) {
-  if (!game.user.isGM) throw new Error(`${MODULE_ID}: GM only`);
+  if (!mayWriteOverride()) throw new Error(`${MODULE_ID}: needs the permission to modify world settings`);
   const store = readStore();
   const entry = store[overrideKey(docId)];
   if (!entry?.doc) return;

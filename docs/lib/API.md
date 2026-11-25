@@ -172,7 +172,8 @@ defined HERE, never by module ids.
 ### Contract `ruledata-import` v1
 
 Provider: the location-domain binding target (the location feature). Consumers:
-content import flows (the importer subsystem, `scripts/importer/`). Shape:
+content import flows (the importer subsystem, `scripts/importer/`), and
+equipment's unarmed-strike prompt for `setOverride`. Shape:
 
 ```
 {
@@ -189,7 +190,10 @@ content import flows (the importer subsystem, `scripts/importer/`). Shape:
   removeMaterializedDocs() → Promise<number>,
   // v1.4 (additive): count only what the SIDEBAR holds — for a consumer that
   // deletes the library's packs whole and has counted their contents already
-  countMaterializedDocs({sidebar: true}) → number
+  countMaterializedDocs({sidebar: true}) → number,
+  // v1.5 (additive): set one table's override, a Judge's own figure over an
+  // import; needs Foundry's SETTINGS_MODIFY permission, not GM status
+  setOverride(docId, tableId, data, meta = {}) → Promise<void>
 }
 ```
 

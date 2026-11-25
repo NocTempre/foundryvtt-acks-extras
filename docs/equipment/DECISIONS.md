@@ -27,7 +27,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-23 — [One item sheet, this module's own markup (2026-08-23)](DECISIONS-through-v11.14.5.md#one-item-sheet-this-modules-own-markup-2026-08-23)
 - 2026-08-28 — [The mounted overlay ships its structure; the numbers wait](DECISIONS-through-v11.14.5.md#2026-08-28--the-mounted-overlay-ships-its-structure-the-numbers-wait) — superseded in part by "2026-10-17 — One automation client per seat, chosen by the last relayed claim"; "2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows"; "2026-11-11 — A held weapon shows and rolls one die"
 - 2026-10-21 — [The non-proficient package's figures are imported](DECISIONS-through-v11.14.5.md#2026-10-21--the-non-proficient-packages-figures-are-imported) — superseded in part by "2026-11-11 — A throwable needs no tag"; "2026-11-13 — Only what the module and the current system write is served"
-- 2026-11-11 — [Capacities, finesse sizes and the unarmed die are read, not shipped](DECISIONS-through-v11.14.5.md#2026-11-11--capacities-finesse-sizes-and-the-unarmed-die-are-read-not-shipped)
+- 2026-11-11 — [Capacities, finesse sizes and the unarmed die are read, not shipped](DECISIONS-through-v11.14.5.md#2026-11-11--capacities-finesse-sizes-and-the-unarmed-die-are-read-not-shipped) — superseded in part by "2026-11-25 — An unarmed strike with no die asks, and a Judge can keep the answer" (a blank unarmed die no longer means a throw with no damage roll)
 - 2026-11-11 — [The Holds toggle shows the gear declaration, not containerhood](DECISIONS-through-v11.14.5.md#2026-11-11--the-holds-toggle-shows-the-gear-declaration-not-containerhood)
 - 2026-11-11 — [A Martial Training pick grants its option's own weapons](DECISIONS-through-v11.14.5.md#2026-11-11--a-martial-training-pick-grants-its-options-own-weapons) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
 - 2026-11-11 — [Bows and crossbows are one proficiency category](DECISIONS-through-v11.14.5.md#2026-11-11--bows-and-crossbows-are-one-proficiency-category)
@@ -273,7 +273,10 @@ count is per client, so two seats equipping one stack inside the window could
 each divide it; that is registered separately. The re-issue is a plain update and
 drops the held write's options.
 
-## 2026-11-25 — The strike and a spell carrier are never asked for a formula
+## 2026-11-25 — The strike and a spell carrier are never asked for a formula — SUPERSEDED IN PART 2026-11-25
+
+The strike's half is superseded by "2026-11-25 — An unarmed strike with no die
+asks, and a Judge can keep the answer". The spell carrier's half stands.
 
 Supersedes in part "2026-11-17 — A weapon with no damage formula stays blank,
 and its first attack asks": its reading that every blank weapon asks. Two
@@ -302,3 +305,62 @@ can save the answer.
 **What it cost.** A Judge who wants the strike to roll damage imports the die;
 there is no prompt to type one into. A spell carrier whose row states no roll
 makes an attack throw and no damage, as before the prompt existed.
+
+## 2026-11-25 — An unarmed strike with no die asks, and a Judge can keep the answer
+
+Supersedes in part "2026-11-25 — The strike and a spell carrier are never asked
+for a formula" (its strike half) and, for the strike, the reading in
+"2026-11-11 — Capacities, finesse sizes and the unarmed die are read, not
+shipped" (archived in `DECISIONS-through-v11.14.5.md`, "In force") that a blank
+unarmed die means an attack throw and no damage roll. The spell carrier's half
+stands.
+
+**Ruled** (owner, on being asked whether an unarmed strike with a blank die
+should make an attack throw and no damage roll, with no formula prompt):
+"prompt (and offer to save) damage if none is specified when rolling". An
+example: a world with no unarmed die imported, a character presses Unarmed
+Strike under Rolls tab → Attack, and a window asks for the die; `1d3` typed
+there is the damage of that throw.
+
+**New evidence.** The earlier entry, written the same day and under a day old,
+was a ruling of the release orchestrator pending the owner. The owner's answer
+reverses it, and it names the save the entry said the strike could not have:
+"offer to save".
+
+**Decided.**
+
+- The strike with no die opens its own window (`unarmed-prompt.mjs`), built
+  with the `DialogV2` constructor so a refusal stays on the window: a typed
+  answer is read by the one test the unarmed die's reader uses (`NdM` only,
+  `attack-mods.mjs` `asUnarmedDie`), since a die the table would read back as
+  not imported would be asked again on every press. Closing the window cancels
+  the attack.
+- Where the seat has Foundry's `SETTINGS_MODIFY` permission, the window also
+  offers an unticked "Save as this world's unarmed die". Ticked, the die is
+  written as the world's override of the equipment document's `unarmedStrike`
+  table (`{damage}`), the layer the Ruledata Browser shows and clears (`Settings
+  tab → Game Settings → ACKS II — Extras → Imported Rules Tables → Open
+  Ruledata Browser`); the next press finds a die and asks nothing. Unticked, the
+  die applies to that throw only.
+- A seat without the permission is given the field and Attack, and a line that
+  says nothing can be saved there; its die applies to that throw and the next
+  press asks again.
+- `setOverride` and `clearOverride` (`location/table-store.mjs`) test
+  `game.user.can("SETTINGS_MODIFY")` and no longer `isGM`, which is the owner's
+  standing rule that a gate reads Foundry's own permission and invents none.
+  The Ruledata Browser's menu is registered restricted and stays Judge-only.
+  The `ruledata-import` contract gains an additive `setOverride` (v1.5), so
+  equipment writes through the service and not through the location feature's
+  file.
+- A spell carrier with a blank die, and a stored weapon, are unchanged: the
+  carrier asks nothing and makes an attack throw with no damage roll; a stored
+  weapon asks once and saves the answer on the item.
+
+**Rejected.** Saving into a world flag or a setting of equipment's own: a
+second place for the die, with no surface to show or clear it. Asking a seat
+that cannot save to ask a Judge: a prompt with no way to answer it at the table.
+
+**What it cost.** The strike's die has two writers, an import and a Judge's
+override, as every imported table already does; the override wins and the
+Ruledata Browser is where it is undone. A Judge who ticks the box on a typo has
+to clear it there.
