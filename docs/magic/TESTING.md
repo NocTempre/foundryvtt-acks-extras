@@ -1429,6 +1429,22 @@ figures are read off the bearer's own armour class so every lift is positive.
    outside the scrolling body. With a cap of two and
    three targets the count reads over; the Judge's dialog warns and Cast stays enabled,
    the Player's blocks and Cast is disabled.
+7. *A condition the system gives changes, granted by a cast.* The stage picks from
+   `CONFIG.statusEffects` a condition whose entry carries `system.changes` and brings
+   none, and a state whose entry brings one, and casts each at the bearer (a monster)
+   and the second caster (a character) at once. Beside the first record it toggles the
+   condition by hand, casts a second time, deletes the first record, then the hand's
+   copy, then casts a lifting row. For the state it sets the brought condition by hand
+   beside the record, casts a lifting row naming the state and presses the entry's Undo.
+   Every comparison with the entry's changes is made in the page. *Observable:* a
+   record holds the statuses and `system.changes` Foundry builds for the entry, under
+   an id of its own, never the entry's `_id`; each field a change names stands one
+   change from its start with one, two and three carriers, and after the earliest is
+   deleted; the lifting row's entry names the one effect it took, the state's
+   two-status record included, and every field is back; the Undo recreates that record
+   under the same id with both statuses and the fields one change from the start.
+   *Not walked:* a Restore on a concentration's end card (`restoredAs`), the record a
+   slaying row leaves, a record's HUD tile.
 
 ### Owner-facing shots
 

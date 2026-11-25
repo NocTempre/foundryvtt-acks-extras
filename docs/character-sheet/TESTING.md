@@ -950,6 +950,11 @@ climb the field report described. After step 4 the stored value is 3 and the
 prepared value 4: the field still writes what was typed.
 
 **Teardown.** Delete the character by its uuid; the effect goes with it.
+
+**The tooltips' lines.** The Armor Class rows' and the save modifier's
+tooltips name each effect that moves the figure on a line of its own. That
+is walked in docs/lib/TESTING.md, "The system's condition effects carry their
+figures", step 11, on the fixture `lib/core-cond-pc`.
 ## The cast column
 
 Built for the casters' second right-rail column (MODEL, "The cast column"): its

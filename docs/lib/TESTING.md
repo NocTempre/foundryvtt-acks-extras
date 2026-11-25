@@ -2655,8 +2655,10 @@ the rule that one condition's change applies once (`roll-mods.mjs`
 `countsOnce`, on Foundry's `shouldApplyChange`), the monster terms on an
 attack and the monster step on a save (`status-effects.mjs`), the Armor Class
 waiver's decision (`conditions.mjs` `acWaivedSet`), and the attack card's
-line for a character target (`attack-card-target-ac.mjs`).
-`tools/live/lib-conditions.mjs` walks steps 1–10. The module's own rows (morale, surprise, speed, the states of a
+line for a character target (`attack-card-target-ac.mjs`), the lines the
+character sheet's Armor Class and save modifier tooltips draw (`roll-mods.mjs`
+`effectLines`, `stepLabel`) and the notice a monster's save step is told by.
+`tools/live/lib-conditions.mjs` walks steps 1–12. The module's own rows (morale, surprise, speed, the states of a
 round) are "Conditions on the palette and on a roll", above.
 
 **Drive notes:**
@@ -2810,13 +2812,39 @@ round) are "Conditions on the palette and on a roll", above.
     moved by the step once; the Player seat holds the same field and the same
     Armor Class from its first preparation, with no error from load through
     ready; the field is back afterwards.
+11. **The sheet's tooltips name each effect.** Character sheet → Stats tab →
+    the Armor Class rows' figures and the note beside the saving throw
+    modifier's label, each read from its `data-tooltip-text`. Render the
+    sheet on Stats with no condition; with one condition whose entry changes
+    `system.ac.mod`; with one whose entry changes `system.save.mod` (hover
+    this note); with a state that brings an Armor Class condition; with that
+    condition set by hand after the state; with the hand's copy alone; with
+    the state set after the hand's copy; and with none again. The expected
+    line is built in the page from the effect's name, the condition's name
+    and the system's change through the lang strings, never through
+    `effectLines`.
+    **Observable:** each effect that moves the figure is on one line with its
+    step, a state's line naming the condition it brings in brackets; where
+    two effects carry one condition, only the effect whose change the system
+    applied has a line; the system's "Other Effects" line shows at no stage,
+    so the lines and the stored value make the whole figure; the hover shows
+    core's tooltip with the attribute's text and the note has no `title`.
+12. **A monster's saving throw names the effect.** With core's notices
+    recorded, roll a monster's save, set a condition whose entry changes
+    `system.save.mod`, roll again, lift it; then the same on the character.
+    **Observable:** the monster's second roll tells one notice naming the
+    effect and its first tells none; the character's tells none, since the
+    system's own roll carries the step.
 
 **Not walked by the script:** missile and thrown attacks; a damage roll's
 own lines; a spell carrier's card; the line in a detached chat window; an
 effect of one of the five states made before the palette named what it
 brings (its tile stays unlit and a click makes a second effect); a world
 with libWrapper where the walk's does not have it, or the reverse (the
-walk's census notes which).
+walk's census notes which); a tooltip line for an effect that overrides or
+multiplies the field; the remainder line where an effect the lines cannot
+read moves the figure; a monster's save that carries a condition part of the
+module's own beside the system's step.
 
 **Teardown.** Restore the die and remove the walk's hooks in each seat, clear
 the target, and sweep the tracked cards and step 5's effect. The fixtures

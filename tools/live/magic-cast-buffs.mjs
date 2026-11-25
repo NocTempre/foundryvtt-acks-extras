@@ -20,7 +20,12 @@
  * ANOTHER caster), absent for a spell it cannot cast, display-only for a Player,
  * and rolling as the party card's one line; an Adventuring throw a spell makes
  * automatic, rolling as one line ("Automatic through"); and the cast dialog with
- * three targets, and the target cap blocking a Player and warning a Judge.
+ * three targets, and the target cap blocking a Player and warning a Judge; and a
+ * condition the system gives changes, granted by a cast on a monster and on a
+ * character: the record is the effect Foundry builds for it, its figure counts
+ * once beside a hand's toggle and a second cast, a lifting spell takes a state's
+ * two-status record and its Undo puts it back. The stage picks the condition and
+ * the state from the palette and compares every change in the page.
  *
  * Shots, taken into the logs directory (`ACKS_WALK_SHOTS=0` takes none), for the
  * owner to see: `magic-cast-buffs-a-pale-row.png` and `-a-pale-tip.png` (the pale
@@ -44,7 +49,7 @@ import { connect } from "./_driver.mjs";
 import { walkDone, blocked, WalkBlocked } from "./_walk.mjs";
 import {
   MACHINE, PORTS, P, note, section, check, gap, skip, idOf, run, ready, ledgerFor, finish, summarize, stage, logDir,
-  SAVE_TARGET, LEVEL, flat, rowOf, spellFlag, entryAt,
+  SAVE_TARGET, LEVEL, flat, rowOf, spellFlag, entryAt, keyOf,
 } from "./_magic-cast-kit.mjs";
 
 const { browser, origin } = MACHINE;
@@ -104,6 +109,89 @@ const attackAt = async (tokens, attacker, attackType) => {
   const a = await run(gm, P.attack, { sceneId: W.scene, tokenId: W.t[attacker].id, itemId: W.weapon[attacker], attackType });
   if (a.id) await ledger.track(`ChatMessage.${a.id}`, "ChatMessage");
   return a;
+};
+
+/* Page side of stage H: what an actor holds for one condition, compared in the page with the palette's entry. A figure never leaves the page. */
+const C = {
+  /** A condition whose entry carries changes and brings none, and a state whose entry brings one: ids only. */
+  pick: async () => {
+    const carrying = CONFIG.statusEffects.filter((e) => (e.system?.changes ?? []).length);
+    const state = carrying.find((e) => (e.statuses ?? []).length) ?? null;
+    const plain = carrying.find((e) => !(e.statuses ?? []).length && !(state?.statuses ?? []).includes(e.id)) ?? null;
+    return { plain: plain?.id ?? null, state: state?.id ?? null, brings: [...(state?.statuses ?? [])] };
+  },
+  /** Take every effect that is no spell record and names one of `ids` off the actors, then hold each actor's fields as the stage's baseline. */
+  shape: async ({ actorIds, ids }) => {
+    const H = globalThis.__mck;
+    let removed = 0;
+    for (const actorId of actorIds) {
+      const actor = game.actors.get(actorId);
+      const stale = actor.effects.filter((e) => !e.flags?.["acks-extras"]?.spellEffect && ids.some((id) => e.statuses.has(id))).map((e) => e.id);
+      if (stale.length) { await actor.deleteEmbeddedDocuments("ActiveEffect", stale); removed += stale.length; }
+    }
+    await H.sleep(400);
+    const keys = [...new Set(CONFIG.statusEffects.filter((e) => ids.includes(e.id)).flatMap((e) => (e.system?.changes ?? []).map((c) => c.key)))];
+    H.condBase = Object.fromEntries(actorIds.map((actorId) => [actorId, Object.fromEntries(keys.map((k) => [k, Number(foundry.utils.getProperty(game.actors.get(actorId), k))]))]));
+    return { removed, keys: keys.length };
+  },
+  /** What the actor holds for `id`: its carriers, the run's records among them against what Foundry builds for the entry, and whether every field the entry names stands one change from the baseline. */
+  read: async ({ actorId, id, castIds }) => {
+    const H = globalThis.__mck;
+    const actor = game.actors.get(actorId);
+    const entry = CONFIG.statusEffects.find((s) => s.id === id);
+    const family = [id, ...(entry?.statuses ?? [])];
+    const plain = (list) => Array.from(list ?? []).map((c) => ({ key: c.key, type: c.type, value: Number(c.value) }));
+    const want = {};
+    for (const c of entry?.system?.changes ?? []) want[c.key] = (want[c.key] ?? 0) + (c.type === "subtract" ? -1 : 1) * Number(c.value);
+    const keys = Object.keys(want);
+    const carriers = actor.effects.filter((e) => e.statuses.has(id));
+    const records = carriers.filter((e) => castIds.includes(e.flags?.["acks-extras"]?.spellEffect?.castId));
+    const now = (k) => Number(foundry.utils.getProperty(actor, k));
+    const base = H.condBase?.[actorId] ?? {};
+    return {
+      carriers: carriers.length,
+      brought: family.slice(1).map((b) => actor.effects.filter((e) => e.statuses.has(b)).length),
+      records: records.map((e) => ({ id: e.id, castId: e.flags["acks-extras"].spellEffect.castId })),
+      statuses: records.every((e) => JSON.stringify([...e.statuses]) === JSON.stringify(family)),
+      changes: records.every((e) => JSON.stringify(plain(e.system?.changes)) === JSON.stringify(plain(entry?.system?.changes))),
+      staticId: records.some((e) => e.id === entry?._id),
+      hasChanges: keys.length > 0 && keys.some((k) => want[k] !== 0),
+      once: keys.every((k) => now(k) - base[k] === want[k]),
+      back: keys.every((k) => now(k) === base[k]),
+      has: family.every((s) => actor.statuses.has(s)),
+    };
+  },
+  /** A hand's own effect of a status, as the token HUD's toggle makes it; answers its uuid, which the walk tracks. */
+  toggle: async ({ actorId, id }) => {
+    const H = globalThis.__mck;
+    const actor = game.actors.get(actorId);
+    const before = new Set(actor.effects.map((e) => e.id));
+    await actor.toggleStatusEffect(id, { active: true });
+    await H.sleep(400);
+    const made = actor.effects.filter((e) => !before.has(e.id));
+    return { made: made.length, id: made[0]?.id ?? null, uuid: made[0]?.uuid ?? null };
+  },
+  /** Delete effects of an actor by id. */
+  drop: async ({ actorId, ids }) => {
+    const H = globalThis.__mck;
+    const actor = game.actors.get(actorId);
+    const there = ids.filter((id) => actor.effects.has(id));
+    if (there.length) await actor.deleteEmbeddedDocuments("ActiveEffect", there);
+    await H.sleep(400);
+    return there.length;
+  },
+  /** Press a button of a cast card's entry, as the Judge does, and answer the card once no entry is still applying. */
+  press: async ({ messageId, action, target, row }) => {
+    const H = globalThis.__mck;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    await H.sleep(400);
+    const button = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-action="${action}"][data-target="${target}"][data-row="${row}"]`), { tries: 40, every: 200 });
+    if (!button) return { button: false };
+    button.click();
+    const settled = await H.poll(() => !Object.values(game.messages.get(messageId).flags["acks-extras"].castCard.entries).some((e) => e.state === "applying"), { tries: 40, every: 250 });
+    await H.sleep(500);
+    return { button: true, settled: !!settled };
+  },
 };
 
 /* ---------------------------- A. setup ------------------------------ */
@@ -336,6 +424,84 @@ async function stageDialog() {
   check("G: the Player is blocked and the Cast button is disabled", seat.verdicts.includes("block") && seat.castDisabled, { verdicts: seat.verdicts });
 }
 
+/* ---------------------------- H. a condition the system gives changes ---- */
+async function stageCondition() {
+  await clear();
+  const pick = await run(gm, C.pick);
+  note("H: the condition and the state the stage casts", pick);
+  if (!pick.plain || !pick.state) { check("H: the palette holds a condition with changes and a state that brings one", false, pick); return; }
+  const bearers = [["a monster", W.actor.bearer, W.t.bearer], ["a character", W.caster.b, W.t.cb]];
+  const none = { category: "none", effect: "none" };
+  const give = (id) => rowOf("give", "conditionGrant", { conditions: [id], saveEffect: "none", lasts: "duration" });
+  const lift = (id) => rowOf("take", "conditionRemove", { conditions: [id], saveEffect: "none" });
+  const reads = (id) => Promise.all(bearers.map(([, actorId]) => run(gm, C.read, { actorId, id, castIds: ledger.castIds })));
+  const each = (label, rows, ok, detail = () => undefined) => bearers.forEach(([kind], i) => check(`H: on ${kind}, ${label}`, ok(rows[i], i), detail(rows[i], i)));
+  note("H: shaped", await run(gm, C.shape, { actorIds: bearers.map((b) => b[1]), ids: [pick.plain, pick.state, ...pick.brings] }));
+
+  // A condition with changes: the record is what Foundry builds, and its figure counts once beside a hand's copy and a second cast.
+  await shape("plain", { rows: [give(pick.plain)], save: none });
+  await aim(gm, bearers.map((b) => b[2]));
+  const first = await castAs("a", "plain");
+  check("H: the cast lands an entry card and settles", first.card && first.settled);
+  const one = await reads(pick.plain);
+  each("the entry is applied and the bearer holds the condition on one record", one, (r, i) => entryAt(first.model, bearers[i][2].uuid, "give")?.state === "applied" && r.records.length === 1 && r.carriers === 1 && r.has, (r) => ({ records: r.records.length, carriers: r.carriers }));
+  each("the record holds the statuses and the changes Foundry builds for the condition, under an id of its own", one, (r) => r.hasChanges && r.statuses && r.changes && !r.staticId, (r) => ({ hasChanges: r.hasChanges, statuses: r.statuses, changes: r.changes, staticId: r.staticId }));
+  each("every field a change names moved by that change, once", one, (r) => r.once);
+  const hands = [];
+  for (const [, actorId] of bearers) {
+    const h = await run(gm, C.toggle, { actorId, id: pick.plain });
+    if (h.uuid) await ledger.track(h.uuid, "ActiveEffect");
+    hands.push(h);
+  }
+  const two = await reads(pick.plain);
+  each("a hand's toggle beside the record makes a second carrier and the fields still stand one change from the start", two, (r, i) => hands[i].made === 1 && r.carriers === 2 && r.once, (r) => ({ carriers: r.carriers, once: r.once }));
+  await aim(gm, bearers.map((b) => b[2]));
+  const second = await castAs("a", "plain");
+  const three = await reads(pick.plain);
+  each("a second cast writes a second record, three carriers in all, and the fields still stand one change from the start", three, (r) => second.card && second.settled && r.records.length === 2 && r.carriers === 3 && r.statuses && r.changes && r.once, (r) => ({ records: r.records.length, carriers: r.carriers, once: r.once }));
+  // The earliest carrier goes: a later one takes the figure up.
+  for (const [i, [, actorId]] of bearers.entries()) await run(gm, C.drop, { actorId, ids: one[i].records.map((r) => r.id) });
+  const later = await reads(pick.plain);
+  each("with the first record deleted, a later carrier holds the figure, once", later, (r) => r.carriers === 2 && r.once, (r) => ({ carriers: r.carriers, once: r.once }));
+  for (const [i, [, actorId]] of bearers.entries()) await run(gm, C.drop, { actorId, ids: [hands[i].id].filter(Boolean) });
+  const last = await reads(pick.plain);
+  each("with the hand's copy deleted, the second cast's record holds it alone, once", last, (r) => r.carriers === 1 && r.records.length === 1 && r.once, (r) => ({ carriers: r.carriers, once: r.once }));
+  await shape("bolt", { rows: [lift(pick.plain)], save: none });
+  await aim(gm, bearers.map((b) => b[2]));
+  const off = await castAs("a", "bolt");
+  const gone = await reads(pick.plain);
+  each("a lifting spell takes the record and every field is back", gone, (r, i) => entryAt(off.model, bearers[i][2].uuid, "take")?.state === "applied" && r.carriers === 0 && r.back, (r) => ({ carriers: r.carriers, back: r.back }));
+
+  // A state that brings a condition: one record holding both, lifted whole by a lifting spell and put back whole by its Undo.
+  await clear();
+  await shape("kind", { rows: [give(pick.state)], save: none });
+  await aim(gm, bearers.map((b) => b[2]));
+  const st = await castAs("a", "kind");
+  const held = await reads(pick.state);
+  each("a cast of the state leaves one record holding the state and the condition it brings, with both entries' changes, under an id of its own", held, (r, i) => st.card && st.settled && entryAt(st.model, bearers[i][2].uuid, "give")?.state === "applied" && r.records.length === 1 && r.carriers === 1 && r.has && r.statuses && r.changes && !r.staticId, (r) => ({ records: r.records.length, statuses: r.statuses, changes: r.changes, staticId: r.staticId }));
+  each("every field the state and the brought condition name moved once", held, (r) => r.once);
+  const copies = [];
+  for (const [, actorId] of bearers) {
+    const h = await run(gm, C.toggle, { actorId, id: pick.brings[0] });
+    if (h.uuid) await ledger.track(h.uuid, "ActiveEffect");
+    copies.push(h);
+  }
+  const beside = await reads(pick.state);
+  each("the brought condition set by hand beside it is a second carrier of that condition, and the fields still stand once", beside, (r, i) => copies[i].made === 1 && r.brought[0] === 2 && r.once, (r) => ({ brought: r.brought, once: r.once }));
+  for (const [i, [, actorId]] of bearers.entries()) await run(gm, C.drop, { actorId, ids: [copies[i].id].filter(Boolean) });
+  await shape("bolt", { rows: [lift(pick.state)], save: none });
+  await aim(gm, bearers.map((b) => b[2]));
+  const end = await castAs("a", "bolt");
+  const lifted = await reads(pick.state);
+  each("a lifting spell naming the state takes its two-status record, names it on the entry, and every field is back", lifted, (r, i) => { const e = entryAt(end.model, bearers[i][2].uuid, "take"); return e?.state === "applied" && (e.lifted ?? []).length === 1 && !(e.listed ?? []).length && r.carriers === 0 && r.back; }, (r, i) => ({ carriers: r.carriers, back: r.back, lifted: entryAt(end.model, bearers[i][2].uuid, "take")?.lifted?.length ?? 0 }));
+  for (const [, , tok] of bearers) await run(gm, C.press, { messageId: end.messageId, action: "magicCastUndo", target: keyOf(end.model, tok.uuid), row: end.model.order?.[0] ?? "take" });
+  const undone = await reads(pick.state);
+  each("the Judge's Undo of the lift puts the record back under its own id, with both statuses and the fields one change from the start", undone, (r, i) => r.carriers === 1 && r.records.length === 1 && r.records[0].id === held[i].records[0].id && r.statuses && r.changes && r.once, (r) => ({ carriers: r.carriers, records: r.records.length, once: r.once }));
+  await clear();
+  const clean = await reads(pick.state);
+  each("the stage leaves no carrier and every field back", clean, (r) => r.carriers === 0 && r.back, (r) => ({ carriers: r.carriers, back: r.back }));
+}
+
 /* ---------------------------- run ------------------------------------ */
 try {
   section("seats");
@@ -356,6 +522,7 @@ try {
     await stage("E. granted throws on the Rolls tab (slice D, S-A)", stageGranted);
     await stage("F. an automatic Adventuring throw (S5c)", stageAutomatic);
     await stage("G. the cast dialog with three targets, and the target cap (slice A)", stageDialog);
+    await stage("H. a condition the system gives changes, granted by a cast", stageCondition);
   }
   section("console");
   for (const [label, seat] of [["gm", gm], ["player", player]]) {

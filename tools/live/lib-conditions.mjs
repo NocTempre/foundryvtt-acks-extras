@@ -520,6 +520,116 @@ const P = {
       first, sameTwice: JSON.stringify(first) === JSON.stringify(second),
     };
   },
+  /**
+   * The Stats tab's Armor Class and saving throw modifier tooltips on a character, read off the rendered sheet at each stage: whether the line each effect
+   * should draw is there once, whether a line that should not be drawn is absent, and whether a remainder line shows. A line is built here from the
+   * effect's name, the condition's name and the system's change, through the lang strings, never through the module's own builder.
+   */
+  tips: async ({ bearer, acId, saveId, state }) => {
+    const H = globalThis.__lc;
+    const VM = await import("/modules/acks-extras/scripts/character-sheet/view-model.mjs");
+    const actor = (await fromUuid(bearer)).actor;
+    const acKey = H.RM.CONDITION_STEP_KEYS.ac;
+    const saveKey = H.RM.CONDITION_STEP_KEYS.save;
+    const brought = H.family(state).find((x) => x !== state && H.ownByKey(x)[acKey]) ?? null;
+    const set = async (id, on) => { await actor.toggleStatusEffect(id, { active: on }); await H.sleep(350); };
+    const condName = (id) => game.i18n.localize(`ACKS-LIB.condition.${id}`);
+    const other = game.i18n.localize("ACKS.throw.modifier.otherEffects");
+    const saveLabel = game.i18n.localize("ACKS-CHARACTER.stats.saveMod");
+    const sheet = actor.sheet;
+    const rootOf = () => (sheet.element?.nodeType === 1 ? sheet.element : sheet.element?.[0] ?? null);
+    /** The effect that holds `id` with exactly the statuses its entry brings: a state's own, or a hand's copy of a plain condition. */
+    const effectOf = (id) => actor.effects.find((e) => e.statuses.has(id) && e.statuses.size === H.family(id).length) ?? null;
+    /** The line the effect holding `holder` should draw for `condition`'s step on `key`. */
+    const lineOf = (holder, condition, key) => {
+      const own = String(effectOf(holder)?.name ?? "").trim();
+      const named = condName(condition);
+      const label = own === named ? own : game.i18n.format("ACKS-LIB.conditionRoll.targetAc.named", { effect: own, condition: named });
+      return game.i18n.format("ACKS-CHARACTER.stats.part", { label, value: VM.signed(H.ownByKey(condition)[key]) });
+    };
+    const count = (tip, line) => String(tip ?? "").split(" · ").filter((part) => part === line).length;
+    const read = async () => {
+      await sheet.render(true);
+      for (let n = 0; n < 40 && !rootOf()?.isConnected; n++) await H.sleep(150);
+      sheet.changeTab("stats", "primary");
+      await H.sleep(700);
+      const tab = rootOf()?.querySelector("section[data-tab='stats']") ?? null;
+      const label = [...(tab?.querySelectorAll(".acks-extras-frame__fact-label") ?? [])].find((l) => l.firstChild?.textContent.trim() === saveLabel) ?? null;
+      const saveEl = label?.querySelector("[data-tooltip-text]") ?? null;
+      return { tab: !!tab, ac: [...(tab?.querySelectorAll(".acks-extras-frame__fact-value[data-tooltip-text]") ?? [])].map((n) => n.dataset.tooltipText), save: saveEl ? saveEl.dataset.tooltipText : null, saveEl };
+    };
+    const stages = [];
+    let hover = null;
+    const stage = async (name, drawn, absent, { hovered = false } = {}) => {
+      const r = await read();
+      const inAc = (line, n) => r.ac.some((t) => count(t, line) === n) && r.ac.every((t) => count(t, line) <= n);
+      stages.push({
+        name, tab: r.tab, acRows: r.ac.length, saveTip: r.save !== null,
+        drawn: drawn.every(([where, line]) => (where === "ac" ? inAc(line, 1) : count(r.save, line) === 1)),
+        absent: absent.every(([where, line]) => (where === "ac" ? r.ac : [r.save]).every((t) => count(t, line) === 0)),
+        noRemainder: [...r.ac, r.save ?? ""].every((t) => !t.includes(other)),
+      });
+      if (hovered && r.saveEl) {
+        r.saveEl.scrollIntoView({ block: "center" });
+        await H.sleep(250);
+        r.saveEl.dispatchEvent(new PointerEvent("pointerenter"));
+        await H.sleep(foundry.helpers.interaction.TooltipManager.TOOLTIP_ACTIVATION_MS + 500);
+        hover = { active: game.tooltip.element === r.saveEl, same: (game.tooltip.tooltip?.textContent ?? "") === r.save, title: r.saveEl.hasAttribute("title") };
+        r.saveEl.dispatchEvent(new PointerEvent("pointerleave"));
+        await H.sleep(200);
+      }
+    };
+    await stage("no condition", [], []);
+    await set(acId, true);
+    await stage("one condition with an Armor Class step", [["ac", lineOf(acId, acId, acKey)]], []);
+    await set(acId, false);
+    await set(saveId, true);
+    await stage("one condition with a save step", [["save", lineOf(saveId, saveId, saveKey)]], [], { hovered: true });
+    await set(saveId, false);
+    let distinct = false;
+    if (brought) {
+      await set(state, true);
+      const ofState = lineOf(state, brought, acKey);
+      await stage("a state that brings a condition", [["ac", ofState]], []);
+      await set(brought, true);
+      const ofHand = lineOf(brought, brought, acKey);
+      distinct = ofState !== ofHand;
+      await stage("the state, then the brought condition by hand", [["ac", ofState]], [["ac", ofHand]]);
+      await set(state, false);
+      await stage("the hand's copy alone", [["ac", ofHand]], [["ac", ofState]]);
+      await set(state, true);
+      await stage("the hand's copy, then the state", [["ac", ofHand]], [["ac", ofState]]);
+      await set(state, false);
+      const alone = actor.effects.filter((e) => e.statuses.size === 1 && e.statuses.has(brought)).map((e) => e.id);
+      if (alone.length) await actor.deleteEmbeddedDocuments("ActiveEffect", alone);
+      await H.sleep(350);
+    }
+    await stage("no condition again", [], []);
+    await sheet.close();
+    return { sheet: sheet.constructor.name, brought, distinct, hover, stages, clean: ![acId, saveId, state, brought].some((id) => id && actor.statuses.has(id)) };
+  },
+  /** One saving throw of an actor with a condition whose effect changes the save modifier, and the notices told while it rolled, counted by whether they name the effect. */
+  notice: async ({ bearer, id }) => {
+    const H = globalThis.__lc;
+    const actor = (await fromUuid(bearer)).actor;
+    const said = [];
+    const info = ui.notifications.info;
+    ui.notifications.info = function (message, ...rest) { said.push(String(message)); return info.call(this, message, ...rest); };
+    try {
+      await H.save(actor);
+      const before = said.splice(0);
+      await actor.toggleStatusEffect(id, { active: true });
+      await H.sleep(350);
+      const name = String(actor.effects.find((e) => e.statuses.has(id))?.name ?? "");
+      await H.save(actor);
+      const during = said.splice(0);
+      await actor.toggleStatusEffect(id, { active: false });
+      await H.sleep(350);
+      return { type: actor.type, named: name !== "", before: before.filter((m) => name && m.includes(name)).length, naming: during.filter((m) => name && m.includes(name)).length, told: during.length, back: !actor.statuses.has(id) };
+    } finally {
+      ui.notifications.info = info;
+    }
+  },
   drain: async () => ({ posted: globalThis.__lc?.posted?.slice() ?? [] }),
   restore: async () => {
     const H = globalThis.__lc;
@@ -751,6 +861,32 @@ try {
     check("10: the Player seat, loaded with both in place, holds the same field and the same Armor Class from its first preparation", seen.mod === held.mod && seen.value === held.value, { sameMod: seen.mod === held.mod, sameValue: seen.value === held.value });
     check("10: the Player seat loaded with no error from load through ready", seen.boot?.phases.length === 3 && !seen.boot.errors.length, seen.boot);
     check("10: lifting both puts the field back", lifted.mod === clean.mod && lifted.carriers === 0, { carriers: lifted.carriers });
+  }
+
+  section("11. the sheet's Armor Class and save modifier tooltips name each effect");
+  const acId = census.registered.find((r) => r.ownKeys.includes(census.keysRead.ac))?.id ?? null;
+  const saveId = census.registered.find((r) => r.ownKeys.includes(census.keysRead.save))?.id ?? null;
+  if (!acId || !saveId || !waivedBy) check("11: the system ships a condition with an Armor Class change, one with a save change, and a state brings one", false, { acId, saveId, waivedBy });
+  else {
+    const t = await run(gm, P.tips, { bearer: pcTok.uuid, acId, saveId, state: waivedBy });
+    note("tooltips", { sheet: t.sheet, conditions: { acId, saveId, state: waivedBy, brought: t.brought }, hover: t.hover, stages: t.stages });
+    const stagesBad = (key) => t.stages.filter((s) => !s[key]).map((s) => s.name);
+    check("11: the sheet renders its Stats tab with the Armor Class rows and the save modifier's note at every stage", t.stages.length === 8 && t.stages.every((s) => s.tab && s.acRows > 0 && s.saveTip), t.stages.filter((s) => !(s.tab && s.acRows > 0 && s.saveTip)).map((s) => s.name));
+    check("11: each effect that moves the figure is named on one line with its step, a state's by the condition it brings", stagesBad("drawn").length === 0 && t.distinct, { stages: stagesBad("drawn"), distinct: t.distinct });
+    check("11: a condition two effects carry is listed once, under the effect whose change the system applied", stagesBad("absent").length === 0, stagesBad("absent"));
+    check("11: no remainder line shows at any stage, so the lines account for the whole figure", stagesBad("noRemainder").length === 0, stagesBad("noRemainder"));
+    check("11: hovering the save modifier's note shows core's tooltip with the same text, and the note has no title attribute", !!t.hover && t.hover.active && t.hover.same && !t.hover.title, t.hover);
+    check("11: the conditions are off the character afterwards", t.clean);
+  }
+
+  section("12. a monster's saving throw names the effect whose step it took");
+  if (!saveId) check("12: the system ships a condition with a save change", false);
+  else {
+    const onMon = await run(gm, P.notice, { bearer: monTok.uuid, id: saveId });
+    const onPc = await run(gm, P.notice, { bearer: pcTok.uuid, id: saveId });
+    note("notices", { monster: onMon, character: onPc });
+    check("12: a monster's save under the condition tells one notice naming the effect, and none before the condition is set", onMon.named && onMon.before === 0 && onMon.naming === 1 && onMon.back, onMon);
+    check("12: a character's save under it tells none, since the system's own roll carries the step", onPc.named && onPc.naming === 0 && onPc.back, onPc);
   }
   walkDone();
 } catch (err) {
