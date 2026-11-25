@@ -264,6 +264,9 @@ const P = {
     return true;
   },
 
+  /** The scene's battlemap setup record, as stored. */
+  setupOf: async ({ sceneId }) => game.scenes.get(sceneId).flags?.["acks-extras"]?.battlemap ?? null,
+
   /** Gather the group's bodies off the scene. */
   gather: async ({ groupId, sceneId }) => acksExtras.lib.groups.recall(game.actors.get(groupId), { scene: game.scenes.get(sceneId) }),
 
@@ -455,24 +458,28 @@ try {
   const standing = async (g, sc) => run(gm, P.bodies, { groupId: g.group.id, sceneId: sc.id });
 
   // Without auto-size: the walk's own scene carries no auto-size flag.
+  const ownSetup = await run(gm, P.setupOf, { sceneId: scene.id });
+  check("the walk's own scene has auto-size off", !ownSetup?.autoScale, ownSetup);
   const hand = await stackOf("hand");
   const handMade = await sendOut(hand, scene);
   const aMember = handMade[0]?.member;
   check("two bodies stand, each with a record key", handMade.length === 2 && handMade.every((t) => t.member) && handMade[0].member !== handMade[1].member, handMade);
-  await run(gm, P.resize, { sceneId: scene.id, tokenId: handMade[0].id, width: 2, height: 1, scale: 1.5 });
-  const handGathered = await run(gm, P.gather, { groupId: hand.group.id, sceneId: scene.id });
-  const handRecords = await run(gm, P.remembered, { groupId: hand.group.id });
-  const handKept = handRecords[aMember];
-  check("body A's record holds 2 by 1 and a scale of 1.5 between the gather and the send-out", handGathered.recalled === 2 && near([handKept?.width, handKept?.height, handKept?.scaleX, handKept?.scaleY], [2, 1, 1.5, 1.5]), { recalled: handGathered.recalled, kept: handKept });
-  const handBodyB = Object.keys(handRecords).find((k) => k !== aMember);
-  check("body B's record holds no size", nothing(handRecords[handBodyB]), handRecords[handBodyB]);
-  await sendOut(hand, scene);
-  const handBodies = await standing(hand, scene);
-  const bodyA = handBodies.find((b) => b.member === aMember);
-  const bodyB = handBodies.find((b) => b.member !== aMember);
-  check("body A is sent out at 2 by 1, scale 1.5, with the footprint lock", !!bodyA && near([bodyA.width, bodyA.height, ...bodyA.scale], [2, 1, 1.5, 1.5]) && bodyA.lock === true, bodyA);
-  check("body B is sent out at its prototype's size, unlocked, its stamp that size", !!bodyB?.proto && near([bodyB.width, bodyB.height], bodyB.proto.slice(0, 2)) && bodyB.lock === false && near(bodyB.stamp, bodyB.proto.slice(0, 2)), bodyB);
-  await run(gm, P.gather, { groupId: hand.group.id, sceneId: scene.id });
+  if (handMade.length === 2) {
+    await run(gm, P.resize, { sceneId: scene.id, tokenId: handMade[0].id, width: 2, height: 1, scale: 1.5 });
+    const handGathered = await run(gm, P.gather, { groupId: hand.group.id, sceneId: scene.id });
+    const handRecords = await run(gm, P.remembered, { groupId: hand.group.id });
+    const handKept = handRecords[aMember];
+    check("body A's record holds 2 by 1 and a scale of 1.5 between the gather and the send-out", handGathered.recalled === 2 && near([handKept?.width, handKept?.height, handKept?.scaleX, handKept?.scaleY], [2, 1, 1.5, 1.5]), { recalled: handGathered.recalled, kept: handKept });
+    const handBodyB = Object.keys(handRecords).find((k) => k !== aMember);
+    check("body B's record holds no size", nothing(handRecords[handBodyB]), handRecords[handBodyB]);
+    await sendOut(hand, scene);
+    const handBodies = await standing(hand, scene);
+    const bodyA = handBodies.find((b) => b.member === aMember);
+    const bodyB = handBodies.find((b) => b.member !== aMember);
+    check("body A is sent out at 2 by 1, scale 1.5, with the footprint lock", !!bodyA && near([bodyA.width, bodyA.height, ...bodyA.scale], [2, 1, 1.5, 1.5]) && bodyA.lock === true, bodyA);
+    check("body B is sent out at its prototype's size, unlocked, its stamp that size", !!bodyB?.proto && near([bodyB.width, bodyB.height], bodyB.proto.slice(0, 2)) && bodyB.lock === false && near(bodyB.stamp, bodyB.proto.slice(0, 2)), bodyB);
+    await run(gm, P.gather, { groupId: hand.group.id, sceneId: scene.id });
+  }
 
   // With auto-size: a second scene with the flag on and a cell worth 5 feet, and a monster whose own footprint override is 10 by 10 feet, which the sizer turns into 2 by 2 cells.
   const auto = await gm.create("Scene", { name: `QA Nested auto scene${TAG}`, width: 1200, height: 800, grid: { size: 100, distance: 5, units: "ft" }, flags: { "acks-extras": { battlemap: { autoScale: true } } } });
