@@ -46,6 +46,21 @@ card in chat says how many of its creatures still stand, with a **Dismiss**
 button. The character sheet's cast cell (the first cell of the second right-rail column, for a caster) and Magic tab show and dismiss them
 too ([character sheet](character-sheet.md#the-band-and-the-rails)).
 
+Where the caster marches inside a party token
+([formation guide](formation.md)), the creatures join that party as members
+once they are placed: their tokens leave the map, and the spell's row on the
+Magic tab counts how many stand. They take the field with the party when a
+fight deploys it.
+
+In a fight that has begun, a cast made when it is not the caster's turn is
+declared: the cast window's button reads **Declare**, the slot is spent at
+that press, and the creatures are placed when the caster's turn comes. A
+declaration lapses when that turn ends without the cast, or when the fight is
+deleted, and the slot stays spent. A fight has begun once the Judge has been
+asked for the round's declarations, so a caster still listed in a fight left
+in the **Combat Tracker** sidebar tab declares every cast until that fight is
+ended.
+
 ## Importing your spells
 
 Connect your Revised Rulebook (**Manage Imports → Books** tab, opened from
