@@ -2420,8 +2420,8 @@ never told by `instanceof`. The dialog returns `{faction, under}` and `pressJoin
 the first choice passes none.
 
 The rows are `orgChart(faction).rows`, which reads the seat's readable rows (`readableUnits`, the same filter `readableChartRows`
-applies over a world's rows), so a hidden row and what lies beneath it is never offered to a seat that is no Judge. The label is the
-row's own `label`, as the chart card shows it. The option list is the pure `underOptions` in `org-tree-logic.mjs`.
+applies over a world's rows), so a hidden row and what lies beneath it is never offered to a seat that is no Judge. Each row is named as its chart card
+names it (`rankOf`: the row's label, led by its kind word where the label lacks it). The option list is the pure `underOptions` in `org-tree-logic.mjs`.
 
 Permissions are the landed Join's, unchanged: no gate and no seat read were added; `join`'s own refusals say who may write. Depth is
 `planJoin`'s: it refuses no depth and warns of none, so a group joined beneath a row two deep stands three deep, and no

@@ -222,6 +222,15 @@ t("the picker offers Under: the top, then the chosen faction's rows indented, re
   assert.deepEqual(live.options.map((o) => [o.value, o.textContent]), [["", "ACKS-LIB.org.faction.underTop {}"], ["x", "Row x"]], "a change of faction refills Under with that faction's rows");
 });
 
+t("Under names a row as its card does, with the kind word before the label", async () => {
+  reset();
+  const lone = group("Lone");
+  faction("Card", [{ ...row("a", ""), kind: "QA band" }]);
+  picker.choice = null;
+  await gesture.pressJoin(lone);
+  assert.deepEqual(JSON.parse(picker.asked[0].content).view.under.map((o) => o.text).slice(1), ["QA band · Row a"]);
+});
+
 t("a Join under a row nests the group's top row there, and the top leaves it a top row", async () => {
   reset();
   const war = group("Warband");

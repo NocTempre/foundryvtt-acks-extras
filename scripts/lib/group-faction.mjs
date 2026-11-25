@@ -13,6 +13,7 @@
  */
 import { MODULE_ID, ORG_LANG_PREFIX } from "./constants.mjs";
 import { factionLineOf, joinFaction, leaveFaction, makeFaction, orgChart, worldFactions } from "./org.mjs";
+import { rankOf } from "./org-chart-ui-logic.mjs";
 import { underOptions } from "./org-tree-logic.mjs";
 import { makeLoc } from "./util.mjs";
 
@@ -52,11 +53,11 @@ function refusal(result, { fallbackName = "", verb = "join" } = {}) {
 
 /**
  * The Under choices for a faction: its rows as this seat reads them (a hidden row is a Judge's alone),
- * in the chart's reading order, with "At the top" first.
+ * in the chart's reading order, each named as its card names it, with "At the top" first.
  * @param {Actor|undefined} faction
  */
 function underChoicesOf(faction) {
-  return underOptions(faction ? orgChart(faction).rows : [], loc("faction.underTop"));
+  return underOptions(faction ? orgChart(faction).rows.map((r) => ({ ...r, rank: rankOf(r) })) : [], loc("faction.underTop"));
 }
 
 /**

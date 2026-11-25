@@ -4573,7 +4573,7 @@ read is the proof, and the button itself is not walked.
 
 The model is [ORGANISATION.md](ORGANISATION.md), "A group's own gestures". Walked on
 the primary GM seat through the rendered sheet, a click on each control, with the
-writes read back from the stored rows. Steps 7b and 8 also want a player seat's page for the Under read in 8.
+writes read back from the stored rows. Step 8 also wants a player seat.
 
 ### Fixtures
 

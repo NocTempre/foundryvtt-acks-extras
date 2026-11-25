@@ -563,7 +563,7 @@ try {
   check("the labels are the rows' own", same(under1.options.slice(1).map((o) => o.text), ["QA Top", "QA Child", "QA Hidden"]), under1.options.map((o) => o.text));
   check("the select's tooltip and aria-label say what the field does, and name the group", under1.label.length > 0 && under1.label === under1.tip && under1.label.includes(s.names.group), { label: under1.label, tip: under1.tip });
   const other = cards[0] ? await run(gm, P.pickerUnder, { uuid: cards[0] }) : null;
-  if (other) check("changing the faction refills Under: a card holding no row offers At the top alone", same(other.options.map((o) => o.value), [""]) && other.selected === "", other.options);
+  if (other) check("changing the faction refills Under: a card holding no row offers At the top alone", other.chosen === true && same(other.options.map((o) => o.value), [""]) && other.selected === "", other.options);
   else note("not walked", "no card from step 6 stands to switch the faction to");
   const back = await run(gm, P.pickerUnder, { uuid: faction.uuid });
   check("changing it back refills the kept faction's rows", same(back.options.slice(1).map((o) => o.value), [top7.key, child7.key, hidden7.key]), back.options);

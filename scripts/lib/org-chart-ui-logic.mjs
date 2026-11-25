@@ -156,8 +156,7 @@ export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll =
   const draw = (node, parent) => {
     const folded = collapsed.has(node.key) && node.children.length > 0;
     const out = outAt[node.holderUuid] ?? [];
-    const word = String(node.kind ?? "");
-    const rank = word && !String(node.label ?? "").toLowerCase().includes(word.toLowerCase()) ? `${word} · ${node.label}` : String(node.label ?? "");
+    const rank = rankOf(node);
     return {
       ...node,
       rank,
@@ -512,6 +511,16 @@ export function dieChangeOf(stackKey, roll) {
 export function dieFloorOf(stack, change) {
   const held = (stack?.roster ?? []).length;
   return change && change.count < held ? held : null;
+}
+
+/**
+ * The words a chart card names a row by: its label, led by the row's kind word and a dot where the label does not already hold that word.
+ * @param {{kind?: string, label?: string}} node
+ * @returns {string}
+ */
+export function rankOf(node) {
+  const word = String(node?.kind ?? "");
+  return word && !String(node?.label ?? "").toLowerCase().includes(word.toLowerCase()) ? `${word} · ${node.label}` : String(node?.label ?? "");
 }
 
 /**

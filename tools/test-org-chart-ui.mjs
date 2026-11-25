@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
 import { planEdit, planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf, formDraftsOf, restorableDrafts } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf, formDraftsOf, restorableDrafts, rankOf } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -468,6 +468,15 @@ t("a press reads what a hand typed and has not saved, leaves out the count it wr
   assert.deepEqual(restorableDrafts(drafts, [formField("label", "x", "x"), formField("troop", "a", "a", { stack: "s1", choices: ["a"] })]), [{ at: 0, value: "QA Typed" }], "a choice no longer offered is dropped");
   assert.deepEqual(formDraftsOf([]), []);
   assert.deepEqual(restorableDrafts([], after), []);
+});
+
+t("a row is named as its card names it: its label, led by its kind word where the label lacks it", () => {
+  assert.equal(rankOf({ kind: "QA band", label: "Row a" }), "QA band · Row a");
+  assert.equal(rankOf({ kind: "Band", label: "QA band one" }), "QA band one", "a label that holds the word is not led by it again");
+  assert.equal(rankOf({ kind: "", label: "Row a" }), "Row a");
+  assert.equal(rankOf({}), "");
+  const card = chartCards(orgChartView([{ key: "a", parentKey: "", label: "Row a", kind: "QA band", holderUuid: "", gen: {} }], () => null).roots)[0];
+  assert.equal(card.rank, rankOf({ kind: "QA band", label: "Row a" }), "the card draws the same words");
 });
 
 let failures = 0;

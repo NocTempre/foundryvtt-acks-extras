@@ -120,7 +120,7 @@ do):
   Under names, or at the top of the faction's chart for its first choice, **At the
   top** (a blank value). Under lists the chosen faction's rows as this seat reads them
   (`orgChart(faction).rows`, which leaves out a hidden row and what lies beneath it for
-  a seat that is no Judge), in reading order, a nested row indented under its parent
+  a seat that is no Judge), in reading order, each named as its card names it, a nested row indented under its parent
   (`underOptions`, `org-tree-logic.mjs`); a change of the Faction select refills it
   from the new faction's rows. The picker adds no gate: who may write is `join`'s,
   and `planJoin` nests the top row where it is told, whatever the depth. A world with no faction says
