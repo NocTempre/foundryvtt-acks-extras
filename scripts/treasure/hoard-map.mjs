@@ -89,8 +89,8 @@ export function formsOf(kind) {
 /**
  * The nouns one column of a type table prints, in first-seen order, one per
  * distinct folded spelling, each with whether any clause printed it before its
- * count (`nounFirst`). A cell that does not read contributes none; the engine
- * reports it when that cell is dealt.
+ * count (`nounFirst`). A clause that does not read contributes none; the engine
+ * reports it when its cell is dealt.
  *
  * @returns {Array<{noun: string, nounFirst: boolean}>}
  */

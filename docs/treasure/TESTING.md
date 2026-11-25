@@ -466,7 +466,11 @@ or the cookbook documents a real import writes.
    jewelry-heavy letter until it does) pools jewelry cards, each carrying a
    worth, and the deal's notice names no `bad-value`: the jewelry values the
    importer reads are printed as throws, so a pot with gems and no jewelry from
-   such a letter is how T-0804 is caught.
+   such a letter is how T-0804 is caught. A cell with one clause the book gives
+   no count for still deals its other clauses, and the notice names
+   `missing-count` once for that cell: a pot that holds none of the cell's
+   magic, or a notice that names the code against the whole cell and deals none
+   of it, is how T-0805 is caught.
 4. **Met in their lair.** Tick it and press Deal. Observable: no callout; a
    second hoard is dealt at once. Reopen the window: the toggle, the style and
    the Special treasure tick read back as left.

@@ -194,11 +194,18 @@ const EMPTY_RE = /^[-–—\s]*$/;
  * parenthesized figure (an average) is set aside as `note` and never rolled. An
  * empty cell, a null cell and a bare dash are a cell with nothing in it.
  *
+ * A clause that does not read is refused alone: its typed error joins `errors`
+ * and the other clauses of the cell still read. No count, chance or noun is
+ * supplied for a refused clause. The cell-level `error` (the first clause's)
+ * is returned only when no clause reads at all.
+ *
  * @param {string|null} cell
  * @param {{column?: string}} [opts] the column key, a hint for a clause with no noun
- * @returns {{terms: object[], note: string|null}|{error: object}} each term is
- *   `{chance, count, noun, column}`, plus `nounFirst: true` where the clause
- *   printed its noun before its count
+ * @returns {{terms: object[], note: string|null, errors?: object[]}|{error: object}}
+ *   each term is `{chance, count, noun, column}`, plus `nounFirst: true` where
+ *   the clause printed its noun before its count; each of `errors` (present
+ *   only when a clause was refused) is the clause's error with the `clause`
+ *   text and the raw `cell`
  */
 export function parseCell(cell, { column = null } = {}) {
   const raw = String(cell ?? "").replace(/\s+/g, " ").trim();
@@ -206,13 +213,15 @@ export function parseCell(cell, { column = null } = {}) {
   const m = NOTE_RE.exec(raw);
   const body = m ? raw.slice(0, m.index) : raw;
   const terms = [];
+  const errors = [];
   for (const part of body.split(SPLIT_RE)) {
     if (!part) continue;
     const t = parseClause(part);
-    if (t.error) return { error: { ...t.error, cell: raw } };
-    terms.push({ ...t, column });
+    if (t.error) errors.push({ ...t.error, clause: part, cell: raw });
+    else terms.push({ ...t, column });
   }
-  return terms.length ? { terms, note: m ? m[0].trim() : null } : err("unparseable", { cell: raw });
+  if (!terms.length) return errors.length ? { error: errors[0] } : err("unparseable", { cell: raw });
+  return { terms, note: m ? m[0].trim() : null, ...(errors.length ? { errors } : {}) };
 }
 
 /**
@@ -316,6 +325,7 @@ export function dealHoard({ type, tables, kinds, roll, units = {}, special = tru
     const where = `${type}.${column}`;
     const parsed = parseCell(cell, { column });
     if (parsed.error) { fail(parsed, where); continue; }
+    for (const refused of parsed.errors ?? []) fail({ error: refused }, where);
     for (const term of parsed.terms) {
       if (term.chance === 0) { audit.push({ where, chance: 0, hit: false, cite: typeCite }); continue; }
       const noun = resolveNoun(term.noun, kinds, column);

@@ -493,7 +493,12 @@ imported `treasure` registry document through `lib/tables.mjs` and holds no
 figure: with the document, the style's type table or the letter missing, it
 returns no truths and one typed error (`not-imported`, `unknown-type`,
 `unknown-style`). The rest of a hoard is dealt around any other gap, and each
-gap is an entry of `errors` for the caller to word.
+gap is an entry of `errors` for the caller to word. A clause of a treasure-type
+cell that does not read (a chance and a noun with no count) is refused alone as
+its own error, and the rest of its cell is dealt. A Judge supplies a missing
+figure by overriding the table in Imported Rules Tables (Settings tab → Game
+Settings → ACKS II — Extras → Imported Rules Tables); the deal reads the
+override layer over the import (`getDoc`), and no figure stands in meanwhile.
 
 **Imported table to engine argument** (`mapHoardArgs`):
 

@@ -72,7 +72,11 @@ for (const bad of ["???", "wonders", "ten glimmerstones"]) {
 eq(parseCell("3% wonders").error.code, "missing-count", "a chance and a noun with no count is not guessed at 1");
 eq(parseCell("30%").error.code, "missing-count", "a chance alone");
 eq(parseCell("130% 1d4").error.code, "bad-chance", "a chance above 100");
-eq(parseCell("20% 1d4; ???").error.code, "unparseable", "one bad clause fails the cell");
+eq(parseCell("20% 1d4; ???").terms.map((t) => [t.chance, t.count]), [[20, "1d4"]], "a clause that does not read leaves the others of its cell read");
+eq(parseCell("20% 1d4; ???").errors, [{ code: "unparseable", text: "???", clause: "???", cell: "20% 1d4; ???" }], "the refused clause is its own error, with its text and the raw cell");
+eq(parseCell("35% 2d2 alphas, 30% 1 betas, 2% gammas").errors.map((e) => [e.code, e.clause]), [["missing-count", "2% gammas"]], "a chance and a noun with no count is refused alone");
+eq(parseCell("10% 1 alphas (5gp)").errors, undefined, "a cell whose clauses all read carries no errors");
+eq(parseCell("???; 4% gammas; 130% 1d4").error, { code: "unparseable", text: "???", clause: "???", cell: "???; 4% gammas; 130% 1d4" }, "a cell no clause of which reads is one cell-level error, the first clause's");
 
 /* --- nouns matched against the kinds passed in ------------------------------- */
 const KINDS = [
@@ -214,6 +218,28 @@ deal = dealHoard({ type: "ZZ9", tables: MIXED, kinds: KINDS, roll: scripted(10, 
 eq(deal.errors.map((e) => [e.where, e.code]), [["ZZ9.c1", "unit-missing"], ["ZZ9.c2", "unit-missing"], ["ZZ9.gems", "unknown-noun"], ["ZZ9.jewelry", "unparseable"]], "each failure is typed and placed, in column order");
 eq(deal.cards.map((c) => c.pool), ["magic"], "what could be dealt still is");
 eq(deal.errors[2].noun, "fizzlers", "an unmatched noun is named, not dropped");
+{
+  // A clause that does not read is refused alone; the rest of its cell is dealt.
+  const KINDS2 = [...KINDS, { key: "alp", pool: "magic", column: "magic", names: ["alphas"], tableRef: "tref-a" }, { key: "bet", pool: "magic", column: "magic", names: ["betas"], tableRef: "tref-b" }];
+  const cell = "35% 2d2 alphas, 30% 1 betas, 2% gammas";
+  const dealMagic = (roll, c = cell) => dealHoard({ type: "ZZ9", tables: ROW(c, "magic"), kinds: KINDS2, roll, units: {} });
+  const rolls = scripted(35, 2, 30);
+  const d = dealMagic(rolls);
+  eq(d.errors, [{ code: "missing-count", text: "2% gammas", clause: "2% gammas", cell, where: "ZZ9.magic" }], "exactly one missing-count, placed at the cell's where");
+  eq(d.cards.map((c) => c.tableRef), ["tref-a", "tref-a", "tref-b"], "the alphas and the betas are dealt");
+  eq(rolls.asked, ["1d100", "2d2", "1d100"], "the refused clause throws nothing and no count is supplied for it");
+  let sound = true;
+  const seeded = rollerFrom(seededRng(5));
+  for (let i = 0; i < 100; i++) {
+    const r = dealMagic(seeded);
+    if (r.errors.length !== 1 || r.errors[0].code !== "missing-count" || r.errors[0].where !== "ZZ9.magic" || r.cards.some((c) => c.tableRef === undefined || !["tref-a", "tref-b"].includes(c.tableRef))) sound = false;
+  }
+  ok(sound, "on a seeded roller each deal reports the one refusal and deals no card for it");
+  const none = dealMagic(scripted(), "2% gammas; ???");
+  eq([none.cards, none.errors.map((e) => [e.code, e.where])], [[], [["missing-count", "ZZ9.magic"]]], "a cell no clause of which reads is one error and deals nothing");
+  eq(dealMagic(scripted(), "").errors, [], "an empty cell is nothing");
+  eq(dealMagic(scripted(), "-").cards, [], "a bare dash deals nothing");
+}
 eq(dealHoard({ type: "NOPE", tables: TABLES, kinds: KINDS, roll: scripted(), units: {} }).errors, [{ code: "unknown-type", type: "NOPE" }], "a type the table does not have");
 
 // A gem kind with no die, and a missing list.
