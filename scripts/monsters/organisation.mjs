@@ -420,12 +420,12 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
 }
 
 /**
- * The always-on engaged reach a trait row's paragraph prints: an effect row, on
- * the trait's ability, that asks a saving throw of an opposing creature of the
- * printed kind whenever it begins its initiative engaged by the bearer or
- * becomes engaged to it during one, and holds the condition it names on a
- * failure. It names no activation, so the reach is raised while the bearer is a
- * combatant. The row's figures are live registry references into
+ * The always-on engaged reach a trait row prints: an effect row, on the trait's
+ * ability, whose reach is `engaged` on the `turnStart+enter` pulse, filtered to
+ * the opposing side and the printed kinds, calling `reach.save` of each subject
+ * and holding the row's condition on a failure. The ability names no
+ * activation, so the carrier raises the reach while the bearer is a combatant.
+ * The row's figures are live registry references into
  * `ORGANISATION_TABLES.traitRules` (`save`, `immunity`, `lasts`), read at use
  * and blank where the import left them blank; the subject kinds are the printed
  * qualifier folded onto kind keys by lib's `matchKinds`. Null, with each part
@@ -665,7 +665,9 @@ export function naturalAttackItems(dice, name) {
  * read at the roll, the surprise matrix, the morale page and the Armor Class
  * waiver (`organisationSpecs`), and a word that does not fold, a band outside
  * `RANGE_BANDS` or a ratio that is no pair writes no spec and is listed on
- * `extras.organisation.unresolved` and passed to `warn`. A standing figure and a
+ * `extras.organisation.unresolved` and passed to `warn`. A trait row that calls a
+ * save also gives its ability the engaged reach row (`engagedReachRow`), for a
+ * body of any role. A standing figure and a
  * gated spec never share a figure. The chosen equipment rows write what
  * `gearPayloads` returns for a fighting creature: ability items, an armour
  * class bump (the `gear` part) and the hooked flag on its melee weapons.
@@ -781,7 +783,7 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
     record.natural = { trait: trait.key, count: made.length };
   }
 
-  // The gated figures ride on one ability item per row, for a fighting creature only; a row with no spec mints none.
+  // The gated figures ride on one ability item per row, for a fighting creature only; a row with no spec mints none. A trait's engaged reach is the one spec every role takes, so a trait row is read for any body.
   const unresolved = [];
   for (const [kind, row] of [["troop", fights ? troop : null], ["trait", trait]]) {
     if (!row) continue;
