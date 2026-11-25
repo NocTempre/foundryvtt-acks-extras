@@ -32,6 +32,53 @@ export function stackAnswering(have) {
   return { rows, held: rows.reduce((sum, row) => sum + (stackCountOf(row) || 1), 0), item: rows.find(isWorn) ?? rows[0] };
 }
 
+/**
+ * What the gear the actor already carries answers for each line of a sheet's
+ * list, worked out before anything is written. A name the actor carries as a
+ * stack is answered by that stack: the line first naming it takes every row of
+ * it and is checked against the sum of all the lines naming it, and a later
+ * line of the name is answered by the same item and owes nothing, so a sheet
+ * listing one item on two lines is not counted twice. Any other name is read
+ * as copies: each line claims unclaimed rows, a row counting for its own
+ * quantity, until it has as many as it lists, and owes the rest.
+ * @param {{name: string, qty: number}[]} gear the sheet's gear lines, in order
+ * @param {Item[]} carried the gear rows the actor carries
+ * @returns {{rows: Item[], item: Item|null, owed: number, check: {label: string, sheet: string, inForce: string}|null}[]}
+ *   one answer per line: the rows it claims, the item to place, how many it
+ *   still has to land, and the count mismatch to report
+ */
+export function answerGear(gear, carried) {
+  const claimed = new Set();
+  const stacks = new Map();
+  const listed = new Map();
+  for (const line of gear) listed.set(slug(line.name), (listed.get(slug(line.name)) ?? 0) + line.qty);
+  return gear.map((line) => {
+    const key = slug(line.name);
+    const have = carried.filter((i) => slug(i.name) === key && !claimed.has(i.id));
+    if (!stacks.has(key)) {
+      const stack = stackAnswering(have);
+      stacks.set(key, stack);
+      if (stack) {
+        for (const row of stack.rows) claimed.add(row.id);
+        const sheet = listed.get(key);
+        const check = stack.held !== sheet ? { label: have[0].name, sheet: String(sheet), inForce: String(stack.held) } : null;
+        return { rows: stack.rows, item: stack.item, owed: 0, check };
+      }
+    } else if (stacks.get(key)) {
+      return { rows: [], item: stacks.get(key).item, owed: 0, check: null };
+    }
+    const rows = [];
+    let held = 0;
+    for (const row of have) {
+      if (held >= line.qty) break;
+      rows.push(row);
+      claimed.add(row.id);
+      held += stackCountOf(row) || 1;
+    }
+    return { rows, item: rows[0] ?? null, owed: Math.max(0, line.qty - held), check: null };
+  });
+}
+
 /** A name with any trailing bracket dropped, folded: what two spellings of one thing share. */
 export const nameSlug = (name) => slug(String(name ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
 

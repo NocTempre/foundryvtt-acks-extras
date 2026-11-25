@@ -616,8 +616,14 @@ what was added, what to check and what was not found.
   checks only.
 - **Gear** lands through the equipment builder (`buildGearData`,
   `deliverItems`), so a line nothing answers still arrives as a named item.
-  An item the character already carries under a line's name answers that
-  line, and one item answers one line. Things are put on the body before any
+  What the character already carries answers the lines (`answerGear`, before
+  anything is written). A name carried as a stack is answered by the stack,
+  every row of it, for every line naming the item: the first line is checked
+  against the sum of the lines and the rest owe nothing, so a sheet listing
+  one item twice is not counted twice on a re-import. A name carried as
+  separate copies (rows with effects of their own) is answered by rows
+  counting their own quantity until a line's count is met, and a line lands
+  only what no copy answers. Things are put on the body before any
   are packed (`placeItem`), so a backpack on the back can take the backpack's
   list. A weapon is drawn only into a hand: listed at the belt or on the back,
   it stays carried. The sheet's backpack, sack and pouch lists go into the

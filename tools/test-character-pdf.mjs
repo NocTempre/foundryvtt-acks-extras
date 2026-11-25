@@ -540,6 +540,41 @@ test("a line counting three daggers is answered by the row in hand and the rest 
   assert.equal(stackAnswering([dagger("fx", 1, false, { effects: [{ id: "e" }] })]), null, "a row with effects of its own is a copy, never counted into a stack");
 });
 
+test("every line of a name a stack answers is counted against the stack, and a re-import of the same lines owes nothing", async () => {
+  const { answerGear } = await import("../scripts/character-sheet/pdf/match.mjs");
+  const row = (id, name, qty, extra = {}) => ({ id, name, type: "item", system: { cost: 1, weight6: 1, quantity: qty }, flags: {}, ...extra });
+  const dagger = (id, qty, equipped, extra = {}) => ({ id, name: "Dagger", type: "weapon", system: { cost: 3, weight6: 1, equipped, quantity: qty }, flags: {}, ...extra });
+  const owed = (answers) => answers.map((a) => a.owed);
+  const torches = [{ name: "Torch", qty: 3 }, { name: "Torch", qty: 2 }];
+
+  assert.deepEqual(owed(answerGear(torches, [])), [3, 2], "(a) nothing carried: every line owes its count");
+
+  const five = answerGear(torches, [row("t", "Torch", 5)]);
+  assert.deepEqual(owed(five), [0, 0], "(b) a row of five answers lines of three and two");
+  assert.deepEqual(five.map((a) => a.check), [null, null], "(b) and the sum matches, so nothing is reported");
+  assert.deepEqual(five.map((a) => a.item.id), ["t", "t"], "(b) both lines are answered by the one item");
+
+  const seven = answerGear(torches, [row("t", "Torch", 7)]);
+  assert.deepEqual(owed(seven), [0, 0], "(c) a count the player changed is never topped up");
+  assert.deepEqual(seven.map((a) => a.check), [{ label: "Torch", sheet: "5", inForce: "7" }, null], "(c) one check, against the sum of the lines, on the first");
+
+  const daggers = [{ name: "Dagger", qty: 1 }, { name: "Dagger", qty: 1 }];
+  const split = answerGear(daggers, [dagger("rest", 1, false), dagger("drawn", 1, true)]);
+  assert.deepEqual(owed(split), [0, 0], "(d) the dagger in hand and the one resting are one stack of two");
+  assert.deepEqual(split.map((a) => a.check), [null, null]);
+  assert.equal(split[0].item.id, "drawn", "(d) the row already worn is the one placed");
+
+  const lantern = (id, qty) => row(id, "Lantern", qty, { effects: [{ id: "e" }] });
+  assert.deepEqual(owed(answerGear([{ name: "Lantern", qty: 3 }], [lantern("l", 3)])), [0], "(e) a row with effects holding three answers a line of three");
+  assert.deepEqual(owed(answerGear([{ name: "Lantern", qty: 3 }], [lantern("l", 2)])), [1], "(e) and owes only what it lacks");
+
+  const own = answerGear([{ name: "Lantern", qty: 1 }, { name: "Lantern", qty: 1 }], [lantern("l1", 1), lantern("l2", 1)]);
+  assert.deepEqual(owed(own), [0, 0], "(f) two rows with effects answer two lines");
+  assert.deepEqual(own.map((a) => a.rows.map((r) => r.id)), [["l1"], ["l2"]], "(f) each line claims its own row");
+
+  assert.deepEqual(owed(answerGear([{ name: "Torch", qty: 3 }, { name: "Rope", qty: 1 }], [row("t", "Torch", 3)])), [0, 1], "a name no carried row answers still owes");
+});
+
 for (const [name, fn] of tests) {
   if (name === null) {
     console.log(fn);

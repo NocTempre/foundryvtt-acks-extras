@@ -47,7 +47,7 @@ import { DOMAIN_TYPE } from "../../domains/constants.mjs";
 import { normalizeDomain } from "../../domains/domain-logic.mjs";
 import { familiesOf, ledgerFor, placeFamilies, vassalsOf } from "../../domains/domains.mjs";
 import { ADVENTURING_KEYS, COIN_KEYS, MOVE_KEYS, SAVE_BOOK_KEYS, SCORE_KEYS, buildPlan } from "./plan.mjs";
-import { COIN_METALS, classUnbound, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed, stackAnswering } from "./match.mjs";
+import { COIN_METALS, answerGear, classUnbound, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed } from "./match.mjs";
 import { notesBlock, replaceNotesBlock } from "./notes.mjs";
 
 const loc = makeLoc(LANG);
@@ -171,36 +171,27 @@ function containerFor(actor, place) {
 }
 
 /**
- * Land every gear line on the actor and put it where the sheet lists it. An
- * item the actor already carries under that name answers the line, so a
- * second import lands nothing twice; one item answers one line, so two lines
- * naming a dagger are two daggers. A stack is every row the actor carries
- * under that name (the one in hand and the rest resting beside it are one
- * stack, as equipping takes one off it): their counts are summed, all of them
- * answer the line, and the row already worn is the one placed. A stack whose
- * count differs from the sheet's is reported, never changed.
+ * Land every gear line on the actor and put it where the sheet lists it. What
+ * the actor already carries answers the lines (`answerGear`), so a second
+ * import lands nothing twice. A stack is every row the actor carries under a
+ * name (the one in hand and the rest resting beside it are one stack, as
+ * equipping takes one off it): it answers every line naming the item, is
+ * checked against their summed count, and the row already worn is the one
+ * placed. A name carried as separate copies is answered by one copy for each
+ * unit a line lists, so two lines naming a dagger are two daggers. A count
+ * that differs from the sheet's is reported, never changed.
  */
 async function landGear(actor, gear, report) {
-  const claimed = new Set();
+  const answers = answerGear(gear, actor.items.filter((i) => GEAR_TYPES.includes(i.type)));
   const placed = [];
-  for (const line of gear) {
-    const have = actor.items.filter((i) => GEAR_TYPES.includes(i.type) && slug(i.name) === slug(line.name) && !claimed.has(i.id));
-    const stack = stackAnswering(have);
-    if (stack) {
-      for (const row of stack.rows) claimed.add(row.id);
-      if (stack.held !== line.qty) report.checks.push({ label: have[0].name, sheet: String(line.qty), inForce: String(stack.held) });
-      placed.push({ line, item: stack.item });
-      continue;
-    }
-    const copies = have.slice(0, line.qty);
-    for (const copy of copies) claimed.add(copy.id);
-    let item = copies[0] ?? null;
-    const count = line.qty - copies.length;
-    if (count > 0) {
+  for (const [at, line] of gear.entries()) {
+    const { owed, check } = answers[at];
+    let { item } = answers[at];
+    if (check) report.checks.push(check);
+    if (owed > 0) {
       const { data } = await buildGearData({ name: line.name, qty: 1 });
-      const { created, updated } = await deliverItems(actor, goodsForRow(data, count));
-      for (const i of [...created, ...updated]) claimed.add(i.id);
-      report.granted.push(count > 1 ? `${data.name} ×${count}` : data.name);
+      const { created, updated } = await deliverItems(actor, goodsForRow(data, owed));
+      report.granted.push(owed > 1 ? `${data.name} ×${owed}` : data.name);
       item ??= created[0] ?? updated[0] ?? null;
     }
     if (item) placed.push({ line, item });
