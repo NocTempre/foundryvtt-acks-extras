@@ -1891,86 +1891,130 @@ Player seat's user) and `magic/power-stranger` (a character whose default owners
 which the Player cannot write). Each step that needs a known shape starts it: both characters'
 ledgers are unset at the start and the end (`flags.acks-extras.-=power`), since a kept fixture
 carries what the last walk left. A counter on `updateActor` for the two characters, on the GM seat,
-is what "written" is read from. The walk makes no document of its own.
+is what "written" is read from. The walk makes no document of its own, and its section numbers are
+the steps' below.
 
 ### Steps
 
 1. **A gain.** The GM seat calls `acksExtras.magic.power.gain`. *Observable:* `{ok, balance}`, one
-   entry whose `day` is `dayOfWorldTime(game.time.worldTime)`.
+   entry whose `day` is `dayOfWorldTime(game.time.worldTime)`, not by hand, and whose `user` is the
+   GM seat's user id.
 2. **The chip.** Open the hero's sheet, Magic tab. *Observable:* a tag for divine power with the
-   balance, one for arcane power at nothing, a plus and a minus on each, a Fades / Stays group on each
-   (Fades pressed), one count box, one row for
-   the entry (its name, a picture or a glyph), the tooltip listing the entry with its sign and the
-   page, and no element with an `id`.
-3. **Plus, minus, Undo.** Press them. *Observable:* a plus adds one entry marked `by: "judge"`; a
-   minus adds a spend; Undo on a spend removes it and the face and `balance` agree; each press is one
-   write; a minus on a power with none held writes nothing.
-4. **The count.** Type a count into the box beside the arcane tag and change it. *Observable:* the box
-   starts blank with the page in its tooltip, writes `arcane.count` and leaves the entries, and a blank
-   writes null.
-5. **A Player's seat.** Open the same sheet as the Player, who owns the character. *Observable:* the
-   divine tag, its rows and tooltip, no arcane tag, no plus, minus, Fades / Stays, Undo or count; a spend past the
-   balance answers `short`; a hand's gain, an undo and the count answer `judge`; the GM seat's counter
-   has not moved; a spend within the balance writes once, from the Player's seat.
-6. **The relay.** The Player calls `gain` on the stranger. *Observable:* `canUserModify` is false, the
-   answer is `{ok: false, reason: "owner"}` (it came from the GM's client, which a missing GM would not
-   give: that is `noGm`), nothing is written.
+   balance and one for arcane power at nothing, a disclosure button beside each reading closed
+   (`aria-expanded="false"`), both panels `hidden`, and no `id` on the strip but the two panels' and
+   those lib's a11y binder mints, each starting with the window's own id, each panel's `id` named by
+   its button's `aria-controls`; the divine tag's tooltip lists the entry with its sign and the page.
+   Open divine. *Observable:* the panel shows and the other stays hidden, nothing is written and the
+   strip is not re-rendered; it carries the Fades / Stays group (Fades pressed), an amount box reading
+   1, Add, Remove and one row for step 1's entry (its name, a picture or a glyph) with its tooltip.
+   Open arcane. *Observable:* its panel carries the one count box.
+3. **Add, Remove, Undo.** On a ledger unset first, with divine open, type 2 and press Add.
+   *Observable:* one entry of +2 with `by: "judge"` and `user` the GM seat's user id, one write, the
+   panel still open and the box still reading 2 after the render (the strip element is a new one). Add
+   again: the same entry id at +4, one write (a press by hand folds into the kind's last entry when it
+   is by hand, by the same user, on the same day, with the same sign and mark). Type 1, press Remove
+   twice: one spend entry at -2 (the second press folded). Undo on the spend: the entry is gone whole,
+   in one write, and the face and `balance` agree. Press Remove once more: the +4 gain is partly
+   spent, so its row carries the refused line (`.acks-extras-classes-powerline.is-refused`) and no
+   Undo button, and `undo` of its id through the API answers `spent` and writes nothing. Undo that
+   spend: the gain's row takes its Undo back. Undo the gain: no entry is left. Remove on arcane,
+   with none held: nothing is written.
+4. **The count.** Open the arcane panel, type a count into its box and change it. *Observable:* the
+   one box starts blank with the page in its tooltip, writes `arcane.count` and leaves the entries,
+   reads the count again after the render with the panel still open, and a blank writes null.
+5. **A Player's seat, the owner.** The GM seat gains 5 (a plain gain) and 1 by hand on the hero; open
+   the same sheet as the Player, who owns the character. *Observable:* both tags and, with divine
+   open, every control (a group, an amount box, Add and Remove on each panel, the count box, Undo on
+   each unspent gain), the Player may write the actor. Type 2 and press Add: one entry of +2 with
+   `by: "judge"` and `user` the Player's own user id, one write from the Player's seat with no relay,
+   and the GM seat's hand gain of the same day is untouched (a fold needs the same user). A spend past
+   the balance answers `short` and writes nothing. `undo` of the Player's own unspent gain and
+   `setCount` both succeed. A spend within the balance writes once, as an entry not by hand, and the
+   GM seat's strip shows it.
+6. **A seat that does not own.** The GM seat sets `system.spells.enabled` on the stranger (the module's
+   sheet draws a Magic tab, which hosts the strip, only for a caster, and the stranger has no class)
+   and gains 1 on it; the Player opens its sheet.
+   *Observable:* the divine tag, its disclosure and, opened, a panel with the row and the tooltip; no
+   pill, no group, no amount box, no Add, no Remove, no count box, no Undo, no refused line, and no
+   arcane tag or panel. From the Player's seat `gain`, a hand's gain, `undo` and `setCount` on the
+   stranger each answer `{ok: false, reason: "owner"}` (it came from the GM's client, which a missing
+   GM would not give: that is `noGm`), `canUserModify` is false, and nothing is written (the GM
+   seat's counter holds).
 7. **Expiry.** Override the registry's `divineLifetime` through the Ruledata Browser's store
    (`table-store.mjs` `setOverride`; a table another hand overrode blocks the walk) with an invented
    three days, write three lots with days of today minus three, minus two and today, and open the
    sheet. *Observable:* the oldest lot is out of the balance and its row is dimmed, the next to fade is
    the middle lot one day away, a spend takes from the lots that stand. Override it with a blank unit:
    nothing expires, `expiry` is null. Clear the override: the registry serves its own read again.
-8. **Fades and Stays.** Walked under step 7's override (the walk sets its own again, its section 6b),
-   on a ledger unset first. On the GM seat press Stays on the divine tag, then its plus. *Observable:*
-   the press of Stays moves `aria-pressed`, re-renders nothing and writes nothing (the counter holds);
-   the plus writes one entry with `stays: true` and `by: "judge"`; its row has the pin and "stays until
-   removed", and so does the tag's tooltip; the switch still reads Stays after the render the write made.
-   Write that entry's `day` thirty days back: the balance, the face and the row are unchanged, nothing
-   is due to fade. Press Fades, then the plus: an entry with no mark, which expires once its `day` is a
-   lifetime back (rows newest first, the expired one dimmed). Add a fading lot and press the minus: it
-   takes the fresh fading lot, not the older lot that stays, and not the one that had expired (read
-   with `standing` imported from `power-ledger.mjs`). On the Player seat: no `[data-power-stay]`, no
-   group, the lot that stays shown with its pin, and `gain(actor, "divine", {amount: 1, stays: true})`
-   answers `judge` with nothing written.
-9. **The switch holds, and the minus follows it.** Walked in the walk's section 6c, on a ledger unset
-   first, under the same override. On the GM seat press Stays on the divine tag, then the plus twice.
-   *Observable:* after each render (the strip element is a new one) the divine pair still reads Stays
-   pressed and its minus carries the staying `aria-label`, the arcane pair is on Fades, and both entries
-   carry `stays: true`. Press Fades and the plus (a fading lot), press Stays and the minus. *Observable:*
-   the new spend carries `fromStays: true` and `by: "judge"`, `standing` shows the oldest point that
-   stays at nothing and the fading lot untouched, its row reads "Removed a point that stays", and the
-   pair still reads Stays. Press Fades and the minus: a spend with no `fromStays`, which took the fading
-   lot. With the point that stays gone, press Stays and the minus twice more: the first removes the
-   last one, the second writes nothing (the entry count and the counter hold). Press Stays on the first window, open a second window on the
-   same actor (`new sheet.constructor({document, id})`, Magic tab). *Observable:* its divine pair reads
-   Fades while the first reads Stays, a plus pressed in it writes an entry with no mark, and both keep
-   their own state after the write. The presses and the open wrote nothing (the counter moved once, for
-   that plus). Close the sheet and open it again: Fades.
+8. **Fades and Stays.** Walked under step 7's override (the walk sets its own again), on a ledger
+   unset and a freshly opened sheet, divine open. On the GM seat press Stays on the divine panel,
+   then Add (amount 1). *Observable:* the press of Stays moves `aria-pressed`, re-renders nothing and
+   writes nothing (the counter holds); Add writes one entry with `stays: true`, `by: "judge"` and the
+   seat's `user`; its row has the pin and "stays until removed", and so does the tag's tooltip; the
+   switch still reads Stays and the panel is still open after the render the write made. Write that
+   entry's `day` thirty days back: the balance, the face and the row are unchanged, nothing is due to
+   fade. Press Fades, then Add: an entry with no mark (it does not fold into the entry thirty days
+   back), which expires once its `day` is a lifetime back (rows newest first, the expired one dimmed).
+   Add a fading lot and press Remove: it takes the fresh fading lot, not the older lot that stays, and
+   not the one that had expired (read with `standing` imported from `power-ledger.mjs`). On the Player
+   seat, which owns the hero: the group and the pills are there on both panels, the lot that stays is
+   shown with its pin, and `gain(actor, "divine", {amount: 1, stays: true})` writes one lot that
+   stays, not by hand, with the Player's `user`.
+9. **The switch, the open panel and the amount hold, and Remove follows the switch.** On a ledger
+   unset first, under the same override, divine open. On the GM seat press Stays on the divine panel,
+   then Add twice. *Observable:* after each render (the strip element is a new one) the panel is
+   still open, the divine pair still reads Stays pressed and its Remove carries the staying
+   `aria-label`, the arcane pair is on Fades, and the two presses folded into ONE entry of 2 with
+   `stays: true`. Press Fades and Add (a fading lot, a second entry), press Stays and Remove.
+   *Observable:* the new spend carries `fromStays: true` and `by: "judge"`, `standing` shows a point
+   that stays gone and the fading lot untouched, its row reads "Removed a point that stays", and the
+   pair still reads Stays. Press Fades and Remove: a spend with no `fromStays` (it does not fold into
+   the removal beside it), which took the fading lot. With the point that stays gone, press Stays and
+   Remove twice more: the first removes the last one, the second writes nothing (the entry count and
+   the counter hold). Press Stays and type 3 in the first window, then open a second window on the
+   same actor (`new sheet.constructor({document, id})`, Magic tab). *Observable:* the second starts
+   with its panel closed, its divine pair on Fades and its amount at 1 while the first holds its
+   panel open, Stays and 3; open its panel and press Add: an entry with no mark and an amount of 1,
+   and both windows keep their own state after the write. The presses, the typing and the open wrote
+   nothing (the counter moved once, for that Add). Close the sheet and open it again: both panels
+   closed, Fades, 1.
 10. **The bucket row.** `power.row(actor, "divine", {amount: 50})` after a gain of five.
    *Observable:* `power:divine`, quantity and cap five; a smaller ask stands; a power with none held
    gives no row; `power.settle` of a handed row spends it.
 
 ### Drive mechanics
 
-The plus and minus sit beside their tag as siblings, so each is found as
-`[data-power="<kind>"] ~ [data-power-adjust="1|-1"]` and the first match is that kind's; the Fades /
-Stays pills are `[data-power-stay="0|1"][data-power-kind="<kind>"]` inside a group that follows the
-minus. A press of a plus or minus re-renders the sheet, so the strip is looked up again after each; a
-press of a pill does not. The pill's state lives on the sheet window (`powerSwitchOf`, keyed by the
-application), so it survives that render and a second window is its own; a close ends it, though the
-document keeps its one `actor.sheet` instance. A second window is built by hand with an `id` of its
-own and closed in a `finally`. The clock is shared by every seat
-and the walk never moves it: a lot's day is written in the past (`actor.update` of the kind's
-`entries`), which is what a gain a lifetime ago is, and the balance reads the clock as it stands.
-A real advance of the clock, and the calendar's own weekday list for a lifetime counted in weeks
-(`calendar.days.values`), are not walked. The sheet's chip is also on the system's own character
-sheet, through the same `castingStripElement`.
+Each power's controls sit in its panel, `[data-power-panel="<kind>"]`, which is `hidden` until its
+disclosure, `[data-power-toggle][data-power-kind="<kind>"]`, opens it. Add and Remove are found inside
+the panel by kind, `[data-power-adjust="1|-1"][data-power-kind="<kind>"]`, the Fades / Stays pills as
+`[data-power-stay="0|1"][data-power-kind="<kind>"]`, the amount box as
+`[data-power-amount][data-power-kind="<kind>"]`, the count box as `[data-power-count]` (arcane panel
+only) and an Undo as `[data-power-undo="<entry id>"]`. A hidden panel's controls still take `.click()`,
+and the walk opens the panel first anyway, because a user would. The amount is typed by setting the
+box's `value` and dispatching `input` with `bubbles: true`: the chip listens for `input` and keeps the
+text per window, and reads it at the press, so a value set with no event is not what Add sends. A
+real keystroke also sends `change` on blur, which the walk does not send. A press of Add, Remove or
+Undo writes the actor and re-renders the sheet, so the strip element is a new one and every element
+is looked up again after each; a press of a pill or of the disclosure, or a keystroke in the amount
+box, writes nothing and does not. What survives the render is on the sheet window (`powerSwitchOf`,
+keyed by the application): per kind the switch, whether the panel is open and the typed amount, so a
+second window is its own; a close ends it (`closeApplicationV2` drops the record), though the document
+keeps its one `actor.sheet` instance. A second window is built by hand with an `id` of its own,
+opened on the Magic tab and closed in a `finally`. The walk reads both seats' user ids from
+`game.user.id` in page context and compares an entry's `user` with them; a fold needs the same user,
+so the two seats' presses never fold into each other. "No relay" on the Player's own press is read
+from `canUserModify` being true, which is what sends a write down the direct path; the walk does not
+spy on the socket. The clock is shared by every seat and the walk never moves it: a lot's day is
+written in the past (`actor.update` of the kind's `entries`), which is what a gain a lifetime ago is,
+and the balance reads the clock as it stands. A real advance of the clock, the calendar's own weekday
+list for a lifetime counted in weeks (`calendar.days.values`), the chip on the system's own character
+sheet (it is the same `castingStripElement`), and the Sacrifice button beside the tags are not walked.
 
 ### Teardown
 
-Both ledgers are unset, the update counter hook is removed, both sheets are closed, and the override
-is cleared (also in the walk's `finally`). The fixtures stay.
+Both ledgers are unset, the update counter hook is removed, every sheet the walk opened (the GM seat's
+on the hero, the Player's on the hero and on the stranger) is closed, and the override is cleared (also
+in the walk's `finally`). The fixtures stay.
 
 ## Research projects (M-q1, M-q2, M-q3)
 
