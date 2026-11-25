@@ -17,8 +17,11 @@ import {
   acceptsTrap,
   countsOf,
   descriptorOf,
+  dropAuthority,
+  placeRowOf,
   refusalOfDrop,
   thingOfDrop,
+  thingsShownTo,
 } from "../scripts/formation/region-place-logic.mjs";
 
 let checks = 0;
@@ -162,4 +165,50 @@ const actor = descriptorOf({ documentName: "Actor", type: TRAP_ITEM_TYPE, uuid: 
   eq(countsOf([{ kind: "body" }]), [], "a place of other kinds has no hazard rows");
 }
 
-console.log(`test-region-place-row: OK (${checks} checks — the three kind predicates and the one kind table, the thing a drop builds, why a drop is refused, and the counts and names grouping)`);
+/* -------------------------------------------- */
+/*  What a seat is shown                         */
+/* -------------------------------------------- */
+
+{
+  const list = [
+    { kind: "trap", ref: "Item.t1", hidden: true },
+    { kind: "obstacle", ref: "Item.o1", hidden: false },
+    { kind: "trap", ref: "Item.t2", hidden: false },
+    { kind: "condition", ref: "Item.c1" },
+  ];
+  eq(thingsShownTo(list, true), list, "a Judge sees every thing, hidden or not");
+  eq(thingsShownTo(list, false).map((t) => t.ref), ["Item.o1", "Item.t2", "Item.c1"], "any other seat sees only what is not hidden");
+  eq(countsOf(thingsShownTo(list, false)).map((r) => [r.kind, r.count]), [["trap", 1], ["obstacle", 1], ["condition", 1]], "a hidden trap is not counted off a Judge's seat");
+  ok(!countsOf(thingsShownTo(list, false), (ref) => ref).some((r) => r.names.includes("Item.t1")), "and its name is not listed");
+  eq(thingsShownTo(undefined, false), [], "no list shows nothing");
+  eq(thingsShownTo([null, { kind: "trap", hidden: true }], false), [null], "an entry that is not a thing is not read");
+  const dropped = [thingOfDrop("trap", trap)];
+  eq(thingsShownTo(dropped, false), [], "a trap dropped by anyone is stored hidden, so no seat but a Judge's shows it");
+
+  const none = { picker: false, name: "none", counts: false, zone: false, hiddenNote: false };
+  eq(placeRowOf({ isGM: true, linked: false, canOpen: false, owns: false, canCreate: false }), { picker: true, name: "picker", counts: true, zone: true, hiddenNote: false }, "a Judge's row is the picker, the counts and the zone, with no hidden note");
+  eq(placeRowOf({ isGM: false, linked: true, canOpen: true, owns: true, canCreate: false }), { picker: false, name: "text", counts: true, zone: true, hiddenNote: true }, "state A: a place the seat owns shows its name, its counts and the zone, with the hidden note");
+  eq(placeRowOf({ isGM: false, linked: true, canOpen: true, owns: false, canCreate: true }), { picker: false, name: "text", counts: false, zone: false, hiddenNote: false }, "a place the seat can open and does not own shows its name alone");
+  eq(placeRowOf({ isGM: false, linked: true, canOpen: false, owns: false, canCreate: true }), { picker: false, name: "closed", counts: false, zone: false, hiddenNote: false }, "state B: a place the seat cannot open shows only that it is closed");
+  eq(placeRowOf({ isGM: false, linked: false, canOpen: false, owns: false, canCreate: false }), { ...none, name: "none" }, "state C: no place and no Create Actors shows none and no zone");
+  eq(placeRowOf({ isGM: false, linked: false, canOpen: false, owns: false, canCreate: true }), { ...none, zone: true, hiddenNote: true }, "no place but Create Actors keeps the zone, since a drop would make the place");
+  for (const canCreate of [true, false]) {
+    ok(!placeRowOf({ isGM: false, linked: true, canOpen: true, owns: true, canCreate }).picker, "no seat but a Judge's gets a picker");
+  }
+  ok(placeRowOf({ isGM: false, linked: true, canOpen: false, owns: true, canCreate: true }).counts, "owning is the stronger grant, so an owner is shown the counts whatever the open test said");
+}
+
+/* -------------------------------------------- */
+/*  Who a drop may write for                     */
+/* -------------------------------------------- */
+
+{
+  eq(dropAuthority({ linked: true, owns: true, regionOwns: false, canCreate: false }), "place", "a place the user owns takes the drop");
+  eq(dropAuthority({ linked: true, owns: false, regionOwns: true, canCreate: true }), null, "a place the user does not own refuses, whatever else they own");
+  eq(dropAuthority({ linked: false, owns: false, regionOwns: true, canCreate: true }), "create", "with no place, an owner of the Region who may create Actors makes one");
+  eq(dropAuthority({ linked: false, owns: false, regionOwns: true, canCreate: false }), null, "without Create Actors no place is made");
+  eq(dropAuthority({ linked: false, owns: false, regionOwns: false, canCreate: true }), null, "without the Region no place is made");
+  eq(dropAuthority({ linked: true, owns: false, regionOwns: false, canCreate: false }), dropAuthority({ linked: false, owns: false, regionOwns: false, canCreate: false }), "no place and a place not owned refuse alike");
+}
+
+console.log(`test-region-place-row: OK (${checks} checks — the three kind predicates and the one kind table, the thing a drop builds, why a drop is refused, the counts and names grouping, what each seat is shown, and who a drop may write for)`);

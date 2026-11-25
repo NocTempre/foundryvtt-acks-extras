@@ -257,7 +257,20 @@ export async function assignTrapToWall(wall, trap) {
 }
 
 /**
- * Dropping a trap onto the map assigns it to the wall under the cursor.
+ * May this user write a trap layer onto this wall? Foundry's own test, given
+ * the data shape the write carries: core's `Wall#canUpdate` answers true for a
+ * Player when it is handed no data, so asking without the flag would pass a wall
+ * the Player has no right to change.
+ *
+ * @param {Wall} wall
+ * @param {User} user
+ * @returns {boolean}
+ */
+export const canTrapWall = (wall, user) => !!wall?.canUserModify?.(user, "update", { flags: { [MODULE_ID]: { [TRAP_FLAG]: {} } } });
+
+/**
+ * Dropping a trap onto the map assigns it to the wall under the cursor when the
+ * dropping user may write that wall, and otherwise to the place under the drop.
  *
  * The hook always returns true: the handler is async, and a returned promise
  * would read as a truthy "handled" to core.
@@ -272,8 +285,8 @@ export function installTrapDrop() {
       const scene = canvasRef.scene;
       const reach = scene.grid.size;
       const wall = wallNear(scene, data.x, data.y, reach);
-      if (!wall) {
-        // With no wall near, a trap goes to the place under the drop, when there is one.
+      if (!wall || !canTrapWall(wall, game.user)) {
+        // With no wall near, or one this user may not write, a trap goes to the place under the drop, when there is one.
         const placed = await dropOnMapPlace({ scene, data, includeTraps: true });
         if (!placed) ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.dropNoWall"));
         return;

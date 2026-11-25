@@ -158,5 +158,191 @@ const dropOn = (uuid, x, y, over = {}) => dropOnMapPlace({ scene, data: { type: 
   eq(asked.length, 0, "a trap dropped on nothing leaves the wording to the trap drop");
 }
 
+/* --- a drop from a seat that is not a Judge's --- */
+const { placeDropRelay, installRegionPlaceRow, PLACE_DROP_HANDLER } = await import("../scripts/formation/region-place-row.mjs");
+const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+
+const RANK = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
+const grants = new Map();
+let mayCreate = false;
+const player = { id: "u1", isGM: false, can: (action) => action === "ACTOR_CREATE" && mayCreate };
+const judge = { id: "gm", isGM: true, can: () => true };
+/** The test Foundry's ownership answer: a Judge holds everything, the Player only what `grants` gives them. */
+const grantable = (document) => {
+  document.testUserPermission = (user, level) => user.isGM || (RANK[grants.get(document.uuid) ?? "NONE"] ?? 0) >= RANK[level];
+  return document;
+};
+for (const d of [regionPlace, tokenPlace, mapPlace, r1, ...Object.values(items)]) grantable(d);
+const hazard = grantable({ documentName: "Item", type: HAZARD_ITEM_TYPE, uuid: "Item.hidden-cond", system: { key: CONDITION_HAZARDS[0] } });
+items["Item.hidden-cond"] = hazard;
+items["Region.r1"] = r1;
+for (const uuid of ["Item.trap", "Item.cond", "Item.sword"]) grants.set(uuid, "LIMITED");
+game.users = { get: (id) => (id === "u1" ? player : null) };
+game.scenes = { get: (id) => (id === "s1" ? scene : null) };
+game.user = judge;
+
+const bare = grantable(region("rb", { x0: 4000, y0: 4000, x1: 4400, y1: 4400 }));
+scene.regions.set("rb", bare);
+const madeFor = [];
+const relayScenes = {
+  locationOfRegion: (r) => (r === r1 ? regionPlace : r === bare ? madeFor.find((m) => m.region === bare)?.place ?? null : null),
+  createLocationForRegion: async (r, opts) => {
+    const place = grantable(location(`rel-${r.id}`, { regionUuid: r.uuid }));
+    madeFor.push({ region: r, place, opts });
+    return place;
+  },
+};
+const relay = (payload, over = {}) => placeDropRelay({ requestUserId: "u1", ...payload }, { scenes: relayScenes, around, ...over });
+const onMap = (itemUuid, x, y, extra = {}) => ({ itemUuid, sceneId: "s1", x, y, ...extra });
+const refusedNone = { ok: false, refused: "none" };
+const held = (place) => thingsOf(place).length;
+const nobody = () => [];
+
+{
+  const before = held(regionPlace);
+  eq(await relay(onMap("Item.cond", 50, 50)), refusedNone, "a place the sender does not own refuses");
+  eq([held(regionPlace), held(mapPlace), madeFor.length], [before, 0, 0], "and writes nothing, onto that place or the map's, and makes no place");
+
+  grants.set("Actor.rp", "OBSERVER");
+  eq(await relay(onMap("Item.cond", 50, 50)), refusedNone, "a place the sender can open but does not own refuses too");
+
+  grants.set("Actor.rp", "OWNER");
+  eq(await relay(onMap("Item.cond", 50, 50)), { ok: true }, "a place the sender owns takes the drop");
+  eq(thingsOf(regionPlace).at(-1).point, { x: 50, y: 50 }, "with the point the drop landed on");
+  const placed = await relay(onMap("Item.trap", 60, 60));
+  eq([placed, thingsOf(regionPlace).at(-1).kind, thingsOf(regionPlace).at(-1).hidden], [{ ok: true }, "trap", true], "a trap a Player drops is stored hidden");
+  eq(held(mapPlace), 0, "and the first place is the only one asked");
+
+  eq(await relay(onMap("Item.cond", 50, 50, { judge: true, override: true, hidden: false, kind: "trap" })), { ok: true }, "keys outside the closed set are not read");
+  eq([thingsOf(regionPlace).at(-1).kind, thingsOf(regionPlace).at(-1).hidden], ["condition", false], "a condition keeps its own kind and state whatever the payload asks");
+  eq(await relay(onMap("Item.trap", 60, 60, { hidden: false })).then(() => thingsOf(regionPlace).at(-1).hidden), true, "and a trap stays hidden whatever the payload asks");
+  grants.delete("Actor.rp");
+}
+
+{
+  // No place under the point, and the same answer for a place not owned.
+  const owned = async (over) => relay(onMap("Item.cond", 4100, 4100), { around: nobody, ...over });
+  const absent = await relay(onMap("Item.cond", 9000, 9000), { around: nobody });
+  eq(absent, refusedNone, "no place under the point refuses");
+  grants.set("Actor.rp", "NONE");
+  eq(await relay(onMap("Item.cond", 50, 50)), absent, "a place not owned answers exactly what no place answers");
+  eq(await owned(), absent, "a bare Region the sender does not own answers the same");
+  grants.set("Region.rb", "OWNER");
+  eq(await owned(), absent, "a bare Region the sender owns, without Create Actors, answers the same and makes nothing");
+  eq(madeFor.length, 0, "no place was made");
+  mayCreate = true;
+  eq(await owned(), { ok: true }, "a bare Region the sender owns, with Create Actors, is made a place and takes the drop");
+  eq([madeFor.length, madeFor[0].opts, held(madeFor[0].place)], [1, { render: false }, 1], "made quietly, holding the one thing");
+  madeFor.length = 0;
+  const unowned = () => [{ place: regionPlace }];
+  eq(await relay(onMap("Item.cond", 4100, 4100), { around: unowned }), absent, "an unowned place under the point does not fall through to a bare Region the sender could make a place of");
+  eq(madeFor.length, 0, "and nothing is made");
+  mayCreate = false;
+  grants.delete("Region.rb");
+}
+
+{
+  // The Region window's own path.
+  const inRegion = (itemUuid, regionUuid, extra = {}) => ({ itemUuid, regionUuid, ...extra });
+  const closed = { ok: false, refused: "noPlace" };
+  eq(await relay(inRegion("Item.cond", "Region.r1")), closed, "a linked place not owned refuses on the Region path");
+  items["Region.rn"] = grantable(region("rn", { x0: 7000, y0: 7000, x1: 7100, y1: 7100 }));
+  eq(await relay(inRegion("Item.cond", "Region.rn")), closed, "a Region with no place refuses the same, so a closed place is not told from none");
+  eq(await relay(inRegion("Item.cond", "Scene.s1")), closed, "a document that is not a Region refuses the same");
+  grants.set("Actor.rp", "OWNER");
+  const before = held(regionPlace);
+  eq(await relay(inRegion("Item.cond", "Region.r1")), { ok: true }, "an owned place takes a Region-window drop");
+  eq([held(regionPlace) - before, thingsOf(regionPlace).at(-1).point], [1, null], "with no point");
+  grants.delete("Actor.rp");
+
+  grants.set("Region.rn", "OWNER");
+  eq(await relay(inRegion("Item.cond", "Region.rn")), closed, "owning the Region is not enough without Create Actors");
+  mayCreate = true;
+  grants.delete("Region.rn");
+  eq(await relay(inRegion("Item.cond", "Region.rn")), closed, "nor is Create Actors without the Region");
+  mayCreate = false;
+}
+
+{
+  // The item and the kind.
+  eq(await relay(onMap("Item.hidden-cond", 50, 50)), refusedNone, "an item the sender cannot see refuses as none");
+  eq(await relay(onMap("Item.missing", 50, 50)), refusedNone, "an item that does not resolve refuses as none");
+  grants.set("Actor.rp", "OWNER");
+  eq(await relay(onMap("Item.sword", 50, 50)), { ok: false, refused: "notAccepted" }, "an item no kind takes says why");
+  eq(await relay({ ...onMap("Item.cond", 50, 50), sceneId: "elsewhere" }), refusedNone, "a scene that is not real refuses");
+  eq(await relay({ ...onMap("Item.cond", 50, 50), x: "50" }), refusedNone, "a point that is not a number refuses");
+  eq(await relay({ ...onMap("Item.cond", 50, 50), y: null }), refusedNone, "a null coordinate refuses");
+  eq(await relay({ itemUuid: 7, sceneId: "s1", x: 1, y: 1 }), refusedNone, "an item uuid that is not a string refuses");
+  eq(await relay({ ...onMap("Item.cond", 50, 50), requestUserId: "nobody" }), refusedNone, "a sender no user holds refuses");
+  grants.delete("Actor.rp");
+}
+
+{
+  // The handler answers through the module's one transport, on the Judge's own client.
+  grants.set("Actor.rp", "OWNER");
+  globalThis.acksExtras = { location: { scenes: relayScenes } };
+  installRegionPlaceRow();
+  let again = null;
+  try {
+    installRegionPlaceRow();
+  } catch (err) {
+    again = err.message;
+  }
+  eq(/registered twice/.test(again ?? ""), true, "the handler name is registered once");
+  const before = held(regionPlace);
+  eq(await executeAsGM(PLACE_DROP_HANDLER, { itemUuid: "Item.cond", regionUuid: "Region.r1" }), { ok: true }, "a Judge's own call reaches the handler as the Judge");
+  eq(held(regionPlace) - before, 1, "and writes");
+  grants.delete("Actor.rp");
+  globalThis.acksExtras = {};
+}
+
+{
+  // The seat: what a Player's client sends, and what it says back.
+  game.user = player;
+  const sent = [];
+  const answers = [{ ok: true }];
+  const sender = async (payload) => {
+    sent.push(payload);
+    return answers[0];
+  };
+  const mapDrop = (uuid, x = 50, y = 50, over = {}) => dropOnMapPlace({ scene, data: { type: "Item", uuid, x, y }, scenes, around, relay: sender, ...over });
+  asked.length = 0;
+
+  eq(await mapDrop("Item.cond"), [], "a hazard dropped on the map is sent, and answers an empty list");
+  eq(sent, [{ itemUuid: "Item.cond", sceneId: "s1", x: 50, y: 50 }], "carrying only the item, the scene and the point");
+  answers[0] = undefined;
+  eq(await mapDrop("Item.cond"), [], "no Judge to answer reads as sent, not refused");
+  eq(asked.length, 0, "and says nothing more");
+  answers[0] = { ok: false, refused: "none" };
+  eq(await mapDrop("Item.cond"), null, "a refusal answers null");
+  eq(asked, ["ACKS-FORMATION.REGION_PLACE.refused.noRegion"], "worded as no region for a hazard");
+  asked.length = 0;
+  answers[0] = { ok: false, refused: "blankHazard" };
+  await mapDrop("Item.cond");
+  eq(asked, ["ACKS-FORMATION.REGION_PLACE.refused.blankHazard"], "a kind refusal is worded as the row words it");
+  asked.length = 0;
+  answers[0] = { ok: false, refused: "none" };
+  eq(await mapDrop("Item.trap", 50, 50, { includeTraps: true }), null, "a refused trap answers null");
+  eq(asked.length, 0, "and says nothing, since the trap drop words its own");
+  answers[0] = { ok: true };
+  eq(await mapDrop("Item.trap", 50, 50, { includeTraps: true }), [], "a trap is sent when the trap drop asks");
+
+  sent.length = 0;
+  eq([await mapDrop("Item.trap"), await mapDrop("Item.sword"), await mapDrop("Item.cond", Number.NaN, 1), await mapDrop("Item.missing")], [null, null, null, null], "a trap the wall drop owns, a non-hazard, a non-point and an unknown item answer null");
+  eq(sent, [], "and none of them is sent");
+  eq(asked.length, 0, "or worded");
+
+  answers[0] = { ok: false, refused: "none" };
+  eq(await dropOnRegionPlace({ region: r1, scenes, data: { type: "Item", uuid: "Item.cond" }, relay: sender }), null, "a refused Region-window drop answers null");
+  eq([sent.at(-1), asked], [{ itemUuid: "Item.cond", regionUuid: "Region.r1" }, ["ACKS-FORMATION.REGION_PLACE.refused.noPlace"]], "it sends the item and the Region and says no place");
+  asked.length = 0;
+  answers[0] = { ok: true };
+  eq(await dropOnRegionPlace({ region: r1, scenes, data: { type: "Item", uuid: "Item.cond" }, relay: sender }), [], "a Region-window drop sent answers an empty list");
+  sent.length = 0;
+  eq(await dropOnRegionPlace({ region: r1, scenes, data: { type: "Item", uuid: "Item.sword" }, relay: sender }), null, "a drop no kind takes is refused at the seat");
+  eq([sent.length, asked], [0, ["ACKS-FORMATION.REGION_PLACE.refused.notAccepted"]], "without being sent");
+  game.user = judge;
+}
+
 void MODULE_ID;
 console.log(`test-scene-drop: ${checks} checks passed`);

@@ -1,7 +1,8 @@
 /**
  * The Foundry-free half of the Region window's Place row: which dropped
  * document becomes which thing, the thing a drop builds, why a refused drop was
- * refused, and the line of counts a place's list reads as. Pure over plain
+ * refused, the line of counts a place's list reads as, what each seat is shown
+ * of it, and whom a drop may write for. Pure over plain
  * data, so it imports under Node and is unit-tested offline.
  *
  * A drop is described as `{documentName, type, uuid, document}`, the shape
@@ -78,6 +79,63 @@ export function refusalOfDrop(drop, kind) {
   if (!isItem(drop)) return "notItem";
   if (drop.type === HAZARD_ITEM_TYPE) return "blankHazard";
   return "notAccepted";
+}
+
+/**
+ * The things a seat may see: every thing for a Judge, and for anyone else only
+ * those not marked hidden. A hidden thing is neither counted nor named off a
+ * Judge's seat, and every trap is stored hidden.
+ *
+ * @param {object[]} things the place's normalized list
+ * @param {boolean} isGM whether the seat is a Judge's
+ * @returns {object[]}
+ */
+export function thingsShownTo(things, isGM) {
+  const list = Array.isArray(things) ? things : [];
+  return isGM ? list : list.filter((thing) => !thing?.hidden);
+}
+
+/**
+ * What a drop onto a Region's place may do for a user: `"place"` writes the
+ * thing onto the place already there, `"create"` makes the place first, and
+ * null refuses. A place the user does not own and no place at all both refuse,
+ * so the answer never says which of the two it was. The Region's own place is
+ * made only by a user who owns the Region and may create Actors.
+ *
+ * @param {object} state
+ * @param {boolean} state.linked whether a place already holds the point or the Region
+ * @param {boolean} state.owns whether the user owns that place
+ * @param {boolean} state.regionOwns whether the user owns the Region a place would be made for
+ * @param {boolean} state.canCreate whether the user may create Actors
+ * @returns {"place"|"create"|null}
+ */
+export function dropAuthority({ linked, owns, regionOwns, canCreate }) {
+  if (linked) return owns ? "place" : null;
+  return regionOwns && canCreate ? "create" : null;
+}
+
+/**
+ * What the Place row shows one seat. A Judge's row is the picker, the counts
+ * and the drop zone, unchanged. Any other seat that owns the Region gets a
+ * read-only row: a linked place the seat owns shows its name, its counts of
+ * shown things and the drop zone; one it can open but does not own shows its
+ * name alone; one it cannot open shows only that it is closed; with no place
+ * the row says so, and offers the zone only where a drop would make one.
+ *
+ * @param {object} state
+ * @param {boolean} state.isGM
+ * @param {boolean} state.linked whether the Region has a linked place
+ * @param {boolean} state.canOpen whether the seat may open the linked place
+ * @param {boolean} state.owns whether the seat owns the linked place
+ * @param {boolean} state.canCreate whether the seat may create Actors
+ * @returns {{picker: boolean, name: "picker"|"text"|"closed"|"none", counts: boolean, zone: boolean, hiddenNote: boolean}}
+ */
+export function placeRowOf({ isGM, linked, canOpen, owns, canCreate }) {
+  if (isGM) return { picker: true, name: "picker", counts: true, zone: true, hiddenNote: false };
+  if (!linked) return { picker: false, name: "none", counts: false, zone: !!canCreate, hiddenNote: !!canCreate };
+  if (owns) return { picker: false, name: "text", counts: true, zone: true, hiddenNote: true };
+  if (canOpen) return { picker: false, name: "text", counts: false, zone: false, hiddenNote: false };
+  return { picker: false, name: "closed", counts: false, zone: false, hiddenNote: false };
 }
 
 /**

@@ -28,19 +28,16 @@ import {
   emptyTier,
   mergeTierSubmit,
 } from "../scripts/formation/trap-rules.mjs";
-import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
+import { FORMATION_DOC, MODULE_ID, TRAP_ITEM_TYPE } from "../scripts/formation/constants.mjs";
 import * as tables from "../scripts/lib/tables.mjs";
-import {
-  chainWalls,
-  installTrapDrop,
-  pointSegmentDistance,
-  segmentCrossing,
-  segmentDistance,
-} from "../scripts/formation/trap-walls.mjs";
 import { regionOutlines } from "../scripts/formation/zones.mjs";
 import { regionDistance } from "../scripts/lib/regions.mjs";
 import { mockRegion, rect } from "./region-fixture.mjs";
-import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
+
+// The wall and marker modules reach the module-wide socket registry, which hooks `socketlib.ready` as it loads.
+globalThis.Hooks = { on() {}, once() {} };
+const { canTrapWall, chainWalls, installTrapDrop, pointSegmentDistance, segmentCrossing, segmentDistance } = await import("../scripts/formation/trap-walls.mjs");
+const { spread: spreadMarks } = await import("../scripts/formation/trap-markers.mjs");
 
 let passed = 0;
 const test = (name, fn) => {
@@ -948,6 +945,64 @@ test("a sheet that is not a wall's gets no trap row either", () => {
   assert.equal(h.appended.length, 0);
 });
 
+/* -------------------------------------------- */
+/*  Whose wall a trap drop may write            */
+/* -------------------------------------------- */
+
+{
+  const asks = [];
+  const wallOf = (allow, extra = {}) => ({
+    c: [0, 0, 200, 0],
+    flags: {},
+    canUserModify(user, action, data) {
+      asks.push([user, action, data]);
+      return allow;
+    },
+    getFlag: () => undefined,
+    written: [],
+    async setFlag(scope, key, value) {
+      this.written.push([scope, key, value]);
+    },
+    ...extra,
+  });
+  const player = { id: "u1", isGM: false };
+  const judge = { id: "gm", isGM: true };
+  const warned = [];
+  globalThis.ui = { notifications: { warn: (m) => warned.push(m), info() {} } };
+  globalThis.foundry = { data: { operators: { ForcedReplacement: { create: (v) => v } } } };
+  globalThis.fromUuid = async () => ({ type: TRAP_ITEM_TYPE, uuid: "Item.t1", name: "A trap" });
+  const hooks = {};
+  globalThis.Hooks = { on: (name, fn) => (hooks[name] = fn) };
+  installTrapDrop();
+
+  const shape = { flags: { [MODULE_ID]: { trap: {} } } };
+  assert.equal(canTrapWall(wallOf(true), player), true, "a wall Foundry lets the user write passes");
+  assert.deepEqual(asks.at(-1), [player, "update", shape], "and Foundry is asked as an update carrying the trap layer's own data, since an update with no data answers true for a Player");
+  assert.equal(canTrapWall(wallOf(false), player), false, "a wall Foundry refuses fails");
+  assert.equal(canTrapWall({}, player), false, "a wall that cannot answer fails");
+  assert.equal(canTrapWall(null, player), false, "no wall fails");
+  passed += 5;
+
+  const drop = async (user, wall) => {
+    globalThis.game = { user, i18n: { localize: (k) => k, format: (k) => k } };
+    warned.length = 0;
+    hooks.dropCanvasData({ scene: { grid: { size: 100 }, walls: wall ? [wall] : [] } }, { type: "Item", uuid: "Item.t1", x: 100, y: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  };
+  const near = wallOf(true);
+  await drop(player, near);
+  assert.deepEqual([near.written.length, warned], [1, []], "a wall the Player may write takes the trap");
+  assert.equal(near.written[0][2].trapUuid, "Item.t1", "as the dropped trap");
+  const barred = wallOf(false);
+  await drop(player, barred);
+  assert.deepEqual([barred.written.length, warned], [0, ["ACKS-FORMATION.traps.dropNoWall"]], "a wall the Player may not write is not written, and the drop goes to the place path, which says so with none under it");
+  await drop(judge, wallOf(true, { written: near.written }));
+  assert.equal(near.written.length, 2, "a Judge's drop on a wall still assigns it");
+  await drop(player, null);
+  assert.deepEqual(warned, ["ACKS-FORMATION.traps.dropNoWall"], "with no wall near the place path answers as before");
+  passed += 6;
+}
+
 console.log(
-  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge, reaches, path distance, region outlines, wall-sheet drop row)`,
+  `test-trap-rules: OK (${passed} checks — probe order, pole reach, victims, trigger band, disarm plan, botch bands, repeat lock, damage, wall chaining, crossings, marker spread, tier submit merge, reaches, path distance, region outlines, wall-sheet drop row, whose wall a trap drop may write)`,
 );

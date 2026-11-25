@@ -8,19 +8,29 @@
  * through the location feature's own api (`acksExtras.location.scenes`) and the
  * list through `lib/place-things.mjs`, so this window knows nothing of how
  * either is stored. DOM injection, rebuilt on every render since ApplicationV2
- * replaces its parts, and for the Judge only.
+ * replaces its parts. The Judge's row edits the link; a Player who owns the
+ * Region gets a read-only row of what Foundry's ownership lets them see, and a
+ * drop from their seat is relayed to the Judge's client, which re-resolves the
+ * place and tests the sender's own ownership (`placeDropRelay`).
  */
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
 import { placesAround } from "../location/places-around.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { elementOf, escape as esc } from "../lib/util.mjs";
+import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { THING_KINDS, kindOfDrop } from "../lib/place-things-logic.mjs";
 import { addThingTo, thingsOf } from "../lib/place-things.mjs";
-import { countsOf, descriptorOf, refusalOfDrop, thingOfDrop } from "./region-place-logic.mjs";
+import { countsOf, descriptorOf, dropAuthority, placeRowOf, refusalOfDrop, thingOfDrop, thingsShownTo } from "./region-place-logic.mjs";
 
 const ROW = "acks-extras-region-place";
 const LANG_PREFIX = "ACKS-FORMATION.REGION_PLACE";
+
+/** The socket handler a Player's drop is relayed to; the Judge's client runs it. */
+export const PLACE_DROP_HANDLER = "formationPlaceDrop";
+
+/** The refusals a drop's own kind can earn, which the seat words as the row does. */
+const KIND_REFUSALS = Object.freeze(["notItem", "blankHazard", "notAccepted"]);
 
 /** Say why a drop was refused, in the row's own words. */
 const warnRefused = (key) => ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refused.${key}`));
@@ -46,7 +56,11 @@ const report = (run, what) => Promise.resolve(run).catch((err) => console.error(
  */
 export function placePickerOf({ region, scenes, say, cls, afterMake, afterLink }) {
   const linked = scenes.locationOfRegion(region);
-  const places = game.actors.filter((a) => a.type === LOCATION_TYPE).sort((a, b) => a.name.localeCompare(b.name));
+  const isGM = !!game.user?.isGM;
+  // A seat that is not a Judge's is offered only the places it can open, so no closed place is named.
+  const places = game.actors
+    .filter((a) => a.type === LOCATION_TYPE && (isGM || a.testUserPermission?.(game.user, "LIMITED")))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const group = document.createElement("div");
   group.className = `form-group ${cls}`;
   group.innerHTML = `<label>${esc(say("label"))}</label>
@@ -81,11 +95,15 @@ function nameOfRef(ref) {
   }
 }
 
-/** The counts line: what the place holds by kind, each count carrying its names, or the none string. */
-function countsLineOf(place) {
+/**
+ * The counts line: what the place holds by kind, each count carrying its names,
+ * or the none string. A seat that is not a Judge's counts and names only the
+ * things not marked hidden.
+ */
+function countsLineOf(place, isGM = true) {
   const line = document.createElement("p");
   line.className = `${ROW}-counts`;
-  const rows = place ? countsOf(thingsOf(place), nameOfRef) : [];
+  const rows = place ? countsOf(thingsShownTo(thingsOf(place), isGM), nameOfRef) : [];
   if (!rows.length) {
     line.textContent = game.i18n.localize(`${LANG_PREFIX}.holdsNone`);
     return line;
@@ -113,27 +131,55 @@ async function dropKind(data) {
   return { drop, kind: drop ? kindOfDrop(drop) : null };
 }
 
+/** Send a drop to the Judge's client, which owns the write. */
+const relayPlaceDrop = (payload) => executeAsGM(PLACE_DROP_HANDLER, payload);
+
+/**
+ * Relay one drop from a seat that is not a Judge's and word the answer. A drop
+ * sent and not refused answers an empty list, whether or not a Judge's client
+ * answered. A refusal answers null, warned in the row's words: the drop's own
+ * kind refusals as they are, and every other refusal as `none`, which is also
+ * what a place the seat does not own answers, so the words never tell a closed
+ * place from no place.
+ *
+ * @param {(payload: object) => Promise<object|undefined>} relay
+ * @param {object} payload the closed op's args
+ * @param {string|null} none the lang key said for a refusal that is not the drop's own, or null to say nothing
+ * @returns {Promise<object[]|null>}
+ */
+async function sendDrop(relay, payload, none) {
+  const answer = await relay(payload);
+  if (answer?.ok !== false) return [];
+  if (KIND_REFUSALS.includes(answer.refused)) warnRefused(answer.refused);
+  else if (none) warnRefused(none);
+  return null;
+}
+
 /**
  * Take one drop onto the region's place. Resolves the dragged document, asks
  * the one kind table what it becomes, makes the place first when the region has
  * none (without opening its sheet), and adds the thing. A drop no kind accepts
  * warns in words and writes nothing. `point` is where a map drop landed and is
- * left out for a drop on a sheet, which has no place on the map to name.
+ * left out for a drop on a sheet, which has no place on the map to name. A seat
+ * that is not a Judge's sends the drop to the Judge's client instead, which
+ * writes it only onto a place that seat owns (`placeDropRelay`).
  *
  * @param {object} options
  * @param {RegionDocument} options.region
  * @param {object} options.scenes the location feature's `scenes` api
  * @param {{type?: string, uuid?: string}|null} options.data the drag's own data
  * @param {{x: number, y: number}|null} [options.point] where a map drop landed, in scene pixels
- * @returns {Promise<object|null>} the thing's list after the write, or null
+ * @param {(payload: object) => Promise<object|undefined>} [options.relay] sends a non-Judge seat's drop
+ * @returns {Promise<object|null>} the thing's list after the write (an empty list for a drop relayed), or null
  */
-export async function dropOnRegionPlace({ region, scenes, data, point = null }) {
+export async function dropOnRegionPlace({ region, scenes, data, point = null, relay = relayPlaceDrop }) {
   const { drop, kind } = await dropKind(data);
   const refusal = refusalOfDrop(drop, kind);
   if (refusal) {
     warnRefused(refusal);
     return null;
   }
+  if (!game.user?.isGM) return sendDrop(relay, { itemUuid: drop.uuid, regionUuid: region.uuid }, "noPlace");
   const place = scenes.locationOfRegion(region) ?? (await scenes.createLocationForRegion(region, { render: false }));
   if (!place) {
     warnRefused("noPlace");
@@ -172,7 +218,7 @@ export async function dropOnPlace({ place, data }) {
  * carries a behavior (a zone, a terrain, a district) stands for another
  * feature's area, and a drop there does not make a place of it.
  */
-function bareRegionAt(scene, point, scenes) {
+export function bareRegionAt(scene, point, scenes) {
   const holds = (region) => region.behaviors?.size === 0 && !scenes.locationOfRegion(region) && region.testPoint({ ...point, elevation: 0 });
   return [...(scene?.regions ?? [])].filter(holds).sort((x, y) => (x.area ?? 0) - (y.area ?? 0))[0] ?? null;
 }
@@ -185,7 +231,8 @@ function bareRegionAt(scene, point, scenes) {
  * same path as a drop in the Region window, `point` set. A drop no kind accepts
  * is not this row's and is left alone without a word. A trap is the map drop's
  * wall assignment first: the trap drop asks here only where no wall is near
- * (`includeTraps`), and this row's own hook never takes one.
+ * (`includeTraps`), and this row's own hook never takes one. A seat that is not
+ * a Judge's sends the drop to the Judge's client after the same checks.
  *
  * @param {object} options
  * @param {Scene} options.scene
@@ -193,13 +240,16 @@ function bareRegionAt(scene, point, scenes) {
  * @param {boolean} [options.includeTraps] take a trap drop too (the trap drop's fallback)
  * @param {object} [options.scenes] the location feature's `scenes` api
  * @param {(point: object, scene: Scene) => Array<{place: Actor}>} [options.around] `placesAround`
- * @returns {Promise<object|null>} the list after the write, or null when nothing took the drop
+ * @param {(payload: object) => Promise<object|undefined>} [options.relay] sends a non-Judge seat's drop
+ * @returns {Promise<object|null>} the list after the write (an empty list for a drop relayed), or null when nothing took the drop
  */
-export async function dropOnMapPlace({ scene, data, includeTraps = false, scenes = globalThis.acksExtras?.location?.scenes, around = placesAround }) {
+export async function dropOnMapPlace({ scene, data, includeTraps = false, scenes = globalThis.acksExtras?.location?.scenes, around = placesAround, relay = relayPlaceDrop }) {
   const point = { x: Number(data?.x), y: Number(data?.y) };
   if (!scene || !scenes || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
   const { drop, kind } = await dropKind(data);
   if (!kind || (kind === THING_KINDS.TRAP && !includeTraps)) return null;
+  // A refused trap is worded by the trap drop; a hazard has no other wording.
+  if (!game.user?.isGM) return sendDrop(relay, { itemUuid: drop.uuid, sceneId: scene.id, x: point.x, y: point.y }, includeTraps ? null : "noRegion");
   const held = around(point, scene)[0]?.place ?? null;
   if (held) return addThingTo(held, thingOfDrop(kind, drop, { point }));
   const region = bareRegionAt(scene, point, scenes);
@@ -212,15 +262,37 @@ export async function dropOnMapPlace({ scene, data, includeTraps = false, scenes
 }
 
 /**
+ * The place line of a seat that is not a Judge's: a caption and the place's
+ * name as text, or a stand-in where the seat may not name it. The caption is a
+ * `<span>` because it names no control.
+ */
+function seatPlaceLine(say, text) {
+  const group = document.createElement("div");
+  group.className = `form-group ${ROW}-seat`;
+  const caption = document.createElement("span");
+  caption.className = `${ROW}-caption`;
+  caption.textContent = say("label");
+  const fields = document.createElement("div");
+  fields.className = "form-fields";
+  const name = document.createElement("span");
+  name.className = `${ROW}-name`;
+  name.textContent = text;
+  fields.append(name);
+  group.append(caption, fields);
+  return group;
+}
+
+/**
  * Build the row into one Region window: under the Name field on the Appearance
  * tab, which is where core 14 keeps it. Idempotent, so a render that touched
- * only some parts rebuilds it without leaving a second.
+ * only some parts rebuilds it without leaving a second. It is mounted for any
+ * seat that owns the Region, and `placeRowOf` says what each seat is shown.
  */
 function mountRegionPlaceRow(app) {
-  if (!game.user?.isGM) return;
   const region = app?.document;
+  if (!region?.isOwner) return;
   const scenes = globalThis.acksExtras?.location?.scenes;
-  if (!region || typeof scenes?.locationOfRegion !== "function") return;
+  if (typeof scenes?.locationOfRegion !== "function") return;
   const root = elementOf(app.element);
   if (!root) return;
   root.querySelectorAll(`.${ROW}`).forEach((n) => n.remove());
@@ -232,13 +304,31 @@ function mountRegionPlaceRow(app) {
   const remount = () => mountRegionPlaceRow(app);
   const say = (key) => game.i18n.localize(`${LANG_PREFIX}.${key}`);
   const place = scenes.locationOfRegion(region);
+  const isGM = !!game.user?.isGM;
+  const show = placeRowOf({
+    isGM,
+    linked: !!place,
+    canOpen: !!place?.testUserPermission?.(game.user, "LIMITED"),
+    owns: !!place?.testUserPermission?.(game.user, "OWNER"),
+    canCreate: !!game.user?.can?.("ACTOR_CREATE"),
+  });
 
   const row = document.createElement("div");
   row.className = ROW;
   const zone = document.createElement("div");
   zone.className = `${ROW}-drop`;
-  zone.textContent = say("drop");
-  row.append(placePickerOf({ region, scenes, say, cls: `${ROW}-picker`, afterMake: remount, afterLink: remount }), countsLineOf(place), zone);
+  // The Judge's zone keeps its words; a Player dropping on a place they own makes none.
+  zone.textContent = say(!isGM && place ? "dropOwned" : "drop");
+  if (show.picker) row.append(placePickerOf({ region, scenes, say, cls: `${ROW}-picker`, afterMake: remount, afterLink: remount }));
+  else row.append(seatPlaceLine(say, show.name === "text" ? place.name : say(show.name)));
+  if (show.counts) row.append(countsLineOf(place, isGM));
+  if (show.zone) row.append(zone);
+  if (show.hiddenNote) {
+    const note = document.createElement("p");
+    note.className = "hint";
+    note.textContent = say("dropHidden");
+    row.append(note);
+  }
 
   const over = (on) => zone.classList.toggle("is-over", on);
   zone.addEventListener("dragover", (ev) => {
@@ -260,15 +350,74 @@ function mountRegionPlaceRow(app) {
   associateLabels(row);
 }
 
+/** The refusal a relayed drop answers when nothing may take it. */
+const refused = (code) => ({ ok: false, refused: code });
+
 /**
- * Add the Place row to every Region window, and take a hazard dragged onto the
- * map into the place under it. The hook always answers true: the work is async,
+ * Run a relayed drop on the Judge's client. The sender is the one the server
+ * attested (`requestUserId`, null for a Judge's own call), and only the closed
+ * keys of the payload are read: `{itemUuid, regionUuid}` for a drop in the
+ * Region window, `{itemUuid, sceneId, x, y}` for a drop on the map. The place is
+ * resolved here, never taken from the payload, and the thing is written only
+ * onto a place the sender owns, or onto one made for a Region the sender owns
+ * when the sender may create Actors. "No place here" and "a place the sender
+ * does not own" answer the same refusal, so a drop never reveals a closed
+ * place. A trap is stored hidden whoever drops it.
+ *
+ * @param {object} payload
+ * @param {string} [payload.requestUserId] the attested sender
+ * @param {object} [seams]
+ * @param {object} [seams.scenes] the location feature's `scenes` api
+ * @param {(point: object, scene: Scene) => Array<{place: Actor}>} [seams.around] `placesAround`
+ * @returns {Promise<{ok: true}|{ok: false, refused: string}>}
+ */
+export async function placeDropRelay(payload, { scenes = globalThis.acksExtras?.location?.scenes, around = placesAround } = {}) {
+  const { itemUuid, regionUuid, sceneId, x, y, requestUserId = null } = payload ?? {};
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  const byRegion = typeof regionUuid === "string";
+  const none = byRegion ? "noPlace" : "none";
+  if (!user || typeof itemUuid !== "string" || !scenes) return refused("none");
+  const item = await fromUuid(itemUuid).catch(() => null);
+  if (!item?.testUserPermission?.(user, "LIMITED")) return refused("none");
+  const drop = descriptorOf(item, itemUuid);
+  const kind = kindOfDrop(drop);
+  const kindRefusal = refusalOfDrop(drop, kind);
+  if (kindRefusal) return refused(kindRefusal);
+
+  const owns = (doc) => !!doc?.testUserPermission?.(user, "OWNER");
+  const canCreate = !!user.can?.("ACTOR_CREATE");
+  let point = null;
+  let place = null;
+  let region = null;
+  if (byRegion) {
+    region = await fromUuid(regionUuid).catch(() => null);
+    if (region?.documentName !== "Region") return refused(none);
+    place = scenes.locationOfRegion(region);
+  } else {
+    const scene = typeof sceneId === "string" ? game.scenes?.get(sceneId) : null;
+    if (!scene || typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) return refused(none);
+    point = { x, y };
+    place = around(point, scene)[0]?.place ?? null;
+    if (!place) region = bareRegionAt(scene, point, scenes);
+  }
+  const authority = dropAuthority({ linked: !!place, owns: owns(place), regionOwns: owns(region), canCreate });
+  const target = authority === "place" ? place : authority === "create" ? await scenes.createLocationForRegion(region, { render: false }) : null;
+  if (!target) return refused(none);
+  await addThingTo(target, thingOfDrop(kind, drop, { point }));
+  return { ok: true };
+}
+
+/**
+ * Add the Place row to every Region window its viewer owns, take a hazard
+ * dragged onto the map into the place under it, and answer a Player's relayed
+ * drop on the Judge's client. The hook always answers true: the work is async,
  * and a returned promise would read as a truthy "handled" to core.
  */
 export function installRegionPlaceRow() {
+  registerHandler(PLACE_DROP_HANDLER, (payload) => placeDropRelay(payload));
   Hooks.on("renderRegionConfig", (app) => mountRegionPlaceRow(app));
   Hooks.on("dropCanvasData", (canvasRef, data) => {
-    if (game.user?.isGM && data?.type === "Item" && data.uuid) {
+    if (data?.type === "Item" && data.uuid) {
       report(dropOnMapPlace({ scene: canvasRef?.scene, data }), "map place drop");
     }
     return true;

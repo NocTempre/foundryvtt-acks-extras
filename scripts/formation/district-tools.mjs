@@ -21,7 +21,8 @@ import { placePickerOf } from "./region-place-row.mjs";
  */
 export function installDistrictPlaceRow() {
   Hooks.on("renderRegionBehaviorConfig", (app, element) => {
-    if (!game.user?.isGM) return;
+    // The sheet's own editability is Foundry's ownership answer for this behavior.
+    if (!app?.isEditable) return;
     const behavior = app?.document;
     if (behavior?.type !== DISTRICT_TYPE) return;
     const region = behavior.parent;
