@@ -2779,7 +2779,7 @@ imported in. Journal first leaves it in the Judge's pack; Tome first puts it
 in the Tome's line pack. A Judge who looks for every Tome item in the Tome's
 pack finds the ones the Journal made first in the Judge's pack.
 
-## 2026-11-18 — A shelved book's text is parsed once and saved beside its PDF
+## 2026-11-18 — A shelved book's text is parsed once and saved beside its PDF — SUPERSEDED IN PART 2026-11-24
 
 **Ruled.** The owner: "Parse once, read everywhere", and on persisting it, "Yes,
 save it". Books already shelved: "On first read", so no background parse.
@@ -3136,3 +3136,35 @@ in `PARSE_SCHEMA` (a whole-book re-parse per tuning pass).
 - The pin covers the grid mode on one drawn plan. A change to another mode that
   leaves that plan's walls as they were is not seen, and the old tracer's saved
   walls stay in use until the version is bumped and the book is read again.
+
+## 2026-11-24 — A check ahead of a Repair confirm parses nothing and writes nothing
+
+**Ruled.** Supersedes in part "2026-11-18 — A shelved book's text is parsed
+once and saved beside its PDF", on **Who parses** only: `verify()` on a GM seat
+with no current pointer still makes the text for a read, but the check a repair
+runs before it asks (`verifyBooks`, `verifiedBook`) is `verify({ prepare: false
+})` and makes nothing. The contract it restores is "2026-11-13 — The rules
+tables are read first and applied after the classes": the asking pass writes
+nothing and a No leaves the world as it was. Example: Repair on a book whose
+shelf journal holds no saved text. The check fetches and fingerprints the file
+and shows the confirm; a No leaves no uploaded file and no pointer; a Yes
+repairs, and the first read of a page makes the text, once.
+
+**New evidence** (the 2026-11-18 entry is under seven days old). Two live
+walks, `importer-forced-places` and `importer-book-actors`, counted journal
+writes after a No. The 2026-11-18 entry's last line made `verifyBooks` a first
+parse and did not weigh the 2026-11-13 contract; it superseded nothing of it,
+so the two stood in conflict.
+
+**Rejected.**
+- Deferring only the pointer write: the upload still runs before the confirm,
+  and a No leaves a file in the world and throws a finished parse away.
+- Parsing in memory and saving after the Yes: a No throws the parse away, and
+  the Yes reads the book again, against "Parse once".
+
+**Costs.**
+- A book with no current pointer costs a fetch and a pdf.js open before the
+  confirm, where the parse used to run, and a second fetch on the first read
+  after a Yes, which makes the text.
+- A pointer an earlier No wrote stays; no repair tool sweeps previous-version
+  data.

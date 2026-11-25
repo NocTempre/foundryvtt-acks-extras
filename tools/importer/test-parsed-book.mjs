@@ -269,6 +269,26 @@ const digest = (text) => createHash("sha256").update(text).digest("hex");
   await again.destroy();
 }
 
+/* --- a check ahead of a confirm writes nothing -------------------------------------------------- */
+
+{
+  const w = world();
+  const handle = w.seat().handle();
+  ok("a GM seat with no pointer verifies without preparing", (await handle.verify({ prepare: false })) === true && handle.verified);
+  ok("and uploads nothing and writes no pointer", w.uploads.length === 0 && w.pointerWrites === 0 && w.journals.rr.pointer === null, `${w.uploads.length} uploads, ${w.pointerWrites} pointer writes`);
+  const live = await pageItems(fakeDoc(7, 91), 2);
+  same("the next read makes the text, and answers the page", normalised(live), await pageItems(handle, 2));
+  ok("once: one upload, one pointer", w.uploads.length === 1 && w.pointerWrites === 1 && w.journals.rr.pointer !== null);
+
+  // A run that may not prepare is not joined by one that may.
+  const v = world();
+  const gm = v.seat().handle();
+  const [quiet, loud] = await Promise.all([gm.verify({ prepare: false }), gm.verify()]);
+  ok("a call that may prepare is not answered by a run that could not", quiet && loud && v.uploads.length === 1 && v.pointerWrites === 1);
+  await handle.destroy();
+  await gm.destroy();
+}
+
 /* --- a stale stamp, a re-pointed src ---------------------------------------------------------- */
 
 {

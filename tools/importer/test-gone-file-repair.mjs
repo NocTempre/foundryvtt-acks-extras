@@ -18,6 +18,7 @@ import assert from "node:assert";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
 import { BookHandle } from "../../scripts/importer/book-handle.mjs";
+import { ParsedBooks } from "../../scripts/importer/parsed-book.mjs";
 import { repairTally, repairCounts } from "../../scripts/importer/refresh.mjs";
 import {
   initCookbook,
@@ -311,6 +312,56 @@ forgetImportedIndex();
 const made = await cookbookImportAdventureItems({ books: [BOOK] });
 ok("and the item the world lacked is imported", made.made === 1 && !!(await importedItemFor(ID2)), JSON.stringify(made));
 await handle.destroy();
+
+/* --- a No to the repair confirm leaves the world as it was ----------------------------------- */
+// The file is there and the shelf holds no saved text, on a GM seat that may make it. The check
+// ahead of the confirm opens and fingerprints the file and writes nothing: no upload, no pointer.
+{
+  /** A document whose pages parse: one text run each, no images. */
+  const parsable = () => ({
+    numPages: 4,
+    getPage: async () => ({
+      getViewport: () => ({ width: 612, height: 792 }),
+      getTextContent: async () => ({ items: [{ str: "x", transform: [1, 0, 0, 1, 72, 700], width: 5, height: 9, fontName: "g_f1" }] }),
+      getOperatorList: async () => ({ fnArray: [], argsArray: [] }),
+    }),
+    destroy: async () => {},
+  });
+  const counts = { uploads: 0, pointerWrites: 0 };
+  const shelf = { src: "books/zz.pdf", pointer: null };
+  const parsed = new ParsedBooks({
+    isGM: () => true,
+    srcOf: (id) => (id === BOOK ? shelf.src : null),
+    pointerOf: () => shelf.pointer,
+    writePointer: async (id, pointer) => {
+      counts.pointerWrites++;
+      shelf.pointer = pointer;
+    },
+    upload: async (name) => {
+      counts.uploads++;
+      return `books/parsed/${name}`;
+    },
+    open: async () => ({ doc: parsable(), numPages: 4, title: "Invented" }),
+    attempt: () => "a0",
+  });
+  const counted = new BookHandle({
+    bookId: BOOK,
+    src: "books/zz.pdf",
+    numPages: 4,
+    title: "Invented",
+    fetchImpl: async () => ({ ok: true, status: 200, arrayBuffer: async () => new Uint8Array([1]).buffer }),
+    open: async () => ({ doc: parsable(), numPages: 4, title: "Invented" }),
+    parsed,
+  });
+  sessions.set(BOOK, { doc: counted });
+  forgetImportedIndex();
+  const asked = [];
+  const no = await cookbookReimportBook(BOOK, { ask: async (q) => (asked.push(q), false) });
+  ok("the book repair put its question", asked.length >= 1, JSON.stringify(asked));
+  ok("answering No writes no pointer and uploads nothing", counts.pointerWrites === 0 && counts.uploads === 0 && shelf.pointer === null, JSON.stringify({ counts, no }));
+  ok("the check still verified the file", counted.verified === true);
+  await counted.destroy();
+}
 
 delete globalThis.foundry;
 delete globalThis.Folder;

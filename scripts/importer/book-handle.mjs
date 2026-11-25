@@ -88,6 +88,7 @@ export class BookHandle {
   #verified = false;
   #vouched = false;
   #verifying = null;
+  #verifyingPrepares = true;
   #refusal = null;
   #opened = false;
   #parsed;
@@ -306,12 +307,24 @@ export class BookHandle {
    *      the book, and nothing falls back to opening the PDF;
    *   3. with no saved text the PDF is opened live and fingerprinted.
    *
-   * A verified handle answers at once. A concurrent call shares the first's run.
+   * `prepare: false` skips step 1, so the check fetches and fingerprints the
+   * file and writes nothing: no upload, no pointer. A check made before a
+   * confirm asks this way, and the first read after the answer makes the text.
+   *
+   * A verified handle answers at once. A concurrent call shares the first's
+   * run, except a call that may prepare waits out a run that could not.
+   *
+   * @param {object} [o]
+   * @param {boolean} [o.prepare=true] whether a GM seat with no saved text may make it
    */
-  verify() {
+  verify({ prepare = true } = {}) {
     this.#follow();
+    if (prepare && this.#verifying && !this.#verifyingPrepares) {
+      return this.#verifying.then(() => this.verify({ prepare }));
+    }
     if (!this.#verifying) {
-      const verifying = this.#verify()
+      this.#verifyingPrepares = prepare;
+      const verifying = this.#verify(prepare)
         .then((verified) => {
           if (verified) this.#setRefusal(null);
           return verified;
@@ -324,26 +337,26 @@ export class BookHandle {
     return this.#verifying;
   }
 
-  async #verify() {
+  async #verify(prepare) {
     const epoch = this.#epoch;
     try {
       let pointer = this.#pointer();
-      if (!pointer && this.#canPrepare()) {
+      if (!pointer && prepare && this.#canPrepare()) {
         const made = await this.#prepare(epoch);
         pointer = made?.pointer ?? null;
         if (made?.fresh && epoch === this.#epoch) this.#vouch();
       }
       // Re-pointed while it ran: what it learned is of the old file, so ask again of the new.
-      if (epoch !== this.#epoch) return await this.#verify();
+      if (epoch !== this.#epoch) return await this.#verify(prepare);
       if (this.verified) {
         this.#arm();
         return true;
       }
-      if (pointer) return await this.#head(pointer, epoch);
+      if (pointer) return await this.#head(pointer, epoch, prepare);
       await this.live();
       return true;
     } catch (err) {
-      if (epoch !== this.#epoch) return this.#verify();
+      if (epoch !== this.#epoch) return this.#verify(prepare);
       return this.#refuse(err);
     }
   }
@@ -430,9 +443,9 @@ export class BookHandle {
    * One HEAD of the saved text's `src`. The size is checked where the host
    * reports one; a reply with no `content-length` vouches for presence only.
    */
-  async #head(pointer, epoch) {
+  async #head(pointer, epoch, prepare) {
     const resp = await this.#fetch(pointer.src, { method: "HEAD" });
-    if (epoch !== this.#epoch) return this.#verify();
+    if (epoch !== this.#epoch) return this.#verify(prepare);
     if (!resp?.ok) return this.#refuse(failure(`${this.#bookId}: could not read ${pointer.src} (${resp?.status})`, httpKind(resp?.status), { status: resp?.status }));
     const length = resp.headers?.get?.("content-length");
     if (length != null && length !== "" && Number(length) !== pointer.bytes) {
@@ -566,5 +579,8 @@ export const liveDoc = (doc) => (doc?.isBookHandle ? doc.live() : Promise.resolv
  */
 export const verifiedDoc = (doc) => (doc?.isBookHandle ? doc.verified : !!doc);
 
-/** Verify a session document before a read: a handle settles it as `verify()` does, any other document is already open. Never throws. */
-export const verifyDoc = (doc) => (doc?.isBookHandle ? doc.verify() : Promise.resolve(!!doc));
+/**
+ * Verify a session document before a read: a handle settles it as `verify(options)`
+ * does, any other document is already open. Never throws.
+ */
+export const verifyDoc = (doc, options) => (doc?.isBookHandle ? doc.verify(options) : Promise.resolve(!!doc));

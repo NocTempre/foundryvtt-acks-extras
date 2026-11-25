@@ -262,9 +262,14 @@ export const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id 
  */
 export const bookVerified = (book) => verifiedDoc(ctx?.sessionDocs?.get(book)?.doc);
 
-/** Open and fingerprint each of `books` on this seat, in parallel, so `bookVerified` has its answer. A book that fails stays unverified. */
+/**
+ * Open and fingerprint each of `books` on this seat, in parallel, so `bookVerified` has its answer.
+ * A book that fails stays unverified. It never parses and never writes (no upload, no pointer),
+ * so a check made ahead of a confirm leaves the world as it was when the answer is No; the
+ * first read after a Yes makes the saved text.
+ */
 export async function verifyBooks(books) {
-  await Promise.all([...new Set(books.filter(Boolean))].map((book) => verifyDoc(ctx?.sessionDocs?.get(book)?.doc)));
+  await Promise.all([...new Set(books.filter(Boolean))].map((book) => verifyDoc(ctx?.sessionDocs?.get(book)?.doc, { prepare: false })));
 }
 
 /** Whether `bookId` is on this seat and its file opens and fingerprints: `verifyBooks`, then `bookVerified`. */

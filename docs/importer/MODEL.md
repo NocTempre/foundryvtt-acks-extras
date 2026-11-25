@@ -2575,7 +2575,9 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
 - **Deletes ask verified.** `rebuildable` and `readableHere` read
   `bookVerified`, never presence in `sessionDocs`. They are synchronous, so each
   repair entry (a shelf, a book, an adventure book, the entry picker, the class
-  update) awaits `verifyBooks` / `verifiedBook` for its scope first.
+  update) awaits `verifyBooks` / `verifiedBook` for its scope first. That check
+  never parses and never writes (`verify({ prepare: false })`: no upload, no
+  pointer), so a No to the confirm leaves the world as it was.
   `rebuildable` asks every book the claim draws from (`drawnFrom`). A
   registered, unverified handle licenses no delete. Recording a refusal lapses
   the handle's verified state and vouching, so the next `verify` asks the file
@@ -2623,7 +2625,10 @@ twice. A form is never parsed.
   re-staged book or a new pdf.js makes it stale with no other signal. The page
   stays the record of which file is the book. `bytes` is the PDF's size.
 - **Who parses.** `BookHandle.verify()` on a GM seat with no current pointer
-  calls `ParsedBooks.prepare`: fetch the PDF, open and fingerprint it
+  (every read goes through it) calls `ParsedBooks.prepare`. The check a repair
+  makes before its confirm, `verify({ prepare: false })`, opens and fingerprints
+  the file and parses nothing; the first read after a Yes makes the text. The
+  parse: fetch the PDF, open and fingerprint it
   (`openChecked`), parse every page, upload, write the pointer. The staging seat
   (`shelveUpload`, after the journal is written) does the same from the bytes it
   holds, without waiting. One run per book at a time; a second caller takes the
