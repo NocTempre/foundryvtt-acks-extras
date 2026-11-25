@@ -517,7 +517,12 @@ const P = {
     const made = await scene.createEmbeddedDocuments("Wall", specs.map((s) => ({ c: s.c, door: CONST.WALL_DOOR_TYPES.DOOR, ds: s.ds ?? CONST.WALL_DOOR_STATES.CLOSED })));
     for (const w of made) ids.add(w.id);
     H.wallT0 = t0;
-    return made.map((w) => ({ id: w.id, uuid: w.uuid, created: w.ds }));
+    // The create answers in its own order, not the specs', so each spec takes the wall standing on its coordinates.
+    const key = (c) => c.map(Number).join(",");
+    return specs.map((s) => {
+      const w = made.find((m) => key(m.c) === key(s.c));
+      return { id: w?.id ?? null, uuid: w?.uuid ?? null, created: w?.ds ?? null };
+    });
   },
   /** The door-state writes logged since `wallsMake`, times in ms from its create. */
   wallLog: async () => {
