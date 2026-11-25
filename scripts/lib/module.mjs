@@ -103,6 +103,7 @@ import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import { installAnimationBridge } from "./animations.mjs";
 import { installAttackApply } from "./attack-apply.mjs";
+import { installDelayedDamage } from "./delayed-damage.mjs";
 import { declareDefenseTables } from "./defenses.mjs";
 import { declareThrowTables } from "./throws.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
@@ -1025,6 +1026,7 @@ Hooks.once("ready", () => {
   // system's Actor class and data models are final here.
   installAttackThrowPatch();
   installAttackApply();
+  installDelayedDamage();
   installAnimationBridge();
 
   // Conditions on every roll they reach; the attack half registers into the

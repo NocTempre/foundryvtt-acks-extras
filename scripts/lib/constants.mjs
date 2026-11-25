@@ -29,6 +29,15 @@ export const FLAG_ROLL_MODS = "rollMods";
 export const FLAG_TURN_LIFE = "turnLife";
 
 /**
+ * Flag key under `flags["acks-extras"]` on an Active Effect that holds damage
+ * to land on its bearer after a count of its turns (`delayed-damage.mjs`):
+ * `{combatId, combatantId, edge, count, seen, amount|formula, source, cite}`.
+ * Its own key and never `FLAG_TURN_LIFE`: the tracker deletes a turn-life record
+ * as it comes due, before anything could apply the damage.
+ */
+export const FLAG_DELAYED_DAMAGE = "delayedDamage";
+
+/**
  * Flag key under `flags["acks-extras"]` on an Active Effect that ends when its
  * bearer does something (`ends-on.mjs`): a list of causes, `damage` and
  * `attack`. Named here because the feature that writes the record and the

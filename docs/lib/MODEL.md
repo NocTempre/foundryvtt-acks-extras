@@ -2827,7 +2827,8 @@ unrolled round begins and ends as it is passed, since the tracker lifts at it.
 The conditions lift as before, on every change of the current combatant; only
 the hooks and the records below take the stricter reading. The hook fires after
 the records and conditions of that edge are lifted, so a listener reads the
-world as the turn finds it. Lib is not a listener of its own hooks.
+world as the turn finds it. Lib's one listener of its own hooks is the
+delayed-damage reader (below).
 
 **A record that lasts turns.** An Active Effect on the actor of any combatant of
 a fight (a linked actor, or an unlinked token's own) may carry
@@ -2845,6 +2846,25 @@ and the delete at its end, two writes). A
 record of another fight is never read, and a record whose fight is deleted is
 left where it is: its flag clock ends it. Lib counts turns and deletes; what a
 record means is its writer's.
+
+**Damage that lands later.** An Active Effect on the struck creature may carry
+`flags["acks-extras"].delayedDamage`: the clock of a `turnLife` record
+(`{combatId, combatantId, edge, count, seen}`) and a damage, a flat `amount` or
+a dice `formula`, with the `source` and the `cite` the card names. The count is
+the bearer's own turns, one a round, so a count of rounds and a count of turns
+are the same figure; the amount, the formula and the count are the carrier's,
+imported. It is a flag of its own and never `turnLife`: the tracker deletes a
+`turnLife` record as it comes due, before anything could apply the damage.
+`delayed-damage.mjs` listens on `TURN_BEGAN_HOOK` and `TURN_ENDED_HOOK` (the
+primary GM's client, once per real turn, none for a re-sort or a step back),
+counts each turn, and when the record is due DELETES it first, then rolls a
+formula, writes the damage through `adjustHp` (mode damage, multiplier 1, no
+defense stage: the record holds no damage type) and posts the hit-point card
+with source, page and amount. A client whose delete fails deals nothing, so the
+damage lands once. A bearer whose combatant has left the fight, or that is
+defeated or marked dead, gets nothing: the record is deleted and no card
+posts. `delayedDamageEffectData` builds the effect a feature creates. The
+Judge's Undo of the hit points is the hit-point tool's.
 
 **Whose state it is.** Foundry writes on every effect an actor is given who
 was acting when it was made (`start.combatant`, `start.initiative`). A `given`

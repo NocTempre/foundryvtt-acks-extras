@@ -1373,6 +1373,20 @@ A window draws `bucketView`'s result with the `TEMPLATE` partial and binds `loc`
 `makeLoc(BUCKET_LANG_PREFIX)`; it wires `BUCKET_ACTIONS` (`bucketRemove`, `bucketFit`, `bucketPick`)
 and the `data-bucket-drop` zone itself.
 
+## Delayed damage (`scripts/lib/delayed-damage.mjs`, Foundry-free but `installDelayedDamage`; not on the lib api yet)
+
+The model is docs/lib/MODEL.md, "Damage that lands later".
+
+```
+FLAG_DELAYED_DAMAGE                  // "delayedDamage", from constants.mjs
+readDelayedDamage(flag) → {combatId, combatantId, edge, count, seen, amount|null, formula, source, cite} | null
+delayedDamageStep(flag, {kind, combatId, combatantId}, {gone?, down?}?) → {act, seen, record}
+                                     // act: "none" | "count" | "apply" | "drop"
+delayedDamageEffectData({amount?, formula?, source, cite?, combatId, combatantId, count, edge?, name?, img?}) → ActiveEffect data | null
+liftDelayedDamage(combat, combatantId, kind, {roll, damage, post}) → Promise<[{name, source, cite, amount, result}]>
+installDelayedDamage()               // the two turn hooks, once; called from module.mjs
+```
+
 ## Turn hooks and a record's turn life (apiVersion 54)
 
 The model is docs/lib/MODEL.md, "The tracker lifts what ends" and "A record that
