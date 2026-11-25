@@ -1,8 +1,9 @@
 /**
  * Live walk, lib-repair-checks: the two-handed row repair check, the Repair
- * window's check list, and tied initiative sorted the same on both seats.
+ * window's check list, a weapon with no alternate loading blank, and tied
+ * initiative sorted the same on both seats.
  * Walks docs/lib/TESTING.md:
- *   - "A weapon's two-handed die, and the check that writes it", steps 1–5;
+ *   - "A weapon's two-handed die, and the check that writes it", steps 1–6;
  *   - "Tied initiative sorts the same on every seat", steps 1, 2, 3, 5 and 6.
  * Machine values arrive through ./_env.mjs. No book is needed: every name and
  * die is invented, and the weapon rows are the stamped modes built by hand.
@@ -22,6 +23,9 @@
  * sweep tracked (read off its log), and they are swept first. Step 5 retires
  * the markers `lib/legacy-stamped-fighter`, `-kit` (characters) and `-loose`
  * (a weapon), which an earlier recipe kept, and builds nothing in their place.
+ * Step 6 retires and builds again the weapons `lib/weapon-alternate-blank` and
+ * `lib/weapon-alternate-stamped` (setup is its subject), and finds the control
+ * `lib/weapon-alternate-stated`; all three stay.
  */
 import fs from "node:fs";
 import { connect, sleep } from "./_driver.mjs";
@@ -164,6 +168,18 @@ const P = {
       registered: H.RP.repairChecks().map((c) => c.id),
       scanned: (await H.RP.scanRepairs({ only: "lib.stampedRecords" })).length,
     };
+  },
+  /** A weapon's stored alternate and base dice, its stamp, and the melee grips the system offers. */
+  weaponState: async ({ uuid }) => {
+    const item = await fromUuid(uuid);
+    if (!item) return null;
+    const damage = item._source.system.damage;
+    return { stored: damage.alternate?.formula ?? null, base: damage.base?.formula ?? null, stamp: item._source.system._schemaVersion ?? null, modes: item.system.getDamageModes("melee") };
+  },
+  /** The weapon schema's two initials, and the stamp the system migrates to. */
+  weaponSchema: async () => {
+    const schema = CONFIG.Item.dataModels.weapon.schema;
+    return { alternate: schema.getField("damage.alternate.formula")?.initial ?? null, base: schema.getField("damage.base.formula")?.initial ?? null, version: game.settings.get("acks", "systemSchemaVersion") ?? null };
   },
   sheet: async ({ uuid }) => {
     const H = globalThis.__lr;
@@ -388,6 +404,27 @@ try {
   // The positive controls first: a window that failed to render would pass the absence check.
   check("5: the window rendered a row for the two-handed and the stranded-coin checks", listed.rendered && listed.ids.includes("lib.twoHandedRow") && listed.ids.includes("lib.strandedCoin"), listed.ids);
   check("5: the window holds no lib.stampedRecords row, the registry holds none, and a scan of it answers nothing", !listed.ids.includes("lib.stampedRecords") && !listed.registered.includes("lib.stampedRecords") && listed.scanned === 0, { window: listed.ids.length, registered: listed.registered.length, scanned: listed.scanned });
+
+  section("A weapon's two-handed die: 6. an absent alternate loads blank");
+  // Setup is the subject, so the blank and the stamped weapon are retired by
+  // marker and built again; the control is found and given its die.
+  const weaponSchema = await run(gm, P.weaponSchema);
+  const gone = {};
+  for (const marker of ["lib/weapon-alternate-blank", "lib/weapon-alternate-stamped"]) gone[marker] = await gm.retire(marker, "Item");
+  check("6: no retired weapon refused its delete", Object.values(gone).every((sw) => !sw.failed.length), Object.fromEntries(Object.entries(gone).map(([m, sw]) => [m, { removed: sw.removed.length, failed: sw.failed.length }])));
+  const plain = (name, extra = {}) => ({ name, type: "weapon", system: { size: "medium", melee: true, damage: { base: { formula: "1d7" } }, ...extra } });
+  const blank = await gm.fixture("lib/weapon-alternate-blank", "Item", plain("QA Plainblade"));
+  const stamped = await gm.fixture("lib/weapon-alternate-stamped", "Item", plain("QA Stampedblade", Number.isInteger(weaponSchema.version) ? { _schemaVersion: weaponSchema.version } : {}));
+  const stated = await gm.fixture("lib/weapon-alternate-stated", "Item", plain("QA Statedblade", { damage: { base: { formula: "1d7" }, alternate: { formula: "1d9" } } }));
+  await run(gm, P.alternate, { uuid: stated.uuid, formula: "1d9" });
+  const w = {};
+  for (const [key, doc] of Object.entries({ blank, stamped, stated })) w[key] = { state: await run(gm, P.weaponState, { uuid: doc.uuid }), sheet: await run(gm, P.sheet, { uuid: doc.uuid }) };
+  note("weapons", { schema: weaponSchema, blank: w.blank, stamped: w.stamped, stated: w.stated });
+  check("6: the blank and the stamped weapon were built this run, the stamp is the system's current schema", blank.built && stamped.built && Number.isInteger(weaponSchema.version) && w.stamped.state?.stamp === weaponSchema.version, { built: [blank.built, stamped.built], stamp: w.stamped.state?.stamp, version: weaponSchema.version });
+  check("6: the blank weapon stores no alternate, keeps its base die, offers one grip, and its sheet field is empty", w.blank.state?.stored === "" && w.blank.state.base === "1d7" && w.blank.state.modes.length === 1 && w.blank.sheet.found && w.blank.sheet.value === "", { state: w.blank.state, sheet: w.blank.sheet });
+  check("6: the stamped weapon stores no alternate, offers one grip, and its sheet field is empty", w.stamped.state?.stored === "" && w.stamped.state.modes.length === 1 && w.stamped.sheet.found && w.stamped.sheet.value === "", { state: w.stamped.state, sheet: w.stamped.sheet });
+  check("6: the control that states 1d9 offers two grips and its sheet field reads 1d9", w.stated.state?.stored === "1d9" && w.stated.state.modes.length === 2 && w.stated.sheet.found && w.stated.sheet.value === "1d9", { state: w.stated.state, sheet: w.stated.sheet });
+  check("6: the schema's alternate initial is blank and the base initial is not", weaponSchema.alternate === "" && !!weaponSchema.base, weaponSchema);
 
   section("Tied initiative: fixtures");
   // The kept combat is read as it stands: its rows' ids, tokens and sides are

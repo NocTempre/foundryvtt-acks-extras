@@ -3176,7 +3176,7 @@ holding the same effect.
 Covers `lib.twoHandedRow` (MODEL.md, "A weapon's two-handed die follows its
 imported row"). One GM seat. Every name and die below is invented; the rows
 are the stamped modes the importer writes, built by hand, so no book is
-needed. `tools/live/lib-repair-checks.mjs` walks steps 1–5.
+needed. `tools/live/lib-repair-checks.mjs` walks steps 1–6.
 
 **Fixtures,** found by marker with `api.fixture(marker, "Item", data)`. The
 check's fix rewrites them, so each step that needs a shape asserts it by
@@ -3192,6 +3192,15 @@ writing it first (`item.update({"system.damage.alternate.formula": …})`):
   weapon, created with the embedded item carrying the same flag and alternate
   "1d5" (`actor.createEmbeddedDocuments("Item", [data])`; `api.track` the
   embedded item's uuid from the result).
+- Step 6's, which no step rewrites. `lib/weapon-alternate-blank`: a world
+  weapon with an invented name, `system.size` "medium", `system.melee` true, a
+  base die of "1d7" and no `alternate` key; setup is its subject, so the step
+  retires it and builds it again, and so for the stamped one below. `lib/weapon-alternate-stated`: the control,
+  the same with alternate "1d9". `lib/weapon-alternate-stamped`: the same as
+  the first, created carrying `system._schemaVersion` at the system's current
+  schema (`CONFIG.Item.dataModels.weapon` is the model; the version is
+  `game.settings.get("acks", "systemSchemaVersion")`), which the system keeps
+  on a creation datum that states one.
 
 1. **The scan.** `scanRepairs({only: "lib.twoHandedRow"})` from
    `scripts/lib/repair.mjs`.
@@ -3225,8 +3234,23 @@ writing it first (`item.update({"system.damage.alternate.formula": …})`):
    `lib.stampedRecords`; `acksExtras.lib.repair.checks()` lists no such id; and
    `scanRepairs({only: "lib.stampedRecords"})` answers an empty list.
 
+6. **An absent alternate loads blank** (`patches/weapon-alternate.mjs`).
+   `api.retire("lib/weapon-alternate-blank", "Item")`, then
+   `api.fixture` builds it from data that names no alternate; the stamped
+   weapon is retired and built the same way, and the stated one is found by
+   its marker and brought to alternate "1d9" first.
+   **Observable:** on the blank weapon, `_source.system.damage.alternate.formula`
+   is "" (the base still "1d7"), `system.getDamageModes("melee")` holds one
+   mode, and its sheet's alternate damage field is empty with no second grip
+   offered. The stated weapon, alternate "1d9", offers two modes and its field
+   reads 1d9 (the control that proves the patch blanks only what is absent).
+   The stamped weapon stores "" too, and its sheet and the attack's grip
+   choice offer no second grip. The schema field
+   `CONFIG.Item.dataModels.weapon.schema.getField("damage.alternate.formula").initial`
+   is "", and the same field of `damage.base.formula` is not.
+
 **Teardown.** None: the fixtures stay; the next walk writes their alternates
-back before step 1.
+back before step 1, and step 6 retires and builds its blank weapon again.
 
 ## An image whose file is gone, and the check that replaces it
 

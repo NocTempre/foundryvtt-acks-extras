@@ -118,6 +118,7 @@ import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
 import { installCompendiumEmptyLoadPatch } from "./patches/compendium-empty-load.mjs";
+import { installWeaponAlternatePatch } from "./patches/weapon-alternate.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "./patches/spell-use.mjs";
 import { addItemUseClaimant, installItemUsePatch, removeItemUseClaimant } from "./patches/item-use.mjs";
 import * as auraReach from "./aura-reach.mjs";
@@ -643,6 +644,8 @@ Hooks.once("init", () => {
   installTokenLightPaddingPatch();
   // Before the first write to a compendium document.
   installCompendiumEmptyLoadPatch();
+  // Before any weapon is built from a record that states no alternate.
+  installWeaponAlternatePatch();
   installSpellUsePatch();
   // The seam on `Item#use`, with the carrier its one claimant, and the reach's behavior type.
   installItemUsePatch();

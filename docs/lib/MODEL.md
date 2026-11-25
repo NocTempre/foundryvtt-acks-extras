@@ -1755,7 +1755,12 @@ mode held two-handed carries the row's second die (`damageModes`,
 alternate; where the modes name none, the alternate is blank. `bindWeaponRow`
 writes exactly that at creation. A weapon with no stamped modes has no imported
 row, and keeps what it stores. Nothing compares the stored alternate with the
-one-handed die, and nothing overrides the field as the document loads.
+one-handed die, and nothing overrides a stored alternate as the document loads.
+An absent alternate is another case: a weapon created or stored with no
+alternate, or an empty one, is created with a blank formula and loads blank, so
+it offers one grip, by `patches/weapon-alternate.mjs`, which blanks the schema's
+default for that one field. A weapon already stored with the system's default
+die states an alternate by then, and is unchanged.
 
 Weapons already in the world are brought to their row by the repair check
 `lib.twoHandedRow`, which lists the world's weapons and the weapons on world

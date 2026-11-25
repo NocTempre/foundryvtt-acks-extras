@@ -1133,7 +1133,7 @@ selectable quantity input.
 whose rows carry `data-item-id` and a handle further inside is now left as it
 draws itself.
 
-## 2026-11-24 — The system migrates a stamped record, so the module reads none
+## 2026-11-24 — The system migrates a stamped record, so the module reads none — SUPERSEDED IN PART 2026-11-25
 
 Supersedes "2026-11-03 — A stamped item is read at load and written by a repair
 check" (archived in `DECISIONS-through-v11.14.5.md`), the nested "A stamped
@@ -1824,3 +1824,60 @@ Judge sets the mark again and re-runs the Rules tables import. Wording a Judge
 read before ("In Cover", "Choking / Vomiting") now reads as the system words it,
 in the system's language. A creature's `silence` status is the system's Mute,
 and Mute does not suppress the shadowy senses; Deafened does (T-0741).
+
+## 2026-11-25 — The module blanks the system's default for a weapon's alternate damage, and the upstream report carries the same fix
+
+Supersedes IN PART "2026-11-24 — The system migrates a stamped record, so the
+module reads none", namely its cost bullet beginning "Core's schema fills an
+absent `damage.alternate` with a die". The rest of that entry stands.
+
+Ruled by the owner's words on a defect found in the `acks` system: "patch and
+include found fixes with the issue reports". The module patches each system
+defect for its own users now, and the upstream report carries the same fix. For
+this defect: `patches/weapon-alternate.mjs` blanks the initial of the weapon's
+`damage.alternate.formula` at `init`, and the report to the system carries the
+same fix for its weapon schema, where a note already asks to initialise that
+formula to an empty string.
+
+**New evidence.** That entry costed the defect as a load-time case, a weapon
+stored with a damage object and no alternate. Three facts it did not know:
+- An offline probe on Foundry's own `common/` data with the system's real weapon
+  model shows every create that names no alternate stores the die, not only a
+  load: a base die alone, no `damage` at all, `alternate: {}`, and a record
+  stored at schema 8 without the key each store "1d6" and offer two melee modes.
+- The system's migration runner writes `system` whole as a forced replacement,
+  so a record it rewrites with no alternate is stored with that die.
+- Commit 99ed13ce, which deleted the module's load-time rescue, is on `main` and
+  in no tag. The last tag still applies the rescue, which blanked a stamped record's
+  missing alternate, so without this patch the next release shows a second grip
+  on weapons that have none today.
+
+**Ruled.** At `init`, after the system has assigned its data models, the patch
+reads the weapon model's `damage.alternate.formula` and sets its `initial` to a
+blank string. It acts only on a blankable `StringField`, never touches
+`damage.base.formula` (a field of its own), and probes the schema's clean-up
+before and after: it stands down when an absent and an empty alternate already
+clean blank, and restores the original initial with one warning when the change
+does not take. It never throws at `init`. A weapon already stored with the
+default die is a stated alternate and is unchanged; that case is left to the
+Judge, or to `lib.twoHandedRow` for a weapon with an imported row.
+
+**Retired by.** The system's minimum reaching a release whose damage schema
+starts the alternate blank. The patch then stands down on its own, and
+`docs/lib/ROADMAP.md` carries the row that deletes it.
+
+**Rejected.** Reading the stored record at load, the rescue's route: it
+re-creates a second reader of what the system migrates, which the 2026-11-24
+ruling removed. A repair check over every weapon: it finds a weapon after it was
+built wrong, and cannot tell a die the Judge stated from one the default wrote.
+
+**Strongest counter, MODERATE.** The module becomes a second owner of a system
+default, and a system release that changes the field another way meets this
+patch. Answered by the owner's ruling above and by the patch carrying no logic of
+its own: it sets one initial, probes the result, and stands down the moment the
+schema is blank.
+
+**Cost.** A weapon built before this release with no alternate and stored with
+the die keeps it, since the record states it. The offline probe is on Foundry's
+`common/` and the system's source; the change is walked live in
+`docs/lib/TESTING.md`, "A weapon's two-handed die, and the check that writes it".

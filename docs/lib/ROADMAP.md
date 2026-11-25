@@ -448,3 +448,12 @@ starts with `/design`.
 
 - **The cast engine's recurring prompt may move onto the carrier's lib card.** The cast card, its recurring prompts and Undo are spell-bound and walked, and the carrier (`item-run.mjs`) builds a second prompt, relay and apply loop over lib's `roll-card.mjs` and `sockets.mjs`. Folding the cast's non-spell-bound half onto the carrier's card would leave one loop; it is a refactor of a shipped surface with its own walk and is not scheduled.
 - **A standing part's parts from a row.** `standingPartRecordData` builds the record under its kind's fixed id, and `handleReachMoment` takes it off at an exit; turning a row's modifier rows into the part's `rollMods` parts, and writing it on an `on`, comes with the first item that carries one.
+
+## The system's blank alternate
+
+The weapon model gives `damage.alternate.formula` the damage field's default die,
+and `scripts/lib/patches/weapon-alternate.mjs` blanks it until the system does.
+Delete the patch, its install in `scripts/lib/module.mjs`, its README row and
+`tools/test-weapon-alternate.mjs` once the system minimum names a release whose
+schema starts the alternate blank, and re-walk the two-handed die steps of
+`docs/lib/TESTING.md` without it.
