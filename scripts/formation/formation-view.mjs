@@ -24,6 +24,7 @@ import {
   getFrontage,
   getMapperActor,
   getMemberActor,
+  isSummonMember,
   mapperMembers,
   realMembers,
   getPartyScene,
@@ -35,11 +36,13 @@ import {
   isPartyInDark,
   mapperIsProficient,
   maxFrontage,
+  memberOwnToken,
   memberPace,
   missingRoleGear,
   partySpeed,
 } from "./formation-model.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
+import { summonOfData, summonRecordOf } from "../lib/summons-logic.mjs";
 import { trapFigures } from "./trap-rules.mjs";
 import { LIT_BY, MAP_BLOCK } from "./mapper-logic.mjs";
 import { journeyIsNight, mappingNeedsLight, mappingOf } from "./mapping.mjs";
@@ -195,6 +198,24 @@ export function magicLightRows(formation) {
 }
 
 /**
+ * A summoned member's control-end stamp, `"stays"` or `"hostile"`, or null
+ * where its control has not ended. One out on the map carries its record on its
+ * placed token's actor, which the caller passes as `placedActor` and which wins
+ * over any stash the member still keeps; a stashed one carries it in its token
+ * data's delta.
+ */
+export function summonLostOf(member, placedActor = null) {
+  const record = placedActor ? summonRecordOf(placedActor) : summonOfData(member?.tokenData).summon;
+  return record?.lost === "stays" || record?.lost === "hostile" ? record.lost : null;
+}
+
+/** The name line's badge for a control-end stamp: its glyph, its lang key, and whether it reads in the danger ink. */
+const SUMMON_LOST_BADGE = {
+  stays: { icon: "fa-link-slash", key: "ACKS-FORMATION.app.summonStaysBadge", danger: false },
+  hostile: { icon: "fa-triangle-exclamation", key: "ACKS-FORMATION.app.summonHostileBadge", danger: true },
+};
+
+/**
  * Build the display context shared by the GM formation window and the party
  * actor sheet: marching order, roles, lights, tracked spells, the turn clock,
  * and rule warnings.
@@ -311,6 +332,10 @@ export function buildFormationView(formation) {
       darkSight: sight.sightRange > 0 ? sight.sightRange : null,
       darkSightUnread: sight.seesInDark && sight.sightRange == null,
       down: isDown(actor, member),
+      // A summoned member whose control has ended says so on its name line (RR ch. 5).
+      summonLost: isSummonMember(member)
+        ? (SUMMON_LOST_BADGE[summonLostOf(member, isMemberDeployed(member) ? memberOwnToken(member)?.actor : null)] ?? null)
+        : null,
       blind: dark && !canSeeInDark(actor),
       blindTip: blindTip(),
       first: index === 0,

@@ -2966,6 +2966,8 @@
       "saveTooltipOwned": "Roll a {save} saving throw for each member whose character you own, against their own sheet's target",
       "openFormationHint": "Open the full formation window",
       "deployedBadge": "Deployed for combat",
+      "summonStaysBadge": "Its control has ended; it stays (RR ch. 5).",
+      "summonHostileBadge": "It turned hostile when its control ended. Only the Judge can dismiss it (RR ch. 5).",
       "detachedBadge": "Out ahead of the party on their own token",
       "detachHint": "Detach: step out of the party token onto your own, carrying your own light and seeing with your own eyes. You stay in the formation — turns, rest and encounters keep counting.",
       "recallHint": "Rejoin the party token, bringing back everything that happened while you were out",

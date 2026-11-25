@@ -7648,6 +7648,21 @@ await scenario("summon members: the party sheet and the experience share read a 
   assert.ok(xp.divideXp(xp.participantsOf(formation)).excluded.some((r) => r.actor === rig.copy), "and is left out of the division");
 });
 
+await scenario("summon members: a control-end stamp reads off the stash or the placed token's actor", async () => {
+  const { summonLostOf } = await import("../scripts/formation/formation-view.mjs");
+  const record = (lost) => ({ castId: "c1", ...(lost ? { lost } : {}) });
+  const stash = (lost) => ({ actorLink: false, delta: { flags: { "acks-extras": { summonedBy: "Actor.x", summon: record(lost) } } } });
+  const placed = (lost) => ({ getFlag: (scope, key) => (scope === "acks-extras" && key === "summon" ? record(lost) : undefined) });
+  assert.equal(summonLostOf({ tokenData: stash(null) }), null, "no stamp: no badge");
+  assert.equal(summonLostOf({ tokenData: stash("stays") }), "stays");
+  assert.equal(summonLostOf({ tokenData: stash("hostile") }), "hostile");
+  assert.equal(summonLostOf({ tokenData: stash("unapplied") }), null, "a word that is no control end draws nothing");
+  assert.equal(summonLostOf({ deployedTokenId: "t1" }, placed("hostile")), "hostile", "out on the map, the placed token's actor holds it");
+  assert.equal(summonLostOf({ deployedTokenId: "t1" }, placed(null)), null);
+  assert.equal(summonLostOf({ deployedTokenId: "t1" }, null), null, "a token gone from its scene reads as no stamp");
+  assert.equal(summonLostOf({ deployedTokenId: "t1", tokenData: stash("stays") }, placed("hostile")), "hostile", "the placed actor wins over a stash kept from before the deploy");
+});
+
 /* -------------------------------------------- */
 /*  Creatures made straight into the party       */
 /* -------------------------------------------- */

@@ -468,20 +468,27 @@ own, driven through the travel API the party sheet's buttons call.
    status's toggle. *Observable:* the party's stashed member carries
    `summon.lost === "stays"` in its stash (`tokenData.delta`, the actor's
    `flags["acks-extras"].summon`), still a member, its ownership for the
-   Player and its disposition as they were; one funnel card, which the Player's
+   Player and its disposition as they were; the party sheet's Order tab, on
+   both seats, draws the member's name line with an `i.fa-link-slash` whose
+   `aria-label` is `ACKS-FORMATION.app.summonStaysBadge`'s text; one funnel
+   card, which the Player's
    seat draws listing the creature with Dismiss and Restore; pressing Dismiss
    and answering Yes releases the member and the party's member list shrinks
    by one.
 4. A held end that turns the creature hostile (T-0842). The same, with the row
    set to `hostile`. *Observable:* the stash carries `summon.lost === "hostile"`,
    `delta.ownership` holds 0 for the Player's user id and the stash's
-   `disposition` reads hostile, and the creature is still a member. The
+   `disposition` reads hostile, and the creature is still a member, its Order
+   tab name line drawing an `i.fa-triangle-exclamation.down-badge` whose
+   `aria-label` is `ACKS-FORMATION.app.summonHostileBadge`'s text. The
    Player's seat draws the funnel card with Restore and no Dismiss; the Magic
    tab's row Dismiss, pressed on the Player's sheet and answered Yes, is refused
    with `ACKS-LIB.summons.refused.controlLost` and the member stands. From the
    Judge's seat the party is deployed through the travel API, as step 1 does
    for its one creature: the token made from the stash reads hostile, and the
-   Player's `testUserPermission(user, "OWNER")` on it is false. The Judge's seat
+   Player's `testUserPermission(user, "OWNER")` on it is false, and the Order
+   tab's row still draws the hostile badge, read off the placed token's actor.
+   The Judge's seat
    then dismisses the member through the Magic tab's row Dismiss on the caster's
    sheet, and the token is gone, the party holding the caster alone again.
 

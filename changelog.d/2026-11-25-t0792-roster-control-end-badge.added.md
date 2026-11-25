@@ -1,0 +1,1 @@
+- **A summoned creature in a party shows when its control has ended** (Actors sidebar → the party's sheet → Order tab → the member's name line). A broken-link badge marks a creature that stays, and a warning badge in red marks one that turned hostile, which only a Judge can dismiss (RR ch. 5); hover either for what it means.
