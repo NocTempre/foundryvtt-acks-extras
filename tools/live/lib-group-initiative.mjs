@@ -109,7 +109,8 @@ const P = {
   shape: async ({ ids, monsters, init, sizes }) => {
     const groups = acksExtras.lib.groups;
     const mons = { a: game.actors.get(monsters.a), b: game.actors.get(monsters.b) };
-    for (const k of ["a", "b"]) await mons[k].update({ "system.initiative.value": init[k], "system.hp": { hd: "1d4", value: 6, max: 6 } });
+    // The system derives `initiative.value` from `initiative.mod` on every prepare, so the mod is the field written.
+    for (const k of ["a", "b"]) await mons[k].update({ "system.initiative.mod": init[k], "system.hp": { hd: "1d4", value: 6, max: 6 } });
     const over = { warband: mons.a, a: mons.a, b: mons.b };
     const actor = Object.fromEntries(Object.keys(ids).map((k) => [k, game.actors.get(ids[k])]));
     const rewrote = [];
@@ -117,7 +118,7 @@ const P = {
       const g = actor[k];
       const m = over[k];
       const [s, ...more] = g.system.toObject().stacks;
-      const right = s && !more.length && s.template.uuid === m.uuid && s.template.snapshot?.system?.initiative?.value === m.system.initiative.value && s.size.current === sizes[k] && s.size.initial === sizes[k] && !s.roster.length && !s.fixedHp;
+      const right = s && !more.length && s.template.uuid === m.uuid && s.template.snapshot?.system?.initiative?.mod === m.system.initiative.mod && s.size.current === sizes[k] && s.size.initial === sizes[k] && !s.roster.length && !s.fixedHp;
       if (right) continue;
       await g.update({ "system.stacks": [] });
       await groups.addStack(g, m, { count: sizes[k] });
@@ -162,6 +163,8 @@ const P = {
   /** A fresh active combat on the scene, with a pass-through on its `manageGroup` that records every call's token ids. */
   combat: async ({ sceneId }) => {
     const combat = await Combat.create({ scene: sceneId, active: true });
+    // A combat the world already holds may be the active one; activating this one makes it `game.combat`.
+    await combat.activate();
     const H = (globalThis.__groupInit = globalThis.__groupInit ?? { cards: [], undo: [] });
     H.calls = H.calls ?? {};
     H.calls[combat.id] = [];
@@ -435,9 +438,10 @@ try {
     const after = { values: valuesBy(s), stored: s.stored.map((g) => ({ gang: ownersOf(g, s).join("+"), initiative: g.initiative })) };
     note("round 2, after", after);
     const kept = JSON.stringify(before.stored) === JSON.stringify(after.stored);
+    const setting = `with the initiative persistence setting at ${JSON.stringify(census.persistence)}`;
     note("OBSERVATION: does a group roll again each round?", kept
-      ? "no: the stored group initiative did not change, so each gang's combatants take the value of its first roll (the system reuses a stored initiative above zero, and nothing clears it at the round)"
-      : "yes: a stored group initiative changed between the rounds; read the two lines above for which");
+      ? `no, ${setting}: the stored group initiative did not change between the rounds (the system reuses a stored initiative above zero, and nothing clears it at the round)`
+      : `yes, ${setting}: a stored group initiative changed between the rounds; read the two lines above for which`);
   }
   await ending("the first combat", fight1.id);
 
@@ -453,13 +457,17 @@ try {
   check(`gang A's own token sends out its ${SIZES.a} bodies, one combatant each, one stored group, its token hidden`, aOut && s.combatants.length === SIZES.a && s.stored.length === 1 && s.tokens.a?.hidden === true && s.tokens.a.combatants === 0, `${JSON.stringify({ bodies: s.bodies.length, combatants: s.combatants.length, stored: s.stored.length, token: s.tokens.a })}${aOut ? "" : stuck()}`);
   if (aOut && s.stored.length) {
     const aFirst = s.stored[0].tokens.slice().sort();
-    const one = s.combatants.find((c) => c.tokenId === aFirst[0]);
-    const rolledA = await run(gm, P.roll, { combatId: fight2.id, ids: [one.id] });
-    note("roll of one of gang A's bodies", rolledA);
-    s = await state(fight2.id, (st) => st.stored[0]?.initiative > 0, { tries: 20 });
-    const rollA = s.stored[0]?.initiative;
-    note("gang A's stored group after its roll (page / document source)", { page: rollA, source: s.source[0]?.initiative });
-    check("precondition, the system's roll: gang A's stored group holds an initiative above zero after its roll", rollA > 0, { page: rollA, source: s.source[0]?.initiative });
+    // The system's roll gives a value only to the ids it is passed, and a group's rolled figure is shared
+    // between them only inside one call, so all of gang A's bodies are rolled in one call.
+    const aIds = s.combatants.filter((c) => aFirst.includes(c.tokenId)).map((c) => c.id);
+    const rolledA = await run(gm, P.roll, { combatId: fight2.id, ids: aIds });
+    note("roll of gang A's bodies in one call", rolledA);
+    s = await state(fight2.id, (st) => st.combatants.length === SIZES.a && st.combatants.every((c) => c.initiative !== null), { tries: 20 });
+    const aValues = s.combatants.map((c) => c.initiative);
+    const rollA = aValues[0];
+    note("gang A's combatants after the roll; its stored group (page / document source)", { combatants: aValues, page: s.stored[0]?.initiative, source: s.source[0]?.initiative });
+    note("NOTE", `the system does not persist a group's rolled initiative: rollInitiative assigns it on the list it read from the flag and never writes the flag back, so the stored figure is ${s.stored[0]?.initiative} on the page and ${s.source[0]?.initiative} in the document's source after the roll`);
+    check("precondition, the system's roll: every one of gang A's combatants shares one initiative value after the roll", aValues.length === SIZES.a && aValues.every((v) => v === rollA && typeof v === "number"), aValues);
 
     await run(gm, P.join, { combatId: fight2.id, sceneId: scene.id, tokenId: warbandToken.id });
     const want = total;
@@ -470,7 +478,8 @@ try {
     if (out2) {
       const aGroups = s.stored.filter((g) => ownersOf(g, s).join() === "a");
       check("gang A's stored group keeps its three bodies and is stored once", aGroups.length === 1 && aGroups[0].tokens.length === SIZES.a && JSON.stringify([...aGroups[0].tokens].sort()) === JSON.stringify(aFirst), aGroups.map((g) => g.tokens.length));
-      check("gang A's stored group keeps the initiative it rolled, which a new call would have reset to -1", aGroups[0]?.initiative === rollA, { rolled: rollA, stored: aGroups[0]?.initiative });
+      const aNow = s.combatants.filter((c) => aFirst.includes(c.tokenId)).map((c) => c.initiative);
+      check("gang A's combatants still show the initiative they rolled once the warband has joined", aNow.length === SIZES.a && aNow.every((v) => v === rollA), { rolled: rollA, now: aNow });
       check("gang B is grouped with its bodies alone", s.stored.some((g) => ownersOf(g, s).join() === "b" && g.tokens.length === SIZES.b), s.stored.map((g) => ({ gang: ownersOf(g, s).join("+"), tokens: g.tokens.length })));
       check("the stored list still holds one group for each gang the partition names", partitionHolds(s).ok, partitionHolds(s).detail);
       check("no combatant stands for gang A's token or the warband's, and both tokens are hidden and flagged", s.tokens.a?.combatants === 0 && s.tokens.warband?.combatants === 0 && s.tokens.a?.hidden === true && s.tokens.warband?.hidden === true, { a: s.tokens.a, warband: s.tokens.warband });
