@@ -23,7 +23,7 @@
  * three targets, and the target cap blocking a Player and warning a Judge; and a
  * condition the system gives changes, granted by a cast on a monster and on a
  * character: the record is the effect Foundry builds for it, its figure counts
- * once beside a hand's toggle and a second cast, a lifting spell takes a state's
+ * once beside a second effect of it and a second cast, a lifting spell takes a state's
  * two-status record and its Undo puts it back. The stage picks the condition and
  * the state from the palette and compares every change in the page.
  *
@@ -170,6 +170,15 @@ const C = {
     await H.sleep(400);
     const made = actor.effects.filter((e) => !before.has(e.id));
     return { made: made.length, id: made[0]?.id ?? null, uuid: made[0]?.uuid ?? null };
+  },
+  /** A second effect of a status made outright from what Foundry builds for its entry, the way a copied or dropped effect arrives: the toggle makes none while one effect holds the status alone. */
+  copy: async ({ actorId, id }) => {
+    const H = globalThis.__mck;
+    const actor = game.actors.get(actorId);
+    const { _id, ...data } = (await ActiveEffect.fromStatusEffect(id)).toObject();
+    const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [data]);
+    await H.sleep(400);
+    return { made: made ? 1 : 0, id: made?.id ?? null, uuid: made?.uuid ?? null };
   },
   /** Delete effects of an actor by id. */
   drop: async ({ actorId, ids }) => {
@@ -447,14 +456,23 @@ async function stageCondition() {
   each("the entry is applied and the bearer holds the condition on one record", one, (r, i) => entryAt(first.model, bearers[i][2].uuid, "give")?.state === "applied" && r.records.length === 1 && r.carriers === 1 && r.has, (r) => ({ records: r.records.length, carriers: r.carriers }));
   each("the record holds the statuses and the changes Foundry builds for the condition, under an id of its own", one, (r) => r.hasChanges && r.statuses && r.changes && !r.staticId, (r) => ({ hasChanges: r.hasChanges, statuses: r.statuses, changes: r.changes, staticId: r.staticId }));
   each("every field a change names moved by that change, once", one, (r) => r.once);
-  const hands = [];
+  // The token HUD's toggle finds the record, which holds the status alone, and makes no second effect; a second carrier is an effect made outright.
+  const toggled = [];
   for (const [, actorId] of bearers) {
     const h = await run(gm, C.toggle, { actorId, id: pick.plain });
+    if (h.uuid) await ledger.track(h.uuid, "ActiveEffect");
+    toggled.push(h);
+  }
+  const found = await reads(pick.plain);
+  each("the system's toggle of the condition finds the record and makes no second effect", found, (r, i) => toggled[i].made === 0 && r.carriers === 1 && r.once, (r, i) => ({ made: toggled[i].made, carriers: r.carriers }));
+  const hands = [];
+  for (const [, actorId] of bearers) {
+    const h = await run(gm, C.copy, { actorId, id: pick.plain });
     if (h.uuid) await ledger.track(h.uuid, "ActiveEffect");
     hands.push(h);
   }
   const two = await reads(pick.plain);
-  each("a hand's toggle beside the record makes a second carrier and the fields still stand one change from the start", two, (r, i) => hands[i].made === 1 && r.carriers === 2 && r.once, (r) => ({ carriers: r.carriers, once: r.once }));
+  each("a second effect of the condition beside the record is a second carrier and the fields still stand one change from the start", two, (r, i) => hands[i].made === 1 && r.carriers === 2 && r.once, (r) => ({ carriers: r.carriers, once: r.once }));
   await aim(gm, bearers.map((b) => b[2]));
   const second = await castAs("a", "plain");
   const three = await reads(pick.plain);

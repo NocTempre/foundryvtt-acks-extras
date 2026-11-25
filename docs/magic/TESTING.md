@@ -1433,8 +1433,11 @@ figures are read off the bearer's own armour class so every lift is positive.
    `CONFIG.statusEffects` a condition whose entry carries `system.changes` and brings
    none, and a state whose entry brings one, and casts each at the bearer (a monster)
    and the second caster (a character) at once. Beside the first record it toggles the
-   condition by hand, casts a second time, deletes the first record, then the hand's
-   copy, then casts a lifting row. For the state it sets the brought condition by hand
+   condition as the token HUD does, which finds the record and makes no second effect
+   (a record of a plain condition holds that status alone, and the system's toggle
+   answers for it), then creates a second effect of the condition outright from
+   `ActiveEffect.fromStatusEffect`, casts a second time, deletes the first record, then
+   the created copy, then casts a lifting row. For the state it sets the brought condition by hand
    beside the record, casts a lifting row naming the state and presses the entry's Undo.
    Every comparison with the entry's changes is made in the page. *Observable:* a
    record holds the statuses and `system.changes` Foundry builds for the entry, under
