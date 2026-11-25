@@ -27,7 +27,7 @@ import { ITEM_FLAGS } from "../../equipment/constants.mjs";
 import { strapOf, overlayEnabled as shieldOverlayEnabled } from "../../equipment/overlays/shield-variants.mjs";
 import { lightTypeOf } from "../../equipment/sheet.mjs";
 import { bearerLights } from "../../lib/light.mjs";
-import { canSplit } from "../../equipment/item-sheet/stack.mjs";
+import { canSplit, divertsEquip } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
 import { isEquippable, isWorn, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
 import { offersCount } from "../../lib/storage-logic.mjs";
@@ -68,6 +68,25 @@ const attrsOf = (data) =>
 const ctl = (action, icon, title, data = {}, cls = "") => ({ action, icon, title, cls, attrs: attrsOf(data) });
 
 /**
+ * What the stack keeps when this row's equip control is pressed, or null when
+ * the press takes none off a stack. It asks the very test the equip write
+ * itself is diverted by (`divertsEquip`), so a tooltip never promises a divide
+ * the press will not make.
+ */
+function stackKeptOnEquip(item) {
+  return divertsEquip(item, { system: { equipped: true } }) ? (stackCountOf(item) ?? 0) - 1 : null;
+}
+
+/**
+ * One state control's tooltip: `plain` where the press takes nothing off a
+ * stack, `one` (which names what the stack keeps) where it takes one.
+ */
+function equipTitle(item, plain, one) {
+  const rest = stackKeptOnEquip(item);
+  return rest === null ? game.i18n.localize(plain) : game.i18n.format(one, { rest });
+}
+
+/**
  * The controls a row offers its owner, in three groups: the roll, the state
  * toggles, and the housekeeping.
  */
@@ -82,7 +101,8 @@ function rowControls(actor, item, loadout, lights) {
 
   if (item.type === ITEM_TYPE.weapon && !item.getFlag(MODULE_ID, ITEM_FLAGS.THROWN_STATE)) {
     const equipped = !!item.system?.equipped;
-    state.push(ctl("toggleEquip", equipped ? "fa-solid fa-box-archive" : "fa-solid fa-hand-fist", game.i18n.localize(`ACKS-EQUIPMENT.action.${equipped ? "sheathe" : "draw"}`)));
+    const title = equipped ? game.i18n.localize("ACKS-EQUIPMENT.action.sheathe") : equipTitle(item, "ACKS-EQUIPMENT.action.draw", "ACKS-EQUIPMENT.action.drawOne");
+    state.push(ctl("toggleEquip", equipped ? "fa-solid fa-box-archive" : "fa-solid fa-hand-fist", title));
     const entry = loadout.weapons.find((w) => w.item.id === item.id);
     if (entry?.canTwoHand) {
       const gripState = entry.gripBlocked ? "blocked" : entry.wieldTwoHanded ? "twoHand" : "oneHand";
@@ -94,7 +114,8 @@ function rowControls(actor, item, loadout, lights) {
     }
   } else if (item.type === ITEM_TYPE.armor) {
     const equipped = !!item.system?.equipped;
-    state.push(ctl("toggleEquip", equipped ? "fa-solid fa-shirt" : "fa-regular fa-shirt", game.i18n.localize(equipped ? "ACKS.items.Unequip" : "ACKS.items.Equip")));
+    const title = equipped ? game.i18n.localize("ACKS.items.Unequip") : equipTitle(item, "ACKS.items.Equip", "ACKS-EQUIPMENT.action.equipOne");
+    state.push(ctl("toggleEquip", equipped ? "fa-solid fa-shirt" : "fa-regular fa-shirt", title));
     if (item.system?.type === "shield" && shieldOverlayEnabled() && !stowed) {
       const strap = strapOf(item);
       state.push(ctl("cycleStrap", strap === "hand" ? "fa-solid fa-hand" : "fa-solid fa-shield-halved", game.i18n.localize("ACKS-EQUIPMENT.strap.cycle"), {}, `is-${strap}`));
@@ -171,6 +192,8 @@ function rowOf(actor, item, ctx, depth = 0) {
   const kit = loadout.mappingKit.some((k) => k.id === item.id);
   // A weapon's die is the one its row rolls: the grip it is held in.
   const held = item.type === ITEM_TYPE.weapon ? heldGrip(actor, item) : null;
+  // A coin row always shows its count — an empty purse reads as empty.
+  const stack = isCurrency(item) || (stackCountOf(item) ?? 1) > 1;
   const row = {
     id: item.id,
     name: item.name,
@@ -178,8 +201,9 @@ function rowOf(actor, item, ctx, depth = 0) {
     line: [lineOf(item, held), kit ? loc("equipment.kitInHand") : ""].filter(Boolean).join(" · "),
     lineTip: held ? heldDieTip(held) : "",
     qty: stackCountOf(item),
-    // A coin row always shows its count — an empty purse reads as empty.
-    stack: isCurrency(item) || (stackCountOf(item) ?? 1) > 1,
+    stack,
+    // The count's provenance: the item's own Quantity, read at render.
+    countTip: stack ? game.i18n.format("ACKS-LIB.stack.countTip", { n: stackCountOf(item) ?? 0 }) : "",
     wielded: wieldedIds.has(item.id),
     controls: rowControls(actor, item, loadout, lights),
     isMoney: isCurrency(item),

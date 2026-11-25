@@ -314,8 +314,23 @@ function priceOf(item, marketsFlag) {
   return { base, lines, final: current, apparent: Number.isFinite(apparent) && apparent > 0 ? apparent : null };
 }
 
-/** The core fields the sheet edits directly — what the type IS. */
-function recordOf(item) {
+/**
+ * The Record list's Quantity field, the same entry for a weapon, a suit of
+ * armour and gear. It edits the system's own `system.quantity`, whole numbers
+ * from zero, and carries the band's tooltip, so Details and the title band
+ * (`acksBandQty`, which the sheet writes only when it fired) show one value.
+ */
+const quantityField = (item) => ({
+  name: "system.quantity", label: loc("itemSheet.field.quantity"), hint: loc("itemSheet.band.quantity"), type: "number", whole: true, value: stackCountOf(item) ?? 1, width: "xs",
+});
+
+/**
+ * The core fields the sheet edits directly — what the type IS. Each descriptor
+ * is `{name, label, type, value}` with an optional `width`, `hint` (the label's
+ * tooltip), `placeholder`, `choices` (a select's), and `whole` (a number is a
+ * count: `min="0" step="1"`, not any figure).
+ */
+export function recordOf(item) {
   const sys = item.system ?? {};
   const opt = (choices) => Object.entries(choices ?? {}).map(([value, label]) => ({ value, label: game.i18n.localize(label) }));
   switch (item.type) {
@@ -324,6 +339,7 @@ function recordOf(item) {
       // qualities, and the Construction panel's Qualities strip writes the
       // field and the tag together (`construction-model.mjs` TAG_FIELDS).
       return [
+        quantityField(item),
         { name: "system.damage.base.formula", label: loc("itemSheet.field.damage"), type: "text", value: sys.damage?.base?.formula ?? "", width: "sm" },
         { name: "system.damage.alternate.formula", label: loc("itemSheet.field.damageAlternate"), type: "text", value: sys.damage?.alternate?.formula ?? "", width: "sm" },
         { name: "system.bonus.attack", label: loc("itemSheet.field.bonus"), type: "number", value: sys.bonus?.attack ?? 0, width: "xs" },
@@ -335,12 +351,13 @@ function recordOf(item) {
       ];
     case ITEM_TYPE.armor:
       return [
+        quantityField(item),
         { name: "system.ac.value", label: loc("itemSheet.field.ac"), type: "number", value: sys.ac?.value ?? 0, width: "xs" },
         { name: "system.type", label: loc("itemSheet.field.armorType"), type: "select", value: sys.type ?? "", choices: opt(CONFIG.ACKS?.armor) },
       ];
     case ITEM_TYPE.item:
       return [
-        { name: "system.quantity", label: loc("itemSheet.field.quantity"), type: "number", value: stackCountOf(item) ?? 1, width: "xs" },
+        quantityField(item),
         // Silent at 1 on a single item — the ordinary case, and asking every
         // crowbar how big its bundle is would be noise. It appears wherever a
         // bundle can mean something: on a STACK, or on anything that already
@@ -410,6 +427,25 @@ export function conditionOf(item, container) {
   };
 }
 
+/**
+ * One row of a container's Contents list. Its count shows above one and
+ * always for coin (`stack`, the Equipment tab's rule), with the item's own
+ * Quantity named as its source (`qtyTip`, read at render).
+ */
+export function contentRowOf(c) {
+  const qty = stackCountOf(c);
+  const stack = isCurrency(c) || (qty ?? 1) > 1;
+  return {
+    id: c.id,
+    name: c.name,
+    img: c.img,
+    qty,
+    stack,
+    qtyTip: stack ? game.i18n.format("ACKS-LIB.stack.countTip", { n: qty ?? 0 }) : "",
+    weight6: weight6Of(c),
+  };
+}
+
 /** The container record as the sheet shows it, or null. */
 function containerSnapshot(item) {
   const rec = containerOf(item);
@@ -440,7 +476,7 @@ function containerSnapshot(item) {
     refusal: rec?.refusal ?? "",
     canSee: canSeeInside(item),
     contents: canSeeInside(item)
-      ? contents.map((c) => ({ id: c.id, name: c.name, img: c.img, qty: stackCountOf(c), weight6: weight6Of(c) }))
+      ? contents.map(contentRowOf)
       : [],
   };
 }

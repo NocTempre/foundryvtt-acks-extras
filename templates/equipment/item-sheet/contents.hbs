@@ -16,7 +16,7 @@
     <div class="acks-extras-item-sheet__row">
       <img class="acks-extras-item-sheet__tile" src="{{img}}" alt="" inert>
       <a class="acks-extras-item-sheet__row-name acks-extras-item-sheet__grow" data-action="openContent" data-item="{{id}}">{{name}}</a>
-      {{#if qty}}<span class="acks-extras-item-sheet__row-line acks-nums">×{{qty}}</span>{{/if}}
+      {{#if stack}}<span class="acks-extras-item-sheet__row-line acks-nums" data-tooltip-text="{{qtyTip}}">×{{qty}}</span>{{/if}}
       <span class="acks-extras-item-sheet__row-weight acks-nums">{{wt}}</span>
       {{#if @root.editable}}
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="takeOut" data-item="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.container.takeOut'}}"><i class="fa-solid fa-arrow-up-from-bracket" inert></i></button>

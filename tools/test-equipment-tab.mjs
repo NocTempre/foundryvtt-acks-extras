@@ -35,7 +35,14 @@ globalThis.Hooks = { once() {}, on() {}, callAll() {}, call() {} };
 globalThis.CONST = {};
 globalThis.ui = {};
 globalThis.canvas = {};
-globalThis.foundry = { utils: { escapeHTML: (s) => s } };
+const dotted = (obj, path) => path.split(".").reduce((o, k) => o?.[k], obj);
+globalThis.foundry = {
+  utils: {
+    escapeHTML: (s) => s,
+    getProperty: dotted,
+    hasProperty: (obj, path) => dotted(obj, path) !== undefined,
+  },
+};
 globalThis.game = {
   settings: { get: () => undefined },
   scenes: [],
@@ -418,6 +425,80 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
 }
 
 /* -------------------------------------------- */
+/*  A weapon or armour stack's count and equip   */
+/* -------------------------------------------- */
+
+{
+  useStorage({ pile: null, items: [] });
+  const physical = (id, name, type, { qty = 1, equipped = false } = {}) => ({
+    id,
+    name,
+    type,
+    img: "x.png",
+    system: { cost: 0, weight6: 0, quantity: qty, equipped, melee: true, damage: { base: { formula: "1d6" } }, ac: { value: 3 } },
+    effects: [],
+    getFlag: flagged({}),
+    parent: null,
+  });
+  // An actor whose rows can take a new row beside them, which `canDivide` asks.
+  const holder = (items) => {
+    const actor = { ...actorOf({ items }), documentName: "Actor", createEmbeddedDocuments: async () => [] };
+    for (const i of items) i.parent = actor;
+    return actor;
+  };
+  const rowsOf = (tab) => [...tab.places.flatMap((p) => p.rows), ...tab.carried.flatMap((k) => k.rows)];
+  const rowFor = (actor, id) => rowsOf(buildEquipmentTab(actor)).find((r) => r.id === id);
+  const stateOf = (row, action) => row.controls.state.find((c) => c.action === action);
+
+  // A resting stack of three swords and three shirts of mail.
+  const swords = physical("w3", "Sword", "weapon", { qty: 3 });
+  const mail = physical("a3", "Mail", "armor", { qty: 3 });
+  const lone = physical("w1", "Dagger", "weapon", { qty: 1 });
+  const drawn = physical("w2", "Axe", "weapon", { qty: 1, equipped: true });
+  const drawnStack = physical("w4", "Spear", "weapon", { qty: 3, equipped: true });
+  const hero = holder([swords, mail, lone, drawn, drawnStack]);
+
+  const stack = rowFor(hero, "w3");
+  eq(stack.stack, true, "a stack of three shows its count");
+  eq(stack.qty, 3, "with the item's own Quantity");
+  eq(stack.countTip, fmt("ACKS-LIB.stack.countTip", { n: 3 }), "the count's tooltip names the Quantity it is read from");
+  eq(rowFor(hero, "w1").stack, false, "a row of one shows no count");
+  eq(rowFor(hero, "w1").countTip, "", "and carries no count tooltip");
+
+  eq(stateOf(stack, "toggleEquip").title, fmt("ACKS-EQUIPMENT.action.drawOne", { rest: 2 }), "a resting weapon stack of three draws one and the stack keeps two");
+  eq(stateOf(rowFor(hero, "a3"), "toggleEquip").title, fmt("ACKS-EQUIPMENT.action.equipOne", { rest: 2 }), "a resting armour stack equips one and the stack keeps two");
+  eq(stateOf(rowFor(hero, "w1"), "toggleEquip").title, "ACKS-EQUIPMENT.action.draw", "a row of one keeps Draw (equip)");
+  eq(stateOf(rowFor(hero, "w2"), "toggleEquip").title, "ACKS-EQUIPMENT.action.sheathe", "a drawn row keeps Sheathe");
+  eq(stateOf(rowFor(hero, "w4"), "toggleEquip").title, "ACKS-EQUIPMENT.action.sheathe", "a drawn row holding three, typed in Details, still reads Sheathe");
+  mail.system.quantity = 1;
+  eq(stateOf(rowFor(hero, "a3"), "toggleEquip").title, "ACKS.items.Equip", "armour of one keeps the system's Equip");
+  mail.system.quantity = 3;
+  mail.system.equipped = true;
+  eq(stateOf(rowFor(hero, "a3"), "toggleEquip").title, "ACKS.items.Unequip", "armour in use keeps the system's Unequip");
+  mail.system.equipped = false;
+
+  // The tooltip asks the press's own test: a stack the write would not divide promises nothing.
+  const isolated = physical("w5", "Mace", "weapon", { qty: 3 });
+  const bare = { ...holder([isolated]), createEmbeddedDocuments: undefined };
+  isolated.parent = bare;
+  eq(stateOf(rowFor(bare, "w5"), "toggleEquip").title, "ACKS-EQUIPMENT.action.draw", "a holder that cannot take a new row beside it divides nothing, so says Draw");
+  const ringed = physical("w6", "Blade", "weapon", { qty: 3 });
+  ringed.effects = [{ id: "fx" }];
+  eq(stateOf(rowFor(holder([ringed]), "w6"), "toggleEquip").title, "ACKS-EQUIPMENT.action.draw", "a stack with Active Effects of its own moves whole, so says Draw");
+
+  const divide = (row) => row.controls.state.find((c) => c.action === "divideStack");
+  ok(divide(stack), "a resting weapon stack of three is offered Divide");
+  eq(divide(stack).title, "ACKS-LIB.stack.divide", "by the library's own words");
+  ok(!divide(rowFor(hero, "w4")), "a drawn row is offered no Divide, though it holds three");
+  ok(!divide(rowFor(hero, "w1")), "a row of one is offered none");
+  ok(!stateOf(stack, "splitStack"), "Split to wear is for what core cannot equip, so a weapon is never offered it");
+  ok(divide(rowFor(hero, "a3")), "a resting armour stack is offered Divide");
+  for (const row of [stack, rowFor(hero, "w2")]) {
+    for (const group of ["state", "keep"]) ok(row.controls[group].every((c) => c.title), `every ${group} control of ${row.id} has a title for its aria-label`);
+  }
+}
+
+/* -------------------------------------------- */
 /*  The template and the sheet read the same names */
 /* -------------------------------------------- */
 
@@ -437,6 +518,11 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
   ok(/this\.#pileReach = pileReachKey\(actor\)/.test(sheet), "and each render records the piles it drew against");
   ok(/data-action="\{\{action\}\}" data-tooltip="\{\{title\}\}" aria-label="\{\{title\}\}"/.test(gear), "a container's header controls are named for assistive technology");
   ok(!/\sid="/.test(gear + eqTpl), "no literal id in the templates");
+  ok(/<a class="acks-extras-frame__gear-name" data-action="itemEdit">\{\{name\}\}\{\{#if stack\}\} <span class="acks-nums" data-tooltip-text="\{\{countTip\}\}">×\{\{qty\}\}<\/span>\{\{\/if\}\}<\/a>/.test(gear), "the count sits in the name link and its interpolated tooltip is text");
+  for (const group of ["state", "keep"]) {
+    ok(new RegExp(`\\{\\{#each controls\\.${group}\\}\\}<button [^>]*data-tooltip="\\{\\{title\\}\\}" aria-label="\\{\\{title\\}\\}">`).test(gear), `each ${group} control is named for assistive technology as its tooltip reads`);
+  }
+  ok(/data-action="roll"[^>]*data-tooltip="\{\{localize 'ACKS-CHARACTER\.equipment\.attack'\}\}" aria-label="\{\{localize 'ACKS-CHARACTER\.equipment\.attack'\}\}"/.test(gear), "so is the roll control");
   ok(/data-action="placeRetrieveAll" data-tooltip-text="\{\{place\.ground\.pickUpTip\}\}"/.test(eqTpl), "a pile's Pick up is the retrieve action with its own tooltip");
   ok(!/title="/.test(gear + eqTpl), "no title attribute: tooltips go through core's manager");
   ok(/\{\{#if place\.canOpen\}\}<a [^>]*data-action="placeOpen"/.test(eqTpl), "a pile's name is a link to its sheet only where Open is offered");
@@ -449,6 +535,9 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
 
   const lang = JSON.parse(read("../lang/en.json"));
   for (const key of [
+    "ACKS-LIB.stack.countTip",
+    "ACKS-EQUIPMENT.action.drawOne",
+    "ACKS-EQUIPMENT.action.equipOne",
     "ACKS-EQUIPMENT.container.setDown",
     "ACKS-CHARACTER.equipment.atRisk",
     "ACKS-CHARACTER.equipment.atRiskTip",
@@ -470,6 +559,9 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
     const nested = key.split(".").reduce((o, k) => o?.[k], lang);
     ok(typeof (lang[key] ?? nested) === "string", `${key} exists`);
   }
+  eq(lang["ACKS-LIB.stack.countTip"], "{n} in the stack: the item's Quantity.", "the count's tooltip names where the figure is read from");
+  eq(lang["ACKS-EQUIPMENT"].action.drawOne, "Draw one (equip). The stack keeps {rest}.", "a weapon stack's Draw says it takes one and what stays");
+  eq(lang["ACKS-EQUIPMENT"].action.equipOne, "Equip one. The stack keeps {rest}.", "an armour stack's Equip says the same");
 }
 
 console.log(`\ntest-equipment-tab: OK (${checks} checks — the Set down control, the ground row's words, the unfolding lines and Take, a bystander's row, Open, the take handler, the Load tooltip, the coin order's filter)`);

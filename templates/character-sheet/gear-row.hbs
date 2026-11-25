@@ -5,23 +5,23 @@
   <div class="acks-extras-frame__gear-main">
     <img class="acks-extras-frame__gear-img" src="{{img}}" alt="" inert>
     <span class="acks-extras-frame__gear-text">
-      <a class="acks-extras-frame__gear-name" data-action="itemEdit">{{name}}{{#if stack}} <span class="acks-nums">×{{qty}}</span>{{/if}}</a>
+      <a class="acks-extras-frame__gear-name" data-action="itemEdit">{{name}}{{#if stack}} <span class="acks-nums" data-tooltip-text="{{countTip}}">×{{qty}}</span>{{/if}}</a>
       {{#if line}}<span class="acks-extras-frame__gear-line acks-nums"{{#if lineTip}} data-tooltip-text="{{lineTip}}"{{/if}}>{{line}}</span>{{/if}}
     </span>
     <span class="acks-extras-frame__ctls">
       {{#if controls.roll}}
       <span class="acks-extras-frame__grp">
-        <button type="button" class="acks-extras-frame__mini{{#if wielded}} is-eq{{/if}}" data-action="roll" data-roll="{{controls.roll}}" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.attack'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
+        <button type="button" class="acks-extras-frame__mini{{#if wielded}} is-eq{{/if}}" data-action="roll" data-roll="{{controls.roll}}" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.attack'}}" aria-label="{{localize 'ACKS-CHARACTER.equipment.attack'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
       </span>
       {{/if}}
       {{#if controls.state.length}}
       <span class="acks-extras-frame__grp">
-        {{#each controls.state}}<button type="button" class="acks-extras-frame__ctl{{#if cls}} {{cls}}{{/if}}" data-action="{{action}}" {{{attrs}}} data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
+        {{#each controls.state}}<button type="button" class="acks-extras-frame__ctl{{#if cls}} {{cls}}{{/if}}" data-action="{{action}}" {{{attrs}}} data-tooltip="{{title}}" aria-label="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
       </span>
       {{/if}}
       {{#if controls.keep.length}}
       <span class="acks-extras-frame__grp">
-        {{#each controls.keep}}<button type="button" class="acks-extras-frame__ctl" data-action="{{action}}" data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
+        {{#each controls.keep}}<button type="button" class="acks-extras-frame__ctl" data-action="{{action}}" data-tooltip="{{title}}" aria-label="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
       </span>
       {{/if}}
     </span>
