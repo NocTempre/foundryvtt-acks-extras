@@ -36,14 +36,15 @@ export const orgRollService = {
     const encounter = encounterOf(family, variant);
     if (!encounter) return null;
     const recipe = encounter.recipe ?? [];
-    const choices = silentChoices({ recipe, rules, chosen }).map((c) => ({
+    const org = importedOrganisation();
+    const { shares: imported } = splitShares({ org, rules });
+    const { shares, troopShare } = slotOptions({ recipe, encounter, context, state, shares: imported });
+    const choices = silentChoices({ recipe, rules, chosen, splitting: shares.length > 0 }).map((c) => ({
       name: c.group ? `branch:${c.group}` : c.key,
       label: c.group ? loc("organisation.choice.branch", { group: c.group }) : loc(`organisation.choice.${c.key}`),
       tip: loc(c.group ? "organisation.choice.branchTip" : `organisation.choice.${c.key}Tip`),
       options: c.options.map((o) => ({ key: o.key, label: o.label ?? loc(`organisation.choice.${c.key}.${o.key}`), selected: o.key === c.current })),
     }));
-    const org = importedOrganisation();
-    const { shares: imported } = splitShares({ org, rules });
     const made = willMake({ recipe, encounter, context, state, chosen, shares: imported, shareCite: org.organisation?.cite ?? "" });
     const rows = made.rows.map((r) => ({
       label: r.label,
@@ -52,7 +53,6 @@ export const orgRollService = {
       tip: loc("organisation.willMake.rowTip", { label: r.label, cite: r.cite }),
     }));
     const line = made.line ? { text: `${made.line.noun} ${made.line.number}`, tip: loc("organisation.willMake.lineTip", { where: `${variant}, ${context}, ${state}` }) } : null;
-    const { shares, troopShare } = slotOptions({ recipe, encounter, context, state, shares: imported });
     const slotUnits = Object.fromEntries(slots.map((s) => [s.key, slotUnit({ recipe, encounter, context, state, topKind: s.topKind ?? "", depth: s.depth })]));
     const system = family?.system?.toObject?.() ?? family?.system;
     return { choices, make: { line, rows }, shares, troops: troopOptions({ system, variant, bandOf: registryBands() }), special: troopShare, slotUnits };

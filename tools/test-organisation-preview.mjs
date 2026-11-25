@@ -32,6 +32,8 @@ t("the choices this recipe can reach are listed with their current pick, and a r
   assert.equal(list.at(-1).current, "alt1", "a group not named takes its first part");
   assert.deepEqual(silentChoices({ recipe: [RECIPE[0], RECIPE[1]] }), [], "nothing reachable, nothing asked");
   assert.equal(silentChoices({ recipe: [RECIPE[1]], rules: { troops: true } }).length, 3, "the troops rule makes its own shares");
+  assert.deepEqual(silentChoices({ recipe: [RECIPE[1]], rules: { troops: true }, splitting: false }), [], "a Roll that divides no level asks nothing of a split, the troops rule on or not");
+  assert.equal(silentChoices({ recipe: [RECIPE[1]], rules: { troops: true }, splitting: true }).length, 3, "a Roll that divides a level asks its split choices");
 });
 
 t("a pick already made, in the choices recorded with an earlier roll, is the one shown", () => {

@@ -24,23 +24,25 @@ const formulaOf = (p) => (p.count?.dice ? String(p.count.dice) : p.count?.litera
  * The choices where the page is silent that a Roll of this recipe can reach, each with the
  * options it takes and the one it takes now. A rounding is reachable where a part counts a
  * percentage with no rounding printed or the troops rule makes its own shares; the two
- * choices of a split where a split part exists or the troops rule is on; a branch group
+ * choices of a split where the Roll divides a level by shares; a branch group
  * where a recipe holds alternatives of one group.
  *
  * @param {object} args
  * @param {object[]} args.recipe the variant's recipe parts
  * @param {{troops?: boolean}} [args.rules] the optional rules switched on
  * @param {object} [args.chosen] the choices recorded or picked: `unprintedRound`, `loneSplit`, `remainder`, `branch`
+ * @param {boolean|null} [args.splitting] whether the Roll in the state picked divides any level by shares (`slotOptions`' answer); null reads it from the rule and the recipe alone
  * @returns {{key: string, group?: string, options: {key: string, label?: string}[], current: string}[]} `label` of a branch option is the part's own; the others carry keys the caller words
  */
-export function silentChoices({ recipe = [], rules = {}, chosen = {} } = {}) {
+export function silentChoices({ recipe = [], rules = {}, chosen = {}, splitting = null } = {}) {
   const out = [];
   const parts = (recipe ?? []).filter((p) => p && !isSize(p));
   const pick = (key) => chosen[key] ?? DEFAULT_CHOICES[key];
-  if (rules.troops || parts.some((p) => p.count?.percent != null && !p.count?.round)) {
+  const divides = splitting ?? (rules.troops || splitParts(recipe).length > 0);
+  if ((rules.troops && divides) || parts.some((p) => p.count?.percent != null && !p.count?.round)) {
     out.push({ key: "unprintedRound", options: ["nearest", "up", "down"].map((key) => ({ key })), current: pick("unprintedRound") });
   }
-  if (rules.troops || splitParts(recipe).length) {
+  if (divides) {
     out.push({ key: "loneSplit", options: ["printed", "roll"].map((key) => ({ key })), current: pick("loneSplit") });
     out.push({ key: "remainder", options: ["largest", "none"].map((key) => ({ key })), current: pick("remainder") });
   }
