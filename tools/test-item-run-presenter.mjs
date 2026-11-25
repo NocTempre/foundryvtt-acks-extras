@@ -11,7 +11,9 @@
 import assert from "node:assert/strict";
 
 globalThis.Hooks = { once() {}, on() {}, callAll() {} };
-globalThis.foundry = { utils: { randomID: () => "rid", escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") } };
+class ForcedDeletion {}
+const unset = () => new ForcedDeletion();
+globalThis.foundry = { data: { operators: { ForcedDeletion } }, utils: { randomID: () => "rid", escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") } };
 globalThis.CONFIG = { statusEffects: [{ id: "held", name: "Held" }] };
 const messages = [];
 messages.get = (id) => messages.find((m) => m.id === id);
@@ -37,13 +39,12 @@ globalThis.ChatMessage = {
     message.update = async (change) => {
       const next = {};
       for (const [path, value] of Object.entries(change)) {
-        // A `-=` segment deletes the key after it, as core's update does.
-        const parts = path.split(".");
-        const at = parts.findIndex((p) => p.startsWith("-="));
-        if (at >= 0) {
+        // A forced deletion deletes the key it is written to, as core's update does.
+        if (value instanceof ForcedDeletion) {
+          const parts = path.split(".");
           let node = message;
-          for (const part of parts.slice(0, at)) node = node[part] ??= {};
-          delete node[parts[at].slice(2)];
+          for (const part of parts.slice(0, -1)) node = node[part] ??= {};
+          delete node[parts.at(-1)];
         } else next[path] = value;
       }
       return update.call(message, next);
@@ -304,7 +305,7 @@ await t("the strip reads a body its filter could not settle only once an owner o
     rowReach.filter = {};
     Object.assign(tokens["S.a"], { regions: prior.regions, parent: prior.parent, actor: prior.actor });
     tokens["S.bear"].parent = prior.bearer;
-    await card.update({ "flags.acks-extras.itemRunCard.counted.-=S~a": null });
+    await card.update({ "flags.acks-extras.itemRunCard.counted.S~a": unset() });
     me.current = users[0];
   }
 });
@@ -391,10 +392,10 @@ await t("a standing reach's raised card reads every body in reach as held, with 
     const counted = bodyFor(users[0]);
     assert.equal(counted.split("ACKS-LIB.itemRun.card.counted").length - 1, 1, "counted in reads Counted in");
     assert.equal(counted.split("ACKS-LIB.itemRun.card.tip.held").length - 1, 2, "and every held row carries the part");
-    await message.update({ "flags.acks-extras.itemRunCard.counted.-=S~c": null });
+    await message.update({ "flags.acks-extras.itemRunCard.counted.S~c": unset() });
     // An uncounted body held undetermined is dropped at its exit, and listed again at its entry.
     reachRow.filter = { kinds: ["zzz"] };
-    await message.update({ "flags.acks-extras.itemRunCard.subjects.-=S~d": null, "flags.acks-extras.itemRunCard.subjects.-=S~c": null });
+    await message.update({ "flags.acks-extras.itemRunCard.subjects.S~d": unset(), "flags.acks-extras.itemRunCard.subjects.S~c": unset() });
     await presenter.presentReach(at("undetermined", "S.d"));
     assert.deepEqual(Object.keys(card().undetermined), ["S~d"]);
     await presenter.presentReach(at("forget", "S.d"));

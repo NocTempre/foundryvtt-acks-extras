@@ -12,6 +12,9 @@
 import assert from "node:assert/strict";
 import { admittedWithCount, applyPatch, blankTip, freshKey, importTip, isCountedIn, moraleLine, newCard, patchCountIn, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, signedFigure, standingCardAct, standingPartTip, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
 
+class ForcedDeletion {}
+globalThis.foundry = { data: { operators: { ForcedDeletion } } };
+
 let passed = 0;
 const t = (name, fn) => {
   fn();
@@ -148,7 +151,9 @@ t("a standing reach's entry and exit read the card: a listed or counted body com
   assert.equal(standingCardAct(card(), "T.z", { act: "off", counted: false }), null, "a body the card keeps nothing of stays off it");
   assert.equal(standingCardAct(card(), "T.z", { act: "on", counted: false }), null);
   assert.equal(standingCardAct(null, "T.z", { act: "off" }), null, "no card, nothing to keep");
-  assert.deepEqual(patchForget(unsure, { uuid: "T.u" }), { "undetermined.-=T~u": null });
+  const forgot = patchForget(unsure, { uuid: "T.u" });
+  assert.deepEqual(Object.keys(forgot), ["undetermined.T~u"]);
+  assert.ok(forgot["undetermined.T~u"] instanceof ForcedDeletion);
   assert.deepEqual(patchForget(card(), { uuid: "T.u" }), {}, "a body not held undetermined has nothing to drop");
   assert.deepEqual(applyPatch(unsure, patchForget(unsure, { uuid: "T.u" })).undetermined, {});
 });
@@ -158,7 +163,7 @@ t("an exit leaves a body in one list of the card: it drops the body from undeter
   // A body held in both lists (a row listed, and held undetermined): its exit leaves it in the muted row alone.
   const both = applyPatch(applyPatch(base(), { "undetermined.T~u": { uuid: "T.u", name: "Unsure" } }), { "subjects.T~u": { uuid: "T.u", name: "Unsure", state: "in", latest: "" } });
   const out = patchOut(both, { uuid: "T.u", name: "Unsure" });
-  assert.deepEqual(out.patch["undetermined.-=T~u"], null, "the exit drops it from undetermined");
+  assert.ok(out.patch["undetermined.T~u"] instanceof ForcedDeletion, "the exit drops it from undetermined");
   const after = applyPatch(both, out.patch);
   assert.deepEqual([after.undetermined, after.subjects["T~u"].state], [{}, "out"], "it is in the muted row and in no other list");
   // A body not held undetermined: the exit writes its row alone, and so does the lowering that follows a count.

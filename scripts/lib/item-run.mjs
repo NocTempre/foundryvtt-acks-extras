@@ -293,7 +293,7 @@ export function serialized(messageId, fn) {
 
 /**
  * Write a dotted patch to a card (`FLAG_ITEM_RUN_CARD`): one update, each path under the flag, so two entries land without overwriting
- * each other. A `-=` segment deletes the key after it.
+ * each other. A value that is `unset()` deletes the key it is written to.
  */
 export function patchCard(message, patch) {
   const base = `flags.${MODULE_ID}.${FLAG_ITEM_RUN_CARD}`;
@@ -546,7 +546,7 @@ async function countBearerOut({ itemUuid, rowKey, messageId, requestUserId = nul
     const region = token && card.regionUuid ? fromUuidSync(card.regionUuid) : null;
     await serialized(messageId, async () => {
       if (token?.actor) await releaseStanding({ item, row, subject: { token, actor: token.actor }, region });
-      await patchCard(message, { selfCount: false, ...out.patch, [`subjects.-=${safeKey(bearer.uuid)}`]: null });
+      await patchCard(message, { selfCount: false, ...out.patch, [`subjects.${safeKey(bearer.uuid)}`]: unset() });
     });
   }
   await pressListener?.({ message, key: "", entry: null, early: false, counted: false, item });
@@ -582,7 +582,7 @@ async function countSubjectInRaised({ messageId, message, card, item, subject })
     const held = fresh.undetermined?.[key];
     if (!held) return { ok: false, reason: "applied" };
     if (![...(region.tokens ?? [])].some((t) => t.uuid === subject)) {
-      await patchCard(message, { [`undetermined.-=${key}`]: null });
+      await patchCard(message, { [`undetermined.${key}`]: unset() });
       return { ok: false, reason: "gone" };
     }
     if (standing) await holdStanding({ config: { activationId: fresh.activationId }, item, row, subject: { token, actor: token.actor } });
@@ -619,7 +619,7 @@ async function countSubjectIn({ messageId, subject, requestUserId = null }) {
   const row = itemRunRowsOf(item).find((r) => r?.key === card.rowKey);
   const actor = subjectOf(subject)?.actor;
   if (!row || !actor) return { ok: false, reason: "gone" };
-  const patch = { [`subjects.${key}`]: { uuid: subject, name: held.name, state: "in", latest: "" }, [`undetermined.-=${key}`]: null };
+  const patch = { [`subjects.${key}`]: { uuid: subject, name: held.name, state: "in", latest: "" }, [`undetermined.${key}`]: unset() };
   if (card.direct) {
     if (recordImmunity(actor, { spell: { id: kindKeyOf(item, row) } }).spell) return { ok: false, reason: "immune" };
     const figures = reachFigures(row);

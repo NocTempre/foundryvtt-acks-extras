@@ -14,7 +14,7 @@
  * page that prints the procedure), or nothing behind it (`blankTip`, the page
  * reference alone, no number and no words saying it is missing).
  */
-import { numOrNull } from "./util.mjs";
+import { isUnset, numOrNull, unset } from "./util.mjs";
 
 /** The tooltip of a figure read from an imported table: the row's label, the figure and the page the importer read it from. Null where there is no page to point at. */
 export function importTip({ label, figure, cite }) {
@@ -73,15 +73,15 @@ export const newCard = ({ itemUuid, rowKey, activationId, kind = "toggle", beare
 /** Whether a raised card holds a body as counted in for its raise: the item's filter could not settle it and an owner of the item counted it. A lowered card counts nobody. */
 export const isCountedIn = (card, uuid) => card?.lowered !== true && !!card?.counted?.[safeKey(uuid)];
 
-/** Apply a dotted patch to a card, as the message's update applies it: a `-=` segment deletes the key after it. Returns a new card. */
+/** Apply a dotted patch to a card, as the message's update applies it: a value that is `unset()` deletes the key it is written to. Returns a new card. */
 export function applyPatch(card, patch) {
   const next = structuredClone(card ?? {});
   for (const [path, value] of Object.entries(patch ?? {})) {
     const parts = path.split(".");
     let at = next;
-    for (const part of parts.slice(0, -1)) at = at[part.startsWith("-=") ? part.slice(2) : part] ??= {};
+    for (const part of parts.slice(0, -1)) at = at[part] ??= {};
     const last = parts.at(-1);
-    if (last.startsWith("-=")) delete at[last.slice(2)];
+    if (isUnset(value)) delete at[last];
     else at[last] = value;
   }
   return next;
@@ -97,7 +97,7 @@ export const admittedWithCount = (admitted, card, uuid) => ((admitted === null |
 /** The patch that lists a subject on the card, as in reach (`state` `in`) or as no target, keeping its newest entry. */
 export function patchSubject(card, { uuid, name, state = "in" }) {
   const key = safeKey(uuid);
-  return { [`subjects.${key}`]: { uuid, name, state, latest: card?.subjects?.[key]?.latest ?? "" }, [`undetermined.-=${key}`]: null };
+  return { [`subjects.${key}`]: { uuid, name, state, latest: card?.subjects?.[key]?.latest ?? "" }, [`undetermined.${key}`]: unset() };
 }
 
 /**
@@ -110,11 +110,11 @@ export function patchUndetermined(card, { uuid, name }) {
   const key = safeKey(uuid);
   const row = card?.subjects?.[key];
   if (row && row.state !== "out") return {};
-  return { [`undetermined.${key}`]: { uuid, name }, ...(row ? { [`subjects.-=${key}`]: null } : {}) };
+  return { [`undetermined.${key}`]: { uuid, name }, ...(row ? { [`subjects.${key}`]: unset() } : {}) };
 }
 
 /** The patch that drops a body from the card's undetermined list, empty where it is not on it. */
-export const patchForget = (card, { uuid }) => (card?.undetermined?.[safeKey(uuid)] ? { [`undetermined.-=${safeKey(uuid)}`]: null } : {});
+export const patchForget = (card, { uuid }) => (card?.undetermined?.[safeKey(uuid)] ? { [`undetermined.${safeKey(uuid)}`]: unset() } : {});
 
 /**
  * What a standing reach's entry or exit does to the raised card for one body,
@@ -149,7 +149,7 @@ export const patchCountIn = (card, { uuid, name }) => ({ ...patchSubject(card, {
  */
 export function patchUncount(card) {
   const patch = {};
-  for (const [key, held] of Object.entries(card?.counted ?? {})) Object.assign(patch, { [`counted.-=${key}`]: null, [`undetermined.${key}`]: { uuid: held.uuid, name: held.name } });
+  for (const [key, held] of Object.entries(card?.counted ?? {})) Object.assign(patch, { [`counted.${key}`]: unset(), [`undetermined.${key}`]: { uuid: held.uuid, name: held.name } });
   return patch;
 }
 
@@ -188,9 +188,9 @@ export function patchPrompt(card, { uuid, name, moment, momentKey }) {
   const patch = {
     [`entries.${key}`]: { subject: uuid, moment, momentKey: momentKey ?? "", state: "open" },
     [`subjects.${safeKey(uuid)}`]: { uuid, name, state: "in", latest: key },
-    [`undetermined.-=${safeKey(uuid)}`]: null,
+    [`undetermined.${safeKey(uuid)}`]: unset(),
   };
-  for (const [old] of struck) patch[`entries.-=${old}`] = null;
+  for (const [old] of struck) patch[`entries.${old}`] = unset();
   return { key, patch, struck: struck.map(([, e]) => e) };
 }
 
@@ -200,8 +200,8 @@ export function patchOut(card, { uuid, name }) {
   const struck = openEntriesOf(card, uuid);
   const gone = new Set(struck.map(([old]) => old));
   const kept = Object.keys(card?.entries ?? {}).filter((k) => card.entries[k].subject === uuid && !gone.has(k));
-  const patch = { [`subjects.${key}`]: { uuid, name, state: "out", latest: kept.at(-1) ?? "" }, ...(card?.undetermined?.[key] ? { [`undetermined.-=${key}`]: null } : {}) };
-  for (const [old] of struck) patch[`entries.-=${old}`] = null;
+  const patch = { [`subjects.${key}`]: { uuid, name, state: "out", latest: kept.at(-1) ?? "" }, ...(card?.undetermined?.[key] ? { [`undetermined.${key}`]: unset() } : {}) };
+  for (const [old] of struck) patch[`entries.${old}`] = unset();
   return { patch, struck: struck.map(([, e]) => e) };
 }
 
