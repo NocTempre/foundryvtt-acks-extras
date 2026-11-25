@@ -2147,3 +2147,32 @@ The guess in the owner's words does not hold in core 14: an embedded Item takes 
 **Strongest counter, MEDIUM.** The 2026-11-11 entry rejected opening the shelves to players, and this ruling leaves a Judge who wants a Player to call a creature from a Judge's book two routes, both of which show that Player the creature: Observer on the one actor, or on its shelf. Held, since the grant can be one creature and since the alternative is a Player calling any creature unasked.
 
 *Cost:* a Player's spell whose row names a creature on a Judge's shelf, or a world actor the Player cannot observe, is refused until the Judge grants Observer. A compendium's ownership is set by role, so the grant on a shelf opens it to every Player, and "Restore the Compendium Library" writes a Judge's shelf closed again. The shipped summon recipes name creatures on the monster book's shelf or none, and that shelf keeps core's default ownership. This is a gate on the tool and not on the data: Foundry gates no read, so the creature's document stays readable from any client, and its name still prints on the row.
+
+## 2026-11-25 — The organisation chart's row verbs, linked actors and village level, as the owner ruled them
+
+**Ruled.** The owner answered the organisation chart's open questions in these words:
+
+- **A:** "Village is a level above warband, and is a faction by default/possibly definition"
+- **B:** "in org chart: Actor deleted is visible, re-allows the "create actor" button"
+- **C:** "The linked actors choice is part of the delete row warning, if dismissed that is saved as allowing the one-click option (when warning is dismissed, offer an undo button that is equivalent to cntl z, it doesn't persist but it can undo if it is still in memory)"
+- **D:** "Icons help for clarity, remove follows inventory remove x, delete should get a stronger symbol"
+
+The words stand beside the earlier ones, quoted as given: "delete from chart is distinct from delete, the controls to create or delete linked actors on the chart, and it should be aware if deleted manually"; "the org chart tree is nested, removing from a level does not automatically delete the structure beneath - these are stacking containers inventory of references to one source of truth objects"; and, for the join picker, "Pick the row to join under".
+
+The orchestration hub turned the answers into directions, approved on board 3 of the row-verbs design. The owner then marked three of them wrong and wrote: "One-click deletes people without extra prompting". Two directions were replaced by that correction, and the camp's home is held for the owner's answer. The table gives the directions as corrected, each with the slice of the beastman organisation plan that builds it:
+
+| Direction | Slice |
+|---|---|
+| A village is a faction. Its warbands are the chart's top rows, with gangs inside them, and the chieftain is the faction's `leaderUuid`. The faction card is made at the Roll. A lone warband stays as it is. Where the camp's parts live is **held**: the owner marked the camp direction wrong without saying how, and the slice keeps the camp's home behind one function until the answer comes. (A) | (c) village as faction |
+| Remove carries `fa-solid fa-xmark`, as lib's `bucket-row.hbs` does; Delete carries `fa-solid fa-trash` in the danger colour, as the system's inventory delete does. An icon-only control has an `aria-label` and a tooltip. (D) | (b) row verbs |
+| Remove from chart takes only that row and deletes nothing. The rows beneath it stay on the chart, lifted to the removed row's parent. Its confirm names the rows that stay and where they go. (k) | (b) row verbs, changing the landed `unlistRow`, which handed the subtree to the removed row's group |
+| Delete opens a warning listing what goes. It has one tick, "Also delete the linked actors", on by default and naming them; a linked actor the seat cannot delete is a plain line saying it stays, with no tick. "Don't warn me again" sits in the dialog foot. Both are saved together, and only when Delete is pressed. With the warning off, Delete applies the saved choice with no prompt (client setting "Warn before deleting chart rows"). (C) | (b) row verbs |
+| Every Delete, warned or one-click, offers an Undo strip, held in memory only, gone on reload, one step kept. Undo restores what the Delete took, linked actors included, with the same ids (`keepId` from `toObject()` snapshots). Undo is the strip's button only, with no key binding. (C) | (b) row verbs |
+| The linked officer line has Open, Clear, Delete actor… and "+ Make the <officer>", the last where the line is empty or its actor was deleted. A deleted actor shows as deleted, on a faction's leader line too. A delete made outside the chart re-renders the open charts and writes nothing. (B) | (a) officer line; the faction line's Make in (c) |
+| Every control is gated by Foundry's own tests: ownership, the delete permission, `ACTOR_CREATE`. No control tests `isGM`. A seat that fails a test does not see the control. | every slice |
+| Join picks the faction, then, in the same dialog, the row to join under or the top. | (d) join under a row |
+| A recipe's Role select adds Mount and Beast. Both link the creature's own imported entry. The count comes from the recipe row with a provenance tooltip; with nothing imported it stays blank with the page reference alone. An unlinked part makes a labelled stack and lists a finding. | (e) role select |
+
+**Rejected.** *A Ctrl+Z binding for the Undo strip.* The chart tab holds text fields with their own undo, and core's canvas undo is core's; the hub ruled the button only. *A disabled tick for an actor the seat cannot delete.* The ruled shape is a line saying it stays. *A tick per linked actor, off by default, and a one-click Delete that keeps every linked actor.* Board 3 drew both; the owner marked "One-click Delete keeps people" wrong. *Remove handing the rows beneath to the removed row's group.* That is the landed `unlistRow`; the owner marked it wrong against the words (k).
+
+**Strongest counter, MEDIUM.** A one-click Delete takes linked actors, and its Undo is held only in memory, so a reload or a second Delete after a mistaken press loses those actors for good. Held: the owner asked for exactly that trade ("One-click deletes people without extra prompting"), and the setting turns the warning back on.
