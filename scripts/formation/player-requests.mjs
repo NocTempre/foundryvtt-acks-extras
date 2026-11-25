@@ -321,16 +321,6 @@ async function executeRequest(formation, user, type, payload) {
     case "leftBehind": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
       if (!formation.members.some((m) => m?.actorId === payload.actorId)) return;
-      // The sheet's own GM path records the decision mid-combat; a relayed
-      // declaration is refused there, and the declaring seat is told so.
-      if (formation.combat?.active) {
-        await ChatMessage.create({
-          content: loc("request.leftBehindDeclined"),
-          whisper: [user.id],
-          speaker: { alias: formation.name ?? "" },
-        });
-        return;
-      }
       const leaving = await toggleMemberLeft(formation, payload.actorId);
       if (leaving === null) return;
       await announceDeclaration(formation, user, loc(leaving ? "request.leftBehind" : "request.wentBackFor", {

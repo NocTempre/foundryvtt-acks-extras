@@ -31,8 +31,9 @@ sheet's Order tab, **Yours to bring in** lists their people who are in no party,
 henchmen with no token on the map among them, and a press or a drag from the
 Actors sidebar brings one in. The control at the end of a member's row takes them out,
 and their token comes back beside the party token if they had one. A player moves
-only what they own, the table sees each move in chat, and nobody moves during a
-combat. The Judge can still add or remove anyone.
+only what they own and the table sees each move in chat. During a combat the
+moves still work, and a member taken out keeps the token they are fighting on.
+The Judge can still add or remove anyone.
 
 ![](../releases/v11.13.0/formation-membership.png)
 

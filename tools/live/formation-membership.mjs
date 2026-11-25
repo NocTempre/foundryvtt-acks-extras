@@ -4,8 +4,9 @@
  * joins by the HUD button on its own token, opens the sheet it now owns, brings
  * a follower in from the Order tab's list and again by a drop from the sidebar,
  * takes them out, and leaves. The relay refuses an actor that is not the
- * sender's, one already in another party, and either way during a fight; a
- * mounted member keeps the mount across leaving and joining; and no load error
+ * sender's and one already in another party; a fight holds nothing of the
+ * line-up (the list and the leave control stay live under the ordinary hint,
+ * and a relayed bring-in and take-out each write); a mounted member keeps the mount across leaving and joining; and no load error
  * lands on either seat under a recorder added before reload.
  *
  * Every fixture and figure is invented. Fixtures, kept and found again by marker
@@ -443,12 +444,17 @@ try {
   await run(player, P.open, { partyId: party.id });
   sheet = await run(player, P.sheet, { partyId: party.id, actorIds: [lead.id, follower.id] });
   note("Order tab in a fight", sheet);
-  check("the list and the leave control are held, and the sheet says why", sheet.locked && sheet.leave[lead.id]?.disabled && /during a combat/.test(sheet.hint ?? ""), sheet);
+  check("the list and the leave control are live, and the hint is the ordinary one", !sheet.locked && sheet.listed.includes(follower.id) && !!sheet.leave[lead.id] && !sheet.leave[lead.id].disabled && /Your people who are in no party/.test(sheet.hint ?? ""), sheet);
   await run(player, P.relay, { fid, type: "bringIn", payload: { actorId: follower.id } });
   await run(player, P.relay, { fid, type: "takeOut", payload: { actorId: lead.id } });
   const fought = { follower: await run(gm, P.members, { ...seen, actorId: follower.id }), lead: await run(gm, P.members, { ...seen, actorId: lead.id }) };
-  check("and the GM client takes neither request past them", !fought.follower.in && fought.lead.in, fought);
+  check("a relayed bring-in and take-out each write during a fight", fought.follower.in && !fought.lead.in, fought);
+  check("the lead's stashed token returns to the map, since a flag-only fight deployed nobody", fought.lead.tokens === 1, fought.lead);
   await run(gm, P.setCombat, { fid, value: null });
+  await run(player, P.relay, { fid, type: "bringIn", payload: { actorId: lead.id } });
+  await run(gm, P.awaitIn, { fid, actorId: lead.id, present: true });
+  await run(player, P.relay, { fid, type: "takeOut", payload: { actorId: follower.id } });
+  check("the walk puts the line-up back: the lead in, the follower out", (await run(gm, P.awaitIn, { fid, actorId: follower.id, present: false })) && (await run(gm, P.members, { ...seen, actorId: lead.id })).in);
 
   section("a mounted member leaves and comes back");
   await run(player, P.close, { partyId: party.id });

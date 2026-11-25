@@ -275,7 +275,7 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
 | Turn plan | Lock or clear their own character's choice for the stationary turn (§The turn plan) | `plan` |
 | Scouting | Step their own character out of the party token, or back in | `detach` |
-| Casualties | Leave their own character behind where they fell, or go back for them (refused in combat) | `leftBehind` |
+| Casualties | Leave their own character behind where they fell, or go back for them | `leftBehind` |
 | Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
 | Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
 | Conveyance | Pin their own member on foot or on a carrier they count, or hand the choice back (§Conveyance) | `conveyance` |
@@ -311,13 +311,21 @@ carries the leave control.
 The test is ownership of the actor, never of a member: `bringInRefusal` and
 `takeOutRefusal` run on the requesting client to say why, since the relay
 carries no answer back, and again on the GM client against the attested sender,
-which is what makes them a gate. They refuse another's actor, one already in a
-party, and any change during a fight (`formation.combat.active`). A request
+which is what makes them a gate. They refuse another's actor and one already in
+a party; a fight refuses nothing (DECISIONS 2026-11-25). A request
 writes through `addMember` and `removeMember`, so a token is stashed and returned
 as the Judge's own add and remove do, a join raises `acksExtras.memberJoined`, and
 an attachment stays as it was. The token searched for is on the party's scene,
 never the one the Judge happens to be viewing. A member brought in with no token
 has none to return. A player never starts a party.
+
+During a fight (`formation.combat.active`) the model keeps the fight's tokens
+whole, for the Judge's add and remove and a request alike. `removeMembers`
+neither recalls nor restores a member the live fight deployed: their token stays
+where it fights, the actor's own once the record lets it go, and no token is made
+beside the party token. `addMember` leaves a joining token standing and records
+the member deployed in that fight (`deployedTokenId`, `deployedSceneId`,
+`deployedCombatId`), so `reform` gathers them with the rest.
 
 ## The Judge's override
 
@@ -1491,7 +1499,7 @@ their eyes — `syncPartyTokenVision`
 gives the party token its best *remaining* member's sight.
 
 Leaving a member behind (`toggleMemberLeft`, which drops their token where the
-party stands or recalls it) is likewise an owner's declaration, relayed as `leftBehind` and refused in combat.
+party stands or recalls it) is likewise an owner's declaration, relayed as `leftBehind`; during a fight it records the decision and leaves the canvas to the fight's end.
 
 A member's own token can stand on another scene than the party's: core moves
 it there through a `teleportToken` Region (docs/lib/MODEL.md, "A token moved

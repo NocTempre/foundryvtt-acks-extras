@@ -2928,7 +2928,7 @@
       "pauseHint": "Pause/resume movement-driven turn tracking (e.g. while repositioning the token)",
       "enc": "Enc.",
       "noStashedToken": "No stashed token: this member was added without a canvas token and will not be re-placed on disband",
-      "removeMemberHint": "Remove from the formation and restore their token beside the party token",
+      "removeMemberHint": "Remove from the formation",
       "moveUp": "Move up",
       "moveDown": "Move down",
       "moveLeft": "Move left",
@@ -3076,13 +3076,11 @@
     "membership": {
       "bringHeading": "Yours to bring in",
       "bringHint": "Your people who are in no party. The table sees who comes and goes.",
-      "bringLocked": "The party's line-up cannot change during a combat.",
       "bring": "Bring {name} into the party",
-      "takeOutHint": "Take out of the party: their token returns beside the party token",
+      "takeOutHint": "Take out of the party",
       "refused": {
         "cannotMarch": "{name} cannot stand in a party.",
         "notYours": "{name} is not yours to move in or out of a party.",
-        "inCombat": "The party's line-up cannot change during a combat.",
         "inParty": "{name} is already in {party}. Take them out of it first.",
         "elsewhere": "{name} stands on another map from this party.",
         "notMember": "{name} is not in this party."
@@ -3160,7 +3158,6 @@
       "conveyance": "sends {name} {how}.",
       "bringIn": "brings {name} into the party.",
       "takeOut": "takes {name} out of the party.",
-      "leftBehindDeclined": "That declaration could not be carried out — the party is in combat.",
       "shield": "closes the shutter on {bearer}'s lantern.",
       "unshield": "opens the shutter on {bearer}'s lantern.",
       "douse": "douses {bearer}'s light.",

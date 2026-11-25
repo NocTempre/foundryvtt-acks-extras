@@ -1673,12 +1673,15 @@ await scenario("a player brings their own actors in and takes them out through t
     await model.updateFormation(inCombat);
     await drain();
     game.user = player;
-    assert.equal(membership.takeOutRefusal(onlyFormation(), follower.id, player)?.key, "inCombat", "a fight refuses the leaving");
-    assert.equal(membership.bringInRefusal(onlyFormation(), walker, player)?.key, "inCombat", "and the joining");
+    assert.equal(membership.takeOutRefusal(onlyFormation(), follower.id, player), null, "a fight does not refuse the leaving");
+    assert.equal(membership.bringInRefusal(onlyFormation(), walker, player), null, "nor the joining");
     await requests.requestTakeOut(onlyFormation(), follower.id);
     await getSocket().executeAsGM("partyRequest", { formationId: id, type: "bringIn", payload: { actorId: walker.id } });
     await drain();
-    assert.deepEqual(ids(), [seated.id, stranger.id, follower.id], "nor does the GM client take either during a fight");
+    assert.deepEqual(ids(), [seated.id, stranger.id, walker.id], "the relayed take-out and bring-in both write during a fight");
+    const joined = onlyFormation().members.at(-1);
+    assert.equal(joined.deployedCombatId, "stub", "the one brought in is recorded as the fight's");
+    assert.ok(joined.deployedTokenId && scene.tokens.get(joined.deployedTokenId)?.actorId === walker.id, "with its token still on the map");
   } finally {
     game.user = gmUser;
   }
@@ -1687,7 +1690,7 @@ await scenario("a player brings their own actors in and takes them out through t
   await drain();
 });
 
-await scenario("leaving a member behind is the owner's declaration, refused otherwise and in combat", async () => {
+await scenario("leaving a member behind is the owner's declaration, refused otherwise and recorded in combat", async () => {
   const owned = await ActorMock.create({
     name: "Ferris",
     type: "character",
@@ -1732,10 +1735,85 @@ await scenario("leaving a member behind is the owner's declaration, refused othe
     game.user = game.users.get("PL1");
     await requests.requestPartyAction(id, "leftBehind", { actorId: owned.id });
     await drain();
-    assert.equal(leftOf(owned), false, "a declaration during combat is refused");
+    assert.equal(leftOf(owned), true, "a declaration during combat records the decision");
+    await requests.requestPartyAction(id, "leftBehind", { actorId: owned.id });
+    await drain();
+    assert.equal(leftOf(owned), false, "and so does going back for them");
   } finally {
     game.user = gmUser;
   }
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("a line-up change during a fight keeps the fight's tokens whole", async () => {
+  const theirs = (name) => ActorMock.create({
+    name,
+    type: "character",
+    ownership: { default: 0, PL1: 3 },
+    system: { hp: { value: 5, max: 5 }, details: { level: 1 }, movementacks: { exploration: 120 } },
+  });
+  const leaver = await theirs("Orla");
+  const stayer = await theirs("Pike");
+  const joiner = await theirs("Quin");
+  await drain();
+
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  const [leaverToken, stayerToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Orla", actorId: leaver.id, x: 300, y: 300 },
+    { name: "Pike", actorId: stayer.id, x: 400, y: 300 },
+  ]);
+  let formation = await model.createFormation("Fight Party");
+  formation = await model.addMember(formation, leaver, leaverToken);
+  await model.addMember(model.getFormation(formation.id), stayer, stayerToken);
+  await drain();
+  const id = onlyFormation().id;
+
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  await combat.createEmbeddedDocuments("Combatant", [
+    { tokenId: onlyFormation().tokenId, sceneId: scene.id, actorId: onlyFormation().actorId, hidden: false },
+  ]);
+  await drain();
+  const heldOf = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  const leaverBody = heldOf(leaver).deployedTokenId;
+  assert.ok(leaverBody && scene.tokens.get(leaverBody), "the fight deployed the member");
+  assert.equal(heldOf(leaver).deployedCombatId, combat.id, "and recorded the combat");
+  const bodiesOf = (actor) => scene.tokens.filter((t) => t.actorId === actor.id).length;
+
+  const gmUser = game.user;
+  game.user = game.users.get("PL1");
+  try {
+    await requests.requestTakeOut(onlyFormation(), leaver.id);
+    await drain();
+    assert.ok(!heldOf(leaver), "the member leaves the record");
+    assert.ok(scene.tokens.get(leaverBody), "their deployed token stays where it stood");
+    assert.equal(bodiesOf(leaver), 1, "and no token is created beside the party token");
+    assert.ok(combat.combatants.some((c) => c.tokenId === leaverBody), "the combatant keeps its token");
+
+    const [joinerToken] = await scene.createEmbeddedDocuments("Token", [{ name: "Quin", actorId: joiner.id, x: 700, y: 300 }]);
+    await requests.requestBringIn(onlyFormation(), joiner, joinerToken);
+    await drain();
+    const joined = heldOf(joiner);
+    assert.equal(joined?.deployedTokenId, joinerToken.id, "a member brought in is recorded as standing as its token");
+    assert.equal(joined.deployedSceneId, scene.id, "on its scene");
+    assert.equal(joined.deployedCombatId, combat.id, "in this fight");
+    assert.ok(scene.tokens.get(joinerToken.id), "and its token is kept");
+    assert.ok(joined.tokenData, "its snapshot is stashed as a deployed member's is");
+  } finally {
+    game.user = gmUser;
+  }
+
+  await combat.delete();
+  await drain();
+  const after = onlyFormation();
+  assert.equal(after.combat, null, "the fight's end reforms the party");
+  assert.ok(!after.members.some((m) => m.deployedTokenId), "every member is gathered");
+  assert.ok(after.members.find((m) => m.actorId === joiner.id)?.tokenData, "the one brought in is back inside, stashed");
+  assert.equal(bodiesOf(joiner), 0, "its token is gathered with the rest");
+  assert.equal(bodiesOf(stayer), 0, "so is the one who stayed");
+  assert.ok(scene.tokens.get(leaverBody), "the token of the one taken out stays on the map, outside the party");
 
   await model.disband(model.getFormation(id));
   await drain();

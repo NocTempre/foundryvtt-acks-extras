@@ -3647,17 +3647,34 @@ The party stays in delve, where a player's choice of who comes along matters.
    the stranger and for the party itself, and `takeOut` for the anchor, through
    `requestPartyAction`, past the sheet's check. *Observable:* no write, and no card.
 6. **A fight.** Write `combat` on the record, `{active: true, combatId}`, with no
-   Combat behind it: only the flag is read here, and a real one is "A combat's
-   takeover"'s subject. *Observable:* the list and the leave control are disabled
-   and the section says why; a relayed `bringIn` and `takeOut` write nothing.
+   Combat behind it: only the flag is read here, and a real one is step 10's
+   subject. *Observable:* the list and the leave control are live and the hint is
+   the ordinary one; a relayed `bringIn` and `takeOut` each write.
 7. **The plates.** The walk writes `membership-order*.png` wide and at the sheet's
    minimum. *Observable:* the list wraps and nothing passes the edge. Read the PNGs.
 8. **Leaving mounted.** Mount the lead on the pony, press their own leave control,
    then the HUD again. *Observable:* their token returns beside the party token, the
    seat loses the party with its last member, the mount stays through both moves.
 9. **The table.** *Observable:* a card for every move and none for a refusal.
+10. **A real fight** (`tools/live/formation-fight-line-up.mjs`, `node
+    tools/live/run.mjs formation-fight-line-up`). The fixtures of "A party in a
+    combat" (`formation/combat-scene`, `formation/combat-party`,
+    `formation/combat-party-token`, `formation/combat-member-<n>`), one member
+    owned by the Player seat. Start the combat so the party deploys. On the
+    Player seat, take the owned member out. *Observable:* they leave the record;
+    their deployed token stays where it stood and its combatant still resolves
+    it; no token appears beside the party token; an initiative roll completes.
+    Bring in an owned actor whose token is on the scene. *Observable:* in the
+    record, marked deployed in this fight, its token still on the map. Leave an
+    owned member behind and go back for them. *Observable:* `left` flips both
+    ways, a public line each time, no whisper. Send `formUp` with a saved order.
+    *Observable:* `{ ok: false, refused: "inCombat" }`, and the order unchanged.
+    End the combat. *Observable:* `reform` gathers the members, the one brought
+    in included; the one taken out stays on the map outside the party; nothing
+    throws under a recorder added before reload.
 
-Teardown: the combat flag is cleared and the cards are swept by id. The nine
+Teardown: the combat flag is cleared and the cards are swept by id; step 10
+forgets its saved order by id and deletes its combat by its tracked id. The nine
 fixtures stay. The lead ends in the party, and the next run's start takes them out.
 
 ## A seat's presses follow what it owns (added with T-0792 slice 1)

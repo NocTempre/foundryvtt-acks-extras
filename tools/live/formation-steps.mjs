@@ -9,7 +9,7 @@
  *                rebound line, the batter charged to the basher's formation
  *                and the no-formation case.
  *   "Steps" 11a  Leave behind / Go back for them from the player seat, and the
- *                refusal whispered during a fight.
+ *                decision recorded during a fight, with its public line.
  *   "Steps" 14   the forced march barred by a marcher's survival rung: the
  *                sheet's confirm (refuse, override, asked again), a plain rung,
  *                the API bar on both seats, the dusk offer's Push on, and the
@@ -562,9 +562,7 @@ const P = {
       const line = game.i18n.format(`ACKS-FORMATION.request.${key}`, { name });
       out[key] = msgs.filter((m) => !(m.whisper?.length) && text(m).includes(line)).length;
     }
-    const declined = game.i18n.localize("ACKS-FORMATION.request.leftBehindDeclined");
-    const refusals = msgs.filter((m) => m.whisper?.length && text(m).includes(declined));
-    return { ...out, publicCount: msgs.filter((m) => !(m.whisper?.length)).length, refusals: refusals.map((m) => ({ id: m.id, whisper: m.whisper })), uuids: H.uuids(msgs) };
+    return { ...out, publicCount: msgs.filter((m) => !(m.whisper?.length)).length, whispers: msgs.filter((m) => m.whisper?.length).length, uuids: H.uuids(msgs) };
   },
 
   setCombat: async ({ fid, value }) => {
@@ -1264,10 +1262,9 @@ try {
   m = await run(gm, P.memberState, { fid: f2, actorId: fallenA.id, sceneId: s1.id });
   d = await run(gm, P.declarations, { t0, name: fallenA.name, keys: ["leftBehind", "wentBackFor"] });
   await trackAll(d.uuids);
-  const refusal = d.refusals[0] ?? null;
-  const seenR = refusal ? (await run(player, P.seen, { ids: [refusal.id] }))[0] : null;
-  check("during a fight the press posts nothing public and whispers this seat a refusal", m.combat && !m.left && d.publicCount === 0 && d.refusals.length === 1 && JSON.stringify(refusal.whisper) === JSON.stringify([playerId]) && seenR?.visible, { combat: m.combat, left: m.left, publicCount: d.publicCount, refusals: d.refusals.length, whisperedToSeat: refusal ? JSON.stringify(refusal.whisper) === JSON.stringify([playerId]) : null, seenOnSeat: seenR });
+  check("during a fight the press records the decision: left, one public line, no whisper, and the canvas untouched", m.combat && m.left && !m.deployed && d.leftBehind === 1 && d.publicCount === 1 && d.whispers === 0, { combat: m.combat, left: m.left, deployed: !!m.deployed, publicLine: d.leftBehind, publicCount: d.publicCount, whispers: d.whispers });
   note("rearguard combat restored", await run(gm, P.setCombat, { fid: f2, value: combat.prior }));
+  note("the owned casualty not left behind", await run(gm, P.goneBackFor, { fid: f2, partyId: p2.id, actorId: fallenA.id }));
   await run(player, P.closeAll);
 
   /* ---------------------------------------------------------------- */

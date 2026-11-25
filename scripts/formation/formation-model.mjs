@@ -1148,6 +1148,11 @@ export async function syncPartyActorSpeed(formation) {
  * removed from the canvas. The first member's token position seeds the party
  * token.
  *
+ * While the party's combat is running the token is kept instead: it may be a
+ * combatant's, and a combatant with no token cannot roll initiative. The
+ * member is recorded as deployed in that combat, with the token and scene it
+ * stands as, which is what the combat's end gathers.
+ *
  * ORDERING INVARIANT (data-loss guard): the member record — including the
  * stashed token — is PERSISTED to the world setting BEFORE the canvas token
  * is deleted. Anything that fails or interleaves after that point can at
@@ -1184,6 +1189,12 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
   tokenDoc ??= searched?.tokens?.find((t) => t.actorId === actor.id && !t.getFlag(MODULE_ID, FLAG_FORMATION_ID) && !summonOfData(t.toObject()).summonedBy) ?? null;
 
   const member = { actorId: actor.id, roles: [], tokenData: tokenDoc ? tokenDoc.toObject() : null };
+  const inFight = !!tokenDoc && !!formation.combat?.active && !!formation.combat.combatId;
+  if (inFight) {
+    member.deployedTokenId = tokenDoc.id;
+    member.deployedSceneId = tokenDoc.parent?.id;
+    member.deployedCombatId = formation.combat.combatId;
+  }
 
   // New members fill the first empty slot in the grid, else march at the rear.
   const blankIndex = formation.members.findIndex((m) => m?.blank);
@@ -1197,7 +1208,7 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
     // The first stashed token seeds the party token, wherever it stood.
     const needsPartyToken = !getPartyToken(formation);
     const { x, y } = tokenDoc;
-    await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+    if (!inFight) await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
     if (needsPartyToken) await ensurePartyToken(formation, scene, x, y);
   }
 
@@ -1340,6 +1351,20 @@ function freeCellPlacer(scene, anchor) {
 const isMemberDeployed = (member) => !!(member?.deployedTokenId || member?.deployedStack);
 
 /**
+ * Is this member standing as a body the party's running combat took over?
+ * Reads the record the way `combat-bridge.mjs` does: the member's own
+ * `deployedCombatId` when it has one, and otherwise a deployed member with no
+ * detach and no leave counts as the running combat's. Declared here because
+ * `combat-bridge.mjs` imports this file.
+ */
+function heldByFight(formation, member) {
+  const fight = formation.combat;
+  if (!fight?.active || !isMemberDeployed(member)) return false;
+  if (member.deployedCombatId) return member.deployedCombatId === fight.combatId;
+  return !member.detached && !member.left;
+}
+
+/**
  * Bring every deployed member of `members` back inside the party token before
  * their stashes are read.
  *
@@ -1441,7 +1466,9 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
  *
  * @param {string[]} actorIds the actors to drop
  * @param {object} [opts]
- * @param {boolean} [opts.restore] put their stashed tokens back on the map
+ * @param {boolean} [opts.restore] put their stashed tokens back on the map. A
+ *   member the party's running combat deployed is neither recalled nor restored:
+ *   its token stays where it stands, since its combatant stands on it.
  */
 export async function removeMembers(formation, actorIds, { restore = true } = {}) {
   const leaving = new Set((actorIds ?? []).filter(Boolean));
@@ -1461,8 +1488,9 @@ export async function removeMembers(formation, actorIds, { restore = true } = {}
   formation.spells = (formation.spells ?? []).filter((s) => !leaving.has(s.casterId));
 
   if (restore) {
-    await recallDeployed(formation, departing);
-    await restoreMemberTokens(formation, departing);
+    const returning = departing.filter((m) => !heldByFight(formation, m));
+    await recallDeployed(formation, returning);
+    await restoreMemberTokens(formation, returning);
   }
   await syncPartyActorSpeed(formation);
   await updateFormation(formation);

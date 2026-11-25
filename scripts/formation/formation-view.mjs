@@ -267,7 +267,6 @@ export function buildFormationView(formation) {
       // Players steer their own characters: reorder + roles on owned members.
       owned,
       canControl: game.user.isGM || owned,
-      takeOutLocked: !game.user.isGM && !!formation.combat?.active,
       conveyance: going && actor
         ? buildMemberConveyance(formation, member, actor, { ...going, canControl: (game.user.isGM || owned) && !formation.combat?.active })
         : null,
@@ -349,7 +348,6 @@ export function buildFormationView(formation) {
     ...actor,
     label: game.i18n.format("ACKS-FORMATION.membership.bring", { name: actor.name }),
   }));
-  view.bringInLocked = !!formation.combat?.active;
 
   // The JOURNEY: the day board, the ground, the derived day's march, the log.
   view.travel = buildTravelView(formation);

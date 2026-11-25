@@ -38,7 +38,6 @@ export const partyHolding = (actorId) =>
 export function bringInRefusal(formation, actor, user, token = null) {
   if (!canMarch(actor) || (token && !canJoin(token))) return { key: "cannotMarch" };
   if (!actor.testUserPermission(user, "OWNER")) return { key: "notYours" };
-  if (formation.combat?.active) return { key: "inCombat" };
   const holding = partyHolding(actor.id);
   if (holding) return { key: "inParty", party: holding.name };
   // A forged token on another map would be stepped off it into this party.
@@ -57,7 +56,6 @@ export function bringInRefusal(formation, actor, user, token = null) {
 export function takeOutRefusal(formation, actorId, user) {
   if (!formation.members.some((m) => m?.actorId === actorId)) return { key: "notMember" };
   if (!game.actors.get(actorId)?.testUserPermission(user, "OWNER")) return { key: "notYours" };
-  if (formation.combat?.active) return { key: "inCombat" };
   return null;
 }
 
