@@ -236,7 +236,9 @@ once per `key`), `createGroup`, `parent`, `addStack` and `addLabelledStack`,
   scope, its group holding its stacks, with nothing beneath it to roll. Its row's `gen.part`
   names the part's source and tells it from a unit (`isPartRow`, in `org-chart-ui-logic.mjs`).
   It has no Roll: the card draws none and a Roll given one is refused (`part`). Its officer line
-  is drawn only where its group names an officer, with every control of a unit row's line but Make.
+  is drawn where its group names an officer or where the seat may add one or drop one on it; it
+  names the actor alone, with no role word, in the neutral frame, and offers **＋ Officer** in place
+  of Make.
 - **One prototype per creature.** The tree's creatures are keyed by their own
   fields, so identical creatures across the whole roll are one `prototype` op and
   every stack and leader names its ref. A library entry needs no op: its stack
@@ -357,8 +359,26 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   head marks it. The faction's leader line reads the same way and keeps its Clear. Where the faction holds a record
   of a village's Roll (`org.hostGenOf`) it also offers **+ Make the &lt;chieftain&gt;** (`orgMakeHostLeader`),
   beside a leader deleted from the world and in a blank leader line, by the same tests and the same
-  `org-chart` service (a blank key names the host's own leader). A part row draws a line only where its
-  group names an officer, and has no Make.
+  `org-chart` service (a blank key names the host's own leader).
+- **＋ Officer and a dropped actor** (board 1y). A line that cannot offer **+ Make** (a part row, whose
+  record names no officer role, or a row the `org-chart` service's `canMakeLeader` refuses) offers
+  **＋ Officer** instead, never beside Make and never disabled (`officerControls`' `add`: the same two
+  ownership tests and `ACTOR_CREATE` as Make). The press (`onAddOfficer`) makes one actor: a copy of
+  the creature the row's group's first stack names (`officerSourceOf`, with no id, folder, ownership,
+  core flags or `organisationPrototype` mark), else a blank actor of the type Make creates
+  (`outputActorType` of the row's family template, else `monster`), named by the row's label
+  (`officerActorData`). It is set as the group's officer through `org.editRow` with no morale figure and
+  never as the faction's leader (`officerChangeOf`). An actor dropped on **any** row's line (`controls.drop`:
+  ownership of the host and the row's group) becomes that row's officer and the one there is only
+  unlinked, never deleted (`bindOfficerDrops`, `officerDropVerdict`). The handler is lib's one,
+  called from the faction sheet's and the group sheet's `_onRender`; each line is read for its host
+  and row from its markup, as the presses are. A drop on any officer line is stopped before the sheet's own
+  drop, so the actor is neither filed as a member, a parent or a stack; a line the seat may not write takes
+  the drop and does nothing. A group, a faction, a place or a non-actor is ignored. A drag's payload is
+  unreadable until the drop, so the line takes the dragged actor from the page's own watch of `dragstart`
+  (`dragging`) and shows, while one is over it, `is-drop-target` (a dashed outline) and "Drop to make
+  <name> this row's officer" in place of its controls, with nothing at rest; `dragleave` (the pointer
+  leaving the line, not entering a child), `drop` and `dragend` clear it.
 - **A hand's deletion redraws the open windows.** Core fires `deleteActor` on every client, and each client
   redraws its own open windows whose chart or leader line names the actor (`redrawWindowsNaming`, found by
   scanning `foundry.applications.instances`). The redraw writes nothing and clears no link.

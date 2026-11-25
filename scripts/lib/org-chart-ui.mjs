@@ -157,7 +157,7 @@ async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
     canMake: !!services.get("org-chart")?.canMakeLeader?.(rows, card.key, hostGen),
     part,
   });
-  if (!officerLineShown({ state, part, add: controls.add })) return null;
+  if (!officerLineShown({ state, part, offered: controls.add || controls.drop })) return null;
   const { frame, key: role, bare } = officerLineRole(card, { part, derived: leaderRoleOf(card) });
   const title = bare ? loc("officer.bareTitle") : loc(`role.${role}`);
   const word = bare ? loc("officer.bareWord") : title.toLocaleLowerCase();
@@ -880,16 +880,21 @@ async function onLineDrop(event, line, app) {
 /**
  * Make every officer line a sheet drew that this seat may write a drop target, by the one handler
  * both chart hosts share. A sheet calls it from its `_onRender`, so the listeners ride the line
- * elements that render made. A drop on a line is the line's alone: it is stopped before the
- * sheet's own drop, which would take the actor as a member, a seat or a stack.
+ * elements that render made. A drop on any line is the line's alone: it is stopped before the
+ * sheet's own drop, which would take the actor as a member, a seat or a stack, and a line this seat
+ * may not write takes it and does nothing.
  * @param {object} app the sheet
  * @param {HTMLElement} [root] where the lines are looked for; the sheet's element
  */
 export function bindOfficerDrops(app, root = app?.element) {
   watchDrags();
-  for (const line of root?.querySelectorAll?.("[data-org-drop]") ?? []) {
+  for (const line of root?.querySelectorAll?.(".acks-extras-org-officer") ?? []) {
     if (listening.has(line)) continue;
     listening.add(line);
+    if (!line.hasAttribute("data-org-drop")) {
+      line.addEventListener("drop", (event) => { event.preventDefault(); event.stopPropagation(); });
+      continue;
+    }
     line.addEventListener("dragover", (event) => onLineOver(event, line));
     line.addEventListener("dragleave", (event) => { if (!line.contains(event.relatedTarget)) restLine(line); });
     line.addEventListener("drop", (event) => onLineDrop(event, line, app));

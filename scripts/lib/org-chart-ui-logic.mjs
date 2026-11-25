@@ -346,11 +346,11 @@ export function officerControls({ state, owns = false, canOpen = false, canDelet
 /**
  * Whether a card draws an officer line at all. A unit row always does, with Make or "+ Officer"
  * where its group has no officer; a part row draws one where its group names an officer or where
- * this seat may add one.
- * @param {{state: "empty"|"live"|"deleted", part?: boolean, add?: boolean}} args `add` is `officerControls`' answer
+ * this seat may add one or drop one on it.
+ * @param {{state: "empty"|"live"|"deleted", part?: boolean, offered?: boolean}} args `offered` is whether `officerControls` offers this seat `add` or `drop`
  * @returns {boolean}
  */
-export const officerLineShown = ({ state, part = false, add = false }) => !(part && state === "empty") || !!add;
+export const officerLineShown = ({ state, part = false, offered = false }) => !(part && state === "empty") || !!offered;
 
 /**
  * The frame and word of a card's officer line. A part row names no officer role (it is picked from a

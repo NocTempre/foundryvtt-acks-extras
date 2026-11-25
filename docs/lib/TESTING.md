@@ -4843,7 +4843,8 @@ register row, which is not built.
 
 ## The officer line
 
-Marker `lib/officer-line`. Walked by `tools/live/lib-officer-line.mjs`. Boards 1q and 1r of the chart-row
+Marker `lib/officer-line`. Walked by `tools/live/lib-officer-line.mjs` (steps 1 to 8) and, for step 9,
+`tools/live/lib-officer-assign.mjs` (marker `lib/officer-assign`). Boards 1q, 1r and 1y of the chart-row
 verbs board. Where: Actors sidebar tab → a faction → Org chart tab → a card's pen → the officer line.
 
 ### Fixtures
@@ -4916,16 +4917,42 @@ No test reads `isGM`.
    (unit-tested in `tools/test-org-write.mjs`). The faction's ownership is the host's, which `org.editRow`
    already checks.
 
+9. **+ Officer and a dropped actor** (`tools/live/lib-officer-assign.mjs`, marker `lib/officer-assign`, board 1y) —
+   a faction host the walk rewrites to a warband row (its group names officer A), a part row (`gen.part`; its
+   group's stack names a source creature) and a second part row (its group has no stack), a root group host with
+   one row, and a stray group; every actor and group is the run's own, made with `api.create` and swept.
+   *Press:* open the part row's pen. The line reads "No officer" with one button, **＋ Officer** (named
+   "Add an officer", its tooltip ending "Or drop an actor on this line."), and no Make, no Clear and no Open.
+   Press it: the group's `officerUuid` is a new world actor named by the row's label, of the source's type
+   and image and without the source's `organisationPrototype` mark (a copy of the source), or, on the row
+   whose group stacks name none, a blank actor of the generator's default type; no morale figure is written.
+   The line is then the ordinary one (Open, Clear, Delete actor…) and names the actor alone in the neutral
+   frame, with no role word. *Drop:* a real drag on a warband row's line, dispatched as `dragstart` (on the
+   sheet, carrying `{type: "Actor", uuid}`), `dragover` (with an **empty** DataTransfer, as a browser's is
+   until the drop), `dragleave` (`relatedTarget` outside the line) and `drop` (carrying the payload). While
+   over, the line has `is-drop-target` (a dashed outline), shows "Drop to make <name> this row's officer"
+   and hides its controls; after `dragleave` and after the drop nothing shows. The drop makes the dropped
+   actor the row's officer with a null morale figure, the replaced actor is still in the world, and the
+   faction's members and parent are unchanged (the sheet's own drop did not fire). The same drop works on a
+   part row's line, and on a root group host's chart (its stack count is unchanged). A group or the faction
+   itself dragged over a line shows no target, and dropped there changes nothing. *Seats:* the Player owns the
+   host and the third row's group and only observes the first two. On a row whose group it does not own the
+   line has no `data-org-drop` and no + Officer, and a drop on it writes nothing; on the row it owns the line
+   is a drop target, + Officer is in the DOM exactly where the world gives Players `ACTOR_CREATE` (read and
+   recorded), and a drop writes the officer by the Player's own ownership.
+   **Driven by script:** the events are dispatched on the rendered elements, not made with a pointer; a
+   Player's press is walked where the world permits creating actors.
+
 ### Teardown
 
 `api.sweepTracked({only})` removes the run's own products by id: each Roll's `created` and each minted leader
 read from its group. The wrapped `rollOrganisation` is restored first, the kept host's rows go back to one
-empty top row and the Player's ownership of it is dropped. The marked host stays.
+empty top row and the Player's ownership of it is dropped. The marked host stays. Step 9's walk resets its
+own host the same way and sweeps the groups, actors and presses' products it tracked.
 
 ### Not walked
 
-A press of the faction leader line's **+ Make** by a seat that is not its owner, and a part row whose group names an
-officer (a part row's group has no path that sets one; `officerControls` with `part` is unit-tested). A press by a seat that
+A press of the faction leader line's **+ Make** by a seat that is not its owner. A press by a seat that
 lost ownership between the render and the press (the press checks again before its first write; unit-tested
 as `officerControls` and read from the handlers). A compendium officer's Open, which needs a document the seat
 may test.

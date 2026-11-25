@@ -291,7 +291,7 @@ t("a part row whose group names an officer draws the line with Open, Clear and D
   assert.equal(officerControls({ state: "empty", ...seat }).make, true, "a unit row keeps its Make");
   assert.deepEqual(["live", "deleted", "empty"].map((state) => officerLineShown({ state, part: true })), [true, true, false]);
   assert.equal(officerLineShown({ state: "empty" }), true, "a unit row draws its line with none");
-  assert.equal(officerLineShown({ state: "empty", part: true, add: true }), true, "a part row draws the line for a seat that may add an officer");
+  assert.equal(officerLineShown({ state: "empty", part: true, offered: true }), true, "a part row draws the line for a seat that may add an officer or drop one on it");
 });
 
 t("+ Officer is offered where + Make cannot be, never beside it, never disabled, and to the seat Make needs", () => {
