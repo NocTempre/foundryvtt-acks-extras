@@ -23,7 +23,7 @@
  * - `credited` is the research done so far, `[{day, amount, by}]`, one row per counted
  *   participant and day (`by` is the actor's uuid, `amount` a gold figure above zero), which
  *   only `credit` writes;
- * - `dueDays` is the Judge's entry for how many days the research takes, read only while
+ * - `dueDays` is the entry, made by hand, for how many days the research takes, read only while
  *   the rates it would be computed from are not imported, and counted against the days
  *   credited, which are days whose gold was read;
  * - `bucket` is the components bucket as lib stores an answer, `[{uuid, qty, fit}]`,
@@ -183,15 +183,16 @@ const CONSUMABLE_KINDS = Object.freeze(["potion", "scroll"]);
 /**
  * Why an item cannot take a stored charge, or "" where it can. `item` is what the world says of it,
  * `{documentName, hasCharges, kind, currency, parentUuid}`: `hasCharges` is whether its type carries `system.charges`,
- * `kind` its markets magic kind. The researcher must hold it; a Judge may store into any held item.
+ * `kind` its markets magic kind. The item must be held by an actor, and `ownsItem` is whether the requester owns it (the item
+ * follows its holder's ownership); the researcher need not hold it.
  * Reasons are `refused.<reason>` strings: `chargeItem` (not an item), `chargeKind` (no charges, or a consumable), `chargeHeld`
- * (nobody holds it), `itemOwner` (a Player's other than the researcher's).
+ * (nobody holds it), `itemOwner` (the requester does not own it).
  */
-export function chargeRefusal(item, { researcher, judge = false } = {}) {
+export function chargeRefusal(item, { ownsItem = false } = {}) {
   if (!item || item.documentName !== "Item") return "chargeItem";
   if (item.hasCharges !== true || item.currency === true || CONSUMABLE_KINDS.includes(item.kind)) return "chargeKind";
   if (!item.parentUuid) return "chargeHeld";
-  if (!judge && item.parentUuid !== researcher) return "itemOwner";
+  if (ownsItem !== true) return "itemOwner";
   return "";
 }
 
@@ -199,11 +200,11 @@ export function chargeRefusal(item, { researcher, judge = false } = {}) {
  * What the placement prompt shows for a choice: `{ok, why, dropActive}`. The drop zone is live for a charge alone, and Confirm
  * is held for a charge until the dropped item (`item`, null before one is dropped) is one a charge can go in.
  */
-export function placementState(mode, item, { researcher, judge = false } = {}) {
+export function placementState(mode, item, { ownsItem = false } = {}) {
   if (!Object.values(PLACEMENT).includes(mode)) return { ok: false, why: "placement", dropActive: false };
   if (mode !== PLACEMENT.charge) return { ok: true, why: "", dropActive: false };
   if (!item) return { ok: false, why: "needItem", dropActive: true };
-  const why = chargeRefusal(item, { researcher, judge });
+  const why = chargeRefusal(item, { ownsItem });
   return { ok: why === "", why, dropActive: true };
 }
 
@@ -226,10 +227,10 @@ export function daysText(days) {
   return parts.join(", ");
 }
 
-/** The fields of a project only a Judge writes; a Player's request that names one is refused. */
-export const JUDGE_FIELDS = Object.freeze(["costs", "paid", "throw", "dueDays", "common"]);
+/** The fields of a project only a Judge writes; a request from anyone else that names one is refused. */
+export const JUDGE_FIELDS = Object.freeze(["common"]);
 
-/** The fields an update may change. `level` is a Judge's after the project exists. */
+/** The fields an update may change. */
 export const UPDATE_FIELDS = Object.freeze(["subject", "level", "costs", "paid", "throw", "dueDays", "assistants", "bucket", "common"]);
 
 /** A finite number of at least zero, else null. */
@@ -558,10 +559,10 @@ export function creditDue(project, ctx) {
  * that a rate not read holds back), what each participant does, and the due. The due is
  * computed while the rates and the research cost are read: the days already credited and
  * posted, plus the days the remaining cost takes at a dedicated day's rate (`dueBy`
- * "ladder"). Otherwise it is the Judge's `dueDays` (`dueBy` "judge") or unknown; a day held
+ * "ladder"). Otherwise it is the entered `dueDays` (`dueBy` "judge", the value's name) or unknown; a day held
  * back for a rate not read is posted and not credited, so it counts toward neither. `complete`
  * is whether the research cost is credited: by the gold once it reaches the cost, not before
- * while the rates are read, and by the Judge's days where they are not; null where no cost
+ * while the rates are read, and by the entered days where they are not; null where no cost
  * and no days are known. `dueDay` is the calendar day the last needed day falls on, were each
  * remaining day worked in turn from today. `heldDays` are the calendar days of the held ones.
  */
@@ -702,7 +703,7 @@ export function withFormula(formulas, entry) {
 }
 
 /**
- * The research throw as the project stands: the target (a Judge's stored one taken whole, else the ladder's rung for
+ * The research throw as the project stands: the target (a stored one taken whole, else the ladder's rung for
  * the researcher's level raised by the project's level of effect, `levelRaise`), the researcher's Intellect bonus
  * (`intBonusOf(uuid)`, null where it is not read), the facility bonus (the sum of what each facility's verdict reads),
  * the penalty a substituted share takes (`substitutionPenalty`; null while its figures are not read) and whether the
@@ -889,7 +890,7 @@ export function projectOps(deps) {
    * answered, and a scroll is made or a charge stored. A scroll or a charge is written after the stamp, so a second press finds the
    * project answered; a writer that throws puts the wait back and nothing more is posted. `take effect now` writes nothing here: the
    * cast that resolves the effect opens on the requester's own client, which asks this only once it has been made. An item for
-   * a charge is read here, and a Player's must be the researcher's (`chargeRefusal`).
+   * a charge is read here, and it must be held by an actor the requester owns (`chargeRefusal`).
    */
   async function place(location, record, args, who) {
     const out = deps.outcome;
@@ -901,7 +902,7 @@ export function projectOps(deps) {
     if (!Object.values(PLACEMENT).includes(args.mode)) return { ok: false, reason: "placement" };
     const item = args.mode === PLACEMENT.charge ? await out.heldItem(str(args.itemUuid)) : null;
     if (args.mode === PLACEMENT.charge) {
-      const why = chargeRefusal(item, { researcher: project.researcher, judge });
+      const why = chargeRefusal(item, { ownsItem: item?.parentUuid ? who.owns(item.parentUuid) === true : false });
       if (why) return { ok: false, reason: why };
     }
     const today = deps.today();
@@ -936,7 +937,8 @@ export function projectOps(deps) {
     const mayAct = (project) => judge || who.owns(project.researcher) === true;
 
     if (op === PROJECT_OP.facility) {
-      if (!judge) return { ok: false, reason: "judge" };
+      // A facility's value is the place's: whoever owns the location writes it.
+      if (who.owns(location.uuid) !== true) return { ok: false, reason: "owner" };
       if (!FACILITY_KEYS.includes(args.key)) return { ok: false, reason: "facility" };
       const gp = gold(args.gp);
       if (args.gp !== null && args.gp !== "" && args.gp !== undefined && gp === null) return { ok: false, reason: "amount" };
@@ -1053,7 +1055,7 @@ export function projectOps(deps) {
       const patch = args.patch ?? {};
       const keys = Object.keys(patch);
       if (keys.some((key) => !UPDATE_FIELDS.includes(key))) return { ok: false, reason: "field" };
-      if (!judge && keys.some((key) => key === "level" || JUDGE_FIELDS.includes(key))) return { ok: false, reason: "judge" };
+      if (!judge && keys.some((key) => JUDGE_FIELDS.includes(key))) return { ok: false, reason: "judge" };
       // The common mark is a boolean on a spell project; written on any other kind it would store nothing, so it is refused.
       if (patch.common !== undefined && (typeof patch.common !== "boolean" || project.kind !== PROJECT_KIND.spell)) return { ok: false, reason: "field" };
       const linked = new Set(deps.linked(location));
@@ -1087,7 +1089,7 @@ export function projectOps(deps) {
     apply,
     run,
     record: recordOf,
-    /** A project started: `spec` is `{kind, subject, level, researcher, assistants}`, with the costs, `paid` and `throw` a Judge's. */
+    /** A project started: `spec` is `{kind, subject, level, researcher, assistants}`, with the costs, `paid`, `throw` and `dueDays` the researcher's owner's and `common` a Judge's. */
     create: (location, spec) => run(location, PROJECT_OP.create, { spec }),
     /** A project's fields changed (`UPDATE_FIELDS`); the researcher and the kind never change. */
     update: (location, id, patch) => run(location, PROJECT_OP.update, { id, patch }),
@@ -1105,7 +1107,7 @@ export function projectOps(deps) {
     place: (location, id, { mode, itemUuid } = {}) => run(location, PROJECT_OP.place, { id, mode, itemUuid }),
     /** A project closed: it stays on the record and counts for no facility. */
     close: (location, id) => run(location, PROJECT_OP.close, { id }),
-    /** A facility's value in gold, null to blank it; the Judge's. */
+    /** A facility's value in gold, null to blank it; the place's owner's. */
     setFacility: (location, key, gp) => run(location, PROJECT_OP.facility, { key, gp }),
   };
 }
@@ -1133,8 +1135,10 @@ const goldText = (n) => (n === null || n === undefined ? "" : Number.isInteger(n
  * `formulasOf(uuid)` is a researcher's recorded formulas, `cookbookOf(uuid)` a subject's cookbook id and
  * `subjectTypeOf(uuid)` the type of the subject's document, null where it resolves to none, `powerOf(uuid, kind)` the power of a kind
  * a researcher holds and `addPowerOf(id)` this window's Add power row for a project, `{open, kind, amount}`.
+ * `facilityEditable` is whether the viewer owns the place, which draws the facility values as inputs; `judge` is the
+ * viewer's role and reads only the controls a Judge keeps (Post days…, the common mark) and the severity of a gate.
  */
-export function panelModel({ record, tables, linked, today, loc, bucketLoc, judge, owns, entries = {}, levelOf = () => null, intBonusOf = () => 0, paceOf = () => PACE.dedicated, formulasOf = () => [], cookbookOf = () => "", subjectTypeOf = () => null, powerOf = () => 0, addPowerOf = () => ({}) }) {
+export function panelModel({ record, tables, linked, today, loc, bucketLoc, judge, facilityEditable = false, owns, entries = {}, levelOf = () => null, intBonusOf = () => 0, paceOf = () => PACE.dedicated, formulasOf = () => [], cookbookOf = () => "", subjectTypeOf = () => null, powerOf = () => 0, addPowerOf = () => ({}) }) {
   const open = openProjects(record.projects);
   const nameOf = (uuid) => linked.find((a) => a.uuid === uuid)?.name ?? loc("gone");
   const imgOf = (uuid) => linked.find((a) => a.uuid === uuid)?.img ?? "";
@@ -1148,7 +1152,7 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
       label: loc(`facility.${key}`),
       value: raw ?? "",
       text: raw === null ? "" : goldText(raw),
-      editable: judge,
+      editable: facilityEditable === true,
       unit: loc("gp"),
       inputLabel: loc("facilityInput", { label: loc(`facility.${key}`) }),
       users,
@@ -1227,8 +1231,8 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
         withdrawLabel: loc("withdrawDay", { day: row.day }),
       };
     });
-    // The due: the Judge's box while it cannot be computed from the rates, else text (the computed due, or the Judge's days).
-    const dueByHand = judge && prog.dueBy !== "ladder";
+    // The due: a box for a viewer who may act on the project while it cannot be computed from the rates, else text (the computed due, or the days entered by hand).
+    const dueByHand = can && prog.dueBy !== "ladder";
     const dueRow = {
       byHand: dueByHand,
       label: dueByHand ? loc("dueByHand") : loc("dueRow"),
@@ -1310,11 +1314,11 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
         label: loc(`cost.${key}`),
         value: p.costs[key] ?? "",
         text: goldText(p.costs[key]),
-        editable: judge,
+        editable: can,
         inputLabel: loc("costInput", { label: loc(`cost.${key}`) }),
         tip: loc("costTip", { label: loc(`cost.${key}`), cite: citeOf("costs") }),
       })),
-      paid: { value: p.paid.material ?? "", text: goldText(p.paid.material), editable: judge, label: loc("paid"), inputLabel: loc("paidInput"), tip: p.paid.day === null ? loc("paidTip") : loc("paidTipDay", { day: p.paid.day }) },
+      paid: { value: p.paid.material ?? "", text: goldText(p.paid.material), editable: can, label: loc("paid"), inputLabel: loc("paidInput"), tip: p.paid.day === null ? loc("paidTip") : loc("paidTipDay", { day: p.paid.day }) },
       progress: {
         text: due === null ? goldText(done) : loc("progress", { done: goldText(done), due: goldText(due) }),
         label: loc("credited"),

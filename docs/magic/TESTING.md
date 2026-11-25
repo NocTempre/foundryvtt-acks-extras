@@ -1804,19 +1804,20 @@ ladder and the level restored, and the procedure taken off on each seat.
 
 ## The rung editor (R-e)
 
-A Judge edits an imported invocation-level ladder inline: in the effect-row editor (a
+Whoever may edit the spell edits an imported invocation-level ladder inline: in the effect-row editor (a
 spell sheet's Mechanics tab, a row's Edit button) and on the spell sheet's Overview.
 Offline: `tools/test-rung-editor.mjs`. Live: `tools/live/magic-rung-editor.mjs`, the GM seat
 and a Player seat together (`SEAT_GM`, `SEAT_PLAYER`).
 
 ### Fixtures
 
-One spell Item the walk creates (`type: "spell"`, ownership default Owner so the Player seat
-owns it), carrying an invented three-rung ladder on a damage row's `value` and on
-`target.count` (model `creature`, which shows the count on the Overview). The walk tracks its
-uuid and sweeps it at the end; nothing else is made. The Player must be no GM and an owner of
-the spell, so that only `game.user.isGM` can be what refuses a write. A counter hook on the GM
-seat (`updateItem` for the spell's uuid) is what "written once" is read from.
+Two spell Items the walk creates (`type: "spell"`), each carrying an invented three-rung
+ladder on a damage row's `value` and on `target.count` (model `creature`, which shows the count
+on the Overview): one at ownership default Owner, so the Player seat owns it, and one at
+default Observer, so it only observes. The walk tracks both uuids and sweeps them at the end;
+nothing else is made. The Player must be no GM, since a GM owns every document and proves
+nothing about an ownership gate. A counter hook per spell on the GM seat (`updateItem` for its
+uuid) is what "written once" and "no write" are read from.
 
 ### Steps
 
@@ -1848,20 +1849,25 @@ seat (`updateItem` for the spell's uuid) is what "written once" is read from.
    fixture's flag was written raw, so the sheet's first `submit()` fills schema defaults into
    it (a write of `target.count.*` defaults and the core strings, not the draft): take that
    submit as setup, before the counter is read, and the submit under test then writes nothing.
-9. **A Player.** The Player seat opens the same editor and the Overview. *Observable:* the
-   rung boxes are read-only, no rung button and no footer or bar is drawn, the ladder's own
-   kind buttons are disabled and so is "By invocation level" on every figure (the other
-   figures' Flat and By caster level stay on: a click there moves nothing on or off the
-   invocation scale), every call the Player's client makes to add, change, remove, restore, save or
-   switch is refused, and the GM seat's counter does not move.
+9. **A Player who owns the spell.** The Player seat opens the same editor, edits a rung and
+   saves. *Observable:* the rung boxes are editable, the footer is drawn and every kind button
+   is on, and the GM seat's counter moves by exactly one write, the rung marked `edited`.
+10. **The owner's Overview and Unaudited.** *Observable:* the count's ladder is editable with
+    its three kind buttons on; Provenance draws the Unaudited checkbox, and a tick persists
+    across a reopen.
+11. **A Player who only observes a spell** (the second fixture). *Observable:* the Mechanics
+    tab draws no row Edit; the Overview's rung boxes are read-only with no rung button or bar,
+    the count's kind buttons are off, typing leaves the draft as stored, no Unaudited checkbox
+    is drawn, and the second counter does not move.
 
 ### Drive mechanics
 
 A rung is typed by setting the box's value and dispatching `input` then `change` with
 `bubbles`: the `input` moves the draft, and the `change` must reach nothing, which is what the
 update counter proves. Buttons are clicked, not driven through their actions, except for the
-Player's refusals, which call the window's own `DEFAULT_OPTIONS.actions` as a Player's client
-would. After an add or a remove the part redraws, so the boxes are looked up again by
+Player's Save, which calls the window's own `DEFAULT_OPTIONS.actions` as a Player's client
+would. A seat that cannot edit the spell is drawn no row Edit, so its half is walked on the
+Overview alone. After an add or a remove the part redraws, so the boxes are looked up again by
 `data-rung-at` / `data-rung-value` under `[data-rung-ladder="<field or path>"]`.
 
 ### Teardown
@@ -1981,7 +1987,10 @@ open it and cannot write it, which makes every Player write a relayed one), `mag
 `magic/research-lena` (a character the Player owns who is never put on the roster) and
 `magic/research-part` (an item dropped as a component), and for step 13 `magic/research-spell` (a spell),
 `magic/research-gear` and `magic/research-gear2` (items a Finish delivers) and `magic/research-relic` (an
-item to identify). Each step that needs a known shape starts
+item to identify), `magic/research-lena-rod` (a charged item Lena holds, so the Player's charge goes
+into an item it owns on a character that is not the researcher) and `magic/research-place-owned` (a
+location at default ownership Owner, so the Player seat owns it and writes its facility values and a
+project's level, costs, paid and due directly). Each step that needs a known shape starts
 it: the place's research flag is unset and its roster is rewritten to the hero and Pell
 (`lib/place.mjs` `addOccupant`) at the start and the end, since a kept fixture carries what the last
 walk left. A counter on `updateActor` for the place and the hero, on the GM seat, is what "written"
@@ -2000,7 +2009,9 @@ list as the others).
 2. **A facility value.** Type 9000 in the library input. *Observable:* one write of
    `flags.acks-extras.magic.facilities.library`, and the face reads it back. The Player seat's tab
    shows the value as text, no input, with Storage absent from its strip; its `setFacility` answers
-   `judge`.
+   `owner`. Then the Judge's seat gives the Player Owner of the place (`ownership.<Player's user id>` 3,
+   asserted on the Player seat first) and the Player seat's tab draws the inputs and writes a value through
+   them, which persists on reopen; the grant is taken back at the end of the step.
 3. **A Judge's project, no level.** `research.create` from the GM seat with no level, which reads as
    unread whatever the world has imported. *Observable:* an open
    project stamped with the calendar day, its card drawn with the facility chip unread (no words, a
@@ -2008,7 +2019,7 @@ list as the others).
    one.
 4. **A Player starts one.** From the Player seat, for the hero (no level), Pell, Lena and with a cost.
    *Observable:* the hero's is written (the answer came from the GM's client); Pell's is `owner`, Lena's
-   is `researcher` and a cost is `judge`, each writing nothing.
+   is `researcher` and the common mark is `judge`, each writing nothing; a cost on the hero's is written.
 5. **The facility, imported.** Override `libraryProse`, `researchLadder`, `researchLadderNote`,
    `researchProse` and `assistantProse` with invented figures, and set the hero to level 5 and Pell to level 4 (`table-store.mjs` `setOverride`; a table another hand overrode blocks the walk),
    then the Judge enters level 2 on both projects. *Observable:* the second level's minimum is the first level's plus one step; with two open projects the
@@ -2017,7 +2028,8 @@ list as the others).
    the GM seat it is written with `warn: "facility"`, and `gate` agrees for each seat.
 6. **The controls.** The GM types a material cost, the material paid and a level. *Observable:* each
    writes its field and leaves the rest. On the Player seat the Player's own project draws its controls
-   with none disabled by the sheet's lock and none of the Judge's fields, and Pell's project draws none;
+   with none disabled by the sheet's lock, level, costs and material paid among them, written through the
+   relay, and Pell's project draws none;
    the assistant pick offers only linked characters not already on it, adds one and removes it, each
    relayed.
 7. **The bucket.** Drop the item on the project's bucket from the Player seat. *Observable:* a row of
@@ -2053,12 +2065,14 @@ list as the others).
    researcher's rate (`progress().people[0].rate`) is the printed rate on the spell project and the
    footnote's on the item. Change the list to name the item kind's word: the two swap. Override the
    footnote with the rate alone: both are null. No kind is fixed in the module; the list is the page's.
-12. **The Judge's due, Post days… and withdrawing (board 16).** Override the ladder again with
+12. **The due, Post days… and withdrawing (board 16).** Override the ladder again with
    `marked: false` rows and start a project for the hero with a research cost and no assistant.
    *Due:* with the rates read the due is computed (12 days) and shown as text with no box; override the
    rows with no `marked` and the Judge's tab draws a days-due box, blank, labelled, its tooltip naming the
    ladder's page, and no text; type 7 and `dueDays` is written once and the standing reads the Judge's 7.
-   The Player's tab shows 7 as text with no box, and the Player's own `update` of `dueDays` is `judge`. Read the rows
+   The Player's tab for the hero's project, which the Player owns, draws the same box with the sheet's lock
+   lifted and a Player's `update` of `dueDays` there is written; on Pell's project it shows 7 as text with no
+   box and the Player's `update` of `dueDays` is `owner`. Read the rows
    again and the computed 12 is text, the box gone. *Post days…:* the Judge posts the next day, presses
    the project's Post days… button (the label differs from the Player's, and no Post day stands beside it),
    and the prompt opens in the module's classes at 1 day from today with dedicated pressed. Type 4 days from

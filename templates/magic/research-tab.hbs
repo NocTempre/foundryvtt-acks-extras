@@ -2,7 +2,7 @@
       the facility values, then each open project with its researchers, costs,
       credited research and components bucket, with the days posted and credited
       as a strip and, beneath it, the posted days listed with an X to withdraw each,
-      the Judge's days-due box while the due cannot be computed, the pace a day is
+      a days-due box while the due cannot be computed, the pace a day is
       worked at and the Post control (a Judge's opens a prompt for a range of days). A control
       writes by its own listener, so the sheet's submit-on-change never sees it;
       the pace radios belong to no form (`form` names none), so their value is
@@ -97,7 +97,7 @@
 
       <div class="acks-extras-research__parts">
         <span>{{levelLabel}}</span>
-        {{#if judge}}
+        {{#if can}}
         <input type="number" class="acks-input acks-input--num" min="1" step="1" data-research-control data-research-field="level" value="{{level}}" aria-label="{{levelLabel}}" data-tooltip-text="{{levelTip}}">
         {{else}}
         <span class="acks-nums" data-tooltip-text="{{levelTip}}">{{level}}</span>
@@ -113,14 +113,14 @@
         {{#each costs}}
         <span data-tooltip-text="{{tip}}">{{label}}</span>
         {{#if editable}}
-        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-field="costs.{{key}}" value="{{value}}" aria-label="{{inputLabel}}" data-tooltip-text="{{tip}}">
+        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-control data-research-field="costs.{{key}}" value="{{value}}" aria-label="{{inputLabel}}" data-tooltip-text="{{tip}}">
         {{else}}
         <span class="acks-nums" data-tooltip-text="{{tip}}">{{text}}</span>
         {{/if}}
         {{/each}}
         <span>{{paid.label}}</span>
         {{#if paid.editable}}
-        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-field="paid.material" value="{{paid.value}}" aria-label="{{paid.inputLabel}}" data-tooltip-text="{{paid.tip}}">
+        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-control data-research-field="paid.material" value="{{paid.value}}" aria-label="{{paid.inputLabel}}" data-tooltip-text="{{paid.tip}}">
         {{else}}
         <span class="acks-nums" data-tooltip-text="{{paid.tip}}">{{paid.text}}</span>
         {{/if}}
@@ -131,7 +131,7 @@
         </span>
         <span{{#if due.byHand}} data-tooltip-text="{{due.tip}}"{{/if}}>{{due.label}}</span>
         {{#if due.byHand}}
-        <input type="number" class="acks-input acks-input--num" min="1" step="1" data-research-field="dueDays" value="{{due.value}}" aria-label="{{due.inputLabel}}" data-tooltip-text="{{due.tip}}">
+        <input type="number" class="acks-input acks-input--num" min="1" step="1" data-research-control data-research-field="dueDays" value="{{due.value}}" aria-label="{{due.inputLabel}}" data-tooltip-text="{{due.tip}}">
         {{else}}
         <span class="acks-nums" data-research-due data-tooltip-text="{{due.tip}}">{{due.text}}</span>
         {{/if}}

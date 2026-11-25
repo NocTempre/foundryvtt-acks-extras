@@ -3,17 +3,20 @@
  * Research tab of its sheet (`scripts/magic/research-project*.mjs`,
  * `research-tab.mjs`). Walks docs/magic/TESTING.md "Research projects (M-q1)" on
  * the GM seat and a Player seat: the tab after Storage on a place with no
- * market, the Judge's facility inputs and a Player's read-only values, a Judge's
+ * market, the facility inputs of the place's owner and the read-only values of a Player who only observes
+ * the place (whose write is refused as the owner's), a Judge's
  * project and a Player's started through the relay for a character the Player
- * owns (and refused for one the Player does not, one not linked and a Judge's
- * field), the facility chip unread with no level entered and read against an
+ * owns (and refused for one the Player does not, one not linked and the common mark, which is the Judge's),
+ * the controls a researcher's owner has on the project (level, costs, paid, due) used through the relay
+ * from a place that is only observed, the facility chip unread with no level entered and read against an
  * invented minimum once the registry holds one, a Player blocked and a Judge
  * warned below it, the controls a Player is left (assistant, close), the
  * components bucket by a drop and an X, and the researcher's derived link, which
  * writes nothing on the character.
  *
- * Section 12 walks board 16: the Judge's days-due box (drawn only while the due cannot be computed, a
- * Player shown the due as text and refused the write), the Judge's Post days… prompt (a range with a
+ * Section 12 walks board 16: the days-due box (drawn only while the due cannot be computed, for whoever
+ * may act on the project: the Player who owns the researcher writes it, a Player who does not own it is shown the due as
+ * text and refused the write), the Judge's Post days… prompt (a range with a
  * skipped day, a Player's button staying Post day and a Player's range refused) and withdrawing a
  * posted day (a waiting day's dashed cell and tag, a Player's own project, a Player refused on
  * another's, a credited day with no X).
@@ -30,7 +33,12 @@
  * user does (the radios, a real drop event on the zone, Confirm). A new scroll is read back off the researcher (marked a magic scroll,
  * recording the spell and the project), a charge off the kept rod (`system.charges.value` up by one, the maximum with it, the effect
  * listed), Take effect now opens the ordinary cast dialog and leaves the ritual waiting when it is cancelled, and a Player's own
- * researcher is placed through the relay while another character's rod is held with its reason. Every project it places is already closed.
+ * researcher is placed through the relay while a rod held by a character the Player does not own is held with its reason and a rod
+ * held by a second character the Player owns (not the researcher) takes the charge. Every project it places is already closed.
+ *
+ * Section 15 walks ownership as the gate on a place the Player owns outright (default Owner): the Player sets a facility value, creates a
+ * project for the researcher they own with costs and a throw, edits its level, costs, paid and due through the inputs, and each value
+ * reads back from the flag and from the inputs after a reopen, while the common mark, Post days… and a post of another day stay refused.
  *
  * Sections 9 to 11 walk the posted days (M-q2, ruling 222): a day posted from a
  * Player's seat at the pace its radios chose, the day strip and chip, a past day
@@ -59,7 +67,10 @@
  * owns who is NOT on the roster) and `magic/research-part` (an item to drop as a
  * component), plus for section 13 `magic/research-spell`, `magic/research-gear`, `magic/research-gear2` and
  * `magic/research-relic` (a spell, two items and an item to identify), and for section 14 `magic/research-ritual-spell` (the hero's own
- * ritual spell), `magic/research-wand` (the hero's rod, brought to no charge and no stored effect at the step's start) and `magic/research-stray-rod` (a rod Pell holds). The place's research record and roster are set at the start and the
+ * ritual spell), `magic/research-wand` (the hero's rod, brought to no charge and no stored effect at the step's start), `magic/research-stray-rod` (a rod Pell holds) and
+ * `magic/research-lena-rod` (a rod Lena holds, who is a second character the Player owns and who is not the researcher; brought to no charge
+ * and no stored effect at the step's start), and for section 15 `magic/research-place-owned` (a location with no market at ownership default
+ * Owner, the hero on its roster). The places' research records and rosters are set at the start and the
  * end; the run's overrides are cleared in the finally. Nothing else is made.
  */
 import { connect } from "./_driver.mjs";
@@ -164,7 +175,7 @@ try {
   check("the Judge's tab holds an input for the library and one for the workshop, a New project button and no element with an id but the ones lib's a11y binder seeds from the window", t1.active && t1.fac.join() === "library,workshop" && t1.newBtn && t1.ids === 0, t1);
   check("no open project, so no count in the header", t1.headerChip === false);
 
-  section("2. a facility value is the Judge's");
+  section("2. a facility value is the place's owner's");
   const w0 = await writes();
   const f1 = await run(gm, U, `
     await change(tab().querySelector('[data-research-facility="library"]'), "9000");
@@ -178,7 +189,7 @@ try {
     return out;`, ids);
   check("the Player may only observe the place, so every write of theirs is relayed", f2.isGM === false && f2.writable === false, f2);
   check("the Player's tab shows the value as text with no input, and the tab is theirs although Storage is not", f2.inputs === 0 && /9000/.test(f2.text) && f2.tabs.includes("research") && !f2.tabs.includes("storage"), f2);
-  check("a Player's facility write is refused where it runs, as the Judge's alone, and nothing changed", f2.answer.ok === false && f2.answer.reason === "judge" && (await run(gm, U, `return flag().facilities?.library;`, ids)) === 9000, f2.answer);
+  check("a facility write from a Player who does not own the place is refused where it runs, as the owner's, and nothing changed", f2.answer.ok === false && f2.answer.reason === "owner" && (await run(gm, U, `return flag().facilities?.library;`, ids)) === 9000, f2.answer);
 
   section("3. a Judge's project, and what the chip says with no level entered");
   const p1 = await run(gm, U, `
@@ -198,11 +209,11 @@ try {
     const own = await research().create(a, { kind: "spell", subject: { name: "QA Scroll" }, researcher: ID.hero });
     const other = await research().create(a, { kind: "spell", researcher: ID.pell });
     const away = await research().create(a, { kind: "spell", researcher: ID.lena });
-    const costs = await research().create(a, { kind: "spell", researcher: ID.hero, costs: { research: 1 } });
+    const common = await research().create(a, { kind: "spell", researcher: ID.hero, common: true });
     await sleep(900);
-    return { own: { ok: own.ok, warn: own.warn, id: own.id }, other: other.reason, away: away.reason, costs: costs.reason, held: projects().length };`, ids);
+    return { own: { ok: own.ok, warn: own.warn, id: own.id }, other: other.reason, away: away.reason, common: common.reason, held: projects().length };`, ids);
   check("a character the Player owns is started from the Player's seat (the answer came from the GM's client)", r1.own.ok === true && !r1.own.warn && r1.held === 2, r1);
-  check("Pell (not the Player's) is the owner's refusal, Lena (not on the roster) is the roster's, and a cost is the Judge's", r1.other === "owner" && r1.away === "researcher" && r1.costs === "judge", r1);
+  check("Pell (not the Player's) is the owner's refusal, Lena (not on the roster) is the roster's, and the common mark in a create is the Judge's (nothing is written, so two projects are held)", r1.other === "owner" && r1.away === "researcher" && r1.common === "judge" && r1.held === 2, r1);
   const IDB = r1.own.id;
 
   section("5. the facility chip reads the imported figures once the registry holds them");
@@ -264,7 +275,9 @@ try {
     const out = {
       mineDisabled: [...c.querySelectorAll("[data-research-control]")].filter((e) => e.disabled).length,
       mineControls: c.querySelectorAll("[data-research-control]").length,
-      judgeFields: c.querySelectorAll('[data-research-field="level"], [data-research-field^="costs"], [data-research-field^="paid"]').length,
+      ownFields: c.querySelectorAll('[data-research-field="level"], [data-research-field^="costs"], [data-research-field^="paid"]').length,
+      ownFieldsDisabled: [...c.querySelectorAll('[data-research-field="level"], [data-research-field^="costs"], [data-research-field^="paid"]')].filter((e) => e.disabled).length,
+      theirFields: other.querySelectorAll('[data-research-field="level"], [data-research-field^="costs"], [data-research-field^="paid"]').length,
       theirs: other.querySelectorAll("[data-research-control]").length,
     };
     const pick = c.querySelector("[data-research-add-assistant]");
@@ -278,7 +291,25 @@ try {
     await sleep(900);
     out.after = projects().find((p) => p.id === ${JSON.stringify(IDB)})?.assistants;
     return out;`, ids);
-  check("the Player's own project draws live controls (none disabled by the sheet's lock) and none of the Judge's fields; a project of Pell's draws none", c2.mineControls >= 3 && c2.mineDisabled === 0 && c2.judgeFields === 0 && c2.theirs === 0, c2);
+  check("the Player's own project draws live controls (none disabled by the sheet's lock) including the level, cost and paid boxes of a researcher's owner; a project of Pell's draws none of them", c2.mineControls >= 3 && c2.mineDisabled === 0 && c2.ownFields >= 3 && c2.ownFieldsDisabled === 0 && c2.theirFields === 0 && c2.theirs === 0, c2);
+  // A researcher's owner who only observes the place writes the project's level, cost and paid through the relay.
+  const c2b = await run(player, U, `
+    await open();
+    const IDB = ${JSON.stringify(IDB)};
+    const p = () => projects().find((x) => x.id === IDB);
+    const out = { writable: place().canUserModify(game.user, "update") };
+    await change(card(IDB).querySelector('[data-research-field="costs.material"]'), "11");
+    await change(card(IDB).querySelector('[data-research-field="paid.material"]'), "11");
+    out.material = p().costs.material;
+    out.paid = p().paid.material;
+    out.paidDay = p().paid.day;
+    await change(card(IDB).querySelector('[data-research-field="level"]'), "3");
+    out.level3 = p().level;
+    await change(card(IDB).querySelector('[data-research-field="level"]'), "2");
+    out.level2 = p().level;
+    out.shown = card(IDB).querySelector('[data-research-field="costs.material"]')?.value;
+    return out;`, ids);
+  check("the Player who owns the researcher and only observes the place writes the project's material cost (11), its material paid (11, stamped with the day) and its level (3, then 2) through the relay, each read back from the flag", c2b.writable === false && c2b.material === 11 && c2b.paid === 11 && Number.isInteger(c2b.paidDay) && c2b.level3 === 3 && c2b.level2 === 2 && c2b.shown === "11", c2b);
   check("the Player adds an assistant from the linked characters (the hero is not offered to itself, Lena is not on the roster) and removes it, each relayed", c2.choices.join() === ids.pell && c2.assistants?.join() === ids.pell && Array.isArray(c2.after) && c2.after.length === 0, { choices: c2.choices, assistants: c2.assistants, after: c2.after });
 
   section("7. the components bucket");
@@ -497,14 +528,35 @@ try {
   check("typing 7 in the box writes dueDays once through the update field and the standing reads the Judge's 7", a2.writes === 1 && a2.stored === 7 && a2.prog.dueDays === 7 && a2.prog.dueBy === "judge" && a2.shown === "7", a2);
   const a3 = await run(player, U, `
     await open();
-    const c = card(${JSON.stringify(IDE)});
-    const out = { box: c.querySelectorAll('[data-research-field="dueDays"]').length, text: c.querySelector("[data-research-due]")?.textContent.trim() };
-    const w = (await research().update(place(), ${JSON.stringify(IDE)}, { dueDays: 3 }));
+    const IDE = ${JSON.stringify(IDE)};
+    const IDA = ${JSON.stringify(IDA)};
+    const c = card(IDE);
+    const theirs = card(IDA);
+    const pr = (id) => projects().find((p) => p.id === id);
+    const out = {
+      writable: place().canUserModify(game.user, "update"),
+      box: c.querySelectorAll('[data-research-field="dueDays"]').length,
+      boxValue: c.querySelector('[data-research-field="dueDays"]')?.value,
+      textGone: !c.querySelector("[data-research-due]"),
+      theirBox: theirs.querySelectorAll('[data-research-field="dueDays"]').length,
+      theirText: !!theirs.querySelector("[data-research-due]"),
+      before: { due: pr(IDA).dueDays, material: pr(IDA).costs.material },
+    };
+    const mine = await research().update(place(), IDE, { dueDays: 3 });
+    await sleep(900);
+    out.apiOk = mine.ok;
+    out.apiStored = pr(IDE).dueDays;
+    await open();
+    await change(card(IDE).querySelector('[data-research-field="dueDays"]'), "7");
+    out.typed = pr(IDE).dueDays;
+    const otherDue = await research().update(place(), IDA, { dueDays: 3 });
+    const otherCost = await research().update(place(), IDA, { costs: { material: 99 } });
     await sleep(600);
-    out.refused = w.reason;
-    out.kept = projects().find((p) => p.id === ${JSON.stringify(IDE)}).dueDays;
+    out.refused = [otherDue.reason, otherCost.reason];
+    out.kept = { due: pr(IDA).dueDays, material: pr(IDA).costs.material };
     return out;`, ids);
-  check("a Player sees the due as text (7) with no box, and their own write of it is refused as the Judge's, nothing changed", a3.box === 0 && a3.text === "7" && a3.refused === "judge" && a3.kept === 7, a3);
+  check("a Player who owns the researcher sees the days-due box holding 7 on their own project, with no due text, although the place is only observed; Pell's project (not theirs) shows the due as text with no box", a3.writable === false && a3.box === 1 && a3.boxValue === "7" && a3.textGone === true && a3.theirBox === 0 && a3.theirText === true, a3);
+  check("the Player's write of the due on their own project is accepted through the relay (3 by the API, then 7 typed in the box, read back from the flag), and a due write and a cost write on Pell's project are each refused as the owner's with nothing changed", a3.apiOk === true && a3.apiStored === 3 && a3.typed === 7 && a3.refused.join() === "owner,owner" && a3.kept.due === a3.before.due && a3.kept.material === a3.before.material, a3);
   const a4 = await run(gm, U, `
     ${tablesKit}
     await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
@@ -1038,6 +1090,8 @@ try {
   const ritualSpellFx = await gm.fixture("magic/research-ritual-spell", "Item", { name: "QA Research Ritual Spell", type: "spell", system: { lvl: 3 }, flags: { "acks-extras": { spell: { ritual: true } } } }, { parent: ids13.hero });
   const rodFx = await gm.fixture("magic/research-wand", "Item", { name: "QA Research Rod", type: "item", system: { charges: { value: 0, max: 0 } } }, { parent: ids13.hero });
   const strayRodFx = await gm.fixture("magic/research-stray-rod", "Item", { name: "QA Research Stray Rod", type: "item", system: { charges: { value: 0, max: 0 } } }, { parent: ids13.pell });
+  // Lena is the second character the Player owns (and not the researcher, and not on the roster): her rod is the one a Player's charge may go in besides the researcher's.
+  const lenaRodFx = await gm.fixture("magic/research-lena-rod", "Item", { name: "QA Research Lena Rod", type: "item", system: { charges: { value: 0, max: 0 } } }, { parent: ids13.lena });
   // A step that needs a known shape asserts it at its start: the kept rod holds no charge and records no effect.
   const shape2 = await run(gm, U, `
     const rod = await fromUuid(${JSON.stringify(rodFx.uuid)});
@@ -1047,6 +1101,14 @@ try {
     return { value: fresh.system.charges.value, max: fresh.system.charges.max, stored: fresh.flags?.["acks-extras"]?.magic?.stored ?? null, scrolls: [...fromUuidSync(ID.hero).items].filter((i) => /^Scroll of QA Research/.test(i.name)).length };`, ids13);
   if (shape2.scrolls) blocked("the hero already carries a scroll of one of the walk's spells: a leaving of a run that did not sweep");
   check("the step starts from a known shape: the kept rod holds no charge and no stored effect", shape2.value === 0 && shape2.max === 0 && shape2.stored === null, shape2);
+  const shape3 = await run(gm, U, `
+    const rod = await fromUuid(${JSON.stringify(lenaRodFx.uuid)});
+    await rod.update({ "system.charges.value": 0, "system.charges.max": 0, "flags.acks-extras.magic.-=stored": null });
+    await sleep(400);
+    const fresh = await fromUuid(${JSON.stringify(lenaRodFx.uuid)});
+    const player = game.users.get(${JSON.stringify(playerId)});
+    return { value: fresh.system.charges.value, max: fresh.system.charges.max, stored: fresh.flags?.["acks-extras"]?.magic?.stored ?? null, holder: fresh.parent?.uuid, holderOwned: fresh.parent?.testUserPermission(player, "OWNER") === true, strayHolderOwned: fromUuidSync(ID.pell).testUserPermission(player, "OWNER") === true };`, ids13);
+  check("the second charged item starts from a known shape: Lena's rod holds no charge and no stored effect, Lena is not the researcher and the Player owns her, and the Player owns no part of Pell, who holds the stray rod", shape3.value === 0 && shape3.max === 0 && shape3.stored === null && shape3.holder === ids13.lena && shape3.holder !== ids13.hero && shape3.holderOwned === true && shape3.strayHolderOwned === false, shape3);
   const ritualSpec = { kind: "ritual", level: 5, subject: { uuid: ritualSpellFx.uuid, name: "QA Research Ritual Spell" } };
   const finishRitual = async (spec) => {
     const part = await mkPart("QA Research Component P");
@@ -1166,6 +1228,34 @@ try {
   for (const u of playerRun.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
   check("on the Player seat, an item another character holds leaves Confirm held with the owner reason and the API refuses it as itemOwner; the Player's own scroll is written through the relay and the project is answered", playerRun.prompt && playerRun.stray.okDisabled && playerRun.stray.why.length > 0 && playerRun.refusedApi === "itemOwner" && playerRun.outcome?.placed === "scroll" && playerRun.scrolls.length === 1, playerRun);
 
+  // The Player's charge goes in an item a second character they own holds, where the researcher holds no such item: ownership of the item is the gate.
+  const ownChargeProj = await finishRitual(ritualSpec);
+  const ownChargeRun = await run(player, U, `
+    ${snap}
+    ${chooser(ownChargeProj.id)}
+    const dlg = await choose();
+    if (!dlg) return { prompt: false };
+    const out = { prompt: true };
+    await pick(dlg, "charge");
+    await dropOn(dlg, ${JSON.stringify(strayRodFx.uuid)});
+    out.stray = shown(dlg);
+    await dropOn(dlg, ${JSON.stringify(lenaRodFx.uuid)});
+    out.own = shown(dlg);
+    dlg.querySelector('button[data-action="ok"]').click();
+    await until(() => proj(${JSON.stringify(ownChargeProj.id)})?.outcome?.placed === "charge", 120);
+    await until(() => newCards().length > 0, 80);
+    await sleep(1200);
+    const rod = await fromUuid(${JSON.stringify(lenaRodFx.uuid)});
+    out.outcome = proj(${JSON.stringify(ownChargeProj.id)})?.outcome;
+    out.charges = rod.system.charges;
+    out.stored = rod.flags?.["acks-extras"]?.magic?.stored ?? null;
+    out.heroRod = (await fromUuid(${JSON.stringify(rodFx.uuid)})).system.charges.value;
+    out.cards = newCards().map((m) => m.uuid);
+    return out;`, ids13);
+  for (const u of ownChargeRun.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("on the Player seat, a rod held by the Player's second character (not the researcher) leaves Confirm enabled where the stray rod of a character they do not own had it held with a reason", ownChargeRun.prompt && ownChargeRun.stray.okDisabled === true && ownChargeRun.stray.why.length > 0 && ownChargeRun.own.okDisabled === false && ownChargeRun.own.dropActive === true, { stray: ownChargeRun.stray, own: ownChargeRun.own });
+  check("Confirm stores the charge in that rod: `system.charges.value` is 1 with the maximum, the effect is recorded under the module's magic flag naming the project, the project is answered `placed: charge`, and the researcher's own rod keeps the one charge the Judge's run stored, with no second",ownChargeRun.outcome?.placed === "charge" && ownChargeRun.charges?.value === 1 && ownChargeRun.charges.max === 1 && ownChargeRun.stored?.length === 1 && ownChargeRun.stored[0].project === ownChargeProj.id && ownChargeRun.heroRod === chargeRun.charges?.value &&ownChargeRun.cards.length === 1, ownChargeRun);
+
   // A third ritual: Take effect now casts first. A cancelled cast leaves the ritual waiting; a cast that goes through answers it.
   const nowProj = await finishRitual(ritualSpec);
   const nowRun = await run(gm, U, `
@@ -1271,6 +1361,88 @@ try {
     await fromUuidSync(ID.hero).update({ "flags.acks-extras.magic.-=formulas": null });
     return true;`, ids13);
 
+  section("15. ownership is the gate: a Player who owns the place and the researcher");
+  // The place is the Player's outright (default Owner), so every write of theirs runs on their own client and the GM seat proves nothing
+  // about it. The hero is on its roster. The ladder is unread, so the days-due box is drawn. Its own record keeps the other places' counts.
+  const ownedFx = await gm.fixture("magic/research-place-owned", "Actor", { name: "QA Research Place Owned", type: "acks-extras.location", ownership: { default: 3 } });
+  const U2 = ownedFx.uuid;
+  const o0 = await run(gm, U2, `
+    ${tablesKit}
+    await place().update({ ownership: { default: 3 }, "flags.acks-extras.-=magic": null, "system.roster": [] });
+    await sleep(300);
+    const P = await import("/modules/acks-extras/scripts/lib/place.mjs");
+    await P.addOccupant(place(), fromUuidSync(ID.hero));
+    await STORE.setOverride(D, "researchLadder", ${LADDER_UNREAD}, { sourceName: "qa-research-project" });
+    await sleep(600);
+    return { owner: place().ownership.default, magic: !!place().flags?.["acks-extras"]?.magic, roster: place().system.roster.map((r) => r.uuid), market: place().system.hasMarket };`, ids);
+  check("the owned place starts at ownership Owner for every player with no record, the hero on its roster and no market", o0.owner === 3 && !o0.magic && o0.roster.join() === ids.hero && o0.market === false, o0);
+  const ow1 = await run(player, U2, `
+    await open();
+    const input = (key) => tab().querySelector('[data-research-facility="' + key + '"]');
+    const out = { isGM: game.user.isGM, owner: place().isOwner, writable: place().canUserModify(game.user, "update"), inputs: tab().querySelectorAll("[data-research-facility]").length };
+    await change(input("library"), "8000");
+    out.typed = flag().facilities?.library;
+    out.api = (await research().setFacility(place(), "workshop", 1234)).ok;
+    await sleep(900);
+    out.workshop = flag().facilities?.workshop;
+    await close();
+    await open();
+    out.reopened = { library: input("library")?.value, workshop: input("workshop")?.value };
+    return out;`, ids);
+  const o1gm = await run(gm, U2, `return flag().facilities ?? null;`, ids);
+  check("a Player who owns the place draws both facility inputs, types 8000 in the library box and sets the workshop to 1234 by the API, writing directly (the Player may update the place), each stored on the place as the GM seat reads it and shown in the inputs after a reopen", ow1.isGM === false && ow1.owner === true && ow1.writable === true && ow1.inputs === 2 && ow1.typed === 8000 && ow1.api === true && ow1.workshop === 1234 && ow1.reopened.library === "8000" && ow1.reopened.workshop === "1234" && o1gm?.library === 8000 && o1gm?.workshop === 1234, { ow1, o1gm });
+  const o2 = await run(player, U2, `
+    const made = await research().create(place(), { kind: "spell", subject: { name: "QA Owned Lantern" }, researcher: ID.hero, costs: { research: 1000 }, throw: { target: 14 } });
+    await sleep(900);
+    const id = made.id;
+    const common = await research().create(place(), { kind: "spell", researcher: ID.hero, common: true });
+    const p = () => projects().find((x) => x.id === id);
+    const out = { made: { ok: made.ok, warn: made.warn, id }, commonRefused: common.reason, held: projects().length, created: { research: p()?.costs?.research, target: p()?.throw?.target } };
+    await until(() => research().progress(place(), id)?.dueBy !== "ladder", 80);
+    await open();
+    await change(card(id).querySelector('[data-research-field="level"]'), "3");
+    await change(card(id).querySelector('[data-research-field="costs.material"]'), "15");
+    await change(card(id).querySelector('[data-research-field="paid.material"]'), "15");
+    out.boxDrawn = !!card(id).querySelector('[data-research-field="dueDays"]');
+    await change(card(id).querySelector('[data-research-field="dueDays"]'), "7");
+    const api = await research().update(place(), id, { throw: { target: 16 } });
+    await sleep(700);
+    const read = () => ({ level: p().level, material: p().costs.material, paid: p().paid.material, paidDay: p().paid.day, due: p().dueDays, research: p().costs.research, target: p().throw?.target });
+    out.written = read();
+    out.api = api.ok;
+    await close();
+    await open();
+    const c = card(id);
+    const val = (field) => c.querySelector('[data-research-field="' + field + '"]')?.value;
+    out.reopened = { level: val("level"), material: val("costs.material"), paid: val("paid.material"), due: val("dueDays"), research: val("costs.research") };
+    out.afterReopen = read();
+    return out;`, ids);
+  const o2gm = await run(gm, U2, `
+    const p = projects().find((x) => x.id === ${JSON.stringify(o2.made.id)});
+    return p ? { level: p.level, material: p.costs.material, paid: p.paid.material, due: p.dueDays, research: p.costs.research, target: p.throw?.target, open: projects().length } : null;`, ids);
+  check("a Player who owns the place and the researcher creates a project with a research cost of 1000 and a throw target of 14 (written, no refusal), while the common mark in a create is refused as the Judge's and writes nothing", o2.made.ok === true && !o2.made.warn && o2.commonRefused === "judge" && o2.held === 1 && o2.created.research === 1000 && o2.created.target === 14, o2);
+  check("the same Player edits the project's level (3), material cost (15), material paid (15, stamped with the day), days due (7, a box drawn while the due cannot be computed) and throw target (16, by the API); each reads back from the flag", o2.boxDrawn === true && o2.api === true && o2.written.level === 3 && o2.written.material === 15 && o2.written.paid === 15 && Number.isInteger(o2.written.paidDay) && o2.written.due === 7 && o2.written.target === 16 && o2.written.research === 1000, o2.written);
+  check("each of those values persists on a reopen of the sheet: the inputs show 3, 15, 15, 7 and the untouched research cost 1000, the flag still holds them, and the GM seat reads the same from the place", o2.reopened.level === "3" && o2.reopened.material === "15" && o2.reopened.paid === "15" && o2.reopened.due === "7" && o2.reopened.research === "1000" && o2.afterReopen.level === 3 && o2.afterReopen.due === 7 && o2gm?.level === 3 && o2gm.material === 15 && o2gm.paid === 15 && o2gm.due === 7 && o2gm.target === 16 && o2gm.open === 1, { reopened: o2.reopened, gm: o2gm });
+  const o3 = await run(player, U2, `
+    const id = ${JSON.stringify(o2.made.id)};
+    const common = await research().update(place(), id, { common: true });
+    const range = await research().postRange(place(), id, { pace: "both", from: ${today + 10}, days: 2 });
+    const later = await research().post(place(), id, { pace: "dedicated", day: ${today + 1} });
+    await sleep(600);
+    const p = projects().find((x) => x.id === id);
+    await open();
+    const c = card(id);
+    return { common: common.reason, range: range.reason, later: later.reason, kept: { common: p.common === true, posted: p.posted.length }, postDay: !!c.querySelector('[data-action="postResearchDay"]'), postRange: !!c.querySelector('[data-action="postResearchDays"]'), commonBox: !!c.querySelector('[data-research-field="common"]') };`, ids);
+  check("an owner of the place and the researcher is still refused what is the Judge's: the common mark and Post days… as the Judge's and a post of another day than today as the day's, nothing is stored, and the card draws Post day with no range control and no common box", o3.common === "judge" && o3.range === "judge" && o3.later === "day" && o3.kept.common === false && o3.kept.posted === 0 && o3.postDay === true && o3.postRange === false && o3.commonBox === false, o3);
+  await run(gm, U2, `await close();`, ids);
+  await run(player, U2, `await close();`, ids);
+  await run(gm, U2, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
+    await place().update({ "flags.acks-extras.-=magic": null, "system.roster": [] });
+    await sleep(400);
+    return true;`, ids);
+
   section("Days teardown");
   await run(gm, U, `
     await research().close(place(), ${JSON.stringify(IDD)});
@@ -1289,7 +1461,7 @@ try {
     return true;`, ids);
   overrode = false;
   await gm.eval(`Hooks.off("updateActor", __rp.hookA); delete globalThis.__rp;`);
-  console.log("fixtures kept: magic/research-place, magic/research-hero, magic/research-pell, magic/research-lena, magic/research-part, magic/research-spell, magic/research-gear, magic/research-gear2, magic/research-relic, magic/research-ritual-spell, magic/research-wand, magic/research-stray-rod");
+  console.log("fixtures kept: magic/research-place, magic/research-hero, magic/research-pell, magic/research-lena, magic/research-part, magic/research-spell, magic/research-gear, magic/research-gear2, magic/research-relic, magic/research-ritual-spell, magic/research-wand, magic/research-stray-rod, magic/research-lena-rod, magic/research-place-owned");
   walkDone();
 } catch (e) {
   if (!(e instanceof WalkBlocked)) console.log("WALK ERROR:", e?.stack ?? e);

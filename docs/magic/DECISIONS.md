@@ -681,7 +681,7 @@ is the world calendar's weekday list, with the weekday objects themselves as ent
 a week is that many days. The two page references (RR 388 arcane, RR 422 divine) are the
 pages from which the M-i walk's import read both lifetime passages.
 
-## 2026-11-18 — Research projects at a location, and the facility (M-q1, rulings 220, 221)
+## 2026-11-18 — Research projects at a location, and the facility (M-q1, rulings 220, 221) — SUPERSEDED IN PART 2026-11-25
 
 Built to board 10, which the owner approved, redrawn as a tab of the location sheet. The
 owner on board 10: "Sure go with it." On where it lives: "Research board looks like it
@@ -827,7 +827,7 @@ with the default proceeded on and the counter:
 - *Cost:* a Judge can now hold power the imported lifetime would have ended, and nothing in the
   ledger says so but the pin; the lot is taken only by a minus, after every fading lot.
 
-## 2026-11-18 — The Research tab's parts beyond board 10 stand as built (owner, board 15)
+## 2026-11-18 — The Research tab's parts beyond board 10 stand as built (owner, board 15) — SUPERSEDED IN PART 2026-11-25
 
 M-q1 built parts of the Research tab that board 10 does not draw. The rule is
 `.claude/rules/ui-layout.md`'s, in the owner's words: "when creating or modifying a new UI
@@ -1049,7 +1049,7 @@ fact held in source.
   are imported again; a Judge's override of the ladder must carry `marked` on its rows for the same
   reason. No migration is written (owner, 2026-11-11: none for previous-version data).
 
-## 2026-11-18 — Research days: the Judge's due, Post days… and withdrawing (owner, board 16) — SUPERSEDED IN PART 2026-11-18
+## 2026-11-18 — Research days: the Judge's due, Post days… and withdrawing (owner, board 16) — SUPERSEDED IN PART 2026-11-18, 2026-11-25
 
 Supersedes in part the M-q2 entry ("Research days are posted and credited once passed"): its bullet
 "The tab's Post button posts today at the chosen pace; there is no count prompt" and its closing
@@ -1638,3 +1638,17 @@ the character.* The owner selected the neutral label. *A Withdraw on the Declare
 summoning made into a party fires no `acksExtras.summonsPlaced`, so a module that listens for arrivals does not hear
 it. A monster's hit points are rolled into its stash where the system's own setting rolls a new monster token's; one
 deployed later keeps that roll.
+
+## 2026-11-25 — The spell's audit mark, the Research tab's figures and a ritual's charge item follow ownership (T-0792, B1)
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule"; of spells (T-0793): "Spell owner can setup the spell as needed. … In either case the approach is follow foundry permissions, don't invent new ones." On the hub's cards the owner selected "Summons plus the party sheet" for this minor, and every one of the thirteen reversals; card 2's "Standing under the same answer" names the research boards' level, cost, paid and due. Severity still reads the role, as the owner's 2026-11-14 rule has it ("players get blocks, judges get warnings"); permission reads Foundry's ownership. Nothing on these surfaces is a Judge secret. An example: a Player who owns a hand-made place and the researcher on it types the place's facility values and a project's cost; on an imported place, which no player owns, the same Player reads those values as text.
+
+- **The spell's Unaudited mark** (spell sheet → Overview → Provenance) is drawn on the sheet's `editable`, where it was drawn for a GM. It records the data's audit state and hides nothing.
+- **The Research tab's facility values** are written by an owner of the place: the facility op refuses `owner` where it refused `judge`, and the inputs are drawn on `location.isOwner`. Every hand-made place is default Owner for every player (`location/module.mjs`), so on those places every player may set them.
+- **A project's throw, costs, material paid, due and, after it exists, its level** are written by an owner of the researcher, the per-project test the panel and `apply` already make. `JUDGE_FIELDS` keeps `common` alone. The due a hand typed reads "due entered by hand".
+- **A ritual's charge item** (Research tab → a ritual project's placement prompt) is any charged item the user owns, on whichever actor holds it; the seat asks `item.isOwner` and the relay asks the attested user's ownership of the item's holder. RR ch. 8, "Ritual Spells", sets the stored effect on a scroll or as a charge in a charged item and does not require the researcher to hold it, so no researcher test survives as a verdict.
+- **Left as built, not ruled:** Post days… (a range is a Judge's), a Player's post on a day other than today, and the Common check (board 18). No card names them; they wait on the owner.
+
+**Supersedes IN PART**, none under 7 days: "Research projects at a location, and the facility (M-q1, rulings 220, 221)", its "Who writes which field" (the costs, paid, throw and later level as the Judge's) and "the facility inputs exist only on a Judge's render"; "The Research tab's parts beyond board 10 stand as built (owner, board 15)", its "a project's level, cost and material-paid boxes for a Judge (text for a Player)", where the boxes are now an owner's; "Research days: the Judge's due, Post days… and withdrawing (owner, board 16)", the due only ("a Player sees the due as text always"), while Post days… stands. The charge-item rule was a build call (M-r2b) with no entry.
+
+**Strongest counter, MEDIUM.** A Player can now type the cost and the level their own project is read against, which M-q1 kept with the Judge because "it is the Judge who sees the project and can correct it". Held: the owner's rule makes the record its owner's, the Judge still writes every field, and the facility and assistant shortfalls still block a Player and warn a Judge.

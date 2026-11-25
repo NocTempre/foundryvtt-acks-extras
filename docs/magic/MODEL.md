@@ -183,10 +183,12 @@ applies at once and drops the figure's draft; closing a window drops its
 drafts, except across the close and reopen an Add or a Remove of a summon
 row's creature list makes, where the new window takes them up unsaved. The Overview's store (`spellFigureStore`) writes the figure's flag
 path through the spell's normalisation and lets core's strings follow, as a
-sheet submit does; a row writes through the row's own `store.write`, which
-makes the row the Judge's. The write is a Judge's (`game.user.isGM`, checked in
-every draft mutator and in Save): a Player sees the ladder read-only, with no
-bar and the kind buttons off the invocation scale, and no write is sent. A rung
+sheet submit does; a row writes through the row's own `store.write`. The write
+is whoever may edit the document's: the Overview reads the sheet's `isEditable`, the row editor its
+store's `editable()` (not in a locked pack, and `isOwner`), each checked in every
+draft mutator and in Save. A seat that cannot edit sees the ladder read-only,
+with no bar and the kind buttons off the invocation scale, and no write is sent;
+the Provenance section's Unaudited mark is drawn on the same `editable`. A rung
 a hand changed or added carries `hand`, and an edit keeps the figure and level
 it replaced (`was`, `wasAt`): the gold edge and the tooltip read them, and the
 page the spell cites stays on every imported rung's tooltip, alone where the
@@ -1278,15 +1280,15 @@ the API on `acksExtras.magic.research`) is `research-project-live.mjs`; the tab 
 sheet is `research-tab.mjs` and `templates/magic/research-tab.hbs`. The researcher's sheet links
 to a project and does not own it (`projectsOf`, derived, nothing written on the character).
 
-`facilities` is `{library, workshop}`, a gold value the Judge writes for each (null while unset,
+`facilities` is `{library, workshop}`, a gold value the place's owner writes for each (null while unset,
 counted as nothing). A project is `{id, kind, subject, level, costs, researcher, assistants, paid,
 posted, credited, dueDays, bucket, throw, status, opened, closed}`: its kind (spell, item, identify or ritual) and
 subject (`{uuid, name, img}`, blank for none); the level of effect the facility's minimum is read
-by; the three costs as due (material, component, research), blank until a Judge enters them; the
+by; the three costs as due (material, component, research), blank until the researcher's owner enters them; the
 researcher and assistants, uuids of the characters on the place's roster (stored occupants and
 scene tokens); the material paid at the start with its day; the days posted and not yet credited as
 `[{day, pace}]`; the research credited so far as `[{day, amount, by}]`, which only crediting writes;
-the Judge's `dueDays`; the components bucket as lib stores an answer, `[{uuid, qty, fit}]`; and
+the `dueDays` entered by hand; the components bucket as lib stores an answer, `[{uuid, qty, fit}]`; and
 `throw: {target}` where one is written. A finished project also holds `outcome`, `{result, die, total, target,
 day}`, written in the same write that closes it (Finish, below); an open project has none.
 
@@ -1302,13 +1304,17 @@ read through `research-tables.mjs`; nothing here holds one.
 Writes (`create`, `update`, `close`, `setFacility`) run where Foundry lets the seat write the
 location (`canUserModify`) and otherwise are asked of the GM's client under the handler
 `magicProject`, which applies the sender's rule (a Judge's is Foundry's attested GM, never the
-payload's). A Player may start a project for a character they own and change its subject,
-assistants and components; the facility values, the costs, the material paid, the throw and, once
-the project exists, the level are the Judge's. A project is closed and kept, never deleted.
+payload's; ownership is the sender's, read through `testUserPermission` on the document). A
+facility's value follows ownership of the place (`apply`'s facility op refuses `owner` where the
+sender does not own the location). Everything on a project follows ownership of its researcher:
+a user who owns the researcher may start the project and change its subject, level, costs, material
+paid, throw, days due, assistants and components. Only the common mark (`JUDGE_FIELDS`), Post days…
+and a Player's past-day post stay a Judge's. The Judge's role reads severity alone (`facilityGate`,
+`assistantGate`: a Player blocked, a Judge warned). A project is closed and kept, never deleted.
 
 The Research tab is `{id: "research"}` in the location sheet's `TABS.primary`, after Storage, on
-every place whether or not it has a market. It draws the facility values (inputs for the Judge,
-text for anyone else, with how many open projects use each), then per open project its
+every place whether or not it has a market. It draws the facility values (inputs for an owner of
+the place, `facilityEditable`, text for anyone else, with how many open projects use each), then per open project its
 researchers, level, costs, material paid, credited against due, the throw, one chip per facility
 verdict and the components bucket (lib's bucket, with a drop zone for those who may change it).
 A strip of day cells, a day chip and a rate on each participant's chip show the days (below). Finish
@@ -1377,9 +1383,10 @@ posted row's tooltip names the held days and the page of the rate they wait on. 
 day not yet credited is a row, "Day N · Pace", with a tag (posted, or waiting, whose tooltip names the page
 of the rate) and an X that withdraws it; anyone reads the list, and the X is drawn only where the viewer may
 withdraw (`canWithdraw`). The chip reads the day worked (credited plus posted) against the due. The due
-sits in the project's parts under the credited row: a Judge's number box (`dueDays`, written through the
-update field, its tooltip carrying the ladder's page) while the due cannot be computed (`dueBy` is not
-"ladder"), and text otherwise, the computed due once it can be, the Judge's days for a Player. The pace is a
+sits in the project's parts under the credited row: a number box for a viewer who may act on the project
+(`dueDays`, written through the update field, its tooltip carrying the ladder's page) while the due cannot be
+computed (`dueBy` is not "ladder"), and text otherwise, the computed due once it can be, the days entered by
+hand for anyone who may not act on it. The pace is a
 radio group per project, held per window and never written. A Player's Post posts today at that pace. A
 Judge's Post reads "Post days…" and opens a prompt, in the module's dialog classes, for the days, the first
 day (today) and the pace (pills, `aria-pressed`, starting on this window's pace), then calls `postRange`;
@@ -1408,7 +1415,7 @@ result. The pure model decides the order and holds no document; the world's half
 6. the result is written (below), then the bucket is settled, then the card is posted. A writer that throws
    is listed in `failed` and stops nothing after it.
 
-The throw (`throwPlan`) is the natural die plus a modifier against a target. The target is the Judge's stored
+The throw (`throwPlan`) is the natural die plus a modifier against a target. The target is the stored
 `throw.target`, else the ladder's rung for the researcher's class level, null where unread (then Finish is
 disabled and the API refuses). The modifier is the sum of the facility verdicts' bonuses plus the penalty a
 substituted share takes (`substitutionPenalty` over `substitutedShare`: the value of the rows fitted as
@@ -1446,6 +1453,13 @@ A seat writes everything directly only where `canFinish` holds (a Judge; else Fo
 location, the researcher, the identified item and delete every component, and a spell or item subject
 resolves); any other seat's Finish is relayed under `magicProject` and applied on the GM's client with the
 sender's rule.
+
+A cast ritual's closed project waits for its placement (`pending: "placement"`), answered through the tab's
+Choose… prompt by the researcher's owner (op `place`). A charge goes into an item held by an actor, and the item
+follows ownership of the requester: `chargeRefusal` takes `ownsItem`, the dropped item's `isOwner` on the seat and
+`who.owns(item.parentUuid)` where the op runs, so an item on another character the user owns takes it and the
+researcher need not hold it (RR ch. 8, Ritual Spells: the stored effect goes on a scroll or in a charged item).
+An item nobody holds is `chargeHeld`; one the user does not own is `itemOwner`.
 
 ## Blood sacrifice
 

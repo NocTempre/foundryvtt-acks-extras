@@ -75,6 +75,7 @@ export async function prepareResearchTab(sheet, context) {
     loc,
     bucketLoc,
     judge: game.user.isGM === true,
+    facilityEditable: location.isOwner === true,
     owns: deps.owns,
     entries,
     levelOf,
@@ -227,9 +228,9 @@ async function promptPlacement(project) {
     <div class="acks-extras-research-prompt__drop" data-placement-drop aria-disabled="true" data-tooltip-text="${esc(loc("placeDropTip"))}"><span data-placement-drop-text>${esc(loc("placeDrop"))}</span></div>
     <span class="acks-extras-research__cap" data-placement-why role="status"></span>
   </div>`;
-  const researcher = project.researcher;
-  const judge = game.user.isGM === true;
   let picked = null;
+  // Whether this user owns the dropped item: an embedded item follows its holder's ownership, and a GM owns every document.
+  let ownsPicked = false;
   return foundry.applications.api.DialogV2.prompt({
     classes: DIALOG_CLASSES,
     window: { title: loc("placeTitle", { name: project.subject.name || loc(`kind.${project.kind}`) }), icon: "fa-solid fa-moon" },
@@ -245,7 +246,7 @@ async function promptPlacement(project) {
       const confirm = root.querySelector('button[data-action="ok"]');
       const modeOf = () => form.querySelector('input[name="placement"]:checked')?.value ?? PLACEMENT.now;
       const refresh = () => {
-        const state = placementState(modeOf(), picked, { researcher, judge });
+        const state = placementState(modeOf(), picked, { ownsItem: ownsPicked });
         zone.toggleAttribute("data-active", state.dropActive);
         zone.setAttribute("aria-disabled", String(!state.dropActive));
         zoneText.textContent = picked?.name || loc("placeDrop");
@@ -258,9 +259,10 @@ async function promptPlacement(project) {
       };
       for (const radio of form.querySelectorAll('input[name="placement"]')) radio.addEventListener("change", refresh);
       takesDrops(zone, async (data) => {
-        if (placementState(modeOf(), null, { researcher, judge }).dropActive !== true) return;
+        if (placementState(modeOf(), null).dropActive !== true) return;
         const doc = data?.uuid ? await resolveDoc(data.uuid) : null;
         picked = heldItemInfo(doc);
+        ownsPicked = doc?.isOwner === true;
         refresh();
       });
       refresh();

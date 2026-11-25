@@ -194,7 +194,7 @@ function rig({ judge = true, canWrite = true, owned = ["A.hero"], linked = ["A.h
   return { loc, ops: M.projectOps(deps), clock };
 }
 
-await ta("a facility's value is the Judge's, whole or blank", async () => {
+await ta("a facility's value is the place's owner's, whole or blank", async () => {
   const { loc, ops } = rig();
   assert.deepEqual(await ops.setFacility(loc, "library", "9000"), { ok: true, key: "library", gp: 9000 });
   assert.deepEqual(await ops.setFacility(loc, "library", ""), { ok: true, key: "library", gp: null });
@@ -202,8 +202,12 @@ await ta("a facility's value is the Judge's, whole or blank", async () => {
   assert.equal((await ops.setFacility(loc, "moat", 5)).reason, "facility");
   assert.equal(M.readRecord(loc.flag).facilities.library, null);
   const player = rig({ judge: false });
-  assert.deepEqual(await player.ops.setFacility(player.loc, "library", 5), { ok: false, reason: "judge" });
+  assert.deepEqual(await player.ops.setFacility(player.loc, "library", 5), { ok: false, reason: "owner" }, "a Player who owns the researcher and not the place");
   assert.equal(player.loc.writes.length, 0);
+  const owner = rig({ judge: false, owned: ["L.a"] });
+  assert.deepEqual(await owner.ops.setFacility(owner.loc, "library", 5), { ok: true, key: "library", gp: 5 }, "a Player who owns the place sets it");
+  assert.equal(M.readRecord(owner.loc.flag).facilities.library, 5);
+  assert.equal((await owner.ops.setFacility(owner.loc, "moat", 5)).reason, "facility", "and is held to the keys that exist");
 });
 
 await ta("a project is created from the characters linked to the place, stamped with the day, and nobody else", async () => {
@@ -220,17 +224,19 @@ await ta("a project is created from the characters linked to the place, stamped 
   assert.equal((await ops.create(null, { kind: "spell", researcher: "A.hero" })).reason, "noLocation");
 });
 
-await ta("a Player starts a project for a character they own, and holds none of the Judge's fields", async () => {
+await ta("a Player starts a project for a character they own, with its costs, paid and throw, and holds only the Judge's common mark", async () => {
   const { loc, ops } = rig({ judge: false });
   loc.flag = { facilities: { library: 99999 } };
   assert.equal((await ops.create(loc, { kind: "spell", researcher: "A.pell" })).reason, "owner", "a linked character the Player does not own");
-  assert.equal((await ops.create(loc, { kind: "spell", researcher: "A.hero", costs: { research: 1 } })).reason, "judge");
-  assert.equal((await ops.create(loc, { kind: "spell", researcher: "A.hero", paid: { material: 1 } })).reason, "judge");
-  assert.equal((await ops.create(loc, { kind: "spell", researcher: "A.hero", throw: { target: 5 } })).reason, "judge");
+  assert.equal((await ops.create(loc, { kind: "spell", researcher: "A.pell", costs: { research: 1 } })).reason, "owner", "and its costs are no way round it");
+  assert.equal((await ops.create(loc, { kind: "spell", researcher: "A.hero", common: true })).reason, "judge");
   assert.equal(loc.writes.length, 0, "nothing was written by a refusal");
   const made = await ops.create(loc, { kind: "spell", subject: { name: "Lantern" }, level: 2, researcher: "A.hero" });
   assert.equal(made.ok, true);
   assert.equal(made.warn, undefined);
+  const priced = await ops.create(loc, { kind: "spell", level: 2, researcher: "A.hero", costs: { research: 1 }, paid: { material: 1 }, throw: { target: 5 }, dueDays: 3 });
+  assert.equal(priced.ok, true, "the costs, the material paid, the throw and the due are the researcher's owner's");
+  assert.deepEqual([priced.project.costs.research, priced.project.paid.material, priced.project.throw, priced.project.dueDays], [1, 1, { target: 5 }, 3]);
 });
 
 await ta("a project below its facility is blocked for a Player and warned for a Judge, and the minimum is read as one share", async () => {
@@ -275,10 +281,14 @@ await ta("an update changes the fields it names; a Player's holds to what the Ju
   pl.loc.flag = j.loc.flag;
   assert.equal((await pl.ops.update(pl.loc, id, { assistants: ["A.lena"], subject: { name: "Rod 2" } })).ok, true, "the researcher's owner changes the assistants and the subject");
   assert.equal((await pl.ops.update(pl.loc, id, { bucket: [] })).ok, true);
-  for (const patch of [{ level: 1 }, { costs: { research: 1 } }, { paid: { material: 1 } }, { throw: { target: 1 } }, { common: true }]) assert.equal((await pl.ops.update(pl.loc, id, patch)).reason, "judge", JSON.stringify(patch));
+  for (const patch of [{ level: 1 }, { costs: { research: 1 } }, { paid: { material: 1 } }, { throw: { target: 1 } }, { dueDays: 6 }]) assert.equal((await pl.ops.update(pl.loc, id, patch)).ok, true, `the researcher's owner writes ${JSON.stringify(patch)}`);
+  const written = M.readRecord(pl.loc.flag).projects[0];
+  assert.deepEqual([written.level, written.costs.research, written.paid.material, written.throw, written.dueDays], [1, 1, 1, { target: 1 }, 6]);
+  assert.equal((await pl.ops.update(pl.loc, id, { common: true })).reason, "judge", "the common mark stays the Judge's");
   const stranger = rig({ judge: false, owned: [] });
   stranger.loc.flag = j.loc.flag;
   assert.equal((await stranger.ops.update(stranger.loc, id, { assistants: [] })).reason, "owner");
+  for (const patch of [{ level: 1 }, { costs: { research: 1 } }, { paid: { material: 1 } }, { throw: { target: 1 } }, { dueDays: 6 }]) assert.equal((await stranger.ops.update(stranger.loc, id, patch)).reason, "owner", `another's owner is refused ${JSON.stringify(patch)}`);
   assert.equal((await stranger.ops.close(stranger.loc, id)).reason, "owner");
 });
 
@@ -306,11 +316,13 @@ await ta("a seat that cannot write the place asks the GM's client, and an unansw
   assert.deepEqual(await none.ops.setFacility(none.loc, "library", 5), { ok: false, reason: "noGm" });
 });
 
-await ta("the relayed rule is the requester's: a Player's request on a Judge's field is refused where it runs", async () => {
+await ta("the relayed rule is the requester's: a Player's request on what they do not own is refused where it runs", async () => {
   const { loc, ops } = rig({ judge: true });
   const player = { judge: false, owns: (u) => u === "A.hero" };
   loc.flag = { facilities: { library: 99999 } };
-  assert.equal((await ops.apply(loc, "facility", { key: "library", gp: 5 }, player)).reason, "judge");
+  assert.equal((await ops.apply(loc, "facility", { key: "library", gp: 5 }, player)).reason, "owner");
+  assert.deepEqual(await ops.apply(loc, "facility", { key: "library", gp: 5 }, { judge: false, owns: (u) => u === "L.a" }), { ok: true, key: "library", gp: 5 }, "the place's owner sets it");
+  loc.flag = { facilities: { library: 99999 } };
   assert.equal((await ops.apply(loc, "create", { spec: { kind: "spell", researcher: "A.pell" } }, player)).reason, "owner");
   assert.equal((await ops.apply(loc, "create", { spec: { kind: "spell", researcher: "A.hero", level: 2 } }, player)).ok, true);
   assert.equal((await ops.apply(loc, "wipe", { id: "n1" }, player)).reason, "op");
@@ -369,7 +381,11 @@ await ta("the GM's handler authorizes on the sender Foundry attested, never on t
   const other = await L.projectHandler({ locationUuid: loc.uuid, op: "create", args: { spec: { kind: "spell", researcher: "A.pell" } }, requestUserId: "pl1" });
   assert.deepEqual(other, { ok: false, reason: "owner" });
   const claim = await L.projectHandler({ locationUuid: loc.uuid, op: "facility", args: { key: "library", gp: 99 }, requestUserId: "pl1", judge: true });
-  assert.equal(claim.reason, "judge", "a payload's own claim of being the Judge changes nothing");
+  assert.equal(claim.reason, "owner", "a payload's own claim of being the Judge changes nothing");
+  loc.testUserPermission = (user) => user.id === "pl1";
+  const owned = await L.projectHandler({ locationUuid: loc.uuid, op: "facility", args: { key: "library", gp: 77 }, requestUserId: "pl1" });
+  assert.deepEqual([owned.ok, owned.gp], [true, 77], "the attested sender who owns the place writes its facility");
+  loc.testUserPermission = () => false;
   const gm = await L.projectHandler({ locationUuid: loc.uuid, op: "facility", args: { key: "library", gp: 99 }, requestUserId: null });
   assert.equal(gm.ok, true);
   assert.equal((await L.projectHandler({ locationUuid: "Actor.nowhere", op: "create" })).reason, "noLocation");
@@ -700,10 +716,10 @@ await ta("an assistant is gated when added, in an update and in a new project, b
   const warned = await judge.ops.update(judge.loc, jm.id, { assistants: ["A.pell", "A.kid"] });
   assert.deepEqual([warned.ok, warned.warn], [true, "assistantLevel"]);
   assert.deepEqual(M.readRecord(judge.loc.flag).projects[0].assistants, ["A.pell", "A.kid"], "a Judge's choice stands, and the one who does not count adds nothing");
-  assert.equal((await judge.ops.update(judge.loc, jm.id, { dueDays: 5 })).ok, true, "the due in days is the Judge's");
+  assert.equal((await judge.ops.update(judge.loc, jm.id, { dueDays: 5 })).ok, true, "the due in days is written by hand");
   assert.equal(M.readRecord(judge.loc.flag).projects[0].dueDays, 5);
-  assert.equal((await pl.ops.update(pl.loc, id, { dueDays: 5 })).reason, "judge");
-  assert.equal((await pl.ops.create(pl.loc, { kind: "spell", researcher: "A.hero", dueDays: 3 })).reason, "judge");
+  assert.equal((await pl.ops.update(pl.loc, id, { dueDays: 5 })).ok, true, "and by the researcher's owner");
+  assert.equal((await pl.ops.create(pl.loc, { kind: "spell", researcher: "A.hero", dueDays: 3 })).ok, true);
 });
 
 await ta("an update, a close and a facility change leave the posted days and the credited rows as they were", async () => {
@@ -796,7 +812,8 @@ t("the panel draws each facility with its value, who may write it and how many o
   const lib = p.facilities.find((f) => f.key === "library");
   assert.deepEqual([lib.value, lib.text, lib.editable, lib.users], [9000, "9000", false, 2]);
   assert.equal(p.facilities.find((f) => f.key === "workshop").text, "", "an unset value stays blank");
-  assert.equal(panel({}, { judge: true }).facilities[0].editable, true);
+  assert.equal(panel({}, { judge: true }).facilities[0].editable, false, "a role draws no input: the place's ownership does");
+  assert.equal(panel({}, { facilityEditable: true }).facilities.every((f) => f.editable === true), true, "the place's owner, a Player, gets both inputs");
   assert.match(lib.tip, /cite.library/);
 });
 
@@ -843,6 +860,8 @@ t("who may act: the researcher's owner and the Judge; anyone else reads", () => 
   assert.equal(mine.bucket.canDrop, true);
   assert.deepEqual(mine.addChoices.map((a) => a.uuid), ["A.pell"], "linked characters not already on the project");
   assert.equal(stranger.costs.every((c) => c.editable === false), true);
+  assert.deepEqual([stranger.paid.editable, mine.paid.editable], [false, true], "the material paid is the researcher's owner's");
+  assert.equal(mine.costs.every((c) => c.editable === true), true, "and so are the costs, for a Player who owns the researcher");
   const judge = panel(rec, { judge: true, owns: () => true });
   assert.equal(judge.projects[0].can, true);
   assert.equal(judge.projects[0].costs.every((c) => c.editable), true);
@@ -885,9 +904,10 @@ t("the tab writes no id and no title attribute, and a viewer's controls are the 
     assert.doesNotMatch(html, /<summary>[^]*<(button|a|input|select)\b[^]*<\/summary>/);
   }
   const player = render(panel(rec, { linked: [...linked, { uuid: "A.lena", name: "Lena", img: "" }] }));
-  assert.doesNotMatch(player, /data-research-facility/, "a Player gets no facility input");
-  assert.doesNotMatch(player, /data-research-field="(level|costs|paid)/, "a Player gets none of the Judge's fields");
+  assert.doesNotMatch(player, /data-research-facility/, "a viewer who does not own the place gets no facility input");
+  assert.match(render(panel(rec, { facilityEditable: true })), /data-research-facility="library"/, "a Player who owns the place does");
   const mine = player.slice(player.indexOf('data-project-id="a"'), player.indexOf('data-project-id="b"'));
+  for (const field of ["level", "costs.research", "costs.material", "paid.material"]) assert.match(mine, new RegExp(`data-research-control data-research-field="${field.replace(".", "\\.")}"`), `the researcher's owner gets ${field}, with the sheet's lock lifted`);
   assert.match(mine, /data-action="closeResearchProject"[^>]*data-research-control/);
   assert.match(mine, /data-research-add-assistant/);
   assert.match(mine, /data-action="removeResearchAssistant"[^>]*data-uuid="A\.pell"/);
@@ -895,7 +915,7 @@ t("the tab writes no id and no title attribute, and a viewer's controls are the 
   assert.doesNotMatch(theirs, /closeResearchProject|data-research-add-assistant|removeResearchAssistant|data-research-field/, "a project the viewer does not own draws no control");
   assert.match(player, /<button type="button" class="acks-btn acks-btn--roll" data-action="finishResearchProject" disabled data-tooltip-text="finishWhy.credited">/, "Finish is drawn disabled, with no control mark, while the research is not credited");
   assert.match(player, /finishWhy\.credited/, "and its reason is text on the surface");
-  const judge = render(panel(rec, { judge: true, owns: () => true }));
+  const judge = render(panel(rec, { judge: true, facilityEditable: true, owns: () => true }));
   assert.match(judge, /data-research-facility="library"/);
   assert.match(judge, /data-research-field="costs\.research"/);
   assert.match(judge, /data-research-field="paid\.material"/);
@@ -1054,10 +1074,10 @@ t("the tab keeps the pace in the window and never writes it", () => {
   assert.match(tab, /researchApi\.post\(this\.actor, id, \{ pace: paceOf\(this, id\) \}\)/, "Post posts the pace this window chose");
   assert.doesNotMatch(tab.slice(tab.indexOf("data-research-pace")), /researchApi\.update\(location, id, \{ ?pace/);
   assert.equal(JSON.stringify(M.UPDATE_FIELDS).includes("posted"), false);
-  assert.ok(M.UPDATE_FIELDS.includes("dueDays") && M.JUDGE_FIELDS.includes("dueDays"));
+  assert.ok(M.UPDATE_FIELDS.includes("dueDays") && !M.JUDGE_FIELDS.includes("dueDays"), "the due follows the researcher's ownership, not the role");
 });
 
-t("the Judge's days-due box stands only while the due cannot be computed, and a Player is shown the due as text", () => {
+t("the days-due box stands only while the due cannot be computed, and a viewer who may not act on the project is shown the due as text", () => {
   const unread = { id: "a", kind: "spell", researcher: "A.hero", dueDays: 5 };
   const box = dayPanel([unread], { tables: NOTHING, judge: true }).projects[0];
   assert.deepEqual([box.due.byHand, box.due.value, box.due.label], [true, 5, "dueByHand"], "no rate read: the Judge types the due");
@@ -1069,13 +1089,16 @@ t("the Judge's days-due box stands only while the due cannot be computed, and a 
   assert.deepEqual([computed.due.byHand, computed.due.text, computed.due.label], [false, "9", "dueRow"], "once computed the computed due is text, whatever the Judge entered");
   assert.match(computed.due.tip, /dueLadder/);
   const player = dayPanel([unread], { tables: NOTHING, judge: false }).projects[0];
-  assert.deepEqual([player.due.byHand, player.due.text], [false, "5"], "a Player sees the Judge's due as text");
-  assert.match(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: NOTHING }).projects[0].due.tip, /dueUnread.*cite.ladder/, "unknown: blank, the page in the tooltip");
-  assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: NOTHING }).projects[0].due.text, "");
+  assert.deepEqual([player.due.byHand, player.due.value, player.due.label], [true, 5, "dueByHand"], "the researcher's owner types the due, a Player included");
+  const stranger = dayPanel([unread], { tables: NOTHING, judge: false, owns: () => false }).projects[0];
+  assert.deepEqual([stranger.due.byHand, stranger.due.text], [false, "5"], "a viewer who does not own the researcher sees the due as text");
+  assert.match(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: NOTHING, owns: () => false }).projects[0].due.tip, /dueUnread.*cite.ladder/, "unknown: blank, the page in the tooltip");
+  assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: NOTHING, owns: () => false }).projects[0].due.text, "");
   const judgeHtml = render(dayPanel([unread], { tables: NOTHING, judge: true, owns: () => true }));
   assert.match(judgeHtml, /<input type="number"[^>]*data-research-field="dueDays" value="5"[^>]*aria-label="dueInput"[^>]*data-tooltip-text="dueByHandTip/);
   assert.doesNotMatch(judgeHtml, /\sid=/);
-  assert.doesNotMatch(render(dayPanel([unread], { tables: NOTHING, judge: false })), /dueDays/, "a Player's tab has no days-due field");
+  assert.match(render(dayPanel([unread], { tables: NOTHING, judge: false })), /data-research-control data-research-field="dueDays"/, "the researcher's owner's tab has the days-due field, its lock lifted");
+  assert.doesNotMatch(render(dayPanel([unread], { tables: NOTHING, judge: false, owns: () => false })), /dueDays/, "a viewer who does not own the researcher has no days-due field");
   assert.doesNotMatch(render(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", assistants: ["A.pell"], costs: { research: 1000 } }], { tables: RATES, judge: true })), /dueDays/, "and the box is gone once the due is computed");
 });
 
@@ -2078,7 +2101,7 @@ t("a project that is not a cast ritual never offers Choose…", () => {
 const WAND = { documentName: "Item", uuid: "A.hero.Item.rod", name: "Invented Rod", type: "item", hasCharges: true, kind: "", currency: false, parentUuid: "A.hero" };
 
 t("the placement prompt: the drop zone is live for a charge alone, and Confirm waits for an item a charge can go in", () => {
-  const ask = (mode, item, judge = false) => M.placementState(mode, item, { researcher: "A.hero", judge });
+  const ask = (mode, item, ownsItem = true) => M.placementState(mode, item, { ownsItem });
   assert.deepEqual(ask("now", null), { ok: true, why: "", dropActive: false });
   assert.deepEqual(ask("scroll", null), { ok: true, why: "", dropActive: false });
   assert.deepEqual(ask("charge", null), { ok: false, why: "needItem", dropActive: true }, "no item dropped: Confirm is held");
@@ -2089,8 +2112,11 @@ t("the placement prompt: the drop zone is live for a charge alone, and Confirm w
   assert.deepEqual(ask("charge", { ...WAND, kind: "scroll" }).why, "chargeKind");
   assert.equal(ask("charge", { ...WAND, kind: "weapon" }).ok, true, "any other magic kind takes it");
   assert.deepEqual(ask("charge", { ...WAND, parentUuid: "" }).why, "chargeHeld");
-  assert.deepEqual(ask("charge", { ...WAND, parentUuid: "A.pell" }).why, "itemOwner", "a Player's is the researcher's alone");
-  assert.equal(ask("charge", { ...WAND, parentUuid: "A.pell" }, true).ok, true, "a Judge may store into any held item");
+  assert.deepEqual(ask("charge", { ...WAND, parentUuid: "A.pell" }, false).why, "itemOwner", "an item the user does not own takes no charge");
+  assert.equal(ask("charge", { ...WAND, parentUuid: "A.pell" }, true).ok, true, "an item the user owns on another actor does, the researcher need not hold it");
+  assert.deepEqual(M.chargeRefusal({ ...WAND, parentUuid: "A.pell" }, { ownsItem: true }), "");
+  assert.deepEqual(M.chargeRefusal({ ...WAND, parentUuid: "A.pell" }), "itemOwner", "ownership is never assumed");
+  assert.deepEqual(M.chargeRefusal({ ...WAND, parentUuid: "" }, { ownsItem: true }), "chargeHeld", "an item nobody holds is refused whoever asks");
   assert.equal(ask("elsewhere", null).ok, false);
   assert.deepEqual(M.cleanStored([{ uuid: "Item.s", name: "Lantern", project: "r1", day: 3 }, { uuid: "Item.s", name: "Lantern", project: "r1" }, {}, { name: "Glow", project: "r2" }]).map((e) => [e.name, e.project, e.day]), [["Lantern", "r1", 3], ["Glow", "r2", null]], "a project stores its effect once, and a row naming no spell is dropped");
 });
@@ -2149,14 +2175,17 @@ await ta("a cast ritual's effect goes on a new scroll: the wait is answered, the
   assert.equal(f.made.length, 1);
 });
 
-await ta("a cast ritual's effect goes as a charge in an item the researcher holds; the item is read here and a Player's must be theirs", async () => {
+await ta("a cast ritual's effect goes as a charge in an item the requester owns; the item is read here and its holder's ownership decides", async () => {
   const f = placeRig();
   const r = await f.ops.place(f.loc, "r1", { mode: "charge", itemUuid: WAND.uuid });
   assert.deepEqual([r.ok, r.written.what, r.written.name, f.made[0].item.uuid, f.now().outcome.placed, f.now().outcome.pending], [true, "charge", "Invented Rod", WAND.uuid, "charge", undefined]);
   const noItem = placeRig();
   assert.deepEqual([(await noItem.ops.place(noItem.loc, "r1", { mode: "charge" })).reason, noItem.calls, noItem.now().outcome.pending], ["chargeItem", [], "placement"], "no item named: nothing is written and the ritual still waits");
   const theirs = placeRig({ items: { "A.pell.Item.rod": { ...WAND, uuid: "A.pell.Item.rod", parentUuid: "A.pell" } } });
-  assert.deepEqual([(await theirs.ops.place(theirs.loc, "r1", { mode: "charge", itemUuid: "A.pell.Item.rod" })).reason, theirs.calls], ["itemOwner", []], "a Player is refused another character's item");
+  assert.deepEqual([(await theirs.ops.place(theirs.loc, "r1", { mode: "charge", itemUuid: "A.pell.Item.rod" })).reason, theirs.calls], ["itemOwner", []], "a Player is refused an item held by an actor they do not own");
+  const shared = placeRig({ owned: ["A.hero", "A.pell"], items: { "A.pell.Item.rod": { ...WAND, uuid: "A.pell.Item.rod", parentUuid: "A.pell" } } });
+  const taken = await shared.ops.place(shared.loc, "r1", { mode: "charge", itemUuid: "A.pell.Item.rod" });
+  assert.deepEqual([taken.ok, taken.written.name, shared.now().outcome.placed], [true, "Invented Rod", "charge"], "an item held by another character the Player owns takes it, the researcher need not hold it");
   const judges = placeRig({ judge: true, items: { "A.pell.Item.rod": { ...WAND, uuid: "A.pell.Item.rod", parentUuid: "A.pell" } } });
   assert.equal((await judges.ops.place(judges.loc, "r1", { mode: "charge", itemUuid: "A.pell.Item.rod" })).ok, true, "a Judge's may be any held item");
   const potion = placeRig({ items: { [WAND.uuid]: { ...WAND, kind: "potion" } } });
@@ -2361,7 +2390,10 @@ t("the tab writes the common check through update as a boolean", () => {
 t("the sheet wires Choose… to a prompt in the scroll contract whose Confirm waits on the model, and takes the effect now before it answers", () => {
   const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
   assert.match(tab, /chooseResearchPlacement: onChoosePlacement/);
-  assert.match(tab, /placementState\(modeOf\(\), picked/, "Confirm is held by the model's verdict");
+  assert.match(tab, /placementState\(modeOf\(\), picked, \{ ownsItem: ownsPicked \}\)/, "Confirm is held by the model's verdict, on the item's own ownership");
+  assert.match(tab, /ownsPicked = doc\?\.isOwner === true/, "the dropped item follows its holder's ownership, never the role");
+  assert.match(tab, /facilityEditable: location\.isOwner === true/, "the facility inputs follow the place's ownership");
+  assert.doesNotMatch(tab.slice(tab.indexOf("async function promptPlacement"), tab.indexOf("async function onChoosePlacement")), /isGM/, "the prompt reads no role");
   assert.match(tab, /classes: DIALOG_CLASSES,\n\s+window: \{ title: loc\("placeTitle"/, "the prompt names the module classes (scroll contract, drag corner)");
   assert.doesNotMatch(tab, /instanceof/, "a node is told by nodeType");
   assert.ok(tab.indexOf("takeEffectNow(project)") < tab.indexOf("researchApi.place(this.actor, id, { mode: answer.mode"), "the cast comes first, so a cancelled cast leaves the ritual waiting");
