@@ -245,7 +245,8 @@
 .acks-extras-pf__badge--bl { bottom: -0.5em; left: -0.5em; }
 .acks-extras-pf__badge.is-hand { border-color: var(--acks-warning); box-shadow: 0 0 0 1px var(--acks-warning); }
 
-.acks-extras-org__unlisted {
+.acks-extras-org__unlisted,
+.acks-extras-org__undo {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -256,6 +257,11 @@
 }
 
 .acks-extras-org__unlisted-row { display: inline-flex; align-items: center; gap: 0.3rem; }
+.acks-extras-org__undo { border-color: var(--acks-warning); }
+.acks-extras-org__undo > span:first-child { flex: 1 1 auto; min-width: 0; }
+.acks-extras-org-warning ul { margin: 0.2rem 0 0.4rem 1.2rem; padding: 0; }
+.acks-extras-org-warning__group { margin-top: 0.4rem; }
+.acks-extras-org-warning__tick { display: flex; gap: 0.4rem; align-items: flex-start; margin: 0.2rem 0; }
 
 .acks-extras-org-place {
   margin-bottom: 0.4rem;

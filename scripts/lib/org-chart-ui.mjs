@@ -18,7 +18,8 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, leaderRoleOf, liftedBy, nextLevelKind, officerControls, officerStateOf, readAfterIndex, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, leaderRoleOf, liftedBy, nextLevelKind, officerControls, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
@@ -28,7 +29,7 @@ const loc = makeLoc(ORG_LANG_PREFIX);
 const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-dialog"];
 
 /** The partials the two sheets include; lib loads them at init. */
-export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-officer-line", "org-locations", "org-nested", "org-roll-panel", "org-roll-sections", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
+export const ORG_PARTIALS = Object.freeze(["org-chart", "org-card", "org-officer-line", "org-delete-warning", "org-locations", "org-nested", "org-roll-panel", "org-roll-sections", "org-send-out"].map((n) => `modules/${MODULE_ID}/templates/lib/${n}.hbs`));
 
 /** The folded branches of each open window, by window: a press redraws the sheet and the fold stays. */
 const folds = new WeakMap();
@@ -45,6 +46,9 @@ const editsOf = (app) => {
 };
 const unlisteds = new WeakMap();
 const unlistedOf = (app) => unlisteds.get(app) ?? null;
+
+/** The one step of Undo each open chart holds: what its last Delete took. Memory only, so a reload loses it. */
+const undos = makeUndoMemory();
 
 /** The module api of the generating feature, where one is loaded. */
 const generator = () => globalThis.acksExtras?.monsters ?? null;
@@ -228,7 +232,7 @@ export async function chartContext(actor, app, { isGM }) {
       role,
       leader: await leaderHtml({ ...c, role }),
       editing: inEdit,
-      edit: inEdit ? await editOf(c, stacks) : null,
+      edit: inEdit ? await editOf(c, stacks, deleteGate(host, c.key).offered) : null,
       children: await decorate(c.children),
     };
   }));
@@ -245,6 +249,7 @@ export async function chartContext(actor, app, { isGM }) {
     emptyCards: view.empty,
     plate,
     unlisted: unlistedOf(app),
+    undo: undoView(undos.peek(app), { canCreate: !!game.user?.can?.("ACTOR_CREATE"), owns: editable }),
     tools: {
       roll: editable && !!monsters?.rollOrganisation && emptyKeys(view).some(canRoll),
       design: editable && !!monsters?.rollOrganisation && emptyKeys(view).some(canRoll) && !!services.get("org-roll"),
@@ -255,10 +260,11 @@ export async function chartContext(actor, app, { isGM }) {
   };
 }
 
-/** What a card in edit shows: its label and each stack's bodies and troop options. */
-async function editOf(card, stacks) {
+/** What a card in edit shows: its label, whether its Delete is offered, and each stack's bodies and troop options. */
+async function editOf(card, stacks, canDelete) {
   return {
     label: card.label,
+    canDelete: !!canDelete,
     stacks: await Promise.all(stacks.map(async (s) => {
       const troop = await troopFor(s);
       return {
@@ -823,6 +829,151 @@ async function removeFromChart(app, host, key) {
   return result;
 }
 
+/**
+ * What a Delete of a row takes and whether this seat may make it: the preview, the first group the
+ * seat may not delete (null where it may delete them all), and whether the control is offered. Foundry's
+ * own tests only: ownership of the host, and the delete permission on each group.
+ * @param {Actor} host
+ * @param {string} key
+ * @returns {{preview: object, blocked: Actor|null, offered: boolean}}
+ */
+function deleteGate(host, key) {
+  const preview = org.deletePreview(host, key);
+  if (!preview.ok) return { preview, blocked: null, offered: false };
+  const can = (g) => !!g.canUserModify?.(game.user, "delete");
+  return { preview, blocked: preview.groups.find((g) => !can(g)) ?? null, offered: deleteOffered({ owns: !!host.isOwner, groups: preview.groups.map((g) => ({ canDelete: can(g) })) }) };
+}
+
+/** The actors a Delete's groups name as officer, each with whether this seat may delete it. A compendium entry is never deletable here. */
+function linkedOf(uuids) {
+  return uuids
+    .map((uuid) => docOf(uuid))
+    .filter((d) => d?.documentName === "Actor")
+    .map((d) => ({ uuid: d.uuid, name: d.name ?? "", canDelete: !d.pack && !!d.canUserModify?.(game.user, "delete") }));
+}
+
+/**
+ * The warning before a Delete: the rows and groups that go, the one tick for the linked actors, and
+ * "Don't warn me again". Null where the seat cancelled or closed it.
+ * @param {object} model `warningModel`'s answer
+ * @returns {Promise<{linked: boolean, dontWarn: boolean}|null>}
+ */
+async function askDelete(model) {
+  const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/org-delete-warning.hbs`, { ...model, tickNames: model.tick?.names.join(", ") ?? "" });
+  const { DialogV2 } = foundry.applications.api;
+  const answer = await DialogV2.wait({
+    classes: DIALOG_CLASSES,
+    window: { title: loc("delete.title", { name: model.top }) },
+    content,
+    rejectClose: false,
+    render: (_event, dialog) => {
+      dialog.element.querySelector('[data-action="delete"]')?.setAttribute("data-tooltip-text", loc("delete.pressTip"));
+      dialog.element.querySelector('[data-action="cancel"]')?.setAttribute("data-tooltip-text", loc("delete.cancelTip"));
+    },
+    buttons: [
+      {
+        action: "delete",
+        label: loc("delete.press"),
+        icon: "fa-solid fa-trash",
+        class: "acks-extras-org-card__delete",
+        callback: (_event, button) => ({ linked: !!button.form.elements.namedItem("linked")?.checked, dontWarn: !!button.form.elements.namedItem("dontWarn")?.checked }),
+      },
+      { action: "cancel", label: loc("delete.cancel"), default: true, callback: () => false },
+    ],
+  });
+  return answer && typeof answer === "object" ? answer : null;
+}
+
+/**
+ * Delete a card's row: the row, the rows beneath it, their groups and the prototypes no other group
+ * uses, and the linked actors the warning's tick (or, with the warning off, the saved choice) names.
+ * The seat's tests are made again here, before anything is written. What it took is copied first and
+ * held as the chart's one step of Undo. "Don't warn me again" saves both client settings, together,
+ * after the Delete has been made.
+ */
+async function deleteCard(app, host, key) {
+  const first = deleteGate(host, key);
+  if (!first.preview.ok) return refuse(first.preview);
+  if (!host.isOwner) return refuse({ reason: "notOwner", name: host.name ?? "" });
+  if (first.blocked) return refuse({ reason: "noDelete", name: first.blocked.name ?? "" });
+  const rows = org.unitsOf(host);
+  const going = removalRows(org.orgChart(host, { isGM: true }), key).map((r) => ({ ...r, group: docOf(rows.find((x) => x.key === r.key)?.holderUuid)?.name ?? "" }));
+  const linked = linkedOf(first.preview.leaders);
+  const saved = !!game.settings.get(MODULE_ID, DELETE_LINKED_SETTING);
+  let takes;
+  let save = null;
+  if (game.settings.get(MODULE_ID, WARN_DELETE_SETTING)) {
+    const model = warningModel({ going, prototypes: first.preview.prototypes.length, linked, saved });
+    const answer = await askDelete(model);
+    if (!answer) return null;
+    takes = model.tick && answer.linked ? model.tick.uuids : [];
+    if (answer.dontWarn) save = model.tick ? answer.linked : saved;
+  } else takes = linkedToDelete({ linked, saved });
+
+  const again = deleteGate(host, key);
+  if (!again.preview.ok) return refuse(again.preview);
+  if (!host.isOwner) return refuse({ reason: "notOwner", name: host.name ?? "" });
+  if (again.blocked) return refuse({ reason: "noDelete", name: again.blocked.name ?? "" });
+  takes = takes.filter((uuid) => linkedOf(again.preview.leaders).some((a) => a.uuid === uuid && a.canDelete));
+  const snapshot = org.deleteSnapshot(host, again.preview, takes);
+  const result = await org.deleteRow(host, key);
+  if (!result.ok) return refuse(result);
+  for (const uuid of takes) {
+    try {
+      await docOf(uuid)?.delete();
+    } catch (err) {
+      console.warn(`${MODULE_ID} | a linked actor could not be deleted with its row`, err);
+    }
+  }
+  if (save !== null) {
+    await game.settings.set(MODULE_ID, WARN_DELETE_SETTING, false);
+    await game.settings.set(MODULE_ID, DELETE_LINKED_SETTING, save);
+  }
+  undos.hold(app, { ...snapshot, label: going[0]?.label ?? "" });
+  return result;
+}
+
+/** Redraw a window, where it still stands: a Delete of the row a sheet's own actor holds takes the sheet's document with it. */
+async function renderUnlessGone(app) {
+  try {
+    await app.render();
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a chart window could not redraw after a Delete`, err);
+  }
+}
+
+/** Delete in a card's form: the row, with the warning, and Undo afterwards. */
+async function onDelete(_event, target) {
+  const { host, key } = await targetOf(target);
+  if (!host) return;
+  editsOf(this).delete(key);
+  await deleteCard(this, host, key);
+  await renderUnlessGone(this);
+}
+
+/** Undo the chart's last Delete from memory: the seat must create actors and own the host. */
+async function onUndo() {
+  const step = undos.peek(this);
+  if (!step) return;
+  const host = await fromUuid(step.hostUuid).catch(() => null);
+  if (!host) {
+    undos.drop(this);
+    return render(this);
+  }
+  if (!game.user.can("ACTOR_CREATE")) return refuse({ reason: "noCreate" });
+  if (!undoOffered({ canCreate: true, owns: !!host.isOwner })) return refuse({ reason: "notOwner", name: host.name ?? "" });
+  const result = await org.undoDelete(host, step);
+  if (!result.ok) return refuse(result);
+  undos.drop(this);
+  render(this);
+}
+
+/** Put away the strip a Delete left above the chart; the Delete stays. */
+function onDismissUndo() {
+  undos.drop(this);
+  render(this);
+}
+
 /** Put away the line a Remove left above the chart. */
 function onDismissUnlisted() {
   unlisteds.delete(this);
@@ -875,6 +1026,9 @@ export const ORG_ACTIONS = Object.freeze({
   orgEdit: onEdit,
   orgEditDone: onEditDone,
   orgRemove: onRemove,
+  orgDelete: onDelete,
+  orgUndo: onUndo,
+  orgDismissUndo: onDismissUndo,
   orgDismissUnlisted: onDismissUnlisted,
   orgBadge: onBadge,
   orgClearLeader: onClearLeader,

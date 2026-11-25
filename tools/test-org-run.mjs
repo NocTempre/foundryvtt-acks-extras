@@ -57,12 +57,12 @@ const setPath = (obj, path, value) => {
 };
 
 /** An actor document over the system block given. */
-function makeDoc(type, name, system = {}, { flags = {}, isOwner = true } = {}) {
-  const id = uid("act");
+function makeDoc(type, name, system = {}, { flags = {}, isOwner = true, id: given = "" } = {}) {
+  const id = given || uid("act");
   Object.defineProperty(system, "toObject", { value: () => structuredClone(system), enumerable: false });
   const doc = {
     id, uuid: `Actor.${id}`, documentName: "Actor", type, name, img: "", isOwner, isToken: false, system, flags, statuses: new Set(),
-    toObject: () => ({ name, type, system: structuredClone(system), flags: structuredClone(flags) }),
+    toObject: () => ({ _id: id, name, type, system: structuredClone(system), flags: structuredClone(flags) }),
     async update(changes) {
       for (const [path, value] of Object.entries(changes)) {
         setPath(this, path, structuredClone(value));
@@ -89,6 +89,12 @@ globalThis.Actor = { implementation: { async create(data) {
   writes.push(`create:${data.name}`);
   return makeDoc(data.type, data.name, data.type === GROUP ? groupSystem() : data.type === FACTION ? { units: [], members: [], leaderUuid: "", ...(data.system ?? {}) } : {});
 } } };
+
+globalThis.Actor.implementation.createDocuments = async (datas, options) => {
+  writes.push(`createDocuments:${datas.map((d) => d.name).join(",")}:keepId=${!!options?.keepId}`);
+  return datas.map((d) => makeDoc(d.type, d.name, structuredClone(d.system), { flags: structuredClone(d.flags), id: options?.keepId ? d._id : "" }));
+};
+globalThis.game.user.can = () => true;
 
 const { runPlan } = await import("../scripts/lib/org-run.mjs");
 const org = await import("../scripts/lib/org.mjs");
@@ -436,6 +442,93 @@ t("Delete takes a group off its roster and clears the faction's leader it named;
   assert.deepEqual(where.system.roster, [], "off the roster");
   assert.deepEqual(result.leaders, [chief.uuid], "the leader stays in the world, and is named");
   assert.equal(world.has(chief.uuid), true);
+});
+
+/** A faction whose one row holds a group with a live officer, a minted prototype, a roster place and the faction's leader. */
+function deleteWorld() {
+  reset();
+  const chief = creature("Chief");
+  const proto = creature("Minted", { "acks-extras": { [ORG_PROTOTYPE_FLAG]: "k1" } });
+  const g = group("Warband");
+  const kid = group("Gang");
+  const other = group("Elsewhere");
+  const stack = (uuid) => [{ key: "s", template: { uuid }, gen: {}, size: { current: 1 }, roster: [] }];
+  g.system.unit.officerUuid = chief.uuid;
+  g.system.stacks = stack(proto.uuid);
+  const ford = place("Ford", [{ uuid: g.uuid, name: "Warband", kind: "group", quantity: 1, hidden: false }, { uuid: other.uuid, name: "Elsewhere", kind: "group", quantity: 1, hidden: false }]);
+  const host = faction("Holdfast", [{ key: "v", parentKey: "", holderUuid: g.uuid, gen: {} }, { key: "k", parentKey: "v", holderUuid: kid.uuid, gen: {} }, { key: "o", parentKey: "", holderUuid: other.uuid, gen: {} }]);
+  host.system.leaderUuid = chief.uuid;
+  return { chief, proto, g, kid, other, ford, host };
+}
+
+t("deletePreview names the rows, groups, officers and minted prototypes a Delete takes before it, and writes nothing", async () => {
+  const { chief, proto, g, kid, host } = deleteWorld();
+  writes = [];
+  const preview = org.deletePreview(host, "v");
+  assert.equal(preview.ok, true);
+  assert.deepEqual([...preview.keys].sort(), ["k", "v"]);
+  assert.deepEqual(preview.groups.map((x) => x.uuid).sort(), [g.uuid, kid.uuid].sort());
+  assert.deepEqual(preview.leaders, [chief.uuid]);
+  assert.deepEqual(preview.prototypes, [proto.uuid]);
+  assert.deepEqual(writes, [], "a preview writes nothing");
+  const result = await org.deleteRow(host, "v");
+  assert.deepEqual([result.prototypes, result.leaders], [preview.prototypes, preview.leaders], "Delete takes what the preview named");
+  assert.equal(org.deletePreview(host, "zz").reason, "noRow");
+});
+
+t("deletePreview leaves a prototype a group that stays still names", async () => {
+  const { proto, other, host } = deleteWorld();
+  other.system.stacks = [{ key: "s", template: { uuid: proto.uuid }, gen: {}, size: { current: 1 }, roster: [] }];
+  assert.deepEqual(org.deletePreview(host, "v").prototypes, []);
+});
+
+t("a Delete's snapshot and Undo bring back the groups, the minted prototype and the chosen linked actor with the same ids, the rows, the leader and the roster row", async () => {
+  const { chief, proto, g, kid, other, ford, host } = deleteWorld();
+  const preview = org.deletePreview(host, "v");
+  const snapshot = org.deleteSnapshot(host, preview, [chief.uuid]);
+  assert.deepEqual(snapshot.actors.map((a) => a._id).sort(), [chief.id, proto.id].sort(), "the linked actor and the prototype are copied, not the groups");
+  assert.deepEqual(snapshot.groups.map((a) => a._id).sort(), [g.id, kid.id].sort());
+  assert.deepEqual(snapshot.rosters, [{ place: ford.uuid, rows: [{ uuid: g.uuid, name: "Warband", kind: "group", quantity: 1, hidden: false }] }], "only the deleted group's roster row");
+  assert.equal(snapshot.leaderUuid, chief.uuid);
+  assert.equal(snapshot.rows.length, 3);
+  await org.deleteRow(host, "v");
+  await chief.delete();
+  for (const d of [chief, proto, g, kid]) assert.equal(world.has(d.uuid), false);
+  assert.equal(host.system.leaderUuid, "");
+  assert.deepEqual(ford.system.roster.map((r) => r.uuid), [other.uuid]);
+  writes = [];
+  const back = await org.undoDelete(host, snapshot);
+  assert.equal(back.ok, true);
+  assert.equal(back.restored, 4);
+  assert.deepEqual(writes.filter((w) => w.startsWith("createDocuments")), ["createDocuments:Chief,Minted:keepId=true", "createDocuments:Warband,Gang:keepId=true"], "actors first, then groups");
+  for (const d of [chief, proto, g, kid]) assert.ok(world.has(d.uuid), "same id, same uuid");
+  assert.equal(world.get(g.uuid).system.unit.officerUuid, chief.uuid, "the group's officer resolves again");
+  assert.deepEqual(host.system.units.map((r) => `${r.key}<${r.parentKey}`), ["v<", "k<v", "o<"]);
+  assert.equal(host.system.leaderUuid, chief.uuid);
+  assert.deepEqual(ford.system.roster.map((r) => r.uuid), [other.uuid, g.uuid]);
+});
+
+t("an Undo refuses a seat that cannot create actors or write the host before it writes anything", async () => {
+  const { chief, host } = deleteWorld();
+  const snapshot = org.deleteSnapshot(host, org.deletePreview(host, "v"), [chief.uuid]);
+  await org.deleteRow(host, "v");
+  writes = [];
+  globalThis.game.user.can = () => false;
+  assert.equal((await org.undoDelete(host, snapshot)).reason, "noCreate");
+  globalThis.game.user.can = () => true;
+  host.isOwner = false;
+  assert.equal((await org.undoDelete(host, snapshot)).reason, "notOwner");
+  assert.deepEqual(writes, []);
+});
+
+t("a linked actor left out of a Delete's choice is not copied, and an Undo restores the leader only while the field is blank", async () => {
+  const { chief, host } = deleteWorld();
+  const snapshot = org.deleteSnapshot(host, org.deletePreview(host, "v"), []);
+  assert.ok(!snapshot.actors.some((a) => a._id === chief.id), "the officer stays, so it is not copied");
+  await org.deleteRow(host, "v");
+  host.system.leaderUuid = "Actor.someone-else";
+  await org.undoDelete(host, snapshot);
+  assert.equal(host.system.leaderUuid, "Actor.someone-else", "a leader set since is never replaced");
 });
 
 t("a body is minted as the rank and file, never as a leader the Role axis rolls, where the axis names no default", async () => {

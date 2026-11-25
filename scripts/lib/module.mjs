@@ -78,6 +78,7 @@ import * as groupEncounter from "./group-encounter.mjs";
 import * as org from "./org.mjs";
 import { ORG_PARTIALS, redrawWindowsNaming } from "./org-chart-ui.mjs";
 import { CONFIRM_REMOVE_SETTING } from "./org-chart-ui-logic.mjs";
+import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING } from "./org-delete-logic.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
@@ -885,6 +886,25 @@ Hooks.once("init", () => {
     hint: `${LANG_PREFIX}.settings.confirmRemoveRows.hint`,
     scope: "client",
     config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  // Gates the warning a chart row's Delete shows; off makes Delete one-click, applying the saved linked-actor choice.
+  game.settings.register(MODULE_ID, WARN_DELETE_SETTING, {
+    name: `${LANG_PREFIX}.settings.warnBeforeDeletingRows.name`,
+    hint: `${LANG_PREFIX}.settings.warnBeforeDeletingRows.hint`,
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+  // The linked-actor choice a one-click Delete applies; only the warning's "Don't warn me again" writes it.
+  game.settings.register(MODULE_ID, DELETE_LINKED_SETTING, {
+    name: `${LANG_PREFIX}.settings.deleteLinkedWithRow.name`,
+    hint: `${LANG_PREFIX}.settings.deleteLinkedWithRow.hint`,
+    scope: "client",
+    config: false,
     type: Boolean,
     default: true,
   });

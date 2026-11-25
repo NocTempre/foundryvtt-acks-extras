@@ -41,6 +41,7 @@
     {{#if editing}}
       <div class="acks-extras-org-card__foot">
         <button type="button" data-action="orgRemove" data-tooltip="ACKS-LIB.org.edit.removeTip" aria-label="{{localize 'ACKS-LIB.org.edit.remove'}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i> {{localize "ACKS-LIB.org.edit.remove"}}</button>
+        {{#if edit.canDelete}}<button type="button" class="acks-extras-org-card__delete" data-action="orgDelete" data-tooltip="ACKS-LIB.org.edit.deleteTip" aria-label="{{localize 'ACKS-LIB.org.edit.deleteLabel'}}"><i class="fa-solid fa-trash" aria-hidden="true"></i> {{localize "ACKS-LIB.org.edit.delete"}}</button>{{/if}}
         <button type="button" data-action="orgEditDone" data-tooltip="ACKS-LIB.org.edit.doneTip">{{localize "ACKS-LIB.org.edit.done"}}</button>
       </div>
     {{else if groupGone}}

@@ -24,6 +24,7 @@ import {
   chartToJoin, factionLine, locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, readableChartRows,
   rowAncestors, rowDescendants, twinKeys, withHolder,
 } from "./org-tree-logic.mjs";
+import { planUndo } from "./org-delete-logic.mjs";
 import { runPlan } from "./org-run.mjs";
 import { ORG_PROTOTYPE_FLAG, planDelete, planEdit, planUnlist } from "./org-write-logic.mjs";
 import { addOccupant, isLocation, removeOccupant } from "./place.mjs";
@@ -186,6 +187,107 @@ function namedByAGroup(uuid) {
   return worldGroups().some((g) => (g.system?.stacks ?? []).some((s) => s.template?.uuid === uuid || s.gen?.mount?.uuid === uuid));
 }
 
+/** The prototypes a set of groups' stacks name, and the mounts they name, that this generator might have minted. */
+const prototypeCandidates = (groups) => new Set(groups.flatMap((g) => (g.system?.stacks ?? []).flatMap((s) => [s.template?.uuid, s.gen?.mount?.uuid])).filter(Boolean));
+
+/** Is this actor a prototype this generator minted? */
+const isMinted = (doc) => !!doc?.flags?.[MODULE_ID]?.[ORG_PROTOTYPE_FLAG];
+
+/** The officers of a set of groups, each once. */
+const officersOf = (groups) => [...new Set(groups.map((g) => g.system?.unit?.officerUuid).filter(Boolean))];
+
+/**
+ * What a Delete of a row would take, read before it is made: the keys of the rows, the groups they
+ * hold, the officers those groups name (which a Delete leaves in the world, and a caller may delete
+ * after it), and the minted prototypes no group standing after the Delete would name. It writes
+ * nothing, and `deleteRow` takes the same set.
+ *
+ * @param {Actor} host a faction or a group hosting a chart
+ * @param {string} key the row
+ * @returns {{ok: boolean, reason?: string, keys?: string[], groups?: Actor[], leaders?: string[], prototypes?: string[]}}
+ */
+export function deletePreview(host, key) {
+  if (!hostsChart(host)) return refused("notHost");
+  const plan = planDelete({ host, rows: unitsOf(host), key });
+  if (!plan.ok) return refused(plan.reason);
+  const groups = plan.holders.map((uuid) => docOf(uuid)).filter(isGroupActor);
+  const going = new Set(groups.map((g) => g.uuid));
+  const stays = (uuid) => worldGroups().some((g) => !going.has(g.uuid) && (g.system?.stacks ?? []).some((s) => s.template?.uuid === uuid || s.gen?.mount?.uuid === uuid));
+  const prototypes = [...prototypeCandidates(groups)].filter((uuid) => isMinted(docOf(uuid)) && !stays(uuid));
+  return { ok: true, keys: plan.keys, groups, leaders: officersOf(groups), prototypes };
+}
+
+/**
+ * Copy what a Delete is about to take, for `undoDelete`: the host's rows, the faction's leader, and
+ * each group, minted prototype and chosen linked actor as `toObject()` keeps it, and the roster rows
+ * that hold the groups. Read before `deleteRow`, since nothing of it is readable after.
+ *
+ * @param {Actor} host
+ * @param {{keys: string[], groups: Actor[], prototypes: string[]}} preview `deletePreview`'s answer
+ * @param {string[]} [linked] the uuids of the linked actors the caller will delete after the Delete
+ * @returns {{hostUuid: string, keys: string[], rows: object[], leaderUuid: string, actors: object[], groups: object[], rosters: {place: string, rows: object[]}[]}}
+ */
+export function deleteSnapshot(host, preview, linked = []) {
+  const plain = (d) => d.toObject();
+  const own = (uuid) => {
+    const doc = docOf(uuid);
+    return doc && doc.documentName === "Actor" && !doc.pack ? doc : null;
+  };
+  const rosters = new Map();
+  for (const g of preview.groups) {
+    for (const placeUuid of rostersHolding(g.uuid)) {
+      const rows = (docOf(placeUuid)?.system?.roster ?? []).map((r) => r?.toObject?.() ?? r).filter((r) => r.uuid === g.uuid);
+      rosters.set(placeUuid, [...(rosters.get(placeUuid) ?? []), ...structuredClone(rows)]);
+    }
+  }
+  return {
+    hostUuid: host.uuid,
+    keys: [...preview.keys],
+    rows: unitsOf(host).map((r) => structuredClone(r?.toObject?.() ?? r)),
+    leaderUuid: host.system?.leaderUuid ?? "",
+    actors: [...linked, ...preview.prototypes].map(own).filter(Boolean).map(plain),
+    groups: preview.groups.map(plain),
+    rosters: [...rosters].map(([place, rows]) => ({ place, rows })),
+  };
+}
+
+/**
+ * Undo a Delete from its snapshot: the actors and then the groups are re-created with their own ids
+ * (the groups last, so a group's officer resolves), the host's rows are merged back (`planUndo`), the
+ * faction's leader is restored where it is still blank, and the groups' roster rows are put back on
+ * the places the seat owns. Refused before any write where the seat cannot create actors or write the host.
+ *
+ * @param {Actor} host
+ * @param {object} snapshot `deleteSnapshot`'s answer
+ * @returns {Promise<{ok: boolean, reason?: string, restored?: number}>}
+ */
+export async function undoDelete(host, snapshot) {
+  if (!hostsChart(host)) return refused("notHost");
+  if (!host.isOwner) return refused("notOwner");
+  if (!game.user?.can?.("ACTOR_CREATE")) return refused("noCreate");
+  let restored = 0;
+  try {
+    for (const batch of [snapshot.actors, snapshot.groups]) {
+      if (!batch.length) continue;
+      const made = await Actor.implementation.createDocuments(structuredClone(batch), { keepId: true });
+      restored += made?.length ?? 0;
+    }
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a Delete could not be undone`, err);
+    return refused("undoFailed");
+  }
+  const plan = planUndo({ snapshot, rows: unitsOf(host), leaderUuid: host.system?.leaderUuid ?? "" });
+  await host.update({ "system.units": plan.rows, ...(plan.leader ? { "system.leaderUuid": plan.leader } : {}) });
+  for (const { place: uuid, rows } of snapshot.rosters) {
+    const place = docOf(uuid);
+    if (!hasRoster(place) || !place.isOwner) continue;
+    const held = (place.system.roster ?? []).map((r) => r?.toObject?.() ?? r);
+    const missing = rows.filter((r) => !held.some((h) => h.uuid === r.uuid));
+    if (missing.length) await place.update({ "system.roster": [...held, ...structuredClone(missing)] });
+  }
+  return { ok: true, restored };
+}
+
 /**
  * Delete a row of a chart: the row and every row beneath it, the group each holds,
  * and any prototype this generator minted that no remaining stack names. A group
@@ -213,8 +315,8 @@ export async function deleteRow(host, key) {
     warnings.push("onMap");
     await whisperJudges(g, game.i18n.format(`${LANG_PREFIX}.org.delete.onMap`, { name: g.name }));
   }
-  const leaders = [...new Set(groups.map((g) => g.system?.unit?.officerUuid).filter(Boolean))];
-  const candidates = new Set(groups.flatMap((g) => (g.system?.stacks ?? []).flatMap((s) => [s.template?.uuid, s.gen?.mount?.uuid])).filter(Boolean));
+  const leaders = officersOf(groups);
+  const candidates = prototypeCandidates(groups);
 
   const update = { "system.units": plan.rows };
   if (host.system?.leaderUuid && leaders.includes(host.system.leaderUuid)) update["system.leaderUuid"] = "";
@@ -226,7 +328,7 @@ export async function deleteRow(host, key) {
   const kept = [];
   for (const uuid of candidates) {
     const proto = docOf(uuid);
-    if (!proto?.flags?.[MODULE_ID]?.[ORG_PROTOTYPE_FLAG]) continue;
+    if (!isMinted(proto)) continue;
     if (namedByAGroup(uuid)) kept.push(uuid);
     else {
       await proto.delete();

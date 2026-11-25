@@ -1,0 +1,19 @@
+{{!-- The warning before a chart row's Delete (board 1p): the rows and groups that go, the minted
+      prototypes no other group uses, the one tick for the linked actors the seat may delete (a plain
+      line for each it may not), and "don't warn me again". Context: `warningModel`. --}}
+<div class="acks-extras-org-warning">
+  <p>{{localize "ACKS-LIB.org.delete.lead" top=top}}</p>
+  <div class="acks-extras-org-warning__group"><b>{{localize "ACKS-LIB.org.delete.listHead"}}</b> · <span data-tooltip="ACKS-LIB.org.delete.rowsTip">{{localize "ACKS-LIB.org.delete.rows" n=rowCount}}</span></div>
+  <ul>
+    {{#each rows}}<li>{{label}}{{#if group}} · {{group}}{{/if}}</li>{{/each}}
+  </ul>
+  <div class="hint">{{localize "ACKS-LIB.org.delete.prototypesLead"}} <span data-tooltip="ACKS-LIB.org.delete.prototypesTip">{{prototypes}}</span></div>
+  {{#if tick}}
+    <div class="acks-extras-org-warning__group"><b>{{localize "ACKS-LIB.org.delete.linkedHead"}}</b></div>
+    <label class="acks-extras-org-warning__tick"><input type="checkbox" name="linked" {{#if tick.checked}}checked{{/if}} /> {{localize "ACKS-LIB.org.delete.alsoDelete" names=tickNames}}</label>
+  {{else if stays.length}}
+    <div class="acks-extras-org-warning__group"><b>{{localize "ACKS-LIB.org.delete.linkedHead"}}</b></div>
+  {{/if}}
+  {{#each stays}}<div class="hint">{{localize "ACKS-LIB.org.delete.stays" name=this}}</div>{{/each}}
+  <label class="acks-extras-org-warning__tick"><input type="checkbox" name="dontWarn" /> <span data-tooltip="ACKS-LIB.org.delete.dontWarnTip">{{localize "ACKS-LIB.org.delete.dontWarn"}}</span></label>
+</div>

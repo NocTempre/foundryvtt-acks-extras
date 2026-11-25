@@ -2,6 +2,13 @@
       Drawn on a faction's Org chart tab and on a root group's sheet, from `chartContext`. --}}
 <section class="acks-extras-org" data-org-host="{{hostUuid}}" data-org-root="{{rootKey}}" aria-label="{{localize 'ACKS-LIB.org.chart.label'}}">
   {{#if plate}}<img class="acks-extras-org__plate" src="{{plate}}" alt="" />{{/if}}
+  {{#if undo}}
+    <div class="acks-extras-org__undo" role="status">
+      <span>{{localize "ACKS-LIB.org.undo.deleted" name=undo.label}}{{#if undo.n}} <span data-tooltip="ACKS-LIB.org.undo.rowsTip">{{localize "ACKS-LIB.org.undo.beneath" n=undo.n}}</span>{{/if}}.</span>
+      {{#if undo.canUndo}}<button type="button" data-action="orgUndo" aria-label="{{localize 'ACKS-LIB.org.undo.pressLabel'}}" data-tooltip="ACKS-LIB.org.undo.pressTip"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{localize "ACKS-LIB.org.undo.press"}}</button>{{/if}}
+      <button type="button" data-action="orgDismissUndo" aria-label="{{localize 'ACKS-LIB.org.undo.dismiss'}}" data-tooltip="ACKS-LIB.org.undo.dismissTip"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+  {{/if}}
   <div class="acks-extras-org__tools" role="group" aria-label="{{localize 'ACKS-LIB.org.chart.tools'}}">
     {{#if editable}}
       {{#if tools.roll}}
