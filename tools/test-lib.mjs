@@ -4977,4 +4977,17 @@ await (async () => {
   console.log("ok - prepareToLight: a plain-number stack loses one, a weapon torch loses none");
 })();
 
+// The itemRun block of the API object names every press the card's presenter and the API docs name: each is an export of item-run.mjs and a member of the block.
+{
+  const moduleSource = readFileSync(new URL("../scripts/lib/module.mjs", import.meta.url), "utf8");
+  const runSource = readFileSync(new URL("../scripts/lib/item-run.mjs", import.meta.url), "utf8");
+  const block = moduleSource.slice(moduleSource.indexOf("  itemRun: {"), moduleSource.indexOf("  auraReach: {"));
+  for (const name of ["undoCardEntry", "tickBearer", "untickBearer", "tickSubject"]) {
+    assert.ok(new RegExp(String.raw`\b${name}: itemRun\.${name},`).test(block), `the itemRun block exposes ${name}`);
+    assert.ok(new RegExp(String.raw`export (async )?function ${name}\b`).test(runSource), `item-run.mjs exports ${name}`);
+  }
+  n++;
+  console.log("ok - the itemRun API block exposes the card's presses");
+}
+
 console.log(`\n${n} tests passed`);

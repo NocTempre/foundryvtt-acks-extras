@@ -572,6 +572,11 @@ const localImpl = Object.freeze({
    * an activation kind's runner, `setPresenter` posts a use's result, `setFuseBurst`
    * runs a fuse's burst, `pressRoll` and `undoEntry` are a card row's press and
    * Undo, `rowsOf` is an item's one row list, and `logic` is the pure half.
+   * A card's presses are on the block too, each callable from any seat and run
+   * on the GM's window, which checks the relayed seat's ownership again:
+   * `undoCardEntry` takes one entry back, `tickBearer` and `untickBearer` count
+   * the bearer in and out, `tickSubject` counts an undetermined body in, and
+   * `reachStrip(actor)` reads the "In reach of" strip.
    */
   itemUse: { addClaimant: addItemUseClaimant, removeClaimant: removeItemUseClaimant },
   itemRun: {
@@ -581,6 +586,8 @@ const localImpl = Object.freeze({
     setFuseBurst: itemRun.setFuseBurst,
     pressRoll: itemRun.pressRoll,
     undoEntry: itemRun.undoEntry,
+    undoCardEntry: itemRun.undoCardEntry,
+    tickBearer: itemRun.tickBearer,
     untickBearer: itemRun.untickBearer,
     tickSubject: itemRun.tickSubject,
     reachStrip: reachStripFor,

@@ -39,6 +39,7 @@ acksExtras.lib = {
 
   apiVersion: 82,
 
+  apiVersion: 84,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -2337,3 +2338,4 @@ Rows on the lib api from `apiVersion` 76.
 - `actor-read.mjs` (internal): `creatureKinds` reads a character's race key and category and a monster's `subtype`; `registerCharacterRace(fn)`, `raceCategoryOf`, `kindToken`, `MEN_RACES`, `DEMI_HUMAN_RACES`.
 - apiVersion 82: the item runner draws its cards (`item-run-presenter.mjs`, installed at `ready`; `itemRun.setPresenter` still replaces it). `auraReach.logic` gains `turnStamp`, `holdMoment`, `releaseMoment`, `pruneMoments` and `groupByKind`; `readFilter` answers `self` (`no` or `count`; `reachAdmits` counts the bearer in only for `count`) and `pulseAct` answers `list`, `refuse` and `out` for `turnStart+moveIn` on `enter` and `exit`. `itemRun.logic` gains `kindKeyOf`, `mayUndoEntry` and `selfCountUpdate`; `itemRun.undoCardEntry` undoes one card entry from any seat (the seat that applied it and the owners of the body, checked again on the GM's window), `itemRun.tickBearer` counts the bearer in for an owner of the item, and `undoEntry` no longer reads a role. `vocab.REACH_SELF` is new. `renderRollCard` rows take `aside` and `asideTooltip`, and `emphasis: "muted"`.
 - apiVersion 83: `itemRun.reachStrip(actor)` answers the "In reach of" strip's model for a body's sheet (null where absent: a seat that owns neither the body nor a token of it, no token on the viewed scene, no reach over it); `itemRun.untickBearer({itemUuid, rowKey, messageId})` counts the bearer out again (the item's `filter.self` back to `no`, an item owner's press, relayed to the GM's window); `itemRun.tickSubject({messageId, subject})` counts a body a once-only use's filter could not settle in for that use, an item owner's press. `distance-units.mjs` gains `tokenEdgeGapFeet(a, b)` (internal), the gap between two tokens' nearest edges, and `selfCountUpdate(item, rowKey, counted)` takes a third argument.
+- apiVersion 84: the `itemRun` block carries `undoCardEntry` and `tickBearer`, which the apiVersion 82 line named and the block lacked, beside `untickBearer` and `tickSubject`; all four are the card's presses, callable from any seat and run on the GM's window, which checks the relayed seat's ownership again.
