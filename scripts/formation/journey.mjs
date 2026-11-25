@@ -439,11 +439,9 @@ export async function advanceJourneyClock(formationId, seconds) {
   const notes = [];
   await patchFormation(formationId, (record) => {
     const total = (Number(record.clock?.journeySeconds) || 0) + whole;
-    // The seconds a whole turn is are imported; without them no turn is counted,
-    // so the seconds are kept and nothing burns.
     const each = turnSeconds();
-    const turns = each == null ? 0 : Math.floor(total / each);
-    record.clock = { ...(record.clock ?? {}), journeySeconds: total - turns * (each ?? 0) };
+    const turns = Math.floor(total / each);
+    record.clock = { ...(record.clock ?? {}), journeySeconds: total - turns * each };
     if (turns > 0) {
       record.lights ??= [];
       burnTurns(record, turns, notes);

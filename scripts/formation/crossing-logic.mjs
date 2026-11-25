@@ -431,14 +431,12 @@ export function stretchFeetAt({ length = null, covered = 0 } = {}) {
   return Math.max(0, Math.min(stretch, left));
 }
 
-/** A named speed as feet per round: exploration is a figure per turn, the others per round. Null for a name no pace reads, a speed that is no positive number, or an exploration speed while the rounds to a turn are not imported. */
+/** A named speed as feet per round: exploration is a figure per turn, the others per round. Null for a name no pace reads or a speed that is no positive number. */
 function feetPerRound(speeds, name) {
   if (!PACE_SPEEDS.includes(name)) return null;
   const speed = Number(speeds?.[name]);
   if (!Number.isFinite(speed) || speed <= 0) return null;
-  if (name !== "exploration") return speed;
-  const rounds = roundsPerTurn();
-  return rounds == null ? null : speed / rounds;
+  return name === "exploration" ? speed / roundsPerTurn() : speed;
 }
 
 /** A rate cell `{share, speed}` against a member's speeds: `{share, speed, perRound}`, or null where the speed is not known. */

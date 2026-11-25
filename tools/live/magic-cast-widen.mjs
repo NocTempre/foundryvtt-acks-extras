@@ -220,10 +220,8 @@ const P = {
     const R = await import("/modules/acks-extras/scripts/magic/cast-range.mjs");
     return R.rangeFeet(range, level)?.value ?? null;
   },
-  roundSeconds: async () => {
-    // The imported round's seconds; null where the world has not imported the time-keeping figures.
-    try { return (await import("/modules/acks-extras/scripts/lib/time-unit.mjs")).roundSeconds(); } catch { return null; }
-  },
+  /** The world-clock seconds in one round for time-keeping. */
+  roundSeconds: async () => (await import("/modules/acks-extras/scripts/lib/time-unit.mjs")).roundSeconds(),
   /** Whether the recurring prompts' card actions are in this build. */
   hasActions: async ({ actions }) => {
     const C = await import("/modules/acks-extras/scripts/magic/cast-card.mjs");

@@ -11,8 +11,7 @@
  *
  * The world clock is pinned beside it: a fight that ends before a record is due
  * moves it onto `dueAt`, at the round length of `time-unit-fixture.mjs`; the
- * clock lifts it once, in the same order; a fight's end handed no round length
- * deletes it and warns the Judge once; and a fight whose combatants are gone
+ * clock lifts it once, in the same order; and a fight whose combatants are gone
  * still releases the record its actor holds.
  */
 import assert from "node:assert/strict";
@@ -257,8 +256,7 @@ await ok("a fight's end turns the rounds still to run into seconds at the round 
   assert.equal(delayedDamageToWorld(record(), "g", at).act, "none", "another fight's");
   assert.equal(delayedDamageToWorld(world(), "f", at).act, "none", "already on the world clock");
   assert.equal(delayedDamageToWorld(record(), "f", { ...at, down: true }).act, "drop", "a bearer that is down is owed nothing");
-  for (const blank of [null, undefined, 0, -3, "x"]) assert.equal(delayedDamageToWorld(record(), "f", { now: 1000, roundSeconds: blank }).act, "owed", `a round length of ${String(blank)} cannot convert`);
-  assert.equal(delayedDamageToWorld(record(), "f", { now: null, roundSeconds: ROUND_SECONDS }).act, "owed", "no clock reading");
+  assert.equal(delayedDamageToWorld(record(), "f", { now: null, roundSeconds: ROUND_SECONDS }).act, "none", "no clock reading");
 });
 
 /** A fight with the bearer's combatant and one other; `bearer` is the actor the combatant stands for. */
@@ -267,17 +265,15 @@ const fightEnd = (bearer, over = {}) => {
   list.get = (id) => list.find((c) => c.id === id);
   return { id: "f", combatants: list };
 };
-const warnings = () => { const log = []; return { log, deps: { warn: (entry) => log.push(entry) } }; };
 
 await ok("a fight that ends before the record is due moves it to the world clock in one write, and the clock lands it once after", async () => {
   const h = holder({ raw: record({ count: 3, seen: 1 }) });
-  const w = warnings();
   const before = { ...h.flag() };
-  const done = await convertDelayedDamage(fightEnd(h.actor), [h.actor], { now: 1000, roundSeconds: ROUND_SECONDS }, w.deps);
+  const done = await convertDelayedDamage(fightEnd(h.actor), [h.actor], { now: 1000, roundSeconds: ROUND_SECONDS });
   assert.deepEqual(done, [{ name: "Bearer", act: "convert" }]);
   assert.equal(before.combatId, "f", "before: a combat clock");
   assert.deepEqual(h.flag(), { dueAt: 1000 + 2 * ROUND_SECONDS, amount: 7, formula: "", source: "Venom", cite: "Pg 3" }, "after: a world clock and nothing of the fight");
-  assert.deepEqual([h.deleted, w.log], [[], []], "the record stays, and nobody is warned");
+  assert.deepEqual(h.deleted, [], "the record stays");
   const { deps, log } = hands();
   const order = [];
   const traced = { roll: deps.roll, damage: async (a) => { order.push("damage"); return deps.damage(a); }, post: async (e) => { order.push("post"); return deps.post(e); } };
@@ -296,7 +292,7 @@ await ok("a fight that ends before the record is due moves it to the world clock
 await ok("a record due at the fight's end is due at once, and a bearer that left the fight is still struck", async () => {
   const h = holder({ raw: record({ count: 2, seen: 2 }) });
   const stranger = { id: "f", combatants: Object.assign([], { get: () => undefined }) };
-  assert.equal((await convertDelayedDamage(stranger, [h.actor], { now: 500, roundSeconds: ROUND_SECONDS }, warnings().deps))[0].act, "convert", "no combatant in the fight, the actor still holds it");
+  assert.equal((await convertDelayedDamage(stranger, [h.actor], { now: 500, roundSeconds: ROUND_SECONDS }))[0].act, "convert", "no combatant in the fight, the actor still holds it");
   assert.equal(h.flag().dueAt, 500);
   const { deps, log } = hands();
   await liftWorldDelayedDamage([h.actor], 500, deps);
@@ -306,42 +302,18 @@ await ok("a record due at the fight's end is due at once, and a bearer that left
 await ok("a fight's end leaves another fight's record and a world-clock record as they are, and a down bearer's goes unpaid", async () => {
   const other = holder({ raw: record({ combatId: "g" }), name: "Other" });
   const already = holder({ raw: world(), name: "Already" });
-  const w = warnings();
   const at = { now: 1000, roundSeconds: ROUND_SECONDS };
-  assert.deepEqual(await convertDelayedDamage(fightEnd(other.actor), [other.actor, already.actor], at, w.deps), []);
+  assert.deepEqual(await convertDelayedDamage(fightEnd(other.actor), [other.actor, already.actor], at), []);
   assert.equal(other.flag().combatId, "g");
   assert.equal(already.flag().dueAt, 100);
   const defeated = holder({ raw: record(), name: "Defeated" });
-  assert.deepEqual(await convertDelayedDamage(fightEnd(defeated.actor, { isDefeated: true }), [defeated.actor], at, w.deps), [{ name: "Bearer", act: "drop" }]);
+  assert.deepEqual(await convertDelayedDamage(fightEnd(defeated.actor, { isDefeated: true }), [defeated.actor], at), [{ name: "Bearer", act: "drop" }]);
   const dead = holder({ raw: record(), dead: true, name: "Dead" });
-  await convertDelayedDamage(fightEnd(dead.actor), [dead.actor], at, w.deps);
-  assert.deepEqual([defeated.deleted, dead.deleted, w.log], [["e1"], ["e1"], []], "both deleted, nothing owed, nobody warned");
+  await convertDelayedDamage(fightEnd(dead.actor), [dead.actor], at);
+  assert.deepEqual([defeated.deleted, dead.deleted], [["e1"], ["e1"]], "both deleted, nothing owed");
   const twice = holder({ raw: record() });
   const fightOf = fightEnd(twice.actor);
-  assert.equal((await convertDelayedDamage(fightOf, [twice.actor, twice.actor], at, w.deps)).length, 1, "an actor listed twice holds its record once");
-});
-
-await ok("a fight's end with no round length to convert at deletes the record and warns the Judge once, naming bearer, amount, source and page", async () => {
-  const flat = holder({ raw: record() });
-  const w = warnings();
-  const done = await convertDelayedDamage(fightEnd(flat.actor), [flat.actor], { now: 1000, roundSeconds: null }, w.deps);
-  assert.deepEqual(done, [{ name: "Bearer", act: "owed" }]);
-  assert.deepEqual(flat.deleted, ["e1"], "the record is deleted, never converted");
-  assert.deepEqual(w.log, [{ name: "Bearer", amount: 7, source: "Venom", cite: "Pg 3" }], "one warning, with what is owed");
-  const rolled = holder({ raw: record({ amount: null, formula: "1d6" }) });
-  const second = warnings();
-  await convertDelayedDamage(fightEnd(rolled.actor), [rolled.actor], { now: 1000, roundSeconds: null }, second.deps);
-  assert.deepEqual(second.log.map((e) => e.amount), ["1d6"], "a formula is named, never rolled");
-  const lost = holder({ raw: record(), deleteFails: true });
-  const third = warnings();
-  const quiet = console.error;
-  console.error = () => {};
-  try {
-    assert.deepEqual(await convertDelayedDamage(fightEnd(lost.actor), [lost.actor], { now: 1000, roundSeconds: null }, third.deps), []);
-  } finally {
-    console.error = quiet;
-  }
-  assert.deepEqual(third.log, [], "a delete that fails warns nothing: another client holds it");
+  assert.equal((await convertDelayedDamage(fightOf, [twice.actor, twice.actor], at)).length, 1, "an actor listed twice holds its record once");
 });
 
 await ok("the world reader rolls a formula, skips a bearer marked dead, and a failed delete deals nothing", async () => {

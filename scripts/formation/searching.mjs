@@ -15,12 +15,6 @@ import { turnsPerHour } from "../lib/time-unit.mjs";
 /** The registered document these derivations read. */
 export const SEARCHING_DOC = "searching";
 
-/** A count of turns as hours, or null where the turns to an hour are not imported. */
-function hourShare(turns) {
-  const perHour = turnsPerHour();
-  return perHour == null ? null : turns / perHour;
-}
-
 /**
  * What a party can be looking for. All three take the same throw; they differ
  * in what a success means and in whether the quarry can move.
@@ -141,7 +135,7 @@ export function searchSpec({
 
   return {
     ok: true, target, modifier, parts, subject, mode, notes,
-    turnsPerThrow, costsHours: hourShare(turnsPerThrow), owesEncounterThrow: true,
+    turnsPerThrow, costsHours: turnsPerThrow / turnsPerHour(), owesEncounterThrow: true,
   };
 }
 

@@ -3049,7 +3049,7 @@ write that sets `dueAt` and unsets the five combat keys: the rounds still to run
 (the count less the turns seen, at least none, a part of a second counting
 whole) times the round's length in seconds, from the clock's reading at that
 moment. The round's length is read at that moment through `roundSeconds()`
-(`time-unit.mjs`, from the imported turn figures), never kept. Records are
+(`time-unit.mjs`), never kept. Records are
 found by actor (every world actor and every unlinked token's), not through the
 fight's combatants, since a deleted scene takes tokens with it and the record
 stays on the actor. A bearer that has left the fight is still struck, and its
@@ -3062,14 +3062,8 @@ lands then. Clock steps are run one after another, so two in quick succession
 lift a record once. A `dueAt` that is present wins over combat fields left
 beside it, and a turn event never touches a world-clock record.
 
-**With no round length imported,** nothing can be converted. The primary GM
-deletes the record (first, so a client whose delete fails warns nothing) and
-warns the Judge through `ui.notifications.warn`, once for that record, naming
-the bearer, the amount owed (the flat figure, or the formula's text, never
-rolled), the source and the page. The Judge applies it by hand and nothing is
-lost silently: automation blocks a player and warns a Judge. Nothing throws and
-no seconds are invented. A fight deleted while no primary GM is seated converts
-nothing, and its records stay on their combat clock.
+A fight deleted while no primary GM is seated converts nothing, and its
+records stay on their combat clock.
 
 **Whose state it is.** Foundry writes on every effect an actor is given who
 was acting when it was made (`start.combatant`, `start.initiative`). A `given`

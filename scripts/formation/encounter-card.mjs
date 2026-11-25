@@ -221,7 +221,8 @@ export async function postEncounterThrow(formation, { activity = "travel", night
  * `travel.enc.when.<key>`. Every die has one face per unit of the span it
  * places the encounter in, counted from the calendar or an imported figure:
  * the mile of a per-hex throw (`mileHex`, the cadence unit in miles), the turn
- * of a per-hour throw (`secondsPerHour` over `turnSeconds`), the hour of the
+ * of a per-hour throw (`secondsPerHour` over `turnSeconds`, the turn's length in
+ * `lib/time-unit.mjs`), the hour of the
  * day or night of a rest period (the bounds of `clock`, a `clockReading`) and,
  * for a rest period of `nights` nights, the night. A per-attempt throw, and a
  * span nothing states, answers no line.
@@ -230,7 +231,7 @@ export async function postEncounterThrow(formation, { activity = "travel", night
  * @param {boolean} [o.night]  a rest through the dark rather than the light
  * @param {number|null} [o.mileHex]
  * @param {number|null} [o.secondsPerHour]
- * @param {number|null} [o.turnSeconds]  the imported turn's length; a search names no turn line without it
+ * @param {number} [o.turnSeconds]
  * @param {object|null} [o.clock]
  * @param {number} [o.nights]
  * @param {() => number} [o.rng]
@@ -246,7 +247,7 @@ export function encounterWhen({
   }
   if (activity === "search") {
     const perHour = numOrNull(secondsPerHour) > 0 ? Number(secondsPerHour) : DAY_SECONDS / 24;
-    const turns = numOrNull(turnSeconds) > 0 ? Math.floor(perHour / turnSeconds) : 0;
+    const turns = Math.floor(perHour / turnSeconds);
     return turns >= 1 ? [{ key: "turn", n: die(turns, rng) }] : [];
   }
   if (activity !== "rest") return [];

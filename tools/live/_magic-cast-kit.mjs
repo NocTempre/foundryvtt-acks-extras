@@ -448,10 +448,8 @@ export const P = {
   },
   /** An actor's effect by id: whether it stands, and the statuses of the actor. */
   effectStands: async ({ actorId, effectId }) => ({ stands: game.actors.get(actorId).effects.has(effectId), statuses: [...game.actors.get(actorId).statuses] }),
-  roundSeconds: async () => {
-    // The imported round's seconds; null where the world has not imported the time-keeping figures.
-    try { return (await import("/modules/acks-extras/scripts/lib/time-unit.mjs")).roundSeconds(); } catch { return null; }
-  },
+  /** The world-clock seconds in one round for time-keeping. */
+  roundSeconds: async () => (await import("/modules/acks-extras/scripts/lib/time-unit.mjs")).roundSeconds(),
   time: async ({ advance }) => {
     const H = globalThis.__mck;
     await game.time.advance(advance);

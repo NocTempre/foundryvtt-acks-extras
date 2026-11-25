@@ -39,14 +39,9 @@ import { equipForLight } from "./judge-override.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-/**
- * "Xh YYm" for a number of dungeon turns, or null where the turn's length is
- * not imported (the turns to an hour, `lib/time-unit.mjs`).
- */
+/** "Xh YYm" for a number of dungeon turns (the turn's length, `lib/time-unit.mjs`). */
 export function formatTurns(turns) {
-  const seconds = turnSeconds();
-  if (seconds == null) return null;
-  const minutes = Math.round((turns * seconds) / 60);
+  const minutes = Math.round((turns * turnSeconds()) / 60);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
@@ -252,24 +247,19 @@ export async function encounterCheck(formation, { manual = false, params = null 
 
   if (encounter) {
     const distance = resolved.distance ? await new Roll(resolved.distance).evaluate() : null;
-    // The minute of the turn is a die the size of the rounds to a turn; with
-    // those not imported there is no minute to roll and the card names none.
-    const perTurn = roundsPerTurn();
-    const minute = perTurn == null ? null : await new Roll(`1d${perTurn}`).evaluate();
-    const shown = distance ? tipped("distance", distance.total) : null;
-    const detail = minute
-      ? (distance
-        ? loc("chat.encounterDetail", { distance: shown, minute: minute.total })
-        : loc("chat.encounterDetailNoDistance", { minute: minute.total }))
-      : (distance ? loc("chat.encounterDetailNoMinute", { distance: shown }) : loc("chat.encounterDetailBare"));
+    // The minute of the turn is a die the size of the rounds to a turn.
+    const minute = await new Roll(`1d${roundsPerTurn()}`).evaluate();
+    const detail = distance
+      ? loc("chat.encounterDetail", { distance: tipped("distance", distance.total), minute: minute.total })
+      : loc("chat.encounterDetailNoDistance", { minute: minute.total });
     messages.push({
-      rolls: [distance, minute].filter(Boolean),
+      rolls: distance ? [distance, minute] : [minute],
       flavor: `<div class="acks-formation-card encounter"><strong>${loc("chat.encounterTriggered")}</strong><br>${detail}</div>`,
       speaker: { alias: formation.name },
     });
     // Turn-boundary throws fire when the clock reaches the rolled minute of
     // the turn now beginning; manual checks are immediate.
-    if (!manual && minute) {
+    if (!manual) {
       formation.clock.pendingEncounter = {
         atRounds: totalRounds(formation.clock) + (minute.total - 1),
         minute: minute.total,
@@ -357,17 +347,15 @@ export async function consumeRations(formation) {
 /*  The clock: rounds and turns                 */
 /* -------------------------------------------- */
 
-/** Absolute rounds elapsed: the imported rounds to a turn (RR p. 263), or null where they are not imported. */
+/** Absolute rounds elapsed: the rounds to a turn (RR p. 263) to each turn, plus the partial turn. */
 export function totalRounds(clock) {
-  const perTurn = roundsPerTurn();
-  return perTurn == null ? null : (clock.turnsTotal ?? 0) * perTurn + (clock.roundsPartial ?? 0);
+  return (clock.turnsTotal ?? 0) * roundsPerTurn() + (clock.roundsPartial ?? 0);
 }
 
 /** Fire the pre-rolled wandering encounter when the clock reaches its round. */
 async function firePendingEncounter(formation, notes) {
   const pending = formation.clock.pendingEncounter;
-  const total = pending ? totalRounds(formation.clock) : null;
-  if (!pending || total == null || total < pending.atRounds) return;
+  if (!pending || totalRounds(formation.clock) < pending.atRounds) return;
   formation.clock.pendingEncounter = null;
   notes.push({ type: "bad", text: loc("chat.encounterNow", { minute: pending.minute }) });
   await ChatMessage.create({
@@ -473,43 +461,30 @@ async function onTurnCompleted(formation, notes, resting) {
 }
 
 /**
- * Advance the clock by bookkeeping rounds (the imported rounds to a turn,
+ * Advance the clock by bookkeeping rounds (the rounds to a turn,
  * `lib/time-unit.mjs`). Movement, hasty one-round actions and combat all spend
  * the same currency; full-turn bookkeeping fires whenever a turn completes.
- * With the rounds to a turn not imported a round cannot be counted into a
- * turn, and nothing advances.
  * @param {object} formation                the formation record (mutated & saved)
  * @param {number} rounds                   rounds to advance
  * @param {object} [options]
  * @param {boolean} [options.resting]       the party is resting through these rounds
  * @param {string}  [options.reason]        display hint ("movement", "action", "combat", ...)
  */
-export async function advanceRounds(formation, rounds, options = {}) {
-  if (roundsPerTurn() == null) return;
-  return runClock(formation, { rounds: Math.max(1, Math.floor(rounds)) }, options);
-}
-
-/**
- * The clock's one advance: `units.rounds` bookkeeping rounds, or whole
- * `units.turns` where the rounds to a turn are not imported and a turn is
- * the smallest step the clock can take. World time moves by the length of
- * what was spent, and not at all where that length is not imported.
- */
-async function runClock(formation, units, { resting = false, reason = "manual" } = {}) {
+export async function advanceRounds(formation, rounds, { resting = false, reason = "manual" } = {}) {
   if (!game.user.isGM) return;
+  rounds = Math.max(1, Math.floor(rounds));
   const perTurn = roundsPerTurn();
   const perDay = turnsPerDay();
 
   const notes = [];
   const snapshot = snapshotRunningEffects(formation);
-  const dayBefore = perDay == null ? null : Math.floor(formation.clock.turnsTotal / perDay);
+  const dayBefore = Math.floor(formation.clock.turnsTotal / perDay);
   let completedTurns = 0;
 
   // Advance world time so effect durations and calendar modules stay in sync;
   // the gate lives in lib because henchmen downtime shares the clock.
-  const each = units.rounds != null ? roundSeconds() : turnSeconds();
-  if (mayAdvanceWorldTime() && each != null) {
-    await game.time.advance(each * (units.rounds ?? units.turns));
+  if (mayAdvanceWorldTime()) {
+    await game.time.advance(roundSeconds() * rounds);
     // Settle the holed-up day credit this advance owes before the turn ticks,
     // and take the stored board back into this copy. See docs/formation/DECISIONS.md,
     // "A stay is credited once per advance, by the queue and not by the caller (2026-09-15)".
@@ -525,19 +500,11 @@ async function runClock(formation, units, { resting = false, reason = "manual" }
     }
   }
 
-  if (units.rounds != null) {
-    for (let i = 0; i < units.rounds; i++) {
-      formation.clock.roundsPartial = (formation.clock.roundsPartial ?? 0) + 1;
-      await firePendingEncounter(formation, notes);
-      if (formation.clock.roundsPartial >= perTurn) {
-        formation.clock.roundsPartial = 0;
-        formation.clock.turnsTotal += 1;
-        completedTurns += 1;
-        await onTurnCompleted(formation, notes, resting);
-      }
-    }
-  } else {
-    for (let i = 0; i < units.turns; i++) {
+  for (let i = 0; i < rounds; i++) {
+    formation.clock.roundsPartial = (formation.clock.roundsPartial ?? 0) + 1;
+    await firePendingEncounter(formation, notes);
+    if (formation.clock.roundsPartial >= perTurn) {
+      formation.clock.roundsPartial = 0;
       formation.clock.turnsTotal += 1;
       completedTurns += 1;
       await onTurnCompleted(formation, notes, resting);
@@ -551,7 +518,7 @@ async function runClock(formation, units, { resting = false, reason = "manual" }
   expiredEffectNotes(formation, snapshot, notes);
 
   /* --- Day boundary: ration reminder --- */
-  if (perDay != null && Math.floor(formation.clock.turnsTotal / perDay) > dayBefore) {
+  if (Math.floor(formation.clock.turnsTotal / perDay) > dayBefore) {
     notes.push({ type: "warn", text: loc("chat.dayPassed") });
   }
 
@@ -577,15 +544,9 @@ async function runClock(formation, units, { resting = false, reason = "manual" }
   }
 }
 
-/**
- * Advance whole dungeon turns. They are spent as the imported rounds to a
- * turn each, or, where those are not imported, as whole turns with no round
- * count between them.
- */
+/** Advance whole dungeon turns (the rounds to a turn, each). */
 export async function advanceTurns(formation, n = 1, options = {}) {
-  const turns = Math.max(1, Math.floor(n));
-  const perTurn = roundsPerTurn();
-  return runClock(formation, perTurn == null ? { turns } : { rounds: turns * perTurn }, options);
+  return advanceRounds(formation, Math.max(1, Math.floor(n)) * roundsPerTurn(), options);
 }
 
 /* -------------------------------------------- */
@@ -613,9 +574,7 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
   html += `</header>`;
 
   html += `<ul class="status">`;
-  const elapsed = formatTurns(formation.clock.turnsTotal);
-  const elapsedKey = `chat.${city ? "elapsedCity" : "elapsed"}${elapsed == null ? "Bare" : ""}`;
-  html += `<li>${loc(elapsedKey, { turns: formation.clock.turnsTotal, time: elapsed })}</li>`;
+  html += `<li>${loc(city ? "chat.elapsedCity" : "chat.elapsed", { turns: formation.clock.turnsTotal, time: formatTurns(formation.clock.turnsTotal) })}</li>`;
   if (formation.clock.winded) {
     html += `<li class="bad">${loc("chat.windedStatus")}</li>`;
   } else if (!resting && restEnforced()) {
@@ -759,10 +718,9 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
     return;
   }
 
-  // Rounds, not whole turns: a turn's distance divides into the imported
-  // rounds to a turn. With those not imported the step is the whole turn.
+  // Rounds, not whole turns: a turn's distance divides into the rounds to a turn.
   const perTurn = roundsPerTurn();
-  const roundFeet = perTurn == null ? speed : speed / perTurn;
+  const roundFeet = speed / perTurn;
   formation.clock.carryFeet = (formation.clock.carryFeet ?? 0) + feet;
   // A hair of tolerance: a whole step's feet divided into steps must count as that many steps.
   const rounds = Math.floor(formation.clock.carryFeet / roundFeet + 1e-9);
@@ -779,11 +737,10 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
     } catch (err) {
       console.error(`${MODULE_ID} | turn plan: cancelling for the move failed`, err);
     }
-    await (perTurn == null ? advanceTurns(formation, rounds, { reason: "movement" }) : advanceRounds(formation, rounds, { reason: "movement" }));
-    const spentTurns = perTurn == null ? rounds : Math.floor(rounds / perTurn);
-    if (spentTurns >= 3) {
+    await advanceRounds(formation, rounds, { reason: "movement" });
+    if (rounds >= 3 * perTurn) {
       await ChatMessage.create({
-        content: `<div class="acks-formation-card"><em>${loc("chat.bigMove", { turns: spentTurns })}</em></div>`,
+        content: `<div class="acks-formation-card"><em>${loc("chat.bigMove", { turns: Math.floor(rounds / perTurn) })}</em></div>`,
         whisper: gmIds(),
         speaker: { alias: formation.name },
       });

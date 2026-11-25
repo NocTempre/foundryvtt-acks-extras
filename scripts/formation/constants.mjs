@@ -10,8 +10,8 @@
 
 import { MODULE_ID } from "../lib/constants.mjs";
 import { getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
-// The turn's length and its rounds are the module's own time unit, imported
-// and read through lib (`lib/time-unit.mjs`); nothing here states them.
+// The turn's length and its rounds are the module's own time unit, read
+// through lib (`lib/time-unit.mjs`); nothing here states them.
 export { MODULE_ID };
 
 /** Flag on the party TokenDocument / party Actor pointing back at a formation. */

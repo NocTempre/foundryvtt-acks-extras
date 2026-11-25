@@ -119,11 +119,9 @@ export async function runSearchHour(formation, {
   const hasStock = mode === "stock" && !!record?.stocked;
   const thereIsOne = !elsewhere && (mode === "yes" || pool.length > 0);
 
-  // A search throws once an hour at the base cadence and a faster cadence buys
-  // proportionally more throws. With the turns to an hour not imported the
-  // cadence cannot be priced against the hour, so the search throws once.
+  // An hour is the turns to an hour; a faster cadence buys proportionally more throws.
   const perHour = turnsPerHour();
-  const throws = perHour == null ? 1 : Math.max(1, Math.round(perHour / (spec.turnsPerThrow || perHour)));
+  const throws = Math.max(1, Math.round(perHour / (spec.turnsPerThrow || perHour)));
   const attempts = [];
   let found = false;
   for (let n = 0; n < throws && !found; n++) {

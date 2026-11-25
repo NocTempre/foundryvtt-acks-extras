@@ -31,8 +31,6 @@
  *
  * The rounds a fight still had to run become seconds at the world's round
  * length, read at the moment of conversion (`time-unit.mjs` `roundSeconds`).
- * Where the world has imported none, nothing can be converted: the record is
- * deleted and the Judge is warned, once, with what is owed, to apply by hand.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_DELAYED_DAMAGE, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
 import { readTurnLife, turnLifeStep } from "./turn-life.mjs";
@@ -110,25 +108,24 @@ export function delayedDamageDue(raw, worldTime, { down = false } = {}) {
  * What a fight's end does to one of its combat-clock records: `{act, record}`.
  * `none` for a record that is not this fight's or already on the world clock;
  * `drop` for a bearer that is gone or down (nothing is owed); `convert` with the
- * world-clock `record`, due the rounds still to run from `now`; `owed` when the
- * world has no round length (or no clock reading) to convert with, so the
- * Judge applies it by hand. The rounds still to run are the count less the
- * turns seen, at least none, each a whole round of `roundSeconds`. Pure.
+ * world-clock `record`, due the rounds still to run from `now`. The rounds
+ * still to run are the count less the turns seen, at least none, each a whole
+ * round of `roundSeconds`. A reading of the clock that is no number leaves the
+ * record as it is. Pure.
  *
  * @param {object} raw  the stored flag
  * @param {string} combatId  the fight that ended
- * @param {{now: number, roundSeconds: number|null, gone?: boolean, down?: boolean}} at
+ * @param {{now: number, roundSeconds: number, gone?: boolean, down?: boolean}} at
  */
 export function delayedDamageToWorld(raw, combatId, { now, roundSeconds: seconds, gone = false, down = false } = {}) {
   const record = readDelayedDamage(raw);
   if (!record || onWorldClock(record) || record.combatId !== combatId) return { act: "none", record: null };
   if (gone || down) return { act: "drop", record };
-  const rate = numOrNull(seconds);
   const at = numOrNull(now);
-  if (rate === null || !(rate > 0) || at === null) return { act: "owed", record };
+  if (at === null) return { act: "none", record: null };
   const rounds = Math.max(record.count - record.seen, 0);
   const { amount, formula, source, cite } = record;
-  return { act: "convert", record: { dueAt: Math.ceil(at + rounds * rate), amount, formula, source, cite } };
+  return { act: "convert", record: { dueAt: Math.ceil(at + rounds * seconds), amount, formula, source, cite } };
 }
 
 /**
@@ -249,18 +246,14 @@ export async function liftWorldDelayedDamage(actors, worldTime, deps) {
  * `actors` is every actor that may hold one (the fight's own combatants may be
  * gone with their tokens, but a record lives on its actor). A record moves with
  * one write; one whose bearer is down is deleted with nothing owed (a bearer
- * that has left the fight is still struck, so its record moves); one
- * with no round length to convert by is deleted FIRST and then `deps.warn` is
- * called once with `{name, amount, source, cite}`, `amount` the flat figure or
- * the formula's text unrolled.
+ * that has left the fight is still struck, so its record moves).
  *
  * @param {object} combat
  * @param {Iterable<object>} actors
- * @param {{now: number, roundSeconds: number|null}} clock  the clock's reading and the round's seconds, read by the caller at this moment
- * @param {{warn: Function}} deps
- * @returns {Promise<Array<{name: string, act: "convert"|"drop"|"owed"}>>}
+ * @param {{now: number, roundSeconds: number}} clock  the clock's reading and the round's seconds, read by the caller at this moment
+ * @returns {Promise<Array<{name: string, act: "convert"|"drop"}>>}
  */
-export async function convertDelayedDamage(combat, actors, { now, roundSeconds: seconds }, deps) {
+export async function convertDelayedDamage(combat, actors, { now, roundSeconds: seconds }) {
   const done = [];
   for (const { actor, effect, raw } of recordEffects(actors)) {
     const life = readDelayedDamage(raw);
@@ -277,7 +270,6 @@ export async function convertDelayedDamage(combat, actors, { now, roundSeconds: 
         await effect.update({ [path]: { ...step.record, ...Object.fromEntries(COMBAT_KEYS.map((key) => [key, unset()])) } });
       } else {
         await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
-        if (step.act === "owed") await deps.warn({ name, amount: step.record.amount ?? step.record.formula, source: step.record.source, cite: step.record.cite });
       }
       done.push({ name, act: step.act });
     } catch (err) {
@@ -291,7 +283,7 @@ export async function convertDelayedDamage(combat, actors, { now, roundSeconds: 
 /*  Foundry                                      */
 /* -------------------------------------------- */
 
-/** The real hands of the readers: a roll, an `adjustHp` write, the hit-point card and the Judge's warning. */
+/** The real hands of the readers: a roll, an `adjustHp` write and the hit-point card. */
 function foundryDeps() {
   return {
     roll: async (formula) => (await new Roll(formula).evaluate()).total,
@@ -322,9 +314,6 @@ function foundryDeps() {
         labels: { total: loc("hp.card.colHp") },
       });
       if (content) await ChatMessage.create({ content, speaker: ChatMessage.getSpeaker({ user: game.user }) });
-    },
-    warn: ({ name, amount, source, cite }) => {
-      ui.notifications?.warn(cite ? loc("delayedDamage.owed", { name, amount, source, cite }) : loc("delayedDamage.owedBare", { name, amount, source }));
     },
   };
 }
@@ -364,7 +353,7 @@ export function installDelayedDamage() {
       const now = game.time.worldTime;
       const actors = [...[...(combat?.combatants ?? [])].map((holder) => holder?.actor), ...(await recordHolders())];
       const deps = foundryDeps();
-      await convertDelayedDamage(combat, actors, { now, roundSeconds: roundSeconds() }, deps);
+      await convertDelayedDamage(combat, actors, { now, roundSeconds: roundSeconds() });
       await liftWorldDelayedDamage(actors, now, deps);
     });
   });

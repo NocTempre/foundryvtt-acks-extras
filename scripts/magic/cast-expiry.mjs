@@ -12,8 +12,8 @@
  *
  * The end is this file's own reading of the record, start time plus duration
  * on the world clock, never core's `duration.expired`. A `rounds` record counts
- * its rounds at the imported round's length in seconds (`lib/time-unit.mjs`
- * `roundSeconds`), and never ends while that is not imported; a record with no duration never ends here.
+ * its rounds at the round's length in seconds (`lib/time-unit.mjs`
+ * `roundSeconds`); a record with no duration never ends here.
  * Only a step of the clock decides, read on the one window that runs the
  * automation (`onWorldTimeAdvanced`).
  *
@@ -63,7 +63,7 @@ export function castRecordEnd(effect, secondsOf) {
   const { value, units } = own ? mark.duration : (effect?._source?.duration ?? effect?.duration ?? {});
   const n = Number(value);
   if (time == null || time === "" || !Number.isFinite(start) || value == null || !Number.isFinite(n) || !units) return null;
-  const seconds = units === "rounds" ? n * (roundSeconds() ?? NaN) : units === "turns" ? null : secondsOf?.(n, units);
+  const seconds = units === "rounds" ? n * roundSeconds() : units === "turns" ? null : secondsOf?.(n, units);
   return Number.isFinite(seconds) ? start + seconds : null;
 }
 

@@ -1503,13 +1503,13 @@ delayedDamageStep(flag, {kind, combatId, combatantId}, {gone?, down?}?) → {act
 delayedDamageDue(flag, worldTime, {down?}?) → {act, record}
                                      // act: "none" | "apply" | "drop"; only a dueAt record is ever due
 delayedDamageToWorld(flag, combatId, {now, roundSeconds, gone?, down?}) → {act, record}
-                                     // act: "none" | "drop" | "convert" (record: the dueAt record) | "owed" (no round length or reading)
+                                     // act: "none" | "drop" | "convert" (record: the dueAt record); "none" too where `now` is no number
 delayedDamageEffectData({amount?, formula?, source, cite?, dueAt?, combatId?, combatantId?, count?, edge?, name?, img?}) → ActiveEffect data | null
                                      // dueAt in place of the combat fields starts it on the world clock
 liftDelayedDamage(combat, combatantId, kind, {roll, damage, post}) → Promise<[{name, source, cite, amount, result}]>
 liftWorldDelayedDamage(actors, worldTime, {roll, damage, post}) → Promise<[{name, source, cite, amount, result}]>
-convertDelayedDamage(combat, actors, {now, roundSeconds}, {warn}) → Promise<[{name, act}]>
-                                     // act: "convert" | "drop" | "owed"; warn({name, amount, source, cite}) once per owed record
+convertDelayedDamage(combat, actors, {now, roundSeconds}) → Promise<[{name, act}]>
+                                     // act: "convert" | "drop"
 installDelayedDamage()               // the two turn hooks, deleteCombat and the world clock, once; called from module.mjs
 ```
 

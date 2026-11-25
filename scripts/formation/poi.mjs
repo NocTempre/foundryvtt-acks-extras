@@ -62,19 +62,16 @@ const locationApi = () => globalThis.acksExtras?.location ?? null;
 /**
  * Drop a Judge-only marker where the party stands, for an incident the street
  * just produced. Silent when the setting is off, when the incident has no
- * text, when the turn's length is not imported, or when the party has no token
- * to stand anywhere.
+ * text, or when the party has no token to stand anywhere.
  * @returns {Promise<NoteDocument|null>}
  */
 export async function dropIncidentNote(formation, { text, source = "city", table = "" } = {}, { regionUuid = null } = {}) {
   const turns = Math.floor(Number(game.settings.get(MODULE_ID, SETTING_TRANSIENT_TURNS)) || 0);
-  // The marker lives a number of turns, so it needs the turn's length in seconds.
-  const turnLength = turnSeconds();
-  if (turns <= 0 || !text || turnLength == null) return null;
+  if (turns <= 0 || !text) return null;
   const at = partyPoint(formation);
   if (!at) return null;
   const data = transientNoteData({
-    x: at.point.x, y: at.point.y, text, now: worldNow(), turns, turnSeconds: turnLength, icon: INCIDENT_ICON,
+    x: at.point.x, y: at.point.y, text, now: worldNow(), turns, turnSeconds: turnSeconds(), icon: INCIDENT_ICON,
     source, table, formationId: formation.id, regionUuid,
   });
   const [note] = await at.scene.createEmbeddedDocuments("Note", [data]);

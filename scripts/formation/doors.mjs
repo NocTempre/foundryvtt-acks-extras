@@ -397,23 +397,14 @@ export async function bashDoor(wall, { actor = null, partner = null, crowbar = f
  * nothing; a row whose notes give no time answers `tooSolid`. Whether the party
  * holds the tool is the Judge's call.
  *
- * `rounds` is null for a time the grid counts in turns while the rounds to a
- * turn are not imported; `count` and `unit` stand either way.
- *
- * @returns {{ok: true, count: number, unit: string, tool: string, rounds: number|null, row: object}|{ok: false, reason: "noRow"|"tooSolid", row?: object}}
+ * @returns {{ok: true, count: number, unit: string, tool: string, rounds: number, row: object}|{ok: false, reason: "noRow"|"tooSolid", row?: object}}
  */
 export function batterPlan(wall) {
   const row = doorRow(doorState(wall).kind);
   if (!row) return { ok: false, reason: "noRow" };
   if (!row.batter) return { ok: false, reason: "tooSolid", row };
   const { count, unit, tool } = row.batter;
-  return { ok: true, count, unit, tool, rounds: unit === "turn" ? turnRounds(count) : count, row };
-}
-
-/** A count of turns as rounds, or null where the rounds to a turn are not imported. */
-function turnRounds(turns) {
-  const perTurn = roundsPerTurn();
-  return perTurn == null ? null : turns * perTurn;
+  return { ok: true, count, unit, tool, rounds: unit === "turn" ? count * roundsPerTurn() : count, row };
 }
 
 /**
@@ -429,7 +420,7 @@ function turnRounds(turns) {
  * @param {boolean} [opts.spend] spend the time on the clock; the turn plan
  *   passes false, having spent its time as it passed
  * @returns {Promise<{ok: boolean, reason?: string, count?: number, unit?: string, tool?: string, rounds?: number, spent?: number, formation?: string|null}>}
- *   `spent` is in rounds, null where the rounds to a turn are not imported
+ *   `spent` is in rounds
  */
 export async function batterDoor(wall, actor = null, { spend = true } = {}) {
   if (!isDoor(wall)) return { ok: false, reason: "notADoor" };
@@ -441,10 +432,9 @@ export async function batterDoor(wall, actor = null, { spend = true } = {}) {
   // Loaded here, not at the top: the turn engine pulls in the Foundry-bound
   // half of the module, and this file's pure arithmetic is imported without it.
   const { getFormationForActor } = await import("./formation-model.mjs");
-  const { advanceRounds, advanceTurns } = await import("./turn-engine.mjs");
+  const { advanceRounds } = await import("./turn-engine.mjs");
   const formation = actor?.id ? getFormationForActor(actor.id) : null;
-  // A time the grid counts in turns is spent as turns, so it needs no rounds to a turn.
-  if (formation) await (unit === "turn" ? advanceTurns(formation, count, { reason: "action" }) : advanceRounds(formation, count, { reason: "action" }));
+  if (formation) await advanceRounds(formation, rounds, { reason: "action" });
   return { ok: true, count, unit, tool, rounds, spent: formation ? rounds : 0, formation: formation?.name ?? null };
 }
 

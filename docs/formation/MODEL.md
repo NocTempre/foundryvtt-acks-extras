@@ -1459,8 +1459,7 @@ blank and Batter disabled) and `tooSolid` for a row whose notes give no time. `b
 the wall (`ds: 1`) and charges the plan's `rounds` through
 `advanceRounds(formation, rounds, { reason: "action" })` to the formation
 holding the basher (`getFormationForActor`); a count of turns is `count` times
-the rounds to a turn, and a row counted in turns is spent through
-`advanceTurns`. With no basher selected, or no formation holding them, the
+the rounds to a turn. With no basher selected, or no formation holding them, the
 door still opens, no clock moves, and the notification says so. Whether the
 party holds the tool is the Judge's call. Spiking a door past the imported limit
 is refused, and with no limit imported nothing is hammered.
