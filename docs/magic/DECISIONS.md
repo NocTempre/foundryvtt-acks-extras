@@ -597,7 +597,7 @@ penalty), which way should it round?", the owner chose "Bigger penalty (-3)".
   which is -3, not -2.
 - *Cost:* one point more on every uneven share than the reading this replaces.
 
-## 2026-11-18 — The power ledger and its chip (M-l, ruling 217) — SUPERSEDED IN PART 2026-11-18
+## 2026-11-18 — The power ledger and its chip (M-l, ruling 217) — SUPERSEDED IN PART 2026-11-18, 2026-11-25
 
 Built to board 12, which the owner approved with the v19 canvas: "Approve spell cast
 design". The art rule stands: "Find open art to attribute or better yet art/texture
@@ -770,7 +770,7 @@ default proceeded on and the counter:
   under the handler `magicProject`. *Counter (low):* an array path per project would write less
   and race less; Foundry's flag update replaces arrays whole either way.
 
-## 2026-11-18 — The hand plus: a Fades/Stays switch (owner, board 14 B) — SUPERSEDED IN PART 2026-11-18
+## 2026-11-18 — The hand plus: a Fades/Stays switch (owner, board 14 B) — SUPERSEDED IN PART 2026-11-18, 2026-11-25
 
 This entry supersedes in part "The ledger's plus and minus: the owner's two answers": its
 sentence "Until then every hand plus fades", and qualifies "The power ledger and its chip (M-l,
@@ -842,7 +842,7 @@ closed list. Asked to review it, the owner answered "Approve as built".
 - *Cost:* the design step came after the build this once, so the owner reviewed working code
   rather than a drawing. A change asked for then would have been a rework on main.
 
-## 2026-11-18 — The minus follows the switch, and the switch holds (owner)
+## 2026-11-18 — The minus follows the switch, and the switch holds (owner) — SUPERSEDED IN PART 2026-11-25
 
 This entry supersedes in part "The hand plus: a Fades/Stays switch (owner, board 14 B)": its
 first judgment call (the switch's state lives in the strip's closure and every render starts it
@@ -1712,3 +1712,103 @@ A prompt at a recurring turn, which would stop a press the GM's client answers.
 Judge who imports a die later finds copies that keep their own; the sheet shows
 no list of them. A recurring row's die typed at one cast is that cast's alone
 unless it was kept, so a closed window leaves that cast's turns with none.
+
+## 2026-11-25 — The power line opens from a tag, and its controls are the character's owner's (board 1)
+
+This entry supersedes in part four entries of 2026-11-18, each on the bullets named under
+"Superseded" below. The new evidence, which none of them had:
+
+- Two field reports from the owner on the shipped strip (T-0789 and T-0830 on the intake ledger).
+  The first: "This massive display of the character's divine / arcane power battery is ... a
+  little too much, takes up too much space in the character sheet." The second, with a picture of
+  the strip holding no power: "also how do i click out of this (magic power)". The strip as
+  built on 2026-11-18 stood open on every caster, entries and controls together, and read as a
+  window to be dismissed.
+- The owner's standing rule, stated with the same batch: "Tool permissions are hardcoded (e.g.
+  summons) by server role instead of object ownership, only judge secrets are supposed to be an
+  exception to this rule". And, the same day, as the release hub's session quoted the owner to
+  this build: "follow foundry permissions, don't invent new ones." and "owner can use the
+  controls, don't hard code permissions unless explictly asked".
+- Board 1 of the 2026-11-25 canvas, on which the owner selected "Build as drawn", and two
+  selections on the release hub's cards: for a run of hand presses, "Fold into one entry"; and
+  "All four are right" for the card's reading that the board's layout stands with its Add, Remove
+  and Undo "offered to the character's owner too". The three quoted phrases are the cards' own
+  wording, selected, not sentences the owner wrote.
+
+**Ruled.**
+
+- **The power line is a tag and a disclosure.** Each power keeps its tag, with the balance on its
+  face and its tooltip. A button beside the tag opens that power's panel, which holds the entries
+  and the controls. Every panel is closed when a window opens.
+- **Every control is the character's owner's**, by Foundry's own ownership test, and a GM owns
+  every character. Add, Remove, the Fades / Stays switch, the amount box, Undo and the arcane
+  count are drawn for an owner and refused to nobody else by role. A seat that sees the sheet
+  without owning the character reads the tags and the rows.
+- **Presses fold.** A run of hand presses by one user is one entry, named for that user.
+
+**Built.**
+
+- The ledger refuses a request only where its sender does not own the actor. The role refusals
+  are gone from all three places they stood (`run`, `checkPowerRequest`, `apply`) and the reason
+  `judge` is returned by nothing. An entry carries `user`, the id of the user who pressed: the
+  client's own on a direct write, the relay's attested sender otherwise, never a value the
+  request carries.
+- A press by hand folds into the power's last entry where that entry was written by hand by the
+  same user, on the same day, with the same sign and the same Fades / Stays mark. The entry keeps
+  its id and its day, so no lot's expiry is moved by a later press.
+- An amount box, and Add and Remove that send the typed amount in one request.
+- Undo on a spend, as before, and on a gain none of which was spent. A gain partly spent has no
+  Undo, and its row says why in a line read without hovering.
+- The arcane count sits in the arcane panel, beside the amount box. The board does not draw it.
+- A window keeps which panels are open, each switch and each typed amount until it closes. A
+  second window on the same character starts closed.
+- No stored entry is migrated. The stored value `by: "judge"` stays as written and means a figure
+  set by hand; an entry stored before this has no `user`, reads as it did and never folds.
+
+**Superseded.**
+
+- "The power ledger and its chip (M-l, ruling 217)": its bullets "The plus and minus are one pair
+  on each tag, with no amount box", "The arcane count is a number box beside the arcane tag, for
+  a Judge only", and "Undo is a Judge's, on a spend only"; and, in "A relayed request is
+  authorized on its sender", the half that makes the hand adjustment, the undo and the count the
+  Judge's. Its other half stands: direct or relayed is still decided by `canUserModify`.
+- "The ledger's plus and minus: the owner's two answers": "One pair per tag" is qualified. Each
+  power still has its own pair; the pair is Add and Remove in that power's panel.
+- "The hand plus: a Fades/Stays switch (owner, board 14 B)": the sentence "a Player's strip draws
+  none of it", and its bullets "A gain that stays is a Judge's act on every path" and "Each tag,
+  its plus and minus, its switch and its count box wrap together as one group".
+- "The minus follows the switch, and the switch holds (owner)": its bullet "The mark is the
+  Judge's on all three authorization sites", and the sentence that the chip's minus asks for one.
+  That the minus follows the switch, and that the switch holds per window, both stand.
+
+**Decided in the build, not selected by the owner**, each with its counter:
+
+- **A press folds only into an entry that was itself made by hand.** Every entry now records a
+  user, a cast's and a sacrifice's included, so without this a hand press would join the entry of
+  a cast made by the same user that day and lose the cast's name. *Counter (low):* none of the
+  owner's words asks for it; the card's reading was of hand presses only.
+- **An owner may undo any spend, a cast's included.** The board draws one Undo per entry and the
+  ruling gives it to the owner. *Counter (medium):* a Player can take back what a spell cost. It
+  is medium and not strong because the same Player can add the same power by hand, and both
+  entries name them.
+- **A short spend still blocks a Player and warns a Judge.** That is the automation rule (lib,
+  2026-11-14, "Where the automation would refuse, a player is blocked and a Judge is warned"),
+  not a permission, and it is the one place the ledger's answer still turns on the role. *Counter (medium):* it reads as a role test beside a
+  ruling against role tests; the owner's exception names what is explicitly asked, and that rule
+  was.
+- **An owner reads both tags on a caster, held or not.** The controls need a tag to sit behind.
+  Before, a Player saw only a power with entries. *Counter (low):* a tag at nothing is a line of
+  the strip a Player did not have.
+- **The open panels are a window's, never the actor's.** A stored state would open a panel on
+  every seat that has the sheet up. *Counter (low):* a Judge who works the ledger reopens the
+  panel once per window.
+- **Undo is a button with its word on it**, as the board draws it, in place of the icon.
+
+**Strongest counter to the ruling (medium).** A Player who owns a character can now write power
+to it with no Judge in the loop, where every hand figure used to be a Judge's. It is not strong:
+Foundry already lets an owner write any field of the actor, hit points and this flag included, so
+the role test guarded a button and never the data; and a hand entry now names who pressed.
+
+*Cost:* the walk's last pass is untrue and the walk is rewritten with this entry. The
+chip is built and unit-tested (`tools/test-power-ledger.mjs`); until its walk has run on `main`,
+the two seats' views are read from the code and a mock DOM and not from a world.

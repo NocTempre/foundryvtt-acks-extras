@@ -1240,14 +1240,22 @@ which a rest clears. The pure model is `scripts/magic/power-ledger.mjs`; its liv
 `acksExtras.magic.power`) is `power-ledger-live.mjs`; the chip is the classes feature's
 (`scripts/classes/power-chip.mjs`), drawn on the casting strip.
 
-An entry is `{id, amount, day, name, img, ref, by}`: a positive amount is power gained, a
-negative one spent, `day` the calendar day it was written (lib `world-time`
+An entry is `{id, amount, day, name, img, ref, by, user}`: a positive amount is power
+gained, a negative one spent, `day` the calendar day it was written (lib `world-time`
 `dayOfWorldTime`), `name` and `img` the source's (a victim, a ritual), `ref` the cast
-that caused it and `by: "judge"` a figure a Judge set by hand. A gain a Judge marked
-`stays: true` is a lot that stays: it has no lifetime, never expires and is never due to
-fade; the key is written on such a gain only, and a spend or a Player's request never
-carries it. A spend a Judge marked `fromStays: true` draws on the lots that stay alone; the
-key is written on such a spend only. Entries only append.
+that caused it, `by: "judge"` the mark of a figure set by hand (the stored value is the
+mark, whoever pressed) and `user` the id of the user who pressed, blank on an entry
+stored before the key existed. A gain marked `stays: true` is a lot that stays: it has
+no lifetime, never expires and is never due to fade; the key is written on such a gain
+only. A spend marked `fromStays: true` draws on the lots that stay alone; the key is
+written on such a spend only.
+
+Entries append in the order they happened, with one exception: a press by hand folds
+into the kind's last entry where that entry was itself written by hand by the same user,
+on the same day, with the same sign and the same mark (`stays` for a gain, `fromStays`
+for a spend). The folded entry keeps its id and its day and its amount is the sum, so no
+lot's expiry moves. An entry with no user never folds, and a write that is not by hand (a
+cast, a sacrifice, a project) never folds and is never folded into.
 
 The balance and the expiry are a pure function of `(entries, today, span)` and nothing
 is written when time moves. Spent power takes from the lots that fade before the lots that
@@ -1260,58 +1268,65 @@ month that over its months (rounded up, as core converts an effect's month) and 
 the calendar's list of weekdays. A lifetime that is not imported, a unit the calendar
 cannot say, or an arcane count left blank is no span, and nothing expires; no figure
 stands in. Arcane power's page names the unit and no count, so the count is
-`arcane.count`, a Judge-written field on the chip, blank until set.
+`arcane.count`, a field written by hand on the chip, blank until set.
 
 The API (`acksExtras.magic.power`) answers `{ok, ...}`. `balance` and `expiry` read;
-`gain({amount, name, img, ref})` and `spend(...)` write (a Judge's `gain` may add
-`stays: true` and a Judge's `spend` `fromStays: true`; a Player's request for either answers
-`judge`); `undo(id)` takes back a spend and
-`setCount(n)` writes the arcane count, both the Judge's; `row(actor, kind, {amount})` is
-the bucket's power row, lib's `powerEntry` capped by the whole power held and absent where
-none is held (lib's `powerEntry` counts one under a cap of nothing); `settle(actor, step)`
-spends what `applySettlement` handed back for a power row. A Player's spend beyond the
-balance is refused (`short`) and a Judge's takes what is held and answers `warn: "short"`.
+`gain({amount, name, img, ref})` and `spend(...)` write (`gain` may add `stays: true` and
+`spend` `fromStays: true`, and `by: "judge"` marks either as a press by hand); `undo(id)`
+takes back a spend, or a gain none of which was spent (`reason: "spent"` otherwise), and
+removes a folded entry whole; `setCount(n)` writes the arcane count;
+`row(actor, kind, {amount})` is the bucket's power row, lib's `powerEntry` capped by the
+whole power held and absent where none is held (lib's `powerEntry` counts one under a cap
+of nothing); `settle(actor, step)` spends what `applySettlement` handed back for a power
+row. A Player's spend beyond the balance is refused (`short`) and a Judge's takes what is
+held and answers `warn: "short"`: a block for a player and a warning for a Judge, which is
+the one place the ledger's answer turns on the role.
 
-A write is made where Foundry lets the seat write the actor (`canUserModify`, never
-ownership) and otherwise asked of the GM's client under the handler `magicPower`. The
-handler authorizes on the sender Foundry attested (`runRelayed`): a gain or spend is an
-owner's, and a hand adjustment, a gain that stays, a spend from the lots that stay, an undo
-and the count are the Judge's.
-No GM connected means not written (`reason: "noGm"`).
+Every operation is the character's owner's, and nothing in the ledger asks for the GM
+role to allow one. A write is made where Foundry lets the seat write the actor
+(`canUserModify`), which holds for an owner and for a GM, and records that client's user.
+A seat that cannot write asks the GM's client under the handler `magicPower`, which
+authorizes on the sender Foundry attested (`runRelayed`) by Foundry's own ownership test
+and refuses a sender who does not own the actor (`reason: "owner"`); an entry it writes
+records that sender. No GM connected means not written (`reason: "noGm"`).
 
 The chip sits on the casting strip, on the character sheet's Magic tab and on the system's
 sheet alike (`castingStripElement`). A tag for each power carries the balance on its face
-and the entries, the next to fade and the page in its tooltip; the entries are rows below
-it, newest first, each led by its source's picture (else a glyph), with Undo on a spend
-for a Judge. A lot that stays is a row led by a pin (Font Awesome, where it has no picture
-of its own) with the caption "stays until removed", and its part of the chip's tooltip says
-so; it is never dimmed for a lifetime. A Judge also has a plus and a minus on each tag (one
-each, no amount box), a Fades / Stays switch beside them and the arcane count; a Player's
-strip draws none of them and shows only a power with entries.
+and the entries, the next to fade and the page in its tooltip. Beside it a button with the
+number of entries opens that power's panel (`aria-expanded`, `aria-controls` the panel's
+id, which is built from the window's own id). The panel lists the entries as rows, newest
+first, each led by its source's picture (else a glyph); an entry by hand is named for the
+user who pressed where the world still has them. A lot that stays is a row led by a pin
+(Font Awesome, where it has no picture of its own) with the caption "stays until removed",
+and its part of the chip's tooltip says so; it is never dimmed for a lifetime.
+
+A seat that owns the character (`actor.isOwner`, true for a GM) reads a line of controls in
+the panel: a Fades / Stays switch, an amount box, Add, Remove and, on the arcane panel, the
+arcane count; and Undo on each row the model calls `undoable` (a spend, or a gain none of
+which was spent). A gain partly spent carries no Undo and says why in a line of its own on
+the row (`undoRefused`). A seat that sees the sheet without owning the character reads the
+tags and the rows and no control, and no power that has no entries. Add and Remove send the
+typed amount in one request, marked `by: "judge"`.
 
 The switch is two pills in a group named for the power, Fades pressed by default, and sets
-what that tag's pair does. On Fades the plus writes a gain with no mark and the minus is the
-ordinary spend. On Stays the plus writes a gain marked `stays: true` and the minus writes a
-spend marked `fromStays: true`, which draws on the lots that stay alone, oldest first, and
-never on a fading lot. A spend carries `by: "judge"` and so has an Undo like any hand spend;
-its row reads "Removed a point that stays", and the tag's minus is labelled for what it does
-(`aria-label` swapped when the switch moves). With no point that stays held the removal
-writes nothing and warns `staysShort`; asked for more than they hold it takes what they hold.
-The mark is written on a spend only, so a stored spend without it reads as it always did,
-and it is the Judge's on every path: `spend` answers `judge` to a Player's `fromStays`
-before any request is sent, `checkPowerRequest` refuses it on the sender Foundry attested,
-and `apply` refuses it for a sender who is no Judge rather than running it as an ordinary
-spend. The API's own `spend` and `settle` keep the order fading lots first, then the ones
-that stay.
+what that panel's Add and Remove do. On Fades the Add writes a gain with no mark and the
+Remove is the ordinary spend. On Stays the Add writes a gain marked `stays: true` and the
+Remove writes a spend marked `fromStays: true`, which draws on the lots that stay alone,
+oldest first, and never on a fading lot; its row reads "Removed a point that stays", and
+the Remove is labelled for what it does (`aria-label` swapped when the switch moves). With
+no point that stays held the removal writes nothing and warns `staysShort`; asked for more
+than they hold it takes what they hold. The API's own `spend` and `settle` keep the order
+fading lots first, then the ones that stay.
 
-The switch's state is a per-window record, `powerSwitchOf(app)` in `power-chip.mjs`:
-`{divine, arcane}`, true where that tag is on Stays, held in a `WeakMap` keyed by the
-application that hosts the strip. Each render of the strip draws the pills and the minus's
-label from it and wires its controls to it, so it survives the re-render every plus and
-minus causes. A window that has not set a tag reads Fades, two windows on one actor hold two
-records, and the record ends when its window closes (`closeApplicationV2`,
-`forgetPowerSwitch`), since a document keeps one sheet instance for as long as the world
-runs. It is never written to the actor, and pressing a pill writes nothing.
+What a window keeps is a per-window record, `powerSwitchOf(app)` in `power-chip.mjs`: per
+power, whether its switch is on Stays, whether its panel is open and the text in its amount
+box, with the base of the panel ids, held in a `WeakMap` keyed by the application that
+hosts the strip. Each render of the strip draws from it and wires its controls to it, so
+all three survive the re-render every write causes. A window that has set nothing reads
+Fades, closed and an amount of one; two windows on one actor hold two records; and the
+record ends when its window closes (`closeApplicationV2`, `forgetPowerSwitch`), since a
+document keeps one sheet instance for as long as the world runs. It is never written to
+the actor, and opening a panel, pressing a pill or typing an amount writes nothing.
 An actor that casts nothing and holds no power draws no ledger. A rest does not touch it.
 
 ## Research projects
