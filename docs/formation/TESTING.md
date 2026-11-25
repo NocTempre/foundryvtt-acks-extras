@@ -3660,6 +3660,48 @@ The party stays in delve, where a player's choice of who comes along matters.
 Teardown: the combat flag is cleared and the cards are swept by id. The nine
 fixtures stay. The lead ends in the party, and the next run's start takes them out.
 
+## A seat's presses follow what it owns (added with T-0792 slice 1)
+
+The party sheet's presses driven from a real Player seat, before the frame
+draws that seat's cells: each handler is called as its cell calls it, on the
+seat's own open sheet. The walk is `tools/live/formation-seat-presses.mjs`
+(`node tools/live/run.mjs formation-seat-presses`), on the GM and Player
+seats, under a recorder added before reload. The relay runs on the primary
+GM's client, so the GM seat must be it.
+
+Fixtures, each found again by its marker or built carrying one:
+`formation/seat-party` holding the Player seat's `formation/seat-member` and
+the Judge's `formation/seat-other`; `formation/seat-solo-party` holding only
+the Judge's `formation/seat-stranger`; the abilities
+`formation/seat-member-ability` and `formation/seat-other-ability` on the two
+members. Members join through `addMember` with no token. At its start the walk
+brings them to shape: member first, the stranger alone, an empty description,
+neither ability bound.
+
+1. **Form up through the relay.** The GM seat saves the party's order, then
+   reverses it. The Player seat sends `requestPartyAction(fid, "formUp",
+   { templateId })`. *Observable:* the answer is no refusal; the record's
+   order is the saved one again; one public line names the order. A forged
+   `templateId`, and the solo party's id, each leave its order as it was
+   and post nothing. A fight still on answers `{ ok: false, refused:
+   "inCombat" }`; a flag-only fight is reformed as over, so that answer is
+   walked with a real combat (the fight walk) or offline.
+2. **Saves and Supplies.** `SHARED_ACTIONS.partySave` with a save key the
+   member carries, then `consumeRations`. *Observable:* the save card names
+   the member and not the Judge's; the ration card names only the member.
+3. **A party check.** `partyCheck` with `data-check="listen"`.
+   *Observable:* the Judge's client posts the declaration line and rolls.
+4. **The description.** `onChangeForm` with `system.description` and a
+   `name`. *Observable:* the party actor's description is written; the
+   record's name is not.
+5. **The skill audit.** `new SkillAuditApp({ formationId })` rendered on the
+   seat. *Observable:* the member's ability select is enabled, the other's
+   disabled; a change on the enabled one sets the ability's `checkKey`
+   flag, and the other stays unbound.
+
+Teardown: the saved order is forgotten by its id; the cards whose text names a
+`QA Seat` fixture are tracked and swept. The fixtures are kept.
+
 ## A teleport between scenes (added with the teleport fix)
 
 The party follows its token through a `teleportToken` Region to another scene,
