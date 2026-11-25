@@ -39,6 +39,21 @@ export const FLAG_TURN_LIFE = "turnLife";
 export const FLAG_DELAYED_DAMAGE = "delayedDamage";
 
 /**
+ * Token flag opting a token out of every automatic resize. Named here because
+ * the battlemap's sizer reads it and the group deploy that remembers a hand's
+ * size writes it.
+ */
+export const FLAG_FOOTPRINT_LOCK = "footprintLock";
+
+/**
+ * Token flag `{width, height}`: the size the module last wrote to the token,
+ * stamped in the same write. A stored size that differs from both the
+ * prototype's and this stamp is a hand's, which a gather remembers. It blocks
+ * nothing; `FLAG_FOOTPRINT_LOCK` alone does.
+ */
+export const FLAG_SIZE_STAMP = "sizeStamp";
+
+/**
  * Flag key under `flags["acks-extras"]` on an Active Effect that ends when its
  * bearer does something (`ends-on.mjs`): a list of causes, `damage` and
  * `attack`. Named here because the feature that writes the record and the

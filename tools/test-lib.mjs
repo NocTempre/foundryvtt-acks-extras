@@ -9,7 +9,7 @@ import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import {
   BELOW_EVERY_RUNG, bodyCount, cleanDelta, commandStatus, groupAncestors, groupDescendants, groupNodes, groupTree, isDerivedEffect, liveRows, matchingStack, memberName,
-  nextOrdinal, platoonCapacity, sizeFromEcology, wouldCycleGroup,
+  keptTokenSize, nextOrdinal, platoonCapacity, sizeFromEcology, wouldCycleGroup,
 } from "../scripts/lib/group-logic.mjs";
 import {
   ROLL_PIN, axisIsBanded, axisOffersChoice, chooseAxes, mergePatch, optionAvailable, resolveActor, rollDie, rollMenu, rollOption, seededRng,
@@ -758,6 +758,39 @@ t("cleanDelta: strips derived effects, keeps authored, leaves the rest intact", 
   const allDerived = cleanDelta({ effects: [{ flags: { x: { managed: true } } }] });
   assert.equal("effects" in allDerived, false);
   delete globalThis.foundry;
+});
+
+t("keptTokenSize: a size is kept where a hand set it, told from the prototype's and from the module's own stamp", () => {
+  const proto = { width: 1, height: 1, texture: { scaleX: 1, scaleY: 1 } };
+  const at = (width, height, scaleX = 1, scaleY = 1) => ({ width, height, texture: { scaleX, scaleY } });
+  const none = { width: null, height: null, scaleX: null, scaleY: null };
+  const size = (width, height) => ({ ...none, width, height });
+  const two = { width: 2, height: 2 };
+  // Auto-sized at its first deploy and never touched: the stamp equals the stored size, so nothing is kept.
+  assert.deepEqual(keptTokenSize(at(2, 2), proto, { stamp: two }), none, "an auto size is the module's");
+  // Hand-resized from a stamped 2x2 to 3x3.
+  assert.deepEqual(keptTokenSize(at(3, 3), proto, { stamp: two }), size(3, 3), "a size beside the stamp and the prototype is a hand's");
+  // A remembered body comes back unchanged: locked, off the prototype, and kept.
+  assert.deepEqual(keptTokenSize(at(3, 3), proto, { locked: true }), size(3, 3), "a locked body keeps what it carries");
+  assert.deepEqual(keptTokenSize(at(3, 3), proto, { locked: true, stamp: two }), size(3, 3), "locked, it is kept whatever the stamp");
+  // A locked token at the prototype's own size has nothing to remember.
+  assert.deepEqual(keptTokenSize(at(1, 1), proto, { locked: true }), none);
+  // Reset while out: the stamp is the size it ends at and the lock is gone.
+  assert.deepEqual(keptTokenSize(at(2, 2), proto, { stamp: two }), none, "a reset stamps the stored size");
+  // No stamp, no lock: a body placed before this shipped keeps nothing.
+  assert.deepEqual(keptTokenSize(at(3, 3), proto), none, "no stamp and no lock keeps nothing");
+  // The pair is kept whole, though only one axis differs.
+  assert.deepEqual(keptTokenSize(at(1, 2), proto, { stamp: { width: 1, height: 1 } }), size(1, 2), "one axis off keeps both");
+  // Scale alone: kept without width or height, mirrored or not.
+  assert.deepEqual(keptTokenSize(at(1, 1, 1.5, 1.5), proto), { ...none, scaleX: 1.5, scaleY: 1.5 });
+  assert.deepEqual(keptTokenSize(at(1, 1, -1, 1), proto), { ...none, scaleX: -1, scaleY: 1 }, "a mirrored image is a negative scale");
+  assert.deepEqual(keptTokenSize(at(1, 1, 1 + 1e-9, 1), proto), none, "a float's dust is no difference");
+  // Both at once.
+  assert.deepEqual(keptTokenSize(at(3, 3, 2, 2), proto, { stamp: two }), { width: 3, height: 3, scaleX: 2, scaleY: 2 });
+  // Nothing readable keeps nothing and throws nothing.
+  for (const [stored, prototype] of [[undefined, proto], [at(3, 3), null], [{}, proto], [at(3, 3), {}]]) {
+    assert.deepEqual(keptTokenSize(stored, prototype, { locked: true }), none);
+  }
 });
 
 // Foundry 14 types a change by a string; the numeric `mode` is a shim that

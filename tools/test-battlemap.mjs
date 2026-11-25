@@ -432,6 +432,8 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   half.updateEmbeddedDocuments = async (_name, updates) => resized.push(...updates);
   assert.equal(await rescaleSceneTokens(half), 2, "a token whose stored size is right is not counted");
   assert.deepEqual(resized.map((u) => u._id), ["fresh", "plain"], "and the one whose prepared width looked right is written");
+  const stampOf = (width, height) => ({ flags: { "acks-extras": { sizeStamp: { width, height } } } });
+  assert.deepEqual(resized.map((u) => u.flags), [stampOf(0.5, 0.5).flags, stampOf(0.5, 0.5).flags], "each resize carries the stamp of the size it writes");
 
   const savedGlobals = { canvas: globalThis.canvas, foundry: globalThis.foundry, game: globalThis.game, Hooks: globalThis.Hooks };
   try {
@@ -441,6 +443,11 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     assert.equal(await resetSelectedFootprints(), 3, "reset reports the tokens it handled");
     const sizeWrites = written.filter((w) => w.data && "width" in w.data).map((w) => w.id);
     assert.deepEqual(sizeWrites, ["fresh", "plain"], "reset writes a size only where the stored one differs");
+    // Reset is the Judge saying "auto": every token ends stamped with the size it ends at, resized or not.
+    const stampWrites = written.filter((w) => w.data?.flags?.["acks-extras"]?.sizeStamp);
+    assert.deepEqual(stampWrites.map((w) => w.id), ["stale", "fresh", "plain"], "reset stamps every token it handles");
+    assert.deepEqual(stampWrites.map((w) => w.data.flags["acks-extras"].sizeStamp), [{ width: 0.5, height: 0.5 }, { width: 0.5, height: 0.5 }, { width: 0.5, height: 0.5 }], "the stamp is the size it ends at");
+    assert.ok(stampWrites.every((w) => w.data.width === undefined === (w.id === "stale")), "the stamp rides in the size's own write where there is one");
 
     const hooks = {};
     globalThis.Hooks = { on: (name, fn) => (hooks[name] = fn) };
@@ -449,6 +456,12 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     written.length = 0;
     for (const doc of [staleAtOne, staleAtHalf]) hooks.preCreateToken(doc, {}, {}, "u1");
     assert.deepEqual(written.map((w) => w.id), ["fresh"], "preCreateToken writes a size only where `_source` differs");
+    assert.deepEqual(written[0].source, { width: 0.5, height: 0.5, ...stampOf(0.5, 0.5) }, "and stamps the size it wrote in the same write");
+    // A token carrying the lock is not resized, so it is not stamped either.
+    const lockedDoc = stored("locked", 1, 1, { getFlag: tokenOf(null, { locked: true }).getFlag });
+    written.length = 0;
+    hooks.preCreateToken(lockedDoc, {}, {}, "u1");
+    assert.deepEqual(written, [], "preCreateToken leaves a locked token alone");
   } finally {
     Object.assign(globalThis, savedGlobals);
     for (const key of Object.keys(savedGlobals)) if (savedGlobals[key] === undefined) delete globalThis[key];

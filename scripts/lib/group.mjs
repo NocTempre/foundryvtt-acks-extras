@@ -11,7 +11,7 @@
  * calling client under Foundry's own permission checks; they do not route
  * over a socket — a consumer needing GM-routed writes wraps them.
  */
-import { GROUP_LANG_PREFIX, KEEP_HIT_POINTS_OPTION, MODULE_ID } from "./constants.mjs";
+import { FLAG_FOOTPRINT_LOCK, FLAG_SIZE_STAMP, GROUP_LANG_PREFIX, KEEP_HIT_POINTS_OPTION, MODULE_ID } from "./constants.mjs";
 import GroupData, { GROUP_CATEGORY, GROUP_STATE } from "./data/group-data.mjs";
 import {
   GROUP_ACTOR_TYPE,
@@ -30,10 +30,12 @@ import {
   isDerivedEffect,
   isGeneratedStack,
   isGroupActor,
+  keptTokenSize,
   liveRows,
   memberName,
   moveRefusal,
   nextOrdinal,
+  noTokenSize,
   receiveStack,
   sizeFromEcology,
   wouldCycleGroup,
@@ -154,6 +156,35 @@ function fell(tokenDoc) {
   return typeof hp === "number" && hp <= 0;
 }
 
+/**
+ * The prototype token a deployed body was built from: its base actor's, or the
+ * stack's base actor's where the token cannot name one. Null where neither can.
+ */
+function prototypeOf(token, group, stackKey) {
+  const own = token?.baseActor?.prototypeToken;
+  if (own) return own;
+  const uuid = group.system?.stackOf?.(stackKey)?.template?.uuid;
+  const base = uuid && typeof fromUuidSync === "function" ? fromUuidSync(uuid) : null;
+  return base?.prototypeToken ?? null;
+}
+
+/**
+ * What a deployed body's token tells its record when it comes off the board:
+ * the delta it carried, whether it fell, and the size a hand gave it. Recall
+ * and a body deleted by hand fold through this one reading.
+ */
+function foldOf(token, group, stackKey, memberKey) {
+  const locked = !!token.getFlag?.(MODULE_ID, FLAG_FOOTPRINT_LOCK);
+  const stamp = token.getFlag?.(MODULE_ID, FLAG_SIZE_STAMP) ?? null;
+  return {
+    stackKey,
+    memberKey,
+    delta: cleanDelta(token.delta?.toObject?.() ?? {}),
+    tokenSize: keptTokenSize(token._source, prototypeOf(token, group, stackKey), { locked, stamp }),
+    fell: fell(token),
+  };
+}
+
 /** Delete tokens across however many scenes they are on, one call per scene. */
 async function removeTokens(tokens) {
   const perScene = new Map();
@@ -177,7 +208,7 @@ async function removeTokens(tokens) {
  * ≤0 hp to casualties, and shrink each stack by the number that fell. Callers
  * stash through here before deleting the tokens the folds were read from.
  *
- * @param {{stackKey: string, memberKey: string, delta: object, fell: boolean}[]} folds
+ * @param {{stackKey: string, memberKey: string, delta: object, tokenSize: object, fell: boolean}[]} folds
  * @returns {Promise<number>} how many of them fell
  */
 async function foldMembers(group, folds) {
@@ -191,6 +222,7 @@ async function foldMembers(group, folds) {
     // happened; folding it a second time would take it off twice.
     if (!member || member.state === GROUP_STATE.dead || member.state === GROUP_STATE.detached) continue;
     member.delta = fold.delta;
+    member.tokenSize = fold.tokenSize ?? noTokenSize();
     member.tokenUuid = "";
     if (fold.fell) {
       member.state = GROUP_STATE.dead;
@@ -271,9 +303,7 @@ async function reconcileDeletedToken(tokenDoc, next) {
     await patchMember(group, stackKey, memberKey, (m) => (m.tokenUuid = next.uuid));
     return;
   }
-  const dead = await foldMembers(group, [
-    { stackKey, memberKey, delta: cleanDelta(tokenDoc.delta?.toObject?.() ?? {}), fell: fell(tokenDoc) },
-  ]);
+  const dead = await foldMembers(group, [foldOf(tokenDoc, group, stackKey, memberKey)]);
   if (dead) Hooks.callAll(GROUP_HOOKS.CASUALTY, group, dead, stackKey);
 }
 
@@ -705,6 +735,26 @@ function defaultPlacer(scene, x, y) {
 }
 
 /**
+ * Lay a record's remembered size on a body's token data. A remembered width and
+ * height arrive locked, which is what keeps the scene's auto-size off them. With
+ * none, the size the prototype built is stamped as the module's, so a body nobody
+ * resized is told from one a hand did. A remembered scale lays on the texture
+ * and takes no lock.
+ */
+function applyBodySize(tokenData, kept) {
+  const num = (v) => typeof v === "number" && Number.isFinite(v);
+  if (num(kept?.width) && num(kept?.height)) {
+    Object.assign(tokenData, { width: kept.width, height: kept.height });
+    foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${FLAG_FOOTPRINT_LOCK}`, true);
+  } else if (num(tokenData.width) && num(tokenData.height)) {
+    foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${FLAG_SIZE_STAMP}`, { width: tokenData.width, height: tokenData.height });
+  }
+  if (num(kept?.scaleX) && num(kept?.scaleY)) {
+    tokenData.texture = { ...tokenData.texture, scaleX: kept.scaleX, scaleY: kept.scaleY };
+  }
+}
+
+/**
  * Put `count` members of ONE stack onto a scene as unlinked tokens, each
  * carrying its member delta, hit points included. Resting records go out
  * first, then pristine bodies materialize on the way (they need a record to
@@ -754,6 +804,7 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
     tokenData.actorLink = false;
     tokenData.delta = foundry.utils.deepClone(member.delta ?? {});
     tokenData.name = memberName(named, member);
+    applyBodySize(tokenData, member.tokenSize);
     foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${GROUP_FLAG}`, group.uuid);
     foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${STACK_FLAG}`, key);
     foundry.utils.setProperty(tokenData, `flags.${MODULE_ID}.${MEMBER_FLAG}`, member.key);
@@ -837,12 +888,8 @@ export async function recall(group, { scene = null } = {}) {
   for (const owner of groupTree(group)) {
     const folds = [];
     for (const token of deployedBodies(owner, scenes)) {
-      folds.push({
-        stackKey: token.getFlag(MODULE_ID, STACK_FLAG) ?? owner.system.primaryStack?.key,
-        memberKey: token.getFlag(MODULE_ID, MEMBER_FLAG),
-        delta: cleanDelta(token.delta?.toObject?.() ?? {}),
-        fell: fell(token),
-      });
+      const stackKey = token.getFlag(MODULE_ID, STACK_FLAG) ?? owner.system.primaryStack?.key;
+      folds.push(foldOf(token, owner, stackKey, token.getFlag(MODULE_ID, MEMBER_FLAG)));
       collected.push(token);
     }
     if (folds.length) out.push({ owner, folds });

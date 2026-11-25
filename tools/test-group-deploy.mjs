@@ -107,8 +107,10 @@ function monster() {
     name: "Soldier",
     system: { hp: { value: 9, max: 9, hd: "2d8" } },
     async getTokenDocument(position) {
-      return { toObject: () => ({ _id: null, name: "Soldier", actorId: id, actorLink: false, delta: null, flags: {}, ...position }) };
+      // The prototype's own size and texture ride in the token data, as core's do.
+      return { toObject: () => ({ _id: null, name: "Soldier", actorId: id, actorLink: false, delta: null, flags: {}, width: 1, height: 1, texture: { src: "soldier.webp", scaleX: 1, scaleY: 1 }, ...position }) };
     },
+    prototypeToken: { width: 1, height: 1, texture: { scaleX: 1, scaleY: 1 } },
   };
   actors.set(id, actor);
   docs.set(actor.uuid, actor);
@@ -123,7 +125,12 @@ function scene({ shuffled = false } = {}) {
   const where = {
     id: uid("scn"),
     grid: { size: 100 },
-    tokens: new Map(),
+    // A scene's token collection iterates its documents, not its entries.
+    tokens: new (class extends Map {
+      [Symbol.iterator]() {
+        return this.values();
+      }
+    })(),
     creates: [],
     async createEmbeddedDocuments(type, data, options = {}) {
       where.creates.push({ type, data: structuredClone(data), options: { ...options } });
@@ -153,6 +160,13 @@ function scene({ shuffled = false } = {}) {
           getFlag(ns, key) {
             return this.flags?.[ns]?.[key];
           },
+          // What a token stores, and the world actor it stands for, as core's token documents answer them.
+          get _source() {
+            return this;
+          },
+          get baseActor() {
+            return actors.get(this.actorId) ?? null;
+          },
         };
         where.tokens.set(token.id, token);
         docs.set(token.uuid, token);
@@ -160,12 +174,15 @@ function scene({ shuffled = false } = {}) {
       }
       return shuffled ? made.reverse() : made;
     },
+    async deleteEmbeddedDocuments(type, ids) {
+      for (const id of ids) where.tokens.delete(id);
+    },
   };
   return where;
 }
 
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
-const { deploy } = await import("../scripts/lib/group.mjs");
+const { deploy, recall } = await import("../scripts/lib/group.mjs");
 const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
 const { KEEP_HIT_POINTS_OPTION } = await import("../scripts/lib/constants.mjs");
 installRecreatedHitPoints();
@@ -313,6 +330,126 @@ t("a stack with no creature behind it places nothing and whispers the Judges in 
   assert.match(cards[0].content, /warn.noCreature/);
   assert.match(cards[0].content, /Frobnik/);
   assert.equal(cards[0].speaker.alias, "Band");
+});
+
+const flagsOf = (tokenData) => tokenData.flags?.[MODULE_ID] ?? {};
+
+t("a body whose token was resized by hand redeploys at that size, held by the footprint lock", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [{ ...record("m1", { value: 4, max: 4 }), tokenSize: { width: 3, height: 3, scaleX: null, scaleY: null } }]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  const [data] = where.creates[0].data;
+  assert.equal(data.width, 3);
+  assert.equal(data.height, 3);
+  assert.equal(flagsOf(data).footprintLock, true, "the lock is what keeps auto-size off a remembered size");
+  assert.equal(data.texture.scaleX, 1, "no scale was remembered, so the prototype's stands");
+});
+
+t("a body with no remembered size arrives at the prototype's and stamps it as the module's", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [record("m1", { value: 4, max: 4 })]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  const [data] = where.creates[0].data;
+  assert.deepEqual([data.width, data.height], [1, 1]);
+  assert.equal(flagsOf(data).footprintLock, undefined, "nothing remembered, so nothing locked");
+  assert.deepEqual(flagsOf(data).sizeStamp, { width: 1, height: 1 });
+});
+
+t("a remembered scale lays on the texture and takes no lock", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [{ ...record("m1", { value: 4, max: 4 }), tokenSize: { width: null, height: null, scaleX: -1.5, scaleY: 1.5 } }]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  const [data] = where.creates[0].data;
+  assert.deepEqual([data.texture.scaleX, data.texture.scaleY], [-1.5, 1.5]);
+  assert.equal(data.texture.src, "soldier.webp", "the rest of the texture is the prototype's");
+  assert.equal(flagsOf(data).footprintLock, undefined);
+  assert.deepEqual([data.width, data.height], [1, 1]);
+});
+
+/** Take the one body the scene holds, change its token as `change` says, and gather it: the record it left. */
+async function roundTrip(group, where, change) {
+  game.scenes = [where];
+  const [token] = [...where.tokens.values()];
+  change(token);
+  await recall(group, { scene: where });
+  game.scenes = [];
+  return group.system.stacks[0].roster[0];
+}
+const lockOf = (token) => token.flags[MODULE_ID].footprintLock;
+const noSize = { width: null, height: null, scaleX: null, scaleY: null };
+
+t("a gather remembers a hand's size, and a reset forgets it", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [record("m1", { value: 4, max: 4 })]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  // A hand resizes the placed token from the 1x1 the deploy stamped.
+  const kept = await roundTrip(group, where, (token) => Object.assign(token, { width: 3, height: 3 }));
+  assert.deepEqual(kept.tokenSize, { width: 3, height: 3, scaleX: null, scaleY: null });
+
+  // It comes back unchanged: locked, off the prototype, still kept.
+  const again = scene();
+  systemRolls.push(4);
+  const [made] = await deploy(group, again, { count: 1 });
+  assert.deepEqual([made.width, made.height, lockOf(made)], [3, 3, true]);
+  assert.deepEqual((await roundTrip(group, again, () => {})).tokenSize, { width: 3, height: 3, scaleX: null, scaleY: null }, "a remembered body stays remembered");
+
+  // Reset while out: the lock goes and the size it ends at is stamped, so the size is forgotten.
+  const reset = scene();
+  systemRolls.push(4);
+  await deploy(group, reset, { count: 1 });
+  const forgotten = await roundTrip(group, reset, (token) => {
+    delete token.flags[MODULE_ID].footprintLock;
+    Object.assign(token, { width: 2, height: 2 });
+    token.flags[MODULE_ID].sizeStamp = { width: 2, height: 2 };
+  });
+  assert.deepEqual(forgotten.tokenSize, noSize);
+});
+
+t("an auto-sized body nobody touched is remembered at no size, and goes out unlocked", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [record("m1", { value: 4, max: 4 })]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  // The scene's auto-size wrote 2x2 and stamped it in the same write.
+  const kept = await roundTrip(group, where, (token) => {
+    Object.assign(token, { width: 2, height: 2 });
+    token.flags[MODULE_ID].sizeStamp = { width: 2, height: 2 };
+  });
+  assert.deepEqual(kept.tokenSize, noSize);
+  const again = scene();
+  systemRolls.push(4);
+  const [made] = await deploy(group, again, { count: 1 });
+  assert.equal(lockOf(made), undefined);
+  assert.deepEqual([made.width, made.height], [1, 1], "the prototype's size, left for the scene's auto-size to judge");
+});
+
+t("a body with no stamp and no lock, placed before sizes were stamped, remembers none of its size", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [record("m1", { value: 4, max: 4 })]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  const kept = await roundTrip(group, where, (token) => {
+    Object.assign(token, { width: 3, height: 3 });
+    delete token.flags[MODULE_ID].sizeStamp;
+  });
+  assert.equal(kept.tokenSize.width, null);
+});
+
+t("a hand's scale is remembered alone, with no lock on the way out", async () => {
+  const where = scene();
+  const group = groupActor(monster(), 1, [record("m1", { value: 4, max: 4 })]);
+  systemRolls.push(4);
+  await deploy(group, where, { count: 1 });
+  const kept = await roundTrip(group, where, (token) => Object.assign(token, { texture: { src: "soldier.webp", scaleX: 1.5, scaleY: 1.5 } }));
+  assert.deepEqual(kept.tokenSize, { width: null, height: null, scaleX: 1.5, scaleY: 1.5 });
+  const again = scene();
+  systemRolls.push(4);
+  const [made] = await deploy(group, again, { count: 1 });
+  assert.deepEqual([made.texture.scaleX, made.texture.scaleY, lockOf(made)], [1.5, 1.5, undefined]);
 });
 
 let failures = 0;

@@ -35,8 +35,8 @@ export const FLAG_BATTLEMAP = "battlemap";
  */
 export const FLAG_FOOTPRINT = "footprint";
 
-/** Token flag opting a token out of every automatic resize. */
-export const FLAG_FOOTPRINT_LOCK = "footprintLock";
+// The lock and the size stamp live in lib, where a group deploy writes them.
+export { FLAG_FOOTPRINT_LOCK, FLAG_SIZE_STAMP } from "../lib/constants.mjs";
 
 /**
  * Foundry's `CONST.GRID_TYPES` numerals, as literals so the pure modules and

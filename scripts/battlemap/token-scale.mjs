@@ -6,7 +6,7 @@
  * never has two size owners.
  */
 
-import { MODULE_ID, FLAG_FOOTPRINT, FLAG_FOOTPRINT_LOCK } from "./constants.mjs";
+import { MODULE_ID, FLAG_FOOTPRINT, FLAG_FOOTPRINT_LOCK, FLAG_SIZE_STAMP } from "./constants.mjs";
 import { sceneSetup } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
@@ -132,6 +132,13 @@ const changed = (tokenDoc, size) => {
 };
 
 /**
+ * The change that records a size as the module's own: the stamp a gather reads
+ * to tell this size from a hand's. It is nested, so `updateSource` and `update`
+ * both take it, and it rides in the write of the size it names.
+ */
+const stampOf = ({ width, height }) => ({ flags: { [MODULE_ID]: { [FLAG_SIZE_STAMP]: { width, height } } } });
+
+/**
  * Resize every token on the scene to its footprint at the scene's scale.
  * Cheap when nothing changed: only differing tokens are written.
  * @returns {Promise<number>} how many tokens were resized.
@@ -141,7 +148,7 @@ export async function rescaleSceneTokens(scene) {
   const updates = [];
   for (const token of scene.tokens) {
     const size = sizeForToken(token, scene);
-    if (size && changed(token, size)) updates.push({ _id: token.id, ...size });
+    if (size && changed(token, size)) updates.push({ _id: token.id, ...size, ...stampOf(size) });
   }
   if (updates.length) await scene.updateEmbeddedDocuments("Token", updates);
   return updates.length;
@@ -169,7 +176,8 @@ export async function applyFootprintToSelected({ w, h }) {
 
 /**
  * Clear the footprint override from the selected tokens and re-derive their
- * size from size category / default.
+ * size from size category / default. A reset is the Judge saying "auto", so the
+ * size each token ends at is stamped as the module's, resized or not.
  * @returns {Promise<number>} how many tokens were reset.
  */
 export async function resetSelectedFootprints() {
@@ -179,7 +187,10 @@ export async function resetSelectedFootprints() {
     if (token.getFlag(MODULE_ID, FLAG_FORMATION_ID)) continue;
     await token.update({ [`flags.${MODULE_ID}.${FLAG_FOOTPRINT}`]: unset(), [`flags.${MODULE_ID}.${FLAG_FOOTPRINT_LOCK}`]: unset() });
     const size = sizeForToken(token);
-    if (size && changed(token, size)) await token.update(size);
+    const stored = token._source ?? token;
+    const ends = size ?? { width: stored.width, height: stored.height };
+    const write = size && changed(token, size) ? { ...size, ...stampOf(size) } : Number.isFinite(ends.width) && Number.isFinite(ends.height) ? stampOf(ends) : null;
+    if (write) await token.update(write);
     count++;
   }
   return count;
@@ -197,6 +208,6 @@ export function installTokenAutoScale() {
     const scene = doc.parent;
     if (!autoScaleEnabled(scene)) return;
     const size = sizeForToken(doc, scene);
-    if (size && changed(doc, size)) doc.updateSource(size);
+    if (size && changed(doc, size)) doc.updateSource({ ...size, ...stampOf(size) });
   });
 }

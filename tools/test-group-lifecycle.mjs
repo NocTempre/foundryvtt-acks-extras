@@ -53,14 +53,16 @@ const MODULE_ID = "acks-extras";
 const scene = (name) => ({ id: uid("scn"), name, tokens: new Map() });
 
 /** A deployed body: an unlinked token carrying its group, stack and member flags. */
-function body(where, group, stackKey, memberKey, { id = uid("tok"), hp = 4 } = {}) {
+function body(where, group, stackKey, memberKey, { id = uid("tok"), hp = 4, flags = {}, source = { width: 1, height: 1, texture: { scaleX: 1, scaleY: 1 } } } = {}) {
   const token = {
     id,
     parent: where,
+    _source: source,
+    baseActor: { prototypeToken: { width: 1, height: 1, texture: { scaleX: 1, scaleY: 1 } } },
     get uuid() {
       return `Scene.${this.parent.id}.Token.${this.id}`;
     },
-    flags: { [MODULE_ID]: { group: group.uuid, stack: stackKey, member: memberKey } },
+    flags: { [MODULE_ID]: { group: group.uuid, stack: stackKey, member: memberKey, ...flags } },
     getFlag(ns, key) {
       return this.flags[ns]?.[key];
     },
@@ -131,12 +133,12 @@ function groupActor(stacks) {
 }
 
 /** A stack of `size` with one deployed record per token given. */
-function deployedGroup(size, where, n) {
+function deployedGroup(size, where, n, bodyOptions = {}) {
   const group = groupActor([{ key: "s1", size: { current: size, initial: size }, roster: [] }]);
   const tokens = [];
   for (let i = 0; i < n; i++) {
     const key = `m${i + 1}`;
-    const token = body(where, group, "s1", key);
+    const token = body(where, group, "s1", key, bodyOptions);
     group.system.stacks[0].roster.push({ key, ordinal: i + 1, state: "deployed", tokenUuid: token.uuid, delta: {}, note: "" });
     tokens.push(token);
   }
@@ -237,6 +239,21 @@ t("a token of the same id on a scene the body is not on is not the body", async 
   const m = record(group, "m1");
   assert.equal(m.state, "deployed", "the twin's deletion leaves the record alone");
   assert.equal(m.tokenUuid, tokens[0].uuid);
+});
+
+const sized = (width, height) => ({ width, height, texture: { scaleX: 1, scaleY: 1 } });
+const noSize = { width: null, height: null, scaleX: null, scaleY: null };
+
+t("a body deleted by hand keeps the size a hand gave it, and an auto-sized one keeps none", async () => {
+  const keep = scene("Keep");
+  const hand = deployedGroup(3, keep, 1, { source: sized(3, 3), flags: { sizeStamp: { width: 2, height: 2 } } });
+  const auto = deployedGroup(3, keep, 1, { source: sized(2, 2), flags: { sizeStamp: { width: 2, height: 2 } } });
+  const held = deployedGroup(3, keep, 1, { source: sized(3, 3), flags: { footprintLock: true } });
+  for (const { tokens } of [hand, auto, held]) remove(tokens[0]);
+  await settle();
+  assert.deepEqual(record(hand.group, "m1").tokenSize, { width: 3, height: 3, scaleX: null, scaleY: null }, "a size off the stamp is a hand's");
+  assert.deepEqual(record(auto.group, "m1").tokenSize, noSize, "a size that is the stamp is the module's");
+  assert.deepEqual(record(held.group, "m1").tokenSize, { width: 3, height: 3, scaleX: null, scaleY: null }, "a locked body stays remembered");
 });
 
 let failures = 0;

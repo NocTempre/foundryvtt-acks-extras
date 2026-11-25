@@ -124,6 +124,14 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
             // ActorDelta-shaped sparse override. Validated by ActorDelta when
             // applied to a token, not here — an ObjectField holds it verbatim.
             delta: new ObjectField(),
+            // The size a hand gave this body's token, kept across a gather; null is a part
+            // nobody set, which the prototype's token supplies.
+            tokenSize: new SchemaField({
+              width: new NumberField({ required: false, nullable: true, initial: null, positive: true }),
+              height: new NumberField({ required: false, nullable: true, initial: null, positive: true }),
+              scaleX: new NumberField({ required: false, nullable: true, initial: null }),
+              scaleY: new NumberField({ required: false, nullable: true, initial: null }),
+            }),
             state: new StringField({ required: true, initial: "materialized", choices: GROUP_STATE }),
             tokenUuid: str(), // while deployed
             actorUuid: str(), // if detached to a standalone actor

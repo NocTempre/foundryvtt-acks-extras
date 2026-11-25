@@ -421,6 +421,50 @@ export function cleanDelta(delta) {
   return copy;
 }
 
+const SIZE_EPSILON = 1e-6;
+const isNumber = (v) => typeof v === "number" && Number.isFinite(v);
+const sameNumber = (a, b) => Math.abs(a - b) <= SIZE_EPSILON;
+
+/** A roster record's `tokenSize` that remembers nothing. */
+export const noTokenSize = () => ({ width: null, height: null, scaleX: null, scaleY: null });
+
+/**
+ * The size a hand gave a body's token, as a roster record keeps it across a
+ * gather; each part is null where it is not kept.
+ *
+ * Width and height are kept as a pair, since the footprint lock freezes both
+ * axes, and only where the pair differs from the prototype's and a hand set it:
+ * the token is locked, or it carries a stamp (the size the module last wrote)
+ * that the pair differs from. A token with neither lock nor stamp is no body
+ * this module has sized, so none of its size is kept. The scale pair is kept
+ * where it differs from the prototype's, because nothing automatic writes scale.
+ *
+ * @param {object} stored  the token's `_source`: `width`, `height`, `texture.scaleX/scaleY`
+ * @param {object} proto  the prototype token the deploy builds from, in the same shape
+ * @param {{locked?: boolean, stamp?: {width: number, height: number}|null}} [hand]
+ *   `locked` is the token's footprint lock; `stamp` is its size stamp
+ * @returns {{width: number|null, height: number|null, scaleX: number|null, scaleY: number|null}}
+ */
+export function keptTokenSize(stored, proto, { locked = false, stamp = null } = {}) {
+  const kept = noTokenSize();
+  if (!stored || !proto) return kept;
+  const { width, height } = stored;
+  if (isNumber(width) && isNumber(height) && isNumber(proto.width) && isNumber(proto.height)) {
+    const offProto = !sameNumber(width, proto.width) || !sameNumber(height, proto.height);
+    const stamped = isNumber(stamp?.width) && isNumber(stamp?.height);
+    const offStamp = stamped && (!sameNumber(width, stamp.width) || !sameNumber(height, stamp.height));
+    if (offProto && (locked || offStamp)) Object.assign(kept, { width, height });
+  }
+  const scaleX = stored.texture?.scaleX;
+  const scaleY = stored.texture?.scaleY;
+  const protoX = proto.texture?.scaleX;
+  const protoY = proto.texture?.scaleY;
+  if (isNumber(scaleX) && isNumber(scaleY) && isNumber(protoX) && isNumber(protoY) && (!sameNumber(scaleX, protoX) || !sameNumber(scaleY, protoY))) {
+    Object.assign(kept, { scaleX, scaleY });
+  }
+  return kept;
+}
+
 /**
  * A source's monster extras: a live actor's flag, or a stack snapshot's, which
  * is a plain object.
