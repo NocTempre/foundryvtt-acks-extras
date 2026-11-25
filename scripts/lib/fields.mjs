@@ -116,6 +116,30 @@ export function occupantField() {
 }
 
 /**
+ * One row of an organisation chart, kept in a `units` list on a faction or on a
+ * group (docs/lib/ORGANISATION.md). `key` names the row and `parentKey` the row
+ * it stands under, blank for a root; `holderUuid` names the group (or lone actor)
+ * holding the row's bodies, and a blank holder is an empty row, waiting to be
+ * decided like an open language slot. `kind` is the unit word an import read,
+ * so an empty row knows what a Roll makes of it; it is data and never a choice.
+ * `gen` is an object lib stores and never reads: the generating feature keeps
+ * there whatever a later Roll of an empty row needs.
+ */
+export function unitField() {
+  const { SchemaField, BooleanField, ObjectField } = F();
+  return new SchemaField({
+    key: str(),
+    parentKey: str(),
+    label: str(),
+    holderUuid: str(),
+    kind: str(),
+    notes: str(),
+    hidden: new BooleanField({ initial: false }),
+    gen: new ObjectField(),
+  });
+}
+
+/**
  * A level-dependent value, by `kind`: flat, per level, breakpoints, a borrowed
  * class progression, or one keyed on another scale.
  */

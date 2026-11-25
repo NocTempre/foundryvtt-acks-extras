@@ -11,6 +11,7 @@
  * own base actor and its own sparse roster.
  */
 import { acksCompatStubs, creatureAttackModifiers, savingThrowFields } from "../actor-compat.mjs";
+import { unitField } from "../fields.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 import { commandStatus } from "../group-logic.mjs";
 import { clampScore, moraleBounds } from "../score-bounds.mjs";
@@ -119,6 +120,13 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
 
       /** The stacks that make up this group: one for a uniform pack, several for a mixed unit. */
       stacks: new ArrayField(stack()),
+
+      /**
+       * The organisation chart this group hosts while no faction does: the rows of
+       * the units under it, each naming the group that holds its bodies. Empty for a
+       * group with no chart. See docs/lib/ORGANISATION.md.
+       */
+      units: new ArrayField(unitField()),
 
       /**
        * The displayed collective noun, filled from the monster stat block's

@@ -16,7 +16,7 @@
 import { headcountOf, strengthColumnTotals, strengthRevenue, strengthTotal } from "../standing-logic.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 import { liveRows } from "../../lib/group-logic.mjs";
-import { num, str, int, occupantField } from "../../lib/fields.mjs";
+import { num, str, int, occupantField, unitField } from "../../lib/fields.mjs";
 import { FACTION_KINDS, RELATION_STANCES, STANDING_SOURCES, SUBJECT_SCOPES } from "../constants.mjs";
 import { isWanted, rowsFor, sumStanding } from "../standing-logic.mjs";
 
@@ -126,6 +126,9 @@ export class FactionData extends foundry.abstract.TypeDataModel {
       parentUuid: str(),
       // Its members: the roster row a place uses.
       members: new fields.ArrayField(occupantField()),
+      // Its organisation chart: one row per unit, each naming the group that holds
+      // its bodies (docs/lib/ORGANISATION.md). `affiliation` reads these with `members`.
+      units: new fields.ArrayField(unitField()),
       // Its unnamed people, counted by kind and level.
       strength: strengthField(),
       // The scene Regions it controls — quarters drawn as Districts, by uuid.
