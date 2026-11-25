@@ -2676,7 +2676,8 @@ pushed.
 **Commits.**
 
 - T-0713: a2e1fe65. T-0714 (on architect's ruling): 9fd59365.
-- S6a and S6b: 455f2cfa. The round and outnumbering gates read nothing in a
+- S6a and S6b: 8bc358b1, 1cffe874, b3addefd, 1777664f, 455f2cfa. The round
+  and outnumbering gates read nothing in a
   combat the roller's tracker does not view, which the walk found and
   6413dbb8 fixed.
 - S7, two `architect` rulings ("Architect's S7 ruling", above): 8cad19ec.
@@ -2747,13 +2748,29 @@ generated document tracked and swept by id):
 - The committed follower-card walk (lane A held the active GM).
 - T-0725 through a scene's deletion, on an unlinked token's actor, and the
   notification's text read on screen.
+- The upgrading notes' own path (Reimport One Shelf, Rules tables): the
+  walks called the importer's table import directly. The menu offers every
+  document and each by name, `formation` and `monsters` among them.
+
+**What the walks left in the world:** world time advanced by the T-0730 and
+T-0725 walks; the `monsters` and `formation` tables re-imported from the
+staged books. The fixtures `equipment/onhit-archer` and
+`formation/time-unit@bm2`, which their recipes call kept, were built by
+`api.fixture` and swept with the run's ledger each time, so none stands.
 
 **Findings and choices for the owner:**
 
-- With T-0730's figures not imported, round-level play advances nothing:
-  advance-round, hasty actions and combat rounds move no clock, and the
-  delve counts whole turns. A world imported before this release re-runs
-  the Rules tables import (its upgrading note).
+- **Open, for the owner: T-0730 is committed before its cost was put to
+  you.** With its figures not imported, round-level play advances nothing
+  (advance-round, hasty actions and combat rounds move no clock, and the
+  delve counts whole turns), a spell duration counted in turns has no
+  figure, a record counted in rounds never ends, and the world clock is not
+  moved by a delve. A world imported before this release re-runs the Rules
+  tables import (its upgrading note).
+- T-0725's world-clock leg reads every world and token actor on every
+  world-time tick, uncached. A bearer who left the fight is paid on the
+  world clock but dropped on the combat clock; no ruling covers the
+  difference.
 - Monsters now take manoeuvre throw rows (S9c); no ruling covers it.
 - R2's surprise part is written ungated, where section 3's acceptance
   reads it under the gate.
