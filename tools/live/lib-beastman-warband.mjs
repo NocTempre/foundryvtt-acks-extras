@@ -615,7 +615,7 @@ try {
       const hadLeader = await run(gm, P.leaderOf, { id: fid });
       await run(gm, P.press, { id: fid, action: "orgEdit", key: row.key, wait: 600 });
       const clear = await run(gm, P.clearLeader, { id: fid, key: row.key, press: false });
-      check("the clear-leader control is drawn where an officer exists, named for its rank, and no empty tick is drawn", clear.drawn && clear.emptyTick === false && /\S/.test(clear.name), clear);
+      check("the clear-leader control (the officer line's Clear) is drawn where an officer exists, and no empty tick is drawn", clear.drawn && clear.emptyTick === false && /\S/.test(clear.name), clear);
       await run(gm, P.clearLeader, { id: fid, key: row.key, press: true });
       const cleared = await waitFor(gm, `!fromUuidSync("${row.holderUuid}").system.unit.officerUuid`, 8000);
       check("pressing it clears the group's officer and writes at once", cleared);
