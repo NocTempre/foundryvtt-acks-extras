@@ -601,7 +601,8 @@ ruled: the template's own strip or an empty box on the template, a portrait
 on each variant's tile, a head on each trait's tile, and the p. 56 plate at
 the head of the Generate window on canvas 1.
 
-**Open questions.** The first option of each is the one drawn.
+**Open questions.** The first option of each is the one drawn. The lists
+for canvases 2 to 5 are replaced by "Canvases 2 to 5 audited", below.
 
 Canvas 1 (S12):
 
@@ -2273,6 +2274,124 @@ drawn, and the owner corrects it by saying so. Not checked: any board's
 rendering. Not drawn: the tree itself in a window narrower than it, which
 scrolls in its part root (`ui-layout.md`).
 
+### Canvases 2 to 5 audited against the book, Foundry and the shipped code, 2026-11-24 — proposed
+
+The owner's corrections of the same day ("The owner's corrections, and the
+audit", above) were made of canvas 1 and hold for every canvas. Each open
+question that "Design session" lists for canvases 2 to 5 was read against
+the printed pages, Foundry core 14, the `acks` system 14.2.0 and this
+repo's shipped code before anything was asked. Each board is redrawn to the
+answer found there, or, where none is, to the least restrictive pick. This
+entry replaces those four question lists, S7's "Canvas 4 question 2 stays
+the owner's" and S7's owner question on E5. It is proposed until the owner
+gives a go-ahead on the four canvases; one ask covers them.
+
+**Canvas 2 (S14)**, https://claude.ai/artifact/UaXrrRsaJwLm9GXEwBuLzY,
+Version 7.
+
+1. A random kit is drawn at the scope the Judge chose: the group, a stack
+   or one body. No stack is split: a body's own kit is a record on its
+   stack ("A stack stays one row", lib DECISIONS 2026-10-31, archived).
+2. What a kit suits is a group on the system's bundle item sheet, added by
+   the `renderApplicationV2` injection that
+   `scripts/monsters/item-annotations.mjs` already makes into an item
+   sheet's Details tab. No window of its own.
+3. A kit that does not suit a stack may be given, and the row is marked
+   (the owner, 2026-11-14: automation warns a Judge).
+4. One Kits window with two tools, and no tabs. The owner, of the chart:
+   "The Roll at Random and Design by selection are tools for the tab."
+5. An armour item is listed and the kit's stat change carries the armour
+   class. The system's `computeAC()` returns early for an actor that is not
+   a character, and the module's own Inventory tab says so in
+   `ACKS-MONSTERS.hint.inventory`.
+6. Nothing turns an inventory on. Both monster sheets already list a
+   monster's items with their own Add controls: the system's
+   `attributes-monster.hbs` and the module's
+   `templates/monsters/tab-inventory.hbs`. This is a reading of the owner's
+   "optional, not used for basic entries": optional means empty until
+   something is given, and no switch hides the tab. Example: a basic entry
+   shows an empty Inventory tab, and giving it Kit B lists three items.
+
+The boards' "pinned" kits are gone with re-roll; a kit given by hand is
+left alone by a later roll through one tick box.
+
+**Canvas 3 (S4b)**, https://claude.ai/artifact/Vohd3xxedZW72JZrCJNoRL,
+Version 7.
+
+1. The editor opens from all three places: the monster's Ecology tab, the
+   template's variant row and the chart's Roll.
+2. No preview roll. A roll writes at once ("Just drop the reroll
+   entirely").
+3. A leader's grade is the template's Leader figures axis, built in phase 1
+   and chosen at the Roll. A recipe part carries no grade.
+
+**Canvas 4 (S8b, S9a, S9b-2)**,
+https://claude.ai/artifact/Bb3mZgyZmYNoPCKpEcXp4v, Version 6.
+
+1. The items with a reach are carried by leaders and casters (MM p. 56),
+   who are actors of their own under the adopted shape, so a reach item
+   meets no stack. A thrown item on a body still in a stack: Throw puts the
+   body out by the group's shipped Deploy and then throws. Nothing is
+   refused.
+2. Who sees a reach is the Judge's choice for each item, the first option
+   and the one first drawn: a tick in the row editor's reach group (S7's
+   `showReach`), which sets the Region's `visibility` when the item is
+   raised. Core's own Visibility field on the Region changes one ring until
+   the item is lowered, since lowering deletes the Region. A hidden
+   bearer's reach does nothing, as S7 proposed.
+3. A save is the carrier's prompt with a Save press for the saver's owners
+   and the GMs, as the cast card's recurring prompt has it
+   (`docs/magic/MODEL.md`). Nothing is rolled for anyone.
+
+S7's E5 question is answered by the page: (a), no count on the item's first
+bearer (MM p. 56). A Judge may type one.
+
+Board 4d is new and draws what S7 found undrawn. The place on a carried
+item's sheet that opens the row editor is the row list of the ability
+sheet's Mechanics tab (`templates/abilities/tab-mechanics.hbs`, with its
+`effectAdd`, `effectEdit` and `effectDelete`), put into the system's item
+sheet by the same injection as canvas 2's. The editor gains a reach group.
+4d also draws E5's row with its Swig press, and says where S9b-2's two
+prompts and the breakage appear.
+
+**Canvas 5 (the template sheet)**,
+https://claude.ai/artifact/PxYv6twWXeHwarsiXU8Vkh, Version 8.
+
+1. and 3. The strip's heads are tribes' and the strip stays whole.
+2. Variants and traits are picked from the selects phase 1 built
+   (`templates/lib/template-sheet.hbs`). The picture tiles are withdrawn.
+4. A tribe's head is shown nowhere else.
+
+The picture is the actor's image at the head of the sheet. A click on it
+is core's `editImage` action, and showing it large is `ActorSheetV2`'s own
+header control, which `TemplateSheet` inherits.
+
+One rule is drawn for a choice the variant's tables do not give: it is
+marked and a Judge may still make it, in a select and in a tick box alike.
+Canvas 1, approved, keeps such a pick on board 1b ("A Judge may keep it").
+A roll never lands on one. The rule changes three things:
+
+- the selects' `disabled` on such an option, built and walked in phase 1,
+  goes, and the words it is listed with stay;
+- T-0719: the variant-pin prompt lists such an option with the same words;
+- T-0720: the gear axis is `multi` and takes no bands
+  (`scripts/importer/organisation-axes.mjs`), so nothing says today which
+  piece a role may carry. The build needs that read from the equipment
+  table by role, the mark, and a ticked piece given at generation.
+
+**Not checked.** How any board renders; open and close tags were counted on
+the eleven boards and balance. Whether the system's item sheet has a
+Details tab for every item type the import mints for gear. The token HUD's
+Raise and Throw on board 4a, which were drawn before this audit and reuse
+nothing named. Which pieces board 5a marks, which is a stand-in.
+
+**Released: none.** A go-ahead on canvases 2 to 5 would release S14 (after
+S13 and S12), S4b, S8b, S9a and S9b-2 (each after S8a), and the design of
+T-0719 and T-0720. It would also accept the points of S7's proposed ruling
+that canvas 4 is drawn on: the reach as a core Region, the carrier built
+beside the cast engine, and the split of S8 and S9b. Section 3's rows and
+the phase prompts are unchanged until then.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
@@ -2420,7 +2539,9 @@ whole in `wip/20261124-s7-ruling-reader-carrier.md` (points 1 and 2, S8,
 S9a) and `wip/20261124-s7-ruling-consumers-gear.md` (point 3, S6c, S9b,
 S9c). Neither ran a suite or a walk. Proposed until the owner accepts it;
 S6c, S9c and S9b-1 are built on it because they need no design and no
-owner answer.
+owner answer. Its canvas 4 question 2, its owner question on E5 and the
+editor host it found undrawn are taken up in "Canvases 2 to 5 audited",
+above.
 
 - **The range reader** is a core Region attached to the bearer's token, a
   grid emanation of its footprint, with a new lib behaviour sub-type
