@@ -394,13 +394,13 @@ await ta("a calling is exempt from the range: the clicks and the placement are t
 /*  Declaring a summons                                               */
 /* ------------------------------------------------------------------ */
 
-await ta("a declared summons stores its pick, asks lib nothing and places nothing at the declaring; at its turn it clicks, places and finishes", async () => {
+await ta("a declared summons stores its pick, asks lib only for its verdict and places nothing at the declaring; at its turn it clicks, places and finishes", async () => {
   const stored = [];
   const declare = runDeps({ answer: answerOf(), world: fight("cb2") });
   declare.deps.declare.declare = async (from) => (declare.order.push("declare"), stored.push(from.answer), { castId: "d1" });
   const made = await cast(makeSpell(), declare);
   assert.deepEqual([made.ok, made.declared], [true, true]);
-  assert.deepEqual(declare.order, ["ask", "spend", "endHeld", "declare"], "no verdict from lib, no click and no placement at the declaring; the declaring spends once");
+  assert.deepEqual(declare.order, ["ask", "verdict", "spend", "endHeld", "declare"], "lib's verdict comes before the one spend, and no click and no placement at the declaring");
   assert.deepEqual(stored[0].summon, { ref: REF, count: 2 });
   const kept = answerStored(stored[0]);
   assert.deepEqual(kept.summon, { ref: REF, count: 2 });
@@ -802,6 +802,51 @@ await ta("a count under one reads as one, and a targeted token the summons never
   assert.equal(model.dialogContext(ctx, {}).summon.count.value, 2);
   const { view, verdicts } = footerOf(ctx, {});
   assert.deepEqual([view.summon.show, verdicts], [true, []], "the targets are not drawn, and none is held against the cast");
+});
+
+await ta("an unreadable verdict is a verdict before the spend: the creature the seat cannot observe stops a Player's cast with nothing spent", async () => {
+  const notice = "This seat cannot open that creature.";
+  const r = runDeps({ answer: answerOf(), verdict: { ok: false, reason: "unreadable", notice } });
+  const out = await cast(makeSpell(), r);
+  assert.deepEqual([out.ok, out.reason, r.calls.spends, r.calls.placed.length], [false, "summonRefused", 0, 0]);
+  assert.deepEqual(r.calls.texts, [["warn", notice]]);
+  assert.deepEqual(r.order, ["ask", "verdict"], "no click is asked for");
+});
+
+await ta("the same refusal at a declaration: a Player is stopped at Declare, with the slot unspent and nothing declared", async () => {
+  const notice = "This seat cannot open that creature.";
+  const r = runDeps({ answer: answerOf(), verdict: { ok: false, reason: "unreadable", notice }, world: fight("cb2") });
+  const out = await cast(makeSpell(), r);
+  assert.deepEqual([out.ok, out.reason, r.calls.spends, r.calls.declares.length], [false, "summonRefused", 0, 0]);
+  assert.deepEqual(r.calls.texts, [["warn", notice]]);
+  assert.deepEqual(r.order, ["ask", "verdict"], "lib's verdict is asked at the declaring, before any spend");
+});
+
+await ta("no canvas or a paused game does not stop a declaration, which places nothing; any other refusal does", async () => {
+  for (const reason of ["noCanvas", "paused"]) {
+    const r = runDeps({ answer: answerOf(), verdict: { ok: false, reason, notice: "words" }, world: fight("cb2") });
+    const out = await cast(makeSpell(), r);
+    assert.deepEqual([out.ok, out.declared, r.calls.spends, r.calls.declares.length], [true, true, 1, 1], reason);
+  }
+  const turn = runDeps({ answer: answerOf(), verdict: { ok: false, reason: "noCanvas", notice: "words" } });
+  assert.equal((await cast(makeSpell(), turn)).reason, "summonRefused", "at the turn the canvas is needed");
+});
+
+await ta("a family declared is not weighed by lib's verdict, since its creature is made at the turn", async () => {
+  const r = runDeps({ answer: answerOf(), verdict: { ok: false, reason: "badSource", notice: "words" }, world: fight("cb2") });
+  r.deps.resolveRef = async () => ({ ...GLIMMER, type: "acks-extras.template" });
+  const out = await cast(makeSpell(), r);
+  assert.deepEqual([out.ok, out.declared, r.calls.spends, r.calls.verdicts.length], [true, true, 1, 0]);
+});
+
+await ta("a declared family the seat cannot observe is stopped at Declare, with the slot unspent", async () => {
+  const notice = "This seat cannot open that creature.";
+  const r = runDeps({ answer: answerOf(), world: fight("cb2") });
+  r.deps.resolveRef = async () => ({ ...GLIMMER, type: "acks-extras.template" });
+  r.deps.familyReadable = async () => ({ ok: false, reason: "unreadable", notice });
+  const out = await cast(makeSpell(), r);
+  assert.deepEqual([out.ok, out.reason, r.calls.spends, r.calls.declares.length, r.calls.verdicts.length], [false, "summonRefused", 0, 0, 0]);
+  assert.deepEqual(r.calls.texts, [["warn", notice]]);
 });
 
 console.log(`\n${n} cast-summon tests passed`);

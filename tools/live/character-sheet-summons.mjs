@@ -23,7 +23,9 @@
  * row naming `summons/spike-source` by uuid, a short invented duration) and
  * `summons/spell-open` (one row with no creature, no duration),
  * `summons/stranger` (a character the Player only observes),
- * `summons/spike-source` (a monster only the GM may observe) and its unlinked
+ * `summons/spike-source` (a monster the Player holds Observer on: a cast
+ * summons what the casting seat may observe, so the fixtures section writes
+ * that level from the GM seat) and its unlinked
  * token `summons/bindable`, owned by the Player through its delta. The run's
  * own documents (summoned tokens, the creatures' world copies where none stood,
  * the cast cards, the cast-ended card and the caster records) are tracked by
@@ -94,6 +96,17 @@ const P = {
     return { isGM: game.user.isGM, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, paused: game.paused, castApi: typeof globalThis.acksExtras?.magic?.castSummon === "function" };
   },
   userId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
+  /** The id of the user this seat is, as the page itself holds it. */
+  selfId: async () => game.user.id,
+  /** On the Judge's seat: write a user's level on a world document, then read what the document stores. */
+  setLevel: async ({ uuid, userId, level }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update({ [`ownership.${userId}`]: level });
+    const source = doc._source.ownership ?? {};
+    return { stored: source[userId] ?? null, def: source.default ?? null };
+  },
+  /** Whether this seat's user may observe a document. */
+  observes: async ({ uuid }) => !!(await fromUuid(uuid))?.testUserPermission(game.user, "OBSERVER"),
   pause: async ({ paused }) => {
     if (game.paused !== paused) game.togglePause(paused, { broadcast: true });
     await new Promise((r) => setTimeout(r, 800));
@@ -510,7 +523,7 @@ try {
   });
   const stranger = await gm.fixture("summons/stranger", "Actor", { name: "QA Stranger", type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0, [playerId]: 2 } });
   await gm.fixture("summons/summoner-token", "Token", { name: "QA Summoner", actorId: idOf(summoner), actorLink: true, x: 100, y: 100, width: 1, height: 1 }, { parent: scene.uuid });
-  const spike = await gm.fixture("summons/spike-source", "Actor", { name: "QA Spike Source", type: "monster", ownership: { default: 0 } });
+  const spike = await gm.fixture("summons/spike-source", "Actor", { name: "QA Spike Source", type: "monster", ownership: { default: 0, [playerId]: 2 } });
   const bindable = await gm.fixture("summons/bindable", "Token", {
     name: "QA Bindable", actorId: idOf(spike), actorLink: false, x: 1100, y: 700, width: 1, height: 1, delta: { ownership: { [playerId]: 3 } },
   }, { parent: scene.uuid });
@@ -524,6 +537,11 @@ try {
   const openId = idOf(open);
   const summonerUuid = `Actor.${summonerId}`;
   const spikeUuid = `Actor.${idOf(spike)}`;
+  // A cast summons what the casting seat may observe: the kept creature carries the Player's Observer level, written from the GM seat and read back on the Player seat.
+  const seatId = await run(player, P.selfId);
+  const granted = await run(gm, P.setLevel, { uuid: spikeUuid, userId: playerId, level: 2 });
+  const seenGranted = await until(player, P.observes, { uuid: spikeUuid }, (v) => v === true);
+  check("shape: the Player seat's own user is the one granted, and the creature holds Observer for it at default None, which the Player seat reads", seatId === playerId && granted.stored === 2 && granted.def === 0 && seenGranted === true, { granted: granted.stored, def: granted.def, observes: seenGranted });
   const shaped = await run(gm, P.shape, { actorId: summonerId, namedId, openId, namedRef: spikeUuid, duration: NAMED_DURATION });
   check("shape: spells enabled and both spells read as summoning spells", shaped.enabled && shaped.named && shaped.open, shaped);
   // A past run that stopped between Bind and Release leaves the bindable token bound; the walk starts with it free.

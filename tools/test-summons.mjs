@@ -1131,13 +1131,13 @@ await t("a policy that answers null allows; a throwing policy is logged and trea
 });
 
 /* -------------------------------------------- */
-/*  A spell-named creature, resolved by the GM   */
+/*  The creature's level is the requester's own  */
 /* -------------------------------------------- */
 
 const COOKBOOK = "def.invented.glimmerkin";
 
-/** A library creature on a shelf nobody but the GM can open, found by its cookbook id in the world. */
-function makeShelfSource(id = "shelf1", cookbook = COOKBOOK) {
+/** A library creature on a shelf only the GM and `readers` can open, found by its cookbook id in the world. */
+function makeShelfSource(id = "shelf1", cookbook = COOKBOOK, readers = []) {
   const data = { flags: { [M]: { cookbook: { id: cookbook } } } };
   const doc = {
     id,
@@ -1146,7 +1146,7 @@ function makeShelfSource(id = "shelf1", cookbook = COOKBOOK) {
     name: `Creature ${id}`,
     flags: data.flags,
     getFlag: flagOf(data),
-    compendium: { testUserPermission: (u) => u.isGM },
+    compendium: { testUserPermission: (u) => u.isGM || readers.includes(u.id) },
     toObject: () => ({ _id: id, name: `Creature ${id}`, type: "monster", flags: { [M]: { cookbook: { id: cookbook } } }, prototypeToken: {} }),
   };
   world.actors.set(`lib-${id}`, doc);
@@ -1154,104 +1154,99 @@ function makeShelfSource(id = "shelf1", cookbook = COOKBOOK) {
   return doc;
 }
 
-/** Register a naming that says the spell names the creature carrying the cookbook id. */
-const nameByCookbook = (id = COOKBOOK) =>
-  logic.registerSummonNaming((req) => (req.source ? req.source.flags?.[M]?.cookbook?.id === id : req.sourceRef === id));
+/** A world actor with the ownership table `levels` ({userId: level}, default NONE), read through `testUserPermission` as Foundry does. */
+function makeWorldCreature(id, levels = {}) {
+  const ownership = { default: 0, ...levels };
+  const doc = {
+    id,
+    uuid: `Actor.${id}`,
+    type: "monster",
+    name: `Creature ${id}`,
+    ownership,
+    testUserPermission: (u, lvl) => level(ownership, u) >= { LIMITED: 1, OBSERVER: 2, OWNER }[lvl],
+    toObject: () => ({ _id: id, name: `Creature ${id}`, type: "monster", flags: { [M]: { keep: 1 } }, prototypeToken: {} }),
+  };
+  registry.set(doc.uuid, doc);
+  return doc;
+}
 
-await t("a spell-named creature is resolved on the GM's client by its cookbook id, and the seat never opens its shelf", async () => {
+await t("a creature on a shelf the Player can open is resolved by its cookbook id and summoned; a uuid: prefix and a plain uuid reach the same copy", async () => {
+  setup();
+  const shelf = makeShelfSource("shelf1", COOKBOOK, [p1.id]);
+  const out = await summonRelay(place({ sourceUuid: COOKBOOK, castId: "castS1" }));
+  assert.equal(out.ok, true, "a Player seat summons a creature on a shelf it can observe");
+  assert.equal(calls.tokenCreate.length, 2);
+  const rec = calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG];
+  assert.equal(rec.sourceUuid, shelf.uuid, "the record names the resolved document, not the ref the seat sent");
+  assert.equal(rec.castId, "castS1");
+  assert.equal(calls.actorCreate[0].flags[M][logic.SUMMON_COPY_FLAG].sourceUuid, shelf.uuid, "the one world copy is keyed by the resolved uuid");
+  assert.equal((await summonRelay(place({ sourceUuid: `uuid:${shelf.uuid}`, positions: [{ x: 5, y: 5 }], count: 1 }))).ok, true);
+  assert.equal(calls.actorCreate.length, 1, "both reach the one copy");
+});
+
+await t("a closed shelf is unreadable to a Player however the request names it, and nothing is made or spent; the GM is never refused", async () => {
   setup();
   const shelf = makeShelfSource();
-  const off = nameByCookbook();
-  try {
-    const out = await summonRelay(place({ sourceUuid: COOKBOOK, castId: "castS1" }));
-    assert.equal(out.ok, true, "a Player seat summons a creature on a shelf it cannot read");
-    assert.equal(calls.tokenCreate.length, 2);
-    const rec = calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG];
-    assert.equal(rec.sourceUuid, shelf.uuid, "the record names the resolved document, not the ref the seat sent");
-    assert.equal(rec.castId, "castS1");
-    assert.equal(calls.actorCreate[0].flags[M][logic.SUMMON_COPY_FLAG].sourceUuid, shelf.uuid, "the one world copy is keyed by the resolved uuid");
-    assert.equal((await summonRelay(place({ sourceUuid: `uuid:${shelf.uuid}`, positions: [{ x: 5, y: 5 }], count: 1 }))).ok, true, "a uuid: prefix and a plain uuid resolve too");
-    assert.equal(calls.actorCreate.length, 1, "both reach the one copy");
-  } finally {
-    off();
+  makeShelfSource("shelf2", "def.invented.other", [p1.id]);
+  for (const ref of [COOKBOOK, shelf.uuid, `uuid:${shelf.uuid}`]) {
+    assert.deepEqual(await summonRelay(place({ sourceUuid: ref })), { ok: false, reason: "unreadable" }, ref);
   }
+  assert.equal(calls.actorCreate.length + calls.tokenCreate.length + calls.folderCreate.length, 0, "a refused request makes nothing");
+  assert.equal((await summonRelay(place({ sourceUuid: "def.invented.other" }))).ok, true, "an open shelf by cookbook id is allowed");
+  const forGm = await summonRelay(place({ sourceUuid: COOKBOOK, requestUserId: null, positions: [{ x: 5, y: 5 }], count: 1 }));
+  assert.equal(forGm.ok, true, "a Judge reads every shelf");
+});
+
+await t("the relay tests the user who asked, not the GM client it runs on", async () => {
+  setup();
+  const shelf = makeShelfSource();
+  assert.equal(game.user.isGM, true, "the relay runs on a GM client");
+  assert.equal((await summonRelay(place({ sourceUuid: shelf.uuid, requestUserId: p2.id }))).reason, "unreadable", "a second Player who cannot observe it is refused too");
+  assert.equal((await summonRelay(place({ sourceUuid: shelf.uuid, requestUserId: p1.id }))).reason, "unreadable");
+  assert.equal(calls.actorCreate.length, 0);
+});
+
+await t("a world actor is summoned at OBSERVER and refused at LIMITED or NONE, the Player's own level deciding", async () => {
+  setup();
+  const summoner = makeSummoner("sum", [p1.id], [SPELL]);
+  const ask = (source, user = p1) => logic.checkPlaceRequest({ user, summoner, source, count: 1, spellId: SPELL.id });
+  assert.equal(ask(makeWorldCreature("w0")).reason, "unreadable", "default ownership NONE");
+  assert.equal(ask(makeWorldCreature("w1", { [p1.id]: 1 })).reason, "unreadable", "LIMITED");
+  assert.equal(ask(makeWorldCreature("w2", { [p1.id]: 2 })).ok, true, "OBSERVER");
+  assert.equal(ask(makeWorldCreature("w3", { [p2.id]: 2 })).reason, "unreadable", "another user's level is not the asker's");
+  assert.equal(ask(makeWorldCreature("w4"), gm).ok, true, "a Judge is never refused");
+  const closed = makeWorldCreature("w5", { [p1.id]: 1 });
+  assert.deepEqual(await summonRelay(place({ sourceUuid: closed.uuid })), { ok: false, reason: "unreadable" });
+  closed.ownership[p1.id] = 2;
+  assert.equal((await summonRelay(place({ sourceUuid: closed.uuid }))).ok, true, "raising the Player to OBSERVER lets the same request through");
 });
 
 await t("a ref no lookup answers is badSource, and a bare request never reaches the library by an id", async () => {
   setup();
   makeShelfSource();
-  const off = nameByCookbook();
-  try {
-    assert.equal((await summonRelay(place({ sourceUuid: "def.invented.nobody" }))).reason, "badSource");
-    assert.equal((await summonRelay(place({ sourceUuid: "" }))).reason, "badSource");
-    const bare = await summonRelay(place({ sourceUuid: COOKBOOK, spellId: "", requestUserId: null }));
-    assert.equal(bare.reason, "badSource", "a GM's bare request names a document, not a cookbook id");
-    assert.equal(calls.tokenCreate.length, 0);
-  } finally {
-    off();
-  }
+  assert.equal((await summonRelay(place({ sourceUuid: "def.invented.nobody" }))).reason, "badSource");
+  assert.equal((await summonRelay(place({ sourceUuid: "" }))).reason, "badSource");
+  const bare = await summonRelay(place({ sourceUuid: COOKBOOK, spellId: "", requestUserId: null }));
+  assert.equal(bare.reason, "badSource", "a GM's bare request names a document, not a cookbook id");
+  assert.equal(calls.tokenCreate.length, 0);
 });
 
-await t("the unreadable exemption is the naming's: a creature the spell does not name stays unreadable, and nothing is made", async () => {
+await t("a bare request for a closed shelf is unreadable to a Player; a Judge's is allowed", async () => {
   setup();
   makeShelfSource();
-  makeShelfSource("shelf2", "def.invented.other");
-  const off = nameByCookbook();
-  try {
-    assert.equal((await summonRelay(place({ sourceUuid: COOKBOOK }))).ok, true);
-    const forged = await summonRelay(place({ sourceUuid: "def.invented.other" }));
-    assert.deepEqual(forged, { ok: false, reason: "unreadable" }, "a forged request for another shelf creature");
-    assert.equal(calls.actorCreate.length, 1, "only the named creature was copied");
-  } finally {
-    off();
-  }
-  assert.equal((await summonRelay(place({ sourceUuid: COOKBOOK }))).reason, "unreadable", "with the naming removed the exemption is gone");
+  assert.equal((await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1", spellId: "" }))).reason, "unreadable");
+  const bareForGm = await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1", spellId: "", requestUserId: null }));
+  assert.equal(bareForGm.ok, true, "a GM reads every shelf");
 });
 
-await t("a bare request naming a source the seat chose is unreadable, whatever a naming says", async () => {
-  setup();
-  makeShelfSource();
-  const off = logic.registerSummonNaming(() => true);
-  try {
-    assert.equal((await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1", spellId: "" }))).reason, "unreadable", "no spell, no exemption, whatever the naming answers");
-    const bareForGm = await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1", spellId: "", requestUserId: null }));
-    assert.equal(bareForGm.ok, true, "a GM reads every shelf");
-  } finally {
-    off();
-  }
-});
-
-await t("a naming that throws is logged and does not exempt; a naming must answer exactly true", async () => {
-  setup();
-  makeShelfSource();
-  const logged = [];
-  const realError = console.error;
-  console.error = (...args) => logged.push(String(args[0]));
-  const offs = [logic.registerSummonNaming(() => { throw new Error("broken naming"); }), logic.registerSummonNaming(() => "yes")];
-  try {
-    assert.equal((await summonRelay(place({ sourceUuid: COOKBOOK }))).reason, "unreadable", "a throwing naming does not exempt");
-    assert.equal((await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1" }))).reason, "unreadable");
-    assert.match(logged[0], /summon naming threw/);
-  } finally {
-    console.error = realError;
-    for (const off of offs) off();
-  }
-  assert.throws(() => logic.registerSummonNaming(null), TypeError);
-});
-
-await t("the seat's own pre-check leaves a spell-named, unresolvable ref to the GM, and the relay never does", () => {
+await t("no creature is badSource on the seat's own check and on the relay's, with or without positions", () => {
   const summoner = makeSummoner("sum", [p1.id], [SPELL]);
-  const off = nameByCookbook();
-  try {
-    const ask = (extra) => logic.checkPlaceRequest({ user: p1, summoner, source: null, count: 1, spellId: SPELL.id, ...extra });
-    assert.deepEqual(ask({ sourceRef: COOKBOOK }), { ok: true });
-    assert.equal(ask({ sourceRef: "def.invented.nobody" }).reason, "badSource");
-    assert.equal(ask({ sourceRef: "" }).reason, "badSource");
-    assert.equal(ask({ sourceRef: COOKBOOK, positions: [{ x: 1, y: 1 }] }).reason, "badSource", "with positions it is the relay's check, which needs a creature");
-    assert.equal(ask({ sourceRef: COOKBOOK, spellId: "" }).reason, "badSource", "a bare request has no naming to lean on");
-  } finally {
-    off();
-  }
+  const ask = (extra) => logic.checkPlaceRequest({ user: p1, summoner, source: null, count: 1, spellId: SPELL.id, ...extra });
+  assert.equal(ask({}).reason, "badSource");
+  assert.equal(ask({ positions: [{ x: 1, y: 1 }] }).reason, "badSource");
+  assert.equal(ask({ spellId: "" }).reason, "badSource");
+  assert.equal(logic.checkPlaceRequest({ user: gm, summoner, source: null, count: 1, spellId: SPELL.id }).reason, "badSource", "a Judge needs a creature too");
+  assert.equal(logic.checkPlaceRequest({ user: p1, summoner, source: makeSource("m1", { type: "character" }), count: 1, spellId: SPELL.id }).reason, "badSource", "a document of another type");
 });
 
 await t("offerRows: a resolved row by its creature, an unresolved id passed through untouched, a plain name dropped", () => {

@@ -39,8 +39,9 @@
  * Fixtures, kept and found by marker (the GM seat builds what is missing): the
  * character-sheet recipe's `summons/scene`; this walk's own `summons/summoner-a` (a character the
  * Player owns), `summons/spell-named-a` (one row naming `summons/spike-source`
- * by uuid, a short invented duration), `summons/spike-source` (a monster only
- * the GM may observe) and `summons/stranger` (a character the Player only
+ * by uuid, a short invented duration), `summons/spike-source` (a monster the
+ * Player holds Observer on: a cast summons what the casting seat may observe,
+ * so the fixtures section writes that level from the GM seat) and `summons/stranger` (a character the Player only
  * observes), and this section's own: `summons/party` (a party actor whose
  * formation holds both summoners), `summons/party-token` (its token on the
  * scene, the summoner stashed inside), `summons/summoner-b` (a second
@@ -129,6 +130,17 @@ const P = {
     return { isGM: game.user.isGM, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, paused: game.paused, castApi: typeof globalThis.acksExtras?.magic?.castSummon === "function", formationApi: typeof globalThis.acksExtras?.formation?.travel?.setJourneyMode === "function" };
   },
   userId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
+  /** The id of the user this seat is, as the page itself holds it. */
+  selfId: async () => game.user.id,
+  /** On the Judge's seat: write a user's level on a world document, then read what the document stores. */
+  setLevel: async ({ uuid, userId, level }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update({ [`ownership.${userId}`]: level });
+    const source = doc._source.ownership ?? {};
+    return { stored: source[userId] ?? null, def: source.default ?? null };
+  },
+  /** Whether this seat's user may observe a document. */
+  observes: async ({ uuid }) => !!(await fromUuid(uuid))?.testUserPermission(game.user, "OBSERVER"),
   pause: async ({ paused }) => {
     if (game.paused !== paused) game.togglePause(paused, { broadcast: true });
     await new Promise((r) => setTimeout(r, 800));
@@ -794,7 +806,7 @@ try {
     name: "QA Summoner B", type: "character", prototypeToken: { actorLink: true }, system: { hp: { value: 9, max: 9 }, spells: { enabled: true } }, ownership: { default: 0, [playerId]: 3 },
   });
   const stranger = await gm.fixture("summons/stranger", "Actor", { name: "QA Stranger", type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0, [playerId]: 2 } });
-  const spike = await gm.fixture("summons/spike-source", "Actor", { name: "QA Spike Source", type: "monster", ownership: { default: 0 } });
+  const spike = await gm.fixture("summons/spike-source", "Actor", { name: "QA Spike Source", type: "monster", ownership: { default: 0, [playerId]: 2 } });
   const spellA = await gm.fixture("summons/spell-named-a", "Item", { name: "QA Named Calling", type: "spell", system: { lvl: 1, cast: 0, memorized: 0 } }, { parent: summonerA.uuid });
   const spellB = await gm.fixture("summons/spell-named-b", "Item", { name: "QA Named Calling B", type: "spell", system: { lvl: 1, cast: 0, memorized: 0 } }, { parent: summonerB.uuid });
   const aId = idOf(summonerA);
@@ -807,6 +819,11 @@ try {
   const spikeUuid = `Actor.${idOf(spike)}`;
   const nameA = spellA.name;
   const nameB = spellB.name;
+  // A cast summons what the casting seat may observe: the kept creature carries the Player's Observer level, written from the GM seat and read back on the Player seat.
+  const seatId = await run(player, P.selfId);
+  const granted = await run(gm, P.setLevel, { uuid: spikeUuid, userId: playerId, level: 2 });
+  const seenGranted = await until(player, P.observes, { uuid: spikeUuid }, (v) => v === true);
+  check("shape: the Player seat's own user is the one granted, and the creature holds Observer for it at default None, which the Player seat reads", seatId === playerId && granted.stored === 2 && granted.def === 0 && seenGranted === true, { granted: granted.stored, def: granted.def, observes: seenGranted });
   for (const [id, spellId, ref] of [[aId, spellAId, spikeUuid], [bId, spellBId, spikeUuid]]) {
     const shaped = await run(gm, P.shapeSpell, { actorId: id, spellId, ref, duration: NAMED_DURATION });
     check("shape: spells enabled and the spell reads as a summoning spell", shaped.enabled && shaped.summon, shaped);

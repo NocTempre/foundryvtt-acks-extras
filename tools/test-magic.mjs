@@ -868,11 +868,10 @@ t("the library twin is found by cookbook stamp, else by compendium source, never
 
 const {
   registerCastSummon,
-  spellNamesCreature,
   summonRefusal,
   summonRowsOf,
 } = await import("../scripts/magic/cast-summon.mjs");
-const { registerSummonPolicy, registerSummonNaming, checkPlaceRequest } = await import("../scripts/lib/summons-logic.mjs");
+const { registerSummonPolicy, checkPlaceRequest } = await import("../scripts/lib/summons-logic.mjs");
 
 /** Run an async test body the way `t` runs a sync one. */
 const ta = async (name, fn) => {
@@ -911,18 +910,16 @@ const castSpell = ({ rows = [summonRow({ ref: "def.invented.glimmerkin", amount:
   return { spell, caster };
 };
 
-/** A creature the request names, as the placement check sees one. */
-const creature = (over = {}) => ({ uuid: "Compendium.invented.Actor.abc", name: "Glimmerkin", type: "monster", flags: { "acks-extras": { cookbook: { id: "def.invented.glimmerkin" } } }, ...over });
+/** A creature the request names, as the placement check sees one: a document every user may observe unless a test says otherwise. */
+const creature = (over = {}) => ({ uuid: "Compendium.invented.Actor.abc", name: "Glimmerkin", type: "monster", flags: { "acks-extras": { cookbook: { id: "def.invented.glimmerkin" } } }, testUserPermission: () => true, ...over });
 
 await ta("the policy refuses a creature no row names, and a count over the row's amount", () => {
   const { spell } = castSpell({ rows: [summonRow({ ref: "def.invented.glimmerkin", amount: 2 }), summonRow({ ref: "Compendium.invented.Actor.zzz", amount: 5 })] });
-  const ask = (source, count, extra = {}) => summonRefusal({ user: PLAYER_SEAT, spell, source, sourceRef: "", count, ...extra }, NO_LOOKUPS);
+  const ask = (source, count, extra = {}) => summonRefusal({ user: PLAYER_SEAT, spell, source, count, ...extra }, NO_LOOKUPS);
   assert.equal(ask(creature(), 2), null, "a named creature at its amount");
   assert.equal(ask(creature(), 3), "badCount", "over the row's amount");
   assert.equal(ask(creature({ uuid: "Compendium.invented.Actor.zzz", flags: {} }), 5), null, "named by uuid, with its own row's amount");
   assert.equal(ask(creature({ uuid: "Compendium.invented.Actor.other", flags: {}, name: "Other" }), 1), "notNamed", "a creature no row names");
-  assert.equal(ask(creature({ name: "Other", flags: {}, uuid: "u" }), 1, { source: null, sourceRef: "uuid:Compendium.invented.Actor.zzz" }), null, "an unresolved ref is compared as written, a uuid: prefix dropped");
-  assert.equal(ask(null, 1, { sourceRef: "def.invented.nobody" }), "notNamed", "an unresolved ref no row names");
   const byName = castSpell({ rows: [summonRow({ ref: "glimmerkin", amount: 2 })] }).spell;
   assert.equal(summonRefusal({ user: PLAYER_SEAT, spell: byName, source: creature({ flags: {}, uuid: "u", name: "Glimmerkin" }), count: 2 }, NO_LOOKUPS), null, "a row may name a creature by its own name, in any case");
   assert.equal(summonRefusal({ user: PLAYER_SEAT, spell: byName, source: creature({ flags: {}, uuid: "u", name: "Other" }), count: 1 }, NO_LOOKUPS), "notNamed");
@@ -952,24 +949,17 @@ await ta("a Player seat is refused a spell that is no summoning spell; a GM seat
   assert.equal(summonRefusal({ user: PLAYER_SEAT, spell: null, source: creature(), count: 1 }, NO_LOOKUPS), null, "no spell is lib's own spellRequired to refuse");
 });
 
-await ta("a spell with no rows of its own reads its library twin's, in the policy and the naming", () => {
+await ta("a spell with no rows of its own reads its library twin's, in the policy", () => {
   const twin = { flags: { "acks-extras": { spell: { effects: [summonRow({ ref: "def.invented.glimmerkin", amount: 1 })], duration: { shape: "fixed", value: 3, unit: "hours" } } } } };
   const { spell } = castSpell({ rows: [] });
   spell.flags["acks-extras"].cookbook = { id: "def.spell.invented" };
   const lookups = { byCookbookId: (type, id) => (type === "Item" && id === "def.spell.invented" ? twin : null), fromUuidSync: () => null };
   assert.deepEqual(summonRowsOf(spell, lookups).map((r) => r.ref), ["def.invented.glimmerkin"]);
   assert.equal(summonRefusal({ user: PLAYER_SEAT, spell, source: creature(), count: 2 }, lookups), "badCount");
-  assert.equal(spellNamesCreature({ spell, source: creature() }, lookups), true);
-  assert.equal(spellNamesCreature({ spell, source: creature({ flags: {}, uuid: "x", name: "Other" }) }, lookups), false);
+  assert.equal(summonRefusal({ user: PLAYER_SEAT, spell, source: creature({ flags: {}, uuid: "x", name: "Other" }), count: 1 }, lookups), "notNamed");
 });
 
-await ta("an open row names nothing, so it keeps the shelf-readable check", () => {
-  const { spell } = castSpell({ rows: [summonRow({ ref: "" })] });
-  assert.equal(spellNamesCreature({ spell, source: creature() }, NO_LOOKUPS), false);
-  assert.equal(spellNamesCreature({ spell: null, source: creature() }, NO_LOOKUPS) === false, true, "no spell, no naming");
-});
-
-await ta("registerCastSummon registers the policy and the naming once, replaces rather than doubles, and takes both back", async () => {
+await ta("registerCastSummon registers the policy only, once, replaces rather than doubles, and takes it back", async () => {
   let off = registerCastSummon();
   const policies = [];
   const offTest = registerSummonPolicy((req) => (policies.push(req), null));
@@ -995,19 +985,23 @@ await ta("registerCastSummon registers the policy and the naming once, replaces 
   registerCastSummon()();
 });
 
-await ta("the naming exempts a named creature from the readable check; an unnamed one is still held to it", async () => {
-  const off = registerSummonNaming((req) => spellNamesCreature(req, NO_LOOKUPS));
+await ta("a row naming a creature grants nothing: a named creature the asking seat cannot observe is unreadable, by uuid and by name, and a Judge is never refused", async () => {
+  const logicModule = await import("../scripts/lib/summons-logic.mjs");
+  assert.equal("registerSummonNaming" in logicModule, false, "no naming registry is left to grant an exemption");
+  const off = registerCastSummon();
   try {
-    const { spell } = castSpell({ rows: [summonRow({ ref: "def.invented.glimmerkin", amount: 2 })] });
+    const rows = [summonRow({ ref: "Compendium.invented.Actor.abc", amount: 2 }), summonRow({ ref: "glimmerkin", amount: 2 })];
+    const { spell } = castSpell({ rows });
     const summoner = { type: "character", items: new Map([["sp1", spell]]), testUserPermission: () => true, uuid: "Actor.caster1" };
     spell.parent = summoner;
-    const unreadable = (over) => ({ ...creature(over), compendium: { testUserPermission: () => false } });
-    const ask = (source, extra = {}) => checkPlaceRequest({ user: PLAYER_SEAT, summoner, source, count: 1, spellId: "sp1", ...extra });
-    assert.equal(ask(unreadable()).ok, true, "a spell-named creature on a shelf the seat cannot open");
-    assert.equal(ask(unreadable({ flags: {}, uuid: "x", name: "Other" })).reason, "unreadable", "an unnamed one stays unreadable");
-    assert.equal(ask(null, { sourceRef: "def.invented.glimmerkin" }).ok, true, "the seat's own pre-check leaves a named, unresolvable ref to the GM");
-    assert.equal(ask(null, { sourceRef: "def.invented.glimmerkin", positions: [{ x: 1, y: 1 }] }).reason, "badSource", "the relay never accepts an unresolved creature");
-    assert.equal(ask(null, { sourceRef: "def.invented.nobody" }).reason, "badSource", "an unresolved ref no row names");
+    const shelf = (observes, over) => ({ ...creature(over), compendium: { testUserPermission: (user, lvl) => observes && lvl === "OBSERVER" } });
+    const ask = (source, user = PLAYER_SEAT) => checkPlaceRequest({ user, summoner, source, count: 1, spellId: "sp1" });
+    assert.equal(ask(shelf(false)).reason, "unreadable", "named by its uuid");
+    assert.equal(ask(shelf(false, { uuid: "Compendium.invented.Actor.other", flags: {} })).reason, "unreadable", "named by its own name");
+    assert.equal(ask(shelf(true)).ok, true, "the same creature on a shelf the seat can open");
+    assert.equal(ask(shelf(false), GM_SEAT).ok, true, "a Judge is never refused");
+    assert.equal(ask(shelf(false, { uuid: "x", name: "Other", flags: {} }), GM_SEAT).reason, "notNamed", "the rows' own policy still holds a Judge to the names");
+    assert.equal(ask(null).reason, "badSource", "an unresolved creature is no creature");
   } finally {
     off();
   }

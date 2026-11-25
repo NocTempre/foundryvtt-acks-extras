@@ -6,19 +6,17 @@
  * stands, spends, and only then has the GM's client make the tokens
  * (`lib/summons.mjs`). This file holds the rows' reading and the two feature
  * rules that ride lib's registries and read the summoner's spell item on the
- * seat and on the GM's client alike: a NAMING that says the spell's rows name a
- * creature (which exempts it from the shelf-readable check, since the GM's
- * client resolves it), and a POLICY that refuses a creature the rows do not name
- * and, for a Player, a count over the ceiling the rows state at the cast's
- * caster level. A Player seat's summon must come through a summoning spell, so
- * the policy also refuses a spell that is none.
+ * seat and on the GM's client alike: a POLICY that refuses a creature the rows
+ * do not name and, for a Player, a count over the ceiling the rows state at the
+ * cast's caster level. A Player seat's summon must come through a summoning
+ * spell, so the policy also refuses a spell that is none.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin } from "./summon-spell.mjs";
 import { flattenAt } from "./cast-rows.mjs";
 import { modifierFigure } from "./cast-mods.mjs";
 import { byCookbookId, cookbookId } from "../lib/library.mjs";
-import { normalizeRef, offerRows, registerSummonPolicy, registerSummonNaming, bareSummonAllowed, controlEndOf } from "../lib/summons-logic.mjs";
+import { normalizeRef, offerRows, registerSummonPolicy, bareSummonAllowed, controlEndOf } from "../lib/summons-logic.mjs";
 
 /** The world lookups the rows and the twin need, as the live world gives them. */
 const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync(uuid) });
@@ -51,17 +49,6 @@ function rowNames(rowRef, { source, sourceRef }) {
     return ref === source.uuid || ref === cookbookId(source) || ref.toLowerCase() === String(source.name ?? "").trim().toLowerCase() || (Boolean(family) && (ref === family.templateUuid || ref === family.templateRef));
   }
   return ref === normalizeRef(sourceRef);
-}
-
-/**
- * The naming lib asks: true only when one of the spell's rows names the
- * creature. An open row (no ref) names nothing, so an open pick keeps the
- * shelf-readable check.
- * @param {object} req  `registerSummonNaming`'s request
- * @param {{byCookbookId: Function, fromUuidSync: Function}} [lookups]
- */
-export function spellNamesCreature(req, lookups = worldLookups()) {
-  return summonRowsOf(req.spell, lookups).some((row) => row.ref && rowNames(row.ref, req));
 }
 
 /**
@@ -206,8 +193,8 @@ export function summonRefusal(req, lookups = worldLookups()) {
   if (!bareSummonAllowed(user) && !isSummonSpell(spell)) return "badSpell";
   const rows = summonRowsOf(spell, lookups);
   if (!rows.length) return null;
-  if (!summonFitting(rows, req).length) return "notNamed";
-  const ceiling = summonCeilingFor(rows, { source: req.source, sourceRef: req.sourceRef, level: req.cast?.casterLevel ?? null, at: { invocationLevel: req.cast?.invocationLevel ?? null } });
+  if (!summonFitting(rows, { source: req.source }).length) return "notNamed";
+  const ceiling = summonCeilingFor(rows, { source: req.source, level: req.cast?.casterLevel ?? null, at: { invocationLevel: req.cast?.invocationLevel ?? null } });
   if (user?.isGM !== true && ceiling !== null && count > ceiling) return "badCount";
   return null;
 }
@@ -226,21 +213,19 @@ export async function castSummon(spell, options = {}) {
 let unregister = null;
 
 /**
- * Register the policy and the naming. Once, at `init`; a second call replaces
- * the first rather than doubling it.
- * @returns {() => void} removes both
+ * Register the policy. Once, at `init`; a second call replaces the first
+ * rather than doubling it.
+ * @returns {() => void} removes it
  */
 export function registerCastSummon() {
   unregister?.();
   const offPolicy = registerSummonPolicy((req) => summonRefusal(req));
-  const offNaming = registerSummonNaming((req) => spellNamesCreature(req));
   let done = false;
   const off = () => {
     // A registration that was replaced or already removed does nothing, so a stale handle never takes the live one down.
     if (done) return;
     done = true;
     offPolicy();
-    offNaming();
     if (unregister === off) unregister = null;
   };
   unregister = off;

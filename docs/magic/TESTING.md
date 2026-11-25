@@ -154,16 +154,25 @@ Each recipe's own; `api.sweepTracked()` once, quoted.
 
 Built for the Magic tab's Cast on a summoning spell (MODEL, "Casting a summoning
 spell"), which now runs through the cast dialog. A mock cannot prove four things:
-that a Player seat that may not observe the creature still places it, that the
-cast count is spent only after the clicks are made, that core's click-to-place
-takes the plain preview, and that a timed end removes exactly the cast's own
-creatures. No book needs to be connected; the spell's rows are built by hand.
+that a Player seat places what it holds Observer on and is refused what it does
+not, that the cast count is spent only after the clicks are made, that core's
+click-to-place takes the plain preview, and that a timed end removes exactly the
+cast's own creatures. No book needs to be connected (the one read of an imported
+shelf is skipped when the Judge's seat opens none); the spell's rows are built by
+hand.
 
 **Fixtures** (kept; found by marker, built when none carries it):
-- `magic/summon-creature` and `magic/summon-other` are `monster` actors with
-  `ownership.default` 0. The Player's client still resolves a world actor by
-  uuid (`fromUuid` returns it) but may not observe it, and observing is what the
-  exemption turns on. The walk asserts both at its start.
+- `magic/summon-creature` is a `monster` actor at `ownership.default` 0 that the
+  Player holds Observer on. `api.fixture` returns a kept document unchanged, so
+  the fixtures step writes `ownership.<Player's user id>` 2 from the Judge seat
+  (the id is read from the Player seat, never stored in a file) and asserts the
+  write on the Player seat before any cast.
+- `magic/summon-other` is a `monster` actor at `ownership.default` 0 with no
+  entry for the Player: the closed creature. The Player's client resolves it by
+  uuid (`fromUuid` returns it) but may not observe it. The walk takes any entry
+  for the Player off it and asserts the shape in the fixtures step and again at
+  the start of step 14; step 14 grants Observer and takes it off in a `finally`.
+  The first spell does not name it, which steps 4 and 14 rely on.
 - `magic/summon-open` is a `monster` the Player observes, which the spell does
   not name. It also stands in as the bystander of step 10.
 - `magic/summon-caster` is a `character` the Player owns, spells enabled.
@@ -174,6 +183,9 @@ creatures. No book needs to be connected; the spell's rows are built by hand.
 - `magic/summon-spell-gone` is a second `spell` on the same character, for step 12
   alone: the clock ends every earlier cast of the caster, so the `gone` row cannot
   share the standing spell, whose casts must keep their creatures.
+- `magic/summon-spell-closed` is a third `spell` on the same character, for step 14
+  alone: one summon row, `amount` 1, naming `magic/summon-other`, written by the
+  Player seat itself and rewritten there between its uuid and its name.
 - `magic/summon-scene` is the field both seats view, as in
   docs/character-sheet/TESTING.md "Summons from a Player seat".
 
@@ -217,9 +229,8 @@ one reading the cast's refusal takes. The relay itself is not exercised.
 **Steps, from the Player seat** (the sheet open on the Magic tab):
 1. Press the spell row's Cast (Character sheet → Magic tab → Cast).
    *Observable:* the cast dialog opens, titled for the spell, with a Summon band
-   whose one choice is the spell's one row, labelled although the Player cannot
-   open the creature, the count opening on the row's amount, and no Targets
-   band. `system.cast` is unchanged with the dialog up, and again with the
+   whose one choice is the spell's one row, labelled, the count opening on the
+   row's amount, and no Targets band. `system.cast` is unchanged with the dialog up, and again with the
    previews up.
 2. Cast and click twice. *Observable:* two tokens carry `spellId`, `spellName`
    and one `castId`, and the Player owns each. `system.cast` rose by exactly 1
@@ -230,7 +241,7 @@ one reading the cast's refusal takes. The relay itself is not exercised.
    *Observable:* each leaves the count, posts no card, makes no token and writes
    no record, with no warning or error.
 4. Refusals. *Observable:* a request sent straight to the relay for an unnamed
-   creature the Player cannot open answers `unreadable`; for an unnamed one the
+   creature the Player cannot observe answers `unreadable`; for an unnamed one the
    Player can read, `notNamed`; for the named creature over the row's amount,
    `badCount`; with no spell, `spellRequired`. Nothing is made. The seat's own
    `placeSummons` stops before any click, and the Player's Summon… is refused
@@ -294,6 +305,43 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     whose generated flag carries the family's `templateRef`, and that creature
     is the one placed. The drop is a real `DragEvent("drop")` carrying
     `{type: "Actor", uuid}` dispatched on `[data-bucket-drop="summon"]`.
+14. A spell naming a creature the Player cannot observe, cast from
+    `magic/summon-spell-closed` (the walk's own step; the Judge's seat clears the
+    row to an open one first, so each save below is a change).
+    1. The row saves. The Player seat writes the row naming
+       `magic/summon-other` by uuid with one document update. *Observable:* the
+       update does not throw, the Player seat reads the row's `ref` back and the
+       Judge's seat reads the same `ref`. The same with the row set to the
+       creature's name.
+    2. A direct request is refused. With the row by uuid, then by name, a request
+       sent straight to the relay and the seat's own `placeSummons` both name the
+       closed creature. *Observable:* each answers `unreadable`, the relay's
+       request made nothing.
+    3. The real Cast press is blocked (the row back on its uuid). *Observable:*
+       the Cast button is pressed on the Magic tab, and the cast dialog's footer
+       shows the string `ACKS-LIB.summons.refused.unreadable` as a verdict, or the
+       Player seat's warning list holds it; `system.cast` is unchanged, no card
+       posted, no token stands beyond the earlier ones, and no world copy of the
+       closed creature exists (`summonCopy.sourceUuid`). The four requests of
+       sub-step 2 are counted in the same read.
+    4. Observer granted. The Judge's seat writes `ownership.<Player's user id>` 2
+       on `magic/summon-other`. *Observable:* the Player seat reads
+       `testUserPermission(user, "OBSERVER")` true, the dialog offers the row's
+       creature with no refusal and Cast on, and the same press with one click
+       places one token, `system.cast` rises by exactly 1, one cast card posts,
+       and the one world copy is owned by no player.
+    5. The grant is removed in a `finally` with the `-=` form. *Observable:* the
+       document's `_source.ownership` holds no key for the Player and
+       `default` 0, and the Player seat reads Observer false again, so the next
+       run starts from the shape step 4's refusals need.
+    6. Read only: the Player seat reads an imported creature's shelf (the Judge
+       seat's first monster shelf entry, the creature step 5 summons, which must
+       carry the importer's `cookbook` flag on the Judge seat). *Observable:* the
+       walk prints `visible`, the numeric level (`getUserLevel`) and the Observer
+       test of the pack, found from the uuid's collection so they print even where
+       the document will not open, and asserts the shelf is visible at Observer
+       or better. It prints `SKIP` with the reason when the Judge's seat opens no
+       monster compendium or that creature is not an import.
 
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
 caster records, the fight, the walk's own token, the generated creature and
@@ -1223,7 +1271,7 @@ Found by marker with `api.fixture`, built when nothing carries it, and kept.
 | `magic/tracked-caster` | A character the Player owns, bound to the class, level 5, spells enabled. |
 | `magic/tracked-spell-<slug>` | A copy of each of the seventeen imported spells on the caster: nine tracked (one per kind, an instant detect, a locate, two reversed twins), the five summoning spells, and a delayed affliction, a purify spell and a seal spell. Each step rewrites its copy's flag from the library original, with a fixed two-hour duration of the walk's own on the tracked ones and no range (the seal and one detect step state a range of their own). |
 | `magic/tracked-held-a`, `-held-b`, `-timed` | Three hand-built summoning spells on the caster: one summon row naming the creature, a mobile concentration with a tail of the walk's own, a stationary concentration, and a fixed two hours. Each flow rewrites them. |
-| `magic/tracked-creature` | A monster nobody but the GM may observe, which the three hand-built spells name by uuid. Its unlinked token is also the far token of step 10. |
+| `magic/tracked-creature` | A monster at `ownership.default` 0 that the Player holds Observer on, which the three hand-built spells name by uuid. A cast summons only what the casting seat may observe, so the setup step writes `ownership.<Player's user id>` 2 from the Judge seat (the id is read from the Player seat, never stored in a file), reads it back on the Player seat and asserts it, because a kept fixture is returned unchanged by `api.fixture`. Its unlinked token is also the far token of step 10. The summon-rows step also reads, on the Player seat after the Judge seat's import, the shelf of each imported creature a row names (`visible`, `getUserLevel`, the Observer test) and asserts Observer or better. |
 | `magic/tracked-target` | A monster with a linked token, for the aimed casts, the fight and the delayed affliction's recipient. |
 
 What the run makes and sweeps by uuid, never kept: the tokens, the cards, the

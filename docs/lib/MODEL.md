@@ -3359,27 +3359,24 @@ are policies a feature registers (`registerSummonPolicy`), run inside
 client; a policy that throws is logged and counts as an allow. lib imports no
 feature.
 
-**A spell-named creature resolves on the GM's client.** A spell's row names its
-creature by a uuid or an importer cookbook id, and the Judge's Actor shelves are
-closed to players. `registerSummonNaming(fn)` is how a feature tells lib that a
-spell names a creature: `fn({user, summoner, source, sourceRef, count, spellId,
-spell})` answers exactly `true` or not (a throw is logged and means not). A
-creature the spell names is exempt from `sourceReadable`, and only that one:
-a bare request, a spell that names none and a creature another row does not name
-are held to it as before, so `unreadable` stays for a source the seat chose
-itself. The check runs in the order badSource, unreadable, badSpell,
-spellRequired, then policies, so a naming decides the exemption before a policy
-sees the request. `pickSummon` offers a row the seat cannot resolve whenever its
-ref reads as an id (dotted, no space; `offerRows`), labelled by the row's `name`
-or "Creature N", and `placeSummons` passes the ref on as `sourceUuid`. The
-seat's pre-check then runs with `source` null and `sourceRef` the ref, which a
-naming alone can accept, and only without positions; the relay always needs a
-creature in hand. The relay resolves the ref with the GM's access: the document
-its uuid names, else, for a request that names a spell, the library Actor
-carrying that cookbook id (`resolveSource`, after the library is warm); the
-record and the one world copy are keyed by the resolved uuid. The seat's
-preview is then the plain token core draws for one with no picture, because it
-cannot read the creature's look.
+**The requesting user must observe the creature.** A request names its creature
+by a uuid or, where it names a spell, by an importer cookbook id.
+`resolveSource` turns that into a document on the seat and on the GM's client
+alike: the document the uuid names, else the library Actor carrying the cookbook
+id (after the library is warm); the record and the one world copy are keyed by
+the resolved uuid. `checkPlaceRequest` then asks `sourceReadable(source, user)`
+of the requesting user, which on the GM's client is the sender the transport
+attested: a GM always may, and anyone else needs Foundry's OBSERVER on the
+document, read through its compendium where it has one. Nothing a request
+carries changes the answer. A spell's row naming the creature grants no level,
+so a spell item its owner edits cannot reach a creature that owner cannot open.
+The check runs in the order badSource, unreadable, badSpell, spellRequired, then
+policies: a ref no lookup answers is `badSource`, a document the user holds less
+than OBSERVER on is `unreadable`, and a policy only ever sees a creature in
+hand. `pickSummon` still offers a row the seat cannot resolve whenever its ref
+reads as an id (dotted, no space; `offerRows`), labelled by the row's `name` or
+"Creature N", and `placeSummons` passes the ref on as `sourceUuid`; the seat's
+own `summonVerdict` refuses it before anything is clicked or sent.
 
 **Naming a row's creature.** `summonRefName(ref, {fromUuidSync, byCookbookId})`
 reads synchronously the name of the creature a ref names: the Actor its uuid
@@ -3415,8 +3412,8 @@ from the world copy, the cast id is the sender's only if it is a short
 alphanumeric string, and the time is the GM's clock.
 
 - `place`: the sender owns a character-type summoner (a GM always does); the
-  creature is a monster or animal the sender can read, through the pack's
-  own permission; the count is a whole number within a fixed request bound
+  creature is a monster or animal the sender observes ("The requesting user
+  must observe the creature", above); the count is a whole number within a fixed request bound
   (`MAX_SUMMONS`, a bound on a relayed call, not a rule); the positions match
   the count, are finite and inside the scene's rectangle; the scene is the
   sender's viewed scene, the active one, or one they have LIMITED access to;

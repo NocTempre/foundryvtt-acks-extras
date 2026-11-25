@@ -21,7 +21,9 @@
  * `magic/tracked-spell-<slug>` (a copy of each imported spell on the caster),
  * `magic/tracked-held-a`, `magic/tracked-held-b`, `magic/tracked-timed` (the
  * hand-built summoning spells), `magic/tracked-creature` (the creature they
- * name, a monster only the GM may observe) and `magic/tracked-target`. The run's
+ * name, a monster the Player holds Observer on: a cast summons what the casting
+ * seat may observe, so the setup stage writes that level from the GM seat) and
+ * `magic/tracked-target`. The run's
  * own tokens, cards, records, world copies and Combat are tracked by uuid and
  * swept alone. A paused world is unpaused for the run and paused again.
  */
@@ -149,6 +151,17 @@ const P = {
     return { caster: actor.name, items: Object.fromEntries(itemIds.map((id) => [id, actor.items.get(id)?.name ?? ""])) };
   },
   userId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
+  /** The id of the user this seat is, as the page itself holds it. */
+  selfId: async () => game.user.id,
+  /** On the Judge's seat: write a user's level on a world document, then read what the document stores. */
+  setLevel: async ({ uuid, userId, level }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update({ [`ownership.${userId}`]: level });
+    const source = doc._source.ownership ?? {};
+    return { stored: source[userId] ?? null, def: source.default ?? null };
+  },
+  /** Whether this seat's user may observe a document. */
+  observes: async ({ uuid }) => !!(await fromUuid(uuid))?.testUserPermission(game.user, "OBSERVER"),
   pause: async ({ paused }) => {
     if (game.paused !== paused) game.togglePause(paused, { broadcast: true });
     await new Promise((r) => setTimeout(r, 800));
@@ -331,21 +344,24 @@ const P = {
     const item = game.actors.get(casterId).items.get(itemId);
     const rows = S.summonRowsOf(item);
     const row = rows[0] ?? null;
-    const refusal = {};
-    for (const n of counts) refusal[n] = row ? S.summonRefusal({ spell: item, count: n, user: game.user, source: null, sourceRef: row.ref || "any-creature" }) : "norow";
     let resolves = null;
     let imported = false;
+    let creature = null;
     const mmOpen = !!acksExtras.importer?.bookOpen?.("mm");
-    const resolve = async () => !!(await M.resolveSummonRef(row.ref, { fromUuid: (u) => fromUuid(u), byCookbookId: L.byCookbookId }));
+    const resolve = async () => (await M.resolveSummonRef(row.ref, { fromUuid: (u) => fromUuid(u), byCookbookId: L.byCookbookId })) ?? null;
     if (row?.ref) {
-      resolves = await resolve();
+      creature = await resolve();
       // On the GM seat a missing creature is imported here, page-side, so the ref id never reaches the walk's log: a creature the Monster Manual prints is setup, not a gap.
-      if (!resolves && importMissing && mmOpen) {
+      if (!creature && importMissing && mmOpen) {
         await acksExtras.importer.cookbookImportIds([row.ref]);
         imported = true;
-        resolves = await resolve();
+        creature = await resolve();
       }
+      resolves = !!creature;
     }
+    // The policy weighs a creature in hand: the one the row's ref resolves to on this seat, or none for an open row, which fits any.
+    const refusal = {};
+    for (const n of counts) refusal[n] = row ? S.summonRefusal({ spell: item, count: n, user: game.user, source: creature }) : "norow";
     return {
       mmOpen,
       imported,
@@ -361,6 +377,17 @@ const P = {
       resolves,
       refusal,
     };
+  },
+  /** What this seat's user holds on the shelf of the creature a copy's row names, resolved as the cast resolves a ref: whether it resolves, whether it lives in a compendium, that compendium's visibility, the numeric level and the Observer test. */
+  packRead: async ({ casterId, itemId }) => {
+    const S = await import("/modules/acks-extras/scripts/magic/cast-summon.mjs");
+    const M = await import("/modules/acks-extras/scripts/magic/summon-spell.mjs");
+    const L = await import("/modules/acks-extras/scripts/lib/library.mjs");
+    const row = S.summonRowsOf(game.actors.get(casterId).items.get(itemId))[0] ?? null;
+    let doc = null;
+    try { doc = row?.ref ? await M.resolveSummonRef(row.ref, { fromUuid: (u) => fromUuid(u), byCookbookId: L.byCookbookId }) : null; } catch { doc = null; }
+    const pack = doc?.compendium ?? null;
+    return { resolves: !!doc, inPack: !!pack, visible: pack ? !!pack.visible : null, level: pack?.getUserLevel?.(game.user) ?? null, observer: pack ? (pack.testUserPermission?.(game.user, "OBSERVER") ?? null) : null };
   },
   /** Open a copy's cast dialog as `item.use()` does (not awaited) and read the Summon band: its choices, its count, its ceiling and its Cast button. Nothing is answered. */
   openDialog: async ({ casterId, itemId }) => {
@@ -855,12 +882,17 @@ async function stageSetup() {
   const scene = await gm.fixture("magic/tracked-scene", "Scene", { name: "QA Tracked Field", active: false, navigation: true, width: 1400, height: 900, padding: 0, backgroundColor: "#5a5f6b", grid: { type: 1, size: 100, distance: 5, units: "ft" }, tokenVision: false, environment: { globalLight: { enabled: true } }, ownership: { default: 2 } });
   const cls = await gm.fixture("magic/tracked-class", "Item", { name: "QA Tracked Class", type: "acks-extras.class", system: { key: "qatrackedclass", casting: [{ key: "arcane", label: "Arcane", kind: "vancian", slots: [{ atLevel: 1, s1: 9 }] }] } });
   const caster = await gm.fixture("magic/tracked-caster", "Actor", { name: "QA Tracked Caster", type: "character", prototypeToken: { actorLink: true }, system: { spells: { enabled: true }, hp: { value: 9, max: 9 } }, ownership: { default: 0, [W.playerId]: 3 } });
-  const creature = await gm.fixture("magic/tracked-creature", "Actor", { name: "QA Tracked Creature", type: "monster", ownership: { default: 0 } });
+  const creature = await gm.fixture("magic/tracked-creature", "Actor", { name: "QA Tracked Creature", type: "monster", ownership: { default: 0, [W.playerId]: 2 } });
   const target = await gm.fixture("magic/tracked-target", "Actor", { name: "QA Tracked Target", type: "monster", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
   W.scene = idOf(scene);
   W.caster = idOf(caster);
   W.casterUuid = `Actor.${W.caster}`;
   W.creatureUuid = `Actor.${idOf(creature)}`;
+  // A cast summons what the casting seat may observe: the kept creature carries the Player's Observer level, written from the GM seat and read back on the Player seat.
+  const seatId = await run(player, P.selfId);
+  const granted = await run(gm, P.setLevel, { uuid: W.creatureUuid, userId: W.playerId, level: 2 });
+  const seenGranted = await until(() => run(player, P.observes, { uuid: W.creatureUuid }), (v) => v === true);
+  check("A: the Player seat's own user is the one granted, and the creature holds Observer for it at default None, which the Player seat reads", seatId === W.playerId && granted.stored === 2 && granted.def === 0 && seenGranted === true, { granted: granted.stored, def: granted.def, observes: seenGranted });
   W.target = idOf(target);
   W.farActor = idOf(creature);
   fixtureActors.push(W.caster, idOf(creature), W.target);
@@ -968,9 +1000,10 @@ async function stageDispel() {
 async function stageSummonRows() {
   for (const s of SUMMONS) {
     await run(gm, P.shapeSpell, { casterId: W.caster, itemId: W.spell[s.slug], original: W.lib.payload[s.slug]?.flags?.["acks-extras"]?.spell, duration: null, unlimited: false });
-    const read = await run(player, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [2, 5] });
-    // The GM's client resolves a row's creature, so whether a ref resolves is read on that seat.
+    // The GM seat reads first and imports a missing creature, so the Player seat's read after it has the creature to weigh a count against.
     const onGm = await run(gm, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [], importMissing: true });
+    const read = await run(player, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [2, 5] });
+    const seatResolves = read.resolves;
     read.resolves = onGm.resolves;
     check(`E ${s.slug}: the module reads one summon row from the copy, and the copy is a summoning spell`, read.rows === 1 && read.isSummonSpell, { rows: read.rows });
     check(`E ${s.slug}: the row carries a control${s.format ? " and a summon format" : ""}${s.ref ? " and a creature ref" : ", and no creature ref"}`, read.control && read.format === s.format && read.hasRef === s.ref, { control: read.control, format: read.format, hasRef: read.hasRef });
@@ -978,9 +1011,17 @@ async function stageSummonRows() {
       if (read.resolves) check(`E ${s.slug}: the ref resolves to a creature in this world${onGm.imported ? " (imported by the walk as setup)" : ""}`, true);
       else if (!onGm.mmOpen) skip(`E ${s.slug}: the ref does not resolve and the Monster Manual is not open on the GM seat (connect it through the Your ACKS Books macro to import the creature)`);
       else check(`E ${s.slug}: the ref resolves to a creature in this world`, false, { imported: onGm.imported });
+      if (onGm.resolves) {
+        // Read after the GM seat's import, so the shelf the creature lives on exists for the Player seat to read.
+        const shelf = await run(player, P.packRead, { casterId: W.caster, itemId: W.spell[s.slug] });
+        note(`E ${s.slug}: the Player seat's level on the creature's shelf`, { resolves: shelf.resolves, inPack: shelf.inPack, visible: shelf.visible, level: shelf.level, observer: shelf.observer });
+        if (shelf.resolves && !shelf.inPack) note(`E ${s.slug}: the creature is a world document, so there is no shelf to read`, true);
+        else check(`E ${s.slug}: the Player seat resolves the creature and reads its shelf as visible at Observer or better`, shelf.resolves && shelf.inPack && shelf.visible === true && shelf.observer !== false && (shelf.level === null || shelf.level >= 2), { resolves: shelf.resolves, visible: shelf.visible, level: shelf.level, observer: shelf.observer });
+      }
     }
     if (s.counted) {
       if (!(read.amount > 0)) gap(`E ${s.slug}: the page's count did not locate, so the row carries no amount and the cast is not capped`);
+      else if (s.ref && !seatResolves) skip(`E ${s.slug}: the Player seat does not resolve the row's creature, so the policy has no creature to weigh a count against`);
       else {
         const cap = await run(player, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [read.amount, read.amount + 1] });
         check(`E ${s.slug}: a count over the row's located amount is refused, the amount itself is not`, cap.refusal[read.amount] !== "badCount" && cap.refusal[read.amount + 1] === "badCount", { refused: cap.refusal[read.amount + 1] });

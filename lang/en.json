@@ -720,7 +720,7 @@
   "ACKS-LIB.summons.refused.notOwner": "You do not own this character.",
   "ACKS-LIB.summons.refused.badCount": "Choose at least one creature, and no more than the limit.",
   "ACKS-LIB.summons.refused.badSource": "That is not a creature that can be summoned.",
-  "ACKS-LIB.summons.refused.unreadable": "This seat cannot open that creature's compendium.",
+  "ACKS-LIB.summons.refused.unreadable": "This seat cannot open that creature.",
   "ACKS-LIB.summons.refused.badSpell": "That spell is not on this character's sheet.",
   "ACKS-LIB.summons.refused.badScene": "That scene is not one this seat is viewing.",
   "ACKS-LIB.summons.refused.badPositions": "The places chosen are not on the scene.",

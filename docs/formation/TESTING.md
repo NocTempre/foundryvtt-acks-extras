@@ -5125,7 +5125,12 @@ cast's end card reach a creature that is no token on the scene.
 
 **Fixtures** (kept; found by marker with `api.fixture`): the character-sheet
 recipe's `summons/spike-source`, `summons/stranger` and `summons/scene`
-("Summons from a Player seat"), and six of this section's own. Its summoners
+("Summons from a Player seat"), and six of this section's own. The spike
+source carries the Player seat's Observer level (a cast summons only what the
+casting seat may observe); this walk writes `ownership.<Player's user id>` 2
+on it from the Judge seat, reads it back on the Player seat and asserts it
+before the summoners' spells are shaped, because a kept fixture is returned
+unchanged. Its summoners
 are not that recipe's `summons/summoner`: a summoner kept in a party has every
 creature it places on the scene gathered, which would empty that walk's field.
 - `summons/summoner-a` and `summons/summoner-b` — `character`s the Player

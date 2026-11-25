@@ -28,7 +28,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { BUCKETS_KEY, PICKED_KEY } from "../cast-procedure.mjs";
 import { entriesFromAnswer, entryFromDrop, nextFit, BUCKET_ACTIONS, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE } from "../../lib/bucket.mjs";
 import { dialogContext, initialState, answerOf, bucketsOf, resolveDrop, resolveActor, addTarget, untarget } from "./cast-dialog-model.mjs";
-import { SUMMON_SOURCE_TYPES } from "../../lib/summons-logic.mjs";
+import { SUMMON_SOURCE_TYPES, sourceReadable } from "../../lib/summons-logic.mjs";
 import { TEMPLATE_TYPE } from "../../lib/constants.mjs";
 
 /** The `data-bucket` key of an open Summon band, which the tradition's buckets never use. */
@@ -290,6 +290,11 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!actor) return;
     if (actor.documentName !== "Actor" || ![...SUMMON_SOURCE_TYPES, TEMPLATE_TYPE].includes(actor.type)) {
       ui.notifications?.warn(game.i18n.localize("ACKS-LIB.summons.refused.badSource"));
+      return;
+    }
+    // A courtesy only: the relay tests the requesting user's level on the creature again.
+    if (!sourceReadable(actor, game.user)) {
+      ui.notifications?.warn(game.i18n.localize("ACKS-LIB.summons.refused.unreadable"));
       return;
     }
     this.#answer.summon = { ref: actor.uuid, count: "", name: actor.name, img: actor.img };

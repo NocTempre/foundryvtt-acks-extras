@@ -362,26 +362,29 @@ from the page and stay blank on a miss. A count that scales with the caster leve
 is carried as `max` (unresolved) with no `amount`, because the policy caps a
 count at `amount` and would otherwise cap it at one.
 
-*The creature resolves on the GM's client.* A row's `ref` is a uuid or a
-cookbook id. A seat that cannot open the creature's shelf (the Judge's shelves
-are closed to players) still offers the row when its ref reads as an id, labelled
-by the row's `name` or else "Creature N", and passes the ref on untouched; the
-GM's client resolves it (lib MODEL, "Summons"). The preview that seat places is
-the plain token core draws for one with no picture, so the creature's size and
-look are unknown to it until the tokens appear.
+*The casting user must observe the creature.* A row's `ref` is a uuid or a
+cookbook id, and a row grants no level on what it names: lib refuses a creature
+the casting user holds less than Foundry's Observer on, a Judge excepted (lib
+MODEL, "Summons"). A seat that cannot open the creature's shelf still offers the
+row when its ref reads as an id, labelled by the row's `name` or else "Creature
+N"; lib's verdict then refuses the cast before its slot is spent, and the
+window's foot gives the reason. A creature dropped on the Summon band that the
+seat's user does not observe is warned of and not taken (`#dropOnSummon`). A
+declared cast whose row names a family has no creature to weigh until its turn,
+so the cast asks the seat's level on the family itself (`familyReadable`), as
+the relay does at the turn.
 
-*Two rules ride lib's registries* and read the summoner's spell item on both
-sides. The naming (`registerSummonNaming`) says a spell names a creature when
-one of its non-empty rows' refs equals the creature's uuid, its cookbook id or
-its name; only a spell-named creature is exempt from the shelf-readable check.
-The policy (`registerSummonPolicy`) refuses `notNamed` (the rows name creatures
-and this is not one), `badCount` (a Player's count over the ceiling every fitting row states at the request's `cast.casterLevel`: the row's `max`, else its
+*One rule rides lib's registry* and reads the summoner's spell item on both
+sides. The policy (`registerSummonPolicy`) refuses `notNamed` (the rows name
+creatures and this is not one: a non-empty row names a creature when its ref
+equals the creature's uuid, its cookbook id or its name), `badCount` (a Player's count over the ceiling every fitting row states at the request's `cast.casterLevel`: the row's `max`, else its
 `amount`; a Judge's count is the cast's warning and is never refused here)
 and `badSpell` (a seat that may not summon bare naming a spell that is no
 summoning spell). A row with no ref is an open pick that fits any creature; a
-row stating no amount sets no limit; a spell with no rows asks nothing. Both
-read the spell item the player owns, so they hold a player to what the spell
-says and to nothing a player can not edit on their own item.
+row stating no amount sets no limit; a spell with no rows asks nothing. It
+reads the spell item the player owns, so it holds a player to what the spell
+says; what a player may reach at all is the level check above, which no row
+moves.
 
 **A cast's end** (`cast-expiry.mjs`, registered at `init`). On each forward
 step of the world clock, read on the one GM window lib's `onWorldTimeAdvanced`

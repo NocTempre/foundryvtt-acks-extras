@@ -5,7 +5,7 @@
  * on the GM and Player seats:
  * a boot recorder attached before the reload that sees `init`, `setup` and
  * `ready`; the Player's Magic tab Cast button opening the cast dialog and its
- * Summon band for a spell whose row names a creature the Player cannot open; the
+ * Summon band for a spell whose row names a creature the Player observes; the
  * cast count standing while the dialog and the placement are pending; two real
  * clicks placing two tokens that carry the spell's id and name and one cast id,
  * with the count up by exactly one, one card, and a caster record carrying that
@@ -21,7 +21,13 @@
  * creatures, Dismiss on the Judge's seat only, and `controlEnd` `stays` and
  * `hostile` applied; the delete path (a `gone` summons removed at its timed end
  * while a hand-placed decoy of the same creature and every other token stand).
- * Last, a claimant's `spend` called after its cast has returned (read, and left
+ * Then a spell whose row names a creature the Player cannot observe: the row
+ * saves from the Player's own seat (by uuid, then by name), a forged request and
+ * the seat's own placement are refused `unreadable` for each, the real Cast press
+ * is refused with the cast count, the field, the creature's world copies and
+ * the cards unchanged, and once the Judge's seat grants Observer the same press
+ * places the creature; the grant is taken off again and the Player's level on
+ * an imported Monster Manual creature's pack is read. Last, a claimant's `spend` called after its cast has returned (read, and left
  * bare), which libWrapper's invalidated chain would throw on and the seam
  * answers false and logs once. Prints booleans and counts, never a name or an
  * id. The selectors and clicks of the dialog steps are derived from the
@@ -32,9 +38,13 @@
  * `magic/summon-caster` (a character the Player owns, spells enabled),
  * `magic/summon-spell-gone` (a second spell whose row says `gone`, for the delete path alone: the clock ends every earlier cast of the caster too, and those must keep their creatures),
  * `magic/summon-spell` (its summoning spell, one summon row naming
- * `magic/summon-creature` by uuid), `magic/summon-creature` (a monster nobody
- * but the GM can observe: the Player's seat resolves it and may not observe it), `magic/summon-other`
- * (another such monster the spell does not name), `magic/summon-open` (a monster
+ * `magic/summon-creature` by uuid), `magic/summon-creature` (a monster the
+ * Player holds Observer on: a cast summons what the casting seat may observe,
+ * so the shape step writes that level from the GM seat), `magic/summon-other`
+ * (a monster at default None with no entry for the Player, brought to that shape
+ * each run; the first spell does not name it, `magic/summon-spell-closed` does),
+ * `magic/summon-spell-closed` (a spell on the same caster whose one summon row
+ * names `magic/summon-other`), `magic/summon-open` (a monster
  * the Player may observe, which the spell does not name) and `magic/summon-scene`
  * (the field, which both seats view). The run's own documents (summoned tokens,
  * the creature's world copy where none stood, the cast cards and the caster
@@ -135,9 +145,11 @@ const P = {
     }
     const auto = await import("/modules/acks-extras/scripts/lib/automation-client.mjs");
     await Promise.race([auto.automationSettled(), H.sleep(20000)]);
-    return { isGM: game.user.isGM, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, paused: game.paused, claimant: typeof globalThis.acksExtras?.lib?.spellUse?.addClaimant === "function", castApi: typeof globalThis.acksExtras?.magic?.castSummon === "function", namingApi: typeof globalThis.acksExtras?.lib?.summons?.registerSummonNaming === "function" };
+    return { isGM: game.user.isGM, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, paused: game.paused, claimant: typeof globalThis.acksExtras?.lib?.spellUse?.addClaimant === "function", castApi: typeof globalThis.acksExtras?.magic?.castSummon === "function" };
   },
   userId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
+  /** The id of the user this seat is, as the page itself holds it. */
+  selfId: async () => game.user.id,
   pause: async ({ paused }) => {
     if (game.paused !== paused) game.togglePause(paused, { broadcast: true });
     await new Promise((r) => setTimeout(r, 800));
@@ -149,7 +161,7 @@ const P = {
     return {
       recorded: !!b,
       preFoundry: !!b?.preFoundry,
-      noRegisterError: b ? !b.error.some((e) => /summoning cast could not register|spell-use|summon policy|summon naming/u.test(e)) : null,
+      noRegisterError: b ? !b.error.some((e) => /summoning cast could not register|spell-use|summon policy/u.test(e)) : null,
       noWrapWarning: b ? !b.warn.some((w) => /no Item#_useSpell to wrap/u.test(w)) : null,
       errors: b?.error.length ?? null,
     };
@@ -194,6 +206,51 @@ const P = {
       out.push({ resolves: !!doc, observes: !!doc?.testUserPermission(game.user, "OBSERVER") });
     }
     return out;
+  },
+  /** A world document's stored ownership as this seat reads it: the user's own entry (null where there is none), the default, and the name. */
+  levelOf: async ({ uuid, userId }) => {
+    const doc = await fromUuid(uuid);
+    const source = doc?._source?.ownership ?? {};
+    return { resolves: !!doc, name: doc?.name ?? "", stored: source[userId] ?? null, keyed: Object.hasOwn(source, userId), def: source.default ?? null };
+  },
+  /** On the Judge's seat: write a user's level on a world document, or take the entry off (`level` null), and read what the document stores. */
+  setLevel: async ({ uuid, userId, level }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update(level === null ? { [`ownership.-=${userId}`]: null } : { [`ownership.${userId}`]: level });
+    const source = doc._source.ownership ?? {};
+    return { stored: source[userId] ?? null, keyed: Object.hasOwn(source, userId), def: source.default ?? null };
+  },
+  /** On the Player's seat: the spell's one summon row written as the owner of the caster writes it, one document update, then read back. */
+  saveRow: async ({ casterId, spellId, ref }) => {
+    const item = game.actors.get(casterId).items.get(spellId);
+    await item.update({ "flags.acks-extras.spell": { schools: ["summoning"], effects: [{ type: "summon", ref, amount: 1 }], duration: { shape: "fixed", value: 2, unit: "hours" } } });
+    const rows = item.getFlag("acks-extras", "spell")?.effects ?? [];
+    return { rows: rows.length, ref: rows[0]?.ref ?? null };
+  },
+  /** The row a spell holds as this seat reads it. */
+  rowOf: async ({ casterId, spellId }) => {
+    const rows = game.actors.get(casterId).items.get(spellId)?.getFlag("acks-extras", "spell")?.effects ?? [];
+    return { rows: rows.length, ref: rows[0]?.ref ?? null };
+  },
+  /** What this seat's user holds on a creature's compendium: the shelf's visibility, the numeric level and the Observer test, beside the document's own. */
+  shelfLevel: async ({ uuid }) => {
+    // The pack is found from the uuid's collection, so its level prints even where the document itself will not open.
+    const pack = foundry.utils.parseUuid(uuid)?.collection ?? null;
+    let doc = null;
+    try { doc = await fromUuid(uuid); } catch { doc = null; }
+    const inPack = typeof pack?.getUserLevel === "function";
+    return {
+      resolves: !!doc,
+      inPack,
+      visible: inPack ? !!pack.visible : null,
+      level: inPack ? pack.getUserLevel(game.user) : null,
+      observer: inPack ? !!pack.testUserPermission?.(game.user, "OBSERVER") : null,
+    };
+  },
+  /** On the Judge's seat: whether a creature carries the importer's mark, which is what makes it an imported one. */
+  importMark: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    return { resolves: !!doc, imported: !!doc?.getFlag?.("acks-extras", "cookbook") };
   },
   /** The placement's live state on this seat, after a click that should have placed. */
   diag: async () => {
@@ -682,7 +739,7 @@ try {
   const installed = await run(gm, P.install, { key: KEY });
   const seated = await run(player, P.install, { key: KEY });
   check("the GM seat is the active GM and the player seat is a player", installed.isGM && installed.activeGMIsSelf && !seated.isGM && seated.role <= 2, { gm: installed.role, player: seated.role });
-  check("the cast seam, the summons naming and the summoning cast are on both seats' apis", installed.claimant && installed.castApi && installed.namingApi && seated.claimant && seated.castApi && seated.namingApi);
+  check("the cast seam and the summoning cast are on both seats' apis", installed.claimant && installed.castApi && seated.claimant && seated.castApi);
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     const boot = await run(seat, P.boot);
     check(`${label}: the recorder ran before Foundry's scripts and saw the load, with no cast-summon or seam error and no wrap warning`, boot.recorded && boot.preFoundry && boot.noRegisterError === true && boot.noWrapWarning === true, { errors: boot.errors });
@@ -699,7 +756,7 @@ try {
     name: "QA Cast Summon Field", active: false, navigation: true, width: 1400, height: 900, padding: 0, backgroundColor: "#5a6b55",
     grid: { type: 1, size: 100, distance: 5, units: "ft" }, tokenVision: false, environment: { globalLight: { enabled: true } }, ownership: { default: 2 },
   });
-  const creature = await gm.fixture("magic/summon-creature", "Actor", { name: "QA Cast Summon Creature", type: "monster", ownership: { default: 0 } });
+  const creature = await gm.fixture("magic/summon-creature", "Actor", { name: "QA Cast Summon Creature", type: "monster", ownership: { default: 0, [playerId]: 2 } });
   const other = await gm.fixture("magic/summon-other", "Actor", { name: "QA Cast Summon Other", type: "monster", ownership: { default: 0 } });
   const open = await gm.fixture("magic/summon-open", "Actor", { name: "QA Cast Summon Open", type: "monster", ownership: { default: 2 } });
   const caster = await gm.fixture("magic/summon-caster", "Actor", {
@@ -724,9 +781,14 @@ try {
   await sleep(1500);
   check("the Player seat views the field without activating it", await run(player, P.view, { sceneId }));
   check("the GM seat views the field", await run(gm, P.view, { sceneId }));
-  const probe = await run(player, P.probe, { refs: [creatureUuid, otherUuid, openUuid] });
-  // A world actor reaches the Player's client whatever its ownership, so the seat resolves it; what it may not do is observe it, which is what the shelf-readable check reads.
-  check("the Player seat may not observe the named creature or the unnamed one on a closed shelf, and may observe the open one", !probe[0].observes && !probe[1].observes && probe[2].observes, probe.map((p) => ({ resolves: p.resolves, observes: p.observes })));
+  // A cast summons what the casting seat may observe, so the named creature carries the Player's Observer level, written here from the GM seat; the unnamed closed creature is taken back to default None with no entry for the Player, whatever a run that died mid-grant left on it.
+  const seatId = await run(player, P.selfId);
+  const grant = await run(gm, P.setLevel, { uuid: creatureUuid, userId: playerId, level: 2 });
+  const strip = await run(gm, P.setLevel, { uuid: otherUuid, userId: playerId, level: null });
+  check("shape: the Player seat's own user is the one granted, the named creature holds Observer for it at default None, and the unnamed closed creature holds no entry for it at default None", seatId === playerId && grant.stored === 2 && grant.def === 0 && !strip.keyed && strip.stored === null && strip.def === 0, { granted: grant.stored, grantDefault: grant.def, keyed: strip.keyed, stripDefault: strip.def });
+  // A world actor reaches the Player's client whatever its ownership, so the seat resolves it; whether it may observe it is read once the write has reached the seat.
+  const probe = await until(player, P.probe, { refs: [creatureUuid, otherUuid, openUuid] }, (p) => p[0].observes && !p[1].observes && p[2].observes);
+  check("the Player seat may observe the named creature and the open one, and may not observe the unnamed closed one", probe[0].observes && !probe[1].observes && probe[2].observes, probe.map((p) => ({ resolves: p.resolves, observes: p.observes })));
   const tokens = (api) => run(api, P.summonTokens, { sceneId, summonerUuid: casterUuid });
   await run(player, P.drain);
   await run(gm, P.drain);
@@ -737,7 +799,7 @@ try {
   if (!pressed.button) throw new Error("no Cast button on the Player's Magic tab");
   const prompt = await run(player, P.dialog, { spellName });
   check("the cast dialog opens, titled for the spell, with a Summon band whose one choice is the spell's one row, and no Targets band", prompt.dialog && prompt.titled && prompt.summonBand && !prompt.targetsBand && prompt.values.length === 1 && prompt.values[0] === creatureUuid, { choices: prompt.values?.length, summonBand: prompt.summonBand, targetsBand: prompt.targetsBand });
-  check("the choice is labelled although the Player cannot open the creature, and the count opens on the row's amount", prompt.labelled && prompt.count === "2", { count: prompt.count });
+  check("the choice is labelled, and the count opens on the row's amount", prompt.labelled && prompt.count === "2", { count: prompt.count });
   const mid = await run(player, P.state, { casterId, spellId });
   check("1: with the dialog up the cast count is unchanged and no card has posted", mid.cast === pressed.before && mid.cards.length === 0, { cast: mid.cast, cards: mid.cards.length });
   const answered = await run(player, P.confirm, { count: 2 });
@@ -786,7 +848,7 @@ try {
   check("2: one caster record carries the summons' cast id, the spell and the caster, with the spell's imported duration", record.length === 1 && record[0].role === "caster" && record[0].casterOk && record[0].spellOk && record[0].value === 2 && record[0].units === "hours", { n: record.length, role: record[0]?.role, value: record[0]?.value, units: record[0]?.units });
   const copies = await run(gm, P.copiesOf, { sourceUuid: creatureUuid });
   if (!creatureCopiesBefore.length) for (const c of copies) await track(c.uuid, "Actor");
-  check("2: the GM's client made the one world copy of a creature the Player could not open, owned by no player", copies.length === 1 && copies[0].noDefault && copies[0].playerLevels === 0, { copies: copies.length });
+  check("2: the GM's client made the one world copy of the creature, owned by no player", copies.length === 1 && copies[0].noDefault && copies[0].playerLevels === 0, { copies: copies.length });
   const d1 = await run(player, P.drain);
   check("2: no console error, uncaught error or warning on the Player seat", !d1.errors.length && !d1.uncaught.length && !d1.warns.length, { errors: d1.errors.length, uncaught: d1.uncaught.length, warns: d1.warns });
   await run(player, P.clearWindows);
@@ -1108,6 +1170,90 @@ try {
   note("12: the creatures the module removed show as could-not-find in the sweep below", fresh12.length);
   await run(gm, P.clearWindows);
 
+  section("14. a spell naming a creature the Player cannot observe: the row saves, the cast is refused, and an Observer grant lets the same press through");
+  // The closed creature is brought to its shape at the step's start; the grant is taken off again in the finally.
+  const closedSpell = await gm.fixture("magic/summon-spell-closed", "Item", { name: "QA Cast Summon Spell Closed", type: "spell", system: { lvl: 1, cast: 0, memorized: 0 } }, { parent: caster.uuid });
+  const start13 = await run(gm, P.setLevel, { uuid: otherUuid, userId: playerId, level: null });
+  const readStart13 = await until(player, P.probe, { refs: [otherUuid] }, (p) => !p[0].observes);
+  check("14: start shape: the closed creature holds no entry for the Player at default None, and the Player seat does not observe it", !start13.keyed && start13.stored === null && start13.def === 0 && !readStart13[0].observes, { keyed: start13.keyed, def: start13.def, observes: readStart13[0].observes });
+  act = { id: idOf(closedSpell), uuid: `${casterUuid}.Item.${idOf(closedSpell)}`, name: closedSpell.name };
+  const refusedText = await loc("player", "LIB.summons.refused.unreadable");
+  const copies13Before = (await run(gm, P.copiesOf, { sourceUuid: otherUuid })).length;
+  const before13 = await standing();
+  /** The row written from the Player's seat, one document update; a refusal of the write is a failed save, not a thrown walk. */
+  const saveAs = async (ref) => {
+    try { return await run(player, P.saveRow, { casterId, spellId: act.id, ref }); } catch (err) { return { rows: 0, ref: null, error: String(err?.message ?? err).slice(0, 120) }; }
+  };
+  const refusals13 = async (how) => {
+    const forged = await run(player, P.forge, { summonerUuid: casterUuid, sourceUuid: otherUuid, sceneId, spellId: act.id, count: 1 });
+    const api = await run(player, P.placeApi, { casterId, sourceUuid: otherUuid, spellId: act.id, count: 1 });
+    check(`14: with the row naming the creature by ${how}, a forged relay request is refused unreadable and makes nothing`, !forged.ok && forged.reason === "unreadable" && forged.made === 0, forged);
+    check(`14: with the row naming the creature by ${how}, the seat's own placement is refused unreadable`, !api.ok && api.reason === "unreadable", api);
+  };
+  try {
+    // An open row first, so the Player's save below is a change the Judge's seat sees arrive.
+    await reshape([{ type: "summon", amount: 1 }]);
+    const byUuid = await saveAs(otherUuid);
+    const readUuid = await until(gm, P.rowOf, { casterId, spellId: act.id }, (r) => r.ref === otherUuid);
+    check("14: the Player, who owns the caster, saves a row naming the closed creature by uuid, and the Judge's seat reads the row back", byUuid.rows === 1 && byUuid.ref === otherUuid && readUuid.ref === otherUuid, { rows: byUuid.rows, error: byUuid.error ?? null });
+    await refusals13("its uuid");
+    const closedName = (await run(gm, P.levelOf, { uuid: otherUuid, userId: playerId })).name;
+    const byName = await saveAs(closedName);
+    const readName = await until(gm, P.rowOf, { casterId, spellId: act.id }, (r) => r.ref === closedName);
+    check("14: the Player saves the row naming the closed creature by its name, and the Judge's seat reads the row back", closedName.length > 0 && byName.rows === 1 && byName.ref === closedName && readName.ref === closedName, { rows: byName.rows, error: byName.error ?? null });
+    await refusals13("its name");
+    // The real press runs on the uuid row, the one a creature resolves from.
+    await saveAs(otherUuid);
+    await until(gm, P.rowOf, { casterId, spellId: act.id }, (r) => r.ref === otherUuid);
+    const cast13 = (await castState("player")).cast;
+    await run(player, P.warnsTake);
+    const press13 = await run(player, P.press, { casterId, spellId: act.id });
+    check("14: the Cast button is pressed on the closed spell's row", press13.button);
+    const band13 = await run(player, P.dialog, { spellName: act.name });
+    let shown = !!band13.verdicts?.some((v) => v.text === refusedText);
+    const confirm13 = band13.dialog && !band13.castDisabled ? await run(player, P.confirm, { count: 1 }) : null;
+    await sleep(1500);
+    const warns13 = await run(player, P.warnsTake);
+    shown = shown || warns13.includes(refusedText);
+    if (confirm13?.pressed) await cancelPlacement("player");
+    check("14: the Cast press is refused in the seat's own words: the window shows the refusal as a verdict, or a warning names it", shown, { dialog: band13.dialog, verdicts: band13.verdicts?.map((v) => v.severity), castDisabled: band13.castDisabled, pressed: confirm13?.pressed ?? null, warns: warns13.length });
+    const refused13 = await castState("player");
+    const copiesNow13 = (await run(gm, P.copiesOf, { sourceUuid: otherUuid })).length;
+    check("14: the refused press and the four requests before it made nothing and spent nothing: the cast count stands, no card posted, no token stands beyond the earlier ones, and the creature has no more world copies than before", refused13.cast === cast13 && refused13.cards.length === 0 && (await tokens(gm)).every((t) => before13.has(t.uuid)) && copiesNow13 === copies13Before, { cast: refused13.cast - cast13, cards: refused13.cards.length, copies: copiesNow13 - copies13Before });
+    await run(player, P.clearWindows);
+
+    const on = await run(gm, P.setLevel, { uuid: otherUuid, userId: playerId, level: 2 });
+    const readOn = await until(player, P.probe, { refs: [otherUuid] }, (p) => p[0].observes);
+    check("14: the Judge's seat grants the Player Observer on the closed creature and the Player seat reads it", on.stored === 2 && readOn[0].observes, { stored: on.stored, observes: readOn[0].observes });
+    const press13b = await run(player, P.press, { casterId, spellId: act.id });
+    check("14: the Cast button is pressed again", press13b.button && press13b.before === cast13);
+    const band13b = await run(player, P.dialog, { spellName: act.name });
+    check("14: with Observer granted the dialog offers the row's creature, shows no refusal and leaves Cast on", band13b.dialog && band13b.values?.[0] === otherUuid && !band13b.verdicts.some((v) => v.text === refusedText) && !band13b.castDisabled, { values: band13b.values?.length, verdicts: band13b.verdicts?.length, castDisabled: band13b.castDisabled });
+    await run(player, P.confirm, { count: 1 });
+    await clickPlaces("player", 1);
+    const fresh13 = await awaitFresh(before13, 1);
+    const fin13 = await settle("player", fresh13);
+    const copies13 = await run(gm, P.copiesOf, { sourceUuid: otherUuid });
+    if (!copies13Before) for (const c of copies13) await track(c.uuid, "Actor");
+    check("14: the same press with Observer places the creature: one token, the cast count up by exactly one, one cast card", fresh13.length === 1 && fin13.state.cast === cast13 + 1 && fin13.state.castCards.length === 1, { placed: fresh13.length, cast: fin13.state.cast - cast13, castCards: fin13.state.castCards.length });
+    check("14: the creature's world copy is owned by no player", copies13.length === 1 && copies13[0].noDefault && copies13[0].playerLevels === 0, { copies: copies13.length });
+  } finally {
+    const off = await run(gm, P.setLevel, { uuid: otherUuid, userId: playerId, level: null });
+    const readOff = await until(player, P.probe, { refs: [otherUuid] }, (p) => !p[0].observes);
+    check("14: the grant is taken off again: the closed creature holds no entry for the Player at default None, and the Player seat no longer observes it", !off.keyed && off.stored === null && off.def === 0 && !readOff[0].observes, { keyed: off.keyed, def: off.def, observes: readOff[0].observes });
+    act = { id: spellId, uuid: spellUuid, name: spellName };
+    await run(player, P.clearWindows);
+  }
+
+  // Read only: the level the Player seat holds on a creature of an imported shelf.
+  const mark14 = shelfCreature ? await run(gm, P.importMark, { uuid: shelfCreature }) : null;
+  if (!shelfCreature || !mark14?.imported) console.log(`SKIP  14: ${shelfCreature ? "the Judge seat's first shelf creature carries no importer mark" : "the Judge seat opens no monster compendium"}, so there is no imported creature to read the Player's level on`);
+  else {
+    const shelf = await run(player, P.shelfLevel, { uuid: shelfCreature });
+    note("14: the Player seat's level on the imported creature's shelf", { visible: shelf.visible, level: shelf.level, observer: shelf.observer, inPack: shelf.inPack, resolves: shelf.resolves });
+    check("14: the Player seat reads an imported creature's shelf as visible at Observer or better", shelf.inPack && shelf.visible === true && shelf.observer === true && typeof shelf.level === "number" && shelf.level >= 2, { visible: shelf.visible, level: shelf.level, observer: shelf.observer, resolves: shelf.resolves });
+  }
+
   const pEnd = await run(player, P.drain);
   const gEnd = await run(gm, P.drain);
   check("no console error or uncaught error on the Player seat over the rest of the walk", !pEnd.errors.length && !pEnd.uncaught.length, { errors: pEnd.errors.length, uncaught: pEnd.uncaught.length });
@@ -1135,7 +1281,7 @@ try {
   if (gm && wasPaused) {
     try { note("paused again", await run(gm, P.pause, { paused: true })); } catch (err) { console.error("pause restore:", err?.message ?? err); }
   }
-  console.log("fixtures kept: magic/summon-caster, magic/summon-spell, magic/summon-spell-gone, magic/summon-creature, magic/summon-other, magic/summon-open, magic/summon-scene");
+  console.log("fixtures kept: magic/summon-caster, magic/summon-spell, magic/summon-spell-gone, magic/summon-spell-closed, magic/summon-creature, magic/summon-other, magic/summon-open, magic/summon-scene");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

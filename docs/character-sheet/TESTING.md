@@ -690,8 +690,13 @@ carries it):
   `amount` 2) and an invented one-minute fixed duration; the open one a summon
   row with no `ref` and no duration, so it picks from a shelf and its record
   never ends.
-- `summons/spike-source` — a `monster` actor with `ownership.default` 0, the
-  named spell's creature.
+- `summons/spike-source` — a `monster` actor with `ownership.default` 0 that
+  the Player seat holds Observer on, the named spell's creature. A cast summons
+  only what the casting seat may observe, and `api.fixture` returns a kept
+  document unchanged, so the fixtures step writes
+  `ownership.<Player's user id>` 2 from the Judge seat (the id is read from the
+  Player seat, never stored in a file), reads it back on the Player seat and
+  asserts it before any cast.
 - `summons/scene` — a scene the Player seat VIEWS (`scene.view()`; it need not
   be active, since the relay accepts a scene its sender is viewing or can
   observe), with the summoner's token `summons/summoner-token` on it.

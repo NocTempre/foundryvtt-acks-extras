@@ -542,6 +542,11 @@ const liveDeps = () => ({
     const verdict = await lib.summonVerdict(caster, o);
     return verdict.ok ? verdict : { ...verdict, notice: lib.refusalText(verdict.reason) };
   },
+  familyReadable: async (family) => {
+    const lib = await import("../lib/summons.mjs");
+    const { sourceReadable } = await import("../lib/summons-logic.mjs");
+    return sourceReadable(family, game.user) ? { ok: true } : { ok: false, reason: "unreadable", notice: lib.refusalText("unreadable") };
+  },
   pickPlacement: async (caster, o) => (await import("../lib/summons.mjs")).pickPlacement(caster, o),
   summon: async (ctx) => {
     const lib = await import("../lib/summons.mjs");
@@ -868,10 +873,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     if (!pick) return { ok: false, reason: "cancelled" };
     answer = { ...answer, summon: pick };
   }
-  // The pick weighed: its count against the ceiling the rows state at this caster level, whether the creature is called from where it stands, and the refusal lib gives a request before any click (none in a declaring, which places nothing, or where the seat cannot ask). The creature's name is the card's.
+  // The pick weighed: its count against the ceiling the rows state at this caster level, whether the creature is called from where it stands, and the refusal lib gives a request before any click (a declaring is asked too, so a creature the seat cannot observe is refused before the spend; only a declaring's canvas and pause reasons are dropped). The creature's name is the card's.
   const summonJudged = async ({ pick: picked, level: casterLvl, at: invAt, declaring }) => {
     const source = (await deps.resolveRef?.(picked.ref)) ?? null;
-    let asked = declaring || !deps.summonVerdict ? { ok: true } : await deps.summonVerdict(caster, { sourceUuid: picked.ref, count: picked.count, spellId: spell.id });
+    // A declared family is made one creature at its turn, so no creature exists yet for lib to weigh: the seat's own level on the family is asked instead, as the relay asks it at the turn.
+    const familyDeclared = declaring && source?.type === TEMPLATE_TYPE;
+    let asked = { ok: true };
+    if (familyDeclared) asked = (await deps.familyReadable?.(source)) ?? asked;
+    else if (deps.summonVerdict) asked = await deps.summonVerdict(caster, { sourceUuid: picked.ref, count: picked.count, spellId: spell.id });
+    // A declaring places nothing, so a canvas that is not ready or a paused game does not stop it; every other refusal does, before the slot is spent.
+    if (declaring && (asked?.reason === "noCanvas" || asked?.reason === "paused")) asked = { ok: true };
     if (asked?.ok !== false && !declaring && gmMissing()) asked = { ok: false, ...noGm() };
     const refused = asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null;
     // A conjured creature serves while its caster holds the cast, so the cast is held (`heldByConjuration`).
@@ -900,7 +911,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     }
   }
   const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
-  // A summoning's creature and count, judged on the final answer: the ceiling at this caster level, and lib's own refusal before any click. Nothing is placed in a declaring, so lib's checks wait for the turn.
+  // A summoning's creature and count, judged on the final answer: the ceiling at this caster level, and lib's own refusal before any click. Nothing is placed in a declaring, so its click waits for the turn.
   const summon = pick ? await summonJudged({ pick, level: level.value, at, declaring: moment === MOMENT.declare }) : null;
   const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure, summon);
   const stop = verdicts.find((v) => v.severity === "block");
@@ -913,7 +924,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   for (const v of verdicts) tell(v, "verdict");
 
-  // A summoning's clicks come before the spend and make nothing: a cancel costs the cast nothing, and a declared summons clicks at its turn, where a cancel leaves the declaration standing. A declaring places nothing, so it asks nothing. The range is the spell's figure in feet, a number or none.
+  // A summoning's clicks come before the spend and make nothing: a cancel costs the cast nothing, and a declared summons clicks at its turn, where a cancel leaves the declaration standing. A declaring places nothing, so it clicks nothing. The range is the spell's figure in feet, a number or none.
   let positions = null;
   let rangeLimit = null;
   if (summon && moment !== MOMENT.declare) {

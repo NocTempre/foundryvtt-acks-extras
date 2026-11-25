@@ -33,7 +33,7 @@ const policies = new Set();
 
 /**
  * Register a refusal policy a feature adds to `checkPlaceRequest` without lib
- * importing the feature. A policy is `({user, summoner, source, sourceRef,
+ * importing the feature. A policy is `({user, summoner, source,
  * count, spellId, spell, cast, positions, scene}) => string|null`: `cast` is
  * the request's `{castId, casterLevel, invocationLevel}` (a level the seat did
  * not state is null), `positions` the places chosen and `scene` the scene they
@@ -41,9 +41,8 @@ const policies = new Set();
  * non-empty string) allows, a string is the refusal's reason id. It runs after
  * every built-in check, on the requesting seat and on the GM's client alike,
  * so it must answer from documents both can read, and synchronously: a
- * promise is not a string and allows. `source` is null on a seat that could
- * not resolve the creature the spell names, and `sourceRef` is then the ref
- * the request carries. A policy that throws is logged and counts as an allow:
+ * promise is not a string and allows. `source` is always the creature
+ * document the request copies from. A policy that throws is logged and counts as an allow:
  * a broken feature never locks the summoner out.
  * @param {Function} fn
  * @returns {() => boolean} unregisters it; true when it was registered
@@ -52,39 +51,6 @@ export function registerSummonPolicy(fn) {
   if (typeof fn !== "function") throw new TypeError("registerSummonPolicy needs a function");
   policies.add(fn);
   return () => policies.delete(fn);
-}
-
-/** The registered namings, in registration order. */
-const namings = new Set();
-
-/**
- * Register what makes a creature SPELL-NAMED: a function `({user, summoner,
- * source, sourceRef, count, spellId, spell}) => boolean` that answers true
- * only when the spell's own rows name this creature. A creature a spell names
- * is exempt from `sourceReadable`, because the GM's client resolves it with
- * the GM's access and the seat never has to open the shelf it sits on; any
- * other creature is held to it. A naming that throws is logged and
- * counts as not naming. `source` is null where the seat could not resolve the
- * ref: `sourceRef` is then the ref as the request carries it.
- * @param {Function} fn
- * @returns {() => boolean} unregisters it; true when it was registered
- */
-export function registerSummonNaming(fn) {
-  if (typeof fn !== "function") throw new TypeError("registerSummonNaming needs a function");
-  namings.add(fn);
-  return () => namings.delete(fn);
-}
-
-/** Does a registered naming say the spell names this creature? A throwing naming is logged and answers no. */
-function namedBySpell(req) {
-  for (const fn of namings) {
-    try {
-      if (fn(req) === true) return true;
-    } catch (err) {
-      console.error(`${MODULE_ID} | a summon naming threw and was treated as not naming`, err);
-    }
-  }
-  return false;
 }
 
 /** The first refusal a registered policy gives, or null. A throwing policy is logged and skipped. */
@@ -327,12 +293,9 @@ export function sourceReadable(source, user) {
  * @param {object} req
  * @param {object} req.user  the requesting user (`isGM`, `id`, `viewedScene`)
  * @param {object} req.summoner  the character actor
- * @param {object|null} req.source  the creature document to copy; null only where the seat is asking and
- *   could not resolve `sourceRef` (see below)
- * @param {string} [req.sourceRef]  the ref the request names the creature by. Honored only when `source` is
- *   null, `positions` is omitted (the seat's own pre-check) and a registered naming says the summoner's
- *   spell names it: the seat then leaves the creature to the GM's client, which resolves it and runs the
- *   whole check again with a creature in hand
+ * @param {object|null} req.source  the creature document to copy; none is `badSource`, and so is a document of
+ *   another type. The requesting user must observe it (`unreadable`), a Judge always does; a spell naming the
+ *   creature grants nothing
  * @param {object} [req.scene]  the scene to place on
  * @param {number} req.count
  * @param {{x: number, y: number}[]} [req.positions]  omitted when the seat is only asking whether it may
@@ -342,20 +305,15 @@ export function sourceReadable(source, user) {
  *   request belongs to, handed to every policy as it stands (levels not finite numbers read null)
  * @returns {{ok: true}|{ok: false, reason: string}}
  */
-export function checkPlaceRequest({ user, summoner, source, sourceRef = "", scene = null, count, positions = null, spellId = "", cast = null } = {}) {
+export function checkPlaceRequest({ user, summoner, source, scene = null, count, positions = null, spellId = "", cast = null } = {}) {
   if (!user) return { ok: false, reason: "noUser" };
   if (summoner?.type !== SUMMONER_TYPE) return { ok: false, reason: "notSummoner" };
   if (!owns(user, summoner)) return { ok: false, reason: "notOwner" };
   if (!validCount(count)) return { ok: false, reason: "badCount" };
   const spell = spellId ? (summoner.items?.get?.(spellId) ?? null) : null;
   const spellOk = spell?.type === "spell";
-  const named = spellOk && namedBySpell({ user, summoner, source: source ?? null, sourceRef: source ? "" : String(sourceRef ?? ""), count, spellId, spell });
-  if (source) {
-    if (!SUMMON_SOURCE_TYPES.includes(source.type)) return { ok: false, reason: "badSource" };
-    if (!named && !sourceReadable(source, user)) return { ok: false, reason: "unreadable" };
-  } else if (!(named && sourceRef && !positions)) {
-    return { ok: false, reason: "badSource" };
-  }
+  if (!source || !SUMMON_SOURCE_TYPES.includes(source.type)) return { ok: false, reason: "badSource" };
+  if (!sourceReadable(source, user)) return { ok: false, reason: "unreadable" };
   if (spellId && !spellOk) return { ok: false, reason: "badSpell" };
   if (!spellId && !bareSummonAllowed(user)) return { ok: false, reason: "spellRequired" };
   if (positions) {
@@ -368,8 +326,7 @@ export function checkPlaceRequest({ user, summoner, source, sourceRef = "", scen
   const refusal = policyRefusal({
     user,
     summoner,
-    source: source ?? null,
-    sourceRef: source ? "" : String(sourceRef ?? ""),
+    source,
     count,
     spellId,
     spell,
@@ -586,7 +543,8 @@ export const refLooksLikeId = (ref) => /^[^\s.]+(?:\.[^\s.]+)+$/u.test(normalize
  * name}` or null where the seat could not resolve it.
  * - a resolved row is offered by its creature's uuid and name;
  * - an unresolved row whose ref reads as an id is offered with the ref passed
- *   through untouched, which the GM's client resolves, labelled by the row's
+ *   through untouched, which the placement resolves and weighs against the
+ *   requesting user's own level on it, labelled by the row's
  *   own imported `name` (blank when it carries none, for the caller to label);
  * - an unresolved row whose ref is neither is dropped.
  * A creature offered twice is offered once.

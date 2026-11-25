@@ -26,10 +26,10 @@
  * A summoning is tied to the spell that calls it: a request names the
  * summoner's spell item, and only a seat `bareSummonAllowed` answers true for
  * may name none. Feature rules over a spell's creature and count arrive as
- * policies (`registerSummonPolicy`), and which creature a spell names as a
- * naming (`registerSummonNaming`); this file imports neither. A creature a
- * spell names is resolved on the GM's client with the GM's access, so a seat
- * that cannot open its shelf still summons it.
+ * policies (`registerSummonPolicy`); this file imports none. The GM's client
+ * resolves the creature's document, and the REQUESTING user's level on it is
+ * what the check tests there (`sourceReadable`): a seat summons exactly what
+ * Foundry lets it observe, and a spell row naming a creature grants nothing.
  */
 import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK, TEMPLATE_TYPE } from "./constants.mjs";
 import { docOf, makeLoc } from "./util.mjs";
@@ -53,7 +53,6 @@ import {
   summonEntries,
   bareSummonAllowed,
   registerSummonPolicy,
-  registerSummonNaming,
   normalizeRef,
   offerRows,
   normalizeCast,
@@ -62,7 +61,7 @@ import {
   sourceReadable,
 } from "./summons-logic.mjs";
 
-export { summonerOf, registerSummonPolicy, registerSummonNaming };
+export { summonerOf, registerSummonPolicy };
 
 const libLoc = makeLoc(LANG_PREFIX);
 
@@ -245,11 +244,13 @@ async function createTokens({ copy, scene, positions, flags, ownership }) {
 }
 
 /**
- * The creature a request names, with the GM's access: the document its uuid
- * names, else, for a request that names a spell, the library creature carrying
- * that importer cookbook id. A bare request names a document or nothing, so it
- * never reaches the library by an id the seat typed. A ref no lookup answers
- * is null, never a throw.
+ * The creature document a request names: the document its uuid names, else,
+ * for a request that names a spell, the library creature carrying that importer
+ * cookbook id. A bare request names a document or nothing, so it never reaches
+ * the library by an id the seat typed. A ref no lookup answers is null, never a
+ * throw. The lookup runs on the seat and on the GM's client alike; who may
+ * observe the document is `checkPlaceRequest`'s question, asked of the
+ * requesting user.
  */
 async function resolveSource(ref, spellId) {
   const key = normalizeRef(ref);
@@ -505,7 +506,7 @@ async function send(payload) {
 
 /**
  * The preview data for each creature to place: its own look, one per creature.
- * A creature this seat could not open has no look to read, so its preview is
+ * A creature with no prototype token has no look to read, so its preview is
  * the plain one core draws for a token with no picture.
  */
 async function previewsFor(source, summoner, count) {
@@ -528,12 +529,12 @@ async function previewsFor(source, summoner, count) {
  * ahead of any spend.
  * @param {Actor} summoner
  * @param {object} o  the placement options (`placeSummons`' `sourceUuid`, `count`, `spellId`)
- * @returns {Promise<{ok: true, scene: Scene, source: Actor|null}|{ok: false, reason: string}>}
+ * @returns {Promise<{ok: true, scene: Scene, source: Actor}|{ok: false, reason: string}>}
  */
 export async function summonVerdict(summoner, { sourceUuid, count = 1, spellId = "" } = {}) {
   const scene = sceneNow();
-  const source = sourceUuid ? await fromUuid(normalizeRef(sourceUuid)).catch(() => null) : null;
-  const verdict = checkPlaceRequest({ user: game.user, summoner, source, sourceRef: sourceUuid, scene, count, spellId });
+  const source = await resolveSource(sourceUuid, spellId);
+  const verdict = checkPlaceRequest({ user: game.user, summoner, source, scene, count, spellId });
   if (!verdict.ok) return refused(verdict.reason);
   if (!canvas?.ready || !scene) return refused("noCanvas");
   if (game.paused && !game.user.isGM) return refused("paused");
@@ -622,8 +623,8 @@ export async function pickPlacement(summoner, { sourceUuid, count = 1, spellId =
  * @param {Actor} summoner  the character summoning
  * @param {object} o
  * @param {string} o.sourceUuid  the library creature: a document uuid, or, for a request that names a
- *   spell, the ref a spell's row carries (an importer cookbook id) when this seat cannot open the
- *   creature. The GM's client resolves it; the preview this seat places is then a plain token
+ *   spell, the ref a spell's row carries (an importer cookbook id). Both the seat and the GM's client
+ *   resolve it, and the requesting user must be able to observe the document (`unreadable`); a Judge always can
  * @param {number} [o.count=1]
  * @param {string} [o.spellId]  the spell item of the summoner this is cast from; empty is refused
  *   `spellRequired` unless the seat is `bareSummonAllowed`
@@ -788,10 +789,10 @@ async function promptNoMonsters(title) {
  * own `options` (`summonOptionsOf` rows: `{ref, amount, ...}`) decide the
  * choices: each row whose `ref` the caller's `resolveRef` turns into a creature
  * is offered, the first one preselected, and its `amount` is the count the
- * field opens on. A row the seat cannot resolve (the creature sits on a shelf a
- * player cannot open) is still offered when its ref reads as an id: the ref goes
- * on untouched as the answer's `sourceUuid`, labelled by the row's `name`, and
- * the GM's client resolves it. With no offerable row the seat picks from the
+ * field opens on. A row the seat cannot resolve is still offered when its ref
+ * reads as an id: the ref goes on untouched as the answer's `sourceUuid`,
+ * labelled by the row's `name`; the placement then refuses a creature the seat
+ * cannot observe. With no offerable row the seat picks from the
  * shelves it can open. `resolveRef` is passed in because lib imports no
  * feature. The prompt only asks: nothing is placed, and the answer goes to
  * `placeSummons`.
