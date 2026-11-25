@@ -29,7 +29,7 @@ import { solveShift } from "./calibrate-logic.mjs";
 import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-image.mjs";
 import { hexProbe } from "./scene-setup.mjs";
 import { hexAlignment } from "./hex-fit.mjs";
-import { foldUnits } from "./setup-plan.mjs";
+import { unitAfterApply } from "./setup-plan.mjs";
 import { captureGridCells, rekeyPaintedHexes } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { escape as escapeHtml, makeLoc } from "../lib/util.mjs";
@@ -50,11 +50,10 @@ const mod = (a, n) => ((a % n) + n) % n;
  * @param {string|null} units  A `DISTANCE_UNITS` key; absent or unknown writes nothing.
  */
 function unitPatch(scene, units) {
-  const chosen = DISTANCE_UNITS[units];
-  if (!chosen) return {};
+  if (!DISTANCE_UNITS[units]) return {};
   const current = scene?.grid?.units;
-  if (String(current ?? "").trim() && foldUnits(current) === foldUnits(chosen.abbr)) return {};
-  return { "grid.units": chosen.abbr };
+  const written = unitAfterApply(current, units);
+  return written === current ? {} : { "grid.units": written };
 }
 
 /**

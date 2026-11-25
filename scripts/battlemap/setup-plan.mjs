@@ -95,6 +95,26 @@ export function foldUnits(units) {
 }
 
 /**
+ * The unit string the scene holds once an apply has written the chosen unit.
+ * A scene whose own non-blank unit folds equal to the chosen one keeps its
+ * spelling (`Miles` for `mi`); otherwise the chosen unit's abbreviation is
+ * written, or the chosen string as given when it names no known unit. With
+ * nothing chosen the scene's own unit stands. The apply writes a unit through
+ * this and the planner names it through this, so a row never shows a spelling
+ * the write does not leave.
+ *
+ * @param {string|null} sceneUnits  The scene's current grid unit.
+ * @param {string|null} [chosen]  The unit key or abbreviation chosen; null or blank keeps the scene's.
+ * @returns {string}
+ */
+export function unitAfterApply(sceneUnits, chosen = null) {
+  if (!chosen) return sceneUnits ?? "";
+  const abbr = DISTANCE_UNITS[unitKey(chosen)]?.abbr ?? chosen;
+  if (String(sceneUnits ?? "").trim() && foldUnits(sceneUnits) === foldUnits(abbr)) return sceneUnits;
+  return abbr;
+}
+
+/**
  * What one map cell is worth, resolved the way the panel's field reads it: an
  * entered value wins; then a measurement taken off a scale bar; then the
  * scene's own distance, and only when the unit being written is the scene's
@@ -131,7 +151,7 @@ export function resolveCellWorth({ entered = null, fromBar = null, units = null,
  * @returns {boolean}
  */
 export function expeditionScaleOf({ distance = null, units = null, scene = null } = {}) {
-  const written = units ? (DISTANCE_UNITS[unitKey(units)]?.abbr ?? units) : (scene?.units ?? "");
+  const written = unitAfterApply(scene?.units, units);
   return isExpeditionScale({ grid: { distance: distance ?? scene?.distance, units: written } });
 }
 
@@ -229,9 +249,7 @@ function planRows({ scene, solution, autoScale, expeditionScale, travelSystem })
     rows.push({ id: "grid", unit: "px", before: gridBefore, after: gridAfter });
   }
 
-  const unitsAfter = solution.units
-    ? (DISTANCE_UNITS[unitKey(solution.units)]?.abbr ?? solution.units)
-    : (scene.units ?? "");
+  const unitsAfter = unitAfterApply(scene.units, solution.units);
   const worthBefore = { distance: scene.distance ?? null, units: scene.units ?? "" };
   const worthAfter = { distance: solution.distance ?? worthBefore.distance, units: unitsAfter };
   if (!same(worthBefore.distance, worthAfter.distance) || foldUnits(worthBefore.units) !== foldUnits(worthAfter.units)) {

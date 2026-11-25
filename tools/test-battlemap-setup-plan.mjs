@@ -397,6 +397,17 @@ test("rows: a unit spelled differently is the same unit, and a changed one is a 
   assert.deepEqual(rowOf(changed, "cellWorth").after, { distance: 6, units: "km" });
 });
 
+test("rows: a scene's own spelling of the chosen unit is the unit the row names after", () => {
+  const scene = { ...GRIDLESS_SCENE, gridType: GRID_TYPE.SQUARE, units: "Miles", distance: 1, autoScale: true };
+  const solution = { gridType: GRID_TYPE.SQUARE, gridSize: 100, distance: 0.2, units: "mi" };
+  assert.deepEqual(rowOf(plan({ family: "scale", scene, solution }), "cellWorth"), {
+    id: "cellWorth", before: { distance: 1, units: "Miles" }, after: { distance: 0.2, units: "Miles" },
+  });
+  assert.equal(rowOf(plan({ family: "scale", scene, solution: { ...solution, distance: 1 } }), "cellWorth"), undefined);
+  const feet = { ...scene, units: "ft", distance: 5 };
+  assert.deepEqual(rowOf(plan({ family: "scale", scene: feet, solution }), "cellWorth").after, { distance: 0.2, units: "mi" });
+});
+
 // A scene that already holds SQUARE_SOLUTION, so each change below is the only one.
 const SETTLED = Object.freeze({ ...GRIDLESS_SCENE, ...SQUARE_SOLUTION, autoScale: true });
 const settled = (solution) => plan({ family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, scene: SETTLED, solution: { ...SQUARE_SOLUTION, ...solution } });
