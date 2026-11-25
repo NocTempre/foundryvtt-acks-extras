@@ -1279,7 +1279,7 @@ figure imported or left blank.
 - **Board 18 approved.** The owner: "Approve, build it", the Judge's "Common spell (no throw)" check as
   drawn. It builds as M-r3.
 
-## 2026-11-18 — The Blood sacrifice window (M-s, rulings 209, 211, 212, 213, 217; K.2 to K.4, K-b.3) — SUPERSEDED IN PART 2026-11-18
+## 2026-11-18 — The Blood sacrifice window (M-s, rulings 209, 211, 212, 213, 217; K.2 to K.4, K-b.3) — SUPERSEDED IN PART 2026-11-18, 2026-11-25
 
 Built to board 11, which the owner approved with the v19 canvas: "Approve spell cast design". The model is
 `scripts/magic/sacrifice.mjs`, the world's half `sacrifice-live.mjs`, the window `apps/sacrifice-window.mjs`. The
@@ -1318,7 +1318,7 @@ research ladder), so no figure ships. Rulings made in building it, each with the
   see the Judge's toggles, so the relay authorizes by ownership of the caster and the victim's state, not by the page's
   limits; a Player's own act is already held by them.
 
-## 2026-11-18 — The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19)
+## 2026-11-18 — The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19) — SUPERSEDED IN PART 2026-11-25
 
 The owner approved board 19, A to E as drawn: "Approve, build it". New evidence over the entry above: the owner ruled
 that the Judge's checks are stored and shared, which that entry's "The Judge's toggles are the window's own state" (and
@@ -1997,3 +1997,29 @@ later, by hand until then".
 **Cost.** A Judge types each light spell's reach once on its row. A reversed
 cast and a cast held by concentration write no light, and a dispel does not end
 one (ROADMAP).
+
+## 2026-11-25 — The sacrifice window follows ownership of the caster (T-0792 B1, surface 10)
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule". On T-0793: "Spell owner can setup the spell as needed. Trusted players own their sheet and instances of items within. ... follow foundry permissions, don't invent new ones". Standing: "players get blocks, judges get warnings", so severity keeps reading the role while permission reads ownership (R1114). And on how a build is judged: "Unless it's a major judgement call, I'll just try it and give feedback after testing."
+
+The window's four role checks become reads of ownership of the caster (a GM owns everything, so a Judge's seat is one case of it):
+
+- **An owner of the caster sets the facts.** The site check, the class-power mark, each victim's helpless or willing check, its imported trait checks, `young` and the value box are drawn as controls for the seat that owns the caster and written by it. A seat that cannot edit, an observer, reads the same facts as text.
+- **An owner's close clears the record.** The close of the window by an owner of the caster clears the record, as a Judge's close did.
+- **The relay admits an owner's `judge` op.** The op keeps its name (it is the facts op, and a rename would touch every consumer of the record for no reader's gain). The GM's client refuses a non-owner with `owner`; `judgeOnly` is gone from the refusals. A non-GM's writes still relay through a connected GM.
+- **The footer's wait reaches a seat that cannot edit.** Its line reads "Waiting on the caster's owner: {what}" (`ACKS-MAGIC.sacrifice.waiting`), and an owner reads every verdict as it stands.
+
+Severity is untouched: the warn findings, `castVerdicts({isGM})` and the opener's draw for a GM on every caster read the role. The release hub approved the tooltip wording: the five tips for the site, the class power, helpless, willing and young read "Set by the caster's owner: …", the value box reads "A figure the caster's owner types for this victim's value; …", and the hold's `values` line reads "The caster's owner can enter it".
+
+**Rejected.** *Keeping the facts a Judge's alone.* It is the role-keyed gate the owner's sentence names, and it left a Player who owns the caster waiting on a seat they cannot reach. *A permission of the module's own* (a flag or a setting naming who may set the facts). The owner: "follow foundry permissions, don't invent new ones".
+
+**What nothing in the window is: a secret.** No Judge's secret is kept there, so the one exception the owner names does not apply. A victim's value, and the `was` its tooltip names, are figures read from imported tables and the actor, and the checks are facts about the act that the caster's owner may be told and may set.
+
+**Supersedes IN PART**, with the new evidence for each (the owner's sentence above, which neither entry had):
+
+- "The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19)" (2026-11-18, 7 days old): "the Judge's facts to a Judge alone (`checkRecordRequest`)" and the sentence "No `isOwner` test exists": the facts are an owner's too, and `checkRecordRequest` tests ownership of the caster for every op. "a Player's window draws checks as text": an owner's seat draws them as controls, and a seat that cannot edit draws text. "A Player's Sacrifice frees itself", with its "Waiting on the Judge" line: the line waits on the caster's owner and reaches only a seat that cannot edit. "The record clears whole … when a Judge closes the window": an owner's close clears it, and the clear keeps the class-power mark (below). What that entry holds stands: the record on the caster, the sender deciding and never the seat, the strip's button, and the departures from the board.
+- "The Blood sacrifice window (M-s, rulings 209, 211, 212, 213, 217; K.2 to K.4, K-b.3)" (2026-11-18, already marked in part): "The Judge's mark of the class power … is a Judge's check in the window". The mark is an owner's check.
+
+**Strongest counter, STRONG.** Whichever owner closes the window first clears the record under every other open window, the victims a second owner was setting up with it, as a Judge's close did before. Its reach is narrower than the 2026-11-18 entry's counter drew it: `applyOp`'s `OP.clear` in `sacrifice-record.mjs` keeps the class-power mark (`rec.power ? {...emptyRecord(), power: true} : null`), so the clear takes the victims, the site and each victim's checks and values, and the power mark survives. A class-power Player therefore keeps the strip button through a clear. Rated STRONG because two seats that both own the caster, a Player and a Judge, lose a half-built sacrifice to either one's close. Held: the window is one open sacrifice on one caster and a close ends it; a victim is dropped again in a moment. The owner may rule on it after testing.
+
+*Cost:* an owner who is a Player can now rig the facts of their own sacrifice, which severity answers where the rules forbid (a Player is blocked and a Judge warned, `planOf`) and which the Judge sees in the record on the caster. A client that cannot be refused by code is still not refused: Foundry lets an owner update a flag of their own actor, as the 2026-11-18 entry's cost line says. The tooltips on the six controls changed wording, so a shot of the window that shows one of them is stale.

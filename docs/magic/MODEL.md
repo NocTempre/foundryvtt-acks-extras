@@ -1603,20 +1603,26 @@ The window (`apps/sacrifice-window.mjs`) draws one shared record per caster. The
 `sacrifice-live.mjs` and `sacrifice-record-live.mjs`.
 
 **The record.** `flags["acks-extras"].magic.sacrifice` on the caster holds `{site, power, list}` while a sacrifice is open,
-`{site: false, power: true, list: []}` between sacrifices on a caster a Judge marked with the class power (the mark is
-the caster's, so a clear keeps it), and nothing otherwise. `site` and `power` are the Judge's two facts (a qualifying site, the class power); `list` is the
+`{site: false, power: true, list: []}` between sacrifices on a caster an owner marked with the class power (the mark is
+the caster's, so a clear keeps it), and nothing otherwise. `site` and `power` are the two facts of the act (a qualifying site, the class power); `list` is the
 victims in drop order, each `{uuid, willing, helpless, young, traits, value}`. The flag shares `magic` with a researcher's
-`formulas`, so a clear unsets the `sacrifice` key alone. Every write is an op (`add`, `remove`, `judge`, `clear`) that the
-GM's client applies to the freshest flag through the `magicSacrifice` handler, which a Judge's own seat runs directly and a
-Player's seat reaches by the relay. The handler decides from the sender Foundry attested: the owner of the caster or a Judge
-may drop, remove and clear, a Judge alone sets the facts. An `updateActor` hook (registered once at init) draws every open
-window for the caster again when the key changes, so a Judge's tick reaches a Player's window live. The record ends when a
-sacrifice that yielded something is made and when a Judge closes the window.
+`formulas`, so a clear unsets the `sacrifice` key alone. Every write is an op (`add`, `remove`, `judge`, `clear`; `judge` is the
+facts op) that the GM's client applies to the freshest flag through the `magicSacrifice` handler, which a GM's own seat runs
+directly and any other seat reaches by the relay. The handler decides from the sender Foundry attested: an owner of the
+caster, a GM included, may make every op, the facts too, and a non-owner is refused `owner`. An `updateActor` hook
+(registered once at init) draws every open window for the caster again when the key changes, so one owner's tick reaches
+another seat's open window live. The record ends when a sacrifice that yielded something is made and when an owner of the
+caster closes the window, and that clear keeps the class-power mark (`OP.clear` in `applyOp`).
 
-**The window.** A Judge's seat draws each victim's checks inside its bucket row, through lib's `extra` slot and
-`templates/magic/sacrifice-victim.hbs`: helpless or willing and the imported traits, then young (a creature's) and a value
-box that carries the gold edge when set by hand. A Player's seat reads the same facts as text. A Player's footer names what
-waits on the Judge, and its Sacrifice stays disabled until nothing blocks it.
+**The window.** A seat that owns the caster, a GM included, draws each victim's checks inside its bucket row, through lib's
+`extra` slot and `templates/magic/sacrifice-victim.hbs`: helpless or willing and the imported traits, then young (a
+creature's) and a value box that carries the gold edge when set by hand; the site and the class power are controls on the
+same seat. A seat that cannot edit, an observer of the caster, reads the same facts as text, and its footer adds one "Waiting
+on the caster's owner" line naming what an owner has yet to settle; its Sacrifice stays disabled until nothing blocks it.
+Severity still reads the role (`judge` in `panelModel` and `planOf`): the findings a Judge is warned of block a Player,
+and the opener's draw for a GM on every caster is unchanged. Whether a control is drawn reads `editable`, ownership of
+the caster, and nothing else.
 
 **The opener.** A Sacrifice button on the casting strip (`classes/power-chip.mjs`) opens the window: a Judge sees it on every
-caster the strip draws, a Player on a divine, chaotic caster or one whose record marks the class power.
+caster the strip draws, a Player on a divine, chaotic caster or one whose record marks the class power. The button reads
+the role; the controls in the window it opens read ownership of the caster.

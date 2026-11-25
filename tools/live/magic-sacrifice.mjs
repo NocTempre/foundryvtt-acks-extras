@@ -3,13 +3,16 @@
  * `apps/sacrifice-window.mjs`). Walks docs/magic/TESTING.md "Blood sacrifice (M-s)" on the GM seat and a Player
  * seat together: the Sacrifice… button on the casting strip opened by a real click on each seat (and absent on a
  * character a Player has no claim on), a victim dropped by a real drop event, the Judge's checks inside each
- * victim's row, the Judge's checks shared through the record on the caster (the Player's open window shows them live
- * and its Sacrifice frees itself once nothing waits on the Judge), a Player's own write of a Judge's fact refused by
- * the GM's client, a Player's drop written through it, a successful sacrifice made by the Player (divine power on the
- * ledger, the victim marked dead and never deleted, the record cleared, one card with the power and the victim), a
- * failed throw adding nothing of the traits, an unwilling chaotic victim yielding nothing, the class power's
- * arcane gain through the imported multiple, a figure not read holding the act, and a Player's mark and record
- * write relayed to the GM's client and refused for a caster the Player does not own.
+ * victim's row, the facts set by the owner of the caster and shared through the record on the caster (the Player who
+ * owns the caster ticks the site and the victim's helpless check and types a value, the Judge's open window shows them
+ * live, and the Player's Sacrifice frees itself once nothing blocks it), the Player's own `judge` write admitted by the
+ * GM's client for a caster it owns and refused `owner` for one it does not, a Player's drop written through it, a
+ * successful sacrifice made by the Player (divine power on the ledger, the victim marked dead and never deleted, the
+ * record cleared, one card with the power and the victim), a failed throw adding nothing of the traits, an unwilling
+ * chaotic victim yielding nothing, the class power's arcane gain through the imported multiple, a figure not read
+ * holding the act, a Player's mark and record write relayed to the GM's client and refused for a caster the Player
+ * does not own, an owner's close clearing the record while keeping the class-power mark, and a seat that only
+ * observes a caster reading the checks as text under a "Waiting on the caster's owner" line.
  *
  * The figures are the registry's `researchLadder`, `researchProse`, `sacrificeTraits` and `powerOfSacrifice`
  * through the override layer (invented), so the walk needs no import and sets nothing a Judge did not; a table
@@ -19,7 +22,8 @@
  *
  * Fixtures, kept and found by marker (the GM seat builds them): `magic/sacrifice-class` (a divine casting class),
  * `magic/sacrifice-caster` (a chaotic character the Player owns, bound to the class), `magic/sacrifice-stranger` (a
- * character the Player may only observe), `magic/sacrifice-lawful` and `magic/sacrifice-chaotic` (creatures with an
+ * character the Player may only observe), `magic/sacrifice-observed` (a chaotic divine caster the Player seat only
+ * observes: the observer seat of the recipe, since the walk has one Player seat), `magic/sacrifice-lawful` and `magic/sacrifice-chaotic` (creatures with an
  * XP award and a sapient mind). Their shapes are asserted at the start of each step: the caster's ledger, level,
  * alignment and open record, and the victims' dead mark, are put back by the step that moved them and again at the end.
  */
@@ -105,6 +109,8 @@ const RESET = `
   await close();
   for (const u of [ID.lawful, ID.chaotic]) { const a = fromUuidSync(u); if (a.statuses.has("dead")) await a.toggleStatusEffect("dead", { active: false }); }
   await caster().update({ "flags.acks-extras.-=power": null, "flags.acks-extras.magic.-=sacrifice": null, "system.details.level": 4, "system.details.alignment": "Chaotic" });
+  const watched = ID.observed ? fromUuidSync(ID.observed) : null;
+  if (watched?.flags?.["acks-extras"]?.magic?.sacrifice) await watched.update({ "flags.acks-extras.magic.-=sacrifice": null });
   await sleep(500);
 `;
 
@@ -127,6 +133,7 @@ try {
   const cls = await gm.fixture("magic/sacrifice-class", "Item", { name: "QA Sacrifice Class", type: "acks-extras.class", system: { key: "qasacrificeclass", casting: [{ key: "divine", label: "Divine", kind: "vancian", slots: [{ atLevel: 1, s1: 2 }] }] } });
   const caster = await gm.fixture("magic/sacrifice-caster", "Actor", { name: "QA Sacrifice Caster", type: "character", ...base, system: { ...base.system, details: { alignment: "Chaotic", level: 4 } }, flags: { "acks-extras": { classes: { uuid: cls.uuid } } }, ownership: { default: 0, [playerId]: 3 } });
   const stranger = await gm.fixture("magic/sacrifice-stranger", "Actor", { name: "QA Sacrifice Stranger", type: "character", ...base, ownership: { default: 2 } });
+  const observed = await gm.fixture("magic/sacrifice-observed", "Actor", { name: "QA Sacrifice Observed", type: "character", ...base, system: { ...base.system, details: { alignment: "Chaotic", level: 4 } }, flags: { "acks-extras": { classes: { uuid: cls.uuid } } }, ownership: { default: 2 } });
   const mind = { "acks-extras": { extras: { secondary: { intelligence: "sapient" } } } };
   const lawful = await gm.fixture("magic/sacrifice-lawful", "Actor", { name: "QA Sacrifice Lawful", type: "monster", prototypeToken: { actorLink: true }, system: { hp: { value: 9, max: 9 }, details: { xp: 100, alignment: "Lawful" } }, flags: mind, ownership: { default: 2 } });
   const chaotic = await gm.fixture("magic/sacrifice-chaotic", "Actor", { name: "QA Sacrifice Chaotic", type: "monster", prototypeToken: { actorLink: true }, system: { hp: { value: 9, max: 9 }, details: { xp: 40, alignment: "Chaotic" } }, flags: mind, ownership: { default: 2 } });
@@ -143,8 +150,15 @@ try {
     return false;
   })()`);
   check("the kept caster is owned by the seated Player, as the Player seat reads it", seen === true, { ...owned, seen });
+  // The observed caster is the observer seat: the Player seat must read it as no more than an Observer, or step 10 proves nothing.
+  const watching = await player.eval(`(async () => {
+    for (let i = 0; i < 40; i++) { if (fromUuidSync(${JSON.stringify(observed.uuid)})) break; await new Promise((r) => setTimeout(r, 100)); }
+    const a = fromUuidSync(${JSON.stringify(observed.uuid)});
+    return { found: !!a, owner: a?.isOwner === true, observer: a?.testUserPermission(game.user, "OBSERVER") === true };
+  })()`);
+  if (!watching.found || watching.owner || !watching.observer) blocked(`the kept observed caster is not an Observer-only caster for the Player seat: ${JSON.stringify(watching)}`);
   const U = caster.uuid;
-  const ids = { lawful: lawful.uuid, chaotic: chaotic.uuid, stranger: stranger.uuid };
+  const ids = { lawful: lawful.uuid, chaotic: chaotic.uuid, stranger: stranger.uuid, observed: observed.uuid };
   overrode = true;
   await run(gm, U, `${tablesKit} ${FIGURES} await poll(() => STORE.hasOverride(D, "powerOfSacrifice")); return true;`, ids);
   // `CONFIG.Dice.randomUniform` reads from the top: 1 - (die - 0.5) / 20 throws that natural die on core 14. Restored in the finally.
@@ -207,7 +221,7 @@ try {
   check("a lawful creature's checks sit inside its own row under the value line (helpless, the imported traits, young, a Judge's value box), each labelled with a tooltip, with no section of states, no literal id and no label left unbound", w1.toggles.join() === "helpless,trait0,trait1,young,value" && w1.inRow && w1.noStates && w1.tips && w1.unboundLabels === 0 && w1.badIds === 0, { toggles: w1.toggles, inRow: w1.inRow, tips: w1.tips, unbound: w1.unboundLabels, badIds: w1.badIds });
   check("the disabled button (no victim yet) is described by the verdict list that carries the reason", w1.empty.describedBy.length > 0 && w1.empty.describedBy.endsWith("-why"), w1.empty.describedBy);
 
-  section("2. the Judge's checks are shared: a Player's window shows them live and frees its Sacrifice once nothing waits");
+  section("2. the facts are the owner's: the Player who owns the caster sets them, the Judge's window shows them live, and the Player's Sacrifice frees itself once nothing blocks it");
   const g1 = await run(gm, U, `
     return { lines: lines(), enabled: btn()?.getAttribute("aria-disabled") !== "true", stored: caster().flags?.["acks-extras"]?.magic?.sacrifice?.list?.map((v) => v.uuid) };`, ids);
   check("at the Judge's seat a victim not helpless and no site are two warnings, none a block, and the button is live; the dropped victim is stored on the caster", g1.lines.length === 2 && g1.lines.every((l) => l.sev === "warn") && g1.enabled && g1.stored?.join() === ids.lawful, g1);
@@ -219,7 +233,7 @@ try {
       rows: rowsOf().length,
       inputsInRow: row?.querySelectorAll("input").length ?? -1,
       value: !!W().querySelector("[data-value]"),
-      siteDisabled: W().querySelector('input[name="site"]')?.disabled === true,
+      siteEnabled: W().querySelector('input[name="site"]')?.disabled === false,
       power: !!W().querySelector('input[name="power"]'),
       lines: lines(),
       disabled: btn()?.getAttribute("aria-disabled") === "true",
@@ -229,30 +243,38 @@ try {
     await sleep(1500);
     out.after = { same: snap.balance === balance("divine") && snap.dead === dead(ID.lawful), balance: balance("divine"), dead: dead(ID.lawful), rows: rowsOf().length };
     return out;`, ids);
-  check("the Judge's dropped victim shows in the Player's own window though the Player dropped nothing, its checks are text and no control, the Judge's value box and the class-power check are not drawn, and the site check is read-only", g2.rows === 1 && g2.inputsInRow === 0 && g2.value === false && g2.power === false && g2.siteDisabled, g2);
-  check("the Player's footer is one line, \"Waiting on the Judge\", naming what waits, the Sacrifice button is disabled, and pressing it changes nothing: no power gained, no victim marked", g2.lines.length === 1 && g2.lines[0].sev === "wait" && /Waiting on the Judge/.test(g2.lines[0].text) && g2.disabled && g2.after.same && g2.after.balance === 0 && g2.after.dead === false && g2.after.rows === 1, { lines: g2.lines, disabled: g2.disabled, after: g2.after });
-  await run(gm, U, `
-    await tick('input[name="site"]', true);
-    return true;`, ids);
+  check("the Judge's dropped victim shows in the Player's own window though the Player dropped nothing, and the Player, who owns the caster, is drawn the controls: an input in the row, the value box, the class-power check and an enabled site check", g2.rows === 1 && g2.inputsInRow > 0 && g2.value && g2.power && g2.siteEnabled, g2);
+  check("an owner's footer waits on no one: its verdicts name the site and the helpless victim as they stand, none is a \"Waiting on\" line, the Sacrifice button is disabled, and pressing it changes nothing: no power gained, no victim marked", g2.lines.length >= 1 && g2.lines.every((l) => l.sev !== "wait") && g2.lines.some((l) => /site/i.test(l.text)) && g2.disabled && g2.after.same && g2.after.balance === 0 && g2.after.dead === false && g2.after.rows === 1, { lines: g2.lines, disabled: g2.disabled, after: g2.after });
   const g3 = await run(player, U, `
-    const waits = async (test) => until(test, 80);
-    await waits(() => !lines().some((l) => /site/i.test(l.text) && l.sev === "wait"));
-    return { lines: lines(), disabled: btn()?.getAttribute("aria-disabled") === "true", siteChecked: W().querySelector('input[name="site"]')?.checked === true };`, ids);
-  check("when the Judge ticks the site on the Judge's seat the Player's open window shows it ticked, live, with no reload, and the footer no longer waits on the site", g3.siteChecked && !g3.lines.some((l) => /site/i.test(l.text)) && g3.disabled, g3);
-  await run(gm, U, `
+    await tick('input[name="site"]', true);
     await tick('input[data-victim="' + ID.lawful + '"][data-field="helpless"]', true);
-    return true;`, ids);
-  const g4 = await run(player, U, `
+    const box = W().querySelector('input[data-victim="' + ID.lawful + '"][data-value]');
+    if (box) { box.value = "100"; box.dispatchEvent(new Event("change", { bubbles: true })); }
+    const mine = () => caster().flags?.["acks-extras"]?.magic?.sacrifice;
+    await until(() => mine()?.site === true && mine()?.list?.[0]?.helpless === true && Number(mine()?.list?.[0]?.value) === 100, 100);
     await until(() => btn()?.getAttribute("aria-disabled") !== "true", 80);
-    const row = W().querySelector('.acks-extras-bucket__row[data-uuid="' + ID.lawful + '"]');
-    return { lines: lines(), enabled: btn()?.getAttribute("aria-disabled") !== "true", readonly: row?.querySelector(".acks-extras-sacrifice-readonly")?.textContent.trim() ?? "" };`, ids);
-  check("once the Judge ticks the victim helpless nothing waits: the Player's Sacrifice frees itself, and the row reads the Judge's check as text", g4.enabled && g4.lines.length === 0 && /helpless/i.test(g4.readonly), g4);
+    return { boxed: !!box, site: mine()?.site, helpless: mine()?.list?.[0]?.helpless, value: Number(mine()?.list?.[0]?.value), lines: lines(), enabled: btn()?.getAttribute("aria-disabled") !== "true", yields: yields() };`, ids);
+  check("the Player ticks the site and the victim's helpless check and types the victim's value: each write lands on the caster's record through the GM's client, the verdicts clear, the yield still reads 100 and the Player's Sacrifice is live", g3.boxed && g3.site === true && g3.helpless === true && g3.value === 100 && g3.lines.length === 0 && g3.enabled && g3.yields[0] === "100", g3);
+  const g4 = await run(gm, U, `
+    const helpless = () => W().querySelector('input[data-victim="' + ID.lawful + '"][data-field="helpless"]');
+    await until(() => W().querySelector('input[name="site"]')?.checked === true && helpless()?.checked === true, 80);
+    return { site: W().querySelector('input[name="site"]')?.checked === true, helpless: helpless()?.checked === true, value: W().querySelector('input[data-victim="' + ID.lawful + '"][data-value]')?.value ?? null, lines: lines() };`, ids);
+  check("the Judge's open window shows what the Player set, live with no reload: the site and the helpless check ticked, the value typed, and no verdict left", g4.site && g4.helpless && Number(g4.value) === 100 && g4.lines.length === 0, g4);
   const d1 = await run(player, U, `
     const L = await import("/modules/acks-extras/scripts/magic/sacrifice-record-live.mjs");
-    const refused = await L.writeRecord(caster(), { op: "judge", site: false });
+    const mine = () => caster().flags?.["acks-extras"]?.magic?.sacrifice?.site;
+    const off = await L.writeRecord(caster(), { op: "judge", site: false });
+    await until(() => mine() === false, 60);
+    const afterOff = mine();
+    const on = await L.writeRecord(caster(), { op: "judge", site: true });
+    await until(() => mine() === true, 60);
+    const afterOn = mine();
+    const stranger = fromUuidSync(ID.stranger);
+    const refused = await L.writeRecord(stranger, { op: "judge", site: true });
     await sleep(800);
-    return { refused, site: caster().flags?.["acks-extras"]?.magic?.sacrifice?.site };`, ids);
-  check("a Player's own write of a Judge's fact is refused by the GM's client from the attested sender, and the site stays ticked", d1.refused?.ok === false && d1.refused?.reason === "judgeOnly" && d1.site === true, d1);
+    return { off, afterOff, on, afterOn, refused, stranger: stranger.flags?.["acks-extras"]?.magic?.sacrifice ?? null };`, ids);
+  check("the owning Player's own `judge` write is admitted by the GM's client from the attested sender: the site reads back unticked, then ticked again", d1.off?.ok === true && d1.afterOff === false && d1.on?.ok === true && d1.afterOn === true, { off: d1.off, afterOff: d1.afterOff, on: d1.on, afterOn: d1.afterOn });
+  check("a non-owner seat's `judge` write, the Player's on a caster it only observes, is refused `owner` by the GM's client and writes no record", d1.refused?.ok === false && d1.refused?.reason === "owner" && d1.stranger === null, { refused: d1.refused, record: d1.stranger });
   const d2 = await run(player, U, `
     await drop(ID.chaotic);
     const row = await until(() => W().querySelector('.acks-extras-bucket__row[data-uuid="' + ID.chaotic + '"]'), 80);
@@ -280,7 +302,7 @@ try {
 
   section("3. a successful sacrifice made by the Player: divine power on the ledger, the victim marked dead and never deleted, the record cleared");
   await rig(20);
-  await run(gm, U, `
+  await run(player, U, `
     await tick('input[data-victim="' + ID.lawful + '"][data-trait="0"]', true);
     await tick('input[data-victim="' + ID.lawful + '"][data-trait="1"]', true);
     return true;`, ids);
@@ -298,7 +320,7 @@ try {
   const a2 = await run(gm, U, `
     await until(() => rowsOf().length === 0, 80);
     return { balance: balance("divine"), arcane: balance("arcane"), dead: dead(ID.lawful), exists: !!fromUuidSync(ID.lawful), overlay: fromUuidSync(ID.lawful).effects.some((e) => e.statuses?.has("dead")), rows: rowsOf().length, entries: (caster().flags?.["acks-extras"]?.power?.divine?.entries ?? []).length };`, ids);
-  check("before the press the Player's yield reads the XP value now and the traits' sum on a success (100 and (4 + 7) x 100 = 1100), with nothing waiting and the button live", a1.shown.yields.join() === "100,1100" && a1.shown.lines.length === 0 && a1.shown.enabled, a1.shown);
+  check("before the press the Player, who ticked both traits, reads the yield as the XP value now and the traits' sum on a success (100 and (4 + 7) x 100 = 1100), with nothing waiting and the button live", a1.shown.yields.join() === "100,1100" && a1.shown.lines.length === 0 && a1.shown.enabled, a1.shown);
   check("the Player's act lands 1200 divine power on the ledger as one entry and none on the arcane ledger; the victim is marked dead through the GM's client, still exists, and left the bucket on both seats", a2.balance === 1200 && a2.arcane === 0 && a2.entries === 1 && a2.dead && a2.exists && a2.overlay && a2.rows === 0 && a1.rows === 0, { a1rows: a1.rows, a2 });
   check("one card posts, a success naming the power gained and the victim marked dead, spoken as the caster with the die; the record is cleared from the caster", a1.cards.length === 1 && a1.cards[0].success && a1.cards[0].power && a1.cards[0].dead && a1.cards[0].rolls === 1 && a1.record === null, { cards: a1.cards, record: a1.record });
 
@@ -404,15 +426,89 @@ try {
     return { refused, stored: stranger.flags?.["acks-extras"]?.magic?.sacrifice ?? null };`, ids);
   check("a Player's drop on a caster the Player does not own is refused by the GM's client (owner) and writes no record", r3.refused?.ok === false && r3.refused?.reason === "owner" && r3.stored === null, r3);
 
+  section("9. an owner's close clears the record and keeps the class-power mark");
+  await run(gm, U, `${RESET} return true;`, ids);
+  const c1 = await run(player, U, `
+    const rec = () => caster().flags?.["acks-extras"]?.magic?.sacrifice ?? null;
+    await close();
+    await open();
+    await drop(ID.lawful);
+    await tick('input[name="site"]', true);
+    await until(() => rec()?.site === true, 60);
+    const open1 = { site: rec()?.site, victims: rec()?.list?.length ?? 0 };
+    await close();
+    await until(() => rec() === null, 80);
+    return { open1, after: rec() };`, ids);
+  check("the Player who owns the caster drops a victim and ticks the site, then closes the window from its own seat: the record is cleared from the caster", c1.open1.site === true && c1.open1.victims === 1 && c1.after === null, c1);
+  await run(gm, U, `
+    const L = await import("/modules/acks-extras/scripts/magic/sacrifice-record-live.mjs");
+    await caster().update({ "system.details.alignment": "Lawful" });
+    const marked = await L.writeRecord(caster(), { op: "judge", power: true });
+    await until(() => caster().flags?.["acks-extras"]?.magic?.sacrifice?.power === true, 60);
+    return marked;`, ids);
+  const c2 = await run(player, U, `
+    const rec = () => caster().flags?.["acks-extras"]?.magic?.sacrifice ?? null;
+    await close();
+    await open();
+    await drop(ID.lawful);
+    await tick('input[name="site"]', true);
+    await until(() => rec()?.site === true, 60);
+    const open2 = { site: rec()?.site, power: rec()?.power, victims: rec()?.list?.length ?? 0, powerBox: W().querySelector('input[name="power"]')?.checked === true };
+    await close();
+    await until(() => (rec()?.list?.length ?? 0) === 0 && rec()?.site === false, 80);
+    const after = rec();
+    const sheet = caster().sheet;
+    await sheet.close({ animate: false });
+    const stripButton = !!(await sheetButton());
+    return { open2, after, stripButton };`, ids);
+  check("with the class power marked on a Lawful caster, the owner's close takes the victims and the site and leaves the mark: the record reads site off, power on, no victims, and the Player's strip button is still drawn", c2.open2.site === true && c2.open2.power === true && c2.open2.victims === 1 && c2.open2.powerBox && c2.after?.site === false && c2.after?.power === true && c2.after?.list?.length === 0 && c2.stripButton, c2);
+
+  section("10. a seat that only observes the caster reads the checks as text under the waiting line");
+  await run(gm, U, `${RESET} return true;`, ids);
+  const o0 = await run(gm, ids.observed, `
+    const L = await import("/modules/acks-extras/scripts/magic/sacrifice-record-live.mjs");
+    const added = await L.writeRecord(caster(), { op: "add", uuid: ID.lawful });
+    await until(() => caster().flags?.["acks-extras"]?.magic?.sacrifice?.list?.length === 1, 60);
+    return { added, victims: caster().flags?.["acks-extras"]?.magic?.sacrifice?.list?.length ?? 0 };`, ids);
+  check("the Judge's seat drops a victim on the observed caster", o0.added?.ok === true && o0.victims === 1, o0);
+  const o1 = await run(player, ids.observed, `
+    await acksExtras.magic.sacrifice.open(caster());
+    await until(() => W()?.querySelector('.acks-extras-bucket__row[data-uuid="' + ID.lawful + '"]'), 80);
+    await sleep(300);
+    const row = W().querySelector('.acks-extras-bucket__row[data-uuid="' + ID.lawful + '"]');
+    const site = W().querySelector('input[name="site"]');
+    return {
+      owner: caster().isOwner, rows: rowsOf().length,
+      inputsInRow: row?.querySelectorAll("input").length ?? -1,
+      readonly: row?.querySelector(".acks-extras-sacrifice-readonly")?.textContent.trim() ?? "",
+      value: !!W().querySelector("[data-value]"), power: !!W().querySelector('input[name="power"]'),
+      site: site ? (site.disabled ? "disabled" : "enabled") : "absent",
+      lines: lines(), disabled: btn()?.getAttribute("aria-disabled") === "true",
+    };`, ids);
+  check("the Player seat that is no owner of the caster reads the Judge's victim with its checks as text and no input, no value box and no class-power check, and the site check unavailable", o1.owner === false && o1.rows === 1 && o1.inputsInRow === 0 && /helpless/i.test(o1.readonly) && o1.value === false && o1.power === false && o1.site !== "enabled", o1);
+  check("its footer carries the waiting line, \"Waiting on the caster's owner\", and the Sacrifice button is disabled", o1.lines.some((l) => l.sev === "wait" && /Waiting on the caster's owner/.test(l.text)) && !o1.lines.some((l) => /Waiting on the Judge/.test(l.text)) && o1.disabled, { lines: o1.lines, disabled: o1.disabled });
+  const o2 = await run(player, ids.observed, `
+    const L = await import("/modules/acks-extras/scripts/magic/sacrifice-record-live.mjs");
+    const rec = () => caster().flags?.["acks-extras"]?.magic?.sacrifice ?? null;
+    const judge = await L.writeRecord(caster(), { op: "judge", site: true });
+    const add = await L.writeRecord(caster(), { op: "add", uuid: ID.chaotic });
+    await sleep(1000);
+    const held = { site: rec()?.site, victims: rec()?.list?.length ?? 0 };
+    await close();
+    await sleep(1500);
+    return { judge, add, held, afterClose: { site: rec()?.site, victims: rec()?.list?.length ?? 0 } };`, ids);
+  check("the observer's `judge` and `add` ops are refused `owner` and change nothing, and closing its window leaves the record where it was", o2.judge?.reason === "owner" && o2.add?.reason === "owner" && o2.held.site === false && o2.held.victims === 1 && o2.afterClose.site === false && o2.afterClose.victims === 1, o2);
+
   section("Teardown");
   for (const seat of [gm, player]) await run(seat, U, `await close(); await caster().sheet.close({ animate: false });`, ids);
+  await run(player, ids.observed, `await close();`, ids);
   await run(gm, U, `
     ${RESET}
     ${tablesKit}
     for (const id of ${JSON.stringify(TABLE_IDS)}) await STORE.clearOverride(D, id);
     return true;`, ids);
   overrode = false;
-  console.log("fixtures kept: magic/sacrifice-class, magic/sacrifice-caster, magic/sacrifice-stranger, magic/sacrifice-lawful, magic/sacrifice-chaotic");
+  console.log("fixtures kept: magic/sacrifice-class, magic/sacrifice-caster, magic/sacrifice-stranger, magic/sacrifice-observed, magic/sacrifice-lawful, magic/sacrifice-chaotic");
   walkDone();
 } catch (e) {
   if (!(e instanceof WalkBlocked)) console.log("WALK ERROR:", e?.stack ?? e);
