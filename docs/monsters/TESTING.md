@@ -1132,11 +1132,10 @@ template's `flags["acks-extras"].plate` (MODEL, "The family's plate"). Needs the
 **Fixtures.**
 
 - `monsters/beastman-plate`: the library's family template (cookbook id
-  `mm.familyBeastman`). A pack document, so `api.fixture` does not build it: find
-  the library document whose `flags.world.fixture` is the marker; when none
-  carries it and the library holds exactly one template of the family, mark it
-  (`doc.setFlag("world", "fixture", marker)`, the pack unlocked for the write and
-  locked again). A library with no template is imported first through the entry
+  `mm.familyBeastman`). A pack document takes no marker and is written only by
+  Repair in place (as for `monsters/family-roles` above), so the marker names
+  the lookup, not a flag: the one library document whose cookbook id is the
+  family. A library with no template is imported first through the entry
   picker; two templates stop the walk.
 - `monsters/beastman-plate-host`: a faction card, built by `api.fixture`, whose
   one top row names the template in its `gen`. A step that needs the row writes

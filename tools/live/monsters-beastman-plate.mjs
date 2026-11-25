@@ -10,8 +10,7 @@
  * reads no figure of the book and names nothing it prints.
  *
  * Fixtures, kept and found again by marker: `monsters/beastman-plate` (the library's family
- * template, found by `flags.world.fixture`, else by its cookbook id when the library holds
- * exactly one, and marked) and `monsters/beastman-plate-host` (a faction host, built by
+ * template, found by its cookbook id since a library document takes no marker) and `monsters/beastman-plate-host` (a faction host, built by
  * `api.fixture`). Disposable, by the run's own ledger: the root group Generate made.
  */
 import fs from "node:fs";
@@ -72,23 +71,15 @@ const P = {
   bookState: async ({ id }) => ({ ...(globalThis.__bpBook ?? {}), open: !!globalThis.__bp.CB.cookbookSessionDoc(id) }),
 
   /**
-   * The library's family template: the document marked `marker`, else the one library
-   * document whose cookbook id is the family (and it is marked). Answers how many
-   * library documents claim the family, so a twin stops the walk.
+   * The library's family template: the one library document whose cookbook id is the
+   * family. A library document is never marked and never written here (only Repair in
+   * place writes it); the answer counts how many claim the family, so a twin stops the walk.
    */
-  template: async ({ family, marker }) => {
+  template: async ({ family }) => {
     const H = globalThis.__bp;
     const held = (await H.CB.importedDocs("Actor")).filter((d) => d.pack && d.getFlag("acks-extras", "cookbook")?.id === family);
-    const marked = held.filter((d) => d.getFlag("world", "fixture") === marker);
-    let doc = marked[0] ?? (held.length === 1 ? held[0] : null);
-    if (doc && !marked.length) {
-      const pack = game.packs.get(doc.pack);
-      const wasLocked = pack.locked;
-      if (wasLocked) await pack.configure({ locked: false });
-      await doc.setFlag("world", "fixture", marker);
-      if (wasLocked) await pack.configure({ locked: true });
-    }
-    return { uuid: doc?.uuid ?? null, twins: held.length, marked: marked.length };
+    const doc = held.length === 1 ? held[0] : null;
+    return { uuid: doc?.uuid ?? null, twins: held.length };
   },
 
   /** `fromUuidSync` as the chart reads it: whether it answers a Document or an index entry, and the plate it carries. */
@@ -202,8 +193,8 @@ try {
   if (!installed.open) blocked("the Monstrous Manual did not open");
 
   section("fixture: the library's family template");
-  const found = await run(gm, P.template, { family: FAMILY, marker: MARKER });
-  note("template", found);
+  const found = await run(gm, P.template, { family: FAMILY });
+  note("template", { marker: MARKER, ...found });
   check("the library holds exactly one template of the family", found.twins === 1 && !!found.uuid, { twins: found.twins });
   if (found.twins !== 1 || !found.uuid) blocked("the library does not hold exactly one family template; the walk reads it, never builds a twin (import it through the entry picker first)");
   const before = await run(gm, P.read, { uuid: found.uuid });
