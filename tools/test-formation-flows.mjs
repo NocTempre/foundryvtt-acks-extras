@@ -2691,6 +2691,34 @@ await scenario("template renders live controls for a member-owner", async () => 
     assert.equal(redraws, 1, "an unrelated member change does not");
     Hooks.call("updateActor", { id: "stranger" }, { ownership: { PL1: 2 } });
     assert.equal(redraws, 1, "an ownership change on an actor outside the party does not");
+
+    // The light-cast row reads a member's spell list, class record and spells: each redraws the open sheet, and what it does not read does not.
+    const { ITEM_TYPE: TYPES } = await import("../scripts/lib/vocab.mjs");
+    // Only this sheet's own listeners are fired: the module's other item and actor hooks would start syncs of their own, which a later scenario then reads.
+    const fire = (name, ...args) => hooks.get(name).slice(before.get(name) ?? 0).forEach((fn) => fn(...args));
+    const spell = (parent, over = {}) => ({ id: "spx", type: TYPES.spell, parent, effects: { size: 0 }, ...over });
+    fire("updateActor", dave, { system: { spells: { enabled: true } } });
+    assert.equal(redraws, 2, "a member's spell list setting redraws");
+    fire("updateActor", dave, { flags: { "acks-extras": { classes: { applied: {} } } } });
+    assert.equal(redraws, 3, "a member's class record redraws");
+    fire("updateActor", dave, { flags: { "acks-extras": { somethingElse: 1 } } });
+    assert.equal(redraws, 3, "another of the member's flags does not");
+    fire("updateActor", { id: "stranger" }, { system: { spells: { enabled: true } } });
+    assert.equal(redraws, 3, "a stranger's spell list does not");
+    fire("updateItem", spell(dave), { system: { cast: 1 } }, {}, "PL1");
+    assert.equal(redraws, 4, "a member's spell spending a slot redraws");
+    fire("updateItem", spell(dave), { flags: { "acks-extras": { spell: { effects: [] } } } }, {}, "PL1");
+    assert.equal(redraws, 5, "a member's spell changing its flags redraws");
+    fire("updateItem", spell(dave), { sort: 5 }, {}, "PL1");
+    assert.equal(redraws, 5, "a member's spell changing nothing the row reads does not");
+    fire("createItem", spell(dave), {}, "PL1");
+    assert.equal(redraws, 6, "a spell given to a member redraws");
+    fire("deleteItem", spell(dave), {}, "PL1");
+    assert.equal(redraws, 7, "a spell taken from a member redraws");
+    fire("updateItem", spell({ id: "stranger" }), { system: { cast: 1 } }, {}, "PL1");
+    assert.equal(redraws, 7, "a stranger's spell does not");
+    fire("updateItem", spell(dave, { type: TYPES.weapon }), { system: { quantity: 2 } }, {}, "PL1");
+    assert.equal(redraws, 7, "a member's weapon does not");
   } finally {
     for (const [name, list] of hooks) list.length = before.get(name) ?? 0;
   }
@@ -8186,6 +8214,112 @@ await scenario("summon party: two admissions for one party queue, and both stand
   await drain();
   assert.deepEqual([a.actorIds.length, b.actorIds.length], [1, 2]);
   assert.equal(summonMembers().length, 3, "no write replaced the other's");
+});
+
+await scenario("the Kit tab's light-cast row: the pick is kept, its line follows the select, and Cast calls the Magic tab's cast", async () => {
+  const { bindLightCast, lightCastContext, pressLightCast } = await import("../scripts/formation/light-cast.mjs");
+  const party = await drawnParty("LightCast");
+  const { id, walker: mine } = party;
+  const other = await member("LightCast B");
+  await model.addMember(model.getFormation(id), other, null);
+  const uses = [];
+  const spell = (isOwner, use) => ({ id: "s1", isOwner, use: use ?? ((options) => (uses.push(options), Promise.resolve())) });
+  mine.items.set("s1", spell(true));
+  other.items.set("s2", { ...spell(false), id: "s2" });
+  const offer = (over) => ({ key: "", actorId: mine.id, itemId: "s1", tradition: "", label: "L", listText: "", listTip: "", slotsText: "", slotsTip: "", refusal: "", blocked: false, ...over });
+  const offers = [
+    offer({ key: `${mine.id}|s1|` }),
+    offer({ key: `${mine.id}|s1|arc`, tradition: "arc" }),
+    offer({ key: `${mine.id}|s1|bar`, tradition: "bar", blocked: true, refusal: "Barred" }),
+    offer({ key: `${other.id}|s2|`, actorId: other.id, itemId: "s2" }),
+  ];
+  const reads = [];
+  const read = async (actors) => (reads.push(actors.map((a) => a.id)), offers);
+  const formation = () => model.getFormation(id);
+  const press = (value, app = {}) => pressLightCast({ formation: formation(), lightCastPick: "", ...app }, {}, { closest: () => ({ querySelector: () => ({ value }) }) }, read);
+  const noticed = () => notices.length;
+
+  // The context: the remembered pick while its offer stands, the first otherwise; no offers, no pick.
+  const ctx = await lightCastContext(formation(), `${mine.id}|s1|arc`, read);
+  assert.deepEqual(ctx.lightCasts.map((o) => o.picked), [false, true, false, false], "the remembered offer is the picked one");
+  assert.equal(ctx.lightCastPicked.key, `${mine.id}|s1|arc`);
+  assert.equal((await lightCastContext(formation(), "gone", read)).lightCastPicked.key, offers[0].key, "a pick whose offer is gone falls back to the first");
+  assert.deepEqual(await lightCastContext(formation(), "", async () => []), { lightCasts: [], lightCastPicked: null }, "no offers, nothing drawn");
+  assert.deepEqual(await lightCastContext(formation(), "", async () => { throw new Error("boom"); }).catch(() => "threw"), { lightCasts: [], lightCastPicked: null }, "a read that fails is an empty row");
+  assert.deepEqual(reads[0].sort(), [mine.id, other.id].sort(), "the offers are read for each member once");
+
+  // A good press casts as the Magic tab's row does: the system's use, the list's key only where there is one.
+  await press(`${mine.id}|s1|`);
+  assert.deepEqual(uses, [{ skipDialog: false }], "no list, no tradition");
+  await press(`${mine.id}|s1|arc`);
+  assert.deepEqual(uses[1], { skipDialog: false, tradition: "arc" }, "the offer's list is passed");
+  // The pick falls back to the sheet's remembered key when the select is not found.
+  await pressLightCast({ formation: formation(), lightCastPick: `${mine.id}|s1|arc` }, {}, { closest: () => null }, read);
+  assert.equal(uses.length, 3, "the remembered pick casts when the row cannot be found");
+  assert.equal(uses[2].tradition, "arc");
+
+  // Refusals: a blocked offer says its sentence; a spell the seat does not own, a gone offer and a blank pick do nothing, quietly.
+  const before = noticed();
+  await press(`${mine.id}|s1|bar`);
+  assert.equal(uses.length, 3, "a blocked offer casts nothing");
+  assert.deepEqual(notices.at(-1), ["warn", "Barred"], "and says why");
+  const said = noticed();
+  assert.equal(said, before + 1);
+  await press(`${other.id}|s2|`);
+  await press(`${mine.id}|nothing|`);
+  await press("");
+  assert.equal(uses.length, 3, "a spell the seat does not own, a gone offer and no pick cast nothing");
+  assert.equal(noticed(), said, "and say nothing");
+  await pressLightCast({ formation: null }, {}, {}, read);
+  assert.equal(uses.length, 3, "no formation, no cast");
+
+  // A cast that throws, or whose promise rejects, never reaches the sheet.
+  const errors = [];
+  const log = console.error;
+  console.error = (...args) => errors.push(args);
+  try {
+    mine.items.set("s1", spell(true, () => { throw new Error("sync"); }));
+    await press(`${mine.id}|s1|`);
+    mine.items.set("s1", spell(true, () => Promise.reject(new Error("async"))));
+    await press(`${mine.id}|s1|`);
+    await sleep(5);
+  } finally {
+    console.error = log;
+    mine.items.set("s1", spell(true));
+  }
+  assert.equal(errors.length, 2, "both are logged and neither throws out of the press");
+
+  // The select: the line is drawn from the picked option on every render and on a change, with no redraw, and the pick is remembered.
+  const piece = () => ({ textContent: "", hidden: false, attrs: {}, setAttribute(key, value) { this.attrs[key] = value; }, removeAttribute(key) { delete this.attrs[key]; } });
+  const parts = Object.fromEntries(["list", "slots", "slots-wrap", "refusal", "refusal-text"].map((name) => [name, piece()]));
+  const button = { disabled: false };
+  const box = { querySelector: (selector) => (selector === "[data-action=castLightSpell]" ? button : parts[/"(.+)"/.exec(selector)?.[1]]) };
+  const option = (value, dataset) => ({ value, dataset });
+  let bound = 0;
+  const select = {
+    value: "k2",
+    options: [
+      option("k1", { listText: "List 1", listTip: "Tip 1", slotsText: "1 of 2", slotsTip: "Slots 1", refusal: "", blocked: undefined }),
+      option("k2", { listText: "List 2", listTip: "", slotsText: "", slotsTip: "", refusal: "Gate 2", blocked: "1" }),
+    ],
+    closest: () => box,
+    listeners: {},
+    addEventListener(type, fn) { bound += 1; this.listeners[type] = fn; },
+  };
+  const app = { element: { querySelector: () => select }, lightCastPick: "" };
+  bindLightCast(app);
+  assert.deepEqual([parts.list.textContent, parts.slots.textContent, parts["refusal-text"].textContent], ["List 2", "", "Gate 2"], "a render draws the select's own pick");
+  assert.deepEqual([parts["slots-wrap"].hidden, parts.refusal.hidden, button.disabled], [true, false, true], "a blank slots part is hidden, the refusal shown, Cast off");
+  assert.ok(!("data-tooltip-text" in parts.list.attrs) && !("data-tooltip-text" in parts.slots.attrs), "a blank tip leaves no tooltip");
+  select.value = "k1";
+  select.listeners.change();
+  assert.deepEqual([parts.list.textContent, parts.slots.textContent, parts["refusal-text"].textContent], ["List 1", "1 of 2", ""], "a change draws the new pick");
+  assert.deepEqual([parts.list.attrs["data-tooltip-text"], parts.slots.attrs["data-tooltip-text"]], ["Tip 1", "Slots 1"], "with its two tooltips as text");
+  assert.deepEqual([parts["slots-wrap"].hidden, parts.refusal.hidden, button.disabled], [false, true, false], "the slots part shown, the refusal hidden, Cast on");
+  assert.equal(app.lightCastPick, "k1", "the pick is remembered on the sheet");
+  bindLightCast(app);
+  assert.equal(bound, 1, "a second render of the same select binds no second listener");
+  assert.doesNotThrow(() => bindLightCast({ element: { querySelector: () => null } }), "a sheet with no row binds nothing");
 });
 
 if (failures) {

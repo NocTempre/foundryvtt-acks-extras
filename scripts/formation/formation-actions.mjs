@@ -50,6 +50,7 @@ import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
 import { isLightShuttered, setLightShutter } from "../lib/light.mjs";
+import { pressLightCast } from "./light-cast.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
 import { runSearchHour } from "./search-run.mjs";
 import {
@@ -746,6 +747,11 @@ export const SHARED_ACTIONS = {
     const effect = appliedEffects(actor).find((e) => e.id === target.dataset.lightEffect);
     if (!effect) return;
     await setLightShutter(effect, !isLightShuttered(effect));
+  },
+
+  /** Cast the light spell the Kit tab's row has picked, as the Magic tab's Cast does (`pressLightCast`). */
+  async castLightSpell(event, target) {
+    await pressLightCast(this, event, target);
   },
 
   /**

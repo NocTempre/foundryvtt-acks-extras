@@ -672,4 +672,63 @@ const frameOf = (view, seat, extra = {}) =>
   assert.ok(!/<canvas|<img|plate-hex/.test(blankPlate), "an unknown hex: no drawing, no picture, no label");
 }
 
-console.log("test-party-frame: OK (parts and tabs by seat, the bar, hurt count, rails by mode and seat, reading, the plate drawn, blank or pictured, Key, heads, templates)");
+/* -------------------------------------------- */
+/*  The Kit tab's "Cast a light spell" row      */
+/* -------------------------------------------- */
+
+{
+  const { default: Handlebars } = await import("handlebars");
+  const hb = Handlebars.create();
+  hb.registerHelper("localize", (key) => String(key));
+  const kit = hb.compile(fs.readFileSync("templates/formation/formation-tab-kit.hbs", "utf8"));
+  const offer = (over = {}) => ({
+    key: "a1|i1|", label: "Spell One · Caster A", listText: "List One", listTip: "List tip", slotsText: "2 of 3", slotsTip: "Slots tip", refusal: "", blocked: false, ...over,
+  });
+  /** The Kit tab's context for these offers, the way the sheet builds it: the first is picked unless `at` says otherwise. */
+  const draw = (offers, { isGM = false, at = 0 } = {}) => {
+    const lightCasts = offers.map((o, i) => ({ ...o, picked: i === at }));
+    return kit({ isGM, formation: { id: "f1" }, tabs: { kit: { active: true } }, lightCasts, lightCastPicked: lightCasts[at] ?? null });
+  };
+  const rowOf = (html) => html.slice(html.indexOf('class="acks-extras-light-cast"'), html.indexOf("</section>", html.indexOf('class="acks-extras-light-cast"')));
+
+  // No offer, no row; with one, any seat has it, and it sits outside the Judge's add-light block.
+  assert.ok(!draw([], { isGM: true }).includes("acks-extras-light-cast"), "no offers: no row, the Judge's included");
+  assert.ok(!draw([]).includes("castLightSpell"), "no offers: no Cast button");
+  const player = draw([offer()]);
+  assert.ok(player.includes('data-action="castLightSpell"') && !player.includes('class="add-light"'), "a seat that is not the Judge's has the row, and not the Judge's add-light");
+  const judge = draw([offer()], { isGM: true });
+  const addLight = judge.slice(judge.indexOf('<div class="add-light">'), judge.indexOf("</div>", judge.indexOf('<div class="add-light">')));
+  assert.ok(addLight.includes('data-action="addLight"') && !addLight.includes("acks-extras-light-cast"), "the row is not inside the Judge's block");
+  assert.ok(judge.indexOf('class="acks-extras-light-cast"') > judge.indexOf('data-action="addLight"'), "and follows it");
+
+  // The pick: one option per offer, named, a staging pick, no literal id, no `title`.
+  const two = draw([offer(), offer({ key: "a2|i2|list", label: "Spell Two · Caster B" })], { at: 1 });
+  const row = rowOf(two);
+  assert.match(row, /<select [^>]*aria-label="ACKS-FORMATION\.app\.lightCastPick"[^>]*data-pick="lightCast"|<select [^>]*data-pick="lightCast"[^>]*aria-label="ACKS-FORMATION\.app\.lightCastPick"/, "the select is named and is a staging pick");
+  assert.equal((row.match(/<option /g) ?? []).length, 2, "one option for each offer");
+  assert.ok(row.includes('value="a2|i2|list"') && row.includes(">Spell Two · Caster B</option>"), "an option's value is the offer's key and its text the label");
+  assert.match(row, /value="a2\|i2\|list"[^>]*selected/, "the picked offer's option is selected");
+  assert.doesNotMatch(row, /value="a1\|i1\|"[^>]*selected/, "and no other");
+  assert.ok(!/\sid=/.test(row) && !/\stitle=/.test(row), "no literal id and no title attribute");
+  assert.ok(row.includes('class="acks-extras-light-cast__caption"') && !/<label/.test(row), "the caption is a span, not a label");
+  assert.ok(row.includes('data-list-text="List One"') && row.includes('data-slots-tip="Slots tip"'), "each option carries its line for the change listener");
+
+  // The line: the list part and the slots part, each with its tooltip as text.
+  assert.match(row, /data-light-cast-part="list" data-tooltip-text="List tip">List One</, "the list part and its tooltip");
+  assert.match(row, /data-light-cast-part="slots-wrap"> · <span data-light-cast-part="slots" data-tooltip-text="Slots tip">2 of 3</, "the slots part, joined by a middle dot, with its tooltip");
+  const bare = rowOf(draw([offer({ slotsText: "", slotsTip: "", listTip: "" })]));
+  assert.match(bare, /data-light-cast-part="slots-wrap" hidden>/, "a blank slots part is hidden");
+  assert.doesNotMatch(bare, /data-tooltip-text/, "a blank tip draws no tooltip");
+
+  // Cast is off for a blocked pick and the refusal is said with its lozenge; an allowed pick has neither.
+  const open = rowOf(draw([offer()]));
+  assert.doesNotMatch(open, /data-action="castLightSpell"[^>]*disabled/, "an allowed pick leaves Cast on");
+  assert.match(open, /data-light-cast-part="refusal" hidden>/, "and says no refusal");
+  const blocked = rowOf(draw([offer({ blocked: true, refusal: "Not on a list" })]));
+  assert.match(blocked, /data-action="castLightSpell" disabled>/, "a blocked pick turns Cast off");
+  assert.match(blocked, /role="note" data-light-cast-part="refusal"><span aria-hidden="true">&#9830; <\/span><span data-light-cast-part="refusal-text">Not on a list<\/span>/, "and says why under the line, led by the lozenge");
+  const warned = rowOf(draw([offer({ blocked: false, refusal: "Warned" })], { isGM: true }));
+  assert.ok(!/data-action="castLightSpell"[^>]*disabled/.test(warned) && !/data-light-cast-part="refusal" hidden/.test(warned), "a Judge's warned pick says its sentence and keeps Cast on");
+}
+
+console.log("test-party-frame: OK (parts and tabs by seat, the bar, hurt count, rails by mode and seat, reading, the plate drawn, blank or pictured, Key, heads, templates, the light-cast row)");

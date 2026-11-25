@@ -3,6 +3,9 @@ import { MODULE_ID, PANEL_FLAG, PARTY_TYPE } from "./constants.mjs";
 import { SHARED_ACTIONS, bindCrossingPace, bindCrossingRescuer, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
 import { seatChanged } from "./conveyance.mjs";
+import { bindLightCast, lightCastContext } from "./light-cast.mjs";
+import { FLAG_CLASSES } from "../classes/constants.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel, buildSpellTracker } from "./formation-view.mjs";
 import { userOwnsMember } from "./player-requests.mjs";
 import { participantsOf } from "./xp-shares.mjs";
@@ -232,6 +235,9 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
    */
   planNotes = new Map();
 
+  /** The key of the offer the Kit tab's "Cast a light spell" select was last left on; the first offer stands in once it is gone. */
+  lightCastPick = "";
+
   /** Hook ids for the watch on the members' hit points, which the figures rail reads. */
   #watch = [];
 
@@ -312,8 +318,10 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     const isMember = (actorId) => !!actorId && (this.formation?.members ?? []).some((m) => m?.actorId === actorId);
     // An ownership change redraws too: the shutter button is drawn from the
     // effect's `isOwner`, which changes with no other write.
+    // A member's spell list and class record move the light-cast row's offers and their slot lines.
+    const castChanged = (changes) => foundry.utils.hasProperty(changes, "system.spells") || foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.${FLAG_CLASSES}`);
     const onActor = (actor, changes) => {
-      if (isMember(actor?.id) && (foundry.utils.hasProperty(changes, "system.hp") || foundry.utils.hasProperty(changes, "ownership") || seatChanged(changes))) this.#renderSoon();
+      if (isMember(actor?.id) && (foundry.utils.hasProperty(changes, "system.hp") || foundry.utils.hasProperty(changes, "ownership") || seatChanged(changes) || castChanged(changes))) this.#renderSoon();
     };
     const onToken = (token, changes) => {
       if (isMember(token?.actorId) && foundry.utils.hasProperty(changes, "delta.system.hp")) this.#renderSoon();
@@ -323,12 +331,21 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     const onItem = (item) => {
       if (item?.effects?.size && isMember(item.parent?.id)) this.#renderSoon();
     };
+    // A member's spell is drawn in the light-cast row: its slot spent (`system.cast`), its list, its light row and its name. An update names what it changed; a create or a delete passes no changes.
+    const onSpell = (item, changes) => {
+      if (item?.type !== ITEM_TYPE.spell || !isMember(item.parent?.id)) return;
+      if (changes && !["system", "flags", "name"].some((path) => foundry.utils.hasProperty(changes, path))) return;
+      this.#renderSoon();
+    };
     this.#watch = [
       ["updateActor", Hooks.on("updateActor", onActor)],
       ["updateToken", Hooks.on("updateToken", onToken)],
       ["createItem", Hooks.on("createItem", onItem)],
       ["updateItem", Hooks.on("updateItem", onItem)],
       ["deleteItem", Hooks.on("deleteItem", onItem)],
+      ["createItem", Hooks.on("createItem", (item) => onSpell(item))],
+      ["updateItem", Hooks.on("updateItem", onSpell)],
+      ["deleteItem", Hooks.on("deleteItem", (item) => onSpell(item))],
     ];
   }
 
@@ -395,6 +412,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     if (isGM) Object.assign(context, buildGMExtras(formation));
     else Object.assign(context, buildPlayerPanel(formation));
     Object.assign(context, buildSpellTracker(formation));
+    Object.assign(context, await lightCastContext(formation, this.lightCastPick));
     attachPlanNotes(context.plan, this.planNotes, formation.clock?.turnsTotal ?? 0);
 
     // The party is counted in BODIES; a stack's row says how many it stands for.
@@ -472,6 +490,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       ["drop", () => bindMemberDrop(this)],
       ["rescuer", () => bindCrossingRescuer(this)],
       ["pace", () => bindCrossingPace(this)],
+      ["lightcast", () => bindLightCast(this)],
       ["stacks", () => this.#markStacks(context)],
       ["plates", () => this.#paintPlates(context)],
     ];

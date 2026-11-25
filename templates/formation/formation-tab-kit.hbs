@@ -48,6 +48,21 @@
       <button type="button" data-action="addLight"><i class="fa-solid fa-fire"></i> {{localize "ACKS-FORMATION.app.lightIt"}}</button>
     </div>
     {{/if}}
+    {{#if lightCasts.length}}
+    <div class="acks-extras-light-cast" data-light-cast>
+      <span class="acks-extras-light-cast__caption">{{localize "ACKS-FORMATION.app.lightCastCaption"}}</span>
+      <div class="acks-extras-light-cast__row">
+        <select class="acks-extras-light-cast__pick" data-pick="lightCast" aria-label="{{localize 'ACKS-FORMATION.app.lightCastPick'}}">
+          {{#each lightCasts}}
+          <option value="{{this.key}}" data-list-text="{{this.listText}}" data-list-tip="{{this.listTip}}" data-slots-text="{{this.slotsText}}" data-slots-tip="{{this.slotsTip}}" data-refusal="{{this.refusal}}"{{#if this.blocked}} data-blocked="1"{{/if}}{{#if this.picked}} selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+        <button type="button" class="acks-extras-light-cast__go" data-action="castLightSpell"{{#if lightCastPicked.blocked}} disabled{{/if}}>{{localize "ACKS-FORMATION.app.lightCast"}}</button>
+      </div>
+      <p class="acks-extras-light-cast__line"><span data-light-cast-part="list"{{#if lightCastPicked.listTip}} data-tooltip-text="{{lightCastPicked.listTip}}"{{/if}}>{{lightCastPicked.listText}}</span><span data-light-cast-part="slots-wrap"{{#unless lightCastPicked.slotsText}} hidden{{/unless}}> · <span data-light-cast-part="slots"{{#if lightCastPicked.slotsTip}} data-tooltip-text="{{lightCastPicked.slotsTip}}"{{/if}}>{{lightCastPicked.slotsText}}</span></span></p>
+      <p class="acks-extras-light-cast__refusal" role="note" data-light-cast-part="refusal"{{#unless lightCastPicked.refusal}} hidden{{/unless}}><span aria-hidden="true">&#9830; </span><span data-light-cast-part="refusal-text">{{lightCastPicked.refusal}}</span></p>
+    </div>
+    {{/if}}
   </section>
 
   <section class="spells">

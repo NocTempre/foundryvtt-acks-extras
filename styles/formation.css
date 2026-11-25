@@ -2066,6 +2066,59 @@
   white-space: nowrap;
 }
 
+/* The Kit tab's "Cast a light spell" row: a caption, the pick and its Cast
+   button, then the pick's line and the sentence the Magic tab's gate gives it.
+   The row wraps: at the party sheet's floor the pick takes the width and Cast
+   drops under it. The refusal is carried by its lozenge and its words, so it
+   reads with no colour. */
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1, 4px);
+  margin-top: 4px;
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__caption {
+  flex: 1 0 100%;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__row {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 0 100%;
+  gap: 4px;
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__pick {
+  flex: 1 1 12em;
+  min-inline-size: 0;
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__go {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__line,
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__refusal {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast__refusal {
+  color: var(--acks-danger-ink);
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .acks-extras-light-cast [hidden] {
+  display: none;
+}
+
 /* --- Turn plan --- */
 .acks-extras.party-sheet .acks-extras-turn-plan-rows {
   list-style: none;
