@@ -443,7 +443,7 @@ the first: a wandering or lair roll of a gang or a warband got a card nobody ask
   `unlistRow` of that top row writes the host's rows twice, and the second write empties the
   chart: reported for the hub, not changed here.
 
-## 2026-11-25 — The family plate is an assist on the overview row, page only, no box
+## 2026-11-25 — The family plate is an assist on the overview row, page only, no box — SUPERSEDED IN PART 2026-11-25
 
 The owner, on art: "You can use any part or whole of the images, they are not getting
 redistributed they are getting imported by the book owner" (`ip-doctrine.md`, Art, item 1).
@@ -499,3 +499,22 @@ rendered, since an input with nothing behind it is a bug."
   `inherit` field carries a count: each needs the evaluator to take a count override per part); bodies typed on an empty row (a
   `count` in `inherit`; a count is set by hand on a filled row, Edit); 1b's Build (a Roll writes at once, there is nothing to
   build).
+
+## 2026-11-25 — The chart reads a pack template through `getIndex()` and loads the whole template for its Variant list
+
+Supersedes in part "The family plate is an assist on the overview row" (its bullet that the plate on
+`CONFIG.Actor.compendiumIndexFields` is what `fromUuidSync` answers after a reload). New evidence: the
+S12 live walk read a pack template after a reload and got an entry with the keys name, type, folder,
+img, _id, sort, uuid and pack, and 0 variants where the loaded document has 6. The server builds a
+world pack's startup index from the document class's own core fields; `CONFIG.Actor.compendiumIndexFields`
+is applied by a client `pack.getIndex()`, which core never calls at startup.
+
+- **The plate:** the chart awaits `game.packs.get(<pack id>).getIndex()` before the sync read
+  (`readAfterIndex`); it answers at once once a pack is indexed, one request per pack per client, never a
+  whole document.
+- **The Variant list** reads `system.axes`, which no index carries: a Roll loads the template whole with
+  `fromUuid` on the press (`familyOfRows`). This closes the *Open* note of that entry.
+- **Not changed:** `place.mjs` `packPlaces` reads its index fields the same way and has the same gap;
+  an index per pack at ready is a cost the hub weighs.
+- **A Recall is drawn only where it can succeed** (`recallOffered`): a top row has no row to go back
+  under and `recall` refuses it with `topRow`, so a card or chip there draws none.

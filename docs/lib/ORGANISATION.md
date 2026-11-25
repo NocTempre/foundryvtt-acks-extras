@@ -275,7 +275,7 @@ each press finds its host from the markup, drives `org.addRow`, `org.editRow`,
 feature's `rollOrganisation`, and writes at once: there is nothing to save, no re-roll and no pin.
 
 - **Roll** on a card fills that card and every card beneath it. It is offered on an empty
-  card whose row, or the nearest row above it, carries a family template in its `gen`.
+  card whose row, or the nearest row above it, carries a family template in its `gen`. The press loads that template whole (`fromUuid`) for the panel's Variant list; the chart's plate is read from a pack's index after `getIndex()`.
   **Roll at random** fills every empty card in reading order, each as a Roll of its own,
   after one panel: where it was found, its state, the variant, the leaders' grade and which
   optional rules are on.
@@ -300,7 +300,7 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
 - **Expand all** and **Collapse all** keep their fold on the window (a press redraws the
   sheet); the tree scrolls sideways in a box of its own.
 - **Locations** lists each place with the groups of the host's rows on its roster, a chip per
-  row, and the rows whose group stands on no place; a chip's Recall brings its group back.
+  row, and the rows whose group stands on no place; a chip's Recall brings its group back, and is drawn only where `recall` can succeed (`recallOffered`: not a top row, and a parent row that holds a group), so no chip or card carries a control that can only refuse.
 
 `readHolder`, `orgChartView` and `locationsView` are on the lib api (`org`) for the
 Followers tab's views.

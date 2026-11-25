@@ -18,8 +18,8 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView } from "./org-chart-ui-logic.mjs";
-import { isLocation } from "./place.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, nextLevelKind, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall } from "./org-chart-ui-logic.mjs";
+import { isLocation, packIdOf } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
 const loc = makeLoc(ORG_LANG_PREFIX);
@@ -139,7 +139,7 @@ export async function chartContext(actor, app, { isGM }) {
     };
   }));
   const top = templateOf(rows, view.rows[0]?.key ?? "").template;
-  const plate = top ? (fromUuidSync(top)?.flags?.[MODULE_ID]?.plate ?? "") : "";
+  const plate = top ? ((await readAfterIndex(top, { pack: game.packs?.get(packIdOf(top)), read: fromUuidSync }))?.flags?.[MODULE_ID]?.plate ?? "") : "";
   return {
     hostUuid: host.uuid,
     rootKey,
@@ -188,6 +188,8 @@ async function editOf(card, holder, stacks, role) {
 export function locationsContext(host, { isGM }) {
   const view = org.locations({ isGM });
   const mine = (r) => r.hostUuid === host.uuid;
+  const hostRows = org.unitsOf(host);
+  const editable = !!host.isOwner;
   const places = view.places
     .map((p) => ({
       uuid: p.uuid,
@@ -195,13 +197,13 @@ export function locationsContext(host, { isGM }) {
       total: p.total,
       groups: p.groups
         .map((g) => {
-          const rows = g.rows.filter(mine).map((r) => ({ ...r, countTip: loc("locations.countTip", { name: r.label, place: p.name, cites: citesOf(docOf(r.holderUuid)) }) }));
+          const rows = withRecall(g.rows.filter(mine), hostRows, editable).map((r) => ({ ...r, countTip: loc("locations.countTip", { name: r.label, place: p.name, cites: citesOf(docOf(r.holderUuid)) }) }));
           return { ...g, rows, holds: rows.some((r) => r.inside), countTip: loc("locations.countTip", { name: g.name, place: p.name, cites: citesOf(docOf(g.uuid)) }) };
         })
         .filter((g) => g.rows.length),
     }))
     .filter((p) => p.groups.length);
-  return { hostUuid: host.uuid, editable: !!host.isOwner, places, unplaced: view.unplaced.filter(mine), isEmpty: !places.length && !view.unplaced.filter(mine).length };
+  return { hostUuid: host.uuid, editable, places, unplaced: view.unplaced.filter(mine), isEmpty: !places.length && !view.unplaced.filter(mine).length };
 }
 
 /** The groups standing directly inside this group: what "Groups in this group" lists. */
@@ -379,12 +381,8 @@ async function rollRow(host, key, options) {
   return run;
 }
 
-/** The family template a host's chart began with, and the choices its first roll recorded. */
-function familyOf(host, key) {
-  const { template, variant } = templateOf(org.unitsOf(host), key);
-  const began = org.unitsOf(host).map((r) => r?.toObject?.() ?? r).find((r) => r.gen?.variant)?.gen ?? {};
-  return { family: template ? fromUuidSync(template) : null, defaults: { variant: variant || began.variant, context: began.context, state: began.state, rules: began.rules, choices: began.choices } };
-}
+/** The family template a host's chart began with, loaded whole, and the choices its first roll recorded. */
+const familyOf = (host, key) => familyOfRows(org.unitsOf(host), key, fromUuid);
 
 /**
  * A card's Roll: fills that card and the cards beneath it. A chart that has no variant
@@ -393,7 +391,7 @@ function familyOf(host, key) {
 async function onRoll(_event, target) {
   const { host, key } = await targetOf(target);
   if (!host || !generator()?.rollOrganisation) return;
-  const { family, defaults } = familyOf(host, key);
+  const { family, defaults } = await familyOf(host, key);
   const options = defaults.variant ? {} : await askRoll(family, defaults);
   if (!defaults.variant && !options) return;
   const run = await rollRow(host, key, options ?? {});
@@ -407,7 +405,7 @@ async function onRollAll(_event, target) {
   const { host, root } = await targetOf(target);
   if (!host || !generator()?.rollOrganisation) return;
   const first = emptyKeys(org.orgChart(host, { isGM: true }))[0] ?? "";
-  const { family, defaults } = familyOf(host, first);
+  const { family, defaults } = await familyOf(host, first);
   const options = await askRoll(family, defaults);
   if (!options) return;
   let filled = 0;
@@ -446,7 +444,7 @@ async function onDesign(_event, target) {
   const scope = root ? subtreeView(view, root) : view;
   const rows = org.unitsOf(host);
   const slotKeys = emptyKeys(scope).filter((k) => templateOf(rows, k).template && rows.find((r) => r.key === k)?.parentKey);
-  const { family, defaults } = familyOf(host, emptyKeys(scope)[0] ?? slotKeys[0] ?? "");
+  const { family, defaults } = await familyOf(host, emptyKeys(scope)[0] ?? slotKeys[0] ?? "");
   const slots = slotKeys.map((k) => ({ key: k, label: scope.rows.find((r) => r.key === k)?.label ?? k, kind: rows.find((r) => r.key === k)?.kind ?? "", ...slotPosition(rows, k) }));
   const onSlot = async (key, options) => {
     const wrote = await writeSlot(host, key, options.picks[key]);

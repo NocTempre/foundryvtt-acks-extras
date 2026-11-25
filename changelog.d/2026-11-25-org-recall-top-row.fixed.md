@@ -1,0 +1,1 @@
+- A card or chip no longer shows a Recall button where Recall can only refuse: the top row of a faction's chart (Actors sidebar tab → a faction → Org chart tab, and its Locations tab) has no row to go back under, and a row whose parent row holds no group has none to go back under either.

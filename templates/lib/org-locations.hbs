@@ -18,7 +18,7 @@
             {{#each rows}}
               {{#unless inside}}
                 <span class="acks-extras-org-chip__row" data-key="{{key}}">{{label}}
-                  {{#if @root.editable}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
+                  {{#if canRecall}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
                 </span>
               {{/unless}}
             {{/each}}

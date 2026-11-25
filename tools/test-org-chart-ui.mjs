@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, nextLevelKind, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -125,10 +125,74 @@ t("an unlist reads as the groups now hosting what came off and the rows dropped,
   assert.equal(unlistedView({ ok: true, units: [], dropped: [] }), null);
 });
 
+t("a card's Recall is drawn only where it can succeed: out on a place, under a row that holds a group", () => {
+  const tree = orgChartView([row("top", "", "G.top"), row("mid", "top", "G.mid"), row("low", "mid", "G.low"), row("hole", "top", "")], (u) => ({ "G.top": { name: "T", img: "", count: 1 }, "G.mid": { name: "M", img: "", count: 1 }, "G.low": { name: "L", img: "", count: 1 } })[u] ?? null);
+  const at = (outAt) => {
+    const flat = (cs) => cs.flatMap((c) => [c, ...flat(c.children)]);
+    return Object.fromEntries(flat(chartCards(tree.roots, { outAt })).map((c) => [c.key, c.canRecall]));
+  };
+  const everywhere = { "G.top": ["P"], "G.mid": ["P"], "G.low": ["P"] };
+  assert.deepEqual(at(everywhere), { top: false, mid: true, low: true, hole: false }, "a top row has nothing to return to; an empty row is not out");
+  assert.deepEqual(at({}), { top: false, mid: false, low: false, hole: false }, "a card standing nowhere has no Recall");
+  const cut = chartCards(subtreeView(tree, "mid").roots, { outAt: everywhere });
+  assert.equal(cut[0].canRecall, true, "a group's own chart, cut below its row, keeps the Recall: the row above is in the faction");
+  const orphan = orgChartView([row("a", "", "G.a"), row("b", "a", "G.b")], (u) => ({ "G.a": { name: "A", img: "", count: 1 }, "G.b": { name: "B", img: "", count: 1 } })[u] ?? null);
+  assert.equal(chartCards(orphan.roots, { outAt: { "G.b": ["P"] } })[0].children[0].canRecall, true);
+});
+
+t("recallOffered refuses a top row, a parent no group holds and a parent the host does not hold", () => {
+  assert.equal(recallOffered({ parentKey: "" }, undefined), false);
+  assert.equal(recallOffered({ parentKey: "p" }, { holderUuid: "G.p" }), true);
+  assert.equal(recallOffered({ parentKey: "p" }, { holderUuid: "" }), false);
+  assert.equal(recallOffered({ parentKey: "p" }, null), false);
+  assert.equal(recallOffered({ parentKey: "p" }, undefined), true);
+});
+
+t("the Locations rows draw Recall by the same test, and only for a seat that writes the host", () => {
+  const hostRows = [{ toObject: () => row("top", "", "G.top") }, row("mid", "top", "G.mid"), row("hole", "top", ""), row("under", "hole", "G.under"), row("lost", "gone", "G.lost")];
+  const standing = [row("top", "", "G.top"), row("mid", "top", "G.mid"), row("under", "hole", "G.under"), row("lost", "gone", "G.lost")];
+  const marks = (editable) => Object.fromEntries(withRecall(standing, hostRows, editable).map((r) => [r.key, r.canRecall]));
+  assert.deepEqual(marks(true), { top: false, mid: true, under: false, lost: false });
+  assert.deepEqual(marks(false), { top: false, mid: false, under: false, lost: false }, "a seat that cannot write sees none");
+  assert.equal(withRecall(standing, hostRows, true)[1].label, "Row mid", "the row's own fields pass through");
+});
+
+t("the chart reads a pack template's plate after its pack has built its index, and not before", async () => {
+  const entry = { name: "Fam", uuid: "Compendium.m.p.Actor.A" };
+  const full = { ...entry, flags: { m: { plate: "plate.webp" } } };
+  const index = { current: entry };
+  const calls = [];
+  const pack = { getIndex: async () => { calls.push("getIndex"); index.current = full; } };
+  const read = (u) => { calls.push("read"); return u === entry.uuid ? index.current : null; };
+  assert.equal(read(entry.uuid).flags, undefined, "the startup index entry carries no flags");
+  calls.length = 0;
+  const got = await readAfterIndex(entry.uuid, { pack, read });
+  assert.deepEqual(calls, ["getIndex", "read"], "the index is awaited, then the entry read");
+  assert.equal(got.flags.m.plate, "plate.webp");
+  assert.equal(await readAfterIndex("World.x", { pack: undefined, read: () => ({ name: "w" }) }).then((d) => d.name), "w", "a uuid held in no pack is read as it is");
+  assert.equal(await readAfterIndex("", { pack, read }), null);
+});
+
+t("a Roll's family is the template loaded whole, so its variants are there when the sync read gave an index entry", async () => {
+  const entry = { name: "Fam", uuid: "T.fam" };
+  const whole = { name: "Fam", uuid: "T.fam", system: { axes: [{ key: "variant", options: ["a", "b", "c"] }] } };
+  const syncRead = (u) => (u === "T.fam" ? entry : null);
+  assert.equal(syncRead("T.fam").system, undefined, "the sync read of an unloaded pack template has no system");
+  const asked = [];
+  const load = async (u) => { asked.push(u); return u === "T.fam" ? whole : null; };
+  const rows = [row("v", "", "G.v", { gen: { template: "T.fam", variant: "alba", context: "lair" } }), row("w", "v")];
+  const got = await familyOfRows(rows, "w", load);
+  assert.equal(got.family.system.axes[0].options.length, 3);
+  assert.deepEqual(asked, ["T.fam"]);
+  assert.deepEqual([got.defaults.variant, got.defaults.context], ["alba", "lair"]);
+  assert.equal((await familyOfRows([row("a")], "a", load)).family, null, "a chart with no template has no family");
+  assert.equal((await familyOfRows(rows, "w", async () => { throw new Error("gone"); })).family, null, "a template that will not load is no family");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {
-    fn();
+    await fn();
     console.log(`ok    ${name}`);
   } catch (err) {
     failures++;

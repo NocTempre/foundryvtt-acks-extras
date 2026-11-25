@@ -26,6 +26,45 @@ export function templateOf(rows, key) {
   return { template: "", variant: "" };
 }
 
+/**
+ * What a uuid reads as after the pack that holds it has built its index. A world pack's startup
+ * index carries only the document class's own core fields; the module's added index fields
+ * (a template's plate) reach an index only through a client `getIndex()`, which answers at once
+ * once the pack is indexed. A uuid outside a pack has no pack to index and is read as it is.
+ * @param {string} uuid
+ * @param {{pack?: {getIndex?: () => Promise<unknown>}|null, read: (uuid: string) => unknown}} deps
+ *   the pack holding the uuid (or none) and the synchronous read (`fromUuidSync`)
+ * @returns {Promise<unknown>} the document, or its index entry, or null
+ */
+export async function readAfterIndex(uuid, { pack, read }) {
+  if (!uuid) return null;
+  await pack?.getIndex?.();
+  return read(uuid) ?? null;
+}
+
+/**
+ * The family template a chart's Roll reads and what its first Roll recorded, for the Variant
+ * list and the panel's defaults. The template is loaded whole through `load` (`fromUuid`): the
+ * Variant list reads `system.axes`, which no index carries.
+ * @param {object[]} rows the host's rows
+ * @param {string} key the row pressed
+ * @param {(uuid: string) => Promise<object|null>} load
+ * @returns {Promise<{family: object|null, defaults: {variant: string, context: string, state: string, rules: object, choices: object}}>}
+ */
+export async function familyOfRows(rows, key, load) {
+  const { template, variant } = templateOf(rows, key);
+  const began = (rows ?? []).map((r) => r?.toObject?.() ?? r).find((r) => r.gen?.variant)?.gen ?? {};
+  let family = null;
+  if (template) {
+    try {
+      family = (await load(template)) ?? null;
+    } catch {
+      family = null;
+    }
+  }
+  return { family, defaults: { variant: variant || began.variant, context: began.context, state: began.state, rules: began.rules, choices: began.choices } };
+}
+
 /** The keys of every empty row, in reading order: what Roll at random fills, each a Roll of its own with all below it. */
 export const emptyKeys = (view) => (view?.rows ?? []).filter((r) => r.empty).map((r) => r.key);
 
@@ -47,6 +86,36 @@ export function slotPosition(rows, key) {
 export const branchKeys = (view) => (view?.rows ?? []).filter((r) => r.children.length).map((r) => r.key);
 
 /**
+ * Whether a row's Recall can succeed, so the control is drawn only where it does something:
+ * the row has a row above it and that row holds a group to put it back under. A top row has
+ * nothing to return to, and an empty parent row has no group to take it.
+ * @param {{parentKey?: string}} row the row Recall would act on
+ * @param {{holderUuid?: string}|null|undefined} parent the row above it; `undefined` where the
+ *   view is cut below it (a group's own chart) and the row above is not in hand, `null` where
+ *   the row names a parent the host does not hold
+ * @returns {boolean}
+ */
+export function recallOffered(row, parent) {
+  if (!row?.parentKey) return false;
+  return parent === undefined ? true : !!parent?.holderUuid;
+}
+
+/**
+ * The Locations rows with `canRecall` set: a row a seat can write whose Recall `recallOffered` says can succeed.
+ * @param {object[]} rows the chart rows standing on the places
+ * @param {object[]} hostRows the host's own rows, where each row's parent is looked up
+ * @param {boolean} editable whether this seat writes the host
+ * @returns {object[]}
+ */
+export function withRecall(rows, hostRows, editable) {
+  const byKey = new Map((hostRows ?? []).map((r) => {
+    const plain = r?.toObject?.() ?? r;
+    return [plain.key, plain];
+  }));
+  return (rows ?? []).map((r) => ({ ...r, canRecall: !!editable && recallOffered(r, byKey.get(r.parentKey) ?? null) }));
+}
+
+/**
  * The cards a tab draws: the view's tree with each branch's fold applied and each card's
  * controls decided. A folded card keeps its count and drops its children from the tree,
  * leaving the number of rows and bodies beneath it.
@@ -57,14 +126,14 @@ export const branchKeys = (view) => (view?.rows ?? []).filter((r) => r.children.
  * @param {Object<string, string[]>} [state.outAt] a row's holder uuid → the names of the places it stands on
  * @param {(key: string) => boolean} [state.canRoll] whether a Roll is offered on the row
  * @param {boolean} [state.canEdit] whether this seat writes the host
- * @returns {object[]} the cards, each `{...row, roleKey, folded, hasKids, below: {rows, bodies}, out, canRoll, canEdit, children}`; `roleKey` is `roleOf` read before the fold empties `children`, so a folded card keeps its rank
+ * @returns {object[]} the cards, each `{...row, roleKey, folded, hasKids, below: {rows, bodies}, out, canRecall, canRoll, canEdit, children}`; `canRecall` is `recallOffered` on a card standing out; `roleKey` is `roleOf` read before the fold empties `children`, so a folded card keeps its rank
  */
 export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll = () => false, canEdit = true } = {}) {
   const below = (node) => node.children.reduce((sum, c) => {
     const inner = below(c);
     return { rows: sum.rows + 1 + inner.rows, bodies: sum.bodies + (c.covered ? 0 : c.count) + inner.bodies };
   }, { rows: 0, bodies: 0 });
-  const draw = (node) => {
+  const draw = (node, parent) => {
     const folded = collapsed.has(node.key) && node.children.length > 0;
     const out = outAt[node.holderUuid] ?? [];
     const word = String(node.kind ?? "");
@@ -78,12 +147,13 @@ export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll =
       below: folded ? below(node) : null,
       out,
       isOut: out.length > 0,
+      canRecall: out.length > 0 && recallOffered(node, parent),
       canRoll: node.empty && !!canRoll(node.key),
       canEdit: !!canEdit,
-      children: folded ? [] : node.children.map(draw),
+      children: folded ? [] : node.children.map((c) => draw(c, node)),
     };
   };
-  return (roots ?? []).map(draw);
+  return (roots ?? []).map((n) => draw(n));
 }
 
 /**

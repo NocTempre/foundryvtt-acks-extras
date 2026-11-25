@@ -50,7 +50,7 @@
         <button type="button" data-action="orgAdd" data-tooltip="ACKS-LIB.org.card.addTip" aria-label="{{localize 'ACKS-LIB.org.card.add'}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
         <button type="button" data-action="orgEdit" data-tooltip="{{#if empty}}ACKS-LIB.org.card.fillTip{{else}}ACKS-LIB.org.card.editTip{{/if}}" aria-label="{{localize 'ACKS-LIB.org.card.edit'}}"><i class="fas fa-pen" aria-hidden="true"></i></button>
         {{#unless empty}}
-          {{#if isOut}}
+          {{#if canRecall}}
             <button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>
           {{/if}}
           <button type="button" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.card.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>
