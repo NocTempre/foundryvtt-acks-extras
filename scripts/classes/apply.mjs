@@ -313,7 +313,8 @@ export async function readyToApply(actor, classItem, { election: answer = null, 
  *   prompt: where the class's damage bonus is elected and the character holds
  *   no election for it, the class applies without that bonus, nothing is
  *   recorded for it, and the election stays open to the sheet's Class tab
- *   (`electDamageBonus`)
+ *   (`electDamageBonus`); the abilities it grants are created as unattended
+ *   too (`lib/constants.mjs`), so none opens a companion picker
  * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
  */
 export async function applyClass(
@@ -595,15 +596,15 @@ export async function applyClass(
   // so nothing the character already carried is doubled.
   const grants = [];
   if (grantAwards) {
-    await grantAdventuring(actor, grants);
-    for (const a of owed.fixed) await grantAbility(actor, a.ref, grants, { upTo: a.copies });
+    await grantAdventuring(actor, grants, { unattended });
+    for (const a of owed.fixed) await grantAbility(actor, a.ref, grants, { upTo: a.copies, unattended });
     // "Already on the sheet" closes its rung without materializing anything,
     // and a ref the character already holds materializes nothing either —
     // `grantAbility` declines it — so a rung answered truthfully costs no item.
     // A pick is granted as the proficiency type of the list its rung draws from.
     const rungOf = new Map(awardsThrough(actor, classItem, clamped).choices.map((c) => [c.key, c.choice]));
     for (const [key, ref] of Object.entries(given)) {
-      if (grantsFrom(ref)) await grantAbility(actor, ref, grants, { proficiencyType: rungProficiencyType(rungOf.get(key)) });
+      if (grantsFrom(ref)) await grantAbility(actor, ref, grants, { proficiencyType: rungProficiencyType(rungOf.get(key)), unattended });
     }
     // Tongues ride the same path: the class's list and the bound race's ADD,
     // Intellect buys the open slots, and re-applying refreshes the carriers
@@ -673,13 +674,14 @@ export async function electDamageBonus(actor, classItem, applies) {
  * @param {Item} cls the class item
  * @param {number} level the level the character holds
  * @param {Array<{ref: string, name: string, missing?: boolean}>} [grants] filled with each grant, a ref the world lacks marked `missing`
+ * @param {{unattended?: boolean}} [options] `unattended` marks every create as made with no seat watching, so no create hook opens a dialog
  * @returns {Promise<Array<{ref: string, name: string, missing?: boolean}>>} `grants`
  */
-export async function grantFixedAwards(actor, cls, level, grants = []) {
-  await grantAdventuring(actor, grants);
+export async function grantFixedAwards(actor, cls, level, grants = [], { unattended = false } = {}) {
+  await grantAdventuring(actor, grants, { unattended });
   for (const a of awardsThrough(actor, cls, level).fixed) {
     if ((a.atLevel ?? 1) < 1) continue;
-    await grantAbility(actor, a.ref, grants, { upTo: a.copies });
+    await grantAbility(actor, a.ref, grants, { upTo: a.copies, unattended });
   }
   return grants;
 }

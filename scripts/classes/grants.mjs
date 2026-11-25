@@ -12,6 +12,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { findByRef, templatePartOf } from "./registry.mjs";
+import { unattendedOperation } from "../lib/constants.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
 import { libraryItems, cookbookId, openPacks } from "../lib/library.mjs";
@@ -85,9 +86,11 @@ export function offeredProficiencyType(classItem, level, ref) {
  * `proficiencyType`, where given, is the
  * type the copy is granted as (`rungProficiencyType`); the definition keeps
  * its own.
- * @param {{upTo?: number, proficiencyType?: string|null}} [options]
+ * `unattended` marks the create as made with no seat watching, so no
+ * create hook opens a dialog for the new ability (`lib/constants.mjs`).
+ * @param {{upTo?: number, proficiencyType?: string|null, unattended?: boolean}} [options]
  */
-export async function grantAbility(actor, ref, grants, { upTo = 1, proficiencyType = null } = {}) {
+export async function grantAbility(actor, ref, grants, { upTo = 1, proficiencyType = null, unattended = false } = {}) {
   const owed = upTo - heldCount(actor, ref);
   if (!ref || owed <= 0) return;
   const source = findByRef(ref);
@@ -106,7 +109,7 @@ export async function grantAbility(actor, ref, grants, { upTo = 1, proficiencyTy
   };
   // Every copy owed lands in one call: a ladder listing a later rung's count
   // before an earlier one's would otherwise land one copy and find the rest held.
-  await actor.createEmbeddedDocuments("Item", Array.from({ length: owed }, copy));
+  await actor.createEmbeddedDocuments("Item", Array.from({ length: owed }, copy), unattendedOperation(unattended));
   for (let i = 0; i < owed; i++) grants.push({ ref, name: source.name });
 }
 
@@ -167,10 +170,10 @@ export const choosableGenerals = () =>
 export const adventuringDoc = () =>
   libraryItems().find((i) => i.type === ITEM_TYPE.ability && !templatePartOf(i) && isAdventuring(i));
 
-/** Grant the free-with-every-class Adventuring proficiency, once. */
-export async function grantAdventuring(actor, grants) {
+/** Grant the free-with-every-class Adventuring proficiency, once. `unattended` is `grantAbility`'s. */
+export async function grantAdventuring(actor, grants, { unattended = false } = {}) {
   const doc = adventuringDoc();
-  if (doc) await grantAbility(actor, refOf(doc), grants);
+  if (doc) await grantAbility(actor, refOf(doc), grants, { unattended });
 }
 
 /**

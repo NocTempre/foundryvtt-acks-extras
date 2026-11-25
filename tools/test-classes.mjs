@@ -2698,7 +2698,7 @@ await atest("fixed awards through the held level are granted at the copies owed,
 test("a character's page import grants fixed awards after the stat line's own grants, under the option, bound only", () => {
   const src = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
   const body = src.slice(src.indexOf("export async function importSheet"));
-  const own = body.indexOf("await grantAbilities(target, plan.abilities, report)");
+  const own = body.indexOf("await grantAbilities(target, plan.abilities, report, { unattended })");
   const fixed = body.indexOf("if (fixedAwards && bound)");
   assert.ok(own > 0 && fixed > own, "the stat line's copies are held before the class owes its own");
   assert.match(body, /grantFixedAwards\(target, cls, /);

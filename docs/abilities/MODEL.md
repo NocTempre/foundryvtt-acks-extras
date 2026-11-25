@@ -205,11 +205,21 @@ creature carries a cookbook `ref`, and the importer's fill pass writes the
 pointer from the library (`resolveCompanion`). A slot whose page leaves the
 creature to the reader carries no `ref`, and is filled from the table:
 `companions.mjs` offers a picker the moment such an ability lands on a
-character, and again from the Equipment tab, where the character sheet lists
+character (`offersPicker`), and again from the Equipment tab, where the character sheet lists
 every slot as a **Companions** section between Carried and Stowed
 (`character-sheet/tabs/equipment.mjs`; the equipment feature injects the same
 section into the system's own sheet) with the creature's name, the ability
 that confers it, and its controls — open, release, or choose.
+
+No picker opens during an import. A create made with no seat watching carries
+the operation option `{"acks-extras": {unattended: true}}` (`lib/constants.mjs`,
+`unattendedOperation`), which an unattended sheet import (the cookbook's
+character import and its repair) and the class apply it runs pass on every
+ability they create (`grantAbilities`, `grantAbility`, `grantFixedAwards`);
+`offersPicker` answers no slot for a create that carries it, so the slot stays
+empty until it is filled from the Equipment tab's Companions section. The
+seat's own creates (chargen, level-up, adding a proficiency, a PDF import the
+user runs by hand) carry no such option and still open it.
 
 The picker reads the imported library: the animals the rule allows first
 (`underOneHitDie` over `hitDiceOf`, which reads the importer's structured

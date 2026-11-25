@@ -481,7 +481,7 @@ test("a character from the page is handed its class's fixed awards, after the sh
   const apply = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
   const body = apply.slice(apply.indexOf("export async function importSheet"));
   assert.match(body, /record = true, fixedAwards = false \}/, "the option is off unless a caller passes it");
-  const own = body.indexOf("await grantAbilities(target, plan.abilities, report);");
+  const own = body.indexOf("await grantAbilities(target, plan.abilities, report, { unattended });");
   const fixed = body.indexOf("if (fixedAwards && bound) {");
   assert.ok(own > 0 && fixed > own && fixed < body.indexOf("await landGear("), "the call follows the sheet's grants and precedes the gear");
   assert.match(body, /grantFixedAwards\(target, cls, /);

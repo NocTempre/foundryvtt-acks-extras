@@ -205,6 +205,15 @@ await test("the import passes unattended to importSheet and the hand import neve
   const apply = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
   assert.match(apply, /bindClass\(target, cls, plan\.level, \{ unattended \}\)/);
   assert.match(apply, /bindClass\(hench, cls, h\.level, \{ unattended \}\)/);
+  assert.match(apply, /grantAbilities\(target, plan\.abilities, report, \{ unattended \}\)/);
+  assert.match(apply, /grantFixedAwards\(target, cls, .*\[\], \{ unattended \}\)/);
+  assert.match(apply, /verifyThrows: false, unattended \}\)/, "a henchman's powers are granted unattended too");
+  assert.match(apply, /createEmbeddedDocuments\("Item", copies, unattendedOperation\(unattended\)\)/);
+  const grants = readFileSync(new URL("../scripts/classes/grants.mjs", import.meta.url), "utf8");
+  assert.match(grants, /createEmbeddedDocuments\("Item", [^\n]*unattendedOperation\(unattended\)\)/);
+  const classApply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
+  assert.equal(classApply.match(/grantAbility\(actor, [^\n]*unattended \}\)/g)?.length, 3, "applyClass (fixed and picked) and grantFixedAwards pass unattended to each grant");
+  assert.match(classApply, /grantAdventuring\(actor, grants, \{ unattended \}\)/);
 });
 
 await test("the Class tab row is shown only for an elected ladder, open until one is held, with the class's citation as its tooltip", () => {

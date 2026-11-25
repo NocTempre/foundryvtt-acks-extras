@@ -15,7 +15,7 @@
  * nothing: abilities count the copies held, gear and spells are matched by
  * name, coin is only ever credited up to the sheet's count.
  */
-import { MODULE_ID } from "../../lib/constants.mjs";
+import { MODULE_ID, unattendedOperation } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { ACTOR_TYPE, ALIGNMENTS, ITEM_TYPE, SLOT, slug } from "../../lib/vocab.mjs";
 import { savesUpdateData } from "../../lib/actor-compat.mjs";
@@ -114,8 +114,12 @@ async function bindClass(actor, cls, level, { unattended = false } = {}) {
   return { bound: !!result.applied, applied: !!result.applied };
 }
 
-/** Grant every proficiency and class feature the sheet lists, to its written rank. */
-async function grantAbilities(actor, abilities, report, { verifyThrows = true } = {}) {
+/**
+ * Grant every proficiency and class feature the sheet lists, to its written
+ * rank. `unattended` creates them with no seat watching, so no create hook
+ * opens a companion picker for one.
+ */
+async function grantAbilities(actor, abilities, report, { verifyThrows = true, unattended = false } = {}) {
   for (const entry of abilities) {
     const match = matchAbility(entry);
     if (!match) {
@@ -125,7 +129,7 @@ async function grantAbilities(actor, abilities, report, { verifyThrows = true } 
     const missing = entry.rank - ownedCopies(actor, match).length;
     if (missing > 0) {
       const copies = rankedCopies(match.doc, { rank: missing, selection: match.selection, ref: match.ref });
-      await actor.createEmbeddedDocuments("Item", copies);
+      await actor.createEmbeddedDocuments("Item", copies, unattendedOperation(unattended));
       report.granted.push(missing > 1 ? `${copies[0].name} ×${missing}` : copies[0].name);
     }
     if (!verifyThrows || entry.throw === null) continue;
@@ -486,7 +490,7 @@ async function fillHenchman(hench, h, report, { unattended = false } = {}) {
   }
   if (Object.keys(update).length) await hench.update(update);
   const sub = newReport(hench);
-  await grantAbilities(hench, h.powers.map((p) => ({ name: p, selection: null, rank: 1, kind: "power", throw: null })), sub, { verifyThrows: false });
+  await grantAbilities(hench, h.powers.map((p) => ({ name: p, selection: null, rank: 1, kind: "power", throw: null })), sub, { verifyThrows: false, unattended });
   await landGear(hench, h.equipment.map((g) => ({ ...g, place: "loose" })), sub);
   report.unmatched.push(...sub.unmatched.map((u) => ({ ...u, name: `${u.name} (${hench.name})` })));
   report.granted.push(...sub.granted.map((g) => `${g} (${hench.name})`));
@@ -627,7 +631,9 @@ async function landDomain(character, plan, report, { writeDomain, previous }) {
  * @param {boolean} [options.createHenchmen] make and enroll henchmen the roster lacks
  * @param {boolean} [options.writeDomain] write the domain page into a domain, where the seat may
  * @param {boolean} [options.unattended] open no dialog while binding the class of the character
- *   or of a henchman: an elected damage bonus is left unmade for the Class tab, never asked
+ *   or of a henchman: an elected damage bonus is left unmade for the Class tab, never asked;
+ *   every ability created is marked unattended too, so none opens a companion picker and the
+ *   slot is left to fill from the character sheet's Equipment tab
  * @param {boolean} [options.record] write the notes block, the import record and the chat card;
  *   false leaves all three to the caller, which reads the notes rows off `report.noted`
  * @param {boolean} [options.fixedAwards] with a class bound, also grant the class's fixed awards at
@@ -665,9 +671,9 @@ export async function importSheet({ actor = null, values, createHenchmen = false
   // leaves the class as written text, and the report says so as it does for a name no class answers.
   if (plan.className && classUnbound(cls, bound)) report.unmatched.push({ kind: "className", name: plan.className });
 
-  await grantAbilities(target, plan.abilities, report);
+  await grantAbilities(target, plan.abilities, report, { unattended });
   if (fixedAwards && bound) {
-    const grants = await grantFixedAwards(target, cls, Number(target.system?.details?.level) || 1);
+    const grants = await grantFixedAwards(target, cls, Number(target.system?.details?.level) || 1, [], { unattended });
     for (const g of grants) {
       if (g.missing) report.unmatched.push({ kind: "power", name: g.name });
       else report.granted.push(g.name);

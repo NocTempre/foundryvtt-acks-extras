@@ -75,6 +75,21 @@ export const VARIATION_TYPE = `${MODULE_ID}.variation`;
 export const KEEP_HIT_POINTS_OPTION = `${MODULE_ID}.keepHitPoints`;
 
 /**
+ * The operation option an unattended create carries, under the module's own
+ * key: `{ [MODULE_ID]: { unattended: true } }`. A create made without a seat
+ * watching (an import) passes it, so a create hook that would open a dialog
+ * for the new document stays silent. `unattendedOperation` builds it and
+ * `isUnattended` reads it back off the options a hook receives.
+ */
+export const UNATTENDED_OPTION = "unattended";
+
+/** The operation options for a create: the unattended marker when `unattended`, else none. */
+export const unattendedOperation = (unattended) => (unattended ? { [MODULE_ID]: { [UNATTENDED_OPTION]: true } } : {});
+
+/** Do these operation options mark the create as unattended? */
+export const isUnattended = (options) => options?.[MODULE_ID]?.[UNATTENDED_OPTION] === true;
+
+/**
  * Seconds in one dungeon turn, the module's own unit of game time. An ACKS
  * `turns` duration is this many seconds on the world clock, never a Foundry
  * combat turn.

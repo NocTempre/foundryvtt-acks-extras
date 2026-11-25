@@ -14,7 +14,8 @@ globalThis.game = { packs: [], actors: [], items: [], journal: [], tables: [], f
 globalThis.foundry = { utils: { deepClone: (o) => JSON.parse(JSON.stringify(o)), escapeHTML: (s) => String(s) } };
 globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
 
-const { companionSlots, isAnimal, hitDiceOf, underOneHitDie, FLAG_COMPANION } = await import("../scripts/abilities/companions.mjs");
+const { companionSlots, isAnimal, hitDiceOf, underOneHitDie, offersPicker, FLAG_COMPANION } = await import("../scripts/abilities/companions.mjs");
+const { isUnattended, unattendedOperation } = await import("../scripts/lib/constants.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -77,6 +78,28 @@ t("a slot is every companion effect on every ability, in order, with its pointer
   assert.equal(slots[1].effect.ref, "mm.rat", "the effect rides along, so a caller can tell a named slot from a chosen one");
   assert.deepEqual(companionSlots(null), []);
   assert.deepEqual(companionSlots({ items: [] }), []);
+});
+
+t("an unattended create of a companion ability offers no picker", () => {
+  globalThis.game.user = { id: "me" };
+  const effects = [{ type: "companion", note: "Familiar" }];
+  const held = (extra = {}) => {
+    const item = ability("fam", effects);
+    const actor = { documentName: "Actor", type: "character", items: [item], ...extra };
+    item.parent = actor;
+    return item;
+  };
+  assert.equal(offersPicker(held(), {}, "me")?.index, 0, "no options: the slot is offered");
+  assert.equal(offersPicker(held(), undefined, "me")?.index, 0, "no operation at all is the same");
+  assert.equal(offersPicker(held(), unattendedOperation(false), "me")?.index, 0, "an attended create keeps the picker");
+  assert.equal(offersPicker(held(), unattendedOperation(true), "me"), null, "the unattended key opens none");
+  assert.equal(offersPicker(held(), { [M]: { unattended: true } }, "me"), null, "the key's shape is {module: {unattended: true}}");
+  assert.equal(offersPicker(held(), {}, "peer"), null, "another seat's create is not this seat's to answer");
+  assert.equal(offersPicker(held({ pack: "world.library" }), {}, "me"), null, "a library actor is a document being written");
+  assert.equal(offersPicker(held({ type: "monster" }), {}, "me"), null, "only a character is offered the choice");
+  assert.equal(isUnattended({ [M]: { unattended: true } }), true);
+  assert.equal(isUnattended({ [M]: {} }), false);
+  assert.equal(isUnattended(undefined), false);
 });
 
 t("the companion flag has one spelling", () => {

@@ -25,7 +25,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-import { ANIMAL_TYPE } from "../lib/constants.mjs";
+import { ANIMAL_TYPE, isUnattended } from "../lib/constants.mjs";
 import { monsterHitDice } from "../lib/actor-read.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
@@ -232,18 +232,32 @@ async function createCompanionActor({ ownerUuid, abilityId, index, uuid = "", na
 }
 
 /**
- * Opens the companion picker at once for an ability item added to a character
- * by this seat, when its slot is unfilled and not importer-bound (ref-named).
- * Skipped in a compendium: a library document being written, not a seat
- * choosing.
+ * The slot a created ability item asks the picker for, or null when none is
+ * asked: the create was made by another seat, was marked unattended
+ * (`lib/constants.mjs`, so an import never opens a dialog), landed in a
+ * compendium (a library document being written, not a seat choosing), or the
+ * ability has no unfilled, unnamed (ref-less) companion slot on a character.
+ * @param {object} item the created item
+ * @param {object} options the create's operation options
+ * @param {string} userId the user who made the create
+ * @returns {{item: object, index: number, effect: object, actorUuid: string, companion: object|null}|null}
  */
-function onCreateItem(item, _options, userId) {
-  if (userId !== game.user.id) return;
+export function offersPicker(item, options, userId) {
+  if (userId !== game.user.id || isUnattended(options)) return null;
   const actor = item.parent;
-  if (actor?.documentName !== "Actor" || actor.pack || actor.type !== ACTOR_TYPE.character || item.type !== ABILITY_TYPE) return;
-  const slot = companionSlots(actor).find((s) => s.item.id === item.id && !s.actorUuid && !s.effect.ref);
+  if (actor?.documentName !== "Actor" || actor.pack || actor.type !== ACTOR_TYPE.character || item.type !== ABILITY_TYPE) return null;
+  return companionSlots(actor).find((s) => s.item.id === item.id && !s.actorUuid && !s.effect.ref) ?? null;
+}
+
+/**
+ * Opens the companion picker at once for an ability item added to a character
+ * by this seat, where `offersPicker` finds a slot to fill. The picker is not
+ * awaited, so an ability created in a run of many opens one dialog each.
+ */
+function onCreateItem(item, options, userId) {
+  const slot = offersPicker(item, options, userId);
   if (!slot) return;
-  openCompanionPicker(actor, item, slot.index).catch((err) => console.error(`${MODULE_ID} | companion picker failed`, err));
+  openCompanionPicker(item.parent, item, slot.index).catch((err) => console.error(`${MODULE_ID} | companion picker failed`, err));
 }
 
 /** Register the socket handler and the prompt — once, at init. */
