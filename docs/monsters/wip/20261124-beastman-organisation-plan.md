@@ -1625,6 +1625,22 @@ Question 4 stays open either way for a gang that is at another place and in
 no combat. `architect`, already running, was not sent these words. Released:
 none.
 
+Then asked "Absorbed into what: its warband's side of the combat, or the
+re-roll?", with the buttons "Into the combat" and "Into the re-roll", the
+owner chose:
+
+"Into the combat"
+
+Reading (a) is the owner's, and with it the sentence is understood: a gang
+out as a group of its own that is part of the combat its warband joins is
+taken into the warband's side of that combat as one of its gangs, on its one
+initiative, with no separate entry. It adds to "Every body" and to "gangs
+should automatically join combat as groups for group initiative". Not asked:
+what "part of the combat" is measured by (the gang's token already a
+combatant, or standing on the combat's scene), and whether the gang's own
+token is hidden as the warband's is. Both go to `architect`, which is sent
+the two sentences verbatim. Question 4, the re-roll, is unanswered.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
