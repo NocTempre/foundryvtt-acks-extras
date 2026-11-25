@@ -10,8 +10,7 @@
  * `upgrade`, so the engine keeps the largest where several lights ride one
  * bearer.
  */
-import { MAGIC_LIGHT_BANDS, MAGIC_LIGHT_CHANGE_KEYS } from "../../lib/light.mjs";
-import { CHANGE } from "../../lib/effect-scan.mjs";
+import { magicLightChanges } from "../../lib/light.mjs";
 
 /** The starting points the Add effect control offers, in the order it lists them. */
 export const EFFECT_STARTS = Object.freeze(["blank", "light"]);
@@ -32,7 +31,7 @@ export function effectStartData(kind, item, { lightName }) {
       img: item.img,
       transfer: true,
       disabled: false,
-      changes: MAGIC_LIGHT_BANDS.map((band) => ({ key: MAGIC_LIGHT_CHANGE_KEYS[band], type: CHANGE.UPGRADE, value: "" })),
+      changes: magicLightChanges({}),
     };
   }
   return null;

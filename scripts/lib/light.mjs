@@ -23,7 +23,7 @@
 
 import { MODULE_ID } from "./constants.mjs";
 import { feetToUnits } from "./distance-units.mjs";
-import { appliedEffects } from "./effect-scan.mjs";
+import { appliedEffects, CHANGE } from "./effect-scan.mjs";
 import { canWear, containedIn, findCarried, isEquippable, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
 import { isStackable, quantityOf } from "./storage-logic.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
@@ -386,6 +386,54 @@ export const MAGIC_LIGHT_CHANGE_KEYS = Object.freeze(
 export const LIGHT_SHUTTER_FLAG = "lightShutter";
 
 /**
+ * The flag on a magic-light Active Effect naming the page its reach was read
+ * from: the citation string of the cast spell that wrote it. `magicLights`
+ * reads it back as each entry's `cite`.
+ */
+export const MAGIC_LIGHT_CITE_FLAG = "magicLightCite";
+
+/**
+ * The changes of a magic-light effect, one per band in `MAGIC_LIGHT_BANDS`
+ * order, each an `upgrade` on the band's key so the engine keeps the largest
+ * where several lights ride one bearer. A band's value is the figure in feet
+ * as text when `bands` names a positive integer for it, else blank, which
+ * sheds nothing.
+ *
+ * @param {{daylight?: *, bright?: *, dim?: *}} [bands]  Reach in feet by band.
+ * @returns {{key: string, type: string, value: string}[]}
+ */
+export function magicLightChanges(bands = {}) {
+  return MAGIC_LIGHT_BANDS.map((band) => {
+    const feet = typeof bands?.[band] === "number" ? positiveFigure(bands[band]) : null;
+    return {
+      key: MAGIC_LIGHT_CHANGE_KEYS[band],
+      type: CHANGE.UPGRADE,
+      value: Number.isInteger(feet) ? String(feet) : "",
+    };
+  });
+}
+
+/**
+ * What a magic-light Active Effect is made of: its `changes` and the flags to
+ * spread into the effect's `flags["acks-extras"]`.
+ *
+ * @param {object} [options]
+ * @param {{daylight?: *, bright?: *, dim?: *}} [options.bands]  Reach in feet by band, as `magicLightChanges` reads it.
+ * @param {string} [options.cite]  The page the reach was read from; carried as `MAGIC_LIGHT_CITE_FLAG` when non-blank.
+ * @returns {{changes: object[], flags: object}}
+ */
+export function magicLightRecord({ bands, cite } = {}) {
+  const text = typeof cite === "string" ? cite.trim() : "";
+  return { changes: magicLightChanges(bands), flags: text ? { [MAGIC_LIGHT_CITE_FLAG]: cite } : {} };
+}
+
+/** The page a magic-light effect's reach was read from, or null when it names none. */
+export function magicLightCite(effect) {
+  const cite = effect?.getFlag?.(MODULE_ID, MAGIC_LIGHT_CITE_FLAG) ?? effect?.flags?.[MODULE_ID]?.[MAGIC_LIGHT_CITE_FLAG];
+  return typeof cite === "string" && cite.trim() ? cite : null;
+}
+
+/**
  * What a magic light is doing: `shining` (it counts toward what the bearer
  * sheds), `shuttered` (held back by hand) or `stowed` (its holder is not
  * carrying it where it shines).
@@ -509,9 +557,11 @@ export function lightControl(effect, { name, bearer = "" } = {}) {
 /**
  * Every magic light an actor holds: one entry per applied Active Effect that
  * writes a band's key, `{id, uuid, label, itemName, itemId, daylight, bright,
- * dim, state}`. `itemName` and `itemId` are the item the effect rides on, null for
+ * dim, state, cite}`. `itemName` and `itemId` are the item the effect rides on, null for
  * an effect placed on the actor; each band is feet, null when
- * the effect states none; `state` is the effect's `LIGHT_STATE`. Read from the
+ * the effect states none; `state` is the effect's `LIGHT_STATE`; `cite` is the
+ * page the reach was read from (`magicLightCite`), null when the effect names
+ * none. Read from the
  * effect's own change values rather than from the prepared flag, so each
  * source stays nameable. A disabled or suppressed effect is not applied and so
  * is not listed, nor is one that is never a carried light (`lightStateOf`
@@ -547,6 +597,7 @@ export function magicLights(actor) {
       bright,
       dim,
       state,
+      cite: magicLightCite(effect),
     });
   }
   return out;

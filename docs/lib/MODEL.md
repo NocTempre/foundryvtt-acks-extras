@@ -791,8 +791,14 @@ Judge from their own copy, so nothing printed ships (the item sheet's Effects ta
 has an Add effect control whose Magic Light choice creates the effect with all
 three values empty; an item with no effect opens in the simple view, which has no tab
 strip, so the control also stands beside Details there).
+`magicLightChanges(bands)` builds the three changes (a band holding anything but a
+positive whole figure is left blank) and `magicLightRecord({bands, cite})` pairs
+them with the flags to spread into the effect's `flags["acks-extras"]`. A light row
+on a spell carries `lightBands`, its reach in feet by band, each blank until typed
+or imported. A magic-light effect may carry `MAGIC_LIGHT_CITE_FLAG`, the page its
+reach was read from, which `magicLights` reads back as `cite` (null when absent).
 `magicLights(actor)` reads one entry per applied effect that writes any band's key,
-`{id, uuid, label, itemName, itemId, daylight, bright, dim, state}`, from the effect's own
+`{id, uuid, label, itemName, itemId, daylight, bright, dim, state, cite}`, from the effect's own
 change values (not the prepared flag) so each source stays nameable;
 `appliedEffects` already leaves out a disabled or suppressed effect, and a
 change's type is not read: the largest figure per radius stands. `effectLight(actor)`

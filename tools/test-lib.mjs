@@ -64,8 +64,9 @@ import {
   senseProfile,
 } from "../scripts/lib/senses.mjs";
 import {
-  LIGHT_DOC, LIGHT_LEVELS, LIGHT_SHUTTER_FLAG, LIGHT_STATE, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, brightestLightReaching, effectLight, emittedLight,
-  isLightShuttered, lightAtLeast, lightCite, lightControl, lightFigures, lightLevelAt, lightLevelOf, lightStateDetail, lightStateOf, magicLights, mergeLight, setLightShutter,
+  LIGHT_DOC, LIGHT_LEVELS, LIGHT_SHUTTER_FLAG, LIGHT_STATE, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, MAGIC_LIGHT_CITE_FLAG, brightestLightReaching, effectLight, emittedLight,
+  isLightShuttered, lightAtLeast, lightCite, lightControl, lightFigures, lightLevelAt, lightLevelOf, lightStateDetail, lightStateOf, magicLightChanges, magicLightCite,
+  magicLightRecord, magicLights, mergeLight, setLightShutter,
   shedLight, writesMagicLight,
 } from "../scripts/lib/light.mjs";
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
@@ -2523,7 +2524,7 @@ const effectActor = (effects, { id = "a1", flameLights = [] } = {}) => ({
       id: e.id,
       name: e.name ?? "",
       disabled: !!e.disabled,
-      flags: e.shuttered ? { "acks-extras": { [LIGHT_SHUTTER_FLAG]: true } } : {},
+      flags: { "acks-extras": { ...(e.shuttered ? { [LIGHT_SHUTTER_FLAG]: true } : {}), ...(e.cite !== undefined ? { [MAGIC_LIGHT_CITE_FLAG]: e.cite } : {}) } },
       parent: e.parent ?? (e.item ? { documentName: "Item", name: e.item } : { documentName: "Actor" }),
       changes: [
         ...(e.daylight !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.daylight, type: "upgrade", value: e.daylight }] : []),
@@ -2541,8 +2542,8 @@ t("magicLights: each applied effect that writes a radius is one named source", (
     { id: "e3", name: "Unrelated", other: true },
   ]);
   assert.deepEqual(magicLights(actor), [
-    { id: "e1", uuid: null, label: "Glow", itemName: "Lamp of Testing", itemId: null, daylight: null, bright: 21, dim: 42, state: "shining" },
-    { id: "e2", uuid: null, label: "Spark", itemName: null, itemId: null, daylight: null, bright: null, dim: 9, state: "shining" },
+    { id: "e1", uuid: null, label: "Glow", itemName: "Lamp of Testing", itemId: null, daylight: null, bright: 21, dim: 42, state: "shining", cite: null },
+    { id: "e2", uuid: null, label: "Spark", itemName: null, itemId: null, daylight: null, bright: null, dim: 9, state: "shining", cite: null },
   ]);
   assert.equal(magicLights(effectActor([{ id: "e9", name: "Unrelated", other: true }])).length, 0, "an effect that writes neither key is no light");
 });
@@ -2555,7 +2556,7 @@ t("magicLights: an effect that names a light with no figure is listed with none,
   // The scan skips the disabled effect itself; a suppressed one reaching the list is skipped here.
   actor.appliedEffects.push({ id: "e3", name: "Held", disabled: false, isSuppressed: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
   actor.appliedEffects.push({ id: "e4", name: "Off", disabled: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
-  assert.deepEqual(magicLights(actor), [{ id: "e1", uuid: null, label: "Blank", itemName: null, itemId: null, daylight: null, bright: null, dim: null, state: "shining" }]);
+  assert.deepEqual(magicLights(actor), [{ id: "e1", uuid: null, label: "Blank", itemName: null, itemId: null, daylight: null, bright: null, dim: null, state: "shining", cite: null }]);
   assert.deepEqual(effectLight(actor), { daylight: 0, bright: 0, dim: 0 }, "no figure, no light");
   assert.deepEqual(effectLight({ id: "x" }), { daylight: 0, bright: 0, dim: 0 }, "an actor with no effects sheds none");
 });
@@ -2796,6 +2797,35 @@ t("magicLights and effectLight: only a shining light counts, and a spell's is no
   const dark = effectActor([{ id: "e5", bright: "30", shuttered: true }]);
   assert.deepEqual(effectLight(dark), { daylight: 0, bright: 0, dim: 0 });
   assert.deepEqual(shedLight(dark), { daylight: 0, bright: 0, dim: 0, kind: "flame" }, "nothing shining: no magic kind");
+});
+
+t("magicLightChanges: one upgrade per band in band order, a blank for anything but a positive whole figure", () => {
+  const keys = [MAGIC_LIGHT_CHANGE_KEYS.daylight, MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim];
+  assert.deepEqual(magicLightChanges({}), keys.map((key) => ({ key, type: "upgrade", value: "" })));
+  assert.deepEqual(magicLightChanges(), magicLightChanges({}));
+  const stated = magicLightChanges({ daylight: 0, bright: 30, dim: null });
+  assert.deepEqual(stated.map((c) => c.key), keys);
+  assert.deepEqual(stated.map((c) => c.value), ["", "30", ""]);
+  assert.deepEqual(magicLightChanges({ daylight: -5, bright: "30", dim: 12 }).map((c) => c.value), ["", "", "12"], "a negative or a non-number is blank");
+});
+
+t("magicLightRecord: the changes, and the page flag only when a cite is named", () => {
+  const withCite = magicLightRecord({ bands: { bright: 15 }, cite: "RR 1" });
+  assert.deepEqual(withCite.changes.map((c) => c.value), ["", "15", ""]);
+  assert.deepEqual(withCite.flags, { [MAGIC_LIGHT_CITE_FLAG]: "RR 1" });
+  assert.deepEqual(magicLightRecord({ bands: { dim: 9 } }).flags, {});
+  assert.deepEqual(magicLightRecord({ cite: "   " }).flags, {});
+  assert.deepEqual(magicLightRecord(), { changes: magicLightChanges({}), flags: {} });
+});
+
+t("magicLightCite and magicLights: the page rides the effect's flag, and an effect without one reads null", () => {
+  assert.equal(magicLightCite({ flags: { "acks-extras": { [MAGIC_LIGHT_CITE_FLAG]: "RR 1" } } }), "RR 1");
+  assert.equal(magicLightCite({ getFlag: (scope, key) => (scope === "acks-extras" && key === MAGIC_LIGHT_CITE_FLAG ? "RR 2" : undefined) }), "RR 2");
+  assert.equal(magicLightCite({ flags: { "acks-extras": { [MAGIC_LIGHT_CITE_FLAG]: "  " } } }), null);
+  assert.equal(magicLightCite({}), null);
+  assert.equal(magicLightCite(null), null);
+  const lights = magicLights(effectActor([{ id: "e1", bright: "10", cite: "RR 1" }, { id: "e2", bright: "10" }]));
+  assert.deepEqual(lights.map((l) => l.cite), ["RR 1", null]);
 });
 
 t("writesMagicLight: an effect declares a light by either radius key", () => {

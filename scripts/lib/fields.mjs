@@ -486,6 +486,13 @@ export function effectField() {
     control: choice(CONTROL_KINDS),
     // What becomes of the creatures when the summoner's control ends (`magic-vocab.mjs` `CONTROL_ENDS`); blank reads as `stays`.
     controlEnd: choice(CONTROL_ENDS),
+    // A light row's reach in feet, by band (`light.mjs` `MAGIC_LIGHT_BANDS`).
+    // Each band is blank until typed or imported, and a blank band sheds nothing.
+    lightBands: new SchemaField({
+      daylight: num({ integer: true, min: 0 }),
+      bright: num({ integer: true, min: 0 }),
+      dim: num({ integer: true, min: 0 }),
+    }),
     // resource / economic
     resource: choice(RESOURCE_KINDS),
     action: choice({ spend: { label: "Spend" }, gain: { label: "Gain" } }),
