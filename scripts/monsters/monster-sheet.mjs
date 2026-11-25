@@ -45,6 +45,7 @@ import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensate
 import { getManager } from "../henchmen/acks-adapter.mjs";
 import { blankedFigures, blankUnreadRows } from "./unread-figures.mjs";
 import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
+import { itemRunRowFor, openItemRunCard, pressItemRun } from "../lib/item-run-row-view.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 const loc = makeLoc("ACKS-MONSTERS");
@@ -197,6 +198,8 @@ export function createFullMonsterSheet(Base) {
         ...ACTIONS,
         roll: FullMonsterSheet.#onRoll,
         reachStripSave: (_event, target) => pressStripSave(target),
+        itemRunPress: (_event, target) => pressItemRun(target),
+        itemRunCard: (_event, target) => openItemRunCard(target),
         pinRoll: FullMonsterSheet.#onPinRoll,
         hpCell: FullMonsterSheet.#onHpCell,
         moveMenu: FullMonsterSheet.#onMoveMenu,
@@ -299,6 +302,9 @@ export function createFullMonsterSheet(Base) {
       context.carriedItems = items.filter((i) => !i.getFlag(MODULE_ID, "spoil"));
       // Each carried row's count view by item id: a row prints `×N` only above one.
       context.carriedCounts = Object.fromEntries(context.carriedItems.map((i) => [i._id, countView(i)]));
+      // Each inventory row's run state by item id: the tag, the line and, for an owner, the presses (`item-run-row-view.mjs`).
+      const runRows = [...context.carriedItems, ...(context.owned?.armors ?? []), ...(context.owned?.clothes ?? [])];
+      context.carriedRuns = Object.fromEntries(runRows.map((i) => [i._id, itemRunRowFor(i)]).filter(([, row]) => row));
       context.encumbrance = computeEncumbrance(actor, extras);
       context.choices = choices();
       // The Deal button beside the Treasure type field: a Judge's, and idle while the sheet states no letter.

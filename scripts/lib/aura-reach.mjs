@@ -492,6 +492,30 @@ const isEngagedReach = (region) => auraConfigsOf(region).some((config) => isEnga
 /** Whether a token already has the Region of one item's row. */
 const hasEngagedReach = (token, item, rowKey) => reachesOf(token).some((region) => isEngagedReach(region) && auraConfigsOf(region).some((c) => c.sourceUuid === item.uuid && c.rowKey === rowKey));
 
+/**
+ * Whether a token holds the always-on ring of one item's row, and how many
+ * bodies it engages now: the Region's own tokens that the row's filter admits
+ * and `engagementHolds` allows, the bearer, markers and bodies it cannot settle
+ * left out. A row that reads no reach has no ring.
+ *
+ * @param {TokenDocument|null} token the bearer's token
+ * @param {Item} item
+ * @param {object} row an item row (`itemRunRowsOf`)
+ * @returns {{stands: boolean, count: number}}
+ */
+export function engagedStateOf(token, item, row) {
+  const reach = readReach(row?.reach);
+  const region = token && reach ? reachesOf(token).find((r) => isEngagedReach(r) && auraConfigsOf(r).some((c) => c.sourceUuid === item?.uuid && c.rowKey === row.key)) : null;
+  if (!region) return { stands: false, count: 0 };
+  const bearer = bodyOf(token);
+  const engaging = [...(region.tokens ?? [])].filter((other) => {
+    if (other.id === token.id) return false;
+    const subject = bodyOf(other);
+    return reachAdmits(bearer, subject, reach.filter, { isMarker: isMarkerActor }) === true && engagementHolds(bearer, subject, { conditionsOf: conditionsOfActor });
+  });
+  return { stands: true, count: engaging.length };
+}
+
 /** The Region keys being made right now, so a second call for the same body passes it by instead of making a second. */
 const making = new Set();
 

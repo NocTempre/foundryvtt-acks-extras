@@ -41,6 +41,7 @@
             </div>
             {{/if}}
           </div>
+          {{#with (lookup ../carriedRuns item._id) as |run|}}{{> "modules/acks-extras/templates/lib/item-run-row.hbs" run}}{{/with}}
           <div class="item-summary"></div>
         </li>
         {{/each}}
@@ -57,6 +58,7 @@
             </div>
             {{/if}}
           </div>
+          {{#with (lookup ../carriedRuns item._id) as |run|}}{{> "modules/acks-extras/templates/lib/item-run-row.hbs" run}}{{/with}}
           <div class="item-summary"></div>
         </li>
         {{/each}}
@@ -72,6 +74,7 @@
             </div>
             {{/if}}
           </div>
+          {{#with (lookup ../carriedRuns item._id) as |run|}}{{> "modules/acks-extras/templates/lib/item-run-row.hbs" run}}{{/with}}
           <div class="item-summary"></div>
         </li>
         {{/each}}

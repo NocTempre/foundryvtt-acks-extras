@@ -1802,3 +1802,38 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
 .acks-extras-reach-strip__blank {
   color: var(--acks-ink-soft);
 }
+
+/* An item the carrier runs, on its row of a sheet: the state tag, the line naming
+   its use and reach, and the presses. A raised row carries the spot rule the
+   board draws. The row wraps so every press stays reachable in a narrow window;
+   a press that is off dims and takes no press. */
+.acks-extras-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+  padding-block: var(--acks-sp-2);
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-run.is-raised {
+  padding-inline-start: var(--acks-sp-3);
+  box-shadow: inset 3px 0 0 var(--acks-spot);
+}
+
+.acks-extras-run__line {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+
+.acks-extras-run__cite,
+.acks-extras-run__blank {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-run .is-off,
+.acks-extras-frame__ctl.is-off {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

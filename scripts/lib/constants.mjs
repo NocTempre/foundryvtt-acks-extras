@@ -1,6 +1,9 @@
 /** This module's id, the key of its flag scope and the prefix of its sub-types. */
 export const MODULE_ID = "acks-extras";
 
+/** The picture the importer gives an item it mints with no picture of its own; a surface that draws an item reads it as "no picture". */
+export const MINTED_ITEM_IMG = "icons/containers/bags/sack-leather-tan.webp";
+
 /** The root of the lib subsystem's lang keys. */
 export const LANG_PREFIX = "ACKS-LIB";
 

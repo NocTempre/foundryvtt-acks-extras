@@ -70,6 +70,9 @@ export function registerActivationRunner(kind, fn) {
   else runners.delete(kind);
 }
 
+/** Whether a runner is registered for an activation kind: the carrier claims an item's use only then, so a press offered on a row must ask this first. */
+export const hasActivationRunner = (kind) => runners.has(kind);
+
 /** Register what presents a use's result (posts the prompt card); a non-function clears it. */
 export function setUsePresenter(fn) {
   presenter = typeof fn === "function" ? fn : null;

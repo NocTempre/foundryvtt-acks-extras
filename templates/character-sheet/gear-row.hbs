@@ -7,6 +7,7 @@
     <span class="acks-extras-frame__gear-text">
       <a class="acks-extras-frame__gear-name" data-action="itemEdit">{{name}}{{#if stack}} <span class="acks-nums" data-tooltip-text="{{countTip}}">×{{qty}}</span>{{/if}}</a>
       {{#if line}}<span class="acks-extras-frame__gear-line acks-nums"{{#if lineTip}} data-tooltip-text="{{lineTip}}"{{/if}}>{{line}}</span>{{/if}}
+      {{#if run}}{{> "modules/acks-extras/templates/lib/item-run-row.hbs" run hideButtons=true}}{{/if}}
     </span>
     <span class="acks-extras-frame__ctls">
       {{#if controls.roll}}

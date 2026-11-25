@@ -55,7 +55,7 @@ function immunityOf(actor, kindKey) {
 }
 
 /** The tooltip and page of a reach's radius: the imported table's row where it read one, else the item's own page alone. */
-function radiusFigure(reach, item) {
+export function radiusFigure(reach, item) {
   const radius = figureNumber(reach.radius);
   const ref = reach.radius ?? {};
   const cite = (ref.doc && ref.table ? citeOf(ref.doc, ref.table) : null) ?? itemCite(item);
@@ -193,6 +193,13 @@ function refreshSheets(tokenUuids = null) {
   }
 }
 
+/** Re-render the open sheet of the actor that carries an item, by the item's uuid. */
+function refreshItemSheets(itemUuid) {
+  const actor = fromUuidSync(itemUuid)?.actor ?? null;
+  if (!actor) return;
+  for (const app of foundry.applications.instances?.values?.() ?? []) if (app?.rendered && app.document === actor) app.render();
+}
+
 let installed = false;
 
 /** Register the hooks that keep an open sheet's strip current: a raised card's change, a token's move and a Region's making or lifting. */
@@ -201,8 +208,17 @@ export function installItemRunStrip() {
   installed = true;
   Hooks.on("updateChatMessage", (message) => {
     const card = message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD];
-    if (card) refreshSheets(new Set(cardSubjectUuids(card)));
+    if (!card) return;
+    refreshSheets(new Set(cardSubjectUuids(card)));
+    if (card.itemUuid) refreshItemSheets(card.itemUuid);
   });
+  // A raised item's row on its bearer's sheet counts the card's listed bodies, and the card is posted after the write that raised the item.
+  for (const name of ["createChatMessage", "deleteChatMessage"]) {
+    Hooks.on(name, (message) => {
+      const card = message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD];
+      if (card?.itemUuid) refreshItemSheets(card.itemUuid);
+    });
+  }
   Hooks.on("updateToken", (token, change) => {
     if (["x", "y", "width", "height", "hidden"].some((key) => key in (change ?? {}))) refreshSheets();
   });

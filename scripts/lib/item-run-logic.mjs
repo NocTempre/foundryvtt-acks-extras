@@ -16,6 +16,7 @@ import { ITEM_RUN_ACTIVATIONS, ITEM_TYPE } from "./vocab.mjs";
 import { turnLifeStep } from "./turn-life.mjs";
 import { conditionEffectId } from "./status-effects.mjs";
 import { numOrNull } from "./util.mjs";
+import { stackCountOf } from "./item-model.mjs";
 import { namesFigure, readReach, resolveFigure } from "./aura-reach-logic.mjs";
 
 /* -------------------------------------------- */
@@ -71,6 +72,22 @@ export function itemRunRowsOf(item) {
  * Regions are the module's to make and lift (`ensureEngagedReaches`), not a
  * press's.
  */
+/** The activation kinds that spend one of the item's count when pressed; a count of none leaves them used up. */
+export const SPENDING_KINDS = Object.freeze(["fuse", "consume"]);
+
+/**
+ * Whether a run item is used up: its activation spends a count (a spending kind, or any kind that names
+ * `uses`), the item carries a count, and the count is none. Never true of a raised item, which must stay
+ * lowerable, nor of an item that is not a run item.
+ */
+export function itemRunUsedUp(item) {
+  const activation = itemRunOf(item)?.activation;
+  if (!activation || activation.state?.active) return false;
+  if (!SPENDING_KINDS.includes(activation.kind) && !activation.uses) return false;
+  const count = stackCountOf(item);
+  return count !== null && count <= 0;
+}
+
 export const alwaysOn = (item) => !!item && item.type !== ITEM_TYPE.spell && !itemRunOf(item);
 
 /**

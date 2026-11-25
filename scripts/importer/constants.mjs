@@ -1,4 +1,4 @@
-import { MODULE_ID } from "../lib/constants.mjs";
+import { MODULE_ID, MINTED_ITEM_IMG } from "../lib/constants.mjs";
 export { MODULE_ID };
 /** The root of the importer's lang keys (`ACKS-IMPORTER.*`). */
 export const LANG_PREFIX = "ACKS-IMPORTER";
@@ -31,6 +31,6 @@ export const DEFAULT_IMG = Object.freeze({
   ARMOR: "icons/equipment/chest/breastplate-layered-steel.webp",
   SHIELD: "icons/equipment/shield/heater-steel-worn.webp",
   ABILITY: "icons/sundries/books/book-worn-brown.webp",
-  ITEM: "icons/containers/bags/sack-leather-tan.webp",
+  ITEM: MINTED_ITEM_IMG,
   TRAINING: "icons/skills/melee/weapons-crossed-swords-black.webp",
 });

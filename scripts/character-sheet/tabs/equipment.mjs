@@ -42,6 +42,7 @@ import { GROUND_FLAG, isGroundPile } from "../../lib/place.mjs";
 import { SET_DOWN_FLAG } from "../../location/ground.mjs";
 import { pileRowFacts } from "../../location/ground-logic.mjs";
 import { spendPicks } from "../../lib/picks.mjs";
+import { itemRunRowFor } from "../../lib/item-run-row-view.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -68,6 +69,12 @@ const attrsOf = (data) =>
 /** One control on a row. `data` becomes `data-*` attributes the sheet's action reads. */
 const ctl = (action, icon, title, data = {}, cls = "") => ({ action, icon, title, cls, attrs: attrsOf(data) });
 
+/** One of an item's run presses as a state control: its uuid is the one attribute the sheet's action reads, and a press that is off says so to assistive technology. */
+const runPressCtl = (press) => {
+  const c = ctl(press.action, press.icon, `${press.label}: ${press.tip}`, { itemUuid: press.itemUuid }, press.disabled ? "is-off" : "");
+  return press.disabled ? { ...c, attrs: `${c.attrs} aria-disabled="true"` } : c;
+};
+
 /**
  * What the stack keeps when this row's equip control is pressed, or null when
  * the press takes none off a stack. It asks the very test the equip write
@@ -89,9 +96,11 @@ function equipTitle(item, plain, one) {
 
 /**
  * The controls a row offers its owner, in three groups: the roll, the state
- * toggles, and the housekeeping.
+ * toggles, and the housekeeping. An item the carrier runs adds its presses
+ * (`run`, `itemRunRowFor`) to the state toggles: Raise, Lower and Card for a
+ * toggle, Use for a used-up kind, the last off once nothing is left.
  */
-function rowControls(actor, item, loadout, lights) {
+function rowControls(actor, item, loadout, lights, run = null) {
   const roll = item.type === ITEM_TYPE.weapon ? `wpn:${item.id}:${item.system?.melee || !item.system?.missile ? "atk:melee" : "atk:missile"}` : null;
   const state = [];
   const keep = [];
@@ -99,6 +108,7 @@ function rowControls(actor, item, loadout, lights) {
 
   const stowed = !!containedIn(item);
   if (stowed) state.push(ctl("takeOut", "fa-solid fa-arrow-up-from-bracket", game.i18n.localize("ACKS-EQUIPMENT.container.takeOut")));
+  for (const press of run?.presses ?? []) state.push(runPressCtl(press));
 
   if (item.type === ITEM_TYPE.weapon && !item.getFlag(MODULE_ID, ITEM_FLAGS.THROWN_STATE)) {
     const equipped = !!item.system?.equipped;
@@ -194,6 +204,7 @@ function rowOf(actor, item, ctx, depth = 0) {
   // A weapon's die is the one its row rolls: the grip it is held in.
   const held = item.type === ITEM_TYPE.weapon ? heldGrip(actor, item) : null;
   const { qty, stack, countTip } = countView(item);
+  const run = itemRunRowFor(item);
   const row = {
     id: item.id,
     name: item.name,
@@ -204,7 +215,8 @@ function rowOf(actor, item, ctx, depth = 0) {
     stack,
     countTip,
     wielded: wieldedIds.has(item.id),
-    controls: rowControls(actor, item, loadout, lights),
+    run,
+    controls: rowControls(actor, item, loadout, lights, run),
     isMoney: isCurrency(item),
     container: null,
   };
