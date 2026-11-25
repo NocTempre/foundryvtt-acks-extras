@@ -26,7 +26,13 @@
  * monster with no letter, none for an Observer, and its press opening a staged
  * pot with that one row at one hoard and nothing dealt); step 7 (a pot opened to the
  * table has no rail, a deal into it is refused by lang string, a deal for a
- * style with no table says so by lang string and nothing throws).
+ * style with no table says so by lang string and nothing throws); step 8 (jewelry
+ * hoards: the classic type whose jewelry cell reads with the best chance, chosen
+ * from the cells, set on a fresh pot as ten hoards by the picker's and the row's
+ * presses and dealt by Deal on the real dice, which reach every band of the value
+ * list; no deal warning or error carries `bad-value`, and every jewelry card the
+ * pot holds is valued above zero; a page-side count over forty hoards on the
+ * same dice says whether a band printed as a throw was dealt at all).
  *
  * Fixtures, kept and found by marker: `treasure/deal-scene` (a scene),
  * `treasure/monster-lettered` (a monster whose treasure type is the chosen
@@ -43,7 +49,8 @@
  * mouse presses at the control's centre when the control is the element under
  * that point. Scripted: the die under a Deal press (the GM page's
  * `CONFIG.Dice.randomUniform` is held at its floor around each Deal so a
- * chance cell always hits, and put back after each), the token selection
+ * chance cell always hits, and put back after each; step 8's Deal presses are the
+ * exception and run on the real dice), the token selection
  * (`control()`), the scene being viewed, the window's reopen, the Ecology tab's
  * switch, the drops (the actor drop is a `drop` event carrying the drag data a
  * sidebar drag writes), and the refusals of step 7, which have no control.
@@ -358,6 +365,60 @@ const P = {
       cardsDelta: pile.cards.size - before,
     };
   },
+  /**
+   * The classic type whose jewelry cell the engine reads with the best chance of a hit (a clause with no
+   * chance counts as certain, a zero chance never fires), chosen from the cells alone: a deal that came
+   * out empty would hide the fault the step is there to catch. Counts and the letter come back, no figure.
+   */
+  pickJewelry: async () => {
+    const T = await import("/modules/acks-extras/scripts/lib/tables.mjs");
+    const B = await import("/modules/acks-extras/scripts/importer/treasure-binding.mjs");
+    const HL = await import("/modules/acks-extras/scripts/treasure/hoard-logic.mjs");
+    if (!T.hasDoc(B.TREASURE_DOC_ID)) return { imported: false, letter: null, tried: 0, readable: 0, refused: 0 };
+    const rows = T.getDoc(B.TREASURE_DOC_ID).tables?.typeClassic ?? {};
+    let readable = 0;
+    let refused = 0;
+    let letter = null;
+    let top = 0;
+    for (const key of Object.keys(rows)) {
+      const parsed = HL.parseCell(rows[key]?.jewelry, { column: "jewelry" });
+      if (parsed.error) { refused++; continue; }
+      const chances = (parsed.terms ?? []).filter((x) => x.chance !== 0).map((x) => x.chance ?? 100);
+      if (!chances.length) continue;
+      readable++;
+      if (Math.max(...chances) > top) { top = Math.max(...chances); letter = key; }
+    }
+    return { imported: true, letter, tried: Object.keys(rows).length, readable, refused };
+  },
+  /** `hoards` hoards of `letter` dealt on the real dice, page-side: the jewelry cards, those valued above zero, the thrown-value audit rows and the `bad-value` errors, as counts. */
+  jewelryHoards: async ({ letter, hoards }) => {
+    const Hd = await import("/modules/acks-extras/scripts/treasure/hoard.mjs");
+    let jewelry = 0;
+    let valued = 0;
+    let thrown = 0;
+    let bad = 0;
+    for (let i = 0; i < hoards; i++) {
+      const out = await Hd.dealHoard({ letter, style: "classic", toggles: { noMagic: true } });
+      for (const x of out.truths) if (x.pool === "jewelry") { jewelry++; if (x.valueGp > 0) valued++; }
+      thrown += out.audit.filter((a) => a.value === true).length;
+      bad += out.errors.filter((e) => e.code === "bad-value").length;
+    }
+    return { hoards, jewelry, valued, thrown, bad };
+  },
+  /** The jewelry cards a pot holds, read from each card's truth, and how many of them carry a value above zero. */
+  jewelryCards: async ({ potId }) => {
+    const pile = globalThis.__tk.pile(potId);
+    if (!pile) return { found: false };
+    const jewelry = pile.cards.contents.map((c) => c.getFlag("acks-extras", "card")).filter((x) => x?.pool === "jewelry");
+    return { found: true, cards: pile.cards.size, jewelry: jewelry.length, valued: jewelry.filter((x) => Number(x.valueGp) > 0).length };
+  },
+  /** Wait for any notification a Deal press raises (the deal's report, a warning or an error), which a deal that stages nothing never makes as the report. */
+  waitNote: async ({ ms = 20000 }) => {
+    const H = globalThis.__tk;
+    const got = await H.poll(() => (H.infos ?? []).length + (H.warns ?? []).length + (H.errNotes ?? []).length > 0, { tries: Math.ceil(ms / 250), every: 250 });
+    await H.sleep(900);
+    return !!got;
+  },
   /** A monster's sheet on its Ecology tab, and the Deal control beside Treasure type. */
   sheetEcology: async ({ actorId }) => {
     const H = globalThis.__tk;
@@ -668,6 +729,52 @@ try {
   const refusedPl = await run(player, P.dealApi, { potId: potC.potId, letter: LETTER, expectKey: "deal.refuse.notAllowed" });
   check("the Player seat's deal into that pot is refused as Judge-only, worded by lang string, and stages nothing", refusedPl.found && refusedPl.threw === null && refusedPl.ok === false && refusedPl.reason === "notAllowed" && refusedPl.said && refusedPl.cardsDelta === 0, { found: refusedPl.found, reason: refusedPl.reason, said: refusedPl.said });
   note("step 7, the registry-unimported half", "not reached: the shared world's registry is imported, and every style the pot offers has its table");
+
+  section("Step 8. jewelry hoards, dealt on the real dice");
+  const jw = await run(gm, P.pickJewelry);
+  note("jewelry: the imported classic grid's cells, by how the engine reads them", { types: jw.tried, readable: jw.readable, refused: jw.refused });
+  if (!jw.imported || !jw.letter) note("step 8, jewelry hoards", `not reached: no classic type's jewelry cell reads with a chance of a hit (${jw.refused} refused whole)`);
+  else {
+    const JEWELRY_HOARDS = 10;
+    await run(gm, K.closeAll);
+    const potJ = await run(gm, P.newPot);
+    if (!potJ) throw new Error("no pot window opened on the GM seat for the jewelry hoards");
+    made.push(gm.track(potJ.uuid, "Cards"));
+    const pj = (sel) => ({ scope: "sheet", potId: potJ.potId, sel });
+    await press(gm, PORTS.gm, pj("button[data-action='toggleDeal'][data-toggle='noMagic']"), "No magic");
+    await sleep(700);
+    await press(gm, PORTS.gm, pj("[data-action='dealLair']"), "Met in their lair");
+    await sleep(900);
+    await press(gm, PORTS.gm, pj("[data-action='dealPicker'][aria-expanded]"), "+ Add treasure type");
+    await sleep(700);
+    await press(gm, PORTS.gm, pj(`[data-action='dealPick'][data-letter=${JSON.stringify(jw.letter)}]`), "pick the jewelry type");
+    await sleep(900);
+    for (let n = 1; n < JEWELRY_HOARDS; n++) {
+      await press(gm, PORTS.gm, pj(stepSel("hand", 0, 1)), `+ on the by-hand row (${n})`);
+      await sleep(600);
+    }
+    const setJ = await run(gm, P.rail, { potId: potJ.potId });
+    check("the jewelry pot stands ready: classic, No magic and Met in their lair on, one by-hand row at the hoard count asked for, nothing dealt", setJ.style.classic === "true" && setJ.toggles.noMagic === "true" && setJ.lair === "true" && setJ.stored?.hand.length === 1 && setJ.stored.hand[0].letter === jw.letter && setJ.stored.hand[0].hoards === JEWELRY_HOARDS && setJ.cards === 0, { hand: setJ.stored?.hand.length, hoards: setJ.stored?.hand[0]?.hoards, cards: setJ.cards });
+    const presses = [];
+    let jc = { jewelry: 0, valued: 0 };
+    for (let n = 0; n < 3 && jc.jewelry === 0; n++) {
+      await run(gm, K.takeNotes);
+      await run(gm, P.takeErrors);
+      const pressed = await press(gm, PORTS.gm, pj("aside [data-action='dealRun']"), `Deal ${JEWELRY_HOARDS} hoards, press ${n + 1}`);
+      const waited = await run(gm, P.waitNote, {});
+      const notes = await run(gm, K.takeNotes);
+      const errs = await run(gm, P.takeErrors);
+      presses.push({ found: pressed.found, waited, said: [...notes.warns, ...errs].some((m) => m.includes("bad-value")), warns: notes.warns.length, errs: errs.length });
+      jc = await run(gm, P.jewelryCards, { potId: potJ.potId });
+    }
+    const live = await run(gm, P.jewelryHoards, { letter: jw.letter, hoards: 40 });
+    note("step 8, the thrown-value path (a band printed as a throw), counted page-side over 40 hoards on the real dice", { jewelry: live.jewelry, thrownValueRows: live.thrown });
+    if (!live.thrown) note("step 8, thrown values", "not reached: no band this type dealt on the real dice was printed as a throw, so only plain figures were read");
+    check("no deal warning or error carries the code bad-value, in any Deal press or in 40 hoards dealt page-side on the same dice", presses.length > 0 && presses.every((x) => x.found && !x.said) && live.bad === 0, { presses: presses.length, said: presses.filter((x) => x.said).length, bad: live.bad });
+    check("the Deal presses dealt at least one jewelry card, and every jewelry card the pot holds carries a value above zero", jc.found && jc.jewelry > 0 && jc.valued === jc.jewelry, { presses: presses.length, jewelry: jc.jewelry, valued: jc.valued });
+    check("hoards dealt page-side on the same dice give jewelry, each card valued above zero", live.jewelry > 0 && live.valued === live.jewelry, { hoards: live.hoards, jewelry: live.jewelry, valued: live.valued });
+    await run(gm, K.closeAll);
+  }
 
   section("console");
   for (const [key, api] of [["gm", gm], ["player", player]]) {
