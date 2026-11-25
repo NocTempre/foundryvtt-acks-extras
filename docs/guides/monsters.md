@@ -226,6 +226,29 @@ leaders but has no leader template beside it, is repaired in place: open
 **Manage Imports**, pick the shelf or book on the **Rebuild** tab and press
 **Go** (the *Reimport One Shelf (GM)* macro asks the same question).
 
+### Engaged reach (T10)
+
+A beastman generated with a trait that names the creatures it engages carries
+an always-on reach of one battle-map square (RR p. 288, p. 291). It needs no
+raising: while the body is in a started fight, a ring is made around its token,
+and it goes when the body leaves the fight or goes down.
+
+When one of those bodies is beside a token at the start of that token's turn,
+or the token steps into the square on its own turn, the **Chat tab** shows a
+card titled for the trait, "· engaged", with one row for each kind of item and
+the bearers named in its **Engaged by** column. The owners of the token that
+must save see that row with its **Save**, and the same save is whispered to
+them. A seat that owns every bearer on a row also sees the line saying what the
+module read, and **Not engaged** beside it: pressing it closes the row with no
+save and no record, and the row says who closed it; **Undo** on the closed row
+opens it again.
+
+The token's own sheet (**Actors tab → the character or monster → the sheet**)
+shows the same reach in its **In reach of** strip: *Save owed* with a **Save**
+while a row is open, *Failed* with the turns left while the failure lasts, and
+*Immune* with the turns left after a pass. Several bearers of one kind make one
+row.
+
 ## What an attack card shows
 
 An attack posts the system's own card. What this module knows about the
