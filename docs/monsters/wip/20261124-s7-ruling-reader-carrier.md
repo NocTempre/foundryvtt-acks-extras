@@ -1639,3 +1639,39 @@ ran; whether the printed type line carries the type word as the wiki shows;
 the group flags of a generated warband's bodies and leader; the order of
 lib's turn-life lift and the reach's turn-start prompt within one turn start;
 board 4a was not read in full for an undetermined control.
+
+### A9, directions (release hub, 2026-11-25)
+
+The release hub decided A9's open questions as directions, under the owner's
+"The point of the orchestrator is to organize my high level responses into
+clear directions for the simpler agents...", with the standing rulings "follow
+raw", "no house rules ship", "players get blocks, judges get warnings" and
+"gates read Foundry's ownership and permissions, invent none". The owner sees
+them in the hub's report and may overrule.
+
+- Departures 1 to 4 are built as A9 lists them: no Apply in the failed-save
+  well (a line names what was written and for how long; Undo is the second
+  look); the whispered card at the body's initiative start or its move within
+  reach, the raise listing bodies as waiting; E4's allies are subjects and
+  "Who counts" imports as Everyone; the save in Total and Target columns with
+  the press under Actions.
+- (b) An early Save press on a waiting row is offered to the Judge only, goes
+  through and posts a warning line. A body's owner sees the row waiting, with
+  no press, until its moment.
+- (c) The bearer's own row sits in a section of its own as undetermined and is
+  NOT counted by default, as E3. The tick that counts the bearer in is offered
+  by ownership of the item (Foundry's test, no `isGM`) and writes the item's
+  `self` filter. This replaces A9 point 5's "E4 and E9 write `ask`" with an
+  import default of `no` and an owner's control.
+- Every new control and figure on the cards carries a tooltip
+  (`ui-tooltips.md`); the release walk shoots both card states at 320 px.
+
+Correction to A9 point 3: no call site passes a circumstance, so E4's own
+`shaken` row is told only on the conditions catalogue's pending path, not
+through `circumstances`.
+
+S8b-1b-logic, as built (topic, 2f6531bc..dd5aa822): `under` answers null for a
+character bearer even in its own group; a qualifier with any unresolved part
+writes no item; `liftActivation` still finds the bearer's token on the viewed
+canvas alone (T-0835's second half, built in the UI slice); the `saveWhen`
+pass-through on `runOnce`'s direct action-part path is unpinned.
