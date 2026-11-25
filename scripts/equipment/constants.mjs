@@ -109,6 +109,15 @@ export const ITEM_FLAGS = Object.freeze({
   // Cleared when the stack runs out, so a spent declaration cannot silently
   // govern the next quiver.
   NOCKED: "nocked",
+  // A stack of ammunition whose hit asks a save and then deals delayed damage:
+  // `{saveKind, saveMod, formula, delayTurns, source, cite}`, the figures a
+  // gear row printed (`ammo.mjs` `onHitOf`). The silver precedent: a variant
+  // is a flag on its own stack.
+  ON_HIT: "onHit",
+  // A consumable a bearer drinks from: `{healDice, saveKind, condition,
+  // successHealDice, swigDice}`, the figures a gear row printed, `condition` a
+  // conditions-catalogue id (`monsters/gear-outcomes.mjs` `swigOutcome`).
+  DRINK: "drink",
   LOSS_CATEGORY: "lossCategory", // explicit position in the item-loss order
   ITEM_LOSS_AC: "itemLossAc", // armour class an armour has lost to item loss: a lasting layer, apart from the scavenged record
   LAYER: "layer", // clothing: "over" | "under" (armour)

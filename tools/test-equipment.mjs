@@ -2418,7 +2418,7 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
 
 SETTINGS_STATE.ammoTracking = true;
 globalThis.ui = globalThis.ui ?? { notifications: { info: () => {}, warn: () => {}, error: () => {} } };
-const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverThrown, consumeItem, nockAmmo } =
+const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverThrown, consumeItem, nockAmmo, shotStack, onHitOf } =
   await import(new URL("ammo.mjs", S));
 
 // A launcher's ammo type is resolved from category/name.
@@ -2497,6 +2497,40 @@ check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity ===
   silver._sys.quantity = 1;
   await consumeItem(silver, 1);
   check("an emptied stack drops its declaration", silver._flags.nocked === undefined);
+}
+
+// --- The stack a shot comes from, and what its hit asks (the `onHit` flag) ---
+{
+  const onHit = { saveKind: "sk", saveMod: -2, formula: "1d6", delayTurns: 3, source: "Row X", cite: "XX p. 1" };
+  const plain = trackItem("Quiver, 7 Arrows", { id: "plain", quantity: 7, equipped: false });
+  const silver = trackItem("Quiver, 7 Arrows (Silver)", { id: "silver", quantity: 7, equipped: false, special: { silver: true } });
+  const bow = trackItem("Long Bow", { missile: true, melee: false });
+  const arch = withItems([bow, silver, plain]);
+  arch.updateEmbeddedDocuments = async () => {};
+  const prof = classifyWeapon(bow);
+  check("shotStack names plain ammunition ahead of silver", shotStack(arch, bow, prof) === plain);
+  silver._flags.nocked = true;
+  check("shotStack names the nocked stack first", shotStack(arch, bow, prof) === silver);
+  delete silver._flags.nocked;
+  const named = shotStack(arch, bow, prof);
+  await consumeForAttack(arch, bow, prof, { type: "missile" });
+  check("the stack consumeForAttack spends is the stack shotStack named", named === plain && plain._sys.quantity === 6 && silver._sys.quantity === 7);
+  plain._flags.onHit = onHit;
+  check("the spent stack is the one whose hit onHitOf reads", onHitOf(shotStack(arch, bow, prof)) !== null && onHitOf(silver) === null);
+  plain._sys.quantity = 0;
+  check("an emptied stack is no stack: shotStack falls to the next", shotStack(arch, bow, prof) === silver);
+  silver._sys.quantity = 0;
+  check("with no rounds left shotStack answers null", shotStack(arch, bow, prof) === null);
+  const sword = trackItem("Sword", { melee: true });
+  check("a weapon that is no launcher has no shot stack", shotStack(arch, sword, classifyWeapon(sword)) === null);
+  check("a creature not yet created answers from its payloads", shotStack({ items: [{ name: "Quiver, 2 Arrows", type: "item", system: { quantity: 2 } }] }, bow, prof)?.name === "Quiver, 2 Arrows");
+
+  const stackWith = (flag) => trackItem("Quiver, 7 Arrows", { quantity: 7, flags: flag === undefined ? {} : { onHit: flag } });
+  check("a stack with no flag has no hit effect", onHitOf(stackWith()) === null && onHitOf(null) === null);
+  check("onHitOf reads the flag whole", JSON.stringify(onHitOf(stackWith(onHit))) === JSON.stringify(onHit));
+  check("a blank save kind and modifier read null", (() => { const r = onHitOf(stackWith({ formula: "1d6", delayTurns: 2 })); return r.saveKind === null && r.saveMod === null && r.source === "" && r.cite === ""; })());
+  check("a flag with no damage, or no whole turn count, is no effect", [{ delayTurns: 3 }, { formula: "1d6" }, { formula: "1d6", delayTurns: 0 }, { formula: "1d6", delayTurns: 1.5 }, { formula: " ", delayTurns: 2 }, "yes"].every((f) => onHitOf(stackWith(f)) === null));
+  check("a plain payload carries the flag too", onHitOf({ flags: { "acks-extras": { onHit } } })?.formula === "1d6");
 }
 
 // A melee attack consumes nothing.

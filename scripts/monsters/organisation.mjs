@@ -21,6 +21,9 @@ import { RANGE_BANDS } from "../lib/roll-gate-kinds.mjs";
 import { namesakeAbility } from "../importer/stats-map.mjs";
 import { MANEUVER_TABLES } from "../equipment/overlays/maneuvers.mjs";
 import { ITEM_FLAGS } from "../equipment/constants.mjs";
+import { shotStack } from "../equipment/ammo.mjs";
+import { classifyWeapon } from "../equipment/profiles.mjs";
+import { DEFAULT_IMG } from "../importer/constants.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -277,8 +280,62 @@ export function organisationAbility(kind, row, specs) {
 
 /** The manoeuvres an armour's damage rider reaches (the `MANEUVERS` keys of equipment). */
 const RIDER_MANEUVERS = Object.freeze(["overrun", "wrestling"]);
-/** A rider's dice as the importer reads them: a die count and a face count. */
-const RIDER_DICE = /^\d+d\d+$/;
+/** Dice as the importer reads them: a die count and a face count. */
+const DICE_TEXT = /^\d+d\d+$/;
+/** The dice text a figure holds, or null where it is blank or no die. */
+const diceFigure = (v) => (text(v) && DICE_TEXT.test(text(v)) ? text(v) : null);
+
+/**
+ * The `drink` flag of a consumable's gear row, or null where the row prints no
+ * healing dice. A figure the row left blank, or that is no dice, is null in it;
+ * a printed condition word that folds to no catalogue entry is null and goes to
+ * `miss(figureKey, word)`. The swig dice are stored and no count is set.
+ */
+function drinkFlag(f, miss) {
+  const healDice = diceFigure(f.healDice);
+  if (!healDice) return null;
+  const word = text(f.condition);
+  const condition = word ? matchCondition(word) : null;
+  if (word && !condition) miss("condition", word);
+  return { healDice, saveKind: text(f.saveKind), condition, successHealDice: diceFigure(f.successHealDice), swigDice: diceFigure(f.swigs) };
+}
+
+/** The consumable item a gear row with healing dice writes: named by the row, its page on the cookbook id, the figures on the `drink` flag. */
+function drinkItem(row, drink) {
+  return {
+    name: row.label,
+    type: "item",
+    img: DEFAULT_IMG.ITEM,
+    system: { description: "", subtype: "item", quantity: 1, cost: 0, weight: 0, weight6: 0 },
+    flags: { [MODULE_ID]: { cookbook: { id: `organisation.gear.${row.key}`, cite: row.cite ?? "" }, [ITEM_FLAGS.DRINK]: drink } },
+  };
+}
+
+/** The `onHit` flag of an ammunition row, or null where the row prints no turn count and damage dice. */
+function onHitFlag(row, f) {
+  const formula = diceFigure(f.damage);
+  if (!formula || !Number.isInteger(f.delayTurns) || f.delayTurns < 1) return null;
+  return { saveKind: text(f.saveKind), saveMod: figure(f.saveMod), formula, delayTurns: f.delayTurns, source: row.label, cite: row.cite ?? "" };
+}
+
+/**
+ * Flag the stack the first launcher of `items` shoots with `onHit` and declare
+ * it nocked (the archer fires its shots), taking the declaration from any other
+ * stack. The stack is the one `shotStack` names; nothing is written, and false
+ * is answered, where no launcher has one.
+ */
+function flagLauncherStack(items, onHit) {
+  const list = Array.isArray(items) ? items : [];
+  for (const weapon of list) {
+    if (weapon?.type !== "weapon") continue;
+    const stack = shotStack({ items: list }, weapon, classifyWeapon(weapon));
+    if (!stack) continue;
+    for (const other of list) if (other !== stack && other?.flags?.[MODULE_ID]) delete other.flags[MODULE_ID][ITEM_FLAGS.NOCKED];
+    stack.flags = { ...(stack.flags ?? {}), [MODULE_ID]: { ...(stack.flags?.[MODULE_ID] ?? {}), [ITEM_FLAGS.ON_HIT]: onHit, [ITEM_FLAGS.NOCKED]: true } };
+    return true;
+  }
+  return false;
+}
 
 /**
  * What the chosen equipment rows write on a creature, by the row's figure keys
@@ -295,13 +352,26 @@ const RIDER_DICE = /^\d+d\d+$/;
  *   - `figuresFrom` the hooked-weapon table: the module's hooked flag on each
  *     melee weapon item of `resolved.items` (mutated; missile weapons stay).
  *
+ *   - `healDice` (a consumable to drink): one item named by the row, its page
+ *     on `cookbook.cite` and its figures on the `drink` flag, the printed
+ *     condition word stored as the catalogue id `matchCondition` folds it to
+ *     (null, and listed in `unresolved`, where it folds to none). It carries no
+ *     swig count;
+ *   - `delayTurns` with damage dice (ammunition whose hit asks a save): the
+ *     `onHit` flag, and the nocked declaration, on the creature's stack of the
+ *     ammunition its launcher takes (`shotStack`, the stack the shot spends).
+ *     A creature that holds no launcher and stack writes nothing: the row stays
+ *     recorded on `extras.organisation.gear`.
+ *
  * A figure the import left blank writes nothing. Returns `{abilities, ac,
- * armourRows, hooked}`: the ability items to add, the summed bump (null where no
- * row has one), the `{label, cite}` of each row that gave it, and the count of
- * weapons flagged.
+ * armourRows, hooked, consumables, onHit, unresolved}`: the ability items to
+ * add, the summed bump (null where no row has one), the `{label, cite}` of each
+ * row that gave it, the count of weapons flagged, the consumable items to add,
+ * the count of ammunition stacks flagged, and the `{kind, key, figure, word}` of
+ * each figure that did not resolve.
  */
 export function gearPayloads(gear, resolved, { fights = true } = {}) {
-  const out = { abilities: [], ac: null, armourRows: [], hooked: 0 };
+  const out = { abilities: [], ac: null, armourRows: [], hooked: 0, consumables: [], onHit: 0, unresolved: [] };
   if (!fights) return out;
   for (const row of Array.isArray(gear) ? gear : []) {
     const f = row.figures ?? {};
@@ -309,7 +379,7 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
     const per = figure(f.reductionPerDie);
     if (per !== null && per > 0) specs.push({ type: "modifier", target: "damageReduction", perDie: true, value: per, gate: { kind: "weaponMundane" } });
     const dice = text(f.riderDice);
-    if (dice && RIDER_DICE.test(dice)) specs.push({ type: "modifier", target: "maneuverRider", maneuvers: [...RIDER_MANEUVERS], dice });
+    if (dice && DICE_TEXT.test(dice)) specs.push({ type: "modifier", target: "maneuverRider", maneuvers: [...RIDER_MANEUVERS], dice });
     const item = organisationAbility("gear", row, specs);
     if (item) out.abilities.push(item);
     const bump = figure(f.ac);
@@ -317,6 +387,10 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
       out.ac = (out.ac ?? 0) + bump;
       out.armourRows.push({ label: row.label, cite: row.cite ?? "" });
     }
+    const drink = drinkFlag(f, (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }));
+    if (drink) out.consumables.push(drinkItem(row, drink));
+    const hit = onHitFlag(row, f);
+    if (hit && flagLauncherStack(resolved?.items, hit)) out.onHit++;
     if (f.figuresFrom === MANEUVER_TABLES.hooked) {
       for (const w of Array.isArray(resolved?.items) ? resolved.items : []) {
         const melee = w?.system?.melee === true || (w?.system?.melee == null && !w?.system?.missile);
@@ -648,6 +722,8 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
     if (item) (resolved.items ??= []).push(item);
   }
   if (built.abilities.length) (resolved.items ??= []).push(...built.abilities);
+  if (built.consumables.length) (resolved.items ??= []).push(...built.consumables);
+  unresolved.push(...built.unresolved);
   for (const u of unresolved) warn(`${u.kind}: no gated figure written, the printed ${u.figure} does not resolve`);
   if (unresolved.length) record.unresolved = unresolved;
 

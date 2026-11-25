@@ -146,10 +146,10 @@ export async function consumeForAttack(actor, item, profile, options = {}) {
     return;
   }
 
-  // Otherwise it is a launcher: find and decrement the matching ammunition.
-  const pattern = launcherAmmoPattern(item, profile);
-  if (!pattern) return; // a pure-thrown missile (bola/oil) is handled above; unknown → skip
-  const ammo = pickAmmo(actor, pattern);
+  // Otherwise it is a launcher: find and decrement the matching ammunition,
+  // the stack `shotStack` names (the stack whose hit `onHitOf` reads).
+  if (!launcherAmmoPattern(item, profile)) return; // a pure-thrown missile (bola/oil) is handled above; unknown → skip
+  const ammo = shotStack(actor, item, profile);
   if (!ammo) {
     notify("outOf", { item: item.name });
     return;
@@ -170,10 +170,58 @@ export async function consumeForAttack(actor, item, profile, options = {}) {
  * Never gate this on `system.equipped`: an ammunition stack is an `item`,
  * and only `weapon`/`armor` carry that field.
  */
-function pickAmmo(actor, pattern) {
-  const stacks = actor.items.filter((i) => pattern.test(i.name) && roundsOf(i) > 0);
-  const declared = stacks.find((i) => i.getFlag(MODULE_ID, ITEM_FLAGS.NOCKED));
+function pickAmmo(items, pattern) {
+  const stacks = items.filter((i) => pattern.test(i.name) && roundsOf(i) > 0);
+  const declared = stacks.find((i) => flagOf(i, ITEM_FLAGS.NOCKED));
   return declared ?? stacks.find((i) => !isSilvered(i)) ?? stacks[0] ?? null;
+}
+
+/** A module flag read off a live document or a plain data object alike. */
+function flagOf(item, key) {
+  return item?.getFlag?.(MODULE_ID, key) ?? item?.flags?.[MODULE_ID]?.[key];
+}
+
+/**
+ * The stack one shot from `weapon` comes out of, or null: the weapon is no
+ * launcher, or the actor holds no matching stack with rounds left. The order is
+ * `pickAmmo`'s (a nocked stack, else plain before silver), and it is the one
+ * answer both the spend (`consumeForAttack`) and the hit's reader ask, so the
+ * stack that is spent is the stack whose `onHitOf` asks the save. Pure: it
+ * reads `actor.items` and writes nothing, and a plain `{items: [payload]}`
+ * (a creature not yet created) answers alike.
+ * @param {{items: Iterable<object>}} actor
+ * @param {object} weapon   the launcher
+ * @param {object} profile  classifyWeapon(weapon)
+ */
+export function shotStack(actor, weapon, profile) {
+  const pattern = launcherAmmoPattern(weapon, profile);
+  if (!pattern || !actor?.items) return null;
+  return pickAmmo(actor.items, pattern);
+}
+
+/**
+ * What a hit with this ammunition asks, from the stack's `onHit` flag:
+ * `{saveKind, saveMod, formula, delayTurns, source, cite}`, or null where the
+ * stack carries none. A flag that names no damage dice or no whole count of
+ * turns is no effect and reads null; a blank save kind or modifier stays null.
+ * @returns {{saveKind: string|null, saveMod: number|null, formula: string, delayTurns: number, source: string, cite: string}|null}
+ */
+export function onHitOf(stack) {
+  const raw = flagOf(stack, ITEM_FLAGS.ON_HIT);
+  if (!raw || typeof raw !== "object") return null;
+  const formula = typeof raw.formula === "string" ? raw.formula.trim() : "";
+  const delayTurns = Number(raw.delayTurns);
+  if (!formula || !Number.isInteger(delayTurns) || delayTurns < 1) return null;
+  const kind = typeof raw.saveKind === "string" ? raw.saveKind.trim() : "";
+  const mod = Number(raw.saveMod);
+  return {
+    saveKind: kind || null,
+    saveMod: raw.saveMod !== null && raw.saveMod !== undefined && raw.saveMod !== "" && Number.isFinite(mod) ? mod : null,
+    formula,
+    delayTurns,
+    source: String(raw.source ?? "").trim(),
+    cite: String(raw.cite ?? "").trim(),
+  };
 }
 
 /**

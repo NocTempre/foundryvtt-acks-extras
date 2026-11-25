@@ -315,6 +315,54 @@ check("two bumps from two rows sum, each row listed", (() => {
   check("the armour class hover names the gear part with the row's label and its page", tip.includes("|6|5|") && tip.includes("+1 Gear M") && tip.endsWith("XX p. 6"));
 }
 
+/* --- gear: a consumable to drink, ammunition whose hit asks a save ------------------------ */
+{
+  const cid = CONDITION_IDS[0];
+  const eqOrg = (rows) => ({ ...org, equipment: { cite: "XX p. 7", rows } });
+  const drinkRow = { key: "dk", label: "Drink K", figures: { healDice: "2d4", saveKind: "sk", condition: cid, successHealDice: "1d3", swigs: "1d4", ranks: ["champion"] } };
+  const hitRow = { key: "hk", label: "Hit K", figures: { damage: "1d6", delayTurns: 3, saveKind: "sk", saveMod: -2 } };
+  const run = (rows, keys, items, role = "standard") => {
+    const warned = [];
+    const r = { system: { ac: { value: 5 } }, flags: { [MID]: { extras: {} } }, items };
+    const d = applyGeneratedOrganisation(r, { choices: { gear: keys, role }, org: eqOrg(rows), warn: (m) => warned.push(m) });
+    return { r, d, warned, items: r.items, un: r.flags[MID].extras.organisation.unresolved, rec: r.flags[MID].extras.organisation.gear };
+  };
+  const launcher = () => ({ name: "Zorbler", type: "weapon", system: { melee: false, missile: true }, flags: { [MID]: { category: "bowCrossbow" } } });
+  const stack = (name, quantity, flags) => ({ name, type: "item", system: { quantity }, ...(flags ? { flags: { [MID]: flags } } : {}) });
+
+  // E5: the consumable, its page, its flag, its folded condition, no count.
+  let e = run([drinkRow], ["dk"], []);
+  const dk = e.items.find((i) => i.name === "Drink K");
+  check("a healing row writes one item of type item named by the row, with its page on the cookbook id", e.items.length === 1 && dk.type === "item" && dk.flags[MID].cookbook.id === "organisation.gear.dk" && dk.flags[MID].cookbook.cite === "XX p. 7");
+  eq("its drink flag copies the row's figures, the condition as the catalogue id, the swig dice stored", dk.flags[MID].drink, { healDice: "2d4", saveKind: "sk", condition: cid, successHealDice: "1d3", swigDice: "1d4" });
+  check("it holds one item and sets no swig count", dk.system.quantity === 1 && dk.flags[MID].rounds === undefined && dk.flags[MID].swigs === undefined);
+  check("the row is recorded beside the item", e.rec.length === 1 && e.rec[0].key === "dk" && e.un === undefined && e.d === null);
+  e = run([{ ...drinkRow, figures: { ...drinkRow.figures, condition: "zzzunfolded" } }], ["dk"], []);
+  check("a condition word that folds to none leaves null, and is listed and warned", e.items[0].flags[MID].drink.condition === null && e.un.length === 1 && e.un[0].kind === "gear" && e.un[0].figure === "condition" && e.un[0].word === "zzzunfolded" && e.warned.length === 1);
+  e = run([{ key: "dk", label: "Drink K", figures: { healDice: "2d4" } }], ["dk"], []);
+  eq("blank figures stay null in the flag and are not listed", e.items[0].flags[MID].drink, { healDice: "2d4", saveKind: null, condition: null, successHealDice: null, swigDice: null });
+  check("no healing dice, or dice that are no die, writes no item", run([{ key: "dk", label: "Drink K", figures: { saveKind: "sk", condition: cid } }, { key: "d2", label: "Drink 2", figures: { healDice: "much" } }], ["dk", "d2"], []).items.length === 0);
+  check("a caster carries no drink", run([drinkRow], ["dk"], [], "shaman").items.length === 0);
+
+  // E8: the launcher's stack is flagged and nocked; a creature with none records only.
+  e = run([hitRow], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7), stack("Case, 5 Bolts", 5)]);
+  const [, arrows, bolts] = e.items;
+  eq("an ammunition row flags the stack the launcher shoots with the row's figures, the row and its page", arrows.flags[MID].onHit, { saveKind: "sk", saveMod: -2, formula: "1d6", delayTurns: 3, source: "Hit K", cite: "XX p. 7" });
+  check("and declares it nocked, leaving the other stack alone", arrows.flags[MID].nocked === true && bolts.flags === undefined && e.items.length === 3);
+  e = run([hitRow], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7, { nocked: true }), stack("Case, 5 Bolts", 5, { nocked: true })]);
+  check("the stack that takes the declaration is the one the shot spends; another's is cleared", e.items[1].flags[MID].onHit && e.items[1].flags[MID].nocked === true && e.items[2].flags[MID].nocked === undefined && e.items[2].flags[MID].onHit === undefined);
+  e = run([hitRow], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 0)]);
+  check("an emptied stack is no stack: nothing is flagged", e.items[1].flags === undefined);
+  e = run([hitRow], ["hk"], [{ name: "Marker", type: "weapon", system: { damage: { base: { formula: "By weapon" } } } }]);
+  check("a creature with no launcher and no stack writes nothing, and the row stays recorded", e.items.length === 1 && e.items[0].flags === undefined && e.rec[0].key === "hk" && e.rec[0].figures.delayTurns === 3);
+  e = run([hitRow], ["hk"], [launcher()]);
+  check("a launcher with no stack writes nothing", e.items.length === 1 && e.items[0].flags[MID].onHit === undefined);
+  check("a row with no turn count, or damage that is no die, flags nothing", [{ damage: "1d6" }, { delayTurns: 3 }, { damage: "much", delayTurns: 3 }, { damage: "1d6", delayTurns: 0 }].every((figures) => run([{ key: "hk", label: "Hit K", figures }], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7)]).items[1].flags === undefined));
+  e = run([hitRow], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7)], "shaman");
+  check("a caster carries no ammunition flag", e.items[1].flags === undefined);
+  check("the existing rows of the axes suite carry neither discriminator", ["ea", "eb"].every((k) => !("healDice" in (org.equipment.rows.find((r) => r.key === k)?.figures ?? {})) && !("delayTurns" in (org.equipment.rows.find((r) => r.key === k)?.figures ?? {}))));
+}
+
 /* --- natural attacks ------------------------------------------------------------------ */
 eq("one weapon per listed die, a bare number a flat die, a text without a die none", naturalAttackItems(["1d2-1", "x", "3", "1d3 - 1"], (n) => `a${n}`).map((i) => [i.name, i.system.damage.base.formula]), [["a1", "1d2-1"], ["a2", "3"], ["a3", "1d3-1"]]);
 const marked = (variant) => ({ system: { ac: { value: 5 }, details: {} }, flags: { [MID]: { extras: { organisation: { naturalAttacks: { variant, trait: "ta" } } } } }, items: [] });
