@@ -69,7 +69,7 @@ t("a Roll of one empty row fills it and leaves every other row exactly as it was
   assert.equal(filled.parentKey, "v", "the row keeps its place under its parent");
   assert.equal(filled.label, "Row w2", "and the name the Judge gave it");
   assert.match(filled.holderUuid, /^new:g/);
-  assert.deepEqual(filled.gen, TREE().gen, "the generation record rides on the row where the roll began");
+  assert.deepEqual(filled.gen, { ...TREE().gen, tier: 2 }, "the generation record rides on the row where the roll began, with the rank the unit stands at");
   assert.equal(plan.rows.indexOf(filled), 2, "the row stays where it stood in the list");
 });
 
@@ -92,6 +92,22 @@ t("all below fills every unit under the row, nested as the rows nest", () => {
   assert.ok(plan.rows.filter((r) => r.kind === "cell").every((r) => byKind[r.parentKey].kind === "band"));
   assert.equal(plan.rows.find((r) => r.kind === "hold").gen.variant, "alba");
   assert.equal(plan.rows.filter((r) => r.kind !== "hold").every((r) => !r.gen.variant), true, "the record is on the top row only");
+});
+
+t("each row keeps its tier and what the roll fixed for it, and each stack the total the roll threw", () => {
+  const tree = TREE();
+  tree.top.children[0].children[0].troop = "t3";
+  const plan = planRoll({ host: HOST, rows: [], tree, scope: "below" });
+  const tiers = (kind) => plan.rows.filter((r) => r.kind === kind).map((r) => r.gen.tier);
+  assert.deepEqual([tiers("hold"), tiers("band"), tiers("cell")], [[2], [1, 0], [0, 0]], "a unit of units of bodies stands two above them");
+  assert.equal(plan.rows.filter((r) => r.kind === "cell").map((r) => r.gen.troop).join(), "t3,", "the troop the roll gave a unit rides on its row");
+  const camp = plan.rows.find((r) => r.kind === "" && r.parentKey);
+  assert.equal(camp.gen.tier, undefined, "the camp stands at no tier");
+  const stacks = opsOf(plan, "addStack");
+  assert.ok(stacks.length && stacks.every((o) => o.count === o.gen.rolled), "rolled is the count the stack was made with");
+  assert.ok(opsOf(plan, "addLabelledStack").every((o) => o.gen.rolled === o.count));
+  const one = planRoll({ host: HOST, rows: [], tree: TREE(), scope: "one" });
+  assert.deepEqual(one.rows.filter((r) => !r.holderUuid).map((r) => r.gen.tier), [1, 0], "an empty row keeps its tier too");
 });
 
 t("a row with a holder is never rolled again, and a row that is not there is refused", () => {

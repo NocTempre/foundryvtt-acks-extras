@@ -410,3 +410,27 @@ provider") ruled what the plan left open.
   pot. A row for each creature would deal a hoard for every kind of beast in a camp.
 - **`officerLevel` is not written.** It drives the command-capacity rule of a personally led
   unit, and nothing here gives a beastman leader a command level.
+
+## 2026-11-25 — Generate makes a root group; a Roll that makes a village makes its faction card
+
+The owner: "The specification is the faction card is optional for groups, but it's not a
+strict only, rather an only group needed", and, of a village, "Village always has one".
+Generate on a family template had been built to make a faction card every time, which broke
+the first: a wandering or lair roll of a gang or a warband got a card nobody asked for.
+
+- **Generate makes a root group** holding one empty top row that names the template in its
+  `gen`, and opens it on its Organisation section. Nothing is rolled and no card is made.
+- **A Roll that makes a village ends with lib's Make its own** (`org.makeFaction`): the
+  faction card is named from the group and the rows move onto it. A village is read from the
+  evaluated line, never from a unit word: the top unit holds units that hold units
+  (`holdsUnitsOfUnits`). A roll of a gang or a warband makes no card; a roll below the top of a
+  chart makes none; a chart already on a faction, or whose group a faction already lists
+  (`orgHostOf`), is given no second card (`needsFactionCard`, tested for each case).
+- **Make its own writes two documents**, the faction and then the group's rows, and the sheet
+  redraws on the first; whatever reads afterward waits for the second write and its notice.
+- *Open, for the hub:* the Roll fills the top row with a group of its own and the card is made
+  from the root group that hosted the row. That group holds no officer, so the faction's
+  `leaderUuid` stays blank, and once the rows have moved no row names the root group, so it
+  is an unlisted shell. Making the card before the Roll would set the leader through
+  `planRoll`'s existing faction branch; it is not built because the ruling says the Roll ends
+  with it.

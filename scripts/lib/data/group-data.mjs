@@ -94,13 +94,16 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // and stored for a reader to show: the beast they ride (`{uuid, label, perBody}`,
         // a label alone where no creature stands behind the word), how many carry
         // each optional piece (`{pieceKey: bodies}`), and how many speak the common
-        // tongue. Blank is a figure the generator did not write.
+        // tongue. Blank is a figure the generator did not write. `rolled` is the count the
+        // Roll gave the stack, kept so a count changed by hand reads as one.
         gen: new SchemaField({
           part: str(),
           cite: str(),
           mount: new ObjectField(),
           carry: new ObjectField(),
           speakers: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
+          // The bodies the Roll threw for this stack: what a count set by hand is told from.
+          rolled: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
         }),
         // A printed hit-point figure every body of this stack takes in place of a
         // roll. Null is a stack whose bodies roll their hit dice.

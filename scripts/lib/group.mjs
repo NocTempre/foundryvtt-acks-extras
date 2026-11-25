@@ -343,6 +343,8 @@ const genOf = (gen) => {
   if (gen?.carry && typeof gen.carry === "object" && Object.keys(gen.carry).length) out.carry = { ...gen.carry };
   const speakers = gen?.speakers === null || gen?.speakers === undefined || gen?.speakers === "" ? NaN : Number(gen.speakers);
   if (Number.isFinite(speakers)) out.speakers = Math.max(0, Math.floor(speakers));
+  const rolled = gen?.rolled === null || gen?.rolled === undefined || gen?.rolled === "" ? NaN : Number(gen.rolled);
+  if (Number.isFinite(rolled)) out.rolled = Math.max(0, Math.floor(rolled));
   return out;
 };
 

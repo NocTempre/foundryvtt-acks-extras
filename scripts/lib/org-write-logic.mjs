@@ -47,6 +47,21 @@ export const ORG_PROTOTYPE_FLAG = "organisationPrototype";
 /** Plain copies of a list's rows, safe to edit. */
 const copyRows = (rows) => (rows ?? []).map((r) => structuredClone(r?.toObject?.() ?? r));
 
+/**
+ * How many levels of units a node holds beneath it, itself not counted: 0 for a unit of
+ * bodies, 1 for a unit of those, and on. A camp is no unit. It is the rank a unit stands
+ * at, read from the evaluated line, so a row keeps it before the units beneath are rolled.
+ */
+const tierOf = (node) => Math.max(-1, ...(node.children ?? []).filter((c) => !c.camp).map(tierOf)) + 1;
+
+/**
+ * What a roll fixed for a unit, as the unit's row records it: the share it took, the
+ * troop and the trait, and its tier. An empty row reads the first three as what an
+ * ancestor's roll decided for it; a filled row keeps them to show, and to tell a hand's
+ * change from the roll's.
+ */
+const pickedOf = (node) => ({ ...(node.shareKind ? { shareKind: node.shareKind } : {}), ...(node.troop ? { troop: node.troop } : {}), ...(node.trait ? { trait: node.trait } : {}), ...(node.camp ? {} : { tier: tierOf(node) }) });
+
 /** The next keys no row holds: `u1`, `u2`, and on, skipping every key in `taken`. */
 export function keySource(taken) {
   const used = new Set(taken);
@@ -138,9 +153,9 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
     const group = groupOf.get(node);
     for (const s of node.stacks ?? []) {
       const spec = tree.prototypes?.[s.proto];
-      if (spec?.kind === "label") ops.push({ op: "addLabelledStack", group, label: s.label || spec.label, count: s.count, gen: { ...s.gen } });
+      if (spec?.kind === "label") ops.push({ op: "addLabelledStack", group, label: s.label || spec.label, count: s.count, gen: { ...s.gen, rolled: s.count } });
       else {
-        const stack = { op: "addStack", group, prototype: refOfProto(s.proto), count: s.count, gen: { ...s.gen } };
+        const stack = { op: "addStack", group, prototype: refOfProto(s.proto), count: s.count, gen: { ...s.gen, rolled: s.count } };
         if (s.fixedHp != null) stack.fixedHp = s.fixedHp;
         if (s.mount) stack.mount = { prototype: refOfProto(s.mount.proto), perBody: s.mount.perBody ?? 1 };
         if (s.carry) stack.carry = { ...s.carry };
@@ -173,13 +188,13 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
     row.label = node === tree.top && target?.label ? target.label : nameOf(node);
     row.kind = node.camp ? "" : (node.kind ?? node.word ?? "");
     row.holderUuid = groupOf.get(node);
-    row.gen = node === tree.top ? { ...tree.gen } : { ...(row.gen ?? {}) };
+    row.gen = node === tree.top ? { ...tree.gen, tier: tierOf(node) } : { ...(row.gen ?? {}), ...pickedOf(node) };
     written.push(row);
   }
   for (const node of empties) {
     const parent = filled.find((n) => (n.children ?? []).includes(node));
     const row = blankRow(rowKeyOf.get(node), { parentKey: rowKeyOf.get(parent), label: nameOf(node), kind: node.kind ?? node.word ?? "" });
-    row.gen = { ...(node.shareKind ? { shareKind: node.shareKind } : {}), ...(node.troop ? { troop: node.troop } : {}), ...(node.trait ? { trait: node.trait } : {}) };
+    row.gen = pickedOf(node);
     written.push(row);
   }
   out.splice(insertAt, 0, ...written);

@@ -13,7 +13,8 @@ import { generateFromTemplate } from "../lib/template-generate.mjs";
 import { ANIMAL_TYPE } from "../lib/constants.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { ORG_PROTOTYPE_FLAG, planRoll, rowAncestors, runPlan, unitsOf, nodesOf } from "../lib/org.mjs";
+import { ORG_PROTOTYPE_FLAG, makeFaction, nodesOf, orgHostOf, planRoll, rowAncestors, runPlan, unitsOf } from "../lib/org.mjs";
+import { holdsUnitsOfUnits, needsFactionCard } from "./generate-host.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { letterOf } from "../treasure/search-logic.mjs";
 import { newPot, potOf, setDealMonsters } from "../treasure/pot.mjs";
@@ -130,6 +131,13 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   out.treasure = tree.treasure;
   out.tree = tree;
 
+  const card_ = await makeCardIfVillage({ host: host ?? fromUuidSync(run.made.groups[0]), target, rowKey, tree, hostRef });
+  if (card_) {
+    out.faction = card_.ok ? card_.faction.uuid : "";
+    out.factionResult = { ok: card_.ok, ...(card_.reason ? { reason: card_.reason } : {}) };
+    if (card_.ok) out.created = [...out.created, card_.faction.uuid];
+  }
+
   const hand = tree.treasure?.deal ? await handOffTreasure({ run, hoards: tree.treasure.hoards, pot }) : null;
   if (hand?.pot) {
     out.pot = hand.pot;
@@ -137,6 +145,21 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   }
   if (card) await postCard({ tree, run, family, group: out.group, pot: hand?.pot ?? "", org });
   return out;
+}
+
+/**
+ * A Roll that made a village ends with lib's Make its own: the group hosting the chart is
+ * given a faction card and listed under it. A gang or warband roll, a roll below the top of
+ * a chart, and a chart already on a faction or under one make no card. Null where none was
+ * called for; otherwise lib's answer, which never stops the roll's own result.
+ * @returns {Promise<{ok: boolean, reason?: string, faction?: Actor}|null>}
+ */
+async function makeCardIfVillage({ host, target, rowKey, tree, hostRef }) {
+  const group = host;
+  if (!group || group.type === `${MODULE_ID}.faction`) return null;
+  const rowIsTop = hostRef ? !!rowKey && !target?.parentKey : true;
+  if (!needsFactionCard({ holdsUnitsOfUnits: holdsUnitsOfUnits(tree), rowIsTop, hostIsFaction: false, joined: !!orgHostOf(group.uuid) })) return null;
+  return makeFaction(group);
 }
 
 /**

@@ -1,19 +1,18 @@
 /* global Actor, foundry */
 /**
  * The host a Generate on a family template makes (docs/monsters/MODEL.md, "The
- * organisation roll"): a faction card holding one empty top row that carries the
+ * organisation roll"): a root group holding one empty top row that carries the
  * template's uuid in its `gen`, so the chart's Roll and Roll at random know which
  * family they roll. Nothing is rolled here and no window opens; the Judge rolls
- * from the card's Org chart tab, which lib's template sheet opens on. Registered
- * with lib's service registry as `template-generate`, so lib never learns what a
- * recipe is: a template whose variants carry no encounter line is answered "not
- * mine" and lib generates a creature as before.
+ * from the group's Organisation section. Whether the roll then earns a faction card
+ * is decided at the Roll (`needsFactionCard`). Registered with lib's service
+ * registry as `template-generate`, so lib never learns what a recipe is: a template
+ * whose variants carry no encounter line is answered "not mine" and lib generates a
+ * creature as before.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { blankRow } from "../lib/org-tree-logic.mjs";
-
-/** The tab of the faction sheet the new host opens on. */
-export const HOST_TAB = "orgChart";
+import { GROUP_ACTOR_TYPE } from "../lib/group-logic.mjs";
 
 /** Does this template's variant axis carry an encounter line on any option? */
 export function carriesRecipe(template) {
@@ -23,9 +22,36 @@ export function carriesRecipe(template) {
 }
 
 /**
- * Make the host for a family template.
+ * Does a Roll earn a faction card of its own? Only a roll that makes a village, a unit
+ * holding units that hold units, at the top of a chart whose host is a group no faction
+ * lists yet. A gang or a warband (a wandering or lair roll) is a group's alone, and a
+ * chart already on a faction, or under one, is never given a second card.
+ *
+ * @param {object} facts
+ * @param {boolean} facts.holdsUnitsOfUnits the rolled top unit holds units that hold units
+ * @param {boolean} facts.rowIsTop the row rolled is the top of its chart
+ * @param {boolean} facts.hostIsFaction the chart's host is a faction card
+ * @param {boolean} facts.joined the host group is already listed under a faction
+ * @returns {boolean}
+ */
+export function needsFactionCard({ holdsUnitsOfUnits: village, rowIsTop, hostIsFaction, joined }) {
+  return !!village && !!rowIsTop && !hostIsFaction && !joined;
+}
+
+/**
+ * Does the rolled tree's top unit hold units that hold units: the shape of a village,
+ * read from the evaluated line and not from any unit word. A camp is no unit.
+ * @param {{top?: {children?: object[]}}} tree `planOrganisationRoll`'s answer
+ */
+export function holdsUnitsOfUnits(tree) {
+  const units = (node) => (node?.children ?? []).filter((c) => !c.camp);
+  return units(tree?.top).some((c) => units(c).length > 0);
+}
+
+/**
+ * Make the host for a family template: a root group, never a faction card.
  * @param {Actor} template the family template
- * @returns {Promise<{handled: boolean, actor?: Actor, tab?: string}>}
+ * @returns {Promise<{handled: boolean, actor?: Actor}>}
  */
 export async function generateHost(template) {
   if (!carriesRecipe(template)) return { handled: false };
@@ -33,9 +59,9 @@ export async function generateHost(template) {
   top.gen = { template: template.uuid };
   const actor = await Actor.implementation.create({
     name: template.name,
-    type: `${MODULE_ID}.faction`,
+    type: GROUP_ACTOR_TYPE,
     img: template.flags?.[MODULE_ID]?.plate || template.img,
     system: { units: [top] },
   });
-  return actor ? { handled: true, actor, tab: HOST_TAB } : { handled: false };
+  return actor ? { handled: true, actor } : { handled: false };
 }
