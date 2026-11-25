@@ -15,11 +15,13 @@ export const DELETE_LINKED_SETTING = "deleteLinkedWithRow";
 
 /**
  * Is a row's Delete offered to this seat? The seat must own the host, whose rows it writes, and
- * hold Foundry's delete permission on every group the Delete takes.
- * @param {{owns?: boolean, groups?: {canDelete: boolean}[]}} facts
+ * hold Foundry's delete permission on every group the Delete takes. A Delete that would take the
+ * host itself (a root group's own top row) is never offered: the chart and its Undo strip live on
+ * that host's sheet, which is deleted from the Actors tab like any actor.
+ * @param {{owns?: boolean, groups?: {canDelete: boolean}[], takesHost?: boolean}} facts
  * @returns {boolean}
  */
-export const deleteOffered = ({ owns = false, groups = [] } = {}) => !!owns && groups.every((g) => !!g.canDelete);
+export const deleteOffered = ({ owns = false, groups = [], takesHost = false } = {}) => !!owns && !takesHost && groups.every((g) => !!g.canDelete);
 
 /**
  * What the warning before a Delete lists. The linked actors the seat may delete are named by its one

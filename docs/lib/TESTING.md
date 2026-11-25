@@ -4952,6 +4952,11 @@ line. No test reads `isGM`.
    by one), naming the rows that move; answered yes, only the warband's row leaves `units`, the gangs stand at the
    top with no parent, no actor is deleted (each uuid still resolves), and a line above the chart names the rows
    that moved.
+   - **1b. The template passes down.** Seed a row carrying the library's family template (found by cookbook id
+     `mm.familyBeastman`) over one empty row, then Remove the template row. *Observable:* the lifted empty row's
+     own `gen.template` is the family's uuid, its card offers **Roll**, and a Roll through
+     `acksExtras.monsters.rollOrganisation` fills it. The run tracks what the Roll made. Where the family is not
+     imported exactly once, 1b is reported not walked.
 2. **The warning** — pen → **Delete…**. *Observable:* a dialog opens with one tick, on, naming the officer.
    **Cancel** writes nothing: the rows, the groups, the prototype and the officer stand, and the three settings read
    as they did. **Delete** with the tick on deletes the groups, the prototype and the officer and leaves a strip
@@ -4968,6 +4973,10 @@ line. No test reads `isGM`.
    page `host.isOwner` is true and the group delete right false; the form's foot has **Remove from chart** and no
    **Delete…**. With the groups owned, **Delete…** is drawn exactly where `canUserModify(user, "delete")` is true on
    the Player's page (the walk reads it and never changes the world's permissions).
+
+A row whose group is the host itself, a root group's own top row, offers no **Delete…**. The control is absent,
+and Remove is unchanged. This is unit-tested (`deleteOffered` with `takesHost`) and not walked: this host is a
+faction, so none of its rows holds the host.
 
 ### Teardown
 

@@ -79,10 +79,12 @@ t("a Remove moves only the rows directly beneath up to the row's parent, and ask
   assert.equal(asksBeforeRemoving([], true), false);
 });
 
-t("removing the row that carries the chart's template leaves the rows lifted from it with none", () => {
+t("removing the row that carries the chart's template passes its record to the rows lifted from it", () => {
   assert.equal(templateOf(ROWS, "w1").template, "T.fam", "read from the top row above it");
   const kept = planUnlist({ rows: ROWS, key: "v" }).kept;
-  assert.deepEqual(templateOf(kept, "w1"), { template: "", variant: "" }, "no row above w1 carries it once v is gone");
+  assert.equal(templateOf(kept, "w1").template, "T.fam", "w1 carries the record itself once v is gone");
+  const own = planUnlist({ rows: ROWS.map((r) => (r.key === "w1" ? { ...r, gen: { template: "T.own" } } : r)), key: "v" }).kept;
+  assert.equal(templateOf(own, "w1").template, "T.own", "a lifted row's own record is kept, never overwritten");
 });
 
 t("a card's role is read from its leader and the unit that leader leads: file, champion, sub-chief, chief", () => {

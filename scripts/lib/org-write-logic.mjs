@@ -291,7 +291,11 @@ export function planUnlist({ rows, key } = {}) {
   const named = (r) => ({ key: r.key, label: r.label ?? "" });
   const lifted = list.filter((r) => r.parentKey === key);
   const liftedKeys = new Set(lifted.map((r) => r.key));
-  const kept = list.filter((r) => r.key !== key).map((r) => (liftedKeys.has(r.key) ? { ...r, parentKey: parent?.key ?? "" } : r));
+  // The removed row's own template record passes to each lifted row that has none of its own, so the
+  // Roll, the Make and the recipe tool still find the family the lifted rows were rolled from.
+  const carried = row.gen?.template ? { template: row.gen.template, ...(row.gen.variant ? { variant: row.gen.variant } : {}) } : null;
+  const lift = (r) => ({ ...r, parentKey: parent?.key ?? "", ...(carried && !r.gen?.template ? { gen: { ...(r.gen ?? {}), ...carried } } : {}) });
+  const kept = list.filter((r) => r.key !== key).map((r) => (liftedKeys.has(r.key) ? lift(r) : r));
   return { ok: true, removed: named(row), under: parent ? named(parent) : null, lifted: lifted.map(named), kept };
 }
 

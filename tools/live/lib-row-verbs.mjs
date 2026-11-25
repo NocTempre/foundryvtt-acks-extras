@@ -37,6 +37,30 @@ const check = (label, ok, detail) => {
 const P = {
   census: async () => ({ role: game.user.role, chartApi: !!globalThis.acksExtras?.lib?.org?.deletePreview, canCreate: game.user.can("ACTOR_CREATE") }),
 
+  /** The library's family template by cookbook id, counted so a twin is seen. Read only. */
+  template: async ({ family }) => {
+    const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+    const held = (await CB.importedDocs("Actor")).filter((d) => d.pack && d.getFlag("acks-extras", "cookbook")?.id === family);
+    return { uuid: held.length === 1 ? held[0].uuid : null, twins: held.length };
+  },
+
+  /** A row carrying the family template over one empty row: the shape whose Remove passes the record down. Rewrites `system.units` of the kept host. */
+  seedTemplated: async ({ id, w, template }) => {
+    const row = (key, parentKey, holderUuid, gen) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen });
+    await game.actors.get(id).update({ "system.units": [row("w", "", w, { template }), row("e", "w", "", {})] });
+    return game.actors.get(id).system.units.length;
+  },
+
+  /** One row's own template record. */
+  genOf: async ({ id, key }) => game.actors.get(id).system.units.find((r) => r.key === key)?.gen ?? null,
+
+  /** Roll an empty row through the page's own API, as the card's Roll does; the answer's made documents are returned for tracking. */
+  rollRow: async ({ id, key }) => {
+    const out = await globalThis.acksExtras.monsters.rollOrganisation({ host: game.actors.get(id), rowKey: key, context: "dungeon", state: "wandering", card: false });
+    const filled = game.actors.get(id).system.units.find((r) => r.key === key)?.holderUuid ?? "";
+    return { ok: !!out?.ok, reason: out?.reason ?? "", created: out?.created ?? [], filled };
+  },
+
   /** Wait for a condition in the page, polling, and answer whether it held. */
   until: async ({ expr, ms }) => {
     const end = Date.now() + (ms ?? 8000);
@@ -227,6 +251,26 @@ try {
   check("only the warband's row left: the gangs stand at the top, and no document was deleted", afterRemove.rows.join() === "g1<,g2<" && afterRemove.exists.every(Boolean), afterRemove);
   const lines = await run(gm, P.lines, { id: fid });
   check("the line above the chart names the rows that moved", typeof lines.unlisted === "string" && lines.unlisted.length > 0, lines.unlisted);
+
+  section("1b. Remove of the row carrying the chart's template: the lifted row keeps it and still rolls");
+  const fam = await run(gm, P.template, { family: "mm.familyBeastman" });
+  if (!fam.uuid) note("not walked", `the library's family template was not found once (twins: ${fam.twins}); import the monster book, then walk 1b`);
+  else {
+    await run(gm, P.seedTemplated, { id: fid, w: W.uuid, template: fam.uuid });
+    await run(gm, P.reopen, { id: fid });
+    await run(gm, P.pressCard, { id: fid, key: "w", action: "orgEdit", wait: 700 });
+    await run(gm, P.pressCard, { id: fid, key: "w", action: "orgRemove", wait: 900 });
+    await run(gm, P.dialog, { fields: {}, button: "yes" });
+    const gen = await until(gm, P.genOf, { id: fid, key: "e" }, (g) => !!g?.template);
+    check("the lifted empty row carries the removed row's template record", gen?.template === fam.uuid, gen);
+    await run(gm, P.reopen, { id: fid });
+    const eFoot = await run(gm, P.foot, { id: fid, key: "e" });
+    check("the lifted row's card still offers Roll", eFoot.actions.includes("orgRoll"), eFoot);
+    const rolled = await run(gm, P.rollRow, { id: fid, key: "e" });
+    for (const u of rolled.created) gm.track(u);
+    if (rolled.filled) gm.track(rolled.filled);
+    check("the lifted row rolls: it is filled from the carried template", rolled.ok && !!rolled.filled, rolled);
+  }
   await run(gm, P.seed, seed);
   await run(gm, P.reopen, { id: fid });
 

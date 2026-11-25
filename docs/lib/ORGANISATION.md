@@ -256,8 +256,9 @@ starting `new:` is never written.
 parent, or to the top where it had none; the rows beneath those keep their own parents. The chart is nested
 stacking containers that reference one source of truth, so removing a level never takes the structure beneath
 it. The host's rows are the only write: no group is moved or un-nested, so no foreign-group or lone-actor
-refusal applies. A row whose `gen.template` the removed row carried (a chart's top row) leaves the rows lifted
-from it without that template, and their Roll, Make and recipe tool read none until one is set.
+refusal applies. The removed row's own template record (`gen.template`, and `gen.variant` where it has one)
+passes to each lifted row that has none of its own. Their Roll, Make and recipe tool therefore still find the
+family. A lifted row's own record is never overwritten.
 
 `deleteRow` is the Delete a sheet reaches through the card form's **Delete…** (below).
 
@@ -305,7 +306,9 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   deletable there is no tick. "Don't warn me before a Delete again" writes the client settings
   `warnBeforeDeletingRows` (gates the warning; off makes Delete one-click) and `deleteLinkedWithRow` (the saved
   choice one-click applies; no setting screen draws it) together, after the Delete. The seat's tests are made again
-  before the first write. A Delete of the row a sheet's own group holds deletes that group, and the sheet with it.
+  before the first write. Delete is not offered on a row whose group is the host itself (a root group's own top
+  row; `deleteOffered`'s `takesHost`). The chart and its Undo strip live on that group's sheet, and the group is
+  deleted from the Actors sidebar tab like any actor.
 - **Undo**: after every Delete a strip at the top of the tab offers Undo, which `deleteSnapshot` made possible
   (`toObject()` of the groups, minted prototypes and chosen linked actors, the host's rows, the faction's
   leader and the groups' roster rows) and `undoDelete` carries out: actors then groups re-created with their own

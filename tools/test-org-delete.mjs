@@ -24,6 +24,7 @@ t("Delete is offered only to a seat that owns the host and may delete every grou
   assert.equal(deleteOffered({ owns: true, groups: [{ canDelete: true }, { canDelete: false }] }), false, "one group the seat cannot delete withdraws it");
   assert.equal(deleteOffered({ owns: false, groups: [{ canDelete: true }] }), false, "the host's rows are written, so the seat must own it");
   assert.equal(deleteOffered(), false);
+  assert.equal(deleteOffered({ owns: true, groups: [{ canDelete: true }], takesHost: true }), false, "a Delete that would take the host itself is not offered");
 });
 
 t("the warning's one tick names the linked actors the seat may delete, and starts at the saved choice", () => {

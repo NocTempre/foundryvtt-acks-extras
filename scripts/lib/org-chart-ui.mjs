@@ -844,7 +844,7 @@ function deleteGate(host, key) {
   const preview = org.deletePreview(host, key);
   if (!preview.ok) return { preview, blocked: null, offered: false };
   const can = (g) => !!g.canUserModify?.(game.user, "delete");
-  return { preview, blocked: preview.groups.find((g) => !can(g)) ?? null, offered: deleteOffered({ owns: !!host.isOwner, groups: preview.groups.map((g) => ({ canDelete: can(g) })) }) };
+  return { preview, blocked: preview.groups.find((g) => !can(g)) ?? null, offered: deleteOffered({ owns: !!host.isOwner, groups: preview.groups.map((g) => ({ canDelete: can(g) })), takesHost: preview.groups.some((g) => g === host || g.uuid === host.uuid) }) };
 }
 
 /** The actors a Delete's groups name as officer, each with whether this seat may delete it. A compendium entry is never deletable here. */
@@ -917,6 +917,7 @@ async function deleteCard(app, host, key) {
   if (!again.preview.ok) return refuse(again.preview);
   if (!host.isOwner) return refuse({ reason: "notOwner", name: host.name ?? "" });
   if (again.blocked) return refuse({ reason: "noDelete", name: again.blocked.name ?? "" });
+  if (!again.offered) return refuse({ reason: "noDelete", name: host.name ?? "" });
   takes = takes.filter((uuid) => linkedOf(again.preview.leaders).some((a) => a.uuid === uuid && a.canDelete));
   const snapshot = org.deleteSnapshot(host, again.preview, takes);
   // The step is held before the first write, so a Delete that throws partway still leaves its Undo;

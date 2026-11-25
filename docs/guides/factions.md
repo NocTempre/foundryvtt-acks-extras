@@ -55,6 +55,21 @@ beneath it.
 
 **Notes** has a shared page and a private one only the Judge can read.
 
+### Taking rows off the Org chart
+
+The faction sheet's **Org chart** tab lists the faction's units. Press a card's pen, and the form's foot offers two
+ways to take a row off:
+
+- **Remove from chart** (✕) takes off only that row and deletes nothing. The rows beneath it move up a level.
+- **Delete…** (the trash can) deletes the row, the rows beneath it and their groups. Its warning has one tick,
+  on by default, that also deletes the leaders linked to those rows. Leaders you may not delete are listed as
+  staying. Delete is not offered on a row that holds the sheet's own group.
+
+After every Delete, a strip at the top of the tab offers **Undo** until you reload the page.
+
+Tick **Don't warn me before a Delete again** and later Deletes act at once, applying the tick as you left it. Turn
+the warning back on at Settings tab → Game Settings → ACKS II — Extras → **Warn before deleting chart rows**.
+
 ## Who deals with whom
 
 **Relations** is what this organisation thinks of the others. Pick one in the
