@@ -167,6 +167,25 @@ await ok("a step as it stands in the effect keeps its sign, and an effect with n
   assert.deepEqual(targetAcRows(target), [{ name: cond("disordered"), value: -9 }]);
 });
 
+await ok("a row says the change's type in Foundry's word where the effect sets or multiplies the figure, and a plain add reads as before", () => {
+  // Invented words, so the row proves the label is read from Foundry's strings.
+  const words = { "EFFECT.CHANGES.TYPES.override": "Replacer", "EFFECT.CHANGES.TYPES.multiply": "Scaler" };
+  const localize = game.i18n.localize;
+  game.i18n.localize = (k) => words[k] ?? localize(k);
+  try {
+    const over = effectOf("disordered", { name: "Fx Over", changes: [{ key: AC, type: "override", value: 9 }] });
+    const add = effectOf("shaken", { name: "Fx Add", changes: [{ key: AC, type: "add", value: 2 }] });
+    assert.deepEqual(targetAcRows(character([over, add])), [
+      { name: `${named("Fx Over", "disordered")}, Replacer`, value: 9 },
+      { name: named("Fx Add", "shaken"), value: 2 },
+    ]);
+    const sparedSet = character([effectOf("disordered", { name: "Fx Spared", changes: [{ key: AC, type: "override", value: 7 }] })], "Target Person", { items: [waiverRow("disordered")] });
+    assert.deepEqual(targetAcRows(sparedSet), [{ name: `${named("Fx Spared", "disordered")}, Replacer`, value: 7 }], "a waived step carries its type");
+  } finally {
+    game.i18n.localize = localize;
+  }
+});
+
 await ok("a state that brings a condition has one row named for both, and the condition set twice has one row", () => {
   const charge = implyingEffect("charging", { name: cond("charging") });
   assert.deepEqual(targetAcRows(character([charge])), [{ name: named(cond("charging"), "disordered"), value: step("disordered") }]);

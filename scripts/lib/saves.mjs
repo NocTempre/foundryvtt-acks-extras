@@ -99,7 +99,7 @@ export function saveSpec(
     rollParts.push({ key: "wis", label: word("wis", "Wisdom"), value: actor.system?.scores?.wis?.mod ?? 0, side: "roll" });
   }
   if (character) {
-    for (const step of steps) rollParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition), value: step.value, side: "roll" });
+    for (const step of steps) rollParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition, step.type), value: step.value, side: "roll" });
   }
   if (situational !== null && situational !== undefined && String(situational).trim() !== "") {
     rollParts.push({ key: "situational", label: word("situational", "Situational"), value: situational, side: "roll" });
@@ -120,7 +120,7 @@ export function saveSpec(
   if (conditions) {
     if (!character) {
       for (const step of steps) {
-        targetParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition), value: step.value, side: "target" });
+        targetParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition, step.type), value: step.value, side: "target" });
         shift += step.value;
       }
     }

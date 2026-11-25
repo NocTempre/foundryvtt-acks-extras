@@ -30,7 +30,7 @@ import { ATTRIBUTES, slug } from "../../lib/vocab.mjs";
 import { carriesMorale, signed, storedSystem } from "../view-model.mjs";
 import { blankLoyaltyCite } from "../../lib/score-bounds.mjs";
 import { saveSystemKey, saveLabel, saveModifiers } from "../snapshot.mjs";
-import { effectLines, lineLabel } from "../../lib/roll-mods.mjs";
+import { effectLines, kindWords, lineLabel } from "../../lib/roll-mods.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -246,7 +246,9 @@ function inForceFigure(stored, inForce, lines = null) {
 /**
  * The lines under a figure an actor's effects move, in the shape of the
  * system's own attack-card breakdown: one line per active effect that changes
- * `key`, named by the effect (`effectLines`), then one for what the effects do
+ * `key`, named by the effect (`effectLines`) and, where the effect sets,
+ * multiplies or bounds the figure, saying the change's type in Foundry's word
+ * (`kindWords`), then one for what the effects do
  * that the lines do not account for, so the lines and the stored value add up
  * to the prepared one. The loadout effect is counted in that sum and listed by
  * its own parts (`typedLines`), never twice. A record whose effects cannot be
@@ -267,7 +269,11 @@ function effectBreakdown(actor, key, stored, prepared) {
   const loadout = findLoadoutEffect(actor);
   const out = lines
     .filter((line) => !loadout || line.effect !== loadout)
-    .map((line) => loc("stats.part", { label: lineLabel(line), value: signed(line.value) }));
+    .map((line) =>
+      line.kinds.length
+        ? loc("stats.partKind", { label: lineLabel(line), kind: kindWords(line.kinds), value: signed(line.value) })
+        : loc("stats.part", { label: lineLabel(line), value: signed(line.value) }),
+    );
   const other = prepared - stored - lines.reduce((sum, line) => sum + line.value, 0);
   if (other) out.push(loc("stats.part", { label: game.i18n.localize("ACKS.throw.modifier.otherEffects"), value: signed(other) }));
   return out;

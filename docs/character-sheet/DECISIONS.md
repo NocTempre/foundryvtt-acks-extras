@@ -172,3 +172,37 @@ answered), and a lump of "effects" beside the stored value, which names nothing.
 *Cost:* a tooltip with several effects is longer, and it lists a condition
 effect by the name its holder gave it; an override's line shows the shift it
 made, where the system's own breakdown would call it Other Effects.
+
+## 2026-11-25 — A line for an effect that sets or multiplies a figure says the change's type
+
+Adds to "An effect's step is named on the figure it moved" (above) and
+supersedes nothing.
+
+**Ruled** (owner, 2026-11-25), on the tooltip line for an effect that overrides
+or multiplies a field, verbatim: "Keep its named line", then "Keep it, draw a
+board", then, on the board's offered third tooltip, "Add the word". The word is
+Foundry's own for the change's type (`EFFECT.CHANGES.TYPES.<type>`), said after
+the name on a line whose effect's counted changes include a type other than
+`add` or `subtract`. For example: "Ring of the fixture, Override: ±n". Where the
+effect holds more than one such type the words are joined by ", ". The two
+tooltips keep the colon (`stats.partKind`); an effect that only adds or
+subtracts reads as before.
+
+Looking at that board the owner said, verbatim: "I know there are AC replacers
+for conditions and spells so this is a generic answer". So the word is the
+general rule for any effect that replaces a figure, a condition's or a spell's
+record included, and it reaches every surface that names an effect's step, not
+the sheet's two tooltips alone. The label on the attack card, a saving throw's
+parts and a monster's save notice is the lib's half, stated once in
+docs/lib/MODEL.md, "An effect's step is named where it is shown".
+
+**Rejected.** The system's shape, which puts such a change under "Other
+Effects" unnamed, so the reader cannot tell which effect set the figure. The
+bare line, whose figure is the shift from the value before any effect: it
+differs from the figure on the effect's own sheet with nothing saying why.
+
+**Evidence.** Board 5 of the design canvas, and the owner's "generic answer"
+quote for the reach beyond the sheet.
+
+*Cost:* a line is longer where an effect sets or multiplies; a change type
+Foundry has no word for is shown as its bare id.

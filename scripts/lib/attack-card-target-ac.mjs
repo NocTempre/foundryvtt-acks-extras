@@ -53,7 +53,7 @@ const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.
 export function targetAcRows(actor) {
   if (actor?.type !== ACTOR_TYPE.character) return [];
   const read = conditionSteps(actor, CONDITION_STEP_KEYS.ac);
-  return [...read.steps, ...read.waived].map((step) => ({ name: stepLabel(step.effect, step.condition), value: step.value }));
+  return [...read.steps, ...read.waived].map((step) => ({ name: stepLabel(step.effect, step.condition, step.type), value: step.value }));
 }
 
 /**

@@ -29,12 +29,15 @@ const TEXT = {
   "ACKS-LIB.rollMods.kind.missile": "missile",
   "ACKS-LIB.rollMods.kind.thrown": "thrown",
   "ACKS-LIB.rollMods.ownAc": "{target}'s own armour class",
+  "ACKS-LIB.conditionRoll.targetAc.kinded": "{label}, {kind}",
 };
+// Invented words for Foundry's change types, so a label proves it was read, not hard-coded.
+const KIND_WORDS = { "EFFECT.CHANGES.TYPES.override": "Replacer", "EFFECT.CHANGES.TYPES.multiply": "Scaler" };
 const format = (key, data = {}) => (TEXT[key] ?? `${key} ${JSON.stringify(data)}`).replace(/\{(\w+)\}/g, (_, n) => data[n] ?? "");
 globalThis.game = {
   system: { id: "acks" },
   user: { targets: [] },
-  i18n: { format, localize: (k) => k, has: () => false, translations: {} },
+  i18n: { format, localize: (k) => KIND_WORDS[k] ?? k, has: () => false, translations: {} },
 };
 globalThis.libWrapper = { register: (_id, path, fn) => { registered[path] = fn; } };
 globalThis.Hooks = { callAll: noop, on: noop };
@@ -766,7 +769,7 @@ await ok("the reader knows no ids of its own: with none in core's list it reads 
 
 /* --- One line per effect that moves a field ------------------------------------- */
 
-const { effectLines, stepLabel, lineLabel } = mods;
+const { effectLines, stepLabel, lineLabel, kindWords } = mods;
 const condName = (id) => `ACKS-LIB.condition.${id}`;
 const namedBy = (effect, id) => format("ACKS-LIB.conditionRoll.targetAc.named", { effect, condition: condName(id) });
 const plainOf = (line) => ({ name: line.name, condition: line.condition, value: line.value });
@@ -824,11 +827,39 @@ await ok("an effect's changes on the field are one line, a net of nothing is non
   assert.deepEqual(effectLines(monsterOf([set]), AC, { base: 9 }), [], "an override that moves nothing is no line");
 });
 
+await ok("a line lists the change types of its effect other than add and subtract, each once, in the order met", () => {
+  const fx = (id, changes) => ({ id, name: `Test ${id}`, disabled: false, statuses: new Set(), changes: changes.map(([type, value]) => ({ key: AC, type, value })) });
+  const kindsOf = (effect, base) => effectLines(monsterOf([effect]), AC, { base })[0].kinds;
+  assert.deepEqual(kindsOf(fx("fxOver", [["override", 9]]), 4), ["override"]);
+  assert.deepEqual(kindsOf(fx("fxMult", [["multiply", 2]]), 4), ["multiply"]);
+  assert.deepEqual(kindsOf(fx("fxMix", [["add", 1], ["override", 9]]), 4), ["override"], "the add is left out, the override alone is said");
+  assert.deepEqual(kindsOf(fx("fxBoth", [["multiply", 2], ["override", 9]]), 4), ["multiply", "override"], "in the order the changes apply");
+  assert.deepEqual(kindsOf(fx("fxAdds", [["add", 5], ["subtract", 2]]), 4), [], "an effect that only adds and subtracts says no type");
+  assert.deepEqual(kindsOf(fx("fxTwice", [["multiply", 2], ["add", 1], ["multiply", 3]]), 4), ["multiply"], "a type met twice is listed once");
+  assert.deepEqual(kindsOf({ ...fx("fxNone", []), changes: [{ key: AC, value: 5 }] }), [], "a change that names no type adds");
+  assert.deepEqual(effectLines(monsterOf([fx("fxMoves", [["override", 9]])]), AC, { base: 9 }), [], "a change that moves nothing is no line, and says nothing");
+});
+
+await ok("a step label says the change's type in Foundry's word where it is not add or subtract, and reads as before where it is", () => {
+  const effect = { name: "Test Hand" };
+  assert.equal(stepLabel(effect, null), "Test Hand");
+  assert.equal(stepLabel(effect, null, "add"), "Test Hand");
+  assert.equal(stepLabel(effect, null, "subtract"), "Test Hand");
+  assert.equal(stepLabel(effect, null, "override"), "Test Hand, Replacer");
+  assert.equal(stepLabel(effect, null, "multiply"), "Test Hand, Scaler");
+  const charge = implyingEffect("charging", { name: "Test Charge" });
+  assert.equal(stepLabel(charge, "disordered", "override"), `${namedBy("Test Charge", "disordered")}, Replacer`, "the condition's bracket stays, the word follows it");
+  assert.equal(stepLabel(effect, null, "upgrade"), "Test Hand, upgrade", "a type Foundry has no word for here reads as itself");
+  assert.equal(kindWords(["multiply", "override"]), "Scaler, Replacer");
+  const waivedSet = { id: "fxWaivedSet", name: "Test Waived", disabled: false, statuses: new Set(["disordered"]), changes: [{ key: AC, type: "override", value: 9 }] };
+  assert.deepEqual(conditionSteps(monsterOf([waivedSet], ["disordered"]), AC).waived.map((w) => w.type), ["override"], "a waived step carries its type through");
+});
+
 await ok("a directly waived condition's step lands in waived with its effect, valued as the field takes it; a change the rule cannot attribute is not waived on a guess", () => {
   const step = conditionValue("disordered", AC);
   const own = conditionEffect("disordered");
   const waived = conditionSteps(monsterOf([own], ["disordered"]), AC);
-  assert.deepEqual([waived.steps, waived.waived], [[], [{ condition: "disordered", value: step, effect: own }]]);
+  assert.deepEqual([waived.steps, waived.waived], [[], [{ condition: "disordered", type: "add", value: step, effect: own }]]);
   // Two statuses of one effect that both carry a change on the key: the change is no one's, so the all-statuses test decides.
   const shared = conditionEffect("disordered", { statuses: ["disordered", "shaken"], changes: [{ key: AC, type: "add", value: step }] });
   const kept = conditionSteps(monsterOf([shared], ["disordered"]), AC);

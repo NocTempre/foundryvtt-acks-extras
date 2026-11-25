@@ -549,7 +549,7 @@ function monsterSaveSteps(actor) {
     const { steps } = conditionSteps(actor, CONDITION_STEP_KEYS.save);
     const total = sumSteps(steps);
     if (steps.length) {
-      const rows = steps.map((step) => `${stepLabel(step.effect, step.condition)} ${signed(step.value)}`).join(", ");
+      const rows = steps.map((step) => `${stepLabel(step.effect, step.condition, step.type)} ${signed(step.value)}`).join(", ");
       globalThis.ui?.notifications?.info(loc("notice.applied", { name: actor.name, roll: loc("roll.save"), rows }));
     }
     return total;

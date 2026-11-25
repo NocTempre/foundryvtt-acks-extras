@@ -757,6 +757,22 @@ await (async () => {
     said.length = 0;
     hungryActor("monster").rollSave("breath");
     assert.ok(said.some((line) => line.includes("notice.applied") && line.includes("targetAc.named") && line.includes("effect.hungry") && line.includes("ACKS-LIB.condition.hungry")),"the notice names the step by its effect and the condition it belongs to");
+    // A step whose change overrides is named with the change's type in Foundry's word (invented here); a plain add is not.
+    const localize = game.i18n.localize;
+    game.i18n.localize = (k) => (k === "EFFECT.CHANGES.TYPES.override" ? "Replacer" : k);
+    try {
+      const settingActor = new SystemActor(["hungry"]);
+      settingActor.type = "monster";
+      settingActor.effects = settingActor.appliedEffects = [conditionEffect("hungry", { name: "Test Ring", changes: [{ key: "system.save.mod", type: "override", value: -4 }] })];
+      said.length = 0;
+      settingActor.rollSave("breath");
+      assert.ok(said.some((line) => line.includes("notice.applied") && line.includes("targetAc.kinded") && line.includes("Test Ring") && line.includes("Replacer")), "the notice says the kind of a step that overrides");
+      said.length = 0;
+      hungryActor("monster").rollSave("breath");
+      assert.ok(said.some((line) => line.includes("notice.applied")) && !said.some((line) => line.includes("targetAc.kinded")), "an adding step reads as before");
+    } finally {
+      game.i18n.localize = localize;
+    }
     said.length = 0;
     hungryActor("character").rollSave("breath");
     assert.ok(!said.some((line) => line.includes("effect.hungry")), "a character's roll is core's alone and names none");

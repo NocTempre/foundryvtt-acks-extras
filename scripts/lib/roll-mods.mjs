@@ -41,7 +41,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { acMath, acWaivedSet, subjectOf } from "./conditions.mjs";
 import { hasCapability } from "./capabilities.mjs";
 import { actorAlignment, areEnemies, creatureKinds } from "./actor-read.mjs";
-import { activeNumericChanges, appliedEffects } from "./effect-scan.mjs";
+import { activeNumericChanges, appliedEffects, CHANGE } from "./effect-scan.mjs";
 import { isMagical } from "./item-model.mjs";
 import { signed } from "./frame-model.mjs";
 
@@ -187,8 +187,9 @@ export function countsOnce(effect, change) {
  * @param {object} actor
  * @param {string} key  a field a condition effect changes (`CONDITION_STEP_KEYS`)
  * @returns {{steps: Array<{effect: object, change: object, type: string, value: number, condition: string}>,
- *   waived: Array<{condition: string, value: number, effect: object}>}}
- *   Values are the step as the field takes it, a bonus positive. `condition` is
+ *   waived: Array<{condition: string, type: string, value: number, effect: object}>}}
+ *   Values are the step as the field takes it, a bonus positive; `type` is the
+ *   change's type, `add` where it names none. `condition` is
  *   the status the change belongs to, else the first status of the effect that
  *   carries changes. `waived` is empty off `system.ac.mod`.
  */
@@ -203,7 +204,7 @@ export function conditionSteps(actor, key) {
     const condition = owner ?? statuses.find((id) => ids.has(id));
     if (!condition) continue;
     const waived = owner ? decided.has(owner) : decided.size > 0 && statuses.every((id) => decided.has(id));
-    if (waived) out.waived.push({ condition, value: step.value, effect: step.effect });
+    if (waived) out.waived.push({ condition, type: step.type, value: step.value, effect: step.effect });
     else out.steps.push({ ...step, condition });
   }
   return out;
@@ -237,8 +238,44 @@ export function lineLabel({ name, condition }) {
   return i18n?.format ? i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.named`, data) : `${data.effect} (${data.condition})`;
 }
 
-/** The label of one effect's step to a field: its effect named, plus the condition the step belongs to where the two differ (a charge's Armor Class step is its disorder's). */
-export const stepLabel = (effect, condition) => lineLabel(stepName(effect, condition));
+/** Whether a change type says something a signed figure does not: every type but `add` and `subtract`. */
+const namesKind = (type) => Boolean(type) && type !== CHANGE.ADD && type !== CHANGE.SUBTRACT;
+
+/**
+ * Foundry's own words for change types, joined by ", ": the localized
+ * `EFFECT.CHANGES.TYPES.<type>` of each, the type itself where Foundry has no
+ * word for it. The one place a type becomes words, for the sheet's tooltip lines
+ * and for `stepLabel`.
+ * @param {string[]} types
+ * @returns {string}
+ */
+export function kindWords(types) {
+  const i18n = globalThis.game?.i18n;
+  return types
+    .map((type) => {
+      const key = `EFFECT.CHANGES.TYPES.${type}`;
+      const word = i18n?.localize?.(key);
+      return word && word !== key ? word : type;
+    })
+    .join(", ");
+}
+
+/**
+ * The label of one effect's step to a field: its effect named, plus the
+ * condition the step belongs to where the two differ (a charge's Armor Class
+ * step is its disorder's), plus the change's type in Foundry's word where the
+ * type is not `add` or `subtract`.
+ * @param {object} effect
+ * @param {string|null} condition
+ * @param {string} [type]  the step's change type (`conditionSteps`)
+ */
+export function stepLabel(effect, condition, type) {
+  const label = lineLabel(stepName(effect, condition));
+  if (!namesKind(type)) return label;
+  const data = { label, kind: kindWords([type]) };
+  const i18n = globalThis.game?.i18n;
+  return i18n?.format ? i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.kinded`, data) : `${data.label}, ${data.kind}`;
+}
 
 /**
  * What every active effect does to one field of an actor, one line per effect
@@ -259,8 +296,11 @@ export const stepLabel = (effect, condition) => lineLabel(stepName(effect, condi
  * @param {object} actor
  * @param {string} key  a field an effect changes (`CONDITION_STEP_KEYS`)
  * @param {{base?: number}} [options]  `base` is the field's value before any effect, which an override or a multiply replays from
- * @returns {Array<{name: string, condition?: string, value: number, effect: object}>}
- *   `value` is the signed step, a bonus positive; `effect` is the document, for
+ * @returns {Array<{name: string, condition?: string, value: number, kinds: string[], effect: object}>}
+ *   `value` is the signed step, a bonus positive; `kinds` are the change types
+ *   of the effect's counted changes on the key other than `add` and `subtract`,
+ *   each once in the order met, empty for an effect that only adds or subtracts
+ *   (`kindWords` gives them in Foundry's words); `effect` is the document, for
  *   a caller that lists some effect's changes itself and so drops its line
  */
 export function effectLines(actor, key, { base = 0 } = {}) {
@@ -270,10 +310,12 @@ export function effectLines(actor, key, { base = 0 } = {}) {
     const line = lines.get(step.effect);
     if (line) {
       line.value += step.value;
+      if (namesKind(step.type) && !line.kinds.includes(step.type)) line.kinds.push(step.type);
       continue;
     }
     const condition = statusOfChange(step.effect, key) ?? [...(step.effect?.statuses ?? [])].find((id) => ids.has(id)) ?? null;
-    lines.set(step.effect, { ...stepName(step.effect, condition), value: step.value, effect: step.effect });
+    const kinds = namesKind(step.type) ? [step.type] : [];
+    lines.set(step.effect, { ...stepName(step.effect, condition), value: step.value, kinds, effect: step.effect });
   }
   return [...lines.values()].filter((line) => line.value !== 0);
 }

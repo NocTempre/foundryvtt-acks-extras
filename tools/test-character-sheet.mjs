@@ -956,6 +956,30 @@ test("the save row's tooltip states the stored value, a line per effect in order
   assert.equal(buildThrows(bare).saveModNow.value, "+2");
   assert.ok(buildThrows(bare).saveModNow.tip.startsWith("ACKS-CHARACTER.stats.modifierTipPlain|"), "no effect: the plain tip");
 }));
+test("a line for an effect that sets or multiplies the figure says the change's type in Foundry's word, and an adding effect reads as before", withConditions(() => {
+  // Invented words, so the line proves the label is read from Foundry's strings.
+  const words = { "EFFECT.CHANGES.TYPES.override": "Replacer", "EFFECT.CHANGES.TYPES.multiply": "Scaler" };
+  globalThis.game.i18n.localize = (k) => words[k] ?? k;
+  const kindText = (label, kind, value) => `ACKS-CHARACTER.stats.partKind|${JSON.stringify({ label, kind, value })}`;
+  const fx = (key, name, changes) => fixtureEffect("hungry", { statuses: [], name, changes: changes.map(([type, value]) => ({ key, type, value })) });
+  const AC_KEY = "system.ac.mod";
+  const armour = (hero, stored) => acTips(hero, hero.system, { ac: { mod: stored } }, noTyped, []).armour.split(" · ").slice(1);
+
+  const setter = fixtureActor("character", [fx(AC_KEY, "Test Ring", [["override", 9]])], { ac: 10 });
+  setter.system.ac.mod = 9;
+  assert.deepEqual(armour(setter, 4), [kindText("Test Ring", "Replacer", "+5")], "one kind: the word follows the name, the figure is the shift from the stored value");
+
+  const both = fixtureActor("character", [fx(AC_KEY, "Test Charm", [["multiply", 2], ["override", 9]])], { ac: 10 });
+  both.system.ac.mod = 9;
+  assert.deepEqual(armour(both, 4), [kindText("Test Charm", "Scaler, Replacer", "+5")], "two kinds: each in Foundry's word, joined");
+
+  const adder = fixtureActor("character", [fx(AC_KEY, "Test Band", [["add", 5], ["subtract", 2]])], { ac: 10 });
+  adder.system.ac.mod = 4 + 3;
+  assert.deepEqual(armour(adder, 4), [partText("Test Band", "+3")], "an effect that only adds and subtracts is the plain line");
+
+  const hero = fixtureActor("character", [fx("system.save.mod", "Test Hand", [["override", 6]])], { saveMod: 0, extra: { _source: { system: { save: { mod: 0 } } } } });
+  assert.deepEqual(buildThrows(hero).saveModNow.tip.split(" · ").slice(1), [kindText("Test Hand", "Replacer", "+6")], "the saving throw tooltip says it too");
+}));
 
 console.log("character sheet: adding a proficiency by hand");
 const atest = async (name, fn) => {

@@ -2848,11 +2848,17 @@ steps lower its saving throw's number (`onRollSave`) and its spec's
 as the system's roll does for a character: they are named parts of the throw,
 and the rest of `save.mod` stays the magical throw's alone.
 
-**An effect's step is named where it is shown.** `stepLabel(effect, condition)`
-(`roll-mods.mjs`) names a step by the effect's own name, followed by the name of
-the condition the change belongs to where the two differ (a charge's Armor
-Class step is its disorder's); an effect with no name is named by its
-condition, and `lineLabel` draws the same text from a line. The attack card's
+**An effect's step is named where it is shown.** `stepLabel(effect, condition,
+type)` (`roll-mods.mjs`) names a step by the effect's own name, followed by the
+name of the condition the change belongs to where the two differ (a charge's
+Armor Class step is its disorder's); an effect with no name is named by its
+condition, and `lineLabel` draws the same text from a line. Where the step's
+change type is none of `add` and `subtract` (it sets, multiplies or bounds the
+figure), the label ends with the type in Foundry's own word, the localized
+`EFFECT.CHANGES.TYPES.<type>` that `kindWords` gives for every surface, the
+character sheet's tooltips included; a step that adds or subtracts is named
+without one. `conditionSteps` carries each step's `type`, a waived step's
+too. The attack card's
 line, a saving throw's condition parts (`saveSpec`) and the notice a monster's
 save step is told by (`onRollSave`) take their names from it, so one effect
 reads alike on all of them. `effectLines(actor, key, {base})` is the same
@@ -2860,9 +2866,12 @@ reading for a whole field, in the shape of the system's own attack-card
 breakdown (the stored value, a line per effect, the remainder), rebuilt here
 because the system ships as one bundle and its function cannot be imported:
 `activeNumericChanges` narrowed by `countsOnce`, grouped by effect in
-application order into `{name, condition?, value, effect}`, `value` the signed
-step read from the effect document at the call, `condition` present only where
-its name differs from the effect's. An effect that nets to nothing has no line.
+application order into `{name, condition?, value, kinds, effect}`, `value` the
+signed step read from the effect document at the call, `condition` present only
+where its name differs from the effect's, `kinds` the change types of the
+effect's counted changes on the key other than `add` and `subtract`, each once
+in the order met (empty for an effect that only adds or subtracts). An effect
+that nets to nothing has no line.
 A caller states the remainder itself, as the prepared value less the stored
 value less the sum of the lines; the character sheet's tooltips do
 (`effectBreakdown`, docs/character-sheet/MODEL.md). The builder is not part of

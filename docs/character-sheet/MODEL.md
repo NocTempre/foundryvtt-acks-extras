@@ -453,7 +453,11 @@ stored value, then one line per active effect that changes the field, in the
 order Foundry applied the changes (`effectBreakdown` over `effectLines`,
 docs/lib/MODEL.md, "A non-character's Armor Class and save"), each by the
 effect's name with the condition its change belongs to where the two differ,
-and the signed step read from the effect at render. A line for what the effects
+and the signed step read from the effect at render. A line for an effect that
+sets, multiplies or bounds the figure says the change's type after the name, in
+Foundry's own word (`stats.partKind`, "{label}, {kind}: {value}"; the words are
+`kindWords`, docs/lib/MODEL.md, "An effect's step is named where it is shown").
+A line for what the effects
 moved and no line accounts for follows only where one exists, labelled with the
 system's own "Other Effects" string. The shape is the system's attack-card
 breakdown; the loadout effect is counted in the sum and listed by its own parts

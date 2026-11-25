@@ -338,6 +338,25 @@ await ok("a condition's step on the save modifier reaches every save: a characte
   }
 });
 
+await ok("a part names the change's type in Foundry's word where the effect sets or multiplies the modifier, and a plain add keeps its name", () => {
+  globalThis.CONFIG = { ACKS: { conditions: coreConditions() } };
+  // Invented words, so the label proves it is read from Foundry's strings; the condition keeps its id as its name.
+  const words = { "EFFECT.CHANGES.TYPES.override": "Replacer", "EFFECT.CHANGES.TYPES.multiply": "Scaler" };
+  globalThis.game = { i18n: { localize: (k) => words[k] ?? k.replace("ACKS-LIB.condition.", "") } };
+  try {
+    const set = effectOf("hungry", { name: "Test Ring", changes: [{ key: SAVE_MOD, type: "override", value: 4 }] });
+    const add = effectOf("hungry", { name: "Test Band", changes: [{ key: SAVE_MOD, type: "add", value: 2 }] });
+    const hero = actorOf("character", [set], { saveMod: 0 });
+    assert.deepEqual(saveSpec(hero, "blast", { magical: false }).parts.map((p) => [p.label, p.value, p.side]), [["Test Ring (hungry), Replacer", 4, "roll"]], "a character's roll part");
+    const beast = actorOf("monster", [set]);
+    assert.deepEqual(saveSpec(beast, "death").parts.map((p) => [p.label, p.value, p.side]), [["Test Ring (hungry), Replacer", 4, "target"]], "a monster's target part");
+    assert.deepEqual(saveSpec(actorOf("monster", [add]), "death").parts.map((p) => p.label), ["Test Band (hungry)"], "an adding effect reads as before");
+  } finally {
+    delete globalThis.CONFIG;
+    delete globalThis.game;
+  }
+});
+
 await ok("each of the eleven's figure is on a saving throw from one place: the sheet's modifier for a character, the step for a monster", () => {
   globalThis.CONFIG = { ACKS: { conditions: coreConditions() } };
   try {
