@@ -1238,8 +1238,18 @@ acksExtras.lib.summons = {
   pickSummon(summoner, {spell?, options?, resolveRef?}),
                                            // → Promise<{sourceUuid, count, spellId}|null>
   registerSummonPolicy(fn),                // → unregister(): boolean
+  creatureOpens(doc, user, {packOf}?),     // → boolean: can this user open the creature
 }
 ```
+
+`creatureOpens` answers with Foundry's own test, the one `placeSummons` applies
+(`unreadable`): true for a GM, else true when the user holds OBSERVER or better
+on the document, or on its compendium where `doc` is a compendium document or a
+compendium index entry (`{uuid, …}`, whose pack is read from the uuid; `packOf(uuid)`
+overrides the lookup, the world's pack registry by default). A missing document
+opens for a GM alone. `seatLabel({name, opens, neutral})` in
+`scripts/lib/summons-logic.mjs`, imported directly, is the string a seat reads
+for a creature: `name` where `opens`, else `neutral`.
 
 A summon may ride in its summoner's party token, where it is a member record
 and no scene token. Lib reads and ends it through the `party-roster` contract

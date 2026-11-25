@@ -1533,4 +1533,37 @@ await t("with no roster release a stashed creature that should go is left, count
   assert.equal(scene.tokens.size, 0);
 });
 
+await t("creatureOpens: a Judge always opens; a seat needs OBSERVER on the document, or on its pack for a pack document or an index entry; a missing document opens for a Judge alone; it agrees with sourceReadable where that answers", () => {
+  const RANK = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
+  const level = (name) => ({ id: "u", isGM: false, rank: RANK[name] });
+  const doc = { uuid: "Actor.w1", testUserPermission: (u, need) => RANK[need] <= u.rank };
+  assert.equal(logic.creatureOpens(doc, { id: "gm", isGM: true }), true, "a GM");
+  assert.equal(logic.creatureOpens(doc, level("OWNER")), true, "an owner");
+  assert.equal(logic.creatureOpens(doc, level("OBSERVER")), true, "an observer");
+  assert.equal(logic.creatureOpens(doc, level("LIMITED")), false, "below observer");
+  assert.equal(logic.creatureOpens(doc, level("NONE")), false);
+  const packDoc = { uuid: "Compendium.test.pack.Actor.a1", compendium: { testUserPermission: (u, need) => RANK[need] <= u.rank }, testUserPermission: () => true };
+  assert.equal(logic.creatureOpens(packDoc, level("OBSERVER")), true, "a pack document is read through its pack, never its own answer");
+  assert.equal(logic.creatureOpens(packDoc, level("LIMITED")), false);
+  const entry = { uuid: "Compendium.test.pack.Actor.a1", name: "Entry" };
+  const packs = { "test.pack": { testUserPermission: (u, need) => RANK[need] <= u.rank } };
+  const packOf = (uuid) => packs[/^Compendium\.([^.]+\.[^.]+)\./u.exec(uuid)?.[1]] ?? null;
+  assert.equal(logic.creatureOpens(entry, level("OBSERVER"), { packOf }), true, "an index entry reads its pack from the uuid");
+  assert.equal(logic.creatureOpens(entry, level("LIMITED"), { packOf }), false);
+  assert.equal(logic.creatureOpens(entry, { id: "gm", isGM: true }, { packOf }), true);
+  assert.equal(logic.creatureOpens(entry, level("OWNER"), { packOf: () => null }), false, "an entry whose pack is not found opens for no seat");
+  assert.equal(logic.creatureOpens({ uuid: "Actor.w2" }, level("OWNER"), { packOf }), false, "a world uuid names no pack");
+  assert.equal(logic.creatureOpens(null, level("OWNER")), false, "a missing document");
+  assert.equal(logic.creatureOpens(null, { id: "gm", isGM: true }), true);
+  assert.equal(logic.creatureOpens(doc, null), false, "no user");
+  for (const who of [level("NONE"), level("LIMITED"), level("OBSERVER"), level("OWNER"), { id: "gm", isGM: true }]) {
+    for (const d of [doc, packDoc]) assert.equal(logic.creatureOpens(d, who), logic.sourceReadable(d, who), "the cast's own test, answered the same");
+  }
+});
+
+await t("seatLabel: the name where the seat opens the creature, the neutral label where it does not", () => {
+  assert.equal(logic.seatLabel({ name: "Hound", opens: true, neutral: "A creature" }), "Hound");
+  assert.equal(logic.seatLabel({ name: "Hound", opens: false, neutral: "A creature" }), "A creature");
+});
+
 console.log(`\ntest-summons: ${n} tests passed`);

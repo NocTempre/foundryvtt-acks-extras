@@ -535,7 +535,7 @@ await ta("the real template draws a summons' Summon band in the targets band's p
   const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), "utf8");
   const render = (ctx, state = {}) => Handlebars.compile(read("../templates/magic/cast-dialog.hbs"))(dialogContext(ctx, state)).replaceAll("&quot;", "\"");
   const summon = {
-    creatures: [{ value: "uA", name: "Alpha", amount: 2, source: null }, { value: "uB", name: "", amount: 3, source: null }],
+    creatures: [{ value: "uA", name: "Alpha", amount: 2, source: null, opens: true }, { value: "uB", name: "", amount: 3, source: null, opens: true }],
     shelves: [],
     at: (pick) => ({ count: pick.count, ceiling: 4, calling: false, refused: null, range: 20 }),
   };

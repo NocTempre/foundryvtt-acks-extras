@@ -22,6 +22,7 @@ import { bucketView, BUCKET_LANG_PREFIX, BUCKET_ACTIONS } from "../../lib/bucket
 import { makeLoc } from "../../lib/util.mjs";
 import { invocationFigure } from "../cast-level.mjs";
 import { procedureHeading } from "../cast-procedure.mjs";
+import { seatLabel } from "../../lib/summons-logic.mjs";
 
 /** The visibility modes the dialog offers, as lib's roll dialog offers them. */
 export const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
@@ -97,23 +98,27 @@ export function effectRow(row, statusImg = () => null) {
 /*  The answer's state                          */
 /* -------------------------------------------- */
 
-/** The creatures the Summon band offers, flat: each row's creature where the spell names one. `amount` is the count a row opens on. Empty where the cast summons nothing or the rows name no creature (the band then takes a dropped one). */
+/** The label a seat reads for a creature it cannot open. */
+const neutralLabel = () => game.i18n.localize("ACKS-LIB.summons.neutral");
+
+/** The creatures the Summon band offers, flat: each row's creature where the spell names one. `amount` is the count a row opens on; `opens` is whether the seat can open the creature, true only where the cast says so. Empty where the cast summons nothing or the rows name no creature (the band then takes a dropped one). */
 function summonOptions(ctx) {
   const s = ctx.summon;
   if (!s?.creatures?.length) return [];
-  return s.creatures.map((c, i) => ({ value: c.value, name: c.name || game.i18n.format("ACKS-LIB.summons.creatureN", { n: i + 1 }), amount: Number(c.amount) || 0, source: c.source ?? null }));
+  return s.creatures.map((c, i) => ({ value: c.value, name: c.name || game.i18n.format("ACKS-LIB.summons.creatureN", { n: i + 1 }), amount: Number(c.amount) || 0, source: c.source ?? null, opens: c.opens === true }));
 }
 
 /**
  * The creature dropped on an open Summon band, with its name and picture read
  * from the world; null where none is held. The open row's own count is the one
- * it opens on.
+ * it opens on. The drop handler took only a creature the seat can open, so a
+ * dropped creature opens.
  */
 function droppedCreature(ctx, state) {
   const ref = String(state.summon?.ref ?? "").trim();
   if (!ctx.summon?.open || !ref) return null;
   const doc = globalThis.fromUuidSync?.(ref) ?? null;
-  return { value: ref, name: String(state.summon?.name ?? doc?.name ?? ""), img: String(state.summon?.img ?? doc?.img ?? ""), amount: Number(ctx.summon.open.amount) || 0, source: null };
+  return { value: ref, name: String(state.summon?.name ?? doc?.name ?? ""), img: String(state.summon?.img ?? doc?.img ?? ""), amount: Number(ctx.summon.open.amount) || 0, source: null, opens: true };
 }
 
 /**
@@ -123,7 +128,7 @@ function droppedCreature(ctx, state) {
  * the cast summons nothing or no creature is offered or dropped.
  * @param {object} ctx
  * @param {object} state
- * @returns {{ref: string, count: number, name: string, source: object|null}|null}
+ * @returns {{ref: string, count: number, name: string, source: object|null, opens: boolean}|null}
  */
 export function summonPick(ctx, state) {
   const options = summonOptions(ctx);
@@ -132,7 +137,7 @@ export function summonPick(ctx, state) {
   const typed = String(state.summon?.count ?? "").trim();
   // A count under one reads as one, as the cast does (`ANSWER_FIELDS.summon`), so the band shows and judges the figure the cast uses.
   const count = typed !== "" && Number.isFinite(Number(typed)) ? Math.max(1, Math.trunc(Number(typed))) : chosen.amount || 1;
-  return { ref: chosen.value, count, name: chosen.name, source: chosen.source, ...(chosen.img !== undefined ? { img: chosen.img } : {}) };
+  return { ref: chosen.value, count, name: chosen.name, source: chosen.source, opens: chosen.opens, ...(chosen.img !== undefined ? { img: chosen.img } : {}) };
 }
 
 /** The first option of every group the spell offers, by group id. */
@@ -458,7 +463,8 @@ export function bucketViews(proc, entries, ctx = {}) {
  * The Summon band the template draws for a summons: the creature select (the
  * rows' creatures, else the shelves), the count with the ceiling beside it and
  * the placement line. A ceiling's tooltip names its figure, the creature and
- * the caster level it was read at, with the spell's page reference; a blank
+ * the caster level it was read at (the neutral label for a creature the seat
+ * cannot open, as in the creature select), with the spell's page reference; a blank
  * ceiling shows the reference alone. The template draws no Targets band beside it.
  *
  * @param {object} ctx
@@ -469,7 +475,7 @@ export function bucketViews(proc, entries, ctx = {}) {
 function summonView(ctx, pick, judged, { cite, level }) {
   const options = summonOptions(ctx);
   const flat = ctx.summon.creatures?.length > 0;
-  const mark = (o) => ({ value: o.value, label: o.name, selected: o.value === pick?.ref });
+  const mark = (o) => ({ value: o.value, label: seatLabel({ name: o.name, opens: o.opens, neutral: neutralLabel() }), opens: o.opens, selected: o.value === pick?.ref });
   const ceiling = judged?.ceiling ?? null;
   const parens = cite ? ` (${cite})` : "";
   const feet = Number.isFinite(judged?.range) ? Math.round(judged.range * 10) / 10 : null;
@@ -514,7 +520,7 @@ function summonView(ctx, pick, judged, { cite, level }) {
       of: ceiling === null ? "" : loc("dialog.summonOf", { max: ceiling }),
       over: ceiling !== null && Number(pick?.count) > ceiling,
       // The figure's provenance; with nothing imported the reference alone.
-      tip: ceiling === null ? cite : loc(level != null ? "tip.summonCeiling" : "tip.summonCeilingFlat", { max: ceiling, name: pick?.name ?? "", level: level ?? "", cite: parens }),
+      tip: ceiling === null ? cite : loc(level != null ? "tip.summonCeiling" : "tip.summonCeilingFlat", { max: ceiling, name: pick ? seatLabel({ name: pick.name, opens: pick.opens, neutral: neutralLabel() }) : "", level: level ?? "", cite: parens }),
     },
     placement: { label: loc("dialog.summonPlacement"), ...placement },
   };

@@ -56,7 +56,10 @@ const NO_TWIN = { byCookbookId: () => null, fromUuidSync: () => null };
 const GM_SEAT = { id: "gm", isGM: true };
 const PLAYER_SEAT = { id: "p1", isGM: false };
 const REF = "def.invented.glimmerkin";
-const GLIMMER = { uuid: "Compendium.invented.Actor.abc", name: "Glimmerkin", type: "monster", flags: { "acks-extras": { cookbook: { id: REF } } } };
+/** Foundry's permission ranks, so a double answers `testUserPermission(user, need)` from the user's own `level`. */
+const RANKS = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
+const holdsAt = (user, need) => RANKS[user.level ?? "NONE"] >= RANKS[need];
+const GLIMMER = { uuid: "Compendium.invented.Actor.abc", name: "Glimmerkin", type: "monster", flags: { "acks-extras": { cookbook: { id: REF } } }, testUserPermission: () => true };
 const CASTER_TOKEN = { id: "tok1", uuid: "Scene.s1.Token.tok1" };
 const KIND = "testkind";
 const tradition = { key: "wisp", label: "Wisp", kind: KIND, slots: [], spellList: [] };
@@ -87,7 +90,7 @@ const makeSpell = ({ rows = [row()], extra = {}, over = {} } = {}) => {
  * clicks, the verdict, the placement and the shelf prompt are doubles: lib's own
  * are walked in `test-summons.mjs` and live.
  */
-function runDeps({ answer, isGM = false, gmOnline = true, level = { matched: false }, capacity = { verdict: "ok" }, tradition: trad = null, world = {}, clicks, verdict, place, pickSummon } = {}) {
+function runDeps({ answer, isGM = false, seat = null, gmOnline = true, level = { matched: false }, capacity = { verdict: "ok" }, tradition: trad = null, world = {}, clicks, verdict, place, pickSummon } = {}) {
   const calls = { notices: [], texts: [], posts: [], records: [], spends: 0, pools: [], verdicts: [], clicked: [], placed: [], picked: [], declares: [], finishes: 0, ended: 0, asked: 0 };
   const order = [];
   const deps = {
@@ -105,6 +108,7 @@ function runDeps({ answer, isGM = false, gmOnline = true, level = { matched: fal
     throwRow: async () => null,
     now: () => 10,
     isGM: () => isGM,
+    user: () => seat ?? (isGM ? GM_SEAT : PLAYER_SEAT),
     gmOnline: () => gmOnline,
     endHeld: async () => void (order.push("endHeld"), calls.ended++),
     declare: {
@@ -667,7 +671,7 @@ await ta("the band offers the row's creature by its resolved name and reads its 
   assert.deepEqual(ctx.summon.creatures.map((c) => [c.value, c.name, c.amount, c.source === GLIMMER]), [[GLIMMER.uuid, "Glimmerkin", 2, true]]);
   const { view } = footerOf(ctx, { casterLevel: "3" });
   const band = view.summon;
-  assert.deepEqual([band.show, band.none, band.creature.options], [true, false, [{ value: GLIMMER.uuid, label: "Glimmerkin", selected: true }]]);
+  assert.deepEqual([band.show, band.none, band.creature.options], [true, false, [{ value: GLIMMER.uuid, label: "Glimmerkin", opens: true, selected: true }]]);
   assert.deepEqual([band.count.value, band.count.of, band.count.over], [2, 'ACKS-MAGIC.cast.dialog.summonOf|{"max":6}', false], "the row's own count opens, beside the ceiling at level 3");
   assert.equal(band.count.tip, 'ACKS-MAGIC.cast.tip.summonCeiling|{"max":6,"name":"Glimmerkin","level":3,"cite":" (RR 1)"}');
   assert.equal(model.dialogContext(ctx, { casterLevel: "5" }).summon.count.of, 'ACKS-MAGIC.cast.dialog.summonOf|{"max":10}', "each level reads its own");
@@ -675,9 +679,12 @@ await ta("the band offers the row's creature by its resolved name and reads its 
   assert.deepEqual(model.answerOf(ctx, { summon: { ref: GLIMMER.uuid, count: "4" } }).summon, { ref: GLIMMER.uuid, count: 4 }, "a typed count is the answer's");
 });
 
-await ta("a creature the seat cannot open is offered by the row's name, else Creature n; rows that name no creature take a dropped one, and Cast waits for it", async () => {
-  let ctx = await askedWith(makeSpell({ rows: [row({ ref: "def.invented.far", name: "Far hound" }), row({ ref: "def.invented.unseen", amount: 1 })] }), {});
-  assert.deepEqual(model.dialogContext(ctx, {}).summon.creature.options.map((o) => o.label), ["Far hound", 'ACKS-LIB.summons.creatureN|{"n":2}']);
+await ta("a creature the seat cannot open is offered to a Judge by the row's name, else Creature n, and to a Player by the neutral label; rows that name no creature take a dropped one, and Cast waits for it", async () => {
+  const spell = () => makeSpell({ rows: [row({ ref: "def.invented.far", name: "Far hound" }), row({ ref: "def.invented.unseen", amount: 1 })] });
+  let ctx = await askedWith(spell(), { isGM: true });
+  assert.deepEqual(model.dialogContext(ctx, {}).summon.creature.options.map((o) => [o.label, o.opens]), [["Far hound", true], ['ACKS-LIB.summons.creatureN|{"n":2}', true]]);
+  ctx = await askedWith(spell(), {});
+  assert.deepEqual(model.dialogContext(ctx, {}).summon.creature.options.map((o) => [o.label, o.opens]), [["ACKS-LIB.summons.neutral", false], ["ACKS-LIB.summons.neutral", false]]);
   assert.equal(model.dialogContext(ctx, {}).summon.drop, null, "a spell that names its creatures draws no drop zone");
   ctx = await askedWith(makeSpell({ rows: [row({ ref: "", amount: 2 })] }), {});
   const empty = model.dialogContext(ctx, {});
@@ -754,6 +761,56 @@ await ta("no GM connected shows in a Player's footer before the confirm and bloc
   assert.deepEqual([player.verdicts, player.blocked], [[["block", noGm]], true]);
   assert.deepEqual(footerOf(await askedWith(makeSpell(), { gmOnline: false, isGM: true }), {}).verdicts, []);
   assert.deepEqual(footerOf(await askedWith(makeSpell(), { gmOnline: false, world: fight("cb2") }), {}).verdicts, [], "nothing is placed at a declaring");
+});
+
+const CLOSED = { uuid: "Actor.closedHound", name: "Hidden Hound", type: "monster", flags: {}, testUserPermission: holdsAt };
+
+/** The context asked for a spell naming one creature the seat resolves to `CLOSED`, with the seat's own user. */
+const askedClosed = async (over = {}) => {
+  const seen = [];
+  const r = runDeps({ answer: null, ...over });
+  r.deps.resolveRef = async (ref) => (ref === CLOSED.uuid ? CLOSED : null);
+  r.deps.ask = async (ctx) => (seen.push(ctx), null);
+  await cast(makeSpell({ rows: [row({ ref: CLOSED.uuid, amount: 2 })], extra: bandCite }), r);
+  return seen[0];
+};
+
+await ta("a Player whose picked creature does not open reads the neutral label and the shipped refusal in the footer, with Cast disabled; the ceiling's tooltip does not name it", async () => {
+  const closed = footerOf(await askedClosed({ seat: { id: "p1", isGM: false, level: "LIMITED" } }), {});
+  assert.deepEqual(closed.view.summon.creature.options, [{ value: CLOSED.uuid, label: "ACKS-LIB.summons.neutral", opens: false, selected: true }]);
+  assert.deepEqual([closed.verdicts, closed.blocked], [[["block", "ACKS-LIB.summons.refused.unreadable"]], true]);
+  assert.ok(!closed.view.summon.count.tip.includes(CLOSED.name), "the tooltip names no creature the seat cannot open");
+  assert.ok(closed.view.summon.count.tip.includes("ACKS-LIB.summons.neutral"), "it reads the neutral label in the name's place");
+  assert.ok(!JSON.stringify(closed.view).includes(CLOSED.name), "no part of the dialog's view carries the name");
+});
+
+await ta("the same pick is named and castable for a Judge, and for a Player who observes the creature", async () => {
+  for (const [who, over] of [["a Judge", { isGM: true, seat: { id: "gm", isGM: true } }], ["an observer", { seat: { id: "p1", isGM: false, level: "OBSERVER" } }], ["an owner", { seat: { id: "p1", isGM: false, level: "OWNER" } }]]) {
+    const open = footerOf(await askedClosed(over), {});
+    assert.deepEqual(open.view.summon.creature.options, [{ value: CLOSED.uuid, label: CLOSED.name, opens: true, selected: true }], who);
+    assert.deepEqual([open.verdicts, open.blocked], [[], false], who);
+    assert.ok(open.view.summon.count.tip.includes(CLOSED.name), `${who} reads the name in the ceiling's tooltip`);
+  }
+});
+
+await ta("a Judge is never refused before the press and a Player is, whether the creature was resolved or only named; a declaring is refused too", async () => {
+  const unseen = () => makeSpell({ rows: [row({ ref: "def.invented.far", name: "Far hound" })] });
+  assert.deepEqual(footerOf(await askedWith(unseen(), { isGM: true }), {}).verdicts, [], "a Judge's seat opens a creature it could not resolve");
+  const player = footerOf(await askedWith(unseen()), {});
+  assert.deepEqual([player.verdicts, player.blocked], [[["block", "ACKS-LIB.summons.refused.unreadable"]], true]);
+  const declaring = footerOf(await askedWith(unseen(), { world: fight("cb2") }), {});
+  assert.deepEqual(declaring.verdicts, [["block", "ACKS-LIB.summons.refused.unreadable"]]);
+  const quiet = footerOf(await askedWith(unseen(), { gmOnline: false }), {});
+  assert.deepEqual(quiet.verdicts, [["block", "ACKS-LIB.summons.refused.unreadable"]], "the creature's refusal is the one the footer shows, whatever else would also block");
+});
+
+await ta("a creature a Player drops on an open band is one the drop handler let through, so it stays castable and is named in the drop row", async () => {
+  const ctx = await askedWith(makeSpell({ rows: [row({ ref: "", amount: 2 })] }), { seat: { id: "p1", isGM: false, level: "NONE" } });
+  const state = { summon: { ref: "Compendium.invented.Actor.z", count: "", name: "Zebra", img: "z.png" } };
+  const held = footerOf(ctx, state);
+  assert.deepEqual([held.verdicts, held.blocked], [[], false]);
+  assert.deepEqual(held.view.summon.drop.rows.map((r) => r.name), ["Zebra"]);
+  assert.equal(model.summonPick(ctx, state).opens, true);
 });
 
 await ta("no slot or pool, and a casting time over a round in a fight, reach the footer of a summons as they do any cast: a Player is blocked and a Judge warned", async () => {

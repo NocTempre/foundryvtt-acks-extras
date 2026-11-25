@@ -708,6 +708,7 @@
   "ACKS-LIB.summons.creature": "Creature",
   "ACKS-LIB.summons.variantTitle": "Summon {name}",
   "ACKS-LIB.summons.creatureN": "Creature {n}",
+  "ACKS-LIB.summons.neutral": "A creature this seat cannot open",
   "ACKS-LIB.summons.count": "How many",
   "ACKS-LIB.summons.spell": "Cast from",
   "ACKS-LIB.summons.place": "Place on the map",

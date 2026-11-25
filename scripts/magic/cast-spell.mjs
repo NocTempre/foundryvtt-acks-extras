@@ -577,6 +577,8 @@ const liveDeps = () => ({
   },
   now: () => game.time.worldTime,
   isGM: () => game.user.isGM,
+  // The seat's own user, whose level on a creature decides whether the Summon band names it.
+  user: () => game.user,
   // Is a GM connected to make a Player's creatures?
   gmOnline: () => Boolean(game.users?.activeGM),
 });
@@ -785,14 +787,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const summoning = isSummonSpell(spell) && !fromProject;
   const summonRows = summoning ? summonRowsOf(spell, deps.lookups) : [];
   // No shelf list is offered: a spell whose rows name no creature takes one dropped on the Summon band.
-  const offer = summoning ? await summonOffer(summonRows, { resolveRef: deps.resolveRef }) : null;
+  const offer = summoning ? await summonOffer(summonRows, { resolveRef: deps.resolveRef, user: deps.user?.() ?? { isGM: deps.isGM() } }) : null;
   const openRow = summonRows.find((row) => !String(row?.ref ?? "").trim()) ?? null;
   // A Player's creatures are made by the GM's client: with none connected the placement would be refused after the spend. A Judge's own seat needs no relay.
   const gmMissing = () => !deps.isGM() && Boolean(deps.gmOnline) && !deps.gmOnline();
   const noGm = () => ({ reason: "noGm", notice: loc("notice.summonNoGm") });
-  // The pick as the band holds it, weighed at the level and invocation level the seat holds, for the dialog's footer: the reading the confirm takes, less lib's own checks (they wait for the click).
+  // The refusal lib gives a request for a creature its user cannot open, read before the press for a pick the band flags `opens: false`; a Judge's seat opens every creature.
+  const unreadable = () => ({ reason: "unreadable", notice: game.i18n.localize("ACKS-LIB.summons.refused.unreadable") });
+  // The pick as the band holds it, weighed at the level and invocation level the seat holds, for the dialog's footer: the reading the confirm takes, less lib's own checks (they wait for the click), but for the one that says the seat cannot open the creature.
   const summonAt = (picked, { mode: form, level: levelValue, inv, declaring = false }) => ({
-    ...judgeSummon(summonRows, picked, { source: picked.source ?? null, level: levelValue, at: { invocationLevel: inv }, refused: !declaring && gmMissing() ? noGm() : null }),
+    ...judgeSummon(summonRows, picked, { source: picked.source ?? null, level: levelValue, at: { invocationLevel: inv }, refused: !deps.isGM() && picked.opens !== true ? unreadable() : !declaring && gmMissing() ? noGm() : null }),
     range: rangeFeet(figuresAt(form ?? modeKeys[0], inv).range, levelValue)?.value ?? null,
   });
   const askContext = () => ({

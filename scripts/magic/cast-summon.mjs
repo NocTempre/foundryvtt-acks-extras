@@ -16,10 +16,13 @@ import { isSummonSpell, summonOptionsOf, libraryTwin } from "./summon-spell.mjs"
 import { flattenAt } from "./cast-rows.mjs";
 import { modifierFigure } from "./cast-mods.mjs";
 import { byCookbookId, cookbookId } from "../lib/library.mjs";
-import { normalizeRef, offerRows, registerSummonPolicy, bareSummonAllowed, controlEndOf } from "../lib/summons-logic.mjs";
+import { normalizeRef, offerRows, registerSummonPolicy, bareSummonAllowed, controlEndOf, creatureOpens, packIdOfUuid } from "../lib/summons-logic.mjs";
 
 /** The world lookups the rows and the twin need, as the live world gives them. */
 const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync(uuid) });
+
+/** The live compendium a uuid is in, from the world's pack registry; null with no registry or no such pack. */
+const worldPackOf = (uuid) => globalThis.game?.packs?.get?.(packIdOfUuid(uuid)) ?? null;
 
 /** The `summonFormat` of a row whose creature is called from where it stands, so no range bounds its place (a key of `SUMMON_FORMATS`). */
 export const CALLING_FORMAT = "calling";
@@ -141,18 +144,24 @@ export function controlEndFor(rows, creature) {
  * through under the row's imported name), each with the document it resolved
  * to (`source`, null where the seat could not open it). A spell with no
  * offerable row offers the shelves the seat can open instead, since the policy
- * refuses a creature the rows do not name only where a row names one.
+ * refuses a creature the rows do not name only where a row names one. Each
+ * creature carries `opens`: whether `user`, the seat's own, can open it
+ * (`creatureOpens`). A creature the seat could not resolve opens for a Judge
+ * alone, and every creature opens for none with no `user`.
  * @param {object[]} rows  `summonRowsOf`'s
- * @param {{resolveRef?: (ref: string) => Promise<object|null>, shelves?: () => Promise<object[]>|object[]}} deps
- * @returns {Promise<{creatures: {value: string, name: string, amount: number, passed: boolean, source: object|null}[], shelves: {label: string, entries: {uuid: string, name: string}[]}[]}>}
+ * @param {{resolveRef?: (ref: string) => Promise<object|null>, shelves?: () => Promise<object[]>|object[], user?: object|null, packOf?: (uuid: string) => object|null}} deps  `packOf` is the compendium an index entry's uuid is in, the world's pack registry by default
+ * @returns {Promise<{creatures: {value: string, name: string, amount: number, passed: boolean, source: object|null, opens: boolean}[], shelves: {label: string, entries: {uuid: string, name: string}[]}[]}>}
  */
-export async function summonOffer(rows, { resolveRef, shelves } = {}) {
+export async function summonOffer(rows, { resolveRef, shelves, user = null, packOf = worldPackOf } = {}) {
   const resolved = [];
   for (const row of rows) {
     const ref = String(row?.ref ?? "").trim();
     resolved.push(ref && resolveRef ? await Promise.resolve(resolveRef(ref)).catch(() => null) : null);
   }
-  const creatures = offerRows(rows, resolved).map((offer) => ({ ...offer, source: offer.passed ? null : (resolved.find((doc) => doc?.uuid === offer.value) ?? null) }));
+  const creatures = offerRows(rows, resolved).map((offer) => {
+    const source = offer.passed ? null : (resolved.find((doc) => doc?.uuid === offer.value) ?? null);
+    return { ...offer, source, opens: creatureOpens(source, user, { packOf }) };
+  });
   return { creatures, shelves: creatures.length ? [] : ((await shelves?.()) ?? []) };
 }
 

@@ -3457,6 +3457,18 @@ reads as an id (dotted, no space; `offerRows`), labelled by the row's `name` or
 "Creature N", and `placeSummons` passes the ref on as `sourceUuid`; the seat's
 own `summonVerdict` refuses it before anything is clicked or sent.
 
+**What a seat reads for a creature it cannot open.** A surface that names a
+summoned creature to a seat names it only where that seat could open the
+creature, and otherwise reads the neutral label `ACKS-LIB.summons.neutral`
+(`seatLabel`). The test is `creatureOpens(doc, user, {packOf})`, the same
+answer `sourceReadable` gives at the cast: a GM always opens, any other user
+needs Foundry's OBSERVER on the document, or on its compendium where it is a
+pack document. A compendium index entry (`fromUuidSync` answers one, and it has
+no permission test) is read through the pack its uuid names. A document the
+seat could not resolve at all opens for a GM alone. The name is a label only:
+it stays readable from the console and the document, and no permission is
+added or removed by it.
+
 **Naming a row's creature.** `summonRefName(ref, {fromUuidSync, byCookbookId})`
 reads synchronously the name of the creature a ref names: the Actor its uuid
 names, else the library Actor carrying it as a cookbook id, else null (a lookup

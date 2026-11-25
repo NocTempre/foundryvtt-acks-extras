@@ -404,7 +404,7 @@ await ta("the Summon band's controls are read from the page: a new creature drop
   CastDialog.instances.length = 0;
   hooks.clear();
   const seen = [];
-  const creatures = [{ value: "uA", name: "Alpha", amount: 2, source: null }, { value: "uB", name: "Beta", amount: 3, source: null }];
+  const creatures = [{ value: "uA", name: "Alpha", amount: 2, source: null, opens: true }, { value: "uB", name: "Beta", amount: 3, source: null, opens: true }];
   const summon = { creatures, shelves: [], at: (pick) => ({ count: pick.count, ceiling: 4, calling: false, refused: null, range: 20 }) };
   const ctx = baseCtx({ summon, verdictsAt: (...args) => (seen.push(args), args[6]?.count > args[6]?.ceiling ? [{ key: "summonCount", severity: "block", max: 4, over: args[6].count - 4 }] : []) });
   const asked = CastDialog.wait(ctx);
@@ -429,6 +429,20 @@ await ta("the Summon band's controls are read from the page: a new creature drop
   assert.deepEqual([second.last.summon.count.over, second.last.summon.count.value, second.last.footer.verdicts.map((v) => v.severity)], [true, 9, ["block"]]);
   actions.cancel.call(second, {}, {});
   assert.equal(await again, null);
+});
+
+await ta("the Summon band names a creature only where the cast says the seat opens it: the select and the ceiling's tooltip read the neutral label for the rest, and a creature dropped on an open band opens", () => {
+  const at = () => ({ count: 2, ceiling: 4, calling: false, refused: null, range: 20 });
+  const mixed = baseCtx({ cite: "RR 1", summon: { creatures: [{ value: "uA", name: "Alpha", amount: 2, source: null, opens: true }, { value: "uB", name: "Beta", amount: 3, source: null, opens: false }, { value: "uC", name: "Gamma", amount: 1, source: null }], shelves: [], at } });
+  const view = dialogContext(mixed, { summon: { ref: "uB", count: "" } }).summon;
+  assert.deepEqual(view.creature.options.map((o) => [o.label, o.opens]), [["Alpha", true], ["ACKS-LIB.summons.neutral", false], ["ACKS-LIB.summons.neutral", false]], "a creature with no flag reads as one the seat cannot open");
+  assert.ok(!view.count.tip.includes("Beta") && view.count.tip.includes("ACKS-LIB.summons.neutral"), "the closed creature's name is not in the tooltip");
+  assert.ok(dialogContext(mixed, { summon: { ref: "uA", count: "" } }).summon.count.tip.includes("Alpha"), "an open one is named in it");
+  assert.equal(model.summonPick(mixed, { summon: { ref: "uB" } }).opens, false);
+  const open = baseCtx({ summon: { creatures: [], shelves: [], open: { amount: 2 }, at } });
+  const dropped = { summon: { ref: "Compendium.invented.Actor.z", count: "", name: "Zebra" } };
+  assert.equal(model.summonPick(open, dropped).opens, true);
+  assert.deepEqual(dialogContext(open, dropped).summon.drop.rows.map((r) => r.name), ["Zebra"]);
 });
 
 /* ------------------------------------------------------------------ */

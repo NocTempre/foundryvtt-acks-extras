@@ -579,3 +579,36 @@ export function summonEntries(index) {
     .map((row) => ({ uuid: row.uuid, name: String(row.name ?? "") }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/** The compendium id a compendium document's uuid names (`Compendium.<scope>.<pack>.…`), or null for any other uuid. */
+export const packIdOfUuid = (uuid) => /^Compendium\.([^.]+\.[^.]+)\./u.exec(String(uuid ?? ""))?.[1] ?? null;
+
+/**
+ * Can this user open the creature? The test is Foundry's own and the one the
+ * cast applies (`sourceReadable`): OBSERVER or better on the document, or on its
+ * compendium where it is a pack document. A GM always can, whatever is handed in.
+ * A compendium INDEX ENTRY carries a uuid and no permission test, so its pack is
+ * read from the uuid (`packOf`, which the caller binds to the world's pack
+ * registry) and the user's level on the pack answers. A missing document, or an
+ * index entry with no `packOf`, opens for nobody but a GM.
+ * @param {object|null} doc  a document, or an index entry `{uuid, …}`
+ * @param {object} user  `{isGM, …}` with whatever Foundry's `testUserPermission` reads
+ * @param {object} [o]
+ * @param {(uuid: string) => object|null} [o.packOf]  the compendium a uuid is in, as a pack with `testUserPermission`
+ * @returns {boolean}
+ */
+export function creatureOpens(doc, user, { packOf = () => null } = {}) {
+  if (!user) return false;
+  if (user.isGM) return true;
+  if (!doc) return false;
+  if (doc.compendium || typeof doc.testUserPermission === "function") return sourceReadable(doc, user);
+  return !!packOf(doc.uuid)?.testUserPermission?.(user, "OBSERVER");
+}
+
+/**
+ * What a seat reads for a creature: its name where the seat can open it, else
+ * the neutral label.
+ * @param {{name: string, opens: boolean, neutral: string}} o
+ * @returns {string}
+ */
+export const seatLabel = ({ name, opens, neutral }) => (opens ? name : neutral);
