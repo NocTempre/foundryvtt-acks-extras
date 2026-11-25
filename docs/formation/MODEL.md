@@ -936,7 +936,10 @@ section lists each member's magic lights after the carried rows
 (`magicLightRows`): the item the effect rides on (else the effect's name), the
 bearer, and the reach in feet, with no burn time; the figure's tooltip names the
 effect and its item or bearer, and an effect with no reach says it is not set and
-shows no number. Each row carries a state badge, Shining, Shuttered or Stowed,
+shows no number. A light a cast wrote carries the spell's page (`cite`, magic
+MODEL): its tooltip names the spell, the bearer and that page beside the reach,
+and with no reach typed its cell is blank and the page alone is its tooltip. A
+blank figure keeps a cell to hover. Each row carries a state badge, Shining, Shuttered or Stowed,
 whose tooltip says why (worn, stowed in a named container, shuttered by hand),
 and a Shutter or Open button shown only to a seat that owns the effect
 (`shutterMagicLight`, beside `toggleShield`). The button writes the effect's own

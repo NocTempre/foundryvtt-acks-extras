@@ -56,6 +56,19 @@ reversed row offers the cast dialog's reverse mode, and each form posts only
 its own line and records its own cast. The register leaves their sizes and radii
 blank.
 
+**A light row sheds its light from the record.** A light row of the spell's own
+form (not `reversed`, in a normal-mode cast) carries three radii, `lightBands`
+(Daylight, Bright, Dim, in feet, each blank until typed in the effect-row
+editor). Where it lasts the duration and names no recipient
+(`cast-kinds.mjs` `lightRowsOnCaster`, the largest figure per band over several
+rows), the caster's record carries lib's magic-light changes and the card's
+page, `card.cite`, as the effect's `magicLightCite` flag (`spellEffectData`'s
+`light`, lib `magicLightRecord`); a spell with no duration writes that record
+bare, with no clock. A row aimed at a recipient puts the same on the
+recipient's record (`cast-apply.mjs` `conditionRecords`). The record is then a
+magic light by lib's reading (`magicLights`, lib MODEL, Senses), and ends with
+it. A held (concentration) cast and a summoning write no light.
+
 **The spell primitive** (`scripts/magic/spell-extras.mjs`, `SpellExtras`) is
 a DataModel read through `flags["acks-extras"].spell` on the acks system's
 own `spell` Item; `fromItem` reads it and `normalize` coerces a raw object

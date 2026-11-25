@@ -27,7 +27,12 @@ hand and it stays until the field beneath it changes.
 **Mechanics** holds the effect rows, each edited in a window of its own:
 what the row does, whom it applies to, its value flat or per level. A
 summoning spell's rows are read when it is cast (below); the other kinds of
-row are recorded on the spell and nothing casts them. The system's Active
+row are recorded on the spell and nothing casts them. A **Light** row also
+has *Daylight radius*, *Bright radius* and *Dim radius*, in feet, blank until
+you type them from your book: casting the spell puts a light of that reach on
+the caster (or on the recipient, where the row names one) for the spell's
+duration, and the party sheet's Kit tab lists it. A radius left blank sheds
+nothing at that level; hover it to see the page the figure is printed on. The system's Active
 Effects sit below them.
 
 ![](../releases/v2026.11.14/magic.png)

@@ -93,9 +93,9 @@ the code, not missing from it; the rulings behind the built half are
   unarmoured), the canvas's second reading. The movement and grip cells open a
   menu; AC may want the same shape.
 - **Magic light on the light cell.** The cell reads a burning source, daylight,
-  the dark and a sense; a light SPELL in force is not detected because no
-  effect on the actor declares it. Needs a convention (a status id, or a flag
-  on the effect) before the violet state can light.
+  the dark and a sense, and not the actor's magic lights. A cast light spell
+  now writes one (lib `magicLights` / `effectLight`, magic DECISIONS
+  2026-11-25), so the violet state needs only the cell to read it.
 - **Split beyond one unit.** The Split control on a stack peels one unit off
   (`item-sheet/stack.mjs` `splitOne`); moving "part of a stack somewhere else"
   in one gesture wants a quantity prompt.
