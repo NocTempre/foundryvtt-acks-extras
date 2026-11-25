@@ -122,6 +122,49 @@ const P = {
     return true;
   },
 
+  /**
+   * Generate on the family template as its sheet's Generate button does (the service lib's template sheet calls),
+   * Roll the top card of the root group it made, and name every document that appeared in the Actors tab:
+   * before Generate, after Generate, after the Roll, each as `type:name:uuid`, with the classes the Roll's documents fall into.
+   */
+  generateVillage: async ({ template, wait }) => {
+    const names = () => new Map(game.actors.contents.map((a) => [a.uuid, `${a.type}:${a.name}`]));
+    const c0 = names();
+    const made = await acksExtras.lib.services.get("template-generate").generate(await fromUuid(template));
+    if (!made?.handled) return { handled: false };
+    const root = made.actor;
+    const c1 = names();
+    root.sheet.render(true);
+    await new Promise((r) => setTimeout(r, wait ?? 800));
+    return { handled: true, uuid: root.uuid, id: root.id, before: c0.size, afterGenerate: c1.size, generated: [...c1.keys()].filter((u) => !c0.has(u)).map((u) => `${c1.get(u)}:${u}`), baseline: [...c0.keys()] };
+  },
+
+  /** After the Roll: every document that is new since `baseline`, sorted into what the Roll's result is made of. */
+  afterRoll: async ({ baseline, rootUuid, template }) => {
+    const root = fromUuidSync(rootUuid);
+    const faction = game.actors.contents.find((a) => a.type === "acks-extras.faction" && a.system.units.some((r) => r.holderUuid === rootUuid));
+    const rows = faction?.system.units ?? [];
+    const fresh = game.actors.contents.filter((a) => !baseline.includes(a.uuid));
+    const holders = new Set(rows.map((r) => r.holderUuid).filter(Boolean));
+    const leaders = new Set(fresh.flatMap((a) => (a.type === "acks-extras.group" ? [a.system.unit?.officerUuid] : [])).filter(Boolean));
+    const family = fromUuidSync(template);
+    const sorted = { faction: [], groups: [], prototypes: [], leaders: [], other: [] };
+    for (const a of fresh) {
+      if (a.uuid === faction?.uuid) sorted.faction.push(a.uuid);
+      else if (a.type === "acks-extras.group") (holders.has(a.uuid) || a.uuid === rootUuid ? sorted.groups : sorted.other).push(a.uuid);
+      else if (a.flags?.["acks-extras"]?.organisationPrototype) sorted.prototypes.push(a.uuid);
+      else if (leaders.has(a.uuid)) sorted.leaders.push(a.uuid);
+      else sorted.other.push(a.uuid);
+    }
+    return {
+      hasFaction: !!faction, factionUuid: faction?.uuid ?? "", count: game.actors.size,
+      topHolder: rows.find((r) => !r.parentKey)?.holderUuid ?? "", rootRows: root.system.units.length,
+      rootOfficer: root.system.unit?.officerUuid ?? "", factionLeader: faction?.system.leaderUuid ?? "",
+      factionImg: faction?.img ?? "", rootImg: root.img, plate: family?.flags?.["acks-extras"]?.plate ?? "",
+      names: fresh.map((a) => `${a.type}:${a.name}:${a.uuid}`), sorted: Object.fromEntries(Object.entries(sorted).map(([k, v]) => [k, v.length])), other: sorted.other,
+    };
+  },
+
   size: async ({ id, width }) => {
     const sheet = game.actors.get(id).sheet;
     await sheet.setPosition({ width });
@@ -176,6 +219,28 @@ try {
     check("rows beneath it are filled by the same press", after.units.filter((r) => r.holderUuid).length >= 1, after.units.length);
     before = after;
   } else note("not walked", "no family template carries an encounter line in this world: Generate, Roll and Remove need the import");
+
+  section("generate a village on a root group, then roll it");
+  if (census.template) {
+    const gen = await run(gm, P.generateVillage, { template: census.template });
+    check("Generate on the family makes one root group and nothing else", gen.handled && gen.afterGenerate === gen.before + 1 && gen.generated.length === 1, gen.generated);
+    if (gen.handled) {
+      await gm.track(gen.uuid, "Actor");
+      await run(gm, P.press, { id: gen.id, action: "orgRoll", wait: 400 });
+      await run(gm, P.dialog, { fields: { context: "wilderness", state: "lair" }, button: "ok" });
+      const cardMade = await waitFor(gm, `game.actors.contents.some((a) => a.type === "acks-extras.faction" && a.system.units.some((r) => r.holderUuid === "${gen.uuid}"))`, 25000);
+      check("a village Roll ends with the faction card holding the root group's row", cardMade || note("no village from this roll", "the Roll made a warband or a gang: no card is called for"));
+      if (cardMade) {
+        const after = await run(gm, P.afterRoll, { baseline: gen.baseline, rootUuid: gen.uuid, template: census.template });
+        for (const u of after.names.map((n) => n.split(":").slice(2).join(":"))) await gm.track(u, "Actor");
+        note("every document the village Roll made, by type:name:uuid, the Actors tab count before Generate, after Generate and now", { before: gen.before, afterGenerate: gen.afterGenerate, now: after.count, made: after.names });
+        check("the top row names the root group itself, so no shell holds it", after.topHolder === gen.uuid && after.rootRows === 0, { topHolder: after.topHolder });
+        check("the root group's officer is the faction's leader", !!after.rootOfficer && after.rootOfficer === after.factionLeader, { officer: after.rootOfficer, leader: after.factionLeader });
+        check("every document the Actors tab gained is the root group, the faction, a row's group, a prototype or a leader, and none is left over", after.other.length === 0, after.sorted);
+        check("the faction card takes the root group's picture (the plate, where one was imported)", after.factionImg === after.rootImg && (!after.plate || after.rootImg === after.plate), { faction: after.factionImg, plate: after.plate });
+      }
+    }
+  } else note("not walked", "no family template carries an encounter line in this world");
 
   section("edit a filled card");
   const filledRow = before.units.find((r) => r.holderUuid);

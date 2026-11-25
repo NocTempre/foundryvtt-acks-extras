@@ -1,0 +1,1 @@
+- A village rolled on the group Generate made now fills that group itself: its chieftain is the group's officer and the faction card's leader, the card takes the group's picture, and no empty group is left in the Actors sidebar tab (Actors sidebar tab → the family template → Generate, then Roll on the group's Organisation section).

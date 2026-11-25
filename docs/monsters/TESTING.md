@@ -1161,7 +1161,10 @@ template's `flags["acks-extras"].plate` (MODEL, "The family's plate"). Needs the
    document answers `fromUuidSync` with its index entry after a reload, so this
    step fails if the flag is missing from `compendiumIndexFields`: the walk reads `fromUuidSync` raw before anything loads the document, and says so when it answered a Document.
 4. Press Generate on the template's sheet. *Observable:* one root group is made
-   and its `img` is the plate.
+   and its `img` is the plate. Then Roll its top card until a village is made
+   (Organisation section → Roll): *Observable:* the faction card Make its own made has
+   `img` equal to the root group's, the plate (`docs/lib/TESTING.md`, "The Org chart and
+   Locations tabs", step 1, for the documents that Roll makes).
 
 **Teardown.** `api.sweepTracked()`, and quote its result. The template and the
 host are kept.

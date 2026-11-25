@@ -118,7 +118,9 @@ globalThis.Actor = {
     async create(data) {
       writes.push(`create:${data.name}`);
       if (globalThis.createRefuses) throw new Error("create refused");
-      return data.type === FACTION ? makeActor(FACTION, data.name, { units: [], members: [], leaderUuid: "", ...(data.system ?? {}) }) : group(data.name);
+      const made = data.type === FACTION ? makeActor(FACTION, data.name, { units: [], members: [], leaderUuid: "", ...(data.system ?? {}) }) : group(data.name);
+      if (data.img) made.img = data.img;
+      return made;
     },
   },
 };
@@ -548,6 +550,14 @@ t("make its own creates a faction card from the group, led by the group's office
   assert.deepEqual(war.system.units, []);
   assert.equal(org.factionLineOf(war).faction, result.faction);
   assert.equal(org.worldFactions().length, 1);
+});
+
+t("make its own takes the group's picture as well as its name, and a group with none leaves the card's own", async () => {
+  reset();
+  const pictured = group("Pictured");
+  pictured.img = "art/plate.webp";
+  assert.equal((await org.makeFaction(pictured)).faction.img, "art/plate.webp");
+  assert.equal((await org.makeFaction(group("Plain"))).faction.img, "", "the card keeps the default picture");
 });
 
 t("make its own leaves the leader blank where the group has no officer, and says when no card could be made", async () => {

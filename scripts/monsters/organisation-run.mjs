@@ -14,7 +14,7 @@ import { ANIMAL_TYPE } from "../lib/constants.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { ORG_PROTOTYPE_FLAG, makeFaction, nodesOf, orgHostOf, planRoll, rowAncestors, runPlan, unitsOf } from "../lib/org.mjs";
-import { holdsUnitsOfUnits, needsFactionCard } from "./generate-host.mjs";
+import { holdsUnitsOfUnits, isGenerateRoot, listedElsewhere, needsFactionCard } from "./generate-host.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { letterOf } from "../treasure/search-logic.mjs";
 import { newPot, potOf, setDealMonsters } from "../treasure/pot.mjs";
@@ -121,7 +121,9 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   tree.gen.template = family.uuid;
 
   const hostRef = host ? { uuid: host.uuid, kind: host.type === `${MODULE_ID}.faction` ? "faction" : "group" } : null;
-  const plan = planRoll({ host: hostRef, rows, rowKey, tree, scope, labels: { camp: loc("organisation.camp") }, placeUuid, newKey: () => foundry.utils.randomID() });
+  // A Generate-made root group is the top unit's own group, so the card made from it names its officer.
+  const topHolder = hostRef?.kind === "group" && isGenerateRoot({ rows, row: target, stacks: (host.system?.stacks ?? []).length, officerUuid: host.system?.unit?.officerUuid ?? "" }) ? host.uuid : "";
+  const plan = planRoll({ host: hostRef, rows, rowKey, tree, scope, labels: { camp: loc("organisation.camp") }, placeUuid, topHolder, newKey: () => foundry.utils.randomID() });
   if (!plan.ok) return refused(plan.reason);
 
   const provider = {
@@ -135,14 +137,15 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
     },
   };
   const run = await runPlan(plan, provider);
-  const out = { ...run, host: hostRef?.uuid ?? run.made.groups[0] ?? "", group: run.made.groups[0] ?? "" };
+  const groups = topHolder ? [topHolder, ...run.made.groups] : run.made.groups;
+  const out = { ...run, host: hostRef?.uuid ?? groups[0] ?? "", group: groups[0] ?? "" };
   if (!run.ok) return out;
   out.rows = plan.rows;
   out.findings = tree.findings;
   out.treasure = tree.treasure;
   out.tree = tree;
 
-  const card_ = await makeCardIfVillage({ host: host ?? fromUuidSync(run.made.groups[0]), target, rowKey, tree, hostRef });
+  const card_ = await makeCardIfVillage({ host: host ?? fromUuidSync(groups[0]), target, rowKey, tree, hostRef });
   if (card_) {
     out.faction = card_.ok ? card_.faction.uuid : "";
     out.factionResult = { ok: card_.ok, ...(card_.reason ? { reason: card_.reason } : {}) };
@@ -154,7 +157,7 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
     out.pot = hand.pot;
     if (hand.made) out.created = [...out.created, hand.pot];
   }
-  if (card) await postCard({ tree, run, family, group: out.group, pot: hand?.pot ?? "", org });
+  if (card) await postCard({ tree, groups, family, group: out.group, pot: hand?.pot ?? "", org });
   return out;
 }
 
@@ -169,7 +172,7 @@ async function makeCardIfVillage({ host, target, rowKey, tree, hostRef }) {
   const group = host;
   if (!group || group.type === `${MODULE_ID}.faction`) return null;
   const rowIsTop = hostRef ? !!rowKey && !target?.parentKey : true;
-  if (!needsFactionCard({ holdsUnitsOfUnits: holdsUnitsOfUnits(tree), rowIsTop, hostIsFaction: false, joined: !!orgHostOf(group.uuid) })) return null;
+  if (!needsFactionCard({ holdsUnitsOfUnits: holdsUnitsOfUnits(tree), rowIsTop, hostIsFaction: false, joined: listedElsewhere(orgHostOf(group.uuid), group.uuid) })) return null;
   return makeFaction(group);
 }
 
@@ -195,8 +198,8 @@ async function handOffTreasure({ run, hoards, pot }) {
 }
 
 /** Whisper the Judges' card for a Roll. */
-async function postCard({ tree, run, family, group, pot, org }) {
-  const stacks = run.made.groups.map((u) => fromUuidSync(u)).flatMap((g) => g?.system?.stacks ?? []);
+async function postCard({ tree, groups, family, group, pot, org }) {
+  const stacks = groups.map((u) => fromUuidSync(u)).flatMap((g) => g?.system?.stacks ?? []);
   const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/monsters/organisation-card.hbs`, {
     title: loc("organisation.card.title", { name: family.name }),
     where: [tree.gen.variant, loc(`organisation.card.context.${tree.context}`), loc(`organisation.card.state.${tree.state}`)].filter(Boolean).join(" · "),

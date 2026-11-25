@@ -428,12 +428,20 @@ the first: a wandering or lair roll of a gang or a warband got a card nobody ask
   (`orgHostOf`), is given no second card (`needsFactionCard`, tested for each case).
 - **Make its own writes two documents**, the faction and then the group's rows, and the sheet
   redraws on the first; whatever reads afterward waits for the second write and its notice.
-- *Open, for the hub:* the Roll fills the top row with a group of its own and the card is made
-  from the root group that hosted the row. That group holds no officer, so the faction's
-  `leaderUuid` stays blank, and once the rows have moved no row names the root group, so it
-  is an unlisted shell. Making the card before the Roll would set the leader through
-  `planRoll`'s existing faction branch; it is not built because the ruling says the Roll ends
-  with it.
+- **The Roll on a Generate-made root group fills the top row with that root group itself**
+  (hub ruling, corrected in place on 2026-11-25; the bullet it replaces read "Open, for the
+  hub"). The group's own top row names it, the chieftain is its officer, and `makeFaction`
+  takes that officer as the card's leader and the group's picture as the card's: no shell is
+  left in the Actors tab. A Generate-made root group is recognised from what Generate wrote and
+  nothing else (`isGenerateRoot`): one row, the top, empty, whose `gen` is the template's uuid
+  alone, on a group with no stack and no officer. **No new flag.** A faction host, a row below
+  the top, a group already holding stacks or a second row, and a row a pick or a record has
+  touched are unchanged. Row (a), "a thing does not nest itself", stands: the plan emits no
+  `parent` op for the top unit, and `wouldCycle(x, x)` still refuses a group under itself.
+  *Cost:* the root group's own row now names its own host, so `orgHostOf` answers the group
+  itself; `listedElsewhere` compares the host's uuid so the village still earns its card.
+  `unlistRow` of that top row writes the host's rows twice, and the second write empties the
+  chart: reported for the hub, not changed here.
 
 ## 2026-11-25 — The family plate is an assist on the overview row, page only, no box
 

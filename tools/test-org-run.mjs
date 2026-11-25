@@ -87,7 +87,7 @@ const creature = (name, flags = {}) => makeDoc("monster", name, { hp: { value: 4
 
 globalThis.Actor = { implementation: { async create(data) {
   writes.push(`create:${data.name}`);
-  return makeDoc(data.type, data.name, data.type === GROUP ? groupSystem() : {});
+  return makeDoc(data.type, data.name, data.type === GROUP ? groupSystem() : data.type === FACTION ? { units: [], members: [], leaderUuid: "", ...(data.system ?? {}) } : {});
 } } };
 
 const { runPlan } = await import("../scripts/lib/org-run.mjs");
@@ -316,6 +316,26 @@ t("a roll with no host hosts the chart on its top unit's group", async () => {
   const top = world.get(run.made.groups[0]);
   assert.equal(top.system.units.length >= 1, true);
   assert.equal(top.system.units[0].holderUuid, top.uuid);
+});
+
+t("a Roll on a root group's own empty top row fills that group, so Make its own takes its officer as the card's leader and leaves no shell", async () => {
+  reset();
+  const root = group("Root");
+  root.system.units = [{ key: "top", parentKey: "", label: "Top", holderUuid: "", kind: "", notes: "", hidden: false, gen: { template: "T.1" } }];
+  const before = [...world.values()].filter((d) => d.type === GROUP).length;
+  const plan = planRoll({ host: { uuid: root.uuid, kind: "group" }, rows: root.system.units, rowKey: "top", tree: rollTree(), scope: "below", topHolder: root.uuid });
+  const run = await runPlan(plan, provider());
+  assert.equal(run.ok, true, run.error);
+  assert.ok(!run.made.groups.includes(root.uuid), "the host is no group the roll made");
+  assert.equal(run.made.groups.length, [...world.values()].filter((d) => d.type === GROUP).length - before, "every other group is counted and none is a shell for the top");
+  assert.equal(root.system.units.find((r) => r.key === "top").holderUuid, root.uuid, "the top row names the root group itself");
+  assert.equal(world.get(root.system.unit.officerUuid)?.name, "leader 1", "the chieftain is the root group's officer");
+  assert.ok(run.made.groups.every((u) => world.get(u).system.unit.parentGroupUuid), "every group the roll made is nested, in the root or in one the root holds");
+  const card = await org.makeFaction(root);
+  assert.equal(card.ok, true);
+  assert.equal(card.faction.system.leaderUuid, root.system.unit.officerUuid, "the faction's leader is the chieftain");
+  assert.deepEqual(root.system.units, [], "the rows moved to the card");
+  assert.equal(card.faction.system.units.find((r) => r.key === "top").holderUuid, root.uuid, "and its top row still names the root group");
 });
 
 /* ---- Delete ---- */

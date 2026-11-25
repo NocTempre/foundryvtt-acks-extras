@@ -89,10 +89,11 @@ export function keySource(taken) {
  * @param {"one"|"below"} [args.scope]
  * @param {Object<string, string>} [args.labels] words for rows and groups, by unit word; `camp` for the camp. The caller localises
  * @param {string} [args.placeUuid] a place whose roster the top group is put on
+ * @param {string} [args.topHolder] an existing group that is the top unit's group: no group is made for the top, and the stacks, leader and officer go on this one. The host group itself, for a root group whose empty top row waits to be rolled; ignored for a row below the top
  * @param {() => string} [args.newKey] row keys, one per call
  * @returns {{ok: boolean, reason?: "noTree"|"noRow"|"filled", ops: object[], rows?: object[], groups?: Object<string, string>, treasure?: object, findings?: object[]}}
  */
-export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels = {}, placeUuid = "", newKey = null } = {}) {
+export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels = {}, placeUuid = "", topHolder = "", newKey = null } = {}) {
   if (!tree?.top) return REFUSED("noTree");
   const list = copyRows(rows);
   const target = rowKey ? list.find((r) => r.key === rowKey) : null;
@@ -137,7 +138,13 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
   const wordOf = (node) => (node.camp ? "camp" : node.word);
   const nameOf = (node) => labels[wordOf(node)] || node.label || node.word || "";
 
+  // The top unit's group is the host's own where the caller names it: the one write the top row's holder is, and no group of its own to nest or leave behind.
+  const reusesTop = !!topHolder && !parentRowKey;
   for (const node of filled) {
+    if (reusesTop && node === tree.top) {
+      groupOf.set(node, topHolder);
+      continue;
+    }
     const g = ref("g");
     groupOf.set(node, g);
     ops.push({ op: "createGroup", ref: g, name: nameOf(node) });

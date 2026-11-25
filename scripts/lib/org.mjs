@@ -474,7 +474,7 @@ export async function joinFaction(group, faction, underKey = "") {
 
 /**
  * Make a faction card of a group's own and join the group to it. The card is named
- * from the group, and its leader is the group's officer where one is set. A join
+ * from the group and takes its picture, and its leader is the group's officer where one is set. A join
  * that refuses leaves the card made, and the result names it.
  *
  * @param {Actor} group
@@ -489,6 +489,7 @@ export async function makeFaction(group) {
     faction = await Actor.implementation.create({
       name: base.name,
       type: FACTION_TYPE,
+      ...(base.img ? { img: base.img } : {}),
       ...(leaderUuid ? { system: { leaderUuid } } : {}),
     });
   } catch (err) {

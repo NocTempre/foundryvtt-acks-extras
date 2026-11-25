@@ -15,6 +15,7 @@
  */
 import assert from "node:assert/strict";
 import { keySource, planAddUnit, planEdit, planRoll } from "../scripts/lib/org-write-logic.mjs";
+import { planReparent, wouldCycle } from "../scripts/lib/place-logic.mjs";
 
 const tests = [];
 const t = (name, fn) => tests.push([name, fn]);
@@ -216,6 +217,41 @@ t("Edit changes a filled row by hand, and a change under bodies on a map warns a
   assert.equal(planEdit({ host: HOST, rows, key: "u1", fields: { label: "Row u1" }, onMap: true }).ops.length, 0, "a label a row already has writes nothing, and a label change warns of nothing");
   assert.equal(planEdit({ host: HOST, rows, key: "u2", stacks: [{ stack: "s", count: 1 }] }).reason, "empty");
   assert.equal(planEdit({ host: HOST, rows, key: "zz" }).reason, "noRow");
+});
+
+t("a Roll that names the host's own group as the top holder makes no group for the top, and the host stands on its own top row without nesting itself", () => {
+  const GROUP = { uuid: "G.host", kind: "group" };
+  const rows = [row("top", "", "", { gen: { template: "T.1" } })];
+  const plan = planRoll({ host: GROUP, rows, rowKey: "top", tree: TREE(), scope: "below", topHolder: "G.host", newKey: keySource(["top"]) });
+  assert.equal(plan.ok, true);
+  const made = opsOf(plan, "createGroup");
+  assert.equal(made.length, 5, "the two bands, their two cells and the camp: every unit but the top");
+  assert.equal(plan.rows.find((r) => r.key === "top").holderUuid, "G.host", "the top row names the host group itself");
+  assert.ok(opsOf(plan, "parent").every((o) => o.uuid !== o.parentUuid), "no group is put inside itself");
+  assert.ok(opsOf(plan, "parent").every((o) => o.uuid !== "G.host"), "the host group is put inside nothing");
+  assert.ok(opsOf(plan, "parent").some((o) => o.parentUuid === "G.host"), "the units under the top nest in it");
+  const officer = opsOf(plan, "setOfficer").find((o) => o.group === "G.host");
+  assert.ok(officer, "the top unit's leader is the host group's officer");
+  assert.equal(officer.moraleBonus, 2);
+  assert.ok(opsOf(plan, "makeActor").some((o) => o.group === "G.host"), "the leader is made for the host group");
+  assert.equal(plan.groups.top, "G.host");
+  assert.equal(opsOf(plan, "update").at(-1).uuid, "G.host", "the rows are written to the host");
+});
+
+t("a nest of a group under itself is still refused, with or without the host's own top row", () => {
+  assert.equal(wouldCycle("G.host", "G.host", new Map()), true);
+  assert.deepEqual(planReparent("G.host", "G.host", new Map([["G.host", { parentUuid: null }]])), { ok: false, reason: "cycle" });
+  assert.equal(wouldCycle("G.host", "G.inner", new Map([["G.inner", { parentUuid: "G.host" }], ["G.host", { parentUuid: null }]])), true, "nor under what it holds");
+});
+
+t("a topHolder is ignored for a row below the top, and a host that is a faction or a row with no topHolder is planned as before", () => {
+  const rows = [row("v", "", "G.v"), row("w2", "v", "")];
+  const below = planRoll({ host: { uuid: "G.v", kind: "group" }, rows, rowKey: "w2", tree: TREE(), scope: "one", topHolder: "G.v", newKey: keySource(["v", "w2"]) });
+  assert.equal(opsOf(below, "createGroup").length, 2, "the top of the roll under a row below the top still gets a group of its own");
+  assert.equal(below.rows.find((r) => r.key === "w2").holderUuid.startsWith("new:"), true);
+  const plain = planRoll({ host: HOST, rows: [row("top", "", "")], rowKey: "top", tree: TREE(), scope: "one", newKey: keySource(["top"]) });
+  assert.equal(opsOf(plain, "createGroup").length, 2, "the top and its camp, no topHolder: a group for each unit filled");
+  assert.ok(plain.rows.find((r) => r.key === "top").holderUuid.startsWith("new:"));
 });
 
 let failures = 0;

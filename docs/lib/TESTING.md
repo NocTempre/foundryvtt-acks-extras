@@ -4606,6 +4606,15 @@ active GM; read `game.users.activeGM` in the same call as a measure.
    made. A Roll of the top card that makes a village then writes two documents, the faction and then the
    group's rows: **wait for the faction to hold the top row, and for its notice, before reading**; a roll
    of a gang or warband makes no faction card, and a roll on a host already on a faction makes no second.
+   **The Roll on that root group fills the top row with the root group itself.** Count the Actors tab before
+   Generate, after Generate (one more: the root group) and after the Roll, and name every document the
+   Roll made. A village Roll's expected list: the faction card, one group for each row below the top (the
+   top's group is the root group), each prototype its stacks name, and each leader; **no other group**.
+   *Observable:* the faction's top row holds the root group; the root group hosts no row; its `unit.officerUuid`
+   is the faction's `leaderUuid`; the faction's `img` is the root group's (the plate where one was imported);
+   every group in the diff is some row's holder. A Roll on a faction host, a row below the top, or a root
+   group already holding stacks or a second row makes its groups as before (unit-tested, `tools/test-org-write.mjs`
+   and `tools/test-generate-host.mjs`).
 2. **Add** — on the Org chart tab press **+ Warband**. *Observable:* `units` gains an empty row
    under the top row; its card reads "Not rolled, not filled in." with a pen and, where a template is
    known, Roll; a card holding something has no die.
