@@ -88,9 +88,9 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       });
 
     // One standing figure an organisation piece moved: the value written, the
-    // base it came from and the troop's and the trait's own part.
+    // base it came from and the troop's, the trait's and the gear's own part.
     const organisationFigure = () =>
-      new SchemaField({ value: num({ integer: true }), base: num({ integer: true }), troop: num({ integer: true }), trait: num({ integer: true }) });
+      new SchemaField({ value: num({ integer: true }), base: num({ integer: true }), troop: num({ integer: true }), trait: num({ integer: true }), gear: num({ integer: true }) });
     // One row of an organisation table a creature was generated with: its key,
     // imported label and page, and the figures the row holds (read at generation).
     const organisationRow = () =>
@@ -186,6 +186,8 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         organisation: new SchemaField({
           troop: new SchemaField({ label: str(), cite: str() }),
           trait: new SchemaField({ label: str(), cite: str() }),
+          // The equipment rows whose Armor Class part `ac.gear` holds, named in its hover.
+          gear: new ArrayField(new SchemaField({ label: str(), cite: str() })),
           ac: organisationFigure(),
           attack: organisationFigure(),
           initiative: organisationFigure(),
