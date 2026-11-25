@@ -1272,6 +1272,23 @@ reset from. An import writes the copy only where it read a recipe. A part
 stored with no `origin` is not restamped by any repair: it reads as a part a
 hand changed.
 
+A family template's variant options carry the same recipe, and
+`rollOrganisation` reads that copy (`variantOptionOf`), not the actor's. A
+template build's policy (`actorPolicy`) adds a `mergeByOrigin` entry with
+`root: "system"` for `axes.*.options.*.flags.acks-extras.extras.encounter.recipe`.
+Each `*` walks a keyed array (`keyedSites`): axes, options and parts are paired
+by `key`, the walk follows the build's rows, and the stored row of the same key
+is its counterpart, so an option the build lacks is not written and one it
+carries from the held template (`carryMergedVariants`) meets its own stored
+parts. A site's path names the axis and option keys
+(`axes[variant].options[<key>].…`), so a take (`rowTakeKey`) and an offered edit
+(`system.axes[variant].options[<key>].…[key]`) belong to one option. Each option
+stamps `cookbook.read.recipe` whole, as the actor does. A family's repair
+reaches this through `rewriteHeld`; the leader template of a single creature,
+written by `mintLeaderTemplate`, goes through `repairWrite` under the refill's
+tally (none on a first import, which writes unforced). The axes are still
+written whole, with each option's recipe merged first.
+
 **A borrowed throw.** A roll spec whose `target` has a locator proving the page
 prints the borrowing and a `progression` object (`{as, table, fraction?,
 round?}`) materializes a `progression` target: `{kind: "progression", as,

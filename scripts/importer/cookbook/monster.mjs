@@ -4,7 +4,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, DEFAULT_IMG } from "../constants.mjs";
 import { bookText, entryText, escapeText, nodeParagraphs } from "../prose.mjs";
-import { REPAIR, REFILL_STAT_PATHS, repairWrite, asMinted } from "../refresh.mjs";
+import { REPAIR, REFILL_STAT_PATHS, actorPolicy, repairWrite, asMinted } from "../refresh.mjs";
 import { printedNameOf } from "../printed-name.mjs";
 import { BOOKS } from "../books.mjs";
 import { executeEntry, attackModel, convertName, frequencyOf, frequencyTextOf, stemNw } from "../executor.mjs";
@@ -758,8 +758,10 @@ async function wholeXpCell(doc, cb, id, entry) {
  * A bound creature as a template's variant option: a complete preset with the
  * system, minted items, extras and token size a direct import writes, named as
  * a direct import is, and stamped with the cookbook id it was read from.
+ * `recipe` is the encounter recipe as read, kept whole in the stamp
+ * (`recipeReadStamp`) beside the parts a hand may change in `extras`.
  */
-function creatureOption({ key, label, name, art = "", system, items, flags, extras, prototypeToken, id, cite }) {
+function creatureOption({ key, label, name, art = "", system, items, flags, extras, recipe, prototypeToken, id, cite }) {
   return {
     key,
     label,
@@ -775,7 +777,7 @@ function creatureOption({ key, label, name, art = "", system, items, flags, extr
       ...(flags ?? {}),
       [MODULE_ID]: {
         ...((flags ?? {})[MODULE_ID] ?? {}),
-        cookbook: { id, cite },
+        cookbook: { id, cite, ...recipeReadStamp(recipe) },
         ...(extras ? { extras } : {}),
       },
     },
@@ -797,10 +799,16 @@ const familyMember = (id) =>
  * same id is written over in place. Never throws: a failed build costs the
  * template, not the creature.
  *
- * @param {{id: string, found: object, node: object, bound: object, extras: object, folder: string|null, bindDoc: object, img?: string}} args
- *   `bound` is `bindMonster`'s output for the entry, `bindDoc` the open book it was read from
+ * A template already held is written through `repairWrite`: its variant option's
+ * recipe parts merge by origin (`actorPolicy`) where the axes are otherwise
+ * written whole.
+ *
+ * @param {{id: string, found: object, node: object, bound: object, extras: object, recipe?: object[], folder: string|null, bindDoc: object, img?: string, repair?: object|null}} args
+ *   `bound` is `bindMonster`'s output for the entry, `bindDoc` the open book it was read from,
+ *   `recipe` the parts the read yielded (`monsterProseChannels`), `repair` the tally a
+ *   held template is written under (`repairWrite`; none writes unforced)
  */
-export async function mintLeaderTemplate({ id, found, node, bound, extras, folder, bindDoc, img = "" }) {
+export async function mintLeaderTemplate({ id, found, node, bound, extras, recipe, folder, bindDoc, img = "", repair = null }) {
   try {
     if (familyMember(id)) return null;
     const text = (node.fields.description ?? []).map((p) => p.text).join(" ");
@@ -818,6 +826,7 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, folde
       items: bound.items,
       flags: bound.flags,
       extras,
+      recipe,
       prototypeToken: bound.prototypeToken,
       id,
       cite: found.entry.cite,
@@ -842,7 +851,10 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, folde
     const system = { output: { actorType: "monster", nameFormat: built.out.nameFormat }, axes: built.axes, cells: built.cells };
     const held = (await importedActorsOfType(TEMPLATE_TYPE)).find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === templateId);
     if (held) {
-      await held.update({ name: label, "system.axes": system.axes, "system.cells": system.cells, "system.output": system.output });
+      // The build's axes are written whole, each option's recipe merged by origin first.
+      const build = { type: TEMPLATE_TYPE, name: label, system, flags: { [MODULE_ID]: { cookbook: { id: templateId, cite: found.entry.cite, leadersOf: id } } } };
+      const plan = await repairWrite(held, build, { ...actorPolicy(build), name: true }, repair);
+      if (plan?.refused) throw new Error(`the held template refused the write (${plan.refused})`);
       return held;
     }
     return await createDoc(Actor, {
@@ -1037,11 +1049,13 @@ export async function importFamily(bookId, famId, folderId) {
     memberText.set(slugLabel(member.variant), (node.fields.description ?? []).map((p) => p.text).join(" "));
     if (!legacy) memberXp.set(slugLabel(member.variant), await wholeXpCell(bindDoc, bindCb, bindId, entry));
     let extras;
+    let recipe;
     if (legacy) {
       system.details = { ...(system.details ?? {}), biography: entryText(node, bindId, entry.cite) };
     } else {
       const channels = monsterProseChannels(node, bindId, entry.cite, { variant: slugLabel(member.variant) });
       extras = channels.extras;
+      recipe = channels.recipe;
       // Both prose channels ship on the option; the sheet active at generate time uses its own.
       system.details = { ...(system.details ?? {}), biography: channels.biography };
     }
@@ -1049,7 +1063,7 @@ export async function importFamily(bookId, famId, folderId) {
     const art = node.fields.art ? await uploadEntryArt(bindDoc, bindId, entry, node, "variant") : "";
 
     options.push(
-      creatureOption({ key: slugLabel(member.variant), label: member.variant, name: entry.name, art, system, items, flags, extras, prototypeToken, id: bindId, cite: entry.cite }),
+      creatureOption({ key: slugLabel(member.variant), label: member.variant, name: entry.name, art, system, items, flags, extras, recipe, prototypeToken, id: bindId, cite: entry.cite }),
     );
     } catch (err) {
       // One unreadable member costs one variant, never the family.
@@ -1407,6 +1421,8 @@ export async function refillMonster(actor, { whole = false, force = false, repai
     // The recipe merges by origin (`REPAIR.monster`): a part the page no longer yields goes, a part a hand changed stays.
     const { extras, recipe } = monsterProseChannels(node, id, found.entry.cite);
     const typed = primaryTypeOf(node);
+    // One tally for the creature and its leader template.
+    const tally = repair && "decision" in repair ? repair : { force };
     const plan = await repairWrite(
       actor,
       {
@@ -1425,13 +1441,13 @@ export async function refillMonster(actor, { whole = false, force = false, repai
         },
       },
       REPAIR.monster,
-      repair && "decision" in repair ? repair : { force },
+      tally,
     );
     if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
     // Leaders are rebuilt from the same read, and minted where the world holds the creature without them.
     await mintLeaderTemplate({
-      id, found, node, bound: { system, items, flags, prototypeToken }, extras,
-      folder: actor.folder?.id ?? null, bindDoc: session.doc, img: actor.img ?? "",
+      id, found, node, bound: { system, items, flags, prototypeToken }, extras, recipe,
+      folder: actor.folder?.id ?? null, bindDoc: session.doc, img: actor.img ?? "", repair: tally,
     });
     return { ok: true, book: bookId, name: found.entry.name, keptProse: plan.keptProse };
   }

@@ -139,7 +139,7 @@ export async function importOne(bookId, id, folderId) {
       box: artInstr?.box ?? null,
     });
   }
-  await mintLeaderTemplate({ id, found, node, bound: { system, items, flags, prototypeToken }, extras, folder, bindDoc: session.doc, img: actor.img ?? "" });
+  await mintLeaderTemplate({ id, found, node, bound: { system, items, flags, prototypeToken }, extras, recipe, folder, bindDoc: session.doc, img: actor.img ?? "" });
   return actor;
 }
 

@@ -1283,9 +1283,11 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     return out;
   };
   const handed = [...lastArgs(source2), ...lastArgs(language)];
-  same("seven writers call repairWrite", handed.length, 7);
+  same("eight writers call repairWrite", handed.length, 8);
   same("each hands on the tally it was given (a creature's refill names force only where no decision is carried)",
-    handed.filter((a) => !["repair", "tally", 'repair && "decision" in repair ? repair : { force }'].includes(a)), []);
+    handed.filter((a) => !["repair", "tally"].includes(a)), []);
+  check("a creature's refill and its leader template are written under one tally, force only where no decision is carried",
+    source2.includes('const tally = repair && "decision" in repair ? repair : { force };') && /repair: tally,/.test(source2));
 }
 
 /* --- a type refusal makes the document again under its own id --- */

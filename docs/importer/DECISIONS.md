@@ -3273,3 +3273,9 @@ change here writes a spell effect row that already carries an `origin`.
 
 **Costs.** A test world holding origin-less parts keeps them beside the
 re-keyed guard parts until it is imported again.
+
+**The template half** (the same ruling, built later): a variant option's recipe
+merges under the same rule, through a `system`-rooted `mergeByOrigin` entry that
+`actorPolicy` adds for a template build and a `mintLeaderTemplate` write that
+goes through `repairWrite`, so no second merge sits beside `carryMergedVariants`.
+No tag holds a template option with a recipe, so the hub guard stands as ruled.
