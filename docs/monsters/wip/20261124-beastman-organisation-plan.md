@@ -1513,6 +1513,25 @@ board, the drawn shape first:
 
 Not checked: board 1m's rendering.
 
+**The owner, once more, after the entry above was written:**
+
+"The specification is the faction card is optional for groups, but it's not a
+strict only, rather an only group needed"
+
+This is the owner's wording of the rule and replaces the button's "Groups
+only" as its name: a group is all such a roll needs, and a faction card for
+it is optional. Example: the same wandering warband runs from its group
+alone, and a Judge who wants it on a faction card may put it there. It
+confirms the first two readings above ("not required" binds the build; a
+faction card stays available as the Judge's choice) and settles nothing on
+board 1m's four points: point 3 still asks which optional gestures there
+are.
+
+Not widened, and marked as a reading: "optional for groups" is taken to
+speak of the rolls the question named, a wandering warband and a lair roll.
+A generated village keeps its faction card, as the owner ruled it ("Faction
+card"). Whether a village's card is optional too was not asked.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
