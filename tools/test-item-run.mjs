@@ -903,6 +903,235 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
   }
 });
 
+await t("a row that names how long a failed save lasts writes its condition and its window under fixed ids, one per item kind, carrying the card's id and the entry's key, and an earlier record under the same id is deleted first", async () => {
+  stage();
+  seatOf(true);
+  globalThis.CONFIG.statusEffects.push({ id: "blind", name: "Blind Name", img: "blind.svg" });
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const { turnSeconds } = await import("../scripts/lib/time-unit.mjs");
+  const ops = [];
+  class Effects extends Array {
+    get(id) { return this.find((e) => e.id === id); }
+  }
+  const actor = monster(["alpha"], new Effects());
+  actor.createEmbeddedDocuments = async (...args) => {
+    ops.push(["create", ...args]);
+    return args[1].map((r, i) => { const rec = { id: r._id ?? `E${i}`, flags: r.flags }; actor.effects.push(rec); return rec; });
+  };
+  actor.deleteEmbeddedDocuments = async (...args) => {
+    ops.push(["delete", ...args]);
+    args[1].forEach((id) => actor.effects.splice(actor.effects.findIndex((e) => e.id === id), 1));
+  };
+  const subject = { id: "s1", uuid: "T.s1", actor, testUserPermission: (user) => user?.id === "owner" };
+  subjects["T.s1"] = subject;
+  const target = saveSpec(actor, "paralysis").target;
+  const reach = (over = {}) => ({ pulse: "turnStart+enter", engaged: true, lasts: { value: "3" }, immunity: { value: "2" }, ...over });
+  const setRow = (over = {}, rowOver = {}) => { itemFlags = { cookbook: { id: "kindX", cite: "XX p. 9" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "k", target: "paralysis", conditions: ["held", "blind"], reach: reach(over), ...rowOver }] } }; };
+  const press = (over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1", total: target - 1, target, ...over });
+  const priorRandom = globalThis.foundry.utils.randomID;
+  let minted = 0;
+  globalThis.foundry.utils.randomID = () => `card-${++minted}`;
+  const priorTime = gameStub.time;
+  try {
+    gameStub.time = { worldTime: 100 };
+    gameStub.combat = { id: "c9", combatants: [{ id: "m9", tokenId: "s1" }] };
+    setRow();
+    const failed = await press();
+    assert.equal(failed.ok, true);
+    assert.equal(failed.saved, false);
+    const [, kind, records, options] = ops[0];
+    assert.equal(kind, "ActiveEffect");
+    assert.deepEqual(options, { keepId: true }, "the records are created under the ids they carry");
+    assert.equal(records.length, 2, "one record per condition the row names");
+    assert.equal(records[0]._id, logic.lastsRecordId("kindX", "held", 0));
+    assert.equal(records[1]._id, logic.lastsRecordId("kindX", "blind", 1));
+    assert.notEqual(records[0]._id, records[1]._id, "two conditions never share an id");
+    assert.equal(records[0]._id, conditionEffectId("itemRun:kindX:lasts"), "the first condition takes the kind's own id");
+    assert.deepEqual(records.map((r) => r.statuses), [["held"], ["blind"]]);
+    const stamp = records[0].flags["acks-extras"];
+    assert.deepEqual(stamp.itemRun, { source: "I.1", activationId: "card-1", rowKey: "k", dueAt: 100 + 3 * turnSeconds(), cardId: "card-1", entryKey: "T~s1" }, "the card's id and the entry's key ride on it, and it ends on the world clock");
+    assert.equal(stamp.turnLife, undefined, "no fight clock: the row says how long");
+    assert.equal(stamp.turnMark, undefined, "no turn mark either");
+    assert.deepEqual(failed.entry.recordIds, records.map((r) => r._id));
+    assert.equal(failed.entry.life, "timed");
+    assert.equal(ops.length, 1, "nothing stood to be replaced");
+
+    // A later failure replaces the earlier records: deleted first, managed, then created again under the same ids.
+    ops.length = 0;
+    const again = await press();
+    assert.equal(again.ok, true);
+    assert.deepEqual(ops.map((o) => o[0]), ["delete", "create"], "the earlier record goes before the new one is written");
+    assert.deepEqual(ops[0].slice(1), ["ActiveEffect", records.map((r) => r._id), managedDelete()]);
+    assert.deepEqual(ops[1][3], { keepId: true });
+    assert.equal(actor.effects.length, 2, "one record of the kind per condition, never two");
+
+    // A pass writes the window under the kind's immunity id, and the failure's condition stays.
+    ops.length = 0;
+    const passed = await press({ total: target });
+    assert.equal(passed.saved, true);
+    const [, , window, windowOptions] = ops[0];
+    assert.deepEqual(windowOptions, { keepId: true });
+    assert.equal(window.length, 1);
+    assert.equal(window[0]._id, logic.immuneRecordId("kindX"));
+    assert.notEqual(window[0]._id, logic.lastsRecordId("kindX"), "the window and the condition never share an id");
+    assert.deepEqual(window[0].flags["acks-extras"].itemRun, { source: "I.1", activationId: "card-3", rowKey: "k", dueAt: 100 + 2 * turnSeconds(), cardId: "card-3", entryKey: "T~s1" });
+    assert.deepEqual(window[0].flags["acks-extras"].rollMods.parts, [{ on: "immune", spells: ["kindX"] }]);
+    assert.equal(ops.length, 1, "no earlier window stood");
+    ops.length = 0;
+    await press({ total: target });
+    assert.deepEqual(ops.map((o) => o[0]), ["delete", "create"], "a later pass replaces the earlier window");
+    assert.deepEqual(ops[0][2], [logic.immuneRecordId("kindX")]);
+
+    // A pass with no immunity written writes nothing, and no delete is asked.
+    ops.length = 0;
+    setRow({ immunity: null });
+    const bare = await press({ total: target });
+    assert.deepEqual(bare.entry.recordIds, []);
+    assert.deepEqual(ops, [], "nothing to write, nothing to replace");
+
+    // The card that holds the entry is named on the record, never the raised activation.
+    ops.length = 0;
+    actor.effects.length = 0;
+    setRow();
+    const message = {
+      flags: { "acks-extras": { itemRunCard: { kind: "once", cardId: "C1", itemUuid: "I.1", rowKey: "k", activationId: "act", subjects: { "T~s1": { uuid: "T.s1", name: "One", state: "in", latest: "" } }, undetermined: {}, entries: {} } } },
+      getFlag(scope, key) { return this.flags[scope][key]; },
+      async update() {},
+    };
+    gameStub.messages = { get: (id) => (id === "M1" ? message : null) };
+    const carded = await press({ requestUserId: "owner", messageId: "M1", entryKey: "T~s1" });
+    assert.equal(carded.ok, true);
+    const cardedRun = ops[0][2][0].flags["acks-extras"].itemRun;
+    assert.deepEqual([cardedRun.cardId, cardedRun.entryKey, cardedRun.activationId], ["C1", "T~s1", "C1"], "the card's own id, never the raised activation's, which lowering lifts");
+
+    // A blank figure: a seat that is no Judge's is refused, the Judge's own writes the condition untimed.
+    const blank = { doc: "none", table: "none", row: "none", figure: "none" };
+    for (const lasts of [blank, { value: "x" }]) {
+      ops.length = 0;
+      actor.effects.length = 0;
+      setRow({ lasts });
+      message.flags["acks-extras"].itemRunCard.entries = {};
+      assert.deepEqual(await press({ requestUserId: "owner", messageId: "M1", entryKey: "T~s1" }), { ok: false, reason: "noFigure" }, "a Player's press on a blank lasts is refused");
+      assert.deepEqual(ops, [], "and writes nothing");
+      const judged = await press();
+      assert.equal(judged.ok, true, "the Judge's own seat goes through");
+      assert.equal(judged.entry.life, "raised", "untimed: it stands until the reach is lowered");
+      const [, , untimed, untimedOptions] = ops[0];
+      assert.deepEqual(untimedOptions, { keepId: true });
+      assert.equal(untimed[0]._id, logic.lastsRecordId("kindX", "held", 0), "still a record of the lasts kind");
+      assert.equal("dueAt" in untimed[0].flags["acks-extras"].itemRun, false, "no end on the clock");
+      assert.equal(untimed[0].flags["acks-extras"].turnLife, undefined);
+      assert.equal(untimed[0].flags["acks-extras"].turnMark, undefined);
+    }
+    delete gameStub.messages;
+
+    // A cleaned E4 row (an empty `lasts`) is no lasts row: the fight's clock ends its records, with no fixed id and no options.
+    ops.length = 0;
+    actor.effects.length = 0;
+    setRow({ pulse: "action", lasts: {}, engaged: false });
+    const e4 = await press();
+    assert.equal(e4.entry.life, "turn", "the fight's clock, as every row had it before lasts");
+    assert.equal(ops.length, 1);
+    assert.equal(ops[0].length, 3, "created with no options");
+    assert.equal(ops[0][2].every((r) => !("_id" in r)), true, "no fixed id");
+    assert.deepEqual(ops[0][2][0].flags["acks-extras"].turnLife, { combatId: "c9", combatantId: "m9", edge: "start", count: 1 });
+    assert.equal("cardId" in ops[0][2][0].flags["acks-extras"].itemRun, false);
+    assert.equal("entryKey" in ops[0][2][0].flags["acks-extras"].itemRun, false);
+    ops.length = 0;
+    await press({ total: target });
+    assert.equal(ops[0].length, 3, "a pass of such a row is created with no options either");
+    assert.equal("_id" in ops[0][2][0], false);
+  } finally {
+    gameStub.combat = null;
+    gameStub.time = priorTime;
+    delete gameStub.messages;
+    globalThis.foundry.utils.randomID = priorRandom;
+    delete subjects["T.s1"];
+    unstage();
+  }
+});
+
+await t("Undo of a record kept under a fixed id deletes it only while the entry that wrote it still owns it", async () => {
+  seatOf(true);
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const rec = (id, entryKey) => ({ id, flags: { "acks-extras": { itemRun: { source: "I.1", activationId: "c", rowKey: "k", ...(entryKey ? { entryKey } : {}) } } } });
+  const present = new Map([["a", rec("a", "mine")], ["b", rec("b", "theirs")], ["c", rec("c")], ["d", { id: "d" }]]);
+  const byId = (id) => present.get(id);
+  assert.deepEqual(logic.undoGuard(["a", "b", "c", "d", "gone"], byId, "mine"), ["a", "c", "d", "gone"], "a record carrying another entry's key stays; an unkeyed one and a missing one are passed on");
+  assert.deepEqual(logic.undoGuard(["a", "b"], byId, "theirs"), ["b"]);
+  assert.deepEqual(logic.undoGuard(undefined, byId, "mine"), []);
+  const getter = (id) => (id === "a" ? { getFlag: (scope, key) => (scope === "acks-extras" && key === "itemRun" ? { entryKey: "theirs" } : undefined) } : undefined);
+  assert.deepEqual(logic.undoGuard(["a"], getter, "mine"), [], "a record that hands its flags over through getFlag is read the same");
+  const deletes = [];
+  const actor = { effects: [...present.values()], deleteEmbeddedDocuments: async (...args) => deletes.push(args) };
+  globalThis.fromUuidSync = (uuid) => (uuid === "T.1" ? { actor } : null);
+  try {
+    const done = await run.undoEntry({ subject: "T.1", entry: { recordIds: ["a", "b", "c", "d"] }, entryKey: "mine" });
+    assert.deepEqual(done, { ok: true, removed: ["a", "c", "d"] });
+    assert.deepEqual(deletes[0], ["ActiveEffect", ["a", "c", "d"], managedDelete()]);
+    deletes.length = 0;
+    assert.deepEqual((await run.undoEntry({ subject: "T.1", entry: { recordIds: ["b"] }, entryKey: "mine" })).removed, [], "a record a later entry replaced is not this entry's to delete");
+    assert.deepEqual(deletes, [], "and nothing is asked of the actor");
+    assert.deepEqual((await run.undoEntry({ subject: "T.1", entry: { recordIds: ["b"] } })).removed, ["b"], "no entry key named, no guard");
+  } finally {
+    globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? theItem : uuid === "T.1" ? bearerTok : subjects[uuid] ?? null);
+  }
+});
+
+await t("a press's throw is refused on the seat when the row names how long a failure lasts and no figure resolves, unless the Judge's own seat throws", async () => {
+  stage();
+  seatOf(true);
+  const { saveSpec } = await import("../scripts/lib/saves.mjs");
+  const created = [];
+  const actor = monster(["alpha"]);
+  actor.createEmbeddedDocuments = async (...args) => { created.push(args); return args[1].map((_, i) => ({ id: `E${i}` })); };
+  subjects["T.s1"] = { id: "s1", uuid: "T.s1", actor, testUserPermission: () => true };
+  const target = saveSpec(actor, "paralysis").target;
+  const blank = { doc: "none", table: "none", row: "none", figure: "none" };
+  const rowsWith = (lasts) => ({ cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [{ key: "k", target: "paralysis", conditions: ["held"], reach: { pulse: "turnStart+enter", engaged: true, ...(lasts ? { lasts } : {}) } }] } });
+  itemFlags = rowsWith(blank);
+  const priorRoll = globalThis.Roll;
+  globalThis.Roll = class { async evaluate() { return { total: target - 1 }; } };
+  const base = { itemUuid: "I.1", rowKey: "k", activationId: "act", subject: "T.s1" };
+  try {
+    gameStub.user = { isGM: false };
+    seatOf(false);
+    assert.deepEqual(await run.pressRoll(base), { ok: false, reason: "noFigure" }, "refused on the seat, before anything is relayed");
+    itemFlags = rowsWith({ value: "2" });
+    assert.deepEqual(await run.pressRoll(base), { ok: false, reason: "relay" }, "a figure that resolves goes on to the relay");
+    itemFlags = rowsWith(null);
+    assert.deepEqual(await run.pressRoll(base), { ok: false, reason: "relay" }, "a row that names no lasts figure is no lasts row");
+    gameStub.user = { isGM: true };
+    seatOf(true);
+    itemFlags = rowsWith(blank);
+    const judged = await run.pressRoll(base);
+    assert.equal(judged.ok, true, "the Judge's own seat throws and writes");
+    assert.equal("dueAt" in created[0][1][0].flags["acks-extras"].itemRun, false, "untimed");
+  } finally {
+    gameStub.user = { isGM: true };
+    globalThis.Roll = priorRoll;
+    delete subjects["T.s1"];
+    unstage();
+  }
+});
+
+await t("a blank lasts refuses a press from any seat but the Judge's own, and a row that names none is not asked", () => {
+  const world = { item: {}, row: {}, subjectOwnerIds: ["u1"], target: 10 };
+  const ask = (over = {}, req = {}) => logic.checkPressRequest({ total: 12, target: 10, ...req }, { ...world, ...over });
+  assert.equal(ask({ blankLasts: true, judge: false }).reason, "noFigure");
+  assert.equal(ask({ blankLasts: true }).reason, "noFigure", "a seat the world does not say is a Judge's");
+  assert.equal(ask({ blankLasts: true, judge: true }).ok, true, "the Judge's own seat goes through");
+  assert.equal(ask({ blankLasts: false }).ok, true);
+  assert.equal(ask({ blankLasts: true, judge: true }, { requestUserId: "u2" }).reason, "notOwner", "ownership is asked first");
+  const lastsOf = (reach) => { const f = logic.reachFigures({ reach }); return [f.lasts, f.lastsNamed]; };
+  assert.deepEqual(lastsOf({ pulse: "turnStart+enter", lasts: { value: "3" } }), [3, true]);
+  assert.deepEqual(lastsOf({ pulse: "action", lasts: {} }), [null, false], "an emptied reference names none");
+  assert.deepEqual(lastsOf({ pulse: "action", lasts: { value: "x" } }), [null, true], "a figure named and unresolved is a blank");
+  assert.deepEqual(lastsOf({ pulse: "action" }), [null, false], "a row with no lasts at all");
+});
+
 await t("lowering lifts the activation's conditions and leaves the immunity window, and the world clock lifts the window once it is due", async () => {
   stage();
   seatOf(true);
@@ -1058,6 +1287,39 @@ await t("a reach's moment: a standing part comes off at an exit by the kind's ke
     await moment("standing", "enter", true, { actor: null });
     assert.deepEqual(seen, [], "a subject with no actor");
   } finally {
+    run.setUsePresenter(async (result) => presented.push(result));
+  }
+});
+
+await t("a turnStart+enter reach asks a body that walks in only while it is that body's own turn in a begun fight, and every other pulse ignores the turn", async () => {
+  seatOf(true);
+  const item = { uuid: "I.1", flags: { "acks-extras": { cookbook: { id: "kindE" } } } };
+  const row = { key: "k" };
+  const seen = [];
+  run.setUsePresenter(async (result) => seen.push(result));
+  const actorOf = () => ({ effects: Object.assign([], { get: () => undefined }), deleteEmbeddedDocuments: async () => [] });
+  const walker = (n) => ({ actor: actorOf(), token: { id: `w${n}`, uuid: `T.w${n}` } });
+  const enter = (pulse, subject, admitted = true) => run.handleReachMoment({ moment: "enter", config: { activationId: "act" }, item, row, reach: { pulse }, subject, admitted });
+  const priorCombat = gameStub.combat;
+  try {
+    gameStub.combat = { id: "cE", started: true, round: 1, turn: 0, combatant: { tokenId: "w1" } };
+    assert.equal(await enter("turnStart+enter", walker(1)), "prompt", "the combatant whose turn it is, walking in");
+    assert.equal(seen.at(-1).act, "prompt");
+    seen.length = 0;
+    assert.equal(await enter("turnStart+enter", walker(2)), null, "a body that walks in on another's turn waits for its own");
+    assert.deepEqual(seen, []);
+    gameStub.combat = { id: "cE", started: false, round: 1, turn: 0, combatant: { tokenId: "w3" } };
+    assert.equal(await enter("turnStart+enter", walker(3)), null, "a fight not begun has no turn");
+    gameStub.combat = null;
+    assert.equal(await enter("turnStart+enter", walker(4)), null, "no fight, no turn");
+    gameStub.combat = { id: "cE", started: true, round: 1, turn: 0, combatant: {} };
+    assert.equal(await enter("turnStart+enter", { actor: actorOf(), token: { uuid: "T.w5" } }), null, "a subject whose token carries no id is no one's turn");
+    gameStub.combat = { id: "cE", started: true, round: 1, turn: 0, combatant: { tokenId: "other" } };
+    assert.equal(await enter("turnStart+moveIn", walker(6)), "list", "the other pulse reads no turn: another body's turn");
+    gameStub.combat = null;
+    assert.equal(await enter("turnStart+moveIn", walker(7)), "list", "nor a missing fight");
+  } finally {
+    gameStub.combat = priorCombat;
     run.setUsePresenter(async (result) => presented.push(result));
   }
 });

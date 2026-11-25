@@ -184,12 +184,12 @@ await t("generation copies the minted item onto a creature whose gear axis chose
 await t("a row's figures resolve live from the registry, an override reaches them at once, and a blank resolves to nothing", () => {
   registerRows();
   const banner = gearRunItem(rows.banner, BASE).flags["acks-extras"].itemRun.rows[0];
-  assert.deepEqual(logic.reachFigures(banner), { radius: 9, modifier: null, immunityTurns: 3, save: "paralysis", on: [], saveWhen: null });
+  assert.deepEqual(logic.reachFigures(banner), { radius: 9, modifier: null, immunityTurns: 3, lasts: null, lastsNamed: false, save: "paralysis", on: [], saveWhen: null });
   registerTable({ id: DOC, tables: { [TABLE]: { r2: { label: "Beta Item", radius: 4, saveKind: "death", immunityTurns: 1 } } } }, { priority: PRIORITY.OVERRIDE });
   const live = logic.reachFigures(banner);
   assert.deepEqual([live.radius, live.save, live.immunityTurns], [4, "death", 1]);
   resetTables();
-  assert.deepEqual(logic.reachFigures(banner), { radius: null, modifier: null, immunityTurns: null, save: null, on: [], saveWhen: null }, "nothing imported, nothing stands in");
+  assert.deepEqual(logic.reachFigures(banner), { radius: null, modifier: null, immunityTurns: null, lasts: null, lastsNamed: false, save: null, on: [], saveWhen: null }, "nothing imported, nothing stands in");
   assert.deepEqual(logic.reachFigures({ key: "own", target: "paralysis", reach: { pulse: "action", radius: { value: "5" } } }).save, "paralysis", "a Judge's own item names its save on the row");
   assert.equal(logic.reachFigures({ key: "x" }), null);
 });

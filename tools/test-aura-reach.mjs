@@ -1270,6 +1270,15 @@ await t("a turn start settles a turnStart+enter kind once from every bearer's an
     assert.deepEqual(got.map((g) => [g.admitted, g.engagedBy]), [[null, []]], "unsettled: null, and nobody named");
     got = await run([r1, r2], []);
     assert.deepEqual(got.map((g) => [g.admitted, g.engagedBy]), [[true, ["T.b2"]]], "one bearer admitting settles it for the group");
+    assert.equal(got[0].item, "I.e2", "the handler is handed the admitting bearer's reach, not the first met");
+    // With none admitting, the lead is the first the filter could not settle, ahead of one that refused.
+    bearers.b1.actor = { ...bearers.b1.actor, statuses: new Set(["helpless"]) };
+    bearers.b1.disposition = priorDisposition;
+    bearers.b2.disposition = 0;
+    got = await run([r1, r2], []);
+    assert.deepEqual(got.map((g) => [g.item, g.admitted, g.engagedBy]), [["I.e2", null, []]], "the unsettled bearer leads over the one that refused");
+    bearers.b1.actor = monsterActor(undefined);
+    bearers.b2.disposition = priorDisposition;
     bearers.b1.disposition = priorDisposition;
 
     // The other pulse's serial loop is untouched: two bearers of one kind are offered in turn and the first prompt settles the kind.

@@ -328,6 +328,11 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(sizeSquares("large"), null, "no document, no squares");
   assert.equal(sizeSquareFeet(), SQUARE_FEET, "no document: the square is the stated figure");
   assert.ok(SQUARE_FEET > 0, "and a positive one");
+  // Engagement's distance is that same square: one constant, in lib, re-exported by the monsters' sizes.
+  const units = await import("../scripts/lib/distance-units.mjs");
+  assert.equal(SQUARE_FEET, units.SQUARE_FEET, "the binding sizes.mjs exports is lib's");
+  assert.equal(units.engagementFeet(), SQUARE_FEET, "an engaged opponent is the adjacent square");
+  assert.equal(sizeSquareFeet(), units.engagementFeet(), "with nothing imported, the square the frontage counts in is the engagement's");
   assert.equal(footprintFeet({ sizeKey: "large" }), null, "no frontage imported: no footprint");
   assert.equal(sizeCite(), null, "and no page to cite");
   // Override wins outright; a token with no size category is one square.
