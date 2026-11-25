@@ -147,7 +147,9 @@ const D = {
     const press = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-spell-die-offer-save]`), { tries: 40, every: 200 });
     if (!press || press.hidden) return { pressed: false };
     press.click();
-    await H.sleep(1500);
+    // The card redraws once the write has gone round: wait for the press to hide, not a fixed time.
+    await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-spell-die-offer-save]`)?.hidden, { tries: 50, every: 200 });
+    await H.sleep(300);
     const el = document.querySelector(`[data-message-id="${messageId}"]`);
     return { pressed: true, pressHidden: el.querySelector("[data-spell-die-offer-save]").hidden, result: el.querySelector("[data-spell-die-offer-result]").textContent.trim() };
   },

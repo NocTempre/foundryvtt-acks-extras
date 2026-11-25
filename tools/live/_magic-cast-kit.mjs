@@ -289,6 +289,9 @@ export const P = {
   /** Make exactly these tokens this seat's targets, as a user does with T; answers the ids the seat holds. */
   target: async ({ sceneId, tokenIds }) => {
     if (canvas.scene?.id !== sceneId) return -1;
+    // A token another seat just made is on this seat's canvas a moment later; targeting before then holds nothing.
+    const stop = Date.now() + 8000;
+    while (Date.now() < stop && tokenIds.some((id) => !canvas.tokens.get(id))) await new Promise((r) => setTimeout(r, 100));
     canvas.tokens.setTargets(tokenIds, { mode: "replace" });
     await new Promise((r) => setTimeout(r, 400));
     return [...game.user.targets].map((t) => t.id);
