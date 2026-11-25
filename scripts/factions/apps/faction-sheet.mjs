@@ -36,7 +36,7 @@ import {
 } from "../standing-logic.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { liveRows } from "../../lib/group-logic.mjs";
-import { ORG_ACTIONS, actorExists, chartContext, hostLeaderLine, locationsContext } from "../../lib/org-chart-ui.mjs";
+import { ORG_ACTIONS, actorExists, bindOfficerDrops, chartContext, hostLeaderLine, locationsContext } from "../../lib/org-chart-ui.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { docOf, escape as esc, makeLoc, refOf } from "../../lib/util.mjs";
@@ -306,6 +306,8 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
       ui.notifications.warn(loc("sheet.domainDropped", { name: actor.name }));
       return;
     }
+    // An officer line takes its own drops (the chart's `bindOfficerDrops`); one that reached here is not the sheet's to file.
+    if (event?.target?.closest?.("[data-org-drop]")) return;
     const tab = event?.target?.closest?.(".tab")?.dataset?.tab ?? this.tabGroups.primary;
     // A place takes the seat when dropped on the seat row or when there is no
     // seat yet, and otherwise joins the holdings — never both.
@@ -532,6 +534,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
+    bindOfficerDrops(this);
     for (const el of this.element.querySelectorAll("[data-row-field]")) {
       el.addEventListener("change", (event) => this.#onRowField(event));
     }

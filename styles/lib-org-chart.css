@@ -159,6 +159,10 @@
 .acks-extras-org-officer.is-gone .acks-extras-org-officer__name { color: var(--acks-danger-ink); }
 .acks-extras-org-officer.is-none .acks-extras-org-officer__name { color: var(--acks-ink-soft); }
 .acks-extras-org-officer__controls { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
+/* An actor dragged over the line: a dashed outline and the line naming it, in place of the controls. Nothing shows at rest. */
+.acks-extras-org-officer.is-drop-target { outline: var(--acks-rule-hair) dashed var(--acks-spot); outline-offset: var(--acks-rule-hair); }
+.acks-extras-org-officer.is-drop-target .acks-extras-org-officer__controls { display: none; }
+.acks-extras-org-officer__drop { color: var(--acks-ink-soft); font-size: var(--acks-fs-fine); }
 .acks-extras-org-officer button { width: auto; height: auto; line-height: 1.4; padding: 0.1rem 0.5rem; }
 .acks-extras-org-officer__delete,
 .acks-extras-org-card__delete { border-color: var(--acks-danger); color: var(--acks-danger-ink); }

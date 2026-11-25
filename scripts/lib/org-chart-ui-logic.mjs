@@ -6,7 +6,9 @@
  * under Node and is unit-tested offline (tools/test-org-chart-ui.mjs). It names no
  * creature, unit or rank: every word on a card is the row's own.
  */
+import { MODULE_ID } from "./constants.mjs";
 import { nodesOf, rowAncestors } from "./org-tree-logic.mjs";
+import { ORG_PROTOTYPE_FLAG } from "./org-write-logic.mjs";
 
 /**
  * Whether a row is a part of the Roll's entry rather than a unit: the Roll wrote it for one non-body
@@ -326,25 +328,94 @@ export function windowNames({ leaderUuid = "", rows = [] } = {}, uuid) {
  * @param {boolean} [args.canCreate] the seat may create actors
  * @param {boolean} [args.canMake] the generating feature can make this row's leader
  * @param {boolean} [args.part] the card is a part row, which names no leader role, so Make is absent from its line
- * @returns {{open: boolean, clear: boolean, deleteActor: boolean, make: boolean}}
+ * @returns {{open: boolean, clear: boolean, deleteActor: boolean, make: boolean, add: boolean, drop: boolean}} `add` is "+ Officer", offered on a line that cannot offer Make and never beside it; `drop` is whether an actor dropped on the line is taken
  */
 export function officerControls({ state, owns = false, canOpen = false, canDelete = false, canCreate = false, canMake = false, part = false } = {}) {
+  const makes = !part && !!canMake;
+  const writes = state !== "live" && !!owns && !!canCreate;
   return {
     open: state === "live" && !!canOpen,
     clear: state !== "empty" && !!owns,
     deleteActor: state === "live" && !!owns && !!canDelete,
-    make: !part && state !== "live" && !!owns && !!canCreate && !!canMake,
+    make: writes && makes,
+    add: writes && !makes,
+    drop: !!owns,
   };
 }
 
 /**
- * Whether a card draws an officer line at all. A unit row always does, with Make where its group
- * has no officer; a part row draws one only where its group names an officer, since it has no
- * leader role to make one from.
- * @param {{state: "empty"|"live"|"deleted", part?: boolean}} args
+ * Whether a card draws an officer line at all. A unit row always does, with Make or "+ Officer"
+ * where its group has no officer; a part row draws one where its group names an officer or where
+ * this seat may add one.
+ * @param {{state: "empty"|"live"|"deleted", part?: boolean, add?: boolean}} args `add` is `officerControls`' answer
  * @returns {boolean}
  */
-export const officerLineShown = ({ state, part = false }) => !(part && state === "empty");
+export const officerLineShown = ({ state, part = false, add = false }) => !(part && state === "empty") || !!add;
+
+/**
+ * The frame and word of a card's officer line. A part row names no officer role (it is picked from a
+ * tier, which a part has none of), so its line shows the actor's name alone in the neutral frame;
+ * every other row keeps the role its unit and place give it.
+ * @param {{leaderRoleKey?: string}} card a view row
+ * @param {{part?: boolean, derived: string}} args `derived` is the role `leaderRoleOf` reads for the card
+ * @returns {{frame: string, key: string, bare: boolean}} `key` is "" where the line is bare
+ */
+export function officerLineRole(card, { part = false, derived } = {}) {
+  if (part) return { frame: "file", key: "", bare: true };
+  const key = card?.leaderRoleKey || derived;
+  return { frame: key, key, bare: false };
+}
+
+/**
+ * The source creature a press copies: the prototype the row's group's first stack names, or "" where
+ * no stack names one (a labelled stack has none). The caller reads the document and keeps it only
+ * where it is a creature.
+ * @param {{template?: {uuid?: string}}[]} stacks the group's stacks
+ * @returns {string}
+ */
+export const officerSourceOf = (stacks) => (stacks ?? []).map((s) => s?.template?.uuid ?? "").find(Boolean) ?? "";
+
+/**
+ * The creation data of the actor a "+ Officer" press makes, named by the row. A copy of the source
+ * carries what the source carries and nothing more: no id, folder, ownership or sort, no core
+ * flags, and no mark of a minted prototype, so the copy is never taken for a twin of it. With no
+ * source the actor is blank, of the type the chart's Make creates.
+ * @param {{source?: object|null, label?: string, type?: string}} args `source` is a plain `toObject()` of the creature
+ * @returns {object}
+ */
+export function officerActorData({ source = null, label = "", type = "monster" } = {}) {
+  if (!source) return { name: label, type };
+  const data = JSON.parse(JSON.stringify(source));
+  for (const k of ["_id", "folder", "sort", "ownership", "_stats"]) delete data[k];
+  if (data.flags) {
+    delete data.flags.core;
+    if (data.flags[MODULE_ID]) delete data.flags[MODULE_ID][ORG_PROTOTYPE_FLAG];
+  }
+  data.name = label;
+  data.prototypeToken = { ...(data.prototypeToken ?? {}), name: label };
+  return data;
+}
+
+/**
+ * The officer change a press or a drop writes through `org.editRow`: the actor, with no morale
+ * figure (the source carries none) and never the faction's leader.
+ * @param {string} uuid the actor
+ * @returns {{officer: string, moraleBonus: null}}
+ */
+export const officerChangeOf = (uuid) => ({ officer: uuid, moraleBonus: null });
+
+/**
+ * What an actor dropped on a card's officer line does: `ignore` for a group, a faction, a place or
+ * anything that is no actor; `refuse` where the seat does not own what the write reaches; `same`
+ * where the actor already is the row's officer; else `accept`.
+ * @param {{isActor?: boolean, isGroup?: boolean, isFaction?: boolean, isPlace?: boolean, owns?: boolean, uuid?: string, current?: string}} args `owns` is the seat's ownership of the host and the row's group; `current` the group's officer now
+ * @returns {"accept"|"ignore"|"refuse"|"same"}
+ */
+export function officerDropVerdict({ isActor = false, isGroup = false, isFaction = false, isPlace = false, owns = false, uuid = "", current = "" } = {}) {
+  if (!isActor || isGroup || isFaction || isPlace) return "ignore";
+  if (!owns) return "refuse";
+  return uuid && uuid === current ? "same" : "accept";
+}
 
 /**
  * The state of a faction's leader line, in the words `officerControls` takes: "empty" where the

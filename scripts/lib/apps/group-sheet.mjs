@@ -45,7 +45,7 @@ import {
   unitSides,
 } from "../group-encounter-logic.mjs";
 import { factionView, pressJoin, pressLeave, pressMakeOwn, pressOpen } from "../group-faction.mjs";
-import { ORG_ACTIONS, chartContext, nestedGroups } from "../org-chart-ui.mjs";
+import { ORG_ACTIONS, bindOfficerDrops, chartContext, nestedGroups } from "../org-chart-ui.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
 import { makeLoc } from "../util.mjs";
 import { coinCount, coinTotalGC } from "../money-logic.mjs";
@@ -219,6 +219,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       permissions: { drop: () => true },
       callbacks: { drop: (event) => this.#onDrop(event) },
     }).bind(this.element);
+    bindOfficerDrops(this);
     if (!this.isEditable) return;
 
     // Per-stack headcount edits go straight to that ONE stack (never the form,

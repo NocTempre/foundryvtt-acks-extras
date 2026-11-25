@@ -7,8 +7,8 @@
  */
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { planEdit, planUnlist } from "../scripts/lib/org-write-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -139,21 +139,22 @@ t("a link is empty where none is named, live where its actor resolves and delete
 
 t("an officer line offers each control only to a seat that passes that control's own test, in every state", () => {
   const all = { owns: true, canOpen: true, canDelete: true, canCreate: true, canMake: true };
-  assert.deepEqual(officerControls({ state: "live", ...all }), { open: true, clear: true, deleteActor: true, make: false });
-  assert.deepEqual(officerControls({ state: "empty", ...all }), { open: false, clear: false, deleteActor: false, make: true });
-  assert.deepEqual(officerControls({ state: "deleted", ...all }), { open: false, clear: true, deleteActor: false, make: true }, "a deleted link offers Make and Clear and nothing on the actor");
+  assert.deepEqual(officerControls({ state: "live", ...all }), { open: true, clear: true, deleteActor: true, make: false, add: false, drop: true });
+  assert.deepEqual(officerControls({ state: "empty", ...all }), { open: false, clear: false, deleteActor: false, make: true, add: false, drop: true });
+  assert.deepEqual(officerControls({ state: "deleted", ...all }), { open: false, clear: true, deleteActor: false, make: true, add: false, drop: true }, "a deleted link offers Make and Clear and nothing on the actor");
   // A seat that owns the card but may not delete the actor: Clear stays, Delete actor is gone.
-  assert.deepEqual(officerControls({ state: "live", ...all, canDelete: false }), { open: true, clear: true, deleteActor: false, make: false });
+  assert.deepEqual(officerControls({ state: "live", ...all, canDelete: false }), { open: true, clear: true, deleteActor: false, make: false, add: false, drop: true });
   // A seat that may not create actors is shown no Make, in both states that would offer it.
   for (const state of ["empty", "deleted"]) assert.equal(officerControls({ state, ...all, canCreate: false }).make, false);
   // The generating feature cannot name a leader from the row: no Make.
   assert.equal(officerControls({ state: "empty", ...all, canMake: false }).make, false);
+  assert.equal(officerControls({ state: "empty", ...all, canMake: false }).add, true, "where Make cannot be offered, + Officer is");
   // A seat that owns neither the host nor the group writes none of it; it may still look.
-  assert.deepEqual(officerControls({ state: "live", ...all, owns: false }), { open: true, clear: false, deleteActor: false, make: false });
-  assert.deepEqual(officerControls({ state: "deleted", ...all, owns: false }), { open: false, clear: false, deleteActor: false, make: false });
+  assert.deepEqual(officerControls({ state: "live", ...all, owns: false }), { open: true, clear: false, deleteActor: false, make: false, add: false, drop: false });
+  assert.deepEqual(officerControls({ state: "deleted", ...all, owns: false }), { open: false, clear: false, deleteActor: false, make: false, add: false, drop: false });
   // A seat that may not see the actor is not offered Open.
   assert.equal(officerControls({ state: "live", ...all, canOpen: false }).open, false);
-  assert.deepEqual(officerControls({ state: "live" }), { open: false, clear: false, deleteActor: false, make: false }, "no test passed, no control");
+  assert.deepEqual(officerControls({ state: "live" }), { open: false, clear: false, deleteActor: false, make: false, add: false, drop: false }, "no test passed, no control");
 });
 
 t("a deleted officer is told from an empty line by the uuid the chart keeps, and a holder that does not resolve stays an empty card", () => {
@@ -284,12 +285,79 @@ t("a faction's leader line offers Make beside a deleted leader and in a blank li
 
 t("a part row whose group names an officer draws the line with Open, Clear and Delete actor and no Make; one that names none draws no line", () => {
   const seat = { owns: true, canOpen: true, canDelete: true, canCreate: true, canMake: true };
-  assert.deepEqual(officerControls({ state: "live", part: true, ...seat }), { open: true, clear: true, deleteActor: true, make: false });
+  assert.deepEqual(officerControls({ state: "live", part: true, ...seat }), { open: true, clear: true, deleteActor: true, make: false, add: false, drop: true });
   assert.equal(officerControls({ state: "deleted", part: true, ...seat }).make, false, "a deleted officer is cleared, not made again");
   assert.equal(officerControls({ state: "deleted", part: true, ...seat }).clear, true);
   assert.equal(officerControls({ state: "empty", ...seat }).make, true, "a unit row keeps its Make");
   assert.deepEqual(["live", "deleted", "empty"].map((state) => officerLineShown({ state, part: true })), [true, true, false]);
   assert.equal(officerLineShown({ state: "empty" }), true, "a unit row draws its line with none");
+  assert.equal(officerLineShown({ state: "empty", part: true, add: true }), true, "a part row draws the line for a seat that may add an officer");
+});
+
+t("+ Officer is offered where + Make cannot be, never beside it, never disabled, and to the seat Make needs", () => {
+  const seat = { owns: true, canCreate: true };
+  const offers = (state, extra) => officerControls({ state, ...seat, ...extra });
+  assert.deepEqual([offers("empty", { canMake: true }).make, offers("empty", { canMake: true }).add], [true, false], "a row that makes keeps Make alone");
+  assert.deepEqual([offers("empty", { part: true, canMake: true }).make, offers("empty", { part: true, canMake: true }).add], [false, true], "a part row has no role to make");
+  assert.deepEqual([offers("empty", { canMake: false }).make, offers("empty", { canMake: false }).add], [false, true], "a row the service refuses is added to");
+  assert.equal(offers("deleted", { part: true }).add, true, "a deleted officer's line offers it beside Clear");
+  assert.equal(offers("live", { part: true }).add, false, "a live officer is replaced by a drop, not added to");
+  for (const extra of [{ owns: false }, { canCreate: false }]) for (const part of [true, false]) assert.equal(offers("empty", { ...extra, part }).add, false, JSON.stringify(extra));
+  for (const part of [true, false]) for (const state of ["empty", "live", "deleted"]) {
+    const c = offers(state, { part, canMake: true });
+    assert.equal(c.make && c.add, false, "never both");
+  }
+  assert.equal(officerControls({ state: "live", owns: true }).drop, true, "the drop needs ownership alone");
+  assert.equal(officerControls({ state: "empty", owns: false, canCreate: true }).drop, false, "a seat that does not own the row's group gets no drop target");
+});
+
+t("a part row's officer line names no role and shows the neutral frame; a row with a role keeps it", () => {
+  assert.deepEqual(officerLineRole({ leaderRoleKey: "champion" }, { part: true, derived: "champion" }), { frame: "file", key: "", bare: true });
+  assert.deepEqual(officerLineRole({}, { part: false, derived: "sub" }), { frame: "sub", key: "sub", bare: false });
+  assert.deepEqual(officerLineRole({ leaderRoleKey: "chief" }, { part: false, derived: "sub" }), { frame: "chief", key: "chief", bare: false }, "the row's own recorded role wins over the derived one");
+});
+
+t("the actor a + Officer press makes is a copy of the row's source creature, or a blank of the Make type, named by the row", () => {
+  assert.equal(officerSourceOf([{ template: { uuid: "" } }, { template: { uuid: "Actor.src" } }, { template: { uuid: "Actor.two" } }]), "Actor.src", "the first stack that names a creature");
+  assert.equal(officerSourceOf([{ template: { uuid: "" } }]), "", "a labelled stack names none");
+  assert.equal(officerSourceOf(undefined), "");
+  assert.deepEqual(officerActorData({ label: "QA Part young", type: "monster" }), { name: "QA Part young", type: "monster" }, "blank: a name and a type, no figure");
+  assert.deepEqual(officerActorData({ label: "QA Part young" }), { name: "QA Part young", type: "monster" });
+  const source = {
+    _id: "x1", name: "QA Source", type: "monster", folder: "f", sort: 3, ownership: { default: 3 }, _stats: { v: 1 }, img: "i.webp",
+    system: { hp: { value: 4 } }, items: [{ _id: "i1", name: "QA Item" }], prototypeToken: { name: "QA Source", texture: { src: "t.webp" } },
+    flags: { core: { sourceId: "c" }, "acks-extras": { organisationPrototype: "key", generated: { templateUuid: "T.fam" } } },
+  };
+  const before = JSON.stringify(source);
+  const copy = officerActorData({ source, label: "QA Part young", type: "monster" });
+  assert.equal(JSON.stringify(source), before, "the source is read, never changed");
+  assert.deepEqual([copy.name, copy.type, copy.img, copy.system.hp.value, copy.items.length, copy.prototypeToken.name, copy.prototypeToken.texture.src], ["QA Part young", "monster", "i.webp", 4, 1, "QA Part young", "t.webp"]);
+  for (const k of ["_id", "folder", "sort", "ownership", "_stats"]) assert.equal(k in copy, false, k);
+  assert.equal(copy.flags.core, undefined);
+  assert.equal(copy.flags["acks-extras"].organisationPrototype, undefined, "never the mark of a minted prototype, so the copy is no twin of it");
+  assert.equal(copy.flags["acks-extras"].generated.templateUuid, "T.fam", "the rest of the source's record is its own");
+  assert.deepEqual(officerChangeOf("Actor.new"), { officer: "Actor.new", moraleBonus: null }, "no morale figure and never the faction's leader");
+});
+
+t("an actor dropped on an officer line is taken, a group, a faction, a place or a non-actor is ignored, and a seat that does not own the row's group is refused", () => {
+  const owns = { isActor: true, owns: true, uuid: "Actor.n", current: "Actor.o" };
+  assert.equal(officerDropVerdict(owns), "accept");
+  assert.equal(officerDropVerdict({ ...owns, current: "" }), "accept", "a row with no officer takes it");
+  assert.equal(officerDropVerdict({ ...owns, current: "Actor.n" }), "same", "the officer already there is no write");
+  for (const kind of ["isGroup", "isFaction", "isPlace"]) assert.equal(officerDropVerdict({ ...owns, [kind]: true }), "ignore", kind);
+  assert.equal(officerDropVerdict({ ...owns, isActor: false }), "ignore", "an item or a missing document");
+  assert.equal(officerDropVerdict({ ...owns, owns: false }), "refuse");
+  assert.equal(officerDropVerdict({ ...owns, owns: false, isGroup: true }), "ignore", "a group is ignored whoever drops it");
+  assert.equal(officerDropVerdict(), "ignore");
+});
+
+t("replacing an officer by a drop or a press only relinks it: the plan writes the group's officer, deletes nothing, and leaves the faction's leader alone", () => {
+  const rows = [row("u1", "", "G.u1")];
+  const host = { uuid: "F.1", kind: "faction", leaderUuid: "Actor.old" };
+  const plan = planEdit({ host, rows, key: "u1", officer: officerChangeOf("Actor.new"), currentOfficer: "Actor.old" });
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.ops, [{ op: "setOfficer", group: "G.u1", officer: "Actor.new", moraleBonus: null }], "one write, to the group's officer");
+  assert.equal(JSON.stringify(plan).includes("delete"), false, "the replaced actor is unlinked and never deleted");
 });
 
 t("a part row, one the Roll wrote for a part of the entry, is told by its gen and is never rollable", () => {

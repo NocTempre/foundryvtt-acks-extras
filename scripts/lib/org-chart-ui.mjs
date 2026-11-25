@@ -1,4 +1,4 @@
-/* global game, foundry, ui, fromUuid, fromUuidSync */
+/* global game, foundry, ui, fromUuid, fromUuidSync, Actor, document */
 /**
  * The organisation chart's surface (docs/lib/ORGANISATION.md, "The chart's tab"): the
  * context the two partials draw on a faction's Org chart and Locations tabs and on a
@@ -18,9 +18,10 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, hostLeaderState, isPartRow, leaderRoleOf, liftedBy, nextLevelKind, officerControls, officerLineShown, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, hostLeaderState, isPartRow, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
+import { outputActorType } from "./template-generate.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
 
 const loc = makeLoc(ORG_LANG_PREFIX);
@@ -137,7 +138,7 @@ async function groupGoneOf(card) {
  * and a leader the generating feature can name from the row.
  * @param {object} card a view row with `officer`, `officerUuid` and `leaderRoleKey`
  * @param {{holder: Actor|null, editable: boolean, rows: object[], hostGen?: object|null}} where the card's group, whether the seat owns the host, the host's rows and the host's own record
- * @returns {Promise<object|null>} the line as the partial draws it; null on a part row whose group names no officer
+ * @returns {Promise<object|null>} the line as the partial draws it; null on a part row whose group names no officer and whose seat may not add one
  */
 async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
   const user = game.user;
@@ -146,7 +147,6 @@ async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
   const found = doc ?? (officerUuid ? await readActor(officerUuid) : null);
   const state = officerStateOf({ officerUuid, resolves: !!found });
   const part = isPartRow(rows, card.key);
-  if (!officerLineShown({ state, part })) return null;
   const group = isGroupActor(holder) ? holder : null;
   const controls = officerControls({
     state,
@@ -157,23 +157,28 @@ async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
     canMake: !!services.get("org-chart")?.canMakeLeader?.(rows, card.key, hostGen),
     part,
   });
-  const role = card.leaderRoleKey || leaderRoleOf(card);
-  const title = loc(`role.${role}`);
-  const word = title.toLocaleLowerCase();
+  if (!officerLineShown({ state, part, add: controls.add })) return null;
+  const { frame, key: role, bare } = officerLineRole(card, { part, derived: leaderRoleOf(card) });
+  const title = bare ? loc("officer.bareTitle") : loc(`role.${role}`);
+  const word = bare ? loc("officer.bareWord") : title.toLocaleLowerCase();
   const name = card.officer?.name ?? found?.name ?? "";
+  const labelled = bare ? name : loc("role.label", { word: title, name });
   return {
     state,
     img: state === "live" ? doc?.img || found?.img || "" : "",
-    frame: role,
+    frame,
     uuid: officerUuid,
     gone: state === "deleted",
     none: state === "empty",
     controls,
-    text: state === "live" ? loc("role.label", { word: title, name }) : state === "deleted" ? loc("officer.deleted", { word: title }) : loc("officer.none", { word }),
+    drop: !!controls.drop,
+    text: state === "live" ? labelled : state === "deleted" ? loc("officer.deleted", { word: title }) : loc("officer.none", { word }),
+    nameTip: controls.drop && state === "live" ? loc("officer.nameTip") : "",
     deletedTip: loc("officer.deletedTip", { word }),
     openTip: loc("officer.openTip", { word }),
     makeLabel: loc("officer.make", { word }),
     makeTip: loc("officer.makeTip", { word }),
+    addTip: officerSourceOf(group?.system?.stacks) ? loc("officer.addTip") : loc("officer.addBlankTip"),
     clearTip: loc(state === "deleted" ? "officer.clearDeletedTip" : "officer.clearTip", { word }),
     deleteLabel: loc("officer.deleteLabel", { word }),
     deleteTip: loc("officer.deleteTip", { word }),
@@ -734,6 +739,164 @@ async function onMakeLeader(_event, target) {
 }
 
 /**
+ * The actor a "+ Officer" press makes: a copy of the creature the row's group's first stack names,
+ * else a blank actor of the type the chart's Make creates (the family template's output type, read
+ * from the row's own record, else the generator's default). Named by the row's label. Null where
+ * the world refused the create.
+ * @param {Actor} host
+ * @param {{key: string, label?: string}|undefined} row
+ * @param {Actor} group the row's group
+ * @returns {Promise<Actor|null>}
+ */
+async function makeOfficerActor(host, row, group) {
+  const sourceUuid = officerSourceOf(group.system?.stacks);
+  const found = sourceUuid ? await fromUuid(sourceUuid).catch(() => null) : null;
+  const source = found?.documentName === "Actor" && !isGroupActor(found) ? found : null;
+  const family = source ? null : await fromUuid(templateOf(org.unitsOf(host), row?.key ?? "", org.hostGenOf(host)).template || "").catch(() => null);
+  const data = officerActorData({ source: source?.toObject?.() ?? null, label: row?.label || group.name || "", type: outputActorType(family?.system) });
+  try {
+    return (await Actor.implementation.create(data)) ?? null;
+  } catch (err) {
+    console.warn(`${MODULE_ID} | an officer actor could not be made`, err);
+    return null;
+  }
+}
+
+/**
+ * "＋ Officer": one actor made for a row that cannot offer Make, then set as the row's group officer
+ * through `org.editRow`, the writer Make and Clear use. Every test is made before the actor is: the
+ * seat must create actors and own the host and the row's group. Where the link is refused after
+ * the actor was made, the notice names the actor, which stays in the world.
+ */
+async function onAddOfficer(_event, target) {
+  const { host, key } = await targetOf(target);
+  if (!host) return;
+  const { row, group } = officerTargetOf(host, key);
+  if (!game.user.can("ACTOR_CREATE")) return refuse({ reason: "noCreate" });
+  if (!host.isOwner || !group?.isOwner) return refuse({ reason: "notOwner", name: (group ?? host).name });
+  const actor = await makeOfficerActor(host, row, group);
+  if (!actor) return refuse({ reason: "officerNotMade" });
+  const result = await org.editRow(host, key, { officer: officerChangeOf(actor.uuid) });
+  if (!result.ok) {
+    refuse(result);
+    ui.notifications.warn(loc("refused.leaderUnlinked", { name: actor.name ?? actor.uuid }));
+  }
+  render(this);
+}
+
+/* -------------------------------------------- */
+/*  An actor dropped on an officer line          */
+/* -------------------------------------------- */
+
+/** The drag in flight, as the last `dragstart` anywhere in the page carried it: a drag's payload is unreadable until the drop, so a line reads the dragged actor's name from here. */
+let dragging = null;
+/** The lines already listening, so a redraw that keeps an element binds it once. */
+const listening = new WeakSet();
+let watching = false;
+
+/** What a drag event carries: Foundry's drag data trimmed to its type and uuid, or null. */
+function dragData(event) {
+  try {
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    return data?.type ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The kinds an officer line ignores: a group, a faction (the one non-group actor that hosts rows) and a place. */
+const kindOf = (doc) => ({ isGroup: isGroupActor(doc), isFaction: !isGroupActor(doc) && Array.isArray(doc?.system?.units), isPlace: isLocation(doc) });
+
+/** What the page can say of a drag before it drops: whether this line takes it and the actor's name; `known: false` where nothing in the world or an index answers for the uuid. */
+function dragInfoOf(drag) {
+  if (!drag) return { known: false };
+  if (drag.type !== "Actor") return { known: true, accepts: false };
+  let doc = null;
+  try {
+    doc = drag.uuid ? fromUuidSync(drag.uuid) : null;
+  } catch {
+    doc = null;
+  }
+  if (!doc) return { known: false };
+  return { known: true, accepts: officerDropVerdict({ isActor: true, ...kindOf(doc), owns: true }) !== "ignore", name: doc.name ?? "" };
+}
+
+/** Put a line back to rest: no outline and no drop line. */
+function restLine(line) {
+  line.classList.remove("is-drop-target");
+  const hint = line.querySelector(".acks-extras-org-officer__drop");
+  if (!hint) return;
+  hint.hidden = true;
+  hint.textContent = "";
+}
+
+/** The page-wide watch of drags: the dragged actor is remembered from `dragstart` and forgotten at `dragend`. Added once. */
+function watchDrags() {
+  if (watching) return;
+  watching = true;
+  document.addEventListener("dragstart", (event) => { dragging = dragData(event); });
+  document.addEventListener("dragend", () => {
+    dragging = null;
+    for (const line of document.querySelectorAll(".acks-extras-org-officer.is-drop-target")) restLine(line);
+  });
+}
+
+/** An actor over a line: the outline and the line naming it, where this line takes the drag. Nothing shows for a drag it ignores. */
+function onLineOver(event, line) {
+  event.preventDefault();
+  event.stopPropagation();
+  const info = dragInfoOf(dragging ?? dragData(event));
+  if (info.known && !info.accepts) return restLine(line);
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "link";
+  line.classList.add("is-drop-target");
+  const hint = line.querySelector(".acks-extras-org-officer__drop");
+  if (!hint) return;
+  hint.textContent = info.name ? loc("officer.dropHint", { name: info.name }) : "";
+  hint.hidden = !info.name;
+}
+
+/** An actor dropped on a line: it becomes that row's officer and the one there is unlinked, never deleted. */
+async function onLineDrop(event, line, app) {
+  event.preventDefault();
+  event.stopPropagation();
+  restLine(line);
+  dragging = null;
+  const data = dragData(event);
+  if (data?.type !== "Actor") return;
+  const dropped = await foundry.utils.getDocumentClass("Actor").fromDropData(data).catch(() => null);
+  const { host, key } = await targetOf(line);
+  if (!host) return;
+  const { group } = officerTargetOf(host, key);
+  const verdict = officerDropVerdict({
+    isActor: !!dropped, ...kindOf(dropped), owns: !!host.isOwner && !!group?.isOwner, uuid: dropped?.uuid ?? "", current: group?.system?.unit?.officerUuid ?? "",
+  });
+  if (verdict === "refuse") return refuse({ reason: "notOwner", name: (group ?? host).name });
+  if (verdict !== "accept") return;
+  const result = await org.editRow(host, key, { officer: officerChangeOf(dropped.uuid) });
+  if (!result.ok) refuse(result);
+  render(app);
+}
+
+/**
+ * Make every officer line a sheet drew that this seat may write a drop target, by the one handler
+ * both chart hosts share. A sheet calls it from its `_onRender`, so the listeners ride the line
+ * elements that render made. A drop on a line is the line's alone: it is stopped before the
+ * sheet's own drop, which would take the actor as a member, a seat or a stack.
+ * @param {object} app the sheet
+ * @param {HTMLElement} [root] where the lines are looked for; the sheet's element
+ */
+export function bindOfficerDrops(app, root = app?.element) {
+  watchDrags();
+  for (const line of root?.querySelectorAll?.("[data-org-drop]") ?? []) {
+    if (listening.has(line)) continue;
+    listening.add(line);
+    line.addEventListener("dragover", (event) => onLineOver(event, line));
+    line.addEventListener("dragleave", (event) => { if (!line.contains(event.relatedTarget)) restLine(line); });
+    line.addEventListener("drop", (event) => onLineDrop(event, line, app));
+  }
+}
+
+/**
  * What a faction's leader line offers: "+ Make the chieftain", where the leader was deleted outside
  * the chart or the field is blank (after a Clear, say), this seat owns the faction and may create
  * actors, and the faction's record (`org.hostGenOf`) names the leader's role and the chart a template.
@@ -1127,6 +1290,7 @@ export const ORG_ACTIONS = Object.freeze({
   orgBadge: onBadge,
   orgClearLeader: onClearLeader,
   orgMakeLeader: onMakeLeader,
+  orgAddOfficer: onAddOfficer,
   orgMakeHostLeader: onMakeHostLeader,
   orgDeleteLeaderActor: onDeleteLeaderActor,
   hirelingShow: onOpen,

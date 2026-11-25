@@ -18,6 +18,9 @@ import { cookbookId } from "./library.mjs";
  */
 const generatedFolder = () => actorFolder(game.i18n?.localize?.(`${LANG_PREFIX}.template.folder`) ?? "Generated");
 
+/** The actor type a template's creatures are made as: the template's own output type, else a monster. */
+export const outputActorType = (system) => system?.output?.actorType || "monster";
+
 /**
  * Build one concrete actor from a template, in the generated folder.
  *
@@ -78,7 +81,7 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
   }
   const biography = htmlParts.join("");
 
-  const type = sys.output?.actorType || "monster";
+  const type = outputActorType(sys);
   const system = resolved.system;
   if (biography) {
     system.details = { ...(system.details ?? {}), biography: `${system.details?.biography ?? ""}${biography}` };
