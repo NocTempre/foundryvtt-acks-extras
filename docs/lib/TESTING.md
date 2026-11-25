@@ -2922,9 +2922,73 @@ first renders opens a second matrix.
    `forelos`/`forelos`.
    **Observable:** the matrix closes and `initDone` is true.
 
-**Teardown.** Close any dialog the combat start opened. The actors and the
+**Teardown.** Close any dialog the combat start opened; closing the
+declaration confirm now unsets `initDone` and lifts Surprised from the
+combatants ("A cancelled declaration", below). The actors and the
 scene stay; the two combats and the card stay until the next walk retires
 them.
+
+## A cancelled declaration
+
+Covers `patches/combat-start.mjs`. One GM seat, which reloads in step 4.
+`tools/live/lib-combat-start.mjs` walks the section
+(`node tools/live/run.mjs lib-combat-start`). The defect is the system's start
+storing `flags.acks.initDone` before it asks the declaration confirm, so a
+Cancel or the window's X leaves the combat at round 0 with the flag set and the
+Surprised statuses the matrix applied still on the actors.
+
+**Fixtures, kept and found again by marker (`flags.world.fixture`), built
+carrying it where none stands:** the previous section's `lib/surprise-pc-a`,
+`lib/surprise-pc-b`, `lib/surprise-monster` and `lib/surprise-scene`, each
+character and the monster with a linked token on the scene, the characters'
+tokens friendly and the monster's hostile (the walk writes the dispositions at
+its start). The combats are a create path: `lib/combat-start-cancel`,
+`lib/combat-start-yes` and `lib/combat-start-abandon` each hold the three tokens'
+combatants, and a walk retires its last run's and builds them again
+(`api.retire`, then `api.fixture`). Each step clears Surprised from the three
+actors before it begins.
+
+**Drive mechanics.**
+- `combat.startCombat()` opens the matrix; poll `foundry.applications.instances`
+  for the instance whose `options.combat` is that combat before clicking. A
+  second call before the first renders opens a second matrix.
+- Make the roll certain: set `input[name='friendlyGlobalMod']` and
+  `input[name='hostileGlobalMod']` to a large negative figure before the click, so
+  every combatant is surprised whatever the die shows. The cell is
+  `[data-action='rollSurprise'][data-adventurer-status='fore'][data-monster-status='fore']`,
+  which rolls both sides.
+- The declaration confirm is a `DialogV2`: find it in
+  `foundry.applications.instances` as the entry whose `options.window.title` or
+  `title` names the declaration, and press `button[data-action="yes"]` or
+  `button[data-action="no"]` (Cancel). The window's X is
+  `[data-action="close"]` in its header, and `dialog.close()` is the same path.
+  Poll for the dialog; it opens after the matrix's chat cards post.
+- Every reading polls about 5 seconds: the patch's cleanup runs after the
+  prompt resolves, and its writes land when the server replies.
+
+1. **Cancel.** Begin Combat on `lib/combat-start-cancel`, click the cell with
+   both modifiers set, and press Cancel in the confirm.
+   **Observable:** within the poll, round 0, `combat.getFlag("acks", "initDone")`
+   unset, and no combatant's actor carries `surprised`. Before the Cancel, with
+   the confirm open, all three actors carry `surprised` and `initDone` is true.
+2. **The X.** The same on `lib/combat-start-cancel`, closing the confirm with its
+   X.
+   **Observable:** the same as step 1.
+3. **Yes.** The same on `lib/combat-start-yes`, pressing the confirm's Yes
+   button.
+   **Observable:** round 1, `initDone` true, and the three actors still carry
+   `surprised`.
+4. **An abandoned start.** On `lib/combat-start-abandon`, Begin Combat, click
+   the cell with both modifiers set, and with the confirm open reload the GM
+   seat. When it is ready again, call `combat.startCombat()` and read before the
+   new matrix is clicked.
+   **Observable:** `initDone` is unset and no combatant's actor carries
+   `surprised`, with a matrix open and no cell clicked. A read taken before the
+   reload shows both set, which is the state the reload strands.
+
+**Teardown.** Close the matrix the last step opened. The actors and the scene stay,
+with the three combats until the next walk retires them; the actors carry no
+Surprised after step 4, and step 3's are cleared by the next run's first action.
 
 ## A deposit at a place the seat does not own
 

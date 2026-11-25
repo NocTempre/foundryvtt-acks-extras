@@ -46,7 +46,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-14 — [Tokens split colour from structure; the light palette is a real branch](DECISIONS-through-v11.14.5.md#2026-08-14--tokens-split-colour-from-structure-the-light-palette-is-a-real-branch)
 - 2026-08-14 — [Money is physical; four rulings land at once](DECISIONS-through-v11.14.5.md#2026-08-14--money-is-physical-four-rulings-land-at-once) — superseded in part by "2026-09-01 — the system's compendium tree is the system's, and the library can be put back"; "2026-09-02 — hiding compendiums was a BAD DIRECTION"; "2026-10-01 — Currency is one stack with one count, weighed by how many make a stone"; "2026-11-11 — A spoil is released by the Judge, not claimed by a throw" (docs/location/DECISIONS.md)
 - 2026-08-18 — [One owner for the attack roll, and one seam for future modifiers](DECISIONS-through-v11.14.5.md#2026-08-18--one-owner-for-the-attack-roll-and-one-seam-for-future-modifiers) — superseded in part by "2026-10-20 — The attack seam rides the system's labelled modifiers"
-- 2026-08-24 — [Initiative reuses the roll CARD, not an invented grouping](DECISIONS-through-v11.14.5.md#2026-08-24--initiative-reuses-the-roll-card-not-an-invented-grouping) — superseded in part by "2026-11-25 — A group's bodies in a combat are grouped by the system's own call" (its rejection of auto-grouping); the roll card and the note on the system's namespace stand, and a patch may correct the system's own write ("2026-11-25 — The group control keeps each group's own initiative modifier and returns its write")
+- 2026-08-24 — [Initiative reuses the roll CARD, not an invented grouping](DECISIONS-through-v11.14.5.md#2026-08-24--initiative-reuses-the-roll-card-not-an-invented-grouping) — superseded in part by "2026-11-25 — A group's bodies in a combat are grouped by the system's own call" (its rejection of auto-grouping); the roll card and the note on the system's namespace stand, and a patch may correct the system's own write ("2026-11-25 — The group control keeps each group's own initiative modifier and returns its write"), and may unset the system's own started flag and lift its own Surprised status for a combat abandoned at its declaration prompt ("2026-11-25 — A cancelled declaration leaves the combat unstarted and lifts its surprise")
 - 2026-08-25 — [A window never names its own ground; the dress does](DECISIONS-through-v11.14.5.md#2026-08-25--a-window-never-names-its-own-ground-the-dress-does) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md)
 - 2026-08-29 — [Thirst charges a rolled toll; hunger charges a flat one](DECISIONS-through-v11.14.5.md#2026-08-29--thirst-charges-a-rolled-toll-hunger-charges-a-flat-one)
 - 2026-08-29 — [An i18n key is a leaf or a parent, never both](DECISIONS-through-v11.14.5.md#2026-08-29--an-i18n-key-is-a-leaf-or-a-parent-never-both)
@@ -1988,3 +1988,57 @@ wrap on a Foundry method.
 **Cost.** The Player's welcome dialog shows on each load until a user allowed to modify
 settings has loaded the world on the new version; nothing remembers it for the Player.
 The change is walked live in `docs/lib/TESTING.md`, "A Player's welcome-version write".
+
+## 2026-11-25 — A cancelled declaration leaves the combat unstarted and lifts its surprise
+
+Qualifies the In force row of "2026-08-24 — Initiative reuses the roll CARD, not an
+invented grouping", its note that the system's namespace is read and not written, in the
+way "2026-11-25 — The group control keeps each group's own initiative modifier and
+returns its write" did: a patch of the system's own method may undo the system's own
+write, and nothing else in that namespace.
+
+Ruled by the owner's words on defects found in the `acks` system: "patch and include
+found fixes with the issue reports". The module patches each system defect for its own
+users now, and the upstream report carries the same fix. For this defect:
+`AcksCombat#internalStartCombat` stores `flags.acks.initDone` before it asks the
+action-declaration prompt, and on No or the window's X it returns with the combat at
+round 0, the flag set and the Surprised statuses the Surprise Matrix applied still on
+the actors. The system's `surprised` condition has no duration, so nothing else lifts
+them. `patches/combat-start.mjs` leaves such a combat unstarted for the module's users,
+and the report to the system carries the matching change to the method.
+
+**Ruled.** One file, the one owner of `internalStartCombat` and `startCombat` (libWrapper
+`WRAPPER` on each, with the prototype-assign fallback), installed at `ready`. A start in
+flight is counted per combat on the GM's seat. After the original fulfils, with the
+combat still in the world, at round 0 and no other start of it in flight, the flag is
+unset and the combat's own `cleanupStatus("surprised")` lifts the status. A rejected
+original is rethrown with no cleanup; an error of the cleanup is warned, never thrown.
+`startCombat` runs the same cleanup first for a combat at round 0 with the flag set and
+no start in flight, which is a start abandoned by a reload of the seat while the prompt
+was open. It stands down by observation, with no version gate: a system that undoes its
+own start leaves nothing to unset.
+
+**Retired by.** The system's minimum reaching a release whose method undoes its own flag
+and its matrix's statuses on a cancel.
+
+**Rejected.**
+- A duration on the Surprised status. It lifts the status on the clock of a combat that
+  never started, ends it in the middle of one that did, and would be written by the
+  module into the system's own condition.
+- Patching `confirmCombatActionDeclaration`. The dialog does not know the combat, the
+  flag or the matrix, and a cancel is a fact of the caller's.
+- An unconditional clean in `startCombat`. It strips a Surprised a Judge set by hand
+  before pressing Begin Combat, and it fires during a live open dialog, where the
+  start in flight is the one that owns the flag.
+
+**Strongest counter, MODERATE.** A wrapper that writes the system's flag and statuses
+back after a method has run is the module reaching into the system's state, and the
+smaller wrap, a clean at the cancel alone, would leave an abandoned reload as it is.
+Held because the abandoned start is reachable by a Judge who reloads with the prompt
+open, and the clean at Begin Combat touches only a combat the module can prove is not in
+flight on that seat. **Cost:** the lift reaches every Surprised on the combatants,
+including one the Judge set by hand before Begin Combat, since the matrix's own apply
+path makes the status active and clears none first. A second GM seat with the prompt
+open is not in this seat's count: its start is cleaned if this seat presses Begin
+Combat on the same combat while that prompt is open. The change is walked live in
+`docs/lib/TESTING.md`, "A cancelled declaration".

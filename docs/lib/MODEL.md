@@ -1965,6 +1965,40 @@ combat") reports. `groupGangs` awaits the call and polls the stored list after i
 The ruling is in docs/lib/DECISIONS.md, and the row that retires the patch is in
 docs/lib/ROADMAP.md.
 
+## A cancelled declaration leaves the combat unstarted
+
+`scripts/lib/patches/combat-start.mjs` is the one wrapper on the system's
+`AcksCombat#internalStartCombat` and `startCombat`, the calls behind the Combat
+Tracker's Begin Combat. It is installed at `ready`.
+
+The system's `startCombat` opens the Surprise Matrix, and a click on a cell applies
+the Surprised status to the combatants that roll badly and calls
+`internalStartCombat`. That method stores `flags.acks.initDone` before it asks the
+action-declaration prompt, and on No or the window's X it returns, leaving the combat
+at round 0 with the flag set and the statuses on. The system's `surprised` condition
+has no duration, so nothing else lifts it for a combat that never starts.
+
+Both wrappers run the system's method unmodified and act on a GM seat only. The
+wrapper on `internalStartCombat` counts the starts of each combat in flight on this
+seat. When the original fulfils with the combat still in the world, at round 0, and no
+other start of it in flight, it unsets the flag and calls the combat's
+`cleanupStatus("surprised")`. A Yes leaves round 1 and nothing runs. A rejected
+original is rethrown with no cleanup, and an error of the cleanup is warned, never
+thrown. The wrapper on `startCombat` does the same before the call goes through for a
+combat at round 0 with the flag set and no start in flight, which is a start
+abandoned by a reload of the seat while the prompt was open. A start in flight is
+never cleaned, since its prompt may be open.
+
+The status lift reaches every Surprised on the combatants, including one a Judge set
+by hand before pressing Begin Combat. The matrix's own apply path does not tell that
+one apart either: it ends in `AcksUtility.addUniqueStatus`, which makes the status
+active and clears none first, so the matrix never lifts a Surprised it did not apply.
+
+It stands down by observation. A system that undoes its own start leaves no flag and
+no status, and nothing is written. There is no version gate, no duration is set on the
+status, and nothing in lib's conditions or status files is wrapped. The ruling is in
+docs/lib/DECISIONS.md, and the walk is docs/lib/TESTING.md, "A cancelled declaration".
+
 ## A Player's welcome-version write is not sent
 
 `scripts/lib/patches/welcome-version.mjs` is the one wrapper on Foundry's

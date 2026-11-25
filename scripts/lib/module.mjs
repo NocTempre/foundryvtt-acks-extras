@@ -111,6 +111,7 @@ import { declareDefenseTables } from "./defenses.mjs";
 import { declareThrowTables } from "./throws.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
+import { installCombatStartPatch } from "./patches/combat-start.mjs";
 import { installTurnOrderPatch } from "./patches/turn-order.mjs";
 import { installGroupInitiativePatch } from "./patches/group-initiative.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
@@ -1126,6 +1127,10 @@ Hooks.once("ready", () => {
   // see docs/lib/DECISIONS.md, "2026-09-07 — extras guards the system's
   // round counter, and the guard is scoped to core's synchronous prefix".
   installCombatRoundPatch();
+
+  // A combat abandoned at its declaration prompt is left unstarted and its
+  // surprise lifted; see patches/combat-start.mjs.
+  installCombatStartPatch();
 
   // Combatants tied on initiative sort the same on every seat; see
   // docs/lib/DECISIONS.md, "Tied initiative sorts the same on every seat".
