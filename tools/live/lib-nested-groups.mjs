@@ -278,7 +278,9 @@ try {
   check("no body token of either group stands on any scene", shape.strays === 0, shape.strays);
   const scene = await gm.create("Scene", { name: `QA Nested scene${TAG}`, width: 1200, height: 800, grid: { size: 100 } });
   swept.push(scene.uuid);
-  const place = await gm.create("Actor", { name: `QA Nested place${TAG}`, type: LOCATION, items: [] });
+  // A Judge's note keeps the place out of the empty-location prune, which the
+  // primary GM's window runs once its election settles, possibly after this create.
+  const place = await gm.create("Actor", { name: `QA Nested place${TAG}`, type: LOCATION, items: [], system: { gmNotes: "<p>Walk place</p>" } });
   swept.push(place.uuid);
   const faction = await gm.create("Actor", { name: `QA Nested faction${TAG}`, type: FACTION, items: [] });
   swept.push(faction.uuid);
