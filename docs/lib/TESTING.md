@@ -2958,9 +2958,9 @@ actors before it begins.
   `[data-action='rollSurprise'][data-adventurer-status='fore'][data-monster-status='fore']`,
   which rolls both sides.
 - The declaration confirm is a `DialogV2`: find it in
-  `foundry.applications.instances` as the entry whose `options.window.title` or
-  `title` names the declaration, and press `button[data-action="yes"]` or
-  `button[data-action="no"]` (Cancel). The window's X is
+  `foundry.applications.instances` as the one that offers both a
+  `button[data-action="yes"]` and a `button[data-action="no"]` (Cancel); close
+  any other left open first, then press one of the two. The window's X is
   `[data-action="close"]` in its header, and `dialog.close()` is the same path.
   Poll for the dialog; it opens after the matrix's chat cards post.
 - Every reading polls about 5 seconds: the patch's cleanup runs after the

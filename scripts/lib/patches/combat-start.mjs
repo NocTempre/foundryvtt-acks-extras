@@ -9,8 +9,9 @@
  * and the Surprised statuses the Surprise Matrix applied just before stay on the
  * actors; the system's `surprised` condition has no duration, so nothing else
  * lifts them for a combat that never started. `startCombat` (the tracker's Begin
- * Combat) opens the matrix and writes nothing, so a second press meets the first
- * attempt's leavings.
+ * Combat) clears its own `outnumbering` marks and opens the matrix, touching
+ * neither the flag nor the statuses, so a second press meets the first attempt's
+ * leavings.
  *
  * This file is the one owner of both methods: nothing else shipped wraps
  * `internalStartCombat` or `startCombat`, and `cleanupStatus` is only called.

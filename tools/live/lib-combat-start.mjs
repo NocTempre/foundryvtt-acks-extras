@@ -215,6 +215,8 @@ try {
   previousScene = census.viewing;
   await run(gm, P.arm);
   armed = true;
+  // A confirm or matrix left open by an earlier run or section is closed, so the one this walk opens is the only one.
+  await run(gm, P.closeAll);
 
   section("fixtures");
   const pcA = await gm.fixture("lib/surprise-pc-a", "Actor", { name: `QA Surprise PC A${TAG}`, type: "character" });
