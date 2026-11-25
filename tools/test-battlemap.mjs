@@ -3337,6 +3337,95 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
 }
 
 /* -------------------------------------------- */
+/*  Ctrl+Z removes the newest sample, any kind   */
+/* -------------------------------------------- */
+
+{
+  const savedCanvas = globalThis.canvas;
+  globalThis.canvas = {};
+  try {
+    const host = {
+      samples: { squares: [], corners: [], scale: null },
+      onSamplesChanged() {},
+      requestDisarm() {},
+    };
+    const overlay = new CaptureOverlay(host);
+    overlay.redraw = () => {};
+    overlay.drawTemp = () => {};
+    const at = (x, y) => ({ button: 0, getLocalPosition: () => ({ x, y }) });
+    // Pointer gestures as the catcher delivers them: a press, then a release.
+    const drag = (mode, x, y) => {
+      overlay.mode = mode;
+      overlay.onPointerDown(at(x, y));
+      overlay.onPointerMove(at(x + 40, y + 40));
+      overlay.onPointerUp(at(x + 40, y + 40), true);
+    };
+    const click = (x, y) => {
+      overlay.mode = "corners";
+      overlay.onPointerDown(at(x, y));
+    };
+    const undo = () => overlay.onKeyDown({
+      code: "KeyZ", ctrlKey: true, target: undefined, preventDefault() {}, stopPropagation() {},
+    });
+    const counts = () => [host.samples.squares.length, host.samples.corners.length, host.samples.scale ? 1 : 0];
+
+    // Box, bar, corner, box: four undos take them newest first.
+    drag("square", 0, 0);
+    drag("scale", 100, 0);
+    click(200, 200);
+    drag("square", 300, 300);
+    assert.deepEqual(counts(), [2, 1, 1]);
+    undo();
+    assert.deepEqual(counts(), [1, 1, 1], "the second box goes first");
+    undo();
+    assert.deepEqual(counts(), [1, 0, 1], "then the corner, though the bar exists");
+    undo();
+    assert.deepEqual(counts(), [1, 0, 0], "then the bar");
+    undo();
+    assert.deepEqual(counts(), [0, 0, 0], "then the first box");
+    undo();
+    assert.deepEqual(counts(), [0, 0, 0], "undo with nothing left does nothing");
+
+    // A sample the eraser removed in the middle is skipped.
+    click(200, 200);
+    drag("square", 300, 300);
+    click(400, 400);
+    host.samples.corners.pop();
+    undo();
+    assert.deepEqual(counts(), [0, 1, 0], "the box, newer than the corner left, goes; the erased corner is not owed an undo");
+    undo();
+    assert.deepEqual(counts(), [0, 0, 0]);
+
+    // A redrawn bar replaces the old one and is then the newest.
+    drag("scale", 100, 0);
+    drag("square", 300, 300);
+    drag("scale", 500, 500);
+    click(200, 200);
+    assert.deepEqual(counts(), [1, 1, 1]);
+    undo();
+    assert.deepEqual(counts(), [1, 0, 1], "the corner made after the redraw goes first");
+    undo();
+    assert.deepEqual(counts(), [1, 0, 0], "the redrawn bar is newer than the box");
+    undo();
+    assert.deepEqual(counts(), [0, 0, 0]);
+
+    // Changing a box's cell counts is not creating a sample.
+    drag("square", 0, 0);
+    drag("square", 300, 300);
+    host.samples.squares[0].across = 3;
+    click(200, 200);
+    host.samples.squares[0].down = 2;
+    undo();
+    assert.deepEqual(counts(), [2, 0, 0], "the corner, which is newer than the edited box");
+    undo();
+    assert.deepEqual(counts(), [1, 0, 0], "the second box, which is newer than the first box's edit");
+  } finally {
+    if (savedCanvas === undefined) delete globalThis.canvas;
+    else globalThis.canvas = savedCanvas;
+  }
+}
+
+/* -------------------------------------------- */
 /*  The size chips                              */
 /* -------------------------------------------- */
 
@@ -3473,4 +3562,4 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
   assert.deepEqual([offsetsOf(kept), kept.changed], [[key(cells[0])], false]);
 }
 
-console.log("test-battlemap: OK (hex keys, labels, one cell in and out of a region's grid shape, a cell two regions claim, paints moving between values and a burst of ten, palette coverage, the re-key of grid cells under a moved grid, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, the size chips)");
+console.log("test-battlemap: OK (hex keys, labels, one cell in and out of a region's grid shape, a cell two regions claim, paints moving between values and a burst of ten, palette coverage, the re-key of grid cells under a moved grid, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, Ctrl+Z taking the newest sample of any kind, the size chips)");

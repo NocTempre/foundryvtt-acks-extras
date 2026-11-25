@@ -84,9 +84,10 @@ const same = (a, b) => (finite(a) && finite(b) ? Math.abs(a - b) <= EPS : (a ?? 
  * A unit string reduced to what it names, so two spellings of one unit compare
  * equal. A known unit folds to its table key, a blank one reads as feet (as
  * every length in the module does), and an unknown one folds case and
- * punctuation.
+ * punctuation. The planner reads a unit change through it and the apply writes
+ * one through it, so what the plan calls unchanged is never rewritten.
  */
-function foldUnits(units) {
+export function foldUnits(units) {
   const key = unitKey(units);
   if (key) return key;
   const s = String(units ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");

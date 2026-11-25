@@ -301,9 +301,10 @@ nothing rewrites it.
   is a tool in the `acksBattlemap` control group; `off` is ordered first and is
   the group's `activeTool`, so opening the toolbar arms nothing. Escape
   disarms, the window shows an armed banner carrying the same exit, and Ctrl+Z
-  removes a sample: the scale bar while there is one, then a corner while
-  corners are at least as many as boxes, else a box (ledger T-0632). Both keys
-  are left to a field being typed in, wherever it is. The right button never
+  removes the newest sample still on the map, whatever its kind: the overlay
+  keeps each sample's creation order beside the samples, never on them, since
+  the fit cache keys on the sample objects (`CaptureOverlay.removeLast`). Both
+  keys are left to a field being typed in, wherever it is. The right button never
   edits samples: it is how a GM pans. Leaving the group disarms and does
   nothing else — the window outlives it, because core drops a layerless group
   on every canvas redraw and the apply redraws (DECISIONS). Escape, the

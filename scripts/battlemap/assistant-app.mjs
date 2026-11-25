@@ -533,7 +533,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const scene = canvas?.scene;
     if (!scene) return null;
     const common = { units: session.units };
-    if (this.isScaleOnly) return scale ? solveScaleOnly({ size: scale.size, distance: scale.distance, ...common }) : null;
+    if (this.isScaleOnly) return scale ? solveScaleOnly({ size: scale.size, distance: scale.distance, ...common, scene }) : null;
     if (!fit?.ok) return null;
     const gridSize = this.gridSizePx;
     const outputFeet = this.outputFeet;

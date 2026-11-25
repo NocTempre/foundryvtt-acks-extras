@@ -60,16 +60,12 @@ Re-issued 2026-11-14.
    - T-0631: a custom size typed and confirmed with one click may be lost
      (inferred, not walked).
    - T-0591: the square family's loose-fit warning names no sample.
-   - T-0595: a unit respelled (`Miles` to `mi`) reads as unchanged, so a scene
-     can read as matching while Apply would still rewrite the spelling.
    The hex fit, each measured offline in Phase 1 and not fixed: T-0593 (after
    several boxes sharing one outline bias, a far box lands a hex short on the
    column types), T-0594 (a stretched picture with boxes spread along one axis
    only leaves the family to the shape fallback, which misreads rows
    stretched 1.25 times).
    The capture tools and the group:
-   - T-0632: Ctrl+Z removes the scale bar first, then a corner, then a box,
-     not the newest sample.
    - T-0633: leaving the group does not select `off`, so coming back re-arms
      the last mode or the brush.
    - T-0634: the corners hint promises rotation and skew without naming

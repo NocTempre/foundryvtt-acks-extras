@@ -760,9 +760,9 @@ const snapping = (grid) => ({
 /** The prefix of every flag key an apply writes: one dot path per key. */
 const FLAG_PATH = `flags.${MODULE_ID}.${FLAG_BATTLEMAP}.`;
 
-function solveScene({ gridType = GRID_TYPE.GRIDLESS, autoScale = false } = {}) {
+function solveScene({ gridType = GRID_TYPE.GRIDLESS, autoScale = false, units = "ft" } = {}) {
   const scene = {
-    grid: { type: gridType, size: 100, distance: 5, units: "ft" },
+    grid: { type: gridType, size: 100, distance: 5, units },
     background: { src: "map.webp" },
     flags: { [MODULE_ID]: { [FLAG_BATTLEMAP]: { autoScale } } },
     updates: [],
@@ -832,7 +832,7 @@ test("solve, hex: the fitted centre is what the shift lands on, not a box's own"
 });
 
 test("solve, square: the update payload equals the solution the rows are built from", () => {
-  const solved = solveGridCalibration(solveScene(), SQUARE_FIT, { gridSize: 100.4, outputFeet: 25, mapCellFeet: 25, units: "ft" });
+  const solved = solveGridCalibration(solveScene({ units: "yd" }), SQUARE_FIT, { gridSize: 100.4, outputFeet: 25, mapCellFeet: 25, units: "ft" });
   assertSolveAgrees(solved, { units: "ft" });
   assert.equal(solved.solution.gridType, GRID_TYPE.SQUARE);
   assert.equal(solved.solution.gridSize, 100);
@@ -857,6 +857,21 @@ test("solve, scale-only: the solution carries no geometry and the update touches
   const solved = solveScaleOnly({ size: 120, distance: 2.5, units: "mi" });
   assert.deepEqual(solved.solution, { gridSize: 120, distance: 2.5, units: "mi" });
   assert.deepEqual(solved.update, { "grid.size": 120, "grid.distance": 2.5, "grid.units": "mi" });
+});
+
+test("solve: a unit that folds to the scene's own is not written, whatever the family", () => {
+  const hexFit = fitReal(ROWS, LARGE, [exactBox(ROWS, LARGE, 0, 0), exactBox(ROWS, LARGE, 1, 0), exactBox(ROWS, LARGE, 2, 1)]);
+  const hex = (scene, units) => solveHexCalibration(scene, hexFit, { gridSize: 100, outputFeet: 6, family: "hexRows", units }).update;
+  const square = (scene, units) => solveGridCalibration(scene, SQUARE_FIT, { gridSize: 100, outputFeet: 25, mapCellFeet: 25, units }).update;
+  const scale = (scene, units) => solveScaleOnly({ size: 120, distance: 2, units, scene }).update;
+  for (const [name, solve] of [["hex", hex], ["square", square], ["scale-only", scale]]) {
+    assert.ok(!("grid.units" in solve(solveScene({ units: "Miles" }), "mi")), `${name}: Miles keeps its spelling under mi`);
+    assert.ok(!("grid.units" in solve(solveScene({ units: "Ft." }), "ft")), `${name}: Ft. keeps its spelling under ft`);
+    assert.equal(solve(solveScene({ units: "ft" }), "mi")["grid.units"], "mi", `${name}: a different unit is written`);
+    assert.equal(solve(solveScene({ units: "Furlongs" }), "mi")["grid.units"], "mi", `${name}: an unknown unit is replaced`);
+    assert.equal(solve(solveScene({ units: "" }), "ft")["grid.units"], "ft", `${name}: a blank unit takes the chosen one`);
+    assert.ok(!("grid.units" in solve(solveScene({ units: "Miles" }), null)), `${name}: no chosen unit writes none`);
+  }
 });
 
 /** Solve, plan and write a hex apply over a scene, the way the panel does. */
@@ -947,6 +962,32 @@ await (async () => {
     said.answer = undefined;
     assert.equal(applied, false);
     assert.equal(declined.updates.length, 0);
+  });
+
+  await run("write: a unit that folds to the scene's own leaves its spelling and the notice names it", async () => {
+    const miles = solveScene({ units: "Miles" });
+    const { applied, solved } = await applyHex({ units: "mi", outputFeet: 6, scene: miles });
+    assert.equal(applied, true);
+    assert.ok(!("grid.units" in miles.updates.at(-1)), "no grid.units in the write");
+    assert.equal(miles.grid.units, "Miles");
+    assert.equal(solved.solution.units, "mi", "the solution still carries the chosen key");
+    assert.deepEqual(said.info.at(-1).data, { size: 100, distance: 6, units: "Miles" });
+
+    const feet = solveScene({ units: "ft" });
+    await applyHex({ units: "mi", outputFeet: 6, scene: feet });
+    assert.equal(feet.updates.at(-1)["grid.units"], "mi");
+    assert.equal(said.info.at(-1).data.units, "mi");
+
+    const kept = solveScene({ units: "Miles" });
+    await applyHex({ units: null, outputFeet: 6, scene: kept });
+    assert.ok(!("grid.units" in kept.updates.at(-1)), "no unit chosen writes none");
+    assert.equal(said.info.at(-1).data.units, "Miles");
+
+    const ruler = solveScene({ units: "Miles" });
+    const sc = solveScaleOnly({ size: 120, distance: 2, units: "mi", scene: ruler });
+    assert.equal(await writeSetup(ruler, sc, { family: "scale", autoScale: false }), true);
+    assert.ok(!("grid.units" in ruler.updates.at(-1)));
+    assert.equal(said.info.at(-1).data.units, "Miles");
   });
 
   await run("write: a scene that does not take the update is reported and not announced", async () => {

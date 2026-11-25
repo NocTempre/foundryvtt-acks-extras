@@ -195,6 +195,21 @@ export class CaptureOverlay {
     this.container = null;
     this.drag = null;
     this.keyHandler = this.onKeyDown.bind(this);
+    /**
+     * Creation order of the samples this overlay made, kept beside the
+     * samples and not on them: the fit cache keys on the sample objects and
+     * the fits read their fields. A sample the overlay did not make has no
+     * entry and counts as oldest. Every other way a sample leaves (eraser,
+     * row delete, wipe, scene reset) drops the object, and its entry with it.
+     */
+    this.made = new WeakMap();
+    this.madeCount = 0;
+  }
+
+  /** Record a sample as the newest one made, and return it. */
+  stamp(sample) {
+    this.made.set(sample, ++this.madeCount);
+    return sample;
   }
 
   get active() {
@@ -264,7 +279,7 @@ export class CaptureOverlay {
     if (ev.button !== 0) return;
     const p = this.point(ev);
     if (this.mode === "corners") {
-      this.host.samples.corners.push(canvasToImage(p));
+      this.host.samples.corners.push(this.stamp(canvasToImage(p)));
       return this.commit();
     }
     if (this.mode === "eraser") return void this.erase(p);
@@ -288,7 +303,7 @@ export class CaptureOverlay {
     if (this.mode === "square") {
       const a = canvasToImage(start);
       const b = canvasToImage(current);
-      this.host.samples.squares.push({
+      this.host.samples.squares.push(this.stamp({
         x: Math.min(a.x, b.x),
         y: Math.min(a.y, b.y),
         w: Math.abs(b.x - a.x),
@@ -297,18 +312,19 @@ export class CaptureOverlay {
         // its panel row.
         across: 1,
         down: 1,
-      });
+      }));
     } else if (this.mode === "scale") {
       const a = canvasToImage(start);
       const b = canvasToImage(current);
-      this.host.samples.scale = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+      this.host.samples.scale = this.stamp({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
     }
     this.commit();
   }
 
   /**
    * Escape disarms, everywhere else in Foundry and here — it does not
-   * delete a sample. Ctrl+Z is the undo; the sampling group drives no
+   * delete a sample. Ctrl+Z is the undo, and removes the newest sample
+   * still present whatever its kind; the sampling group drives no
    * placeable layer, so core has no undo of its own to collide with.
    * The listener sits on `document`, so both keys pass through untouched
    * when they come from a field the user is typing in: the field's own
@@ -336,12 +352,25 @@ export class CaptureOverlay {
     this.redraw();
   }
 
+  /**
+   * Remove the newest sample present, of any kind. Each kind's list is in
+   * creation order, so its newest is its last element and the scale bar is
+   * a single slot; the newest of the three is the one with the highest
+   * stamp. Samples the overlay did not make tie at oldest, and a tie goes
+   * to the scale bar, then the corners while they are at least as many as
+   * the boxes, then the boxes.
+   */
   removeLast() {
     const s = this.host.samples;
-    if (s.scale) s.scale = null;
-    else if (s.corners.length && s.corners.length >= s.squares.length) s.corners.pop();
-    else if (s.squares.length) s.squares.pop();
-    else return;
+    const age = (sample) => this.made.get(sample) ?? 0;
+    const lists = s.corners.length >= s.squares.length ? ["corners", "squares"] : ["squares", "corners"];
+    const newest = [];
+    if (s.scale) newest.push({ kind: "scale", age: age(s.scale) });
+    for (const kind of lists) if (s[kind].length) newest.push({ kind, age: age(s[kind].at(-1)) });
+    if (!newest.length) return;
+    const pick = newest.reduce((best, c) => (c.age > best.age ? c : best));
+    if (pick.kind === "scale") s.scale = null;
+    else s[pick.kind].pop();
     this.commit();
   }
 

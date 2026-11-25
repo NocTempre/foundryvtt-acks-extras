@@ -29,6 +29,7 @@ import { solveShift } from "./calibrate-logic.mjs";
 import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-image.mjs";
 import { hexProbe } from "./scene-setup.mjs";
 import { hexAlignment } from "./hex-fit.mjs";
+import { foldUnits } from "./setup-plan.mjs";
 import { captureGridCells, rekeyPaintedHexes } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { escape as escapeHtml, makeLoc } from "../lib/util.mjs";
@@ -39,10 +40,22 @@ const mod = (a, n) => ((a % n) + n) % n;
 
 /**
  * The unit string a chosen unit key writes, or nothing to leave the scene's
- * own alone. Always written WITH the scale: a distance whose unit is a guess
- * is a number nobody can read back.
+ * own alone. Written WITH the scale: a distance whose unit is a guess is a
+ * number nobody can read back. A scene whose own unit already folds to the
+ * chosen one (`Miles` for `mi`) keeps its spelling, the same fold the planner
+ * reads a unit change through; a blank unit is not a spelling to keep, so a
+ * chosen unit is written over it.
+ *
+ * @param {Scene|null} scene  The scene the update is for; absent writes the chosen unit.
+ * @param {string|null} units  A `DISTANCE_UNITS` key; absent or unknown writes nothing.
  */
-const unitPatch = (units) => (DISTANCE_UNITS[units] ? { "grid.units": DISTANCE_UNITS[units].abbr } : {});
+function unitPatch(scene, units) {
+  const chosen = DISTANCE_UNITS[units];
+  if (!chosen) return {};
+  const current = scene?.grid?.units;
+  if (String(current ?? "").trim() && foldUnits(current) === foldUnits(chosen.abbr)) return {};
+  return { "grid.units": chosen.abbr };
+}
 
 /**
  * The module's scene record, as an update payload: one dot path per key, so a
@@ -59,8 +72,8 @@ const setupPatch = (record) => Object.fromEntries(Object.entries(record).map(([k
 const wroteScale = (scene, { size, distance }) =>
   scene.grid.size === size && Math.abs(scene.grid.distance - distance) < 1e-6;
 
-/** The unit string the scene will actually be read in after this apply. */
-const unitsWritten = (scene, units) => DISTANCE_UNITS[units]?.abbr ?? scene.grid.units ?? "";
+/** The unit string the scene is read in after this update: the one it writes, else the scene's own. */
+const unitsWritten = (scene, update) => update["grid.units"] ?? scene.grid.units ?? "";
 
 /** The lang key of each family's act (the button's own words, which also title the confirmation) and done notice. */
 const FAMILY_TEXT = Object.freeze({
@@ -139,7 +152,7 @@ export function solveGridCalibration(scene, fit, { gridSize, outputFeet, mapCell
   if (shiftX === null || shiftY === null || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0) || !(outputFeet > 0) || !(mapCellFeet > 0)) {
     return { ok: false, reason: "badSolution" };
   }
-  return geometrySolve({ type: GRID_TYPE.SQUARE, G, distance: outputFeet, units, width, height, shiftX, shiftY });
+  return geometrySolve(scene, { type: GRID_TYPE.SQUARE, G, distance: outputFeet, units, width, height, shiftX, shiftY });
 }
 
 /**
@@ -185,7 +198,7 @@ export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, 
     point: (dims) => ({ x: dims.sceneX + hexCentre.x * fx, y: dims.sceneY + hexCentre.y * fy }),
   });
   if (!shift || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0) || !(outputFeet > 0)) return { ok: false, reason: "badSolution" };
-  return geometrySolve({ type, G, distance: outputFeet, units, width, height, shiftX: shift.shiftX, shiftY: shift.shiftY });
+  return geometrySolve(scene, { type, G, distance: outputFeet, units, width, height, shiftX: shift.shiftX, shiftY: shift.shiftY });
 }
 
 /**
@@ -193,7 +206,7 @@ export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, 
  * `solution` the planner reads and the scene `update` the writer sends, built
  * from the same values so they cannot disagree.
  */
-function geometrySolve({ type, G, distance, units, width, height, shiftX, shiftY }) {
+function geometrySolve(scene, { type, G, distance, units, width, height, shiftX, shiftY }) {
   return {
     ok: true,
     solution: { gridType: type, gridSize: G, distance, units: units ?? null, width, height, shiftX, shiftY },
@@ -205,7 +218,7 @@ function geometrySolve({ type, G, distance, units, width, height, shiftX, shiftY
       "grid.size": G,
       "grid.type": type,
       "grid.distance": distance,
-      ...unitPatch(units),
+      ...unitPatch(scene, units),
     },
   };
 }
@@ -218,16 +231,17 @@ function geometrySolve({ type, G, distance, units, width, height, shiftX, shiftY
  * pair of them to write (`scaleOnlyGrid`). The solution carries no type, width,
  * height or shift: an absent field is unchanged.
  *
- * @param {object} choice  `{ size, distance, units }`.
+ * @param {object} choice  `{ size, distance, units, scene }`; `scene` is the one
+ *   the update is for, so a unit it already holds in another spelling is kept.
  * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
  */
-export function solveScaleOnly({ size, distance, units }) {
+export function solveScaleOnly({ size, distance, units, scene = null }) {
   const G = Math.round(size);
   if (!(G > 0) || !(distance > 0) || !Number.isFinite(distance)) return { ok: false, reason: "badSolution" };
   return {
     ok: true,
     solution: { gridSize: G, distance, units: units ?? null },
-    update: { "grid.size": G, "grid.distance": distance, ...unitPatch(units) },
+    update: { "grid.size": G, "grid.distance": distance, ...unitPatch(scene, units) },
   };
 }
 
@@ -254,7 +268,7 @@ export function solveScaleOnly({ size, distance, units }) {
  */
 export async function writeSetup(scene, { solution, update }, { family, autoScale, lines = [] }) {
   const text = FAMILY_TEXT[family];
-  const units = unitsWritten(scene, solution.units);
+  const units = unitsWritten(scene, update);
   const figures = { size: solution.gridSize, distance: Number(solution.distance.toFixed(3)), units };
   if (!(await confirmApply({ act: text.act, lines, shifts: family !== "scale" && holdsPlaceables(scene) }))) return false;
 
