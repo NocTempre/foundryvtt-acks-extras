@@ -19,10 +19,11 @@
  * (friendly), `lib/round-foe` (hostile) and `lib/round-pc` (a character the
  * Player seat owns), each with its linked token on the scene
  * (`lib/round-ally-token`, `lib/round-foe-token`, `lib/round-pc-token`) and
- * its row in the unlinked combat `lib/round-combat` (`lib/round-ally-row`,
+ * its row in the combat `lib/round-combat`, on that scene (`lib/round-ally-row`,
  * `lib/round-foe-row`, `lib/round-pc-row`). Each section brings them to shape
  * at its start: ownership written whole, dispositions, no status effects, the
- * combat's flags, round, turn and initiatives. The round's announcement is a
+ * combat's flags, round, turn and initiatives; the combat is put on the walk's
+ * scene once at the start where it has none. The round's announcement is a
  * create path: the message the advance posts, read back by a create observer
  * for the posting seat's own user, is marked `lib/round-message` and retired
  * by the next run before it advances. Writes outside the ledger: the system's
@@ -100,8 +101,19 @@ const P = {
    * and the turn on `upKey`'s row.
    */
   /**
-   * Leave the kept combat in the world neither active nor begun. A begun combat with no scene is the current combat on every
-   * scene, and Foundry stamps every new effect in the world with it, so a state another walk toggles would read as given.
+   * Put the kept combat on the walk's own scene where it still has none. A combat with no scene is shown by every
+   * seat's tracker on every scene, and a seat that deletes a combat activates the one its tracker shows.
+   */
+  place: async ({ combatId, sceneId }) => {
+    const combat = game.combats.get(combatId);
+    if (!combat) return { found: false, after: null };
+    const before = combat._source.scene ?? null;
+    if (before !== sceneId) await combat.update({ scene: sceneId });
+    return { found: true, before, after: game.combats.get(combatId)?._source.scene ?? null };
+  },
+
+  /**
+   * Leave the kept combat in the world neither active nor begun, so Foundry stamps no other walk's new effects with it.
    */
   rest: async ({ combatId }) => {
     const combat = game.combats.get(combatId);
@@ -305,8 +317,10 @@ try {
   for (const [n, key] of KEYS.entries()) {
     tokens[key] = await gm.fixture(`lib/round-${key}-token`, "Token", { name: actors[key].name, actorId: actors[key].id, actorLink: true, x: 100 + 200 * n, y: 300 }, { parent: scene.uuid });
   }
-  const combat = await gm.fixture("lib/round-combat", "Combat", { scene: null, active: false });
+  const combat = await gm.fixture("lib/round-combat", "Combat", { scene: scene.id, active: false });
   restCombatId = combat.id;
+  const placed = await run(gm, P.place, { combatId: combat.id, sceneId: scene.id });
+  check("the kept combat belongs to the walk's own scene", placed.after === scene.id, placed);
   const rows = {};
   for (const key of KEYS) {
     rows[key] = await gm.fixture(`lib/round-${key}-row`, "Combatant", { tokenId: tokens[key].id, sceneId: scene.id, actorId: actors[key].id }, { parent: combat.uuid });

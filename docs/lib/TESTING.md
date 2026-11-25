@@ -583,11 +583,11 @@ at once: the driver's two browsers, never two pane tabs.
   owns, and `lib/round-pc`, a `character` the Player seat owns.
 - A linked token for each on the scene: `lib/round-ally-token` (friendly),
   `lib/round-foe-token` (hostile) and `lib/round-pc-token` (friendly).
-- The unlinked combat `lib/round-combat` (`scene: null`), with a row per
+- The combat `lib/round-combat`, on `lib/round-scene`, with a row per
   token: `lib/round-ally-row`, `lib/round-foe-row` and `lib/round-pc-row`.
-  The walk's teardown leaves it neither active nor begun: a begun combat with
-  no scene is the current combat on every scene, and Foundry stamps every new
-  effect in the world with it.
+  The walk puts it on that scene at its start where it has none, and its
+  teardown leaves it neither active nor begun, since Foundry stamps every new
+  effect in the world with the current combat.
 
 Each section brings them to shape at its start:
 - ownership is written whole, and every seat may observe the scene;
@@ -615,6 +615,9 @@ An out-of-turn call that gets through posts one too: it is marked
   the desync hides in the order.
 - `ui.combat.render({combat})` views a combat in a seat's tracker without
   activating it, since activating it would also move a peer's tracker.
+- A client that deletes a combat activates the combat its tracker then shows,
+  and a combat with no scene is shown on every scene; a kept combat therefore
+  carries a scene of its own.
 - Compare `_source.initiative` on the two seats.
 
 **Steps and what proves each.**
