@@ -268,20 +268,47 @@ async function stageThrown() {
   await run(gm, P.setSpent, { casterId: W.caster.a });
   const got = await run(player, P.target, { sceneId: W.scene, tokenIds: [foeTok.id] });
   check("thrown: the Player seat targets the foe", Array.isArray(got) && got.length === 1, got);
-  const c = await run(player, P.cast, { casterId: W.caster.a, spellId: W.id.thrown });
+  // With a target the cast throws the row itself, before its card posts, so the window opens at the cast, at the first instance's throw.
+  const c = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.thrown, attempts: [{ answer: FLAT, tick: true, closes: true }] });
   if (c.model?.castId) ledger.castIds.push(c.model.castId);
   if (c.messageId) await ledger.track(`ChatMessage.${c.messageId}`, "ChatMessage");
-  const opened = await run(player, D.dieOpen);
-  check("thrown: a thrown row posts its card with no window open, since its die is asked at the throw", c.card && !opened, { card: c.card, opened });
-  const entry = Object.keys(c.model?.targets ?? {})[0];
-  const row = c.model?.order?.[0] ?? "bolt";
-  const press = await run(player, D.pressThrow, { messageId: c.messageId, target: entry, row });
-  const win = await run(player, D.drive, { attempts: [{ answer: FLAT, tick: true, closes: true }] });
-  check("thrown: pressing Throw opens one damage window, which takes the figure and closes", press.pressed && win.opened && win.attempts?.[0] && !win.attempts[0].stillOpen, { pressed: press.pressed, opened: win.opened });
-  const k = await keptNow();
+  check("thrown: a thrown row opens one damage window at the cast, with the character's-copy box, which takes the figure and closes", c.window?.opened && c.window.keepIsCopy && c.window.attempts?.length === 1 && !c.window.attempts[0].stillOpen, { opened: c.window?.opened, keep: c.window?.keepIsCopy, attempts: c.window?.attempts?.length });
+  check("thrown: the cast then posts its card with the row thrown at the target", c.card && Object.keys(c.model?.targets ?? {}).length === 1 && Object.keys(c.model?.entries ?? {}).length >= 1, { card: c.card, targets: Object.keys(c.model?.targets ?? {}).length, entries: Object.keys(c.model?.entries ?? {}).length });
+  const k = await keptUntil((read) => read[W.item.thrown].kept === FLAT);
   check("thrown: the figure is kept on the character's copy of the thrown spell", k[W.item.thrown].kept === FLAT, k[W.item.thrown]);
+  await run(gm, P.setSpent, { casterId: W.caster.a });
+  const again = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.thrown, noWindowMs: 3000 });
+  if (again.model?.castId) ledger.castIds.push(again.model.castId);
+  if (again.messageId) await ledger.track(`ChatMessage.${again.messageId}`, "ChatMessage");
+  check("thrown: the next cast asks nothing and throws the kept figure", again.dialog && !again.window.opened && again.card, { opened: again.window?.opened, card: again.card });
+
+  // With no target the cast throws nothing: the card carries the row's Throw press, and the one window opens at the press.
+  await run(gm, D.reset, { items: [{ uuid: W.item.thrown, flag: flagFor("missile"), roll: "" }] });
+  await run(gm, P.setSpent, { casterId: W.caster.a });
+  const none = await run(player, P.target, { sceneId: W.scene, tokenIds: [] });
+  check("thrown, no target: the Player seat holds no target", Array.isArray(none) && none.length === 0, none);
+  const bare = await run(player, D.castAsk, { casterId: W.caster.a, spellId: W.id.thrown, noWindowMs: 3000 });
+  if (bare.model?.castId) ledger.castIds.push(bare.model.castId);
+  if (bare.messageId) await ledger.track(`ChatMessage.${bare.messageId}`, "ChatMessage");
+  check("thrown, no target: the cast posts its card with no window open and no target on it", bare.dialog && bare.card && !bare.window.opened && Object.keys(bare.model?.targets ?? {}).length === 0, { card: bare.card, opened: bare.window?.opened, targets: Object.keys(bare.model?.targets ?? {}).length });
+  const aimed = await run(player, P.target, { sceneId: W.scene, tokenIds: [foeTok.id] });
+  check("thrown, no target: the seat then targets the foe", Array.isArray(aimed) && aimed.length === 1, aimed);
+  const pressed = await run(player, D.pressThrow, { messageId: bare.messageId, row: "bolt" });
+  const taken = await run(player, D.drive, { attempts: [{ answer: FLAT, tick: true, closes: true }] });
+  check("thrown, no target: the card's Throw press opens one window, which takes the figure and closes", pressed.pressed && taken.opened && taken.attempts?.length === 1 && !taken.attempts[0].stillOpen, { pressed: pressed.pressed, opened: taken.opened });
+  const kept = await keptUntil((read) => read[W.item.thrown].kept === FLAT);
+  check("thrown, no target: the figure taken at the press is kept on the character's copy", kept[W.item.thrown].kept === FLAT, kept[W.item.thrown]);
 }
-D.dieOpen = async () => !!globalThis.__mck.dieWindow();
+D.pressThrow = async ({ messageId, row }) => {
+  const H = globalThis.__mck;
+  try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+  await H.sleep(400);
+  const button = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-action="magicCastThrow"][data-row="${row}"]`), { tries: 40, every: 200 });
+  if (!button) return { pressed: false };
+  button.click();
+  return { pressed: true };
+};
+D.drive = async ({ attempts }) => globalThis.__mck.driveDie(attempts);
 D.sizeScene = async ({ sceneId, width, height }) => {
   const scene = game.scenes.get(sceneId);
   if (scene && (scene.width !== width || scene.height !== height)) await scene.update({ width, height });
@@ -299,16 +326,6 @@ async function stageRecur() {
   const k = await keptNow();
   check("recur: nothing is kept on any copy, since the box was not ticked", Object.values(k).every((v) => v.kept === null || v.kept === FLAT || v.kept === FORMULA) && k[W.item.recur].kept === null, k[W.item.recur]);
 }
-D.pressThrow = async ({ messageId, target, row }) => {
-  const H = globalThis.__mck;
-  try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
-  await H.sleep(400);
-  const button = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-action="magicCastThrow"][data-target="${target}"][data-row="${row}"]`), { tries: 40, every: 200 });
-  if (!button) return { pressed: false };
-  button.click();
-  return { pressed: true };
-};
-D.drive = async ({ attempts }) => globalThis.__mck.driveDie(attempts);
 
 /* ---------------------------- run ------------------------------------ */
 try {
