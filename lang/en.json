@@ -6475,7 +6475,9 @@
       "kind": {
         "troop": "Special troop",
         "trait": "Tribal trait",
-        "gear": "Optional equipment"
+        "gear": "Optional equipment",
+        "withdrawal": "Withdrawal declaration",
+        "run": "Armor Class on a bare run"
       }
     }
   },

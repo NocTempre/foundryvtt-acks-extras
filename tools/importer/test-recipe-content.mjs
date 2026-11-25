@@ -752,6 +752,7 @@ const FIGURE_KINDS = {
   throw: Number.isInteger, fuseDice: isDiceText, fumble: Number.isInteger, saveFraction: (v) => v > 0 && v < 1,
   saveMod: isSigned, radius: Number.isInteger, penalty: isSigned, healDice: isDiceText, successHealDice: isDiceText,
   swigs: isDiceText, ac: isSigned, reductionPerDie: Number.isInteger, delayTurns: Number.isInteger, bonus: isSigned,
+  outnumberedMorale: isSigned, targetCondition: isPlainText, targetBand: isPlainText, waivesCharge: isPlainText, waivesRun: isPlainText,
   outnumber: (v) => Array.isArray(v) && v.length === 2 && v.every(Number.isInteger),
   damage: (v) => Number.isInteger(v) || isDiceText(v) || (v && typeof v === "object" && Object.values(v).every((d) => Array.isArray(d) && d.length > 0 && d.every(isText))),
   blast: (v) => Array.isArray(v) && v.length > 1 && v.every((b) => Number.isInteger(b.lb) && isDiceText(b.dice) && Number.isInteger(b.radius)),
@@ -786,8 +787,8 @@ const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
     }
   });
 };
-VERIFY["monsters.beastmanTroopRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [5, 3, 2, 2, 4, 3, 2], keysFrom: "monsters.beastmanSpecialTroops" });
-VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [1, 4, 1, 2, 4, 2, 1, 1, 1, 5], keysFrom: "monsters.beastmanTraits" });
+VERIFY["monsters.beastmanTroopRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [5, 5, 2, 4, 4, 3, 2], keysFrom: "monsters.beastmanSpecialTroops" });
+VERIFY["monsters.beastmanTraitRules"] = (out, recipe, fail) => paragraphRows(out, recipe, fail, { counts: [1, 5, 2, 2, 4, 2, 2, 1, 1, 5], keysFrom: "monsters.beastmanTraits" });
 VERIFY["monsters.beastmanEquipment"] = (out, recipe, fail) => {
   paragraphRows(out, recipe, fail, { counts: [5, 9, 4, 7, 7, 4, 3, 6, 4] });
   const rows = Object.values(out ?? {});

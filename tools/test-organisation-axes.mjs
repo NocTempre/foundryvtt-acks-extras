@@ -4,13 +4,15 @@
  * canonical axis order and the unions that restore it, the `table` option of
  * Leader figures and its cells, the natural-attack cells, and
  * `applyGeneratedLeaderGrade` / `applyGeneratedOrganisation` writing standing
- * figures and only those. Foundry-free and book-free: every row, breed, label,
+ * figures and, on one ability item per gated row, the typed specs: gated figures,
+ * waivers and the unresolved list. Foundry-free and book-free: every row, breed, label,
  * figure and page reference below is invented. What this pins is procedure.
  * Run: node tools/test-organisation-axes.mjs
  */
 import assert from "node:assert/strict";
 import { AXIS_ORDER, orderAxes, organisationAxes, unionOrganisationAxes } from "../scripts/importer/organisation-axes.mjs";
-import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, naturalAttackItems, GEAR_AXIS, NO_TRAIT, NO_TROOP, TRAIT_AXIS, TROOP_AXIS } from "../scripts/monsters/organisation.mjs";
+import { CONDITIONS, CONDITION_IDS } from "../scripts/lib/conditions.mjs";
+import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, matchCondition, naturalAttackItems, GEAR_AXIS, NO_TRAIT, NO_TROOP, TRAIT_AXIS, TROOP_AXIS } from "../scripts/monsters/organisation.mjs";
 import { applyGeneratedKit } from "../scripts/monsters/kits.mjs";
 import { derivationTips } from "../scripts/monsters/statblock.mjs";
 import { SOURCE_AXIS } from "../scripts/importer/leader-roles.mjs";
@@ -220,8 +222,8 @@ const gen = (choices, over = {}, opts = {}) => {
 let g = gen({ troop: "ra", trait: NO_TRAIT, role: "standard" });
 check("the troop's attack bonus lands on the attack modifier, melee and missile", g.r.system.attack.mod.melee === 2 && g.r.system.attack.mod.missile === 2 && g.r.system.attack.throw === undefined);
 check("its armour reduction and armour bump net into the armour class", g.r.system.ac.value === 5 - 2 + 1 && g.d.ac.troop === -1 && g.d.ac.base === 5);
-check("a troop's opponent-surprise figure is recorded and applied nowhere", g.r.system.surprise.avoidsurprise === 0 && g.ex.organisation.troop.figures.opponentSurprise === -2);
-eq("the troop's proficiency is granted as one copy of the library's ability, the word recorded", [g.r.items.length, g.r.items[0]?._id, g.ex.organisation.proficiencies], [1, undefined, [{ kind: "troop", word: "Quill work", ranks: 1, found: true }]]);
+check("a troop's opponent-surprise figure writes no actor field: it rides on the row's ability, ungated", g.r.system.surprise.avoidsurprise === 0 && g.ex.organisation.troop.figures.opponentSurprise === -2 && g.r.items[1].flags[MID].extras.effects.length === 1 && g.r.items[1].flags[MID].extras.effects[0].gate === undefined);
+eq("the troop's proficiency is granted as one copy of the library's ability, the word recorded", [g.r.items.length, g.r.items[0]?._id, g.ex.organisation.proficiencies], [2, undefined, [{ kind: "troop", word: "Quill work", ranks: 1, found: true }]]);
 g = gen({ troop: "rb", role: "champion" });
 check("initiative and the avoid-surprise bonus land on the core fields; a gated attack figure is recorded, not written", g.r.system.initiative.mod === 1 && g.r.system.surprise.avoidsurprise === 1 && g.r.system.attack.mod.melee === 0 && g.ex.organisation.troop.figures.vulnerableAttack === 4);
 g = gen({ troop: "rc", role: "standard" });
@@ -230,9 +232,9 @@ g = gen({ troop: "ra", role: "drudge" });
 check("a dependant takes no troop figure", g.r.system.ac.value === 5 && g.r.system.attack.mod.melee === 0 && g.r.items.length === 0);
 let warned = "";
 g = gen({ troop: "ra", role: "standard" }, {}, { findProficiency: () => null, warn: (m) => (warned = m) });
-check("a proficiency no name answers to writes none and is reported", g.r.items.length === 0 && /no proficiency/.test(warned) && g.ex.organisation.proficiencies[0].found === false);
+check("a proficiency no name answers to writes none and is reported", g.r.items.length === 1 && g.r.items[0].name === "Row A" && /no proficiency/.test(warned) && g.ex.organisation.proficiencies[0].found === false);
 g = gen({ trait: "tb", role: "standard" });
-check("a gated trait writes no damage and no morale, and records its figures", g.r.system.damage.mod.melee === 0 && g.r.system.details.morale === 0 && g.ex.organisation.trait.figures.outnumber.join() === "2,1");
+check("a gated trait writes no damage and no morale to the actor, and records its figures", g.r.system.damage.mod.melee === 0 && g.r.system.details.morale === 0 && g.ex.organisation.trait.figures.outnumber.join() === "2,1");
 g = gen({ trait: "tc", role: "standard" });
 check("an ungated trait writes damage on both modifiers and morale", g.r.system.damage.mod.melee === 1 && g.r.system.damage.mod.missile === 1 && g.r.system.details.morale === 2 && g.d.morale.value === 2);
 check("a trait's rank grant reaches a chieftain only", g.r.items.length === 0 && gen({ trait: "tc", role: "chieftain" }).r.items.length === 2);
@@ -317,5 +319,74 @@ resolved = base();
 applyGeneratedLeaderGrade(resolved, { variantOption: alba, org, ladder });
 applyGeneratedOrganisation(resolved, { choices: { trait: "tc", role: "champion" }, org });
 check("an ungated trait's damage adds to the actor's modifier and nets, with the take-back, to the die plus the trait's figure", resolved.system.damage.mod.melee === 2 && resolved.items[0].system.damage.base.formula === "1d8" && resolved.system.damage.mod.melee + resolved.items[0].system.bonus.damage === 1);
+
+/* --- the gated figures, written as ability items ------------------------------------ */
+// Every word, figure and key below is invented; a spec is built from a recipe VALUE key only.
+const orgWith = (troopRows, traitRows) => ({ ...org, troopRules: { cite: "XX p. 2", rows: troopRows }, traitRules: { cite: "XX p. 3", rows: traitRows } });
+const run = (choices, o, extra = {}) => {
+  const warns = [];
+  const notes = [];
+  const r = { system: { ac: { value: 5 }, attack: { mod: { melee: 0, missile: 0 } }, details: { morale: 0, biography: "" }, damage: { mod: { melee: 0, missile: 0 } } }, flags: { [MID]: { extras: { description: {}, ...extra } } }, items: [] };
+  applyGeneratedOrganisation(r, { choices, org: o, noteLine: ({ kind }) => { notes.push(kind); return ""; }, warn: (m) => warns.push(m) });
+  const abilities = r.items.filter((i) => i.type === "ability");
+  return { r, warns, notes, abilities, specs: abilities.flatMap((i) => i.flags[MID].extras.effects), ex: r.flags[MID].extras };
+};
+const specOf = (specs, target) => specs.find((s) => s.target === target);
+
+eq("a catalogue id answers itself", matchCondition("charging"), "charging");
+eq("an exact fold of a label part answers its id, whatever the case", matchCondition("  VOMITING "), "choking");
+eq("an inflected word answers the one entry it differs from by an ending", matchCondition("burnings"), "burning");
+eq("a word no entry answers, a short stem and a blank give null", [matchCondition("zzzzzz"), matchCondition("bur"), matchCondition(""), matchCondition(null)], [null, null, null, null]);
+check("every id and every label part folds back to its own id", CONDITION_IDS.every((id) => [id, ...CONDITIONS[id].label.split("/")].every((n) => matchCondition(n) === id)));
+
+const fullTroop = { opponentSurprise: -3, vulnerableAttack: 5, damageDiceTimes: 3, attack: 1, targetCondition: "Blinded", targetBand: "medium" };
+let u = run({ troop: "xa", role: "standard" }, orgWith([{ key: "xa", label: "Troop X", figures: fullTroop }], []));
+eq("a troop's three figures give three specs on one ability item named by the row, with its page and cookbook id", [u.abilities.length, u.abilities[0].name, u.abilities[0].flags[MID].cookbook, u.specs.map((s) => s.target)], [1, "Troop X", { id: "organisation.troop.xa", cite: "XX p. 2" }, ["surprise", "attackThrow", "damageDice"]]);
+eq("the surprise part is the opponent's, ungated, with the figure's own sign", specOf(u.specs, "surprise"), { type: "modifier", target: "surprise", appliesTo: "opponent", value: -3 });
+const gateExpected = { kind: "allOf", of: [{ kind: "targetCondition", condition: "blinded" }, { kind: "rangeBand", band: ["melee", "medium"] }] };
+eq("the attack figure and the dice multiple carry the target's folded condition and melee plus the band word", [specOf(u.specs, "attackThrow"), specOf(u.specs, "damageDice")], [{ type: "modifier", target: "attackThrow", value: 5, gate: gateExpected }, { type: "modifier", target: "damageDice", value: 3, gate: gateExpected }]);
+check("the standing attack figure is never also a gated spec", u.r.system.attack.mod.melee === 1 && !u.specs.some((s) => s.value === 1));
+eq("a band word that is melee gives melee alone", specOf(run({ troop: "xa" }, orgWith([{ key: "xa", label: "T", figures: { ...fullTroop, targetBand: "Melee" } }], [])).specs, "attackThrow").gate.of[1].band, ["melee"]);
+
+u = run({ troop: "xa" }, orgWith([{ key: "xa", label: "T", figures: { ...fullTroop, targetCondition: "Zzzzzz" } }], []));
+eq("a condition word that folds to no entry drops the attack and the dice, keeps the ungated surprise, and is listed and warned", [u.specs.map((s) => s.target), u.ex.organisation.unresolved, u.warns.length], [["surprise"], [{ kind: "troop", key: "xa", figure: "targetCondition", word: "Zzzzzz" }], 1]);
+u = run({ troop: "xa" }, orgWith([{ key: "xa", label: "T", figures: { ...fullTroop, targetBand: "beyond" } }], []));
+eq("a band outside the range bands writes no gated spec and is listed", [u.specs.map((s) => s.target), u.ex.organisation.unresolved.map((m) => [m.figure, m.word])], [["surprise"], [["targetBand", "beyond"]]]);
+u = run({ troop: "xa" }, orgWith([{ key: "xa", label: "T", figures: { vulnerableAttack: 5 } }], []));
+eq("a gated figure whose gate words are not imported writes nothing and is listed with no word", [u.abilities.length, u.ex.organisation.unresolved.map((m) => [m.figure, m.word])], [0, [["targetCondition", null], ["targetBand", null]]]);
+u = run({ troop: "xa" }, orgWith([{ key: "xa", label: "T", figures: { opponentSurprise: -2 } }], []));
+check("a row with no gated figure lists nothing unresolved", u.ex.organisation.unresolved === undefined);
+
+const swapped = (key, label) => run({ troop: key }, orgWith([{ key, label, figures: fullTroop }], [])).specs;
+eq("a row key and label never decide a spec: another key and label give the same specs", swapped("xa", "Troop X"), swapped("zq", "Other"));
+for (const role of ["drudge"]) check(`a ${role} role takes no troop ability and no trait ability`, run({ troop: "xa", trait: "xb", role }, orgWith([{ key: "xa", label: "T", figures: fullTroop }], [{ key: "xb", label: "U", figures: { attack: 1, round: 2, outnumberedMorale: -1 } }])).abilities.length === 0);
+check("a noncombatant takes none either", run({ troop: "xa", trait: "xb", role: "standard" }, orgWith([{ key: "xa", label: "T", figures: fullTroop }], [{ key: "xb", label: "U", figures: { attack: 1, round: 2 } }]), { noncombatant: true }).abilities.length === 0);
+
+const traitRows = (figures) => orgWith([], [{ key: "xb", label: "Trait X", figures }]);
+u = run({ trait: "xb" }, traitRows({ outnumber: [3, 2], attack: 1, damage: 2, morale: -3, outnumberedMorale: -3 }));
+eq("a ratio of [a, b] is written as a / b on the attack and damage specs", [specOf(u.specs, "attackThrow").gate, specOf(u.specs, "damage").gate], [{ kind: "outnumbering", ratio: 1.5 }, { kind: "outnumbering", ratio: 1.5 }]);
+eq("the no-ratio morale clause is a strict gate against the creature's own side, and only it", [specOf(u.specs, "morale"), u.specs.filter((s) => s.gate?.strict).length], [{ type: "modifier", target: "morale", value: -3, gate: { kind: "outnumbering", side: "against", strict: true } }, 1]);
+check("a gated trait writes no standing damage or morale", u.r.system.damage.mod.melee === 0 && u.r.system.details.morale === 0);
+u = run({ trait: "xb" }, traitRows({ attack: 2, round: 3 }));
+eq("a round figure gates the attack on that round", u.specs, [{ type: "modifier", target: "attackThrow", value: 2, gate: { kind: "combatRound", round: 3 } }]);
+u = run({ trait: "xb" }, traitRows({ attack: 2, targetCondition: "Blinded" }));
+eq("a target-condition word folds to the gate's id", u.specs[0].gate, { kind: "targetCondition", condition: "blinded" });
+u = run({ trait: "xb" }, traitRows({ attack: 2, damage: 1, round: 2, targetCondition: "Blinded" }));
+eq("two gate keys on one figure gate it together", u.specs.map((s) => s.gate), [{ kind: "allOf", of: [{ kind: "combatRound", round: 2 }, { kind: "targetCondition", condition: "blinded" }] }, { kind: "allOf", of: [{ kind: "combatRound", round: 2 }, { kind: "targetCondition", condition: "blinded" }] }]);
+u = run({ trait: "xb" }, traitRows({ attack: 2, damage: 1, round: 2, targetCondition: "Zzzzzz" }));
+eq("one unresolved gate writes no spec on the figure, even where another gate resolves, and the damage stays unwritten as standing", [u.abilities.length, u.ex.organisation.unresolved.map((m) => m.figure), u.r.system.damage.mod.melee], [0, ["targetCondition"], 0]);
+for (const bad of [[0, 1], [3, 0], "2:1", []]) {
+  u = run({ trait: "xb" }, traitRows({ attack: 2, outnumber: bad }));
+  eq(`a ratio that is no pair of positive numbers (${JSON.stringify(bad)}) writes nothing and is listed`, [u.abilities.length, u.ex.organisation.unresolved.map((m) => m.figure)], [0, ["outnumber"]]);
+}
+u = run({ trait: "xb" }, traitRows({ attack: 2 }));
+check("an attack figure under no gate is written nowhere", u.abilities.length === 0 && u.r.system.attack.mod.melee === 0);
+
+u = run({ troop: "xa", trait: "xb" }, orgWith([{ key: "xa", label: "T", figures: { waivesCharge: "w", waivesRun: "w" } }], [{ key: "xb", label: "U", figures: { waivesRun: "w" } }]));
+eq("the waiver keys map structurally to the charge and the retreat, one ungated spec on each row", u.specs, [{ type: "modifier", target: "acWaiver", conditions: ["charging", "retreating"] }, { type: "modifier", target: "acWaiver", conditions: ["retreating"] }]);
+check("neither waiver names disorder", u.specs.every((s) => !s.conditions.includes("disordered")));
+eq("a waived run gives the withdrawal and the bare-run lines, on each row that waives it", u.notes, ["troop", "trait", "withdrawal", "run", "withdrawal", "run"]);
+u = run({ troop: "xa" }, orgWith([{ key: "xa", label: "T", figures: { waivesCharge: "w" } }], []));
+check("a charge waiver alone gives no run or withdrawal line", u.notes.join() === "troop" && u.specs[0].conditions.join() === "charging");
 
 console.log(`test-organisation-axes: ${pass} checks passed.`);

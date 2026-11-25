@@ -16,6 +16,9 @@ import { mergePatch } from "../lib/template-logic.mjs";
 import { leaderCell, roleKeyOf, splitWeaponModifier, STANDARD_ROLE } from "../importer/leader-roles.mjs";
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { damageModOf, UNARMOURED } from "./kits.mjs";
+import { CONDITIONS, CONDITION_IDS } from "../lib/conditions.mjs";
+import { RANGE_BANDS } from "../lib/roll-gate-kinds.mjs";
+import { namesakeAbility } from "../importer/stats-map.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -232,6 +235,111 @@ export function matchProficiency(word, candidates) {
   return new Set(inflected.map((c) => foldName(c.name))).size === 1 ? inflected[0] : null;
 }
 
+/** The names a catalogue condition answers to: its id and each `/`-separated part of its label. */
+const CONDITION_NAMES = Object.freeze(Object.fromEntries(CONDITION_IDS.map((id) => [
+  id,
+  [id, ...String(CONDITIONS[id].label ?? "").split("/")].map((name) => ({ name: name.trim() })),
+])));
+
+/**
+ * The id of the conditions-catalogue entry a printed word names, or null. A
+ * word that is an id answers it; then an exact fold of an id or a label part,
+ * the first entry in catalogue order; then the inflection fold of
+ * `matchProficiency`, which answers only when exactly one entry qualifies (an
+ * entry contributes several names and counts once). A word no entry answers, or
+ * that two answer inflected, gets null: the caller writes nothing on a guess.
+ */
+export function matchCondition(word) {
+  const raw = String(word ?? "").trim();
+  if (Object.hasOwn(CONDITIONS, raw)) return raw;
+  const target = foldName(raw);
+  if (!target) return null;
+  const exact = CONDITION_IDS.find((id) => CONDITION_NAMES[id].some((c) => foldName(c.name) === target));
+  if (exact) return exact;
+  const hits = CONDITION_IDS.filter((id) => matchProficiency(raw, CONDITION_NAMES[id]));
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** The conditions a waiver key names, by the recipe's value key: the charge, and the movement at running speed (the catalogue's retreating, which carries its disorder). */
+const WAIVED_BY_KEY = Object.freeze({ waivesCharge: "charging", waivesRun: "retreating" });
+
+/** The ability item a row's gated figures ride on: named by the row's label, carrying its page and a cookbook id built from the kind and the row key, its specs on `extras.effects`. Null where there are no specs. */
+export function organisationAbility(kind, row, specs) {
+  if (!Array.isArray(specs) || !specs.length) return null;
+  const item = namesakeAbility(row.label);
+  const mine = item.flags[MODULE_ID];
+  mine.cookbook = { id: `organisation.${kind}.${row.key}`, cite: row.cite ?? "" };
+  mine.extras = { ...mine.extras, effects: specs };
+  return item;
+}
+
+/**
+ * The effect specs one troop or trait row's figures give, built from the
+ * recipe's VALUE keys only (never a row key), and the figures that could not be
+ * written: `{specs, unresolved}`, each unresolved `{kind, key, figure, word}`.
+ * A figure whose gate cannot be built (a condition word that folds to no entry,
+ * a band outside `RANGE_BANDS`, a ratio that is no pair of numbers, a gate word
+ * not imported) writes no spec and is listed. The gate keys a trait row carries
+ * all gate its attack and damage figures together (`allOf` where there are two);
+ * `outnumberedMorale` is a clause that prints no ratio and gates only its own
+ * morale part.
+ */
+function organisationSpecs(kind, row, figures) {
+  const specs = [];
+  const unresolved = [];
+  const miss = (figureKey, word = null) => unresolved.push({ kind, key: row.key, figure: figureKey, word });
+  const f = figures ?? {};
+  const condition = (figureKey) => {
+    const id = matchCondition(f[figureKey]);
+    if (!id) miss(figureKey, text(f[figureKey]));
+    return id;
+  };
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) && v !== 0 ? v : null);
+  const waived = Object.keys(WAIVED_BY_KEY).filter((k) => text(f[k])).map((k) => WAIVED_BY_KEY[k]);
+  if (waived.length) specs.push({ type: "modifier", target: "acWaiver", conditions: waived });
+
+  if (kind === "troop") {
+    if (num(f.opponentSurprise) !== null) specs.push({ type: "modifier", target: "surprise", appliesTo: "opponent", value: f.opponentSurprise });
+    const wanted = [["vulnerableAttack", "attackThrow"], ["damageDiceTimes", "damageDice"]].filter(([k]) => num(f[k]) !== null);
+    if (wanted.length) {
+      const id = condition("targetCondition");
+      const band = foldName(f.targetBand);
+      const bandOk = RANGE_BANDS.includes(band);
+      if (!bandOk) miss("targetBand", text(f.targetBand));
+      if (id && bandOk) {
+        const gate = { kind: "allOf", of: [{ kind: "targetCondition", condition: id }, { kind: "rangeBand", band: [...new Set(["melee", band])] }] };
+        for (const [k, target] of wanted) specs.push({ type: "modifier", target, value: f[k], gate: structuredClone(gate) });
+      }
+    }
+    return { specs, unresolved };
+  }
+
+  const gates = [];
+  let sound = true;
+  if (f.outnumber != null) {
+    const [a, b] = Array.isArray(f.outnumber) ? f.outnumber : [];
+    if (Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0) gates.push({ kind: "outnumbering", ratio: a / b });
+    else {
+      sound = false;
+      miss("outnumber");
+    }
+  }
+  if (Number.isInteger(f.round) && f.round > 0) gates.push({ kind: "combatRound", round: f.round });
+  if (f.targetCondition != null) {
+    const id = condition("targetCondition");
+    if (id) gates.push({ kind: "targetCondition", condition: id });
+    else sound = false;
+  }
+  if (gates.length && sound) {
+    const gate = gates.length === 1 ? gates[0] : { kind: "allOf", of: gates };
+    for (const [k, target] of [["attack", "attackThrow"], ["damage", "damage"]]) {
+      if (num(f[k]) !== null) specs.push({ type: "modifier", target, value: f[k], gate: structuredClone(gate) });
+    }
+  }
+  if (num(f.outnumberedMorale) !== null) specs.push({ type: "modifier", target: "morale", value: f.outnumberedMorale, gate: { kind: "outnumbering", side: "against", strict: true } });
+  return { specs, unresolved };
+}
+
 /** The extras block of a resolved payload, created where absent. */
 function extrasOf(resolved) {
   const flags = (resolved.flags ??= {});
@@ -352,9 +460,16 @@ export function naturalAttackItems(dice, name) {
  * avoid-surprise bonus and proficiency grant; a trait's damage and morale
  * where the row has no gate, its armour bump and, for a chieftain, its
  * proficiency ranks; natural attacks where the template's cell marked them.
- * Everything gated, ranged, activated or generated (the rest of a row's
- * figures, the gear) is RECORDED on `extras.organisation` as the row's figures
- * and not applied. A figure not imported writes nothing. The parts go to
+ * Each gated figure of a fighting creature's troop and trait rides on one
+ * ability item named by the row (`organisationAbility`): its typed specs are
+ * read at the roll, the surprise matrix, the morale page and the Armor Class
+ * waiver (`organisationSpecs`), and a word that does not fold, a band outside
+ * `RANGE_BANDS` or a ratio that is no pair writes no spec and is listed on
+ * `extras.organisation.unresolved` and passed to `warn`. A standing figure and a
+ * gated spec never share a figure. Everything else ranged, activated or
+ * generated (the rest of a row's figures, the gear) is RECORDED on
+ * `extras.organisation` as the row's figures and not applied. A figure not
+ * imported writes nothing. The parts go to
  * `extras.derived.organisation` for the sheet's tooltips. A noncombatant, and a
  * caster or dependant role, takes no troop figure and no armour bump.
  * `findProficiency(word)` returns an item payload or null (a miss writes none
@@ -391,7 +506,7 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
   // The standing figures, each as {base, troop, trait, value}: the troop's and the trait's own part.
   const t = fights && troop ? troop.figures : {};
   const r = trait ? trait.figures : {};
-  const gated = r.outnumber != null || r.round != null || r.condition != null || r.saveKind != null;
+  const gated = r.outnumber != null || r.round != null || r.condition != null || r.saveKind != null || r.targetCondition != null || r.outnumberedMorale != null;
   const parts = {};
 
   const acBase = figure(system.ac?.value);
@@ -463,6 +578,18 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
     record.natural = { trait: trait.key, count: made.length };
   }
 
+  // The gated figures ride on one ability item per row, for a fighting creature only; a row with no spec mints none.
+  const unresolved = [];
+  for (const [kind, row] of [["troop", fights ? troop : null], ["trait", fights ? trait : null]]) {
+    if (!row) continue;
+    const built = organisationSpecs(kind, row, row.figures);
+    unresolved.push(...built.unresolved);
+    const item = organisationAbility(kind, row, built.specs);
+    if (item) (resolved.items ??= []).push(item);
+  }
+  for (const u of unresolved) warn(`${u.kind}: no gated figure written, the printed ${u.figure} does not resolve`);
+  if (unresolved.length) record.unresolved = unresolved;
+
   extras.organisation = record;
   const derived = { ...(troop ? { troop: { label: troop.label, cite: troop.cite } } : {}), ...(trait ? { trait: { label: trait.label, cite: trait.cite } } : {}), ...parts };
   if (Object.keys(parts).length) extras.derived = { ...(extras.derived ?? {}), organisation: derived };
@@ -471,6 +598,10 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
   let lines = "";
   if (troop) lines += noteLine({ kind: "troop", label: troop.label, cite: troop.cite });
   if (trait) lines += noteLine({ kind: "trait", label: trait.label, cite: trait.cite });
+  // A waived run is the catalogue's retreat, so an undeclared withdrawal and a bare run stay with the Judge: a line each, with the page.
+  for (const row of [fights ? troop : null, fights ? trait : null]) {
+    if (row && text(row.figures.waivesRun)) lines += noteLine({ kind: "withdrawal", label: row.label, cite: row.cite }) + noteLine({ kind: "run", label: row.label, cite: row.cite });
+  }
   for (const g of gear) lines += noteLine({ kind: "gear", label: g.label, cite: g.cite });
   if (lines) {
     system.details = { ...(system.details ?? {}), biography: `${system.details?.biography ?? ""}${lines}` };
