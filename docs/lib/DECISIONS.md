@@ -1643,3 +1643,27 @@ henchmen feature's to rule, and the owner's page reading (the part is the
 chieftain's, and it ends with him) is the ancestor case alone. A recall that
 refuses a top row may read as a gate; the alternative, writing nothing and
 reporting success, leaves a group nowhere.
+
+## 2026-11-25 — An attack's row for a monster target's condition says the change's type
+
+Adds to the character sheet's "A line for an effect that sets or multiplies a
+figure says the change's type" (docs/character-sheet/DECISIONS.md, 2026-11-25)
+and supersedes nothing. That entry reached the attack card's line for a
+character target, a saving throw's parts and a monster's save notice, which
+name a step by its effect. The row an attack lists for a condition on a monster
+target names the step by its condition and was left as it was.
+
+**Ruled** (owner, 2026-11-25), asked whether that row should say the type too,
+verbatim: "Yes, add it". The row keeps the condition's name and its mark as the
+target's, and Foundry's word for the change's type follows where the type is
+not `add` or `subtract`. For example: "The condition's name (target),
+Override". A term of the module's own carries no type and reads as before.
+The mechanics are docs/lib/MODEL.md, "An effect's step is named where it is
+shown".
+
+**Rejected.** Leaving the row bare: it was the one surface naming a replaced
+figure without saying so, against the owner's "generic answer" in the entry
+above.
+
+*Cost:* the row is longer where a change sets, multiplies or bounds the
+figure. The step's own figure on that row is not changed by this entry.
