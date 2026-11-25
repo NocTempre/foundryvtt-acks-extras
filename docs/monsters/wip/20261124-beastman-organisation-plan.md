@@ -1994,6 +1994,75 @@ part's `basis` field and its whole-unit share are what S11 reads (MODEL,
 Section 3's S5 row is delivered as built, without its "trait art" (Ruling 4
 above). Phase 1's start prompt is spent.
 
+### Architect's S7 ruling, 2026-11-24 — proposed
+
+Two `architect` rulings, read-only, on `main` at 455f2cfa and core 14.2.0;
+whole in `wip/20261124-s7-ruling-reader-carrier.md` (points 1 and 2, S8,
+S9a) and `wip/20261124-s7-ruling-consumers-gear.md` (point 3, S6c, S9b,
+S9c). Neither ran a suite or a walk. Proposed until the owner accepts it;
+S6c, S9c and S9b-1 are built on it because they need no design and no
+owner answer.
+
+- **The range reader** is a core Region attached to the bearer's token, a
+  grid emanation of its footprint, with a new lib behaviour sub-type
+  `aura`: core decides who is inside, a pure lib filter `{kinds,
+  exceptKinds, side, unit}` decides who counts, turn starts come from lib's
+  turn hook on the primary GM, and deleting the Region is the one teardown.
+  It follows lib DECISIONS 2026-11-16 (shape and membership are core's). A
+  hidden bearer's reach does nothing. T10's reach is engagement, which is
+  left open with three options.
+- **Canvas 4 question 2** stays the owner's: each answer changes only the
+  Region's visibility and whether the module draws a label; answers (a)
+  and (b) each need a design.
+- **The item carrier** is built beside the cast engine, in lib
+  (`item-run`), importing nothing from `scripts/magic/`, and reuses the row
+  schema, row editor, saves, amounts, defences, turn clocks, end-on-attack,
+  immunity records, the roll card and the relay. Its door is a new lib seam
+  on `Item#use`, lib its one owner, refusing every spell. An item's rows
+  point into the registry and are read at use.
+- **S8 splits** into S8a (reader, carrier, seam, kinds, the sub-type in
+  `module.json`, which needs a world relaunch; no UI) and S8b (E3, E4, E9,
+  T10; design). S9a (E2's fuse and burst) builds on S8. Canvas 4 does not
+  draw the row editor's host on a gear item, nor the hidden-bearer
+  behaviour; both are for the owner beside its questions.
+- **3(a)** A row's condition word is imported (`targetCondition`, R2 and
+  T3) and folded at generation by `matchCondition` against the catalogue,
+  reusing `matchProficiency`; a Judge corrects it in the registry's
+  override layer; a word that does not fold writes nothing and is listed.
+- **3(b)** Outnumbering stays S6a's count of the combat's undefeated
+  combatants by disposition, each counting as its `bodyCount`, with a
+  `strict` flag for a clause that prints no ratio.
+- **3(c)** R2's dice multiple is a consumed target `damageDice` through the
+  `damageFormula` seam under a new `allOf` gate, the delivery recorded from
+  the `attack` answer (qualifies lib DECISIONS 2026-10-20). T2's damage half
+  is a `damage` answer; its morale half goes to influence's
+  `getAbilityReactionMods`, which must first honour `gate`.
+- **R4 and T7** waive `charging` and `retreating` through `acWaiver`,
+  chosen by two recipe keys; the undeclared withdrawal is a recorded note.
+- **S6c is its own slice**, before S9c and S9b: one ability item per chosen
+  troop and trait on a fighting creature, specs built from the recipe's
+  value keys only. No design.
+- **S9b splits**: S9b-1 (delayed damage survives the end of its fight on a
+  world-clock leg; E8's `onHit` on the ammunition stack; E5's data and a
+  pure `swigOutcome`; no UI) and S9b-2 (the swig, the two prompts, the
+  breakage; needs the carrier, the kind reader and canvas 4's design).
+
+**Owner question, before S9b-2 only.** Does a beastman's own E5 item count
+its swigs: (a) no, counted only once recovered, or (b) yes, rolled at
+generation?
+
+**Section 3 corrections, on this ruling.** Add "S6c | 2 | gear |
+implementer | The gated troop and trait rows written as ability items: on
+every breed, R2's surprise part, attack and dice multiple apply only
+against a target in the folded condition at melee or short range. T2's
+attack and damage apply only while outnumbering at the imported ratio, and
+its morale part is offered pre-ticked only while outnumbered. T3 and T4
+apply only under their gates. R4 and T7 lose no Armor Class to their waived
+conditions. A word that does not fold writes nothing and is listed | no |
+S6b". S9c needs S6c as well as S6b. S9b becomes S9b-1 (no design; needs
+S6c) and S9b-2 (design, through canvas 4; needs S8a). S8 becomes S8a (no
+design) and S8b (design); S9a needs S8.
+
 ### Start prompt, phase 2
 
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
