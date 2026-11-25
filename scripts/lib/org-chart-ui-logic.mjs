@@ -515,6 +515,40 @@ export function dieFloorOf(stack, change) {
 }
 
 /**
+ * The fields of the cards in edit that a hand changed and has not saved, read before a press redraws
+ * them: a field is a draft where its value differs from the one it was drawn with. A field the press
+ * itself writes is left out, since the press's value is the one to show.
+ * @param {{card: string, stack: string, name: string, value: string, saved: string}[]} fields every control of a card's form, `card` the row's key, `stack` the stack's key (blank for the card's own), `name` the `data-org-field`
+ * @param {{card: string, stack: string, name: string}} [written] the field the press writes
+ * @returns {{card: string, stack: string, name: string, value: string}[]}
+ */
+export function formDraftsOf(fields, written = null) {
+  return (fields ?? [])
+    .filter((f) => f.value !== f.saved && !(written && f.card === written.card && f.stack === written.stack && f.name === written.name))
+    .map(({ card, stack, name, value }) => ({ card, stack, name, value }));
+}
+
+/**
+ * Where each draft goes back after the redraw: the index of the redrawn field it was typed in, and
+ * its value. A draft whose field is gone (its card left edit, or the stack left the row) is dropped,
+ * and so is a choice the redrawn select no longer offers.
+ * @param {{card: string, stack: string, name: string, value: string}[]} drafts `formDraftsOf`'s answer
+ * @param {{card: string, stack: string, name: string, choices?: string[]|null}[]} fields the redrawn form's controls, in order; `choices` is a select's values
+ * @returns {{at: number, value: string}[]}
+ */
+export function restorableDrafts(drafts, fields) {
+  const out = [];
+  for (const d of drafts ?? []) {
+    const at = (fields ?? []).findIndex((f) => f.card === d.card && f.stack === d.stack && f.name === d.name);
+    if (at < 0) continue;
+    const choices = fields[at].choices;
+    if (choices && !choices.includes(d.value)) continue;
+    out.push({ at, value: d.value });
+  }
+  return out;
+}
+
+/**
  * What a Remove left, for the line above the chart: the row that left and the rows that moved up,
  * with the row they now stand beneath (null for the top). Null where no row moved, so a leaf's
  * Remove says nothing.

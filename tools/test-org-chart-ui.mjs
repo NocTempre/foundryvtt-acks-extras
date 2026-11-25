@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
 import { planEdit, planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf, formDraftsOf, restorableDrafts } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -442,6 +442,32 @@ t("a thrown count reads as rolled again, so the hand-set mark clears", () => {
   assert.equal(byHandOf([after])?.byHand, true, "a count differing from the roll's record is by hand");
   after.gen = { ...after.gen, rolled: 6, thrown: [5] };
   assert.equal(byHandOf([after]), null);
+});
+
+const formField = (name, value, saved, { card = "u1", stack = "", choices = null } = {}) => ({ card, stack, name, value, saved, choices });
+
+t("a press reads what a hand typed and has not saved, leaves out the count it writes, and the drafts go back after the redraw", () => {
+  const before = [
+    formField("label", "QA Typed", "QA Saved"),
+    formField("troop", "b", "a", { stack: "s1", choices: ["a", "b"] }),
+    formField("count", "9", "4", { stack: "s1" }),
+    formField("count", "7", "3", { stack: "s2" }),
+    formField("label", "QA Same", "QA Same", { card: "u2" }),
+  ];
+  const drafts = formDraftsOf(before, { card: "u1", stack: "s1", name: "count" });
+  assert.deepEqual(drafts.map((d) => [d.card, d.stack, d.name, d.value]), [["u1", "", "label", "QA Typed"], ["u1", "s1", "troop", "b"], ["u1", "s2", "count", "7"]], "the pressed count is excluded, an unchanged field is not a draft, another stack's count is");
+  assert.equal(formDraftsOf(before).some((d) => d.stack === "s1" && d.name === "count"), true, "with nothing written the count is a draft too");
+  const after = [
+    formField("label", "QA Saved", "QA Saved"),
+    formField("troop", "a", "a", { stack: "s1", choices: ["a", "b"] }),
+    formField("count", "6", "6", { stack: "s1" }),
+    formField("count", "3", "3", { stack: "s2" }),
+  ];
+  assert.deepEqual(restorableDrafts(drafts, after), [{ at: 0, value: "QA Typed" }, { at: 1, value: "b" }, { at: 3, value: "7" }]);
+  assert.deepEqual(restorableDrafts(drafts, after.slice(0, 2)), [{ at: 0, value: "QA Typed" }, { at: 1, value: "b" }], "a field that is gone takes no draft");
+  assert.deepEqual(restorableDrafts(drafts, [formField("label", "x", "x"), formField("troop", "a", "a", { stack: "s1", choices: ["a"] })]), [{ at: 0, value: "QA Typed" }], "a choice no longer offered is dropped");
+  assert.deepEqual(formDraftsOf([]), []);
+  assert.deepEqual(restorableDrafts([], after), []);
 });
 
 let failures = 0;

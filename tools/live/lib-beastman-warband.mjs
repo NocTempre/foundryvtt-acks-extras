@@ -376,6 +376,13 @@ const P = {
     };
   },
 
+  /** The label a card's form holds now, the label the row stores, and the count the form holds, for a press that must keep a typed field unsaved. */
+  labelRead: async ({ id, key }) => {
+    const actor = game.actors.get(id);
+    const card = actor.sheet.element.querySelector(`li[data-key="${key}"]`);
+    return { typed: card?.querySelector('[data-org-field="label"]')?.value ?? null, stored: actor.system.units.find((r) => r.key === key)?.label ?? null, count: card?.querySelector('[data-org-field="count"]')?.value ?? null };
+  },
+
   /** Whether a card in edit offers the clear-leader control, and press it. */
   clearLeader: async ({ id, key, press }) => {
     const card = game.actors.get(id).sheet.element.querySelector(`li[data-key="${key}"]`);
@@ -712,6 +719,17 @@ try {
     const after = await run(gm, P.dieRead, { id: fid, key: dieAt.key, stack: dieAt.stack });
     check("the form reads the new count, and the card no longer reads set by hand", after.count === String(lowest) && !after.byHand, after);
     check("the Bodies field's tooltip and the card's count tooltip name the formula, the dice as thrown and the total", [after.inputTip, after.cardTip].every((tip) => tip.includes(dieAt.formula) && tip.includes(stored.thrown.join(", ")) && tip.includes(String(lowest))), { input: after.inputTip, card: after.cardTip });
+    // A label typed and not saved survives the press: the die writes the count alone and the redraw puts the typed field back.
+    const labelBefore = await run(gm, P.labelRead, { id: fid, key: dieAt.key });
+    await run(gm, P.field, { id: fid, key: dieAt.key, stack: "", field: "label", value: "QA typed label" });
+    await run(gm, P.field, { id: fid, key: dieAt.key, stack: dieAt.stack, field: "count", value: String(lowest + 5) });
+    await run(gm, P.rig, { on: true });
+    await run(gm, P.press, { id: fid, action: "orgRollCount", key: dieAt.key, wait: 900 });
+    await run(gm, P.rig, { on: false });
+    const kept = await run(gm, P.labelRead, { id: fid, key: dieAt.key });
+    check("a label typed before the die's press is still typed in the redrawn form, and the row's stored label is unchanged", kept.typed === "QA typed label" && kept.stored === labelBefore.stored && labelBefore.typed === labelBefore.stored, { before: labelBefore, kept });
+    check("the die wrote the count over a count typed beside the label, and the typed label was not saved with it", kept.count === String(lowest), kept);
+    await run(gm, P.field, { id: fid, key: dieAt.key, stack: "", field: "label", value: labelBefore.stored });
     await run(gm, P.press, { id: fid, action: "orgEditDone", key: dieAt.key, wait: 600 });
     const partAt = await run(gm, P.dieStack, { id: fid, part: true });
     if (partAt) {

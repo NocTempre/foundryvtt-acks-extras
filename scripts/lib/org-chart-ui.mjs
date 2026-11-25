@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, restorableDrafts, roleOf, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { outputActorType } from "./template-generate.mjs";
@@ -368,6 +368,25 @@ function refuse(result, scope = "refused") {
 }
 
 const render = (app) => app.render();
+
+/** Every field of the cards in edit under a window, as the pure draft readers take them: where it stands, what it holds and what it was drawn with. */
+function formFieldsOf(app) {
+  return [...(app.element?.querySelectorAll?.("[data-org-field]") ?? [])].map((el) => ({
+    card: el.closest("[data-key]")?.dataset.key ?? "",
+    stack: el.closest("[data-org-stack]")?.dataset.orgStack ?? "",
+    name: el.dataset.orgField,
+    value: el.value,
+    saved: el.dataset.was ?? el.defaultValue,
+    choices: el.localName === "select" ? [...el.options].map((o) => o.value) : null,
+  }));
+}
+
+/** Put typed, unsaved fields back into the redrawn form, as they were; nothing is saved. */
+function restoreFormDrafts(app, drafts) {
+  if (!drafts.length) return;
+  const els = [...(app.element?.querySelectorAll?.("[data-org-field]") ?? [])];
+  for (const { at, value } of restorableDrafts(drafts, formFieldsOf(app))) els[at].value = value;
+}
 
 /** The Roll panel's two readings and the slots' options for a set of picks, through the generator's service; null where it has none. */
 const describeRoll = (args) => services.get("org-roll")?.describe?.(args) ?? null;
@@ -722,7 +741,8 @@ async function onEditDone(_event, target) {
  * `gen.rolled` and the dice thrown, through `org.editRow` at once, as every press does. The seat's
  * ownership of the host and the row's group is read again here, and a stack with no recorded dice
  * is refused. Bodies on a map keep what they went out with, which `org.editRow` says in its own
- * whisper. The form's other typed fields are not carried by the press.
+ * whisper. The fields a hand typed in the open forms and has not saved are read before the write and
+ * put back after the redraw, unsaved; the press writes only the stack's count.
  */
 async function onRollCount(_event, target) {
   const { host, key } = await targetOf(target);
@@ -732,6 +752,7 @@ async function onRollCount(_event, target) {
   const stack = isGroupActor(group) ? (group.system.stacks ?? []).find((s) => s.key === stackKey) : null;
   const die = countDieOf(stack, { owns: !!host.isOwner && !!group?.isOwner });
   if (!die) return void refuse({ ok: false, reason: stack && !(host.isOwner && group?.isOwner) ? "notOwner" : "noDie", name: group?.name ?? host.name });
+  const drafts = formDraftsOf(formFieldsOf(this), { card: key, stack: stackKey, name: "count" });
   const roll = Roll.validate(die.formula) ? await new Roll(die.formula).evaluate().catch(() => null) : null;
   const change = dieChangeOf(stackKey, roll);
   if (!change) return void refuse({ ok: false, reason: "dieFailed" });
@@ -743,7 +764,8 @@ async function onRollCount(_event, target) {
     const floor = dieFloorOf(stack, change);
     if (floor !== null) ui.notifications.warn(loc("edit.dieFloored", { name: die.name || group.name, bodies: floor }));
   }
-  render(this);
+  await render(this);
+  restoreFormDrafts(this, drafts);
 }
 
 /**

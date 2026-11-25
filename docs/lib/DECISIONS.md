@@ -2409,4 +2409,4 @@ the Judges a card of its steps; the hub named the two tooltips as where the die 
 *A new warning for a deployed row.* The form already has one; the press reuses its text.
 
 **Cost.** A count per unit records its formula repeated once for each unit at the Roll, since the unit count a later throw
-would need is not stored. The press writes at once, so a label typed in the same form and not yet saved is redrawn away.
+would need is not stored. The press writes at once and redraws the form, so it reads the fields typed in the open forms and not yet saved before the write and puts them back after the redraw, still unsaved, by the hub's ruling that the press must not lose unsaved input (`formDraftsOf`, `restorableDrafts`; the count the die writes is the one field left out).
