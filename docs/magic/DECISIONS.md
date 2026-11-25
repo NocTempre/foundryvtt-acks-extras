@@ -1652,6 +1652,7 @@ deployed later keeps that roll.
 **Supersedes IN PART**, none under 7 days: "Research projects at a location, and the facility (M-q1, rulings 220, 221)", its "Who writes which field" (the costs, paid, throw and later level as the Judge's) and "the facility inputs exist only on a Judge's render"; "The Research tab's parts beyond board 10 stand as built (owner, board 15)", its "a project's level, cost and material-paid boxes for a Judge (text for a Player)", where the boxes are now an owner's; "Research days: the Judge's due, Post days… and withdrawing (owner, board 16)", the due only ("a Player sees the due as text always"), while Post days… stands. The charge-item rule was a build call (M-r2b) with no entry.
 
 **Strongest counter, MEDIUM.** A Player can now type the cost and the level their own project is read against, which M-q1 kept with the Judge because "it is the Judge who sees the project and can correct it". Held: the owner's rule makes the record its owner's, the Judge still writes every field, and the facility and assistant shortfalls still block a Player and warn a Judge.
+
 ## 2026-11-25 — A spell attack with no damage die asks, and the die is kept per copy
 
 Supersedes the spell carrier's half of "2026-11-25 — The strike and a spell
