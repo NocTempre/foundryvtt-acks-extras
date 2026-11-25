@@ -32,13 +32,13 @@
   {{/each}}
 
   {{#each mg.groups as |group|}}
-  <div class="acks-extras-frame__group">
+  <div class="acks-extras-frame__group" data-list="{{group.key}}">
     <div class="acks-extras-frame__rule">
       <span class="acks-extras-frame__rule-title">{{group.label}}</span>
       {{#if group.points}}
       <span class="acks-extras-classes-slotrow">
         {{#if mg.editable}}<button type="button" class="acks-extras-classes-pointsbtn" data-action="poolPoints" data-tradition="{{group.key}}" data-delta="-1" aria-label="{{localize 'ACKS-CLASSES.casting.refundTip'}}" data-tooltip=""><i class="fa-solid fa-minus" inert></i></button>{{/if}}
-        <span class="acks-nums" data-tooltip-text="{{group.points.tip}}">{{localize "ACKS-CHARACTER.magic.points"}} {{group.points.used}} / {{group.points.max}}</span>
+        <span class="acks-nums" data-list-points data-tooltip-text="{{group.points.tip}}">{{localize "ACKS-CHARACTER.magic.points"}} {{group.points.used}} / {{group.points.max}}</span>
         {{#if mg.editable}}<button type="button" class="acks-extras-classes-pointsbtn" data-action="poolPoints" data-tradition="{{group.key}}" data-delta="1" aria-label="{{localize 'ACKS-CLASSES.casting.spendTip'}}" data-tooltip=""><i class="fa-solid fa-plus" inert></i></button>{{/if}}
       </span>
       {{/if}}
@@ -46,7 +46,7 @@
       {{#if group.className}}<span class="acks-extras-frame__rule-note">{{group.className}}</span>{{/if}}
     </div>
     {{#each group.levels as |lvl|}}
-    <div class="acks-extras-frame__subhead">
+    <div class="acks-extras-frame__subhead" data-list-level="{{lvl.n}}">
       <span>{{localize "ACKS.spells.Level"}} {{lvl.n}}</span>
       {{#if lvl.slot}}
       <span class="acks-extras-classes-slotrow">
@@ -59,7 +59,7 @@
           {{#each lvl.slot.pips as |pip|}}<span class="acks-extras-classes-handpip{{#if pip.spent}} is-spent{{/if}}"></span>{{/each}}
         </span>
         {{/if}}
-        <span class="acks-extras-frame__subhead-note acks-nums" data-tooltip-text="{{lvl.slot.tip}}">{{localize "ACKS.spells.Slots"}} {{lvl.slot.used}} / {{lvl.slot.max}}</span>
+        <span class="acks-extras-frame__subhead-note acks-nums" data-list-slots data-tooltip-text="{{lvl.slot.tip}}">{{localize "ACKS.spells.Slots"}} {{lvl.slot.used}} / {{lvl.slot.max}}</span>
       </span>
       {{/if}}
     </div>
@@ -71,13 +71,13 @@
   {{/each}}
 
   {{#if mg.other.length}}
-  <div class="acks-extras-frame__group">
+  <div class="acks-extras-frame__group" data-list-other>
     <div class="acks-extras-frame__rule">
       <span class="acks-extras-frame__rule-title">{{localize "ACKS-CHARACTER.magic.other"}}</span>
       <span class="acks-extras-frame__rule-note">{{localize "ACKS-CHARACTER.magic.otherNote"}}</span>
     </div>
     {{#each mg.other as |lvl|}}
-    <div class="acks-extras-frame__subhead"><span>{{localize "ACKS.spells.Level"}} {{lvl.n}}</span></div>
+    <div class="acks-extras-frame__subhead" data-list-level="{{lvl.n}}"><span>{{localize "ACKS.spells.Level"}} {{lvl.n}}</span></div>
     {{#each lvl.rows as |spell|}}
     {{> "modules/acks-extras/templates/character-sheet/spell-row.hbs" spell=spell owns=mg.editable sheetEditable=@root.editable}}
     {{/each}}

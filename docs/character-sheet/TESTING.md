@@ -1164,3 +1164,172 @@ data)`, and kept.
 its own ledger (`api.track` each pile's uuid from `setDown`'s result,
 `sweepTracked`) and quote the sweep's result; return the Torches from `set-down-other` to the
 hero, so the kept fixtures hold what step 1 expects. Offline: `tools/test-equipment-tab.mjs`.
+
+## The Magic tab by list, and its cast gates
+
+**UNRUN.** The walk `tools/live/character-sheet-magic-tab.mjs` has not been run: no live run was
+open when it and this section were written. Every observable below is read from the code
+(`tabs/magic.mjs`, `magic.hbs`, `spell-row.hbs`, `cast-capacity.mjs`, `cast-plan.mjs`,
+`cast-gate.mjs`, `lib/patches/spell-use.mjs`) and its unit suites, and none has been seen on a
+world. The first live run replaces this paragraph with what it found.
+
+Built for the Magic tab's grouping by the list a class casts from, its hand pips under each
+list's heading, the row gate that turns Cast off for a Player and warns a Judge, and the gate
+claimant that holds the same line when a cast comes in by `item.use()` with the tab out of it.
+A mock cannot prove that a Player's seat writes the pip, that the row and the claimant agree on
+one real world, that the system's un-awaited `use()` reaches the claimant, or that a narrow
+window keeps a gate line under its row. The decisions are in this feature's DECISIONS and the
+magic feature's; this section says how to walk them. Offline: `tools/test-cast-gate.mjs`,
+`tools/test-character-sheet.mjs`. Live: `tools/live/character-sheet-magic-tab.mjs`, the GM seat
+and a Player seat together (`SEAT_GM`, `SEAT_PLAYER`).
+
+**Fixtures** (kept, found by marker under `character-sheet/`; built by the GM seat with
+`api.fixture` where none carries the marker; every name and figure is invented):
+- `tab-class` — an `acks-extras.class` casting from two vancian lists: list one with two slots
+  at level 1; list two with one slot at level 1 and one at level 2. Each list's key and label
+  fold to one string, so a spell naming either matches it.
+- `tab-hero` — a linked `character` the Player seat OWNS, bound to `tab-class` by
+  `flags["acks-extras"].classes.uuid`, level 1, spells enabled, and its spells (each a marker
+  built with `{parent: <hero uuid>}`): `tab-spell-one` (list one, level 1), `tab-spell-both`
+  (list one at level 1 and list two at level 2), `tab-spell-off` (a list the class does not
+  cast from) and `tab-spell-bare` (no list and no class string). None carries effect rows, so
+  the cast window declines all four and the gate claimant takes them.
+- `tab-stranger` — a `character` bound to the same class that the Player seat only OBSERVES,
+  with `tab-stranger-spell` on list one.
+- `tab-plain` — a `character` with no class bound, with `tab-plain-spell`.
+
+Each run rewrites the shape a step needs, since `api.fixture` returns a kept document as it
+stands: the Player's ownership (its id is read from the Player seat's page, never stored), the
+class's `system.casting`, the binding, level 1, core's slot grid at 0, each spell's flag (the
+old one unset first, so no stale key stays), `system.class` `""` (core fills it with a class
+word on a new spell, which would draw a lists line on the spell that names no list; the field
+never puts a spell off list), `system.cast` and the pools. The pools are
+`flags["acks-extras"].classes.pools`; one is cleared by unsetting the key and set by writing
+the object, and a step compares the stored object by content, since its key order is not fixed.
+
+**Drive mechanics (read from the code; to confirm on the first run).**
+- The Magic tab opens on the module's sheet with `sheet.render({force: true})` then
+  `sheet.changeTab("magic", "primary")`; the panel is `section[data-tab="magic"]` and takes
+  `.active`. A folded card has no tabs, so the walk unsets the user's `sheetFold` entry for the
+  actor first.
+- A write redraws the tab, so every element is looked up again after each press; the walk's
+  `read` is one fresh read of the whole tab, polled until the figure it waits for has changed.
+- Hooks the tab carries: a list's group `[data-list="<key>"]`, Other spells `[data-list-other]`,
+  a level under either `[data-list-level="<n>"]`, a figure `[data-list-slots]` (a points list's
+  `[data-list-points]`), a spell row `[data-item-id]` (with `[data-tradition]` under a list's
+  heading only), its lists line `[data-spell-lists]`, its gate `[data-gate="offList"|"noSlot"]`.
+  A level's rows are the SIBLINGS after its subhead up to the next `[data-list-level]`, not
+  children of it.
+- A spell on two lists is two rows with one `data-item-id`, so a selector by item id alone is
+  ambiguous: the walk adds `[data-tradition="<key>"]` for a row under a list, and
+  `:not([data-tradition])` for a row under Other spells or a level.
+- A seat that owns the character gets `button[data-action="poolSlot"][data-tradition][data-slot][data-spent]`
+  pips; any other seat gets plain `span`s. Cast is `button[data-action="spellCast"]`, `disabled`
+  where the gate blocks.
+- `item.use()` is not awaited by the system (`use()` starts `_useSpell` and returns), so a walk
+  that wants the outcome polls for it: the cast count, the pools flag and the recorded warning.
+  A negative outcome (a refusal) is read after the warning is seen and a further wait, with a
+  counter on `updateActor` and `updateItem` showing nothing was written. A feature that must
+  await a cast calls `item._useSpell(options)`, which the seam wraps and awaits
+  (`lib/patches/spell-use.mjs`).
+- A refusal or a warning is `ui.notifications.warn(<lang text>)` on the seat that cast. The walk
+  wraps `warn` on both seats and compares the text with the same lang key localized in that
+  page, so no sentence is written into the walk. A refusal posts no chat card; every successful
+  cast does, and those cards are the run's own leavings (Teardown).
+- "Written from the Player's seat" is read from the `userId` argument of `updateActor` /
+  `updateItem` on that seat's page, compared with `game.user.id` in the page.
+
+**Steps** (the walk's section numbers; the Judge's seat unless a step says Player):
+1. **The tab by list.** Shape: pools empty, counts 0. *Observable:* two groups in the class's
+   order, headed by the list's label; list one has one level subhead (1) reading 0 / 2 with two
+   pips, list two levels 1 and 2 each reading 0 / 1 with one pip; list one level 1 holds the
+   list-one spell and the two-list spell, list two level 1 none and level 2 the two-list spell
+   (rows carry their list's key as `data-tradition`); the two-list spell is two rows of one item
+   id whose lists lines name their own list and level first and the other after; Other spells
+   holds the off-list spell (its lists line naming the list it stands on) and the no-list spell
+   (no lists line), neither carrying a tradition; no core slot-max input is drawn; the casting
+   strip mounted on the sheet draws no `.acks-extras-classes-pip`, points pair or tradition row
+   and keeps its rest control. The strip's power line depends on the power registry and is
+   printed, not asserted.
+2. **The figures say where they came from.** *Observable:* each slot figure carries a non-empty
+   `data-tooltip-text` naming the class; each row's count field a non-empty one, the same text as
+   its `aria-label`; each lists line a non-empty one; no element under the tab carries a `title`.
+3. **A hand pip.** *Observable:* each pip is a `button` with a non-empty `aria-label` and none is
+   spent; pressing an empty pip under list one level 1 is one write to the pools flag, the figure
+   reads 1 / 2, the first pip reads spent (`data-spent`), the stored count is 1, and a spent pip's
+   label differs from an empty one's; pressing the spent pip is a second write and reads 0 / 2.
+4. **The owner's seat (Player).** The Player opens the hero. *Observable:* the same groups and
+   figures, four pip buttons; a pip pressed there is one write to the pools flag authored by the
+   Player's user, and the Judge's seat reads it. With both of list one's level 1 slots used
+   (2 / 2): the list-one spell's row and the two-list spell's list-one row each carry
+   `[data-gate="noSlot"]` whose visible text is the blocked sentence (the lang key
+   `ACKS-MAGIC.cast.notice.blocked.noSlot`, localized in the page) with a `disabled` Cast; the
+   two-list spell's list-two row has no gate and Cast on; the off-list row carries
+   `[data-gate="offList"]` with the blocked offList sentence and a `disabled` Cast; the no-list
+   row has no gate and Cast on; a gate is a `role="note"` and Cast keeps its `aria-label`.
+5. **The gate holds off the tab too (Player).** *Observable:* `item.use()` on the list-one
+   spell, its level full: one warning shown with the blocked sentence, no `updateActor` or
+   `updateItem` for the hero seen by the Player's page over a settle of about two seconds, the
+   count 0 and the pools unchanged; the same for the off-list spell with the offList sentence.
+   Cast pressed on the two-list spell's list-TWO row: its count is 1, list two's level 2 slot is
+   used (stored `{two: {s2: 1}}` beside list one's unchanged `{one: {s1: 2}}`), the figures read
+   1 / 1 and 2 / 2, no warning, the item write and one pool write both authored by the Player.
+   Cast on the no-list spell raises its count with no warning and no pool write. At the start
+   the walk also asserts in the page that the cast window's claimant declines all four spells
+   (`castSpellClaims`) and the gate takes them (`castGateClaims`).
+6. **The Judge is warned, not stopped.** Shape: list one's level 1 full (stored 2). *Observable:*
+   the list-one row carries the noSlot gate with the warning sentence (it ends "Casting anyway.",
+   and is not the blocked one) and Cast on; the off-list row the offList warning and Cast on.
+   Cast on the list-one row: the count is 1 and the warning shown once. **The pool as the code
+   leaves it:** `adjustPool` adds one to the stored spent count with no ceiling and `poolState`
+   clamps on read, so the stored count is 3 on a level whose maximum is 2, the derived count and
+   the figure stay at 2 / 2 (a give-back pip press then takes the stored 3 to 2 and the figure does not
+   move; the walk records the overshoot and does not rule on it). Cast on the off-list spell:
+   its count is 1, the offList warning shown once, no write to the pools.
+7. **Rest and Reset slots (Player).** Shape: pools `{one: {s1: 1}, two: {s2: 1}}`, counts one 2,
+   both 1. *Observable:* the tab's own Rest (`button[data-action="rest"]`, not the strip's anchor)
+   removes the pools flag (absent, not `{}`) in one write by the Player, leaves each count, and
+   every figure reads 0. With pools `{one: {s1: 1}}` set again, Reset slots
+   (`button[data-action="spellReset"]`) sets every spell's count to 0 through the items and writes
+   no pools. The strip's rest anchor (`.acks-extras-classes-rest`, the control the system's sheet
+   also carries) removes the pools flag as well.
+8. **A seat that only observes.** The Player opens the stranger. *Observable:* the list group,
+   its figure (1 / 2 with one slot spent) and two pips that are not buttons (the first spent), no
+   `button[data-action="poolSlot"]` or points button anywhere on the tab, neither of the tab's own
+   Rest and Reset slots buttons, and the stranger's spell under list one. The casting strip
+   draws its rest anchor for a seat that owns the character, so the observer's strip has none.
+   The walk prints whether the stranger's Cast is disabled and does not assert it.
+9. **No class.** The Judge opens `tab-plain`. *Observable:* no `[data-list]`, no
+   `[data-list-other]`, the typed `system.spells.1.max` input is there and enabled, the one spell's
+   row has no gate and no lists line. Cast on it raises its count through the system with no
+   warning and no pools write: the gate takes nothing where no class is bound.
+10. **Narrow.** Shape: list one full. The Judge's sheet is set to the frame's floor width (the
+    computed `min-width` of the window, 640px in `styles/lib-frame.css`). *Observable:* the
+    window is at the floor; the scroller (`.acks-extras-frame__scroll`) and the tab have
+    `scrollWidth <= clientWidth`; no spell row overflows; each gate line (the two noSlot rows and
+    the off-list row) sits below the rest of its row and spans it. The width is set back after.
+
+At the end the walk reads that neither seat's recorder, attached after `ready`, saw a console
+error; the load itself is not covered by it.
+
+**Not walked.**
+- The system's own sheet keeping its strip pips and a rest there: the injector draws them on a
+  sheet this module does not own, which a second sheet class on the same fixture would show.
+- A declared cast resolving through its stored list, and a cast of a spell WITH effect rows
+  spending the pressed list's slot through the cast window. The magic kit's `P.cast` sends no
+  `tradition`, so reaching a list's slot through the window needs the kit extended first; the
+  cast window's own recipe (the magic TESTING) walks the window.
+- A points list's `[data-list-points]` pair (the fixtures cast from slot rows alone).
+- The type-size knob raised, and a keyboard-only pass over the pips and Cast. The pips' and the
+  gates' accessible names are read from the attributes, not heard.
+- Hovering a figure: the tooltip text is read from `data-tooltip-text`, not shown by core's
+  manager.
+- A peer on the same fixtures: connect with `FIXTURE_OWN=<tag>` and every marker becomes
+  `<marker>@<tag>`.
+
+**Teardown.** The ten fixtures are kept. The walk deletes nothing but the chat cards its casts
+posted (the hero's and the plain character's, found as messages made since the walk began that
+speak as one of the three characters, listed by id and swept through the driver's ledger:
+`api.track` each, `gm.sweepTracked({only})`); quote the sweep's result and the ledger the
+driver prints. A refusal posts no card. Both seats' recorders, hooks and wrapped `warn` are
+restored and the open sheets closed.
