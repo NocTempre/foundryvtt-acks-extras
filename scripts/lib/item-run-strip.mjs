@@ -11,6 +11,11 @@
  *
  * - `reachStripFor(actor)` is the sheet's context entry; the template is
  *   `templates/lib/item-reach-strip.hbs`.
+ * - An always-on engaged reach (T10) has no raised card: its row reads the open
+ *   entry the engaged card holds for this body and kind (owed, with the Save
+ *   press on that card's entry), else the failed save's `lasts` record on the
+ *   body (failed, with the turns left), else the immunity window (immune), else
+ *   waits. Bearers of one kind collapse to one row, the nearest bearer's.
  * - A Save press is offered by ownership of the body's token (Foundry's own
  *   test, no role read), writes through the carrier's `pressRoll` onto the same
  *   moment-keyed entry the cards write, and is checked again by the primary
@@ -19,10 +24,10 @@
  *   sheets the strip could be on (`installItemRunStrip`).
  */
 import { FLAG_ITEM_RUN, FLAG_ROLL_MODS, LANG_PREFIX, MODULE_ID, AURA_BEHAVIOR_TYPE, FLAG_ITEM_RUN_CARD } from "./constants.mjs";
-import { figureNumber, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { figureNumber, isEngagedActivation, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
-import { itemCite, itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
-import { admittedWithCount, blankTip, importTip, rowStateOf, safeKey, shownTokenName, signedFigure, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
+import { itemCite, itemRunRowsOf, kindKeyOf, lastsRecordId } from "./item-run-logic.mjs";
+import { admittedWithCount, blankTip, cardSubjectUuids, importTip, openEngagedEntryFor, rowStateOf, safeKey, shownTokenName, signedFigure, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
 import { cardOf, pressRoll } from "./item-run.mjs";
 import { messageIdFor, refusal, saveFigureOf } from "./item-run-presenter.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
@@ -66,7 +71,9 @@ function readReachOn({ behavior, region }, token, actor) {
   const reach = readReach(row?.reach);
   const bearerToken = region?.parent?.tokens?.get?.(region.attachment?.token) ?? null;
   if (!reach || !bearerToken || bearerToken.id === token.id || isMarkerActor(actor)) return null;
-  const messageId = messageIdFor(config.activationId);
+  const engaged = isEngagedActivation(config.activationId);
+  // An always-on engaged reach raises no card: its prompts live on the engaged card of the subject's moment, found by subject and kind below.
+  const messageId = engaged ? null : messageIdFor(config.activationId);
   const card = messageId ? cardOf(messageId).card : null;
   const admitted = admittedWithCount(reachAdmits({ token: bearerToken, actor: bearerToken.actor }, { token, actor }, reach.filter, { isMarker: isMarkerActor }), card, token.uuid);
   if (admitted !== true) return null;
@@ -80,12 +87,28 @@ function readReachOn({ behavior, region }, token, actor) {
   const feet = gap === null ? null : Math.round(gap);
   const { radius, tip: radiusTip } = radiusFigure(reach, item);
   const cite = itemCite(item);
-  const out = { key: `${config.activationId}:${row.key}`, name: item.name, tag: "waiting", source, feet, radius, radiusTip, cite, feetTip: feet === null ? "" : loc("itemRun.card.tip.distance", { feet, name: source }) };
+  const out = { key: `${config.activationId}:${row.key}`, engagedKind: engaged ? kindKey : "", name: item.name, tag: "waiting", source, feet, radius, radiusTip, cite, feetTip: feet === null ? "" : loc("itemRun.card.tip.distance", { feet, name: source }) };
 
+  const windowTip = (left) => (left === null ? "" : [item.name, loc("itemRun.strip.tip.window", { turns: left }), cite].filter(Boolean).join(" · "));
   const immune = immunityOf(actor, kindKey);
   if (immune) {
     const left = turnsLeft(immune.dueAt, game.time?.worldTime, turnSeconds());
-    return { ...out, tag: "immune", left, leftTip: left === null ? "" : [item.name, loc("itemRun.strip.tip.window", { turns: left }), cite].filter(Boolean).join(" · ") };
+    return { ...out, tag: "immune", left, leftTip: windowTip(left) };
+  }
+  if (engaged) {
+    const asked = openEngagedEntryFor(game.messages, { subjectUuid: token.uuid, kindKey });
+    if (asked) {
+      const figure = saveFigureOf(actor, row, item);
+      const owns = token.testUserPermission?.(game.user, "OWNER") === true;
+      return {
+        ...out, tag: "owed", target: figure.target, targetTip: figure.tip ?? "",
+        press: owns ? { itemUuid: item.uuid, rowKey: row.key, activationId: config.activationId, subject: token.uuid, messageId: asked.messageId, entryKey: asked.entryKey } : null,
+      };
+    }
+    const lasts = actor?.effects?.get?.(lastsRecordId(kindKey)) ?? null;
+    if (!lasts) return out;
+    const left = turnsLeft(lasts.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN]?.dueAt, game.time?.worldTime, turnSeconds());
+    return { ...out, tag: "failed", timed: true, left, leftTip: windowTip(left) };
   }
   if (reach.pulse === "standing") {
     const value = figureNumber(reach.modifier);
@@ -106,6 +129,19 @@ function readReachOn({ behavior, region }, token, actor) {
   };
 }
 
+/** Each bearer of an engaged kind holds a Region of its own over the body, but the body is asked once per kind: those rows collapse to the nearest bearer's, and every other row stands. */
+function oneRowPerEngagedKind(rows) {
+  const at = new Map();
+  const out = [];
+  for (const r of rows) {
+    if (!r.engagedKind) { out.push(r); continue; }
+    if (!at.has(r.engagedKind)) { at.set(r.engagedKind, out.length); out.push(r); continue; }
+    const i = at.get(r.engagedKind);
+    if ((r.feet ?? Infinity) < (out[i].feet ?? Infinity)) out[i] = r;
+  }
+  return out;
+}
+
 /**
  * The strip model for a body, localized, or null where the strip is absent: the
  * seat does not own the body, the body has no token on the viewed scene, or no
@@ -118,7 +154,7 @@ export function reachStripFor(actor) {
   if (!actor?.testUserPermission?.(game.user, "OWNER")) return null;
   const token = viewedToken(actor);
   if (!token) return null;
-  const reaches = behaviorsUnder(token, AURA_BEHAVIOR_TYPE).map((found) => readReachOn(found, token, actor)).filter(Boolean);
+  const reaches = oneRowPerEngagedKind(behaviorsUnder(token, AURA_BEHAVIOR_TYPE).map((found) => readReachOn(found, token, actor)).filter(Boolean));
   const strip = stripModel(reaches);
   if (!strip.count) return null;
   return {
@@ -128,7 +164,7 @@ export function reachStripFor(actor) {
     saveLabel: loc("itemRun.card.save"),
     saveTip: loc("itemRun.card.saveTip"),
     rows: strip.rows.map((r) => ({
-      ...r, tagLabel: loc(`itemRun.strip.tag.${r.tag}`), tagVariant: TAGS[r.tag], tagTip: loc(`itemRun.strip.tagTip.${r.tag}`),
+      ...r, tagLabel: loc(`itemRun.strip.tag.${r.tag}`), tagVariant: TAGS[r.tag], tagTip: loc(`itemRun.strip.tagTip.${r.timed ? "failedTimed" : r.tag}`),
       leftLabel: r.left === null ? "" : loc("itemRun.strip.left", { turns: r.left }), hasFeet: r.feet !== null, hasRadius: r.radius !== null, hasTarget: r.target !== null,
     })),
   };
@@ -162,7 +198,7 @@ export function installItemRunStrip() {
   installed = true;
   Hooks.on("updateChatMessage", (message) => {
     const card = message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD];
-    if (card) refreshSheets(new Set(Object.values(card.subjects ?? {}).map((s) => s.uuid)));
+    if (card) refreshSheets(new Set(cardSubjectUuids(card)));
   });
   Hooks.on("updateToken", (token, change) => {
     if (["x", "y", "width", "height", "hidden"].some((key) => key in (change ?? {}))) refreshSheets();

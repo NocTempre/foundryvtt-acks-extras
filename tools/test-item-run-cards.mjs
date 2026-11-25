@@ -10,7 +10,7 @@
  * Usage: node tools/test-item-run-cards.mjs
  */
 import assert from "node:assert/strict";
-import { admittedWithCount, applyPatch, blankTip, engagedCardKey, engagedCardModel, engagedEntry, freshKey, importTip, isCountedIn, moraleLine, newCard, newEngagedCard, openEngagedOf, ownsEveryBearer, patchCountIn, patchEngagedClose, patchEngagedPrompt, patchEngagedReopen, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, signedFigure, standingCardAct, standingPartTip, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
+import { admittedWithCount, applyPatch, blankTip, cardSubjectUuids, engagedCardKey, engagedCardModel, engagedEntry, freshKey, importTip, isCountedIn, moraleLine, newCard, newEngagedCard, openEngagedEntryFor, openEngagedOf, ownsEveryBearer, patchCountIn, patchEngagedClose, patchEngagedPrompt, patchEngagedReopen, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, signedFigure, standingCardAct, standingPartTip, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
 
 class ForcedDeletion {}
 globalThis.foundry = { data: { operators: { ForcedDeletion } } };
@@ -406,6 +406,28 @@ t("the whispered save card of a closed engaged row reads who closed it and offer
   assert.deepEqual([closed.sections[0].rows[0].outcome, closed.sections[0].rows[0].emphasis, closed.sections[0].rows[0].actions], ["Not engaged · Judge", "muted", undefined], "no roll once the row is closed");
   const open = saveCardModel({ title: "x", subtitle: "y", words, target: 11, ids, subject: "T.s", entryKey: "k", messageId: "M1", entry: { state: "open" }, canPress: true });
   assert.equal(open.sections[0].rows[0].actions[0].action, "itemRun.roll", "an open row's roll is as it was");
+});
+
+t("the strip finds the open engaged entry of a subject and kind across the chat's messages, and the token uuids a card concerns", () => {
+  const entryOf = (state, over = {}) => ({ subject: "T.s", kindKey: "kindT", state, ...over });
+  const message = (id, kind, extra) => ({ id, flags: { "acks-extras": { itemRunCard: { kind, ...extra } } } });
+  const messages = [
+    message("M1", "engaged", { subject: { uuid: "T.s" }, entries: { a: entryOf("applied") } }),
+    message("M2", "engaged", { subject: { uuid: "T.s" }, entries: { b: entryOf("open"), c: entryOf("open", { kindKey: "kindU" }), d: entryOf("open", { subject: "T.o" }) } }),
+    message("M3", "raised", { entries: { e: entryOf("open") } }),
+    { id: "M4", flags: {} },
+  ];
+  const found = openEngagedEntryFor(messages, { subjectUuid: "T.s", kindKey: "kindT" });
+  assert.deepEqual([found.messageId, found.entryKey, found.entry.state], ["M2", "b", "open"], "this subject's open row of this kind, on the engaged card that holds it");
+  assert.equal(openEngagedEntryFor(messages.slice(0, 1), { subjectUuid: "T.s", kindKey: "kindT" }), null, "an answered entry is not open");
+  assert.equal(openEngagedEntryFor(messages, { subjectUuid: "T.s", kindKey: "kindX" }), null, "another kind's row is not this one");
+  assert.equal(openEngagedEntryFor(messages.slice(2), { subjectUuid: "T.s", kindKey: "kindT" }), null, "a raised card's entries are not engaged rows");
+  assert.equal(openEngagedEntryFor(null, { subjectUuid: "T.s", kindKey: "kindT" }), null);
+  assert.deepEqual(cardSubjectUuids({ kind: "engaged", subject: { uuid: "T.s" }, entries: { b: entryOf("open"), d: entryOf("open", { subject: "T.o" }) } }), ["T.s", "T.o"], "an engaged card concerns its subject and its entries' subjects, once each");
+  assert.deepEqual(cardSubjectUuids({ subjects: { a: { uuid: "T.a" }, b: { uuid: "T.b" } } }), ["T.a", "T.b"], "a raised card concerns the subjects it lists");
+  assert.deepEqual([cardSubjectUuids(null), cardSubjectUuids({})], [[], []]);
+  assert.equal(stripModel([{ key: "k", name: "n", tag: "failed", timed: true }]).rows[0].timed, true, "a timed failure is marked for its own tooltip");
+  assert.equal("timed" in stripModel([{ key: "k", name: "n", tag: "failed" }]).rows[0], false, "and every other row is as it was");
 });
 
 console.log(`\ntest-item-run-cards: ${passed} checks passed.`);

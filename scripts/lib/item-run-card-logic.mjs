@@ -14,6 +14,7 @@
  * page that prints the procedure), or nothing behind it (`blankTip`, the page
  * reference alone, no number and no words saying it is missing).
  */
+import { FLAG_ITEM_RUN_CARD, MODULE_ID } from "./constants.mjs";
 import { isUnset, numOrNull, unset } from "./util.mjs";
 
 /** The tooltip of a figure read from an imported table: the row's label, the figure and the page the importer read it from. Null where there is no page to point at. */
@@ -403,6 +404,36 @@ export const patchEngagedReopen = (key) => ({ [`entries.${key}.state`]: "open", 
 export const openEngagedOf = (card, { subjectUuid, kindKey }) => Object.entries(card?.entries ?? {}).filter(([, e]) => e.subject === subjectUuid && e.kindKey === kindKey && e.state === "open");
 
 /**
+ * The open engaged entry of one subject and item kind across the chat's
+ * messages, as the sheet's strip finds it: `{messageId, entryKey, entry}`, or
+ * null where none is open. A later moment strikes the earlier open row of a
+ * kind, so a subject holds at most one and the newest message is the answer.
+ *
+ * @param {Iterable<object>} messages chat messages, as `game.messages` holds them
+ * @param {{subjectUuid: string, kindKey: string}} p
+ */
+export function openEngagedEntryFor(messages, { subjectUuid, kindKey }) {
+  let found = null;
+  for (const message of messages ?? []) {
+    const card = message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD];
+    if (card?.kind !== "engaged") continue;
+    const open = openEngagedOf(card, { subjectUuid, kindKey }).at(-1);
+    if (open) found = { messageId: message.id, entryKey: open[0], entry: open[1] };
+  }
+  return found;
+}
+
+/**
+ * The token uuids a stored card concerns, for the sheets its change should
+ * re-render: an engaged card's subject with its entries' subjects, a raised or
+ * once-only card's listed subjects.
+ */
+export function cardSubjectUuids(card) {
+  if (card?.kind === "engaged") return [...new Set([card.subject?.uuid, ...Object.values(card.entries ?? {}).map((e) => e?.subject)].filter(Boolean))];
+  return Object.values(card?.subjects ?? {}).map((s) => s?.uuid).filter(Boolean);
+}
+
+/**
  * Whether a seat owns every bearer an entry names, by the caller's test of one
  * token's uuid. An entry that names no bearer is owned by nobody: nothing says
  * whose call it is.
@@ -553,6 +584,7 @@ export function stripModel(reaches) {
       leftTip: r.leftTip ?? "",
       part: r.part ?? null,
       press: r.press ?? null,
+      ...(r.timed === true ? { timed: true } : {}),
     }))
     .sort((a, b) => STRIP_ORDER.indexOf(a.tag) - STRIP_ORDER.indexOf(b.tag) || a.at - b.at)
     .map(({ at: _at, ...row }) => row);

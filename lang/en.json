@@ -631,6 +631,7 @@
   "ACKS-LIB.itemRun.strip.tagTip.owed": "This body is asked for a save now. Save rolls it here and writes the same entry as the cards.",
   "ACKS-LIB.itemRun.strip.tagTip.waiting": "This body is inside the reach, and its moment has not come.",
   "ACKS-LIB.itemRun.strip.tagTip.failed": "This body's save failed. Its condition stays until the item is lowered or the Judge undoes it.",
+  "ACKS-LIB.itemRun.strip.tagTip.failedTimed": "This body's save failed. Its condition ends when its turns run out on the world clock, or when the entry is undone on the card.",
   "ACKS-LIB.itemRun.strip.tagTip.always": "A standing reach: it needs no press and applies while this body is inside.",
   "ACKS-LIB.itemRun.strip.tagTip.immune": "This body passed its save. The window is counted on the world clock.",
   "ACKS-LIB.itemRun.strip.tip.from": "from {source}",

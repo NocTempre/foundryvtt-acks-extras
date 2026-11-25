@@ -777,4 +777,103 @@ await t("T10: the failed save's well names the condition and the timed interval,
   game.combat = null;
 });
 
+await t("T10: the strip reads an engaged reach from the engaged card and the subject's records: owed with a press on the card's entry for the subject token's owners alone, Failed from the lasts record with its turns left, Immune, and Waiting with neither; one row per kind, and a card change re-renders the subject's open sheets", async () => {
+  const { reachStripFor, pressStripSave, installItemRunStrip } = await import("../scripts/lib/item-run-strip.mjs");
+  const { lastsRecordId, immunityRecordData, immuneRecordId } = await import("../scripts/lib/item-run-logic.mjs");
+  globalThis.CONST = { TOKEN_DISPLAY_MODES: { NONE: 0, OWNER_HOVER: 20, OWNER: 40, ALWAYS: 50 } };
+  globalThis.fromUuidSync = (uuid) => t10.items[uuid] ?? t10.tokens[uuid] ?? t10.prior(uuid);
+  const cell = (v) => Math.floor(v / 100);
+  const regionOf = (bearerId, activationId) => ({ hidden: false, attachment: { token: bearerId }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.t10", bearerUuid: "A.b", activationId, rowKey: "engaged" } }] });
+  const r1 = regionOf("eb1", "engaged:r1");
+  const r2 = regionOf("eb2", "engaged:r2");
+  const scene = { id: "sc-t10", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) }, regions: [r1, r2], tokens: { get: (id) => Object.values(t10.tokens).find((tk) => tk.id === id) } };
+  r1.parent = scene;
+  r2.parent = scene;
+  const subject = t10.tokens["E.s"];
+  for (const [key, x] of Object.entries({ "E.b1": 100, "E.b2": 300, "E.s": 0 })) Object.assign(t10.tokens[key], { parent: scene, x, y: 0, width: 1, height: 1, displayName: 50 });
+  subject.regions = new Set([r1, r2]);
+  const effects = [];
+  effects.get = (id) => effects.find((e) => e.id === id);
+  Object.assign(subject.actor, { testUserPermission: ownedBy("gm", "pe", "pn"), getActiveTokens: () => [subject], effects });
+  const [message] = engagedMessages();
+  const key = "c1:2:1:E~s:kindT";
+  const setEntry = (patch) => message.update(Object.fromEntries(Object.entries(patch).map(([k, v]) => [`flags.acks-extras.itemRunCard.entries.${key}.${k}`, v])));
+  const rowsFor = (userId) => {
+    me.current = users.find((u) => u.id === userId);
+    return reachStripFor(subject.actor)?.rows ?? [];
+  };
+
+  // Owed: an open entry of this subject and kind. The press names that entry on that card.
+  await setEntry({ state: "open", saved: unset(), immune: unset() });
+  assert.equal(engagedCard(message).entries[key].state, "open");
+  let rows = rowsFor("pe");
+  assert.equal(rows.length, 1, "two bearers of one kind are one row");
+  assert.deepEqual([rows[0].tag, rows[0].name, rows[0].source, rows[0].feet], ["owed", "T10", "Champion 1", 0], "the row is the nearest bearer's");
+  assert.deepEqual(rows[0].press, { itemUuid: "I.t10", rowKey: "engaged", activationId: "engaged:r1", subject: "E.s", messageId: message.id, entryKey: key }, "the Save names the engaged card's entry, which the carrier's press reads the item, row and activation from");
+  assert.equal(rows[0].tagTip, "ACKS-LIB.itemRun.strip.tagTip.owed");
+  const ownsToken = subject.testUserPermission;
+  subject.testUserPermission = ownedBy("gm");
+  assert.equal(rowsFor("pe")[0].press, null, "a seat that owns the body and not its token has the row and no press");
+  const warned = [];
+  const warn = ui.notifications.warn;
+  ui.notifications.warn = (m) => warned.push(m);
+  await pressStripSave({ dataset: { subject: "E.s", itemUuid: "I.t10", rowKey: "engaged", activationId: "engaged:r1", messageId: message.id, entryKey: key } });
+  ui.notifications.warn = warn;
+  assert.deepEqual(warned, ["ACKS-LIB.itemRun.refused.notOwner"], "the strip's press is refused for a seat that does not own the token");
+  subject.testUserPermission = ownsToken;
+  assert.ok(rowsFor("pe")[0].press, "the token's owner has it");
+
+  // Failed: the entry is answered and the lasts record stands on the body.
+  await setEntry({ state: "applied", saved: false });
+  assert.equal(rowsFor("pe")[0].tag, "waiting", "an answered entry with no record reads nothing but waiting");
+  effects.push({ id: lastsRecordId("kindT"), disabled: false, flags: { "acks-extras": { itemRun: { dueAt: 1800 } } } });
+  rows = rowsFor("pe");
+  assert.deepEqual([rows[0].tag, rows[0].left, rows[0].press], ["failed", 3, null], "the lasts record reads Failed with its turns left from its dueAt, and no press");
+  assert.equal(rows[0].leftTip, "T10 · ACKS-LIB.itemRun.strip.tip.window · MM p. 57", "the window's tooltip names the item, the window and the page");
+  assert.equal(rows[0].tagTip, "ACKS-LIB.itemRun.strip.tagTip.failedTimed", "and says how a timed failure ends");
+  effects[0].flags["acks-extras"].itemRun = {};
+  assert.deepEqual([rowsFor("pe")[0].tag, rowsFor("pe")[0].left, rowsFor("pe")[0].leftLabel], ["failed", null, ""], "a record with no clock reads Failed with no turns");
+  effects[0].id = lastsRecordId("kindU");
+  assert.equal(rowsFor("pe")[0].tag, "waiting", "another kind's record is not read");
+  effects.length = 0;
+
+  // Immune: the window's own parts shape, as the pass writes it.
+  const written = immunityRecordData({ name: "T10", spellKey: "kindT", source: "I.t10", activationId: "card", rowKey: "engaged", dueAt: 1200, cite: "MM p. 57", id: immuneRecordId("kindT"), cardId: "card", entryKey: key });
+  effects.push({ id: written._id, disabled: false, flags: written.flags });
+  rows = rowsFor("pe");
+  assert.deepEqual([rows[0].tag, rows[0].left, rows[0].press], ["immune", 2, null], "a window written by the pass reads Immune with its turns left");
+  effects.length = 0;
+
+  // Waiting: no open entry and no record. A closed or undone entry is not owed.
+  rows = rowsFor("pe");
+  assert.deepEqual([rows[0].tag, rows[0].press ?? null, rows[0].left], ["waiting", null, null], "no entry and no record reads Waiting");
+  for (const state of ["closed", "undone"]) {
+    await setEntry({ state });
+    assert.equal(rowsFor("pe")[0].tag, "waiting", `a ${state} entry is not owed`);
+  }
+  await setEntry({ state: "open", saved: unset() });
+  assert.equal(rowsFor("pe")[0].tag, "owed", "reopened, it is owed again");
+  assert.equal(rowsFor("pn")[0].press, null, "a seat that owns the actor and not the token has the row and no press");
+
+  // The refresh hook: an engaged card names a subject, not a list of subjects.
+  const hooked = {};
+  const priorOn = globalThis.Hooks.on;
+  globalThis.Hooks.on = (name, fn) => { hooked[name] = fn; };
+  installItemRunStrip();
+  globalThis.Hooks.on = priorOn;
+  let renders = 0;
+  const sheet = { rendered: true, document: Object.assign(subject.actor, { documentName: "Actor", isToken: false }), render() { renders += 1; } };
+  globalThis.foundry.applications = { instances: new Map([["w", sheet]]) };
+  hooked.updateChatMessage(message);
+  assert.equal(renders, 1, "an engaged card's change re-renders the open sheet of its subject");
+  hooked.updateChatMessage(engagedMessages().find((m) => engagedCard(m).subject.uuid === "E.s2"));
+  assert.equal(renders, 1, "and not another subject's");
+  hooked.updateChatMessage({ flags: { "acks-extras": { itemRunCard: { subjects: { a: { uuid: "E.s" } } } } } });
+  assert.equal(renders, 2, "a raised card still names the subjects it lists");
+  delete globalThis.foundry.applications;
+  subject.regions = new Set();
+  me.current = users[0];
+  globalThis.fromUuidSync = t10.prior;
+});
+
 console.log(`\ntest-item-run-presenter: ${passed} checks passed.`);
