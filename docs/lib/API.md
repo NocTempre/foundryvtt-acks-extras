@@ -1,4 +1,4 @@
-# lib API (apiVersion 87)
+# lib API (apiVersion 88)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 87,
+  apiVersion: 88,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -73,6 +73,7 @@ acksExtras.lib = {
   // 73: fields.unitField; org.{orgHostOf, orgHosts, unitsOf, chartRows, addRow, setHolder, sendOut, recall, join, leave, orgChart, locations, chartOf, rostersHolding, moraleFromUnitsAbove, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys, isEmptyRow, affiliationRows, registerOrgIndex} (below, "`org` — the organisation chart"); a faction and a group carry `system.units`
   // 86: a stack's `gen` carries `formula` and `thrown`; org.editRow's and planEdit's stack change takes `thrown` (below, "`org` — the organisation chart")
   // 87: light.{MAGIC_LIGHT_CITE_FLAG, magicLightChanges, magicLightRecord, magicLightCite}; light.magicLights entries carry `cite`; fields.effectField carries `lightBands` (docs/lib/MODEL.md, "Perception: senses, light, and the token")
+  // 88: a group roster record carries `tokenSize`, the size a hand gave its body token, kept across a gather; the token flags `FLAG_FOOTPRINT_LOCK` and `FLAG_SIZE_STAMP` live in lib/constants.mjs (docs/lib/GROUPS.md, "A size a hand gave a body")
 }
 ```
 
