@@ -425,7 +425,9 @@ treasure-deal`), one section per step to step 7; step 8 by
 `tools/live/treasure-magic-deal.mjs`, whose census of every treasure type's
 magic placeholders, counted by match outcome, is its first observable. Step
 3's jewelry observables are asserted by `treasure-deal`'s own step 8 (a
-jewelry letter chosen from the cells, ten hoards on the real dice). Each
+jewelry letter chosen from the cells, ten hoards on the real dice), its clause
+observables by `treasure-magic-deal`'s gritty step (a cell read in part, dealt;
+no cell of the three grids refused whole while a clause of it reads alone). Each
 walk's header lists the gestures that are scripted and what it does not reach.
 Offline coverage is `tools/test-treasure-deal.mjs` (the stored deal state, the
 rows and their edits, the letters a Deal sends, the warning, the fake world's deal),
