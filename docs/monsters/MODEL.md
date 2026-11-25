@@ -607,7 +607,10 @@ already mint, so no troop, trait or item name is in source:
   attack]}`), `attack`, `morale`, `armourBump`, `outnumber` (`[allies,
   opponents]`), `round`, `strategy`, `proficiency`, `proficiencyRanks`,
   `treasurePct`, `beastDice`, `saveKind`, `condition`, `immunityTurns`,
-  `durationTurns`, `durationMinutes`, `outnumberedMorale` (the morale figure of
+  `durationTurns`, `durationMinutes`, `subjectKinds` (the words naming who the
+  save is asked of, read as printed and folded onto kind keys at generation),
+  `whileEngaged` (present where the paragraph holds the subject to being
+  engaged by the bearer), `outnumberedMorale` (the morale figure of
   a clause that prints no ratio), `targetCondition` (the word an attack bonus
   waits on) and `waivesRun`.
 - `beastmanOrganisation` (MM pp. 47, 54, 55): one block per page, `split`
@@ -835,6 +838,29 @@ the disorder through `implies`; `disordered` itself is never waived, so a bare
 run toggled by hand, and a withdrawal made without declaring it, stay with the
 Judge and are two lines in the notes (`organisation.kind.run`,
 `organisation.kind.withdrawal`, with the page) wherever `waivesRun` is read.
+
+**An engaged reach rides on the trait's ability, for every role.** A trait row
+that holds `saveKind` calls a save of the creatures the bearer engages, and its
+ability item (the same `organisationAbility`) gains one more row beside any
+gated specs: `{key: "engaged", type: "conditionGrant", appliesTo: "opponent",
+conditions: [id], reach}`. The reach is `{engaged: true, pulse:
+"turnStart+enter", showReach: false, filter: {kinds, exceptKinds: [], side:
+"opposing", unit: "any"}, save, immunity, lasts}`: `kinds` is `subjectKinds`
+folded onto kind keys with lib's `matchKinds` (the race categories and
+`MONSTER_TYPES`), `id` is `condition` folded with `matchCondition`, and
+`save`, `immunity` and `lasts` are live references `{doc: "monsters", table:
+"beastmanTraitRules", row, figure}` to `saveKind`, `immunityTurns` and
+`durationTurns`, read at use and blank where the import left them blank. The
+row names no activation, so the item runner raises its reach whenever the
+bearer is a combatant and never on a press. A body that takes no trait figure (a
+caster, a dependant, a noncombatant) takes this row alone, no gated spec or
+waiver; a fighter takes it beside them. A part that does not resolve (a
+qualifier unread or naming a word that matches no key, a condition word that
+folds to none, a paragraph that does not hold its subject engaged) writes no row
+and is listed on `extras.organisation.unresolved` as `{kind: "trait", key,
+figure, word}` and passed to `warn`. The trait stays on
+`extras.organisation.trait` and keeps its note line either way. A troop row's
+`saveKind` is no engaged reach.
 
 **The fold.** A condition word is imported text (`targetCondition`, read
 from the page by the recipe), and `matchCondition` folds it at generation: a
