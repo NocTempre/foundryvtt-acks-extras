@@ -44,6 +44,7 @@ import { buildServicePanel } from "../henchmen/service-view.mjs";
 import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
 import { getManager } from "../henchmen/acks-adapter.mjs";
 import { blankedFigures, blankUnreadRows } from "./unread-figures.mjs";
+import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 const loc = makeLoc("ACKS-MONSTERS");
@@ -79,7 +80,6 @@ const TAB_LIST = Object.freeze([
   { id: "animal", label: "ACKS-MONSTERS.tab.animal" },
   { id: "attacks", label: "ACKS-MONSTERS.tab.attacks" },
   { id: "abilities", label: "ACKS-MONSTERS.tab.abilities" },
-import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
   { id: "inventory", label: "ACKS-MONSTERS.tab.inventory" },
   { id: "spoils", label: "ACKS-MONSTERS.tab.spoils" },
   { id: "defenses", label: "ACKS-MONSTERS.tab.defenses" },
