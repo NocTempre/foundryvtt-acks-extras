@@ -145,7 +145,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
       // weapon's qualities included. One not imported has a blank figure; the
       // row still rolls, as the weapon die's does, without the penalty.
       const manRows = Object.entries(MANEUVERS).map(([key, m]) => {
-        const man = maneuverMods(actor, profile, key);
+        const man = maneuverMods(actor, profile, key, { hooked: profile.hooked });
         const penalty = man.attackPenalty;
         const saveLine = m.save ? loc("itemSheet.rolls.maneuver.save", { save: m.save }) : loc("itemSheet.rolls.maneuver.noSave");
         return {

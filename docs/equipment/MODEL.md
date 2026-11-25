@@ -1136,9 +1136,21 @@ reader's own book gave them. Nothing falls back to a shipped number.
   this actor's Trickery and this weapon's qualities give, its tooltip naming
   the parts and the pages (`citeOf`, or "set in the Ruledata Browser" for an
   override); with a part unread the row's figure and tooltip are blank, and it
-  stays rollable and rolls without the penalty. The
-  `hooked`, `targetShaft` and `targetTwoHanded` options have no caller in the
-  module: they are API only.
+  stays rollable and rolls without the penalty. A weapon is hooked
+  (`classifyWeapon`'s `hooked`) when it carries the item flag
+  `flags.acks-extras.hooked` or the tag `hooked` in core's own tag list, so a
+  Judge marks any weapon with core's tag editor; the Rolls tab and
+  `attackThrowRows` pass it to `maneuverMods`, and a generated beastman's melee
+  weapons carry the flag (`docs/monsters/MODEL.md`, "Equipment"). On a monster,
+  which has no loadout, `attackThrowRows` still answers the manoeuvre's row from
+  the weapon item alone. The `targetShaft` and `targetTwoHanded` options have
+  no caller in the module: they are API only. The hooked figures' save part
+  reaches the Rolls tab's tooltip only; no path rolls a manoeuvre's save.
+  A `maneuverRider` row on an ability (`{maneuvers, dice}`, a `CONSUMED_TARGETS`
+  entry read by `damageRows`) adds `+<dice>` to the damage of a declared
+  manoeuvre it names, labelled with the carrier's name and page; it follows
+  `overlayManeuvers` like every manoeuvre part, adds nothing to another
+  manoeuvre, and leaves the weapon's own damage as it is.
 - **A spell book's pages and value** (`spellbook.mjs`). Three `equipment`
   tables, each a one-figure `proseValues` read from its own page so its tooltip
   names that page: `spellBookPages` (RR p. 145, the pages a blank book holds),

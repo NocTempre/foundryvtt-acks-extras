@@ -255,6 +255,66 @@ check("each piece is named in both prose channels with its page", g.r.system.det
 check("nothing chosen, nothing written", applyGeneratedOrganisation({ system: {} }, { choices: { troop: NO_TROOP, trait: NO_TRAIT, gear: [] }, org }) === null);
 check("a table not imported writes nothing", gen({ troop: "ra", role: "standard" }, {}, { org: { ...org, troopRules: { rows: [], cite: null }, troops: { rows: [], cite: null } } }).r.system.ac.value === 5);
 
+/* --- gear: a marking, an armour rider, a hooked weapon ------------------------------------ */
+const gearOrg = {
+  ...org,
+  equipment: {
+    cite: "XX p. 6",
+    rows: [
+      { key: "gm", label: "Gear M", figures: { ac: 1, reductionPerDie: 2 } },
+      { key: "gr", label: "Gear R", figures: { riderDice: "1d4" } },
+      { key: "gh", label: "Gear H", figures: { figuresFrom: "hookedWeapon", ranks: ["champion"] } },
+      { key: "gz", label: "Gear Z", figures: {} },
+      { key: "gb", label: "Gear B", figures: { riderDice: "much", reductionPerDie: 0 } },
+    ],
+  },
+};
+const weaponsOf = () => [
+  { name: "Blade", type: "weapon", system: { melee: true, missile: false } },
+  { name: "Sling", type: "weapon", system: { melee: false, missile: true } },
+  { name: "Marker", type: "weapon", system: { damage: { base: { formula: "By weapon" } } } },
+  { name: "Quill", type: "ability" },
+];
+const withGear = (gearKeys, role = "standard", items = weaponsOf()) => {
+  const r = { system: { ac: { value: 5 }, details: { morale: 0, biography: "" } }, flags: { [MID]: { extras: { description: {} } } }, items };
+  const d = applyGeneratedOrganisation(r, { choices: { gear: gearKeys, role }, org: gearOrg, noteLine: () => "" });
+  return { r, d, items: r.items, abilities: r.items.filter((i) => i.type === "ability" && i.flags?.[MID]?.cookbook) };
+};
+let w = withGear(["gm"]);
+{
+  const ab = w.abilities[0];
+  check("a marking writes one ability named by the row, its page and a gear cookbook id", w.abilities.length === 1 && ab.name === "Gear M" && ab.flags[MID].cookbook.id === "organisation.gear.gm" && ab.flags[MID].cookbook.cite === "XX p. 6");
+  eq("its spec is a per-die reduction gated on a mundane weapon", ab.flags[MID].extras.effects, [{ type: "modifier", target: "damageReduction", perDie: true, value: 2, gate: { kind: "weaponMundane" } }]);
+  check("the armour class bump is written as a standing gear part beside the troop's and the trait's", w.r.system.ac.value === 6 && w.d.ac.gear === 1 && w.d.ac.troop === null && w.d.ac.trait === null && w.d.ac.base === 5);
+  eq("the derivation lists the row that gave the bump, with its page", w.r.flags[MID].extras.derived.organisation.gear, [{ label: "Gear M", cite: "XX p. 6" }]);
+  check("the marking leaves the weapons unflagged", w.items.every((i) => !i.flags?.[MID]?.hooked));
+}
+w = withGear(["gr"]);
+eq("an armour rider writes an ability with a maneuverRider row naming the two manoeuvres and the dice", w.abilities[0].flags[MID].extras.effects, [{ type: "modifier", target: "maneuverRider", maneuvers: ["overrun", "wrestling"], dice: "1d4" }]);
+check("a rider writes no armour class part", w.r.system.ac.value === 5 && w.d === null);
+w = withGear(["gh"]);
+eq("a hooked row flags the melee weapons and leaves the missile one and the ability alone", w.items.map((i) => !!i.flags?.[MID]?.hooked), [true, false, true, false]);
+check("and mints no ability item", w.abilities.length === 0);
+w = withGear(["gz", "gb"]);
+check("a row whose figures are blank, a die text that is no die and a zero reduction write nothing", w.abilities.length === 0 && w.r.system.ac.value === 5 && w.d === null && w.items.length === 4 && w.items.every((i) => !i.flags));
+w = withGear(["gm", "gr", "gh"]);
+check("three rows write two abilities and flag the melee weapons; the bump is the marking's", w.abilities.length === 2 && w.r.system.ac.value === 6 && w.items.filter((i) => i.flags?.[MID]?.hooked).length === 2);
+w = withGear(["gm", "gr", "gh"], "shaman");
+check("a caster carries none of it", w.abilities.length === 0 && w.r.system.ac.value === 5 && w.items.every((i) => !i.flags));
+check("no gear chosen mints no item and flags no weapon (a basic entry stays stat-only)", (() => { const r = { system: { ac: { value: 5 } }, flags: {}, items: weaponsOf() }; applyGeneratedOrganisation(r, { choices: { trait: NO_TRAIT, gear: [], role: "standard" }, org: gearOrg }); return r.items.length === 4 && r.items.every((i) => !i.flags); })());
+check("two bumps from two rows sum, each row listed", (() => {
+  const o = { ...gearOrg, equipment: { cite: "XX p. 6", rows: [{ key: "a", label: "A1", figures: { ac: 1 } }, { key: "b", label: "B1", figures: { ac: 2 } }] } };
+  const r = { system: { ac: { value: 5 } }, flags: { [MID]: { extras: {} } }, items: [] };
+  const d = applyGeneratedOrganisation(r, { choices: { gear: ["a", "b"], role: "standard" }, org: o });
+  return r.system.ac.value === 8 && d.ac.gear === 3 && r.flags[MID].extras.derived.organisation.gear.length === 2;
+})());
+{
+  const held = { derived: { organisation: w2derived() }, ac: 6 };
+  function w2derived() { const x = withGear(["gm"]); return x.r.flags[MID].extras.derived.organisation; }
+  const tip = derivationTips(held, (k, v) => (v ? `${k}|${v.value}|${v.base}|${v.parts}|${v.cite}` : k)).acTip;
+  check("the armour class hover names the gear part with the row's label and its page", tip.includes("|6|5|") && tip.includes("+1 Gear M") && tip.endsWith("XX p. 6"));
+}
+
 /* --- natural attacks ------------------------------------------------------------------ */
 eq("one weapon per listed die, a bare number a flat die, a text without a die none", naturalAttackItems(["1d2-1", "x", "3", "1d3 - 1"], (n) => `a${n}`).map((i) => [i.name, i.system.damage.base.formula]), [["a1", "1d2-1"], ["a2", "3"], ["a3", "1d3-1"]]);
 const marked = (variant) => ({ system: { ac: { value: 5 }, details: {} }, flags: { [MID]: { extras: { organisation: { naturalAttacks: { variant, trait: "ta" } } } } }, items: [] });

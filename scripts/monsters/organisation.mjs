@@ -19,6 +19,8 @@ import { damageModOf, UNARMOURED } from "./kits.mjs";
 import { CONDITIONS, CONDITION_IDS } from "../lib/conditions.mjs";
 import { RANGE_BANDS } from "../lib/roll-gate-kinds.mjs";
 import { namesakeAbility } from "../importer/stats-map.mjs";
+import { MANEUVER_TABLES } from "../equipment/overlays/maneuvers.mjs";
+import { ITEM_FLAGS } from "../equipment/constants.mjs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -273,6 +275,61 @@ export function organisationAbility(kind, row, specs) {
   return item;
 }
 
+/** The manoeuvres an armour's damage rider reaches (the `MANEUVERS` keys of equipment). */
+const RIDER_MANEUVERS = Object.freeze(["overrun", "wrestling"]);
+/** A rider's dice as the importer reads them: a die count and a face count. */
+const RIDER_DICE = /^\d+d\d+$/;
+
+/**
+ * What the chosen equipment rows write on a creature, by the row's figure keys
+ * and its `figuresFrom`, never by its key (the key is minted from the printed
+ * label). `gear` is `[{key, label, cite, figures}]`; a row that is not carried
+ * by a fighting creature (`fights` false) writes nothing, and no row at all
+ * writes nothing: a creature with no gear stays stat-only.
+ *
+ *   - `reductionPerDie` (a marking on the body): an ability item with a
+ *     `damageReduction` row `{perDie, value, gate: weaponMundane}`;
+ *   - `riderDice` (armour): an ability item with a `maneuverRider` row naming
+ *     `RIDER_MANEUVERS`, read at the damage roll by equipment's `damageRows`;
+ *   - `ac`: a standing armour class bump, summed into `ac` and its rows listed;
+ *   - `figuresFrom` the hooked-weapon table: the module's hooked flag on each
+ *     melee weapon item of `resolved.items` (mutated; missile weapons stay).
+ *
+ * A figure the import left blank writes nothing. Returns `{abilities, ac,
+ * armourRows, hooked}`: the ability items to add, the summed bump (null where no
+ * row has one), the `{label, cite}` of each row that gave it, and the count of
+ * weapons flagged.
+ */
+export function gearPayloads(gear, resolved, { fights = true } = {}) {
+  const out = { abilities: [], ac: null, armourRows: [], hooked: 0 };
+  if (!fights) return out;
+  for (const row of Array.isArray(gear) ? gear : []) {
+    const f = row.figures ?? {};
+    const specs = [];
+    const per = figure(f.reductionPerDie);
+    if (per !== null && per > 0) specs.push({ type: "modifier", target: "damageReduction", perDie: true, value: per, gate: { kind: "weaponMundane" } });
+    const dice = text(f.riderDice);
+    if (dice && RIDER_DICE.test(dice)) specs.push({ type: "modifier", target: "maneuverRider", maneuvers: [...RIDER_MANEUVERS], dice });
+    const item = organisationAbility("gear", row, specs);
+    if (item) out.abilities.push(item);
+    const bump = figure(f.ac);
+    if (bump !== null && bump !== 0) {
+      out.ac = (out.ac ?? 0) + bump;
+      out.armourRows.push({ label: row.label, cite: row.cite ?? "" });
+    }
+    if (f.figuresFrom === MANEUVER_TABLES.hooked) {
+      for (const w of Array.isArray(resolved?.items) ? resolved.items : []) {
+        const melee = w?.system?.melee === true || (w?.system?.melee == null && !w?.system?.missile);
+        if (w?.type !== "weapon" || !melee) continue;
+        w.flags ??= {};
+        w.flags[MODULE_ID] = { ...(w.flags[MODULE_ID] ?? {}), [ITEM_FLAGS.HOOKED]: true };
+        out.hooked++;
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * The effect specs one troop or trait row's figures give, built from the
  * recipe's VALUE keys only (never a row key), and the figures that could not be
@@ -466,9 +523,11 @@ export function naturalAttackItems(dice, name) {
  * waiver (`organisationSpecs`), and a word that does not fold, a band outside
  * `RANGE_BANDS` or a ratio that is no pair writes no spec and is listed on
  * `extras.organisation.unresolved` and passed to `warn`. A standing figure and a
- * gated spec never share a figure. Everything else ranged, activated or
- * generated (the rest of a row's figures, the gear) is RECORDED on
- * `extras.organisation` as the row's figures and not applied. A figure not
+ * gated spec never share a figure. The chosen equipment rows write what
+ * `gearPayloads` returns for a fighting creature: ability items, an armour
+ * class bump (the `gear` part) and the hooked flag on its melee weapons.
+ * Everything else ranged, activated or generated (the rest of a row's figures)
+ * is RECORDED on `extras.organisation` as the row's figures and not applied. A figure not
  * imported writes nothing. The parts go to
  * `extras.derived.organisation` for the sheet's tooltips. A noncombatant, and a
  * caster or dependant role, takes no troop figure and no armour bump.
@@ -513,10 +572,11 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
   const hasTroopAc = figure(t.armourBump) != null || figure(t.acReduction) != null;
   const troopAc = (figure(t.armourBump) ?? 0) - (figure(t.acReduction) ?? 0);
   const traitAc = fights ? figure(r.armourBump) : null;
-  if (acBase !== null && (hasTroopAc || traitAc !== null)) {
-    const value = acBase + (hasTroopAc ? troopAc : 0) + (traitAc ?? 0);
+  const built = gearPayloads(gear, resolved, { fights });
+  if (acBase !== null && (hasTroopAc || traitAc !== null || built.ac !== null)) {
+    const value = acBase + (hasTroopAc ? troopAc : 0) + (traitAc ?? 0) + (built.ac ?? 0);
     system.ac = { ...(system.ac ?? {}), value };
-    parts.ac = { base: acBase, troop: hasTroopAc ? troopAc : null, trait: traitAc, value };
+    parts.ac = { base: acBase, troop: hasTroopAc ? troopAc : null, trait: traitAc, ...(built.ac !== null ? { gear: built.ac } : {}), value };
   }
   if (figure(t.attack) !== null) {
     const mod = system.attack?.mod ?? {};
@@ -587,11 +647,17 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
     const item = organisationAbility(kind, row, built.specs);
     if (item) (resolved.items ??= []).push(item);
   }
+  if (built.abilities.length) (resolved.items ??= []).push(...built.abilities);
   for (const u of unresolved) warn(`${u.kind}: no gated figure written, the printed ${u.figure} does not resolve`);
   if (unresolved.length) record.unresolved = unresolved;
 
   extras.organisation = record;
-  const derived = { ...(troop ? { troop: { label: troop.label, cite: troop.cite } } : {}), ...(trait ? { trait: { label: trait.label, cite: trait.cite } } : {}), ...parts };
+  const derived = {
+    ...(troop ? { troop: { label: troop.label, cite: troop.cite } } : {}),
+    ...(trait ? { trait: { label: trait.label, cite: trait.cite } } : {}),
+    ...(parts.ac?.gear !== undefined ? { gear: built.armourRows } : {}),
+    ...parts,
+  };
   if (Object.keys(parts).length) extras.derived = { ...(extras.derived ?? {}), organisation: derived };
 
   // The prose: each piece named with its page.

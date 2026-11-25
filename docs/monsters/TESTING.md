@@ -620,6 +620,48 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
    creature, `extras.organisation.unresolved` lists the figure, the console
    carries the warning; restoring the word brings the row back on the next
    creature.
+16. Generate a standard creature with no gear pinned, and one with the
+   equipment row that carries `reductionPerDie` pinned. *Observable:* the first
+   has no equipment ability item and no flagged weapon; the second has one ability
+   item named by the row (`flags["acks-extras"].cookbook.id` is
+   `organisation.gear.<key>`) whose spec is a per-die `damageReduction` gated on
+   `weaponMundane`, and its Armor Class carries the row's `ac` figure with the
+   gear part and the page in the hover on the Full Monster sheet. Hit it from a
+   token with a mundane weapon, then a magical one, and Apply the card.
+   *Observable:* the Apply card shows the per-die stage for the mundane weapon
+   and none for the magical one.
+17. Generate with the row whose `figuresFrom` is `hookedWeapon` pinned.
+   *Observable:* the creature's melee weapon items carry
+   `flags["acks-extras"].hooked`, a missile one does not. Turn the
+   `overlayManeuvers` world setting on (Settings tab → Game Settings → ACKS II —
+   Extras → Overlay: combat maneuvers) and drive a disarm through the API.
+   *Observable:* the card's throw lists the manoeuvre row carrying the hooked part
+   (an unflagged creature's disarm lists the base alone); with the setting off,
+   no manoeuvre row.
+18. Generate with the row that carries `riderDice` pinned, and drive a wrestle
+   and then an overrun through the same call. *Observable:* the card's damage
+   lists the row's label with its page and the dice as a signed fragment; a disarm
+   from the same creature lists none, and with `overlayManeuvers` off none appears
+   on any.
+19. On a character, tag a melee weapon `hooked` in core's tag editor (the
+   weapon sheet's tags) and open its Rolls tab. *Observable:* the Disarm row
+   shows the penalty with the hooked part and its page in the tooltip, and its
+   Roll puts that row on the card's throw; the same weapon untagged shows the
+   base alone. Marker `equipment/hooked-character`.
+
+**The gear rows (steps 16 to 19).** A creature has gear only by pin:
+`generateFromTemplate(template, {pins: {variant, role, gear: [<row key>]}})`,
+the key read from `importedOrganisation().equipment` by the row whose figures
+hold the key the step names, or by `figuresFrom` (never by label), then
+`api.track` it. A monster has no manoeuvre row on a weapon's Rolls tab, so a
+manoeuvre on a generated creature is driven the way that tab's Roll does:
+`actor.makeAttackThrow({item, attackType: "melee", acksLib: {maneuver:
+"disarm"}})`, the item a melee weapon of the creature; the card is read off the
+chat message. The rider and the hooked part are read from `damageRows` and
+`attackThrowRows` only while `overlayManeuvers` is on, a setting a peer may rely
+on, so ask before changing it and put it back. The weapon of a rank-and-file
+creature is the "by weapon" marker until a kit or an added weapon gives it a
+damage die; give it one (a created weapon item, tracked) to read a hit.
 
 **The gated rows (steps 11 to 15).** A second fixture, a target creature,
 carries `monsters/beastman-gates-target` and is found by it; it serves every

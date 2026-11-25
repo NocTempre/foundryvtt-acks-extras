@@ -835,10 +835,32 @@ parts (the surprise part, the waiver) in place. The gates are read at the roll
 the Armor Class (`conditions.mjs`); see [../lib/API.md](../lib/API.md),
 "Typed modifiers".
 
-Everything else ranged, activated or generated (the gear, and the rest of a
-row's figures) is not applied: `extras.organisation` records the chosen troop,
-trait and gear with each row's label, page and figures, and every piece is named
-with its page in both prose channels, for the later slices to read. The parts of every figure
+**Equipment** (`gearPayloads(gear, resolved, {fights})`) writes from a row's
+figure keys and its `figuresFrom`, never its key, and only for a fighting
+creature that was given a row: a creature with no equipment row stays stat-only,
+a blank figure writes nothing, and a caster or dependant carries none of it.
+
+| A row with | Writes |
+|---|---|
+| `reductionPerDie` | an ability item named by the row with a `damageReduction` spec `{perDie, value, gate: weaponMundane}`, read by `actorReductions` and staged at the Apply of a weapon hit |
+| `ac` | a standing bump into `ac.value`, the `gear` part of `extras.derived.organisation.ac`, and `extras.derived.organisation.gear` (`[{label, cite}]`) for the hover |
+| `riderDice` | an ability item with a `maneuverRider` spec `{maneuvers: [overrun, wrestling], dice}`, read by `damageRows` in `equipment/attack-mods.mjs` |
+| `figuresFrom: hookedWeapon` | the module's `hooked` item flag on each melee weapon item (a missile weapon stays unflagged) |
+
+The rider and the hooked part follow the equipment feature's `overlayManeuvers`
+world setting, since both are parts of a manoeuvre: `damageRows` adds the rider
+as a signed dice fragment, labelled with the carrier's name and page, only for a
+manoeuvre declared with the attack (`acksLib: {maneuver}`), and `maneuverMods`
+adds the hooked part to a disarm. A monster has no manoeuvre row on a weapon's
+Rolls tab, so a manoeuvre on a generated creature is declared through the
+attack call. The weapon's own damage on those manoeuvres is unchanged. The save
+part of the hooked figures reaches the Rolls tab's tooltip only: no path rolls a
+manoeuvre's save.
+
+Everything else ranged, activated or generated (the rest of a row's figures) is
+not applied: `extras.organisation` records the chosen troop, trait and gear with
+each row's label, page and figures, and every piece is named with its page in
+both prose channels, for the later slices to read. The parts of every figure
 written go to `extras.derived.organisation` (the value, the base it moved from
 and each source's part). Their tooltips (`derivationTips`) name the parts with
 the actor's own numbers and the page, only while the actor still holds the

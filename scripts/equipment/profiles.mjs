@@ -405,7 +405,7 @@ export function twoHandedDamage(damage, row) {
  * null, null and "" where nothing imported states them (the item itself, or a
  * row that carries the field): such a weapon is undecided to proficiency
  * (`isWeaponProficient`) and costs one hand.
- * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,grips}}
+ * @returns {{key,size,melee,missile,thrown,handy,hooked,twoHandedForced,damage,damage2h,type,cat,special,grips}}
  */
 export function classifyWeapon(item) {
   // `mflag`, not `getFlag`: the classifier is also asked about payload OBJECTS
@@ -454,6 +454,8 @@ export function classifyWeapon(item) {
     anyoneThrows: false,
     grips: GRIPS.has(flag(ITEM_FLAGS.GRIPS)) ? flag(ITEM_FLAGS.GRIPS) : null,
     styleHint: flag(ITEM_FLAGS.STYLE) ?? null,
+    // A hooked weapon: the module flag, or core's own `hooked` tag.
+    hooked: flag(ITEM_FLAGS.HOOKED) === true || tags.has("hooked"),
   };
   profile.anyoneThrows = throwsAsAnyone(item, profile, tags);
   return profile;

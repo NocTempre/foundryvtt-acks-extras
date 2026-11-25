@@ -279,3 +279,30 @@ the table. A creature generated under a troop kit shows the kit's modifier and
 the marker, as before. The Follower Card's shown damage now includes a
 weapon's own bonus on every body, which changes a figure a character's card
 showed.
+
+## 2026-11-24 — A beastman's equipment rows write by figure key, as abilities, a stat bump and an item flag
+
+**Ruled.** A chosen equipment row writes what its figures say, branching on the
+figure keys and `figuresFrom`, never on the row key (`gearPayloads`). A marking
+is an ability item (a per-die reduction gated on a mundane weapon) plus a
+standing Armor Class bump (the `gear` part); an armour's rider is an ability
+item with a `maneuverRider` row, read at the damage roll by equipment's
+`damageRows`; a hooked weapon is the module's `hooked` item flag on the melee
+weapons, which `classifyWeapon` reads with core's `hooked` tag. A creature with
+no equipment row stays stat-only (the owner: an equipment inventory is optional,
+not used for basic entries). A caster and a dependant carry none of it, as they
+take no armour bump from a trait.
+
+The rider and the hooked part follow the `overlayManeuvers` setting, since both
+are parts of a manoeuvre. A monster has no loadout, so `attackThrowRows` answers
+its manoeuvre row from the weapon item alone; the Rolls tab still lists
+manoeuvres for a character's weapon only.
+
+**Rejected.** Armour as an inventory item: whether armour is an item on a
+monster is not ruled, so the rider rides an ability named by the row and S14
+moves the spec if it is. Suppressing the weapon's own damage on an overrun or a
+wrestle: applying it stays the Judge's call.
+
+**What it cost.** Nothing rolls a manoeuvre's saving throw, so the hooked
+figures' save part reaches only the Rolls tab's tooltip. The penalty a human or
+demi-human takes from wearing the armour is not built.

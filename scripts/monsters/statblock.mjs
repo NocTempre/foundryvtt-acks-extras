@@ -218,11 +218,13 @@ export function derivationTips(snapHeld, loc) {
   const orgText = (key, now) => {
     const f = org[key];
     if (!orgHeld(f, now)) return "";
+    const gear = Array.isArray(org.gear) ? org.gear : [];
     const parts = [
       f.troop != null ? `${signed(num(f.troop))} ${org.troop?.label ?? ""}` : "",
       f.trait != null ? `${signed(num(f.trait))} ${org.trait?.label ?? ""}` : "",
+      f.gear != null ? `${signed(num(f.gear))} ${gear.map((g) => g.label).join(", ")}` : "",
     ].filter(Boolean);
-    const cite = [...new Set([f.troop != null ? org.troop?.cite : "", f.trait != null ? org.trait?.cite : ""].filter(Boolean))].join(", ");
+    const cite = [...new Set([f.troop != null ? org.troop?.cite : "", f.trait != null ? org.trait?.cite : "", ...(f.gear != null ? gear.map((g) => g.cite) : [])].filter(Boolean))].join(", ");
     return loc("statblock.tip.orgFigure", { value: f.value, base: f.base, parts: parts.join(" · "), cite: cite || "—" });
   };
   const joined = (...tips) => tips.filter(Boolean).join(" · ");

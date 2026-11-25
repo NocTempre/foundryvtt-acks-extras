@@ -823,6 +823,50 @@ unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
     none.v === "" && !/throw/.test(none.line) && none.line.length > 0 && none.tip === "" && none.rollable === true);
 }
 
+// A hooked weapon (the flag or core's tag) and a rider ability: the disarm's
+// hooked part, and the damage fragment a named manoeuvre takes.
+{
+  registerTable(MAN_FIG, { priority: PRIORITY.WORLD, source: "test" });
+  const flagged = weapon("Flagged", { melee: true, id: "fl", flags: { hooked: true } });
+  const tagged = weapon("Tagged", { melee: true, id: "tg", tags: ["Hooked"] });
+  check("a weapon flagged hooked classifies hooked", classifyWeapon(flagged).hooked === true);
+  check("a weapon tagged hooked in core's tag list classifies hooked", classifyWeapon(tagged).hooked === true);
+  check("an untagged, unflagged weapon is not hooked", classifyWeapon(swordItem).hooked === false);
+  const plain = rollActor([swordItem]);
+  const disarmOf = (item, who = rollActor([item])) => attackThrowRows(who, item, "melee", { maneuver: "disarm" });
+  check("a hooked weapon's disarm carries the hooked part (base -7, hooked +5)", disarmOf(flagged)[0]?.value === -7 + 5 && disarmOf(tagged)[0]?.value === -7 + 5);
+  check("the same disarm with an unhooked weapon carries the base alone", disarmOf(swordItem, plain)[0]?.value === -7);
+  check("a hooked weapon's other manoeuvre carries no hooked part", attackThrowRows(rollActor([flagged]), flagged, "melee", { maneuver: "knockDown" })[0]?.value === -11);
+  // A monster has no loadout; its weapon's own flag still reaches the manoeuvre row.
+  const monster = { ...rollActor([flagged]), type: "monster" };
+  check("a monster's hooked weapon: the disarm row is the hooked one", attackThrowRows(monster, flagged, "melee", { maneuver: "disarm" })[0]?.value === -7 + 5);
+  check("a monster's attack with no manoeuvre adds no row", attackThrowRows(monster, flagged, "melee").length === 0);
+
+  const rider = (over = {}) => ({
+    id: "rd", name: "Rider", type: "ability", system: {},
+    flags: { "acks-extras": { cookbook: { id: "organisation.gear.rd", cite: "XX 1" }, extras: { effects: [{ type: "modifier", target: "maneuverRider", maneuvers: ["overrun", "wrestling"], dice: "1d4", ...over }] } } },
+  });
+  const riderActor = (spec, type = "monster") => ({ ...rollActor([flagged, rider(spec)]), type });
+  const fragments = (who, maneuver) => damageRows(who, flagged, "melee", [], { maneuver });
+  check("an overrun with the rider adds the dice fragment, named with its page", (() => { const r = fragments(riderActor(), "overrun"); return r.length === 1 && r[0].value === "+1d4" && r[0].label === "Rider (XX 1)"; })());
+  check("a wrestle takes it too", fragments(riderActor(), "wrestling").length === 1);
+  check("a disarm with the rider adds nothing", fragments(riderActor(), "disarm").length === 0);
+  check("no manoeuvre in flight adds nothing", fragments(riderActor(), null).length === 0 && damageRows(riderActor(), flagged, "melee", []).length === 0);
+  check("a rider whose dice are not a die count and faces adds nothing", fragments(riderActor({ dice: "1d4+2" }), "overrun").length === 0 && fragments(riderActor({ dice: "" }), "overrun").length === 0);
+  check("a rider on a character reaches the damage the same", fragments(riderActor({}, "character"), "overrun").length === 1);
+  check("a rider keeps the rows it was handed and adds after them", (() => { const r = damageRows(riderActor(), flagged, "melee", [{ label: "x", value: 2 }], { maneuver: "overrun" }); return r.length === 2 && r[0].value === 2 && r[1].value === "+1d4"; })());
+  SETTINGS_STATE.overlayManeuvers = false;
+  check("with the manoeuvre overlay off the rider adds nothing, even on a declared manoeuvre", fragments(riderActor(), "overrun").length === 0);
+  check("with the overlay off the hooked part is not on the throw either", disarmOf(flagged).length === 0);
+  SETTINGS_STATE.overlayManeuvers = true;
+  const { equipmentContributor } = await import(new URL("roll-wrap.mjs", S));
+  check("the seam's damage answer hands the manoeuvre through", (() => { const who = riderActor(); const r = equipmentContributor.damage({ actor: who, weapon: flagged, maneuver: "overrun" }, "melee", []); return r.length === 1 && r[0].value === "+1d4"; })());
+  const { rollGroups } = await import("../scripts/equipment/item-sheet/rolls.mjs");
+  const disarmRow = (item, who) => rollGroups(item, who).find((g) => g.key === "maneuvers")?.rows.find((r) => r.id === "man:disarm");
+  check("the Rolls tab's disarm row shows the hooked figure for a hooked weapon only", disarmRow(flagged, rollActor([flagged])).v === "−2" && disarmRow(swordItem, plain).v === "−7");
+  unregisterTable("equipment", { priority: PRIORITY.WORLD });
+}
+
 
 // --- Phase 7: containers ------------------------------------------------------
 const { encumbranceDelta6, contentsWeight6, overCapacity, containerReport, isContainer } =

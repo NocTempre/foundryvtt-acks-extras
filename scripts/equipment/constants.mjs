@@ -100,6 +100,7 @@ export const ITEM_FLAGS = Object.freeze({
   MASTERWORK: "masterwork", // {tier} — a config.MASTERWORK key, never the row it names
   HELMET: "helmet", // "light" | "heavy"
   MATERIAL: "material", // primary material, for the item-loss materials table
+  HOOKED: "hooked", // true = a hooked weapon: its disarm takes the `hookedWeapon` table's parts (also the `hooked` tag in core's customTags)
   DESTROYED: "destroyed", // the item is wrecked — struck through, tagged, still carried
   SILVERED: "silvered", // RR ch.4 Silver quality: true = plating bought (price layer); on ammunition false = explicitly not
   // The archer's declaration: fire THIS stack next, ahead of the plain-first

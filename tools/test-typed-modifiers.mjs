@@ -22,6 +22,7 @@ const {
   stackingPart,
   capabilitiesOf,
   saveKeyOf,
+  CONSUMED_TARGETS,
 } = await import("../scripts/lib/typed-modifiers.mjs");
 
 let pass = 0;
@@ -666,6 +667,17 @@ check("allOf is a roll gate, never written as standing, and damageDice is roll-g
   assert.equal(isRollGate("allOf"), true);
   assert.equal(modifierDisposition(gated({ kind: "allOf", of: [] }), { actorType: "monster" }).kind, DISPOSITION.AT_ROLL);
   assert.equal(modifierDisposition(mod({ target: DAMAGE_DICE_TARGET, value: 2 })).consumer, "roll-gates");
+});
+
+check("maneuverRider is equipment's consumed target, read off a monster's abilities", () => {
+  const spec = { type: "modifier", target: "maneuverRider", maneuvers: ["x"], dice: "1d4" };
+  const d = modifierDisposition(spec, { actorType: "character" });
+  assert.equal(d.kind, DISPOSITION.CONSUMED);
+  assert.equal(d.consumer, "equipment");
+  assert.equal(CONSUMED_TARGETS.maneuverRider, "equipment");
+  const rows = consumedRows(asActor([ability("Rider", [spec])], "monster"), "maneuverRider");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].spec.dice, "1d4");
 });
 
 check("allOf: any false is false, all true is true, otherwise undecided; an empty list is undecided", () => {

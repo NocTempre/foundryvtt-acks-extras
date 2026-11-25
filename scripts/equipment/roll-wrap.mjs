@@ -32,7 +32,7 @@ export const equipmentContributor = Object.freeze({
     return [...modifiers, ...attackThrowRows(ctx.actor, ctx.weapon, attackType, { maneuver: ctx.maneuver })];
   },
   damage(ctx, attackType, modifiers) {
-    return damageRows(ctx.actor, ctx.weapon, attackType, modifiers);
+    return damageRows(ctx.actor, ctx.weapon, attackType, modifiers, { maneuver: ctx.maneuver });
   },
   attackTypes(item, types) {
     return attackTypesFor(item, types);

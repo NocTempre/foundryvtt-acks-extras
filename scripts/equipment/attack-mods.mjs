@@ -18,7 +18,9 @@
  *     place of STR on every damage roll STR modifies;
  *   - a weapon that takes no damage bonus (a torch): the body's bonuses are
  *     left off its die, its penalties stay;
- *   - a special manoeuvre declared with the attack: its attack penalty.
+ *   - a special manoeuvre declared with the attack: its attack penalty, on a
+ *     character or a monster, and the dice a rider ability adds to the
+ *     damage of a manoeuvre it names (`maneuverRider`).
  *
  * The system adds STR to the damage of a melee and of a thrown attack itself,
  * so a hurled axe needs nothing from here. The two-handed die of a medium
@@ -41,6 +43,8 @@ import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { numOrNull } from "../lib/util.mjs";
 import { hasDoc, getDoc } from "../lib/tables.mjs";
+import { consumedRows } from "../lib/typed-modifiers.mjs";
+import { MODULE_ID } from "../lib/constants.mjs";
 
 /**
  * The `equipment` document's tables for two figures a single sentence prints:
@@ -175,7 +179,9 @@ function weaponContext(actor, item, attackType = null) {
  */
 export function attackThrowRows(actor, item, attackType, { maneuver = null } = {}) {
   const c = weaponContext(actor, item, attackType);
-  if (!c) return [];
+  // A monster has no loadout: its weapon is classified from the item alone, and
+  // only the manoeuvre's row applies.
+  if (!c) return item?.type === ITEM_TYPE.weapon ? maneuverThrowRows(actor, classifyWeapon(item), maneuver) : [];
   const rows = [];
   if (c.nonProficient) {
     const level = num(actor.system?.details?.level ?? 1);
@@ -206,11 +212,36 @@ export function attackThrowRows(actor, item, attackType, { maneuver = null } = {
     const dex = abilityMod(actor, "dex");
     if (dex > str) rows.push({ label: label("finesse", {}, "Weapon Finesse"), value: dex - str });
   }
-  if (maneuver && MANEUVERS[maneuver] && maneuverOverlayEnabled()) {
-    const man = maneuverMods(actor, c.profile, maneuver);
-    if (man?.attackPenalty) rows.push({ label: MANEUVERS[maneuver].label, value: man.attackPenalty });
-  }
+  rows.push(...maneuverThrowRows(actor, c.profile, maneuver));
   return rows;
+}
+
+/** The attack throw's row for a manoeuvre declared with the attack: its penalty, the weapon's hooked part included. Empty while the manoeuvre overlay is off. */
+function maneuverThrowRows(actor, profile, maneuver) {
+  if (!maneuver || !MANEUVERS[maneuver] || !maneuverOverlayEnabled()) return [];
+  const man = maneuverMods(actor, profile, maneuver, { hooked: profile.hooked });
+  return man?.attackPenalty ? [{ label: MANEUVERS[maneuver].label, value: man.attackPenalty }] : [];
+}
+
+/** A rider's dice: a die count and a face count, nothing else. */
+const RIDER_DICE = /^\d+d\d+$/;
+
+/**
+ * The damage rows the actor's rider abilities add for a manoeuvre: one signed
+ * dice fragment per `maneuverRider` row that names it, labelled with the
+ * carrier's name and page. Empty with no manoeuvre or with the manoeuvre
+ * overlay off.
+ */
+function riderRows(actor, maneuver) {
+  if (!maneuver || !maneuverOverlayEnabled()) return [];
+  const out = [];
+  for (const { item, spec } of consumedRows(actor, "maneuverRider")) {
+    const dice = String(spec.dice ?? "").trim();
+    if (!RIDER_DICE.test(dice) || !Array.isArray(spec.maneuvers) || !spec.maneuvers.includes(maneuver)) continue;
+    const cite = String(item?.getFlag?.(MODULE_ID, "cookbook")?.cite ?? item?.flags?.[MODULE_ID]?.cookbook?.cite ?? "").trim();
+    out.push({ label: cite ? `${item.name} (${cite})` : String(item.name ?? ""), value: `+${dice}` });
+  }
+  return out;
 }
 
 /**
@@ -222,13 +253,24 @@ export function attackThrowRows(actor, item, attackType, { maneuver = null } = {
  * modifies — a melee attack, a thrown weapon at range — which the system has
  * already given STR.
  *
+ * A manoeuvre declared with the attack adds the rider rows of the actor's
+ * abilities that name it (`riderRows`), after the rows above.
+ *
  * @param {Actor} actor
  * @param {Item} item  the weapon
  * @param {string} attackType
  * @param {Array<{label: string, value: number|string}>} rows  the attacker's rows so far
+ * @param {{maneuver?: string|null}} [options]  the manoeuvre declared with the attack
  * @returns {Array<{label: string, value: number|string}>}
  */
-export function damageRows(actor, item, attackType, rows) {
+export function damageRows(actor, item, attackType, rows, { maneuver = null } = {}) {
+  const own = ownDamageRows(actor, item, attackType, rows);
+  const rider = riderRows(actor, maneuver);
+  return rider.length ? [...own, ...rider] : own;
+}
+
+/** The damage rows this feature leaves the attacker's, without a manoeuvre's rider. */
+function ownDamageRows(actor, item, attackType, rows) {
   const c = weaponContext(actor, item);
   if (!c) return rows;
   const special = c.profile.special ?? [];

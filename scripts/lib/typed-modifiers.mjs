@@ -79,12 +79,15 @@ export const OPPONENT_PATHS = Object.freeze({
  * Targets another feature reads off the spec itself, by the feature that reads
  * it. `acWaiver` is `conditions.mjs`' (`subjectOf`), `damageReduction` is
  * `defenses.mjs`' (`actorReductions`), and `damageDice` (a multiple of a
- * weapon's dice under a gate) is `roll-gates.mjs`' (`damageFormula` answer).
+ * weapon's dice under a gate) is `roll-gates.mjs`' (`damageFormula` answer);
+ * `maneuverRider` (dice added to the damage of a named manoeuvre) is the
+ * equipment feature's (`damageRows`).
  */
 export const CONSUMED_TARGETS = Object.freeze({
   [AC_WAIVER_TARGET]: "conditions",
   damageReduction: "defenses",
   damageDice: "roll-gates",
+  maneuverRider: "equipment",
   reaction: "influence",
   morale: "influence",
   loyalty: "influence",
