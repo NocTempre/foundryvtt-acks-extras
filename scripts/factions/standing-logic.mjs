@@ -12,6 +12,7 @@
  * RELATIONS carry no arithmetic: one organisation's stance toward another is a
  * label and a note, read here and never summed.
  */
+import { affiliationRows } from "../lib/org-tree-logic.mjs";
 import { ancestorUuids, headcount } from "../lib/place-logic.mjs";
 
 /**
@@ -109,7 +110,7 @@ export function factionRecord(doc) {
     seatUuid: doc?.system?.seatUuid ?? "",
     controls: [...(doc?.system?.controls ?? [])],
     standing: rows(doc?.system?.standing),
-    members: rows(doc?.system?.members),
+    members: doc?.system?.affiliation ?? rows(doc?.system?.members),
     holdings: rows(doc?.system?.holdings),
     relations: rows(doc?.system?.relations),
   };
@@ -182,13 +183,13 @@ export function isConcealedMember(members, uuid) {
  * The head a reader is allowed to be told. A concealed member row hides the
  * office as well, since naming the leader would publish the tie the row
  * conceals.
- * @param {{leaderUuid?: string, members?: object[]}} sys
+ * @param {{leaderUuid?: string, members?: object[], units?: object[]}} sys
  * @returns {string} the uuid to show, or "" when the office is not this reader's
  */
 export function readableLeaderUuid(sys, isGM) {
   const leaderUuid = sys?.leaderUuid ?? "";
   if (isGM || !leaderUuid) return leaderUuid;
-  const row = (sys.members ?? []).map((r) => r?.toObject?.() ?? r).find((m) => m?.uuid === leaderUuid);
+  const row = affiliationRows(sys.members, sys.units).find((m) => m?.uuid === leaderUuid);
   return row?.hidden ? "" : leaderUuid;
 }
 

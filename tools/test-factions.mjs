@@ -518,4 +518,63 @@ standingStep = 0;
   assert.equal(strengthTotal(normalizeStrength({ columns: [], rows: [{ counts: [5] }] })), 0, "a count with no column to stand under is not counted");
 }
 
+// --- who a faction affiliates: members and the holders of its chart, through one getter ---
+{
+  globalThis.foundry.abstract ??= { TypeDataModel: class {} };
+  const { FactionData } = await import("../scripts/factions/data/faction-data.mjs");
+  const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
+  const { isConcealedMember } = await import("../scripts/factions/standing-logic.mjs");
+  const unit = (key, parentKey, holderUuid, extra = {}) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
+  const world = new Map();
+  const group = (id, bodies, parent = "") => {
+    const system = Object.assign(Object.create(GroupData.prototype), { stacks: [{ size: { current: bodies } }], unit: { parentGroupUuid: parent } });
+    const doc = { uuid: `Actor.${id}`, type: "acks-extras.group", system };
+    world.set(doc.uuid, doc);
+    return doc;
+  };
+  const priorGame = globalThis.game;
+  const priorLookup = globalThis.fromUuidSync;
+  globalThis.game = { ...priorGame, actors: { [Symbol.iterator]: () => world.values() } };
+  globalThis.fromUuidSync = (uuid) => world.get(uuid) ?? null;
+
+  const war = group("war", 4);
+  const gang = group("gang", 3, war.uuid);
+  const away = group("away", 2);
+  const gone = "Actor.deleted";
+  const lone = { uuid: "Actor.lone", type: "character", name: "Lone", system: {} };
+  world.set(lone.uuid, lone);
+  const faction = Object.assign(Object.create(FactionData.prototype), {
+    leaderUuid: lone.uuid,
+    members: [{ uuid: war.uuid, name: "Warband", kind: "group", quantity: 99, hidden: false }],
+    units: [unit("w", "", war.uuid), unit("g", "w", gang.uuid), unit("a", "w", away.uuid, { hidden: true }), unit("x", "w", gone), unit("e", "w", ""), unit("l", "", lone.uuid, { hidden: true })],
+  });
+
+  assert.deepEqual(faction.affiliation.map((r) => r.uuid), [war.uuid, gang.uuid, away.uuid, lone.uuid], "a member row, then each holder once; an empty row and a deleted holder affiliate nobody");
+  assert.equal(faction.hasMember(gang.uuid), true, "the holder of a chart row belongs");
+  assert.equal(faction.hasMember(gone), false, "a holder the world no longer resolves does not");
+  assert.equal(faction.hasMember("Actor.stranger"), false);
+  assert.equal(faction.headcount, 4 + 3 + 2 + 1, "the warband and the gang inside it once (its member row and chart row name one holder), the gang away, and the lone leader");
+  assert.equal(factionRecord({ uuid: "Actor.f", name: "F", system: faction }).members.length, 4, "the record carries the one list");
+  assert.equal(readableLeaderUuid(faction, false), "", "a head held on a hidden chart row is concealed from a player");
+  assert.equal(readableLeaderUuid(faction, true), lone.uuid);
+  assert.equal(isConcealedMember(faction.affiliation, away.uuid), true, "a hidden chart row conceals its holder's membership");
+  assert.equal(isConcealedMember(faction.affiliation, gang.uuid), false);
+
+  // The reaction listener asks the one list: a concealed chart row keeps the faction off a player's dialog.
+  const guild = { uuid: "Actor.village", name: "Village", system: faction };
+  const dialog = (isGM) => {
+    const modifiers = [];
+    pushFactionModifiers(
+      { actor: { uuid: "Actor.t" }, targetActor: { uuid: away.uuid }, mode: null, modifiers },
+      { subjectsOfActor: () => ({}), isFaction: () => false, factionsOfMember: (uuid) => (uuid === away.uuid ? [guild] : []), factionsControlling: () => [], authoritiesRostering: () => [], standingFor: () => 3, districtUnder: () => null, relationBetween: () => null, isGM: () => isGM },
+    );
+    return modifiers;
+  };
+  assert.equal(dialog(true).length, 1, "a Judge is told the standing");
+  assert.equal(dialog(false).length, 0, "a player is not, since the chart row that affiliates the actor is hidden");
+
+  globalThis.game = priorGame;
+  globalThis.fromUuidSync = priorLookup;
+}
+
 console.log("test-factions: all checks passed");

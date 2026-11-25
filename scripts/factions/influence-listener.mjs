@@ -67,7 +67,7 @@ export function pushFactionModifiers(context, finders = {}) {
   const f = {
     subjectsOfActor, isFaction, factionsOfMember, factionsControlling, authoritiesRostering, standingFor, districtUnder,
     relationBetween, isGM: () => !!game.user?.isGM,
-    isConcealedMember: (faction, uuid) => isConcealedMember(faction?.system?.members, uuid),
+    isConcealedMember: (faction, uuid) => isConcealedMember(faction?.system?.affiliation ?? faction?.system?.members, uuid),
     ...finders,
   };
   // The organisations the viewing seat may be told this actor belongs to:

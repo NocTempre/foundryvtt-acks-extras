@@ -16,6 +16,8 @@
 import { headcountOf, strengthColumnTotals, strengthRevenue, strengthTotal } from "../standing-logic.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 import { liveRows } from "../../lib/group-logic.mjs";
+import { affiliationRows } from "../../lib/org-tree-logic.mjs";
+import { docOf } from "../../lib/util.mjs";
 import { num, str, int, occupantField, unitField } from "../../lib/fields.mjs";
 import { FACTION_KINDS, RELATION_STANCES, STANDING_SOURCES, SUBJECT_SCOPES } from "../constants.mjs";
 import { isWanted, rowsFor, sumStanding } from "../standing-logic.mjs";
@@ -165,9 +167,21 @@ export class FactionData extends foundry.abstract.TypeDataModel {
     return !!regionUuid && this.controls.includes(regionUuid);
   }
 
-  /** Is this actor on the membership? */
+  /**
+   * Everyone this organisation affiliates, as roster rows: its `members`, then the
+   * holder of each row of its chart (`units`) that no member row names. The one
+   * answer to "who belongs"; `hasMember`, `headcount`, `factionRecord`,
+   * `readableLeaderUuid` and the reaction listener's concealed-member test all read
+   * it. A holder the world no longer resolves affiliates nobody.
+   * docs/lib/ORGANISATION.md, "Who a faction affiliates".
+   */
+  get affiliation() {
+    return affiliationRows(this.members, this.units, docOf);
+  }
+
+  /** Is this actor affiliated: on the membership, or the holder of a row of its chart? */
   hasMember(uuid) {
-    return !!uuid && this.members.some((m) => m.uuid === uuid);
+    return !!uuid && this.affiliation.some((m) => m.uuid === uuid);
   }
 
   /** This organisation's own row about another, or null when it holds none. */
@@ -187,9 +201,9 @@ export class FactionData extends foundry.abstract.TypeDataModel {
     return [...new Set([this.seatUuid, ...(this.holdings ?? []).map((h) => h.uuid)].filter((u) => !!u))];
   }
 
-  /** Members counted with their stacks, the way a place counts its roster: a group row is the group's living bodies now. */
+  /** Everyone affiliated, counted with their stacks the way a place counts its roster: a group row is the group's living bodies now, nested groups included, each body once. */
   get headcount() {
-    return headcountOf(liveRows((this.members ?? []).map((r) => r?.toObject?.() ?? r)));
+    return headcountOf(liveRows(this.affiliation));
   }
 
   /** Everyone the strength block counts; 0 when no figures are recorded. */
