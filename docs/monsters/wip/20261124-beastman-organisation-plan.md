@@ -2666,12 +2666,124 @@ S6b". S9c needs S6c as well as S6b. S9b becomes S9b-1 (no design; needs
 S6c) and S9b-2 (design, through canvas 4; needs S8a). S8 becomes S8a (no
 design) and S8b (design); S9a needs S8.
 
+### Phase 2, 2026-11-24
+
+Built on `main` as fixes and on `topic/beastman-gear` (landed slice by
+slice, the topic left open for phase 2b), every slice walked on `main` on a
+lane no peer held, without a world shutdown. Every commit is local and not
+pushed.
+
+**Commits.**
+
+- T-0713: a2e1fe65. T-0714 (on architect's ruling): 9fd59365.
+- S6a and S6b: 455f2cfa. The round and outnumbering gates read nothing in a
+  combat the roller's tracker does not view, which the walk found and
+  6413dbb8 fixed.
+- S7, two `architect` rulings ("Architect's S7 ruling", above): 8cad19ec.
+- S6c: b1922b13, 9d530932, bdceea57 (closes T-0726).
+- S9c: 368c133f (closes T-0710). The Full Monster sheet's Armor Class hover
+  lost E6's gear part, since the monster extras schema never declared it:
+  e02a4537.
+- T-0730, found by S7: the rounds to a turn and the turns to an hour were
+  printed values shipped in lib's constants. They are read at import
+  (RR p. 263), and every delve, door, search, journey and spell-duration
+  reader fails without breaking on a blank: 2726bf8d.
+- S9b-1, parts 2 and 3 (E8's data, E5's data and `swigOutcome`): dd5c22e1,
+  df4a2dc0.
+- S9b-1, part 1 (the delayed-damage world-clock leg, T-0725): bdf35501,
+  cde77921.
+- The walk recipe's drive mechanics and the re-import upgrading note:
+  176216f7.
+
+**Exercised live** (lane B, scripted through the capture driver, every
+generated document tracked and swept by id):
+
+- R3 and R6 grant their proficiency on every breed; a leader-table grade
+  carries the table die on its by-weapon attack, and a hit posts it.
+- The gates: R2's row and dice multiple only against a target in the
+  folded condition, in melee and inside its band (`rangeBand` checked in
+  and beyond); T2's attack and damage only while the ratio is met, its
+  morale part offered, absent and pre-ticked as the sides stand; T4 in its
+  round; T3 under its condition; R4 keeps its Armor Class under Charging and
+  Retreating and loses Disordered's. Opposing carriers' surprise parts
+  apply once, the most adverse.
+- The per-die reduction stage on Apply; E6's Armor Class part and its
+  hover on the Full Monster sheet; a hooked character weapon's Disarm row on
+  its Rolls tab, and none on an untagged one.
+- Delayed damage through the real turn edges of an active combat: it lands
+  at the bearer's next turn start once, and the record goes.
+- E5's drink item with its page, catalogue condition and swig dice, and no
+  count, which is the page's answer (a). E8 recorded only on a generated
+  creature; on a scripted archer, `shotStack` names the flagged stack,
+  `onHitOf` reads it, and a shot spends that stack and no other.
+- T-0730: a real blank world (the tables predated the recipe), then the
+  import, a turn and a round on the clock, the world clock moved by a turn,
+  the strip's text and page, and an override layer that moves the figure
+  and reverts.
+- T-0725: a record still due when its active fight is deleted moves to the
+  world clock with no combat keys, pays nothing then, stays pending short of
+  its due point and lands once past it; with the round's length taken off
+  the client's registry, the fight's end deletes it and warns the Judge once,
+  naming the bearer.
+- No console error during any run, recorded from after `ready`.
+
+**Offline only:**
+
+- The mutation checks of every new mapping (each slice's report).
+- E8's generation half (flag, nock, record-only), held by the organisation
+  suite alone.
+- T-0730's lights burnt per turn, door and search costs, journey seconds
+  and spell durations in turns.
+
+**Not checked:**
+
+- The Surprise Matrix display of R2's part; T7; the influence morale
+  page's own UI; the Ruledata Browser's UI writing an override (the walks
+  used the registry's override layer in the client); a printed word
+  overridden to one no entry answers.
+- T-0730 at `init`, `setup` and `ready` in a blank world (the recorder
+  attaches after `ready`), the encounter card's minute, and a party token's
+  drag billing.
+- The committed follower-card walk (lane A held the active GM).
+- T-0725 through a scene's deletion, on an unlinked token's actor, and the
+  notification's text read on screen.
+
+**Findings and choices for the owner:**
+
+- With T-0730's figures not imported, round-level play advances nothing:
+  advance-round, hasty actions and combat rounds move no clock, and the
+  delve counts whole turns. A world imported before this release re-runs
+  the Rules tables import (its upgrading note).
+- Monsters now take manoeuvre throw rows (S9c); no ruling covers it.
+- R2's surprise part is written ungated, where section 3's acceptance
+  reads it under the gate.
+- A world whose `monsters` tables predate a recipe change carries rows
+  without the new figures until it re-imports (upgrading note).
+- Turn edges fire only for an active combat, on the primary GM. A combat
+  deleted while no primary GM is seated leaves its delayed-damage records on
+  a clock that no longer exists.
+- Generated rank-and-file creatures carry only the "By weapon" marker, so
+  every walk of an attack or of E7 or E8 gave the creature a weapon.
+- Registered, not built: T-0727 (nothing rolls a manoeuvre save), T-0728
+  (the Rolls tab lists manoeuvres for characters only), T-0729 (E1's human
+  and demi-human penalty has no slice), T-0731 (influence's `kindOf`
+  duplicates lib's kind reader), T-0765 (the importer's two private
+  turns-to-an-hour copies, `city-travel-binding.mjs` and
+  `survival-binding.mjs`, found by T-0730's work and not moved, against
+  `ip-doctrine.md`'s "fixed by the work that finds it").
+
+**Held, then released.** S8a, S8b, S9a and S9b-2 were held through this
+phase. The owner's go-ahead on canvases 2 to 5 released S8b without T10,
+S9a and S9b-2, each after S8a, with the page answering E5's question. They
+are phase 2b's ("Start prompt, phase 2b").
+
 ### Start prompt, phase 2
 
 Since this prompt was written, the owner's go-ahead on canvases 2 to 5
 (Results) released S8b without T10, S9a and S9b-2, each after S8a and each
 built from canvas 4 as approved. The prompt's sentence that holds S8 and
-S9a is spent. T10 waits for `architect`.
+S9a is spent. T10 waits for `architect`. Phase 2 has run ("Phase 2",
+Results); what it did not build is phase 2b's.
 
 > Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
 > `.claude/rules/ip-doctrine.md`, `docs/monsters/MODEL.md` ("The organisation
@@ -2694,6 +2806,38 @@ S9a is spent. T10 waits for `architect`.
 > without shutting the world down unasked. Append results here sorted as
 > exercised live, offline only and not checked, correct the phase 3 prompt,
 > and report every commit by sha and "not pushed". The book is
+> `C:\Proj\acks-reference\Snips\MM_Beastmen.pdf` (LOCAL-ONLY).
+
+### Start prompt, phase 2b
+
+Phase 2 built S6a to S6c, S9c and S9b-1 ("Phase 2", Results). The owner's
+go-ahead on canvases 2 to 5 released what it held. `topic/beastman-gear`
+is landed and open.
+
+> Read `docs/monsters/wip/20261124-beastman-organisation-plan.md` whole, then
+> `.claude/rules/ip-doctrine.md`, `.claude/rules/ui-layout.md`,
+> `docs/lib/README.md`, and both S7 rulings whole
+> (`docs/monsters/wip/20261124-s7-ruling-reader-carrier.md`,
+> `docs/monsters/wip/20261124-s7-ruling-consumers-gear.md`). This session
+> starts on Opus: it orchestrates, and S8a crosses lib, magic and
+> equipment. Run `acks-branch sync beastman-gear`, then build in its worktree,
+> one agent per slice. First S8a, which has no UI: the range reader as a core
+> Region with lib's `aura` behaviour sub-type, the item carrier beside the
+> cast engine, the `Item#use` seam, and the kind reader. If the ruling leaves
+> a choice open, `architect` decides it before the `implementer` builds.
+> The sub-type enters `module.json` and needs a world relaunch: find out who
+> is seated and ask before the relaunch. Then build S8b without T10, S9a
+> and S9b-2 (each `implementer`) from canvas 4 as approved ("The owner's
+> go-ahead on canvases 2 to 5", Results; boards 4a to 4d). E5 counts no swig
+> on its first bearer, which is the page's answer (a). T10 waits for
+> `architect` (S7's addendum A5) and is not built. Each brief quotes the
+> owner's three sentences and the slice's acceptance from section 3, and
+> the agent restates them with one example before building. Phase 2's live
+> facts are in its Results entry: tables re-imported after a recipe change,
+> an active combat for turn edges, a weapon given to a generated creature.
+> Land each slice and walk it on `main` on a lane no peer holds. Append
+> results here, sorted as exercised live, offline only and not checked, and
+> report every commit by sha and "not pushed". The book is
 > `C:\Proj\acks-reference\Snips\MM_Beastmen.pdf` (LOCAL-ONLY).
 
 ### Start prompt, phase 3
@@ -2733,5 +2877,7 @@ S12b. On the go-ahead on canvases 2 to 5, S4b as well; nothing is held.
 > shelf it names): every resolved row resolves, and every unresolved row
 > stays a finding the Judge links by hand (board 1j). Each
 > brief quotes the owner's three sentences and the slice's acceptance. Land
-> and walk on `main` as in phase 1. Append results here, correct the phase 4
-> prompt, and report.
+> and walk on `main` as in phase 1. Phase 2's live facts hold for these walks
+> ("Phase 2", Results): re-import the tables after a recipe change, an
+> active combat for turn edges, a weapon item for a generated creature that
+> must hit. Append results here, correct the phase 4 prompt, and report.

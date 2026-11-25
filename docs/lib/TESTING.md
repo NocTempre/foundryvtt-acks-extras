@@ -3947,7 +3947,7 @@ weapons"). The steps below are unwalked.
 6. Open a sword row's item sheet. *Observable:* no count control appears; the quantity shown is the whole row's count.
 7. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.
 
-## A delayed-damage record whose fight ends before it is due (unwalked)
+## A delayed-damage record whose fight ends before it is due
 
 The model is [MODEL.md](MODEL.md), "The world clock, the second clock of that
 record". Walked on the primary GM seat; a player seat sees only the card.
