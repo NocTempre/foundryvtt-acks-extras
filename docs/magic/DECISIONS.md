@@ -1483,3 +1483,40 @@ only if the door is still in the state the spell left; no ROADMAP row. On board 
 
 *Rejected:* a record and a line only, the default the plan proceeded on until the owner answered. *Counter
 (medium):* a wall that is no door cannot be sealed, though a portal may be one.
+
+## 2026-11-25 — A cast's condition record carries the system's changes
+
+The record of a condition a cast writes (`spellEffectData`, `conditionRecords`) is the effect Foundry builds for that
+condition: its status, the statuses its entry brings and its `system.changes`, through one builder
+(`statusEffectData`, `lib/held-condition.mjs`, which a held condition's effect is built from too). A buff record and a
+pending declaration still hold no status and no change.
+
+- **What it reverses.** MODEL's rule that a status record is status-only, at most one status and never with changes.
+  It had no entry of its own. Its stated reason was that removing a condition's record by id ends that condition
+  alone, which a record holding a status and nothing else did; a record that holds the entry's statuses and figures is
+  as much one condition's, and is removed by its id the same way.
+- **Evidence.** Core 14.2.0 ships `system.changes` on the entries of its condition list, so a condition set from the
+  token HUD already carries its figure. The owner, 2026-11-24: "Revert to core now that it available, repair
+  implementations and ties to automation that are downstream"; asked whether the module keeps its figures where
+  core's effects do not reach or takes core's scope only, "Extend core"; shown the design boards, "Use exiting foundry
+  code before investigating new designs...". `countsOnce` (lib's 2026-11-24 entry "A condition a state brings rides
+  on that state's own effect") makes a second carrier of one condition's change count nothing, at Foundry's own apply
+  step, so no writer leaves a change out to avoid a double.
+- **Rejected.** A helper that built the data from `fromStatusEffect` and dropped the changes where the actor already
+  held an active effect with that status and changes. Its cost: delete the effect that carried the changes first and
+  a status-only twin is left counting zero, since nothing writes the figure back. A writer that decides, at write
+  time, which effect counts is a second mechanism beside the one Foundry runs on every preparation.
+- **The brought statuses.** A record of a state that brings a condition holds both statuses, and `liftPlan` reads the
+  brought ones from the registered entry: an effect holding the lifted id and only the statuses that id brings is
+  plain, and any other two-status effect, or the brought id lifted off the effect of the state that brings it, is
+  listed as `twoStatus`. Lib's `lift` ends by the same reading: after the system's toggle it deletes each effect that
+  holds the lifted id with only the statuses that id brings, under any id, so a cast's record of such a state is
+  lifted, stored on the entry and put back by an Undo like any other.
+- **Restore.** A Restore on a concentration's end card puts back each ended record whole. Its figures and statuses are
+  the builder's for the record's first status, put back at the press, and never the card's: the card's flag is
+  writable by its author, and a record's change list stays something no card can write.
+- **Cost.** A cast record of a condition now carries figures, so a creature that a hand also gave the condition holds
+  two effects naming it, and the figure counts once by `countsOnce`; core's own breakdown sums raw changes and shows
+  such a double beside an "other effects" line of the opposite sign. A record of a state that brings a condition lights
+  no HUD tile and is under no static `_id`, so a click on that state's tile does not find it. The held concentration
+  and casting records (`cast-held.mjs`, `cast-declare.mjs`) keep their one status and do not go through the builder.

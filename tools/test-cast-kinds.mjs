@@ -44,6 +44,7 @@ const { HELD_CONDITION_FLAG } = await import("../scripts/lib/held-condition.mjs"
 const { keyedRows } = await import("../scripts/magic/cast-rows.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { pressRecurSave } = await import("../scripts/magic/cast-recur.mjs");
+const { conditionChanges } = await import("./core-conditions-fixture.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -229,6 +230,24 @@ t("a condition lifts only where every effect carrying it is plain; a two-status 
   const byHeld = liftPlan([plain, heldFx], ["dread"]);
   assert.deepEqual([byHeld.statuses, byHeld.lift, byHeld.listed], [[], [], [{ status: "dread", name: "Held", reason: "held" }]], "a condition another feature holds is listed, not lifted");
   assert.deepEqual(liftPlan([], ["dread"]), { lift: [], statuses: [], listed: [] });
+});
+
+t("an effect whose other statuses are the lifted id's own brought ones lifts as plain; any other two-status effect, and the brought id lifted off its bringer, are listed", () => {
+  const impliedOf = (id) => (id === "rush" ? ["muddle"] : []);
+  const bringer = fx("e1", "Rush", ["rush", "muddle"]);
+  const lone = fx("e2", "Rush alone", ["rush"]);
+  const stray = fx("e3", "Rush and more", ["rush", "muddle", "other"]);
+  const plan = liftPlan([bringer, lone], ["rush"], impliedOf);
+  assert.deepEqual(plan.statuses, ["rush"]);
+  assert.deepEqual(plan.lift.map((e) => e.id), ["e1", "e2"]);
+  assert.deepEqual(plan.listed, []);
+  const mixed = liftPlan([bringer, stray], ["rush"], impliedOf);
+  assert.deepEqual(mixed.lift.map((e) => e.id), ["e1"]);
+  assert.deepEqual(mixed.listed, [{ status: "rush", name: "Rush and more", reason: "twoStatus" }]);
+  const brought = liftPlan([bringer], ["muddle"], impliedOf);
+  assert.deepEqual([brought.statuses, brought.lift, brought.listed], [[], [], [{ status: "muddle", name: "Rush", reason: "twoStatus" }]], "lifting the brought id would leave its bringer: listed");
+  const unread = liftPlan([bringer], ["rush"]);
+  assert.deepEqual([unread.statuses, unread.listed.map((l) => l.reason)], [[], ["twoStatus"]], "with no entry read, two statuses are two statuses");
 });
 
 /* ------------------------------------------------------------------ */
@@ -417,6 +436,23 @@ await ta("a slay row takes the hit points to zero in one write with no defense s
   assert.equal(undone.state, "undone");
   assert.deepEqual(log.hp.at(-1), { restored: [11] });
   assert.deepEqual(log.deleted, ["r1"]);
+});
+
+await ta("a slay row's dead record is the effect the builder returns for the dead status, and a lifting row reads which statuses an entry brings from its dependency", async () => {
+  const built = { name: "core.dead", statuses: ["dead"], system: { changes: conditionChanges("blessed") } };
+  const { deps, log } = applyDeps(holder("Actor.h1"), [SLAY], { over: { conditionData: async (id) => (assert.equal(id, "dead"), built) } });
+  await applyOnTarget(cardFor([SLAY], { t1_fell: { state: "pending" } }, { targets: { t1: { uuid: "Actor.h1", name: "Holder", resist: FAIL } } }), "t1", [{ rowKey: "fell" }], deps);
+  assert.deepEqual(log.made[0].statuses, ["dead"]);
+  assert.deepEqual(log.made[0].system.changes, conditionChanges("blessed"));
+  assert.equal(Object.hasOwn(log.made[0], "_id"), false);
+  const rush = { ...LIFT, conditions: ["rush"] };
+  const standing = () => holder("Actor.h1", { effects: [fx("e1", "Rush", ["rush", "muddle"])] });
+  const reads = applyDeps(standing(), [rush], { over: { impliedStatuses: (id) => (id === "rush" ? ["muddle"] : []) } });
+  await applyOnTarget(cardFor([rush], { t1_calm: { state: "pending" } }), "t1", [{ rowKey: "calm" }], reads.deps);
+  assert.deepEqual([reads.log.lifts, reads.log.entries.t1_calm.listed], [[["rush"]], []], "the bringer is plain to the id it brings");
+  const blind = applyDeps(standing(), [rush]);
+  await applyOnTarget(cardFor([rush], { t1_calm: { state: "pending" } }), "t1", [{ rowKey: "calm" }], blind.deps);
+  assert.deepEqual([blind.log.lifts, blind.log.entries.t1_calm.listed], [[], [{ status: "rush", name: "Rush", reason: "twoStatus" }]]);
 });
 
 await ta("a slay row on a creature already at zero writes no hit points but still marks it dead; a passed save that negates writes nothing; a half effect, or a target with no hit points, is the Judge's", async () => {

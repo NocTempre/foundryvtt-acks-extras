@@ -38,6 +38,9 @@ export function newCastId({ randomID } = {}) {
   return make(16);
 }
 
+/** Whether two plain values hold the same data. */
+const sameData = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
 /**
  * Active Effect creation data for one record of a cast.
  *
@@ -51,9 +54,14 @@ export function newCastId({ randomID } = {}) {
  * is timed by this module's own clock: its `duration` and `startTime` ride in
  * the flag and core's `duration` stays unset, because core counts a rounds
  * duration it cannot convert as already run. A condition rides a record of its
- * own, at most one status and never with changes, so removing that record by id
- * ends that condition alone (`toggleStatusEffect` off deletes whole records
- * that hold only the toggled status, changes included).
+ * own, naming one condition, so removing that record by id ends that condition
+ * alone. The record is the effect Foundry builds for that condition
+ * (`statusEffectData`, `lib/held-condition.mjs`): the statuses beyond the named
+ * one are the ones its entry brings, and `system.changes` are the entry's, and
+ * the record takes exactly what the builder returned (`condition`), checked
+ * here, since this file reads no `CONFIG`. A record holds no change a hand
+ * wrote, and one condition's figure counts once however many effects carry it
+ * (`countsOnce`, `lib/roll-mods.mjs`).
  *
  * @param {object} cast
  * @param {{uuid: string, name: string, img: string}} cast.spell
@@ -64,7 +72,9 @@ export function newCastId({ randomID } = {}) {
  * @param {object[]} [cast.changes]
  * @param {boolean} [cast.transfer]
  * @param {string} [cast.name]  Defaults to the spell's name.
- * @param {string[]} [cast.statuses]  At most one status id; never with `changes`.
+ * @param {string[]} [cast.statuses]  The one condition's status id, and the statuses its entry brings after it, exactly as `cast.condition` has them; never with `changes`.
+ * @param {{changes?: object[]}} [cast.system]  The entry's `system`, carried as `condition` has it; present only with a status.
+ * @param {{statuses: string[], system?: {changes?: object[]}}} [cast.condition]  What `statusEffectData` returned for the first status. Required where `statuses` has more than one, or `system` holds a change.
  * @param {string} [cast.rowKey]  The spell row this record came from.
  * @param {object} [cast.resist]  `{kind, category, total, target, success}` of the recipient's saving throw.
  * @param {string} [cast.sourceAlignment]  The caster's alignment key, read by a row scoped to it.
@@ -93,6 +103,8 @@ export function spellEffectData({
   transfer = false,
   name,
   statuses = [],
+  system,
+  condition,
   rowKey,
   resist,
   sourceAlignment,
@@ -108,10 +120,14 @@ export function spellEffectData({
   seal,
 }) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
-  if (statuses.length > 1) throw new Error("spellEffectData: a record holds at most one status");
-  if (statuses.length && changes.length) throw new Error("spellEffectData: a record that holds a status holds no changes");
-  if (rollMods && (statuses.length || changes.length)) throw new Error("spellEffectData: a buff record holds no status and no changes");
-  if (pending && (statuses.length || changes.length)) throw new Error("spellEffectData: a pending declaration holds no status and no changes");
+  const figures = Array.from(system?.changes ?? []);
+  if (rollMods && (statuses.length || changes.length || figures.length)) throw new Error("spellEffectData: a buff record holds no status and no changes");
+  if (pending && (statuses.length || changes.length || figures.length)) throw new Error("spellEffectData: a pending declaration holds no status and no changes");
+  if (statuses.length && changes.length) throw new Error("spellEffectData: a record that holds a status holds the entry's system changes and no others");
+  if (statuses.length > 1 || figures.length) {
+    const same = sameData(statuses, condition?.statuses ?? []) && sameData(figures, condition?.system?.changes ?? []);
+    if (!statuses.length || !same) throw new Error("spellEffectData: a record's brought statuses and changes are exactly what the builder returned for its one condition");
+  }
   const mark = { spellUuid: spell.uuid, castId, casterUuid: caster.uuid, role };
   if (held) mark.held = held === "stationary" ? "stationary" : "mobile";
   if (held && tail && typeof tail === "object") mark.tail = tail;
@@ -138,6 +154,11 @@ export function spellEffectData({
   const ends = readEndsOn(endsOn);
   if (ends.length) data.flags[MODULE_ID][FLAG_ENDS_ON] = ends;
   if (statuses.length) data.statuses = [...statuses];
+  // The figures ride at `system.changes` alone: a change list beside them would be a second copy of the same field.
+  if (figures.length) {
+    delete data.changes;
+    data.system = { changes: figures.map((change) => ({ ...change })) };
+  }
   const timed = duration && !duration.none && Number.isFinite(duration.value) && duration.units;
   const flagTimed = statuses.length > 0 || changes.length > 0 || Number.isFinite(startTime);
   if (Number.isFinite(startTime)) mark.startTime = startTime;

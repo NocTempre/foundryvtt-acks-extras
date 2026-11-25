@@ -2778,8 +2778,12 @@ pure function of the status id (`conditionEffectId`), because Foundry finds the
 effect of a status by it. Toggling the state therefore makes the one effect
 Foundry builds, holding the state and the condition it brings and both figures;
 toggling it again takes all of it off, and the turn's lift clears it through the
-state's own status. An effect of one of these states made before the entry took
-this shape holds one status, is not found by that id, and is lifted by hand.
+state's own status. An effect that holds one of these states under another id
+(one made before the entry took this shape, or a cast's record of the state) is
+not found by a click on the state's tile. `lift` ends it with the state: after
+the system's toggle it deletes each effect that holds the lifted status with
+only the statuses its entry brings, and leaves an effect that holds any other
+status beside it.
 
 One condition's change on one field must apply once, however many effects carry
 it: a state beside a hand-set copy of the condition it brings, two states that

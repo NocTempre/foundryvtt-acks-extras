@@ -40,6 +40,7 @@ import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
 import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, sheetSaveShift, sumSteps, tellRollMods } from "./roll-mods.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
+import { impliedStatuses } from "./held-condition.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
   attackMath, conditionSet, forbiddenBy, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
@@ -706,16 +707,19 @@ export async function withSurpriseConditions(pools, run) {
 /**
  * Take the statuses `ids` off an actor, one at a time, through the system's own
  * toggle. Foundry looks an entry with a static id up by that id alone, so an
- * effect that holds the status by itself under another id (one a hand made, or
- * one made before the entry had its id) is deleted after the toggle. An effect
- * that holds another status beside it stays. A status that cannot be lifted is
- * logged and the rest still are.
+ * effect that holds the status under another id, by itself or with only the
+ * statuses its entry brings (one a hand made, one a cast wrote, or one made
+ * before the entry had its id), is deleted after the toggle. An effect that
+ * holds any other status beside it stays, and so does the effect of a state
+ * when the status lifted is one that state brings. A status that cannot be
+ * lifted is logged and the rest still are.
  */
 export async function lift(actor, ids) {
   for (const id of ids) {
     try {
       await actor.toggleStatusEffect(id, { active: false });
-      const alone = [...(actor.effects ?? [])].filter((e) => e?.statuses?.size === 1 && e.statuses.has(id)).map((e) => e.id);
+      const brought = new Set([id, ...impliedStatuses(id)]);
+      const alone = [...(actor.effects ?? [])].filter((e) => e?.statuses?.has?.(id) && [...e.statuses].every((status) => brought.has(status))).map((e) => e.id);
       if (alone.length) await actor.deleteEmbeddedDocuments("ActiveEffect", alone);
     } catch (err) {
       console.error(`${MODULE_ID} | could not lift ${id} from ${actor.name}`, err);

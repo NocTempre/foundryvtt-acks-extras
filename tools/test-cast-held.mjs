@@ -20,8 +20,9 @@ globalThis.foundry = {
 };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
+const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, restoredAs, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
+const { conditionChanges } = await import("./core-conditions-fixture.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -53,6 +54,8 @@ t("a held record is the caster's status-only record: the status for its kind, th
   assert.deepEqual(data, spellEffectData({ ...MARK, startTime: 40, statuses: ["concentratingStationary"], held: "stationary", tail, duration: cap }));
   assert.deepEqual(data.statuses, ["concentratingStationary"]);
   assert.equal(data.changes.length, 0);
+  assert.equal(data.system, undefined, "a held record holds the one status of its kind and no figure");
+  assert.throws(() => spellEffectData({ ...MARK, startTime: 40, statuses: ["concentratingStationary", "other"], held: "stationary" }), /exactly what the builder returned/);
   const back = spellEffectOf(data);
   assert.deepEqual([back.role, back.held, back.tail, back.duration, back.startTime], ["caster", "stationary", tail, cap, 40]);
   const bare = spellEffectOf(heldRecordData(MARK, { held: "mobile", now: 7 }));
@@ -140,6 +143,24 @@ t("Restore writes only what the card's own cast made: another cast's data, a rec
   const forged = plan.create.find((c) => c.data._id === "rw").data;
   assert.deepEqual(forged.changes, [], "a change list is always emptied");
   assert.equal(forged.system, undefined, "only the keys the module writes are kept");
+});
+
+t("a restored record of a condition takes its statuses and figures from the builder, never from the card; data the builder did not answer is left as it is", () => {
+  const built = { statuses: ["rush", "muddle"], system: { changes: conditionChanges("charging") } };
+  const stored = { _id: "ra", name: "A", statuses: ["rush"], changes: [], flags: {} };
+  const out = restoredAs(stored, built);
+  assert.deepEqual(out.statuses, ["rush", "muddle"]);
+  assert.deepEqual(out.system.changes, conditionChanges("charging"));
+  assert.equal(out.changes, undefined);
+  out.system.changes[0].value = 0;
+  assert.equal(built.system.changes[0].value, conditionChanges("charging")[0].value, "copied, not shared");
+  assert.deepEqual(restoredAs(stored, { statuses: ["rush"] }), { _id: "ra", name: "A", statuses: ["rush"], changes: [], flags: {} }, "a condition with no figure restores with none");
+  assert.equal(restoredAs(stored, { statuses: ["other"], system: built.system }), stored, "a builder answer for another status is not used");
+  const bare = { _id: "rb", flags: {} };
+  assert.equal(restoredAs(bare, built), bare);
+  const forged = restorePlan({ ...FLAG(), ended: [{ actorUuid: "Actor.w", id: "rw", name: "W", data: { ...dataOf("rw"), statuses: ["rush"], system: { changes: [{ key: "system.hp.value", type: "add", value: 999 }] } } }] }).create.find((c) => c.data._id === "rw").data;
+  assert.equal(forged.system, undefined, "the plan still drops what the card holds");
+  assert.deepEqual(restoredAs(forged, built).system.changes, conditionChanges("charging"), "and the figure a restored record carries is the builder's");
 });
 
 await ta("running a plan counts a removal that found nothing as not ended, and records what each re-timing was", async () => {

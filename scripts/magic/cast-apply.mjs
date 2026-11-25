@@ -4,7 +4,7 @@
  * writes it. The amount is the roll, the save's fraction, the target's defenses
  * against the row's own types, then one rounding (`lib/hp-logic.mjs`
  * `amountAfter`, `lib/defenses.mjs`) and goes to `adjustHp`; a condition is a
- * status-only record on the target (`spell-effect.mjs`); a failed save runs
+ * record of its own on the target, the effect Foundry builds for it (`spell-effect.mjs`); a failed save runs
  * lib's loss path first, so the cast's own grant is never the thing lifted.
  *
  * A seat writes the targets it owns itself. Any other target is written by the
@@ -121,8 +121,13 @@ export function amountOf(row, card, resist, rolled, defenses = {}) {
 const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band, types: [...(types ?? [])], source, cite: cite ?? null, ...(why ? { why } : {}) });
 
 /**
- * The status-only records one condition row leaves on one target: one per
- * condition the row names, or one status-free record for an `anchor`. `row` is the spell's own row and `key` its key in the
+ * The condition records one condition row leaves on one target: one per
+ * condition the row names, or one status-free record for an `anchor`. A
+ * condition's record is the effect Foundry builds for it: `built` holds, by
+ * status id, what `statusEffectData` returned (`lib/held-condition.mjs`), and a
+ * record takes that entry's brought statuses and its `system.changes` whole.
+ * A status `built` has no answer for is written as its own status alone. `row`
+ * is the spell's own row and `key` its key in the
  * cast; `duration` is the one this client computed or recomputed, never the card's.
  * A row that lasts a next turn or a number of rounds takes its `life`
  * (`cast-life.mjs` `lifeOf`) instead: the clock of one round or the rolled
@@ -131,7 +136,7 @@ const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band,
  * `untimed` is written with no clock and no turn end, and the row's `endsOn` rides
  * on every record it writes, where lib's loss hooks read it.
  */
-export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration, life = null, anchor = false }) {
+export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration, life = null, anchor = false, built = {} }) {
   const lived = Boolean(life?.rounds);
   const timed = lived || ((row.lasts === "duration" || anchor) && duration && !duration.none);
   const clock = lived ? { value: life.rounds, units: "rounds" } : duration;
@@ -141,13 +146,16 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
   const endsOn = Array.from(row.endsOn ?? []);
   return statuses.map((status) => {
     const clocked = timed && !free.has(status);
+    const condition = status ? (built?.[status] ?? null) : null;
     return spellEffectData({
       spell: { uuid: card.spellUuid, name: card.spellName, img: spell?.img ?? spellImg },
       caster: { uuid: card.casterUuid },
       castId: card.castId,
       role: "recipient",
       invocationLevel: card.invocationLevel,
-      statuses: status ? [status] : [],
+      statuses: status ? (condition?.statuses ?? [status]) : [],
+      system: condition?.system,
+      condition: condition ?? undefined,
       rowKey: key ?? row.key,
       resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
       duration: clocked ? clock : undefined,
@@ -156,6 +164,18 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
       endsOn,
     });
   });
+}
+
+/**
+ * What the builder returns for each of `statuses`, by id, for `conditionRecords`:
+ * the dependency `conditionData` (`statusEffectData`) read once per status. With
+ * no builder in `deps` the map is empty and a record holds its own status alone.
+ */
+async function builtConditions(statuses, deps) {
+  const built = {};
+  if (typeof deps.conditionData !== "function") return built;
+  for (const status of new Set(statuses)) if (status) built[status] = await deps.conditionData(status);
+  return built;
 }
 
 /** Is this entry's state one an apply may start from? */
@@ -327,6 +347,8 @@ export function checkApplyRequest(req, world) {
  * @param {(found: {actor: object, token?: object|null}) => Promise<{combatId: string, combatantId: string}|null>} [deps.fight]  the begun fight the bearer is a combatant of, read on the writing client; absent, a record lasting turns is timed by the clock alone
  * @param {Function} deps.adjustHp  lib's, `(entries, {mode}) -> results`
  * @param {(actor: object, cause: string) => Promise<string[]>} deps.lose
+ * @param {(statusId: string) => Promise<{statuses: string[], system?: object}>} [deps.conditionData]  the effect data Foundry builds for a condition (`statusEffectData`); absent, a condition record holds its own status alone
+ * @param {(statusId: string) => string[]} [deps.impliedStatuses]  the statuses a condition's entry brings (`impliedStatuses`), read by a lifting row; absent, none
  * @param {(actor: object, datas: object[]) => Promise<string[]>} deps.createRecords  the new records' ids
  * @param {(id: string, entry: object) => Promise<unknown>} deps.writeEntry
  * @param {() => number} deps.now  the world time
@@ -501,18 +523,19 @@ async function applyConditionGrant({ card, keyed, resist, found, deps, existing,
   const already = named.filter((c) => held.has(c));
   // A next turn or a number of rounds is timed from the spell's own row: the rolled count is the casting client's, the fight is this client's reading of the bearer.
   const life = await lifeFor({ row, rounds, found, deps });
-  const records = conditionRecords({ ...row, conditions: writes }, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
+  const built = await builtConditions(writes, deps);
+  const records = conditionRecords({ ...row, conditions: writes }, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life, built });
   const ids = records.length ? await deps.createRecords(found.actor, records) : [];
   return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...noted, ...(already.length ? { already } : {}), ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
 }
 
 /**
  * A condition row that lifts: the conditions it names come off the target through lib's `lift`, on this client, and the effects that went are stored whole on the entry so an Undo
- * recreates them under their own ids. What `liftPlan` leaves standing (a two-status effect, one a feature manages or holds) is listed on the entry with its reason.
+ * recreates them under their own ids. What `liftPlan` leaves standing (an effect of statuses its entry does not bring, one a feature manages or holds) is listed on the entry with its reason.
  * Only what is gone from the actor after the lift is stored, since `lift` logs a failure and goes on.
  */
 async function applyConditionRemove({ keyed, found, deps, base }) {
-  const plan = liftPlan(found.actor.effects, keyed.row.conditions);
+  const plan = liftPlan(found.actor.effects, keyed.row.conditions, deps.impliedStatuses);
   const data = plan.lift.map((e) => e.toObject());
   if (plan.statuses.length) await deps.lift(found.actor, plan.statuses);
   const lifted = data.filter((d) => !found.actor.effects.has(d._id));
@@ -536,7 +559,8 @@ async function applySlay({ card, keyed, resist, found, deps, base }) {
     Object.assign(entry, { before: result.before, after: result.after, applied: result.before - result.after });
   }
   if (deps.deadStatus) {
-    const records = conditionRecords({ type: "conditionGrant", conditions: [deps.deadStatus], lasts: "instant" }, card, { resist, startTime: deps.now(), key, duration: { none: "noDuration" }, spell: deps.spell });
+    const built = await builtConditions([deps.deadStatus], deps);
+    const records = conditionRecords({ type: "conditionGrant", conditions: [deps.deadStatus], lasts: "instant" }, card, { resist, startTime: deps.now(), key, duration: { none: "noDuration" }, spell: deps.spell, built });
     entry.recordIds = await deps.createRecords(found.actor, records);
   }
   return entry;
@@ -729,12 +753,15 @@ const foundryBounds = (formula) => ({
 export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
   const { adjustHp, restoreHp, resolveTargets } = await import("../lib/hp.mjs");
   const { loseStates, lift, STATUS_DEAD } = await import("../lib/status-effects.mjs");
+  const { statusEffectData, impliedStatuses } = await import("../lib/held-condition.mjs");
   return {
     messageId,
     adjustHp,
     restoreHp,
     lose: loseStates,
     lift,
+    conditionData: statusEffectData,
+    impliedStatuses,
     deadStatus: STATUS_DEAD,
     setDestroyed: async (item, on) => (await import("../equipment/actions.mjs")).setDestroyed(item, on),
     clearDestroyed: async (actor, itemId) => {

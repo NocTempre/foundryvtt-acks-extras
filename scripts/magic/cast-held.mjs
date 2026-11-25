@@ -41,6 +41,7 @@ import { spellEffectOf, spellEffectData } from "./spell-effect.mjs";
 import { castEndedRecipients } from "./cast-expiry.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { lossInFlight } from "../lib/status-effects.mjs";
+import { statusEffectData } from "../lib/held-condition.mjs";
 import { unset } from "../lib/util.mjs";
 import { CONTROL_ENDS } from "../lib/magic-vocab.mjs";
 
@@ -132,7 +133,7 @@ export function checkHeldEndRequest(req, world) {
   return { ok: true };
 }
 
-/** The top-level keys a restored record keeps; a change list is always empty, since no record of this module carries one. */
+/** The top-level keys a restored record keeps; its change list is always empty and its figures never come from the card (`restoredAs`). */
 const RESTORED_KEYS = ["_id", "name", "img", "origin", "transfer", "disabled", "statuses"];
 
 /** A restored record's data: only what this module wrote, bound to the card's own cast. Null for data that is not a record of that cast. */
@@ -142,6 +143,26 @@ function restorable(data, flag) {
   const out = { changes: [], flags: { [MODULE_ID]: foundryClone(data.flags[MODULE_ID]) } };
   for (const key of RESTORED_KEYS) if (data[key] !== undefined) out[key] = data[key];
   return out;
+}
+
+/**
+ * A restored record of a condition, as the builder gives that condition: its
+ * statuses and `system.changes` are what `built` (`statusEffectData`) returned
+ * for the record's first status, never what the card held, so a card cannot
+ * write a figure and a restored record carries the figure a fresh one would.
+ * Data with no status, or whose first status the builder did not answer, is
+ * returned as it is.
+ *
+ * @param {object} data  a restorable record's data (`restorePlan`)
+ * @param {{statuses: string[], system?: {changes?: object[]}}|null} built
+ * @returns {object}
+ */
+export function restoredAs(data, built) {
+  const first = data?.statuses?.[0];
+  if (!first || built?.statuses?.[0] !== first) return data;
+  const figures = Array.from(built.system?.changes ?? []);
+  const { changes: _legacy, ...rest } = data;
+  return { ...rest, statuses: [...built.statuses], ...(figures.length ? { system: { changes: figures.map((change) => ({ ...change })) } } : { changes: [] }) };
 }
 
 /** A deep copy of plain data. */
@@ -503,7 +524,9 @@ async function pressRestore(message) {
   for (const { actorUuid, data } of plan.create) {
     const actor = await fromUuid(actorUuid);
     if (!actor?.effects || actor.effects.has(data._id)) continue;
-    await actor.createEmbeddedDocuments("ActiveEffect", [data], { keepId: true });
+    const first = data.statuses?.[0];
+    const restored = first ? restoredAs(data, await statusEffectData(first)) : data;
+    await actor.createEmbeddedDocuments("ActiveEffect", [restored], { keepId: true });
   }
   for (const { actorUuid, id, was } of plan.undo) {
     const effect = (await fromUuid(actorUuid))?.effects?.get(id);

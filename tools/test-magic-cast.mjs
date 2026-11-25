@@ -43,6 +43,7 @@ const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.
 const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
 const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
 const { heldRecordData } = await import("../scripts/magic/cast-held.mjs");
+const { conditionChanges, BROUGHT } = await import("./core-conditions-fixture.mjs");
 const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 
 let n = 0;
@@ -217,9 +218,10 @@ t("a Player is blocked and a Judge warned: no slot, several targets for a throw 
 
 const base = { spell: { uuid: "Actor.c1.Item.s1", name: "Testscorch", img: "i.png" }, caster: { uuid: "Actor.c1" }, castId: "cast1", role: "recipient" };
 
-t("a record holds at most one status and never one with changes; a condition record is timed by its flag", () => {
-  assert.throws(() => spellEffectData({ ...base, statuses: ["a", "b"] }), /at most one status/);
-  assert.throws(() => spellEffectData({ ...base, statuses: ["a"], changes: [{ key: "k", mode: 2, value: "1" }] }), /holds no changes/);
+t("a record names one condition and holds only what the builder returned for it; a condition record is timed by its flag", () => {
+  assert.throws(() => spellEffectData({ ...base, statuses: ["a", "b"] }), /exactly what the builder returned/);
+  assert.throws(() => spellEffectData({ ...base, statuses: ["a"], changes: [{ key: "k", mode: 2, value: "1" }] }), /system changes and no others/);
+  assert.throws(() => spellEffectData({ ...base, statuses: ["a"], system: { changes: conditionChanges("blessed") } }), /exactly what the builder returned/, "a figure with no builder's word");
   const data = spellEffectData({ ...base, statuses: ["a"], rowKey: "dread", duration: { value: 60, units: "seconds" }, startTime: 100 });
   assert.deepEqual(data.statuses, ["a"]);
   assert.equal(data.duration, undefined, "core's duration stays unset");
@@ -230,7 +232,44 @@ t("a record holds at most one status and never one with changes; a condition rec
   assert.equal(spellEffectOf(summon).startTime, undefined);
 });
 
-const SECS = { seconds: 1, minutes: 50 };
+/** What the builder returns for a condition of the fixture: its own status, the one it brings, and the merged changes. */
+const builtFor = (id) => {
+  const brought = BROUGHT[id];
+  return { name: `core.${id}`, statuses: brought ? [id, brought] : [id], system: { changes: [...conditionChanges(id), ...(brought ? conditionChanges(brought) : [])] } };
+};
+
+t("a record of a condition holds the builder's changes; a state that brings one holds both statuses and the merged changes, and nothing else is admitted", () => {
+  const blessed = builtFor("blessed");
+  const own = spellEffectData({ ...base, statuses: blessed.statuses, system: blessed.system, condition: blessed, startTime: 5 });
+  assert.deepEqual(own.statuses, ["blessed"]);
+  assert.deepEqual(own.system.changes, conditionChanges("blessed"));
+  assert.equal(own.changes, undefined, "the figures ride at system.changes alone, with no second list beside them");
+  assert.deepEqual(spellEffectData({ ...base, statuses: ["plain"], system: { changes: [] }, condition: { statuses: ["plain"] } }).changes, [], "a record with no figure keeps its empty list");
+  assert.equal(Object.hasOwn(own, "_id"), false, "a record is its own document");
+  const charging = builtFor("charging");
+  const both = spellEffectData({ ...base, statuses: charging.statuses, system: charging.system, condition: charging });
+  assert.deepEqual(both.statuses, ["charging", "disordered"]);
+  assert.deepEqual(both.system.changes, [...conditionChanges("charging"), ...conditionChanges("disordered")]);
+  both.system.changes[0].value = 0;
+  assert.equal(charging.system.changes[0].value, conditionChanges("charging")[0].value, "the record copies the builder's rows");
+  const mark = spellEffectOf(both);
+  assert.equal(mark.castId, "cast1");
+  // a status the builder did not bring, a change it did not return, a missing builder: each refused
+  assert.throws(() => spellEffectData({ ...base, statuses: ["charging", "shaken"], system: charging.system, condition: charging }), /exactly what the builder returned/);
+  assert.throws(() => spellEffectData({ ...base, statuses: charging.statuses, system: { changes: conditionChanges("blessed") }, condition: charging }), /exactly what the builder returned/);
+  assert.throws(() => spellEffectData({ ...base, statuses: charging.statuses, system: charging.system }), /exactly what the builder returned/);
+  assert.throws(() => spellEffectData({ ...base, system: blessed.system, condition: blessed }), /exactly what the builder returned/, "a figure with no status of its own");
+});
+
+t("a buff record and a pending declaration still hold no status and no changes, the builder's included", () => {
+  const blessed = builtFor("blessed");
+  const flag = { id: null, label: "L", cite: "", sourceAlignment: null, parts: [] };
+  assert.throws(() => spellEffectData({ ...base, rollMods: flag, statuses: blessed.statuses, system: blessed.system, condition: blessed }), /buff record holds no status/);
+  assert.throws(() => spellEffectData({ ...base, rollMods: flag, system: blessed.system, condition: blessed }), /buff record holds no status/);
+  assert.throws(() => spellEffectData({ ...base, pending: { spellUuid: "S" }, statuses: blessed.statuses, system: blessed.system, condition: blessed }), /pending declaration holds no status/);
+});
+
+const SECS ={ seconds: 1, minutes: 50 };
 const secondsOf = (value, units) => (units in SECS ? value * SECS[units] : null);
 const flagged = (over = {}, mark = {}) => ({
   uuid: over.uuid ?? "Actor.c1.ActiveEffect.e1",
@@ -493,6 +532,41 @@ await ta("a condition cast twice on one target leaves two status-only records, e
   assert.deepEqual(spellEffectOf(log.made[0]).duration, { value: 60, units: "seconds" });
   assert.equal(spellEffectOf(log.made[0]).startTime, 500);
   assert.equal(log.entries.t1_dread.recordIds.length, 1);
+});
+
+await ta("a condition row writes each record as the effect the builder returns for it: the figure of a change-carrying condition, both statuses and the merged figures of a state that brings one, never a static id", async () => {
+  const grant = { type: "conditionGrant", key: "dread", conditions: ["blessed", "charging", "plain"], lasts: "duration", total: null };
+  const c = card({ save: { category: "", effect: "" }, rows: { dread: grant }, order: ["dread"], targets: { t1: { uuid: "Scene.s.Token.k1", name: "T", resist: null } }, entries: { t1_dread: { state: "pending" } } });
+  const asked = [];
+  const conditionData = async (id) => (asked.push(id), id === "plain" ? { name: id, statuses: [id] } : { ...builtFor(id), _id: "StaticInvented001" });
+  const { deps, log } = fakeDeps({ conditionData });
+  await applyOnTarget(c, "t1", [{ rowKey: "dread" }], deps);
+  assert.deepEqual(asked, ["blessed", "charging", "plain"], "the builder is asked once for each condition the row writes");
+  const [blessed, charging, plain] = log.made;
+  assert.deepEqual([blessed.statuses, blessed.system.changes], [["blessed"], conditionChanges("blessed")]);
+  assert.deepEqual([charging.statuses, charging.system.changes], [["charging", "disordered"], [...conditionChanges("charging"), ...conditionChanges("disordered")]]);
+  assert.deepEqual([plain.statuses, plain.system], [["plain"], undefined], "a condition with no figure carries none");
+  for (const data of log.made) {
+    assert.equal(Object.hasOwn(data, "_id"), false, "a cast's record is its own document, not the token toggle's");
+    assert.equal(data.name, "Testscorch", "the record is the spell's, not the entry's");
+    assert.deepEqual(spellEffectOf(data).rowKey, "dread");
+    assert.equal(spellEffectOf(data).startTime, 500, "timed by its flag");
+  }
+  const bare = fakeDeps();
+  await applyOnTarget(c, "t1", [{ rowKey: "dread" }], bare.deps);
+  assert.deepEqual(bare.log.made.map((d) => d.statuses), [["blessed"], ["charging"], ["plain"]], "with no builder a record holds its own status alone");
+});
+
+t("conditionRecords takes what was built for each status and writes a status-free record for an anchor whatever it holds", () => {
+  const grant = { type: "conditionGrant", key: "dread", conditions: ["charging"], lasts: "duration" };
+  const c = card();
+  const built = { charging: builtFor("charging") };
+  const [record] = conditionRecords(grant, c, { startTime: 1, spell: { img: "i" }, built });
+  assert.deepEqual(record.statuses, ["charging", "disordered"]);
+  assert.equal(record.system.changes.length, conditionChanges("charging").length + conditionChanges("disordered").length);
+  const [anchor] = conditionRecords(grant, c, { startTime: 1, spell: { img: "i" }, anchor: true, built });
+  assert.equal(anchor.statuses, undefined);
+  assert.equal(anchor.system, undefined);
 });
 
 await ta("the loss a failed save costs runs before the cast's own condition is written", async () => {

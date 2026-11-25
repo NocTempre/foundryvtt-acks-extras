@@ -413,7 +413,7 @@ clock; a record anchored to turns is aged by turns instead ("A record that
 lives", below).
 
 **A record that lives** (`cast-life.mjs`, pure; `cast-apply.mjs`). A condition
-row whose `lasts` is `nextTurn` or `rounds` writes its status-only record with
+row whose `lasts` is `nextTurn` or `rounds` writes its condition record with
 two ends, and the first to come deletes the record by id. The clock end is the
 record's own flag `duration` and `startTime` (above): one round for `nextTurn`,
 the rolled rounds for `rounds`, counted at `ROUND_SECONDS`. The turn end is lib's
@@ -862,8 +862,16 @@ cancel at any point before the spend costs nothing:
    Judge's case to a Judge and to the target's owners, and every other seat reads
    "a defense" with the figures. A Judge's case reads the defense and its page
    reference on the line, with the page reference alone as the tooltip. A
-   condition row writes a status-only record per condition (at most one status
-   to a record, never with changes), timed by the row's `lasts`: from the cast's
+   condition row writes one record per condition, the effect Foundry builds for
+   that condition (`statusEffectData`, `lib/held-condition.mjs`: `fromStatusEffect`,
+   the registered entry where it cannot): the condition's status, the statuses
+   its entry brings, and its `system.changes`, whole, and never the entry's
+   static `_id`. A record names one condition and `spellEffectData` holds it to
+   what the builder returned; a buff or a pending record still holds no status
+   and no change. A figure counts once however many effects carry its condition
+   (`countsOnce`, `lib/roll-mods.mjs`), so a second carrier writes no change
+   out. A condition with no changes in the system's list writes its status
+   alone. The record is timed by the row's `lasts`: from the cast's
    duration for `duration`, and for `nextTurn` and `rounds` by the record's life
    ("A record that lives", above), the entry keeping what was written (`life
    {kind, count, formula, detail, turn}`) for its line and tooltip, which name
@@ -1110,7 +1118,8 @@ back the caster's record and each ended one with its own id and undoes the
 re-timings. Its flag `castHeldEnd` holds the cause, those lists with each ended
 record's data, and the caster record's data. Restore keeps only the keys this
 module writes of a record whose mark carries the card's own cast and caster, with
-an empty change list. A cast's recipient records are not found when the caster's
+an empty change list; the press then sets a condition record's statuses and
+`system.changes` from the builder (`restoredAs`), never from the card. A cast's recipient records are not found when the caster's
 whole actor is deleted, since Foundry fires no per-record hook for it
 ([ROADMAP.md](ROADMAP.md)).
 

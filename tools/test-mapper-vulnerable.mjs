@@ -19,7 +19,8 @@ const test = async (name, fn) => { await fn(); passed++; console.log("ok   " + n
 
 globalThis.CONFIG = { statusEffects: [{ id: "vulnerable", name: "EFFECT.Vulnerable", img: "icons/svg/hazard.svg" }] };
 globalThis.game = { i18n: { localize: (key) => key } };
-const { HELD_CONDITION_FLAG, heldEffects, holdCondition, releaseCondition } = await import("../scripts/lib/held-condition.mjs");
+const { HELD_CONDITION_FLAG, heldEffects, holdCondition, releaseCondition, statusEffectData, impliedStatuses } = await import("../scripts/lib/held-condition.mjs");
+const { conditionChanges } = await import("./core-conditions-fixture.mjs");
 
 /* ------------------------------------------------------------------ */
 /*  The verdicts                                                        */
@@ -127,6 +128,7 @@ function actor() {
       disabled: !!data.disabled,
       statuses: new Set(data.statuses ?? []),
       flags: data.flags ?? {},
+      system: data.system,
       getFlag(scope, key) { return this.flags?.[scope]?.[key]; },
       async update(patch) { log.updated += 1; if (patch.statuses) this.statuses = new Set(patch.statuses); },
     };
@@ -223,6 +225,104 @@ await test("another effect already on the fixed id keeps it, and the held effect
 await test("an actor with no effects collection is not an error", async () => {
   assert.equal(await holdCondition(null, HELD), false);
   assert.equal(await releaseCondition(undefined, HELD), false);
+});
+
+/* ------------------------------------------------------------------ */
+/*  The one builder of a status effect's data                           */
+/* ------------------------------------------------------------------ */
+
+const STATIC = "StaticIdInvented1";
+const bringing = () => ({
+  id: "charging",
+  name: "core.charging",
+  img: "core/charging.svg",
+  statuses: ["disordered"],
+  _id: STATIC,
+  system: { changes: [...conditionChanges("charging"), ...conditionChanges("disordered")] },
+});
+const carrying = () => ({ id: "disordered", name: "core.disordered", img: "core/disordered.svg", system: { changes: conditionChanges("disordered") } });
+const HOLDS_CHARGING = { holder: "invented-holder", statusId: "charging", id: "HeldIdInvented001" };
+
+/** Run `fn` with `entries` registered and `ActiveEffect` as given, then put both back. */
+async function withRegistry(entries, effectClass, fn) {
+  const kept = { config: globalThis.CONFIG.statusEffects, effect: globalThis.ActiveEffect };
+  globalThis.CONFIG.statusEffects = entries;
+  if (effectClass) globalThis.ActiveEffect = effectClass;
+  else delete globalThis.ActiveEffect;
+  try {
+    await fn();
+  } finally {
+    globalThis.CONFIG.statusEffects = kept.config;
+    if (kept.effect) globalThis.ActiveEffect = kept.effect;
+    else delete globalThis.ActiveEffect;
+  }
+}
+
+/** A stand-in for Foundry's `ActiveEffect.fromStatusEffect`: the entry's data as `toObject` gives it, the static id included. */
+const foundryBuilds = (entries) => ({
+  async fromStatusEffect(id) {
+    const { id: statusId, ...entry } = entries.find((s) => s.id === id);
+    return { toObject: () => ({ ...entry, statuses: [...new Set([statusId, ...(entry.statuses ?? [])])] }) };
+  },
+});
+
+await test("the builder takes Foundry's own effect for an id, its brought statuses and system changes whole, and never the entry's static id", async () => {
+  const entries = [bringing(), carrying()];
+  await withRegistry(entries, foundryBuilds(entries), async () => {
+    const data = await statusEffectData("charging");
+    assert.deepEqual(data.statuses, ["charging", "disordered"]);
+    assert.deepEqual(data.system.changes, [...conditionChanges("charging"), ...conditionChanges("disordered")]);
+    assert.equal(Object.hasOwn(data, "_id"), false, "the static id is the token toggle's, not a record's");
+    assert.deepEqual((await statusEffectData("disordered")).system.changes, conditionChanges("disordered"));
+  });
+});
+
+await test("where Foundry cannot build the effect the builder reads the registered entry: its statuses and system ride, the static id does not", async () => {
+  await withRegistry([bringing(), carrying()], null, async () => {
+    const data = await statusEffectData("charging");
+    assert.deepEqual(data.statuses, ["charging", "disordered"]);
+    assert.deepEqual(data.system, bringing().system);
+    assert.equal(Object.hasOwn(data, "_id"), false);
+    assert.equal(data.name, "core.charging");
+    assert.equal(data.img, "core/charging.svg");
+    data.system.changes[0].value = 0;
+    assert.deepEqual(CONFIG.statusEffects[0].system, bringing().system, "the entry is copied, never handed out");
+  });
+});
+
+await test("an id with no registered entry yields its own status alone, and a thrown build falls back to the entry", async () => {
+  const throwing = { fromStatusEffect: async () => { throw new Error("no such status"); } };
+  await withRegistry([carrying()], throwing, async () => {
+    assert.deepEqual((await statusEffectData("disordered")).statuses, ["disordered"]);
+    const bare = await statusEffectData("unregistered");
+    assert.deepEqual(bare.statuses, ["unregistered"]);
+    assert.equal(bare.name, "unregistered");
+    assert.equal(bare.system, undefined);
+  });
+});
+
+await test("impliedStatuses names what the entry brings beyond its own id, and nothing for an entry that brings none", async () => {
+  await withRegistry([{ ...bringing(), statuses: ["charging", "disordered"] }, carrying()], null, async () => {
+    assert.deepEqual(impliedStatuses("charging"), ["disordered"]);
+    assert.deepEqual(impliedStatuses("disordered"), []);
+    assert.deepEqual(impliedStatuses("unregistered"), []);
+  });
+});
+
+await test("a held state that brings a condition is created with both statuses and the merged changes under the holder's id, and a status an edit dropped restores the whole list", async () => {
+  const entries = [bringing(), carrying()];
+  await withRegistry(entries, foundryBuilds(entries), async () => {
+    const a = actor();
+    assert.equal(await holdCondition(a, HOLDS_CHARGING), true);
+    const [mine] = heldEffects(a, HOLDS_CHARGING);
+    assert.equal(mine.id, HOLDS_CHARGING.id, "the holder's id, not the entry's static one");
+    assert.deepEqual([...mine.statuses], ["charging", "disordered"]);
+    assert.deepEqual(mine.system.changes, [...conditionChanges("charging"), ...conditionChanges("disordered")]);
+    mine.statuses = new Set(["disordered"]);
+    assert.equal(await holdCondition(a, HOLDS_CHARGING), true);
+    assert.deepEqual([...mine.statuses], ["charging", "disordered"], "the restore writes every status the entry names, not the one id");
+    assert.equal(await holdCondition(a, HOLDS_CHARGING), false);
+  });
 });
 
 console.log(`\n${passed} passed`);

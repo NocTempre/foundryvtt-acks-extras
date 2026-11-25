@@ -33,8 +33,23 @@ export function heldEffects(actor, { holder }) {
   return [...(actor?.effects ?? [])].filter((e) => e.getFlag?.(MODULE_ID, HELD_CONDITION_FLAG) === holder);
 }
 
-/** The effect data for a held status: core's own status effect where it can build one, a plain one where it cannot. */
-async function effectData({ statusId, id, holder }, description) {
+/**
+ * The data an Active Effect for status `statusId` takes from Foundry: what
+ * `ActiveEffect.fromStatusEffect` builds from the registered entry (its name,
+ * image, statuses with the ones the entry brings, and its `system.changes`),
+ * or, where that method is absent or throws, the registered entry read the same
+ * way. An id with no entry still yields its own status. The entry's static
+ * `_id` is never handed out: the effect a caller writes is its own document,
+ * not the one a token toggle looks for. Every writer of a status effect takes
+ * its status data from here, so that what stands for a condition carries the
+ * figures the system gives it; the one-count rule is `countsOnce`'s
+ * (`roll-mods.mjs`), applied where Foundry applies a change, never by a writer
+ * leaving a change out.
+ *
+ * @param {string} statusId  a status id of `CONFIG.statusEffects`
+ * @returns {Promise<{name: string, img?: string, statuses: string[], system?: {changes?: object[]}}>}
+ */
+export async function statusEffectData(statusId) {
   let base = null;
   try {
     const made = await ActiveEffect.fromStatusEffect?.(statusId);
@@ -44,8 +59,33 @@ async function effectData({ statusId, id, holder }, description) {
   }
   if (!base) {
     const config = CONFIG.statusEffects?.find?.((s) => s.id === statusId);
-    base = { name: config?.name ? game.i18n.localize(config.name) : statusId, img: config?.img ?? config?.icon, statuses: [statusId] };
+    base = {
+      name: config?.name ? game.i18n.localize(config.name) : statusId,
+      img: config?.img ?? config?.icon,
+      statuses: [...new Set([statusId, ...(config?.statuses ?? [])])],
+      ...(config?.system ? { system: structuredClone(config.system) } : {}),
+    };
   }
+  const { _id: _static, ...data } = base;
+  return data;
+}
+
+/**
+ * The statuses the registered entry for `statusId` brings along with it (its
+ * implicit statuses), without the id itself. Read from `CONFIG.statusEffects`;
+ * empty for an id with no entry or an entry that brings none.
+ *
+ * @param {string} statusId
+ * @returns {string[]}
+ */
+export function impliedStatuses(statusId) {
+  const config = CONFIG.statusEffects?.find?.((s) => s.id === statusId);
+  return Array.from(config?.statuses ?? []).filter((id) => id !== statusId);
+}
+
+/** The effect data for a held status: `statusEffectData` under the holder's fixed id and marker. */
+async function effectData({ statusId, id, holder }, description) {
+  const base = await statusEffectData(statusId);
   return {
     ...base,
     _id: id,
@@ -82,9 +122,10 @@ export async function holdCondition(actor, held, { description = "" } = {}) {
     await actor.createEmbeddedDocuments("ActiveEffect", [data], data._id ? { keepId: true } : {});
     return true;
   }
-  // A disabled one is a hand's answer ("not on this character"), and stays so.
+  // A disabled one is a hand's answer ("not on this character"), and stays so. The restore writes the
+  // status list the entry builds, the statuses it brings included.
   if (!keep.disabled && !keep.statuses?.has?.(held.statusId)) {
-    await keep.update({ statuses: [held.statusId] });
+    await keep.update({ statuses: (await statusEffectData(held.statusId)).statuses });
     wrote = true;
   }
   return wrote;

@@ -76,23 +76,28 @@ export function chosenWeapon(actor, id) {
 /**
  * What a `conditionRemove` row may lift from an actor: for each status id the row
  * names, the effects carrying it. An id lifts only when every effect that
- * carries it is the module's own cast or a hand's and holds that status alone;
- * an effect with another status beside it, one a feature manages and one a
- * feature holds on its behalf are listed with the reason and left standing, and
- * an id that has one is not lifted at all, since lib's `lift` takes an id and
- * ends every effect that carries it.
+ * carries it is the module's own cast or a hand's and holds that status, with
+ * at most the statuses its entry brings (`impliedOf`); an effect with any other
+ * status beside it, one a feature manages and one a feature holds on its behalf
+ * are listed with the reason and left standing, and an id that has one is not
+ * lifted at all, since lib's `lift` takes an id and ends every effect that
+ * carries it. The statuses brought are the lifted id's own: lifting a brought
+ * status off the effect of the status that brings it lists that effect.
  *
  * @param {Iterable<object>} effects  the actor's effects
  * @param {Iterable<string>} ids  the status ids the row names
+ * @param {(statusId: string) => Iterable<string>} [impliedOf]  the statuses the registered entry for an id brings; absent, none
  * @returns {{lift: object[], statuses: string[], listed: Array<{status: string, name: string, reason: "twoStatus"|"managed"|"held"}>}}
  */
-export function liftPlan(effects, ids) {
+export function liftPlan(effects, ids, impliedOf = () => []) {
   const all = [...(effects ?? [])];
   const out = { lift: [], statuses: [], listed: [] };
   for (const status of new Set(Array.from(ids ?? []))) {
     const carrying = all.filter((e) => e?.statuses?.has?.(status));
     if (!carrying.length) continue;
-    const reasonOf = (e) => (e.getFlag?.(MODULE_ID, HELD_CONDITION_FLAG) ? "held" : isManagedEffect(e) ? "managed" : (e.statuses?.size ?? 1) > 1 ? "twoStatus" : null);
+    const brought = new Set([status, ...Array.from(impliedOf(status) ?? [])]);
+    const alone = (e) => [...(e.statuses ?? [status])].every((id) => brought.has(id));
+    const reasonOf = (e) => (e.getFlag?.(MODULE_ID, HELD_CONDITION_FLAG) ? "held" : isManagedEffect(e) ? "managed" : !alone(e) ? "twoStatus" : null);
     const blocked = carrying.filter((e) => reasonOf(e) === "held" || reasonOf(e) === "managed");
     for (const e of carrying.filter((x) => reasonOf(x) === "twoStatus")) out.listed.push({ status, name: String(e.name ?? ""), reason: "twoStatus" });
     for (const e of blocked) out.listed.push({ status, name: String(e.name ?? ""), reason: reasonOf(e) });

@@ -653,6 +653,34 @@ await (async () => {
   console.log("ok   a condition's stacks are read from, and written to, the effect carrying it");
 })();
 
+/* --- lift ends an effect that holds the status under any id --------------------- */
+
+await (async () => {
+  const { lift } = await import("../scripts/lib/status-effects.mjs");
+  const was = globalThis.CONFIG;
+  globalThis.CONFIG = { ...(was ?? {}), statusEffects: [{ id: "qastate", _id: "qastate000000000", statuses: ["qabrought"] }, { id: "qabrought" }, { id: "qaother" }] };
+  try {
+    const effect = (id, statuses) => ({ id, statuses: new Set(statuses) });
+    const actorOf = (effects) => ({
+      name: "Lifted",
+      effects,
+      toggled: [],
+      async toggleStatusEffect(id, { active }) { this.toggled.push([id, active]); },
+      async deleteEmbeddedDocuments(_kind, ids) { this.effects = this.effects.filter((e) => !ids.includes(e.id)); },
+    });
+    const actor = actorOf([effect("cast", ["qastate", "qabrought"]), effect("older", ["qastate"]), effect("hand", ["qabrought"]), effect("mixed", ["qastate", "qaother"])]);
+    await lift(actor, ["qastate"]);
+    assert.deepEqual(actor.toggled, [["qastate", false]], "the system's toggle runs first");
+    assert.deepEqual(actor.effects.map((e) => e.id), ["hand", "mixed"], "a state's effect under another id goes with what it brings; a copy of the brought status and an effect with a third status stay");
+    const bearer = actorOf([effect("cast", ["qastate", "qabrought"]), effect("hand", ["qabrought"])]);
+    await lift(bearer, ["qabrought"]);
+    assert.deepEqual(bearer.effects.map((e) => e.id), ["cast"], "lifting the brought status leaves the effect of the state that brings it");
+    console.log("ok   lift ends an effect holding the status with only what its entry brings, under any id");
+  } finally {
+    globalThis.CONFIG = was;
+  }
+})();
+
 /* --- a saving throw as the system rolls it ------------------------------------- */
 
 await (async () => {
