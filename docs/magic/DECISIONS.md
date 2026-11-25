@@ -1863,6 +1863,13 @@ the two seats' views are read from the code and a mock DOM and not from a world.
 - A declared cast stores the list it was declared through and resolves through it. A record
   stored before this has none and resolves as it did; none is migrated.
 
+**Superseded.** No entry is reversed. One reading is qualified: where this log and the model
+say the system casts a spell the cast claimant declines as it did before, that now holds for a
+character with no class bound, a class that casts from no list and a monster. On a class that
+casts from a list the gate claimant takes that cast, as the first item below records. The casting
+strip's pips on the system's own sheet stand as built; on this module's sheet they moved to the
+tab's headings.
+
 **Decided in the build, not selected by the owner**, each with its counter:
 
 - **A spell the cast window does not open for is gated and spends too**

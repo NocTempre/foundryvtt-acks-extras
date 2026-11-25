@@ -213,9 +213,12 @@ becomes of each proficiency the character held:
 Closing the dialog changes nothing. A chat card lists what was replaced, lost
 and marked.
 
-Casters get a per-tradition slot strip under the class field — click a pip to
-spend, click a spent pip to refund, the bed icon to rest. A class with two
-traditions shows its arcane and divine pools side by side.
+On the system's character sheet, casters get a per-tradition slot strip under
+the class field — click a pip to spend, click a spent pip to refund, the bed
+icon to rest. A class with two traditions shows its arcane and divine pools
+side by side. On this module's character sheet the pips sit on the Magic tab
+instead (Actors sidebar tab → the character's sheet → Magic tab), beside each
+list's Slots figure at each level, and the strip keeps the bed icon.
 
 ![](../releases/v3.3.0/classes-casting-strip.png)
 
