@@ -387,7 +387,7 @@ const P = {
     let doc = null;
     try { doc = row?.ref ? await M.resolveSummonRef(row.ref, { fromUuid: (u) => fromUuid(u), byCookbookId: L.byCookbookId }) : null; } catch { doc = null; }
     const pack = doc?.compendium ?? null;
-    return { resolves: !!doc, inPack: !!pack, visible: pack ? !!pack.visible : null, level: pack?.getUserLevel?.(game.user) ?? null, observer: pack ? (pack.testUserPermission?.(game.user, "OBSERVER") ?? null) : null };
+    return { resolves: !!doc, inPack: !!pack, visible: pack ? !!pack.visible : null, level: pack?.getUserLevel?.(game.user) ?? null, observer: pack ? (pack.testUserPermission?.(game.user, "OBSERVER") ?? null) : null, docObserver: doc && !pack ? !!doc.testUserPermission?.(game.user, "OBSERVER") : null };
   },
   /** Open a copy's cast dialog as `item.use()` does (not awaited) and read the Summon band: its choices, its count, its ceiling and its Cast button. Nothing is answered. */
   openDialog: async ({ casterId, itemId }) => {
@@ -1014,8 +1014,9 @@ async function stageSummonRows() {
       if (onGm.resolves) {
         // Read after the GM seat's import, so the shelf the creature lives on exists for the Player seat to read.
         const shelf = await run(player, P.packRead, { casterId: W.caster, itemId: W.spell[s.slug] });
-        note(`E ${s.slug}: the Player seat's level on the creature's shelf`, { resolves: shelf.resolves, inPack: shelf.inPack, visible: shelf.visible, level: shelf.level, observer: shelf.observer });
-        if (shelf.resolves && !shelf.inPack) note(`E ${s.slug}: the creature is a world document, so there is no shelf to read`, true);
+        note(`E ${s.slug}: the Player seat's level on the creature's shelf`, { resolves: shelf.resolves, inPack: shelf.inPack, visible: shelf.visible, level: shelf.level, observer: shelf.observer, docObserver: shelf.docObserver });
+        // A world document answering for the id is the case that refuses a shipped spell: the Player must observe that document itself.
+        if (shelf.resolves && !shelf.inPack) check(`E ${s.slug}: the creature the Player seat resolves is a world document, and the Player observes it`, shelf.docObserver === true, { docObserver: shelf.docObserver });
         else check(`E ${s.slug}: the Player seat resolves the creature and reads its shelf as visible at Observer or better`, shelf.resolves && shelf.inPack && shelf.visible === true && shelf.observer !== false && (shelf.level === null || shelf.level >= 2), { resolves: shelf.resolves, visible: shelf.visible, level: shelf.level, observer: shelf.observer });
       }
     }
@@ -1026,8 +1027,10 @@ async function stageSummonRows() {
         const cap = await run(player, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [read.amount, read.amount + 1] });
         check(`E ${s.slug}: a count over the row's located amount is refused, the amount itself is not`, cap.refusal[read.amount] !== "badCount" && cap.refusal[read.amount + 1] === "badCount", { refused: cap.refusal[read.amount + 1] });
       }
-    } else check(`E ${s.slug}: the row states no amount, so no count is refused as too many`, read.amount === 0 && read.refusal[2] !== "badCount" && read.refusal[5] !== "badCount", { amount: read.amount, refusal: read.refusal });
-    if (s.slug === "summoning") check("E summoning: the count's ceiling at the caster level is carried on the row, unresolved, and the cast count is not capped at one", read.hasMax && read.maxKeys > 0 && read.refusal[5] !== "badCount", { hasMax: read.hasMax, maxKeys: read.maxKeys });
+    } else if (s.ref && !seatResolves) skip(`E ${s.slug}: the Player seat does not resolve the row's creature, so the policy has no creature to weigh a count against`);
+    else check(`E ${s.slug}: the row states no amount, so no count is refused as too many`, read.amount === 0 && read.refusal[2] === null && read.refusal[5] === null, { amount: read.amount, refusal: read.refusal });
+    if (s.slug === "summoning" && !seatResolves) skip("E summoning: the Player seat does not resolve the row's creature, so the count's ceiling is not weighed");
+    else if (s.slug === "summoning") check("E summoning: the count's ceiling at the caster level is carried on the row, unresolved, and the cast count is not capped at one", read.hasMax && read.maxKeys > 0 && read.refusal[5] !== "badCount", { hasMax: read.hasMax, maxKeys: read.maxKeys });
   }
   // The cast dialog's Summon band as the seat opens it, for the two spells whose row names a creature; each is cancelled unanswered, so nothing is spent.
   for (const slug of ["calling", "summoning"]) {

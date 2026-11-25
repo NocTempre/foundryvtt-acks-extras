@@ -952,6 +952,12 @@ await t("summonVerdict is the refusals before the clicks, silent and with nothin
   assert.equal(ok.ok, true);
   assert.equal(ok.scene, scene);
   assert.equal((await summonVerdict(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 0, spellId: SPELL.id })).reason, "badCount");
+  const seat = game.user;
+  game.user = p1;
+  assert.equal((await summonVerdict(summoner, { sourceUuid: "def.invented.closedShelf", count: 1, spellId: SPELL.id })).reason, "unreadable", "a Player seat reads a spell's ref nothing here answers as a creature it cannot open");
+  game.user = gm;
+  assert.equal((await summonVerdict(summoner, { sourceUuid: "def.invented.closedShelf", count: 1, spellId: SPELL.id })).reason, "badSource", "a Judge's seat reads every shelf, so the same ref names nothing");
+  game.user = seat;
   seatCanvas(scene, { ready: false });
   assert.equal((await summonVerdict(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id })).reason, "noCanvas");
   assert.equal(asked.length + notes.warn.length, 0);
@@ -1182,6 +1188,31 @@ await t("a creature on a shelf the Player can open is resolved by its cookbook i
   assert.equal(calls.actorCreate[0].flags[M][logic.SUMMON_COPY_FLAG].sourceUuid, shelf.uuid, "the one world copy is keyed by the resolved uuid");
   assert.equal((await summonRelay(place({ sourceUuid: `uuid:${shelf.uuid}`, positions: [{ x: 5, y: 5 }], count: 1 }))).ok, true);
   assert.equal(calls.actorCreate.length, 1, "both reach the one copy");
+});
+
+await t("a world actor carrying the same cookbook id at NONE does not stand in front of the shelf's own for a Player; a Judge takes the world's", async () => {
+  setup();
+  // The world's actors are read before the shelves', so the dragged-out actor is the first to carry the id.
+  const dragged = makeWorldCreature("dragged");
+  dragged.flags = { [M]: { cookbook: { id: COOKBOOK } } };
+  dragged.getFlag = flagOf(dragged);
+  world.actors.set("dragged", dragged);
+  const shelf = makeShelfSource("shelf1", COOKBOOK, [p1.id]);
+  const out = await summonRelay(place({ sourceUuid: COOKBOOK, castId: "castD1" }));
+  assert.equal(out.ok, true, "the Player is not refused for a document they were not offered");
+  assert.equal(calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].sourceUuid, shelf.uuid, "the copy is of the document the Player observes");
+  const forGm = await summonRelay(place({ sourceUuid: COOKBOOK, requestUserId: null, positions: [{ x: 5, y: 5 }], count: 1, castId: "castD2" }));
+  assert.equal(forGm.ok, true);
+  assert.equal(calls.tokenCreate.at(-1).delta.flags[M][logic.SUMMON_RECORD_FLAG].sourceUuid, dragged.uuid, "a Judge observes both and takes the first, the world's");
+  // With no shelf the Player observes, the first is still answered, and refused as itself.
+  reset();
+  setup();
+  const lone = makeWorldCreature("lone");
+  lone.flags = { [M]: { cookbook: { id: COOKBOOK } } };
+  lone.getFlag = flagOf(lone);
+  world.actors.set("lone", lone);
+  makeShelfSource("shelf9", COOKBOOK, []);
+  assert.deepEqual(await summonRelay(place({ sourceUuid: COOKBOOK })), { ok: false, reason: "unreadable" });
 });
 
 await t("a closed shelf is unreadable to a Player however the request names it, and nothing is made or spent; the GM is never refused", async () => {

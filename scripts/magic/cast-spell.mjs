@@ -69,6 +69,7 @@ import { summonRowsOf, summonOffer, judgeSummon, summonIsConjuration } from "./c
 import { SEAL_ROW_TYPE } from "./cast-seal.mjs";
 import { displayDuration } from "./spell-logic.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
+import { sourceReadable } from "../lib/summons-logic.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken, addAttackContributor } from "../lib/patches/attack-throw.mjs";
 import { saveThrow, saveSpec } from "../lib/saves.mjs";
@@ -536,7 +537,8 @@ const liveDeps = () => ({
   // A summoning's creature prompt, the ref's creature, lib's pre-click checks, the seat's clicks and the placement (`lib/summons.mjs`, loaded where a summoning is cast).
   pickSummon: async (caster, o) => (await import("../lib/summons.mjs")).pickSummon(caster, o),
   summonVariant: async (caster, family, o) => (await import("../lib/summons.mjs")).summonVariant(caster, family, o),
-  resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId }),
+  // Of several documents carrying a row's id, the seat is offered the one its user observes, as lib's own lookup takes it.
+  resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId: (type, id) => byCookbookId(type, id, { prefer: (doc) => sourceReadable(doc, game.user) }) }),
   summonVerdict: async (caster, o) => {
     const lib = await import("../lib/summons.mjs");
     const verdict = await lib.summonVerdict(caster, o);
@@ -544,7 +546,6 @@ const liveDeps = () => ({
   },
   familyReadable: async (family) => {
     const lib = await import("../lib/summons.mjs");
-    const { sourceReadable } = await import("../lib/summons-logic.mjs");
     return sourceReadable(family, game.user) ? { ok: true } : { ok: false, reason: "unreadable", notice: lib.refusalText("unreadable") };
   },
   pickPlacement: async (caster, o) => (await import("../lib/summons.mjs")).pickPlacement(caster, o),

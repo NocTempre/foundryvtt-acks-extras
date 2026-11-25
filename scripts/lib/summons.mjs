@@ -250,9 +250,11 @@ async function createTokens({ copy, scene, positions, flags, ownership }) {
  * the library by an id the seat typed. A ref no lookup answers is null, never a
  * throw. The lookup runs on the seat and on the GM's client alike; who may
  * observe the document is `checkPlaceRequest`'s question, asked of the
- * requesting user.
+ * requesting user. Where several documents carry the id, the one `user`
+ * observes is taken, so a world actor a Judge dragged out of an open shelf
+ * does not stand in front of the shelf's own for a Player.
  */
-async function resolveSource(ref, spellId) {
+async function resolveSource(ref, spellId, user) {
   const key = normalizeRef(ref);
   if (!key) return null;
   try {
@@ -263,7 +265,7 @@ async function resolveSource(ref, spellId) {
   }
   if (!spellId) return null;
   await whenReady();
-  return byCookbookId("Actor", key);
+  return byCookbookId("Actor", key, { prefer: (doc) => sourceReadable(doc, user) });
 }
 
 /**
@@ -285,7 +287,7 @@ function casterCentre(scene, tokenId, summoner) {
  */
 async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, spellId = "", castId = "", cast: stated = null, casterTokenId = "", rangeFeet = null, calling = false, user }) {
   const summoner = await fromUuid(summonerUuid);
-  const source = await resolveSource(sourceUuid, spellId);
+  const source = await resolveSource(sourceUuid, spellId, user);
   const scene = game.scenes.get(sceneId);
   const cast = normalizeCast({ ...stated, castId: stated?.castId ?? castId }, foundry.utils.randomID());
   const verdict = checkPlaceRequest({ user, summoner, source, scene, count, positions, spellId, cast });
@@ -533,9 +535,11 @@ async function previewsFor(source, summoner, count) {
  */
 export async function summonVerdict(summoner, { sourceUuid, count = 1, spellId = "" } = {}) {
   const scene = sceneNow();
-  const source = await resolveSource(sourceUuid, spellId);
+  const source = await resolveSource(sourceUuid, spellId, game.user);
   const verdict = checkPlaceRequest({ user: game.user, summoner, source, scene, count, spellId });
-  if (!verdict.ok) return refused(verdict.reason);
+  // A seat that is no GM cannot tell a creature that is gone from one on a shelf closed to it: a ref its spell carries that nothing here answers reads as the second.
+  const closed = verdict.reason === "badSource" && !source && !!spellId && !!normalizeRef(sourceUuid) && !game.user.isGM;
+  if (!verdict.ok) return refused(closed ? "unreadable" : verdict.reason);
   if (!canvas?.ready || !scene) return refused("noCanvas");
   if (game.paused && !game.user.isGM) return refused("paused");
   return { ok: true, scene, source };

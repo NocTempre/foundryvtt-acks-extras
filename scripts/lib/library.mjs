@@ -232,18 +232,29 @@ export const libraryActors = () => libraryDocs("Actor");
  * class-template parts, which inherit the id of the definition they were made
  * from. With `original`, it also skips a world copy (`isWorldCopy`) and a
  * group's base actor (`templateFor`), which carry the stamp of the document
- * they were made from and answer for no import of their own.
+ * they were made from and answer for no import of their own. Several documents
+ * may carry one id (a world actor dragged out of its shelf keeps the stamp, and
+ * the world's are read first): `prefer(doc)` picks the first of them it answers
+ * true for, and the first of all where it answers for none.
+ * @param {string} type
+ * @param {string} id
+ * @param {{original?: boolean, prefer?: ((doc: object) => boolean)|null}} [options]
  */
-export function byCookbookId(type, id, { original = false } = {}) {
+export function byCookbookId(type, id, { original = false, prefer = null } = {}) {
   if (!id) return null;
-  return (
-    libraryDocs(type).find(
-      (d) =>
-        cookbookId(d) === id &&
-        !d.flags?.[MODULE_ID]?.templatePart &&
-        !(original && (isWorldCopy(d) || d.flags?.[MODULE_ID]?.templateFor)),
-    ) ?? null
-  );
+  const carries = (d) =>
+    cookbookId(d) === id &&
+    !d.flags?.[MODULE_ID]?.templatePart &&
+    !(original && (isWorldCopy(d) || d.flags?.[MODULE_ID]?.templateFor));
+  const docs = libraryDocs(type);
+  if (typeof prefer !== "function") return docs.find(carries) ?? null;
+  let first = null;
+  for (const d of docs) {
+    if (!carries(d)) continue;
+    if (prefer(d)) return d;
+    first ??= d;
+  }
+  return first;
 }
 
 /**

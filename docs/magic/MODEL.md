@@ -367,8 +367,8 @@ cookbook id, and a row grants no level on what it names: lib refuses a creature
 the casting user holds less than Foundry's Observer on, a Judge excepted (lib
 MODEL, "Summons"). A seat that cannot open the creature's shelf still offers the
 row when its ref reads as an id, labelled by the row's `name` or else "Creature
-N"; lib's verdict then refuses the cast before its slot is spent, and the
-window's foot gives the reason. A creature dropped on the Summon band that the
+N"; lib's verdict, asked when Cast is pressed, then refuses the cast before its
+slot is spent, and the seat is warned in lib's words. A creature dropped on the Summon band that the
 seat's user does not observe is warned of and not taken (`#dropOnSummon`). A
 declared cast whose row names a family has no creature to weigh until its turn,
 so the cast asks the seat's level on the family itself (`familyReadable`), as

@@ -709,7 +709,7 @@ const track = async (uuid, kind) => {
   own.push(uuid);
   await gm.track(uuid, kind);
 };
-const WALL_MS = Number(process.env.WALK_WALL_MS ?? 900_000);
+const WALL_MS = Number(process.env.WALK_WALL_MS ?? 1_200_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}

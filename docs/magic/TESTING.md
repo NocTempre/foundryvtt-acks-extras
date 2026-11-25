@@ -318,9 +318,10 @@ one reading the cast's refusal takes. The relay itself is not exercised.
        closed creature. *Observable:* each answers `unreadable`, the relay's
        request made nothing.
     3. The real Cast press is blocked (the row back on its uuid). *Observable:*
-       the Cast button is pressed on the Magic tab, and the cast dialog's footer
-       shows the string `ACKS-LIB.summons.refused.unreadable` as a verdict, or the
-       Player seat's warning list holds it; `system.cast` is unchanged, no card
+       the Cast button is pressed on the Magic tab and then in the cast dialog, and
+       the Player seat's warning list holds the string
+       `ACKS-LIB.summons.refused.unreadable` (lib's verdict is asked at that
+       press, so the dialog's footer does not show it beforehand); `system.cast` is unchanged, no card
        posted, no token stands beyond the earlier ones, and no world copy of the
        closed creature exists (`summonCopy.sourceUuid`). The four requests of
        sub-step 2 are counted in the same read.

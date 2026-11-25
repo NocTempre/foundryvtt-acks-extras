@@ -3373,7 +3373,14 @@ so a spell item its owner edits cannot reach a creature that owner cannot open.
 The check runs in the order badSource, unreadable, badSpell, spellRequired, then
 policies: a ref no lookup answers is `badSource`, a document the user holds less
 than OBSERVER on is `unreadable`, and a policy only ever sees a creature in
-hand. `pickSummon` still offers a row the seat cannot resolve whenever its ref
+hand. Where several documents carry one cookbook id, `resolveSource` takes the
+one the requesting user observes (`byCookbookId`'s `prefer`), so a world actor
+a Judge dragged out of an open shelf, which keeps the id and is read first,
+does not refuse a Player the shelf's own; with none observed the first is
+answered and refused as itself. A seat that is no GM cannot tell a creature
+that is gone from one on a shelf closed to it, so `summonVerdict` there reads a
+spell's ref nothing answers as `unreadable`; the GM's client says which.
+`pickSummon` still offers a row the seat cannot resolve whenever its ref
 reads as an id (dotted, no space; `offerRows`), labelled by the row's `name` or
 "Creature N", and `placeSummons` passes the ref on as `sourceUuid`; the seat's
 own `summonVerdict` refuses it before anything is clicked or sent.
