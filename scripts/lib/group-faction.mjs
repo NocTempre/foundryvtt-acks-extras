@@ -37,10 +37,13 @@ export function factionView(group, editable) {
 /**
  * Say why nothing moved, in the reason's own words where the lang file has them.
  * `fallbackName` names the document where the refusal names none (a leave's
- * `notOwner` is the faction's, refused before any plan is made).
+ * `notOwner` is the faction's, refused before any plan is made). `verb` is the
+ * press, `join` or `leave`, since a write that stopped partway reads differently
+ * for each.
  */
-function refusal(result, fallbackName = "") {
-  const key = `${LANG_PREFIX}.org.refused.${result.reason}`;
+function refusal(result, { fallbackName = "", verb = "join" } = {}) {
+  const reason = result.reason === "failed" ? `failed.${verb}` : result.reason;
+  const key = `${LANG_PREFIX}.org.refused.${reason}`;
   const message = game.i18n.has(key) ? game.i18n.format(key, { name: result.name || fallbackName }) : loc("refused.other");
   ui.notifications.warn(message);
   return result;
@@ -105,7 +108,7 @@ export async function pressMakeOwn(group) {
 export async function pressLeave(group) {
   const faction = factionLineOf(group).faction;
   const result = await leaveFaction(group);
-  if (!result.ok) return refusal(result, faction?.name ?? "");
+  if (!result.ok) return refusal(result, { fallbackName: faction?.name ?? "", verb: "leave" });
   ui.notifications.info(loc("faction.left", { name: group.name, faction: faction?.name ?? "" }));
   return result;
 }

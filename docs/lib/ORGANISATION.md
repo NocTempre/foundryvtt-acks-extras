@@ -136,7 +136,10 @@ one that hosts a chart (None, Join and Make its own); no line for a group anothe
 group's chart lists, and for a group inside another group that hosts none. A group
 that hosts rows while a faction also names it is a join stopped between its two
 writes: it reads free with that faction first in the picker, so the same press
-completes the move and no Leave can undo it. A faction's name or a row's label is
+completes the move and no Leave can undo it. A leave stopped between its two writes
+is the same stored shape, so the line reads the same and offers a Join, not a
+Leave; the sheet says which press stopped, a join or a leave, and the Join it offers
+puts the group back under the card. A faction's name or a row's label is
 the world's own text.
 
 These are controls, not gates. The only refusals are `join`'s and `leave`'s: a seat

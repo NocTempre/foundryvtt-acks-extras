@@ -52,7 +52,7 @@ class Coll extends Map {
   }
 }
 const actors = new Coll();
-const KNOWN = new Set(["ACKS-LIB.org.refused.notOwner", "ACKS-LIB.org.refused.noFaction"]);
+const KNOWN = new Set(["ACKS-LIB.org.refused.notOwner", "ACKS-LIB.org.refused.noFaction", "ACKS-LIB.org.refused.failed.join", "ACKS-LIB.org.refused.failed.leave"]);
 globalThis.game = {
   actors,
   scenes: new Coll(),
@@ -91,6 +91,7 @@ function makeActor(type, name, system, { isOwner = true } = {}) {
     opened: 0,
     sheet: { render() { doc.opened++; } },
     async update(changes) {
+      if (this.refuse) throw new Error("refused");
       for (const [path, value] of Object.entries(changes)) setPath(this, path, structuredClone(value));
       fire("updateActor", this, expand(changes));
     },
@@ -213,6 +214,28 @@ t("a leave a seat cannot write names the faction", async () => {
   assert.equal(result.reason, "notOwner");
   assert.deepEqual(said, [["warn", 'ACKS-LIB.org.refused.notOwner {"name":"Card"}']]);
   assert.equal(f.system.units.length, 1, "nothing was written");
+});
+
+t("a join that stops partway says a join stopped, and a leave that stops says a leave stopped", async () => {
+  reset();
+  const war = group("Warband");
+  war.system.units = [row("w", "", war.uuid)];
+  const f = faction("Card");
+  const warn = console.warn;
+  console.warn = () => {};
+  war.refuse = true;
+  picker.choice = f.uuid;
+  const join = await gesture.pressJoin(war);
+  assert.equal(join.reason, "failed");
+  assert.match(said.at(-1)[1], /refused.failed.join/);
+  war.refuse = false;
+  await gesture.pressJoin(war);
+  f.refuse = true;
+  const leave = await gesture.pressLeave(war);
+  console.warn = warn;
+  assert.equal(leave.reason, "failed");
+  assert.match(said.at(-1)[1], /refused.failed.leave/);
+  assert.doesNotMatch(said.at(-1)[1], /failed.join/);
 });
 
 t("a reason with no words of its own falls to the general line", async () => {
