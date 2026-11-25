@@ -161,6 +161,12 @@ await t("the strip: a body reads the reaches that meet its token, the save owed 
   const row = owed.rows[0];
   assert.deepEqual([row.source, row.feet, row.radius, row.press.subject, row.press.entryKey, row.press.messageId, row.press.itemUuid], ["Bearer", 10, 30, "S.a", "ks1", "M1", "I.1"], "the source's name, the edge-to-edge distance, the reach and the press that names the card's entry");
   assert.equal(owed.rows[1].part.value, "−1", "the standing part's figure is signed");
+  await messages[0].update({ "flags.acks-extras.itemRunCard.entries.ks1.state": "applied", "flags.acks-extras.itemRunCard.entries.ks1.saved": false });
+  const failedRows = reachStripFor(actorA).rows;
+  await messages[0].update({ "flags.acks-extras.itemRunCard.entries.ks1.state": "open", "flags.acks-extras.itemRunCard.entries.ks1.saved": unset() });
+  // The rows a non-engaged reach reads are pinned whole: a raised card's open prompt, a standing part, and the failure a raised card's applied entry reads, each with its tooltip key.
+  assert.deepEqual(owed.rows, [{"key":"act:t","name":"Gear","tag":"owed","source":"Bearer","feet":10,"feetTip":"ACKS-LIB.itemRun.card.tip.distance","radius":30,"radiusTip":"","cite":"","target":null,"targetTip":"","left":null,"leftTip":"","part":null,"press":{"itemUuid":"I.1","rowKey":"t","activationId":"act","subject":"S.a","messageId":"M1","entryKey":"ks1"},"tagLabel":"ACKS-LIB.itemRun.strip.tag.owed","tagVariant":"danger","tagTip":"ACKS-LIB.itemRun.strip.tagTip.owed","leftLabel":"","hasFeet":true,"hasRadius":true,"hasTarget":false},{"key":"act2:s","name":"Aura","tag":"always","source":"Bearer","feet":10,"feetTip":"ACKS-LIB.itemRun.card.tip.distance","radius":20,"radiusTip":"","cite":"","target":null,"targetTip":"","left":null,"leftTip":"","part":{"value":"−1","rolls":"ACKS-LIB.itemRun.strip.on.morale","tip":"Aura · ACKS-LIB.itemRun.strip.tip.from · ACKS-LIB.itemRun.strip.tip.away · ACKS-LIB.itemRun.strip.tip.reach · ACKS-LIB.itemRun.strip.on.morale −1"},"press":null,"tagLabel":"ACKS-LIB.itemRun.strip.tag.always","tagVariant":"ghost","tagTip":"ACKS-LIB.itemRun.strip.tagTip.always","leftLabel":"","hasFeet":true,"hasRadius":true,"hasTarget":false}], "a raised reach's open prompt and a standing part read exactly as they did before the engaged states");
+  assert.deepEqual(failedRows[0], {"key":"act:t","name":"Gear","tag":"failed","source":"Bearer","feet":10,"feetTip":"ACKS-LIB.itemRun.card.tip.distance","radius":30,"radiusTip":"","cite":"","target":null,"targetTip":"","left":null,"leftTip":"","part":null,"press":null,"tagLabel":"ACKS-LIB.itemRun.strip.tag.failed","tagVariant":"danger","tagTip":"ACKS-LIB.itemRun.strip.tagTip.failed","leftLabel":"","hasFeet":true,"hasRadius":true,"hasTarget":false}, "a failed raised-card entry reads the plain Failed tooltip and no turns");
   assert.equal(reachStripFor(actorB), null, "a body no reach meets has no strip");
   me.current = users[2];
   assert.equal(reachStripFor(actorA), null, "a seat that owns no body of it sees no strip");
@@ -786,12 +792,17 @@ await t("T10: the strip reads an engaged reach from the engaged card and the sub
   const regionOf = (bearerId, activationId) => ({ hidden: false, attachment: { token: bearerId }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.t10", bearerUuid: "A.b", activationId, rowKey: "engaged" } }] });
   const r1 = regionOf("eb1", "engaged:r1");
   const r2 = regionOf("eb2", "engaged:r2");
+  r2.behaviors[0].system.sourceUuid = "I.t10b";
+  const other = structuredClone(t10.items["I.t10"].flags);
+  other["acks-extras"].itemRun.rows[0].target = "death";
+  t10.items["I.t10b"] = { ...t10.items["I.t10"], uuid: "I.t10b", flags: other };
   const scene = { id: "sc-t10", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) }, regions: [r1, r2], tokens: { get: (id) => Object.values(t10.tokens).find((tk) => tk.id === id) } };
   r1.parent = scene;
   r2.parent = scene;
   const subject = t10.tokens["E.s"];
   for (const [key, x] of Object.entries({ "E.b1": 100, "E.b2": 300, "E.s": 0 })) Object.assign(t10.tokens[key], { parent: scene, x, y: 0, width: 1, height: 1, displayName: 50 });
   subject.regions = new Set([r1, r2]);
+  subject.actor.system.saves.death = { value: 9 };
   const effects = [];
   effects.get = (id) => effects.find((e) => e.id === id);
   Object.assign(subject.actor, { testUserPermission: ownedBy("gm", "pe", "pn"), getActiveTokens: () => [subject], effects });
@@ -811,6 +822,11 @@ await t("T10: the strip reads an engaged reach from the engaged card and the sub
   assert.deepEqual([rows[0].tag, rows[0].name, rows[0].source, rows[0].feet], ["owed", "T10", "Champion 1", 0], "the row is the nearest bearer's");
   assert.deepEqual(rows[0].press, { itemUuid: "I.t10", rowKey: "engaged", activationId: "engaged:r1", subject: "E.s", messageId: message.id, entryKey: key }, "the Save names the engaged card's entry, which the carrier's press reads the item, row and activation from");
   assert.equal(rows[0].tagTip, "ACKS-LIB.itemRun.strip.tagTip.owed");
+  // The entry was asked of another bearer's item of the same kind: the press names the entry's item, row and activation, the only ones the carrier accepts on that card.
+  await setEntry({ itemUuid: "I.t10b", activationId: "engaged:r2" });
+  assert.equal(rowsFor("pe")[0].target, 9, "and the save it shows is the entry's item's, read off the body");
+  assert.deepEqual(rowsFor("pe")[0].press, { itemUuid: "I.t10b", rowKey: "engaged", activationId: "engaged:r2", subject: "E.s", messageId: message.id, entryKey: key }, "the press carries the entry's own ids, not the nearest bearer's");
+  await setEntry({ itemUuid: "I.t10", activationId: "engaged:r1" });
   const ownsToken = subject.testUserPermission;
   subject.testUserPermission = ownedBy("gm");
   assert.equal(rowsFor("pe")[0].press, null, "a seat that owns the body and not its token has the row and no press");
@@ -832,7 +848,10 @@ await t("T10: the strip reads an engaged reach from the engaged card and the sub
   assert.equal(rows[0].leftTip, "T10 · ACKS-LIB.itemRun.strip.tip.window · MM p. 57", "the window's tooltip names the item, the window and the page");
   assert.equal(rows[0].tagTip, "ACKS-LIB.itemRun.strip.tagTip.failedTimed", "and says how a timed failure ends");
   effects[0].flags["acks-extras"].itemRun = {};
-  assert.deepEqual([rowsFor("pe")[0].tag, rowsFor("pe")[0].left, rowsFor("pe")[0].leftLabel], ["failed", null, ""], "a record with no clock reads Failed with no turns");
+  assert.deepEqual([rowsFor("pe")[0].tag, rowsFor("pe")[0].left, rowsFor("pe")[0].leftLabel, rowsFor("pe")[0].tagTip], ["failed", null, "", "ACKS-LIB.itemRun.strip.tagTip.failedTimed"], "a record with no clock reads Failed with no turns, under the same tooltip");
+  await setEntry({ state: "open", saved: unset() });
+  assert.equal(rowsFor("pe")[0].tag, "owed", "a save asked again while the last failure stands is owed first");
+  await setEntry({ state: "applied", saved: false });
   effects[0].id = lastsRecordId("kindU");
   assert.equal(rowsFor("pe")[0].tag, "waiting", "another kind's record is not read");
   effects.length = 0;

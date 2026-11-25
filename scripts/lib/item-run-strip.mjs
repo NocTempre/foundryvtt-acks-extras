@@ -98,11 +98,14 @@ function readReachOn({ behavior, region }, token, actor) {
   if (engaged) {
     const asked = openEngagedEntryFor(game.messages, { subjectUuid: token.uuid, kindKey });
     if (asked) {
-      const figure = saveFigureOf(actor, row, item);
+      // The entry names the item, row and activation it was asked of (the nearest bearer's may be another bearer's of the same kind), and the carrier's press accepts an engaged card only on the entry's own item.
+      const { itemUuid, rowKey, activationId } = { itemUuid: item.uuid, rowKey: row.key, activationId: config.activationId, ...asked.entry };
+      const askedItem = fromUuidSync(itemUuid) ?? item;
+      const figure = saveFigureOf(actor, itemRunRowsOf(askedItem).find((r) => r?.key === rowKey) ?? row, askedItem);
       const owns = token.testUserPermission?.(game.user, "OWNER") === true;
       return {
         ...out, tag: "owed", target: figure.target, targetTip: figure.tip ?? "",
-        press: owns ? { itemUuid: item.uuid, rowKey: row.key, activationId: config.activationId, subject: token.uuid, messageId: asked.messageId, entryKey: asked.entryKey } : null,
+        press: owns ? { itemUuid, rowKey, activationId, subject: token.uuid, messageId: asked.messageId, entryKey: asked.entryKey } : null,
       };
     }
     const lasts = actor?.effects?.get?.(lastsRecordId(kindKey)) ?? null;
