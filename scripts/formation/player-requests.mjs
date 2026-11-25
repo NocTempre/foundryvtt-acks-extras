@@ -19,6 +19,8 @@ import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs
 import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { turnActivity } from "../lib/turn-activities.mjs";
 import { formUp, getTemplate } from "./marching-templates.mjs";
+import { PARTY_PRESSES, PRESS_REFUSALS } from "./party-press.mjs";
+import { travelOf } from "./travel.mjs";
 
 /**
  * Player-declared party actions. All formation state lives in a world setting
@@ -28,7 +30,9 @@ import { formUp, getTemplate } from "./marching-templates.mjs";
  * checks, the turn plan, a Round or a turn asked of the Judge, a search declared,
  * the marching order, forming the party up into a saved order, roles,
  * detaching, leaving a member behind, conveyance, bringing an actor in or out,
- * light discipline, anchoring a map, trapbreaking and a crossing's throw.
+ * light discipline, anchoring a map, trapbreaking, a crossing's throw and the
+ * party's own presses (`partyPress`: the pace, a hop to a place, the next hex,
+ * a day's foraging, ending the day).
  *
  * Ownership is validated HERE, on the executing GM client, against the sender
  * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
@@ -133,9 +137,35 @@ async function paceRelay(formation, user, actor, payload, crossingId) {
 }
 
 /**
- * Execute a validated request on the GM client. A crossing request answers
- * `{ok, refused?}`, which the relay carries back to the requesting seat; every
- * other kind answers nothing.
+ * A seat's press on the party's own clock or day, checked on the GM client in
+ * order: the press is one of `PARTY_PRESSES`, its arguments parse, the seat owns
+ * the member the press is the act of (the one the entry names, else any member),
+ * and the party is still in a mode the press is open in. The entry's own `run`
+ * then does what the Judge's press does. Nothing here reads `judge` or passes
+ * `override`: the seat's press is blocked where a Judge's is warned. The
+ * declaration is made once the run has written.
+ * @returns {Promise<{ok: boolean, refused?: string}>}
+ */
+async function partyPressRelay(formation, user, payload) {
+  const refuse = (refused) => ({ ok: false, refused });
+  if (typeof payload.press !== "string" || !Object.hasOwn(PARTY_PRESSES, payload.press)) return refuse("badPress");
+  const entry = PARTY_PRESSES[payload.press];
+  const args = entry.parse(payload.args ?? {}, formation);
+  if (!args) return refuse("badPress");
+  const actorId = entry.actor ? entry.actor(args, formation) : null;
+  if (entry.actor && !actorId) return refuse("notOwner");
+  if (!userOwnsMember(formation, user, actorId)) return refuse("notOwner");
+  if (!entry.modes.includes(travelOf(formation).mode)) return refuse("stale");
+  const out = await entry.run(formation, args, { user });
+  if (!out.ok) return refuse(out.refused);
+  if (out.said) await announceDeclaration(formation, user, out.said);
+  return { ok: true };
+}
+
+/**
+ * Execute a validated request on the GM client. A crossing or party press
+ * request answers `{ok, refused?}`, which the relay carries back to the
+ * requesting seat; every other kind answers nothing.
  */
 async function executeRequest(formation, user, type, payload) {
   switch (type) {
@@ -429,6 +459,10 @@ async function executeRequest(formation, user, type, payload) {
       return { ok: true };
     }
 
+    /* --- The party's own press: the pace, a hop, the next hex, a day's work --- */
+    case "partyPress":
+      return partyPressRelay(formation, user, payload);
+
     /* --- Consult (anchor) a map the player's character holds --- */
     case "anchorMap": {
       const item = await fromUuid(payload.itemUuid);
@@ -570,6 +604,39 @@ export async function requestCrossingPace(formation, actorId, pick) {
   }
   const answer = await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId, step: "pace", pace: pick });
   return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
+}
+
+/**
+ * Say a party press's refusal to the seat that pressed, at the level the code
+ * gives it. A code `PRESS_REFUSALS` does not know is said as the generic
+ * refusal; an answer that is not a refusal says nothing (no GM, which the relay
+ * has already warned of, or a press that took).
+ */
+export function sayPressAnswer(answer) {
+  if (answer?.ok !== false) return;
+  const said = Object.hasOwn(PRESS_REFUSALS, answer.refused) ? PRESS_REFUSALS[answer.refused] : PRESS_REFUSALS.badPress;
+  if (said.level === "none") return;
+  ui.notifications[said.level](game.i18n.localize(said.key));
+}
+
+/**
+ * A seat's press on the party's own clock or day (`PARTY_PRESSES`). The Judge's
+ * seat runs the entry directly; any other seat sends the press name and its
+ * arguments to the Judge's client, which checks the seat against the member it
+ * owns and runs the same entry. The answer is said here and returned.
+ * @param {object} formation
+ * @param {string} press  a key of `PARTY_PRESSES`
+ * @param {object} [args]  what the entry's `parse` reads
+ * @returns {Promise<{ok: boolean, refused?: string}|undefined>}
+ */
+export async function requestPartyPress(formation, press, args = {}) {
+  const entry = Object.hasOwn(PARTY_PRESSES, press) ? PARTY_PRESSES[press] : null;
+  let answer;
+  if (!entry) answer = { ok: false, refused: "badPress" };
+  else if (game.user.isGM) answer = await entry.run(formation, args, { user: game.user });
+  else answer = await requestPartyAction(formation.id, "partyPress", { press, args });
+  sayPressAnswer(answer);
+  return answer;
 }
 
 /** Register the GM-side request handler with socketlib. */

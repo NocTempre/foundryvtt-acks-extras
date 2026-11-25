@@ -1597,6 +1597,185 @@ await scenario("players steer their own members via the GM relay", async () => {
   await drain();
 });
 
+await scenario("a seat that owns a member presses the party's own pace, clock, hop, hex and day through the relay", async () => {
+  // Relay rule: the GM client takes the attested sender, checks the closed press
+  // and its closed arguments, the seat's ownership and the mode, then runs the
+  // entry the Judge's own press runs. It never reads `judge` and never passes
+  // `override`.
+  const { PARTY_PRESSES, PRESS_REFUSALS } = await import("../scripts/formation/party-press.mjs");
+  const { SHARED_ACTIONS } = await import("../scripts/formation/formation-actions.mjs");
+  const travel = await import("../scripts/formation/travel.mjs");
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { SETTLEMENT_DOC, SETTLEMENT_PACES } = await import("../scripts/formation/settlement.mjs");
+  const { DISTRICT_TYPE } = await import("../scripts/formation/district-find.mjs");
+  const { LOCATION_TYPE } = await import("../scripts/location/constants.mjs");
+  const free = Object.fromEntries(Object.keys(SETTLEMENT_PACES).map((pace) => [pace, 0]));
+  registerTable({ id: SETTLEMENT_DOC, source: "invented", tables: { districtTravel: { same: free } } }, { priority: PRIORITY.WORLD, source: "test" });
+  const quarter = new SceneMock("Presses");
+  game.scenes.set(quarter.id, quarter);
+  const party = await drawnParty("Presser", quarter);
+  const { id, walker, partyToken, step } = party;
+  walker.ownership = { default: 0, PL1: 3 };
+  const inn = await ActorMock.create({ name: "Inn", type: LOCATION_TYPE });
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  const realEscape = foundry.utils.escapeHTML;
+  const gmUser = game.user;
+  const asSeat = async (userId, fn) => {
+    game.user = game.users.get(userId);
+    try {
+      return await fn();
+    } finally {
+      game.user = gmUser;
+    }
+  };
+  const press = (userId, name, args, extra = {}) => asSeat(userId, () => requests.requestPartyAction(id, "partyPress", { press: name, args, ...extra }));
+  const stored = () => onlyFormation();
+  const chatStart = chat.length;
+  const said = () => chat.length - chatStart;
+  const lastCard = () => String(chat.at(-1)?.content ?? "");
+  try {
+    // --- A press that is not one, arguments that do not parse, a seat that owns no member.
+    const before = structuredClone(stored());
+    for (const bad of ["nope", "__proto__", "constructor", "hasOwnProperty", "", undefined, 7, null]) {
+      assert.deepEqual(await press("PL1", bad, { hurried: true }), { ok: false, refused: "badPress" }, `press ${String(bad)} is no press`);
+    }
+    for (const args of [{ hurried: "yes" }, { hurried: 1 }, {}, "hurried", ["hurried"], null, undefined]) {
+      assert.deepEqual(await press("PL1", "pace", args), { ok: false, refused: "badPress" }, `pace arguments ${JSON.stringify(args)} do not parse`);
+    }
+    assert.deepEqual(await press("PL9", "pace", { hurried: true }), { ok: false, refused: "notOwner" }, "a seat owning no member is refused");
+    assert.deepEqual(stored(), before, "and nothing was written by any of them");
+    assert.equal(said(), 0, "or announced");
+
+    // --- A parse reads only the keys it names, so a Judge's flag buys a seat nothing.
+    assert.deepEqual(PARTY_PRESSES.pace.parse({ hurried: true, judge: true, override: true }, stored()), { hurried: true });
+    assert.deepEqual(PARTY_PRESSES.hop.parse({ tokenId: "abc", judge: true, override: true }, stored()), { tokenId: "abc" });
+    assert.deepEqual(PARTY_PRESSES.enterHex.parse({ label: " Q9 ", override: true }, stored()), { label: "Q9" });
+    assert.deepEqual(PARTY_PRESSES.forageDay.parse({ judge: true }, stored()), {});
+    assert.deepEqual(PARTY_PRESSES.endDay.parse({ override: true }, stored()), {});
+    assert.deepEqual(Object.keys(PRESS_REFUSALS).sort(), ["badPress", "far", "noHours", "noTarget", "notOwner", "outside", "quiet", "stale", "worked"]);
+
+    // --- Pace, in a delve: idempotent, announced once per change.
+    assert.equal(travel.travelOf(stored()).mode, "delve");
+    assert.deepEqual(await press("PL1", "pace", { hurried: true, judge: true, override: true }, { judge: true, override: true }), { ok: true });
+    assert.equal(stored().stance.pace, "hurried", "a seat that owns a member hurried the party");
+    assert.equal(said(), 1);
+    assert.match(lastCard(), /request\.paceHurried/, "and the table is told");
+    assert.deepEqual(await press("PL1", "pace", { hurried: true }), { ok: true });
+    assert.equal(said(), 1, "the same press again changes nothing and says nothing");
+    assert.deepEqual(await press("PL1", "pace", { hurried: false }), { ok: true });
+    assert.equal(stored().stance.pace, "careful");
+    assert.match(lastCard(), /request\.paceCareful/);
+    // The sheet's own press names the pace it wants, on either seat.
+    const sheet = () => ({ formation: model.getFormation(id), render() {} });
+    await asSeat("PL1", () => SHARED_ACTIONS.togglePace.call(sheet()));
+    assert.equal(stored().stance.pace, "hurried", "the player's Hurried press");
+    const told = said();
+    await SHARED_ACTIONS.togglePace.call(sheet());
+    assert.equal(stored().stance.pace, "careful", "the Judge's press runs the same entry");
+    assert.equal(said(), told, "and announces nothing");
+    await asSeat("PL9", () => SHARED_ACTIONS.togglePace.call(sheet()));
+    assert.equal(stored().stance.pace, "careful", "a seat owning no member presses nothing");
+
+    // --- A press made against a mode the party has left is stale.
+    for (const name of ["hop", "enterHex", "forageDay", "endDay"]) {
+      const args = { hop: { tokenId: "t1" }, enterHex: { label: "Q9" }, forageDay: {}, endDay: {} }[name];
+      assert.deepEqual(await press("PL1", name, args), { ok: false, refused: "stale" }, `${name} is not a delve press`);
+    }
+
+    // --- Turn, Round and Rest from a seat that owns a member.
+    const clock = structuredClone(stored().clock);
+    const beforeAsk = said();
+    await asSeat("PL1", () => SHARED_ACTIONS.advanceTurn.call(sheet()));
+    await asSeat("PL1", () => SHARED_ACTIONS.advanceRound.call(sheet()));
+    await drain();
+    assert.deepEqual(stored().clock, clock, "a player's Turn and Round move no clock");
+    assert.equal(said(), beforeAsk + 2, "each is an ask, declared to the table");
+    assert.match(String(chat.at(-2).content), /request\.askTurn/);
+    assert.match(lastCard(), /request\.askRound/);
+    await asSeat("PL9", () => SHARED_ACTIONS.advanceTurn.call(sheet()));
+    assert.equal(said(), beforeAsk + 2, "a seat owning no member asks nothing");
+    await asSeat("PL1", () => SHARED_ACTIONS.restTurn.call(sheet()));
+    await drain();
+    assert.ok(chat.slice(chatStart + beforeAsk + 2).some((m) => /request\.rest/.test(String(m.content))), "a player's Rest is declared, and the Judge's client takes the turn");
+
+    // --- Hop, in a city. A hidden place is no place to a seat; the Judge's seat is not held to it.
+    await travel.setJourneyMode(id, "settlement");
+    quarter.regions.set("quarter", { id: "quarter", behaviors: [{ type: DISTRICT_TYPE, disabled: false }], testPoint: () => true });
+    const [hall, secret] = await quarter.createEmbeddedDocuments("Token", [
+      { name: "Hall <b>x</b>", actorId: inn.id, x: partyToken.x + step, y: partyToken.y },
+      { name: "Vault", actorId: inn.id, x: partyToken.x + 2 * step, y: partyToken.y, hidden: true },
+    ]);
+    const heard = said();
+    const start = { x: partyToken.x, y: partyToken.y };
+    assert.deepEqual(await press("PL1", "hop", { tokenId: secret.id, judge: true }, { judge: true, override: true }), { ok: false, refused: "noTarget" }, "a hidden place is not there for a seat");
+    assert.deepEqual(await press("PL1", "hop", { tokenId: "x".repeat(33) }), { ok: false, refused: "badPress" }, "a token id that long is no id");
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "and the party did not walk");
+    assert.equal(said(), heard, "or say so");
+    foundry.utils.escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" })[c]);
+    assert.deepEqual(await press("PL1", "hop", { tokenId: hall.id }), { ok: true });
+    await drain();
+    assert.equal(partyToken.x === start.x && partyToken.y === start.y, false, "a shown place is walked to");
+    assert.equal(said(), heard + 2, "the Judges' whisper and the table's declaration");
+    assert.ok(chat.slice(-2).every((m) => !/<b>/.test(String(m.content))), "the place's name is escaped in both");
+    assert.ok(chat.slice(-2).every((m) => /&lt;b&gt;x&lt;\/b&gt;/.test(String(m.content))), "and still names it");
+    assert.ok(chat.slice(-2).some((m) => (m.whisper ?? []).includes("GM1")), "one of them is the Judges' whisper");
+    foundry.utils.escapeHTML = realEscape;
+    // A walk between quarters that cannot be priced is the seat's refusal, said at the seat.
+    quarter.regions.clear();
+    notices.length = 0;
+    const answer = await asSeat("PL1", () => requests.requestPartyPress(model.getFormation(id), "hop", { tokenId: hall.id }));
+    assert.deepEqual(answer, { ok: false, refused: "outside" });
+    assert.deepEqual(notices.filter(([level]) => level === "warn").map(([, key]) => key), ["ACKS-FORMATION.settlement.poi.refused.outside"], "said as the hop's own refusal");
+    const beforeJudgeHop = said();
+    assert.deepEqual(await requests.requestPartyPress(model.getFormation(id), "hop", { tokenId: secret.id }), { ok: false, refused: "outside" }, "the Judge's seat is offered the hidden place too");
+    assert.equal(said(), beforeJudgeHop, "and a refused hop says nothing at the table");
+
+    // --- The journey's own presses.
+    await travel.setJourneyMode(id, "journey");
+    assert.deepEqual(await press("PL1", "hop", { tokenId: hall.id }), { ok: false, refused: "stale" }, "a hop is not a journey press");
+    assert.deepEqual(await press("PL1", "enterHex", { label: "x".repeat(65) }), { ok: false, refused: "badPress" }, "a 65-character hex label is refused");
+    const hexed = said();
+    assert.deepEqual(await press("PL1", "enterHex", { label: "  Q<9>  " }, { judge: true }), { ok: true });
+    assert.equal(said(), hexed + 1);
+    assert.match(lastCard(), /request\.enterHex/);
+    assert.match(lastCard(), /Q<9>|Q&lt;9&gt;/, "the label is trimmed");
+    assert.equal(lastCard().includes("  Q"), false);
+
+    notices.length = 0;
+    const foraged = said();
+    assert.deepEqual(await asSeat("PL1", () => requests.requestPartyPress(model.getFormation(id), "forageDay")), { ok: false, refused: "noHours" });
+    assert.deepEqual(notices.at(-1), ["info", "ACKS-FORMATION.forageRun.noHours"], "no hours set aside is said at the seat as an info");
+    await model.patchFormation(id, (rec) => {
+      const t = travel.storedTravelOf(rec);
+      rec.travel = { ...t, day: { ...t.day, activities: ["forage"], done: [true] } };
+    });
+    assert.deepEqual(await press("PL1", "forageDay", {}), { ok: false, refused: "worked" });
+    assert.equal(said(), foraged, "a day's work that did not happen is not announced");
+
+    const day = travel.travelOf(stored()).dayCount;
+    assert.deepEqual(await press("PL1", "endDay", {}, { override: true }), { ok: true });
+    assert.equal(travel.travelOf(stored()).dayCount, day + 1, "End day from a seat closes the day once");
+    assert.match(lastCard(), /request\.endDay/);
+    assert.deepEqual(await press("PL9", "endDay", {}), { ok: false, refused: "notOwner" });
+    assert.equal(travel.travelOf(stored()).dayCount, day + 1, "a seat owning no member closes nothing");
+
+    // An answer no one coded for is said as the generic refusal.
+    notices.length = 0;
+    requests.sayPressAnswer({ ok: false, refused: "nothingLikeIt" });
+    requests.sayPressAnswer({ ok: false, refused: "quiet" });
+    requests.sayPressAnswer(undefined);
+    assert.deepEqual(notices, [["warn", "ACKS-FORMATION.request.refused"]]);
+  } finally {
+    foundry.utils.escapeHTML = realEscape;
+    game.user = gmUser;
+    game.users.pop();
+    unregisterTable(SETTLEMENT_DOC, { priority: PRIORITY.WORLD });
+    await dismissDrawn(party);
+    game.actors.delete(inn.id);
+    game.scenes.delete(quarter.id);
+  }
+});
+
 await scenario("a player brings their own actors in and takes them out through the GM relay", async () => {
   const theirs = (name) => ActorMock.create({
     name,

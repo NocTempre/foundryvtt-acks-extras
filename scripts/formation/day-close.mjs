@@ -67,8 +67,13 @@ function markOffered(formationId) {
  * the dialog is awaited, so a multi-hex drag cannot stack one prompt per
  * crossing.
  *
- * @returns {Promise<"ended"|"pushed"|"barred"|"later"|null>} null when nothing
- *   was asked; "barred" when the push was refused and the day stands as it was.
+ * A day that closed while the question stood open (another seat pressed End
+ * day) is already answered: the answer is not applied, and the question is
+ * not put again.
+ *
+ * @returns {Promise<"ended"|"pushed"|"barred"|"later"|"answered"|null>} null when
+ *   nothing was asked; "barred" when the push was refused and the day stands as
+ *   it was; "answered" when the day moved while the dialog was open.
  */
 export async function offerDayEnd(formationId) {
   const formation = getFormation(formationId);
@@ -84,6 +89,7 @@ export async function offerDayEnd(formationId) {
   if (!dayIsSpent(t.day, budget, { dark })) return null;
 
   await markOffered(formationId);
+  const dayBefore = Number(t.dayCount) || 0;
 
   const answer = await foundry.applications.api.DialogV2.wait({
     window: { title: loc("travel.dayEnd.title") },
@@ -105,6 +111,7 @@ export async function offerDayEnd(formationId) {
   // The party is on the road either way; only the answer differs.
   const fresh = getFormation(formationId);
   if (!fresh) return null;
+  if ((Number(travelOf(fresh).dayCount) || 0) !== dayBefore) return "answered";
   if (answer === "end") {
     await closeDay(fresh);
     return "ended";

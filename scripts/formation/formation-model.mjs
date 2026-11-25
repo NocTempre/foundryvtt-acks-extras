@@ -972,6 +972,25 @@ export function isHurried(formation) {
   return formation.stance?.pace === "hurried";
 }
 
+/**
+ * Set the party's pace: hurried, or careful. The record is re-read inside the
+ * save lock and written only when the pace differs, so a press repeated by a
+ * second seat changes nothing. Answers whether the pace changed; false too for
+ * a formation that is gone.
+ * @param {string} formationId
+ * @param {boolean} hurried
+ * @returns {Promise<boolean>}
+ */
+export async function setHurried(formationId, hurried) {
+  let changed = false;
+  const record = await patchFormation(formationId, (rec) => {
+    if (isHurried(rec) === !!hurried) return false;
+    rec.stance = { ...(rec.stance ?? {}), pace: hurried ? "hurried" : "careful" };
+    changed = true;
+  });
+  return record ? changed : false;
+}
+
 /** Feet covered per turn: exploration speed, or combat speed × 10 rounds. */
 export function effectiveSpeed(formation) {
   const speed = partySpeed(formation);

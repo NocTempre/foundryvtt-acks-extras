@@ -11,6 +11,7 @@ import {
   getPartyActor,
   getPartyScene,
   getPartyToken,
+  isHurried,
   maxFrontage,
   removeBlank,
   removeMember,
@@ -21,9 +22,7 @@ import {
 } from "./formation-model.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
 import { PARTY_TOKEN_SHAPES } from "./constants.mjs";
-import { nextHex, spendActivityHours } from "./journey.mjs";
-import { closeDay } from "./day-close.mjs";
-import { pickAndTravel } from "./poi.mjs";
+import { pickPoiTarget } from "./poi.mjs";
 import {
   anchorMap,
   archiveSession,
@@ -43,7 +42,7 @@ import {
 } from "./crossing.mjs";
 import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut, userOwnsMember } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestPartyPress, requestTakeOut, userOwnsMember } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
@@ -52,7 +51,6 @@ import { dismount } from "../lib/mount.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
 import { isLightShuttered, setLightShutter } from "../lib/light.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
-import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
 import {
   addPlacedPoint,
@@ -281,24 +279,13 @@ export const SHARED_ACTIONS = {
 
   /**
    * Work the country: roll whatever hours the day board set aside for it, and
-   * put what is found into the foragers' own packs.
+   * put what is found into the foragers' own packs. A seat that owns a member
+   * presses it too: the Judge's client works the country (`workTheCountry`).
    */
   async forageDay() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    // `activities` is the day board's own field name; there is no `slots`. Only
-    // the hours not yet spent are worked: a slot already done has had its throws.
-    const day = travelOf(formation).day;
-    const slots = day.activities.map((a, n) => (day.done[n] ? null : a));
-    const kinds = slots.includes("forage") ? ["food", "water", "firewood"] : [];
-    const hunting = slots.includes("hunt");
-    if (!kinds.length && !hunting) {
-      const spent = day.activities.some((a, n) => (a === "forage" || a === "hunt") && day.done[n]);
-      ui.notifications?.info(game.i18n.localize(`ACKS-FORMATION.forageRun.${spent ? "worked" : "noHours"}`));
-      return;
-    }
-    const results = await runForageDay(formation, { kinds, hunting });
-    if (results) await spendActivityHours(formation.id, ["hunt", "forage"], { all: true });
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "forageDay");
     this.render();
   },
 
@@ -469,12 +456,14 @@ export const SHARED_ACTIONS = {
 
   /**
    * Walk the party to a point of interest on this map for the imported
-   * district-travel figure, instead of dragging the token block by block.
+   * district-travel figure, instead of dragging the token block by block. A
+   * seat other than the Judge's is offered the places the Judge has not hidden.
    */
   async settlementTravelTo() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await pickAndTravel(formation.id);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    const tokenId = await pickPoiTarget(formation, { shownOnly: !game.user.isGM });
+    if (tokenId) await requestPartyPress(formation, "hop", { tokenId });
     this.render();
   },
 
@@ -523,12 +512,13 @@ export const SHARED_ACTIONS = {
   /**
    * The party crosses into the next hex; the label input names it. Spends one
    * encounter-cadence unit's miles, so the clock, the day and the throws follow.
+   * A seat that owns a member presses it too; the Judge's client spends the miles.
    */
   async travelEnterHex() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
     const label = this.element?.querySelector('input[name="travel.hexLabel"]')?.value ?? "";
-    await nextHex(formation.id, label);
+    await requestPartyPress(formation, "enterHex", { label });
     this.render();
   },
 
@@ -542,12 +532,13 @@ export const SHARED_ACTIONS = {
 
   /**
    * End the day. The figures logged are the ones the panel was showing —
-   * derived once, here, not re-derived by the engine.
+   * derived once, by `closeDay`, not re-derived by the engine. A seat that owns
+   * a member presses it too; the Judge's client closes the day.
    */
   async travelEndDay() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await closeDay(formation);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "endDay");
     this.render();
   },
 
@@ -747,13 +738,15 @@ export const SHARED_ACTIONS = {
     await setLightShutter(effect, !isLightShuttered(effect));
   },
 
-  /** Pace (RR p. 263): careful exploration, or hurried. */
+  /**
+   * Pace (RR p. 263): careful exploration, or hurried. A seat that owns a member
+   * sets it too; the press names the pace it wants, so a second press from another
+   * seat changes nothing.
+   */
   async togglePace() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    const hurried = formation.stance?.pace === "hurried";
-    formation.stance = { ...(formation.stance ?? {}), pace: hurried ? "careful" : "hurried" };
-    await updateFormation(formation);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "pace", { hurried: !isHurried(formation) });
     this.render();
   },
 
@@ -924,10 +917,18 @@ export const SHARED_ACTIONS = {
     await onChangeForm.call(this, null, null, { object: { tableId: picked.tableId } });
   },
 
-  /** A stationary turn: the clock spends it once and the turn plan resolves. */
+  /**
+   * A stationary turn: the clock spends it once and the turn plan resolves. A
+   * seat that owns a member asks the Judge for it; nothing moves until the
+   * Judge presses.
+   */
   async advanceTurn() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    if (!game.user.isGM) {
+      await requestPartyAction(formation.id, "askPress", { press: "turn" });
+      return;
+    }
     await resolvePlanTurn(formation);
     this.render();
   },
@@ -935,11 +936,16 @@ export const SHARED_ACTIONS = {
   /**
    * One bookkeeping round (1 minute) — hasty actions, short delays. The press
    * also resolves the plan's round-length entries (`resolvePlanRound`); a round
-   * that movement, combat or a crossing counts does not.
+   * that movement, combat or a crossing counts does not. A seat that owns a
+   * member asks the Judge for it.
    */
   async advanceRound() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    if (!game.user.isGM) {
+      await requestPartyAction(formation.id, "askPress", { press: "round" });
+      return;
+    }
     await advanceRounds(formation, 1, { reason: "manual" });
     await resolvePlanRound(formation);
     this.render();
@@ -960,10 +966,17 @@ export const SHARED_ACTIONS = {
     await globalThis.acksExtras?.sceneSearch?.searchHere?.({ partyId: formation.id });
   },
 
-  /** The Judge's rest: the turn rests whatever the plan says, and the plan resolves. */
+  /**
+   * The rest: the turn rests whatever the plan says, and the plan resolves. A
+   * seat that owns a member declares it, and the Judge's client takes the turn.
+   */
   async restTurn() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    if (!game.user.isGM) {
+      await requestPartyAction(formation.id, "rest");
+      return;
+    }
     await resolvePlanTurn(formation, { resting: true });
     this.render();
   },

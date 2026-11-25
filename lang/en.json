@@ -3207,7 +3207,15 @@
       "crossingPush": "{name} pushes forward.",
       "crossingRescue": "{name} takes up {drowned}'s rescue.",
       "crossingRescueClear": "{name} lets go of {drowned}'s rescue.",
-      "crossingPace": "{name} takes the {pace} pace."
+      "crossingPace": "{name} takes the {pace} pace.",
+      "refused": "The Judge's client did not take that press.",
+      "paceHurried": "hurries the party.",
+      "paceCareful": "slows the party to a careful pace.",
+      "hop": "walks the party to {place}.",
+      "enterHex": "takes the party into the next hex, {hex}.",
+      "enterHexBlank": "takes the party into the next hex.",
+      "forageDay": "works the country for the day.",
+      "endDay": "ends the day."
     },
     "role": {
       "mapper": "Mapper",
@@ -4666,7 +4674,11 @@
         "sightings": "Sightings",
         "sightingsSub": "The road so far, day by day.",
         "judge": "Judge",
-        "judgeSub": "Only the Judge's seat renders this tab."
+        "judgeSub": "Only the Judge's seat renders this tab.",
+        "delveTip": "Turn {turns}: the turns this party's clock has spent, and {elapsed} of game time (RR p. 263)",
+        "cityTip": "Turn {turns}: the turns this party's clock has spent in the city (RR p. 263)",
+        "journeyTip": "Day {day}: the days this journey has logged with End day (RR ch. 6, Wilderness Expeditions)",
+        "asks": "Turn and Round ask the Judge."
       },
       "section": {
         "country": "Country",
@@ -4834,6 +4846,8 @@
     "REGION_PLACE": {
       "label": "Place",
       "none": "— none —",
+      "closed": "A place you cannot open",
+      "dropHidden": "A trap you drop is hidden, as every trap is, and is not counted here.",
       "create": "Make a place for this region",
       "hint": "The place that holds this region's traps, obstacles and conditions. The plus button makes one, filed under the scene's own place.",
       "holds": "Holds",
@@ -4851,6 +4865,7 @@
         "other": "{count} conditions"
       },
       "drop": "Drop a trap, obstacle or condition here. With no place yet, one is made.",
+      "dropOwned": "Drop a trap, obstacle or condition here.",
       "refused": {
         "notItem": "Only an item can be dropped here.",
         "blankHazard": "That hazard has no kind set. Set its kind on its sheet, then drop it again.",

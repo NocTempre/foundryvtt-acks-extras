@@ -316,16 +316,21 @@ export async function travelToPlace(formationId, tokenId, { spend = true } = {})
 }
 
 /**
- * The Judge picks a point of interest on the party's map; the hop is made and
- * reported — a whispered line for a walk that happened, a warning for one
- * that was refused; one that could not be priced for want of an imported
- * figure reports nothing.
+ * Ask which point of interest on the party's map to walk to, and answer the
+ * token's id, or null when none was picked. Warns and answers null when the map
+ * holds none. `shownOnly` leaves out a token the Judge has hidden, which a seat
+ * other than the Judge's is not offered.
+ * @param {object} formation
+ * @param {{shownOnly?: boolean}} [options]
+ * @returns {Promise<string|null>}
  */
-export async function pickAndTravel(formationId) {
-  const formation = getFormation(formationId);
-  const targets = formation ? poiTargets(formation) : [];
-  if (!targets.length) return void ui.notifications.warn(loc("settlement.poi.noTargets"));
-  const options =targets.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+export async function pickPoiTarget(formation, { shownOnly = false } = {}) {
+  const targets = (formation ? poiTargets(formation) : []).filter((t) => !(shownOnly && t.hidden));
+  if (!targets.length) {
+    ui.notifications.warn(loc("settlement.poi.noTargets"));
+    return null;
+  }
+  const options = targets.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
   const tokenId = await foundry.applications.api.DialogV2.prompt({
     window: { title: loc("settlement.poi.travelTitle") },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -334,22 +339,46 @@ export async function pickAndTravel(formationId) {
       <p class="hint">${esc(loc("settlement.poi.travelHint"))}</p></div>`,
     ok: { callback: (_event, button) => button.form.elements.tokenId.value },
   }).catch(() => null);
+  return tokenId || null;
+}
+
+/**
+ * The Judge picks a point of interest on the party's map; the hop is made and
+ * reported — a whispered line for a walk that happened, a warning for one
+ * that was refused; one that could not be priced for want of an imported
+ * figure reports nothing.
+ */
+export async function pickAndTravel(formationId) {
+  const tokenId = await pickPoiTarget(getFormation(formationId));
   if (!tokenId) return null;
   const result = await travelToPlace(formationId, tokenId);
-  await reportHop(result);
+  const refused = hopRefusal(result);
+  if (refused === "quiet") return result;
+  if (refused) ui.notifications.warn(loc(`settlement.poi.refused.${refused}`));
+  else await whisperHop(result);
   return result;
 }
 
-async function reportHop(result) {
-  if (!result.moved) {
-    // A walk that could not be priced for want of an imported figure says nothing.
-    if (result.reason === "table" || result.reason === "pace") return;
-    const key = result.reason === "noTarget" ? "noTarget" : (result.relation ?? "noTarget");
-    ui.notifications.warn(loc(`settlement.poi.refused.${key}`));
-    return;
-  }
+/**
+ * Why a hop was refused, as the code the party press answers with: `"noTarget"`
+ * for a place no longer on the map, `"far"` or `"outside"` for a walk between
+ * quarters that cannot be priced, `"quiet"` for a walk that could not be priced
+ * for want of an imported figure (nothing is said), and null for a walk that
+ * was made.
+ * @param {{moved: boolean, reason?: string, relation?: string}} result what `travelToPlace` answered
+ * @returns {"noTarget"|"far"|"outside"|"quiet"|null}
+ */
+export function hopRefusal(result) {
+  if (result?.moved) return null;
+  if (result?.reason === "table" || result?.reason === "pace") return "quiet";
+  if (result?.reason === "noTarget") return "noTarget";
+  return result?.relation === "far" || result?.relation === "outside" ? result.relation : "noTarget";
+}
+
+/** Whisper the Judges the line for a hop that was made; the place's name is escaped, since it is a world name. */
+export async function whisperHop(result) {
   const line = loc(result.turns > 0 ? "settlement.poi.arrived" : "settlement.poi.arrivedFree", {
-    place: result.place, turns: result.turns, relation: loc(`settlement.poi.relation.${result.relation}`),
+    place: esc(result.place), turns: result.turns, relation: loc(`settlement.poi.relation.${result.relation}`),
   });
   await ChatMessage.create({
     speaker: { alias: loc("settlement.card.speaker") },

@@ -741,6 +741,26 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   // A camp day with no travel slot has no hours to spend, so it never asks by hours.
   const camp = makeFormation(null, null, { day: { kind: "camp", hours: 9 } });
   assert.equal(await offerDayEnd(camp), null);
+
+  // Another seat ends the day while the question stands open: the answer given
+  // to it is for a day that is over, so nothing is applied.
+  const raced = makeFormation(null, null, { day: { hours: 1, miles: 2 } });
+  setClock(22);
+  const wait = foundry.applications.api.DialogV2.wait;
+  foundry.applications.api.DialogV2.wait = async () => {
+    settings.formations[raced].travel.dayCount += 1;
+    return "end";
+  };
+  try {
+    const before = travelOf(getFormation(raced)).dayCount;
+    assert.equal(await offerDayEnd(raced), "answered", "a day that moved under the open question is answered already");
+    const after = travelOf(getFormation(raced));
+    assert.equal(after.dayCount, before + 1, "and the day moved once, by the other seat, not again by this answer");
+    assert.equal(after.day.miles, 2, "the board it closed was not logged a second time");
+  } finally {
+    foundry.applications.api.DialogV2.wait = wait;
+    setClock(12);
+  }
 }
 
 /* -------------------------------------------- */

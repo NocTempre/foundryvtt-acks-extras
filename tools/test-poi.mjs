@@ -19,6 +19,7 @@ import {
   DISTRICT_RELATION, HIDDEN_PLACE_FLAG, OPENED_PLACE_OWNERSHIP, TRANSIENT_FLAG, WILDS_FLAG, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns,
   promotedPlaceData, revealOutcome, ringsTouch, terrainMarkData, transientNoteData, transientOf,
 } from "../scripts/formation/poi-logic.mjs";
+import { hopRefusal } from "../scripts/formation/poi.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -321,6 +322,26 @@ ok("an organisation's or a domain's token is a marker, not a tenant", () => {
     [true, true, true, false],
   );
   assert.equal(isMarkerActor({ documentName: "Item", type: "acks-extras.domain" }), false, "a marker is an actor");
+});
+
+/* ---------------- hopRefusal ---------------- */
+
+ok("a hop that was made is no refusal", () => {
+  assert.equal(hopRefusal({ moved: true, turns: 2, relation: "same", place: "Hall" }), null);
+});
+
+ok("a hop that cannot be priced for want of an imported figure is refused quietly", () => {
+  assert.equal(hopRefusal({ moved: false, reason: "table", relation: "same" }), "quiet");
+  assert.equal(hopRefusal({ moved: false, reason: "pace", relation: "adjacent" }), "quiet");
+});
+
+ok("a place that is gone, and quarters that cannot be walked between, each name their own refusal", () => {
+  assert.equal(hopRefusal({ moved: false, reason: "noTarget" }), "noTarget");
+  assert.equal(hopRefusal({ moved: false, reason: "noTarget", relation: "same" }), "noTarget", "a place gone after the tick is a place gone, whatever the relation");
+  assert.equal(hopRefusal({ moved: false, reason: "relation", relation: "far" }), "far");
+  assert.equal(hopRefusal({ moved: false, reason: "relation", relation: "outside" }), "outside");
+  assert.equal(hopRefusal({ moved: false }), "noTarget", "an answer with no reason falls to the place being gone");
+  assert.equal(hopRefusal(undefined), "noTarget");
 });
 
 console.log("\ntest-poi: all " + passed + " checks passed");
