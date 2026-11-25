@@ -305,3 +305,87 @@ Not checked:
 - force-repair's steps 2, 3, 5, 6 and 7: no active module ships a monster
   compendium with token art.
 - `init`/`setup`/`ready` console beyond each walk's own load-to-ready check.
+
+### 2026-11-25, B04
+
+Thirteen rows worked: the batch's eleven, T-0822 added by the hub, and
+T-0802, which the batch found. All the work was in `main`'s tree. The walk
+fixes and recipe steps are in b8c75769, 646fba4b, b5a48ff3 and b39d0e86, and
+8b1dbb88 adds instrumentation.
+
+- Fixed:
+  - T-0680, T-0693, T-0694, T-0753 and T-0754 (b8c75769).
+  - T-0756 (646fba4b).
+  - T-0757 (646fba4b with f1edbe02).
+  - T-0685 and T-0704 (b5a48ff3).
+  - T-0822 (b39d0e86).
+  - T-0695, in the local rules suite, which is not tracked.
+- One runtime fix, on the hub's ruling: T-0802 (f1edbe02). An unarmed strike
+  never asks for a damage formula. The equipment DECISIONS entry of
+  2026-11-25 records it and marks the 2026-11-17 entry superseded in part.
+- T-0569 was already released in v2026.11.19 (f5f530d6).
+- One finding was registered `new`: T-0808. It failed once during a run that
+  three landings crossed, and passed on the rerun with none crossing. It is
+  left for the batch map.
+- All on `main`, not pushed.
+
+Cause, where the batch found it:
+
+- T-0822 was the walk's own reading. The wall create answers in its own
+  order, and the walk took the fourth wall for the locked one. The
+  instrumented run showed no door-state write at all.
+- T-0685 and T-0704 were the treasure walk's press, which landed on a control
+  that moved under the pointer. The step 5 order check also predated the
+  replace card's slot. The press now refuses when the control moves and
+  records it. T-0685 failed one press in 25, so one clean run cannot rule out
+  a recurrence. A recurrence now reads as a refused press, not as a missing
+  window.
+
+Walked live on `main`, lane A (Gamemaster / Player), alone on the server,
+kept fixtures:
+
+- Half 1, 20261125-124649, started after f1edbe02 landed:
+  - magic-sacrifice passed (32 pass, 0 fail).
+  - magic-cast-summon passed (92 pass, 0 fail).
+  - formation-steps passed (58 pass, 0 fail).
+  - scene-search-session passed (49 pass, 0 fail).
+  - location-prune-keyed passed (7 pass, 0 fail).
+  - formation-day failed (184 pass, 1 fail). The FAIL is T-0808, and step 6
+    (T-0756) passed.
+  - equipment-printed-figures passed (51 pass, 0 fail).
+- Half 2, 20261125-155804, main feac8b6a:
+  - treasure passed (77 pass, 0 fail).
+  - treasure-faces passed (51 pass, 0 fail).
+  - treasure-seeds passed (34 pass, 0 fail).
+  - treasure-deal passed (59 pass, 0 fail).
+  - treasure-magic-deal passed (41 pass, 0 fail).
+  - treasure-party passed (36 pass, 0 fail).
+  - treasure-search passed (48 pass, 0 fail).
+  - scene-search-sheet-crossing passed (70 pass, 0 fail).
+  - formation-day passed (185 pass, 0 fail).
+- magic-cast-tracked 20261125-163409, on feac8b6a with b39d0e86: passed (163
+  pass, 0 fail).
+
+Deleted and kept, from each log's ledger. No sweep failed anything:
+
+- What was not found: Cards piles, combats and their combatants, and
+  documents embedded under actors.
+- The treasure walks swept 10 to 19 documents each, and kept their
+  `treasure/*` fixtures.
+- The scene-search walks kept their `scene-search/*` fixtures, and
+  formation-day kept its `formation/day-*` fixtures.
+- formation-steps built and kept 19 `formation/steps-*` fixtures.
+- magic-cast-tracked reused 25 `magic/tracked-*` fixtures. It built one Combat
+  and swept 71 documents.
+
+Checked offline only:
+
+- T-0802's suite, `tools/test-weapon-damage-blank.mjs`.
+- T-0695's local rules suite.
+
+Not checked:
+
+- The import notice that T-0812 asks about: no walk in the batch captures it.
+- A second treasure run to bound T-0685's rate.
+- `init`/`setup`/`ready` console beyond each walk's own load-to-ready check.
+- A world relaunch after S12's new stylesheet.
