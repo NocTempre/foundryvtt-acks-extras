@@ -30,11 +30,23 @@
  * - `{op: "addOccupant", place, actor}`: the roll's top group onto a roster.
  *
  * The tree: `{top, prototypes, gen, treasure, findings}`; a unit node is `{key,
- * word, kind, shareKind?, label, camp, trait, troop, officers, stacks, children}`.
+ * word, kind, shareKind?, label, camp, whole?, trait, troop, officers, stacks, children}`.
+ * A `whole` node is written with its parent at every scope, as a camp is, and is a row of its
+ * own: its group holds its stacks, and nothing beneath it waits to be rolled.
  */
+import { MODULE_ID } from "./constants.mjs";
 import { blankRow, nodesOf, planAdd, subtreeKeys } from "./org-tree-logic.mjs";
 
 const REFUSED = (reason) => ({ ok: false, reason, ops: [] });
+
+/**
+ * The flag key under `flags["acks-extras"]` on a host holding the record of the Roll whose top
+ * unit IS the host (`planRoll`'s `topIsHost`): the record a top unit's row would have carried
+ * (the template, variant, rules, trait, tier and the leader's role). A host with no row for its
+ * top unit has nowhere else to keep it, and the chart's Roll, Make and recipe tool read it from
+ * here after the rows' own records.
+ */
+export const ORG_GEN_FLAG = "organisationGen";
 
 /**
  * The module flag key a minted prototype carries, holding its prototype key. It is
@@ -49,10 +61,10 @@ const copyRows = (rows) => (rows ?? []).map((r) => structuredClone(r?.toObject?.
 
 /**
  * How many levels of units a node holds beneath it, itself not counted: 0 for a unit of
- * bodies, 1 for a unit of those, and on. A camp is no unit. It is the rank a unit stands
- * at, read from the evaluated line, so a row keeps it before the units beneath are rolled.
+ * bodies, 1 for a unit of those, and on. A camp and a `whole` node are no unit. It is the rank a
+ * unit stands at, read from the evaluated line, so a row keeps it before the units beneath are rolled.
  */
-const tierOf = (node) => Math.max(-1, ...(node.children ?? []).filter((c) => !c.camp).map(tierOf)) + 1;
+const tierOf = (node) => Math.max(-1, ...(node.children ?? []).filter((c) => !c.camp && !c.whole).map(tierOf)) + 1;
 
 /**
  * What a roll fixed for a unit, as the unit's row records it: the share it took, the
@@ -60,7 +72,7 @@ const tierOf = (node) => Math.max(-1, ...(node.children ?? []).filter((c) => !c.
  * ancestor's roll decided for it; a filled row keeps them to show, and to tell a hand's
  * change from the roll's.
  */
-const pickedOf = (node) => ({ ...(node.shareKind ? { shareKind: node.shareKind } : {}), ...(node.troop ? { troop: node.troop } : {}), ...(node.trait ? { trait: node.trait } : {}), ...(node.camp ? {} : { tier: tierOf(node) }), ...leaderRecord(node) });
+const pickedOf = (node) => ({ ...(node.shareKind ? { shareKind: node.shareKind } : {}), ...(node.troop ? { troop: node.troop } : {}), ...(node.trait ? { trait: node.trait } : {}), ...(node.whole ? { part: node.stacks?.[0]?.gen?.part || "part" } : {}), ...(node.camp || node.whole ? {} : { tier: tierOf(node) }), ...leaderRecord(node) });
 
 /**
  * The unit's first officer as its row records it, so a leader made later by hand is the one
@@ -102,16 +114,23 @@ export function keySource(taken) {
  * @param {"one"|"below"} [args.scope]
  * @param {Object<string, string>} [args.labels] words for rows and groups, by unit word; `camp` for the camp. The caller localises
  * @param {string} [args.placeUuid] a place whose roster the top group is put on
- * @param {string} [args.topHolder] an existing group that is the top unit's group: no group is made for the top, and the stacks, leader and officer go on this one. The host group itself, for a root group whose empty top row waits to be rolled; ignored for a row below the top
+ * @param {string} [args.topHolder] an existing group that is the top unit's group: no group is made for the top, and the stacks, leader and officer go on this one. The host group itself, for a root group whose empty top row waits to be rolled; ignored for a row below the top and under `topIsHost`
+ * @param {boolean} [args.topIsHost] the top unit IS the host: it gets no row and no group, its officers are made and the first becomes the host's `system.leaderUuid`, its children are top rows on the host, a named target row is consumed (the rows replace it), `placeUuid` takes each of those rows' groups, and the top's record is written to the host under `ORG_GEN_FLAG`. Refused as `noHost` with no host, `notFaction` when the host is no faction, `notTop` when the target row has a parent row and `topHoldsStacks` when the top holds stacks, since a host holds none
  * @param {() => string} [args.newKey] row keys, one per call
- * @returns {{ok: boolean, reason?: "noTree"|"noRow"|"filled", ops: object[], rows?: object[], groups?: Object<string, string>, treasure?: object, findings?: object[]}}
+ * @returns {{ok: boolean, reason?: "noTree"|"noRow"|"filled"|"noHost"|"notFaction"|"notTop"|"topHoldsStacks", ops: object[], rows?: object[], groups?: Object<string, string>, treasure?: object, findings?: object[]}}
  */
-export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels = {}, placeUuid = "", topHolder = "", newKey = null } = {}) {
+export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels = {}, placeUuid = "", topHolder = "", topIsHost = false, newKey = null } = {}) {
   if (!tree?.top) return REFUSED("noTree");
   const list = copyRows(rows);
   const target = rowKey ? list.find((r) => r.key === rowKey) : null;
   if (rowKey && !target) return REFUSED("noRow");
   if (target?.holderUuid) return REFUSED("filled");
+  if (topIsHost) {
+    if (!host?.uuid) return REFUSED("noHost");
+    if (host.kind !== "faction") return REFUSED("notFaction");
+    if (target?.parentKey) return REFUSED("notTop");
+    if ((tree.top.stacks ?? []).length) return REFUSED("topHoldsStacks");
+  }
   const fresh = newKey ?? keySource(list.map((r) => r.key));
 
   const ops = [];
@@ -135,11 +154,14 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
   const visit = (node, depth) => {
     filled.push(node);
     for (const child of node.children ?? []) {
-      if (scope === "below" || depth > 0 || child.camp) visit(child, depth + 1);
+      if (scope === "below" || depth > 0 || child.camp || child.whole) visit(child, depth + 1);
       else empties.push(child);
     }
   };
   visit(tree.top, 0);
+  // A top that is the host is no node of the chart: the units it holds stand at the top of it.
+  if (topIsHost) filled.shift();
+  const topRoots = topIsHost ? filled.filter((n) => (tree.top.children ?? []).includes(n)) : [];
 
   const groupOf = new Map();
   const rowKeyOf = new Map();
@@ -152,7 +174,7 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
   const nameOf = (node) => labels[wordOf(node)] || node.label || node.word || "";
 
   // The top unit's group is the host's own where the caller names it: the one write the top row's holder is, and no group of its own to nest or leave behind.
-  const reusesTop = !!topHolder && !parentRowKey;
+  const reusesTop = !!topHolder && !parentRowKey && !topIsHost;
   for (const node of filled) {
     if (reusesTop && node === tree.top) {
       groupOf.set(node, topHolder);
@@ -169,6 +191,15 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
   }
 
   const actorOf = new Map();
+  const makeOfficer = (o, node, group) => {
+    const a = ref("a");
+    actorOf.set(o, a);
+    const made = { op: "makeActor", ref: a, spec: refOfProto(o.proto), role: o.role, troop: o.troop ?? "", trait: node.trait ?? "", ...(group ? { group } : {}) };
+    if (o.gear?.length) made.gear = [...o.gear];
+    if (o.mount) made.mount = { prototype: refOfProto(o.mount.proto) };
+    if (o.speaksCommon != null) made.speaksCommon = o.speaksCommon;
+    ops.push(made);
+  };
   for (const node of filled) {
     const group = groupOf.get(node);
     for (const s of node.stacks ?? []) {
@@ -184,19 +215,17 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
       }
     }
     (node.officers ?? []).forEach((o, i) => {
-      const a = ref("a");
-      actorOf.set(o, a);
-      const made = { op: "makeActor", ref: a, spec: refOfProto(o.proto), role: o.role, troop: o.troop ?? "", trait: node.trait ?? "", group };
-      if (o.gear?.length) made.gear = [...o.gear];
-      if (o.mount) made.mount = { prototype: refOfProto(o.mount.proto) };
-      if (o.speaksCommon != null) made.speaksCommon = o.speaksCommon;
-      ops.push(made);
-      if (i === 0) ops.push({ op: "setOfficer", group, officer: a, moraleBonus: o.moraleBonus ?? null });
+      makeOfficer(o, node, group);
+      if (i === 0) ops.push({ op: "setOfficer", group, officer: actorOf.get(o), moraleBonus: o.moraleBonus ?? null });
     });
   }
+  // The officers of a top that is the host are made with no group: the first is the host's leader below.
+  if (topIsHost) for (const o of tree.top.officers ?? []) makeOfficer(o, tree.top, "");
 
   // The rows: the target filled (the record rides on it), its descendants new, the empties waiting.
   const out = list.filter((r) => r.key !== target?.key);
+  // A target that is consumed (a top that is the host has no row) leaves no parent: the rows hand-added beneath it stand at the top.
+  if (topIsHost && target) for (const r of out) if (r.parentKey === target.key) r.parentKey = "";
   const insertAt = target ? list.findIndex((r) => r.key === target.key) : out.length;
   const written = [];
   for (const node of filled) {
@@ -213,17 +242,19 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
   }
   for (const node of empties) {
     const parent = filled.find((n) => (n.children ?? []).includes(node));
-    const row = blankRow(rowKeyOf.get(node), { parentKey: rowKeyOf.get(parent), label: nameOf(node), kind: node.kind ?? node.word ?? "" });
+    const row = blankRow(rowKeyOf.get(node), { parentKey: parent ? rowKeyOf.get(parent) : parentRowKey, label: nameOf(node), kind: node.kind ?? node.word ?? "" });
     row.gen = pickedOf(node);
     written.push(row);
   }
   out.splice(insertAt, 0, ...written);
 
   const hostUuid = host?.uuid ?? groupOf.get(tree.top);
-  ops.push({ op: "update", uuid: hostUuid, update: { "system.units": out } });
+  const hostUpdate = { "system.units": out };
+  if (topIsHost) hostUpdate[`flags.${MODULE_ID}.${ORG_GEN_FLAG}`] = { ...tree.gen, tier: tierOf(tree.top), ...leaderRecord(tree.top) };
+  ops.push({ op: "update", uuid: hostUuid, update: hostUpdate });
   const chief = tree.top.officers?.[0];
   if (host?.kind === "faction" && !parentRowKey && chief) ops.push({ op: "update", uuid: host.uuid, update: { "system.leaderUuid": actorOf.get(chief) } });
-  if (placeUuid) ops.push({ op: "addOccupant", place: placeUuid, actor: groupOf.get(tree.top) });
+  if (placeUuid) for (const node of topIsHost ? topRoots : [tree.top]) ops.push({ op: "addOccupant", place: placeUuid, actor: groupOf.get(node) });
 
   const groups = {};
   for (const node of filled) groups[rowKeyOf.get(node)] = groupOf.get(node);

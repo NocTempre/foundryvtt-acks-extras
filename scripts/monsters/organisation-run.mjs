@@ -13,7 +13,9 @@ import { generateFromTemplate } from "../lib/template-generate.mjs";
 import { ANIMAL_TYPE } from "../lib/constants.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { ORG_PROTOTYPE_FLAG, makeFaction, nodesOf, orgHostOf, planRoll, rowAncestors, runPlan, unitsOf } from "../lib/org.mjs";
+import { ORG_PROTOTYPE_FLAG, hostGenOf, makeFaction, nodesOf, orgHostOf, planRoll, rostersHolding, rowAncestors, runPlan, unitsOf } from "../lib/org.mjs";
+import { setParentGroup } from "../lib/group.mjs";
+import { addOccupant, removeOccupant } from "../lib/place.mjs";
 import { holdsUnitsOfUnits, isGenerateRoot, listedElsewhere, needsFactionCard } from "./generate-host.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { letterOf } from "../treasure/search-logic.mjs";
@@ -24,6 +26,8 @@ import { planOrganisationRoll } from "./organisation-logic.mjs";
 import { cardView, withHoards } from "./organisation-card.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
+
+const FACTION_TYPE = `${MODULE_ID}.faction`;
 
 /** The flag key a generated leader carries the figures with no field of their own under. */
 export const LEADER_FLAG = "leaderRoll";
@@ -119,7 +123,7 @@ export async function mintPrototype(family, spec, protoKey) {
  * Roll an organisation into a chart row.
  *
  * @param {object} args
- * @param {Actor|null} [args.host] a faction or a group hosting the chart; none makes the top unit's group the host
+ * @param {Actor|null} [args.host] a faction or a group hosting the chart; none makes the top unit's group the host. A village (a top unit holding units that hold units) rolled with none, on a Generate root group, or at the top of a faction is written onto a faction: a card is made for the first two, the root group is deleted after, and `deleted` lists it
  * @param {string} [args.rowKey] the empty row to fill; blank starts a new top row
  * @param {Actor|string} [args.template] the family template (or its uuid); an empty row below the top reads it from its ancestor
  * @param {string} [args.variant] the breed's key
@@ -134,18 +138,21 @@ export async function mintPrototype(family, spec, protoKey) {
  * @param {Cards|string|null} [args.pot] a staged pot the treasure rows join; none makes a new one
  * @param {() => number} [args.rng]
  * @param {boolean} [args.card] post the Judges' card (default true)
- * @returns {Promise<{ok: boolean, reason?: string, created: string[], made?: object, host?: string, group?: string, rows?: object[], findings?: object[], treasure?: object, pot?: string, tree?: object}>}
+ * @returns {Promise<{ok: boolean, reason?: string, created: string[], deleted?: string[], faction?: string, made?: object, host?: string, group?: string, rows?: object[], findings?: object[], treasure?: object, pot?: string, tree?: object}>} `created` holds every id made, a faction card included; `deleted` the root group a village's Roll took away; `host` the faction a village was written onto
  */
 export async function rollOrganisation({ host = null, rowKey = "", template = null, variant = "", context, state, scope = "one", rules, leaderSource, villageSource, choices, placeUuid = "", pot = null, rng = Math.random, card = true } = {}) {
+  // A host a Roll deleted (a Generate root group) still holds its rows in memory; a second Roll on it would make a second village.
+  if (host && !host.isToken && host.id && game.actors && !game.actors.has(host.id)) return refused("noHost");
   const rows = host ? unitsOf(host) : [];
   const target = rowKey ? rows.find((r) => r.key === rowKey) : null;
   if (rowKey && !target) return refused("noRow");
+  if (target?.gen?.part) return refused("part");
   if (target?.holderUuid) return refused("filled");
 
-  // What the roll that began the chart recorded, read from the nearest ancestor that holds it.
+  // What the roll that began the chart recorded, read from the nearest ancestor that holds it, else from the host's own record (a Roll whose top unit is the host has no row to carry it).
   const above = target ? rowAncestors(rowKey, nodesOf(rows)).map((k) => rows.find((r) => r.key === k)).filter(Boolean) : [];
   const began = above.find((r) => r.gen?.variant) ?? null;
-  const gen = { ...(began?.gen ?? {}) };
+  const gen = { ...(began?.gen ?? hostGenOf(host) ?? {}) };
   const own = target?.gen ?? {};
   const use = (given, key, fallback) => given ?? gen[key] ?? fallback;
   const family = typeof template === "string" ? await fromUuid(template).catch(() => null) : template ?? (gen.template ? await fromUuid(gen.template).catch(() => null) : null);
@@ -170,30 +177,56 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   if (!tree.ok) return refused(tree.reason ?? "noTree");
   tree.gen.template = family.uuid;
 
-  const hostRef = host ? { uuid: host.uuid, kind: host.type === `${MODULE_ID}.faction` ? "faction" : "group" } : null;
+  const hostRef = host ? { uuid: host.uuid, kind: host.type === FACTION_TYPE ? "faction" : "group" } : null;
   // A Generate-made root group is the top unit's own group, so the card made from it names its officer.
-  const topHolder = hostRef?.kind === "group" && isGenerateRoot({ rows, row: target, stacks: (host.system?.stacks ?? []).length, officerUuid: host.system?.unit?.officerUuid ?? "" }) ? host.uuid : "";
-  const plan = planRoll({ host: hostRef, rows, rowKey, tree, scope, labels: { camp: loc("organisation.camp") }, placeUuid, topHolder, newKey: () => foundry.utils.randomID() });
-  if (!plan.ok) return refused(plan.reason);
-
+  const isRoot = hostRef?.kind === "group" && isGenerateRoot({ rows, row: target, stacks: (host.system?.stacks ?? []).length, officerUuid: host.system?.unit?.officerUuid ?? "" });
+  const topHolder = isRoot ? host.uuid : "";
   const provider = {
     mint: (spec, { key: protoKey }) => mintPrototype(family, spec, protoKey),
     makeLeader: (op, spec, mount) => makeLeaderActor(family, spec, op, mount),
   };
+
+  // A village rolled with no host, on a Generate root group, or at the top of a faction is the faction itself: its warbands and its parts are the faction's top rows.
+  const asFaction = !!tree.village && (!hostRef || isRoot || (hostRef.kind === "faction" && !target?.parentKey));
+  const onFaction = asFaction && hostRef?.kind === "faction";
+  let faction = null;
+  if (asFaction) {
+    faction = onFaction ? host : await makeFactionCard({ name: host?.name || family.name, img: host?.img || family.flags?.[MODULE_ID]?.plate || family.img });
+    if (!faction) return refused("notMade");
+  }
+  const plan = planRoll({
+    host: asFaction ? { uuid: faction.uuid, kind: "faction" } : hostRef, rows: onFaction || !asFaction ? rows : [], rowKey: onFaction || !asFaction ? rowKey : "", tree, scope,
+    labels: { camp: loc("organisation.camp") }, placeUuid, topHolder: asFaction ? "" : topHolder, topIsHost: asFaction, newKey: () => foundry.utils.randomID(),
+  });
+  if (!plan.ok) {
+    if (asFaction && !onFaction) await faction.delete();
+    return refused(plan.reason);
+  }
+
   const run = await runPlan(plan, provider);
-  const groups = topHolder ? [topHolder, ...run.made.groups] : run.made.groups;
-  const out = { ...run, host: hostRef?.uuid ?? groups[0] ?? "", group: groups[0] ?? "" };
+  const tops = asFaction ? Object.entries(plan.groups).filter(([k]) => plan.rows.find((r) => r.key === k)?.parentKey === "").map(([, ref]) => run.refs?.[ref] ?? "").filter(Boolean) : [];
+  const groups = topHolder && !asFaction ? [topHolder, ...run.made.groups] : run.made.groups;
+  const made = asFaction && !onFaction ? [faction.uuid] : [];
+  const out = { ...run, created: [...made, ...run.created], host: asFaction ? faction.uuid : hostRef?.uuid ?? groups[0] ?? "", group: (asFaction ? tops[0] : "") || groups[0] || "" };
+  if (asFaction) {
+    out.faction = faction.uuid;
+    out.factionResult = { ok: true };
+  }
   if (!run.ok) return out;
   out.rows = plan.rows;
   out.findings = tree.findings;
   out.treasure = tree.treasure;
   out.tree = tree;
 
-  const card_ = await makeCardIfVillage({ host: host ?? fromUuidSync(groups[0]), target, rowKey, tree, hostRef });
-  if (card_) {
-    out.faction = card_.ok ? card_.faction.uuid : "";
-    out.factionResult = { ok: card_.ok, ...(card_.reason ? { reason: card_.reason } : {}) };
-    if (card_.ok) out.created = [...out.created, card_.faction.uuid];
+  if (asFaction && isRoot) {
+    out.deleted = await retireRoot(host, tops);
+  } else if (!asFaction) {
+    const card_ = await makeCardIfVillage({ host: host ?? fromUuidSync(groups[0]), target, rowKey, tree, hostRef });
+    if (card_) {
+      out.faction = card_.ok ? card_.faction.uuid : "";
+      out.factionResult = { ok: card_.ok, ...(card_.reason ? { reason: card_.reason } : {}) };
+      if (card_.ok) out.created = [...out.created, card_.faction.uuid];
+    }
   }
 
   const hand = tree.treasure?.deal ? await handOffTreasure({ run, hoards: tree.treasure.hoards, pot }) : null;
@@ -203,6 +236,47 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   }
   if (card) await postCard({ tree, groups, family, group: out.group, pot: hand?.pot ?? "", org });
   return out;
+}
+
+/**
+ * A faction card of its own for a village: named and pictured as given, holding no row yet.
+ * Null where Foundry made none.
+ * @param {{name: string, img?: string}} args
+ * @returns {Promise<Actor|null>}
+ */
+async function makeFactionCard({ name, img = "" }) {
+  try {
+    return (await Actor.implementation.create({ name, type: FACTION_TYPE, ...(img ? { img } : {}) })) ?? null;
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a faction card could not be made`, err);
+    return null;
+  }
+}
+
+/**
+ * Put a Generate root group's place where its rows' groups now stand, then delete it: the
+ * roster rows that held the root hold each of `groups` instead, with the root row's own
+ * owner, notes and hidden mark, and each takes the group the root stood inside. A root
+ * that another group still stands inside is kept, since deleting it would orphan them.
+ *
+ * @param {Actor} root the group the village's Roll emptied of its only row
+ * @param {string[]} groups the uuids of the groups that took its place
+ * @returns {Promise<string[]>} the uuids deleted: the root, or none where it was kept
+ */
+export async function retireRoot(root, groups) {
+  const docs = (await Promise.all(groups.map((u) => fromUuid(u).catch(() => null)))).filter(Boolean);
+  const parentUuid = root.system?.unit?.parentGroupUuid ?? "";
+  if (parentUuid) for (const g of docs) await setParentGroup(g, parentUuid);
+  for (const placeUuid of rostersHolding(root.uuid)) {
+    const place = await fromUuid(placeUuid).catch(() => null);
+    const held = (place?.system?.roster ?? []).map((r) => r?.toObject?.() ?? r).find((r) => r.uuid === root.uuid) ?? {};
+    for (const g of docs) await addOccupant(place, g, { ownerUuid: held.ownerUuid ?? "", notes: held.notes ?? "", hidden: !!held.hidden });
+    await removeOccupant(place, root.uuid);
+  }
+  const holds = [...(game.actors ?? [])].some((a) => a.system?.unit?.parentGroupUuid === root.uuid);
+  if (holds) return [];
+  await root.delete();
+  return [root.uuid];
 }
 
 /**

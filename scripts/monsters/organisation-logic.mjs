@@ -17,6 +17,10 @@
  *     split figures give replace the recipe's two.
  *  3. A troop for each unit the split makes special, rolled on the variant's
  *     bands; its units, leaders and the gangs beneath take it.
+ *  3b. At a village (the top unit, holding units that hold units, with no body part of its own)
+ *     each part that is no body is a node of its own, one stack, written with the units
+ *     beside the warbands and named by the part's own label; every other unit keeps one camp
+ *     child holding its parts. `village` on the answer says the village shape was used.
  *  4. One trait for a unit that holds units (the top of a warband or village),
  *     rolled on the variant's bands, taken by everything under it.
  *  5. Mounts (a troop row's `mounts`): a mounted unit's bodies ride, and each
@@ -169,7 +173,7 @@ export function splitShares({ org = {}, rules = {} } = {}) {
  * @param {{trait?: string, shareKind?: string, troop?: string}} [args.inherit] what an ancestor's roll already fixed for the unit: a trait key (blank for none), the share the unit took, and the troop its special unit rolled
  * @param {(role: string) => number|null} [args.hdOf] a leader's Hit Dice, for a chance per Hit Die
  * @param {(proto: object) => number|null} [args.printedHp] the hit points a prototype's own page prints
- * @returns {object} `{ok, reason?, context, state, lair, treasure, top, prototypes, findings, steps, gen}`
+ * @returns {object} `{ok, reason?, context, state, lair, treasure, top, prototypes, findings, steps, gen, village}`
  */
 export function planOrganisationRoll({
   recipe = [], encounter = null, variant = "", context = "wilderness", state = "wandering", unit = "", rng = Math.random,
@@ -266,6 +270,11 @@ export function planOrganisationRoll({
     return { proto, label: spec.kind === "label" ? spec.label : p.label, count: p.count, role: p.role, gen: { part: p.part, cite: p.cite ?? "" }, ...(Number.isFinite(hp) ? { fixedHp: hp } : {}), ...(p.chance != null ? { chance: p.chance } : {}) };
   };
 
+  // A village: the top unit holds units that hold units, and holds no body of its own, so the host can take its parts as rows.
+  const village = !!evaluated.top.children.some((c) => c.children.length > 0) && !evaluated.top.parts.some((p) => p.role === "body");
+  /** A part that is no body as a node of its own: one stack, written with its siblings at every scope. */
+  const partNode = (stack, parentKey, label) => ({ key: `r${++serial}`, word: "", kind: "", parentKey, label: label || stack.label || "", camp: false, whole: true, troop: "", trait, officers: [], stacks: [stack], children: [], evalKey: "" });
+
   const toNode = (en, parentKey) => {
     const troop = troopAt(en);
     const node = { key: `r${++serial}`, word: en.unit, kind: en.unit, shareKind: en.kind, parentKey, label: "", camp: false, troop, trait, officers: [], stacks: [], children: [], evalKey: en.key };
@@ -283,9 +292,11 @@ export function planOrganisationRoll({
       }
     }
     const camp = [];
+    const atVillage = village && en === evaluated.top;
     for (const p of en.parts) (p.role === "body" ? node.stacks : camp).push(stackOfPart(p, troop));
     for (const c of en.children) node.children.push(toNode(c, node.key));
-    if (camp.length) node.children.push({ key: `r${++serial}`, word: "", kind: "", parentKey: node.key, label: "", camp: true, troop: "", trait, officers: [], stacks: camp, children: [], evalKey: "" });
+    if (atVillage) en.parts.filter((p) => p.role !== "body").forEach((p, i) => node.children.push(partNode(camp[i], node.key, p.label)));
+    else if (camp.length) node.children.push({ key: `r${++serial}`, word: "", kind: "", parentKey: node.key, label: "", camp: true, troop: "", trait, officers: [], stacks: camp, children: [], evalKey: "" });
     return node;
   };
   const top = toNode(evaluated.top, null);
@@ -317,9 +328,10 @@ export function planOrganisationRoll({
       const r = outside(word, "traitBeast");
       const count = rollFormula(traitRow.figures.beastDice, rng) ?? 0;
       const proto = protoOf(r.status === REFERENCE.resolved ? { kind: "entry", uuid: r.entry.uuid ?? "" } : { kind: "label", label: word });
-      const camp = nodes.find((n) => n.camp) ?? null;
+      const camp = village ? null : nodes.find((n) => n.camp) ?? null;
       const stack = { proto, label: word, count, role: "guard", gen: { part: `trait-${trait}`, cite: traitRow.cite ?? "" } };
       if (camp) camp.stacks.push(stack);
+      else if (village) top.children.push(partNode(stack, top.key, word));
       else top.children.push({ key: `r${++serial}`, word: "", kind: "", parentKey: top.key, label: "", camp: true, troop: "", trait, officers: [], stacks: [stack], children: [], evalKey: "" });
     }
   }
@@ -377,5 +389,5 @@ export function planOrganisationRoll({
   }
 
   const gen = { variant, context: evaluated.context, state: evaluated.state, rules: on, leaderSource, villageSource, trait, choices: evaluated.choices };
-  return { ok: true, context: evaluated.context, state: evaluated.state, lair: evaluated.lair, treasure: { deal: evaluated.state === "lair" && !unit, hoards }, top, prototypes, findings, steps: evaluated.steps, gen };
+  return { ok: true, context: evaluated.context, state: evaluated.state, lair: evaluated.lair, treasure: { deal: evaluated.state === "lair" && !unit, hoards }, top, prototypes, findings, steps: evaluated.steps, gen, village };
 }

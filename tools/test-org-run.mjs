@@ -365,6 +365,77 @@ t("a Roll on a root group's own empty top row fills that group, so Make its own 
   assert.equal(card.faction.system.units.find((r) => r.key === "top").holderUuid, root.uuid, "and its top row still names the root group");
 });
 
+t("a village whose top is the host writes its parts and warbands as the faction's top rows, its chief is the faction's leader and no group is the top's", async () => {
+  reset();
+  const host = faction("Holdfast");
+  const log = { minted: [], leaders: [] };
+  const tree = rollTree();
+  tree.gen.template = "T.fam";
+  assert.equal(tree.village, true);
+  const plan = planRoll({ host: { uuid: host.uuid, kind: "faction" }, rows: [], tree, scope: "below", topIsHost: true });
+  const run = await runPlan(plan, provider(log));
+  assert.equal(run.ok, true, run.error);
+  const rows = host.system.units;
+  const top = rows.filter((r) => !r.parentKey);
+  assert.deepEqual(top.map((r) => r.kind).sort(), ["", "", "band", "band"], "two warbands and the two parts the line lists, all at the top");
+  assert.ok(rows.every((r) => r.kind !== "hold"), "no row for the village");
+  const parts = top.filter((r) => !r.kind);
+  assert.ok(parts.every((r) => world.get(r.holderUuid).system.stacks.length === 1), "a part's group holds its one stack");
+  const chief = log.leaders.findIndex((l) => l.role === "c") + 1;
+  assert.ok(chief > 0 && world.get(host.system.leaderUuid)?.name === `leader ${chief}`, "the chieftain, the village's own rank, is the faction's leader");
+  assert.equal(run.made.groups.some((u) => world.get(u).system.unit.officerUuid === host.system.leaderUuid), false, "and no group's officer");
+  assert.equal(host.flags["acks-extras"].organisationGen.template, "T.fam", "the village's own record rides on the faction");
+  assert.deepEqual(host.flags["acks-extras"].organisationGen.leader.role, "c");
+  assert.equal(run.made.groups.length, rows.length, "a group for each row and nothing for the top");
+});
+
+t("a Generate root group's place passes to the groups that took its rows, and the root is deleted", async () => {
+  reset();
+  const { retireRoot } = await import("../scripts/monsters/organisation-run.mjs");
+  const outer = group("Outer");
+  const root = group("Root");
+  root.system.unit.parentGroupUuid = outer.uuid;
+  const pl = place("Ford", [{ uuid: root.uuid, name: "Root", img: "", kind: "group", quantity: 1, ownerUuid: "", notes: "n1", hidden: true }]);
+  const other = place("Hill", []);
+  const g1 = group("Warband");
+  const g2 = group("Part");
+  const gone = await retireRoot(root, [g1.uuid, g2.uuid]);
+  assert.deepEqual(gone, [root.uuid]);
+  assert.equal(world.has(root.uuid), false, "the empty root is deleted");
+  assert.deepEqual(pl.system.roster.map((r) => r.uuid).sort(), [g1.uuid, g2.uuid].sort(), "each group is on the roster the root stood on, the root is not");
+  assert.ok(pl.system.roster.every((r) => r.hidden === true && r.notes === "n1"), "with the root's own hidden mark and note");
+  assert.deepEqual(other.system.roster, [], "no other place gains a row");
+  assert.deepEqual([g1, g2].map((g) => g.system.unit.parentGroupUuid), [outer.uuid, outer.uuid], "each stands inside the group the root stood inside");
+});
+
+t("a root that another group stands inside is kept, and says so by deleting nothing", async () => {
+  reset();
+  const { retireRoot } = await import("../scripts/monsters/organisation-run.mjs");
+  const root = group("Root");
+  const inner = group("Inner");
+  inner.system.unit.parentGroupUuid = root.uuid;
+  const g1 = group("Warband");
+  assert.deepEqual(await retireRoot(root, [g1.uuid]), []);
+  assert.equal(world.has(root.uuid), true);
+});
+
+t("a part row records its part on its gen, and a Roll on one is refused as a part, filled or not", async () => {
+  reset();
+  const { rollOrganisation } = await import("../scripts/monsters/organisation-run.mjs");
+  const host = faction("Holdfast");
+  const plan = planRoll({ host: { uuid: host.uuid, kind: "faction" }, rows: [], tree: rollTree(), scope: "below", topIsHost: true });
+  await runPlan(plan, provider({ minted: [], leaders: [] }));
+  const rows = host.system.units.filter((r) => !r.parentKey);
+  const parts = rows.filter((r) => r.gen.part);
+  assert.equal(parts.length, 2, "the two parts the line lists carry gen.part");
+  assert.ok(rows.filter((r) => !r.gen.part).every((r) => r.kind === "band" && Number.isInteger(r.gen.tier)), "a warband row records a tier and no part");
+  for (const r of [parts[0], { ...parts[0], holderUuid: "" }]) {
+    host.system.units = host.system.units.map((u) => (u.key === r.key ? r : u));
+    const run = await rollOrganisation({ host, rowKey: r.key, card: false });
+    assert.deepEqual([run.ok, run.reason], [false, "part"]);
+  }
+});
+
 /* ---- Delete ---- */
 
 t("planDelete removes a row and everything beneath it and names the groups", () => {

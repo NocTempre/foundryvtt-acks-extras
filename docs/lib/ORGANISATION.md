@@ -219,6 +219,24 @@ once per `key`), `createGroup`, `parent`, `addStack` and `addLabelledStack`,
   the record existed offers no Make.
   A roll with no host is hosted by its top unit's group; a faction host's top row
   also writes the faction's `leaderUuid`.
+- **A top unit that is the host** (`planRoll({topIsHost: true})`). The top node gets no row and
+  no group: its officers are made, the first becomes the faction's `leaderUuid`, and its children
+  are top rows of the faction, so a feature whose top unit is a faction (a village) writes its
+  warbands as the faction's own rows. Only a faction may be the host (`notFaction`), a named row
+  must be a top row (`notTop`), and a top that holds stacks is refused (`topHoldsStacks`), since a
+  faction holds none; a missing host is `noHost`. `placeUuid` takes each top row's group. The
+  option is structural: lib knows no unit word.
+- **The host's record.** A top that is the host has no row to carry the record a top row's `gen`
+  would (template, variant, rules, trait, tier, leader role), so `planRoll` writes it to the host's
+  `flags["acks-extras"].organisationGen` (`ORG_GEN_FLAG`), in the update that writes the rows.
+  `org.hostGenOf(host)` reads it, as a plain copy or null. The chart's reader of a row's template
+  (`templateOf`, `familyOfRows`) falls back to it after the rows' own records, so the chart's
+  Roll, a row's Make and the faction's "+ Make the chieftain" find the family. No schema field.
+- **A part row.** A node flagged `whole` is a row of its own written with its parent at every
+  scope, its group holding its stacks, with nothing beneath it to roll. Its row's `gen.part`
+  names the part's source and tells it from a unit (`isPartRow`, in `org-chart-ui-logic.mjs`).
+  It has no Roll: the card draws none and a Roll given one is refused (`part`). Its officer line
+  is drawn only where its group names an officer, with every control of a unit row's line but Make.
 - **One prototype per creature.** The tree's creatures are keyed by their own
   fields, so identical creatures across the whole roll are one `prototype` op and
   every stack and leader names its ref. A library entry needs no op: its stack
@@ -286,7 +304,10 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   card whose row, or the nearest row above it, carries a family template in its `gen`. The press loads that template whole (`fromUuid`) for the panel's Variant list; the chart's plate is read from a pack's index after `getIndex()`.
   **Roll at random** fills every empty card in reading order, each as a Roll of its own,
   after one panel: where it was found, its state, the variant, the leaders' grade and which
-  optional rules are on.
+  optional rules are on. A part row (`gen.part`) is neither offered nor rolled; asked, it is refused
+  with `ACKS-LIB.org.roll.refused.part`. Where the Roll's top unit is the faction, the chart's Roll
+  reads the family from the faction's record (`org.hostGenOf`), and a Roll that deletes the group
+  that held the chart opens the faction on its Org chart tab.
 - **+ Warband** adds an empty row under the top row, taking the unit word the level already
   uses; **Add** on a card adds one beneath it. An empty card's pen gives its row a group of its
   own and opens the same Edit.
@@ -317,7 +338,7 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   loses it. Undo is offered to a seat that creates actors and owns the host; any other sees the strip without it.
 - **A row whose group was deleted outside the chart** reads "Its group was deleted outside the chart" (the holder's
   read is `readAfterIndex`, never `fromUuidSync` alone) and offers Roll (the row is emptied first, since a Roll refuses
-  a row that names a holder) and Remove from chart.
+  a row that names a holder; a part row offers none) and Remove from chart.
 - The tree is board 1f's chart: leader cards joined top-down by connector lines, children side by side, in a
   box that scrolls sideways. A leader's card is the Follower Card's compact face (`frame` option) inside the
   role frame of its tier (`gen.tier`, read from the evaluated line), with troop, trait and kit badges drawn
@@ -333,7 +354,11 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   actor's delete permission and the same two; the link is cleared first, then the actor deleted) and
   **+ Make the &lt;officer&gt;** (`ACTOR_CREATE`, the same two, and a leader the `org-chart` service can name
   from the row). No test reads `isGM`. A deleted officer draws the line outside edit too, and the card's
-  head marks it. The faction's leader line reads the same way and keeps its Clear.
+  head marks it. The faction's leader line reads the same way and keeps its Clear. Where the faction holds a record
+  of a village's Roll (`org.hostGenOf`) it also offers **+ Make the &lt;chieftain&gt;** (`orgMakeHostLeader`),
+  beside a leader deleted from the world and in a blank leader line, by the same tests and the same
+  `org-chart` service (a blank key names the host's own leader). A part row draws a line only where its
+  group names an officer, and has no Make.
 - **A hand's deletion redraws the open windows.** Core fires `deleteActor` on every client, and each client
   redraws its own open windows whose chart or leader line names the actor (`redrawWindowsNaming`, found by
   scanning `foundry.applications.instances`). The redraw writes nothing and clears no link.

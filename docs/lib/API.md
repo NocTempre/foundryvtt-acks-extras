@@ -411,12 +411,12 @@ Provider: monsters (`scripts/monsters/org-chart-service.mjs`). Consumer: the org
 `badges({actor, row})` answers `[{corner, label, tip, icon, byHand}]` for a leader's head;
 `troopOf(stack)` answers `{current, options: [{key, label, offBands}]}` or null; `prototypeFor(stack,
 troop)` answers the uuid of the prototype for the stack with that troop, found or made by the Roll's own
-mint. `canMakeLeader(rows, key)` answers whether the row records a leader role and the chart a template (sync, for
-a render); `makeLeader(rows, key)` makes a new leader actor for the row, by the maker the Roll's provider uses, and
+mint. `canMakeLeader(rows, key, hostGen)` answers whether the row records a leader role and the chart a template (sync, for
+a render); `makeLeader(rows, key, hostGen)` makes a new leader actor for the row, by the maker the Roll's provider uses, and
 answers its uuid, or null where none can be made. It is always a new actor, never one found by prototype key, and
 it sets nothing: lib writes the uuid as the row group's officer through `org.editRow`. The row's record that serves
 it is `gen.leader` (`{role, troop, moraleBonus?}`), which lib's `planRoll` writes beside `tier`. No provider means
-no badge, no troop select and no Make; the chart still draws and edits.
+no badge, no troop select and no Make; the chart still draws and edits. `hostGen` (`org.hostGenOf(host)`, optional) is the host's own record: a row with no record of the chart's start reads it, and a **blank `key`** names the host's own leader (the faction's), whose role, troop and trait it holds.
 
 ### Contract `org-roll` v1
 
@@ -453,7 +453,7 @@ resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe 
 its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
 unit with no recipe, which a consumer treats as no provider.
 
-## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views; 81 changes `unlistRow` to take one row and adds `deletePreview`, `deleteSnapshot`, `undoDelete`)
+## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views; 81 changes `unlistRow` to take one row and adds `deletePreview`, `deleteSnapshot`, `undoDelete`; the API version is raised at landing to add `hostGenOf`, `ORG_GEN_FLAG` and `planRoll({topIsHost})`)
 
 `acksExtras.lib.org`. The shape, the rules of each control and the reasons they
 answer are docs/lib/ORGANISATION.md's; this is the surface.
@@ -478,7 +478,8 @@ answer are docs/lib/ORGANISATION.md's; this is the surface.
 | `deletePreview(host, key)` | `{ok, keys, groups, leaders, prototypes}`: what `deleteRow` would take, read first and writing nothing: the rows' keys, the group documents they hold, the officers those groups name (which a Delete leaves) and the minted prototypes no group that stays names (81) |
 | `deleteSnapshot(host, preview, linked)` | `{hostUuid, keys, rows, leaderUuid, actors, groups, rosters}`: `toObject()` copies of the groups, the minted prototypes and the `linked` actors (uuids the caller will delete), the host's rows and faction leader, and the groups' roster rows. Taken before `deleteRow`; nothing of it is readable after (81) |
 | `undoDelete(host, snapshot)` | `{ok, restored}`: re-creates the actors and then the groups with their own ids (`keepId`), merges the rows back under their parents (the top at the top where the parent has gone), restores the faction's leader only while blank and puts the roster rows back on places the seat owns. Refuses `notOwner` and `noCreate` before any write (81) |
-| `planRoll`, `planAddUnit`, `planEdit`, `planDelete` | The Foundry-free plans (docs/lib/ORGANISATION.md) |
+| `planRoll`, `planAddUnit`, `planEdit`, `planDelete` | The Foundry-free plans (docs/lib/ORGANISATION.md). `planRoll({topIsHost})`: the top unit IS the host, a faction: it gets no row and no group, its first officer becomes the faction's `leaderUuid` and its children are the faction's top rows; refused `noHost`, `notFaction`, `notTop` or `topHoldsStacks`. A node flagged `whole` is a row of its own whose row `gen.part` names the part |
+| `hostGenOf(host)`, `ORG_GEN_FLAG` | The record a `topIsHost` Roll leaves on the host, as a plain copy or null, and its key under `flags["acks-extras"]` (`"organisationGen"`): the template, variant, rules, trait, tier and leader role a top row's `gen` would have held. The chart's family reader falls back to it |
 
 A refusal is `{ok: false, reason}` and nothing is written. The pure half is
 `nodesOf`, `rowAncestors`, `rowDescendants`, `rowRoots`, `subtreeKeys`, `twinKeys`,

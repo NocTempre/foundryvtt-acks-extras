@@ -51,17 +51,20 @@ export const orgChartService = {
     const hit = await mintPrototype(held.family, next.spec, next.key);
     return hit?.actor?.uuid ?? null;
   },
-  /** Whether a Make can name this row's leader: its record holds a leader role and the chart a template. Sync, for a render. */
-  canMakeLeader(rows, key) {
-    return !!leaderSpecOf(rows, key);
+  /**
+   * Whether a Make can name this row's leader: its record holds a leader role and the chart a template.
+   * A blank `key` asks for the host's own leader, which `hostGen` (the host's record) names. Sync, for a render.
+   */
+  canMakeLeader(rows, key, hostGen = null) {
+    return !!leaderSpecOf(rows, key, hostGen);
   },
   /**
    * Make a new leader actor for a row, by the maker the Roll's provider uses and from what the row
    * recorded. Always a new actor, never a prototype found by key, so no two rows share a leader.
    * Null where nothing can be made; the caller sets the uuid as the row group's officer.
    */
-  async makeLeader(rows, key) {
-    const spec = leaderSpecOf(rows, key);
+  async makeLeader(rows, key, hostGen = null) {
+    const spec = leaderSpecOf(rows, key, hostGen);
     const family = spec ? await fromUuid(spec.template).catch(() => null) : null;
     if (!family) return null;
     const actor = await makeLeaderActor(family, { variant: spec.variant, grade: spec.grade }, { role: spec.role, troop: spec.troop, trait: spec.trait });

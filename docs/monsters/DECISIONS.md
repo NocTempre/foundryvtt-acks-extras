@@ -411,7 +411,7 @@ provider") ruled what the plan left open.
 - **`officerLevel` is not written.** It drives the command-capacity rule of a personally led
   unit, and nothing here gives a beastman leader a command level.
 
-## 2026-11-25 — Generate makes a root group; a Roll that makes a village makes its faction card
+## 2026-11-25 — Generate makes a root group; a Roll that makes a village makes its faction card — SUPERSEDED IN PART 2026-11-25
 
 The owner: "The specification is the faction card is optional for groups, but it's not a
 strict only, rather an only group needed", and, of a village, "Village always has one".
@@ -537,3 +537,59 @@ now takes only the pressed row and lifts the rows directly beneath it to its par
 it handed the whole subtree to the removed row's group. Rejected: keeping the hand-off to the group, which moved
 documents the pressed row did not name. Cost: a removed top row takes its `gen.template` with it, so the rows lifted
 from it read no template until one is set.
+
+## 2026-11-25 — A village is a faction with one row per part
+
+Supersedes in part "Generate makes a root group; a Roll that makes a village makes its faction
+card", which moved a village's rows onto a card made after the Roll and left the root group as the
+top row's holder. New evidence, which that ruling did not know: the owner's A, "Village is a level
+above warband, and is a faction by default/possibly definition", and the owner's sentence on the
+parts, "They need the same controls as warbands, they just happen to be druges, whelps, prisoners,
+females, beasts etc some of which are non-combat". Of group depth, the owner: "follow raw, it's
+clear about up to two levels (group, and group of groups) for random encounters (aka wandering and
+in-lair)".
+
+- **The village is the faction.** Its warbands are the faction's top rows, with gangs inside them;
+  the chieftain is the faction's `leaderUuid`; the village's own record (template, tier, leader
+  role) rides on the faction, `flags["acks-extras"].organisationGen` (docs/lib/ORGANISATION.md),
+  since no row carries it. Nothing is written to the faction's `strength`. A Roll makes the card
+  first and writes onto it with `planRoll({topIsHost})`, then deletes the now-empty root group;
+  the root group's roster rows and its parent group pass to each group that took its place.
+  Undo of that Roll restores what it restored before, with the tracked lists the result carries
+  (`created` the card, `deleted` the root).
+- **Each part that is no body is a row of its own** beside the warbands, one stack, labelled as
+  imported; there is no camp wrapping them at the village level. The village-level trait's
+  beasts are a part row of their own. No combatant or non-combatant flag, gate or sort exists.
+- **The split below the village level was not ruled on**, so a warband's or a gang's own camp
+  child stays as landed, in a village or alone. A village whose top unit holds a body part of
+  its own keeps the landed shape too, and a part-row plan refuses it (`topHoldsStacks`), since a
+  faction holds no stacks.
+
+The phase session's and the hub's rulings on what the build left open, on the owner's words
+above and "No shipping house rules please":
+
+1. **A part row's officer line is a warband row's line without Make.** Where a part row's group
+   names an officer (`system.unit.officerUuid`, set by any path), the card draws the line with
+   the portrait frame, Open, Clear, "Delete actor…" and Delete's linked-actor handling (the
+   warning's tick, Undo). Make is absent: no disabled button and no words saying it is missing,
+   since the imported entry carries no leader role for a part that is no body. A part row whose
+   group names no officer draws no officer line in this slice, since the entry cannot feed a Make and this
+   minor has no hand-assign path. The owner, of that empty state: "Just add an officer button solves this
+   issue, user can manually drop one if they want as a replacement instead". A "+ Officer" button and an
+   actor drop on every row's officer line are built in the next slice, not in this one.
+2. **The village level's trait beasts are a part row of their own.**
+3. **A village with a body part of its own keeps the landed shape**; the live walk reports
+   whether the real beastman village has one.
+4. **A part row offers no Roll.** The row's `gen.part` names the part's source, which the Roll
+   writes for a part and for nothing else; the chart draws no Roll on such a row and Roll, given
+   one, is refused as `part` (`ACKS-LIB.org.roll.refused.part`). It was already refused as
+   `filled` while its group stood; the new refusal covers a row whose group was deleted. Slice
+   (g)'s count die later becomes the part row's reroll; nothing is built for it here.
+5. **"+ Make the chieftain" also shows when the faction's leader is blank** (after a Clear, say),
+   as board 1q draws for any line with no officer. The seat test is unchanged.
+6. **Every control on a part row keeps Foundry's ownership tests only**, as on a warband row, and
+   no other gate is added.
+
+Rejected: a flag marking a part combatant or not (the owner: "Add no combatant or non-combatant
+flag, gate or sort"); a camp row under the village. Cost: a village whose top unit holds bodies is
+the old shape until it is ruled on.

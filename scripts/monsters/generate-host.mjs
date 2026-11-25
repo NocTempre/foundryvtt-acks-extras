@@ -49,11 +49,11 @@ export const listedElsewhere = (found, groupUuid) => !!found && found.host?.uuid
 
 /**
  * Does the rolled tree's top unit hold units that hold units: the shape of a village,
- * read from the evaluated line and not from any unit word. A camp is no unit.
+ * read from the evaluated line and not from any unit word. A camp and a part row (`whole`) are no unit.
  * @param {{top?: {children?: object[]}}} tree `planOrganisationRoll`'s answer
  */
 export function holdsUnitsOfUnits(tree) {
-  const units = (node) => (node?.children ?? []).filter((c) => !c.camp);
+  const units = (node) => (node?.children ?? []).filter((c) => !c.camp && !c.whole);
   return units(tree?.top).some((c) => units(c).length > 0);
 }
 

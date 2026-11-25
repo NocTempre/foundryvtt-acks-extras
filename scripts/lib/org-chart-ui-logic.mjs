@@ -9,20 +9,36 @@
 import { nodesOf, rowAncestors } from "./org-tree-logic.mjs";
 
 /**
- * The family template a row's Roll reads and the variant it began with: the row's own
- * `gen`, else the nearest row above it that holds one. Blank where none does, and a
- * Roll is then not offered.
+ * Whether a row is a part of the Roll's entry rather than a unit: the Roll wrote it for one non-body
+ * part and recorded that part's source on its `gen` (`planRoll` writes `gen.part`). Such a row has no
+ * unit shape to roll, so a Roll is never offered on it and is refused if asked.
  * @param {object[]} rows the host's rows
  * @param {string} key the row
+ * @returns {boolean}
+ */
+export function isPartRow(rows, key) {
+  const row = (rows ?? []).map((r) => r?.toObject?.() ?? r).find((r) => r?.key === key);
+  return !!row?.gen?.part;
+}
+
+/**
+ * The family template a row's Roll reads and the variant it began with: the row's own
+ * `gen`, else the nearest row above it that holds one, else the record on the host itself
+ * (`hostGen`, left by a Roll whose top unit is the host, which has no row to carry it).
+ * Blank where none does, and a Roll is then not offered.
+ * @param {object[]} rows the host's rows
+ * @param {string} key the row
+ * @param {object|null} [hostGen] the host's own record (`org.hostGenOf`)
  * @returns {{template: string, variant: string}}
  */
-export function templateOf(rows, key) {
+export function templateOf(rows, key, hostGen = null) {
   const nodes = nodesOf(rows);
   const byKey = new Map((rows ?? []).map((r) => [r?.toObject?.()?.key ?? r.key, r?.toObject?.() ?? r]));
   for (const k of [key, ...rowAncestors(key, nodes)]) {
     const gen = byKey.get(k)?.gen;
     if (gen?.template) return { template: String(gen.template), variant: String(gen.variant ?? "") };
   }
+  if (hostGen?.template) return { template: String(hostGen.template), variant: String(hostGen.variant ?? "") };
   return { template: "", variant: "" };
 }
 
@@ -49,11 +65,12 @@ export async function readAfterIndex(uuid, { pack, read }) {
  * @param {object[]} rows the host's rows
  * @param {string} key the row pressed
  * @param {(uuid: string) => Promise<object|null>} load
+ * @param {object|null} [hostGen] the host's own record, read after the rows' (`templateOf`)
  * @returns {Promise<{family: object|null, defaults: {variant: string, context: string, state: string, rules: object, choices: object}}>}
  */
-export async function familyOfRows(rows, key, load) {
-  const { template, variant } = templateOf(rows, key);
-  const began = (rows ?? []).map((r) => r?.toObject?.() ?? r).find((r) => r.gen?.variant)?.gen ?? {};
+export async function familyOfRows(rows, key, load, hostGen = null) {
+  const { template, variant } = templateOf(rows, key, hostGen);
+  const began = (rows ?? []).map((r) => r?.toObject?.() ?? r).find((r) => r.gen?.variant)?.gen ?? hostGen ?? {};
   let family = null;
   if (template) {
     try {
@@ -126,9 +143,10 @@ export function withRecall(rows, hostRows, editable) {
  * @param {Object<string, string[]>} [state.outAt] a row's holder uuid → the names of the places it stands on
  * @param {(key: string) => boolean} [state.canRoll] whether a Roll is offered on the row
  * @param {boolean} [state.canEdit] whether this seat writes the host
+ * @param {boolean} [state.hostLeads] the host itself holds the chart's chief (a faction whose top unit is the host), so no card is the chief
  * @returns {object[]} the cards, each `{...row, roleKey, folded, hasKids, below: {rows, bodies}, out, canRecall, canRoll, canEdit, children}`; `canRecall` is `recallOffered` on a card standing out; `roleKey` is `roleOf` read before the fold empties `children`, so a folded card keeps its rank
  */
-export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll = () => false, canEdit = true } = {}) {
+export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll = () => false, canEdit = true, hostLeads = false } = {}) {
   const below = (node) => node.children.reduce((sum, c) => {
     const inner = below(c);
     return { rows: sum.rows + 1 + inner.rows, bodies: sum.bodies + (c.covered ? 0 : c.count) + inner.bodies };
@@ -141,8 +159,8 @@ export function chartCards(roots, { collapsed = new Set(), outAt = {}, canRoll =
     return {
       ...node,
       rank,
-      roleKey: roleOf(node),
-      leaderRoleKey: node.empty ? "" : leaderRoleOf(node),
+      roleKey: roleOf(node, hostLeads),
+      leaderRoleKey: node.empty ? "" : leaderRoleOf(node, hostLeads),
       folded,
       hasKids: node.children.length > 0,
       below: folded ? below(node) : null,
@@ -181,11 +199,12 @@ export function subtreeView(view, key) {
  * warband-level row: where the rows beneath the top share a kind, a new row takes it;
  * otherwise it takes none and is named only by its label.
  * @param {object} view `orgChartView`'s answer
+ * @param {boolean} [hostLeads] the host holds the chief, so the level is the top rows' own
  * @returns {string}
  */
-export function nextLevelKind(view) {
-  const top = view?.roots?.[0];
-  const kinds = new Set((top?.children ?? []).map((c) => c.kind).filter(Boolean));
+export function nextLevelKind(view, hostLeads = false) {
+  const level = hostLeads ? view?.roots : view?.roots?.[0]?.children;
+  const kinds = new Set((level ?? []).map((c) => c.kind).filter(Boolean));
   return kinds.size === 1 ? [...kinds][0] : "";
 }
 
@@ -247,12 +266,13 @@ export const asksBeforeRemoving = (lifted, setting) => !!setting && (lifted?.len
  * beneath is `gen.tier` where the Roll recorded it, else the rows beneath the card, so a
  * leader set by hand on a hand-added card reads the same way.
  * @param {{officer?: object|null, empty?: boolean, parentKey?: string, gen?: {tier?: number}, children?: object[]}} node a view row
+ * @param {boolean} [hostLeads] the host holds the chart's chief, so a top card's leader is a sub chief
  * @returns {"file"|"champion"|"sub"|"chief"|""}
  */
-export function roleOf(node) {
+export function roleOf(node, hostLeads = false) {
   if (node?.empty) return "";
   if (!node?.officer) return "file";
-  return leaderRoleOf(node);
+  return leaderRoleOf(node, hostLeads);
 }
 
 /**
@@ -260,13 +280,14 @@ export function roleOf(node) {
  * `roleOf`'s reading with the officer taken as given. It names the leader a line with none, or a
  * deleted one, would make.
  * @param {{parentKey?: string, gen?: {tier?: number}, children?: object[]}} node a view row
+ * @param {boolean} [hostLeads] the host itself holds the chart's chief (the faction's leader), so a card with no parent row is a sub chief
  * @returns {"champion"|"sub"|"chief"}
  */
-export function leaderRoleOf(node) {
+export function leaderRoleOf(node, hostLeads = false) {
   const tierOf = (n) => Math.max(-1, ...(n.children ?? []).map(tierOf)) + 1;
   const tier = Number.isInteger(node?.gen?.tier) ? node.gen.tier : tierOf(node);
   if (tier <= 0) return "champion";
-  return node.parentKey ? "sub" : "chief";
+  return node.parentKey || hostLeads ? "sub" : "chief";
 }
 
 /**
@@ -304,15 +325,37 @@ export function windowNames({ leaderUuid = "", rows = [] } = {}, uuid) {
  * @param {boolean} [args.canDelete] the seat may delete the actor
  * @param {boolean} [args.canCreate] the seat may create actors
  * @param {boolean} [args.canMake] the generating feature can make this row's leader
+ * @param {boolean} [args.part] the card is a part row, which names no leader role, so Make is absent from its line
  * @returns {{open: boolean, clear: boolean, deleteActor: boolean, make: boolean}}
  */
-export function officerControls({ state, owns = false, canOpen = false, canDelete = false, canCreate = false, canMake = false } = {}) {
+export function officerControls({ state, owns = false, canOpen = false, canDelete = false, canCreate = false, canMake = false, part = false } = {}) {
   return {
     open: state === "live" && !!canOpen,
     clear: state !== "empty" && !!owns,
     deleteActor: state === "live" && !!owns && !!canDelete,
-    make: state !== "live" && !!owns && !!canCreate && !!canMake,
+    make: !part && state !== "live" && !!owns && !!canCreate && !!canMake,
   };
+}
+
+/**
+ * Whether a card draws an officer line at all. A unit row always does, with Make where its group
+ * has no officer; a part row draws one only where its group names an officer, since it has no
+ * leader role to make one from.
+ * @param {{state: "empty"|"live"|"deleted", part?: boolean}} args
+ * @returns {boolean}
+ */
+export const officerLineShown = ({ state, part = false }) => !(part && state === "empty");
+
+/**
+ * The state of a faction's leader line, in the words `officerControls` takes: "empty" where the
+ * field holds no actor (blank, a Clear's result included), "deleted" where it names one the world
+ * no longer holds, "live" otherwise.
+ * @param {{linked: boolean, gone: boolean}} args `linked` the field holds a uuid; `gone` that uuid is a deleted actor
+ * @returns {"empty"|"live"|"deleted"}
+ */
+export function hostLeaderState({ linked, gone }) {
+  if (!linked) return "empty";
+  return gone ? "deleted" : "live";
 }
 
 /**

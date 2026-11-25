@@ -86,10 +86,10 @@ const P = {
       try {
         r = await orig(...args);
       } catch (err) {
-        globalThis.__warbandRolls.push({ ok: false, threw: String(err?.message ?? err), created: [], groups: [], prototypes: [], leaders: [], faction: "", pot: "", reused: 0 });
+        globalThis.__warbandRolls.push({ ok: false, threw: String(err?.message ?? err), created: [], groups: [], prototypes: [], leaders: [], faction: "", deleted: [], host: "", pot: "", reused: 0 });
         throw err;
       }
-      globalThis.__warbandRolls.push({ ok: !!r?.ok, reason: r?.reason ?? "", created: [...(r?.created ?? [])], groups: [...(r?.made?.groups ?? [])], prototypes: [...(r?.made?.prototypes ?? [])], leaders: [...(r?.made?.leaders ?? [])], faction: r?.faction ?? "", pot: r?.pot ?? "", reused: (r?.reused ?? []).length });
+      globalThis.__warbandRolls.push({ ok: !!r?.ok, reason: r?.reason ?? "", created: [...(r?.created ?? [])], groups: [...(r?.made?.groups ?? [])], prototypes: [...(r?.made?.prototypes ?? [])], leaders: [...(r?.made?.leaders ?? [])], faction: r?.faction ?? "", deleted: [...(r?.deleted ?? [])], host: r?.host ?? "", pot: r?.pot ?? "", reused: (r?.reused ?? []).length });
       return r;
     };
     wrapped.__orig = orig;
@@ -151,6 +151,9 @@ const P = {
     const h = r.holderUuid ? fromUuidSync(r.holderUuid) : null;
     return { key: r.key, parentKey: r.parentKey, holderUuid: r.holderUuid, kind: r.kind, variant: r.gen?.variant ?? "", officer: h?.system?.unit?.officerUuid ?? "", stacks: h?.system?.stacks?.length ?? 0, parentGroup: h?.system?.unit?.parentGroupUuid ?? "" };
   }),
+
+  /** The record a village's Roll left on the faction (`org.hostGenOf`), or null where none was. */
+  hostGen: async ({ id }) => game.actors.get(id).flags?.["acks-extras"]?.organisationGen ?? null,
 
   /** Press a control on a sheet by its action, optionally inside the card of a row key. */
   press: async ({ id, action, key, wait }) => {
@@ -275,18 +278,29 @@ const P = {
     return { handled: true, uuid: root.uuid, id: root.id, before: c0.size, afterGenerate: c1.size, generated: [...c1.keys()].filter((u) => !c0.has(u)).map((u) => `${c1.get(u)}:${u}`) };
   },
 
-  /** After a village Roll on a root group: the faction card the Roll's own result names, and whether every group the Roll made is some row's holder. */
+  /**
+   * After a village Roll on a root group: the faction the Roll wrote onto. Its top rows (told apart by `gen.part`), its leader
+   * and its record, whether the root group is gone, and whether every group the Roll made stands as some row's holder and
+   * holds a stack or has rows beneath it.
+   */
   afterRoll: async ({ rootUuid, factionUuid, groups, template }) => {
-    const root = fromUuidSync(rootUuid);
     const faction = fromUuidSync(factionUuid);
     const rows = faction?.system.units ?? [];
     const holders = new Set(rows.map((r) => r.holderUuid).filter(Boolean));
     const family = await fromUuid(template);
+    const tops = rows.filter((r) => !r.parentKey);
+    const groupDocs = groups.map((u) => fromUuidSync(u)).filter(Boolean);
+    const leader = faction?.system.leaderUuid ?? "";
     return {
-      hasFaction: !!faction, topHolder: rows.find((r) => !r.parentKey)?.holderUuid ?? "", rootRows: root.system.units.length,
-      rootOfficer: root.system.unit?.officerUuid ?? "", factionLeader: faction?.system.leaderUuid ?? "",
-      factionImg: faction?.img ?? "", rootImg: root.img, plate: family?.flags?.["acks-extras"]?.plate ?? "",
-      strays: groups.filter((u) => u !== rootUuid && !holders.has(u)),
+      hasFaction: !!faction, rootGone: !fromUuidSync(rootUuid), rows: rows.length,
+      topWarbands: tops.filter((r) => !r.gen?.part).length, topParts: tops.filter((r) => !!r.gen?.part).length,
+      partsHoldOneStack: tops.filter((r) => !!r.gen?.part).every((r) => fromUuidSync(r.holderUuid)?.system.stacks.length === 1),
+      factionLeader: leader, leaderResolves: !!(leader && fromUuidSync(leader)),
+      leaderIsNoGroupOfficer: !groupDocs.some((g) => g.system.unit?.officerUuid === leader),
+      record: faction?.flags?.["acks-extras"]?.organisationGen?.template ?? "",
+      empty: groupDocs.filter((g) => !g.system.stacks.length && !rows.some((c) => c.parentKey === rows.find((r) => r.holderUuid === g.uuid)?.key)).map((g) => g.uuid),
+      factionImg: faction?.img ?? "", plate: family?.flags?.["acks-extras"]?.plate ?? "",
+      strays: groups.filter((u) => !holders.has(u)),
     };
   },
 
@@ -301,10 +315,11 @@ const P = {
       const officer = (row?.holderUuid ? fromUuidSync(row.holderUuid) : null)?.system?.unit?.officerUuid ?? "";
       const kids = !!card?.querySelector(":scope > ul > li");
       const tier = Number.isInteger(row?.gen?.tier) ? row.gen.tier : kids ? 1 : 0;
+      const hostLeads = !!host.flags?.["acks-extras"]?.organisationGen;
       const cs = getComputedStyle(f);
       return {
         key: card?.dataset.key, role, label: f.getAttribute("aria-label"),
-        expected: !officer ? "file" : tier <= 0 ? "champion" : row?.parentKey ? "sub" : "chief",
+        expected: !officer ? "file" : tier <= 0 ? "champion" : row?.parentKey || hostLeads ? "sub" : "chief",
         word: card?.querySelector(":scope > div .acks-extras-pf__word")?.textContent?.trim() ?? "",
         line: `${cs.borderTopWidth} ${cs.borderTopStyle}`, root: !row?.parentKey,
       };
@@ -538,13 +553,15 @@ try {
   check("a card's Roll with no variant yet opens the roll panel, and answering it rolls", asked.answered === true, asked);
   const rolled1 = await rollResult(gm, 25000);
   check("the Roll resolved, and its result names what it made", rolled1.length >= 1 && rolled1.every((r) => r.ok) && rolled1.some((r) => r.created.length > 0), rolled1.map((r) => ({ ok: r.ok, reason: r.reason, made: r.created.length, groups: r.groups.length, prototypes: r.prototypes.length, leaders: r.leaders.length })));
-  const filled = await waitFor(gm, `game.actors.get("${fid}").system.units.some((r) => r.key === "top" && r.holderUuid)`, 20000);
+  const filled = await waitFor(gm, `game.actors.get("${fid}").system.units.some((r) => r.holderUuid)`, 20000);
   check("the card's group is written to the row at once, with nothing to save", filled);
-  check("a Roll on a host already on a faction makes no second faction card", rolled1.every((r) => !r.faction), rolled1.map((r) => r.faction));
+  check("a Roll on a host already on a faction makes no second faction card and deletes nothing", rolled1.every((r) => !r.created.includes(r.faction) && !r.deleted.length), rolled1.map((r) => [r.faction, r.deleted.length]));
   const rows1 = await run(gm, P.rows, { id: fid });
   check("rows beneath it are filled by the same press", rows1.filter((r) => r.holderUuid).length >= 2, rows1.length);
   const topRow = rows1.find((r) => r.key === "top");
-  const variant = topRow?.variant ?? "";
+  const hostGen = await run(gm, P.hostGen, { id: fid });
+  // A lone warband's top row carries the record; a village's Roll leaves it on the faction.
+  const variant = topRow?.variant || hostGen?.variant || "";
   const rolledShape = shape.find((v) => v.variant === variant);
   check("the Roll records the variant it rolled on the top row, and the shape read from the template has that variant", !!variant && !!rolledShape, { variant, known: shape.map((v) => v.variant) });
   note("the variant the Roll recorded, and whether its recipe names a leader that reaches a unit word", { variant, reaches: rolledShape?.reaches ?? null });
@@ -560,13 +577,14 @@ try {
     const village = rolled2.find((r) => r.ok && r.faction);
     check("the village Roll resolved", rolled2.some((r) => r.ok), rolled2.map((r) => ({ ok: r.ok, reason: r.reason })));
     if (village) {
-      check("a village Roll ends with the faction card holding the root group's row", true, village.faction);
+      check("a village Roll makes the faction card, deletes the root group, and names both in its result", village.created.includes(village.faction) && village.deleted.includes(gen.uuid), { card: village.created.includes(village.faction), deleted: village.deleted.length });
       const after = await run(gm, P.afterRoll, { rootUuid: gen.uuid, factionUuid: village.faction, groups: village.groups, template: tpl.uuid });
-      note("what the village Roll made, by count, and the Actors tab count before Generate and after it", { before: gen.before, afterGenerate: gen.afterGenerate, groups: village.groups.length, prototypes: village.prototypes.length, leaders: village.leaders.length, created: village.created.length });
-      check("the top row names the root group itself, so no shell holds it", after.topHolder === gen.uuid && after.rootRows === 0, { topHolder: after.topHolder });
-      check("the root group's officer is the faction's leader", !!after.rootOfficer && after.rootOfficer === after.factionLeader, { officer: after.rootOfficer, leader: after.factionLeader });
+      note("what the village Roll made, by count, and the Actors tab count before Generate and after it", { before: gen.before, afterGenerate: gen.afterGenerate, groups: village.groups.length, prototypes: village.prototypes.length, leaders: village.leaders.length, created: village.created.length, deleted: village.deleted.length });
+      check("the root group is gone, and no group the Roll made is left with no stack and no rows beneath it", after.rootGone && after.empty.length === 0, { rootGone: after.rootGone, empty: after.empty });
+      check("the faction's top rows are one for each warband and one for each part, each part row's group holding its one stack", after.topWarbands + after.topParts >= 1 && after.partsHoldOneStack, { warbands: after.topWarbands, parts: after.topParts });
+      check("the village's chieftain is the faction's leader and no group's officer, and the faction holds the village's record", after.leaderResolves && after.leaderIsNoGroupOfficer && !!after.record, { leader: !!after.factionLeader, record: !!after.record });
       check("every group the Roll made is some row's holder, and none is left over", village.groups.length >= 1 && after.strays.length === 0, after.strays);
-      check("the faction card takes the root group's picture (the plate, where one was imported)", after.factionImg === after.rootImg && (!after.plate || after.rootImg === after.plate), { faction: after.factionImg, plate: after.plate });
+      check("the faction card takes the plate where one was imported", !after.plate || after.factionImg === after.plate, { faction: after.factionImg, plate: after.plate });
     } else note("no village from this roll", "the Roll made a warband or a gang: no card is called for");
   }
 
@@ -579,7 +597,7 @@ try {
   check("every framed head carries its rank as an accessible name and as a word written on the card", frames.length > 0 && frames.every((f) => f.label && f.word && f.label.includes(f.word)), frames.map((f) => [f.role, f.word]));
   check("each card's frame is the rank its group gives it: no leader the rank and file's, a unit of bodies only a champion's, a unit of units the chieftain's at the top and a sub-chieftain's below", frames.length > 0 && frames.every((f) => f.role === f.expected), frames.map((f) => [f.key, f.role, f.expected]));
   const topOfficer = !!rows2.find((r) => !r.parentKey)?.officer;
-  if (topOfficer) check("the top card with a leader is the chieftain's frame", frames.find((f) => f.root)?.role === "chief", frames.find((f) => f.root)?.role);
+  if (topOfficer) check(hostGen ? "a top card with a leader under a faction that holds the chieftain is a sub-chieftain's frame" : "the top card with a leader is the chieftain's frame", frames.find((f) => f.root)?.role === (hostGen ? "sub" : "chief"), frames.find((f) => f.root)?.role);
   const championRows = rows2.filter((r) => r.officer && r.holderUuid && !rows2.some((c) => c.parentKey === r.key));
   if (championRows.length) check("a unit of bodies with an officer is framed as a champion", championRows.every((r) => frames.find((f) => f.key === r.key)?.role === "champion"), championRows.map((r) => frames.find((f) => f.key === r.key)?.role));
   else note("not walked", "no unit of bodies carries an officer in this roll, so no champion frame is called for");
@@ -629,7 +647,7 @@ try {
     const top = lead.find((r) => !r.parentKey);
     if (top) {
       const leaderNow = await run(gm, P.leaderOf, { id: fid });
-      check("the top card's officer is the faction's leader before it is cleared", leaderNow === top.officer, { leader: leaderNow, officer: top.officer });
+      check(hostGen ? "the faction's leader is the village's chieftain, which no top card names, before a top card is cleared" : "the top card's officer is the faction's leader before it is cleared", hostGen ? !!leaderNow && leaderNow !== top.officer : leaderNow === top.officer, { leader: leaderNow, officer: top.officer });
       await clearOn(top);
     } else note("not walked", "the top card carries no officer, so the faction's leader is not cleared with one");
   } else note("not walked", "no card's group names an officer after this roll");
@@ -742,8 +760,9 @@ try {
   else note("not walked", "no filled row on its own is left below the top");
   await run(gm, P.setting, { set: false });
   const rows6 = await run(gm, P.rows, { id: fid });
-  if (rows6.some((r) => r.key === "top" && r.holderUuid) && rows6.length > 1) await removeStep("the top row with rows beneath it, the setting off", "top", { ask: false, many: true });
-  else note("not walked", "the top row is gone or stands alone, so the multi-row Remove with the setting off is not shown");
+  const topWithRows = rows6.find((r) => !r.parentKey && r.holderUuid && rows6.some((c) => c.parentKey === r.key));
+  if (topWithRows) await removeStep("a top row with rows beneath it, the setting off", topWithRows.key, { ask: false, many: true });
+  else note("not walked", "no top row has rows beneath it, so the multi-row Remove with the setting off is not shown");
   await run(gm, P.setting, { set: confirmWas });
   confirmWas = null;
 

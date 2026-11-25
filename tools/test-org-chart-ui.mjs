@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
 import { planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, leaderRoleOf, nextLevelKind, officerControls, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -245,6 +245,57 @@ t("the chart reads a pack template's plate after its pack has built its index, a
   assert.equal(got.flags.m.plate, "plate.webp");
   assert.equal(await readAfterIndex("World.x", { pack: undefined, read: () => ({ name: "w" }) }).then((d) => d.name), "w", "a uuid held in no pack is read as it is");
   assert.equal(await readAfterIndex("", { pack, read }), null);
+});
+
+t("a host's own record stands in for the template and the start of the chart where no row carries one", () => {
+  const hostGen = { template: "T.host", variant: "alba", context: "lair", state: "wandering", rules: { troops: true } };
+  const bare = [row("w1", "", "G.w1", { gen: { tier: 1 } }), row("g1", "w1")];
+  assert.deepEqual(templateOf(bare, "g1"), { template: "", variant: "" }, "no host record, no template");
+  assert.deepEqual(templateOf(bare, "g1", hostGen), { template: "T.host", variant: "alba" }, "a gang under a top row reads the host's");
+  assert.equal(templateOf([row("w1", "", "", { gen: { template: "T.row", variant: "brex" } })], "w1", hostGen).template, "T.row", "a row's own record is read first");
+});
+
+t("a family read of a host whose top unit is the host takes the template, the variant and the recorded choices from its record", async () => {
+  const hostGen = { template: "T.host", variant: "alba", context: "lair", state: "wandering", rules: { troops: true }, choices: { a: "b" } };
+  const got = await familyOfRows([row("w1", "", "G.w1")], "w1", async (u) => ({ uuid: u }), hostGen);
+  assert.equal(got.family.uuid, "T.host");
+  assert.deepEqual([got.defaults.variant, got.defaults.context, got.defaults.state, got.defaults.rules, got.defaults.choices], ["alba", "lair", "wandering", { troops: true }, { a: "b" }]);
+});
+
+t("where the host holds the chart's chief, a leader of a top card that holds units is a sub chief, and the card reads so", () => {
+  const top = { parentKey: "", gen: { tier: 1 }, children: [], officer: { name: "L" } };
+  assert.equal(leaderRoleOf(top), "chief", "a lone warband's leader stays the chief");
+  assert.equal(leaderRoleOf(top, true), "sub");
+  assert.equal(roleOf(top, true), "sub");
+  assert.equal(leaderRoleOf({ parentKey: "", gen: { tier: 0 }, children: [] }, true), "champion", "a unit of bodies only is a champion at any level");
+  const cards = chartCards(view.roots, { hostLeads: true });
+  assert.deepEqual(cards.map((c) => c.leaderRoleKey), view.roots.map((r) => (r.empty ? "" : leaderRoleOf(r, true))));
+  assert.equal(nextLevelKind(orgChartView([row("a", "", "G.v", { kind: "band" }), row("b", "", "", { kind: "band" }), row("p", "", "G.g1")], () => null), true), "band", "the level a hand-added row joins is the top rows' own kind");
+});
+
+t("a faction's leader line offers Make beside a deleted leader and in a blank line, by the same seat test, and not beside a live one", () => {
+  const seat = { owns: true, canCreate: true, canMake: true };
+  assert.deepEqual(["", "L"].map((u) => hostLeaderState({ linked: !!u, gone: false })), ["empty", "live"]);
+  assert.equal(hostLeaderState({ linked: true, gone: true }), "deleted");
+  for (const state of ["empty", "deleted"]) assert.equal(officerControls({ state, ...seat }).make, true, state);
+  assert.equal(officerControls({ state: "live", ...seat }).make, false);
+  assert.equal(officerControls({ state: "empty", ...seat, canCreate: false }).make, false, "the seat test is unchanged");
+});
+
+t("a part row whose group names an officer draws the line with Open, Clear and Delete actor and no Make; one that names none draws no line", () => {
+  const seat = { owns: true, canOpen: true, canDelete: true, canCreate: true, canMake: true };
+  assert.deepEqual(officerControls({ state: "live", part: true, ...seat }), { open: true, clear: true, deleteActor: true, make: false });
+  assert.equal(officerControls({ state: "deleted", part: true, ...seat }).make, false, "a deleted officer is cleared, not made again");
+  assert.equal(officerControls({ state: "deleted", part: true, ...seat }).clear, true);
+  assert.equal(officerControls({ state: "empty", ...seat }).make, true, "a unit row keeps its Make");
+  assert.deepEqual(["live", "deleted", "empty"].map((state) => officerLineShown({ state, part: true })), [true, true, false]);
+  assert.equal(officerLineShown({ state: "empty" }), true, "a unit row draws its line with none");
+});
+
+t("a part row, one the Roll wrote for a part of the entry, is told by its gen and is never rollable", () => {
+  const rows = [row("p1", "", "", { gen: { part: "src-a" } }), row("w1", "", "", { gen: { tier: 1 }, kind: "band" }), row("h1")];
+  assert.deepEqual(rows.map((r) => isPartRow(rows, r.key)), [true, false, false]);
+  assert.equal(isPartRow(rows, "gone"), false);
 });
 
 t("a Roll's family is the template loaded whole, so its variants are there when the sync read gave an index entry", async () => {

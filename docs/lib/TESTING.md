@@ -4712,18 +4712,22 @@ active GM; read `game.users.activeGM` in the same call as a measure.
 1. **Generate** — Actors sidebar tab → the family template → Generate. *Observable:* a root group
    named for the template exists with one row whose `holderUuid` is empty and `gen.template` is
    the template; its sheet is open and shows the Organisation section. No creature and no faction card was
-   made. A Roll of the top card that makes a village then writes two documents, the faction and then the
-   group's rows: **wait for the faction to hold the top row, and for its notice, before reading**; a roll
-   of a gang or warband makes no faction card, and a roll on a host already on a faction makes no second.
-   **The Roll on that root group fills the top row with the root group itself.** Count the Actors tab before
-   Generate and after Generate (one more: the root group), and name what the Roll made from the Roll's own
-   result (`created`, `made`), never from a diff of the Actors tab. A village Roll's expected list: the faction card, one group for each row below the top (the
-   top's group is the root group), each prototype its stacks name, and each leader; **no other group**.
-   *Observable:* the faction's top row holds the root group; the root group hosts no row; its `unit.officerUuid`
-   is the faction's `leaderUuid`; the faction's `img` is the root group's (the plate where one was imported);
-   every group in the Roll's `made.groups` is some row's holder. A Roll on a faction host, a row below the top, or a root
-   group already holding stacks or a second row makes its groups as before (unit-tested, `tools/test-org-write.mjs`
-   and `tools/test-generate-host.mjs`).
+   made. A Roll of the top card that makes a village makes the faction first and writes the village
+   onto it, then deletes the now-empty root group: **wait for the faction to hold its rows, and for the
+   root group to be gone, before reading**; the Generate window then shows the faction on its Org chart tab.
+   A roll of a gang or warband makes no faction card and keeps its root group, and a roll on a host already
+   on a faction writes onto it, making no second card and deleting nothing. Count the Actors tab before
+   Generate and after Generate (one more: the root group), and name what the Roll made and deleted from the
+   Roll's own result (`created`, `deleted`, `made`), never from a diff of the Actors tab. A village Roll's expected
+   list: the faction card in `created`, one group for each warband row and each part row, each prototype its
+   stacks name, and each leader; the root group in `deleted`; **no other group**. *Observable:* the faction's top
+   rows are one for each warband and one for each part; no row stands for the village; the chieftain is the
+   faction's `leaderUuid` and no group's officer; the faction's `flags["acks-extras"].organisationGen` names the
+   template; no group is left with no stacks; every group in the Roll's `made.groups` is some row's holder,
+   and each part row's group holds its one stack; the faction's `img` is the root group's (the plate where
+   one was imported). A Roll on a row below the top, or a root group already holding stacks or a second row,
+   makes its groups as before (unit-tested, `tools/test-org-write.mjs`, `tools/test-org-run.mjs` and
+   `tools/test-generate-host.mjs`). A part row draws no Roll, and a Roll given one is refused.
 2. **Add** — on the Org chart tab press **+ Warband**. *Observable:* `units` gains an empty row
    under the top row; its card reads "Not rolled, not filled in." with a pen and, where a template is
    known, Roll; a card holding something has no die.
@@ -4885,8 +4889,9 @@ No test reads `isGM`.
    line reads deleted with **+ Make** and **Clear** and no Open or Delete actor…, the card's head frame is
    marked deleted, and the group still names the deleted uuid (the redraw writes nothing). Deleting the
    faction's leader the same way shows the faction's leader line as deleted with its own **Clear** and a
-   tooltip, and no Make (the faction line's Make is built with the village-as-faction slice); Clear blanks
-   `leaderUuid`. + Make on the deleted card line sets a new officer in place of the dead link.
+   tooltip and **+ Make the chieftain** (where the faction holds a village's `organisationGen` record
+   and the seat may create actors); Clear blanks `leaderUuid`, and the blank line offers + Make the same way.
+   + Make sets a new leader on the faction. + Make on the deleted card line sets a new officer in place of the dead link.
    **Driven by API:** the delete is the call the Actors tab's delete ends in, not a click on the tab.
 6. **After a reload** — set a compendium actor as a second row's officer through `org.editRow`, then reload the
    GM seat with the browser's own reload (`location.reload()`, a timed wait for ready). *Observable:* on the
@@ -4919,7 +4924,8 @@ empty top row and the Player's ownership of it is dropped. The marked host stays
 
 ### Not walked
 
-The faction leader line's **+ Make** (it is built with the village-as-faction slice). A press by a seat that
+A press of the faction leader line's **+ Make** by a seat that is not its owner, and a part row whose group names an
+officer (a part row's group has no path that sets one; `officerControls` with `part` is unit-tested). A press by a seat that
 lost ownership between the render and the press (the press checks again before its first write; unit-tested
 as `officerControls` and read from the handlers). A compendium officer's Open, which needs a document the seat
 may test.

@@ -1098,8 +1098,10 @@ first (`host.update({"system.units": []})`) after tracking and sweeping what the
 
 1. Roll a village: `const r = await acksExtras.monsters.rollOrganisation({host, template, variant, context: "wilderness", state: "lair", scope: "below", rules: {troops: true, traits: true, gear: true}})`,
    then `r.created.forEach((u) => api.track(u, "Actor"))`. Observe: each of the host's
-   `system.units` rows names an existing group; the top row's group names an officer actor and
-   the faction's `leaderUuid` is that actor; every stack's `template.uuid` resolves; two stacks
+   `system.units` rows names an existing group, one top row for each warband and one for each part
+   (the village has no row of its own, and `r.deleted` names a root group where the host was one);
+   the faction's `leaderUuid` names the chieftain and `flags["acks-extras"].organisationGen` the template; no
+   group is left with no stacks and each part row's group holds one; every stack's `template.uuid` resolves; two stacks
    of one body kind copy one prototype; a whispered card is in the chat log with its links and
    its tooltips.
 2. A reference nothing answers: the card lists a `reference` finding and the group holds a
@@ -1162,9 +1164,11 @@ template's `flags["acks-extras"].plate` (MODEL, "The family's plate"). Needs the
    step fails if the flag is missing from `compendiumIndexFields`: the walk reads `fromUuidSync` raw before anything loads the document, and says so when it answered a Document.
 4. Press Generate on the template's sheet. *Observable:* one root group is made
    and its `img` is the plate. Then Roll its top card until a village is made
-   (Organisation section → Roll): *Observable:* the faction card Make its own made has
-   `img` equal to the root group's, the plate (`docs/lib/TESTING.md`, "The Org chart and
-   Locations tabs", step 1, for the documents that Roll makes).
+   (Organisation section → Roll): *Observable:* the faction card the Roll made has
+   `img` equal to the root group's, the plate, and the root group is deleted
+   (`docs/lib/TESTING.md`, "The Org chart and Locations tabs", step 1, for the documents
+   that Roll makes and deletes). The walk tracks the root group before the Roll and reads
+   it back gone.
 
 **Teardown.** `api.sweepTracked()`, and quote its result. The template and the
 host are kept.

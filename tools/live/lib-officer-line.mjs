@@ -428,7 +428,7 @@ try {
     check("the leader is deleted from the world by hand", await run(gm, P.deleteByHand, { uuid: L }));
     const leaderGone = await until(gm, P.leaderLine, { id: fid }, (l) => l.goneText !== "", { tries: 60 });
     check("the faction's leader line reads deleted, with a tooltip, and keeps its Clear", leaderGone.goneText.length > 0 && leaderGone.goneTip.length > 0 && leaderGone.actions.includes("clearLeader") && leaderGone.stored === L, leaderGone);
-    check("a Make is not drawn on the faction's leader line: it is built with the village-as-faction slice", !leaderGone.actions.includes("orgMakeLeader"), leaderGone.actions);
+    check("no unit Make is drawn on the faction's leader line, and the faction's own + Make needs the record a village's Roll leaves, which this fixture lacks", !leaderGone.actions.includes("orgMakeLeader"), leaderGone.actions);
     await run(gm, P.pressLeaderClear, { id: fid });
     check("the faction's Clear blanks its leader", (await run(gm, P.leaderLine, { id: fid })).stored === "");
   } else note("not walked", "the faction's leader is not the top row's officer in this roll, so the faction's leader line has no deleted actor to show");
@@ -518,7 +518,7 @@ try {
     check("the Player's Make wrote the officer, and the actor is tracked for the sweep", !!made4, made4);
   } else note("not walked", "Players may not create actors in this world, so the Player's Make press was not driven; the control's absence is what was asserted");
 
-  note("not walked", "the faction leader line's + Make (built with the village-as-faction slice), the Delete actor… and Make presses on a seat that lost ownership between render and press, and the Player's absent-Make branch while Players may create (the world's permission is read, never changed)");
+  note("not walked", "the faction leader line's own + Make (it needs a faction holding a village's record; unit-tested, and its press is not walked), the Delete actor… and Make presses on a seat that lost ownership between render and press, and the Player's absent-Make branch while Players may create (the world's permission is read, never changed)");
   walkDone();
 } catch (err) {
   if (err?.name !== "WalkBlocked") {

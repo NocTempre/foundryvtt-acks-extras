@@ -64,12 +64,14 @@
           {{#if leader}}
           {{#if leader.gone}}
           <span class="is-missing" data-tooltip="ACKS-LIB.org.officer.leaderGoneTip">{{localize "ACKS-LIB.org.officer.goneTag"}}</span>
+          {{#if leaderMake.canMake}}<button type="button" data-action="orgMakeHostLeader" data-tooltip-text="{{leaderMake.makeTip}}" aria-label="{{leaderMake.makeLabel}}"><i class="fas fa-plus" aria-hidden="true"></i> {{leaderMake.makeLabel}}</button>{{/if}}
           {{else}}
           <a data-action="openDoc" data-uuid="{{leader.uuid}}" class="{{#if leader.missing}}is-missing{{/if}}">{{leader.name}}</a>
           {{/if}}
           {{#if editable}}<a data-action="clearLeader" data-tooltip="{{localize 'ACKS-FACTIONS.sheet.clear'}}"><i class="fas fa-xmark"></i></a>{{/if}}
           {{else}}
           {{#if editable}}<span class="acks-extras-faction-hint">{{localize "ACKS-FACTIONS.sheet.leaderDrop"}}</span>{{/if}}
+          {{#if leaderMake.canMake}}<button type="button" data-action="orgMakeHostLeader" data-tooltip-text="{{leaderMake.makeTip}}" aria-label="{{leaderMake.makeLabel}}"><i class="fas fa-plus" aria-hidden="true"></i> {{leaderMake.makeLabel}}</button>{{/if}}
           {{/if}}
         </div>
         <label class="faction-holding">

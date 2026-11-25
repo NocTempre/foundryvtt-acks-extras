@@ -244,11 +244,27 @@ t("identical creatures across a roll are one prototype", () => {
   assert.equal(protoKey({ b: 1, a: [2, 1] }), protoKey({ a: [1, 2], b: 1 }), "a key does not depend on field or list order");
 });
 
-t("the camp holds the village's own parts, and the units hold their bodies", () => {
+t("at a village each part that is no body is a node of its own with one stack, no camp stands at that level, and the units hold their bodies", () => {
   const r = roll();
-  const camp = r.top.children.find((n) => n.camp);
-  assert.deepEqual(camp.stacks.map((s) => s.gen.part).sort(), ["captives", "escort", "guard-1", "guard-2"]);
-  assert.ok(nodesOf(r.top).filter((n) => !n.camp && n.word !== "hold").every((n) => n.stacks.every((s) => s.role === "body")));
+  assert.equal(r.village, true);
+  assert.equal(r.top.children.some((n) => n.camp), false, "no camp child at the village level");
+  const parts = r.top.children.filter((n) => n.whole);
+  assert.deepEqual(parts.map((n) => n.stacks.map((s) => s.gen.part)).sort(), [["captives"], ["escort"], ["guard-1"], ["guard-2"]], "one node for each part, one stack in each");
+  assert.ok(parts.every((n) => !n.camp && n.kind === "" && n.word === "" && n.children.length === 0 && n.officers.length === 0 && n.parentKey === r.top.key));
+  assert.deepEqual(parts.map((n) => n.label).sort(), ["captives", "escort", "guard-1", "guard-2"], "a part's label is its own as imported");
+  assert.equal(parts.find((n) => n.stacks[0].gen.part === "captives").stacks[0].gen.cite, "XX p. 1", "the page the count tooltip reads rides on the stack");
+  assert.ok(nodesOf(r.top).filter((n) => !n.camp && !n.whole && n.word !== "hold").every((n) => n.stacks.every((s) => s.role === "body")));
+});
+
+t("a warband's own camp child stays as it was, and a village that holds a body of its own keeps the old shape", () => {
+  const band = roll({ context: "wilderness", state: "wandering", recipe: [...RECIPE, part("band-guard", "guard", { source: { name: "gleaves" }, count: { dice: "1d4" }, when: { units: ["band"] } })] });
+  assert.equal(band.village, false, "a band holds cells, no units of units");
+  assert.deepEqual(band.top.children.filter((n) => n.camp).map((n) => n.stacks[0].gen.part), ["band-guard"]);
+  assert.equal(band.top.children.some((n) => n.whole), false);
+  const bodied = roll({ recipe: [...RECIPE, part("hold-bodies", "body", { count: { dice: "2d4" }, when: { units: ["hold"] } })] });
+  assert.equal(bodied.village, false, "a body at the village level has no row to sit on, so the shape is not used");
+  assert.ok(bodied.top.children.some((n) => n.camp), "its camp stays");
+  assert.ok(bodied.top.stacks.some((s) => s.gen.part === "hold-bodies"));
 });
 
 t("the village table, chosen as the source, replaces the page's guards and captives and nothing else", () => {
@@ -323,6 +339,8 @@ t("a trait that adds beasts adds them only where the Judge named the creature, a
   const s = stacksOf(named).find((x) => x.gen.part === "trait-x1");
   assert.deepEqual([protoOfStack(named, s).uuid, s.gen.cite], ["L.gleaf", "XX p. 5"]);
   assert.ok(s.count >= 2 && s.count <= 8);
+  const own = named.top.children.find((n) => n.stacks.some((x) => x.gen.part === "trait-x1"));
+  assert.deepEqual([own.whole, own.camp, own.label, own.stacks.length], [true, false, "gleaves", 1], "at a village the trait's beasts are a part node of their own, never put in a warband's camp");
 });
 
 t("gear is rolled by the equipment table's own ranks, troops and scopes; a piece a leader's table does not give is never rolled onto", () => {
@@ -393,7 +411,7 @@ t("a line that counts one unit by a fixed figure is lowered to that unit: it sta
 t("a count that is dice is never lowered, though the dice came up one", () => {
   const r = roll({ context: "wilderness", state: "lair", rng: () => 0 });
   assert.equal(r.top.word, "hold");
-  assert.equal(r.top.children.filter((c) => !c.camp).length, 1, "one band under a hold");
+  assert.equal(r.top.children.filter((c) => !c.camp && !c.whole).length, 1, "one band under a hold");
 });
 
 t("a roll of an empty row takes the share and the troop its ancestor's roll fixed, and rolls neither again", () => {

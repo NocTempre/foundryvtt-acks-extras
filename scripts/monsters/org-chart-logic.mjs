@@ -73,18 +73,22 @@ export function respec(key, troop) {
  * What a row's Make needs to make the leader its Roll would have made: the family template and
  * variant the chart began with, and the role, troop, trait and morale part the row recorded for
  * its leader. Null where the row records no leader role or no template, and nothing is then made.
- * Gear, a mount and whether it speaks Common are the Roll's own throws and are not recorded.
+ * Gear, a mount and whether it speaks Common are the Roll's own throws and are not recorded. A row
+ * that has no record of the chart's start reads it from the host's own (`hostGen`); a blank `key`
+ * names the host's own leader (the faction's), whose role, troop and trait the host's record holds.
  * @param {object[]} rows the host's rows
- * @param {string} key the row
+ * @param {string} key the row, blank for the host's own leader
+ * @param {object|null} [hostGen] the host's own record (`org.hostGenOf`)
  * @returns {{template: string, variant: string, role: string, troop: string, trait: string, grade: string, moraleBonus: number|null}|null}
  */
-export function leaderSpecOf(rows, key) {
+export function leaderSpecOf(rows, key, hostGen = null) {
   const list = (rows ?? []).map((r) => r?.toObject?.() ?? r);
-  const own = list.find((r) => r.key === key);
+  const own = key ? list.find((r) => r.key === key) : hostGen ? { gen: hostGen } : null;
   const leader = own?.gen?.leader;
   if (!leader?.role) return null;
-  const began = [key, ...rowAncestors(key, nodesOf(list))].map((k) => list.find((r) => r.key === k)).find((r) => r?.gen?.template);
-  if (!began?.gen?.variant) return null;
+  const above = key ? [key, ...rowAncestors(key, nodesOf(list))].map((k) => list.find((r) => r.key === k)).find((r) => r?.gen?.template) : null;
+  const began = above ?? (hostGen ? { gen: hostGen } : null);
+  if (!began?.gen?.template || !began?.gen?.variant) return null;
   return {
     template: String(began.gen.template),
     variant: String(began.gen.variant),

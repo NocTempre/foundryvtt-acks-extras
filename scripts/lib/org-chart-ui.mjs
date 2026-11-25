@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, leaderRoleOf, liftedBy, nextLevelKind, officerControls, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, hostLeaderState, isPartRow, leaderRoleOf, liftedBy, nextLevelKind, officerControls, officerLineShown, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { docOf, escape, makeLoc } from "./util.mjs";
@@ -136,15 +136,17 @@ async function groupGoneOf(card) {
  * permission, Delete actor its delete permission, and Make the world's actor-create permission
  * and a leader the generating feature can name from the row.
  * @param {object} card a view row with `officer`, `officerUuid` and `leaderRoleKey`
- * @param {{holder: Actor|null, editable: boolean, rows: object[]}} where the card's group, whether the seat owns the host, and the host's rows
- * @returns {Promise<object>} the line as the partial draws it
+ * @param {{holder: Actor|null, editable: boolean, rows: object[], hostGen?: object|null}} where the card's group, whether the seat owns the host, the host's rows and the host's own record
+ * @returns {Promise<object|null>} the line as the partial draws it; null on a part row whose group names no officer
  */
-async function officerLineOf(card, { holder, editable, rows }) {
+async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
   const user = game.user;
   const officerUuid = card.officerUuid ?? "";
   const doc = card.officer ? docOf(card.officer.uuid) : null;
   const found = doc ?? (officerUuid ? await readActor(officerUuid) : null);
   const state = officerStateOf({ officerUuid, resolves: !!found });
+  const part = isPartRow(rows, card.key);
+  if (!officerLineShown({ state, part })) return null;
   const group = isGroupActor(holder) ? holder : null;
   const controls = officerControls({
     state,
@@ -152,7 +154,8 @@ async function officerLineOf(card, { holder, editable, rows }) {
     canOpen: !!doc?.testUserPermission?.(user, "LIMITED"),
     canDelete: !!doc?.canUserModify?.(user, "delete"),
     canCreate: !!user?.can?.("ACTOR_CREATE"),
-    canMake: !!services.get("org-chart")?.canMakeLeader?.(rows, card.key),
+    canMake: !!services.get("org-chart")?.canMakeLeader?.(rows, card.key, hostGen),
+    part,
   });
   const role = card.leaderRoleKey || leaderRoleOf(card);
   const title = loc(`role.${role}`);
@@ -196,6 +199,7 @@ async function leaderHtml(card) {
 export async function chartContext(actor, app, { isGM }) {
   const { host, rootKey } = hostFor(actor);
   const rows = org.unitsOf(host);
+  const hostGen = org.hostGenOf(host);
   const editable = !!host.isOwner;
   const empty = !rows.length;
   if (empty && isGroupActor(actor)) return null;
@@ -208,8 +212,8 @@ export async function chartContext(actor, app, { isGM }) {
     if (names.length) outAt[r.holderUuid] = names;
   }
   const monsters = generator();
-  const canRoll = (key) => !!monsters?.rollOrganisation && !!templateOf(rows, key).template;
-  const cards = chartCards(view.roots, { collapsed: foldOf(app), outAt, canRoll, canEdit: editable });
+  const canRoll = (key) => !!monsters?.rollOrganisation && !isPartRow(rows, key) && !!templateOf(rows, key, hostGen).template;
+  const cards = chartCards(view.roots, { collapsed: foldOf(app), outAt, canRoll, canEdit: editable, hostLeads: !!hostGen });
   const editing = editsOf(app);
   const decorate = async (list) => Promise.all(list.map(async (c) => {
     const holder = docOf(c.holderUuid);
@@ -217,7 +221,7 @@ export async function chartContext(actor, app, { isGM }) {
     const cites = citesOf(holder);
     const hand = byHandOf(stacks);
     const inEdit = editable && editing.has(c.key);
-    const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows });
+    const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows, hostGen });
     const officerGone = !!officerLine?.gone;
     const groupGone = await groupGoneOf(c);
     const role = roleView({ ...c, officerGone });
@@ -238,7 +242,7 @@ export async function chartContext(actor, app, { isGM }) {
       children: await decorate(c.children),
     };
   }));
-  const top = templateOf(rows, view.rows[0]?.key ?? "").template;
+  const top = templateOf(rows, view.rows[0]?.key ?? "", hostGen).template;
   const plate = top ? ((await readAfterIndex(top, { pack: game.packs?.get(packIdOf(top)), read: fromUuidSync }))?.flags?.[MODULE_ID]?.plate ?? "") : "";
   return {
     hostUuid: host.uuid,
@@ -478,19 +482,20 @@ async function askRoll(family, defaults = {}, { slots = [], title = loc("roll.ti
  * was deleted outside the chart is emptied first, since the Roll refuses a row that names a holder.
  */
 async function rollRow(host, key, options) {
+  if (isPartRow(org.unitsOf(host), key)) return refuse({ ok: false, reason: "part" }, "roll.refused");
   const named = org.unitsOf(host).find((r) => r.key === key);
   if (named?.holderUuid && !(await actorExists(named.holderUuid))) {
     const cleared = await org.setHolder(host, key, "");
     if (!cleared.ok) return refuse(cleared);
   }
-  const { template, variant } = templateOf(org.unitsOf(host), key);
+  const { template, variant } = templateOf(org.unitsOf(host), key, org.hostGenOf(host));
   const run = await generator().rollOrganisation({ host, rowKey: key, template, scope: "below", ...options, variant: options.variant || variant });
   if (!run.ok) refuse(run, "roll.refused");
   return run;
 }
 
 /** The family template a host's chart began with, loaded whole, and the choices its first roll recorded. */
-const familyOf = (host, key) => familyOfRows(org.unitsOf(host), key, fromUuid);
+const familyOf = (host, key) => familyOfRows(org.unitsOf(host), key, fromUuid, org.hostGenOf(host));
 
 /**
  * A card's Roll: fills that card and the cards beneath it. A chart that has no variant
@@ -499,18 +504,39 @@ const familyOf = (host, key) => familyOfRows(org.unitsOf(host), key, fromUuid);
 async function onRoll(_event, target) {
   const { host, key } = await targetOf(target);
   if (!host || !generator()?.rollOrganisation) return;
+  if (isPartRow(org.unitsOf(host), key)) return void refuse({ reason: "part" }, "roll.refused");
   const { family, defaults } = await familyOf(host, key);
   const options = defaults.variant ? {} : await askRoll(family, defaults);
   if (!defaults.variant && !options) return;
   const run = await rollRow(host, key, options ?? {});
   if (run.ok) ui.notifications.info(loc("roll.done", { rows: run.rows?.length ?? 0 }));
-  if (run.faction) (await fromUuid(run.faction).catch(() => null))?.sheet?.render(true);
-  render(this);
+  await showFaction(run);
+  if (!run.deleted?.includes(host.uuid)) render(this);
+}
+
+/**
+ * Open the faction a Roll made or wrote onto, on its Org chart tab: the window the Judge was in
+ * held a group the Roll deleted, so this is the one that shows the result.
+ * @param {{faction?: string}} run `rollOrganisation`'s answer
+ */
+async function showFaction(run) {
+  const faction = run.faction ? await fromUuid(run.faction).catch(() => null) : null;
+  const sheet = faction?.sheet;
+  if (!sheet) return;
+  if (sheet.tabGroups) sheet.tabGroups.primary = "orgChart";
+  sheet.render(true);
+}
+
+/** The host a loop of Rolls continues on: the faction a Roll wrote onto where it deleted the host the loop began with. */
+async function hostAfter(host, run) {
+  return run.deleted?.includes(host.uuid) && run.host ? (await fromUuid(run.host).catch(() => null)) ?? host : host;
 }
 
 /** Roll at random: every empty card, each with everything beneath it, after the panel's choices. */
 async function onRollAll(_event, target) {
-  const { host, root } = await targetOf(target);
+  const start = await targetOf(target);
+  let host = start.host;
+  const root = start.root;
   if (!host || !generator()?.rollOrganisation) return;
   const first = emptyKeys(org.orgChart(host, { isGM: true }))[0] ?? "";
   const { family, defaults } = await familyOf(host, first);
@@ -520,14 +546,16 @@ async function onRollAll(_event, target) {
   for (let guard = 0; guard < 200; guard++) {
     const view = org.orgChart(host, { isGM: true });
     const view_ = root ? subtreeView(view, root) : view;
-    const key = emptyKeys(view_).find((k) => templateOf(org.unitsOf(host), k).template);
+    const key = emptyKeys(view_).find((k) => !isPartRow(org.unitsOf(host), k) && templateOf(org.unitsOf(host), k, org.hostGenOf(host)).template);
     if (!key) break;
     const run = await rollRow(host, key, options);
     if (!run.ok) break;
     filled++;
+    await showFaction(run);
+    host = await hostAfter(host, run);
   }
   if (filled) ui.notifications.info(loc("roll.doneAll", { n: filled }));
-  render(this);
+  if (host.uuid === start.host.uuid) render(this);
 }
 
 /**
@@ -546,12 +574,14 @@ async function writeSlot(host, key, pick) {
  * button rolls every row still blank. Same Roll, no second path.
  */
 async function onDesign(_event, target) {
-  const { host, root } = await targetOf(target);
+  const start = await targetOf(target);
+  let host = start.host;
+  const root = start.root;
   if (!host || !generator()?.rollOrganisation) return;
   const view = org.orgChart(host, { isGM: true });
   const scope = root ? subtreeView(view, root) : view;
   const rows = org.unitsOf(host);
-  const slotKeys = emptyKeys(scope).filter((k) => templateOf(rows, k).template && rows.find((r) => r.key === k)?.parentKey);
+  const slotKeys = emptyKeys(scope).filter((k) => !isPartRow(rows, k) && templateOf(rows, k, org.hostGenOf(host)).template && rows.find((r) => r.key === k)?.parentKey);
   const { family, defaults } = await familyOf(host, emptyKeys(scope)[0] ?? slotKeys[0] ?? "");
   const slots = slotKeys.map((k) => ({ key: k, label: scope.rows.find((r) => r.key === k)?.label ?? k, kind: rows.find((r) => r.key === k)?.kind ?? "", ...slotPosition(rows, k) }));
   const onSlot = async (key, options) => {
@@ -576,14 +606,16 @@ async function onDesign(_event, target) {
   let filled = 0;
   for (let guard = 0; guard < 200; guard++) {
     const now = org.orgChart(host, { isGM: true });
-    const key = emptyKeys(root ? subtreeView(now, root) : now).find((k) => !left.has(k) && templateOf(org.unitsOf(host), k).template);
+    const key = emptyKeys(root ? subtreeView(now, root) : now).find((k) => !left.has(k) && !isPartRow(org.unitsOf(host), k) && templateOf(org.unitsOf(host), k, org.hostGenOf(host)).template);
     if (!key) break;
     const run = await rollRow(host, key, options);
     if (!run.ok) break;
     filled++;
+    await showFaction(run);
+    host = await hostAfter(host, run);
   }
   if (filled) ui.notifications.info(loc("roll.doneAll", { n: filled }));
-  render(this);
+  if (host.uuid === start.host.uuid) render(this);
 }
 
 /** Add an empty row under the card pressed, or at the top where the chart has none. */
@@ -600,8 +632,10 @@ async function onAddWarband(_event, target) {
   const { host, root } = await targetOf(target);
   if (!host) return;
   const view = org.orgChart(host, { isGM: true });
-  const top = root || view.roots[0]?.key || "";
-  const result = await org.addRow(host, top, { label: loc("card.newWarband"), kind: nextLevelKind(view) });
+  // Where the host holds the chief, the warbands are the chart's top rows and a new one stands beside them.
+  const hostLeads = !!org.hostGenOf(host) && !root;
+  const top = hostLeads ? "" : root || view.roots[0]?.key || "";
+  const result = await org.addRow(host, top, { label: loc("card.newWarband"), kind: nextLevelKind(view, hostLeads) });
   if (!result.ok) refuse(result);
   render(this);
 }
@@ -687,13 +721,56 @@ async function onMakeLeader(_event, target) {
   const service = services.get("org-chart");
   if (!game.user.can("ACTOR_CREATE")) return refuse({ reason: "noCreate" });
   if (!host.isOwner || !group?.isOwner) return refuse({ reason: "notOwner", name: (group ?? host).name });
-  if (!service?.canMakeLeader?.(org.unitsOf(host), key)) return refuse({ reason: "noLeader" });
-  const uuid = await service.makeLeader(org.unitsOf(host), key);
+  if (!service?.canMakeLeader?.(org.unitsOf(host), key, org.hostGenOf(host))) return refuse({ reason: "noLeader" });
+  const uuid = await service.makeLeader(org.unitsOf(host), key, org.hostGenOf(host));
   if (!uuid) return refuse({ reason: "leaderNotMade" });
   const moraleBonus = (row?.toObject?.() ?? row)?.gen?.leader?.moraleBonus ?? null;
   const result = await org.editRow(host, key, { officer: { officer: uuid, moraleBonus, leaderIfBlank: true } });
   if (!result.ok) {
     refuse(result);
+    ui.notifications.warn(loc("refused.leaderUnlinked", { name: docOf(uuid)?.name ?? uuid }));
+  }
+  render(this);
+}
+
+/**
+ * What a faction's leader line offers: "+ Make the chieftain", where the leader was deleted outside
+ * the chart or the field is blank (after a Clear, say), this seat owns the faction and may create
+ * actors, and the faction's record (`org.hostGenOf`) names the leader's role and the chart a template.
+ * Each is Foundry's own test or the generating feature's, and a control that fails one is absent.
+ * @param {Actor} faction the faction whose sheet it is
+ * @param {{linked: boolean, gone: boolean}} leader the leader line as the sheet reads it: whether the field holds a uuid, and whether that actor is deleted
+ * @returns {{canMake: boolean, makeLabel: string, makeTip: string}}
+ */
+export function hostLeaderLine(faction, { linked, gone }) {
+  const word = loc("role.chief").toLocaleLowerCase();
+  const { make: canMake } = officerControls({
+    state: hostLeaderState({ linked, gone }), owns: !!faction?.isOwner, canCreate: !!game.user?.can?.("ACTOR_CREATE"),
+    canMake: !!services.get("org-chart")?.canMakeLeader?.([], "", org.hostGenOf(faction)),
+  });
+  return { canMake, makeLabel: loc("officer.make", { word }), makeTip: loc("officer.makeHostTip", { word }) };
+}
+
+/**
+ * "+ Make the chieftain" on a faction's leader line: a new leader actor made by the generating
+ * feature from the record the village's Roll left on the faction, then set as the faction's leader.
+ * Every test is made before the actor is. Where the link is refused after the actor was made, the
+ * notice names the actor, which stays in the world.
+ */
+async function onMakeHostLeader() {
+  const host = this.actor;
+  const service = services.get("org-chart");
+  const gen = org.hostGenOf(host);
+  if (!game.user.can("ACTOR_CREATE")) return refuse({ reason: "noCreate" });
+  if (!host?.isOwner) return refuse({ reason: "notOwner", name: host?.name ?? "" });
+  if (!service?.canMakeLeader?.([], "", gen)) return refuse({ reason: "noLeader" });
+  const uuid = await service.makeLeader([], "", gen);
+  if (!uuid) return refuse({ reason: "leaderNotMade" });
+  try {
+    await host.update({ "system.leaderUuid": uuid });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a leader could not be linked to its faction`, err);
+    refuse({ reason: "failed" });
     ui.notifications.warn(loc("refused.leaderUnlinked", { name: docOf(uuid)?.name ?? uuid }));
   }
   render(this);
@@ -1050,6 +1127,7 @@ export const ORG_ACTIONS = Object.freeze({
   orgBadge: onBadge,
   orgClearLeader: onClearLeader,
   orgMakeLeader: onMakeLeader,
+  orgMakeHostLeader: onMakeHostLeader,
   orgDeleteLeaderActor: onDeleteLeaderActor,
   hirelingShow: onOpen,
   orgSendOut: onSendOut,

@@ -68,6 +68,17 @@ t("a row names the leader it would make from what it and the row that began the 
   assert.equal(leaderSpecOf(null, "x"), null);
 });
 
+t("a row with no record of the chart's start, and the host's own leader, read the host's record", () => {
+  const row = (key, parentKey, gen = {}) => ({ key, parentKey, label: key, holderUuid: "", kind: "", notes: "", hidden: false, gen });
+  const hostGen = { template: "T.fam", variant: "alba", leaderSource: "table", trait: "a", tier: 2, leader: { role: "c", troop: "t1", moraleBonus: 2 } };
+  const rows = [row("w", "", { trait: "b", troop: "t2", tier: 1, leader: { role: "b", troop: "t2" } })];
+  assert.equal(leaderSpecOf(rows, "w"), null, "with no host record and no row that began the chart, nothing can be made");
+  assert.deepEqual(leaderSpecOf(rows, "w", hostGen), { template: "T.fam", variant: "alba", role: "b", troop: "t2", trait: "b", grade: "table", moraleBonus: null }, "a top row of a host whose top unit is the host");
+  assert.deepEqual(leaderSpecOf([], "", hostGen), { template: "T.fam", variant: "alba", role: "c", troop: "t1", trait: "a", grade: "table", moraleBonus: 2 }, "a blank key names the host's own leader");
+  assert.equal(leaderSpecOf([], "", { template: "T.fam", variant: "alba" }), null, "a host record with no leader role names none");
+  assert.equal(leaderSpecOf([], "", null), null);
+});
+
 t("troop options mark the ones the variant's bands leave out, and stay selectable", () => {
   const banded = { key: "troop", bandsFrom: { doc: "d", table: "t", by: "variant" }, options: axes[0].options };
   const bandOf = (_axis, option) => (option.key === "t2" ? null : { min: 1, max: 5 });

@@ -30,10 +30,10 @@ import { ORG_PROTOTYPE_FLAG, planDelete, planEdit, planUnlist } from "./org-writ
 import { addOccupant, isLocation, removeOccupant } from "./place.mjs";
 import { docOf } from "./util.mjs";
 
-export { chartRows, moraleFromUnitsAbove, orgHostOf, orgHosts, registerOrgIndex, unitsOf } from "./org-host.mjs";
+export { chartRows, hostGenOf, moraleFromUnitsAbove, orgHostOf, orgHosts, registerOrgIndex, unitsOf } from "./org-host.mjs";
 export { runPlan };
 export { locationsView, orgChartView } from "./org-tree-logic.mjs";
-export { ORG_PROTOTYPE_FLAG, keySource, planAddUnit, planDelete, planEdit, planRoll, planUnlist } from "./org-write-logic.mjs";
+export { ORG_GEN_FLAG, ORG_PROTOTYPE_FLAG, keySource, planAddUnit, planDelete, planEdit, planRoll, planUnlist } from "./org-write-logic.mjs";
 export {
   affiliationRows, isEmptyRow, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
 } from "./org-tree-logic.mjs";

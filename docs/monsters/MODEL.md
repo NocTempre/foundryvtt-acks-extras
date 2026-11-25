@@ -914,9 +914,12 @@ beside them.
 **Generate on a family template** whose variants carry an encounter line makes no creature:
 `generate-host.mjs`, registered as lib's `template-generate` service (docs/lib/API.md), makes
 a root group (never a faction card) holding one empty top row whose `gen` names the template, and the
-template sheet opens it on its Organisation section. A Roll that makes a village (its top unit holds
-units that hold units) then ends with lib's Make its own, which makes the faction card and moves the
-rows onto it; a gang or warband roll makes none (`generate-host.mjs` `needsFactionCard`). The Judge rolls from that tab (docs/lib/ORGANISATION.md, "The
+template sheet opens it on its Organisation section. A village is a faction: a Roll whose top unit holds
+units that hold units, and holds no body part of its own, makes the faction card first and writes the
+village onto it, the warbands and the parts as the faction's top rows and the chieftain as its
+`leaderUuid` (the provider, below); the root group is then deleted, so Generate's window shows the
+faction. A gang or warband roll makes no card and stays on its root group (`generate-host.mjs`
+`needsFactionCard`, `holdsUnitsOfUnits`). The Judge rolls from that tab (docs/lib/ORGANISATION.md, "The
 chart's tab"). A template with no encounter line is answered "not mine" and generates as before.
 A faction card's picture is the family's `plate` flag where one was imported.
 
@@ -967,7 +970,14 @@ unit of that word under the unit, after one chance throw. A dependant is its
 percent of the bodies of the part it names under the unit. A part that is no body
 (guards, captives, dependants, casters) goes to the unit's **camp**, a node of its
 own under the unit that holds those stacks, so the unit's group holds its bodies
-and its leader. A figure the recipe lacks leaves the part at zero and is listed in
+and its leader. The village is the exception at its own level: its parts are not gathered
+into a camp but are a node each (`whole`), one stack, labelled as the entry imported it and
+written beside the warbands, so the faction's chart has one row per part. The village level's
+trait beasts are a part row of their own. A warband's or a gang's own camp child stays, in a
+village or alone, and so does the camp of a village whose top unit holds a body part of its own.
+A part row is told by `gen.part` (the part's source) and has no unit shape: it draws and takes no Roll,
+and it draws an officer line only where its group names an officer, with every control of a unit
+row's line but Make (the entry names no leader role for it). A figure the recipe lacks leaves the part at zero and is listed in
 `findings` (`what: "missing"`); nothing throws.
 
 **Leaders.** A unit's first leader is made an actor and named as its group's
@@ -1042,12 +1052,22 @@ row a one-level roll leaves keeps its own `shareKind`, `troop` and `trait`. Ther
 is no roll key, no pin and no log.
 
 **The provider** (`organisation-run.mjs`, `api.monsters.rollOrganisation`). A Roll names a
-host (a faction or a root group, or none: the top unit's group is then the host), an
-empty row or none, the family template and the breed, lib's `context` and `state`, and
+host (a faction or a root group, or none: the top unit's group is then the host, except a
+village, below), an empty row or none, the family template and the breed, lib's `context` and `state`, and
 the rules on. For an empty row below the top the template, breed, state, rules and
 choices are read from the nearest ancestor row whose `gen` holds them. The provider
 rolls, plans with lib's `planRoll` and hands the ops to lib's `org.runPlan`
-([../lib/ORGANISATION.md](../lib/ORGANISATION.md), "The executor"), supplying two callbacks:
+([../lib/ORGANISATION.md](../lib/ORGANISATION.md), "The executor"), supplying two callbacks.
+
+A village rolled with no host, on a Generate root group, or at the top of a faction is written
+with `planRoll({topIsHost})`: the faction card is made first (named and pictured as the root
+group, else the family), the village's own record is written to the faction's
+`flags["acks-extras"].organisationGen`, and the Roll deletes the root group when its rows' groups
+have taken its place: each warband group and part group joins the roster rows the root stood on
+(with the row's owner, note and hidden mark) and the group the root stood inside. `created` holds
+the card and `deleted` the root group, which is kept where another group stands inside it. A
+Roll on a faction that already holds the card writes onto it, makes no card and deletes nothing.
+A Roll on a part row is refused (`part`). The two callbacks:
 
 - **`mint`** makes the world actor of a prototype spec by generating from the family
   template with every axis the roll decided pinned (troop and trait `none` where the

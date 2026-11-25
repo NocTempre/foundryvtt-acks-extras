@@ -1,13 +1,16 @@
 /**
  * Live walk, the organisation roll through the API: docs/monsters/TESTING.md
- * "The organisation roll through the API", steps 1 to 8. A village is rolled into
+ * "The organisation roll through the API", steps 1 to 8. A village is rolled onto
  * a faction fixture from the imported family template, and every observable is read
- * back from the documents: each row's holder, the groups' officers and the host's
- * leader, the prototypes the stacks share, the whispered card, a reference nothing
+ * back from the documents: each row's holder, one top row for each warband and each
+ * part (a part row is told by `gen.part`) with the part's group holding its one stack,
+ * no group left with no stack, the host's leader and the record on it, the prototypes the stacks share, the whispered card, a reference nothing
  * answers, a gang sent out, hit by a casualty and recalled, a one-row Roll beside
  * rows it must leave byte-identical, a filled row refusing a second Roll, Delete
  * (the row, its groups, its prototypes, the leaders it leaves, a body on a map),
- * the `gen` record read back, and the treasure hand-off to a pot.
+ * a part row refusing a Roll and one of its groups deployed on a scene, the record
+ * read back from the faction, and the treasure hand-off to a pot. Whether the village
+ * held a body part of its own (the landed shape, never a part-row plan) is reported.
  * Machine values arrive through ./_env.mjs. Every name and figure here is invented.
  *
  * The imported family template is found by its structure, never by a name: the
@@ -19,7 +22,7 @@
  * Fixtures, kept and found again by marker (`api.fixture`):
  * `monsters/beastman-village` (the host faction) and `monsters/beastman-village-place`
  * (the location a gang is sent to). A step asserts the shape it reads at its start:
- * the host holds no row and no leader, the place no roster. Disposable, by the run's
+ * the host holds no row, no leader and no record, the place no roster. Disposable, by the run's
  * own ledger: every id a roll made (`created`, the groups, the prototypes, the
  * leaders, the pot), every card and Delete's whisper, and the scene a body stands on.
  * The only writes outside the ledger are the kept fixtures' own shape, rewritten at
@@ -83,8 +86,9 @@ const P = {
   shape: async ({ hostId, placeId }) => {
     const host = game.actors.get(hostId);
     const place = game.actors.get(placeId);
-    const before = { rows: host.system.toObject().units.length, leader: host.system.leaderUuid ?? "", roster: place.system.roster.length };
+    const before = { rows: host.system.toObject().units.length, leader: host.system.leaderUuid ?? "", record: !!host.flags?.["acks-extras"]?.organisationGen, roster: place.system.roster.length };
     await host.update({ "system.units": [], "system.leaderUuid": "" });
+    if (before.record) await host.unsetFlag("acks-extras", "organisationGen");
     await place.update({ "system.roster": [] });
     return before;
   },
@@ -103,6 +107,16 @@ const P = {
       reused: r.reused ?? [],
       pot: r.pot ?? null,
       group: r.group ?? "",
+      faction: r.faction ?? "",
+      deleted: r.deleted ?? [],
+      // The tree's top level: whether it is a village, its warbands and parts, and any body part of its own.
+      shape: r.tree ? {
+        village: !!r.tree.village,
+        warbands: r.tree.top.children.filter((c) => !c.whole && !c.camp).length,
+        parts: r.tree.top.children.filter((c) => c.whole).length,
+        topStacks: r.tree.top.stacks.length,
+        unitsOfUnits: r.tree.top.children.some((c) => !c.whole && !c.camp && c.children.some((g) => !g.whole && !g.camp)),
+      } : null,
       findings: r.findings ?? [],
       treasure: r.treasure ?? null,
     };
@@ -125,6 +139,7 @@ const P = {
         key: r.key,
         parentKey: r.parentKey,
         kind: r.kind,
+        part: !!r.gen?.part,
         holderUuid: r.holderUuid,
         isGroup,
         name: doc?.name ?? "",
@@ -278,12 +293,25 @@ const P = {
     return doc ? (potOf(doc).deal.monsters ?? []).map((m) => ({ actorId: m.actorId, hoards: m.hoards })) : null;
   },
 
-  /** The root row's `gen` read from the world document. */
+  /** The village's record read from the faction document (`flags["acks-extras"].organisationGen`). */
   genRead: async ({ hostUuid }) => {
     const host = await fromUuid(hostUuid);
-    const root = host.system.toObject().units.find((u) => !u.parentKey && u.gen?.template);
-    if (!root) return null;
-    return { template: root.gen.template, resolves: !!(await fromUuid(root.gen.template)), variant: root.gen.variant ?? "", state: root.gen.state ?? "", context: root.gen.context ?? "" };
+    const gen = host.flags?.["acks-extras"]?.organisationGen;
+    if (!gen?.template) return null;
+    return { template: gen.template, resolves: !!(await fromUuid(gen.template)), variant: gen.variant ?? "", state: gen.state ?? "", context: gen.context ?? "" };
+  },
+
+  /** The groups no row names, and the groups with no stack and no row beneath their row: what a village must leave none of. */
+  leftovers: async ({ hostId, groups }) => {
+    const rows = game.actors.get(hostId).system.toObject().units;
+    const holders = new Set(rows.map((r) => r.holderUuid).filter(Boolean));
+    const empty = [];
+    for (const uuid of groups) {
+      const g = await fromUuid(uuid);
+      const row = rows.find((r) => r.holderUuid === uuid);
+      if (g && !g.system.toObject().stacks.length && !rows.some((c) => c.parentKey === row?.key)) empty.push(uuid);
+    }
+    return { strays: groups.filter((u) => !holders.has(u)), empty };
   },
 };
 
@@ -341,7 +369,7 @@ try {
   shapeArgs = { hostId: host.id, placeId: place.id };
   note("found at", await run(gm, P.shape, shapeArgs));
   let s = await run(gm, P.units, { hostId: host.id });
-  check("the kept host stands at its shape: no row and no leader", !s.units.length && s.leader === "", s);
+  check("the kept host stands at its shape: no row, no leader and no record", !s.units.length && s.leader === "", s);
   check("the kept place stands at its shape: an empty roster", !(await run(gm, P.roster, { placeId: place.id })).length);
 
   section("1. a village is rolled");
@@ -355,8 +383,9 @@ try {
       const r = await run(gm, P.roll, { hostId: host.id, template: c.uuid, variant, ...ROLL });
       own(r.created);
       const cards = r.ok ? await takeCards(r, before) : [];
-      tried.push({ ok: r.ok, reason: r.reason, groups: r.made.groups.length, leaders: r.made.leaders.length });
-      if (r.ok && r.made.groups.length >= 2 && r.made.leaders.length) { accepted = { r, cards, template: c.uuid, variant, before }; break search; }
+      tried.push({ ok: r.ok, reason: r.reason, groups: r.made.groups.length, leaders: r.made.leaders.length, shape: r.shape });
+      if (r.shape?.unitsOfUnits && r.shape.topStacks) note("RULING 3", `this entry's village holds ${r.shape.topStacks} body stack(s) of its own, so it keeps the landed shape (${r.shape.village ? "village" : "not read as a village"}) and no part-row plan is made`);
+      if (r.ok && r.shape?.village && r.made.groups.length >= 2 && r.made.leaders.length) { accepted = { r, cards, template: c.uuid, variant, before }; break search; }
       await discard(host.id, r, cards);
     }
   }
@@ -364,7 +393,7 @@ try {
   if (!accepted) {
     // A template that holds no recipe or no side for this context is the world's gap; any other answer is the code's.
     if (tried.every((t) => !t.ok && ["noRecipe", "side"].includes(t.reason))) blocked(`no imported template and variant carries a ${ROLL.context} ${ROLL.state} side: ${JSON.stringify(tried)}`);
-    check("a template and variant rolled a village of two groups and a leader", false, tried);
+    check("a template and variant rolled a village (a top unit with no body part of its own) of two groups and a leader", false, tried);
     throw new Error(`no roll made a village in ${tried.length} attempts`);
   }
   const { r: village, template, variant } = accepted;
@@ -374,10 +403,15 @@ try {
   const audit = await run(gm, P.audit, { hostId: host.id, groups: village.made.groups, leaders: village.made.leaders, prototypes: village.made.prototypes });
   check("every row's holderUuid resolves", audit.holders.length >= 2 && audit.holders.every((h) => h.resolves), audit.holders.filter((h) => !h.resolves));
   const withOfficer = audit.groups.filter((g) => g.officer);
-  check("each group's officer resolves to a leader the roll made, and the top group has one", withOfficer.length >= 1 && withOfficer.every((g) => g.officerResolves && g.officerIsLeader) && !!audit.groups.find((g) => g.uuid === village.group)?.officer, { groups: audit.groups.length, withOfficer: withOfficer.length });
+  check("each group's officer resolves to a leader the roll made", withOfficer.every((g) => g.officerResolves && g.officerIsLeader), { groups: audit.groups.length, withOfficer: withOfficer.length });
   note("NOTE", `${audit.groups.length - withOfficer.length} of ${audit.groups.length} groups name no officer`);
-  const topGroup = audit.groups.find((g) => g.uuid === village.group);
-  check("the host's leaderUuid is the top group's officer", !!topGroup?.officer && audit.leader === topGroup.officer, { leader: audit.leader === "" ? "blank" : audit.leader === topGroup?.officer ? "the top officer" : "another" });
+  note("the village's top level", village.shape);
+  check("the faction is the host: the roll named it, made no card, deleted nothing, and wrote no row for the village", village.faction === host.uuid && !village.created.includes(host.uuid) && !village.deleted.length, { faction: village.faction === host.uuid, created: village.created.includes(host.uuid), deleted: village.deleted.length });
+  const tops = (await run(gm, P.units, { hostId: host.id })).units.filter((u) => !u.parentKey);
+  check("one top row for each warband and one for each part", tops.filter((u) => !u.gen?.part).length === village.shape.warbands && tops.filter((u) => u.gen?.part).length === village.shape.parts, { rows: tops.length, warbands: village.shape.warbands, parts: village.shape.parts });
+  const left = await run(gm, P.leftovers, { hostId: host.id, groups: village.made.groups });
+  check("no group the roll made is left with no stack and no rows beneath it, and every one is a row's holder", !left.empty.length && !left.strays.length, left);
+  check("the host's leaderUuid is a leader the roll made and no group's officer", !!audit.leader && village.made.leaders.includes(audit.leader) && !withOfficer.some((g) => g.officer === audit.leader), { leader: audit.leader === "" ? "blank" : village.made.leaders.includes(audit.leader) ? "a roll's leader" : "another" });
   const stacks = audit.groups.flatMap((g) => g.stacks);
   const named = stacks.filter((st) => st.uuid);
   check("every stack that names a prototype names one that resolves", named.length >= 1 && named.every((st) => audit.protos[st.uuid]?.resolves), { stacks: stacks.length, named: named.length });
@@ -432,7 +466,7 @@ try {
   }
 
   section("4. a one-row Roll leaves the other rows byte-identical");
-  const top = (await run(gm, P.units, { hostId: host.id })).units.find((u) => !u.parentKey);
+  const top = (await run(gm, P.units, { hostId: host.id })).units.find((u) => !u.parentKey && !u.gen?.part);
   const kinds = [...new Set([...info.filter((i) => i.children && i.parentKey).map((i) => i.kind), ...info.filter((i) => i.children).map((i) => i.kind), ...info.map((i) => i.kind)].filter(Boolean))];
   let one = null;
   for (const kind of kinds) {
@@ -468,7 +502,7 @@ try {
       console.log(`OBSERVED  ${withTroop} of the ${empties.length} new empty rows carry a troop in gen${withTroop ? "" : ", so no troop was read off a row"}`);
     } else console.log(`OBSERVED  the one-row roll left no empty row (${one.fresh.length} new rows, all filled), so shareKind and troop on an empty row were not read`);
     check("the roll posted one card, to the Judges", one.cards.length === 1 && one.cards[0].toGMs, one.cards.map((c) => c.toGMs));
-    note("NOTE", "the walk rolled an added row below the top with no template argument; template, variant, state and rules came from the root row's gen");
+    note("NOTE", "the walk rolled an added row below a warband with no template argument; template, variant, state and rules came from the faction's record");
   }
 
   section("5. a filled row refuses a second Roll");
@@ -484,6 +518,27 @@ try {
   } else {
     check("a filled row to roll again", false, "step 4 made none");
   }
+
+  section("5b. a part row refuses a Roll, and one of its groups is deployed");
+  const partInfo = (await run(gm, P.rowsInfo, { hostId: host.id })).filter((i) => i.part);
+  note("part rows", partInfo.map((i) => ({ stacks: i.stacks.length, named: i.stacks.filter((st) => st.uuid).length })));
+  if (partInfo.length) {
+    const unitsBeforePart = (await run(gm, P.units, { hostId: host.id })).units;
+    const part = partInfo[0];
+    const refusal = await run(gm, P.roll, { hostId: host.id, rowKey: part.key });
+    own(refusal.created);
+    check("a Roll on a part row answers ok false, reason part, with nothing made and no row changed", refusal.ok === false && refusal.reason === "part" && !refusal.created.length && same(unitsBeforePart, (await run(gm, P.units, { hostId: host.id })).units), { ok: refusal.ok, reason: refusal.reason });
+    check("a part row's group holds one stack and has no officer", partInfo.every((i) => i.stacks.length === 1 && !i.officer), partInfo.map((i) => [i.stacks.length, !!i.officer]));
+    const deployable = partInfo.find((i) => i.stacks.some((st) => st.current >= 1));
+    check("a part row whose stack holds a body to deploy", !!deployable, partInfo.length);
+    if (deployable) {
+      const stack = deployable.stacks.find((st) => st.current >= 1);
+      const partScene = await gm.create("Scene", { name: `QA Village part scene${TAG}`, width: 1200, height: 800, grid: { size: 100 } });
+      own([partScene.uuid]);
+      const placed = await run(gm, P.deploy, { uuid: deployable.holderUuid, sceneId: partScene.id, stackKey: stack.key });
+      check("one body of the part's group is deployed on the scene", placed === 1, placed);
+    }
+  } else console.log("OBSERVED  this roll made no part row (the line lists no part that is no body), so the part-row refusal and deploy were not reached");
 
   section("6. Delete");
   const infoNow = await run(gm, P.rowsInfo, { hostId: host.id });
@@ -537,8 +592,8 @@ try {
 
   section("7. the gen record");
   const gen = await run(gm, P.genRead, { hostUuid: host.uuid });
-  check("the root row's gen.template is the family the roll was made from and it resolves", !!gen && gen.template === template && gen.resolves && gen.variant === variant, gen && { template: gen.template === template, resolves: gen.resolves, variant: gen.variant === variant, state: gen.state, context: gen.context });
-  note("NOTE", "read back from the world document through fromUuid, not after a page reload; the client was not reloaded");
+  check("the faction's record names the family the roll was made from, it resolves, and the variant is the one rolled", !!gen && gen.template === template && gen.resolves && gen.variant === variant, gen && { template: gen.template === template, resolves: gen.resolves, variant: gen.variant === variant, state: gen.state, context: gen.context });
+  note("NOTE", "read back from the faction document through fromUuid, not after a page reload; the client was not reloaded");
 
   section("8. the treasure hand-off");
   const deals = village.treasure?.deal === true;

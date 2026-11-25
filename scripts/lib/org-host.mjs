@@ -6,14 +6,28 @@
  * Reads only, and loads under the group data model, so it imports nothing that
  * writes (`org.mjs` is the writer) and nothing that imports the group's model.
  */
+import { MODULE_ID } from "./constants.mjs";
 import { isGroupActor } from "./group-logic.mjs";
 import { isOfficerUp, moraleFromAbove, nodesOf, preferredHost } from "./org-tree-logic.mjs";
+import { ORG_GEN_FLAG } from "./org-write-logic.mjs";
 import { docOf } from "./util.mjs";
 
 /** The rows an actor hosts, as plain objects: a faction's or a group's `units`. */
 export function unitsOf(host) {
   const list = host?.system?.units;
   return Array.isArray(list) ? list.map((r) => structuredClone(r?.toObject?.() ?? r)) : [];
+}
+
+/**
+ * The record a Roll whose top unit is the host left on it (`ORG_GEN_FLAG`): the template, variant, rules,
+ * trait, tier and leader role a top unit's row would have carried. A plain copy, or null where the host
+ * holds none.
+ * @param {Actor|null|undefined} host
+ * @returns {object|null}
+ */
+export function hostGenOf(host) {
+  const gen = host?.flags?.[MODULE_ID]?.[ORG_GEN_FLAG];
+  return gen && typeof gen === "object" ? structuredClone(gen) : null;
 }
 
 /** Every world actor holding at least one chart row, a faction or a group alike. */

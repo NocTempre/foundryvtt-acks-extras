@@ -14,7 +14,7 @@
  * Run: node tools/test-org-write.mjs
  */
 import assert from "node:assert/strict";
-import { keySource, leaderRecord, planAddUnit, planEdit, planRoll, planUnlist } from "../scripts/lib/org-write-logic.mjs";
+import { ORG_GEN_FLAG, keySource, leaderRecord, planAddUnit, planEdit, planRoll, planUnlist } from "../scripts/lib/org-write-logic.mjs";
 import { planReparent, wouldCycle } from "../scripts/lib/place-logic.mjs";
 
 const tests = [];
@@ -294,6 +294,77 @@ t("a topHolder is ignored for a row below the top, and a host that is a faction 
   const plain = planRoll({ host: HOST, rows: [row("top", "", "")], rowKey: "top", tree: TREE(), scope: "one", newKey: keySource(["top"]) });
   assert.equal(opsOf(plain, "createGroup").length, 2, "the top and its camp, no topHolder: a group for each unit filled");
   assert.ok(plain.rows.find((r) => r.key === "top").holderUuid.startsWith("new:"));
+});
+
+/** A rolled village: a top unit holding two warbands with a gang each, and two part nodes beside them. */
+const VILLAGE = () => {
+  const tree = TREE();
+  const [band1, band2] = tree.top.children;
+  tree.top.children = [band1, band2,
+    node("pt1", "", { kind: "", whole: true, label: "QA young", stacks: [{ proto: "P5", label: "", count: 22, role: "guard", gen: { part: "young", cite: "XX p. 2" } }] }),
+    node("pt2", "", { kind: "", whole: true, label: "QA captive", stacks: [{ proto: "P6", label: "folk", count: 4, role: "captive", gen: { part: "captives", cite: "XX p. 2" } }] })];
+  return tree;
+};
+
+t("a top that is the host gets no row and no group, its leader becomes the host's, and its children are top rows", () => {
+  const plan = planRoll({ host: HOST, rows: [], tree: VILLAGE(), scope: "below", topIsHost: true });
+  assert.equal(plan.ok, true);
+  assert.equal(plan.rows.some((r) => r.parentKey === "" && r.kind === "hold"), false, "no row for the top unit");
+  assert.equal(plan.rows.filter((r) => !r.parentKey).length, 4, "the two warbands and the two parts are top rows on the host");
+  assert.equal(opsOf(plan, "createGroup").length, 2 + 2 + 2, "the two warbands, their two cells and the two part rows hold a group each: no group for the top");
+  assert.equal(opsOf(plan, "parent").length, 2, "only the two cells nest, in their warband: a top row's group is put inside nothing");
+  const leader = opsOf(plan, "makeActor").find((o) => o.role === "c");
+  assert.equal(leader.group, undefined, "the top's officer is made with no group");
+  assert.equal(opsOf(plan, "setOfficer").some((o) => o.officer === leader.ref), false, "and is no group's officer");
+  const update = opsOf(plan, "update");
+  assert.deepEqual(update.find((o) => o.update["system.leaderUuid"]).update, { "system.leaderUuid": leader.ref }, "the first officer is the host's leader");
+  const host = update[0];
+  assert.equal(host.uuid, "F.1");
+  assert.deepEqual(host.update[`flags.acks-extras.${ORG_GEN_FLAG}`], { variant: "alba", context: "wilderness", state: "lair", rules: { troops: false }, tier: 2, leader: { role: "c", troop: "", moraleBonus: 2 } }, "the top's record rides on the host");
+});
+
+t("a part row is a row of its own with its group holding its stack, at every scope, and records no tier", () => {
+  for (const scope of ["one", "below"]) {
+    const plan = planRoll({ host: HOST, rows: [], tree: VILLAGE(), scope, topIsHost: true });
+    const part = plan.rows.find((r) => r.label === "QA young");
+    assert.ok(part.holderUuid.startsWith("new:"), `${scope}: filled, never an empty row`);
+    assert.deepEqual([part.kind, part.parentKey, "tier" in part.gen], ["", "", false]);
+    const stack = opsOf(plan, "addStack").find((o) => o.group === part.holderUuid) ?? opsOf(plan, "addLabelledStack").find((o) => o.group === part.holderUuid);
+    assert.equal(stack.count, 22, `${scope}: the group holds the part's bodies as a stack`);
+  }
+  const one = planRoll({ host: HOST, rows: [], tree: VILLAGE(), scope: "one", topIsHost: true });
+  assert.equal(one.rows.filter((r) => !r.holderUuid).length, 2, "at scope one the two warbands wait, empty, as the top's units do");
+  assert.ok(one.rows.filter((r) => !r.holderUuid).every((r) => r.parentKey === "" && r.kind === "band"), "and stand at the top of the host");
+});
+
+t("a named target row is consumed by a top that is the host, and the place takes each top row's group", () => {
+  const rows = [row("t", "", "", { gen: { template: "T.1" } }), row("z", "", "G.z")];
+  const plan = planRoll({ host: HOST, rows, rowKey: "t", tree: VILLAGE(), scope: "below", topIsHost: true, placeUuid: "PL.1", newKey: keySource(["t", "z"]) });
+  assert.equal(plan.rows.some((r) => r.key === "t"), false, "the empty row is replaced by the rows");
+  assert.equal(plan.rows.at(-1).key, "z", "a row beside it stays where it was");
+  const at = opsOf(plan, "addOccupant");
+  assert.equal(at.length, 4, "each warband and each part, and nothing nested");
+  assert.deepEqual(new Set(at.map((o) => o.place)), new Set(["PL.1"]));
+  assert.equal(new Set(at.map((o) => o.actor)).size, 4);
+});
+
+t("a row a hand added beneath the consumed target is lifted to the top, so none is left naming a row that is gone", () => {
+  const rows = [row("t", "", "", { gen: { template: "T.1" } }), row("h", "t", "")];
+  const plan = planRoll({ host: HOST, rows, rowKey: "t", tree: VILLAGE(), scope: "below", topIsHost: true, newKey: keySource(["t", "h"]) });
+  assert.equal(plan.rows.find((r) => r.key === "h").parentKey, "");
+  assert.ok(plan.rows.every((r) => !r.parentKey || plan.rows.some((p) => p.key === r.parentKey)), "every parent named is a row");
+});
+
+t("a top that is the host refuses what it has nowhere to put: no host, a host that is no faction, a row with a parent, a stack of its own", () => {
+  const ask = (over) => planRoll({ host: HOST, rows: [], tree: VILLAGE(), topIsHost: true, ...over });
+  assert.deepEqual(ask({ host: null }), { ok: false, reason: "noHost", ops: [] });
+  assert.equal(ask({ host: { uuid: "G.1", kind: "group" } }).reason, "notFaction");
+  assert.equal(ask({ rows: [row("a", "", "G.a"), row("b", "a", "")], rowKey: "b" }).reason, "notTop");
+  const bodied = VILLAGE();
+  bodied.top.stacks = [{ proto: "P1", label: "", count: 3, role: "body", gen: { part: "x", cite: "" } }];
+  assert.equal(ask({ tree: bodied }).reason, "topHoldsStacks");
+  const plain = planRoll({ host: HOST, rows: [], tree: TREE(), scope: "one" });
+  assert.equal(opsOf(plain, "update").every((o) => !Object.keys(o.update).some((k) => k.startsWith("flags."))), true, "no host record unless the top is the host");
 });
 
 t("Edit writes a patch of an empty row's own record: a share and a troop are kept, a blank clears the key, and an unchanged patch writes nothing", () => {
