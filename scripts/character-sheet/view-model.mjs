@@ -399,7 +399,7 @@ export function bridgeHands(places) {
  * Build the render context for the frame — band, rails, tabs, folded bar.
  * The tab panels are built by their own modules; this decides the chrome.
  * @param {object} snap the snapshot (shape above)
- * @param {object} viewer {isGM, editable, folded, activeTab, acMode, moveMode}
+ * @param {object} viewer {editable, folded, activeTab, acMode, moveMode}
  */
 export function buildFrameModel(snap, viewer = {}) {
   const xp = xpBar(snap.xp ?? {});
@@ -429,7 +429,7 @@ export function buildFrameModel(snap, viewer = {}) {
     formation: snap.formation ? { name: snap.formation.name } : null,
     party: partyCell(snap.party ?? {}),
     cast: castRail({ ...(snap.cast ?? {}), summons: snap.party?.summons ?? [] }),
-    tools: TOOL_CELLS.filter((t) => !t.gmOnly || viewer.isGM),
+    tools: [...TOOL_CELLS],
   };
   return { xp, tabs, active, rails, folded: !!viewer.folded };
 }

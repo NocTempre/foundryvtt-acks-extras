@@ -6,7 +6,8 @@
  * list a Player can read and files the pick as that list's type, a second
  * pick of the same proficiency is a second copy, closing the window makes
  * nothing, a character with no class gets a blank class proficiency, and
- * Blank makes one where a list exists. Prints booleans and counts, never a
+ * Blank makes one where a list exists; step 7 presses the tools rail's Source
+ * cell, which every owner is shown. Prints booleans and counts, never a
  * proficiency's name. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
@@ -145,6 +146,26 @@ const P = {
       sameAfter,
     };
   },
+  /** Press the tools rail's Source cell on the open sheet and read the notice it raises, against the actor's own recorded source. */
+  source: async ({ actorId }) => {
+    const H = globalThis.__hp;
+    const actor = game.actors.get(actorId);
+    const root = H.root(actor.sheet);
+    const cell = root?.querySelector(".acks-extras-frame__rail--tools [data-action='source']");
+    if (!cell) return { cell: false };
+    const recorded = actor._stats?.compendiumSource ?? null;
+    const expected = recorded ? game.i18n.format("ACKS-CHARACTER.source.from", { source: recorded }) : game.i18n.localize("ACKS-CHARACTER.source.none");
+    const heard = [];
+    const info = ui.notifications.info;
+    ui.notifications.info = function (message, ...rest) { heard.push(String(message)); return info.call(this, message, ...rest); };
+    try {
+      cell.click();
+      await H.poll(() => heard.length, { tries: 20, every: 150 });
+    } finally {
+      ui.notifications.info = info;
+    }
+    return { cell: true, notices: heard.length, matches: heard[0] === expected, recorded: !!recorded };
+  },
   close: async ({ actorId }) => { await game.actors.get(actorId)?.sheet?.close(); return true; },
   drain: async () => ({ errors: globalThis.__hp.errors.slice() }),
   restore: async () => {
@@ -219,6 +240,10 @@ try {
   check("the pick lands as one class proficiency", cls.created === 1 && cls.isAbility && cls.type === "class", { created: cls.created, type: cls.type });
   const gen = await keep(await run(player, P.press, { actorId: boundId, list: "general", answer: "pick" }));
   check("General proficiency offers the general list and the pick lands as one general proficiency", gen.dialog && gen.offered > 0 && gen.created === 1 && gen.type === "general", { dialog: gen.dialog, offered: gen.offered, created: gen.created, type: gen.type });
+
+  section("7. the tools rail's Source cell, from the Player seat");
+  const src = await run(player, P.source, { actorId: boundId });
+  check("the rail lists Source to a Player who owns the sheet, and pressing it raises the notice for the actor's recorded source (or the made-in-world one)", src.cell && src.notices === 1 && src.matches, src);
 
   section("3. the same pick again, and a closed window");
   const again = await keep(await run(player, P.press, { actorId: boundId, list: "general", answer: "repick" }));

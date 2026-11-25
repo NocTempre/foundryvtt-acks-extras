@@ -225,3 +225,11 @@ The ruling, its example and what it cost are lib's entry of the same date, "A ba
 - **Nothing else in the 2026-11-19 entry changes:** the fold, the flat rows, no *Take* on a line the viewer neither owns nor reaches, and a bystander's row listed from reach alone. The pile's sheet offers a seat that only observes it a *Take* on a row stamped to the seat's character and none on the rest; a take by standing at the pile stays on the character sheet's list.
 
 *Cost:* a Player who does not stand at the pile can now read what it holds through Open. A pile is what characters set down on the ground and no ruling makes it a Judge's secret, and Foundry gates no read.
+
+## 2026-11-25 — The Source cell is every owner's (T-0792, B5)
+
+The owner: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule". The sheet-tools rail's Source cell was drawn for a GM seat only. What it shows is the actor's compendium source, which is document data every seat that can read the actor already receives, so the cell hides no Judge secret and the role gate was an invented permission.
+
+**Built.** `TOOL_CELLS` no longer flags `source` as Judge-only, and `buildFrameModel` lists every tool cell for every viewer; the rail itself is still drawn for an owner only. Pressing Source still only shows a notice of the recorded source, or that the character was made in this world.
+
+**Supersedes** nothing: the old behaviour stood only in MODEL ("source (a Judge)"), which now says every owner.

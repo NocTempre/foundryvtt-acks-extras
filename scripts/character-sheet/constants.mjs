@@ -81,6 +81,6 @@ export const TOOL_CELLS = Object.freeze([
   { key: "changeArt", icon: "fa-solid fa-image" },
   { key: "editTags", icon: "fa-solid fa-tags" },
   { key: "ownership", icon: "fa-solid fa-user-lock" },
-  { key: "source", icon: "fa-solid fa-book-open", gmOnly: true },
+  { key: "source", icon: "fa-solid fa-book-open" },
   { key: "tweaks", icon: "fa-solid fa-screwdriver-wrench" },
 ]);

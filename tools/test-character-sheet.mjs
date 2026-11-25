@@ -715,8 +715,12 @@ test("the frame model composes the parts and respects the viewer's mode choices"
   assert.equal(m.rails.formation.name, "The Company");
   assert.equal(m.rails.party.mode, "none", "no party facts given: the cell is a pad");
   assert.equal(m.folded, true);
-  assert.ok(!m.rails.tools.some((t) => t.key === "source"), "the source cell is the Judge's");
-  assert.ok(buildFrameModel(snap, { isGM: true }).rails.tools.some((t) => t.key === "source"));
+  assert.ok(m.rails.tools.some((t) => t.key === "source"), "the source cell is every owner's, not only the Judge's");
+  assert.deepEqual(
+    buildFrameModel(snap, { isGM: true }).rails.tools.map((t) => t.key),
+    m.rails.tools.map((t) => t.key),
+    "a Judge's rail lists the same tools as an owner's",
+  );
   assert.equal(m.tabs.find((t) => t.key === "class").dyn, true);
 });
 

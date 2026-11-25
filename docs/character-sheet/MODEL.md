@@ -39,7 +39,8 @@ typed on the Class tab.
 (the biography, enriched; the class and alignment as an overline; alignment,
 level, age and — while the system's Heroic Fate setting is on — fate points
 as tags) and, for an owner, the sheet-tools rail:
-description, portrait, tags, ownership, source (a Judge), Tweaks.
+description, portrait, tags, ownership, source (the actor's recorded compendium
+source, shown to every owner), Tweaks.
 
 **Left rail**: Influence (the influence feature's roller), then the five
 saves as roll cells. A save cell shows its glyph alone; the target is the

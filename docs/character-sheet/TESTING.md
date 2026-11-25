@@ -226,9 +226,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     portrait, rails and the pin bar with the starred rolls and timers — and
     the user flag records it; unfold restores the tabs; the state survives a
     close and reopen.
-11. Player seat. Join as a player owning the fixture: everything above except
-    the Judge's source cell; as an observer of it: no tools rail, no controls,
-    the fold still works.
+11. Player seat. Join as a player owning the fixture: everything above,
+    the tools rail's Source cell included (the walk
+    `tools/live/character-sheet-add-proficiency.mjs`, step 7, presses it and
+    reads the notice); as an observer of it: no tools rail, no controls, the
+    fold still works.
 12. The system's sheet. Switch the fixture to it through Sheet Config.
     *Observable:* the wear buckets, the class picker control, the Storage tab
     and the roster header button all still appear there.
