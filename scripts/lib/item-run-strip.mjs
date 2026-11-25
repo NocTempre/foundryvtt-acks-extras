@@ -22,7 +22,7 @@ import { FLAG_ITEM_RUN, FLAG_ROLL_MODS, LANG_PREFIX, MODULE_ID, AURA_BEHAVIOR_TY
 import { figureNumber, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import { itemCite, itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
-import { admittedWithCount, blankTip, importTip, rowStateOf, safeKey, shownTokenName, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
+import { admittedWithCount, blankTip, importTip, rowStateOf, safeKey, shownTokenName, signedFigure, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
 import { cardOf, pressRoll } from "./item-run.mjs";
 import { messageIdFor, refusal, saveFigureOf } from "./item-run-presenter.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
@@ -32,7 +32,6 @@ import { turnSeconds } from "./time-unit.mjs";
 import { makeLoc } from "./util.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
-const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
 
 /** The body's token on the scene this window views: a synthetic actor's own, else the first on the canvas. */
 const viewedToken = (actor) => (actor?.isToken ? actor.token : (actor?.getActiveTokens?.(false, true)?.[0] ?? null));
@@ -91,8 +90,8 @@ function readReachOn({ behavior, region }, token, actor) {
   if (reach.pulse === "standing") {
     const value = figureNumber(reach.modifier);
     const rolls = reach.on.map((key) => loc(`itemRun.strip.on.${key}`)).join(", ");
-    const pieces = [item.name, loc("itemRun.strip.tip.from", { source }), feet === null ? "" : loc("itemRun.strip.tip.away", { feet }), radius === null ? "" : loc("itemRun.strip.tip.reach", { radius }), value === null ? "" : `${rolls} ${signed(value)}`, cite];
-    return { ...out, tag: "always", part: value === null ? null : { value: signed(value), rolls, tip: pieces.filter(Boolean).join(" · ") } };
+    const pieces = [item.name, loc("itemRun.strip.tip.from", { source }), feet === null ? "" : loc("itemRun.strip.tip.away", { feet }), radius === null ? "" : loc("itemRun.strip.tip.reach", { radius }), value === null ? "" : `${rolls} ${signedFigure(value)}`, cite];
+    return { ...out, tag: "always", part: value === null ? null : { value: signedFigure(value), rolls, tip: pieces.filter(Boolean).join(" · ") } };
   }
   const state = card ? rowStateOf(card, token.uuid) : "waiting";
   const entryKey = card?.subjects?.[safeKey(token.uuid)]?.latest ?? "";

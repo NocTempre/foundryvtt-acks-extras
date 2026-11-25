@@ -103,6 +103,29 @@ export function patchSubject(card, { uuid, name, state = "in" }) {
 /** The patch that lists a subject the filter could not settle, for the Judge's tick. */
 export const patchUndetermined = (card, { uuid, name }) => (card?.subjects?.[safeKey(uuid)] ? {} : { [`undetermined.${safeKey(uuid)}`]: { uuid, name } });
 
+/** The patch that drops a body from the card's undetermined list, empty where it is not on it. */
+export const patchForget = (card, { uuid }) => (card?.undetermined?.[safeKey(uuid)] ? { [`undetermined.-=${safeKey(uuid)}`]: null } : {});
+
+/**
+ * What a standing reach's entry or exit does to the raised card for one body,
+ * read with the card: `list` (a body already on the card as a row, or counted
+ * in, comes back in reach), `out` (the same body leaves: its row is muted),
+ * `forget` (an exit of a body only held undetermined drops it from that list,
+ * since nothing holds it any more and its next entry lists it again), or null
+ * where the card keeps nothing of the body. A standing reach lists nobody of its
+ * own: a body not on the card stays off it.
+ *
+ * @param {object} card
+ * @param {string} uuid the body's token uuid
+ * @param {{act: "on"|"off", counted: boolean}} p `counted`: the body is read as admitted because an owner of the item counted it in
+ * @returns {"list"|"out"|"forget"|null}
+ */
+export function standingCardAct(card, uuid, { act, counted = false }) {
+  const key = safeKey(uuid);
+  if (counted || card?.subjects?.[key]) return act === "on" ? "list" : "out";
+  return act === "off" && card?.undetermined?.[key] ? "forget" : null;
+}
+
 /**
  * The patch that counts an undetermined body in for a raised card's raise: it is
  * listed as in reach (as `patchSubject` lists it) and recorded under `counted`,
@@ -118,6 +141,23 @@ export function patchUncount(card) {
   const patch = {};
   for (const [key, held] of Object.entries(card?.counted ?? {})) Object.assign(patch, { [`counted.-=${key}`]: null, [`undetermined.${key}`]: { uuid: held.uuid, name: held.name } });
   return patch;
+}
+
+/** The figure of a rule modifier with its sign, a true minus for a negative one. */
+export const signedFigure = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
+
+/**
+ * The tooltip of a body a standing reach holds a part on: the item's name and
+ * the part (the rolls it names and its figure, read from the world), then the
+ * item's page. Where no figure was imported the page reference stands alone, and
+ * null where there is neither.
+ *
+ * @param {{line: string, cite?: string}} p `line`: the localized sentence naming the item and the part, or "" where no figure was imported
+ * @returns {string|null}
+ */
+export function standingPartTip({ line = "", cite = "" }) {
+  const text = [line, cite ? (line ? `(${cite})` : cite) : ""].filter(Boolean).join(" ");
+  return text || null;
 }
 
 /** The entries of a subject that are still open. */
@@ -192,7 +232,7 @@ function reachRowOf(r, { words, ids, seat }) {
   switch (r.state) {
     case "out": return { ...base, outcome: words.out, emphasis: "muted" };
     case "notTarget": return { ...base, outcome: words.notTarget, emphasis: "muted" };
-    case "held": return { ...base, outcome: words.counted, emphasis: "success" };
+    case "held": return { ...base, outcome: r.counted === true ? words.counted : words.always, emphasis: "success", ...(r.heldTip ? { outcomeTooltip: r.heldTip } : {}) };
     case "waiting": return { ...base, ...history, outcome: words.waiting, actions: seat.judge === true ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data, tooltip: words.earlyTip }] : [] };
     case "open": return { ...base, ...history, ...target, outcome: words.asked, actions: mayPress ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...data, entryKey: r.entryKey }, tooltip: words.saveTip }] : [] };
     case "undone": return { ...base, ...history, ...target, outcome: words.undone, emphasis: "muted" };
@@ -229,7 +269,7 @@ function reachRowOf(r, { words, ids, seat }) {
  * @param {string} [p.note]
  * @param {string} [p.noteTooltip]
  * @param {object} p.words every word and tooltip the card shows (`itemRun.card.*`)
- * @param {Array<{key: string, name: string, state: string, entryKey?: string, entry?: object, feet?: number|null, feetTip?: string, target?: number|null, targetTip?: string, history?: string}>} p.rows `state` `held` is a body counted in under a standing reach, which asks no save
+ * @param {Array<{key: string, name: string, state: string, counted?: boolean, heldTip?: string, entryKey?: string, entry?: object, feet?: number|null, feetTip?: string, target?: number|null, targetTip?: string, history?: string}>} p.rows `state` `held` is a body in reach of a standing reach, which asks no save and offers no press to any seat: it reads `words.counted` where `counted` (an owner of the item counted it in) and `words.always` where the filter admitted it, with `heldTip` as the Result's tooltip
  * @param {Array<{key: string, name: string}>} [p.undetermined] the bodies the filter could not settle, listed with a Count in for the owners of the item; none once the reach is lowered
  * @param {{key: string, name: string, counted: boolean, row?: object}} [p.bearer] the bearer's row; `row` is its row where counted
  * @param {string[]} [p.well] the lines of what failed saves wrote

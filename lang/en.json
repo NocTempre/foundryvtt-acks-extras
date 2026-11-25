@@ -578,6 +578,8 @@
   "ACKS-LIB.itemRun.card.countSubjectTip": "The filter could not settle this body, so the item has not reached it. Count it in for this use, and it is treated as reached.",
   "ACKS-LIB.itemRun.card.countSubjectRaisedTip": "The filter could not settle this body, so the item has not reached it. Count it in, and it is treated as reached for as long as the item stays raised.",
   "ACKS-LIB.itemRun.card.counted": "Counted in",
+  "ACKS-LIB.itemRun.card.always": "Always on",
+  "ACKS-LIB.itemRun.card.tip.held": "{item} holds {part} on this body while it is inside the reach. It asks no save, and the part comes off when the body leaves.",
   "ACKS-LIB.itemRun.card.bearerTip": "The bearer's own row. Core never counts the bearer inside its own reach, so it is not counted until an owner of the item counts it in.",
   "ACKS-LIB.itemRun.card.checkTip": "Read who is inside the reach now. Rows are listed or muted to match; nobody is asked.",
   "ACKS-LIB.itemRun.card.lowerTip": "Lower the reach. Its conditions end; a pass's window stays.",

@@ -10,7 +10,7 @@
  * Usage: node tools/test-item-run-cards.mjs
  */
 import assert from "node:assert/strict";
-import { admittedWithCount, applyPatch, blankTip, freshKey, importTip, isCountedIn, moraleLine, newCard, patchCountIn, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
+import { admittedWithCount, applyPatch, blankTip, freshKey, importTip, isCountedIn, moraleLine, newCard, patchCountIn, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, signedFigure, standingCardAct, standingPartTip, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
 
 let passed = 0;
 const t = (name, fn) => {
@@ -21,7 +21,7 @@ const t = (name, fn) => {
 
 const words = {
   roll: "Roll", undo: "Undo", saved: "Holds", failed: "Fails", out: "Out of reach", notTarget: "Not a target", waiting: "Waits", asked: "Asked", undone: "Undone", undetermined: "Could not be settled",
-  save: "Save", rollSave: "Roll the save", tick: "Count in", bearer: "The bearer", well: "On a failed save", check: "Check range again", lower: "Lower", colDistance: "Distance",
+  always: "Always on", save: "Save", rollSave: "Roll the save", tick: "Count in", bearer: "The bearer", well: "On a failed save", check: "Check range again", lower: "Lower", colDistance: "Distance",
   earlyTip: "early tip", saveTip: "save tip", undoTip: "undo tip", tickTip: "tick tip", countOut: "Count out", countOutTip: "count out tip", bearerTip: "bearer tip", checkTip: "check tip", lowerTip: "lower tip",
 };
 const ids = { itemUuid: "I.1", rowKey: "reach", activationId: "act" };
@@ -110,8 +110,55 @@ t("the raised card's undetermined section lists each body the filter could not s
   assert.equal(bodyOnly.sections.some((s) => s.title === "Could not be settled"), false, "a seat that owns the bodies and not the item sees no row and no Count in, whatever its role");
   assert.equal(model(judge, { lowered: true }).sections.some((s) => s.title === "Could not be settled"), false, "a lowered reach offers no Count in");
   assert.equal(model(judge, { undetermined: [] }).sections.some((s) => s.title === "Could not be settled"), false, "no body, no section");
-  const held = reachCardModel({ title: "Item", words: w, rows: [{ key: "T.u", name: "Unsure", state: "held" }], ids, seat: judge }).sections[0].rows[0];
+  const held = reachCardModel({ title: "Item", words: w, rows: [{ key: "T.u", name: "Unsure", state: "held", counted: true }], ids, seat: judge }).sections[0].rows[0];
   assert.deepEqual([held.outcome, held.emphasis, held.actions], ["Counted in", "success", undefined], "a body counted in under a standing reach reads as counted, with no Save to press");
+});
+
+t("a body in reach of a standing reach reads as held, not as waiting: the filter's own bodies read Always on and a counted one Counted in, both with the part in the Result's tooltip, and no seat is offered a Save or an early Save", () => {
+  const w = { ...words, counted: "Counted in", always: "Always on" };
+  const held = [
+    { key: "T.a", name: "Alpha", state: "held", counted: false, heldTip: "part tip" },
+    { key: "T.b", name: "Beta", state: "held", counted: true, heldTip: "part tip" },
+    { key: "T.c", name: "Gamma", state: "held", counted: false },
+  ];
+  const seats = { judge, owner: { ownsSubject: () => true, ownsBearer: true, ownsItem: false }, 'a Judge owning no body': { judge: true, ownsSubject: () => false, ownsBearer: false, ownsItem: false } };
+  for (const [seatName, seat] of Object.entries(seats)) {
+    const shown = reachCardModel({ title: "Item", words: w, rows: held, ids, seat }).sections[0].rows;
+    assert.deepEqual(shown.map((r) => [r.outcome, r.emphasis, r.actions]), seat.ownsSubject() ? [["Always on", "success", undefined], ["Counted in", "success", undefined], ["Always on", "success", undefined]] : [], `${seatName}: no Save and no early Save on a held row`);
+    for (const r of shown) assert.ok(!JSON.stringify(r).includes("itemRun.roll"), `${seatName}: nothing on the row names the save press`);
+  }
+  const rowsOut = reachCardModel({ title: "Item", words: w, rows: held, ids, seat: judge }).sections[0].rows;
+  assert.deepEqual(rowsOut.map((r) => r.outcomeTooltip), ["part tip", "part tip", undefined], "the tooltip is the Result's, and a row with no tip carries none");
+  const waiting = reachCardModel({ title: "Item", words: w, rows: [{ key: "T.f", name: "Zeta", state: "waiting" }], ids, seat: judge }).sections[0].rows[0];
+  assert.equal(waiting.actions?.[0]?.action, "itemRun.roll", "a prompting reach's waiting row keeps the Judge's early Save");
+  const gone = reachCardModel({ title: "Item", words: w, rows: [{ key: "T.d", name: "Delta", state: "out" }], ids, seat: judge }).sections[0].rows[0];
+  assert.deepEqual([gone.outcome, gone.emphasis, gone.outcomeTooltip], ["Out of reach", "muted", undefined], "a body that left reads muted, with no part tip");
+});
+
+t("a standing reach's entry and exit read the card: a listed or counted body comes back or goes out, a body held only undetermined is dropped at its exit, and a body the card keeps nothing of stays off it", () => {
+  const card = (over = {}) => ({ ...newCard({ itemUuid: "I.1", rowKey: "s", activationId: "act", bearer: { uuid: "T.bear", name: "Bearer" } }), ...over });
+  const listed = applyPatch(card(), patchSubject(card(), { uuid: "T.a", name: "Alpha" }));
+  const unsure = applyPatch(card(), patchUndetermined(card(), { uuid: "T.u", name: "Unsure" }));
+  assert.equal(standingCardAct(listed, "T.a", { act: "off", counted: false }), "out", "a body listed by Check range again is muted at its exit");
+  assert.equal(standingCardAct(listed, "T.a", { act: "on", counted: false }), "list", "and comes back in reach at its entry");
+  assert.equal(standingCardAct(card(), "T.c", { act: "off", counted: true }), "out", "a counted body is muted at its exit whatever the card lists");
+  assert.equal(standingCardAct(card(), "T.c", { act: "on", counted: true }), "list");
+  assert.equal(standingCardAct(unsure, "T.u", { act: "off", counted: false }), "forget", "a body held undetermined is dropped at its exit");
+  assert.equal(standingCardAct(unsure, "T.u", { act: "on", counted: false }), null, "an entry lists nobody");
+  assert.equal(standingCardAct(card(), "T.z", { act: "off", counted: false }), null, "a body the card keeps nothing of stays off it");
+  assert.equal(standingCardAct(card(), "T.z", { act: "on", counted: false }), null);
+  assert.equal(standingCardAct(null, "T.z", { act: "off" }), null, "no card, nothing to keep");
+  assert.deepEqual(patchForget(unsure, { uuid: "T.u" }), { "undetermined.-=T~u": null });
+  assert.deepEqual(patchForget(card(), { uuid: "T.u" }), {}, "a body not held undetermined has nothing to drop");
+  assert.deepEqual(applyPatch(unsure, patchForget(unsure, { uuid: "T.u" })).undetermined, {});
+});
+
+t("a held body's tooltip names the part and the page, the page alone where no figure was imported, and nothing where there is neither", () => {
+  assert.equal(standingPartTip({ line: "Item holds morale throws −1", cite: "XX p. 6" }), "Item holds morale throws −1 (XX p. 6)");
+  assert.equal(standingPartTip({ line: "", cite: "XX p. 6" }), "XX p. 6", "no figure: the reference alone");
+  assert.equal(standingPartTip({ line: "Item holds morale throws −1", cite: "" }), "Item holds morale throws −1");
+  assert.equal(standingPartTip({}), null);
+  assert.deepEqual([signedFigure(-1), signedFigure(2), signedFigure(0)], ["−1", "+2", "+0"]);
 });
 
 t("a count lasts for one raise: the count is recorded beside the body's listing, only a card still raised reads it, a filter that settled the body stands, and lowering returns each counted body to undetermined", () => {

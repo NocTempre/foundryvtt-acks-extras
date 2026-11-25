@@ -77,6 +77,9 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  * @property {string} [outcome]    The verdict, already localized; the Result
  *                                 column appears only if some row in the
  *                                 section has one.
+ * @property {string} [outcomeTooltip] Hover text for the verdict, assembled at
+ *                                 render and written as text, never read as a
+ *                                 lang key.
  * @property {"success"|"failure"|"neutral"|"muted"} [emphasis]
  */
 
@@ -136,7 +139,7 @@ function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
     }
     // A success is the one thing read at a glance, so it takes the bold.
     if (showResult) {
-      html += `<td>${row.emphasis === "success" || row.emphasis === "neutral" ? `<strong>${esc(row.outcome)}</strong>` : esc(row.outcome)}</td>`;
+      html += `<td${row.outcome && row.outcomeTooltip ? ` data-tooltip-text="${esc(row.outcomeTooltip)}"` : ""}>${row.emphasis === "success" || row.emphasis === "neutral" ? `<strong>${esc(row.outcome)}</strong>` : esc(row.outcome)}</td>`;
     }
     if (showActions) html += `<td>${(row.actions ?? []).map(buttonHtml).join("")}</td>`;
     html += `</tr>`;

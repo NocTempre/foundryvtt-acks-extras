@@ -7,7 +7,7 @@
  *
  * - A raise posts one message holding the card's state (`FLAG_ITEM_RUN_CARD`,
  *   `item-run-card-logic.mjs` `newCard`): the subjects it lists and ONE
- *   moment-keyed entry store. A reach's `list`, `refuse`, `out` and
+ *   moment-keyed entry store. A reach's `list`, `refuse`, `out`, `forget` and
  *   `undetermined` acts change the listing; a `prompt` opens an entry under
  *   its moment key and whispers the save card to the owners of the subject's
  *   token (Foundry's ownership, GMs included). The whispered card carries the
@@ -26,7 +26,7 @@ import { renderRollCard } from "./roll-card.mjs";
 import { figureNumber, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { lowerReach, releaseReachMoment } from "./aura-reach.mjs";
 import { itemCite, itemRunRowsOf, promptCardModel } from "./item-run-logic.mjs";
-import { admittedWithCount, countSubjectAction, isCountedIn, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, unsettledRows } from "./item-run-card-logic.mjs";
+import { admittedWithCount, countSubjectAction, isCountedIn, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
 import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
@@ -40,7 +40,7 @@ const HANDLER = Object.freeze({ recheck: `${MODULE_ID}.itemRun.recheck` });
 
 /** The card's words, localized: `itemRun.card.<key>` for each. */
 const WORD_KEYS = [
-  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "countSubjectTip", "countSubjectRaisedTip", "counted", "bearer", "well", "check", "lower", "colDistance", "given",
+  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "countSubjectTip", "countSubjectRaisedTip", "counted", "always", "bearer", "well", "check", "lower", "colDistance", "given",
   "earlyTip", "saveTip", "undoTip", "countInTip", "countOutTip", "bearerTip", "checkTip", "lowerTip",
 ];
 const words = () => ({ ...Object.fromEntries(WORD_KEYS.map((key) => [key, loc(`itemRun.card.${key}`)])), tick: loc("itemRun.card.countIn"), tickTip: loc("itemRun.card.countInTip") });
@@ -95,6 +95,7 @@ function momentPatch(card, result) {
   if (act === "list") return { patch: patchSubject(card, { uuid, name }) };
   if (act === "refuse") return { patch: patchSubject(card, { uuid, name, state: "notTarget" }) };
   if (act === "undetermined") return { patch: patchUndetermined(card, { uuid, name }) };
+  if (act === "forget") return { patch: patchForget(card, { uuid }) };
   if (act === "out") {
     const out = patchOut(card, { uuid, name });
     return { patch: out.patch, struck: out.struck };
@@ -215,7 +216,7 @@ async function onLifted(config) {
 
 /**
  * Check range again, on the GM's window: read the Region's tokens now and list or
- * mute rows to match, asking nobody. The relayed seat must own the bearer's
+ * mute rows to match, drop a body held undetermined that is no longer inside, asking nobody. The relayed seat must own the bearer's
  * token.
  *
  * @param {{messageId: string, requestUserId?: string|null}} p
@@ -248,6 +249,7 @@ async function recheckHere({ messageId, requestUserId = null }) {
       Object.assign(patch, out.patch);
       for (const entry of out.struck) releaseReachMoment(entry.momentKey);
     }
+    for (const held of Object.values(fresh.undetermined ?? {})) if (!here.has(held.uuid)) Object.assign(patch, patchForget(fresh, held));
     if (Object.keys(patch).length) await patchCard(message, patch);
     return { ok: true };
   });
@@ -272,15 +274,30 @@ function reachNote(item, reach) {
 }
 
 /**
+ * What a body inside a standing reach reads as, in words: the part the reach
+ * holds on it (the rolls it names and the figure imported for it) and the item's
+ * page, or the page alone where no figure was imported. Null where there is none.
+ */
+function heldTipOf(item, reach) {
+  const value = figureNumber(reach?.modifier);
+  const rolls = (reach?.on ?? []).map((key) => loc(`itemRun.strip.on.${key}`)).join(", ");
+  const line = value === null ? "" : loc("itemRun.card.tip.held", { item: item?.name ?? "", part: `${rolls} ${signedFigure(value)}`.trim() });
+  return standingPartTip({ line, cite: itemCite(item) });
+}
+
+/**
  * The rows a raised card draws, read live: each listed subject's state, distance,
- * save figure and history. A standing reach asks no save, so a body counted in
- * under it (a listed row that would wait for a moment) reads `held`.
+ * save figure and history. A standing reach asks no save and waits for no
+ * moment, so every listed body of it reads `held` (counted in by an owner of the
+ * item, or admitted by the filter), whatever the card stores, with no press for
+ * any seat. The bearer's own row keeps the state its card stores.
  */
 function rowsOf(card, row, item, bearerToken, reach) {
+  const heldTip = reach?.pulse === "standing" ? heldTipOf(item, reach) : null;
   const rowFor = (sub, { distance, bearer = false }) => {
     const token = fromUuidSync(sub.uuid);
     const listed = rowStateOf(card, sub.uuid);
-    const state = listed === "waiting" && reach?.pulse === "standing" && !bearer && isCountedIn(card, sub.uuid) ? "held" : listed;
+    const state = listed === "waiting" && reach?.pulse === "standing" && !bearer ? "held" : listed;
     const entry = card.entries?.[sub.latest] ?? null;
     const gap = distance && bearerToken && token ? tokenEdgeGapFeet(bearerToken, token) : null;
     const feet = gap === null ? null : Math.round(gap);
@@ -288,6 +305,7 @@ function rowsOf(card, row, item, bearerToken, reach) {
     const earlier = Object.entries(card.entries ?? {}).filter(([key, e]) => e.subject === sub.uuid && key !== sub.latest && e.state !== "open").map(([, e]) => (e.state === "applied" ? loc("itemRun.card.tip.earlier", { result: e.saved ? loc("itemRun.card.saved") : loc("itemRun.card.failed"), total: e.total, target: e.target }) : loc("itemRun.card.undone")));
     return {
       key: sub.uuid, name: sub.name, state, entryKey: sub.latest, entry, feet,
+      ...(state === "held" ? { counted: isCountedIn(card, sub.uuid), ...(heldTip ? { heldTip } : {}) } : {}),
       ...(feet === null ? {} : { feetTip: loc("itemRun.card.tip.distance", { feet, name: card.bearer?.name ?? "" }) }),
       target: figure.target, targetTip: figure.tip, ...(earlier.length ? { history: earlier.join(" · ") } : {}),
     };

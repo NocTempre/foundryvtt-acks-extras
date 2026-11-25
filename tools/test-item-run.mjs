@@ -1465,6 +1465,25 @@ await t("a body counted in is read as admitted at every later moment of its rais
     assert.equal(await moment("standing", "enter", null), "undetermined", "an uncounted body keeps going to the card's undetermined section");
     assert.equal(await moment("standing", "enter", true), "on");
     assert.deepEqual(seen.map((r) => r.act), ["undetermined"], "a body the filter admits is held without a card row, as before");
+    // A standing exit and entry read the card: a row it already holds follows the body, an undetermined body is dropped, and a body the card keeps nothing of is not listed.
+    const listed = { "T~u1": { uuid: "T.u1", name: "Unsure", state: "in", latest: "" } };
+    seen.length = 0;
+    post(cardOf({ counted: {}, subjects: listed }));
+    assert.equal(await moment("standing", "exit", true), "off");
+    assert.deepEqual(seen.map((r) => r.act), ["out"], "a body Check range again listed is muted at its exit, though no one counted it");
+    assert.equal(await moment("standing", "enter", true), "on");
+    assert.deepEqual(seen.map((r) => r.act), ["out", "list"], "and is held again at its entry");
+    seen.length = 0;
+    post(cardOf({ counted: {}, undetermined: { "T~u1": { uuid: "T.u1", name: "Unsure" } } }));
+    assert.equal(await moment("standing", "exit", null), "off");
+    assert.deepEqual(seen.map((r) => r.act), ["forget"], "an uncounted undetermined body is dropped from the list at its exit");
+    assert.equal(await moment("standing", "enter", null), "undetermined");
+    assert.deepEqual(seen.map((r) => r.act), ["forget", "undetermined"], "and listed again at its entry");
+    seen.length = 0;
+    post(cardOf({ counted: {} }));
+    assert.equal(await moment("standing", "exit", true), "off");
+    assert.equal(await moment("standing", "exit", null), "off");
+    assert.deepEqual(seen, [], "a body the card keeps nothing of presents nothing at its exit");
   } finally {
     run.setUsePresenter(null);
     delete gameStub.messages;

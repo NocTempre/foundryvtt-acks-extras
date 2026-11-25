@@ -183,4 +183,11 @@ ok("a muted row takes its own class, and its outcome is never bold", () => {
   assert.ok(html.includes("<td>Out of reach</td>") && !html.includes("<strong>"), "soft ink, not bold");
 });
 
+ok("a verdict's tooltip is written as text on the Result cell, and a row with none leaves the cell as it was", () => {
+  const html = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: "", outcome: "Always on", outcomeTooltip: "Item holds x <1>", emphasis: "success" }, { name: "B", total: "", outcome: "Waits" }, { name: "C", total: "", outcomeTooltip: "no verdict, no cell tip" }] }] });
+  assert.ok(html.includes('<td data-tooltip-text="Item holds x &lt;1&gt;"><strong>Always on</strong></td>'), "text, escaped, on the Result cell");
+  assert.ok(html.includes("<td>Waits</td>"), "a row with none keeps the plain cell");
+  assert.ok(!html.includes("no verdict, no cell tip"), "a tooltip on a row with no verdict shows nowhere");
+});
+
 console.log(`\n${passed} passed`);

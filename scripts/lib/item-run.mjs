@@ -31,7 +31,7 @@ import {
   dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
-import { admittedWithCount, freshKey, patchCountIn, patchOut, safeKey } from "./item-run-card-logic.mjs";
+import { admittedWithCount, freshKey, patchCountIn, patchOut, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
@@ -642,7 +642,9 @@ export async function tickBearer(p) {
  * A moment of a reach: a subject's immunity is read, the act decided
  * (`pulseAct`), a standing part written or taken off, and every other act (a
  * listing, a muting, a prompt, an undetermined subject) handed to the
- * presenter as `{kind: "reach", ...}`. A prompt is held under its moment key
+ * presenter as `{kind: "reach", ...}`. A standing part's entry or exit reaches
+ * the presenter only as `standingCardAct` reads the card: a row it holds comes
+ * back in reach or is muted, and a body held undetermined is dropped at its exit. A prompt is held under its moment key
  * (`momentKey`) until it is answered or struck, so a subject is asked once per
  * item kind and initiative; a prompt already held is answered `held`. Answers
  * the act taken, or null where there was none.
@@ -650,7 +652,8 @@ export async function tickBearer(p) {
 export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region }) {
   const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
   const undecided = admitted === null || admitted === undefined;
-  const verdict = undecided ? admittedWithCount(admitted, cardOfActivation(config.activationId).card, subject.token?.uuid) : admitted;
+  const { card } = cardOfActivation(config.activationId);
+  const verdict = undecided ? admittedWithCount(admitted, card, subject.token?.uuid) : admitted;
   const counted = undecided && verdict === true;
   const act = pulseAct({ pulse: reach.pulse, moment, admitted: verdict, immune });
   if (act === "none" || !subject.actor) return null;
@@ -658,8 +661,9 @@ export async function handleReachMoment({ moment, config, item, row, reach, subj
   if (act === "on" || act === "off") {
     if (act === "on") await holdStanding({ config, item, row, subject });
     else await releaseStanding({ item, row, subject, region });
-    // A standing reach lists nobody; a body counted in is the one row its card keeps current.
-    if (counted) await presenter?.({ ok: true, kind: "reach", act: act === "on" ? "list" : "out", moment, config, rowKey: row.key, item, subject });
+    // A standing reach lists nobody; the card keeps current the rows it already holds (a body counted in, one Check range again listed) and drops an undetermined body at its exit.
+    const cardAct = standingCardAct(card, subject.token?.uuid, { act, counted });
+    if (cardAct) await presenter?.({ ok: true, kind: "reach", act: cardAct, moment, config, rowKey: row.key, item, subject });
     return act;
   }
   const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject };
