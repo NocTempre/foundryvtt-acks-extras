@@ -29,7 +29,6 @@ import { summonsOnScene, currentScene } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
 const classesLoc = makeLoc(CLASSES_LANG);
-const castLoc = makeLoc(`${MAGIC_LANG}.cast`);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /**
@@ -175,7 +174,7 @@ export function buildMagicTab(actor) {
     const found = listGate({ capacity, offList, isGM });
     if (!found) return null;
     const blocked = found.severity === "block";
-    return { key: found.key, blocked, text: castLoc(`notice.${blocked ? "blocked" : "verdict"}.${found.key}`) };
+    return { key: found.key, blocked, text: game.i18n.format(`${MAGIC_LANG}.cast.notice.${blocked ? "blocked" : "verdict"}.${found.key}`, {}) };
   };
   /**
    * One spell row, for either mode: `entry` is what `spellStanding` gave for its
