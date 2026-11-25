@@ -14,6 +14,7 @@
  * and leaves (a Judge's own `_` rows stay), and nothing else.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
@@ -147,12 +148,14 @@ export function withBlockSums(data) {
  *   document's own.
  * - `rows: "replace"` — write array rows as built, without filling their
  *   unbuilt fields from the stored rows.
- * - `mergeByOrigin` — `{rows, retired, describe}` paths under the module's flags
- *   (a bare path is `rows` alone): rows with an `origin` and a `key`, the keys a
- *   Judge deleted (none where the kind draws no delete), and the name of the
- *   `ROW_DESCRIBERS` entry that reads a row as one line when a held edit is
+ * - `mergeByOrigin` — `{rows, retired, describe, root}` paths under the module's
+ *   flags (a bare path is `rows` alone): rows with an `origin` and a `key`, the
+ *   keys a Judge deleted (none where the kind draws no delete), and the name of
+ *   the `ROW_DESCRIBERS` entry that reads a row as one line when a held edit is
  *   offered (`spellEffect` where none is named). `mergeRowsByOrigin` says how
- *   the build's rows meet the stored ones.
+ *   the build's rows meet the stored ones. `root: "system"` reads the path under
+ *   `system` instead, where `*` segments walk keyed arrays (`keyedSites`) and
+ *   no `retired` list is kept.
  * - `readStamped` — `{path, stamp}`: a node under the module's flags whose
  *   leaves the build wrote and recorded in the cookbook stamp at `stamp`
  *   (`read.spell`). A leaf a Judge changed since is held, not written over.
@@ -234,6 +237,13 @@ export const REPAIR = Object.freeze({
   language: { flags: ["language"] },
 });
 
+/** The `mergeByOrigin` entry for the encounter recipe each variant option of a template carries, rows paired by `key` at every level. */
+const TEMPLATE_RECIPE_ENTRY = Object.freeze({
+  rows: `axes.*.options.*.flags.${MODULE_ID}.extras.encounter.recipe`,
+  root: "system",
+  describe: "recipePart",
+});
+
 /**
  * The policy for an actor kind that is written whole from its build (a
  * template, a family, a person, a legacy block), derived from
@@ -254,6 +264,8 @@ export function actorPolicy(built) {
     flags,
     top: built?.prototypeToken ? ["prototypeToken"] : [],
     minted: Array.isArray(built?.items) && built.items.length ? ["items"] : [],
+    // A template's variant options carry an encounter recipe each; a part a hand changed on one is held.
+    ...(built?.type === TEMPLATE_TYPE ? { mergeByOrigin: [TEMPLATE_RECIPE_ENTRY] } : {}),
   };
 }
 
@@ -367,7 +379,20 @@ export function refreshPlan(source, built, policy = {}) {
   }
   const heldFlags = source?.flags?.[MODULE_ID];
   for (const entry of mergeByOrigin) {
-    const { rows: path, retired: retiredPath } = typeof entry === "string" ? { rows: entry } : entry;
+    const { rows: path, retired: retiredPath, root } = typeof entry === "string" ? { rows: entry } : entry;
+    if (root === "system") {
+      // Rows inside keyed arrays of `system`: each site merges as a flags entry does,
+      // written into the update's own copy of the build.
+      for (const site of keyedSites(path, system, stored)) {
+        const fresh = getPath(site.built, site.tail);
+        const have = getPath(site.stored, site.tail);
+        const merged = mergeRowsByOrigin(have, fresh, { take: takenKeys(policy.takeRows, site.path), force: policy.force });
+        keptRows.push(...merged.kept.map((held) => ({ ...held, path: site.path })));
+        if (!merged.rows.length && !(Array.isArray(have) && have.length)) continue; // nothing stored, nothing built
+        setPath(site.built, site.tail, structuredClone(merged.rows));
+      }
+      continue;
+    }
     const fresh = getPath(flagUpdate, path);
     const have = getPath(heldFlags, path);
     const retiredHave = retiredPath ? getPath(heldFlags, retiredPath) : undefined;
@@ -438,6 +463,39 @@ export function refreshPlan(source, built, policy = {}) {
  * @returns {string}
  */
 export const rowTakeKey = (path, key) => `${path}[${key}]`;
+
+/**
+ * The places a `mergeByOrigin` path with `*` segments names. Each `*` stands for
+ * every row of a keyed array, and the walk is driven by the build's rows: a row
+ * the build lacks has no site, and the stored row of the same `key` is its
+ * counterpart (undefined where none holds that key). A site's `path` writes
+ * each `*` as the row's key in brackets (`axes[a].options[o].rest`), so two
+ * sites never share a take name, and `tail` is the plain path under the last
+ * row, whose holder `built` is the row itself: a write sets only the tail and
+ * never replaces an array the walk crossed.
+ * @param {string} path a `mergeByOrigin` entry's `rows`
+ * @param {object} built the object the path is read from in the build
+ * @param {object} [stored] the same object as the document holds it
+ * @returns {{path: string, built: object, stored: object|undefined, tail: string}[]}
+ */
+function keyedSites(path, built, stored) {
+  const walk = (segs, b, s, prefix) => {
+    const at = segs.indexOf("*");
+    if (at < 0) return segs.length ? [{ path: prefix + segs.join("."), built: b, stored: s, tail: segs.join(".") }] : [];
+    const head = segs.slice(0, at);
+    const rest = segs.slice(at + 1);
+    const rows = head.length ? getPath(b, head.join(".")) : b;
+    const have = head.length ? getPath(s, head.join(".")) : s;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((row) => {
+      const key = typeof row?.key === "string" ? row.key : "";
+      if (!key || row === null || typeof row !== "object") return [];
+      const twin = Array.isArray(have) ? have.find((r) => r?.key === key) : undefined;
+      return walk(rest, row, twin, `${prefix}${head.join(".")}[${key}]${rest.length ? "." : ""}`);
+    });
+  };
+  return walk(path.split("."), built, stored, "");
+}
 
 /** The keys `takeRows` holds for the rows at `path`. */
 function takenKeys(takeRows, path) {
@@ -651,15 +709,21 @@ export function decidedPolicy(source, built, policy, { decision = null, uuid = "
   // description on both sides.
   const takeRows = new Set();
   const takeLeaves = new Set();
-  const describeAt = (path) => {
-    const entry = (policy.mergeByOrigin ?? []).find((e) => (typeof e === "string" ? e : e.rows) === path);
-    const read = ROW_DESCRIBERS[(typeof entry === "object" ? entry.describe : null) ?? "spellEffect"] ?? ROW_DESCRIBERS.spellEffect;
+  // A kept row's path names its entry once each `[key]` of a keyed array is read as `.*`.
+  const entryAt = (path) => {
+    const plain = path.replace(/\[[^\]]*\]/g, ".*");
+    const entry = (policy.mergeByOrigin ?? []).find((e) => (typeof e === "string" ? e : e.rows) === plain);
+    return typeof entry === "object" ? entry : {};
+  };
+  const describeAt = (entry) => {
+    const read = ROW_DESCRIBERS[entry.describe ?? "spellEffect"] ?? ROW_DESCRIBERS.spellEffect;
     return (row) => (row ? read(row) : undefined);
   };
   for (const { path, key, current, page, retired } of plan.keptRows) {
-    const describe = describeAt(path);
+    const entry = entryAt(path);
+    const describe = describeAt(entry);
     const edit = heldEdit({
-      uuid, name: source?.name ?? "", path: `flags.${MODULE_ID}.${path}[${key}]`,
+      uuid, name: source?.name ?? "", path: `${entry.root === "system" ? "system" : `flags.${MODULE_ID}`}.${path}[${key}]`,
       current: retired ? undefined : describe(current), page: describe(page), cite,
     });
     if (decides(decision, edit.key) === "take") takeRows.add(rowTakeKey(path, key));
