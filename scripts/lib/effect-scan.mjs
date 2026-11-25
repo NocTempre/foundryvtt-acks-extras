@@ -88,14 +88,21 @@ export function changePriority(change) {
 
 /**
  * Every enabled change on `key` with its effect, in the order Foundry
- * applies them: by priority, ties in document order.
+ * applies them: by priority, ties in document order. With `admit`, a change it
+ * refuses is left out, as a change Foundry's own `shouldApplyChange` refuses is
+ * left out of the field.
+ * @param {object} actor
+ * @param {string} key
+ * @param {{admit?: (effect: object, change: object) => boolean}} [options]
  * @returns {{effect: object, change: object}[]}
  */
-export function orderedChanges(actor, key) {
+export function orderedChanges(actor, key, { admit } = {}) {
   const out = [];
   for (const effect of appliedEffects(actor)) {
     if (effect.disabled) continue;
-    for (const change of effect.changes ?? []) if (change.key === key) out.push({ effect, change });
+    for (const change of effect.changes ?? []) {
+      if (change.key === key && (!admit || admit(effect, change))) out.push({ effect, change });
+    }
   }
   // The sort is stable, so equal priorities keep document order.
   return out.sort((a, b) => changePriority(a.change) - changePriority(b.change));
@@ -137,13 +144,14 @@ export function applyNumericChange(current, change) {
  * a `subtract` reads negative. A change that moves nothing is left out.
  * @param {object} actor
  * @param {string} key
- * @param {{base?: number}} [options] the field's value before any effect; a
- *   modifier domain no field backs starts from zero.
+ * @param {{base?: number, admit?: (effect: object, change: object) => boolean}} [options] `base` is the
+ *   field's value before any effect (a modifier domain no field backs starts
+ *   from zero); `admit` is `orderedChanges`'s.
  */
-export function activeNumericChanges(actor, key, { base = 0 } = {}) {
+export function activeNumericChanges(actor, key, { base = 0, admit } = {}) {
   const out = [];
   let current = typeof base === "number" && Number.isFinite(base) ? base : 0;
-  for (const { effect, change } of orderedChanges(actor, key)) {
+  for (const { effect, change } of orderedChanges(actor, key, { admit })) {
     const next = applyNumericChange(current, change);
     const value = next - current;
     if (!Number.isFinite(value) || value === 0) continue;
@@ -153,9 +161,9 @@ export function activeNumericChanges(actor, key, { base = 0 } = {}) {
   return out;
 }
 
-/** The net shift every enabled change on `key` makes to the field, from `base`. */
-export function netNumericChange(actor, key, base = 0) {
-  return activeNumericChanges(actor, key, { base }).reduce((sum, step) => sum + step.value, 0);
+/** The net shift every enabled change on `key` makes to the field, from `base`; `admit` is `orderedChanges`'s. */
+export function netNumericChange(actor, key, base = 0, { admit } = {}) {
+  return activeNumericChanges(actor, key, { base, admit }).reduce((sum, step) => sum + step.value, 0);
 }
 
 /** The tokens of a CSV value: trimmed, lowercased, empties dropped. */

@@ -15,7 +15,7 @@ import {
 } from "../scripts/lib/status-palette.mjs";
 import { CONDITION_IDS, CONDITIONS } from "../scripts/lib/conditions.mjs";
 import { LANG_PREFIX } from "../scripts/lib/constants.mjs";
-import { CONDITION_ORDER, conditionChanges, coreConditions } from "./core-conditions-fixture.mjs";
+import { BROUGHT, CONDITION_ORDER, IMPLYING_IDS, actorOf, conditionChanges, coreConditions, effectOf, implyingEffect } from "./core-conditions-fixture.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -200,6 +200,8 @@ globalThis.CONFIG = {
   ],
   specialStatusEffects: {},
   ACKS: { conditions: CORE_CONDITIONS, combatStates: CORE_COMBAT_STATES },
+  // Foundry's own answer: a change applies in the phase that asks for it.
+  ActiveEffect: { documentClass: class { shouldApplyChange(change, options) { return change.phase === options?.phase; } } },
 };
 const fx = await import("../scripts/lib/status-effects.mjs");
 const STATES = ["dead", "invisible", "acks-extras.running"];
@@ -248,7 +250,7 @@ ok("an id the catalogue offers keeps the catalogue's name and image", () => {
 });
 
 ok("an id the system ships carries the system's changes on the catalogue's entry, so a toggled status holds them", () => {
-  for (const id of CONDITION_ORDER) {
+  for (const id of CONDITION_ORDER.filter((candidate) => !IMPLYING_IDS.includes(candidate))) {
     assert.deepEqual(config(id).system?.changes, conditionChanges(id), id);
     assert.deepEqual([config(id).name, config(id).img], [`${LANG_PREFIX}.condition.${id}`, CONDITIONS[id].img], `${id} keeps the catalogue's name and image`);
     assert.equal(config(id).hud, undefined, `${id} stays on the palette`);
@@ -265,6 +267,105 @@ ok("an id the system ships carries the system's changes on the catalogue's entry
   store({});
   // The module is still the one writer: the system's own entries are not on the list twice.
   for (const id of CONDITION_ORDER) assert.equal(configIds().filter((s) => s === id).length, 1, id);
+});
+
+/** The static `_id` each state that brings a condition carries. Effects are stored under them, so they never change. */
+const PINNED_IDS = {
+  charging: "hkopszYi2vJpXKTu",
+  countercharging: "tZVR3XNWjv7KUztM",
+  retreating: "398ND2NgK48N4MSl",
+  starving: "C8KaxEtSpHQuGU0L",
+  underfed: "2vi1eW1piPFCKnzh",
+};
+/** The change rows a state's entry should carry: its own, then each brought condition's, read from the mock list. */
+const mergedChanges = (id) => [
+  ...(CORE_CONDITIONS.find((entry) => entry.id === id)?.system?.changes ?? []),
+  ...conditionChanges(BROUGHT[id]),
+];
+
+ok("the static id is a pure function of the status id: 16 letters and digits, pinned, and distinct", () => {
+  for (const [id, pinned] of Object.entries(PINNED_IDS)) {
+    assert.equal(fx.conditionEffectId(id), pinned, id);
+    assert.equal(fx.conditionEffectId(id), fx.conditionEffectId(id), "the same twice");
+  }
+  assert.equal(new Set(Object.values(PINNED_IDS)).size, Object.keys(PINNED_IDS).length);
+  // Hyphens, one letter and a long id still give a valid document id.
+  for (const id of ["a", "a-b-c", "x".repeat(40)]) assert.match(fx.conditionEffectId(id), /^[a-zA-Z0-9]{16}$/, id);
+});
+
+ok("the states that bring a condition are derived from the catalogue and the system's list, and carry the brought statuses, a static id and the merged changes in order", () => {
+  const bringing = fx.knownStatuses().filter((entry) => entry.data?._id).map((entry) => entry.id);
+  assert.deepEqual(bringing.sort(), [...IMPLYING_IDS].sort());
+  for (const id of IMPLYING_IDS) {
+    assert.deepEqual(config(id).statuses, [BROUGHT[id]], id);
+    assert.equal(config(id)._id, PINNED_IDS[id], id);
+    assert.deepEqual(config(id).system.changes, mergedChanges(id), `${id}: its own changes, then the brought condition's`);
+    assert.deepEqual([config(id).name, config(id).img], [`${LANG_PREFIX}.condition.${id}`, CONDITIONS[id].img], `${id} keeps the catalogue's name and image`);
+  }
+  // A state the system's list does not ship still carries what it brings.
+  assert.equal(CORE_CONDITIONS.some((entry) => entry.id === "countercharging"), false);
+  assert.deepEqual(config("countercharging").system.changes, conditionChanges("disordered"));
+  // The brought condition's own entry is unchanged.
+  assert.deepEqual([config("disordered").statuses, config("disordered")._id], [undefined, undefined]);
+});
+
+ok("registering a state copies the system's rows: changing the registered entry leaves the system's list as it was", () => {
+  const rows = config("charging").system.changes;
+  rows[0].value = 999999;
+  rows.push({ key: "system.invented.mod", type: "add", value: 1 });
+  assert.deepEqual(CORE_CONDITIONS.find((entry) => entry.id === "charging").system.changes, conditionChanges("charging"));
+  assert.deepEqual(CORE_CONDITIONS.find((entry) => entry.id === "disordered").system.changes, conditionChanges("disordered"));
+  store({});
+  assert.deepEqual(config("charging").system.changes, mergedChanges("charging"));
+});
+
+ok("a state whose closure takes away acting, and one that brings only conditions with no change, get no static id", () => {
+  // Slumbering brings Blinded, which carries changes in the list, and Helpless, which forbids acting.
+  assert.ok(CONDITIONS.slumbering.implies.includes("blinded"));
+  assert.deepEqual([config("slumbering")._id, config("slumbering").statuses, config("slumbering").system], [undefined, undefined, undefined]);
+  // Prone carries changes of its own and brings a condition that has none.
+  assert.ok(CONDITIONS.prone.implies.length);
+  assert.deepEqual([config("prone")._id, config("prone").statuses], [undefined, undefined]);
+  assert.deepEqual(config("prone").system.changes, conditionChanges("prone"));
+  assert.deepEqual([config("defendingShield")._id, config("defendingShield").statuses], [undefined, undefined]);
+});
+
+ok("the set follows the system's list at registration: with the brought condition's changes gone, the state brings nothing", () => {
+  const was = CONFIG.ACKS.conditions;
+  CONFIG.ACKS.conditions = was.map((entry) => (entry.id === "hungry" ? { id: entry.id, name: entry.name, img: entry.img } : entry));
+  try {
+    assert.deepEqual(fx.knownStatuses().filter((entry) => entry.data?._id).map((entry) => entry.id).sort(), ["charging", "countercharging", "retreating"]);
+  } finally {
+    CONFIG.ACKS.conditions = was;
+  }
+  assert.equal(fx.knownStatuses().filter((entry) => entry.data?._id).length, IMPLYING_IDS.length);
+});
+
+ok("Foundry's shouldApplyChange is wrapped once: its refusal stands, a repeat of one condition's change is refused, and a throw leaves its answer", () => {
+  const apply = CONFIG.ActiveEffect.documentClass.prototype.shouldApplyChange;
+  fx.registerStatusEffects();
+  assert.equal(CONFIG.ActiveEffect.documentClass.prototype.shouldApplyChange, apply, "wrapped once, not again");
+  const ask = (effect, change, phase = "initial", asked = "initial") => apply.call(effect, { ...change, phase }, { phase: asked });
+  const hand = effectOf("disordered");
+  const charge = implyingEffect("charging");
+  actorOf("character", [hand, charge]);
+  const acOf = (effect) => effect.system.changes.find((change) => change.key === "system.ac.mod");
+  assert.equal(ask(hand, acOf(hand)), true, "the first of Disordered's change counts");
+  assert.equal(ask(charge, acOf(charge)), false, "the later copy does not");
+  assert.equal(ask(charge, charge.system.changes[0]), true, "the charge's own figure still counts");
+  assert.equal(ask(hand, acOf(hand), "final", "initial"), false, "Foundry's refusal stands, though the change would count");
+  // A throw in this module's part: the logged error, and Foundry's answer.
+  const errors = [];
+  const logged = console.error;
+  console.error = (...args) => errors.push(args);
+  try {
+    const broken = { system: { changes: [] }, get statuses() { throw new Error("test failure"); } };
+    assert.equal(ask(broken, { key: "system.ac.mod" }), true);
+    assert.equal(ask(broken, { key: "system.ac.mod" }, "final", "initial"), false, "a refusal is returned before the part runs");
+  } finally {
+    console.error = logged;
+  }
+  assert.equal(errors.length, 1);
 });
 
 ok("the system's setting off: no Foundry status is on the palette, and only the ids the system always keeps are registered", () => {

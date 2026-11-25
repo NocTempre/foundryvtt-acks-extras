@@ -59,6 +59,7 @@ class FakeItem {
 }
 const {
   CONDITION_ORDER, CONDITION_KEYS, actorOf: conditionActor, conditionValue, coreConditions, effectOf: conditionEffect,
+  implyingEffect,
 } = await import("./core-conditions-fixture.mjs");
 globalThis.CONFIG = {
   ACKS: { conditions: coreConditions() },
@@ -81,7 +82,7 @@ const { MAGIC_ATTACK_TYPE, installAttackThrowPatch, spellCarrier } = seam;
 const {
   rollModsOf, registerItemBonusSource, itemBonusParts, spellStackingPart, resolveItemParts, scopeCtxFor, rollModRows, saveModParts,
   sheetSaveShift, installRollMods, ROLL_MODS_ON, partHolds, recordParts, throwResolution, recordImmunity, ownSaveParts,
-  conditionSteps, CONDITION_STEP_KEYS,
+  conditionSteps, countsOnce, CONDITION_STEP_KEYS,
 } = mods;
 const { acWaivedSet, subjectOf } =await import("../scripts/lib/conditions.mjs");
 installAttackThrowPatch();
@@ -763,29 +764,139 @@ await ok("the reader knows no ids of its own: with none in core's list it reads 
   assert.deepEqual(conditionSteps(null, AC), { steps: [], waived: [] });
 });
 
-await ok("a directly waived condition's step lands in waived, valued as the field takes it, and a mixed-status effect keeps its step", () => {
+await ok("a directly waived condition's step lands in waived with its effect, valued as the field takes it; a change the rule cannot attribute is not waived on a guess", () => {
   const step = conditionValue("disordered", AC);
-  const waived = conditionSteps(monsterOf([conditionEffect("disordered")], ["disordered"]), AC);
-  assert.deepEqual([waived.steps, waived.waived], [[], [{ condition: "disordered", value: step }]]);
-  const mixed = conditionEffect("disordered", { statuses: ["disordered", "hungry"] });
-  const kept = conditionSteps(monsterOf([mixed], ["disordered"]), AC);
-  assert.deepEqual([kept.steps.map((s) => s.value), kept.waived], [[step], []], "an effect naming a status the waiver does not reach is not waived on a guess");
+  const own = conditionEffect("disordered");
+  const waived = conditionSteps(monsterOf([own], ["disordered"]), AC);
+  assert.deepEqual([waived.steps, waived.waived], [[], [{ condition: "disordered", value: step, effect: own }]]);
+  // Two statuses of one effect that both carry a change on the key: the change is no one's, so the all-statuses test decides.
+  const shared = conditionEffect("disordered", { statuses: ["disordered", "shaken"], changes: [{ key: AC, type: "add", value: step }] });
+  const kept = conditionSteps(monsterOf([shared], ["disordered"]), AC);
+  assert.deepEqual([kept.steps.map((s) => [s.condition, s.value]), kept.waived], [[["disordered", step]], []], "an effect naming a status the waiver does not reach is not waived on a guess");
+  assert.deepEqual(conditionSteps(monsterOf([shared], ["disordered", "shaken"]), AC).steps, [], "every status decided");
+  // A status that carries no change on the key does not make the change ambiguous: it belongs to Disordered.
+  const hungry = conditionEffect("disordered", { statuses: ["disordered", "hungry"] });
+  assert.deepEqual(conditionSteps(monsterOf([hungry], ["disordered"]), AC).steps, []);
   // The waiver is the Armor Class figure's: the same condition's save step stands.
   assert.deepEqual(conditionSteps(monsterOf([conditionEffect("hungry")], ["hungry"]), SAVE).steps.map((s) => s.value), [conditionValue("hungry", SAVE)]);
 });
 
-await ok("a waived charge's disorder: the one on the charging effect, which carries no change, gets no step, and a hand Disordered beside it keeps its step", () => {
-  const charging = conditionEffect("charging", { statuses: ["charging", "disordered"], changes: [] });
+await ok("a step is attributed to the status its change belongs to: the charge's Armor Class step is Disordered's, its own figure is the charge's", () => {
+  const charging = implyingEffect("charging");
+  const read = conditionSteps(monsterOf([charging]), AC);
+  assert.deepEqual(read.steps.map((s) => [s.condition, s.value, s.effect]), [["disordered", conditionValue("disordered", AC), charging]]);
+  assert.deepEqual(conditionSteps(monsterOf([charging]), "system.attack.mod.melee").steps.map((s) => [s.condition, s.value]), [["charging", conditionValue("charging", "system.attack.mod.melee")]]);
+  const starving = implyingEffect("starving");
+  assert.deepEqual(conditionSteps(monsterOf([starving]), SAVE).steps.map((s) => [s.condition, s.value]), [["hungry", conditionValue("hungry", SAVE)]]);
+});
+
+await ok("a waived charge's disorder: the one on the charging effect gets no step, and a hand Disordered or a countercharge beside it keeps one", () => {
+  const step = conditionValue("disordered", AC);
+  const charging = implyingEffect("charging");
   const alone = monsterOf([charging], ["charging"]);
   assert.deepEqual(subjectOf(alone).implied, ["disordered"]);
   assert.equal(acWaivedSet(subjectOf(alone)).has("disordered"), true, "the implied disorder follows the waived charge");
-  assert.deepEqual(conditionSteps(alone, AC), { steps: [], waived: [] }, "it carries no change, so there is no step to take or to waive");
+  const read = conditionSteps(alone, AC);
+  assert.deepEqual([read.steps, read.waived.map((s) => [s.condition, s.value, s.effect])], [[], [["disordered", step, charging]]], "a waived charge alone leaves no step");
+  for (const beside of [conditionEffect("disordered"), implyingEffect("countercharging")]) {
+    for (const effects of [[implyingEffect("charging"), beside], [beside, implyingEffect("charging")]]) {
+      const target = monsterOf(effects, ["charging"]);
+      assert.equal(acWaivedSet(subjectOf(target)).has("disordered"), false, "a disorder carried in its own right, or by another state, stands");
+      const kept = conditionSteps(target, AC);
+      assert.deepEqual([kept.steps.map((s) => [s.condition, s.value]), kept.waived], [[["disordered", step]], []], "the condition set twice counts once, and is kept");
+    }
+  }
+});
+
+/* --- A condition counted once ---------------------------------------------------- */
+
+/** The change of `effect` on `key`. */
+const changeOf = (effect, key) => effect.system.changes.find((c) => c.key === key);
+const MELEE = "system.attack.mod.melee";
+
+await ok("a lone effect's changes all count, and so does a change nothing can be attributed to", () => {
+  const charging = implyingEffect("charging");
+  const actor = conditionActor("character", [charging]);
+  actor.statuses = new Set();
+  assert.deepEqual(charging.system.changes.map((c) => countsOnce(charging, c)), [true, true]);
+  assert.equal(countsOnce(charging, { key: "" }), true);
+  assert.equal(countsOnce(charging, { key: "system.invented.mod" }), true, "no status's entry carries it");
+  assert.equal(countsOnce(charging, null), true);
+  assert.equal(countsOnce(null, { key: AC }), true);
+  const stray = conditionEffect("disordered");
+  assert.equal(countsOnce(stray, changeOf(stray, AC)), true, "an effect with no actor counts");
+});
+
+await ok("an implying state then a hand effect of the condition it brings: the state's change counts and the hand's does not; the reverse order reverses it", () => {
+  const charging = implyingEffect("charging");
   const hand = conditionEffect("disordered");
-  const beside = monsterOf([charging, hand], ["charging"]);
-  assert.deepEqual(subjectOf(beside).implied, [], "a disorder carried in its own right is not implied");
-  assert.equal(acWaivedSet(subjectOf(beside)).has("disordered"), false);
-  assert.deepEqual(conditionSteps(beside, AC).steps.map((s) => [s.condition, s.value]), [["disordered", conditionValue("disordered", AC)]]);
-  assert.deepEqual(conditionSteps(beside, AC).waived, []);
+  conditionActor("monster", [charging, hand]);
+  assert.deepEqual([countsOnce(charging, changeOf(charging, AC)), countsOnce(hand, changeOf(hand, AC))], [true, false]);
+  assert.equal(countsOnce(charging, changeOf(charging, MELEE)), true, "the charge's own figure is not shadowed");
+  const first = conditionEffect("disordered");
+  const second = implyingEffect("charging");
+  conditionActor("monster", [first, second]);
+  assert.deepEqual([countsOnce(first, changeOf(first, AC)), countsOnce(second, changeOf(second, AC))], [true, false]);
+  assert.equal(countsOnce(second, changeOf(second, MELEE)), true);
+});
+
+await ok("two states that bring one condition count it once, and one that brings another does not shadow it", () => {
+  const a = implyingEffect("charging");
+  const b = implyingEffect("countercharging");
+  const c = implyingEffect("starving");
+  conditionActor("monster", [a, b, c]);
+  assert.deepEqual([a, b].map((e) => countsOnce(e, changeOf(e, AC))), [true, false]);
+  assert.equal(countsOnce(c, changeOf(c, SAVE)), true, "Hungry's step is another condition's");
+  const twins = [implyingEffect("starving"), implyingEffect("underfed")];
+  conditionActor("monster", twins);
+  assert.deepEqual(twins.map((e) => countsOnce(e, changeOf(e, SAVE))), [true, false]);
+});
+
+await ok("an earlier effect that is disabled, or inactive, or carries the status without a change on the key, shadows nothing", () => {
+  for (const earlier of [conditionEffect("disordered", { disabled: true }), conditionEffect("disordered", { active: false }), conditionEffect("disordered", { changes: [] }), conditionEffect("disordered", { changes: [{ key: MELEE, type: "add", value: 3 }] })]) {
+    const charging = implyingEffect("charging");
+    conditionActor("monster", [earlier, charging]);
+    assert.equal(countsOnce(charging, changeOf(charging, AC)), true);
+  }
+  // A later effect never shadows an earlier one.
+  const charging = implyingEffect("charging");
+  conditionActor("monster", [charging, conditionEffect("disordered", { disabled: true })]);
+  assert.equal(countsOnce(charging, changeOf(charging, AC)), true);
+});
+
+await ok("a change two statuses of its effect could own counts: no attribution, no filter", () => {
+  const hand = conditionEffect("disordered");
+  const both = conditionEffect("disordered", { statuses: ["disordered", "shaken"], changes: [{ key: AC, type: "add", value: 5 }] });
+  conditionActor("monster", [hand, both]);
+  assert.equal(countsOnce(both, both.system.changes[0]), true);
+});
+
+await ok("the order is the actor's allApplicableEffects, and the actor's own effects where it has none", () => {
+  const charging = implyingEffect("charging");
+  const hand = conditionEffect("disordered");
+  const actor = conditionActor("monster", []);
+  actor.effects = [];
+  actor.allApplicableEffects = function* () { yield hand; yield charging; };
+  for (const effect of [hand, charging]) Object.defineProperty(effect, "actor", { value: actor, configurable: true });
+  assert.deepEqual([hand, charging].map((e) => countsOnce(e, changeOf(e, AC))), [true, false]);
+  // With no `allApplicableEffects`, the actor's own effects are the order.
+  const plain = conditionActor("monster", [hand, charging]);
+  delete plain.allApplicableEffects;
+  assert.deepEqual([hand, charging].map((e) => countsOnce(e, changeOf(e, AC))), [true, false]);
+});
+
+await ok("the readers agree with the filter: an Armor Class step and a save step are read once beside a hand-set copy, in either order", () => {
+  const step = conditionValue("disordered", AC);
+  for (const order of [["charging", "disordered"], ["disordered", "charging"]]) {
+    const effects = order.map((id) => (id === "charging" ? implyingEffect("charging") : conditionEffect("disordered")));
+    const read = conditionSteps(monsterOf(effects), AC);
+    assert.deepEqual(read.steps.map((s) => [s.condition, s.value, s.effect]), [["disordered", step, effects[0]]], order.join());
+  }
+  for (const order of [["starving", "hungry"], ["hungry", "starving"]]) {
+    const effects = order.map((id) => (id === "starving" ? implyingEffect("starving") : conditionEffect("hungry")));
+    const read = conditionSteps(monsterOf(effects), SAVE);
+    assert.deepEqual(read.steps.map((s) => [s.condition, s.value]), [["hungry", conditionValue("hungry", SAVE)]], order.join());
+  }
 });
 
 /* --- A saving throw under a condition ------------------------------------------ */

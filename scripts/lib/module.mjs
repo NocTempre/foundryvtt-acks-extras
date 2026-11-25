@@ -128,7 +128,7 @@ import {
   STATUS_PALETTE_SETTING, installConditionRolls, lift, loseRecords, loseStates, lossInFlight, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
 } from "./status-effects.mjs";
 import { installRollGates } from "./roll-gates.mjs";
-import { installRollMods, ownSaveParts, partHolds, recordImmunity, recordParts, registerItemBonusSource, rollModsOf, throwResolution } from "./roll-mods.mjs";
+import { countsOnce, installRollMods, ownSaveParts, partHolds, recordImmunity, recordParts, registerItemBonusSource, rollModsOf, throwResolution } from "./roll-mods.mjs";
 import { availableRollMods, castableSpells, registerSpellReach, registerSpellSource, spellRefOf, SPELL_CAPACITY } from "./spell-sources.mjs";
 import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
 import {
@@ -167,7 +167,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 70,
+  apiVersion: 71,
   vocab,
   fields,
   /**
@@ -458,7 +458,9 @@ const localImpl = Object.freeze({
    * tested and resolved; `throwResolution` is its throw reading (bonuses, a
    * set target, `auto`); `recordImmunity` reads `immune` parts;
    * `partHolds` tests one part or row for an actor; `ownSaveParts` tests the
-   * rows of a spell's own save for one saver.
+   * rows of a spell's own save for one saver. `countsOnce(effect, change)` is
+   * whether a condition's change applies on its effect or an earlier effect of
+   * the actor already carries that condition's change on that field.
    */
   rollMods: {
     registerItemBonusSource,
@@ -468,6 +470,7 @@ const localImpl = Object.freeze({
     recordImmunity,
     partHolds,
     ownSaveParts,
+    countsOnce,
     FLAG: FLAG_ROLL_MODS,
   },
   /**

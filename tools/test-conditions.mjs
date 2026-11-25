@@ -19,6 +19,7 @@ import {
 import { CONDITION_KEYS } from "../scripts/lib/vocab.mjs";
 import {
   CONDITION_ORDER, CONDITION_KEYS as EFFECT_KEYS, actorOf as conditionActor, conditionValue, coreConditions, effectOf as conditionEffect,
+  implyingEffect,
 } from "./core-conditions-fixture.mjs";
 
 let passed = 0;
@@ -1037,13 +1038,14 @@ await (async () => {
     const BLADE = { type: "weapon", name: "Blade", system: {} };
 
     /** An actor holding the effects of `ids`, ready to attack: a number to throw against, and its model pointing back. */
-    const holding = (type, ids, name) => {
-      const actor = conditionActor(type, ids.map((id) => conditionEffect(id)), { extra: { name } });
+    const holdingEffects = (type, effects, name, extra = {}) => {
+      const actor = conditionActor(type, effects, { extra: { name, ...extra } });
       actor.uuid = `Actor.${name}`;
       actor.system.attack = { throw: 10 };
       actor.system.parent = actor;
       return actor;
     };
+    const holding = (type, ids, name) => holdingEffects(type, ids.map((id) => conditionEffect(id)), name);
     /** What the seam gives the throw and the damage of `attacker` against `foe`, after core's own row. */
     const rowsOf = async (attacker, foe, kind) => {
       globalThis.game.user.targets = foe ? [{ document: { name: foe.name, actor: foe, disposition: 0 } }] : [];
@@ -1090,16 +1092,21 @@ await (async () => {
     const once = await rowsOf(holding("character", [], "Striker"), doubled, "melee");
     assert.deepEqual(named(once.attack, "disordered").map((r) => r.value), [-conditionValue("disordered", "system.ac.mod")]);
     // A waived condition's step is no term: the monster is not suffering it.
-    const waiving = holding("monster", ["charging", "disordered"], "Beast");
-    waiving.effects = waiving.appliedEffects = [conditionEffect("charging", { statuses: ["charging", "disordered"], changes: [] })];
-    waiving.items = [{ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions: ["charging"] }] } } } }];
-    assert.deepEqual((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, [], "the disorder rides on the charging effect, which carries no change, and a waived charge's has no step");
-    waiving.effects.push(conditionEffect("disordered"));
+    const waiverItems = [{ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions: ["charging"] }] } } } }];
+    const waiving = holdingEffects("monster", [implyingEffect("charging")], "Beast", { items: waiverItems });
+    assert.deepEqual((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, [], "the disorder rides on the charging effect, and a waived charge's has no step");
+    const beside = holdingEffects("monster", [implyingEffect("charging"), conditionEffect("disordered")], "Beast", { items: waiverItems });
     assert.deepEqual(
-      named((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, "disordered").map((r) => r.value),
+      named((await rowsOf(holding("character", [], "Striker"), beside, "melee")).attack, "disordered").map((r) => r.value),
       [-conditionValue("disordered", "system.ac.mod")],
-      "a hand Disordered beside it is suffered",
+      "a hand Disordered beside it is suffered, once",
     );
+    // A state that brings a condition counts its step once beside a hand copy of that condition, in either order.
+    for (const order of [["charging", "disordered"], ["disordered", "charging"], ["countercharging", "charging"]]) {
+      const effects = order.map((id) => (id === "disordered" ? conditionEffect("disordered") : implyingEffect(id)));
+      const rows = (await rowsOf(holding("character", [], "Striker"), holdingEffects("monster", effects, "Beast"), "melee")).attack;
+      assert.deepEqual(named(rows, "disordered").map((r) => r.value), [-conditionValue("disordered", "system.ac.mod")], order.join());
+    }
     passed++;
     console.log("ok   each of the eleven's figure reaches an attack from one place: core's effect for a character, the step read once for a monster target");
   } finally {

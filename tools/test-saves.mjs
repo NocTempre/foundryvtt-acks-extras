@@ -305,7 +305,7 @@ await ok("a susceptible saver takes its own figure, a mixed case goes to pending
 
 /* --- the steps a condition's effect makes to the save modifier --------------------- */
 
-const { CONDITION_ORDER, CONDITION_KEYS, actorOf, conditionValue, coreConditions, effectOf } = await import("./core-conditions-fixture.mjs");
+const { CONDITION_ORDER, CONDITION_KEYS, actorOf, conditionValue, coreConditions, effectOf, implyingEffect } = await import("./core-conditions-fixture.mjs");
 const SAVE_MOD = "system.save.mod";
 const stepOf = (id) => (CONDITION_KEYS[id].includes(SAVE_MOD) ? conditionValue(id, SAVE_MOD) : 0);
 const rollSum = (spec) => spec.parts.filter((p) => p.side === "roll").reduce((sum, p) => sum + p.value, 0);
@@ -348,6 +348,24 @@ await ok("each of the eleven's figure is on a saving throw from one place: the s
       assert.equal(saveSpec(beast, "blast").target, 15 - step, `${id}: a monster's target`);
       assert.equal(rollSum(saveSpec(beast, "blast")), 0, `${id}: a monster's roll`);
     }
+  } finally {
+    delete globalThis.CONFIG;
+  }
+});
+
+await ok("a state that brings a condition gives its save step once, alone or beside a hand copy of the condition, in either order", () => {
+  globalThis.CONFIG = { ACKS: { conditions: coreConditions() } };
+  try {
+    const step = stepOf("hungry");
+    const beastOf = (...effects) => actorOf("monster", effects);
+    assert.equal(saveSpec(beastOf(implyingEffect("starving")), "death").target, 14 - step, "the state alone");
+    for (const effects of [[implyingEffect("starving"), effectOf("hungry")], [effectOf("hungry"), implyingEffect("starving")], [implyingEffect("starving"), implyingEffect("underfed")]]) {
+      const spec = saveSpec(beastOf(...effects), "death");
+      assert.deepEqual(spec.parts.map((p) => [p.key, p.value, p.side]), [["hungry", step, "target"]], "one part, Hungry's");
+      assert.equal(spec.target, 14 - step);
+    }
+    const hero = actorOf("character", [implyingEffect("starving")], { saveMod: 2 });
+    assert.deepEqual(saveSpec(hero, "blast", { magical: false }).parts.map((p) => [p.key, p.value, p.side]), [["hungry", step, "roll"]]);
   } finally {
     delete globalThis.CONFIG;
   }

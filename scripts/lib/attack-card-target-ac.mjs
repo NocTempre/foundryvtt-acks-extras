@@ -19,6 +19,7 @@
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { TARGET_AC_FLAG, setTargetAcReader } from "./patches/attack-throw.mjs";
 import { CONDITION_STEP_KEYS, conditionSteps } from "./roll-mods.mjs";
+import { conditionNameKey } from "./status-effects.mjs";
 import { signed } from "./frame-model.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { el, elementOf } from "./util.mjs";
@@ -35,27 +36,38 @@ const FOOTER_CLASS = "attack-throw-card__footer";
 /** Marks a footer this file made, so a re-render removes it once it is empty again. */
 const MADE_ATTRIBUTE = "data-acks-extras-footer";
 
+/** A string of the card line's own lang branch (`targetAc`), with its `{name}` placeholders filled. */
+const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.${key}`, data);
+
+/**
+ * A row's name: the effect's own name, with the name of the condition the step
+ * belongs to where the two differ (a charge's step is its disorder's). An
+ * effect with no name is named by its condition.
+ */
+function rowName(effect, condition) {
+  const own = String(effect?.name ?? "").trim();
+  const named = game.i18n.localize(conditionNameKey(condition));
+  if (!own) return named;
+  return own === named ? own : text("named", { effect: own, condition: named });
+}
+
 /**
  * The condition effects inside a target's Armor Class, as `[{name, value}]`:
- * each step the system's condition effects make to `system.ac.mod`, by the
- * effect's own name and the step as it stands in the effect (a bonus
- * positive). A character target only: a monster's steps are terms on the throw,
- * and any other type has none. A step the Armor Class waiver spares is not
- * listed. An effect with no name is named by its condition's id.
+ * each step the system's condition effects make to `system.ac.mod` that
+ * Foundry applied (`conditionSteps`), by the effect's name and the step as it
+ * stands in the effect (a bonus positive). A character target only: a
+ * monster's steps are terms on the throw, and any other type has none. A step
+ * the Armor Class waiver spares is listed too: a character's waiver is not
+ * applied, because the system folded the step into the Armor Class shown.
  *
  * @param {Actor|null} actor  the target's actor
  * @returns {Array<{name: string, value: number}>}
  */
 export function targetAcRows(actor) {
   if (actor?.type !== ACTOR_TYPE.character) return [];
-  return conditionSteps(actor, CONDITION_STEP_KEYS.ac).steps.map((step) => ({
-    name: String(step.effect?.name ?? "").trim() || step.condition,
-    value: step.value,
-  }));
+  const read = conditionSteps(actor, CONDITION_STEP_KEYS.ac);
+  return [...read.steps, ...read.waived].map((step) => ({ name: rowName(step.effect, step.condition), value: step.value }));
 }
-
-/** A string of the card line's own lang branch (`targetAc`), with its `{name}` placeholders filled. */
-const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.targetAc.${key}`, data);
 
 /**
  * The text and the tooltip of each span a stamp draws. The tooltip names the

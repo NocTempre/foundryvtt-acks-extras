@@ -117,36 +117,93 @@ function changeCarrying() {
   return ids;
 }
 
+/** The Active Effect changes an effect carries, as Foundry applies them: `system.changes`, else the plain `changes`. */
+const changesOf = (effect) => Array.from(effect?.system?.changes ?? effect?.changes ?? []);
+
+/** Whether the system's entry for condition `id` carries a change on `key`, read from `CONFIG.ACKS.conditions` at the call. */
+function entryCarries(id, key) {
+  for (const entry of globalThis.CONFIG?.ACKS?.conditions ?? []) {
+    if (entry?.id === id) return Array.from(entry.system?.changes ?? []).some((change) => change?.key === key);
+  }
+  return false;
+}
+
+/**
+ * The status of an effect that a change on `key` belongs to: the one status
+ * whose system entry carries a change on that key. Null when none does, or when
+ * more than one does, since the change then cannot be attributed.
+ */
+function statusOfChange(effect, key) {
+  const owners = [...(effect?.statuses ?? [])].filter((id) => entryCarries(id, key));
+  return owners.length === 1 ? owners[0] : null;
+}
+
+/**
+ * Whether a change of `effect` counts, so that one condition's change on one
+ * field applies once however many effects carry it. The change belongs to the
+ * status of its effect whose system entry carries its key (`statusOfChange`);
+ * it counts unless an EARLIER active effect of the same actor, in
+ * `allApplicableEffects()` order, carries that status and a change on that key.
+ * A change that cannot be attributed, and an effect with no actor, count. It reads the actor's effects and never
+ * `actor.statuses`, which Foundry fills in the same loop that asks. This is
+ * the one rule behind Foundry's `shouldApplyChange` (`status-effects.mjs`) and
+ * behind every reader of a condition's step (`conditionSteps`).
+ *
+ * @param {object} effect  the Active Effect the change belongs to
+ * @param {{key?: string}} change
+ * @returns {boolean}
+ */
+export function countsOnce(effect, change) {
+  const key = change?.key;
+  const status = key ? statusOfChange(effect, key) : null;
+  const actor = effect?.actor;
+  if (!status || !actor) return true;
+  const effects = typeof actor.allApplicableEffects === "function" ? actor.allApplicableEffects() : (actor.effects ?? []);
+  for (const other of effects) {
+    if (other === effect) return true;
+    if (other?.disabled || other?.active === false) continue;
+    if (other?.statuses?.has?.(status) && changesOf(other).some((c) => c?.key === key)) return false;
+  }
+  return true;
+}
+
 /**
  * The steps the system's condition effects make to one field of an actor, read
  * from the effects themselves: `activeNumericChanges` narrowed to the effects
- * whose statuses include an id whose system entry carries changes. A character
- * already holds them in the prepared field; a monster's field has none of
- * them, so a caller that puts them on a roll asks for a monster. The reader
- * looks at no actor type, its callers do.
+ * whose statuses include an id whose system entry carries changes, and to the
+ * changes Foundry applied (`countsOnce`), so a condition set twice counts once
+ * and a step Foundry did not apply is no step here. A character already holds
+ * them in the prepared field; a monster's field has none of them, so a caller
+ * that puts them on a roll asks for a monster. The reader looks at no actor
+ * type, its callers do.
  *
- * On `system.ac.mod` a step whose effect's statuses all sit in the Armor Class
- * waiver's decision (`acWaivedSet`) is not suffered, and moves to `waived`. A
- * mixed-status effect keeps its step: no waiver on a guess.
+ * A step belongs to the status its change is attributed to (`statusOfChange`):
+ * the Armor Class step on a charging effect is Disordered's. On
+ * `system.ac.mod` a step whose own condition sits in the Armor Class waiver's
+ * decision (`acWaivedSet`) is not suffered, and moves to `waived`. A change
+ * the rule cannot attribute is waived only when every status of its effect is
+ * decided: no waiver on a guess.
  *
  * @param {object} actor
  * @param {string} key  a field a condition effect changes (`CONDITION_STEP_KEYS`)
  * @returns {{steps: Array<{effect: object, change: object, type: string, value: number, condition: string}>,
- *   waived: Array<{condition: string, value: number}>}}
+ *   waived: Array<{condition: string, value: number, effect: object}>}}
  *   Values are the step as the field takes it, a bonus positive. `condition` is
- *   the first status of the effect that carries changes. `waived` is empty off
- *   `system.ac.mod`.
+ *   the status the change belongs to, else the first status of the effect that
+ *   carries changes. `waived` is empty off `system.ac.mod`.
  */
 export function conditionSteps(actor, key) {
   const out = { steps: [], waived: [] };
   const ids = changeCarrying();
   if (!actor || !ids.size) return out;
   const decided = key === CONDITION_STEP_KEYS.ac ? acWaivedSet(subjectOf(actor)) : new Set();
-  for (const step of activeNumericChanges(actor, key)) {
+  for (const step of activeNumericChanges(actor, key, { admit: countsOnce })) {
     const statuses = [...(step.effect?.statuses ?? [])];
-    const condition = statuses.find((id) => ids.has(id));
+    const owner = statusOfChange(step.effect, key);
+    const condition = owner ?? statuses.find((id) => ids.has(id));
     if (!condition) continue;
-    if (decided.size && statuses.every((id) => decided.has(id))) out.waived.push({ condition, value: step.value });
+    const waived = owner ? decided.has(owner) : decided.size > 0 && statuses.every((id) => decided.has(id));
+    if (waived) out.waived.push({ condition, value: step.value, effect: step.effect });
     else out.steps.push({ ...step, condition });
   }
   return out;

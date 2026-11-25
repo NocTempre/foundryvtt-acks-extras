@@ -1,4 +1,4 @@
-# lib API (apiVersion 70)
+# lib API (apiVersion 71)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 70,
+  apiVersion: 71,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -67,6 +67,7 @@ acksExtras.lib = {
   // 51: attack.{MAGIC_ATTACK_TYPE, spellCarrier, isSpellCarrier, carrierOf, magicDamageSpec}, saves, loseStates, STATES_LOST_HOOK (below)
   // 54: TURN_BEGAN_HOOK, TURN_ENDED_HOOK, turnLife.{FLAG, EDGES, readTurnLife, turnLifeStep, turnEdges} (below, "Turn hooks and a record's turn life")
   // 70: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
+  // 71: rollMods.countsOnce (below, "A condition counted once")
 }
 ```
 
@@ -1014,22 +1015,45 @@ carry a status whose entry `implies` them (an effect of charging and disordered
 carries an implied disordered; another enabled effect carrying disordered
 without such a status makes it carried in its own right). The decision does not
 count an implied condition as carried in its own right. A condition a state
-implies will ride on that state's own effect, as Foundry's implicit statuses
-carry it (a later slice). A subject with no `acWaived` reads as before. The rule is in docs/lib/MODEL.md,
+implies rides on that state's own effect (apiVersion 71, "A condition counted
+once", below). A subject with no `acWaived` reads as before. The rule is in docs/lib/MODEL.md,
 "Conditions".
 
 **The steps the system's condition effects make.** `conditionSteps(actor, key)`
 (`roll-mods.mjs`, used inside lib and not a member of the api object) answers
 `{steps, waived}` for any actor type. `steps` is `activeNumericChanges(actor,
-key)` narrowed to the effects whose statuses include an id whose entry in
-`CONFIG.ACKS.conditions` carries `system.changes`, each step the effect's own
-with `condition` added (the first such status), valued as the field takes it, a
-bonus positive. On `CONDITION_STEP_KEYS.ac` a step whose effect's statuses all
-sit in `acWaivedSet` is returned in `waived`, `[{condition, value}]`, with the
-same sign as `steps`; the attack seam reverses both when it puts them on the
-attacker's throw. On any other key `waived` is empty. The reader looks at no
+key, {admit: countsOnce})` narrowed to the effects whose statuses include an id
+whose entry in `CONFIG.ACKS.conditions` carries `system.changes`, each step the
+effect's own with `condition` added (the status its change belongs to, below,
+else the first such status), valued as the field takes it, a bonus positive. On
+`CONDITION_STEP_KEYS.ac` a step whose own condition sits in `acWaivedSet`
+(for a change that belongs to no one status: every status of its effect) is
+returned in `waived`, `[{condition, value, effect}]`, with the same sign as
+`steps`; the attack seam reverses both when it puts them on the attacker's
+throw. On any other key `waived` is empty. The reader looks at no
 actor type: a caller that puts a step on a roll asks for a non-character, since
 a character's prepared field already holds it.
+
+**A condition counted once** (apiVersion 71). A status entry of the palette whose
+catalogue `implies` names a condition that carries `system.changes` in
+`CONFIG.ACKS.conditions`, and whose own closure does not forbid acting, is
+registered with `statuses` (the brought condition ids that carry changes), a
+static `_id` (`conditionEffectId(statusId)` of `status-effects.mjs`: 16 letters
+and digits, a pure function of the id) and `system.changes` (its own, then each
+brought entry's), so Foundry builds one effect carrying the state and the
+condition it brings. Which ids qualify is read at registration and is not
+listed in source. `rollMods.countsOnce(effect, change)` answers whether a
+change counts: it belongs to the status of its effect whose system entry
+carries its key (none, or more than one, and it counts), and it counts unless
+an earlier active effect of the actor, in `allApplicableEffects()` order,
+carries that status and a change on that key. It reads effects and never
+`actor.statuses`. `status-effects.mjs` installs it, at `init` with the palette,
+as a wrap of the Active Effect class's `shouldApplyChange` (the wrapped answer
+first, a refusal stands, a throw is logged and the wrapped answer returned),
+and `orderedChanges` and `activeNumericChanges` (`effect-scan.mjs`) take an
+optional `admit(effect, change)`, which `conditionSteps` fills with
+`countsOnce`: a step Foundry did not apply is a step no reader reports. The
+model is docs/lib/MODEL.md, "Conditions".
 
 `rollMath` returns `{total, parts, pending, unpriced, exempt}`. A positive
 total helps the roll. `pending` holds the rows bound to a circumstance the
@@ -1266,6 +1290,7 @@ acksExtras.lib.rollMods = {
     → {spell, conditions: {key: {label, spell, effect}}, pending},
   partHolds(actor, partOrRow, {item, token, occasion}) → true | false | null,
   ownSaveParts(saver, rows, {save, ctx}) → {parts, pending},
+  countsOnce(effect, change) → boolean,     // 71: whether a condition's change counts, or an earlier effect of the actor carries it
 }
 acksExtras.lib.loseStates(actor, cause) → Promise<string[]>   // cause: "damage" | "save" | "moved"
 acksExtras.lib.lossInFlight(actor) → {cause, ids} | null       // held while loseStates lifts, on that client
@@ -1278,8 +1303,10 @@ acksExtras.lib.endsOn = {FLAG: "endsOn", CAUSES, readEndsOn(flag) → string[], 
 **The attack card's Armor Class line** (apiVersion 70). The card of an attack
 whose target is a character holding condition effects that move its Armor Class
 carries `flags["acks-extras"][attack.TARGET_AC_FLAG]`, `{target, rows: [{name,
-value}]}`: the target's name, and each effect's own name with its signed step as
-it stood when the attack was rolled. Absent where there is none (a monster
+value}]}`: the target's name, and each effect's own name (with its condition's
+name where the two differ) with its signed step as it stood when the attack was
+rolled; a step the Armor Class waiver spares is a row too, since the system
+counted it (apiVersion 71). Absent where there is none (a monster
 target, no effect, a card that is not the system's attack card). The seam reads
 the rows through a reader slot, `setTargetAcReader(reader)` in
 `patches/attack-throw.mjs` (not on the api object), which

@@ -52,8 +52,20 @@ export function conditionValue(id, key) {
 /** The change rows of condition `id`, as core's entry carries them: `[{key, type: "add", value}]`. */
 export const conditionChanges = (id) => (CONDITION_KEYS[id] ?? []).map((key) => ({ key, type: "add", value: conditionValue(id, key) }));
 
-/** Ids core ships that carry no change, so the reader's filter has something to refuse. */
-export const PLAIN_CORE_IDS = Object.freeze(["restrained", "cowering", "mute"]);
+/**
+ * Ids core ships that carry no change, so the reader's filter has something to
+ * refuse. The last three are ids whose catalogue entry implies a condition that
+ * does carry changes.
+ */
+export const PLAIN_CORE_IDS = Object.freeze(["restrained", "cowering", "mute", "starving", "underfed", "slumbering"]);
+
+/** The states the mock list makes qualify as ones that bring a condition: each implies one of the eleven and may act. */
+export const IMPLYING_IDS = Object.freeze(["charging", "countercharging", "retreating", "starving", "underfed"]);
+
+/** The condition each id of `IMPLYING_IDS` brings. */
+export const BROUGHT = Object.freeze({
+  charging: "disordered", countercharging: "disordered", retreating: "disordered", starving: "hungry", underfed: "hungry",
+});
 
 /** The mock `CONFIG.ACKS.conditions`: the eleven with their changes, and a few ids with none. */
 export function coreConditions() {
@@ -76,10 +88,23 @@ export function effectOf(id, { statuses = [id], changes = conditionChanges(id), 
 let made = 0;
 
 /**
+ * The effect Foundry builds for a state that brings a condition: its own status
+ * and the brought one, and its own changes followed by the brought condition's
+ * (a state with no change of its own contributes none). Pass `extra` for the
+ * name, the flags or `disabled`.
+ */
+export function implyingEffect(id, extra = {}) {
+  const brought = BROUGHT[id];
+  return effectOf(id, { statuses: [id, brought], changes: [...(CONDITION_KEYS[id] ? conditionChanges(id) : []), ...conditionChanges(brought)], ...extra });
+}
+
+/**
  * A mock actor holding `effects`. A character is shown as a prepared one is:
  * core folded every enabled effect's `ac.mod` into `system.ac.value` and its
  * `save.mod` into `system.save.mod`, from the stored `ac` and `saveMod`. A
  * monster is shown as core leaves it: the stored figures, no step folded in.
+ * Each effect is given its actor (`effect.actor`, which a live document has),
+ * and the actor answers `allApplicableEffects` as Foundry's does.
  */
 export function actorOf(type, effects, { ac = 100, saveMod = 0, extra = {} } = {}) {
   const sum = (key) => effects
@@ -89,13 +114,14 @@ export function actorOf(type, effects, { ac = 100, saveMod = 0, extra = {} } = {
     .reduce((total, c) => total + Number(c.value), 0);
   const folded = type === "character";
   const statuses = new Set(effects.filter((e) => !e.disabled).flatMap((e) => [...e.statuses]));
-  return {
+  const actor = {
     type,
     name: `${type}.mock`,
     uuid: `Actor.${type}.mock`,
     statuses,
     effects,
     appliedEffects: effects,
+    *allApplicableEffects() { yield* effects; },
     items: [],
     system: {
       ac: { value: ac + (folded ? sum("system.ac.mod") : 0), mod: folded ? sum("system.ac.mod") : 0 },
@@ -105,4 +131,6 @@ export function actorOf(type, effects, { ac = 100, saveMod = 0, extra = {} } = {
     },
     ...extra,
   };
+  for (const effect of effects) Object.defineProperty(effect, "actor", { value: actor, enumerable: false, configurable: true, writable: true });
+  return actor;
 }

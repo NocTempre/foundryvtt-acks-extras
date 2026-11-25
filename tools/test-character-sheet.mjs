@@ -518,6 +518,15 @@ test("a condition joins every save it reaches, and one that reaches a single sav
     const step = conditionValue("hungry", "system.save.mod");
     const hungry = { ...withEffects({ statuses: new Set(["hungry"]), changes: conditionChanges("hungry") }), uuid: "Actor.hungry", statuses: new Set(["hungry"]) };
     assert.deepEqual(saveModifiers(hungry), { paralysis: step, death: step, blast: step, implements: step, spell: step });
+    // A condition two effects carry reaches each cell once, as Foundry applies its change to the field once.
+    const prior = globalThis.CONFIG;
+    globalThis.CONFIG = { ...(prior ?? {}), ACKS: { ...(prior?.ACKS ?? {}), conditions: conditionFixture.coreConditions() } };
+    try {
+      const twice = conditionFixture.actorOf("character", [conditionFixture.implyingEffect("starving"), conditionFixture.effectOf("hungry")]);
+      assert.deepEqual(saveModifiers(twice), { paralysis: step, death: step, blast: step, implements: step, spell: step });
+    } finally {
+      globalThis.CONFIG = prior;
+    }
   } finally {
     unregisterTable("conditions", { priority: PRIORITY.WORLD });
   }

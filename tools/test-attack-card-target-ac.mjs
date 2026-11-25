@@ -104,7 +104,7 @@ let speaker = null;
 globalThis.game = {
   system: { id: "acks" },
   user: { targets: [] },
-  i18n: { format, localize: (k) => k, has: () => false, translations: {} },
+  i18n: { format, localize: (k) => LANG[k] ?? k, has: () => false, translations: {} },
 };
 globalThis.libWrapper = { register: (_id, path, fn) => { registered[path] = fn; } };
 globalThis.Hooks = { callAll: noop, on: (name, fn) => (hooks[name] ??= []).push(fn) };
@@ -122,7 +122,7 @@ class FakeItem {
   }
 }
 
-const { CONDITION_KEYS, actorOf, conditionValue, coreConditions, effectOf } = await import("./core-conditions-fixture.mjs");
+const { CONDITION_KEYS, actorOf, conditionValue, coreConditions, effectOf, implyingEffect } = await import("./core-conditions-fixture.mjs");
 globalThis.CONFIG = {
   ACKS: { conditions: coreConditions() },
   Actor: {
@@ -147,17 +147,35 @@ const waiverRow = (...conditions) => ({ type: "ability", flags: { "acks-extras":
 const character = (effects, name = "Target Person", extra = {}) => actorOf("character", effects, { extra: { name, ...extra } });
 const monster = (effects) => actorOf("monster", effects);
 const step = (id) => conditionValue(id, AC);
+/** A condition's name as the card says it. */
+const cond = (id) => LANG[`ACKS-LIB.condition.${id}`];
+/** A row's name where the effect's own name differs from its condition's. */
+const named = (effect, id) => format("ACKS-LIB.conditionRoll.targetAc.named", { effect, condition: cond(id) });
 
 /* --- The rows --------------------------------------------------------------------- */
 
-await ok("a character target's rows are its condition effects' own names with the step each makes", () => {
+await ok("a character target's rows are its condition effects' names, with the condition's where the two differ, and the step each makes", () => {
   const target = character([effectOf("disordered", { name: "Fx One" }), effectOf("shaken", { name: "Fx Two" })]);
-  assert.deepEqual(targetAcRows(target), [{ name: "Fx One", value: step("disordered") }, { name: "Fx Two", value: step("shaken") }]);
+  assert.deepEqual(targetAcRows(target), [{ name: named("Fx One", "disordered"), value: step("disordered") }, { name: named("Fx Two", "shaken"), value: step("shaken") }]);
+  assert.ok(named("Fx One", "disordered").startsWith("Fx One (") && named("Fx One", "disordered").includes(cond("disordered")));
+  // An effect named as its condition is named once.
+  assert.deepEqual(targetAcRows(character([effectOf("disordered", { name: cond("disordered") })])), [{ name: cond("disordered"), value: step("disordered") }]);
 });
 
 await ok("a step as it stands in the effect keeps its sign, and an effect with no name is named by its condition", () => {
   const target = character([effectOf("disordered", { name: "", changes: [{ key: AC, type: "add", value: -9 }] })]);
-  assert.deepEqual(targetAcRows(target), [{ name: "disordered", value: -9 }]);
+  assert.deepEqual(targetAcRows(target), [{ name: cond("disordered"), value: -9 }]);
+});
+
+await ok("a state that brings a condition has one row named for both, and the condition set twice has one row", () => {
+  const charge = implyingEffect("charging", { name: cond("charging") });
+  assert.deepEqual(targetAcRows(character([charge])), [{ name: named(cond("charging"), "disordered"), value: step("disordered") }]);
+  for (const order of [[charge, effectOf("disordered", { name: "Hand" })], [effectOf("disordered", { name: "Hand" }), charge]]) {
+    const rows = targetAcRows(character(order));
+    assert.equal(rows.length, 1, "counted once, as core's own preparation counts it");
+    assert.equal(rows[0].value, step("disordered"));
+    assert.ok(rows[0].name.startsWith(order[0].name));
+  }
 });
 
 await ok("a monster, a null actor and an actor of another type have no rows: a monster's steps are terms on the throw", () => {
@@ -170,14 +188,23 @@ await ok("an effect that moves Armor Class but carries no condition status has n
   const hand = effectOf("disordered", { statuses: [], name: "Hand Effect" });
   const plain = effectOf("restrained", { name: "Plain Core", changes: [{ key: AC, type: "add", value: 5 }] });
   assert.deepEqual(targetAcRows(character([hand, plain])), []);
-  assert.deepEqual(targetAcRows(character([hand, effectOf("shaken", { name: "Real" })])).map((r) => r.name), ["Real"]);
+  assert.deepEqual(targetAcRows(character([hand, effectOf("shaken", { name: "Real" })])).map((r) => r.name), [named("Real", "shaken")]);
 });
 
-await ok("a step the Armor Class waiver spares is not listed, and a disabled effect makes none", () => {
+await ok("a step the Armor Class waiver spares is still listed, since the system's effect folded it into the Armor Class shown; a disabled effect makes none", () => {
   assert.ok(CONDITION_KEYS.disordered.includes(AC) && CONDITION_KEYS.shaken.includes(AC));
   const waived = character([effectOf("disordered", { name: "Spared" }), effectOf("shaken", { name: "Kept" })], "Target Person", { items: [waiverRow("disordered")] });
-  assert.deepEqual(targetAcRows(waived), [{ name: "Kept", value: step("shaken") }]);
+  assert.deepEqual(targetAcRows(waived), [
+    { name: named("Kept", "shaken"), value: step("shaken") },
+    { name: named("Spared", "disordered"), value: step("disordered") },
+  ]);
   assert.deepEqual(targetAcRows(character([effectOf("disordered", { disabled: true })])), []);
+});
+
+await ok("a waived charge's disorder is listed once, on the charging effect", () => {
+  const charge = implyingEffect("charging", { name: cond("charging") });
+  const waived = character([charge], "Target Person", { items: [waiverRow("charging")] });
+  assert.deepEqual(targetAcRows(waived), [{ name: named(cond("charging"), "disordered"), value: step("disordered") }]);
 });
 
 /* --- The line --------------------------------------------------------------------- */
@@ -247,7 +274,7 @@ await ok("installing the line sets the reader and hooks the render once, however
 await ok("a card made inside an attack on a character target is stamped with the target's name and the rows read at the roll", async () => {
   const message = messageOf(ATTACK_CARD);
   await attack(attacker, [targetWith(target)], () => preCreate(message));
-  assert.deepEqual(merged(message)[FLAG_PATH], { target: "Ghoul Token", rows: [{ name: "Fx One", value: step("disordered") }, { name: "Fx Two", value: step("shaken") }] });
+  assert.deepEqual(merged(message)[FLAG_PATH], { target: "Ghoul Token", rows: [{ name: named("Fx One", "disordered"), value: step("disordered") }, { name: named("Fx Two", "shaken"), value: step("shaken") }] });
 });
 
 await ok("a card with an Apply keeps the Apply's own stamp and loses the button, and a miss card with none is still stamped", async () => {

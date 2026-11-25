@@ -41,6 +41,8 @@ const gap = (label, why) => console.log(`GAP  ${label}  ${why}`);
 const CARRYING = ["berserk", "blessed", "blinded", "charging", "disordered", "hungry", "infuriated", "inspired", "prone", "queasy", "shaken"];
 /** The condition the kept waiver ability names; it has an Armor Class change. */
 const WAIVED = "disordered";
+/** The states that bring a condition, and the condition each brings: ids only, as the palette is to register them. */
+const BRINGS = { charging: ["disordered"], countercharging: ["disordered"], retreating: ["disordered"], starving: ["hungry"], underfed: ["hungry"] };
 
 const weapon = (name) => ({ name, type: "weapon", system: { melee: true, missile: false, damage: { base: { formula: "1d6" } } } });
 const waiver = () => ({
@@ -70,14 +72,40 @@ const P = {
   install: async ({ sceneId }) => {
     const H = (globalThis.__lc = globalThis.__lc ?? {});
     H.RM = await import("/modules/acks-extras/scripts/lib/roll-mods.mjs");
+    H.SE = await import("/modules/acks-extras/scripts/lib/status-effects.mjs");
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.signed = (c) => (c.type === "subtract" ? -1 : 1) * Number(c.value);
     H.core = (id) => (CONFIG.ACKS?.conditions ?? []).find((c) => c.id === id) ?? null;
-    /** A condition's changes summed by key, read from the system's own entry. */
-    H.byKey = (id) => {
+    H.entry = (id) => CONFIG.statusEffects.find((s) => s.id === id) ?? null;
+    H.plain = (list) => Array.from(list ?? []).map((c) => ({ key: c.key, type: c.type, value: Number(c.value) }));
+    /** A status with the conditions its palette entry brings. */
+    H.family = (id) => [id, ...(H.entry(id)?.statuses ?? [])];
+    /** What the palette should register for an id: the system's changes for it, then those of each condition it brings. */
+    H.expected = (id) => H.family(id).flatMap((x) => H.plain(H.core(x)?.system?.changes));
+    const summed = (changes) => {
       const out = {};
-      for (const c of H.core(id)?.system?.changes ?? []) out[c.key] = (out[c.key] ?? 0) + H.signed(c);
+      for (const c of changes ?? []) out[c.key] = (out[c.key] ?? 0) + H.signed(c);
       return out;
+    };
+    /** The changes an effect made for `id` carries, summed by key, read from the palette's entry. */
+    H.byKey = (id) => summed(H.entry(id)?.system?.changes);
+    /** One condition's own changes summed by key, read from the system's entry. */
+    H.ownByKey = (id) => summed(H.core(id)?.system?.changes);
+    /** The steps a set of statuses makes when each condition in it counts once. */
+    H.onceByKey = (ids) => {
+      const out = {};
+      for (const x of new Set(ids.flatMap((id) => H.family(id)))) for (const [k, v] of Object.entries(H.ownByKey(x))) out[k] = (out[k] ?? 0) + v;
+      return out;
+    };
+    /** Which of `ids` the token HUD draws lit for a token. */
+    H.lit = async (object, ids) => {
+      const hud = canvas.tokens.hud;
+      hud.bind(object);
+      await H.sleep(300);
+      const context = await hud._prepareContext({});
+      const tiles = Object.values(context.statusEffects ?? {});
+      await hud.close?.();
+      return Object.fromEntries(ids.map((id) => [id, !!tiles.find((t) => t.id === id)?.isActive]));
     };
     if (!H.chatHook) {
       H.posted = [];
@@ -126,29 +154,36 @@ const P = {
   /** What the palette registered for the system's conditions. */
   census: async () => {
     const H = globalThis.__lc;
-    const entry = (id) => CONFIG.statusEffects.find((s) => s.id === id) ?? null;
+    const entry = H.entry;
     const carrying = (CONFIG.ACKS?.conditions ?? []).filter((c) => (c.system?.changes ?? []).length);
-    const plain = (CONFIG.ACKS?.conditions ?? []).filter((c) => !(c.system?.changes ?? []).length);
+    const same = (id) => JSON.stringify(H.plain(entry(id)?.system?.changes)) === JSON.stringify(H.expected(id));
     return {
       carrying: carrying.map((c) => c.id),
       registered: carrying.map((c) => {
         const e = entry(c.id);
         return {
           id: c.id, present: !!e,
-          sameChanges: JSON.stringify(e?.system?.changes ?? null) === JSON.stringify(c.system.changes),
+          sameChanges: same(c.id),
           moduleName: !!e && e.name !== c.name && game.i18n.has(String(e.name)),
-          keys: c.system.changes.map((x) => x.key),
+          ownKeys: c.system.changes.map((x) => x.key),
         };
       }),
-      plainWithChanges: plain.filter((c) => (entry(c.id)?.system?.changes ?? []).length).map((c) => c.id),
+      // Every entry of the palette, the system's or not: its changes are the system's for it and for what it brings, and no other.
+      stray: CONFIG.statusEffects.filter((e) => !same(e.id)).map((e) => e.id),
+      implying: CONFIG.statusEffects.filter((e) => (e.statuses ?? []).length).map((e) => ({
+        id: e.id, brings: [...e.statuses], effectId: String(e._id ?? ""),
+        idOk: /^[A-Za-z0-9]{16}$/.test(String(e._id ?? "")),
+        bringsCarry: [...e.statuses].every((x) => (H.core(x)?.system?.changes ?? []).length > 0),
+      })),
       readied: !!entry("readied") && entry("readied").hud !== false,
       delayed: !!entry("delayed") && entry("delayed").hud !== false,
       keysRead: H.RM.CONDITION_STEP_KEYS,
+      libWrapper: !!globalThis.libWrapper?.register,
       playersSeeTargetAc: !!game.settings.get("acks", "showTargetACToPlayers"),
     };
   },
   /** Bring a fixture token to the shape every step starts from: none of the conditions, no target. */
-  shape: async ({ tokens, ids, waiverItem, waived }) => {
+  shape: async ({ tokens, ids, waiverItems, waived }) => {
     const lifted = [];
     for (const uuid of tokens) {
       const actor = (await fromUuid(uuid)).actor;
@@ -160,8 +195,8 @@ const P = {
         }
       }
     }
-    if (waiverItem) {
-      const item = await fromUuid(waiverItem);
+    for (const uuid of waiverItems ?? []) {
+      const item = await fromUuid(uuid);
       await item.update({ "flags.acks-extras.extras.effects": [{ type: "modifier", target: "acWaiver", conditions: [waived] }] });
     }
     canvas.tokens.setTargets([]);
@@ -182,7 +217,9 @@ const P = {
     const hitStep = want["system.attack.mod.melee"] ?? 0;
     const read = () => ({ fields: Object.fromEntries(keys.map((k) => [k, Number(foundry.utils.getProperty(actor, k))])), ac: Number(actor.system.ac.value) });
     const sum = (list) => list.reduce((t, x) => t + x.value, 0);
-    const reader = (key) => H.RM.conditionSteps(actor, key).steps.filter((s) => s.condition === id).map((s) => ({ value: s.value }));
+    // A step is the effect's own condition's or one the effect brings: the reader names the condition it belongs to.
+    const family = H.family(id);
+    const reader = (key) => H.RM.conditionSteps(actor, key).steps.filter((s) => family.includes(s.condition)).map((s) => ({ value: s.value }));
 
     const before = read();
     const save0 = await H.save(actor);
@@ -194,7 +231,7 @@ const P = {
     const effects = actor.effects.filter((e) => e.statuses.has(id));
     const eff = effects[0] ?? null;
     const carried = (eff?.system?.changes ?? eff?.changes ?? []).map((c) => ({ key: c.key, type: c.type, value: Number(c.value) }));
-    const shipped = (H.core(id)?.system?.changes ?? []).map((c) => ({ key: c.key, type: c.type, value: Number(c.value) }));
+    const shipped = H.expected(id);
     const during = read();
     const acRead = reader(acKey);
     const saveRead = reader(saveKey);
@@ -208,9 +245,10 @@ const P = {
     canvas.tokens.setTargets([]);
 
     const named = hit1.modifiers.filter((m) => m.label === eff?.name);
-    const ownTerms = hit1.terms.filter((t) => t.condition === id);
-    const against = def1.terms.filter((t) => t.condition === id && t.side === "target");
-    const others = sum(def1.terms.filter((t) => !(t.condition === id && t.side === "target")));
+    const ownTerms = hit1.terms.filter((t) => family.includes(t.condition));
+    const mine = (t) => family.includes(t.condition) && t.side === "target";
+    const against = def1.terms.filter(mine);
+    const others = sum(def1.terms.filter((t) => !mine(t)));
     const hitOthers = sum(hit1.terms);
     return {
       id, type: actor.type, keys,
@@ -288,6 +326,156 @@ const P = {
       readerNone: keys.every((k) => H.RM.conditionSteps(actor, k).steps.length === 0),
     };
     return out;
+  },
+  /**
+   * A state that brings a condition, on one bearer: the one effect and its tile,
+   * then each condition's steps counted once while a neighbour (the brought
+   * condition set by hand, or a second state that brings it) stands beside it,
+   * in both orders of creation.
+   */
+  brought: async ({ id, bearer, foe, beside }) => {
+    const H = globalThis.__lc;
+    const tok = await fromUuid(bearer);
+    const foeTok = await fromUuid(foe);
+    const actor = tok.actor;
+    const entry = H.entry(id);
+    const brings = [...(entry?.statuses ?? [])];
+    const acKey = H.RM.CONDITION_STEP_KEYS.ac;
+    const saveKey = H.RM.CONDITION_STEP_KEYS.save;
+    const keys = [...new Set([id, ...beside].flatMap((x) => Object.keys(H.onceByKey([x]))))];
+    const fields = () => Object.fromEntries(keys.map((k) => [k, Number(foundry.utils.getProperty(actor, k))]));
+    const sum = (list) => list.reduce((t, x) => t + x.value, 0);
+    const icons = () => (tok.object?.effects?.children ?? []).filter((c) => c !== tok.object.effects.bg && c !== tok.object.effects.overlay).length;
+    const set = async (status, active) => { await actor.toggleStatusEffect(status, { active }); await H.sleep(350); };
+
+    const hitKey = "system.attack.mod.melee";
+    const before = fields();
+    const icons0 = icons();
+    const def0 = await H.attack(foeTok, tok);
+    const hit0 = await H.attack(tok, foeTok);
+    const save0 = await H.save(actor);
+    const stages = [];
+    /** Read one stage: `on` is every status this walk holds on the bearer now. */
+    const stage = async (name, on) => {
+      const want = H.onceByKey(on);
+      const present = [...new Set(on.flatMap((x) => H.family(x)))];
+      const now = fields();
+      const row = { name, fieldsOnce: keys.every((k) => now[k] - before[k] === (want[k] ?? 0)) };
+      for (const [label, key] of [["Ac", acKey], ["Save", saveKey]]) {
+        const read = H.RM.conditionSteps(actor, key).steps.filter((s) => present.includes(s.condition));
+        row[`reader${label}`] = sum(read) === (want[key] ?? 0) && read.length === present.filter((x) => H.ownByKey(x)[key]).length;
+      }
+      if (want[acKey]) {
+        const def = await H.attack(foeTok, tok);
+        const mine = (t) => present.includes(t.condition) && t.side === "target";
+        row.againstOnce = (def.total - def0.total) - (def.targetValue - def0.targetValue) - sum(def.terms.filter((t) => !mine(t))) === -want[acKey];
+        row.againstTerms = def.terms.filter(mine).length;
+      }
+      if (want[saveKey]) {
+        const save = await H.save(actor);
+        row.saveOnce = (save.total - save0.total) - (save.target - save0.target) === want[saveKey];
+      }
+      if (want[hitKey]) {
+        const hit = await H.attack(tok, foeTok);
+        row.hitOnce = (hit.total - hit0.total) - (hit.targetValue - hit0.targetValue) - sum(hit.terms) === want[hitKey];
+      }
+      stages.push(row);
+    };
+
+    await set(id, true);
+    const effects = actor.effects.filter((e) => e.statuses.has(id));
+    const eff = effects[0] ?? null;
+    const made = {
+      one: effects.length === 1,
+      underId: !!eff && eff.id === entry?._id,
+      statuses: !!eff && eff.statuses.size === 1 + brings.length && [id, ...brings].every((x) => eff.statuses.has(x)),
+      carries: JSON.stringify(H.plain(eff?.system?.changes ?? eff?.changes)) === JSON.stringify(H.expected(id)),
+      has: [id, ...brings].every((x) => actor.statuses.has(x)),
+      iconsAdded: icons() - icons0,
+      lit: tok.object ? await H.lit(tok.object, [id, ...brings]) : null,
+    };
+    await stage("alone", [id]);
+    for (const other of beside) {
+      await set(other, true);
+      await stage(`${other} set after`, [id, other]);
+      await set(id, false);
+      await stage(`${other} alone`, [other]);
+      await set(id, true);
+      await stage(`${other} set before`, [id, other]);
+      await set(other, false);
+      await stage(`alone again, after ${other}`, [id]);
+    }
+    // The tracker's lift: the state's effect goes with what it brings, one that holds the state alone under another id goes too, and a hand-set copy of the brought condition stays.
+    const [old] = await actor.createEmbeddedDocuments("ActiveEffect", [{ name: "Core Condition Older Shape", statuses: [id] }]);
+    await set(brings[0], true);
+    const copies = () => actor.effects.filter((e) => e.statuses.size === 1 && e.statuses.has(brings[0])).length;
+    const held = copies();
+    await H.SE.lift(actor, [id]);
+    await H.sleep(350);
+    const lifted = {
+      stateGone: !actor.effects.some((e) => e.statuses.has(id)),
+      olderGone: !actor.effects.has(old.id),
+      copyStays: held === 1 && copies() === 1 && actor.statuses.has(brings[0]),
+    };
+    await set(brings[0], false);
+    if (actor.effects.has(old.id)) await old.delete();
+    canvas.tokens.setTargets([]);
+    return {
+      id, type: actor.type, brings, made, stages, lifted,
+      metAc: stages.some((s) => "againstOnce" in s), metSave: stages.some((s) => "saveOnce" in s), metHit: stages.some((s) => "hitOnce" in s),
+      back: JSON.stringify(fields()) === JSON.stringify(before) && [id, ...brings, ...beside].every((x) => !actor.statuses.has(x)) && icons() === icons0,
+    };
+  },
+  /** A character whose ability waives a condition's Armor Class figure, under a state that brings that condition. */
+  waivedPc: async ({ id, bearer, foe, waived }) => {
+    const H = globalThis.__lc;
+    const tok = await fromUuid(bearer);
+    const foeTok = await fromUuid(foe);
+    const actor = tok.actor;
+    const acKey = H.RM.CONDITION_STEP_KEYS.ac;
+    const step = H.ownByKey(waived)[acKey] ?? 0;
+    const family = H.family(id);
+    const before = Number(actor.system.ac.value);
+    await actor.toggleStatusEffect(id, { active: true });
+    await H.sleep(350);
+    const eff = actor.effects.find((e) => e.statuses.has(id)) ?? null;
+    const during = Number(actor.system.ac.value);
+    const read = H.RM.conditionSteps(actor, acKey);
+    const r = await H.attack(foeTok, tok);
+    await H.sleep(400);
+    await actor.toggleStatusEffect(id, { active: false });
+    await H.sleep(350);
+    canvas.tokens.setTargets([]);
+    return {
+      card: r.card, name: eff?.name ?? null, hasStep: step !== 0,
+      acMoved: during !== before && Math.abs(during - before) === Math.abs(step),
+      readerWaived: read.steps.filter((s) => family.includes(s.condition)).length === 0 && read.waived.length === 1 && read.waived[0].condition === waived && read.waived[0].value === step,
+      noTerm: r.terms.filter((t) => family.includes(t.condition) && t.side === "target").length === 0,
+      back: Number(actor.system.ac.value) === before,
+    };
+  },
+  /** Hold or lift a state and the condition it brings, set by hand beside it, and read the field both carry. */
+  doubled: async ({ id, bearer, on }) => {
+    const H = globalThis.__lc;
+    const actor = (await fromUuid(bearer)).actor;
+    const acKey = H.RM.CONDITION_STEP_KEYS.ac;
+    const brought = H.family(id).find((x) => x !== id && H.ownByKey(x)[acKey]) ?? null;
+    for (const status of on ? [id, brought] : [brought, id]) {
+      if (status) { await actor.toggleStatusEffect(status, { active: on }); await H.sleep(350); }
+    }
+    return {
+      brought, step: brought ? H.ownByKey(brought)[acKey] : 0,
+      carriers: actor.effects.filter((e) => brought && e.statuses.has(brought)).length,
+      mod: Number(foundry.utils.getProperty(actor, acKey)), value: Number(actor.system.ac.value),
+    };
+  },
+  /** What a seat that has just loaded holds for a bearer's Armor Class, read without the walk's helpers. */
+  loaded: async ({ bearer, key }) => {
+    const actor = (await fromUuid(bearer)).actor;
+    return {
+      mod: Number(foundry.utils.getProperty(actor, key)), value: Number(actor.system.ac.value),
+      effects: actor.effects.size, boot: globalThis.__lcBoot ?? null,
+    };
   },
   /** The bearer's condition on, a foe's attack on it, and the card that attack posted. */
   cardAttack: async ({ bearer, foe, id }) => {
@@ -412,6 +600,9 @@ try {
   const monTok = await gm.fixture("lib/core-cond-monster-token", "Token", { name: "Core Condition Monster", actorId: mon.id, actorLink: false, x: 300, y: 300 }, { parent: scene.uuid });
   const pcTok = await gm.fixture("lib/core-cond-pc-token", "Token", { name: "Core Condition PC", actorId: pc.id, actorLink: true, x: 500, y: 300 }, { parent: scene.uuid });
   const sparedTok = await gm.fixture("lib/core-cond-waiver-token", "Token", { name: "Core Condition Waiver Monster", actorId: spared.id, actorLink: false, x: 700, y: 300 }, { parent: scene.uuid });
+  const sparedPc = await gm.fixture("lib/core-cond-waiver-pc", "Actor", { name: "Core Condition Waiver PC", type: "character" });
+  const waiverPcItem = await gm.fixture("lib/conditions-waiver-pc", "Item", waiver(), { parent: sparedPc.uuid });
+  const sparedPcTok = await gm.fixture("lib/core-cond-waiver-pc-token", "Token", { name: "Core Condition Waiver PC", actorId: sparedPc.id, actorLink: true, x: 900, y: 300 }, { parent: scene.uuid });
 
   const g = await run(gm, P.install, { sceneId: scene.id });
   const p = await run(player, P.install, { sceneId: scene.id });
@@ -419,14 +610,18 @@ try {
   check("the GM seat is the active GM, and the player seat is a player", g.isGM && g.activeGMIsSelf && !p.isGM, { gm: g.role, player: p.role });
   if (!g.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   for (const [key, c] of Object.entries({ gm: g, player: p })) check(`${key} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
-  note("shape: lifted", await run(gm, P.shape, { tokens: [pcTok.uuid, monTok.uuid, sparedTok.uuid], ids: CARRYING, waiverItem: waiverItem.uuid, waived: WAIVED }));
+  note("shape: lifted", await run(gm, P.shape, { tokens: [pcTok.uuid, monTok.uuid, sparedTok.uuid, sparedPcTok.uuid], ids: [...new Set([...CARRYING, ...Object.keys(BRINGS)])], waiverItems: [waiverItem.uuid, waiverPcItem.uuid], waived: WAIVED }));
 
   section("1. the palette registers the system's entries");
   const census = await run(gm, P.census);
-  note("census", { carrying: census.carrying, keys: Object.fromEntries(census.registered.map((r) => [r.id, r.keys])), playersSeeTargetAc: census.playersSeeTargetAc });
+  note("census", { carrying: census.carrying, keys: Object.fromEntries(census.registered.map((r) => [r.id, r.ownKeys])), implying: census.implying, playersSeeTargetAc: census.playersSeeTargetAc, libWrapper: census.libWrapper });
   check("1: the system ships changes for the conditions this walk names, and no other", JSON.stringify([...census.carrying].sort()) === JSON.stringify([...CARRYING].sort()), census.carrying);
   check("1: each one's entry in CONFIG.statusEffects carries the system's changes, under the module's name", census.registered.every((r) => r.present && r.sameChanges && r.moduleName), census.registered.filter((r) => !(r.present && r.sameChanges && r.moduleName)).map((r) => r.id));
-  check("1: no entry carries a change the system does not ship for it, and Readied and Delayed are on the palette", census.plainWithChanges.length === 0 && census.readied && census.delayed, { extra: census.plainWithChanges, readied: census.readied, delayed: census.delayed });
+  check("1: no entry carries a change the system does not ship for it or for a condition it brings, and Readied and Delayed are on the palette", census.stray.length === 0 && census.readied && census.delayed, { stray: census.stray, readied: census.readied, delayed: census.delayed });
+  const brings = Object.fromEntries(census.implying.map((e) => [e.id, e.brings]));
+  const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
+  check("1: the states that bring a condition name it on their entry, and no other entry names one", sorted(brings) === sorted(BRINGS), brings);
+  check("1: each such entry has a fixed id of sixteen letters and digits, its own, and brings only conditions that carry changes", census.implying.every((e) => e.idOk && e.bringsCarry) && new Set(census.implying.map((e) => e.effectId)).size === census.implying.length, census.implying.filter((e) => !e.idOk || !e.bringsCarry).map((e) => e.id));
 
   const failing = (rows, key) => rows.filter((r) => !r[key]).map((r) => r.id);
   for (const [n, kind, bearer, foe] of [[2, "a character", pcTok, monTok], [3, "an unlinked monster token", monTok, pcTok]]) {
@@ -458,7 +653,7 @@ try {
   }
 
   section("4. a waived Armor Class figure on a monster");
-  const other = census.registered.find((r) => r.id !== WAIVED && r.keys.includes(census.keysRead.ac))?.id ?? null;
+  const other = census.registered.find((r) => r.id !== WAIVED && r.ownKeys.includes(census.keysRead.ac))?.id ?? null;
   note("conditions", { waived: WAIVED, other });
   if (!other) check("4: the system ships a second condition with an Armor Class change", false);
   else {
@@ -471,7 +666,7 @@ try {
   }
 
   section("5. an effect that names a condition and carries no change");
-  const bareId = census.registered.find((r) => r.keys.includes(census.keysRead.ac))?.id ?? census.carrying[0];
+  const bareId = census.registered.find((r) => r.ownKeys.includes(census.keysRead.ac))?.id ?? census.carrying[0];
   const bare = await run(gm, P.bare, { bearer: pcTok.uuid, id: bareId });
   swept.push(gm.track(bare.uuid));
   check("5: the actor has the condition, no field moves, and the reader answers no step", bare.carried && bare.fieldsUnmoved && bare.readerNone, { id: bareId, carried: bare.carried, unmoved: bare.fieldsUnmoved, reader: bare.readerNone });
@@ -502,6 +697,60 @@ try {
   } else {
     note("player reads (the world hides target Armor Class from players)", seen.first);
     check("6: the Player seat reads the name alone: no step on the line or in its tooltip, and no shown line", seen.first.hidden.length === 1 && seen.first.hidden[0].named && !seen.first.hidden[0].digits && !seen.first.hidden[0].tipDigits && !seen.first.hidden[0].title && seen.first.shown.length === 0 && seen.sameTwice, seen.first);
+  }
+
+  const firstOf = {};
+  for (const [n, kind, bearer, foe] of [[7, "a character", pcTok, monTok], [8, "an unlinked monster token", monTok, pcTok]]) {
+    section(`${n}. a state that brings a condition, on ${kind}`);
+    const rows = [];
+    for (const e of census.implying) {
+      // Each state beside the condition it brings set by hand; the first state of each condition also beside a second state that brings it.
+      const sibling = census.implying.find((x) => x.id !== e.id && x.brings.some((b) => e.brings.includes(b)))?.id ?? null;
+      const first = (firstOf[`${n}:${e.brings[0]}`] ??= e.id) === e.id;
+      rows.push(await run(gm, P.brought, { id: e.id, bearer: bearer.uuid, foe: foe.uuid, beside: [...e.brings, ...(first && sibling ? [sibling] : [])] }));
+    }
+    const bad = (key) => rows.filter((r) => !r.made[key]).map((r) => r.id);
+    const stagesBad = (key) => rows.flatMap((r) => r.stages.filter((s) => key in s && !s[key]).map((s) => `${r.id}: ${s.name}`));
+    const drawn = (r) => r.made.iconsAdded === 1 && !!r.made.lit && r.made.lit[r.id] === true && r.brings.every((b) => r.made.lit[b] === false);
+    note("read", rows.map((r) => ({ id: r.id, type: r.type, made: r.made, stages: r.stages.length })));
+    check(`${n}: the walk met every such state, one with an Armor Class step and one with a save step`, rows.length === Object.keys(BRINGS).length && rows.some((r) => r.metAc) && rows.some((r) => r.metSave), { rows: rows.length });
+    check(`${n}: one toggle makes one effect, under the entry's fixed id, holding the state and the condition it brings`, rows.every((r) => r.made.one && r.made.underId && r.made.statuses && r.made.has), { one: bad("one"), underId: bad("underId"), statuses: bad("statuses"), has: bad("has") });
+    check(`${n}: that effect carries the state's changes followed by the brought condition's`, rows.every((r) => r.made.carries), bad("carries"));
+    check(`${n}: the token draws one icon for it, and the HUD lights the state's tile and not the brought condition's`, rows.every(drawn), rows.filter((r) => !drawn(r)).map((r) => ({ id: r.id, icons: r.made.iconsAdded, lit: r.made.lit })));
+    check(`${n}: every field moves by each condition's change once, alone and beside a hand-set copy or a second state, in either order`, stagesBad("fieldsOnce").length === 0, stagesBad("fieldsOnce"));
+    check(`${n}: the step reader answers each condition's Armor Class and save step once at every stage`, stagesBad("readerAc").length + stagesBad("readerSave").length === 0, [...stagesBad("readerAc"), ...stagesBad("readerSave")]);
+    check(`${n}: a throw against the bearer counts the Armor Class step once at every stage`, stagesBad("againstOnce").length === 0, stagesBad("againstOnce"));
+    check(`${n}: a save counts the save step once at every stage`, stagesBad("saveOnce").length === 0, stagesBad("saveOnce"));
+    check(`${n}: the bearer's own throw counts each attack step once at every stage, and the walk met one`, stagesBad("hitOnce").length === 0 && rows.some((r) => r.metHit), stagesBad("hitOnce"));
+    check(`${n}: the tracker's lift ends the state's effect and one holding the state alone under another id, and leaves a hand-set copy of the brought condition`, rows.every((r) => r.lifted.stateGone && r.lifted.olderGone && r.lifted.copyStays), rows.filter((r) => !(r.lifted.stateGone && r.lifted.olderGone && r.lifted.copyStays)).map((r) => ({ id: r.id, ...r.lifted })));
+    check(`${n}: lifting the state puts every field, status and icon back`, rows.every((r) => r.back), rows.filter((r) => !r.back).map((r) => r.id));
+  }
+
+  section("9. a character whose ability waives the brought condition's Armor Class figure");
+  const waivedBy = census.implying.find((e) => e.brings.includes(WAIVED))?.id ?? null;
+  if (!waivedBy) check("9: a state brings the waived condition", false);
+  else {
+    const w = await run(gm, P.waivedPc, { id: waivedBy, bearer: sparedPcTok.uuid, foe: monTok.uuid, waived: WAIVED });
+    note("waived character", w);
+    check("9: the character's Armor Class value moves by the step, since the system applies it", w.hasStep && w.acMoved && w.back, { step: w.hasStep, moved: w.acMoved, back: w.back });
+    check("9: the reader answers the step as waived, and a throw against the character carries no term for it", w.readerWaived && w.noTerm, { reader: w.readerWaived, term: w.noTerm });
+    const line = await run(gm, P.cardRead, { card: w.card, name: w.name });
+    check("9: the attack card's line names the effect all the same, once", line.first?.shown?.length === 1 && line.first.shown[0].named && line.first.shown[0].tipNamed && line.sameTwice, line.first);
+  }
+
+  section("10. a seat that loads while a condition is carried twice");
+  if (!waivedBy) check("10: a state brings a condition with an Armor Class step", false);
+  else {
+    const clean = await run(gm, P.doubled, { id: waivedBy, bearer: pcTok.uuid, on: false });
+    const held = await run(gm, P.doubled, { id: waivedBy, bearer: pcTok.uuid, on: true });
+    note("player ready after reload (s)", await record(PORTS.player, "player (reloaded)", player));
+    const seen = await run(player, P.loaded, { bearer: pcTok.uuid, key: census.keysRead.ac });
+    const lifted = await run(gm, P.doubled, { id: waivedBy, bearer: pcTok.uuid, on: false });
+    note("doubled", { carriers: held.carriers, gm: { once: held.mod - clean.mod === held.step }, player: { sameMod: seen.mod === held.mod, sameValue: seen.value === held.value }, boot: seen.boot });
+    check("10: two effects carry the condition, and the GM seat's field moved by its step once", held.carriers === 2 && held.step !== 0 && held.mod - clean.mod === held.step, { carriers: held.carriers });
+    check("10: the Player seat, loaded with both in place, holds the same field and the same Armor Class from its first preparation", seen.mod === held.mod && seen.value === held.value, { sameMod: seen.mod === held.mod, sameValue: seen.value === held.value });
+    check("10: the Player seat loaded with no error from load through ready", seen.boot?.phases.length === 3 && !seen.boot.errors.length, seen.boot);
+    check("10: lifting both puts the field back", lifted.mod === clean.mod && lifted.carriers === 0, { carriers: lifted.carriers });
   }
   walkDone();
 } catch (err) {

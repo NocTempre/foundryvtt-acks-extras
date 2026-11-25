@@ -2767,6 +2767,36 @@ writes it, switching the status on when absent and lifting it at zero, so a
 ladder that climbs by the day (fatigue) moves the one effect the palette
 toggles rather than stacking effects of its own.
 
+**A state that brings a condition rides on one effect, and a condition counts
+once.** A catalogue state whose `implies` names a condition that carries changes
+in `CONFIG.ACKS.conditions`, and whose own closure does not forbid acting (no
+roll the brought change reaches could be made), is registered as one status
+entry that names the statuses it brings, with a static `_id` and its own
+changes followed by each brought entry's (`knownStatuses`). The set is derived
+from the catalogue and the system's list, never listed. The static `_id` is a
+pure function of the status id (`conditionEffectId`), because Foundry finds the
+effect of a status by it. Toggling the state therefore makes the one effect
+Foundry builds, holding the state and the condition it brings and both figures;
+toggling it again takes all of it off, and the turn's lift clears it through the
+state's own status. An effect of one of these states made before the entry took
+this shape holds one status, is not found by that id, and is lifted by hand.
+
+One condition's change on one field must apply once, however many effects carry
+it: a state beside a hand-set copy of the condition it brings, two states that
+bring one condition, and a condition set twice. `countsOnce(effect, change)`
+(`roll-mods.mjs`) is the rule: a change belongs to the status of its effect
+whose system entry carries its key (none, or more than one, and it counts), and
+it counts unless an earlier active effect of the same actor, in
+`allApplicableEffects()` order, carries that status and a change on that key.
+It reads effects and never `actor.statuses`, which Foundry fills in the loop
+that asks. The rule runs inside a wrap of the Active Effect class's
+`shouldApplyChange` (`status-effects.mjs`, the one owner of that method; the
+wrapped answer comes first and a refusal stands), so Foundry's preparation of
+every actor, character or monster, applies it; and every reader takes it as the
+`admit` option of `orderedChanges` and `activeNumericChanges`
+(`effect-scan.mjs`), so a step Foundry did not apply is a step no reader
+reports. With one carrier gone the other applies at the next preparation.
+
 **Active and target.** `attackMath` reads both sides of one attack throw. The
 attacker's own rows become terms on its throw. The target's `against` rows
 become terms on the same throw, and so do the target's own Armor Class rows,
@@ -2799,9 +2829,12 @@ the row's, imported; no figure, or a zero, adds nothing.
 to a character's saving throw only, and leaves a monster's `ac.value` as its
 stat line. So for a non-character the module reads the condition effects' steps
 itself, through one reader (`conditionSteps` in `roll-mods.mjs`):
-`activeNumericChanges` on the field, narrowed to the effects whose statuses
-include an id whose system entry carries changes, an id set read from
-`CONFIG.ACKS.conditions` at the call. The reader looks at no actor type; its
+`activeNumericChanges` on the field, narrowed to the changes `countsOnce`
+admits and to the effects whose statuses include an id whose system entry
+carries changes, an id set read from `CONFIG.ACKS.conditions` at the call. A
+step's `condition` is the status its change belongs to (the Armor Class step on
+a charging effect is Disordered's), else the first status of the effect that
+carries changes. The reader looks at no actor type; its
 callers do, and a character is never asked, since its prepared field already
 holds the step. A monster target's Armor Class steps are terms on the
 attacker's throw, sign reversed and labelled as the target's
@@ -2826,26 +2859,29 @@ carries an implied disordered, and an enabled effect of disordered alone, or of
 disordered and a status that does not imply it, makes it carried in its own
 right). The decision does not read an implied condition as carried in its own
 right, or the waived condition would sustain itself. A condition a state implies
-will ride on that state's own effect, as Foundry's implicit statuses carry it
-(a later slice); no module effect is written for it. Two appliers read the
-decision, by where the figure is applied:
+rides on that state's own effect, as Foundry's implicit statuses carry it; no
+module effect is written for it. Two appliers read the decision, by where the
+figure is applied:
 
 - The module's own `ac` rows, which are Defend's: `collect` leaves a waived
   condition's row out of `acMath` and the target's side of `attackMath` and
   reports it in `waived`. The list is empty in practice.
-- A monster's directly held condition: the step reader puts a step whose
-  effect's statuses all sit in the decision into `waived` instead of `steps`,
-  and the attack seam merges that list with the rows'. A mixed-status effect
-  keeps its step. A disorder a waived condition implies rides on that
-  condition's effect, and the decision covers it through `implied`; a disorder
-  set by hand beside it is an effect of its own, carries the system's change
-  and is suffered.
+- A monster's directly held condition: the step reader judges each step by its
+  own condition, the status its change belongs to, and puts a step whose
+  condition sits in the decision into `waived` instead of `steps`, and the
+  attack seam merges that list with the rows'. A change that belongs to no one
+  status is waived only when every status of its effect sits in the decision:
+  no waiver on a guess. A disorder a waived charge brings is the charging
+  effect's own Armor Class step and is waived with it, so a waived charge alone
+  leaves no step; a countercharge or a hand-set disorder beside it carries the
+  condition in its own right, and one step stands.
 
 A character who holds the waived condition directly is not waived: the system
 folds the step into `ac.value` itself, and the module has no seat in that
-computation. Only the Armor Class figure is waived: the condition's own throw
-figure, what it forbids and what it implies are as before. A gated row is not
-read, so no waiver is applied on a guess.
+computation, so the waived step is still in the Armor Class the card shows and
+the card's line lists it. Only the Armor Class figure is waived: the
+condition's own throw figure, what it forbids and what it implies are as
+before. A gated row is not read, so no waiver is applied on a guess.
 
 **The attack card names a target's condition.** A character target's `ac.value`
 already holds the steps of its condition effects and the system's card prints
@@ -2853,9 +2889,11 @@ that one figure, so the card names none of them. The attack seam asks a reader
 slot (`setTargetAcReader`, filled by `attack-card-target-ac.mjs` with
 `targetAcRows`) for the target's rows before the system rolls: each step the
 condition effects make to `system.ac.mod`, as `{name, value}`, the effect's own
-name and the step as it stands in the effect. A monster target has none (its
-steps are terms on the throw), and a step the Armor Class waiver spares is not
-listed. The seam holds the answer by the attacker's uuid beside the weapon's
+name (with the name of the condition the step belongs to where the two differ,
+a charge's step being its disorder's) and the step as it stands in the effect.
+A monster target has none (its steps are terms on the throw). A step the Armor
+Class waiver spares is listed, because the system folded it into the Armor
+Class the card shows. The seam holds the answer by the attacker's uuid beside the weapon's
 damage, for a weapon attack and a spell carrier's alike, and stamps it as
 `flags["acks-extras"].targetAc`, `{target, rows}`, on the system's attack card
 when the message is created, with or without an Apply. The stamp is the record:

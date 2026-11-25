@@ -12,7 +12,12 @@
  * condition effect applies rides on that effect: the palette registers the
  * system's entry for the id, `system.changes` included, and the roll that
  * reaches a creature the system's effect does not (a monster's Armor Class and
- * saving throw) reads the effect's step (`conditionSteps`). Every other figure
+ * saving throw) reads the effect's step (`conditionSteps`). A state that
+ * brings a condition (a charge's disorder) is registered as one entry naming
+ * the statuses it brings, with a static id and its own changes followed by the
+ * brought condition's, so Foundry builds the one effect that carries both; a
+ * wrap of Foundry's `shouldApplyChange` (`countsOnce`) keeps one condition's
+ * change from applying twice. Every other figure
  * is stored on no effect. Each roll reads the roller's statuses — and the
  * target's, for an attack — at the moment it is made, so a condition applies
  * its math whoever created the effect that carries it, and a figure imported
@@ -33,11 +38,11 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, sheetSaveShift, sumSteps, tellRollMods } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, sheetSaveShift, sumSteps, tellRollMods } from "./roll-mods.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
-  attackMath, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
+  attackMath, conditionSet, forbiddenBy, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
 } from "./conditions.mjs";
 import { isArranged, normalizePalette, resolvePalette } from "./status-palette.mjs";
 import { sideOfPool, sumOfParts, surpriseAgainst } from "./surprise-parts.mjs";
@@ -108,6 +113,46 @@ function systemKeepsFoundryStatuses() {
   }
 }
 
+const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+/**
+ * The static `_id` of the one effect Foundry builds for a status that brings
+ * others: 16 letters and digits, a pure function of the status id, so every
+ * client and every session finds the same effect (`Actor#toggleStatusEffect`
+ * and the token HUD look the effect up by it). Effects are stored under it, so
+ * its outputs never change.
+ *
+ * @param {string} statusId
+ * @returns {string}
+ */
+export function conditionEffectId(statusId) {
+  let out = "";
+  for (let place = 0; place < 16; place++) {
+    let h = 0x811c9dc5 ^ place;
+    for (const ch of String(statusId)) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193);
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x45d9f3b);
+    h ^= h >>> 16;
+    out += ID_ALPHABET[(h >>> 0) % ID_ALPHABET.length];
+  }
+  return out;
+}
+
+/** The Active Effect changes of one entry of the system's condition list, copied. */
+const entryChanges = (entry) => Array.from(entry?.system?.changes ?? []).map((change) => ({ ...change }));
+
+/**
+ * The conditions status `id` brings that carry changes in the system's list: its
+ * catalogue `implies` narrowed to the ids whose entry (`entries`, by id) carries
+ * changes. Empty when `id` brings none, or when its own closure takes away
+ * acting, since no roll a brought change reaches can then be made.
+ */
+function broughtWithChanges(id, entries) {
+  const brought = (CONDITIONS[id]?.implies ?? []).filter((other) => entryChanges(entries.get(other)).length);
+  if (!brought.length || forbiddenBy(conditionSet([id]), "act").length) return [];
+  return brought;
+}
+
 /**
  * Every status the palette can offer, with where it comes from and whether it
  * is on the palette before the Judge arranges anything.
@@ -125,7 +170,11 @@ function systemKeepsFoundryStatuses() {
  * offered is not offered a second time, so the catalogue's entry stands where
  * the system names the same condition, and it carries the system's entry as
  * its data: an effect made from the palette holds the system's `changes`,
- * which is where those figures are applied.
+ * which is where those figures are applied. A catalogue status that brings a
+ * condition carrying changes (`broughtWithChanges`) also names the brought
+ * statuses, takes a static `_id` (`conditionEffectId`) and carries its own
+ * changes followed by each brought entry's, so one toggle makes the one effect
+ * holding both; the set is derived from the catalogue and the system's list.
  *
  * @param {object} [setting]  the arrangement whose Judge-made statuses to include
  * @returns {import("./status-palette.mjs").KnownStatus[]}
@@ -148,10 +197,17 @@ export function knownStatuses(setting = storedPalette()) {
   for (const status of CONFIG.ACKS?.conditions ?? []) if (status?.id) ofCondition.set(status.id, status);
   for (const [id, c] of Object.entries(CONDITIONS)) {
     const { hud: _hud, ...core } = ofCondition.get(id) ?? {};
-    offer({
-      id, source: "condition", name: conditionNameKey(id), img: c.img, defaultOn: true, keep: true,
-      ...(ofCondition.has(id) ? { data: core } : {}),
-    });
+    const brought = broughtWithChanges(id, ofCondition);
+    let data = ofCondition.has(id) ? core : null;
+    if (brought.length) {
+      data = {
+        ...core,
+        statuses: brought,
+        _id: conditionEffectId(id),
+        system: { ...core.system, changes: [...entryChanges(core), ...brought.flatMap((other) => entryChanges(ofCondition.get(other)))] },
+      };
+    }
+    offer({ id, source: "condition", name: conditionNameKey(id), img: c.img, defaultOn: true, keep: true, ...(data ? { data } : {}) });
   }
   for (const state of STATES) offer({ ...state, source: "state", defaultOn: true, keep: true });
   for (const c of normalizePalette(setting).custom) {
@@ -242,7 +298,9 @@ export function onStatusPaletteChange() {
  * the table the figures come from. At `init`, after the arrangement's setting
  * is registered and after the system's own `init` has written its list: a
  * token drawn before this runs offers the generic list. The system points
- * Foundry's blindness at the Blinded condition itself.
+ * Foundry's blindness at the Blinded condition itself. The wrap of the Active
+ * Effect class's `shouldApplyChange` is installed here too, once, since the
+ * entries it serves are registered here.
  */
 export function registerStatusEffects() {
   if (!paletteTaken) {
@@ -252,6 +310,7 @@ export function registerStatusEffects() {
     CONFIG.statusEffects.length = 0;
   }
   applyStatusPalette();
+  wrapEffectFilter();
   expectTables(CONDITIONS_DOC, [CONDITIONS_TABLE]);
 }
 
@@ -332,7 +391,7 @@ function attackConditions(actor, targetActor, item, type) {
     kind,
     ...math,
     terms: [...math.terms, ...read.steps.map((step) => ({ condition: step.condition, value: -step.value, side: "target" }))],
-    waived: [...math.waived, ...read.waived.map((step) => ({ ...step, value: -step.value }))],
+    waived: [...math.waived, ...read.waived.map((step) => ({ condition: step.condition, value: -step.value }))],
   };
 }
 
@@ -646,13 +705,18 @@ export async function withSurpriseConditions(pools, run) {
 
 /**
  * Take the statuses `ids` off an actor, one at a time, through the system's own
- * toggle so every effect carrying a status goes with it. A status that cannot
- * be lifted is logged and the rest still are.
+ * toggle. Foundry looks an entry with a static id up by that id alone, so an
+ * effect that holds the status by itself under another id (one a hand made, or
+ * one made before the entry had its id) is deleted after the toggle. An effect
+ * that holds another status beside it stays. A status that cannot be lifted is
+ * logged and the rest still are.
  */
 export async function lift(actor, ids) {
   for (const id of ids) {
     try {
       await actor.toggleStatusEffect(id, { active: false });
+      const alone = [...(actor.effects ?? [])].filter((e) => e?.statuses?.size === 1 && e.statuses.has(id)).map((e) => e.id);
+      if (alone.length) await actor.deleteEmbeddedDocuments("ActiveEffect", alone);
     } catch (err) {
       console.error(`${MODULE_ID} | could not lift ${id} from ${actor.name}`, err);
     }
@@ -970,19 +1034,24 @@ function registerLosses() {
 /* -------------------------------------------- */
 
 /**
- * Wrap one method of the system's actor class, through libWrapper where it is
- * present. A registration that fails costs that one roll its conditions and
+ * Wrap one method of the class `CONFIG[document].documentClass` names, through
+ * libWrapper where it is present and by patching the prototype where it is
+ * not. A registration that fails costs that one method its conditions and
  * nothing else.
+ *
+ * @param {"Actor"|"ActiveEffect"} document
+ * @param {string} name
+ * @param {Function} wrapper  `(wrapped, ...args)`, called with the document as `this`
  */
-function wrapActorMethod(name, wrapper) {
-  const proto = CONFIG.Actor.documentClass?.prototype;
+function wrapDocumentMethod(document, name, wrapper) {
+  const proto = CONFIG[document]?.documentClass?.prototype;
   if (typeof proto?.[name] !== "function") {
-    console.warn(`${MODULE_ID} | ${name} not found on the actor class; conditions do not reach it.`);
+    console.warn(`${MODULE_ID} | ${name} not found on the ${document} class; conditions do not reach it.`);
     return;
   }
   try {
     if (globalThis.libWrapper?.register) {
-      globalThis.libWrapper.register(MODULE_ID, `CONFIG.Actor.documentClass.prototype.${name}`, wrapper, "WRAPPER");
+      globalThis.libWrapper.register(MODULE_ID, `CONFIG.${document}.documentClass.prototype.${name}`, wrapper, "WRAPPER");
       return;
     }
     const core = proto[name];
@@ -992,6 +1061,40 @@ function wrapActorMethod(name, wrapper) {
   } catch (err) {
     console.error(`${MODULE_ID} | could not wrap ${name}; conditions do not reach it`, err);
   }
+}
+
+/** Wrap one method of the system's actor class. */
+const wrapActorMethod = (name, wrapper) => wrapDocumentMethod("Actor", name, wrapper);
+
+/**
+ * Foundry's `shouldApplyChange`, asked once per change of every active effect as
+ * an actor prepares: the wrapped answer comes first and a refusal stands, then
+ * the change must count (`countsOnce`), so a condition set twice, or brought by
+ * a state beside a hand-set one, applies once. This wrapper is the method's one
+ * owner. A throw in this module's part is logged and the wrapped answer stands.
+ */
+function onShouldApplyChange(wrapped, ...args) {
+  const applies = wrapped(...args);
+  if (!applies) return applies;
+  try {
+    return countsOnce(this, args[0]);
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not tell whether a change counts once; Foundry's answer stands`, err);
+    return applies;
+  }
+}
+
+let effectWrapped = false;
+
+/**
+ * Wrap `shouldApplyChange` on the Active Effect class, once. Called while the
+ * palette is taken, at `init`: world actors prepare before `ready`, and a wrap
+ * installed later would leave their first preparation counting twice.
+ */
+function wrapEffectFilter() {
+  if (effectWrapped) return;
+  effectWrapped = true;
+  wrapDocumentMethod("ActiveEffect", "shouldApplyChange", onShouldApplyChange);
 }
 
 /**

@@ -14,6 +14,7 @@ import { MODULE_ID, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } f
 import { summonerOf, summonRecordOf } from "../lib/summons-logic.mjs";
 import { sheetFlag } from "../lib/frame-model.mjs";
 import { netNumericChange } from "../lib/effect-scan.mjs";
+import { countsOnce } from "../lib/roll-mods.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { getFormation, realMembers } from "../formation/formation-model.mjs";
@@ -153,13 +154,14 @@ const sourceValue = (actor, path) => num(path.split(".").reduce((o, k) => (o == 
  * makes to the all-save modifier, plus the shift made to that save's own
  * target, each replayed from the field's source value the way Foundry
  * applies the changes (the lib's effect-scan), so a subtraction reads
- * negative and an override reads as the difference it makes. The character's
+ * negative and an override reads as the difference it makes. A change Foundry
+ * did not apply (`countsOnce`: a condition two effects carry) is not replayed. The character's
  * conditions join each save's figure, a condition that reaches only some
  * saves joining only those: they reach the throw at the roll and are stored
  * on no field an effect-scan would find.
  */
 export function saveModifiers(actor) {
-  const all = netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod"));
+  const all = netNumericChange(actor, "system.save.mod", sourceValue(actor, "system.save.mod"), { admit: countsOnce });
   const subject = subjectOf(actor);
   return Object.fromEntries(
     SAVE_KEYS.map((k) => {

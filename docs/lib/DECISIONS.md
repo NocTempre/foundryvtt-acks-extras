@@ -1347,7 +1347,7 @@ should join, and the fold only covers a row that was in use).
 
 *Cost:* lib `apiVersion` is 68 (`vocab` gains `singularsOf`).
 
-## 2026-11-24 — Core's condition effects carry the figures they reach
+## 2026-11-24 — Core's condition effects carry the figures they reach — SUPERSEDED IN PART 2026-11-24
 
 Supersedes, in part, "The palette is an adapter over the system's conditions,
 combat states and setting" (2026-11-24, above): its first bullet's last
@@ -1457,3 +1457,79 @@ render: an old card would change with the target's effects.
 
 **Cost.** One module line on the system's card, and a render hook on it: a
 change to the card's footer markup in a later system version can displace it.
+
+## 2026-11-24 — A condition a state brings rides on that state's own effect
+
+Shown the boards for the provenance tooltips and for a condition a state brings
+held by a new module holder (its Token HUD click refused with a notice), the
+owner: "Use exiting foundry code before investigating new designs...". What
+Foundry ships is used as it is: a status entry may name the statuses it brings
+(`ActiveEffect.fromStatusEffect` reads `statuses` and requires a static `_id`),
+so a charge's disorder rides on the one Charging effect Foundry builds, and the
+holder, the second effect, the refusal and the prompt are not built.
+
+This supersedes in part "Core's condition effects carry the figures they
+reach" (above), an entry of the same day: its Cost paragraph says two effects
+naming one condition both apply and the module deduplicates none of it, leaving
+that to the writers. The new evidence is the owner's reply quoted here;
+Foundry 14.370's `fromStatusEffect`, which builds one effect for a status
+entry that names others, and its `shouldApplyChange`, which a system or a
+module may override to refuse a change; and a run on the test world in which
+Foundry's implicit statuses alone counted a brought condition twice beside a
+hand-set copy and beside a second state that brings it. That entry's "a later
+slice" is this one.
+
+**Ruled.**
+- A catalogue state whose `implies` names a condition that carries changes in
+  the system's list, and whose own closure does not forbid acting, is
+  registered as one status entry with `statuses` (the brought conditions that
+  carry changes), a static `_id` and its own changes followed by each brought
+  entry's, read at registration. The set is derived and never listed in
+  source. The `_id` is a pure function of the status id (`conditionEffectId`),
+  16 letters and digits, and effects are stored under it, so it never changes.
+- One condition's change on one field applies once. `countsOnce(effect,
+  change)` (`roll-mods.mjs`) is the rule: a change belongs to the status of its
+  effect whose system entry carries its key (none, or more than one, and it
+  counts), and it counts unless an earlier active effect of the same actor, in
+  `allApplicableEffects()` order, carries that status and a change on that
+  key. It reads effects and never `actor.statuses`.
+- libWrapper where present, otherwise a direct patch of the prototype, carries
+  a wrap of the Active Effect class's `shouldApplyChange`: the wrapped answer
+  first, a refusal standing, then `countsOnce`, and a throw logged with the
+  wrapped answer returned. It is installed at `init` with the palette, because
+  world actors prepare before `ready` and a later wrap would leave their first
+  preparation counting twice. The module is its one owner. Every reader takes
+  the same rule as the `admit` option of `orderedChanges`, so Foundry and the
+  readers agree, and a step's condition is the status its change belongs to.
+- The Armor Class waiver is judged per change, by that condition, so a waived
+  charge alone leaves no step and a countercharge or a hand-set disorder beside
+  it keeps one. A step the waiver spares on a character is still in the Armor
+  Class the system folded, so the card's line lists it.
+
+**Rejected.** The holder (the shipped `holdCondition` shape, and the new file
+ruled before the owner's answer): the brought condition sits on a single-status
+effect that a Token HUD click or `lift` deletes, so each needs the withdrawn
+refusal or a re-create loop, plus hooks, a Judge-seat writer and a path for an
+unlinked token's delta. A `preCreateActiveEffect` strip: it leaves a twin that
+counts nothing. Suppressing the duplicate effect: an inactive effect adds no
+statuses. Registering every `implies` as Foundry statuses: twenty-one static ids
+and no figure gained.
+
+**Cost.** The system's `getEffectModifierBreakdown` sums raw changes, so beside
+a double its attack card lists both effects plus an "other effects" line of the
+opposite sign; the total is right. An effect of one of these states made
+before the entry took this shape holds one status and is not found by the
+static id: its tile does not light, a click makes a new effect beside it, and
+the old one is lifted by hand. Foundry's Token HUD lights the state's tile and
+not the brought condition's, whose click adds a hand effect that `countsOnce`
+gives no figure while the state stands. With the module off the merged effect
+is still the system's own entry shape, unmanaged and deletable, and core
+applies both entries' changes.
+
+**Strongest counter, MEDIUM.** The filter decides, on every actor, whether a
+change applies on an effect the module did not make, which is close to the
+hand-toggle filter an earlier design rejected. Not HIGH: it stores nothing,
+applies no figure and refuses only a second copy of one condition's change. It
+is the method Foundry offers modules ("to introduce additional conditions under
+which a change is applied"), and without the module every effect is plain
+Foundry.

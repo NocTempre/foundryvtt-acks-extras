@@ -2648,13 +2648,15 @@ arrangement is swept with the rest, after step 16's Reset and Save.
 
 ## The system's condition effects carry their figures
 
-Covers the palette's registration of the system's entries
-(`status-effects.mjs` `knownStatuses`), the step reader (`roll-mods.mjs`
-`conditionSteps`), the monster terms on an attack and the monster step on a
-save (`status-effects.mjs`), the Armor Class waiver's decision
-(`conditions.mjs` `acWaivedSet`), and the attack card's line for a character
-target (`attack-card-target-ac.mjs`). `tools/live/lib-conditions.mjs` walks
-steps 1–6. The module's own rows (morale, surprise, speed, the states of a
+Covers the palette's registration of the system's entries and of a state
+that brings a condition (`status-effects.mjs` `knownStatuses`,
+`conditionEffectId`), the step reader (`roll-mods.mjs` `conditionSteps`),
+the rule that one condition's change applies once (`roll-mods.mjs`
+`countsOnce`, on Foundry's `shouldApplyChange`), the monster terms on an
+attack and the monster step on a save (`status-effects.mjs`), the Armor Class
+waiver's decision (`conditions.mjs` `acWaivedSet`), and the attack card's
+line for a character target (`attack-card-target-ac.mjs`).
+`tools/live/lib-conditions.mjs` walks steps 1–10. The module's own rows (morale, surprise, speed, the states of a
 round) are "Conditions on the palette and on a roll", above.
 
 **Drive notes:**
@@ -2662,7 +2664,25 @@ round) are "Conditions on the palette and on a roll", above.
   `CONFIG.ACKS.conditions.find(c => c.id === id).system.changes` is what a
   toggle copies into the effect. Compare a reading with it there and carry
   back whether they matched: no figure is typed into a walk, and none is
-  printed by one.
+  printed by one. An entry of `CONFIG.statusEffects` that names `statuses`
+  is expected to carry the system's changes for its own id followed by those
+  of each id it names.
+- **A step belongs to the condition whose system entry carries its key.** On
+  an effect that holds a state and the condition it brings, the reader and an
+  attack's terms name the brought condition, so filter by the effect's whole
+  status list, not by the id that was toggled.
+- **"Once" is read at every neighbour and in both orders.** With the state
+  on, set the brought condition by hand, lift the state, set it again (it is
+  now the later effect), lift the hand-set one. The field, the reader and the
+  rolls must show each condition's step once at each of those stages.
+- **The HUD's tiles** are `canvas.tokens.hud.bind(token)` then
+  `hud._prepareContext({})`: `statusEffects` holds a tile per id with
+  `isActive`. Close the HUD afterwards.
+- **A first preparation needs a load.** Every later update prepares an actor
+  again, so a field read after the walk's own writes proves nothing about the
+  load. Hold the doubled condition from the GM seat, reload the Player seat
+  through its debugger target, and read the field there before anything else
+  runs.
 - **Hold the die** (`CONFIG.Dice.randomUniform = () => 0.5`, restored at the
   end) and difference two rolls. For a throw,
   `(total₁ − total₀) − (targetValue₁ − targetValue₀)` is what the condition
@@ -2697,18 +2717,26 @@ round) are "Conditions on the palette and on a roll", above.
   whose `flags["acks-extras"].extras.effects` holds one row `{type:
   "modifier", target: "acWaiver", conditions: ["disordered"]}`. Step 4 writes
   that row again before it reads.
-- `lib/core-cond-scene`, a scene, and on it `lib/core-cond-pc-token`
-  (linked), `lib/core-cond-monster-token` and `lib/core-cond-waiver-token`
-  (unlinked).
-- Every step starts with none of the system's change-carrying conditions on
-  the three tokens' actors: an effect naming one is deleted first.
+- `lib/core-cond-waiver-pc`, a `character`, with an `ability`
+  `lib/conditions-waiver-pc` holding the same row. The walk writes that row
+  again before it reads.
+- `lib/core-cond-scene`, a scene, and on it `lib/core-cond-pc-token` and
+  `lib/core-cond-waiver-pc-token` (linked), `lib/core-cond-monster-token`
+  and `lib/core-cond-waiver-token` (unlinked).
+- Every step starts with none of the system's change-carrying conditions and
+  none of the states that bring one on the four tokens' actors: an effect
+  naming one is deleted first.
 - The run's own products are the cards its rolls post and step 5's effect;
   they are tracked by id and swept.
 
 1. **The palette.** Read `CONFIG.ACKS.conditions` and `CONFIG.statusEffects`.
    **Observable:** for every id whose system entry carries `system.changes`,
-   the registered entry carries the same changes under the module's name; no
-   other entry carries any; Readied and Delayed are on the palette.
+   the registered entry carries them under the module's name; no entry
+   carries a change the system does not ship for it or for a condition it
+   brings; Readied and Delayed are on the palette. Charging, Countercharging
+   and Retreating name Disordered in `statuses`, Starving and Underfed name
+   Hungry, and no other entry names a status; each of the five has an `_id`
+   of sixteen letters and digits, all different.
 2. **Each condition on a character.** For each such id: read the fields its
    changes name and `ac.value`, roll a save, attack the monster token and have
    it attack back; toggle the condition on the character and do the same;
@@ -2749,12 +2777,51 @@ round) are "Conditions on the palette and on a roll", above.
    Armor Class to players, and the name alone, with no step on the line or in
    its tooltip, where it does not.
 
+7. **A state that brings a condition, on a character.** For each of the five:
+   toggle it on the character; read the effect, the token's icons and the
+   HUD's tiles; then walk the stages of "once" above beside the brought
+   condition set by hand, and, for the first state of each brought condition,
+   beside a second state that brings it. At each stage read the fields and
+   the reader, attack the bearer where an Armor Class step stands, roll a
+   save where a save step stands, and make the bearer's own throw where an
+   attack step stands. Last, create an effect holding the state alone (the
+   shape of one made before the entry had its id), set the brought condition
+   by hand, and call lib's `lift(actor, [state])`, the tracker's own call.
+   **Observable:** one effect under the entry's `_id`, holding the state and
+   the brought condition, carrying the state's changes followed by the
+   brought condition's; one icon added; the state's tile lit and the brought
+   condition's not; at every stage each field moved by each condition's
+   change once, the reader answers one step per condition, and the throw
+   against the bearer, the save and the bearer's own throw count the step
+   once; `lift` ends the state's effect and the one holding it alone and
+   leaves the hand-set copy; everything is back afterwards.
+8. **The same on an unlinked monster token.**
+   **Observable:** as step 7, the Armor Class step arriving as one term.
+9. **A waived character.** Toggle a state that brings Disordered on the
+   waiver character and attack it as the monster.
+   **Observable:** `ac.value` moves by the step, since the system applies it;
+   the reader answers the step under `waived` and the throw carries no term;
+   the card's line names the effect once all the same.
+10. **A seat that loads with a condition carried twice.** On the character,
+    toggle a state that brings Disordered and then Disordered itself; reload
+    the Player seat; read the character's `system.ac.mod` and `ac.value`
+    there; lift both from the GM seat.
+    **Observable:** two effects carry the condition and the GM seat's field
+    moved by the step once; the Player seat holds the same field and the same
+    Armor Class from its first preparation, with no error from load through
+    ready; the field is back afterwards.
+
 **Not walked by the script:** missile and thrown attacks; a damage roll's
-own lines; a spell carrier's card; the line in a detached chat window.
+own lines; a spell carrier's card; the line in a detached chat window; an
+effect of one of the five states made before the palette named what it
+brings (its tile stays unlit and a click makes a second effect); a world
+with libWrapper where the walk's does not have it, or the reverse (the
+walk's census notes which).
 
 **Teardown.** Restore the die and remove the walk's hooks in each seat, clear
 the target, and sweep the tracked cards and step 5's effect. The fixtures
-stay.
+stay. Step 10's reload leaves the Player seat without the walk's hooks, so
+nothing is restored there.
 
 ## The Surprise Matrix with a combatant that cannot roll
 

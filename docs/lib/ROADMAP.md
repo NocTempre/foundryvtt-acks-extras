@@ -259,10 +259,11 @@ rest of each entry is not automated:
   The system folds a condition's `ac.mod` step into a character's `ac.value`
   itself, so the Armor Class waiver reaches a monster's directly held condition
   and a condition that rides on a waived state's own effect (Foundry's implicit
-  statuses, a later slice), and a character's own is suffered. No ability writes the
-  waiver for a character today. The route if one does is a
-  `preCreateActiveEffect` filter that drops the waived condition's
-  `system.ac.mod` change from an effect made for that actor.
+  statuses), and a character's own is suffered. No ability writes the
+  waiver for a character today. The route if one does is a second refusal in
+  the wrap of `shouldApplyChange` that carries `countsOnce`
+  (`status-effects.mjs`): drop the waived condition's `system.ac.mod` change
+  from an effect of that actor, as Foundry prepares it.
 - **The states of a round are set by hand.** Nothing marks a combatant
   Defending, Retreating or Withdrawing from a declaration, and the system's
   declared spell (a combatant flag) is not read as Casting.
