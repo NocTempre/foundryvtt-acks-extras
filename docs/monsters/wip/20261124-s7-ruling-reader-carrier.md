@@ -1113,3 +1113,216 @@ again.
 aggressive, rounds per turn is very generic rules, not IP". The readers in
 `lib/time-unit.mjs` answer from constants and are never null. No slice writes
 a blank path on a turn or round length.
+
+### A8. T10's reach, ruled 2026-11-25
+
+`architect`, read-only, at `topic/beastman-gear` 1832c092 (S8a, no S8b),
+against Foundry 14.370 and the system at `release-14.2.0`. Tags: [S] read in
+source; [R] read off the page's structure, with no words or figures carried;
+[I] inferred; [W] for the walk to prove. The owner's 2026-11-25 words on T10:
+"board to me after you've reviewed for design rules, style match, and UI
+standards".
+
+**Today.** A generated T10 body carries a note line and
+`extras.organisation.trait`, and nothing else. The row's `condition` and
+`saveKind` set `gated`, and `organisationSpecs` builds no spec from them.
+
+**1. A5's way 1, amended.**
+
+- A core Region per deployed T10 body, at the engagement distance (point 2),
+  while the body is a combatant (point 3).
+- Core's containment comes first, then `reachAdmits` with
+  `{kinds, exceptKinds: [], side: "opposing", unit: "any"}`. `side:
+  "opposing"` is structure: only opponents engage (RR p. 291).
+- Then a pure `engagementHolds(bearer, subject, {conditionsOf})`, which
+  answers false when either side holds `hidden` (RR p. 291) or the bearer
+  holds `helpless` (RR p. 509).
+- Left to the Judge: facing, a ward preventing engagement, flight, and the
+  optional size table (RR p. 291).
+  - The card carries a Judge-only line saying what was read, with RR p. 291.
+  - Each open row carries a Judge-only "Not engaged" control.
+- Rejected:
+  - way 2: `engaged` has no writer in the system or in lib, and the status
+    names no partner;
+  - way 3: it performs nothing;
+  - facing read from token rotation: the system has no facing model, and its
+    attack dialog asks the seat for the attack's direction.
+- Counter, MEDIUM: facing is half of engagement.
+  - The module and the page part only where a body already engaged elsewhere
+    is come at from its flank or rear. RR p. 291's free facing change covers
+    the rest.
+  - It becomes STRONG if the walk shows false prompts are usual in a crowded
+    melee.
+
+**2. The engagement distance.**
+
+- It is printed (RR p. 291, restated at p. 509). RR p. 288 sizes the battle
+  map's square from it: the adjacent square.
+- No recipe imports it.
+- Ruled plainly a generic concept under the owner's 2026-11-25 test, so it
+  stays in source.
+  - "One" is the procedure, adjacency.
+  - The square's feet is the unit already moved to source that day
+    (`docs/battlemap/DECISIONS.md`, 2026-11-25).
+- `SQUARE_FEET` (MM p. 11) moves from `monsters/sizes.mjs` to
+  `scripts/lib/distance-units.mjs`, and `sizes.mjs` re-exports it.
+- lib adds `engagementFeet()`, which returns it; its docstring cites RR
+  p. 288 and p. 291.
+- The tooltip's reference ships in the reach line's lang string, as
+  `timeUnitCite` does for the turn.
+- Supersedes in part:
+  - A5's withdrawal of "one grid space", on new evidence: the owner's test,
+    the battle-map ruling, and the RR p. 288 tie;
+  - the battle-map 2026-11-25 first bullet, for where the constant sits.
+- Counter, MEDIUM: the owner named the rounds and the square, not engagement.
+  If read otherwise, the one question is "Engagement is the adjacent square
+  of the battle map (RR p. 288, p. 291). State it in source as one square, or
+  import its distance?"
+
+**3. The Region.**
+
+- It is made on the primary GM at `createCombatant`, and at `updateCombat` to
+  started, for a combatant holding an always-on reach row: one with a reach
+  on an item without `itemRun.activation`. The making is idempotent.
+- It is not made at deploy.
+- A downed bearer is skipped silently. A refusal is one whispered Judge line
+  per combat.
+- Range: `engagementFeet()` goes through `feetToUnits(feet,
+  scene.grid.units)` before `createTokenEmanation`.
+  - Every reach takes this conversion. S8a's `raiseHere` passes feet as grid
+    units, which is wrong on a metre scene.
+  - A scene whose feet per cell is not `SQUARE_FEET` gets one Judge line per
+    combat start.
+- Geometry:
+  - A token of one square is inside when its centre is.
+  - An orthogonal neighbour is inside [I].
+  - A diagonal neighbour depends on the scene's diagonal rule [I].
+  - [W] Adjacency is the walk's first observable, on the alternating
+    diagonal setting; a two-by-two bearer's ring follows its edge.
+- Visibility is canvas 4's `showReach` tick, which the import writes false for
+  T10: ticked is `ALWAYS`, unticked `GAMEMASTER`.
+  - Core's own Visibility field changes one ring.
+  - A hidden bearer has no reach (A3).
+  - [W] The walk takes a shot of the Judge's view with a whole unit. If it
+    clutters, `LAYER` goes to the owner with that shot.
+- Teardown:
+  - `deleteCombatant`, unless the token is a combatant of another started
+    combat;
+  - `deleteCombat`;
+  - deleting the token;
+  - the bearer going down (A7.2), with an idempotent ensure on revival.
+- Records outlive the Region (MM p. 57 ties neither to the bearer).
+  - Their card ids are per card (`randomID`), never the activation id.
+  - `onRegionDeleted` skips the world scan for a source item without an
+    activation.
+- Cost: one Region per deployed T10 body. The walk measures [W]:
+  - (a) the Region count equals the T10 bodies, and zero after the combat is
+    deleted;
+  - (b) deploy wall time against a warband without T10;
+  - (c) the median of ten `{animate: false}` moves of a T10 body against a
+    non-T10 body;
+  - (d) one pass moving every body.
+  - Over 250 ms on (c), S7's pairwise fallback goes to `architect`.
+
+**4. Pulses and figures.**
+
+- A new pulse `turnStart+enter`: `PULSE_MOMENTS = ["enter", "turnStart"]`.
+  - `pulseAct` gains `onTurn`, and `enter` acts only when the subject token
+    is the current combatant of a started combat.
+  - `onTurnBegan` groups the subject's live engaged reaches by kind key and
+    dispatches once per kind. admitted is true if any bearer admits, null if
+    none does and one is null, false otherwise.
+- One prompt per subject, per kind, per moment.
+  - The skips are the immunity (`recordImmunity`) and an open prompt of the
+    same kind in the same initiative.
+  - The dedupe key is `combatId:round:turn:subjectUuid:kindKey`, built by a
+    pure function. It is held on the primary GM, cleared when answered or
+    struck, and pruned at each turn start.
+  - A subject engaged to another bearer in the same initiative is asked again,
+    as the page asks.
+- A subject already holding the condition is prompted like any other.
+  - A failure replaces the record under the fixed id
+    `conditionEffectId("itemRun:" + kindKey + ":lasts")`.
+  - A pass writes the immunity under `…":immune"`, replaced the same way.
+- Figures are live references `{doc: "monsters", table: "beastmanTraitRules",
+  row, figure}`:
+  - `reach.save` → `saveKind`;
+  - `reach.immunity` → `immunityTurns`;
+  - `reach.lasts` → `durationTurns`;
+  - `saveNameOf(row)` reads `reach.save`, falling back to `row.target`;
+  - E4's turn-life to the next start applies only to a row without
+    `reach.lasts`.
+- The clock is the module's own, in world seconds: `itemRun.dueAt = worldTime
+  + n × turnSeconds()`.
+  - The existing `onWorldTimeAdvanced` gains `liftDueRecords`, which deletes
+    each due record by id with `managedDelete()`.
+  - No core `duration` is written. This follows magic's in-force 2026-11-11
+    ruling and refines A7.3's "T10 takes a duration".
+- World time moves in a fight only through a formation's
+  `onCombatRoundChange` or by the Judge's hand. A family finding is
+  registered unless a row covers it.
+- Blank figures:
+  - a blank save refuses a Player's Roll and warns a Judge;
+  - a blank `lasts` refuses a Player, and a Judge's press writes the
+    condition untimed;
+  - a blank `immunity` writes nothing on a pass.
+- New importer keys in `BEARER`-free form, both pinned against the real
+  extraction of MM p. 57 [W]:
+  - `subjectKinds` (text take);
+  - `whileEngaged` (a presence key).
+- `matchKinds(text)` in `organisation.mjs`:
+  - splits on commas, "or" and "and", drops a plural s, and runs each part
+    through `kindToken`;
+  - keeps race categories, `MEN_RACES`, `DEMI_HUMAN_RACES` and
+    `MONSTER_TYPES` keys;
+  - lists any other token in `unresolved` and writes nothing.
+- The writer, when all parts resolve, puts this row on
+  `organisationAbility("trait", …)`, outside the `fights` gate:
+  `{key: "engaged", type: "conditionGrant", appliesTo: "opponent",
+  conditions: [id], reach: {engaged: true, filter, pulse: "turnStart+enter",
+  showReach: false, save, immunity, lasts}}`.
+- `kindsClause` answers unknown for a subject holding `humanoid` with no race
+  category, against a category clause: MM types its men as Humanoid with no
+  qualifier.
+
+**5. The UI canvas 4 does not draw** (the board draws only these):
+
+1. 4d's reach group gains "A distance / Engaged". Engaged shows "the adjacent
+   square", with RR p. 288 and p. 291 in its tooltip. The editor writes the
+   pulse; no control is drawn for it.
+2. The tick's hint for an always-on reach: "made when the body joins a fight,
+   gone when it leaves".
+3. 4a's "Always on" row for T10:
+   - "engaged · the adjacent square", RR p. 291;
+   - the state "In a fight · n engaged" or "No ring until it is in a fight";
+   - a computed tooltip.
+4. 4b's card for T10:
+   - one card per subject per moment;
+   - "Engaged by" in place of "Dist.";
+   - no Lower and no Check range again;
+   - the Judge-only line;
+   - a Judge-only "Not engaged" on each open row, marked as a permission
+     choice against the Save press's audience.
+5. 4c's strip: one line per kind, "and n more". The states are "Save owed",
+   "Immune · time left" and "Engaged".
+
+Reused unchanged: the whispered save card, the token glyph, Apply, Undo, the
+undetermined tick, the ring, and the ability sheet's Mechanics tab. There is
+no HUD control.
+
+**6. Files.** The build follows S8b, on `topic/beastman-gear`:
+
+- lib: `distance-units.mjs`, `vocab.mjs`, `fields.mjs` (`engaged`, `save`,
+  `immunity`, `lasts`), `aura-reach-logic.mjs`, `aura-reach.mjs`,
+  `item-run-logic.mjs`, `item-run.mjs`;
+- monsters: `sizes.mjs`, `organisation.mjs`;
+- the importer: `books/mm/table-recipes.mjs`;
+- `lang/en.json`;
+- suites, mutation-checked;
+- docs: a lib DECISIONS entry with the battle-map heading marked, MODEL
+  pointers, lib MODEL, API and README, a TESTING walk with the markers
+  `lib/aura-t10-unit`, `lib/aura-t10-subject`, `lib/aura-t10-man` and
+  `lib/aura-t10-ally`, guides, and a changelog fragment.
+
+No `module.json` change. S8b's brief names E4's figures `reach.save` and
+`reach.immunity`, so one name serves both.
