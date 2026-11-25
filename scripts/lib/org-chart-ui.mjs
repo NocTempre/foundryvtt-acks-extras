@@ -35,6 +35,9 @@ const foldOf = (app) => {
   return folds.get(app);
 };
 
+/** What the last Remove of each open window took and left, drawn above its chart until dismissed. */
+const removals = new WeakMap();
+
 /** The module api of the generating feature, where one is loaded. */
 const generator = () => globalThis.acksExtras?.monsters ?? null;
 
@@ -99,6 +102,7 @@ export function chartContext(actor, app, { isGM }) {
     total: view.total,
     emptyCards: view.empty,
     plate,
+    removed: removals.get(app) ?? null,
     tools: {
       roll: editable && !!monsters?.rollOrganisation && emptyKeys(view).some(canRoll),
       warband: editable && !!view.roots.length,
@@ -364,14 +368,31 @@ async function removeRow(app, host, key) {
  * The one call a Remove ends in: it takes the row through lib's `deleteRow`, and keeps what
  * that took and left for the sheet to draw above its chart.
  */
-async function removeFromChart(_app, _host, _key) {
-  return refuse({ reason: "failed" });
+async function removeFromChart(app, host, key) {
+  const result = await org.deleteRow(host, key);
+  if (!result.ok) return refuse(result);
+  const named = (uuid) => ({ uuid, name: docOf(uuid)?.name ?? uuid });
+  removals.set(app, {
+    rows: result.rows.length,
+    groups: result.groups.length,
+    prototypes: result.prototypes.length,
+    kept: result.kept.map(named),
+    leaders: result.leaders.map(named).filter((l) => docOf(l.uuid)),
+    warnings: result.warnings.length,
+  });
+  return result;
 }
 
 /** The card's trash press: remove it. */
 async function onDelete(_event, target) {
   const { host, key } = await targetOf(target);
   if (host) await removeRow(this, host, key);
+  render(this);
+}
+
+/** Dismiss the list of what the last Remove took and left. */
+function onDismiss() {
+  removals.delete(this);
   render(this);
 }
 
@@ -421,6 +442,7 @@ export const ORG_ACTIONS = Object.freeze({
   orgSendOut: onSendOut,
   orgRecall: onRecall,
   orgDelete: onDelete,
+  orgDismiss: onDismiss,
   orgOpen: onOpen,
   orgRecipe: onRecipe,
   orgToggle: onToggle,
