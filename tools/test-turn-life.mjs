@@ -11,8 +11,8 @@
  * not the primary GM.
  */
 import assert from "node:assert/strict";
-import { MODULE_ID, FLAG_TURN_LIFE, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "../scripts/lib/constants.mjs";
-import { readTurnLife, turnLifeStep, turnEdges, TURN_LIFE_EDGES } from "../scripts/lib/turn-life.mjs";
+import { MODULE_ID, FLAG_TURN_LIFE, FLAG_TURN_MARK, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "../scripts/lib/constants.mjs";
+import { markLifts, readTurnLife, turnLifeStep, turnEdges, TURN_LIFE_EDGES } from "../scripts/lib/turn-life.mjs";
 
 let passed = 0;
 const ok = (message) => {
@@ -355,8 +355,30 @@ try {
     }
     ok("no hook fires and no record is lifted on a client that is not the primary GM");
   }
+
+  // A record written outside a fight carries a turn mark, and goes as its own subject's first turn begins, before the turn's hook.
+  {
+    const { combat, actors } = trio();
+    const [a1, a2] = actors;
+    const marked = (actor, id, mark = { edge: "start" }) => actor.effects.push({ id, uuid: `${actor.uuid}.ActiveEffect.${id}`, flags: { [MODULE_ID]: { [FLAG_TURN_MARK]: mark } } });
+    marked(a1, "mark1");
+    marked(a2, "mark2");
+    marked(a2, "oddMark", { edge: "end" });
+    await move(combat, 1, 0);
+    assert.deepEqual(seen(), ["delete mark1", "began c1"], "its subject's turn lifts it, before the hook");
+    assert.deepEqual(a2.effects.map((e) => e.id), ["mark2", "oddMark"], "another combatant's turn lifts nothing of it");
+    await move(combat, 1, 1);
+    assert.deepEqual(seen(), ["ended c1", "delete mark2", "began c2"]);
+    assert.deepEqual(a2.effects.map((e) => e.id), ["oddMark"], "a mark that is not a start mark lifts nothing");
+  }
 } finally {
   Object.assign(globalThis, was);
 }
+
+assert.equal(markLifts({ edge: "start" }, { kind: "began" }, true), true);
+assert.equal(markLifts({ edge: "start" }, { kind: "began" }, false), false, "another combatant's turn");
+assert.equal(markLifts({ edge: "start" }, { kind: "ended" }, true), false, "an end");
+assert.equal(markLifts({ edge: "end" }, { kind: "began" }, true), false, "not a start mark");
+assert.equal(markLifts(undefined, { kind: "began" }, true), false);
 
 console.log(`\n${passed} turn-life checks passed.`);

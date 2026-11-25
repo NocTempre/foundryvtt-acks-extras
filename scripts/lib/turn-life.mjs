@@ -86,3 +86,17 @@ export function turnEdges(prior, current, { unrolled = null } = {}) {
   const leaves = prior.combatantId && !(unrolled != null && unrolled === priorRound) ? prior.combatantId : null;
   return { ended: leaves, began: true };
 }
+
+/**
+ * Whether a record carrying a turn mark (a condition written outside a fight)
+ * is lifted by a turn event: its subject's own turn beginning, the first in any
+ * fight. A mark that is not `{edge: "start"}`, another combatant's turn and an
+ * end lift nothing. Pure.
+ *
+ * @param {object} [mark]  the stored flag
+ * @param {{kind: "began"|"ended"}} event
+ * @param {boolean} ownTurn  whether the turn is the record's subject's own
+ */
+export function markLifts(mark, event, ownTurn) {
+  return mark?.edge === "start" && event?.kind === "began" && ownTurn === true;
+}

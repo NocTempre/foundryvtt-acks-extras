@@ -11,7 +11,7 @@
  * {source, activationId, rowKey}`, so the Region's deletion lifts all of an
  * activation's records and an Undo removes a card row's own ids. Foundry-free.
  */
-import { FLAG_ENDS_ON, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ROLL_MODS, FLAG_TURN_LIFE, MODULE_ID, MORALE_ROLL_KEY } from "./constants.mjs";
+import { FLAG_ENDS_ON, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ROLL_MODS, FLAG_TURN_LIFE, FLAG_TURN_MARK, MODULE_ID, MORALE_ROLL_KEY } from "./constants.mjs";
 import { ITEM_RUN_ACTIVATIONS, ITEM_TYPE } from "./vocab.mjs";
 import { turnLifeStep } from "./turn-life.mjs";
 import { conditionEffectId } from "./status-effects.mjs";
@@ -122,8 +122,10 @@ export const itemCite = (item) => String(flagsOf(item, "cookbook")?.cite ?? "");
 /**
  * A condition record: the status data of the catalogue key the row names, owned
  * by the item. `life` is either `{turnLife: {combatId, combatantId, edge,
- * count}}` (ends with a combatant's turns) or `{dueAt}` (ends when the world
- * clock reaches it, `liftDueRecords`); with neither the record stands until the
+ * count}}` (ends with a combatant's turns), `{dueAt}` (ends when the world
+ * clock reaches it, `liftDueRecords`) or `{mark: true}` (written outside a
+ * fight: it carries a turn mark, which lib's turn start lifts at the subject's
+ * first initiative in a fight); with none the record stands until the
  * activation's Region goes. No core duration is written.
  */
 export function conditionRecordData({ statusData, source, activationId, rowKey, life = {} }) {
@@ -131,7 +133,7 @@ export function conditionRecordData({ statusData, source, activationId, rowKey, 
   return {
     ...statusData,
     origin: source,
-    flags: { ...(statusData.flags ?? {}), [MODULE_ID]: { ...own, ...recordFlags({ source, activationId, rowKey, dueAt: life.dueAt }, life.turnLife ? { [FLAG_TURN_LIFE]: life.turnLife } : {}) } },
+    flags: { ...(statusData.flags ?? {}), [MODULE_ID]: { ...own, ...recordFlags({ source, activationId, rowKey, dueAt: life.dueAt }, life.turnLife ? { [FLAG_TURN_LIFE]: life.turnLife } : life.mark ? { [FLAG_TURN_MARK]: { edge: "start" } } : {}) } },
   };
 }
 
@@ -273,6 +275,9 @@ export function standingPartDiffers(existing, wanted) {
 /** The one key an item kind is recorded under: the importer's entry id, else the row's key. Two items of one kind share it, whoever bears them. */
 export const kindKeyOf = (item, row) => String(flagsOf(item, "cookbook")?.id ?? row?.key ?? "");
 
+/** The entry a card holds under a key, or null. */
+export const entryOf = (card, key) => card?.entries?.[key] ?? null;
+
 /** The state a prompt card holds for one subject, `open` where it holds none. */
 export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?? "open";
 
@@ -289,20 +294,27 @@ export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?
  * applied is refused. A Judge's own press carries no `requestUserId`.
  *
  * @param {{requestUserId?: string|null, total: *, target: *}} req
- * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string}} world
- * @returns {{ok: true, total: number, target: number, saved: boolean}|{ok: false, reason: string}}
+ * A subject that is `waiting` (listed, its moment not come) is pressed only by a
+ * Judge's own seat, which goes through as an `early` press; a relayed seat is
+ * refused `waiting`. An entry the card no longer holds is `struck`.
+ *
+ * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string, waiting?: boolean, struck?: boolean}} world
+ * @returns {{ok: true, total: number, target: number, saved: boolean, early: boolean}|{ok: false, reason: string}}
  */
 export function checkPressRequest(req, world) {
   if (!world?.item) return { ok: false, reason: "gone" };
   if (!world.row) return { ok: false, reason: "noRow" };
   if (req?.requestUserId && !(world.subjectOwnerIds ?? []).includes(req.requestUserId)) return { ok: false, reason: "notOwner" };
+  if (world.struck) return { ok: false, reason: "struck" };
+  if (world.waiting && req?.requestUserId) return { ok: false, reason: "waiting" };
+
   if (world.entryState && world.entryState !== "open") return { ok: false, reason: "applied" };
   const target = numOrNull(world.target);
   if (target === null) return { ok: false, reason: "noFigure" };
   if (numOrNull(req?.target) !== target) return { ok: false, reason: "figure" };
   const total = numOrNull(req?.total);
   if (total === null) return { ok: false, reason: "noRoll" };
-  return { ok: true, total, target, saved: total >= target };
+  return { ok: true, total, target, saved: total >= target, early: world.waiting === true };
 }
 
 /* -------------------------------------------- */
@@ -416,3 +428,19 @@ export function fuseToWorld(raw, combatId, { now, roundSeconds }) {
 
 /** The fuse flag key, named once for the writer and the steppers. */
 export const FUSE_KEY = FLAG_FUSE;
+
+/**
+ * The update that counts a row's bearer in as a subject of its own reach
+ * (`filter.self` is `count`): `{path, value}` for `item.update`, the row list
+ * rewritten whole where the item keeps its rows (an ability's `extras.effects`,
+ * any other item's `itemRun.rows`), or null where the item has no such row.
+ *
+ * @param {object} item
+ * @param {string} rowKey
+ */
+export function selfCountUpdate(item, rowKey) {
+  const rows = itemRunRowsOf(item);
+  if (!rows.some((r) => r?.key === rowKey && r.reach)) return null;
+  const value = rows.map((r) => (r?.key === rowKey ? { ...r, reach: { ...r.reach, filter: { ...(r.reach.filter ?? {}), self: "count" } } } : r));
+  return { path: item?.type === ITEM_TYPE.ability ? `flags.${MODULE_ID}.extras.effects` : `flags.${MODULE_ID}.${FLAG_ITEM_RUN}.rows`, value };
+}

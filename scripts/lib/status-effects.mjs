@@ -28,8 +28,8 @@
  * shift of that field held only across the synchronous read, then put back:
  * the roll sees it and no document ever stores it.
  */
-import { MODULE_ID, LANG_PREFIX, STATES_LOST_HOOK, TURN_BEGAN_HOOK, TURN_ENDED_HOOK, FLAG_TURN_LIFE } from "./constants.mjs";
-import { readTurnLife, turnLifeStep, turnEdges } from "./turn-life.mjs";
+import { MODULE_ID, LANG_PREFIX, STATES_LOST_HOOK, TURN_BEGAN_HOOK, TURN_ENDED_HOOK, FLAG_TURN_LIFE, FLAG_TURN_MARK } from "./constants.mjs";
+import { markLifts, readTurnLife, turnLifeStep, turnEdges } from "./turn-life.mjs";
 import { endedBy } from "./ends-on.mjs";
 import { expectTables } from "./tables.mjs";
 import { signed } from "./frame-model.mjs";
@@ -835,7 +835,8 @@ function tellListeners(call) {
  * record whose count is reached is deleted by id, and any other that counted
  * the turn has its `seen` written, once. A fight's records are its own: a
  * record of another fight is never touched. A record in a fight that is
- * deleted stays, and the flag clock ends it.
+ * deleted stays, and the flag clock ends it. A record carrying a turn mark
+ * (written outside a fight) is deleted as its own combatant's turn begins.
  */
 async function liftTurnLife(combat, combatantId, kind) {
   const event = { kind, combatId: combat.id, combatantId };
@@ -847,6 +848,15 @@ async function liftTurnLife(combat, combatantId, kind) {
     for (const effect of [...(actor.effects ?? [])]) {
       const record = readTurnLife(effect?.flags?.[MODULE_ID]?.[FLAG_TURN_LIFE]);
       const key = effect?.uuid ?? effect;
+      if (!record && markLifts(effect?.flags?.[MODULE_ID]?.[FLAG_TURN_MARK], event, combatant.id === combatantId) && !done.has(key)) {
+        done.add(key);
+        try {
+          await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+        } catch (err) {
+          console.error(`${MODULE_ID} | could not lift a record marked for ${actor.name}'s first turn`, err);
+        }
+        continue;
+      }
       if (!record || done.has(key)) continue;
       done.add(key);
       const step = turnLifeStep(record, event);

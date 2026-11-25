@@ -23,14 +23,15 @@
  *   fight that ends moves it to the world clock.
  */
 import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
-import { carriesItem, figureNumber, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
-import { dispatchReachMoment, lowerReach, raiseReach, reachSnapshot, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
+import { carriesItem, figureNumber, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
+import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseReach, reachSnapshot, releaseReachMoment, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
-  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, standingPartDiffers,
+  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
+import { freshKey, safeKey } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
@@ -48,12 +49,14 @@ const loc = makeLoc(LANG_PREFIX);
 const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
-const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press` });
+const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick` });
 
-/** The runner of each activation kind, the presenter of a use's result, and the fuse's burst. */
+/** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
 const runners = new Map();
 let presenter = null;
 let burster = null;
+let pressListener = null;
+const liftListeners = [];
 
 /**
  * Register the runner of an activation kind: `fn({item, run, actor, token,
@@ -70,6 +73,19 @@ export function registerActivationRunner(kind, fn) {
 /** Register what presents a use's result (posts the prompt card); a non-function clears it. */
 export function setUsePresenter(fn) {
   presenter = typeof fn === "function" ? fn : null;
+}
+
+/**
+ * Register what hears a card entry written or undone: `fn({message, key, entry, early, undone, item, row, subjectToken})`
+ * runs after the entry reaches the card. One listener; a non-function clears it.
+ */
+export function setPressListener(fn) {
+  pressListener = typeof fn === "function" ? fn : null;
+}
+
+/** Register what hears a lifted activation (`fn(config)`), after its records are off; any number. */
+export function onActivationLifted(fn) {
+  if (typeof fn === "function") liftListeners.push(fn);
 }
 
 /** Register the burst of a fuse: `fn({actor, record})` runs after the fuse's record is deleted; a non-function clears it, and an unset burst leaves every fuse unstepped. */
@@ -129,7 +145,7 @@ async function runToggle({ item, run, token }) {
   const raised = await raiseReach({ tokenUuid: token.uuid, sourceUuid: item.uuid, rowKey: row.key, activationId });
   if (!raised?.ok) return { ok: false, reason: raised?.reason ?? "refused" };
   await setState(item, { active: true, activationId, regionId: raised.regionId ?? "" });
-  return { ok: true, kind: "toggle", active: true, activationId };
+  return { ok: true, kind: "toggle", active: true, activationId, itemUuid: item.uuid, rowKey: row.key, tokenUuid: token.uuid, regionUuid: raised.regionUuid ?? "" };
 }
 
 /** The ids a card's buttons name. */
@@ -240,7 +256,7 @@ export async function useItem(item) {
 /*  A press, and Undo                            */
 /* -------------------------------------------- */
 
-/** Presses being written, `messageId|subject`: a second press of the same row while the first is mid-write is refused as applied. */
+/** Presses being written, `messageId|entry`: a second press of the same entry while the first is mid-write is refused as applied. */
 const writing = new Set();
 
 /** The save a row asks of a subject: the reach's own reference read now, else the row's `target`. */
@@ -249,25 +265,50 @@ export const saveNameOf = (row) => reachFigures(row)?.save ?? String(row?.target
 /** The subject's token document, from the id a card button names. */
 const subjectOf = (uuid) => fromUuidSync(uuid);
 
-/** The prompt card a press names: its chat message and the state it holds (`FLAG_ITEM_RUN_CARD`), or nulls. */
-function cardOf(messageId) {
+/** The raised or prompt card a press names: its chat message and the state it holds (`FLAG_ITEM_RUN_CARD`), or nulls. */
+export function cardOf(messageId) {
   const message = messageId ? (game.messages?.get?.(messageId) ?? null) : null;
   const card = message?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN_CARD) ?? message?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN_CARD] ?? null;
   return { message, card };
 }
+
+/** Card writes in flight, by message: one chain each, so decisions read what the one before wrote. */
+const chains = new Map();
+
+/** Run `fn` after every earlier write to this message has settled. */
+export function serialized(messageId, fn) {
+  const run = (chains.get(messageId) ?? Promise.resolve()).catch(() => {}).then(fn);
+  chains.set(messageId, run);
+  return run;
+}
+
+/**
+ * Write a dotted patch to a card (`FLAG_ITEM_RUN_CARD`): one update, each path under the flag, so two entries land without overwriting
+ * each other. A `-=` segment deletes the key after it.
+ */
+export function patchCard(message, patch) {
+  const base = `flags.${MODULE_ID}.${FLAG_ITEM_RUN_CARD}`;
+  return message.update(Object.fromEntries(Object.entries(patch).map(([path, value]) => [`${base}.${path}`, value])));
+}
+
+/** The user ids that own a document, by Foundry's own test. */
+export const ownerIdsOf = (doc) => (game.users ?? []).filter((u) => doc?.testUserPermission?.(u, "OWNER")).map((u) => u.id);
 
 /**
  * The GM's side of a press. The request names ids and two figures the seat
  * rolled (`total`, `target`); everything else is read here: the item and its
  * row by id, the save's target recomputed from the row's live reference, the
  * entry's state and the card's own ids from the card the message holds, and the
- * immunity window from the row's `reach.immunity`. A relayed press names a card
- * that holds the row, and a card entry already written is refused. On a verdict
- * it writes the records a failed save (a condition per condition key the row
- * names) or a passed one (the immunity window) calls for, and the entry onto the
- * card. The immunity window carries the card's own id (`cardId`, else a fresh
- * one), never the activation's, so lowering the item takes its conditions and
- * leaves the window. Answers `{ok, saved, entry}`.
+ * immunity window from the row's `reach.immunity`. An entry is named by its key
+ * (a moment's); a press naming none on a subject the card lists as waiting is an
+ * early press, which only the Judge's own seat makes, and it opens an entry under
+ * the moment of now. A relayed press names a card that holds the row, and an
+ * entry already written, or struck, is refused. On a verdict it writes the
+ * records a failed save (a condition per condition key the row names) or a
+ * passed one (the immunity window) calls for, and the entry onto the card. The
+ * immunity window carries the card's own id (`cardId`, else a fresh one), never
+ * the activation's, so lowering the item takes its conditions and leaves the
+ * window. Answers `{ok, saved, entry}`.
  */
 async function pressHere(payload) {
   const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
@@ -275,7 +316,10 @@ async function pressHere(payload) {
   const card = named?.itemUuid === itemUuid ? named : null;
   const rowKey = card?.rowKey ?? payload.rowKey;
   const activationId = card?.activationId ?? payload.activationId;
-  const claim = `${messageId}|${subjectUuid}`;
+  const subKey = safeKey(subjectUuid);
+  const asked = payload.entryKey ? String(payload.entryKey) : "";
+  const waiting = !!card?.subjects?.[subKey] && !asked;
+  const claim = `${messageId}|${asked || subKey}`;
   if (writing.has(claim)) return { ok: false, reason: "applied" };
   writing.add(claim);
   try {
@@ -284,25 +328,42 @@ async function pressHere(payload) {
     const subjectToken = subjectOf(subjectUuid);
     const actor = subjectToken?.actor ?? null;
     const spec = actor && row ? saveSpecOf(actor, row) : null;
+    const key = asked || (waiting ? freshKey(card.entries, safeKey(momentKey({ ...fightNow(), subjectUuid, kindKey: kindKeyOf(item, row) }) ?? subKey)) : subKey);
     const verdict = checkPressRequest(
       { requestUserId, total, target },
-      { item, row, subjectOwnerIds: (game.users ?? []).filter((u) => subjectToken?.testUserPermission?.(u, "OWNER")).map((u) => u.id), target: spec?.target ?? null, entryState: entryStateOf(card, subjectUuid) },
+      {
+        item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting,
+        struck: !!asked && !!card?.entries && !card.entries[asked],
+      },
     );
     if (!verdict.ok) return verdict;
     if (requestUserId && !card) return { ok: false, reason: "noCard" };
     const flags = { source: itemUuid, activationId, rowKey };
     const records = [];
+    const names = [];
+    let life = "raised";
     if (!verdict.saved) {
+      const lifeFor = lifeOf(subjectToken);
+      life = lifeFor.turnLife ? "turn" : "mark";
       for (const status of row.conditions ?? []) {
-        records.push(conditionRecordData({ statusData: await statusEffectData(status), ...flags, life: lifeOf(subjectToken) }));
+        const statusData = await statusEffectData(status);
+        names.push(statusData?.name ?? String(status));
+        records.push(conditionRecordData({ statusData, ...flags, life: lifeFor }));
       }
     } else {
       const dueAt = dueAtAfter(reachFigures(row)?.immunityTurns, turnSeconds(), game.time?.worldTime);
       if (dueAt !== null) records.push(immunityRecordData({ name: item.name, spellKey: kindKeyOf(item, row), dueAt, cite: itemCite(item), ...flags, activationId: card?.cardId || foundry.utils.randomID() }));
     }
     const made = records.length ? await actor.createEmbeddedDocuments("ActiveEffect", records) : [];
-    const entry = { state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id) };
-    if (message && card) await message.setFlag(MODULE_ID, FLAG_ITEM_RUN_CARD, { ...card, entries: { ...(card.entries ?? {}), [subjectUuid]: entry } });
+    const prior = card?.entries?.[key] ?? {};
+    const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, ...(verdict.early ? { early: true } : {}) };
+    if (prior.momentKey) releaseReachMoment(prior.momentKey);
+    if (message && card) {
+      const patch = { [`entries.${key}`]: entry };
+      if (verdict.early) patch[`subjects.${subKey}.latest`] = key;
+      await serialized(messageId, () => patchCard(message, patch));
+    }
+    await pressListener?.({ message, key, entry, early: verdict.early === true, item, row, subjectToken });
     return { ok: true, saved: verdict.saved, entry };
   } finally {
     writing.delete(claim);
@@ -315,11 +376,17 @@ function saveSpecOf(actor, row) {
   return name ? saveSpec(actor, name) : null;
 }
 
-/** A condition's clock: the start of the subject's next turn where it is in a fight, none otherwise. */
+/** A condition's clock: the start of the subject's next turn where it is in a fight; outside one, the mark lib's turn start lifts at its first initiative in a fight. */
 function lifeOf(subjectToken) {
   const combat = game.combat;
   const combatant = combat?.combatants?.find?.((c) => c.tokenId === subjectToken?.id);
-  return combatant ? { turnLife: { combatId: combat.id, combatantId: combatant.id, edge: "start", count: 1 } } : {};
+  return combatant ? { turnLife: { combatId: combat.id, combatantId: combatant.id, edge: "start", count: 1 } } : { mark: true };
+}
+
+/** The fight's present initiative as `momentKey` reads it: all null outside a begun fight. */
+function fightNow() {
+  const combat = game.combat?.started ? game.combat : null;
+  return { combatId: combat?.id ?? null, round: combat?.round ?? null, turn: combat?.turn ?? null };
 }
 
 /**
@@ -361,29 +428,97 @@ export async function undoEntry({ subject, entry }) {
   return { ok: true, removed: ids };
 }
 
+/**
+ * Undo one entry of a card, on a Judge's seat: remove the entry's own records
+ * (`undoEntry`) and mark the entry undone, so it offers no second press and the
+ * subject's next moment asks again. An entry that is not applied is refused.
+ *
+ * @param {{messageId: string, entryKey: string}} p
+ * @returns {Promise<{ok: boolean, removed?: string[], reason?: string}>}
+ */
+export async function undoCardEntry({ messageId, entryKey }) {
+  if (!game.user.isGM) return { ok: false, reason: "notOwner" };
+  const { message, card } = cardOf(messageId);
+  const entry = card?.entries?.[entryKey];
+  if (!entry) return { ok: false, reason: "gone" };
+  if (entry.state !== "applied") return { ok: false, reason: "applied" };
+  const done = await undoEntry({ subject: entry.subject, entry });
+  if (!done.ok) return { ok: false, reason: "gone" };
+  await serialized(messageId, () => patchCard(message, { [`entries.${entryKey}.state`]: "undone", [`entries.${entryKey}.recordIds`]: [] }));
+  await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "undone" }, undone: true, early: false });
+  return { ok: true, removed: done.removed };
+}
+
+/**
+ * Count the bearer in as a subject of its own reach, on the GM's window: the
+ * item's row takes `filter.self` `count`, and the card lists the bearer as
+ * waiting for its own turn start. Whoever owns the ITEM, by Foundry's own test
+ * on the relayed seat, may press it; a seat that does not is refused.
+ *
+ * @param {{itemUuid: string, rowKey: string, messageId: string, requestUserId?: string|null}} p
+ */
+async function countBearerIn({ itemUuid, rowKey, messageId, requestUserId = null }) {
+  const item = fromUuidSync(itemUuid);
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  if (!item) return { ok: false, reason: "gone" };
+  if (!item.testUserPermission?.(user, "OWNER")) return { ok: false, reason: "notOwner" };
+  const update = selfCountUpdate(item, rowKey);
+  if (!update) return { ok: false, reason: "noRow" };
+  const { message, card } = cardOf(messageId);
+  if (card?.selfCount) return { ok: false, reason: "applied" };
+  await item.update({ [update.path]: update.value });
+  if (message && card) {
+    const bearer = card.bearer ?? {};
+    await serialized(messageId, () => patchCard(message, { selfCount: true, [`subjects.${safeKey(bearer.uuid)}`]: { uuid: bearer.uuid, name: bearer.name, state: "in", latest: "" } }));
+  }
+  await pressListener?.({ message, key: "", entry: null, early: false, counted: true, item });
+  return { ok: true };
+}
+
+/**
+ * Count the bearer in, from any seat: the GM's window runs it, a Player's seat
+ * relays it and the GM checks the seat owns the item.
+ * @param {{itemUuid: string, rowKey: string, messageId: string}} p
+ */
+export async function tickBearer(p) {
+  if (game.user.isGM) return countBearerIn(p);
+  return (await executeAsGM(HANDLER.tick, p)) ?? { ok: false, reason: "relay" };
+}
+
 /* -------------------------------------------- */
 /*  The reach's moments, and the teardown        */
 /* -------------------------------------------- */
 
 /**
  * A moment of a reach: a subject's immunity is read, the act decided
- * (`pulseAct`), a standing part taken off at an exit, and every other act (a
- * prompt, a standing part to write, an undetermined subject) handed to the
- * presenter as `{kind: "reach", ...}`.
+ * (`pulseAct`), a standing part written or taken off, and every other act (a
+ * listing, a muting, a prompt, an undetermined subject) handed to the
+ * presenter as `{kind: "reach", ...}`. A prompt is held under its moment key
+ * (`momentKey`) until it is answered or struck, so a subject is asked once per
+ * item kind and initiative; a prompt already held is answered `held`. Answers
+ * the act taken, or null where there was none.
  */
 export async function handleReachMoment({ moment, config, item, row, reach, subject, admitted, region }) {
   const immune = !!recordImmunity(subject.actor, { spell: { id: kindKeyOf(item, row) } }).spell;
   const act = pulseAct({ pulse: reach.pulse, moment, admitted, immune });
-  if (act === "none" || !subject.actor) return;
+  if (act === "none" || !subject.actor) return null;
+  if (act === "refuse" && isMarkerActor(subject.actor)) return null;
   if (act === "on") {
     await holdStanding({ config, item, row, subject });
-    return;
+    return act;
   }
   if (act === "off") {
     await releaseStanding({ item, row, subject, region });
-    return;
+    return act;
   }
-  await presenter?.({ ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject });
+  const result = { ok: true, kind: "reach", act, moment, config, rowKey: row.key, item, subject };
+  if (act === "prompt") {
+    const key = momentKey({ ...fightNow(), subjectUuid: subject.token?.uuid, kindKey: kindKeyOf(item, row) });
+    if (!holdReachMoment(key, currentStamp())) return "held";
+    result.momentKey = key;
+  }
+  await presenter?.(result);
+  return act;
 }
 
 /**
@@ -440,10 +575,36 @@ export async function releaseStanding({ item, row, subject, region }) {
 }
 
 /**
+ * The other raised reach of the same item kind and pulse that still holds a
+ * subject token, other than `activationId`'s: `{config, item, row}`, or null.
+ * A condition a grouped prompt wrote is handed on to it at its own reach's
+ * teardown.
+ */
+function otherRaisedOfKind(tokens, { source, rowKey }, activationId) {
+  const item = source ? fromUuidSync(source) : null;
+  const row = itemRunRowsOf(item).find((r) => r?.key === rowKey);
+  if (!row) return null;
+  const pulse = readReach(row.reach)?.pulse;
+  for (const token of tokens) {
+    for (const { behavior } of behaviorsUnder(token, AURA_BEHAVIOR_TYPE)) {
+      const config = readAuraConfig(behavior.system);
+      if (!config || config.activationId === activationId) continue;
+      const other = fromUuidSync(config.sourceUuid);
+      const otherRow = itemRunRowsOf(other).find((r) => r?.key === config.rowKey);
+      if (otherRow && readReach(otherRow.reach)?.pulse === pulse && kindKeyOf(other, otherRow) === kindKeyOf(item, row)) return { config, item: other, row: otherRow };
+    }
+  }
+  return null;
+}
+
+/**
  * Take a lowered activation's records off every actor that may hold one, and its
- * toggle state off the item; then offer each subject that lost a standing part
- * and is still inside another reach to that reach again, so a part another
- * bearer gives is written back at once.
+ * toggle state off the item. A condition a prompt wrote, where its subject is
+ * still inside another raised reach of the same item kind, is handed on to that
+ * reach (its source, activation and row) and stays; every other record is
+ * deleted. Then each subject that lost a standing part and is still inside
+ * another reach is offered to that reach again, so a part another bearer gives
+ * is written back at once, and what hears a lifted activation is told.
  */
 export async function liftActivation({ config }) {
   const { worldActors } = await import("./repair.mjs");
@@ -451,7 +612,16 @@ export async function liftActivation({ config }) {
   for (const actor of worldActors()) {
     const ids = activationRecordIds([...actor.effects], config.activationId);
     if (!ids.length) continue;
-    await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
+    const tokens = tokensOfActor(actor);
+    const going = [];
+    for (const id of ids) {
+      const effect = actor.effects.get?.(id) ?? [...actor.effects].find((e) => e.id === id);
+      const flag = effect?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN];
+      const next = flag && effect?.update ? otherRaisedOfKind(tokens, flag, config.activationId) : null;
+      if (next) await effect.update({ origin: next.item.uuid, [`flags.${MODULE_ID}.${FLAG_ITEM_RUN}`]: { source: next.item.uuid, activationId: next.config.activationId, rowKey: next.config.rowKey } }, managedDelete());
+      else going.push(id);
+    }
+    if (going.length) await actor.deleteEmbeddedDocuments("ActiveEffect", going, managedDelete());
     lifted.push(actor);
   }
   for (const actor of lifted) {
@@ -464,6 +634,13 @@ export async function liftActivation({ config }) {
   }
   const item = fromUuidSync(config.sourceUuid);
   if (item && itemRunOf(item)?.activation.state.activationId === config.activationId) await setState(item, { active: false, activationId: "", regionId: "" });
+  for (const fn of liftListeners) {
+    try {
+      await fn(config);
+    } catch (err) {
+      console.error(`${MODULE_ID} | a lifted activation's listener failed`, err);
+    }
+  }
 }
 
 /* -------------------------------------------- */
@@ -569,6 +746,7 @@ export function installItemRun() {
   registerActivationRunner("toggle", runToggle);
   registerHandler(HANDLER.use, (payload) => runUse(payload));
   registerHandler(HANDLER.press, (payload) => pressHere(payload));
+  registerHandler(HANDLER.tick, (payload) => countBearerIn(payload));
   setReachHandler(handleReachMoment);
   setReachTeardown(liftActivation);
   const on = (kind) => (combat, combatantId) => {

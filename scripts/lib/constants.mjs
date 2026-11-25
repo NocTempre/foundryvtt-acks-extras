@@ -161,11 +161,28 @@ export const FLAG_ITEM_RUN = "itemRun";
 
 /**
  * Flag key under `flags["acks-extras"]` on a chat message that is an item
- * carrier's prompt card: `{itemUuid, rowKey, activationId, entries}`, `entries`
- * keyed by subject uuid. The GM's client reads a relayed press's entry state
- * from it and writes the entry back, so a press is held to what the card holds.
+ * carrier's raised or prompt card (`item-run-card-logic.mjs` `newCard`): the
+ * item, row and activation, the bearer, the subjects it lists and the `entries`
+ * keyed by moment. Every key is free of dots, so a dotted update reaches one
+ * entry. The GM's client reads a relayed press's entry state from it and writes
+ * the entry back, so a press is held to what the card holds.
  */
 export const FLAG_ITEM_RUN_CARD = "itemRunCard";
+
+/**
+ * Flag key under `flags["acks-extras"]` on the whispered save card: the raised
+ * card's message id, the entry key and the subject it asks, so a press on it
+ * writes the one entry the raised card holds.
+ */
+export const FLAG_ITEM_RUN_WHISPER = "itemRunWhisper";
+
+/**
+ * Flag key under `flags["acks-extras"]` on a condition record written outside a
+ * fight: `{edge: "start"}`. Lib's turn start lifts it when the subject first
+ * starts an initiative in a fight, as a record of a fight's clock is lifted
+ * (`turn-life.mjs` `markLifts`).
+ */
+export const FLAG_TURN_MARK = "turnMark";
 
 /**
  * The `rollKey` a morale part carries: a `reaction` part naming it is read on

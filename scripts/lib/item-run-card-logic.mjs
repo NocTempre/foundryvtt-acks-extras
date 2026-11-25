@@ -1,8 +1,10 @@
 /**
  * The cards and strips an item raised or pressed draws (canvas 4, boards 4b and
- * 4c), as data: the raised-item card's table (who is in range, how far, the save
- * and its result), the whispered save card, the strip a body in reach reads on
- * its sheet, and the tooltips that say where each figure came from. Words are
+ * 4c), as data: the stored state of a raised card and its moment-keyed entries
+ * (`newCard`, the patches that change it), the raised-item card's table (who is
+ * in range, how far, the save and its result), the whispered save card, the strip
+ * a body in reach reads on its sheet, and the tooltips that say where each
+ * figure came from. Words are
  * the caller's, localized; a tooltip is assembled text for `data-tooltip-text`.
  * Foundry-free.
  *
@@ -34,68 +36,208 @@ export function saveTip({ save, target, parts = [], cite = "" }) {
   return `${save} ${target}+${list ? `: ${list}` : ""}${cite ? ` (${cite})` : ""}`;
 }
 
+/* -------------------------------------------- */
+/*  The card's store                             */
+/* -------------------------------------------- */
+
+/** A uuid or a moment key as a key of the stored card: the dots a dotted update would split on become `~`. */
+export const safeKey = (raw) => String(raw ?? "").replaceAll(".", "~");
+
+/** The key a new entry is stored under: `base`, or `base#2`, `base#3` where one is held (a moment key held outside a fight repeats). */
+export function freshKey(entries, base) {
+  const held = entries ?? {};
+  if (!(base in held)) return base;
+  let n = 2;
+  while (`${base}#${n}` in held) n += 1;
+  return `${base}#${n}`;
+}
+
 /**
- * The model a raised-item card (board 4b) is rendered from: one row per body
- * the reach meets, with its distance under the name, its save target and total,
- * its result and a Roll for an open row or an Undo for a Judge on an applied
- * one; a body that left reach is greyed with its word. Data only.
+ * A new card's stored state (`FLAG_ITEM_RUN_CARD`): the item, row and activation
+ * it was raised for, the bearer's token, the subjects it lists (keyed by
+ * `safeKey` of the token uuid, each `{uuid, name, state, latest}` with `state`
+ * `in`, `out` or `notTarget` and `latest` the key of its newest entry) and the
+ * entries keyed by moment (`{subject, moment, momentKey, state, saved, total,
+ * target, recordIds, names, life, early, whisperId}`, `state` `open`, `applied`
+ * or `undone`).
+ *
+ * @param {{itemUuid: string, rowKey: string, activationId: string, kind?: string, bearer: {uuid: string, name: string}, regionUuid?: string, cardId?: string}} p
+ */
+export const newCard = ({ itemUuid, rowKey, activationId, kind = "toggle", bearer, regionUuid = "", cardId = "" }) => ({
+  itemUuid, rowKey, activationId, kind, cardId, regionUuid, bearer, selfCount: false, lowered: false, subjects: {}, undetermined: {}, entries: {},
+});
+
+/** Apply a dotted patch to a card, as the message's update applies it: a `-=` segment deletes the key after it. Returns a new card. */
+export function applyPatch(card, patch) {
+  const next = structuredClone(card ?? {});
+  for (const [path, value] of Object.entries(patch ?? {})) {
+    const parts = path.split(".");
+    let at = next;
+    for (const part of parts.slice(0, -1)) at = at[part.startsWith("-=") ? part.slice(2) : part] ??= {};
+    const last = parts.at(-1);
+    if (last.startsWith("-=")) delete at[last.slice(2)];
+    else at[last] = value;
+  }
+  return next;
+}
+
+/** The patch that lists a subject on the card, as in reach (`state` `in`) or as no target, keeping its newest entry. */
+export function patchSubject(card, { uuid, name, state = "in" }) {
+  const key = safeKey(uuid);
+  return { [`subjects.${key}`]: { uuid, name, state, latest: card?.subjects?.[key]?.latest ?? "" }, [`undetermined.-=${key}`]: null };
+}
+
+/** The patch that lists a subject the filter could not settle, for the Judge's tick. */
+export const patchUndetermined = (card, { uuid, name }) => (card?.subjects?.[safeKey(uuid)] ? {} : { [`undetermined.${safeKey(uuid)}`]: { uuid, name } });
+
+/** The entries of a subject that are still open. */
+const openEntriesOf = (card, uuid) => Object.entries(card?.entries ?? {}).filter(([, e]) => e.subject === uuid && e.state === "open");
+
+/**
+ * The patch that asks a subject at a moment: a new open entry under a fresh key,
+ * its subject listed as in reach with that entry its newest, and every older
+ * open entry of the subject struck (removed). Answers `{key, patch, struck}`
+ * (`struck` the entries removed, so the caller releases their held moments).
+ *
+ * @param {object} card
+ * @param {{uuid: string, name: string, moment: string, momentKey: string|null}} p
+ */
+export function patchPrompt(card, { uuid, name, moment, momentKey }) {
+  const key = freshKey(card?.entries, safeKey(momentKey ?? `${uuid}:prompt`));
+  const struck = openEntriesOf(card, uuid);
+  const patch = {
+    [`entries.${key}`]: { subject: uuid, moment, momentKey: momentKey ?? "", state: "open" },
+    [`subjects.${safeKey(uuid)}`]: { uuid, name, state: "in", latest: key },
+    [`undetermined.-=${safeKey(uuid)}`]: null,
+  };
+  for (const [old] of struck) patch[`entries.-=${old}`] = null;
+  return { key, patch, struck: struck.map(([, e]) => e) };
+}
+
+/** The patch that takes a subject out of reach: its row muted and every open entry of it struck. Answers `{patch, struck}`. */
+export function patchOut(card, { uuid, name }) {
+  const key = safeKey(uuid);
+  const struck = openEntriesOf(card, uuid);
+  const gone = new Set(struck.map(([old]) => old));
+  const kept = Object.keys(card?.entries ?? {}).filter((k) => card.entries[k].subject === uuid && !gone.has(k));
+  const patch = { [`subjects.${key}`]: { uuid, name, state: "out", latest: kept.at(-1) ?? "" } };
+  for (const [old] of struck) patch[`entries.-=${old}`] = null;
+  return { patch, struck: struck.map(([, e]) => e) };
+}
+
+/**
+ * What a listed subject's row is: `out`, `notTarget`, or by its newest entry
+ * `open`, `applied` or `undone`, and `waiting` with none.
+ *
+ * @returns {"waiting"|"open"|"applied"|"undone"|"out"|"notTarget"}
+ */
+export function rowStateOf(card, uuid) {
+  const sub = card?.subjects?.[safeKey(uuid)];
+  if (!sub) return "waiting";
+  if (sub.state === "out" || sub.state === "notTarget") return sub.state;
+  return card.entries?.[sub.latest]?.state ?? "waiting";
+}
+
+/* -------------------------------------------- */
+/*  The raised card                              */
+/* -------------------------------------------- */
+
+/** One row of the raised card's table as the renderer takes it, for a row the caller has read live. See `reachCardModel`. */
+function reachRowOf(r, { words, ids, seat }) {
+  const data = { ...ids, subject: r.key };
+  const base = { name: r.name, total: "", ...(r.feet === null || r.feet === undefined ? {} : { aside: `${r.feet}′`, ...(r.feetTip ? { asideTooltip: r.feetTip } : {}) }) };
+  const mayPress = seat.isGM === true || seat.ownsSubject?.(r.key) === true;
+  const target = numOrNull(r.target) !== null ? { target: r.target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : {};
+  const history = r.history ? { tooltipText: r.history } : {};
+  switch (r.state) {
+    case "out": return { ...base, outcome: words.out, emphasis: "muted" };
+    case "notTarget": return { ...base, outcome: words.notTarget, emphasis: "muted" };
+    case "waiting": return { ...base, ...history, outcome: words.waiting, actions: seat.isGM === true ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data, tooltip: words.earlyTip }] : [] };
+    case "open": return { ...base, ...history, ...target, outcome: words.asked, actions: mayPress ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...data, entryKey: r.entryKey }, tooltip: words.saveTip }] : [] };
+    case "undone": return { ...base, ...history, ...target, outcome: words.undone, emphasis: "muted" };
+    default: {
+      const entry = r.entry ?? {};
+      const undo = seat.isGM === true && entry.recordIds?.length ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data: { ...data, entryKey: r.entryKey }, tooltip: words.undoTip }] : [];
+      return {
+        ...base, ...history, ...target, total: entry.total ?? "", outcome: entry.saved ? words.saved : words.failed, emphasis: entry.saved ? "success" : "failure",
+        ...(undo.length ? { actions: undo } : {}),
+      };
+    }
+  }
+}
+
+/**
+ * The model a raised-item card (board 4b) is rendered from, for one seat: a
+ * section of the bodies in reach (a Judge sees every row, a seat the rows of the
+ * tokens it owns), each with its distance as an aside, its save's total and
+ * target, its result and its press; a section of the bearer's own row, which is
+ * undetermined and not counted until an owner of the item ticks it; a line that
+ * names what a failed save wrote and for how long; and the bearer's owners'
+ * Check range again and Lower. Data only; the words are the caller's, localized.
+ * `seat` reads Foundry's ownership (`ownsSubject(key)`, `ownsBearer`,
+ * `ownsItem`) and `isGM` only where the Judge's own warning is the point (the
+ * early press on a waiting row, Undo).
  *
  * @param {object} p
  * @param {string} p.title
  * @param {string} [p.subtitle]
- * @param {string} [p.note] the reach line, already assembled
+ * @param {string} [p.note]
  * @param {string} [p.noteTooltip]
- * @param {{roll: string, undo: string, saved: string, failed: string, out: string, notTarget: string}} p.words
- * @param {Array<{key: string, name: string, feet?: number|null, state: "open"|"applied"|"out"|"notTarget", saved?: boolean, total?: number, target?: number, targetTip?: string, recordIds?: string[]}>} p.rows
+ * @param {object} p.words every word and tooltip the card shows (`itemRun.card.*`)
+ * @param {Array<{key: string, name: string, state: string, entryKey?: string, entry?: object, feet?: number|null, feetTip?: string, target?: number|null, targetTip?: string, history?: string}>} p.rows
+ * @param {{key: string, name: string, counted: boolean, row?: object}} [p.bearer] the bearer's row; `row` is its row where counted
+ * @param {string[]} [p.well] the lines of what failed saves wrote
  * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
- * @param {boolean} [p.isGM] shows Undo
- * @param {{check: string, lower: string}} [p.footer] the Judge's footer buttons' words
+ * @param {{isGM?: boolean, ownsSubject?: (key: string) => boolean, ownsBearer?: boolean, ownsItem?: boolean}} p.seat
+ * @param {boolean} [p.lowered] the reach is lowered: no footer
  */
-export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows, ids, isGM = false, footer }) {
-  const detail = (feet) => (numOrNull(feet) === null ? undefined : `${feet}′`);
-  const cards = rows.map((r) => {
-    const base = { name: r.name, detail: detail(r.feet), total: "" };
-    if (r.state === "out") return { ...base, outcome: words.out, emphasis: "neutral" };
-    if (r.state === "notTarget") return { ...base, outcome: words.notTarget, emphasis: "neutral" };
-    const data = { ...ids, subject: r.key };
-    if (r.state === "open") return { ...base, actions: [{ action: "itemRun.roll", label: words.roll, icon: "fa-solid fa-dice-d20", data }] };
-    const undo = isGM && r.recordIds?.length ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data }] : [];
-    return {
-      ...base,
-      total: r.total ?? "",
-      ...(numOrNull(r.target) !== null ? { target: r.target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : {}),
-      outcome: r.saved ? words.saved : words.failed,
-      emphasis: r.saved ? "success" : "failure",
-      ...(undo.length ? { actions: undo } : {}),
-    };
-  });
-  const buttons = isGM && footer ? [
-    { action: "itemRun.recheck", label: footer.check, icon: "fa-solid fa-crosshairs", data: ids },
-    { action: "itemRun.lower", label: footer.lower, icon: "fa-solid fa-arrow-down", data: ids },
-  ] : undefined;
-  return { title, ...(subtitle ? { subtitle } : {}), ...(note ? { note } : {}), ...(noteTooltip ? { noteTooltip } : {}), sections: [{ rows: cards }], ...(buttons ? { buttons } : {}) };
+export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows, bearer, well = [], ids, seat = {}, lowered = false }) {
+  const mine = (key) => seat.isGM === true || seat.ownsSubject?.(key) === true;
+  const sections = [{ rows: rows.filter((r) => mine(r.key)).map((r) => reachRowOf(r, { words, ids, seat })) }];
+  if (bearer && (seat.isGM === true || seat.ownsBearer === true || seat.ownsItem === true)) {
+    const own = bearer.counted && bearer.row
+      ? reachRowOf({ ...bearer.row, key: bearer.key, name: bearer.name }, { words, ids, seat: { ...seat, ownsSubject: () => seat.ownsBearer === true } })
+      : { name: bearer.name, total: "", outcome: words.undetermined, emphasis: "muted", actions: seat.ownsItem === true ? [{ action: "itemRun.tick", label: words.tick, icon: "fa-solid fa-check", data: { ...ids, subject: bearer.key }, tooltip: words.tickTip }] : [] };
+    sections.push({ title: words.bearer, titleTooltip: words.bearerTip, rows: [own] });
+  }
+  const shown = well.filter(Boolean);
+  const buttons = !lowered && seat.ownsBearer === true
+    ? [
+        { action: "itemRun.recheck", label: words.check, icon: "fa-solid fa-crosshairs", data: ids, tooltip: words.checkTip },
+        { action: "itemRun.lower", label: words.lower, icon: "fa-solid fa-arrow-down", data: ids, tooltip: words.lowerTip },
+      ]
+    : [];
+  return {
+    title,
+    ...(subtitle ? { subtitle } : {}),
+    ...(note ? { note } : {}),
+    ...(noteTooltip ? { noteTooltip } : {}),
+    sections,
+    bare: true,
+    ...(shown.length ? { footnote: `${words.well}: ${shown.join(" · ")}` } : {}),
+    ...(buttons.length ? { buttons } : {}),
+    labels: { aside: words.colDistance },
+  };
 }
 
 /**
  * The whispered save card (board 4c): the item's name, the body, the save's
- * target with its tooltip and a Roll the save for the body's owners and the
- * Judges.
+ * target with its tooltip, what a failure writes, and the Roll the save press for
+ * the body's owners and the Judges while its entry is open; once the entry is
+ * applied it reads the total, the target and the result, and once undone it says
+ * so. The press names the raised card's message and the entry's key.
  *
- * @param {{title: string, subtitle: string, words: {target: string, save: string, roll: string}, target: number|null, targetTip?: string|null, ids: object, subject: string}} p
+ * @param {{title: string, subtitle: string, words: object, target: number|null, targetTip?: string|null, ids: object, subject: string, entryKey: string, messageId: string, entry?: object|null, ifFails?: string, canPress?: boolean}} p
  */
-export function saveCardModel({ title, subtitle, words, target, targetTip = null, ids, subject }) {
-  return {
-    title,
-    subtitle,
-    sections: [{
-      rows: [{
-        name: words.save,
-        total: "",
-        ...(numOrNull(target) !== null ? { target, ...(targetTip ? { targetTooltip: targetTip } : {}) } : {}),
-        actions: [{ action: "itemRun.roll", label: words.roll, icon: "fa-solid fa-dice-d20", data: { ...ids, subject } }],
-      }],
-    }],
-  };
+export function saveCardModel({ title, subtitle, words, target, targetTip = null, ids, subject, entryKey, messageId, entry = null, ifFails = "", canPress = false }) {
+  const tgt = numOrNull(target) !== null ? { target, ...(targetTip ? { targetTooltip: targetTip } : {}) } : {};
+  const state = entry?.state ?? "open";
+  const line = { name: words.save, total: "", ...tgt };
+  if (state === "applied") Object.assign(line, { total: entry.total ?? "", outcome: entry.saved ? words.saved : words.failed, emphasis: entry.saved ? "success" : "failure" });
+  else if (state === "undone") Object.assign(line, { outcome: words.undone, emphasis: "muted" });
+  else if (canPress) line.actions = [{ action: "itemRun.roll", label: words.rollSave, icon: "fa-solid fa-dice-d20", data: { ...ids, subject, entryKey, messageId }, tooltip: words.saveTip }];
+  else line.outcome = words.asked;
+  return { title, subtitle, sections: [{ rows: [line] }], bare: true, ...(ifFails ? { footnote: ifFails } : {}) };
 }
 
 /**
