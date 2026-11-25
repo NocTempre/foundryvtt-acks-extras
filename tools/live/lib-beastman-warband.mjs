@@ -312,6 +312,22 @@ try {
   check("+ Warband writes an empty row under the top row", added.units.length === 2 && added.units[1].parentKey === "top" && !added.units[1].holderUuid, added.units);
   check("the new card draws empty with a pen and no die while no family is known to it", added.empty >= 1, added.empty);
 
+  section("the Roll panel's two readings, and Design by selection");
+  if (census.template) {
+    await run(gm, P.press, { id: fid, action: "orgRollAll", wait: 700 });
+    const panel = await run(gm, P.panel, null);
+    check("Roll at random opens a panel that lists what the roll will make, each row with a provenance tooltip", panel.open && panel.make.length > 0 && panel.tips === panel.make.length, { make: panel.make.length, tips: panel.tips });
+    note("where the page is silent: the choices this variant reaches", panel.choices);
+    const state = await run(gm, P.setField, { name: "state", value: "lair" });
+    const again = await run(gm, P.panel, null);
+    check("changing the state redraws the readings, and nothing was rolled or made to draw them", state && again.actors === panel.actors && again.chat === panel.chat, { actors: [panel.actors, again.actors], chat: [panel.chat, again.chat] });
+    await run(gm, P.closeDialog, null);
+    await run(gm, P.press, { id: fid, action: "orgDesign", wait: 700 });
+    const design = await run(gm, P.panel, null);
+    check("Design by selection opens the panel with a slot for each empty unit below the top, and no troop select shown until the troops rule and the special share both stand", design.open && design.slots.length >= 0 && design.troopHidden, design.slots);
+    await run(gm, P.closeDialog, null);
+  } else note("not walked", "no family template carries an encounter line in this world");
+
   section("roll one card, with all below it");
   if (census.template) {
     await run(gm, P.press, { id: fid, action: "orgRoll", key: "top", wait: 400 });
@@ -328,24 +344,6 @@ try {
     before = after;
   } else note("not walked", "no family template carries an encounter line in this world: Generate, Roll and Remove need the import");
 
-  section("the Roll panel's two readings, and Design by selection");
-  if (census.template) {
-    await run(gm, P.host, { id: fid, template: census.template, tab: "orgChart" });
-    await run(gm, P.press, { id: fid, action: "orgRollAll", wait: 700 });
-    const panel = await run(gm, P.panel, null);
-    check("Roll at random opens a panel that lists what the roll will make, each row with a provenance tooltip", panel.open && panel.make.length > 0 && panel.tips === panel.make.length, { make: panel.make.length, tips: panel.tips });
-    note("where the page is silent: the choices this variant reaches", panel.choices);
-    const state = await run(gm, P.setField, { name: "state", value: "lair" });
-    const again = await run(gm, P.panel, null);
-    check("changing the state redraws the readings, and nothing was rolled or made to draw them", state && again.actors === panel.actors && again.chat === panel.chat, { actors: [panel.actors, again.actors], chat: [panel.chat, again.chat] });
-    await run(gm, P.closeDialog, null);
-    await run(gm, P.press, { id: fid, action: "orgAddWarband", wait: 500 });
-    await run(gm, P.press, { id: fid, action: "orgDesign", wait: 700 });
-    const design = await run(gm, P.panel, null);
-    check("Design by selection opens the panel with a slot for each empty unit below the top, and no troop select shown until the troops rule and the special share both stand", design.open && design.slots.length >= 0 && design.troopHidden, design.slots);
-    await run(gm, P.closeDialog, null);
-  } else note("not walked", "no family template carries an encounter line in this world");
-
   section("generate a village on a root group, then roll it");
   if (census.template) {
     const gen = await run(gm, P.generateVillage, { template: census.template });
@@ -355,7 +353,8 @@ try {
       await run(gm, P.press, { id: gen.id, action: "orgRoll", wait: 400 });
       await run(gm, P.dialog, { fields: { context: "wilderness", state: "lair" }, button: "ok" });
       const cardMade = await waitFor(gm, `game.actors.contents.some((a) => a.type === "acks-extras.faction" && a.system.units.some((r) => r.holderUuid === "${gen.uuid}"))`, 25000);
-      check("a village Roll ends with the faction card holding the root group's row", cardMade || note("no village from this roll", "the Roll made a warband or a gang: no card is called for"));
+      if (cardMade) check("a village Roll ends with the faction card holding the root group's row", true);
+      else note("no village from this roll", "the Roll made a warband or a gang: no card is called for");
       if (cardMade) {
         const after = await run(gm, P.afterRoll, { baseline: gen.baseline, rootUuid: gen.uuid, template: census.template });
         for (const u of after.names.map((n) => n.split(":").slice(2).join(":"))) await gm.track(u, "Actor");
@@ -367,6 +366,14 @@ try {
       }
     }
   } else note("not walked", "no family template carries an encounter line in this world");
+
+  section("rank frames, with their words");
+  const frames = await run(gm, P.frames, { id: fid });
+  const roles = new Set(frames.map((f) => f.role));
+  check("every framed head carries its rank as an accessible name and as a word written on the card", frames.length > 0 && frames.every((f) => f.label && f.word && f.label.includes(f.word)), frames.map((f) => [f.role, f.word]));
+  check("the top card with units beneath it is the chieftain's frame, a card holding bodies only a champion's, a card with no leader the rank and file's", frames.filter((f) => f.root && f.kids).every((f) => f.role === "chief" || f.role === "file") && frames.filter((f) => !f.kids && f.role !== "file").every((f) => f.role === "champion"), [...roles]);
+  const lines = new Map(frames.map((f) => [f.role, f.line]));
+  check("the frames differ in line weight and style as well as colour, so they read without colour", new Set([...lines.values()].map((l) => l.split(" ").slice(0, 2).join(" "))).size >= Math.min(lines.size, 3) || lines.size < 2, [...lines]);
 
   section("edit a filled card");
   const filledRow = before.units.find((r) => r.holderUuid);
@@ -392,14 +399,6 @@ try {
       await run(gm, P.press, { id: fid, action: "orgEditDone", key: filledRow.key, wait: 600 });
     } else note("not walked", "the filled card holds no stack");
   }
-
-  section("rank frames, with their words");
-  const frames = await run(gm, P.frames, { id: fid });
-  const roles = new Set(frames.map((f) => f.role));
-  check("every framed head carries its rank as an accessible name and as a word written on the card", frames.length > 0 && frames.every((f) => f.label && f.word && f.label.includes(f.word)), frames.map((f) => [f.role, f.word]));
-  check("the top card with units beneath it is the chieftain's frame, a card holding bodies only a champion's, a card with no leader the rank and file's", frames.filter((f) => f.root && f.kids).every((f) => f.role === "chief" || f.role === "file") && frames.filter((f) => !f.kids && f.role !== "file").every((f) => f.role === "champion"), [...roles]);
-  const lines = new Map(frames.map((f) => [f.role, f.line]));
-  check("the frames differ in line weight and style as well as colour, so they read without colour", new Set([...lines.values()].map((l) => l.split(" ").slice(0, 2).join(" "))).size >= Math.min(lines.size, 3) || lines.size < 2, [...lines]);
 
   section("send out and recall");
   if (filledRow) {
@@ -459,7 +458,7 @@ try {
     check("Dismiss closes the line and changes nothing else", dismissed.unlistedList === null);
   }
 
-  note("not walked", "Generate from the family template's Generate button, the root group's sheet, and a Player seat's view of a hidden card: each needs a world step this script does not drive");
+  note("not walked", "the family template sheet's own Generate button (Generate is driven through the service the button calls), the root group's sheet, and a Player seat's view of a hidden card");
   walkDone();
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);

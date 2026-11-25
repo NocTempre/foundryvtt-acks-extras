@@ -4636,7 +4636,7 @@ is the special one (the one case a troop pick is read). Pick a share on a unit a
 holds `shareKind` (and `troop`) before the Roll, and the filled unit takes the share. The unit's die rolls that row alone
 with all below it and removes the slot; the other units stay empty. A pick left on "Rolled" writes no key.
 4. **Edit** — press the pen on a filled card: the card turns to a form (troop select with off-the-bands
-   types marked, bodies, Champion, Remove, Done); change the bodies, press Done. *Observable:* the
+   types marked, bodies, Clear the leader where one exists, Remove, Done); change the bodies, press Done. *Observable:* the
    group's stack `size.initial` and `size.current` are the new figure, the card reads **set by hand** with a
    tooltip naming the total the Roll threw (`gen.rolled`) and never below the bodies it records. With a body
    on a map the Judges are whispered and the write still lands.
