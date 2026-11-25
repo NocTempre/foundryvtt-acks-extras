@@ -22,6 +22,8 @@ import * as stations from "./stations.mjs";
 import * as seaThrows from "./sea-throws.mjs";
 import * as hold from "./hold.mjs";
 import * as deploy from "./deploy.mjs";
+import { writeStructureDamage } from "./structure-damage.mjs";
+import { registerStructureDamage } from "../lib/item-run.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { handOver } from "../lib/storage.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
@@ -34,6 +36,8 @@ import { TRAVEL_DOC, VOYAGES_DOC } from "./vehicle-speed.mjs";
 Hooks.once("init", () => {
   CONFIG.Actor.dataModels[VEHICLE_TYPE] = VehicleData;
   registerVehicleSheet();
+  // A burst's hand-on lands on a vessel's structure through this writer.
+  registerStructureDamage(writeStructureDamage);
   // What this feature will READ from the registry, declared so the import UX
   // can name what a world is missing. The values themselves never ship.
   expectTables(TRAVEL_DOC, ["terrainMultipliers", "roads", "draftEquivalents"]);

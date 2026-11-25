@@ -629,4 +629,38 @@ assert.equal(speedFactor({ shp: { value: 5, max: 10 }, crew: { roles: [] } }).hu
   assert.equal(await clearSinkingClockIfAfloat(actor), false, "nothing left to clear");
 }
 
+/* --- a burst's hand-on: full damage to structure, never below zero ---------- */
+{
+  const { writeStructureDamage } = await import("../scripts/vehicles/structure-damage.mjs");
+  const { VEHICLE_TYPE } = await import("../scripts/vehicles/constants.mjs");
+  const writes = [];
+  const hull = (value) => ({
+    type: VEHICLE_TYPE,
+    system: { shp: { value, max: 40 } },
+    update: async (d) => { writes.push(d); },
+  });
+  const world = { "Actor.a": hull(30), "Actor.low": hull(5), "Actor.blank": hull(null), "Actor.hand": { type: "character", system: {}, update: async () => { throw new Error("no write"); } } };
+  world["Scene.s.Token.t"] = { actor: world["Actor.a"] };
+  const resolve = (uuid) => world[uuid] ?? null;
+
+  let r = await writeStructureDamage({ vehicleUuid: "Actor.a", total: 12 }, { resolve });
+  assert.deepEqual(r, { ok: true, amount: 12, value: 18 }, "the whole figure comes off the hull");
+  assert.deepEqual(writes.pop(), { "system.shp.value": 18 }, "through system.shp.value, so updateActor fires");
+  r = await writeStructureDamage({ vehicleUuid: "Scene.s.Token.t", total: 7 }, { resolve });
+  assert.deepEqual(r, { ok: true, amount: 7, value: 23 }, "a token's uuid resolves to its actor");
+  writes.length = 0;
+  r = await writeStructureDamage({ vehicleUuid: "Actor.low", total: 9 }, { resolve });
+  assert.equal(r.value, 0, "never below zero");
+  assert.equal(r.amount, 9, "and the damage dealt is the figure, not the hull that was left");
+  assert.deepEqual(writes.pop(), { "system.shp.value": 0 });
+  r = await writeStructureDamage({ vehicleUuid: "Actor.low", total: 0 }, { resolve });
+  assert.deepEqual(r, { ok: true, amount: 0, value: 5 }, "a zero deals nothing");
+  writes.length = 0;
+  assert.deepEqual(await writeStructureDamage({ vehicleUuid: "Actor.hand", total: 4 }, { resolve }), { ok: false, reason: "notVehicle" });
+  assert.deepEqual(await writeStructureDamage({ vehicleUuid: "Actor.nowhere", total: 4 }, { resolve }), { ok: false, reason: "gone" });
+  assert.deepEqual(await writeStructureDamage({ vehicleUuid: "", total: 4 }, { resolve }), { ok: false, reason: "gone" });
+  assert.deepEqual(await writeStructureDamage({ vehicleUuid: "Actor.blank", total: 4 }, { resolve }), { ok: false, reason: "noHull" }, "a blank hull is unknown, not lowered");
+  assert.equal(writes.length, 0, "a refusal writes nothing");
+}
+
 console.log("test-vehicles: OK (one hold, empty berths, weighed hands, unweighed hands)");
