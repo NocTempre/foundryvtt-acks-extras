@@ -32,9 +32,17 @@
  * The tree: `{top, prototypes, gen, treasure, findings}`; a unit node is `{key,
  * word, kind, shareKind?, label, camp, trait, troop, officers, stacks, children}`.
  */
-import { blankRow, planAdd } from "./org-tree-logic.mjs";
+import { blankRow, nodesOf, planAdd, subtreeKeys } from "./org-tree-logic.mjs";
 
 const REFUSED = (reason) => ({ ok: false, reason, ops: [] });
+
+/**
+ * The module flag key a minted prototype carries, holding its prototype key. It is
+ * how a later Roll finds the actor again instead of making a second one, and the
+ * only mark that lets Delete remove an actor: a library entry or an actor a hand
+ * made carries none.
+ */
+export const ORG_PROTOTYPE_FLAG = "organisationPrototype";
 
 /** Plain copies of a list's rows, safe to edit. */
 const copyRows = (rows) => (rows ?? []).map((r) => structuredClone(r?.toObject?.() ?? r));
@@ -205,6 +213,28 @@ export function planAddUnit({ host, rows, parentKey = "", fields = {}, newKey = 
   const plan = planAdd(rows, parentKey, key, fields);
   if (!plan.ok) return REFUSED(plan.reason);
   return { ok: true, ops: [{ op: "update", uuid: host.uuid, update: { "system.units": plan.rows } }], key, rows: plan.rows };
+}
+
+/**
+ * The Delete of a row: the row and every row beneath it leave the host's list, and
+ * their holders are named so the executor can take the groups away. A group nests
+ * inside the group its parent row holds, so a row taken out alone would leave its
+ * subtree's groups inside a deleted one. The plan writes the host's rows only; the
+ * documents it names are the executor's to find and remove.
+ *
+ * @param {object} args
+ * @param {{uuid: string}} args.host
+ * @param {object[]} args.rows
+ * @param {string} args.key the row to delete
+ * @returns {{ok: boolean, reason?: "noRow", ops: object[], keys?: string[], holders?: string[], rows?: object[]}}
+ */
+export function planDelete({ host, rows, key } = {}) {
+  const list = copyRows(rows);
+  if (!key || !list.some((r) => r.key === key)) return REFUSED("noRow");
+  const gone = new Set(subtreeKeys(key, nodesOf(list)));
+  const kept = list.filter((r) => !gone.has(r.key));
+  const holders = list.filter((r) => gone.has(r.key) && r.holderUuid).map((r) => r.holderUuid);
+  return { ok: true, ops: [{ op: "update", uuid: host.uuid, update: { "system.units": kept } }], keys: [...gone], holders, rows: kept };
 }
 
 /**

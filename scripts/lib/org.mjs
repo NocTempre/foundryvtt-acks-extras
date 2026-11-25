@@ -15,18 +15,22 @@
  * These operations write documents on the calling client under Foundry's own
  * permissions; a consumer needing GM-routed writes wraps them.
  */
-import { GROUP_LANG_PREFIX, MODULE_ID } from "./constants.mjs";
-import { GROUP_ACTOR_TYPE, bodyCount, groupAncestors, groupDescendants, groupNodes, isGroupActor } from "./group-logic.mjs";
+import { GROUP_LANG_PREFIX, LANG_PREFIX, MODULE_ID } from "./constants.mjs";
+import { whisperJudges } from "./group-combat.mjs";
+import { GROUP_ACTOR_TYPE, bodyCount, groupAncestors, groupDescendants, groupNodes, isGroupActor, worldGroups } from "./group-logic.mjs";
 import { setParentGroup } from "./group.mjs";
 import { chartRows, orgHostOf, orgHosts, unitsOf } from "./org-host.mjs";
 import {
   locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, rowAncestors, rowDescendants, twinKeys,
   withHolder,
 } from "./org-tree-logic.mjs";
+import { ORG_PROTOTYPE_FLAG, planDelete } from "./org-write-logic.mjs";
 import { addOccupant, isLocation, removeOccupant } from "./place.mjs";
 import { docOf } from "./util.mjs";
 
 export { chartRows, moraleFromUnitsAbove, orgHostOf, orgHosts, registerOrgIndex, unitsOf } from "./org-host.mjs";
+export { runPlan } from "./org-run.mjs";
+export { ORG_PROTOTYPE_FLAG, keySource, planAddUnit, planDelete, planEdit, planRoll } from "./org-write-logic.mjs";
 export {
   affiliationRows, isEmptyRow, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
 } from "./org-tree-logic.mjs";
@@ -156,6 +160,64 @@ async function holderOf(host, row) {
   if (!doc) return { doc: null, made: false };
   await host.update({ "system.units": withHolder(unitsOf(host), row.key, doc.uuid) });
   return { doc, made: true };
+}
+
+/** Does any body of this group stand on a map? */
+const onMap = (group) => (group.system?.stacks ?? []).some((s) => (s.roster ?? []).some((m) => m.tokenUuid));
+
+/** Does any group still standing name this actor as a stack's prototype or a stack's mount? */
+function namedByAGroup(uuid) {
+  return worldGroups().some((g) => (g.system?.stacks ?? []).some((s) => s.template?.uuid === uuid || s.gen?.mount?.uuid === uuid));
+}
+
+/**
+ * Delete a row of a chart: the row and every row beneath it, the group each holds,
+ * and any prototype this generator minted that no remaining stack names. A group
+ * comes off every roster that held it, and the faction's leader is cleared where it
+ * was a deleted group's officer. The leaders themselves are actors of their own and
+ * stay in the world; so does every actor the module did not mint. Bodies on a map
+ * are a whisper to the Judges, never a refusal.
+ *
+ * @param {Actor} host a faction or a group hosting a chart
+ * @param {string} key the row
+ * @returns {Promise<{ok: boolean, reason?: string, rows?: string[], groups?: string[], prototypes?: string[], kept?: string[], leaders?: string[], warnings?: string[]}>}
+ */
+export async function deleteRow(host, key) {
+  if (!hostsChart(host)) return refused("notHost");
+  if (!host.isOwner) return refused("notOwner");
+  const plan = planDelete({ host, rows: unitsOf(host), key });
+  if (!plan.ok) return refused(plan.reason);
+  const groups = plan.holders.map((uuid) => docOf(uuid)).filter(isGroupActor);
+  const foreign = groups.find((g) => !g.isOwner);
+  if (foreign) return { ...refused("notOwner"), name: foreign.name ?? "" };
+
+  const warnings = [];
+  for (const g of groups) {
+    if (!onMap(g)) continue;
+    warnings.push("onMap");
+    await whisperJudges(g, game.i18n.format(`${LANG_PREFIX}.org.delete.onMap`, { name: g.name }));
+  }
+  const leaders = [...new Set(groups.map((g) => g.system?.unit?.officerUuid).filter(Boolean))];
+  const candidates = new Set(groups.flatMap((g) => (g.system?.stacks ?? []).flatMap((s) => [s.template?.uuid, s.gen?.mount?.uuid])).filter(Boolean));
+
+  const update = { "system.units": plan.rows };
+  if (host.system?.leaderUuid && leaders.includes(host.system.leaderUuid)) update["system.leaderUuid"] = "";
+  await host.update(update);
+  for (const g of groups) for (const place of rostersHolding(g.uuid)) await removeOccupant(docOf(place), g.uuid);
+  for (const g of groups) await g.delete();
+
+  const prototypes = [];
+  const kept = [];
+  for (const uuid of candidates) {
+    const proto = docOf(uuid);
+    if (!proto?.flags?.[MODULE_ID]?.[ORG_PROTOTYPE_FLAG]) continue;
+    if (namedByAGroup(uuid)) kept.push(uuid);
+    else {
+      await proto.delete();
+      prototypes.push(uuid);
+    }
+  }
+  return { ok: true, rows: plan.keys, groups: groups.map((g) => g.uuid), prototypes, kept, leaders, warnings };
 }
 
 /* -------------------------------------------- */

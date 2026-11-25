@@ -332,9 +332,19 @@ function stackTaken(stacks, stackKey) {
 
 /**
  * What the generator stamps on a stack it makes, as a plain source: the recipe
- * part's key and its page. Blank without a part.
+ * part's key and its page, and the figures it wrote for the bodies (the mount
+ * they ride, how many carry each piece, how many speak the common tongue). Blank
+ * without a part. A figure the generator did not write is left off, and the schema
+ * reads it blank.
  */
-const genOf = (gen) => ({ part: String(gen?.part ?? ""), cite: String(gen?.cite ?? "") });
+const genOf = (gen) => {
+  const out = { part: String(gen?.part ?? ""), cite: String(gen?.cite ?? "") };
+  if (gen?.mount && typeof gen.mount === "object" && Object.keys(gen.mount).length) out.mount = { ...gen.mount };
+  if (gen?.carry && typeof gen.carry === "object" && Object.keys(gen.carry).length) out.carry = { ...gen.carry };
+  const speakers = gen?.speakers === null || gen?.speakers === undefined || gen?.speakers === "" ? NaN : Number(gen.speakers);
+  if (Number.isFinite(speakers)) out.speakers = Math.max(0, Math.floor(speakers));
+  return out;
+};
 
 /** A printed hit-point figure as a stack stores it: a whole number above zero, else null. */
 const fixedHpOf = (n) => (Number.isFinite(Number(n)) && Number(n) >= 1 ? Math.floor(Number(n)) : null);
@@ -367,7 +377,7 @@ function stackFromSource(source, { count = 0, key, gen = null, fixedHp = null } 
  * @param {Actor} source
  * @param {object} [opts]
  * @param {number} [opts.count] living bodies to start with
- * @param {{part: string, cite: string}} [opts.gen] the recipe part and its page, for a stack the generator makes
+ * @param {{part: string, cite: string, mount?: object, carry?: object, speakers?: number}} [opts.gen] the recipe part and its page, and the figures the generator wrote for its bodies
  * @param {number} [opts.fixedHp] the printed hit points every body of this stack takes in place of a roll
  * @returns {Promise<string|null>} the new stack's key, or null
  */

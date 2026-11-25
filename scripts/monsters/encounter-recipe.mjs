@@ -144,13 +144,14 @@ const formulaOf = (p) => (p.count?.dice ? String(p.count.dice) : p.count?.litera
  * @param {"dungeon"|"wilderness"} [args.context] which line
  * @param {"wandering"|"lair"|"chance"} [args.state] which side; `chance` throws the lair chance first
  * @param {string} [args.unit] roll this unit word instead of the side's own noun (an empty row of that kind)
+ * @param {string} [args.kind] the share an ancestor's roll fixed for this unit: the unit and everything under it take it, and no split is made again
  * @param {() => number} [args.rng]
  * @param {{key: string, percent: number, round?: string}[]|null} [args.shares] shares that replace the recipe's own (the optional three-way split)
  * @param {object} [args.choices] the Judge's choices; the rest take `DEFAULT_CHOICES`
  * @returns {{ok: boolean, reason?: string, context?: string, state?: string, lair?: object, top?: object, choices?: object, missing?: object[], steps?: object[]}}
  *   `reason` is `side` (the line states no count for the unit) or `noChance`
  */
-export function evaluateRecipe({ recipe = [], encounter = null, context = "wilderness", state = "wandering", unit = "", rng = Math.random, shares = null, choices = {} } = {}) {
+export function evaluateRecipe({ recipe = [], encounter = null, context = "wilderness", state = "wandering", unit = "", kind = "", rng = Math.random, shares = null, choices = {} } = {}) {
   const chosen = { ...DEFAULT_CHOICES, ...choices, branch: { ...DEFAULT_CHOICES.branch, ...(choices.branch ?? {}) } };
   const steps = [];
   const missing = [];
@@ -216,7 +217,9 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
   // The level the shares divide: the first with more than one unit, else the deepest, among levels whose words the shares name.
   const splitUnits = new Set((recipe ?? []).filter((p) => p?.role === "body" && p.count?.ratioOf === "unit").flatMap((p) => p.when?.units ?? []).map(unitWord));
   const named = (node) => !splitUnits.size || splitUnits.has(node.unit);
-  if (splitParts.length) {
+  if (kind) {
+    for (const node of all) node.kind = kind;
+  } else if (splitParts.length) {
     let level = [root];
     let pick = null;
     let deepest = null;

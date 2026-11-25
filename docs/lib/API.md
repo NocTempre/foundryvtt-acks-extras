@@ -1,4 +1,4 @@
-# lib API (apiVersion 73)
+# lib API (apiVersion 74)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 73,
+  apiVersion: 74,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -69,6 +69,7 @@ acksExtras.lib = {
   // 70: attack.TARGET_AC_FLAG (below, "The attack card's Armor Class line")
   // 71: rollMods.countsOnce (below, "A condition counted once")
   // 73: groups.{setParentGroup, addLabelledStack, groupTree, deployedTree, groupNodes, groupDescendants, groupAncestors, wouldCycleGroup, liveRows, isGeneratedStack} (docs/lib/GROUPS.md, "A group inside a group"); addStack takes `gen` and `fixedHp`
+  // 74: org.{runPlan, deleteRow, planRoll, planAddUnit, planEdit, planDelete, keySource, ORG_PROTOTYPE_FLAG} (below, "`org` — the organisation chart"); a stack's `gen` carries `mount`, `carry` and `speakers`
   // 73: fields.unitField; org.{orgHostOf, orgHosts, unitsOf, chartRows, addRow, setHolder, sendOut, recall, join, leave, orgChart, locations, chartOf, rostersHolding, moraleFromUnitsAbove, nodesOf, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys, isEmptyRow, affiliationRows, registerOrgIndex} (below, "`org` — the organisation chart"); a faction and a group carry `system.units`
 }
 ```
@@ -396,7 +397,7 @@ resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe 
 its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
 unit with no recipe, which a consumer treats as no provider.
 
-## `org` — the organisation chart (apiVersion 73)
+## `org` — the organisation chart (apiVersion 74)
 
 `acksExtras.lib.org`. The shape, the rules of each control and the reasons they
 answer are docs/lib/ORGANISATION.md's; this is the surface.
@@ -413,6 +414,9 @@ answer are docs/lib/ORGANISATION.md's; this is the surface.
 | `orgChart(host)`, `locations()` | The two view models |
 | `chartOf(group)` | `{host, row, above, below}`: the group's place in whichever chart names it |
 | `moraleFromUnitsAbove(group)` | The part the units above a group bring while their officers are up |
+| `runPlan(plan, {mint, makeLeader})` | `{ok, reason?, error?, done, created, made: {groups, prototypes, leaders}, reused, refs}`: carries a `planRoll` or `planAddUnit` plan out in order with a ref map. `mint(spec, {key})` answers `{actor, made}` and `makeLeader(op, spec, mount)` the leader's actor; lib names no creature. `created` is every id made, on a failure too |
+| `deleteRow(host, key)` | `{ok, rows, groups, prototypes, kept, leaders, warnings}`: the row and its subtree, the groups they hold, and each prototype carrying `ORG_PROTOTYPE_FLAG` that no stack still names; bodies on a map are `warnings: ["onMap"]` and a whisper to the Judges |
+| `planRoll`, `planAddUnit`, `planEdit`, `planDelete` | The Foundry-free plans (docs/lib/ORGANISATION.md) |
 
 A refusal is `{ok: false, reason}` and nothing is written. The pure half is
 `nodesOf`, `rowAncestors`, `rowDescendants`, `rowRoots`, `subtreeKeys`, `twinKeys`,

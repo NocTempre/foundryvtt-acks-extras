@@ -90,7 +90,18 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // Set where the generator made this stack: the recipe part's key and the page
         // that prints it. A blank part is a stack nothing generated, so the field is
         // never null. See docs/lib/GROUPS.md, "A generated stack".
-        gen: new SchemaField({ part: str(), cite: str() }),
+        // The generator's other figures for the stack's bodies, set where it made them
+        // and stored for a reader to show: the beast they ride (`{uuid, label, perBody}`,
+        // a label alone where no creature stands behind the word), how many carry
+        // each optional piece (`{pieceKey: bodies}`), and how many speak the common
+        // tongue. Blank is a figure the generator did not write.
+        gen: new SchemaField({
+          part: str(),
+          cite: str(),
+          mount: new ObjectField(),
+          carry: new ObjectField(),
+          speakers: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
+        }),
         // A printed hit-point figure every body of this stack takes in place of a
         // roll. Null is a stack whose bodies roll their hit dice.
         fixedHp: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 1 }),

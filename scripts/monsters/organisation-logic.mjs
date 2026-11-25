@@ -108,6 +108,26 @@ export function withTableVillage(recipe, villageRows, variant, cite = "") {
 }
 
 /**
+ * A unit a line prints as holding exactly one unit by a fixed count (no dice) is
+ * lowered to that unit: the counted unit stands at the root, so its group is the
+ * roll's top and no wrapper level stands above it. The wrapper's leaders come
+ * first, so the first of them is the group's officer, and its parts that are no
+ * body (a camp) join the unit's own. A count that is dice, or a unit holding
+ * several, is left as evaluated, since the dice could as well have come up many.
+ * @param {object} top the evaluator's top node
+ * @returns {object} the node that stands at the root
+ */
+export function lowerLoneUnit(top) {
+  const fixed = /^\d+$/.test(String(top.count?.formula ?? "").replace(/\s+/g, ""));
+  if (!fixed || top.children.length !== 1) return top;
+  const [only] = top.children;
+  only.parentKey = null;
+  only.leaders = [...top.leaders, ...only.leaders];
+  only.parts = [...top.parts, ...only.parts];
+  return only;
+}
+
+/**
  * Roll an organisation: the recipe evaluated for a unit, the optional rules
  * layered on, every creature a prototype. `tree` is what `lib/org-write-logic.mjs`
  * carries out; `gen` is the record a later Roll of an empty row under it needs.
@@ -126,7 +146,7 @@ export function withTableVillage(recipe, villageRows, variant, cite = "") {
  * @param {object} [args.org] `importedOrganisation()`
  * @param {{name: string, uuid: string}[]} [args.library] the library's index, for outside references
  * @param {object} [args.choices] the Judge's choices where the page is silent (the evaluator's, and `traitBeast`: a creature word)
- * @param {{trait?: string}} [args.inherit] what an ancestor's roll already fixed: a trait key, blank for none
+ * @param {{trait?: string, shareKind?: string, troop?: string}} [args.inherit] what an ancestor's roll already fixed for the unit: a trait key (blank for none), the share the unit took, and the troop its special unit rolled
  * @param {(role: string) => number|null} [args.hdOf] a leader's Hit Dice, for a chance per Hit Die
  * @param {(proto: object) => number|null} [args.printedHp] the hit points a prototype's own page prints
  * @returns {object} `{ok, reason?, context, state, lair, treasure, top, prototypes, findings, steps, gen}`
@@ -148,9 +168,12 @@ export function planOrganisationRoll({
     else findings.push({ what: "split", missing: trio.filter(([, share]) => whole(f[share]) === null).map(([key]) => key) });
   }
 
-  const evaluated = evaluateRecipe({ recipe: parts, encounter, context, state, unit, rng, shares, choices });
+  const evaluated = evaluateRecipe({ recipe: parts, encounter, context, state, unit, kind: inherit.shareKind ?? "", rng, shares, choices });
   if (!evaluated.ok) return { ok: false, reason: evaluated.reason, lair: evaluated.lair ?? null };
   findings.push(...evaluated.missing.map((m) => ({ what: "missing", ...m })));
+  // One hoard for each unit the line counts, one for a unit that counts bodies.
+  const hoards = Math.max(1, evaluated.top.children.length);
+  if (!unit) evaluated.top = lowerLoneUnit(evaluated.top);
 
   const prototypes = {};
   const protoOf = (spec) => {
@@ -179,6 +202,10 @@ export function planOrganisationRoll({
   const specialRoots = evalNodes.filter((n) => n.kind === SPECIAL && parentOf.get(n.key)?.kind !== SPECIAL);
   if (on.troops) {
     for (const n of specialRoots) {
+      if (inherit.troop && n.key === evaluated.top.key) {
+        troopOf.set(n.key, inherit.troop);
+        continue;
+      }
       const hit = rollBanded(troopRows, variant, rng);
       if (!hit.key) findings.push({ what: "gap", table: "troops", unit: n.unit, roll: hit.roll });
       else troopOf.set(n.key, hit.key);
@@ -336,5 +363,5 @@ export function planOrganisationRoll({
   }
 
   const gen = { variant, context: evaluated.context, state: evaluated.state, rules: on, leaderSource, villageSource, trait, choices: evaluated.choices };
-  return { ok: true, context: evaluated.context, state: evaluated.state, lair: evaluated.lair, treasure: { deal: evaluated.state === "lair" }, top, prototypes, findings, steps: evaluated.steps, gen };
+  return { ok: true, context: evaluated.context, state: evaluated.state, lair: evaluated.lair, treasure: { deal: evaluated.state === "lair" && !unit, hoards }, top, prototypes, findings, steps: evaluated.steps, gen };
 }

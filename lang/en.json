@@ -838,6 +838,7 @@
   "ACKS-LIB.group.info.detached": "{name} left the group as a standalone actor.",
   "ACKS-LIB.group.combat.nothing": "{name} holds no bodies to put on the map, so the fight has its token alone.",
   "ACKS-LIB.group.warn.noCreature": "{name} holds \"{label}\", which has no creature behind it, so none of it is placed. Drop a creature on its row to link one.",
+  "ACKS-LIB.org.delete.onMap": "{name} had bodies on a map when its row was deleted. Those tokens keep the figures they went out with.",
   "ACKS-LIB.group.combat.elsewhere": "{name} is already fighting in another combat, so it was not added to this one.",
   "ACKS-LIB.group.move.done": "Moved {name} to {group}.",
   "ACKS-LIB.group.move.refused.notOwner": "You cannot edit {name}, so the row did not move.",

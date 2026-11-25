@@ -207,8 +207,10 @@ t("a plain roll turns each part into a stack with its part and page, and a print
   assert.deepEqual([escort.gen, escort.fixedHp], [{ part: "escort", cite: "XX p. 1" }, 7]);
   assert.equal("fixedHp" in stacksOf(r).find((s) => s.gen.part === "archers" || s.gen.part === "warriors"), false, "no figure the page does not print");
   assert.equal(r.gen.variant, "alba");
-  assert.deepEqual(r.treasure, { deal: true });
+  assert.deepEqual(r.treasure, { deal: true, hoards: 3 }, "one hoard for each unit the line counts");
   assert.equal(roll({ state: "wandering" }).treasure.deal, false, "the state decides whether treasure is dealt");
+  assert.deepEqual(roll({ context: "dungeon", state: "wandering" }).treasure, { deal: false, hoards: 1 }, "a unit that counts bodies is one hoard");
+  assert.equal(roll({ unit: "band", state: "lair" }).treasure.deal, false, "a roll of one empty row deals none: its ancestor's roll dealt for it");
 });
 
 t("a leader is an officer of its unit with its morale part, never a stack; an out-of-range figure is null and a finding", () => {
@@ -373,6 +375,39 @@ t("the roll's tree carries out as one plan: a roll of one empty row writes only 
   assert.deepEqual(plan.rows.find((r) => r.key === "v"), rows[0]);
   assert.equal(plan.rows.find((r) => r.key === "w").gen.trait, "x1", "what a later roll of an empty row needs rides on the row");
   assert.ok(plan.rows.filter((r) => !r.holderUuid && r.key !== "w").every((r) => r.kind === "cell"));
+});
+
+t("a line that counts one unit by a fixed figure is lowered to that unit: it stands at the root, the wrapper's leader first, its camp carried down", () => {
+  const recipe = [...RECIPE, part("den-guard", "guard", { source: { name: "gleaves" }, count: { dice: "1d4" }, when: { units: ["den"] } })];
+  const r = roll({ recipe, context: "dungeon", state: "lair" });
+  assert.equal(r.top.word, "band", "the counted unit's group is the root");
+  assert.equal(r.top.parentKey, null);
+  assert.deepEqual(r.top.officers.map((o) => o.role), ["c", "b"], "the printed leader of the wrapper is the group's officer, the unit's own after it");
+  assert.equal(r.top.officers[0].moraleBonus, 2);
+  const camp = r.top.children.find((c) => c.camp);
+  assert.ok(camp?.stacks.some((s) => s.gen.part === "den-guard"), "a part that is no body of the wrapper joins the unit's camp");
+  assert.equal(nodesOf(r.top).some((n) => n.word === "den"), false, "no wrapper level stands above it");
+  assert.equal(r.treasure.hoards, 1);
+});
+
+t("a count that is dice is never lowered, though the dice came up one", () => {
+  const r = roll({ context: "wilderness", state: "lair", rng: () => 0 });
+  assert.equal(r.top.word, "hold");
+  assert.equal(r.top.children.filter((c) => !c.camp).length, 1, "one band under a hold");
+});
+
+t("a roll of an empty row takes the share and the troop its ancestor's roll fixed, and rolls neither again", () => {
+  const rules = { troops: true };
+  const alone = roll({ unit: "cell", state: "wandering", rules });
+  assert.equal(alone.top.shareKind, SPECIAL, "a unit alone in its level, left to itself, takes the shares' own roundings");
+  assert.equal(alone.top.troop, "t1", "and rolls its troop on the bands");
+  const fixed = roll({ unit: "cell", state: "wandering", rules, inherit: { shareKind: "warriors" } });
+  assert.equal(fixed.top.shareKind, "warriors", "the share the ancestor fixed");
+  assert.equal(fixed.top.troop, "", "no special unit, so no troop is rolled");
+  assert.ok(fixed.top.stacks.every((s) => s.gen.part === "warriors"));
+  const carried = roll({ unit: "cell", state: "wandering", rules, inherit: { shareKind: SPECIAL, troop: "t2" } });
+  assert.equal(carried.top.troop, "t2", "the troop is the ancestor's, though the bands would roll t1");
+  assert.equal(carried.findings.some((f) => f.what === "gap"), false);
 });
 
 let failures = 0;
