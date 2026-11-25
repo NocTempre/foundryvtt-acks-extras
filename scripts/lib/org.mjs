@@ -267,7 +267,10 @@ export async function undoDelete(host, snapshot) {
   if (!game.user?.can?.("ACTOR_CREATE")) return refused("noCreate");
   let restored = 0;
   try {
-    for (const batch of [snapshot.actors, snapshot.groups]) {
+    // An id still in the world was never deleted (a linked actor whose delete failed, a Delete that
+    // stopped partway); re-creating it would collide, so only the gone ones come back.
+    for (const all of [snapshot.actors, snapshot.groups]) {
+      const batch = all.filter((d) => !game.actors?.has?.(d._id));
       if (!batch.length) continue;
       const made = await Actor.implementation.createDocuments(structuredClone(batch), { keepId: true });
       restored += made?.length ?? 0;

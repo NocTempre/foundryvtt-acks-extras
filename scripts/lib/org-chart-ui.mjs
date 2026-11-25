@@ -919,8 +919,22 @@ async function deleteCard(app, host, key) {
   if (again.blocked) return refuse({ reason: "noDelete", name: again.blocked.name ?? "" });
   takes = takes.filter((uuid) => linkedOf(again.preview.leaders).some((a) => a.uuid === uuid && a.canDelete));
   const snapshot = org.deleteSnapshot(host, again.preview, takes);
-  const result = await org.deleteRow(host, key);
-  if (!result.ok) return refuse(result);
+  // The step is held before the first write, so a Delete that throws partway still leaves its Undo;
+  // a refusal writes nothing and puts back the step it displaced.
+  const prior = undos.peek(app);
+  undos.hold(app, { ...snapshot, label: going[0]?.label ?? "" });
+  let result;
+  try {
+    result = await org.deleteRow(host, key);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a Delete stopped partway; its Undo is kept`, err);
+    return null;
+  }
+  if (!result.ok) {
+    if (prior) undos.hold(app, prior);
+    else undos.drop(app);
+    return refuse(result);
+  }
   for (const uuid of takes) {
     try {
       await docOf(uuid)?.delete();
@@ -932,7 +946,6 @@ async function deleteCard(app, host, key) {
     await game.settings.set(MODULE_ID, WARN_DELETE_SETTING, false);
     await game.settings.set(MODULE_ID, DELETE_LINKED_SETTING, save);
   }
-  undos.hold(app, { ...snapshot, label: going[0]?.label ?? "" });
   return result;
 }
 
