@@ -152,7 +152,14 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
   const settled = async (promise) => Promise.race([promise, tick().then(() => pending)]);
 
   globalThis.foundry = { applications: { api: { DialogV2: FakeDialog } } };
-  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k) => k }, user: { can: (p) => (p === "SETTINGS_MODIFY" ? mayModify : false) } };
+  const judge = { id: "judge", name: "Judge", can: (p) => p === "SETTINGS_MODIFY" };
+  const owner = { id: "owner", name: "Owner", can: (p) => (p === "SETTINGS_MODIFY" ? mayModify : false) };
+  let judgesSeated = true;
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d) => (d && Object.keys(d).length ? `${k} ${JSON.stringify(d)}` : k) }, user: owner, users: { [Symbol.iterator]: function* () { yield owner; if (judgesSeated) yield judge; } } };
+  const cards = [];
+  globalThis.ChatMessage = { create: async (data) => { cards.push(data); return data; }, getSpeaker: ({ actor }) => ({ alias: actor.name }) };
+  const hooks = {};
+  globalThis.Hooks = { on: (name, fn) => { (hooks[name] ??= []).push(fn); } };
   globalThis.ui = { notifications: { warn: (m) => warned.push(m), info() {} } };
   globalThis.Roll = { validate: () => true };
   globalThis.acksExtras = {
@@ -165,7 +172,7 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
   globalThis.CONFIG = {
     Item: {
       documentClass: class {
-        constructor(data) { Object.assign(this, data); }
+        constructor(data, options = {}) { Object.assign(this, data); this.parent = options.parent ?? null; }
         updateSource(patch) {
           for (const [path, value] of Object.entries(patch)) {
             const parts = path.split(".");
@@ -182,10 +189,22 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
   const { asUnarmedDie } = await import("../scripts/equipment/attack-mods.mjs");
   const { spellCarrier } = await import("../scripts/lib/patches/attack-throw.mjs");
 
+  let canWrite = false;
+  let flagFails = false;
+  const flags = {};
+  const character = {
+    name: "Hero",
+    canUserModify: () => canWrite,
+    getFlag: (_m, k) => flags[k],
+    setFlag: async (_m, k, v) => { if (flagFails) throw new Error("refused"); flags[k] = v; },
+    unsetFlag: async (_m, k) => { delete flags[k]; },
+    makeAttackThrow: (o) => { character.struck.push(o.item); return true; },
+    struck: [],
+  };
   const newStrike = () => {
-    const struck = [];
-    rollUnarmed({ makeAttackThrow: (o) => { struck.push(o.item); return true; } }, { skipDialog: true });
-    return struck[0];
+    character.struck.length = 0;
+    rollUnarmed(character, { skipDialog: true });
+    return character.struck[0];
   };
   const strike = newStrike();
   assert.equal(isUnarmedStrike(strike), true);
@@ -226,7 +245,7 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
     w.keep.checked = true;
     w.keep.onChange();
     assert.equal(w.face.textContent, "ACKS-EQUIPMENT.damagePrompt.save", "ticked, the button says it will save");
-    assert.equal(w.button.attrs["data-tooltip-text"], "ACKS-EQUIPMENT.damagePrompt.saveTip");
+    assert.ok(w.button.attrs["data-tooltip-text"].startsWith("ACKS-EQUIPMENT.damagePrompt.saveTip"));
     w.keep.checked = false;
     w.keep.onChange();
     assert.equal(w.face.textContent, "ACKS-EQUIPMENT.damagePrompt.attack", "unticked, it reads Attack again");
@@ -279,6 +298,7 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
   // A seat without it: the field and Attack alone; nothing can be kept.
   {
     mayModify = false;
+    canWrite = false;
     const before = kept.length;
     const fifth = newStrike();
     const run = prepareDamageFormula({ weapon: fifth });
@@ -297,6 +317,142 @@ ok("a scavenged damage penalty over a blank formula writes no die", () => {
     mayModify = true;
     passed++;
     console.log("ok   a seat without the permission: field and Attack only, nothing kept");
+  }
+
+  // An owner without world-settings permission: the box keeps the die on the character, and the Judge is offered it.
+  {
+    mayModify = false;
+    canWrite = true;
+    const sixth = newStrike();
+    const run = prepareDamageFormula({ weapon: sixth });
+    await tick();
+    const w = shown.at(-1);
+    const before = kept.length;
+    assert.ok(w.keep, "an owner is offered a keep box");
+    assert.ok(w.config.content.includes("keepCharacterLabel<"), "that keeps the die on the character");
+    assert.ok(!w.config.content.includes("keepLabel<"), "and never says it is the world's");
+    assert.ok(w.config.content.includes("keepCharacterHint"), "its hint names the character");
+    assert.ok(w.config.content.includes("Hero"), "with the character's name");
+    assert.equal(w.button.attrs["data-tooltip-text"], "ACKS-EQUIPMENT.damagePrompt.attackTip");
+    w.keep.checked = true;
+    w.keep.onChange();
+    assert.ok(w.button.attrs["data-tooltip-text"].includes("saveCharacterTip"), "ticked, the button's tooltip says it saves on the character");
+    await w.press("2d4", { keep: true });
+    assert.equal(await run, true);
+    assert.equal(flags.unarmedDie, "2d4", "the die is on the character");
+    assert.equal(sixth.system.damage.base.formula, "2d4");
+    assert.deepEqual(kept.slice(before), [], "and not on the world");
+    assert.equal(cards.length, 1, "one card goes out");
+    assert.deepEqual(cards[0].whisper, ["judge"], "whispered to the seat that may modify world settings and to no other");
+    assert.ok(cards[0].content.includes("Hero") && cards[0].content.includes("2d4"), "naming the character and the die");
+    assert.equal(cards[0].flags["acks-extras"].unarmedOffer.die, "2d4");
+    assert.ok(cards[0].content.includes("data-unarmed-offer-save"), "with the one press");
+    passed++;
+    console.log("ok   an owner keeps the die on the character and the Judge is whispered the offer");
+
+    // Unticked: nothing is kept and nothing is sent.
+    delete flags.unarmedDie;
+    cards.length = 0;
+    const seventh = newStrike();
+    const run2 = prepareDamageFormula({ weapon: seventh });
+    await tick();
+    await shown.at(-1).press("1d4", { keep: false });
+    assert.equal(await run2, true);
+    assert.equal(flags.unarmedDie, undefined, "attacked once: nothing on the character");
+    assert.equal(cards.length, 0, "and no card");
+    passed++;
+    console.log("ok   an owner who does not tick keeps nothing and sends nothing");
+
+    // A refused write: said on the screen, no offer, the attack goes ahead.
+    flagFails = true;
+    warned.length = 0;
+    const eighth = newStrike();
+    const run3 = prepareDamageFormula({ weapon: eighth });
+    await tick();
+    await shown.at(-1).press("1d4", { keep: true });
+    assert.equal(await run3, true);
+    assert.equal(cards.length, 0, "no offer for a die that was not kept");
+    assert.ok(warned.some((m) => m.includes("keepCharacterFailed")), "the refusal is said on the screen");
+    flagFails = false;
+    passed++;
+    console.log("ok   a refused character write is said and sends no offer");
+
+    // With no Judge seated there is no one to whisper to.
+    judgesSeated = false;
+    cards.length = 0;
+    const ninth = newStrike();
+    const run4 = prepareDamageFormula({ weapon: ninth });
+    await tick();
+    await shown.at(-1).press("1d4", { keep: true });
+    assert.equal(await run4, true);
+    assert.equal(flags.unarmedDie, "1d4", "kept on the character all the same");
+    assert.equal(cards.length, 0, "no card with no one to send it to");
+    judgesSeated = true;
+    delete flags.unarmedDie;
+    canWrite = false;
+    mayModify = true;
+    passed++;
+    console.log("ok   with no Judge to tell, the character's die is still kept");
+  }
+
+  // Which die the strike rolls.
+  {
+    const { unarmedDieOf, characterUnarmedDie } = await import("../scripts/equipment/attack-mods.mjs");
+    assert.equal(characterUnarmedDie(character), null, "no flag: no character die");
+    flags.unarmedDie = "1d5";
+    assert.equal(characterUnarmedDie(character), "1d5");
+    assert.equal(unarmedDieOf(character), "1d5", "the character's die is the one the strike rolls");
+    rollUnarmed(character, { skipDialog: true });
+    assert.equal(character.struck.at(-1).system.damage.base.formula, "1d5", "and the throw carries it, with no prompt");
+    assert.equal(needsDamageFormula(character.struck.at(-1)), false);
+    flags.unarmedDie = "a lot";
+    assert.equal(characterUnarmedDie(character), null, "a flag that is not one die counts as none");
+    delete flags.unarmedDie;
+    passed++;
+    console.log("ok   the strike rolls the character's own die first, and a garbage flag is none");
+  }
+
+  // The card as it is drawn.
+  {
+    const { offerState, offerContent, registerUnarmedOffer, OFFER_FLAG } = await import("../scripts/equipment/unarmed-offer.mjs");
+    assert.equal(offerState("1d6", { worldDie: null, mayKeep: true }), "offered");
+    assert.equal(offerState("1d6", { worldDie: null, mayKeep: false }), "sent", "a seat that cannot write the world sees that the Judge was told");
+    assert.equal(offerState("1d6", { worldDie: "1d6", mayKeep: true }), "saved");
+    assert.equal(offerState("1d6", { worldDie: "1d8", mayKeep: true }), "already");
+    assert.ok(offerContent({ player: "Owner", character: "Hero", die: "1d6" }).includes("Hero"));
+    registerUnarmedOffer();
+    const render = hooks.renderChatMessageHTML[0];
+    const node = (extra = {}) => ({ hidden: false, dataset: {}, textContent: "", disabled: false, listeners: {}, addEventListener(t, f) { this.listeners[t] = f; }, ...extra });
+    const dom = () => {
+      const parts = { "[data-unarmed-offer-save]": node(), "[data-unarmed-offer-result]": node({ hidden: true }), "[data-unarmed-offer-ignore]": node() };
+      return { html: { querySelector: (s) => (s === "[data-unarmed-offer]" ? { querySelector: (q) => parts[q] ?? null } : null) }, parts };
+    };
+    const message = { getFlag: (_m, k) => (k === OFFER_FLAG ? { die: "2d4" } : null) };
+
+    // A Judge's seat, the world holding no die: the press is offered, and pressing writes the override.
+    mayModify = true;
+    const before = kept.length;
+    let d = dom();
+    render(message, d.html);
+    assert.equal(d.parts["[data-unarmed-offer-save]"].hidden, false, "the press is shown");
+    assert.equal(d.parts["[data-unarmed-offer-result]"].hidden, true);
+    await d.parts["[data-unarmed-offer-save]"].listeners.click({ preventDefault() {} });
+    assert.deepEqual(kept.slice(before), [["equipment", "unarmedStrike", { damage: "2d4" }, { sourceName: "unarmed strike prompt" }]], "the press writes the world's override");
+
+    // A seat that cannot write the world sees no press.
+    mayModify = false;
+    d = dom();
+    render(message, d.html);
+    assert.equal(d.parts["[data-unarmed-offer-save]"].hidden, true, "no press for a seat that cannot save");
+    assert.ok(d.parts["[data-unarmed-offer-result]"].textContent.includes("offer.sent"));
+    mayModify = true;
+
+    // A card with no offer flag is left alone.
+    d = dom();
+    render({ getFlag: () => null }, d.html);
+    assert.equal(d.parts["[data-unarmed-offer-save]"].hidden, false);
+    passed++;
+    console.log("ok   the offer card shows its press to a seat that can save, a line to one that cannot, and writes the override once");
   }
 
   // The spell carrier is never asked, and a stored weapon asks as before.

@@ -16,7 +16,7 @@
  * and with either table absent (a Judge's override layer, written through the
  * Ruledata Browser's own `setOverride`) the gate refuses nothing, the unarmed
  * strike carries a blank die and asks for one in a window of its own (a refusal stays on the window; a Judge's seat may
- * keep the die as the world's override and a Player's seat may not), and clearing the override gives the
+ * keep the die as the world's override, and an owner's seat keeps it on the character and offers it to the Judge by a whispered card), and clearing the override gives the
  * imported figures back. Machine values arrive through ./_env.mjs.
  *
  * Fixture, kept and found by marker: `equipment/printed-figures-actor`, a
@@ -45,6 +45,7 @@ const NAMES = { priced: "QA Priced Container", unlimited: "QA Unlimited Containe
 const TYPED_CAPACITY = 17;
 const HAND_CAPACITY = 5;
 const INVENTED_DIE = "1d7";
+const CHARACTER_DIE = "1d3";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -452,6 +453,8 @@ P.strikePrompt = async ({ actorId, attempts }) => {
   const out = {
     opened: true,
     hasKeep: !!q('input[name="keep"]'),
+    keepIsWorld: q('input[name="keep"]')?.closest("label")?.textContent?.trim() === game.i18n.localize("ACKS-EQUIPMENT.damagePrompt.keepLabel"),
+    keepIsCharacter: q('input[name="keep"]')?.closest("label")?.textContent?.trim() === game.i18n.localize("ACKS-EQUIPMENT.damagePrompt.keepCharacterLabel"),
     hasHint: !!q("p.hint")?.textContent?.trim(),
     inScrollContract: root.classList.contains("acks-extras-scroll"),
     errorHiddenAtStart: q("[data-strike-error]")?.hidden === true,
@@ -486,6 +489,37 @@ P.strikePrompt = async ({ actorId, attempts }) => {
   out.die = H.AM.unarmedStrikeDie();
   out.overrideStands = H.STORE.hasOverride("equipment", "unarmedStrike");
   H.mine.override.add("unarmedStrike");
+  return out;
+};
+/** The die kept on the character, as the flag holds it, or null. */
+P.charDie = async ({ actorId }) => ({ flag: game.actors.get(actorId)?.getFlag("acks-extras", "unarmedDie") ?? null });
+/** Clear the die kept on the character, as the sheet's clear control does. */
+P.clearCharDie = async ({ actorId }) => {
+  const K = await import("/modules/acks-extras/scripts/equipment/unarmed-keep.mjs");
+  const cleared = await K.clearCharacterDie(game.actors.get(actorId));
+  return { cleared, flag: game.actors.get(actorId)?.getFlag("acks-extras", "unarmedDie") ?? null };
+};
+/** The Unarmed Strike row on the Rolls tab, as the sheet draws it: the die, the mark, the clear control. */
+P.rowParts = async ({ actorId }) => {
+  const R = await import("/modules/acks-extras/scripts/character-sheet/rolls.mjs");
+  const row = R.rollInventory(game.actors.get(actorId)).groups.find((g) => g.key === "attack")?.rows.find((r) => r.id === "unarmed");
+  return { found: !!row, hasDie: /\dd\d/i.test(row?.line ?? ""), marked: !!row?.mark, canClear: !!row?.clear, tipNamesPlace: (row?.lineTip ?? "").length > 0 };
+};
+/** The offer card the Judge's seat holds for a die: whether it is drawn with its press, and the press itself. */
+P.offerCard = async ({ die, press }) => {
+  const H = globalThis.__pf;
+  const found = await H.poll(() => game.messages.contents.findLast((m) => m.getFlag("acks-extras", "unarmedOffer")?.die === die) ?? null, { tries: 25, every: 200 });
+  if (!found) return { found: false };
+  const node = await H.poll(() => document.querySelector(`[data-message-id="${found.id}"] [data-unarmed-offer-save]`), { tries: 25, every: 200 });
+  const out = { found: true, id: found.id, whisperedToMe: found.whisper.includes(game.user.id), drawn: !!node, pressShown: !!node && node.hidden === false };
+  if (press && node) {
+    node.click();
+    await H.poll(() => H.AM.unarmedStrikeDie() === die, { tries: 30, every: 200 });
+    H.mine.override.add("unarmedStrike");
+    out.worldDie = H.AM.unarmedStrikeDie();
+    out.pressHidden = node.hidden === true;
+    out.resultSaid = !!document.querySelector(`[data-message-id="${found.id}"] [data-unarmed-offer-result]:not([hidden])`);
+  }
   return out;
 };
 P.drain = async () => ({ errors: globalThis.__pf.errors.slice(), cards: globalThis.__pf.cards.slice() });
@@ -750,25 +784,55 @@ try {
   check("6: a word and a die with a flat figure are refused on the window, which stays open and marks the field", !!sp.attempts?.[0]?.stillOpen && !!sp.attempts?.[0]?.errorShown && !!sp.attempts?.[0]?.invalidMarked && !!sp.attempts?.[1]?.stillOpen && !!sp.attempts?.[1]?.errorShown, sp.attempts?.slice(0, 2));
   check("6: a die, attacked once with the box unticked, closes the window, posts the attack card and keeps nothing", sp.attempts?.[2] && !sp.attempts[2].stillOpen && !sp.leftOpen && sp.settled && sp.threw === null && sp.cards.length >= 1 && sp.die === null, { attempt: sp.attempts?.[2], settled: sp.settled, threw: sp.threw, cards: sp.cards?.length, die: sp.die });
 
-  // A seat without the permission: the field and Attack alone, and nothing kept even with the box asked for.
-  const sq = await run(player, P.strikePrompt, { actorId, attempts: [{ answer: INVENTED_DIE, tick: true }] });
-  await trackCards(sq.cards ?? []);
-  check("6: the Player seat's prompt has the field, the hint and Attack, and no keep box", sq.opened && !sq.hasKeep && sq.hasHint && sq.startsAsAttack, { opened: sq.opened, hasKeep: sq.hasKeep, hasHint: sq.hasHint, attack: sq.startsAsAttack });
-  check("6: its die applies to that throw alone: the attack was made and the world holds no die", sq.attempts?.[0] && !sq.attempts[0].stillOpen && sq.settled && sq.threw === null && sq.die === null, { attempt: sq.attempts?.[0], settled: sq.settled, threw: sq.threw, die: sq.die });
-  await sleep(800);
-  const afterPlayer = await run(gm, P.tables);
-  check("6: the Judge seat still has no die after the Player's throw", !afterPlayer.dieImported, { dieImported: afterPlayer.dieImported });
-
-  // Ticked: the die is the world's override, and the next press asks nothing.
+  // Ticked on the Judge's seat: the die is the world's override, and the next press asks nothing.
   sp = await run(gm, P.strikePrompt, { actorId, attempts: [{ answer: INVENTED_DIE, tick: true }] });
   await trackCards(sp.cards ?? []);
-  check("6: a die attacked with the box ticked is kept as the world's override", sp.opened && sp.attempts?.[0] && !sp.attempts[0].stillOpen && sp.settled && sp.overrideStands && sp.die === INVENTED_DIE, { attempt: sp.attempts?.[0], overrideStands: sp.overrideStands, kept: sp.die === INVENTED_DIE });
+  check("6: the Judge's keep box is the world's, and a die attacked with it ticked is kept as the world's override", sp.opened && sp.keepIsWorld && !sp.keepIsCharacter && sp.attempts?.[0] && !sp.attempts[0].stillOpen && sp.settled && sp.overrideStands && sp.die === INVENTED_DIE, { keepIsWorld: sp.keepIsWorld, attempt: sp.attempts?.[0], overrideStands: sp.overrideStands, kept: sp.die === INVENTED_DIE });
   u = await run(gm, P.unarmed, { actorId, roll: true });
   await trackCards(u.cards ?? []);
   check("6: the next press finds the die, opens no prompt and posts its card", !u.asked && u.settled && u.die === INVENTED_DIE && u.cards.length >= 1 && u.threw === null, { asked: u.asked, settled: u.settled, kept: u.die === INVENTED_DIE, cards: u.cards.length, threw: u.threw });
   await sleep(800);
   const seenKept = await run(player, P.tables);
   check("6: the Player seat's registry serves the kept die, so its press asks nothing either", seenKept.dieImported, { dieImported: seenKept.dieImported });
+  await run(gm, P.override, { table: UNARMED, data: {} });
+  await sleep(800);
+
+  // The owner's seat, no permission to modify world settings: the box keeps the die on the character and the Judge is offered it.
+  const before = await run(gm, P.charDie, { actorId });
+  check("6: the fixture starts with no die of its own", before.flag === null, before);
+  const sq = await run(player, P.strikePrompt, { actorId, attempts: [{ answer: "a lot", tick: true }, { answer: CHARACTER_DIE, tick: true }] });
+  await trackCards(sq.cards ?? []);
+  check("6: the owner's prompt has the field, the hint and Attack, and a keep box that names the character", sq.opened && sq.hasKeep && sq.keepIsCharacter && !sq.keepIsWorld && sq.hasHint && sq.startsAsAttack, { opened: sq.opened, hasKeep: sq.hasKeep, character: sq.keepIsCharacter, world: sq.keepIsWorld, hasHint: sq.hasHint });
+  check("6: the owner's refusal stays on the window, and a ticked box turns the button to Save and attack", !!sq.attempts?.[0]?.stillOpen && !!sq.attempts?.[0]?.errorShown && !!sq.attempts?.[0]?.faceIsSave, sq.attempts?.[0]);
+  check("6: the die attacked with the box ticked made the attack", sq.attempts?.[1] && !sq.attempts[1].stillOpen && sq.settled && sq.threw === null && sq.cards.length >= 1, { attempt: sq.attempts?.[1], settled: sq.settled, threw: sq.threw, cards: sq.cards?.length });
+  await sleep(800);
+  const kept = await run(gm, P.charDie, { actorId });
+  check("6: the die is on the character and not on the world", kept.flag === CHARACTER_DIE && sq.die === null, { onCharacter: kept.flag === CHARACTER_DIE, worldDie: sq.die });
+  const afterOwner = await run(gm, P.tables);
+  check("6: the Judge seat still has no world die", !afterOwner.dieImported, { dieImported: afterOwner.dieImported });
+  const row = await run(player, P.rowParts, { actorId });
+  check("6: the Rolls tab's Unarmed Strike row shows the die with its mark, a tooltip, and the clear control to its owner", row.found && row.hasDie && row.marked && row.canClear && row.tipNamesPlace, row);
+  const again = await run(player, P.unarmed, { actorId, roll: true });
+  await trackCards(again.cards ?? []);
+  check("6: the next press from the owner finds the character's die and opens no prompt", !again.asked && again.settled && again.threw === null && again.cards.length >= 1, { asked: again.asked, settled: again.settled, threw: again.threw });
+  const offer = await run(gm, P.offerCard, { die: CHARACTER_DIE, press: false });
+  check("6: the Judge's seat holds the whispered offer, drawn with its press", offer.found && offer.whisperedToMe && offer.drawn && offer.pressShown, offer);
+  if (offer.id) { await gm.track(offer.id, "ChatMessage"); own.push(`ChatMessage.${offer.id}`); }
+  const pressed = await run(gm, P.offerCard, { die: CHARACTER_DIE, press: true });
+  check("6: pressing it writes the world's die, hides the press and says it was saved", pressed.worldDie === CHARACTER_DIE && pressed.pressHidden && pressed.resultSaid, pressed);
+  await sleep(800);
+  const seenOffered = await run(player, P.tables);
+  check("6: the Player seat's registry serves the world's die", seenOffered.dieImported, { dieImported: seenOffered.dieImported });
+  const cleared6 = await run(player, P.clearCharDie, { actorId });
+  check("6: the owner clears the character's die and the flag is gone", cleared6.cleared && cleared6.flag === null, cleared6);
+  const rowAfter = await run(player, P.rowParts, { actorId });
+  check("6: the row no longer carries the mark or the clear control", rowAfter.found && !rowAfter.marked && !rowAfter.canClear, rowAfter);
+  await run(gm, P.override, { table: UNARMED, data: {} });
+  await sleep(800);
+
+  // A seat with neither right (no permission, not the character's owner) is the field and Attack alone: the Player of a character it does not own.
+  // That seat is not on this fixture, so it is covered by the unit suite (tools/test-weapon-damage-blank.mjs) and named in the report.
+
   const invented = await run(gm, P.override, { table: UNARMED, data: { damage: INVENTED_DIE } });
   u = await run(gm, P.unarmed, { actorId, roll: false });
   check("a Judge's own die wins over the page's", invented.set && u.die === INVENTED_DIE && u.formula === INVENTED_DIE, { set: invented.set, die: u.die === INVENTED_DIE });

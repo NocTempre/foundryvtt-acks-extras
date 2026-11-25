@@ -41,6 +41,7 @@ import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab, heroicFateOn } from "./tabs/effects.mjs";
 import { openCoreWindow } from "../lib/core-windows.mjs";
 import { drawItem, sheatheItem, wearItem, removeItem, prepareTorch } from "../equipment/actions.mjs";
+import { clearCharacterDie } from "../equipment/unarmed-keep.mjs";
 import { placeItem } from "../equipment/placement.mjs";
 import { wearLabel } from "../equipment/wear.mjs";
 import { cycleGrip } from "../equipment/loadout.mjs";
@@ -123,6 +124,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     actions: {
       roll: AcksCharacterSheet.#onRoll,
       pinRoll: AcksCharacterSheet.#onPinRoll,
+      clearUnarmedDie: AcksCharacterSheet.#onClearUnarmedDie,
       pinItem: AcksCharacterSheet.#onPinItem,
       influence: AcksCharacterSheet.#onInfluence,
       mortalWounds: AcksCharacterSheet.#onMortalWounds,
@@ -846,6 +848,11 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
       return;
     }
     await this._togglePinId(id);
+  }
+
+  /** Clear the die kept on this character; its Unarmed Strike then reads the world's. */
+  static async #onClearUnarmedDie() {
+    await clearCharacterDie(this.actor);
   }
 
   static async #onPinItem(event, target) {

@@ -31,7 +31,7 @@
  * Pure: every function reads documents and returns data, so
  * `tools/test-equipment.mjs` asserts them without Foundry.
  */
-import { LANG, EFFECT_DOMAINS } from "./constants.mjs";
+import { LANG, EFFECT_DOMAINS, ACTOR_FLAGS } from "./constants.mjs";
 import { SIZE } from "./config.mjs";
 import { getLoadout } from "./loadout.mjs";
 import { classifyWeapon, canOneHand } from "./profiles.mjs";
@@ -42,7 +42,7 @@ import { maneuverMods, MANEUVERS, overlayEnabled as maneuverOverlayEnabled } fro
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { numOrNull } from "../lib/util.mjs";
-import { hasDoc, getDoc } from "../lib/tables.mjs";
+import { hasDoc, getDoc, citeOf } from "../lib/tables.mjs";
 import { consumedRows } from "../lib/typed-modifiers.mjs";
 import { MODULE_ID } from "../lib/constants.mjs";
 
@@ -96,6 +96,31 @@ export function asUnarmedDie(text) {
 export function unarmedStrikeDie() {
   return asUnarmedDie(equipmentTable(PRINTED_FIGURE_TABLES.unarmed).damage);
 }
+
+/** The die this character's owner kept on it from the strike's prompt, or null. */
+export const characterUnarmedDie = (actor) => asUnarmedDie(actor?.getFlag?.(MODULE_ID, ACTOR_FLAGS.UNARMED_DIE));
+
+/**
+ * The die this character's Unarmed Strike rolls: its own, else the world's
+ * (a Judge's override, then the import), else null and the strike asks.
+ * @returns {string|null}
+ */
+export const unarmedDieOf = (actor) => characterUnarmedDie(actor) ?? unarmedStrikeDie();
+
+/**
+ * Which layer answers `unarmedDieOf`: `"character"`, `"override"` (the world's
+ * die is a Judge's, the registry's page answering null), `"import"`, or null
+ * when no die is set anywhere.
+ * @returns {"character"|"override"|"import"|null}
+ */
+export function unarmedDieSource(actor) {
+  if (characterUnarmedDie(actor)) return "character";
+  if (unarmedStrikeDie() === null) return null;
+  return unarmedDieCite() ? "import" : "override";
+}
+
+/** The page the world's unarmed die was read from, or null: a Judge's override and no import have none. */
+export const unarmedDieCite = () => citeOf(RULEDATA_DOC, PRINTED_FIGURE_TABLES.unarmed);
 
 /**
  * The tables of the equipment document the non-proficient package reads

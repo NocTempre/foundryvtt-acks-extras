@@ -30,6 +30,7 @@ import { FRAME_LANG_PREFIX } from "../lib/frame.mjs";
 import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
 import { rollUnarmed } from "../equipment/actions.mjs";
+import { unarmedDieOf, unarmedDieSource, unarmedDieCite } from "../equipment/attack-mods.mjs";
 import { bestAttackBonus, getLoadout } from "../equipment/loadout.mjs";
 import { containedIn } from "../equipment/containers.mjs";
 import { rollsOf, keyOf, rollAbility, throwText, throwProvenance, noteProvenance, autoText, grantedThrows, availableThrows, rollGrantedThrow, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
@@ -74,6 +75,30 @@ function adventuringBase(found) {
   }
   if (found.target == null) return "";
   return loc(found.skillName ? "rolls.adv.fromStoredBetter" : "rolls.adv.fromStored", fill) + included;
+}
+
+/**
+ * The Unarmed Strike row's line and what rides beside it: the die the strike
+ * rolls, then where the character stands. A die kept on the character carries
+ * the "set by hand" mark, and its owner a control that clears it. The tooltip
+ * says where the figure came from and names the page, never the figure's rule.
+ */
+function unarmedRowParts(actor) {
+  const eq = (key, data) => game.i18n.format(`ACKS-EQUIPMENT.unarmedDie.${key}`, data);
+  const die = unarmedDieOf(actor);
+  const source = unarmedDieSource(actor);
+  const canClear = source === "character" && !!actor.canUserModify?.(game.user, "update");
+  const tips = {
+    character: () => eq("markTip", { name: actor.name }) + (canClear ? eq("clearTip") : ""),
+    import: () => eq("world", { page: unarmedDieCite() ?? "" }),
+    override: () => eq("override"),
+  };
+  return {
+    line: [die, loc("rolls.state.unarmed")].filter(Boolean).join(" · "),
+    lineTip: source ? tips[source]() : eq("none"),
+    mark: source === "character" ? eq("mark") : "",
+    clear: canClear ? { text: eq("clear"), label: eq("clearLabel", { name: actor.name }), tip: eq("clearButtonTip", { name: actor.name }) } : null,
+  };
 }
 
 /** Where a weapon is, as the line under its row. */
@@ -147,7 +172,7 @@ export function rollInventory(actor) {
     }
   }
   if (!loadout.weapons.length) {
-    attackRows.push(row("unarmed", game.i18n.localize("ACKS-EQUIPMENT.action.unarmed"), `${lead}${signed(melee.total)}`, { line: loc("rolls.state.unarmed") }));
+    attackRows.push(row("unarmed", game.i18n.localize("ACKS-EQUIPMENT.action.unarmed"), `${lead}${signed(melee.total)}`, unarmedRowParts(actor)));
   }
   groups.push({ key: "attack", name: loc("rolls.group.attack"), note: loc("rolls.note.throwBonus"), rows: attackRows });
 

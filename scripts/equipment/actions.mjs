@@ -13,7 +13,7 @@ import { SHIELD_VARIANTS } from "./config.mjs";
 import { equipmentClass, classifyWeapon, GRIPS, WEAPON_CATEGORY_VALUES, inferredGearFlag } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
 import { rowsSettled } from "./weapon-rows.mjs";
-import { unarmedStrikeDie } from "./attack-mods.mjs";
+import { unarmedDieOf } from "./attack-mods.mjs";
 import {
   tableFor, importedTable, importedNeedsReroll, accumulateImported,
 } from "./overlays/scavenged.mjs";
@@ -116,25 +116,25 @@ export async function prepareTorch(actor, item, { draw = false } = {}) {
 /**
  * The synthetic weapon an unarmed strike rolls through (RR p.299). The
  * Unarmed Fighting proficiency changes only lethality, not the die — so
- * there is one die here, the imported one (`unarmedStrikeDie`); with none
- * imported the weapon carries a blank formula and its throw rolls no damage.
- * Melee only.
+ * there is one die here: the character's own, else the world's
+ * (`unarmedDieOf`). With none the weapon carries a blank formula and the
+ * damage prompt asks for one. Melee only.
  */
-export function unarmedStrikeData() {
+export function unarmedStrikeData(actor = null) {
   return {
     name: game.i18n?.has?.("ACKS-EQUIPMENT.action.unarmed")
       ? game.i18n.localize("ACKS-EQUIPMENT.action.unarmed")
       : "Unarmed Strike",
     type: "weapon",
     img: "icons/skills/melee/unarmed-punch-fist.webp",
-    system: { damage: { base: { formula: unarmedStrikeDie() ?? "" } }, melee: true, missile: false, bonus: { attack: 0, damage: 0 }, equipped: false },
+    system: { damage: { base: { formula: unarmedDieOf(actor) ?? "" } }, melee: true, missile: false, bonus: { attack: 0, damage: 0 }, equipped: false },
   };
 }
 
 /**
  * The strikes `rollUnarmed` built, by item. Membership is the whole of "is an
  * unarmed strike": the weapon is built per throw, so an answer typed for it
- * cannot be kept on it (`unarmed-prompt.mjs` keeps it on the world instead),
+ * cannot be kept on it (`unarmed-prompt.mjs` keeps it on the character or the world),
  * and it carries no id to tell it by.
  */
 const strikes = new WeakSet();
@@ -157,7 +157,7 @@ export function rollUnarmed(actor, options = {}) {
   if (!actor) return null;
   const cls = CONFIG?.Item?.documentClass;
   if (!cls) return null;
-  const data = unarmedStrikeData();
+  const data = unarmedStrikeData(actor);
   const weapon = new cls(data, { parent: actor });
   strikes.add(weapon);
   return actor.makeAttackThrow({ item: weapon, attackType: "melee", skipDialog: options.skipDialog ?? skipDialogFor(options.event) });

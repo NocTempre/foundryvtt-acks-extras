@@ -26,6 +26,8 @@
             <span class="acks-extras-frame__row-label">{{row.label}}</span>
             {{#if row.line}}<span class="acks-extras-frame__row-line"{{#if row.lineTip}} data-tooltip-text="{{row.lineTip}}"{{/if}}>{{row.line}}</span>{{/if}}
           </span>
+          {{#if row.mark}}<span class="acks-tag acks-tag--ghost"{{#if row.lineTip}} data-tooltip-text="{{row.lineTip}}"{{/if}}>{{row.mark}}</span>{{/if}}
+          {{#if row.clear}}<button type="button" class="acks-extras-frame__mini" data-action="clearUnarmedDie" aria-label="{{row.clear.label}}" data-tooltip-text="{{row.clear.tip}}">{{row.clear.text}}</button>{{/if}}
           {{#if row.mods.length}}<span class="acks-tag-group">{{#each row.mods}}<span class="acks-tag acks-tag--ghost">{{this}}</span>{{/each}}</span>{{/if}}
           <span class="acks-extras-frame__row-value acks-nums"{{#if row.tip}} data-tooltip-text="{{row.tip}}"{{/if}}>{{row.value}}</span>
           {{#if row.big}}

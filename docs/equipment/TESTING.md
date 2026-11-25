@@ -1570,8 +1570,13 @@ prints booleans and counts, never a page figure or a row's name.
    an answer that is not one `NdM` die is refused on the window, which stays
    open; Attack with the box unticked posts the attack card and keeps nothing
    (tracked, swept by id); ticked, the die is the world's override and the next
-   press opens no window. On the Player's seat the box is absent and nothing is
-   kept. An invented die in the override wins; text that is not `NdM` counts
+   press opens no window. On the Player's seat, which owns the fixture, the box
+   names the character: ticked, the die is the character's flag, the Judge's seat
+   holds a whispered offer card drawn with its press, the Rolls tab's row shows
+   the die with its mark and a clear control, and pressing the card writes the
+   world's die; clearing the character's die removes the flag and the mark. A
+   seat that owns nothing and has no permission (the field and Attack alone) is
+   not on this fixture and is the unit suite's. An invented die in the override wins; text that is not `NdM` counts
    as none.
 7. Clear the run's two overrides. *Observable:* none left, and the registry
    serves the imported counts again on both seats.

@@ -27,7 +27,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-23 — [One item sheet, this module's own markup (2026-08-23)](DECISIONS-through-v11.14.5.md#one-item-sheet-this-modules-own-markup-2026-08-23)
 - 2026-08-28 — [The mounted overlay ships its structure; the numbers wait](DECISIONS-through-v11.14.5.md#2026-08-28--the-mounted-overlay-ships-its-structure-the-numbers-wait) — superseded in part by "2026-10-17 — One automation client per seat, chosen by the last relayed claim"; "2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows"; "2026-11-11 — A held weapon shows and rolls one die"
 - 2026-10-21 — [The non-proficient package's figures are imported](DECISIONS-through-v11.14.5.md#2026-10-21--the-non-proficient-packages-figures-are-imported) — superseded in part by "2026-11-11 — A throwable needs no tag"; "2026-11-13 — Only what the module and the current system write is served"
-- 2026-11-11 — [Capacities, finesse sizes and the unarmed die are read, not shipped](DECISIONS-through-v11.14.5.md#2026-11-11--capacities-finesse-sizes-and-the-unarmed-die-are-read-not-shipped) — superseded in part by "2026-11-25 — An unarmed strike with no die asks, and a Judge can keep the answer" (a blank unarmed die no longer means a throw with no damage roll)
+- 2026-11-11 — [Capacities, finesse sizes and the unarmed die are read, not shipped](DECISIONS-through-v11.14.5.md#2026-11-11--capacities-finesse-sizes-and-the-unarmed-die-are-read-not-shipped) — superseded in part by "2026-11-25 — An unarmed strike with no die asks, and a Judge can keep the answer" and "2026-11-25 — An unarmed strike's die is kept on the character or the world, and the Judge is offered it" (a blank unarmed die no longer means a throw with no damage roll)
 - 2026-11-11 — [The Holds toggle shows the gear declaration, not containerhood](DECISIONS-through-v11.14.5.md#2026-11-11--the-holds-toggle-shows-the-gear-declaration-not-containerhood)
 - 2026-11-11 — [A Martial Training pick grants its option's own weapons](DECISIONS-through-v11.14.5.md#2026-11-11--a-martial-training-pick-grants-its-options-own-weapons) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
 - 2026-11-11 — [Bows and crossbows are one proficiency category](DECISIONS-through-v11.14.5.md#2026-11-11--bows-and-crossbows-are-one-proficiency-category)
@@ -306,7 +306,9 @@ can save the answer.
 there is no prompt to type one into. A spell carrier whose row states no roll
 makes an attack throw and no damage, as before the prompt existed.
 
-## 2026-11-25 — An unarmed strike with no die asks, and a Judge can keep the answer
+## 2026-11-25 — An unarmed strike with no die asks, and a Judge can keep the answer — SUPERSEDED IN PART 2026-11-25
+
+Superseded in part by "2026-11-25 — An unarmed strike's die is kept on the character or the world, and the Judge is offered it". What stands here: the prompt, its NdM-only refusal on the window, the Judge's box that writes the world's override, the guard on `SETTINGS_MODIFY`, the contract's `setOverride`. What the later entry changes: a seat without that permission is no longer given the field and Attack alone where it owns the character.
 
 Supersedes in part "2026-11-25 — The strike and a spell carrier are never asked
 for a formula" (its strike half) and, for the strike, the reading in
@@ -364,3 +366,57 @@ that cannot save to ask a Judge: a prompt with no way to answer it at the table.
 override, as every imported table already does; the override wins and the
 Ruledata Browser is where it is undone. A Judge who ticks the box on a typo has
 to clear it there.
+
+## 2026-11-25 — An unarmed strike's die is kept on the character or the world, and the Judge is offered it
+
+Supersedes in part "2026-11-25 — An unarmed strike with no die asks, and a
+Judge can keep the answer", written the same day: its seat without world-settings
+permission, which was given the field and Attack alone, is now given a way to
+keep the die when it owns the character.
+
+**Ruled** (owner, on the design board's card, in free text): "offer to save for
+character (fwd offer to judge to save for all instances), offer to save for all
+instances to judge by default". An example: a Player who owns Hero presses
+Unarmed Strike with no die set, types `[dice]`, ticks "Save as this character's
+unarmed die", and attacks. Hero rolls it from then on and is not asked again; the
+Judge is whispered a card and may press one control to make it the world's die.
+
+**New evidence.** The earlier entry rested on the hub's reading that a seat
+without world-settings permission has nowhere to write. The owner's words name
+the character as that place, and the seat's own right to edit the actor as what
+writes it.
+
+**Decided.**
+
+- A seat with world-settings permission is offered one box, "Save as this world's
+  unarmed die", as before. It is offered by default and is unticked.
+- A seat without it that Foundry lets update the actor (`canUserModify`, which
+  an owner passes) is offered "Save as this character's unarmed die". Ticked,
+  the die is the character's flag `flags["acks-extras"].unarmedDie`, written
+  by Foundry's own ownership of the actor, and the strike reads it first.
+- That save sends one whispered card to every seat that may modify world
+  settings, naming the character and the die, with one control, "Save as this
+  world's unarmed die", which writes the same override the Judge's box writes.
+  Ignoring it changes nothing, so there is no decline control. The card holds no
+  state: it reads the world when it is drawn, so a die the world already holds,
+  this die or another, replaces the control with a line, and a seat that cannot
+  write the world sees that the Judge was offered it and no control.
+- The strike rolls the character's die, else the world's (a Judge's override,
+  then the import), else asks. On the Rolls tab's Unarmed Strike row the line
+  leads with the die; a character's own carries the "set by hand" mark and a
+  tooltip naming what it stands in for and the page, and its owner a control that
+  clears it, after which the strike reads the world's die.
+- A seat with neither right is given the field and Attack alone, as before.
+- The die is still one `NdM` die, refused on the window, and closing the window
+  cancels the attack and sends no card.
+
+**Rejected.** A second box in the Judge's window for the character: the Judge
+who wants it on one character attacks once and the character's owner or the
+Judge keeps it from that character's own window. A decline control on the card.
+Writing the character's die from the card's press: the Judge's press is for the
+world only.
+
+**What it cost.** The die has a third home, the character, which wins over the
+world's override on that character alone, so a Judge who sets the world's die
+afterward finds characters that keep their own. The Judge sees each by its mark
+on that character's sheet and has no list of them.

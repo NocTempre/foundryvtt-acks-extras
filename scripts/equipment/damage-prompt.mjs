@@ -19,6 +19,7 @@ import { makeLoc, escape as esc } from "../lib/util.mjs";
 import { addAttackContributor, isSpellCarrier } from "../lib/patches/attack-throw.mjs";
 import { isUnarmedStrike } from "./actions.mjs";
 import { prepareUnarmedStrike } from "./unarmed-prompt.mjs";
+import { registerUnarmedOffer } from "./unarmed-offer.mjs";
 import { needsDamageFormula, damageAnswer, savedFormulaUpdates, DAMAGE_FIELD } from "./damage-blank.mjs";
 import { recomputeItemFields } from "./properties.mjs";
 import * as named from "./overlays/named.mjs";
@@ -95,4 +96,5 @@ const damagePromptContributor = Object.freeze({ prepare: prepareDamageFormula })
 /** Take the prompt's seat at the attack throw. */
 export function registerDamagePrompt() {
   addAttackContributor(damagePromptContributor);
+  registerUnarmedOffer();
 }

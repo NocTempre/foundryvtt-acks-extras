@@ -143,6 +143,7 @@ export const ACTOR_FLAGS = Object.freeze({
   STYLES: "styles", // CSV/array of fighting styles the actor is trained in (+ single,missile)
   WEAPON_PROF: "weaponProficiency", // "all" | CSV of categories/weapon keys the actor is proficient with
   ARMOR_MAX: "armorMax", // highest armour category the actor is proficient in (default heavy)
+  UNARMED_DIE: "unarmedDie", // the one NdM die this character's Unarmed Strike rolls, written by its owner from the strike's prompt
 });
 
 /** World/client settings keys. */

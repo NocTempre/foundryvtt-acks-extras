@@ -1730,7 +1730,33 @@
       "attackTipPlayer": "Attack with this formula. It is not kept.",
       "saveTip": "Save this die for the world, then attack with it.",
       "invalidDie": "\"{formula}\" is not a die. Enter one die written NdM, or close the window to cancel the attack.",
-      "keepFailed": "The die could not be saved for the world. The attack goes ahead with it this once."
+      "keepFailed": "The die could not be saved for the world. The attack goes ahead with it this once.",
+      "keepCharacterLabel": "Save as this character's unarmed die",
+      "keepCharacterHint": "Kept on {name}. The Judge is offered it for every character.",
+      "keepCharacterTip": "Writes this die on {name}. Their Unarmed Strike then rolls it and they are not asked again. The Judge is offered the same die for the whole world.",
+      "saveCharacterTip": "Save this die on {name}, tell the Judge, then attack with it.",
+      "keepCharacterFailed": "The die could not be saved on {name}. The attack goes ahead with it this once."
+    },
+    "offer": {
+      "title": "Unarmed die offered",
+      "body": "{player} saved {die} as the unarmed die of {character}. Save it as this world's unarmed die, for every character?",
+      "save": "Save as this world's unarmed die",
+      "saveTip": "Writes {die} as the Judge's override of the unarmed strike's damage (RR 299). Every character without a die of their own then rolls it. Clear it in the Ruledata Browser.",
+      "ignore": "Ignoring this changes nothing. {character} keeps its own die.",
+      "sent": "The Judge has been offered {die} for every character.",
+      "saved": "Saved as this world's unarmed die. Every character without a die of their own now rolls it. Clear it in the Ruledata Browser.",
+      "already": "The world already has an unarmed die, so nothing was changed."
+    },
+    "unarmedDie": {
+      "mark": "set by hand",
+      "markTip": "Set by hand on {name}. It stands in for the world's unarmed die, an import or a Judge's override (RR 299).",
+      "clearTip": " Clear it to use the world's.",
+      "world": "From the imported table, {page}.",
+      "override": "A Judge's override of the unarmed strike's damage (RR 299), set in the Ruledata Browser.",
+      "none": "No unarmed die is set. Pressing asks for one (RR 299).",
+      "clear": "Clear",
+      "clearLabel": "Clear {name}'s unarmed die",
+      "clearButtonTip": "Clear {name}'s unarmed die. The strike then rolls the world's die, or asks if the world has none."
     },
     "settings": {
       "enforceMode": {

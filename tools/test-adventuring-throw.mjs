@@ -21,7 +21,15 @@ let passed = 0;
 const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
 
 /* --- the real strings, so a key that does not exist fails here ------------- */
-const LANG = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+const flatten = (node, prefix = "", out = {}) => {
+  for (const [key, value] of Object.entries(node)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === "object") flatten(value, path, out);
+    else out[path] = value;
+  }
+  return out;
+};
+const LANG = flatten(JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8")));
 const format = (key, data = {}) => {
   const text = LANG[key];
   assert.equal(typeof text, "string", `lang key ${key} exists`);
@@ -249,6 +257,31 @@ await ok("a stored figure that wins says so and names the skill's", async () => 
   const search = rows(rollInventory(sheetActor(3, [SEARCH()], { searching: 9 })), "adventuring").find((r) => r.id === "adv:searching");
   assert.equal(search.value, "9+");
   assert.equal(search.tip, "9+, the figure stored on the sheet, the better of the two. Searching (XX p.9) is 11+.");
+});
+
+await ok("the Unarmed Strike row names the die it rolls and carries the mark and the clear control only for a die kept on the character", async () => {
+  const a = sheetActor(3, []);
+  a.name = "Hero";
+  a.canUserModify = () => true;
+  const strike = () => rows(rollInventory(a), "attack").find((r) => r.id === "unarmed");
+  let row = strike();
+  assert.equal(row.mark, "", "no die kept: no mark");
+  assert.equal(row.clear, null, "and nothing to clear");
+  assert.ok(row.lineTip.startsWith("No unarmed die is set"), "the tooltip says nothing is set and points at the page");
+  a.getFlag = (_m, key) => (key === "unarmedDie" ? "1d5" : undefined);
+  row = strike();
+  assert.equal(row.line, "1d5 · nothing in hand", "the die leads the line");
+  assert.equal(row.mark, "set by hand");
+  assert.ok(row.lineTip.includes("Set by hand on Hero") && row.lineTip.includes("Clear it"), "the tooltip says what it stands in for and that it can be cleared");
+  assert.equal(row.clear.label, "Clear Hero's unarmed die");
+  assert.ok(row.clear.tip.includes("world's die"));
+  a.canUserModify = () => false;
+  row = strike();
+  assert.equal(row.mark, "set by hand", "a seat that cannot write the character still sees the mark");
+  assert.equal(row.clear, null, "and has no clear control");
+  assert.ok(!row.lineTip.includes("Clear it"));
+  a.getFlag = (_m, key) => (key === "unarmedDie" ? "lots" : undefined);
+  assert.equal(strike().mark, "", "a flag that is not one die is none");
 });
 
 await ok("the skill's methodical throw is listed once, the hasty one stays in the proficiencies", async () => {

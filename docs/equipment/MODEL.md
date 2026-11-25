@@ -52,9 +52,19 @@ truth behind the code enums; local-only, never in the repo).
   unarmed die"; ticked, the die is written as the Judge's override of the
   `equipment` doc's `unarmedStrike` table through the `ruledata-import`
   contract's `setOverride`, which the Ruledata Browser shows and clears, and
-  the next press asks nothing. A seat without the permission has the field and
-  Attack and a line saying nothing is saved: its die is this throw's and the
-  next press asks again. Closing the window cancels the attack.
+  the next press asks nothing. A seat without it that may update the actor
+  offers "Save as this character's unarmed die" instead (`unarmed-keep.mjs`
+  `keepScopeFor`): ticked, the die is the actor's
+  `flags["acks-extras"].unarmedDie`, and `unarmed-offer.mjs` whispers the
+  Judge's seats a card with one press that writes the same world override. The
+  card keeps no state and is drawn from the world as it is when rendered. A
+  seat with neither right has the field and Attack and a line saying nothing
+  is saved: its die is this throw's and the next press asks again. Closing the
+  window cancels the attack. The strike rolls the character's die, else the
+  world's (`attack-mods.mjs` `unarmedDieOf`); the Rolls tab's Unarmed Strike
+  row leads its line with it, marks a character's own "set by hand" with a
+  tooltip (`unarmedDieSource`, `unarmedDieCite`), and gives its owner a control
+  that clears the flag.
 - **The non-proficient package's figures are imported.** `attack-mods.mjs`
   reads the throw a non-proficient character fights with and the further
   penalty a character of no level takes from the equipment document's
