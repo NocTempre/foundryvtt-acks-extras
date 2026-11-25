@@ -914,3 +914,202 @@ carrier" in this file's prose is the brief's word for the concept.
   That is the dedup the ledger finding asks for.
 - Whether that table's keys are content is for a reviewer under
   `ip-doctrine.md`. This ruling does not decide it.
+
+### A7. Phase 2b's open choices, ruled 2026-11-25
+
+`architect`, read-only, at `topic/beastman-gear` 173df88f against Foundry
+14.370 and the system's `src`. The phase 2b orchestrator recorded it here and
+added the results marked "Live". Tags: [S] read in source, [I] inferred.
+
+**Live, before the ruling** (test world, core 14.370, system 14.2.0, a
+read-only seat): `RegionDocument` has `attachment.token`; the shape types
+include `emanation` (`base`, `radius`, `gridBased`) and `token`;
+`TokenDocument#testInsideRegion` exists.
+
+**A7.1 The race category.** It moves into lib, with no registration in
+between. `scripts/lib/actor-read.mjs` gains:
+
+- `MEN_RACES` (human, people1, people2) and `DEMI_HUMAN_RACES` (dwarf, elf,
+  gnome), moved word for word from `influence/racial.mjs` with a comment
+  citing RR ch. 2;
+- `raceCategoryOf(key)`, answering `"human"`, `"demi-human"` or null;
+- `kindToken(value)`, influence's `slugKind` moved;
+- `registerCharacterRace(fn)`.
+
+What `creatureKinds` answers:
+
+- For a character: `character`, the registered race key and its category.
+- For a monster: its types, then its `subtype` split on commas and folded
+  with `kindToken`, before the `summoned`/`enchanted` step.
+
+Who supplies and who reads:
+
+- `classes/builder.mjs` exports `raceOfCharacterClass(name)`, registered by
+  `classes/module.mjs` at init. A class bound to a race answers that race's
+  key. A library class bound to none answers `"human"` [I: RR ch. 2 defines
+  the demi-human classes by their race]. An unknown name answers null.
+- `influence/racial.mjs` imports both sets and `kindToken` from lib.
+- A character with no category answers null to a `kinds`/`exceptKinds`
+  clause naming either category, which puts it on the Judge's tick.
+
+IP verdict, on the owner's 2026-11-25 test ("If it is a generic concept that
+actual IP relies on to describe itself mechanically, it's likely it doesn't
+need imported"):
+
+- The categories are plainly such a concept. They stay in source with the
+  page reference.
+- The two peoples' rows are also ruled plain. Their ids are the importer's
+  neutral ordinals, they hold no number and no words, and they already ship
+  and were walked.
+- Counter, MEDIUM. It becomes STRONG the day a book brings a non-human people
+  under such a key; the category then moves onto the race document, imported.
+
+The shipped consumers that see more tokens (`roll-mods.mjs` `vsKinds`,
+`cast-gates.mjs` `kindGate`, `sacrifice-live.mjs`) have their suites run
+again. T-0731 stays open, narrowed to influence's name matchers and its
+default to human; its ledger row is reworded in the same commit.
+
+**A7.2 The bearer-death listener.** Either of two signals lowers the reach:
+
+- hit points at or below zero, read by `tokenHitPoints(token,
+  token.baseActor)`, with cause `"hp"`;
+- the defeated status, read by `tokenHasStatus(token, token.baseActor,
+  CONFIG.specialStatusEffects.DEFEATED ?? STATUS_DEAD)`, with cause
+  `"defeated"`.
+
+`isDefeated` is not read.
+
+The hooks:
+
+- `updateActor` when `system.hp` changes; it fires for an unlinked token's
+  synthetic actor too;
+- `createActiveEffect` and `updateActiveEffect` when the effect's statuses
+  include DEFEATED and the effect is enabled. The actor is `effect.parent`, or
+  the token's actor where the parent is an ActorDelta [I: the walk checks
+  which].
+
+What the primary GM does:
+
+1. It finds the tokens: `actor.isToken ? [actor.token] :
+   actor.getDependentTokens({linked: true})`.
+2. It deletes each token's `attachments.regions` that hold an
+   `acks-extras.aura` behaviour. An id set skips a Region already being
+   lowered.
+3. It fires `BEARER_DOWN_HOOK` (`${NAMESPACE}.bearerDown`, `(token,
+   {cause})`), on which S9b-2's breakage keys.
+
+The listener never touches a fuse. Raising on a downed bearer blocks a Player
+and warns a Judge.
+
+**A7.3 Carrier records.** The carrier builds its own records and never calls
+`holdCondition`.
+
+- **A condition** (E4, T10) is `statusEffectData(statusId)` with `origin` set
+  to the item's uuid and `flags["acks-extras"] = {itemRun: {source,
+  activationId, rowKey}, managed: true}`. E4 adds `turnLife: {combatId,
+  combatantId, edge: "start", count: 1}`; T10 takes a `duration`.
+- **An immunity window** carries no status: `rollMods: [{on: "immune",
+  spells: [key]}]` and a duration.
+- **E3's action part** is `rollMods` with `endsOn: ["attack"]`.
+- **E9's standing part** is a `rollMods` record under the fixed `_id`
+  `conditionEffectId("itemRun:" + kindKey)`, written only when its state
+  differs.
+
+Nothing is registered with `registerManagedEffect`:
+
+- lib's own lifts (`liftTurnLife`, `loseRecords`, `lift`) pass no
+  `managedDelete()`;
+- a HUD toggle would refuse a Judge;
+- `managed: true` is `isDerivedEffect`'s recall flag, not a managed-effects
+  marker.
+
+The deleteRegion teardown and Undo delete by id, only the ids that still
+exist, passing `managedDelete()`.
+
+**A7.4 The `aura` type.**
+
+- `registerAuraReach()` in `aura-reach.mjs`, run from `lib/module.mjs` at
+  init, sets `CONFIG.RegionBehavior.dataModels[AURA_BEHAVIOR_TYPE]` and a
+  `typeIcons` entry, in formation's guarded form.
+- `AURA_BEHAVIOR_TYPE = ${MODULE_ID}.aura` goes in `constants.mjs`.
+- The manifest declares `documentTypes.RegionBehavior.aura: {}`.
+- `TYPES.RegionBehavior["acks-extras.aura"]` is "ACKS Item Reach", beside
+  formation's three. The orchestrator approved the label.
+- Core's Create Behavior dialog lists the type, and nothing hides it. A
+  hand-made aura has an empty config and does nothing; a suite pins that.
+
+**A7.5 Morale.** S8a adds no morale read. S8b owes two: influence's morale
+page rows (`recordParts(subject, "reaction")`) and core's fall-through. The
+accepted ruling's "the read goes to lib" is withdrawn.
+
+**A7.6 Undo.** Per card row, GM only, as on the cast card.
+
+- The button renders only for a GM, the handler checks again, and the press
+  is never relayed.
+- It removes exactly the record ids that row stored, plus, in S9a, the hit
+  points it stored, reversed through `adjustHp`.
+- It never touches the Region, the activation state or the quantity.
+- E9's standing parts have no Undo.
+
+**A7.7 `effectField.reach` stays invisible.**
+
+- It is a nullable `SchemaField` with `initial: null`: `{radius:
+  figureRefField(), filter: {kinds, exceptKinds, side, unit}, pulse}`.
+- `figureRefField()` is new in `fields.mjs`: `{value, doc, table, row,
+  figure}`. Its own `value` wins; otherwise it resolves live, as
+  `resolveArmourGate` does; otherwise it stays blank.
+- `effect-row-editor.mjs` is untouched.
+- Suites pin three things: `fieldsForType` lacks `reach` for every type and
+  domain; `mergeRowEdit` keeps a stored reach; and a row cleaned without one
+  stays without one.
+
+**A7.8 The snapshot reach.** `reachSnapshot(scene, centre, rangeFeet)` runs on
+the primary GM. It answers `{ok: true, tokens}` or `{ok: false, reason}` and
+never throws.
+
+- `{token}` (E3) is an emanation built as core's `createTokenEmanation`
+  builds one. Its radius is the range times `distancePixels`, since the
+  shape's radius is in pixels.
+- `{point: {x, y, elevation, level}}` (E2) is a `circle` with the same radius.
+- Either way the module builds an unsaved Region and tests the non-marker
+  tokens with `testInsideRegion`.
+
+**Live, 2026-11-25.** On a square grid, six tokens were tried. A radius of
+one, three and thirty squares, given in pixels, contained none, one (the
+token three squares off) and all six. A first probe that passed feet as the
+radius contained none. The unsaved path is therefore proven, and the
+saved-Region fallback is not written.
+
+If the path fails at run time, E3 writes nothing and spends no use (a Player
+is blocked, a Judge warned). E2 keeps its fuse, with "Set it off now" to try
+again.
+
+**A7.9 What the tip made wrong.**
+
+- (a) lib's `turnLife` is the flag `flags["acks-extras"].turnLife`, read by
+  `readTurnLife` and stepped by `turnLifeStep`.
+- (b) The fuse is not a turnLife record: `liftTurnLife` deletes a due record
+  before `TURN_ENDED_HOOK`.
+  - It is `flags["acks-extras"].fuse = {source, activationId, spot: {sceneId,
+    x, y, elevation, level}, clock: {combatId, combatantId, edge: "end",
+    count, seen}}` on a bearer effect.
+  - It is stepped from lib's turn hooks as `delayedDamageStep` is: delete
+    first, then burst.
+  - A fight that ends first moves it to the world clock.
+  - Canvas 4: "Move the spot" rewrites `spot`; "Set it off now" deletes and
+    bursts.
+  - A miss writes the fuse at the scattered spot. A fumble's spot is the
+    bearer's token centre.
+- (c) The morale provider is influence's (A7.5).
+- (d) `raiseReach` calls core's `createTokenEmanation(token, rangeFeet,
+  regionData, {gridBased: true})`. `regionData` carries `hidden:
+  token.hidden`, the `aura` behaviour and `visibility: GAMEMASTER`. The
+  version check adds `"createTokenEmanation" in
+  CONFIG.Region.documentClass`.
+- (e) Core's `applyActiveEffect` behaviour is rejected for E9: it has no
+  filter, and parts from several bearers would stack.
+
+**Owner, 2026-11-25, on T-0730** (relayed by the planning session): "Too
+aggressive, rounds per turn is very generic rules, not IP". The readers in
+`lib/time-unit.mjs` answer from constants and are never null. No slice writes
+a blank path on a turn or round length.
