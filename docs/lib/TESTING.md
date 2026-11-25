@@ -4664,7 +4664,9 @@ with all below it and removes the slot; the other units stay empty. A pick left 
    its own does not. *Observable:* the row and its subtree leave `units`; **every group, prototype and
    leader the subtree named is still in the Actors tab, checked by uuid**; a line above the chart names
    each group now hosting its own chart with an **Open**, and the count of rows dropped; **Dismiss**
-   closes it and changes nothing else.
+   closes it and changes nothing else. **On a group's own top row** (a group whose first row names itself),
+   Remove writes the group's `units` once: the group hosts nothing afterwards, each group beneath the row hosts
+   its own subtree (`unit.parentGroupUuid` blank), and no document leaves the Actors tab.
 8. **A narrow window, on a freshly opened one** — close the sheet, reopen it and resize it to about 320 wide
    (an open window's descendants keep the sizes they had before a type change, so measure the new one).
    *Observable:* `.acks-extras-org__scroll` has `overflow-x: auto` and scrolls, and `.window-content` does not

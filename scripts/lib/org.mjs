@@ -385,7 +385,9 @@ export async function leave(faction, key) {
  * deleted. The leave of a faction widened to any host: each group that held a row at the top
  * of the removed subtree now hosts that subtree as its own chart, and where the host is a group
  * it is taken out of the group that nested it. A subtree that names no holder is only
- * dropped, and no group is made for it. Every seat is checked before the first write.
+ * dropped, and no group is made for it. A group's own top row, held by the group itself, is
+ * dropped the same way and the rows beneath it go to their own groups, so the host is written once
+ * and hosts nothing after. Every seat is checked before the first write.
  * Delete stays in this file as `deleteRow`, for the API alone; no sheet calls it.
  *
  * @param {Actor} host a faction or a group hosting a chart
@@ -395,7 +397,7 @@ export async function leave(faction, key) {
 export async function unlistRow(host, key) {
   if (!hostsChart(host)) return refused("notHost");
   if (!host.isOwner) return refused("notOwner");
-  const plan = planUnlist({ rows: unitsOf(host), key });
+  const plan = planUnlist({ rows: unitsOf(host), key, hostUuids: [host.uuid, host.baseActor?.uuid].filter(Boolean) });
   if (!plan.ok) return refused(plan.reason);
   const groups = plan.units.map((u) => docOf(u.holderUuid));
   if (groups.some((g) => !isGroupActor(g))) return refused("holderNotGroup");

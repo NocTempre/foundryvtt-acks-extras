@@ -464,6 +464,39 @@ t("unlisting from a group host takes the top group out of the group that nested 
   assert.equal(world.size, 3);
 });
 
+t("unlisting a group's own top row writes the host once and never empties it a second time", async () => {
+  reset();
+  const top = group("Top");
+  const a = group("A", { parent: top.uuid });
+  const b = group("B", { parent: top.uuid });
+  const leaf = group("Leaf", { parent: a.uuid });
+  top.system.units = [row("t", "", top.uuid), row("a", "t", a.uuid), row("b", "t", b.uuid), row("l", "a", leaf.uuid)];
+  const before = world.size;
+  writes = [];
+  const out = await org.unlistRow(top, "t");
+  assert.equal(out.ok, true);
+  assert.equal(writes.filter((w) => w === "Top:system.units").length, 1, "the host is written once");
+  assert.deepEqual(out.units.map((u) => u.uuid), [a.uuid, b.uuid], "each group under the top row hosts its own subtree");
+  assert.deepEqual(out.dropped, ["t"]);
+  assert.deepEqual(top.system.units, [], "the group hosts nothing");
+  assert.deepEqual(a.system.units.map((r) => [r.key, r.parentKey]), [["a", ""], ["l", "a"]]);
+  assert.deepEqual(b.system.units.map((r) => [r.key, r.parentKey]), [["b", ""]]);
+  assert.equal(a.system.unit.parentGroupUuid, "", "taken out of the group that nested it");
+  assert.equal(leaf.system.unit.parentGroupUuid, a.uuid);
+  assert.equal(world.size, before, "no document was deleted");
+});
+
+t("unlisting a group's lone top row leaves the group hosting nothing", async () => {
+  reset();
+  const top = group("Top");
+  top.system.units = [row("t", "", top.uuid)];
+  writes = [];
+  const out = await org.unlistRow(top, "t");
+  assert.equal(out.ok, true);
+  assert.deepEqual(writes, ["Top:system.units"]);
+  assert.deepEqual(top.system.units, []);
+});
+
 t("a subtree that names no holder is dropped and no group is made", async () => {
   const { f } = warbandWorld();
   await org.addRow(f, "v", { label: "Open slot" });

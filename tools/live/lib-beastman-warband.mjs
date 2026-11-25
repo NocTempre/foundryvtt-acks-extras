@@ -458,6 +458,14 @@ try {
     check("Dismiss closes the line and changes nothing else", dismissed.unlistedList === null);
   }
 
+  section("remove on a group's own top row");
+  const rowOf = (key, parentKey, holderUuid) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen: {} });
+  const host = await gm.create("Actor", { name: named("own top"), type: "acks-extras.group", items: [] });
+  const sub = await gm.create("Actor", { name: named("own sub"), type: "acks-extras.group", items: [] });
+  await gm.eval(`(async () => { const h = fromUuidSync("${host.uuid}"); await h.update({ "system.units": [${JSON.stringify(rowOf("t", "", host.uuid))}, ${JSON.stringify(rowOf("s", "t", sub.uuid))}] }); })()`);
+  const own = await gm.eval(`(async () => { const h = fromUuidSync("${host.uuid}"); const out = await acksExtras.lib.org.unlistRow(h, "t"); return { ok: out.ok, hostRows: h.system.units.length, subRows: fromUuidSync("${sub.uuid}").system.units.map((r) => r.key), both: !!fromUuidSync("${host.uuid}") && !!fromUuidSync("${sub.uuid}") }; })()`);
+  check("Remove on a group's own top row leaves the group hosting nothing, never emptied by a second write, and the group beneath it hosts its own row; both stay in the Actors tab", own.ok && own.hostRows === 0 && own.subRows.join() === "s" && own.both, own);
+
   note("not walked", "the family template sheet's own Generate button (Generate is driven through the service the button calls), the root group's sheet, and a Player seat's view of a hidden card");
   walkDone();
 } catch (err) {
