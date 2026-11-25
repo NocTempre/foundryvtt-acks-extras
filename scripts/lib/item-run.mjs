@@ -28,7 +28,7 @@ import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseRe
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
-  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
+  dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
 import { freshKey, safeKey } from "./item-run-card-logic.mjs";
@@ -49,7 +49,7 @@ const loc = makeLoc(LANG_PREFIX);
 const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
-const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick` });
+const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, undo: `${MODULE_ID}.itemRun.undo` });
 
 /** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
 const runners = new Map();
@@ -356,7 +356,7 @@ async function pressHere(payload) {
     }
     const made = records.length ? await actor.createEmbeddedDocuments("ActiveEffect", records) : [];
     const prior = card?.entries?.[key] ?? {};
-    const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, ...(verdict.early ? { early: true } : {}) };
+    const entry = { ...prior, subject: subjectUuid, state: "applied", saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
     if (message && card) {
       const patch = { [`entries.${key}`]: entry };
@@ -395,7 +395,7 @@ function fightNow() {
  * entry state; the GM reads those from the card and the item and writes. A
  * Judge's press runs here.
  *
- * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, messageId?: string}} p
+ * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, messageId?: string, entryKey?: string}} p
  * @returns {Promise<{ok: boolean, entry?: object, reason?: string}>}
  */
 export async function pressRoll(p) {
@@ -406,21 +406,21 @@ export async function pressRoll(p) {
   if (!actor || !name) return { ok: false, reason: "noFigure" };
   const thrown = await saveThrow(actor, name);
   if (thrown.target === null) return { ok: false, reason: "noFigure" };
-  const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", total: thrown.total, target: thrown.target };
+  const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", entryKey: p.entryKey ?? "", total: thrown.total, target: thrown.target };
   if (game.user.isGM) return pressHere(payload);
   return (await executeAsGM(HANDLER.press, payload)) ?? { ok: false, reason: "relay" };
 }
 
 /**
- * Undo one card row, GM only: delete exactly the record ids the row stored that
- * still exist on the subject, passing `managedDelete()`. The Region, the
- * activation's state and the item's quantity are never touched.
+ * Undo one card row, on the window that may write the subject's records (the
+ * primary GM's; `undoCardEntry` asks who may): delete exactly the record ids the
+ * row stored that still exist on the subject, passing `managedDelete()`. The
+ * Region, the activation's state and the item's quantity are never touched.
  *
  * @param {{subject: string, entry: {recordIds?: string[]}}} p
  * @returns {Promise<{ok: boolean, removed: string[]}>}
  */
 export async function undoEntry({ subject, entry }) {
-  if (!game.user.isGM) return { ok: false, removed: [] };
   const actor = subjectOf(subject)?.actor;
   if (!actor) return { ok: false, removed: [] };
   const { ids } = undoPlan(entry, [...actor.effects].map((e) => e.id));
@@ -429,24 +429,37 @@ export async function undoEntry({ subject, entry }) {
 }
 
 /**
- * Undo one entry of a card, on a Judge's seat: remove the entry's own records
- * (`undoEntry`) and mark the entry undone, so it offers no second press and the
- * subject's next moment asks again. An entry that is not applied is refused.
- *
- * @param {{messageId: string, entryKey: string}} p
- * @returns {Promise<{ok: boolean, removed?: string[], reason?: string}>}
+ * The writing half of an Undo, on the primary GM's window: the seat that
+ * applied the entry and the owners of its subject's token may undo it, by
+ * Foundry's ownership on the relayed seat (`mayUndoEntry`); any other seat is
+ * refused. It removes the entry's own records (`undoEntry`) and marks the entry
+ * undone, so it offers no second press and the subject's next moment asks again.
+ * An entry that is not applied is refused.
  */
-export async function undoCardEntry({ messageId, entryKey }) {
-  if (!game.user.isGM) return { ok: false, reason: "notOwner" };
+async function undoHere({ messageId, entryKey, requestUserId = null }) {
   const { message, card } = cardOf(messageId);
   const entry = card?.entries?.[entryKey];
   if (!entry) return { ok: false, reason: "gone" };
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  if (!mayUndoEntry(entry, user?.id, ownerIdsOf(subjectOf(entry.subject)))) return { ok: false, reason: "notOwner" };
   if (entry.state !== "applied") return { ok: false, reason: "applied" };
   const done = await undoEntry({ subject: entry.subject, entry });
   if (!done.ok) return { ok: false, reason: "gone" };
   await serialized(messageId, () => patchCard(message, { [`entries.${entryKey}.state`]: "undone", [`entries.${entryKey}.recordIds`]: [] }));
   await pressListener?.({ message, key: entryKey, entry: { ...entry, state: "undone" }, undone: true, early: false });
   return { ok: true, removed: done.removed };
+}
+
+/**
+ * Undo one entry of a card from any seat: it goes to the primary GM's window,
+ * which writes where the pressing seat could not and checks ownership again on
+ * the server-attested sender.
+ *
+ * @param {{messageId: string, entryKey: string}} p
+ * @returns {Promise<{ok: boolean, removed?: string[], reason?: string}>}
+ */
+export async function undoCardEntry(p) {
+  return (await executeAsGM(HANDLER.undo, { messageId: p.messageId, entryKey: p.entryKey })) ?? { ok: false, reason: "relay" };
 }
 
 /**
@@ -747,6 +760,7 @@ export function installItemRun() {
   registerHandler(HANDLER.use, (payload) => runUse(payload));
   registerHandler(HANDLER.press, (payload) => pressHere(payload));
   registerHandler(HANDLER.tick, (payload) => countBearerIn(payload));
+  registerHandler(HANDLER.undo, (payload) => undoHere(payload));
   setReachHandler(handleReachMoment);
   setReachTeardown(liftActivation);
   const on = (kind) => (combat, combatantId) => {

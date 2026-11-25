@@ -4670,6 +4670,19 @@ Not walked by these steps (S8b-2's): the presses on the sheets, the group stack 
 
 Teardown: `api.sweepTracked()`.
 
+**S8b-1b-ui-a: the raised card and the whispered save** (offline: `tools/test-item-run-presenter.mjs`, `test-item-run-cards.mjs`, `test-roll-card.mjs`). Fixture marker `lib/aura-cards`: the `lib/aura-bearer` scene and bearer, with the toggle item's row `{pulse: "turnStart+moveIn", save, conditions: [<a catalogue key>], filter: {}}` and invented figures; a Player seat owning one body and not another. Teardown: `api.sweepTracked()`.
+
+- **W1** Raise outside a fight with bodies already inside. *Observable:* one raised card, each body a waiting row with a distance whose tooltip names the measurement, the bearer in its own section undetermined, zero whispers.
+- **W2** Start a fight. *Observable:* one whisper per body per initiative, its recipients equal to the owners of the body's token (`testUserPermission`), Judges included.
+- **W3** From the Player seat press Roll the save on its own body's row, on the whisper and on the raised card. *Observable:* the records read back on the actor, the entry applied on both cards, a second press refused, no Apply anywhere, a non-owner sees no Save, and the body is asked again at its next initiative under a new entry.
+- **W4** Two overlapping bearers of one item kind. *Observable:* one prompt per body; lowering the first hands the condition to the second, lowering both deletes it.
+- **W5** Lower. *Observable:* conditions go, the immunity window stays, a re-raise skips the immune body.
+- **W6** Walk a body out and back, and add a body the filter refuses. *Observable:* muted rows ("Out of reach", "Not a target") in soft ink, not bold; Check range again re-lists them without a prompt.
+- **W7** Undo an applied entry from the seat that applied it, from an owner of the body, and try it from a seat that is neither. *Observable:* exactly the stored record ids go, the entry reads Undone, the third seat has no Undo, and a forged relayed Undo is refused.
+- **W8** On a waiting row the Judge's Save goes through and whispers a warning line to the Judges; a Player owner sees the row waiting with no press.
+- **W11** Hash an untouched card (a party save or a cast card) before and after. *Observable:* identical captures.
+- **W12** Raise an item whose row has `showReach` true. *Observable:* the Region is drawn to a Player; with false, to the Judge alone.
+
 ## A Player's welcome-version write
 
 Covers `patches/welcome-version.mjs`. The walk needs both seats at once, the GM's and a

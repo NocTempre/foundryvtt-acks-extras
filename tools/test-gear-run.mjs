@@ -351,7 +351,7 @@ const stagePress = () => {
 await t("E4's press: a failed save writes the condition on the subject's next-turn clock, a pass writes the immunity window, and an immune subject is not asked again", async () => {
   const { subject } = stagePress();
   const flagged = {};
-  const message = { flags: { "acks-extras": { itemRunCard: { itemUuid: "I.1", rowKey: "reach", activationId: "act", entries: {} } } }, getFlag(scope, key) { return this.flags[scope][key]; }, async setFlag(scope, key, value) { this.flags[scope][key] = value; flagged[key] = value; } };
+  const message = { flags: { "acks-extras": { itemRunCard: { itemUuid: "I.1", rowKey: "reach", activationId: "act", entries: {} } } }, getFlag(scope, key) { return this.flags[scope][key]; }, async update(data) { for (const [path, value] of Object.entries(data)) { const parts = path.replace("flags.acks-extras.itemRunCard.", "").split("."); let at = this.flags["acks-extras"].itemRunCard; for (const p of parts.slice(0, -1)) at = at[p] ??= {}; at[parts.at(-1)] = value; flagged.itemRunCard = this.flags["acks-extras"].itemRunCard; } } };
   gameStub.messages = { get: (id) => (id === "M1" ? message : null) };
   gameStub.combat = { id: "c1", combatants: [{ id: "m1", tokenId: subject.token.id }] };
   const { saveSpec } = await import("../scripts/lib/saves.mjs");
@@ -366,7 +366,7 @@ await t("E4's press: a failed save writes the condition on the subject's next-tu
     const [record] = subject.actor.writes.created;
     assert.deepEqual(record.statuses, ["held"], "the condition key the row names, through the status helper");
     assert.deepEqual(record.flags["acks-extras"].turnLife, { combatId: "c1", combatantId: "m1", edge: "start", count: 1 }, "lifts at the subject's next turn start");
-    assert.equal(flagged.itemRunCard.entries[subject.token.uuid].state, "applied");
+    assert.equal(flagged.itemRunCard.entries[subject.token.uuid.replaceAll(".", "~")].state, "applied");
 
     // A second token's pass on a fresh card: the window, and then the subject is immune.
     message.flags["acks-extras"].itemRunCard.entries = {};
@@ -405,7 +405,7 @@ await t("the relayed press carries ids and a total only: a forged window, entry 
   const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
   const { saveSpec } = await import("../scripts/lib/saves.mjs");
   const target = saveSpec(subject.actor, "paralysis").target;
-  const message = { flags: { "acks-extras": { itemRunCard: { itemUuid: "I.1", rowKey: "reach", activationId: "act", entries: {} } } }, getFlag(scope, key) { return this.flags[scope][key]; }, async setFlag(scope, key, value) { this.flags[scope][key] = value; } };
+  const message = { flags: { "acks-extras": { itemRunCard: { itemUuid: "I.1", rowKey: "reach", activationId: "act", entries: {} } } }, getFlag(scope, key) { return this.flags[scope][key]; }, async update(data) { for (const [path, value] of Object.entries(data)) { const parts = path.replace("flags.acks-extras.itemRunCard.", "").split("."); let at = this.flags["acks-extras"].itemRunCard; for (const p of parts.slice(0, -1)) at = at[p] ??= {}; at[parts.at(-1)] = value; } } };
   gameStub.messages = { get: (id) => (id === "M1" ? message : null) };
   const press = (over = {}) => executeAsGM("acks-extras.itemRun.press", { itemUuid: "I.1", rowKey: "forged", activationId: "forged", subject: subject.token.uuid, messageId: "M1", total: target, target, requestUserId: "owner", window: () => ({ name: "Forged", duration: { seconds: 1 } }), entryState: "open", ...over });
   try {

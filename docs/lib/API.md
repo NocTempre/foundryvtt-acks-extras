@@ -1,5 +1,7 @@
 # lib API (apiVersion 84)
 
+# lib API (apiVersion 82)
+
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
 logic belong — a feature patches core directly only where the behavior is unique
@@ -31,6 +33,10 @@ else in the repo.**
 ```
 acksExtras.lib = {
   apiVersion: 84,
+
+  apiVersion: 83,
+
+  apiVersion: 82,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -2327,3 +2333,4 @@ Rows on the lib api from `apiVersion` 76.
 - `actorRead.matchKinds(text, types)` resolves a printed qualifier onto the closed kind keys `creatureKinds` carries (the race categories, the race sets and the `types` the caller passes): the key, the key with `s` or `es`, and the `men` plural of a key on the `man` stem; `{kinds, unresolved}`. No other plural is read.
 - Vocabularies `REACH_PULSES`, `REACH_SIDES`, `REACH_UNITS`, `REACH_ON` (the `ROLL_MODS_ON` keys and `morale`, what `reach.on` may name; `ROLL_MODS_ON` now lives in `vocab.mjs` and `roll-mods.mjs` re-exports it), `ITEM_RUN_ACTIVATIONS`; constants `AURA_BEHAVIOR_TYPE` and `BEARER_DOWN_HOOK` (`acksExtras.bearerDown`, `(token, {cause})`, cause `hp` or `defeated`).
 - `actor-read.mjs` (internal): `creatureKinds` reads a character's race key and category and a monster's `subtype`; `registerCharacterRace(fn)`, `raceCategoryOf`, `kindToken`, `MEN_RACES`, `DEMI_HUMAN_RACES`.
+- apiVersion 82: the item runner draws its cards (`item-run-presenter.mjs`, installed at `ready`; `itemRun.setPresenter` still replaces it). `auraReach.logic` gains `turnStamp`, `holdMoment`, `releaseMoment`, `pruneMoments` and `groupByKind`; `readFilter` answers `self` (`no` or `count`; `reachAdmits` counts the bearer in only for `count`) and `pulseAct` answers `list`, `refuse` and `out` for `turnStart+moveIn` on `enter` and `exit`. `itemRun.logic` gains `kindKeyOf`, `mayUndoEntry` and `selfCountUpdate`; `itemRun.undoCardEntry` undoes one card entry from any seat (the seat that applied it and the owners of the body, checked again on the GM's window), `itemRun.tickBearer` counts the bearer in for an owner of the item, and `undoEntry` no longer reads a role. `vocab.REACH_SELF` is new. `renderRollCard` rows take `aside` and `asideTooltip`, and `emphasis: "muted"`.

@@ -157,7 +157,7 @@ function reachRowOf(r, { words, ids, seat }) {
     case "undone": return { ...base, ...history, ...target, outcome: words.undone, emphasis: "muted" };
     default: {
       const entry = r.entry ?? {};
-      const undo = seat.isGM === true && entry.recordIds?.length ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data: { ...data, entryKey: r.entryKey }, tooltip: words.undoTip }] : [];
+      const undo = seat.mayUndo?.(entry, r.key) === true && entry.recordIds?.length ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data: { ...data, entryKey: r.entryKey }, tooltip: words.undoTip }] : [];
       return {
         ...base, ...history, ...target, total: entry.total ?? "", outcome: entry.saved ? words.saved : words.failed, emphasis: entry.saved ? "success" : "failure",
         ...(undo.length ? { actions: undo } : {}),
@@ -175,8 +175,8 @@ function reachRowOf(r, { words, ids, seat }) {
  * names what a failed save wrote and for how long; and the bearer's owners'
  * Check range again and Lower. Data only; the words are the caller's, localized.
  * `seat` reads Foundry's ownership (`ownsSubject(key)`, `ownsBearer`,
- * `ownsItem`) and `isGM` only where the Judge's own warning is the point (the
- * early press on a waiting row, Undo).
+ * `ownsItem`, `mayUndo(entry, key)`) and reads `isGM` only for the Judge's own
+ * early press on a waiting row, which warns.
  *
  * @param {object} p
  * @param {string} p.title
@@ -188,7 +188,7 @@ function reachRowOf(r, { words, ids, seat }) {
  * @param {{key: string, name: string, counted: boolean, row?: object}} [p.bearer] the bearer's row; `row` is its row where counted
  * @param {string[]} [p.well] the lines of what failed saves wrote
  * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
- * @param {{isGM?: boolean, ownsSubject?: (key: string) => boolean, ownsBearer?: boolean, ownsItem?: boolean}} p.seat
+ * @param {{isGM?: boolean, ownsSubject?: (key: string) => boolean, ownsBearer?: boolean, ownsItem?: boolean, mayUndo?: (entry: object, key: string) => boolean}} p.seat
  * @param {boolean} [p.lowered] the reach is lowered: no footer
  */
 export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows, bearer, well = [], ids, seat = {}, lowered = false }) {

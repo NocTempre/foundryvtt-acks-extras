@@ -35,7 +35,7 @@ const rows = [
   { key: "T.g", name: "Eta", feet: 6, state: "undone", entryKey: "k4" },
 ];
 const bearer = { key: "T.bear", name: "Bearer", counted: false };
-const judge = { isGM: true, ownsSubject: () => true, ownsBearer: true, ownsItem: true };
+const judge = { isGM: true, ownsSubject: () => true, ownsBearer: true, ownsItem: true, mayUndo: () => true };
 const names = (card, section = 0) => card.sections[section].rows.map((r) => r.name);
 
 t("the raised-item card by row state: a Save on an open row, a result and a Judge's Undo on an applied one, a muted word out of reach or no target, a waiting word with the Judge's early press", () => {
@@ -68,6 +68,12 @@ t("a seat sees the rows of the tokens it owns, an owner who is no Judge sees a w
   const bearerOwner = reachCardModel({ title: "Item", words, rows, bearer, ids, seat: { isGM: false, ownsSubject: () => false, ownsBearer: true, ownsItem: false } });
   assert.deepEqual(bearerOwner.buttons.map((b) => b.action), ["itemRun.recheck", "itemRun.lower"], "Check range again and Lower: the bearer's owners, no role read");
   assert.deepEqual(bearerOwner.sections[0].rows, [], "its rows are none of its own");
+  const presser = { isGM: false, ownsSubject: (key) => key === "T.b", mayUndo: (entry) => entry.presser === "u1" };
+  const mixed = [{ ...rows[1], entry: { ...rows[1].entry, presser: "u1" } }, { ...rows[2], entry: { saved: true, total: 15, recordIds: ["E9"], presser: "u2" } }];
+  const seen = reachCardModel({ title: "Item", words, rows: mixed, ids, seat: { ...presser, ownsSubject: () => true } }).sections[0].rows;
+  assert.deepEqual(seen.map((r) => r.actions?.map((a) => a.action)), [["itemRun.undo"], undefined], "Undo for the seat that applied the entry, none for a seat that did not and does not own the body");
+  const byOwnership = reachCardModel({ title: "Item", words, rows: mixed, ids, seat: { ...presser, ownsSubject: () => true, mayUndo: (e, key) => key === "T.c" } }).sections[0].rows;
+  assert.deepEqual(byOwnership.map((r) => r.actions?.map((a) => a.action)), [undefined, ["itemRun.undo"]], "and for an owner of the body, whoever applied it");
   const lowered = reachCardModel({ title: "Item", words, rows, bearer, ids, seat: judge, lowered: true });
   assert.equal(lowered.buttons, undefined, "a lowered reach has nothing to check or lower");
 });

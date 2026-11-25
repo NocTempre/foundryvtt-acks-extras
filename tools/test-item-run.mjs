@@ -127,10 +127,12 @@ await t("Undo removes only the ids its row stored that still exist, and only a J
   assert.equal(deletes.length, 1);
   assert.deepEqual(deletes[0].slice(0, 2), ["ActiveEffect", ["a"]], "its own id, never the other record");
   assert.equal(deletes[0][2]["acks-extras"].managedDelete ?? Object.values(deletes[0][2]["acks-extras"])[0], true, "authorized as a managed delete");
-  gameStub.user = { isGM: false };
-  assert.deepEqual(await run.undoEntry({ subject: "T.1", entry: { recordIds: ["b"] } }), { ok: false, removed: [] });
-  assert.equal(deletes.length, 1, "a Player's seat deletes nothing");
-  gameStub.user = { isGM: true };
+  assert.equal(logic.mayUndoEntry({ presser: "u1" }, "u1", []), true, "the seat that applied it");
+  assert.equal(logic.mayUndoEntry({ presser: "u1" }, "u2", ["u2"]), true, "an owner of the subject's token");
+  assert.equal(logic.mayUndoEntry({ presser: "u1" }, "u2", ["u3"]), false, "any other seat, whatever its role");
+  assert.equal(logic.mayUndoEntry({}, "u2", []), false);
+  assert.equal(logic.mayUndoEntry(null, "u1", ["u1"]), false);
+  assert.equal(logic.mayUndoEntry({ presser: "u1" }, undefined, [undefined]), false, "no seat is no one");
 });
 
 await t("the prompt card model offers Roll per admitted subject, an outcome and a GM-only Undo once rolled, and the ticks to a Judge", () => {
@@ -762,7 +764,7 @@ await t("a press writes what the throw's verdict calls for, on the item's own ro
   try {
     gameStub.combat = { id: "c9", combatants: [{ id: "m9", tokenId: "s1" }] };
     const failed = await press();
-    assert.deepEqual(failed, { ok: true, saved: false, entry: { subject: "T.s1", state: "applied", saved: false, total: target - 1, target, recordIds: ["E0", "E1"], names: ["Held Name", "Held Name"], life: "turn" } }, "what was written and for how long rides on the entry");
+    assert.deepEqual(failed, { ok: true, saved: false, entry: { subject: "T.s1", state: "applied", saved: false, total: target - 1, target, recordIds: ["E0", "E1"], names: ["Held Name", "Held Name"], life: "turn", presser: "" } }, "what was written and for how long rides on the entry");
     const [kind, records] = created[0];
     assert.equal(kind, "ActiveEffect");
     assert.equal(records.length, 2, "one record per condition the row names");
@@ -1224,7 +1226,7 @@ await t("counting the bearer in writes the item's self filter for an owner of th
   const owned = new Set(["owner"]);
   const priorPerm = theItem.testUserPermission;
   theItem.testUserPermission = (user) => owned.has(user?.id);
-  seatOf(true, [{ id: "owner" }, { id: "other" }]);
+  seatOf(true, [{ id: "owner" }, { id: "other" }, { id: "presser" }, { id: "bodyOwner" }]);
   itemFlags = toggleFlags(down);
   updates.length = 0;
   try {
@@ -1243,18 +1245,22 @@ await t("counting the bearer in writes the item's self filter for an owner of th
     // Undo: the Judge's seat, an applied entry, exactly its records.
     const dels = [];
     const holder = { effects: [{ id: "E1" }, { id: "E2" }], deleteEmbeddedDocuments: async (...args) => dels.push(args) };
-    subjects["T.s1"] = { actor: holder };
-    gameStub.user = { isGM: false };
-    assert.equal((await run.undoCardEntry({ messageId: "M9", entryKey: "k1" })).ok, false, "a Player's seat undoes nothing");
-    gameStub.user = { isGM: true };
-    assert.equal((await run.undoCardEntry({ messageId: "M9", entryKey: "k2" })).reason, "applied", "an entry that is not applied has nothing to undo");
-    assert.equal((await run.undoCardEntry({ messageId: "M9", entryKey: "nope" })).reason, "gone");
-    const undone = await run.undoCardEntry({ messageId: "M9", entryKey: "k1" });
-    assert.deepEqual([undone.ok, undone.removed], [true, ["E1"]]);
+    subjects["T.s1"] = { actor: holder, testUserPermission: () => false };
+    subjects["T.s1"] = { actor: holder, testUserPermission: (user) => user?.id === "bodyOwner" };
+    card().entries.k1.presser = "presser";
+    const undo = (over = {}) => executeAsGM("acks-extras.itemRun.undo", { messageId: "M9", entryKey: "k1", ...over });
+    assert.equal((await undo({ requestUserId: "other" })).reason, "notOwner", "a forged Undo from a seat that neither applied the entry nor owns the body is refused");
+    assert.deepEqual(dels, [], "and writes nothing");
+    card().entries.k2.presser = "presser"; assert.equal((await undo({ entryKey: "k2", requestUserId: "presser" })).reason, "applied", "an entry that is not applied has nothing to undo");
+    assert.equal((await undo({ entryKey: "nope", requestUserId: "presser" })).reason, "gone");
+    const undone = await undo({ requestUserId: "presser" });
+    assert.deepEqual([undone.ok, undone.removed], [true, ["E1"]], "the seat that applied it undoes it, a Player included, through the GM's window");
     assert.deepEqual(dels[0].slice(0, 2), ["ActiveEffect", ["E1"]], "its own ids and nothing else");
     assert.deepEqual([card().entries.k1.state, card().entries.k1.recordIds], ["undone", []]);
     assert.equal(card().entries.k2.state, "open", "another entry is untouched");
-    assert.equal((await run.undoCardEntry({ messageId: "M9", entryKey: "k1" })).reason, "applied", "a second Undo is refused");
+    assert.equal((await undo({ requestUserId: "presser" })).reason, "applied", "a second Undo is refused");
+    card().entries.k1 = { subject: "T.s1", state: "applied", recordIds: ["E2"], presser: "presser" };
+    assert.equal((await undo({ requestUserId: "bodyOwner" })).ok, true, "an owner of the body, who did not apply it, may");
     assert.deepEqual(heard.at(-1), ["k1", false, true]);
   } finally {
     theItem.testUserPermission = priorPerm;

@@ -131,6 +131,7 @@ import { addItemUseClaimant, installItemUsePatch, removeItemUseClaimant } from "
 import * as auraReach from "./aura-reach.mjs";
 import * as auraReachLogic from "./aura-reach-logic.mjs";
 import * as itemRun from "./item-run.mjs";
+import { installItemRunPresenter } from "./item-run-presenter.mjs";
 import * as itemRunLogic from "./item-run-logic.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
@@ -1149,6 +1150,7 @@ Hooks.once("ready", () => {
   installDelayedDamage();
   auraReach.installAuraReach();
   itemRun.installItemRun();
+  installItemRunPresenter();
   installAnimationBridge();
 
   // Conditions on every roll they reach; the attack half registers into the

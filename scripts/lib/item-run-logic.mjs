@@ -275,6 +275,17 @@ export function standingPartDiffers(existing, wanted) {
 /** The one key an item kind is recorded under: the importer's entry id, else the row's key. Two items of one kind share it, whoever bears them. */
 export const kindKeyOf = (item, row) => String(flagsOf(item, "cookbook")?.id ?? row?.key ?? "");
 
+/**
+ * Whether a user may undo an entry: the seat that applied it (`entry.presser`)
+ * and the owners of the subject's token, which Foundry's ownership says (GMs
+ * among them). No role is read.
+ *
+ * @param {{presser?: string}|null} entry
+ * @param {string|null|undefined} userId
+ * @param {string[]} subjectOwnerIds
+ */
+export const mayUndoEntry = (entry, userId, subjectOwnerIds = []) => !!entry && !!userId && (entry.presser === userId || subjectOwnerIds.includes(userId));
+
 /** The entry a card holds under a key, or null. */
 export const entryOf = (card, key) => card?.entries?.[key] ?? null;
 
