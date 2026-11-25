@@ -28,7 +28,9 @@ gate, and every walk shares one test world. At most three lanes write at a
 time, counting lanes that are not this plan's (on 2026-11-24: the repair's
 conditions work and the Beastman gear work). **One batch runs at a time until
 a lane frees.** The session that started a batch starts the next one when it
-ends; a batch session starts none.
+ends; a batch session starts none. The app refuses a start on a turn that
+another session's note began, so the next batch then reaches the owner as a
+card, with its rows already claimed.
 
 ## Batches
 
@@ -144,3 +146,9 @@ shared world, which is the owner's call.
 
 Not checked: the companion picker's dialog opening or staying shut, as
 above.
+
+### 2026-11-24, between B01 and B02
+
+The four findings B01 registered are in the batch map: one in B05, three in
+B12, so 118 rows are in the twelve batches. B02's eleven rows are claimed and
+its session is proposed to the owner as a card.
