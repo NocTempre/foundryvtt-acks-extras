@@ -393,6 +393,9 @@ await t("a kinds clause tells a monster from a character, matches any of its nam
   assert.equal(logic.reachAdmits(viaGetFlag("b", "g1"), viaGetFlag("s", "g2"), { unit: "own" }, deps), false);
   const twin = { ...bearer, token: { ...bearer.token } };
   assert.equal(logic.reachAdmits(bearer, twin, {}, deps), false, "the same uuid on another object is the bearer");
+  const bare = (uuid) => ({ token: { uuid, flags: {} }, actor: { type: "monster", kinds: new Set(["alpha"]) } });
+  assert.equal(logic.reachAdmits(bare("T.x"), bare("T.x"), {}, deps), false, "a uuid alone names a token");
+  assert.equal(logic.reachAdmits(bare("T.x"), bare("T.y"), {}, deps), true);
   const plain = (id, parent) => ({ token: { id, parent, flags: {} }, actor: { type: "monster", kinds: new Set(["alpha"]) } });
   const sceneA = {};
   const sceneB = {};

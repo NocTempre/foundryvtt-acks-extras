@@ -32,7 +32,7 @@ import { MORALE_DOC, attitudeFigure, figureOrigin, modeRows, printedBands, print
 import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
-import { inferRace, kindOf } from "../scripts/influence/racial.mjs";
+import { inferRace, kindOf, parseKindList } from "../scripts/influence/racial.mjs";
 
 // The ladder authority is reached through the public global at runtime; the
 // tests supply the same implementation the module would find in a live world.
@@ -1095,6 +1095,20 @@ t("a character's race is the race of the class its name answers to, through the 
   } finally {
     globalThis.acksExtras.classes = saved;
   }
+});
+
+t("the race sets and the kind token lib holds still sort a character into its category and fold a monster's types and subtype", () => {
+  const character = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
+  for (const [cls, race, category] of [["Dwarven Delver", "dwarf", "demi-human"], ["Elven Scout", "elf", "demi-human"], ["Gnomish Tinker", "gnome", "demi-human"]]) {
+    const kinds = kindOf(character(cls));
+    assert.equal(kinds.race, race);
+    assert.ok(kinds.categories.has(category) && !kinds.categories.has("human"), `${race} is a ${category}`);
+  }
+  const monster = { type: "monster", name: "Plain Thing", system: { details: { class: "" } }, flags: { "acks-extras": { extras: { types: ["Construct"], subtype: "Odd Kind" } } } };
+  const mk = kindOf(monster);
+  assert.ok(mk.categories.has("monster") && mk.categories.has("construct") && mk.categories.has("odd-kind"), "types and subtype, folded");
+  assert.equal(mk.race, "odd-kind", "the subtype is the race");
+  assert.deepEqual(parseKindList(" Odd  Kind, ,Other_Thing "), ["odd-kind", "other-thing"]);
 });
 
 console.log(`\n${n} tests passed (influence modifier sources)`);

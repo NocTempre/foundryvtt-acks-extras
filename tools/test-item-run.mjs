@@ -723,12 +723,15 @@ await t("a press is thrown on the presser's seat: the Judge's runs here with the
     created.length = 0;
     gameStub.user = { isGM: false };
     seatOf(false);
+    subjects["T.s2"] = { id: "s2", uuid: "T.s2", actor: { ...monster(["alpha"]), system: { details: { class: "" }, saves: {} } }, testUserPermission: () => true };
+    assert.deepEqual(await run.pressRoll({ ...base, subject: "T.s2" }), { ok: false, reason: "noFigure" }, "a throw with no target is refused on the seat, before anything is relayed");
     assert.deepEqual(await run.pressRoll(base), { ok: false, reason: "relay" }, "a Player's seat with no Judge seated");
     assert.deepEqual(created, [], "and writes nothing");
   } finally {
     gameStub.user = { isGM: true };
     globalThis.Roll = priorRoll;
     delete subjects["T.s1"];
+    delete subjects["T.s2"];
     unstage();
   }
 });
