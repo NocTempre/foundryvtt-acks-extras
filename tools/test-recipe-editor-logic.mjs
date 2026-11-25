@@ -83,8 +83,9 @@ t("a hand part reads from the hand; its tooltip is the import's own part of that
   assert.equal(byKey["guard-qux"].hand, true);
   assert.equal(byKey["guard-qux"].from, "hand");
   assert.equal(byKey["guard-qux"].tip.key, RECIPE_TEXT.tipHand);
-  assert.match(byKey["guard-qux"].tip.data.read, /1d4/, "what the import read, not what the hand set");
-  assert.equal(byKey["guard-qux"].tip.data.cite, "XX p. 1", "the import's page, not the edited one");
+  const { data } = byKey["guard-qux"].tip;
+  assert.deepEqual([data.count, data.chance, data.units, data.cite], ["1d4", 30, "hold", "XX p. 1"], "what the import read and its page, not what the hand set");
+  assert.deepEqual(Object.values(data).filter((v) => typeof v === "string" && /[a-z]{4,}/i.test(v) && v !== "hold" && v !== "QA qux" && v !== "qux"), [], "figures and words from the part only, no sentence");
   assert.deepEqual(byKey._j1.tip, { key: RECIPE_TEXT.tipHandOnly, data: { label: "_j1" } });
   assert.equal(byKey.archers.tip.key, RECIPE_TEXT.tipRead);
   assert.equal(byKey.archers.tip.data.cite, "XX p. 1");
@@ -227,14 +228,25 @@ t("a Judge's part is keyed _<id>, has a blank origin and nothing printed; one st
 /*  The reading pane                             */
 /* -------------------------------------------- */
 
-const COMBAT = ["QA gangs fight in a line. 40% of gangs will be archers, and 60% will be warriors. Each gang will be led by a champion & a flag <b>."];
-const ECOLOGY = ["Each warband will be led by a chieftain. As long as the chieftain is alive, the warband gains a +2 bonus to morale. A QA sentence no locator reads."];
-const ENCOUNTER = { wilderness: { lair: { noun: "village", number: "1d4", unit: "warbands" } } };
+// Invented sentences: they copy the printed grammar of each locator (which word sits where), never a page's words or numbers.
+const SPLIT = "35% of gangs or warbands encountered will be archers (round down), 65% will be warriors (round up).";
+const GANG = "Each zorb gang will be led by two champions with 9 AC and 14 HD.";
+const WARBAND = "Each zorb warband will be led by a sub-chieftain with 11 AC and 17 HD.";
+const LAIR = "A zorb lair or village will be led by a chieftain with 13 AC and 21 HD.";
+const MORALE = "As long as the chieftain is alive, the zorbs will gain a +4 bonus to morale rolls.";
+const ENCOUNTERED = "When zorbs are encountered in a village.";
+const ESCORT = "The chieftain will be defended by 3d8 guards (equivalent to champions statistically).";
+const GUARD = "There is a 41% chance a zorb village will be guarded by 2d12 mossy blimps and another 17% chance for 1d5+2 tall zorbles.";
+const CAPTIVES = "There is an 88% chance for 2d8 bound captives per gang.";
+const CASTERS = "A village has a 29% chance of a shaman being present, and a 12% chance of a witch doctor.";
+const COMBAT = [SPLIT, "A QA flag & <b> sentence no locator reads."];
+const ECOLOGY = [`${GANG} ${WARBAND} ${LAIR} ${MORALE}`, `${ENCOUNTERED} ${ESCORT} ${GUARD} ${CAPTIVES} ${CASTERS}`];
+const ENCOUNTER = { dungeon: { wandering: { noun: "pod", number: "2d7", unit: "" }, lair: { noun: "nest", number: "2d3", unit: "cells" } } };
 const stored = (paras, id = "qa-1") => bookText(paras, "XX p. 2", { id }) + "<p>A Judge's own note, outside the block.</p>";
 
 t("the stored paragraphs are those of the stamped block, the page line left out and entities undone", () => {
   assert.deepEqual(storedParagraphs(stored(COMBAT)), COMBAT);
-  assert.deepEqual(storedParagraphs(stored([...ECOLOGY, "Second QA paragraph."])), [...ECOLOGY, "Second QA paragraph."]);
+  assert.deepEqual(storedParagraphs(stored(ECOLOGY)), ECOLOGY);
   assert.deepEqual(storedParagraphs(""), []);
   assert.deepEqual(storedParagraphs("<p>no block</p>"), []);
 });
@@ -242,19 +254,35 @@ t("the stored paragraphs are those of the stamped block, the page line left out 
 t("the reader re-run over the stored prose gives the parts the import wrote, with the sentence report", () => {
   const wrote = readEcologyRecipe({ combat: COMBAT, ecology: ECOLOGY, encounter: ENCOUNTER, variant: "qa", cite: "XX p. 2" });
   const again = readStored({ combat: stored(COMBAT), ecology: stored(ECOLOGY), encounter: ENCOUNTER, variant: "qa", cite: "XX p. 2" });
-  assert.ok(wrote.length >= 5);
+  assert.ok(wrote.length >= 12, "every part kind");
   assert.deepEqual(again.parts, wrote);
-  assert.deepEqual(again.sentences["leader-chieftain"].map((r) => r.sentence), [0, 1]);
+  assert.deepEqual(again.sentences["leader-chieftain"].map((r) => [r.paragraph, r.sentence]), [[0, 2], [0, 3]]);
+});
+
+t("every part the reader writes passes the checks, so a label edit is never refused for a figure the import wrote", () => {
+  const wrote = readEcologyRecipe({ combat: COMBAT, ecology: ECOLOGY, encounter: ENCOUNTER, variant: "zorb", cite: "XX p. 2" });
+  assert.ok(wrote.some((p) => p.key.startsWith("size-")) && wrote.some((p) => p.count.ratioOf) && wrote.some((p) => p.chance !== null));
+  for (const p of wrote) {
+    assert.deepEqual(validatePart(p), [], p.key);
+    assert.ok(savePart(wrote, wrote, p.key, { label: "QA relabel" }), p.key);
+    assert.deepEqual(validatePart(shapePart(p)), [], `${p.key} as shaped`);
+  }
 });
 
 t("each sentence is marked with the part keys that read it, or none, and only parts of the recipe are named", () => {
   const read = readStored({ combat: stored(COMBAT), ecology: stored(ECOLOGY), encounter: ENCOUNTER, variant: "qa", cite: "XX p. 2" });
   const marks = sentenceMarks(read.paragraphs, read.parts, read.sentences);
-  assert.deepEqual(marks.map((m) => [m.field, m.paragraph, m.sentence]), [["combat", 0, 0], ["combat", 0, 1], ["ecology", 0, 0], ["ecology", 0, 1], ["ecology", 0, 2]]);
-  assert.deepEqual(marks.map((m) => m.keys), [["archers", "warriors"], ["leader-champion"], ["leader-chieftain"], ["leader-chieftain"], []]);
-  assert.match(marks[0].text, /archers/, "the sentence is the caller's own paragraph text");
-  const without = sentenceMarks(read.paragraphs, read.parts.filter((p) => p.key !== "leader-chieftain"), read.sentences);
-  assert.deepEqual(without.map((m) => m.keys), [["archers", "warriors"], ["leader-champion"], [], [], []], "a part no longer in the recipe marks nothing");
+  assert.deepEqual(marks.map((m) => [m.field, m.paragraph, m.sentence]), [
+    ["combat", 0, 0], ["combat", 1, 0], ["ecology", 0, 0], ["ecology", 0, 1], ["ecology", 0, 2], ["ecology", 0, 3],
+    ["ecology", 1, 0], ["ecology", 1, 1], ["ecology", 1, 2], ["ecology", 1, 3], ["ecology", 1, 4],
+  ]);
+  assert.deepEqual(marks.map((m) => m.keys), [
+    ["archers", "warriors"], [], ["leader-champion"], ["leader-subChieftain"], ["leader-chieftain"], ["leader-chieftain"],
+    [], ["chieftain-guard"], ["guard-mossy-blimps", "guard-tall-zorbles"], ["captives"], ["caster-shaman", "caster-witchDoctor"],
+  ]);
+  assert.equal(marks[1].text, COMBAT[1], "the sentence is the caller's own paragraph text, entities undone");
+  const without = sentenceMarks(read.paragraphs, read.parts.filter((p) => p.key !== "leader-chieftain" && p.key !== "caster-shaman"), read.sentences);
+  assert.deepEqual([without[4].keys, without[5].keys, without[10].keys], [[], [], ["caster-witchDoctor"]], "a part no longer in the recipe marks nothing");
   assert.deepEqual(sentenceMarks({}, [], {}), []);
 });
 

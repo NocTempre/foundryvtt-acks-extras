@@ -13,11 +13,11 @@
  * (docs/importer/MODEL.md, "A monster's recipe parts ride the same per-row
  * mechanism"). Every string this returns for a user is a lang key with its data.
  *
- * Rulings: docs/monsters/MODEL.md, "The recipe editor".
+ * Rulings: docs/monsters/MODEL.md, "The encounter recipe".
  */
 import { RECIPE_ROLES } from "./config.mjs";
 import { MODULE_ID } from "./constants.mjs";
-import { describeRecipePart } from "./recipe-describe.mjs";
+import { rollFormula } from "./encounter-recipe.mjs";
 import { REFERENCE, resolveOutside } from "./outside-reference.mjs";
 import { sameValue } from "../importer/held-edits.mjs";
 import { partKind, readEcologyRecipeWithSentences, sentencesOf, unitsIn } from "../importer/ecology-recipe.mjs";
@@ -41,8 +41,8 @@ export const LINKED_ROLES = Object.freeze(["mount", "beast"]);
 const RECIPE_FLAG = `flags.${MODULE_ID}.extras.encounter.recipe`;
 const COPY_FLAG = `flags.${MODULE_ID}.cookbook.read.recipe`;
 
-/** A die with an optional sum on it. */
-const DICE_RX = /^\d+d\d+(?:[+-]\d+)?$/;
+/** Whether a count's text is a die or a figure the roll reads: the roll's own test (`rollFormula`), so the editor accepts what the roll evaluates. */
+const readsAsDice = (t) => rollFormula(t, () => 0) !== null;
 /** A world actor, or an actor of a compendium. */
 const ACTOR_UUID_RX = /^(?:Actor\.[^.\s]+|Compendium\.[^.\s]+\.[^.\s]+\.Actor\.[^.\s]+)$/;
 
@@ -126,17 +126,29 @@ function countFigure(count = {}) {
   return { text: textual, share, of: share ? String(count.ratioOf) : "", round: String(count.round ?? ""), perUnit: String(count.perUnit ?? "") };
 }
 
+/** A part's figures as tooltip data: its count, chance, morale bonus and units, each blank where the part holds none, and its page. */
+function figuresOf(part) {
+  const count = countFigure(part.count);
+  return {
+    count: count.text, share: count.share, of: count.of, round: count.round, perUnit: count.perUnit,
+    chance: Number.isFinite(part.chance) ? part.chance : "",
+    morale: Number.isFinite(part.moraleWhileAlive) ? part.moraleWhileAlive : "",
+    units: (part.when?.units ?? []).join(", "),
+    cite: String(part.cite ?? ""),
+  };
+}
+
 /** The tooltip of a part's row, as a lang key and its data (where the figure came from; the page reference alone where nothing was read). */
 function tipOf(part, copy) {
   const hand = blank(part.origin);
   const label = part.label || part.key;
-  if (hand && copy) return { key: RECIPE_TEXT.tipHand, data: { label, read: describeRecipePart(copy), cite: String(copy.cite ?? "") } };
+  if (hand && copy) return { key: RECIPE_TEXT.tipHand, data: { label, ...figuresOf(copy) } };
   if (hand) return { key: RECIPE_TEXT.tipHandOnly, data: { label } };
-  return { key: RECIPE_TEXT.tipRead, data: { label, read: describeRecipePart(part), cite: String(part.cite ?? "") } };
+  return { key: RECIPE_TEXT.tipRead, data: { label, ...figuresOf(part) } };
 }
 
 /**
- * One row, with the figures a table shows: `label`, `role` (the key) and
+ * One row, with the figures a table shows: `label` (as stored, blank where a Judge has not typed one; the window names such a row by its `key`), `role` (the key) and
  * `roleLabel`, `madeOf` (what a Units row counts: the unit the part names, or
  * `""` for bodies), `count` (`{text, share, of, round, perUnit}`), `chance`
  * (a percent or null), `when` (`{state, place, units}`), `morale`, `cite` (the
@@ -146,7 +158,7 @@ function rowOf(part, readCopy) {
   const hand = blank(part.origin);
   return {
     key: part.key,
-    label: part.label || part.key,
+    label: part.label ?? "",
     role: part.role ?? "",
     roleLabel: RECIPE_ROLES[part.role]?.label ?? "",
     madeOf: part.role === "unit" ? String(part.source?.name ?? "") : "",
@@ -211,7 +223,7 @@ export function parseCount(input) {
   const cleared = { dice: "", literal: null, ratioOf: "", percent: null };
   if (!t) return { ok: true, count: cleared };
   if (/^\d+$/.test(t)) return { ok: true, count: { ...cleared, literal: parseInt(t, 10) } };
-  if (DICE_RX.test(t)) return { ok: true, count: { ...cleared, dice: t } };
+  if (readsAsDice(t)) return { ok: true, count: { ...cleared, dice: t } };
   return { ok: false };
 }
 
@@ -238,7 +250,7 @@ export function validatePart(part) {
   const percent = Number(c.percent);
   const bad =
     set > 1 ||
-    (!blank(c.dice) && !DICE_RX.test(diceOf(c.dice))) ||
+    (!blank(c.dice) && !readsAsDice(diceOf(c.dice))) ||
     (!blank(c.literal) && !(Number.isInteger(literal) && literal >= 0)) ||
     (!blank(c.ratioOf) && blank(c.percent)) ||
     (blank(c.ratioOf) && !blank(c.percent)) ||
