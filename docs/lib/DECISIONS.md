@@ -1313,3 +1313,30 @@ wrapped core method).
 the notice names the part and its page, and is the only place the card's reader
 sees it. A multiple under a gate the context cannot decide (no target, no
 delivery) is not applied and not told.
+
+## 2026-11-24 — A join outside the holder's turn is refused, and a sheet's drop joins in turn
+
+**Ruled.** `joinStacks` re-reads both rows on the holder (`holder.items.get(id)`)
+before its first write and does nothing when either is gone. `joinInTurn(item,
+onto)` is the join for a caller outside a turn: it queues on the holder
+(`oneAtATime`), looks both rows up again when its turn comes, and calls
+`joinStacks` only if both are still there. A task already inside a turn, such as
+`foldIntoRest`, calls `joinStacks` directly, since `joinInTurn` waits on the
+turn that task is part of. The character sheet's drop onto a row of the same
+thing calls `joinInTurn`.
+
+**Why.** Dragging a drawn weapon or worn armour onto its own resting row on the
+character sheet unequips it first. That write's `updateItem` hook queues
+`foldIntoRest`, which joins the resting row into the drawn one, in turn. The
+drop's own join then ran outside the queue, read the counts before the fold's
+writes came back, and joined the drawn row into the resting one. Each side
+raised one row and deleted the other, so both rows were deleted and the stack
+was lost. The existing-row check alone does not close this, since both rows are
+still there when the drop's join starts; the queue does.
+
+**Rejected.** Leaving the guard to `joinStacks` alone (it sees only writes that
+have landed). Taking the join out of the drop (a stack let go on another row
+should join, and the fold only covers a row that was in use).
+
+*Cost:* lib `apiVersion` is 67 (`itemModel` gains `joinInTurn`). A join through
+`joinInTurn` waits behind every divide and fold already queued on the holder.

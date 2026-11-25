@@ -368,7 +368,7 @@ unless another one-hand weapon already holds it and no shield holds the off
 hand, then the off hand — so a second weapon lists opposite the first, and
 never both under one hand. Sheathing forgets the hand. The hands badge on the
 Load rule states the hands no row explains beside the count. A stack
-let go on another row of the same thing joins it (`joinStacks`: the same
+let go on another row of the same thing joins it (`joinInTurn`, after any fold the move queued: the same
 stack signature, owner and container), once the move has put the two in the
 same place. Coin is never copied: off another actor it is handed over, and
 from a compendium or the sidebar it lands on the row of its own kind (the

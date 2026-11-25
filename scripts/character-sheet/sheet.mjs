@@ -50,7 +50,7 @@ import { takeOut, storeIn, setConcealed, setLocked, setOpened, emptyContainer, c
 import { pickLock, bashOpen } from "../equipment/locks.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
-import { isEquippable, isGoods, isCurrency, isLocked, joinStacks } from "../lib/item-model.mjs";
+import { isEquippable, isGoods, isCurrency, isLocked, joinInTurn } from "../lib/item-model.mjs";
 import { promptDivide } from "../lib/stack-prompt.mjs";
 import { unpackBundle, landCoin } from "../lib/bundles.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
@@ -748,7 +748,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
    * An item of this actor's dropped on a zone moves it: onto a place it is
    * worn there, onto a container it is stored, onto the loose column it is
    * taken off or out. A stack dropped on another row of the same thing joins
-   * it (`joinStacks`). A bundle arrives as the goods it lists (`unpackBundle`),
+   * it (`joinInTurn`). A bundle arrives as the goods it lists (`unpackBundle`),
    * never as a bundle this sheet cannot show. Coin is never copied: off
    * another actor it is handed over, and from nobody it lands on the row of
    * its own kind (`landCoin`). Anything else is the ordinary arrival.
@@ -777,9 +777,10 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
           else await removeItem(own);
         }
         // A stack let go on another row of the same thing joins it, once the
-        // move above has put the two in the same place.
+        // move above has put the two in the same place. The move may have
+        // queued a fold of the same two rows, so the join takes its turn after it.
         const onto = this.#itemOf(event.target);
-        if (onto && onto.id !== own.id) await joinStacks(own, onto);
+        if (onto && onto.id !== own.id) await joinInTurn(own, onto);
       } catch (err) {
         console.error(`${MODULE_ID} | drop move failed`, err);
       }

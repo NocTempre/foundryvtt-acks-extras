@@ -200,7 +200,7 @@ const cp = (holder) => holder.items.filter((i) => i.type === "money").reduce((n,
 const money = await import("../scripts/lib/money.mjs");
 const { creditCoin, mintCoin, sinkCoin, transferCoin, ownCoin, purseGp, coinTemplate, HOUSE_OWNER } = money;
 const storage = await import("../scripts/lib/storage.mjs");
-const { canDivide, divideStack, foldIntoRest, joinStacks, sumWeight6 } = await import("../scripts/lib/item-model.mjs");
+const { canDivide, divideStack, foldIntoRest, joinStacks, joinInTurn, sumWeight6 } = await import("../scripts/lib/item-model.mjs");
 const { goodsForDrop } = await import("../scripts/lib/bundles-logic.mjs");
 const moneyLogic = await import("../scripts/lib/money-logic.mjs");
 const { planStackMerge } = await import("../scripts/lib/storage-logic.mjs");
@@ -1569,6 +1569,58 @@ await test("a fold refuses a row holding anything, and writes the count before i
   lose.delete = async () => (order.push("lose"), loseDelete());
   await foldIntoRest(gain);
   assert.deepEqual(order, ["gain", "lose"], "a fold cut short leaves a duplicate, never a loss");
+});
+await test("a drop's join beside a fold queued by the same unequip leaves one row holding the whole count, never none", async () => {
+  const sword = (id, qty) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {} });
+  const hero = makeActor({ id: "hero", items: [sword("own", 1), sword("rest", 2)] });
+  // Writes land a tick after they are asked for, as a round trip to the server does.
+  const tick = () => new Promise((resolve) => setImmediate(resolve));
+  for (const doc of hero.items.values()) {
+    const [update, remove] = [doc.update, doc.delete];
+    doc.update = async (changes) => (await tick(), update(changes));
+    doc.delete = async () => (await tick(), remove());
+  }
+  const own = hero.items.get("own");
+  const rest = hero.items.get("rest");
+  const fold = foldIntoRest(own);
+  const drop = joinInTurn(own, rest);
+  await Promise.all([fold, drop]);
+  assert.equal(hero.items.size, 1, "one row is left");
+  assert.equal([...hero.items.values()][0].id, "own", "the row the user handled");
+  assert.equal([...hero.items.values()][0].system.quantity, 3, "holding all three");
+  assert.equal(await drop, null, "the join found its partner already folded and did nothing");
+});
+await test("a join in turn joins two rows still there, and nothing on a row already gone", async () => {
+  const sword = (id, qty) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {} });
+  const hero = makeActor({ id: "hero", items: [sword("a", 1), sword("b", 2), sword("c", 4)] });
+  assert.equal((await joinInTurn(hero.items.get("a"), hero.items.get("b"))).system.quantity, 3, "two rows there join");
+  assert.equal(hero.items.get("a"), undefined, "the joined row is removed");
+  assert.equal(await joinInTurn(makeItem(sword("loose", 1)), hero.items.get("c")), null, "a row no holder carries joins nothing");
+  const gone = hero.items.get("b");
+  await gone.delete();
+  const writes = hero.writes;
+  assert.equal(await joinInTurn(gone, hero.items.get("c")), null, "a row removed before its turn joins nothing");
+  assert.equal(hero.writes, writes);
+  assert.equal(hero.items.get("c").system.quantity, 4);
+});
+await test("the character sheet's drop joins through the holder's turn, never straight", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  assert.match(source, /await joinInTurn\(own, onto\)/);
+  assert.doesNotMatch(source, /\bjoinStacks\(/);
+});
+await test("a join never deletes a row that is already gone, nor raises one that is", async () => {
+  const sword = (id, qty) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {} });
+  const hero = makeActor({ id: "hero", items: [sword("own", 1), sword("rest", 2), sword("third", 5)] });
+  const own = hero.items.get("own");
+  const rest = hero.items.get("rest");
+  await rest.delete();
+  const writes = hero.writes;
+  assert.equal(await joinStacks(own, rest), null, "the partner is gone");
+  assert.equal(await joinStacks(rest, own), null, "the row joined is gone");
+  assert.equal(hero.writes, writes, "and nothing is written");
+  assert.equal(own.system.quantity, 1);
+  assert.deepEqual([...hero.items.keys()].sort(), ["own", "third"]);
 });
 await test("a coin row with a banked balance is emptied by a join, never removed", async () => {
   const hero = makeActor({ id: "hero", items: [gold(7, { _id: "g1" }), gold(5, { _id: "g2", bank: 30 })] });

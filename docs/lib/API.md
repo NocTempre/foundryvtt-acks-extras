@@ -1,4 +1,4 @@
-# lib API (apiVersion 66)
+# lib API (apiVersion 67)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 66,
+  apiVersion: 67,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1643,7 +1643,13 @@ again); `also` is a pending change written in the same reducing write.
 resting row of the same thing and resolves to that row or `null`;
 `oneAtATime(holder, task)` runs divides and folds on one holder in turn. `joinStacks(item, onto)` folds one row into another of the
 same thing on the same holder (same stack signature, owner and container) and
-resolves to `onto`, or to `null` when the two are not one thing.
+resolves to `onto`, or to `null` when the two are not one thing or either row
+is no longer on the holder. `joinInTurn(item, onto)` (apiVersion 67) is
+`joinStacks` taken in the holder's turn, after the folds and divides already
+queued there: it looks both rows up again when its turn comes and joins only if
+both remain. A caller outside a turn, such as a sheet's drop, uses it; a task
+already inside `oneAtATime` calls `joinStacks`, since `joinInTurn` waits on the
+turn the task is part of and never resolves.
 
 **Currency (apiVersion 24).** `isCurrency(item)` is the system's `money` type.
 Its weight is stated as how many make a stone: `perStoneOf(item)` is the

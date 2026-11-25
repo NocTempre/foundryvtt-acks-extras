@@ -422,12 +422,20 @@ export async function divideStack(item, count, { also = null } = {}) {
  * at one that is gone or that now holds more than it described. `onto` takes
  * the count before `item` is removed, so a join cut short leaves a duplicate
  * and never a loss. A coin row still carrying a balance in the system's banked
- * field is emptied and kept, as `emptyMoneyDeletes` keeps one.
+ * field is emptied and kept, as `emptyMoneyDeletes` keeps one. Both rows must
+ * still be on the holder when the join starts: a row another write has already
+ * removed is never raised or deleted again. That check sees only what has
+ * already landed, so a caller outside the holder's turn can still race a fold
+ * that is mid-write; a caller outside a turn joins through `joinInTurn`. Called
+ * from inside a turn (`oneAtATime`), as `foldIntoRest` calls it, it needs no
+ * more.
  * @returns {Promise<Item|null>} `onto`, or null when the two are not one thing
+ *   or either row is gone
  */
 export async function joinStacks(item, onto) {
   const holder = item?.parent;
   if (!holder || onto?.parent !== holder || item.id === onto.id) return null;
+  if (holder.items?.get && (!holder.items.get(item.id) || !holder.items.get(onto.id))) return null;
   const from = item.toObject();
   const into = onto.toObject();
   const q = quantityOf(from);
@@ -440,6 +448,28 @@ export async function joinStacks(item, onto) {
   if (Number(from.system?.quantitybank) > 0) await item.update({ [q.path]: 0 });
   else await item.delete();
   return onto;
+}
+
+/**
+ * Join `item` into `onto` (`joinStacks`) in the holder's turn (`oneAtATime`),
+ * after every fold and divide already queued on that holder. The two rows are
+ * looked up again by id when the turn comes, and the join is made only if both
+ * are still there: an unequip's fold queued before the call may already have
+ * joined one into the other. This is the way for a caller outside a turn, such
+ * as a sheet's drop, to join two rows. A task inside a turn calls `joinStacks`
+ * directly, since waiting on a turn from inside one never resolves.
+ * @param {Item} item the row to join
+ * @param {Item} onto the row that takes its count
+ * @returns {Promise<Item|null>} what `joinStacks` resolves to, or null when
+ *   either row was gone by its turn
+ */
+export function joinInTurn(item, onto) {
+  const holder = item?.parent;
+  if (!holder?.items?.get) return Promise.resolve(null);
+  return oneAtATime(holder, async () => {
+    const [from, into] = [holder.items.get(item.id), holder.items.get(onto?.id)];
+    return from && into ? joinStacks(from, into) : null;
+  });
 }
 
 /**

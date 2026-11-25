@@ -1221,7 +1221,10 @@ not divided or joined, and a transfer moves it whole. Equipping a row of two or
 more takes one from it (`takeOneToEquip`, equipment feature): the rest are made
 first as a resting row, then one write sets the clicked row to one with the
 pending change in it. Divides and folds on one holder run in turn
-(`oneAtATime`). `promptDivide(item)`
+(`oneAtATime`). `joinStacks` does nothing when either row is no longer on the
+holder, and a join asked for from outside a turn, a sheet's drop, goes through
+`joinInTurn`, which takes the holder's turn and looks both rows up again when it
+comes; a fold queued by an unequip has then already joined them. `promptDivide(item)`
 (`stack-prompt.mjs`) is the one prompt every sheet asks a division through: a
 dismissed prompt writes nothing and says nothing, and a count outside the
 stack, 0 included, is refused with a warning. `gatherCoin(holder)` is the
