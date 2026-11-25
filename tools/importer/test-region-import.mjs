@@ -1175,6 +1175,10 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   ok("and makes no region place of its own", !shelved("pa.region"));
   check("the place it joined keeps its parent", idOf(docOf(shelved("pq.site1").system.parentUuid)), "pq.region");
   check("nothing it made is listed", all.created.places, []);
+  // A folder is made for a place that is, never ahead of one that may not be.
+  const folderNamed = (name) => [game.folders, ...[...game.packs].map((p) => p.folders)].some((c) => c.some((f) => f.name === name));
+  ok("and leaves no folder for a book that made no place", !folderNamed("pa"));
+  ok("while a book that made places has its folder", folderNamed("pq"));
 
   const withOverview = await cookbookImportPoiPlaces({ books: ["pb"] });
   ok("a book with an overview makes its region place, holding the overview", !!shelved("pb.region")?.system?.notes && withOverview.regions === 1);

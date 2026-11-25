@@ -44,6 +44,17 @@ import { bindNpc } from "./monster.mjs";
 /*  Adventure binding (AX line)                 */
 /* -------------------------------------------- */
 
+/**
+ * An Actor folder's id, asked for by name and made on the first call. A path
+ * that may create nothing (a row joining a place another book made, a place
+ * already held) takes it inside its create closure, so it leaves no empty folder.
+ * @returns {() => Promise<string|null>} the same promise on every call
+ */
+const lazyActorFolder = (path, line) => {
+  let pending;
+  return () => (pending ??= ensureFolderPath("Actor", path, line).then((folder) => folder?.id ?? null));
+};
+
 /** The kinds that bind to a journal page: a keyed room, a setting-detail table, and a passage read whole. */
 const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable", "kind.prose"]);
 
@@ -394,7 +405,7 @@ async function importKeyedPlace(bookId, id, run) {
   const e = cb.entries[id];
   const label = bookLabel(bookId);
   // A row's group is its folder beside the book's places: a scenario's rows file together.
-  const folder = (await ensureFolderPath("Actor", [label, e.meta?.group || "Places"], lineOf(bookId)))?.id ?? null;
+  const folder = lazyActorFolder([label, e.meta?.group || "Places"], lineOf(bookId));
   const parentId = keyedParentId(e, bookId);
   const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
     ? await run.placeFor(bookId, parentId)
@@ -431,9 +442,9 @@ async function importKeyedPlace(bookId, id, run) {
     return joinPaired(paired, { id, book: bookId, name, notes, parentUuid: parent?.uuid ?? "", region: label, roster });
   }
   const roster = await keyedOccupantRows(bookId, id, node, run);
-  const place = await claimActorImport(id, () =>
+  const place = await claimActorImport(id, async () =>
     createDoc(Actor, poiLocationData({
-      name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid: parent?.uuid ?? "", folderId: folder, roster,
+      name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid: parent?.uuid ?? "", folderId: await folder(), roster,
       lairOf: data.books.get(bookId)?.entries?.[id]?.meta?.of ?? "",
     })));
   if (place && !isRewriting(id)) {
@@ -696,13 +707,13 @@ const pairWritesParent = ({ place, takesOver }) => takesOver || !place.system?.p
 async function importRegionRow({ bookId, id, e, region }, tally, run) {
   const cb = data.books.get(bookId);
   const label = bookLabel(bookId);
-  const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+  const folder = lazyActorFolder([label, "Places"], lineOf(bookId));
   let regionPlace;
   const claimRegion = async () => {
     if (regionPlace !== undefined) return regionPlace;
     const held = await importedActor(regionPlaceId(bookId), { copies: false });
-    regionPlace = held ?? (await claimActorImport(regionPlaceId(bookId), () =>
-      createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: folder }))));
+    regionPlace = held ?? (await claimActorImport(regionPlaceId(bookId), async () =>
+      createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: await folder() }))));
     if (regionPlace && !held) run.created.places.push(regionPlace.uuid);
     return regionPlace;
   };
@@ -761,8 +772,8 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
       return void tally.paired++;
     }
     const parentUuid = await parentFor(true);
-    const made = await claimActorImport(id, () =>
-      createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: folder, role })));
+    const made = await claimActorImport(id, async () =>
+      createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: await folder(), role })));
     if (made && !isRewriting(id)) {
       tally.made++;
       run.created.places.push(made.uuid);
@@ -778,13 +789,13 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
     // A market an earlier book's grid already made is taken over, not doubled.
     const claimed = await claimMarketPlace(claim.claimId, run.pairs,
       { id: claim.claimId, book: bookId, name, notes, parentUuid, region: label, role },
-      () => createDoc(Actor, marketActorData({ name, entryId: claim.claimId, book: bookId, bookLabel: label, folderId: folder })));
+      async () => createDoc(Actor, marketActorData({ name, entryId: claim.claimId, book: bookId, bookLabel: label, folderId: await folder() })));
     if (claimed.paired) return void tally.paired++;
     target = claimed.place;
     if (target) run.created.places.push(target.uuid);
   } else if (!target) {
-    target = await claimActorImport(claim.claimId, () =>
-      createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: folder })));
+    target = await claimActorImport(claim.claimId, async () =>
+      createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: await folder() })));
     if (target) run.created.places.push(target.uuid);
   }
   if (!target) return void tally.refused++;
@@ -946,7 +957,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           continue;
         }
         const source = { book: bookId, page: e.cite ?? "" };
-        const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+        const folder = lazyActorFolder([label, "Places"], lineOf(bookId));
         // A market the grid's errata names carries a note citing this page,
         // so the Judge can see what was corrected and open the printing.
         const errata = e.meta?.errata ?? {};
@@ -975,8 +986,8 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           let fresh = false;
           let paired = false;
           if (at === "adventure") {
-            place = await claimActorImport(adventurePlaceId(bookId), () =>
-              createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: folder })));
+            place = await claimActorImport(adventurePlaceId(bookId), async () =>
+              createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: await folder() })));
           } else if (at) {
             // That row's own step builds it from its page; a stub here would
             // keep its text from ever landing.
@@ -987,7 +998,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
             }
           } else {
             ({ place, fresh, paired } = await claimMarketPlace(entryId, pairs, { id: entryId, book: bookId, name, notes: "", region: label },
-              () => createDoc(Actor, marketActorData({ name, entryId, book: bookId, bookLabel: label, folderId: folder }))));
+              async () => createDoc(Actor, marketActorData({ name, entryId, book: bookId, bookLabel: label, folderId: await folder() }))));
             // This step owns the name it reads, on a place a region site made
             // first as on one a repair finds held.
             if (place && printedName) await nameMarketPlace(place, entryId, printedName, e.cite ?? "", repair);
