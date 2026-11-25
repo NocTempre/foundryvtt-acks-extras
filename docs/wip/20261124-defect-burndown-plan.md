@@ -213,3 +213,10 @@ were measured offline by the architect at the fit's interface.
 Not checked: the ordinary-preset branch of the two marking tools, live (unit
 tests only); the erase stroke, live (unit tests only); `init`/`setup`/`ready`
 console (the walk's listener attached after `ready`).
+
+### 2026-11-25, between B02 and B03
+
+T-0594 and the finding B02 registered are in the batch map under B06, and the
+two findings the repair's Phase 2 registered are under B09, which no longer
+waits: the repair's S7c is on `main`. T-0593 stays deferred. B03's ten rows
+are claimed and its session is proposed to the owner as a card.
