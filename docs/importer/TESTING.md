@@ -228,8 +228,10 @@ first), one connected book, and the **Player** seat for the ownership half.
 "Remove ALL Imports (GM)". *Observable:* the confirm counts the packs' contents
 (class-template documents among them) and whatever an earlier release left in
 the sidebar; afterwards `game.packs` holds no "ACKS Cookbook — …" pack, and no
-orphan is left in the sidebar —
-`game.items.filter(i => i.flags?.["acks-extras"]?.templatePart).length` is 0.
+part whose class was imported remains —
+`game.items.filter(i => i.flags?.["acks-extras"]?.templatePart?.classUuid && i.flags["acks-extras"].templatePart.classUuid.startsWith("Compendium.")).length` is 0.
+A class the Judge made keeps its parts: its bundles, its 3d6 table and the
+shared skins are still in the Items sidebar tab → Class Templates.
 
 ## A geometry change, checked against the GM's own book
 

@@ -3168,3 +3168,37 @@ so the two stood in conflict.
   after a Yes, which makes the text.
 - A pointer an earlier No wrote stays; no repair tool sweeps previous-version
   data.
+
+## 2026-11-24 — Remove ALL imports keeps the kit parts of a class the Judge made
+
+**Reported.** Remove ALL imports deleted every sidebar template part, among them
+the bundles, 3d6 table and shared skins of a class the Judge built. The ruling
+"What stays in the sidebar" (docs/lib/DECISIONS.md, "In force", 2026-09-10) says
+a homebrew class's parts must not go with the library's packs; the removal still
+swept every part by its `templatePart` flag, written when every part came from
+an import.
+
+**Ruled.** A part goes only with its class (`partLeavesWithClass`, classes
+`registry.mjs`): when its `classUuid` lies in one of the packs the removal
+deletes, or names a cookbook-stamped sidebar class, which the same removal
+deletes. A part with no class, the shared `{kind, key}` skins, specialized
+proficiencies and copied spells, stays. The cookbook flag no longer decides for
+a part: a copied ability keeps its source's stamp, and the stamp test alone
+would sweep it. Example: a Judge's own Tinkerer keeps its bundles, its table and
+the shared gear skins; an imported Yak class's bundles and table go with it.
+The guard is a predicate and asks nothing: the confirm line and its counts are
+unchanged.
+
+**Rejected.**
+- Dropping the `|| templatePart` clause alone: the ability and spell copies
+  inside a package carry their source's cookbook stamp and would still be swept.
+- A confirm line that offers the kit parts: the owner's rule is no new prompt
+  on a Judge's surface, and the ruling above already says they stay.
+
+**Costs.**
+- A Judge's own class's parts that an earlier Remove ALL already deleted cannot
+  be recovered from module data; only a world backup or entering the kit again
+  brings them back.
+- An imported sidebar class's parts come back with a re-import.
+- Shared parts stay after the last class that used them is removed, and a part
+  whose class can no longer be found stays.

@@ -4,6 +4,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { BUILDER_DOC_ID } from "../../classes/builder-logic.mjs";
+import { templatePartOf, partLeavesWithClass } from "../../classes/registry.mjs";
 import { LANGUAGES_DOC_ID } from "../language-binding.mjs";
 import { answersFor, placePairs } from "../place-pair.mjs";
 import { repairCounts, mergedTally, countRepair, unrepaired } from "../refresh.mjs";
@@ -1876,14 +1877,34 @@ async function runEntryReimport(all, { mode, decision = null, choose = null } = 
  * recipe is a world Scene carrying the first, and so are the places and
  * organisations brought into the world for it to stand on.
  *
+ * A template part goes only with the class it was built for
+ * (`partLeavesWithClass`): a class that lives in one of the packs removed
+ * here, or an imported class in the Items sidebar. The bundles and table of a
+ * class the Judge made stay, and so do the parts shared by every class that
+ * prints them (skinned gear, specialized proficiencies, copied spells), which
+ * name no class; a copy's source stamp does not make it an import. A part
+ * whose class cannot be found stays.
+ *
  * Hand-made documents carry none of the three and are never touched. Art
  * files stay on disk (Foundry exposes no delete API) and are reused by a
  * re-import.
  */
 export async function cookbookRemoveImports() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes documents).`);
-  const templatePart = (d) => !!d.flags?.[MODULE_ID]?.templatePart;
-  const mine = (d) => !!d.getFlag(MODULE_ID, "cookbook") || templatePart(d);
+  // The packs themselves, found by label rather than through `packFor`, so a
+  // pack this session never opened is reached too.
+  const ourPacks = game.packs.filter(
+    (p) => p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith(`${FOLDER_NAME} — `),
+  );
+  // A class is gone when this removal deletes it: it lies in one of those
+  // packs, or it is a stamped import in the sidebar. A class the Judge made
+  // carries neither.
+  const classGone = (uuid) => {
+    if (ourPacks.some((p) => uuid.startsWith(`Compendium.${p.collection}.`))) return true;
+    const found = fromUuidSync(uuid);
+    return !!found?.getFlag?.(MODULE_ID, "cookbook") && !templatePartOf(found);
+  };
+  const mine = (d) => (templatePartOf(d) ? partLeavesWithClass(d, classGone) : !!d.getFlag(MODULE_ID, "cookbook"));
   const groups = [
     ["Actor", game.actors.filter((d) => mine(d) && !playersCharacter(d))],
     ["Item", game.items.filter(mine)],
@@ -1894,11 +1915,6 @@ export async function cookbookRemoveImports() {
     // re-parents them instead of taking them with it.
     ["Folder", game.folders.filter(mine)],
   ];
-  // The packs themselves, found by label rather than through `packFor`, so a
-  // pack this session never opened is reached too.
-  const ourPacks = game.packs.filter(
-    (p) => p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith(`${FOLDER_NAME} — `),
-  );
   const packed = ourPacks.reduce((n, p) => n + p.index.size, 0);
   // The rules-table import also materializes documents (RollTables, their
   // folders, the JSON journal) through the ruledata provider, which stamps no

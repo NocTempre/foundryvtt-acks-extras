@@ -199,6 +199,20 @@ export function findByRef(ref) {
  */
 export const templatePartOf = (doc) => doc?.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART] ?? null;
 
+/**
+ * Whether a template part goes when the class it was built for goes. A part
+ * names its class by `classUuid`; `classGone(uuid)` says whether that class is
+ * being removed. A part with no class (`{kind, key}`, a skinned gear item,
+ * specialized proficiency or copied spell shared by every class that prints
+ * it) never leaves with one, and neither does a document that is no part.
+ * Whatever else such a part carries, a copied ability's source stamp included,
+ * does not make it the removal's.
+ */
+export function partLeavesWithClass(doc, classGone) {
+  const part = templatePartOf(doc);
+  return !!part?.classUuid && !!classGone(part.classUuid);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Effective tables (chassis borrowing)                               */
 /* ------------------------------------------------------------------ */

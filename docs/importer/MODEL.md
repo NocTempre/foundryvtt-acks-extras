@@ -1469,6 +1469,9 @@ becomes a character, and the derivation wins".
   a non-GM user, or the default level, at OWNER — is never deleted by the
   entry picker's rebuild or by Remove Imports (`playersCharacter`); Remove
   Imports' confirm says how many stay.
+- **What Remove Imports leaves of a class's kit.** The kit parts of a class the
+  Judge made stay; a part goes only with an imported class (docs/lib/DECISIONS.md,
+  "What stays in the sidebar"; docs/importer/DECISIONS.md, 2026-11-24).
 
 ## City travel and trade
 

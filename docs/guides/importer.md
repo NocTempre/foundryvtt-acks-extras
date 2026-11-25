@@ -484,7 +484,8 @@ the overhead art once more.
 The window runs one thing at a time and says what is running; each control
 asks before it deletes. **Remove ALL imports** deletes every document this
 module imported, after one confirm that counts them; imported characters a
-player owns stay. The **Delete Everything Imported (GM)** macro does the same.
+player owns stay, and so do the kit parts of a class you made (Items sidebar
+tab → Class Templates). The **Delete Everything Imported (GM)** macro does the same.
 
 ![](../releases/v11.12.0/importer-manager.png)
 
