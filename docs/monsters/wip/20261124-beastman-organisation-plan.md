@@ -1113,7 +1113,7 @@ moves into `scripts/lib/` so there is one implementation. Released: none.
 owner's statements verbatim, re-ruled the earlier A to G. It reported before
 the owner's words on followers and on tabs as views reached it; what it adds
 on those is the next entry. Nothing here is the owner's until the owner says
-so.
+so. Replaced, wherever the two differ, by "Architect, consolidated" below.
 
 Its restatement of the owner's words, with its example: a faction card
 records who belongs to what and a group card records where bodies are; each
@@ -1262,7 +1262,8 @@ flag and fields. Released: none.
 
 **Proposed, not ruled.** The same `architect`, given the owner's two later
 statements verbatim, revised its report. Rulings B to F and the questions
-above stand as written. What it changed and added:
+above stand as written. Replaced, wherever the two differ, by "Architect,
+consolidated" below. What it changed and added:
 
 **A, changed.** A unit row is a lib field, `unitField()` in
 `scripts/lib/fields.mjs` beside `occupantField`: `{key, parentKey, label,
@@ -1428,7 +1429,9 @@ owner chose:
 The words are the button's; the choice is the owner's. It answers
 `architect`'s question 1 with (a), its own pick: every warband has a group
 actor from Generate, and that group holds no bodies and lists its gangs'
-groups. Example: Generate makes Warband 1's group at the village's site with
+groups. ("Holds no bodies" was the design session's reading and not the
+owner's words; "Architect, consolidated" below corrects it: the group holds
+the warband's own leader.) Example: Generate makes Warband 1's group at the village's site with
 Gang 1's and Gang 2's groups inside it. Gang 1 sent alone to a ford leaves
 Warband 1's group and stands on the ford's roster, and the Org chart still
 lists it under Warband 1. Warband 2 sent whole is one move of one group, its
@@ -1853,6 +1856,210 @@ window frame, its "Roll all again" and its "Save the village". Boards 1a to
 1e and 1g were drawn before this and still show a re-roll or a pin in
 places; they are not redrawn and are read without them. Not checked: any
 board's rendering. Released: none.
+
+### Architect, consolidated: the chart, the roll and the fight, 2026-11-24
+
+**Proposed, not ruled.** A fresh `architect`, read-only, was briefed with
+the owner's statements verbatim and sent each later one as it came, the drop
+of re-roll last. Its report replaces the two earlier `architect` entries
+wherever they differ, and what it does not restate stands. Nothing here is
+the owner's until the owner says so. It cites symbols, not lines.
+
+Its restatement of the owner's words, each with its example:
+
+- "only group needed": a roll that makes no village is made, edited, sent
+  out and fought from its groups alone, and no tool needs a faction card. A
+  wandering warband is Warband 1's group with its gangs' groups inside it,
+  and its Org chart sits on that group's sheet.
+- "Every body", "BUT! gangs should automatically join combat as groups for
+  group initiative": every body under a warband's token enters, and each
+  gang's bodies share one initiative with no gesture from the Judge. Gang
+  1's rows take one roll, Gang 2's another, and a lone leader rolls alone.
+- "It gets absorbed if part of the combat", "Into the combat": a gang away
+  from its warband and already in the combat its warband joins fights there
+  as one of that warband's gangs. Gang 1 is at a ford with its token in the
+  fight; Warband 1's token joins, and Gang 1 stays in as one initiative
+  group beside Gang 2.
+- "Look at how languages can be left undecided until needed": an element
+  may stay empty as long as the Judge likes, and a chart with empty elements
+  is finished. Warband 3 is an empty row for weeks and is rolled the evening
+  it matters.
+- "owner can use the controls, don't hard code permissions unless explictly
+  asked": the Judge has Roll, Edit, Add, Send out and Recall and presses
+  them in any order. The module builds no refusal or ordering rule the owner
+  did not ask for, and at most warns. An empty Warband 3 is sent to a ford
+  and rolled there, or rolled and then sent, and no dialog asks which.
+- "Just drop the reroll entirely…": an empty part is rolled, a filled part
+  is edited by hand, a part is added by hand. Gang 2 came out wrong for the
+  table, so the Judge changes its troop type and count by hand.
+
+**1. One chart shape, on a faction or on a group (changes A).** Every chart
+lives on a host actor. A village's host is its faction card; a roll with no
+village is hosted by the group of the roll's top unit, and Generate makes the
+host first. `unitField()` gains two keys: `kind`, the imported unit word an
+empty row needs to know what a Roll makes, and `gen`, an object lib stores
+and never reads. `FactionData.units` and a new `GroupData.units` are lists of
+the same row.
+
+- *What is left of the generation record.* Only what a later Roll of an
+  empty row needs: the template and variant, state and context, which rules
+  are on, the leader source, and the Judge's choices where the page is
+  silent. It rides as `gen` on the row where a roll began, and a Roll of an
+  empty row reads the nearest ancestor's. Gone: the roll key, pins, the
+  state, the log (the Judges' card is the log) and any list of minted actors.
+- *`stack.gen = {part, cite}` stays*, for the count's tooltip (formula,
+  total, the part and its page) and to stop the per-monster Roll re-sizing a
+  gang's stack from the wrong line: a `gen` stack shows the Roll's shipped
+  note form instead.
+- *One reader.* Lib `orgHostOf(holderUuid)` returns `{host, row}` from a
+  lazy reverse index over actors with `units`. It reads affiliation and
+  never location. A row whose holder no longer resolves reads empty, the
+  language slot's rule.
+- *Leader morale (changes D and H).* The leader's group gets
+  `unit.officerStackKey`, the part's morale goes into the shipped
+  `unit.officerMoraleBonus`, and one reader adds each ancestor holder's
+  bonus while its officer stack has a living body. It works the same on
+  either kind of host.
+- *Join and leave.* Join writes the faction first (the root's rows appended
+  under the chosen row, keys never re-keyed), then clears the group's own
+  rows. Leave is the reverse and any subtree may leave. Between the two
+  writes a row can stand on two hosts: the reader prefers the faction, the
+  sheet marks the twin, and a second press completes the move. "Make a
+  faction card of its own" is a create followed by the join. After a join
+  the group's sheet draws its subtree from the faction's rows, with no copy.
+- *A Roll writes at once.* Each press writes its groups, stacks and
+  prototypes then; board 1f's Save goes. Against, moderate: a village
+  rolled whole puts every prototype in the world at once, and rolling less
+  is the remedy.
+- Against the whole shape, moderate: every group, a mercenary unit
+  included, carries an empty chart field. The alternative, a flag on the
+  root group, gives the one reader two shapes.
+
+**2. A lair is one host group, its warbands beside it (new).** The lair's
+group holds the lair's own parts (its leader where the recipe gives one,
+guards, captives) and carries the chart. Each warband's group stands beside
+it on the lair's place roster and not inside it. It lists no warband, which
+is what separates it from the withdrawn "home group". Cost: a group that
+may hold no bodies. This departs from board 1m point 2 as drawn.
+
+**3. A warband's group holds its own leader (corrects a reading).** It is
+emptied only when its gangs are out and its own bodies are gone. An emptied
+group stays on its place's roster and a recalled gang returns into it. The
+count defect has three floors, each confirmed by `architect` and again by
+the design session's grep: `place.mjs` `groupHeadcount`, `place-logic.mjs`
+`headcount` and `factions/standing-logic.mjs` `headcountOf` each read an
+emptied group as one. S10a reads a group's count live, nested groups
+included, and stops using the stored roster figure. Registered on the bug
+ledger as T-0732 (the three floors) and T-0733 (the stored figure).
+
+**4. Combat (new mechanism).** Every body is a tracker row, and a gang's
+rows form one of the system's own initiative groups; the other shape, one
+row for a gang, is neither the system's model nor core's. Lib
+`group-combat.mjs` `sendOut`, once the bodies' combatants exist, writes the
+system's group list in one combat update: one entry for each group actor
+with two or more bodies, its bonus the lowest member value as the system
+computes it. `gather` prunes the same way. `turn-order.mjs` keeps one
+group's members together on a tie.
+
+- *Why not the system's own writer.* It does not await its write, and its
+  bonus loop recomputes every entry from the tokens just passed in, so
+  grouping Gang 2 would hand Gang 1 Gang 2's bonus. Both are confirmed in
+  the system's source by `architect` and by the design session.
+- *Why not core's CombatantGroup.* It would be a second grouping beside the
+  system's.
+- *Supersedes lib DECISIONS 2026-08-24 in part*: its rejection of
+  auto-grouping a deployed stack (new evidence: the owner's words above),
+  and its note that a module does not write the system's namespace (new
+  evidence: the system's writer cannot group several gangs). Its main
+  ruling, no grouping beside the system's, is followed.
+- *Scope, `architect`'s own ruling.* Auto-grouping applies to every group
+  actor whose token joins a combat, a gang joining alone and a hand-built
+  group included. Against, **strong**, in its words: "the 2026-08-24
+  rejection was the owner's own ruling. Going past "gangs" reverses it for
+  groups the owner did not name, including a mercenary unit outside a
+  formation, and the system offers no ungroup."
+- *Absorption.* "Part of the combat" is Foundry membership, not standing on
+  the scene. On the warband's join, each group under its row that is in
+  that combat joins the one grouping write, and one present as a single
+  token row is sent out. The gang's own token is hidden and restored by the
+  shipped path. Against, moderate: the owner may picture a gang standing
+  beside the warband pulled in with no press.
+- Plausible and not confirmed: that a gang's initiative rolls again each
+  round. It is S10d's first live acceptance.
+
+**5. The tree on three hosts (stands).** One view model reads rows from a
+`units` host, faction or group alike, or from henchmen's
+`serviceNodes(employer)`. Still undrawn: the tree in a window narrower than
+itself.
+
+**6. Verbs, refusals, slices (replaces D's re-roll paragraph).** Roll fills
+an empty row, at that level or with all below it. Add makes an empty row
+under any row. Edit changes a filled row by hand; bodies already on the map
+keep the figures they went out with until recalled, which is a warning and
+not a refusal. Delete removes a row, its group, and any prototype no stack
+still names.
+
+| Refusal | Verdict | Basis |
+|---|---|---|
+| Every re-roll rule; variant only while no card is out | gone | no re-roll; no rule asked |
+| A stack with no base actor sent to the map | a warning in place of today's silence | the code cannot place it |
+| A second combat; a row with a body on the map moved between groups | kept | shipped, GROUPS.md |
+| The per-monster Roll on a `gen` stack | a note in its place | it would be a re-roll |
+| A parent-group cycle | kept | the walker could not end |
+| Send out or Leave of an empty row | none: the press makes its group | |
+
+| Slice | Delivers | Needs |
+|---|---|---|
+| S10a | Lib groups: `parentGroupUuid`, its cycle guard, one walker; live nested counts and the three floors; deploy, recall and placing walk descendants; `officerStackKey`; `stack.gen`; the note; the warning | none |
+| S10b | `unitField`, `units` on factions and groups, `org-tree-logic.mjs`, `orgHostOf`, the view models, `org.mjs` send out, recall, join, leave, add; morale with ancestors; `docs/lib/ORGANISATION.md` | S10a |
+| S10c | Henchmen's `serviceNodes(employer)` | S10b |
+| S10d (new) | The combat-group write and prune, absorption, the tie key, the lib DECISIONS entry | S10a, S10b |
+| S11 | The recipe evaluator; Roll, Add and Edit plans; mutation-checked | S5, S10a to S10c |
+| S11b | The provider, shared prototypes, leader figures, the Judges' card, Delete; walked through the API | S11 |
+| S11c | Join, leave and make-its-own gestures (board 1m) | S11b |
+| S12 | The tree and Locations rows on both sheets; Roll, Add, Edit; nested rows; the plate | S11b |
+| S12b | The Followers tab's views over `serviceNodes` (board 1l) | S10c, S12 |
+
+All on `topic/beastman-organisation`, each to an `implementer`, live walks
+by the phase session. S10a to S10c land together before S11.
+
+**Read against the owner's words by the design session.** Four points, and
+the design session's pick on each:
+
+- `architect` shows Add only on a host with `gen` settings or one made from
+  a family template. Roll needs a template; Add does not, and the owner's
+  "manually edit or add" names no such condition. Pick: Add on every
+  `units` host, Roll where a template is known.
+- S11b's Judges' card is board 1e's, a chat card, and 1e was drawn before
+  re-roll was dropped. That part of S11b waits on the canvas with S11c, S12
+  and S12b. S10a's warning is posted in the shipped whisper form of "holds
+  nothing to place", so it needs no drawing; board 1j's row text comes with
+  S12.
+- Board 1m point 2 drew each warband's group as a root with its own record.
+  Ruling 2 above differs, and the board's callout now says so.
+- Writing the system's flag from the module has a shipped precedent:
+  `magic/cast-declare.mjs` sets the system's prepared-spell flag on a
+  combatant. Not checked: whether validate's flag-scope check passes a
+  `combat.update` spelling of the same write.
+
+**What is the owner's.** One decision: adopt this shape. Adoption releases
+S10a, S10b, S10c, S10d, S11, and S11b less its card. It also takes four
+points as written unless the owner corrects one:
+
+1. Group initiative for every group token, not only a generated gang (the
+   strong counter-argument above).
+2. Lib writes the system's combat-group list.
+3. A warband's group holds its own leader.
+4. A lair is one host group with its warbands beside it.
+
+The go-ahead on canvas 1 as redrawn then releases S11c, S12, S12b and
+S11b's card.
+
+Not checked by `architect`, in its words or close to them: anything live;
+whether every imported leader morale figure fits the bonus field's declared
+range; the stale stored roster figure beyond its write at row creation;
+whether core deletes a body's combatant with its token; an edited prototype
+under a deployed body's delta; any board's rendering. Released: none.
 
 ### Phase 1, 2026-11-24
 
