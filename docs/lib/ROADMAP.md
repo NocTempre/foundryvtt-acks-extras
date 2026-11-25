@@ -476,3 +476,14 @@ settings permission. Delete the patch, its install in `scripts/lib/module.mjs`, 
 README row and `tools/test-welcome-version.mjs` once the system minimum names a release
 that guards its own write, and re-walk the welcome-version recipe of
 `docs/lib/TESTING.md` without it.
+
+## The system's abandoned combat start
+
+`AcksCombat#internalStartCombat` sets `flags.acks.initDone` before the declaration
+prompt and leaves it, with the matrix's Surprised statuses, when the prompt is
+cancelled. `scripts/lib/patches/combat-start.mjs` unsets the flag and lifts the
+statuses after a cancel, and before a Begin Combat that meets an abandoned start.
+Delete the patch, its install in `scripts/lib/module.mjs`, its README row and
+`tools/test-combat-start.mjs` once the system minimum names a release whose method
+undoes its own flag and its matrix's statuses on a cancel, and re-walk "A cancelled
+declaration" in `docs/lib/TESTING.md` without it.
