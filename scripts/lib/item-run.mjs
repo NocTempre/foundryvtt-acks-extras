@@ -740,7 +740,10 @@ function ownCountedStanding(actor, kindKey, exceptActivationId = "") {
     if (!active || !activationId || activationId === exceptActivationId) continue;
     const row = itemRunRowsOf(item).find((r) => {
       const reach = readReach(r?.reach);
-      return reach?.pulse === "standing" && reach.filter?.self === "count" && kindKeyOf(item, r) === kindKey;
+      if (reach?.pulse !== "standing" || reach.filter?.self !== "count" || kindKeyOf(item, r) !== kindKey) return false;
+      // A blank figure holds no part, so it takes no record over: the record is deleted instead of left on the reach that went.
+      const figures = reachFigures(r);
+      return !!figures && reachParts(figures.on, figures.modifier, figures.saveWhen).length > 0;
     });
     if (row) return { config: { activationId, sourceUuid: item.uuid, rowKey: row.key }, item, row };
   }
