@@ -12,7 +12,8 @@
  * (tools/test-group-faction.mjs); the sheet only binds the four actions.
  */
 import { MODULE_ID, ORG_LANG_PREFIX } from "./constants.mjs";
-import { factionLineOf, joinFaction, leaveFaction, makeFaction, worldFactions } from "./org.mjs";
+import { factionLineOf, joinFaction, leaveFaction, makeFaction, orgChart, worldFactions } from "./org.mjs";
+import { underOptions } from "./org-tree-logic.mjs";
 import { makeLoc } from "./util.mjs";
 
 const loc = makeLoc(ORG_LANG_PREFIX);
@@ -49,24 +50,67 @@ function refusal(result, { fallbackName = "", verb = "join" } = {}) {
   return result;
 }
 
-/** The faction picker's one choice, or null where the dialog closed. */
-async function askFaction(factions, preselected) {
+/**
+ * The Under choices for a faction: its rows as this seat reads them (a hidden row is a Judge's alone),
+ * in the chart's reading order, with "At the top" first.
+ * @param {Actor|undefined} faction
+ */
+function underChoicesOf(faction) {
+  return underOptions(faction ? orgChart(faction).rows : [], loc("faction.underTop"));
+}
+
+/**
+ * Bind the Faction select to the Under select: a change refills Under with the new faction's rows,
+ * "At the top" chosen. Controls are told by what they are, never by `instanceof`, since the dialog may
+ * be built by a detached window's document.
+ */
+function bindUnder(dialog, factions) {
+  const form = dialog?.element?.querySelector?.("form");
+  const faction = form?.elements?.namedItem?.("faction");
+  const under = form?.elements?.namedItem?.("under");
+  if (!faction || !under) return;
+  faction.addEventListener("change", () => {
+    const doc = under.ownerDocument;
+    under.replaceChildren(
+      ...underChoicesOf(factions.find((f) => f.uuid === faction.value)).map((o) => {
+        const option = doc.createElement("option");
+        option.value = o.key;
+        option.textContent = o.text;
+        return option;
+      }),
+    );
+  });
+}
+
+/** The faction picker's choice, `{faction, under}` (`under` blank for the top), or null where the dialog closed. */
+async function askFaction(factions, preselected, group) {
+  const first = factions.find((f) => f.uuid === preselected) ?? factions[0];
   const content = await foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/group-faction.hbs`, {
     factions: factions.map((f) => ({ uuid: f.uuid, name: f.name, selected: f.uuid === preselected })),
+    under: underChoicesOf(first),
+    underTip: loc("faction.underTip", { group: group?.name ?? "" }),
   });
   const { DialogV2 } = foundry.applications.api;
   const picked = await DialogV2.prompt({
     classes: FACTION_DIALOG_CLASSES,
     window: { title: loc("faction.pickTitle") },
     content,
-    ok: { label: loc("faction.pickPress"), callback: (_event, button) => button.form.elements.namedItem("faction")?.value || null },
+    ok: {
+      label: loc("faction.pickPress"),
+      callback: (_event, button) => {
+        const uuid = button.form.elements.namedItem("faction")?.value || "";
+        return uuid ? { faction: uuid, under: button.form.elements.namedItem("under")?.value || "" } : null;
+      },
+    },
+    render: (_event, dialog) => bindUnder(dialog, factions),
     rejectClose: false,
   });
   return picked || null;
 }
 
 /**
- * Join a faction the Judge picks from the world's. A world with none says so and
+ * Join a faction the Judge picks from the world's, at its top or under a row of its chart the
+ * dialog's Under select names. A world with none says so and
  * opens nothing; a closed dialog writes nothing. A group a stopped join already
  * wrote to offers that faction first, so a second press completes it.
  * @param {Actor} group
@@ -78,10 +122,10 @@ export async function pressJoin(group) {
     ui.notifications.warn(loc("faction.noneExist"));
     return null;
   }
-  const picked = await askFaction(factions, factionLineOf(group).faction?.uuid ?? "");
-  const faction = picked ? factions.find((f) => f.uuid === picked) : null;
+  const picked = await askFaction(factions, factionLineOf(group).faction?.uuid ?? "", group);
+  const faction = picked ? factions.find((f) => f.uuid === picked.faction) : null;
   if (!faction) return null;
-  const result = await joinFaction(group, faction);
+  const result = await joinFaction(group, faction, picked.under);
   if (!result.ok) return refusal(result);
   ui.notifications.info(loc("faction.joined", { name: group.name, faction: faction.name }));
   return result;

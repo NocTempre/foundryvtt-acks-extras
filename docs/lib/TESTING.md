@@ -4573,7 +4573,7 @@ read is the proof, and the button itself is not walked.
 
 The model is [ORGANISATION.md](ORGANISATION.md), "A group's own gestures". Walked on
 the primary GM seat through the rendered sheet, a click on each control, with the
-writes read back from the stored rows. Step 8 also wants a player seat.
+writes read back from the stored rows. Steps 7b and 8 also want a player seat's page for the Under read in 8.
 
 ### Fixtures
 
@@ -4622,6 +4622,18 @@ writes read back from the stored rows. Step 8 also wants a player seat.
    through the sheet. *Observable:* both rows on the faction with their keys and
    parents as they were, the group's `units` empty, and `org.chartOf(group)` answers
    the subtree from the faction's rows. Leave: both rows come back to the group.
+   7b. Join under a row. Write three rows on the kept faction by API (a top, a row beneath
+   it, a second top marked `hidden`), click `[data-action="joinFaction"]` and read the
+   picker's `select[name="under"]`. *Observable:* its first option has a blank value and is
+   selected; the rest are the faction's rows in reading order, the nested row indented
+   with no-break spaces and the tops not, the hidden row listed to the GM; its
+   `aria-label` and `data-tooltip-text` say what the field does and name the group. Choose a
+   faction card that holds no row: Under refills to the first option alone; choose the kept
+   faction again: its rows return. Press Join with the nested row picked. *Observable:* the group's
+   top row stands under that row on the faction, the group's second row still under it, the
+   faction's own three rows unmoved. Leave, then Join with At the top: the top row has no parent. In
+   step 8, after choosing the kept faction in the player's picker, Under lists the top
+   and the nested row and never the hidden one. The faction's rows stay until the next run's shape step.
 8. Player seat. Give the player Owner on the group and nothing on the kept faction,
    join as that player, open the group's sheet and join the kept faction. *Observable:*
    a warning that the seat cannot edit the faction, naming it (the `notOwner` refusal),

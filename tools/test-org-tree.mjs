@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import {
   affiliationRows, blankRow, isEmptyRow, isOfficerUp, locationsView, moraleFromAbove, nodesOf, orgChartView, planAdd,
   planJoin, planLeave, planRecall, planSendOut, preferredHost, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
-  withHolder, chartToJoin, factionLine, readableChartRows, readableUnits,
+  withHolder, chartToJoin, factionLine, readableChartRows, readableUnits, underOptions,
 } from "../scripts/lib/org-tree-logic.mjs";
 
 /** A stored row, as a model would hand it over. */
@@ -403,6 +403,21 @@ t("the locations view's chart rows drop a hidden row and its subtree per host, n
   ];
   assert.deepEqual(readableChartRows(flat, false).map((r) => `${r.hostUuid}:${r.key}`), ["H.b:x"]);
   assert.equal(readableChartRows(flat, true).length, 3);
+});
+
+t("the Under choices are the top, then the rows in reading order, each indented by its depth, a hidden row and what lies beneath it absent for a reader who is no Judge", () => {
+  const rows = [...CHART, row("h", "w2", "", { hidden: true }), row("hc", "h", "G.hc")];
+  const view = (isGM) => orgChartView(rows, () => null, [], { isGM }).rows;
+  const all = underOptions(view(true), "At the top");
+  assert.deepEqual(all.map((o) => o.key), ["", "v", "w1", "g1", "g2", "w2", "h", "hc"], "the top first, then the chart's reading order");
+  assert.equal(all[0].text, "At the top");
+  assert.equal(all[0].key, "", "the top's value is blank");
+  assert.deepEqual(all.map((o) => o.depth), [0, 0, 1, 2, 2, 1, 2, 3]);
+  assert.equal(all[3].text, "\u00a0\u00a0\u00a0\u00a0Row g1", "two no-break spaces for each level");
+  assert.equal(all[1].text, "Row v", "a top row has no indent");
+  const reader = underOptions(view(false), "At the top");
+  assert.deepEqual(reader.map((o) => o.key), ["", "v", "w1", "g1", "g2", "w2"], "a hidden row and the row beneath it are not offered");
+  assert.deepEqual(underOptions(null, "At the top").map((o) => o.key), [""], "a faction with no rows offers the top alone");
 });
 
 let failures = 0;

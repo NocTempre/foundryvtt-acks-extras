@@ -182,18 +182,79 @@ t("join writes the faction chosen, says so, and a world with no faction opens no
 
   said = [];
   const f = faction("Card");
-  picker.choice = f.uuid;
+  picker.choice = { faction: f.uuid, under: "" };
   const result = await gesture.pressJoin(lone);
   assert.equal(result.ok, true);
   assert.equal(f.system.units.length, 1);
   assert.deepEqual(said.map(([level]) => level), ["info"]);
 });
 
+/** A form the picker's render hook binds: two selects by name, the faction's change listener, and a document that makes options. */
+function fakeDialog(factionValue) {
+  const options = [];
+  const listeners = [];
+  const faction = { value: factionValue, addEventListener: (type, fn) => listeners.push([type, fn]) };
+  const under = {
+    ownerDocument: { createElement: () => ({}) },
+    replaceChildren: (...kids) => options.splice(0, options.length, ...kids),
+  };
+  const form = { elements: { namedItem: (n) => ({ faction, under })[n] } };
+  return { dialog: { element: { querySelector: () => form } }, faction, options, change: () => listeners.filter(([t]) => t === "change").forEach(([, fn]) => fn()) };
+}
+
+t("the picker offers Under: the top, then the chosen faction's rows indented, refilled when the faction changes", async () => {
+  reset();
+  const lone = group("Lone");
+  const war = group("Warband");
+  const gang = group("Gang", { parent: war.uuid });
+  const one = faction("Card one", [row("w", "", war.uuid), row("g", "w", gang.uuid)]);
+  const two = faction("Card two", [row("x", "")]);
+  picker.choice = null;
+  await gesture.pressJoin(lone);
+  const asked = picker.asked[0];
+  const view = JSON.parse(asked.content).view;
+  assert.deepEqual(view.under.map((o) => [o.key, o.text]), [["", "ACKS-LIB.org.faction.underTop {}"], ["w", "Row w"], ["g", "\u00a0\u00a0Row g"]], "the first faction's rows, a nested row indented");
+  assert.match(view.underTip, /underTip/);
+  const live = fakeDialog(one.uuid);
+  asked.render(null, live.dialog);
+  live.faction.value = two.uuid;
+  live.change();
+  assert.deepEqual(live.options.map((o) => [o.value, o.textContent]), [["", "ACKS-LIB.org.faction.underTop {}"], ["x", "Row x"]], "a change of faction refills Under with that faction's rows");
+});
+
+t("a Join under a row nests the group's top row there, and the top leaves it a top row", async () => {
+  reset();
+  const war = group("Warband");
+  war.system.units = [row("a", "", war.uuid)];
+  const lone = group("Lone");
+  const f = faction("Card", [row("r", "")]);
+  picker.choice = { faction: f.uuid, under: "r" };
+  assert.equal((await gesture.pressJoin(lone)).ok, true);
+  assert.equal(f.system.units.find((r) => r.holderUuid === lone.uuid).parentKey, "r", "the group's row stands under the row picked");
+  picker.choice = { faction: f.uuid, under: "" };
+  assert.equal((await gesture.pressJoin(war)).ok, true);
+  assert.equal(f.system.units.find((r) => r.key === "a").parentKey, "", "At the top passes none");
+});
+
+t("a reader who is no Judge is offered no hidden row", async () => {
+  reset();
+  const lone = group("Lone");
+  faction("Card", [row("a", ""), { ...row("h", "a"), hidden: true }, row("c", "h")]);
+  game.user.isGM = false;
+  picker.choice = null;
+  try {
+    await gesture.pressJoin(lone);
+  } finally {
+    game.user.isGM = true;
+  }
+  assert.deepEqual(JSON.parse(picker.asked[0].content).view.under.map((o) => o.key), ["", "a"], "the hidden row and the row beneath it are absent");
+});
+
 t("join says why a seat cannot write, in the reason's own words", async () => {
   reset();
   const lone = group("Lone", {}, { isOwner: false });
   const f = faction("Card");
-  picker.choice = f.uuid;
+  picker.choice = { faction: f.uuid, under: "" };
   const result = await gesture.pressJoin(lone);
   assert.equal(result.reason, "notOwner");
   assert.deepEqual(said, [["warn", 'ACKS-LIB.org.refused.notOwner {"name":"Lone"}']], "it names the group the seat cannot write");
@@ -224,7 +285,7 @@ t("a join that stops partway says a join stopped, and a leave that stops says a 
   const warn = console.warn;
   console.warn = () => {};
   war.refuse = true;
-  picker.choice = f.uuid;
+  picker.choice = { faction: f.uuid, under: "" };
   const join = await gesture.pressJoin(war);
   assert.equal(join.reason, "failed");
   assert.match(said.at(-1)[1], /refused.failed.join/);

@@ -8,7 +8,10 @@
  * nothing written, a join through the picker, Open, Leave, Make its own with and
  * without an officer, a group that hosts a chart of two rows, and a player seat that
  * owns the group but not the faction (refused with a warning, nothing written) and
- * then at Observer (the line with no button).
+ * then at Observer (the line with no button). Step 7b is the picker's Under select: its
+ * rows are the chosen faction's, refilled when the faction changes, and a Join beneath a
+ * row nests the group's top row there; the player seat reads that a hidden row is not
+ * offered.
  * Machine values arrive through ./_env.mjs. Every name and figure here is invented.
  *
  * Fixtures, kept and found again by marker (`api.fixture`): `lib/org-wander` (a group
@@ -264,7 +267,7 @@ const P = {
   },
 
   /** The kept faction chosen in the picker and its one footer button pressed. */
-  pickerJoin: async ({ uuid }) => {
+  pickerJoin: async ({ uuid, under }) => {
     const H = globalThis.__lj;
     const dlg = [...foundry.applications.instances.values()].find((a) => !(H.before ?? []).includes(a.id) && a instanceof foundry.applications.api.DialogV2 && H.root(a)?.querySelector('select[name="faction"]'));
     if (!dlg) return { found: false };
@@ -274,10 +277,45 @@ const P = {
     select.dispatchEvent(new Event("change", { bubbles: true }));
     const buttons = [...root.querySelectorAll(".form-footer button[data-action]")];
     const go = buttons.find((b) => b.dataset.action === "ok") ?? buttons[0];
+    if (under !== undefined) {
+      const choice = root.querySelector('select[name="under"]');
+      if (choice) choice.value = under;
+      if (!choice || choice.value !== under) return { found: true, chosen: select.value === uuid, pressed: false, underSet: false };
+    }
     if (select.value !== uuid || !go) return { found: true, chosen: select.value === uuid, pressed: false, actions: buttons.map((b) => b.dataset.action) };
     go.click();
     const gone = await H.poll(() => !foundry.applications.instances.has(dlg.id), { tries: 50 });
     return { found: true, chosen: true, pressed: go.dataset.action, gone: !!gone };
+  },
+
+  /** The picker's Under select after the faction named is chosen (a change event, as a hand's choice fires): its choices as drawn. */
+  pickerUnder: async ({ uuid }) => {
+    const H = globalThis.__lj;
+    const dlg = [...foundry.applications.instances.values()].find((a) => !(H.before ?? []).includes(a.id) && a instanceof foundry.applications.api.DialogV2 && H.root(a)?.querySelector('select[name="faction"]'));
+    if (!dlg) return { found: false };
+    const root = H.root(dlg);
+    const select = root.querySelector('select[name="faction"]');
+    select.value = uuid;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const under = root.querySelector('select[name="under"]');
+    if (!under) return { found: true, drawn: false };
+    const nb = String.fromCharCode(160);
+    return {
+      found: true,
+      drawn: true,
+      chosen: select.value === uuid,
+      selected: under.value,
+      label: under.getAttribute("aria-label") ?? "",
+      tip: under.dataset.tooltipText ?? "",
+      options: [...under.options].map((o) => ({ value: o.value, indented: o.textContent.startsWith(nb), text: o.textContent.split(nb).join("").trim() })),
+    };
+  },
+
+  /** A row of a faction marked hidden, as a Judge's row. */
+  hideRow: async ({ id, key }) => {
+    const a = game.actors.get(id);
+    await a.update({ "system.units": a.system.toObject().units.map((r) => (r.key === key ? { ...r, hidden: true } : r)) });
+    return true;
   },
 
   /** The faction card that lists the group, as a made card shows once the join landed. */
@@ -508,6 +546,49 @@ try {
   check("leave brings both rows back to the group, and the faction holds none", same(rowsOf(s.group), chartRows) && s.faction.length === 0, { group: rowsOf(s.group), faction: s.faction.length });
   check("the group hosts itself and the line reads None", s.host?.isGroup === true && line.name === "None", { host: s.host, line: line.name });
 
+  section("7b. Join under a row");
+  const top7 = await run(gm, P.addRow, { id: faction.id, parentKey: "", label: "QA Top" });
+  const child7 = await run(gm, P.addRow, { id: faction.id, parentKey: top7.key, label: "QA Child" });
+  const hidden7 = await run(gm, P.addRow, { id: faction.id, parentKey: "", label: "QA Hidden" });
+  await run(gm, P.hideRow, { id: faction.id, key: hidden7.key });
+  note("NOTE", "driven by API, not click: three rows written on the kept faction (a top, a row beneath it, and a hidden top)");
+  check("the faction holds the three rows", top7.ok && child7.ok && hidden7.ok, { top7, child7, hidden7 });
+  await run(gm, P.press, { id: group.id, action: "joinFaction" });
+  await until(gm, P.picker, null, (d) => !!d);
+  const under1 = await run(gm, P.pickerUnder, { uuid: faction.uuid });
+  note("Under options", under1.options);
+  check("the picker draws an Under select, At the top chosen first with a blank value", under1.drawn === true && under1.options?.[0]?.value === "" && under1.selected === "", under1);
+  check("it lists the chosen faction's rows in reading order after At the top: for a Judge the hidden row too", same(under1.options.slice(1).map((o) => o.value), [top7.key, child7.key, hidden7.key]), under1.options);
+  check("the nested row is indented and the top rows are not", under1.options[2].indented === true && under1.options[1].indented === false && under1.options[3].indented === false, under1.options.map((o) => o.indented));
+  check("the labels are the rows' own", same(under1.options.slice(1).map((o) => o.text), ["QA Top", "QA Child", "QA Hidden"]), under1.options.map((o) => o.text));
+  check("the select's tooltip and aria-label say what the field does, and name the group", under1.label.length > 0 && under1.label === under1.tip && under1.label.includes(s.names.group), { label: under1.label, tip: under1.tip });
+  const other = cards[0] ? await run(gm, P.pickerUnder, { uuid: cards[0] }) : null;
+  if (other) check("changing the faction refills Under: a card holding no row offers At the top alone", same(other.options.map((o) => o.value), [""]) && other.selected === "", other.options);
+  else note("not walked", "no card from step 6 stands to switch the faction to");
+  const back = await run(gm, P.pickerUnder, { uuid: faction.uuid });
+  check("changing it back refills the kept faction's rows", same(back.options.slice(1).map((o) => o.value), [top7.key, child7.key, hidden7.key]), back.options);
+  const join7b = await run(gm, P.pickerJoin, { uuid: faction.uuid, under: child7.key });
+  check("the faction and the row beneath were chosen and the picker's button pressed", join7b.chosen === true && !!join7b.pressed && join7b.gone === true, join7b);
+  line = await until(gm, P.line, { id: group.id }, (l) => l?.controls?.includes("leaveFaction"));
+  s = await until(gm, P.read, A, (r) => r.group.length === 0 && r.faction.length === 5, { tries: 40 });
+  const parentIn = (rows, key) => rows.find((r) => r.key === key)?.parentKey;
+  check("the group's top row stands under the row picked, and the row that was beneath it stays beneath it", parentIn(s.faction, K) === child7.key && parentIn(s.faction, under.key) === K, { K: parentIn(s.faction, K), under: parentIn(s.faction, under.key) });
+  check("the faction's own three rows are as they were", parentIn(s.faction, top7.key) === "" && parentIn(s.faction, child7.key) === top7.key && parentIn(s.faction, hidden7.key) === "", rowsOf(s.faction));
+  await run(gm, P.press, { id: group.id, action: "leaveFaction" });
+  line = await until(gm, P.line, { id: group.id }, (l) => l?.controls?.includes("joinFaction"));
+  s = await until(gm, P.read, A, (r) => r.faction.length === 3 && r.group.length === 2, { tries: 40 });
+  check("Leave brings the group's two rows back, the top row at the top again", same(rowsOf(s.group), chartRows) && !parentIn(s.group, K) && s.faction.length === 3, { group: rowsOf(s.group), faction: s.faction.length });
+  await run(gm, P.press, { id: group.id, action: "joinFaction" });
+  await until(gm, P.picker, null, (d) => !!d);
+  const top2 = await run(gm, P.pickerJoin, { uuid: faction.uuid, under: "" });
+  check("At the top: the faction was chosen and the button pressed", top2.chosen === true && !!top2.pressed && top2.gone === true, top2);
+  s = await until(gm, P.read, A, (r) => r.group.length === 0 && r.faction.length === 5, { tries: 40 });
+  check("At the top passes no row: the group's top row is a top row of the faction", parentIn(s.faction, K) === "" && parentIn(s.faction, under.key) === K, { K: parentIn(s.faction, K) });
+  await run(gm, P.press, { id: group.id, action: "leaveFaction" });
+  await until(gm, P.line, { id: group.id }, (l) => l?.controls?.includes("joinFaction"));
+  s = await until(gm, P.read, A, (r) => r.faction.length === 3 && r.group.length === 2, { tries: 40 });
+  check("left again: the group hosts its two rows and the faction its three", s.group.length === 2 && s.faction.length === 3 && s.host?.isGroup === true, { group: s.group.length, faction: s.faction.length });
+
   section("8. the player seat");
   open.player = await connect({ browser, origin, user: MACHINE.player, port: PORTS.player, own: MACHINE.own });
   const player = open.player;
@@ -523,6 +604,9 @@ try {
   await run(player, P.press, { id: group.id, action: "joinFaction" });
   const picker8 = await until(player, P.picker, null, (d) => !!d);
   check("the picker lists the kept faction to a player", !!picker8 && picker8.options.some((o) => o.value === faction.uuid), picker8?.options?.length);
+  const under8 = await run(player, P.pickerUnder, { uuid: faction.uuid });
+  note("Under options on the player's page", under8.options);
+  check("a player is offered the faction's visible rows and never the hidden one", under8.drawn === true && same(under8.options.map((o) => o.value), ["", top7.key, child7.key]), under8.options);
   const join8 = await run(player, P.pickerJoin, { uuid: faction.uuid });
   check("the kept faction was chosen and the picker's button pressed", join8.chosen === true && !!join8.pressed, join8);
   const said8 = await until(player, P.said, null, (m) => m.some((x) => x.level === "warn"), { tries: 40 });

@@ -2410,3 +2410,24 @@ the Judges a card of its steps; the hub named the two tooltips as where the die 
 
 **Cost.** A count per unit records its formula repeated once for each unit at the Roll, since the unit count a later throw
 would need is not stored. The press writes at once and redraws the form, so it reads the fields typed in the open forms and not yet saved before the write and puts them back after the redraw, still unsaved, by the hub's ruling that the press must not lose unsaved input (`formDraftsOf`, `restorableDrafts`; the count the die writes is the one field left out).
+
+## 2026-11-25 — The Join dialog's Under select picks the row a group joins beneath (slice d)
+
+The owner: "Pick the row to join under". The Join dialog gains one select after the faction, **Under**: its first choice is
+**At the top** (a blank value), then the chosen faction's rows in reading order, a nested row indented by two no-break spaces
+for each level. It is refilled in a render hook when the Faction select changes, bound to the form's controls by name and
+never told by `instanceof`. The dialog returns `{faction, under}` and `pressJoin` passes `under` as `joinFaction`'s `underKey`;
+the first choice passes none.
+
+The rows are `orgChart(faction).rows`, which reads the seat's readable rows (`readableUnits`, the same filter `readableChartRows`
+applies over a world's rows), so a hidden row and what lies beneath it is never offered to a seat that is no Judge. The label is the
+row's own `label`, as the chart card shows it. The option list is the pure `underOptions` in `org-tree-logic.mjs`.
+
+Permissions are the landed Join's, unchanged: no gate and no seat read were added; `join`'s own refusals say who may write. Depth is
+`planJoin`'s: it refuses no depth and warns of none, so a group joined beneath a row two deep stands three deep, and no
+depth gate was added; the hub's "Group depth stays at two" was made for a generated village and is not enforced here.
+
+**Rejected.** *Listing every faction's rows at once.* The options follow the chosen faction. *A path-style label.* The indent shows the
+parent, and the label stays the chart's own.
+
+**Cost.** The rows are read from the world when the dialog opens and again at each change of faction, not live while the dialog stays open.

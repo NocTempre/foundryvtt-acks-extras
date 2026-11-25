@@ -421,6 +421,24 @@ export function readableChartRows(rows, isGM = true) {
 }
 
 /**
+ * The choices of a Join dialog's Under select: "at the top" first, then a faction's rows in the
+ * chart's reading order, each with its depth and its label led by two no-break spaces for every
+ * level it stands beneath its parent.
+ * @param {{key: string, label?: string, depth?: number}[]} rows a faction chart's `orgChartView` rows, already the seat's readable ones
+ * @param {string} topLabel the first choice's words
+ * @returns {{key: string, label: string, depth: number, text: string}[]} `key` is blank for the top
+ */
+export function underOptions(rows, topLabel) {
+  const out = [{ key: "", label: topLabel, depth: 0, text: topLabel }];
+  for (const r of rows ?? []) {
+    const depth = Math.max(0, Number(r.depth) || 0);
+    const label = String(r.label ?? "");
+    out.push({ key: r.key, label, depth, text: "\u00a0\u00a0".repeat(depth) + label });
+  }
+  return out;
+}
+
+/**
  * The org chart: the tree of a host's rows, each with its holder's live count, its
  * officer, whether it is empty and whether it is a twin. A holder that does not
  * resolve reads empty. A holder standing inside another row's group keeps its own

@@ -115,8 +115,15 @@ line and carries the presses out; `org.mjs` does the writes, as `join` and `leav
 do):
 
 - **Join a faction…** opens a picker over the world's factions (`worldFactions()`,
-  the world's `acks-extras.faction` actors) and `joinFaction(group, faction)`
-  joins the group at the top of the faction's chart. A world with no faction says
+  the world's `acks-extras.faction` actors) and an **Under** select, and
+  `joinFaction(group, faction, underKey)` joins the group's top row under the row
+  Under names, or at the top of the faction's chart for its first choice, **At the
+  top** (a blank value). Under lists the chosen faction's rows as this seat reads them
+  (`orgChart(faction).rows`, which leaves out a hidden row and what lies beneath it for
+  a seat that is no Judge), in reading order, a nested row indented under its parent
+  (`underOptions`, `org-tree-logic.mjs`); a change of the Faction select refills it
+  from the new faction's rows. The picker adds no gate: who may write is `join`'s,
+  and `planJoin` nests the top row where it is told, whatever the depth. A world with no faction says
   so and opens nothing; a closed picker writes nothing.
 - **Make its own…** is `makeFaction(group)`: a faction actor named from the group,
   with `leaderUuid` the group's `unit.officerUuid` where one is set, then the join.

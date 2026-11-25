@@ -1,10 +1,18 @@
 {{!-- The faction a group joins, picked from the world's. A faction a stopped join
-      already wrote to is the one preselected. --}}
+      already wrote to is the one preselected. Under lists the chosen faction's rows,
+      a nested row indented beneath its parent, and is refilled when the faction changes. --}}
 <div class="acks-lib-group-roll">
   <label>{{localize "ACKS-LIB.org.faction.pickLabel"}}
     <select name="faction">
       {{#each factions}}
         <option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+      {{/each}}
+    </select>
+  </label>
+  <label>{{localize "ACKS-LIB.org.faction.underLabel"}}
+    <select name="under" aria-label="{{underTip}}" data-tooltip-text="{{underTip}}">
+      {{#each under}}
+        <option value="{{key}}">{{text}}</option>
       {{/each}}
     </select>
   </label>
