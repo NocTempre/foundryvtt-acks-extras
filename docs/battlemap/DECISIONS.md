@@ -514,3 +514,11 @@ ladders, and what that entry rejected, stand.
   imported: the march frontage and the rank interval beside it are figures the
   page sets, and a column needs all three.
 
+## 2026-11-25 — Every size the sizer writes carries a stamp
+
+The ruling is [lib's, 2026-11-25](../lib/DECISIONS.md#2026-11-25--a-body-keeps-the-size-a-hand-gave-its-token-told-from-the-modules-own-by-a-stamp):
+a group body keeps the size a hand gave its token across a gather, and the footprint lock is the one mechanism that keeps
+auto-size off it. This feature's part: the preCreate auto-size, Map setup's "Rescale tokens on scene" and the chips'
+reset write `flags.acks-extras.sizeStamp` with the size, and a chip and the custom size do not. The flag names are in
+lib's constants and re-exported here. The cost it adds here is that Rescale skips a locked body until the reset clears its lock.
+

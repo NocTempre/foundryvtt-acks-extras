@@ -4316,7 +4316,7 @@ record". Walked on the primary GM seat; a player seat sees only the card.
 
 The model is [GROUPS.md](GROUPS.md), "A group inside a group" and "A count read
 now". Walked on the primary GM seat, which acts on a group token's combat.
-`tools/live/lib-nested-groups.mjs` walks steps 1 to 7 and a stack's printed hit points, on a kept monster `lib/nested-group-monster`; a combatant is made through the combat, so the HUD button itself is by hand.
+`tools/live/lib-nested-groups.mjs` walks steps 1 to 7 and a stack's printed hit points on a kept monster `lib/nested-group-monster`, and step 8 on disposables of its own; a combatant is made through the combat, so the HUD button itself is by hand.
 
 ### Fixtures
 
@@ -4363,7 +4363,34 @@ now". Walked on the primary GM seat, which acts on a group token's combat.
    behind it, and no token stands for the labelled stack.
 7. Refusal: `await acksExtras.lib.groups.setParentGroup(outer, inner.uuid)`.
    *Observable:* `{ok: false, reason: "cycle"}` and the outer's parent is unchanged.
-8. Teardown. `api.sweepTracked()` for the scene, token and combat; quote its result.
+8. A size a hand gave a body (the walk carries it; the model is GROUPS.md, "A size a
+   hand gave a body"). Disposable and tracked: a group over one stack of two
+   bodies over a monster of its own, a second scene, and every token a send-out makes
+   (`api.track` each uuid the deploy returns; the gather deletes them, so the sweep
+   reports them as not found). Read a body's size from `token._source`, never the
+   prepared document: a resize that animates reads its start. Resize with
+   `token.update({width, height}, {animate: false})`, gather with
+   `acksExtras.lib.groups.recall(group, {scene})`, send out with
+   `acksExtras.lib.groups.deploy(group, scene, {stackKey, count: 2})`, and find a body
+   again by the record key its token carries (`flags["acks-extras"].member`), since
+   core returns tokens in no order. The kept fixtures' flags and prototypes are never
+   touched.
+   - *Without auto-size* (the walk's own scene, which carries no auto-size flag):
+     deploy both bodies, resize body A to 2 by 1 with a texture scale of 1.5, gather.
+     *Observable:* A's record holds `tokenSize` 2, 1, 1.5, 1.5 and B's holds nothing.
+     Send both out. *Observable:* A reads 2 by 1, scale 1.5, with
+     `flags["acks-extras"].footprintLock` true; B reads its prototype's size with no
+     lock and a `sizeStamp` equal to that size.
+   - *With auto-size, once*: a second scene with `flags["acks-extras"].battlemap.autoScale`
+     true and a grid distance of 5 ft, and a monster whose actor carries
+     `flags["acks-extras"].footprint` `{w: 10, h: 10}` over a 1 by 1 prototype, so the
+     sizer needs no import. Deploy both bodies. *Observable:* both read 2 by 2 with a
+     `sizeStamp` of 2 by 2; anything else means auto-size was not live, and the rest of
+     the leg is skipped. Resize A to 3 by 3, gather, send both out. *Observable:* A
+     reads 3 by 3 with the lock. *Observable:* B, never touched, reads 2 by 2 with no
+     lock and no remembered size on its record; this is the case that tells the lock
+     from a scene that happens not to resize.
+9. Teardown. `api.sweepTracked()` for the scene, token and combat; quote its result.
    Set the inner's count back to 3, take the labelled stack off the outer and clear
    the roster rows.
 

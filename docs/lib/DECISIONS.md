@@ -2443,3 +2443,37 @@ action string, which is truthy, so a truthiness test would read it as a choice.
 
 **Cost.** None beyond the shape test: a join is taken only from an object that names a faction.
 
+## 2026-11-25 — A body keeps the size a hand gave its token, told from the module's own by a stamp
+
+T-0836. A gathered body came back at its prototype's size, and on a scene whose auto-size is on, a size a hand had
+given it was re-sized again at the send-out.
+
+**Ruled.** The hub's directions, verbatim: "Keep width, height and texture scale where they differ from the prototype."
+and "Auto-size does not re-size a deployed remembered size. Use footprintLock if it fits, with no second mechanism."
+The architect's option C: every size the module writes to a token is written with `flags.acks-extras.sizeStamp`
+(`{width, height}`) in the same update, so a hand's size is a stored size that differs from the stamp.
+
+- A gather (`recall`, and a body's token deleted by hand) remembers on the body's record (`tokenSize`) the token's width
+  and height as a pair where they differ from the prototype's and the token carries the footprint lock or a stamp the
+  pair differs from, and its texture scale where it differs from the prototype's.
+- The next `deploy` lays a remembered width and height back with `footprintLock`, which the scene's auto-size already
+  honours, so there is no second mechanism. A remembered scale goes back with no lock. A body with nothing remembered is
+  sent out at its prototype's size and stamped with it.
+- The stamp is written by `deploy`, and by the battlemap's own size writes (the auto-size, Map setup's "Rescale tokens
+  on scene", the chips' reset). A size chip does not stamp, so its size reads as a hand's. The two flag names live in
+  `scripts/lib/constants.mjs`, which the battlemap re-exports, since a group deploy writes both and the battlemap's sizer
+  reads the lock.
+
+**Rejected.**
+- *A, comparing a token's size with `sizeForToken`.* The decision then lives in the gather, which would have to import a
+  battlemap feature into lib, and it misreads a chip: a chip writes its footprint override with the size, so the
+  sizer's answer is the token's own size and a chip-sized body would count as the module's.
+- *B, an arrival size on the record.* The size a body was sent out at is remembered and compared at the gather. It
+  misreads a Rescale after arrival: the module re-sized the token, the size differs from the arrival size, and the
+  module's own write reads as a hand's.
+
+**Cost.**
+- Three stamp writes in `token-scale.mjs` (the preCreate auto-size, the rescale, the reset) and the one in `deploy`.
+- A `sizeStamp` flag on every auto-sized token and every deployed body.
+- A locked body is skipped by Rescale until a reset clears its lock, since the lock is the one thing the sizer reads. The chips' reset clears the lock.
+

@@ -6,8 +6,10 @@
  * combatant of its own and none for a group), the early gather, the combat's
  * end recalling each body into its own group, an emptied inner that stays on
  * both rosters at none, a labelled stack that whispers the Judges and places
- * nothing while the others deploy, the cycle refusal, and a stack's printed
- * hit points surviving a body's first record.
+ * nothing while the others deploy, the cycle refusal, a stack's printed
+ * hit points surviving a body's first record, and a size a hand gave a body's
+ * token surviving a gather and the next send-out, on a scene without auto-size and
+ * on one with it (the never-touched body beside it takes the scene's size).
  * Machine values arrive through ./_env.mjs. Every name and figure here is invented.
  *
  * Group combat acts on the primary GM's window: the walk prints who the active
@@ -19,7 +21,10 @@
  * start: each group holds one resting stack over that monster at 2 and 3 with no
  * record, the inner's parent is the outer, the outer's is blank. Disposable, by
  * the run's own ledger: the scene, the outer's token, the combats, the place,
- * the faction, the whisper, and the group of the printed-hit-points check.
+ * the faction, the whisper, and the group of the printed-hit-points check; for the
+ * size step, two groups over two monsters (one carrying a 10 by 10 foot footprint
+ * override on the actor), a second scene with auto-size on and a 5-foot cell, and
+ * every body token each send-out makes. Nothing is kept.
  * The only write outside the ledger is the kept fixtures' own shape, rewritten at
  * the start and again at the end.
  *
@@ -238,6 +243,59 @@ const P = {
     await groups.recall(group, { scene });
     return out;
   },
+
+  /** A disposable group over one stack of `count` bodies, the stack's monster being the one given. */
+  stackOver: async ({ groupId, monsterId, count }) => {
+    return acksExtras.lib.groups.addStack(game.actors.get(groupId), game.actors.get(monsterId), { count });
+  },
+
+  /** Put the stack's bodies on the scene; each token's uuid and the record key it carries. */
+  sendOut: async ({ groupId, sceneId, stackKey, count, x, y }) => {
+    const group = game.actors.get(groupId);
+    const made = await acksExtras.lib.groups.deploy(group, game.scenes.get(sceneId), { stackKey, count, x, y });
+    return made.map((t) => ({ id: t.id, uuid: t.uuid, member: t.getFlag("acks-extras", "member") }));
+  },
+
+  /** A hand's resize: width and height, and the texture scale where one is given, unanimated. */
+  resize: async ({ sceneId, tokenId, width, height, scale }) => {
+    const update = { width, height };
+    if (scale) Object.assign(update, { "texture.scaleX": scale, "texture.scaleY": scale });
+    await game.scenes.get(sceneId).tokens.get(tokenId).update(update, { animate: false });
+    return true;
+  },
+
+  /** Gather the group's bodies off the scene. */
+  gather: async ({ groupId, sceneId }) => acksExtras.lib.groups.recall(game.actors.get(groupId), { scene: game.scenes.get(sceneId) }),
+
+  /** Each body's token as stored, the stored size and what the module stamped beside it, and the prototype's size. */
+  bodies: async ({ groupId, sceneId }) => {
+    const scene = game.scenes.get(sceneId);
+    const uuid = game.actors.get(groupId).uuid;
+    return scene.tokens
+      .filter((t) => t.getFlag("acks-extras", "group") === uuid)
+      .map((t) => {
+        const src = t._source;
+        const flags = src.flags?.["acks-extras"] ?? {};
+        const proto = t.baseActor?.prototypeToken;
+        return {
+          id: t.id,
+          member: flags.member,
+          width: src.width,
+          height: src.height,
+          scale: [src.texture?.scaleX, src.texture?.scaleY],
+          lock: flags.footprintLock === true,
+          stamp: flags.sizeStamp ? [flags.sizeStamp.width, flags.sizeStamp.height] : null,
+          proto: proto ? [proto.width, proto.height, proto.texture?.scaleX, proto.texture?.scaleY] : null,
+        };
+      });
+  },
+
+  /** Each of the group's records' remembered token size, by the key the record holds. */
+  remembered: async ({ groupId }) => {
+    const out = {};
+    for (const s of game.actors.get(groupId).system.toObject().stacks) for (const r of s.roster) out[r.key] = r.tokenSize ?? null;
+    return out;
+  },
 };
 
 const run = (api, fn, arg) => api.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
@@ -377,6 +435,67 @@ try {
   swept.push(body.uuid);
   const printed = await run(gm, P.printed, { groupId: body.id, monsterId: beast.id, sceneId: scene.id, figure: FIXED });
   check("the stack keeps the figure and both records and the placed body take it, a figure its hit dice cannot roll", printed.fixedHp === FIXED && printed.records.length === 2 && printed.records.every((r) => r[0] === FIXED && r[1] === FIXED) && printed.token?.[0] === FIXED && printed.token?.[1] === FIXED, printed);
+
+  section("a size a hand gave a body");
+  // Every document here is the run's own and goes by the ledger; the kept fixtures are never read for a flag or a size.
+  const near = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
+  const nothing = (r) => !!r && Object.values(r).every((v) => v === null);
+  const stackOf = async (label, monsterData = {}) => {
+    const monster = await gm.create("Actor", { name: `QA Nested ${label} beast${TAG}`, type: "monster", items: [], ...monsterData });
+    swept.push(monster.uuid);
+    const group = await gm.create("Actor", { name: `QA Nested ${label} group${TAG}`, type: GROUP, items: [] });
+    swept.push(group.uuid);
+    return { group, stackKey: await run(gm, P.stackOver, { groupId: group.id, monsterId: monster.id, count: 2 }) };
+  };
+  const sendOut = async (g, sc) => {
+    const made = await run(gm, P.sendOut, { groupId: g.group.id, sceneId: sc.id, stackKey: g.stackKey, count: 2, x: 100, y: 100 });
+    for (const t of made) swept.push(gm.track(t.uuid, "Token"));
+    return made;
+  };
+  const standing = async (g, sc) => run(gm, P.bodies, { groupId: g.group.id, sceneId: sc.id });
+
+  // Without auto-size: the walk's own scene carries no auto-size flag.
+  const hand = await stackOf("hand");
+  const handMade = await sendOut(hand, scene);
+  const aMember = handMade[0]?.member;
+  check("two bodies stand, each with a record key", handMade.length === 2 && handMade.every((t) => t.member) && handMade[0].member !== handMade[1].member, handMade);
+  await run(gm, P.resize, { sceneId: scene.id, tokenId: handMade[0].id, width: 2, height: 1, scale: 1.5 });
+  const handGathered = await run(gm, P.gather, { groupId: hand.group.id, sceneId: scene.id });
+  const handRecords = await run(gm, P.remembered, { groupId: hand.group.id });
+  const handKept = handRecords[aMember];
+  check("body A's record holds 2 by 1 and a scale of 1.5 between the gather and the send-out", handGathered.recalled === 2 && near([handKept?.width, handKept?.height, handKept?.scaleX, handKept?.scaleY], [2, 1, 1.5, 1.5]), { recalled: handGathered.recalled, kept: handKept });
+  const handBodyB = Object.keys(handRecords).find((k) => k !== aMember);
+  check("body B's record holds no size", nothing(handRecords[handBodyB]), handRecords[handBodyB]);
+  await sendOut(hand, scene);
+  const handBodies = await standing(hand, scene);
+  const bodyA = handBodies.find((b) => b.member === aMember);
+  const bodyB = handBodies.find((b) => b.member !== aMember);
+  check("body A is sent out at 2 by 1, scale 1.5, with the footprint lock", !!bodyA && near([bodyA.width, bodyA.height, ...bodyA.scale], [2, 1, 1.5, 1.5]) && bodyA.lock === true, bodyA);
+  check("body B is sent out at its prototype's size, unlocked, its stamp that size", !!bodyB?.proto && near([bodyB.width, bodyB.height], bodyB.proto.slice(0, 2)) && bodyB.lock === false && near(bodyB.stamp, bodyB.proto.slice(0, 2)), bodyB);
+  await run(gm, P.gather, { groupId: hand.group.id, sceneId: scene.id });
+
+  // With auto-size: a second scene with the flag on and a cell worth 5 feet, and a monster whose own footprint override is 10 by 10 feet, which the sizer turns into 2 by 2 cells.
+  const auto = await gm.create("Scene", { name: `QA Nested auto scene${TAG}`, width: 1200, height: 800, grid: { size: 100, distance: 5, units: "ft" }, flags: { "acks-extras": { battlemap: { autoScale: true } } } });
+  swept.push(auto.uuid);
+  const sizer = await stackOf("auto", { prototypeToken: { width: 1, height: 1 }, flags: { "acks-extras": { footprint: { w: 10, h: 10 } } } });
+  const autoMade = await sendOut(sizer, auto);
+  const autoKey = autoMade[0]?.member;
+  const autoBodies = await standing(sizer, auto);
+  const sizedByScene = autoBodies.length === 2 && autoBodies.every((b) => near([b.width, b.height], [2, 2]) && near(b.stamp, [2, 2]));
+  check("auto-size is live: both bodies stand at 2 by 2 with a stamp of 2 by 2", sizedByScene, autoBodies);
+  if (sizedByScene) {
+    await run(gm, P.resize, { sceneId: auto.id, tokenId: autoMade[0].id, width: 3, height: 3 });
+    await run(gm, P.gather, { groupId: sizer.group.id, sceneId: auto.id });
+    const autoRecords = await run(gm, P.remembered, { groupId: sizer.group.id });
+    note("remembered after the gather", autoRecords);
+    await sendOut(sizer, auto);
+    const again = await standing(sizer, auto);
+    const handA = again.find((b) => b.member === autoKey);
+    const never = again.find((b) => b.member !== autoKey);
+    check("body A is sent out at 3 by 3 with the lock, auto-size on", !!handA && near([handA.width, handA.height], [3, 3]) && handA.lock === true, handA);
+    check("body B, never touched, is sent out at 2 by 2 with no lock and no remembered size on its record", !!never && near([never.width, never.height], [2, 2]) && never.lock === false && nothing(autoRecords[never.member]), { body: never, record: never ? autoRecords[never.member] : null });
+    await run(gm, P.gather, { groupId: sizer.group.id, sceneId: auto.id });
+  }
 
   walkDone();
 } catch (err) {

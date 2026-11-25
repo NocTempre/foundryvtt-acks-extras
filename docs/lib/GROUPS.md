@@ -54,7 +54,9 @@ pristine      =  size.current − livingRecorded.length
 members that are `materialized`, `deployed`, `detached`, or `dead`. Pristine
 bodies are the **difference** and have no record at all — a 30-strong platoon
 that has never fought is `size.current: 30, roster: []`. HP is not rolled until
-a body is first materialised.
+a body is first materialised. A record holds the body's `delta`, and beside it
+the size a hand gave its token (`tokenSize`, "A size a hand gave a body"); a
+pristine body has neither.
 
 ### The representative individual
 
@@ -89,9 +91,9 @@ the formation feature all read it with no special-casing.
 | `ensureBaseActor(group)` | mint the world Actor the ActorDelta needs (once) |
 | `materializeMember(group)` | pristine body → record; rolls its HP |
 | `applyCasualties(group, n)` | pristine fall first (no record lost), then records → `dead` |
-| `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied, its hit points kept over the system's roll |
+| `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied, its hit points kept over the system's roll, the size a hand gave it laid back |
 | `canDeploy(group)` | whether this seat can: it owns the group and may create tokens |
-| `recall(group)` | fold `token.delta` back in, drop ≤0-HP bodies, delete tokens; every group inside it is recalled with it |
+| `recall(group)` | fold `token.delta` and the size a hand gave the token back in, drop ≤0-HP bodies, delete tokens; every group inside it is recalled with it |
 | `detach(group, key)` | promote a member to a standalone actor; `size.current--` |
 | `moveStack(from, to, stackKey)` | the row and everything beneath it to another group ("A row moved between groups") |
 
@@ -135,6 +137,34 @@ wrote. Run side by side, two bodies deleted in one batch each read the roster
 before the other's write, and one fold is lost. A body sent out and straight
 back is two deletions before the first write lands, and the second one's
 guard is the uuid the first one recorded.
+
+### A size a hand gave a body
+
+A record keeps `tokenSize` beside its delta: `{width, height, scaleX, scaleY}`,
+each part null where nothing is kept. `recall`, and a body's token deleted by
+hand, fold it in through the one reading (`foldOf` in `group.mjs`, deciding in
+`keptTokenSize` of `group-logic.mjs`).
+
+- **Width and height are kept as a pair**, since the footprint lock freezes both
+  axes, where the pair differs from the prototype token's and a hand set it: the
+  token carries `flags.acks-extras.footprintLock`, or it carries a `sizeStamp`
+  the pair differs from. A token with neither is no body this module sized, so
+  none of its size is kept.
+- **The texture scale is kept** where it differs from the prototype's, since
+  nothing automatic writes scale.
+- **`flags.acks-extras.sizeStamp`** (`{width, height}`) is the size the module
+  last wrote to the token, written in the same update as the size. Deploy writes
+  the prototype's size as the stamp of a body with nothing remembered; the
+  battlemap's own size writes stamp too (`docs/battlemap/MODEL.md`, "Token
+  sizing — ownership"). A stamp blocks nothing; only the lock does.
+- **The next `deploy` lays the remembered pair back with the lock**, so the
+  scene's auto-size leaves it alone. A remembered scale goes onto the token's
+  texture and takes no lock. A body with nothing remembered is sent out at its
+  prototype's size and stamped with it, and an auto-sizing scene then sizes it as
+  it does any new token.
+
+The constants are `FLAG_FOOTPRINT_LOCK` and `FLAG_SIZE_STAMP` in
+`scripts/lib/constants.mjs`. The ruling is `DECISIONS.md` (2026-11-25).
 
 ### A group inside a group
 

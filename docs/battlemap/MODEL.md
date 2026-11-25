@@ -457,7 +457,19 @@ alone and warns, naming what is not imported (a category's frontage, from
 preCreateToken auto-size leaves it alone too. The rescale compares the stored
 size (`_source`) and counts only the tokens it actually wrote.
 `footprintLock` on a token opts it out of every automatic resize,
-the party token's included. No surface sets it; it is written by script.
+the party token's included. It is set by lib's group deploy on a body whose
+remembered size it lays back (`docs/lib/GROUPS.md`, "A size a hand gave a body");
+the size chips' reset clears it.
+
+Every size this feature writes to a token carries `flags.acks-extras.sizeStamp`
+(`{width, height}`) in the same write: the preCreateToken auto-size, Map setup's
+"Rescale tokens on scene", and the chips' reset, which stamps the size the token
+ends at. The stamp is how a gather tells the module's size from a hand's: a stored
+size that differs from the stamp is a hand's. A size chip and the custom size do
+not stamp, so a token they resize reads as a hand's. Rescale skips a locked body
+until the reset clears its lock. The flag names live in `lib/constants.mjs`,
+re-exported by `constants.mjs`; the ruling is in `docs/lib/DECISIONS.md`
+(2026-11-25).
 Spans quantize to quarter squares with a quarter-square floor (DECISIONS).
 
 Auto-sizing triggers: Map setup's "Rescale tokens on scene" button (whole
