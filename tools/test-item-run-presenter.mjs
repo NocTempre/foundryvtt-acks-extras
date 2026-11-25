@@ -189,6 +189,16 @@ await t("the strip: a body reads the reaches that meet its token, the save owed 
   me.current = users[0];
 });
 
+await t("a re-raise after a lowering reads the choice the item kept: a bearer its filter counts in is offered Count out and not Count in", async () => {
+  const rowReach = item.flags["acks-extras"].itemRun.rows[0].reach;
+  const body = () => presenter.raisedBody(messages[0], stored());
+  assert.ok(body().includes("itemRun.tick") && !body().includes("itemRun.untick"), "a bearer its filter does not count is offered Count in");
+  rowReach.filter = { self: "count" };
+  const counted = body();
+  assert.ok(counted.includes("itemRun.untick") && !counted.includes("itemRun.tick"), "the item's own filter decides, whatever the card was posted with");
+  rowReach.filter = {};
+});
+
 await t("lowering marks the card lowered, mutes every row and strikes what was open", async () => {
   await presenter.presentReach(moment("prompt", "S.a", { momentKey: "k9" }));
   assert.equal(stored().entries.k9.state, "open");

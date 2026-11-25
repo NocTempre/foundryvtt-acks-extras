@@ -198,8 +198,10 @@ export function reachCardModel({ title, subtitle, note, noteTooltip, words, rows
   const mine = (key) => seat.ownsSubject?.(key) === true;
   const sections = [{ rows: rows.filter((r) => mine(r.key)).map((r) => reachRowOf(r, { words, ids, seat })) }];
   if (bearer && (seat.ownsBearer === true || seat.ownsItem === true)) {
-    const own = bearer.counted && bearer.row
-      ? reachRowOf({ ...bearer.row, key: bearer.key, name: bearer.name }, { words, ids, seat: { ...seat, ownsSubject: () => seat.ownsBearer === true } })
+    const countOut = seat.ownsItem === true ? [{ action: "itemRun.untick", label: words.countOut, icon: "fa-solid fa-xmark", data: { ...ids, subject: bearer.key }, tooltip: words.countOutTip }] : [];
+    const counted = bearer.counted && bearer.row ? reachRowOf({ ...bearer.row, key: bearer.key, name: bearer.name }, { words, ids, seat: { ...seat, ownsSubject: () => seat.ownsBearer === true } }) : null;
+    const own = counted
+      ? { ...counted, actions: [...(counted.actions ?? []), ...countOut] }
       : { name: bearer.name, total: "", outcome: words.undetermined, emphasis: "muted", actions: seat.ownsItem === true ? [{ action: "itemRun.tick", label: words.tick, icon: "fa-solid fa-check", data: { ...ids, subject: bearer.key }, tooltip: words.tickTip }] : [] };
     sections.push({ title: words.bearer, titleTooltip: words.bearerTip, rows: [own] });
   }

@@ -443,16 +443,18 @@ export const FUSE_KEY = FLAG_FUSE;
 
 /**
  * The update that counts a row's bearer in as a subject of its own reach
- * (`filter.self` is `count`): `{path, value}` for `item.update`, the row list
- * rewritten whole where the item keeps its rows (an ability's `extras.effects`,
- * any other item's `itemRun.rows`), or null where the item has no such row.
+ * (`filter.self` is `count`), or back out (`no`, with `counted` false):
+ * `{path, value}` for `item.update`, the row list rewritten whole where the
+ * item keeps its rows (an ability's `extras.effects`, any other item's
+ * `itemRun.rows`), or null where the item has no such row.
  *
  * @param {object} item
  * @param {string} rowKey
+ * @param {boolean} [counted] true counts the bearer in, false counts it out
  */
-export function selfCountUpdate(item, rowKey) {
+export function selfCountUpdate(item, rowKey, counted = true) {
   const rows = itemRunRowsOf(item);
   if (!rows.some((r) => r?.key === rowKey && r.reach)) return null;
-  const value = rows.map((r) => (r?.key === rowKey ? { ...r, reach: { ...r.reach, filter: { ...(r.reach.filter ?? {}), self: "count" } } } : r));
+  const value = rows.map((r) => (r?.key === rowKey ? { ...r, reach: { ...r.reach, filter: { ...(r.reach.filter ?? {}), self: counted ? "count" : "no" } } } : r));
   return { path: item?.type === ITEM_TYPE.ability ? `flags.${MODULE_ID}.extras.effects` : `flags.${MODULE_ID}.${FLAG_ITEM_RUN}.rows`, value };
 }

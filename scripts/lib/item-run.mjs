@@ -31,7 +31,7 @@ import {
   dueAtAfter, dueRecordIds, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoPlan,
 } from "./item-run-logic.mjs";
-import { freshKey, safeKey } from "./item-run-card-logic.mjs";
+import { freshKey, patchOut, safeKey } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
@@ -49,7 +49,7 @@ const loc = makeLoc(LANG_PREFIX);
 const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
-const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, undo: `${MODULE_ID}.itemRun.undo` });
+const HANDLER = Object.freeze({ use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, undo: `${MODULE_ID}.itemRun.undo` });
 
 /** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
 const runners = new Map();
@@ -478,7 +478,7 @@ async function countBearerIn({ itemUuid, rowKey, messageId, requestUserId = null
   const update = selfCountUpdate(item, rowKey);
   if (!update) return { ok: false, reason: "noRow" };
   const { message, card } = cardOf(messageId);
-  if (card?.selfCount) return { ok: false, reason: "applied" };
+  if (readReach(itemRunRowsOf(item).find((r) => r?.key === rowKey)?.reach)?.filter.self === "count") return { ok: false, reason: "applied" };
   await item.update({ [update.path]: update.value });
   if (message && card) {
     const bearer = card.bearer ?? {};
@@ -486,6 +486,45 @@ async function countBearerIn({ itemUuid, rowKey, messageId, requestUserId = null
   }
   await pressListener?.({ message, key: "", entry: null, early: false, counted: true, item });
   return { ok: true };
+}
+
+/**
+ * Count the bearer out again, on the GM's window: the item's row takes
+ * `filter.self` `no`, the bearer's row leaves the card and every entry still
+ * open for it is struck, its held moment released. What an answered entry wrote
+ * stays, with its Undo, and lowering never resets the choice. Whoever owns the
+ * ITEM, by Foundry's own test on the relayed seat, may press it.
+ *
+ * @param {{itemUuid: string, rowKey: string, messageId: string, requestUserId?: string|null}} p
+ */
+async function countBearerOut({ itemUuid, rowKey, messageId, requestUserId = null }) {
+  const item = fromUuidSync(itemUuid);
+  const user = requestUserId ? game.users.get(requestUserId) : game.user;
+  if (!item) return { ok: false, reason: "gone" };
+  if (!item.testUserPermission?.(user, "OWNER")) return { ok: false, reason: "notOwner" };
+  const update = selfCountUpdate(item, rowKey, false);
+  if (!update) return { ok: false, reason: "noRow" };
+  if (readReach(itemRunRowsOf(item).find((r) => r?.key === rowKey)?.reach)?.filter.self !== "count") return { ok: false, reason: "applied" };
+  await item.update({ [update.path]: update.value });
+  const { message, card } = cardOf(messageId);
+  if (message && card) {
+    const bearer = card.bearer ?? {};
+    const out = patchOut(card, { uuid: bearer.uuid, name: bearer.name });
+    for (const entry of out.struck) releaseReachMoment(entry.momentKey);
+    await serialized(messageId, () => patchCard(message, { selfCount: false, ...out.patch, [`subjects.-=${safeKey(bearer.uuid)}`]: null }));
+  }
+  await pressListener?.({ message, key: "", entry: null, early: false, counted: false, item });
+  return { ok: true };
+}
+
+/**
+ * Count the bearer out, from any seat: the GM's window runs it, a Player's seat
+ * relays it and the GM checks the seat owns the item.
+ * @param {{itemUuid: string, rowKey: string, messageId: string}} p
+ */
+export async function untickBearer(p) {
+  if (game.user.isGM) return countBearerOut(p);
+  return (await executeAsGM(HANDLER.untick, p)) ?? { ok: false, reason: "relay" };
 }
 
 /**
@@ -760,6 +799,7 @@ export function installItemRun() {
   registerHandler(HANDLER.use, (payload) => runUse(payload));
   registerHandler(HANDLER.press, (payload) => pressHere(payload));
   registerHandler(HANDLER.tick, (payload) => countBearerIn(payload));
+  registerHandler(HANDLER.untick, (payload) => countBearerOut(payload));
   registerHandler(HANDLER.undo, (payload) => undoHere(payload));
   setReachHandler(handleReachMoment);
   setReachTeardown(liftActivation);

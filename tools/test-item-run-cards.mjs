@@ -22,7 +22,7 @@ const t = (name, fn) => {
 const words = {
   roll: "Roll", undo: "Undo", saved: "Holds", failed: "Fails", out: "Out of reach", notTarget: "Not a target", waiting: "Waits", asked: "Asked", undone: "Undone", undetermined: "Could not be settled",
   save: "Save", rollSave: "Roll the save", tick: "Count in", bearer: "The bearer", well: "On a failed save", check: "Check range again", lower: "Lower", colDistance: "Distance",
-  earlyTip: "early tip", saveTip: "save tip", undoTip: "undo tip", tickTip: "tick tip", bearerTip: "bearer tip", checkTip: "check tip", lowerTip: "lower tip",
+  earlyTip: "early tip", saveTip: "save tip", undoTip: "undo tip", tickTip: "tick tip", countOut: "Count out", countOutTip: "count out tip", bearerTip: "bearer tip", checkTip: "check tip", lowerTip: "lower tip",
 };
 const ids = { itemUuid: "I.1", rowKey: "reach", activationId: "act" };
 const rows = [
@@ -88,6 +88,9 @@ t("the bearer sits in a section of its own, undetermined and uncounted, with a t
   assert.deepEqual(own.actions.map((a) => [a.action, a.label, a.data.subject, a.tooltip]), [["itemRun.tick", "Count in", "T.bear", "tick tip"]]);
   const other = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { judge: true, ownsSubject: () => true, ownsBearer: true, ownsItem: false } });
   assert.deepEqual(other.sections[1].rows[0].actions, [], "no tick for a seat that does not own the item, whatever its role");
+  const countedOut = reachCardModel({ title: "Item", words, rows: [], bearer: { ...bearer, counted: true, row: { state: "waiting", feet: null } }, ids, seat: { ownsBearer: true, ownsItem: true } });
+  assert.deepEqual(countedOut.sections[1].rows[0].actions.map((a) => [a.action, a.label, a.tooltip]), [["itemRun.untick", "Count out", "count out tip"]], "a counted bearer's owners of the item can count it out, and are offered no Count in");
+  assert.deepEqual(reachCardModel({ title: "Item", words, rows: [], bearer: { ...bearer, counted: true, row: { state: "waiting", feet: null } }, ids, seat: { ownsBearer: true, ownsItem: false } }).sections[1].rows[0].actions, [], "a seat that owns the bearer and not the item has no Count out");
   const counted = reachCardModel({ title: "Item", words, rows: [], bearer: { ...bearer, counted: true, row: { state: "waiting", feet: null } }, ids, seat: judge });
   assert.equal(counted.sections[1].rows[0].outcome, "Waits", "counted in, the bearer is an ordinary row");
   const noOne = reachCardModel({ title: "Item", words, rows: [], bearer, ids, seat: { judge: false, ownsSubject: () => false } });
@@ -116,7 +119,7 @@ t("a Save is offered by ownership of the body saving and no role is read; the ea
   assert.equal(modelFor({ judge: true, ownsSubject: (k) => k === "T.a" }, [open]).sections[0].rows[0].actions.length, 1, "an open row's Save is the owner's");
   const counted = { ...bearer, counted: true, row: { state: "open", entryKey: "kb", target: 11 } };
   const holder = reachCardModel({ title: "Item", words, rows: [], bearer: counted, ids, seat: { judge: true, ownsSubject: () => false, ownsBearer: false, ownsItem: true } });
-  assert.deepEqual(holder.sections[1].rows[0].actions, [], "the bearer's own due Save is its owners', not the declaring Judge's and not the item owner's");
+  assert.deepEqual(holder.sections[1].rows[0].actions.filter((a) => a.action === "itemRun.roll"), [], "the bearer's own due Save is its owners', not the declaring Judge's and not the item owner's");
 });
 
 t("the whispered save card names the target and its tooltip, carries the one Roll while its entry is open, then the result", () => {

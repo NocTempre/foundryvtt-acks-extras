@@ -27,7 +27,7 @@ import { figureNumber, readReach, reachAdmits } from "./aura-reach-logic.mjs";
 import { lowerReach, releaseReachMoment } from "./aura-reach.mjs";
 import { itemCite, itemRunRowsOf, promptCardModel } from "./item-run-logic.mjs";
 import { patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard } from "./item-run-card-logic.mjs";
-import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, undoCardEntry } from "./item-run.mjs";
+import { cardOf, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
@@ -40,8 +40,8 @@ const HANDLER = Object.freeze({ recheck: `${MODULE_ID}.itemRun.recheck` });
 
 /** The card's words, localized: `itemRun.card.<key>` for each. */
 const WORD_KEYS = [
-  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "bearer", "well", "check", "lower", "colDistance", "given",
-  "earlyTip", "saveTip", "undoTip", "countInTip", "bearerTip", "checkTip", "lowerTip",
+  "roll", "undo", "saved", "failed", "out", "notTarget", "waiting", "asked", "undone", "undetermined", "save", "rollSave", "countIn", "countOut", "bearer", "well", "check", "lower", "colDistance", "given",
+  "earlyTip", "saveTip", "undoTip", "countInTip", "countOutTip", "bearerTip", "checkTip", "lowerTip",
 ];
 const words = () => ({ ...Object.fromEntries(WORD_KEYS.map((key) => [key, loc(`itemRun.card.${key}`)])), tick: loc("itemRun.card.countIn"), tickTip: loc("itemRun.card.countInTip") });
 
@@ -307,7 +307,9 @@ function raisedBody(message, card) {
   const seat = { judge: judgeDeclares(), ownsSubject: (key) => owns(fromUuidSync(key)), ownsBearer: owns(bearerToken), ownsItem: owns(item), mayUndo: (entry, key) => entry?.presser === game.user.id || owns(fromUuidSync(key)) };
   const { rowFor, subjects } = rowsOf(card, row, item, bearerToken);
   const bearerSub = card.subjects?.[safeKey(card.bearer?.uuid)];
-  const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted: card.selfCount === true, ...(card.selfCount && bearerSub ? { row: rowFor(bearerSub, { distance: false }) } : {}) } : null;
+  // The item's own filter says whether the bearer is counted, so a re-raise after a lowering reads the choice the item kept.
+  const counted = reach?.filter?.self === "count";
+  const bearer = card.bearer?.uuid ? { key: card.bearer.uuid, name: card.bearer.name, counted, ...(counted ? { row: bearerSub ? rowFor(bearerSub, { distance: false }) : { state: "waiting", feet: null } } : {}) } : null;
   const { note, noteTooltip } = reachNote(item, reach);
   const model = reachCardModel({
     title: item?.name ?? "", subtitle: card.bearer?.name, note, noteTooltip, words: { ...words(), bearerTip: loc("itemRun.card.bearerTip") },
@@ -372,6 +374,7 @@ async function press(message, button) {
     case "itemRun.roll": return fail(await pressRoll({ ...ids, subject: d.subject, messageId, entryKey: d.entryKey ?? "" }));
     case "itemRun.undo": return fail(await undoCardEntry({ messageId, entryKey: d.entryKey || safeKey(d.subject) }));
     case "itemRun.tick": return fail(await tickBearer({ itemUuid: ids.itemUuid, rowKey: ids.rowKey, messageId }));
+    case "itemRun.untick": return fail(await untickBearer({ itemUuid: ids.itemUuid, rowKey: ids.rowKey, messageId }));
     case "itemRun.lower": return lowerReach({ tokenUuid: cardOf(messageId).card?.bearer?.uuid, activationId: ids.activationId });
     case "itemRun.recheck": return fail(await recheck({ messageId }));
     default: return null;

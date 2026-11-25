@@ -1240,8 +1240,25 @@ await t("counting the bearer in writes the item's self filter for an owner of th
     assert.equal(updates[0]["flags.acks-extras.itemRun.rows"].find((r) => r.key === "a").reach.filter, undefined, "no other row is touched");
     assert.equal(card().selfCount, true);
     assert.equal(card().subjects["T~1"].state, "in", "the bearer is listed, waiting for its own turn start");
-    assert.equal((await tick({ requestUserId: "owner" })).reason, "applied", "a second press is refused");
+    itemFlags = toggleFlags(down, updates[0]["flags.acks-extras.itemRun.rows"]);
+    assert.equal((await tick({ requestUserId: "owner" })).reason, "applied", "a second press is refused, read from the item's own filter");
     assert.deepEqual(heard.at(-1), ["", true, false]);
+    // Count out: the same owners, the filter written back to `no`, the bearer's open entry struck and its row gone; lowering never resets it.
+    const untick = (over = {}) => executeAsGM("acks-extras.itemRun.untick", { itemUuid: "I.1", rowKey: "t", messageId: "M9", ...over });
+    card().entries.kb = { subject: "T.1", momentKey: "mk-b", state: "open" };
+    card().subjects["T~1"].latest = "kb";
+    updates.length = 0;
+    assert.equal((await untick({ requestUserId: "other" })).reason, "notOwner", "a seat that does not own the item cannot count the bearer out, whatever its role");
+    assert.deepEqual(updates, []);
+    assert.equal((await untick({ requestUserId: "owner" })).ok, true);
+    assert.equal(updates[0]["flags.acks-extras.itemRun.rows"].find((r) => r.key === "t").reach.filter.self, "no", "the item's own row takes the choice back");
+    assert.deepEqual([card().selfCount, card().subjects["T~1"], card().entries.kb], [false, undefined, undefined], "the bearer's row and its open prompt are gone");
+    assert.deepEqual(heard.at(-1), ["", false, false]);
+    itemFlags = toggleFlags(down, updates[0]["flags.acks-extras.itemRun.rows"]);
+    assert.equal((await untick({ requestUserId: "owner" })).reason, "applied", "counted out twice is refused");
+    itemFlags = toggleFlags(down, rowsToggle);
+    updates.length = 0;
+    assert.equal((await tick({ requestUserId: "owner" })).ok, true, "and the tick still works after it");
     // Undo: the Judge's seat, an applied entry, exactly its records.
     const dels = [];
     const holder = { effects: [{ id: "E1" }, { id: "E2" }], deleteEmbeddedDocuments: async (...args) => dels.push(args) };
@@ -1279,6 +1296,7 @@ await t("the bearer's row is changed to count only where the item has the row, a
   assert.equal(out.path, "flags.acks-extras.itemRun.rows");
   assert.deepEqual(out.value[0].reach.filter, { kinds: ["x"], self: "count" }, "the filter keeps what it held");
   assert.deepEqual(out.value[1], { key: "b" });
+  assert.equal(logic.selfCountUpdate(item, "a", false).value[0].reach.filter.self, "no", "counted out writes the filter back to no, keeping the rest");
   assert.equal(logic.selfCountUpdate(item, "b"), null, "a row with no reach");
   assert.equal(logic.selfCountUpdate(item, "zz"), null);
   const ability = { type: "ability", flags: { "acks-extras": { extras: { effects: rows } } } };
