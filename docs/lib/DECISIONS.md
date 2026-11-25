@@ -2528,17 +2528,17 @@ carrier's own relay (`executeAsGM`, which runs at once on a GM's window), and th
 handler on the GM's window checks ownership of every bearer again on the relayed
 seat (`requestUserId`); a payload claims nothing. It closes the row with no save
 and no record, releases the moment key and answers the whisper, and 4b's Undo
-reopens it.
+reopens it. The release hub ruled that "no relay" means no new relay beside the
+carrier's own.
 
-Open, built as the slice's reading and put to the hub: who is shown the row. As
-built, the owners of the subject and a seat that owns every bearer are shown it,
-and the Save is the subject's owners' alone, so that a Player who owns every
-bearer can reach "Not engaged". The cost is that such a seat reads the Save
-target, total and result of a body it does not own. The other reading shows the
-row to the subject's owners only (4b's audience), which hides it from a Player
-who owns the bearers and not the subject, so "Not engaged" is reachable only by
-a seat that owns the subject and every bearer, a Judge always. A seat that owns
-neither sees no row in either reading.
+Who is shown the row, ruled by the release hub: the owners of the subject and a
+seat that owns every bearer, with the Save the subject's owners' alone, so that
+a Player who owns every bearer can reach "Not engaged". The cost is that such a
+seat reads the Save target, total and result of a body it does not own.
+Rejected: the row for the subject's owners only (4b's audience). It hides the
+row from a Player who owns the bearers and not the subject, so "Not engaged" is
+reachable only by a seat that owns the subject and every bearer, which is a
+Judge in practice. A seat that owns neither sees no row.
 
 A blank save stays refused for every seat: the press needs a save figure, and
 the Judge closes the row or sets the condition by hand. This replaces the Judge's
