@@ -434,8 +434,9 @@ try {
   section("5. Leave");
   await run(gm, P.press, { id: group.id, action: "leaveFaction" });
   line = await until(gm, P.line, { id: group.id }, (l) => l?.controls?.includes("joinFaction"));
-  s = await run(gm, P.read, A);
-  const said5 = await run(gm, P.said);
+  // The leave writes the group, then the faction: the line redraws on the first.
+  s = await until(gm, P.read, A, (r) => r.faction.length === 0, { tries: 40 });
+  const said5 = await until(gm, P.said, null, (m) => m.length > 0, { tries: 20 });
   check("an info notification names the faction", said5.some((m) => m.level === "info" && m.message.includes(s.names.faction)) && !said5.some((m) => m.level !== "info"), said5);
   check("the faction's units are empty", s.faction.length === 0, s.faction.length);
   check("the group holds the same row under the same key, at the top, holding itself", s.group.length === 1 && s.group[0].key === K && !s.group[0].parentKey && s.group[0].holderUuid === group.uuid, s.group);
