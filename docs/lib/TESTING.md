@@ -4493,7 +4493,8 @@ Teardown: `api.sweepTracked()`.
 Covers `patches/welcome-version.mjs`. The walk needs both seats at once, the GM's and a
 real Player's, and it only shows anything while the stored welcome version is older than
 the running system version. A GM reload during the walk ends that window, so the Player's
-reload comes before any reload of the GM's.
+reload comes before any reload of the GM's. The walk is `tools/live/lib-welcome-version.mjs`
+(`node tools/live/run.mjs lib-welcome-version`).
 
 **Fixtures.** None. The subject is the world setting `acks.welcomeMessageVersion`.
 
@@ -4510,6 +4511,6 @@ reload comes before any reload of the GM's.
    Player's seat still reads "14.1.0".
 3. GM seat, without reloading it: read the setting again. *Observable:* "14.1.0", the
    value the Player's load left alone.
-4. Teardown. The GM's next reload restores the current version; there is nothing else to
-   remove. A walk started after that reload shows no dialog on the Player's seat, so it
-   begins again from step 1.
+4. Teardown. Set the setting back to the value step 1 read; the scripted walk does this
+   in a `finally` and notes the value before and after. A GM's reload also restores the
+   current version. There is nothing else to remove.
