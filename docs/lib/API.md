@@ -1,4 +1,4 @@
-# lib API (apiVersion 88)
+# lib API (apiVersion 89)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 88,
+  apiVersion: 89,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -74,6 +74,7 @@ acksExtras.lib = {
   // 86: a stack's `gen` carries `formula` and `thrown`; org.editRow's and planEdit's stack change takes `thrown` (below, "`org` — the organisation chart")
   // 87: light.{MAGIC_LIGHT_CITE_FLAG, magicLightChanges, magicLightRecord, magicLightCite}; light.magicLights entries carry `cite`; fields.effectField carries `lightBands` (docs/lib/MODEL.md, "Perception: senses, light, and the token")
   // 88: a group roster record carries `tokenSize`, the size a hand gave its body token, kept across a gather; the token flags `FLAG_FOOTPRINT_LOCK` and `FLAG_SIZE_STAMP` live in lib/constants.mjs (docs/lib/GROUPS.md, "A size a hand gave a body")
+  // 89: summons.dismissSummons refuses a non-GM only a creature whose control ended hostile; a bare summon reads Foundry's Create Tokens grant; the party-roster contract's v5 `amendSummons` (below, "`summons`" and "Contract `party-roster` v5")
 }
 ```
 
@@ -1265,7 +1266,7 @@ rest. `source` is `condition`, `state`, `custom`, `system` or `foreign`;
 setting `acks-extras.statusPalette`; the Foundry-free model that reads and
 writes its shape is `scripts/lib/status-palette.mjs`, imported directly.
 
-## `summons` — a character's summoned creatures (apiVersion 64; 83 adds `creatureOpens`)
+## `summons` — a character's summoned creatures (apiVersion 64; 83 adds `creatureOpens`; 89: Dismiss refuses only a hostile end to a non-GM, and a stashed creature's control end is written through `amendSummons`)
 
 The model is docs/lib/MODEL.md, "Summons"; the ruling is
 docs/character-sheet/DECISIONS.md, "A summon is an unlinked token of a GM-made copy".
