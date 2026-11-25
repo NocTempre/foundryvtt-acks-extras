@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
 import { planEdit, planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -340,14 +340,18 @@ t("the actor a + Officer press makes is a copy of the row's source creature, or 
 });
 
 t("an actor dropped on an officer line is taken, a group, a faction, a place or a non-actor is ignored, and a seat that does not own the row's group is refused", () => {
-  const owns = { isActor: true, owns: true, uuid: "Actor.n", current: "Actor.o" };
+  const owns = { isActor: true, type: "monster", creatureTypes: ["character", "monster"], owns: true, uuid: "Actor.n", current: "Actor.o" };
   assert.equal(officerDropVerdict(owns), "accept");
   assert.equal(officerDropVerdict({ ...owns, current: "" }), "accept", "a row with no officer takes it");
   assert.equal(officerDropVerdict({ ...owns, current: "Actor.n" }), "same", "the officer already there is no write");
-  for (const kind of ["isGroup", "isFaction", "isPlace"]) assert.equal(officerDropVerdict({ ...owns, [kind]: true }), "ignore", kind);
+  for (const type of ["acks-extras.group", "acks-extras.faction", "acks-extras.location", "acks-extras.domain", "acks-extras.party", "acks-extras.vehicle"]) assert.equal(officerDropVerdict({ ...owns, type }), "ignore", `${type} is no creature`);
+  assert.equal(officerDropVerdict({ ...owns, type: "character" }), "accept", "a character is a creature");
+  assert.equal(officerDropVerdict({ ...owns, type: "acks-extras.animal", creatureTypes: officerCreatureTypes(["character", "monster"], "acks-extras.animal") }), "accept", "the type Make creates is taken");
+  assert.deepEqual(officerCreatureTypes(["character", "monster"], "monster"), ["character", "monster"]);
+  assert.deepEqual(officerCreatureTypes(["character", "monster"], ""), ["character", "monster"]);
   assert.equal(officerDropVerdict({ ...owns, isActor: false }), "ignore", "an item or a missing document");
   assert.equal(officerDropVerdict({ ...owns, owns: false }), "refuse");
-  assert.equal(officerDropVerdict({ ...owns, owns: false, isGroup: true }), "ignore", "a group is ignored whoever drops it");
+  assert.equal(officerDropVerdict({ ...owns, owns: false, type: "acks-extras.group" }), "ignore", "a group is ignored whoever drops it");
   assert.equal(officerDropVerdict(), "ignore");
 });
 

@@ -18,7 +18,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, hostLeaderState, isPartRow, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, roleOf, slotPosition, subtreeView, templateOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { outputActorType } from "./template-generate.mjs";
@@ -136,6 +136,18 @@ async function groupGoneOf(card) {
   return !!card.empty && !!card.holderUuid && !(await actorExists(card.holderUuid));
 }
 
+/** The actor type a row's Make creates, read from its family template where the world holds it, else the generator's default. */
+function makeTypeOf(rows, key, hostGen) {
+  const uuid = templateOf(rows, key, hostGen).template;
+  let family = null;
+  try {
+    family = uuid ? fromUuidSync(uuid) : null;
+  } catch {
+    family = null;
+  }
+  return outputActorType(family?.system);
+}
+
 /**
  * A card's officer line: where the link stands and the controls this seat is offered on it, each
  * by Foundry's own test. A write of the line reaches the host and the card's group, so both must
@@ -178,6 +190,7 @@ async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
     none: state === "empty",
     controls,
     drop: !!controls.drop,
+    dropTypes: controls.drop ? officerCreatureTypes(Object.keys(game.system?.documentTypes?.Actor ?? {}), makeTypeOf(rows, card.key, hostGen)).join(" ") : "",
     text: state === "live" ? labelled : state === "deleted" ? loc("officer.deleted", { word: title }) : loc("officer.none", { word }),
     nameTip: controls.drop && state === "live" ? loc("officer.nameTip") : "",
     deletedTip: loc("officer.deletedTip", { word }),
@@ -811,10 +824,11 @@ function dragData(event) {
 }
 
 /** The kinds an officer line ignores: a group, a faction (the one non-group actor that hosts rows) and a place. */
-const kindOf = (doc) => ({ isGroup: isGroupActor(doc), isFaction: !isGroupActor(doc) && Array.isArray(doc?.system?.units), isPlace: isLocation(doc) });
+/** The types a line takes, read from the line's markup (`officerLineOf` writes them). */
+const typesOfLine = (line) => (line?.dataset?.orgDropTypes ?? "").split(" ").filter(Boolean);
 
 /** What the page can say of a drag before it drops: whether this line takes it and the actor's name; `known: false` where nothing in the world or an index answers for the uuid. */
-function dragInfoOf(drag) {
+function dragInfoOf(drag, line) {
   if (!drag) return { known: false };
   if (drag.type !== "Actor") return { known: true, accepts: false };
   let doc = null;
@@ -824,7 +838,7 @@ function dragInfoOf(drag) {
     doc = null;
   }
   if (!doc) return { known: false };
-  return { known: true, accepts: officerDropVerdict({ isActor: true, ...kindOf(doc), owns: true }) !== "ignore", name: doc.name ?? "" };
+  return { known: true, accepts: officerDropVerdict({ isActor: true, type: doc.type, creatureTypes: typesOfLine(line), owns: true }) !== "ignore", name: doc.name ?? "" };
 }
 
 /** Put a line back to rest: no outline and no drop line. */
@@ -851,7 +865,7 @@ function watchDrags() {
 function onLineOver(event, line) {
   event.preventDefault();
   event.stopPropagation();
-  const info = dragInfoOf(dragging ?? dragData(event));
+  const info = dragInfoOf(dragging ?? dragData(event), line);
   if (info.known && !info.accepts) return restLine(line);
   if (event.dataTransfer) event.dataTransfer.dropEffect = "link";
   line.classList.add("is-drop-target");
@@ -874,7 +888,7 @@ async function onLineDrop(event, line, app) {
   if (!host) return;
   const { group } = officerTargetOf(host, key);
   const verdict = officerDropVerdict({
-    isActor: !!dropped, ...kindOf(dropped), owns: !!host.isOwner && !!group?.isOwner, uuid: dropped?.uuid ?? "", current: group?.system?.unit?.officerUuid ?? "",
+    isActor: !!dropped, type: dropped?.type ?? "", creatureTypes: typesOfLine(line), owns: !!host.isOwner && !!group?.isOwner, uuid: dropped?.uuid ?? "", current: group?.system?.unit?.officerUuid ?? "",
   });
   if (verdict === "refuse") return refuse({ reason: "notOwner", name: (group ?? host).name });
   if (verdict !== "accept") return;

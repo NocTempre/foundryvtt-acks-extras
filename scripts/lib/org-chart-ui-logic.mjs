@@ -405,14 +405,24 @@ export function officerActorData({ source = null, label = "", type = "monster" }
 export const officerChangeOf = (uuid) => ({ officer: uuid, moraleBonus: null });
 
 /**
- * What an actor dropped on a card's officer line does: `ignore` for a group, a faction, a place or
- * anything that is no actor; `refuse` where the seat does not own what the write reaches; `same`
- * where the actor already is the row's officer; else `accept`.
- * @param {{isActor?: boolean, isGroup?: boolean, isFaction?: boolean, isPlace?: boolean, owns?: boolean, uuid?: string, current?: string}} args `owns` is the seat's ownership of the host and the row's group; `current` the group's officer now
+ * The actor types a card's officer line takes: the system's own actor types (the creatures a group
+ * stacks) and the type the row's Make creates. Every other type, the module's own sub-types
+ * included, is ignored, since the line a drop leaves offers "Delete actor…".
+ * @param {string[]} systemTypes the system's declared actor types
+ * @param {string} [makeType] the type the row's family template creates
+ * @returns {string[]}
+ */
+export const officerCreatureTypes = (systemTypes = [], makeType = "") => [...new Set([...systemTypes, makeType].filter(Boolean))];
+
+/**
+ * What an actor dropped on a card's officer line does: `ignore` for anything that is no actor or
+ * whose type is not in `creatureTypes`; `refuse` where the seat does not own what the write
+ * reaches; `same` where the actor already is the row's officer; else `accept`.
+ * @param {{isActor?: boolean, type?: string, creatureTypes?: string[], owns?: boolean, uuid?: string, current?: string}} args `creatureTypes` from `officerCreatureTypes`; `owns` is the seat's ownership of the host and the row's group; `current` the group's officer now
  * @returns {"accept"|"ignore"|"refuse"|"same"}
  */
-export function officerDropVerdict({ isActor = false, isGroup = false, isFaction = false, isPlace = false, owns = false, uuid = "", current = "" } = {}) {
-  if (!isActor || isGroup || isFaction || isPlace) return "ignore";
+export function officerDropVerdict({ isActor = false, type = "", creatureTypes = [], owns = false, uuid = "", current = "" } = {}) {
+  if (!isActor || !creatureTypes.includes(type)) return "ignore";
   if (!owns) return "refuse";
   return uuid && uuid === current ? "same" : "accept";
 }

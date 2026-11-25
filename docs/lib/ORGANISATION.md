@@ -375,7 +375,10 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   called from the faction sheet's and the group sheet's `_onRender`; each line is read for its host
   and row from its markup, as the presses are. A drop on any officer line is stopped before the sheet's own
   drop, so the actor is neither filed as a member, a parent or a stack; a line the seat may not write takes
-  the drop and does nothing. A group, a faction, a place or a non-actor is ignored. A drag's payload is
+  the drop and does nothing. The line takes an allow-list of actor types (`officerCreatureTypes`, written on the line as
+  `data-org-drop-types`): the system's own actor types and the type the row's Make creates. Every other
+  actor, the module's own sub-types included (a group, a faction, a place, a party, a domain, a vehicle), and
+  every non-actor is ignored, since the line a drop leaves offers Delete actor. A drag's payload is
   unreadable until the drop, so the line takes the dragged actor from the page's own watch of `dragstart`
   (`dragging`) and shows, while one is over it, `is-drop-target` (a dashed outline) and "Drop to make
   <name> this row's officer" in place of its controls, with nothing at rest; `dragleave` (the pointer

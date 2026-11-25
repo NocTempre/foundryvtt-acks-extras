@@ -4938,8 +4938,9 @@ No test reads `isGM`.
    and hides its controls; after `dragleave` and after the drop nothing shows. The drop makes the dropped
    actor the row's officer with a null morale figure, the replaced actor is still in the world, and the
    faction's members and parent are unchanged (the sheet's own drop did not fire). The same drop works on a
-   part row's line, and on a root group host's chart (its stack count is unchanged). A group or the faction
-   itself dragged over a line shows no target, and dropped there changes nothing. *Seats:* the Player owns the
+   part row's line, and on a root group host's chart (its stack count is unchanged). A group, the faction
+   itself, a party and a domain (the run's own) dragged over a line show no target, and dropped there change
+   nothing. *Seats:* the Player owns the
    host and the third row's group and only observes the first two. On a row whose group it does not own the
    line has no `data-org-drop` and no + Officer, and a drop on it writes nothing; on the row it owns the line
    is a drop target, + Officer is in the DOM exactly where the world gives Players `ACTOR_CREATE` (read and

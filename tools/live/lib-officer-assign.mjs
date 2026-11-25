@@ -229,11 +229,14 @@ try {
   ghUuid = GH.uuid;
   const W2 = await make("QA Assign host row", "acks-extras.group");
   const X = await make("QA Assign stray group", "acks-extras.group");
+  // Actors of the module's own sub-types the line's allow-list must ignore, since the line a drop leaves offers Delete actor.
+  const PY = await make("QA Assign party", "acks-extras.party");
+  const DM = await make("QA Assign domain", "acks-extras.domain");
   const A = await make("QA Officer A", "character");
   const A2 = await make("QA Officer B", "character");
   const D = await make("QA Dropped E", "character");
   const src = await make("QA Source creature", "monster", { flags: { "acks-extras": { organisationPrototype: `officer-assign${TAG}` } } });
-  note("fixture", { host: host.uuid, groups: [W.uuid, Pp.uuid, Q.uuid, GH.uuid, W2.uuid, X.uuid], actors: [A.uuid, A2.uuid, D.uuid, src.uuid] });
+  note("fixture", { host: host.uuid, groups: [W.uuid, Pp.uuid, Q.uuid, GH.uuid, W2.uuid, X.uuid], actors: [A.uuid, A2.uuid, D.uuid, src.uuid, PY.uuid, DM.uuid] });
   await run(gm, P.seed, { id: fid, W: W.uuid, P: Pp.uuid, Q: Q.uuid, GH: GH.uuid, W2: W2.uuid, src: src.uuid, A: A.uuid, A2: A2.uuid });
   await run(gm, P.reopen, { uuid: host.uuid });
   const tipEnd = await say("ACKS-LIB.org.officer.nameTip");
@@ -298,13 +301,13 @@ try {
   check("the faction took the actor as no member and no parent, and the sheet's own drop did not fire", JSON.stringify(g0) === JSON.stringify(g1), { before: g0, after: g1 });
   await run(gm, P.drag, { uuid: host.uuid, key: "w", phase: "end", payload });
 
-  section("4. a drop on a part row's line, and a group or a faction dropped on a line is ignored");
+  section("4. a drop on a part row's line, and a group, a faction, a party or a domain dropped on a line is ignored");
   await run(gm, P.drag, { uuid: host.uuid, key: "p", phase: "start", payload: { type: "Actor", uuid: A.uuid } });
   await run(gm, P.drag, { uuid: host.uuid, key: "p", phase: "over", payload: { type: "Actor", uuid: A.uuid } });
   await run(gm, P.drag, { uuid: host.uuid, key: "p", phase: "drop", payload: { type: "Actor", uuid: A.uuid } });
   const r4 = await until(gm, P.rows, { uuid: host.uuid }, (rs) => keyRow(rs, "p")?.officer === A.uuid);
   check("a part row takes a dropped actor too, and the copy the press made stays in the world", keyRow(r4, "p").officer === A.uuid && (await run(gm, P.actor, { uuid: O1 })).exists, keyRow(r4, "p"));
-  for (const [what, uuid] of [["a group", X.uuid], ["a faction", host.uuid]]) {
+  for (const [what, uuid] of [["a group", X.uuid], ["a faction", host.uuid], ["a party", PY.uuid], ["a domain", DM.uuid]]) {
     await run(gm, P.drag, { uuid: host.uuid, key: "w", phase: "start", payload: { type: "Actor", uuid } });
     await run(gm, P.drag, { uuid: host.uuid, key: "w", phase: "over", payload: { type: "Actor", uuid } });
     const ignoredOver = await run(gm, P.line, { uuid: host.uuid, key: "w" });

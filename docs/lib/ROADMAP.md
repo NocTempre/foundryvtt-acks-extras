@@ -44,6 +44,12 @@ edits:
   settings.mjs / feature module.mjs / arbitrary file); pick one, document it,
   move the strays.
 
+## What the org chart's officer drop does not do yet
+
+- **A replaced officer who is also the faction's leader.** A drop or a press on a row's officer line
+  replaces only the group's officer; where that actor is also the faction's `leaderUuid`, the field keeps
+  naming it until Clear on the faction's leader line releases it.
+
 ## What coin does not do yet
 
 - **A reach chosen for one payment.** A payment's reach is stated by the

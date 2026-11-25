@@ -2360,3 +2360,19 @@ The ruling these serve, with the owner's selections and what it qualifies, is ma
 **Rejected.** *A drop handler per sheet.* The two hosts would drift; the drop is lib's. *Handling the drop in each sheet's `_onDropActor`.* The group sheet has no such method (its own `#onDrop` adds the actor as a stack), and the faction sheet's falls through to member, seat and parent; a listener on the line, stopped there, serves both. *Reading the dragged actor from the `dragover` payload.* A browser withholds it until the drop, so the name comes from a page-wide `dragstart` watch. *Deleting the replaced actor.* The owner's word is a replacement, and Delete actor… is the control for deleting. *A morale figure on the new officer.* A dropped or copied actor carries none; the row's recorded figure belonged to the leader Make minted, so it is cleared with the officer, as Clear does.
 
 **Cost.** A drop that replaces the officer who is also the faction's `leaderUuid` leaves that field naming the old actor; Clear is what releases it. The line's gate is `owns` (the host and the row's group), as Make's, because `org.editRow` refuses a host the seat does not own; a seat that owns the group alone gets no target. Strongest counter, MEDIUM: a blank actor with only a name is a thin officer; the Judge opens it and fills it, which is what a drop of a real actor already does.
+
+## 2026-11-25 — The officer line's drop takes creatures only, by an allow-list
+
+**Ruled.** The hub, reversing the build's departure that accepted any actor but a group, a faction or a place:
+the drop takes an allow-list, the system's own actor types and the type the row's Make creates, and ignores
+every other actor, the module's own sub-types included. The reason given: the line a drop leaves offers
+"Delete actor…", so a domain or a party dropped by mistake must never be one click from deletion. The hub
+also accepted the build's other departures on board 1y (a listener on the line with a backup guard in the
+faction sheet's drop; ownership of the host and the row's group, as Make's gate; the line drawn for a
+drop-only seat; a unit row whose Make is refused keeping its chart-shape role word; a drop writing a null
+morale figure), and the replaced officer who is also the faction's leader as an edge on the ROADMAP.
+
+**Rejected.** The deny-list as built: it named three sub-types and let every other one through.
+
+**Cost.** A creature of a type the system does not declare and the row's Make does not create cannot be
+dropped; it is set through Make or the press instead.
