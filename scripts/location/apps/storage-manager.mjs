@@ -13,6 +13,7 @@ import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 import { vaultFor } from "../vault-sweep.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { PicksMixin } from "../../lib/picks.mjs";
+import { countView } from "../../lib/stack-count.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
@@ -89,11 +90,15 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
           coinGC: api.coinTotalGC(bucket.items),
           rows: bucket.items.map((item) => {
             const qty = api.quantityOf(item)?.value ?? null;
+            // The count draws on `stack`; the take-how-many field on `stackable`.
+            const { stack, countTip } = countView(item);
             return {
               id: item._id,
               name: item.name,
               img: item.img,
               quantity: qty,
+              stack,
+              countTip,
               stackable: api.offersCount(item),
               checked: this.#selection.has(item._id),
               take: this.#selection.get(item._id) ?? "",

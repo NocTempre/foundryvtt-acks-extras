@@ -6,6 +6,7 @@
  * shortens, and which rows a star list picks.
  */
 import assert from "node:assert";
+import fs from "node:fs";
 import { stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, shownDamageBonus, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
 
 let passed = 0;
@@ -176,6 +177,67 @@ test("an override's delta is measured against the figure shown, the weapon's bon
   assert.equal(typed - shownDamageBonus(body, "melee"), 1);
   assert.equal(typed - shownDamageBonus(body, "melee", arm(-1)), 2, "the system adds the weapon's bonus itself, so the delta is what the typed figure lacks of it");
   assert.equal(shownDamageBonus(body, "melee", arm(-1)) + (typed - shownDamageBonus(body, "melee", arm(-1))), typed, "the roll carries the figure typed");
+});
+
+console.log("follower card: the wear control on a stack");
+
+// The rows read a document's own fields and ask the equip write's own test
+// (`divertsEquip`), so the mock gives a holder and plain documents on it.
+const fmt = (k, d = {}) => `${k}|${JSON.stringify(d)}`;
+const dotted = (obj, path) => path.split(".").reduce((o, k) => o?.[k], obj);
+globalThis.foundry = { utils: { getProperty: dotted, hasProperty: (obj, path) => dotted(obj, path) !== undefined } };
+globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: fmt } };
+const { equipmentRows } = await import("../scripts/lib/follower-card.mjs");
+
+const holder = { documentName: "Actor", items: [], createEmbeddedDocuments() {} };
+const piece = (id, type, system) => {
+  const doc = { id, type, name: id, system, flags: {}, getFlag: () => undefined, parent: holder };
+  holder.items.push(doc);
+  return doc;
+};
+const row = (item, opts = { editable: true, interactive: true }) => equipmentRows([item], opts)[0];
+
+test("a resting weapon stack of three says the press wears one and the stack keeps two", () => {
+  const rest = row(piece("w3", "weapon", { quantity: 3, equipped: false }));
+  assert.equal(rest.wearTip, fmt("ACKS-LIB.followerCard.carriedOne", { rest: 2 }));
+  assert.equal(rest.equippable, true);
+  assert.equal(rest.name, "w3 ×3", "the name keeps its count");
+});
+
+test("a resting suit of armour in a stack is told the same way", () => {
+  assert.equal(row(piece("a4", "armor", { quantity: 4, equipped: false })).wearTip, fmt("ACKS-LIB.followerCard.carriedOne", { rest: 3 }));
+});
+
+test("a single weapon, and a stack worn, keep today's strings", () => {
+  assert.equal(row(piece("w1", "weapon", { quantity: 1, equipped: false })).wearTip, "ACKS-LIB.followerCard.carried");
+  assert.equal(row(piece("wn", "weapon", { quantity: 3, equipped: true })).wearTip, "ACKS-LIB.followerCard.worn", "a row in use is worn, whatever its count");
+});
+
+test("gear that core cannot equip takes no one off a stack, so it promises nothing", () => {
+  const gear = row(piece("g3", "item", { quantity: 3 }));
+  assert.equal(gear.wearTip, "ACKS-LIB.followerCard.carried");
+  assert.equal(gear.equippable, false);
+});
+
+test("the promise is the equip write's own test: a row it would not divert is not promised a divide", () => {
+  const stored = piece("w5", "weapon", { quantity: 3, equipped: false });
+  stored.parent = null;
+  assert.equal(row(stored).wearTip, "ACKS-LIB.followerCard.carried", "no holder, no divide");
+});
+
+test("a resting weapon stack of three is divisible on the card's own sheet, and a row in use is not", () => {
+  assert.equal(row(piece("w6", "weapon", { quantity: 3, equipped: false })).divisible, true);
+  assert.equal(row(piece("w7", "weapon", { quantity: 3, equipped: true })).divisible, false);
+  assert.equal(row(piece("w8", "weapon", { quantity: 3, equipped: false }), { editable: true, interactive: false }).divisible, false, "not on a read-only card");
+});
+
+test("the wear toggle's tooltip is its accessible name, and the key exists", () => {
+  const hbs = fs.readFileSync("templates/lib/follower-card.hbs", "utf8");
+  const toggle = hbs.split("\n").find((l) => l.includes('data-action="fcToggleEquip"'));
+  assert.match(toggle, /data-tooltip-text="\{\{this\.wearTip\}\}" aria-label="\{\{this\.wearTip\}\}"/);
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+  assert.equal(lang["ACKS-LIB.followerCard.carriedOne"], "Carried, not drawn — click to wear one. The stack keeps {rest}.");
+  assert.ok(lang["ACKS-LIB.followerCard.carried"] && lang["ACKS-LIB.followerCard.worn"]);
 });
 
 console.log(`follower card: ${passed} passed`);

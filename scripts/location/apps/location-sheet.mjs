@@ -18,6 +18,7 @@
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
 import { droppedGoods } from "../../lib/bundles.mjs";
+import { countView } from "../../lib/stack-count.mjs";
 import { lairState, rollLair } from "../../lib/lair.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
 import { GATE_ROLE, gateMarketOf } from "../gate.mjs";
@@ -1370,12 +1371,16 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
           const sFlag = item.flags?.[MODULE_ID]?.storage ?? {};
           const spoil = !!item.flags?.[MODULE_ID]?.spoil;
           const retrievable = !!sFlag.retrievable;
+          const { stack, countTip } = countView(item);
           return {
             id: item._id,
             name: item.name,
             img: item.img,
             type: item.type,
             quantity: api.quantityOf(item)?.value ?? null,
+            // The count draws on `stack`; the take-how-many field on `stackable`.
+            stack,
+            countTip,
             stackable: api.offersCount(item),
             spoil,
             retrievable,

@@ -22,6 +22,7 @@ import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { COIN_ORDER_TEMPLATE, bindCoinOrder, coinOrderView } from "../../lib/coin-order.mjs";
 import { readPicks, restorePicks, spendPicks } from "../../lib/picks.mjs";
 import { isGroundPile } from "../../lib/place.mjs";
+import { countView } from "../../lib/stack-count.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
 const TAB_CLASS = "acks-location-storage-tab";
@@ -58,7 +59,9 @@ function collect(actor) {
     coinGC,
     rows: items.map((item) => {
       const qty = api.quantityOf(item.toObject())?.value ?? null;
-      return { id: item.id, name: item.name, img: item.img, quantity: qty, stackable: api.offersCount(item) };
+      // The count draws on `stack`; the take-how-many field on `stackable`.
+      const { stack, countTip } = countView(item);
+      return { id: item.id, name: item.name, img: item.img, quantity: qty, stack, countTip, stackable: api.offersCount(item) };
     }),
     };
   };

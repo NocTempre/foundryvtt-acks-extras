@@ -35,6 +35,7 @@ import {
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { isStackable } from "../../lib/storage-logic.mjs";
+import { countView } from "../../lib/stack-count.mjs";
 import { lightControl, writesMagicLight } from "../../lib/light.mjs";
 import { damageGlyphOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, WEAR_SLOTS } from "../../lib/vocab.mjs";
@@ -428,20 +429,18 @@ export function conditionOf(item, container) {
 }
 
 /**
- * One row of a container's Contents list. Its count shows above one and
- * always for coin (`stack`, the Equipment tab's rule), with the item's own
- * Quantity named as its source (`qtyTip`, read at render).
+ * One row of a container's Contents list, its count drawn by the list rule
+ * (`countView`): `stack` says whether `×qty` shows, `qtyTip` names its source.
  */
 export function contentRowOf(c) {
-  const qty = stackCountOf(c);
-  const stack = isCurrency(c) || (qty ?? 1) > 1;
+  const { qty, stack, countTip } = countView(c);
   return {
     id: c.id,
     name: c.name,
     img: c.img,
     qty,
     stack,
-    qtyTip: stack ? game.i18n.format("ACKS-LIB.stack.countTip", { n: qty ?? 0 }) : "",
+    qtyTip: countTip,
     weight6: weight6Of(c),
   };
 }

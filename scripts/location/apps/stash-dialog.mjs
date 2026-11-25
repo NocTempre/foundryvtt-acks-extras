@@ -8,6 +8,7 @@
  * See docs/location/DECISIONS.md, "The stash picker moves everything in one transfer call".
  */
 import { makeLoc, libStorage as storage, escape as esc } from "../../lib/util.mjs";
+import { countView } from "../../lib/stack-count.mjs";
 import { LANG_PREFIX } from "../constants.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
@@ -18,8 +19,14 @@ const stowable = (actor) => actor.items.filter((i) => !!globalThis.acksExtras?.l
 /** Can gear go inside this? The lib subsystem owns the answer. */
 const isContainer = (item) => !!globalThis.acksExtras?.lib.places.isContainerItem(item);
 
-function rowHTML(item) {
+/**
+ * One row of the picker. The count draws on `countView`'s rule (above one,
+ * always for coin), the take-how-many box on `offersCount`: a row in use has
+ * none, and a blank box means the whole stack.
+ */
+export function rowHTML(item) {
   const plain = item.toObject();
+  const { qty: count, stack, countTip } = countView(plain);
   const qty = storage().offersCount(plain) ? (storage().quantityOf(plain)?.value ?? null) : null;
   const holds = isContainer(item) ? ` <em class="acks-location-hint">${loc("storage.takesContents")}</em>` : "";
   return `<li class="acks-location-pick">
@@ -27,9 +34,9 @@ function rowHTML(item) {
       <input type="checkbox" name="pick_${item.id}" />
       <img src="${esc(item.img)}" alt="" />
       <span class="acks-location-pick-name">${esc(item.name)}</span>
-      ${qty == null ? "" : `<span class="acks-location-pick-qty">&times;${qty}</span>`}
+      ${stack ? `<span class="acks-location-pick-qty" data-tooltip-text="${esc(countTip)}">&times;${count ?? 0}</span>` : ""}
     </label>
-    ${qty == null ? "" : `<input type="number" class="acks-location-qty" name="qty_${item.id}" min="1" max="${qty}" placeholder="${qty}" />`}
+    ${qty == null ? "" : `<input type="number" class="acks-location-qty" name="qty_${item.id}" min="1" max="${qty}" placeholder="${qty}" aria-label="${esc(loc("storage.quantityPrompt"))}" />`}
     ${holds}
   </li>`;
 }

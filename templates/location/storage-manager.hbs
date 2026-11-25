@@ -62,11 +62,13 @@
                   <input type="checkbox" data-item-id="{{row.id}}" {{#if row.checked}}checked{{/if}} />
                   <img class="acks-location-row-img" src="{{row.img}}" alt="{{row.name}}" />
                   <span class="acks-location-row-name">{{row.name}}</span>
+                  {{#if row.stack}}
+                    <span class="acks-location-row-qty" data-tooltip-text="{{row.countTip}}">&times;{{row.quantity}}</span>
+                  {{/if}}
                   {{#if row.stackable}}
-                    <span class="acks-location-row-qty">&times;{{row.quantity}}</span>
                     <input class="acks-location-row-take" type="number" min="1" max="{{row.quantity}}"
                            data-quantity-for="{{row.id}}" value="{{row.take}}" placeholder="{{row.quantity}}"
-                           data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
+                           data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" aria-label="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
                   {{/if}}
                 </li>
               {{/each}}

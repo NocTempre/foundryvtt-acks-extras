@@ -31,6 +31,7 @@ import { canSplit, divertsEquip } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
 import { isEquippable, isWorn, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
 import { offersCount } from "../../lib/storage-logic.mjs";
+import { countView } from "../../lib/stack-count.mjs";
 import { wearableSlots } from "../../equipment/profiles.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { coinOrderView } from "../../lib/coin-order.mjs";
@@ -192,18 +193,16 @@ function rowOf(actor, item, ctx, depth = 0) {
   const kit = loadout.mappingKit.some((k) => k.id === item.id);
   // A weapon's die is the one its row rolls: the grip it is held in.
   const held = item.type === ITEM_TYPE.weapon ? heldGrip(actor, item) : null;
-  // A coin row always shows its count — an empty purse reads as empty.
-  const stack = isCurrency(item) || (stackCountOf(item) ?? 1) > 1;
+  const { qty, stack, countTip } = countView(item);
   const row = {
     id: item.id,
     name: item.name,
     img: item.img,
     line: [lineOf(item, held), kit ? loc("equipment.kitInHand") : ""].filter(Boolean).join(" · "),
     lineTip: held ? heldDieTip(held) : "",
-    qty: stackCountOf(item),
+    qty,
     stack,
-    // The count's provenance: the item's own Quantity, read at render.
-    countTip: stack ? game.i18n.format("ACKS-LIB.stack.countTip", { n: stackCountOf(item) ?? 0 }) : "",
+    countTip,
     wielded: wieldedIds.has(item.id),
     controls: rowControls(actor, item, loadout, lights),
     isMoney: isCurrency(item),

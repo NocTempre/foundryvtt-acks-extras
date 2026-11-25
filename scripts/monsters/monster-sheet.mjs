@@ -26,6 +26,7 @@ import { loadRule, loadStanding, defaultScore } from "./load-rule.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { letterOf } from "../treasure/search-logic.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
+import { countView } from "../lib/stack-count.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { appearingChanges, countText } from "../lib/encounter-line.mjs";
 import { lairChanceOf } from "../lib/group-encounter-logic.mjs";
@@ -293,6 +294,8 @@ export function createFullMonsterSheet(Base) {
       const items = context.owned?.items ?? [];
       context.spoilItems = items.filter((i) => i.getFlag(MODULE_ID, "spoil"));
       context.carriedItems = items.filter((i) => !i.getFlag(MODULE_ID, "spoil"));
+      // Each carried row's count view by item id: a row prints `×N` only above one.
+      context.carriedCounts = Object.fromEntries(context.carriedItems.map((i) => [i._id, countView(i)]));
       context.encumbrance = computeEncumbrance(actor, extras);
       context.choices = choices();
       // The Deal button beside the Treasure type field: a Judge's, and idle while the sheet states no letter.

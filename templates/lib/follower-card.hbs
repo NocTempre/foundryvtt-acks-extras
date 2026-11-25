@@ -180,7 +180,7 @@
       {{#each equipment}}
       <div class="acks-extras-frame__row is-bare">
         {{#if this.equippable}}
-        <button type="button" class="acks-extras-frame__ctl{{#unless this.equipped}} is-faint{{/unless}}" data-action="fcToggleEquip" data-item-id="{{this.id}}" data-tooltip="{{#if this.equipped}}{{localize 'ACKS-LIB.followerCard.worn'}}{{else}}{{localize 'ACKS-LIB.followerCard.carried'}}{{/if}}" aria-pressed="{{this.equipped}}"><i class="{{#if this.equipped}}fa-solid{{else}}fa-regular{{/if}} fa-shield-halved" inert></i></button>
+        <button type="button" class="acks-extras-frame__ctl{{#unless this.equipped}} is-faint{{/unless}}" data-action="fcToggleEquip" data-item-id="{{this.id}}" data-tooltip-text="{{this.wearTip}}" aria-label="{{this.wearTip}}" aria-pressed="{{this.equipped}}"><i class="{{#if this.equipped}}fa-solid{{else}}fa-regular{{/if}} fa-shield-halved" inert></i></button>
         {{else}}
         <span class="acks-extras-frame__ctl is-faint" inert><i class="fa-regular fa-circle" inert></i></span>
         {{/if}}

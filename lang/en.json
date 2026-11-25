@@ -1356,6 +1356,7 @@
   "ACKS-LIB.followerCard.mountNo": "No",
   "ACKS-LIB.followerCard.worn": "Worn — click to put away",
   "ACKS-LIB.followerCard.carried": "Carried, not drawn — click to wear",
+  "ACKS-LIB.followerCard.carriedOne": "Carried, not drawn — click to wear one. The stack keeps {rest}.",
   "ACKS-LIB.followerCard.notCaster": "not a caster",
   "ACKS-LIB.followerCard.dismiss": "Dismiss",
   "ACKS-LIB.followerCard.addAttackShort": "Attack",

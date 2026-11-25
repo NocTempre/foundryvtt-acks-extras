@@ -21,6 +21,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
 import { isCurrency, canWear, isWorn, stackCountOf } from "./item-model.mjs";
 import { offersCount } from "./storage-logic.mjs";
+import { divertsEquip } from "../equipment/item-sheet/stack.mjs";
 import { borneWeight6 } from "./capacity.mjs";
 import { coinOrderView } from "./coin-order.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
@@ -121,6 +122,43 @@ export function shownAttackBonus(actor, type) {
 export { shownDamageBonus };
 
 /**
+ * The card's Equipment rows: what an actor carries, each with its wear control.
+ * `wearTip` is the wear control's tooltip and its accessible name. A resting
+ * weapon or armour stack says the press takes one and what the stack keeps:
+ * the press is `item.update({"system.equipped": true})`, which the equip write
+ * diverts (`divertsEquip`, the equip hook's own test), so the promise is asked
+ * of that same test and never of a type.
+ * @param {Item[]} items the actor's items
+ * @param {{editable: boolean, interactive: boolean}} opts `divisible` needs both
+ */
+export function equipmentRows(items, { editable = false, interactive = false } = {}) {
+  return items
+    .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item || (isCurrency(i) && stackCountOf(i) > 0))
+    .map((i) => {
+      const q = stackCountOf(i) ?? 1;
+      const equipped = isWorn(i);
+      const rest = divertsEquip(i, { system: { equipped: true } }) ? q - 1 : null;
+      const wearTip = equipped
+        ? game.i18n.localize("ACKS-LIB.followerCard.worn")
+        : rest === null
+          ? game.i18n.localize("ACKS-LIB.followerCard.carried")
+          : game.i18n.format("ACKS-LIB.followerCard.carriedOne", { rest });
+      return {
+        id: i.id,
+        name: q > 1 || isCurrency(i) ? `${i.name} ×${q}` : i.name,
+        // Wearable is the lib's reading — core's `equipped` field OR a slot,
+        // declared or read by the registered inference — so a slotted plain
+        // item (an imported pair of gloves, a belt nobody annotated) is offered
+        // beside the weapons and armour, and read through the same two stores.
+        equippable: canWear(i),
+        equipped,
+        wearTip,
+        divisible: editable && interactive && q > 1 && offersCount(i),
+      };
+    });
+}
+
+/**
  * Does this body bring spells to the table? A class caster declares the slot
  * model, but a creature with spell-like powers carries the spells themselves
  * and never sets the flag — asking only the flag hides exactly the monsters
@@ -183,22 +221,7 @@ export async function followerCardContext(actor, { editable = false, interactive
   // Coin is gear like the rest: a purse that holds anything is listed, always
   // with its count; an emptied one is not. A stack divides on the card's own
   // sheet, where the control's action is bound.
-  const equipment = items
-    .filter((i) => i.type === ITEM_TYPE.weapon || i.type === ITEM_TYPE.armor || i.type === ITEM_TYPE.item || (isCurrency(i) && stackCountOf(i) > 0))
-    .map((i) => {
-      const q = stackCountOf(i) ?? 1;
-      return {
-        id: i.id,
-        name: q > 1 || isCurrency(i) ? `${i.name} ×${q}` : i.name,
-        // Wearable is the lib's reading — core's `equipped` field OR a slot,
-        // declared or read by the registered inference — so a slotted plain
-        // item (an imported pair of gloves, a belt nobody annotated) is offered
-        // beside the weapons and armour, and read through the same two stores.
-        equippable: canWear(i),
-        equipped: isWorn(i),
-        divisible: editable && interactive && q > 1 && offersCount(i),
-      };
-    });
+  const equipment = equipmentRows(items, { editable, interactive });
   // The coin order and the fold, on the same terms: only where there is a
   // choice to make or a row to fold.
   const purse = editable && interactive && actor ? coinOrderView(actor) : null;
