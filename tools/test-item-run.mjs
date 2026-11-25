@@ -544,9 +544,15 @@ await t("a use runs against the token the pressing seat resolved, however the GM
     assert.equal(carried.out.ok, true, "the token the seat named is the bearer's, wherever this window looks");
     assert.equal(carried.asked, bearerTok);
     // A token of another body is refused, never raised.
-    const wrong = await ran({ tokenUuid: "T.9" });
-    assert.deepEqual(wrong.out, { ok: false, reason: "notCarried" });
-    assert.equal(wrong.asked, null, "nothing was raised on the other body's token");
+    const probed = [];
+    run.registerActivationRunner("consume", async ({ token }) => { probed.push(token); return { ok: true, kind: "probe" }; });
+    itemFlags = { itemRun: { activation: { kind: "consume" }, rows: [] } };
+    assert.deepEqual((await ran({ tokenUuid: "T.9" })).out, { ok: false, reason: "notCarried" });
+    assert.deepEqual(probed, [], "no runner reaches the other body's token");
+    assert.equal((await ran({ tokenUuid: "T.1" })).out.ok, true);
+    assert.deepEqual(probed, [bearerTok]);
+    run.registerActivationRunner("consume", null);
+    itemFlags = toggleFlags(down);
     // With none named and none on the canvas, the actor's one linked token on any scene.
     gameStub.scenes = [{ tokens: [{ actorLink: false, actorId: "a1", uuid: "T.u" }, linkedTok("1"), { actorLink: true, actorId: "other", uuid: "T.o" }] }, { tokens: [] }];
     const found = await ran();
