@@ -98,7 +98,8 @@
     "RegionBehavior": {
       "district": {},
       "encounterZone": {},
-      "trapZone": {}
+      "trapZone": {},
+      "aura": {}
     },
     "Item": {
       "attitude": {},

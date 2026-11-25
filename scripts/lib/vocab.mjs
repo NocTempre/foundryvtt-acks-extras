@@ -1594,3 +1594,46 @@ function inferLevelKind(lv) {
   if (lv.as || lv.progressionAs) return "progression";
   return "flat";
 }
+
+/* -------------------------------------------- */
+/*  Reaches and the item runner                  */
+/* -------------------------------------------- */
+
+/**
+ * When a reach acts on a subject (`effectField.reach.pulse`): `action` once, at
+ * the press; `turnStart+moveIn` when a subject starts its turn inside or moves
+ * in; `standing` for as long as a subject is inside; `burst` once, at a
+ * detonation.
+ */
+export const REACH_PULSES = Object.freeze({
+  action: { label: "Once, at the press" },
+  "turnStart+moveIn": { label: "At a turn start, and on moving in" },
+  standing: { label: "While inside" },
+  burst: { label: "Once, at a burst" },
+});
+
+/** Which side of the bearer a reach's subjects stand on (`reach.filter.side`), read from token dispositions. */
+export const REACH_SIDES = Object.freeze({
+  any: { label: "Either side" },
+  own: { label: "The bearer's own side" },
+  opposing: { label: "The opposing side" },
+});
+
+/** Which unit of the bearer a reach's subjects belong to (`reach.filter.unit`). */
+export const REACH_UNITS = Object.freeze({
+  any: { label: "Any unit" },
+  own: { label: "The bearer's own unit" },
+  under: { label: "The bearer's unit or one it leads" },
+});
+
+/**
+ * How an item the carrier runs is activated (`itemRun.activation.kind`): `once`
+ * on a press, `toggle` raised and lowered, `fuse` lit and set to burst, and
+ * `consume` spent as it is used.
+ */
+export const ITEM_RUN_ACTIVATIONS = Object.freeze({
+  once: { label: "Once, on a press" },
+  toggle: { label: "Raised and lowered" },
+  fuse: { label: "Lit, then bursts" },
+  consume: { label: "Spent on use" },
+});

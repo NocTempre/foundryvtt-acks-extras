@@ -46,6 +46,9 @@ import {
   EFFECT_RECUR_MOMENTS,
   EFFECT_RECUR_SAVES,
   EFFECT_RECUR_TARGETS,
+  REACH_PULSES,
+  REACH_SIDES,
+  REACH_UNITS,
 } from "./vocab.mjs";
 import { LIGHT_LEVELS } from "./light.mjs";
 import { ATTACK_KINDS } from "./conditions.mjs";
@@ -303,6 +306,25 @@ export const sensesField =() =>
 export const visionField =() => choiceSet(VISION_TYPES);
 
 /**
+ * A figure a row names instead of stating: `{value, doc, table, row, figure}`.
+ * The row's own `value` wins where it holds one; otherwise the figure is read
+ * LIVE from the registered table at the moment of use (`resolveFigure`,
+ * `aura-reach-logic.mjs`), so an override or a revert in the Ruledata Browser
+ * reaches every row naming it and no figure sits on the item. Blank, it
+ * resolves to nothing. `value` is text because a figure may be a number or a
+ * dice formula; a reader parses what it needs.
+ */
+export function figureRefField() {
+  return new (F().SchemaField)({
+    value: str(),
+    doc: str(),
+    table: str(),
+    row: str(),
+    figure: str(),
+  });
+}
+
+/**
  * One typed effect primitive: a wide, all-optional schema whose `type` says
  * which of its fields apply.
  */
@@ -543,6 +565,22 @@ export function effectField() {
       // that occasion; `partHolds` leaves it pending otherwise.
       occasion: bool(),
     }),
+    // A live reach (`aura-reach-logic.mjs`): the radius, who of those inside it counts
+    // and when it acts. Null on every row that has none; no editor offers it, so a
+    // stored reach is kept as it stands and a row cleaned without one stays without.
+    reach: new SchemaField(
+      {
+        radius: figureRefField(),
+        filter: new SchemaField({
+          kinds: wordList(),
+          exceptKinds: wordList(),
+          side: choice(REACH_SIDES, { initial: "any" }),
+          unit: choice(REACH_UNITS, { initial: "any" }),
+        }),
+        pulse: choice(REACH_PULSES),
+      },
+      { required: false, nullable: true, initial: null },
+    ),
     // shared
     condition: str(), // free-text situational qualifier (when no structured form fits)
     note: str(),

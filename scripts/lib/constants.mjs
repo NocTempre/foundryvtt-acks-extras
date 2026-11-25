@@ -137,3 +137,32 @@ export const TURN_ENDED_HOOK = `${NAMESPACE}.turnEnded`;
  * moves summons somewhere else, as the party does, listens; lib imports none.
  */
 export const SUMMONS_PLACED_HOOK = `${NAMESPACE}.summonsPlaced`;
+
+/**
+ * The Region behavior sub-type of a live reach: config on a Region attached to
+ * its bearer's token that says whose item raised it (`aura-reach.mjs`).
+ */
+export const AURA_BEHAVIOR_TYPE = `${MODULE_ID}.aura`;
+
+/**
+ * Fired with `(token, {cause})` on the primary GM's client once a bearer's
+ * reaches were taken down because the bearer is down: `cause` is `hp` (hit
+ * points at or below zero) or `defeated` (the defeated status landed). A
+ * feature whose item breaks with its bearer keys on it.
+ */
+export const BEARER_DOWN_HOOK = `${NAMESPACE}.bearerDown`;
+
+/**
+ * Flag key under `flags["acks-extras"]` on an item that runs rows (`{activation,
+ * rows}`) and on every Active Effect the item runner writes (`{source,
+ * activationId, rowKey}`): `item-run.mjs`.
+ */
+export const FLAG_ITEM_RUN = "itemRun";
+
+/**
+ * Flag key under `flags["acks-extras"]` on an Active Effect of a bearer whose
+ * item is burning toward a burst: `{source, activationId, spot, clock}`
+ * (`item-run-logic.mjs`). Its own key and never `FLAG_TURN_LIFE`: the tracker
+ * deletes a turn-life record before the burst could be dealt.
+ */
+export const FLAG_FUSE = "fuse";

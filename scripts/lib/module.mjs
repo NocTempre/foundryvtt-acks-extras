@@ -119,6 +119,11 @@ import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
 import { installCompendiumEmptyLoadPatch } from "./patches/compendium-empty-load.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "./patches/spell-use.mjs";
+import { addItemUseClaimant, installItemUsePatch, removeItemUseClaimant } from "./patches/item-use.mjs";
+import * as auraReach from "./aura-reach.mjs";
+import * as auraReachLogic from "./aura-reach-logic.mjs";
+import * as itemRun from "./item-run.mjs";
+import * as itemRunLogic from "./item-run-logic.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as timeUnit from "./time-unit.mjs";
@@ -544,6 +549,41 @@ const localImpl = Object.freeze({
    */
   spellUse: { addClaimant: addSpellUseClaimant, removeClaimant: removeSpellUseClaimant },
   /**
+   * The item seam (patches/item-use.mjs) over the system's `Item#use`, and the
+   * carrier that takes the use of an item whose `flags["acks-extras"].itemRun.activation`
+   * is set. `addClaimant({key, claims, run})` registers a feature that takes an
+   * item's use over; the carrier's claimant declines every spell, every ability
+   * with no activation and every unflagged item. `registerRunner(kind, fn)` adds
+   * an activation kind's runner, `setPresenter` posts a use's result, `setFuseBurst`
+   * runs a fuse's burst, `pressRoll` and `undoEntry` are a card row's press and
+   * Undo, `rowsOf` is an item's one row list, and `logic` is the pure half.
+   */
+  itemUse: { addClaimant: addItemUseClaimant, removeClaimant: removeItemUseClaimant },
+  itemRun: {
+    useItem: itemRun.useItem,
+    registerRunner: itemRun.registerActivationRunner,
+    setPresenter: itemRun.setUsePresenter,
+    setFuseBurst: itemRun.setFuseBurst,
+    pressRoll: itemRun.pressRoll,
+    undoEntry: itemRun.undoEntry,
+    rowsOf: itemRunLogic.itemRunRowsOf,
+    logic: itemRunLogic,
+  },
+  /**
+   * A live reach (aura-reach.mjs): a Region attached to a bearer's token that
+   * carries the `aura` behavior. `raise` and `lower` create and delete it,
+   * `snapshot(scene, centre, rangeFeet)` answers which tokens an area contains
+   * now, `support()` says whether this build of core has what a reach needs,
+   * and `logic` is the pure filter (`reachAdmits`, `registerUnitAncestry`).
+   */
+  auraReach: {
+    raise: auraReach.raiseReach,
+    lower: auraReach.lowerReach,
+    snapshot: auraReach.reachSnapshot,
+    support: auraReach.auraSupport,
+    logic: auraReachLogic,
+  },
+  /**
    * Conditions (conditions.mjs): the catalogue the token palette is built
    * from, and what a creature's conditions do to an attack (`attackMath`, both
    * sides), to its own rolls (`rollMath`), its AC and its speed. Read from an
@@ -604,6 +644,10 @@ Hooks.once("init", () => {
   // Before the first write to a compendium document.
   installCompendiumEmptyLoadPatch();
   installSpellUsePatch();
+  // The seam on `Item#use`, with the carrier its one claimant, and the reach's behavior type.
+  installItemUsePatch();
+  itemRun.registerItemRunClaimant();
+  auraReach.registerAuraReach();
 
   registerMountDrop();
   attachment.registerAttachmentIndex();
@@ -1048,6 +1092,8 @@ Hooks.once("ready", () => {
   installAttackApply();
   installAttackCardTargetAc();
   installDelayedDamage();
+  auraReach.installAuraReach();
+  itemRun.installItemRun();
   installAnimationBridge();
 
   // Conditions on every roll they reach; the attack half registers into the
