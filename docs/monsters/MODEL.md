@@ -564,6 +564,9 @@ already mint, so no troop, trait or item name is in source:
 - `beastmanTroopRules` (MM p. 55): a row per row of `beastmanSpecialTroops`, under
   its key. Fields: `attack`, `vulnerableAttack`, `initiative`, `avoidSurprise`,
   `opponentSurprise` (bonuses read with their sign), `acReduction`,
+  `targetCondition` and `targetBand` (the words the vulnerable-target figures
+  wait on, as printed), `waivesCharge` and `waivesRun` (a movement's word where
+  the paragraph waives its Armor Class loss; its presence is what is read),
   `armourBump`, `damageDiceTimes`, `overrunPenaltyCut`, `opponentSave`,
   `xpAbilities` (the special-ability count counted for XP), `proficiency` (the
   words printed beside "as the proficiency", for a consumer to fold against a
@@ -588,7 +591,9 @@ already mint, so no troop, trait or item name is in source:
   attack]}`), `attack`, `morale`, `armourBump`, `outnumber` (`[allies,
   opponents]`), `round`, `strategy`, `proficiency`, `proficiencyRanks`,
   `treasurePct`, `beastDice`, `saveKind`, `condition`, `immunityTurns`,
-  `durationTurns`, `durationMinutes`.
+  `durationTurns`, `durationMinutes`, `outnumberedMorale` (the morale figure of
+  a clause that prints no ratio), `targetCondition` (the word an attack bonus
+  waits on) and `waivesRun`.
 - `beastmanOrganisation` (MM pp. 47, 54, 55): one block per page, `split`
   (`archerShare`, `archerRound`, `warriorShare`, `warriorRound`, `specialShare`,
   `specialRound`: percentages and "up" or "down"; `moraleWhileChieftain`),
@@ -767,7 +772,7 @@ template engine's resolved hook, in this order:
    (`initiative.mod`), avoid-surprise bonus (`surprise.avoidsurprise`) and
    proficiency grant; a trait's damage (both modifiers) and morale (held to the
    core field's range) where its row has no gate (`outnumber`, `round`,
-   `condition`, `saveKind`), its armour bump for a fighting rank, and, for a
+   `condition`, `saveKind`, `targetCondition`, `outnumberedMorale`), its armour bump for a fighting rank, and, for a
    chieftain, its proficiency ranks; and a natural attack for each die a marked
    cell's list holds. A damage modifier left blank by the kit stays blank, an
    armour class that is not a figure is left alone, and a figure the table did
@@ -778,11 +783,62 @@ template engine's resolved hook, in this order:
    way round) and does so for exactly one folded name; a miss or an ambiguity
    writes none and is logged.
 
-Everything gated, ranged, activated or generated (a troop's opponent-surprise
-and vulnerable-target figures, a trait's gated rows, the equipment) is not
-applied: `extras.organisation` records the chosen troop, trait and gear with
-each row's label, page and figures, and every piece is named with its page in
-both prose channels, for the later slices to read. The parts of every figure
+**The gated figures ride on ability items.** For a fighting creature (a standard
+rank, a champion, a sub-chieftain, a chieftain, and no noncombatant, caster or
+dependant) the chosen troop and the chosen trait each mint at most one `ability`
+item (`organisationAbility`), pushed onto `resolved.items` as a proficiency
+grant is: named by the row's imported label, carrying the row's page
+(`cookbook.cite`, which the attack card prints) and a cookbook id built from
+the kind and the row key (`organisation.<kind>.<key>`, so a copy counts once),
+its typed specs on `extras.effects`. A row that yields no spec mints none. The
+specs are built from the recipe's VALUE keys, never from a row key, which is
+minted from a printed label and cannot be branched on:
+
+| Value key | Spec |
+|---|---|
+| `opponentSurprise` | the surprise part against the opposing side, ungated |
+| `vulnerableAttack` | `attackThrow` under `allOf[targetCondition, rangeBand]` |
+| `damageDiceTimes` | `damageDice` under the same `allOf` |
+| `outnumber` with `attack`, `damage` | both under `outnumbering {ratio: a / b}` |
+| `outnumberedMorale` | `morale` under `outnumbering {side: "against", strict: true}` |
+| `round` with `attack` | `attackThrow` under `combatRound` |
+| `targetCondition` with `attack` | `attackThrow` under `targetCondition` |
+| `waivesCharge`, `waivesRun` | `acWaiver` for `charging`, `retreating` |
+
+A trait row that carries more than one of the three gate keys gates its attack and
+damage figures by all of them (`allOf`); a conjunction never applies where one
+alone would not. A figure is a standing field or a gated spec, never both: a
+troop's `attack` is the field, a trait's `attack` and `damage` under a gate are
+specs (and the standing damage and morale are held back by every gate key the
+row carries). `rangeBand` is melee plus the `targetBand` word where that word is
+a range band; a ratio is stored `[a, b]` and written `a / b`. The surprise part
+is ungated because the matrix asks a creature's gates with no context. The
+waiver keys are structural: the charge is the catalogue's `charging`, and the
+run is its `retreating`, the one state that moves at running speed and carries
+the disorder through `implies`; `disordered` itself is never waived, so a bare
+run toggled by hand, and a withdrawal made without declaring it, stay with the
+Judge and are two lines in the notes (`organisation.kind.run`,
+`organisation.kind.withdrawal`, with the page) wherever `waivesRun` is read.
+
+**The fold.** A condition word is imported text (`targetCondition`, read
+from the page by the recipe), and `matchCondition` folds it at generation: a
+catalogue id answers itself, then an exact fold of an id or of a `/`-part of a
+label, then `matchProficiency`'s inflection rule, which answers only for one
+entry. The Judge's correction is the registry's override layer, which may
+replace the word with a catalogue id. A word that does not fold, a band outside
+the range bands, a ratio that is no pair of positive numbers and a gate word the
+import did not read each write no spec and are listed on
+`extras.organisation.unresolved` (`{kind, key, figure, word}`) and passed to
+`warn`; an unresolved gate on one figure leaves that row's other, ungated
+parts (the surprise part, the waiver) in place. The gates are read at the roll
+(`roll-gates.mjs`), at the morale page (`influence/ability-effects.mjs`) and at
+the Armor Class (`conditions.mjs`); see [../lib/API.md](../lib/API.md),
+"Typed modifiers".
+
+Everything else ranged, activated or generated (the gear, and the rest of a
+row's figures) is not applied: `extras.organisation` records the chosen troop,
+trait and gear with each row's label, page and figures, and every piece is named
+with its page in both prose channels, for the later slices to read. The parts of every figure
 written go to `extras.derived.organisation` (the value, the base it moved from
 and each source's part). Their tooltips (`derivationTips`) name the parts with
 the actor's own numbers and the page, only while the actor still holds the

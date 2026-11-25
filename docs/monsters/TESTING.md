@@ -589,6 +589,55 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
    it with the row's figures.
 10. Join as the Player seat, granted Observer on a step 2 creature.
    *Observable:* the tooltips render as on the GM seat.
+11. The gated rows, one creature each (below, "The gated rows"). Generate the
+   troop row that carries `vulnerableAttack`, on a breed that has a band for
+   it, and put a target token in the condition its `targetCondition` word
+   folds to. Attack in melee, then with a missile weapon inside the `targetBand`
+   reach, then beyond it. *Observable:* in melee and inside the band the
+   attack card's throw lists the row (label and page) and the damage formula
+   shows the dice multiplied (a flat term unchanged) with one notice naming the
+   part; beyond the band, or with the target's condition off, neither the row nor
+   the notice appears. Open the Surprise Matrix against it. *Observable:* the
+   creature's part shows whatever the target's condition.
+12. Generate the trait row that carries `outnumber` and `outnumberedMorale`.
+   Start a combat with the creature, allies and opponents as tokens whose
+   dispositions are set; attack with the ratio met, then not met. *Observable:*
+   the attack and damage rows are on the card only while the ratio is met. Open
+   the morale page with the opponents strictly more numerous. *Observable:* the
+   morale row is pre-ticked; with the sides even it is absent; outside a combat
+   it is offered unticked.
+13. Generate the trait row that carries `round` and attack in the named round
+   and in another; generate the one that carries `targetCondition` and attack a
+   target carrying the condition its word folds to, and one that does not.
+   *Observable:* the row is on the card only under its gate.
+14. Generate each troop and trait row that carries `waivesCharge` or
+   `waivesRun`; toggle Charging, then Retreating, then Disordered on it.
+   *Observable:* the Armor Class on the sheet keeps its figure under Charging
+   and Retreating and loses the Disordered row's; the notes carry the
+   withdrawal and bare-run lines with the page.
+15. Override a gated row's word in the registry (Ruledata Browser) with a word no
+   catalogue entry answers, and generate. *Observable:* no gated row on the
+   creature, `extras.organisation.unresolved` lists the figure, the console
+   carries the warning; restoring the word brings the row back on the next
+   creature.
+
+**The gated rows (steps 11 to 15).** A second fixture, a target creature,
+carries `monsters/beastman-gates-target` and is found by it; it serves every
+walk, since a step only sets its statuses. Make a creature from the kept
+template with `generateFromTemplate(template, {pins: {variant, troop, trait,
+role}})`, the troop or trait key read from `importedOrganisation().troopRules`
+by the row whose figures hold the value key the step names (never by label),
+then `api.track` it. Put the target in a condition with
+`target.actor.toggleStatusEffect(<catalogue id>, {active: true})`; the id is
+what `matchCondition` returns for the row's word, read from the generated
+creature's ability item (`flags["acks-extras"].extras.effects[].gate`). Set
+the outnumbering by creating combatants for tokens of friendly and hostile
+disposition on one scene and starting the combat; only undefeated combatants
+count, each as many bodies as its actor stands for. The attack card is posted
+by rolling the creature's weapon from a token with the target selected; read
+the throw's labelled rows and the damage formula off the card, and the notice
+off `ui.notifications`. Core's own morale path (page off) reads no ability row,
+so open the influence morale page.
 
 **Drive notes.** A generated creature opens on the Follower Card, a
 monster's default face, which shows no organisation part; every hover above
