@@ -46,7 +46,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-14 — [Tokens split colour from structure; the light palette is a real branch](DECISIONS-through-v11.14.5.md#2026-08-14--tokens-split-colour-from-structure-the-light-palette-is-a-real-branch)
 - 2026-08-14 — [Money is physical; four rulings land at once](DECISIONS-through-v11.14.5.md#2026-08-14--money-is-physical-four-rulings-land-at-once) — superseded in part by "2026-09-01 — the system's compendium tree is the system's, and the library can be put back"; "2026-09-02 — hiding compendiums was a BAD DIRECTION"; "2026-10-01 — Currency is one stack with one count, weighed by how many make a stone"; "2026-11-11 — A spoil is released by the Judge, not claimed by a throw" (docs/location/DECISIONS.md)
 - 2026-08-18 — [One owner for the attack roll, and one seam for future modifiers](DECISIONS-through-v11.14.5.md#2026-08-18--one-owner-for-the-attack-roll-and-one-seam-for-future-modifiers) — superseded in part by "2026-10-20 — The attack seam rides the system's labelled modifiers"
-- 2026-08-24 — [Initiative reuses the roll CARD, not an invented grouping](DECISIONS-through-v11.14.5.md#2026-08-24--initiative-reuses-the-roll-card-not-an-invented-grouping) — superseded in part by "2026-11-25 — A group's bodies in a combat are grouped by the system's own call" (its rejection of auto-grouping); the roll card and the note on the system's namespace stand
+- 2026-08-24 — [Initiative reuses the roll CARD, not an invented grouping](DECISIONS-through-v11.14.5.md#2026-08-24--initiative-reuses-the-roll-card-not-an-invented-grouping) — superseded in part by "2026-11-25 — A group's bodies in a combat are grouped by the system's own call" (its rejection of auto-grouping); the roll card and the note on the system's namespace stand, and a patch may correct the system's own write ("2026-11-25 — The group control keeps each group's own initiative modifier and returns its write")
 - 2026-08-25 — [A window never names its own ground; the dress does](DECISIONS-through-v11.14.5.md#2026-08-25--a-window-never-names-its-own-ground-the-dress-does) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md)
 - 2026-08-29 — [Thirst charges a rolled toll; hunger charges a flat one](DECISIONS-through-v11.14.5.md#2026-08-29--thirst-charges-a-rolled-toll-hunger-charges-a-flat-one)
 - 2026-08-29 — [An i18n key is a leaf or a parent, never both](DECISIONS-through-v11.14.5.md#2026-08-29--an-i18n-key-is-a-leaf-or-a-parent-never-both)
@@ -1668,7 +1668,7 @@ above.
 *Cost:* the row is longer where a change sets, multiplies or bounds the
 figure. The step's own figure on that row is not changed by this entry.
 
-## 2026-11-25 — A group's bodies in a combat are grouped by the system's own call
+## 2026-11-25 — A group's bodies in a combat are grouped by the system's own call — SUPERSEDED IN PART 2026-11-25
 
 **Ruled.** Supersedes in part "2026-08-24 — Initiative reuses the roll CARD, not an
 invented grouping": only its rejection of auto-grouping a deployed stack. When a
@@ -1881,3 +1881,65 @@ schema is blank.
 the die keeps it, since the record states it. The offline probe is on Foundry's
 `common/` and the system's source; the change is walked live in
 `docs/lib/TESTING.md`, "A weapon's two-handed die, and the check that writes it".
+
+## 2026-11-25 — The group control keeps each group's own initiative modifier and returns its write
+
+Supersedes IN PART "2026-11-25 — A group's bodies in a combat are grouped by the
+system's own call": its paragraph "Two defects of the system's are the system's, and
+nothing here works round them", and its cost sentence that a Judge's second gang takes
+the first's bonus until the system repairs it. It qualifies that entry's "Lib writes no
+list, no initiative": lib still makes no write of its own, and now corrects the one
+write the system's own call makes.
+
+Ruled by the owner's words on defects found in the `acks` system: "patch and include
+found fixes with the issue reports". The module patches each system defect for its own
+users now, and the upstream report carries the same fix. For these two defects in
+`AcksCombat#manageGroup`: `patches/group-initiative.mjs` makes each stored group keep
+the lowest initiative value among its own actors and makes the call return its write,
+and the reports to the system carry the same two fixes.
+
+**New evidence.** The superseded entry had the first defect from the system's source and
+the second as an inference it had not seen.
+- The first is reproduced live: `tools/live/lib-group-initiative.mjs` read a warband's
+  stored list and found a gang's bonus holding the lowest value of another gang's actors,
+  where it recorded the finding as a note.
+- The second is shown by an offline run of the system's own method, sliced from release
+  14.2.0 against a combat whose write lands on the server's reply: a caller that awaits each
+  call and makes the next at once finds the first group gone, and the call returns nothing to
+  wait on. The method with both upstream fixes keeps both groups.
+- The owner's words above, which the superseded entry did not have.
+
+**Ruled.** The patch wraps `manageGroup` once (libWrapper `WRAPPER`, with the
+prototype-assign fallback), installed at `ready`, and is the one owner of the method.
+While the system's method runs, `setFlag` is shadowed on the combat as an own property and
+removed in a `finally`, so it is never wrapped and no other document's write is touched. The
+shadow acts only on scope `acks`, key `groups`, an array value, and corrects a stored group
+(an object with a `tokens` array and an `initiativeBonus`) only where its bonus equals the
+lowest among the tokens just passed and differs from the lowest among its own tokens. A
+group none of whose tokens resolve to a combatant with an actor keeps the system's figure. The
+method then returns a promise for the real write.
+
+The patch stands down by observation: on a system whose bonus already comes from each group's
+own tokens nothing is corrected and the list written is the one the system built. There is no
+version gate and no reading of the system's source. `groupGangs` now awaits the call, and keeps
+its poll of the stored list after it, which passes at once when the write landed and still
+orders the calls if the patch stands down.
+
+**Retired by.** The system's minimum reaching a release that carries both fixes.
+`docs/lib/ROADMAP.md` carries the row that deletes the patch.
+
+**Rejected.** Replacing the method: it holds a copy of the system's logic and can never stand
+down. Serialising calls per combat: it goes beyond the found fix, and the call would still
+return nothing. A `preUpdateCombat` hook: it rewrites every writer of the combat, and it
+cannot return the write to the caller. Wrapping `setFlag`: it claims a Foundry method for every
+document, where the defect is one call's.
+
+**Strongest counter, MEDIUM.** The patch rests on the system's method calling `this.setFlag`
+synchronously, and it edits values inside the system's flag namespace, which the 2026-08-24
+note keeps as a read-only place. Held, because the failure mode of a system that moves its write
+behind an `await` is the unpatched behaviour the system has today, the live walk's two checks
+(each stored bonus is its group's own lowest, and two awaited calls keep both groups) catch it,
+and a replacement of the method could never stand down. **Cost:** the module reads the system's
+group list and the combatants' initiative values to correct a write, and a system release that
+changes the stored shape of a group (the `tokens` array or `initiativeBonus`) is passed through
+uncorrected.

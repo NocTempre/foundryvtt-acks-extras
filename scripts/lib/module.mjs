@@ -112,6 +112,7 @@ import { declareThrowTables } from "./throws.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installTurnOrderPatch } from "./patches/turn-order.mjs";
+import { installGroupInitiativePatch } from "./patches/group-initiative.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
 import { installLoyaltyRollPatch } from "./patches/loyalty-roll.mjs";
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
@@ -1126,6 +1127,10 @@ Hooks.once("ready", () => {
   // Combatants tied on initiative sort the same on every seat; see
   // docs/lib/DECISIONS.md, "Tied initiative sorts the same on every seat".
   installTurnOrderPatch();
+
+  // The group control keeps each group's own initiative modifier and returns
+  // its write; see patches/group-initiative.mjs.
+  installGroupInitiativePatch();
 
   // The morale roll's one owner; see docs/lib/DECISIONS.md, "One owner for
   // the morale roll, and the page is a provider's".

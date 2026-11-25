@@ -457,3 +457,12 @@ Delete the patch, its install in `scripts/lib/module.mjs`, its README row and
 `tools/test-weapon-alternate.mjs` once the system minimum names a release whose
 schema starts the alternate blank, and re-walk the two-handed die steps of
 `docs/lib/TESTING.md` without it.
+
+## The system's group control
+
+`AcksCombat#manageGroup` hands every stored group the lowest initiative value of the tokens
+of the latest call, and returns nothing to wait on. `scripts/lib/patches/group-initiative.mjs`
+corrects the first and returns the write for the second. Delete the patch, its install in
+`scripts/lib/module.mjs`, its README row and `tools/test-group-initiative.mjs` once the
+system minimum names a release that carries both fixes. `groupGangs` keeps its await. Re-walk the group-initiative recipe of
+`docs/lib/TESTING.md` without it.

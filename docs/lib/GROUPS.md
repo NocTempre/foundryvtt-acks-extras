@@ -303,10 +303,11 @@ group as one row. The partition is `gangPartition` (`group-logic.mjs`), the call
   replaces a group with a fresh one that has not rolled, so repeating it would clear a
   roll a gang already carries; this is how a gang already in the fight keeps its roll when
   its warband joins.
-- The call does not return its write. After each one, the stored list is read until it
-  holds the group, so the next call starts from a list that has it. The wait is ordering
-  and writes nothing. If the list never holds the group, the wait ends at three seconds, a
-  line goes to the console and the next gang goes on.
+- The call returns its write, through `patches/group-initiative.mjs`, and each one is
+  awaited, so the next call starts from a list that has the group. The stored list is then
+  read until it holds the group, which passes at once and still orders the calls where that
+  patch stands down. The wait writes nothing. If the list never holds the group, the wait
+  ends at three seconds, a line goes to the console and the next gang goes on.
 - Lib never writes the list, so it never prunes it. An early gather deletes the bodies'
   combatants and leaves their group stored with token ids that no longer exist, and
   sending the bodies out again stores a second group beside it. The stale one holds no

@@ -156,10 +156,12 @@ async function until(test, { interval, timeout }) {
  * `group`'s tree that has two bodies fighting. A group the stored list already holds as
  * it is stands untouched, because a call replaces it and clears the roll it carried.
  *
- * The system's call does not return its write, so the stored list is read after each
- * call until it holds the group, and the next call starts from a list that has it. That
- * wait is ordering and writes nothing. Where the list never holds the group the wait
- * ends at `timeout` and the next gang goes on.
+ * Each call is awaited: patches/group-initiative.mjs makes the call return its write, so
+ * the next call starts from a list that has the group. The stored list is then read until
+ * it holds the group, which passes at once when the write landed and still orders the calls
+ * where that patch stands down and the system's call returns nothing. That wait writes
+ * nothing. Where the list never holds the group the wait ends at `timeout` and the next
+ * gang goes on.
  * @param {Combat} combat
  * @param {object} group the group actor whose token joined
  * @param {Iterable<TokenDocument>} bodies the tokens of the group's tree on the scene
@@ -172,7 +174,7 @@ export async function groupGangs(combat, group, bodies, { interval = 10, timeout
     for (const { group: gang, tokens } of gangPartition(group, bodies, fighting)) {
       const ids = tokens.map((t) => t.id);
       if (holdsGroup(combat, ids)) continue;
-      combat.manageGroup(tokens);
+      await combat.manageGroup(tokens);
       if (!(await until(() => holdsGroup(combat, ids), { interval, timeout }))) {
         console.warn(`${MODULE_ID} | the tracker never stored a group for ${gang.name}`);
       }

@@ -4235,13 +4235,14 @@ tokens}`), and the tracker's group mark beside each name.
    the warband's token hidden. `game.combat.flags.acks.groups` holds exactly two groups,
    one with the three tokens of gang A and one with gang B's three. The warband's single
    body is in neither, and the tracker shows no group mark beside it.
-2. Tell the system's defect apart from ours. *Observable:* a group's `initiativeBonus`
-   is the lowest `system.initiative.value` among its own tokens' actors. Where gang A's
-   stored bonus equals gang B's lowest value and the two gangs' values differ, the
-   system's second call has overwritten the first's (T-0734; record it, do not fix it).
-   Where a gang is missing from the list and the other is present, either the
-   system's unawaited write dropped it (T-0735) or lib's wait ended at its limit, which
-   leaves a console warning naming the gang. Where a group holds tokens of the wrong gang,
+2. Check each group's modifier. *Observable:* a group's `initiativeBonus`
+   is the lowest `system.initiative.value` among its own tokens' actors, for every stored
+   group; the two monsters' values differ, so a gang holding the other gang's lowest value
+   is the system's second call overwriting the first's, which `patches/group-initiative.mjs`
+   corrects. A bonus that is wrong here means the patch caught nothing: it is not
+   installed, or the system moved its write behind an `await`. Where a gang is missing
+   from the list and the other is present, lib's wait ended at its limit, which leaves a
+   console warning naming the gang. Where a group holds tokens of the wrong gang,
    lib's partition is at fault. A group holding token ids that no longer exist is the
    stale group of an earlier gather (step 6 makes one), not a fault.
 3. Roll all initiative (the tracker's Roll All). *Observable:* each gang rolls once:
@@ -4273,12 +4274,20 @@ tokens}`), and the tracker's group mark beside each name.
    of those two, and each of the two gangs' groups loses the body taken from it (a group
    left with one body is dropped by the system's rule). Lib makes no call; the Judge's
    regroup stands.
-8. A group of one. Add a group actor holding one body to a combat. *Observable:* the body
+8. Two awaited calls back to back. In a new combat add the warband's token, then take
+   two bodies of gang A and make `await combat.manageGroup(tokens)`, then two bodies of
+   gang B and make `await combat.manageGroup(tokens)`, each as soon as the one before
+   resolves. *Observable:* each call returns a thenable, the stored list holds the first
+   group as soon as the first await returns and both groups after the second, and each of
+   the two new groups' `initiativeBonus` is its own gang's lowest value. A call that
+   returns nothing, or a list that lacks the first group, is the system's unawaited write
+   showing through.
+9. A group of one. Add a group actor holding one body to a combat. *Observable:* the body
    comes out, and `game.combat.flags.acks?.groups` is unset or empty: no call was made
    (the system keeps other flags of its own beside it).
-9. End the combat. *Observable:* every body is recalled into its own gang, every token is
+10. End the combat. *Observable:* every body is recalled into its own gang, every token is
    visible and unflagged.
-10. Teardown. `api.sweepTracked()` for the scene, tokens and combat; quote its result.
+11. Teardown. `api.sweepTracked()` for the scene, tokens and combat; quote its result.
     Put each kept group's counts back.
 
 ## The organisation chart through the API

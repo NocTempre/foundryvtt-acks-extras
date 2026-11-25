@@ -1871,9 +1871,11 @@ what makes a grouped fight read as though everyone rolled separately. The card
 is where the grouping becomes legible: a group is ONE row, labelled as the
 tracker labels it (`[G0]` → Group 0) and listing its members underneath.
 
-Nothing is grouped automatically. Which combatants share a roll stays the
-Judge's explicit choice through core's own tracker control — stacks, a summoner
-with their summons — and this patch only reports what that choice produced.
+The grouping is core's own call, `combat.manageGroup`, and this patch only
+reports what it produced. The Judge makes a group with the tracker's control; a
+group token that joins a combat has its gangs grouped by that same call
+(`group-combat.mjs`, docs/lib/GROUPS.md, "Initiative groups"). Lib builds no
+grouping of its own.
 
 Three details are load-bearing:
 
@@ -1926,6 +1928,42 @@ every loaded combat's turns again with `setupTurns` and redraws the tracker. Tha
 is in memory and writes nothing; a combat with its turns locked is left alone.
 The stored `turn` index is untouched, so a combat whose tied rows moved reads a
 different combatant at that index until the next turn is taken.
+
+## The group control keeps each group's own modifier
+
+`scripts/lib/patches/group-initiative.mjs` is the one wrapper on the system's
+`AcksCombat#manageGroup`, the call behind the Combat Tracker's group control.
+Two defects of that method are repaired for the module's users.
+
+The method stores each group's `initiativeBonus`, the lowest
+`system.initiative.value` among its actors, which the group rolls with. Its loop
+walks the tokens passed to the call for every stored group, so each new group
+overwrites every earlier group's bonus with the lowest among the new tokens. And
+its `this.setFlag("acks", "groups", groups)` is neither awaited nor returned;
+Foundry applies an update when the server replies, so a caller cannot wait on the
+call, and a second call made before the first lands starts from a list that lacks
+the first group and drops it.
+
+The wrapper runs the system's method unmodified. For the length of that
+synchronous call it puts an own `setFlag` on the combat, and a `finally` removes it
+(or puts back an own one the combat carried), so `setFlag` is never wrapped and no
+other document's write is touched. The shadow answers one write: scope `acks`,
+key `groups`, an array. Before the real `setFlag` receives it, a stored group
+(an object with a `tokens` array and an `initiativeBonus`) is put right where its
+bonus equals the lowest among the tokens just passed and differs from the lowest
+among its own tokens; its own tokens are the combatants whose token id matches and
+whose actor holds a number. A group with none of them, and any other shape, keeps
+the system's figure. The call then returns a promise that resolves, after the real
+write, to that write.
+
+It stands down by observation. On a system whose bonus already comes from each
+group's own tokens, nothing is corrected, the same array is written and the
+promise returned waits on the system's own. There is no version gate. Should the system
+move its write behind an `await`, the shadow catches nothing and the system's
+behaviour stands, which the live walk (docs/lib/TESTING.md, "A warband's token in a
+combat") reports. `groupGangs` awaits the call and polls the stored list after it.
+The ruling is in docs/lib/DECISIONS.md, and the row that retires the patch is in
+docs/lib/ROADMAP.md.
 
 ## The roll dialog
 

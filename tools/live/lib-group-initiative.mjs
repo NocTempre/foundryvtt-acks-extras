@@ -3,12 +3,14 @@
  * token in a combat". A warband with two gangs nested in it joins a combat and
  * each gang is grouped for initiative by the system's own `combat.manageGroup`.
  * The walk checks that lib's partition is right (each stored group holds one
- * gang's bodies and no other), tells the system's bonus defect (T-0734) apart
- * from lib's, rolls the fight's initiative and a second round's, adds a gang's
- * own token before the warband's (the stored group keeps its roll), regroups
- * with the system's call as a Judge would (lib makes no call after it), joins a
- * group of one body (lib makes no call), and ends each combat (the bodies are
- * recalled, the group tokens visible and unflagged).
+ * gang's bodies and no other), checks that each stored group's bonus is the lowest
+ * initiative value among its own actors (patches/group-initiative.mjs), rolls the
+ * fight's initiative and a second round's, adds a gang's own token before the
+ * warband's (the stored group keeps its roll), regroups with the system's call as a
+ * Judge would (lib makes no call after it), makes two awaited calls back to back (the
+ * call returns a thenable and both groups are stored), joins a group of one body (lib
+ * makes no call), and ends each combat (the bodies are recalled, the group tokens
+ * visible and unflagged).
  * Machine values arrive through ./_env.mjs. Every name and figure here is invented.
  *
  * Group combat acts on the primary GM's window: the walk prints who the active
@@ -28,9 +30,8 @@
  * scene, which the walk sets to its own scene (the system's roll reads
  * `canvas.scene`) and puts back.
  *
- * Observed, not checked: T-0734 (the system's bonus is the last call's lowest),
- * and whether a group rolls again in a second round (the answer goes to the plan's
- * owner).
+ * Observed, not checked: whether a group rolls again in a second round (the answer
+ * goes to the plan's owner).
  *
  * Not driven: the tracker's HUD button, its group control and its Roll All button.
  * A combatant is made through the combat (which is what the hook reads), the
@@ -214,6 +215,27 @@ const P = {
     H.mine = true;
     try { combat.manageGroup(tokens); } finally { H.mine = false; }
     return tokens.length;
+  },
+
+  /**
+   * Two calls of the system's `manageGroup`, each awaited before the next is made, marked as the walk's own: whether each
+   * returned a thenable, and the stored list as the page held it as soon as each await returned.
+   */
+  awaitedCalls: async ({ combatId, groups }) => {
+    const combat = game.combats.get(combatId);
+    const H = globalThis.__groupInit;
+    const listed = () => (combat.flags?.acks?.groups ?? []).map((g) => [...(g.tokens ?? [])].sort());
+    const out = { thenable: [], afterEach: [] };
+    for (const ids of groups) {
+      const tokens = ids.map((id) => combat.combatants.find((c) => c.tokenId === id)?.token).filter(Boolean);
+      let returned;
+      H.mine = true;
+      try { returned = combat.manageGroup(tokens); } finally { H.mine = false; }
+      out.thenable.push(typeof returned?.then === "function");
+      await returned;
+      out.afterEach.push(listed());
+    }
+    return out;
   },
 
   /** Every call `combat.manageGroup` took since the combat was made: its token ids and whether the walk made it. */
@@ -401,15 +423,9 @@ try {
     const calls1 = await libCalls(fight1.id);
     check("lib called the system once for each gang the partition names", calls1.length === Object.keys(expectedGangs(s)).length, calls1.map((c) => c.ids.length));
 
-    const lows = {};
-    for (const g of describeStored(s)) if (g.owners.length === 1) lows[g.owners[0]] = g.ownLow;
     const wrong = describeStored(s).filter((g) => g.bonus !== g.ownLow);
-    note("T-0734 reading: each group's stored bonus against the lowest initiative value among its own actors", describeStored(s).map((g) => ({ gang: g.owners.join("+"), bonus: g.bonus, ownLow: g.ownLow, bonusIsOwn: g.bonus === g.ownLow })));
-    if (wrong.length) {
-      note("T-0734", `present, the system's: ${wrong.map((g) => `${g.owners.join("+")} holds ${g.bonus} where its own lowest is ${g.ownLow}${Object.keys(lows).filter((k) => lows[k] === g.bonus).map((k) => `, which is ${NAMES[k]}'s lowest`).join("")}`).join("; ")}. manageGroup recomputes every stored group's bonus from the tokens of its latest call. Recorded, not fixed here.`);
-    } else {
-      note("T-0734", "absent: every group's bonus is the lowest among its own actors");
-    }
+    note("each group's stored bonus against the lowest initiative value among its own actors", describeStored(s).map((g) => ({ gang: g.owners.join("+"), bonus: g.bonus, ownLow: g.ownLow })));
+    check("each stored group's bonus is the lowest initiative value among its own actors", s.stored.length > 0 && wrong.length === 0, wrong.map((g) => ({ gang: g.owners.join("+"), bonus: g.bonus, ownLow: g.ownLow })));
 
     section("roll all");
     const rolled = await run(gm, P.roll, { combatId: fight1.id });
@@ -514,6 +530,31 @@ try {
     }
   }
   await ending("the second combat", fight2.id);
+
+  // ---- Step 7b: two awaited calls back to back ---------------------------------------
+  section("two awaited calls back to back");
+  const fight4 = await newCombat();
+  await run(gm, P.join, { combatId: fight4.id, sceneId: scene.id, tokenId: warbandToken.id });
+  s = await state(fight4.id, (st) => st.bodies.length === total && st.combatants.length === total && st.stored.length >= gangsExpected, { tries: 100 });
+  const bodiesOf = (k) => s.bodies.filter((b) => b.group === k).map((b) => b.id);
+  if (s.bodies.length === total && bodiesOf("a").length >= 2 && bodiesOf("b").length >= 2) {
+    const first = bodiesOf("a").slice(0, 2);
+    const second = bodiesOf("b").slice(0, 2);
+    const same = (list, ids) => list.some((t) => JSON.stringify(t) === JSON.stringify([...ids].sort()));
+    const calls = await run(gm, P.awaitedCalls, { combatId: fight4.id, groups: [first, second] });
+    note("two awaited calls", calls);
+    check("each call returns a thenable", calls.thenable.length === 2 && calls.thenable.every(Boolean), calls.thenable);
+    check("the stored list holds the first group as soon as its await returns", same(calls.afterEach[0] ?? [], first), calls.afterEach[0]);
+    check("the stored list holds both groups once the second await returns", same(calls.afterEach[1] ?? [], first) && same(calls.afterEach[1] ?? [], second), calls.afterEach[1]);
+    const after = await read(fight4.id);
+    note("stored list after the two calls", describeStored(after));
+    const made = (ids) => after.stored.find((g) => g.tokens.length === ids.length && ids.every((id) => g.tokens.includes(id)));
+    const low = (g) => describeStored({ ...after, stored: [g] })[0];
+    check("each of the two new groups holds the lowest initiative value among its own actors", !!made(first) && !!made(second) && [made(first), made(second)].every((g) => low(g).bonus === low(g).ownLow), [made(first), made(second)].map((g) => g && low(g)));
+  } else {
+    check("the warband's bodies came out, two of gang A and two of gang B", false, `${JSON.stringify({ bodies: s.bodies.length, a: bodiesOf("a").length, b: bodiesOf("b").length })}${stuck()}`);
+  }
+  await ending("the fourth combat", fight4.id);
 
   // ---- Step 7: a group of one body ---------------------------------------------------
   section("a group of one body");

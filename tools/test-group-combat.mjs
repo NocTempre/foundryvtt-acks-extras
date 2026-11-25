@@ -224,10 +224,12 @@ function combatIn() {
     manageCalls: [],
     /** Writes of the system's call that have not landed. */
     pending: 0,
+    /** Whether the call returns a promise for its write, as it does with patches/group-initiative.mjs installed. */
+    returnsWrite: false,
     /**
      * The system's tracker call: it refuses a token that is no combatant, reads the stored
      * list now, takes the tokens out of every other group, drops a group under two, and
-     * writes the whole list later without returning the write.
+     * writes the whole list later, returning the write only when `returnsWrite` is set.
      */
     manageGroup(groupTokens) {
       const ids = groupTokens.map((t) => t.id);
@@ -242,10 +244,14 @@ function combatIn() {
       });
       const kept = groups.filter((g) => g.tokens.length > 1);
       combat.pending++;
-      setTimeout(() => {
-        combat.flags.acks = { groups: kept };
-        combat.pending--;
-      }, combat.lateMs);
+      const landed = new Promise((resolve) => {
+        setTimeout(() => {
+          combat.flags.acks = { groups: kept };
+          combat.pending--;
+          resolve();
+        }, combat.lateMs);
+      });
+      return combat.returnsWrite ? landed : undefined;
     },
     async createEmbeddedDocuments(type, rows) {
       const made = rows.map((row) => {
@@ -824,6 +830,35 @@ t("a system that never stores the group is waited on to the limit, warned about 
   assert.equal(calls.length, 2, "the second gang is still grouped");
   assert.equal(warned.length, 2);
   await groupGangs({ combatants: combat.combatants }, outer, bodies);
+});
+
+t("a call that returns its write is waited on by the call itself, so the next gang reads a list that has the one before", async () => {
+  const { where, outer, gangA, gangB, combat } = warband();
+  const bodies = [];
+  for (const g of [outer, gangA, gangB]) {
+    for (let i = 0; i < 2; i++) {
+      const b = tokenDoc(where, { actorId: g.id, flags: { [MODULE_ID]: { group: g.uuid, member: `m${i}` } } });
+      where.tokens.set(b.id, b);
+      bodies.push(b);
+    }
+  }
+  await combat.createEmbeddedDocuments("Combatant", bodies.map((b) => ({ tokenId: b.id, actorId: b.actorId, sceneId: where.id })));
+  combat.lateMs = 30;
+  combat.returnsWrite = true;
+  const warned = [];
+  const was = console.warn;
+  console.warn = (m) => warned.push(m);
+  const began = Date.now();
+  try {
+    // A poll step far above the write's delay: only the awaited call can have ordered them.
+    await groupGangs(combat, outer, bodies, { interval: 1000, timeout: 3000 });
+  } finally {
+    console.warn = was;
+  }
+  assert.ok(Date.now() - began < 500, "the poll never had to run");
+  assert.deepEqual(combat.manageCalls.map((c) => c.read.length), [0, 1, 2], "every call read the groups the calls before it had made");
+  assert.deepEqual(warned, []);
+  assert.equal(storedSets(combat).length, 3, "no group lost to a stale read");
 });
 
 let failures = 0;
