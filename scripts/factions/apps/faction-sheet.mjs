@@ -36,7 +36,7 @@ import {
 } from "../standing-logic.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { liveRows } from "../../lib/group-logic.mjs";
-import { ORG_ACTIONS, actorExists, bindOfficerDrops, chartContext, hostLeaderLine, locationsContext } from "../../lib/org-chart-ui.mjs";
+import { ORG_ACTIONS, actorExists, bindOfficerDrops, chartContext, hostLeaderLine, locationsContext, restoreHeldDrafts } from "../../lib/org-chart-ui.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { docOf, escape as esc, makeLoc, refOf } from "../../lib/util.mjs";
@@ -535,6 +535,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
   _onRender(context, options) {
     super._onRender?.(context, options);
     bindOfficerDrops(this);
+    restoreHeldDrafts(this);
     for (const el of this.element.querySelectorAll("[data-row-field]")) {
       el.addEventListener("change", (event) => this.#onRowField(event));
     }

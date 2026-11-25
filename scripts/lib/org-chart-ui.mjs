@@ -388,6 +388,19 @@ function restoreFormDrafts(app, drafts) {
   for (const { at, value } of restorableDrafts(drafts, formFieldsOf(app))) els[at].value = value;
 }
 
+/** The drafts a press holds for its window while its write redraws it, by window. */
+const heldDrafts = new WeakMap();
+
+/**
+ * Put back what a press is holding for this window. A sheet calls it from its `_onRender`, so a
+ * redraw the document's own update starts while the press waits restores the fields too, and the
+ * press's own redraw is never the only one that must.
+ * @param {object} app the sheet
+ */
+export function restoreHeldDrafts(app) {
+  restoreFormDrafts(app, heldDrafts.get(app) ?? []);
+}
+
 /** The Roll panel's two readings and the slots' options for a set of picks, through the generator's service; null where it has none. */
 const describeRoll = (args) => services.get("org-roll")?.describe?.(args) ?? null;
 
@@ -756,16 +769,22 @@ async function onRollCount(_event, target) {
   const roll = Roll.validate(die.formula) ? await new Roll(die.formula).evaluate().catch(() => null) : null;
   const change = dieChangeOf(stackKey, roll);
   if (!change) return void refuse({ ok: false, reason: "dieFailed" });
-  const result = await org.editRow(host, key, { stacks: [change] });
-  if (!result.ok) refuse(result);
-  else {
-    // The Judges are whispered the map's case by `org.editRow`; the seat that pressed is told here, whoever it is.
-    if (result.warnings?.includes("onMap")) ui.notifications.warn(loc("edit.onMap", { name: group.name }));
-    const floor = dieFloorOf(stack, change);
-    if (floor !== null) ui.notifications.warn(loc("edit.dieFloored", { name: die.name || group.name, bodies: floor }));
+  // Held on the window from before the write until its last redraw, so any render in between puts them back.
+  heldDrafts.set(this, drafts);
+  try {
+    const result = await org.editRow(host, key, { stacks: [change] });
+    if (!result.ok) refuse(result);
+    else {
+      // The Judges are whispered the map's case by `org.editRow`; the seat that pressed is told here, whoever it is.
+      if (result.warnings?.includes("onMap")) ui.notifications.warn(loc("edit.onMap", { name: group.name }));
+      const floor = dieFloorOf(stack, change);
+      if (floor !== null) ui.notifications.warn(loc("edit.dieFloored", { name: die.name || group.name, bodies: floor }));
+    }
+    await render(this);
+    restoreFormDrafts(this, drafts);
+  } finally {
+    heldDrafts.delete(this);
   }
-  await render(this);
-  restoreFormDrafts(this, drafts);
 }
 
 /**

@@ -4833,7 +4833,8 @@ row field the Roll reads as `inherit` (the Roll reads `trait`, `shareKind` and `
    (`() => 0.9999`, every die at its lowest face, restored in the teardown), press it. *Observable:* the stack's `size.current`,
    `size.initial` and `gen.rolled` all equal the formula's lowest total (`new Roll(formula).evaluate({minimize: true})`),
    `gen.thrown` holds the dice thrown (all 1), the Bodies field and the card's count tooltips name the formula, the dice and
-   the total, and the card no longer reads set by hand. A part row, where the chart has one, draws the same die.
+   the total, and the card no longer reads set by hand. A label typed in the form and not saved, and a count typed beside it, before the
+   press: the label is still typed and unsaved afterwards (the row's stored label unchanged) and the die's count stands over the typed one. A part row, where the chart has one, draws the same die.
    Not walked: a Player seat's view (the unit cases cover `countDieOf`'s ownership gate) and a row with bodies on a map.
    **Rank frames (board 1h).** *Observable:* each leader's head and each rank-and-file card's art sits in a
    frame whose class is `acks-extras-pf--file` (hairline), `--champion` (solid), `--sub` (double) or `--chief`

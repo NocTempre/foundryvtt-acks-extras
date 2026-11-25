@@ -72,7 +72,7 @@ the warning back on at Settings tab → Game Settings → ACKS II — Extras →
 
 ### Rolling a row's bodies again
 
-Open the Actors sidebar tab, a faction, its Org chart tab, press a card's pen, and look beside **Bodies** in the form. Where the row's bodies were rolled from dice, a dice button is drawn there. Press it to throw those dice again: the total becomes the row's bodies, and the card stops reading **set by hand**. Hover the Bodies field, or the count on the card, to see the dice and the total thrown. Bodies already on a map stay as they are; the Judges are told so. A row that was never rolled and one whose bodies are a fixed figure show no dice button. You need to own the row's group and the faction.
+Open the Actors sidebar tab, a faction, its Org chart tab, press a card's pen, and look beside **Bodies** in the form. Where the row's bodies were rolled from dice, a dice button is drawn there. Press it to throw those dice again: the total becomes the row's bodies, and the card stops reading **set by hand**. Hover the Bodies field, or the count on the card, to see the dice and the total thrown. Bodies already on a map stay as they are; the Judges are told so. A row that was never rolled and one whose bodies are a fixed figure show no dice button. Anything else you have typed in the form and not saved stays typed; the press saves only the count. You need to own the row's group and the faction.
 
 ### Joining a group under a row
 
