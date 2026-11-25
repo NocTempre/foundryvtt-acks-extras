@@ -2441,29 +2441,30 @@ The morale page's condition rows are influence's own recipe.
    and Running, every name localized, none of Foundry's generic ids, and
    `CONFIG.specialStatusEffects.BLIND` is `blinded`. Clicking Prone in the HUD
    puts `prone` on the actor; clicking again takes it off.
-2. **Nothing imported.** With no figures registered, mark Hero Prone and
+2. **Nothing imported.** With no figures registered, mark Hero Fatigued and
    attack Goblin twice.
    **Observable:** no term on either throw; one warning that nothing was
-   applied for Prone, on the first roll only.
+   applied for Fatigued, on the first roll only.
 3. **The attacker's own conditions.** Register the invented figures. Attack as
-   a Prone Hero; as a Blinded Hero in melee and with the missile weapon; with
-   two Prone effects and two Fatigued effects, one flagged `conditionStacks:
-   2`; as a Shrunk and Queasy Hero.
-   **Observable:** a Prone term; a Blinded term in melee and, for the missile,
-   no term and a warning that the attack is ruled out; Prone once and Fatigued
-   at three times its figure, on the throw and on the damage; a damage factor
-   and a Queasy damage term.
+   a Countercharging Hero; as a Blinded Hero with the missile weapon; with two
+   Countercharging effects and two Fatigued effects, one flagged
+   `conditionStacks: 2`; as a Shrunk Hero. The figures the system's own
+   effects carry on these throws (Prone, Blinded, Queasy and the rest) are "The
+   system's condition effects carry their figures", below.
+   **Observable:** a Countercharging term; for the missile, no term and a
+   warning that the attack is ruled out; Countercharging once and Fatigued at
+   three times its figure, on the throw and on the damage; a damage factor.
 4. **The target's conditions.** Attack a Prone Hero as Goblin; a Disordered
-   and Flanked Hero; a Prone Goblin as a Charging Hero; a Paralyzed Goblin in
-   melee; a Hidden Goblin with the missile weapon. Then target the Goblin
-   token and call `hero.targetAttack(…)`.
-   **Observable:** a "Vulnerable (target)" term; a Disordered term with its
-   sign reversed and no Flanked term (the flank is the system dialog's
-   direction choice); the attacker's and the target's
+   and Flanked Hero; a Prone Goblin as a Countercharging Hero; a Paralyzed
+   Goblin in melee; a Hidden Goblin with the missile weapon. Then target the
+   Goblin token and call `hero.targetAttack(…)`.
+   **Observable:** a "Vulnerable (target)" term; no Disordered term (the
+   Hero's Armor Class holds the system's step) and no Flanked term (the flank
+   is the system dialog's direction choice); the attacker's and the target's
    terms on one throw; `ctx.autoHit` naming Helpless and the card reading an
    automatic hit; a warning that the attack cannot be made, with no term. The
    targeted roll's card line names the target's term.
-5. **The creature's own rolls.** Roll a save as a Hungry and Blessed Hero, an
+5. **The creature's own rolls.** Roll a save as a Fatigued and Blessed Hero, an
    adventuring throw as a Queasy Hero, and morale as a Shaken Goblin token.
    Read a Blinded Hero's `system.movementacks` before, during and after.
    **Observable:** the save's and the throw's target moved by the figure, the
@@ -2489,7 +2490,7 @@ The morale page's condition rows are influence's own recipe.
    statuses become `["blinded"]`, and a second scan no longer lists it.
 9. **The player seat.** Join as Player from the driver's own browser, register
    the invented figures there, and attack the Prone Goblin with Hero.
-   **Observable:** the same two terms a GM gets. The seat cannot lift the
+   **Observable:** the same terms a GM gets. The seat cannot lift the
    goblin's condition; Foundry refuses the delete.
 10. **The import.** Unregister the invented figures and run
     `cookbookImportTables(["conditions"])` with the Revised Rulebook connected.
@@ -2501,8 +2502,8 @@ The morale page's condition rows are influence's own recipe.
     with a flat target, register the invented figures, and roll it with
     `acksExtras.abilities.rollAbility(item, null, {skipDialog: true})` clean,
     Queasy, and Queasy with Blinded. Open Hero's sheet and click the ability's
-    `[data-action='roll']` button with the skip key held. Then mark Hero Hungry
-    and read the sheet's `[data-roll^='save']` cells.
+    `[data-action='roll']` button with the skip key held. Then mark Hero
+    Fatigued and read the sheet's `[data-roll^='save']` cells.
     **Observable:** the target moves by Queasy's figure and not by Blinded's,
     whose row waits on sight; the button's tooltip and the posted card carry
     the moved target; each save cell shows the signed figure, toned as a
@@ -2540,11 +2541,12 @@ The morale page's condition rows are influence's own recipe.
     missile; the shield's missile figure, its thrown figure, and Defending's
     own in melee; no term for the caster; cover's term on the missile and none
     in melee, and only the greater cover's when both are set; the
-    countercharge's own term, and a "Disordered (target)" term against it and
-    against the retreat; no term and no warning for the four that carry no
-    figure. The Blast target moves by cover's figure, by the greater alone, by
-    the shield's, and not at all for the caster; the other save moves only by
-    Hungry's; the stored target and `_source` read the same afterwards. The
+    countercharge's own term, and no Disordered term against it or against
+    the retreat; no term and no warning for the four that carry no figure. The
+    Blast target moves by cover's figure, by the greater alone, by the
+    shield's, and not at all for the caster; the other save's target does not
+    move, Hungry's step being on the system's roll; the stored target and
+    `_source` read the same afterwards. The
     sheet's Blast cell shows cover's figure where the other four show none.
 15. **The tracker and the round's states.** In a started combat (drive notes),
     on Hero's own turn mark Hero with every state of step 14, and on the
@@ -2643,6 +2645,116 @@ The morale page's condition rows are influence's own recipe.
 a deleted combat sweeps as missing. The imported `conditions` document is
 world ruledata and stays, like every other imported table. The stored
 arrangement is swept with the rest, after step 16's Reset and Save.
+
+## The system's condition effects carry their figures
+
+Covers the palette's registration of the system's entries
+(`status-effects.mjs` `knownStatuses`), the step reader (`roll-mods.mjs`
+`conditionSteps`), the monster terms on an attack and the monster step on a
+save (`status-effects.mjs`), the Armor Class waiver's decision
+(`conditions.mjs` `acWaivedSet`), and the attack card's line for a character
+target (`attack-card-target-ac.mjs`). `tools/live/lib-conditions.mjs` walks
+steps 1–6. The module's own rows (morale, surprise, speed, the states of a
+round) are "Conditions on the palette and on a roll", above.
+
+**Drive notes:**
+- **Read every expected step from the system's entry, in the page.**
+  `CONFIG.ACKS.conditions.find(c => c.id === id).system.changes` is what a
+  toggle copies into the effect. Compare a reading with it there and carry
+  back whether they matched: no figure is typed into a walk, and none is
+  printed by one.
+- **Hold the die** (`CONFIG.Dice.randomUniform = () => 0.5`, restored at the
+  end) and difference two rolls. For a throw,
+  `(total₁ − total₀) − (targetValue₁ − targetValue₀)` is what the condition
+  did to it, whichever side the figure landed on; for a save, the same with
+  `roll.data.roll.target`. A figure counted twice or not at all shows as that
+  difference missing the step.
+- **A character's step is in a field, a monster's is a term.** The system
+  folds `system.ac.mod` into a character's `ac.value` and adds
+  `system.save.mod` to a character's save; it does neither for a monster, so
+  the same check passes for opposite reasons on the two. Read which side
+  moved as well as the difference.
+- **An attack's condition math** is `ctx.conditions[attackType]` on
+  `acksLibPostAttackRoll`: `terms` (`{condition, value, side}`) and `waived`.
+  The system's own lines are `outcome.result.attack.modifiers`, labelled with
+  the effect's name.
+- **Draw a card for a seat with `message.renderHTML()`** in that seat's page:
+  the system removes what the seat may not see after the module's hook has
+  run, so the element handed back is what that seat is shown.
+- **`acks.showTargetACToPlayers` is the world's.** Read it, never set it: the
+  Player seat's reading of the card is whichever the world shows, and the
+  other is a gap to name.
+- **Target with `canvas.tokens.setTargets([id], {mode: "replace"})`** on the
+  viewed fixture scene, and clear it afterwards.
+
+**Fixtures (kept, found by marker):**
+- `lib/core-cond-pc`, a `character`, with a melee weapon
+  `lib/core-cond-pc-weapon`.
+- `lib/core-cond-monster`, a `monster`, with a melee weapon
+  `lib/core-cond-monster-weapon`.
+- `lib/core-cond-waiver-monster`, a `monster`, with a melee weapon
+  `lib/core-cond-waiver-weapon` and an `ability` `lib/conditions-waiver`
+  whose `flags["acks-extras"].extras.effects` holds one row `{type:
+  "modifier", target: "acWaiver", conditions: ["disordered"]}`. Step 4 writes
+  that row again before it reads.
+- `lib/core-cond-scene`, a scene, and on it `lib/core-cond-pc-token`
+  (linked), `lib/core-cond-monster-token` and `lib/core-cond-waiver-token`
+  (unlinked).
+- Every step starts with none of the system's change-carrying conditions on
+  the three tokens' actors: an effect naming one is deleted first.
+- The run's own products are the cards its rolls post and step 5's effect;
+  they are tracked by id and swept.
+
+1. **The palette.** Read `CONFIG.ACKS.conditions` and `CONFIG.statusEffects`.
+   **Observable:** for every id whose system entry carries `system.changes`,
+   the registered entry carries the same changes under the module's name; no
+   other entry carries any; Readied and Delayed are on the palette.
+2. **Each condition on a character.** For each such id: read the fields its
+   changes name and `ac.value`, roll a save, attack the monster token and have
+   it attack back; toggle the condition on the character and do the same;
+   toggle it off.
+   **Observable:** one effect carrying the system's changes; each named field
+   moved by its change, once; `conditionSteps` answers the Armor Class and
+   save steps from the effect; the character's throw names the effect once,
+   carries no module term for it, and moves by its step; `ac.value` holds the
+   Armor Class step and a throw against the character carries no term for it;
+   the save step is on the system's roll and the number to reach does not
+   move; every field is back afterwards.
+3. **Each condition on an unlinked monster token.** The same, on the token's
+   actor, against the character token.
+   **Observable:** as step 2 for the effect, the fields, the reader and the
+   monster's own throw. `ac.value` does not move, and a throw against the
+   monster carries one term for the condition, the step reversed. The save
+   step lowers the number to reach and the system's roll does not move.
+4. **A waived Armor Class figure.** Mark the waiver monster's token Disordered
+   and attack it; mark it with a second condition that has an Armor Class
+   change and attack again.
+   **Observable:** the reader answers Disordered's step under `waived`; the
+   throw carries no term for it, lists it in `waived`, and does not move; the
+   second condition keeps its term.
+5. **An effect that carries no change.** Create an effect on the character
+   with `statuses: [id]` and nothing else, as one made before the palette
+   carried the system's changes.
+   **Observable:** the character has the condition, no field moves, and the
+   reader answers no step.
+6. **The card's line.** Mark the character with a condition that has an Armor
+   Class change and attack it as the monster; attack the marked monster as
+   the character; attack the clean character. Draw each card on the GM seat
+   and the first on the Player seat.
+   **Observable:** the stored content of each card is the system's alone. The
+   GM seat reads one line in the first card's footer naming the effect with
+   its step, a tooltip naming it, and no `title`; a second draw holds the
+   same one line. The monster's card and the clean character's hold no line.
+   The Player seat reads the line with its step where the world shows target
+   Armor Class to players, and the name alone, with no step on the line or in
+   its tooltip, where it does not.
+
+**Not walked by the script:** missile and thrown attacks; a damage roll's
+own lines; a spell carrier's card; the line in a detached chat window.
+
+**Teardown.** Restore the die and remove the walk's hooks in each seat, clear
+the target, and sweep the tracked cards and step 5's effect. The fixtures
+stay.
 
 ## The Surprise Matrix with a combatant that cannot roll
 
