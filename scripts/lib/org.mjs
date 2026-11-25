@@ -15,8 +15,8 @@
  * These operations write documents on the calling client under Foundry's own
  * permissions; a consumer needing GM-routed writes wraps them.
  */
-import { GROUP_LANG_PREFIX } from "./constants.mjs";
-import { bodyCount, groupAncestors, groupDescendants, groupNodes, isGroupActor } from "./group-logic.mjs";
+import { GROUP_LANG_PREFIX, MODULE_ID } from "./constants.mjs";
+import { GROUP_ACTOR_TYPE, bodyCount, groupAncestors, groupDescendants, groupNodes, isGroupActor } from "./group-logic.mjs";
 import { setParentGroup } from "./group.mjs";
 import { chartRows, orgHostOf, orgHosts, unitsOf } from "./org-host.mjs";
 import {
@@ -95,7 +95,7 @@ async function carryOut(plan) {
         if (!result.ok && result.reason !== "same") return { ok: false, reason: result.reason, done };
       }
     } catch (err) {
-      console.warn("acks-extras | an organisation write failed", err);
+      console.warn(`${MODULE_ID} | an organisation write failed`, err);
       return { ok: false, reason: "failed", done };
     }
     done++;
@@ -152,7 +152,7 @@ async function holderOf(host, row) {
   const held = row.holderUuid ? docOf(row.holderUuid) : null;
   if (held) return { doc: held, made: false };
   const name = row.label || row.kind || game.i18n.localize(`${GROUP_LANG_PREFIX}.unit`);
-  const doc = await Actor.implementation.create({ name, type: "acks-extras.group" });
+  const doc = await Actor.implementation.create({ name, type: GROUP_ACTOR_TYPE });
   if (!doc) return { doc: null, made: false };
   await host.update({ "system.units": withHolder(unitsOf(host), row.key, doc.uuid) });
   return { doc, made: true };
@@ -187,6 +187,7 @@ export async function sendOut(host, key, placeUuid) {
   if (!row) return refused("noRow");
   const place = placeUuid ? docOf(placeUuid) : null;
   if (!hasRoster(place)) return refused("noPlace");
+  if (!place.isOwner) return refused("notOwner");
   const { doc, made } = await holderOf(host, row);
   if (!doc) return refused("failed");
   const plan = planSendOut({

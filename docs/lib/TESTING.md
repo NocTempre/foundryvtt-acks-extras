@@ -4244,16 +4244,21 @@ Two disposable groups and one disposable faction (step 9) are made through
    `org.orgChart(faction).rows`: the row is marked `twin: true`, and
    `org.orgHostOf(chief.uuid).host` is still the faction. Press `org.join` again.
    *Observable:* `moved: []`, no row twice on the faction and the warband's rows
-   cleared. Then `await org.leave(faction, lone.key)`: the warband hosts the row at
-   the top of its own chart and the faction no longer holds it.
+   cleared. Then `await org.leave(faction, band.key)`. *Observable:* the gang hosts the band
+   row at the top of its own chart, the faction no longer holds it, and
+   `org.orgHostOf(gang.uuid).host` is the gang. `await org.join(gang, faction,
+   top.key)` puts it back under the top row. (Leave lands on the leaving row's own
+   holder, so `org.leave(faction, lone.key)`, whose holder is the chief, a lone
+   actor, answers `{ok: false, reason: "holderNotGroup"}`.)
 9. The delete path. With `api.create` make a disposable group and a disposable
    faction, give the faction a row naming the group, and read `org.orgHostOf` for
    it. Delete the group. *Observable:* `org.orgHostOf(groupUuid)` is null and the
    row reads `empty: true` in `org.orgChart(faction)`. Delete the faction.
    *Observable:* a second disposable group named by it answers null at once.
 10. Who belongs. With the gang's row on the faction, `faction.system.hasMember(gang.uuid)`
-    is true and `faction.system.headcount` counts the warband's 7 once, the gang
-    inside it not added again. Record a nonzero standing on the faction toward the
+    is true and `faction.system.headcount` is 8: the warband's 7 once, the gang
+    inside it not added again, and 1 for the chief's row; the made group holds no
+    bodies. Record a nonzero standing on the faction toward the
     party (`acksExtras.factions.addStanding`), then set the band row hidden
     (`hidden: true` on the row, `system.units` written whole) and open a reaction
     roll against the gang from a player seat. *Observable:* the faction's standing

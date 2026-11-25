@@ -143,15 +143,10 @@ held to the character's morale range as before.
 
 ## Who a faction affiliates
 
-`FactionData#affiliation` is the one list: the faction's `members`, then the holder
-of each chart row that no member row names (`affiliationRows`). A stored member row
-wins over a chart row for the same actor, so a hidden mark set on the roster
-stands; a chart row's own `hidden` rides on the row it makes; an empty row and a
-holder the world no longer resolves affiliate nobody. `hasMember`, `headcount`,
-`factionRecord`, `readableLeaderUuid` and the reaction listener's concealed-member
-test read it, and nothing reads `members` for "who belongs". The headcount counts
-each holder group live, nested groups included, each body once (`liveRows`,
-GROUPS.md "A count read now").
+`affiliationRows(members, units, resolve)` is the pure reduction: a faction's
+`members` and the holder of each chart row as one list of roster rows. What it
+means for a faction, who reads it and how its headcount counts is
+[factions/MODEL.md](../factions/MODEL.md), "Who belongs".
 
 ## What is not here
 

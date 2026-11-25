@@ -287,6 +287,10 @@ t("send out is refused for a place with no roster, a row that is not there, and 
   const refused = await org.sendOut(f, "g", shut.uuid);
   assert.equal(refused.reason, "notOwner");
   assert.deepEqual(shut.system.roster, []);
+  const open = faction("Open", [row("e", "", "")]);
+  writes = [];
+  assert.equal((await org.sendOut(open, "e", shut.uuid)).reason, "notOwner");
+  assert.deepEqual(writes, [], "an empty row's group is not made before the place is known to take it");
 });
 
 t("recall puts the group back under its parent row's group and takes it off the place", async () => {

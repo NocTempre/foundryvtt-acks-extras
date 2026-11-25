@@ -12,7 +12,7 @@
  * `{op: "removeOccupant", place, actor}` or `{op: "parent", uuid, parentUuid}`. A
  * refusal is a `reason` and no ops.
  */
-import { ancestorUuids, descendantUuids, indexPlaces } from "./place-logic.mjs";
+import { OCCUPANT_KIND, ancestorUuids, descendantUuids, indexPlaces } from "./place-logic.mjs";
 
 /** The system's own marker for a creature that has fallen (`CONFIG.specialStatusEffects.DEFEATED`). */
 const STATUS_DEAD = "dead";
@@ -334,7 +334,7 @@ export function affiliationRows(members, units, resolve = null) {
       uuid,
       name: actor?.name ?? row.label ?? "",
       img: actor?.img ?? "",
-      kind: "actor",
+      kind: OCCUPANT_KIND.ACTOR,
       quantity: 1,
       ownerUuid: "",
       notes: row.notes ?? "",
