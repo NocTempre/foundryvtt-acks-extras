@@ -24,6 +24,7 @@ import {
   expandContainerClosure,
   groupByOwner,
   planCoinFold,
+  isInUse,
   isStackable,
   offersCount,
   planStackMerge,
@@ -1428,13 +1429,82 @@ t("isStackable: any row carrying a quantity stacks, a weapon and armour included
   assert.equal(isStackable({ ...swordN("w", 3), effects: { size: 0 } }), true);
 });
 
-t("offersCount: a stackable row core cannot equip; a weapon or armour waits for its own design", () => {
-  assert.equal(offersCount(gear("i", "Torch", 3)), true);
-  assert.equal(offersCount(gold("g", 5)), true);
-  assert.equal(offersCount(swordN("w", 3)), false, "a weapon is stackable and core-equippable");
-  assert.equal(offersCount(mailN("m", 2)), false);
-  assert.equal(offersCount(sword("w")), false, "nor a row carrying no quantity");
+// The ways a row can be marked, applied to a base row of 3. A gear row has no `equipped` field, so it
+// has no equipped cell: a row carrying the field is a weapon or armour by that very probe.
+const MARKS = {
+  none: (row) => row,
+  equipped: (row) => ({ ...row, system: { ...row.system, equipped: true } }),
+  wornAt: (row) => withFlags(row, { gear: { wornAt: "belt" } }),
+  thrown: (row) => withFlags(row, { thrownAway: true }),
+  effects: (row) => ({ ...row, effects: [{ _id: "e" }] }),
+  container: (row) => withFlags(row, { container: { capacity: 1 } }),
+};
+const BASES = { gear: gear("g", "Torch", 3), weapon: swordR("w", 3), armour: mailR("m", 3) };
+// The answer before a resting weapon stack was offered the controls: nothing core can equip was offered one.
+const offersCountBefore = (plain) => {
+  if (!isStackable(plain)) return false;
+  return !(plain?.system && "equipped" in plain.system);
+};
+
+t("offersCount truth table: a stackable row is offered the count, and one core can equip only while it rests", () => {
+  const expected = {
+    gear: { none: true, wornAt: true, thrown: true, effects: false, container: true },
+    weapon: { none: true, equipped: false, wornAt: false, thrown: false, effects: false, container: true },
+    armour: { none: true, equipped: false, wornAt: false, thrown: false, effects: false, container: true },
+  };
+  for (const [kind, cells] of Object.entries(expected)) {
+    for (const [mark, answer] of Object.entries(cells)) {
+      assert.equal(offersCount(MARKS[mark](BASES[kind])), answer, `${kind} / ${mark}`);
+    }
+  }
+});
+
+t("offersCount: gear answers exactly as it did before, in every cell, a gear stack worn at a place included", () => {
+  for (const [mark, mutate] of Object.entries(MARKS)) {
+    if (mark === "equipped") continue;
+    const row = mutate(BASES.gear);
+    assert.equal(offersCount(row), offersCountBefore(row), `gear / ${mark}`);
+  }
+  assert.equal(offersCount(withFlags(gear("g", "Torch", 3), { gear: { wornAt: "belt" } })), true, "a worn gear stack is still offered the count");
+  for (const row of [gold("g", 5), savedGear("old", "Torch", 3), gear("i", "Torch", 1), gear("none", "Torch", 0)]) {
+    assert.equal(offersCount(row), offersCountBefore(row), `${row.name} (${JSON.stringify(row.system.quantity)})`);
+  }
+});
+
+t("offersCount: a resting weapon or armour stack is offered the count, one in use is not, a container at rest is not in use", () => {
+  assert.equal(offersCount(swordR("w", 3)), true, "three resting swords");
+  assert.equal(offersCount(mailR("m", 2)), true, "two resting suits of mail");
+  assert.equal(offersCount(swordN("w", 1)), false, "one drawn sword");
+  assert.equal(offersCount(mailN("m", 2)), true, "mailN is a resting row (equipped: false)");
+  assert.equal(offersCount(withFlags(swordR("w", 3), { container: { capacity: 1 } })), true, "a container weapon at rest");
+  assert.equal(offersCount(withFlags(swordR("w", 3), { thrownAway: false })), true, "a cleared throw is a resting row");
+  assert.equal(offersCount(withFlags(swordR("w", 3), { gear: { wornAt: "" } })), true, "an empty wornAt is a resting row");
+  assert.equal(offersCount(sword("w")), false, "a row carrying no quantity is offered none");
   assert.equal(offersCount(null), false);
+  assert.equal(offersCount({ ...swordR("w", 3), effects: { size: 1 } }), false, "a row with effects of its own moves whole");
+});
+
+t("isInUse: equipped, worn at a place or thrown away; a container, a resting row and null are not", () => {
+  assert.equal(isInUse(swordN("w", 1)), true, "equipped");
+  assert.equal(isInUse(withFlags(swordR("w", 1), { gear: { wornAt: "belt" } })), true, "worn at a place");
+  assert.equal(isInUse(withFlags(swordR("w", 1), { thrownAway: true })), true, "thrown away");
+  assert.equal(isInUse(withFlags(gear("g", "Torch", 1), { gear: { wornAt: "belt" } })), true, "gear worn at a place");
+  assert.equal(isInUse(swordR("w", 1)), false, "at rest");
+  assert.equal(isInUse(withFlags(swordR("w", 1), { container: { capacity: 1 } })), false, "a container is not in use");
+  assert.equal(isInUse(withFlags(swordR("w", 1), { thrownAway: false, gear: { wornAt: "" } })), false, "cleared marks");
+  assert.equal(isInUse(null), false);
+  assert.equal(isInUse({}), false);
+  assert.equal(isInUse(sword("w")), true, "a drawn row is in use whether or not it carries a quantity");
+});
+
+t("stackSignature: null exactly where the row is unstackable, a container or in use, as before isInUse was shared", () => {
+  const before = (plain) => !isStackable(plain) || !!plain.flags?.["acks-extras"]?.container || !!(plain.system?.equipped || plain.flags?.["acks-extras"]?.gear?.wornAt || plain.flags?.["acks-extras"]?.thrownAway);
+  for (const [kind, base] of Object.entries(BASES)) {
+    for (const [mark, mutate] of Object.entries(MARKS)) {
+      const row = mutate(base);
+      assert.equal(stackSignature(row) === null, before(row), `${kind} / ${mark}`);
+    }
+  }
 });
 
 t("splitSpec: a weapon or armour counts off like any stack; a row carrying no quantity moves whole", () => {
@@ -1444,6 +1514,8 @@ t("splitSpec: a weapon or armour counts off like any stack; a row carrying no qu
   assert.deepEqual(splitSpec(sword("w"), 2), { move: 1, remain: 0, whole: true, path: null });
   assert.deepEqual(splitSpec({ ...swordN("w", 3), effects: [{ _id: "e" }] }, 1), { move: 1, remain: 0, whole: true, path: null }, "a row with effects of its own moves whole");
   assert.deepEqual(splitSpec(gear("i", "Torch", 10), 4), { move: 4, remain: 6, whole: false, path: "system.quantity" });
+  assert.deepEqual(splitSpec(swordR("w", 3), 1), { move: 1, remain: 2, whole: false, path: "system.quantity" }, "part of a resting stack of three: one moves, two stay");
+  assert.deepEqual(splitSpec(mailR("m", 3), 2), { move: 2, remain: 1, whole: false, path: "system.quantity" });
 });
 
 t("stackSignature: identical resting swords share a signature whatever their count; a different one does not", () => {

@@ -1,4 +1,4 @@
-# lib API (apiVersion 80)
+# lib API (apiVersion 81)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 80,
+  apiVersion: 81,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1838,9 +1838,15 @@ where core counts it in whole stones.
 stands for, read by the field's shape, and `null` for an item whose data
 carries no quantity. `storage.isStackable(item)` (apiVersion 66) is whether a
 row carries a quantity and has no Active Effects of its own: a weapon and
-armour included. `storage.offersCount(item)` (apiVersion 66) is the narrower
-question a surface asks before drawing a count control: stackable and not
-equippable by core. `canDivide(item)` is whether `divideStack` will take the
+armour included. `storage.offersCount(item)` (apiVersion 66; answers as
+follows from apiVersion 81) is the narrower question a surface asks before
+drawing a count control: stackable and, where core can equip the row, not in use.
+A resting weapon or armour stack is offered every count control gear is, and a
+row in use is offered none; a row core cannot equip is offered them whenever it
+is stackable, worn at a place or not. `storage.isInUse(item)` (apiVersion 81) is
+the one reader of "in use" that `offersCount` and `stackSignature` share:
+equipped, worn at a place, or thrown away; a container is not in use. A count
+field stays editable on any row. `canDivide(item)` is whether `divideStack` will take the
 row (two or more, nothing stored in it, no variation).
 `divideStack(item, count, {also})` puts `count` into a row of its own beside the stack
 and resolves to the new row, or to `null` when `count` does not fall strictly

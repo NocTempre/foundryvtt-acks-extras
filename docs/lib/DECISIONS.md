@@ -1038,7 +1038,7 @@ it has been shown.
 whole, and the storage lists do not show its count. Offline only until the
 slice is walked on `main`.
 
-## 2026-11-24 — A weapon or a suit of armour folds into a stack, and equipping takes one from it
+## 2026-11-24 — A weapon or a suit of armour folds into a stack, and equipping takes one from it — SUPERSEDED IN PART 2026-11-25
 
 Supersedes in part "Quantity is the system's plain number, and a weapon stays one
 row" (the same day): its third and fourth bullets and its rejected "folding
@@ -2198,3 +2198,26 @@ The rest of the entry above stands. Slice (c), village as faction, builds this w
 - *A fighting or non-fighting mark, sort or gate.* "some of which are non-combat" describes the parts and asks for no mechanism.
 
 **Strongest counter, LOW.** A village chart with a row per part is longer than one with a single camp row, and a Judge scrolls past rows that never fight. Held: the owner asked for the controls on each part, and a row is the only shape that carries them.
+
+## 2026-11-25 — A resting weapon or armour stack is offered the count controls gear has (S11)
+
+Supersedes in part "A weapon or a suit of armour folds into a stack, and equipping takes one from it" (2026-11-24): its fifth Ruled bullet, where `offersCount` withholds a weapon or armour row's count "until the design that routes its count to equipping is shown and built", and its Rejected "Splitting a stack of weapons by the count controls". The rest of that entry stands. That entry is under seven days old, so what the design now shown to the owner knew and the original ruling did not:
+
+1. Every count control makes resting rows only. A row in use holds one by the owner's caveat and is offered none, so no control can make a drawn stack, which is what the rejected splitting was ruled out for.
+2. Without the controls nobody can put two of three swords in a pack, hand one to a henchman, sell one, or take one back out of a stash, and the storage lists cannot show that there are three (T-0746).
+3. The system's own 14.2.0 inventory types a weapon's count on every row.
+
+The owner's caveat, 2026-11-24, on whether identical weapons fold: "Fold into stacks", then "With the caveat that equip takes from the stack instead of equipping the stack".
+
+The owner's go-ahead, 2026-11-25, was a selection among options and not a sentence of the owner's: the owner selected option A, "a stack at rest gets the count controls". The wording is the option's, as put to the owner. Option A: "A resting stack is offered every count control gear is offered; a row in use is offered none. A count field (Details, the band) is editable on any row, as the system's own field is: typing 3 on a drawn row is the system's behaviour too, and putting that row away folds all three back into the stack." What A leaves open, as put: "your caveat was 'equip takes from the stack instead of equipping the stack'. Under A, a count typed on a row already in use is the system's own behaviour; the module neither offers it as a control nor refuses it, so a drawn row of three can still be made by typing. Equipping itself always takes one."
+
+**Ruled.**
+
+- `offersCount` is true of a stackable row and, for a row core can equip, only while it is not in use (`isInUse`: equipped, worn at a place, thrown away). A row core cannot equip, gear, answers as before, a gear stack worn at a place included. Three resting spears are offered Divide, take-how-many and a sale count; one drawn spear is offered none.
+- `isInUse` is the one reader `stackSignature` and `offersCount` share, so the tests for "in use" are written once. A container is not in use: it keeps its own row by `stackSignature`'s container test, and a resting container weapon is offered the count.
+- A count field stays editable on any row. Equipping still takes one from the stack (`takeOneToEquip`), unchanged.
+- The engines are unchanged: `canDivide`, `divideStack`, `foldIntoRest`, the sale's count and a transfer's `splitSpec` already took a weapon's count.
+
+**Rejected.** Option B, showing the count and keeping the controls withheld: the storage list would take all three back at once, and a sale would sell one at a time.
+
+**Cost.** A drawn row of three can still be made by typing its Quantity, and the module neither offers that nor refuses it; putting the row away folds all three back into the stack. `storage.offersCount` changes its answer on the public API, so apiVersion is 81. Offline only until the walk on `main`.

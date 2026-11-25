@@ -1263,7 +1263,9 @@ waits its turn (`oneAtATime`) and finds it already drawn. `foldOnUnequip` (on
 the resting row of the same thing (`foldIntoRest`). A stack core cannot equip
 (a flask, a torch, a garment) still splits on the EQP cell (`canSplit`,
 `splitOne`, `restack`). `placement.mjs` offers no take-out for a core-equippable
-item, and the weapon and armour rows draw no count control (`offersCount`).
+item. A weapon or armour row at rest draws every count control gear does, and
+one in use (equipped, worn at a place, thrown) draws none (`offersCount`,
+`isInUse`); its count field stays editable.
 
 The cancelled equip lands later than the hook returns, and a fold lands after the
 unequip that asked for it, so each is counted per row while it is in flight

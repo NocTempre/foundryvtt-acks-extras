@@ -41,6 +41,9 @@ export const UNPACKED_FROM = "unpackedFrom";
 const EQUIPMENT_ID = "acks-extras";
 const CONTAINED_IN = "containedIn";
 
+/** The flag marking a weapon thrown away and awaiting recovery (equipment's `ITEM_FLAGS.THROWN_STATE`), read without importing its owner. */
+const THROWN_AWAY = "thrownAway";
+
 const isMoney = (plain) => plain?.type === ITEM_TYPE.money;
 
 /* -------------------------------------------- */
@@ -85,15 +88,31 @@ export function isStackable(plain) {
 }
 
 /**
+ * Is this row in use: equipped, worn at a place, or thrown away awaiting
+ * recovery? Nothing folds into a row in use, so it takes no merge identity
+ * (`stackSignature`) and, where core can equip it, no count control
+ * (`offersCount`). A container is not in use; it keeps its own row by
+ * `stackSignature`'s own test. Reads plain item data and answers false for
+ * anything without a mark of use, `null` included.
+ */
+export function isInUse(plain) {
+  const own = plain?.flags?.[LIB_ID] ?? {};
+  return !!(plain?.system?.equipped || own.gear?.wornAt || own[THROWN_AWAY]);
+}
+
+/**
  * Should a surface draw a count control (a divide, a take-how-many, a sale
- * count) on this row? A stackable row that core cannot equip: a weapon or a
- * suit of armour is stackable but a count control on it waits for the design
- * that routes an equippable stack to equipping instead of splitting. Core
- * equips what carries an `equipped` field, the one probe `isEquippable` reads.
+ * count) on this row? Only a stackable row (`isStackable`) is offered one.
+ * Core equips what carries an `equipped` field, the one probe `isEquippable`
+ * reads, and a row it can equip is offered the control only while it rests:
+ * a stack at rest takes every count control, a row in use (`isInUse`) takes
+ * none. A row core cannot equip, gear, is offered it whenever it is stackable,
+ * worn or not. The count field itself stays editable on any row.
  */
 export function offersCount(plain) {
   if (!isStackable(plain)) return false;
-  return !(plain?.system && "equipped" in plain.system);
+  const equippable = !!plain?.system && "equipped" in plain.system;
+  return equippable ? !isInUse(plain) : true;
 }
 
 /** The container this item is inside, per the equipment feature. Null when loose. */
@@ -274,8 +293,6 @@ function canon(value) {
     .join(",")}}`;
 }
 
-/** The flag marking a weapon thrown away and awaiting recovery (equipment's `ITEM_FLAGS.THROWN_STATE`), read without importing its owner. */
-const THROWN_AWAY = "thrownAway";
 /** The flag naming the stack a split row came from: provenance, never identity. */
 const SPLIT_FROM = "splitFrom";
 /**
@@ -288,8 +305,8 @@ const WEAR_LEFTOVERS = ["hand", "grip", "strap"];
 /**
  * The merge identity of a stack — what makes two rows "the same thing" for
  * merging. Returns null for anything that must keep its own row: an
- * unstackable row (`isStackable`), a container, and a row in use, whether
- * equipped, worn at a slot or thrown away, because nothing folds into a row in
+ * unstackable row (`isStackable`), a container, and a row in use (`isInUse`:
+ * equipped, worn at a slot or thrown away), because nothing folds into a row in
  * use. Callers read a null as "equal to nothing", never as a value two rows
  * share. Coin keys on its kind; everything else keys on the whole document
  * minus quantity, provenance and the wear leftovers of a resting row
@@ -309,7 +326,7 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   // A container keeps its own row: merging two would leave the second's
   // contents pointing at a container id that is never created.
   if (own.container) return null;
-  if (plain.system?.equipped || own.gear?.wornAt || own[THROWN_AWAY]) return null;
+  if (isInUse(plain)) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };
   setPath(wrapper, quantityOf(plain).path, 0);

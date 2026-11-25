@@ -275,7 +275,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       img: it.img,
       qty: stackCountOf(it) || 1,
       stone: round2(encumbering6(it) / STONE),
-      // Only an item that offers a count shows one; a sword does not.
+      // Only an item that offers a count shows one; a sword in hand does not.
       stacks: offersCount(it),
       ownerName: storageFlagOf(it)?.ownerName || null,
       merchandise: !!it.getFlag(MODULE_ID, MARKETS_FLAG)?.merchandise,

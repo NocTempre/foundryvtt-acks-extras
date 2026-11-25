@@ -1403,6 +1403,16 @@ await test("plain-number gear divides as `system.quantity`, and so does a weapon
   assert.equal(await divideStack(hero.items.get("w1"), 1), null, "a row of one has nothing to divide");
   assert.equal(hero.writes, writes, "and nothing is written for it");
 });
+await test("a resting weapon stack of three divides as one and two, and the part divided off is a resting row", async () => {
+  const stack = { _id: "sp", name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, equipped: false, quantity: 3 }, flags: {} };
+  const hero = makeActor({ id: "hero", items: [stack] });
+  assert.equal(canDivide(hero.items.get("sp")), true, "a resting stack of three is divisible");
+  const made = await divideStack(hero.items.get("sp"), 1);
+  assert.equal(made.system.quantity, 1);
+  assert.equal(made.system.equipped, false);
+  assert.equal(hero.items.get("sp").system.quantity, 2);
+  assert.equal(hero.items.size, 2);
+});
 await test("a row with effects of its own, or holding a variation, is never divided", async () => {
   const flat = (id, qty, extra = {}) => ({ _id: id, name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, quantity: qty }, flags: {}, ...extra });
   const variation = { _id: "v", name: "Silvered", type: "acks-extras.variation", system: {}, flags: { "acks-extras": { containedIn: "held" } } };
@@ -1529,6 +1539,15 @@ await test("a row taken out of use folds into the resting row of the same thing 
   assert.equal(hero.items.get("drawn").system.quantity, 3);
   assert.equal(hero.items.get("rest"), undefined, "the resting row is removed once the count has moved");
   assert.equal(await foldIntoRest(hero.items.get("drawn")), null, "nothing left to fold");
+});
+await test("a drawn row whose count was typed to three folds all three into the resting row, not one", async () => {
+  const sword = (id, qty, over = {}) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {}, ...over });
+  const hero = makeActor({ id: "hero", items: [sword("drawn", 3), sword("rest", 2)] });
+  const folded = await foldIntoRest(hero.items.get("drawn"));
+  assert.equal(folded, hero.items.get("drawn"), "the row that was handled stays");
+  assert.equal(hero.items.get("drawn").system.quantity, 5, "its three and the stack's two");
+  assert.equal(hero.items.get("rest"), undefined, "the resting row is removed once the count has moved");
+  assert.equal(hero.items.size, 1);
 });
 await test("a fold finds the same thing only: in the same container, on the same holder, at rest", async () => {
   const sword = (id, qty, over = {}) => ({ _id: id, name: "Sword", type: "weapon", img: "x.webp", system: { cost: 1, weight6: 1, equipped: false, quantity: qty }, flags: {}, ...over });
