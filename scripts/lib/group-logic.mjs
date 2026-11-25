@@ -187,7 +187,8 @@ function treeBodies(actor, nodes) {
  * group that resolves is a group row whatever its stored `kind` says, and its
  * `quantity` is that group's `bodyCount`, nested groups included and none for an
  * emptied one. A group's bodies are counted once however many rows reach it: a
- * row whose group stands inside another row's group counts none of its own. A row
+ * row whose group stands inside another row's group keeps its own figure and is
+ * marked `covered`, which `headcount` counts as none. A row
  * that does not resolve (a group deleted, a pack not loaded) keeps what it
  * stored, and every other row is left as it is.
  * @param {object[]} rows plain rows with `uuid`, `kind`, `quantity`
@@ -206,7 +207,7 @@ export function liveRows(rows, resolve = worldActor) {
     const group = groups[i];
     if (!group) return row;
     const inside = groupAncestors(group, nodes).some((u) => held.has(u));
-    return { ...row, kind: OCCUPANT_KIND.GROUP, quantity: inside ? 0 : bodyCount(group, nodes) };
+    return { ...row, kind: OCCUPANT_KIND.GROUP, quantity: bodyCount(group, nodes), covered: inside };
   });
 }
 

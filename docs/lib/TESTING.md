@@ -4117,11 +4117,14 @@ now". Walked on the primary GM seat, which acts on a group token's combat.
 
 ### Fixtures
 
-- **Kept, `lib/nested-group-outer`**: a `group` actor of two bodies of one stack
-  over any world monster, linked token. Found by marker.
-- **Kept, `lib/nested-group-inner`**: a `group` actor of three bodies of one stack,
-  with its parent set to the outer one through the API. Built with
-  `api.fixture(marker, "Actor", data)`; the nesting is written after it, by
+- **Kept, `lib/nested-group-outer`**: an actor of type `acks-extras.group` holding
+  one stack of two bodies over any world monster (add it with
+  `acksExtras.lib.groups.addStack(outer, monster, {count: 2})`). A group's token is
+  linked from its creation. Found by marker.
+- **Kept, `lib/nested-group-inner`**: an `acks-extras.group` actor holding one stack
+  of three bodies (`addStack(inner, monster, {count: 3})`), with its parent set to the
+  outer one through the API. Both are built with
+  `api.fixture(marker, "Actor", {name, type: "acks-extras.group"})`; the nesting is written after it, by
   `acksExtras.lib.groups.setParentGroup(inner, outer.uuid)`. Each step asserts its
   shape at its start: the inner's `system.unit.parentGroupUuid` is the outer's uuid,
   the stacks hold their full counts, and no token of either stands on the scene.
@@ -4135,8 +4138,8 @@ now". Walked on the primary GM seat, which acts on a group token's combat.
    the inner's three. `acksExtras.lib.groups.bodyCount(inner)` is 3.
 2. Add a roster row for each group to a location's roster
    (`acksExtras.lib.places.addOccupant`) and open the location's sheet. *Observable:*
-   the outer's row reads ×5 and the inner's ×0 beside it, since the outer's count
-   holds the inner's bodies; the Occupants tab's total is 5.
+   the outer's row reads ×5 and the inner's ×3, and the Occupants tab's total is 5,
+   since the outer's count holds the inner's bodies.
 3. Add the outer group's token to the combat from the combat tracker's HUD.
    *Observable:* five body tokens on the scene, the outer's two flagged with the
    outer's uuid and the inner's three with the inner's
@@ -4149,8 +4152,8 @@ now". Walked on the primary GM seat, which acts on a group token's combat.
    each group's records are back in its own stacks and the token is visible.
 6. Write a count of 0 on the inner's only stack and read the location's sheet and
    a faction's members tab holding the same two rows. *Observable:* the inner's
-   row reads ×0, an emptied group still stands on both rosters and neither total
-   counts it as a body. Then add a labelled stack
+   row reads ×0, the outer's ×2 and each total is 2; an emptied group still stands
+   on both rosters and counts as no body. Then add a labelled stack
    (`acksExtras.lib.groups.addLabelledStack(outer, {label: "Test creature", count: 2})`)
    and add the outer's token to a combat again. *Observable:* the outer's own bodies
    deploy, one whisper to the Judges names the label and says it has no creature

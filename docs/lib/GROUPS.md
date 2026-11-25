@@ -162,8 +162,9 @@ A group's `bodyCount` is its own living bodies plus those of every group inside 
 read when asked and never from a stored figure. An emptied group counts none. A roster
 row that names a group (a place's occupants, a faction's members, a location's
 headcount) is read through `liveRows`: its `quantity` is that group's `bodyCount`
-whatever the row was written with, and a row whose group stands inside another row's
-group counts none of its own, since the outer count holds those bodies already. A row
+whatever the row was written with. A row whose group stands inside another row's
+group still reads its own count and is marked covered, so the total counts none of it,
+since the outer count holds those bodies already. A row
 that does not resolve (a deleted group, a pack not loaded) keeps the figure it stored.
 `headcount`, `headcountOf` and the location's `headcount` count a group row at its
 quantity, none included, and any other row at its quantity or one. An emptied group

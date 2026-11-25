@@ -245,9 +245,12 @@ export function groupOccupants(rows) {
  * not one body — a platoon billeted at an inn is 30 people asleep in it — and an
  * emptied group counts none. Any other row is worth its quantity, or one. A group
  * row's quantity is what the reader read of the group now (`liveRows`,
- * group-logic.mjs); this function reads the row as it is given.
+ * group-logic.mjs); this function reads the row as it is given, and a row
+ * `liveRows` marked `covered` (its group stands inside another row's) is worth
+ * none, since that row's count holds its bodies.
  */
 export const rowHeads = (row) => {
+  if (row?.covered) return 0;
   const n = Number(row?.quantity);
   if (row?.kind === OCCUPANT_KIND.GROUP) return n > 0 ? Math.floor(n) : 0;
   return n > 0 ? n : 1;

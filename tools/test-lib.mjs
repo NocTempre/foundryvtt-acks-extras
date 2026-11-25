@@ -2064,8 +2064,9 @@ t("two roster rows that reach the same bodies count them once", () => {
   const world = [nestedGroup("Actor.o", 2), nestedGroup("Actor.a", 3, "Actor.o")];
   inWorld(world, () => {
     const rows = [{ uuid: "Actor.o", kind: "group", quantity: 1 }, { uuid: "Actor.a", kind: "group", quantity: 3 }];
-    assert.deepEqual(liveRows(rows).map((r) => r.quantity), [5, 0], "the inner group's bodies are the outer row's already");
-    assert.equal(headcount(liveRows(rows)), 5);
+    assert.deepEqual(liveRows(rows).map((r) => r.quantity), [5, 3], "each row reads its own group's count");
+    assert.deepEqual(liveRows(rows).map((r) => !!r.covered), [false, true], "the inner row is marked, since the outer's count holds its bodies");
+    assert.equal(headcount(liveRows(rows)), 5, "so the total counts them once");
     assert.equal(headcount(liveRows([rows[1]])), 3, "alone, the inner group counts its own");
   });
 });
