@@ -61,7 +61,9 @@
  * duration or the instant, and the delayed affliction picks the effects it
  * holds back (`effects`). A spellcasting row edits its target, figure and the words it narrows
  * on. A store that names a `cite` (the page the row is read from) puts it in
- * the tooltip of a located figure left blank. `extraordinary` is nullable, since a capture that read none is
+ * the tooltip of a located figure left blank. A light row edits its three radii
+ * (`lightBands`), and a blank one under a store that names a page carries that
+ * page alone as its tooltip. `extraordinary` is nullable, since a capture that read none is
  * not a "no": its select offers unset, yes and no, and unset stores null. A
  * row's `key` is shown and never edited.
  */
@@ -206,6 +208,10 @@ const FIELD_SPECS = {
   // holds only where the roll names that occasion. Disabled under another kind of gate.
   "gate.status": { kind: "text", list: () => V.choicesOf(V.CONDITION_KEYS) },
   "gate.occasion": { kind: "boolean" },
+  // A light row's three radii in feet, each blank until typed (`lightBands`).
+  "lightBands.daylight": { kind: "number", step: "1", min: "0" },
+  "lightBands.bright": { kind: "number", step: "1", min: "0" },
+  "lightBands.dim": { kind: "number", step: "1", min: "0" },
 };
 
 /** The three figures of a spellcasting row's `target`, each with the lang label it is offered under. */
@@ -281,6 +287,9 @@ function citeOfStore(store) {
 /** The scope fields a modifier or a ward row edits, in the order they are shown. */
 const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy", "anyOf"];
 
+/** The radius fields of a light row, widest light level first; each is a member of the row's `lightBands`. */
+const LIGHT_BAND_FIELDS = ["lightBands.daylight", "lightBands.bright", "lightBands.dim"];
+
 /** The fields of a kind with no entry of its own in `TYPE_FIELDS`. */
 const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
 
@@ -325,6 +334,8 @@ const TYPE_FIELDS = {
   afflictionDelay: ["appliesTo", "effects", "lasts"],
   // The other tracked kinds keep the default figure fields and add how long the record stands.
   ...Object.fromEntries(TRACKED_KINDS.filter((kind) => kind !== "afflictionDelay").map((kind) => [kind, [...DEFAULT_FIELDS, "lasts"]])),
+  // A light row also edits the radius it sheds at each light level.
+  light: [...DEFAULT_FIELDS, ...LIGHT_BAND_FIELDS, "lasts"],
 };
 const TAIL_FIELDS = ["condition", "note"];
 const SET_FIELDS = new Set(["damage", "effects", "conditions", "attackKinds", "endsOn", "untimed"]);
@@ -387,6 +398,8 @@ export function mergeRowEdit(current, form) {
   for (const name of LEVEL_VALUE_FIELDS) {
     if (form[name] && typeof form[name] === "object") next[name] = { ...(current[name] ?? {}), ...withKindChoice(current[name], form[name]) };
   }
+  // The radii arrive as a fragment and merge member by member into the stored ones, so a radius the controls do not carry keeps its figure.
+  if (form.lightBands && typeof form.lightBands === "object") next.lightBands = { ...(current.lightBands ?? {}), ...form.lightBands };
   // A frequency picked here is the Judge's own: the phrase the importer read
   // for the previous one no longer describes it.
   if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;
@@ -611,6 +624,8 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       // The end of a summons' control names the store's page beside the chapter the tooltip cites.
       if (name === "controlEnd" && cite) field.tip = [field.tip, loc("tip.cite", { cite })].join(" · ");
       if (name === "effects" && row.type === "afflictionDelay") field.tip = [loc("tip.effectsDelay"), cite && loc("tip.cite", { cite })].filter(Boolean).join(" · ");
+      // A radius says what the field is, in feet; left blank under a store that names a page it carries that page alone, with no figure and no words about one.
+      if (LIGHT_BAND_FIELDS.includes(name)) field.tip = cite && !String(field.value ?? "").trim() ? loc("tip.cite", { cite }) : loc("tip.lightBand");
       if (name === "gate.light") {
         field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== LIGHT_GATE_KIND;
         field.tip = loc(field.disabled ? "lightLocked" : "lightTip");

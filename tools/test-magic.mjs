@@ -1391,6 +1391,31 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     }
   });
 
+  await awaited("a light row's radius carries the hint, and the store's page alone while it is blank", async () => {
+    const prior = { foundry: globalThis.foundry, game: globalThis.game };
+    globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: { randomID: () => "x", getProperty: (o, path) => path.split(".").reduce((v, k) => v?.[k], o) } };
+    globalThis.game = { i18n: { format: (key, data) => key + (data?.cite ? ` ${data.cite}` : ""), localize: (key) => key } };
+    try {
+      const open = async (row, store = {}) => {
+        const editor = new EffectRowEditor({ store: { key: "k", label: "L", domain: "spell", read: () => [row], write: async () => {}, ...store }, index: 0 });
+        return (await editor._prepareContext({})).fields;
+      };
+      const radius = (fields, band) => fields.find((f) => f.name === `lightBands.${band}`);
+      const hint = "ACKS-LIB.effectEditor.tip.lightBand";
+      const cited = await open({ type: "light", lightBands: { daylight: 7, dim: 0 } }, { cite: "p. 9" });
+      assert.equal(radius(cited, "daylight").tip, hint, "a typed radius carries the hint");
+      assert.equal(radius(cited, "dim").tip, hint, "a typed zero is a figure, not a blank");
+      assert.equal(radius(cited, "bright").tip, "ACKS-LIB.effectEditor.tip.cite p. 9", "a blank radius under a cited store carries the page alone");
+      const bare = await open({ type: "light" });
+      assert.equal(radius(bare, "bright").tip, hint, "a blank radius with no page carries the hint");
+      assert.equal(radius(bare, "dim").value, "", "a blank radius shows no figure");
+      assert.deepEqual(["daylight", "bright", "dim"].map((band) => radius(cited, band).min), ["0", "0", "0"], "the box refuses a negative");
+    } finally {
+      globalThis.foundry = prior.foundry;
+      globalThis.game = prior.game;
+    }
+  });
+
   t("an ability's row is offered none of a cast's fields", () => {
     for (const type of ["modifier", "conditionGrant", "conditionRemove", "damage"]) {
       const fields = fieldsForType(type, "ability");
@@ -1444,6 +1469,33 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.ok("endsOn" in row && "untimed" in row, "a row names what ends its record and what it writes untimed");
     assert.ok("hdBelow" in schemaProbe.target.fields && "hdCap" in schemaProbe.target.fields, "a strict bound beside the inclusive cap");
     assert.deepEqual(Object.keys(schemaProbe.reversedDuration.fields), Object.keys(schemaProbe.duration.fields), "the reverse form's duration has the plain duration's shape");
+  });
+
+  t("a light row edits its three radii before its lasting, and no other tracked kind does", () => {
+    const bands = ["lightBands.daylight", "lightBands.bright", "lightBands.dim"];
+    const fields = fieldsForType("light");
+    assert.deepEqual(fields.slice(fields.indexOf(bands[0]), fields.indexOf(bands[0]) + 3), bands, "the radii sit together");
+    assert.ok(fields.indexOf(bands[2]) < fields.indexOf("lasts"), "the radii come before lasts");
+    for (const name of ["appliesTo", "value", "range", "lasts"]) assert.ok(fields.includes(name), `a light row keeps ${name}`);
+    for (const type of ["detect", "wall", "modifier", "damage"]) assert.ok(!fieldsForType(type).some((name) => name.startsWith("lightBands")), type);
+  });
+
+  t("an edit of one radius keeps the other two, and a cleared box stores null", () => {
+    const row = { type: "light", lightBands: { daylight: 4, bright: 3, dim: 2 } };
+    const next = mergeRowEdit(row, { lightBands: { bright: 9 } });
+    assert.deepEqual(next.lightBands, { daylight: 4, bright: 9, dim: 2 }, "a fragment merges member by member");
+    assert.deepEqual(row.lightBands, { daylight: 4, bright: 3, dim: 2 }, "the stored row is not written through");
+    assert.deepEqual(mergeRowEdit(row, { lightBands: { daylight: null, bright: 3, dim: 2 } }).lightBands, { daylight: null, bright: 3, dim: 2 }, "a cleared box (FormDataExtended reads a blank number box as null) stays null");
+    assert.deepEqual(mergeRowEdit({ type: "light" }, { lightBands: { dim: 0 } }).lightBands, { dim: 0 }, "a row with none gains the one typed, and a typed zero is kept");
+    assert.equal(mergeRowEdit(row, { note: "x" }).lightBands, row.lightBands, "an edit that carries no radii leaves them");
+  });
+
+  t("a light row's Mechanics line reads the radii it has typed and nothing for a blank one", () => {
+    const text = (row) => describeSpellEffect({ type: "light", ...row }).text;
+    assert.match(text({ lightBands: { daylight: 7, bright: null, dim: 3 } }), /daylight 7'.*dim 3'/);
+    assert.doesNotMatch(text({ lightBands: { daylight: 7, bright: null, dim: 3 } }), /bright/);
+    assert.doesNotMatch(text({ lightBands: { daylight: null, bright: null, dim: null } }), /daylight|bright|dim/);
+    assert.doesNotMatch(text({}), /daylight|bright|dim/);
   });
 
   t("only a modifier row edits a light level", () => {

@@ -173,7 +173,9 @@ function readEffect(e, { nameOf } = {}) {
       // their kind, their subject, their value, the effects a row holds back
       // and their qualifier: what a cast records.
       const held = [...(e.effects ?? [])].map((k) => label(V.EFFECT_KEYS, k)).join(", ");
-      const bits = [n, e.range ? `${e.range}'` : "", held].filter(Boolean).join(" ");
+      // A light row also reads the radius it sheds at each level it has one for.
+      const radii = e.type === "light" ? ["daylight", "bright", "dim"].filter((band) => Number.isFinite(e.lightBands?.[band])).map((band) => `${band} ${e.lightBands[band]}'`).join(", ") : "";
+      const bits = [n, e.range ? `${e.range}'` : "", radii, held].filter(Boolean).join(" ");
       const rest = `${subject(e)}${bits}${qualifier(e)}`.replace(/ {2,}/g, " ").trim();
       return { kind, text: rest || "—", lead: true };
     }
