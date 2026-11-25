@@ -453,7 +453,7 @@ resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe 
 its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
 unit with no recipe, which a consumer treats as no provider.
 
-## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views)
+## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views; 81 changes `unlistRow` to take one row and adds `deletePreview`, `deleteSnapshot`, `undoDelete`)
 
 `acksExtras.lib.org`. The shape, the rules of each control and the reasons they
 answer are docs/lib/ORGANISATION.md's; this is the surface.
@@ -471,10 +471,13 @@ answer are docs/lib/ORGANISATION.md's; this is the surface.
 | `chartOf(group)` | `{host, row, above, below}`: the group's place in whichever chart names it |
 | `moraleFromUnitsAbove(group)` | The part the units above a group bring while their officers are up |
 | `runPlan(plan, {mint, makeLeader})` | `{ok, reason?, error?, done, created, made: {groups, prototypes, leaders}, reused, refs}`: carries a `planRoll` or `planAddUnit` plan out in order with a ref map. `mint(spec, {key})` answers `{actor, made}` and `makeLeader(op, spec, mount)` the leader's actor; lib names no creature. `created` is every id made, on a failure too |
-| `editRow(host, key, {fields, stacks, officer})` | `{ok, warnings, done}`: a filled row by hand, its label, note, kind, visibility and `gen` patch to the host and a stack's count or prototype and the officer to the row's group; bodies on a map are `warnings: ["onMap"]`, never a refusal; clearing the officer who is a faction host's leader clears its `leaderUuid` in the same write (78) |
-| `unlistRow(host, key)` | `{ok, name, units, dropped, own}`: takes the row and its subtree off the chart onto the groups that held them, un-nesting a group; a subtree naming no holder, and a group's own top row, are dropped; deletes no document. What every Remove press on a sheet calls (78) |
+| `editRow(host, key, {fields, stacks, officer})` (`officer.leaderIfBlank`, 81: a faction's top row's new officer also becomes its leader while that field is blank) | `{ok, warnings, done}`: a filled row by hand, its label, note, kind, visibility and `gen` patch to the host and a stack's count or prototype and the officer to the row's group; bodies on a map are `warnings: ["onMap"]`, never a refusal; clearing the officer who is a faction host's leader clears its `leaderUuid` in the same write (78) |
+| `unlistRow(host, key)` | `{ok, removed, under, lifted}`: takes that one row off the chart; the rows directly beneath it stay, lifted to its parent row (`under`, `null` for the top). Writes the host's rows only: no group is moved or un-nested, and no document is deleted. `removed` and each of `lifted` are `{key, label}`. What every Remove press on a sheet calls (78; one row, 81) |
 | `readHolder(uuid, nodes)`, `orgChartView(rows, read, twins, {isGM})`, `locationsView({places, rows, read})` | A holder as the views read it, and the two Foundry-free view models over any rows, for a host with its own supplier (a character sheet's followers) (78) |
 | `deleteRow(host, key)` | API only: no sheet calls it (docs/lib/DECISIONS.md, 2026-11-25).  `{ok, rows, groups, prototypes, kept, leaders, warnings}`: the row and its subtree, the groups they hold, and each prototype carrying `ORG_PROTOTYPE_FLAG` that no stack still names; bodies on a map are `warnings: ["onMap"]` and a whisper to the Judges |
+| `deletePreview(host, key)` | `{ok, keys, groups, leaders, prototypes}`: what `deleteRow` would take, read first and writing nothing: the rows' keys, the group documents they hold, the officers those groups name (which a Delete leaves) and the minted prototypes no group that stays names (81) |
+| `deleteSnapshot(host, preview, linked)` | `{hostUuid, keys, rows, leaderUuid, actors, groups, rosters}`: `toObject()` copies of the groups, the minted prototypes and the `linked` actors (uuids the caller will delete), the host's rows and faction leader, and the groups' roster rows. Taken before `deleteRow`; nothing of it is readable after (81) |
+| `undoDelete(host, snapshot)` | `{ok, restored}`: re-creates the actors and then the groups with their own ids (`keepId`), merges the rows back under their parents (the top at the top where the parent has gone), restores the faction's leader only while blank and puts the roster rows back on places the seat owns. Refuses `notOwner` and `noCreate` before any write (81) |
 | `planRoll`, `planAddUnit`, `planEdit`, `planDelete` | The Foundry-free plans (docs/lib/ORGANISATION.md) |
 
 A refusal is `{ok: false, reason}` and nothing is written. The pure half is

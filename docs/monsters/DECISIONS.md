@@ -528,3 +528,12 @@ is applied by a client `pack.getIndex()`, which core never calls at startup.
   `roleAxis` adds the axis, and is not made here. The key is the importer's structural name for the axis's
   first option, not a printed figure. Whether the walk's champion came from such an axis is not
   established offline; the test pins the procedure.
+
+## 2026-11-25 — Remove takes one row
+
+The owner (k): "the org chart tree is nested, removing from a level does not automatically delete the structure
+beneath - these are stacking containers inventory of references to one source of truth objects". Remove from chart
+now takes only the pressed row and lifts the rows directly beneath it to its parent, writing the host alone; before,
+it handed the whole subtree to the removed row's group. Rejected: keeping the hand-off to the group, which moved
+documents the pressed row did not name. Cost: a removed top row takes its `gen.template` with it, so the rows lifted
+from it read no template until one is set.

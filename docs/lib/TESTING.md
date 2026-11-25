@@ -4923,3 +4923,60 @@ The faction leader line's **+ Make** (it is built with the village-as-faction sl
 lost ownership between the render and the press (the press checks again before its first write; unit-tested
 as `officerControls` and read from the handlers). A compendium officer's Open, which needs a document the seat
 may test.
+
+## The row verbs
+
+Marker `lib/row-verbs`. Walked by `tools/live/lib-row-verbs.mjs`. Boards 1o, 1p, 1s, 1v and 1x of the chart-row
+verbs board. Where: Actors sidebar tab → a faction → Org chart tab → a card's pen → the form's foot (Remove from
+chart, Delete…). The two settings are under Settings tab → Game Settings → ACKS II — Extras ("Ask before removing
+several chart rows", "Warn before deleting chart rows"); the saved linked-actor choice has no setting screen.
+
+### Fixtures
+
+- `lib/row-verbs` — a faction host. Find by marker; build with
+  `api.fixture("lib/row-verbs", "Actor", {type: "acks-extras.faction", ...})`. The walk rewrites its `system.units`
+  at its start (a warband row over two gang rows) and to none in its teardown.
+- The run's own documents, made with `api.create` and tracked: three groups (the warband's and the two gangs'),
+  one linked officer set as the first gang's officer, and one prototype carrying the module's
+  `organisationPrototype` flag that the warband's stack names. A group's stack data is written by the walk's `seed`;
+  the shape it writes is the group sub-type's own and was not checked offline.
+
+**The rule the steps assert:** Remove is drawn on `host.isOwner` alone, since it writes only the host's rows; Delete…
+is drawn on `host.isOwner` and `canUserModify(user, "delete")` on every group the Delete takes; Undo on
+`game.user.can("ACTOR_CREATE")` and `host.isOwner`; each linked actor the seat may not delete is a plain "stays"
+line. No test reads `isGM`.
+
+### Steps
+
+1. **Remove** — pen on the warband → **Remove from chart**. *Observable:* a confirm opens (the dialog count rises
+   by one), naming the rows that move; answered yes, only the warband's row leaves `units`, the gangs stand at the
+   top with no parent, no actor is deleted (each uuid still resolves), and a line above the chart names the rows
+   that moved.
+2. **The warning** — pen → **Delete…**. *Observable:* a dialog opens with one tick, on, naming the officer.
+   **Cancel** writes nothing: the rows, the groups, the prototype and the officer stand, and the three settings read
+   as they did. **Delete** with the tick on deletes the groups, the prototype and the officer and leaves a strip
+   with **Undo** and a dismiss; **Undo** brings every document back with the same uuid, the gang's `officerUuid`
+   resolving to the restored officer, the rows merged back, and the strip gone. **Delete** with the tick off keeps the
+   officer.
+3. **Don't warn me** — tick it and press **Delete**. *Observable:* `warnBeforeDeletingRows` reads false and
+   `deleteLinkedWithRow` reads the tick's state, together; Undo restores.
+4. **One-click** — with the warning off, pen → **Delete…**. *Observable:* no dialog opens, the saved choice is
+   applied (the officer is deleted), the strip shows, **Undo** restores by the same uuids (a token's actor link
+   resolves again where one was placed; the walk reads the actor by its uuid and places no token), and after the
+   browser's own reload the strip is gone.
+5. **The Player seat** — the Player owns the host and only observes the groups. *Observable:* on the Player's own
+   page `host.isOwner` is true and the group delete right false; the form's foot has **Remove from chart** and no
+   **Delete…**. With the groups owned, **Delete…** is drawn exactly where `canUserModify(user, "delete")` is true on
+   the Player's page (the walk reads it and never changes the world's permissions).
+
+### Teardown
+
+The settings are put back to the values read first, the Player's ownership is dropped, the host's rows are cleared, and
+`api.sweepTracked({only})` removes the run's own documents by uuid (what an Undo re-created is tracked again by
+uuid). The marked host stays.
+
+### Not walked
+
+The group-deleted card (its Roll and Remove are read from the context code and the unit suites), a token on a scene (step 4 reads the restored actor by uuid), Undo after a reload (memory only, by design), a
+Delete of the row a sheet's own group holds (it deletes that group and the sheet with it), and the Player's own
+Delete press.

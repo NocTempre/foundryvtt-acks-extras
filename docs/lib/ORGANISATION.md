@@ -249,14 +249,17 @@ document the seat cannot write, refuse the plan before the first write (`badOp`,
 id made (`created`, `made.{groups,prototypes,leaders}`) in either case, and a string still
 starting `new:` is never written.
 
-## Unlist, and Delete as API
+## Remove, and Delete
 
-`unlistRow(host, key)` is what every Remove press ends in: the row and every row beneath it come off the
-host's chart and **no document is deleted**. It is `leave` widened to any host: each topmost row of the
-subtree that names a holder moves, with the rows beneath it, onto that holder, which hosts them as its own
-chart; where the host is a group that holder is taken out of the group that nested it
-(`setParentGroup(null)`); a subtree naming no holder is only dropped and no group is made for it. Every
-seat is checked before the first write. `org.deleteRow` stays as API only, with no caller on any sheet.
+`unlistRow(host, key)` is what every Remove press ends in: **that one row** comes off the host's chart and
+**no document is deleted**. The rows directly beneath it stay on the chart and are lifted to the removed row's
+parent, or to the top where it had none; the rows beneath those keep their own parents. The chart is nested
+stacking containers that reference one source of truth, so removing a level never takes the structure beneath
+it. The host's rows are the only write: no group is moved or un-nested, so no foreign-group or lone-actor
+refusal applies. A row whose `gen.template` the removed row carried (a chart's top row) leaves the rows lifted
+from it without that template, and their Roll, Make and recipe tool read none until one is set.
+
+`deleteRow` is the Delete a sheet reaches through the card form's **Delete…** (below).
 
 `deleteRow(host, key)` removes a row and every row beneath it (a group nests inside its
 parent row's group, so a row taken alone would leave its subtree inside a deleted group),
@@ -290,9 +293,28 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
   `planEdit` and the `setStack` executor op; a stack's count never goes below the bodies it
   already records, and bodies on a map keep the figures they went out with until recalled (a
   whisper, never a refusal).
-- **Remove**, in a card in edit, unlists the row and its subtree (`unlistRow`) and deletes nothing. A
-  line above the chart names each group that now hosts what came off, with an Open, and the count of rows
-  dropped for naming no group, until dismissed.
+- **Remove from chart**, in a card in edit or on a card whose group was deleted, takes the one row off
+  (`unlistRow`) and deletes nothing. It asks first (the `confirmRemoveRows` setting) only where rows move, naming
+  them and where they go. A line above the chart names the rows that moved up and the row they now stand
+  beneath, or the top, until dismissed; a row with none beneath it leaves no line.
+- **Delete…**, in a card in edit, is offered to a seat that owns the host and may delete every group the Delete
+  takes (`deleteOffered`). It takes the row, the rows beneath it, their groups and the minted prototypes no group
+  that stays names (`deleteRow`), and the linked actors (the officers of those groups) the seat may delete where the
+  warning's one tick, or the saved choice, is on. The warning (`warningModel`) lists the rows with their groups, the
+  count of prototypes and that tick; a linked actor the seat may not delete is a plain "stays" line and with none
+  deletable there is no tick. "Don't warn me before a Delete again" writes the client settings
+  `warnBeforeDeletingRows` (gates the warning; off makes Delete one-click) and `deleteLinkedWithRow` (the saved
+  choice one-click applies; no setting screen draws it) together, after the Delete. The seat's tests are made again
+  before the first write. A Delete of the row a sheet's own group holds deletes that group, and the sheet with it.
+- **Undo**: after every Delete a strip at the top of the tab offers Undo, which `deleteSnapshot` made possible
+  (`toObject()` of the groups, minted prototypes and chosen linked actors, the host's rows, the faction's
+  leader and the groups' roster rows) and `undoDelete` carries out: actors then groups re-created with their own
+  ids, the rows merged back (`planUndo`; a row whose parent has gone returns at the top), the leader restored only
+  while blank. One step, held in memory per open chart (`makeUndoMemory`); a second Delete replaces it and a reload
+  loses it. Undo is offered to a seat that creates actors and owns the host; any other sees the strip without it.
+- **A row whose group was deleted outside the chart** reads "Its group was deleted outside the chart" (the holder's
+  read is `readAfterIndex`, never `fromUuidSync` alone) and offers Roll (the row is emptied first, since a Roll refuses
+  a row that names a holder) and Remove from chart.
 - The tree is board 1f's chart: leader cards joined top-down by connector lines, children side by side, in a
   box that scrolls sideways. A leader's card is the Follower Card's compact face (`frame` option) inside the
   role frame of its tier (`gen.tier`, read from the evaluated line), with troop, trait and kit badges drawn

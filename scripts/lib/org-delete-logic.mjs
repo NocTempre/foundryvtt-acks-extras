@@ -1,6 +1,6 @@
 /**
- * The Foundry-free half of a chart row's Delete (docs/lib/ORGANISATION.md, "Delete, its
- * warning and Undo"): who is offered the control, what the warning lists and what its one tick
+ * The Foundry-free half of a chart row's Delete (docs/lib/ORGANISATION.md, "The chart's
+ * tab"): who is offered the control, what the warning lists and what its one tick
  * names, which linked actors a one-click Delete takes, how an Undo merges what a Delete took back
  * into the chart as it stands now, and the one step of memory an open chart keeps. Pure, over
  * plain rows and plain facts the sheet passes in, so it imports under Node and is unit-tested
