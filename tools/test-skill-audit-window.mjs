@@ -429,4 +429,14 @@ await ok("the Skill tab escapes an item's name into its select's attribute", asy
   assert.doesNotMatch(raw, /name" </, "no raw quote or tag from the name inside an attribute");
 });
 
+await ok("the Skill tab's fields are live where the sheet is editable and disabled where it is not", async () => {
+  const fields = (html) => [...html.matchAll(/<(select|input)[^>]*data-field="(\w+)"([^>]*)>/g)].map((m) => ({ field: m[2], disabled: /disabled/.test(m[0]) }));
+  const live = fields(buildSkillTabHTML(searching, true));
+  assert.deepEqual(live.map((f) => f.field), ["checkKey", "targetMod"], "both fields are drawn");
+  assert.ok(live.every((f) => !f.disabled), "live for an editable sheet");
+  const read = fields(buildSkillTabHTML(searching, false));
+  assert.deepEqual(read.map((f) => f.field), ["checkKey", "targetMod"]);
+  assert.ok(read.every((f) => f.disabled), "disabled for a sheet the seat may not edit");
+});
+
 console.log(`\n${passed} checks passed`);

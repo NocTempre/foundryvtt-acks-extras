@@ -174,25 +174,29 @@ does not require rests the bar is not drawn.
 
 **The rails** are one set in every mode, the same cells in the same order
 pressing the same way: a mode changes what a figure reads, never which cells
-there are, and a seat changes which presses there are.
+the Judge's seat has. Any other seat draws a press only where it owns what the
+press writes (the seat, `seatOf` in party-actor.mjs: `isGM`, `ownsMember`,
+`ownsEveryMember`, `ownsParty`, `canBrowse`), and leaves a cell it cannot
+press off the rail; so a player's journey rail has no search, the Judge's secret.
 
 | Rail | Seat | Cells |
 |---|---|---|
-| Saves | GM | the five party saves (`partySave`), each its glyph and short label, then the Magical toggle (`toggleMagical`) that `partySave` reads: on until turned off, kept on the open sheet |
+| Saves | GM; a seat owning a member, whose press rolls for the members it owns | the five party saves (`partySave`), each its glyph and short label, then the Magical toggle (`toggleMagical`) that `partySave` reads: on until turned off, kept on the open sheet |
 | Figures | every seat | hit points, supplies, mouths, pace, light |
-| Quick tools | GM | the encounter throw, party checks, a search, pause, experience |
-| Sheet tools | GM; the Key on every seat | the description, the image, ownership, Tweaks; the Key |
+| Quick tools | GM; party checks and the delve's and the city's search for a seat owning a member, relayed as `check`; experience for a seat owning every participant | the encounter throw, party checks, a search, pause, experience |
+| Sheet tools | GM; the description for the party actor's owner, the image for that owner where it may browse files; the Key on every seat | the description, the image, ownership, Tweaks; the Key |
 
 | Figure | Delve | Journey | City | Press |
 |---|---|---|---|---|
 | Hit points | members below a known maximum (`hurtCount`), else a dash | the same | the same | `adjustHp` (GM) |
-| Supplies | days of food; water in the tooltip | the same | the same | `consumeRations` (GM) |
+| Supplies | days of food; water in the tooltip | the same | the same | `consumeRations` (GM; a seat owning a member, for the members it owns) |
 | Mouths | the headcount (`partyHeadcount`) | the same | the same | the Order tab |
 | Pace | feet a turn, the hurried figure while hurried | feet, the readout's parts in the tooltip | blocks a turn (`rateBlocks`) | delve and city `togglePace` (GM); journey the Wilderness tab |
 | Light | the fewest turns left among the lit lights | the hours to dusk or dawn | the board's hour line, else the clock | the Kit tab |
 
-A press that writes is the Judge's: on a player's seat hit points, supplies
-and the delve's or the city's pace are readings with no action. The quick
+Hit points and the delve's or the city's pace press on the Judge's seat alone
+and are readings on any other. A save's and Supplies' tooltip on a seat that is
+not the Judge's says the press covers the members it owns. The quick
 tools press the mode's own action — the throw is `travelEncounterThrow` on a
 journey and `encounterNow` elsewhere, the search `searchHour` on a journey and
 the methodical search check elsewhere — and party checks open a dialog of the
@@ -216,7 +220,8 @@ record's label alone. While the party is shown unknown country (§Lost) the
 overline names no hex and neither seat gets the territory or following chip.
 The plate is §The plate's: on a journey it draws the hex the party believes it
 stands in, with the hex label over it; where it draws nothing it shows the
-party image, which on a GM seat opens the image picker. The warnings sit under
+party image, which opens the image picker on a seat that owns the party actor
+and may browse files. The warnings sit under
 the art row, on every tab.
 
 **The tabs** are named by the mode (`frameTabs`):
@@ -280,12 +285,17 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
 | Conveyance | Pin their own member on foot or on a carrier they count, or hand the choice back (§Conveyance) | `conveyance` |
 | Who is in the party | Bring an actor of their own in, or take one out (below) | `bringIn` / `takeOut` |
+| Saves and supplies | Roll a party save, or ration, for the members they own (§The frame) | none: the actors are theirs to write |
+| Experience | Deal it where they own every participant | none |
+| The party actor | Edit its description as its owner; change its image where Foundry lets them browse files | none: the party actor is theirs |
+| Forming up | From the party token's HUD, with a member of their own in the party (§Saved marching orders) | `formUp` |
+| Skill fields | Mark an ability on their own character a skill and set what it is used for, on its sheet and in the skill audit | none: the item is theirs |
 
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must
 be indistinguishable from an accurate one to its holders. Taking out another's
-member, blanks, frontage, the clock, saves, tables, and session lifecycle stay
-GM-only. Role, light and membership declarations are announced publicly, so the
+member, blanks, frontage, the clock, the encounter table, and session lifecycle
+stay GM-only. Role, light and membership declarations are announced publicly, so the
 table sees who changed the party's posture.
 
 **A drop on the party sheet.** Every seat the sheet is live for binds a drop on
@@ -440,6 +450,10 @@ show through Dice So Nice to the Judges.
 ## The audit window
 
 `SkillAuditApp` is one window per party, on the Judge's seat.
+
+- **Selects.** A Used-for select is live for an ability the seat owns and
+  disabled for any other (`editable: item.isOwner`); its change is bound only
+  where the seat owns the item.
 
 - **Id.** `auditWindowId(formationId)`: core keeps one element per window id, so each
   party's audit stands beside another's, and `tools/live/formation-audit.mjs` finds the
@@ -943,7 +957,12 @@ feature recomputes a loadout off that hook.
 The party sheet saves and loads orders; the party token's HUD carries a **form
 up** button, which appears only once at least one order is saved and skips the
 picker when there is only one to pick. Both hand the picker's answer to
-`carryOutPick`, which forgets the order or forms the party up into it.
+`carryOutPick`, which forgets the order or forms the party up into it. The
+button is drawn to the Judge and to a seat that owns the party token's actor and
+a member of the party; that seat's pick goes to the Judge's client as the
+`formUp` request, which checks the sender again and answers `{ ok: false,
+refused: "inCombat" }` while a fight holds the party. The picker offers
+forgetting an order only to a seat Foundry lets write world settings.
 
 ## Traps
 

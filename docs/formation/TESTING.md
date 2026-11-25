@@ -3721,6 +3721,57 @@ neither ability bound.
 Teardown: the saved order is forgotten by its id; the cards whose text names a
 `QA Seat` fixture are tracked and swept. The fixtures are kept.
 
+## The frame on a Player and a Trusted seat (added with T-0792 slice 2)
+
+The party sheet draws the presses a seat owns and leaves the rest off. The walk
+is `tools/live/formation-seat-frame.mjs` (`node tools/live/run.mjs
+formation-seat-frame`), run twice on lane A: once with `SEAT_PLAYER` naming the
+world's Player user and once naming its Trusted user, both from
+`TEST_ENVIRONMENT.md`. The walk reads the role from the seat (1 Player, 2
+Trusted) and expects that role's cells; the Trusted seat alone has the image
+cell and the plate press, since core gives Trusted the file browser. A recorder
+is added before reload, and the GM seat must be the primary GM.
+
+Fixtures, each found again by its marker or built carrying one:
+`formation/seat-frame-scene`; the party `formation/seat-frame-party` with its
+token `formation/seat-frame-token`, the seat's `formation/seat-frame-ranger`
+(its ownership rewritten to the walking seat's user at the start) and the
+Judge's `formation/seat-frame-smith`; the ability
+`formation/seat-ranger-ability` on the ranger; `formation/seat-whole-party`
+whose only member is the seat's `formation/seat-whole-member`; and, where the
+world has a Trusted user, `formation/seat-trusted-party` whose only member
+`formation/seat-trusted-member` that user owns. The day walk's
+`formation/day-frame-*` are not reused: a Trusted run would rewrite their
+ownership. At its start the walk brings each to shape: members in order, an
+empty description, the delve, the ability unflagged.
+
+1. **The rails.** Read each rail's cells on the seat
+   (`[...el.querySelectorAll(".acks-extras-party-sheet__rail")]`) beside the GM
+   seat's. *Observable:* the saves rail and its Magical toggle, Supplies as a
+   press, Party checks and the methodical search, the description tool and the
+   Key; no encounter throw, Pause, experience, Ownership or Tweaks; the image
+   cell and plate press on the Trusted seat only. Every drawn cell has a
+   tooltip and an `aria-label`; a save's and Supplies' tooltip says the press
+   covers the members the seat owns; the Key lists exactly the drawn cells.
+2. **One click per new press.** *Observable:* a save card naming the ranger and
+   not the smith; one ration card naming only the ranger; a check's public
+   declaration naming the seat, from the Judge's client; the description editor
+   opens and its save lands on the party actor; on the Trusted seat the image
+   picker opens.
+3. **A journey.** Switch the party to journey. *Observable:* the quick tools
+   hold Party checks alone; the hour's search is not drawn.
+4. **Every member owned.** On `formation/seat-whole-party`. *Observable:* the
+   experience cell is drawn; its press deals, and the card reaches the Judges
+   and the seat.
+5. **The HUD.** Two orders saved. *Observable:* the party token's HUD shows
+   Form up to the seat; its picker has no Delete for a seat without
+   SETTINGS_MODIFY; the press relays and the order lands.
+6. **The ability.** Open `formation/seat-ranger-ability`'s sheet on the seat.
+   *Observable:* the Skill checkbox shows; the Skill tab's fields are enabled.
+
+Teardown: both saved orders are forgotten by id; the cards that name, or speak
+as, a `QA Seat` fixture are tracked and swept. The fixtures are kept.
+
 ## A teleport between scenes (added with the teleport fix)
 
 The party follows its token through a `teleportToken` Region to another scene,

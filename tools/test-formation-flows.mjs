@@ -6946,6 +6946,116 @@ await scenario("the picker draws its Forget button by default and leaves it out 
   }
 });
 
+await scenario("the party token's HUD offers Form up to the Judge and to a seat owning the token's actor and a member, relays a player's pick, and offers Forget only to a seat that may write settings", async () => {
+  const { saveTemplate, deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await isolatedParty("Hud Party", pressData("Hud Mine", { owned: true }), "Hud Other");
+  const { id } = party;
+  const { PARTY_TYPE } = await import("../scripts/formation/constants.mjs");
+  const partyActor = { id: "HUDPARTY", type: PARTY_TYPE, isOwner: true };
+  await model.patchFormation(id, (rec) => { rec.actorId = partyActor.id; });
+  const tokenDoc = { actor: partyActor, getFlag: () => null };
+  const gmUser = game.user;
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  const priorDocument = globalThis.document;
+  const buttons = [];
+  globalThis.document = {
+    createElement: () => {
+      const el = { nodeType: 1, dataset: {}, attrs: {}, listeners: {}, addEventListener(type, fn) { this.listeners[type] = fn; }, setAttribute(name, value) { this.attrs[name] = value; } };
+      buttons.push(el);
+      return el;
+    },
+  };
+  // What the hook draws on the HUD for a seat: the buttons it appended.
+  const hudFor = (who) => {
+    game.user = game.users.get(who);
+    const root = { nodeType: 1, appended: [], querySelector: () => null, appendChild(el) { this.appended.push(el); } };
+    try {
+      Hooks.callAll("renderTokenHUD", { object: { document: tokenDoc } }, root);
+    } finally {
+      game.user = gmUser;
+    }
+    return root.appended;
+  };
+  const DialogV2 = foundry.applications.api.DialogV2;
+  const priorWait = DialogV2.wait;
+  const offered = [];
+  const made = [];
+  const standing = () => model.getFormation(id).members.map((m) => m.actorId);
+  const declared = (from) => chat.slice(from).filter((m) => String(m.content).includes("request.formUp"));
+  const mayWrite = { GM1: true, PL1: false, PL9: false };
+  for (const user of game.users) user.can = (permission) => permission === "SETTINGS_MODIFY" && !!mayWrite[user.id];
+  try {
+    assert.deepEqual([hudFor("GM1"), hudFor("PL1")].map((b) => b.length), [0, 0], "with no saved order the party token has no button, on any seat");
+
+    made.push((await saveTemplate(model.getFormation(id), "Hud order")).template);
+    assert.equal(hudFor("GM1").length, 1, "the Judge has Form up");
+    assert.equal(hudFor("PL1").length, 1, "a member's owner, whose seat owns the token's actor, has it");
+    assert.equal(hudFor("PL9").length, 0, "a seat owning no member has none");
+    partyActor.isOwner = false;
+    assert.equal(hudFor("PL1").length, 0, "nor has a seat that does not own the token's actor");
+    assert.equal(hudFor("GM1").length, 1, "the Judge needs no ownership");
+    partyActor.isOwner = true;
+
+    // With one saved order the press opens no picker: the player's seat relays the order itself.
+    let pickers = 0;
+    DialogV2.wait = async () => { pickers++; return null; };
+    const saved = made[0].cells.map((c) => c.actorId);
+    await model.patchFormation(id, (rec) => { rec.members.reverse(); });
+    const stood = standing();
+    assert.notDeepEqual(stood, saved, "the party stands out of its saved order");
+    const [button] = hudFor("PL1");
+    let cards = chat.length;
+    game.user = game.users.get("PL1");
+    try {
+      button.listeners.click({ preventDefault() {} });
+      await drain();
+    } finally {
+      game.user = gmUser;
+    }
+    await drain();
+    assert.equal(pickers, 0, "one saved order opens no picker");
+    assert.equal(button.attrs["aria-label"], button.dataset.tooltip, "the button is named for a screen reader as its tooltip names it");
+    assert.deepEqual(standing(), saved, "the player's press marches the party into the order, through the relay");
+    assert.equal(declared(cards).length, 1, "and one public line announces it");
+
+    // With two or more, the picker opens, and Forget is drawn for the seat that may write settings alone.
+    made.push((await saveTemplate(model.getFormation(id), "Hud second order")).template);
+    DialogV2.wait = async ({ buttons: drawn }) => { offered.push(drawn.map((b) => b.action)); return null; };
+    for (const who of ["PL1", "GM1"]) {
+      const [press] = hudFor(who);
+      game.user = game.users.get(who);
+      try {
+        press.listeners.click({ preventDefault() {} });
+        await drain();
+      } finally {
+        game.user = gmUser;
+      }
+    }
+    mayWrite.PL1 = true;
+    {
+      const [press] = hudFor("PL1");
+      game.user = game.users.get("PL1");
+      try {
+        press.listeners.click({ preventDefault() {} });
+        await drain();
+      } finally {
+        game.user = gmUser;
+      }
+    }
+    assert.deepEqual(offered, [["apply"], ["apply", "delete"], ["apply", "delete"]],
+      "the picker draws Forget for a seat that may write settings, a granted player included, and for no other");
+    cards = chat.length;
+  } finally {
+    game.user = gmUser;
+    game.users.pop();
+    DialogV2.wait = priorWait;
+    globalThis.document = priorDocument;
+    for (const user of game.users) delete user.can;
+    for (const template of made) await deleteTemplate(template.id);
+    await dismissFighting(party);
+  }
+});
+
 await scenario("the party sheet's presses follow what a seat owns: a player's checks relay, saves and supplies reach owned members, XP needs every participant, the image needs the party and the file browser", async () => {
   const { SHARED_ACTIONS, onChangeForm } = await import("../scripts/formation/formation-actions.mjs");
   const { PARTY_CHECKS } = await import("../scripts/formation/party-rolls.mjs");

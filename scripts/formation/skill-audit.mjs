@@ -423,8 +423,9 @@ export function isSkillItem(item) {
 /**
  * Ability item sheets grow a "Skill" checkbox on the details pane; checking it
  * turns on a **Skill tab** showing the party-roll binding (Used for), the
- * Judge's Throw bonus, and the live resolved target with every stacked bonus
- * itemized. GMs edit; owners of a flagged skill see the tab read-only.
+ * Throw bonus, and the live resolved target with every stacked bonus
+ * itemized. A seat edits where Foundry lets it edit the item's sheet (its
+ * owner, a Judge, a pack that is not locked); any other seat reads the tab.
  */
 export function registerSkillFlagEditor() {
   Hooks.on("renderApplicationV2", (app, element) => {
@@ -445,12 +446,12 @@ function injectSkillUI(app, root, item) {
   // (it is no application part) while the nav anchor and checkbox do not.
   for (const el of root.querySelectorAll(".acks-formation-skill-anchor, .acks-formation-skill-tab, .acks-formation-skill-check")) el.remove();
 
-  const gm = game.user.isGM;
+  const editable = !!app.isEditable;
   const skill = isSkillItem(item);
 
   // "Skill" checkbox on the details pane turns the tab on and off.
   const fieldSet = root.querySelector('.tab[data-tab="description"] .field-set');
-  if (fieldSet && gm) {
+  if (fieldSet && editable) {
     const group = document.createElement("div");
     group.className = "form-group form-group--row acks-formation-skill-check";
     group.innerHTML = `
@@ -493,11 +494,11 @@ function injectSkillUI(app, root, item) {
   section.className = `tab acks-formation-skill-tab${active ? " active" : ""}`;
   section.dataset.group = "primary";
   section.dataset.tab = TAB_ID;
-  section.innerHTML = buildSkillTabHTML(item, gm);
+  section.innerHTML = buildSkillTabHTML(item, editable);
   sections[sections.length - 1].after(section);
 
   for (const el of section.querySelectorAll("[data-field]")) {
-    el.disabled = !gm;
+    el.disabled = !editable;
     el.addEventListener("change", async (event) => {
       event.stopPropagation();
       const field = event.currentTarget.dataset.field;
@@ -516,13 +517,13 @@ function injectSkillUI(app, root, item) {
  * item held by an actor the live resolution, its tooltip citing each part's page.
  *
  * @param {Item} item
- * @param {boolean} gm whether the seat may edit; a player's fields are disabled
+ * @param {boolean} editable whether the seat may edit the item; its fields are disabled otherwise
  * @returns {string} HTML
  */
-export function buildSkillTabHTML(item, gm) {
+export function buildSkillTabHTML(item, editable) {
   const checkKey = item.getFlag(MODULE_ID, "checkKey") ?? "";
   const targetMod = item.getFlag(MODULE_ID, "targetMod") ?? 0;
-  const dis = gm ? "" : "disabled";
+  const dis = editable ? "" : "disabled";
   const owner = item.parent;
 
   const checkOpts = usedForOptions()

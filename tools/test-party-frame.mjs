@@ -1,12 +1,14 @@
 /**
  * The party sheet's frame against mocked Foundry globals: which parts and tabs
  * a seat gets (`framePartIds`, `frameTabs`), what the band's bar reads, the
- * hurt count, and `buildFrameView` — the same rail cells in the same order in
- * every mode, the presses a seat gets and the ones it does not, the reading's
- * chips, the Key and the tab heads. Then the band, the frame and the tab row,
- * rendered with plain Handlebars for a Judge and for a player: no literal id,
- * every press names a handler, every button has a name, and nothing of the
- * Judge's reaches a player's render. Invented figures throughout, so these
+ * hurt count, and `buildFrameView` — the Judge's rail cells in the same order in
+ * every mode, the presses a seat gets and the ones it does not (a seat owning
+ * nobody, a Player owning one of two members, on a journey, owning every member,
+ * a Trusted seat), the reading's chips, the Key and the tab heads. Then the
+ * band, the frame and the tab row, rendered with plain Handlebars for a Judge,
+ * for a seat owning nothing and for the owning seats: no literal id, every
+ * press names a handler, every button has a name and a tooltip, and nothing of
+ * the Judge's reaches another seat's render. Invented figures throughout, so these
  * prove the MACHINERY and never the book.
  *
  * Run: node tools/test-party-frame.mjs
@@ -194,8 +196,24 @@ const cityView = () => ({
   partyImg: null,
 });
 
-const frameOf = (view, isGM, extra = {}) =>
-  buildFrameView({ view, isGM, headcount: 5, hitPoints: [{ value: 3, max: 8 }, { value: 8, max: 8 }], clockTime: "09:30", ...extra });
+/** The seats a party sheet is opened on, as party-actor.mjs's `seatOf` computes them. */
+const SEAT = {
+  judge: { isGM: true, ownsMember: true, ownsEveryMember: true, ownsParty: true, canBrowse: true },
+  /** A seat that owns no member and not the party actor. */
+  none: { isGM: false, ownsMember: false, ownsEveryMember: false, ownsParty: false, canBrowse: false },
+  /** Owns the party actor with no member of it, as a world where players move the party gives. */
+  partyOnly: { isGM: false, ownsMember: false, ownsEveryMember: false, ownsParty: true, canBrowse: false },
+  /** A Player owning one of two members. */
+  playerOne: { isGM: false, ownsMember: true, ownsEveryMember: false, ownsParty: true, canBrowse: false },
+  /** A Player owning every member. */
+  playerAll: { isGM: false, ownsMember: true, ownsEveryMember: true, ownsParty: true, canBrowse: false },
+  /** A Trusted seat owning one of two members: it may browse files. */
+  trusted: { isGM: false, ownsMember: true, ownsEveryMember: false, ownsParty: true, canBrowse: true },
+};
+/** A boolean stands for the Judge's seat or for a seat that owns nothing. */
+const seatFor = (seat) => (typeof seat === "boolean" ? (seat ? SEAT.judge : SEAT.none) : seat);
+const frameOf = (view, seat, extra = {}) =>
+  buildFrameView({ view, seat: seatFor(seat), headcount: 5, hitPoints: [{ value: 3, max: 8 }, { value: 8, max: 8 }], clockTime: "09:30", ...extra });
 
 {
   // ---- The rails are the same in every mode; a mode changes the readings ----
@@ -210,7 +228,7 @@ const frameOf = (view, isGM, extra = {}) =>
         assert.deepEqual(keys(f.rails.tools), ["encounter", "checks", "search", "pause", "xp"], `${mode}: the quick tools`);
         assert.deepEqual(keys(f.rails.sheet), ["description", "image", "ownership", "tweaks", "key"]);
       } else {
-        assert.deepEqual(f.rails.saves, [], `${mode}: a player's seat has no saves rail`);
+        assert.deepEqual(f.rails.saves, [], `${mode}: a seat owning no member has no saves rail`);
         assert.deepEqual(f.rails.tools, [], "and no quick tools");
         assert.deepEqual(keys(f.rails.sheet), ["key"], "and of the sheet tools, the Key alone");
       }
@@ -267,7 +285,7 @@ const frameOf = (view, isGM, extra = {}) =>
   assert.deepEqual([hp.sub, hp.cls, hp.action], [said("figure.hurt", { n: 1 }), "is-bad", "adjustHp"], "one member below a known maximum");
   assert.equal(hp.title, said("press", { label: said("cell", { name: said("figure.hp"), reading: said("figure.hurt", { n: 1 }) }), press: said("presses.hp") }),
     "a press is named after the reading it acts on");
-  const whole = byKey(buildFrameView({ view: journeyView(), isGM: true, hitPoints: [{ value: 8, max: 8 }] }).rails.figures, "hp");
+  const whole = byKey(buildFrameView({ view: journeyView(), seat: SEAT.judge, hitPoints: [{ value: 8, max: 8 }] }).rails.figures, "hp");
   assert.deepEqual([whole.sub, whole.cls], ["—", ""], "nobody hurt");
 
   assert.equal(byKey(gmJourney, "supplies").sub, said("figure.days", { n: 4 }));
@@ -327,6 +345,102 @@ const frameOf = (view, isGM, extra = {}) =>
 }
 
 {
+  // ---- Rails by seat: a press follows what the seat owns of what it writes ----
+  const rails = (view, seat) => frameOf(view, seat).rails;
+  const SAVE_KEYS = ["save-paralysis", "save-death", "save-breath", "save-implements", "save-spell", "magical"];
+
+  // The Judge's matrix is what it always was, in every mode.
+  for (const view of [journeyView(), delveView(), cityView()]) {
+    const judge = rails(view, SEAT.judge);
+    assert.deepEqual(keys(judge.saves), SAVE_KEYS);
+    assert.deepEqual(keys(judge.tools), ["encounter", "checks", "search", "pause", "xp"]);
+    assert.deepEqual(keys(judge.sheet), ["description", "image", "ownership", "tweaks", "key"]);
+    assert.deepEqual(frameOf(view, SEAT.judge).key.groups.map((g) => g.key), ["saves", "figures", "tools", "sheet"]);
+    assert.equal(byKey(judge.figures, "supplies").action, "consumeRations");
+    assert.equal(byKey(judge.figures, "hp").action, "adjustHp");
+    assert.equal(frameOf(view, SEAT.judge).plate.edit, true);
+  }
+
+  // A Player owning one of two members, in the delve.
+  const one = rails(delveView(), SEAT.playerOne);
+  assert.deepEqual(keys(one.saves), SAVE_KEYS, "a member's owner has the saves rail and the Magical toggle");
+  assert.deepEqual(keys(one.tools), ["checks", "search"], "the checks and the methodical search; no encounter, pause or experience");
+  assert.deepEqual([byKey(one.tools, "search").action, byKey(one.tools, "search").check], ["partyCheck", "searchMethodical"]);
+  assert.deepEqual(keys(one.sheet), ["description", "key"], "the description, and no image without file browsing");
+  assert.equal(byKey(one.sheet, "description").action, "editDescription");
+  for (const cell of one.saves.slice(0, 5)) {
+    const save = cell.key.slice("save-".length);
+    assert.equal(cell.action, "partySave");
+    assert.equal(cell.title, game.i18n.format("ACKS-FORMATION.app.saveTooltipOwned", { save: `L.${save}` }), "the tooltip says whose members it rolls for");
+    assert.notEqual(cell.title, `T.${save}`, "not the Judge's words");
+  }
+  const supplies = byKey(one.figures, "supplies");
+  assert.equal(supplies.action, "consumeRations", "Supplies is a press");
+  assert.ok(supplies.title.includes(`"${said("presses.rationOwned")}"`), "naming the members it rations");
+  assert.ok(byKey(rails(delveView(), SEAT.judge).figures, "supplies").title.includes(`"${said("presses.ration")}"`), "the Judge keeps the shipped words");
+  assert.equal(byKey(one.figures, "hp").action, undefined, "hit points stay a reading");
+  assert.equal(byKey(one.figures, "pace").action, undefined, "the delve's pace stays a reading");
+  assert.equal(frameOf(delveView(), SEAT.playerOne).plate.edit, false, "no plate press without file browsing");
+  const oneKey = frameOf(delveView(), SEAT.playerOne).key.groups;
+  assert.deepEqual(oneKey.map((g) => g.key), ["saves", "figures", "tools", "sheet"]);
+  assert.deepEqual(oneKey.map((g) => g.rows.length), [6, 5, 2, 2], "the Key lists the cells the seat draws and no others");
+
+  // The city's search is the delve's; a journey's hour search is the Judge's secret and is left out.
+  assert.deepEqual(keys(rails(cityView(), SEAT.playerOne).tools), ["checks", "search"]);
+  const onJourney = rails(journeyView(), SEAT.playerOne);
+  assert.deepEqual(keys(onJourney.tools), ["checks"], "a journey's tools rail lacks the search cell");
+  const journeyTools = frameOf(journeyView(), SEAT.playerOne).key.groups.find((g) => g.key === "tools");
+  assert.deepEqual(journeyTools.rows.map((r) => r.label), [said("tool.checks")], "and so does its Key");
+  assert.equal(byKey(onJourney.figures, "pace").action, "goTab", "the journey's pace still opens Movement");
+
+  // Deal XP: only a seat owning every participant.
+  assert.deepEqual(keys(rails(delveView(), SEAT.playerAll).tools), ["checks", "search", "xp"]);
+  assert.equal(byKey(rails(delveView(), SEAT.playerAll).tools, "xp").action, "dealXp");
+  assert.equal(byKey(rails(delveView(), SEAT.playerOne).tools, "xp"), undefined, "owning some members is not enough");
+  assert.equal(byKey(rails(journeyView(), SEAT.playerAll).tools, "xp").action, "dealXp", "on a journey too");
+
+  // A Trusted seat adds the Image tool and the plate press.
+  const trusted = rails(delveView(), SEAT.trusted);
+  assert.deepEqual(keys(trusted.sheet), ["description", "image", "key"]);
+  assert.equal(byKey(trusted.sheet, "image").action, "editPartyImage");
+  assert.deepEqual(keys(trusted.tools), ["checks", "search"]);
+  assert.equal(frameOf(delveView(), SEAT.trusted).plate.edit, true, "the plate is a press where the Image tool is drawn");
+  // A journey's drawn plate stays unpressable on every seat.
+  const drawnHex = { kind: "frame", draw: true, blank: false, img: null, hex: "K7", edit: false, differ: false, aria: "A.drawn" };
+  for (const seat of [SEAT.judge, SEAT.trusted]) {
+    assert.equal(frameOf(journeyView({ travel: { plate: drawnHex } }), seat).plate.edit, false, "a drawn hex is no press");
+  }
+
+  // The party actor's owner with no member of it: the description, and nothing that writes a member.
+  const partyOnly = rails(delveView(), SEAT.partyOnly);
+  assert.deepEqual([partyOnly.saves, partyOnly.tools], [[], []]);
+  assert.deepEqual(keys(partyOnly.sheet), ["description", "key"]);
+
+  // Ownership, Tweaks, the encounter, the pause and the astray chip are the Judge's on every other seat.
+  for (const seat of [SEAT.playerOne, SEAT.playerAll, SEAT.trusted, SEAT.partyOnly]) {
+    const seen = rails(delveView(), seat);
+    assert.ok(!byKey(seen.sheet, "ownership") && !byKey(seen.sheet, "tweaks"));
+    for (const key of ["encounter", "pause"]) assert.equal(byKey(seen.tools, key), undefined);
+    const astray = frameOf(journeyView({ travel: { lost: { active: true, days: 1, fakedHexes: 1 } } }), seat).reading.chips;
+    assert.equal(byKey(astray, "astray"), undefined);
+  }
+
+  // Every cell any seat draws has a glyph, a tooltip and a Key line.
+  for (const seat of Object.values(SEAT)) {
+    for (const view of [journeyView(), delveView(), cityView()]) {
+      const seen = rails(view, seat);
+      for (const cell of [...seen.saves, ...seen.figures, ...seen.tools, ...seen.sheet]) {
+        assert.ok(cell.icon && cell.title && cell.keyLabel, `${cell.key}: a glyph, a title and a Key line`);
+      }
+    }
+  }
+
+  // A frame built with no seat at all draws no press of a seat's.
+  const bare = buildFrameView({ view: delveView() });
+  assert.deepEqual([bare.rails.saves, bare.rails.tools, keys(bare.rails.sheet)], [[], [], ["key"]]);
+}
+
+{
   // ---- The reading, the plate, the Key, the heads, the panel ----
   const gm = frameOf(journeyView(), true);
   assert.equal(gm.reading.overline,
@@ -349,7 +463,7 @@ const frameOf = (view, isGM, extra = {}) =>
   const imagePlate = { kind: "frame", draw: false, blank: false, edit: true, differ: false, aria: "" };
   assert.deepEqual(gm.plate, { ...imagePlate, img: "img/party.webp", hex: "K7" }, "no drawing to show: the party's image, the Judge's to change");
   assert.deepEqual(frameOf(delveView(), true).plate, { ...imagePlate, img: null, hex: "" }, "the hex label is a journey's");
-  assert.equal(frameOf(journeyView(), false).plate.edit, false, "a player's plate changes nothing");
+  assert.equal(frameOf(journeyView(), false).plate.edit, false, "a seat that may not change the image presses no plate");
 
   // A journey's drawn plate passes through as the view built it; the frame's
   // copy is never a press, on any seat.
@@ -367,7 +481,7 @@ const frameOf = (view, isGM, extra = {}) =>
   assert.equal(gm.key.open, false);
   assert.equal(frameOf(journeyView(), true, { keyOpen: true }).key.open, true);
   assert.deepEqual(gm.key.groups.map((g) => g.key), ["saves", "figures", "tools", "sheet"]);
-  assert.deepEqual(frameOf(journeyView(), false).key.groups.map((g) => g.key), ["figures", "sheet"], "a player's Key names only a player's cells");
+  assert.deepEqual(frameOf(journeyView(), false).key.groups.map((g) => g.key), ["figures", "sheet"], "a seat's Key names only the cells that seat draws");
   const savesGroup = gm.key.groups[0];
   assert.deepEqual(savesGroup.rows[0], { icon: SAVE_ICONS.paralysis, short: said("saveShort.paralysis"), label: "L.paralysis" });
   assert.equal(byKey(gm.rails.figures, "hp").keyLabel, said("press", { label: said("figure.hp"), press: said("presses.hp") }));
@@ -414,8 +528,9 @@ const frameOf = (view, isGM, extra = {}) =>
     assert.ok(handlers.has(name), `the handler list was read: ${name}`);
   }
 
-  const render = (view, isGM, extra = {}) => {
-    const frame = frameOf(view, isGM, extra);
+  const render = (view, seat, extra = {}) => {
+    const isGM = seatFor(seat).isGM;
+    const frame = frameOf(view, seat, extra);
     const tabs = Object.fromEntries(
       frameTabs({ mode: view.strip.mode, isGM }).map((tab, i) => [
         tab.id,
@@ -481,6 +596,30 @@ const frameOf = (view, isGM, extra = {}) =>
         assert.ok(html.includes("acks-sr-only"), `${seat}: a reading cell names itself to a screen reader`);
       }
     }
+  }
+
+  // An owning seat's render: the presses are the ones frame-view drew, each named and carrying a tooltip,
+  // and none of the Judge's is among them.
+  const SEAT_PRESSES = ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "dealXp", "editDescription", "editPartyImage"];
+  for (const [name, seat, view, expected] of [
+    ["Player owning one of two", SEAT.playerOne, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "editDescription"]],
+    ["Player on a journey", SEAT.playerOne, journeyView(), ["partySave", "toggleMagical", "partyChecks", "consumeRations", "editDescription"]],
+    ["Player owning every member", SEAT.playerAll, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "dealXp", "editDescription"]],
+    ["Trusted", SEAT.trusted, delveView(), ["partySave", "toggleMagical", "partyChecks", "partyCheck", "consumeRations", "editDescription", "editPartyImage"]],
+  ]) {
+    const html = render(view, seat, { keyOpen: true });
+    const drawn = new Set(actionsIn(html));
+    for (const action of SEAT_PRESSES) assert.equal(drawn.has(action), expected.includes(action), `${name}: ${action}`);
+    for (const action of JUDGE_PRESSES.filter((a) => !SEAT_PRESSES.includes(a))) assert.ok(!drawn.has(action), `${name}: no ${action}`);
+    for (const [, attrs] of html.matchAll(/<button([^>]*)>/g)) {
+      assert.ok(/data-tooltip="[^"]+"/.test(attrs) && /aria-label="[^"]+"/.test(attrs) || !/data-action="(partySave|toggleMagical|partyChecks|partyCheck|consumeRations|dealXp|editDescription|editPartyImage)"/.test(attrs),
+        `${name}: a drawn press has a tooltip and a name (${attrs.trim().slice(0, 50)})`);
+    }
+    assert.equal((html.match(/data-group-key=/g) ?? []).length, 4, `${name}: the Key's groups`);
+    assert.ok(!html.includes("is-judge") && !html.includes('data-tab="judge"'), `${name}: nothing of the Judge's tab`);
+    assert.ok(!/name="(travel\.mode|name)"/.test(html), `${name}: no field of the Judge's`);
+    const plate = html.slice(html.indexOf("acks-extras-party-sheet__plate "), html.indexOf("acks-extras-party-sheet__rail--figures"));
+    assert.equal(plate.includes('data-action="editPartyImage"'), seat.canBrowse, `${name}: the plate is a press only where files may be browsed`);
   }
 
   // The Key closes; the editor replaces the prose while it is open.

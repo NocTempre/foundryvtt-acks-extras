@@ -564,7 +564,7 @@ const stripOf = (id) => {
    * builds (party-actor.mjs `_prepareContext`), the mode tab active:
    * `{partId: html}` for every part the seat is configured with.
    */
-  const render = (id, { gm, extra = {} }) => {
+  const render = (id, { gm, seat: given = null, extra = {} }) => {
     const f = getFormation(id);
     const was = game.user;
     game.user = { isGM: gm, id: gm ? "gm1" : "pl1" };
@@ -587,7 +587,9 @@ const stripOf = (id) => {
         description: { source: "", html: "", editing: false },
         document: { uuid: "Actor.party" },
       };
-      context.frame = buildFrameView({ view: context, isGM: gm, headcount: 1, hitPoints: [], clockTime: "" });
+      // A seat owning nothing unless the caller names the seat it is drawing.
+      const seat = given ?? { isGM: gm, ownsMember: gm, ownsEveryMember: gm, ownsParty: gm, canBrowse: gm };
+      context.frame = buildFrameView({ view: context, seat, headcount: 1, hitPoints: [], clockTime: "" });
       const out = {};
       for (const part of framePartIds({ isGM: gm, hasFormation: true })) {
         out[part] = templateOf(part === "mode" ? MODE_TEMPLATES[mode] : PART_FILES[part])(context);
@@ -762,6 +764,18 @@ const stripOf = (id) => {
   for (const key of ["poi", "day"]) {
     assert.ok(!playerHtml.includes(`data-section="${key}"`), `no ${key} section for a player`);
   }
+  // A Player owning a member: the saves the real view carries reach the frame as presses, and the Judge's secrets stay off it.
+  const owning = render(delve, { gm: false, seat: { isGM: false, ownsMember: true, ownsEveryMember: false, ownsParty: true, canBrowse: false } });
+  const ownerFrame = owning.frame;
+  assert.equal(count(ownerFrame, 'data-action="partySave"'), 5, "a member's owner presses the five saves the view built");
+  for (const action of ["partyChecks", "partyCheck", "consumeRations", "editDescription", "toggleMagical"]) {
+    assert.ok(ownerFrame.includes(`data-action="${action}"`), `a member's owner has ${action}`);
+  }
+  for (const action of ["encounterNow", "togglePause", "dealXp", "adjustHp", "editPartyImage", "ownership", "tweaks"]) {
+    assert.ok(!ownerFrame.includes(`data-action="${action}"`), `and not ${action}`);
+  }
+  assert.ok(ownerFrame.includes("ACKS-FORMATION.app.saveTooltipOwned"), "each save says whose members it rolls for");
+  assert.ok(!whole(owning).includes('data-action="travelEndDay"') && !("judge" in owning), "and the Judge's tab and presses stay off");
   const playerMovement = sectionOf(playerJourney.mode, "movement");
   assert.ok(playerMovement.includes('data-action="movementTile"'), "the five tiles reach a player");
   assert.equal(playerMovement.match(/data-action="movementTile"[^>]*disabled/g)?.length, 5, "with none to press");

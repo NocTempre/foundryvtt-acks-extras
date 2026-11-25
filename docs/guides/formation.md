@@ -80,9 +80,14 @@ type size setting.
 *In a city: the City tab first, with Hunted here at its head, then Company,
 Kit, Sightings and the Judge's dashed tab.*
 
-A player's sheet is the same frame without your parts: no saves, no quick
-tools, the Key alone among the sheet tools, and no Judge tab. Hit points and
-supplies only read there; mouths and light still open their tabs.
+A player's sheet is the same frame with what they own. A player who owns a
+member has the saves rail and the Supplies press, which roll or ration only the
+members they own, and Party checks and, in the delve or a city, the methodical
+search, which come to you to roll. A player who owns every member can deal
+experience. Whoever owns the party can edit its description, and a Trusted
+player can also change its image. The encounter throw, the journey's search,
+Pause, Tweaks, Ownership and the Judge tab stay yours; hit points and pace only
+read there, and mouths and light still open their tabs.
 
 ## Deploying, and which way the column points
 
@@ -175,10 +180,12 @@ tokens and fixes the ones that are safe to remove.
 The head of the party sheet's Order tab has **Save order**, which keeps the
 current arrangement under a name, and **Load order**, which puts one back or
 deletes one you no longer use. Saving under a name already in use replaces that
-order. The party token's HUD carries a **Form up** button, for the Judge once an
-order is saved, that applies a saved order and gathers everyone on the map back
-inside the token. With one order saved the button applies it outright; with
-several it asks. It is refused during a combat.
+order. The party token's HUD carries a **Form up** button, for the Judge and
+for a player who owns a member of the party, once an order is saved, that
+applies a saved order and gathers everyone on the map back inside the token.
+With one order saved the button applies it outright; with several it asks, and
+offers Delete only to someone allowed to change world settings. It is refused
+during a combat.
 
 ![](../releases/v4.8.0/formation-marching-orders.png)
 

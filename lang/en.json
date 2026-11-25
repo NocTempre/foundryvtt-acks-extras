@@ -2960,6 +2960,7 @@
       "magical": "Magical",
       "magicalHint": "Magical source: apply each member's Bonus vs Magic and WIS modifier to the roll (uncheck for mundane hazards)",
       "saveTooltip": "Roll a {save} saving throw for every member against their own sheet's target",
+      "saveTooltipOwned": "Roll a {save} saving throw for each member whose character you own, against their own sheet's target",
       "openFormationHint": "Open the full formation window",
       "deployedBadge": "Deployed for combat",
       "detachedBadge": "Out ahead of the party on their own token",
@@ -4564,6 +4565,7 @@
       "presses": {
         "hp": "press to adjust hit points",
         "ration": "press to ration",
+        "rationOwned": "press to ration the members you own",
         "roster": "opens the roster",
         "pace": "press to change the pace",
         "movement": "opens Movement",
@@ -4610,7 +4612,7 @@
       },
       "key": {
         "title": "Key",
-        "sub": "The rails are the same in every mode and state; only the figures read differently.",
+        "sub": "The rails are the same on every tab; only the figures read differently.",
         "saves": "Saves · left of the plate",
         "figures": "Figures · right of the plate",
         "tools": "Quick tools · beside the figures",

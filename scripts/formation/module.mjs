@@ -121,7 +121,7 @@ import * as obstacles from "./obstacles.mjs";
 import * as swimming from "./swimming.mjs";
 import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
-import { registerRequestSocket, requestBringIn, requestPartyAction } from "./player-requests.mjs";
+import { registerRequestSocket, requestBringIn, requestPartyAction, userOwnsMember } from "./player-requests.mjs";
 import { canJoin, gatherSummons, partyHolding, partyOnScene, refusalText } from "./membership.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, stepFinished, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
@@ -1257,20 +1257,38 @@ async function addTokensToParty(seedToken) {
 }
 
 /**
- * Put the party back into a saved marching order from the party token itself;
- * the picker appears only when more than one order is saved.
+ * The formation a party token stands for. Never `getFormationForActor`: it
+ * searches members, and a party actor is not a member of its own formation.
  */
-async function formUpFromHud(tokenDoc) {
-  // Never `getFormationForActor`: it searches members, and a party actor is not
-  // a member of its own formation.
-  const formation =
+function formationOfPartyToken(tokenDoc) {
+  return (
     formationForToken(tokenDoc) ??
     Object.values(getFormations()).find((f) => f.actorId === tokenDoc.actor.id) ??
-    null;
+    null
+  );
+}
+
+/**
+ * Put the party back into a saved marching order from the party token itself;
+ * the picker appears only when more than one order is saved. The Judge's seat
+ * carries the pick out here. A member's owner relays an order to the Judge's
+ * client, which writes the record and answers `{ok: false}` while a fight is
+ * on; a seat that may write world settings may also forget an order, and the
+ * picker offers Forget to no other.
+ */
+async function formUpFromHud(tokenDoc) {
+  const formation = formationOfPartyToken(tokenDoc);
   if (!formation) return;
   const saved = listTemplates();
   if (!saved.length) return;
-  const picked = saved.length === 1 ? { template: saved[0], action: "apply" } : await pickMarchingOrder();
+  const picked = saved.length === 1
+    ? { template: saved[0], action: "apply" }
+    : await pickMarchingOrder({ forget: game.user.can("SETTINGS_MODIFY") });
+  if (!game.user.isGM && picked?.template && picked.action === "apply") {
+    const answer = await requestPartyAction(formation.id, "formUp", { templateId: picked.template.id });
+    if (answer?.ok === false) ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.marching.notInCombat"));
+    return;
+  }
   if (!(await carryOutPick(formation, picked))) return;
   game.actors.get(formation.actorId)?.sheet?.render(false);
 }
@@ -1284,8 +1302,10 @@ async function bringTokensIn(formation, seedToken) {
 
 /**
  * One HUD button per token kind: an ordinary token joins the party, and the
- * party token forms it back up. A player has only the first, on a token of
- * their own, and only where a party already stands on the scene.
+ * party token forms it back up. A player's seat has the first on a token of its
+ * own, and only where a party already stands on the scene. The party token's
+ * button is drawn to the Judge and to a seat that owns the token's actor and a
+ * member of its party, once an order is saved.
  */
 Hooks.on("renderTokenHUD", (hud, html) => {
   const tokenDoc = hud.object?.document;
@@ -1293,19 +1313,30 @@ Hooks.on("renderTokenHUD", (hud, html) => {
   const root = elementOf(html);
   if (!root || root.querySelector(".acks-formation-hud")) return;
 
-  const isGM = game.user.isGM;
   const isParty = tokenDoc.actor.type === PARTY_TYPE;
-  // With no saved order the party token's button stays off the HUD.
-  if (isParty && (!isGM || !listTemplates().length)) return;
-  if (!isParty && !canJoin(tokenDoc)) return;
-  const party = isGM ? null : partyOnScene(tokenDoc.parent, game.user);
-  if (!isGM && (!party || !tokenDoc.actor.isOwner)) return;
+  let party = null;
+  let isGM = false;
+  if (isParty) {
+    // With no saved order the party token's button stays off the HUD.
+    if (!listTemplates().length) return;
+    if (!game.user.isGM) {
+      const formation = formationOfPartyToken(tokenDoc);
+      if (!formation || !tokenDoc.actor.isOwner || !userOwnsMember(formation, game.user)) return;
+    }
+  } else {
+    // Founding a party makes a world document, which stays the Judge's.
+    isGM = game.user.isGM;
+    if (!canJoin(tokenDoc)) return;
+    party = isGM ? null : partyOnScene(tokenDoc.parent, game.user);
+    if (!isGM && (!party || !tokenDoc.actor.isOwner)) return;
+  }
 
   const button = document.createElement("button");
   button.type = "button";
   button.className = "control-icon acks-formation-hud";
   const tip = isParty ? "formUp" : isGM ? "addToParty" : "bringIn";
   button.dataset.tooltip = game.i18n.localize(`ACKS-FORMATION.hud.${tip}`);
+  button.setAttribute("aria-label", button.dataset.tooltip);
   button.innerHTML = `<i class="fa-solid ${isParty ? "fa-people-line" : "fa-people-group"}"></i>`;
   button.addEventListener("click", (event) => {
     event.preventDefault();

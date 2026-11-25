@@ -4,6 +4,8 @@ import { SHARED_ACTIONS, bindCrossingPace, bindCrossingRescuer, bindMemberDrop, 
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
 import { seatChanged } from "./conveyance.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
+import { userOwnsMember } from "./player-requests.mjs";
+import { participantsOf } from "./xp-shares.mjs";
 import { MODE_TEMPLATES, TAB_IDS, buildFrameView, framePartIds, frameTabs } from "./frame-view.mjs";
 import { drawPlate } from "./plate.mjs";
 import { attachPlanNotes } from "./turn-plan.mjs";
@@ -86,6 +88,32 @@ function clockTime() {
   if (!reading) return "";
   const pad = (n) => String(n).padStart(2, "0");
   return `${pad(reading.hour)}:${pad(reading.minute)}`;
+}
+
+/**
+ * What the viewing seat owns of what the frame's presses write, each field
+ * Foundry's own test or a fold of it: `ownsMember` (a save, a ration or a
+ * check reaches the members the seat owns), `ownsEveryMember` (Deal XP credits
+ * every participant), `ownsParty` (the description and the image are writes to
+ * the party actor), `canBrowse` (the file picker refuses a seat without it).
+ * A Judge's seat holds every ownership field, an empty party's included.
+ * @param {Actor} partyActor
+ * @param {object} formation
+ * @returns {{isGM: boolean, ownsMember: boolean, ownsEveryMember: boolean, ownsParty: boolean, canBrowse: boolean}}
+ */
+function seatOf(partyActor, formation) {
+  const isGM = game.user.isGM;
+  const everyOwned = () => {
+    const participants = participantsOf(formation);
+    return participants.length > 0 && participants.every((actor) => actor.isOwner);
+  };
+  return {
+    isGM,
+    ownsMember: isGM || userOwnsMember(formation, game.user),
+    ownsEveryMember: isGM || everyOwned(),
+    ownsParty: partyActor.isOwner,
+    canBrowse: game.user.can("FILES_BROWSE"),
+  };
 }
 
 /**
@@ -380,7 +408,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     context.description = { source, html: source ? await enrich(source, this.actor) : "", editing };
     context.frame = buildFrameView({
       view: context,
-      isGM,
+      seat: seatOf(this.actor, formation),
       headcount: context.headcount,
       hitPoints: realMembers(formation).map((member) => memberHp(member)),
       clockTime: clockTime(),

@@ -8,10 +8,19 @@
  * so tools/test-party-frame.mjs pins it without a running Foundry;
  * party-actor.mjs binds it to the window.
  *
- * The rails are the same in every mode: the same cells, in the same order,
- * pressing the same way. A mode changes what a figure reads, never which cells
- * there are. A seat changes which presses there are: a press that writes is the
- * Judge's, so a player's copy of such a cell is a reading with no action.
+ * On the Judge's seat the rails are the same in every mode: the same cells, in
+ * the same order, pressing the same way. A mode changes what a figure reads,
+ * never which cells there are. A seat's press follows what it owns of what the
+ * press writes: a save, a ration or a check reaches the members the seat owns,
+ * Deal XP the party only where the seat owns every participant, the description
+ * and the image the party actor the seat owns. A press the seat cannot make is
+ * left out of its rail, or is a reading with no action where the figure is
+ * still shown. A Judge's secret (the encounter throw, a journey's hour search,
+ * the lost compass) stays the Judge's.
+ *
+ * The seat is one object, computed by party-actor.mjs from Foundry's own
+ * permission tests, so this file reads no `game` permission:
+ * `{isGM, ownsMember, ownsEveryMember, ownsParty, canBrowse}`.
  */
 import { SAVE_ICONS } from "../character-sheet/constants.mjs";
 import { saveKindOf } from "../lib/actor-compat.mjs";
@@ -145,11 +154,11 @@ function railCell({ name, reading, press = null, ...cell }) {
   };
 }
 
-/** A press that only the Judge's seat carries; a player's cell keeps the reading alone. */
-const judgePress = (isGM, action, press) => (isGM ? { action, press } : {});
+/** A press carried where `can` holds; a seat that cannot make it keeps the cell's reading alone. */
+const pressIf = (can, action, press) => (can ? { action, press } : {});
 
 /** The figures rail: hit points, supplies, mouths, pace and light, on every seat. */
-function figureCells(view, { isGM, headcount, hitPoints, clockTime }) {
+function figureCells(view, { seat, headcount, hitPoints, clockTime }) {
   const strip = view.strip ?? {};
   const mode = modeOf(strip.mode);
 
@@ -161,7 +170,7 @@ function figureCells(view, { isGM, headcount, hitPoints, clockTime }) {
     reading: hurt ? loc("figure.hurt", { n: hurt }) : loc("figure.noneHurt"),
     sub: hurt ? loc("figure.hurt", { n: hurt }) : DASH,
     cls: hurt ? "is-bad" : "",
-    ...judgePress(isGM, "adjustHp", loc("presses.hp")),
+    ...pressIf(seat.isGM, "adjustHp", loc("presses.hp")),
   });
 
   const stock = strip.supplies ?? {};
@@ -172,7 +181,7 @@ function figureCells(view, { isGM, headcount, hitPoints, clockTime }) {
     reading: stock.known ? loc("figure.suppliesReading", { food: stock.foodDays, water: stock.waterDays ?? DASH }) : loc("figure.unknown"),
     sub: stock.known ? loc("figure.days", { n: stock.foodDays }) : DASH,
     cls: stock.short ? "is-bad" : "",
-    ...judgePress(isGM, "consumeRations", loc("presses.ration")),
+    ...pressIf(seat.ownsMember, "consumeRations", loc(seat.isGM ? "presses.ration" : "presses.rationOwned")),
   });
 
   const mouths = railCell({
@@ -197,7 +206,7 @@ function figureCells(view, { isGM, headcount, hitPoints, clockTime }) {
       reading: priced ? loc("figure.blocksReading", { n: city.rateBlocks }) : loc("figure.unknown"),
       sub: priced ? loc("figure.blocksSub", { n: city.rateBlocks }) : DASH,
       cls: view.hurried ? "is-warn" : "",
-      ...judgePress(isGM, "togglePace", loc("presses.pace")),
+      ...pressIf(seat.isGM, "togglePace", loc("presses.pace")),
     });
   } else {
     const feet = view.hurried ? view.effSpeed : view.speed;
@@ -211,7 +220,7 @@ function figureCells(view, { isGM, headcount, hitPoints, clockTime }) {
       cls: view.hurried ? "is-warn" : "",
       ...(journey
         ? { action: "goTab", tab: "mode", press: loc("presses.movement") }
-        : judgePress(isGM, "togglePace", loc("presses.pace"))),
+        : pressIf(seat.isGM, "togglePace", loc("presses.pace"))),
     });
   }
 
@@ -253,16 +262,20 @@ function lightReading(view, { mode, clockTime }) {
   return { reading: line || loc("figure.noClock"), sub: clockTime || DASH };
 }
 
-/** The saves rail, a GM seat's only: one cell per save, then the Magical toggle they read. */
-function saveCells(view, { isGM, magical }) {
-  if (!isGM) return [];
+/**
+ * The saves rail, a seat that owns a member: one cell per save, then the Magical
+ * toggle they read. A press rolls for the members the seat owns, so a seat that
+ * is not the Judge's says so in the cell's tooltip.
+ */
+function saveCells(view, { seat, magical }) {
+  if (!seat.ownsMember) return [];
   const saves = (view.saves ?? []).map((save) => ({
     key: `save-${save.key}`,
     action: "partySave",
     save: save.key,
     icon: SAVE_ICONS[saveKindOf(save.key)] ?? "fa-solid fa-shield-halved",
     short: loc(`saveShort.${save.key}`),
-    title: save.tooltip,
+    title: seat.isGM ? save.tooltip : game.i18n.format("ACKS-FORMATION.app.saveTooltipOwned", { save: save.label }),
     keyLabel: save.label,
     cls: "",
   }));
@@ -282,36 +295,42 @@ function saveCells(view, { isGM, magical }) {
 }
 
 /**
- * The quick tools, a GM seat's only: the encounter throw, the party checks, a
- * search, the pause and the experience. The same five cells in every mode; the
- * throw and the search press the mode's own action.
+ * The quick tools: the encounter throw, the party checks, a search, the pause
+ * and the experience, each drawn where the seat can press it and left out
+ * where it cannot (a dead cell is never drawn). The Judge's seat has all five
+ * in every mode, and the throw and the search press the mode's own action. The
+ * throw, a journey's hour search and the pause are the Judge's; the checks and
+ * the delve's and the city's methodical search follow the members the seat
+ * owns; the experience follows owning every participant.
  */
-function toolCells(view, { isGM }) {
-  if (!isGM) return [];
+function toolCells(view, { seat }) {
   const journey = modeOf(view.strip?.mode) === "journey";
   const paused = !!view.strip?.paused;
   const tools = [
-    { key: "encounter", action: journey ? "travelEncounterThrow" : "encounterNow", icon: "fa-solid fa-dice-d6", title: journey ? loc("tool.encounterJourney") : loc("tool.encounter") },
-    { key: "checks", action: "partyChecks", icon: "fa-solid fa-ear-listen", title: loc("tool.checks") },
+    seat.isGM && { key: "encounter", action: journey ? "travelEncounterThrow" : "encounterNow", icon: "fa-solid fa-dice-d6", title: journey ? loc("tool.encounterJourney") : loc("tool.encounter") },
+    seat.ownsMember && { key: "checks", action: "partyChecks", icon: "fa-solid fa-ear-listen", title: loc("tool.checks") },
     journey
-      ? { key: "search", action: "searchHour", icon: "fa-solid fa-magnifying-glass", title: loc("tool.searchHour") }
-      : { key: "search", action: "partyCheck", check: "searchMethodical", icon: "fa-solid fa-magnifying-glass", title: loc("tool.searchTurn") },
-    { key: "pause", action: "togglePause", icon: paused ? "fa-solid fa-play" : "fa-solid fa-pause", title: paused ? loc("tool.resume") : loc("tool.pause"), toggle: true, on: paused, cls: paused ? "is-on" : "" },
-    { key: "xp", action: "dealXp", icon: "fa-solid fa-star", title: loc("tool.xp") },
+      ? seat.isGM && { key: "search", action: "searchHour", icon: "fa-solid fa-magnifying-glass", title: loc("tool.searchHour") }
+      : seat.ownsMember && { key: "search", action: "partyCheck", check: "searchMethodical", icon: "fa-solid fa-magnifying-glass", title: loc("tool.searchTurn") },
+    seat.isGM && { key: "pause", action: "togglePause", icon: paused ? "fa-solid fa-play" : "fa-solid fa-pause", title: paused ? loc("tool.resume") : loc("tool.pause"), toggle: true, on: paused, cls: paused ? "is-on" : "" },
+    seat.ownsEveryMember && { key: "xp", action: "dealXp", icon: "fa-solid fa-star", title: loc("tool.xp") },
   ];
-  return tools.map((t) => ({ cls: "", ...t, keyLabel: t.title }));
+  return tools.filter(Boolean).map((t) => ({ cls: "", ...t, keyLabel: t.title }));
 }
 
-/** The sheet tools: the Judge's four document tools, then the Key, which every seat has. */
-function sheetCells({ isGM, keyOpen, editing }) {
-  const tools = isGM
-    ? [
-        { key: "description", action: "editDescription", icon: "fa-solid fa-pen-to-square", title: loc("sheet.description"), toggle: true, on: !!editing, cls: editing ? "is-on" : "" },
-        { key: "image", action: "editPartyImage", icon: "fa-solid fa-image", title: loc("sheet.image") },
-        { key: "ownership", action: "ownership", icon: "fa-solid fa-user-lock", title: loc("sheet.ownership") },
-        { key: "tweaks", action: "tweaks", icon: "fa-solid fa-sliders", title: loc("sheet.tweaks") },
-      ]
-    : [];
+/**
+ * The sheet tools, then the Key, which every seat has. The description is the
+ * party actor's owner's, the image its owner's who may browse files (the
+ * picker refuses a seat that may not), and the ownership window and the tweaks
+ * are the Judge's.
+ */
+function sheetCells({ seat, keyOpen, editing }) {
+  const tools = [
+    seat.ownsParty && { key: "description", action: "editDescription", icon: "fa-solid fa-pen-to-square", title: loc("sheet.description"), toggle: true, on: !!editing, cls: editing ? "is-on" : "" },
+    seat.ownsParty && seat.canBrowse && { key: "image", action: "editPartyImage", icon: "fa-solid fa-image", title: loc("sheet.image") },
+    seat.isGM && { key: "ownership", action: "ownership", icon: "fa-solid fa-user-lock", title: loc("sheet.ownership") },
+    seat.isGM && { key: "tweaks", action: "tweaks", icon: "fa-solid fa-sliders", title: loc("sheet.tweaks") },
+  ].filter(Boolean);
   tools.push({ key: "key", action: "toggleKey", icon: "fa-solid fa-circle-question", title: loc("sheet.key"), toggle: true, on: !!keyOpen, cls: keyOpen ? "is-on" : "" });
   return tools.map((t) => ({ cls: "", ...t, keyLabel: t.title }));
 }
@@ -323,7 +342,7 @@ function sheetCells({ isGM, keyOpen, editing }) {
  * and on a GM seat the lost compass. A journey whose party is shown nothing of
  * where it stands (`travel.blank`) names no hex and wears no country chip.
  */
-function readingOf(view, { isGM, headcount, clockTime }) {
+function readingOf(view, { seat, headcount, clockTime }) {
   const strip = view.strip ?? {};
   const travel = view.travel ?? {};
   const journey = modeOf(strip.mode) === "journey";
@@ -347,19 +366,19 @@ function readingOf(view, { isGM, headcount, clockTime }) {
   }
   chips.push({ key: "heads", label: loc("chip.heads", { n: headcount }) });
   if (strip.paused) chips.push({ key: "paused", label: loc("chip.paused"), cls: "is-gold" });
-  if (isGM && journey && travel.lost?.active) {
+  if (seat.isGM && journey && travel.lost?.active) {
     chips.push({ key: "astray", label: loc("chip.astray"), icon: "fa-solid fa-compass", cls: "is-judge", title: game.i18n.localize("ACKS-FORMATION.travel.lostHint") });
   }
   return { overline, chips };
 }
 
-/** The Key: every rail glyph with its name, grouped as the rails are, and where a mode's own actions live. */
-function keyLegend(rails, { isGM }) {
+/** The Key: every rail glyph with its name, grouped as the rails are; a group is drawn when its rail has cells. */
+function keyLegend(rails) {
   const rows = (cells) => cells.map((c) => ({ icon: c.icon, short: c.short ?? null, label: c.keyLabel }));
   const groups = [
-    isGM ? { key: "saves", title: loc("key.saves"), rows: rows(rails.saves) } : null,
+    rails.saves.length ? { key: "saves", title: loc("key.saves"), rows: rows(rails.saves) } : null,
     { key: "figures", title: loc("key.figures"), rows: rows(rails.figures) },
-    isGM ? { key: "tools", title: loc("key.tools"), rows: rows(rails.tools) } : null,
+    rails.tools.length ? { key: "tools", title: loc("key.tools"), rows: rows(rails.tools) } : null,
     { key: "sheet", title: loc("key.sheet"), rows: rows(rails.sheet) },
   ].filter(Boolean);
   return { title: loc("key.title"), sub: loc("key.sub"), groups, foot: loc("key.foot") };
@@ -395,13 +414,13 @@ function headsOf(view, { headcount }) {
  * The frame's plate. On a journey whose party token stands on a scene it is
  * the hex the party believes it stands in, drawn (`view.travel.plate`), or the
  * blank of a hex the party is shown nothing of; anywhere else it is the
- * party's image, which the Judge's seat presses to change, with a journey's
- * hex label over it.
+ * party's image, which a seat that may change it presses (the same test as the
+ * sheet's Image tool), with a journey's hex label over it.
  * @returns {{kind: string, draw: boolean, blank: boolean, img: string|null,
  *   hex: string, edit: boolean, differ: boolean, aria: string}} the plate
  *   partial's context, with `drawPlate`'s spec beside it when `draw`
  */
-function framePlate(view, { isGM, mode }) {
+function framePlate(view, { seat, mode }) {
   const drawn = mode === "journey" ? view?.travel?.plate ?? null : null;
   if (drawn?.draw || drawn?.blank) return { ...drawn, kind: "frame", edit: false, differ: false };
   return {
@@ -410,7 +429,7 @@ function framePlate(view, { isGM, mode }) {
     blank: false,
     img: view?.partyImg ?? null,
     hex: mode === "journey" ? view?.strip?.hex?.label || "" : "",
-    edit: !!isGM,
+    edit: !!(seat.ownsParty && seat.canBrowse),
     differ: false,
     aria: "",
   };
@@ -420,7 +439,8 @@ function framePlate(view, { isGM, mode }) {
  * The frame's whole context, built once per render.
  * @param {object} input
  * @param {object} input.view            `buildFormationView`'s result
- * @param {boolean} input.isGM
+ * @param {{isGM: boolean, ownsMember: boolean, ownsEveryMember: boolean, ownsParty: boolean, canBrowse: boolean}} input.seat
+ *   what the viewing seat owns of what a press writes (party-actor.mjs computes it)
  * @param {number} [input.headcount]     `partyHeadcount`
  * @param {Array<{value: number, max: number|null}|null>} [input.hitPoints]  `memberHp` per real member
  * @param {string} [input.clockTime]     the world clock as HH:MM, or ""
@@ -431,23 +451,23 @@ function framePlate(view, { isGM, mode }) {
  * @returns {{mode: string, band: object, plate: object, rails: object, reading: object, key: object, heads: object, panel: object}}
  *   `plate` is `framePlate`'s
  */
-export function buildFrameView({ view, isGM, headcount = 0, hitPoints = [], clockTime = "", magical = true, keyOpen = false, editing = false, panelHidden = false }) {
+export function buildFrameView({ view, seat = {}, headcount = 0, hitPoints = [], clockTime = "", magical = true, keyOpen = false, editing = false, panelHidden = false }) {
   const v = view ?? {};
   const strip = v.strip ?? {};
   const mode = modeOf(strip.mode);
   const rails = {
-    saves: saveCells(v, { isGM, magical }),
-    figures: figureCells(v, { isGM, headcount, hitPoints, clockTime }),
-    tools: toolCells(v, { isGM }),
-    sheet: sheetCells({ isGM, keyOpen, editing }),
+    saves: saveCells(v, { seat, magical }),
+    figures: figureCells(v, { seat, headcount, hitPoints, clockTime }),
+    tools: toolCells(v, { seat }),
+    sheet: sheetCells({ seat, keyOpen, editing }),
   };
   return {
     mode,
     band: { modeLabel: strip.modeLabel ?? "", bar: bandBar(strip) },
-    plate: framePlate(v, { isGM, mode }),
+    plate: framePlate(v, { seat, mode }),
     rails,
-    reading: readingOf(v, { isGM, headcount, clockTime }),
-    key: { open: !!keyOpen, ...keyLegend(rails, { isGM }) },
+    reading: readingOf(v, { seat, headcount, clockTime }),
+    key: { open: !!keyOpen, ...keyLegend(rails) },
     heads: headsOf(v, { headcount }),
     panel: { hidden: !!panelHidden, label: panelHidden ? loc("chevron.show") : loc("chevron.hide") },
   };
