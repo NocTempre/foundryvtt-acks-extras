@@ -1,4 +1,4 @@
-# lib API (apiVersion 77)
+# lib API (apiVersion 78)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 77,
+  apiVersion: 78,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -424,7 +424,7 @@ resolved, `groups.addLabelledStack` (the `label` alone). `gen` names the recipe 
 its page, and `fixedHp` is the figure the part prints where it prints one. A null is a
 unit with no recipe, which a consumer treats as no provider.
 
-## `org` — the organisation chart (apiVersion 74)
+## `org` — the organisation chart (apiVersion 74; 78 adds `editRow`, `unlistRow`, `readHolder` and the two views)
 
 `acksExtras.lib.org`. The shape, the rules of each control and the reasons they
 answer are docs/lib/ORGANISATION.md's; this is the surface.
@@ -442,7 +442,10 @@ answer are docs/lib/ORGANISATION.md's; this is the surface.
 | `chartOf(group)` | `{host, row, above, below}`: the group's place in whichever chart names it |
 | `moraleFromUnitsAbove(group)` | The part the units above a group bring while their officers are up |
 | `runPlan(plan, {mint, makeLeader})` | `{ok, reason?, error?, done, created, made: {groups, prototypes, leaders}, reused, refs}`: carries a `planRoll` or `planAddUnit` plan out in order with a ref map. `mint(spec, {key})` answers `{actor, made}` and `makeLeader(op, spec, mount)` the leader's actor; lib names no creature. `created` is every id made, on a failure too |
-| `deleteRow(host, key)` | `{ok, rows, groups, prototypes, kept, leaders, warnings}`: the row and its subtree, the groups they hold, and each prototype carrying `ORG_PROTOTYPE_FLAG` that no stack still names; bodies on a map are `warnings: ["onMap"]` and a whisper to the Judges |
+| `editRow(host, key, {fields, stacks, officer})` | `{ok, warnings, done}`: a filled row by hand, its label, note, kind, visibility and `gen` patch to the host and a stack's count or prototype and the officer to the row's group; bodies on a map are `warnings: ["onMap"]`, never a refusal; clearing the officer who is a faction host's leader clears its `leaderUuid` in the same write (78) |
+| `unlistRow(host, key)` | `{ok, name, units, dropped, own}`: takes the row and its subtree off the chart onto the groups that held them, un-nesting a group; a subtree naming no holder, and a group's own top row, are dropped; deletes no document. What every Remove press on a sheet calls (78) |
+| `readHolder(uuid, nodes)`, `orgChartView(rows, read, twins, {isGM})`, `locationsView({places, rows, read})` | A holder as the views read it, and the two Foundry-free view models over any rows, for a host with its own supplier (a character sheet's followers) (78) |
+| `deleteRow(host, key)` | API only: no sheet calls it (docs/lib/DECISIONS.md, 2026-11-25).  `{ok, rows, groups, prototypes, kept, leaders, warnings}`: the row and its subtree, the groups they hold, and each prototype carrying `ORG_PROTOTYPE_FLAG` that no stack still names; bodies on a map are `warnings: ["onMap"]` and a whisper to the Judges |
 | `planRoll`, `planAddUnit`, `planEdit`, `planDelete` | The Foundry-free plans (docs/lib/ORGANISATION.md) |
 
 A refusal is `{ok: false, reason}` and nothing is written. The pure half is
