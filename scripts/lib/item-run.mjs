@@ -27,7 +27,7 @@ import { carriesItem, figureNumber, momentKey, pulseAct, readAuraConfig, readRea
 import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseReach, reachSnapshot, releaseReachMoment, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import {
-  actionPartRecordData, activationRecordIds, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
+  actionPartRecordData, activationRecordIds, alwaysOn, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseStep, fuseToWorld,
   dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoGuard, undoPlan,
 } from "./item-run-logic.mjs";
@@ -862,10 +862,14 @@ function otherRaisedOfKind(tokens, { source, rowKey }, activationId) {
  * raised one (`ownCountedStanding`); every other record is deleted. Then each
  * subject that lost a standing part and is still inside another reach is offered
  * to that reach again, so a part another bearer gives is written back at once,
- * and what hears a lifted activation is told.
+ * and what hears a lifted activation is told. A source that resolves and has no
+ * activation (`alwaysOn`) is an always-on reach's: no record carries its
+ * Region's id, so no actor is scanned.
  */
 export async function liftActivation({ config }) {
-  const { worldActors } = await import("./repair.mjs");
+  const item = fromUuidSync(config.sourceUuid);
+  // An always-on reach's Region has an activation id of its own and no record carries it: its records outlive it. Only a source that resolves and is always-on skips the scan, so a deleted toggle item still has its records lifted.
+  const { worldActors } = alwaysOn(item) ? { worldActors: () => [] } : await import("./repair.mjs");
   const lifted = [];
   for (const actor of worldActors()) {
     const ids = activationRecordIds([...actor.effects], config.activationId);
@@ -890,7 +894,6 @@ export async function liftActivation({ config }) {
       }
     }
   }
-  const item = fromUuidSync(config.sourceUuid);
   if (item && itemRunOf(item)?.activation.state.activationId === config.activationId) await setState(item, { active: false, activationId: "", regionId: "" });
   for (const fn of liftListeners) {
     try {

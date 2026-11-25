@@ -66,6 +66,14 @@ export function itemRunRowsOf(item) {
 }
 
 /**
+ * Whether an item's reaches are always on: the item resolves, is no spell and
+ * carries no `itemRun.activation`, so nothing toggles or uses it and its
+ * Regions are the module's to make and lift (`ensureEngagedReaches`), not a
+ * press's.
+ */
+export const alwaysOn = (item) => !!item && item.type !== ITEM_TYPE.spell && !itemRunOf(item);
+
+/**
  * Whether the carrier takes an item's use: the item is no spell and its
  * `itemRun.activation` is a kind some runner is registered for. A spell is
  * declined whatever it carries, so `_useSpell` and the cast engine's claimant

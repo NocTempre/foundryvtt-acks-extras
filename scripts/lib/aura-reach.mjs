@@ -21,6 +21,9 @@
  *   record carrying the Region's activation id goes with it. A bearer whose hit
  *   points reach zero, or that takes the defeated status, has its reaches
  *   deleted (`lowerForBearer`) and `BEARER_DOWN_HOOK` fires.
+ * - `ensureEngagedReaches` makes the always-on reach of a started combat's bearer: a
+ *   Region of its own, with an activation id of its own, that goes with its
+ *   combat, combatant or token and returns with a revived or revealed bearer.
  * - `reachSnapshot` answers which tokens an area contains at this moment, for a
  *   reach that acts once, against an unsaved Region.
  *
@@ -29,8 +32,8 @@
  * config and does nothing.
  */
 import { AURA_BEHAVIOR_TYPE, BEARER_DOWN_HOOK, MODULE_ID, LANG_PREFIX, TURN_BEGAN_HOOK } from "./constants.mjs";
-import { carriesItem, checkRaise, downCause, engagementHolds, figureNumber, groupByKind, groupVerdict, holdMoment, pruneMoments, readAuraConfig, readReach, reachAdmits, releaseMoment, snapshotRegionData, turnStamp } from "./aura-reach-logic.mjs";
-import { itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
+import { carriesItem, checkRaise, downCause, engagedActivationId, engagementHolds, isEngagedActivation, figureNumber, groupByKind, groupVerdict, holdMoment, pruneMoments, readAuraConfig, readReach, reachAdmits, releaseMoment, snapshotRegionData, turnStamp } from "./aura-reach-logic.mjs";
+import { alwaysOn, itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
 import { behaviorsUnder } from "./regions.mjs";
 import { executeAsGM, registerHandler } from "./sockets.mjs";
 import { tokenHasStatus, tokenHitPoints } from "./hp-logic.mjs";
@@ -38,7 +41,8 @@ import { STATUS_DEAD } from "./status-effects.mjs";
 import { isPrimaryGM, makeLoc } from "./util.mjs";
 import { isMarkerActor } from "./place.mjs";
 import { conditionSet } from "./conditions.mjs";
-import { feetToUnits } from "./distance-units.mjs";
+import { engagementFeet, feetToUnits, sceneFeetPerCell } from "./distance-units.mjs";
+import { postToJudges } from "./roll-audience.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -310,6 +314,23 @@ function bearerDown(token) {
 }
 
 /**
+ * The one writer of a reach's Region: core's `createTokenEmanation`, grid
+ * based, hidden as the token is, holding the `aura` behavior whose config names
+ * the item, its actor, the activation id and the row. The range is in feet and
+ * core takes the scene's own units, so it goes through `feetToUnits` here, for
+ * every reach. `showReach` makes the Region everyone's, else the GM's.
+ */
+function createReachRegion({ token, item, rowKey, activationId, rangeFeet, showReach }) {
+  const behavior = { type: AURA_BEHAVIOR_TYPE, name: item.name, system: { sourceUuid: item.uuid, bearerUuid: item.actor.uuid, activationId, rowKey } };
+  return CONFIG.Region.documentClass.createTokenEmanation(
+    token,
+    feetToUnits(rangeFeet, token.parent?.grid?.units),
+    { name: item.name, hidden: token.hidden, visibility: showReach ? CONST.REGION_VISIBILITY.ALWAYS : CONST.REGION_VISIBILITY.GAMEMASTER, behaviors: [behavior] },
+    { gridBased: true },
+  );
+}
+
+/**
  * The raise itself, on the primary GM's window: check the request against what
  * is live, then create the Region through core's `createTokenEmanation`, grid
  * based, hidden as the token is, GM-visible (everyone's where the row's
@@ -339,13 +360,7 @@ async function raiseHere({ tokenUuid, sourceUuid, rowKey, activationId, requestU
     return { ok: false, reason: verdict.reason, missing: support.ok ? [] : support.missing };
   }
   if (verdict.warn) say("downWarn", { judge: true });
-  const behavior = { type: AURA_BEHAVIOR_TYPE, name: item.name, system: { sourceUuid, bearerUuid: item.actor.uuid, activationId, rowKey } };
-  const region = await CONFIG.Region.documentClass.createTokenEmanation(
-    token,
-    feetToUnits(verdict.rangeFeet, token.parent?.grid?.units),
-    { name: item.name, hidden: token.hidden, visibility: reach.showReach ? CONST.REGION_VISIBILITY.ALWAYS : CONST.REGION_VISIBILITY.GAMEMASTER, behaviors: [behavior] },
-    { gridBased: true },
-  );
+  const region = await createReachRegion({ token, item, rowKey, activationId, rangeFeet: verdict.rangeFeet, showReach: reach.showReach });
   return { ok: true, regionId: region?.id ?? null, regionUuid: region?.uuid ?? null };
 }
 
@@ -433,9 +448,8 @@ async function onRegionDeleted(region) {
  * @returns {Promise<Array<{token: TokenDocument, cause: string}>>}
  */
 export async function lowerForBearer(actor) {
-  const tokens = actor?.isToken ? [actor.token] : (actor?.getDependentTokens?.({ linked: true }) ?? []);
   const out = [];
-  for (const token of tokens) {
+  for (const token of tokensOfBearer(actor)) {
     if (!token) continue;
     const cause = bearerDown(token);
     if (!cause) continue;
@@ -450,7 +464,170 @@ export async function lowerForBearer(actor) {
 const effectActor = (effect) => (effect?.parent?.documentName === "ActorDelta" ? (effect.parent.parent?.actor ?? null) : (effect?.parent ?? null));
 
 /** Whether an effect holds the defeated status and is enabled. */
-const defeating = (effect) => !effect?.disabled && effect?.statuses?.has?.(globalThis.CONFIG?.specialStatusEffects?.DEFEATED ?? STATUS_DEAD) === true;
+const defeating = (effect) => !effect?.disabled && carriesDefeated(effect);
+
+/** Whether an effect names the defeated status, enabled or not: one that no longer holds it may restore a bearer's reaches. */
+const carriesDefeated = (effect) => effect?.statuses?.has?.(globalThis.CONFIG?.specialStatusEffects?.DEFEATED ?? STATUS_DEAD) === true;
+
+/* -------------------------------------------- */
+/*  The always-on engaged reach                  */
+/* -------------------------------------------- */
+
+/** The engaged reach rows an actor's always-on items carry, as `{item, row, reach}`. */
+function engagedRowsOf(actor) {
+  const out = [];
+  for (const item of [...(actor?.items ?? [])]) {
+    if (!alwaysOn(item)) continue;
+    for (const row of itemRunRowsOf(item)) {
+      const reach = row?.key ? readReach(row.reach) : null;
+      if (reach?.engaged) out.push({ item, row, reach });
+    }
+  }
+  return out;
+}
+
+/** Whether a Region is an always-on reach's: it holds an aura behavior whose activation id is an engaged one. */
+const isEngagedReach = (region) => auraConfigsOf(region).some((config) => isEngagedActivation(config.activationId));
+
+/** Whether a token already has the Region of one item's row. */
+const hasEngagedReach = (token, item, rowKey) => reachesOf(token).some((region) => isEngagedReach(region) && auraConfigsOf(region).some((c) => c.sourceUuid === item.uuid && c.rowKey === rowKey));
+
+/** The Region keys being made right now, so a second call for the same body passes it by instead of making a second. */
+const making = new Set();
+
+/** The lines told this combat, by combat id then line, so each is told once. */
+const told = new Map();
+
+/** Tell the Judges a line once per combat; false where it was told before. */
+async function tellOnce(combat, line, text) {
+  const seen = told.get(combat?.id ?? "") ?? new Set();
+  if (seen.has(line)) return false;
+  told.set(combat?.id ?? "", seen.add(line));
+  try {
+    await postToJudges({ content: `<p><em>${foundry.utils.escapeHTML(text)}</em></p>` });
+  } catch (err) {
+    console.error(`${MODULE_ID} | a Judge line could not be posted`, err);
+  }
+  return true;
+}
+
+/**
+ * Make the always-on engaged reaches of a started combat, on the primary GM's
+ * window: for each combatant whose token's actor holds an item with an engaged
+ * reach row and no `itemRun.activation`, one Region attached to the token, at
+ * `engagementFeet()` through `feetToUnits`, GM-visible or, where the row's
+ * `showReach` is ticked, everyone's. Idempotent: a token that already has its
+ * row's Region is left, and a body still being made is passed by. A downed
+ * bearer and a hidden one are skipped, silently. Silent for a combat with no
+ * such row. Told once per combat, to the Judges: a scene whose grid square is
+ * not the engagement square, and a refusal (no token, no support, Foundry
+ * refusing the Region).
+ *
+ * @param {Combat} combat
+ * @param {{combatants?: Combatant[]}} [only] the combatants to read, where not the whole combat
+ * @returns {Promise<{made: number, skipped: number, scaleMismatch: boolean}>} the Regions made now, the bodies skipped (down or hidden), whether a body stands on a scene whose square is another size
+ */
+export async function ensureEngagedReaches(combat, { combatants = null } = {}) {
+  const out = { made: 0, skipped: 0, scaleMismatch: false };
+  if (!isPrimaryGM() || !combat?.started) return out;
+  const jobs = [];
+  const refused = [];
+  for (const combatant of combatants ?? [...(combat.combatants ?? [])]) {
+    const token = combatant.token ?? null;
+    const rows = engagedRowsOf(token?.actor ?? combatant.actor);
+    if (!rows.length) continue;
+    if (!token) {
+      refused.push(loc("aura.engaged.noToken", { name: combatant.name ?? "" }));
+      continue;
+    }
+    if (token.hidden || bearerDown(token)) {
+      out.skipped += 1;
+      continue;
+    }
+    if (sceneFeetPerCell(token.parent) !== engagementFeet()) out.scaleMismatch = true;
+    for (const { item, row, reach } of rows) {
+      const key = `${token.uuid}|${item.uuid}|${row.key}`;
+      if (making.has(key) || hasEngagedReach(token, item, row.key)) continue;
+      making.add(key);
+      jobs.push({ key, token, item, row, reach });
+    }
+  }
+  const support = auraSupport();
+  for (const { key, token, item, row, reach } of jobs) {
+    try {
+      if (!support.ok) {
+        refused.push(loc("aura.refused.unsupported"));
+        continue;
+      }
+      await createReachRegion({ token, item, rowKey: row.key, activationId: engagedActivationId(foundry.utils.randomID()), rangeFeet: engagementFeet(), showReach: reach.showReach });
+      out.made += 1;
+    } catch (err) {
+      console.error(`${MODULE_ID} | an engaged reach could not be made`, err);
+      refused.push(loc("aura.engaged.denied", { name: token.name ?? "" }));
+    } finally {
+      making.delete(key);
+    }
+  }
+  if (out.scaleMismatch) await tellOnce(combat, "scale", loc("aura.engaged.scale"));
+  if (refused.length) await tellOnce(combat, "refused", refused[0]);
+  return out;
+}
+
+/** Whether a token is a combatant of a started combat other than `combat`. */
+function inOtherStartedCombat(token, combat) {
+  return [...(game.combats ?? [])].some((other) => other.id !== combat?.id && other.started && [...(other.combatants ?? [])].some((c) => c.tokenId === token.id && (!c.sceneId || c.sceneId === token.parent?.id)));
+}
+
+/**
+ * Delete a token's always-on Regions, and only those: a raised toggle's reach
+ * on the same token stays. A Region core already deleted with its token is
+ * passed over. Records outlive the Region (`liftActivation` leaves them).
+ * @returns {Promise<string[]>} the Region ids deleted
+ */
+export async function lowerEngagedReaches(token) {
+  const regions = reachesOf(token).filter((region) => isEngagedReach(region) && region.parent?.regions?.has?.(region.id) !== false);
+  return deleteRegions(regions);
+}
+
+/** A combatant left, or its combat ended: its token's always-on Regions go unless another started combat holds the token. */
+async function lowerEngagedFor(combat, combatants) {
+  for (const combatant of combatants) {
+    const token = combatant.token;
+    if (token && !inOtherStartedCombat(token, combat)) await lowerEngagedReaches(token);
+  }
+}
+
+/** The started combats a token is a combatant of, as `{combat, combatants}`. */
+function startedCombatsOf(token) {
+  const out = [];
+  for (const combat of game.combats ?? []) {
+    if (!combat.started) continue;
+    const combatants = [...(combat.combatants ?? [])].filter((c) => c.tokenId === token.id && (!c.sceneId || c.sceneId === token.parent?.id));
+    if (combatants.length) out.push({ combat, combatants });
+  }
+  return out;
+}
+
+/** Ensure a token's reaches in every started combat it fights in: a bearer revived or revealed has them back. */
+async function ensureForToken(token) {
+  for (const { combat, combatants } of startedCombatsOf(token)) await ensureEngagedReaches(combat, { combatants });
+}
+
+/** The tokens a bearer's actor stands behind: a synthetic actor's own, else its linked tokens. */
+const tokensOfBearer = (actor) => (actor?.isToken ? [actor.token] : (actor?.getDependentTokens?.({ linked: true }) ?? []));
+
+/** A bearer is up: each of its tokens that fights has its always-on reaches again, where it was down before. */
+async function reviveEngaged(actor) {
+  for (const token of tokensOfBearer(actor)) {
+    if (token && !bearerDown(token)) await ensureForToken(token);
+  }
+}
+
+/** An actor's hit points changed or its defeated status moved: lowered where it is down, restored where it is up. */
+async function settleBearer(actor) {
+  await lowerForBearer(actor);
+  await reviveEngaged(actor);
+}
 
 /* -------------------------------------------- */
 /*  The area a snapshot tests                    */
@@ -500,11 +677,35 @@ export function installAuraReach() {
   Hooks.on(TURN_BEGAN_HOOK, onTurnBegan);
   Hooks.on("deleteRegion", onRegionDeleted);
   Hooks.on("updateActor", (actor, change) => {
-    if (isPrimaryGM() && change?.system?.hp !== undefined) void lowerForBearer(actor);
+    if (isPrimaryGM() && change?.system?.hp !== undefined) void settleBearer(actor);
   });
   for (const name of ["createActiveEffect", "updateActiveEffect"]) {
     Hooks.on(name, (effect) => {
-      if (isPrimaryGM() && defeating(effect)) void lowerForBearer(effectActor(effect));
+      if (!isPrimaryGM()) return;
+      if (defeating(effect)) void lowerForBearer(effectActor(effect));
+      else if (name === "updateActiveEffect" && carriesDefeated(effect)) void reviveEngaged(effectActor(effect));
     });
   }
+  Hooks.on("deleteActiveEffect", (effect) => {
+    if (isPrimaryGM() && carriesDefeated(effect)) void reviveEngaged(effectActor(effect));
+  });
+  Hooks.on("createCombatant", (combatant) => {
+    if (isPrimaryGM()) void ensureEngagedReaches(combatant.combat, { combatants: [combatant] });
+  });
+  Hooks.on("updateCombat", (combat, change) => {
+    if (isPrimaryGM() && change?.round !== undefined) void ensureEngagedReaches(combat);
+  });
+  Hooks.on("deleteCombatant", (combatant) => {
+    if (isPrimaryGM()) void lowerEngagedFor(combatant.combat, [combatant]);
+  });
+  Hooks.on("deleteCombat", (combat) => {
+    told.delete(combat?.id ?? "");
+    if (isPrimaryGM()) void lowerEngagedFor(combat, [...(combat?.combatants ?? [])]);
+  });
+  Hooks.on("deleteToken", (token) => {
+    if (isPrimaryGM()) void lowerEngagedReaches(token);
+  });
+  Hooks.on("updateToken", (token, change) => {
+    if (isPrimaryGM() && change?.hidden === false) void ensureForToken(token);
+  });
 }

@@ -12,9 +12,10 @@
 import assert from "node:assert/strict";
 
 const hookCalls = [];
+let randomN = 0;
 globalThis.Hooks = { once() {}, on() {}, callAll: (...args) => hookCalls.push(args) };
 globalThis.foundry = {
-  utils: { getProperty: (obj, path) => path.split(".").reduce((o, k) => o?.[k], obj), randomID: () => "rid" },
+  utils: { getProperty: (obj, path) => path.split(".").reduce((o, k) => o?.[k], obj), randomID: () => `rid${++randomN}`, escapeHTML: (text) => String(text) },
   applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class { render() {} async _prepareContext() { return {}; } close() {} } } },
 };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key }, users: [], user: { isGM: true } };
@@ -703,7 +704,7 @@ await t("installing wires lib's turn start, the Region's deletion, hit points an
   } finally {
     globalThis.Hooks.on = priorOn;
   }
-  for (const name of [constants.TURN_BEGAN_HOOK, "deleteRegion", "updateActor", "createActiveEffect", "updateActiveEffect"]) assert.equal(hooksSeen[name]?.length, 1, `${name} once`);
+  for (const name of [constants.TURN_BEGAN_HOOK, "deleteRegion", "updateActor", "createActiveEffect", "updateActiveEffect", "deleteActiveEffect", "createCombatant", "updateCombat", "deleteCombatant", "deleteCombat", "deleteToken", "updateToken"]) assert.equal(hooksSeen[name]?.length, 1, `${name} once`);
 
   // A turn begins: every aura a combatant's token stands in hears it, the live ones of the type alone.
   const aura = (extra = {}) => ({ type: AURA, system: sys(extra) });
@@ -1294,6 +1295,295 @@ await t("a turn start settles a turnStart+enter kind once from every bearer's an
     globalThis.fromUuidSync = priorFrom;
     reach.setReachHandler(null);
     seat(false);
+  }
+});
+
+await t("an engaged reach is made once for a started combat's bearer, always-on only, hidden and downed bodies skipped, with the lines told once per combat", async () => {
+  const { feetToUnits } = await import("../scripts/lib/distance-units.mjs");
+  const priors = { combats: globalThis.game.combats, users: [...globalThis.game.users], config: globalThis.CONFIG, data: globalThis.foundry.data, chat: globalThis.ChatMessage, from: globalThis.fromUuidSync, ui: globalThis.ui };
+  const chat = [];
+  const asked = [];
+  const goneIds = [];
+  globalThis.ChatMessage = { create: async (data) => { chat.push(data); } };
+  globalThis.ui = { notifications: { warn() {}, error() {} } };
+  globalThis.game.users.push({ id: "gm1", isGM: true }, { id: "pl1", isGM: false });
+  globalThis.foundry.data = { ...priors.data, EmanationShapeData: class {} };
+  const build = (over = {}) => ({
+    Region: {
+      documentClass: {
+        schema: { fields: { attachment: { fields: { token: {} } } } },
+        createTokenEmanation: async (token, radius, data, options) => {
+          await tick();
+          if (over.refuse) throw new Error("no permission");
+          const region = { id: `R${asked.length + 1}`, parent: token.parent, behaviors: data.behaviors.map((b) => ({ type: b.type, system: b.system })), delete: async () => { token.parent.regions.delete(region.id); token.attachments.regions.delete(region); goneIds.push(region.id); } };
+          asked.push({ token, radius, data, options, region });
+          token.parent.regions.set(region.id, region);
+          token.attachments.regions.add(region);
+          return region;
+        },
+        ...over.creator,
+      },
+    },
+    specialStatusEffects: {},
+  });
+  globalThis.CONFIG = build();
+  const sceneOf = (id, distance = 5, units = "ft") => ({ id, grid: { distance, units }, regions: new Map() });
+  const engagedRow = (over = {}) => ({ key: "eng", reach: { pulse: "turnStart+enter", engaged: true, showReach: false, filter: {}, ...over } });
+  const abilityOf = (uuid, rows) => ({ uuid, name: `Trait ${uuid}`, type: "ability", flags: { "acks-extras": { extras: { effects: rows } } } });
+  const toggleOf = (uuid, rows) => ({ uuid, name: `Toggle ${uuid}`, type: "item", flags: { "acks-extras": { itemRun: { activation: { kind: "toggle", state: {} }, rows } } } });
+  const tokenWith = (scene, id, items, over = {}) => {
+    const actor = { uuid: `A.${id}`, isToken: false, items };
+    for (const item of items) item.actor = actor;
+    const token = { id, uuid: `T.${id}`, name: `Tok ${id}`, hidden: false, actorLink: true, parent: scene, actor, baseActor: { system: { hp: { value: 5, max: 9 } }, statuses: new Set() }, attachments: { regions: new Set() }, ...over };
+    actor.getDependentTokens = () => [token];
+    return token;
+  };
+  const combatOf = (id, tokens, { started = true } = {}) => {
+    const combat = { id, started, combatants: [] };
+    combat.combatants = tokens.map((token) => ({ id: `c.${token.id}`, name: `Row ${token.id}`, tokenId: token.id, sceneId: token.parent.id, token, actor: token.actor, combat }));
+    return combat;
+  };
+  const lookup = new Map();
+  const index = (...tokens) => { for (const tok of tokens) { lookup.set(tok.uuid, tok); for (const item of tok.actor.items) lookup.set(item.uuid, item); } };
+  globalThis.fromUuidSync = (uuid) => lookup.get(uuid) ?? null;
+  const liveRegions = (token) => [...token.attachments.regions];
+  const readAura = logic.readAuraConfig;
+  const lines = () => chat.splice(0).map((c) => c.content);
+  const NONE = { made: 0, skipped: 0, scaleMismatch: false };
+  seat(true);
+  try {
+    const scene = sceneOf("S1");
+    const trait = abilityOf("I.a", [engagedRow()]);
+    const ticked = abilityOf("I.b", [engagedRow({ showReach: true })]);
+    const standing = abilityOf("I.q", [{ key: "plain", reach: { pulse: "standing", radius: { value: "20" }, filter: {} } }]);
+    const bearer = tokenWith(scene, "a", [trait]);
+    const shown = tokenWith(scene, "b", [ticked]);
+    const plain = tokenWith(scene, "p", [standing]);
+    const toggler = tokenWith(scene, "t", [toggleOf("I.t", [engagedRow()])]);
+    index(bearer, shown, plain, toggler);
+    const combat = combatOf("C1", [bearer, shown, plain, toggler]);
+    globalThis.game.combats = [combat];
+
+    // The two readers: an always-on item has no activation, and an engaged activation id is this module's own shape.
+    const { alwaysOn } = await import("../scripts/lib/item-run-logic.mjs");
+    assert.deepEqual([alwaysOn(trait), alwaysOn(toggleOf("I.t2", [])), alwaysOn(null), alwaysOn({ type: "spell", flags: {} })], [true, false, false, false]);
+    assert.deepEqual([logic.isEngagedActivation(logic.engagedActivationId("x")), logic.isEngagedActivation("act1"), logic.isEngagedActivation("engaged:"), logic.isEngagedActivation(null)], [true, false, false, false]);
+
+    // Made once, idempotent, and the four config fields.
+    let got = await reach.ensureEngagedReaches(combat);
+    assert.deepEqual(got, { made: 2, skipped: 0, scaleMismatch: false }, "the two engaged bodies; nothing for a standing reach or a toggle item (E3/E4/E9 untouched)");
+    assert.equal(liveRegions(plain).length + liveRegions(toggler).length, 0, "no Region for an item with an activation, nor for a reach that is not engaged");
+    assert.deepEqual(lines(), [], "silent where nothing is told");
+    const config = readAura(liveRegions(bearer)[0].behaviors[0].system);
+    assert.ok(config, "all four fields read");
+    assert.deepEqual([config.sourceUuid, config.bearerUuid, config.rowKey], ["I.a", "A.a", "eng"]);
+    assert.ok(logic.isEngagedActivation(config.activationId), "a per-Region id of its own, never a toggle state");
+    assert.notEqual(readAura(liveRegions(shown)[0].behaviors[0].system).activationId, config.activationId, "one id per Region");
+    assert.deepEqual(await reach.ensureEngagedReaches(combat), NONE, "idempotent");
+    assert.equal(asked.length, 2);
+    assert.equal(asked[0].data.visibility, 1, "an unticked showReach is GM-visible");
+    assert.equal(asked[1].data.visibility, 2, "a ticked one is everyone's");
+    assert.deepEqual([asked[0].options.gridBased, asked[0].data.hidden], [true, false]);
+
+    // The radius goes through feetToUnits, on a feet scene and on a metre scene.
+    assert.equal(asked[0].radius, 5, "feet scene: the adjacent square's feet");
+    const metres = sceneOf("S2", 1.5, "m");
+    const mBearer = tokenWith(metres, "m", [abilityOf("I.m", [engagedRow()])]);
+    index(mBearer);
+    const mCombat = combatOf("C2", [mBearer]);
+    await reach.ensureEngagedReaches(mCombat);
+    assert.equal(asked.at(-1).radius, feetToUnits(5, "m"), "metre scene: the feet converted to the scene's unit");
+    assert.ok(Math.abs(asked.at(-1).radius - 1.524) < 0.001);
+    lines();
+
+    // A second call made while the first is still creating makes no second Region.
+    const racer = tokenWith(scene, "r", [abilityOf("I.r", [engagedRow()])]);
+    index(racer);
+    const rCombat = combatOf("C3", [racer]);
+    const before = asked.length;
+    const [first, second] = await Promise.all([reach.ensureEngagedReaches(rCombat), reach.ensureEngagedReaches(rCombat, { combatants: rCombat.combatants })]);
+    assert.equal(asked.length - before, 1, "two un-awaited calls, one create");
+    assert.equal(first.made + second.made, 1);
+
+    // A combat not begun makes none, and a combat with no such row is silent.
+    const idle = tokenWith(scene, "i", [abilityOf("I.i", [engagedRow()])]);
+    index(idle);
+    assert.deepEqual(await reach.ensureEngagedReaches(combatOf("C4", [idle], { started: false })), NONE);
+    assert.deepEqual(await reach.ensureEngagedReaches(combatOf("C5", [plain, toggler])), NONE);
+    seat(false);
+    assert.deepEqual(await reach.ensureEngagedReaches(combatOf("C6", [idle])), NONE, "off the primary GM's window nothing is made");
+    seat(true);
+    assert.deepEqual([liveRegions(idle).length, lines().length], [0, 0]);
+
+    // A downed bearer and a hidden one are skipped silently.
+    const downed = tokenWith(scene, "d", [abilityOf("I.d", [engagedRow()])]);
+    downed.baseActor.system.hp.value = 0;
+    const hiding = tokenWith(scene, "h", [abilityOf("I.h", [engagedRow()])], { hidden: true });
+    index(downed, hiding);
+    assert.deepEqual(await reach.ensureEngagedReaches(combatOf("C7", [downed, hiding])), { made: 0, skipped: 2, scaleMismatch: false });
+    assert.deepEqual([liveRegions(downed).length, liveRegions(hiding).length, lines().length], [0, 0, 0], "no Region, no line");
+
+    // A scene whose square is not the engagement square: one whispered line per combat.
+    const wide = sceneOf("S3", 10, "ft");
+    const wBearer = tokenWith(wide, "w", [abilityOf("I.w", [engagedRow()])]);
+    index(wBearer);
+    const wCombat = combatOf("C8", [wBearer]);
+    assert.deepEqual(await reach.ensureEngagedReaches(wCombat), { made: 1, skipped: 0, scaleMismatch: true });
+    const told = chat.splice(0);
+    assert.equal(told.length, 1);
+    assert.ok(told[0].content.includes("aura.engaged.scale"), "the scale line");
+    assert.deepEqual(told[0].whisper, ["gm1"], "the Judges alone");
+    assert.equal((await reach.ensureEngagedReaches(wCombat)).scaleMismatch, true, "the fact is returned every call");
+    assert.equal(chat.length, 0, "the line is told once for the combat");
+    await reach.ensureEngagedReaches(combatOf("C9", [wBearer]));
+    assert.equal(chat.splice(0).length, 1, "another combat is told once again");
+    await hooksSeen.deleteCombat[0](wCombat);
+    await tick();
+    await reach.ensureEngagedReaches(wCombat);
+    assert.equal(chat.splice(0).length, 1, "a combat's lines are forgotten when it is deleted");
+    assert.equal((await reach.ensureEngagedReaches(combatOf("C10", [tokenWith(wide, "n", [abilityOf("I.n", [])])]))).scaleMismatch, false, "a scene with no engaged body is no mismatch");
+    assert.equal(chat.length, 0);
+
+    // A refusal is one Judge line per combat: no token, and Foundry refusing the Region.
+    const tokenless = tokenWith(scene, "z", [abilityOf("I.z", [engagedRow()])]);
+    const nCombat = combatOf("C11", [tokenless]);
+    nCombat.combatants[0].token = null;
+    assert.deepEqual(await reach.ensureEngagedReaches(nCombat), NONE);
+    assert.ok(lines()[0].includes("aura.engaged.noToken"));
+    await reach.ensureEngagedReaches(nCombat);
+    assert.equal(chat.length, 0, "once per combat");
+    const refusing = tokenWith(scene, "f", [abilityOf("I.f", [engagedRow()])]);
+    index(refusing);
+    globalThis.CONFIG = build({ refuse: true });
+    const fCombat = combatOf("C12", [refusing]);
+    const errors = await quiet(async () => {
+      assert.equal((await reach.ensureEngagedReaches(fCombat)).made, 0);
+      await reach.ensureEngagedReaches(fCombat);
+    });
+    assert.ok(errors.some((line) => line.includes("could not be made")));
+    const refusedLines = lines();
+    assert.equal(refusedLines.length, 1, "one line per combat for a refusal");
+    assert.ok(refusedLines[0].includes("aura.engaged.denied"));
+    assert.equal(liveRegions(refusing).length, 0);
+    globalThis.CONFIG = build({ creator: { createTokenEmanation: undefined } });
+    await reach.ensureEngagedReaches(combatOf("C13", [refusing]));
+    assert.ok(lines()[0].includes("aura.refused.unsupported"), "a build without what a reach is made of");
+    globalThis.CONFIG = build();
+
+    // Teardown. A raised toggle's reach on the same body stays through every path.
+    const raisedToggle = (token) => {
+      const r = { id: `RT${token.id}`, parent: token.parent, behaviors: [{ type: AURA, system: { sourceUuid: "I.t", bearerUuid: "A.t", activationId: "act-toggle", rowKey: "k" } }], delete: async () => { token.parent.regions.delete(r.id); token.attachments.regions.delete(r); goneIds.push(r.id); } };
+      token.parent.regions.set(r.id, r);
+      token.attachments.regions.add(r);
+      return r;
+    };
+    const kept = raisedToggle(bearer);
+    const engagedOn = (token) => liveRegions(token).filter((r) => logic.isEngagedActivation(readAura(r.behaviors[0].system)?.activationId)).length;
+    const hook = async (name, ...args) => { await hooksSeen[name][0](...args); await tick(); };
+    const other = combatOf("COther", [bearer]);
+    globalThis.game.combats = [combat, other];
+    assert.equal(engagedOn(bearer), 1);
+    await hook("deleteCombatant", combat.combatants[0]);
+    assert.equal(engagedOn(bearer), 1, "the token is a combatant of another started combat, so its Region stays");
+    other.started = false;
+    await hook("deleteCombatant", combat.combatants[0]);
+    assert.equal(engagedOn(bearer), 0, "the combatant left and no other fight holds it");
+    assert.ok(liveRegions(bearer).includes(kept), "a raised toggle's Region on the same token stays");
+    other.started = true;
+    await reach.ensureEngagedReaches(combat);
+    assert.equal(engagedOn(bearer), 1, "made again");
+    await hook("deleteCombat", combat);
+    assert.equal(engagedOn(bearer), 1, "deleteCombat keeps what another started combat holds");
+    globalThis.game.combats = [];
+    await hook("deleteCombat", combat);
+    assert.deepEqual([engagedOn(bearer), engagedOn(shown)], [0, 0], "deleteCombat lowers every combatant's Region");
+    assert.ok(liveRegions(bearer).includes(kept), "and a toggle's Region survives it");
+    globalThis.game.combats = [combat];
+    await reach.ensureEngagedReaches(combat);
+    await hook("deleteToken", bearer);
+    assert.equal(engagedOn(bearer), 0, "deleting the token lowers its engaged Region");
+    assert.ok(liveRegions(bearer).includes(kept));
+    await reach.ensureEngagedReaches(combat);
+    const cascaded = liveRegions(bearer).find((r) => r !== kept);
+    scene.regions.delete(cascaded.id);
+    goneIds.length = 0;
+    assert.deepEqual(await quiet(() => hook("deleteToken", bearer)), [], "no error for a Region core already deleted with its token");
+    assert.deepEqual(goneIds, [], "and no second delete");
+    scene.regions.set(cascaded.id, cascaded);
+    seat(false);
+    await hook("deleteToken", bearer);
+    await hook("deleteCombatant", combat.combatants[0]);
+    await hook("deleteCombat", combat);
+    assert.equal(engagedOn(bearer), 1, "off the primary GM's window nothing is lowered");
+    seat(true);
+
+    // The bearer going down lowers it, and its revival makes it again.
+    const hp = (value) => { bearer.baseActor.system.hp.value = value; };
+    hp(0);
+    await hook("updateActor", bearer.actor, { system: { hp: { value: 0 } } });
+    assert.equal(engagedOn(bearer), 0, "down: lowered");
+    assert.deepEqual(await reach.ensureEngagedReaches(combat), { made: 0, skipped: 1, scaleMismatch: false }, "and not made while it is down");
+    hp(5);
+    await hook("updateActor", bearer.actor, { system: { hp: { value: 5 } } });
+    assert.equal(engagedOn(bearer), 1, "revived: the reach is ensured again");
+    await hook("updateActor", bearer.actor, { system: { hp: { value: 5 } } });
+    assert.equal(engagedOn(bearer), 1, "and a second ensure makes no second");
+    // The defeated status lowers it, and its removal or disabling restores it; a disabled effect is ignored on the way down.
+    const dead = (over = {}) => ({ disabled: false, statuses: new Set(["dead"]), parent: bearer.actor, ...over });
+    bearer.baseActor.statuses = new Set(["dead"]);
+    await hook("createActiveEffect", dead());
+    assert.equal(engagedOn(bearer), 0, "the defeated status lowers it");
+    await hook("updateActiveEffect", dead({ disabled: true }));
+    assert.equal(engagedOn(bearer), 0, "still down: its actor holds the status");
+    bearer.baseActor.statuses = new Set();
+    await hook("updateActiveEffect", dead({ disabled: true }));
+    assert.equal(engagedOn(bearer), 1, "an effect disabled, the actor up: restored");
+    bearer.baseActor.statuses = new Set(["dead"]);
+    await hook("createActiveEffect", dead());
+    assert.equal(engagedOn(bearer), 0);
+    bearer.baseActor.statuses = new Set();
+    await hook("deleteActiveEffect", dead({ disabled: true }));
+    assert.equal(engagedOn(bearer), 1, "a deleted defeated effect, disabled or not, restores it");
+    await hook("deleteActiveEffect", { disabled: false, statuses: new Set(["prone"]), parent: bearer.actor });
+    assert.equal(engagedOn(bearer), 1);
+    // A bearer revealed mid-fight has it made; a hide changes nothing.
+    await reach.lowerEngagedReaches(bearer);
+    bearer.hidden = true;
+    await hook("updateToken", bearer, { hidden: true });
+    assert.equal(engagedOn(bearer), 0);
+    bearer.hidden = false;
+    await hook("updateToken", bearer, { hidden: false });
+    assert.equal(engagedOn(bearer), 1, "revealed: the reach is made");
+    await hook("updateToken", bearer, { x: 5 });
+    assert.equal(engagedOn(bearer), 1);
+    // A combatant joining a started combat has its own made; a round change ensures the whole combat, a turn change does not.
+    const late = tokenWith(scene, "l", [abilityOf("I.l", [engagedRow()])]);
+    index(late);
+    const [member] = combatOf("C20", [late]).combatants;
+    member.combat = combat;
+    await hook("createCombatant", member);
+    assert.equal(engagedOn(late), 1, "createCombatant makes the joiner's reach");
+    await reach.lowerEngagedReaches(late);
+    combat.combatants.push(member);
+    await hook("updateCombat", combat, { turn: 3 });
+    assert.equal(engagedOn(late), 0, "a turn change makes nothing");
+    await hook("updateCombat", combat, { round: 2 });
+    assert.equal(engagedOn(late), 1, "a round change ensures the combat");
+    seat(false);
+    await reach.lowerEngagedReaches(late);
+    await hook("createCombatant", member);
+    await hook("updateCombat", combat, { round: 3 });
+    assert.equal(engagedOn(late), 0, "off the primary GM's window neither hook makes");
+    seat(true);
+  } finally {
+    seat(false);
+    globalThis.game.combats = priors.combats;
+    globalThis.game.users.splice(0, globalThis.game.users.length, ...priors.users);
+    globalThis.CONFIG = priors.config;
+    globalThis.foundry.data = priors.data;
+    globalThis.ChatMessage = priors.chat;
+    globalThis.fromUuidSync = priors.from;
+    globalThis.ui = priors.ui;
   }
 });
 

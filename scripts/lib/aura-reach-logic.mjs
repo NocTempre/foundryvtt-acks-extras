@@ -512,3 +512,17 @@ export function downCause({ hp, defeated } = {}) {
   if (points !== null && points <= 0) return "hp";
   return defeated === true ? "defeated" : null;
 }
+
+/** The prefix of the activation id an always-on (engaged) reach's Region carries, so a teardown tells it from a raised toggle's. */
+const ENGAGED_ACTIVATION_PREFIX = "engaged:";
+
+/**
+ * The activation id of one always-on reach's Region, made once when the Region
+ * is, from a fresh random id. It names the Region and never the item's toggle
+ * state, which an always-on item has none of.
+ * @param {string} random a fresh random id
+ */
+export const engagedActivationId = (random) => `${ENGAGED_ACTIVATION_PREFIX}${random}`;
+
+/** Whether an activation id is an always-on reach's (`engagedActivationId`). */
+export const isEngagedActivation = (id) => typeof id === "string" && id.startsWith(ENGAGED_ACTIVATION_PREFIX) && id.length > ENGAGED_ACTIVATION_PREFIX.length;

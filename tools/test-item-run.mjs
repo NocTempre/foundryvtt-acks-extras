@@ -1351,6 +1351,33 @@ await t("a lowered activation's records come off every actor that holds one, by 
   }
 });
 
+await t("an always-on item's lowered Region scans no actor, while a toggle item's records are still lifted and a deleted toggle item's too", async () => {
+  const { managedDelete } = await import("../scripts/lib/managed-effects.mjs");
+  const dels = [];
+  const rec = (id, activationId) => ({ id, flags: { "acks-extras": { itemRun: { activationId } } } });
+  const holderOf = (effects) => ({ effects, deleteEmbeddedDocuments: async (...args) => dels.push(args) });
+  const priorActors = gameStub.actors;
+  const priorScenes = gameStub.scenes;
+  gameStub.actors = [holderOf([rec("e1", "act1")])];
+  gameStub.scenes = [];
+  const lift = () => run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.1" } });
+  try {
+    itemFlags = { itemRun: { rows: rowsToggle } };
+    await lift();
+    assert.deepEqual(dels, [], "the source resolves and has no activation: no world scan, no record touched");
+    itemFlags = toggleFlags({ active: true, activationId: "act1", regionId: "r1" });
+    await lift();
+    assert.deepEqual(dels, [["ActiveEffect", ["e1"], managedDelete()]], "a toggle item's records go as before");
+    dels.length = 0;
+    await run.liftActivation({ config: { activationId: "act1", sourceUuid: "I.none" } });
+    assert.deepEqual(dels, [["ActiveEffect", ["e1"], managedDelete()]], "a deleted toggle item does not resolve, so its records are still lifted");
+  } finally {
+    gameStub.actors = priorActors;
+    gameStub.scenes = priorScenes;
+    itemFlags = {};
+  }
+});
+
 await t("a lowering re-offers the subject's other reaches to every token the actor stands as, a linked token on a scene nobody views included", async () => {
   seatOf(true);
   const aura = await import("../scripts/lib/aura-reach.mjs");
