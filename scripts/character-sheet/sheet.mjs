@@ -79,6 +79,7 @@ import { setDown } from "../location/ground.mjs";
 import { isGroundPile } from "../lib/place.mjs";
 import { mountOf, ride, dismount } from "../lib/mount.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -123,6 +124,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     window: { resizable: true, contentClasses: [`${FRAME_CLASS}__content`] },
     actions: {
       roll: AcksCharacterSheet.#onRoll,
+      reachStripSave: (_event, target) => pressStripSave(target),
       pinRoll: AcksCharacterSheet.#onPinRoll,
       clearUnarmedDie: AcksCharacterSheet.#onClearUnarmedDie,
       pinItem: AcksCharacterSheet.#onPinItem,
@@ -378,6 +380,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
       moveMode: this.#ui.moveMode,
     });
     if (frame.active) this.tabGroups.primary = frame.active;
+    context.reachStrip = reachStripFor(actor);
     this.#decorateFrame(frame, snap);
 
     const rolls = rollInventory(actor);

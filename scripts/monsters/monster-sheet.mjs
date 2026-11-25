@@ -79,6 +79,7 @@ const TAB_LIST = Object.freeze([
   { id: "animal", label: "ACKS-MONSTERS.tab.animal" },
   { id: "attacks", label: "ACKS-MONSTERS.tab.attacks" },
   { id: "abilities", label: "ACKS-MONSTERS.tab.abilities" },
+import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
   { id: "inventory", label: "ACKS-MONSTERS.tab.inventory" },
   { id: "spoils", label: "ACKS-MONSTERS.tab.spoils" },
   { id: "defenses", label: "ACKS-MONSTERS.tab.defenses" },
@@ -195,6 +196,7 @@ export function createFullMonsterSheet(Base) {
       actions: {
         ...ACTIONS,
         roll: FullMonsterSheet.#onRoll,
+        reachStripSave: (_event, target) => pressStripSave(target),
         pinRoll: FullMonsterSheet.#onPinRoll,
         hpCell: FullMonsterSheet.#onHpCell,
         moveMenu: FullMonsterSheet.#onMoveMenu,
@@ -275,6 +277,7 @@ export function createFullMonsterSheet(Base) {
       const folded = this.folded;
       const extras = MonsterExtras.fromActor(actor);
       context.extras = extras;
+      context.reachStrip = reachStripFor(actor);
       // Enrich the entry-prose fields the same way core enriches biography.
       // The raw value still drives editing; the enriched HTML is the display.
       // `relativeTo` resolves relative @UUID links; secrets stay hidden from

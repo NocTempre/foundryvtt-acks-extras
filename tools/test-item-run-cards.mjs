@@ -10,7 +10,7 @@
  * Usage: node tools/test-item-run-cards.mjs
  */
 import assert from "node:assert/strict";
-import { applyPatch, blankTip, freshKey, importTip, moraleLine, newCard, patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, stripModel } from "../scripts/lib/item-run-card-logic.mjs";
+import { applyPatch, blankTip, freshKey, importTip, moraleLine, newCard, patchOut, patchPrompt, patchSubject, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, shownTokenName, stripModel, turnsLeft } from "../scripts/lib/item-run-card-logic.mjs";
 
 let passed = 0;
 const t = (name, fn) => {
@@ -171,14 +171,36 @@ t("the card's store keys are free of dots, entries are keyed by moment, and a pr
   assert.equal(rowStateOf(card, "S.s9"), "notTarget");
 });
 
-t("the strip lists what meets a body and is absent when nothing does; the morale line names the item and the figure", () => {
+t("the strip lists what meets a body, the save owed first and what asks nothing last, and is absent when nothing does", () => {
   assert.deepEqual(stripModel([]), { count: 0, rows: [] });
-  const strip = stripModel([{ name: "Item", owed: true, target: 12, feet: 15, tip: "t" }, { name: "Other", owed: false }]);
-  assert.equal(strip.count, 2);
-  assert.deepEqual(strip.rows.map((r) => r.tag), ["owed", "always"]);
-  assert.equal(strip.rows[1].target, undefined);
-  assert.deepEqual(moraleLine({ item: "Item", value: 1, cite: "XX p. 1", words: { inReachOf: "In reach of" } }), { left: "In reach of Item", right: "+1", cite: "XX p. 1" });
-  assert.equal(moraleLine({ item: "Item", value: -2, words: { inReachOf: "In reach of" } }).right, "−2");
+  assert.deepEqual(stripModel(null), { count: 0, rows: [] });
+  const strip = stripModel([
+    { key: "a", name: "Aura", tag: "always", source: "Alpha", part: { value: -1, tip: "p" } },
+    { key: "b", name: "Bane", tag: "immune", source: "Alpha", left: 4, leftTip: "l" },
+    { key: "c", name: "Curse", tag: "owed", source: "Alpha", feet: 15, radius: 30, target: 12, targetTip: "t", press: { messageId: "M" } },
+    { key: "d", name: "Dread", tag: "waiting", source: "Alpha", feet: 0 },
+    { key: "e", name: "Eerie", tag: "nonsense" },
+  ]);
+  assert.equal(strip.count, 4, "a tag nobody knows is not listed");
+  assert.deepEqual(strip.rows.map((r) => r.tag), ["owed", "waiting", "always", "immune"]);
+  assert.deepEqual([strip.rows[0].feet, strip.rows[0].radius, strip.rows[0].target, strip.rows[0].press.messageId], [15, 30, 12, "M"]);
+  assert.equal(strip.rows[1].feet, 0, "a body touching the bearer's token is 0′ away, a figure and not a blank");
+  assert.deepEqual([strip.rows[2].feet, strip.rows[2].target, strip.rows[2].press], [null, null, null], "a figure not given is null");
+});
+
+t("a token's name is shown as core shows it to the viewer, and the morale line carries the item and the record's page", () => {
+  const modes = { NONE: 0, OWNER_HOVER: 20, OWNER: 40 };
+  const named = (over) => shownTokenName({ name: "Tok", displayName: 50, isOwner: false, ...over }, modes);
+  assert.equal(named({}), "Tok", "an always-shown name is shown");
+  assert.equal(named({ displayName: 30 }), "Tok", "so is a hover name");
+  assert.equal(named({ displayName: 0, isOwner: true }), null, "a name core never shows is not shown to its owner either");
+  assert.equal(named({ displayName: 40 }), null, "an owner-only name is withheld from a seat that does not own the token");
+  assert.equal(named({ displayName: 20 }), null);
+  assert.equal(named({ displayName: 40, isOwner: true }), "Tok");
+  assert.equal(named({ isSecret: true, isOwner: true }), null, "a secret token has no name");
+  assert.deepEqual(moraleLine({ item: "Item", cite: "XX p. 1", words: { inReachOf: "In reach of" } }), { label: "In reach of Item", cite: "XX p. 1" });
+  assert.equal(moraleLine({ item: "Item", words: { inReachOf: "In reach of" } }).cite, "", "no page, no citation");
+  assert.deepEqual([turnsLeft(100, 0, 600), turnsLeft(100, 99, 600), turnsLeft(1300, 100, 600), turnsLeft(100, 100, 600), turnsLeft(null, 0, 600), turnsLeft(100, null, 600)], [1, 1, 2, null, null, null], "turns left on the module's clock round up, and an ended or unread window has none");
 });
 
 t("a figure's tooltip says where it came from: the import's row and page, the computed parts with the page, or the page reference alone", () => {

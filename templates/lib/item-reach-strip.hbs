@@ -1,0 +1,26 @@
+{{!-- The "In reach of" strip on a body's own sheet: one row per reach that meets
+      the body's token. Context: `reachStrip` (`item-run-strip.mjs`
+      `reachStripFor`), null where nothing reaches the body. Joins the sheet's
+      own scroll frame; it carries no id, so two open copies never collide. --}}
+{{#if reachStrip}}
+<section class="acks-extras-reach-strip" aria-label="{{reachStrip.title}}">
+  <h3 class="acks-extras-reach-strip__head">{{reachStrip.title}} <small>{{reachStrip.hint}}</small></h3>
+  {{#each reachStrip.rows}}
+  <div class="acks-extras-reach-strip__row" data-reach="{{key}}">
+    <i class="fa-solid fa-circle-dot acks-extras-reach-strip__icon" inert></i>
+    <strong>{{name}}</strong>
+    <span class="acks-tag acks-tag--{{tagVariant}}" data-tooltip="{{tagTip}}">{{tagLabel}}{{#if leftLabel}} · <span class="acks-nums" data-tooltip-text="{{leftTip}}">{{leftLabel}}</span>{{/if}}</span>
+    <span class="acks-extras-reach-strip__line">
+      {{source}}{{#if hasFeet}}, <span class="acks-nums" data-tooltip-text="{{feetTip}}">{{feet}}′</span> {{localize "ACKS-LIB.itemRun.strip.away"}}{{/if}}
+      · {{localize "ACKS-LIB.itemRun.strip.reach"}}
+      {{#if hasRadius}}<span class="acks-nums" data-tooltip-text="{{radiusTip}}">{{radius}}′</span>{{else}}<span class="acks-extras-reach-strip__blank" data-tooltip-text="{{radiusTip}}" aria-label="{{localize 'ACKS-LIB.itemRun.strip.blank'}} {{cite}}"><i class="fa-solid fa-book" inert></i></span>{{/if}}
+      {{#if cite}}<span class="acks-extras-reach-strip__cite">{{cite}}</span>{{/if}}
+      {{#if part}}· <span class="acks-nums" data-tooltip-text="{{part.tip}}">{{part.rolls}} {{part.value}}</span>{{/if}}
+    </span>
+    {{#if press}}
+    <button type="button" class="acks-btn acks-btn--primary acks-btn--sm" data-action="reachStripSave" data-item-uuid="{{press.itemUuid}}" data-row-key="{{press.rowKey}}" data-activation-id="{{press.activationId}}" data-subject="{{press.subject}}" data-message-id="{{press.messageId}}" data-entry-key="{{press.entryKey}}" data-tooltip-text="{{targetTip}}" aria-label="{{@root.reachStrip.saveTip}}"><i class="fa-solid fa-shield-halved" inert></i> {{@root.reachStrip.saveLabel}}{{#if hasTarget}} <span class="acks-nums">{{target}}+</span>{{/if}}</button>
+    {{/if}}
+  </div>
+  {{/each}}
+</section>
+{{/if}}

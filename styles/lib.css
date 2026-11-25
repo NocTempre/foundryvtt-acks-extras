@@ -1759,3 +1759,46 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   line-height: var(--acks-lh-snug);
   box-shadow: var(--acks-lift);
 }
+
+/* The "In reach of" strip on a body's own sheet: one row a reach, in the sheet's
+   scroll frame. Type rides the ramp; the row wraps so every control stays
+   reachable in a narrow window. */
+.acks-extras-reach-strip {
+  margin: 0 0 var(--acks-space-2, 0.5em);
+}
+
+.acks-extras-reach-strip__head {
+  font-size: var(--acks-fs-body);
+  margin: 0 0 var(--acks-space-1, 0.25em);
+}
+
+.acks-extras-reach-strip__head small {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-reach-strip__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em 0.6em;
+  padding: 0.3em 0.5em;
+  font-size: var(--acks-fs-body);
+  border-bottom: var(--acks-rule-thin, 1px) solid var(--acks-rule-color);
+}
+
+.acks-extras-reach-strip__icon {
+  color: var(--acks-spot);
+}
+
+.acks-extras-reach-strip__line {
+  flex: 1 1 12em;
+  min-width: 0;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-reach-strip__cite,
+.acks-extras-reach-strip__blank {
+  color: var(--acks-ink-soft);
+}

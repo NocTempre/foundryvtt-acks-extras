@@ -132,6 +132,7 @@ import * as auraReach from "./aura-reach.mjs";
 import * as auraReachLogic from "./aura-reach-logic.mjs";
 import * as itemRun from "./item-run.mjs";
 import { installItemRunPresenter } from "./item-run-presenter.mjs";
+import { installItemRunStrip } from "./item-run-strip.mjs";
 import * as itemRunLogic from "./item-run-logic.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
@@ -730,7 +731,7 @@ Hooks.once("init", () => {
   // station chip, the coin-order block and the sheet frame's partials, which
   // other sheets include as partials by path.
   foundry.applications.handlebars
-    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE, BUCKET_ROW_TEMPLATE, BUCKET_TEMPLATE, ...FRAME_TEMPLATES])
+    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE, BUCKET_ROW_TEMPLATE, BUCKET_TEMPLATE, `modules/${MODULE_ID}/templates/lib/item-reach-strip.hbs`, ...FRAME_TEMPLATES])
     .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
 
   // The Surprise Matrix's results on one card (patches/surprise-card.mjs; docs/lib/DECISIONS.md,
@@ -1151,6 +1152,7 @@ Hooks.once("ready", () => {
   auraReach.installAuraReach();
   itemRun.installItemRun();
   installItemRunPresenter();
+  installItemRunStrip();
   installAnimationBridge();
 
   // Conditions on every roll they reach; the attack half registers into the

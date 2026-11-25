@@ -243,21 +243,89 @@ export function saveCardModel({ title, subtitle, words, target, targetTip = null
   return { title, subtitle, sections: [{ rows: [line] }], bare: true, ...(ifFails ? { footnote: ifFails } : {}) };
 }
 
+
+/* -------------------------------------------- */
+/*  The "In reach of" strip                      */
+/* -------------------------------------------- */
+
+/** The order a strip lists its rows in: what needs an answer first, what asks nothing last. */
+const STRIP_ORDER = ["owed", "waiting", "failed", "always", "immune"];
+
 /**
- * The rows of the "In reach of" strip on a body's sheet (board 4c): one per
- * reach that meets the body, its item's name, a tag (a save owed, or always on)
- * and, for a save, the target. A body no reach meets has no rows, and the strip
- * is absent.
+ * The name of a token as core shows it to a viewer, or null where core shows
+ * none: a secret token has no name, `NONE` shows none, and the two owner modes
+ * show it to an owner alone. Every other mode names the token. `modes` is
+ * `CONST.TOKEN_DISPLAY_MODES`, passed in so this file needs no Foundry.
  *
- * @param {Array<{name: string, owed: boolean, target?: number|null, feet?: number|null, tip?: string|null}>} reaches
+ * @param {{name: string, displayName: number, isOwner: boolean, isSecret?: boolean}} token
+ * @param {{NONE: number, OWNER_HOVER: number, OWNER: number}} modes
+ * @returns {string|null}
+ */
+export function shownTokenName({ name, displayName, isOwner, isSecret = false }, modes) {
+  if (isSecret || displayName === modes.NONE) return null;
+  if (displayName === modes.OWNER || displayName === modes.OWNER_HOVER) return isOwner ? String(name ?? "") : null;
+  return String(name ?? "");
+}
+
+/**
+ * The turns a timed record has left on the module's own clock (`itemRun.dueAt`
+ * against the world time), rounded up to a whole turn; null where it has no
+ * `dueAt`, the clock is unread, or it is already due.
+ *
+ * @param {number|null} dueAt
+ * @param {number|null} now `game.time.worldTime`
+ * @param {number} secondsPerTurn
+ */
+export function turnsLeft(dueAt, now, secondsPerTurn) {
+  const due = numOrNull(dueAt);
+  const at = numOrNull(now);
+  const unit = numOrNull(secondsPerTurn);
+  if (due === null || at === null || unit === null || unit <= 0 || due <= at) return null;
+  return Math.ceil((due - at) / unit);
+}
+
+/**
+ * The rows of the "In reach of" strip on a body's sheet (board 4c), in the order
+ * a body reads them: one per reach that meets it, with the item's name, a tag
+ * (`owed`, `waiting`, `failed`, `always` or `immune`), the source token's name,
+ * the distance and the reach, each figure with its tooltip, and the figures the
+ * tag carries (the save's target and its press, a standing part, the turns an
+ * immunity has left). A body no reach meets has no rows, and the strip is absent.
+ *
+ * @param {Array<{key: string, name: string, tag: string, source: string, feet?: number|null, feetTip?: string, radius?: number|null, radiusTip?: string, cite?: string, target?: number|null, targetTip?: string|null, left?: number|null, leftTip?: string, part?: {value: number, tip: string}|null, press?: object|null}>} reaches
  */
 export function stripModel(reaches) {
-  const rows = (reaches ?? []).map((r) => ({ name: r.name, tag: r.owed ? "owed" : "always", ...(numOrNull(r.target) !== null ? { target: r.target } : {}), ...(numOrNull(r.feet) !== null ? { feet: r.feet } : {}), ...(r.tip ? { tip: r.tip } : {}) }));
+  const list = (reaches ?? []).filter((r) => STRIP_ORDER.includes(r?.tag));
+  const rows = list
+    .map((r, at) => ({
+      at,
+      key: r.key,
+      name: r.name,
+      tag: r.tag,
+      source: r.source ?? "",
+      feet: numOrNull(r.feet),
+      feetTip: r.feetTip ?? "",
+      radius: numOrNull(r.radius),
+      radiusTip: r.radiusTip ?? "",
+      cite: r.cite ?? "",
+      target: numOrNull(r.target),
+      targetTip: r.targetTip ?? "",
+      left: numOrNull(r.left),
+      leftTip: r.leftTip ?? "",
+      part: r.part ?? null,
+      press: r.press ?? null,
+    }))
+    .sort((a, b) => STRIP_ORDER.indexOf(a.tag) - STRIP_ORDER.indexOf(b.tag) || a.at - b.at)
+    .map(({ at: _at, ...row }) => row);
   return { count: rows.length, rows };
 }
 
-/** The line a morale card's working adds for a standing part: `{label, value, cite}` becomes `{left, right, tip}` with its words the caller's. */
-export function moraleLine({ item, value, cite = "", words }) {
-  const signedValue = `${value >= 0 ? "+" : "−"}${Math.abs(value)}`;
-  return { left: `${words.inReachOf} ${item}`, right: signedValue, ...(cite ? { cite } : {}) };
-}
+/**
+ * The line a morale roll's working carries for a record an item's reach wrote:
+ * the item's name under the caller's "In reach of" words, and the record's page
+ * reference. Data only; the figure is the working's own.
+ *
+ * @param {{item: string, cite?: string, words: {inReachOf: string}}} p
+ * @returns {{label: string, cite: string}}
+ */
+export const moraleLine = ({ item, cite = "", words }) => ({ label: `${words.inReachOf} ${item}`, cite: String(cite ?? "") });
