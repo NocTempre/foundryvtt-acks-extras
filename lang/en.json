@@ -11630,6 +11630,7 @@
   "ACKS-LIB.org.role.championTip": "Read from the chart: this leader's unit holds bodies only.",
   "ACKS-LIB.org.role.subTip": "Read from the chart: this leader's unit holds units, and the card is below the top of the chart.",
   "ACKS-LIB.org.role.chiefTip": "Read from the chart: this leader's unit holds units, and the card is the top of the chart.",
+  "ACKS-LIB.org.role.officerTip": "This row's officer, set by its + Officer button or by an actor dropped on its officer line; the row names no role.",
   "ACKS-LIB.org.officer.none": "No {word}",
   "ACKS-LIB.org.officer.deleted": "{word} · deleted",
   "ACKS-LIB.org.officer.goneTag": "deleted",

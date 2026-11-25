@@ -129,6 +129,8 @@ const P = {
       controlsShown: controls ? getComputedStyle(controls).display !== "none" : null,
       hintOutline: line ? getComputedStyle(line).outlineStyle : "",
       frame: [...(line?.querySelector(".acks-extras-pf")?.classList ?? [])].find((c) => c.startsWith("acks-extras-pf--")) ?? "",
+      // The role words the card draws outside its officer line: the head's word, and the leader frame's word and accessible name.
+      headWords: [...(card?.querySelectorAll(".acks-extras-pf__word, [role='group'][aria-label]") ?? [])].filter((n) => !line?.contains(n)).map((n) => (n.getAttribute("aria-label") ?? n.textContent ?? "").trim()),
     };
   },
 
@@ -257,6 +259,8 @@ try {
   check("the line is the ordinary one: Open, Clear and Delete actor…, no + Officer", hasAll(l1.actions, ["orgOpen", "orgClearLeader", "orgDeleteLeaderActor"]) && !l1.actions.includes("orgAddOfficer"), l1.actions);
   check("the line names the actor alone, with no role word, in the neutral frame", l1.text === "QA Part young" && l1.frame === "acks-extras-pf--file", { text: l1.text, frame: l1.frame });
   check("the officer's name carries a tooltip ending with the drop sentence", l1.nameTip.endsWith(dropSentence), l1.nameTip);
+  const roleWords = [await say("ACKS-LIB.org.role.champion"), await say("ACKS-LIB.org.role.sub"), await say("ACKS-LIB.org.role.chief")];
+  check("the card's head and leader frame name no role read from the chart's shape", !l1.headWords.some((w) => roleWords.some((r) => w.startsWith(r))), l1.headWords);
 
   section("2. + Officer on a part row whose group stacks name none: a blank actor of the type Make creates");
   await run(gm, P.pressCard, { uuid: host.uuid, key: "q", action: "orgEdit" });

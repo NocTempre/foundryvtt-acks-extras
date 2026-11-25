@@ -238,7 +238,8 @@ once per `key`), `createGroup`, `parent`, `addStack` and `addLabelledStack`,
   It has no Roll: the card draws none and a Roll given one is refused (`part`). Its officer line
   is drawn where its group names an officer or where the seat may add one or drop one on it; it
   names the actor alone, with no role word, in the neutral frame, and offers **＋ Officer** in place
-  of Make.
+  of Make. Its card head and leader frame likewise use the rank-and-file frame and the word
+  "Officer", never a role read from the chart's shape.
 - **One prototype per creature.** The tree's creatures are keyed by their own
   fields, so identical creatures across the whole roll are one `prototype` op and
   every stack and leader names its ref. A library entry needs no op: its stack

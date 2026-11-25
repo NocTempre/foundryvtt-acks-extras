@@ -82,7 +82,13 @@ const troopFor = (stack) => services.get("org-chart")?.troopOf?.(stack) ?? null;
  * @param {object} card a view row
  * @returns {{key: string, word: string, label: string, tip: string}|null} null for an empty card
  */
-function roleView(card) {
+function roleView(card, { part = false } = {}) {
+  // A part row's record names no officer role, so a leader on it wears the rank-and-file frame and
+  // the generic word, never a role read from the chart's shape.
+  if (part && (card.officer || card.officerGone)) {
+    const word = loc("officer.bareTitle");
+    return { key: "file", word, label: loc("role.label", { word, name: card.officer?.name ?? card.name ?? "" }), tip: card.officerGone ? loc("officer.deletedTip", { word: word.toLocaleLowerCase() }) : loc("role.officerTip"), gone: !!card.officerGone };
+  }
   const key = card.officerGone ? card.leaderRoleKey : (card.roleKey ?? roleOf(card));
   if (!key) return null;
   const word = loc(`role.${key}`);
@@ -229,7 +235,7 @@ export async function chartContext(actor, app, { isGM }) {
     const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows, hostGen });
     const officerGone = !!officerLine?.gone;
     const groupGone = await groupGoneOf(c);
-    const role = roleView({ ...c, officerGone });
+    const role = roleView({ ...c, officerGone }, { part: isPartRow(rows, c.key) });
     return {
       ...c,
       officerLine,
