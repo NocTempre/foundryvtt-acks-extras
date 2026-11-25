@@ -1546,7 +1546,6 @@ const SHARED_TABLE_RECIPES = {
         column: { xMin: 300, xMax: 592 },
         values: [
           { key: "berserkAttack", find: "berserk creature gains a", take: "window", span: 40 },
-          { key: "berserkAc", find: "berserk creature suffers a", take: "window", span: 30 },
         ],
       },
       blessedProse: {
@@ -1561,9 +1560,7 @@ const SHARED_TABLE_RECIPES = {
           // The second occurrence of the lead-in: the proficiency penalty follows
           // the surprise penalty and has none of its own.
           { key: "blindedProficiency", find: "blinded creature suffers a", occurrence: 2, take: "window", span: 40 },
-          { key: "blindedAttack", find: "melee attacks at a", take: "window", span: 30 },
           { key: "blindedSpeedFactor", find: "speeds reduced to", take: "window", span: 30 },
-          { key: "chargingAttack", find: "charging creature gains a", take: "window", span: 40 },
           { key: "clamberingAttack", find: "clambering creature gains a", take: "window", span: 40 },
           { key: "clamberingAgainst", find: "clambering combatant with a", take: "window", span: 40 },
         ],
@@ -1577,18 +1574,6 @@ const SHARED_TABLE_RECIPES = {
         values: [
           { key: "deafenedSurprise", find: "deafened creature suffers a", take: "window", span: 40 },
           { key: "deafenedProficiency", find: "deafened creature has a", take: "window", span: 50 },
-        ],
-      },
-      disorderedProse: {
-        shape: "proseValues",
-        book: "rr",
-        printedPage: 509,
-        locate: "Disordered",
-        column: { xMin: 40, xMax: 300 },
-        // The lead-in stops short of the verb so the window keeps it: the sign
-        // rides in that word, not in a mark.
-        values: [
-          { key: "disorderedAc", find: "ac is", take: "window", span: 30 },
         ],
       },
       enlargedProse: {
@@ -1631,8 +1616,6 @@ const SHARED_TABLE_RECIPES = {
         values: [
           { key: "hungryAll", find: "hungry creature suffers a", take: "window", span: 40 },
           { key: "incapacitatedSpeedFactor", find: "creature can move at", take: "window", span: 30 },
-          { key: "infuriatedAttack", find: "infuriated creature gains a", take: "window", span: 40 },
-          { key: "infuriatedAc", find: "but suffers a", take: "window", span: 40 },
         ],
       },
       proneProse: {
@@ -1642,7 +1625,6 @@ const SHARED_TABLE_RECIPES = {
         locate: "Prone",
         column: { xMin: 40, xMax: 300 },
         values: [
-          { key: "proneAttack", find: "but suffers a", take: "window", span: 40 },
           { key: "queasyAll", find: "queasy creature suffers a", take: "window", span: 30 },
         ],
       },

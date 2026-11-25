@@ -18,7 +18,7 @@ const ok = async (name, fn) => {
 };
 
 /** Invented sizes for the conditions below. */
-const VALUES = { hungry: { all: -3 }, covered: { blast: 3 }, blessed: { all: 3 } };
+const VALUES = { fatigued: { all: -3 }, covered: { blast: 3 }, blessed: { all: 3 } };
 
 const character = ({ mod = 0, wis = 0, saves = { blast: { value: 14 } }, statuses = [] } = {}) => ({
   type: "character",
@@ -69,14 +69,14 @@ await ok("a situational figure and the caller's parts join the roll: numbers sum
 });
 
 await ok("the conditions lower the target as the system's own throw lowers it, and are left out when asked", () => {
-  const spec = saveSpec(character({ statuses: ["hungry"] }), "blast", { values: VALUES });
+  const spec = saveSpec(character({ statuses: ["fatigued"] }), "blast", { values: VALUES });
   assert.equal(spec.baseTarget, 14);
   assert.equal(spec.target, 17, "a penalty of 3 on the roll raises the number to roll");
-  assert.deepEqual(spec.parts.filter((p) => p.side === "target").map((p) => [p.key, p.value]), [["hungry", -3]]);
+  assert.deepEqual(spec.parts.filter((p) => p.side === "target").map((p) => [p.key, p.value]), [["fatigued", -3]]);
   const covered = saveSpec(monster({ statuses: ["covered"] }), "blast", { values: VALUES });
   assert.equal(covered.target, 11, "a bonus of 3 lowers it");
   assert.equal(saveSpec(monster({ saves: { blast: { value: 14 }, death: { value: 14 } }, statuses: ["covered"] }), "death", { values: VALUES }).target, 14, "a row that names its saves reaches only those");
-  const left = saveSpec(character({ statuses: ["hungry"] }), "blast", { values: VALUES, conditions: false });
+  const left = saveSpec(character({ statuses: ["fatigued"] }), "blast", { values: VALUES, conditions: false });
   assert.equal(left.target, 14, "the party's throw reads the stored number alone");
   assert.deepEqual(left.parts, []);
   assert.deepEqual([left.pending, left.unpriced], [[], []]);
@@ -86,8 +86,8 @@ await ok("a circumstance-bound row is handed back pending, an unimported figure 
   const blessed = saveSpec(character({ statuses: ["blessed"] }), "blast", { values: VALUES });
   assert.deepEqual(blessed.pending, [{ condition: "blessed", value: 3, when: "fear" }]);
   assert.equal(blessed.target, 14);
-  const bare = saveSpec(character({ statuses: ["hungry"] }), "blast", { values: {} });
-  assert.deepEqual(bare.unpriced, ["hungry"]);
+  const bare = saveSpec(character({ statuses: ["fatigued"] }), "blast", { values: {} });
+  assert.deepEqual(bare.unpriced, ["fatigued"]);
   assert.equal(bare.target, 14, "no figure stands in for the missing one");
 });
 
@@ -119,7 +119,7 @@ await ok("saveThrow rolls the composed formula, and a total at or above the targ
   const miss = await saveThrow(hero, "blast", { roll: rollOf(13), values: VALUES });
   assert.equal(miss.success, false);
   assert.deepEqual(seen, ["1d20 + 3", "1d20 + 3"], "the roll is handed exactly the spec's formula");
-  const held = await saveThrow(character({ statuses: ["hungry"] }), "blast", { roll: rollOf(16), values: VALUES });
+  const held = await saveThrow(character({ statuses: ["fatigued"] }), "blast", { roll: rollOf(16), values: VALUES });
   assert.equal(held.success, false, "16 against 17");
   assert.equal(held.target, 17);
   const mundane = await saveThrow(hero, "blast", { roll: rollOf(14), magical: false });
@@ -181,9 +181,9 @@ await ok("an undetermined scope, and a scoped part with nothing to resist, go to
 });
 
 await ok("an unscoped save part applies with or without a source, beside the conditions and the same way", () => {
-  const saver = bearing([savePart(2)], { statuses: ["hungry"] });
+  const saver = bearing([savePart(2)], { statuses: ["fatigued"] });
   assert.equal(saveSpec(saver, "blast", { values: VALUES }).target, 15, "14 + 3 for the penalty, - 2 for the record");
-  assert.deepEqual(saveSpec(saver, "blast", { values: VALUES }).parts.filter((p) => p.side === "target").map((p) => p.key), ["hungry", "save2"]);
+  assert.deepEqual(saveSpec(saver, "blast", { values: VALUES }).parts.filter((p) => p.side === "target").map((p) => p.key), ["fatigued", "save2"]);
   assert.equal(saveSpec(saver, "blast", { values: VALUES, against: source() }).target, 15);
 });
 
@@ -297,10 +297,60 @@ await ok("a susceptible saver takes its own figure, a mixed case goes to pending
   const mixed = bearsDefenses("Zorp", { susceptibilities: defBand({ damage: ["cold"], factor: 2.5, save: -9 }), resistances: defBand({ damage: ["cold"] }) });
   const held = saveSpec(mixed, "blast", { damage: { types: ["cold"] }, defenses: { figures: READ } });
   assert.deepEqual([held.target, held.pending.map((p) => p.why)], [14, ["mixed"]]);
-  const hungry = bearsDefenses("Zorp", { resistances: defBand({ damage: ["fire"] }) }, monster({ statuses: ["hungry"] }));
-  const both = saveSpec(hungry, "blast", { values: VALUES, damage: { types: ["fire"] }, defenses: { figures: READ } });
+  const fatigued = bearsDefenses("Zorp", { resistances: defBand({ damage: ["fire"] }) }, monster({ statuses: ["fatigued"] }));
+  const both = saveSpec(fatigued, "blast", { values: VALUES, damage: { types: ["fire"] }, defenses: { figures: READ } });
   assert.equal(both.target, 14 + 3 - 6, "the condition's penalty and the defense's bonus");
-  assert.deepEqual(both.parts.filter((p) => p.side === "target").map((p) => p.key), ["hungry", "defense"]);
+  assert.deepEqual(both.parts.filter((p) => p.side === "target").map((p) => p.key), ["fatigued", "defense"]);
+});
+
+/* --- the steps a condition's effect makes to the save modifier --------------------- */
+
+const { CONDITION_ORDER, CONDITION_KEYS, actorOf, conditionValue, coreConditions, effectOf } = await import("./core-conditions-fixture.mjs");
+const SAVE_MOD = "system.save.mod";
+const stepOf = (id) => (CONDITION_KEYS[id].includes(SAVE_MOD) ? conditionValue(id, SAVE_MOD) : 0);
+const rollSum = (spec) => spec.parts.filter((p) => p.side === "roll").reduce((sum, p) => sum + p.value, 0);
+
+await ok("a condition's step on the save modifier reaches every save: a character's is named and taken out of the magical modifier, a monster's lowers the target", () => {
+  globalThis.CONFIG = { ACKS: { conditions: coreConditions() } };
+  try {
+    const step = stepOf("hungry");
+    const hero = actorOf("character", [effectOf("hungry")], { saveMod: 2 });
+    // core folded the step into the modifier the sheet holds
+    assert.equal(hero.system.save.mod, 2 + step);
+    const magic = saveSpec(hero, "blast");
+    assert.deepEqual(magic.parts.map((p) => [p.key, p.value, p.side]), [["saveMod", 2, "roll"], ["hungry", step, "roll"]]);
+    assert.equal(rollSum(magic), hero.system.save.mod, "the throw adds the modifier core's roll adds, once");
+    const mundane = saveSpec(hero, "blast", { magical: false });
+    assert.deepEqual(mundane.parts.map((p) => [p.key, p.value, p.side]), [["hungry", step, "roll"]], "the rest of the modifier is the magical throw's alone");
+    assert.equal(mundane.target, 15, "a character's step is a bonus on the roll and leaves the target");
+    const beast = actorOf("monster", [effectOf("hungry")]);
+    const spec = saveSpec(beast, "death");
+    assert.deepEqual(spec.parts.map((p) => [p.key, p.value, p.side]), [["hungry", step, "target"]]);
+    assert.equal(spec.target, 14 - step, "a monster's step lowers the number to roll");
+    assert.equal(saveSpec(beast, "death", { magical: false }).target, 14 - step, "on a throw that is not against magic too");
+    assert.equal(saveSpec(beast, "death", { conditions: false }).target, 14, "the party's throw reads none of it");
+    assert.deepEqual(saveSpec(actorOf("monster", [effectOf("hungry", { disabled: true })]), "death").parts, []);
+  } finally {
+    delete globalThis.CONFIG;
+  }
+});
+
+await ok("each of the eleven's figure is on a saving throw from one place: the sheet's modifier for a character, the step for a monster", () => {
+  globalThis.CONFIG = { ACKS: { conditions: coreConditions() } };
+  try {
+    for (const id of CONDITION_ORDER) {
+      const step = stepOf(id);
+      const hero = actorOf("character", [effectOf(id)], { saveMod: 2 });
+      assert.equal(rollSum(saveSpec(hero, "blast")), hero.system.save.mod, `${id}: magical, the modifier alone`);
+      assert.equal(rollSum(saveSpec(hero, "blast", { magical: false })), step, `${id}: mundane, the step alone`);
+      assert.equal(saveSpec(hero, "blast").target, 15, `${id}: a character's target`);
+      const beast = actorOf("monster", [effectOf(id)]);
+      assert.equal(saveSpec(beast, "blast").target, 15 - step, `${id}: a monster's target`);
+      assert.equal(rollSum(saveSpec(beast, "blast")), 0, `${id}: a monster's roll`);
+    }
+  } finally {
+    delete globalThis.CONFIG;
+  }
 });
 
 await ok("a quality-only immunity needs the damage's quality: mundane damage passes automatically, extraordinary damage is rolled", () => {

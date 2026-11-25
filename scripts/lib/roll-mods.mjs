@@ -34,14 +34,14 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_ROLL_MODS } from "./constants.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
 import { gateVerdict, registerGate, resolveStacking, stackingPart } from "./typed-modifiers.mjs";
-import { capabilityForId, hasScope, satisfies, scopeApplies } from "./vocab.mjs";
+import { ACTOR_TYPE, capabilityForId, hasScope, satisfies, scopeApplies } from "./vocab.mjs";
 import { vocabLabel } from "./magic-vocab.mjs";
 import { saveSpec } from "./saves.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
-import { acMath, subjectOf } from "./conditions.mjs";
+import { acMath, acWaivedSet, subjectOf } from "./conditions.mjs";
 import { hasCapability } from "./capabilities.mjs";
 import { actorAlignment, areEnemies, creatureKinds } from "./actor-read.mjs";
-import { appliedEffects } from "./effect-scan.mjs";
+import { activeNumericChanges, appliedEffects } from "./effect-scan.mjs";
 import { isMagical } from "./item-model.mjs";
 import { signed } from "./frame-model.mjs";
 
@@ -96,6 +96,64 @@ export function rollModsOf(actor) {
   }
   return out;
 }
+
+/* -------------------------------------------- */
+/*  What a condition's effect does to a field    */
+/* -------------------------------------------- */
+
+/** The fields the step reader is asked about: the creature's Armor Class and saving-throw modifiers. */
+export const CONDITION_STEP_KEYS = Object.freeze({ ac: "system.ac.mod", save: "system.save.mod" });
+
+/**
+ * The ids whose entry in the system's condition list carries Active Effect
+ * changes, read from `CONFIG.ACKS.conditions` at the call: the module holds no
+ * list of them.
+ */
+function changeCarrying() {
+  const ids = new Set();
+  for (const entry of globalThis.CONFIG?.ACKS?.conditions ?? []) {
+    if (entry?.id && Array.from(entry.system?.changes ?? []).length) ids.add(entry.id);
+  }
+  return ids;
+}
+
+/**
+ * The steps the system's condition effects make to one field of an actor, read
+ * from the effects themselves: `activeNumericChanges` narrowed to the effects
+ * whose statuses include an id whose system entry carries changes. A character
+ * already holds them in the prepared field; a monster's field has none of
+ * them, so a caller that puts them on a roll asks for a monster. The reader
+ * looks at no actor type, its callers do.
+ *
+ * On `system.ac.mod` a step whose effect's statuses all sit in the Armor Class
+ * waiver's decision (`acWaivedSet`) is not suffered, and moves to `waived`. A
+ * mixed-status effect keeps its step: no waiver on a guess.
+ *
+ * @param {object} actor
+ * @param {string} key  a field a condition effect changes (`CONDITION_STEP_KEYS`)
+ * @returns {{steps: Array<{effect: object, change: object, type: string, value: number, condition: string}>,
+ *   waived: Array<{condition: string, value: number}>}}
+ *   Values are the step as the field takes it, a bonus positive. `condition` is
+ *   the first status of the effect that carries changes. `waived` is empty off
+ *   `system.ac.mod`.
+ */
+export function conditionSteps(actor, key) {
+  const out = { steps: [], waived: [] };
+  const ids = changeCarrying();
+  if (!actor || !ids.size) return out;
+  const decided = key === CONDITION_STEP_KEYS.ac ? acWaivedSet(subjectOf(actor)) : new Set();
+  for (const step of activeNumericChanges(actor, key)) {
+    const statuses = [...(step.effect?.statuses ?? [])];
+    const condition = statuses.find((id) => ids.has(id));
+    if (!condition) continue;
+    if (decided.size && statuses.every((id) => decided.has(id))) out.waived.push({ condition, value: step.value });
+    else out.steps.push({ ...step, condition });
+  }
+  return out;
+}
+
+/** The figures of `steps` summed. */
+export const sumSteps = (steps) => steps.reduce((total, step) => total + step.value, 0);
 
 /* -------------------------------------------- */
 /*  The weapon's own bonus                       */
@@ -526,16 +584,20 @@ function wardSaveTarget(attacker, part) {
  * conditions))`. Armour, shield, powers (all in `ac.value`) and the target's
  * conditions compete with the set and never add to it; a character's Dexterity
  * modifier, which `ac.value` carries, is read out of that comparison and
- * stays on top, and a monster has none. Null where the target's armour class
- * is not a number.
+ * stays on top, and a monster has none. The conditions are the module's own
+ * rows (`acMath`) and, for a monster, the steps its condition effects make to
+ * `system.ac.mod` (`conditionSteps`); a character's `ac.value` already holds
+ * those. Null where the target's armour class is not a number.
  */
 function armourLift(targetActor, figure, kind) {
   const base = Number(targetActor?.system?.ac?.value);
   if (!Number.isFinite(base)) return null;
-  const dex = targetActor.type === "character" ? Number(targetActor.system?.scores?.dex?.mod) || 0 : 0;
+  const character = targetActor.type === ACTOR_TYPE.character;
+  const dex = character ? Number(targetActor.system?.scores?.dex?.mod) || 0 : 0;
   const subject = subjectOf(targetActor);
-  const conditions = subject?.statuses && [...subject.statuses].length ? acMath(subject, undefined, { kind }).total : 0;
-  return Math.max(0, figure - (base - dex + conditions));
+  const own = subject?.statuses && [...subject.statuses].length ? acMath(subject, undefined, { kind }).total : 0;
+  const steps = character ? 0 : sumSteps(conditionSteps(targetActor, CONDITION_STEP_KEYS.ac).steps);
+  return Math.max(0, figure - (base - dex + own + steps));
 }
 
 /**

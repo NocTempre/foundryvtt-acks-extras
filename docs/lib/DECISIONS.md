@@ -1205,7 +1205,7 @@ maintenance the ruling removes.
 - That the runner reaches module sub-types and rewrites them as stated is read
   from 14.2.0's source, not observed in a world.
 
-## 2026-11-24 — The palette is an adapter over the system's conditions, combat states and setting
+## 2026-11-24 — The palette is an adapter over the system's conditions, combat states and setting — SUPERSEDED IN PART 2026-11-24
 
 `acks` 14.2.0 writes `CONFIG.statusEffects` itself at `init`
 (`configureStatusEffects`): its `ACKS.conditions`, its `ACKS.combatStates`
@@ -1346,3 +1346,84 @@ should join, and the fold only covers a row that was in use).
 **Ruled.** The singular forms an English plural may have stood for are read from one place, `vocab.singularsOf`, which `creatureKeys` already used privately. The classes subsystem's shared-skin key reads it too (docs/classes/DECISIONS.md, 2026-11-24), so the name-form rule stays in `lib/vocab.mjs` (2026-08-24).
 
 *Cost:* lib `apiVersion` is 68 (`vocab` gains `singularsOf`).
+
+## 2026-11-24 — Core's condition effects carry the figures they reach
+
+Supersedes, in part, "The palette is an adapter over the system's conditions,
+combat states and setting" (2026-11-24, above): its first bullet's last
+sentence, that an id the catalogue offers keeps the catalogue's entry, and its
+Rejected paragraph's carrying of the system's `changes` onto the catalogue's
+entries. Also supersedes, in part, "The token palette is the conditions, and a
+roll reads them when it is made" (2026-10-01) in its rejection of Active Effect
+changes on each status, and "The palette takes the states of a round, and the
+Judge arranges it" (2026-10-10) in its clause that the catalogue's conditions
+store no modifier, both in DECISIONS-through-v11.14.5.md. Neither archived
+ruling has an In-force row, so the table has nothing to qualify; the 2026-10-21
+row stands, since the flank and the subjacent target still carry no row.
+
+**New evidence.** The first of those entries is under seven days old and rules
+the other way, so what it did not know is named. The owner, 2026-11-24, asked
+whether the module's engine reads the system's numbers or the system's Active
+Effects take over: "Revert to core now that it available, repair
+implementations and ties to automation that are downstream". Asked whether the
+module keeps its figures where the effects do not reach (monsters, thrown
+attacks, implied conditions) or takes the system's scope only: "Extend core".
+On condition ids: "Should match RAW". The system's ADR 0003 states the scope: a
+condition's modifiers are changes on its status entry, copied into the effect a
+toggle creates, applied to the fields they name, and a monster's Armor Class and
+saving throw are outside it until characters and monsters calculate those the
+same way. Once registration lets the system's entry through, every one of the
+eleven that the catalogue also priced would count twice, so the registration
+and the row deletions are one change.
+
+**Ruled.**
+- For every id the system ships in `CONFIG.ACKS.conditions`, the catalogue's
+  entry in `CONFIG.statusEffects` carries the system's entry as its data,
+  `system.changes` included, so an effect made by toggling the status holds the
+  system's changes. The name and the image stay the catalogue's until the
+  naming slice moves them. The module is still the one writer of the list, and
+  Readied and Delayed stay on the palette.
+- A figure the system's condition effect applies is applied by that effect and
+  by nothing of the module's. The catalogue loses the rows for them: Berserk's
+  Armor Class and its melee attack throw, the attack throw and Armor Class of
+  Blessed, Inspired and Shaken, the attack throw of Blinded, Charging and Prone,
+  Disordered's Armor Class, Hungry's attack throw and save, the attack throw and
+  Armor Class of Infuriated, and Queasy's attack throw and damage. Berserk's
+  thrown attack stays a row: the system's change reaches the melee and missile
+  fields only. Every row of a figure the system gives no field (morale,
+  surprise and speed, proficiency and adventuring throws, a save against fear),
+  every target-side row and every condition the system gives no modifier stays.
+- Where the effect does not reach, the module reads the effect's applied step
+  and holds no copy of a figure. One reader (`conditionSteps`, `roll-mods.mjs`)
+  answers the steps the condition effects make to a field of any actor, from an
+  id set read from `CONFIG.ACKS.conditions` at the call. A monster target's
+  Armor Class steps are terms on the attacker's throw and join the armour
+  lift; a monster's save steps lower its number in `onRollSave` and
+  `saveSpec`; and `saveSpec` lets a condition's steps reach every save, as the
+  system's roll does, leaving the rest of the save modifier magic-only. A
+  character's prepared field already holds each step, so for a character the
+  module adds none.
+- The Armor Class waiver is one decision (`acWaivedSet`), read by the module's
+  own rows, by the step reader and by the implied-condition holder (a later
+  slice). `subjectOf` gains `implied`, the conditions only the holder's effects
+  carry, so the holder's own effect does not sustain the hold.
+- The importer drops the seven windows whose figure the system's effect now
+  applies; the other windows each serve a roll the system has no field for.
+
+**Rejected.** Taking the system's scope only: its gaps (a berserk monster's
+Armor Class, a thrown berserk throw) stand, which the owner's "Extend core"
+declines. One managed carrier effect per condition: disabling the module would
+strand effects that carry figures. The engine reading the system's number at
+the roll: the owner declined it. A term on the attacker's throw for a
+character target, and a wrap of the system's Armor Class computation for the
+waiver: each makes the module act on a figure the system applies.
+
+**Cost.** A condition effect made before this change carries none of the
+system's changes, so it applies no figure until it is taken off and set again.
+A condition another status implies (the disorder a charge, a countercharge or
+a retreat brings; the hunger a starving or underfed creature has) has no
+effect of its own and so applies no figure from the system's effect until the
+holder slice writes one. Two effects naming one condition each carry the
+system's changes and the system applies both; the module deduplicates none of
+it, which is the writers' slice's. A waiver on a character who holds the
+condition directly is not applied (the roadmap).

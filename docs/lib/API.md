@@ -967,11 +967,12 @@ parts and names the condition in `unpriced`.
 acksExtras.lib.conditions = {
   CONDITIONS, CONDITION_IDS,    // the catalogue: id → {label, implies?, mods?, forbids?, ends?, given?, lost?, …}
   CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_SLOTS,  // where the figures are read, and which each condition wants
-  ACTS, ATTACK_KINDS, SAVE_KINDS, LOSSES, STACKS_FLAG, AC_WAIVER_TARGET,
+  ACTS, ATTACK_KINDS, SAVE_KINDS, LOSSES, STACKS_FLAG, IMPLIED_FLAG, AC_WAIVER_TARGET,
   conditionSet(statuses),       // → Set of ids, closed under `implies`, in catalogue order
   conditionValues(),            // → the registered rows, {} when none
   conditionsReady(),            // → whether any row is registered
-  subjectOf(actor),             // → {statuses, counts, sources, gifts, id, acWaived} | null
+  subjectOf(actor),             // → {statuses, counts, sources, gifts, id, acWaived, implied} | null
+  acWaivedSet(subject),         // → Set of ids: the conditions whose Armor Class figure the subject does not suffer
   giverOf(effect, actor),       // → the combatant that gave `actor` the effect's state, or null for its own
   forbiddenBy(set, act),        // → the ids in a closed set that take `act` away
   attackMath({attacker, target?, kind, attackerSize?, targetSize?, values?}),
@@ -1001,9 +1002,29 @@ condition ids whose Armor Class row the creature does not suffer, read from the
 actor's abilities: a `modifier` row with `target: "acWaiver"`, no value, and
 the ids in `conditions` (`AC_WAIVER_TARGET`). A row under a gate or a
 free-text `condition` is not read. `acMath` and the target's side of
-`attackMath` leave a waived condition's `ac` row out of the total (and the
-terms) and report it in `waived`, `[{condition, value}]`; a subject with no
-`acWaived` reads as before. The rule is in docs/lib/MODEL.md, "Conditions".
+`attackMath` leave a waived condition's module-owned `ac` row out of the total
+(and the terms) and report it in `waived`, `[{condition, value}]`; those rows
+are Defend's alone, since a figure the system's condition effect applies has no
+row here, so the list is empty in practice. `acWaivedSet(subject)` is the one
+decision the appliers read: the ids a subject's `acWaived` names that it
+carries, and what only a waived one implies. `subjectOf(actor).implied` lists
+the conditions only effects bearing `IMPLIED_FLAG` carry (the implied-condition
+holder's), which the decision does not count as carried in their own right. A
+subject with no `acWaived` reads as before. The rule is in docs/lib/MODEL.md,
+"Conditions".
+
+**The steps the system's condition effects make.** `conditionSteps(actor, key)`
+(`roll-mods.mjs`, used inside lib and not a member of the api object) answers
+`{steps, waived}` for any actor type. `steps` is `activeNumericChanges(actor,
+key)` narrowed to the effects whose statuses include an id whose entry in
+`CONFIG.ACKS.conditions` carries `system.changes`, each step the effect's own
+with `condition` added (the first such status), valued as the field takes it, a
+bonus positive. On `CONDITION_STEP_KEYS.ac` a step whose effect's statuses all
+sit in `acWaivedSet` is returned in `waived`, `[{condition, value}]`, with the
+same sign as `steps`; the attack seam reverses both when it puts them on the
+attacker's throw. On any other key `waived` is empty. The reader looks at no
+actor type: a caller that puts a step on a roll asks for a non-character, since
+a character's prepared field already holds it.
 
 `rollMath` returns `{total, parts, pending, unpriced, exempt}`. A positive
 total helps the roll. `pending` holds the rows bound to a circumstance the

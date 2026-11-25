@@ -11,6 +11,11 @@
  * nothing registered contributes nothing and is reported in `unpriced`, so an
  * unimported world toggles conditions and applies no invented figure.
  *
+ * A figure the system's own condition Active Effect applies (the eleven that
+ * carry `system.changes` in `CONFIG.ACKS.conditions`) has no row here: that
+ * effect applies it, and the module reads it only where the effect does not
+ * reach (`conditionSteps`, `roll-mods.mjs`).
+ *
  * A creature either has a condition or does not (RR 507): every reader here
  * takes the SET of a creature's conditions, closed under `implies`, so two
  * effects naming one condition count once. The exceptions are the rows marked
@@ -50,7 +55,7 @@ export const SAVE_KINDS = Object.freeze(["death", "implements", "paralysis", "bl
 export const LOSSES = Object.freeze(["damage", "save", "moved"]);
 
 const MELEE = Object.freeze(["melee"]);
-const MELEE_THROWN = Object.freeze(["melee", "thrown"]);
+const THROWN = Object.freeze(["thrown"]);
 const MISSILE_THROWN = Object.freeze(["missile", "thrown"]);
 const BLAST = Object.freeze(["blast"]);
 const HURT_OR_FAILED = Object.freeze(["damage", "save"]);
@@ -100,18 +105,18 @@ export const CONDITIONS = Object.freeze({
   berserk: {
     label: "Berserk", img: "icons/svg/combat.svg",
     shuts: ["cowering", "faltering", "frightened"], noMorale: true, ends: "combat",
-    mods: [row("attack", "attack", { scope: MELEE_THROWN }), row("ac", "ac")],
+    // The melee and missile throws are core's Active Effect; the thrown throw is the module's.
+    mods: [row("attack", "attack", { scope: THROWN })],
   },
   bewitched: { label: "Bewitched", img: "icons/svg/heal.svg" },
   blessed: {
     label: "Blessed", img: "icons/svg/angel.svg",
-    mods: [row("attack", "all"), row("ac", "all"), row("morale", "all"), row("save", "all", { when: "fear" })],
+    mods: [row("morale", "all"), row("save", "all", { when: "fear" })],
   },
   blinded: {
     label: "Blinded", img: "icons/svg/blind.svg", forbids: ["missile"],
     mods: [
-      row("surprise", "surprise"), row("attack", "attack", { scope: MELEE }),
-      row("throw", "proficiency", { when: "sight" }), row("speedFactor", "speedFactor"),
+      row("surprise", "surprise"), row("throw", "proficiency", { when: "sight" }), row("speedFactor", "speedFactor"),
     ],
   },
   burning: { label: "Burning", img: "icons/svg/fire.svg" },
@@ -120,7 +125,6 @@ export const CONDITIONS = Object.freeze({
   casting: { label: "Casting", img: "icons/svg/book.svg", ends: "turn", lost: HURT_OR_FAILED },
   charging: {
     label: "Charging", img: "icons/svg/thrust.svg", implies: ["disordered"], ends: "turn",
-    mods: [row("attack", "attack", { scope: MELEE })],
   },
   choking: { label: "Choking / Vomiting", img: "icons/svg/acid.svg", forbids: ["act", "speak"] },
   clambering: {
@@ -132,7 +136,7 @@ export const CONDITIONS = Object.freeze({
     label: "Concentrating and Stationary", img: "icons/svg/obelisk.svg", lost: HURT_OR_FAILED,
   },
   // A readied attack made against a charge (RR 295). It leaves its maker
-  // Disordered, whose own figure is the cost.
+  // Disordered, whose Armor Class figure is the system's effect.
   countercharging: {
     label: "Countercharging", img: "icons/svg/jump.svg", implies: ["disordered"], ends: "turn",
     mods: [row("attack", "attack")],
@@ -179,7 +183,7 @@ export const CONDITIONS = Object.freeze({
   // body the Judge resolves from the book.
   diseased: { label: "Diseased", img: "icons/svg/pill.svg" },
   disfavored: { label: "Disfavored", img: "icons/svg/holy-shield.svg" },
-  disordered: { label: "Disordered", img: "icons/svg/downgrade.svg", ends: "turn", mods: [row("ac", "ac")] },
+  disordered: { label: "Disordered", img: "icons/svg/downgrade.svg", ends: "turn" },
   dominated: { label: "Dominated", img: "icons/svg/direction.svg" },
   drowning: {
     label: "Drowning", img: "icons/svg/waterfall.svg", implies: ["vulnerable"], forbids: ["act"],
@@ -220,7 +224,7 @@ export const CONDITIONS = Object.freeze({
   },
   hungry: {
     label: "Hungry", img: "icons/svg/tankard.svg",
-    mods: [row("attack", "all"), row("throw", "all"), row("save", "all")],
+    mods: [row("throw", "all")],
   },
   hypothermic: {
     label: "Hypothermic", img: "icons/svg/frozen.svg", forbids: ["forceMarch", "naturalHealing"],
@@ -232,11 +236,10 @@ export const CONDITIONS = Object.freeze({
   },
   infuriated: {
     label: "Infuriated", img: "icons/svg/explosion.svg", shuts: ["cowering", "frightened"], noMorale: true, forbids: ["speak"],
-    mods: [row("attack", "attack"), row("ac", "ac")],
   },
   inspired: {
     label: "Inspired", img: "icons/svg/sound.svg",
-    mods: [row("attack", "all"), row("ac", "all"), row("morale", "all"), row("save", "all", { when: "fear" })],
+    mods: [row("morale", "all"), row("save", "all", { when: "fear" })],
   },
   mad: { label: "Mad", img: "icons/svg/card-joker.svg" },
   mesmerized: { label: "Mesmerized", img: "icons/svg/daze.svg", implies: ["mute"], forbids: ["act"] },
@@ -245,11 +248,10 @@ export const CONDITIONS = Object.freeze({
   petrified: { label: "Petrified", img: "icons/svg/statue.svg", implies: ["helpless"] },
   prone: {
     label: "Prone", img: "icons/svg/falling.svg", implies: ["vulnerable"], forbids: ["run", "charge"],
-    mods: [row("attack", "attack")],
   },
   queasy: {
     label: "Queasy", img: "icons/svg/poison.svg",
-    mods: [row("attack", "all"), row("throw", "all"), row("damage", "all")],
+    mods: [row("throw", "all")],
   },
   // An action held for a trigger (RR 295): it lasts until the creature's own
   // initiative comes round again.
@@ -263,7 +265,7 @@ export const CONDITIONS = Object.freeze({
   retreating: { label: "Retreating", img: "icons/svg/door-exit.svg", implies: ["disordered"], ends: "turn" },
   shaken: {
     label: "Shaken", img: "icons/svg/lightning.svg",
-    mods: [row("attack", "all"), row("ac", "all"), row("morale", "all"), row("save", "all", { when: "fear" })],
+    mods: [row("morale", "all"), row("save", "all", { when: "fear" })],
   },
   shrunk: {
     label: "Shrunk", img: "icons/svg/down.svg",
@@ -381,10 +383,19 @@ export const conditionsReady = () => Object.keys(conditionValues()).length > 0;
  * @property {Record<string, {statuses: Iterable<string>}>} [gifts]  for a state another combatant gave, that giver's statuses
  * @property {string} [id]  the creature's own uuid, matched against another's `sources`
  * @property {string[]} [acWaived]  condition ids whose Armor Class figure the creature does not suffer (`AC_WAIVER_TARGET`)
+ * @property {string[]} [implied]  condition ids carried only by effects bearing `IMPLIED_FLAG`
  */
 
 /** Flag key under `flags["acks-extras"]` on an effect: how many causes it stands for. */
 export const STACKS_FLAG = "conditionStacks";
+
+/**
+ * Flag key under `flags["acks-extras"]` on an effect the implied-condition
+ * holder writes, naming the status that implies it. `subjectOf` reads it: a
+ * condition carried only by such effects is `implied`, not carried in its own
+ * right.
+ */
+export const IMPLIED_FLAG = "impliedBy";
 
 /**
  * The `modifier` target of an ability row that waives the Armor Class figures
@@ -430,8 +441,9 @@ export function giverOf(effect, actor) {
 
 /**
  * An actor as a subject: its statuses, how many enabled effects carry each
- * condition, where those effects came from, and who gave it the states
- * another can give. Null for no actor.
+ * condition, where those effects came from, who gave it the states another
+ * can give, and which conditions only the implied-condition holder's effects
+ * carry. Null for no actor.
  *
  * @returns {ConditionSubject|null}
  */
@@ -441,12 +453,16 @@ export function subjectOf(actor) {
   const sources = {};
   const gifts = {};
   const own = new Set(actor.statuses ?? []);
+  const ownRight = new Set();
+  const held = new Set();
   for (const effect of actor.appliedEffects ?? actor.effects ?? []) {
     if (effect?.disabled) continue;
     const stacks = Math.max(1, Math.floor(numOrNull(effect.flags?.[MODULE_ID]?.[STACKS_FLAG]) ?? 1));
+    const holders = Boolean(effect.flags?.[MODULE_ID]?.[IMPLIED_FLAG]);
     for (const status of effect.statuses ?? []) {
       const entry = CONDITIONS[status];
       if (!entry) continue;
+      (holders ? held : ownRight).add(status);
       counts[status] = (counts[status] ?? 0) + stacks;
       if (effect.origin) (sources[status] ??= []).push(String(effect.origin));
       const giver = entry.given ? giverOf(effect, actor) : null;
@@ -457,23 +473,36 @@ export function subjectOf(actor) {
       for (const implied of entry.implies ?? []) if (CONDITIONS[implied]?.given && !own.has(implied)) gifts[implied] = gift;
     }
   }
-  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null, acWaived: waivedBy(actor) };
+  const implied = [...held].filter((status) => !ownRight.has(status));
+  return { statuses: actor.statuses ?? [], counts, sources, gifts, id: actor.uuid ?? null, acWaived: waivedBy(actor), implied };
 }
 
 const emptyMath = () => ({ total: 0, parts: [], pending: [], unpriced: [], waived: [] });
 
 /**
- * The conditions whose Armor Class row a subject does not suffer: each id its
- * `acWaived` names that it carries, and each condition it carries only because
- * a waived one implies it (a charge's disorder). A condition another status the
- * creature carries in its own right brings stands: waiving the charge leaves
- * the disorder a countercharge or a hand-set status causes.
+ * The one decision of the Armor Class waiver: the conditions whose Armor Class
+ * figure a subject does not suffer. Each id its `acWaived` names that it
+ * carries, and each condition it carries only because a waived one implies it
+ * (a charge's disorder). A condition another status the creature carries in
+ * its own right brings stands: waiving the charge leaves the disorder a
+ * countercharge or a hand-set status causes. A status the holder keeps for a
+ * condition that implies it (`implied`) is not carried in its own right, or the
+ * hold would sustain itself.
+ *
+ * Three appliers read it: `collect` for the module's own `ac` rows, the step
+ * reader (`conditionSteps`, `roll-mods.mjs`) for a monster's `system.ac.mod`
+ * steps, and the implied-condition holder for the changes it writes.
+ *
+ * @param {ConditionSubject|null} subject
+ * @returns {Set<string>}
  */
-function waivedRows(subject) {
+export function acWaivedSet(subject) {
   const named = [...new Set(subject?.acWaived ?? [])].filter((id) => CONDITIONS[id]);
   if (!named.length) return new Set();
-  const carried = conditionSet(subject?.statuses);
-  const standing = conditionSet([...(subject?.statuses ?? [])].filter((id) => !named.includes(id)));
+  const implied = new Set(subject?.implied ?? []);
+  const statuses = [...(subject?.statuses ?? [])];
+  const carried = conditionSet(statuses);
+  const standing = conditionSet(statuses.filter((id) => !named.includes(id) && !implied.has(id)));
   return new Set([...carried].filter((id) => named.includes(id) || !standing.has(id)));
 }
 
@@ -513,7 +542,7 @@ function reaches(key, subject, opponent) {
  * @param {number} [p.sign]  -1 turns a figure on a creature's AC into one on its attacker's roll
  */
 function collect({ set, subject, on, side, kind, save, opponent, values, out, sign = 1 }) {
-  const waived = on === "ac" && side === "own" ? waivedRows(subject) : null;
+  const waived = on === "ac" && side === "own" ? acWaivedSet(subject) : null;
   for (const key of set) {
     // A state another gave is superseded by what its giver does, not its bearer.
     const gift = subject?.gifts?.[key];
@@ -658,15 +687,18 @@ export function rollMath(on, subject, values = conditionValues(), { save } = {})
 }
 
 /**
- * What a creature's conditions do to its own Armor Class, as a signed total.
- * A sheet's readout; an attack reads the same rows through `attackMath`. With
- * no `kind` it is the Armor Class against every attack, and a row that stands
- * against only some kinds is left out.
+ * What the module's own Armor Class rows do to a creature's Armor Class, as a
+ * signed total: Defend's, the rows no Active Effect of core's carries. A figure
+ * core's condition effect applies is not here: it is in a character's
+ * `ac.value`, and a monster's is read by `conditionSteps` (`roll-mods.mjs`).
+ * An attack reads the same rows through `attackMath`. With no `kind` it is the
+ * Armor Class against every attack, and a row that stands against only some
+ * kinds is left out.
  *
- * A condition the subject's `acWaived` names is not suffered: its row is left
- * out of `parts` and `total` and reported in `waived`, and so is the row of a
- * condition that is carried only because a waived one implies it (a charge's
- * disorder). Only the Armor Class figure is waived; the caller still reads the
+ * A condition the subject's `acWaived` names is not suffered (`acWaivedSet`):
+ * its row is left out of `parts` and `total` and reported in `waived`, and so
+ * is the row of a condition that is carried only because a waived one implies
+ * it. Only the Armor Class figure is waived; the caller still reads the
  * condition's other rows and what it forbids.
  *
  * @param {ConditionSubject} subject

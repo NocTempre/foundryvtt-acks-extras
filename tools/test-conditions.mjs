@@ -12,23 +12,29 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
-  ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, LOSSES, SAVE_KINDS,
-  STACKS_FLAG, acMath, attackMath, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
+  ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, IMPLIED_FLAG, LOSSES, SAVE_KINDS,
+  STACKS_FLAG, acMath, acWaivedSet, attackMath, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
   giverOf, lostTo, rollMath, speedMath, subjectOf,
 } from "../scripts/lib/conditions.mjs";
 import { CONDITION_KEYS } from "../scripts/lib/vocab.mjs";
+import {
+  CONDITION_ORDER, CONDITION_KEYS as EFFECT_KEYS, actorOf as conditionActor, conditionValue, coreConditions, effectOf as conditionEffect,
+} from "./core-conditions-fixture.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
 
 const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 
-/** Invented sizes, one row per priced condition. */
+/**
+ * Invented sizes, one row per priced condition. A condition whose figure core's
+ * Active Effect applies has no row here, or only the rows core's effect does not
+ * reach (`core-conditions-fixture.mjs` carries the effects' own invented figures).
+ */
 const VALUES = {
-  berserk: { attack: 7, ac: -6 },
+  berserk: { attack: 7 },
   blessed: { all: 3 },
-  blinded: { surprise: -5, attack: -9, proficiency: -8, speedFactor: 0.4 },
-  charging: { attack: 6 },
+  blinded: { surprise: -5, proficiency: -8, speedFactor: 0.4 },
   clambering: { attack: -3, against: 5 },
   countercharging: { attack: 5 },
   covered: { against: -3, blast: 3 },
@@ -36,16 +42,13 @@ const VALUES = {
   deafened: { surprise: -2, proficiency: -7 },
   defending: { melee: 5 },
   defendingShield: { thrown: 3, missile: 8, blast: 4 },
-  disordered: { ac: -3 },
   enlarged: { attack: 4 },
   faltering: { all: -6 },
   fatigued: { all: -2 },
   hidden: { against: -8 },
   hungry: { all: -3 },
   incapacitated: { speedFactor: 0.7 },
-  infuriated: { attack: 5, ac: -4 },
   inspired: { all: 2 },
-  prone: { attack: -7 },
   queasy: { all: -4 },
   restrained: { perCause: -5 },
   shaken: { all: -2 },
@@ -116,6 +119,19 @@ ok("the slots are derived from the rows, so the importer is asked for exactly wh
   for (const key of Object.keys(VALUES)) assert.deepEqual(Object.keys(VALUES[key]).sort(), [...CONDITION_SLOTS[key]].sort(), key);
 });
 
+ok("a figure core's condition effect applies has no row here: the eleven keep only what no effect reaches", () => {
+  const rowsOf = (id) => (CONDITIONS[id].mods ?? []).map((m) => `${m.on}:${m.slot}${m.scope ? `:${m.scope}` : ""}`);
+  assert.deepEqual(CONDITION_ORDER.flatMap((id) => rowsOf(id).filter((r) => r.startsWith("ac:") || r.startsWith("damage:"))), [], "no Armor Class or damage row");
+  assert.deepEqual(rowsOf("berserk"), ["attack:attack:thrown"], "the thrown throw is the module's");
+  for (const id of ["charging", "disordered", "infuriated", "prone"]) assert.deepEqual([CONDITIONS[id].mods, CONDITION_SLOTS[id]], [undefined, undefined], id);
+  assert.deepEqual(rowsOf("blinded"), ["surprise:surprise", "throw:proficiency", "speedFactor:speedFactor"]);
+  for (const id of ["blessed", "inspired", "shaken"]) assert.deepEqual(rowsOf(id), ["morale:all", "save:all"], id);
+  for (const id of ["hungry", "queasy"]) assert.deepEqual(rowsOf(id), ["throw:all"], id);
+  // Each of the eleven is something core's mock list gives changes to, so the slice's mocks cover the whole set.
+  assert.deepEqual([...CONDITION_ORDER].sort(), Object.keys(EFFECT_KEYS).sort());
+  assert.deepEqual(coreConditions().filter((entry) => entry.system?.changes?.length).map((entry) => entry.id), CONDITION_ORDER);
+});
+
 ok("an ability's condition choices are the catalogue, with the stored keys kept", () => {
   for (const key of CONDITION_IDS) assert.equal(CONDITION_KEYS[key].label, CONDITIONS[key].label);
   for (const key of ["fear", "sleep", "paralysis"]) assert.ok(CONDITION_KEYS[key], key);
@@ -148,12 +164,12 @@ ok("what a condition takes away is read off the closed set", () => {
 ok("with nothing imported no figure is applied, and the condition is named as unpriced", () => {
   assert.equal(conditionsReady(), false);
   assert.deepEqual(conditionValues(), {});
-  const math = attackMath({ attacker: who(["blinded"]), target: who(["prone"]), kind: "melee" });
+  const math = attackMath({ attacker: who(["berserk"]), target: who(["prone"]), kind: "thrown" });
   assert.deepEqual(math.terms, []);
-  assert.deepEqual(math.unpriced.sort(), ["blinded", "vulnerable"]);
+  assert.deepEqual(math.unpriced.sort(), ["berserk", "vulnerable"]);
   // What a condition forbids is structure, and holds unimported.
   assert.deepEqual(attackMath({ attacker: who(["blinded"]), kind: "missile" }).forbidden, ["blinded"]);
-  assert.equal(rollMath("save", who(["hungry"])).total, 0);
+  assert.equal(rollMath("throw", who(["hungry"])).total, 0);
   assert.equal(speedMath(who(["blinded"])).factor, 1);
 });
 
@@ -161,7 +177,7 @@ ok("the registered document is where the figures are read from", () => {
   registerTable(DOC, { priority: PRIORITY.WORLD, source: "test" });
   try {
     assert.equal(conditionsReady(), true);
-    assert.equal(attackMath({ attacker: who(["prone"]), kind: "melee" }).terms[0].value, -7);
+    assert.equal(attackMath({ attacker: who(["berserk"]), kind: "thrown" }).terms[0].value, 7);
   } finally {
     unregisterTable(CONDITIONS_DOC, "test");
   }
@@ -171,26 +187,29 @@ ok("the registered document is where the figures are read from", () => {
 /* --- the attack throw: the one making it ------------------------------------ */
 
 ok("the attacker's own conditions are terms on its throw, each named", () => {
-  const math = attack(["prone", "hungry"]);
+  const math = attack(["clambering", "berserk"], null, "thrown");
   // Catalogue order, whatever order the statuses arrived in.
   assert.deepEqual(math.terms, [
-    { condition: "hungry", value: -3, side: "own" },
-    { condition: "prone", value: -7, side: "own" },
+    { condition: "berserk", value: 7, side: "own" },
+    { condition: "clambering", value: -3, side: "own" },
   ]);
 });
 
 ok("a row reaches only the kinds of attack it names", () => {
-  assert.equal(termOf(attack(["berserk"], null, "melee"), "berserk").value, 7);
+  // Berserk's melee and missile throws are core's effect; only the thrown throw is a row.
+  assert.equal(termOf(attack(["berserk"], null, "melee"), "berserk"), undefined);
   assert.equal(termOf(attack(["berserk"], null, "thrown"), "berserk").value, 7);
   assert.equal(termOf(attack(["berserk"], null, "missile"), "berserk"), undefined);
-  assert.equal(termOf(attack(["blinded"], null, "melee"), "blinded").value, -9);
+  assert.equal(termOf(attack(["enlarged"], null, "melee"), "enlarged").value, 4);
+  assert.equal(termOf(attack(["enlarged"], null, "missile"), "enlarged"), undefined);
+  // Blinded's melee throw is core's effect, and what it forbids is the module's.
   const shot = attack(["blinded"], null, "missile");
-  assert.equal(termOf(shot, "blinded"), undefined);
+  assert.equal(termOf(attack(["blinded"], null, "melee"), "blinded"), undefined);
   assert.deepEqual(shot.forbidden, ["blinded"]);
 });
 
 ok("two effects naming one condition count once; a counted condition counts its causes", () => {
-  assert.equal(attack(["prone", "prone"]).terms.length, 1);
+  assert.equal(attack(["enlarged", "enlarged"]).terms.length, 1);
   const tired = (n) => attackMath({ attacker: who(["fatigued"], { counts: { fatigued: n } }), kind: "melee", values: VALUES });
   assert.equal(termOf(tired(1), "fatigued").value, -2);
   assert.equal(termOf(tired(3), "fatigued").value, -6);
@@ -202,11 +221,11 @@ ok("two effects naming one condition count once; a counted condition counts its 
 });
 
 ok("damage rows and the damage factor ride beside the throw", () => {
-  assert.deepEqual(attack(["queasy"]).damage, [{ condition: "queasy", value: -4 }]);
+  assert.deepEqual(attack(["queasy"]).damage, [], "queasy's damage is core's effect");
   const small = attack(["shrunk"]);
   assert.equal(small.damageFactor, 0.25);
   assert.deepEqual(small.damageFactorBy, ["shrunk"]);
-  assert.equal(attack(["prone"]).damageFactor, 1);
+  assert.equal(attack(["queasy"]).damageFactor, 1);
 });
 
 /* --- the attack throw: the one it is made against ---------------------------- */
@@ -224,45 +243,66 @@ ok("a condition the target has by implication reaches the attacker the same way"
 });
 
 ok("the target's own Armor Class row arrives sign-reversed on the attacker's throw", () => {
-  assert.deepEqual(attack([], ["disordered"]).terms, [{ condition: "disordered", value: 3, side: "target" }]);
-  assert.equal(acMath(who(["disordered"]), VALUES).total, -3);
-  // A blessing raises the target's AC, so the attacker's throw falls by it.
-  assert.equal(termOf(attack([], ["blessed"]), "blessed").value, -3);
+  // A defender's AC row raises its AC, so the attacker's throw falls by it.
+  assert.deepEqual(attack([], ["defending"], "melee").terms, [{ condition: "defending", value: -5, side: "target" }]);
+  assert.equal(acMath(who(["defending"]), VALUES, { kind: "melee" }).total, 5);
+});
+
+ok("a target's condition that core's effect carries adds no Armor Class term here, nor an Armor Class total", () => {
+  for (const id of CONDITION_ORDER.filter((c) => c !== "prone")) {
+    for (const kind of ATTACK_KINDS) assert.deepEqual(attack([], [id], kind).terms, [], `${id} ${kind}`);
+    assert.deepEqual(acMath(who([id]), VALUES), { total: 0, parts: [], unpriced: [], waived: [] }, id);
+  }
 });
 
 ok("both sides stack on one throw", () => {
-  const math = attack(["charging"], ["clambering", "disordered"]);
-  assert.equal(math.terms.reduce((sum, t) => sum + t.value, 0), 6 + 5 + 3);
+  const math = attack(["enlarged"], ["clambering"]);
+  assert.equal(math.terms.reduce((sum, t) => sum + t.value, 0), 4 + 5);
 });
 
-ok("a waiver leaves a condition's Armor Class figure out and reports it, the shape otherwise as it was", () => {
+ok("a waiver leaves a module-owned Armor Class row out and reports it, the shape otherwise as it was", () => {
+  // The rows left on Armor Class are Defend's: the shield's defence implies the plain one.
   const waiving = (statuses, acWaived) => who(statuses, { acWaived });
-  const plain = acMath(who(["charging"]), VALUES);
-  assert.deepEqual(plain, { total: -3, parts: [{ condition: "disordered", value: -3 }], unpriced: [], waived: [] }, "no waiver: the same total and parts, an empty list");
-  // The charge has no Armor Class row of its own; its disorder is what it costs.
-  const waived = acMath(waiving(["charging"], ["charging"]), VALUES);
-  assert.deepEqual(waived, { total: 0, parts: [], unpriced: [], waived: [{ condition: "disordered", value: -3 }] });
-  assert.equal(acMath(waiving(["charging"], ["countercharging"]), VALUES).total, -3, "a waiver for what the creature is not doing waives nothing");
-  assert.equal(acMath(waiving(["charging"], ["disordered"]), VALUES).total, 0, "naming the row's own condition waives it");
-  // The disorder another cause brings stands.
-  assert.equal(acMath(waiving(["charging", "disordered"], ["charging"]), VALUES).total, -3, "a disorder carried in its own right is suffered");
-  assert.equal(acMath(waiving(["charging", "countercharging"], ["charging"]), VALUES).total, -3, "so is one a second implier brings");
-  assert.equal(acMath(waiving(["charging", "countercharging"], ["charging", "countercharging"]), VALUES).total, 0, "both waived");
+  const melee = { kind: "melee" };
+  const plain = acMath(who(["defendingShield"]), VALUES, melee);
+  assert.deepEqual(plain, { total: 5, parts: [{ condition: "defending", value: 5 }], unpriced: [], waived: [] }, "no waiver: the same total and parts, an empty list");
+  // The shield has no melee row of its own; the defence it implies is what it costs.
+  const waived = acMath(waiving(["defendingShield"], ["defendingShield"]), VALUES, melee);
+  assert.deepEqual(waived, { total: 0, parts: [], unpriced: [], waived: [{ condition: "defending", value: 5 }] });
+  assert.deepEqual(acMath(waiving(["defendingShield"], ["defendingShield"]), VALUES, { kind: "thrown" }).waived, [{ condition: "defendingShield", value: 3 }], "its own row is waived by name");
+  assert.equal(acMath(waiving(["defendingShield"], ["casting"]), VALUES, melee).total, 5, "a waiver for what the creature is not doing waives nothing");
+  assert.equal(acMath(waiving(["defending"], ["defending"]), VALUES, melee).total, 0, "naming the row's own condition waives it");
+  assert.equal(acMath(waiving(["defendingShield", "defending"], ["defendingShield"]), VALUES, melee).total, 5, "a defence carried in its own right is suffered");
   // Only the Armor Class figure: every other row of the creature stands.
-  const mixed = acMath(waiving(["charging", "infuriated"], ["charging"]), VALUES);
-  assert.deepEqual(mixed.parts, [{ condition: "infuriated", value: -4 }]);
-  assert.equal(mixed.total, -4);
-  assert.deepEqual(mixed.waived, [{ condition: "disordered", value: -3 }]);
+  assert.equal(rollMath("save", waiving(["defendingShield"], ["defendingShield"]), VALUES, { save: "blast" }).total, 4);
   const counter = attackMath({ attacker: waiving(["countercharging"], ["countercharging"]), kind: "melee", values: VALUES });
   assert.equal(termOf(counter, "countercharging").value, 5, "the attack row of a waived condition still applies");
   // An id that is no condition names nothing.
-  assert.equal(acMath(waiving(["charging"], ["no-such-condition"]), VALUES).total, -3);
+  assert.equal(acMath(waiving(["defending"], ["no-such-condition"]), VALUES, melee).total, 5);
   // The same reading on the target's side of an attack throw.
-  const target = waiving(["charging", "infuriated"], ["charging"]);
+  const target = waiving(["defendingShield"], ["defendingShield"]);
   const theirs = attackMath({ attacker: who([]), target, kind: "melee", values: VALUES });
-  assert.deepEqual(theirs.terms, [{ condition: "infuriated", value: 4, side: "target" }]);
-  assert.deepEqual(theirs.waived, [{ condition: "disordered", value: 3 }], "the figure as a term would have carried it");
-  assert.deepEqual(attackMath({ attacker: who([]), target: who(["charging"]), kind: "melee", values: VALUES }).waived, []);
+  assert.deepEqual([theirs.terms, theirs.waived], [[], [{ condition: "defending", value: -5 }]], "the figure as a term would have carried it");
+  assert.deepEqual(attackMath({ attacker: who([]), target: who(["defendingShield"]), kind: "melee", values: VALUES }).waived, []);
+});
+
+ok("the waiver's decision: a named condition, what only it implies, never what stands in its own right", () => {
+  const decide = (statuses, acWaived, implied) => [...acWaivedSet(who(statuses, { acWaived, ...(implied ? { implied } : {}) }))].sort();
+  assert.deepEqual(decide(["charging"], ["charging"]), ["charging", "disordered"], "the charge's disorder follows it");
+  assert.deepEqual(decide(["charging"], ["countercharging"]), [], "a waiver for what the creature is not doing waives nothing");
+  assert.deepEqual(decide(["charging"], ["disordered"]), ["disordered"], "naming the condition itself waives it");
+  assert.deepEqual(decide(["charging", "disordered"], ["charging"]), ["charging"], "a disorder carried in its own right is suffered");
+  assert.deepEqual(decide(["charging", "countercharging"], ["charging"]), ["charging"], "so is one a second implier brings");
+  assert.deepEqual(decide(["charging", "countercharging"], ["charging", "countercharging"]), ["charging", "countercharging", "disordered"], "both waived");
+  assert.deepEqual(decide(["charging"], ["no-such-condition"]), [], "an id that is no condition names nothing");
+  assert.deepEqual(decide([], ["charging"]), [], "nothing carried, nothing waived");
+  assert.deepEqual(decide(["charging"], undefined), [], "no waiver, an empty decision");
+  // The implied-condition holder's own effect carries the disorder: it is not carried in its own right.
+  const both = ["charging", "countercharging"];
+  assert.deepEqual(decide([...both, "disordered"], both, ["disordered"]), ["charging", "countercharging", "disordered"]);
+  assert.deepEqual(decide(["charging", "disordered"], ["charging"], ["disordered"]), ["charging", "disordered"], "with the second implier gone the held disorder follows the charge");
+  assert.deepEqual(decide(["charging", "disordered"], ["charging"]), ["charging"], "read as carried in its own right, the hold would sustain itself");
+  assert.deepEqual(decide([...both, "disordered"], ["charging"], ["disordered"]), ["charging"], "a second implier's disorder stands, held or not");
 });
 
 ok("subjectOf reads the waiver rows of an actor's abilities: ungated, a catalogue condition, each once", () => {
@@ -277,7 +317,17 @@ ok("subjectOf reads the waiver rows of an actor's abilities: ungated, a catalogu
   assert.deepEqual(subjectOf(actor([ability([row({ conditions: ["no-such-condition"] })])])).acWaived, []);
   assert.deepEqual(subjectOf(actor([{ ...ability([row()]), type: "weapon" }])).acWaived, [], "only an ability carries one");
   assert.deepEqual(subjectOf(actor(undefined)).acWaived, []);
-  assert.equal(acMath(subjectOf(actor([ability([row()])])), VALUES).total, 0, "the subject an actor makes carries it into the math");
+  assert.deepEqual([...acWaivedSet(subjectOf(actor([ability([row()])])))].sort(), ["charging", "disordered"], "the subject an actor makes carries it into the decision");
+  assert.deepEqual(subjectOf(actor([])).implied, [], "no holder's effect, nothing implied");
+});
+
+ok("a condition only the implied-condition holder's effects carry is implied; one a hand effect also carries is not", () => {
+  const holders = (id, extra = {}) => conditionEffect(id, { changes: [], flags: { "acks-extras": { [IMPLIED_FLAG]: "charging" } }, ...extra });
+  const subjectWith = (effects) => subjectOf(conditionActor("monster", effects));
+  assert.deepEqual(subjectWith([conditionEffect("charging"), holders("disordered")]).implied, ["disordered"]);
+  assert.deepEqual(subjectWith([conditionEffect("charging"), holders("disordered"), conditionEffect("disordered")]).implied, []);
+  assert.deepEqual(subjectWith([conditionEffect("charging"), holders("disordered", { disabled: true })]).implied, [], "a disabled effect holds nothing");
+  assert.deepEqual(subjectWith([conditionEffect("charging")]).implied, []);
 });
 
 ok("a superseded row stands down", () => {
@@ -332,10 +382,12 @@ ok("a row bound to what imposed the condition reaches that opponent and no other
 /* --- the creature's own rolls ------------------------------------------------ */
 
 ok("a save takes the rows that reach every save, and holds back the ones that wait on a circumstance", () => {
-  const math = rollMath("save", who(["hungry", "blessed"]), VALUES);
-  assert.equal(math.total, -3);
-  assert.deepEqual(math.parts, [{ condition: "hungry", value: -3 }]);
+  const math = rollMath("save", who(["fatigued", "blessed"]), VALUES);
+  assert.equal(math.total, -2);
+  assert.deepEqual(math.parts, [{ condition: "fatigued", value: -2 }]);
   assert.deepEqual(math.pending, [{ condition: "blessed", value: 3, when: "fear" }]);
+  // Hungry's figure on a save is core's effect: no row of the module's.
+  assert.deepEqual(rollMath("save", who(["hungry"]), VALUES), { total: 0, parts: [], pending: [], unpriced: [], exempt: [] });
 });
 
 ok("a throw, a morale roll and a surprise roll each read their own rows", () => {
@@ -374,9 +426,9 @@ ok("a row on Armor Class stands against only the kinds of attack it names", () =
   assert.deepEqual(attack([], ["defending"], "missile").terms, []);
   assert.deepEqual(attack([], ["defending"], "thrown").terms, []);
   assert.equal(acMath(who(["defending"]), VALUES, { kind: "melee" }).total, 5);
-  // With no kind stated, a row that names its kinds is left out, and one that names none is not.
-  assert.equal(acMath(who(["defending", "disordered"]), VALUES).total, -3);
-  assert.equal(acMath(who(["defending", "disordered"]), VALUES, { kind: "melee" }).total, 2);
+  // With no kind stated, a row that names its kinds is left out; every row left names its kinds.
+  assert.equal(acMath(who(["defending", "disordered"]), VALUES).total, 0);
+  assert.equal(acMath(who(["defending", "disordered"]), VALUES, { kind: "melee" }).total, 5);
 });
 
 ok("a shield adds to what defending gives, by the kind of attack", () => {
@@ -414,11 +466,11 @@ ok("a row on a saving throw reaches only the saves it names", () => {
   assert.equal(saveOf(["defendingShield"], "blast").total, 4);
   assert.equal(saveOf(["defending"], "blast").total, 0);
   // A row that names no save still reaches every one.
-  assert.deepEqual(saveOf(["hungry", "covered"], "blast").parts, [
+  assert.deepEqual(saveOf(["fatigued", "covered"], "blast").parts, [
     { condition: "covered", value: 3 },
-    { condition: "hungry", value: -3 },
+    { condition: "fatigued", value: -2 },
   ]);
-  assert.equal(saveOf(["hungry", "covered"], "spell").total, -3);
+  assert.equal(saveOf(["fatigued", "covered"], "spell").total, -2);
 });
 
 ok("a countercharge and a retreat leave their maker disordered, and a withdrawal does not", () => {
@@ -426,7 +478,8 @@ ok("a countercharge and a retreat leave their maker disordered, and a withdrawal
   assert.deepEqual([...conditionSet(["retreating"])].sort(), ["disordered", "retreating"]);
   assert.deepEqual([...conditionSet(["withdrawing"])], ["withdrawing"]);
   assert.equal(termOf(attack(["countercharging"], null, "melee"), "countercharging").value, 5);
-  assert.deepEqual(attack([], ["retreating"]).terms, [{ condition: "disordered", value: 3, side: "target" }]);
+  // The disorder is a condition the retreat brings; its figure is core's effect, so it is no row here.
+  assert.deepEqual(attack([], ["retreating"]).terms, []);
 });
 
 /* --- the tracker and the actor ----------------------------------------------- */
@@ -636,7 +689,7 @@ await (async () => {
   const fire = (name, ...args) => (hooks[name] ?? []).forEach((fn) => fn(...args));
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   const was = { CONFIG: globalThis.CONFIG, Hooks: globalThis.Hooks, ui: globalThis.ui, game: globalThis.game };
-  globalThis.CONFIG = { Actor: { documentClass: SystemActor } };
+  globalThis.CONFIG = { ACKS: { conditions: coreConditions() }, Actor: { documentClass: SystemActor } };
   globalThis.Hooks = { on: (name, fn) => void (hooks[name] ??= []).push(fn), callAll: (name, ...args) => fire(name, ...args) };
   globalThis.ui = { notifications: { info: (m) => said.push(m), warn: (m) => said.push(m) } };
   globalThis.game = {
@@ -657,7 +710,31 @@ await (async () => {
     assert.equal(new SystemActor(["covered", "coveredGreater"]).rollSave("breath"), 9, "greater cover supersedes");
     assert.equal(new SystemActor(["defendingShield"]).rollSave("breath"), 11);
     assert.equal(new SystemActor(["defendingShield", "casting"]).rollSave("breath"), 15, "a caster's shield is down");
-    assert.equal(new SystemActor(["hungry"]).rollSave("breath"), 18, "a figure on every throw reaches this one");
+    assert.equal(new SystemActor(["fatigued"]).rollSave("breath"), 17, "a figure on every throw reaches this one");
+    // Hungry's save figure is core's effect. A character's roll adds it itself, so the wrapper adds nothing;
+    // a monster's roll does not, so the wrapper reads the effect's step and lowers the number by it.
+    const hungryActor = (type) => {
+      const actor = new SystemActor(["hungry"]);
+      actor.type = type;
+      actor.effects = actor.appliedEffects = [conditionEffect("hungry")];
+      return actor;
+    };
+    assert.equal(hungryActor("character").rollSave("breath"), 15, "a character's step is core's alone");
+    assert.equal(hungryActor("monster").rollSave("breath"), 15 - conditionValue("hungry", "system.save.mod"), "a monster's step is read once, from the effect");
+    assert.equal(hungryActor("monster").rollSave("death"), 14 - conditionValue("hungry", "system.save.mod"), "on every save");
+    // Every one of the eleven: the module adds a figure to a saving throw from one place only. A character's
+    // roll is core's, so the wrapper adds none; a monster's takes the effect's step when it carries one.
+    for (const id of CONDITION_ORDER) {
+      const holder = (type) => {
+        const actor = new SystemActor([id]);
+        actor.type = type;
+        actor.effects = actor.appliedEffects = [conditionEffect(id)];
+        return actor;
+      };
+      const step = EFFECT_KEYS[id].includes("system.save.mod") ? conditionValue(id, "system.save.mod") : 0;
+      assert.equal(holder("character").rollSave("death"), 14, `${id}: a character's throw carries no figure from the module`);
+      assert.equal(holder("monster").rollSave("death"), 14 - step, `${id}: a monster's throw takes the step once`);
+    }
     assert.equal(new SystemActor([]).rollSave("breath"), 15);
     assert.ok(said.some((line) => line.includes("notice.applied")), "what was applied is told");
     passed++;
@@ -915,6 +992,116 @@ await (async () => {
     assert.deepEqual(lifted(absent), [["defending"], ["readied"]]);
     passed++;
     console.log("ok   a round opened before its initiative is rolled ends nothing until it begins");
+  } finally {
+    unregisterTable(CONDITIONS_DOC, "test");
+    Object.assign(globalThis, was);
+  }
+})();
+/* --- an attack throw as the seam builds it --------------------------------------- */
+
+await (async () => {
+  const { installAttackThrowPatch } = await import("../scripts/lib/patches/attack-throw.mjs");
+  const noop = function () {};
+  const registered = {};
+  const said = [];
+  const was = { CONFIG: globalThis.CONFIG, Hooks: globalThis.Hooks, ui: globalThis.ui, game: globalThis.game, libWrapper: globalThis.libWrapper, Roll: globalThis.Roll };
+  globalThis.libWrapper = { register: (_id, path, fn) => { registered[path] = fn; } };
+  globalThis.Hooks = { on: noop, callAll: noop };
+  globalThis.ui = { notifications: { info: (m) => said.push(m), warn: (m) => said.push(m) } };
+  globalThis.Roll = { validate: () => true };
+  globalThis.game = {
+    system: { id: "acks" },
+    user: { id: "me", targets: [] },
+    i18n: { localize: (k) => k, format: (k, data) => `${k} ${JSON.stringify(data ?? {})}`, has: () => false },
+  };
+  globalThis.CONFIG = {
+    ACKS: { conditions: coreConditions() },
+    Actor: {
+      documentClass: { prototype: { makeAttackThrow: noop } },
+      dataModels: { character: { prototype: { getAttackThrowModifiers: noop, getDamageModifiers: noop } } },
+    },
+    Item: {
+      documentClass: class {},
+      dataModels: { weapon: { prototype: { getAttackTypes: noop, getDamageModes: noop, getDamageFormula: noop } } },
+    },
+  };
+  registerTable(DOC, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    installAttackThrowPatch();
+    const makeAttackThrow = registered["CONFIG.Actor.documentClass.prototype.makeAttackThrow"];
+    const throwModifiers = registered["CONFIG.Actor.dataModels.character.prototype.getAttackThrowModifiers"];
+    const damageModifiers = registered["CONFIG.Actor.dataModels.character.prototype.getDamageModifiers"];
+    const BLADE = { type: "weapon", name: "Blade", system: {} };
+
+    /** An actor holding the effects of `ids`, ready to attack: a number to throw against, and its model pointing back. */
+    const holding = (type, ids, name) => {
+      const actor = conditionActor(type, ids.map((id) => conditionEffect(id)), { extra: { name } });
+      actor.uuid = `Actor.${name}`;
+      actor.system.attack = { throw: 10 };
+      actor.system.parent = actor;
+      return actor;
+    };
+    /** What the seam gives the throw and the damage of `attacker` against `foe`, after core's own row. */
+    const rowsOf = async (attacker, foe, kind) => {
+      globalThis.game.user.targets = foe ? [{ document: { name: foe.name, actor: foe, disposition: 0 } }] : [];
+      let out;
+      await makeAttackThrow.call(attacker, async () => {
+        out = {
+          attack: throwModifiers.call(attacker.system, () => [{ label: "core", value: 1 }], kind).filter((r) => r.label !== "core"),
+          damage: damageModifiers.call(attacker.system, () => [{ label: "core", value: 1 }], kind).filter((r) => r.label !== "core"),
+        };
+        return null;
+      }, { item: BLADE });
+      return out;
+    };
+    const named = (rows, id) => rows.filter((r) => r.label.includes(`condition.${id}`));
+
+    // The attacker holds the effect: core's effect puts the figure on its throw and its damage, so the module's
+    // own contribution is its rows alone, and for the eleven that is Berserk's thrown throw and nothing else.
+    for (const id of CONDITION_ORDER) {
+      for (const kind of ATTACK_KINDS) {
+        const out = await rowsOf(holding("character", [id], "Striker"), holding("character", [], "Foe"), kind);
+        const own = id === "berserk" && kind === "thrown" ? [{ label: `ACKS-LIB.condition.${id}`, value: 7 }] : [];
+        assert.deepEqual(named(out.attack, id), own, `${id} ${kind}: the attacker's throw`);
+        assert.deepEqual(named(out.damage, id), [], `${id} ${kind}: the attacker's damage`);
+        const alone = await rowsOf(holding("monster", [id], "Beast"), null, kind);
+        assert.deepEqual(named(alone.attack, id), own, `${id} ${kind}: a monster attacker, no target`);
+      }
+    }
+    // The target holds it. A character's Armor Class already holds the step, so core's throw reads it and the
+    // module adds nothing; a monster's does not, so the step is a term, read once and sign reversed.
+    for (const id of CONDITION_ORDER) {
+      for (const kind of ATTACK_KINDS) {
+        const onCharacter = await rowsOf(holding("character", [], "Striker"), holding("character", [id], "Foe"), kind);
+        assert.deepEqual(named(onCharacter.attack, id), [], `${id} ${kind}: a character target`);
+        const onMonster = await rowsOf(holding("character", [], "Striker"), holding("monster", [id], "Beast"), kind);
+        const step = EFFECT_KEYS[id].includes("system.ac.mod") ? -conditionValue(id, "system.ac.mod") : null;
+        const got = named(onMonster.attack, id);
+        assert.deepEqual(got.map((r) => r.value), step === null ? [] : [step], `${id} ${kind}: a monster target`);
+        for (const r of got) assert.ok(r.label.includes("conditionRoll.term.target"), `${id}: marked as the target's`);
+      }
+    }
+    // A step is one term however many effects name the condition, since the creature has the condition once.
+    const doubled = holding("monster", ["disordered"], "Beast");
+    doubled.effects.push(conditionEffect("disordered", { changes: [] }));
+    const once = await rowsOf(holding("character", [], "Striker"), doubled, "melee");
+    assert.deepEqual(named(once.attack, "disordered").map((r) => r.value), [-conditionValue("disordered", "system.ac.mod")]);
+    // A waived condition's step is no term: the monster is not suffering it.
+    const waiving = holding("monster", ["charging", "disordered"], "Beast");
+    waiving.effects = waiving.appliedEffects = [
+      conditionEffect("charging"),
+      conditionEffect("disordered", { changes: [], flags: { "acks-extras": { [IMPLIED_FLAG]: "charging" } } }),
+    ];
+    waiving.items = [{ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions: ["charging"] }] } } } }];
+    assert.deepEqual((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, [], "the held disorder carries no change, and a waived charge's has no step");
+    waiving.effects.push(conditionEffect("disordered"));
+    assert.deepEqual(
+      named((await rowsOf(holding("character", [], "Striker"), waiving, "melee")).attack, "disordered").map((r) => r.value),
+      [-conditionValue("disordered", "system.ac.mod")],
+      "a hand Disordered beside it is suffered",
+    );
+    passed++;
+    console.log("ok   each of the eleven's figure reaches an attack from one place: core's effect for a character, the step read once for a monster target");
   } finally {
     unregisterTable(CONDITIONS_DOC, "test");
     Object.assign(globalThis, was);

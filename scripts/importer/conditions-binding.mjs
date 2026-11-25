@@ -32,7 +32,7 @@ export const PRODUCES = Object.freeze({
   [CONDITIONS_DOC_ID]: {
     [CONDITIONS_TABLE]: [
       "defendProse", "counterchargeProse", "coverMissileProse", "coverBlastProse",
-      "berserkProse", "blessedProse", "deafenedProse", "disorderedProse", "enlargedProse",
+      "berserkProse", "blessedProse", "deafenedProse", "enlargedProse",
       "falteringProse", "hiddenProse", "hungryProse", "proneProse", "restrainedProse",
       "shrunkProse", "vulnerableProse",
     ],

@@ -2392,7 +2392,9 @@ target's `ac` parts are narrowed by the attack's kind and tested through
 conditions))`, where `ac.value` carries armour, shield, powers and a character's
 Dexterity modifier, `dexMod` is read out of the comparison for a character (and is
 0 for a monster, whose figure is its stat line's) and `conditions` is
-`acMath(…, {kind}).total`. Armour, shield, powers and conditions therefore compete
+`acMath(…, {kind}).total` and, for a monster, the sum of the steps its condition
+effects make to `system.ac.mod` (a character's `ac.value` already holds them).
+Armour, shield, powers and conditions therefore compete
 with the set and never add to it, and Dexterity stays on top. The lift joins the
 add parts in one resolution, so a set and an add give the larger and two sets
 the larger lift. The term is minus the lift, labelled with the spell and the
@@ -2735,9 +2737,20 @@ attack it reaches (on an Armor Class row, the kinds it stands against), and
 `saves` the saving throws. A roll that states no kind, or no save, takes no
 row narrowed that way.
 
-**Nothing is stored on the effect.** A roll reads the creature's statuses at
-the moment it is made and closes them under `implies` (`conditionSet`). Three
-things follow, and each was a reason for the shape:
+**Core's condition effects carry the figures they reach; nothing else is stored
+on an effect.** The system gives eleven of its conditions Active Effect changes
+(`CONFIG.ACKS.conditions`, each entry's `system.changes`), and the palette
+registers that entry as the catalogue entry's data
+(`knownStatuses` in `status-effects.mjs`; the name and the icon stay the
+catalogue's), so an effect made by toggling the status holds the system's
+changes. The system applies them to the fields they name: a throw's, a
+character's Armor Class and a character's save modifier. The catalogue has no
+row for a figure that effect applies, so each figure is counted once, by the
+effect. Where the effect does not reach, the module reads the effect's applied
+step and holds no copy of a figure ("A non-character's Armor Class and save",
+below). Every other figure is stored on no effect: a roll reads the creature's
+statuses at the moment it is made and closes them under `implies`
+(`conditionSet`). Three things follow, and each was a reason for the shape:
 
 - A creature has a condition once, however many effects name it and whether it
   arrived directly or by implication. A prone, webbed and surprised target is
@@ -2781,25 +2794,61 @@ the notice the roll already posts. A row under a gate or a free-text condition
 that nothing at the matrix can decide is told and not applied. The figure is
 the row's, imported; no figure, or a zero, adds nothing.
 
+**A non-character's Armor Class and save.** The system adds a condition's
+`ac.mod` to a character's `ac.value` when it prepares the actor, adds `save.mod`
+to a character's saving throw only, and leaves a monster's `ac.value` as its
+stat line. So for a non-character the module reads the condition effects' steps
+itself, through one reader (`conditionSteps` in `roll-mods.mjs`):
+`activeNumericChanges` on the field, narrowed to the effects whose statuses
+include an id whose system entry carries changes, an id set read from
+`CONFIG.ACKS.conditions` at the call. The reader looks at no actor type; its
+callers do, and a character is never asked, since its prepared field already
+holds the step. A monster target's Armor Class steps are terms on the
+attacker's throw, sign reversed and labelled as the target's
+(`conditionContributor`), and are taken into `armourLift`; a monster's save
+steps lower its saving throw's number (`onRollSave`) and its spec's
+(`saveSpec`). `saveSpec` also lets the steps of a condition reach every save,
+as the system's roll does for a character: they are named parts of the throw,
+and the rest of `save.mod` stays the magical throw's alone.
+
 **A waiver of an Armor Class figure.** An ability can carry a `modifier` row
 with `target: "acWaiver"` and a `conditions` list: the creature does not suffer
 the Armor Class figure of those conditions. It names the condition and not the
-row: a charge has no Armor Class row of its own, its disorder is what it costs,
-so a waiver of the charge leaves out the disorder that the charge alone brings.
-A disorder the creature carries in its own right, or one a second condition
-implies (a countercharge), stands, and naming the disorder itself waives it
-whatever brought it. `collect` makes the reading from the subject's `acWaived`
-(`subjectOf` fills it), so `acMath` and the target's side of `attackMath`
-agree and no caller passes it. Only the Armor Class figure is waived: the
-condition's own attack row, what it forbids and what it implies are as before.
-A gated row is not read, so no waiver is applied on a guess.
+row: a charge has no Armor Class figure of its own, its disorder is what it
+costs, so a waiver of the charge leaves out the disorder that the charge alone
+brings. A disorder the creature carries in its own right, or one a second
+condition implies (a countercharge), stands, and naming the disorder itself
+waives it whatever brought it. The decision is one function
+(`acWaivedSet(subject)`, from the subject's `acWaived`, which `subjectOf` fills),
+and `subjectOf` also names the conditions only the implied-condition holder's
+effects carry (`implied`, the effects bearing `IMPLIED_FLAG`), which the
+decision does not read as carried in their own right, or the hold would sustain
+itself. Three appliers read the decision, by where the figure is applied:
+
+- The module's own `ac` rows, which are Defend's: `collect` leaves a waived
+  condition's row out of `acMath` and the target's side of `attackMath` and
+  reports it in `waived`. The list is empty in practice.
+- A monster's directly held condition: the step reader puts a step whose
+  effect's statuses all sit in the decision into `waived` instead of `steps`,
+  and the attack seam merges that list with the rows'. A mixed-status effect
+  keeps its step.
+- A disorder a waived condition implies: the implied-condition holder writes it
+  with no Armor Class change. A holder's effect carrying no change gives the
+  reader nothing to take, and a disorder set by hand beside it carries the
+  system's change and is suffered.
+
+A character who holds the waived condition directly is not waived: the system
+folds the step into `ac.value` itself, and the module has no seat in that
+computation. Only the Armor Class figure is waived: the condition's own throw
+figure, what it forbids and what it implies are as before. A gated row is not
+read, so no waiver is applied on a guess.
 
 **Where each roll takes it.**
 
 | Roll | Seam | How the figure rides |
 |---|---|---|
 | Attack | a contributor on the attack seam (`patches/attack-throw.mjs`) | Labelled rows added to the system's own attack-throw and damage modifiers, so its card names each condition; a scaled damage roll and a waived throw, which the throw cannot carry, are told in a notification |
-| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted; the save rolled is passed to the math, for the rows that name theirs, under the conditions' name for it (`saveKindOf` in `actor-compat.mjs` reads an older `breath`/`wand` key as its current one) |
+| Saving throw | wrap of `rollSave` | `saves.<save>.value` shifted, by the rows and, for a non-character, by the steps its condition effects make to `save.mod`; the save rolled is passed to the math, for the rows that name theirs, under the conditions' name for it (`saveKindOf` in `actor-compat.mjs` reads an older `breath`/`wand` key as its current one) |
 | Adventuring throw | `withAdventuringConditions`, called by the throw's own wrapper (`patches/adventuring-roll.mjs`) | `adventuring.<key>` shifted |
 | Proficiency throw | `withModifiers` in abilities' `ability-rolls.mjs` | Folded into the target every surface shows |
 | Morale | `withMoraleConditions`, called by the morale roll's own wrapper (`patches/morale-roll.mjs`) | `details.morale` shifted |

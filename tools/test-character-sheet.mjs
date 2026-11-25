@@ -503,14 +503,21 @@ test("a disabled effect, a custom change, a non-number or another field counts f
   assert.deepEqual(saveModifiers({ appliedEffects: [{ disabled: false, changes: [change("system.save.mod", "add", 1)] }] }).death, 1, "no source at all reads from zero");
 });
 const conditionTables = await import("../scripts/lib/tables.mjs");
+const conditionFixture = await import("./core-conditions-fixture.mjs");
 test("a condition joins every save it reaches, and one that reaches a single save colours that cell alone", () => {
   const { registerTable, unregisterTable, PRIORITY } = conditionTables;
   // Invented figures.
-  const modifiers = { covered: { against: -3, blast: 3 }, hungry: { all: -2 } };
+  const modifiers = { covered: { against: -3, blast: 3 }, fatigued: { all: -2 }, hungry: { all: -5 } };
   registerTable({ id: "conditions", source: "invented", tables: { modifiers } }, { priority: PRIORITY.WORLD, source: "test" });
   try {
-    const actor = { ...withEffects(), uuid: "Actor.covered", statuses: new Set(["covered", "hungry"]) };
+    const actor = { ...withEffects(), uuid: "Actor.covered", statuses: new Set(["covered", "fatigued"]) };
     assert.deepEqual(saveModifiers(actor), { paralysis: -2, death: -2, blast: 1, implements: -2, spell: -2 });
+    // A condition core's effect applies to the save modifier is read from its effect's change, once: the
+    // module's table has no save row for it, whatever the table holds for the condition's other rolls.
+    const { conditionChanges, conditionValue } = conditionFixture;
+    const step = conditionValue("hungry", "system.save.mod");
+    const hungry = { ...withEffects({ statuses: new Set(["hungry"]), changes: conditionChanges("hungry") }), uuid: "Actor.hungry", statuses: new Set(["hungry"]) };
+    assert.deepEqual(saveModifiers(hungry), { paralysis: step, death: step, blast: step, implements: step, spell: step });
   } finally {
     unregisterTable("conditions", { priority: PRIORITY.WORLD });
   }

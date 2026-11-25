@@ -95,7 +95,14 @@ for (const [condition, row] of Object.entries(full)) {
 
 // Nothing is emitted that the contract does not declare, even when the raw
 // reads carry keys of their own.
-const stray = rows({ ...everything, strayAll: "+4 bonus", [rawKey(some, "notASlot")]: "+4 bonus", beholdingAll: "+4 bonus" });
+// The windows whose figure core's condition effect applies are no longer read: a raw read still carrying one
+// emits nothing for it.
+const retiredWindow = "+13 bonus";
+const retired = Object.fromEntries([
+  ["berserk", "ac"], ["blinded", "attack"], ["charging", "attack"], ["disordered", "ac"],
+  ["infuriated", "ac"], ["infuriated", "attack"], ["prone", "attack"],
+].map(([condition, slot]) => [rawKey(condition, slot), retiredWindow]));
+const stray = rows({ ...everything, ...retired, strayAll: "+4 bonus", [rawKey(some, "notASlot")]: "+4 bonus", beholdingAll: "+4 bonus" });
 eq("a key outside the contract emits nothing", Object.keys(stray).sort(), Object.keys(CONDITION_SLOTS).sort());
 for (const [condition, row] of Object.entries(stray)) {
   for (const slot of Object.keys(row)) check(`${condition}.${slot} is in CONDITION_SLOTS`, CONDITION_SLOTS[condition]?.includes(slot));
@@ -113,12 +120,11 @@ eq("the borrower's own windows are never read", rows({ [rawKey(shared, "all")]: 
 
 const partial = rows({
   [rawKey("blinded", "surprise")]: "-2 penalty",
-  [rawKey("blinded", "attack")]: "the figure is simply 9 here",
-  [rawKey("blinded", "proficiency")]: "",
+  [rawKey("blinded", "proficiency")]: "the figure is simply 9 here",
   [rawKey("blinded", "speedFactor")]: "no share is printed",
 });
 eq("a window that yields nothing leaves its slot absent", partial.blinded, { surprise: -2 });
-check("an absent slot is not a zero", !("attack" in partial.blinded) && !("proficiency" in partial.blinded) && !("speedFactor" in partial.blinded));
+check("an absent slot is not a zero", !("proficiency" in partial.blinded) && !("speedFactor" in partial.blinded));
 eq("a condition with no readable window is omitted", rows({ [rawKey("hungry", "all")]: "nothing numeric" }).hungry, undefined);
 eq("only unreadable windows assemble nothing at all", assembleConditionTables({ t: { [rawKey("hungry", "all")]: "nothing numeric" } }), {});
 eq("a non-string window is skipped", rows({ [rawKey("hungry", "all")]: 4 }).hungry, undefined);
@@ -126,8 +132,8 @@ eq("a non-string window is skipped", rows({ [rawKey("hungry", "all")]: 4 }).hung
 /* ----------- AC and the attacker's side keep the figure's sign ----------- */
 
 const signs = rows({
-  [rawKey("disordered", "ac")]: "reduced by 6.",
-  [rawKey("berserk", "ac")]: "-2 penalty to AC",
+  [rawKey("faltering", "all")]: "reduced by 6.",
+  [rawKey("berserk", "attack")]: "-17 penalty on the thrown throw",
   [rawKey("vulnerable", "against")]: "gain a +8 bonus",
   [rawKey("hidden", "against")]: "-5 penalty",
   [rawKey("restrained", "perCause")]: "-3 penalty for each",
@@ -135,8 +141,8 @@ const signs = rows({
   [rawKey("covered", "blast")]: " +7. if the",
   [rawKey("coveredGreater", "against")]: " -9 if the",
 });
-eq("an AC reduced by a figure is that figure negated", signs.disordered.ac, -6);
-eq("a penalty to AC is signed as written", signs.berserk.ac, -2);
+eq("a figure reduced by a number is that number negated", signs.faltering.all, -6);
+eq("a penalty is signed as written", signs.berserk.attack, -17);
 eq("a bonus to attackers is positive", signs.vulnerable.against, 8);
 eq("a penalty on attackers is negative", signs.hidden.against, -5);
 eq("a per-cause penalty is negative", signs.restrained.perCause, -3);

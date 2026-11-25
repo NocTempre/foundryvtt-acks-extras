@@ -255,6 +255,13 @@ rest of each entry is not automated:
   is blinded only by the Blinded status itself.
 - **The Armor Class readout.** `acMath` exists for a sheet to show a
   conditioned AC; no sheet calls it.
+- **A waiver on a character who holds the condition directly is not applied.**
+  The system folds a condition's `ac.mod` step into a character's `ac.value`
+  itself, so the Armor Class waiver reaches a monster's directly held condition
+  and any implied one, and a character's own is suffered. No ability writes the
+  waiver for a character today. The route if one does is a
+  `preCreateActiveEffect` filter that drops the waived condition's
+  `system.ac.mod` change from an effect made for that actor.
 - **The states of a round are set by hand.** Nothing marks a combatant
   Defending, Retreating or Withdrawing from a declaration, and the system's
   declared spell (a combatant flag) is not read as Casting.

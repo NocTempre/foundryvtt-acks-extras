@@ -8,11 +8,15 @@
  * (`status-palette.mjs`). The system's own conditions and combat states are
  * registered beside it from `CONFIG.ACKS`, and Foundry's generic list is off
  * it until the system's setting or the Judge puts a status back. This module
- * is the one writer of `CONFIG.statusEffects`. Nothing here stores a modifier
- * on an effect. Each roll reads the roller's statuses — and the target's, for
- * an attack — at the moment it is made, so a condition
- * applies its math whoever created the effect that carries it, and a figure
- * imported later reaches conditions already in place.
+ * is the one writer of `CONFIG.statusEffects`. A figure the system's own
+ * condition effect applies rides on that effect: the palette registers the
+ * system's entry for the id, `system.changes` included, and the roll that
+ * reaches a creature the system's effect does not (a monster's Armor Class and
+ * saving throw) reads the effect's step (`conditionSteps`). Every other figure
+ * is stored on no effect. Each roll reads the roller's statuses — and the
+ * target's, for an attack — at the moment it is made, so a condition applies
+ * its math whoever created the effect that carries it, and a figure imported
+ * later reaches conditions already in place.
  *
  * Rolls the system makes from stored fields (saving throws, adventuring
  * throws, morale, the surprise roll, core's own attack) take the figure as a
@@ -29,7 +33,8 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
-import { sheetSaveShift, tellRollMods } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, sheetSaveShift, sumSteps, tellRollMods } from "./roll-mods.mjs";
+import { ACTOR_TYPE } from "./vocab.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
   attackMath, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
@@ -118,7 +123,9 @@ function systemKeepsFoundryStatuses() {
  * (`SYSTEM_KEPT_STATUS_IDS`) stay registered off the palette. A status another package registered after this module took the
  * palette is on it by default and stays registered off it. An id already
  * offered is not offered a second time, so the catalogue's entry stands where
- * the system names the same condition.
+ * the system names the same condition, and it carries the system's entry as
+ * its data: an effect made from the palette holds the system's `changes`,
+ * which is where those figures are applied.
  *
  * @param {object} [setting]  the arrangement whose Judge-made statuses to include
  * @returns {import("./status-palette.mjs").KnownStatus[]}
@@ -135,8 +142,16 @@ export function knownStatuses(setting = storedPalette()) {
     seen.add(entry.id);
     known.push(entry);
   };
+  // The system's entry for an id it ships rides as the catalogue entry's data, so a status toggled from
+  // the palette makes an effect carrying the system's changes; the name and the image stay the catalogue's.
+  const ofCondition = new Map();
+  for (const status of CONFIG.ACKS?.conditions ?? []) if (status?.id) ofCondition.set(status.id, status);
   for (const [id, c] of Object.entries(CONDITIONS)) {
-    offer({ id, source: "condition", name: conditionNameKey(id), img: c.img, defaultOn: true, keep: true });
+    const { hud: _hud, ...core } = ofCondition.get(id) ?? {};
+    offer({
+      id, source: "condition", name: conditionNameKey(id), img: c.img, defaultOn: true, keep: true,
+      ...(ofCondition.has(id) ? { data: core } : {}),
+    });
   }
   for (const state of STATES) offer({ ...state, source: "state", defaultOn: true, keep: true });
   for (const c of normalizePalette(setting).custom) {
@@ -297,15 +312,27 @@ function attackKind(item, type) {
   return sys.missile && !sys.melee ? "missile" : "melee";
 }
 
-/** The conditions' reading of one attack, or null when neither side has any. */
+/**
+ * The conditions' reading of one attack, or null when neither side has any.
+ * A character target's Armor Class already holds what the system's condition
+ * effects add to it, so core's throw counts it; a monster's does not, so each
+ * step its condition effects make to `system.ac.mod` is a term here, sign
+ * reversed as the module's own Armor Class rows are, and the steps the waiver
+ * spares join `waived` the same way.
+ */
 function attackConditions(actor, targetActor, item, type) {
   const attacker = subjectOf(actor);
   const target = subjectOf(targetActor);
   if (!attacker?.statuses?.size && !target?.statuses?.size) return null;
   const kind = attackKind(item, type);
+  const math = attackMath({ attacker, target, kind, attackerSize: sizeRank(actor), targetSize: sizeRank(targetActor) });
+  if (!targetActor || targetActor.type === ACTOR_TYPE.character) return { kind, ...math };
+  const read = conditionSteps(targetActor, CONDITION_STEP_KEYS.ac);
   return {
     kind,
-    ...attackMath({ attacker, target, kind, attackerSize: sizeRank(actor), targetSize: sizeRank(targetActor) }),
+    ...math,
+    terms: [...math.terms, ...read.steps.map((step) => ({ condition: step.condition, value: -step.value, side: "target" }))],
+    waived: [...math.waived, ...read.waived.map((step) => ({ ...step, value: -step.value }))],
   };
 }
 
@@ -450,6 +477,22 @@ function recordSaveShift(actor, save) {
 }
 
 /**
+ * The figure the system's condition effects put on a non-character's saving
+ * throw: core's roll adds `system.save.mod` for a character only, so a
+ * monster's steps (`conditionSteps`) are this module's to add. Zero for a
+ * character, whose roll already carries them.
+ */
+function monsterSaveSteps(actor) {
+  if (!actor || actor.type === ACTOR_TYPE.character) return 0;
+  try {
+    return sumSteps(conditionSteps(actor, CONDITION_STEP_KEYS.save).steps);
+  } catch (err) {
+    console.error(`${MODULE_ID} | a condition's saving-throw step could not be read; the throw rolls without it`, err);
+    return 0;
+  }
+}
+
+/**
  * A saving throw: a bonus lowers the number to roll. `save` is the system's
  * key for the throw, which is not always the conditions' name for it. A throw
  * that comes up under the number it was rolled against takes away the states
@@ -464,7 +507,7 @@ function onRollSave(wrapped, save, ...rest) {
     console.error(`${MODULE_ID} | conditions could not read a saving throw; it rolls without them`, err);
   }
   const cell = this.system?.saves?.[save];
-  const shift = -((math?.total ?? 0) + recordSaveShift(this, save));
+  const shift = -((math?.total ?? 0) + recordSaveShift(this, save) + monsterSaveSteps(this));
   const target = numOrNull(cell?.value) == null ? null : Number(cell.value) + shift;
   const rolled = withShift(cell, "value", shift, () => wrapped(save, ...rest));
   if (target != null && lostTo(this.statuses, "save").length) void loseOnFailedSave(this, rolled, target);

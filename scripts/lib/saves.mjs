@@ -9,7 +9,8 @@
  * bonuses the system adds (a character's modifier against magic and its
  * Wisdom modifier, only when the throw is against magic), the creature's
  * conditions through `rollMath("save", …)` the way the conditions' own
- * wrapper lowers the target, the `save` parts of the creature's records
+ * wrapper lowers the target, the steps the system's condition effects make to
+ * the save modifier (`conditionSteps`, on every save), the `save` parts of the creature's records
  * (`roll-mods.mjs`, scoped against what the throw is made against), the
  * creature's defenses against the damage the throw resists (`defenses.mjs`,
  * only when the caller names the damage), and whatever the caller adds.
@@ -22,7 +23,7 @@ import { LANG_PREFIX } from "./constants.mjs";
 import { rollMath, subjectOf } from "./conditions.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { actorDefenses, defenseFigures, defenseSaveParts } from "./defenses.mjs";
-import { ownSaveParts, saveModParts } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, conditionSteps, ownSaveParts, saveModParts, sumSteps } from "./roll-mods.mjs";
 import { locOr } from "./util.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 
@@ -57,8 +58,8 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
  * @param {Actor} actor
  * @param {string} save  the system's key for the throw
  * @param {object} [options]
- * @param {boolean} [options.magical=true]  the throw is against magic: a character's own modifier and Wisdom modifier join the roll
- * @param {boolean} [options.conditions=true]  the creature's conditions lower the target
+ * @param {boolean} [options.magical=true]  the throw is against magic: a character's own modifier (less the steps its condition effects make, which join every save) and Wisdom modifier join the roll
+ * @param {boolean} [options.conditions=true]  the creature's conditions lower the target, and the steps its condition effects make to the save modifier join the throw: a character's as roll parts, a non-character's as target parts
  * @param {number|string|null} [options.situational]  a figure for this one throw
  * @param {Array<{key: string, label: string, value: number|string}>} [options.parts]  the caller's parts on the roll
  * @param {object} [options.values]  the conditions' registered figures, in place of the world's
@@ -86,10 +87,19 @@ export function saveSpec(
   const stored = actor?.system?.saves?.[save]?.value;
   const baseTarget = typeof stored === "number" && Number.isFinite(stored) ? stored : null;
 
+  const character = actor?.type === ACTOR_TYPE.character;
+  // The steps the system's condition effects make to the save modifier reach every save, as core's roll lets
+  // them; the rest of the modifier is the magical throw's alone. A character's modifier already holds
+  // the steps, so they are named apart and taken out of it; a non-character's field has none of them.
+  const steps = conditions ? conditionSteps(actor, CONDITION_STEP_KEYS.save).steps : [];
+  const stepTotal = sumSteps(steps);
   const rollParts = [];
-  if (magical && actor?.type === ACTOR_TYPE.character) {
-    rollParts.push({ key: "saveMod", label: word("saveMod", "Save modifier"), value: actor.system?.save?.mod ?? 0, side: "roll" });
+  if (magical && character) {
+    rollParts.push({ key: "saveMod", label: word("saveMod", "Save modifier"), value: (actor.system?.save?.mod ?? 0) - stepTotal, side: "roll" });
     rollParts.push({ key: "wis", label: word("wis", "Wisdom"), value: actor.system?.scores?.wis?.mod ?? 0, side: "roll" });
+  }
+  if (character) {
+    for (const step of steps) rollParts.push({ key: step.condition, label: locOr(`${LANG_PREFIX}.condition.${step.condition}`, step.condition), value: step.value, side: "roll" });
   }
   if (situational !== null && situational !== undefined && String(situational).trim() !== "") {
     rollParts.push({ key: "situational", label: word("situational", "Situational"), value: situational, side: "roll" });
@@ -108,10 +118,16 @@ export function saveSpec(
   let unpriced = [];
   let shift = 0;
   if (conditions) {
+    if (!character) {
+      for (const step of steps) {
+        targetParts.push({ key: step.condition, label: locOr(`${LANG_PREFIX}.condition.${step.condition}`, step.condition), value: step.value, side: "target" });
+        shift += step.value;
+      }
+    }
     const subject = subjectOf(actor);
     if (subject?.statuses && [...subject.statuses].length) {
       const math = rollMath("save", subject, values, { save: kind });
-      shift = math.total;
+      shift += math.total;
       pending = math.pending;
       unpriced = math.unpriced;
       for (const p of math.parts) {

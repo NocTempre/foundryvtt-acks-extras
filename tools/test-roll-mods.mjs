@@ -57,7 +57,11 @@ class FakeItem {
     };
   }
 }
+const {
+  CONDITION_ORDER, CONDITION_KEYS, actorOf: conditionActor, conditionValue, coreConditions, effectOf: conditionEffect,
+} = await import("./core-conditions-fixture.mjs");
 globalThis.CONFIG = {
+  ACKS: { conditions: coreConditions() },
   Actor: {
     documentClass: { prototype: { makeAttackThrow: noop } },
     dataModels: { character: { prototype: { getAttackThrowModifiers: noop, getDamageModifiers: noop } } },
@@ -69,7 +73,7 @@ globalThis.CONFIG = {
 };
 
 const seam = await import("../scripts/lib/patches/attack-throw.mjs");
-const { registerTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
 const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
 const mods = await import("../scripts/lib/roll-mods.mjs");
 const { stackingPart, isItemGate, gateVerdict } = await import("../scripts/lib/typed-modifiers.mjs");
@@ -77,7 +81,9 @@ const { MAGIC_ATTACK_TYPE, installAttackThrowPatch, spellCarrier } = seam;
 const {
   rollModsOf, registerItemBonusSource, itemBonusParts, spellStackingPart, resolveItemParts, scopeCtxFor, rollModRows, saveModParts,
   sheetSaveShift, installRollMods, ROLL_MODS_ON, partHolds, recordParts, throwResolution, recordImmunity, ownSaveParts,
+  conditionSteps, CONDITION_STEP_KEYS,
 } = mods;
+const { acWaivedSet, subjectOf, IMPLIED_FLAG } = await import("../scripts/lib/conditions.mjs");
 installAttackThrowPatch();
 installRollMods();
 const makeAttackThrow = registered["CONFIG.Actor.documentClass.prototype.makeAttackThrow"];
@@ -648,11 +654,43 @@ await ok("a character's lift reads its Dexterity modifier out of the comparison;
   assert.deepEqual(labelsOf(against(armoured([setAc(13)], { ac: 10, dex: 3, type: "monster" })).rows), ["Test Edge (Test cite) on Ally, missile attack|-3"], "a monster's figure is its stat line's: no Dexterity is read out");
 });
 
-await ok("the target's conditions compete with the set: a condition on its own armour class raises the lift", () => {
-  registerTable({ id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { disordered: { ac: -3 } } } }, { priority: PRIORITY.WORLD, source: "test" });
-  const ally = armoured([setAc(14)], { ac: 12, dex: 2 });
-  ally.statuses = new Set(["disordered"]);
-  assert.deepEqual(labelsOf(against(ally).rows), ["Test Edge (Test cite) on Ally, missile attack|-7"], "14 - (12 - 2 - 3)");
+/** `ally` holding the system's effect for condition `id`, as its own statuses and effects say. */
+const holding = (ally, id) => {
+  ally.effects.push(conditionEffect(id));
+  ally.statuses = new Set([...(ally.statuses ?? []), id]);
+  return ally;
+};
+const SET_FIGURE = 400;
+
+await ok("the target's conditions compete with the set: a monster's step on its armour class raises the lift", () => {
+  const step = conditionValue("disordered", "system.ac.mod");
+  const monster = holding(armoured([setAc(SET_FIGURE)], { ac: 12, type: "monster" }), "disordered");
+  assert.deepEqual(labelsOf(against(monster).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(SET_FIGURE - (12 + step))}`], "the step is read once from the effect, the monster's field holding none");
+  // A waiver the creature carries takes the step out of the comparison, as it takes it out of the throw.
+  const waived = holding(armoured([setAc(SET_FIGURE)], { ac: 12, type: "monster" }), "disordered");
+  waived.items = [{ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions: ["disordered"] }] } } } }];
+  assert.deepEqual(labelsOf(against(waived).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(SET_FIGURE - 12)}`]);
+});
+
+await ok("a character's Armor Class already holds the system's step, so the lift counts it once", () => {
+  const step = conditionValue("disordered", "system.ac.mod");
+  // A prepared character: core folded the step into ac.value.
+  const character = holding(armoured([setAc(SET_FIGURE)], { ac: 12 + step, dex: 2 }), "disordered");
+  assert.deepEqual(labelsOf(against(character).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(SET_FIGURE - (12 + step - 2))}`]);
+});
+
+await ok("the module's own Armor Class rows still compete with the set: Defend's", () => {
+  registerTable({ id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { defendingShield: { thrown: 3, missile: 8 } } } }, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    const small = armoured([setAc(14)], { ac: 12, dex: 2 });
+    small.statuses = new Set(["defendingShield"]);
+    assert.deepEqual(against(small).rows, [], "14 against 12 - 2 + 8 leaves nothing to lift");
+    const bigger = armoured([setAc(30)], { ac: 12, dex: 2 });
+    bigger.statuses = new Set(["defendingShield"]);
+    assert.deepEqual(labelsOf(against(bigger).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(30 - (12 - 2 + 8))}`]);
+  } finally {
+    unregisterTable(CONDITIONS_DOC, "test");
+  }
 });
 
 await ok("two sets give the larger lift, and a set and an add resolve together so the larger stands", () => {
@@ -681,6 +719,74 @@ await ok("a set with no figure never reaches stacking, and a gated AC part is te
   const heldAlly = armoured([part("ac", 2, { gate: { kind: "status", status: "wasted" } })]);
   heldAlly.statuses = new Set(["wasted"]);
   assert.equal(against(heldAlly).rows.length, 1);
+});
+
+/* --- What a condition's effect does to a field ----------------------------------- */
+
+const AC = CONDITION_STEP_KEYS.ac;
+const SAVE = CONDITION_STEP_KEYS.save;
+const waiverRow = (...conditions) => ({ type: "ability", flags: { "acks-extras": { extras: { effects: [{ type: "modifier", target: "acWaiver", conditions }] } } } });
+const monsterOf = (effects, waives = []) => conditionActor("monster", effects, { extra: { items: waives.length ? [waiverRow(...waives)] : [] } });
+
+await ok("the step reader takes the steps of the effects whose statuses core's list gives changes, and no other effect's", () => {
+  const plain = conditionEffect("restrained", { changes: [{ key: AC, type: "add", value: 5 }] });
+  const statusless = { id: "fxGear", disabled: false, statuses: new Set(), changes: [{ key: AC, type: "add", value: 7 }] };
+  const real = conditionEffect("disordered");
+  const read = conditionSteps(monsterOf([plain, statusless, real]), AC);
+  assert.deepEqual(read.steps.map((s) => [s.condition, s.value, s.effect]), [["disordered", conditionValue("disordered", AC), real]]);
+  assert.deepEqual(read.waived, []);
+  // Another field: only the effects with a change on it.
+  assert.deepEqual(conditionSteps(monsterOf([real]), SAVE).steps, []);
+  assert.deepEqual(conditionSteps(monsterOf([conditionEffect("hungry")]), SAVE).steps.map((s) => [s.condition, s.value]), [["hungry", conditionValue("hungry", SAVE)]]);
+});
+
+await ok("the reader reads each of the eleven's step on its fields from the effect, and a disabled effect makes none", () => {
+  for (const id of CONDITION_ORDER) {
+    for (const key of [AC, SAVE]) {
+      const wanted = CONDITION_KEYS[id].includes(key) ? [conditionValue(id, key)] : [];
+      assert.deepEqual(conditionSteps(monsterOf([conditionEffect(id)]), key).steps.map((s) => s.value), wanted, `${id} ${key}`);
+      assert.deepEqual(conditionSteps(monsterOf([conditionEffect(id, { disabled: true })]), key).steps, [], `${id} disabled`);
+    }
+  }
+});
+
+await ok("the reader knows no ids of its own: with none in core's list it reads nothing", () => {
+  const was = CONFIG.ACKS.conditions;
+  CONFIG.ACKS.conditions = was.filter((entry) => entry.id !== "disordered");
+  try {
+    assert.deepEqual(conditionSteps(monsterOf([conditionEffect("disordered")]), AC), { steps: [], waived: [] });
+    CONFIG.ACKS = undefined;
+    assert.deepEqual(conditionSteps(monsterOf([conditionEffect("disordered")]), AC), { steps: [], waived: [] });
+  } finally {
+    CONFIG.ACKS = { conditions: was };
+  }
+  assert.deepEqual(conditionSteps(null, AC), { steps: [], waived: [] });
+});
+
+await ok("a directly waived condition's step lands in waived, valued as the field takes it, and a mixed-status effect keeps its step", () => {
+  const step = conditionValue("disordered", AC);
+  const waived = conditionSteps(monsterOf([conditionEffect("disordered")], ["disordered"]), AC);
+  assert.deepEqual([waived.steps, waived.waived], [[], [{ condition: "disordered", value: step }]]);
+  const mixed = conditionEffect("disordered", { statuses: ["disordered", "hungry"] });
+  const kept = conditionSteps(monsterOf([mixed], ["disordered"]), AC);
+  assert.deepEqual([kept.steps.map((s) => s.value), kept.waived], [[step], []], "an effect naming a status the waiver does not reach is not waived on a guess");
+  // The waiver is the Armor Class figure's: the same condition's save step stands.
+  assert.deepEqual(conditionSteps(monsterOf([conditionEffect("hungry")], ["hungry"]), SAVE).steps.map((s) => s.value), [conditionValue("hungry", SAVE)]);
+});
+
+await ok("a waived charge's disorder: a holder-shaped Disordered carrying no change gets no step, and a hand Disordered beside it keeps its step", () => {
+  const charging = conditionEffect("charging");
+  const holders = conditionEffect("disordered", { changes: [], flags: { "acks-extras": { [IMPLIED_FLAG]: "charging" } } });
+  const alone = monsterOf([charging, holders], ["charging"]);
+  assert.deepEqual(subjectOf(alone).implied, ["disordered"]);
+  assert.equal(acWaivedSet(subjectOf(alone)).has("disordered"), true, "the held disorder follows the waived charge");
+  assert.deepEqual(conditionSteps(alone, AC), { steps: [], waived: [] }, "it carries no change, so there is no step to take or to waive");
+  const hand = conditionEffect("disordered");
+  const beside = monsterOf([charging, holders, hand], ["charging"]);
+  assert.deepEqual(subjectOf(beside).implied, [], "a disorder carried in its own right is not implied");
+  assert.equal(acWaivedSet(subjectOf(beside)).has("disordered"), false);
+  assert.deepEqual(conditionSteps(beside, AC).steps.map((s) => [s.condition, s.value]), [["disordered", conditionValue("disordered", AC)]]);
+  assert.deepEqual(conditionSteps(beside, AC).waived, []);
 });
 
 /* --- A saving throw under a condition ------------------------------------------ */
