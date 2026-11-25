@@ -12,6 +12,7 @@
  */
 import { acksCompatStubs, creatureAttackModifiers, savingThrowFields } from "../actor-compat.mjs";
 import { unitField } from "../fields.mjs";
+import { moraleFromUnitsAbove } from "../org-host.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 import { commandStatus } from "../group-logic.mjs";
 import { clampScore, moraleBounds } from "../score-bounds.mjs";
@@ -289,12 +290,14 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
   }
 
   /** Unit morale including the commanding officer's RR 171 modifier (skirmish
-   *  scale), held to the morale range the system gives a character
-   *  (`moraleBounds`), the hireling's own score. `unit.morale` carries the
-   *  employer's leader modifiers (CHA, Command, led-by-5th …) that the consumer
-   *  computes; a stack's own troop-type base is added per stack. */
+   *  scale) and the part each unit above it in an organisation chart brings while
+   *  its officer is up (`moraleFromUnitsAbove`, docs/lib/ORGANISATION.md), held to
+   *  the morale range the system gives a character (`moraleBounds`), the
+   *  hireling's own score. `unit.morale` carries the employer's leader modifiers
+   *  (CHA, Command, led-by-5th …) that the consumer computes; a stack's own
+   *  troop-type base is added per stack. */
   get commandMorale() {
-    const m = (this.unit?.morale ?? 0) + (this.unit?.officerMoraleBonus ?? 0);
+    const m = (this.unit?.morale ?? 0) + (this.unit?.officerMoraleBonus ?? 0) + moraleFromUnitsAbove(this.parent);
     return clampScore(m, moraleBounds(ACTOR_TYPE.character));
   }
 

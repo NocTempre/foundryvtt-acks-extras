@@ -74,6 +74,7 @@ import GroupData from "./data/group-data.mjs";
 import TemplateData from "./data/template-data.mjs";
 import * as groups from "./group.mjs";
 import * as groupEncounter from "./group-encounter.mjs";
+import * as org from "./org.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
@@ -272,6 +273,14 @@ const localImpl = Object.freeze({
    * `ROLL_CONTEXT_HOOK`, where a feature answers which line a scene reads.
    */
   groupEncounter,
+  /**
+   * The organisation chart (org.mjs, org-host.mjs, org-tree-logic.mjs): the rows a
+   * faction or a group hosts in `units`, `orgHostOf` (which host and row a holder
+   * stands on), `addRow`, `setHolder`, `sendOut`, `recall`, `join` and `leave`, the
+   * two views `orgChart` and `locations`, and the morale part a group takes from
+   * the units above it. docs/lib/ORGANISATION.md.
+   */
+  org,
   /** The `acks-extras.template` generator actor: model + pure roll/resolve. */
   TemplateData,
   TEMPLATE_TYPE,
@@ -601,6 +610,7 @@ Hooks.once("init", () => {
   void registerStorageRelay();
   void registerSummons();
   registerGroupCleanup();
+  org.registerOrgIndex();
   registerStackDrop();
   registerEncounterTokens();
 
