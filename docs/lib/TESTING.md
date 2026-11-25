@@ -2431,9 +2431,15 @@ The morale page's condition rows are influence's own recipe.
   token's actor is found by marker in `tokenDoc.actor.items` and built there,
   and brought to its equipped state at the start of every step.
 - **A given state is proven before it is read.** The effect's `start` names the
-  fixture combat, the giver's combatant and a non-null initiative; with the
-  tracker not rendered on that combat, or the giver's initiative unrolled,
-  `start` is empty and the state reads as the creature's own.
+  walk's combat, the giver's combatant and a non-null initiative.
+- **Take a creature's own Defend on its own turn, in the walk's combat.**
+  Foundry stamps a new effect's `start` with the world's current combat,
+  whichever it is: a kept fixture's started combat with no scene (such as
+  `lib/round-combat`) stamps an effect on a creature that is not in it, and
+  `giverOf` then reads that combat's acting combatant as the giver.
+- **A retired status's effect is built as a toggle made it.** A toggle sets
+  `showIcon` to always shown; an effect made by hand with conditional
+  `showIcon` and no duration draws no icon at all.
 
 **Fixtures (as GM, each id recorded with `api.create` or `api.track`):**
 - A scene, created with `active: false`, `ownership.default` OBSERVER, and

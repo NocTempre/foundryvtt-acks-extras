@@ -21,8 +21,9 @@
  * the fixtures, each shield equipped or not as the step says, no target.
  * Nothing is rolled back at the end.
  *
- * The run's own products are tracked and swept by id: the combat of the given
- * half, the effect that holds the retired id, and every card this client posts.
+ * The run's own products are tracked and swept by id: the walk's combat, in
+ * which every Defend is made, the effect that holds the retired id, and every
+ * card this client posts.
  * The fixtures stay.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -265,9 +266,19 @@ const P = {
     return out;
   },
 
-  /** One state of the roll: Defending off then on, with a Blast save before and the three attacks and a save after. */
-  state: async ({ victim, attacker }) => {
+  /**
+   * One state of the roll: Defending off then on, with a Blast save before and the three attacks and a save after. The Defend is
+   * taken on the bearer's own turn in the walk's combat: Foundry stamps a new effect with whatever combat is current, and a state
+   * made while another combatant acts is read as that combatant's gift.
+   */
+  state: async ({ victim, attacker, combatId, row }) => {
     const H = globalThis.__ld;
+    const combat = game.combats.get(combatId);
+    const turn = combat.turns.findIndex((t) => t.id === row);
+    if (combat.turn !== turn) {
+      await combat.update({ turn });
+      await H.sleep(500);
+    }
     const vTok = await fromUuid(victim);
     const aTok = await fromUuid(attacker);
     const actor = vTok.actor;
@@ -277,10 +288,13 @@ const P = {
     const clean = await H.save(actor);
     await actor.toggleStatusEffect("defending", { active: true });
     await H.sleep(400);
+    const effect = actor.effects.find((e) => e.statuses.has("defending")) ?? null;
+    const ownTurn = game.combat?.id === combat.id && combat.combatant?.id === row;
+    const own = ownTurn && !!effect && H.CL.giverOf(effect, actor) === null && !H.CL.subjectOf(actor).gifts.defending;
     const on = await H.measure(aTok, vTok);
     await actor.toggleStatusEffect("defending", { active: false });
     await H.sleep(400);
-    return { name: actor.name, shape, shield, acShield, clean: { target: clean.target }, on, after: [...actor.statuses] };
+    return { name: actor.name, shape, shield, acShield, clean: { target: clean.target }, on, after: [...actor.statuses], own };
   },
 
   /** The tracker on a fixture combat: initiatives written, the round begun, the turn on one row, the tracker rendered on it. */
@@ -344,7 +358,10 @@ const P = {
     const actor = tok.actor;
     const clean = await H.save(actor);
     const icons0 = H.icons(tok);
-    const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [{ name: "Defend Walk Retired Id", statuses: [id] }]);
+    // The shape a toggle of the retired palette entry made: its icon, its status, and the always-shown icon a status effect takes.
+    const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [{
+      name: "Defend Walk Retired Id", img: "icons/svg/ice-shield.svg", statuses: [id], showIcon: CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS,
+    }]);
     await H.sleep(600);
     return { uuid: made.uuid, effectId: made.id, clean: { target: clean.target }, icons0, icons1: H.icons(tok), held: actor.statuses.has(id) };
   },
@@ -478,18 +495,34 @@ try {
   const onThrow = (on) => KINDS.every((k) => same(on.kinds[k].labelled, on.kinds[k].defending));
   const lone = (s) => s.shape.length === 0 && same(s.on.statuses, ["defending"]) && s.after.length === 0;
 
+  section("the walk's combat");
+  // Every Defend here is made in this combat: the bearer's own on its own turn, a given one on Guard's.
+  const combat = await gm.create("Combat", { scene: scene.id, active: true });
+  swept.push(combat.uuid);
+  const rowHero = await gm.create("Combatant", { tokenId: heroTok.id, sceneId: scene.id, actorId: hero.id }, { parent: combat.uuid });
+  swept.push(rowHero.uuid);
+  const rowGuard = await gm.create("Combatant", { tokenId: guardTok.id, sceneId: scene.id, actorId: guard.id }, { parent: combat.uuid });
+  swept.push(rowGuard.uuid);
+  const rowGoblin = await gm.create("Combatant", { tokenId: goblinTok.id, sceneId: scene.id, actorId: goblin.id }, { parent: combat.uuid });
+  swept.push(rowGoblin.uuid);
+  const fightIds = [combat.uuid, rowHero.uuid, rowGuard.uuid, rowGoblin.uuid];
+  const fight = await run(gm, P.fight, { combatId: combat.id, rows: { hero: rowHero.id, guard: rowGuard.id, goblin: rowGoblin.id }, inits: { hero: 6, guard: 12, goblin: 3 }, upKey: "hero" });
+  note("the walk's combat", fight);
+  check("21: the walk's combat is the tracker's own, in round 1 with Hero's turn up", fight.viewed && fight.round === 1 && fight.upRow === rowHero.id, { viewed: fight.viewed, round: fight.round, up: fight.up });
+  const own = { combatId: combat.id };
+
   section("21a. Hero holds an equipped shield, and again with it carried");
   const grid = await run(gm, P.grid, { token: heroTok.uuid, marker: heroShield.marker, acs: [0, SET_AC] });
   note("Hero's shield reading by equipped and Armor Class", grid);
   await shape("Hero equipped", { hero: true, guard: false, goblin: false });
-  const E = await run(gm, P.state, { victim: heroTok.uuid, attacker: raiderTok.uuid });
+  const E = await run(gm, P.state, { victim: heroTok.uuid, attacker: raiderTok.uuid, ...own, row: rowHero.id });
   sound("Hero equipped", E.on);
   note("Hero equipped", { shield: E.shield, acShield: E.acShield, terms: terms(E.on), blastMoved: blastBy(E), told: toldAll(E.on) });
   check("21: equipped, Hero's terms carry Defending's missile, thrown and melee figures, once each", carries(E.on), terms(E.on));
   check("21: equipped, Hero's Blast target moves by the Blast figure", blastBy(E) === -FIGURES.blast, { moved: blastBy(E) });
 
   await shape("Hero carried", { hero: false, guard: false, goblin: false });
-  const U = await run(gm, P.state, { victim: heroTok.uuid, attacker: raiderTok.uuid });
+  const U = await run(gm, P.state, { victim: heroTok.uuid, attacker: raiderTok.uuid, ...own, row: rowHero.id });
   sound("Hero carried", U.on);
   note("Hero carried", { shield: U.shield, terms: terms(U.on), blastMoved: blastBy(U), told: toldAll(U.on) });
   check(
@@ -502,7 +535,7 @@ try {
 
   section("21b. the Goblin token, with no equipped shield and then with one on its own actor");
   await shape("Goblin without", { hero: false, guard: false, goblin: false });
-  const G0 = await run(gm, P.state, { victim: goblinTok.uuid, attacker: raiderTok.uuid });
+  const G0 = await run(gm, P.state, { victim: goblinTok.uuid, attacker: raiderTok.uuid, ...own, row: rowGoblin.id });
   sound("Goblin without", G0.on);
   note("Goblin without", { shield: G0.shield, terms: terms(G0.on), blastMoved: blastBy(G0), told: toldAll(G0.on), pending: G0.on.kinds.missile.pending });
   check("21: the Goblin token's shield reads null", G0.shield === null && G0.on.shield === null, { shield: G0.shield });
@@ -514,7 +547,7 @@ try {
     { told: toldAll(G0.on), moved: blastBy(G0) },
   );
   await shape("Goblin equipped on its own actor", { hero: false, guard: false, goblin: true });
-  const G1 = await run(gm, P.state, { victim: goblinTok.uuid, attacker: raiderTok.uuid });
+  const G1 = await run(gm, P.state, { victim: goblinTok.uuid, attacker: raiderTok.uuid, ...own, row: rowGoblin.id });
   sound("Goblin equipped", G1.on);
   note("Goblin equipped", { shield: G1.shield, terms: terms(G1.on), blastMoved: blastBy(G1), told: toldAll(G1.on) });
   check("21: equipped on the token's own actor, the Goblin's rows apply and its Blast target moves by the Blast figure", G1.shield === true && carries(G1.on) && blastBy(G1) === -FIGURES.blast, { shield: G1.shield, terms: terms(G1.on), moved: blastBy(G1) });
@@ -523,16 +556,6 @@ try {
 
   section("21c. a Defend given on Guard's turn");
   await shape("given, Guard holds the shield", { hero: false, guard: true, goblin: false });
-  const combat = await gm.create("Combat", { scene: scene.id, active: true });
-  swept.push(combat.uuid);
-  const rowHero = await gm.create("Combatant", { tokenId: heroTok.id, sceneId: scene.id, actorId: hero.id }, { parent: combat.uuid });
-  swept.push(rowHero.uuid);
-  const rowGuard = await gm.create("Combatant", { tokenId: guardTok.id, sceneId: scene.id, actorId: guard.id }, { parent: combat.uuid });
-  swept.push(rowGuard.uuid);
-  const fightIds = [combat.uuid, rowHero.uuid, rowGuard.uuid];
-  const fight = await run(gm, P.fight, { combatId: combat.id, rows: { hero: rowHero.id, guard: rowGuard.id }, inits: { hero: 6, guard: 12 }, upKey: "guard" });
-  note("the fixture combat", fight);
-  check("21: the fixture combat is the tracker's own, in round 1 with Guard's turn up", fight.viewed && fight.round === 1 && fight.upRow === rowGuard.id, { viewed: fight.viewed, round: fight.round, up: fight.up });
   const heroGuardShield = [
     { token: heroTok.uuid, marker: heroShield.marker, equipped: false },
     { token: guardTok.uuid, marker: guardShield.marker, equipped: true },
@@ -541,7 +564,7 @@ try {
   sound("given, Guard holds", D1.on);
   note("given, Guard holds it and Hero does not", { up: D1.up, viewed: D1.viewed, startCombatant: D1.startCombatant === rowGuard.id, startInitiative: D1.startInitiative !== null, gift: D1.gift, heroShield: D1.heroShield, terms: terms(D1.on), blastMoved: blastBy(D1), told: toldAll(D1.on) });
   check(
-    "21: the Defend is a given one: made in the fixture combat on Guard's turn, its start names Guard's row and an initiative, and Guard's combatant is its giver",
+    "21: the Defend is a given one: made in the walk's combat on Guard's turn, its start names Guard's row and an initiative, and Guard's combatant is its giver",
     D1.viewed && D1.upRow === rowGuard.id && D1.startCombat === combat.id && D1.startCombatant === rowGuard.id && D1.startInitiative !== null && D1.giverRow === rowGuard.id && D1.gift !== null,
     { up: D1.up, startCombat: D1.startCombat === combat.id, startCombatant: D1.startCombatant === rowGuard.id, startInitiative: D1.startInitiative !== null, giver: D1.giverRow === rowGuard.id },
   );
@@ -576,6 +599,7 @@ try {
   section("the walk's own conditions");
   check("21 (setup): every step began with every condition off the fixtures, each shield as set, and a numeric stored Blast target", shapes.every(([, ok]) => ok), shapes.filter(([, ok]) => !ok).map(([l]) => l));
   check("21 (setup): every state held Defending alone while it rolled, and lifted it after", lone(E) && lone(U) && lone(G0) && lone(G1) && same(D1.on.statuses, ["defending"]) && D1.shape.length === 0 && D1.after.length === 0 && same(D2.on.statuses, ["defending"]) && D2.shape.length === 0 && D2.after.length === 0 && R.on.statuses.length === 1, { states: [E, U, G0, G1].map(lone) });
+  check("21 (setup): every Defend the bearer took was made on its own turn in the walk's combat, and reads as its own, not as a gift", [E, U, G0, G1].every((s) => s.own), { own: [E, U, G0, G1].map((s) => s.own) });
   check("21 (setup): every attack was read as the kind it asked for, and every roll resolved", reads.every(([, ok]) => ok), reads.filter(([, ok]) => !ok).map(([l]) => l));
   check("21 (setup): wherever Defending's rows applied, the throw's own modifiers carry each term once under Defending's target name", onThrow(E.on) && onThrow(G1.on) && onThrow(D1.on) && onThrow(U.on) && onThrow(D2.on), { E: onThrow(E.on), G1: onThrow(G1.on), D1: onThrow(D1.on) });
   walkDone();
