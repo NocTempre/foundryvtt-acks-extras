@@ -11524,5 +11524,6 @@
   "ACKS-LIB.org.role.subTip": "Read from the chart: this leader's unit holds units, and the card is below the top of the chart.",
   "ACKS-LIB.org.role.chiefTip": "Read from the chart: this leader's unit holds units, and the card is the top of the chart.",
   "ACKS-LIB.org.edit.clearLeader": "Clear the {word} ({name})",
-  "ACKS-LIB.org.edit.clearLeaderTip": "Take this leader off the card's group at once. The actor stays in the world, and the faction's own leader is not changed."
+  "ACKS-LIB.org.edit.clearLeaderTip": "Take this leader off the card's group at once. The actor stays in the world, and the faction's own leader is not changed.",
+  "ACKS-LIB.org.locations.held": "Groups held inside this group"
 }

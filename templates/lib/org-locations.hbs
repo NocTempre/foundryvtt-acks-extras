@@ -12,14 +12,26 @@
       </div>
       <ul class="acks-extras-org-place__groups">
         {{#each groups}}
-          <li class="acks-extras-org-chip{{#if covered}} is-covered{{/if}}" data-uuid="{{uuid}}">
+          <li class="acks-extras-org-chip{{#if covered}} is-covered{{/if}}{{#if holds}} acks-extras-org-chip--holds{{/if}}" data-uuid="{{uuid}}">
             <a data-action="orgOpen" data-uuid="{{uuid}}">{{name}}</a>
             <span class="acks-extras-org-chip__count" data-tooltip-text="{{countTip}}">{{count}}</span>
             {{#each rows}}
-              <span class="acks-extras-org-chip__row{{#if inside}} is-inside{{/if}}" data-key="{{key}}">{{label}}
-                {{#unless inside}}{{#if @root.editable}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}{{/unless}}
-              </span>
+              {{#unless inside}}
+                <span class="acks-extras-org-chip__row" data-key="{{key}}">{{label}}
+                  {{#if @root.editable}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
+                </span>
+              {{/unless}}
             {{/each}}
+            {{#if holds}}
+              <ul class="acks-extras-org-chip__held" aria-label="{{localize 'ACKS-LIB.org.locations.held'}}">
+                {{#each rows}}{{#if inside}}
+                  <li class="acks-extras-org-chip acks-extras-org-chip--inner" data-key="{{key}}">
+                    <a data-action="orgOpen" data-uuid="{{holderUuid}}">{{label}}</a>
+                    <span class="acks-extras-org-chip__count" data-tooltip-text="{{countTip}}">{{count}}</span>
+                  </li>
+                {{/if}}{{/each}}
+              </ul>
+            {{/if}}
           </li>
         {{/each}}
       </ul>

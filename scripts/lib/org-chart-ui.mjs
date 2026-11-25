@@ -193,7 +193,10 @@ export function locationsContext(host, { isGM }) {
       name: p.name,
       total: p.total,
       groups: p.groups
-        .map((g) => ({ ...g, rows: g.rows.filter(mine), countTip: loc("locations.countTip", { name: g.name, place: p.name, cites: citesOf(docOf(g.uuid)) }) }))
+        .map((g) => {
+          const rows = g.rows.filter(mine).map((r) => ({ ...r, countTip: loc("locations.countTip", { name: r.label, place: p.name, cites: citesOf(docOf(r.holderUuid)) }) }));
+          return { ...g, rows, holds: rows.some((r) => r.inside), countTip: loc("locations.countTip", { name: g.name, place: p.name, cites: citesOf(docOf(g.uuid)) }) };
+        })
         .filter((g) => g.rows.length),
     }))
     .filter((p) => p.groups.length);

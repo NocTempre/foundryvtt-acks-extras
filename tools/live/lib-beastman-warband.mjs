@@ -188,6 +188,22 @@ const P = {
     return { drawn: !!btn, name: btn?.textContent?.trim() ?? "", emptyTick: !!card?.querySelector('input[type="checkbox"][data-org-field]') };
   },
 
+  /** The Locations tab's chips: nested ones, and whether any chip or the frame spills sideways. */
+  chipsRead: async ({ id }) => {
+    const el = game.actors.get(id).sheet.element;
+    const frame = el.querySelector(".window-content");
+    const fr = frame.getBoundingClientRect();
+    const chips = [...el.querySelectorAll(".acks-extras-org-chip")];
+    return {
+      chips: chips.length,
+      holds: el.querySelectorAll(".acks-extras-org-chip--holds").length,
+      nested: el.querySelectorAll(".acks-extras-org-chip--holds .acks-extras-org-chip--inner").length,
+      spill: chips.filter((c) => c.getBoundingClientRect().right > fr.right + 1).length,
+      frameScrollsSideways: frame.scrollWidth > frame.clientWidth + 1,
+      width: Math.round(fr.width),
+    };
+  },
+
   /** Close the sheet and open a fresh one at a width, so nothing measured is an old window's. */
   reopen: async ({ id, width, tab }) => {
     const actor = game.actors.get(id);
@@ -342,6 +358,11 @@ try {
     await run(gm, P.host, { id: fid, template: null, tab: "locations" }).catch(() => null);
     const onTab = await run(gm, P.read, { id: fid });
     check("the Locations tab draws a chip for the group on that place", onTab.chips >= 1, onTab.chips);
+    await run(gm, P.reopen, { id: fid, width: 320, tab: "locations" });
+    const narrowChips = await run(gm, P.chipsRead, { id: fid });
+    const heldRows = await gm.eval(`(() => { const h = game.actors.get("${fid}"); const g = fromUuidSync("${filledRow.holderUuid}"); return h.system.units.filter((r) => r.holderUuid && r.holderUuid !== g.uuid && r.parentKey).length; })()`);
+    check("a group that holds other rows' groups draws them as chips nested inside its own chip", heldRows === 0 || narrowChips.nested >= 1, narrowChips);
+    check("on a freshly opened narrow window the rows wrap: no chip spills past the frame and the frame does not scroll sideways", narrowChips.spill === 0 && narrowChips.frameScrollsSideways === false, narrowChips);
     await run(gm, P.press, { id: fid, action: "orgRecall", wait: 900 });
     const back = await waitFor(gm, `!game.actors.get("${place.id}").system.roster.some((r) => r.uuid === "${filledRow.holderUuid}")`, 8000);
     check("Recall takes the group off the roster", back);

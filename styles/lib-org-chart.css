@@ -273,6 +273,28 @@
   font-size: var(--acks-fs-fine);
 }
 
+.acks-extras-org-chip a,
+.acks-extras-org-chip__row,
+.acks-extras-org-card__rank { min-width: 0; overflow-wrap: anywhere; }
+
+/* A warband's chip holds its gangs' chips: the held chips run along inside it and wrap under one another. */
+.acks-extras-org-chip { min-width: 0; max-width: 100%; }
+.acks-extras-org-chip--holds { flex: 1 1 100%; }
+
+.acks-extras-org-chip__held {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.2rem 0 0;
+  list-style: none;
+  border-top: var(--acks-border-soft);
+}
+
+.acks-extras-org-chip--inner { background: var(--acks-tint); }
+
 .acks-extras-org-chip.is-covered {
   opacity: 0.7;
 }

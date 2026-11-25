@@ -4639,7 +4639,11 @@ active GM; read `game.users.activeGM` in the same call as a measure.
    `leaderUuid` as it was; no checkbox or empty tick is drawn in the form. (Minting a champion by tick is S12b's.)
 5. **Send out and Recall** — press Send out on a filled card, pick the place; open the **Locations**
    tab. *Observable:* the place's roster holds the group and a chip for its row stands on the place;
-   its Recall takes the group off the roster again.
+   its Recall takes the group off the roster again. **Nested chips (board 1i):** a group sent whole that holds
+   other rows' groups draws one chip with its held groups' chips inside it (`.acks-extras-org-chip--holds`
+   holding `.acks-extras-org-chip--inner`, each with a count whose tooltip names the group and the place). On a
+   freshly opened sheet about 320 wide the chips wrap under one another: no chip's right edge passes the frame's
+   and `.window-content` does not scroll sideways.
 6. **Expand all, Collapse all** — *Observable:* Collapse all leaves every branch card with
    `aria-expanded="false"` and a count of rows and bodies beneath it; Expand all leaves none folded.
 7. **Remove** — Org chart tab → a card's pen → **Remove**; a row with rows beneath it asks first, a row on

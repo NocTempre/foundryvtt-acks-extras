@@ -360,6 +360,7 @@ t("each place lists its outermost groups with the chart rows they hold, those in
   const camp = view.places.find((p) => p.uuid === "P.camp");
   assert.deepEqual(camp.groups.map((g) => g.uuid), ["G.w1"]);
   assert.deepEqual(camp.groups[0].rows.map((r) => [r.key, r.inside]), [["w1", false], ["g1", true]], "a row held through a group inside it is marked");
+  assert.deepEqual(camp.groups[0].rows.map((r) => r.count), [7, 3], "each row carries its own holder's live count, for a held chip's figure");
   assert.equal(camp.total, 7);
   const ford = view.places.find((p) => p.uuid === "P.ford");
   assert.deepEqual(ford.groups.map((g) => g.uuid), ["G.g2"], "an actor that does not resolve is not listed");

@@ -520,7 +520,7 @@ export function locationsView({ places, rows, read }) {
         img: held.img ?? "",
         count: Math.max(0, held.count ?? 0),
         covered: (held.ancestors ?? []).some((u) => onRoster.has(u)),
-        rows: chart.filter((r) => within.has(r.holderUuid)).map((r) => ({ ...r, inside: r.holderUuid !== entry.uuid })),
+        rows: chart.filter((r) => within.has(r.holderUuid)).map((r) => ({ ...r, inside: r.holderUuid !== entry.uuid, count: Math.max(0, read(r.holderUuid)?.count ?? 0) })),
       });
     }
     out.push({ uuid: place.uuid, name: place.name, groups, total: groups.reduce((n, g) => n + (g.covered ? 0 : g.count), 0) });
