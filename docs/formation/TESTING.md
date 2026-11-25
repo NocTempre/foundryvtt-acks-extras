@@ -3777,6 +3777,155 @@ empty description, the delve, the ability unflagged.
 Teardown: both saved orders are forgotten by id; the cards that name, or speak
 as, a `QA Seat` fixture are tracked and swept. The fixtures are kept.
 
+## The heads and the Place row on a Player seat (added with T-0792 B3)
+
+A seat that owns a party member presses the mode's own head (Turn, Round, Rest,
+Hurried, Hop, Next hex, Work the country, End day), and a seat that owns a Region
+sees and drops onto its Place row. Written from the code and the design board;
+**no `tools/live` walk drives it yet and none of it has been walked.** A mock
+cannot prove that a press reaches the Judge's client under the attested
+sender, that a head draws no pill the seat cannot press, that a Region window a
+Player opens carries the row, or that a drop a Player makes lands only on a place
+that Player owns. Seats: the primary GM and the world's Player user
+(`TEST_ENVIRONMENT.md`); the Judge's client runs every relay, so the GM seat must
+be the primary GM. A recorder is added before reload.
+
+Fixtures, each found again by its marker or built carrying one, and each step
+asserts the shape it needs at its start:
+- Delve head: the B2 fixtures `formation/seat-frame-scene`,
+  `formation/seat-frame-party`, `formation/seat-frame-token`,
+  `formation/seat-frame-ranger` (the seat owns it) and `formation/seat-frame-smith`
+  (the Judge's), as "The frame on a Player and a Trusted seat" defines them.
+  The party is put in delve with the pace careful.
+- `formation/heads-observed-party`: a party whose only member,
+  `formation/heads-observed-member`, is the Judge's, with the seat at OBSERVER on
+  the party actor and on no member.
+- `formation/heads-city-scene` (a grid, a block set), `formation/heads-city-party`
+  in city mode with `formation/heads-city-member` owned by the seat, and two
+  place actors with tokens on the scene, `formation/heads-city-shown` and
+  `formation/heads-city-hidden` (the token hidden by the Judge). Names are
+  neutral ("QA Place 1"); `formation/heads-city-shown` takes a name carrying
+  an HTML tag, to prove the public line escapes it.
+- `formation/heads-journey-scene` (hex), `formation/heads-journey-party` in
+  journey mode with `formation/heads-journey-member` owned by the seat.
+- `formation/place-row-player-scene`: a grid scene holding the Regions below, a
+  wall, and the party-free ground the map drops land on.
+  `formation/place-row-player-region` is a Region the seat owns, with no
+  behaviours; `formation/place-row-player-observed-region` is a Judge-drawn
+  Region the seat has at OBSERVER and no more;
+  `formation/place-row-player-wall` is a wall beside the Region's place.
+- Three places for the row's states: `formation/place-row-player-place-owned`
+  (the seat at OWNER), `formation/place-row-player-place-seen` (OBSERVER) and
+  `formation/place-row-player-place-closed` (NONE for the seat). Reuse
+  `formation/hazard-sample` and a trap Item `formation/place-row-player-trap`.
+
+Setup the walker owns. **Create New Actors** must be granted to the Player for the
+no-place-with-create step (PR3): Settings tab → Game Settings → Configure
+Permissions, which reaches every seated peer, so ask the hub first. If it cannot be
+granted, PR3's create half is reported not walked and its no-create half is the
+whole step. A Region the Judge drew needs OBSERVER for the Player to open its
+window. The relay needs a primary GM client; with none, lib warns and no press or
+drop writes. Core 14 offers the Regions control to any seat holding Create Regions
+(a Player by default) and makes the drawing seat the Region's owner; where the
+world has revoked it, the control is absent, PR1 is reported not walked, and the
+Judge builds the Region with the seat at OWNER for the rest.
+
+**The heads** (Actors sidebar tab → a party actor → its sheet → the mode's tab; the
+head is the row at the top of that tab). Press by the real click on the Player's
+page; read the record and the cards on the Judge's.
+
+1. **Delve.** Open `formation/seat-frame-party` on the Player seat, Dungeon tab.
+   *Observable:* the head holds Turn, Round, Rest a turn and Hurried, with no
+   Undo; an asks line under the pills says Turn and Round ask the Judge; the
+   title's tooltip carries the turn count and the elapsed time.
+   Press **Hurried**: the record's `stance.pace` reads hurried and one public
+   line, spoken as the party, says it hurries the party. Press it again: careful
+   and one line. With the record already hurried, send the same hurried press from
+   the Player's page (`requestPartyPress(formation, "pace", {hurried: true})`):
+   the answer is ok, the record is unchanged and **no** line is posted. The
+   figures rail's pace cell makes the same press. Press **Turn**, then
+   **Round**: one public line each says the seat asks, and the clock's turn
+   count and the Judge's plan are unchanged until the Judge's own press. Press
+   **Rest a turn**: the Judge's client takes the rest. The Judge's own Hurried
+   press posts no line.
+2. **A seat that owns no member.** Open `formation/heads-observed-party`.
+   *Observable:* no pill on any head and the pace cell is a reading. From the
+   Player's page send `requestPartyPress(formation, "pace", {hurried: true})`:
+   the answer is `{ok: false, refused: "notOwner"}`, the seat is warned with the
+   generic refusal, the record is unchanged and nothing is posted.
+3. **City.** Open `formation/heads-city-party`, City tab. *Observable:* Hop,
+   Turn, Round and Rest a turn; no Hunted here and no Undo. The hop picker lists
+   `formation/heads-city-shown` and not the hidden one, and the strip's count of
+   places in reach counts one. Pick the shown place: the party token moves, the
+   clock spends the imported price, one public line says the party walks to the
+   place with its name shown as text, and the Judges get the whispered hop line.
+   A crafted hop from the Player's page naming the hidden token's id
+   (`requestPartyPress(formation, "hop", {tokenId})`) answers
+   `{ok: false, refused: "noTarget"}`, warns, and moves nothing. Where the hop's
+   price is not imported the press answers `quiet` and moves nothing: report the
+   walk of the hop not walked.
+4. **Journey.** Open `formation/heads-journey-party`, Wilderness tab.
+   *Observable:* the head's hex field reads the hex the party believes it stands
+   in (blank while the party is shown unknown country), not the record's label.
+   Press **Next hex** with `D3` typed: the record's hex label is `D3` and one
+   public line names it; with the field blank, one line without a hex. A 65
+   character label answers `{ok: false, refused: "badPress"}` and changes nothing.
+   Press **Work the country** with no hours set aside on the day board: an
+   information line and no card; with hours set aside, the foraging cards and the
+   hours marked done; again, the "already worked" line. Press **End day**:
+   `dayCount` rises by one and one public line says the day ended. Switch the
+   party to delve and send an `enterHex` press from the Player's page: `stale`,
+   nothing written; switch it back to journey.
+5. **The day's end, answered once.** On `formation/heads-journey-party` walk the
+   token until the day is spent, as "The day's end" does, so the Judge's seat
+   shows its offer dialog. While it stands open, press **End day** from the
+   Player seat. *Observable:* `dayCount` rose by one and the log holds one row for
+   the day. Now answer the Judge's dialog **Call it a day** (and, in a second run,
+   **Push on**): `dayCount` and the log are unchanged, the day kind is not
+   forced, and `offerDayEnd` answered `"answered"` (read it by running the offer
+   from the Judge's page where the dialog's return is the thing to quote).
+
+**The Place row on a Player seat** (Scene controls → Regions → double-click the
+Region → its window → Appearance tab). Reported separately from the heads: five
+checks of the row and three of the map drop.
+
+| Step | Do | Observable |
+|---|---|---|
+| PR1 | As the Player, draw a Region on `formation/place-row-player-scene` (Scene controls → Regions) and open its window | The Region is the seat's own; the window opens |
+| PR2 | Open the Appearance tab | A Place row under the Name field: a caption that is a `<span>`, the none stand-in, no picker, no make-a-place button; with Create New Actors not held, no drop zone and no hint |
+| PR3 | Assert Create New Actors is held (else report this step not walked), then drop an obstacle Hazard on the zone | The zone's words end "With no place yet, one is made."; a place exists for the Region and its sheet did not open; the place opens to the table (its default ownership is OWNER); the Judge's seat reads one obstacle on it. `api.track` the place's uuid read back at once |
+| PR4 | The Judge links `formation/place-row-player-place-owned` to the Region and the Player's window is reopened; then the same with `-place-seen`, then `-place-closed` | Owned: the place's name as text, a counts line of what is not hidden, a zone reading "Drop a trap, obstacle or condition here." and the line saying a dropped trap is hidden. Seen: the name alone, no counts, no zone. Closed: "A place you cannot open", nothing else |
+| PR5 | The Player opens the District behaviour window of `formation/place-row-player-observed-region` (Judge-drawn, the seat at OBSERVER) | The window is read-only and carries no place row; an owner-editable behaviour window is not asserted here |
+
+PR4's owned state also takes a drop: drop an obstacle on the zone, then a trap.
+*Observable:* the obstacle raises the counts line by one obstacle; the trap
+does not change it, and the Judge reads a trap thing on the place with
+`hidden: true`. This is the known consequence: the Player who dropped the trap
+cannot see or remove it afterward; the Judge can.
+
+Map drops (`Hooks.call("dropCanvasData", canvas, data)` on the Player's page; the
+mechanics are `docs/scene-search/TESTING.md`, "S2 — session, activities and
+drops"). A relayed drop answers after the Judge's client has written, so wait
+before reading, and read from the Judge's seat.
+
+| Step | Do | Observable |
+|---|---|---|
+| PM1 | Drop the trap Item on bare ground over `-place-owned`'s Region | A trap thing on that place, `hidden: true`; the counts line leaves it out |
+| PM2 | Drop a Hazard, then the trap, where no place holds the point; then over `-place-seen`'s ground, `-place-closed`'s ground and an imported place's ground (a place carrying the importer's stamp; where none is imported, report that leg not walked) | The Hazard warns the "inside a region that has no zone or terrain of its own" line and the trap warns the "onto a wall … or inside a region" line, the same words each time; no place gains a thing |
+| PM3 | Drop the trap within a grid square of `formation/place-row-player-wall`, over the owned place | The trap lands on the place, hidden; the wall's `flags["acks-extras"]` read before and after are equal |
+
+Screenshots, from the real Player seat: the Dungeon, City and Wilderness heads
+and the Region window's Place row in the owned state. Crop any whispered
+card's "To:" line and show no user name.
+
+Teardown: the place the drop in PR3 made is tracked by its uuid and swept with
+`api.sweepTracked()`; the report quotes what it removed, could not find and
+refused. Nothing else is deleted. The fixtures stay: the next run's start puts
+the parties back in delve, careful, with the day count and hex label its steps
+assert, re-links the three places by the Judge's hand, and clears the things the
+drops wrote by writing a place's list whole. Each card read is marked
+`formation/heads-card-<n>` in the order posted, as the Fixtures section says.
+
 ## A teleport between scenes (added with the teleport fix)
 
 The party follows its token through a `teleportToken` Region to another scene,

@@ -36,6 +36,7 @@ All paths are under `scripts/formation/` unless noted.
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The party sheet's context (the strip, the travel and city sections, the members; the Judge's extras) and its action handlers (`SHARED_ACTIONS`). |
+| `party-press.mjs` | The closed table of the presses a seat that owns a member makes on the party's clock and day (`PARTY_PRESSES`), what each refusal says (`PRESS_REFUSALS`), and `workTheCountry`, the one body of the Work the country press (§The player surface, "The party's own presses"). |
 | `conveyance.mjs`, `movement-view.mjs` | What carries each member on a journey: the carriers they count, the fastest of them, the member's pin, the group's presses and their Undo, the dawn and the join; and what the sheet shows of it (§Conveyance). |
 | `membership.mjs` | Who stands in a party as a player decides it: what may march, why a request is refused, the party a token joins, and the Order tab's list (§The player surface). |
 | `frame-view.mjs` | The party sheet's frame, decided offline: the parts and tabs a seat gets, the band's bar, every rail cell with its reading and its press, the reading column, the Key, each tab's head (§The frame). |
@@ -191,12 +192,14 @@ press off the rail; so a player's journey rail has no search, the Judge's secret
 | Hit points | members below a known maximum (`hurtCount`), else a dash | the same | the same | `adjustHp` (GM) |
 | Supplies | days of food; water in the tooltip | the same | the same | `consumeRations` (GM; a seat owning a member, for the members it owns) |
 | Mouths | the headcount (`partyHeadcount`) | the same | the same | the Order tab |
-| Pace | feet a turn, the hurried figure while hurried | feet, the readout's parts in the tooltip | blocks a turn (`rateBlocks`) | delve and city `togglePace` (GM); journey the Wilderness tab |
+| Pace | feet a turn, the hurried figure while hurried | feet, the readout's parts in the tooltip | blocks a turn (`rateBlocks`) | delve and city `togglePace` (GM; a seat owning a member, through the `pace` press); journey the Wilderness tab |
 | Light | the fewest turns left among the lit lights | the hours to dusk or dawn | the board's hour line, else the clock | the Kit tab |
 
-Hit points and the delve's or the city's pace press on the Judge's seat alone
-and are readings on any other. A save's and Supplies' tooltip on a seat that is
-not the Judge's says the press covers the members it owns. The quick
+Hit points press on the Judge's seat alone and are a reading on any other. The
+delve's and the city's pace presses on the Judge's seat and on a seat that owns
+a member (§The player surface, "The party's own presses"); the journey's pace
+is a reading with the Wilderness tab behind it. A save's and Supplies' tooltip
+on a seat that is not the Judge's says the press covers the members it owns. The quick
 tools press the mode's own action — the throw is `travelEncounterThrow` on a
 journey and `encounterNow` elsewhere, the search `searchHour` on a journey and
 the methodical search check elsewhere — and party checks open a dialog of the
@@ -216,7 +219,8 @@ compass while the party is astray), then the description. The hex the
 overline, the strip and the plate name is the record's label, else the cell
 the party token stands in on a hex scene (`standingLabel`), so a party placed
 and not yet walked is named where it stands; the Judge's hex field holds the
-record's label alone. While the party is shown unknown country (§Lost) the
+record's label alone, and a player's holds the label the party believes
+(`hexField`), blank while the party is shown unknown country. While the party is shown unknown country (§Lost) the
 overline names no hex and neither seat gets the territory or following chip.
 The plate is §The plate's: on a journey it draws the hex the party believes it
 stands in, with the hex label over it; where it draws nothing it shows the
@@ -226,15 +230,22 @@ the art row, on every tab.
 
 **The tabs** are named by the mode (`frameTabs`):
 
-| Tab | Head (the Judge's) | Body |
+| Tab | Head | Body |
 |---|---|---|
-| Dungeon | Turn, Round, Rest a turn, Undo, Hurried, and Trapbreaking (the one opener: every Judge's, a player's when a member they own may make the throw) | the strip (each of its four figures carries a provenance tooltip, `delveTips`); the Turn plan (§The turn plan); a member-owner's requests |
-| Wilderness | the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
-| City | Hop (while a point of interest is in reach), Hunted here, Turn, Round, Rest a turn, Undo | the strip with the city block; The city; a member-owner's requests |
+| Dungeon | for the Judge and a seat owning a member: Turn, Round, Rest a turn and Hurried; Undo the Judge's; and Trapbreaking (the one opener: every Judge's, a player's when a member they own may make the throw) | the strip (each of its four figures carries a provenance tooltip, `delveTips`); the Turn plan (§The turn plan); a member-owner's requests |
+| Wilderness | for the Judge and a seat owning a member: the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
+| City | for the Judge and a seat owning a member: Hop (while a point of interest is in reach, and, off the Judge's seat, shown), Turn, Round, Rest a turn; Hunted here and Undo the Judge's | the strip with the city block; The city; a member-owner's requests |
 | Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Skill audit, Disband | the ranks and the train |
 | Kit | none | the lights and spells |
 | Sightings | none | the journey's log; off a journey, a line saying it is kept there |
 | Judge (GM seat, dashed) | the episode's state | Where they are: the true and believed plates, the compass and Shift the truth (§Lost); The episode: the lost episode's controls and note; What the party is shown: the two tiles and a player's preview (§Lost); Navigation, quietly (§The navigation throw); The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
+
+A mode head's title carries a tooltip built from the figures the title prints
+(`headsOf`: the turns and the elapsed time in a delve, the turns in a city, the
+day on a journey), citing the page. On a delve or city head drawn for a seat
+that owns a member and is not the Judge's, an asks line under the pills says
+Turn and Round ask the Judge, and those two pills carry the ask tooltips of the
+scene search's own asks (`ACKS-LOCATION.sceneSearch.screen.button`).
 
 Hunted here is the `travel.settlement.wanted` checkbox itself, drawn as a
 toggle pill; who set it stays a hint in The city. Camp is a titled section of
@@ -278,6 +289,7 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Spells | See all tracked spells; add their own via the declaration panel | `spell` |
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
+| The party's clock and day | With a member of theirs in the party: set the pace, hop to a place, enter the next hex, work the country, end the day; ask the Judge for a Turn or a Round (below) | `partyPress` / `askPress` |
 | Turn plan | Lock or clear their own character's choice for the stationary turn (§The turn plan) | `plan` |
 | Scouting | Step their own character out of the party token, or back in | `detach` |
 | Casualties | Leave their own character behind where they fell, or go back for them | `leftBehind` |
@@ -294,9 +306,46 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must
 be indistinguishable from an accurate one to its holders. Taking out another's
-member, blanks, frontage, the clock, the encounter table, and session lifecycle
-stay GM-only. Role, light and membership declarations are announced publicly, so the
-table sees who changed the party's posture.
+member, blanks, frontage, the clock's Undo and a Turn or Round pressed outright,
+Hunted here, the encounter table, and session lifecycle stay GM-only. Role,
+light and membership declarations are announced publicly, so the table sees who
+changed the party's posture.
+
+**The party's own presses.** A seat that owns any member of the party presses
+the mode's own clock and day from the tab's head and, for the pace, the
+figures rail. Turn and Round are asked of the Judge (`askPress`) and Rest is
+the `rest` declaration; the other five are one closed table,
+`PARTY_PRESSES` ([party-press.mjs](../../scripts/formation/party-press.mjs)):
+`pace` (`{hurried}`, delve and city), `hop` (`{tokenId}`, city), `enterHex`
+(`{label}`, journey), `forageDay` and `endDay` (journey). An entry is
+`{ parse, actor?, modes, run }`. The Judge's seat runs the entry directly
+(`requestPartyPress`) and announces nothing; any other seat sends `partyPress`,
+and the Judge's client takes the attested sender and checks, in order: the
+press is an own key of the table (`badPress`); its arguments parse, reading
+only the keys the entry names (`badPress`); the sender owns the member the
+entry names, else any member (`notOwner`); the party is still in a mode the
+entry lists (`stale`); then `run`, the SAME executor the Judge's press runs, so
+`setHurried`, `travelToPlace`, `nextHex`, `workTheCountry` and `closeDay` have
+one body each. The declaration is announced after the write, with names
+escaped. A relayed press never reads `judge` and never passes `override`: it is
+blocked where the Judge's would be warned.
+
+Four entries carry a mechanic of their own. `pace` names the pace it wants and
+`setHurried` reports whether the record changed, so a repeat from a second seat
+changes nothing and announces nothing. `hop` refuses a place token the Judge has
+hidden (`noTarget`), and the list a seat is offered leaves such tokens out
+(`pickPoiTarget` with `shownOnly`), so the refusal is what stops a crafted hop.
+`enterHex` trims its label to 64 characters and answers `stale` when
+`nextHex` writes nothing. `endDay` answers `quiet` when `closeDay` closes
+nothing.
+
+`PRESS_REFUSALS` gives each code its lang key and level, and `sayPressAnswer`
+says it to the pressing seat: `badPress`, `notOwner` and `stale` say the
+generic request refusal as a warning; `noHours` and `worked` say the forage
+run's own lines as information; `noTarget`, `far` and `outside` say the
+settlement hop's refusal for that code as a warning; `quiet` says nothing. An
+unknown code is said as the generic refusal, and no answer at all (no Judge's
+client, which the transport has already said) says nothing more.
 
 **A drop on the party sheet.** Every seat the sheet is live for binds a drop on
 it (`bindMemberDrop`). On the GM's seat an actor or a token dropped there joins
@@ -1226,8 +1275,8 @@ type size.
 
 ## Obstacles and conditions on a place
 
-An obstacle is a natural trap that lives on a place: a Judge drops a Hazard
-onto the place, and when the party walks in the Judges are shown a card with a
+An obstacle is a natural trap that lives on a place: a Judge, or a seat that
+owns the place, drops a Hazard onto it (§The Region window's Place row), and when the party walks in the Judges are shown a card with a
 Begin button that opens the crossing of that obstacle. A place's list of things
 is lib's (`lib/place-things.mjs`; its shape and its `kindOfDrop` table are
 `docs/lib`'s); formation registers three kinds into it, once at init
@@ -1289,18 +1338,36 @@ The `acks-extras.hazard` Item sub-type (`HAZARD_ITEM_TYPE`,
 
 ### The Region window's Place row
 
-A row on core's own Region window, for the Judge only, added by
-`installRegionPlaceRow` (`region-place-row.mjs`; the logic that needs no
-Foundry is `region-place-logic.mjs`). It sits under the Name field on the
-Appearance tab, and is rebuilt on every render of the window, since
-ApplicationV2 replaces its parts. It holds:
+A row on core's own Region window, added by `installRegionPlaceRow`
+(`region-place-row.mjs`; the logic that needs no Foundry is
+`region-place-logic.mjs`) for every seat that owns the Region
+(`region.isOwner`). It sits under the Name field on the Appearance tab, and is
+rebuilt on every render of the window, since ApplicationV2 replaces its parts.
+`placeRowOf` decides what a seat is shown, from the seat's Foundry tests on the
+linked place (`LIMITED` to open, `OWNER` to own) and its Actor-create right:
+
+| Seat and place | Name | Counts | Drop zone |
+|---|---|---|---|
+| The Judge | the picker | every thing | yes |
+| Another seat, a place it owns | its name as text | the things not marked hidden | yes, with a line saying a dropped trap is hidden and is not counted |
+| Another seat, a place it can open but does not own | its name as text | none | none |
+| Another seat, a place it cannot open | "A place you cannot open" | none | none |
+| Another seat, no place linked | the none stand-in | none | only where the seat may create Actors; its words add that one is made |
+
+A seat that is not the Judge's has no picker and no make-a-place button, its
+caption is a `<span>` since it names no control, and `thingsShownTo` is what
+leaves a hidden thing out of the counts and their tooltips, a trap being stored
+hidden. What the Judge's row holds:
 
 - **The place picker** (`placePickerOf`, also the District behaviour's row):
   a select of the world's places with the Region's own selected, and a button
   that makes a place for the Region. A change is written at once through the
   location feature's own api (`linkRegion`, `unlinkRegion`,
   `createLocationForRegion`), since the window's submit knows nothing of the
-  link.
+  link. A seat that is not the Judge's is offered only the places it can open.
+  The District behaviour's row mounts on the behaviour window's own
+  editability (`app.isEditable`), not on the seat's role, so a window the seat
+  cannot edit gets none.
 - **A counts line** (`countsOf`): how many traps, obstacles and conditions the
   place holds, each count's tooltip naming the things. Other kinds of thing are
   not counted.
@@ -1317,13 +1384,32 @@ ApplicationV2 replaces its parts. It holds:
   landed, null for this row.
 
 The same module takes a drop on the map. `dropOnMapPlace`, called from the
-`dropCanvasData` hook for a GM, puts the thing on the first place whose area
-holds the point (`placesAround`); with none, on the smallest Region over the
-point that has no behaviors and no place, which is made a place as above, point
-set; with no such Region, the Hazard warns `noRegion` and nothing is written.
-The hook leaves a trap drop to the wall assignment (`trap-walls.mjs`), which
-calls `dropOnMapPlace` with `includeTraps` only where no wall is near. The hook
-always answers true, since its work is async.
+`dropCanvasData` hook on every seat, puts the thing on the first place whose
+area holds the point (`placesAround`); with none, on the smallest Region over
+the point that has no behaviors and no place, which is made a place as above,
+point set; with no such Region, the Hazard warns `noRegion` and nothing is
+written. The hook leaves a trap drop to the wall assignment (`trap-walls.mjs`),
+which calls `dropOnMapPlace` with `includeTraps` where no wall is near, and
+where the wall is one the dropping user may not write: `canTrapWall` asks
+Foundry's own test with the data the write carries (the trap layer's flag),
+since core answers true for a Player handed none. The hook always answers
+true, since its work is async.
+
+**A drop from a seat that is not the Judge's is relayed** (`placeDrop`).
+`dropOnRegionPlace` and `dropOnMapPlace` send `{itemUuid, regionUuid}` or
+`{itemUuid, sceneId, x, y}` to the handler `formationPlaceDrop` and answer an
+empty list when it was sent and not refused, null on a refusal. On the Judge's
+client `placeDropRelay` takes the attested sender, reads only those keys, and
+works in order: the item resolves and the sender may at least open it; the one
+kind table accepts it (else the drop's own refusal); the place is resolved
+there, never taken from the payload; and the sender must OWN the place that
+holds the drop. Where no place holds it, a place is made only for a Region the
+sender owns and only where the sender may create Actors, quietly as above and
+opening to the table (`placeOpensToTable`). `addThingTo` then writes the same
+thing a Judge's drop writes, a trap hidden. A missing place and a place the
+sender does not own answer one refusal, `none`, which the seat words as it
+words bare ground: `REGION_PLACE.refused.noRegion` for a hazard on the map,
+`noPlace` in the Region window, and the trap drop's `traps.dropNoWall`.
 
 ### The entry card and its seeding
 
@@ -1741,7 +1827,7 @@ LOST state, which is the Judge's alone. `acksExtras.formation.travel`
 functions, the country's resolution, the navigation record, the pure march
 arithmetic and the two hook names.
 
-**The tracker raises the day's end; the Judge answers it.** `dayIsSpent` is
+**The tracker raises the day's end; the Judge answers it, and so does a member-owner's End day.** `dayIsSpent` is
 asked after every drag, and on the first step that spends the budget or falls
 after dusk [day-close.mjs](../../scripts/formation/day-close.mjs) puts one
 question: call it a day, push on into a forced march, or not yet. It is not
@@ -1778,9 +1864,14 @@ advances survival states (`runProvisionDay`), so a day already forced was
 either cleared or overridden when it was set. `naturalHealing` is forbidden by the same rungs but has no
 consumer here (no healing mechanic exists).
 
-`closeDay` is the one closer: the Wilderness tab's **End day** pill and the
-tracker's own offer both go through it, so a day can never be ended two
-different ways.
+`closeDay` is the one closer: the Wilderness tab's **End day** pill, on the
+Judge's seat and on a seat that owns a member (the `endDay` press runs on the
+Judge's client, §The player surface), and the tracker's own offer all go
+through it, so a day can never be ended two different ways. The offer's
+dialog is the Judge's alone, and it can stand open while a seat presses End
+day: `offerDayEnd` reads `dayCount` before it waits and again after, and when
+the day moved it answers `"answered"` and closes nothing, whichever button
+the Judge then presses, so a day ends once.
 
 ## Conveyance
 
@@ -2245,7 +2336,11 @@ part, and a party *Willing to steal* pays no settled-country part at all: the
 crop is somebody's, and the penalty is for holding back. Work the country
 works only the hunt and forage slots not yet done, marks them done and runs
 the clock by their hours (`spendActivityHours`, the same spend a search hour
-makes); a day whose slots are all spent says so instead of rolling twice.
+makes); a day whose slots are all spent says so instead of rolling twice. The
+press is `workTheCountry` ([party-press.mjs](../../scripts/formation/party-press.mjs)),
+which answers `noHours` for a day that set none aside and `worked` for one
+whose hours are spent, for the pressing seat to say, on the Judge's seat and a
+member-owner's alike.
 
 What is found goes into the FORAGER's own pack, flagged, never into a separate
 party store: the pool is already the sum of what the members carry, and a

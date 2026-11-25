@@ -85,9 +85,17 @@ member has the saves rail and the Supplies press, which roll or ration only the
 members they own, and Party checks and, in the delve or a city, the methodical
 search, which come to you to roll. A player who owns every member can deal
 experience. Whoever owns the party can edit its description, and a Trusted
-player can also change its image. The encounter throw, the journey's search,
-Pause, Tweaks, Ownership and the Judge tab stay yours; hit points and pace only
-read there, and mouths and light still open their tabs.
+player can also change its image. A player who owns a member also presses the
+head of the tab for the mode the party is in (Actors sidebar tab → a party
+actor → its sheet → the Dungeon, City or Wilderness tab → the tab's head):
+Rest a turn and Hurried in a dungeon or a city (the pace figure beside the
+picture presses like Hurried), Hop to a place you have not hidden in a city,
+and Next hex, Work the country and End day on a journey. Their presses are run
+by the Judge's client and announced to the table. **Turn** and **Round** ask
+the Judge instead, who presses them, and a line under the pills says so. The
+encounter throw, the journey's search, Pause, Tweaks, Ownership, Undo, Hunted
+here and the Judge tab stay yours; hit points only read there, and mouths and
+light still open their tabs.
 
 ## Deploying, and which way the column points
 
