@@ -523,7 +523,12 @@ attacks (MODEL, "The organisation axes"). Needs the MM connected with its
 tables imported (`monsters` / `beastmanSpecialTroops`, `beastmanTraits`,
 `beastmanLeaders`, `beastmanTroopRules`, `beastmanTraitRules`,
 `beastmanEquipment`), then the family repaired in place so the template gains
-the axes. Marker `monsters/beastman-organisation`.
+the axes. Marker `monsters/beastman-organisation`. The tables are read by the
+recipes the module ships when they are imported, so a world imported before a
+recipe change holds rows without the figures it added: re-import the MM's
+tables (`acksExtras.importer.cookbookImportTables(["monsters"])` with the books
+connected, or the Rules tables shelf) before a walk of a changed row. Step 11
+asserts at its start that the gated row's ability item carries a `gate`.
 
 The axes, the unions, the cells and every standing figure on invented tables
 are `tools/test-organisation-axes.mjs`. `tools/importer/check-organisation-axes.mjs`
@@ -664,9 +669,13 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
    import("/modules/acks-extras/scripts/equipment/ammo.mjs")`, and call
    `shotStack(actor, weapon, classifyWeapon(weapon))` and `onHitOf(stack)`, with
    `classifyWeapon` from `/modules/acks-extras/scripts/equipment/profiles.mjs`.
+   A stack's count is `system.quantity`, a plain number on core 14.2; read it
+   through lib's `stackCountOf` (`/modules/acks-extras/scripts/lib/item-model.mjs`).
    *Observable:* `shotStack` returns the flagged stack, `onHitOf` its figures;
-   firing through `actor.makeAttackThrow({item, attackType: "missile"})` with
-   ammunition tracking on spends that stack and no other, and no prompt appears.
+   firing through `actor.makeAttackThrow({item, attackType: "missile",
+   skipDialog: true})` with ammunition tracking on spends that stack and no
+   other, and no prompt appears. Without `skipDialog` the call waits on core's
+   roll dialog and a scripted run hangs.
    The generation half (flag, nock, record-only) is held by the organisation suite
    alone.
 
@@ -696,7 +705,12 @@ what `matchCondition` returns for the row's word, read from the generated
 creature's ability item (`flags["acks-extras"].extras.effects[].gate`). Set
 the outnumbering by creating combatants for tokens of friendly and hostile
 disposition on one scene and starting the combat; only undefeated combatants
-count, each as many bodies as its actor stands for. The attack card is posted
+count, each as many bodies as its actor stands for. Create the combat with
+`active: true`: lib's turn edges, which step a delayed-damage record, fire only
+for an active combat, and only on the primary GM seat (`primaryGMSettled()` from lib's `util.mjs` before the first
+turn). A rank-and-file creature's only weapon is the "by weapon" marker, whose
+formula no roll parses, so give it a weapon item with a damage die (created,
+tracked) before rolling. The attack card is posted
 by rolling the creature's weapon from a token with the target selected; read
 the throw's labelled rows and the damage formula off the card, and the notice
 off `ui.notifications`. Core's own morale path (page off) reads no ability row,
