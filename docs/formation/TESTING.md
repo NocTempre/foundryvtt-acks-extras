@@ -3777,12 +3777,16 @@ empty description, the delve, the ability unflagged.
 Teardown: both saved orders are forgotten by id; the cards that name, or speak
 as, a `QA Seat` fixture are tracked and swept. The fixtures are kept.
 
-## The heads and the Place row on a Player seat (added with T-0792 B3)
+## The heads, the Place row and the Kit on a Player seat (added with T-0792 B3)
 
 A seat that owns a party member presses the mode's own head (Turn, Round, Rest,
-Hurried, Hop, Next hex, Work the country, End day), and a seat that owns a Region
-sees and drops onto its Place row. Written from the code and the design board;
-**no `tools/live` walk drives it yet and none of it has been walked.** A mock
+Hurried, Hop, Next hex, Work the country, End day) and the Kit tab's controls on
+the lights and spells it owns, and a seat that owns a Region sees and drops onto
+its Place row. The walk is `tools/live/formation-seat-heads.mjs` (`node
+tools/live/run.mjs formation-seat-heads`, with `SHOTS=1` for the plates). It
+reports each step below under its own id, and a step it cannot walk as
+`NOT WALKED` with the reason, neither passed nor failed. **The walk is written
+from the code and the design board and has not been run.** A mock
 cannot prove that a press reaches the Judge's client under the attested
 sender, that a head draws no pill the seat cannot press, that a Region window a
 Player opens carries the row, or that a drop a Player makes lands only on a place
@@ -3816,8 +3820,25 @@ asserts the shape it needs at its start:
   `formation/place-row-player-wall` is a wall beside the Region's place.
 - Three places for the row's states: `formation/place-row-player-place-owned`
   (the seat at OWNER), `formation/place-row-player-place-seen` (OBSERVER) and
-  `formation/place-row-player-place-closed` (NONE for the seat). Reuse
+  `formation/place-row-player-place-closed` (NONE for the seat), and a fourth,
+  `formation/place-row-player-place-stamped`, a closed place carrying a
+  hand-written importer stamp: a stand-in for an imported place that the walk
+  links to the one Region instead of linking a world's real import. Reuse
   `formation/hazard-sample` and a trap Item `formation/place-row-player-trap`.
+  One Region carries every state: the Judge relinks it from place to place, so
+  each place's ground is that Region's.
+- The tokens and the behaviour the walk adds, each found by marker:
+  `formation/heads-city-token` (the city party's), `formation/heads-city-shown-token`
+  and `formation/heads-city-hidden-token`, `formation/heads-journey-token`, and
+  `formation/place-row-player-observed-district` (the District behaviour on the
+  observed Region).
+- The Kit: `formation/kit-seat-party` in delve with two members,
+  `formation/kit-seat-a` (the seat owns it) and `formation/kit-seat-b` (the
+  Judge's), each a character carrying a light on the record and one tracked spell,
+  and each holding one known spell Item, `formation/kit-seat-a-spell` and
+  `formation/kit-seat-b-spell`, so the add-spell row's picker has something to
+  offer. The start shape writes the party's ownership and members, one lit light
+  and one spell per member, nothing else.
 
 Setup the walker owns. **Create New Actors** must be granted to the Player for the
 no-place-with-create step (PR3): Settings tab → Game Settings → Configure
@@ -3828,7 +3849,11 @@ window. The relay needs a primary GM client; with none, lib warns and no press o
 drop writes. Core 14 offers the Regions control to any seat holding Create Regions
 (a Player by default) and makes the drawing seat the Region's owner; where the
 world has revoked it, the control is absent, PR1 is reported not walked, and the
-Judge builds the Region with the seat at OWNER for the rest.
+Judge builds the Region with the seat at OWNER for the rest. The walk makes the
+Region as the seat by creating it in the scene from the Player's page, the write
+a drawing ends in; it does not drive the pointer's draw. The walk does not change
+world permissions: it reads whether the seat holds Create New Actors and reports PR3
+`NOT WALKED` where it does not, and PR2 asserts the row the seat's permission gives.
 
 **The heads** (Actors sidebar tab → a party actor → its sheet → the mode's tab; the
 head is the row at the top of that tab). Press by the real click on the Player's
@@ -3914,17 +3939,34 @@ before reading, and read from the Judge's seat.
 | PM2 | Drop a Hazard, then the trap, where no place holds the point; then over `-place-seen`'s ground, `-place-closed`'s ground and an imported place's ground (a place carrying the importer's stamp; where none is imported, report that leg not walked) | The Hazard warns the "inside a region that has no zone or terrain of its own" line and the trap warns the "onto a wall … or inside a region" line, the same words each time; no place gains a thing |
 | PM3 | Drop the trap within a grid square of `formation/place-row-player-wall`, over the owned place | The trap lands on the place, hidden; the wall's `flags["acks-extras"]` read before and after are equal |
 
-Screenshots, from the real Player seat: the Dungeon, City and Wilderness heads
-and the Region window's Place row in the owned state. Crop any whispered
-card's "To:" line and show no user name.
+**The Kit tab on a Player seat** (Actors sidebar tab → `formation/kit-seat-party` →
+its sheet → Kit tab). Each step asserts the start shape: the two members in order,
+the seat owning A and not B, and a lit light and a tracked spell on each.
+
+| Step | Do | Observable |
+|---|---|---|
+| K1 | Read the lights section on the Player's seat | A's light draws Remove; B's draws none |
+| K2 | Read the spells section | A's spell draws minus, plus and Remove; B's draws none |
+| K3 | Read the add-spell row | The row is drawn; its caster list offers A and not B; its picker offers A's known spell and not B's |
+| K4 | Read the maps section | No New map, Archive, Close or Save fog control |
+| K5 | Press A's spell's minus, then plus, then Remove, and A's light's Remove, each with a real click | Each lands on the record as the Judge reads it (turns one fewer, back, the spell gone, the light gone); one public line each, spoken as the party, naming the spell or the light |
+| K6 | Pick the manual entry, type a name and turns, choose A as caster, press Track | The record holds a spell with that name, those turns and A as caster; one public line |
+| K7 | From the Player's page send `requestPartyPress` for `spellAdjust`, `spellRemove` and `lightRemove` naming B's spell and B's light | Each answers `{ok: false, refused: "notOwner"}`; the seat is warned "The Judge's client did not take that press."; the record is unchanged and nothing is posted |
+
+Screenshots, from the real Player seat and clipped to the element, with no user
+name in frame: the Dungeon, City and Wilderness heads (the Wilderness head both
+with the party shown its hex and shown unknown country), the Region window's Place
+row in its owned, seen and closed states, and the Kit tab. No whispered card and
+no tooltip is shot.
 
 Teardown: the place the drop in PR3 made is tracked by its uuid and swept with
-`api.sweepTracked()`; the report quotes what it removed, could not find and
-refused. Nothing else is deleted. The fixtures stay: the next run's start puts
-the parties back in delve, careful, with the day count and hex label its steps
-assert, re-links the three places by the Judge's hand, and clears the things the
-drops wrote by writing a place's list whole. Each card read is marked
-`formation/heads-card-<n>` in the order posted, as the Fixtures section says.
+`api.sweepTracked({only})` naming that uuid alone, since a bare sweep deletes every
+fixture the same run built; the report quotes what it removed, could not find and
+refused. The cards the run's presses posted are tracked by id as they are read
+and swept the same way. Nothing else is deleted. The fixtures stay: the next run's
+start puts the parties back in delve, careful, with the day count and hex label its
+steps assert, re-links the places by the Judge's hand, and clears the things the
+drops wrote by writing a place's list whole.
 
 ## A teleport between scenes (added with the teleport fix)
 

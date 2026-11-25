@@ -236,7 +236,7 @@ the art row, on every tab.
 | Wilderness | for the Judge and a seat owning a member: the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
 | City | for the Judge and a seat owning a member: Hop (while a point of interest is in reach, and, off the Judge's seat, shown), Turn, Round, Rest a turn; Hunted here and Undo the Judge's | the strip with the city block; The city; a member-owner's requests |
 | Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Skill audit, Disband | the ranks and the train |
-| Kit | none | the lights and spells |
+| Kit | none | the lights and the tracked spells with the controls the seat owns (§The player surface); the add-spell row for a seat that owns a member; the maps, whose controls are the Judge's |
 | Sightings | none | the journey's log; off a journey, a line saying it is kept there |
 | Judge (GM seat, dashed) | the episode's state | Where they are: the true and believed plates, the compass and Shift the truth (§Lost); The episode: the lost episode's controls and note; What the party is shown: the two tiles and a player's preview (§Lost); Navigation, quietly (§The navigation throw); The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
 
@@ -284,9 +284,9 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 |---|---|---|
 | Marching order | Move their own character (up/down/left/right; target recomputed GM-side from the actor id, not the click's stale cell) | `reorder` |
 | Roles | Take up / set down roles on their own character (10'-pole item gate enforced GM-side) | `role` |
-| Lights | Douse/relight and shutter lights their character carries; add via the declaration panel | `lightToggle` / `lightShield` / `light` |
+| Lights | Douse/relight and shutter lights their character carries; add via the declaration panel; put out a light their character carries (the Kit tab's Remove) | `lightToggle` / `lightShield` / `light` / `partyPress` (`lightRemove`) |
 | Character sheet lights | Light, douse and shutter a lamp on their own character's inventory tab (the equipment feature's row controls, `declareLightAction`) | `light` / `lightToggle` / `lightShield` |
-| Spells | See all tracked spells; add their own via the declaration panel | `spell` |
+| Spells | See all tracked spells; add their own via the declaration panel or the Kit tab's add-spell row; set the turns of, or stop tracking, a spell whose caster they own | `spell` / `partyPress` (`spellAdjust`, `spellRemove`) |
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
 | The party's clock and day | With a member of theirs in the party: set the pace, hop to a place, enter the next hex, work the country, end the day; ask the Judge for a Turn or a Round (below) | `partyPress` / `askPress` |
@@ -314,10 +314,12 @@ changed the party's posture.
 **The party's own presses.** A seat that owns any member of the party presses
 the mode's own clock and day from the tab's head and, for the pace, the
 figures rail. Turn and Round are asked of the Judge (`askPress`) and Rest is
-the `rest` declaration; the other five are one closed table,
+the `rest` declaration; the others are one closed table,
 `PARTY_PRESSES` ([party-press.mjs](../../scripts/formation/party-press.mjs)):
 `pace` (`{hurried}`, delve and city), `hop` (`{tokenId}`, city), `enterHex`
-(`{label}`, journey), `forageDay` and `endDay` (journey). An entry is
+(`{label}`, journey), `forageDay` and `endDay` (journey), and the Kit tab's
+`lightRemove` (`{lightId}`), `spellAdjust` (`{spellId, delta}`) and
+`spellRemove` (`{spellId}`), open in every mode. An entry is
 `{ parse, actor?, modes, run }`. The Judge's seat runs the entry directly
 (`requestPartyPress`) and announces nothing; any other seat sends `partyPress`,
 and the Judge's client takes the attested sender and checks, in order: the
@@ -338,6 +340,18 @@ hidden (`noTarget`), and the list a seat is offered leaves such tokens out
 `enterHex` trims its label to 64 characters and answers `stale` when
 `nextHex` writes nothing. `endDay` answers `quiet` when `closeDay` closes
 nothing.
+
+The Kit entries are the bearer's or the caster's own: each carries an `actor`
+that names the member the press is the act of (a light's bearer, a spell's
+caster), so the relay tests the seat's ownership of that member and not of any
+member, and a light or spell the record no longer holds, or a spell with no
+caster, is refused (`notOwner`, `stale`). The Kit tab draws Remove on a light whose
+bearer the seat owns, and a spell's minus, plus and Remove where the seat owns
+its caster; a Judge's seat owns every actor and keeps them all, and the maps'
+controls stay the Judge's. The add-spell row is built for every seat from
+`buildSpellTracker` (formation-view): the known spells of the members the seat
+owns and those members as casters, so a seat is offered no one else's. The
+add itself is the `spell` declaration, which checks the caster's ownership again.
 
 `PRESS_REFUSALS` gives each code its lang key and level, and `sayPressAnswer`
 says it to the pressing seat: `badPress`, `notOwner` and `stale` say the
