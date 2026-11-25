@@ -282,6 +282,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
           .map((item) => ({
             uuid: item.uuid,
             name: item.name,
+            editable: item.isOwner,
             ...sheetTargetOf(item),
             checkKey: item.getFlag(MODULE_ID, "checkKey") ?? "",
             checkOptions: checkOptions.map((o) => ({
@@ -308,8 +309,9 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
   /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
-    if (!game.user.isGM) return;
+    // A select is live for the ability's owner only; the template disables the rest.
     for (const el of this.element.querySelectorAll("[data-item-uuid][data-field]")) {
+      if (!fromUuidSync(el.dataset.itemUuid)?.isOwner) continue;
       el.addEventListener("change", async (event) => {
         const { itemUuid, field } = event.currentTarget.dataset;
         const item = fromUuidSync(itemUuid);

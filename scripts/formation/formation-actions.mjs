@@ -1,5 +1,6 @@
 /* global game, foundry, ui, fromUuidSync */
 import { dealExperience } from "./xp-app.mjs";
+import { participantsOf } from "./xp-shares.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
 import {
   addBlank,
@@ -42,7 +43,7 @@ import {
 } from "./crossing.mjs";
 import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut, userOwnsMember } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
@@ -99,6 +100,11 @@ const loc = makeLoc("ACKS-FORMATION");
 function gmFormation(app) {
   const formation = app.formation;
   return formation && game.user.isGM ? formation : null;
+}
+
+/** Is the current user a Judge, or the owner of a member of the formation? The seat a save, a ration or a check is the press of. */
+function seatOwnsMember(formation) {
+  return game.user.isGM || userOwnsMember(formation, game.user);
 }
 
 /** Does the current (non-GM) user own this member's actor? */
@@ -202,8 +208,13 @@ export const SHARED_ACTIONS = {
    * henchmen, with the split shown to the Judge before it lands.
    */
   async dealXp() {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     if (!formation) return;
+    // The deal credits every participant, so a seat deals only where it owns them all.
+    if (!game.user.isGM) {
+      const participants = participantsOf(formation);
+      if (!participants.length || !participants.every((actor) => actor.isOwner)) return;
+    }
     await dealExperience(formation);
     this.render?.();
   },
@@ -639,10 +650,11 @@ export const SHARED_ACTIONS = {
   /** Change the party's image like any other actor: actor, prototype, and
    *  placed token all update together. */
   async editPartyImage() {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     if (!formation) return;
     const actor = getPartyActor(formation);
-    if (!actor) return;
+    // The picker browses files, which core withholds from a seat without FILES_BROWSE; the actor write needs its OWNER.
+    if (!actor?.isOwner || !game.user.can("FILES_BROWSE")) return;
     const FilePickerCls = foundry.applications.apps.FilePicker.implementation;
     new FilePickerCls({
       type: "image",
@@ -826,17 +838,31 @@ export const SHARED_ACTIONS = {
     await adjustTrackedSpell(this, target, -1);
   },
 
-  /** Every member rolls the pressed save; the saves rail's Magical toggle (`app.magical`) says against what. */
+  /**
+   * Members roll the pressed save; the saves rail's Magical toggle
+   * (`app.magical`) says against what. A Judge rolls for every member; a seat
+   * owning a member rolls for the members it owns, the save being each
+   * character's own act.
+   */
   async partySave(event, target) {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
     const magical = this.magical ?? true;
-    await rollPartySave(formation, target.dataset.save, { magical });
+    await rollPartySave(formation, target.dataset.save, game.user.isGM ? { magical } : { magical, only: (actor) => actor.isOwner });
   },
 
+  /**
+   * One party check, from a cell that names it. A Judge rolls it directly; a
+   * seat owning a member declares it to the Judge's client (the `check` op),
+   * which rolls it and keeps the result.
+   */
   async partyCheck(event, target) {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    if (!game.user.isGM) {
+      await requestPartyAction(formation.id, "check", { key: target.dataset.check });
+      return;
+    }
     await rollPartyCheck(formation, target.dataset.check);
     this.render();
   },
@@ -847,8 +873,8 @@ export const SHARED_ACTIONS = {
    * not offered; the dialog's answer is the picked check's key.
    */
   async partyChecks() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
     const buttons = Object.entries(PARTY_CHECKS)
       .filter(([, cfg]) => !cfg.solo)
       .map(([key, cfg]) => ({ action: key, label: game.i18n.localize(cfg.label), icon: `fa-solid ${cfg.icon}` }));
@@ -860,6 +886,10 @@ export const SHARED_ACTIONS = {
       rejectClose: false,
     }).catch(() => null);
     if (typeof picked !== "string" || !Object.hasOwn(PARTY_CHECKS, picked) || PARTY_CHECKS[picked].solo) return;
+    if (!game.user.isGM) {
+      await requestPartyAction(formation.id, "check", { key: picked });
+      return;
+    }
     await rollPartyCheck(formation, picked);
     this.render();
   },
@@ -1125,10 +1155,11 @@ export const SHARED_ACTIONS = {
     await encounterCheck(formation, { manual: true });
   },
 
+  /** Spend the party's rations. A Judge spends for every member; a seat owning a member spends for the members it owns, whose packs it may write. */
   async consumeRations() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await consumeRations(formation);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await consumeRations(formation, game.user.isGM ? {} : { only: (actor) => actor.isOwner });
   },
 
   async togglePause() {
@@ -1288,13 +1319,14 @@ function readFrontage(value, formation) {
 }
 
 /**
- * Form submit handler (GM only): formation rename, default table, frontage,
- * the travel fields, and the party actor's description — the one field the
- * sheet writes to the actor itself.
+ * Form submit handler: the party actor's description — the one field the
+ * sheet writes to the actor itself, written by whoever owns that actor — and,
+ * on a Judge's seat, the formation rename, default table, frontage and the
+ * travel fields.
  */
 export async function onChangeForm(event, form, formData) {
   const data = foundry.utils.expandObject(formData.object);
-  const formation = gmFormation(this);
+  const formation = this.formation;
   if (!formation) return;
   let changed = false;
   // A refused or clamped entry writes nothing but must still redraw, or the
@@ -1302,9 +1334,14 @@ export async function onChangeForm(event, form, formData) {
   let redraw = false;
   const description = foundry.utils.getProperty(data, "system.description");
   const actor = typeof description === "string" ? getPartyActor(formation) : null;
-  if (actor && description !== (actor.system?.description ?? "")) {
+  if (actor?.isOwner && description !== (actor.system?.description ?? "")) {
     await actor.update({ "system.description": description });
     redraw = true;
+  }
+  // The record's fields below are the Judge's seat's.
+  if (!gmFormation(this)) {
+    if (redraw) this.render();
+    return;
   }
   if (typeof data.name === "string" && data.name.trim() && data.name !== formation.name) {
     formation.name = data.name.trim();

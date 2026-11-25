@@ -376,7 +376,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     }
 
     const source = String(this.actor.system?.description ?? "");
-    const editing = isGM && this.#ui.editing;
+    const editing = this.actor.isOwner && this.#ui.editing;
     context.description = { source, html: source ? await enrich(source, this.actor) : "", editing };
     context.frame = buildFrameView({
       view: context,
@@ -598,14 +598,14 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     this.render();
   }
 
+  /** Flip the saves rail's Magical toggle: window state only, so every seat holds it. */
   static #onToggleMagical() {
-    if (!game.user.isGM) return;
     this.#ui.magical = !this.#ui.magical;
     this.render();
   }
 
   static #onEditDescription() {
-    if (!game.user.isGM) return;
+    if (!this.actor.isOwner) return;
     this.#ui.editing = !this.#ui.editing;
     this.render();
   }

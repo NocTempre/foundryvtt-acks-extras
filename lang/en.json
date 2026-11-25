@@ -3146,6 +3146,7 @@
       "rest": "the party rests for a turn",
       "restHint": "Declare a rest turn (resets the rest clock; recovers winded)",
       "check": "a party {check}",
+      "formUp": "the party forms up in {order}",
       "askRound": "asks the Judge for a Round.",
       "askTurn": "asks the Judge to spend a turn.",
       "searchHere": "declares that the party searches here.",

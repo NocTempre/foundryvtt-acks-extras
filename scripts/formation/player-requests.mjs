@@ -18,6 +18,7 @@ import { OBSTACLES } from "./obstacles.mjs";
 import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { turnActivity } from "../lib/turn-activities.mjs";
+import { formUp, getTemplate } from "./marching-templates.mjs";
 
 /**
  * Player-declared party actions. All formation state lives in a world setting
@@ -25,9 +26,9 @@ import { turnActivity } from "../lib/turn-activities.mjs";
  * sheet and the primary GM's client validates and executes them. The request
  * types are the `case`s of `executeRequest`: lights, spells, a rest turn, party
  * checks, the turn plan, a Round or a turn asked of the Judge, a search declared,
- * the marching order, roles, detaching, leaving a member behind, conveyance,
- * bringing an actor in or out, light discipline, anchoring a map, trapbreaking
- * and a crossing's throw.
+ * the marching order, forming the party up into a saved order, roles,
+ * detaching, leaving a member behind, conveyance, bringing an actor in or out,
+ * light discipline, anchoring a map, trapbreaking and a crossing's throw.
  *
  * Ownership is validated HERE, on the executing GM client, against the sender
  * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
@@ -39,7 +40,12 @@ const REQUEST_HANDLER = "partyRequest";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-function userOwnsMember(formation, user, actorId = null) {
+/**
+ * Whether a user holds OWNER of any member of the formation, or of the one
+ * member `actorId` names. Foundry's own test, taken over the members; the
+ * relay's seat check and a sheet's seat fields both read it.
+ */
+export function userOwnsMember(formation, user, actorId = null) {
   const members = actorId ? formation.members.filter((m) => m.actorId === actorId) : formation.members;
   return members.some((m) => {
     const actor = getMemberActor(m);
@@ -207,6 +213,19 @@ async function executeRequest(formation, user, type, payload) {
       const label = game.i18n.localize(`ACKS-FORMATION.rolls.${payload.key}`);
       await announceDeclaration(formation, user, loc("request.check", { check: label }));
       await rollPartyCheck(formation, payload.key);
+      break;
+    }
+
+    /* --- Form up: a member's owner marches the party into a saved order --- */
+    case "formUp": {
+      if (!userOwnsMember(formation, user)) return;
+      // Only an id of a saved order resolves; nothing else in the payload is read.
+      const template = typeof payload.templateId === "string" ? getTemplate(payload.templateId) : null;
+      if (!template) return;
+      // Reforms first when the fight is over; null while one is still on, having written nothing.
+      const result = await formUp(formation, template);
+      if (!result) return { ok: false, refused: "inCombat" };
+      await announceDeclaration(formation, user, loc("request.formUp", { order: foundry.utils.escapeHTML(template.name) }));
       break;
     }
 

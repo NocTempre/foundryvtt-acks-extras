@@ -6710,7 +6710,309 @@ await scenario("a party save rolls each member's own formula against the stored 
 });
 
 /* -------------------------------------------- */
-/*  Summons as members                          */
+/*  Party presses follow ownership              */
+/* -------------------------------------------- */
+
+/** A character carrying the figures a party save reads, owned by the table's player seat or by nobody. */
+const pressData = (name, { owned = false } = {}) => ({
+  name,
+  type: "character",
+  ownership: owned ? { default: 0, PL1: 3 } : { default: 0 },
+  system: {
+    hp: { value: 8, max: 8 },
+    details: { level: 2 },
+    movementacks: { exploration: 120 },
+    movement: { base: 120 },
+    encumbrance: { value: 4, max: 20 },
+    scores: { str: { mod: 0 }, wis: { mod: 0 } },
+    saves: { blast: { value: 12 } },
+    save: { mod: 0 },
+    adventuring: { listening: 13, searching: 13, dungeonbashing: 13 },
+  },
+});
+const pressMember = async (name, options) => {
+  const actor = await ActorMock.create(pressData(name, options));
+  actor.statuses = new Set();
+  // Core's own test, which a GM passes on every document.
+  Object.defineProperty(actor, "isOwner", { get: () => actor.testUserPermission(game.user) });
+  await actor.createEmbeddedDocuments("Item", [{ name: "Day Rations", type: "item", system: { quantity: 3 } }]);
+  return actor;
+};
+const rationsOf = (actor) => actor.items.filter((i) => /ration/i.test(i.name))[0].system.quantity;
+
+await scenario("a party save and the rations take an `only` predicate: an actor it refuses is skipped, and without one every member is served", async () => {
+  const mine = await pressMember("Only Mine", { owned: true });
+  const theirs = await pressMember("Only Theirs");
+  const party = { name: "Only Party", members: [mine, theirs].map((a) => ({ actorId: a.id })) };
+  const own = (actor) => actor.id === mine.id;
+  try {
+    let before = chat.length;
+    await engine.rollPartySave(party, "blast", { only: own });
+    assert.equal(chat.length, before + 1, "one card");
+    let card = String(chat.at(-1).content);
+    assert.ok(card.includes("Only Mine") && !card.includes("Only Theirs"), "the refused actor has no row");
+    assert.equal(chat.at(-1).rolls.length, 1, "and rolls nothing");
+
+    before = chat.length;
+    await engine.rollPartySave(party, "blast");
+    card = String(chat.at(before).content);
+    assert.ok(card.includes("Only Mine") && card.includes("Only Theirs"), "with no predicate every member rolls");
+
+    await engine.consumeRations(party, { only: own });
+    assert.deepEqual([rationsOf(mine), rationsOf(theirs)], [2, 3], "only the accepted member's ration is spent");
+    card = String(chat.at(-1).content);
+    assert.ok(card.includes("Only Mine") && !card.includes("Only Theirs"), "the refused member is neither fed nor reported");
+
+    await engine.consumeRations(party);
+    assert.deepEqual([rationsOf(mine), rationsOf(theirs)], [1, 2], "with no predicate every member is fed");
+  } finally {
+    await mine.delete();
+    await theirs.delete();
+  }
+});
+
+await scenario("a member's owner forms the party up through the relay: applied and announced once, and a forged or refused request writes nothing", async () => {
+  const { saveTemplate, deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await fightingParty("Relay Form Party", pressData("Form Owner", { owned: true }), "Form Other");
+  const { id } = party;
+  const order = await saveTemplate(model.getFormation(id), "Relay order");
+  const template = order.template;
+  const standing = () => model.getFormation(id).members.map((m) => m.actorId);
+  const declared = (from) => chat.slice(from).filter((m) => String(m.content).includes("request.formUp"));
+  const gmUser = game.user;
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  try {
+    await model.patchFormation(id, (rec) => { rec.members.reverse(); });
+    const saved = template.cells.map((c) => c.actorId);
+    const stood = standing();
+    assert.notDeepEqual(stood, saved, "the party stands out of its saved order");
+
+    const quiet = async (who, payload, why) => {
+      const cards = chat.length;
+      game.user = game.users.get(who);
+      const answer = await requests.requestPartyAction(id, "formUp", payload);
+      game.user = gmUser;
+      await drain();
+      assert.deepEqual(standing(), stood, `${why}: nobody moved`);
+      assert.equal(chat.length, cards, `${why}: nothing is announced`);
+      return answer;
+    };
+    await quiet("PL9", { templateId: template.id }, "a sender owning no member");
+    await quiet("PL1", {}, "a missing templateId");
+    await quiet("PL1", { templateId: "no-such-order" }, "an unknown templateId");
+    await quiet("PL1", { templateId: 42 }, "a non-string templateId");
+    await quiet("PL1", { templateId: { id: template.id } }, "an object for the templateId");
+
+    const cards = chat.length;
+    game.user = game.users.get("PL1");
+    await requests.requestPartyAction(id, "formUp", { templateId: template.id, formationId: "other", actorId: "elsewhere", templateIds: ["x"] });
+    game.user = gmUser;
+    await drain();
+    assert.deepEqual(standing(), saved, "the owner's request marches the party into the order; extra keys are ignored");
+    assert.equal(declared(cards).length, 1, "and announces it once");
+    assert.ok(declared(cards)[0].content.includes("Relay order"), "naming the order");
+  } finally {
+    game.user = gmUser;
+    game.users.pop();
+    await deleteTemplate(template.id);
+    await dismissFighting(party);
+  }
+});
+
+await scenario("a fight still on answers a player's Form up request as a refusal and writes nothing", async () => {
+  const { saveTemplate, deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await fightingParty("Relay Holding Party", pressData("Hold Owner", { owned: true }), "Hold Leaver");
+  const { id, actors } = party;
+  const [, leaver] = actors;
+  const combat = new CombatMock();
+  const { template } = await saveTemplate(model.getFormation(id), "Held order");
+  const gmUser = game.user;
+  try {
+    await partyJoins(combat);
+    await toggleOut(combat, [leaver]);
+    const cards = chat.length;
+    const told = notices.length;
+    game.user = game.users.get("PL1");
+    const answer = await requests.requestPartyAction(id, "formUp", { templateId: template.id });
+    game.user = gmUser;
+    await drain();
+    assert.deepEqual(answer, { ok: false, refused: "inCombat" }, "the refusal reaches the seat");
+    assert.ok(onlyFormation().combat?.active, "the fight stands");
+    assert.equal(peopleOn(actors).length, 2, "nobody is gathered");
+    assert.ok(!chat.slice(cards).some((m) => String(m.content).includes("request.formUp")), "nothing is announced");
+    assert.ok(!notices.slice(told).some(([, m]) => m.includes("request.sent")), "and the seat is not told it was sent");
+  } finally {
+    game.user = gmUser;
+    await deleteTemplate(template.id);
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("the picker draws its Forget button by default and leaves it out when the seat may not forget", async () => {
+  const { pickMarchingOrder, saveTemplate, deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await isolatedParty("Picker Party", "Picker One", "Picker Two");
+  const { template } = await saveTemplate(model.getFormation(party.id), "Picker order");
+  const DialogV2 = foundry.applications.api.DialogV2;
+  const prior = DialogV2.wait;
+  const drawn = [];
+  DialogV2.wait = async ({ buttons }) => { drawn.push(buttons.map((b) => b.action)); return null; };
+  try {
+    await pickMarchingOrder();
+    await pickMarchingOrder({ forget: true });
+    await pickMarchingOrder({ forget: false });
+    assert.deepEqual(drawn, [["apply", "delete"], ["apply", "delete"], ["apply"]], "Forget is drawn unless the caller leaves it out");
+  } finally {
+    DialogV2.wait = prior;
+    await deleteTemplate(template.id);
+    await dismissFighting(party);
+  }
+});
+
+await scenario("the party sheet's presses follow what a seat owns: a player's checks relay, saves and supplies reach owned members, XP needs every participant, the image needs the party and the file browser", async () => {
+  const { SHARED_ACTIONS, onChangeForm } = await import("../scripts/formation/formation-actions.mjs");
+  const { PARTY_CHECKS } = await import("../scripts/formation/party-rolls.mjs");
+  const mine = await pressMember("Press Mine", { owned: true });
+  const theirs = await pressMember("Press Theirs");
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Press Party");
+  formation = await model.addMember(formation, mine, null);
+  await model.addMember(model.getFormation(formation.id), theirs, null);
+  await drain();
+  const id = onlyFormation().id;
+  const partyActor = await ActorMock.create({ name: "Press Party", type: "party", ownership: { default: 0 }, system: { description: "" } });
+  await model.patchFormation(id, (rec) => { rec.actorId = partyActor.id; });
+  Object.defineProperty(partyActor, "isOwner", { get: () => partyActor.testUserPermission(game.user) });
+  const app = { renders: 0, get formation() { return model.getFormation(id); }, render() { this.renders++; } };
+  const gmUser = game.user;
+  const apps = foundry.applications;
+  const priors = { wait: apps.api.DialogV2.wait, prompt: apps.api.DialogV2.prompt, picker: apps.apps.FilePicker.implementation };
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  const browse = { PL1: true, PL9: false, GM1: true };
+  for (const user of game.users) user.can = (permission) => permission === "FILES_BROWSE" && browse[user.id];
+  const seat = (who) => { game.user = game.users.get(who); };
+  const declared = (from) => chat.slice(from).filter((m) => String(m.content).includes("request.check"));
+  const key = Object.entries(PARTY_CHECKS).find(([, cfg]) => !cfg.solo)[0];
+  try {
+    // A check: the player's seat declares it to the Judge's client; the Judge's rolls it directly.
+    let from = chat.length;
+    seat("PL1");
+    await SHARED_ACTIONS.partyCheck.call(app, null, { dataset: { check: "searchMethodical" } });
+    assert.equal(declared(from).length, 1, "a member's owner declares the check through the `check` op");
+    assert.equal(app.renders, 0, "and the player's seat draws nothing of its own");
+    from = chat.length;
+    apps.api.DialogV2.wait = async () => key;
+    await SHARED_ACTIONS.partyChecks.call(app);
+    assert.equal(declared(from).length, 1, "the picker's check is declared the same way");
+    apps.api.DialogV2.wait = async () => "not-a-check";
+    from = chat.length;
+    await SHARED_ACTIONS.partyChecks.call(app);
+    assert.equal(chat.length, from, "a pick outside the closed set relays nothing");
+    seat("PL9");
+    apps.api.DialogV2.wait = async () => key;
+    from = chat.length;
+    await SHARED_ACTIONS.partyCheck.call(app, null, { dataset: { check: "searchMethodical" } });
+    await SHARED_ACTIONS.partyChecks.call(app);
+    assert.equal(chat.length, from, "a seat owning no member declares nothing");
+    seat("GM1");
+    from = chat.length;
+    await SHARED_ACTIONS.partyCheck.call(app, null, { dataset: { check: "searchMethodical" } });
+    assert.equal(declared(from).length, 0, "the Judge rolls with no declaration");
+    assert.equal(app.renders, 1, "and the sheet draws the result");
+
+    // A save and the supplies: a player's seat serves the members it owns.
+    seat("PL1");
+    from = chat.length;
+    await SHARED_ACTIONS.partySave.call(app, null, { dataset: { save: "blast" } });
+    assert.ok(String(chat.at(from).content).includes("Press Mine") && !String(chat.at(from).content).includes("Press Theirs"), "a save is rolled for the owned member alone");
+    await SHARED_ACTIONS.consumeRations.call(app);
+    assert.deepEqual([rationsOf(mine), rationsOf(theirs)], [2, 3], "and a ration is spent for the owned member alone");
+    seat("PL9");
+    from = chat.length;
+    await SHARED_ACTIONS.partySave.call(app, null, { dataset: { save: "blast" } });
+    await SHARED_ACTIONS.consumeRations.call(app);
+    assert.equal(chat.length, from, "a seat owning no member rolls and spends nothing");
+    assert.deepEqual([rationsOf(mine), rationsOf(theirs)], [2, 3]);
+    seat("GM1");
+    await SHARED_ACTIONS.consumeRations.call(app);
+    assert.deepEqual([rationsOf(mine), rationsOf(theirs)], [1, 2], "the Judge feeds every member");
+
+    // Deal XP: opened only to a seat owning every participant.
+    let prompted = 0;
+    apps.api.DialogV2.prompt = async () => { prompted++; return null; };
+    seat("PL1");
+    await SHARED_ACTIONS.dealXp.call(app);
+    assert.equal(prompted, 0, "a seat owning one of two participants does not deal");
+    seat("GM1");
+    await SHARED_ACTIONS.dealXp.call(app);
+    assert.equal(prompted, 1, "the Judge deals");
+    await model.patchFormation(id, (rec) => { rec.members = rec.members.filter((m) => m.actorId === mine.id); });
+    seat("PL1");
+    await SHARED_ACTIONS.dealXp.call(app);
+    assert.equal(prompted, 2, "a seat owning every participant deals");
+    seat("PL9");
+    await SHARED_ACTIONS.dealXp.call(app);
+    assert.equal(prompted, 2, "a seat owning none does not");
+
+    // The image: the party's owner with the file browser.
+    const opened = [];
+    apps.apps.FilePicker.implementation = class { constructor(options) { opened.push(options); } browse() {} };
+    // The sync of the party actor's ownership from its members has run by now, so the level is set by hand just before each press.
+    browse.PL9 = true;
+    partyActor.ownership = { default: 0, PL1: 3 };
+    seat("PL9");
+    await SHARED_ACTIONS.editPartyImage.call(app);
+    assert.equal(opened.length, 0, "a seat that does not own the party actor opens no picker, file browser or not");
+    seat("PL1");
+    await SHARED_ACTIONS.editPartyImage.call(app);
+    assert.equal(opened.length, 1, "its owner with the file browser opens the picker");
+    browse.PL1 = false;
+    await SHARED_ACTIONS.editPartyImage.call(app);
+    assert.equal(opened.length, 1, "an owner without the file browser opens none");
+
+    // The description is the party actor's owner's write; the record's fields stay the Judge's.
+    partyActor.ownership = { default: 0, PL1: 3 };
+    foundry.utils.expandObject = (flat) => {
+      const out = {};
+      for (const [path, value] of Object.entries(flat)) {
+        const parts = path.split(".");
+        const last = parts.pop();
+        const at = parts.reduce((into, part) => (into[part] ??= {}), out);
+        at[last] = value;
+      }
+      return out;
+    };
+    const name = onlyFormation().name;
+    app.renders = 0;
+    seat("PL1");
+    await onChangeForm.call(app, null, null, { object: { "system.description": "A tale.", name: "Renamed" } });
+    assert.equal(partyActor.system.description, "A tale.", "the owner writes the description");
+    assert.equal(onlyFormation().name, name, "and the record's name is not theirs");
+    assert.equal(app.renders, 1, "the sheet draws what was written");
+    app.renders = 0;
+    seat("PL9");
+    await onChangeForm.call(app, null, null, { object: { "system.description": "Other." } });
+    assert.equal(partyActor.system.description, "A tale.", "a seat that does not own the party writes nothing");
+    assert.equal(app.renders, 0);
+    seat("GM1");
+    await onChangeForm.call(app, null, null, { object: { name: "Press Renamed" } });
+    assert.equal(onlyFormation().name, "Press Renamed", "the Judge's seat still writes the record");
+  } finally {
+    game.user = gmUser;
+    game.users.pop();
+    for (const user of game.users) delete user.can;
+    Object.assign(apps.api.DialogV2, { wait: priors.wait, prompt: priors.prompt });
+    apps.apps.FilePicker.implementation = priors.picker;
+    delete foundry.utils.expandObject;
+    await model.disband(model.getFormation(id));
+    await drain();
+    await mine.delete();
+    await theirs.delete();
+    await partyActor.delete();
+  }
+});
+
+/* -------------------------------------------- */
+/*  Summons as members                         */
 /* -------------------------------------------- */
 
 const servicesApi = await import("../scripts/lib/services.mjs");

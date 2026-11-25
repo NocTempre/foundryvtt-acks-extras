@@ -305,13 +305,17 @@ function findRationItem(actor) {
  * Decrement one ration per member; report who consumed what and who is out.
  * Week rations are consumed as 7 uses (tracked in an item flag) before the
  * item quantity itself decrements.
+ *
+ * `only` is a predicate over a member's actor: one it refuses is neither fed
+ * nor reported, so a seat feeds just the members whose packs it may write.
  */
-export async function consumeRations(formation) {
+export async function consumeRations(formation, { only = null } = {}) {
   const fed = [];
   const hungry = [];
   for (const member of formation.members) {
     const actor = getMemberActor(member);
     if (!actor) continue;
+    if (only && !only(actor)) continue;
     const ration = findRationItem(actor);
     if (ration) {
       if (/week/i.test(ration.name)) {
@@ -883,8 +887,11 @@ export async function adjustSpell(formation, spellId, delta) {
  * their own sheet's target, posted as one public summary card. The `magical`
  * toggle applies the sheet's "Bonus vs Magic" (`save.mod`) and the WIS
  * modifier — both apply only against magical effects (ACKS II RR).
+ *
+ * `only` is a predicate over a member's actor: one it refuses does not roll,
+ * so a seat rolls just for the characters it owns.
  */
-export async function rollPartySave(formation, save, { magical = true } = {}) {
+export async function rollPartySave(formation, save, { magical = true, only = null } = {}) {
   const label = game.i18n.localize(`ACKS.saves.${save}.long`);
   const rows = [];
   const rolls = [];
@@ -892,6 +899,7 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
     const actor = getMemberActor(member);
     const target = actor?.system?.saves?.[save]?.value;
     if (typeof target !== "number") continue;
+    if (only && !only(actor)) continue;
     if (isDown(actor, member)) continue; // the down do not roll
     // The party's save reads the stored target and the roll bonuses only; the conditions are not applied here.
     const made = await saveThrow(actor, save, { magical, conditions: false });

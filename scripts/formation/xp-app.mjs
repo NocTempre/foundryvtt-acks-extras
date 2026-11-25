@@ -70,7 +70,8 @@ export async function dealExperience(formation) {
   await ChatMessage.create({
     flavor: game.i18n.format(`${LANG_PREFIX}.flavor`, { total }),
     content: preview(total),
-    whisper: gmIds(),
+    // The Judges, and the seat that dealt, so a seat dealing without the Judge's role keeps the record.
+    whisper: [...new Set([...gmIds(), game.user.id])],
   });
   return division;
 }

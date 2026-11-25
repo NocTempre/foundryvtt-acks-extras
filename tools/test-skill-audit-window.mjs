@@ -258,7 +258,7 @@ await ok("focus returns to the select a change re-rendered, and stays where the 
   const app = new SkillAuditApp({ formationId: "fA" });
   const dom = fakeDom();
   app.element = dom.root;
-  const item = { setFlag: async () => {}, unsetFlag: async () => {}, getFlag: () => undefined };
+  const item = { isOwner: true, setFlag: async () => {}, unsetFlag: async () => {}, getFlag: () => undefined };
   items.set("Actor.a.Item.2", item);
   await app._onRender({}, {});
   const [first, second] = dom.selects;
@@ -280,10 +280,10 @@ await ok("focus returns to the select a change re-rendered, and stays where the 
 
 /* --- the figures and names the window draws ----------------------------------- */
 /** An ability item as the audit reads it: flags under the module's scope, a page in its cookbook flag when imported. */
-function skillItem(name, { rolls = [], effects = [], provides = [], rollTarget, cite = "", id = "", flags = {} } = {}) {
+function skillItem(name, { rolls = [], effects = [], provides = [], rollTarget, cite = "", id = "", flags = {}, isOwner = true } = {}) {
   const scoped = { extras: { rolls, effects, provides }, ...(cite || id ? { cookbook: { ...(id ? { id } : {}), ...(cite ? { cite } : {}) } } : {}), ...flags };
   const doc = {
-    type: "ability", name, uuid: `Actor.fT.Item.${name}`, system: rollTarget === undefined ? {} : { rollTarget }, flags: { "acks-extras": scoped },
+    isOwner, type: "ability", name, uuid: `Actor.fT.Item.${name}`, system: rollTarget === undefined ? {} : { rollTarget }, flags: { "acks-extras": scoped },
     getFlag: (scope, key) => doc.flags[scope]?.[key],
   };
   items.set(doc.uuid, doc);
@@ -294,10 +294,10 @@ const ladderThrow = (...pairs) => ({ key: "primary", label: "", formula: "1d20",
 const seen = (html) => html.replaceAll("&#x27;", "'").replaceAll("&#x3D;", "=");
 
 /** The audit's body as a Judge's window draws it. */
-async function drawn() {
+async function drawn(formationId = "fT") {
   const hb = Handlebars.create();
   hb.registerHelper("localize", (key, options) => format(key, options?.hash ?? {}));
-  const app = new SkillAuditApp({ formationId: "fT" });
+  const app = new SkillAuditApp({ formationId });
   const context = await app._prepareContext({ isFirstRender: false });
   const html = seen(hb.compile(fs.readFileSync(new URL("../templates/formation/skill-audit.hbs", import.meta.url), "utf8"))(context));
   return { context, html };
@@ -341,7 +341,7 @@ await ok("the member's level reads through its lang string", async () => {
 await ok("each Used-for select is named for its item and keeps the attributes focus restore finds it by", async () => {
   const { context, html } = await drawn();
   for (const it of context.members[0].items) {
-    const tag = html.match(new RegExp(`<select data-item-uuid="${it.uuid.replaceAll(".", "\\.")}" data-field="checkKey"\\s+aria-label="([^"]*)">`));
+    const tag = html.match(new RegExp(`<select data-item-uuid="${it.uuid.replaceAll(".", "\\.")}" data-field="checkKey"\\s+aria-label="([^"]*)"\\s*>`));
     assert.ok(tag, `a named select for ${it.name}`);
     assert.equal(tag[1], format("ACKS-FORMATION.audit.usedForLabel", { name: it.name }));
   }
@@ -349,6 +349,36 @@ await ok("each Used-for select is named for its item and keeps the attributes fo
   assert.deepEqual(opts.map((o) => o.value), ["", "listen", "search", "bash", "trapbreak", "track"]);
   assert.ok(opts.every((o) => o.label !== o.value && o.label.length), "names, not flag ids");
   assert.equal(opts.find((o) => o.active).value, "search");
+  assert.ok(context.members[0].items.every((row) => row.editable === true && !/disabled/.test(html.match(new RegExp(`<select data-item-uuid="${row.uuid.replaceAll(".", "\\.")}"[^>]*>`))[0])), "an owner's selects are live");
+});
+
+await ok("a select is live for the ability's owner alone: the other seat's is disabled and bound to nothing, whatever the seat's role", async () => {
+  const mine = skillItem("Mine", { rolls: [flatThrow(13)], isOwner: true });
+  const theirs = skillItem("Theirs", { rolls: [flatThrow(13)], isOwner: false });
+  const pair = actor("fU1");
+  Object.assign(pair, { system: { details: { level: 1 } }, items: [mine, theirs] });
+  setFormation("fU", roster("fU1"));
+  const { context, html } = await drawn("fU");
+  const rows = Object.fromEntries(context.members[0].items.map((row) => [row.name, row]));
+  assert.deepEqual([rows.Mine.editable, rows.Theirs.editable], [true, false]);
+  const selectOf = (uuid) => html.match(new RegExp(`<select data-item-uuid="${uuid.replaceAll(".", "\\.")}"[^>]*>`))[0];
+  assert.doesNotMatch(selectOf(mine.uuid), /disabled/, "the owner's select is live");
+  assert.match(selectOf(theirs.uuid), /disabled/, "the other seat's select is disabled");
+
+  const seat = game.user;
+  game.user = { id: "pl1", isGM: false };
+  try {
+    const app = new SkillAuditApp({ formationId: "fU" });
+    const dom = fakeDom();
+    dom.selects[0].dataset.itemUuid = mine.uuid;
+    dom.selects[1].dataset.itemUuid = theirs.uuid;
+    app.element = dom.root;
+    await app._onRender({}, {});
+    assert.equal(typeof dom.selects[0].listeners.change, "function", "a player's own ability binds its change");
+    assert.equal(dom.selects[1].listeners.change, undefined, "an ability the seat does not own binds nothing");
+  } finally {
+    game.user = seat;
+  }
 });
 
 await ok("the Sheet target is the stored target or nothing, and its tooltip names its source", async () => {

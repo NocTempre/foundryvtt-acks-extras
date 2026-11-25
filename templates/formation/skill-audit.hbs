@@ -104,7 +104,8 @@
           <td data-tooltip-text="{{this.targetTip}}">{{this.target}}</td>
           <td>
             <select data-item-uuid="{{this.uuid}}" data-field="checkKey"
-                    aria-label="{{localize 'ACKS-FORMATION.audit.usedForLabel' name=this.name}}">
+                    aria-label="{{localize 'ACKS-FORMATION.audit.usedForLabel' name=this.name}}"
+                    {{#unless this.editable}}disabled{{/unless}}>
               {{#each this.checkOptions}}
               <option value="{{this.value}}" {{#if this.active}}selected{{/if}}>{{this.label}}</option>
               {{/each}}
