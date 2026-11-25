@@ -97,7 +97,8 @@ const rules = {
   row9: { __missing: true },
   nameless: { label: " ", initiative: 1 },
 };
-const gear = { tinBell: { label: "Tin Bell", ranks: ["champion"], carry: [{ pct: 31 }, { pct: 9, perHitDie: true, scope: "gang" }], blast: [{ lb: 2, dice: "1d5", radius: 7 }] } };
+const gear = { tinBell: { label: "Tin Bell", ranks: ["champion"], carry: [{ pct: 31 }, { pct: 9, perHitDie: true, scope: "gang" }], blast: [{ lb: 2, dice: "1d5", radius: 7 }] },
+  fused: { label: "Fused", throw: 3, fumble: 2, fuseDice: "1d2", proficiency: "Plorb", sizes: { alba: "s1" }, blast: [{ size: "s1", dice: "2d2", radius: 3 }], saveKind: "paralysis", saveFraction: 2 } };
 registerTable(
   { id: ORGANISATION_DOC, cites: { beastmanTroopRules: "XX p. 4", beastmanTraitRules: "XX p. 5", beastmanEquipment: "XX p. 4-6", beastmanOrganisation: "XX p. 7; XX p. 8" },
     tables: { beastmanTroopRules: rules, beastmanTraitRules: { sleeper: { label: "Sleeper", morale: -3, outnumber: [3, 2] } }, beastmanEquipment: gear,
@@ -110,6 +111,8 @@ check("a row holds the figures its paragraph printed, plain, and nothing else",
   JSON.stringify(got.troopRules.rows[0].figures) === '{"initiative":3,"carry":{"tinBell":17},"mounts":{"alba":"marsh herons"},"figuresFrom":"elsewhere"}');
 check("a row whose paragraph was not read holds no figure, and is still a row", JSON.stringify(got.troopRules.rows[1].figures) === "{}");
 check("structure survives: lists of keys, lists of chances, lists of blast rows", JSON.stringify(got.equipment.rows[0].figures) === JSON.stringify({ ranks: ["champion"], carry: [{ pct: 31 }, { pct: 9, perHitDie: true, scope: "gang" }], blast: [{ lb: 2, dice: "1d5", radius: 7 }] }));
+check("a fused row keeps the figures the item run references, a breed map and blast rows as stored, and holds no radius",
+  JSON.stringify(got.equipment.rows[1].figures) === JSON.stringify({ throw: 3, fumble: 2, fuseDice: "1d2", proficiency: "Plorb", sizes: { alba: "s1" }, blast: [{ size: "s1", dice: "2d2", radius: 3 }], saveKind: "paralysis", saveFraction: 2 }) && got.equipment.rows[1].figures.radius === undefined);
 check("a signed figure and a ratio keep their sign and order", got.traitRules.rows[0].figures.morale === -3 && JSON.stringify(got.traitRules.rows[0].figures.outnumber) === "[3,2]");
 check("each paragraph table cites the page its own import recorded", got.troopRules.cite === "XX p. 4" && got.traitRules.cite === "XX p. 5" && got.equipment.cite === "XX p. 4-6");
 check("the organisation figures are one flat map across the page blocks, citing every page", JSON.stringify(got.organisation.figures) === '{"archerShare":44,"archerRound":"down","commonWarrior":12,"battleCite":"RR p.1"}' && got.organisation.cite === "XX p. 7; XX p. 8");

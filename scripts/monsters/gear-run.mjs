@@ -34,7 +34,17 @@ const FIGURE = Object.freeze({
   reachKind: "reachKind",
   saveQualifier: "saveQualifier",
   saveCircumstance: "saveCircumstance",
+  throw: "throw",
+  fumble: "fumble",
+  fuseDice: "fuseDice",
+  proficiency: "proficiency",
+  sizes: "sizes",
+  blast: "blast",
+  saveFraction: "saveFraction",
 });
+
+/** A fused item's figures that are read at use as `{doc, table, row, figure}` references, in the order the activation lists them. */
+const FUSE_FIGURES = Object.freeze([FIGURE.throw, FIGURE.fumble, FIGURE.fuseDice, FIGURE.proficiency, FIGURE.sizes, FIGURE.blast]);
 
 /** The printed words of a throw made against magic; `magical` is this module's own field for the idea. */
 const MAGICAL_WORDS = Object.freeze(["magical", "magic"]);
@@ -49,7 +59,7 @@ const word = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 export const refTo =(base, rowKey, figure) => ({ doc: base.doc, table: base.table, row: rowKey, figure });
 
 /** The item document a shape is minted as: named by the row, its page on the cookbook id and the carrier's flag holding the activation and the one row. */
-function itemData(row, kind, rowData) {
+function itemData(row, kind, rowData, activation = { kind, state: { active: false, activationId: "", regionId: "" } }) {
   return {
     name: row.label,
     type: "item",
@@ -58,7 +68,7 @@ function itemData(row, kind, rowData) {
     flags: {
       [MODULE_ID]: {
         cookbook: { id: `organisation.gear.${row.key}`, cite: row.cite ?? "" },
-        itemRun: { activation: { kind, state: { active: false, activationId: "", regionId: "" } }, rows: [rowData] },
+        itemRun: { activation, rows: [rowData] },
       },
     },
   };
@@ -102,8 +112,25 @@ export function resolveSaveWhen(figures, { circumstance = () => null, miss = () 
 }
 
 /**
+ * The item a fused row is minted as: a `fuse` activation holding a reference to
+ * each figure the throw, the fuse and the burst read (`FUSE_FIGURES`) and the
+ * bearer's variant key, and one `burst` row whose reach names the save and the
+ * fraction of the damage a passed save takes. The row holds no radius: the
+ * burst's reach comes from joining the bearer's variant to the size the row's
+ * `sizes` gives and that size to its `blast` rows, at the moment of the burst. A
+ * bearer with no variant carries `""`, which the burst reads as an unknown size.
+ */
+function fusedItem(row, base, variant) {
+  const activation = { kind: "fuse", ...Object.fromEntries(FUSE_FIGURES.map((figure) => [figure, refTo(base, row.key, figure)])), variant: word(variant) ?? "" };
+  const reach = { pulse: "burst", save: refTo(base, row.key, FIGURE.saveKind), fraction: refTo(base, row.key, FIGURE.saveFraction) };
+  return itemData(row, "fuse", { key: "burst", reach }, activation);
+}
+
+/**
  * The gear item a row with a reach is minted as, or null.
  *
+ *   - `fuseDice` with `blast` (an item whose lit fuse bursts it): a `fuse`
+ *     item, see `fusedItem`; it needs no `radius`;
  *   - `radius` with `saveKind` and `condition` (a reach that calls a save): a
  *     `toggle` item, row pulse `turnStart+moveIn`, the condition folded to a
  *     catalogue key, `reach.save` and `reach.immunity` (where the window is
@@ -118,19 +145,21 @@ export function resolveSaveWhen(figures, { circumstance = () => null, miss = () 
  *     and on the saving throw as well, narrowed to its circumstance and to
  *     magic, where the row's two words resolve (`resolveSaveWhen`).
  *
- * A row holding no `radius` is no reach item (null, nothing reported). A row
+ * A row holding neither `radius` nor the fused pair is no reach item (null, nothing reported). A row
  * with one that fits no shape, whose condition word folds to no catalogue key
  * or whose printed qualifier was not read writes nothing and goes to
  * `miss(figureKey, word)`.
  *
  * @param {{key: string, label: string, cite?: string, figures?: object}} row
  * @param {{doc: string, table: string, fold: (word: string) => string|null, circumstance?: (word: string) => string|null, miss?: (figure: string, word: string|null) => void}} deps
- *   `doc` and `table` name the registry table the row was read from; `fold` is the condition matcher and `circumstance` the circumstance word's
+ *   `doc` and `table` name the registry table the row was read from; `fold` is the condition matcher and `circumstance` the circumstance word's; `variant` is the bearer's variant key a fused item carries
  */
-export function gearRunItem(row, { doc, table, fold, circumstance, miss = () => {} }) {
+export function gearRunItem(row, { doc, table, fold, circumstance, variant = "", miss = () => {} }) {
   const f = row?.figures ?? {};
-  if (!row?.key || !row?.label || !whole(f[FIGURE.radius])) return null;
+  if (!row?.key || !row?.label) return null;
   const base = { doc, table };
+  if (f[FIGURE.fuseDice] != null && f[FIGURE.blast] != null) return fusedItem(row, base, variant);
+  if (!whole(f[FIGURE.radius])) return null;
   const radius = refTo(base, row.key, FIGURE.radius);
 
   if (word(f[FIGURE.saveKind])) {

@@ -364,6 +364,9 @@ function flagLauncherStack(items, onHit) {
  *     `gear-run.mjs` `gearRunItem`, its figures live registry references, in
  *     `reachItems`; a row whose condition word or printed qualifier does not
  *     resolve writes no item and is listed in `unresolved`;
+ *   - `fuseDice` with `blast` (an item whose lit fuse bursts it): one `fuse` item from
+ *     `gearRunItem` carrying `variant`, the bearer's variant key (`""` where the
+ *     body has none);
  *   - `healDice` (a consumable to drink): one item named by the row, its page
  *     on `cookbook.cite` and its figures on the `drink` flag, the printed
  *     condition word stored as the catalogue id `matchCondition` folds it to
@@ -383,7 +386,7 @@ function flagLauncherStack(items, onHit) {
  * the count of ammunition stacks flagged, and the `{kind, key, figure, word}` of
  * each figure that did not resolve.
  */
-export function gearPayloads(gear, resolved, { fights = true } = {}) {
+export function gearPayloads(gear, resolved, { fights = true, variant = "" } = {}) {
   const out = { abilities: [], ac: null, armourRows: [], hooked: 0, consumables: [], reachItems: [], onHit: 0, unresolved: [] };
   if (!fights) return out;
   for (const row of Array.isArray(gear) ? gear : []) {
@@ -402,7 +405,7 @@ export function gearPayloads(gear, resolved, { fights = true } = {}) {
     }
     const drink = drinkFlag(f, (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }));
     if (drink) out.consumables.push(drinkItem(row, drink));
-    const reachItem = gearRunItem(row, { doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.equipment, fold: matchCondition, circumstance: circumstanceOf, miss: (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }) });
+    const reachItem = gearRunItem(row, { doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.equipment, fold: matchCondition, circumstance: circumstanceOf, variant, miss: (figureKey, word) => out.unresolved.push({ kind: "gear", key: row.key, figure: figureKey, word }) });
     if (reachItem) out.reachItems.push(reachItem);
     const hit = onHitFlag(row, f);
     if (hit && flagLauncherStack(resolved?.items, hit)) out.onHit++;
@@ -737,7 +740,7 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
   const hasTroopAc = figure(t.armourBump) != null || figure(t.acReduction) != null;
   const troopAc = (figure(t.armourBump) ?? 0) - (figure(t.acReduction) ?? 0);
   const traitAc = fights ? figure(r.armourBump) : null;
-  const built = gearPayloads(gear, resolved, { fights });
+  const built = gearPayloads(gear, resolved, { fights, variant: typeof choices.variant === "string" ? choices.variant : "" });
   if (acBase !== null && (hasTroopAc || traitAc !== null || built.ac !== null)) {
     const value = acBase + (hasTroopAc ? troopAc : 0) + (traitAc ?? 0) + (built.ac ?? 0);
     system.ac = { ...(system.ac ?? {}), value };

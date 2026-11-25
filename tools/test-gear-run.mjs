@@ -190,6 +190,61 @@ await t("a body sent out of a stack carries the item its row mints, the one a le
   assert.equal(org.carriedGearItems("r2", odd), null, "an unresolved row is carried by no one");
 });
 
+/** An invented fused row: no `radius`, the fuse and burst figures as `importedOrganisation` reads them. */
+const fuseRow = {
+  key: "r7",
+  label: "Delta Item",
+  cite: "XX p. 6",
+  figures: { throw: 3, fumble: 2, fuseDice: "1d2", sizes: { brex: "s1" }, blast: [{ size: "s1", dice: "2d2", radius: 3 }], saveKind: "paralysis", saveFraction: 2 },
+};
+const refOf = (figure) => ({ doc: DOC, table: TABLE, row: "r7", figure });
+
+await t("a fused row mints a fuse activation of live references and one burst row, with the bearer's variant and no radius", () => {
+  const missed = [];
+  const item = gearRunItem(fuseRow, { ...BASE, variant: "brex", miss: (figure, w) => missed.push([figure, w]) });
+  const flag = item.flags["acks-extras"].itemRun;
+  assert.deepEqual(flag.activation, {
+    kind: "fuse",
+    throw: refOf("throw"),
+    fumble: refOf("fumble"),
+    fuseDice: refOf("fuseDice"),
+    proficiency: refOf("proficiency"),
+    sizes: refOf("sizes"),
+    blast: refOf("blast"),
+    variant: "brex",
+  });
+  assert.deepEqual(flag.rows, [{ key: "burst", reach: { pulse: "burst", save: refOf("saveKind"), fraction: refOf("saveFraction") } }]);
+  assert.equal(item.name, "Delta Item");
+  assert.equal(item.flags["acks-extras"].cookbook.id, "organisation.gear.r7");
+  assert.deepEqual(numbersIn(item.flags), [], "no figure sits on the item");
+  assert.deepEqual(missed, [], "a fused row has no radius to miss");
+
+  assert.equal(gearRunItem(fuseRow, BASE).flags["acks-extras"].itemRun.activation.variant, "", "no variant is a blank, never a guess");
+  assert.equal(gearRunItem(fuseRow, { ...BASE, variant: undefined }).flags["acks-extras"].itemRun.activation.variant, "");
+  assert.equal(gearRunItem(fuseRow, { ...BASE, variant: "  " }).flags["acks-extras"].itemRun.activation.variant, "");
+  const { fuseDice, ...unfused } = fuseRow.figures;
+  assert.equal(gearRunItem({ ...fuseRow, figures: unfused }, BASE), null, "the fuse figure is what makes the shape");
+});
+
+await t("generation passes the bearer's variant to a fused item, and a body with none carries a blank", () => {
+  const orgStub = { equipment: { rows: [fuseRow], cite: "XX p. 6" } };
+  const viaPayloads = org.gearPayloads([fuseRow], { items: [] }, { variant: "brex" });
+  assert.equal(viaPayloads.reachItems[0].flags["acks-extras"].itemRun.activation.variant, "brex");
+  assert.equal(org.gearPayloads([fuseRow], { items: [] }).reachItems[0].flags["acks-extras"].itemRun.activation.variant, "");
+
+  const chosen = { items: [] };
+  org.applyGeneratedOrganisation(chosen, { choices: { gear: ["r7"], variant: "cyth" }, org: orgStub });
+  assert.deepEqual(chosen.items.map((i) => i.flags["acks-extras"].itemRun.activation), [{ ...gearRunItem(fuseRow, { ...BASE, variant: "cyth" }).flags["acks-extras"].itemRun.activation }]);
+  assert.equal(chosen.items[0].flags["acks-extras"].itemRun.activation.variant, "cyth");
+
+  const bare = { items: [] };
+  org.applyGeneratedOrganisation(bare, { choices: { gear: ["r7"] }, org: orgStub });
+  assert.equal(bare.items[0].flags["acks-extras"].itemRun.activation.variant, "", "a body with no variant");
+  const unfought = { items: [] };
+  org.applyGeneratedOrganisation(unfought, { choices: { gear: ["r7"], variant: "cyth", role: "dependant" }, org: orgStub });
+  assert.deepEqual(unfought.items, [], "a body that does not fight carries none");
+});
+
 /* -------------------------------------------- */
 /*  Figures, parts and the diff                  */
 /* -------------------------------------------- */
@@ -197,12 +252,12 @@ await t("a body sent out of a stack carries the item its row mints, the one a le
 await t("a row's figures resolve live from the registry, an override reaches them at once, and a blank resolves to nothing", () => {
   registerRows();
   const banner = gearRunItem(rows.banner, BASE).flags["acks-extras"].itemRun.rows[0];
-  assert.deepEqual(logic.reachFigures(banner), { radius: 9, modifier: null, immunityTurns: 3, lasts: null, lastsNamed: false, save: "paralysis", on: [], saveWhen: null });
+  assert.deepEqual(logic.reachFigures(banner), { radius: 9, modifier: null, fraction: null, immunityTurns: 3, lasts: null, lastsNamed: false, save: "paralysis", on: [], saveWhen: null });
   registerTable({ id: DOC, tables: { [TABLE]: { r2: { label: "Beta Item", radius: 4, saveKind: "death", immunityTurns: 1 } } } }, { priority: PRIORITY.OVERRIDE });
   const live = logic.reachFigures(banner);
   assert.deepEqual([live.radius, live.save, live.immunityTurns], [4, "death", 1]);
   resetTables();
-  assert.deepEqual(logic.reachFigures(banner), { radius: null, modifier: null, immunityTurns: null, lasts: null, lastsNamed: false, save: null, on: [], saveWhen: null }, "nothing imported, nothing stands in");
+  assert.deepEqual(logic.reachFigures(banner), { radius: null, modifier: null, fraction: null, immunityTurns: null, lasts: null, lastsNamed: false, save: null, on: [], saveWhen: null }, "nothing imported, nothing stands in");
   assert.deepEqual(logic.reachFigures({ key: "own", target: "paralysis", reach: { pulse: "action", radius: { value: "5" } } }).save, "paralysis", "a Judge's own item names its save on the row");
   assert.equal(logic.reachFigures({ key: "x" }), null);
 });
