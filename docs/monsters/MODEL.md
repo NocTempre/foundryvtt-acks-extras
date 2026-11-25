@@ -976,8 +976,9 @@ written beside the warbands, so the faction's chart has one row per part. The vi
 trait beasts are a part row of their own. A warband's or a gang's own camp child stays, in a
 village or alone, and so does the camp of a village whose top unit holds a body part of its own.
 A part row is told by `gen.part` (the part's source) and has no unit shape: it draws and takes no Roll,
-and it draws an officer line only where its group names an officer, with every control of a unit
-row's line but Make (the entry names no leader role for it). A figure the recipe lacks leaves the part at zero and is listed in
+and it draws an officer line where its group names an officer or where the seat may add one or drop one on it,
+with every control of a unit row's line but Make (the entry names no leader role for it, so the line offers
+**＋ Officer** instead and names the actor alone: docs/lib/ORGANISATION.md, "＋ Officer and a dropped actor"). A figure the recipe lacks leaves the part at zero and is listed in
 `findings` (`what: "missing"`); nothing throws.
 
 **Leaders.** A unit's first leader is made an actor and named as its group's

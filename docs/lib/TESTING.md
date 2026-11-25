@@ -4861,6 +4861,10 @@ verbs board. Where: Actors sidebar tab → a faction → Org chart tab → a car
   A row rolled before the record existed has no `gen.leader` and offers no Make.
 - A library actor other than the template, for the compendium officer of step 6. Read only; the step is
   not walked where the library holds none.
+- `lib/officer-assign` — step 9's faction host. Find by marker; build with
+  `api.fixture("lib/officer-assign", "Actor", {type: "acks-extras.faction", ...})`. It needs no library
+  template: the walk makes its own groups and actors (`api.create`, tracked), rewrites the host's
+  `system.units` at its start and to empty in its teardown, and sweeps its own products.
 
 **The rule the steps assert:** each control is rendered only where Foundry's own test passes and is not
 rendered at all otherwise. The tests are the actor's limited permission (Open), the actor's delete

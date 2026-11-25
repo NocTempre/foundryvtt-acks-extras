@@ -538,7 +538,7 @@ it handed the whole subtree to the removed row's group. Rejected: keeping the ha
 documents the pressed row did not name. Cost: a removed top row takes its `gen.template` with it, so the rows lifted
 from it read no template until one is set.
 
-## 2026-11-25 — A village is a faction with one row per part
+## 2026-11-25 — A village is a faction with one row per part — SUPERSEDED IN PART 2026-11-25
 
 Supersedes in part "Generate makes a root group; a Roll that makes a village makes its faction
 card", which moved a village's rows onto a card made after the Roll and left the root group as the
@@ -574,7 +574,9 @@ above and "No shipping house rules please":
    warning's tick, Undo). Make is absent: no disabled button and no words saying it is missing,
    since the imported entry carries no leader role for a part that is no body. A part row whose
    group names no officer draws no officer line in this slice, since the entry cannot feed a Make and this
-   minor has no hand-assign path. The owner, of that empty state: "Just add an officer button solves this
+   minor has no hand-assign path (superseded in part by lib's "An officer line that cannot make a leader adds an
+   actor, and an actor dropped on any line replaces the officer", the same day: the line is drawn with
+   **＋ Officer**, and a part row's line names no role word). The owner, of that empty state: "Just add an officer button solves this
    issue, user can manually drop one if they want as a replacement instead". A "+ Officer" button and an
    actor drop on every row's officer line are built in the next slice, not in this one.
 2. **The village level's trait beasts are a part row of their own.**

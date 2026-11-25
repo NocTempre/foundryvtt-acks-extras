@@ -80,7 +80,7 @@ const P = {
   reopen: async ({ uuid }) => {
     const sheet = fromUuidSync(uuid).sheet;
     if (sheet.rendered) await sheet.close({ animate: false });
-    if (sheet.tabGroups) sheet.tabGroups.primary = "orgChart";
+    if (sheet.actor?.type === "acks-extras.faction") sheet.tabGroups.primary = "orgChart";
     await sheet.render({ force: true });
     await new Promise((r) => setTimeout(r, 900));
     return { rendered: sheet.rendered };
@@ -362,6 +362,8 @@ try {
   check("a drop on that line writes the officer, by the Player's own ownership", keyRow(pr2, "q").officer === A.uuid, keyRow(pr2, "q"));
   if (perm.canCreate) {
     await run(gm, P.setOfficer, { uuid: host.uuid, key: "q", officer: "" });
+    await run(player, P.reopen, { uuid: host.uuid });
+    await run(player, P.pressCard, { uuid: host.uuid, key: "q", action: "orgEdit", wait: 700 });
     await until(player, P.line, { uuid: host.uuid, key: "q" }, (l) => l.actions.includes("orgAddOfficer"));
     await run(player, P.pressLine, { uuid: host.uuid, key: "q", action: "orgAddOfficer", wait: 2000 });
     const pr3 = await until(gm, P.rows, { uuid: host.uuid }, (rs) => !!keyRow(rs, "q")?.officer);
