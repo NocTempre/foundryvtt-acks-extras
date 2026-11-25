@@ -2232,6 +2232,14 @@ Left as it was, for the phase 3 session to re-read against ruling 2 of the
 corrections: coverage rows 11 and 24 and section 2b, which speak of leader
 stacks. Not checked: anything live; any board's rendering.
 
+Canvas 1 after the adoption: boards 1c, 1d, 1e and 1g lose the re-roll
+buttons, the pins and two refusals drawn before the owner's "controls, not
+gates" (a card that is out is edited on its own sheet, and bodies on a map
+keep the figures they went out with until recalled, as a note). A search of
+every board for a re-roll, a pin or a confirm finds none. The canvas is as
+it would be built, and its go-ahead is what S11b, S11c, S12 and S12b wait
+on.
+
 ### Phase 1, 2026-11-24
 
 S1 to S5 built on `topic/beastman-organisation`, one `implementer` per slice,
