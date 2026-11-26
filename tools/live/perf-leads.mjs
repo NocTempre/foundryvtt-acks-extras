@@ -609,7 +609,7 @@ const P = {
     const loaded = (pack) => [...pack.values()].length;
     const cold = (pack) => pack.index.size > loaded(pack);
     let obs = null;
-    try { obs = new PerformanceObserver(() => {}); obs.observe({ entryTypes: ["longtask"] }); } catch { obs = null; }
+    try { obs = new globalThis.PerformanceObserver(() => {}); obs.observe({ entryTypes: ["longtask"] }); } catch { obs = null; }
     const longMs = async () => { await new Promise((r) => setTimeout(r, 80)); return r1((obs?.takeRecords() ?? []).reduce((a, e) => a + e.duration, 0)); };
     const shelves = () => types.flatMap((type) => L.libraryPacks(type).map((pack) => ({ type, pack })));
     const pass = async () => {
