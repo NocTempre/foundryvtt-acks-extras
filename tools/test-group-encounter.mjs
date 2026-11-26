@@ -243,6 +243,7 @@ const {
   rollsOver,
   stackHeld,
   statesACount,
+  treeStacks,
   unitSides,
 } = await import("../scripts/lib/group-encounter-logic.mjs");
 const { sizeFromEcology } = await import("../scripts/lib/group-logic.mjs");
@@ -747,6 +748,24 @@ await ok("the Judge's caption reads the same whatever the reveal", () => {
   assert.equal(judgeCaption(group), "Knot, muster of 9");
 });
 
+await ok("a group's caption counts the groups inside it, each creature once across them", () => {
+  const warband = groupOf([stackOf(creature(), { current: 9 })], { noun: "muster", reveal: REVEAL.full });
+  const gangA = groupOf([stackOf(creature(), { current: 4 }), stackOf(creature({ name: "Tangle" }), { current: 2 })]);
+  const gangB = groupOf([stackOf(creature(), { current: 3 }), stackOf(creature({ name: "Gone" }))]);
+  gangA.system.unit.parentGroupUuid = warband.uuid;
+  gangB.system.unit.parentGroupUuid = warband.uuid;
+  const merged = treeStacks([warband, gangA, gangB]);
+  assert.deepEqual(merged.map((s) => [s.template.label, s.size.current]), [["Knot", 16], ["Tangle", 2], ["Gone", 0]]);
+  assert.equal(warband.system.stacks[0].size.current, 9, "the group's own stack is not written to");
+  game.actors = [warband, gangA, gangB];
+  try {
+    assert.equal(judgeCaption(warband), "Knot 16, Tangle 2");
+    assert.equal(judgeCaption(gangA), "Knot 4, Tangle 2", "a group inside reads its own tree");
+  } finally {
+    delete game.actors;
+  }
+});
+
 await ok("Make Encounter files a masked, linked, hostile group with the creature in it", async () => {
   const knot = creature({ encounter: LINES, img: "art/knot.webp" });
   const group = await makeEncounter(knot);
@@ -841,6 +860,26 @@ await ok("the primary GM keeps the prototype and every stale token on the face",
   await settle();
   assert.equal(stale.name, "Knot, muster of 4");
   game.scenes.pop();
+});
+
+await ok("a group inside another changing its count brings the outer group's token to the new count", async () => {
+  const warband = groupOf([stackOf(creature(), { current: 9 })], { noun: "muster", reveal: REVEAL.full, img: "art/knot.webp" });
+  const gang = groupOf([stackOf(creature(), { current: 4 })]);
+  gang.system.unit.parentGroupUuid = warband.uuid;
+  const token = placed(warband.id, "Knot, muster of 13", "art/knot.webp");
+  const scene = sceneWith([token]);
+  game.scenes.push(scene);
+  game.actors = [warband, gang];
+  try {
+    gang.system.stacks[0].size.current = 1;
+    await gang.update({ "system.noun": "gang" });
+    await settle();
+    assert.equal(token.name, "Knot, muster of 10");
+    assert.equal(warband.prototypeToken.name, "Knot, muster of 10");
+  } finally {
+    delete game.actors;
+    game.scenes.pop();
+  }
 });
 
 await ok("a group with no reveal, and a token's own copy, are left alone", async () => {

@@ -3742,7 +3742,7 @@ world actor, and an unlinked member on the map is their token's actor. An
 unlinked member inside the party token has no document to update. Their hit
 points live in the token data the party keeps for them, and formation writes
 them there. A stack becomes its bodies on the map, found by their group flag
-(`deployedBodies`, `group-logic.mjs`), each its own row. **Add selected
+(`deployedTree`, `group-logic.mjs`: the group's own and those of every group inside it), each its own row. **Add selected
 tokens** adds the selection to the rows already listed.
 
 A row that cannot be adjusted is still listed, unticked, with its reason

@@ -324,6 +324,25 @@ t("a stack becomes its bodies on the map, and is one row left out while none is"
   assert.deepEqual(resolveTargets({ actors: [group] }).map((r) => [r.key, r.reason]), [["Actor.g1", HP_REASON.stack]]);
 });
 
+t("a stack reaches the bodies of the groups inside it, and the group inside reaches its own only", () => {
+  const warband = { id: "g1", uuid: "Actor.g1", name: "Warband", type: GROUP_TYPE, img: "", system: { hp: { value: 5, max: 5 }, unit: { parentGroupUuid: "" } } };
+  const gang = { id: "g2", uuid: "Actor.g2", name: "Gang", type: GROUP_TYPE, img: "", system: { hp: { value: 5, max: 5 }, unit: { parentGroupUuid: "Actor.g1" } } };
+  const body = (n, groupUuid) => ({
+    actorLink: false,
+    name: `Body ${n}`,
+    actor: actor({ id: `b${n}`, name: "Body", hp: { value: 5, max: 5 }, type: "monster", token: `t${n}` }),
+    getFlag: (scope, key) => (scope === "acks-extras" && key === "group" ? groupUuid : undefined),
+  });
+  world();
+  game.actors = [warband, gang];
+  services.resetServices();
+  game.scenes = [{ tokens: [body(1, warband.uuid), body(2, gang.uuid), body(3, "Actor.other")] }];
+  assert.deepEqual(resolveTargets({ actors: [warband] }).map((r) => r.name), ["Body 1", "Body 2"], "the warband's tool reaches its gang's body");
+  assert.deepEqual(resolveTargets({ actors: [gang] }).map((r) => r.name), ["Body 2"], "the gang's tool reaches its own only");
+  game.scenes = [{ tokens: [body(3, "Actor.other")] }];
+  assert.deepEqual(resolveTargets({ actors: [warband] }).map((r) => r.reason), [HP_REASON.stack], "nothing on the map leaves the stack row");
+});
+
 t("a party token becomes its members, and a stashed unlinked member is written into the stash", async () => {
   const hero = actor({ id: "a1", name: "Hero", hp: { value: 10, max: 10 } });
   world(hero);

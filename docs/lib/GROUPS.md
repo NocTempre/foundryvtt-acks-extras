@@ -266,6 +266,13 @@ the row's actions. It stays one row however many bodies it holds, because a row 
 body would mean a record and a hit-point roll per body. The bodies that hold a record
 nest under it, with the fallen and the detached.
 
+The figure at the head of the sheet is the group's whole tree: the living bodies of its
+own stacks and of every group inside it (`bodyCount`), with the pristine and the fallen
+summed the same way (`treeTotals`, `group-logic.mjs`). Its tooltip lists the parts that add
+to the figure: each own stack as its label and count, then each group inside it as its
+name and the bodies it holds in its own stacks. The rows below it stay the group's own
+stacks.
+
 A row is a subgroup, and its grip, its art and name, drags on an editable sheet. It
 carries `STACK_DRAG_TYPE` and names the group and the stack. On a seat that cannot place
 tokens the tooltip names the move alone, and a drop on the map warns and places nothing
@@ -474,6 +481,10 @@ Nothing sets it from a scouting result yet: `docs/ROADMAP.md`, "Groups".
 The name is the token document's own, so the combat tracker and a chat speaker read
 what the map does. The primary GM's `updateActor` hook (`registerEncounterTokens`)
 keeps the prototype and every placed token on the face, the count included at `full`.
+The name and the count read the group's tree (`treeStacks`, `group-encounter-logic.mjs`):
+every stack of the group and of each group inside it, stacks sharing a creature's label
+added into one. A change to a group inside brings the token of each group it stands
+inside to the new count.
 A hand's token name or art is overwritten for as long as `reveal` is set. The Judge's
 own nameplate reads the name and the count whatever the reveal (`refreshToken`), so
 two masked tokens stay two.

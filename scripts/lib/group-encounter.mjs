@@ -1,4 +1,4 @@
-/* global game, foundry, Actor, CONST, Hooks, Roll, fromUuid */
+/* global game, foundry, Actor, CONST, Hooks, Roll, fromUuid, fromUuidSync */
 /**
  * An encounter: a group a Judge rolled up from its creatures' ecology. Each
  * monster's row has its own Roll, which sizes that stack at once from the side
@@ -11,7 +11,7 @@
  * stays pristine until `materializeMembers` rolls each body's own hit points.
  */
 import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID } from "./constants.mjs";
-import { isGeneratedStack, isGroupActor } from "./group-logic.mjs";
+import { groupAncestors, groupTree, isGeneratedStack, isGroupActor } from "./group-logic.mjs";
 import { addStack } from "./group.mjs";
 import {
   BY_LAIR_CHANCE,
@@ -27,6 +27,7 @@ import {
   planStack,
   rollsOver,
   stackHeld,
+  treeStacks,
 } from "./group-encounter-logic.mjs";
 import { postToJudges } from "./roll-audience.mjs";
 import { actorFolder, isPrimaryGM, makeLoc } from "./util.mjs";
@@ -49,13 +50,19 @@ export function groupNoun(group) {
   return game.i18n.has(key) ? game.i18n.localize(key) : "group";
 }
 
+/** The creatures the token stands for: the group's stacks and those of every group inside it. */
+const captionStacks = (group) => {
+  const tree = groupTree(group);
+  return treeStacks(tree.length ? tree : [group]);
+};
+
 /** The name and the count, as the Judge reads them whatever a player can. */
-export const judgeCaption = (group) => fullCaption(group.system.stacks, groupNoun(group), tokenWords);
+export const judgeCaption = (group) => fullCaption(captionStacks(group), groupNoun(group), tokenWords);
 
 /** What every seat reads off this group's token. */
 function faceOf(group) {
   const sys = group.system;
-  return encounterFace({ reveal: sys.reveal, noun: groupNoun(group), stacks: sys.stacks, img: group.img, mask: mask() }, tokenWords);
+  return encounterFace({ reveal: sys.reveal, noun: groupNoun(group), stacks: captionStacks(group), img: group.img, mask: mask() }, tokenWords);
 }
 
 /** A creature's art, its token's first; a wildcard token names no single image, so its portrait stands in. */
@@ -310,9 +317,14 @@ let facing = Promise.resolve();
  */
 export function registerEncounterTokens() {
   Hooks.on("updateActor", (actor) => {
-    if (!isPrimaryGM() || !isGroupActor(actor) || actor.isToken || !actor.system?.reveal) return;
+    if (!isPrimaryGM() || !isGroupActor(actor) || actor.isToken) return;
+    // A group's token reads every group inside it, so the groups it stands inside re-read too.
+    const faces = [actor, ...groupAncestors(actor).map((uuid) => fromUuidSync(uuid))].filter((g) => isGroupActor(g) && g.system?.reveal);
+    if (!faces.length) return;
     facing = facing
-      .then(() => syncFace(actor))
+      .then(async () => {
+        for (const group of faces) await syncFace(group);
+      })
       .catch((err) => console.error(`${MODULE_ID} | encounter token write failed`, err));
   });
   Hooks.on("refreshToken", (token) => {

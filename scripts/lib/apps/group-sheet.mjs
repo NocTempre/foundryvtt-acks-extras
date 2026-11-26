@@ -29,6 +29,7 @@
 import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { GROUP_CATEGORY, GROUP_STATE } from "../data/group-data.mjs";
 import * as groups from "../group.mjs";
+import { treeTotals } from "../group-logic.mjs";
 import { blankLoyaltyCite } from "../score-bounds.mjs";
 import { citeOf, countTip, defaultRollContext, groupNoun, judgeCaption, rollEncounter, rollRefusal, stackSource } from "../group-encounter.mjs";
 import {
@@ -117,8 +118,9 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     );
     context.noun = groupNoun(this.actor);
     context.invariantBroken = !sys.invariantHolds;
-    context.totals = { current: sys.totalCurrent, pristine: sys.totalPristine, dead: sys.totalDead };
-    context.totalsTip = sys.stacks.map((s) => `${s.template?.label ?? ""} ${s.size?.current ?? 0}`).join(" · ");
+    const tree = treeTotals(this.actor);
+    context.totals = { current: tree.current, pristine: tree.pristine, dead: tree.dead };
+    context.totalsTip = tree.parts.map((part) => `${part.label} ${part.current}`).join(" · ");
     const sources = await Promise.all(sys.stacks.map(stackSource));
     const judge = game.user.isGM && this.isEditable;
 

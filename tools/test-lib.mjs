@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import {
-  BELOW_EVERY_RUNG, bodyCount, cleanDelta, commandStatus, groupAncestors, groupDescendants, groupNodes, groupTree, isDerivedEffect, liveRows, matchingStack, memberName,
+  BELOW_EVERY_RUNG, bodyCount, cleanDelta, commandStatus, groupAncestors, groupDescendants, groupNodes, groupTree, isDerivedEffect, liveRows, matchingStack, memberName, treeTotals,
   keptTokenSize, nextOrdinal, platoonCapacity, sizeFromEcology, wouldCycleGroup,
 } from "../scripts/lib/group-logic.mjs";
 import {
@@ -2190,6 +2190,36 @@ t("a group's count is read live with the groups inside it, and an emptied group 
   });
   // With no world loaded a group answers from its own stacks.
   assert.equal(bodyCount({ type: "acks-extras.group", uuid: "Actor.q", system: { stacks: [{ size: { current: 2 } }, { size: { current: 3 } }] } }), 5);
+});
+
+t("a group's sheet totals are the tree's: its own stacks and every group inside, with parts that add to the figure", () => {
+  const held = (uuid, name, stacks, pristine, dead, parent = "") => ({
+    uuid,
+    name,
+    type: "acks-extras.group",
+    system: {
+      stacks: stacks.map(([label, current]) => ({ template: { label }, size: { current } })),
+      totalCurrent: stacks.reduce((n, [, current]) => n + current, 0),
+      totalPristine: pristine,
+      totalDead: dead,
+      unit: { parentGroupUuid: parent },
+    },
+  });
+  const world = [
+    held("Actor.o", "Warband", [["Knot", 5]], 4, 1),
+    held("Actor.a", "Gang A", [["Knot", 3], ["Tangle", 2]], 2, 0, "Actor.o"),
+    held("Actor.c", "Gang C", [["Knot", 4]], 3, 2, "Actor.a"),
+  ];
+  inWorld(world, () => {
+    const all = treeTotals(world[0]);
+    assert.deepEqual([all.current, all.pristine, all.dead], [14, 9, 3]);
+    assert.deepEqual(all.parts, [{ label: "Knot", current: 5 }, { label: "Gang A", current: 5 }, { label: "Gang C", current: 4 }]);
+    assert.equal(all.parts.reduce((n, p) => n + p.current, 0), all.current, "the parts produce the figure");
+    const inner = treeTotals(world[1]);
+    assert.deepEqual([inner.current, inner.pristine, inner.dead], [9, 5, 2], "a group inside reads its own tree");
+    const leaf = treeTotals(world[2]);
+    assert.deepEqual([leaf.current, leaf.pristine, leaf.dead, leaf.parts.length], [4, 3, 2, 1]);
+  });
 });
 
 t("a roster row's count is the group's count now, never the figure the row was written with", () => {

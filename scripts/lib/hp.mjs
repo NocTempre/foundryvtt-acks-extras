@@ -18,7 +18,7 @@ import * as services from "./services.mjs";
 import { renderRollCard } from "./roll-card.mjs";
 import { postToJudges, showDice } from "./roll-audience.mjs";
 import { HP_MODE, HP_REASON, hpEligibility, keepsOwnHitPoints, planHpChange, recreatedHitPointsPatch } from "./hp-logic.mjs";
-import { deployedBodies, isGroupActor } from "./group-logic.mjs";
+import { deployedTree, isGroupActor } from "./group-logic.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -72,11 +72,12 @@ function tokenTarget(token, partyName = "") {
 }
 
 /**
- * A stack's targets: each of its bodies on the map, or, while none is, the
- * stack itself, which is left out with its reason.
+ * A group's targets: each of its bodies on the map, those of the groups inside
+ * it included, or, while none is, the group itself, which is left out with its
+ * reason.
  */
 function stackTargets(group, partyName = "") {
-  const bodies = deployedBodies(group, game.scenes ?? []);
+  const bodies = deployedTree(group, game.scenes ?? []);
   if (!bodies.length) return [documentTarget(group, { partyName })];
   return bodies.map((token) => tokenTarget(token, partyName)).filter(Boolean);
 }

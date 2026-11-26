@@ -166,6 +166,33 @@ export function countOrigin(stack) {
   return { kind: initial === total && current <= total ? "rolled" : "edited", total };
 }
 
+/**
+ * The stacks a group and every group inside it hold, as one list the caption
+ * reads: stacks sharing a creature's label become one stack whose `size.current`
+ * is their sum, in the order each label first appears. A stack with no label
+ * stands alone. Nothing passed in is written to.
+ * @param {object[]} groups the group actors, the group first (`groupTree`)
+ * @returns {object[]}
+ */
+export function treeStacks(groups) {
+  const merged = [];
+  const byLabel = new Map();
+  for (const group of groups ?? []) {
+    for (const stack of group?.system?.stacks ?? []) {
+      const label = stack.template?.label ?? "";
+      const held = label ? byLabel.get(label) : null;
+      if (held) {
+        held.size.current += Math.max(0, stack.size?.current ?? 0);
+        continue;
+      }
+      const copy = { ...stack, size: { ...stack.size, current: Math.max(0, stack.size?.current ?? 0) } };
+      merged.push(copy);
+      if (label) byLabel.set(label, copy);
+    }
+  }
+  return merged;
+}
+
 const capitalized = (word) => (word ? `${word[0].toUpperCase()}${word.slice(1)}` : "");
 
 /**

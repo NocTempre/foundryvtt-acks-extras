@@ -212,6 +212,28 @@ export function bodyCount(actor, nodes = null) {
   return ownBodies(actor) + treeBodies(actor, nodes);
 }
 
+/**
+ * The figures a group's sheet reads across its whole tree: the living bodies
+ * (`bodyCount`), the pristine ones and the casualties of the group and every
+ * group inside it, and the parts that make the living figure, each once and in
+ * the order they add: the group's own stacks by creature label, then each group
+ * inside it by name with the bodies it holds in its own stacks.
+ * @param {object} group
+ * @returns {{current: number, pristine: number, dead: number, parts: {label: string, current: number}[]}}
+ */
+export function treeTotals(group) {
+  const tree = groupTree(group);
+  const figure = (g, key) => (typeof g?.system?.[key] === "number" ? g.system[key] : 0);
+  const own = (group?.system?.stacks ?? []).map((s) => ({ label: s.template?.label ?? "", current: s.size?.current ?? 0 }));
+  const inside = tree.slice(1).map((g) => ({ label: g.name ?? "", current: ownBodies(g) }));
+  return {
+    current: bodyCount(group),
+    pristine: tree.reduce((n, g) => n + figure(g, "totalPristine"), 0),
+    dead: tree.reduce((n, g) => n + figure(g, "totalDead"), 0),
+    parts: [...own, ...inside],
+  };
+}
+
 /** The living bodies of every group inside `actor`, each counted once. */
 function treeBodies(actor, nodes) {
   const all = nodes ?? groupNodes();
