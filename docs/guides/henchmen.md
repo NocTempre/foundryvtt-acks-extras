@@ -117,6 +117,10 @@ the Judge's; a calamity or a penalty on the record, a transfer and a dismissal
 sit on the row for the hireling's owner, and a transfer offers only your own
 characters.*
 
+A transfer moves the hireling's ownership with it. The new employer's owners can
+work the hireling's row from then on, and the players who owned it through the old
+employer no longer can.
+
 **A hireling's own sheet carries a Service tab**: the same record from the
 hireling's side — loyalty and its parts, morale, the terms, the wage clock,
 the employer, the ledger and the events — with the Judge's throws beside it.

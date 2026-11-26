@@ -459,6 +459,15 @@ that names what it accepts.*
   shows no capacity until you type one), the construction controls (their shape is *Worn at*,
   above), and the core record fields.
 
+A once-only item can be set to spend its count with each use. On the Details tab,
+under **Effect rows**, press a row's pen to open the row's editor; in its **Reach**
+group, where **How it is used** reads **Used up**, tick **Each use spends one**.
+Ticked, each use takes one off the item's Quantity once its effect is written, and
+at none the item stays in the inventory reading Used up, with its Use press off.
+Unticked, a use leaves the Quantity as it is, and a use that is refused or fails
+spends nothing. The Quantity stays editable: Actors sidebar tab → an actor →
+Inventory (or Equipment) tab → the item's row → its sheet → Quantity.
+
 An item with nothing to roll, no effects, no durability and no contents — coin,
 gems, a trinket — drops the tabs and the state rail entirely; a quiet **Details**
 button unfolds that one panel when you need it.

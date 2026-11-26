@@ -40,6 +40,16 @@ The Judge can still add or remove anyone.
 *A player's Order tab: their own member with the control that takes them out, and
 their people still to bring in.*
 
+A creature a spell called to your side leaves the party when its control ends.
+Riding in the party token, it is set down hostile beside the token; already out
+as a token, it stays where it stands. The chat card says who left. With no token
+of the party on a scene to set it down on, it stays on the roster, hostile, and
+the card says so; take it out with **Party sheet → Order tab → Remove from the
+formation**. A member who is not such a creature and whose token is set to
+Hostile stays in the party: the warning at the top of the Party sheet names them
+on every tab, and nothing is removed or blocked. Drop the creature's token on the
+open Party sheet, or press **Add to party** on its token HUD, to put it back.
+
 ## The party sheet
 
 The party's name and the mode it travels in sit in the window's title bar,
@@ -1138,6 +1148,23 @@ figure blank. You can change any of them in the Ruledata Browser.
 
 *The Kit tab's light sources, each with the turns its imported burn time
 leaves. Hover the turns to see where the figure came from.*
+
+Light Sources opens with a **Light here** line, on every seat. It names the stage
+at the party's own token on its scene: daylight, bright light, dim light or dark.
+Its tooltip names what decided it (the sky, a placed light, a token's light, the
+marching column's light or a carried light), with the light's name where it has
+one and its page reference where one is cited. No line is drawn for a party with
+no token on its scene, while the party's token is hidden (members deployed), or
+on a journey. A token's light is named to a player only where that player's seat
+has Observer on the token's actor; otherwise the kind and the page are all that
+show.
+
+A light placed on a scene can shed daylight. Scene controls → Lighting Controls →
+double-click the light → its configuration window → Basic Configuration tab →
+Light Placement → **Daylight radius**, after the bright and dim radii, in the
+scene's distance unit; blank sheds none. A point inside it reads as daylight,
+even at night, and counts as bright light for the party's light and the mapper.
+Foundry still draws only its two radii.
 
 A member who carries a light spell can cast it from the Kit tab. Under **Light
 Sources**, pick the spell and its caster from the menu and press **Cast**: the
