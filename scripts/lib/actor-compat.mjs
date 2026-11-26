@@ -25,6 +25,7 @@
  */
 
 import { ITEM_TYPE } from "./vocab.mjs";
+import { MODULE_ID } from "./constants.mjs";
 import { unset } from "./util.mjs";
 const F = () => foundry.data.fields;
 const int = (initial) => new (F().NumberField)({ required: true, integer: true, initial });
@@ -69,13 +70,13 @@ export function acksCompatStubs() {
 /**
  * A `preCreateActor` listener: the system's `AcksActor.create` writes
  * `system.isNew: true` beneath the caller's own system data, for every type it
- * creates. A module sub-type has no new-actor page, so the stub field is set
- * back to false; the system's own types keep the flag.
+ * creates. This module's sub-types have no new-actor page, so the stub field
+ * is set back to false; the system's own types and another module's keep it.
  *
  * @param {Actor} doc  the actor about to be created
  */
 export function clearNewOnModuleType(doc) {
-  if (!String(doc?.type ?? "").includes(".")) return;
+  if (!String(doc?.type ?? "").startsWith(`${MODULE_ID}.`)) return;
   if (doc._source?.system?.isNew !== true) return;
   doc.updateSource({ "system.isNew": false });
 }

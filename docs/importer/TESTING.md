@@ -3512,7 +3512,7 @@ fixtures and are rewritten by step 2.
 
 MODEL, "Pregenerated characters". The system's 14.2.0 migration rewrites a
 character's stored `system` and its items' `system` (an item's quantity
-becomes a whole number; a spell level keeps only its `max`), so a play stamp
+becomes a whole number, and weapons and armour gain one), so a play stamp
 recorded under 14.1.0 no longer matches a character nobody played. No
 migration answers it: a repair import does. This recipe checks that each
 answer leaves a character the next repair reads as matching. Offline:
@@ -3527,9 +3527,9 @@ by this world, owned by no player, marked
 `importer/pregen-pre-14-2@<tag>`. The test world was never on 14.1.0 with a
 stamped character, so the pre-upgrade stamp is written by hand: in page
 context, import `scripts/importer/held-edits.mjs`, take the character's
-`toObject()`, put each item's numeric `system.quantity` back as
-`{value: <n>, max: 0}` (weapons and armour included) and give each
-`system.spells.<n>` a `value: 0` beside its `max`, then write
+`toObject()`, put each `item`-type item's `system.quantity` back as
+`{value: <n>}`, take `system.quantity` off each weapon and armour (14.1.0
+gave them none; money and bundles keep theirs as stored), then write
 `flags.acks-extras.playStamp` to `playStamp(<that shape>)`. That is the
 stamp a 14.1.0 import recorded over the data the migration then rewrote
 (inferred from both schemas; a world character's exact 14.1.0 shape is not

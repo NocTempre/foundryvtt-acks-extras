@@ -5263,6 +5263,9 @@ await (async () => {
   const quiet = doc("acks-extras.group", false);
   clearNewOnModuleType(quiet);
   assert.deepEqual(quiet.writes, [], "nothing to clear writes nothing");
+  const foreign = doc("other-module.thing", true);
+  clearNewOnModuleType(foreign);
+  assert.deepEqual(foreign.writes, [], "another module's sub-type is its own business");
   n++;
   console.log("ok - a module sub-type's create drops the system's new-actor flag");
 }
