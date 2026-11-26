@@ -1837,3 +1837,76 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* A carried item's effect rows at the end of its sheet's Details tab: a head
+   with Add row, then one line per row (name, kind tag, reach and save, Edit,
+   Delete). The type rides the sheet's own size knob through the ramp steps. */
+.acks-extras-gear-rows {
+  display: flex;
+  flex-direction: column;
+  margin-block-start: var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-gear-rows__head {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block-end: var(--acks-sp-2);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-gear-rows__title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--acks-fs-body);
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-gear-rows__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+  padding: var(--acks-sp-2);
+  min-width: 0;
+  border-block-start: var(--acks-border-soft);
+}
+
+.acks-extras-gear-rows__name {
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-gear-rows__line {
+  flex: 1 1 9em;
+  min-width: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-gear-rows__fig,
+.acks-extras-gear-rows__blank {
+  cursor: help;
+}
+
+.acks-extras-gear-rows__fig {
+  border-block-end: 1px dotted var(--acks-ink-soft);
+}
+
+.acks-extras-gear-rows__blank {
+  display: inline-flex;
+  align-items: center;
+  min-width: 5ch;
+  padding-inline: var(--acks-sp-1);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink);
+}
+
+.acks-extras-gear-rows__cite {
+  white-space: nowrap;
+}
+
+.acks-extras-gear-rows__hint {
+  margin: var(--acks-sp-2) 0 0;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}

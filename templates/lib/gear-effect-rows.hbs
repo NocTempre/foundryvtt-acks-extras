@@ -1,0 +1,37 @@
+{{!-- A carried item's effect rows, the group at the end of its sheet's Details
+      tab (`gear-effect-sheet.mjs`). Context: `gearRowsModel`. Carries no id, so
+      two open copies never collide. The controls name their press in
+      `data-gear-rows`: the host sheet has no such actions, so the group wires
+      its own clicks. A reach with no figure draws the page reference as a
+      glyph and no number. --}}
+<section class="acks-extras-gear-rows" role="group" aria-label="{{title}}">
+  <div class="acks-extras-gear-rows__head">
+    <h3 class="acks-extras-gear-rows__title">{{title}}</h3>
+    {{#if editable}}
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-gear-rows="add" aria-label="{{add}}" data-tooltip="">
+      <i class="fa-solid fa-plus" inert></i> {{add}}
+    </button>
+    {{/if}}
+  </div>
+  {{#each rows}}
+  <div class="acks-extras-gear-rows__row">
+    <span class="acks-extras-gear-rows__name">{{name}}</span>
+    <span class="acks-tag acks-tag--ghost">{{kind}}</span>
+    <span class="acks-extras-gear-rows__line">
+      {{#if reach}}{{reach.label}}
+      {{~#if reach.engaged}} <span{{#if reach.tip}} data-tooltip-text="{{reach.tip}}"{{/if}}>{{localize "ACKS-LIB.gearRows.engaged"}}</span>
+      {{~else if reach.blank}} <span class="acks-extras-gear-rows__blank" role="img"{{#if reach.tip}} data-tooltip-text="{{reach.tip}}"{{/if}} aria-label="{{reach.aria}}"><i class="fa-solid fa-book" inert></i></span>
+      {{~else}} <span class="acks-nums acks-extras-gear-rows__fig"{{#if reach.tip}} data-tooltip-text="{{reach.tip}}"{{/if}}>{{reach.radius}}′</span>{{/if}}
+      {{~/if}}
+      {{~#if save}}{{#if reach}} · {{/if}}{{@root.saveWord}}{{#if cite}} <span class="acks-extras-gear-rows__cite">{{cite}}</span>{{/if}}{{/if}}
+    </span>
+    {{#if @root.editable}}
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-gear-rows="edit" data-index="{{index}}" aria-label="{{edit}}" data-tooltip=""><i class="fa-solid fa-pen-to-square" inert></i></button>
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-gear-rows="delete" data-index="{{index}}" aria-label="{{del}}" data-tooltip=""><i class="fa-solid fa-trash" inert></i></button>
+    {{/if}}
+  </div>
+  {{else}}
+  <p class="acks-extras-gear-rows__hint">{{none}}</p>
+  {{/each}}
+  {{#if editable}}<p class="acks-extras-gear-rows__hint">{{hint}}</p>{{/if}}
+</section>

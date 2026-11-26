@@ -19,26 +19,11 @@ import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, NATURAL_WEAPONS, SPECIAL_ABILITIES, USAGE, choicesOf } from "./config.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
+import { findItemSheetHost, scrollerOf } from "../lib/item-sheet-host.mjs";
 import { coreDamageKey, damageTypeUpdate, extraordinaryOf, ownDamageType } from "../lib/damage-type.mjs";
 
 const SECTION_CLASS = "acks-monsters-flags";
 const ANNOTATED_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.ability, ITEM_TYPE.item];
-
-/**
- * Where the group goes, first match wins: the extras item sheet's Details
- * panel (its inner stack, for the panel's own spacing), that sheet's body when
- * it has no tabs, a `details` part (the system's item sheet), a `description`
- * part (the abilities sheet, whose Description tab holds the properties that
- * are not rolls), and `.window-content` for any other sheet.
- */
-const HOSTS = [
-  '.acks-extras-item-sheet__panel[data-tab="details"] > .acks-extras-item-sheet__stack',
-  '.acks-extras-item-sheet__panel[data-tab="details"]',
-  ".acks-extras-item-sheet__scroll",
-  '[data-application-part="details"]',
-  '[data-application-part="description"]',
-  ".window-content",
-];
 
 /** Scroll offsets read before a re-render, re-applied once the group is back. */
 const pendingScroll = new WeakMap();
@@ -144,16 +129,6 @@ function annotatedItem(app) {
   return ANNOTATED_TYPES.includes(item.type) ? item : null;
 }
 
-/** The nearest element at or above `el`, within `root`, that scrolls vertically. */
-function scrollerOf(el, root) {
-  const view = el.ownerDocument?.defaultView;
-  for (let node = el; node && node !== root.parentElement; node = node.parentElement) {
-    const overflowY = view?.getComputedStyle(node).overflowY;
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-  }
-  return null;
-}
-
 /**
  * Register the render hooks that place the annotation group in monster-owned
  * item sheets. The group is added after core has restored each part's scroll
@@ -183,7 +158,7 @@ export function registerItemAnnotations() {
       const inner = fieldsFor(item);
       if (!inner) return;
 
-      const host = HOSTS.reduce((found, selector) => found ?? root.querySelector(selector), null) ?? root;
+      const host = findItemSheetHost(root);
       const section = host.ownerDocument.createElement("div");
       section.className = SECTION_CLASS;
       section.setAttribute("role", "group");

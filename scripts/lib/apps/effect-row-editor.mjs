@@ -5,8 +5,8 @@
  *
  * The sheet shows one line per row and this window edits one row. The window
  * is handed a STORE — `{key, label, domain, read(), write(rows)}` — and every
- * write goes through `store.write`, so the spell primitive and an ability's
- * extras share one editor. The `domain` decides which kinds and subjects the
+ * write goes through `store.write`, so the spell primitive, an ability's
+ * extras and a carried item's rows (`GEAR_DOMAIN`) share one editor. The `domain` decides which kinds and subjects the
  * pickers offer (`effectTypesFor`, `effectSubjectsFor`); a stored row keeps
  * its type whatever the picker shows.
  *
@@ -974,7 +974,9 @@ export function effectRowActions(storeOf) {
     const store = storeOf(this.document);
     const rows = store.read();
     // A spell row carries a key a repair matches by; a Judge's starts with `_`, which no register key does.
-    rows.push(store.domain === "spell" ? { key: `_${foundry.utils.randomID(8)}`, type: "damage" } : { type: "modifier" });
+    // A carried item's row carries one too: the runner finds a row, and the ring it raises, by its key.
+    const key = `_${foundry.utils.randomID(8)}`;
+    rows.push(store.domain === "spell" ? { key, type: "damage" } : store.domain === V.GEAR_DOMAIN ? { key, type: "modifier" } : { type: "modifier" });
     const written = (await store.write(rows)) ?? rows;
     openEffectEditor(store, written.length - 1);
   }

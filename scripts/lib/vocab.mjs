@@ -711,10 +711,14 @@ export const EFFECT_TYPES = {
   seal: { label: "Seal", domain: "spell" },
 };
 
+/** The editor domain of an item's `itemRun.rows`: it offers what `"ability"` offers, and the cast's kinds stay spell-only. */
+export const GEAR_DOMAIN = "gear";
+
 /**
- * The effect types a picker offers for one domain: `"ability"` is every kind
- * without a domain marker, `"spell"` is every kind. A stored row keeps its type
- * whatever a picker shows.
+ * The effect types a picker offers for one domain: `"ability"` and
+ * `GEAR_DOMAIN` are every kind without a domain marker (a carried item's rows
+ * are an ability's kinds, never a cast's), `"spell"` is every kind. A stored
+ * row keeps its type whatever a picker shows.
  */
 export function effectTypesFor(domain) {
   return Object.fromEntries(Object.entries(EFFECT_TYPES).filter(([, v]) => !v.domain || v.domain === domain));
@@ -1277,8 +1281,8 @@ export const VALUE_SCALES = {
 
 /**
  * The scales a picker offers for one domain, on the same rule as
- * `effectTypesFor`: `"ability"` is every scale without a domain marker,
- * `"spell"` is every scale. A stored scale keeps resolving whatever a picker
+ * `effectTypesFor`: `"ability"` and `GEAR_DOMAIN` are every scale without a
+ * domain marker, `"spell"` is every scale. A stored scale keeps resolving whatever a picker
  * shows.
  */
 export function valueScalesFor(domain) {
