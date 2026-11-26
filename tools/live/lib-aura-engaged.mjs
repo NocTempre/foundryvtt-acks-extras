@@ -181,6 +181,22 @@ const P = {
     H.said = [];
     H.errors = [];
     H.cards = [];
+    // A monster's default sheet is lib's Follower Card, which draws no reach strip; the strip is on the Full Monster sheet, opened as itself on a fresh instance kept per actor.
+    H.kept = {};
+    H.sheetOf = (uuid) => {
+      const doc = fromUuidSync(uuid);
+      if (doc?.type !== "monster") return doc?.sheet;
+      if (!H.kept[uuid]) {
+        const Full = Object.values(CONFIG.Actor.sheetClasses.monster ?? {}).map((e) => e.cls).find((c) => c.name === "FullMonsterSheet");
+        if (Full) H.kept[uuid] = new Full({ document: doc });
+      }
+      return H.kept[uuid] ?? doc.sheet;
+    };
+    H.closeSheet = async (uuid) => {
+      try { await H.kept[uuid]?.close({ animate: false }); } catch { /* closed */ }
+      delete H.kept[uuid];
+      try { await fromUuidSync(uuid)?.sheet?.close({ animate: false }); } catch { /* closed */ }
+    };
     const notes = ui.notifications;
     const undo = [];
     for (const kind of ["info", "warn", "error"]) {
@@ -440,7 +456,7 @@ const P = {
     for (const r of [...(fromUuidSync(sceneUuid)?.regions ?? [])]) {
       const b = [...r.behaviors].find((x) => x.type === "acks-extras.aura");
       if (!b) continue;
-      const entry = { id: r.id, uuid: r.uuid, hidden: r.hidden === true, token: r.attachment?.token ?? null, deleted: false };
+      const entry = { id: r.id, uuid: r.uuid, hidden: r.hidden === true, token: r.attachment?.token?.id ?? r.attachment?.token ?? null, deleted: false };
       (L.isEngagedActivation(b.system?.activationId) ? out.engaged : out.other).push(entry);
     }
     return out;
@@ -563,7 +579,7 @@ const P = {
   strip: async ({ actorUuid, open = true }) => {
     const H = globalThis.__lae;
     const actor = fromUuidSync(actorUuid);
-    const sheet = actor.sheet;
+    const sheet = H.sheetOf(actorUuid);
     if (open && !sheet.rendered) await sheet.render({ force: true });
     await H.until(() => sheet.element, 6000);
     await H.sleep(open ? 900 : 100);
@@ -581,16 +597,16 @@ const P = {
     };
   },
   stripSave: ({ actorUuid }) => {
-    const b = fromUuidSync(actorUuid).sheet.element?.querySelector?.('.acks-extras-reach-strip button[data-action="reachStripSave"]');
+    const b = globalThis.__lae.sheetOf(actorUuid)?.element?.querySelector?.('.acks-extras-reach-strip button[data-action="reachStripSave"]');
     if (!b) return false;
     b.click();
     return true;
   },
-  closeSheet: async ({ actorUuid }) => { try { await fromUuidSync(actorUuid).sheet.close({ animate: false }); } catch { /* closed */ } return true; },
+  closeSheet: async ({ actorUuid }) => { await globalThis.__lae.closeSheet(actorUuid); return true; },
   /** The subject's sheet opened at a narrow width, for the strip's plate; returns the selector the plate clips to. */
   stripPlate: async ({ actorUuid, width }) => {
     const H = globalThis.__lae;
-    const sheet = fromUuidSync(actorUuid).sheet;
+    const sheet = H.sheetOf(actorUuid);
     await sheet.render({ force: true });
     await H.until(() => sheet.element, 6000);
     sheet.setPosition({ width, left: 16, top: 16 });

@@ -127,10 +127,15 @@ const P = {
     return false;
   },
 
-  /** A faction host at one empty top row naming the family template, its sheet open on a tab. Rewrites `system.units`: only the walk's own start calls it. */
+  /**
+   * A faction host at one empty top row naming the family template, its sheet open on a tab. Rewrites `system.units`
+   * and drops the record an earlier run's village Roll left on the kept fixture (`organisationGen`): with it standing
+   * the chart reads the host as holding the chief, so + Warband writes a top row beside the first and a card's Roll
+   * takes the recorded variant and asks nothing. Only the walk's own start calls it.
+   */
   host: async ({ id, template, tab }) => {
     const actor = game.actors.get(id);
-    await actor.update({ "system.units": [{ key: "top", parentKey: "", label: "", holderUuid: "", kind: "", notes: "", hidden: false, gen: { template } }] });
+    await actor.update({ "system.units": [{ key: "top", parentKey: "", label: "", holderUuid: "", kind: "", notes: "", hidden: false, gen: { template } }], "flags.acks-extras.-=organisationGen": null });
     actor.sheet.tabGroups.primary = tab;
     await actor.sheet.render(true);
     await new Promise((r) => setTimeout(r, 600));

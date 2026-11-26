@@ -125,12 +125,22 @@ const P = {
         const word = s ? words.find((w) => H.ER.unitWord(w) === s.word) : null;
         if (s && word) { side = { context: place, state, word, bodies: !s.childWord }; break; }
       }
-      out.push({ at, key: option.key, stamped, parts: recipe.length, side });
+      out.push({ at, key: option.key, stamped, parts: recipe.length, side, register: recipe.filter((p) => p.origin === "register").length, blank: recipe.filter((p) => !p.origin).length, copy: copy.length });
     }
     return out;
   },
 
   /** The family's repair through the entry picker, as the Judge ticks it: Yes to the confirm, the held-edits list closed unanswered. */
+  /** Deletes the library's copy of the template by its uuid and answers whether it is gone. */
+  dropTemplate: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    if (!doc) return { deleted: true, was: "absent" };
+    const pack = doc.pack ? game.packs.get(doc.pack) : null;
+    const wasLocked = !!pack?.locked;
+    if (wasLocked) await pack.configure({ locked: false });
+    try { await doc.delete(); } finally { if (wasLocked) await pack.configure({ locked: true }); }
+    return { deleted: !(await fromUuid(uuid)), wasLocked };
+  },
   /** Starts the importer's own table import for the Monstrous Manual's tables; `tablesDone` reads whether it returned. The recipes read these rows, so a template repaired without them holds no recipe parts. */
   importTables: async () => {
     const H = globalThis.__br;
@@ -146,7 +156,8 @@ const P = {
     // The reimport runs far past one evaluate's limit, so the flight is started here and read by `repairDone`; each wait below stays under it.
     H.flightDone = false;
     H.flightError = null;
-    H.flight = acksExtras.importer.cookbookReimportEntries().catch((e) => { H.flightError = String(e?.message ?? e); }).finally(() => { H.flightDone = true; });
+    H.flightResult = null;
+    H.flight = acksExtras.importer.cookbookReimportEntries().then((r) => { H.flightResult = r && typeof r === "object" ? Object.fromEntries(["replaced", "refused", "pregens", "held", "taken", "restored", "rewritten", "pregenRefused", "brought"].map((k) => [k, r[k] ?? null])) : null; }).catch((e) => { H.flightError = String(e?.message ?? e); }).finally(() => { H.flightDone = true; });
     const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector(".acks-extras-importer-mon-list")), { tries: 160 });
     if (!app) return { opened: false };
     const box = H.root(app).querySelector(`input[name='sel'][value='Monsters|${family}']`);
@@ -167,7 +178,7 @@ const P = {
       const apply = H.root(choice).querySelector("button[data-action='apply']");
       if (apply) apply.click(); else await choice.close();
     }
-    return { done: H.flightDone === true, error: H.flightError ?? null };
+    return { done: H.flightDone === true, error: H.flightError ?? null, counts: H.flightResult ?? null };
   },
 
   /** The family's members the cookbook lists as stat blocks, and which of them the library holds. */
@@ -505,24 +516,41 @@ try {
 
   /* ---------------------------------------------------------------- */
   section("fixture: the family template, read from the library and copied");
-  const lib = await run(gm, P.template, { family: FAMILY });
+  let lib = await run(gm, P.template, { family: FAMILY });
   note("library template", { twins: lib.twins, found: !!lib.uuid });
   check("the library holds exactly one template of the family", lib.twins === 1 && !!lib.uuid, { twins: lib.twins });
   if (lib.twins !== 1 || !lib.uuid) blocked("the library does not hold exactly one family template; import it through the entry picker first");
+  // Setup is the subject: the library's copy is deleted by its id and imported fresh through the importer's own call, so no part an older import left without an origin stands in it.
+  section("setup: the library's copy of the template is deleted and imported fresh");
+  const dropped = await run(gm, P.dropTemplate, { uuid: lib.uuid });
+  note("the library copy deleted by its id", { uuid: lib.uuid, ...dropped });
+  check("the library's copy of the template was deleted by its id", dropped.deleted === true, dropped);
+  await run(gm, P.importTables);
+  const tables = await until(gm, P.tablesDone, null, (r) => r.done, { tries: 480, every: 1000 });
+  check("the Monstrous Manual's tables were imported by the importer's own call", tables.done && !tables.error, tables);
+  await run(gm, P.importIds, { ids: [FAMILY] });
+  lib = await run(gm, P.template, { family: FAMILY });
+  check("exactly one fresh copy of the template stands in the library", lib.twins === 1 && !!lib.uuid, { twins: lib.twins });
+  if (lib.twins !== 1 || !lib.uuid) blocked("the fresh import left no single family template in the library");
   let variants = await run(gm, P.variants, { uuid: lib.uuid });
-  if (!variants.some((v) => v.stamped && v.side)) {
-    note("no option of the library template holds stamped parts with a Roll side", "Repair in place on the family row through the entry picker (the importer's own; the library template is written)");
-    await run(gm, P.importTables);
-    const tables = await until(gm, P.tablesDone, null, (r) => r.done, { tries: 480, every: 1000 });
-    check("the Monstrous Manual's tables were imported by the importer's own call before the repair", tables.done && !tables.error, tables);
+  note("a fresh import's parts by origin per option (key, parts, register, blank, read copy)", variants.map((v) => [v.key, v.parts, v.register, v.blank, v.copy]));
+  const dirty = variants.filter((v) => v.blank > 0 || v.register !== v.parts || v.copy !== v.parts);
+  check("a fresh import writes every recipe part with origin register and a read copy of the same length", dirty.length === 0, dirty.map((v) => ({ key: v.key, parts: v.parts, register: v.register, blank: v.blank, copy: v.copy })));
+  if (dirty.length) blocked("a fresh import of the family wrote recipe parts without origin register: a product defect in the importer's recipe stamping, not world state; the per-option counts are above");
+  const freshCounts = variants.map((v) => [v.key, v.parts]);
+  {
+    note("repair in place on the fresh copy", "Repair in place on the family row through the entry picker (the importer's own; the library template is written); the stamps must hold");
     const repaired = await run(gm, P.repair, { family: FAMILY });
     check("the entry picker ticked the family row and its confirm was answered", repaired.opened && repaired.ticked && repaired.asked, repaired);
     const flown = await until(gm, P.repairDone, null, (r) => r.done, { tries: 480, every: 1000 });
     check("the repair in place returned without an error", flown.done && !flown.error, flown);
     variants = await run(gm, P.variants, { uuid: lib.uuid });
+    const after = variants.map((v) => [v.key, v.parts]);
+    check("the repair held the stamps: the parts per option unchanged, every one origin register", JSON.stringify(after) === JSON.stringify(freshCounts) && variants.every((v) => v.blank === 0 && v.register === v.parts), { fresh: freshCounts, after });
   }
   const chosen = variants.find((v) => v.stamped && v.side && v.side.bodies) ?? variants.find((v) => v.stamped && v.side);
   note("variant options", { count: variants.length, stamped: variants.filter((v) => v.stamped).length, withSide: variants.filter((v) => v.stamped && v.side).length });
+  note("variant options' parts by origin (register, blank, read copy)", variants.map((v) => [v.parts, v.register, v.blank, v.copy]));
   if (!chosen) blocked("no variant option of the family template holds stamped recipe parts with a Roll side a part can join");
   const V = chosen.key;
   const SIDE = chosen.side;
