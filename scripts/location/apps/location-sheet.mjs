@@ -28,6 +28,7 @@ import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
 import { RARITY_TIERS } from "../../henchmen/config.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
+import { coinParts } from "../pay-house-logic.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { offerableClasses } from "../../henchmen/rules/availability.mjs";
 import { processLocation, closePosting, reloadMarket } from "../../henchmen/engine/recruitment.mjs";
@@ -79,8 +80,8 @@ function directedSpecMatches(spec, c) {
   return !!name && String(c.notes ?? "").toLowerCase().includes(name);
 }
 
-/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', the Research tab's own and the X of a bucket row it draws (each authorizes per researcher and relays to a GM), the Storage tab's deposit and take controls (each moves goods through the storage relay, which checks the acting character), and the pure-DOM candidate filters. */
-const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-research-control], [data-tab="research"] [data-bucket] button, [data-tab="storage"] :is([data-action="depositHere"], [data-action="retrieveAll"], [data-action="retrieveRow"], input[data-pick]), [data-candidate-filter]';
+/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', the Research tab's own and the X of a bucket row it draws (each authorizes per researcher and relays to a GM), the Storage tab's deposit, pay and take controls (each moves goods or coin through a relay that checks the acting character), and the pure-DOM candidate filters. */
+const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-research-control], [data-tab="research"] [data-bucket] button, [data-tab="storage"] :is([data-action="depositHere"], [data-action="payHouse"], [data-action="retrieveAll"], [data-action="retrieveRow"], input[data-pick]), [data-candidate-filter]';
 
 /** The location sub-type's sheet: identity, nesting, contents, storage and, where there is one, the market. */
 export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
@@ -116,6 +117,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       retrieveAll: LocationSheet.#onRetrieveAll,
       houseRetrievable: LocationSheet.#onHouseRetrievable,
       depositHere: LocationSheet.#onDepositHere,
+      payHouse: LocationSheet.#onPayHouse,
       openManager: LocationSheet.#onOpenManager,
       holdGoods: LocationSheet.#onHoldGoods,
       openOwner: LocationSheet.#onOpenOwner,
@@ -1379,6 +1381,10 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       context.holdsGoods &&
       !places.isGroundPile(actor) &&
       game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
+    // Paying the house moves coin, which is not goods the place must be set to
+    // hold: it needs a character this user could pay from, and a place that is
+    // not a pile on the ground.
+    context.canPay = !places.isGroundPile(actor) && game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
 
     const HOUSE = acksExtras.lib?.money?.HOUSE_OWNER;
     const groups = [];
@@ -1398,6 +1404,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         houseControls: isHouse && this.isEditable,
         canTake: canTakeGroup,
         coinGC: api.coinTotalGC(bucket.items),
+        // The figure's parts, named with the counts held, set at render.
+        coinTip: coinParts(bucket.items).map((p) => loc("storage.coinPart", p)).join(" · "),
         rows: bucket.items.map((item) => {
           const sFlag = item.flags?.[MODULE_ID]?.storage ?? {};
           const spoil = !!item.flags?.[MODULE_ID]?.spoil;
@@ -1509,6 +1517,17 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       return;
     }
     await openStashDialog(mine, this.actor);
+    this.render();
+  }
+
+  /** Pay the place coin out of a character this user owns: the stash picker in pay mode. */
+  static async #onPayHouse() {
+    const mine = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner);
+    if (!mine.length) {
+      ui.notifications.warn(loc("storage.pay.noCharacter"));
+      return;
+    }
+    await openStashDialog(mine, this.actor, { mode: "pay" });
     this.render();
   }
 

@@ -576,3 +576,13 @@ document, not that object. Waiting on a core fix: the leak opens actors to playe
 *Cost.* An actor a world already holds at Owner by this route stays so (owner, 2026-11-11: no
 repair tools for previous-version data); Configure Ownership on the actor is the Judge's
 correction. The helper assigns to `_source`, which core does not document as a write path.
+
+## 2026-11-26 — Paying a place is a transfer of exact coins, and nothing else
+
+A report asked for a way to move money to the house through a place sheet instead of only by buying things. The owner: "this is just a transfer tool, in". Standing rulings it was built under: "every value has a control, everything has a manual override or entry point, and nothing is buried in a hidden table"; "follow foundry permissions, don't invent new ones"; "players get blocks, judges get warnings"; "No shipping house rules please".
+
+**Ruled.** **Pay the house** on the Storage tab moves the coins a payer picks, row by row and count by count, into the place's own coin (`lib/money.mjs` `giveCoin`). No price, no sale, no market roll and no change, so thirty gold pieces paid are thirty gold pieces at the place. It reuses the purchase's reach (`coinReach`), its Judge override notice and the module's relay, and it adds no permission: a seat writes the place if it owns it and otherwise relays, and the relay checks the sender owns the payer. A Player out of reach is blocked with the reason; a Judge is warned and the payment goes through. There is no take-out here, since the House group's Take is already the place's owner's.
+
+**Rejected.** Paying a sum in gold through `transferCoin`: its planner picks the coins and makes change, so a payer could not choose the coins and a barter place would refuse for want of change. A deposit (`stash`): it stamps the depositor, so the coin stays theirs. Coin the payer keeps at another place is not offered; that is a later extension.
+
+*Cost.* A second coin-writing path beside `transferCoin` and `exchangeCoins`, built from the same `credit` and `takeCoin`. Walked live in TESTING.md, step 30.

@@ -968,3 +968,129 @@ registerHandler("libExchangeCoins", async ({ actorUuid, placeUuid, requestUserId
   }
   return exchangeCoins({ actor, place, ...rest, gate: true, judge: false });
 });
+
+/* -------------------------------------------- */
+/*  Giving coin to a place                       */
+/* -------------------------------------------- */
+
+/** The coin rows on a holder that no lock shuts away, loose and inside carried containers. */
+const openHandRows = (holder) => handStores(holder).filter((s) => !s.shut).flatMap((s) => s.rows);
+
+/**
+ * The coin a holder can hand a place exactly: their own coin rows with coin on
+ * them, on hand, in no store a lock shuts. Coin kept for them at a place is not
+ * among them. These are the rows `giveCoin` names by id.
+ * @returns {Item[]}
+ */
+export const givableCoin = (holder) => openHandRows(holder).filter((r) => coinCount(r) > 0 && coinRate(r) > 0);
+
+/**
+ * Plan handing a place exact coins, without writing: each `{id, count}` must
+ * name a coin row the holder has on hand in an open store, and the counts for
+ * one row together must not exceed what it holds. Nothing is clamped, since a
+ * purse can change between a seat's choice and the Judge's run of a relayed
+ * call.
+ * @returns {{refusal: object}|{purse: {rows: Map}, takes: Array<{id: string, take: number}>, paidCp: number, parts: Array<{name: string, count: number, cv: number}>}}
+ */
+function planGive(from, to, coins) {
+  if (!from || !to) return { refusal: { ok: false, reason: "missing" } };
+  if (!isLocation(to) || isGroundPile(to)) return { refusal: { ok: false, reason: "notPlace" } };
+  const wanted = new Map();
+  for (const one of Array.isArray(coins) ? coins : []) {
+    const count = Math.floor(num(one?.count, 0));
+    if (typeof one?.id === "string" && count > 0) wanted.set(one.id, (wanted.get(one.id) ?? 0) + count);
+  }
+  if (!wanted.size) return { refusal: { ok: false, reason: "nothing" } };
+  const open = new Map(openHandRows(from).map((r) => [r.id, r]));
+  const rows = new Map();
+  const takes = [];
+  const parts = [];
+  let paidCp = 0;
+  for (const [id, take] of wanted) {
+    const row = open.get(id);
+    if (!row) {
+      const shut = handStores(from).some((s) => s.shut && s.rows.some((r) => r.id === id));
+      return { refusal: { ok: false, reason: shut ? "shut" : "notCoin" } };
+    }
+    const cv = coinRate(row);
+    if (cv <= 0) return { refusal: { ok: false, reason: "notCoin" } };
+    if (take > coinCount(row)) return { refusal: { ok: false, reason: "insufficient", shortfallCp: (take - coinCount(row)) * cv } };
+    rows.set(id, { actor: from, row });
+    takes.push({ id, take });
+    parts.push({ name: row.name, count: take, cv });
+    paidCp += cv * take;
+  }
+  return { purse: { rows }, takes, paidCp, parts };
+}
+
+/**
+ * The write behind `giveCoin`, with no warning raised: the caller's seat says
+ * why a refusal happened. A seat that does not own the payer is refused, and a
+ * seat that does not own the place hands the whole call to the GM, whose seat
+ * plans and gates it again. The coins land before they are taken, so a payment
+ * cut short leaves a duplicate and never a loss.
+ */
+async function moveGive({ from, to, coins, gate = true }) {
+  const plan = planGive(from, to, coins);
+  if (plan.refusal) return plan.refusal;
+  if (gate) {
+    const reach = coinReach(from, to);
+    if (!reach.can) return { ok: false, reason: reach.reason ?? "outOfReach", scene: reach.scene ?? "", outOfReach: true };
+  }
+  if (!game.user?.isGM && !from.isOwner) return { ok: false, reason: "notYours" };
+  if (!game.user?.isGM && !to.isOwner) {
+    const relayed = await executeAsGM("libGiveCoin", { fromUuid: from.uuid, toUuid: to.uuid, coins: plan.takes.map((t) => ({ id: t.id, count: t.take })) });
+    return relayed ?? { ok: false, reason: "noGm" };
+  }
+  // The place's coin is its own, on hand there and nowhere else.
+  await credit(to, takenAsCredits(plan.purse, plan.takes), { scope: "hand" });
+  await takeCoin(plan.purse, plan.takes);
+  return { ok: true, paidCp: plan.paidCp, parts: plan.parts };
+}
+
+/** The refusals of `giveCoin` that carry a sentence of their own. */
+const GIVE_REFUSALS = ["shut", "notCoin", "notPlace", "nothing", "notYours"];
+
+/**
+ * Hand a place exact coins: those rows and those counts leave the payer and
+ * land as the place's own coin (the house's), each on the row of its kind. No
+ * price, no sale and no change is involved, so a gold piece paid in is a gold
+ * piece at the place.
+ *
+ * The payer must be in reach of the place (`coinReach`) and the Judge's own
+ * payment is carried past a refusal and says so (`judge`, as in
+ * `transferCoin`). A seat that does not own the place relays the whole payment
+ * to the GM (`libGiveCoin`), which refuses a sender who does not own the payer
+ * and never treats the relayed payment as the Judge's.
+ * @param {object} opts
+ * @param {Actor} opts.from  the payer
+ * @param {Actor} opts.to  a location, never a pile on the ground
+ * @param {Array<{id: string, count: number}>} opts.coins  rows of the payer's coin (`givableCoin`) and how many of each
+ * @param {boolean} [opts.gate=true]  apply the reach gate
+ * @param {boolean} [opts.judge=false]  the Judge declares this payment
+ * @returns {Promise<{ok: boolean, reason?: string, paidCp?: number, parts?: Array<{name: string, count: number, cv: number}>}>}
+ */
+export async function giveCoin({ from, to, coins, gate = true, judge = false } = {}) {
+  if (!from || !to) return { ok: false, reason: "missing" };
+  const waived = gate && judge ? coinReach(from, to) : null;
+  const { outOfReach, ...result } = await moveGive({ from, to, coins, gate: gate && !judge });
+  if (outOfReach) ui?.notifications?.warn(reachRefusalText(result, from, to));
+  else if (result.ok && waived && !waived.can) noteJudgeOverride(waived, from, to);
+  else if (result.reason === "insufficient") ui?.notifications?.warn(game.i18n.format("ACKS-LIB.money.insufficient", { name: from.name, detail: "" }).trim());
+  else if (GIVE_REFUSALS.includes(result.reason)) ui?.notifications?.warn(game.i18n.localize(`ACKS-LIB.money.give.${result.reason}`));
+  return result;
+}
+
+// The relayed payment: the sender must own the payer whose coin leaves, and
+// the GM's seat runs the whole of `moveGive` again, gate and plan. It is never
+// the Judge's own: the reach is not waived for a player's request.
+registerHandler("libGiveCoin", async ({ fromUuid, toUuid, coins = [], requestUserId = null } = {}) => {
+  const from = resolveActorSync(fromUuid);
+  const to = resolveActorSync(toUuid);
+  if (!from || !to) return { ok: false, reason: "missing" };
+  if (requestUserId) {
+    const user = game.users.get(requestUserId);
+    if (!user || (!user.isGM && !from.testUserPermission(user, "OWNER"))) return { ok: false, reason: "notYours" };
+  }
+  return moveGive({ from, to, coins, gate: true });
+});

@@ -613,6 +613,12 @@
             <i class="fas fa-down-long"></i> {{localize "ACKS-LOCATION.storage.deposit"}}
           </button>
         {{/if}}
+        {{#if canPay}}
+          <button type="button" class="acks-location-btn" data-action="payHouse"
+                  data-tooltip="{{localize 'ACKS-LOCATION.storage.pay.hint'}}">
+            <i class="fas fa-coins"></i> {{localize "ACKS-LOCATION.storage.pay.button"}}
+          </button>
+        {{/if}}
         {{#if editable}}
           <button type="button" class="acks-location-btn" data-action="openManager"
                   data-tooltip="{{localize 'ACKS-LOCATION.manager.menuHint'}}">
@@ -645,7 +651,7 @@
             {{#if group.dangling}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{group.name}}
           </span>
           {{#if group.coinGC}}
-            <span class="acks-location-coin">{{group.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
+            <span class="acks-location-coin"{{#if group.coinTip}} data-tooltip-text="{{group.coinTip}}"{{/if}}>{{group.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
           {{/if}}
           {{#if group.canTake}}
             <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="retrieveAll">

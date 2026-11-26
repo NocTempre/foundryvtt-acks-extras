@@ -213,6 +213,47 @@ search for the first count cell on the tab finds that row and no header at
 all. Both lines are injected after the sheet's render hooks have run, so the
 block's controls are bound here (`bindCoinOrder`).
 
+## Paying the house
+
+**Pay the house** on the place sheet's Storage tab, beside Deposit here, moves
+exact coins from a character into the place's own coin: the rows stamped
+`HOUSE_OWNER`, which `tillCoinCp` reads and `refreshTill` only tops up (it mints
+when the coin is short, so coin paid in stays). It is a transfer and nothing
+else: no price, no sale, no change, and no market roll. A deposit is another
+move: it stays the depositor's.
+
+- **Control.** `canPay` is true for a seat that owns a character, on a place that
+  is not a ground pile. It does not need storage turned on, and `payHouse` is in
+  `VIEWER_CONTROLS` so a seat that only observes the place still has it live.
+- **Dialog.** `openStashDialog(sources, place, {mode: "pay"})`: the chosen
+  character's coin rows on hand in stores no lock shuts (`lib/money.mjs`
+  `givableCoin`), each with a count box capped at what is held, and a blank box
+  pays the whole stack. Whole coins are named, not a sum in gold, because a
+  sum lets the planner swap coins and refuse for want of change. The picks and
+  their total are `location/pay-house-logic.mjs`; the live total's tooltip names
+  each coin and its count. Coin the payer has kept at a place is not offered.
+- **Write.** `lib/money.mjs` `giveCoin({from, to, coins, judge})` credits the
+  place's own coin, then takes the coins off the payer's rows. A count above
+  what a row holds, a row that is not coin or is shut away, a payee that is not
+  a place and a ground pile are refused whole. A seat that owns the payer but
+  not the place relays as `libGiveCoin`; the GM's seat refuses a sender who does
+  not own the payer, runs the reach again and never counts the move as the
+  Judge's.
+- **Reach** is `coinReach`'s, the one a purchase meets (`depositReach` for a
+  place). A Player out of reach sees the reason and Pay is off; the Judge sees
+  the same text as a warning, Pay stays live, and the payment goes through with
+  the `judgeOverride` notice. A relay with no Judge connected is `noGm`, warned
+  by `executeAsGM`.
+- **Chat.** One whisper to the Judges and the payer's owners
+  (`judgesAndOwners(payer)`), posted by the seat that pressed Pay, so a relayed
+  payment posts once: who paid how many gp to which place, and the coins.
+- **Out.** This control has no take-out. The House group's Take is the place's
+  owner's, and any other seat takes a House row only once it is marked
+  retrievable. A group's coin figure carries a tooltip of its coins and counts
+  (`coinTip`); the House's is the figure a payment changes.
+
+Walked in [TESTING.md](TESTING.md), step 30.
+
 ## Banked coin
 
 The system's coin rows carry a second count, `system.quantitybank`. Nothing in

@@ -2124,6 +2124,7 @@ const { coinKind, coinCount, coinRate, coinTotalCp, coinTotalGC,      // read
         standingCoinScope, COIN_SCOPE_SETTING,                        // reach
         coinReach, exchangeTermsAt, HOUSE_OWNER,
         creditCoin, mintCoin, sinkCoin, transferCoin, exchangeCoins,  // write
+        giveCoin, givableCoin,
         gatherCoin, coinTemplate } = acksExtras.lib.money;
 ```
 
@@ -2153,6 +2154,7 @@ on it). Left out, the call takes the world setting `coinScope`.
 | `sinkCoin(holder, gp, {within?})` | Coin paid to nobody. `{ok, changeCp}`, or `{ok: false, reason: "insufficient", shortfallCp}` with nothing written. It does not warn; the caller says why. |
 | `transferCoin({from, to, gp, reason?, at?, gate?, allowMint?, upTo?, within?, judge?})` | Coin from one holder to another. `judge` carries the Judge's own payment past a reach refusal and tells them what was waived (`judgeDeclares`, `lib/sockets.mjs`). `{ok, changeCp}`, or `{ok, paidCp, arrearsCp}` under `upTo`, or `{ok: false, reason}` after its own warning (`notTogether` and the other reach reasons, `insufficient`, `noChange`). |
 | `exchangeCoins({actor, place, itemId, count, toCv, judge?})` | One kind for another at a market. `{ok, paidOutCp}`. `judge` is `transferCoin`'s. |
+| `giveCoin({from, to, coins, gate?, judge?})` / `givableCoin(holder)` | Exact coins into a place's own coin: `coins` is `[{id, count}]` over the rows `givableCoin` lists (the payer's coin on hand in stores no lock shuts), and those counts leave the payer and land stamped as the house's, with no price and no change. A count above what a row holds, a shut or non-coin row, a payee that is not a place and a pile on the ground are refused whole, writing nothing. `judge` is `transferCoin`'s. `{ok, paidCp, parts: [{name, count, cv}]}` or `{ok: false, reason}` after its own warning. Relayed as `libGiveCoin` where the seat does not own the place. |
 | `gatherCoin(holder)` | Folds rows of one kind in one store into one, on the holder and at each place keeping coin for them that the seat may write. `{merged}`. |
 | `coinTemplate({cv?, name?})` | The plain data a new row of that coin is copied from, or `null` when the world has none. |
 

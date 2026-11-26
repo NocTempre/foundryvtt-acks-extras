@@ -800,6 +800,59 @@ by hand.
     unlinked with the Player at OWNER, storage off on A and B, no group rows. Offline:
     `tools/test-scene-part.mjs`, `tools/test-location-seat.mjs`.
 
+30. **Pay the house moves exact coins into a place's own coin.** *Unwalked
+    when written.* Fixtures: `location/owner-hero`, `location/owner-place-a`,
+    `location/owner-place-b` and `location/owner-scene` (Fixtures above), and
+    on the hero one Gold row of 40 and one Silver row of 20, carried loose and
+    tagged `flags.world.fixtureItem` (so the next start clears them). Each step
+    starts by bringing the shape from the Judge seat: the hero holds exactly
+    those two rows; A and B each hold no coin stamped to the house and no row
+    marked retrievable; A at Player OWNER, B at Player OBSERVER; the scene and
+    both places unlinked; the hero unpinned from B and its token on no scene.
+    The Judge seat is only the driver and the reader of what landed; the
+    Player seat walks every gate. The Pay the house button is on the Storage
+    tab beside Deposit here; the dialog is
+    `foundry.applications.instances` of the open `DialogV2` (its form is
+    `dialog.element.querySelector("form")`).
+    - (a) *Judge seat, A:* press Pay the house, tick Gold, type 3, press Pay.
+      *Observable:* the hero's Gold row reads 37, A's Storage tab lists a House
+      row of Gold ×3 and its figure reads 3 gp, no Silver moved, and one
+      whispered chat line, "<hero> paid 3 gp to <A>: Gold ×3.", is posted to
+      the Judges and the hero's owners.
+    - (b) *Player seat, B unpinned:* open B's Storage tab, press Pay the
+      house, tick Gold. *Observable:* the reach line shows the sentence of
+      `ACKS-LIB.money.reach.notYours` and the Pay button is disabled
+      (**whether DialogV2's ok button is `button[data-action="ok"]` is
+      inferred from core's markup, not run: this step is where it is
+      settled**). Nothing is written.
+    - (c) *Player seat, B pinned to the hero* (the Judge seat runs
+      `acksExtras.location.reach.setPinnedPlace(hero, B.uuid, true)`, or puts
+      the hero's token on a scene linked to B): press Pay the house, tick
+      Gold, type 3, Pay. *Observable:* the reason line is gone and Pay is
+      live; the hero's Gold reads 3 fewer than before and B's House reads 3 gp,
+      written through the relay (the seat does not own B).
+      One whispered line is posted, and only once.
+    - (d) *Judge seat, an out-of-reach payer:* with the hero unpinned from B,
+      pay 3 Gold to B. *Observable:* the reason shows as a warning in the
+      dialog with Pay still live, the payment goes through, and the info
+      notice `ACKS-LIB.money.judgeOverride` reads the same reason.
+    - (e) *Player seat, B, straight after (c) with no reset:* B's House now
+      holds the coin paid in. *Observable:* its row carries no Take and the
+      group no Take everything on the Player's tab, since the place's owner
+      alone takes from the house; it holds only while that row is not marked
+      retrievable, which nothing in this step does.
+    - (f) *Player seat, A (owned, in reach):* pay 3 Gold. *Observable:* the
+      same writes as (a), made by the seat itself with no relay.
+    - *Refusals:* a count typed above what the row holds is capped by the
+      box to the held figure; a Judge-run
+      `acksExtras.lib.money.giveCoin({from: hero, to: A, coins: [{id, count: 99}]})`
+      answers `{ok: false, reason: "insufficient"}`, warns once and writes
+      nothing.
+    *Teardown:* none; the coin rows carry the fixture-item tag and the
+    House rows the steps made are swept by the ids read back. Offline:
+    `tools/test-coin-flows.mjs` (the lib's `giveCoin` and its relay),
+    `tools/test-pay-house.mjs`.
+
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin
 moving between holders is docs/lib/TESTING.md, "Coin: one stack, moved and

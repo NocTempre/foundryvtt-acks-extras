@@ -269,6 +269,21 @@
 .acks-location-pick-actor {
   margin-bottom: 0.4rem;
 }
+/* Pay the house: the live total is a figure, so tabular; the reach line is a
+   status under the list, shown only while the payer is out of reach. */
+.acks-extras-pay-total {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.acks-extras-pay-reach {
+  margin: 0;
+  padding-left: 0.4rem;
+  border-left: 3px solid currentcolor;
+}
+.acks-extras-pay-reach[hidden] {
+  display: none;
+}
 
 /* Manager: places down the side, the selected place's goods beside them. */
 .acks-location-manager-body {

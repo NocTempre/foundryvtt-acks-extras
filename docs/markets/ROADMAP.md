@@ -36,12 +36,6 @@ vehicles setting its market impact. What is not built:
 - **The gate toll has no step in the markets walk.** `tools/live/markets.mjs`
   has no step for the city gate (TESTING G8, marker `markets/city-gate`), so
   G8 is walked by hand.
-- **Paying a place without a sale.** A place sheet takes a character's coin
-  as a deposit, which stays the character's, or through a purchase. No control
-  moves coin into the place's own purse (`tillCoinCp`, `engine/till.mjs`) for
-  a fee, a toll or a gift. Asked by the owner on 2026-11-25 as a question and
-  not ruled. It is a new control on the place sheet, so it starts with a
-  design board (`.claude/rules/ui-layout.md`, "Design before build").
 - **A trader's seen prices.** `pricesSeen` on a market report
   (`markets/data/report-data.mjs`) is reserved and nothing writes it.
 - **Calendar seasons for grain pricing** — the spring/autumn step waits on

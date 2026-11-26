@@ -144,6 +144,18 @@ the lock beside the row (**Retrievable**) and it opens. That
 holds for a spoil too, marked with a bone; the owner releases it, and no throw
 claims it.
 
+To pay the house coin directly (a fee, a toll or a gift, with no purchase),
+press **Pay the house** beside **Leave something here** on the same Storage
+tab. Pick the character, tick the coins and type how many of each (a blank
+count pays the whole stack); exactly those coins leave the character and
+become the house's own coin, shown as the **House** figure, whose tooltip names
+its coins. There is no price and no change. A character out of reach of the
+place is refused with the reason, and the Judge sees the reason as a warning
+and pays anyway. The Judges and the character's owners get one whispered line
+saying who paid what. Paying does not need the place to hold goods, and it
+gives the payer no way to take the coin back: only the place's owner does,
+with **Take it back** or **Take everything**.
+
 ![](../releases/v4.0.0/location-house-pile.png)
 
 *A location's own coin and stock: the owner's locks, and a spoil beside them.*

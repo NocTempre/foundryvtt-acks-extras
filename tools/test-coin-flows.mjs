@@ -1027,6 +1027,128 @@ await test("the Judge moves coin only for the seat that owns the payer", async (
   }
 });
 
+console.log("coin: paid into a place, the exact coins");
+const { giveCoin, givableCoin } = money;
+const { executeAsGM: relayAsGM } = await import("../scripts/lib/sockets.mjs");
+/** The coin rows a place holds as its own, as `name ×count` with the stamp they carry. */
+const houseCoin = (place) => place.items.filter((i) => i.type === "money").map((i) => `${i.name} ×${i.system.quantity} @${i.flags["acks-extras"]?.storage?.ownerUuid ?? "-"}`).sort();
+const farAway = () => ({ ...mapAnswers(), reach: { depositReach: () => ({ can: false, reason: "notHere", scene: { name: "Town" } }) } });
+
+await test("paying 30 of 40 gold leaves 10 on the payer and 30 stamped as the house's, no price and no change", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(40, { _id: "g" }), silver(20, { _id: "s" })] });
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  const paid = await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 30 }] });
+  assert.deepEqual([paid.ok, paid.paidCp, paid.parts], [true, 3000, [{ name: "Gold", count: 30, cv: 100 }]]);
+  assert.deepEqual([purse(hero), houseCoin(inn)], [["Gold ×10", "Silver ×20"], [`Gold ×30 @${HOUSE_OWNER}`]]);
+  assert.equal(purseGp(inn), 30, "it is the place's own coin, the till's figure");
+  await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 5 }, { id: "g", count: 5 }] });
+  assert.deepEqual([purse(hero), houseCoin(inn)], [["Silver ×20"], [`Gold ×40 @${HOUSE_OWNER}`]], "a second payment joins the house's row of its kind; a repeated id is counted once over; an emptied row is gone");
+  assert.equal(warnings.length, 0);
+});
+await test("a payer without enough of a picked coin is refused whole, with nothing paid of the rest", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(40, { _id: "g" }), silver(5, { _id: "s" })] });
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  const short = async (coins) => {
+    const result = await giveCoin({ from: hero, to: inn, coins });
+    assert.deepEqual([result.ok, result.reason], [false, "insufficient"]);
+    return result;
+  };
+  assert.equal((await short([{ id: "g", count: 41 }])).shortfallCp, 100, "one gold piece more than is held, said in copper");
+  await short([{ id: "s", count: 3 }, { id: "g", count: 41 }]);
+  await short([{ id: "g", count: 20 }, { id: "g", count: 21 }]);
+  assert.deepEqual([purse(hero), houseCoin(inn), hero.writes + inn.writes], [["Gold ×40", "Silver ×5"], [], 0], "the silver that could have been paid was not");
+  assert.equal(warnings.length, 3, "each says the payer cannot cover it");
+});
+await test("a row that is not coin, a row shut away and a payee that is not a place are refused whole", async () => {
+  const hero = makeActor({ id: "hero", items: [gold(40, { _id: "g" }), silver(5, { _id: "s" }), pack("chest", LOCKED, { name: "Chest" }), gold(90, { _id: "shut", flags: inside("chest") }), pack(), silver(7, { _id: "open", flags: inPack }), { _id: "rope", name: "Rope", type: "item", system: { quantity: 1 }, flags: {} }] });
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  const refused = (result, reason) => assert.deepEqual([result.ok, result.reason], [false, reason]);
+  refused(await giveCoin({ from: hero, to: inn, coins: [{ id: "shut", count: 1 }] }), "shut");
+  refused(await giveCoin({ from: hero, to: inn, coins: [{ id: "rope", count: 1 }] }), "notCoin");
+  refused(await giveCoin({ from: hero, to: inn, coins: [{ id: "gone", count: 1 }] }), "notCoin");
+  refused(await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 0 }, { id: "g", count: -2 }] }), "nothing");
+  refused(await giveCoin({ from: hero, to: makeActor({ id: "friend" }), coins: [{ id: "g", count: 1 }] }), "notPlace");
+  assert.equal(hero.writes + inn.writes, 0, "a refusal writes nothing, not even the part that could have been paid");
+  assert.equal(warnings.length, 5, "and each says why");
+  assert.deepEqual(givableCoin(hero).map((r) => r.id).sort(), ["g", "open", "s"], "the offer is the coin on hand in stores no lock shuts");
+  assert.equal((await giveCoin({ from: hero, to: inn, coins: [{ id: "open", count: 7 }] })).ok, true, "coin in a carried container that is open pays");
+  assert.deepEqual(houseCoin(inn), [`Silver ×7 @${HOUSE_OWNER}`]);
+});
+await test("a payer out of reach is refused with the sentence about the place, and the Judge's own is carried past it and says so", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(40, { _id: "g" })] });
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  acksExtras.location = farAway();
+  const said = [];
+  const info = ui.notifications.info;
+  ui.notifications.info = (text) => said.push(text);
+  game.i18n.has = () => true;
+  try {
+    const refused = await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 3 }] });
+    assert.deepEqual([refused.ok, refused.reason, refused.scene], [false, "notHere", "Town"]);
+    assert.deepEqual(warnings, ["ACKS-LIB.money.reach.notHere"]);
+    assert.deepEqual([hero.writes + inn.writes, said], [0, []]);
+    const carried = await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 3 }], judge: true });
+    assert.equal(carried.ok, true);
+    assert.deepEqual([purse(hero), houseCoin(inn), said], [["Gold ×37"], [`Gold ×3 @${HOUSE_OWNER}`], ["ACKS-LIB.money.judgeOverride"]]);
+  } finally {
+    delete acksExtras.location;
+    delete game.i18n.has;
+    ui.notifications.info = info;
+  }
+});
+await test("a seat that does not own the place hands the payment to the Judge, and with no Judge nothing is written", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(40, { _id: "g" })] });
+  worldActors.set(hero.id, hero);
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  inn.owners = [];
+  game.user = PLAYER;
+  game.users.activeGM = null;
+  try {
+    assert.deepEqual(await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 3 }] }), { ok: false, reason: "noGm" });
+    assert.equal(hero.writes + inn.writes, 0);
+    const calls = connectJudge();
+    const paid = await giveCoin({ from: hero, to: inn, coins: [{ id: "g", count: 3 }] });
+    assert.deepEqual([paid.ok, paid.paidCp, purse(hero), houseCoin(inn), calls], [true, 300, ["Gold ×37"], [`Gold ×3 @${HOUSE_OWNER}`], ["libGiveCoin"]]);
+    const mine = makePlace({ id: "mine", name: "Mine" });
+    assert.equal((await giveCoin({ from: hero, to: mine, coins: [{ id: "g", count: 1 }] })).ok, true);
+    assert.equal(calls.length, 1, "a place the seat owns is written by the seat");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+await test("the relay refuses a sender who does not own the payer, and runs the reach again as nobody's Judge", async () => {
+  const mark = makeActor({ id: "mark", items: [gold(50, { _id: "g" })] });
+  const hero = makeActor({ id: "hero", items: [gold(50, { _id: "g" })] });
+  mark.owners = [];
+  worldActors.set(mark.id, mark);
+  worldActors.set(hero.id, hero);
+  const inn = makePlace({ id: "inn", name: "Inn" });
+  inn.owners = [];
+  const calls = connectJudge();
+  game.user = PLAYER;
+  try {
+    assert.deepEqual(await giveCoin({ from: mark, to: inn, coins: [{ id: "g", count: 20 }] }), { ok: false, reason: "notYours" }, "the seat's own check");
+    assert.equal(calls.length, 0, "which stops it before any relay");
+    const ask = (from) => relayAsGM("libGiveCoin", { fromUuid: from.uuid, toUuid: inn.uuid, coins: [{ id: "g", count: 20 }] });
+    assert.deepEqual(await ask(mark), { ok: false, reason: "notYours" }, "the Judge's seat, asked by a player who does not own the payer");
+    assert.deepEqual([purse(mark), houseCoin(inn)], [["Gold ×50"], []]);
+    acksExtras.location = farAway();
+    try {
+      const turned = await ask(hero);
+      assert.deepEqual([turned.ok, turned.reason], [false, "notHere"], "an owner's relayed payment meets the gate, which the Judge's seat does not waive for it");
+      assert.deepEqual([purse(hero), houseCoin(inn)], [["Gold ×50"], []]);
+    } finally {
+      delete acksExtras.location;
+    }
+    assert.equal((await ask(hero)).ok, true, "and the same call in reach is written");
+    assert.deepEqual([purse(hero), houseCoin(inn)], [["Gold ×30"], [`Gold ×20 @${HOUSE_OWNER}`]]);
+    const garbled = await relayAsGM("libGiveCoin", { fromUuid: hero.uuid, toUuid: hero.uuid, coins: "gold" });
+    assert.equal(garbled.ok, false, "a payee that is not a place, or no coins, is refused");
+  } finally {
+    game.user = JUDGE;
+  }
+});
+
 console.log("goods: a place the seat does not own");
 await storage.registerStorageRelay();
 const { getSocket } = await import("../scripts/lib/sockets.mjs");
