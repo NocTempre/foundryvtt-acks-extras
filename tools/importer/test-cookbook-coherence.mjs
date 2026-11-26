@@ -269,6 +269,21 @@ for (const e of monsters) {
   check(`${e.id}: every encounter or lair paragraph sharing the spoils column sits below the spoils box${above.length ? ` — ${above.length} do not` : ""}`, above.length === 0);
 }
 
+/* A place two books print keeps the earlier printing's `meta.unique`
+ * paragraphs, by ordinal, out of what its description op writes. One box
+ * writes at most one paragraph (a continued box joins the one before), so an
+ * ordinal above the op's box count names a paragraph no import can write:
+ * `keepParagraphs` skips it and the block comes out shorter than the reviewer's
+ * list says. A recompile that cuts the op's boxes leaves the list behind
+ * unless this refuses it. */
+const pairs = [...entries.values()].filter((e) => e.meta?.sameAs && Array.isArray(e.meta.unique));
+check("the shipped cookbook pairs places", pairs.length > 0);
+for (const e of pairs) {
+  const boxes = e.fields?.description?.paras?.length ?? 0;
+  const over = e.meta.unique.filter((n) => n > boxes);
+  check(`${e.id}: every meta.unique ordinal is a paragraph its description can write (${boxes} box(es))${over.length ? ` — ${over.join(", ")} cannot` : ""}`, over.length === 0);
+}
+
 /* A slayer proficiency's bonus is scoped by `vsKinds` and sized off the page. */
 {
   const MONSTER_KIND = (token) => !!MONSTER_TYPES[token] || kindOf({ type: "monster", name: token }).categories.has(token);
