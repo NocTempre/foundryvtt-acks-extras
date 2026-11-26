@@ -1202,6 +1202,13 @@ answers to is a miss. The damage mark's colour is not in the text layer (`glyphW
 its word), so the extraordinary mark of a printed damage cannot be read from
 text.
 
+A spell entry whose page only says it is the same as another entry carries that
+entry's recipe, and records the other entry in `meta.readsAs` (a register spell
+id). The key is a pointer for a reader and for the suite that pins it; the
+compiler copies it with the rest of `meta` and nothing at runtime reads it,
+since the recipe's structure is authored on the entry's own rows. The summon
+rows of the conjure entries (`tools/test-magic-summon-rows.mjs`) are the case.
+
 Four more row fields are located. `rounds` (a row's dice formula, read like
 `roll`, for a `lasts: "rounds"` row) and `exemptSizeFrom` (`sizeKey`: a size
 word onto a monsters `SIZES` key, by key or label, so a word no size answers to

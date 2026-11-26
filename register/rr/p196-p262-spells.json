@@ -1750,14 +1750,36 @@
       208
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureCacodemonSpawn"
     },
     "assists": {
       "columns": [
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "with\\s*(\\d+)\\s*HD"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureFiend",
@@ -1772,14 +1794,36 @@
       208
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureCacodemonSpawn"
     },
     "assists": {
       "columns": [
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "with\\s*(\\d+)\\s*HD"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureGenie",
@@ -1801,7 +1845,24 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*[a-z]{1,20}?\\s*from\\s*that\\s*sphere"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureHellion",
@@ -1816,14 +1877,36 @@
       208
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureCacodemonSpawn"
     },
     "assists": {
       "columns": [
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "with\\s*(\\d+)\\s*HD"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureImp",
@@ -1838,14 +1921,36 @@
       208
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureCacodemonSpawn"
     },
     "assists": {
       "columns": [
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "with\\s*(\\d+)\\s*HD"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureIncubus",
@@ -1860,14 +1965,36 @@
       209
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureCacodemonSpawn"
     },
     "assists": {
       "columns": [
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "with\\s*(\\d+)\\s*HD"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureMajorElemental",
@@ -1889,7 +2016,28 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "(\\d+)\\s*HD\\s*elemental"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjurePettyElemental",
@@ -1904,14 +2052,36 @@
       209
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureMajorElemental"
     },
     "assists": {
       "columns": [
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "(\\d+)\\s*HD\\s*elemental"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.conjureSupremeElemental",
@@ -1926,14 +2096,36 @@
       209
     ],
     "meta": {
-      "category": "spell"
+      "category": "spell",
+      "readsAs": "def.spell.conjureMajorElemental"
     },
     "assists": {
       "columns": [
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "creature",
+        "type": "summon",
+        "summonFormat": "conjuration",
+        "control": "obedient",
+        "controlEnd": "hostile",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "amount",
+            "articles": true,
+            "pattern": "conjure\\s*(an?)\\s*\\d+\\s*HD"
+          },
+          {
+            "into": "value",
+            "pattern": "(\\d+)\\s*HD\\s*elemental"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.contactOtherSphere",

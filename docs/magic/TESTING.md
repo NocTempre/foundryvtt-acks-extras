@@ -376,6 +376,30 @@ one reading the cast's refusal takes. The relay itself is not exercised.
        holds the neutral label and not the creature's name; as the Judge's seat
        draws it, it holds the name; the message's stored `content` does not hold
        the name.
+15. A conjure entry the importer rowed (the nine entries beside Cacodemon
+    Spawn). A copy, on the caster, of an imported Conjure Imp (the
+    smallest), made after the Spells shelf is repaired in place (the
+    importer's Repair in place); the copy is tracked and deleted at teardown, and
+    its duration is the printed one, not a rewritten one. The step reads the
+    copy's row first. *Observable:* one `summon` row, format `conjuration`,
+    control `obedient`, `controlEnd` `hostile`, no `ref`, and a count and Hit
+    Dice the import located; the same read of an imported Conjure Genie shows a
+    count and no Hit Dice. The Player casts one creature, naming it by uuid
+    where the row names none. *Observable:* the cast card reads held and not
+    timed, with the printed duration as its cap, and the Player's sheet shows the
+    caster concentrating. Then, in three casts: (a) the Player's seat dismisses
+    the creature at will, *Observable:* the creature is removed and the
+    concentration ends with no hostile card; (b) the concentration is ended by
+    the status's toggle, *Observable:* the creature stands stamped `lost`, the
+    Player's ownership is gone, its disposition is hostile and the Player's
+    Dismiss is refused `controlLost`; (c) the world clock is advanced past the
+    printed duration with the creature not dismissed, *Observable:* the end card
+    names the same outcome as (b), the creature hostile and stamped `lost`.
+    Repeat (b) for a Conjure Petty Elemental copy, which reads its
+    mark from the Major Elemental's entry, and a Conjure Dybbuk copy, which reads
+    it from Cacodemon Spawn's. Where Repair in place leaves a spell with no
+    row, the walk reports it: the changelog tells Judges to repair, so the
+    repair must bring the row to a spell that has none.
 
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
 caster records, the fight, the walk's own token, the generated creature and

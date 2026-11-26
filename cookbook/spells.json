@@ -8512,7 +8512,8 @@
         208
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureCacodemonSpawn"
       },
       "icon": "icons/magic/unholy/barrier-fire-pink.webp",
       "fields": {
@@ -8585,6 +8586,30 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "with\\s*(\\d+)\\s*HD"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -8598,7 +8623,8 @@
         208
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureCacodemonSpawn"
       },
       "icon": "icons/magic/unholy/beam-impact-green.webp",
       "fields": {
@@ -8661,6 +8687,30 @@
                   10
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "with\\s*(\\d+)\\s*HD"
+                }
+              ]
             }
           ]
         }
@@ -8781,6 +8831,26 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[a-z]{1,20}?\\s*from\\s*that\\s*sphere"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -8794,7 +8864,8 @@
         208
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureCacodemonSpawn"
       },
       "icon": "icons/magic/unholy/beam-ringed-impact-purple.webp",
       "fields": {
@@ -8858,6 +8929,30 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "with\\s*(\\d+)\\s*HD"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -8871,7 +8966,8 @@
         208
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureCacodemonSpawn"
       },
       "icon": "systems/acks/assets/icons/imp.webp",
       "fields": {
@@ -8936,6 +9032,30 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "with\\s*(\\d+)\\s*HD"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -8949,7 +9069,8 @@
         209
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureCacodemonSpawn"
       },
       "icon": "icons/magic/unholy/beams-impact-pink.webp",
       "fields": {
@@ -9020,6 +9141,30 @@
                   18
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "with\\s*(\\d+)\\s*HD"
+                }
+              ]
             }
           ]
         }
@@ -9146,6 +9291,30 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "(\\d+)\\s*HD\\s*elemental"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -9159,7 +9328,8 @@
         209
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureMajorElemental"
       },
       "icon": "icons/magic/fire/explosion-flame-lightning-strike.webp",
       "fields": {
@@ -9222,6 +9392,30 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "(\\d+)\\s*HD\\s*elemental"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -9235,7 +9429,8 @@
         209
       ],
       "meta": {
-        "category": "spell"
+        "category": "spell",
+        "readsAs": "def.spell.conjureMajorElemental"
       },
       "icon": "icons/magic/fire/flame-burning-creature-skeleton.webp",
       "fields": {
@@ -9295,6 +9490,30 @@
                   7
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "controlEnd": "hostile",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "(\\d+)\\s*HD\\s*elemental"
+                }
+              ]
             }
           ]
         }
