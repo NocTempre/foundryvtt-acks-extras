@@ -3038,7 +3038,7 @@ send out under it. Nothing is pushed and no walk was run here.
 Followers tab's service mode") and `docs/character-sheet/MODEL.md`
 ("Followers"):
 
-- **h1 (`484306b3`, lib `apiVersion` 96):** `serviceChartContext` and
+- **h1 (lib `apiVersion` 97):** `serviceChartContext` and
   `serviceLocationsContext` draw lib's chart and Locations partials in a
   service mode over the nodes the tab passes in (lib imports no henchmen
   reader). A hired unit's head is its officer's Follower Card and the officer
@@ -3046,13 +3046,13 @@ Followers tab's service mode") and `docs/character-sheet/MODEL.md`
   with a count of its direct followers. `org.sendOutHolder` and
   `org.recallHolder` are keyed by the follower's uuid, and `org.placesOf` is
   the one reader of the places, so a hidden roster row stays a Judge's.
-- **h2 (`f0b7c561`, `290835f5`):** the Followers tab's switch, kept per
+- **h2:** the Followers tab's switch, kept per
   window in the sheet's `#ui.followersView`; the sheet takes six org actions
   by name, never `ORG_ACTIONS` whole, since its `hirelingShow` would replace
   the sheet's. Also four fixes to h1's output: Out at reads `placesOf`, a
   placed follower's name prints once, service-worded tooltips and refusals,
   and the rank line names the kind in words.
-- **h3 (`a235d8cf`):** `tools/live/character-followers-views.mjs` and
+- **h3:** `tools/live/character-followers-views.mjs` and
   `docs/character-sheet/TESTING.md` "The Followers tab's views", on fixtures
   of its own, `character-sheet/followers-*`, so it never fights
   `lib-org-chart` over `henchmen/service-*`.
