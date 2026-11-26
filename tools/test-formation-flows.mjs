@@ -2178,6 +2178,292 @@ await scenario("a seat that owns a member writes the party's form fields through
   }
 });
 
+await scenario("a seat that owns a member makes the movement, grid and weather presses through the relay, and Save order, Load order, the audit and Disband follow their own tests", async () => {
+  // Owner rule: "Tool permissions are hardcoded (e.g. summons) by server role
+  // instead of object ownership, only judge secrets are supposed to be an
+  // exception to this rule". The seat test is Foundry's ownership of a member.
+  // A relayed press never reads `judge: true` and never passes `override: true`:
+  // a Player's movementTile carrying both parses to its mode alone.
+  const travel = await import("../scripts/formation/travel.mjs");
+  const marching = await import("../scripts/formation/marching-templates.mjs");
+  const { PARTY_PRESSES } = await import("../scripts/formation/party-press.mjs");
+  const { SHARED_ACTIONS } = await import("../scripts/formation/formation-actions.mjs");
+  const { auditWindowId } = await import("../scripts/formation/skill-audit.mjs");
+  // Invented weather tables, registered the way an import registers them: they
+  // prove the press, never the book.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { WEATHER_DOC } = await import("../scripts/vehicles/vehicle-speed.mjs");
+  registerTable({
+    id: WEATHER_DOC,
+    tables: {
+      climateModifiers: { Af: { spring: { tDay: -1, tNight: -4, p: 0, w: 0 } } },
+      dailyTemperatureLow: [{ min: null, max: 6, key: "cold" }, { min: 7, max: null, key: "balmy" }],
+      dailyTemperatureHigh: [{ min: null, max: 4, key: "chilly" }, { min: 5, max: null, key: "warm" }],
+      dailyPrecipitation: [{ min: null, max: 7, key: "clear" }, { min: 8, max: null, key: "rainy" }],
+      dailyWind: [{ min: null, max: 4, key: "still" }, { min: 5, max: null, key: "moderate" }],
+      accumulation: {},
+    },
+  }, { priority: PRIORITY.WORLD, source: "test" });
+  const party = await drawnParty("Presser");
+  const { id, walker: mine } = party;
+  mine.ownership = { default: 0, PL1: 3 };
+  const theirs = await member("Presser B");
+  await model.addMember(model.getFormation(id), theirs, null);
+  for (const actor of [mine, theirs]) Object.defineProperty(actor, "isOwner", { get: () => actor.testUserPermission(game.user) });
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  const gmUser = game.user;
+  // `can` as Foundry's User answers it: only the permission the scenario grants.
+  let granted = false;
+  for (const user of game.users) user.can = (permission) => user.isGM || (user.id === "PL1" && granted && permission === "SETTINGS_MODIFY");
+  const asSeat = async (userId, fn) => {
+    game.user = game.users.get(userId);
+    try {
+      return await fn();
+    } finally {
+      game.user = gmUser;
+    }
+  };
+  const press = (userId, name, args, extra = {}) => asSeat(userId, () => requests.requestPartyAction(id, "partyPress", { press: name, args, ...extra }));
+  const sheet = () => ({ get formation() { return model.getFormation(id); }, render() {} });
+  const stored = () => onlyFormation();
+  const movementSet = () => stored().travel?.movement?.set ?? null;
+  const cellsOf = () => stored().members.map((m) => (m.blank ? "blank" : m.actorId));
+  const chatStart = chat.length;
+  const said = () => chat.length - chatStart;
+  const DialogV2 = foundry.applications.api.DialogV2;
+  const [priorConfirm, priorWait, priorPrompt] = [DialogV2.confirm, DialogV2.wait, DialogV2.prompt];
+  const priorSet = game.settings.set;
+  const priorInstances = foundry.applications.instances;
+  const priorRandom = Math.random;
+  const savedOrders = [];
+  try {
+    await model.patchFormation(id, (rec) => { rec.frontage = 2; });
+    const [a, b] = [mine.id, theirs.id];
+
+    // --- A parse reads only the keys it names, so a Judge's flag buys a seat nothing.
+    const f = stored();
+    assert.deepEqual(PARTY_PRESSES.movementTile.parse({ mode: "mounted", judge: true, override: true }, f), { mode: "mounted" });
+    for (const args of [{}, { mode: 7 }, { mode: "hover" }, { mode: "__proto__" }, { mode: ["foot"] }, null]) assert.equal(PARTY_PRESSES.movementTile.parse(args, f), null, `movementTile ${JSON.stringify(args)}`);
+    for (const entry of ["movementFastest", "movementUndo", "autoArrange", "addBlank", "weatherRoll"]) assert.deepEqual(PARTY_PRESSES[entry].parse({ judge: true, override: true }, f), {}, `${entry} carries nothing`);
+    assert.deepEqual(PARTY_PRESSES.removeBlank.parse({ cell: 2, override: true }, f), { cell: 2 });
+    for (const args of [{}, { cell: "2" }, { cell: -1 }, { cell: 1.5 }, { cell: NaN }, { cell: null }, null]) assert.equal(PARTY_PRESSES.removeBlank.parse(args, f), null, `removeBlank ${JSON.stringify(args)}`);
+    assert.deepEqual(PARTY_PRESSES.moveBlank.parse({ cell: 1, dir: "up", judge: true }, f), { cell: 1, dir: "up" });
+    for (const args of [{ cell: 1 }, { cell: 1, dir: "diagonal" }, { cell: 1, dir: "UP" }, { cell: 1, dir: 1 }, { cell: "x", dir: "up" }, { dir: "up" }]) assert.equal(PARTY_PRESSES.moveBlank.parse(args, f), null, `moveBlank ${JSON.stringify(args)}`);
+    assert.deepEqual([...PARTY_PRESSES.movementTile.modes, ...PARTY_PRESSES.weatherRoll.modes], ["journey", "journey"], "a tile and Roll weather are the Wilderness tab's");
+    for (const entry of ["movementFastest", "movementUndo", "autoArrange", "addBlank", "removeBlank", "moveBlank"]) assert.deepEqual([...PARTY_PRESSES[entry].modes].sort(), ["delve", "journey", "settlement"], `${entry} is open in every mode`);
+
+    // --- A party that is not journeying: the Wilderness tab's presses are stale, the Order head's are not.
+    assert.equal(travel.travelOf(stored()).mode, "delve");
+    const before = structuredClone(stored());
+    assert.deepEqual(await press("PL1", "movementTile", { mode: "foot" }), { ok: false, refused: "stale" });
+    assert.deepEqual(await press("PL1", "weatherRoll", {}), { ok: false, refused: "stale" });
+    assert.deepEqual(stored(), before, "a stale press wrote nothing");
+    assert.equal(said(), 0);
+
+    // --- The grid: each lands from a seat that owns a member, with a Judge's flag beside it ignored, and announces nothing.
+    assert.deepEqual(await press("PL1", "addBlank", {}, { judge: true, override: true }), { ok: true });
+    assert.deepEqual(cellsOf(), [a, b, "blank"], "a blank joined the grid");
+    assert.deepEqual(await press("PL1", "moveBlank", { cell: 2, dir: "left", judge: true }), { ok: false, refused: "stale" }, "the left edge has nothing to swap with");
+    assert.deepEqual(await press("PL1", "moveBlank", { cell: 2, dir: "down" }), { ok: false, refused: "stale" }, "nor the bottom");
+    assert.deepEqual(await press("PL1", "moveBlank", { cell: 2, dir: "up" }), { ok: true });
+    assert.deepEqual(cellsOf(), ["blank", b, a], "up swaps a rank");
+    assert.deepEqual(await press("PL1", "moveBlank", { cell: 0, dir: "right" }), { ok: true });
+    assert.deepEqual(cellsOf(), [b, "blank", a], "right swaps a file");
+    assert.deepEqual(await press("PL1", "moveBlank", { cell: 0, dir: "right" }), { ok: false, refused: "stale" }, "a member's cell is no blank to move");
+    assert.deepEqual(await press("PL1", "removeBlank", { cell: 0 }), { ok: false, refused: "stale" }, "a member's cell is no blank to remove");
+    assert.deepEqual(await press("PL1", "removeBlank", { cell: 9 }), { ok: false, refused: "stale" }, "nor a cell the grid does not have");
+    assert.deepEqual(cellsOf(), [b, "blank", a], "none of them wrote");
+    assert.deepEqual(await press("PL1", "autoArrange", {}), { ok: true });
+    assert.deepEqual(cellsOf().sort(), [a, b].sort(), "auto-arrange re-lays the party and drops the blank");
+    assert.deepEqual(await press("PL1", "addBlank", {}), { ok: true });
+    assert.deepEqual(await press("PL1", "removeBlank", { cell: 2, judge: true, override: true }), { ok: true });
+    assert.equal(cellsOf().length, 2, "the blank is gone");
+    assert.equal(said(), 0, "arrangement presses announce nothing");
+
+    // --- Fastest and Undo, in the delve too.
+    await model.patchFormation(id, (rec) => { rec.travel = { ...travel.storedTravelOf(rec), movement: { ...travel.storedTravelOf(rec).movement, set: "mounted" } }; });
+    assert.deepEqual(await press("PL1", "movementUndo", {}), { ok: false, refused: "stale" }, "with nothing to put back, Undo is stale");
+    assert.deepEqual(await press("PL1", "movementFastest", {}, { judge: true }), { ok: true });
+    assert.equal(movementSet(), null, "Fastest clears the group word");
+
+    // --- Journeying: a tile, Fastest and Undo each change the record.
+    await model.patchFormation(id, (rec) => {
+      const t = travel.storedTravelOf(rec);
+      rec.travel = { ...t, mode: "journey", weather: { ...t.weather, climate: "Af", season: "spring", auto: true } };
+    });
+    assert.deepEqual(await press("PL1", "movementTile", { mode: "foot", judge: true, override: true }, { judge: true, override: true }), { ok: true });
+    assert.equal(movementSet(), "foot", "the tile sets the group word");
+    assert.deepEqual(await press("PL1", "movementTile", { mode: "hover" }), { ok: false, refused: "badPress" });
+    assert.equal(movementSet(), "foot", "a mode outside the closed set wrote nothing");
+    await model.patchFormation(id, (rec) => { rec.travel = { ...travel.storedTravelOf(rec), lastArrangement: { members: [], rows: [], set: "mounted" } }; });
+    assert.deepEqual(await press("PL1", "movementUndo", {}), { ok: true });
+    assert.equal(movementSet(), "mounted", "Undo puts back the word the last press found");
+    assert.equal(stored().travel.lastArrangement, null, "and spends the snapshot");
+    assert.deepEqual(await press("PL1", "movementFastest", {}), { ok: true });
+    assert.equal(movementSet(), null);
+    assert.equal(said(), 0, "movement presses announce nothing");
+
+    // --- Roll weather: the Judge's own press, then a seat's, write the same sky; the seat's is announced once.
+    // Every die reads 8, so one sky answers both.
+    Math.random = () => 0.5;
+    const sky = () => {
+      const w = travel.storedTravelOf(stored()).weather;
+      return { temperature: w.temperature, precipitation: w.precipitation, wind: w.wind, rolls: w.rolls };
+    };
+    const blankSky = async () => {
+      await game.settings.set(MODULE_ID, "skyCache", {});
+      await model.patchFormation(id, (rec) => {
+        const t = travel.storedTravelOf(rec);
+        rec.travel = { ...t, weather: { ...t.weather, temperature: "", precipitation: "", wind: "", rolls: null } };
+      });
+    };
+    await blankSky();
+    const judgeChat = chat.length;
+    await SHARED_ACTIONS.travelWeatherRoll.call(sheet());
+    const judgesCards = chat.length - judgeChat;
+    const judgesSky = sky();
+    assert.deepEqual(judgesSky.rolls, { t: 8, p: 8, w: 8 }, "the Judge's press rolled a sky");
+    await blankSky();
+    assert.equal(sky().rolls, null);
+    const seatChat = chat.length;
+    assert.deepEqual(await press("PL1", "weatherRoll", { judge: true, override: true }, { judge: true }), { ok: true });
+    assert.deepEqual(sky(), judgesSky, "the seat's press writes the same sky");
+    assert.equal(chat.length - seatChat, judgesCards + 1, "the Judge's cards, plus one announcement");
+    assert.match(String(chat.at(-1).content), /request\.weatherRoll/);
+    assert.equal(said(), 1);
+    Math.random = priorRandom;
+
+    // --- A seat that owns no member is refused every one of them, and nothing is written.
+    const kept = structuredClone(stored());
+    const keptChat = chat.length;
+    const calls = [["movementTile", { mode: "foot" }], ["movementFastest", {}], ["movementUndo", {}], ["autoArrange", {}], ["addBlank", {}], ["removeBlank", { cell: 0 }], ["moveBlank", { cell: 0, dir: "up" }], ["weatherRoll", {}]];
+    for (const [name, args] of calls) assert.deepEqual(await press("PL9", name, args, { judge: true, override: true }), { ok: false, refused: "notOwner" }, `${name} from a seat owning no member`);
+    assert.deepEqual(stored(), kept, "no refusal wrote");
+    assert.equal(chat.length, keptChat, "or announced");
+    assert.deepEqual(await press("PL1", "disband", {}), { ok: false, refused: "badPress" }, "Disband is no press");
+    assert.equal(await asSeat("PL1", () => requests.requestPartyAction(id, "disband", {})), undefined, "nor a request");
+    assert.ok(model.getFormation(id), "the party stands");
+
+    // --- The sheet's own controls, from each seat.
+    const cellTarget = (cell) => ({ closest: (sel) => (sel === "[data-cell-index]" ? { dataset: { cellIndex: String(cell) } } : null) });
+    await asSeat("PL1", () => SHARED_ACTIONS.addBlank.call(sheet()));
+    assert.equal(cellsOf().length, 3, "the player's Add a blank");
+    await asSeat("PL1", () => SHARED_ACTIONS.memberUp.call(sheet(), null, cellTarget(2)));
+    assert.equal(cellsOf()[2] === "blank", false, "a blank's up arrow moves it, for the player");
+    const blankAt = () => cellsOf().indexOf("blank");
+    await asSeat("PL1", () => SHARED_ACTIONS.removeBlank.call(sheet(), null, cellTarget(blankAt())));
+    assert.equal(cellsOf().length, 2, "the player's Remove on a blank");
+    await asSeat("PL9", () => SHARED_ACTIONS.addBlank.call(sheet()));
+    await asSeat("PL9", () => SHARED_ACTIONS.autoArrange.call(sheet()));
+    assert.equal(cellsOf().length, 2, "a seat owning no member presses nothing");
+    await SHARED_ACTIONS.addBlank.call(sheet());
+    await SHARED_ACTIONS.memberUp.call(sheet(), null, cellTarget(2));
+    assert.equal(cellsOf().length, 3, "the Judge's seat keeps its own grid presses");
+    assert.notEqual(cellsOf()[2], "blank", "a blank's arrow moves for the Judge's seat too");
+    await SHARED_ACTIONS.removeBlank.call(sheet(), null, cellTarget(blankAt()));
+    assert.equal(cellsOf().length, 2);
+    await asSeat("PL1", () => SHARED_ACTIONS.movementTile.call(sheet(), null, { dataset: { mode: "foot" } }));
+    assert.equal(movementSet(), "foot", "the player's tile");
+    await asSeat("PL1", () => SHARED_ACTIONS.movementFastest.call(sheet()));
+    assert.equal(movementSet(), null, "the player's Fastest");
+    await asSeat("PL9", () => SHARED_ACTIONS.movementTile.call(sheet(), null, { dataset: { mode: "foot" } }));
+    assert.equal(movementSet(), null, "a seat owning no member sets no tile");
+    await SHARED_ACTIONS.movementTile.call(sheet(), null, { dataset: { mode: "foot" } });
+    assert.equal(movementSet(), "foot", "the Judge's tile");
+    await asSeat("PL1", () => SHARED_ACTIONS.movementTile.call(sheet(), null, { dataset: { mode: "hover" } }));
+    assert.equal(movementSet(), "foot", "a tile outside the closed set writes nothing");
+    await blankSky();
+    await asSeat("PL9", () => SHARED_ACTIONS.travelWeatherRoll.call(sheet()));
+    assert.equal(sky().rolls, null, "a seat owning no member rolls no weather");
+    Math.random = () => 0.5;
+    await asSeat("PL1", () => SHARED_ACTIONS.travelWeatherRoll.call(sheet()));
+    Math.random = priorRandom;
+    assert.deepEqual(sky().rolls, { t: 8, p: 8, w: 8 }, "the player's Roll weather");
+
+    // --- Save order: one world list, written direct by a seat that may change world settings.
+    // A world setting is the Judge's to write unless the user may modify settings, as Foundry has it.
+    game.settings.set = async (ns, key, value) => {
+      const user = game.user;
+      if (user.isGM || !user.can("SETTINGS_MODIFY")) return priorSet.call(game.settings, ns, key, value);
+      game.user = gmUser;
+      try {
+        return await priorSet.call(game.settings, ns, key, value);
+      } finally {
+        game.user = user;
+      }
+    };
+    let prompts = 0;
+    DialogV2.prompt = async () => (prompts++, "Seat order");
+    const orderNamed = (name) => marching.listTemplates().find((t) => t.name === name);
+    await asSeat("PL1", () => SHARED_ACTIONS.saveMarchingOrder.call(sheet()));
+    assert.equal(prompts, 0, "a seat without SETTINGS_MODIFY is not asked a name");
+    assert.equal(orderNamed("Seat order"), undefined, "and saves nothing");
+    granted = true;
+    await asSeat("PL1", () => SHARED_ACTIONS.saveMarchingOrder.call(sheet()));
+    assert.equal(prompts, 1);
+    assert.ok(orderNamed("Seat order"), "a seat with SETTINGS_MODIFY saves direct");
+    savedOrders.push(orderNamed("Seat order").id);
+    granted = false;
+    await asSeat("PL9", () => SHARED_ACTIONS.saveMarchingOrder.call(sheet()));
+    assert.equal(prompts, 1, "a seat owning no member is not asked either");
+    DialogV2.prompt = async () => (prompts++, "Judge order");
+    await SHARED_ACTIONS.saveMarchingOrder.call(sheet());
+    assert.ok(orderNamed("Judge order"), "the Judge saves as before");
+    savedOrders.push(orderNamed("Judge order").id);
+
+    // --- Load order: the pick runs on the seat and a player's apply is the `formUp` relay.
+    const mark = orderNamed("Judge order");
+    const standingOrder = () => cellsOf();
+    await model.patchFormation(id, (rec) => { rec.members.reverse(); });
+    assert.notDeepEqual(standingOrder(), mark.cells.map((c) => c.actorId), "the party stands out of the saved order");
+    let picks = 0;
+    DialogV2.wait = async () => (picks++, { id: mark.id, action: "apply" });
+    await asSeat("PL9", () => SHARED_ACTIONS.loadMarchingOrder.call(sheet()));
+    assert.equal(picks, 0, "a seat owning no member is offered no pick");
+    const loadChat = chat.length;
+    await asSeat("PL1", () => SHARED_ACTIONS.loadMarchingOrder.call(sheet()));
+    assert.equal(picks, 1, "the pick runs on the seat");
+    assert.deepEqual(standingOrder(), mark.cells.map((c) => c.actorId), "the party stands in the saved order");
+    assert.equal(chat.length - loadChat, 1, "announced once");
+    assert.match(String(chat.at(-1).content), /request\.formUp/);
+    DialogV2.wait = async () => ({ id: "nowhere", action: "apply" });
+    await asSeat("PL1", () => SHARED_ACTIONS.loadMarchingOrder.call(sheet()));
+    assert.deepEqual(standingOrder(), mark.cells.map((c) => c.actorId), "an order that no longer exists changes nothing");
+
+    // --- The skill audit opens on a seat that owns a member, and on no other.
+    const standing = { renders: 0, render() { this.renders++; return Promise.resolve(); }, bringToFront() {} };
+    foundry.applications.instances = new Map([[auditWindowId(id), standing]]);
+    await asSeat("PL9", () => SHARED_ACTIONS.openSkillAudit.call(sheet()));
+    assert.equal(standing.renders, 0, "a seat owning no member opens nothing");
+    await asSeat("PL1", () => SHARED_ACTIONS.openSkillAudit.call(sheet()));
+    assert.equal(standing.renders, 1, "a seat that owns a member opens the audit");
+    await SHARED_ACTIONS.openSkillAudit.call(sheet());
+    assert.equal(standing.renders, 2, "and so does the Judge's");
+    foundry.applications.instances = priorInstances;
+
+    // --- Disband stays the Judge's.
+    let asked = 0;
+    DialogV2.confirm = async () => (asked++, true);
+    await asSeat("PL1", () => SHARED_ACTIONS.disband.call(sheet()));
+    assert.equal(asked, 0, "a seat that owns a member is not asked to disband");
+    assert.ok(model.getFormation(id), "the party stands");
+  } finally {
+    Math.random = priorRandom;
+    game.settings.set = priorSet;
+    DialogV2.confirm = priorConfirm;
+    DialogV2.wait = priorWait;
+    DialogV2.prompt = priorPrompt;
+    foundry.applications.instances = priorInstances;
+    for (const orderId of savedOrders) await marching.deleteTemplate(orderId);
+    unregisterTable(WEATHER_DOC, { priority: PRIORITY.WORLD });
+    for (const user of game.users) delete user.can;
+    game.user = gmUser;
+    game.users.pop();
+    await dismissDrawn(party);
+    game.actors.delete(theirs.id);
+  }
+});
+
 await scenario("a player brings their own actors in and takes them out through the GM relay", async () => {
   const theirs = (name) => ActorMock.create({
     name,

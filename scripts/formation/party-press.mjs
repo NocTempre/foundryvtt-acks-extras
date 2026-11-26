@@ -1,10 +1,12 @@
 import { escape as esc, makeLoc } from "../lib/util.mjs";
-import { setHurried } from "./formation-model.mjs";
+import { addBlank, autoArrange, getFrontage, removeBlank, setHurried, swapCells } from "./formation-model.mjs";
 import { hopRefusal, travelToPlace, whisperHop } from "./poi.mjs";
 import { nextHex, spendActivityHours } from "./journey.mjs";
 import { closeDay } from "./day-close.mjs";
 import { runForageDay } from "./forage-run.mjs";
-import { travelOf, TRAVEL_MODES } from "./travel.mjs";
+import { rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
+import { arrangeFastest, setGroupMovement, undoArrangement } from "./conveyance.mjs";
+import { isMode as isMovementMode } from "../lib/movement-modes.mjs";
 import { partyPoint } from "./zones.mjs";
 import { LIGHT_SOURCES } from "./constants.mjs";
 import { adjustSpell, removeLight, removeSpell } from "./turn-engine.mjs";
@@ -65,6 +67,12 @@ export async function workTheCountry(formation) {
   return { ok: true };
 }
 
+/** The directions a blank cell is moved in, as the sheet's arrows name them. */
+const BLANK_DIRECTIONS = Object.freeze(["up", "down", "left", "right"]);
+
+/** A grid position a press names: a whole number, never a numeric string. */
+const isCell = (value) => Number.isInteger(value) && value >= 0;
+
 /** The presses a seat may name, by the name the request carries. */
 export const PARTY_PRESSES = Object.freeze({
   pace: Object.freeze({
@@ -118,6 +126,101 @@ export const PARTY_PRESSES = Object.freeze({
     modes: Object.freeze(["journey"]),
     async run(formation) {
       return (await closeDay(formation)) ? { ok: true, said: loc("request.endDay") } : { ok: false, refused: "quiet" };
+    },
+  }),
+
+  // How the party moves: a group tile, the way back to automatic, and its undo.
+  // A tile is the Wilderness tab's, so it is the journey's; the Order head draws
+  // Fastest and Undo in every mode. None announces: they set a word, nothing in
+  // the world acts. A run re-reads its arguments because the Judge's seat reaches
+  // it without `parse`.
+  movementTile: Object.freeze({
+    parse: (args) => (typeof args?.mode === "string" && isMovementMode(args.mode) ? { mode: args.mode } : null),
+    modes: Object.freeze(["journey"]),
+    async run(formation, { mode }) {
+      if (typeof mode !== "string" || !isMovementMode(mode)) return { ok: false, refused: "badPress" };
+      await setGroupMovement(formation.id, mode);
+      return { ok: true };
+    },
+  }),
+
+  movementFastest: Object.freeze({
+    parse: () => ({}),
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation) {
+      await arrangeFastest(formation.id);
+      return { ok: true };
+    },
+  }),
+
+  // Nothing to put back is a press made on a sheet that has since moved on.
+  movementUndo: Object.freeze({
+    parse: () => ({}),
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation) {
+      return (await undoArrangement(formation.id)) === null ? { ok: false, refused: "stale" } : { ok: true };
+    },
+  }),
+
+  // The marching grid: arrangement presses, open in every mode and announcing
+  // nothing. A cell is named by its position in the record, which a stale sheet
+  // may have wrong, so each cell press checks it is still a blank.
+  autoArrange: Object.freeze({
+    parse: () => ({}),
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation) {
+      await autoArrange(formation);
+      return { ok: true };
+    },
+  }),
+
+  addBlank: Object.freeze({
+    parse: () => ({}),
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation) {
+      await addBlank(formation);
+      return { ok: true };
+    },
+  }),
+
+  removeBlank: Object.freeze({
+    parse: (args) => (isCell(args?.cell) ? { cell: args.cell } : null),
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation, { cell }) {
+      if (!isCell(cell)) return { ok: false, refused: "badPress" };
+      if (!formation.members[cell]?.blank) return { ok: false, refused: "stale" };
+      await removeBlank(formation, cell);
+      return { ok: true };
+    },
+  }),
+
+  // A blank cell swaps with the cell beside it in the direction pressed; at an
+  // edge of the grid there is nothing to swap with.
+  moveBlank: Object.freeze({
+    parse: (args) => (isCell(args?.cell) && BLANK_DIRECTIONS.includes(args.dir) ? { cell: args.cell, dir: args.dir } : null),
+    modes: Object.freeze([...TRAVEL_MODES]),
+    async run(formation, { cell, dir }) {
+      if (!isCell(cell) || !BLANK_DIRECTIONS.includes(dir)) return { ok: false, refused: "badPress" };
+      if (!formation.members[cell]?.blank) return { ok: false, refused: "stale" };
+      const frontage = getFrontage(formation);
+      const edgeLeft = cell % frontage === 0;
+      const edgeRight = cell % frontage === frontage - 1;
+      const delta = { up: -frontage, down: frontage, left: edgeLeft ? 0 : -1, right: edgeRight ? 0 : 1 }[dir];
+      const target = cell + delta;
+      if (!delta || target < 0 || target >= formation.members.length) return { ok: false, refused: "stale" };
+      await swapCells(formation, cell, delta);
+      return { ok: true };
+    },
+  }),
+
+  // The Sky group's Roll weather: the Wilderness tab's, so the journey's. It
+  // announces, since it acts in the world; a registry that cannot answer writes
+  // nothing and says nothing, as the Judge's press does.
+  weatherRoll: Object.freeze({
+    parse: () => ({}),
+    modes: Object.freeze(["journey"]),
+    async run(formation) {
+      return (await rollWeatherNow(formation.id)) ? { ok: true, said: loc("request.weatherRoll") } : { ok: false, refused: "quiet" };
     },
   }),
 

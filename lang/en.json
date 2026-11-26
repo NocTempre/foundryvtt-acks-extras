@@ -3216,6 +3216,7 @@
       "enterHexBlank": "takes the party into the next hex.",
       "forageDay": "works the country for the day.",
       "endDay": "ends the day.",
+      "weatherRoll": "rolls the day's weather.",
       "lightRemove": "puts out {light}.",
       "spellAdjust": "changes {spell}'s turns.",
       "spellRemove": "stops tracking {spell}."

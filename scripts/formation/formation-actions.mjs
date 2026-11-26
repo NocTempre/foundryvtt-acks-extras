@@ -3,16 +3,13 @@ import { dealExperience } from "./xp-app.mjs";
 import { participantsOf } from "./xp-shares.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
 import {
-  addBlank,
   addMember,
-  autoArrange,
   disband,
   getFrontage,
   getPartyActor,
   getPartyScene,
   getPartyToken,
   isHurried,
-  removeBlank,
   removeMember,
   swapCells,
   syncPartyActorSpeed,
@@ -42,7 +39,7 @@ import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolveP
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestPartyForm, requestPartyPress, requestTakeOut, sayPartyFormAnswer, userOwnsMember } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
-import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
+import { chooseConveyance } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
@@ -63,7 +60,7 @@ import {
 } from "./hex-stock-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor, shiftTruth as moveTruth } from "./lost-dialog.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
-import { applyTravelForm, clearDeclaredCountry, rollWeatherNow, travelOf } from "./travel.mjs";
+import { applyTravelForm, clearDeclaredCountry, travelOf } from "./travel.mjs";
 import { applyPartyForm } from "./party-form.mjs";
 import { openCountryBrush, PAINT_LAYERS } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
@@ -102,6 +99,11 @@ function seatOwnsMember(formation) {
   return game.user.isGM || userOwnsMember(formation, game.user);
 }
 
+/** May the current user write the saved marching orders, the one world list every party shares? A Judge always may. */
+function seatCanSaveOrders() {
+  return game.user.isGM || !!game.user.can?.("SETTINGS_MODIFY");
+}
+
 /** Does the current (non-GM) user own this member's actor? */
 function ownsActor(actorId) {
   const actor = game.actors.get(actorId);
@@ -109,16 +111,23 @@ function ownsActor(actorId) {
 }
 
 /**
- * Reorder a member. GMs move anyone (including blank cells) directly; players
- * move THEIR OWN character by relaying to the GM, who recomputes the target
- * cell from live state — the click's cell index may be stale by the time the
- * request lands, the actor id never is.
+ * Reorder a cell. A blank cell is moved by any seat that owns a member, through
+ * the `moveBlank` press. GMs move any member directly; players move THEIR OWN
+ * character by relaying to the GM, who recomputes the target cell from live
+ * state — the click's cell index may be stale by the time the request lands,
+ * the actor id never is.
  */
 async function reorder(app, target, dir) {
   const formation = app.formation;
   if (!formation) return;
+  const cell = Number(target.closest("[data-cell-index]")?.dataset.cellIndex);
+  if (Number.isInteger(cell) && formation.members[cell]?.blank) {
+    if (!seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "moveBlank", { cell, dir });
+    app.render();
+    return;
+  }
   if (game.user.isGM) {
-    const cell = Number(target.closest("[data-cell-index]")?.dataset.cellIndex);
     if (!Number.isInteger(cell)) return;
     const frontage = getFrontage(formation);
     const delta = dir === "up" ? -frontage : dir === "down" ? frontage : dir === "left" ? -1 : 1;
@@ -172,27 +181,27 @@ async function crossingJumpPress(sheet, event, target, step) {
 
 /** The Judge-facing action handlers shared by the formation windows, run with the window as `this`. */
 export const SHARED_ACTIONS = {
-  /** A group tile: the Judge's word for how the whole party moves. */
+  /** A group tile: the word for how the whole party moves. A seat that owns a member sets it too. */
   async movementTile(event, target) {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await setGroupMovement(formation.id, target.dataset.mode);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "movementTile", { mode: target.dataset.mode });
     this.render?.();
   },
 
-  /** Fastest for all, and the way back to automatic: the Judge's word clears. */
+  /** Fastest for all, and the way back to automatic: the group word clears. */
   async movementFastest() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await arrangeFastest(formation.id);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "movementFastest");
     this.render?.();
   },
 
   /** Put the arrangement back as the last group press found it. */
   async movementUndo() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await undoArrangement(formation.id);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "movementUndo");
     this.render?.();
   },
 
@@ -478,11 +487,11 @@ export const SHARED_ACTIONS = {
   },
 
 
-  /** The Judge rolls the day's sky from the imported tables. */
+  /** Roll the day's sky from the imported tables. A seat that owns a member presses it too; the Judge's client rolls. */
   async travelWeatherRoll() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await rollWeatherNow(formation.id);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "weatherRoll");
     this.render();
   },
 
@@ -639,10 +648,10 @@ export const SHARED_ACTIONS = {
     await requestPartyAction(formation.id, "detach", { actorId });
   },
 
-  /** Skill audit: how every party roll resolves per member; custom-skill flags. */
+  /** Skill audit: how every party roll resolves per member; custom-skill flags. A seat that owns a member opens it too. */
   async openSkillAudit() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
     const open = foundry.applications.instances.get(auditWindowId(formation.id));
     if (open) open.render({ force: true }).then(() => open.bringToFront());
     else new SkillAuditApp({ formationId: formation.id }).render(true);
@@ -678,16 +687,20 @@ export const SHARED_ACTIONS = {
 
   /** I-formation from roles and sheet data: full front & back lines, utility centered. */
   async autoArrange() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await autoArrange(formation);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "autoArrange");
     this.render();
   },
 
-  /** Remember the current arrangement under a name the Judge gives it. */
+  /**
+   * Remember the current arrangement under a name the seat gives it. The saved
+   * orders are one world setting every party shares, so the write is direct and
+   * only a seat that may change world settings makes it.
+   */
   async saveMarchingOrder() {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation) || !seatCanSaveOrders()) return;
     const name = await promptForOrderName(formation);
     if (!name) return;
     const saved = await saveTemplate(formation, name);
@@ -698,26 +711,39 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
-  /** Put the party back into a saved arrangement, or forget one. */
+  /**
+   * Put the party back into a saved arrangement, or forget one. The pick runs on
+   * this seat. A seat that is not the Judge's sends the chosen order's id to the
+   * Judge's client, which writes the record and answers `{ok: false}` while a
+   * fight is on; Forget is offered only to a seat that may write world settings,
+   * and writes direct.
+   */
   async loadMarchingOrder() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    if (await carryOutPick(formation, await pickMarchingOrder())) this.render();
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    const picked = await pickMarchingOrder();
+    if (!game.user.isGM && picked?.template && picked.action === "apply") {
+      const answer = await requestPartyAction(formation.id, "formUp", { templateId: picked.template.id });
+      if (answer?.ok === false) ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.marching.notInCombat"));
+      this.render();
+      return;
+    }
+    if (await carryOutPick(formation, picked)) this.render();
   },
 
   async addBlank() {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await addBlank(formation);
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    await requestPartyPress(formation, "addBlank");
     this.render();
   },
 
   async removeBlank(event, target) {
-    const formation = gmFormation(this);
-    if (!formation) return;
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
     const cell = Number(target.closest("[data-cell-index]")?.dataset.cellIndex);
     if (!Number.isInteger(cell)) return;
-    await removeBlank(formation, cell);
+    await requestPartyPress(formation, "removeBlank", { cell });
     this.render();
   },
 
