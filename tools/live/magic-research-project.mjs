@@ -188,7 +188,7 @@ try {
     out.answer = await research().setFacility(place(), "library", 1);
     return out;`, ids);
   check("the Player may only observe the place, so every write of theirs is relayed", f2.isGM === false && f2.writable === false, f2);
-  check("the Player's tab shows the value as text with no input, and the tab is theirs although Storage is not", f2.inputs === 0 && /9000/.test(f2.text) && f2.tabs.includes("research") && !f2.tabs.includes("storage"), f2);
+  check("the Player's tab shows the value as text with no input, and the Research tab is theirs beside Storage, which an observer of the place sees", f2.inputs === 0 && /9000/.test(f2.text) && f2.tabs.includes("research") && f2.tabs.includes("storage"), f2);
   check("a facility write from a Player who does not own the place is refused where it runs, as the owner's, and nothing changed", f2.answer.ok === false && f2.answer.reason === "owner" && (await run(gm, U, `return flag().facilities?.library;`, ids)) === 9000, f2.answer);
 
   section("3. a Judge's project, and what the chip says with no level entered");
@@ -1230,6 +1230,8 @@ try {
 
   // The Player's charge goes in an item a second character they own holds, where the researcher holds no such item: ownership of the item is the gate.
   const ownChargeProj = await finishRitual(ritualSpec);
+  // The finish's own card reaches the Player seat by broadcast; the run counts the cards that come after its snapshot, so the snapshot is taken once that card is there.
+  await new Promise((r) => setTimeout(r, 2000));
   const ownChargeRun = await run(player, U, `
     ${snap}
     ${chooser(ownChargeProj.id)}
@@ -1389,7 +1391,8 @@ try {
     await open();
     out.reopened = { library: input("library")?.value, workshop: input("workshop")?.value };
     return out;`, ids);
-  const o1gm = await run(gm, U2, `return flag().facilities ?? null;`, ids);
+  // The Player's two writes reach the GM seat by the server's broadcast, so the GM's copy is read once it holds the second.
+  const o1gm = await run(gm, U2, `await until(() => flag().facilities?.workshop === 1234, 80); return flag().facilities ?? null;`, ids);
   check("a Player who owns the place draws both facility inputs, types 8000 in the library box and sets the workshop to 1234 by the API, writing directly (the Player may update the place), each stored on the place as the GM seat reads it and shown in the inputs after a reopen", ow1.isGM === false && ow1.owner === true && ow1.writable === true && ow1.inputs === 2 && ow1.typed === 8000 && ow1.api === true && ow1.workshop === 1234 && ow1.reopened.library === "8000" && ow1.reopened.workshop === "1234" && o1gm?.library === 8000 && o1gm?.workshop === 1234, { ow1, o1gm });
   const o2 = await run(player, U2, `
     const made = await research().create(place(), { kind: "spell", subject: { name: "QA Owned Lantern" }, researcher: ID.hero, costs: { research: 1000 }, throw: { target: 14 } });

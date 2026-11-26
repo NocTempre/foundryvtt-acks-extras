@@ -406,7 +406,8 @@ const P = {
     if (!message) return { found: false };
     const el = await message.renderHTML();
     const neutral = game.i18n.localize("ACKS-LIB.summons.neutral");
-    return { found: true, neutral: el.textContent.includes(neutral), named: !!name && el.innerHTML.includes(name) };
+    const at = name ? el.innerHTML.indexOf(name) : -1;
+    return { found: true, neutral: el.textContent.includes(neutral), named: !!name && at >= 0, around: at >= 0 ? el.innerHTML.slice(Math.max(0, at - 60), at + name.length + 40) : "" };
   },
   /** A message's stored content, as the world holds it: whether it holds `name`. */
   cardStored: async ({ messageId, name }) => {
@@ -1425,7 +1426,7 @@ try {
     const drawnPlayer = await run(player, P.cardDrawn, { messageId: castCard13, name: closedName14 });
     const drawnGm = await run(gm, P.cardDrawn, { messageId: castCard13, name: closedName14 });
     const storedGm = await run(gm, P.cardStored, { messageId: castCard13, name: closedName14 });
-    check("14: with the grant off the cast card as the Player seat draws it holds the neutral label and never the creature's name", closedName14.length > 0 && drawnPlayer.found && drawnPlayer.neutral && !drawnPlayer.named, { found: drawnPlayer.found, neutral: drawnPlayer.neutral, named: drawnPlayer.named });
+    check("14: with the grant off the cast card as the Player seat draws it holds the neutral label and never the creature's name", closedName14.length > 0 && drawnPlayer.found && drawnPlayer.neutral && !drawnPlayer.named, { found: drawnPlayer.found, neutral: drawnPlayer.neutral, named: drawnPlayer.named, around: drawnPlayer.around });
     check("14: the same card as the GM seat draws it holds the creature's name", drawnGm.found && drawnGm.named, { found: drawnGm.found, named: drawnGm.named });
     check("14: the message's stored content never holds the creature's name", storedGm.found && !storedGm.named, storedGm);
   }

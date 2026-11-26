@@ -324,7 +324,8 @@ try {
     };
     await closeAll();
     return out;`);
-  const g1 = await gm.eval(`${counter}`);
+  // The Player's write reaches the GM seat's hook by the server's broadcast, a moment after the Player's own copy shows it.
+  const g1 = await gm.eval(`(async () => { for (let i = 0; i < 50 && ${counter} < ${g0} + 1; i++) await new Promise((r) => setTimeout(r, 100)); return ${counter}; })()`);
   check("the Player owns the spell and is no GM, so only ownership can be what opens the editor", p1.isGM === false && p1.isOwner === true, { isGM: p1.isGM, isOwner: p1.isOwner });
   check("the rungs are editable with the pinned footer drawn and every kind button on", p1.editable && p1.footerShown && p1.kinds.length > 0 && p1.kinds.every(([, , off]) => !off), p1);
   check("the Player's Save wrote the edited rung once, marked as a hand's edit", p1.changed === true && p1.first?.[1] === 77 && p1.first?.[2] === "edited" && g1 - g0 === 1, { first: p1.first, writes: g1 - g0 });

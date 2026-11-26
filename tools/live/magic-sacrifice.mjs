@@ -469,6 +469,9 @@ try {
     const L = await import("/modules/acks-extras/scripts/magic/sacrifice-record-live.mjs");
     const added = await L.writeRecord(caster(), { op: "add", uuid: ID.lawful });
     await until(() => caster().flags?.["acks-extras"]?.magic?.sacrifice?.list?.length === 1, 60);
+    // A seat that cannot edit is told only the checks that are ticked, so the victim carries one for it to read.
+    await L.writeRecord(caster(), { op: "judge", victims: { [ID.lawful]: { helpless: true } } });
+    await until(() => caster().flags?.["acks-extras"]?.magic?.sacrifice?.list?.[0]?.helpless === true, 60);
     return { added, victims: caster().flags?.["acks-extras"]?.magic?.sacrifice?.list?.length ?? 0 };`, ids);
   check("the Judge's seat drops a victim on the observed caster", o0.added?.ok === true && o0.victims === 1, o0);
   const o1 = await run(player, ids.observed, `

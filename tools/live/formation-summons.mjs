@@ -349,7 +349,7 @@ const P = {
     await H.sleep(700);
     return spellIds.map((id) => {
       const row = H.root(sheet)?.querySelector(`[data-item-id='${id}']`);
-      const count = row?.querySelector("[data-tooltip-text]");
+      const count = row?.querySelector("[data-summon='standing']");
       const dismiss = row?.querySelector("[data-action='spellDismiss']");
       return { row: !!row, face: count?.textContent.trim() ?? null, tipped: !!count?.dataset.tooltipText, dismiss: !!dismiss };
     });

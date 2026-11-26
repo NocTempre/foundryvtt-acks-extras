@@ -872,7 +872,7 @@ try {
     check("W1 one raised card for the activation", cards === 1, { cards });
     const card = await waitCard(gmRun, r.messageId, (c) => ["M", "O", "A"].every((k) => rowNamed(c, NAME[k])));
     const rows = Object.fromEntries(["M", "O", "A"].map((k) => [k, rowNamed(card, NAME[k])]));
-    check("W1 each body is a waiting row", ["M", "O", "A"].every((k) => outcomeOf(rows[k]) === W.waiting), Object.fromEntries(Object.entries(rows).map(([k, row]) => [k, outcomeOf(row)])));
+    check("W1 each body is a waiting row", ["M", "O", "A"].every((k) => outcomeOf(rows[k]) === W.waiting), { ...Object.fromEntries(Object.entries(rows).map(([k, row]) => [k, outcomeOf(row)])), heads: (card?.tables ?? []).map((t) => t.heads), keys: Object.fromEntries(Object.entries(rows).map(([k, row]) => [k, Object.keys(row?.cells ?? {})])) });
     const feet = Object.fromEntries(Object.entries(rows).map(([k, row]) => [k, row?.cells?.[W.colDistance]?.text ?? ""]));
     check("W1 each body carries a distance in feet", Object.values(feet).every((t) => /^\d+′$/.test(t)), feet);
     const tipWant = await gmRun((a) => game.i18n.format("ACKS-LIB.itemRun.card.tip.distance", a), { feet: parseInt(feet.O, 10), name: NAME.B });
