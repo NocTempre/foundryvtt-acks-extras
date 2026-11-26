@@ -1009,6 +1009,8 @@ const P = {
     if (!press) {
       live().querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
+      // The dialog closes by its own animation; it is read once it is gone or after three more seconds.
+      await H.poll(() => !document.querySelector(".application.acks-extras-cast"), { tries: 12, every: 250 });
       return { ...shown, cancelled: !document.querySelector(".application.acks-extras-cast"), gained: gained().length, spendSame: spendOf() === before.spend, cards: cards() };
     }
     button.click();
@@ -1574,7 +1576,8 @@ async function walkOwnership(K) {
   const keyOf = (model) => Object.keys(model?.targets ?? {})[0];
   const rowOf = (model) => model?.order?.[0];
   const entryOf = (model) => model?.entries?.[`${keyOf(model)}_${rowOf(model)}`];
-  const undoCount = (seen) => (seen?.actions ?? []).filter((a) => a === "magicCastUndo").length;
+  // The card draws an Undo on every applied row that holds something to take back, an afflict row's record included, so the damage row's own Undo is the one counted.
+  const undoCount = (seen, row) => (seen?.keys ?? []).filter((k) => row == null || k[1] === row).length;
   const pressUndo = (c, until) => run(player, P.pressUntil, { messageId: c.messageId, action: "magicCastUndo", target: keyOf(c.model), row: rowOf(c.model), until });
   /** The Player's cast of the damage spell at one token (or none), with the save rigged to fail so the entry applies a figure. */
   const playerCast = async (tokenId) => {
@@ -1607,7 +1610,7 @@ async function walkOwnership(K) {
   const e1 = entryOf(u1.model);
   check("U1: the Player owns neither target-a's token nor its actor, and its cast applied one entry that moved the hit points", ownsTarget === false && u1.card && u1.settled && e1?.state === "applied" && e1.applied > 0 && (await hpOf(targetTokenId)) === hpU1 - e1.applied, { owns: ownsTarget, state: e1?.state });
   const seenU1 = await run(player, P.seen, { messageId: u1.messageId });
-  check("U1: the Player's rendering of the card draws Undo on the entry", seenU1.found && undoCount(seenU1) === 1, { found: seenU1.found, undo: undoCount(seenU1), keys: seenU1.keys });
+  check("U1: the Player's rendering of the card draws Undo on the entry", seenU1.found && undoCount(seenU1, rowOf(u1.model)) === 1, { found: seenU1.found, undo: undoCount(seenU1, rowOf(u1.model)), keys: seenU1.keys });
   const pressU1 = await pressUndo(u1, "off");
   check("U1: the press restored the target's hit points to what they were before the cast, the entry reads undone and no notice was told", pressU1.button && pressU1.came && entryOf(pressU1.model)?.state === "undone" && (await hpOf(targetTokenId)) === hpU1 && pressU1.warns.length === 0, { came: pressU1.came, state: entryOf(pressU1.model)?.state, warns: pressU1.warns?.length });
 
@@ -1630,7 +1633,7 @@ async function walkOwnership(K) {
   const e3 = entryOf(u3.model);
   check("U3: the Judge's cast at the character's token applied an entry that moved its hit points", u3.card && u3.settled && e3?.state === "applied" && e3.applied > 0 && (await hpOf(tCaster.id)) === hpU3 - e3.applied, { state: e3?.state });
   const seenU3 = await run(player, P.seen, { messageId: u3.messageId });
-  check("U3: the Player, owning the target and neither the caster nor the card, draws Undo on the entry", seenU3.found && undoCount(seenU3) === 1, { found: seenU3.found, undo: undoCount(seenU3), keys: seenU3.keys });
+  check("U3: the Player, owning the target and neither the caster nor the card, draws Undo on the entry", seenU3.found && undoCount(seenU3, rowOf(u3.model)) === 1, { found: seenU3.found, undo: undoCount(seenU3, rowOf(u3.model)), keys: seenU3.keys });
   const pressU3 = await pressUndo(u3, "off");
   check("U3: the relayed press returned the character's hit points and the entry reads undone", pressU3.button && pressU3.came && entryOf(pressU3.model)?.state === "undone" && (await hpOf(tCaster.id)) === hpU3 && pressU3.warns.length === 0, { came: pressU3.came, state: entryOf(pressU3.model)?.state, warns: pressU3.warns?.length });
   await setHp(tCaster.id, 9);

@@ -347,7 +347,7 @@ try {
     const reopened = again.element.querySelector('input[type="checkbox"][name$=".unaudited"]')?.checked;
     await closeAll();
     return { boxes: boxes.length, editable: boxes.length > 0 && boxes.every((b) => !b.readOnly), kinds, box: !!box, was, now: flag().unaudited === true, reopened };`);
-  const g3 = await gm.eval(`${counter}`);
+  const g3 = await gm.eval(`(async () => { for (let i = 0; i < 50 && ${counter} <= ${g2}; i++) await new Promise((r) => setTimeout(r, 100)); return ${counter}; })()`);
   check("the Overview's ladder is editable and the count's kind buttons are on", p2.editable && p2.kinds.length === 3 && p2.kinds.every(([, off]) => !off), p2);
   check("the Unaudited mark is drawn for the owner, its tick persists across a reopen", p2.box && p2.now === !p2.was && p2.reopened === p2.now && g3 > g2, { ...p2, writes: g3 - g2 });
 
