@@ -231,7 +231,7 @@ const P = {
   /** What the crossing section draws on this seat. */
   xview: async ({ partyId }) => {
     const H = globalThis.__sc;
-    const el = H.root(game.actors.get(partyId).sheet);
+    const el = await H.poll(() => H.root(game.actors.get(partyId).sheet), { tries: 20, every: 150 });
     const sec = el?.querySelector(".acks-extras-crossing");
     const rows = [...(sec?.querySelectorAll(".acks-extras-crossing-row") ?? [])].map((li) => {
       const q = (sel) => li.querySelector(sel);
@@ -239,6 +239,7 @@ const P = {
       return { id, throw: !!q('[data-action="crossingThrow"]'), haul: !!q('[data-action="crossingHaul"]'), land: !!q('[data-action="crossingLand"]'), failed: !!q('[data-action="crossingLandingFailed"]'), attempt: !!q('[data-action="crossingAttempt"]') };
     });
     return {
+      drawn: !!el,
       section: !!sec,
       kindSelect: !!sec?.querySelector('[data-pick="crossing-kind"]'),
       begin: !!sec?.querySelector('[data-action="crossingBegin"]'),
@@ -593,7 +594,9 @@ try {
   if (seatO?.ownsParty !== false) notWalked("C12c", `the observed party's actor reads ownsParty ${seatO?.ownsParty} on the Player's seat: Foundry's ownership sync rewrote the OBSERVER grant (owner level ${so.owner}), so no such seat survives; the in-force line is covered offline only`);
   else {
     const vo = await run(player, P.xview, { partyId: observed.party.id });
-    check("C12c a seat that does not own the party actor reads the penalty in force and holds no setup field, no Begin, no End", vo.section && vo.inForce && vo.setup.length === 0 && !vo.begin && !vo.end && !vo.throwAll, vo);
+    // A seat the ownership sync left with no grant on the party actor is not drawn the sheet at all: no section to read, the in-force line covered offline only.
+    if (!vo.drawn) notWalked("C12c", `the party sheet does not draw on the Player's seat (grant on the actor read ${so.owner} when shaped; Foundry's ownership sync rewrote the OBSERVER grant): the in-force line is covered offline only`);
+    else check("C12c a seat that does not own the party actor reads the penalty in force and holds no setup field, no Begin, no End", vo.section && vo.inForce && vo.setup.length === 0 && !vo.begin && !vo.end && !vo.throwAll, vo);
   }
   await run(gm, P.end, { fid: fids.observed });
   await run(player, P.close, { partyId: observed.party.id });
@@ -723,7 +726,7 @@ try {
   await run(gm, P.endSession, { fid: fids.main });
   await run(player, P.open, { partyId: party.id });
   const tip = await run(player, P.tooltipKey, { partyId: party.id, selector: '[data-action="searchHere"]' });
-  check("C14a Search here is drawn on the Player's seat with the open tooltip (the Judge's wording)", tip === "ACKS-FORMATION.plan.searchHereTip", { tip });
+  check("C14a Search here is drawn on the Player's seat with the open tooltip (the Judge's wording)", tip === (await L("ACKS-FORMATION.plan.searchHereTip")), { tip });
   if (linked.error) notWalked("C14a (the press)", "no place under the party: the location api is unavailable");
   else {
     await press(player, party.id, '[data-action="searchHere"]', { settle: 3500 });

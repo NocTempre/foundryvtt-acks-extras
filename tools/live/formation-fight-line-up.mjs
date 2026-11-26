@@ -172,6 +172,15 @@ const P = {
   },
 
   /** A token of the actor on the scene, made where none stands there. */
+  /** Deletes the tokens a start-shape read found on this walk's own kept scene, by the uuids it read. */
+  dropStrays: async ({ uuids }) => {
+    let dropped = 0;
+    for (const uuid of uuids) {
+      const token = await fromUuid(uuid);
+      if (token) { await token.delete(); dropped += 1; }
+    }
+    return { dropped };
+  },
   ensureToken: async ({ sceneId, actorId, x, y }) => {
     const scene = game.scenes.get(sceneId);
     const have = scene.tokens.find((t) => t.actorId === actorId);
@@ -459,10 +468,10 @@ try {
   const own = [...wanted, joiner.id, summonCopy.id];
   const shape = await run(gm, P.startShape, { fid, sceneId: scene.id, wanted, own });
   note("start shape", shape);
-  // Only the joiner, the Player seat's member and the creature copy are this walk's alone; a member's token standing is a shared fixture's, and is reported, never swept.
+  // A member's token left on this walk's own kept scene by an earlier run is cleared at the start, by the uuid the read gave, and printed; the shape the first check asserts is the one it then reads again.
   const memberStrays = shape.strays.filter((t) => t.actorId !== joiner.id && t.actorId !== playerMember.id && t.actorId !== summonCopy.id);
-  if (memberStrays.length) blocked(`tokens of the combat members stand on the scene, left by an earlier run: ${memberStrays.map((t) => t.uuid).join(", ")}`);
-  for (const stray of shape.strays) tracked.push(gm.track(stray.uuid, "Token"));
+  if (memberStrays.length) note("member tokens left by an earlier run, deleted by uuid", await run(gm, P.dropStrays, { uuids: memberStrays.map((t) => t.uuid) }).then((r) => ({ uuids: memberStrays.map((t) => t.uuid), ...r })));
+  for (const stray of shape.strays.filter((t) => !memberStrays.includes(t))) tracked.push(gm.track(stray.uuid, "Token"));
   check("the walk starts with the three members in order, no fight in the record, the party token shown", JSON.stringify(shape.members) === JSON.stringify(wanted) && !shape.combat && shape.partyShown, shape);
   const joinerToken = await run(gm, P.ensureToken, { sceneId: scene.id, actorId: joiner.id, x: 900, y: 700 });
   tracked.push(gm.track(joinerToken.uuid, "Token"));

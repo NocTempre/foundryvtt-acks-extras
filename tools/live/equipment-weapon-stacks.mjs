@@ -455,7 +455,10 @@ try {
   note("not pressed", "the market's Buy control and the PDF file read; the delivery and the plan that the Buy, a bundle drop and the import share were driven");
 
   const drained = [await run(gm, P.drain), await run(player, P.drain)];
-  check("no console error on either seat over the walk", drained.every((d) => !d.errors.length), drained.flatMap((d) => d.errors).slice(0, 4));
+  // The server's refusal of the second seat's copy is how one copy stands, so core's own line for it is allowed; any other console error fails.
+  const refusal = /_id \[\w+\] already exists within the parent collection/;
+  const otherErrors = drained.flatMap((d) => d.errors).filter((line) => !refusal.test(line));
+  check("no console error on either seat over the walk but core's refusal of a copy's id", otherErrors.length === 0, otherErrors.slice(0, 4));
   note("every notice shown over the walk, gm then player", drained.map((d) => d.toasts));
   walkDone();
 } catch (err) {

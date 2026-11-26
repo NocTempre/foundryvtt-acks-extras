@@ -47,7 +47,11 @@ const P = {
   /** A row carrying the family template over one empty row: the shape whose Remove passes the record down. Rewrites `system.units` of the kept host. */
   seedTemplated: async ({ id, w, template }) => {
     const row = (key, parentKey, holderUuid, gen) => ({ key, parentKey, label: key, holderUuid, kind: "", notes: "", hidden: false, gen });
-    await game.actors.get(id).update({ "system.units": [row("w", "", w, { template }), row("e", "w", "", {})] });
+    // The breed a Roll reads is the template's first variant that carries an encounter recipe, as a Judge's own Roll would have recorded it.
+    const doc = await fromUuid(template);
+    const variants = (doc?.system?.toObject?.().axes ?? doc?.system?.axes ?? []).find((a) => a.key === "variant")?.options ?? [];
+    const variant = variants.find((o) => o.flags?.["acks-extras"]?.extras?.encounter)?.key ?? "";
+    await game.actors.get(id).update({ "system.units": [row("w", "", w, { template, ...(variant ? { variant } : {}) }), row("e", "w", "", {})] });
     return game.actors.get(id).system.units.length;
   },
 
@@ -56,7 +60,10 @@ const P = {
 
   /** Roll an empty row through the page's own API, as the card's Roll does; the answer's made documents are returned for tracking. */
   rollRow: async ({ id, key }) => {
-    const out = await globalThis.acksExtras.monsters.rollOrganisation({ host: game.actors.get(id), rowKey: key, context: "dungeon", state: "wandering", card: false });
+    // As the card's Roll press does: the template and breed come from the row's own record or its ancestors', passed in; the API reads only a row's ancestors (a lifted top row has none).
+    const host = game.actors.get(id);
+    const gen = host.system.units.find((r) => r.key === key)?.gen ?? {};
+    const out = await globalThis.acksExtras.monsters.rollOrganisation({ host, rowKey: key, template: gen.template || null, variant: gen.variant || "", context: "dungeon", state: "wandering", card: false });
     const filled = game.actors.get(id).system.units.find((r) => r.key === key)?.holderUuid ?? "";
     return { ok: !!out?.ok, reason: out?.reason ?? "", created: out?.created ?? [], filled };
   },

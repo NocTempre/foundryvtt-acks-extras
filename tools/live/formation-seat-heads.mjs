@@ -344,8 +344,8 @@ const P = {
     const el = H.root(game.actors.get(partyId).sheet);
     const field = el?.querySelector('input[name="travel.hexLabel"]');
     if (!field) return { found: false };
+    // The change that a click's blur fires rides the form to the Judge and redraws the sheet, which restores the field; the click that follows a blur reads the field before that, so no pause stands between them.
     H.set(field, value);
-    await H.sleep(300);
     el.querySelector('[data-action="travelEnterHex"]')?.click();
     await H.sleep(2200);
     return { found: true };
@@ -399,7 +399,7 @@ const P = {
   /** The add-spell row filled in as a person fills it (the manual entry), then Track pressed. */
   kitAdd: async ({ partyId, name, turns, casterId }) => {
     const H = globalThis.__sh;
-    const row = H.root(game.actors.get(partyId).sheet)?.querySelector(".add-spell");
+    const row = H.root(game.actors.get(partyId).sheet)?.querySelector('.acks-extras-party-sheet__panel[data-tab="kit"] .add-spell');
     if (!row) return { found: false };
     H.set(row.querySelector('[data-pick="spellPick"]'), "");
     H.set(row.querySelector('[data-pick="spellName"]'), name);
@@ -793,13 +793,14 @@ try {
 
   /* ------------------------------- H4 ------------------------------- */
   section("H4. Journey");
-  const jshape = (shown = "believed") => run(gm, P.shape, { fid: formations.journey.fid, members: [journey.member.id], owned: [journey.member.id], seatId, mode: "journey", sceneId: journey.scene.id, hexLabel: "Z9", shown });
-  await jshape("believed");
+  const jshape = (shown = "believed", hexLabel = "Z9") => run(gm, P.shape, { fid: formations.journey.fid, members: [journey.member.id], owned: [journey.member.id], seatId, mode: "journey", sceneId: journey.scene.id, hexLabel, shown });
+  // The record holds no label here, so the hex the party believes is the cell its token stands in (`standingLabel`): the seat's field must read that cell, which the record's own (blank) label does not give.
+  await jshape("believed", "");
   await run(player, P.open, { partyId: journey.party.id, tab: "mode" });
   h = await run(player, P.head, { partyId: journey.party.id });
   note("journey head", h);
   check("H4 the head holds the hex field, Next hex, Work the country and End day", h.field !== null && ["travelEnterHex", "forageDay", "travelEndDay"].every((a) => h.pills.includes(a)), { field: h.field, pills: h.pills });
-  check("H4 the hex field reads the hex the party believes it stands in, not the record's label", h.field === h.believed && h.field !== "Z9", { field: h.field, believed: h.believed });
+  check("H4 the hex field reads the hex the party believes it stands in, not the record's label", h.field === h.believed && h.field !== "", { field: h.field, believed: h.believed });
   await run(gm, P.setShown, { fid: formations.journey.fid, shown: "unknown" });
   h = await run(player, P.head, { partyId: journey.party.id });
   check("H4 the field is blank while the party is shown unknown country", h.field === "", { field: h.field });
@@ -984,7 +985,7 @@ try {
   await run(player, P.dropMap, { uuid: row.trap.uuid, x: 700, y: 600 });
   let owned = await run(gm, P.things, { placeUuid: places.owned });
   r = await run(player, P.regionRow, { regionUuid });
-  check("PM1 a trap dropped on bare ground over the owned place's Region lands there, hidden, with its point; the counts line leaves it out", owned.length === 1 && owned[0].kind === "trap" && owned[0].hidden && owned[0].point?.x === 700 && !/trap/i.test(r.counts ?? ""), { owned, counts: r.counts });
+  check("PM1 a trap dropped on bare ground over the owned place's Region lands there, hidden, with its point; the counts line leaves it out", owned.length === 1 && owned[0].kind === "trap" && owned[0].hidden && owned[0].point?.x === 700 && r.counts === (await counts("holdsNone")), { owned, counts: r.counts });
   await run(player, P.closeRegion, { regionUuid });
 
   const refusedAt = async (label, x, y, watch) => {

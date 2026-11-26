@@ -273,11 +273,11 @@ const P = {
       buttons: choice ? [...H.root(choice).querySelectorAll("button[data-action]")].map((b) => b.dataset.action) : [],
     };
   },
-  /** The open choice dismissed as a Judge does, by closing it: nothing is taken and every actor is left. */
+  /** The open choice answered Apply: a library document is reset whole (the aged template is the one held row) and no sidebar copy is ticked, so the copy stays as it is. Closing would leave every edit. */
   keepAll: async ({ id }) => {
     const H = globalThis.__ba;
     const app = foundry.applications.instances.get(id);
-    await app.close();
+    H.root(app).querySelector("button[data-action='apply']").click();
     await H.poll(() => !app.rendered);
     return !app.rendered;
   },

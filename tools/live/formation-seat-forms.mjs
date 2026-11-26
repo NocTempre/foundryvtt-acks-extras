@@ -251,8 +251,13 @@ const P = {
   /** Open a party sheet on this seat at a tab. */
   open: async ({ partyId, tab = "mode", width = 920, height = 820 }) => {
     const H = globalThis.__sf;
-    const app = game.actors.get(partyId).sheet;
+    const actor = game.actors.get(partyId);
+    // The seat's ownership of the party arrives with the Judge's write; a sheet asked for before it lands does not draw.
+    await H.poll(() => actor.isOwner, { tries: 60, every: 200 });
+    const app = actor.sheet;
     await app.render(true);
+    const root = await H.poll(() => H.root(app), { tries: 60, every: 200 });
+    if (!root) return { id: app.id, rendered: false, isOwner: !!actor.isOwner };
     await H.sleep(1000);
     app.setPosition({ left: 16, top: 16, width, height });
     H.root(app)?.querySelector(`.tabs [data-group="primary"][data-tab="${tab}"]`)?.click();

@@ -314,7 +314,7 @@ const P = {
       out.picker = !!select;
       if (select) {
         const dialog = select.closest("dialog, .application");
-        out.buttons = [...dialog.querySelectorAll("button[data-action]")].map((b) => b.dataset.action);
+        out.buttons = [...dialog.querySelectorAll("button[data-action]")].filter((b) => !b.closest(".window-header")).map((b) => b.dataset.action);
         select.value = orderId;
         out.chose = select.value === orderId;
         dialog.querySelector('button[data-action="apply"]')?.click();
@@ -400,7 +400,7 @@ const actionsOf = (cells) => (cells ?? []).map((c) => c.action);
 /** The board's rails for a seat that owns a member, by mode; `every` adds Deal XP, `canBrowse` the Image tool. */
 const expectedRails = ({ saves, mode, every, canBrowse }) => ({
   saves: [...Array(saves).fill("partySave"), "toggleMagical"],
-  figures: mode === "journey" ? ["reading", "consumeRations", "goTab", "goTab", "goTab"] : ["reading", "consumeRations", "goTab", "reading", "goTab"],
+  figures: mode === "journey" ? ["reading", "consumeRations", "goTab", "goTab", "goTab"] : ["reading", "consumeRations", "goTab", "togglePace", "goTab"],
   tools: [...(mode === "journey" ? ["partyChecks"] : ["partyChecks", "partyCheck"]), ...(every ? ["dealXp"] : [])],
   sheet: ["editDescription", ...(canBrowse ? ["editPartyImage"] : []), "toggleKey"],
 });
@@ -508,7 +508,7 @@ try {
   for (const kind of ["saves", "figures", "tools", "sheet"]) {
     check(`the ${kind} rail draws the board's cells for this seat`, same(actionsOf(frame.rails[kind]), want[kind]), { drawn: actionsOf(frame.rails[kind]), want: want[kind] });
   }
-  check("no Encounter, Pause, Ownership or Tweaks, and no XP on a seat owning one of two", !Object.values(frame.rails).flat().some((c) => ["encounterNow", "travelEncounterThrow", "togglePause", "ownership", "tweaks", "dealXp", "adjustHp", "togglePace"].includes(c.action)));
+  check("no Encounter, Pause, Ownership or Tweaks, and no XP on a seat owning one of two", !Object.values(frame.rails).flat().some((c) => ["encounterNow", "travelEncounterThrow", "togglePause", "ownership", "tweaks", "dealXp", "adjustHp"].includes(c.action)));
   check(canBrowse ? "the plate is a press that opens the picker" : "the plate is a picture, and no Image tool is drawn", frame.plate.press === canBrowse, frame.plate);
   check("every drawn cell has a tooltip and a name, and none is disabled", named(frame), Object.values(frame.rails).flat().filter((c) => !c.tip || !c.name || c.disabled));
   check("the plate's press, where drawn, carries a tooltip and a name", !frame.plate.press || (frame.plate.tip && frame.plate.name), frame.plate);

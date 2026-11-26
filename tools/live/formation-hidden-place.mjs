@@ -177,6 +177,12 @@ const P = {
     return { uuid: actor.uuid, default: actor._source.ownership?.default ?? null, stamp: actor.flags?.[mod]?.cookbook?.id ?? null, ownership: { ...actor._source.ownership } };
   },
 
+  /** A plain actor of the system's monster type naming no ownership: the leak as a Judge meets it after a hand-made place on the same page. */
+  plainMonster: async ({ name }) => {
+    const actor = await Actor.create({ name, type: "monster" });
+    return { uuid: actor.uuid, default: actor._source.ownership?.default ?? null };
+  },
+
   /** An imported place dragged out of its shelf, where the world holds one. */
   dragOut: async ({ type, mod }) => {
     for (const pack of game.packs.filter((p) => p.documentName === "Actor")) {
@@ -354,6 +360,10 @@ try {
   note("stamped and naming no ownership, the shape the importer writes to the Actors tab", stamped);
   check("a place made by hand with no stamp is the table's: default Owner", plain.default === 3, plain);
   check("a place carrying the importer's stamp keeps core's default, None", stamped.default === 0, stamped);
+  const monster = await run(gm, P.plainMonster, { name: "QA Plain monster after a hand-made place" });
+  gm.track(monster.uuid, "Actor");
+  own.push(monster.uuid);
+  check("a plain monster made on the same page, naming no ownership, starts at None", monster.default === 0, monster);
   const dragged = await run(gm, P.dragOut, { type: LOCATION, mod: MOD });
   note("an imported place dragged out of its shelf", dragged);
   if (dragged.found) {

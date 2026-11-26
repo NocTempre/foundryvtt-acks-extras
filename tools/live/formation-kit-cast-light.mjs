@@ -167,8 +167,8 @@ const P = {
         "flags.acks-extras.classes.uuid": classUuid,
         "flags.acks-extras.classes.-=pools": null,
       });
-      const own = label === "caster" ? { "ownership.default": observe, [`ownership.${playerId}`]: 3 } : { "ownership.default": observe, [`ownership.-=${playerId}`]: null };
-      await actor.update(own);
+      // The ownership map is replaced whole: core 14 validates a `-=` deletion key inside it as a user id and logs a validation error.
+      await actor.update({ ownership: label === "caster" ? { default: observe, [playerId]: 3 } : { default: observe } }, { diff: false, recursive: false });
       const item = actor.items.get(spec.itemId);
       await item.update({ "flags.acks-extras.-=spell": null });
       await item.update({ "system.cast": 0, "system.lvl": 1, "system.class": "", "flags.acks-extras.spell": flags });

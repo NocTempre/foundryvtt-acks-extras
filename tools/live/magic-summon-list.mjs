@@ -531,24 +531,24 @@ try {
   // An invented ladder on the row's value: a figure at three invocation levels.
   const LADDER = () => ({ kind: "conditional", on: "invocationLevel", breakpoints: [[1, 3], [3, 5], [5, 8]].map(([atLevel, value]) => ({ atLevel, value, outcome: "", text: "" })) });
   const stored = async (i) => ((await run(gm, P.rows, { uuid: spellUuid }))[i]?.value?.breakpoints ?? []).map((b) => Number(b.value));
-  const same = (a, b) => a.length === b.length && a.every((x, i) => Number(x) === b[i]);
+  const sameFigs = (a, b) => a.length === b.length && a.every((x, i) => Number(x) === b[i]);
   const shaped7b = await shape([rowOf("_walkListA", aUuid, { value: LADDER() })]);
   const v7b0 = await run(gm, P.open, { uuid: spellUuid, index: 0, expect: [{ uuid: aUuid }] });
   const r0 = await run(gm, P.rungs, { index: 0 });
-  check("7b: the row's window shows its value ladder with three rungs as stored", shaped7b.gm && v7b0.opened && r0.ladder === true && same(r0.figures ?? [], [3, 5, 8]), { opened: v7b0.opened, ladder: r0.ladder ?? false, rungs: r0.figures?.length ?? 0 });
+  check("7b: the row's window shows its value ladder with three rungs as stored", shaped7b.gm && v7b0.opened && r0.ladder === true && sameFigs(r0.figures ?? [], [3, 5, 8]), { opened: v7b0.opened, ladder: r0.ladder ?? false, rungs: r0.figures?.length ?? 0 });
   const typed7b = await run(gm, P.rungType, { index: 0, rung: 1, text: "6", uuid: spellUuid });
   const r1 = await run(gm, P.rungs, { index: 0 });
-  check("7b: a figure typed in the second rung is a draft: the window reads it and the spell's rows are unchanged", typed7b.ok && typed7b.changed === false && same(r1.figures ?? [], [3, 6, 8]) && same(await stored(0), [3, 5, 8]), { changed: typed7b.changed ?? null, drafted: same(r1.figures ?? [], [3, 6, 8]) });
+  check("7b: a figure typed in the second rung is a draft: the window reads it and the spell's rows are unchanged", typed7b.ok && typed7b.changed === false && sameFigs(r1.figures ?? [], [3, 6, 8]) && sameFigs(await stored(0), [3, 5, 8]), { changed: typed7b.changed ?? null, drafted: sameFigs(r1.figures ?? [], [3, 6, 8]) });
   const add7b = await run(gm, P.add, { index: 0, ref: bUuid, mode: "reopen", lines: 2 });
   const r2 = await run(gm, P.rungs, { index: 0 });
   const rows7b = await run(gm, P.rows, { uuid: spellUuid });
-  check("7b: Add opens a new window with two lines that still reads the drafted figure, with Save row on", add7b.ok && add7b.reopened && add7b.count === 2 && same(r2.figures ?? [], [3, 6, 8]) && r2.saveOn === true, { reopened: add7b.reopened ?? false, lines: add7b.count ?? 0, drafted: same(r2.figures ?? [], [3, 6, 8]), saveOn: r2.saveOn ?? null });
-  check("7b: the Add saved no rung: the open row and the row it made both store the ladder as it was", summonRows(rows7b).length === 2 && same(await stored(0), [3, 5, 8]) && same(await stored(1), [3, 5, 8]), { rows: summonRows(rows7b).length });
+  check("7b: Add opens a new window with two lines that still reads the drafted figure, with Save row on", add7b.ok && add7b.reopened && add7b.count === 2 && sameFigs(r2.figures ?? [], [3, 6, 8]) && r2.saveOn === true, { reopened: add7b.reopened ?? false, lines: add7b.count ?? 0, drafted: sameFigs(r2.figures ?? [], [3, 6, 8]), saveOn: r2.saveOn ?? null });
+  check("7b: the Add saved no rung: the open row and the row it made both store the ladder as it was", summonRows(rows7b).length === 2 && sameFigs(await stored(0), [3, 5, 8]) && sameFigs(await stored(1), [3, 5, 8]), { rows: summonRows(rows7b).length });
   const rem7b = await run(gm, P.remove, { index: 0, line: 1, lines: 1 });
   const r3 = await run(gm, P.rungs, { index: 0 });
-  check("7b: Remove of the other line opens a new window with one line that still reads the drafted figure, and the row still stores the ladder as it was", rem7b.ok && rem7b.reopened && rem7b.count === 1 && same(r3.figures ?? [], [3, 6, 8]) && same(await stored(0), [3, 5, 8]), { reopened: rem7b.reopened ?? false, lines: rem7b.count ?? 0, drafted: same(r3.figures ?? [], [3, 6, 8]) });
+  check("7b: Remove of the other line opens a new window with one line that still reads the drafted figure, and the row still stores the ladder as it was", rem7b.ok && rem7b.reopened && rem7b.count === 1 && sameFigs(r3.figures ?? [], [3, 6, 8]) && sameFigs(await stored(0), [3, 5, 8]), { reopened: rem7b.reopened ?? false, lines: rem7b.count ?? 0, drafted: sameFigs(r3.figures ?? [], [3, 6, 8]) });
   const save7b = await run(gm, P.rungSave, { index: 0, uuid: spellUuid });
-  check("7b: Save row then writes the carried draft: the row stores the typed figure", save7b.ok && save7b.changed && same(await stored(0), [3, 6, 8]), { saved: save7b.changed ?? false });
+  check("7b: Save row then writes the carried draft: the row stores the typed figure", save7b.ok && save7b.changed && sameFigs(await stored(0), [3, 6, 8]), { saved: save7b.changed ?? false });
   await run(gm, P.clearWindows);
 
   /* ---------------------------------------------------------------- */

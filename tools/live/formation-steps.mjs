@@ -1343,7 +1343,8 @@ try {
   note("day back on march", { kind: r.kind });
 
   r = await run(player, P.playerDay, { partyId: p3.id, sceneId: s2.id });
-  check("A player seat: no Day section, no select, no override dialog", r.rendered && !r.daySection && !r.select && !r.dialog, r);
+  // A seat that owns a member is drawn the Day section and its select (docs/formation/DECISIONS.md, 2026-11-25 "A member-owner arranges, reads and fills the party's form"); what it is never shown is an override dialog or the Judge's part.
+  check("A player seat owning a member: the Day section and its select are drawn, no override dialog, no Judge part", r.rendered && r.daySection && r.select && !r.dialog && !r.judgePart, r);
 
   note("travel layer", await run(gm, P.registerTravel, { target: 11 }));
   restore.registered.add("travel");

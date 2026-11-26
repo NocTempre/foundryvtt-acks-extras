@@ -316,6 +316,15 @@ export const P = {
     const actor = game.actors.get(casterId);
     const item = actor.items.get(spellId);
     const before = new Set([...game.messages].map((m) => m.id));
+    // A window the last step cancelled can still be in the DOM on a loaded machine; the step would then drive it (its Cast press is a no-op) and leave the new window standing for the step after. Clear and wait until none stands.
+    const clearDialogs = async () => {
+      await H.poll(() => {
+        const left = [...document.querySelectorAll(".application.acks-extras-cast")];
+        for (const el of left) el.querySelector('button[data-action="cancel"]')?.click();
+        return left.length === 0;
+      }, { tries: 80, every: 150 });
+    };
+    await clearDialogs();
     item.use({ skipDialog: true });
     const found = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
     if (!found) return { dialog: false };
@@ -337,12 +346,14 @@ export const P = {
     if (stop) {
       live().querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
+      await clearDialogs();
       return { ...shown, cancelled: true, cards: [...game.messages].filter((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard).length };
     }
     const button = live().querySelector('button[data-action="cast"]');
     if (button.disabled) {
       live().querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
+      await clearDialogs();
       return { ...shown, card: false, blocked: true };
     }
     button.click();

@@ -382,19 +382,25 @@ const P = {
     const H = globalThis.__laf;
     const V = await import("/modules/acks-extras/scripts/lib/item-run-row-view.mjs");
     const item = fromUuidSync(itemUuid);
-    const sheet = fromUuidSync(actorUuid).sheet;
+    // A monster's default sheet is lib's Follower Card, which draws no item rows; the rows are the Full Monster sheet's Inventory tab, so that class is opened as itself on a fresh instance each read.
+    const Full = Object.values(CONFIG.Actor.sheetClasses.monster ?? {}).map((e) => e.cls).find((c) => c.name === "FullMonsterSheet");
+    const sheet = new Full({ document: fromUuidSync(actorUuid) });
     await sheet.render({ force: true });
     await H.until(() => sheet.rendered && sheet.element, 8000);
     if (tab) { try { await sheet.changeTab(tab, "primary", { force: true }); } catch { /* the sheet has no such tab */ } }
-    await H.sleep(700);
+    const rowSel = `[data-item-id="${item.id}"] .acks-extras-run`;
+    await H.until(() => sheet.element?.querySelector?.(rowSel), 5000);
+    await H.sleep(300);
     const txt = (n) => (n?.textContent ?? "").replace(/\s+/g, " ").trim();
     const model = V.itemRunRowFor(item);
-    const run = sheet.element?.querySelector?.(`[data-item-id="${item.id}"] .acks-extras-run`) ?? null;
+    const run = sheet.element?.querySelector?.(rowSel) ?? null;
     const tag = run?.querySelector?.(".acks-tag") ?? null;
-    return {
+    const read = {
       model: model ? { state: model.state, tag: { label: model.tag.label, tip: model.tag.tip ?? "" }, presses: model.presses.map((p) => ({ key: p.key, label: p.label, disabled: p.disabled })) } : null,
       dom: run ? { state: run.dataset.runState ?? "", tag: txt(tag), tagTip: tag?.dataset.tooltipText ?? "", presses: [...run.querySelectorAll('button[data-action="itemRunPress"]')].map((b) => ({ press: b.dataset.press ?? null, label: b.getAttribute("aria-label") ?? "", text: txt(b), uuid: b.dataset.itemUuid ?? "" })) } : null,
     };
+    try { await sheet.close({ animate: false }); } catch { /* closed */ }
+    return read;
   },
   closeSheet: async ({ uuid }) => { try { await fromUuidSync(uuid).sheet.close({ animate: false }); } catch { /* closed */ } return true; },
 
@@ -749,7 +755,8 @@ try {
     const lit1 = await fuses();
     check("6c nothing was lit or written for the Player: the bearer still holds one fuse record", lit1.length === 1, { fuses: lit1.length });
     // The GM's window that ran the relayed use tells its own seat with an error toast; that one is the runner's notice, not a fault, and leaves the close's error record.
-    const gmToast = await gmRun((w) => { const H = globalThis.__laf; const n = H.errors.length; H.errors = H.errors.filter((e) => e !== `toast: ${w}`.slice(0, 300)); return n - H.errors.length; }, refusedWord);
+    // An error toast is recorded twice: by the notification wrapper as `toast: <text>` and by core's own console copy of the text (trailing space and all). Both are the one refusal; the count is the toasts.
+    const gmToast = await gmRun((w) => { const H = globalThis.__laf; const toasts = H.errors.filter((e) => e === `toast: ${w}`.slice(0, 300)).length; H.errors = H.errors.filter((e) => e !== `toast: ${w}`.slice(0, 300) && e.trim() !== w.slice(0, 300)); return toasts; }, refusedWord);
     check("6c the GM's window told its own seat of the relayed refusal, once", gmToast === 1, { gmToast });
 
     // The Judge's own: warned, and the light goes on.

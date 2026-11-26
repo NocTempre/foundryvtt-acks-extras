@@ -134,8 +134,11 @@ const P = {
   repair: async ({ family }) => {
     const H = globalThis.__br;
     const before = H.dialogs().map((a) => a.id);
-    H.flight = acksExtras.importer.cookbookReimportEntries();
-    const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector(".acks-extras-importer-mon-list")), { tries: 240 });
+    // The reimport runs far past one evaluate's limit, so the flight is started here and read by `repairDone`; each wait below stays under it.
+    H.flightDone = false;
+    H.flightError = null;
+    H.flight = acksExtras.importer.cookbookReimportEntries().catch((e) => { H.flightError = String(e?.message ?? e); }).finally(() => { H.flightDone = true; });
+    const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector(".acks-extras-importer-mon-list")), { tries: 160 });
     if (!app) return { opened: false };
     const box = H.root(app).querySelector(`input[name='sel'][value='Monsters|${family}']`);
     if (!box) return { opened: true, ticked: false };
@@ -143,12 +146,16 @@ const P = {
     box.dispatchEvent(new Event("change", { bubbles: true }));
     const dialogsBefore = H.dialogs().map((a) => a.id);
     H.root(app).querySelector("button[data-action='ok']").click();
-    const dlg = await H.poll(() => H.dialogs().find((a) => !dialogsBefore.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
+    const dlg = await H.poll(() => H.dialogs().find((a) => !dialogsBefore.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 160 });
     if (dlg) H.root(dlg).querySelector("button[data-action='yes']").click();
-    const choice = await H.poll(() => H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list")), { tries: 8 });
-    if (choice) await choice.close();
-    await H.flight;
     return { opened: true, ticked: true, asked: !!dlg };
+  },
+  /** The reimport `repair` started: answers whether it has returned, closing the held-edits list unanswered if it asks. */
+  repairDone: async () => {
+    const H = globalThis.__br;
+    const choice = H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list"));
+    if (choice) await choice.close();
+    return { done: H.flightDone === true, error: H.flightError ?? null };
   },
 
   /** The family's members the cookbook lists as stat blocks, and which of them the library holds. */
@@ -495,6 +502,8 @@ try {
     note("no option of the library template holds stamped parts with a Roll side", "Repair in place on the family row through the entry picker (the importer's own; the library template is written)");
     const repaired = await run(gm, P.repair, { family: FAMILY });
     check("the entry picker ticked the family row and its confirm was answered", repaired.opened && repaired.ticked && repaired.asked, repaired);
+    const flown = await until(gm, P.repairDone, null, (r) => r.done, { tries: 480, every: 1000 });
+    check("the repair in place returned without an error", flown.done && !flown.error, flown);
     variants = await run(gm, P.variants, { uuid: lib.uuid });
   }
   const chosen = variants.find((v) => v.stamped && v.side && v.side.bodies) ?? variants.find((v) => v.stamped && v.side);

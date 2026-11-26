@@ -386,8 +386,11 @@ const P = {
     const foreign = game.actors.get(foreignNpcId);
     await place.update({ "system.market.marketClassOverride": 4, "system.market.postings": [], "system.market.specialHires": [], [`ownership.${playerId}`]: OWN.OWNER });
     if ((own.ownership?.[playerId] ?? OWN.NONE) !== OWN.OWNER) await own.update({ [`ownership.${playerId}`]: OWN.OWNER });
-    if ((foreign.ownership?.[playerId] ?? OWN.NONE) !== OWN.NONE) await foreign.update({ [`ownership.${playerId}`]: OWN.NONE });
+    // The test is what the seat is granted, entry or default: an actor whose default level reaches the Player has no entry of the Player's to read.
+    const foreignBefore = { entry: foreign.ownership?.[playerId] ?? null, default: foreign.ownership?.default ?? null };
+    if (foreign.testUserPermission(player, "OWNER")) await foreign.update({ "ownership.default": OWN.NONE, [`ownership.${playerId}`]: OWN.NONE });
     return {
+      foreignBefore,
       market: !!place.system.hasMarket,
       marketClassSet: place.system.marketClass != null,
       placeOwned: place.testUserPermission(player, "OWNER"),
@@ -619,7 +622,9 @@ try {
   const l1 = await run(gm, P.setLedger, { actorId: ids.hireling, entries: [{ delta: ENTRY_DELTA, note: ENTRY_NOTE, compensated: false }] });
   const l2 = await run(gm, P.setLedger, { actorId: ids.foreignHireling, entries: [{ delta: ENTRY_DELTA, note: ENTRY_NOTE, compensated: true }] });
   check("toggle: the Player's hireling carries one uncompensated entry and the foreign one a compensated entry", l1.entries === 1 && l1.compensated === 0 && l2.entries === 1 && l2.compensated === 1, { hireling: l1, foreign: l2 });
-  const t0 = await run(player, P.read, { actorId: ids.hireling });
+  // The ledger was written on the GM seat; the Player seat reads it only once the update has reached it, so wait for its own entry (and the score the entry gives) before taking the figure.
+  let t0 = await run(player, P.read, { actorId: ids.hireling });
+  for (let n = 0; n < 40 && (t0.own < 0 || t0.ownCompensated !== false); n++) { await sleep(250); t0 = await run(player, P.read, { actorId: ids.hireling }); }
   note("loyalty figure read at the start", t0.score !== null);
 
   const svc = await run(player, P.serviceToggle, { actorId: ids.hireling, press: true });
