@@ -606,7 +606,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const split = lang[`${LANG_PREFIX}.warn.familyMismatchLoneSplit`];
   assert.ok(split.includes("delete the larger") && split.includes("{family}"), "the pair's line says which box to delete");
   const ambiguous = lang[`${LANG_PREFIX}.warn.familyAmbiguous`];
-  assert.ok(ambiguous.includes("three boxes") && ambiguous.includes("across and down") && !ambiguous.includes("second box") && ambiguous.includes("stays as you chose"), "an ambiguity asks for the boxes that can tell the two apart, and is no error");
+  assert.ok(ambiguous.includes("another box around one single hex") && !ambiguous.includes("three boxes") && !ambiguous.includes("one row") && ambiguous.includes("stays as you chose"), "an ambiguity asks for one more box, which the lattice reads from two boxes on, and is no error");
   // The window has one name, and the notice and the tooltip use the rows' words.
   const name = (key) => lang[`${LANG_PREFIX}.${key}`];
   assert.equal(name("title"), "Map setup");

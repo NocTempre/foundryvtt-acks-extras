@@ -522,3 +522,61 @@ auto-size off it. This feature's part: the preCreate auto-size, Map setup's "Res
 reset write `flags.acks-extras.sizeStamp` with the size, and a chip and the custom size do not. The flag names are in
 lib's constants and re-exported here. The cost it adds here is that Rescale skips a locked body until the reset clears its lock.
 
+## 2026-11-26 — The hex family is read from two boxes, and a map regular in its image is read in its own proportions
+
+**Ruled** (owner, 2026-11-25, on the defects in this release): "Bugs: just fix
+them." Design calls are the batch's, by three principles: every value has a
+control, everything has a manual override or entry point, and nothing is
+buried in a hidden table. The release hub approved the reworded
+`ACKS-BATTLEMAP.warn.familyAmbiguous`.
+
+**Decision.**
+- The lattice decides the family once two used boxes hold two node positions
+  along at least one axis, with the centres rising with the nodes along every
+  axis they spread on, and the other family's lattice places at least two of
+  them. The threshold it replaces, three boxes spread on both axes with three
+  placed on the other family, was set by map setup slice A2 (2a1f8030) and
+  was in no entry here. The ambiguity line asks for one more box a few hexes
+  away instead of three across and down.
+- `fitHexLattice` reads a stretched scene's boxes a second time at the
+  image's own proportions, and that reading answers (`read: "image"`) only
+  where it places more boxes than the canvas reading and carries no family
+  warning. Apply already scales each axis by itself, so the scene comes out
+  in the image's proportions and the hexes regular on it.
+
+**Evidence** (offline at the fit's interface, 200 seeded draws of ±3 px edge
+noise per set, 150 px hexes, re-measured on `main` before the change):
+pointy rows stretched 1.25x on canvas, chosen as rows, read the other family
+in 200 of 200 draws for a diagonal pair and for a row of four; after, 3 to 4
+of 200 for the pair and 0 for the row. A second box beside a lone box read as
+the other family now clears the line, which `familyMismatchLone` promised and
+the old gate did not keep. Flat columns regular in the image on a 4:3 scene
+got no fit in 200 of 200 draws for every set; after, every set fits with
+every box used and no warning. The wrong family on a true canvas never reads
+clean, before or after. The architect's sweep of the same gate (B02,
+2026-11-25) changed 38 of 288 corpus cells, none for the worse.
+
+**Supersedes in part.** Nothing in force here; the threshold was a slice's.
+
+**Rejected.**
+- *Reading every stretched scene in the image's proportions.* The walk's own
+  map is a squashed image that its scene draws true; the canvas reading is
+  the right one there, and it keeps answering.
+- *A two-frame shape test for a stretch carried in the image as well.* It
+  flips the "block drawn first is left out" case (T-0608) and waits on a
+  ruling on `HEX_SHAPE_LEAN`.
+- *A panel line naming which reading answered.* Nothing a Judge does changes
+  with it, and Apply writes the scene's new width and height, which Scene
+  configuration shows.
+
+**Cost.**
+- Two boxes give the lattice less to go on: a hand's noise lifts two boxes'
+  RMS past `TIGHT_PX` now and then, and the call falls back to the shape, as
+  it did before for every pair.
+- A row of exact boxes read on the other family's lattice gives the lattice
+  no direction (the nodes zigzag, the centres do not), so the shape decides
+  it, as before.
+- A lone box keeps only its aspect, and a 1.25x stretch of one family is the
+  other family squeezed. A box around a block beside one honest box on a
+  stretched scene of regular image hexes still takes the block for the hex,
+  as the canvas reading did.

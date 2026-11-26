@@ -8920,7 +8920,7 @@
   "ACKS-BATTLEMAP.warn.looseHexWorst": "The boxes do not sit on one hex grid: box {n} sits furthest off. Redraw it, or add boxes between the others.",
   "ACKS-BATTLEMAP.warn.unreachable": "{count} box(es) are too far from the others to place and are left out. Draw a box between them and the rest to bring them in.",
   "ACKS-BATTLEMAP.warn.familyMismatch": "The boxes read as the other hex family. Check “{family}”; it stays as you chose it.",
-  "ACKS-BATTLEMAP.warn.familyAmbiguous": "These boxes cannot tell pointy-topped from flat-topped hexes. Draw at least three boxes around single hexes, spread both across and down the map; boxes in one row or one column cannot. The family stays as you chose it in “{family}”.",
+  "ACKS-BATTLEMAP.warn.familyAmbiguous": "These boxes cannot tell pointy-topped from flat-topped hexes. Draw another box around one single hex, a few hexes from the others. The family stays as you chose it in “{family}”.",
   "ACKS-BATTLEMAP.warn.familyMismatchLoneSplit": "This box reads as the other hex family, and the box you added was left out because it differs in size from it. One of the two is drawn around several hexes: delete the larger. If both are one hex, check “{family}”. The family stays as you chose it.",
   "ACKS-BATTLEMAP.warn.familyMismatchLone":"This box reads as the other hex family. A box drawn around several hexes looks like this too, and one box cannot tell the two apart. Draw a second box around one single hex with “{tool}”; it tells them apart. If it reads the same way, check “{family}”. The family stays as you chose it.",
   "ACKS-BATTLEMAP.needs.gridSample": "Draw a box around one cell of the map's own grid with {tool}.",

@@ -849,9 +849,12 @@ function centresRise(placed, axis, lattice) {
 /**
  * Whether the boxes belong to the family the Judge chose, as warnings.
  *
- * Three or more used boxes spread over both axes are fitted to both families'
- * lattices: the lattice that holds them to within `TIGHT_PX` is theirs, and
- * when neither or both do, the lattices cannot tell. The shape then decides:
+ * Two or more used boxes that hold two distinct node positions along at least
+ * one axis, with the centres rising along every axis they spread on, are fitted
+ * to both families' lattices, each placing at least two boxes: the lattice that
+ * holds them to within `TIGHT_PX` is theirs, and when neither or both do, or the
+ * boxes sit on one node, or the other family places fewer than two, the
+ * lattices cannot tell. The shape then decides:
  * the mean canvas aspect of the used boxes against the midway aspect of the two
  * families, in standard deviations of that mean (`FAMILY_Z`); inside them the
  * family is ambiguous.
@@ -861,10 +864,11 @@ function hexFamilyWarnings({ own, boxes, probe, otherProbe, scale }) {
   const { placed, lattice, used } = own;
   let verdict = null;
   let basis = "shape";
-  const spreadBoth = used >= 3 && isSpread(placed, "x", lattice) && isSpread(placed, "y", lattice);
-  if (spreadBoth && centresRise(placed, "x", lattice) && centresRise(placed, "y", lattice) && probeLattice(otherProbe)) {
+  const spreadAxes = ["x", "y"].filter((axis) => isSpread(placed, axis, lattice));
+  const readable = used >= 2 && spreadAxes.length > 0 && spreadAxes.every((axis) => centresRise(placed, axis, lattice));
+  if (readable && probeLattice(otherProbe)) {
     const alt = solveHexLattice({ boxes, probe: otherProbe, scale, otherProbe: probe });
-    if (alt.ok && alt.used >= 3) {
+    if (alt.ok && alt.used >= 2) {
       const ownFits = own.rmsPx <= TIGHT_PX;
       const altFits = alt.rmsPx <= TIGHT_PX;
       if (ownFits !== altFits) {
@@ -895,7 +899,11 @@ function hexFamilyWarnings({ own, boxes, probe, otherProbe, scale }) {
  * family — scaled per axis, so no hex geometry is stated here.
  *
  * Shape is judged on canvas (the box scaled by `scale`), so a map whose image
- * is stretched over its scene still reads a regular hex as one. A box that is
+ * is stretched over its scene still reads a regular hex as one. A map whose
+ * hexes are regular in the image and not on canvas is read a second time in the
+ * image's own proportions; that reading stands only where it uses more boxes
+ * than the canvas one (a failed reading uses none) and carries no family
+ * warning, and `read` says which one answered. A box that is
  * not one hex is left out of the fit and flagged `notOneHex`: one whose
  * proportions no hex has, one that spans several hexes and one whose size
  * disagrees with the rest (`HEX_SHAPE_LEAN`, `HEX_SIZE_SPREAD`). Placement is
@@ -911,9 +919,9 @@ function hexFamilyWarnings({ own, boxes, probe, otherProbe, scale }) {
  *
  * Confidence is the RMS of every edge residual of the final fit in image px,
  * against `TIGHT_PX` and `FAIR_PX`; fewer than three used boxes cannot read
- * tight. The family is judged by the lattice, or by the boxes' shape where the
- * lattice cannot tell; a verdict against the Judge's family is a warning and
- * never changes the fit.
+ * tight. The family is judged by the lattice from two used boxes on, and by the
+ * boxes' shape where the lattice cannot tell (`hexFamilyWarnings` names when);
+ * a verdict against the Judge's family is a warning and never changes the fit.
  *
  * @param {object} input
  * @param {Array<{x:number,y:number,w:number,h:number}>} input.boxes  Image px,
@@ -924,12 +932,13 @@ function hexFamilyWarnings({ own, boxes, probe, otherProbe, scale }) {
  * @param {object|null} [input.otherProbe]  `hexProbe`'s answer for the other
  *   family; without it no family is judged and the shape range is the chosen
  *   family's alone.
- * @returns {object} On success `{ ok:true, sizeX, sizeY, centre, k, spacing,
+ * @returns {object} On success `{ ok:true, read, sizeX, sizeY, centre, k, spacing,
  *   from, boxes, used, unreachable, rmsPx, rmsPct, maxPct, worst, confidence,
  *   warnings, samples }`: `sizeX`/`sizeY` are ONE hex's bounding box in image
  *   px; `centre` the fitted centre of the anchor's hex in image px; `k` image
  *   px per probe px per axis; `spacing` the probe's `u` and `v` steps in image
- *   px; `from` per axis `"joint"` or `"edges"`; `boxes` one `{index, cell,
+ *   px; `from` per axis `"joint"` or `"edges"`; `read` `"canvas"` or
+ *   `"image"`, the proportions the fit was read in; `boxes` one `{index, cell,
  *   residual, notOneHex, unreachable}` per input box, where `cell` is `{i, j}`
  *   in basis coordinates (`i` along `u`, `j` along `v`) and `residual` is the
  *   box centre's distance from its node as a share of one hex, both null for a
@@ -950,6 +959,20 @@ export function fitHexLattice({ boxes = [], probe = null, scale = { x: 1, y: 1 }
   if (!samples) return { ok: false, reason: "noBoxes", samples };
   const lattice = probeLattice(probe);
   if (!lattice) return { ok: false, reason: "noProbe", samples };
+  const canvas = readHexLattice({ boxes, probe, scale, otherProbe, lattice, read: "canvas" });
+  const identity = !(scale?.x > 0 && scale.x !== 1) && !(scale?.y > 0 && scale.y !== 1);
+  if (identity) return canvas;
+  // Hexes regular in the image, on a scene of another aspect, are not one hex
+  // on canvas. Apply rescales each axis on its own, so the image's own reading
+  // holds on the scene, and it stands only where it places more boxes and the
+  // family has nothing against it.
+  const image = readHexLattice({ boxes, probe, scale: { x: 1, y: 1 }, otherProbe, lattice, read: "image" });
+  return image.ok && !image.warnings.length && (!canvas.ok || image.used > canvas.used) ? image : canvas;
+}
+
+/** One reading of `fitHexLattice`'s boxes, in the proportions `scale` gives them; `read` names which. */
+function readHexLattice({ boxes, probe, scale, otherProbe, lattice, read }) {
+  const samples = boxes.length;
   const own = solveHexLattice({ boxes, probe, scale, otherProbe });
   if (!own.ok) return { ok: false, reason: "noOneHex", boxes: own.info, samples };
 
@@ -959,6 +982,7 @@ export function fitHexLattice({ boxes = [], probe = null, scale = { x: 1, y: 1 }
   const farthest = residuals.reduce((a, r) => (r.px > a.px ? r : a), residuals[0]);
   return {
     ok: true,
+    read,
     sizeX: own.sizeX,
     sizeY: own.sizeY,
     centre: { x: fit.x.o, y: fit.y.o },

@@ -55,6 +55,14 @@ part is blocked without it.
   core grid shape holds a polygon Region no read finds: delete that Region
   (the marker lookup returns the scene, and its Region is its own) and paint
   the hex again.
+- Two kept scenes whose hexes are NOT regular on canvas, for step 14d, each a
+  copy of a hex scene's data with nothing embedded and only its width changed
+  (Scene configuration → Background → Width; height unchanged):
+  `battlemap/hex-cols-wide` from `battlemap/hex-cols-setup`, a third wider, so
+  its hexes are regular in the image and stretched on the scene; and
+  `battlemap/hex-rows-wide` from `battlemap/hex-setup-feedback`, a quarter
+  wider, so its pointy hexes are stretched on the scene as well. A step resets
+  each to gridless at its start.
 
 ## Drive mechanics (non-obvious)
 
@@ -362,6 +370,21 @@ part is blocked without it.
     columns (flat top)", miles, and drag five boxes across five columns.
     *Observable:* tight (1.0 px on a 40 px side). After the apply, `grid.type`
     is 4 and every drawn hex centre is within a few px of its grid centre.
+14d. **Hexes the scene stretches.** On `battlemap/hex-rows-wide`, choose
+    "Hex grid — rows (pointy top)" and drag two boxes, each tight around one
+    hex, side by side in one row; then two more further along that row.
+    *Observable:* no other-family line at two boxes or at four, and the fit
+    reads the boxes' hexes. Choose "Hex grid — columns (flat top)" with the
+    same two boxes: the other-family line names the family select. Then on
+    `battlemap/hex-cols-wide`, choose columns and drag one box tight around
+    one hex, then a second a few hexes away.
+    *Observable:* one box already fits (the box row shows no "not one hex"),
+    two read without a family line, and the red outlines lie on the drawn
+    hexes. Apply at any worth: the scene's width and height come out in the
+    image's own proportions, and every drawn hex centre is within a few px of
+    its grid centre. Where the boxes cannot tell the families apart, the line
+    reads "Draw another box around one single hex, a few hexes from the
+    others" and no longer asks for three boxes across and down.
 15. **Units and what they are worth.** After step 14's apply at 6 mi a hex,
     drop the plain character.
     *Observable:* the token keeps its prototype 1×1, because a mile-scale

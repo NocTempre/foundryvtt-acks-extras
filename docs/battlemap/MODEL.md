@@ -374,7 +374,10 @@ nothing rewrites it.
   hex families and hands `fitHexLattice` the chosen one, the other one, and
   the image's own stretch (`canvasPerImage`, canvas px per image px on each
   axis), so a regular hex drawn on a stretched picture still reads as one.
-  The fit places each box on a lattice cell outward from an anchor and fits
+  Where the scene stretches hexes that are regular in the image, the fit
+  reads the boxes a second time in the image's own proportions, and that
+  reading answers (`read: "image"`) only where it places more boxes than the
+  canvas one and carries no family warning. The fit places each box on a lattice cell outward from an anchor and fits
   one hex's size per axis from every placed box's edges, and from their
   centres once they span two cells along that axis. It leaves out, with a
   reason the box's row shows, a box that is not one hex (its proportions, a
@@ -383,7 +386,10 @@ nothing rewrites it.
   drawn). Its confidence is the RMS of the edge residuals in image px against
   `TIGHT_PX` and `FAIR_PX`, a hand's accuracy being `HAND_PX`; fewer than
   three boxes never read tight, and a fit of three boxes or more that is not
-  tight names its worst box. A family
+  tight names its worst box. The family is read from the lattice once two
+  placed boxes hold two positions along an axis and their centres rise with
+  their nodes along every axis they spread on, and from the boxes' mean shape
+  otherwise. A family
   the boxes argue against is a warning (`familyMismatch`, `familyAmbiguous`,
   and `familyMismatchLone` for a lone box that may be a block of hexes): the
   Judge's family stands and Apply stays enabled. `solveHexCalibration` scales

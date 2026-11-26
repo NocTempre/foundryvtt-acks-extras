@@ -1362,8 +1362,9 @@ const relErr = (t, image, fit) => Math.max(Math.abs(fit.sizeX / (t.probe.refW * 
 
 // The scale the session hands the fit is canvas px per IMAGE px, the inverse of
 // the overlay's image scale. On the reported map (a square texture over a 4:3
-// scene) the right answer reads the exact box as one hex; the inverted one
-// reads it as no hex at all, so the two cannot be mixed up unseen.
+// scene) the right answer reads the exact box as one hex on canvas; the inverted
+// one fails on canvas and is answered by the image reading, so the two cannot be
+// mixed up unseen.
 {
   const t = HEX_TYPES_UNDER_TEST[0];
   const square = canvasPerImage({ texture: { width: 1000, height: 1000 }, dimensions: { sceneWidth: 4000 / 3, sceneHeight: 1000 } });
@@ -1383,8 +1384,8 @@ const relErr = (t, image, fit) => Math.max(Math.abs(fit.sizeX / (t.probe.refW * 
   assert.deepEqual(right.warnings, []);
   const inverted = { x: 1 / square.x, y: 1 / square.y };
   const wrong = fitHexLattice({ boxes: [box, next], probe: t.probe, scale: inverted, otherProbe: otherOf(t).probe });
-  assert.equal(wrong.ok === false || wrong.boxes.some((b) => b.notOneHex) || wrong.warnings.length > 0, true,
-    "with the inverted scale the same boxes read differently");
+  assert.equal(right.read, "canvas");
+  assert.equal(wrong.read, "image", "with the inverted scale the canvas reading fails and the image reading answers");
 }
 
 // The session: the affine controls steer only the square family's fit, the hex
@@ -1665,7 +1666,7 @@ const LADDER = [[0, 0], [0, 1], [0, 3], [0, 8], [0, 25]];
 }
 
 // Family: a verdict against the Judge's family is a warning, from the lattice
-// when the boxes spread over both axes and from their shape when they do not.
+// when it can tell the families apart and from the boxes' shape when it cannot.
 {
   const [rows, rowsEven, cols] = HEX_TYPES_UNDER_TEST;
   // Pointy rows stretched a quarter wider than the canvas says: as columns they
@@ -1697,6 +1698,143 @@ const LADDER = [[0, 0], [0, 1], [0, 3], [0, 8], [0, 25]];
   // One box has only its shape, and at the small hex a hand can swing that either way.
   assert.deepEqual(fitFor(rows, IMAGES.large, [hexBox(rows, IMAGES.large, 0, 0)]).warnings, []);
   assert.deepEqual(fitFor(rows, IMAGES.stretched, [hexBox(rows, IMAGES.stretched, 0, 0)]).warnings, [{ id: "familyAmbiguous", basis: "shape" }]);
+}
+
+// Family from two boxes: pointy rows drawn a quarter wider than the canvas says
+// read as rows from a diagonal pair or a row of four, where their shape alone
+// sits nearer columns. The lattice decides from two used boxes when it can tell
+// the families apart, and the other family is still read against it. Exact
+// boxes hold every time; a hand's noise lifts the RMS of two boxes past
+// `TIGHT_PX` now and then, which hands the call back to the shape, so noisy
+// draws are held to a share (measured at 2 in 100 and under).
+{
+  const [rows, rowsEven, cols] = HEX_TYPES_UNDER_TEST;
+  const widened = (base) => ({ k: { x: base.k.x * 1.25, y: base.k.y }, scale: base.scale });
+  const sets = { "a diagonal pair": [[0, 0], [1, 0]], "a row of four": [[0, 0], [0, 1], [0, 2], [0, 3]] };
+  const MISSED_MOST = 5;
+  const exact = [["exact small", IMAGES.stretched], ["exact large", IMAGES.large]].map(([name, base]) => ({ name, image: widened(base), draw: () => (b) => b }));
+  const noisy = [];
+  for (let seed = 1; seed <= 100; seed++) {
+    noisy.push({ name: `seed ${seed}`, image: widened(IMAGES.large), draw: () => { const rnd = seeded(seed * 7919); return (b) => HAND.edge(b, rnd); } });
+  }
+  // `check(draw, verdict)` is whether a draw met its verdict; exact draws must, noisy ones mostly do.
+  const hold = (where, check) => {
+    for (const d of exact) assert.ok(check(d, d.draw), `${where}, ${d.name}`);
+    const missed = noisy.filter((d) => !check(d, d.draw)).length;
+    assert.ok(missed <= MISSED_MOST, `${where}: ${missed} of ${noisy.length} noisy draws missed`);
+  };
+  const fitAs = (d, family, other, cells, t) => {
+    return fitHexLattice({ boxes: boxesAt(t, d.image, cells).map(d.draw()), probe: family.probe, scale: d.image.scale, otherProbe: other.probe });
+  };
+  const only = (warnings, id, basis) => warnings.length === 1 && warnings[0].id === id && warnings[0].basis === basis;
+  for (const t of [rows, rowsEven]) {
+    for (const [setName, cells] of Object.entries(sets)) {
+      const where = `${t.name}, ${setName}`;
+      hold(`${where}: as rows`, (d) => {
+        const fit = fitAs(d, t, cols, cells, t);
+        return fit.used === cells.length && fit.warnings.length === 0;
+      });
+      // Exact boxes in a row read on columns with the nodes zigzagging between two
+      // heights while the centres stay at one, so the centres do not rise with
+      // the nodes and the lattice has no direction to read: the pair is told by
+      // it, the four are not (the shape reads them as columns). A hand's noise
+      // gives most draws of the four a direction. Both stay loose.
+      hold(`${where}: as columns`, (d) => {
+        const fit = fitAs(d, cols, t, cells, t);
+        return fit.ok && fit.confidence === "loose" && (cells.length > 2 || only(fit.warnings, "familyMismatch", "lattice"));
+      });
+    }
+    // One such box has only its shape, which reads nearer columns; a second
+    // one-hex box at a neighbour hands the lattice two boxes and clears it. At
+    // the small hex a lone box's shape is ambiguous, not against the family.
+    for (const d of exact) {
+      const lone = fitAs(d, t, cols, [[0, 0]], t);
+      assert.deepEqual(lone.warnings, [{ id: d.name === "exact small" ? "familyAmbiguous" : "familyMismatch", basis: "shape" }], `${t.name}, ${d.name}: one box`);
+    }
+    for (const neighbour of [[1, 0], [0, 1]]) {
+      hold(`${t.name}: a second box at ${neighbour}`, (d) => {
+        const fit = fitAs(d, t, cols, [[0, 0], neighbour], t);
+        return fit.used === 2 && fit.warnings.length === 0;
+      });
+    }
+  }
+}
+
+// A map whose hexes are regular in the image, laid on a scene of another aspect,
+// is read in the image's own proportions where the canvas reading places fewer
+// boxes: Apply rescales each axis on its own, so the fit holds on the scene. The
+// canvas reading stands wherever it places as many boxes, or the image reading
+// carries a family warning.
+{
+  const [rows, rowsEven, cols, colsEven] = HEX_TYPES_UNDER_TEST;
+  const flat = { k: IMAGES.large.k, scale: { x: 4 / 3, y: 1 } };
+  const sets = { "one box": [[0, 0]], "a diagonal pair": [[0, 0], [1, 0]], "the walk": WALK5 };
+  const SIZE_BOUND = { "one box": 0.0425, "a diagonal pair": 0.0325, "the walk": 0.015 };
+  for (const t of [cols, colsEven]) {
+    for (const [setName, cells] of Object.entries(sets)) {
+      const where = `${t.name}, ${setName}`;
+      const exact = fitFor(t, flat, boxesAt(t, flat, cells));
+      assert.equal(exact.ok, true, `${where}: exact`);
+      assert.equal(exact.used, cells.length, `${where}: exact, every box used`);
+      assert.equal(exact.read, "image", `${where}: exact`);
+      assert.deepEqual(exact.warnings, [], `${where}: exact`);
+      assert.ok(relErr(t, flat, exact) < 1e-9, `${where}: exact, the image hex`);
+      let worst = 0;
+      for (let seed = 1; seed <= 100; seed++) {
+        const rnd = seeded(seed * 7919);
+        const fit = fitFor(t, flat, boxesAt(t, flat, cells).map((b) => HAND.edge(b, rnd)));
+        assert.equal(fit.ok, true, `${where}, seed ${seed}`);
+        assert.equal(fit.used, cells.length, `${where}, seed ${seed}: every box used`);
+        assert.equal(fit.read, "image", `${where}, seed ${seed}`);
+        assert.deepEqual(fit.warnings, [], `${where}, seed ${seed}`);
+        worst = Math.max(worst, relErr(t, flat, fit));
+      }
+      assert.ok(worst < SIZE_BOUND[setName], `${where}: size off by ${(100 * worst).toFixed(2)}% over every run`);
+    }
+  }
+  // A canvas reading that places as many boxes stands: pointy rows regular in
+  // the image read as the canvas reads them, a lone box's shape included.
+  for (const t of [rows, rowsEven]) {
+    const lone = fitFor(t, flat, boxesAt(t, flat, [[0, 0]]));
+    assert.equal(lone.read, "canvas", `${t.name}: one box`);
+    assert.deepEqual(lone.warnings, [{ id: "familyMismatch", basis: "shape" }], `${t.name}: one box`);
+    for (const cells of [[[0, 0], [1, 0]], WALK5]) {
+      const fit = fitFor(t, flat, boxesAt(t, flat, cells));
+      assert.equal(fit.read, "canvas", `${t.name}: ${cells.length} boxes`);
+      assert.equal(fit.used, cells.length);
+    }
+  }
+  // A texture drawn over a scene of another aspect, hexes regular on canvas, is read on canvas.
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    const fit = fitFor(t, IMAGES.stretched, boxesAt(t, IMAGES.stretched, WALK5));
+    assert.equal(fit.read, "canvas", t.name);
+    assert.equal(fit.used, 5, t.name);
+    assert.deepEqual(fit.warnings, [], t.name);
+    assert.ok(relErr(t, IMAGES.stretched, fit) < 1e-9, t.name);
+    // Its wrong family is a mismatch, read on canvas, never rescued by the image reading.
+    const wrong = fitHexLattice({ boxes: boxesAt(t, IMAGES.stretched, WALK5), probe: otherOf(t).probe, scale: IMAGES.stretched.scale, otherProbe: t.probe });
+    assert.equal(wrong.read, "canvas", `${t.name}: the wrong family`);
+    assert.deepEqual(wrong.warnings, [{ id: "familyMismatch", basis: "lattice" }], `${t.name}: the wrong family`);
+  }
+  // A box around a 2x2 block, alone or beside one honest box, reads as the canvas reads it.
+  const GUARDED = {
+    "rows|flat": { alone: "fail|x", bh: "canvas|1|x-|familyMismatch/shape", hb: "canvas|1|-x|familyMismatch/shape" },
+    "rows|stretched": { alone: "canvas|1|-|familyMismatch/shape", bh: "canvas|1|x-|familyAmbiguous/shape", hb: "canvas|1|-x|familyAmbiguous/shape" },
+    "cols|flat": { alone: "canvas|1|-|", bh: "canvas|1|-x|", hb: "canvas|1|x-|" },
+    "cols|stretched": { alone: "canvas|1|-|familyMismatch/shape", bh: "canvas|1|x-|familyAmbiguous/shape", hb: "canvas|1|-x|familyAmbiguous/shape" },
+  };
+  const read = (f) => (f.ok ? `${f.read}|${f.used}|${f.boxes.map((b) => (b.notOneHex ? "x" : "-")).join("")}|${f.warnings.map((w) => `${w.id}/${w.basis}`).join(",")}` : `fail|${f.boxes.map((b) => (b.notOneHex ? "x" : "-")).join("")}`);
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of [["flat", flat], ["stretched", IMAGES.stretched]]) {
+      const block = blockBox(t, image, [[10, 10], [11, 10], [10, 11], [11, 11]]);
+      const honest = hexBox(t, image, 8, 8);
+      const want = GUARDED[`${t.columns ? "cols" : "rows"}|${imageName}`];
+      const where = `${t.name}, ${imageName}`;
+      assert.equal(read(fitFor(t, image, [block])), want.alone, `${where}: the block alone`);
+      assert.equal(read(fitFor(t, image, [block, honest])), want.bh, `${where}: the block, then an honest box`);
+      assert.equal(read(fitFor(t, image, [honest, block])), want.hb, `${where}: an honest box, then the block`);
+    }
+  }
 }
 
 // Which boxes are one hex: real blocks of hexes are not, however regular they

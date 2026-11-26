@@ -57,9 +57,12 @@ Re-issued 2026-11-14.
    - T-0591: the square family's loose-fit warning names no sample.
    The hex fit, each measured offline in Phase 1, re-measured on 2026-11-25
    and not fixed: T-0593 (after several boxes sharing one outline bias, a far
-   box lands a hex short, on the row types as well as the column types), T-0594 (a stretched picture with boxes spread along one axis
-   only leaves the family to the shape fallback, which misreads rows
-   stretched 1.25 times).
+   box lands a hex short, on the row types as well as the column types);
+   T-0594's two remaining parts (a lone box carries only its aspect, which a
+   1.25x stretch shares with the other family squeezed; and flat columns
+   stretched 1.25x on canvas, and in the image, fall outside the shape range
+   `HEX_SHAPE_LEAN` allows, so no box is one hex), the second waiting on a
+   ruling on that bound.
    The capture tools and the group:
    - T-0634: the corners hint promises rotation and skew without naming
      Allow skew.
