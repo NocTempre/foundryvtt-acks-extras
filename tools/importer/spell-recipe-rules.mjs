@@ -118,8 +118,10 @@ function locatorProblems(from, allow, label, out) {
     for (const key of FIGURE_LOC_KEYS) if (loc?.[key] !== undefined) out.push(`${at}.${key} is a literal figure; read it from the page`);
     // A reading option is a switch, never a figure: `articles` reads "a" or "an" as one
     // inside this locator, and `accumulate` adds each captured rung's value to the one before.
-    for (const key of ["articles", "accumulate"]) if (loc?.[key] !== undefined && loc[key] !== true) out.push(`${at}.${key} is true or absent`);
+    // `sumGroups` adds every capture group of a figure locator, for an extent the page prints as increments.
+    for (const key of ["articles", "accumulate", "sumGroups"]) if (loc?.[key] !== undefined && loc[key] !== true) out.push(`${at}.${key} is true or absent`);
     if (loc?.accumulate === true && !loc.on) out.push(`${at}.accumulate reads a ladder and needs "on"`);
+    if (loc?.sumGroups === true && !["integer", "number"].includes(LOCATABLE_FIELDS[into])) out.push(`${at}.sumGroups adds figures and "${into}" is not an integer or a number field`);
   }
 }
 

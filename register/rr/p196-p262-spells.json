@@ -4853,7 +4853,18 @@
         "key": "light",
         "type": "light",
         "appliesTo": "area",
-        "lasts": "duration"
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "lightBands.bright",
+            "pattern": "sheds\\s*bright\\s*light\\s*out\\s*to\\s*an?\\s*(\\d+)\\S?\\s*radius"
+          },
+          {
+            "into": "lightBands.dim",
+            "pattern": "dim\\s*light\\s*to\\s*an?\\s*(\\d+)\\S?\\s*radius"
+          }
+        ]
       },
       {
         "key": "lightReversed",
@@ -4891,7 +4902,45 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "light",
+        "type": "light",
+        "appliesTo": "area",
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "lightBands.daylight",
+            "pattern": "produces\\s*full\\s*daylight\\s*out\\s*to\\s*(\\d+)"
+          },
+          {
+            "into": "lightBands.bright",
+            "sumGroups": true,
+            "pattern": "full\\s*daylight\\s*out\\s*to\\s*(\\d+)[^a-z]*bright\\s*torch\\s*light\\s*out\\s*to\\s*an\\s*additional\\s*(\\d+)"
+          },
+          {
+            "into": "lightBands.dim",
+            "pattern": "dim\\s*light\\s*out\\s*to\\s*an\\s*additional\\s*\\d+[^a-z]*beyond\\s*that\\s*\\(\\s*(\\d+)[^a-z]*total"
+          }
+        ]
+      },
+      {
+        "key": "lightReversed",
+        "type": "light",
+        "appliesTo": "area",
+        "reversed": true,
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.illusoryDuplicates",

@@ -546,6 +546,12 @@ export const LOCATABLE_FIELDS = Object.freeze({
   "target.hdBelow": "levelValue",
   "target.area.size": "levelValue",
   "target.area.width": "levelValue",
+  // A light row's reach in feet from the light, by band (`lightBands`, lib/light.mjs
+  // `MAGIC_LIGHT_BANDS`). A band the page prints as an increment over the one
+  // inside it is located with `sumGroups`.
+  "lightBands.daylight": "integer",
+  "lightBands.bright": "integer",
+  "lightBands.dim": "integer",
 });
 
 /**
@@ -688,6 +694,13 @@ function locateField(loc, kind, m) {
       : { kind: "conditional", on: loc.on, breakpoints, ...(loc.round ? { round: loc.round } : {}) };
   }
   if (kind === "flag") return true;
+  // `sumGroups` reads an extent the page prints as parts, each an increment over
+  // the one before: every capture group is a figure and the field is their sum.
+  // A group that is no figure, or a pattern that captures none, is a miss.
+  if (loc.sumGroups === true && (kind === "integer" || kind === "number")) {
+    const parts = m.slice(1).map((g) => (g === undefined ? NaN : readNumber(String(g), kind !== "integer")));
+    return parts.length && parts.every(Number.isFinite) ? parts.reduce((a, b) => a + b, 0) : MISS;
+  }
   const raw = String(m[loc.group ?? 1] ?? m[0]);
   if (kind === "armourRung") return ceilingOf(raw) ?? MISS; // a rung is a word; a clause naming none reads none
   if (kind === "dice") return readDice(raw);
@@ -780,6 +793,10 @@ function locateField(loc, kind, m) {
  * the page writes with "a" or "an" sets `articles: true`, which reads an
  * article as one inside that locator only; a count that grows by increments sets
  * `accumulate` (see `ladderFrom`). A word no vocabulary member answers to is a miss.
+ * A light row's `lightBands.<band>` reads a reach in feet as an integer; a band
+ * the page prints as an increment over the one inside it sets `sumGroups`, which
+ * reads every capture group of that locator as a figure and writes their sum (a
+ * group that is no figure is a miss, never a part sum).
  *
  * `"onMiss": "blank"` on a spec changes what a miss costs: the locator that
  * missed leaves its field unset, the row keeps every other field it located,

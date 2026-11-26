@@ -339,6 +339,39 @@ t("a rounds formula is read like a roll, and left unset with its path listed whe
   assert.equal(none.lasts, "rounds", "the structure still ships");
 });
 
+t("a light row's band reach is located as an integer under its band, and a band the page does not print stays unset and listed", () => {
+  const spec = {
+    type: "light",
+    onMiss: "blank",
+    from: [
+      { into: "lightBands.bright", pattern: "glows\\s*brightly\\s*out\\s*to\\s*(\\d+)\\S?\\s*from" },
+      { into: "lightBands.dim", pattern: "faintly\\s*out\\s*to\\s*(\\d+)\\S?\\s*from" },
+    ],
+  };
+  const [row] = materializeEffects([spec], paras("The orb glows brightly out to 12’ from its centre and faintly out to 20’ from it."));
+  assert.deepEqual(row.lightBands, { bright: 12, dim: 20 });
+  assert.equal(row.unread, undefined, "nothing missed, nothing listed");
+  const [miss] = materializeEffects([spec], paras("The orb glows brightly out to 12’ from its centre."));
+  assert.deepEqual(miss.lightBands, { bright: 12 }, "the band the page prints is kept");
+  assert.deepEqual(miss.unread, ["lightBands.dim"], "the band it does not is listed by its path");
+  const [none] = materializeEffects([spec], paras("The orb glows."));
+  assert.equal(none.lightBands, undefined, "a miss writes nothing");
+  assert.deepEqual(none.unread, ["lightBands.bright", "lightBands.dim"]);
+  const [word] = materializeEffects([spec], paras("The orb glows brightly out to twelve from its centre."));
+  assert.equal(word.lightBands, undefined, "a figure the page writes as a word is no integer here, so it is a miss");
+  assert.deepEqual(materializeEffects([{ ...spec, onMiss: undefined }], paras("The orb glows.")), [], "without onMiss a miss drops the row");
+});
+
+t("a band the page prints as an increment over the one inside it is read by summing every capture group of its locator", () => {
+  const spec = (loc) => ({ type: "light", onMiss: "blank", from: [{ into: "lightBands.bright", pattern: "core\\s*out\\s*to\\s*(\\d+)\\S?\\s*and\\s*a\\s*ring\\s*of\\s*([^\\s’']+)\\S?\\s*more", ...loc }] });
+  const prose = paras("A core out to 7’ and a ring of 5’ more.");
+  assert.equal(materializeEffects([spec({ sumGroups: true })], prose)[0].lightBands.bright, 12, "the two figures are added");
+  assert.equal(materializeEffects([spec({})], prose)[0].lightBands.bright, 7, "without the switch only the first group is read");
+  const [miss] = materializeEffects([spec({ sumGroups: true })], paras("A core out to 7’ and a ring of an unknown more."));
+  assert.equal(miss.lightBands, undefined, "a group that is no number makes the whole read a miss, never a part sum");
+  assert.deepEqual(miss.unread, ["lightBands.bright"]);
+});
+
 /* ------------------------------------------------------------------ */
 /*  rolls: unchanged by the shared ladder builder                      */
 /* ------------------------------------------------------------------ */

@@ -6313,6 +6313,28 @@ world clock is read for the end.
     record's own effect sheet (`.application` with the record's name in its
     title). The blank cell's tooltip is still the cite alone. Step 2's record,
     shuttered by step 3, is asserted shuttered and counts for nothing here.
+11. **K-c11. The imported reach.** The one step that reads the Judge's own copy:
+    no invented page stands in for it, and a seat with no copy of RR skips it and
+    says so. GM seat: re-import RR's spells in the test world (Settings tab → Game
+    Settings → ACKS II — Extras → Manage imports → (Re)import individual entries,
+    the two illumination spells), then bring both onto the kit caster, which
+    carries them beside the fixture spell with the pool set full by hand.
+    *Observable:* the cast row's select offers both (`hasLightRow`: the perpetual
+    form carried no row before). Cast the timed form: the record's band changes
+    read blank, the bright reach and the dim reach, and the cite flag reads RR
+    p. 227; the Kit row's reach cell is "{bright} / {dim} ft", read against the
+    page, with no daylight figure since that page prints none. Cast the perpetual
+    form: the record carries all three bands (RR p. 228), daylight as printed,
+    bright as the daylight reach plus the increment the page prints, and dim as the
+    total the page prints; the record carries no `startTime` and no duration, so
+    its Kit row shows no countdown and it is still listed after K-c8's clock
+    advance. Open each spell's Light row in the effect-row editor: its radii hold
+    the imported figures. Then type one band on the timed row, re-import again:
+    the typed band stands and the row is listed as held (Settings tab → Game
+    Settings → ACKS II — Extras → Manage imports), and a row left untouched takes
+    the page's reach. A radius the page's wording does not yield stays blank and
+    is listed as unread; the editor's tooltip on it is the page alone. Teardown:
+    the casts' records and cards by the run's own ids; the imported spells stay.
 
 Teardown: the run puts back the spells' radii, counts and pools (`P.shape`), the
 deployed member, the fixture scene's darkness (K-c10 sets it to 0.8 and writes

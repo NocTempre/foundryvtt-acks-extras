@@ -1230,6 +1230,28 @@ its `pick` group it belongs to), `recurAt` (`EFFECT_RECUR_MOMENTS`), `recurSave`
 (`EFFECT_RECUR_SAVES`) and `recurTarget` (`EFFECT_RECUR_TARGETS`), each needing a
 `recur` of `eachRound` or `laterRounds`; `lasts` takes `nextTurn` and `rounds`.
 
+A light row's reach is located band by band: `lightBands.daylight`,
+`lightBands.bright` and `lightBands.dim` are integer fields in feet, radii from
+the light itself (lib `MAGIC_LIGHT_BANDS`). A row states none of them and a band
+the page does not print has no locator (the timed illumination prints no daylight
+band); under `onMiss: "blank"` a band that misses stays unset and is listed in
+`unread`, so a bookless import still leaves the row for a cast to offer and the
+band blank for a Judge to type in the effect-row editor. A page that prints an
+outer band as an increment over the one inside it is read with `sumGroups:
+true`, which adds every capture group of that locator, so the locator names each
+printed part and the sum is made at import from the Judge's own copy; a group
+that reads no figure misses the whole band, never a part sum, and the lint takes
+only `true` and only on an integer or number field. A band the page also prints
+as a total (the perpetual form's dim band) is located from the total, which
+needs no sum. The reverse form's twin row (`lightReversed`) locates nothing: a
+cast never writes it, and a located radius would show on a darkness row. Both
+illumination spells carry the pair, so the cast row on the party sheet offers
+either (`hasLightRow`); the rows are pinned in `tools/test-magic-light-rows.mjs`.
+A world imported before the rows located a reach holds spells with blank bands,
+and a re-import of the spells writes them. A band a Judge typed in the row
+editor makes the row the Judge's (`origin` cleared), so a repair keeps it and
+lists it as held when it no longer covers the page's (`mergeRowsByOrigin`).
+
 A printed option list is a template row. `each` (`{pattern, flags?, group?}`)
 on an `effects` spec expands it once per match of the pattern in page order:
 the n-th match, counted over every match, makes the row `<key><n>` with

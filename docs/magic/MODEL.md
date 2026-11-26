@@ -58,8 +58,9 @@ blank.
 
 **A light row sheds its light from the record.** A light row of the spell's own
 form (not `reversed`, in a normal-mode cast) carries three radii, `lightBands`
-(Daylight, Bright, Dim, in feet, each blank until typed in the effect-row
-editor). Where it lasts the duration and names no recipient
+(Daylight, Bright, Dim, in feet, each blank until the importer reads it from the
+spell's page or a Judge types it in the effect-row editor; the importer's rules
+are in `docs/importer/MODEL.md`, "Spell recipes"). Where it lasts the duration and names no recipient
 (`cast-kinds.mjs` `lightRowsOnCaster`, the largest figure per band over several
 rows), the caster's record carries lib's magic-light changes and the card's
 page, `card.cite`, as the effect's `magicLightCite` flag (`spellEffectData`'s
