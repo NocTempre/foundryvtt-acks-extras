@@ -585,7 +585,10 @@ const localImpl = Object.freeze({
    * on the GM's window, which checks the relayed seat's ownership again:
    * `undoCardEntry` takes one entry back, `tickBearer` and `untickBearer` count
    * the bearer in and out, `tickSubject` counts an undetermined body in, and
-   * `reachStrip(actor)` reads the "In reach of" strip.
+   * `reachStrip(actor)` reads the "In reach of" strip. `postOutcomeCard` posts
+   * a prompt card of a registered outcome kind for the actor it speaks for (any
+   * seat: a Player's relays and the GM checks the seat owns that actor), and
+   * `swigHeal` and `swigAskSave` are the presses of an unknown drinker's card.
    */
   itemUse: { addClaimant: addItemUseClaimant, removeClaimant: removeItemUseClaimant },
   itemRun: {
@@ -608,6 +611,9 @@ const localImpl = Object.freeze({
     tickBearer: itemRun.tickBearer,
     untickBearer: itemRun.untickBearer,
     tickSubject: itemRun.tickSubject,
+    postOutcomeCard: itemRun.postOutcomeCard,
+    swigHeal: itemRun.swigHeal,
+    swigAskSave: itemRun.swigAskSave,
     reachStrip: reachStripFor,
     rowsOf: itemRunLogic.itemRunRowsOf,
     logic: itemRunLogic,

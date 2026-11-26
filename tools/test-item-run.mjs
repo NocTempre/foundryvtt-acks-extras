@@ -507,6 +507,7 @@ await t("a use is refused with its own line for an item or actor that is gone, a
     await refused({ requestUserId: "owner" }, "noRow", "error");
     await refused({ requestUserId: "other" }, "notOwner", "error");
     itemFlags = { itemRun: { activation: { kind: "consume" }, rows: [] } };
+    run.registerActivationRunner("consume", null);
     await refused({}, "noRunner", "warn");
     run.registerActivationRunner("consume", async () => ({ ok: false, reason: "oddReason" }));
     notes2.length = 0;

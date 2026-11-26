@@ -9,8 +9,11 @@
  * - `once` takes a snapshot of who the row's reach meets (`reachSnapshot`) and
  *   returns the prompt card's model; `toggle` raises or lowers the attached
  *   reach (`aura-reach.mjs`). Both hand their result to the registered presenter
- *   (`setUsePresenter`), which posts the card; nothing here posts one. `consume`
- *   is a kind a later runner registers (`registerActivationRunner`).
+ *   (`setUsePresenter`), which posts the card; nothing here posts one.
+ * - `consume` is the item's own actor drinking (`runConsume`): a count of swigs
+ *   spent, then the bearer's heal, a human's `swig` save card or an unknown
+ *   drinker's `swigUnknown` card, posted by `postOutcomeCard`; a consume item
+ *   landing on an actor is stamped with it, and rolled a count when handed on.
  * - `fuse` rolls the bearer's proficiency throw (`runFuse`) and, on a lit result,
  *   writes the fuse record; the burst (`burstFuse`) rolls the blast once over the
  *   spot's area and answers the "burst" card. A burst card's Save is the common
@@ -30,7 +33,7 @@
  *   fight that ends moves it to the world clock. A bearer whose last token is
  *   deleted bursts nothing: the Judge is told (`noBearer`).
  */
-import { AURA_BEHAVIOR_TYPE, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
+import { AURA_BEHAVIOR_TYPE, FLAG_DRINK, FLAG_FUSE, FLAG_ITEM_RUN, FLAG_ITEM_RUN_CARD, LANG_PREFIX, MODULE_ID, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
 import { carriesItem, figureNumber, isEngagedActivation, momentKey, pulseAct, readAuraConfig, readReach, reachAdmits, resolveFigure } from "./aura-reach-logic.mjs";
 import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseReach, reachSnapshot, releaseReachMoment, setReachHandler, setReachTeardown } from "./aura-reach.mjs";
 import { behaviorsUnder } from "./regions.mjs";
@@ -39,6 +42,8 @@ import {
   dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoGuard, undoPlan,
 } from "./item-run-logic.mjs";
+import { creatureKinds } from "./actor-read.mjs";
+import { DRINKER_KIND, drinkerKindOf, swigOutcome, swigStampPlan } from "./swig-logic.mjs";
 import { adjustHp, resolveTargets } from "./hp.mjs";
 import { HP_MODE, HP_REASON, hpEligibility } from "./hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "./defenses.mjs";
@@ -59,12 +64,13 @@ import { isMarkerActor } from "./place.mjs";
 const loc = makeLoc(LANG_PREFIX);
 
 /** The refusals the Judge and the Player have a line for; any other reason reads as a plain refusal. */
-const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down"]);
+const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down", "spent"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
 const HANDLER = Object.freeze({
   use: `${MODULE_ID}.itemRun.use`, press: `${MODULE_ID}.itemRun.press`, tick: `${MODULE_ID}.itemRun.tick`, untick: `${MODULE_ID}.itemRun.untick`, tickSubject: `${MODULE_ID}.itemRun.tickSubject`, undo: `${MODULE_ID}.itemRun.undo`, notEngaged: `${MODULE_ID}.itemRun.notEngaged`,
   apply: `${MODULE_ID}.itemRun.apply`, applyAll: `${MODULE_ID}.itemRun.applyAll`, moveSpot: `${MODULE_ID}.itemRun.moveSpot`, setOff: `${MODULE_ID}.itemRun.setOff`, handOn: `${MODULE_ID}.itemRun.handOn`,
+  postCard: `${MODULE_ID}.itemRun.postCard`, swigHeal: `${MODULE_ID}.itemRun.swigHeal`, swigAskSave: `${MODULE_ID}.itemRun.swigAskSave`,
 });
 
 /** The runner of each activation kind, the presenter of a use's result, the fuse's burst, and what hears a press and a lifted activation. */
@@ -124,7 +130,10 @@ const outcomes = new Map();
  *
  * - `phase` "verdict" is the Save press, whose answer's `state` becomes the
  *   entry's (default "applied"): a kind that writes at an explicit Apply answers
- *   `state: "rolled"` and writes nothing here.
+ *   `state: "rolled"` and writes nothing here. A verdict that writes may also
+ *   answer `hp` (stored on the entry, which an Undo gives back) and `amount`
+ *   (stored on the entry). `judge: true` at the verdict leaves nothing written,
+ *   whatever else the answer holds, and the entry in state "judge" with `why`.
  * - `phase` "apply" is the Apply press (`applyEntry`), over an entry in state
  *   "rolled": the answer's `records` are created on the subject's actor,
  *   `hp: [{uuid, amount}]` is what the press took (stored on the entry, which
@@ -377,8 +386,11 @@ export const ownerIdsOf = (doc) => (game.users ?? []).filter((u) => doc?.testUse
  * immunity window carries the card's own id (`cardId`, else a fresh one), never
  * the activation's, so lowering the item takes its conditions and leaves the
  * window. A card whose kind has a registered outcome (`registerPressOutcome`)
- * reads its save off the card, the item and row being gone with a consumed
- * item, and asks that writer what the entry holds. Answers `{ok, saved, entry}`.
+ * reads its save off the card (`saveName`, through the card's own `saveMod`), the
+ * item and row being gone with a consumed item, and asks that writer what the
+ * entry holds: its `records`, `names`, `life`, `hp` and `amount`, or, where it
+ * answers `judge`, nothing but the verdict and a `why` (entry state "judge").
+ * Answers `{ok, saved, entry}`.
  */
 async function pressHere(payload) {
   const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
@@ -401,7 +413,7 @@ async function pressHere(payload) {
     const row = itemRunRowsOf(item).find((r) => r?.key === rowKey) ?? (outcome ? { key: rowKey } : null);
     const subjectToken = subjectOf(subjectUuid);
     const actor = subjectToken?.actor ?? null;
-    const spec = actor && row ? (outcome ? (card.saveName ? saveSpec(actor, card.saveName) : null) : saveSpecOf(actor, row)) : null;
+    const spec = actor && row ? (outcome ? (card.saveName ? saveSpec(actor, card.saveName, cardSaveOptions(card)) : null) : saveSpecOf(actor, row)) : null;
     const key = asked || (waiting ? freshKey(card.entries, safeKey(momentKey({ ...fightNow(), subjectUuid, kindKey: kindKeyOf(item, row) }) ?? subKey)) : subKey);
     const figures = row ? reachFigures(row) : null;
     const timed = figures?.lastsNamed === true;
@@ -422,13 +434,20 @@ async function pressHere(payload) {
     let immune = null;
     let state = "applied";
     let hp = null;
+    let amount = null;
+    let why = "";
     if (outcome) {
       const done = await outcome({ phase: "verdict", card, entry: card.entries?.[key] ?? null, key, saved: verdict.saved, subjectToken, actor, userId: requestUserId });
-      records.push(...(done?.records ?? []));
-      names.push(...(done?.names ?? []));
-      life = done?.life ?? life;
-      state = done?.state ?? "applied";
-      hp = done?.hp ?? null;
+      // A writer that answers `judge` at the verdict writes nothing: the entry holds the verdict and the Judge settles the rest.
+      if (!done?.judge) {
+        records.push(...(done?.records ?? []));
+        names.push(...(done?.names ?? []));
+        life = done?.life ?? life;
+        hp = done?.hp ?? null;
+        if (Number.isFinite(done?.amount)) amount = done.amount;
+      }
+      state = done?.judge ? "judge" : (done?.state ?? "applied");
+      if (done?.judge) why = String(done.why ?? "");
     } else if (timed) {
       // A row with `reach.lasts` writes under fixed ids (one condition and one window per item kind, a later entry replacing the earlier one) and both records carry the card's id and never the activation's, so lowering the reach leaves them.
       const kindKey = kindKeyOf(item, row);
@@ -466,7 +485,7 @@ async function pressHere(payload) {
     }
     const made = !records.length ? [] : timed ? await actor.createEmbeddedDocuments("ActiveEffect", records, { keepId: true }) : await actor.createEmbeddedDocuments("ActiveEffect", records);
     const prior = card?.entries?.[key] ?? {};
-    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(hp ? { hp } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
+    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(hp ? { hp } : {}), ...(amount !== null ? { amount } : {}), ...(why ? { why } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
     if (message && card) {
       const patch = { [`entries.${key}`]: entry };
@@ -486,11 +505,26 @@ function saveSpecOf(actor, row) {
   return name ? saveSpec(actor, name) : null;
 }
 
-/** A condition's clock: the start of the subject's next turn where it is in a fight; outside one, the mark lib's turn start lifts at its first initiative in a fight. */
-function lifeOf(subjectToken) {
+/**
+ * A condition's clock: the `edge` ("start" by default, or "end") of the subject's next turn where it is in a
+ * fight; outside one, the mark lib's turn start lifts at its first initiative in a fight.
+ */
+function lifeOf(subjectToken, edge = "start") {
   const combat = game.combat;
   const combatant = combat?.combatants?.find?.((c) => c.tokenId === subjectToken?.id);
-  return combatant ? { turnLife: { combatId: combat.id, combatantId: combatant.id, edge: "start", count: 1 } } : { mark: true };
+  return combatant ? { turnLife: { combatId: combat.id, combatantId: combatant.id, edge, count: 1 } } : { mark: true };
+}
+
+/**
+ * The options a prompt card's own save modifier adds to its save (`saveSpec`'s `situational`, which rides on the
+ * throw: a positive figure helps the saver). The one reader of `card.saveMod`: the throw a seat rolls
+ * (`pressRoll`) and the target the GM recomputes (`pressHere`) both take their save through it, so the two
+ * agree. A card holding no modifier, a zero or a figure that is no number adds nothing.
+ */
+function cardSaveOptions(card) {
+  const raw = card?.saveMod;
+  const mod = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+  return Number.isFinite(mod) && mod !== 0 ? { situational: mod } : {};
 }
 
 /** The fight's present initiative as `momentKey` reads it: all null outside a begun fight. */
@@ -517,7 +551,7 @@ export async function pressRoll(p) {
   if (!actor || !name) return { ok: false, reason: "noFigure" };
   const figures = stored ? null : reachFigures(row);
   if (figures?.lastsNamed === true && figures.lasts === null && !judgeDeclares()) return { ok: false, reason: "noFigure" };
-  const thrown = await saveThrow(actor, name);
+  const thrown = await saveThrow(actor, name, cardSaveOptions(stored));
   if (thrown.target === null) return { ok: false, reason: "noFigure" };
   const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", entryKey: p.entryKey ?? "", total: thrown.total, target: thrown.target };
   if (game.user.isGM) return pressHere(payload);
@@ -1465,6 +1499,334 @@ async function burstOutcome({ phase, card, saved, actor, subjectToken }) {
 }
 
 /* -------------------------------------------- */
+/*  A posted outcome card                        */
+/* -------------------------------------------- */
+
+/** The keys a stored card holds for itself: a post's `facts` never set them, so a relayed seat cannot forge an entry, a subject or an id. */
+const CARD_OWN_KEYS = new Set([
+  "kind", "rowKey", "activationId", "itemUuid", "cardId", "regionUuid", "bearer", "selfCount", "lowered", "counted", "subjects", "undetermined", "entries", "vehicles",
+  "title", "subtitle", "sections", "saveName", "saveMod", "actorUuid", "resolved", "resolvedBy", "asked", "askedBy", "burned", "blankWhy", "fuse", "stamp",
+]);
+
+/**
+ * The GM's side of an outcome card's post: the sender must own the actor the card
+ * speaks for (`speakerActorUuid`, Foundry's ownership on the relayed seat, a GM
+ * included), and the card is then built the way a burst's is and handed to the
+ * presenter. Answers `postOutcomeCard`'s result, or `{ok: false, reason}` with
+ * `gone` (no such actor), `notOwner` or `unsupported` (no kind named, `burst`, or a
+ * kind with no registered outcome other than `swigUnknown`).
+ */
+async function postCardHere({ kind, itemUuid = "", title = "", subtitle = "", subjects = [], saveName = "", saveMod = null, facts = {}, speakerActorUuid = "", requestUserId = null }) {
+  const doc = speakerActorUuid ? fromUuidSync(speakerActorUuid) : null;
+  const actor = doc?.actor ?? doc;
+  if (!actor) return { ok: false, reason: "gone" };
+  // Only a kind whose Save press some feature writes, or the unknown drinker's card, is posted this way; a burst's facts are the GM's own roll and are never taken from a post.
+  if (typeof kind !== "string" || !kind || kind === "burst" || (!outcomes.has(kind) && kind !== "swigUnknown")) return { ok: false, reason: "unsupported" };
+  if (!actor.testUserPermission?.(requesterOf(requestUserId), "OWNER")) return { ok: false, reason: "notOwner" };
+  const rows = (Array.isArray(subjects) ? subjects : []).filter((s) => s?.key).map((s) => ({ key: String(s.key), name: String(s.name ?? "") }));
+  const mod = saveMod === null || saveMod === undefined || saveMod === "" || !Number.isFinite(Number(saveMod)) ? null : Number(saveMod);
+  const save = String(saveName ?? "");
+  const own = facts && typeof facts === "object" && !Array.isArray(facts) ? Object.fromEntries(Object.entries(facts).filter(([key]) => !CARD_OWN_KEYS.has(key))) : {};
+  const activationId = foundry.utils.randomID();
+  const words = Object.fromEntries(["roll", "undo", "undetermined", "tick", "saved", "failed"].map((key) => [key, loc(`itemRun.card.${key}`)]));
+  const card = { ...promptCardModel({ title, subtitle, words, subjects: rows, ids: { itemUuid, rowKey: kind, activationId }, isGM: true }), ...own, kind, saveName: save, saveMod: mod };
+  const result = { ok: true, kind, itemUuid, itemName: title, activationId, rowKey: kind, actorUuid: actor.uuid ?? "", actorName: actor.name ?? "", subtitle, subjects: rows, saveName: save, saveMod: mod, facts: own, card };
+  await presenter?.(result);
+  return result;
+}
+
+/**
+ * Post a prompt card of a card kind some feature owns (`registerPressOutcome`
+ * names what writes its Save press), from any seat: the GM's window builds and
+ * posts it, a Player's seat relays it and the GM checks the seat owns the actor
+ * the card speaks for (`speakerActorUuid`: the attacker, the drinker), by
+ * Foundry's own test and never a role. The card is built the way a burst's is
+ * (`promptCardModel`, a Roll per subject) and handed to the presenter, which
+ * posts it.
+ *
+ * - `subjects` is `[{key, name}]`, `key` a token uuid; `saveName` the save the
+ *   subjects roll ("" leaves it to the Judge) and `saveMod` a modifier to that
+ *   throw (a positive figure helps the saver; null for none), both held on the
+ *   card, as are `facts`, the kind's own figures, which a writer reads off the
+ *   stored card because the item may be gone. A key the card holds for itself
+ *   (`kind`, the ids, `entries`, `subjects`, `title`, `saveName`, `saveMod`, a
+ *   press's marks and the like) is dropped from `facts`, so a seat's figures can
+ *   never forge an entry or an id; the result's `facts` is what was kept.
+ * - The stored card the presenter keeps holds `kind`, `rowKey` (the kind),
+ *   `activationId`, `itemUuid`, `title`, `saveName`, `saveMod`, `actorUuid`, every
+ *   key of `facts`, and `subjects` as `{<safeKey of the uuid>: {uuid, name, state:
+ *   "in", latest: ""}}` beside empty `entries`: the shape a burst card's
+ *   presses read.
+ *
+ * Answers `{ok: true, kind, itemUuid, itemName, activationId, rowKey, actorUuid,
+ * actorName, subtitle, subjects, saveName, saveMod, facts, card}`, `card` the
+ * model with `kind`, `saveName`, `saveMod` and the facts spread on it; or `{ok:
+ * false, reason}` with `gone`, `notOwner`, `unsupported` or `relay` (no Judge
+ * answered).
+ *
+ * @param {{kind: string, itemUuid?: string, title?: string, subtitle?: string, subjects?: Array<{key: string, name: string}>, saveName?: string, saveMod?: number|null, facts?: object, speakerActorUuid: string}} p
+ * @returns {Promise<object>}
+ */
+export async function postOutcomeCard(p) {
+  const payload = { kind: p.kind, itemUuid: p.itemUuid ?? "", title: p.title ?? "", subtitle: p.subtitle ?? "", subjects: p.subjects ?? [], saveName: p.saveName ?? "", saveMod: p.saveMod ?? null, facts: p.facts ?? {}, speakerActorUuid: p.speakerActorUuid ?? "" };
+  if (game.user.isGM) return postCardHere(payload);
+  return (await executeAsGM(HANDLER.postCard, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/* -------------------------------------------- */
+/*  The swig                                     */
+/* -------------------------------------------- */
+
+/** The drink figures an item carries (`FLAG_DRINK`), or null. */
+const drinkOf = (item) => {
+  const raw = item?.flags?.[MODULE_ID]?.[FLAG_DRINK] ?? item?.getFlag?.(MODULE_ID, FLAG_DRINK);
+  return raw && typeof raw === "object" ? raw : null;
+};
+
+/** A flag's figure as text, null where blank. */
+const textOrNull = (value) => (value === null || value === undefined || String(value).trim() === "" ? null : String(value).trim());
+
+/** A dice formula Foundry reads, or null where the figure is blank or no formula. */
+const diceOf = (value) => {
+  const text = textOrNull(value);
+  return text !== null && Roll.validate(text) ? text : null;
+};
+
+/**
+ * Heal a drinker by `dice`, rolled once and shown (`plainRoll`), through `adjustHp`.
+ * The body is the token's (`resolveTargets`), else the actor's. Nothing is rolled
+ * where the dice are blank or no formula, or where the body takes no hit points
+ * here. Answers `{ok: true, dice, rolled, amount, uuid}`, `amount` what the write
+ * actually healed (`uuid` the body's actor), or `{ok: false, judge: true, why}`
+ * with `why` "figure" (blank or invalid dice), "several" (the token stands for
+ * several bodies), a `HP_REASON`, a `HP_WHY`, "gone" or "failed".
+ */
+async function healDrinker({ actor, token = null, dice, flavor = "" }) {
+  const formula = diceOf(dice);
+  if (!formula) return { ok: false, judge: true, why: "figure" };
+  const targets = resolveTargets(token ? { tokens: [token] } : { actors: [actor] });
+  const target = targets.length === 1 ? targets[0] : null;
+  if (!target || target.reason) return { ok: false, judge: true, why: targets.length > 1 ? "several" : (target?.reason ?? "gone") };
+  const total = Number((await plainRoll(actor, formula, {}, flavor)).total);
+  const rolled = Number.isFinite(total) ? Math.max(0, Math.floor(total)) : 0;
+  const [written] = await adjustHp([{ target, amount: rolled }], { mode: HP_MODE.heal });
+  if (!written?.ok) return { ok: false, judge: true, why: written?.why ?? "failed" };
+  return { ok: true, dice: formula, rolled, amount: written.after - written.before, uuid: target.key };
+}
+
+/**
+ * `consume`: the item's own actor drinks. The swigs left (`activation.left`) are
+ * read here: a number at or below none refuses (`spent`), a number spends one,
+ * written on the item BEFORE the outcome, and null is uncounted and never
+ * written. An item with no drink flag refuses (`noFigure`) before it spends. The
+ * drinker's kind (`drinkerKindOf` over the actor's creature kinds and the flag's
+ * `ownKind`) says what follows, and every figure is the flag's, blank where the
+ * gear row left it so:
+ * - the bearer's own kind: `healDice` is rolled once, shown, and the write heals
+ *   the drinker (`healDrinker`);
+ * - a human or demi-human: a `swig` save card is posted for the drinker's token
+ *   (`postOutcomeCard`; `saveName` the flag's `saveKind`, "" where blank, facts
+ *   `{successHealDice, condition, cite}`), and its Save press writes the rest
+ *   (`swigOutcomeWriter`);
+ * - any other: a `swigUnknown` card is posted (facts `{drinkerTokenUuid,
+ *   drinkerActorUuid, healDice, saveKind, successHealDice, condition, cite}`),
+ *   whose Heal and Ask the save are the drinker's owners (`swigHeal`,
+ *   `swigAskSave`).
+ *
+ * Answers `{ok: false, reason}` ("spent", "noFigure"), or `{ok: true, kind:
+ * "consume", outcome, itemUuid, itemName, actorUuid, actorName, tokenUuid, left,
+ * heal, why, [presented]}`:
+ * - `outcome` is "heal" (the bearer was healed), "judge" (nothing healed: `why`
+ *   names the blank or refused figure, as `healDrinker`'s does), "save" or
+ *   "unknown" (the card was posted, `presented` true so the carrier posts none);
+ * - `left` is `{before, after}`, the swigs before and after this one (both null
+ *   where uncounted);
+ * - `heal` is `{dice, rolled, amount}` for a bearer's heal (`amount` what the write
+ *   actually healed), else null;
+ * - `why` is "" where `outcome` is not "judge".
+ */
+async function runConsume({ item, run, actor, token }) {
+  const a = run.activation;
+  const before = a.left;
+  if (before !== null && before <= 0) return { ok: false, reason: "spent" };
+  const drink = drinkOf(item);
+  if (!drink) return { ok: false, reason: "noFigure" };
+  if (before !== null) await item.update({ [`flags.${MODULE_ID}.${FLAG_ITEM_RUN}.activation.left`]: before - 1 });
+  const result = { ok: true, kind: "consume", outcome: "judge", itemUuid: item.uuid, itemName: item.name, actorUuid: actor.uuid, actorName: actor.name ?? "", tokenUuid: token.uuid, left: { before, after: before === null ? null : before - 1 }, heal: null, why: "" };
+  const drinkerKind = drinkerKindOf(creatureKinds(actor), drink.ownKind);
+  const out = swigOutcome({ drinkerKind, drink });
+  if (out?.kind === "heal") {
+    const healed = await healDrinker({ actor, token, dice: out.dice, flavor: item.name });
+    if (!healed.ok) return { ...result, why: healed.why };
+    return { ...result, outcome: "heal", heal: { dice: healed.dice, rolled: healed.rolled, amount: healed.amount } };
+  }
+  const facts = { successHealDice: textOrNull(drink.successHealDice), condition: textOrNull(drink.condition), cite: itemCite(item) };
+  const post = { itemUuid: item.uuid, title: item.name, subtitle: actor.name ?? "", subjects: [{ key: token.uuid, name: token.name ?? "" }], speakerActorUuid: actor.uuid };
+  if (out?.kind === "save") {
+    const posted = await postOutcomeCard({ ...post, kind: "swig", saveName: out.saveKind ?? "", saveMod: null, facts });
+    return posted?.ok ? { ...result, outcome: "save", presented: true } : { ok: false, reason: posted?.reason ?? "refused" };
+  }
+  const posted = await postOutcomeCard({
+    ...post, kind: "swigUnknown", saveName: "", saveMod: null,
+    facts: { drinkerTokenUuid: token.uuid, drinkerActorUuid: actor.uuid, healDice: textOrNull(drink.healDice), saveKind: textOrNull(drink.saveKind), ...facts },
+  });
+  return posted?.ok ? { ...result, outcome: "unknown", presented: true } : { ok: false, reason: posted?.reason ?? "refused" };
+}
+
+/**
+ * The `swig` card's writer (`registerPressOutcome("swig", …)`), at the Save press
+ * (`phase` "verdict"). A passed save rolls the card's `successHealDice` once,
+ * shown, and heals the drinker through `adjustHp`: it answers `{hp: [{uuid,
+ * amount}], amount}` with `amount` negative in `hp` (a heal, which an Undo gives
+ * back as damage) and the hit points actually healed in `amount`. A failed save
+ * writes the card's `condition` with the turn-life that ends it at the end of its
+ * bearer's next turn (`swigOutcome`'s `life`; outside a fight the mark, as every
+ * condition here), under the item's, the card's and the activation's ids. A blank
+ * condition, blank or invalid dice, or a body that takes no hit points answers
+ * `{judge: true, why}`, which `pressHere` stores as an entry in state "judge" with
+ * nothing written. The Apply phase writes nothing: the card has none.
+ */
+async function swigOutcomeWriter({ phase, card, saved, subjectToken, actor }) {
+  const none = { records: [], names: [], life: "raised" };
+  if (phase !== "verdict") return none;
+  if (saved) {
+    const healed = await healDrinker({ actor, token: subjectToken, dice: card.successHealDice, flavor: card.title ?? "" });
+    if (!healed.ok) return { judge: true, why: healed.why };
+    return { ...none, hp: healed.amount ? [{ uuid: healed.uuid, amount: -healed.amount }] : [], amount: healed.amount };
+  }
+  const out = swigOutcome({ drinkerKind: DRINKER_KIND.human, drink: { condition: card.condition }, saved: false });
+  if (!out?.condition) return { judge: true, why: "figure" };
+  const life = lifeOf(subjectToken, out.life.edge);
+  const statusData = await statusEffectData(out.condition);
+  const record = conditionRecordData({ statusData, source: card.itemUuid, activationId: card.activationId, rowKey: card.rowKey, life });
+  return { records: [record], names: [statusData?.name ?? out.condition], life: life.turnLife ? "turn" : "mark" };
+}
+
+/**
+ * The unknown drinker's card a press names, checked: it must be there and unpressed
+ * (`applied` for one a press already resolved or turned into a save card), and the
+ * seat must own the drinker's actor (Foundry's ownership on the relayed seat, a GM
+ * included). Answers `{ok: true, message, actor}` or `{ok: false, reason}`.
+ */
+function unknownCardFor({ messageId, requestUserId }) {
+  const { message, card } = cardOf(messageId);
+  if (!message || !card || (card.kind !== "swigUnknown" && !card.asked)) return { ok: false, reason: "gone" };
+  const doc = fromUuidSync(card.drinkerActorUuid);
+  const actor = doc?.actor ?? doc ?? null;
+  if (!actor) return { ok: false, reason: "gone" };
+  if (!actor.testUserPermission?.(requesterOf(requestUserId), "OWNER")) return { ok: false, reason: "notOwner" };
+  if (card.resolved || card.asked) return { ok: false, reason: "applied" };
+  return { ok: true, message, actor };
+}
+
+/**
+ * Run `write({message, actor, card})` over an unknown drinker's card under the
+ * lock a press takes, after `unknownCardFor`'s checks and a second look at the
+ * card inside the lock, so two presses never both land.
+ */
+async function pressUnknownCard({ messageId, requestUserId }, write) {
+  const found = unknownCardFor({ messageId, requestUserId });
+  if (!found.ok) return found;
+  const claim = `${messageId}|swig`;
+  if (writing.has(claim)) return { ok: false, reason: "applied" };
+  writing.add(claim);
+  try {
+    const card = cardOf(messageId).card;
+    if (card?.kind !== "swigUnknown" || card.resolved || card.asked) return { ok: false, reason: "applied" };
+    return await write({ message: found.message, actor: found.actor, card });
+  } finally {
+    writing.delete(claim);
+  }
+}
+
+/**
+ * The GM's side of Heal on an unknown drinker's card: the drinker's owners (by
+ * Foundry's test on the relayed seat) heal the drinker by the card's `healDice`,
+ * the bearer's own heal (`healDrinker`), and the card is patched resolved
+ * `{resolved: "heal", amount, rolled, resolvedBy}`. Blank or invalid dice leave the
+ * card open and the press refused `noFigure`; a body that takes no hit points
+ * refuses `failed`. Answers `{ok: true, state: "heal", amount, rolled, dice}` or
+ * `{ok: false, reason}` with `gone`, `notOwner`, `applied`, `noFigure` or `failed`.
+ */
+async function swigHealHere(p) {
+  return pressUnknownCard(p, async ({ message, actor, card }) => {
+    const healed = await healDrinker({ actor, token: card.drinkerTokenUuid ? fromUuidSync(card.drinkerTokenUuid) : null, dice: card.healDice, flavor: card.title ?? "" });
+    if (!healed.ok) return { ok: false, reason: healed.why === "figure" ? "noFigure" : "failed" };
+    await serialized(message.id, () => patchCard(message, { resolved: "heal", amount: healed.amount, rolled: healed.rolled, resolvedBy: p.requestUserId ?? game.user?.id ?? "" }));
+    return { ok: true, state: "heal", amount: healed.amount, rolled: healed.rolled, dice: healed.dice };
+  });
+}
+
+/**
+ * The GM's side of Ask the save on an unknown drinker's card: the drinker's owners
+ * turn the card into the `swig` save card IN PLACE, by one patch (`kind: "swig"`,
+ * `rowKey: "swig"`, `saveName` the card's `saveKind`, `asked: true`), since the card already holds the
+ * drinker as its one subject and the figures the Save press reads; Save and Undo
+ * then work as on any `swig` card. A blank `saveKind` leaves `saveName` "", the
+ * Judge's save. Answers `{ok: true, state: "asked"}` or `{ok: false, reason}` with
+ * `gone`, `notOwner` or `applied`.
+ */
+async function swigAskSaveHere(p) {
+  return pressUnknownCard(p, async ({ message, card }) => {
+    await serialized(message.id, () => patchCard(message, { kind: "swig", rowKey: "swig", saveName: String(card.saveKind ?? ""), asked: true, askedBy: p.requestUserId ?? game.user?.id ?? "" }));
+    return { ok: true, state: "asked" };
+  });
+}
+
+/**
+ * Heal the drinker on an unknown drinker's card (`swigUnknown`), from any seat:
+ * the GM's window runs it, a Player's seat relays it and the GM checks the seat
+ * owns the drinker's actor. A card already resolved is refused `applied`.
+ *
+ * @param {{messageId: string}} p
+ * @returns {Promise<{ok: boolean, state?: string, amount?: number, rolled?: number, dice?: string, reason?: string}>}
+ */
+export async function swigHeal(p) {
+  const payload = { messageId: p.messageId };
+  if (game.user.isGM) return swigHealHere(payload);
+  return (await executeAsGM(HANDLER.swigHeal, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/**
+ * Turn an unknown drinker's card into the save card, from any seat (see
+ * `swigHeal`): the drinker's owners ask the drinker's save, and the card becomes
+ * a `swig` card in place.
+ *
+ * @param {{messageId: string}} p
+ * @returns {Promise<{ok: boolean, state?: string, reason?: string}>}
+ */
+export async function swigAskSave(p) {
+  const payload = { messageId: p.messageId };
+  if (game.user.isGM) return swigAskSaveHere(payload);
+  return (await executeAsGM(HANDLER.swigAskSave, payload)) ?? { ok: false, reason: "relay" };
+}
+
+/**
+ * A consume item landing on an actor, on the primary GM's window: `swigStampPlan`
+ * says whether its `bearerUuid` is stamped with the actor's, and, only when `roll`
+ * is asked and the plan allows it, its `uses` figure (`resolveFigure`) is rolled
+ * into `left`. The roll is a plain one, posted to no one, and a blank or invalid
+ * figure writes only the stamp. Both land in ONE `item.update`, which is an
+ * update and so fires no create hook again.
+ */
+async function stampConsumeItem(item, actor, { roll }) {
+  const a = itemRunOf(item)?.activation;
+  if (a?.kind !== "consume" || !actor?.uuid) return;
+  const plan = swigStampPlan({ bearerUuid: a.bearerUuid, left: a.left, actorUuid: actor.uuid });
+  if (!plan.stamp) return;
+  const base = `flags.${MODULE_ID}.${FLAG_ITEM_RUN}.activation`;
+  const update = { [`${base}.bearerUuid`]: actor.uuid };
+  if (roll && plan.roll) {
+    const dice = diceOf(resolveFigure(a.uses));
+    if (dice !== null) {
+      const total = Math.floor(Number((await new Roll(dice).evaluate()).total));
+      if (Number.isFinite(total)) update[`${base}.left`] = total;
+    }
+  }
+  await item.update(update);
+}
+
+/* -------------------------------------------- */
 /*  A lit fuse's controls                        */
 /* -------------------------------------------- */
 
@@ -1635,8 +1997,13 @@ export function installItemRun() {
   registerActivationRunner("once", runOnce);
   registerActivationRunner("toggle", runToggle);
   registerActivationRunner("fuse", runFuse);
+  registerActivationRunner("consume", runConsume);
   setFuseBurst(burstFuse);
   registerPressOutcome("burst", burstOutcome);
+  registerPressOutcome("swig", swigOutcomeWriter);
+  registerHandler(HANDLER.postCard, (payload) => postCardHere(payload));
+  registerHandler(HANDLER.swigHeal, (payload) => swigHealHere(payload));
+  registerHandler(HANDLER.swigAskSave, (payload) => swigAskSaveHere(payload));
   registerHandler(HANDLER.apply, (payload) => applyHere(payload));
   registerHandler(HANDLER.applyAll, (payload) => applyAllHere(payload));
   registerHandler(HANDLER.moveSpot, (payload) => moveSpotHere(payload));
@@ -1662,6 +2029,15 @@ export function installItemRun() {
     const actors = [...[...(combat?.combatants ?? [])].map((c) => c?.actor), ...worldActors()];
     await convertFuses(combat, actors, { now: game.time.worldTime, roundSeconds: roundSeconds() });
     await liftWorldFuses(actors, game.time.worldTime);
+  });
+  // An item created with its actor takes the actor's stamp and no count; one created on an actor already in the world takes the stamp and, handed on, its rolled count.
+  Hooks.on("createActor", (actor) => {
+    if (!isPrimaryGM()) return;
+    for (const item of actor?.items ?? []) stampConsumeItem(item, actor, { roll: false }).catch((err) => console.error(`${MODULE_ID} | a consume item could not be stamped`, err));
+  });
+  Hooks.on("createItem", (item) => {
+    if (!isPrimaryGM() || item?.parent?.documentName !== "Actor") return;
+    stampConsumeItem(item, item.parent, { roll: true }).catch((err) => console.error(`${MODULE_ID} | a consume item could not be stamped`, err));
   });
   Hooks.on("deleteToken", (token) => {
     if (isPrimaryGM()) dropDeletedBearerFuses(token).catch((err) => console.error(`${MODULE_ID} | a deleted bearer's fuse could not be dropped`, err));

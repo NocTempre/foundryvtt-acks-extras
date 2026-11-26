@@ -749,6 +749,7 @@
   "ACKS-LIB.itemRun.row.press.cardTip": "Show the raised card in the chat log.",
   "ACKS-LIB.itemRun.row.press.spent": "Used up",
   "ACKS-LIB.itemRun.row.press.spentTip": "Nothing is left to use.",
+  "ACKS-LIB.itemRun.refused.spent": "Nothing is left in it.",
   "ACKS-LIB.itemRun.refused.immune": "This body holds an immunity to the item.",
   "ACKS-LIB.itemRun.refused.waiting": "This body's moment has not come.",
   "ACKS-LIB.itemRun.refused.struck": "This prompt is no longer open.",
