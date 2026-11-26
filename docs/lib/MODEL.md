@@ -3180,8 +3180,9 @@ stored, once the world is ready, differing only in their stored `ac.mod`, and
 compares their prepared `ac.value`: a difference of that mod is counted, none
 is not, anything else cannot be told and keeps the steps as terms with one
 console warning. It runs on the first attack against the type and the answer
-is kept per type. A character is never built for it, and a package's sub-type
-is not probed. A system that starts counting a monster's Armor Class modifier
+is kept per type. A character is never built for it, and neither a package's
+sub-type nor a type the system gives no data model (Foundry's `base`, whose
+preparation fails) is probed. A system that starts counting a monster's Armor Class modifier
 therefore retires the terms, the lift's steps and the card's monster-only rows
 without an edit, and such a monster is read as a character is, its waiver not
 applied. The save steps do not stand down, since the system's roll leaves no

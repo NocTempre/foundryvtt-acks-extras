@@ -240,7 +240,7 @@ await ok("a monster's waived row names every ability that waives it, once each, 
 
 /** Run `fn` under a stand-in system whose prepared Armor Class counts the stored `ac.mod` (`counts`) or ignores it. */
 const withSystemAc = async (counts, fn) => {
-  const saved = { Doc: CONFIG.Actor.documentClass, ready: game.ready };
+  const saved = { Doc: CONFIG.Actor.documentClass, models: CONFIG.Actor.dataModels, ready: game.ready };
   CONFIG.Actor.documentClass = class ProbeActor {
     constructor({ type, system }) {
       const mod = system?.ac?.mod ?? 0;
@@ -248,11 +248,13 @@ const withSystemAc = async (counts, fn) => {
       this.system = { ac: { mod, value: 11 + (counts ? mod : 0) } };
     }
   };
+  CONFIG.Actor.dataModels = { ...saved.models, monster: class MonsterModel {} };
   game.ready = true;
   try {
     return await fn();
   } finally {
     CONFIG.Actor.documentClass = saved.Doc;
+    CONFIG.Actor.dataModels = saved.models;
     game.ready = saved.ready;
   }
 };

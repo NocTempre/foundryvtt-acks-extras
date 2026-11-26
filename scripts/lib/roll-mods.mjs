@@ -245,7 +245,9 @@ const probedAc = (Doc, type, mod) => Number(new Doc({ name: "ac-probe", type, sy
  * number, a construction that throws, or any other difference), with one
  * console warning. Asked on the first call for a type once the world is ready,
  * and kept per document class. Only the system's own types are probed: a
- * package's sub-type (an id with a dot) answers `null` unasked. A character is
+ * package's sub-type (an id with a dot) answers `null` unasked, and so does a
+ * type the system gives no data model (Foundry's `base`), which has no Armor
+ * Class to prepare and fails its preparation if built. A character is
  * never built here, since the system's character preparation may write to
  * the stored document; `acStepsCounted` answers for one without asking.
  *
@@ -255,6 +257,7 @@ const probedAc = (Doc, type, mod) => Number(new Doc({ name: "ac-probe", type, sy
 export function systemCountsAcMod(type) {
   const Doc = globalThis.CONFIG?.Actor?.documentClass;
   if (typeof Doc !== "function" || !type || type.includes(".") || type === ACTOR_TYPE.character) return null;
+  if (!globalThis.CONFIG.Actor.dataModels?.[type]) return null;
   let found = acModCountedBy.get(Doc);
   if (found?.has(type)) return found.get(type);
   if (globalThis.game?.ready !== true) return null;

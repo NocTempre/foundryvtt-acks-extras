@@ -640,15 +640,17 @@ const probeClass = (fold, { base = 11, built = [] } = {}) =>
       this.system = { ac: { mod, value: base + fold * mod } };
     }
   };
-/** Run `fn` with `Doc` as the system's actor class, the world ready unless said otherwise. */
+/** Run `fn` with `Doc` as the system's actor class and a data model for its monster, the world ready unless said otherwise. */
 const withActorClass = async (Doc, fn, { ready = true } = {}) => {
-  const saved = { Doc: CONFIG.Actor.documentClass, ready: game.ready };
+  const saved = { Doc: CONFIG.Actor.documentClass, models: CONFIG.Actor.dataModels, ready: game.ready };
   CONFIG.Actor.documentClass = Doc;
+  CONFIG.Actor.dataModels = { ...saved.models, monster: class MonsterModel {} };
   game.ready = ready;
   try {
     return await fn();
   } finally {
     CONFIG.Actor.documentClass = saved.Doc;
+    CONFIG.Actor.dataModels = saved.models;
     game.ready = saved.ready;
   }
 };
@@ -678,10 +680,22 @@ await ok("the Armor Class probe reads the system's own preparation: counted, not
     assert.equal(systemCountsAcMod("monster"), true);
   });
   assert.equal(built.length, 2, "two actors, built once and the answer kept");
-  // A character is never built and a package's sub-type is not probed; a character's steps are the system's.
+  // A character is never built, and neither a package's sub-type nor a type with no data model is probed, all
+  // without a warning; a character's steps are the system's.
+  const quiet = [];
+  const warnBefore = console.warn;
+  console.warn = (...args) => quiet.push(args.join(" "));
+  try {
+    await withActorClass(Doc, () => {
+      assert.equal(systemCountsAcMod("character"), null);
+      assert.equal(systemCountsAcMod("acks-extras.place"), null);
+      assert.equal(systemCountsAcMod("base"), null, "a type with no data model");
+    });
+  } finally {
+    console.warn = warnBefore;
+  }
+  assert.deepEqual(quiet, [], "nothing told for a type that is not probed");
   await withActorClass(Doc, () => {
-    assert.equal(systemCountsAcMod("character"), null);
-    assert.equal(systemCountsAcMod("acks-extras.place"), null);
     assert.equal(acStepsCounted({ type: "character" }), true);
     assert.equal(acStepsCounted({ type: "monster" }), true);
     assert.equal(acStepsCounted(null), false);

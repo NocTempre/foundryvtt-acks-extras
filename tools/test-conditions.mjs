@@ -1406,7 +1406,7 @@ await (async () => {
     // A stand-in system whose prepared Armor Class counts a monster's `ac.mod`, as it counts a character's: the
     // monster's step is then core's, and the module adds no term for it.
     {
-      const saved = { Doc: globalThis.CONFIG.Actor.documentClass, ready: globalThis.game.ready };
+      const saved = { Doc: globalThis.CONFIG.Actor.documentClass, models: globalThis.CONFIG.Actor.dataModels, ready: globalThis.game.ready };
       globalThis.CONFIG.Actor.documentClass = class ProbeActor {
         constructor({ type, system }) {
           const mod = system?.ac?.mod ?? 0;
@@ -1414,6 +1414,7 @@ await (async () => {
           this.system = { ac: { mod, value: 11 + mod } };
         }
       };
+      globalThis.CONFIG.Actor.dataModels = { ...saved.models, monster: class MonsterModel {} };
       globalThis.game.ready = true;
       try {
         for (const id of CONDITION_ORDER) {
@@ -1424,6 +1425,7 @@ await (async () => {
         }
       } finally {
         globalThis.CONFIG.Actor.documentClass = saved.Doc;
+        globalThis.CONFIG.Actor.dataModels = saved.models;
         globalThis.game.ready = saved.ready;
       }
     }
