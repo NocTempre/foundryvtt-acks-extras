@@ -481,7 +481,8 @@ plain-string `locate` would put in source.
   2026-08-15 owner correction ("band edges and modifier values are content
   and need importing") may forbid it. Whether it does is undetermined, and
   nothing has been registered. The treasure wave added no such table
-  (DECISIONS 2026-09-23 rejects `kind.rolltable` for a feature's charts on
+  (DECISIONS 2026-11-16, "The treasure wave runs ahead of the wave order, and
+  its charts are registry tables", rejects `kind.rolltable` for its charts on
   this ground).
 
 ## The extraordinary variant of a damage-type icon

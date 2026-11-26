@@ -3338,3 +3338,22 @@ read after pass one, so a library edit pass two takes is not in it.
 and its edited `values`" in part (its default "keep" for a library copy) and
 "2026-09-23 — A copy of an import is the Judge's, and a rebuild leaves it
 standing" in part (a copy is never reached).
+
+## 2026-11-26 — A coined entry name ships as the thing's name (the owner's 2026-11-18 ruling, recorded)
+
+**Asked.** The Tome's name pass held entries whose heading is a word the
+books coined for the thing itself, a monster or a spell, and asked whether
+such a name is a printed proper name (`.claude/rules/ip-doctrine.md`).
+
+**Ruled.** The owner, 2026-11-18, as the TT importer plan recorded it: "a
+coined monster or spell entry name ships as the thing's name". The owner's
+exact words survive nowhere else. The ruling narrows "2026-11-17 — The
+Treasure Tome wins whole" ruling E: a coined entry name is not a heading that
+needs a neutral label. A person, place, body or people still takes one.
+
+**Applied.** The name pass cleared two held items under it (853b229d,
+4247a063). Ledger row T-0534 was closed as a false report on the same
+ground.
+
+**Cost.** Until now the ruling lived only in the plan, which closed on
+2026-11-26, and in those two commit messages.
