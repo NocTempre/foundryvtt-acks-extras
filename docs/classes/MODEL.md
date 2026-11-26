@@ -94,6 +94,10 @@ owns what one piece of it IS. `materializeTemplates(classItem, {stamp,
 folder, sharedFolder, tableFolder, pack, tablePack})` builds all of it from the class
 document alone (no book needed).
 
+`buildGearData(entry, {base})` (on `acksExtras.classes`) answers
+`{data, resolution}`: `data` is one item's create payload, its
+`system.quantity` a whole number, the system's own quantity field.
+
 **Resolution reads the world first, then the compendia** — `findSource` (a
 ref via the importer's stamp in the pack index, then exact name) and
 `resolveBaseDoc` (`resolveBase`'s fuzzy match — exact fold at any length,

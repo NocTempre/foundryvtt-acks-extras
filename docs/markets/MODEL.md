@@ -503,7 +503,9 @@ its own base cost.
 - `removeLoads(holder, category, stones, {traderUuid})` — remove exactly
   `stones` units from the holder's loads of a category, returning
   `{ok: true, removed: [snapshots]}` or
-  `{ok: false, reason: "noLoads", held: <stones stacked>}`.
+  `{ok: false, reason: "noLoads", held: <stones stacked>}`. Each snapshot is
+  the stack's plain data with no `_id` and `system.quantity`, a whole number,
+  set to the stones taken from it.
 
 ## The merchandise catalogue
 
