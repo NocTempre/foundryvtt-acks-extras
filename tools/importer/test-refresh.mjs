@@ -537,7 +537,7 @@ check("a stamped block alone is no edit", decidedPolicy({ ...judgedSource, syste
 
 /* --- a library document's name and picture are edits of a reset, and are written only where taken --- */
 {
-  const source = { name: "Hall", img: "icons/old.webp", type: "monster", system: { ac: { value: 5 } } };
+  const source = { name: "Hall", img: "pictures/old.webp", type: "monster", system: { ac: { value: 5 } } };
   const built = { name: "Great Hall", img: "modules/fixture/art/hall.png", type: "monster", system: { ac: { value: 6 } } };
   const held = decidedPolicy(source, built, {}, { uuid: "Actor.lib1", library: true });
   check("a library document's differing name and picture are held as edits, in that order", held.edits.map((e) => e.path).join() === "name,img");

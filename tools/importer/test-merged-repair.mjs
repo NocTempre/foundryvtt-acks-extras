@@ -208,7 +208,7 @@ function scope({ answer = true, editedBy = { "doc.a": "Judge text" } } = {}) {
 
 /* --- a library document is reset whole: its name and picture are listed on pass one, written on pass two --- */
 {
-  const stored = { name: "Hall", img: "icons/old.webp", type: "monster", system: { ac: { value: 5 } } };
+  const stored = { name: "Hall", img: "pictures/old.webp", type: "monster", system: { ac: { value: 5 } } };
   const built = { name: "Great Hall", img: "modules/fixture/art/hall.png", type: "monster", system: { ac: { value: 6 } } };
   const doc = () => {
     const d = { uuid: "Compendium.fixture.shelf.Actor.lib1", name: stored.name, toObject: () => structuredClone(stored), updates: [], async update(u) { d.updates.push(u); } };
