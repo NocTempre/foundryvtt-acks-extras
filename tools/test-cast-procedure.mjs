@@ -413,6 +413,22 @@ await ta("a perform that does not proceed posts only its section: no rows, no re
   off();
 });
 
+await ta("the card's sender is the caster on both post paths, the procedure's section alone and the whole cast, so a controlled token never names it", async () => {
+  const asked = [];
+  const wired = (r) => ((r.deps.speaker = (actor) => (asked.push(actor), { actor: "Actor.c1", alias: "Tester" })), r);
+  const { procedure } = logging({ perform: async () => ({ proceed: false, section: { title: "Rite", rows: [] }, rolls: [], undo: null }) });
+  const off = registerCastProcedure(KIND, procedure);
+  const stopped = wired(runDeps({ answer: { mode: "normal", picks: {} } }));
+  const item = spell([heal()]);
+  await cast(item, stopped.deps);
+  assert.deepEqual(stopped.calls.posts[0].options.speaker, { actor: "Actor.c1", alias: "Tester" }, "the section-only post");
+  assert.equal(asked[0], item.parent, "asked for the spell's own caster");
+  off();
+  const whole = wired(runDeps({ answer: { mode: "normal", picks: {} } }));
+  await cast(spell([heal()]), whole.deps);
+  assert.deepEqual(whole.calls.posts[0].options.speaker, { actor: "Actor.c1", alias: "Tester" }, "the whole cast's post");
+});
+
 await ta("a perform that throws posts only a card with no section, saying the step did not complete", async () => {
   order.length = 0;
   const errors = [];

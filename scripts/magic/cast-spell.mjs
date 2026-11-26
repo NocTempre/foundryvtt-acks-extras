@@ -541,6 +541,8 @@ const liveDeps = () => ({
   ritualOpen: async ({ location, spell, caster }) => (await import("./research-project-live.mjs")).openRitual(location, { spell, caster }),
   roll: (formula) => new Roll(formula).evaluateSync().total,
   post: postCastCard,
+  // The sender of a cast's card: the caster, never whichever token the seat has controlled.
+  speaker: (caster) => ChatMessage.getSpeaker({ actor: caster }),
   apply: requestApply,
   record: async (caster, data) => caster.createEmbeddedDocuments("ActiveEffect", [data]),
   endHeld: endCasterHeld,
@@ -1055,7 +1057,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     card.procedure = { kind: procedureKind, section: done.section, undo: done.undo };
     rolls.push(...done.rolls);
     if (!done.proceed) {
-      const message = await deps.post({ ...card, lines: done.failed ? [loc("line.procedureFailed")] : [] }, { rolls, mode: answer.visibility || "public", speaker: undefined });
+      const message = await deps.post({ ...card, lines: done.failed ? [loc("line.procedureFailed")] : [] }, { rolls, mode: answer.visibility || "public", speaker: deps.speaker?.(caster) });
       return { ok: true, castId, messageId: message?.id, applied: [], performed: false };
     }
   }
@@ -1212,7 +1214,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     }
   }
 
-  const message = await deps.post(card, { rolls, mode: answer.visibility || "public", speaker: undefined });
+  const message = await deps.post(card, { rolls, mode: answer.visibility || "public", speaker: deps.speaker?.(caster) });
   const results = await applyAll(message, deps);
   return { ok: true, castId, messageId: message?.id, applied: results, ...(placed ? { placed } : {}) };
 }
