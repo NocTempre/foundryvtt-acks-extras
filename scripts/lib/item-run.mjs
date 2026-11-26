@@ -256,7 +256,7 @@ async function runOnce({ item, token, judge }) {
       const made = await actor.createEmbeddedDocuments("ActiveEffect", [actionPartRecordData({ name: item.name, parts, source: item.uuid, activationId, rowKey: row.key, cite: itemCite(item) })]);
       written.push({ ...subject, recordIds: made.map((e) => e.id) });
     }
-    return { ok: true, kind: "once", activationId, rowKey: row.key, subjects: admitted, written, undetermined };
+    return { ok: true, kind: "once", itemUuid: item.uuid, activationId, rowKey: row.key, subjects: admitted, written, undetermined };
   }
   const words = Object.fromEntries(["roll", "undo", "undetermined", "tick", "saved", "failed"].map((key) => [key, loc(`itemRun.card.${key}`)]));
   const card = promptCardModel({
@@ -268,7 +268,7 @@ async function runOnce({ item, token, judge }) {
     ids: cardIds(item, row, activationId),
     isGM: judge,
   });
-  return { ok: true, kind: "once", activationId, rowKey: row.key, subjects: admitted, undetermined, card };
+  return { ok: true, kind: "once", itemUuid: item.uuid, activationId, rowKey: row.key, subjects: admitted, undetermined, card };
 }
 
 /**

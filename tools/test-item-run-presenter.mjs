@@ -139,13 +139,14 @@ await t("the strip: a body reads the reaches that meet its token, the save owed 
   const item2 = { uuid: "I.2", name: "Aura", type: "item", flags: { "acks-extras": { itemRun: { rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "20" }, modifier: { value: "-1" }, on: ["morale"], filter: {} } }] } } } };
   const prior = globalThis.fromUuidSync;
   globalThis.fromUuidSync = (uuid) => (uuid === "I.2" ? item2 : prior(uuid));
-  const regionOf = (itemUuid, rowKey, activationId) => ({ hidden: false, attachment: { token: "bear" }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: itemUuid, bearerUuid: "A.bear", activationId, rowKey } }] });
+  const regionOf = (itemUuid, rowKey, activationId) => ({ hidden: false, _source: { attachment: { token: "bear" } }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: itemUuid, bearerUuid: "A.bear", activationId, rowKey } }] });
   const reach = regionOf("I.1", "t", "act");
   const standing = regionOf("I.2", "s", "act2");
   const cell = (v) => Math.floor(v / 100);
   const scene = { id: "sc2", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) }, regions: [reach, standing], tokens: { get: (id) => Object.values(tokens).find((tk) => tk.id === id) } };
   reach.parent = scene;
   standing.parent = scene;
+  for (const region of [reach, standing]) region.attachment = { token: scene.tokens.get(region._source.attachment.token) };
   for (const key of ["S.bear", "S.a", "S.b"]) tokens[key].parent = scene;
   Object.assign(tokens["S.bear"], { displayName: 50, regions: new Set() });
   tokens["S.a"].regions = new Set([reach, standing]);
@@ -291,7 +292,7 @@ await t("the strip reads a body its filter could not settle only once an owner o
   const rowReach = item.flags["acks-extras"].itemRun.rows[0].reach;
   const cell = (v) => Math.floor(v / 100);
   const scene = { id: "sc3", grid: { units: "ft", size: 100, measurePath: ([p, q]) => ({ distance: Math.max(Math.abs(cell(p.x) - cell(q.x)), Math.abs(cell(p.y) - cell(q.y))) * 5 }) }, tokens: { get: (id) => Object.values(tokens).find((tk) => tk.id === id) } };
-  const region = { hidden: false, parent: scene, attachment: { token: "bear" }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.1", bearerUuid: "A.bear", activationId: "act", rowKey: "t" } }] };
+  const region = { hidden: false, parent: scene, attachment: { token: tokens["S.bear"] }, _source: { attachment: { token: "bear" } }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.1", bearerUuid: "A.bear", activationId: "act", rowKey: "t" } }] };
   scene.regions = [region];
   globalThis.CONST = { TOKEN_DISPLAY_MODES: { NONE: 0, OWNER_HOVER: 20, OWNER: 40, ALWAYS: 50 } };
   const prior = { regions: tokens["S.a"].regions, parent: tokens["S.a"].parent, bearer: tokens["S.bear"].parent, actor: tokens["S.a"].actor };
@@ -789,7 +790,7 @@ await t("T10: the strip reads an engaged reach from the engaged card and the sub
   globalThis.CONST = { TOKEN_DISPLAY_MODES: { NONE: 0, OWNER_HOVER: 20, OWNER: 40, ALWAYS: 50 } };
   globalThis.fromUuidSync = (uuid) => t10.items[uuid] ?? t10.tokens[uuid] ?? t10.prior(uuid);
   const cell = (v) => Math.floor(v / 100);
-  const regionOf = (bearerId, activationId) => ({ hidden: false, attachment: { token: bearerId }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.t10", bearerUuid: "A.b", activationId, rowKey: "engaged" } }] });
+  const regionOf = (bearerId, activationId) => ({ hidden: false, attachment: { token: Object.values(t10.tokens).find((tk) => tk.id === bearerId) ?? null }, _source: { attachment: { token: bearerId } }, behaviors: [{ type: "acks-extras.aura", disabled: false, system: { sourceUuid: "I.t10", bearerUuid: "A.b", activationId, rowKey: "engaged" } }] });
   const r1 = regionOf("eb1", "engaged:r1");
   const r2 = regionOf("eb2", "engaged:r2");
   r2.behaviors[0].system.sourceUuid = "I.t10b";

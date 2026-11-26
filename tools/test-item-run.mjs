@@ -758,6 +758,7 @@ await t("a once-only use takes who the action row's reach meets: the admitted to
     assert.equal(judge.ok, true);
     assert.equal(judge.kind, "once");
     assert.equal(judge.rowKey, "k", "the action row, not the first row");
+    assert.equal(judge.itemUuid, "I.1", "the result names the item, which the card stores to tell its owners");
     assert.equal(judge.activationId, "rid");
     assert.equal(madeRegions.at(-1).data.shapes[0].radius, 150, "15 units at 10 pixels each, on the bearer's own scene");
     assert.equal(madeRegions.at(-1).options.parent, area);
@@ -774,6 +775,20 @@ await t("a once-only use takes who the action row's reach meets: the admitted to
     assert.equal(player.card.sections.length, 1, "a Player sees no tick");
     // What stops it.
     const fail = async (reason) => assert.deepEqual(await quiet(() => run.runUse({ itemUuid: "I.1" })), { ok: false, reason });
+    const direct = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" }, on: ["morale"], modifier: { value: "-1" } } };
+    itemFlags = { cookbook: { id: "kindX" }, itemRun: { activation: { kind: "once" }, rows: [direct] } };
+    const priorLookup = globalThis.fromUuidSync;
+    const made = [];
+    for (const tk of [s1, s3]) tk.actor.createEmbeddedDocuments = async (kind, data) => { made.push(data); return data.map((_, n) => ({ id: `E${made.length}.${n}` })); };
+    globalThis.fromUuidSync = (uuid) => [s1, s3].find((tk) => tk.uuid === uuid) ?? priorLookup(uuid);
+    try {
+      const written = await run.runUse({ itemUuid: "I.1" });
+      assert.equal(written.ok, true);
+      assert.equal(written.itemUuid, "I.1", "a use that writes at once names its item as well");
+      assert.deepEqual(written.written.map((w) => w.key), ["T.s1", "T.s3"], "a part written for each admitted subject");
+    } finally {
+      globalThis.fromUuidSync = priorLookup;
+    }
     itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "5" } } }] } };
     await fail("noRow");
     itemFlags = { itemRun: { activation: { kind: "once" }, rows: [{ key: "k", reach: { pulse: "action", radius: { value: "0" } } }] } };
@@ -1457,7 +1472,7 @@ await t("a lowering re-offers the subject's other reaches to every token the act
   aura.setReachHandler(async (ctx) => heard.push([ctx.subject.token.uuid, ctx.moment, ctx.config.activationId]));
   const actor = { id: "A.9", uuid: "Actor.A9", isToken: false, effects: [{ id: "e1", flags: { "acks-extras": { itemRun: { activationId: "act1" } } } }], getActiveTokens: () => [], deleteEmbeddedDocuments: async () => [] };
   const bearerOnFar = { id: "B2", uuid: "Far.B2", actor: monster(["alpha"]) };
-  const region = { id: "R2", hidden: false, attachment: { token: "B2" }, behaviors: [{ type: AURA, system: { sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act2", rowKey: "t" } }] };
+  const region = { id: "R2", hidden: false, attachment: { token: bearerOnFar }, _source: { attachment: { token: "B2" } }, behaviors: [{ type: AURA, system: { sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act2", rowKey: "t" } }] };
   const far = { tokens: { get: (id) => (id === "B2" ? bearerOnFar : undefined) }, regions: [region] };
   region.parent = far;
   const linked = { actorLink: true, actorId: "A.9", id: "T9", uuid: "Far.T9", actor, parent: far, regions: new Set([region]) };
@@ -1555,8 +1570,9 @@ await t("a lowering hands a condition on to another raised reach of the same ite
   const edits = [];
   const effect = { id: "e1", flags: { "acks-extras": { itemRun: { source: "I.1", activationId: "act1", rowKey: "t" } } }, update: async (data, options) => edits.push([data, options]) };
   const actor = { id: "A.8", uuid: "Actor.A8", isToken: false, effects: [effect], getActiveTokens: () => [], deleteEmbeddedDocuments: async (...args) => deletes.push(args) };
-  const otherRegion = { id: "R2", hidden: false, attachment: { token: "B" }, behaviors: [{ type: AURA, system: { sourceUuid: "I.1", bearerUuid: "A.2", activationId: "act2", rowKey: "t" } }] };
-  const scene = { regions: [otherRegion], tokens: { get: () => ({ id: "B", actor: monster(["alpha"]) }) } };
+  const bearerB = { id: "B", actor: monster(["alpha"]) };
+  const otherRegion = { id: "R2", hidden: false, attachment: { token: bearerB }, _source: { attachment: { token: "B" } }, behaviors: [{ type: AURA, system: { sourceUuid: "I.1", bearerUuid: "A.2", activationId: "act2", rowKey: "t" } }] };
+  const scene = { regions: [otherRegion], tokens: { get: (id) => (id === "B" ? bearerB : undefined) } };
   otherRegion.parent = scene;
   const token = { actorLink: true, actorId: "A.8", id: "T8", uuid: "S.T8", actor, parent: scene, regions: new Set([otherRegion]) };
   const priorActors = gameStub.actors;
@@ -1598,7 +1614,7 @@ await t("a bearer counted into its own standing reach keeps its part when it lea
       createEmbeddedDocuments: async (kind, data) => data.map((d) => { const e = { ...d, id: d._id, update: async (u) => { if (u.flags) e.flags = u.flags; if (u["flags.acks-extras.itemRun"]) e.flags["acks-extras"].itemRun = u["flags.acks-extras.itemRun"]; } }; effects.push(e); return e; }),
       deleteEmbeddedDocuments: async (kind, ids) => { for (const id of ids) effects.splice(effects.findIndex((e) => e.id === id), 1); },
     };
-    const region = { id: "R2", hidden: false, attachment: { token: "B2" }, behaviors: [{ type: AURA, system: { sourceUuid: "I.k2", bearerUuid: "A.k2", activationId: "act2", rowKey: "s" } }] };
+    const region = { id: "R2", hidden: false, attachment: { token: null }, _source: { attachment: { token: "B2" } }, behaviors: [{ type: AURA, system: { sourceUuid: "I.k2", bearerUuid: "A.k2", activationId: "act2", rowKey: "s" } }] };
     const scene = { regions: [region], tokens: { get: () => undefined } };
     region.parent = scene;
     const token = { actorLink: true, actorId: "A.k1", id: "Tk1", uuid: "S.Tk1", actor, parent: scene, regions: new Set([region]) };
@@ -2189,7 +2205,7 @@ await t("the installed carrier answers a Player's relayed use as that seat, hear
     // The reach's moment reaches the carrier's own handler.
     const seen = [];
     run.setUsePresenter(async (result) => seen.push(result));
-    const region = { parent: { tokens: { get: () => bearerTok } }, attachment: { token: "1" } };
+    const region = { parent: { tokens: { get: (id) => (id === "1" ? bearerTok : undefined) } }, attachment: { token: bearerTok }, _source: { attachment: { token: "1" } } };
     const walker = { id: "w", uuid: "T.w", flags: { "acks-extras": {} }, disposition: -1, actor: monster(["alpha"]) };
     itemFlags = { itemRun: { activation: { kind: "toggle" }, rows: [{ key: "s", reach: { pulse: "standing", radius: { value: "5" }, filter: { kinds: ["alpha"] } } }] } };
     await auraReach.dispatchReachMoment({ sourceUuid: "I.1", bearerUuid: "A.1", activationId: "act1", rowKey: "s", region }, "enter", walker);

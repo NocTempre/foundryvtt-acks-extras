@@ -28,7 +28,7 @@
  */
 import { FLAG_ITEM_RUN, FLAG_ROLL_MODS, LANG_PREFIX, MODULE_ID, AURA_BEHAVIOR_TYPE, FLAG_ITEM_RUN_CARD } from "./constants.mjs";
 import { figureNumber, isEngagedActivation, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
-import { behaviorsUnder } from "./regions.mjs";
+import { attachedToken, behaviorsUnder } from "./regions.mjs";
 import { itemCite, itemRunRowsOf, kindKeyOf, lastsRecordId } from "./item-run-logic.mjs";
 import { admittedWithCount, blankTip, cardSubjectUuids, importTip, openEngagedEntryFor, rowStateOf, safeKey, shownTokenName, signedFigure, stripModel, turnsLeft } from "./item-run-card-logic.mjs";
 import { cardOf, pressRoll } from "./item-run.mjs";
@@ -72,7 +72,7 @@ function readReachOn({ behavior, region }, token, actor) {
   const item = config ? fromUuidSync(config.sourceUuid) : null;
   const row = itemRunRowsOf(item).find((r) => r?.key === config?.rowKey);
   const reach = readReach(row?.reach);
-  const bearerToken = region?.parent?.tokens?.get?.(region.attachment?.token) ?? null;
+  const bearerToken = attachedToken(region);
   if (!reach || !bearerToken || bearerToken.id === token.id || isMarkerActor(actor)) return null;
   const engaged = isEngagedActivation(config.activationId);
   // An always-on engaged reach raises no card: its prompts live on the engaged card of the subject's moment, found by subject and kind below.

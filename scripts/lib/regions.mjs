@@ -200,6 +200,21 @@ export function regionArea(region) {
 }
 
 /**
+ * The token a Region is attached to, or null: read by id through the Region's
+ * scene, whether `attachment.token` holds the id (the source, the server) or
+ * the TokenDocument core's client prepares from it. A deleted token answers
+ * null since the scene no longer holds it.
+ *
+ * @param {RegionDocument} region
+ * @returns {TokenDocument|null}
+ */
+export function attachedToken(region) {
+  const ref = region?.attachment?.token;
+  const id = typeof ref === "string" ? ref : (ref?.id ?? region?._source?.attachment?.token ?? null);
+  return id ? (region?.parent?.tokens?.get?.(id) ?? null) : null;
+}
+
+/**
  * The grid offsets a Region claims: the union of its `grid` shapes' offsets, a
  * hole shape left out, each cell once in the order first met. Read off the
  * shapes' own data, so a cell a Judge added or removed with core's grid tool

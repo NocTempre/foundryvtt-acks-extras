@@ -34,7 +34,7 @@
 import { AURA_BEHAVIOR_TYPE, BEARER_DOWN_HOOK, MODULE_ID, LANG_PREFIX, TURN_BEGAN_HOOK } from "./constants.mjs";
 import { carriesItem, checkRaise, downCause, engagedActivationId, engagementHolds, isEngagedActivation, figureNumber, groupByKind, groupVerdict, holdMoment, pruneMoments, readAuraConfig, readReach, reachAdmits, releaseMoment, snapshotRegionData, turnStamp } from "./aura-reach-logic.mjs";
 import { alwaysOn, itemRunRowsOf, kindKeyOf } from "./item-run-logic.mjs";
-import { behaviorsUnder } from "./regions.mjs";
+import { attachedToken, behaviorsUnder } from "./regions.mjs";
 import { executeAsGM, registerHandler } from "./sockets.mjs";
 import { tokenHasStatus, tokenHitPoints } from "./hp-logic.mjs";
 import { STATUS_DEAD } from "./status-effects.mjs";
@@ -198,7 +198,7 @@ function reachContext(system, subjectToken) {
   const row = itemRunRowsOf(item).find((r) => r?.key === config.rowKey);
   const reach = readReach(row?.reach);
   if (!reach) return null;
-  const bearerToken = region?.parent?.tokens?.get?.(region.attachment?.token) ?? null;
+  const bearerToken = attachedToken(region);
   if (!bearerToken) return null;
   const bearer = bodyOf(bearerToken);
   const subject = bodyOf(subjectToken);

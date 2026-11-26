@@ -681,7 +681,7 @@ const reachRow = (over = {}) => ({ key: "k", reach: { pulse: "standing", radius:
 let currentItem = { uuid: "I.9", name: "Charm", type: "item", flags: { "acks-extras": { itemRun: { rows: [reachRow()] } } } };
 globalThis.fromUuidSync = (uuid) => (uuid === "I.9" ? currentItem : uuid === bearerTok.uuid ? bearerTok : null);
 const scene = { tokens: { get: (id) => (id === "bt" ? bearerTok : null) }, regions: [] };
-const holder = { id: "R9", hidden: false, parent: scene, attachment: { token: "bt" }, behaviors: [] };
+const holder = { id: "R9", hidden: false, parent: scene, attachment: { token: bearerTok }, _source: { attachment: { token: "bt" } }, behaviors: [] };
 const sys = (over = {}) => ({ ...cfg, region: holder, ...over });
 
 await t("the aura behavior registers its type, its icon and its four config fields, and core's three events become enter, moveIn and exit for the primary GM alone", async () => {
@@ -750,11 +750,16 @@ await t("a moment reaches the one handler with the config, item, row, reach, bea
     await reach.dispatchReachMoment({ ...cfg, parent: { region: holder } }, "exit", walker);
     assert.equal(got.length, 1, "a behavior reaches its Region through its parent as well");
     got.length = 0;
+    await reach.dispatchReachMoment({ ...sys(), region: { ...holder, attachment: { token: "bt" }, _source: undefined } }, "enter", walker);
+    assert.equal(got.length, 1, "a Region whose attachment holds the id, as the server's does, reaches its bearer as well");
+    got.length = 0;
     await reach.dispatchReachMoment({ ...cfg }, "enter", walker);
     await reach.dispatchReachMoment(sys({ rowKey: "gone" }), "enter", walker);
     await reach.dispatchReachMoment(sys({ sourceUuid: "I.none" }), "enter", walker);
     await reach.dispatchReachMoment(sys(), "enter", null);
-    await reach.dispatchReachMoment({ ...sys(), region: { ...holder, attachment: { token: "absent" } } }, "enter", walker);
+    await reach.dispatchReachMoment({ ...sys(), region: { ...holder, attachment: { token: null }, _source: { attachment: { token: "absent" } } } }, "enter", walker);
+    await reach.dispatchReachMoment({ ...sys(), region: { ...holder, attachment: { token: null }, _source: undefined } }, "enter", walker);
+    await reach.dispatchReachMoment({ ...sys(), region: { ...holder, attachment: { token: "absent" }, _source: undefined } }, "enter", walker);
     currentItem = { ...currentItem, flags: { "acks-extras": { itemRun: { rows: [{ key: "k", reach: { pulse: "nope" } }] } } } };
     await reach.dispatchReachMoment(sys(), "enter", walker);
     currentItem = { ...currentItem, flags: { "acks-extras": { itemRun: { rows: [{ key: "k" }] } } } };
@@ -1204,7 +1209,7 @@ await t("a turn start asks a subject once per item kind, prunes the keys of an e
     // The bearer: its attached reach is read at its own turn start only where the filter counts it in.
     holder.behaviors = [];
     const attach = (uuid) => {
-      const region = { id: "RA", hidden: false, parent: scene, attachment: { token: "bt" } };
+      const region = { id: "RA", hidden: false, parent: scene, attachment: { token: bearerTok }, _source: { attachment: { token: "bt" } } };
       region.behaviors = [{ type: AURA, system: { ...cfg, sourceUuid: uuid, rowKey: "k", region } }];
       return region;
     };
@@ -1317,7 +1322,7 @@ await t("a turn start settles a turnStart+enter kind once from every bearer's an
   globalThis.fromUuidSync = (uuid) => items[uuid] ?? priorFrom(uuid);
   const bearers = { b1: tokenOf("b1", undefined, { disposition: 1 }), b2: tokenOf("b2", undefined, { disposition: 1 }), b3: tokenOf("b3", undefined, { disposition: 1 }) };
   const world = { tokens: { get: (id) => bearers[id] ?? null }, regions: [] };
-  const holderOf = (id, uuids) => ({ id: `R.${id}`, hidden: false, parent: world, attachment: { token: id }, behaviors: uuids.map((u) => ({ type: AURA, system: { ...cfg, sourceUuid: u, rowKey: "k", activationId: `act-${u}`, region: null } })) });
+  const holderOf = (id, uuids) => ({ id: `R.${id}`, hidden: false, parent: world, attachment: { token: bearers[id] }, _source: { attachment: { token: id } }, behaviors: uuids.map((u) => ({ type: AURA, system: { ...cfg, sourceUuid: u, rowKey: "k", activationId: `act-${u}`, region: null } })) });
   const heard = [];
   reach.setReachHandler((ctx) => { heard.push({ moment: ctx.moment, subject: ctx.subject.token.id, item: ctx.item.uuid, admitted: ctx.admitted, engagedBy: ctx.engagedBy }); return "prompt"; });
   const run = async (regions, subject) => {

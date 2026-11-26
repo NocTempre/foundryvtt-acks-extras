@@ -5,7 +5,7 @@
  * no world.
  */
 import assert from "node:assert/strict";
-import { behaviorsUnder, regionArea, regionRings, regionsAt, regionsUnder } from "../scripts/lib/regions.mjs";
+import { attachedToken, behaviorsUnder, regionArea, regionRings, regionsAt, regionsUnder } from "../scripts/lib/regions.mjs";
 import { containmentPoints, mockRegion, rect, standOnRegions } from "./region-fixture.mjs";
 
 let passed = 0;
@@ -235,6 +235,21 @@ test("regionArea is core's, holes taken out", () => {
   assert.equal(regionArea(mockRegion({ rings: [rect(0, 0, 300, 200)], holes: [rect(100, 50, 100, 100)] })), 50000);
   assert.equal(regionArea(mockRegion()), 0);
   assert.equal(regionArea(null), 0);
+});
+
+test("attachedToken reads the bearer by id through the Region's scene, from the source's id or from the document core prepares", () => {
+  const bearer = { id: "bt" };
+  const scene = { tokens: { get: (id) => (id === "bt" ? bearer : undefined) } };
+  assert.equal(attachedToken({ parent: scene, attachment: { token: "bt" } }), bearer, "the id shape");
+  assert.equal(attachedToken({ parent: scene, attachment: { token: bearer }, _source: { attachment: { token: "bt" } } }), bearer, "the document shape");
+  assert.equal(attachedToken({ parent: scene, attachment: { token: null }, _source: { attachment: { token: "bt" } } }), bearer, "a prepared null falls back to the source's id");
+  assert.equal(attachedToken({ parent: scene, attachment: { token: "gone" } }), null, "an id the scene does not hold");
+  assert.equal(attachedToken({ parent: scene, attachment: { token: { id: "gone" } } }), null, "a document the scene no longer holds");
+  assert.equal(attachedToken({ parent: scene, attachment: { token: null }, _source: { attachment: { token: "gone" } } }), null, "a deleted token");
+  assert.equal(attachedToken({ parent: scene, attachment: { token: null } }), null, "no attachment");
+  assert.equal(attachedToken({ parent: scene }), null, "no attachment field");
+  assert.equal(attachedToken({ attachment: { token: "bt" } }), null, "a Region with no scene");
+  assert.equal(attachedToken(null), null);
 });
 
 console.log(`test-regions: OK (${passed} checks — zones over a point, grid shapes, holes, elevation, Levels, a token's Regions, outlines, area)`);
