@@ -4254,9 +4254,10 @@ tracked or swept.
    from step 1.
 3. Give a test character one of those classes and cast one invocation from
    its sheet, with nothing targeted.
-   *Observable:* record what the cast does today (which card posts, whether a
-   spend or a declaration happens, what the record carries). This is
-   evidence for the plan's owner questions A and B, not a pass or fail.
+   *Observable:* the cast takes the ordinary spell path and runs no
+   invocation effect row: the owner's answers A and B in magic DECISIONS,
+   2026-11-18, "Gnosis and ceremony: the By This Axe groundwork and the 3c
+   rulings". Record which card posts and what the record carries.
 
 ### Teardown
 
