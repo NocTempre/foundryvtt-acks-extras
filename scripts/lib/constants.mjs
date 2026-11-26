@@ -216,3 +216,6 @@ export const MORALE_ROLL_KEY = "morale";
  * deletes a turn-life record before the burst could be dealt.
  */
 export const FLAG_FUSE = "fuse";
+
+/** Item flag key under `flags["acks-extras"]` of a consumable's drink figures: `{healDice, saveKind, condition, successHealDice, swigDice, ownKind}`. */
+export const FLAG_DRINK = "drink";

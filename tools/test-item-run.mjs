@@ -288,6 +288,38 @@ await t("an item's run reads its figures only as references, its rows as a copy 
   assert.equal(logic.claimsItemUse(viaGetFlag, ["once"]), true);
 });
 
+await t("a consume activation reads its swigs left, its figure and its last bearer, and nothing else does", () => {
+  const read = logic.readItemRun({ activation: { kind: "consume", uses: { doc: "d", row: "r" }, left: 3, bearerUuid: " Actor.a " } }).activation;
+  assert.deepEqual(read.uses, { doc: "d", row: "r" });
+  assert.equal(read.left, 3);
+  assert.equal(read.bearerUuid, "Actor.a");
+  const bare = logic.readItemRun({ activation: { kind: "consume" } }).activation;
+  assert.equal(bare.left, null, "no count is uncounted");
+  assert.equal(bare.bearerUuid, "");
+  assert.equal(bare.uses, null);
+  assert.equal(logic.readItemRun({ activation: { kind: "consume", left: 0 } }).activation.left, 0, "a spent count is 0, not null");
+  assert.equal(logic.readItemRun({ activation: { kind: "consume", left: "4" } }).activation.left, 4, "a typed numeral reads as its number");
+  assert.equal(logic.readItemRun({ activation: { kind: "consume", left: "" } }).activation.left, null, "a blank count is uncounted");
+  assert.equal(logic.readItemRun({ activation: { kind: "consume", left: 1.5 } }).activation.left, null, "a fraction is no count");
+  assert.equal(logic.readItemRun({ activation: { kind: "consume", left: "x" } }).activation.left, null);
+  assert.equal(logic.readItemRun({ activation: { kind: "consume", bearerUuid: 7 } }).activation.bearerUuid, "", "a bearer that is no string is none");
+  assert.equal("left" in logic.readItemRun({ activation: { kind: "once", left: 2 } }).activation, false, "another kind answers no count");
+});
+
+await t("a consume item is used up when its own count is 0 or below, whatever its quantity, and a null count never spends", () => {
+  const consume = (left, system) => ({ type: "item", ...(system ? { system } : {}), flags: { "acks-extras": { itemRun: { activation: { kind: "consume", left } } } } });
+  assert.equal(logic.itemRunUsedUp(consume(0)), true);
+  assert.equal(logic.itemRunUsedUp(consume(-1)), true);
+  assert.equal(logic.itemRunUsedUp(consume(2)), false);
+  assert.equal(logic.itemRunUsedUp(consume(null)), false, "uncounted and no quantity is not used up");
+  assert.equal(logic.itemRunUsedUp(consume(0, { quantity: 5 })), true, "a count spent to 0 outranks a full quantity");
+  assert.equal(logic.itemRunUsedUp(consume(2, { quantity: { value: 0 } })), true, "the quantity rule stands");
+  assert.equal(logic.itemRunUsedUp(consume(null, { quantity: { value: 0 } })), true);
+  assert.equal(logic.itemRunUsedUp(consume(3, { quantity: { value: 2 } })), false);
+  const once = { type: "item", flags: { "acks-extras": { itemRun: { activation: { kind: "once", left: 0 } } } } };
+  assert.equal(logic.itemRunUsedUp(once), false, "only a consume item reads left");
+});
+
 await t("every record names its item, activation and row, and each kind carries what it is for", () => {
   const flagsOf = (rec) => rec.flags["acks-extras"];
   const wholeIds = { source: "I.1", activationId: "act", rowKey: "k" };

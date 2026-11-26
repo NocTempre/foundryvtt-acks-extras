@@ -33,16 +33,25 @@ function readState(raw) {
   return { active: raw?.active === true, activationId: String(raw?.activationId ?? ""), regionId: String(raw?.regionId ?? "") };
 }
 
+/** A stored swig count as a finite integer, or null: a blank, a fraction or no number is uncounted, and a typed numeral reads as its number. */
+const leftOf = (raw) => {
+  const n = numOrNull(raw);
+  return n !== null && Number.isInteger(n) ? n : null;
+};
+
 /**
  * A stored `itemRun` flag as `{activation, rows}`, or null where it holds no
  * activation of a known kind. The figures a fuse and a counted item name stay
  * figure references (`resolveFigure` reads them live). A fuse also names the
  * proficiency its light rides on, the bomb sizes by breed (`sizes`), the blast
  * rows by size (`blast`) and `variant`, the breed key that indexes `sizes` (a
- * trimmed string, "" where none is stored).
+ * trimmed string, "" where none is stored). A `consume` activation also answers
+ * `left`, the swigs it has left (a finite integer, null where uncounted), and
+ * `bearerUuid`, the uuid of the actor that last took the item ("" where none);
+ * `uses` is the figure reference its count is rolled from.
  *
  * @param {object} [raw]
- * @returns {{activation: {kind: string, state: {active: boolean, activationId: string, regionId: string}, throw: object|null, fumble: object|null, fuseDice: object|null, proficiency: object|null, sizes: object|null, blast: object|null, variant: string, uses: object|null}, rows: object[]}|null}
+ * @returns {{activation: {kind: string, state: {active: boolean, activationId: string, regionId: string}, throw: object|null, fumble: object|null, fuseDice: object|null, proficiency: object|null, sizes: object|null, blast: object|null, variant: string, uses: object|null, left?: number|null, bearerUuid?: string}, rows: object[]}|null}
  */
 export function readItemRun(raw) {
   const kind = raw?.activation?.kind;
@@ -60,6 +69,7 @@ export function readItemRun(raw) {
       blast: figure("blast"),
       variant: typeof raw.activation.variant === "string" ? raw.activation.variant.trim() : "",
       uses: figure("uses"),
+      ...(kind === "consume" ? { left: leftOf(raw.activation.left), bearerUuid: typeof raw.activation.bearerUuid === "string" ? raw.activation.bearerUuid.trim() : "" } : {}),
     },
     rows: Array.isArray(raw.rows) ? raw.rows : [],
   };
@@ -93,12 +103,14 @@ export const SPENDING_KINDS = Object.freeze(["fuse", "consume"]);
 
 /**
  * Whether a run item is used up: its activation spends a count (a spending kind, or any kind that names
- * `uses`), the item carries a count, and the count is none. Never true of a raised item, which must stay
- * lowerable, nor of an item that is not a run item.
+ * `uses`), the item carries a count, and the count is none; or it is a `consume` item whose own `left`
+ * is a number at or below none. Never true of a raised item, which must stay lowerable, nor of an item
+ * that is not a run item.
  */
 export function itemRunUsedUp(item) {
   const activation = itemRunOf(item)?.activation;
   if (!activation || activation.state?.active) return false;
+  if (activation.kind === "consume" && activation.left !== null && activation.left <= 0) return true;
   if (!SPENDING_KINDS.includes(activation.kind) && !activation.uses) return false;
   const count = stackCountOf(item);
   return count !== null && count <= 0;
