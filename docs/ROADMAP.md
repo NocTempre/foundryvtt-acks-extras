@@ -266,6 +266,10 @@ that says special, or varies by something other than its side) gives no Roll
 (`lib/encounter-line.mjs`). A wandering band moved by the clock on a journey map is
 not built either.
 
+**A young body's own figures.** A creature's ecology prose can state a young
+body's figures in a sentence. No importer code reads that sentence (`bindNpc` binds
+a stat line), so a young body gets no figures of its own from it.
+
 **Levelled people.** A recipe part's source is a creature, a family role cell, a
 stat line or a word, never a class at a level. Building a person a line names that
 way would join the henchmen and classes generators, and no feature owns it.
