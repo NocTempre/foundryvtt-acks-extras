@@ -18,7 +18,15 @@ globalThis.acksExtras ??= {};
 /*  Foundry mock                                */
 /* -------------------------------------------- */
 
-const sleep = (ms = 1) => new Promise((r) => setTimeout(r, ms));
+/**
+ * The mock's clock: `ms` turns of the event loop's check phase. A write that
+ * waits 2 resolves after one begun beside it that waits 1, as with timers.
+ * Never a timer: one waits the platform's granularity (about 10 ms on
+ * Windows), and the scenarios drain hundreds of times.
+ */
+const sleep = async (ms = 1) => {
+  for (let i = 0; i < ms; i++) await new Promise((r) => setImmediate(r));
+};
 let nextId = 0;
 const uid = (p = "id") => `${p}${(++nextId).toString().padStart(4, "0")}`;
 
@@ -7649,7 +7657,7 @@ await scenario("a party actor made while the GM window is still joining its seat
   game.socket = {
     connected: true,
     on: (event, fn) => (listeners[event] ??= []).push(fn),
-    emit: (channel, message) => setTimeout(() => (listeners[channel] ?? []).forEach((fn) => fn(message, game.user.id))),
+    emit: (channel, message) => void sleep().then(() => (listeners[channel] ?? []).forEach((fn) => fn(message, game.user.id))),
   };
   game.view = "game";
   globalThis.window ??= { addEventListener() {} };
