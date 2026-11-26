@@ -580,8 +580,8 @@ throw, saves, damage total, morale, XP).
 
 **Choosing.** The axis's `default` is Standard: an unpinned role generates the
 rank and file and a leader appears only when picked. A role with no cell for
-the chosen variant is unavailable — listed disabled on the builder, never
-rolled, and a stale pin of it falls back to Standard (`optionAvailable`,
+the chosen variant is unavailable — listed with its marking words on the
+builder, never rolled, and a pin of it is kept as the Judge's call (`optionAvailable`,
 [../lib/API.md](../lib/API.md)).
 
 `roleAxis` writes that default on every write: it lists Standard first and
@@ -824,6 +824,10 @@ with none of them gains them on the repair, since the build is whole.
 - **Optional equipment** (`gear`): a multi axis keyed by the rows of
   `beastmanEquipment`, after the trait, with no bands. Who may carry a piece is
   the organisation roll's carry roll ("The organisation roll"); a Judge's pin is the Judge's call.
+  The template sheet marks a tick the table's `ranks` or `troops` do not give the
+  chosen role or troop (`gearCarryOf`, registered with lib as `registerTemplateCarry`),
+  names nothing where the row prints neither or nothing is imported, and a ticked
+  piece is given at generation whatever the role.
 - **Leader table** (`table`, the third option of Leader figures, labelled with
   the page): never the default, the breed page stays it. Its cells,
   `variant|role|table`, exist for each breed and rank `beastmanLeaders` holds a
@@ -956,10 +960,11 @@ parts (the surprise part, the waiver) in place. The gates are read at the roll
 the Armor Class (`conditions.mjs`); see [../lib/API.md](../lib/API.md),
 "Typed modifiers".
 
-**Equipment** (`gearPayloads(gear, resolved, {fights})`) writes from a row's
-figure keys and its `figuresFrom`, never its key, and only for a fighting
-creature that was given a row: a creature with no equipment row stays stat-only,
-a blank figure writes nothing, and a caster or dependant carries none of it.
+**Equipment** (`gearPayloads(gear, resolved, {variant})`) writes from a row's
+figure keys and its `figuresFrom`, never its key, for a creature of any role
+that was given a row: a creature with no equipment row stays stat-only and a
+blank figure writes nothing. A piece reaches a generated creature only by a
+Judge's tick, so a caster or dependant is given a ticked piece too.
 
 | A row with | Writes |
 |---|---|

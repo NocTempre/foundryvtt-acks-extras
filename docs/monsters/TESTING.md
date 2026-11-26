@@ -225,7 +225,7 @@ Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
    *Observable:* every line field shows and none can be edited. Grant Observer
    on `monsters/pin-template` and open it: the axis selects carry no `name` and
    *Generate* is absent. Pin the second kind: the Role select marks the
-   disabled role, a `preUpdateActor` hook on the seat sees no write, and the
+   unavailable role, a `preUpdateActor` hook on the seat sees no write, and the
    actor's `system` is unchanged.
 7. Write a stale shape on each kept entry actor (a stale noun and die on
    both sides, a die in core's field) and call `refillMonster(actor, {whole:
@@ -342,12 +342,13 @@ and 15's observer pin is walked on an invented template by
    options are Standard and the roles the family's prose prints, in the
    order MODEL gives; its roll line reads the default, Standard, not a die.
 2. Pin a kind, then open the Role select. *Observable:* a role the prose
-   prints for no other kind but this one is enabled; one printed only for
-   another kind is disabled and its label says it is not printed for this
-   choice. A native select's open list sends no pointer events to its
+   prints for no other kind but this one is listed plainly; one printed only
+   for another kind is still enabled, and its label says it is not printed for
+   this choice (pick it: Generate keeps it and writes the option's own name
+   alone, and the log marks it `unavailable`). A native select's open list sends no pointer events to its
    options in most browsers, so the label is the copy to read; the
    option's `data-tooltip` is checked by reading the attribute. In the MM's
-   beastman family every kind prints every role, so no option is disabled
+   beastman family every kind prints every role, so no option is marked
    there: this step needs a family where one kind lacks a role.
 3. With the kind pinned and Role left blank, generate five times.
    *Observable:* each actor is the Standard member, and the generation log

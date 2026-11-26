@@ -368,9 +368,9 @@ function flagLauncherStack(items, onHit) {
 /**
  * What the chosen equipment rows write on a creature, by the row's figure keys
  * and its `figuresFrom`, never by its key (the key is minted from the printed
- * label). `gear` is `[{key, label, cite, figures}]`; a row that is not carried
- * by a fighting creature (`fights` false) writes nothing, and no row at all
- * writes nothing: a creature with no gear stays stat-only.
+ * label). `gear` is `[{key, label, cite, figures}]`; a row is written for any
+ * body it is given to, whatever the body's role, and no row at all writes
+ * nothing: a creature with no gear stays stat-only.
  *
  *   - `reductionPerDie` (a marking on the body): an ability item with a
  *     `damageReduction` row `{perDie, value, gate: weaponMundane}`;
@@ -407,9 +407,8 @@ function flagLauncherStack(items, onHit) {
  * the count of ammunition stacks flagged, and the `{kind, key, figure, word}` of
  * each figure that did not resolve.
  */
-export function gearPayloads(gear, resolved, { fights = true, variant = "" } = {}) {
+export function gearPayloads(gear, resolved, { variant = "" } = {}) {
   const out = { abilities: [], ac: null, armourRows: [], hooked: 0, consumables: [], reachItems: [], onHit: 0, unresolved: [] };
-  if (!fights) return out;
   for (const row of Array.isArray(gear) ? gear : []) {
     const f = row.figures ?? {};
     const specs = [];
@@ -446,7 +445,7 @@ export function gearPayloads(gear, resolved, { fights = true, variant = "" } = {
 /**
  * The item sources a body carries for one optional-equipment row, which lib's
  * deploy puts on a body of a stack whose `gen.carry` names the row: the row run
- * through `gearPayloads` as a fighting creature's choice is (the path a generated
+ * through `gearPayloads` as a generated creature's choice is (the path a generated
  * leader's gear takes in `applyGeneratedOrganisation`), keeping the items it
  * mints, reach items first, then consumables, then abilities. Null where the
  * row is not in the imported table, or where it writes no item (a figure that
@@ -458,9 +457,37 @@ export function gearPayloads(gear, resolved, { fights = true, variant = "" } = {
 export function carriedGearItems(rowKey, org = importedOrganisation()) {
   const row = (org?.equipment?.rows ?? []).find((r) => r.key === rowKey);
   if (!row) return null;
-  const built = gearPayloads([{ key: row.key, label: row.label, cite: org.equipment.cite ?? "", figures: row.figures ?? {} }], { items: [] }, { fights: true });
+  const built = gearPayloads([{ key: row.key, label: row.label, cite: org.equipment.cite ?? "", figures: row.figures ?? {} }], { items: [] });
   const items = [...built.reachItems, ...built.consumables, ...built.abilities];
   return items.length ? items : null;
+}
+
+/**
+ * Does the equipment table let the chosen role and troop carry one piece? False
+ * where the row names ranks and the chosen role is not among them, or names
+ * troops and the chosen troop is not among them (no troop at all is not one of
+ * them); true where it names either and the choice is in it; null where the
+ * row prints neither, no role or troop is chosen yet, or the table is not
+ * imported. The sheet marks a piece on `false` and nothing else; a Judge's tick
+ * stands. The organisation roll gates a leader's piece on the same ranks and
+ * troops (`organisation-logic.mjs`) and never rolls one onto a rank outside them.
+ * @param {object} org `importedOrganisation()`
+ * @param {string} rowKey the equipment row's key
+ * @param {{role?: string, troop?: string}} [choices] the axis choices made so far
+ * @returns {boolean|null}
+ */
+export function gearCarryOf(org, rowKey, choices = {}) {
+  const row = (org?.equipment?.rows ?? []).find((r) => r.key === rowKey);
+  const f = row?.figures;
+  if (!f) return null;
+  const ranks = Array.isArray(f.ranks) ? f.ranks : [];
+  const troops = Array.isArray(f.troops) ? f.troops : [];
+  const role = typeof choices.role === "string" ? choices.role : "";
+  const troop = typeof choices.troop === "string" ? choices.troop : "";
+  const rankSays = ranks.length && role ? ranks.includes(role) : null;
+  const troopSays = troops.length && troop ? troops.includes(troop) : null;
+  if (rankSays === false || troopSays === false) return false;
+  return rankSays === null && troopSays === null ? null : true;
 }
 
 /**
@@ -713,7 +740,7 @@ export function naturalAttackItems(dice, name) {
  * save also gives its ability the engaged reach row (`engagedReachRow`), for a
  * body of any role. A standing figure and a
  * gated spec never share a figure. The chosen equipment rows write what
- * `gearPayloads` returns for a fighting creature: ability items, an armour
+ * `gearPayloads` returns, for a body of any role: ability items, an armour
  * class bump (the `gear` part) and the hooked flag on its melee weapons.
  * Everything else ranged, activated or generated (the rest of a row's figures)
  * is RECORDED on `extras.organisation` as the row's figures and not applied. A figure not
@@ -761,7 +788,8 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
   const hasTroopAc = figure(t.armourBump) != null || figure(t.acReduction) != null;
   const troopAc = (figure(t.armourBump) ?? 0) - (figure(t.acReduction) ?? 0);
   const traitAc = fights ? figure(r.armourBump) : null;
-  const built = gearPayloads(gear, resolved, { fights, variant: typeof choices.variant === "string" ? choices.variant : "" });
+  // Every piece here was ticked by a hand (the gear axis never rolls), so it is given whatever the role.
+  const built = gearPayloads(gear, resolved, { variant: typeof choices.variant === "string" ? choices.variant : "" });
   if (acBase !== null && (hasTroopAc || traitAc !== null || built.ac !== null)) {
     const value = acBase + (hasTroopAc ? troopAc : 0) + (traitAc ?? 0) + (built.ac ?? 0);
     system.ac = { ...(system.ac ?? {}), value };

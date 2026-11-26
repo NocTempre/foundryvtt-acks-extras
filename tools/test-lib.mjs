@@ -12,9 +12,10 @@ import {
   keptTokenSize, nextOrdinal, platoonCapacity, sizeFromEcology, wouldCycleGroup,
 } from "../scripts/lib/group-logic.mjs";
 import {
-  ROLL_PIN, axisIsBanded, axisOffersChoice, chooseAxes, mergePatch, optionAvailable, resolveActor, rollDie, rollMenu, rollOption, seededRng,
+  ROLL_PIN, axisIsBanded, axisOffersChoice, chooseAxes, mergePatch, optionAvailable, optionStands, pinOptionRows, resolveActor, rollDie, rollMenu, rollOption, seededRng,
 } from "../scripts/lib/template-logic.mjs";
-import { registryBands } from "../scripts/lib/template-bands.mjs";
+import { registerTemplateCarry, registryBands, registryCarry } from "../scripts/lib/template-bands.mjs";
+import { bindPinLabels } from "../scripts/lib/template-pins.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, csvFlagValue, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
@@ -1145,7 +1146,7 @@ t("banded axis: an all-blank bandsFrom is no bands, and an axis without one roll
   assert.equal(chooseAxes(TEMPLATE_SYS, { rng: () => 0.1 }).log[0].source, "rolled", "bands on options still roll");
 });
 
-t("banded axis: no band for the chosen variant is unavailable and disabled; the default always stands", () => {
+t("banded axis: no band for the chosen variant is unavailable (marked, never rolled); the default always stands", () => {
   withGizmos((bandOf) => {
     const sys = bandedSystem({ def: "widget" });
     const troop = sys.axes[1];
@@ -1275,8 +1276,114 @@ t("banded multi axis: bands gate availability only, and nothing is rolled", () =
     const rng = () => 0.5;
     const off = chooseAxes(sys, { pinned: { variant: "snark" }, rng, bandOf });
     assert.equal("troop" in off.choices, false, "never rolled");
-    const picked = chooseAxes(sys, { pinned: { variant: "snark", troop: ["widget", "gadget", "doohickey"] }, rng, bandOf });
-    assert.deepEqual(picked.choices.troop, ["widget"], "only the option with a band for the variant");
+    const picked = chooseAxes(sys, { pinned: { variant: "snark", troop: ["widget", "gadget", "doohickey", "ghost"] }, rng, bandOf });
+    assert.deepEqual(picked.choices.troop, ["widget", "gadget", "doohickey"], "a tick the bands do not give is kept; an unknown key is not");
+    assert.deepEqual(picked.log.at(-1), { axis: "troop", option: "widget+gadget+doohickey", source: "pinned", unavailable: ["gadget", "doohickey"] });
+    const plain = chooseAxes(sys, { pinned: { variant: "printer", troop: ["widget", "gadget"] }, rng, bandOf });
+    assert.equal("unavailable" in plain.log.at(-1), false, "nothing is marked where every tick has a band");
+  });
+});
+
+t("a pin on an option with no band for the variant is kept as given by hand, and no roll lands on one", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem({ def: "widget" });
+    const pinned = chooseAxes(sys, { pinned: { variant: "snark", troop: "gadget" }, rng: () => 0.5, bandOf });
+    assert.equal(pinned.choices.troop, "gadget", "the Judge's pick stands");
+    assert.deepEqual(pinned.log.at(-1), { axis: "troop", option: "gadget", source: "pinned", unavailable: true });
+    const standing = chooseAxes(sys, { pinned: { variant: "snark", troop: "widget" }, rng: () => 0.5, bandOf });
+    assert.deepEqual(standing.log.at(-1), { axis: "troop", option: "widget", source: "pinned" }, "an option with a band is logged as before");
+    for (let seed = 1; seed <= 40; seed++) {
+      const rolled = chooseAxes(bandedSystem({ roll: "1d10" }), { pinned: { variant: "snark", troop: ROLL_PIN }, rng: seededRng(seed), bandOf });
+      assert.equal(rolled.choices.troop, "widget", `seed ${seed}: a roll lands only where the variant has a band`);
+    }
+    // Nothing stands on the axis, and the pick still stands.
+    const none = chooseAxes(bandedSystem(), { pinned: { variant: "snark", troop: "gadget" }, rng: () => 0.5, bandOf: (_axis, _option, choices) => (choices.variant ? null : undefined) });
+    assert.equal(none.choices.troop, "gadget", "no option stands, so the pin is the only choice");
+  });
+});
+
+t("pinOptionRows lists every option, marks the ones the bands do not give, and a pin control may still pick them", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem({ def: "widget" });
+    const troop = sys.axes[1];
+    const mark = (label) => `${label} (not printed)`;
+    const rows = pinOptionRows(sys, troop, { variant: "snark" }, { bandOf, mark });
+    assert.deepEqual(rows.map((r) => r.key), ["widget", "gadget", "doohickey", "thingamajig"], "none is left out");
+    assert.deepEqual(rows.map((r) => r.unavailable), [false, true, true, true]);
+    assert.deepEqual(rows.map((r) => r.label), ["widget", "gadget (not printed)", "doohickey (not printed)", "thingamajig (not printed)"]);
+    const printer = pinOptionRows(sys, troop, { variant: "printer" }, { bandOf, mark });
+    assert.deepEqual(printer.map((r) => r.unavailable), [false, false, false, true], "the variant's own bands decide");
+    assert.equal(pinOptionRows(sys, troop, {}, { bandOf }).find((r) => r.key === "gadget").label, "gadget", "no mark given, the label stands");
+  });
+});
+
+t("a carry resolver marks an option of a multi axis the tables say the choices cannot carry, and removes none", () => {
+  const sys = {
+    axes: [
+      { key: "role", label: "Role", roll: "", default: "", options: ["leader", "member"].map(gizmoOpt) },
+      { key: "gear", label: "Gear", roll: "", default: "", multi: true, options: ["axe", "bow"].map(gizmoOpt) },
+    ],
+    cells: [],
+  };
+  const gear = sys.axes[1];
+  // Only a leader carries the axe; the bow says nothing.
+  const carryOf = (axis, option, choices) => (axis.key === "gear" && option.key === "axe" && choices.role ? choices.role === "leader" : null);
+  assert.equal(optionStands(sys, gear, gear.options[0], { role: "member" }, { carryOf }), false);
+  assert.equal(optionStands(sys, gear, gear.options[0], { role: "leader" }, { carryOf }), true);
+  assert.equal(optionStands(sys, gear, gear.options[0], {}, { carryOf }), true, "no role chosen yet, so nothing is said");
+  assert.equal(optionStands(sys, gear, gear.options[1], { role: "member" }, { carryOf }), true);
+  assert.equal(optionStands(sys, gear, gear.options[0], { role: "member" }), true, "no resolver, nothing is marked");
+  const mark = (label) => `${label}!`;
+  assert.deepEqual(pinOptionRows(sys, gear, { role: "member" }, { carryOf, mark }).map((r) => r.label), ["axe!", "bow"]);
+  const given = chooseAxes(sys, { pinned: { role: "member", gear: ["axe", "bow"] }, carryOf });
+  assert.deepEqual(given.choices.gear, ["axe", "bow"], "a ticked piece is given, the table's rank or not");
+  assert.deepEqual(given.log.at(-1), { axis: "gear", option: "axe+bow", source: "pinned", unavailable: ["axe"] });
+  const allowed = chooseAxes(sys, { pinned: { role: "leader", gear: ["axe"] }, carryOf });
+  assert.equal("unavailable" in allowed.log.at(-1), false);
+});
+
+t("registryCarry answers null with no provider, and never throws", () => {
+  registerTemplateCarry(null);
+  const axis = { key: "gear" };
+  assert.equal(registryCarry()(axis, { key: "axe" }, { role: "member" }), null);
+  registerTemplateCarry(() => (a, o) => o.key === "axe");
+  assert.equal(registryCarry()(axis, { key: "axe" }), true);
+  assert.equal(registryCarry()(axis, { key: "bow" }), false);
+  registerTemplateCarry(() => () => "maybe");
+  assert.equal(registryCarry()(axis, { key: "axe" }), null, "only a boolean is an answer");
+  registerTemplateCarry(() => () => {
+    throw new Error("boom");
+  });
+  assert.equal(registryCarry()(axis, { key: "axe" }), null);
+  registerTemplateCarry(() => {
+    throw new Error("boom");
+  });
+  assert.equal(registryCarry()(axis, { key: "axe" }), null);
+  registerTemplateCarry(null);
+});
+
+t("the variant prompt relabels its selects as the other picks change, and leaves the values and the selection alone", () => {
+  withGizmos((bandOf) => {
+    const sys = bandedSystem({ def: "widget" });
+    const [variant, troop] = sys.axes;
+    const fakeSelect = (keys, value = "") => {
+      const options = [{ value: "", textContent: "blank" }, ...keys.map((k) => ({ value: k, textContent: k }))];
+      return { value, options };
+    };
+    const selects = { variant: fakeSelect(["printer", "snark"]), troop: fakeSelect(["widget", "gadget", "doohickey", "thingamajig"]) };
+    let onChange = null;
+    const form = { elements: { namedItem: (key) => selects[key] }, addEventListener: (type, fn) => (type === "change" ? (onChange = fn) : null) };
+    bindPinLabels({ querySelector: (sel) => (sel === "form" ? form : null) }, sys, [variant, troop], { bandOf, mark: (label) => `${label}!` });
+    assert.equal(typeof onChange, "function", "a change listener is bound on the form");
+    selects.variant.value = "snark";
+    onChange();
+    const text = (key) => selects[key].options.map((o) => o.textContent);
+    assert.deepEqual(text("troop"), ["blank", "widget", "gadget!", "doohickey!", "thingamajig!"], "snark has a band for the widget only");
+    assert.deepEqual(selects.troop.options.map((o) => o.value), ["", "widget", "gadget", "doohickey", "thingamajig"], "no value changes");
+    selects.variant.value = "printer";
+    onChange();
+    assert.deepEqual(text("troop"), ["blank", "widget", "gadget", "doohickey", "thingamajig!"]);
+    assert.doesNotThrow(() => bindPinLabels(null, sys, [variant], {}), "no form, nothing bound");
   });
 });
 

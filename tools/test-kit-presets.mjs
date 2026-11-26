@@ -189,8 +189,11 @@ ok("a dependant is offered the stat block alone: no troop kit, no unarmoured", (
   const pinned = { variant: "printer", role: "drudge" };
   const offered = kit.options.filter((o) => optionAvailable(system, kit, o, pinned)).map((o) => o.key);
   assert.deepEqual(offered, [OWN_KIT]);
-  const { choices } = chooseAxes(system, { pinned: { ...pinned, [KIT_AXIS]: "bowmen" } });
-  assert.equal(choices[KIT_AXIS], OWN_KIT, "a pin the dependant is not offered falls back to the stat block");
+  const { choices, log } = chooseAxes(system, { pinned: { ...pinned, [KIT_AXIS]: "bowmen" } });
+  assert.equal(choices[KIT_AXIS], "bowmen", "a pin the dependant is not offered is kept as the Judge's call");
+  assert.equal(log.find((l) => l.axis === KIT_AXIS).unavailable, true);
+  const unpinned = chooseAxes(system, { pinned, rng: () => 0.5 }).choices;
+  assert.equal(unpinned[KIT_AXIS], OWN_KIT, "an unpinned dependant takes the stat block");
 });
 
 ok("a creature outside a family takes its kind's kits on its leaders template, the lone variant no choice", () => {

@@ -27,7 +27,8 @@ import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
-import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, carriedGearItems, importedOrganisation, matchProficiency } from "./organisation.mjs";
+import { GEAR_AXIS, applyGeneratedLeaderGrade, applyGeneratedOrganisation, carriedGearItems, gearCarryOf, importedOrganisation, matchProficiency } from "./organisation.mjs";
+import { registerTemplateCarry } from "../lib/template-bands.mjs";
 import { registerCarryResolver, registerStackRowControl } from "../lib/group.mjs";
 import { carryRowControls } from "./carry-press.mjs";
 import { importedThrowLadder } from "../importer/leader-roles.mjs";
@@ -112,6 +113,11 @@ Hooks.once("init", () => {
   services.register("org-roll", orgRollService);
   // What a body of a generated stack carries when it is sent out (lib's deploy asks per `gen.carry` row).
   registerCarryResolver((group, stackKey, rowKey) => carriedGearItems(rowKey));
+  // Which optional-equipment pieces the table gives the chosen role and troop, for the template sheet's ticks (lib reads it as `registryCarry`).
+  registerTemplateCarry(() => {
+    const org = importedOrganisation();
+    return (axis, option, choices) => (axis?.key === GEAR_AXIS ? gearCarryOf(org, option?.key, choices) : null);
+  });
   // Which ability a fuse's proficiency word names on the bearer, and what that ability adds to the lighting throw (lib's item runner reads none itself).
   setProficiencyReader(readBearerProficiency);
   // The press a stack row carries for what its bodies carry (lib's group sheet draws it where the seat can place tokens).

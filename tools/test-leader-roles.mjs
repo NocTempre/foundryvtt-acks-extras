@@ -372,7 +372,7 @@ ok("an unpinned role generates the Standard rank and file, every time", () => {
   assert.equal(r.system.attack.throw, 6, "the member's own block, untouched");
 });
 
-ok("a role with no cell for the chosen variant is unavailable, and a pin of it falls back", () => {
+ok("a role with no cell for the chosen variant is unavailable, and a pin of it is kept as given by hand", () => {
   const { system, axes } = build();
   const role = axes.find((a) => a.key === "role");
   const opt = (k) => role.options.find((o) => o.key === k);
@@ -381,8 +381,10 @@ ok("a role with no cell for the chosen variant is unavailable, and a pin of it f
   assert.equal(optionAvailable(system, role, opt(STANDARD_ROLE), { variant: "snark" }), true);
   assert.equal(optionAvailable(system, role, opt("chieftain"), {}), true, "an unchosen variant matches any");
   const { choices, log } = chooseAxes(system, { pinned: { variant: "snark", role: "chieftain" }, rng: seededRng(3) });
-  assert.equal(choices.role, STANDARD_ROLE);
-  assert.ok(log.some((l) => l.axis === "role" && l.option === "chieftain" && l.source === "unavailable"));
+  assert.equal(choices.role, "chieftain", "the Judge's pick stands");
+  assert.deepEqual(log.find((l) => l.axis === "role"), { axis: "role", option: "chieftain", source: "pinned", unavailable: true });
+  const written = resolveActor(system, choices, { templateName: "T" });
+  assert.equal(written.system.hp.hd, "1d8", "no cell matches, so only the variant's own block is written");
 });
 
 ok("on an axis that rolls, a cell-only option with no cell is never rolled", () => {

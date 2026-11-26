@@ -41,7 +41,7 @@
               <option value="">{{#if derived}}{{localize "ACKS-LIB.template.derived"}}{{else}}{{rollLabel}}{{/if}}</option>
               {{#if canRoll}}<option value="{{rollPin}}" {{#if rollSelected}}selected{{/if}}>{{localize "ACKS-LIB.template.rollOnTable"}}</option>{{/if}}
               {{#each options}}
-                <option value="{{key}}" {{#if selected}}selected{{/if}} {{#if unavailable}}disabled{{/if}}>{{label}}</option>
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
               {{/each}}
             </select>
           </label>

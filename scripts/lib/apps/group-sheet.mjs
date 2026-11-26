@@ -48,6 +48,8 @@ import {
 import { factionView, pressJoin, pressLeave, pressMakeOwn, pressOpen } from "../group-faction.mjs";
 import { ORG_ACTIONS, bindOfficerDrops, chartContext, nestedGroups, restoreHeldDrafts } from "../org-chart-ui.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
+import { pinOptionRows } from "../template-logic.mjs";
+import { bindPinLabels, pinContext } from "../template-pins.mjs";
 import { makeLoc } from "../util.mjs";
 import { coinCount, coinTotalGC } from "../money-logic.mjs";
 import { ownCoin } from "../money.mjs";
@@ -323,8 +325,11 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const sys = template.system;
     if (sys.isStub) return null;
     // An axis that names a default takes it when left alone, so its blank
-    // choice says which; an unavailable pick falls back to it (`chooseAxes`).
-    const axes = (sys.axes ?? []).filter((axis) => !axis.multi).map((axis) => {
+    // choice says which. An option the variant's tables do not give is listed
+    // with its marking words and may still be picked (`template-pins.mjs`).
+    const singles = (sys.axes ?? []).filter((axis) => !axis.multi);
+    const context = pinContext();
+    const axes = singles.map((axis) => {
       const fallback = axis.default ? (axis.options ?? []).find((o) => o.key === axis.default) : null;
       return {
         key: axis.key,
@@ -334,13 +339,14 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
           : axis.roll
             ? game.i18n.format("ACKS-LIB.template.rollDie", { die: axis.roll })
             : game.i18n.localize("ACKS-LIB.template.rollUniform"),
-        options: (axis.options ?? []).map((o) => ({ key: o.key, label: o.label || o.key })),
+        options: pinOptionRows(sys, axis, {}, context),
       };
     });
     const pins = await DialogV2.prompt({
       classes: DIALOG_CLASSES,
       window: { title: title || loc("variant.title", { name: template.name }) },
       content: await dialogContent("group-variant", { axes }),
+      render: (_event, dialog) => bindPinLabels(dialog.element, sys, singles, context),
       ok: {
         label: loc("variant.press"),
         callback: (_event, button) =>

@@ -16,9 +16,9 @@
  * Per-axis precedence: PINNED (the Judge picked it) > DERIVED (read off a
  * dropped base actor) > DEFAULT (the option the axis names for an unpinned
  * generation) > ROLLED (the axis die over the printed bands, else uniform).
- * Only options available beside the choices already made are chosen
- * (`optionAvailable`). A pin of `ROLL_PIN` asks the axis to roll, passing over
- * derive and default.
+ * Only options available beside the choices already made are derived, defaulted
+ * or rolled (`optionStands`); a pin stands whether or not the option is. A pin
+ * of `ROLL_PIN` asks the axis to roll, passing over derive and default.
  *
  * An axis may take its bands per variant from a registry table (`bandsFrom`,
  * see `axisIsBanded`). The Foundry-free logic never reads the registry: it is
@@ -217,15 +217,51 @@ export function axisOffersChoice(system, axis, choices = {}, bandOf = null) {
 }
 
 /**
+ * Does an option stand beside the choices already made, for the sheet, the
+ * variant prompt and `chooseAxes` alike? A single axis stands by
+ * `optionAvailable`; a multi axis skips the cell rule and is gated by its bands
+ * alone (its default aside). Either way a `carryOf` that answers `false` for
+ * the option (see `carryOf` in `chooseAxes`) takes it out. An option that does
+ * not stand is MARKED to a Judge and never rolled; it is not refused.
+ */
+export function optionStands(system, axis, option, choices = {}, { bandOf = null, carryOf = null } = {}) {
+  if (!option) return false;
+  const gated = axis?.multi
+    ? !axisIsBanded(axis) || (axis.default && option.key === axis.default) || validBand(bandOf?.(axis, option, choices))
+    : optionAvailable(system, axis, option, choices, bandOf);
+  return !!gated && carryOf?.(axis, option, choices) !== false;
+}
+
+/**
+ * The options of one axis as a pin control lists them, each `{key, label,
+ * unavailable}`: an option that does not stand beside `choices` (`optionStands`)
+ * keeps its place, takes the label `mark(label)` gives and is flagged. The
+ * sheet and the variant prompt build their options here, so the words cannot
+ * drift apart. `mark` takes the option's own label and returns the listed one.
+ */
+export function pinOptionRows(system, axis, choices = {}, { bandOf = null, carryOf = null, mark = (label) => label } = {}) {
+  return (axis?.options ?? []).map((o) => {
+    const unavailable = !optionStands(system, axis, o, choices, { bandOf, carryOf });
+    const label = o.label || o.key;
+    return { key: o.key, label: unavailable ? mark(label) : label, unavailable };
+  });
+}
+
+/**
  * Choose every axis: pinned > derived > default > rolled, among the options
- * available beside the choices already made (`optionAvailable`). Returns
- * `{choices: {axisKey: optionKey}, log: [{axis, option, source, roll?}]}`.
- * An unknown pinned key falls through to derive/roll; a pin of an unavailable
- * option is logged as `source: "unavailable"` and falls through the same way.
- * An axis's `default` stands in for a roll, so an axis that names one never
- * rolls, unless its pin is `ROLL_PIN`. An axis key in `noRoll` never reaches
- * the roll: where no pin, derive or default settles it, it stays unchosen and
- * logs `source: "none"` (no `option` key). `ROLL_PIN` still rolls it.
+ * available beside the choices already made (`optionStands`). Returns
+ * `{choices: {axisKey: optionKey}, log: [{axis, option, source, roll?, unavailable?}]}`.
+ * A pin is the Judge's call and stands whether or not the variant's tables give
+ * the option: it is logged `source: "pinned"` with `unavailable` set (true for a
+ * single axis, the keys for a multi axis) where the option does not stand, and
+ * resolves to what the option's own patch and the matching cells write, which
+ * may be nothing beyond its name. An unknown pinned key falls through to
+ * derive/roll. Only a pin ever lands on an option that does not stand; derive,
+ * default and roll choose among those that do. An axis's `default` stands in
+ * for a roll, so an axis that names one never rolls, unless its pin is
+ * `ROLL_PIN`. An axis key in `noRoll` never reaches the roll: where no pin,
+ * derive or default settles it, it stays unchosen and logs `source: "none"`
+ * (no `option` key). `ROLL_PIN` still rolls it.
  *
  * `bandOf` resolves per-variant bands for banded axes (header, `axisIsBanded`);
  * the axes an axis's `bandsFrom.by` names must come before it in axis order. A
@@ -233,28 +269,26 @@ export function axisOffersChoice(system, axis, choices = {}, bandOf = null) {
  * takes the default and logs `source: "gap"`, and with no default leaves the
  * axis unchosen and logs the gap (no `option` key). A multi axis never rolls
  * and takes only its availability from the bands. Without `bandOf` a banded axis
- * offers its default alone.
+ * offers its default alone. `carryOf(axis, option, choices)` answers `false` for
+ * an option the variant's tables say the choices cannot carry, and `true` or
+ * null otherwise; it marks and never removes a pin.
  */
-export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random, bandOf = null, noRoll = [] } = {}) {
+export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random, bandOf = null, carryOf = null, noRoll = [] } = {}) {
   const choices = {};
   const log = [];
   for (const axis of system?.axes ?? []) {
     const banded = axisIsBanded(axis);
-    // A multi axis skips the cell rule; its bands alone gate it.
-    const stands = (o) =>
-      axis.multi
-        ? !banded || (axis.default && o.key === axis.default) || validBand(bandOf?.(axis, o, choices))
-        : optionAvailable(system, axis, o, choices, bandOf);
+    const stands = (o) => optionStands(system, axis, o, choices, { bandOf, carryOf });
     const options = (axis.options ?? []).filter(stands);
-    if (!options.length) continue;
     // Multi-select axes are OPT-IN add-ons: apply exactly what was pinned
-    // (validated), never roll a default.
+    // (a known key, standing or not), never roll a default.
     if (axis.multi) {
       const pins = Array.isArray(pinned[axis.key]) ? pinned[axis.key] : pinned[axis.key] != null ? [pinned[axis.key]] : [];
-      const keys = pins.filter((k) => options.some((o) => o.key === k));
+      const keys = pins.filter((k) => (axis.options ?? []).some((o) => o.key === k));
       if (keys.length) {
         choices[axis.key] = keys;
-        log.push({ axis: axis.key, option: keys.join("+"), source: "pinned" });
+        const marked = keys.filter((k) => !options.some((o) => o.key === k));
+        log.push({ axis: axis.key, option: keys.join("+"), source: "pinned", ...(marked.length ? { unavailable: marked } : {}) });
       }
       continue;
     }
@@ -262,14 +296,16 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
     let source = null;
     let roll = null;
     let die = null;
+    let marked = false;
     const mustRoll = pinned[axis.key] === ROLL_PIN;
     if (pinned[axis.key] != null && !mustRoll) {
-      option = options.find((o) => o.key === pinned[axis.key]) ?? null;
-      if (option) source = "pinned";
-      else if ((axis.options ?? []).some((o) => o.key === pinned[axis.key])) {
-        log.push({ axis: axis.key, option: pinned[axis.key], source: "unavailable" });
+      option = (axis.options ?? []).find((o) => o.key === pinned[axis.key]) ?? null;
+      if (option) {
+        source = "pinned";
+        marked = !options.includes(option);
       }
     }
+    if (!options.length && !option) continue;
     if (!option && !mustRoll) {
       option = deriveOption({ ...axis, options }, baseValues);
       if (option) source = "derived";
@@ -305,7 +341,7 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
     }
     if (!option) continue;
     choices[axis.key] = option.key;
-    log.push({ axis: axis.key, option: option.key, source, ...(roll != null ? { roll } : {}), ...(die ? { die } : {}) });
+    log.push({ axis: axis.key, option: option.key, source, ...(marked ? { unavailable: true } : {}), ...(roll != null ? { roll } : {}), ...(die ? { die } : {}) });
   }
   return { choices, log };
 }

@@ -654,7 +654,7 @@ t("a body is minted as the rank and file, never as a leader the Role axis rolls,
   assert.equal(pinsOf(body, {}, { system: { axes: [] } }).role, undefined, "no Role axis, no pin");
   assert.equal(pinsOf(body, {}, null).role, undefined);
   const leadersOnly = { system: { ...family({}).system, cells: ["lead", "chief"].map((r) => ({ by: ["variant", "role"], key: `alba|${r}` })) } };
-  assert.deepEqual(rolls.map((r) => roleAt(leadersOnly, pinsOf(body, {}, leadersOnly), r)), [undefined, undefined, undefined, undefined], "a rank and file no cell names is unavailable and the pin cannot carry it: the body takes no role, never a leader's");
+  assert.deepEqual(rolls.map((r) => roleAt(leadersOnly, pinsOf(body, {}, leadersOnly), r)), ["standard", "standard", "standard", "standard"], "a rank and file no cell names is unavailable, and the pin still carries it: a pick is kept, never rolled away");
   const bare = { system: { axes: [{ key: "role", options: [{ key: "lead" }] }] } };
   assert.equal(pinsOf(body, {}, bare).role, "standard", "an axis with no default is pinned to the rank and file whether or not it lists it");
   assert.deepEqual(rolls.map((r) => roleAt(bare, pinsOf(body, {}, bare), r)), [undefined, undefined, undefined, undefined], "an axis with neither a default nor a rank-and-file option gives a body no role, never a leader's");

@@ -8,8 +8,8 @@
  */
 import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
-import { axisIsBanded, axisOffersChoice, optionAvailable, ROLL_PIN } from "../template-logic.mjs";
-import { registryBands } from "../template-bands.mjs";
+import { axisIsBanded, axisOffersChoice, pinOptionRows, ROLL_PIN } from "../template-logic.mjs";
+import { registryBands, registryCarry } from "../template-bands.mjs";
 import * as services from "../services.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -56,9 +56,10 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     context.base = this.#baseUuid ? { uuid: this.#baseUuid, name: this.#baseName } : null;
 
     context.editing = this.#editing && this.isEditable;
-    // An option no cell stands behind beside the other pins is listed as
-    // unavailable and cannot be picked; Generate never chooses it either.
+    // An option the tables give nothing for beside the other pins is listed
+    // with its marking words and may still be picked; Generate never rolls onto it.
     const bandOf = registryBands();
+    const carryOf = registryCarry();
     // A roll pin chooses nothing yet, so it is no choice another axis's options are judged beside.
     const stringPins = () => Object.fromEntries(Object.entries(this.#pins).filter(([, v]) => typeof v === "string" && v !== ROLL_PIN));
     // Edit mode lists every axis, since it edits structure, not a generation.
@@ -67,10 +68,10 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
       const others = stringPins();
       delete others[axis.key];
       if (axisOffersChoice(sys, axis, others, bandOf)) return true;
-      // An axis with nothing to choose beside these pins takes its default;
-      // a pin left on it would only be logged as unavailable at Generate.
-      delete this.#pins[axis.key];
-      return false;
+      // An axis with nothing to choose beside these pins takes its default,
+      // but one holding a pick stays listed so the pick is seen and can be undone.
+      const held = this.#pins[axis.key];
+      return Array.isArray(held) ? held.length > 0 : held != null && held !== "";
     });
     const pinsOnly = stringPins();
     context.axes = shown.map((axis) => {
@@ -92,14 +93,14 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         canRoll: !axis.multi && axisIsBanded(axis) && !!axis.default,
         rollPin: ROLL_PIN,
         rollSelected: this.#pins[axis.key] === ROLL_PIN,
-        options: (axis.options ?? []).map((o) => {
-          const unavailable = (!axis.multi || axisIsBanded(axis)) && !optionAvailable(sys, axis, o, others, bandOf);
+        options: pinOptionRows(sys, axis, others, {
+          bandOf,
+          carryOf,
+          mark: (label) => game.i18n.format("ACKS-LIB.template.unavailable", { option: label }),
+        }).map((row, i) => {
+          const o = axis.options[i];
           return {
-            key: o.key,
-            label: unavailable
-              ? game.i18n.format("ACKS-LIB.template.unavailable", { option: o.label || o.key })
-              : o.label || o.key,
-            unavailable,
+            ...row,
             selected: axis.multi
               ? (this.#pins[axis.key] ?? []).includes?.(o.key)
               : (this.#pins[axis.key] ?? "") === o.key,
@@ -131,9 +132,10 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         const value = ev.currentTarget.value;
         if (value) this.#pins[key] = value;
         else delete this.#pins[key];
-        // Another axis's options may stand or fall with this pin.
+        // Another axis's options may stand or fall with this pin, and a tick's
+        // marking can follow any axis (the table says who carries a piece).
         const sys = this.actor.system;
-        if ((sys.cells ?? []).some((c) => (c.by ?? []).includes(key)) || (sys.axes ?? []).some((a) => a.bandsFrom?.by === key)) this.render();
+        if ((sys.cells ?? []).some((c) => (c.by ?? []).includes(key)) || (sys.axes ?? []).some((a) => a.multi || a.bandsFrom?.by === key)) this.render();
       });
     }
     // Multi-select axes pin an ARRAY of checked options (stacked add-ons).

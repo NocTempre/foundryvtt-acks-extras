@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { AXIS_ORDER, orderAxes, organisationAxes, unionOrganisationAxes } from "../scripts/importer/organisation-axes.mjs";
 import { CONDITIONS, CONDITION_IDS } from "../scripts/lib/conditions.mjs";
-import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, matchCondition, naturalAttackItems, GEAR_AXIS, NO_TRAIT, NO_TROOP, TRAIT_AXIS, TROOP_AXIS } from "../scripts/monsters/organisation.mjs";
+import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, gearCarryOf, matchCondition, naturalAttackItems, GEAR_AXIS, NO_TRAIT, NO_TROOP, TRAIT_AXIS, TROOP_AXIS } from "../scripts/monsters/organisation.mjs";
 import { applyGeneratedKit } from "../scripts/monsters/kits.mjs";
 import { derivationTips } from "../scripts/monsters/statblock.mjs";
 import { SOURCE_AXIS } from "../scripts/importer/leader-roles.mjs";
@@ -300,7 +300,21 @@ check("a row whose figures are blank, a die text that is no die and a zero reduc
 w = withGear(["gm", "gr", "gh"]);
 check("three rows write two abilities and flag the melee weapons; the bump is the marking's", w.abilities.length === 2 && w.r.system.ac.value === 6 && w.items.filter((i) => i.flags?.[MID]?.hooked).length === 2);
 w = withGear(["gm", "gr", "gh"], "shaman");
-check("a caster carries none of it", w.abilities.length === 0 && w.r.system.ac.value === 5 && w.items.every((i) => !i.flags));
+check("a caster is given what the Judge ticked: the table's ranks only mark a piece on the sheet", w.abilities.length === 2 && w.r.system.ac.value === 6 && w.items.filter((i) => i.flags?.[MID]?.hooked).length === 2);
+{
+  const carry = { equipment: { rows: [
+    { key: "k1", label: "K1", figures: { ranks: ["champion", "chieftain"] } },
+    { key: "k2", label: "K2", figures: { ranks: ["chieftain"], troops: ["ra"] } },
+    { key: "k3", label: "K3", figures: { troops: ["ra"] } },
+    { key: "k4", label: "K4", figures: { radius: 3 } },
+  ] } };
+  eq("a rank the row names carries it, one it does not name is marked", [gearCarryOf(carry, "k1", { role: "champion" }), gearCarryOf(carry, "k1", { role: "shaman" })], [true, false]);
+  eq("no role chosen yet says nothing", gearCarryOf(carry, "k1", {}), null);
+  eq("a row naming troops asks for one of them", [gearCarryOf(carry, "k2", { role: "chieftain", troop: "ra" }), gearCarryOf(carry, "k2", { role: "chieftain", troop: "rb" }), gearCarryOf(carry, "k2", { role: "chieftain", troop: NO_TROOP })], [true, false, false]);
+  eq("a troop not chosen yet leaves the rank's answer alone", [gearCarryOf(carry, "k2", { role: "chieftain" }), gearCarryOf(carry, "k2", { role: "champion" })], [true, false]);
+  eq("a row naming troops alone", [gearCarryOf(carry, "k3", { troop: "ra" }), gearCarryOf(carry, "k3", { troop: "rb" }), gearCarryOf(carry, "k3", { role: "champion" })], [true, false, null]);
+  eq("a row naming neither, a missing row and no table say nothing", [gearCarryOf(carry, "k4", { role: "shaman" }), gearCarryOf(carry, "nope", { role: "shaman" }), gearCarryOf(null, "k1", { role: "shaman" }), gearCarryOf({ equipment: { rows: [] } }, "k1", { role: "shaman" })], [null, null, null, null]);
+}
 check("no gear chosen mints no item and flags no weapon (a basic entry stays stat-only)", (() => { const r = { system: { ac: { value: 5 } }, flags: {}, items: weaponsOf() }; applyGeneratedOrganisation(r, { choices: { trait: NO_TRAIT, gear: [], role: "standard" }, org: gearOrg }); return r.items.length === 4 && r.items.every((i) => !i.flags); })());
 check("two bumps from two rows sum, each row listed", (() => {
   const o = { ...gearOrg, equipment: { cite: "XX p. 6", rows: [{ key: "a", label: "A1", figures: { ac: 1 } }, { key: "b", label: "B1", figures: { ac: 2 } }] } };
@@ -344,7 +358,7 @@ check("two bumps from two rows sum, each row listed", (() => {
   eq("blank figures stay null in the flag and are not listed", e.items[0].flags[MID].drink, { healDice: "2d4", saveKind: null, condition: null, successHealDice: null, swigDice: null, ownKind: "beastman" });
   eq("a row whose swigs figure was not read still carries the reference", e.items[0].flags[MID].itemRun.activation.uses, { doc: "monsters", table: "beastmanEquipment", row: "dk", figure: "swigs" });
   check("no healing dice, or dice that are no die, writes no item", run([{ key: "dk", label: "Drink K", figures: { saveKind: "sk", condition: cid } }, { key: "d2", label: "Drink 2", figures: { healDice: "much" } }], ["dk", "d2"], []).items.length === 0);
-  check("a caster carries no drink", run([drinkRow], ["dk"], [], "shaman").items.length === 0);
+  check("a caster is given the drink the Judge ticked", run([drinkRow], ["dk"], [], "shaman").items.length === 1);
 
   // E8: the launcher's stack is flagged and nocked; a creature with none records only.
   e = run([hitRow], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7), stack("Case, 5 Bolts", 5)]);
@@ -361,7 +375,7 @@ check("two bumps from two rows sum, each row listed", (() => {
   check("a launcher with no stack writes nothing", e.items.length === 1 && e.items[0].flags[MID].onHit === undefined);
   check("a row with no turn count, or damage that is no die, flags nothing", [{ damage: "1d6" }, { delayTurns: 3 }, { damage: "much", delayTurns: 3 }, { damage: "1d6", delayTurns: 0 }].every((figures) => run([{ key: "hk", label: "Hit K", figures }], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7)]).items[1].flags === undefined));
   e = run([hitRow], ["hk"], [launcher(), stack("Quiver, 7 Arrows", 7)], "shaman");
-  check("a caster carries no ammunition flag", e.items[1].flags === undefined);
+  check("a caster's stack is flagged too where the Judge ticked the piece", e.items[1].flags[MID].onHit.source === "Hit K");
   check("the existing rows of the axes suite carry neither discriminator", ["ea", "eb"].every((k) => !("healDice" in (org.equipment.rows.find((r) => r.key === k)?.figures ?? {})) && !("delayTurns" in (org.equipment.rows.find((r) => r.key === k)?.figures ?? {}))));
 }
 

@@ -21,6 +21,48 @@ function readBand(cell) {
   return Number.isInteger(min) && Number.isInteger(max) && min <= max ? { min, max } : null;
 }
 
+/** The factory a feature registered for `registryCarry`, or null. */
+let carryFactory = null;
+
+/**
+ * Let a feature say which options of an axis the variant's tables give the
+ * choices made so far, for an axis that takes no bands (the optional equipment
+ * of a beastman family: who may carry a piece is the equipment table's). The
+ * factory is called once per `registryCarry()` and returns `carryOf(axis,
+ * option, choices)`, which answers `false` for an option the tables say the
+ * choices cannot carry and `true` or null otherwise (null: the tables say
+ * nothing). One factory is held; a later registration replaces it, and a
+ * non-function clears it.
+ */
+export function registerTemplateCarry(factory) {
+  carryFactory = typeof factory === "function" ? factory : null;
+}
+
+/**
+ * The carry resolver as the registered feature reads its tables now, for
+ * `optionStands`, `pinOptionRows` and `chooseAxes`. Build one per generation or
+ * per render. It answers null for every absence (no feature registered, a
+ * factory or a read that throws) and never throws.
+ * @returns {(axis: object, option: object, choices: object) => (boolean|null)}
+ */
+export function registryCarry() {
+  let carryOf = null;
+  try {
+    carryOf = carryFactory?.() ?? null;
+  } catch {
+    carryOf = null;
+  }
+  return (axis, option, choices = {}) => {
+    if (typeof carryOf !== "function") return null;
+    try {
+      const answer = carryOf(axis, option, choices);
+      return typeof answer === "boolean" ? answer : null;
+    } catch {
+      return null;
+    }
+  };
+}
+
 /**
  * Build the band resolver from the registry as it stands now. A document is read
  * once per resolver, so build one per generation or per sheet render, not once

@@ -2299,14 +2299,22 @@ option with no patch of its own (empty `merge`, `items` and `flags`) on an
 axis some cell names is only the key of its cells, so it stands only where a
 cell matches it beside the choices already made; the axis's `default`, any
 option with a patch, and every option of an axis no cell names always stand.
-`chooseAxes` chooses only among available options; a pin of an unavailable
-one is logged as `source: "unavailable"` and falls through to default or
-roll. The builder sheet and the group sheet's variant dialog name the default
-in the blank choice, and the builder lists an unavailable option disabled.
-`axisOffersChoice(system, axis, choices)` is false for an axis with at most
-one option available beside the choices: the builder leaves such an axis off
-(outside edit mode) and drops a pin left on it, since generation can take only
-that one. A multi axis and one that derives from a base always show.
+`chooseAxes` derives, defaults and rolls only among available options
+(`optionStands`), and a pin of an unavailable one stands: it is logged
+`source: "pinned"` with `unavailable` (true, or for a multi axis the keys), and
+writes what the option's own patch and the matching cells give. The builder
+sheet and the group sheet's variant dialog name the default in the blank choice
+and list an unavailable option with its marking words, still pickable
+(`pinOptionRows`; the dialog relabels as the picks beside it change,
+`template-pins.mjs`). `axisOffersChoice(system, axis, choices)` is false for an
+axis with at most one option available beside the choices: the builder leaves
+such an axis off (outside edit mode) unless it holds a pick. A multi axis and
+one that derives from a base always show. A feature may mark the options of an
+axis that takes no bands through `registerTemplateCarry(factory)`
+(`template-bands.mjs`): the factory returns `carryOf(axis, option, choices)`,
+`false` for an option the tables say the choices cannot carry, which marks it
+and never removes a pick; `chooseAxes`, `optionStands` and `pinOptionRows` take
+it as `carryOf`, and `registryCarry()` builds it.
 A cell may carry `rollHp: true`: `resolveActor` returns `rollHp` true when the
 last matching cell that touches hit points (one with `rollHp` or an `hp`
 merge) asks for it, and the generator then rolls `system.hp.hd` for the

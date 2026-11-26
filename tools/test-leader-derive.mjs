@@ -200,7 +200,8 @@ ok("under the default a role the variant's page does not print is unavailable; u
   assert.equal(optionAvailable(system, role, chief, { variant: "silent", [SOURCE_AXIS]: SOURCE.printed }), true);
   const { choices } = chooseAxes(system, { pinned: { variant: "printer", role: "chieftain" }, rng: seededRng(4) });
   assert.equal(choices[SOURCE_AXIS], SOURCE.printed);
-  assert.equal(choices.role, STANDARD_ROLE, "a pin the default source cannot fill falls back");
+  assert.equal(choices.role, "chieftain", "a pin the default source cannot fill is kept as the Judge's call");
+  assert.equal(chooseAxes(system, { pinned: { variant: "printer" }, rng: seededRng(4) }).choices.role, STANDARD_ROLE, "unpinned, the default stands");
 });
 
 ok("the printed leader generates under the default; the procedure's under its pick, with its parts", () => {

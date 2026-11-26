@@ -242,7 +242,8 @@ await t("generation passes the bearer's variant to a fused item, and a body with
   assert.equal(bare.items[0].flags["acks-extras"].itemRun.activation.variant, "", "a body with no variant");
   const unfought = { items: [] };
   org.applyGeneratedOrganisation(unfought, { choices: { gear: ["r7"], variant: "cyth", role: "dependant" }, org: orgStub });
-  assert.deepEqual(unfought.items, [], "a body that does not fight carries none");
+  assert.equal(unfought.items.length, 1, "a piece the Judge ticked is given to a body that does not fight, the rank the table gives it or not");
+  assert.equal(unfought.items[0].flags["acks-extras"].itemRun.activation.variant, "cyth");
 });
 
 /* -------------------------------------------- */
