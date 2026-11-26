@@ -1,1 +1,0 @@
-- **Core's Create Region Behavior list gains "ACKS Item Reach".** Open a Region's configuration window and its Behaviors tab, and the Create Region Behavior list offers the module's live reach for an item raised on a token. Made by hand it has no source and does nothing; the module writes it when an item that acts is used, and nothing in the module makes one yet.

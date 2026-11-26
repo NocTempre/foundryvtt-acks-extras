@@ -1,1 +1,0 @@
-- Roll and Roll at random on a faction's chart (Actors sidebar tab → a faction → Org chart tab) list the family's variants, and the chart shows the family's picture, after a reload when the family template is held in a compendium: the chart now loads the pack's index and the template before reading them.

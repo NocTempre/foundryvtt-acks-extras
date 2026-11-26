@@ -1,1 +1,0 @@
-- **A hireling's owner can forgive an owed signing bonus.** Actors sidebar → a hireling's character or monster sheet → Service tab: the hireling's owner now has Forgive on an owed signing bonus, beside Pay.

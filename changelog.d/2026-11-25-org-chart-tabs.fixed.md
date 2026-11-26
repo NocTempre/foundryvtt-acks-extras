@@ -1,1 +1,0 @@
-- A chart row the Judge hid is no longer drawn for a player, nor any row beneath it, in the chart or in a place's rows.

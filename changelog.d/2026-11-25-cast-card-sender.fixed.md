@@ -1,1 +1,0 @@
-- **A cast's card names its caster as the sender.** With a summoned creature's token controlled, the sender header of the cast's card read the creature's name to every seat, including one not granted that name; the header now names the caster whichever token is controlled: Chat Messages sidebar tab → a cast's card.

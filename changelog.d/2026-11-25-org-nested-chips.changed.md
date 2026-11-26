@@ -1,1 +1,0 @@
-- A warband sent out whole shows as one chip with its gangs' chips inside it, each with its count, on a faction card's Locations tab (Actors sidebar tab → a faction → Locations tab); the chips wrap under one another in a narrow window and nothing scrolls sideways.

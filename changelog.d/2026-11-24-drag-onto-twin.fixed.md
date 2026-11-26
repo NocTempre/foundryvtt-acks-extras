@@ -1,1 +1,0 @@
-- **A drawn weapon or worn armour dragged onto its own resting row no longer deletes the stack.** Both rows could be removed, leaving none. They now join into one row holding the whole count: character sheet → Equipment tab → Carried.

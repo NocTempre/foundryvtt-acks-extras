@@ -1,1 +1,0 @@
-- **A book import whose region sites all join places another book made no longer leaves an empty Places folder.** Importing such a book made a `<book>/Places` folder with nothing in it; the folder is now made only when the import makes a place to put in it. Where to look: Actors sidebar tab → the book's folder. A book that makes places files them in the same folder as before.

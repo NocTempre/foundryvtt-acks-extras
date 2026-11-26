@@ -1,1 +1,0 @@
-- **A faction sheet narrowed to a small window keeps every tab within reach.** The tab row (Actors sidebar tab → a faction → the row of tabs under its name) now wraps onto a second line. Before, the window hid what ran past its edge, so the Members, Relations, Standing and Notes tabs could not be reached at its narrowest.

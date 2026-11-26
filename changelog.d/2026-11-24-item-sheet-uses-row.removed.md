@@ -1,1 +1,0 @@
-- **The item sheet's Uses row is gone.** It read a plain item's maximum count, which the ACKS II system dropped in 14.1.0, so it has not shown since. Nothing takes its place: an item's charges are still stored and still raised where they were before. Where it was: any item's sheet → Durability tab.

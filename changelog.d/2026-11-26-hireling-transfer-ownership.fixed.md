@@ -1,1 +1,0 @@
-- Transferring a hireling to another employer (Actors sidebar tab → an employer's sheet → Followers tab → Roster chip → the hireling's row → Transfer) now moves the hireling's ownership with it: the new employer's owners can work the hireling's row, and the players who owned it through the old employer no longer can.

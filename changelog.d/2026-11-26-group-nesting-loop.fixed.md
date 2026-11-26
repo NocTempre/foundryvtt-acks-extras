@@ -1,1 +1,0 @@
-- **A group cannot be nested inside itself or inside a group within it by a direct update.** A macro or console write to a group's `system.unit.parentGroupUuid` is now cancelled when it would close such a loop, as the organisation chart's own controls (faction card's Org chart tab) already refused it; the browser console (F12) names the group that was refused.

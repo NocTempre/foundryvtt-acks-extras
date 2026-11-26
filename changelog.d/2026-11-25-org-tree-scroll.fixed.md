@@ -1,1 +1,0 @@
-- The organisation tree keeps its sideways scroll position when a press redraws the sheet, and a keyboard can reach it: in a window narrower than the tree, the tree scrolls in its own box (faction sheet → Org chart tab, or a group's sheet → Organisation section), which takes a tab stop and a name.

@@ -1,1 +1,0 @@
-- **A token placed inside a reach that is already raised shows its reach glyph at once.** The mark on a token standing in a raised reach was drawn only when the reach, the token's place or its actor next changed, so a body dropped onto the scene inside a standing ring carried no mark until something else moved.

@@ -1,1 +1,0 @@
-- **Actors sidebar → a character or monster → its sheet's "In reach of" strip: where several bearers of one engaged item kind stand beside the body, the strip shows one row for the nearest and reads "and n more", with the others named in its tooltip.** A single bearer reads as before.
