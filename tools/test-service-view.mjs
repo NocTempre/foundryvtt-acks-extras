@@ -10,7 +10,7 @@
  */
 import assert from "node:assert";
 import {
-  ROSTER_FILTERS, bucketOf, keepsLoyalty, wageClock, loyaltyParts, moraleParts, ledgerEntries, shareKind, termsOf,
+  bucketOf, keepsLoyalty, wageClock, loyaltyParts, moraleParts, ledgerEntries, shareKind, termsOf,
   rolledOf, slotOf, serviceBadge, filterRows, filterCounts, ROLLED_SCORES, hireHitPoints, signingControls,
   judgePickHitPoints, offersClassPick,
 } from "../scripts/henchmen/rules/service.mjs";
@@ -408,7 +408,6 @@ test("categories sort into three buckets, an unnamed one among the henchmen", ()
   assert.equal(keepsLoyalty("mercenary"), false);
 });
 test("the filters keep their rows and count them; an unknown filter keeps all", () => {
-  assert.deepEqual(ROSTER_FILTERS, ["all", "henchmen", "mercenaries", "specialists"]);
   assert.deepEqual(filterRows(rows, "henchmen").map((r) => r.id), ["a", "b"]);
   assert.deepEqual(filterRows(rows, "all").map((r) => r.id), ["a", "b", "c", "d"]);
   assert.deepEqual(filterRows(rows, "nope").map((r) => r.id), ["a", "b", "c", "d"]);

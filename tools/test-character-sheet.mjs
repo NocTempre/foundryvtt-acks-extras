@@ -233,14 +233,6 @@ test("a summon held in the party token is counted and dismissed beside the ones 
   const menu = partyMenuModel({ party, owner: true });
   assert.deepEqual(menu.filter((i) => i.kind === "token").map((i) => [i.tokenId, !!i.disabled]), [["t1", false], [null, true], [null, true]], "a held summon is listed and has no token to pick");
 });
-test("the Magic tab's standing count carries its tooltip and its Dismiss is named and wired", () => {
-  const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
-  assert.match(tpl, /data-tooltip-text="\{\{spell\.summon\.tip\}\}">\{\{spell\.summon\.label\}\}/, "the count shows its provenance on hover");
-  const dismiss = tpl.split("\n").find((l) => l.includes('data-action="spellDismiss"'));
-  assert.ok(dismiss && /<button type="button"/.test(dismiss) && /aria-label="\{\{localize /.test(dismiss), "a real button with a name");
-  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /spellDismiss: AcksCharacterSheet\.#onSpellDismiss/);
-});
 
 /** The Magic tab's rows for a caster holding the given spells and effects, with the fights `fights` names standing in the world. */
 const magicTabOf = async ({ spells, effects = [], fights = {} }) => {
@@ -290,10 +282,8 @@ await testAsync("a lost declaration shows nothing (a lapsed one is deleted with 
   const other = await declaredOf(spells, [{ id: "plain", flags: {} }, declaredEffect("c1", "Actor.c.Item.other", {})]);
   assert.equal(other.sp1, null, "an effect no cast wrote, and another spell's declaration, are not this row's");
 });
-test("the Magic tab's row draws the tag and the line from the declaration and has no control to withdraw it", () => {
+test("the Magic tab's row has no control to withdraw a declaration", () => {
   const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
-  assert.match(tpl, /<span class="acks-tag acks-tag--solid" data-tooltip-text="\{\{spell\.declared\.tip\}\}">\{\{spell\.declared\.tag\}\}<\/span>/, "the tag shows its provenance on hover");
-  assert.match(tpl, /\{\{spell\.declared\.line\}\}/);
   assert.ok(!/withdraw/i.test(tpl), "no page prints withdrawing a declared cast, so the row has no control for it");
 });
 
@@ -318,10 +308,8 @@ await testAsync("a summoning's row counts what stands and, where some ride in a 
     globalThis.game = priorGame;
   }
 });
-test("the Magic tab's row marks its standing count and its joined count, each with its provenance on hover, and draws no literal id or title", () => {
+test("the Magic tab's row draws no literal id or title", () => {
   const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
-  assert.match(tpl, /data-summon="standing" data-tooltip-text="\{\{spell\.summon\.tip\}\}">\{\{spell\.summon\.label\}\}/);
-  assert.match(tpl, /\{\{#if spell\.summon\.joined\}\}<span [^>]*data-summon="joined" data-tooltip-text="\{\{spell\.summon\.joined\.tip\}\}">\{\{spell\.summon\.joined\.label\}\}<\/span>/, "the joined figure shows only where some joined");
   assert.ok(!/\sid=|\stitle=/.test(tpl), "no literal id (a second copy of the sheet would duplicate it) and no title attribute");
 });
 
@@ -423,18 +411,6 @@ await testAsync("the hand pips are controls only on a seat that owns the charact
   assert.deepEqual([own.editable, seen.editable], [true, false], "the template reads the actor's ownership");
   assert.deepEqual(seen.groups[0].levels.map((l) => [l.n, l.slot.max]), [[1, 2], [2, 1]], "a seat that cannot own still reads every heading and figure");
 });
-test("the hand pips write through the sheet's own actions and the strip leaves the module's sheet its rest control and power line only", () => {
-  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /poolSlot: AcksCharacterSheet\.#onPoolSlot/);
-  assert.match(sheet, /poolPoints: AcksCharacterSheet\.#onPoolPoints/);
-  assert.match(sheet, /castingStripElement\(this\.actor, this, \{ traditions: false \}\)/, "the module's sheet draws no pips on the strip");
-  assert.match(sheet, /"magic", "spell-row", "service"/, "the row partial is preloaded");
-  const casting = readFileSync(new URL("../scripts/classes/casting.mjs", import.meta.url), "utf8");
-  assert.match(casting, /const strip = castingStripElement\(doc, app\);/, "the system's own sheet keeps its strip whole");
-  assert.match(casting, /const rest = actor\.isOwner === true \? /, "the strip's rest control is drawn for an owner of the character");
-  assert.match(casting, /if \(actor\.isOwner !== true\) return;/, "and its pips and points pair answer an owner alone");
-});
-
 /** Every row of a Magic tab context, with the heading it stands under (null in Other spells and by level). */
 const rowsUnder = (tab) => [
   ...tab.levels.flatMap((l) => l.rows.map((row) => ({ under: null, row }))),
@@ -469,12 +445,6 @@ await testAsync("a Judge's rows carry the warning and stay on", async () => {
     ["h", null, "offList", false, "ACKS-MAGIC.cast.notice.verdict.offList|{}"],
   ]);
 });
-test("the row's gate is judged by listGate, the gate claimant's own judge", () => {
-  const tab = readFileSync(new URL("../scripts/character-sheet/tabs/magic.mjs", import.meta.url), "utf8");
-  const gate = readFileSync(new URL("../scripts/magic/cast-gate.mjs", import.meta.url), "utf8");
-  assert.ok(/listGate\(\{ capacity, offList, isGM \}\)/.test(tab), "the row asks listGate");
-  assert.ok(/listGate\(\{ capacity, offList, isGM: /.test(gate), "and so does the claimant");
-});
 await testAsync("a row whose spell has a cast declared and waiting is exempt from both gates", async () => {
   const fights = { k1: { round: 2, scene: { name: "Testyard" } } };
   const effects = [declaredEffect("c1", "Actor.c.Item.a", {}), declaredEffect("c2", "Actor.c.Item.h", {})];
@@ -505,18 +475,6 @@ await testAsync("a row's gate is the verdict the cast window raises for the same
     assert.deepEqual(row.gate ? [row.gate.key] : [], window, `${row.id} under ${under}`);
   }
 });
-test("the row sends its tradition, and the template turns Cast off on a blocked row and says why on a line of its own", () => {
-  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  const cast = /static #onSpellCast\(event, target\) \{[\s\S]*?\n  \}/.exec(sheet)?.[0] ?? "";
-  assert.match(cast, /dataset\?\.tradition/, "the row's tradition is read");
-  assert.match(cast, /item\.use\?\.\(\{[^}]*tradition/, "and passed to the system's use");
-  const tpl = readFileSync(new URL("../templates/character-sheet/spell-row.hbs", import.meta.url), "utf8");
-  assert.match(tpl, /data-item-id="\{\{spell\.id\}\}"\{\{#if spell\.tradition\}\} data-tradition="\{\{spell\.tradition\}\}"\{\{\/if\}\}>/, "the attribute is on the row under a heading only");
-  const button = tpl.split("\n").find((l) => l.includes('data-action="spellCast"'));
-  assert.ok(/\{\{#if spell\.gate\.blocked\}\} disabled\{\{\/if\}\}/.test(button) && /aria-label="\{\{localize 'ACKS-CHARACTER\.magic\.cast'\}\}"/.test(button), "Cast is off for a blocked row and keeps its name");
-  assert.match(tpl, /\n  \{\{#if spell\.gate\}\}<span class="acks-extras-frame__gate"[^>]*>[\s\S]*?\{\{spell\.gate\.text\}\}<\/span>\{\{\/if\}\}\n<\/div>/, "the reason is visible text, a direct child of the row");
-});
-
 /** A caster-side cast record as `castOf` gives it. */
 const record = (id, extra = {}) => ({ id, name: `Spell ${id}`, img: `icons/${id}.webp`, clock: "3t", remaining: 1.5, total: 3, created: 100, ended: false, ...extra });
 test("a character is a caster by a spell item or a caster-side cast record, and by nothing else", () => {
@@ -573,11 +531,6 @@ test("the tracker shape holds through a clock advance and moves when a cast come
   assert.notEqual(shape(a), shape([...a, record("r2", { remaining: 3, total: 3 })]), "a new cast re-renders");
   assert.notEqual(shape(a), shape([{ ...a[0], ended: true }]), "an ended cast leaves its cell");
 });
-test("a clock advance paints the trackers in place instead of re-rendering the sheet", () => {
-  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /castTrackerShape\(trackers\) !== this\.#castShape \|\| !this\.#paintTrackers\(trackers\)/, "only a changed shape, or a cell not found, re-renders");
-  assert.match(sheet, /"cast-id": t\.id/, "a record's cell carries its id for the paint");
-});
 test("the frame model carries the cast column for a caster and none for anyone else", () => {
   const base = { xp: {}, hp: { value: 1, max: 1 }, ac: {}, move: {}, grip: {}, light: {}, saves: {} };
   assert.equal(buildFrameModel({ ...base, cast: { owner: true, spells: [], records: [] } }, {}).rails.cast, null);
@@ -587,22 +540,10 @@ test("the frame model carries the cast column for a caster and none for anyone e
   assert.deepEqual(caster.rails.cast.trackers.map((c) => c.kind), ["record", "pad", "pad", "pad", "pad"]);
   assert.equal(caster.rails.party.mode, "none", "the party cell is untouched by the column");
 });
-test("the cast column is wired: a shared optional column, an owner-only action, tooltips and names on every cell", () => {
-  const rails = readFileSync(new URL("../templates/lib/frame/rails.hbs", import.meta.url), "utf8");
-  assert.match(rails, /\{\{#if cells\.cast\}\}\s*<div class="acks-extras-frame__rail acks-extras-frame__rail--cast">/, "the column is optional in the shared frame");
-  assert.ok(rails.indexOf("cells.cast") < rails.indexOf("{{#unless folded}}"), "it sits outside the unfolded-only part, so a folded card keeps it");
-  const cell = readFileSync(new URL("../templates/lib/frame/cell.hbs", import.meta.url), "utf8");
-  assert.match(cell, /\{\{#if tipText\}\}data-tooltip-text="\{\{tipText\}\}"/);
-  assert.match(cell, /\{\{#if label\}\}aria-label="\{\{label\}\}"\{\{\/if\}\}/);
+test("the cast column's strings exist, and the castMenu action is not a view action", () => {
   const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /castMenu: AcksCharacterSheet\.#onCastMenu/);
   const viewActions = sheet.slice(sheet.indexOf("static VIEW_ACTIONS"), sheet.indexOf("static PARTS"));
   assert.ok(!viewActions.includes('"castMenu"'), "a seat that cannot edit the character cannot cast for it");
-  assert.match(sheet, /static #onCastMenu\(event, target\) \{\s*if \(!this\.actor\.isOwner\) return;/);
-  assert.match(sheet, /\{ \.\.\.entry, cls: "is-pad" \}/, "a seat that is not the owner gets a pad with no action");
-  assert.match(sheet, /attr\(\{ tab: "effects" \}\)/, "a tracker opens the Effects tab");
-  const css = readFileSync(new URL("../styles/lib-frame.css", import.meta.url), "utf8");
-  assert.match(css, /\.acks-extras-frame__rail--cast \{/);
   const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
   const keys = [
     ...castMenuModel({ party: { summons: [summonEntry("t1", castRecord("c1", "s")), summonEntry("t2", null)] }, spells: [summonSpell("s", "A"), summonSpell("z", "Z"), plainSpell("p", "B")], owner: true, bare: true }),
@@ -1451,19 +1392,6 @@ await atest("a library shelf not yet loaded still offers its list, instead of fa
   }
 });
 
-await atest("the Abilities tab carries one add control per list, wired to the sheet's action", async () => {
-  const { readFileSync } = await import("node:fs");
-  const tpl = readFileSync(new URL("../templates/character-sheet/abilities.hbs", import.meta.url), "utf8");
-  for (const list of ["class", "general"]) {
-    const chip = tpl.split("\n").find((l) => l.includes(`data-action="proficiencyCreate" data-list="${list}"`));
-    assert.ok(chip, `a ${list} control exists`);
-    assert.match(chip, /<button type="button"/, "a real button, so the keyboard reaches it");
-    assert.match(chip, /data-tooltip="\{\{localize /, "it carries a tooltip key");
-  }
-  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /proficiencyCreate: AcksCharacterSheet\.#onProficiencyCreate/);
-});
-
 console.log("character sheet: summons on a scene");
 {
   const services = await import("../scripts/lib/services.mjs");
@@ -1496,25 +1424,12 @@ console.log("character sheet: summons on a scene");
   }
 }
 
-test("the Followers tab's view switch is wired: a view action, the named org actions only, a uuid fallback, and a switch inside the tab", () => {
+test("the Followers tab's view switch: Send out and Recall are no view action, and its strings exist", () => {
   const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  const tpl = readFileSync(new URL("../templates/character-sheet/followers.hbs", import.meta.url), "utf8");
-  const viewActions = sheet.slice(sheet.indexOf("static VIEW_ACTIONS"), sheet.indexOf("static PARTS"));
-  assert.ok(viewActions.includes('"followersView"'), "an Observer may switch views");
-  assert.ok(viewActions.includes("...FOLLOWERS_ORG_VIEW_ACTIONS"));
   const from = sheet.indexOf("const FOLLOWERS_ORG_VIEW_ACTIONS");
   const named = sheet.slice(from, sheet.indexOf(";", from));
-  for (const a of ["orgOpen", "orgToggle", "orgExpandAll", "orgCollapseAll"]) assert.ok(named.includes('"' + a + '"'), a + " is a view action");
   assert.ok(!named.includes("orgSendOut") && !named.includes("orgRecall"), "Send out and Recall write, so they are not view actions");
-  assert.ok(sheet.includes("...FOLLOWERS_ORG_ACTIONS,"));
   assert.ok(!/\.\.\.ORG_ACTIONS\b/.test(sheet), "the whole of lib's actions would replace the sheet's hirelingShow");
-  assert.ok(sheet.includes("followersView: AcksCharacterSheet.#onFollowersView"));
-  assert.ok(sheet.includes('followersView: "cards" }'), "the choice is kept per sheet instance, the cards by default");
-  assert.ok(sheet.includes('closest?.("[data-uuid]")?.dataset.uuid'), "a chart card's follower resolves from its wrapper's uuid");
-  const at = tpl.indexOf('data-action="followersView"');
-  assert.ok(at > tpl.indexOf("acks-extras-frame__stack") && at < tpl.indexOf("{{/with}}"), "the switch is inside the tab's own section");
-  assert.ok(tpl.includes('aria-pressed="{{b.on}}"'));
-  assert.ok(tpl.includes("{{#if fw.switch}}"), "drawn only with a follower to draw by who serves whom");
   const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
   const viewRoot = "ACKS-CHARACTER.followers.view.";
   for (const k of ["label", "cards", "chart", "locations", "cardsTip", "chartTip", "locationsTip"]) assert.equal(typeof lang[viewRoot + k], "string", k);

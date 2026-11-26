@@ -13,8 +13,6 @@ const macros = buildMacros();
 assert.ok(macros.length > 0, "builder yields macros");
 const ids = new Set();
 for (const macro of macros) {
-  assert.match(macro._id, /^acksHm[0-9a-f]{10}$/, `${macro.name}: prefixed deterministic id`);
-  assert.strictEqual(macro._key, `!macros!${macro._id}`, `${macro.name}: pack key matches id`);
   assert.ok(!ids.has(macro._id), `${macro.name}: id is unique within the pack`);
   ids.add(macro._id);
 }

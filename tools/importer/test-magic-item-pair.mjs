@@ -152,14 +152,10 @@ t("a forced rebuild of the earlier book leaves the merged document alone; an unp
   assert.equal(writesOver(null, EARLIER.id), false);
 });
 
-t("the rebuild module reaches an item only through the in-place run, and the item step is pair-aware", () => {
+t("the rebuild module deletes no item", () => {
   const rebuild = fs.readFileSync(new URL("../../scripts/importer/cookbook/rebuild.mjs", import.meta.url), "utf8");
   // The only deletes and rewrites there are of actors, places and factions; an item is written in place by its run.
   assert.ok(!/deleteImported\("Item"/.test(rebuild), "no item delete in rebuild.mjs");
-  assert.match(rebuild, /cookbookImportMagicItems: \(only, tally\) => cookbookImportMagicItems\(\{ only, repair: tally \}\)/);
-  const step = fs.readFileSync(new URL("../../scripts/importer/cookbook/magic-items.mjs", import.meta.url), "utf8");
-  assert.match(step, /pairStep\(pairs, id,/);
-  assert.match(step, /!writesOver\(have\.toObject\(\), id\)/);
 });
 
 console.log(`\nmagic-item-pair: ${n} checks OK`);

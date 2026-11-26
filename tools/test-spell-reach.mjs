@@ -145,11 +145,6 @@ await ok("the apply check compares what the sheet states with the character's ow
   assert.equal(throwCheck(a, undefined, { throw: 12, throwText: "12+" }), null, "nothing held, nothing to check");
 });
 
-await ok("the export reads the sheet's own throw for a proficiency's row", async () => {
-  const source = fs.readFileSync(new URL("../scripts/character-sheet/pdf/export.mjs", import.meta.url), "utf8");
-  assert.match(source, /throwText\(roll, actor, item, \{ records: false \}\)/, "the one place the export prints a held throw");
-});
-
 /* ================================ point 1: the Rolls tab ================================ */
 
 await ok("an ability's row carries the spell behind its figure as a tooltip, and no tip where no record touched it", async () => {

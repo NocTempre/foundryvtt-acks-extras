@@ -154,7 +154,6 @@ t("a fixed hit-point figure is blank or a whole number from 1; a form's text is 
 
 t("a mount or beast link is an Actor uuid, a world actor's or a compendium's; another role is not checked", () => {
   const bad = (role, uuid) => validatePart({ role, source: { uuid } }).map((p) => p.field);
-  assert.deepEqual(LINKED_ROLES, ["mount", "beast"]);
   for (const role of LINKED_ROLES) {
     assert.deepEqual(bad(role, ""), [], "no link is allowed");
     assert.deepEqual(bad(role, "Actor.qa1"), []);

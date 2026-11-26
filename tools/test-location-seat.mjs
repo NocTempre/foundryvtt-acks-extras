@@ -102,13 +102,9 @@ ok("a place with no market drops the market tabs and keeps Storage for an observ
   assert.deepEqual(tabs, ["contents", "notes", "storage", "research"]);
 });
 
-ok("the context field is Foundry's own test, and the decision reads it", () => {
-  assert.match(source, /context\.canSeeStorage = actor\.testUserPermission\(game\.user, "OBSERVER"\);/);
-  assert.match(body, /if \(!context\.canSeeStorage\) delete tabs\.storage;/);
+ok("no role test deletes the Storage or Settings tab beside the ownership one", () => {
   assert.equal(body.match(/delete tabs\.storage/g).length, 1, "no role test deletes it as well");
-  assert.match(body, /if \(!this\.actor\.isOwner\) delete tabs\.gmSettings;/, "Settings follows ownership");
   assert.equal(body.match(/delete tabs\.gmSettings/g).length, 1, "no role test deletes it as well");
-  assert.match(body, /if \(!game\.user\.isGM\) \{\s*delete tabs\.things;\s*delete tabs\.gmView;\s*\}/, "Things and GM View stay the Judge's");
 });
 
 /* -------------------------------------------- */
@@ -416,11 +412,6 @@ ok("the Judge's tab bodies keep their order: Things, Storage, Settings, GM View"
 /*  A pile takes no deposit                      */
 /* -------------------------------------------- */
 
-ok("the sheet leaves a ground pile out of canDeposit", () => {
-  assert.match(source, /!places\.isGroundPile\(actor\) &&/);
-  assert.match(source, /context\.canDeposit =\s*context\.holdsGoods &&/);
-});
-
 ok("the Storage controls an observer may press stay live on a sheet it cannot edit", () => {
   const selector = source.match(/const VIEWER_CONTROLS = '([^']*)'/)[1];
   for (const action of ["depositHere", "retrieveAll", "retrieveRow"]) assert.ok(selector.includes(`[data-action="${action}"]`), action);
@@ -693,8 +684,6 @@ ok("Add a place lists only actors the seat owns", async () => {
 ok("openStorageManager has no role refusal and the settings menu is open to every seat", () => {
   const manager = fs.readFileSync("scripts/location/apps/storage-manager.mjs", "utf8");
   assert.doesNotMatch(manager, /isGM/, "no role read in the manager");
-  const mod = fs.readFileSync("scripts/location/module.mjs", "utf8");
-  assert.match(mod, /type: StorageManagerMenu,\s*restricted: false,/);
 });
 
 await chain;

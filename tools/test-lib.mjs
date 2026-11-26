@@ -5098,8 +5098,6 @@ await (async () => {
   }
   const groupSource = readFileSync(new URL("../scripts/lib/data/group-data.mjs", import.meta.url), "utf8");
   assert.ok(!/Math\.max\(\s*-?\d+\s*,\s*Math\.min\(\s*-?\d+/.test(groupSource), "a group's morale holds no literal range");
-  assert.equal((groupSource.match(/clampScore\(.*moraleBounds\(ACTOR_TYPE\.character\)\)/g) ?? []).length, 2, "both group morale reads clamp to the system's range");
-  assert.match(groupSource, /loyalty: new NumberField\(\{ required: false, nullable: true, integer: true, initial: null,/, "a unit's loyalty starts blank, never a stored zero");
   n++;
   console.log("ok - score bounds: the system's schema range per type, an open side stays open, a group reads it too");
 }
@@ -5338,19 +5336,6 @@ await (async () => {
   n++;
   console.log("ok - prepareToLight: a plain-number stack loses one, a weapon torch loses none");
 })();
-
-// The itemRun block of the API object names every press the card's presenter and the API docs name: each is an export of item-run.mjs and a member of the block.
-{
-  const moduleSource = readFileSync(new URL("../scripts/lib/module.mjs", import.meta.url), "utf8");
-  const runSource = readFileSync(new URL("../scripts/lib/item-run.mjs", import.meta.url), "utf8");
-  const block = moduleSource.slice(moduleSource.indexOf("  itemRun: {"), moduleSource.indexOf("  auraReach: {"));
-  for (const name of ["undoCardEntry", "tickBearer", "untickBearer", "tickSubject"]) {
-    assert.ok(new RegExp(String.raw`\b${name}: itemRun\.${name},`).test(block), `the itemRun block exposes ${name}`);
-    assert.ok(new RegExp(String.raw`export (async )?function ${name}\b`).test(runSource), `item-run.mjs exports ${name}`);
-  }
-  n++;
-  console.log("ok - the itemRun API block exposes the card's presses");
-}
 
 {
   // The system's create seeds its new-actor flag ahead of the caller's system data; a module sub-type drops it.

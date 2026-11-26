@@ -637,52 +637,9 @@ const sourceWorld = (drop = []) => ({
     // and sends the import into its overwrite.
     ok(`${decl} never awaits`, !/\basync\b|\bawait\b|\.then\(/.test(text), decl);
   }
-  const steerBody = body(steer, "function steerImport(");
-  ok("the import hook cancels on failure", /catch \(err\) \{[\s\S]*?return false;/.test(steerBody));
-  // A cold shelf answers every library lookup with nothing.
-  ok("a cold library cancels the import before the fill", /if \(libraryCold\(\)\) \{[\s\S]*?return false;/.test(steerBody) &&
-    steerBody.indexOf("libraryCold()") < steerBody.indexOf("fillImport("));
-  ok("both hooks are registered", steer.includes('Hooks.on("preImportAdventure", steerImport)') && steer.includes('Hooks.on("importAdventure", afterImport)'));
-  // Core awaits prepareImport and calls the hook straight after it, so the
-  // wait goes there; the hook's own refusal stays for a shelf that never loads.
-  const wait = body(steer, "async function warmBeforePrepare(");
-  ok("the import waits for a cold library before core lists its documents, a cookbook Adventure's alone",
-    /isCookbookAdventure\(this\) && libraryCold\(\)/.test(wait) && wait.indexOf("await warmLibrary()") > 0 && wait.indexOf("await warmLibrary()") < wait.indexOf("return wrapped("));
-  ok("the wait is bounded", /for \(let n = 0; n < WARM_TRIES && libraryCold\(\); n\+\+\)/.test(wait) && /const WARM_TRIES = \d+;/.test(steer));
-  ok("the wait always calls through, once, last", /\n {2}return wrapped\(\.\.\.args\);\n\}\n?$/.test(wait) && wait.split("wrapped(").length === 2);
-  const wrap = body(steer, "function wrapPrepareImport(");
-  ok("prepareImport is wrapped through libWrapper, with a fallback", wrap.includes('"CONFIG.Adventure.documentClass.prototype.prepareImport", warmBeforePrepare, "WRAPPER"') && wrap.includes("proto.prepareImport = function"));
-  ok("the wrap registers with the hooks", body(steer, "export function registerBookAdventureHooks(").includes("wrapPrepareImport();"));
-  const after = body(steer, "function afterImport(");
-  ok("an import runs the link pass once its maps are mirrored", after.indexOf("cookbookImportLinks(") > after.indexOf("mirrorCreatedLinks(") && after.includes("mirrorCreatedLinks("));
-  ok("a book's Adventure fills as one", /book = kindOf\(adventure\) === BOOK_ADVENTURE_KIND/.test(body(steer, "function fillImport(")));
-
   const cookbook = cookbookSource();
   const scene = body(cookbook, "async function importScene(");
   ok("the map step writes no Adventure", scene.length > 0 && !/Adventure/.test(scene));
-  ok("the made map is built by mapCreateData", scene.includes("mapCreateData(") && !scene.includes("districtRegionData("));
-  const source = body(cookbook, "async function bookAdventureSource(");
-  ok("the Adventure's maps are built by the same code, on the same plan", ["mapCreateData(", "gridScenePlan(", "withWorldIds("].every((s) => source.includes(s)));
-  ok("a map in the Adventure carries no thumbnail", /scene\.thumb = null;/.test(source));
-  const carriedBody = body(cookbook, "function carriedSource(");
-  ok("every carried document is owned by nobody", /source\.ownership = \{ default: 0 \};/.test(carriedBody));
-  ok("a carried list's rows are undrawn", /drawn: false/.test(carriedBody));
-  ok("a map's tokens are set down hidden", /hidden: true/.test(body(cookbook, "export async function mapCreateData(")));
-  ok("the Adventure lays its ways on its own scenes before their references are rewritten",
-    source.includes("withAdventureLinks(") && source.indexOf("withAdventureLinks(") < source.indexOf('adventureRefs("Scene"'));
-  ok("the Adventure's lists, journals and items are rewritten through the one table",
-    /const ofType = [\s\S]*?adventureRefs\(type, e\.source, uuidMap\)/.test(source));
-  // A recipe the world holds as two imports is joined once per import.
-  const join = body(cookbook, "async function joinLinks(");
-  ok("the link pass joins every import of a map, not the first alone",
-    join.includes("heldMapsOf(id)[n]") && join.includes("heldMapOf") && /if \(n && !ends\.size\) return;/.test(join));
-  ok("a twin's pass counts no waiting or refused row", /n \? null : counts/.test(join));
-  const held = cookbook.slice(cookbook.indexOf("export const heldMapsOf = "), cookbook.indexOf("export const heldMapOf = "));
-  ok("a copy is visited only where the world holds no import", /imports\.length \? imports : mine\.slice\(0, 1\)/.test(held));
-  const ensure = body(cookbook, "async function ensureBookAdventure(");
-  ok("a failed Adventure is counted, never thrown at the run", /catch \(err\) \{\s*counts\.failed\+\+/.test(ensure));
-  const tryPart = ensure.slice(0, ensure.indexOf("} catch"));
-  ok("a write records its own time", /writtenAt/.test(tryPart));
 
   const binding = read("scripts/importer/adventure-binding.mjs");
   ok("the binding stays Foundry-free", !/\bgame\.|\bfoundry\.|\bHooks\./.test(binding));

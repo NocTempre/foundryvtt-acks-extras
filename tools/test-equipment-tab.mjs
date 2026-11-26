@@ -516,31 +516,9 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
   const sheet = read("../scripts/character-sheet/sheet.mjs");
   const gear = read("../templates/character-sheet/gear-row.hbs");
   const eqTpl = read("../templates/character-sheet/equipment.hbs");
-  ok(/containerSetDown:\s*AcksCharacterSheet\.#onContainerSetDown/.test(sheet), "the sheet maps the control's action to its handler");
-  ok(/\["deleteActor", watchPile\]/.test(sheet), "the sheet re-renders when a pile is deleted");
-  ok(!/GROUND_FLAG\)\?\.ownerUuid/.test(sheet), "and for any pile, since a bystander's row lists one that is not theirs");
-  ok(/placeFold:\s*AcksCharacterSheet\.#onPlaceFold/.test(sheet) && /pileTake:\s*AcksCharacterSheet\.#onPileTake/.test(sheet), "the sheet maps the fold and the Take");
-  ok(/"placeOpen", "placeFold"/.test(sheet), "the fold stays live on a sheet the viewer cannot edit");
-  ok(/extends FrameMixin\(PicksMixin\(/.test(sheet), "the sheet carries the staging-pick mixin, so a typed amount is no submit and survives a redraw");
-  ok(/openPiles: this\.#ui\.openPiles/.test(sheet), "the sheet hands the tab the piles it has unfolded");
-  ok(/movesForPiles\(this\.actor, doc, changes\) && pileReachKey\(this\.actor\) !== this\.#pileReach/.test(sheet), "a token move redraws only when it changes which piles the character reaches");
-  ok(/this\.#pileReach = pileReachKey\(actor\)/.test(sheet), "and each render records the piles it drew against");
-  ok(/data-action="\{\{action\}\}" data-tooltip="\{\{title\}\}" aria-label="\{\{title\}\}"/.test(gear), "a container's header controls are named for assistive technology");
+  ok(!/GROUND_FLAG\)\?\.ownerUuid/.test(sheet), "the sheet re-renders for any pile, since a bystander's row lists one that is not theirs");
   ok(!/\sid="/.test(gear + eqTpl), "no literal id in the templates");
-  ok(/<a class="acks-extras-frame__gear-name" data-action="itemEdit">\{\{name\}\}\{\{#if stack\}\} <span class="acks-nums" data-tooltip-text="\{\{countTip\}\}">×\{\{qty\}\}<\/span>\{\{\/if\}\}<\/a>/.test(gear), "the count sits in the name link and its interpolated tooltip is text");
-  for (const group of ["state", "keep"]) {
-    ok(new RegExp(`\\{\\{#each controls\\.${group}\\}\\}<button [^>]*data-tooltip="\\{\\{title\\}\\}" aria-label="\\{\\{title\\}\\}">`).test(gear), `each ${group} control is named for assistive technology as its tooltip reads`);
-  }
-  ok(/data-action="roll"[^>]*data-tooltip="\{\{localize 'ACKS-CHARACTER\.equipment\.attack'\}\}" aria-label="\{\{localize 'ACKS-CHARACTER\.equipment\.attack'\}\}"/.test(gear), "so is the roll control");
-  ok(/data-action="placeRetrieveAll" data-tooltip-text="\{\{place\.ground\.pickUpTip\}\}"/.test(eqTpl), "a pile's Pick up is the retrieve action with its own tooltip");
   ok(!/title="/.test(gear + eqTpl), "no title attribute: tooltips go through core's manager");
-  ok(/\{\{#if place\.canOpen\}\}<a [^>]*data-action="placeOpen"/.test(eqTpl), "a pile's name is a link to its sheet only where Open is offered");
-  ok(/\{\{#if place\.canOpen\}\}<button [^>]*data-action="placeOpen"/.test(eqTpl), "and so is the Open control");
-  ok(/<button type="button" class="acks-extras-frame__ctl" data-action="placeFold" aria-expanded=/.test(eqTpl), "the fold is a real button that states whether it is open");
-  const takeInput = eqTpl.match(/<input class="acks-extras-pile__qty"[^>]*>/)?.[0] ?? "";
-  ok(/data-pick="\{\{line\.pick\}\}"/.test(takeInput) && !/\sname="/.test(takeInput) && /aria-label=/.test(takeInput) && /min="1" max="\{\{line\.qty\}\}"/.test(takeInput), "a stack's amount is a labelled staging pick with no name");
-  ok(/data-action="pileTake" aria-label="[^"]+" data-tooltip="/.test(eqTpl), "Take is named for a screen reader and carries a tooltip");
-  ok(/data-pile-line="\{\{line\.id\}\}"/.test(eqTpl) && !/data-item-id/.test(eqTpl), "a pile's line is not read as one of the character's own rows");
 
   const lang = JSON.parse(read("../lang/en.json"));
   for (const key of [

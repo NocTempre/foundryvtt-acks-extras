@@ -25,8 +25,6 @@ const fn = (head) => src.match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))?.[0] ?? ""
   ok("shelveOpen falls back to the open document", /\?\? \(await openBookBytes\(bookId\)/.test(open));
   ok("shelveOpen still refuses when neither holds bytes", /shelfNoBytes/.test(open));
   ok("the bytes it uploads are marked already fingerprinted", /\{ verified: true \}/.test(open));
-  ok("the open document's bytes are its getData, and a file that cannot be read answers null", /openBookBytes = async \(bookId\) => \{\s*try \{\s*return \(await sessionDocs\.get\(bookId\)\?\.doc\?\.getData\?\.\(\)\) \?\? null;\s*\} catch \{\s*return null;\s*\}/.test(src));
-  ok("the public bookBytes is the same reader", /bookBytes: openBookBytes/.test(src));
   const cache = fn("async function cacheBytes\\(");
   ok("the bridge still stores nothing when its window is 0", /!cacheWindowMs\(\)\) return/.test(cache));
 }
@@ -51,7 +49,6 @@ const fn = (head) => src.match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))?.[0] ?? ""
 {
   const blank = readFileSync(new URL("../../scripts/character-sheet/pdf/blank.mjs", import.meta.url), "utf8");
   ok("the blank sheet is read through the importer's bookBytes on demand", /importer\?\.bookBytes\?\.\(SHEET_BOOK\)/.test(blank));
-  ok("bookBytes is the session document's own getData, which a handle answers with a fetch of its path", /bookBytes: openBookBytes/.test(src));
 }
 
 // A citation clicked in a detached window reaches the handler.

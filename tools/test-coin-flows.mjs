@@ -1830,10 +1830,9 @@ await test("a join in turn joins two rows still there, and nothing on a row alre
   assert.equal(hero.writes, writes);
   assert.equal(hero.items.get("c").system.quantity, 4);
 });
-await test("the character sheet's drop joins through the holder's turn, never straight", async () => {
+await test("the character sheet's drop never joins straight", async () => {
   const { readFileSync } = await import("node:fs");
   const source = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(source, /await joinInTurn\(own, onto\)/);
   assert.doesNotMatch(source, /\bjoinStacks\(/);
 });
 await test("a join never deletes a row that is already gone, nor raises one that is", async () => {

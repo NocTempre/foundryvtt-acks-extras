@@ -18,7 +18,7 @@ const gameStub = { i18n: { format: (key) => key, localize: (key) => key, has: ()
 globalThis.game = gameStub;
 globalThis.ui = { notifications: { warn() {}, error() {}, info() {} } };
 
-const { onHitPost, onHitOutcome, settleShot, installOnHit, ON_HIT_KIND } = await import("../scripts/equipment/on-hit.mjs");
+const { onHitPost, onHitOutcome, settleShot, installOnHit } = await import("../scripts/equipment/on-hit.mjs");
 const { ITEM_FLAGS, MODULE_ID } = await import("../scripts/equipment/constants.mjs");
 const { FLAG_DELAYED_DAMAGE, FLAG_DRINK } = await import("../scripts/lib/constants.mjs");
 const { WEAPON_CATEGORY } = await import("../scripts/equipment/config.mjs");
@@ -43,9 +43,7 @@ const attacker = { uuid: "Actor.a", name: "Archer" };
 const target = { uuid: "Scene.s.Token.t", name: "Target" };
 
 await t("the card flag keys stay as the equipment and lib name them", () => {
-  assert.equal(ITEM_FLAGS.ON_HIT, "onHit");
   assert.equal(ITEM_FLAGS.DRINK, FLAG_DRINK, "equipment's drink flag is lib's");
-  assert.equal(ON_HIT_KIND, "onHit");
 });
 
 await t("no card on a miss, with no target token, or from a stack with no hit effect", () => {

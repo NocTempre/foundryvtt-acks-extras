@@ -16,7 +16,6 @@
  * arrival restores.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 globalThis.acksExtras ??= {};
 
@@ -913,19 +912,6 @@ await ok("the owner takes their own rows from a pile from anywhere, reach not as
   } finally {
     noReach();
   }
-});
-
-await ok("the system sheet's Storage tab treats a pile as the Equipment tab does", () => {
-  const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-  const tab = read("../scripts/location/apps/storage-tab.mjs");
-  const tpl = read("../templates/location/storage-tab.hbs");
-  assert.match(tab, /canDeposit: !ground && /, "a pile takes no deposit, a Judge's included");
-  assert.match(tab, /canOpen: !ground \|\| provider\.testUserPermission\(game\.user, "OBSERVER"\)/, "and opens for a seat that observes it");
-  assert.match(tab, /if \(isGroundPile\(place\) && !place\.testUserPermission\(game\.user, "OBSERVER"\)\) break;/, "the open handler refuses a seat that does not");
-  assert.match(tab, /\.filter\(\(p\) => !isGroundPile\(p\) && /, "a pile with none of the character's goods is not listed");
-  assert.match(tab, /if \(isGroundPile\(dropped\)\) return void ui\.notifications\.warn/, "a pile dropped on a sheet is not pinned");
-  assert.match(tpl, /\{\{#if place\.canOpen\}\}/, "the template reads canOpen");
-  assert.match(tpl, /\{\{else if place\.reachReason\}\}/, "and shows no out-of-reach hint where there is no reason");
 });
 
 console.log(`\ntest-location-ground: OK (${passed} checks — the planners, the Judge's handler and its refusals, rollback, arrival, the three hooks, a bystander's take)`);

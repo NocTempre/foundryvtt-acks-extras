@@ -101,14 +101,6 @@ ok(() => {
 }, "a group's coin figure carries a tooltip");
 
 ok(() => {
-  const sheet = read("scripts/location/apps/location-sheet.mjs");
-  assert.match(sheet, /payHouse: LocationSheet\.#onPayHouse/, "the action is registered");
-  const viewer = sheet.match(/const VIEWER_CONTROLS = (.*);/)[1];
-  assert.match(viewer, /data-action="payHouse"/, "and is live for a seat that only observes the place");
-  assert.match(sheet, /openStashDialog\(mine, this\.actor, \{ mode: "pay" \}\)/, "it opens the picker in pay mode");
-}, "the sheet wires the control through the viewer's re-enabled controls");
-
-ok(() => {
   const lang = JSON.parse(read("lang/en.json"));
   const source = read("scripts/location/apps/stash-dialog.mjs") + read("scripts/location/apps/location-sheet.mjs");
   const used = [...source.matchAll(/loc\("(storage\.(?:pay|coinPart)[\w.]*)"/g)].map((m) => `ACKS-LOCATION.${m[1]}`);

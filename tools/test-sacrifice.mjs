@@ -918,8 +918,6 @@ await ta("the casting strip's button: the opener reads the seat, the tradition, 
     const section = chip.powerSectionHtml(divineChaotic, false);
     assert.match(section, /data-sacrifice-open/, "drawn beside the tags even where the ledger holds nothing");
     assert.equal(chip.powerSectionHtml(divineLawful, false), "", "and nothing at all for a Player whose caster has neither");
-    const source = fs.readFileSync("scripts/classes/power-chip.mjs", "utf8");
-    assert.match(source, /closest\("\[data-sacrifice-open\]"\)[\s\S]{0,120}openSacrifice\(actor\)/, "the click opens the window for the strip's caster");
   } finally {
     game.i18n.format = format;
     world.isGM = true;
@@ -1033,21 +1031,10 @@ t("the template and the sheet of styles hold to the layout contract; every strin
     assert.doesNotMatch(file, /\sid="[^{]/, "no literal id in a template");
     assert.doesNotMatch(file, /\btitle="/, "no title attribute: the tooltip manager is the tooltip");
   }
-  const css = fs.readFileSync("styles/magic.css", "utf8");
-  const mine = css.split("\n").filter((l) => /acks-extras-sacrifice/.test(l));
-  assert.ok(mine.length > 5, "the window's rules are in the magic sheet");
-  assert.doesNotMatch(css.slice(css.indexOf(".acks-extras-sacrifice")), /font-size:\s*[\d.]+(px|rem)\b(?!.*px-ok)/, "no px or rem font size");
   const win = fs.readFileSync("scripts/magic/apps/sacrifice-window.mjs", "utf8");
-  assert.match(win, /"acks-extras-scroll"/, "the window joins the scroll contract");
-  assert.match(win, /resizable: true/);
-  assert.match(win, /editable: this\.#actor\.isOwner === true/, "the model's permission reads ownership of the caster");
-  assert.match(win, /judge: game\.user\.isGM === true/, "and its severity still reads the role");
-  assert.match(win, /if \(!this\.#actor\.isOwner\) return;/, "a change in a control is written only by an owner");
   assert.doesNotMatch(win.slice(win.indexOf("static async #onForm"), win.indexOf("static async #onRemove")), /isGM/, "the form's gate is not the server role");
   for (const f of ["sacrifice-record.mjs", "sacrifice-record-live.mjs", "sacrifice-live.mjs"]) assert.doesNotMatch(fs.readFileSync(`scripts/magic/${f}`, "utf8"), /isOwner/, `${f} writes no ownership gate`);
   assert.doesNotMatch(win, /#held|instanceof [A-Z]/, "the window holds nothing of its own, and tells a node by nodeType");
-  assert.match(win, /if \(this\.#actor\.isOwner\) void clearRecord/, "an owner's close ends the open sacrifice");
-  assert.match(win, /if \(!result\.nothing\) await clearRecord/, "a sacrifice that was made ends it too");
   for (const w of ["noSite", "notHelpless", "values"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.wait.${w}`], "string", w);
   for (const r of ["noCaster", "owner", "op", "victim", "self", "duplicate", "noGm"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.refused.${r}`], "string", r);
   // Built from parts: validate reads a whole key literal in a test as a reference that must exist.

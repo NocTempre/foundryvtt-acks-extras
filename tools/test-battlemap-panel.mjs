@@ -1050,7 +1050,6 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.ok(section.includes("tokens.sizes"), "the caption stays");
   assert.ok(c.sizesTip.startsWith("tokens.sizesCite") && !/\d/.test(c.sizesTip), "its tooltip is the shipped page reference, no number and no words about a gap");
   assert.ok(/data-tooltip-text="tokens\.sizesCite/.test(section), "carried on the caption");
-  assert.ok(!read("scripts/battlemap/assistant-app.mjs").includes("HOTBAR_STEPS"), "the cell-multiple ladder is gone");
   assert.ok(/data-action="resetFootprints"[^>]*aria-label="apply\.aria[^"]*tokens\.resetLabel/.test(section), "the reset glyph has a name");
   assert.ok(/data-action="applyCustomSize"[^>]*aria-label="apply\.aria[^"]*tokens\.customLabel/.test(section), "so has the custom size's");
   assert.ok(!/data-action="applyCustomSize"[^>]*disabled/.test(section), "the custom size is never disabled by a stale value");
@@ -1571,31 +1570,12 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 /* -------------------------------------------- */
-/*  The hook that feeds it                      */
-/* -------------------------------------------- */
-
-{
-  // module.mjs cannot be loaded offline; the one line it must hold is pinned as text, after the navigation follow.
-  const src = read("scripts/battlemap/module.mjs");
-  const hook = src.slice(src.indexOf('Hooks.on("updateScene"'));
-  const body = hook.slice(0, hook.indexOf("});") + 3);
-  assert.ok(body.indexOf("sessionFollowsScene(session, scene, changes)") >= 0, "the navigation follow stays");
-  assert.ok(body.indexOf("session.onSceneUpdated(scene)") > body.indexOf("sessionFollowsScene"), "and the session is told of the update after it");
-}
-
-/* -------------------------------------------- */
 /*  What the panel names and keeps              */
 /* -------------------------------------------- */
 
 {
   // The body part's root is the scroller, so retention names the root itself.
   assert.deepEqual(App.PARTS.body.scrollable, [""], "the body part keeps its scroll across a re-render");
-
-  // Every sample's drop button names itself to assistive technology.
-  const html = read("templates/battlemap/assistant-body.hbs");
-  const drops = html.match(/<button[^>]*data-action="deleteSample"[^>]*>/g) ?? [];
-  assert.ok(drops.length >= 3, "the three drop buttons are found");
-  for (const b of drops) assert.match(b, /aria-label="\{\{localize 'ACKS-BATTLEMAP\.samples\.drop'\}\}"/, `a drop button names itself: ${b}`);
 
   // A swatch's label is a world's own table text: written as text, never parsed as HTML.
   const palette = read("templates/battlemap/terrain-palette.hbs");

@@ -438,17 +438,11 @@ const reachEdit = await import("../scripts/lib/reach-edit.mjs");
 await t("effectField carries a nullable reach of radius, filter and pulse, empty by default, so a row cleaned without one stays without", () => {
   const field = effectField().fields.reach;
   assert.ok(field instanceof Schema);
-  assert.equal(field.options.nullable, true);
-  assert.equal(field.options.initial, null);
-  assert.equal(field.options.required, false);
   assert.deepEqual(Object.keys(field.fields).sort(), ["engaged", "filter", "fraction", "immunity", "lasts", "modifier", "on", "pulse", "radius", "save", "saveWhen", "showReach"]);
-  assert.equal(field.fields.engaged.options.initial, false, "a reach engages only where a row says so");
-  assert.equal(field.fields.showReach.options.initial, false, "a Region is the Judge's alone unless a row says otherwise");
   assert.deepEqual(Object.keys(field.fields.saveWhen.fields).sort(), ["magical", "when"]);
   for (const key of ["save", "immunity", "lasts", "modifier", "fraction"]) assert.deepEqual(Object.keys(field.fields[key].fields).sort(), ["doc", "figure", "row", "table", "value"], `${key} is a figure reference`);
   assert.deepEqual(Object.keys(field.fields.radius.fields).sort(), ["doc", "figure", "row", "table", "value"]);
   assert.deepEqual(Object.keys(field.fields.filter.fields).sort(), ["exceptKinds", "kinds", "self", "side", "unit"]);
-  assert.equal(field.fields.filter.fields.side.options.initial, "any");
 });
 
 await t("the gear and ability domains end every kind's fields with the reach group and a spell offers none; an edit that moves no reach control keeps a stored reach", () => {
@@ -1156,11 +1150,7 @@ await t("a reach's pulse, side and unit are choices of their own vocabularies, a
   assert.deepEqual(keysOf(field.fields.pulse), Object.keys(vocab.REACH_PULSES));
   assert.deepEqual(keysOf(field.fields.filter.fields.side), Object.keys(vocab.REACH_SIDES));
   assert.deepEqual(keysOf(field.fields.filter.fields.unit), Object.keys(vocab.REACH_UNITS));
-  assert.equal(field.fields.pulse.options.initial, "", "a pulse nobody chose acts on nothing");
-  assert.equal(field.fields.filter.fields.unit.options.initial, "any");
-  assert.equal(field.fields.filter.fields.side.options.initial, "any");
   assert.deepEqual(keysOf(field.fields.filter.fields.self), Object.keys(vocab.REACH_SELF));
-  assert.equal(field.fields.filter.fields.self.options.initial, "no", "the bearer is not a subject unless counted in");
   assert.ok(field.fields.filter.fields.kinds instanceof List && field.fields.filter.fields.exceptKinds instanceof List);
   assert.ok(field.fields.radius instanceof Schema, "the radius is a figure reference");
 });

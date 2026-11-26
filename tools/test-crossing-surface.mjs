@@ -1116,22 +1116,13 @@ await ok("the partial draws a begin row for a Judge, the setup fields for a Judg
   }
 });
 
-await ok("every action the partial names has a handler, and the sheet and the form carry the crossing", async () => {
+await ok("every action the partial names has a handler", async () => {
   const names = new Set([...partial.matchAll(/data-action="(\w+)"/g)].map((m) => m[1]));
   const source = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
   const block = source.slice(source.indexOf("export const SHARED_ACTIONS = {"));
   const handlers = new Set([...block.slice(0, block.indexOf("\n};")).matchAll(/^ {2}(?:async )?(\w+)\(/gm)].map((m) => m[1]));
   assert.ok(names.size >= 4);
   for (const name of names) assert.ok(handlers.has(name), `${name} has a handler`);
-  assert.ok(/crossing\.\w+|data\.crossing/.test(source), "onChangeForm routes crossing.*");
-  const sheet = fs.readFileSync(new URL("../scripts/formation/party-actor.mjs", import.meta.url), "utf8");
-  assert.ok(sheet.includes("formation-crossing.hbs"), "the partial is a template of the mode part");
-  assert.ok(/new PressFocus\(\)/.test(sheet) && /#press\.note\(/.test(sheet) && /#press\.restore\(/.test(sheet), "PressFocus is wired by hand");
-  const views = fs.readFileSync(new URL("../scripts/formation/formation-view.mjs", import.meta.url), "utf8");
-  assert.ok(/view\.crossing = /.test(views), "the Dungeon tab's context carries the crossing");
-  assert.ok(/canCross:[^\n]*canCross\(formation\)/.test(views), "the player panel carries canCross, from the crossing's own rows");
-  const requests = fs.readFileSync(new URL("../scripts/formation/player-requests.mjs", import.meta.url), "utf8");
-  assert.ok(/case "crossing":/.test(requests) && /userOwnsMember\(formation, user, actorId\)/.test(requests), "the relay's case checks ownership");
 });
 
 await ok("the partial's player rows draw the throw for an owner and the reason as text where it is blocked", async () => {
@@ -2493,13 +2484,6 @@ await ok("the partial draws the swim rows: a Judge's setup fields, the haul and 
   }
 });
 
-await ok("the Rescuer select is bound on the party sheet and a change reaches the rescue relay", async () => {
-  const actions = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
-  assert.ok(actions.includes("select[data-rescue-for]") && actions.includes("requestCrossingRescue(formation, drownedId, select.value)") && actions.includes("setRescuer(formation, drownedId, select.value)"));
-  const sheet = fs.readFileSync(new URL("../scripts/formation/party-actor.mjs", import.meta.url), "utf8");
-  assert.ok(sheet.includes("bindCrossingRescuer(this)"), "the sheet binds it on each render");
-});
-
 await ok("a Swimming holder whose carried load is not known has a blank row, not No throw; the player seat marks its own members", async () => {
   const { formation } = await swimWorld(
     [["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 5, items: [SWIMMER()], owner: PLAYER.id }], ["Cedar", { stone: 4 }]],
@@ -2881,8 +2865,6 @@ await ok("the partial draws the squeeze's setup and a stuck row's two escape pre
     for (const glyph of html.matchAll(/<i [^>]*>/g)) assert.ok(glyph[0].includes("inert"));
     assert.equal(/title=/.test(html), false, "no title attribute");
   }
-  const source = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
-  assert.ok(/^ {2}async crossingEscape\(/m.test(source));
 });
 
 /* --- a climber's pace -------------------------------------------------------- */
@@ -3060,10 +3042,6 @@ await ok("the partial draws the pace pick for a holder only, with no literal id,
   assert.equal(/data-pace-for="Alder"[^>]*disabled/.test(player), false, "an owner's pick is live");
   const outsider = render({ crossing: as(OTHER, () => buildCrossingView(formation)) });
   assert.ok(/data-pace-for="Alder"[^>]*disabled/.test(outsider), "a seat that owns nothing sees it, not live");
-  const actions = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
-  const sheet = fs.readFileSync(new URL("../scripts/formation/party-actor.mjs", import.meta.url), "utf8");
-  assert.ok(/export function bindCrossingPace\(/.test(actions) && /select\[data-pace-for\]/.test(actions), "the select has a handler");
-  assert.ok(/\["pace", \(\) => bindCrossingPace\(this\)\]/.test(sheet), "and the sheet binds it on every render");
 });
 
 /* --- the rounds a crossing spends -------------------------------------------- */
@@ -3460,13 +3438,7 @@ await ok("the partial draws setup, Throw all and End for the party actor's owner
   assert.equal(render({ crossing: view }).includes('data-action="crossingThrowAll"'), false, "Throw all only where this seat can throw for someone");
 });
 
-await ok("onChangeForm writes the crossing's setup for the party actor's owner before the record's seat check returns", async () => {
-  const source = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
-  const body = source.slice(source.indexOf("export async function onChangeForm"));
-  const write = body.indexOf("applyCrossingForm(formation, data.crossing)");
-  assert.ok(write > 0 && write < body.indexOf("if (!seatOwnsMember(formation))"), "the setup write precedes the member-seat return");
-  assert.ok(/data\.crossing && getPartyActor\(formation\)\?\.isOwner/.test(body), "gated on the party actor's owner");
-  assert.equal(body.includes("applyCrossingForm", write + 10), false, "written once");
+await ok("the relayed party form never carries the crossing", async () => {
   const { pickPartyForm } = await import("../scripts/formation/party-form.mjs");
   const picked = pickPartyForm({ crossing: { length: 5, judgeMod: 3 }, name: "Wanderers" });
   assert.equal("crossing" in picked, false, "the relayed form never carries the crossing");

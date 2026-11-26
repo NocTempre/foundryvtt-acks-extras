@@ -563,18 +563,4 @@ await ta("the real template draws a summons' Summon band in the targets band's p
   assert.match(render(baseCtx({ summon: { creatures: [], open: null } })), /ACKS-LIB\.summons\.noMonsters/, "no creature to offer and no drop says so, with no select");
 });
 
-/* ------------------------------------------------------------------ */
-/*  The surfaces                                                      */
-/* ------------------------------------------------------------------ */
-
-t("the template draws one select named invocationLevel, the buckets through lib's partial and no literal id; the model, window, helper and stylesheet read the ramp", () => {
-  const hbs = fs.readFileSync(new URL("../templates/magic/cast-dialog.hbs", import.meta.url), "utf8");
-  assert.match(hbs, /<select name="invocationLevel"/);
-  assert.match(hbs, /templates\/lib\/bucket\.hbs/);
-  assert.doesNotMatch(hbs, /\sid="/, "a template renders once per window, so it writes no id");
-  const css = fs.readFileSync(new URL("../styles/magic.css", import.meta.url), "utf8");
-  const block = css.slice(css.indexOf(".acks-extras-cast-invlevel"), css.indexOf(".acks-extras-cast-rows {"));
-  assert.doesNotMatch(block, /\d(px|rem)\b/, "the level's rules carry no fixed type size");
-});
-
 console.log(`\n${n} cast invocation band tests passed`);

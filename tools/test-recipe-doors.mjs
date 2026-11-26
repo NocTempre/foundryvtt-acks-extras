@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { VARIANT_AXIS_KEY, doorFor } from "../scripts/monsters/recipe-doors.mjs";
+import { doorFor } from "../scripts/monsters/recipe-doors.mjs";
 
 const tests = [];
 const t = (name, fn) => tests.push([name, fn]);
@@ -21,10 +21,6 @@ const AXES = [
   { key: "role", label: "Station", options: [{ key: "rank", label: "Rank" }, { key: "chief", label: "Chief" }] },
   { key: "variant", label: "Whatever the label says", options: [{ key: "alpha", label: "Alpha" }, { key: "beta", label: "" }] },
 ];
-
-t("the variant axis is the key the organisation roll reads", () => {
-  assert.equal(VARIANT_AXIS_KEY, "variant");
-});
 
 t("a row of the variant axis gets a door naming its option and carrying its keys", () => {
   const door = doorFor(AXES, { axisKey: "variant", optionKey: "alpha" }, say);

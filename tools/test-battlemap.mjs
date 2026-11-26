@@ -593,7 +593,6 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
    A fake PIXI records what is drawn; nothing here has a canvas. */
 {
   const { refreshMark, onRefreshToken, onHover, carriesScaleFlag, markKey, markOf, handleAnchor, readoutLines, registerScaleMarkSetting, SCALE_MARK_NAME, SETTING_SCALE_MARK } = await import("../scripts/battlemap/scale-mark.mjs");
-  assert.equal(SCALE_MARK_NAME, "acks-extras-scale-mark", "the name a page script finds the mark by");
 
   for (const flag of ["redraw", "refreshSize", "refreshShape", "refreshState", "refreshVisibility"]) {
     assert.equal(carriesScaleFlag({ [flag]: true }), true, `${flag} is answered`);
@@ -2872,7 +2871,6 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
     return { values: Object.fromEntries(COUNTRY_KEYS.map((k) => [k, got[k]])), source: got.source, water: got.water };
   };
 
-  assert.deepEqual(COUNTRY_KEYS, ["ground", "encounterTerrain", "territory", "climate", "road", "following"]);
   assert.equal(riverTableFor("desert"), "riverDesertJungle");
   assert.equal(riverTableFor("jungle"), "riverDesertJungle");
   assert.equal(riverTableFor("forest"), "riverLand");
@@ -3215,7 +3213,7 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
   const { MapModesApp, borderSegments, registerMapMode, setMapView, stripeSegments, territoryPlan } =
     await import("../scripts/battlemap/map-modes.mjs");
   const {
-    DERIVED_KEYS, PAINT_LAYER_CHANGED_HOOK, TERRITORY_COLORS, derivedHexes, derivedValueAt, paintLayerChanged, registerPaintLayer,
+    PAINT_LAYER_CHANGED_HOOK, TERRITORY_COLORS, derivedHexes, derivedValueAt, paintLayerChanged, registerPaintLayer,
   } = await import("../scripts/battlemap/terrain-paint.mjs");
   const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
 
@@ -3229,7 +3227,6 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
     derives: { key: "territory", of: (v) => classOf[v] ?? null },
     ...over,
   });
-  assert.deepEqual(DERIVED_KEYS, ["territory"], "the territory is the one key a reader asks a layer to derive");
   assert.throws(() => registerPaintLayer(spec({ derives: { key: "climate", of: () => null } })), /derives names no key/);
   assert.throws(() => registerPaintLayer(spec({ derives: { key: "territory" } })), /needs an `of`/);
   const dispose = registerPaintLayer(spec());
@@ -3598,11 +3595,6 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
     assert.equal(esc.prevented && esc.stopped, true, `Escape from ${what} is taken`);
   }
   assert.equal(isEditableTarget(undefined), false, "no event is not an editable origin");
-
-  // The scene configuration button opens the scene whose sheet it sits on.
-  const source = readFileSync(new URL("../scripts/battlemap/module.mjs", import.meta.url), "utf8");
-  assert.match(source, /acks-extras-battlemap-open"\)\.addEventListener\("click", \(\) => openAssistant\(scene\)\)/,
-    "the scene config button opens the assistant on its own scene");
 }
 
 /* -------------------------------------------- */

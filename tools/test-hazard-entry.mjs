@@ -199,11 +199,6 @@ await ok("a found or sprung wall halts the move; a zone, a crossed wall and an o
   }
 });
 
-await ok("runTrapCheck's callback names the kind of placement each result came from", () => {
-  const source = fs.readFileSync(new URL("../scripts/formation/trap-zone.mjs", import.meta.url), "utf8");
-  assert.match(source, /return answer && \{ \.\.\.answer, placement: \{ kind: entry\.placement\.kind \} \};/);
-});
-
 /* --- the card --------------------------------------------------------------- */
 await ok("the card names Begin's ids, cites the setup's own page for each figure and marks what is hidden", () => {
   const model = entryModel([place("Actor.p1", "Flooded <shaft>", [

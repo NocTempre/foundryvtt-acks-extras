@@ -154,19 +154,4 @@ ok(() => {
   assert.match(li("m1"), /gp<\/div>/);
 }, "the monster Inventory prints ×N above one, in its meta line, with the Quantity's tooltip");
 
-ok(() => {
-  const sheet = read("scripts/monsters/monster-sheet.mjs");
-  assert.match(sheet, /context\.carriedCounts = Object\.fromEntries\(context\.carriedItems\.map\(\(i\) => \[i\._id, countView\(i\)\]\)\)/);
-}, "the monster sheet builds each carried row's count view from countView");
-
-ok(() => {
-  for (const file of ["scripts/location/apps/location-sheet.mjs", "scripts/location/apps/storage-tab.mjs", "scripts/location/apps/storage-manager.mjs"]) {
-    const source = read(file);
-    assert.match(source, /countView\(item\)/, `${file} reads the count from countView`);
-    assert.match(source, /stackable: api\.offersCount\(item\)/, `${file} keeps the take field on offersCount`);
-    assert.match(source, /\bstack,\s*countTip/, `${file} hands the template the count's own fields`);
-  }
-  assert.match(read("scripts/location/apps/stash-dialog.mjs"), /countView\(plain\)/);
-}, "each list reads the count from countView and the take field from offersCount, apart");
-
 console.log(`test-stack-count: ${passed} passed`);

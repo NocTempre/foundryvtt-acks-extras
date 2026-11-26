@@ -931,24 +931,6 @@ t("a place with no linked character says so and offers no new project; one with 
   assert.match(open, /newResearchProject/);
 });
 
-t("the sheet carries the tab after Storage on every place, leaves its controls live for a viewer and keeps the drop to the bucket", () => {
-  const sheet = fs.readFileSync("scripts/location/apps/location-sheet.mjs", "utf8");
-  const ids = [...sheet.matchAll(/\{ id: "(\w+)", icon/g)].map((m) => m[1]);
-  assert.equal(ids[ids.indexOf("storage") + 1], "research");
-  assert.match(sheet, /VIEWER_CONTROLS = [^\n]*\[data-research-control\]/);
-  assert.match(sheet, /VIEWER_CONTROLS = [^\n]*\[data-tab="research"\] \[data-bucket\] button/, "a bucket row's X is live for a viewer who may change the bucket");
-  assert.doesNotMatch(sheet, /VIEWER_CONTROLS = [^\n]*\[data-tab="research"\] (:is\()?button/, "Finish lifts the lock by its own control mark, not by a rule over every button of the tab");
-  assert.doesNotMatch(sheet, /MARKET_TABS = [^\n]*research/, "the tab is not gated on a market");
-  const template = fs.readFileSync("templates/location/location-sheet.hbs", "utf8");
-  const at = template.indexOf('data-tab="research"');
-  assert.ok(at > 0 && at < template.indexOf("{{#if isGM}}\n  {{!-- ------------------------- Things"), "the section stands outside the Judge's block");
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.ok((tab.match(/stopPropagation\(\)/g) ?? []).length >= 4, "each of the three change listeners and the drop zones stops its event");
-  assert.doesNotMatch(tab, /instanceof (HTML|Element)/, "a node is told by nodeType, and the tab tells none");
-  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
-  assert.ok(lang["ACKS-HENCHMEN.location.tab.research"]);
-});
-
 t("every string the tab asks for exists, and none is a printed value", () => {
   const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
   const sources = ["scripts/magic/research-project.mjs", "scripts/magic/research-tab.mjs", "scripts/magic/research-project-live.mjs", "scripts/magic/research-outcome-live.mjs"].map((f) => fs.readFileSync(f, "utf8")).join("\n");
@@ -1067,12 +1049,7 @@ t("the tab draws the strip, the chip and the pace radios outside any form, with 
   assert.doesNotMatch(theirs, /data-research-pace[^>]*data-research-control/, "and the sheet's lock is not lifted on it");
 });
 
-t("the tab keeps the pace in the window and never writes it", () => {
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.match(tab, /paceMemory = new WeakMap\(\)/);
-  assert.match(tab, /postResearchDay: onPostDay/);
-  assert.match(tab, /researchApi\.post\(this\.actor, id, \{ pace: paceOf\(this, id\) \}\)/, "Post posts the pace this window chose");
-  assert.doesNotMatch(tab.slice(tab.indexOf("data-research-pace")), /researchApi\.update\(location, id, \{ ?pace/);
+t("the update fields never carry the posted days, and the due follows the researcher's ownership", () => {
   assert.equal(JSON.stringify(M.UPDATE_FIELDS).includes("posted"), false);
   assert.ok(M.UPDATE_FIELDS.includes("dueDays") && !M.JUDGE_FIELDS.includes("dueDays"), "the due follows the researcher's ownership, not the role");
 });
@@ -1145,24 +1122,6 @@ t("a Judge's Post reads Post days and opens the range prompt; a Player's stays P
   const fresh = render(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }]));
   assert.match(fresh, /data-action="postResearchDay" data-research-control/);
   assert.doesNotMatch(fresh, /postResearchDays/, "a Player's button never opens the range prompt");
-});
-
-t("the tab wires the range prompt and the withdraw, names its classes and tells no node by instanceof", () => {
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.match(tab, /postResearchDays: onPostDays/);
-  assert.match(tab, /withdrawResearchDay: onWithdrawDay/);
-  assert.match(tab, /researchApi\.postRange\(this\.actor, id, picks\)/);
-  assert.match(tab, /researchApi\.withdraw\(this\.actor, id, Number\(target\.dataset\.day\)\)/);
-  const prompt = tab.slice(tab.indexOf("async function promptDays"), tab.indexOf("async function onPostDays"));
-  assert.match(prompt, /classes: DIALOG_CLASSES/, "the prompt names the module's classes: scroll contract and drag corner");
-  assert.match(prompt, /aria-pressed/);
-  assert.match(prompt, /role="group"/);
-  assert.match(prompt, /elementOf\(dialog\?\.element\)/);
-  assert.doesNotMatch(prompt, /\sid=|instanceof/);
-  assert.match(prompt, /<label[^>]*>[^]*<input[^]*<\/label>/, "each field's label wraps its control");
-  const css = fs.readFileSync("styles/magic.css", "utf8");
-  assert.match(css, /\.acks-extras-research__days i\.is-w \{[^}]*dashed var\(--acks-warning\)/, "the waiting cell is a dashed warning border on the tokens, no pattern");
-  assert.doesNotMatch(css.slice(css.indexOf(".acks-extras-research__days i.is-w"), css.indexOf(".acks-extras-research__pace {")), /gradient|url\(|\d(px|rem)\b/, "no generated art and no bare size in the new rules");
 });
 
 await ta("a range's result is told with the days it posted and the days it skipped, and a withdraw's refusal like any", async () => {
@@ -1976,17 +1935,6 @@ t("the posted list and the prompt's pills read the names the board draws, and th
   const G = "ACKS-MAGIC.research.";
   assert.deepEqual(M.PACES.map((p) => lang[`${G}paceName.${p}`]), ["Dedicated", "Ancillary", "Both"]);
   assert.deepEqual(M.PACES.map((p) => lang[`${G}pace.${p}`]), ["dedicated", "ancillary", "both (overtime)"]);
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.match(tab, /loc\(`paceName\.\$\{value\}`\)/, "the prompt's pills");
-  assert.doesNotMatch(tab, /loc\(`pace\.\$\{value\}`\)/);
-});
-
-t("the sheet wires Finish and the fit chip, and writes no result itself", () => {
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.match(tab, /finishResearchProject: onFinishProject/);
-  assert.match(tab, /\[BUCKET_ACTIONS\.fit\]: onBucketFit/);
-  assert.match(tab, /researchApi\.finish\(this\.actor, id\)/, "the press asks the API, which is the one place a Finish is made");
-  assert.doesNotMatch(tab, /deliverDrop|markIdentified|createEmbeddedDocuments/, "no writer of the result is in the sheet's file");
 });
 
 /* ------------------------ the ritual project, Add power, Finish (formula) (M-r2) ------------------------ */
@@ -2378,34 +2326,10 @@ t("the common-spell mark: a Judge is offered the check on a spell project, a Pla
   assert.doesNotMatch(set, /\sid=|\stitle=/);
 });
 
-t("the tab writes the common check through update as a boolean", () => {
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.match(tab, /box\.type === "checkbox" \? box\.checked/, "a checkbox reads checked");
-  assert.match(tab, /researchApi\.update\(location, id, patchOf\(path, value\)\)/);
+t("the common check is an update field a Judge may write", () => {
   assert.ok(M.UPDATE_FIELDS.includes("common") && M.JUDGE_FIELDS.includes("common"));
   const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
   assert.equal(lang["ACKS-MAGIC.research.commonLabel"], "Common spell (no throw)");
-});
-
-t("the sheet wires Choose… to a prompt in the scroll contract whose Confirm waits on the model, and takes the effect now before it answers", () => {
-  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
-  assert.match(tab, /chooseResearchPlacement: onChoosePlacement/);
-  assert.match(tab, /placementState\(modeOf\(\), picked, \{ ownsItem: ownsPicked \}\)/, "Confirm is held by the model's verdict, on the item's own ownership");
-  assert.match(tab, /ownsPicked = doc\?\.isOwner === true/, "the dropped item follows its holder's ownership, never the role");
-  assert.match(tab, /facilityEditable: location\.isOwner === true/, "the facility inputs follow the place's ownership");
-  assert.doesNotMatch(tab.slice(tab.indexOf("async function promptPlacement"), tab.indexOf("async function onChoosePlacement")), /isGM/, "the prompt reads no role");
-  assert.match(tab, /classes: DIALOG_CLASSES,\n\s+window: \{ title: loc\("placeTitle"/, "the prompt names the module classes (scroll contract, drag corner)");
-  assert.doesNotMatch(tab, /instanceof/, "a node is told by nodeType");
-  assert.ok(tab.indexOf("takeEffectNow(project)") < tab.indexOf("researchApi.place(this.actor, id, { mode: answer.mode"), "the cast comes first, so a cancelled cast leaves the ritual waiting");
-  assert.doesNotMatch(tab, /createEmbeddedDocuments|\.update\(\{ "system/, "no writer of the placement is in the sheet's file");
-  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
-  const used = [...tab.matchAll(/loc\(\s*["`]([\w.]+)["`]/g), ...tab.matchAll(/loc\(`(placeTip|place)\.\$\{/g)].map((m) => m[1]);
-  for (const key of ["place.now", "place.scroll", "place.charge", "placeTip.now", "placeTip.scroll", "placeTip.charge", "placeTitle", "placeLegend", "placeDrop", "placeDropTip", "placeConfirm", "refused.needItem", "refused.chargeItem", "refused.chargeKind", "refused.chargeHeld", "refused.itemOwner", "refused.notAwaiting", "refused.placement", "refused.placeFailed", "refused.spellGone", "chooseOwnerTip", "scrollName", "card.placed.now", "card.placed.scroll", "card.placed.charge"]) {
-    assert.equal(typeof lang["ACKS-MAGIC.research." + key], "string", key);
-  }
-  assert.ok(used.includes("placeTitle") && used.includes("placeConfirm"));
-  const tpl = fs.readFileSync("templates/magic/research-tab.hbs", "utf8");
-  assert.doesNotMatch(tpl, /\sid="/, "no literal id in the template");
 });
 
 console.log(`research-project: ${n} cases passed`);

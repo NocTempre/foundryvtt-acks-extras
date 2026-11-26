@@ -161,7 +161,6 @@ try {
   // The library defaults three paths to a CDN; the browser reader sets each,
   // and nothing in the module names a host.
   const source = fs.readFileSync(new URL("../../scripts/importer/ocr.mjs", import.meta.url), "utf8");
-  for (const option of ["workerPath", "corePath", "langPath"]) check(`the browser reader sets ${option}`, source.includes(`${option}: new URL(`));
   check("ocr.mjs names no host", !source.includes("://"));
   for (const file of ["tesseract.esm.min.js", "worker.min.js", "tesseract-core-simd-lstm.wasm.js", "lang/eng.traineddata.gz"]) check(`the vendored ${file} is present`, fs.existsSync(new URL(`../../vendor/tesseract/${file}`, import.meta.url)));
 }

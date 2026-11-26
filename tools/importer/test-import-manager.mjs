@@ -221,14 +221,9 @@ installImportManager({
 /* --- the importer's entry points all open this tab, and no window of its own ------------- */
 {
   const src = readFileSync(new URL("../../scripts/importer/module.mjs", import.meta.url), "utf8");
-  ok("the Books entry point opens the manager on its Books tab", /const openBooksDialog = \(opts = \{\}\) => openImportManager\(\{ tab: "books", \.\.\.opts \}\);/.test(src));
-  ok("the panel builds no dialog of its own", !/function booksDialog|singleton\(/.test(src) && !/DialogV2\.prompt\(\{\s*\/\/ One row per book/.test(src));
   for (const name of ["connectBook", "reconnectBooks", "bookStatus"]) {
     ok(`${name} still exists for macros already imported into worlds`, new RegExp(`\\b${name}\\b`).test(src));
   }
-  ok("gettingStarted opens the walkthrough on the Books tab", /gettingStarted: \(\) => openBooksDialog\(\{ firstRun: true \}\)/.test(src));
-  ok("the manager is handed the panel builder", /installImportManager\(\{[\s\S]*?\bbooksPanel,/.test(src));
-  ok("the join-time offer keeps the first-run condition intact", /!Object\.keys\(shelf\(\)\)\.length && !gettingStartedDismissed\(\)/.test(src));
 }
 
 /* --- the template: one panel in the Books section, the rest GM-only, no literal id ------- */

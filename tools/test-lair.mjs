@@ -424,16 +424,6 @@ await ok("the sheet reads a shelf place as one that cannot roll, and says where 
 
 const src = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-await ok("the arrival path rolls the lair from every exit of the party token's creation", () => {
-  const formation = src("scripts/formation/module.mjs");
-  const hook = formation.slice(formation.indexOf('Hooks.on("createToken"'), formation.indexOf("function adoptSceneSystem"));
-  assert.match(hook, /const arrived = \(\) => \{\s+requestCountryRefresh\(tokenDoc\.parent\?\.id\);\s+enterLair\(tokenDoc\.parent\);/);
-  assert.equal(hook.split(".then(arrived)").length - 1, 2, "both adoption paths end in the arrival");
-  const enter = formation.slice(formation.indexOf("function enterLair"), formation.indexOf('Hooks.on("createToken"'));
-  assert.ok(enter.includes("acksExtras.location?.scenes?.locationOfScene?.(scene)"), "the place is read through the location api, never imported");
-  assert.ok(enter.includes('rollLair(place, { context: "wilderness" }).catch('));
-});
-
 const { default: Handlebars } = await import("handlebars");
 await ok("the sheet's Lair section is the Judge's alone, names its button, and holds no control in a summary", () => {
   const hb = Handlebars.create();

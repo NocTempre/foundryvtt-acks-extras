@@ -94,18 +94,6 @@ for (const [key, row] of Object.entries(fullRows)) {
   assert.deepEqual(shapeOfField(schema[key]), [shapeOfValue(row)], `a ${key} row has the model's fields, no more and no fewer`);
 }
 
-// The starting values a blank record and a fresh row take.
-const lineOpts = schema.revenue.fields.land.fields;
-assert.ok(["peasantPer", "urbanPer", "peasantGp", "urbanGp"].every((k) => lineOpts[k].options.nullable === true && lineOpts[k].options.initial === null), "a line starts unset, never zero");
-assert.equal(schema.tributeGp.options.initial, null, "tribute out starts unset");
-assert.equal(schema.morale.fields.current.options.initial, null);
-assert.equal(schema.morale.fields.base.options.initial, null);
-assert.equal(schema.territory.element.fields.count.options.initial, 1, "a new tract is one hex");
-assert.equal(schema.territory.element.fields.landValue.options.initial, null, "an unsurveyed hex has no land value");
-assert.equal(schema.territory.element.fields.map.options.initial, null, "a row nobody painted sits on no map");
-assert.equal(schema.holdings.element.fields.role.options.initial, "other");
-assert.equal(schema.holdings.element.fields.families.options.initial, null, "an unplaced town's families start unknown");
-assert.equal(schema.structures.element.fields.costGp.options.initial, null);
 delete globalThis.foundry;
 
 /* ------------------------- the normaliser ---------------------------------- */

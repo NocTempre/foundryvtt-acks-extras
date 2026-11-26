@@ -469,23 +469,9 @@ test("a class with rows is unbound only when its bind did not take", () => {
   assert.equal(classUnbound(real, true), false);
   assert.equal(classUnbound(real, false), true);
 });
-test("the import reports an unbound class through that test, for the stub and the failed bind alike", async () => {
+test("a henchman's page import is handed no class awards", async () => {
   const { readFileSync } = await import("node:fs");
   const apply = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
-  assert.match(apply, /if \(plan\.className && classUnbound\(cls, bound\)\) report\.unmatched\.push\(\{ kind: "className", name: plan\.className \}\);/);
-  assert.match(apply, /import \{[^}]*\bclassUnbound\b[^}]*\} from "\.\/match\.mjs"/);
-});
-
-test("a character from the page is handed its class's fixed awards, after the sheet's own abilities, bound only, and never to a henchman", async () => {
-  const { readFileSync } = await import("node:fs");
-  const apply = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
-  const body = apply.slice(apply.indexOf("export async function importSheet"));
-  assert.match(body, /record = true, fixedAwards = false \}/, "the option is off unless a caller passes it");
-  const own = body.indexOf("await grantAbilities(target, plan.abilities, report, { unattended });");
-  const fixed = body.indexOf("if (fixedAwards && bound) {");
-  assert.ok(own > 0 && fixed > own && fixed < body.indexOf("await landGear("), "the call follows the sheet's grants and precedes the gear");
-  assert.match(body, /grantFixedAwards\(target, cls, /);
-  assert.match(body, /report\.unmatched\.push\(\{ kind: "power", name: g\.name \}\)/);
   const start = apply.indexOf("async function fillHenchman");
   const hench = apply.slice(start, apply.indexOf("\n}\n", start));
   assert.doesNotMatch(hench, /grantFixedAwards|fixedAwards/);

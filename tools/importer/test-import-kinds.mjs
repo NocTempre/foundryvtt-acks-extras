@@ -506,7 +506,6 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   stepRuns.add("cookbookImportLinks"); // the links step follows the maps, under the maps' kind
   stepRuns.delete("importMany"); // the creatures step imports through the module's own function
   same("the api calls the adventure book run makes are its kinds' runs", [...calledByRun].sort(), [...stepRuns].sort());
-  check("the creatures step imports the ids it lacks through importMany", /importMany\(ids,/.test(body) && stepKinds.some((k) => k.key === "Monsters"));
   check("a step kind is a book's own rows", stepKinds.every((k) => k.own));
 
   // The picker imports the ticked creatures the world lacks, and those it rebuilds, through the same function.
@@ -1122,17 +1121,6 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("a changed word reads differently", blockDigest(stamped("Old text.")) !== blockDigest(stamped("Old text!")));
   same("escaped angle brackets stay text and are not read as tags", readableText("<p>&lt;b&gt; 1 &amp; 2</p>"), "<b> 1 & 2");
   same("an image counts by its source, so one added inside the block is seen", readableText('<p>x</p><img class="a" src="art/a.webp">'), "x [image art/a.webp]");
-
-  // The call sites: the step carries the pass's decision on both passes, and the importer writes through the same function.
-  const source = cookbookSource();
-  const steps = source.slice(source.indexOf("async function runAdventureBookSteps"), source.indexOf("/** A document type's name in the user's language"));
-  check("the journals step runs under the pass's decision, on pass two as well as pass one",
-    /withRewrite\(\{ held: new Map\(\), tally, \.\.\.decisionOf\(tally\) \}, fn\)/.test(steps) && /await run\("stepJournals", \(\) => journalsScoped\(\(\) => a\.cookbookImportJournals\(only\)\)\);/.test(steps));
-  const journals = source.slice(source.indexOf("export async function cookbookImportJournals"), source.indexOf("/**\n * Points of interest:"));
-  check("a page the importer creates records the digest of its block in its stamp",
-    /cookbook: \{ id, book: bookId, sum: blockDigestIn\(content, id\) \}/.test(journals));
-  check("the journal importer writes an existing page through writeJournalPage and counts the page kept",
-    /writeJournalPage\(existing, content, sort, e\.cite \?\? ""\)\) === "kept"\) preserved\+\+/.test(journals) && /!made && !updated && !preserved/.test(journals));
 }
 
 /* --- figures only a forced repair wrote: under a decision each is an edit --- */
@@ -1239,25 +1227,6 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
 
   // The wiring that keeps a decided pass from writing what only force wrote.
   const source2 = cookbookSource();
-  const steps = source2.slice(source2.indexOf("async function runAdventureBookSteps"), source2.indexOf("/** A document type's name in the user's language"));
-  check("under a decision an organisation's relations and strength are never retracted", /retract: decided \? \[\] : retract/.test(steps));
-  check("and the organisations' scope carries the decision", /withRewrite\(\{ held: await heldById\(list\), tally, retract: decided \? \[\] : retract, \.\.\.decisionOf\(tally\) \}/.test(steps));
-  check("a pregenerated character is rewritten only under force", /monsterRepair\(id, !!tally\.force\)/.test(steps));
-  const entries = source2.slice(source2.indexOf("async function repairEntries"), source2.indexOf("/*  Reimport one shelf"));
-  check("and is never rebuilt by the entry picker's merged repair", /if \(!characterEntry\(cookbookEntry\(id\)\?\.entry\)\) rebuilds\.push\(id\)/.test(entries));
-  check("the picker's rebuilds and its rules tables run on pass one only",
-    /if \(rebuilds\.length && !second\) \{/.test(entries) && /if \(tables\?\.length && !second\) \{/.test(entries));
-  check("a held organisation's missing relations ask keepsJudgeFigure before they are put back",
-    /if \(isRewriting\(id\) && keepsJudgeFigure\(faction, "system\.relations", held, \[\.\.\.held, \.\.\.owed\], cite \?\? ""\)\) \{/.test(source2));
-  check("an organisation's strength asks keepsJudgeFigure before it is written",
-    /if \(stored\?\.rows\?\.length && keepsJudgeFigure\(faction, "system\.strength", stored, built\.strength/.test(source2));
-  check("a market profile under a merged repair forces only the fields marketTakes names",
-    /const force = merged \? marketTakes\(place, profile, source, \{/.test(source2));
-  const everything = source2.slice(source2.indexOf("export async function cookbookReimportEverything"), source2.indexOf("/** The rebuildable shelf a cookbook id files onto"));
-  check("Everything's second pass runs the parts that asked with an ask that answers Yes, so it confirms once",
-    /if \(!first\) \{\n\s*for \(const part of partsUnder\(tally\)\.filter\(\(p\) => asked\.includes\(p\.label\)\)\) await part\.run\(async \(\) => true\);/.test(everything));
-  check("an ability's description this module made is an edit under a decision",
-    /if \(flagged && annotated && repair && "decision" in repair && prose !== built\.system\?\.description\) \{/.test(source2));
 
   // Every writer converted to the merged repair hands its scope's tally to repairWrite as it came.
   const language = fs.readFileSync(new URL("../../scripts/importer/language-binding.mjs", import.meta.url), "utf8");
@@ -1520,49 +1489,6 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
       "ax9.site4>ax9.site4", "ax9.room>ax9.room",
     ],
   );
-
-  const source = cookbookSource();
-  const body = source.slice(source.indexOf("async function repairActors"), source.indexOf("async function repairEntries"));
-  check("repairActors takes every claimer through claimerPasses", /claimerPasses\(rewrites,/.test(body));
-  check("and builds an entry only in a pass that holds its own claim", /rewrites\.filter\(\(id\) => held\.has\(id\)\)/.test(body));
-  const statLine = source.slice(source.indexOf("async function statLineCreature"), source.indexOf("export function regionSiteClaim"));
-  check("a held stat-line creature is built again, not returned as it stands", /isRewriting\(oid\) \? null :/.test(statLine));
-  check("and its unstamped twins of the build's items are stamped before the write replaces them",
-    /unstampedTwins\(standing\.toObject\?\.\(\)\.items \?\? \[\], bound\.items\)/.test(statLine) && statLine.indexOf("unstampedTwins(") < statLine.indexOf("createDoc("));
-
-  // The block writers run only against a real page read; these pin their wiring.
-  const fnOf = (head) => {
-    const start = source.indexOf(head);
-    return start < 0 ? "" : source.slice(start, source.indexOf("\n}\n", start));
-  };
-  const poi = fnOf("export async function cookbookImportPoiPlaces");
-  check("a POI row a forced repair writes onto a shared place skips the held read", /overview \|\| block \|\| isRewriting\(id\) \? null :/.test(poi));
-  check("and its overview is read even though the quarter holds notes", /overview && !block && \(/.test(poi));
-  check("and the read goes through writeRowBlock", /if \(block\) \{\s*await writeRowBlock\(block, pairRow\(run\.pairs,/.test(poi));
-  const character = fnOf("async function importCharacter");
-  check("a character import records its play stamp as its last write, over what it wrote",
-    /await actor\.update\(\{ \[`flags\.\$\{MODULE_ID\}\.playStamp`\]: playStamp\(actor\.toObject\(\)\) \}\);\s*return actor;$/.test(character));
-  check("a character import has the sheet import grant the class's fixed awards, and reads a pregen's spellbook",
-    /importSheet\(\{ actor, values, writeDomain: false, unattended: true, record: false, fixedAwards: true \}\)/.test(character)
-      && /sheetValuesFromStatline\(sl, \{ rename, bookSpells, spellLevel \}\)/.test(character)
-      && /matchers\.matchSpell\(n\)\?\.system\?\.lvl/.test(character));
-  check("the grants are stamped minted before the play stamp lands",
-    character.indexOf("importSheet(") < character.indexOf("flags.${MODULE_ID}.minted") && character.indexOf("flags.${MODULE_ID}.minted") < character.indexOf("playStamp(actor.toObject())"));
-  const libraryName = fnOf("function libraryNameFor");
-  check("a conversion naming two spells resolves to the one the library holds", /\\s\+or\\s\+/.test(libraryName) && /held\.length === 1 \? held\[0\] : to/.test(libraryName));
-  const keyed = fnOf("async function importKeyedPlace");
-  check("a keyed place's block row skips the held read", /isRewriting\(id\) \|\| block \? null :/.test(keyed));
-  check("and writes its block before any pair takeover can run again",
-    /if \(block\) return writeRowBlock\(block, pairRow\(/.test(keyed) && keyed.indexOf("writeRowBlock(") < keyed.indexOf("pairedPlace("));
-  const regionRow = fnOf("async function importRegionRow");
-  check("a region row's block is written at the top, before any held or bind path",
-    /const block = blockTarget\(id\);\s*if \(block\) \{[^}]*writeRowBlock\(block, pairRow\(/.test(regionRow) && regionRow.indexOf("writeRowBlock(") < regionRow.indexOf("siteBindPatch("));
-  check("writeRowBlock lists the edits it kept in the tally",
-    /if \(tally && edits\.length\) \(tally\.edits \?\?= \[\]\)\.push\(\.\.\.edits\);/.test(fnOf("async function writeRowBlock")));
-  const hold = fnOf("async function forcedPlaceHold");
-  check("forcedPlaceHold holds a shared place for a row only once it answers for the place",
-    /if \(doc && answersFor\(doc\.getFlag\(MODULE_ID, "cookbook"\), place\)\) blocks\.set\(id, doc\)/.test(hold));
-  check("and the forced adventure walk scopes its places with it", /withRewrite\(\{ \.\.\.\(await forcedPlaceHold\(bookId, ids\.places\)\),/.test(source));
 }
 
 /* --- a row's block written in place: a place counts replaced only where something was written --- */

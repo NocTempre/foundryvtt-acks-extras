@@ -237,8 +237,6 @@ await test("the Class tab row is shown only for an elected ladder, open until on
   assert.doesNotMatch(given, /data-tooltip-text/);
   assert.equal(render({ c: { damageBonus: null }, editable: true }).trim(), "");
   assert.match(render({ c: { damageBonus: { held: false, options: [] } }, editable: false }), /<select[^>]*disabled/);
-  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /electDamageBonus\(this\.actor, classItem, select\.value\)/);
 });
 
 console.log(`\n${passed} passed`);

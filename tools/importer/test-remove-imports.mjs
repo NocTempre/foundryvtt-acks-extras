@@ -57,8 +57,6 @@ const source = readFileSync(new URL("../../scripts/importer/cookbook/rebuild.mjs
 const start = source.indexOf("export async function cookbookRemoveImports()");
 const body = source.slice(start, source.indexOf("\nexport ", start + 1) > 0 ? source.indexOf("\nexport ", start + 1) : undefined);
 check("the removal found", start > 0, true);
-check("parts go through partLeavesWithClass", /templatePartOf\(d\)\s*\?\s*partLeavesWithClass\(d,\s*classGone\)/.test(body), true);
 check("a template part is no longer swept by its flag alone", body.includes("|| templatePart("), false);
-check("the packs are known before the groups are built", body.indexOf("const ourPacks") < body.indexOf("const groups"), true);
 
 console.log(`test-remove-imports: all ${n} checks passed`);

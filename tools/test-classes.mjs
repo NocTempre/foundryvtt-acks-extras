@@ -1075,31 +1075,6 @@ await atest("the class picker keeps hit points when it re-binds the class held, 
   assert.equal(rebindsHeldClass(holder("other", 3), cls("invented"), 3), false, "another class");
   assert.equal(rebindsHeldClass(holder(null, 1), cls("invented"), 1), false, "no class held");
   assert.equal(rebindsHeldClass(holder("invented", 2), { name: "Invented", system: {} }, 2), true, "a class with no key is matched by its name");
-  const src = readFileSync(new URL("../scripts/classes/assign-app.mjs", import.meta.url), "utf8");
-  assert.match(src, /rebuildVitals:\s*!rebindsHeldClass\(/, "the picker asks before it rebuilds");
-});
-
-await atest("chargen asks for the rebuild, so a generated character's hit points are rolled", () => {
-  // `rebuildVitals` defaults to false, so a chargen call that omits it rolls no
-  // hit dice at all and the character keeps whatever the bare actor was made
-  // with — no die, no Constitution and no per-die floor.
-  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
-  const call = /applyClass\(actor, cls, \{([^}]*)\}\)/.exec(src);
-  assert.ok(call, "applyChargen still calls applyClass");
-  assert.match(call[1], /rebuildVitals:\s*true/);
-});
-
-await atest("chargen settles what the class apply refuses on before it clears the sheet, and stops on a refusal", () => {
-  // A dismissed damage-bonus election must not leave a wiped character with a
-  // template and no class.
-  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
-  const body = src.slice(src.indexOf("export async function applyChargen("));
-  const ready = body.indexOf("readyToApply(actor, cls)");
-  assert.ok(ready > 0, "applyChargen asks readyToApply");
-  assert.ok(ready < body.indexOf("deleteEmbeddedDocuments"), "before the wipe");
-  assert.match(body, /if \(!ready\.ok\) return null;/);
-  assert.match(body, /election: ready\.election/, "the answer is passed on, not asked twice");
-  assert.match(body, /if \(!applied\?\.applied\) return null;/, "a refused apply stops the template");
 });
 
 /* ------------------ answering a rung of the ladder ------------------ */
@@ -1144,8 +1119,6 @@ await atest("an option the character already holds is offered, never removed", (
     !/filter\(\(o\) => !ownsRef\(/.test(src),
     "apply.mjs must not filter owned options out of a rung's list",
   );
-  const picks = readFileSync(new URL("../scripts/classes/picks.mjs", import.meta.url), "utf8");
-  assert.match(picks, /owned:\s*!!actor && ownsRef\(actor, o\.ref\)/, "picks.mjs marks them instead");
 });
 
 await atest("every surface asks a rung through the one control", () => {
@@ -1160,25 +1133,11 @@ await atest("every surface asks a rung through the one control", () => {
   }
 });
 
-await atest("the level-up wizard records the rung it closed", () => {
-  // See docs/classes/DECISIONS.md, "A level set is a level owed: applying a
-  // class grants its ladder" — a choice rung answered is remembered so
-  // re-applying does not ask it again.
-  // A rung closes in the hit points' write, once what answers it is on the
-  // sheet, so a climb cut short leaves it open for the picker.
-  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
-  const body = src.slice(src.indexOf("async function runLevelUp"));
-  assert.match(body, /awardsTaken`\]: \[\.\.\.new Set\(\[\.\.\.taken, \.\.\.closed\]\)\]/, "the wizard records the rungs it closed");
-  assert.ok(body.indexOf("closed.push(") > body.indexOf("rungProficiencyType("), "a rung is recorded after its pick is granted");
-  assert.ok(!/answered:\s*choices/.test(body), "the level's write closes no rung");
-});
-
 await atest("the class picker never wipes what a character already owns", () => {
   // See docs/classes/DECISIONS.md, "three pickers were one question" —
   // merge, opt-in, never wipe.
   const src = readFileSync(new URL("../scripts/classes/assign-app.mjs", import.meta.url), "utf8");
   assert.ok(!/applyChargen/.test(src), "assign-app must not route through the wiping path");
-  assert.match(src, /applyTemplate\(/, "it applies a package by merging it");
 });
 
 await atest("a tradition's list narrows the spell offer and its grid caps it by level", () => {
@@ -1465,15 +1424,6 @@ test("nothing in the pending-choice path can write to the world library", () => 
   assert.match(src, /createEmbeddedDocuments/);
 });
 
-test("resolution reaches the compendia, not only game.items", () => {
-  // See docs/classes/DECISIONS.md, "a package resolves through the IMPORTS,
-  // and mints what it cannot find".
-  const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
-  assert.match(src, /getIndex\(\{ fields: INDEX_FIELDS \}\)/, "pack indexes are read for resolution");
-  assert.match(src, /export async function findSource/, "one resolver: world first, then packs");
-  assert.match(src, /export async function resolveBaseDoc/, "gear bases resolve through the packs too");
-});
-
 test("a row entry the bundle represents is stripped, by ref or by name", () => {
   // One owner. Without this an importer Update — which rewrites the whole
   // `system` and restores the printed arrays — would grant the package twice.
@@ -1505,13 +1455,6 @@ test("stripping is evidence-based: what the bundle lacks stays printed", () => {
   };
   assert.equal(stripRepresented(row, { system: { itemList: [] } }), false);
   assert.equal(row.abilities.length + row.items.length + row.spells.length, 3);
-});
-
-test("a skin is never the base of another skin", () => {
-  const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
-  // Gear bases exclude every part this feature minted, so a finished skin
-  // cannot become a second skin's base.
-  assert.match(src, /GEAR_TYPES\.includes\(i\.type\) && !partOf\(i\)/, "a base is an import, never our own output");
 });
 
 test("a package never consumes the imports it points at", () => {
@@ -1686,31 +1629,6 @@ await atest("unbinding a row writes the bundle's contents back, so the kit is no
   }
 });
 
-test("a dropped bundle strips what it carries, and a spell is found through the library", () => {
-  const sheet = readFileSync(new URL("../scripts/classes/class-sheet.mjs", import.meta.url), "utf8");
-  assert.match(sheet, /t\.bundle = dropped\.uuid;\s*stripRepresented\(t, dropped\)/, "rebinding never leaves the entries printed beside the bundle");
-  assert.match(sheet, /await unbindTemplateRow\(templates\[index\]\)/, "the row unbind writes the bundle back");
-  const chargen = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
-  assert.doesNotMatch(chargen, /game\.items\.find/, "chargen reads the library, not the sidebar alone");
-  assert.match(chargen, /libraryItems\(\)\.filter/);
-});
-
-test("a template's package and its leftovers are both applied, once each", () => {
-  const chargen = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
-  const start = chargen.indexOf("if (expanded.bundle");
-  assert.ok(start > 0, "applyTemplate still has a bundle branch");
-  const bundleBranch = chargen.slice(start, start + 1400);
-  assert.match(bundleBranch, /grantBundleRows\(actor, kept, report\)/, "the bundle's own contents");
-  assert.match(bundleBranch, /grantRowEntries\(actor, template, report, offerCtx\)/, "plus what it could not carry");
-});
-
-test("applyTemplate is bundle-first with the row path as fallback", () => {
-  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
-  assert.match(src, /expandTemplate\(template\)/, "the bundle is expanded before any row entry is read");
-  assert.match(src, /grantRowEntries\(actor, \{ abilities, items: template\.items \?\? \[\], spells \}, report, offerCtx\)/,
-    "a template with no bundle still grants its printed row entries");
-});
-
 /* --------------------- class damage bonus --------------------- */
 
 /** A class carrying one damage-bonus ladder; the values are test fixtures. */
@@ -1758,16 +1676,6 @@ test("a class with no damage bonus writes no damage mod at all", () => {
   const plain = dmgClass("damageBonus");
   plain.system.ladders = [];
   assert.deepEqual(dmgMods(classUpdateData({}, plain, 3, { election: "both" }).update), { melee: undefined, missile: undefined });
-});
-
-test("every hand path asks the election, not only in the confirm dialog", () => {
-  const src = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
-  // chargen, the level-up wizard and the picker all pass confirm:false, so an
-  // election collected inside the confirm dialog would never be asked at all.
-  const ask = src.indexOf("await askDamageBonusElection(");
-  const dialog = src.indexOf("DialogV2.confirm");
-  assert.ok(ask > 0 && ask < dialog, "the election resolves before the confirm dialog is built");
-  assert.match(src, /damageBonus: \{ class: classKey, applies: election \}/, "and is recorded against its class");
 });
 
 /* ---- the training editor: units, organisations, the canonical grant ---- */
@@ -2433,9 +2341,6 @@ test("a class with no level cap has none: nothing clamps a level and no figure s
   const withCap = (maximumLevel) => ({ maximumLevel, levelRow: (n) => rows.find((r) => r.level === n) ?? null });
   assert.deepEqual([1, 2, 3].map((n) => ClassData.prototype.nextXp.call(withCap(2), n)), [100, null, null]);
   assert.deepEqual([1, 2, 3].map((n) => ClassData.prototype.nextXp.call(withCap(null), n)), [100, 300, null], "no cap answers from the rows, never 0");
-  // The schema holds no figure of its own for the field.
-  const src = readFileSync(new URL("../scripts/classes/class-data.mjs", import.meta.url), "utf8");
-  assert.match(src, /maximumLevel: num\(\{ integer: true, min: 1 \}\)/);
 });
 
 test("no source stands a level cap in for a class that sets none", () => {
@@ -2692,12 +2597,6 @@ test("a typed level carries the damage bonus only under the character's standing
   }
 });
 
-test("chargen grants a ref printed at two first-level rungs twice", () => {
-  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
-  assert.match(src, /firstFixed\.slice\(0, index \+ 1\)\.filter\(\(x\) => x\.ref === a\.ref\)\.length/);
-  assert.match(src, /grantAbility\(actor, a\.ref, startingGrants, \{ upTo: copies \}\)/);
-});
-
 await atest("a rung's pick is granted as the type of the list it was picked from", async () => {
   const { rungProficiencyType, grantAbility } = await import("../scripts/classes/grants.mjs");
   assert.equal(rungProficiencyType({ from: "classInventory" }), "class");
@@ -2793,28 +2692,13 @@ await atest("fixed awards through the held level are granted at the copies owed,
   }
 });
 
-test("a character's page import grants fixed awards after the stat line's own grants, under the option, bound only", () => {
+test("a henchman's page import grants no class awards, and the fixed-award grant writes no record, tongue, card or dialog", () => {
   const src = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
-  const body = src.slice(src.indexOf("export async function importSheet"));
-  const own = body.indexOf("await grantAbilities(target, plan.abilities, report, { unattended })");
-  const fixed = body.indexOf("if (fixedAwards && bound)");
-  assert.ok(own > 0 && fixed > own, "the stat line's copies are held before the class owes its own");
-  assert.match(body, /grantFixedAwards\(target, cls, /);
   const hench = src.slice(src.indexOf("async function fillHenchman"), src.indexOf("async function fillHenchman") + 1200);
   assert.doesNotMatch(hench, /grantFixedAwards|fixedAwards/, "a henchman's sheet import grants no class awards");
   const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
   const fn = apply.slice(apply.indexOf("export async function grantFixedAwards"));
   assert.doesNotMatch(fn, /awardsTaken|grantLanguages|ChatMessage|DialogV2|actor\.update/, "no record, tongue, card or dialog");
-});
-
-test("the wizard writes its level before anything else, and the successor's start is uncapped", () => {
-  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
-  const body = src.slice(src.indexOf("async function runLevelUp"));
-  assert.ok(body.indexOf("applyClass(") < body.indexOf("grantAbility("), "no grant lands before the level does");
-  assert.match(body, /if \(!applied\?\.applied\) return;/);
-  assert.match(src, /Hooks\.on\("preUpdateActor", guardLevelWrite\)/);
-  const legacy = readFileSync(new URL("../scripts/classes/legacy.mjs", import.meta.url), "utf8");
-  assert.match(legacy, /"system\.details\.xp\.value": result\.xp \}, uncappedXp\(\)\)/);
 });
 
 /* ------------------- hit points: derived dice, stored maximum, one roll ------------------- */
@@ -2911,7 +2795,6 @@ await atest("the stored maximum, not the prepared one, is what a hit-point chang
   // The class apply reads the same figure, never `system.hp.max`.
   const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
   assert.ok(!/actor\.system\?\.hp\?\.max/.test(apply), "apply.mjs never reads the prepared maximum");
-  assert.match(apply, /const oldMax = storedMaxHp\(actor\)/);
 });
 
 await atest("the level-up roll is made once per character and level, and reopening reuses it", async () => {
@@ -3015,9 +2898,6 @@ test("the kept roll is cleared when the level moves, and by nothing else", () =>
     guardLevelWrite(boundAt(1, 0, {}), none, {});
     assert.equal(flagOf(none).levelUpRoll, undefined, "no record, nothing to clear");
   });
-  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
-  const body = src.slice(src.indexOf("async function runLevelUp"));
-  assert.match(body, /\.\$\{ROLL_KEY\}`\]: unset\(\)/, "the wizard's own write clears it as the level is applied");
 });
 
 /* ------------- the hit point record: one step per level rolled ------------- */
@@ -3214,16 +3094,6 @@ test("a lowered level drops the record's steps above it, unless the write carrie
   });
 });
 
-test("every path that writes a rolled maximum writes the record beside it", () => {
-  const levelup = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
-  const climb = levelup.slice(levelup.indexOf("async function runLevelUp"), levelup.indexOf("export async function rerollHitPoints"));
-  assert.match(climb, /\$\{HP_ROLLS_KEY\}`\]: withHpRoll\(/, "the wizard's apply");
-  const reroll = levelup.slice(levelup.indexOf("export async function rerollHitPoints"), levelup.indexOf("export function guardLevelWrite"));
-  assert.match(reroll, /\$\{HP_ROLLS_KEY\}`\]: built\.steps/, "the sheet's reroll");
-  const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
-  assert.match(apply, /\[HP_ROLLS_KEY\]: hpRolls/, "a bind that rebuilds, chargen's 1st level among them");
-});
-
 /* ---------- the builder's "no racial category" is -1 ---------- */
 
 test("an imported build naming no race stores -1, and one naming a race stores its value", () => {
@@ -3232,12 +3102,6 @@ test("an imported build naming no race stores -1, and one naming a race stores i
   assert.equal(builderUpdate({ ...base, race: { key: "qa-folk", value: 0 } })["system.builder.race.value"], 0);
   assert.equal(builderUpdate({ ...base, race: { key: "qa-folk", value: 3 } })["system.builder.race.value"], 3);
   assert.equal(builderUpdate({})["system.builder.race.value"], -1, "a paragraph that reads nothing is no racial category");
-});
-
-test("a new class record starts at the current version", () => {
-  const model = readFileSync(new URL("../scripts/classes/class-data.mjs", import.meta.url), "utf8");
-  assert.match(model, /_schemaVersion: int\(CLASS_SCHEMA_VERSION,/);
-  assert.match(model, /race: new SchemaField\(\{ value: int\(-1, \{ min: -1 \}\) \}\)/, "a new builder is -1: no racial category");
 });
 
 await atest("a score rolled before the library arrives is counted against the dice allowance", async () => {

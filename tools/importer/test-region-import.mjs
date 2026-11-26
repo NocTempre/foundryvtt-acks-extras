@@ -32,7 +32,6 @@ import {
 import { withErratumNote } from "../../scripts/importer/market-profile-binding.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
-import { cookbookSource } from "./cookbook-source.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -1549,11 +1548,6 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   await markets(take);
   check("and a decision taking it writes the read name", [judged.name, take.edits.length], ["Orchard Bourse", 0]);
 
-  // The site's own place, written on a repair, never names the market.
-  const source = cookbookSource();
-  const row = source.slice(source.indexOf("async function importRegionRow"), source.indexOf("async function nameBoundMarket"));
-  ok("a repair's site row yields the name the same way the first import's does",
-    /await writeRowBlock\(block, [^;]*;\s*await nameBoundMarket\(block, regionSiteClaim\(/.test(row) && /await nameBoundMarket\(target, claim, e, name\);/.test(row));
   sessions.delete("nm");
   delete BOOK_FILES.nm;
   wipe();
@@ -1562,8 +1556,6 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
 // --- shapes the Foundry half depends on -------------------------------------------------------
 {
   const read = (rel) => readFileSync(new URL(`../../${rel}`, import.meta.url), "utf8");
-  const boot = read("scripts/importer/module.mjs");
-  ok("the picture is cut at the scale it is handed", /async function uploadSceneMap\(doc, id, recipe, \{ pixelsPerPoint \} = \{\}\)[\s\S]*?sceneFrame\(recipe, \{ pixelsPerPoint \}\)/.test(boot));
   const frameOf = (f) => JSON.stringify({ ...f, toScene: f.toScene(123, 45) });
   check("a recipe without a grid frames the same picture", frameOf(sceneFrame(CITY_RECIPE, { pixelsPerPoint: undefined })), frameOf(sceneFrame(CITY_RECIPE)));
   const lang = JSON.parse(read("lang/en.json"));

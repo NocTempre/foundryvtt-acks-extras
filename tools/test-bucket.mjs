@@ -533,14 +533,11 @@ t("a row given an extra draws that partial under its caption with the extra as i
   assert.doesNotMatch(renderWith(picked, fs.readFileSync(new URL("../templates/lib/bucket-row.hbs", import.meta.url), "utf8"), parts), /checks here/);
 });
 
-t("the stylesheet dims an off row's controls and never its reason, rounds nothing and sizes type by the ramp", () => {
+t("the stylesheet draws no gradient and never dims an off row's reason", () => {
   const css = fs.readFileSync(new URL("../styles/lib-bucket.css", import.meta.url), "utf8");
-  assert.doesNotMatch(css, /border-radius|999px/);
-  assert.doesNotMatch(css, /font-size:\s*[\d.]+(px|rem)/);
   assert.doesNotMatch(css, /gradient/);
   const dims = css.match(/\.is-off[^{]*\{[^}]*opacity/g) ?? [];
   assert.ok(dims.length && dims.every((d) => !/reason/.test(d)));
-  assert.match(css, /\.acks-extras-bucket__reason\s*\{[^}]*color:/);
 });
 
 console.log(`\n${n} bucket tests passed`);

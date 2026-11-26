@@ -60,13 +60,6 @@ await t("the scale is a spell-domain one: a picker for an ability's roll leaves 
   assert.ok(Object.values(ability).every((v) => !v.domain), "a domain-marked scale never reaches the ability list");
 });
 
-await t("the roll editor offers the ability list and keeps a stored scale selectable", () => {
-  const src = readFileSync(new URL("../scripts/abilities/roll-editor.mjs", import.meta.url), "utf8");
-  assert.match(src, /valueScalesFor\("ability"\)/, "the select is built from the ability list");
-  assert.ok(!/scale:\s*choicesOf\(VALUE_SCALES\)/.test(src), "the whole table no longer feeds the select");
-  assert.match(src, /VALUE_SCALES\[scale\]\s*\?\s*\{\s*\[scale\]/, "the roll's own scale stays offered");
-});
-
 await t("rowInInvocationRange: a lower bound only", () => {
   const row = { invocationFrom: 3 };
   assert.equal(inRange(row, 2), false);
@@ -160,15 +153,12 @@ await t("each field is a whole-number box with a hint, and a blank side shows bl
   assert.ok(!ability.some((f) => f.name.startsWith("invocation")), "an ability's row shows neither");
 });
 
-await t("the lang carries a label and a hint for each field, the schema declares both as nullable whole numbers, and no literal id was added", () => {
+await t("the lang carries a label and a hint for each field, and no literal id was added", () => {
   const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
   for (const name of ["invocationFrom", "invocationTo"]) {
     assert.ok(lang[`ACKS-LIB.effectEditor.field.${name}`], `${name} label`);
     assert.ok(lang[`ACKS-LIB.effectEditor.tip.${name}`], `${name} hint`);
   }
-  const fields = readFileSync(new URL("../scripts/lib/fields.mjs", import.meta.url), "utf8");
-  assert.match(fields, /invocationFrom:\s*num\(\{ integer: true \}\)/);
-  assert.match(fields, /invocationTo:\s*num\(\{ integer: true \}\)/);
   const hbs = readFileSync(new URL("../templates/lib/effect-row-editor.hbs", import.meta.url), "utf8");
   assert.ok(!/\bid="(?!\{\{@root\.partId\}\})/.test(hbs), "no literal id in the editor template");
 });

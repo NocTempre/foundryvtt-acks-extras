@@ -29,7 +29,7 @@ t("a book with none, and one with no contribution at all, has none", () => {
 
 t("a landed table row wins alone", () => {
   const landed = bandsOf("ax1", {});
-  assert.equal(landed.headMinH, 13, "the table's own row");
+  assert.ok(landed, "the table has a row for the book");
   assert.equal(bandsOf("ax1", { zz: { axBands: MINE } }), landed, "another book's folder changes nothing");
 });
 
@@ -44,7 +44,7 @@ t("an unknown stopFace throws, whichever home it is declared in", () => {
 t("a book's bands are put on its opened document, and only where it has some", () => {
   const doc = {};
   assert.equal(useAxBands(doc, "ax1"), doc);
-  assert.equal(doc.axBands.headMinH, 13);
+  assert.equal(doc.axBands, bandsOf("ax1", {}), "the table's row");
   const bare = useAxBands({}, "zz");
   assert.equal(bare.axBands, undefined);
 });

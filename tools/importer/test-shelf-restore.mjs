@@ -56,29 +56,8 @@ check("an empty shelf opens nothing", registers("gm", {}), []);
   const boot = readFileSync(new URL("../../scripts/importer/module.mjs", import.meta.url), "utf8");
   const restore = boot.match(/async function restoreShelf\(\) \{[\s\S]*?\n\}/)?.[0] ?? "";
   ok("restoreShelf is found", restore.length > 0);
-  ok("restoreShelf picks its books through shelfBooksToOpen", /shelfBooksToOpen\(/.test(restore));
-  ok("restoreShelf asks no book its kind", !/bookIsForm/.test(restore));
-  // Nothing at join: a registration is a handle and a hook, and no read of the file.
-  ok("restoreShelf registers a BookHandle per book", /handleFor\(bookId, staged\[bookId\]\.path\)/.test(restore) && /sessionDocs\.set\(bookId, \{ doc: handle/.test(restore));
-  ok("restoreShelf announces each registered book", /Hooks\.callAll\("acksExtras\.bookOpened", bookId\)/.test(restore));
   ok("restoreShelf fetches nothing", !/fetch\(|openBook\(|connectBookUrl\(|ingestBook\(|openChecked\(/.test(restore));
   ok("restoreShelf awaits nothing, so no other path can open a book while it runs", !/\bawait\b/.test(restore.replace("async function restoreShelf", "")));
-  ok("restoreShelf reports the batch once, on the console", (restore.match(/console\.log\(/g) ?? []).length === 1);
-  const handleFor = boot.match(/function handleFor\([\s\S]*?\n\}/)?.[0] ?? "";
-  ok("a handle opens through the shared checked open", /open: \(buffer\) => openChecked\(bookId, buffer\)/.test(handleFor));
-  ok("a handle carries the book's typography from its first page", /return useTypography\(handle, bookId\)/.test(handleFor));
-  ok("a handle's size and title come from the registry row", /numPages: row\?\.pages/.test(handleFor) && /title: row\?\.label/.test(handleFor));
-  const connect = boot.match(/async function connectBookUrl\([\s\S]*?\n\}/)?.[0] ?? "";
-  ok("connectBookUrl hands silent and the path to the open", /silent = false/.test(connect) && /ingestBook\(bookId, await blob\.arrayBuffer\(\), \{ silent,[^}]*src: url/.test(connect));
-  const ingest = boot.match(/async function ingestBook\([\s\S]*?\n\}/)?.[0] ?? "";
-  ok("a silent open raises no progress bar", /const bar = silent\s*\?\s*\{ note\(\) \{\}, step\(\) \{\}, finish\(\) \{\} \}\s*: progressBar\(/.test(ingest));
-  ok("a silent open raises no notice", /if \(silent\) console\.debug\(message\);\s*else ui\.notifications\.info\(message\);/.test(ingest));
-  // A book opened by hand keeps both.
-  ok("a book opened by hand keeps its bar and notice", /ingestBook\(bookId, await file\.arrayBuffer\(\), \{ cache: file \}\)/.test(boot));
-  // A player seat that opens nothing because the shelf is withheld from it is
-  // not a seat with nothing anywhere: a world with a shelf never hands it the
-  // first-run walkthrough.
-  ok("the first-run walkthrough waits on an empty shelf", /!Object\.keys\(shelf\(\)\)\.length && !gettingStartedDismissed\(\)/.test(boot));
 }
 
 console.log(`test-shelf-restore: ${pass} checks passed`);

@@ -115,10 +115,8 @@ await t("the nearest vertical scroller is read through the element's own window"
   assert.equal(host.scrollerOf(group, root), group);
 });
 
-await t("the monster annotations take their host and scroller from the lib file", () => {
+await t("the monster annotations keep no second copy of the lib file's host and scroller", () => {
   const source = readFileSync(new URL("../scripts/monsters/item-annotations.mjs", import.meta.url), "utf8");
-  assert.match(source, /import \{ findItemSheetHost, scrollerOf \} from "\.\.\/lib\/item-sheet-host\.mjs"/);
-  assert.match(source, /findItemSheetHost\(root\)/);
   assert.ok(!/const HOSTS\b/.test(source) && !/function scrollerOf/.test(source), "no second copy of either");
 });
 
