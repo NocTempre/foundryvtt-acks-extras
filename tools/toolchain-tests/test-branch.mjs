@@ -221,6 +221,17 @@ check("a red gate refuses, main unmoved, the log's tail shown", r.status === 1 &
 check("a red gate releases the lease", await leaseFree());
 check("the refused topic stays open", hasBranch("topic/red") && fs.existsSync(wt("red")));
 
+// No --change: the tool makes its own scratch directory, and a refused gate keeps the log there. The fixture holds no package.json, so the default gate refuses.
+cli(["open", "nolog"]);
+commitIn(wt("nolog"), "nolog.txt", "n\n");
+h = head();
+r = cli(["land", "nolog"]);
+const keptLog = /; ([^;]+?branch-land\.log) holds the run/.exec(r.err)?.[1];
+check("a refused gate with no change directory prints its log's path", r.status === 1 && /not green/.test(r.err) && Boolean(keptLog) && head() === h, brief(r));
+check("that log is kept and holds the gate's output", Boolean(keptLog) && fs.existsSync(keptLog) && fs.readFileSync(keptLog, "utf8").trim().length > 0, String(keptLog));
+check("the kept directory holds no clone", Boolean(keptLog) && !fs.existsSync(path.join(path.dirname(keptLog), "clone")), String(keptLog));
+if (keptLog) fs.rmSync(path.dirname(keptLog), { recursive: true, force: true });
+
 cli(["open", "held"]);
 commitIn(wt("held"), "held.txt", "h\n");
 const other = await acquire(gitDir, { session: "someone-else", change: "other" }, { waitMs: 0 });

@@ -32,7 +32,9 @@
  *
  * `--change <dir>` is a `commit-own-hunks.mjs` change directory whose
  * `change.json` gives the gate (`gate`, `link`, `timeoutMinutes`); `land`
- * writes a `{}` one in a temporary directory where none is given.
+ * writes a `{}` one in a temporary directory where none is given. That
+ * directory is removed when the gate passes; a refused gate keeps its
+ * `branch-land.log` there, and the refusal prints the path.
  *
  * The gate runs as a child process the event loop keeps awaiting, so the
  * lease's heartbeat keeps beating through a long gate. A `main` that moved
@@ -418,24 +420,30 @@ function runAsync(command, args, options) {
   });
 }
 
-/** Runs the full gate on `tip` through `postgate` from `root`, with the event loop free for the lease's heartbeat; throws a refusal with the log's tail where it is not green. */
+/**
+ * Runs the full gate on `tip` through `postgate` from `root`, with the event loop free for the lease's heartbeat; throws a refusal with the log's tail where it is not green.
+ * A scratch directory the tool made is removed when the gate passes; where the gate refuses, its log is kept (the refusal names the path) and the rest of the directory goes.
+ */
 async function gate(root, tip, change, say) {
   const given = change ? path.resolve(change) : null;
   const dir = given ?? fs.mkdtempSync(path.join(os.tmpdir(), "acks-branch-land-"));
   if (!given) fs.writeFileSync(path.join(dir, "change.json"), "{}\n");
   const log = path.join(dir, "branch-land.log");
+  let passed = false;
   try {
     const r = await runAsync(process.execPath, [path.join(HERE, "..", "acks-commit", "commit-own-hunks.mjs"), "postgate", tip, "--change", dir], { cwd: root, env: cleanEnv() });
     const text = r.text;
     fs.writeFileSync(log, text);
     if (r.status !== 0) refuse(`the full gate is not green on ${tip} (exit ${r.status}); main unmoved; ${log} holds the run, ending:\n${text.trim().split("\n").slice(-15).join("\n")}`);
+    passed = true;
     say(`gate green on ${tip}`);
   } finally {
     if (!given) {
       try {
         const clone = path.join(dir, "clone");
         if (fs.existsSync(clone)) unlinkTopLevel(clone);
-        fs.rmSync(dir, { recursive: true, force: true });
+        if (passed || !fs.existsSync(log)) fs.rmSync(dir, { recursive: true, force: true });
+        else fs.rmSync(clone, { recursive: true, force: true });
       } catch {
         // A scratch directory that will not go costs disk, nothing more.
       }

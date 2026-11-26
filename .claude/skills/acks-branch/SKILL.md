@@ -30,7 +30,9 @@ the feature is walked. `land` refuses a topic with nothing new.
   index, and a lease lost or a `main` moved during the gate; it never carries
   and never pushes. `--change` is a
   change directory whose `change.json` names the gate where the repo's
-  `package.json` does not. While `main`'s `module.json` holds a version with no
+  `package.json` does not. A refused gate keeps its log, `branch-land.log` in
+  the change directory (a temporary one where none is given), and the refusal
+  prints its path. While `main`'s `module.json` holds a version with no
   local tag `v<version>` (a release's live window, in a repository that has
   tagged before) it refuses, with exit 6, a topic whose runtime tree differs
   from `main`'s, checked after the rebase and again under the lease; a topic
