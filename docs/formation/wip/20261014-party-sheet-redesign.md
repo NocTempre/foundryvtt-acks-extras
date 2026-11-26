@@ -365,8 +365,9 @@ inferred travel system.
   (`dayBudget`). A hunt,
   forage or search box carries a resolve action that replaces the Work the
   country and Search an hour buttons for that box.
-- **Who selects:** any member-owner, through a new `dayPlan` relay, and the
-  Judge.
+- **Who selects:** any member-owner, through the `partyForm` relay
+  (`party-form.mjs`; the day board's slots, kind, hour, declared, traps and
+  no-sleep are in its allow-list, so no second op carries the plan), and the Judge.
 - **Who confirms:** any one member-owner, or the Judge (ruling 3b). **Confirm
   the day** sets `day.declared`, posts the plan to chat naming who pressed
   it, and locks the boxes; a later change by anyone clears the declaration
@@ -603,7 +604,7 @@ Files, by phase: `travel.mjs` (`travelOf` resolution, `endDay`,
 watcher), `formation-view.mjs` (`buildStripView` → rails and tiles), the
 `formation-*.hbs` templates plus a new `formation-tab-camp.hbs`,
 `party-actor.mjs` (parts, `_configureRenderParts`), `formation-actions.mjs`,
-`player-requests.mjs` (`dayPlan`, `conveyance`), a new `conveyance.mjs`,
+`player-requests.mjs` (`partyForm`, carrying the day plan, and `conveyance`), a new `conveyance.mjs`,
 `battlemap/terrain-paint.mjs`, `scene-setup.mjs` and a new `rivers.mjs`
 beside `roads.mjs`,
 `encounter-card.mjs`, `lib/attachment.mjs` (phase 5), `styles/formation.css`

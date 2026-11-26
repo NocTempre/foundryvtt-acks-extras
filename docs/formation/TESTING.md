@@ -3971,6 +3971,119 @@ start puts the parties back in delve, careful, with the day count and hex label 
 steps assert, re-links the places by the Judge's hand, and clears the things the
 drops wrote by writing a place's list whole.
 
+## The party's form, movement and Order on a Player seat (added with T-0792 B3)
+
+A seat that owns a party member is drawn the band's mode and name, the city's
+pickers, the journey's movement tiles, flight, Sky with Roll weather, the Day
+section and Camp, the Order tab's head and a blank's controls, and the Skill audit
+opener; it writes the form's fields through the `partyForm` relay and the
+arrangement presses through `partyPress`. A seat that owns a RollTable is drawn its
+Monster level row, and every seat reads the strip's city progress. The walk is
+`tools/live/formation-seat-forms.mjs` (`node tools/live/run.mjs
+formation-seat-forms`). It reports each step below under its id, and a step the
+world cannot give as `NOT WALKED` with the reason, neither passed nor failed.
+**The walk is written from the code and has not been run.** Seats: the primary GM
+and the world's Player user (`TEST_ENVIRONMENT.md`); the Judge's client runs every
+relay. The walk changes no world permission: a default Player lacks Configure
+Settings, which is the case under test, and the steps that need that start shape
+assert `game.user.can("SETTINGS_MODIFY")` is false on the Player seat and report
+`NOT WALKED` where it is true.
+
+`tools/live/formation-day.mjs` expects no Sky section controls, no day board and no
+camp pickers on its player seat, and that seat owns a member, so those checks (the
+"no pickers, no day board", "camp no pickers" and "sky ... holds no control"
+steps, and step 7's withheld-Sky branch) read stale until the day walk is revised.
+
+Fixtures, each found again by its marker or built carrying one; every step asserts
+the shape it needs at its start:
+- Journey: `formation/heads-journey-scene`, `-party`, `-member` (the seat owns
+  it) and `-token`, as "The heads, the Place row and the Kit on a Player seat"
+  defines them. The start shape is journey mode (the walk leaves it in the delve), shown `believed`, a fresh march
+  day, no movement word, careful pace, the party's name as the walk found it.
+- City: `formation/heads-city-scene`, `-party`, `-member` (the seat owns it) and
+  `-token`. The scene draws no District behaviour and the party stands on no
+  place; each run asserts both in the sheet's own context. The board is wanted-
+  marked by the Judge at the start of S4.
+- Order: `formation/kit-seat-party` with `formation/kit-seat-a` (the seat owns it)
+  and `formation/kit-seat-b`, in delve, with no blank cell, and an ability Item on
+  each so the audit has a row for each: `formation/forms-ability-a` and
+  `formation/forms-ability-b`, found by marker under their actors.
+- Tables: `formation/rolegate-table`, a RollTable with no results, whose
+  ownership the walk writes whole each run with the seat at OWNER, and
+  `formation/rolegate-table-seen`, the same with the seat at OBSERVER. RollTable
+  create is a Judge's, so the Judge builds both.
+- One saved marching order, made by the Judge's page for the run through the
+  marching-orders API and forgotten at teardown by the id its save returned. It is
+  a world-wide setting entry and no document, so it is outside the fixture ledger.
+
+**Setup the walker owns.** A barred party: the journey member's survival flag is
+written to a barring rung (`nourishment: "underfed"`) by the Judge's page and
+removed at teardown, whole. The save-order world list and the Player's world
+permissions are read, never written.
+
+**The band and the form** (Actors sidebar tab → a party actor → its sheet → the band
+and the mode's tab). Press and type on the Player's page; read the record on the
+Judge's.
+
+| Step | Do | Observable |
+|---|---|---|
+| S1a | Open the journey party's sheet on the Player seat; pick another mode in the band's select | The select is drawn; the record's `travel.mode` reads the pick on the Judge's read-back |
+| S1b | Type a new name in the band's name field | The record's name and the party actor's name both read it |
+| S4a | Open the city party's sheet, Mode tab | The City section is drawn although the scene holds no District and the party stands on no place (`travel.settlement.shown` true in the sheet's context, with `districtName`, `placeHere` and `districtPlace` empty) |
+| S4b | Judge: mark the board wanted. Player: change the pace and the route pickers | Both read back on the record, and the board is **still wanted** (`keepWanted`) |
+| S4c | Read the section's DOM on the Player's seat, and the Hunted box | No Hunted here box and no hunter line; the Judge's seat, shown the same board, draws the box |
+| S4d | From the Player's page send a crafted `partyForm` carrying the Judge's keys (`travel.override`, `travel.shown`, `travel.lostNote`, `travel.camp.present`, `settlement.wanted: false`, `tableId`) beside an allowed one | The allowed field lands; none of the Judge's keys changed on the record |
+
+**The journey** (the Wilderness tab, Mode tab of the sheet). The party starts with
+no movement word.
+
+| Step | Do | Observable |
+|---|---|---|
+| S6a | Press the Flying tile in the Movement section | `travel.movement.set` reads the word on the Judge's read-back |
+| S7a | Type hours aloft into flight's field (drawn once the party flies) | `travel.movement.hoursAloft` reads it |
+| S6b | Press **Back to automatic** | The word is cleared on the record |
+| S6c | Press **Undo** where the Movement section or the Order head draws it | The word the last pass found (the tile's) is back on the record; `NOT WALKED` where no arrangement snapshot exists, since a tile that moves nobody takes none and no Undo is drawn |
+| S7b | Pick another precipitation in the Sky section | `travel.weather.precipitation` reads it |
+| S7c | Press **Roll weather** | The weather bands stand on the record and one public line, spoken as the party, announces the press; the Judge's own press, run next from the Judge's sheet, posts no line. `NOT WALKED` where the button is disabled (no imported sky tables). The roll itself posts no card at this base, so there is none to find beside the announcement |
+| S7d | Pick another activity for a day slot | The record's `day.activities` holds it at that slot |
+| S7e | Tick one camp declaration | `travel.camp` holds it (and the hidden `declared` marker is why an unticked box would read no) |
+| S7f | Bar the member (underfed), then pick Forced march in the day kind select on the Player seat | The Player's seat is warned with the barred member's name (`warn.forcedMarchBarred`), the record's day kind is unchanged, and no confirm dialog opens on the Player's seat |
+| S7g | The same pick on the Judge's seat | The Judge's dialog asks (`confirmBarOverride`); answer **Leave the day as it is**: the kind is unchanged. The dialog is answered by the walk; an unanswered dialog hangs the run |
+
+**The Order tab** (Order tab of `formation/kit-seat-party`). Each step asserts
+two members, A owned and B not, and no blank.
+
+| Step | Do | Observable |
+|---|---|---|
+| S8a | Press **Auto-arrange** | No refusal is said on the seat; the record still holds both members (the cells are reported before and after, since the sort may leave them as they stood) |
+| S8b | Press **Add a blank**; press an enabled move control on the blank; press its Remove | The record gains one blank cell, the blank's cell index changes, and the blank is gone again |
+| S8c | Type a frontage different from the stored one; then type `0` | The first lands on the record; the second is refused with the invalid-frontage warning said on the **Player's** seat, and the record is unchanged |
+| S8d | Pick another token shape | The record's `tokenShape` reads it |
+| S8e | Judge: save the arrangement, then reverse the members. Player: press **Load order**, pick the saved order, press its button | The members stand as the saved order has them. The dialog draws no Forget button |
+| S8f | Read the head | No **Save order** and no **Disband**; Fastest and Add a blank are drawn |
+| S8g | Press **Skill audit** | The audit window for the party opens on the Player's seat; its Used-for select is live for A's ability and disabled for B's, each matching `item.isOwner` |
+
+**The strip and the RollTable.**
+
+| Step | Do | Observable |
+|---|---|---|
+| S19 | Judge: set the city board's blocks and turns and mark it turned around. Player: read the strip | The progress line shows both figures, and the turned-around warning shows |
+| S17a | Player: open `formation/rolegate-table`'s sheet (RollTables sidebar tab → the table → its sheet, which opens in edit mode for an owner with no results; Summary tab); type a level; Save | The Monster level row is drawn; the table's `monsterLevel` flag reads the level |
+| S17b | Open `formation/rolegate-table-seen` | The sheet opens in view mode and the row is absent |
+
+Drive mechanics: the walk clicks the controls the seat is drawn, except where a
+control is a form field, which it types into (`input` then `change`, the way a
+person leaves a field). The blank's move
+buttons are the `memberUp`, `memberDown`, `memberLeft` and `memberRight` buttons
+inside the blank's list item; the walk presses the first one enabled. The load
+dialog's select is set by the order's own id. A relayed press needs a primary GM
+client; with none lib warns and nothing writes. Teardown is by the run's own
+ledger: the cards its presses posted are tracked by id as they are read and swept
+by `api.sweepTracked({only})`, the saved order is forgotten by its id, the member's
+survival flag is removed, the parties are returned to the names they were found with (the Order party's
+frontage and token shape too) and the journey and city parties to the delve, and
+nothing else is deleted. The fixtures stay.
+
 ## A teleport between scenes (added with the teleport fix)
 
 The party follows its token through a `teleportToken` Region to another scene,

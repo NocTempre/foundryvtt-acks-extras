@@ -37,6 +37,7 @@ All paths are under `scripts/formation/` unless noted.
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The party sheet's context (the strip, the travel and city sections, the members; the Judge's extras) and its action handlers (`SHARED_ACTIONS`). |
 | `party-press.mjs` | The closed table of the presses a seat that owns a member makes on the party's clock and day (`PARTY_PRESSES`), what each refusal says (`PRESS_REFUSALS`), and `workTheCountry`, the one body of the Work the country press (§The player surface, "The party's own presses"). |
+| `party-form.mjs` | The party sheet's record fields written the same way from every seat: the allow-list a seat that owns a member may write (`PARTY_FORM_PATHS`, `PARTY_FORM_SLOT`), `pickPartyForm` that strips every other path, and `applyPartyForm` that applies a submit and answers what the seat must say (§The player surface, "The party's form"). |
 | `conveyance.mjs`, `movement-view.mjs` | What carries each member on a journey: the carriers they count, the fastest of them, the member's pin, the group's presses and their Undo, the dawn and the join; and what the sheet shows of it (§Conveyance). |
 | `membership.mjs` | Who stands in a party as a player decides it: what may march, why a request is refused, the party a token joins, and the Order tab's list (§The player surface). |
 | `frame-view.mjs` | The party sheet's frame, decided offline: the parts and tabs a seat gets, the band's bar, every rail cell with its reading and its press, the reading column, the Key, each tab's head (§The frame). |
@@ -45,7 +46,7 @@ All paths are under `scripts/formation/` unless noted.
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID, the delve's cadence overrides, the zone's dungeon level, and the journey's cadence and End Day counts), `findEncounterZone` for the delve and `journeyZones` for the journey. |
 | `zone-layers.mjs` | Pure: `polygonArea` and `composeZones`, overlapping zones composed field by field, smallest first. |
 | `encounter-scaling.mjs` | The wrong-floor shift: `tableLevel` reads a table's `monsterLevel` flag, `shiftSources` names the tables a draw came from and the level each is compared at, `encounterShift` / `scaleNumber` do the arithmetic, `announceShift` posts the Judge-only card. Published as `api.formation.encounterScaling`. |
-| `monster-level-row.mjs` | The Judge's writer of `monsterLevel`: a Monster level row in a RollTable sheet's Summary tab, submitted by the sheet's own Save. |
+| `monster-level-row.mjs` | The writer of `monsterLevel`: a Monster level row in a RollTable sheet's Summary tab, drawn on any sheet that is editable for its seat (`app.isEditable`, so a table's owner and a Judge) and submitted by the sheet's own Save. |
 | `district-zone.mjs` | `acks-extras.district` RegionBehavior subtype: a quarter's day and night cadence pairs, its own and its hunted encounter tables, and how it takes to strangers. |
 | `district-find.mjs` | The district under the party and the district over a point — the readers that need no core class at load, re-exported by `district-zone.mjs`. |
 | `hunt.mjs` | The factions feed onto the settlement board's `wanted`: who hunts the party in the quarter it stands in, applied once per quarter through `applyHunt`. |
@@ -106,7 +107,7 @@ All paths are under `scripts/formation/` unless noted.
 - **The party token sees.** A party actor made anywhere, the module's own creation or core's Create Actor in the sidebar, gives its prototype token sight unless the creation data says otherwise (`PartyData#_preCreate`, `party-actor.mjs`). The first environment sync to read a party token that the vision pass has never claimed (lib's `visionClaimed`) switches its sight on where it is off and stamps it (`FLAG_PARTY_SIGHT`), so a token placed before that rule is mended at the primary GM's next sync; after the stamp or the claim, sight a hand turns off stays off. Whose eyes it then borrows is `syncPartyTokenVision`, under the vision setting (§Detaching a member).
 - The **party token** is the record's `sceneId` + `tokenId`. Placing a party actor's token adopts it (`createToken`, `module.mjs`); deleting it outside a disband unlinks it (`deleteToken`), unless the deletion names a **replacement**: core's move to another scene, by a `teleportToken` Region or a cut and paste, and the rules a record that follows one keeps (docs/lib/MODEL.md, "A token moved to another scene"). A replacement still flagged for the formation takes over `sceneId`, `tokenId` and `clock.lastPosition` (DECISIONS 2026-10-17).
 - **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03).
-- The **party token's size** follows the party's shape (`tokenShape` on the record, set by the Order tab's On the map control; unset, the `partyTokenShape` world setting, read by `partyTokenShape`). In `order` the token is the one-cell head of its column (§The column) at every frontage and scale, and a hand resize goes back. In `fixed` the size is the Judge's: a token still at the size the module last stamped (`flags.acks-extras.partySize`) goes to one cell once, and one resized since is never written. The footprint lock (`flags.acks-extras.footprintLock`) means never resize, in both shapes. `partySizeTarget` in `scene-sync.mjs` decides, pure; `syncPartyTokenSize` writes through `TokenDocument#resize`, which holds the token's **centre** still and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor on the top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), reads the stored size (`_source`), carries `RESIZE_OPTION` so neither the movement hook nor the trail treats it as a walk, and re-baselines `clock.lastPosition`, since holding the centre still moves the corner the clock measures from. A width/height hook resyncs on a hand resize; a turn writes no size. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
+- The **party token's size** follows the party's shape (`tokenShape` on the record, set by the Order tab's On the map control, which a seat that owns a member also sets (`partyForm`); unset, the `partyTokenShape` world setting, read by `partyTokenShape`). In `order` the token is the one-cell head of its column (§The column) at every frontage and scale, and a hand resize goes back. In `fixed` the size is the Judge's: a token still at the size the module last stamped (`flags.acks-extras.partySize`) goes to one cell once, and one resized since is never written. The footprint lock (`flags.acks-extras.footprintLock`) means never resize, in both shapes. `partySizeTarget` in `scene-sync.mjs` decides, pure; `syncPartyTokenSize` writes through `TokenDocument#resize`, which holds the token's **centre** still and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor on the top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), reads the stored size (`_source`), carries `RESIZE_OPTION` so neither the movement hook nor the trail treats it as a walk, and re-baselines `clock.lastPosition`, since holding the centre still moves the corner the clock measures from. A width/height hook resyncs on a hand resize; a turn writes no size. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
 - **The party token itself sheds no light.** Every carried light shines from its bearer's cell in the column (§The column, Lights), so `syncPartyTokenLight` only ever clears a light the module wrote on the token, unconditionally.
 
 ## Movement → turns
@@ -163,8 +164,9 @@ inactive or hidden tab still submits.
 character sheet's is. Core renders it into the content box first, where it
 takes no layout, so the tab's restored scroll is set at the panel's finished
 width (DECISIONS 2026-10-17). The crest (the party image, else a group glyph) opens
-the Order tab. Beside it the mode word is the Judge's mode select and a
-player's plain text; the name is the Judge's field and a player's text. The
+the Order tab. Beside it the mode word is a select and the name an input on a
+seat that owns a member (written through `partyForm`), and plain text on any
+other. The
 bar is a reading with no action, so a press on it drags the window
 (`bandBar`): on a journey it fills with the hours walked of the day's budget
 and reads the day being walked (`dayCount + 1`, the number its log row will
@@ -233,9 +235,9 @@ the art row, on every tab.
 | Tab | Head | Body |
 |---|---|---|
 | Dungeon | for the Judge and a seat owning a member: Turn, Round, Rest a turn and Hurried; Undo the Judge's; and Trapbreaking (the one opener: every Judge's, a player's when a member they own may make the throw) | the strip (each of its four figures carries a provenance tooltip, `delveTips`); the Turn plan (§The turn plan); a member-owner's requests |
-| Wilderness | for the Judge and a seat owning a member: the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
-| City | for the Judge and a seat owning a member: Hop (while a point of interest is in reach, and, off the Judge's seat, shown), Turn, Round, Rest a turn; Hunted here and Undo the Judge's | the strip with the city block; The city; a member-owner's requests |
-| Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Skill audit, Disband | the ranks and the train |
+| Wilderness | for the Judge and a seat owning a member: the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot the Judge's); Movement (the tiles, Back to automatic and Undo for a seat owning a member, a reading for any other) with flight's three fields; Sky (a seat owning a member: the climate card, the controls and Roll weather; any other seat while it has a reading); Day (a seat owning a member); Camp (the forecast and the suffering for every seat; exposure and declarations for a seat owning a member; throw lines the Judge's); a member-owner's requests |
+| City | for the Judge and a seat owning a member: Hop (while a point of interest is in reach, and, off the Judge's seat, shown), Turn, Round, Rest a turn; Hunted here and Undo the Judge's | the strip with the city block (the blocks, the turns and the turned-around warning on every seat); The city (the pickers, the road, tracker and navigation lines for a seat owning a member; the hunter's name the Judge's); a member-owner's requests |
+| Order, Train or Company | for a seat owning a member: Fastest and Undo (where the party has an arrangement), Auto-arrange, Frontage, the token shape, the column colour, Load order, Add a blank, Skill audit; Save order for a seat that may change world settings; Disband the Judge's | the ranks and the train; a blank's move and Remove for a seat owning a member |
 | Kit | none | the lights and the tracked spells with the controls the seat owns (§The player surface); the add-spell row for a seat that owns a member; the maps, whose controls are the Judge's |
 | Sightings | none | the journey's log; off a journey, a line saying it is kept there |
 | Judge (GM seat, dashed) | the episode's state | Where they are: the true and believed plates, the compass and Shift the truth (§Lost); The episode: the lost episode's controls and note; What the party is shown: the two tiles and a player's preview (§Lost); Navigation, quietly (§The navigation throw); The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
@@ -300,14 +302,16 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Saves and supplies | Roll a party save, or ration, for the members they own (§The frame) | none: the actors are theirs to write |
 | Experience | Deal it where they own every participant | none |
 | The party actor | Edit its description as its owner; change its image where Foundry lets them browse files | none: the party actor is theirs |
-| Forming up | From the party token's HUD, with a member of their own in the party (§Saved marching orders) | `formUp` |
+| The party's form | With a member of theirs in the party: the band's mode and name; the city's pickers; flight, the Sky, the Day and Camp's declarations; the Order tab's frontage, token shape and column colour (below) | `partyForm` |
+| The party's arrangement | With a member of theirs in the party: the movement tiles, Back to automatic and Undo; Auto-arrange; add, move and remove a blank; Roll weather (below) | `partyPress` |
+| Forming up | From the party token's HUD, or the Order tab's Load order, with a member of their own in the party (§Saved marching orders) | `formUp` |
 | Skill fields | Mark an ability on their own character a skill and set what it is used for, on its sheet and in the skill audit | none: the item is theirs |
 
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must
 be indistinguishable from an accurate one to its holders. Taking out another's
-member, blanks, frontage, the clock's Undo and a Turn or Round pressed outright,
-Hunted here, the encounter table, and session lifecycle stay GM-only. Role,
+member, the clock's Undo and a Turn or Round pressed outright, Hunted here, the
+encounter table, Disband and session lifecycle stay GM-only. Role,
 light and membership declarations are announced publicly, so the table sees who
 changed the party's posture.
 
@@ -319,7 +323,15 @@ the `rest` declaration; the others are one closed table,
 `pace` (`{hurried}`, delve and city), `hop` (`{tokenId}`, city), `enterHex`
 (`{label}`, journey), `forageDay` and `endDay` (journey), and the Kit tab's
 `lightRemove` (`{lightId}`), `spellAdjust` (`{spellId, delta}`) and
-`spellRemove` (`{spellId}`), open in every mode. An entry is
+`spellRemove` (`{spellId}`), open in every mode. The party's arrangement and
+sky are entries too. `movementTile` (`{mode}`, the group's word a movement tile
+sets) and `weatherRoll` are the journey's; `movementFastest`, `movementUndo`,
+`autoArrange`, `addBlank`, `removeBlank` (`{cell}`) and `moveBlank` (`{cell, dir}`,
+`dir` one of up, down, left, right) open in every mode and announce nothing. A cell
+press names its position in the record, which a stale sheet may have wrong, so it
+answers `stale` for a cell that is no longer a blank, and a blank at the grid's
+edge has nothing to swap with. `weatherRoll` announces and answers `quiet` where
+the registry cannot roll. An entry is
 `{ parse, actor?, modes, run }`. The Judge's seat runs the entry directly
 (`requestPartyPress`) and announces nothing; any other seat sends `partyPress`,
 and the Judge's client takes the attested sender and checks, in order: the
@@ -352,6 +364,34 @@ controls stay the Judge's. The add-spell row is built for every seat from
 `buildSpellTracker` (formation-view): the known spells of the members the seat
 owns and those members as casters, so a seat is offered no one else's. The
 add itself is the `spell` declaration, which checks the caster's ownership again.
+
+**The party's form.** The sheet's own submit carries the record's fields, and
+`party-form.mjs` writes them the same way from every seat. The Judge's seat
+applies the submit directly (`applyPartyForm`, `judge: true`). A seat that owns
+a member sends the part of it `pickPartyForm` keeps, as the `partyForm`
+request; the Judge's client tests the sender's ownership of any member
+(`notOwner`), picks the form against the allow-list again whoever sent it, and
+applies it with `judge: false`. `PARTY_FORM_PATHS` and `PARTY_FORM_SLOT` are the
+whole list: the name, frontage, token shape and column colour; the mode and the
+hour; the city's six pickers; flight's three fields; the Sky's season, auto,
+fronts, bands and footings; the day's kind, slots, declared, traps and no-sleep;
+and camp's exposure and three declarations. A value is a boolean, a finite
+number or a string of at most 200 characters. The Judge's fields are not in it
+and so never reach `applyTravelForm` from a relay: the country overrides, the
+lost note, what a seat is shown, who is in camp and its target, the default
+table, the hex label, and the crossing's flag, which the party actor's owner
+writes direct. `settlement.wanted` is not in it either, and `keepWanted` leaves
+the stored one alone when a relayed submit does not name it.
+
+A relayed form never carries `override`: a forced march into a party the
+survival ladder bars is refused before any write (`refused: "forcedBarred"`
+with the barred names), where the Judge's seat is asked (`confirmBarOverride`).
+Neither path says a warning itself. The answer carries what the seat must say
+(a refusal, or `warned` for a frontage that was refused or clamped) and
+`sayPartyFormAnswer` says it on the seat that wrote, so a player reads the
+refusal where they pressed. Whatever the Judge's client reads of the submit
+comes from `PARTY_FORM_PATHS`, never from a field of the payload that names a
+role, `judge` or `override`.
 
 `PRESS_REFUSALS` gives each code its lang key and level, and `sayPressAnswer`
 says it to the pressing seat: `badPress`, `notOwner` and `stale` say the
@@ -512,7 +552,9 @@ show through Dice So Nice to the Judges.
 
 ## The audit window
 
-`SkillAuditApp` is one window per party, on the Judge's seat.
+`SkillAuditApp` is one window per party. Its opener, the Order tab's Skill
+audit, is drawn to a seat that owns a member; the audit's roll and its card stay
+the Judge's.
 
 - **Selects.** A Used-for select is live for an ability the seat owns and
   disabled for any other (`editable: item.isOwner`); its change is bound only
@@ -1035,7 +1077,10 @@ turns nobody took. Role changes are announced one at a time exactly as
 `toggleRole` announces them, since a role can fill hands and the equipment
 feature recomputes a loadout off that hook.
 
-The party sheet saves and loads orders; the party token's HUD carries a **form
+The party sheet's Order tab saves and loads orders. Save order is drawn to a seat
+that may change world settings (`seat.canSaveOrders`) and writes the setting
+directly, since the list belongs to no party; Load order is for any seat that
+owns a member and sends the chosen order as `formUp`. The party token's HUD carries a **form
 up** button, which appears only once at least one order is saved and skips the
 picker when there is only one to pick. Both hand the picker's answer to
 `carryOutPick`, which forgets the order or forms the party up into it. The
@@ -1853,8 +1898,10 @@ throw and the Judge's word on the country on the Judge's tab; and the log on
 Sightings. A player sees the strip and only the sections that carry
 what the table already read: the country's cards, the sky's chips and night
 band, the camp's forecast and who is suffering, the log, and in a city the
-places underfoot — never a picker, a reading's source, the day board, or the
-LOST state, which is the Judge's alone. `acksExtras.formation.travel`
+places underfoot, with the city's blocks, turns and turned-around warning on the
+strip — never a reading's source or the LOST state, which is the Judge's alone.
+A seat that owns a member also draws the pickers and the day board, and the
+Sky and Camp controls. `acksExtras.formation.travel`
 (apiVersion 19) publishes the mode switch, the day board writers, the journey's
 functions, the country's resolution, the navigation record, the pure march
 arithmetic and the two hook names.
@@ -1913,7 +1960,8 @@ roles `rider` and `passenger`), which `partySpeed` reads through
 decides, and writes through `mountActor` and `attach` as a hand would. Two
 things are stored beside the attachment: a member's **pin**, the actor flag
 `conveyance = { pinned }`, `ON_FOOT` or a carrier's uuid, held against the
-arrangement; and the Judge's **word** for the group, `travel.movement.set`.
+arrangement; and the group's **word**, `travel.movement.set`, which a Judge and
+a seat that owns a member set.
 
 **How the party moves is read, never stored.** `derivedMovementMode` reads what
 carries the members on the march: `vessel` with every one of them aboard one,
@@ -1966,13 +2014,17 @@ dawn. A join is `acksExtras.memberJoined`, which `addMember` raises on the GM's
 client that wrote the record, and that client answers it.
 
 A player's press goes through the `conveyance` relay; the GM's client checks
-the member is theirs and writes pin and ride together.
+the member is theirs and writes pin and ride together. The group's presses (a
+tile, Fastest for all and Back to automatic, Undo) go through `partyPress` for a
+seat that owns any member and run the Judge's own bodies.
 
 **On the sheet** ([movement-view.mjs](../../scripts/formation/movement-view.mjs)):
 the Movement section heads with the pace line, who sets the pace and on what,
 how many ride, are carried and walk, and the pace, whose tooltip lists each
 member's figure; a gold chip names a faster ride for the member setting it. Every
-seat reads the line and the five tiles, and only the Judge's tiles press. A tile
+seat reads the line and the five tiles, and the tiles press on the Judge's seat
+and on a seat that owns a member (`partyPress`: `movementTile`, `movementFastest`,
+`movementUndo`; `canArrange` in the view). A tile
 lights for the word where one stands, otherwise for how the party reads, so a
 press with nothing to board still shows. The Order tab carries each member's row,
 how they travel and what they may pick from, on a seat that may press for them;
@@ -2078,8 +2130,9 @@ open), because the throws the step owes are thrown there.
 cards — ground, road, following, territory — and the line naming the table the
 encounters draw on (the resolved encounter terrain, else the ground's own
 table; on the Judge's seat, the true hex's while an episode is open); the Sky
-section carries the climate as a fifth card on the Judge's seat. The section
-reaches every seat, and a player's cards carry the values alone; under unknown
+section carries the climate as a fifth card on a seat that owns a member, with
+the selects and Roll weather (`partyForm`, `partyPress` `weatherRoll`). The
+section reaches every seat, and a player's cards carry the values alone; under unknown
 country it is one line on both seats (§Lost). On the Judge's seat each card names its source, by the label
 `ACKS-FORMATION.country.provenance.<provenance>` (a deriving layer's key has
 one there too: "The hex's domain"), and wears the chip its
@@ -2392,9 +2445,11 @@ worth tonight: the forage targets for food, water and firewood, the hunting
 target moved by territory, and the search target with how many hours the board
 is holding for it. Anything unimported leaves its figure blank rather than showing a number.
 
-Judge-side it also carries the camp's three declarations, each a plain yes or
-no on the travel record (`travel.camp`): *Willing to steal*, *Water at hand*
-and *Sleeping in armour*. The Day section before it takes the day's own two: the
+A seat that owns a member also carries the camp's exposure (hours, at a heat
+source, wet) and the three declarations, each a plain yes or no on the travel
+record (`travel.camp`): *Willing to steal*, *Water at hand* and *Sleeping in
+armour*; they write through `partyForm`. The worth of each slot above stays
+the Judge's. The Day section before it, drawn to the same seats, takes the day's own two: the
 count of traps managed and a night without sleep (`travel.day.traps`,
 `travel.day.noSleep`), which end with the day and ride its log row, because
 End day resets the board before the throws they owe are rolled. Each section
