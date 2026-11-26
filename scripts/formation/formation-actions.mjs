@@ -780,6 +780,19 @@ export const SHARED_ACTIONS = {
     await setLightShutter(effect, !isLightShuttered(effect));
   },
 
+  /**
+   * Open the record behind a magic light row whose reach is blank, on core's own
+   * effect sheet, where its bands are typed. The record is the seat's own to
+   * edit or it is not opened: the row draws the control only for an owner, and
+   * the press asks again.
+   */
+  async setLightReach(event, target) {
+    const actor = game.actors.get(target.dataset.lightActor);
+    const effect = appliedEffects(actor).find((e) => e.id === target.dataset.lightEffect);
+    if (!effect?.isOwner) return;
+    effect.sheet?.render(true);
+  },
+
   /** Cast the light spell the Kit tab's row has picked, as the Magic tab's Cast does (`pressLightCast`). */
   async castLightSpell(event, target) {
     await pressLightCast(this, event, target);

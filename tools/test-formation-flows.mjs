@@ -3086,6 +3086,8 @@ await scenario("template renders live controls for a member-owner", async () => 
     parent: { documentName: "Item", name: "Eve Lamp" },
     changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "5")],
   }));
+  // A cast's blank-reach light on a member the player does not own: Set reach is the Judge's seat only.
+  eve.effects.push(ownedBy({ id: "fxeveblank", name: "Eve Blank", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "")] }));
   game.user = game.users.get("PL1");
   let magicHtml;
   let judgeHtml;
@@ -3116,7 +3118,7 @@ await scenario("template renders live controls for a member-owner", async () => 
     eve.effects.length = 0;
   }
   const rows = [...magicHtml.matchAll(/<div class="light magic-light"[\s\S]*?<\/div>/g)].map((m) => m[0]);
-  assert.equal(rows.length, 4, "one row per magic light, the other member's included");
+  assert.equal(rows.length, 5, "one row per magic light, the other member's included");
   assert.ok(rows[0].includes(`data-magic-light="${dave.id}.fxlit"`) && rows[0].includes("Lamp of Testing"), "the row names the item it rides on");
   assert.ok(rows[0].includes("magicLightReach") && rows[0].includes("&quot;bright&quot;:11") && rows[0].includes("&quot;dim&quot;:23"), "the row shows both radii");
   assert.ok(rows[0].includes("magicLightTip") && rows[0].includes("Lamp of Testing"), "the figure's tooltip names the item the light rides on");
@@ -3125,6 +3127,17 @@ await scenario("template renders live controls for a member-owner", async () => 
   assert.ok(judgeRow.includes("Glow") && judgeRow.includes("Lamp of Testing"), "the Judge's tooltip names the effect and its item");
   assert.ok(rows[1].includes("magicLightNotSet") && !rows[1].includes("magicLightReach") && !rows[1].includes("magicLightTip"), "a light with no reach says it is not set and shows no figure");
   assert.ok(rows[2].includes("magicLightBrightOnly") && !rows[2].includes("magicLightReach") && !rows[2].includes("&quot;dim&quot;"), "a light with one radius shows that radius and no zero for the other");
+
+  // Set reach: a blank-reach row offers it to a seat that owns the record and to no other; a row with any reach offers none.
+  const SET_REACH = 'data-action="setLightReach"';
+  assert.ok(rows[1].includes(SET_REACH) && rows[1].includes(`data-light-actor="${dave.id}"`) && rows[1].includes('data-light-effect="fxblank"'), "the owner of a blank-reach record is offered Set reach, naming the record");
+  assert.ok(!rows[0].includes(SET_REACH) && !rows[2].includes(SET_REACH), "a row with a reach, bright only included, offers none");
+  const setReachButton = rows[1].match(/<button[^>]*setLightReach[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+  assert.ok(setReachButton.includes('type="button"') && setReachButton.includes("aria-label=") && setReachButton.includes("setReachAria") && !setReachButton.includes(" title="), "a real button named by its aria-label, with no title attribute");
+  assert.ok(!rows[4].includes(SET_REACH), "a seat that does not own the record is offered none");
+  const eveBlankJudge = judgeHtml.match(/<div class="light magic-light" data-magic-light="[^"]*fxeveblank"[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.ok(eveBlankJudge.includes(SET_REACH), "the Judge's seat owns every record and is offered it");
+  assert.ok(!rows.some((row) => row.includes("removeMagicLight")), "no End control is added to a magic light row");
 
   // A daylight band leads the row, before the bright and dim pair; alone, it
   // is the whole row.
@@ -3386,6 +3399,15 @@ await scenario("a turn card says no light only where neither a flame nor a shini
     assert.ok(!(await turnCard()).includes("chat.noLight"), "a shining magic light is a light, with no flame lit");
     glow.flags = { [MODULE_ID]: { lightShutter: true } };
     assert.ok((await turnCard()).includes("chat.noLight"), "a shuttered magic light is not");
+    // A cast writes its bands blank: the light shines with no reach and still counts, as a flame with no imported reach does.
+    delete glow.flags;
+    glow.changes = [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, type: "upgrade", value: "" }];
+    const stored = model.getFormation(id);
+    assert.equal(model.formationHasLight(stored), true, "a shining blank-reach magic light is the party's light");
+    assert.ok(!(await turnCard()).includes("chat.noLight"), "and the turn card does not say no light");
+    glow.flags = { [MODULE_ID]: { lightShutter: true } };
+    assert.equal(model.formationHasLight(model.getFormation(id)), false, "shuttered, a blank-reach light is not");
+    assert.ok((await turnCard()).includes("chat.noLight"), "and the card says so again");
   } finally {
     bearer.effects.length = 0;
     await model.disband(model.getFormation(id));

@@ -319,7 +319,7 @@ const frameOf = (view, seat, extra = {}) =>
   const coveredCell = byKey(frameOf({ ...noFlame, magicLights: [magicRow({ shining: false, badge: "B.shuttered" })] }, true).rails.figures, "light");
   assert.deepEqual([coveredCell.sub, coveredCell.title.includes(said("figure.noLight"))], ["—", true], "a covered magic light is no light");
   const unsetCell = byKey(frameOf({ ...noFlame, magicLights: [magicRow({ set: false })] }, true).rails.figures, "light");
-  assert.equal(unsetCell.sub, "—", "a shining light whose reach is not typed sheds nothing");
+  assert.deepEqual([unsetCell.sub, unsetCell.title.includes(said("figure.noLight"))], ["B.shining", false], "a shining light whose reach is not typed is still the party's light, as a flame with no imported reach is");
   assert.equal(
     byKey(frameOf({ ...delveView(), magicLights: [magicRow()] }, true).rails.figures, "light").sub,
     said("figure.turnsSub", { n: 2 }),

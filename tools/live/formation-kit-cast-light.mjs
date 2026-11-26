@@ -2,7 +2,7 @@
  * Live walk, formation-kit-cast-light: casting a light spell from the Party
  * sheet's Kit tab, from a real Player seat and the Judge's. Walks
  * docs/formation/TESTING.md "Casting a light spell from the Kit tab", whose
- * step numbers are this walk's ids (K-c1 to K-c9): the offer row (one option per
+ * step numbers are this walk's ids (K-c1 to K-c10): the offer row (one option per
  * spell the seat owns, its list and slots line and their tooltips); Cast opening
  * the caster's own cast window and the confirmed cast writing lib's three band
  * changes and the page flag on the caster's record, which the Kit lists as a
@@ -12,8 +12,12 @@
  * the Judge reads it as a warning and may still cast; a reversed cast writing no
  * light; a spell whose radii are blank leaving a blank reach cell with the page
  * alone as its tooltip; the clock running past the duration and taking the
- * record and the row; and the effect-row editor's three radius boxes, a blank
- * one carrying the page alone as its tooltip. Prints booleans and the
+ * record and the row; the effect-row editor's three radius boxes, a blank
+ * one carrying the page alone as its tooltip; and K-c10, where the blank-banded
+ * cast of K-c7 (a real cast, never bands typed by API: the typed-band steps stay
+ * for the figure readers) is the party's light on the dark scene, read by the
+ * model, the warnings and the header cell, uncounted while shuttered, and the
+ * row's Set reach shown to the Judge's seat and not the Player's. Prints booleans and the
  * fixtures' invented labels. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker (the GM seat builds them; every name and
@@ -91,6 +95,7 @@ const P = {
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0] ?? null);
     H.LT = await import(`${base}lib/light.mjs`);
     H.FM = await import(`${base}formation/formation-model.mjs`);
+    H.VIEW = await import(`${base}formation/formation-view.mjs`);
     return { isGM: game.user.isGM, userId: game.user.id, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, formation: typeof globalThis.acksExtras?.formation?.carriedLightPoints === "function", worldTime: game.time.worldTime };
   },
   format: async ({ key, data }) => game.i18n.format(key, data ?? {}),
@@ -262,6 +267,7 @@ const P = {
           reachText: text(reach),
           reachTip: reach?.getAttribute("data-tooltip-text") ?? "",
           shutter: !!r.querySelector('[data-action="shutterMagicLight"]'),
+          setReach: !!r.querySelector('[data-action="setLightReach"]'),
         };
       }),
     };
@@ -365,6 +371,49 @@ const P = {
     if (!btn) return { button: false };
     btn.click();
     return { button: true };
+  },
+  /** The scene's darkness level set to `level`; answers the level it held before. */
+  darkness: async ({ sceneId, level }) => {
+    const scene = game.scenes.get(sceneId);
+    const was = scene.environment?.darknessLevel ?? 0;
+    await scene.update({ "environment.darknessLevel": level });
+    return { was, now: scene.environment?.darknessLevel ?? null };
+  },
+  /**
+   * What the party reads of its light: the model's two answers, the mode and the flames lit, the warnings strip's three
+   * light warnings (matched by the text before their first placeholder), and the figures rail's light cell as drawn.
+   */
+  lightReads: async ({ partyId, fid }) => {
+    const H = globalThis.__kc;
+    const f = H.FM.getFormation(fid);
+    const warnings = H.VIEW.buildWarnings(f, 1);
+    const stems = ["noLight", "darkBlinded", "darkSighted"].map((k) => game.i18n.localize(`ACKS-FORMATION.warnings.${k}`).split("{")[0]).filter((s) => s.length > 3);
+    const root = H.root(game.actors.get(partyId).sheet);
+    const cell = [...(root?.querySelectorAll(".acks-extras-party-sheet__rail--figures .acks-extras-party-sheet__cell") ?? [])].find((c) => c.querySelector("i.fa-fire-flame-curved"));
+    const sub = cell?.querySelector(".acks-extras-party-sheet__cell-sub")?.textContent.trim() ?? "";
+    const title = `${cell?.getAttribute("data-tooltip") ?? ""} ${cell?.getAttribute("aria-label") ?? ""} ${cell?.querySelector(".acks-sr-only")?.textContent ?? ""}`;
+    const badge = game.i18n.localize("ACKS-LIB.light.state.label.shining");
+    return {
+      mode: f.travel?.mode ?? null,
+      flamesLit: (f.lights ?? []).filter((l) => l.lit && !l.shielded).length,
+      hasLight: H.FM.formationHasLight(f),
+      inDark: H.FM.isPartyInDark(f),
+      lightWarning: warnings.some((w) => stems.some((s) => w.startsWith(s))),
+      cell: !!cell,
+      readsBadge: !!sub && sub === badge && title.includes(badge),
+      readsNoLight: title.includes(game.i18n.localize("ACKS-FORMATION.frame.figure.noLight")),
+    };
+  },
+  /** Press a row's Set reach as a user does and read the window it opens: the record's own sheet, closed again. */
+  pressSetReach: async ({ partyId, key, uuid }) => {
+    const H = globalThis.__kc;
+    const btn = H.root(game.actors.get(partyId).sheet)?.querySelector(`[data-magic-light="${key}"] [data-action="setLightReach"]`);
+    if (!btn) return { button: false };
+    btn.click();
+    const app = await H.poll(() => [...(foundry.applications.instances?.values?.() ?? [])].find((a) => a.document?.uuid === uuid), { tries: 40, every: 150 });
+    const opened = { button: true, sheet: !!app, name: app?.constructor?.name ?? null };
+    if (app) await app.close({ animate: false });
+    return opened;
   },
   /** Send a member out of the party token (or back) through the Order tab's own control. */
   detach: async ({ partyId, fid, actorId, want }) => {
@@ -473,6 +522,7 @@ const ledger = ledgerFor(() => gm);
 const W = {};
 let worldTime0 = null;
 let deployed = false;
+let darkSet = false;
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}
@@ -693,6 +743,35 @@ try {
   const row7 = await waitKit(gm, (v) => !!recB && !!rowFor(v, W.other, recB.id));
   const r7 = recB ? rowFor(row7.value, W.other, recB.id) : null;
   chk("K-c7", "the row's reach cell is blank and its tooltip is the cite string exactly", row7.ok && r7.reachText === "" && r7.reachTip === CITE && r7.state === "shining", { reach: r7?.reachText, tipIsCite: r7?.reachTip === CITE });
+  // ------------------------------------------------------------ K-c10
+  section("K-c10. a blank cast light counts (step 7's record, a real cast with blank bands)");
+  const dark10 = await run(gm, P.darkness, { sceneId: W.scene, level: 0.8 });
+  W.darkness0 = dark10.was;
+  darkSet = true;
+  chk("K-c10", "the room reads dark for the step, so a missing light would show as the dark", dark10.now >= 0.5, dark10);
+  await run(gm, P.openKit, { partyId: W.party, fresh: true });
+  await run(player, P.openKit, { partyId: W.party, fresh: true });
+  const key10 = `${W.other}.${recB?.id}`;
+  const lit10 = await until(() => run(gm, P.lightReads, { partyId: W.party, fid: W.fid }), (v) => v.cell && v.hasLight, { tries: 24 });
+  const row10 = await waitKit(gm, (v) => !!recB && rowFor(v, W.other, recB.id)?.state === "shining");
+  const shut10 = recA ? rowFor(row10.value, W.caster, recA.id) : null;
+  chk("K-c10", "the fixture shape: the party is not on a journey, no flame is lit, step 7's blank record shines and step 3's record stays shuttered", lit10.value.mode !== "journey" && lit10.value.flamesLit === 0 && row10.ok && shut10?.state === "shuttered", { mode: lit10.value.mode, flames: lit10.value.flamesLit, blank: rowFor(row10.value, W.other, recB?.id)?.state, cast2: shut10?.state });
+  chk("K-c10", "with the blank-reach light shining the party has light and is not in the dark, and the warnings carry no light warning", lit10.ok && lit10.value.hasLight === true && lit10.value.inDark === false && lit10.value.lightWarning === false, lit10.value);
+  chk("K-c10", "the header's light cell reads the row's Shining badge and not the no-light reading", lit10.value.cell && lit10.value.readsBadge && !lit10.value.readsNoLight, { cell: lit10.value.cell, readsBadge: lit10.value.readsBadge, readsNoLight: lit10.value.readsNoLight });
+  const press10 = await run(gm, P.pressShutter, { partyId: W.party, key: key10 });
+  const dim10 = await until(() => run(gm, P.lightReads, { partyId: W.party, fid: W.fid }), (v) => v.hasLight === false && v.readsNoLight === true, { tries: 24 });
+  chk("K-c10", "shuttered, the same light no longer counts: no light, the dark, a light warning and the no-light reading", press10.button && dim10.ok && dim10.value.inDark === true && dim10.value.lightWarning === true, dim10.value);
+  await run(gm, P.pressShutter, { partyId: W.party, key: key10 });
+  const back10 = await until(() => run(gm, P.lightReads, { partyId: W.party, fid: W.fid }), (v) => v.hasLight === true && v.readsBadge === true, { tries: 24 });
+  chk("K-c10", "opened again, it counts and the badge returns", back10.ok && back10.value.inDark === false && back10.value.lightWarning === false, back10.value);
+  const gmKit10 = await waitKit(gm, (v) => rowFor(v, W.other, recB?.id)?.state === "shining");
+  const plKit10 = await waitKit(player, (v) => !!recB && !!rowFor(v, W.other, recB.id));
+  chk("K-c10", "Set reach is drawn on the Judge's seat (it owns every record) and not on the Player's, who only observes that bearer", rowFor(gmKit10.value, W.other, recB?.id)?.setReach === true && rowFor(plKit10.value, W.other, recB?.id)?.setReach === false, { gm: rowFor(gmKit10.value, W.other, recB?.id)?.setReach, player: rowFor(plKit10.value, W.other, recB?.id)?.setReach });
+  chk("K-c10", "the blank cell's tooltip is still the cite alone", rowFor(gmKit10.value, W.other, recB?.id)?.reachTip === CITE, { tip: rowFor(gmKit10.value, W.other, recB?.id)?.reachTip });
+  const reach10 = await run(gm, P.pressSetReach, { partyId: W.party, key: key10, uuid: recB?.uuid });
+  chk("K-c10", "pressing Set reach opens the record's own effect sheet", reach10.button && reach10.sheet, reach10);
+  await run(gm, P.darkness, { sceneId: W.scene, level: W.darkness0 });
+  darkSet = false;
   await shapeAll();
   await run(gm, P.setPools, { actorId: W.other, pools: null });
 
@@ -748,6 +827,7 @@ try {
     for (const seat of [gm, player]) if (seat) await tidy("dialog left open", () => run(seat, K.closeDialog));
     for (const seat of [gm, player]) if (seat) await tidy("sheets closed", () => run(seat, P.closeSheets, { partyId: W.party, items: [{ actorId: W.caster, itemId: W.casterSpell }, { actorId: W.other, itemId: W.otherSpell }] }));
     if (deployed) await tidy("the caster gathered back", () => detach(W.caster, false));
+    if (darkSet) await tidy("the room's darkness put back", () => run(gm, P.darkness, { sceneId: W.scene, level: W.darkness0 ?? 0 }));
     await tidy("both spells' radii, counts and pools put back", () => shapeAll());
     if (worldTime0 != null) await tidy("world clock put back", () => run(gm, P.clock, { set: worldTime0 }));
   }

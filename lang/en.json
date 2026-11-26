@@ -3140,6 +3140,8 @@
       "magicLightNotSetTip": "The effect \"{effect}\" on {source} names a light but carries no reach. Open the effect and type the feet in its changes.",
       "magicLightTip": "Set by the effect \"{effect}\" on {source}: {reach}.",
       "magicLightCastTip": "From the light row of {spell}, on {source} ({cite}): {reach}.",
+      "setReach": "Set reach",
+      "setReachAria": "Set the reach of {name}'s light",
       "elapsed": "Elapsed",
       "rest": "Rest",
       "sinceRest": "turns since rest",
@@ -3236,7 +3238,7 @@
         "down": "{name}: cannot work (down, dead or left behind).",
         "litAmbient": "the day outside lights them",
         "litLight": "a light reaches their place",
-        "litUnimported": "a flame is lit",
+        "litUnimported": "a light is lit",
         "litAssumed": "light is assumed (the light requirement is off)",
         "litNone": "no light reaches their place"
       },

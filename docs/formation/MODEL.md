@@ -793,8 +793,9 @@ Foundry globals (`formationMapping`, `mapperLit`, `measureModeFor`).
   automation switch), a mapper is lit by the day outside (a delve's scene
   darkness below one half, a journey's clock by day: `ambientBright`), or by a
   light whose bright reach covers the mapper's place, or by a lit, open flame
-  whose reach is not imported (`litBy` says which; nothing is a figure; the
-  tooltip reads "a flame is lit"). With
+  whose reach is not imported, or by a member's shining magic light that states
+  no band at all, the blank bands a cast writes (`litBy` says which;
+  nothing is a figure; the tooltip reads "a light is lit"). With
   the switch off the module assumes light and reads none. A light shuttered by
   hand, stowed, doused or closed lights no one.
 - **The mapper's place** is the centre of their cell in the party's column, or
@@ -987,7 +988,11 @@ blank figure keeps a cell to hover. Each row carries a state badge, Shining, Shu
 whose tooltip says why (worn, stowed in a named container, shuttered by hand),
 and a Shutter or Open button shown only to a seat that owns the effect
 (`shutterMagicLight`, beside `toggleShield`). The button writes the effect's own
-flag with no relay, and every control names the item, never the effect. A
+flag with no relay, and every control names the item, never the effect. A row
+whose reach is blank also shows a Set reach button to a seat that owns the
+record (`effect.isOwner`, `setLightReach`): it opens core's own effect sheet on
+the record, where the bands are typed, and the action asks `isOwner` again when
+pressed. The blank cell's tooltip stays the page alone. A
 member's sheet redraws on an item's change as well as an effect's, so a seat
 that is not the primary GM sees a light stow or return.
 
@@ -1007,16 +1012,21 @@ one every other door opens. The menu's pick is held on the sheet
 items changing redraws the row.
 
 Whether the party carries light at all (`formationHasLight`) reads both kinds:
-a lit, unshuttered flame on the record, or a member whose shining magic lights
-have a reach (`effectLight` above zero). It decides `isPartyInDark`, and so the
+a lit, unshuttered flame on the record, or a member with a shining magic light
+(`magicLights` in the shining state, with or without a reach: a cast writes its
+bands blank until a reach is imported or typed). It decides `isPartyInDark`, and so the
 dark pace, the roster's blinded marks, the strip's darkness and no-light
 warnings and the encounter card's signature. The dungeon turn card prints its
 no-light line only where no flame is lit and `formationHasLight` is false, and
 the party sheet's header light cell, with no flame lit, names the state of a
-shining Kit magic light (a row with a reach) instead of the no-light figure. A flame counts whether or not its
-reach is imported; a magic light with no reach typed does not, so an Add
-effect left blank lifts no darkness. A dim-only magic light lifts the dark
-for the pace but lights no mapper, whose verdict reads bright reach only; a
+shining Kit magic light instead of the no-light figure. A flame counts whether or not its
+reach is imported, and so does a magic light whose reach is blank, so an Add
+effect left blank lifts the darkness; only the figure readers (the token and
+column light, lib's `lightLevelAt`) read nothing from it. A magic light that
+states no band at all lights a mapper as an unimported reach, as a flame
+does. A dim-only magic light lifts the dark for the pace but lights no mapper,
+whose verdict reads bright reach only; a light with any band typed is a figure
+somebody set, never an unimported one; a
 daylight radius is bright reach (lib MODEL, Senses), so it lights a mapper
 within it. The Kit row leads with a stated daylight band ("{n} ft daylight"),
 then the bright and dim pair.

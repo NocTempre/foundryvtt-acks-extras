@@ -25,7 +25,7 @@ import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
-import { effectLight } from "../lib/light.mjs";
+import { LIGHT_STATE, magicLights } from "../lib/light.mjs";
 import { speedMath } from "../lib/conditions.mjs";
 import { carriesItem, findCarried } from "../lib/item-model.mjs";
 import { capacityStone, explorationSpeedBearing } from "../lib/capacity.mjs";
@@ -917,15 +917,16 @@ export function derivedMovementMode(formation) {
 
 /**
  * Does the party carry any light: a lit, unshuttered flame on its record, or a
- * member whose effects shed a magic light with a reach (`effectLight`)? A
- * magic light whose reach no one has typed sheds nothing, so it does not count.
+ * member with a shining magic light? Presence is the state, not the figure: a
+ * flame whose reach is not imported counts, and so does a magic light whose
+ * bands are blank, which is what a cast writes until a reach is imported or
+ * typed. A shuttered or stowed one does not.
  */
 export function formationHasLight(formation) {
   if ((formation.lights ?? []).some((l) => l.lit && !l.shielded)) return true;
   return (formation.members ?? []).some((m) => {
     if (!m?.actorId || m.blank) return false;
-    const { bright, dim } = effectLight(getMemberActor(m));
-    return bright > 0 || dim > 0;
+    return magicLights(getMemberActor(m)).some((light) => light.state === LIGHT_STATE.SHINING);
   });
 }
 

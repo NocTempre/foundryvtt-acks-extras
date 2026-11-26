@@ -13,7 +13,7 @@
 
 import { MEASURE_MODES } from "./measure-fuzz.mjs";
 
-/** How a mapper came to be lit: the day outside, a light that reaches them, a flame whose reach is not imported, or the Judge's switch having the module assume light. */
+/** How a mapper came to be lit: the day outside, a light that reaches them, a flame or magic light whose reach is not imported or typed, or the Judge's switch having the module assume light. */
 export const LIT_BY = Object.freeze({
   AMBIENT: "ambient",
   LIGHT: "light",
@@ -36,14 +36,15 @@ export const MAP_BLOCK = Object.freeze({
  * With the light requirement off the module assumes light and nothing else is
  * read. Otherwise the day outside lights them; so does a light whose bright
  * reach covers their place (`reach` > 0); and so does a lit, open flame whose
- * reach no table gives (`unimportedFlame`): with no light figures imported the
- * surface says "not imported" instead of a figure.
+ * reach no table gives, or a shining magic light that states no band at all
+ * (`unimportedFlame`): with no figure to read the surface says
+ * so instead of a figure.
  *
  * @param {object} facts
  * @param {boolean} facts.needsLight the light requirement is on
  * @param {boolean} [facts.ambient] the scene is bright around the party
  * @param {number} [facts.reach] the bright radius of the strongest light reaching them, 0 for none
- * @param {boolean} [facts.unimportedFlame] a lit, open flame has no imported reach
+ * @param {boolean} [facts.unimportedFlame] a lit, open flame has no imported reach, or a shining magic light states no band at all
  * @returns {{lit: boolean, litBy: string|null}}
  */
 export function mapperLit({ needsLight, ambient = false, reach = 0, unimportedFlame = false }) {

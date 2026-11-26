@@ -1149,7 +1149,10 @@ casters they own, and the Judge sees every member. Where the list refuses the
 cast, a player's **Cast** is off and the reason is written beneath it; the Judge
 reads the same reason as a warning and can cast anyway. Once cast, the light is
 listed with the party's other lights, with its **Shutter** (see the [magic
-guide](magic.md#the-spell-sheet) for where its reach is typed).
+guide](magic.md#the-spell-sheet) for where its reach is typed). A shining light
+counts as the party's light whether or not its reach is set. Where a row's reach
+is blank, the seat that owns the light has a **Set reach** button that opens the
+light's own effect sheet, where its bands are typed.
 
 The light figures and the wandering-monster cadence (below) arrive with the
 **Rules tables**. Until they are imported the Kit tab leaves the light figures

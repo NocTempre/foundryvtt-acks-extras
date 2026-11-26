@@ -297,7 +297,7 @@ await test("a bearer's magic light lights the mapper within its reach; shuttered
   assert.equal(verdictOf(make(true)).lit, false);
 });
 
-await test("a member's magic light lifts the party's darkness as a flame does; shuttered or with no reach typed, it does not", () => {
+await test("a member's magic light lifts the party's darkness as a flame does; shuttered, it does not, and one with no reach typed counts as a light of no imported reach", () => {
   const scene = sceneOf("s.magicdark", { darkness: 0.9 });
   const party = (effects) => {
     actorOf("glow3", { name: "Glowbearer", effects });
@@ -309,7 +309,28 @@ await test("a member's magic light lifts the party's darkness as a flame does; s
   assert.equal(model.isPartyInDark(party([magicOn(false)])), false, "the magic light is light");
   assert.equal(model.isPartyInDark(party([magicOn(true)])), true, "a shuttered one is not");
   const unsized = { ...magicOn(false), changes: [{ key: light.MAGIC_LIGHT_CHANGE_KEYS.bright, value: "" }] };
-  assert.equal(model.isPartyInDark(party([unsized])), true, "one with no reach typed sheds nothing");
+  assert.equal(model.formationHasLight(party([unsized])), true, "one with no reach typed is the party's light, as a flame with no imported reach is");
+  assert.equal(model.isPartyInDark(party([unsized])), false, "and lifts the dark");
+  assert.equal(model.isPartyInDark(party([{ ...unsized, ...magicOn(true), changes: unsized.changes }])), true, "a shuttered blank one does not");
+});
+
+await test("a shining magic light stating no band at all lights a mapper as unimported; shuttered, it does not; a dim-only one is no unimported reach; a stated bright reach is a figure", () => {
+  const scene = sceneOf("s.magicblank", { darkness: 0.9 });
+  const make = (effects) => {
+    actorOf("blankbearer", { name: "Blankbearer", effects });
+    const mapper = actorOf("mapper", { name: "Scribe" });
+    return partyOn(scene, [{ actorId: mapper.id, roles: ["mapper"] }, ...rank(8), { actorId: "blankbearer", roles: [] }]);
+  };
+  const keyOf = (band, value) => ({ key: light.MAGIC_LIGHT_CHANGE_KEYS[band], value });
+  const blank = { ...magicOn(false), changes: [keyOf("daylight", ""), keyOf("bright", ""), keyOf("dim", "")] };
+  const row = verdictOf(make([blank]));
+  assert.deepEqual([row.lit, row.litBy], [true, LIT_BY.UNIMPORTED], "a cast's blank bands light the mapper and say so");
+  assert.equal(verdictOf(make([{ ...blank, getFlag: magicOn(true).getFlag }])).lit, false, "shuttered, it lights no one");
+  const dimOnly = make([{ ...blank, changes: [keyOf("dim", "30")] }]);
+  const dimRow = verdictOf(dimOnly);
+  assert.deepEqual([dimRow.lit, dimRow.litBy], [false, null], "a dim-only light is a light somebody set: it is no unimported reach and does not light the map");
+  assert.equal(model.formationHasLight(dimOnly), true, "yet it still counts as the party's light");
+  assert.equal(verdictOf(make([{ ...blank, changes: [keyOf("bright", "10")] }])).lit, false, "a stated bright reach reads as a reach: ten feet does not cover nine cells");
 });
 
 await test("a magic light stating only a daylight radius lights the mapper within it and lifts the dark", () => {

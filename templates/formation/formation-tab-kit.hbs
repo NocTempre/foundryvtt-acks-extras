@@ -31,6 +31,9 @@
       {{#if this.canShutter}}
       <button type="button" class="acks-extras-light-shutter" data-action="shutterMagicLight" data-light-actor="{{this.actorId}}" data-light-effect="{{this.effectId}}" aria-label="{{this.actionAria}}" data-tooltip-text="{{this.actionTip}}">{{this.actionLabel}}</button>
       {{/if}}
+      {{#if this.canSetReach}}
+      <button type="button" class="acks-extras-light-shutter acks-extras-light-setreach" data-action="setLightReach" data-light-actor="{{this.actorId}}" data-light-effect="{{this.effectId}}" aria-label="{{this.setReachAria}}" data-tooltip="">{{localize "ACKS-FORMATION.app.setReach"}}</button>
+      {{/if}}
     </div>
     {{/each}}
     {{#if isGM}}

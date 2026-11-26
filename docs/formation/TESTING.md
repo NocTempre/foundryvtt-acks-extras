@@ -6299,9 +6299,24 @@ world clock is read for the end.
    ("Page: {cite}") as its tooltip, and the typed one's is the field hint, which
    does not name the page. The Kit row of step 7 is where the cite stands alone;
    the editor's wording adds "Page: ".
+10. **K-c10. A blank cast light counts.** The fixture is step 7's record, a real
+    cast of a spell whose bands are blank (never bands typed by API), left
+    standing; the fixture scene's darkness is set to 0.8 for the step and put back,
+    since `isPartyInDark` reads a dark scene. The GM seat's party is in the delve
+    with no flame lit. *Observable:* `formationHasLight` is true and `isPartyInDark`
+    false; the header's light cell (the flame glyph in the figures rail) reads the
+    row's Shining badge and not the no-light reading; the next turn card carries
+    no no-light line. Shutter the row: `formationHasLight` false, `isPartyInDark`
+    true, the cell reads no light; Open it again and the badge returns. The row's
+    **Set reach** button is drawn on the GM seat (it owns every record) and not on
+    the Player seat, which only observes that bearer; pressing it opens the
+    record's own effect sheet (`.application` with the record's name in its
+    title). The blank cell's tooltip is still the cite alone. Step 2's record,
+    shuttered by step 3, is asserted shuttered and counts for nothing here.
 
 Teardown: the run puts back the spells' radii, counts and pools (`P.shape`), the
-deployed member, the world clock (`game.time.set` to the value read at the
+deployed member, the fixture scene's darkness (K-c10 sets it to 0.8 and writes
+back what it read), the world clock (`game.time.set` to the value read at the
 start), and closes the cast window and the sheets; then the capture driver's
 `sweepTracked({only})` over the run's ledger removes each cast's chat card and
 record and the token a deploy made, by the ids the run read back. The fixtures

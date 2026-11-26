@@ -16,7 +16,7 @@ import {
 import { formationMapping, mapperLit } from "./mapper-logic.mjs";
 import { isNight } from "./settlement.mjs";
 import { feetToUnits } from "../lib/distance-units.mjs";
-import { brightestLightAt, effectLight, lightFigures, shedLight } from "../lib/light.mjs";
+import { brightestLightAt, effectLight, LIGHT_STATE, lightFigures, magicLights, shedLight } from "../lib/light.mjs";
 import { tokenCentre } from "../lib/token-centre.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 
@@ -70,7 +70,8 @@ const effectsOf = (actorId) => effectLight(game.actors?.get?.(actorId));
 /**
  * Every light the formation's own record puts on its scene, as points the
  * light reader takes (`{x, y, bright}`, bright in scene units) and whether a
- * lit, open flame has no imported reach.
+ * lit, open flame has no imported reach or a member's shining magic light
+ * states no band at all (the blank bands a cast writes).
  *
  * Read from the record, never from the canvas: column lights are drawn
  * client-side and only when light sync is on, so mapping must answer the same
@@ -93,7 +94,11 @@ function recordLights(formation, scene, at, gs) {
     if (bright > 0) points.push({ ...tokenCentre(token, scene), bright: feetToUnits(bright, units) });
   }
   const unimportedFlame = (formation.lights ?? []).some((l) => l?.lit && !l.shielded && lightFigures(l.type).bright == null);
-  return { points, unimportedFlame };
+  const unimportedMagic = (formation.members ?? []).some((m) => {
+    if (!m?.actorId || m.blank) return false;
+    return magicLights(getMemberActor(m)).some((l) => l.state === LIGHT_STATE.SHINING && l.bright == null && l.daylight == null && l.dim == null);
+  });
+  return { points, unimportedFlame: unimportedFlame || unimportedMagic };
 }
 
 /**

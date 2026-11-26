@@ -155,7 +155,9 @@ import { hexStockKey } from "./hex-stock.mjs";
  * the effect and where it sits, the way a figure's tooltip owes its source. A
  * light a cast wrote carries the spell's page (`cite`): its tip names the spell,
  * the bearer and that page, and where no reach is typed its cell is blank and
- * the page alone is the tip.
+ * the page alone is the tip. A row with no reach also carries `canSetReach`
+ * (the seat owns the record, `effect.isOwner`) and `setReachAria`, for the
+ * Set reach control that opens the record's own sheet.
  * The state badge, the button and every name in them speak of the item, never
  * the effect.
  */
@@ -187,14 +189,18 @@ export function magicLightRows(formation) {
       const args = { effect: effectName, source: light.itemName ?? actor.name, reach: reachText };
       const effect = appliedEffects(actor).find((e) => e.id === light.id);
       const control = lightControl(effect, { name: light.itemName ?? light.label, bearer: actor.name }) ?? {};
+      const itemLabel = light.itemName ?? light.label;
       rows.push({
         key: `${actor.id}.${light.id}`,
         actorId: actor.id,
         effectId: light.id,
-        label: light.itemName ?? light.label,
+        label: itemLabel,
         bearer: actor.name,
         set,
         reachText,
+        // A blank reach offers Set reach to a seat that owns the record; it opens core's own effect sheet, where Foundry's own ownership decides who may write.
+        canSetReach: !set && !!effect?.isOwner,
+        setReachAria: game.i18n.format("ACKS-FORMATION.app.setReachAria", { name: itemLabel }),
         tip: cited
           ? set
             ? game.i18n.format("ACKS-FORMATION.app.magicLightCastTip", { spell: light.label, source: actor.name, cite: light.cite, reach: reachText })
