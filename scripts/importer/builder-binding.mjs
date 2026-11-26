@@ -14,6 +14,7 @@ import { cookbookContentFile, createDoc, ensureItemFolder, importedDocs, importe
 import { MODULE_ID } from "./constants.mjs";
 import { foldLabel, printKey, titleCaseHeading } from "./printed-name.mjs";
 import { countRepair, unrepaired } from "./refresh.mjs";
+import { decides, editKey, heldEdit, readKey } from "./held-edits.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
@@ -426,6 +427,72 @@ export function builderUpdate(parsed) {
   };
 }
 
+/** The key, under the class document's `cookbook.read` flag, of the stamp of what a build wrote into its builder leaves and race link. */
+const BUILDER_STAMP = "builder";
+
+/** The value at a dotted path of a plain object, or undefined. */
+const valueAt = (node, path) =>
+  path.split(".").reduce((n, key) => (n !== null && typeof n === "object" ? n[key] : undefined), node);
+
+/** A figure a schema leaves blank in a field the page did not name. */
+const isBlank = (v) =>
+  v === undefined || v === null || v === "" || v === false || v === 0
+  || (Array.isArray(v) && v.every(isBlank))
+  || (!!v && typeof v === "object" && !Array.isArray(v) && Object.values(v).every(isBlank));
+
+/**
+ * Whether a stored figure is still what was written. The model fills the
+ * fields a write leaves out (a magic row gains `label` and `delayed`), so a
+ * stored row holds what was written when it carries every written field as
+ * written and only blanks beyond them; a list holds it row for row.
+ */
+function holds(stored, wrote) {
+  if (Array.isArray(wrote)) return Array.isArray(stored) && stored.length === wrote.length && wrote.every((row, i) => holds(stored[i], row));
+  if (wrote && typeof wrote === "object") {
+    return !!stored && typeof stored === "object" && !Array.isArray(stored)
+      && Object.keys(wrote).every((k) => holds(stored[k], wrote[k]))
+      && Object.keys(stored).every((k) => k in wrote || isBlank(stored[k]));
+  }
+  return stored === wrote;
+}
+
+/**
+ * Which of a class build's leaf writes a Judge's edit stops. A leaf is held
+ * when the document holds a value that is neither what the page gives now nor
+ * what the build last wrote for it (`stamp`), and no decision takes it; a leaf
+ * with no stamp entry, or one the document does not hold yet, is written. Pure,
+ * so it runs without Foundry.
+ *
+ * @param {object} stored the class document's data (`toObject()`)
+ * @param {Object<string, unknown>} update the flat dotted update the build would write
+ * @param {Object<string, unknown>|undefined} stamp what the build last wrote, by `readKey` of each leaf's path
+ * @param {{force?: boolean, decision?: Parameters<typeof decides>[0], uuid?: string, name?: string, cite?: string}} [opts]
+ *   `force` writes every leaf; `decision` answers per `editKey(uuid, path)`
+ * @returns {{update: Object<string, unknown>, stamp: Object<string, unknown>, edits: ReturnType<typeof heldEdit>[]}}
+ *   `update` the leaves to write; `stamp` what the document should record
+ *   after the write (the page's value for a leaf written, the old record for one held);
+ *   `edits` the leaves held
+ */
+export function heldBuilderLeaves(stored, update, stamp, { force = false, decision = null, uuid = "", name = "", cite = "" } = {}) {
+  const out = {};
+  const next = {};
+  const edits = [];
+  for (const [path, page] of Object.entries(update)) {
+    const key = readKey(path);
+    const current = valueAt(stored, path);
+    const stamped = !!stamp && Object.hasOwn(stamp, key);
+    const edited = current !== undefined && !holds(current, page) && stamped && !holds(current, stamp[key]);
+    if (edited && !force && decides(decision, editKey(uuid, path)) !== "take") {
+      edits.push(heldEdit({ uuid, name, path, current, page, cite }));
+      next[key] = structuredClone(stamp[key]);
+    } else {
+      out[path] = page;
+      next[key] = structuredClone(page);
+    }
+  }
+  return { update: out, stamp: next, edits };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Foundry appliers                                                   */
 /* ------------------------------------------------------------------ */
@@ -478,11 +545,18 @@ export async function assembleBuilderImport() {
  * whenever it runs (its name and system fields); `repair`, a tally
  * (`repairTally`), counts each one. Writes world documents only; the
  * assembled engine tables are `assembleBuilderImport`'s.
+ *
+ * A class build writes the class's builder leaves and race link through
+ * `heldBuilderLeaves`: a leaf a Judge changed since an earlier apply wrote it
+ * is left standing and reported in `edits`. A tally that carries a `decision`
+ * (`mergedTally`) also lists the held edits in its own `edits` and lets a
+ * decision that takes one write it; a forced tally writes every leaf.
  * @param {{repair?: object|null}} [opts]
- * @returns {Promise<{assembled: string[], races: string[], builds: string[]}>}
+ * @returns {Promise<{assembled: string[], races: string[], builds: string[],
+ *   edits: ReturnType<typeof heldEdit>[]}>} `edits` the builder leaves left as a Judge set them
  */
 export async function applyBuilderImport({ repair = null } = {}) {
-  const report = { assembled: [], races: [], builds: [] };
+  const report = { assembled: [], races: [], builds: [], edits: [] };
   const doc = getLayer(BUILDER_DOC_ID, PRIORITY.WORLD);
   if (!doc) return report;
   const { races } = assembleBuilderTables(doc.tables ?? {});
@@ -546,7 +620,21 @@ export async function applyBuilderImport({ repair = null } = {}) {
       const raceItem = await importedItemFor(`def.race.${parsed.race.key}`);
       if (raceItem) update["system.race"] = raceItem.flags?.[MODULE_ID]?.cookbook?.id ?? `uuid:${raceItem.uuid}`;
     }
-    await cls.doc.update(update);
+    const stored = cls.doc.toObject();
+    const cookbook = stored.flags?.[MODULE_ID]?.cookbook;
+    const held = heldBuilderLeaves(stored, update, cookbook?.read?.builder, {
+      force: !!repair?.force,
+      decision: repair?.decision ?? null,
+      uuid: cls.doc.uuid ?? "",
+      name: stored.name ?? "",
+      cite: cookbook?.cite ?? "",
+    });
+    held.update[`flags.${MODULE_ID}.cookbook.read.${BUILDER_STAMP}`] = held.stamp;
+    await cls.doc.update(held.update);
+    if (held.edits.length) {
+      report.edits.push(...held.edits);
+      if (repair && "decision" in repair) (repair.edits ??= []).push(...held.edits);
+    }
     report.builds.push(cls.id);
   }
   return report;

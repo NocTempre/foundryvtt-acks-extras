@@ -141,7 +141,12 @@ questions. Five tabs:
   and leaves the fields it does not name, the class's builder fields and race
   link among them. A class a repair creates has no build until a tables apply
   runs, and the apply stays after the last pass so it follows every class the
-  passes make; a No reads and writes nothing.
+  passes make; a No reads and writes nothing. The tables apply writes those
+  builder fields and the race link, and records what it wrote in the class's
+  `flags.acks-extras.cookbook.read.builder`; a leaf that no longer holds what it
+  wrote is a Judge's edit, which the next apply leaves standing and the
+  repair's tally lists (`heldBuilderLeaves`), and a leaf with no record is
+  written over.
 - **Rebuild** — the shelf, book and rules-table options of
   `rebuildOptions()`, run by `runRebuildPick(value)`: a shelf or a book runs
   the merged repair, the rules tables are re-read in place. The Reimport One Shelf dialog draws

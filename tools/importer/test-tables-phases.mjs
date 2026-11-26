@@ -8,13 +8,23 @@
  * a read named. The import chain hands the first its read and the second that
  * read's report.
  *
+ * The apply half also writes builder state onto the imported classes: a leaf a
+ * Judge edited since the apply stamped it is held and reported, and the other
+ * leaves are written.
+ *
  * The world is a mocked Item shelf with a spy on every write, and the table
  * store is the lib registry. Every name and figure below is invented.
  */
 import assert from "node:assert";
 import * as services from "../../scripts/lib/services.mjs";
 import { PRIORITY, getDoc, hasDoc, registerTable, resetTables } from "../../scripts/lib/tables.mjs";
+import * as binding from "../../scripts/importer/builder-binding.mjs";
 import { BUILDER_DOC_ID, assembleBuilderImport, applyBuilderImport } from "../../scripts/importer/builder-binding.mjs";
+import { forgetImportedIndex } from "../../scripts/importer/cookbook.mjs";
+import { data as cookbookData } from "../../scripts/importer/cookbook/state.mjs";
+import { REPAIR, mergedTally, refreshPlan, repairTally } from "../../scripts/importer/refresh.mjs";
+import { editKey, readKey } from "../../scripts/importer/held-edits.mjs";
+import { CLASS_TYPE } from "../../scripts/classes/constants.mjs";
 import { assembleReadTables, applyReadTables } from "../../scripts/importer/tables-phases.mjs";
 import { LANGUAGES_DOC_ID } from "../../scripts/importer/language-binding.mjs";
 import { GM_STEPS } from "../../scripts/importer/getting-started.mjs";
@@ -55,6 +65,7 @@ class MockItem {
       ...structuredClone(data),
       id: `it${writes.create}`.padEnd(16, "0"),
       documentName: "Item",
+      collection: game.items,
       getFlag(scope, key) {
         return this.flags?.[scope]?.[key];
       },
@@ -166,6 +177,135 @@ clearWorld();
 readBuilder();
 await applyReadTables([]);
 check("an apply with nothing named writes nothing", writes.create === 0 && writes.update === 0 && notices.length === 0);
+
+/* --- a class build a Judge edited since the apply stamped it is held ------------------------ */
+
+const CLASS_ID = "cls.t1";
+const HD = "system.builder.hdValue";
+const THIEVERY = "system.builder.thievery.value";
+const RACE = "system.race";
+const BUILD_TEXT = "testclass hd 3 fighting 2 thievery 1 arcane 2 folk 1 yields a 500 xp cost";
+const isPlain = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+/** A document update as Foundry applies it: dotted keys expand, objects merge, arrays replace. */
+const mergeAt = (obj, path, value) => {
+  const keys = path.split(".");
+  let cur = obj;
+  for (const k of keys.slice(0, -1)) cur = cur[k] ??= {};
+  const last = keys.at(-1);
+  if (isPlain(value) && isPlain(cur[last])) for (const [k, v] of Object.entries(value)) mergeAt(cur[last], k, v);
+  else cur[last] = structuredClone(value);
+};
+/** An imported class holding no build yet; its `update` fills the schema's row defaults as the model does. */
+const heldClass = () => {
+  const doc = {
+    id: "cl1".padEnd(16, "0"),
+    uuid: "Item.cl1",
+    documentName: "Item",
+    name: "Testclass",
+    type: CLASS_TYPE,
+    collection: game.items,
+    flags: { "acks-extras": { cookbook: { id: CLASS_ID, cite: "JJ 1" } } },
+    system: {
+      description: "",
+      race: "",
+      builder: { enabled: false, hdValue: 0, fighting: { value: 0, sub: "", damageBonus: "" }, thievery: { value: 0, skills: [] }, magic: [], race: { value: -1 }, notes: "" },
+    },
+    updates: [],
+    getFlag(scope, key) {
+      return this.flags?.[scope]?.[key];
+    },
+    toObject() {
+      return structuredClone({ _id: this.id, name: this.name, type: this.type, system: this.system, flags: this.flags });
+    },
+    async update(change) {
+      this.updates.push(structuredClone(change));
+      writes.update++;
+      for (const [k, v] of Object.entries(change)) mergeAt(this, k, v);
+      for (const row of this.system.builder.magic) {
+        row.label ??= "";
+        row.delayed ??= false;
+      }
+    },
+  };
+  game.items.set(doc.id, doc);
+  cookbookData.content.set("classes", { entries: { [CLASS_ID]: {} } });
+  return doc;
+};
+const readBuilderWithBuild = () =>
+  registerTable(
+    { id: BUILDER_DOC_ID, tables: { ...structuredClone(RAW), builds: { classes: { a: { runins: [{ label: "Testclass", text: BUILD_TEXT }] } } } } },
+    { priority: PRIORITY.WORLD },
+  );
+/** A world holding one class, with the first apply already run: its leaves written and stamped. */
+const stampedClass = async () => {
+  clearWorld();
+  forgetImportedIndex();
+  readBuilderWithBuild();
+  const doc = heldClass();
+  await applyBuilderImport();
+  return doc;
+};
+const buildWrite = (doc) => doc.updates.filter((u) => "system.builder.enabled" in u).at(-1);
+const stampOf = (doc) => doc.flags["acks-extras"].cookbook.read?.builder;
+
+let cls = await stampedClass();
+check("the first apply writes the build's leaves", cls.system.builder.hdValue === 3 && cls.system.builder.thievery.value === 1);
+check("the first apply stamps what it wrote", stampOf(cls)?.[readKey(HD)] === 3 && stampOf(cls)?.[readKey(RACE)] === "def.race.people1");
+const quiet = await applyBuilderImport({ repair: mergedTally() });
+check("an apply over its own write reports no edit, the schema's row defaults aside", quiet.edits.length === 0);
+
+await cls.update({ [HD]: 9 });
+let tally = mergedTally();
+const kept = await applyBuilderImport({ repair: tally });
+check("a Judge's edit to a builder leaf is kept", cls.system.builder.hdValue === 9);
+check("the build's other leaves are written", !(HD in buildWrite(cls)) && buildWrite(cls)[THIEVERY] === 1);
+check("the held edit is reported", kept.edits.length === 1 && kept.edits[0].path === HD && kept.edits[0].current === 9 && kept.edits[0].page === 3);
+check("and listed on a merged tally", tally.edits.length === 1 && tally.edits[0].key === editKey(cls.uuid, HD));
+check("the stamp keeps what the import last wrote", stampOf(cls)[readKey(HD)] === 3);
+const again = await applyBuilderImport({ repair: mergedTally() });
+check("the edit is held again on the next apply", cls.system.builder.hdValue === 9 && again.edits.length === 1);
+const bare = await applyBuilderImport();
+check("an apply under no tally holds it too", cls.system.builder.hdValue === 9 && bare.edits.length === 1);
+
+cls = await stampedClass();
+await cls.update({ [RACE]: "uuid:Item.mine" });
+const raced = await applyBuilderImport({ repair: mergedTally() });
+check("a Judge's race link is kept", cls.system.race === "uuid:Item.mine");
+check("the held race link is reported", raced.edits.length === 1 && raced.edits[0].path === RACE && raced.edits[0].page === "def.race.people1");
+
+cls = await stampedClass();
+delete cls.flags["acks-extras"].cookbook.read;
+await cls.update({ [HD]: 9 });
+const unstamped = await applyBuilderImport({ repair: mergedTally() });
+check("a leaf with no stamp is written over", cls.system.builder.hdValue === 3 && unstamped.edits.length === 0);
+check("and the apply stamps it", stampOf(cls)?.[readKey(HD)] === 3);
+
+cls = await stampedClass();
+await cls.update({ [HD]: 9 });
+const forced = await applyBuilderImport({ repair: repairTally({ force: true }) });
+check("a forced repair writes over a Judge's edit", cls.system.builder.hdValue === 3 && forced.edits.length === 0);
+
+cls = await stampedClass();
+await cls.update({ [HD]: 9, [THIEVERY]: 4 });
+tally = mergedTally({ take: new Set([editKey(cls.uuid, HD)]), all: "keep" });
+await applyBuilderImport({ repair: tally });
+check("a decision that takes the key writes over it", cls.system.builder.hdValue === 3);
+check("and keeps the edits it does not take", cls.system.builder.thievery.value === 4 && tally.edits.length === 1 && tally.edits[0].path === THIEVERY);
+
+cls = await stampedClass();
+const built = { type: CLASS_TYPE, name: "Testclass", system: { description: "page text" }, flags: { "acks-extras": { cookbook: { id: CLASS_ID, cite: "JJ 2" } } } };
+await cls.update(refreshPlan(cls.toObject(), built, REPAIR.class).update);
+check("a class repair's write leaves the builder stamp standing", stampOf(cls)?.[readKey(HD)] === 3);
+await cls.update({ [HD]: 9 });
+const afterRepair = await applyBuilderImport({ repair: mergedTally() });
+check("an edit made after a class repair is held", cls.system.builder.hdValue === 9 && afterRepair.edits.length === 1);
+
+const row = (label) => ({ system: { builder: { magic: [{ type: "arcane", label, value: 2, delayed: false }] } } });
+const wrote = { "system.builder.magic": [{ type: "arcane", value: 2 }] };
+const stamp0 = binding.heldBuilderLeaves(row(""), wrote, undefined).stamp;
+check("a stored row the schema filled with blanks still holds what was written", binding.heldBuilderLeaves(row(""), wrote, stamp0).edits.length === 0);
+check("a row field a Judge filled is an edit", binding.heldBuilderLeaves(row("Runes"), wrote, stamp0).edits.length === 1);
+cookbookData.content.delete("classes");
 
 /* --- the chain: the first step's report is the second's input --------------------------- */
 
