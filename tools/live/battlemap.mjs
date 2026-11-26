@@ -1210,7 +1210,10 @@ const P = {
     return globalThis.__P.record({ fid });
   },
 
-  placeToken: async ({ fid, partyId, sceneId, xy }) => {
+  /** Place the party's token and wait for the arrival's re-read. A stored map outlives its token, so
+   *  its scene and a cell are already true before the arrival; `hex` ({i, j}) is the cell the re-read
+   *  must name before the record is read. */
+  placeToken: async ({ fid, partyId, sceneId, xy, hex }) => {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
     const data = (await game.actors.get(partyId).getTokenDocument({ x: xy.x, y: xy.y })).toObject();
@@ -1218,7 +1221,8 @@ const P = {
     const [tok] = await scene.createEmbeddedDocuments("Token", [data]);
     const seated = await H.poll(() => {
       const r = H.formation(fid);
-      return r?.tokenId === tok.id && r?.travel?.map?.sceneId === sceneId && r?.travel?.map?.i != null ? r : null;
+      const m = r?.travel?.map;
+      return r?.tokenId === tok.id && m?.sceneId === sceneId && m?.i === hex.i && m?.j === hex.j ? r : null;
     }, { tries: 40, every: 150 });
     await H.sleep(600);
     return { tokenUuid: tok.uuid, tokenId: tok.id, seated: !!seated, ...(await globalThis.__P.record({ fid })) };
@@ -2577,7 +2581,7 @@ async function walkCountry(W) {
   const del = await page(gm, P.deleteToken, { fid });
   note("deleted", { tokenId: del.tokenId, sceneId: del.sceneId, map: !!del.map, provenance: del.provenance });
   check("C8: tokenId and sceneId are null, travel.map is still stored, provenance default for every key", del.tokenId === null && del.sceneId === null && !!del.map && Object.values(del.provenance ?? {}).length === 6 && Object.values(del.provenance).every((p) => p === "default"), del.provenance);
-  const placed = await page(gm, P.placeToken, { fid, partyId: party.id, sceneId: hexScene.id, xy: xy("A") });
+  const placed = await page(gm, P.placeToken, { fid, partyId: party.id, sceneId: hexScene.id, xy: xy("A"), hex: { i: A.i, j: A.j } });
   gm.track(placed.tokenUuid, "Token");
   note("placed", { seated: placed.seated, map: placed.map && { i: placed.map.i, j: placed.map.j }, provenance: placed.provenance, tokenId: placed.tokenId });
   check("C8: placed again in hex A, the arrival re-reads: travel.map names hex A and the provenance returns to map", placed.seated && placed.tokenId && placed.map?.i === A.i && placed.map?.j === A.j && placed.provenance?.territory === "map" && placed.provenance?.ground === "map", { map: placed.map && { i: placed.map.i, j: placed.map.j }, provenance: placed.provenance });

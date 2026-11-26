@@ -702,11 +702,12 @@ try {
   check("the chart stands in the shape this step needs: a filled card whose stack recorded dice as the roll entry gave them", !!dieAt, dieAt);
   if (dieAt) {
     const lowest = await run(gm, P.lowest, { formula: dieAt.formula });
-    // Type a count by hand first, so the die has a hand-set mark to clear.
+    // Type a count by hand first, so the die has a hand-set mark to clear. The mark is a count that differs from the total the Roll threw, so the typed figure steps off that total whenever the roll landed on it.
+    const typedCount = lowest + 3 === dieAt.rolled ? lowest + 4 : lowest + 3;
     await run(gm, P.press, { id: fid, action: "orgEdit", key: dieAt.key, wait: 600 });
-    await run(gm, P.field, { id: fid, key: dieAt.key, stack: dieAt.stack, field: "count", value: String(lowest + 3) });
+    await run(gm, P.field, { id: fid, key: dieAt.key, stack: dieAt.stack, field: "count", value: String(typedCount) });
     await run(gm, P.press, { id: fid, action: "orgEditDone", key: dieAt.key, wait: 600 });
-    await waitFor(gm, `fromUuidSync("${dieAt.holder}").system.stacks.find((s) => s.key === "${dieAt.stack}").size.initial === ${lowest + 3}`, 8000);
+    await waitFor(gm, `fromUuidSync("${dieAt.holder}").system.stacks.find((s) => s.key === "${dieAt.stack}").size.initial === ${typedCount}`, 8000);
     const typed = await run(gm, P.dieRead, { id: fid, key: dieAt.key, stack: dieAt.stack });
     check("a count typed by hand reads as set by hand on the card", typed.byHand, typed);
     await run(gm, P.press, { id: fid, action: "orgEdit", key: dieAt.key, wait: 600 });
