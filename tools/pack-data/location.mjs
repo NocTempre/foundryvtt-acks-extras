@@ -30,7 +30,9 @@ function macro(name, img, command) {
  * The two guards every command runs behind: the named slice of the module api
  * must be ready, and the function must exist on this build, since a macro
  * imported into a world outlives the build that shipped it. The storage
- * macros read the shared lib's `storage`; the manager is location's own.
+ * macros read the shared lib's `storage`, a namespace of functions and not
+ * one itself, so their guard names the function each calls first; the manager
+ * is location's own.
  */
 const guard = (name, slice, fn) => `const api = game.modules.get("acks-extras")?.api?.${slice} ?? globalThis.acksExtras?.${slice};
 if (!api) return ui.notifications.error("ACKS Extras is not active.");
@@ -53,7 +55,7 @@ api.openStorageManager();`,
       "Enable Storage Here",
       "icons/svg/village.svg",
       `// Let the selected place, cart or stronghold hold goods for people, if you own it.
-${guard("Enable Storage Here", "lib", "storage")}
+${guard("Enable Storage Here", "lib", "storage?.setProvider")}
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
 if (!actor.isOwner) return ui.notifications.warn("You do not own " + actor.name + ".");
@@ -66,7 +68,7 @@ ui.notifications.info(actor.name + " can now hold goods for people.");`,
       "Disable Storage Here",
       "icons/svg/village.svg",
       `// Stop the selected place holding goods, once it holds none, if you own it.
-${guard("Disable Storage Here", "lib", "storage")}
+${guard("Disable Storage Here", "lib", "storage?.setProvider")}
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
 if (!actor.isOwner) return ui.notifications.warn("You do not own " + actor.name + ".");
@@ -80,7 +82,7 @@ ui.notifications.info(actor.name + " is no longer a place that holds goods.");`,
       "My Stored Goods",
       "icons/svg/coins.svg",
       `// Open your character's sheet on its Storage tab, where what you have in storage is listed.
-${guard("My Stored Goods", "lib", "storage")}
+${guard("My Stored Goods", "lib", "storage?.providersFor")}
 const actor = game.user.character ?? canvas.tokens.controlled[0]?.actor;
 if (!actor) return ui.notifications.warn("Assign yourself a character, or select your token.");
 const places = api.storage.providersFor(actor);

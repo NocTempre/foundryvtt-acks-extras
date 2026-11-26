@@ -426,6 +426,14 @@ export function windowNames({ leaderUuid = "", rows = [] } = {}, uuid) {
 }
 
 /**
+ * Whether a seat may delete an actor from a chart: Foundry's own delete test, and never an
+ * entry of a compendium, which is the library's copy and not the chart's to remove.
+ * @param {Actor|null} doc
+ * @param {User} user
+ */
+export const mayDeleteActor = (doc, user) => !!doc && !doc.pack && !!doc.canUserModify?.(user, "delete");
+
+/**
  * Which controls an officer line offers, each by the test Foundry itself makes and none by who
  * the seat is. A control that fails its test is absent, not disabled.
  * @param {object} args

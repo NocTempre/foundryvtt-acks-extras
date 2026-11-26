@@ -21,7 +21,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, groupNodes, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, placeNamesOf, rankOf, readAfterIndex, removalRows, restorableDrafts, roleOf, serviceFlags, serviceKindKey, serviceRowFlags, serviceRows, serviceSummary, serviceTotal, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, mayDeleteActor, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, placeNamesOf, rankOf, readAfterIndex, removalRows, restorableDrafts, roleOf, serviceFlags, serviceKindKey, serviceRowFlags, serviceRows, serviceSummary, serviceTotal, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { outputActorType } from "./template-generate.mjs";
@@ -194,7 +194,7 @@ async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
     state,
     owns: !!editable && !!group?.isOwner,
     canOpen: !!doc?.testUserPermission?.(user, "LIMITED"),
-    canDelete: !!doc?.canUserModify?.(user, "delete"),
+    canDelete: mayDeleteActor(doc, user),
     canCreate: !!user?.can?.("ACTOR_CREATE"),
     canMake: !!services.get("org-chart")?.canMakeLeader?.(rows, card.key, hostGen),
     part,
@@ -1191,7 +1191,7 @@ async function onDeleteLeaderActor(_event, target) {
   if (!host) return;
   const { row, group, officer } = officerTargetOf(host, key);
   if (!officer) return render(this);
-  if (!officer.canUserModify(game.user, "delete")) return refuse({ reason: "noDelete", name: officer.name ?? "" });
+  if (!mayDeleteActor(officer, game.user)) return refuse({ reason: "noDelete", name: officer.name ?? "" });
   if (!host.isOwner || !group?.isOwner) return refuse({ reason: "notOwner", name: (group ?? host).name });
   const { DialogV2 } = foundry.applications.api;
   const yes = await DialogV2.confirm({
@@ -1336,7 +1336,7 @@ function linkedOf(uuids) {
   return uuids
     .map((uuid) => docOf(uuid))
     .filter((d) => d?.documentName === "Actor")
-    .map((d) => ({ uuid: d.uuid, name: d.name ?? "", canDelete: !d.pack && !!d.canUserModify?.(game.user, "delete") }));
+    .map((d) => ({ uuid: d.uuid, name: d.name ?? "", canDelete: mayDeleteActor(d, game.user) }));
 }
 
 /**

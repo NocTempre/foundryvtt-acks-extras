@@ -1,0 +1,1 @@
+- **The storage macros run again.** Enable Storage Here, Disable Storage Here and My Stored Goods stopped at "needs a newer build of this module" on every seat, whatever the build. They now run: Compendium Packs sidebar tab → the module's macros pack. A copy of one already dragged into a world keeps its old command, so drag it out of the pack again.

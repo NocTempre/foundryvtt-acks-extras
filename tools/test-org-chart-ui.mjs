@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { orgChartView } from "../scripts/lib/org-tree-logic.mjs";
 import { planEdit, planUnlist } from "../scripts/lib/org-write-logic.mjs";
-import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf, formDraftsOf, restorableDrafts, rankOf } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { asksBeforeRemoving, branchKeys, byHandOf, chartCards, emptyKeys, hostLeaderState, isPartRow, officerLineShown, leaderRoleOf, mayDeleteActor, nextLevelKind, officerControls, officerActorData, officerChangeOf, officerDropVerdict, officerCreatureTypes, officerLineRole, officerSourceOf, liftedBy, officerStateOf, removalRows, subtreeView, roleOf, templateOf, unlistedView, slotPosition, recallOffered, windowNames, withRecall, readAfterIndex, familyOfRows, countDieOf, thrownOf, dieChangeOf, dieFloorOf, formDraftsOf, restorableDrafts, rankOf } from "../scripts/lib/org-chart-ui-logic.mjs";
 
 const row = (key, parentKey = "", holderUuid = "", extra = {}) => ({ key, parentKey, label: `Row ${key}`, holderUuid, kind: "", notes: "", hidden: false, gen: {}, ...extra });
 const ROWS = [
@@ -155,6 +155,13 @@ t("an officer line offers each control only to a seat that passes that control's
   // A seat that may not see the actor is not offered Open.
   assert.equal(officerControls({ state: "live", ...all, canOpen: false }).open, false);
   assert.deepEqual(officerControls({ state: "live" }), { open: false, clear: false, deleteActor: false, make: false, add: false, drop: false }, "no test passed, no control");
+  // Delete actor passes Foundry's own test, and never for a compendium's entry, which a GM's seat could otherwise delete from its library.
+  const user = { id: "u" };
+  const world = { pack: null, canUserModify: (who, action) => who === user && action === "delete" };
+  assert.equal(mayDeleteActor(world, user), true);
+  assert.equal(mayDeleteActor({ ...world, pack: "world.library" }, user), false, "a compendium entry is not the chart's to delete");
+  assert.equal(mayDeleteActor({ pack: null, canUserModify: () => false }, user), false);
+  assert.equal(mayDeleteActor(null, user), false);
 });
 
 t("a deleted officer is told from an empty line by the uuid the chart keeps, and a holder that does not resolve stays an empty card", () => {
