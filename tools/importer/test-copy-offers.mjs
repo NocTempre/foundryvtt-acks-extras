@@ -15,8 +15,8 @@ const ok = (label, cond, detail = "") => {
   pass++;
 };
 
-const before = { name: "Lamp", img: "icons/old.webp", system: { cost: { gp: 5 }, tags: ["a"], blank: {}, quantity: 1 } };
-const after = { name: "Lamp", img: "icons/new.webp", system: { cost: { gp: 7 }, tags: ["a", "b"], blank: {}, quantity: 1 } };
+const before = { name: "Lamp", img: "pictures/old.webp", system: { cost: { gp: 5 }, tags: ["a"], blank: {}, quantity: 1 } };
+const after = { name: "Lamp", img: "pictures/new.webp", system: { cost: { gp: 7 }, tags: ["a", "b"], blank: {}, quantity: 1 } };
 
 /* --- the leaves --- */
 {
@@ -36,9 +36,9 @@ const after = { name: "Lamp", img: "icons/new.webp", system: { cost: { gp: 7 }, 
   ok("a field the copy's owner changed is not offered, nor is one the repair left alone", sharedFields(edited, before, after).join() === "img,system.tags");
   ok("a copy with nothing left unchanged is offered nothing", sharedFields({ name: "Z", img: "x.webp", system: { cost: { gp: 1 }, tags: [] } }, before, after).length === 0);
   ok("a library document the repair did not change offers nothing", sharedFields(structuredClone(before), before, structuredClone(before)).length === 0);
-  ok("a leaf the library no longer holds is not offered", !sharedFields(structuredClone(before), before, { name: "Lamp", img: "icons/old.webp", system: { quantity: 1 } }).includes("system.cost.gp"));
+  ok("a leaf the library no longer holds is not offered", !sharedFields(structuredClone(before), before, { name: "Lamp", img: "pictures/old.webp", system: { quantity: 1 } }).includes("system.cost.gp"));
   const update = copyUpdate(["img", "system.tags"], after);
-  ok("the update writes the library's value at each path alone", JSON.stringify(update) === JSON.stringify({ img: "icons/new.webp", "system.tags": ["a", "b"] }) && update["system.tags"] !== after.system.tags);
+  ok("the update writes the library's value at each path alone", JSON.stringify(update) === JSON.stringify({ img: "pictures/new.webp", "system.tags": ["a", "b"] }) && update["system.tags"] !== after.system.tags);
 }
 
 /* --- the snapshot is taken before the write --- */
