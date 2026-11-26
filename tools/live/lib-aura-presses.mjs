@@ -79,7 +79,7 @@ const DOC = "live-aura-presses";
 const TABLE = "figures";
 const FIGURES = Object.freeze({
   standing: { radius: 30, bonus: 1 },
-  once: { radius: 30, damage: 2 },
+  once: { radius: 30, damage: 2, uses: 1 },
 });
 /** The viewport knob the narrow-window step raises, in px, and the width it asks for. */
 const RAISED_BASE_PX = 22;
@@ -98,7 +98,7 @@ const shapes = {
     kind: "toggle", cookbook: { id: "walk.aura-presses.standing", cite: "Aura Presses ref S" },
     rows: [{ key: "reach", type: "modifier", reach: { radius: ref("standing", "radius"), modifier: ref("standing", "bonus"), on: ["ac", "attack", "morale"], filter: filterOf(), pulse: "standing", showReach }, }],
   }),
-  /** A once-only use, a damage part that ends with the next attack. It names a count (`uses`), as an imported counted item does, so a count of none reads Used up; an item that names none is never used up. */
+  /** A once-only use, a damage part that ends with the next attack. It names a count (`uses`), as an imported counted item does, so a use spends one and a count of none reads Used up; an item that names none is never spent. */
   once: () => ({
     kind: "once", uses: ref("once", "uses"), cookbook: { id: "walk.aura-presses.once", cite: "Aura Presses ref O" },
     rows: [{ key: "reach", type: "modifier", reach: { radius: ref("once", "radius"), modifier: ref("once", "damage"), on: ["damage"], filter: filterOf(), pulse: "action", showReach: false }, endsOn: ["attack"] }],
@@ -899,9 +899,8 @@ async function pressFlow(label, run, { actorUuid, tokenUuid, tog, once }) {
   check(`${label}: the once item reads Ready with Use offered`, o0.model?.state === "ready" && o0.model.presses.some((p) => p.key === "use" && !p.disabled), { state: o0.model?.state });
   const used = await run(P.press, { actorUuid, itemUuid: once.uuid, key: "use" });
   check(`${label}: Use was drawn and pressed`, used === true);
-  // Use runs the item's card and writes no count: the count is the hand's that keeps the item. The Judge's count of none is written here, and the row and the HUD read it.
-  const spent = await gmRun(P.setCount, { uuid: once.uuid, quantity: 0 });
-  check(`${label}: a count of none is stored on the once item`, spent, { quantity: (await run(P.itemRead, { uuid: once.uuid })).quantity });
+  const spent = await run(P.waitItem, { uuid: once.uuid, quantity: 0 });
+  check(`${label}: Use of a once-only item that names its uses spends one: its count of one reads none and the item stays`, spent, { quantity: (await run(P.itemRead, { uuid: once.uuid })).quantity });
   const o1 = await rowOf(once.uuid);
   check(`${label}: the row reads Used up with its press off`, o1.model?.state === "spent" && o1.model.presses.every((p) => p.disabled), { state: o1.model?.state, presses: o1.model?.presses });
   const h2 = await hud();

@@ -39,7 +39,7 @@ import { currentStamp, dispatchReachMoment, holdReachMoment, lowerReach, raiseRe
 import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, alwaysOn, blastOf, burstAmount, checkApplyRequest, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseFlag, fuseLight, fuseRecordData, fuseSpot, fuseStep, fuseToWorld, fuseWorldFlag,
-  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
+  dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, itemRunUsedUp, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
   standingPartId, standingPartRecordData, undoGuard, undoPlan, litCountOf, secondLight,
 } from "./item-run-logic.mjs";
 import { stackCountOf } from "./item-model.mjs";
@@ -224,8 +224,18 @@ async function runToggle({ item, run, token }) {
 /** The ids a card's buttons name. */
 const cardIds = (item, row, activationId) => ({ itemUuid: item.uuid, rowKey: row.key, activationId });
 
-/** `once`: who the first action row's reach meets now, as a card model. */
-async function runOnce({ item, token, judge }) {
+/**
+ * `once`: who the first action row's reach meets now, as a card model, or the part written at once where the
+ * row names a figure and no save. An item already at none is refused `spent` (`itemRunUsedUp`, true only for a
+ * once-only item that names `uses`). Once the use has done its work, an item whose activation names `uses` spends
+ * one of its count (`consumeOne`, which keeps an item left at none so its row reads Used up). An item that names
+ * none, or carries no count, spends nothing, and a use refused or failed before that point spends nothing.
+ */
+async function runOnce({ item, run, token, judge }) {
+  if (itemRunUsedUp(item)) return { ok: false, reason: "spent" };
+  const spend = async () => {
+    if (run.activation.uses) await consumeOne(item, { keep: true });
+  };
   const row = itemRunRowsOf(item).find((r) => readReach(r?.reach)?.pulse === "action");
   const reach = readReach(row?.reach);
   if (!reach) return { ok: false, reason: "noRow" };
@@ -258,6 +268,7 @@ async function runOnce({ item, token, judge }) {
       const made = await actor.createEmbeddedDocuments("ActiveEffect", [actionPartRecordData({ name: item.name, parts, source: item.uuid, activationId, rowKey: row.key, cite: itemCite(item) })]);
       written.push({ ...subject, recordIds: made.map((e) => e.id) });
     }
+    await spend();
     return { ok: true, kind: "once", itemUuid: item.uuid, activationId, rowKey: row.key, subjects: admitted, written, undetermined };
   }
   const words = Object.fromEntries(["roll", "undo", "undetermined", "tick", "saved", "failed"].map((key) => [key, loc(`itemRun.card.${key}`)]));
@@ -270,6 +281,7 @@ async function runOnce({ item, token, judge }) {
     ids: cardIds(item, row, activationId),
     isGM: judge,
   });
+  await spend();
   return { ok: true, kind: "once", itemUuid: item.uuid, activationId, rowKey: row.key, subjects: admitted, undetermined, card };
 }
 
@@ -1431,10 +1443,18 @@ async function runFuse({ item, run, actor, token, judge = false }) {
 /*  The burst                                    */
 /* -------------------------------------------- */
 
-/** One off a stack, or the item deleted at the last. */
-async function consumeOne(item) {
+/**
+ * The one spender of an item's count: one off the stack. At the last one the item is deleted (a burst's fuse), or
+ * with `keep` left at none, which is how a once-only use leaves it, so its row reads Used up. With `keep`, an item
+ * that carries no count is left as it is.
+ */
+async function consumeOne(item, { keep = false } = {}) {
   const held = quantityOf(item);
-  if (held && held.value > 1) await item.update({ [held.path]: held.value - 1 });
+  if (!held) {
+    if (!keep) await item.delete();
+    return;
+  }
+  if (held.value > 1 || keep) await item.update({ [held.path]: Math.max(0, held.value - 1) });
   else await item.delete();
 }
 

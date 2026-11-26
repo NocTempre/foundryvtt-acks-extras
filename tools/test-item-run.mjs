@@ -806,6 +806,88 @@ await t("a once-only use takes who the action row's reach meets: the admitted to
   }
 });
 
+await t("a once-only use that names `uses` spends one of the item's count after its effect: 3 to 2, the last one to none with the item kept and then refused spent; one that names none, or carries no count, spends nothing; and a refused use spends nothing", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  const priorSystem = theItem.system;
+  const priorDelete = theItem.delete;
+  const deleted = [];
+  theItem.delete = async () => { deleted.push("I.1"); };
+  const holds = (quantity) => {
+    theItem.system = quantity === undefined ? undefined : { quantity };
+    updates.length = 0;
+    deleted.length = 0;
+  };
+  try {
+    const s1 = { id: "s1", uuid: "T.s1", name: "Tok s1", flags: { "acks-extras": {} }, disposition: -1, actor: monster(["alpha"]), testInsideRegion: () => true };
+    bearerTok.parent = sceneOf([bearerTok, s1]);
+    bearerTok.disposition = 1;
+    bearerTok.testInsideRegion = () => true;
+    const row = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" } } };
+    const direct = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" }, on: ["morale"], modifier: { value: "-1" } } };
+    const USES = { doc: "d", table: "t", row: "r", figure: "uses" };
+    const onceOf = (rows, named = true) => ({ itemRun: { activation: { kind: "once", ...(named ? { uses: USES } : {}) }, rows } });
+    itemFlags = onceOf([row]);
+    holds(3);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual([updates, deleted], [[{ "system.quantity": 2 }], []], "a count of 3 reads 2 after the use");
+    holds(1);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual([updates, deleted], [[{ "system.quantity": 0 }], []], "the last one leaves the item at none, not deleted, so it reads Used up");
+    theItem.system = { quantity: 0 };
+    assert.equal(logic.itemRunUsedUp(theItem), true, "a once-only item at none is used up");
+    // The use that is refused, with its count none, spends nothing and says spent.
+    const refused = async (reason) => assert.deepEqual(await quiet(() => run.runUse({ itemUuid: "I.1" })), { ok: false, reason });
+    holds(0);
+    await refused("spent");
+    assert.deepEqual([updates, deleted], [[], []], "a used-up item is not used again");
+    // An item that carries no count is untouched.
+    holds(undefined);
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual([updates, deleted], [[], []], "no count: nothing written, nothing deleted");
+    // A once-only item that names no `uses` keeps its count and stays usable, at any count.
+    itemFlags = onceOf([row], false);
+    for (const held of [3, 1, 0]) {
+      holds(held);
+      assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true, `without \`uses\`, at ${held}`);
+      assert.deepEqual([updates, deleted], [[], []], `without \`uses\` the count of ${held} is left`);
+    }
+    // A refused use spends nothing, whatever it was refused for.
+    itemFlags = onceOf([{ key: "s", reach: { pulse: "standing", radius: { value: "5" } } }]);
+    holds(3);
+    await refused("noRow");
+    itemFlags = onceOf([{ key: "k", reach: { pulse: "action", radius: { value: "" } } }]);
+    await refused("noRange");
+    itemFlags = onceOf([row]);
+    bearerTok.parent = sceneOf([bearerTok], {});
+    await refused("scale");
+    assert.deepEqual([updates, deleted], [[], []], "a use refused before its effect leaves the count");
+    // A use that writes its part at once spends after the write, and a write that throws spends nothing.
+    bearerTok.parent = sceneOf([bearerTok, s1]);
+    itemFlags = onceOf([direct]);
+    s1.actor.createEmbeddedDocuments = async () => { throw new Error("refused"); };
+    const priorLookup = globalThis.fromUuidSync;
+    globalThis.fromUuidSync = (uuid) => (uuid === "T.s1" ? s1 : priorLookup(uuid));
+    try {
+      await assert.rejects(run.runUse({ itemUuid: "I.1" }), /refused/);
+      assert.deepEqual([updates, deleted], [[], []], "a write that failed spends nothing");
+      s1.actor.createEmbeddedDocuments = async (kind, data) => data.map((_, n) => ({ id: `E.${n}` }));
+      assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+      assert.deepEqual([updates, deleted], [[{ "system.quantity": 2 }], []], "the direct use spends one too");
+    } finally {
+      globalThis.fromUuidSync = priorLookup;
+    }
+  } finally {
+    theItem.system = priorSystem;
+    theItem.delete = priorDelete;
+    bearerTok.parent = null;
+    delete bearerTok.testInsideRegion;
+    delete bearerTok.disposition;
+    unstage();
+  }
+});
+
 await t("a window the carrier itself wrote makes its subject immune: the once-only use and the reach's moment both skip it, and another kind's window or none prompts", async () => {
   stage();
   seatOf(true);

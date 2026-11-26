@@ -112,7 +112,7 @@ export function itemRunRowsOf(item) {
  * Regions are the module's to make and lift (`ensureEngagedReaches`), not a
  * press's.
  */
-/** The activation kinds that spend one of the item's count when pressed; a count of none leaves them used up. */
+/** The activation kinds that spend one of the item's count when pressed; a count of none leaves them used up. Any other kind, a once-only item included, spends one only where its activation names `uses`. */
 export const SPENDING_KINDS = Object.freeze(["fuse", "consume"]);
 
 /**
