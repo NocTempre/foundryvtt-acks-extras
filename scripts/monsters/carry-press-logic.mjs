@@ -15,6 +15,12 @@
 import { byOrdinal } from "../lib/group-logic.mjs";
 import { press as itemRunPress } from "../lib/item-run-row.mjs";
 
+/**
+ * The lang prefix of the localizer `carryControls` takes as `say`: lib's item-run
+ * words, whose press labels the press builder asks for under `row.press.`.
+ */
+export const RUN_LANG_PREFIX = "ACKS-LIB.itemRun";
+
 /** The record states a carrier can be in that this module reads. */
 const RESTING = "materialized";
 const OUT = "deployed";

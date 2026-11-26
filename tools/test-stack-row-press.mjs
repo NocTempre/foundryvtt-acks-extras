@@ -6,10 +6,21 @@
  * Run: node tools/test-stack-row-press.mjs
  */
 import assert from "node:assert/strict";
-import { carryControls, chooseCarrier, shareOf } from "../scripts/monsters/carry-press-logic.mjs";
+import fs from "node:fs";
+import { RUN_LANG_PREFIX, carryControls, chooseCarrier, shareOf } from "../scripts/monsters/carry-press-logic.mjs";
+import { press } from "../scripts/lib/item-run-row.mjs";
 
 const tests = [];
 const t = (name, fn) => tests.push([name, fn]);
+
+t("every press label and tooltip the row asks for is a word the lang file holds under the prefix the caller localizes with", () => {
+  const en = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const asked = [];
+  const record = (key) => (asked.push(`${RUN_LANG_PREFIX}.${key}`), key);
+  for (const key of ["raise", "lower", "use", "light", "spent"]) press(key, record);
+  const missing = asked.filter((key) => typeof en[key] !== "string");
+  assert.deepEqual(missing, [], "a missing key is drawn on the row as the raw key");
+});
 
 const say = (key, data) => `${key}${data ? JSON.stringify(data) : ""}`;
 const tr = (key, data) => `${key}${data ? JSON.stringify(data) : ""}`;

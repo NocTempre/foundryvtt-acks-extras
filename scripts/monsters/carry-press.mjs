@@ -16,13 +16,12 @@ import { hasActivationRunner } from "../lib/item-run.mjs";
 import { itemRunOf, itemRunUsedUp } from "../lib/item-run-logic.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { carriedGearItems, importedOrganisation } from "./organisation.mjs";
-import { carryControls, chooseCarrier } from "./carry-press-logic.mjs";
+import { RUN_LANG_PREFIX, carryControls, chooseCarrier } from "./carry-press-logic.mjs";
 
-/** lib's lang root; the two prefixes below are built from it, since each names a group of keys and no key of its own. */
+/** lib's lang root; the carry prefix is built from it, since it names a group of keys and no key of its own. */
 const LIB_ROOT = "ACKS-LIB";
-const ROW_LANG_PREFIX = `${LIB_ROOT}.itemRun.row`;
 const CARRY_LANG_PREFIX = `${LIB_ROOT}.group.carry`;
-const say = makeLoc(ROW_LANG_PREFIX);
+const say = makeLoc(RUN_LANG_PREFIX);
 const tr = makeLoc(CARRY_LANG_PREFIX);
 
 /** The cookbook id a minted gear item carries, which its copy on a body keeps. */
