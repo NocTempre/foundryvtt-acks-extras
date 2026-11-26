@@ -69,7 +69,7 @@ import { creatureOpens, packIdOfUuid } from "./summons-logic.mjs";
 import * as actorRead from "./actor-read.mjs";
 import { loadRuledata } from "./ruledata.mjs";
 import { resolveLevelValue } from "./vocab.mjs";
-import { acksCompatStubs, savingThrowFields } from "./actor-compat.mjs";
+import { acksCompatStubs, savingThrowFields, clearNewOnModuleType } from "./actor-compat.mjs";
 import AnimalData from "./data/animal-data.mjs";
 import GroupData from "./data/group-data.mjs";
 import TemplateData from "./data/template-data.mjs";
@@ -1333,6 +1333,9 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
     relightPartyOf(actor);
   });
 }
+
+// A module sub-type is never created flagged as the system's new actor.
+Hooks.on("preCreateActor", (doc) => clearNewOnModuleType(doc));
 
 // A stat block edited on the Full Monster Sheet changes the creature's vision
 // modes too. Matches on `flags.${MODULE_ID}` only, never `system` — see

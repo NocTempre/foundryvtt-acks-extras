@@ -67,6 +67,20 @@ export function acksCompatStubs() {
 }
 
 /**
+ * A `preCreateActor` listener: the system's `AcksActor.create` writes
+ * `system.isNew: true` beneath the caller's own system data, for every type it
+ * creates. A module sub-type has no new-actor page, so the stub field is set
+ * back to false; the system's own types keep the flag.
+ *
+ * @param {Actor} doc  the actor about to be created
+ */
+export function clearNewOnModuleType(doc) {
+  if (!String(doc?.type ?? "").includes(".")) return;
+  if (doc._source?.system?.isNew !== true) return;
+  doc.updateSource({ "system.isNew": false });
+}
+
+/**
  * The system's five saving throws, for a sub-type that actually saves.
  *
  * Separate from the stubs above because most module actors (a domain, a party,

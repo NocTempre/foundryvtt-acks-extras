@@ -5139,4 +5139,25 @@ await (async () => {
   console.log("ok - the itemRun API block exposes the card's presses");
 }
 
+{
+  // The system's create seeds its new-actor flag ahead of the caller's system data; a module sub-type drops it.
+  const { clearNewOnModuleType } = await import("../scripts/lib/actor-compat.mjs");
+  const doc = (type, isNew) => {
+    const d = { type, _source: { system: { isNew } }, writes: [] };
+    d.updateSource = (u) => { d.writes.push(u); d._source.system.isNew = u["system.isNew"]; };
+    return d;
+  };
+  const group = doc("acks-extras.group", true);
+  clearNewOnModuleType(group);
+  assert.deepEqual(group.writes, [{ "system.isNew": false }]);
+  const monster = doc("monster", true);
+  clearNewOnModuleType(monster);
+  assert.deepEqual(monster.writes, [], "the system's own types keep the flag");
+  const quiet = doc("acks-extras.group", false);
+  clearNewOnModuleType(quiet);
+  assert.deepEqual(quiet.writes, [], "nothing to clear writes nothing");
+  n++;
+  console.log("ok - a module sub-type's create drops the system's new-actor flag");
+}
+
 console.log(`\n${n} tests passed`);
