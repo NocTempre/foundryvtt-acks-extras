@@ -162,7 +162,8 @@ export async function placeImportOrder(location, payload) {
   log.push({
     time: t,
     type: "importOrder",
-    note: `${buyer.name}: ordered ${qty}× ${itemData.name} from ${hub} hub for ${totalGp}gp [${order.id}]`,
+    note: `${buyer.name}: ordered ${qty}× ${itemData.name} from ${hub} hub for ${totalGp}gp`,
+    ref: order.id,
     actorUuid: buyer.uuid,
     gp: -totalGp,
   });
@@ -359,7 +360,8 @@ export async function placeCommission(location, payload) {
   log.push({
     time: t,
     type: "commission",
-    note: `${buyer.name}: commissioned ${qty}× ${itemData.name} (${worker}, ${plan.days} days, ${wagesGp}gp wages) [${order.id}]`,
+    note: `${buyer.name}: commissioned ${qty}× ${itemData.name} (${worker}, ${plan.days} days, ${wagesGp}gp wages)`,
+    ref: order.id,
     actorUuid: buyer.uuid,
     gp: -(Number(wagesGp) || 0),
   });
@@ -416,7 +418,7 @@ export async function createItemSearch(location, payload) {
     status: "active",
   };
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  log.push({ time: t, type: "search", note: `${buyer.name}: searching for ${qty}× ${entry.data.name} [${search.id}]`, actorUuid: buyer.uuid, gp: 0 });
+  log.push({ time: t, type: "search", note: `${buyer.name}: searching for ${qty}× ${entry.data.name}`, ref: search.id, actorUuid: buyer.uuid, gp: 0 });
   await location.update({
     "system.market.goods.searches": [...existing, search],
     "system.market.marketLog": log.slice(-MARKET_LOG_CAP),

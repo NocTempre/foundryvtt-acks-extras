@@ -6,6 +6,7 @@
  * ledger is append-only and the engine stamps `actorUuid` (and the actor's
  * signed coin movement, `gp`) as it writes.
  */
+import { toCopper, toGp } from "./pricing.mjs";
 
 /** The row types a trader's history shows; every other ledger row is the market's own business. */
 export const HISTORY_TYPES = Object.freeze([
@@ -64,5 +65,11 @@ export function historyRows(ledgers, { actorUuids = [], limit = 60 } = {}) {
   return found.slice(0, Math.max(0, limit)).map((f) => f.row);
 }
 
-/** The net coin movement of a history, as the trader saw it (paid negative). */
-export const historyNetGp = (rows) => (rows ?? []).reduce((sum, r) => sum + (Number(r.gp) || 0), 0);
+/** The net coin movement of a history, as the trader saw it (paid negative), summed in copper so it is exact to the copper. */
+export const historyNetGp = (rows) => toGp((rows ?? []).reduce((sum, r) => sum + toCopper(r.gp), 0));
+
+/** A gp figure as the history prints it: to the copper, signed, and a dash for nothing. */
+export const signedGp = (gp) => {
+  const n = toGp(toCopper(gp));
+  return n === 0 ? "—" : n > 0 ? `+${n}` : `${n}`;
+};

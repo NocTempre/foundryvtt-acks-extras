@@ -417,7 +417,8 @@ export async function postVentureAction(location, payload) {
   log.push({
     time: t,
     type: "ventureAction",
-    note: `${actor.name}: ${kind}${entrants > 0 ? " separately" : ""}${category ? ` (${category})` : ""} posted${paidNote} [${action.id}]`,
+    note: `${actor.name}: ${kind}${entrants > 0 ? " separately" : ""}${category ? ` (${category})` : ""} posted${paidNote}`,
+    ref: action.id,
     actorUuid: actor.uuid,
     gp: -paidGp,
   });
@@ -458,7 +459,8 @@ export async function cancelVentureAction(location, { actionId, requestUserId = 
   log.push({
     time: now(),
     type: "ventureCancelled",
-    note: `${actor?.name ?? action.actorUuid}: ${action.kind}${action.category ? ` (${action.category})` : ""} withdrawn, nothing refunded [${action.id}]`,
+    note: `${actor?.name ?? action.actorUuid}: ${action.kind}${action.category ? ` (${action.category})` : ""} withdrawn, nothing refunded`,
+    ref: action.id,
     actorUuid: action.actorUuid,
     gp: 0,
   });
@@ -895,7 +897,7 @@ export async function tradeMerchandise(location, payload) {
   const away = awayFromMarket(actor, location, requestUserId);
   if (away) return away;
   const log = clone(location.system.market.marketLog);
-  if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
+  if (resolutionId && log.some((l) => l.ref === resolutionId)) return err("duplicate");
 
   const t = now();
   const monthStart = marketMonthStart(t);
@@ -995,11 +997,11 @@ export async function tradeMerchandise(location, payload) {
   }
 
   srow.stones -= stones;
-  const stamp = resolutionId ? ` [${resolutionId}]` : "";
   log.push({
     time: t,
     type: "ventureTrade",
-    note: `${actor.name}: ${direction === "buy" ? "bought" : "sold"} ${stones} st ${category} @ ${toGp(unitCp)}gp/st = ${totalGp}gp${inVehicle ? ` (${direction === "buy" ? "into" : "from"} ${hold.name})` : ""}${stamp}`,
+    note: `${actor.name}: ${direction === "buy" ? "bought" : "sold"} ${stones} st ${category} @ ${toGp(unitCp)}gp/st = ${totalGp}gp${inVehicle ? ` (${direction === "buy" ? "into" : "from"} ${hold.name})` : ""}`,
+    ref: resolutionId,
     actorUuid: actor.uuid,
     gp: direction === "buy" ? -totalGp : totalGp,
   });

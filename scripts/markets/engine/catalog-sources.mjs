@@ -11,20 +11,41 @@
  * the document it was placed for, whatever the shop draws on now
  * (`orderedSource`).
  */
-import { CATALOG_EXCLUDED_SETTING } from "../constants.mjs";
+import { CATALOG_EXCLUDED_SETTING, CATALOG_JUDGE_INCLUDED_SETTING } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
 import { findGearEntry } from "../../equipment/grant.mjs";
-import { openPacks } from "../../lib/library.mjs";
-import { WORLD_SOURCE, normalizeExcluded, sourceAllowed, sourceOfUuid } from "../rules/sources.mjs";
+import { openPacks, importedPacks, isJudgeLine } from "../../lib/library.mjs";
+import { WORLD_SOURCE, normalizeExcluded, effectiveExcluded, sourceAllowed, sourceOfUuid } from "../rules/sources.mjs";
 
-/** The sources the shop leaves out, cleaned; none where the setting is unreadable. */
-export function excludedSources() {
+/** The sources the Judge left out by name, cleaned; none where the setting is unreadable. */
+export function storedExcluded() {
   try {
     return normalizeExcluded(getSetting(CATALOG_EXCLUDED_SETTING));
   } catch {
     return [];
   }
 }
+
+/** The Judge's library shelves the Judge has ticked into the shop; none where the setting is unreadable. */
+export function judgeIncludedSources() {
+  try {
+    return normalizeExcluded(getSetting(CATALOG_JUDGE_INCLUDED_SETTING));
+  } catch {
+    return [];
+  }
+}
+
+/** The collection id of every Item shelf of a Judge's line that exists in this world, whether or not this seat opens it. */
+export function judgeShelfKeys() {
+  try {
+    return importedPacks().filter(({ type, line }) => type === "Item" && isJudgeLine(line)).map(({ pack }) => pack.collection);
+  } catch {
+    return [];
+  }
+}
+
+/** The sources the shop leaves out: the Judge's list, and every Judge shelf not ticked in. */
+export const excludedSources = () => effectiveExcluded(storedExcluded(), judgeShelfKeys(), judgeIncludedSources());
 
 /** Whether the shop lists the world's own items. */
 export const shopListsWorld = (excluded = excludedSources()) => sourceAllowed(WORLD_SOURCE, excluded);
@@ -58,12 +79,16 @@ export async function listedSource({ sourceUuid = "", itemName = "" } = {}) {
 /**
  * The item a paid order delivers: the document it was placed for while it
  * still exists, else the first of its name among the sources the shop lists,
- * else the first of its name anywhere. An order that stores no
- * source has only the name.
+ * else the first of its name anywhere but a Judge shelf the shop leaves out.
+ * An order that stores no source has only the name.
  * @param {{sourceUuid?: string, itemName?: string}} order
  * @returns {Promise<{data: object, uuid: string, inCompendium: boolean}|null>}
  */
 export async function orderedSource({ sourceUuid = "", itemName = "" } = {}) {
   const placed = sourceOfUuid(sourceUuid) ? await entryOf(sourceUuid) : null;
-  return placed ?? (await listedSource({ itemName })) ?? findGearEntry(itemName);
+  if (placed) return placed;
+  const listed = await listedSource({ itemName });
+  if (listed) return listed;
+  const judgeOut = effectiveExcluded([], judgeShelfKeys(), judgeIncludedSources());
+  return findGearEntry(itemName, { pack: (p) => sourceAllowed(p.collection, judgeOut) });
 }

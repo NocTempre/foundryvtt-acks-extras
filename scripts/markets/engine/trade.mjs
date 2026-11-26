@@ -378,7 +378,7 @@ export async function purchase(location, payload) {
 
   // Idempotency: a resolution delivered twice (two GM windows) applies once.
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
+  if (resolutionId && log.some((l) => l.ref === resolutionId)) return err("duplicate");
 
   // A held row names an item already on the location: it must still be there
   // and never a character's stored goods.
@@ -443,11 +443,11 @@ export async function purchase(location, payload) {
     monthState.ledgerRow.bought += qty;
     monthState.totalsRow.bought += qty;
   }
-  const stamp = resolutionId ? ` [${resolutionId}]` : "";
   const newLog = appendLog(log, {
     time: now(),
     type: "purchase",
-    note: `${buyer.name}: ${qty}× ${itemData.name} @ ${toGp(priced.unitCp)}gp = ${totalGp}gp${stamp}`,
+    note: `${buyer.name}: ${qty}× ${itemData.name} @ ${toGp(priced.unitCp)}gp = ${totalGp}gp`,
+    ref: resolutionId,
     actorUuid: buyer.uuid,
     gp: -totalGp,
   });
@@ -738,7 +738,7 @@ export async function sell(location, payload) {
   if (marketsFlag(itemData).merchandise) return err("untradeable");
 
   const log = (location.system.market.marketLog ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
-  if (resolutionId && log.some((l) => l.note?.includes(resolutionId))) return err("duplicate");
+  if (resolutionId && log.some((l) => l.ref === resolutionId)) return err("duplicate");
 
   // A sale counts units off the row and makes no second row, so every row that
   // holds a count sells by it, one that cannot be divided included.
@@ -799,11 +799,11 @@ export async function sell(location, payload) {
 
   ledgerRow.sold += qty;
   totalsRow.sold += qty;
-  const stamp = resolutionId ? ` [${resolutionId}]` : "";
   const newLog = appendLog(log, {
     time: now(),
     type: "sale",
-    note: `${seller.name}: sold ${qty}× ${itemData.name} @ ${toGp(plan.unitCp)}gp = ${totalGp}gp${stamp}`,
+    note: `${seller.name}: sold ${qty}× ${itemData.name} @ ${toGp(plan.unitCp)}gp = ${totalGp}gp`,
+    ref: resolutionId,
     actorUuid: seller.uuid,
     gp: totalGp,
   });

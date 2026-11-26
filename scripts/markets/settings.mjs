@@ -4,7 +4,7 @@
  * `markets`-prefixed to keep clear of the other features' keys; registered
  * at init.
  */
-import { MODULE_ID, LANG, TRADE_HOUSE_SETTING, CATALOG_EXCLUDED_SETTING } from "./constants.mjs";
+import { MODULE_ID, LANG, TRADE_HOUSE_SETTING, CATALOG_EXCLUDED_SETTING, CATALOG_JUDGE_INCLUDED_SETTING } from "./constants.mjs";
 
 /** Registers the markets feature's world settings. */
 export function registerSettings() {
@@ -71,19 +71,17 @@ export function registerSettings() {
   // The sources the shop leaves out: `world` and Item pack collection ids.
   // Edited from the shop-sources app. A sheet caches its catalog, so a change
   // drops every open sheet's copy and redraws it.
-  reg(CATALOG_EXCLUDED_SETTING, {
-    scope: "world",
-    config: false,
-    type: Array,
-    default: [],
-    onChange: () => {
-      for (const app of foundry.applications.instances.values()) {
-        if (!Object.hasOwn(app, "_tradeCatalog")) continue;
-        app._tradeCatalog = null;
-        app.render();
-      }
-    },
-  });
+  // The Judge's own library shelves are out of the shop until ticked in here
+  // (same app); the list holds the ones ticked.
+  const dropCatalogs = () => {
+    for (const app of foundry.applications.instances.values()) {
+      if (!Object.hasOwn(app, "_tradeCatalog")) continue;
+      app._tradeCatalog = null;
+      app.render();
+    }
+  };
+  reg(CATALOG_EXCLUDED_SETTING, { scope: "world", config: false, type: Array, default: [], onChange: dropCatalogs });
+  reg(CATALOG_JUDGE_INCLUDED_SETTING, { scope: "world", config: false, type: Array, default: [], onChange: dropCatalogs });
 }
 
 /** Reads the world setting `key` under the module id. */

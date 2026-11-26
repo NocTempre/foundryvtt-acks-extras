@@ -1071,6 +1071,10 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(mine.map((r) => [r.time, r.marketName]), [[400, "Second"], [300, "First"], [100, "First"]], "own rows only, newest first, across markets");
   assert.ok(!HISTORY_TYPES.includes("hire"), "a hire is the market's business, not trade history");
   assert.strictEqual(historyNetGp(mine), 15, "the net coin movement, paid negative");
+  assert.strictEqual(historyNetGp([{ gp: -0.1 }, { gp: -0.2 }]), -0.3, "the net is exact to the copper, not a float sum's tail");
+  assert.strictEqual(historyNetGp([{ gp: 0.1 }, { gp: 0.2 }, { gp: -0.3 }]), 0, "a net that cancels is zero");
+  const { signedGp } = await import(new URL("../scripts/markets/rules/ledger.mjs", import.meta.url));
+  assert.deepStrictEqual([signedGp(0), signedGp(12), signedGp(-248.70000000000002), signedGp(0.1 + 0.2), signedGp(-0.004)], ["—", "+12", "-248.7", "+0.3", "—"], "a row's gp reads to the copper with its sign, and nothing under a copper reads as nothing");
   assert.deepStrictEqual(historyRows(ledgers, { actorUuids: ["Actor.A", "Actor.B"], limit: 2 }).map((r) => r.time), [400, 300], "the cap keeps the newest");
   const sameInstant = [
     {
@@ -1183,6 +1187,20 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     ["mod.gone", "mod.alpha"],
     "a save leaves out what is unticked, takes back what is ticked, and keeps a pack it did not list out"
   );
+  const { effectiveExcluded, excludedFromPicks: fromPicks, judgeIncludedFromPicks } = await import(new URL("../scripts/markets/rules/sources.mjs", import.meta.url));
+  assert.deepStrictEqual(effectiveExcluded(["mod.alpha"], ["j.one", "j.two"], ["j.two"]), ["mod.alpha", "j.one"], "a Judge shelf is out unless ticked, beside what the Judge left out");
+  assert.deepStrictEqual(effectiveExcluded([], ["j.one"], ["j.one"]), [], "a ticked Judge shelf is in");
+  assert.deepStrictEqual(effectiveExcluded(["j.one"], ["j.one"], ["j.one"]), ["j.one"], "a shelf left out by name is out though ticked");
+  assert.deepStrictEqual(effectiveExcluded(["mod.alpha"], undefined, undefined), ["mod.alpha"], "with no Judge shelves nothing is added");
+  const { pickerListsRow } = await import(new URL("../scripts/markets/rules/sources.mjs", import.meta.url));
+  assert.deepStrictEqual(
+    [[0, true, false], [0, false, false], [3, true, false], [3, false, false], [0, false, true], [0, true, true], [3, false, true], [3, true, true]].map(([count, included, judge]) => pickerListsRow({ count, included, judge })),
+    [false, true, true, true, false, true, true, true],
+    "an empty compendium is drawn only while unticked, an empty Judge shelf only while ticked, and one with items always"
+  );
+  const picks = [{ key: "world", included: true }, { key: "j.one", included: true, judge: true }, { key: "j.two", included: false, judge: true }, { key: "mod.alpha", included: false }];
+  assert.deepStrictEqual(judgeIncludedFromPicks(picks, ["j.two", "j.gone"]), ["j.gone", "j.one"], "a save records a ticked Judge shelf, drops an unticked one, and keeps a shelf it did not list");
+  assert.deepStrictEqual(fromPicks(picks, ["j.one", "mod.beta"]), ["mod.beta", "mod.alpha"], "a Judge shelf never joins the excluded list, ticked or not");
 
   // A world of three sources. Pack alpha comes first and holds a class-kit copy
   // named "Sword"; pack beta holds the base "Sword"; the world holds a Lantern.
@@ -1202,11 +1220,12 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     return { collection, documentName: "Item", index, getIndex: async () => index, getDocument: async (id) => docs.get(`Compendium.${collection}.Item.${id}`) ?? null };
   };
   let excluded = [];
+  let judgeIncluded = [];
   const saved = { game: globalThis.game, fromUuid: globalThis.fromUuid, Hooks: globalThis.Hooks };
   globalThis.game = {
-    settings: { get: (_module, key) => (key === "marketsCatalogExcluded" ? excluded : undefined) },
+    settings: { get: (_module, key) => ({ marketsCatalogExcluded: excluded, marketsCatalogJudgeIncluded: judgeIncluded })[key] },
     items: [lantern],
-    packs: [packOf("mod.alpha", [kitSword, rope]), packOf("mod.beta", [baseSword])],
+    packs: [{ ...packOf("mod.alpha", [kitSword, rope]), metadata: { packageType: "module", label: "Alpha" } }, { ...packOf("mod.beta", [baseSword]), metadata: { packageType: "module", label: "Beta" } }],
   };
   globalThis.fromUuid = async (uuid) => docs.get(uuid) ?? null;
   globalThis.Hooks ??= { on() {}, once() {}, callAll() {} };
@@ -1237,6 +1256,30 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(await listed(), {}, "nothing ticked lists nothing");
   assert.strictEqual(await listedSource({ itemName: "Lantern" }), null, "the world's items left out are not bought by name");
   assert.strictEqual((await orderedSource({ itemName: "Lantern" }))?.uuid, lantern.uuid, "an order placed before orders kept their source still arrives, by name from anywhere");
+
+  // A Judge's own shelf is left out until the Judge ticks it; a library shelf of the ACKS line is not.
+  const { libraryPackLabel, judgeLine } = await import(new URL("../scripts/lib/library.mjs", import.meta.url));
+  const idol = doc("Compendium.world.judge-items.Item.i1", { name: "Idol", type: "item", system: { cost: 50 }, flags: {} });
+  const lamp = doc("Compendium.world.acks-items.Item.l1", { name: "Lamp", type: "item", system: { cost: 3 }, flags: {} });
+  const shelf = (collection, label, members) => ({ ...packOf(collection, members), metadata: { packageType: "world", label } });
+  game.packs.push(shelf("world.judge-items", libraryPackLabel("Item", judgeLine("Adventure")), [idol]), shelf("world.acks-items", libraryPackLabel("Item"), [lamp]));
+  excluded = [];
+  judgeIncluded = [];
+  assert.deepStrictEqual(await listed(), { Lamp: lamp.uuid, Lantern: lantern.uuid, Rope: rope.uuid, Sword: baseSword.uuid }, "a Judge shelf's items are not listed by default, and the ACKS library shelf's are");
+  assert.deepStrictEqual(shopPacks().map((p) => p.collection), ["mod.alpha", "mod.beta", "world.acks-items"], "a Judge shelf is not one of the shop's packs");
+  assert.strictEqual(await listedSource({ sourceUuid: idol.uuid, itemName: "Idol" }), null, "a row naming a Judge shelf's item is refused");
+  assert.strictEqual(await listedSource({ itemName: "Idol" }), null, "and a Judge shelf's item is not bought by name");
+  assert.strictEqual(await orderedSource({ sourceUuid: "Compendium.mod.beta.Item.gone", itemName: "Idol" }), null, "nor delivered by name to an order whose document is gone");
+  judgeIncluded = ["world.judge-items"];
+  assert.strictEqual((await listed()).Idol, idol.uuid, "a shelf the Judge has ticked lists");
+  assert.strictEqual((await listedSource({ itemName: "Idol" }))?.uuid, idol.uuid, "and answers a purchase by name");
+  excluded = ["world.judge-items"];
+  assert.strictEqual((await listed()).Idol, undefined, "a shelf left out by name stays out though it is ticked");
+  excluded = [];
+  judgeIncluded = ["world.gone"];
+  assert.strictEqual((await listed()).Idol, undefined, "a tick on another shelf takes this one in no more than none");
+  game.packs.length -= 2;
+  judgeIncluded = [];
 
   globalThis.game = saved.game;
   globalThis.fromUuid = saved.fromUuid;
@@ -1484,6 +1527,24 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual([action.tollCp, action.tariffCp], [900, 1288], "the action keeps what each came to, the duty in the tariff's field");
   assert.match(wrote["system.market.marketLog"][0].note, /\(21\.88gp: toll 9gp, duty 12\.88gp \(toll 6d4\+3 → 9gp; duty 1d6 → 4%\) paid\)/, "the ledger note names both throws");
   assert.strictEqual(wrote["system.market.marketLog"][0].gp, -21.88, "and the one payment");
+
+  // A ledger row names its resolution in a field of its own, never in the note a reader sees.
+  reset();
+  const stamped = market("city", []);
+  Object.assign(rigged, { "6d4+3": 9, "1d6": 4, "4d4": 12 });
+  await enter(stamped, { resolutionId: "Res12345" });
+  const stampedRow = stamped.updates[0]["system.market.marketLog"][0];
+  assert.strictEqual(stampedRow.ref, "Res12345", "the row carries the resolution in its ref");
+  assert.ok(!/Res12345|\[/.test(stampedRow.note), "and the note shows no document id in brackets");
+  // A repeated resolution is refused on the ref; the note's text is never read for one.
+  const seen = market("city", []);
+  seen.system.market.marketLog = [{ time: 1, type: "ventureTrade", note: "bought 2 st salt", actorUuid: trader.uuid, gp: -3, ref: "Dup00001" }];
+  assert.deepStrictEqual(await ventures.tradeMerchandise(seen, { actorUuid: trader.uuid, category: "salt", stones: 2, direction: "buy", resolutionId: "Dup00001" }), { error: "duplicate" }, "a venture trade whose ref is already in the ledger is refused");
+  const unseen = market("city", []);
+  unseen.system.market.marketLog = [{ time: 1, type: "ventureTrade", note: "bought 2 st salt [Dup00001]", actorUuid: trader.uuid, gp: -3 }];
+  assert.notDeepStrictEqual(await ventures.tradeMerchandise(unseen, { actorUuid: trader.uuid, category: "salt", stones: 2, direction: "buy", resolutionId: "Dup00001" }), { error: "duplicate" }, "a note's text is not read for a resolution");
+  const tradeEngine = await import(new URL("../scripts/markets/engine/trade.mjs", import.meta.url));
+  assert.deepStrictEqual(await tradeEngine.purchase(seen, { buyerUuid: trader.uuid, itemName: "Rope", qty: 1, resolutionId: "Dup00001" }), { error: "duplicate" }, "a purchase whose ref is already in the ledger is refused");
 
   // A price already rolled this month is not rolled again, and nothing is written for it.
   reset();

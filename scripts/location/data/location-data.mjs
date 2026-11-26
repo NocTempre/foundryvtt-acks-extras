@@ -234,6 +234,9 @@ function marketSchema() {
         // (paid negative), where the row is one.
         actorUuid: str(),
         gp: num(0),
+        // The resolution that wrote the row: what a repeated request is
+        // refused on, kept off the note a reader sees.
+        ref: str(),
       })
     ),
     // Hires accepted with no GM online and no actor-create permission —

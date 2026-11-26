@@ -195,13 +195,13 @@ walk starts (as in Fixtures above): the town `markets/sources-town` (the table
 OBSERVER, a class override, a market added again), the Player seat's
 characters `markets/sources-buyer` (coin minted) and `markets/sources-partner`,
 and the world item `markets/sources-lamp`, a priced `item` no compendium
-holds. The walk writes `marketsCatalogExcluded` empty at its start and puts
-both settings it touches (that one and each seat's `marketsActingTrader`) back
-at teardown. The chat cards S6's purchase posts (a payment and a sale) are
+holds. The walk writes `marketsCatalogExcluded` and `marketsCatalogJudgeIncluded`
+empty at its start and puts the settings it touches (those two and each seat's
+`marketsActingTrader`) back at teardown. The chat cards S6's purchase posts (a payment and a sale) are
 marked `markets/sources-card-<n>` at teardown, and the next run retires the
 series before it builds.
 
-- **S1.** The world registers `marketsCatalogExcluded` and the
+- **S1.** The world registers `marketsCatalogExcluded`, `marketsCatalogJudgeIncluded` and the
   `marketCatalogMenu` window.
 - **S2.** With nothing left out, `buildCatalog(town)`. *Observable:* the
   lamp's row carries the lamp's own uuid as `sourceUuid`; every row's
@@ -210,7 +210,8 @@ series before it builds.
 - **S3.** Open the window as the settings screen does
   (`new (game.settings.menus.get("acks-extras.marketCatalogMenu").type)()`).
   *Observable:* it carries `acks-extras-scroll`; World items is the first row;
-  every row is ticked, captioned, and its count carries a tooltip; a pack's
+  every row but a Judge's own shelf is ticked (that one starts unticked),
+  captioned, and its count carries a tooltip; a pack's
   count is no less than the rows the catalog lists from it (the count is
   before the masterwork gate).
 - **S4.** Untick the pack that lists the most rows (`input[data-source]`) and

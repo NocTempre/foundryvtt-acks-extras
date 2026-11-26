@@ -30,6 +30,9 @@ export const TRADE_HOUSE_SETTING = "marketsTradeHouse";
 /** The world setting listing the sources the shop leaves out (rules/sources.mjs). */
 export const CATALOG_EXCLUDED_SETTING = "marketsCatalogExcluded";
 
+/** The world setting listing the Judge's library shelves the Judge has ticked into the shop (rules/sources.mjs). */
+export const CATALOG_JUDGE_INCLUDED_SETTING = "marketsCatalogJudgeIncluded";
+
 /** The actor flag a GM sets to give a character the Trade tab (`flags["acks-extras"].markets.trader`). */
 export const TRADER_FLAG = "trader";
 

@@ -20,7 +20,7 @@ import { partyOf, partyMembers } from "../engine/parties.mjs";
 import { merchandiseFor } from "../engine/merchandise.mjs";
 import { objectsOf, allReports, plainReport, performGive, performRetire } from "../engine/trade-objects.mjs";
 import { beliefsFor, compareBeliefs, groupByMarket, heldByParty, isTraderProfile, isAwaiting, dmLabel } from "../rules/reports.mjs";
-import { historyRows, historyNetGp } from "../rules/ledger.mjs";
+import { historyRows, historyNetGp, signedGp } from "../rules/ledger.mjs";
 import { resolveActorSync } from "../../lib/storage.mjs";
 import { outcomeLabel, reportDay, ownsReport, beliefTipText, beliefFigure } from "./report-sheet.mjs";
 
@@ -33,7 +33,6 @@ export function marketLedgers() {
 
 /** History rows as a table renders them: the day, the kind's label, the note, the signed gp. */
 export function historyContext(rows) {
-  const signedGp = (n) => (n === 0 ? "—" : n > 0 ? `+${n}` : `${n}`);
   return {
     rows: rows.map((r) => ({ ...r, when: reportDay(r.time), typeLabel: game.i18n.localize(`${LANG}.history.type.${r.type}`), gp: signedGp(r.gp) })),
     net: signedGp(historyNetGp(rows)),

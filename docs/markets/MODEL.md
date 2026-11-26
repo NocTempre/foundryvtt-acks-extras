@@ -122,7 +122,13 @@ party's find.
   Item compendium except the sources the Judge leaves out in Shop sources
   (`marketsCatalogExcluded`, one world list of source keys: `world`, or a
   pack's collection id). The list names what is out, so a compendium a
-  module adds later stocks every shop until it is unticked. Every catalog row
+  module adds later stocks every shop until it is unticked. The one
+  exception is a Judge's own library shelf (`lib/library.mjs`
+  `isJudgeLine`): it is out until the Judge ticks it in
+  (`marketsCatalogJudgeIncluded`, the shelves ticked), so a shelf the
+  importer makes later starts out; `excludedSources()` returns both lists as
+  one, and the picker shows such a shelf only while it has something
+  listable or is ticked. Every catalog row
   carries `sourceUuid`, the document it was listed from, and a purchase,
   import order, commission or directed search places that document
   (`listedSource`). A uuid whose source is left out, or one naming an item
@@ -404,7 +410,9 @@ party's find.
   proving the trader stood there.
 - **The ledger stamps its actor** (`location-data.mjs` `marketLog`): every
   row the markets engine writes about a trader carries `actorUuid` and that
-  actor's signed coin movement `gp` (paid negative). `rules/ledger.mjs`
+  actor's signed coin movement `gp` (paid negative), and the row of a
+  resolution carries its id in `ref`, never in the note: a repeated
+  resolution is refused on `ref`. `rules/ledger.mjs`
   reads a trader's history back out of every market's log (`HISTORY_TYPES`,
   `historyRows`, `historyNetGp`), newest first, own rows only; the location
   Trade tab shows it for the viewer's own traders (the GM: every stamped
