@@ -12,6 +12,7 @@ import { MODULE_ID, FLAG_RECORD, FLAG_MONSTER_LIST, HOOKS } from "../constants.m
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { checkHenchmanLimit, enrollHenchman } from "../engine/hire.mjs";
 import { assignMonsterEmployer } from "../engine/monster-employer.mjs";
+import { rosterOf } from "../engine/service-tree.mjs";
 import { unvaluedPowers } from "../effects.mjs";
 import {
   openLoyaltyRoll,
@@ -93,11 +94,9 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static #onAllSheets(useCard) {
     return async function () {
       const setSheet = globalThis.acksExtras.lib.followerCard.setSheet;
-      const ids = [...adapter.getHenchmenIds(this.employer), ...(this.employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])];
       let changed = 0;
-      for (const id of ids) {
-        const actor = game.actors.get(id);
-        if (actor && (await setSheet(actor, useCard))) changed++;
+      for (const actor of rosterOf(this.employer)) {
+        if (await setSheet(actor, useCard)) changed++;
       }
       ui.notifications.info(loc(useCard ? "allCardsDone" : "allFullDone", { count: changed }));
     };
@@ -187,13 +186,9 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return context;
   }
 
-  /** Every hireling on the roster as a row, in roster order. */
+  /** Every hireling on the roster as a row, in the Followers tab's order (`rosterOf`). */
   #rows(employer, mods) {
-    const ids = [...adapter.getHenchmenIds(employer), ...(employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])];
-    return ids
-      .map((id) => game.actors.get(id))
-      .filter(Boolean)
-      .map((actor) => this.#row(actor, mods));
+    return rosterOf(employer).map((actor) => this.#row(actor, mods));
   }
 
   /**

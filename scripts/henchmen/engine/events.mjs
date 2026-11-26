@@ -24,7 +24,7 @@ import {
 import { optCite, optOrigin } from "../rules/tables.mjs";
 import { henchmanWage, mercenaryWage, levelMoraleBumps } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
-import { hiredUnitsOf } from "./service-tree.mjs";
+import { hiredUnitsOf, rosterOf } from "./service-tree.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag, unvaluedDialogModifiers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
@@ -398,10 +398,6 @@ export async function recordCalamity(actor, note = "") {
 }
 
 /* ------------------------- wages ------------------------- */
-
-/** The live actors on an employer's roster: core's henchmen list, then this module's monster list. */
-const rosterOf = (employer) =>
-  [...adapter.getHenchmenIds(employer), ...(employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [])].map((id) => game.actors.get(id)).filter(Boolean);
 
 /**
  * The roster entries an employer pays a wage to, each with its record and

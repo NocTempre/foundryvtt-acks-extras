@@ -37,6 +37,17 @@ export function hirelingBuckets(employer) {
   };
 }
 
+/**
+ * An employer's hirelings as one list, in the Followers tab's order: what the
+ * payroll bills and the roster window lists, so neither can name a hireling the
+ * tab does not show.
+ * @returns {Actor[]}
+ */
+export function rosterOf(employer) {
+  const { henchmen, mercenaries, specialists } = hirelingBuckets(employer);
+  return [...henchmen, ...mercenaries, ...specialists];
+}
+
 /** The units an employer hires: the group actors whose `unit.employerUuid` names it. */
 export const hiredUnitsOf = (employer) =>
   employer?.uuid ? game.actors.filter((a) => a.type === GROUP_ACTOR_TYPE && a.system?.unit?.employerUuid === employer.uuid) : [];

@@ -34,6 +34,7 @@ import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { now, secondsPerMonth } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { hirelingBuckets } from "./service-tree.mjs";
 import { appendMarketLog } from "../../location/data/market-log.mjs";
 import { gpText } from "../../lib/money-logic.mjs";
 import { hireHitPoints, judgePickHitPoints } from "../rules/service.mjs";
@@ -365,7 +366,7 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
 
 /**
  * Henchman-limit check for an employer: `adapter.getRetainMax` against core
- * henchmenList + our monster roster, minus record.special.noSlot members
+ * the henchmen the Followers tab shows (`hirelingBuckets`), minus record.special.noSlot members
  * (follower companions). `max` is null where the employer has no Charisma
  * score or the world has not imported the limit's base, `why` says which
  * ("charisma" | "import", null with a figure), and such an employer is always
@@ -374,14 +375,8 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
  */
 export function checkHenchmanLimit(employer) {
   const max = adapter.getRetainMax(employer);
-  const ids = [
-    ...adapter.getHenchmenIds(employer),
-    ...(employer.getFlag(MODULE_ID, "monsterHenchmenList") ?? []),
-  ];
   let count = 0;
-  for (const id of ids) {
-    const actor = game.actors.get(id);
-    if (!actor) continue;
+  for (const actor of hirelingBuckets(employer).henchmen) {
     if (actor.system?.retainer?.category && actor.system.retainer.category !== "henchman") continue;
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD);
     if (record?.special?.noSlot) continue;

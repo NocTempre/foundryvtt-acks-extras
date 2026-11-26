@@ -1316,6 +1316,45 @@ await test("the wage bill names when a payday would next bill more than it does 
     { due: 6, count: 2, monthly: 6, nextDue: 2 * month },
   ], "no clock, none due, the last second before, one due with the other's month ahead, both due with the first one's second month ahead");
 });
+await test("the payroll's roster is the one the Followers tab shows: core's list for a character, the monster list for monsters only", async () => {
+  /** Core's `getHirelings`: a character's `henchmenList`, bucketed by category; any other actor type has none. */
+  const coreHirelings = (employer) => () => {
+    const buckets = { henchman: [], mercenary: [], specialist: [] };
+    if (employer.type !== "character") return buckets;
+    for (const id of employer.system.henchmenList ?? []) {
+      const hireling = worldActors.get(id);
+      const key = hireling?.system.retainer?.category;
+      if (hireling) buckets[key in buckets ? key : "henchman"].push({ _id: hireling.id });
+    }
+    return buckets;
+  };
+  const hired = (id, { type, category, wageGp, managerid }) => {
+    const hireling = makeActor({ id, name: id, type });
+    hireling.system = { retainer: { enabled: true, managerid, category, wage: String(wageGp), quantity: 1 } };
+    hireling.flags = { "acks-extras": { record: { hiredTime: 0, terms: { wageGp, lastPaidTime: 0 } } } };
+    worldActors.set(id, hireling);
+    return hireling;
+  };
+  const boss = makeActor({ id: "boss", name: "Boss" });
+  worldActors.set(boss.id, boss);
+  boss.getHirelings = coreHirelings(boss);
+  hired("guard", { type: "character", category: "mercenary", wageGp: 3, managerid: "boss" });
+  hired("beast", { type: "monster", category: "henchman", wageGp: 5, managerid: "boss" });
+  hired("stray", { type: "character", category: "henchman", wageGp: 7, managerid: "boss" });
+  boss.system = { henchmenList: ["guard"] };
+  // A character id left in the monster list is not a monster, so the tab never shows it.
+  boss.flags = { "acks-extras": { monsterHenchmenList: ["beast", "stray"] } };
+  // A monster employer's `henchmenList` is not read by core either.
+  const warren = makeActor({ id: "warren", name: "Warren", type: "monster" });
+  worldActors.set(warren.id, warren);
+  warren.getHirelings = coreHirelings(warren);
+  warren.system = { henchmenList: ["guard"] };
+  let bills;
+  await toldBy(async () => {
+    bills = [wageBill(boss, 0), wageBill(warren, 0)];
+  });
+  assert.deepEqual(bills.map((b) => b.monthly), [8, 0], "the tab's roster is the guard and the beast; the stray and a monster's list are never billed");
+});
 await test("a payday with nothing due says how many days until something is, while a wage clock runs", async () => {
   const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
   worldActors.set(boss.id, boss);

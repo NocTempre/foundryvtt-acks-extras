@@ -777,6 +777,13 @@ Hirelings grid's gathering: core's `getHirelings` resolved to live actors (it
 returns snapshots), the monsters on the roster flag after the henchmen, then
 the mercenaries and specialists. `hiredUnitsOf(employer)` is the group actors
 whose `unit.employerUuid` names the employer, which the payroll reads as well. The tab draws a card for each hireling and none for a unit.
+`hirelingBuckets` is the only gatherer of an employer's roster: `rosterOf`
+flattens it in its order for the payroll (wages, enrolment, forgiveness and the
+payday's documents) and for the roster window's rows and its whole-retinue sheet
+buttons, and `checkHenchmanLimit` counts its henchmen bucket, so what an
+employer is billed, evented and listed for, and what fills its henchman slots, is
+what the tab shows. A monster employer has no list core reads, so it has none here, and
+an id in the monster flag that is no monster is not on the roster.
 
 `serviceNodes(employer)` reduces both to lib's organisation node
 (`{key, parentKey, label, holderUuid, kind}`, docs/lib/ORGANISATION.md), so
