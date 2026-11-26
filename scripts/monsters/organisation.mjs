@@ -27,6 +27,13 @@ import { DEFAULT_IMG } from "../importer/constants.mjs";
 import { gearRunItem, refTo } from "./gear-run.mjs";
 import { matchKinds } from "../lib/actor-read.mjs";
 import { MONSTER_TYPES } from "./config.mjs";
+import { FLAG_ITEM_RUN } from "../lib/constants.mjs";
+
+/** The `MONSTER_TYPES` key of the creature kind this organisation describes: the own kind a drink flag carries, and the kind a body must answer to for the flag to apply. */
+export const BEASTMAN_KIND = "beastman";
+
+/** The equipment row's figure key that holds a consumable's printed swig count. */
+const SWIGS_FIGURE = "swigs";
 
 /** The registry document the organisation tables are read from. */
 export const ORGANISATION_DOC = "monsters";
@@ -305,17 +312,30 @@ function drinkFlag(f, miss) {
   const word = text(f.condition);
   const condition = word ? matchCondition(word) : null;
   if (word && !condition) miss("condition", word);
-  return { healDice, saveKind: text(f.saveKind), condition, successHealDice: diceFigure(f.successHealDice), swigDice: diceFigure(f.swigs) };
+  return { healDice, saveKind: text(f.saveKind), condition, successHealDice: diceFigure(f.successHealDice), swigDice: diceFigure(f.swigs), ownKind: BEASTMAN_KIND };
 }
 
-/** The consumable item a gear row with healing dice writes: named by the row, its page on the cookbook id, the figures on the `drink` flag. */
+/**
+ * The consumable item a gear row with healing dice writes: named by the row, its
+ * page on the cookbook id, the figures on the `drink` flag, and a consume
+ * activation for lib's item runner whose swig count is a live reference to the
+ * row's swigs figure. The reference is written whether or not the import read
+ * the figure; a blank one resolves blank at use and the count stays the Judge's.
+ */
 function drinkItem(row, drink) {
+  const uses = refTo({ doc: ORGANISATION_DOC, table: ORGANISATION_TABLES.equipment }, row.key, SWIGS_FIGURE);
   return {
     name: row.label,
     type: "item",
     img: DEFAULT_IMG.ITEM,
     system: { description: "", subtype: "item", quantity: 1, cost: 0, weight: 0, weight6: 0 },
-    flags: { [MODULE_ID]: { cookbook: { id: `organisation.gear.${row.key}`, cite: row.cite ?? "" }, [ITEM_FLAGS.DRINK]: drink } },
+    flags: {
+      [MODULE_ID]: {
+        cookbook: { id: `organisation.gear.${row.key}`, cite: row.cite ?? "" },
+        [ITEM_FLAGS.DRINK]: drink,
+        [FLAG_ITEM_RUN]: { activation: { kind: "consume", uses, left: null, bearerUuid: "" } },
+      },
+    },
   };
 }
 
@@ -370,8 +390,9 @@ function flagLauncherStack(items, onHit) {
  *   - `healDice` (a consumable to drink): one item named by the row, its page
  *     on `cookbook.cite` and its figures on the `drink` flag, the printed
  *     condition word stored as the catalogue id `matchCondition` folds it to
- *     (null, and listed in `unresolved`, where it folds to none). It carries no
- *     swig count;
+ *     (null, and listed in `unresolved`, where it folds to none), the kind
+ *     `BEASTMAN_KIND` as its own. It carries a consume activation whose swig
+ *     count is a reference to the row's figure and whose `left` is unset;
  *   - `delayTurns` with damage dice (ammunition whose hit asks a save): the
  *     `onHit` flag, and the nocked declaration, on the creature's stack of the
  *     ammunition its launcher takes (`shotStack`, the stack the shot spends).

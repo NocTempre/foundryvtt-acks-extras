@@ -334,13 +334,15 @@ check("two bumps from two rows sum, each row listed", (() => {
   let e = run([drinkRow], ["dk"], []);
   const dk = e.items.find((i) => i.name === "Drink K");
   check("a healing row writes one item of type item named by the row, with its page on the cookbook id", e.items.length === 1 && dk.type === "item" && dk.flags[MID].cookbook.id === "organisation.gear.dk" && dk.flags[MID].cookbook.cite === "XX p. 7");
-  eq("its drink flag copies the row's figures, the condition as the catalogue id, the swig dice stored", dk.flags[MID].drink, { healDice: "2d4", saveKind: "sk", condition: cid, successHealDice: "1d3", swigDice: "1d4" });
+  eq("its drink flag copies the row's figures, the condition as the catalogue id, the swig dice stored, and names the beastman as its own kind", dk.flags[MID].drink, { healDice: "2d4", saveKind: "sk", condition: cid, successHealDice: "1d3", swigDice: "1d4", ownKind: "beastman" });
   check("it holds one item and sets no swig count", dk.system.quantity === 1 && dk.flags[MID].rounds === undefined && dk.flags[MID].swigs === undefined);
+  eq("it carries a consume activation whose uses is a live reference to the row's swigs figure, count unset, bearer unstamped", dk.flags[MID].itemRun, { activation: { kind: "consume", uses: { doc: "monsters", table: "beastmanEquipment", row: "dk", figure: "swigs" }, left: null, bearerUuid: "" } });
   check("the row is recorded beside the item", e.rec.length === 1 && e.rec[0].key === "dk" && e.un === undefined && e.d === null);
   e = run([{ ...drinkRow, figures: { ...drinkRow.figures, condition: "zzzunfolded" } }], ["dk"], []);
   check("a condition word that folds to none leaves null, and is listed and warned", e.items[0].flags[MID].drink.condition === null && e.un.length === 1 && e.un[0].kind === "gear" && e.un[0].figure === "condition" && e.un[0].word === "zzzunfolded" && e.warned.length === 1);
   e = run([{ key: "dk", label: "Drink K", figures: { healDice: "2d4" } }], ["dk"], []);
-  eq("blank figures stay null in the flag and are not listed", e.items[0].flags[MID].drink, { healDice: "2d4", saveKind: null, condition: null, successHealDice: null, swigDice: null });
+  eq("blank figures stay null in the flag and are not listed", e.items[0].flags[MID].drink, { healDice: "2d4", saveKind: null, condition: null, successHealDice: null, swigDice: null, ownKind: "beastman" });
+  eq("a row whose swigs figure was not read still carries the reference", e.items[0].flags[MID].itemRun.activation.uses, { doc: "monsters", table: "beastmanEquipment", row: "dk", figure: "swigs" });
   check("no healing dice, or dice that are no die, writes no item", run([{ key: "dk", label: "Drink K", figures: { saveKind: "sk", condition: cid } }, { key: "d2", label: "Drink 2", figures: { healDice: "much" } }], ["dk", "d2"], []).items.length === 0);
   check("a caster carries no drink", run([drinkRow], ["dk"], [], "shaman").items.length === 0);
 

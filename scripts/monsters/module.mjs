@@ -34,6 +34,7 @@ import { importedThrowLadder } from "../importer/leader-roles.mjs";
 import { libraryItems } from "../lib/library.mjs";
 import { setProficiencyReader } from "../lib/item-run.mjs";
 import { readBearerProficiency } from "./fuse-proficiency.mjs";
+import { installGrogBreakage } from "./grog-breakage.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
 
@@ -115,6 +116,8 @@ Hooks.once("init", () => {
   setProficiencyReader(readBearerProficiency);
   // The press a stack row carries for what its bodies carry (lib's group sheet draws it where the seat can place tokens).
   registerStackRowControl(carryRowControls);
+  // A beastman defeated or dead loses its grog (the defeated status, on the primary GM's window).
+  installGrogBreakage();
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply
