@@ -7,7 +7,7 @@
  * character sheet's tones, a summons' Summon band (creature, count and ceiling,
  * placement; it takes the Targets bucket's place), the tradition's band (the fields and the band of its
  * procedure, `cast-procedure.mjs`, headed by the tradition's name), the saves, and the targets bucket; the footer holds
- * what stands in the way, a declaration's note naming its fight, the visibility, Cancel and Cast (or Declare). A
+ * what stands in the way, a declaration's note naming its fight, the visibility, Cancel and Cast (or Declare, with a Judge's Cast now between them). A
  * verdict that blocks a Player disables the button, and a Judge reads it as a
  * warning. Cancel and a closed window both answer null, so nothing is spent.
  *
@@ -79,6 +79,7 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     form: { handler: CastDialog.#onForm, submitOnChange: true, closeOnSubmit: false },
     actions: {
       cast: CastDialog.#onCast,
+      castNow: CastDialog.#onCastNow,
       cancel: CastDialog.#onCancel,
       untarget: CastDialog.#onUntarget,
       pickWeapon: CastDialog.#onPickWeapon,
@@ -328,6 +329,15 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#capture();
     if (dialogContext(this.#ctx, this.#answer).footer.blocked) return;
     this.#settle(answerOf(this.#ctx, this.#answer));
+    this.close();
+  }
+
+  /** Cast now: the Judge's answer at a declare moment, the same answer with `castNow` set. It is held as Declare is (a block stops it); the cast honours it from a GM seat only. */
+  static #onCastNow() {
+    this.#capture();
+    const { footer } = dialogContext(this.#ctx, this.#answer);
+    if (footer.blocked || !footer.castNow) return;
+    this.#settle({ ...answerOf(this.#ctx, this.#answer), castNow: true });
     this.close();
   }
 

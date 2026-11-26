@@ -1799,6 +1799,54 @@ await ta("in a begun fight off the caster's turn the cast declares: it spends on
 const pendingRecord = (over = {}) => ({ castId: "d1", role: "caster", pending: { spellUuid: "Actor.c1.Item.s1", mode: "normal", picks: {}, items: {}, visibility: "gm", combatId: "k1", round: 1, at: 3, ...over } });
 const ON_TURN = () => IN_FIGHT({ combat: { id: "k1", started: true, round: 1, turn: 1, turns: [{ id: "cb2" }, { id: "cb1" }], flags: {}, combatant: { id: "cb1" } } });
 
+await ta("a Judge's Cast now at a declare moment casts at the free moment: it spends, posts the card, writes no pending declaration, and is not judged as a second declaring; a Player's payload carrying it still declares, and a Judge who does not press it declares", async () => {
+  const standing = { ...IN_FIGHT(), declarations: [pendingRecord({ spellUuid: "Actor.c1.Item.other" })] };
+  const judged = fightDeps({ answer: { mode: "normal", picks: {}, visibility: "gm", castNow: true }, isGM: true, world: standing });
+  let spends = 0;
+  const out = await castSpellRun(spell([heal]), () => { spends++; }, judged.deps);
+  assert.equal(out.ok, true);
+  assert.notEqual(out.declared, true, "the Judge's cast is not a declaration");
+  assert.equal(judged.calls.asked.moment, "declare", "the dialog was drawn at the declare moment, so it offered the press");
+  assert.equal(spends, 1, "it spends once");
+  assert.equal(judged.calls.posts.length, 1, "and posts the card");
+  assert.equal(judged.calls.declared, undefined, "no pending declaration is written");
+  assert.equal(judged.log.includes("declare"), false);
+  assert.equal(out.castId, "castX");
+  assert.equal(judged.calls.notices.some(([, key]) => key === "verdict.declared"), false, "the free cast is not warned of a declaring it does not make");
+
+  const plain = fightDeps({ answer: { mode: "normal", picks: {} }, isGM: true, world: standing });
+  const declared = await castSpellRun(spell([heal]), () => {}, plain.deps);
+  assert.deepEqual([declared.ok, declared.declared], [true, true], "a Judge who does not press Cast now declares as before");
+  assert.ok(plain.calls.notices.some(([, key]) => key === "verdict.declared"), "and is warned of the declaration it replaces");
+
+  const player = fightDeps({ answer: { mode: "normal", picks: {}, castNow: true }, isGM: false, world: IN_FIGHT() });
+  spends = 0;
+  const held = await castSpellRun(spell([heal]), () => { spends++; }, player.deps);
+  assert.deepEqual([held.ok, held.declared, held.castId], [true, true, "d1"], "a Player's castNow is ignored: the cast declares");
+  assert.equal(player.calls.posts.length, 0, "no card");
+  assert.equal(player.calls.declared.combatant.id, "cb1", "the declaration is written");
+});
+
+await ta("Cast now leaves a spell the Judge declared by hand on the combatant declared; the same cast without it clears the hand-set flag", async () => {
+  const now = fightDeps({ answer: { mode: "normal", picks: {}, castNow: true }, isGM: true, world: { ...IN_FIGHT(), prepareSpell: true } });
+  assert.equal((await castSpellRun(spell([heal]), () => {}, now.deps)).ok, true);
+  assert.equal(now.log.includes("clearHand"), false, "the fight's own flag is not touched");
+  assert.equal(now.calls.posts.length, 1);
+  const hand = fightDeps({ answer: { mode: "normal", picks: {} }, isGM: true, world: { ...IN_FIGHT(), prepareSpell: true } });
+  await castSpellRun(spell([heal]), () => {}, hand.deps);
+  assert.deepEqual(hand.log.filter((k) => k === "clearHand" || k === "declare"), ["clearHand", "declare"], "a declaring clears the hand-set flag, as before");
+});
+
+await ta("Cast now on the caster's own turn or with no fight changes nothing: the cast resolves or is free as it would be", async () => {
+  const turn = fightDeps({ answer: { mode: "normal", picks: {}, castNow: true }, isGM: true, world: { ...ON_TURN(), declarations: [] } });
+  const out = await castSpellRun(spell([heal]), () => {}, turn.deps);
+  assert.equal(out.ok, true);
+  assert.ok(turn.calls.notices.some(([, key]) => key === "verdict.noDeclaration"), "a Judge's turn with no declaration is warned as before; the flag moved nothing");
+  const free = fightDeps({ answer: { mode: "normal", picks: {}, castNow: true }, isGM: true });
+  assert.equal((await castSpellRun(spell([heal]), () => {}, free.deps)).ok, true);
+  assert.equal(free.calls.posts.length, 1);
+});
+
 await ta("on the caster's turn a good declaration resolves with no dialog, no spend and no capacity check; the declaration is ended and the card posts", async () => {
   const { deps, calls, log } = fightDeps({ answer: null, world: { ...ON_TURN(), declarations: [pendingRecord()], capacity: { verdict: "none", tradition: "arcane", slotKey: "s1" } } });
   let spends = 0;

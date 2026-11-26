@@ -1024,8 +1024,23 @@ slots at zero.
     Drive: step 17 ended the caster's turn through core's `nextRound`, which cleared every
     initiative, and a caster with no initiative is never at its turn (the cast declares
     instead). The step sets the initiatives again after moving to its round, before it
-    declares. At its end the step sweeps its fight by uuid (the steps after it open their own,
+    declares. After step 19 the walk sweeps its fight by uuid (the steps after it open their own,
     and a caster held by two begun fights answers to the first).
+19. **A Judge's Cast now, and a Player held.** In the next round, with the
+    initiatives set and the tracker on the foe (not the caster's turn), no pending
+    record and the flag clear (the step asserts that at its start). The Player
+    opens the damage spell's dialog. *Observable:* the footer's buttons are Cancel
+    and Declare only, no held-by-fight line stands in its verdict list, and the
+    declaring note names the fight; cancelling spends nothing. The GM opens the
+    same dialog. *Observable:* the verdict list holds a `warn` line naming the
+    caster and the fight; the footer's buttons read Cancel, Cast now, Declare in
+    that order, Declare is enabled, Cast now carries `data-tooltip` with the lang
+    key and an `aria-label` that opens with its name, never a `title`, and the declaring note still names the
+    fight; cancelling spends nothing. The GM opens it again and presses Cast now.
+    *Observable:* the window closes, one cast card posts, the slot and the spell's
+    count are spent once, no pending record and no `casting` status exist and the
+    combatant's `prepareSpell` flag is clear. Walked in `walkDeclare`
+    (`tools/live/magic-cast-spell.mjs`, helper `castNowDialog`).
 
 ### The lost-item steps
 

@@ -193,6 +193,45 @@ t("a declaring's note is in the pinned footer and names the fight and the round;
   assert.equal(dialogContext(baseCtx({ moment: "resolve", fight: { state: "scene", scene: "Testyard", round: 2 } }), {}).footer.declaring, "", "nor one that resolves a declaration");
 });
 
+t("a Judge at the declare moment is warned which fight holds the caster and is offered Cast now; a Player gets neither; no seat gets them at resolve, free or long", () => {
+  const fight = { state: "scene", scene: "Testyard", round: 2 };
+  const judge = dialogContext(baseCtx({ isGM: true, moment: "declare", fight }), {}).footer;
+  const line = judge.verdicts.find((v) => /heldByFight/.test(v.text));
+  assert.ok(line, "the warning is a line of the verdict list, as visible text");
+  assert.equal(line.severity, "warn");
+  assert.match(line.text, /notice\.verdict\.heldByFight\|.*"name":"Testcaster".*fightOnRound/, "it names the caster and the same fight phrase the note uses");
+  assert.deepEqual([judge.blocked, judge.cast], [false, "ACKS-MAGIC.cast.dialog.declare|{}"], "a warn never blocks, and Declare stays the primary button");
+  assert.deepEqual([judge.castNow.label, judge.castNow.tip, judge.castNow.aria], ["ACKS-MAGIC.cast.dialog.castNow|{}", "ACKS-MAGIC.cast.dialog.castNowTip|{}", "ACKS-MAGIC.cast.dialog.castNow|{}. ACKS-MAGIC.cast.dialog.castNowTip|{}"], "the accessible name leads with the button's own name, then says what it skips");
+  assert.match(judge.declaring, /declaringInCast/, "the declaring note is kept");
+
+  const player = dialogContext(baseCtx({ isGM: false, moment: "declare", fight }), {}).footer;
+  assert.equal(player.castNow ?? null, null, "a Player is held: no press");
+  assert.equal(player.verdicts.some((v) => /heldByFight/.test(v.text)), false, "and no warning of a press it lacks");
+  assert.match(player.declaring, /declaringInCast/, "the note still names the fight");
+
+  for (const moment of ["resolve", "free", "long"]) {
+    const view = dialogContext(baseCtx({ isGM: true, moment, fight }), {}).footer;
+    assert.equal(view.castNow ?? null, null, `a Judge at ${moment} has no press`);
+    assert.equal(view.verdicts.some((v) => /heldByFight/.test(v.text)), false, `nor the warning at ${moment}`);
+  }
+  assert.equal(dialogContext(baseCtx({ isGM: true, moment: "declare", fight: { state: "gone", scene: "", round: 2 } }), {}).footer.castNow?.label, "ACKS-MAGIC.cast.dialog.castNow|{}", "a fight with no phrase to name still leaves the Judge the press");
+  assert.equal(dialogContext(baseCtx({ isGM: true, moment: "declare", fight: { state: "gone", scene: "", round: 2 } }), {}).footer.verdicts.length, 0, "and no line that would name nothing");
+});
+
+t("the footer draws Cast now between Cancel and Declare through core's tooltip manager, with its own action and an accessible name", () => {
+  const foot = readFileSync(new URL("../templates/magic/cast-dialog-footer.hbs", import.meta.url), "utf8");
+  const cancel = foot.indexOf('data-action="cancel"');
+  const now = foot.indexOf('data-action="castNow"');
+  const go = foot.indexOf('data-action="cast"');
+  assert.ok(cancel > -1 && now > cancel && go > now, "Cancel, then Cast now, then the primary button");
+  const button = /<button[^>]*data-action="castNow"[^>]*>/.exec(foot)[0];
+  assert.match(button, /data-tooltip="ACKS-MAGIC\.cast\.dialog\.castNowTip"/, "the tooltip is a lang key core's manager localizes");
+  assert.match(button, /aria-label="\{\{f\.castNow\.aria\}\}"/, "named for assistive technology");
+  assert.ok(!/title=/.test(button), "never a title attribute");
+  assert.ok(/\{\{#if f\.castNow\}\}/.test(foot), "drawn only where the model offers it");
+  assert.equal(CastDialog.DEFAULT_OPTIONS.actions.castNow instanceof Function, true, "the window has the action");
+});
+
 t("an effect row wears the sheet's cell in its tone: a condition is negative with its status image, a buff positive, anything else the spell's own", () => {
   const img = (id) => (id === "afraid" ? "afraid.svg" : null);
   assert.deepEqual([effectRow(FEAR, img).tone, effectRow(FEAR, img).img], ["neg", "afraid.svg"]);
@@ -415,6 +454,36 @@ await ta("Cast answers the state once, a blocked Player's Cast answers nothing, 
   actions.cast.call(blocked, {}, {});
   assert.equal(blocked.closed, false, "a Player with a blocking verdict cannot cast");
   actions.cancel.call(blocked, {}, {});
+  assert.equal(await stopped, null);
+});
+
+await ta("pressing Cast now answers the state with castNow set and closes the window; a blocked footer answers nothing; Cast answers no castNow", async () => {
+  CastDialog.instances.length = 0;
+  const box = { uuids: ["A"], reads: 0 };
+  const fight = { state: "scene", scene: "Testyard", round: 2 };
+  const asked = CastDialog.wait(liveCtx(box, { isGM: true, moment: "declare", fight }));
+  await settle(5);
+  const [dialog] = CastDialog.instances;
+  const { actions } = CastDialog.DEFAULT_OPTIONS;
+  actions.castNow.call(dialog, {}, {});
+  const answer = await asked;
+  assert.equal(answer.castNow, true);
+  assert.equal(dialog.closed, true);
+
+  CastDialog.instances.length = 0;
+  const declared = CastDialog.wait(liveCtx(box, { isGM: true, moment: "declare", fight }));
+  await settle(5);
+  const [second] = CastDialog.instances;
+  actions.cast.call(second, {}, {});
+  assert.equal((await declared).castNow, undefined, "Declare is not a Cast now");
+
+  CastDialog.instances.length = 0;
+  const stopped = CastDialog.wait(liveCtx(box, { isGM: true, moment: "declare", fight, verdictsAt: () => [{ key: "summonRefused", severity: "block", notice: "x" }] }));
+  await settle(5);
+  const [third] = CastDialog.instances;
+  actions.castNow.call(third, {}, {});
+  assert.equal(third.closed, false, "a block holds Cast now as it holds Declare");
+  actions.cancel.call(third, {}, {});
   assert.equal(await stopped, null);
 });
 

@@ -251,7 +251,7 @@ function ritualContext(ctx, st) {
     invocation: { show: false },
     saves: { show: false },
     bucket: { count: { n: 0, over: false, text: "", tip: "" }, rows: [], empty: true, rangeNote: "" },
-    footer: { declaring: "", visibility: [], capacity: {}, verdicts: [], blocked: none, cast: loc("dialog.openRitual"), ritual: true },
+    footer: { declaring: "", visibility: [], capacity: {}, verdicts: [], blocked: none, cast: loc("dialog.openRitual"), castNow: null, ritual: true },
   };
 }
 
@@ -580,6 +580,9 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   // At any moment of a begun fight but the caster's turn the button declares the spell: the footer's note names the fight and says what the turn does (a summoning's creatures are placed there, any other cast is cast).
   const fight = moment === "declare" ? fightPhrase(ctx.fight, (key, data) => loc(`dialog.${key}`, data)) : "";
   const declaring = fight ? loc(ctx.summon ? "dialog.declaringIn" : "dialog.declaringInCast", { fight, name: ctx.caster?.name ?? "" }) : "";
+  // A Judge's seat at that moment may cast outside the fight instead: the press and the warning that names the holding fight. The seat's role sets the severity ("players get blocks, judges get warnings", as `castVerdicts` reads `isGM`); the press is no permission, and the run honours it from a GM seat only (`castSpellRun`).
+  const castNowOffered = moment === "declare" && ctx.isGM === true;
+  const heldLine = castNowOffered && fight ? [{ severity: "warn", text: loc("notice.verdict.heldByFight", { name: ctx.caster?.name ?? "", fight }), tip: "" }] : [];
 
   // The saves: the situational figure, ruling 126's toggle, and the parts that stand.
   const modifier = saveModifierOf({ modifier: ctx.saveModifier }, resolved);
@@ -697,14 +700,19 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
           ? { line: loc("dialog.capacity", { used: cap.used, max: cap.max, level: cap.spellLevel ?? "" }), tip: loc("tip.capacity", { source: loc(`tip.capacitySource.${cap.source}`) }) }
           : {};
       })(),
-      verdicts: verdicts.map((v) => ({
-        severity: v.severity,
-        // A finding a procedure worded itself reads in its own words.
-        text: v.notice || loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "", names: (v.out ?? []).map((o) => o.name).join(", "), max: v.max ?? "", over: v.over ?? "" }),
-        tip: v.key === "outOfRange" ? rangeTip(v, cite) : (v.key === "tooManyTargets" || v.key === "summonCount") && cite ? loc("tip.cite", { cite }) : "",
-      })),
+      verdicts: [
+        ...verdicts.map((v) => ({
+          severity: v.severity,
+          // A finding a procedure worded itself reads in its own words.
+          text: v.notice || loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "", names: (v.out ?? []).map((o) => o.name).join(", "), max: v.max ?? "", over: v.over ?? "" }),
+          tip: v.key === "outOfRange" ? rangeTip(v, cite) : (v.key === "tooManyTargets" || v.key === "summonCount") && cite ? loc("tip.cite", { cite }) : "",
+        })),
+        ...heldLine,
+      ],
       blocked: blocks,
       cast: moment === "declare" ? loc("dialog.declare") : loc("dialog.cast"),
+      // The Judge's second answer at a declare moment, drawn between Cancel and Declare; null on every other seat and moment.
+      castNow: castNowOffered ? { label: loc("dialog.castNow"), tip: loc("dialog.castNowTip"), aria: `${loc("dialog.castNow")}. ${loc("dialog.castNowTip")}` } : null,
     },
   };
 }

@@ -1,5 +1,5 @@
 {{!-- The cast dialog's pinned footer: where the cast is seen, what stands in its
-      way, the note a declaration carries, and the two answers. A separate part so it stays put while the body
+      way, the note a declaration carries, and the answers (a Judge's seat at a declare moment has a third, Cast now). A separate part so it stays put while the body
       scrolls. --}}
 <footer class="acks-extras-cast-foot">
   {{#with footer as |f|}}
@@ -20,6 +20,7 @@
     </label>
     {{/unless}}
     <button type="button" data-action="cancel"><i class="fa-solid fa-xmark" inert></i>{{localize "ACKS-MAGIC.cast.dialog.cancel"}}</button>
+    {{#if f.castNow}}<button type="button" data-action="castNow" data-tooltip="ACKS-MAGIC.cast.dialog.castNowTip" aria-label="{{f.castNow.aria}}"{{#if f.blocked}} disabled{{/if}}><i class="fa-solid fa-bolt" inert></i>{{f.castNow.label}}</button>{{/if}}
     <button type="button" class="acks-extras-cast-go" data-action="cast"{{#if f.blocked}} disabled{{/if}}><i class="fa-solid fa-wand-sparkles" inert></i>{{f.cast}}</button>
   </div>
   {{/with}}

@@ -434,6 +434,19 @@ await ta("a declared summons stores its pick, asks lib only for its verdict and 
   assert.deepEqual([cancel.calls.finishes, cancel.calls.spends], [0, 0]);
 });
 
+await ta("a Judge's Cast now at a declare moment runs a summons as a free cast does (the verdict, the clicks, the spend, the placement, the card) and writes no declaration; a Player's answer carrying it still declares and places nothing", async () => {
+  const free = runDeps({ answer: answerOf(), isGM: true });
+  assert.equal((await cast(makeSpell(), free)).ok, true);
+  const now = runDeps({ answer: answerOf({ castNow: true }), isGM: true, world: fight("cb2") });
+  const out = await cast(makeSpell(), now);
+  assert.deepEqual([out.ok, out.declared ?? false], [true, false]);
+  assert.deepEqual(now.order, free.order, "the same steps in the same order as a cast no fight holds");
+  assert.deepEqual([now.calls.declares.length, now.calls.clicked.length, now.calls.placed.length, now.calls.spends, now.calls.posts.length], [0, 1, 1, 1, 1], "nothing declared; the clicks, placement, spend and card made now");
+  const held = runDeps({ answer: answerOf({ castNow: true }), world: fight("cb2") });
+  const declared = await cast(makeSpell(), held);
+  assert.deepEqual([declared.declared, held.calls.declares.length, held.calls.clicked.length, held.calls.placed.length], [true, 1, 0, 0], "a Player is held whatever the answer carries");
+});
+
 await ta("the stored pick is a ref and a whole count of one or more, and nothing else", () => {
   assert.deepEqual(ANSWER_FIELDS.summon({ ref: " r ", count: 3 }), { ref: "r", count: 3 });
   assert.deepEqual(ANSWER_FIELDS.summon({ ref: "r", count: 0 }), { ref: "r", count: 1 });

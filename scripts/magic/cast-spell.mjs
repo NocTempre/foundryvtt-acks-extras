@@ -739,7 +739,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     return procedureTime(procedure, procCtx(levelFor(mode, inv).value, levelValue, turnMoment), view?.answer ?? {}, spellTime);
   };
   // Where the cast falls, given how long it takes: a stored declaration resolves as it was declared, and any other cast over a round is `long`.
-  const momentAt = (mode, inv, levelValue, praw) => (resolving ? MOMENT.resolve : castMoment({ combat: world.combat, combatant: world.combatant, castingTime: timeAt(mode, inv, levelValue, praw) }));
+  // The Judge's Cast now (`answer.castNow`): set once the answer is in, read only from a GM seat (a Player's answer carrying it is ignored; the severity follows the seat's role, as `castVerdicts` reads `isGM`, and no permission is added). It takes the moment a begun fight holds as `declare` to `free`, so the cast is judged, spent and posted exactly as one no fight holds; every other moment stays.
+  let castNow = false;
+  const momentAt = (mode, inv, levelValue, praw) => {
+    if (resolving) return MOMENT.resolve;
+    const at = castMoment({ combat: world.combat, combatant: world.combatant, castingTime: timeAt(mode, inv, levelValue, praw) });
+    return castNow && at === MOMENT.declare ? MOMENT.free : at;
+  };
   let moment = momentAt(modeKeys[0], startInv, known.value, declared?.procedure);
   // What the range and the target count say of the targeted tokens at a caster level, for the rows the picks keep: a cast whose rows open no entry measures no target.
   const reachAt = (levelValue, inv = startInv, mode = modeKeys[0], picks = {}) =>
@@ -893,6 +899,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   });
   let answer = storedFits ? declared : await deps.ask(askContext());
   if (!answer) return { ok: false, reason: "cancelled" };
+  castNow = isGM && answer.castNow === true;
   // What the seat's answer names is held to the world as the stored one is: a missing document is dropped.
   if (answer.procedure && BUCKETS_KEY in answer.procedure) answer = { ...answer, procedure: { ...answer.procedure, [BUCKETS_KEY]: await withoutMissing(answer.procedure, deps.holds) } };
   // The bucket may have changed while the dialog was open, and a cast reads the seat's targets as they stand now. A declaration that fits keeps the seat it declared.
@@ -1002,7 +1009,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   if (resolving) await deps.declare?.finish({ caster, record: declaration.valid, combat: world.combat, combatant: world.combatant });
   else if (moment === MOMENT.resolve && declaration.lost) await deps.declare?.finish({ caster, record: declaration.lost, combat: world.combat, combatant: world.combatant });
-  else if (declaration.hand) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
+  // A Cast now leaves the fight's own state alone: a spell the Judge declared by hand on the combatant stays declared.
+  else if (declaration.hand && !castNow) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
   if (moment === MOMENT.declare) {
     const made = await deps.declare?.declare({ caster, spell, answer: { ...answer, targets: seat.tokens.map((t) => t.uuid), procedureKind, tradition: typeof options.tradition === "string" && options.tradition ? (world.tradition?.key ?? null) : null }, combat: world.combat, combatant: world.combatant });
     return { ok: true, declared: true, castId: made?.castId };

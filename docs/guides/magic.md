@@ -66,6 +66,12 @@ asked for the round's declarations, so a caster still listed in a fight left
 in the **Combat Tracker** sidebar tab declares every cast until that fight is
 ended. This holds for a fight on the scene where the caster's token stands, and
 for a fight with no scene; a fight on another scene does not hold the caster.
+A Judge's cast window (character sheet → **Magic** tab → **Cast**) at that
+moment lists a warning naming the fight that holds the caster and a **Cast
+now** button in its footer, between **Cancel** and **Declare**. It casts at
+once as a cast no fight holds does: the slot is spent, the card posts and any
+creatures are placed, and no declaration is written. A Player has only
+**Declare**.
 
 ## Importing your spells
 

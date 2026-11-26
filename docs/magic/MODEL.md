@@ -1067,7 +1067,15 @@ says the slot is spent at Declare; the body holds no such line. `ctx.fight` feed
 `declaredFightOf` (`declared-fight.mjs`, Foundry-free) turns a fight and a round
 into `{state, scene, round}`, `fightPhrase` words it ("the fight on <scene>", "a
 fight with no scene", each with ", round <n>" where the round is known), and the
-note reads empty where no fight answers. The answer's fields are one table,
+note reads empty where no fight answers. A Judge's seat at `declare` also reads a
+warn line in the footer's verdict list naming that fight and has a **Cast now**
+button between Cancel and Declare; the press answers with `castNow: true`, which
+`castSpellRun` honours only from a GM seat, taking the `declare` moment to `free`
+(the cast is then judged, spent and posted as one no fight holds, and writes no
+declaration or hand-flag clear). The line and the press are severity by the seat's
+role, the way `castVerdicts` reads `isGM`, and not a permission; a Player has
+neither. `castNow` is read by the run alone and is not one of the stored fields.
+The answer's fields are one table,
 `ANSWER_FIELDS` in `cast-declare.mjs`: mode, picks, casterLevel, invocationLevel, situational,
 visibility, pickKind, items, saveMod, the uuids of the seat's `targets` at the
 answer, the throw `allocation` by row key and token uuid, the tradition's
