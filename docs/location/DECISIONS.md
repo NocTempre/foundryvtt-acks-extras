@@ -551,3 +551,28 @@ not have. A vault-and-place create relay (above).
 are and turn its storage off, all of which only a Judge could. Under the default of OWNER on
 a hand-made place that is every player, and Configure Ownership on the place is the Judge's
 override.
+
+## 2026-11-26 — The table default is written without touching what the next actor starts with (T-0876)
+
+**Found.** The live walk of the entry above failed on every run: a place made carrying the
+importer's stamp came out at Owner where it was made straight after a hand-made one, and at
+None where it was made alone. `placeOpensToTable` answered correctly both times. The level
+came from core. Where creation data names no ownership, core 14 gives the pending document
+the ownership field's own initial object as its source, one object for every Actor, and
+`updateSource` merges into it in place. The hook's write of Owner on one hand-made place
+therefore became the level every later Actor started with on that client until its page was
+reloaded: a place, a monster made from the sidebar, an importer's write that names no level.
+Reproduced against the install's own `common/` code (core 14.370), where a merge, a dotted
+key and a forced replacement all change the field's initial.
+
+**Ruled.** A preCreate never writes ownership through `updateSource` alone. Lib's
+`setPendingOwnership` (`util.mjs`) gives the pending source an ownership object of its own
+and then merges the levels in; the location hook is its one caller. The same probe shows the
+next pending document then starts at None and the field's initial is unchanged.
+
+**Rejected.** Writing the level into the hook's `data` argument: core sends the pending
+document, not that object. Waiting on a core fix: the leak opens actors to players.
+
+*Cost.* An actor a world already holds at Owner by this route stays so (owner, 2026-11-11: no
+repair tools for previous-version data); Configure Ownership on the actor is the Judge's
+correction. The helper assigns to `_source`, which core does not document as a write path.

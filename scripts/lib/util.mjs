@@ -20,6 +20,22 @@ export const unset = () => new foundry.data.operators.ForcedDeletion();
 export const isUnset = (value) => value instanceof foundry.data.operators.ForcedDeletion;
 
 /**
+ * Merge `ownership` into a document that is about to be created, from inside
+ * its preCreate. Never write a pending document's ownership through
+ * `updateSource` alone: where the creation data names no ownership, core 14
+ * gives the pending document the ownership field's own initial object, and
+ * `updateSource` merges into that object in place, so the write becomes the
+ * level every later document of the class starts with on this client. The
+ * source is given an object of its own first.
+ * @param {Document} doc  the pending document
+ * @param {Record<string, number>} ownership  the levels to merge in, by user id or `default`
+ */
+export function setPendingOwnership(doc, ownership) {
+  doc._source.ownership = { ...doc._source.ownership };
+  doc.updateSource({ ownership });
+}
+
+/**
  * The system's default sheet class for one core Item type — the base a
  * feature's extended sheet subclasses. Resolved at READY, never at init:
  * Foundry queues every `registerSheet` call made before `game.ready`, so the
