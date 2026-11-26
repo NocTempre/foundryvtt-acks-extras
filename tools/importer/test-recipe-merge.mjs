@@ -239,6 +239,16 @@ t("a held option part is offered with its own path and line, and a decision to t
   assert.equal(recipeOf(refreshPlan(source, fresh, take.policy), 0, "one")[0].count.dice, "2d2");
 });
 
+t("a template imported before its options carried a recipe gains the read's leader parts on a repair", () => {
+  const leader = part("leader-qa", { role: "leader", label: "QA Chief", count: { ...part("x").count, dice: "", literal: 1 }, when: { state: "", place: "", units: ["gang"] } });
+  const source = template([axis("variant", [option("one", []), option("two", [])])]);
+  const fresh = template([axis("variant", [option("one", [part("a"), leader]), option("two", [leader])])]);
+  const plan = refreshPlan(source, fresh, actorPolicy(fresh));
+  assert.deepEqual(recipeOf(plan, 0, "one").map((p) => [p.key, p.role, p.origin]), [["a", "guard", "register"], ["leader-qa", "leader", "register"]]);
+  assert.deepEqual(recipeOf(plan, 0, "two").map((p) => p.role), ["leader"], "every option takes its leader part");
+  assert.deepEqual(plan.keptRows, [], "nothing stored, so nothing is held");
+});
+
 t("a forced template repair writes every option's parts from the read", () => {
   const source = template([axis("variant", [option("one", [byHand(part("a"), "9d9")])])]);
   const fresh = template([axis("variant", [option("one", [part("a")])])]);
