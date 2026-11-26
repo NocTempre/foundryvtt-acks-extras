@@ -2294,6 +2294,104 @@ test("a path option's CSV training normalizes on submit and flows into the path 
   assert.deepEqual(changes, [{ key: TRAINING_KEYS.weapons, type: "add", value: "dagger,sling", priority: 20 }]);
 });
 
+/* ------------- casting pools: the spent count stays within the maximum ------------- */
+
+const { adjustPool } = await import("../scripts/classes/casting.mjs");
+
+/** An actor bound to a class with one vancian tradition (`arc`, 2 first-level slots) and one points tradition (`pts`, a pool of 3), holding `spent` and logging its writes. */
+const poolActor = (spent) => {
+  const doc = {
+    documentName: "Item",
+    uuid: "Item.pool1",
+    type: CLASS_TYPE,
+    system: {
+      casting: [
+        { key: "arc", label: "Arc", kind: "vancian", slots: [{ atLevel: 1, s1: 2 }], pool: [] },
+        { key: "pts", label: "Pts", kind: "points", slots: [], pool: [{ atLevel: 1, value: 3 }] },
+        { key: "cap", label: "Cap", kind: "gnosis", slots: [], pool: [] },
+      ],
+      ladders: [],
+    },
+  };
+  globalThis.fromUuidSync = (uuid) => (uuid === "Item.pool1" ? doc : null);
+  const writes = [];
+  const flags = { uuid: "Item.pool1", ...(spent ? { pools: spent } : {}) };
+  return {
+    writes,
+    getFlag: (m, k) => (m === "acks-extras" && k === "classes" ? flags : undefined),
+    system: { details: { level: 1, class: "" } },
+    update: async (data) => {
+      writes.push(data);
+      flags.pools = data["flags.acks-extras.classes.pools"];
+    },
+  };
+};
+const POOLS_PATH = "flags.acks-extras.classes.pools";
+
+await atest("adjustPool spends up to the slot maximum and no further, and writes nothing at the ceiling", async () => {
+  try {
+    const full = poolActor({ arc: { s1: 2 } });
+    await adjustPool(full, "arc", "s1", 1);
+    assert.deepEqual(full.writes, [], "a spend past the maximum changes nothing, so it writes nothing");
+    assert.equal(poolState(full)[0].slots[0].used, 2);
+    const one = poolActor({ arc: { s1: 1 } });
+    await adjustPool(one, "arc", "s1", 1);
+    assert.equal(one.writes[0][POOLS_PATH].arc.s1, 2);
+  } finally {
+    globalThis.fromUuidSync = () => null;
+  }
+});
+
+await atest("adjustPool refunds from the maximum when an older write stored a count above it", async () => {
+  try {
+    const over = poolActor({ arc: { s1: 3 } });
+    await adjustPool(over, "arc", "s1", -1);
+    assert.equal(over.writes[0][POOLS_PATH].arc.s1, 1, "the refund counts from the figure shown (2), not the stored 3");
+    assert.equal(poolState(over)[0].slots[0].used, 1);
+    const stuck = poolActor({ arc: { s1: 3 } });
+    await adjustPool(stuck, "arc", "s1", 1);
+    assert.equal(stuck.writes[0][POOLS_PATH].arc.s1, 2, "a spend repairs the stored count to the maximum");
+    const empty = poolActor({ arc: { s1: 0 } });
+    await adjustPool(empty, "arc", "s1", -1);
+    assert.deepEqual(empty.writes, [], "a refund at zero writes nothing");
+  } finally {
+    globalThis.fromUuidSync = () => null;
+  }
+});
+
+await atest("adjustPool clamps a points pool at its maximum the same way", async () => {
+  try {
+    const full = poolActor({ pts: { points: 3 } });
+    await adjustPool(full, "pts", "points", 2);
+    assert.deepEqual(full.writes, []);
+    const over = poolActor({ pts: { points: 5 } });
+    await adjustPool(over, "pts", "points", -1);
+    assert.equal(over.writes[0][POOLS_PATH].pts.points, 2);
+    const near = poolActor({ pts: { points: 2 } });
+    await adjustPool(near, "pts", "points", 4);
+    assert.equal(near.writes[0][POOLS_PATH].pts.points, 3, "a bigger spend still stops at the maximum");
+  } finally {
+    globalThis.fromUuidSync = () => null;
+  }
+});
+
+await atest("adjustPool keeps the floor-only behaviour where no maximum is known", async () => {
+  try {
+    const ladder = poolActor({ cap: { s1: 4 } });
+    await adjustPool(ladder, "cap", "s1", 1);
+    assert.equal(ladder.writes[0][POOLS_PATH].cap.s1, 5, "a capacity-only tradition has no ceiling");
+    const unknown = poolActor({ arc: { s1: 1 } });
+    await adjustPool(unknown, "arc", "s9", 3);
+    assert.equal(unknown.writes[0][POOLS_PATH].arc.s9, 3, "an unknown slot has no ceiling");
+    await adjustPool(unknown, "arc", "s9", -9);
+    assert.equal(unknown.writes[1][POOLS_PATH].arc.s9, 0, "the floor is zero");
+    const unbound = { getFlag: () => undefined, system: { details: { level: 1, class: "" } }, update: async () => { throw new Error("no write expected"); } };
+    await adjustPool(unbound, "arc", "s1", -1);
+  } finally {
+    globalThis.fromUuidSync = () => null;
+  }
+});
+
 /* ------------- level-up safety: the one-level cap, level down ------------- */
 
 const { xpCeiling, capXpGain, guardLevelWrite, uncappedXp, levelUpHitPoints } = await import("../scripts/classes/levelup.mjs");

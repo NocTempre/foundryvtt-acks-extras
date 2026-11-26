@@ -108,11 +108,26 @@ export function poolState(actor) {
   return out;
 }
 
-/** Spend (delta +1) or refund (delta −1) one slot / pool point. */
+/**
+ * Spend (delta +1) or refund (delta −1) one slot / pool point. The stored
+ * count is the figure `poolState` shows: it is held to the maximum the class
+ * gives that slot (`slotKey` `s1`..`s6`) or points pool (`"points"`) before
+ * `delta` applies, then kept within 0..maximum, so a count stored above the
+ * maximum refunds from the maximum and a spend at the maximum changes nothing.
+ * Where no maximum is known (no bound class, a capacity-only tradition, an
+ * unknown slot) the count has a floor of 0 and no ceiling. Nothing is written
+ * when the stored count would not change.
+ */
 export async function adjustPool(actor, traditionKey, slotKey, delta) {
+  const tradition = poolState(actor).find((t) => t.key === traditionKey);
+  const max = slotKey === "points" ? tradition?.pool?.max : tradition?.slots?.find((s) => `s${s.n}` === slotKey)?.max;
   const pools = foundry.utils.deepClone(spentFor(actor));
   const t = (pools[traditionKey] ??= {});
-  t[slotKey] = Math.max(0, (Number(t[slotKey]) || 0) + delta);
+  const stored = Number(t[slotKey]) || 0;
+  const held = typeof max === "number" ? Math.min(stored, max) : stored;
+  const next = Math.max(0, typeof max === "number" ? Math.min(held + delta, max) : held + delta);
+  if (next === stored) return;
+  t[slotKey] = next;
   await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.pools`]: pools });
 }
 

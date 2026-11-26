@@ -592,12 +592,12 @@ try {
   const m6 = await marksG();
   const poolsBefore6 = (await run(gm, P.state, { actorId: heroId, itemIds: spellIds })).pools;
   const press6 = await run(gm, P.press, { actorId: heroId, itemId: spellIds.one, tradition: ONE.key });
-  const st6b = await until(gm, P.state, { actorId: heroId, itemIds: spellIds }, (st) => st.counts.one === 1 && !same(st.pools, poolsBefore6));
+  const st6b = await until(gm, P.state, { actorId: heroId, itemIds: spellIds }, (st) => st.counts.one === 1);
   const w6 = await run(gm, P.since, { from: m6, actorId: heroId });
   const t6b = await until(gm, P.read, { actorId: heroId }, (t) => rowAt(t, ONE.key, 1, spellIds.one)?.count?.value === "1");
   check("the Judge's Cast on the list-one row with the level full raises the count to 1 and shows the warning once", press6.found && press6.disabled === false && st6b.counts.one === 1 && w6.warns.filter((w) => w === locs6[NOTICE.verdictNoSlot]).length === 1, { count: st6b.counts.one, warns: w6.warns.length });
   const storedAfter = st6b.pools?.[ONE.key]?.s1;
-  check("the pool as the code leaves it: the cast adds one to the stored spent count with no ceiling (stored 3 on a level whose maximum is 2), and the derived count and the figure stay at the maximum (2 / 2)", storedAfter === poolsBefore6[ONE.key].s1 + 1 && usedOf(st6b, ONE.key, 1) === 2 && figure(t6b, ONE.key, 1)?.used === 2 && figure(t6b, ONE.key, 1)?.max === 2, { before: poolsBefore6[ONE.key].s1, stored: storedAfter, derived: usedOf(st6b, ONE.key, 1), figure: figure(t6b, ONE.key, 1) });
+  check("the pool holds at the maximum: the cast past the last slot stores no more than the maximum (stored stays 2 on a level whose maximum is 2, with no pool write), and the derived count and the figure read 2 / 2", storedAfter === 2 && poolsBefore6[ONE.key].s1 === 2 && w6.poolWrites === 0 && usedOf(st6b, ONE.key, 1) === 2 && figure(t6b, ONE.key, 1)?.used === 2 && figure(t6b, ONE.key, 1)?.max === 2, { before: poolsBefore6[ONE.key].s1, stored: storedAfter, poolWrites: w6.poolWrites, derived: usedOf(st6b, ONE.key, 1), figure: figure(t6b, ONE.key, 1) });
   const poolsAfter6 = st6b.pools;
   const m6b = await marksG();
   const press6b = await run(gm, P.press, { actorId: heroId, itemId: spellIds.off, tradition: null });
@@ -606,6 +606,12 @@ try {
   const w6b = await run(gm, P.since, { from: m6b, actorId: heroId });
   const st6d = await run(gm, P.state, { actorId: heroId, itemIds: spellIds });
   check("the Judge's Cast on the off-list spell raises its count to 1, shows the offList warning once and writes no pool", press6b.found && press6b.disabled === false && st6c.counts.off === 1 && w6b.warns.filter((w) => w === locs6[NOTICE.verdictOffList]).length === 1 && w6b.poolWrites === 0 && same(st6d.pools, poolsAfter6), { count: st6c.counts.off, poolWrites: w6b.poolWrites });
+  const m6c = await marksG();
+  const press6c = await run(gm, P.pressPip, { actorId: heroId, tradition: ONE.key, level: 1, spent: true });
+  const t6c = await until(gm, P.read, { actorId: heroId }, (t) => figure(t, ONE.key, 1)?.used === 1);
+  const st6e = await run(gm, P.state, { actorId: heroId, itemIds: spellIds });
+  const w6c = await run(gm, P.since, { from: m6c, actorId: heroId });
+  check("a give-back press on the full level lowers the figure by one (1 / 2) in one pool write, and the stored count is 1", press6c.found && figure(t6c, ONE.key, 1)?.used === 1 && usedOf(st6e, ONE.key, 1) === 1 && st6e.pools?.[ONE.key]?.s1 === 1 && w6c.poolWrites === 1, { figure: figure(t6c, ONE.key, 1), stored: st6e.pools, writes: w6c.poolWrites });
 
   // ---------------------------------------------------------------- 7
   section("7. Rest and Reset slots, from the Player's seat");

@@ -1321,12 +1321,11 @@ the object, and a step compares the stored object by content, since its key orde
 6. **The Judge is warned, not stopped.** Shape: list one's level 1 full (stored 2). *Observable:*
    the list-one row carries the noSlot gate with the warning sentence (it ends "Casting anyway.",
    and is not the blocked one) and Cast on; the off-list row the offList warning and Cast on.
-   Cast on the list-one row: the count is 1 and the warning shown once. **The pool as the code
-   leaves it:** `adjustPool` adds one to the stored spent count with no ceiling and `poolState`
-   clamps on read, so the stored count is 3 on a level whose maximum is 2, the derived count and
-   the figure stay at 2 / 2 (a give-back pip press then takes the stored 3 to 2 and the figure does not
-   move; the walk records the overshoot and does not rule on it). Cast on the off-list spell:
-   its count is 1, the offList warning shown once, no write to the pools.
+   Cast on the list-one row: the count is 1 and the warning shown once. **The pool holds at its
+   maximum:** `adjustPool` stops at the level's maximum, so the stored spent count stays 2, the
+   cast writes no pool, and the derived count and the figure read 2 / 2. Cast on the off-list
+   spell: its count is 1, the offList warning shown once, no write to the pools. A give-back pip
+   press on the full level then lowers the figure to 1 / 2 in one pool write, the stored count 1.
 7. **Rest and Reset slots (Player).** Shape: pools `{one: {s1: 1}, two: {s2: 1}}`, counts one 2,
    both 1. *Observable:* the tab's own Rest (`button[data-action="rest"]`, not the strip's anchor)
    removes the pools flag (absent, not `{}`) in one write by the Player, leaves each count, and

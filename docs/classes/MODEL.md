@@ -953,7 +953,8 @@ this and minting a placeholder into the library (DECISIONS 2026-08-29).
 [scripts/classes/casting.mjs](../../scripts/classes/casting.mjs): the class
 document is authoritative for CAPACITY (slot row or pool schedule at the
 character's level); the actor stores only what is SPENT
-(`flags["acks-extras"].classes.pools`). The system's character sheet gains a
+(`flags["acks-extras"].classes.pools`), and `adjustPool` holds that count within
+0..the slot's or pool's maximum, so the stored count is the figure shown. The system's character sheet gains a
 per-tradition strip (`castingStripElement`) — slot pips to spend/refund, a +/− pair on a points
 pool, a capacity line for a tradition whose `levelCap` names a ladder (the
 gnostic invocation level), and a rest control that DELETES the pools key (update merges
