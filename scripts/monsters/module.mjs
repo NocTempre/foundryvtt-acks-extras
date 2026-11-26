@@ -28,7 +28,8 @@ import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
 import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, carriedGearItems, importedOrganisation, matchProficiency } from "./organisation.mjs";
-import { registerCarryResolver } from "../lib/group.mjs";
+import { registerCarryResolver, registerStackRowControl } from "../lib/group.mjs";
+import { carryRowControls } from "./carry-press.mjs";
 import { importedThrowLadder } from "../importer/leader-roles.mjs";
 import { libraryItems } from "../lib/library.mjs";
 import { setProficiencyReader } from "../lib/item-run.mjs";
@@ -112,6 +113,8 @@ Hooks.once("init", () => {
   registerCarryResolver((group, stackKey, rowKey) => carriedGearItems(rowKey));
   // Which ability a fuse's proficiency word names on the bearer, and what that ability adds to the lighting throw (lib's item runner reads none itself).
   setProficiencyReader(readBearerProficiency);
+  // The press a stack row carries for what its bodies carry (lib's group sheet draws it where the seat can place tokens).
+  registerStackRowControl(carryRowControls);
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply

@@ -93,6 +93,7 @@ the formation feature all read it with no special-casing.
 | `applyCasualties(group, n)` | pristine fall first (no record lost), then records → `dead` |
 | `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied, its hit points kept over the system's roll, the size a hand gave it laid back |
 | `canDeploy(group)` | whether this seat can: it owns the group and may create tokens |
+| `deployAnchor(group, scene)` | `{x, y}` the sheet's own Deploy places a body at: the group's token on the scene, else the playable area's centre |
 | `recall(group)` | fold `token.delta` and the size a hand gave the token back in, drop ≤0-HP bodies, delete tokens; every group inside it is recalled with it |
 | `detach(group, key)` | promote a member to a standalone actor; `size.current--` |
 | `moveStack(from, to, stackKey)` | the row and everything beneath it to another group ("A row moved between groups") |
@@ -187,6 +188,32 @@ items `gen.carry` gives it.
   the share, and a stamped body is never given a second copy.
 - The group sheet's send-out reaches this through `deploy` itself, so a body sent
   out with no press carries its item.
+
+A stack's row can also carry a press for the item, drawn from a second slot:
+`registerStackRowControl(fn)`, where `fn(group, stack)` answers `{key, line, lineTip,
+label, tip, icon, variant, disabled, press}` entries (a blank `label` draws the line
+alone). The sheet draws them only where `canDeploy` answers true and runs a pressed one
+by `pressStackRowControl`, which reads the slot again by `key`. monsters fills it
+(`scripts/monsters/carry-press.mjs`; the decisions are `carry-press-logic.mjs`) with
+"{n} carry {item}" for each `gen.carry` row whose item the carrier runs.
+
+- **A press finds a carrier, and never sends a body that carries nothing.** A stamped
+  body out on the viewed scene acts at once (several: the lowest ordinal). Otherwise a
+  stamped body at rest, or a slot of the share still unspent, is sent out by `deploy`
+  with `deployAnchor` (the placement the sheet's own Deploy takes) and `carrying: rowKey`,
+  which sends the resting records stamped with that row before the others, and then the
+  press is `Item#use` on the body's own copy, found by its cookbook id and a run
+  activation. With every slot spent on bodies that are not here, the row keeps its line
+  and draws no press.
+- **The press follows Foundry's ownership.** It is drawn and run only where the seat
+  owns the body that acts: the carrier out (its token's actor), or the actor a sent-out
+  body is built from (the stack's world base actor; a stack with none yet is a GM's).
+  Elsewhere the row keeps its line, so no press sends a body it cannot act through.
+- **The press tells the item's own state:** Lower where the out carrier holds it raised,
+  the spent press, held off, where its copy is used up.
+- **The line's tooltip is where the share came from:** the imported row (found by its
+  `gen.carry` key) and its page for a stack a part generated, "chosen by the Judge" for
+  any other.
 
 ### A group inside a group
 

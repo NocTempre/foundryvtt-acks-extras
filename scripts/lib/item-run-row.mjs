@@ -41,8 +41,8 @@ const PRESS_ACTIONS = Object.freeze({ raise: "itemRunPress", lower: "itemRunPres
  */
 export const hasRunRow = ({ run, reaches }) => !!run || (reaches?.length ?? 0) > 0;
 
-/** One press: its key, the action and label it carries, its tooltip, icon and variant, and whether it is off. */
-function press(key, say, { disabled = false } = {}) {
+/** One press (`raise`, `lower`, `use`, `card` or `spent`): its key, the action and label it carries, its tooltip, icon and variant, and whether it is off. A caller that draws a press off a sheet's item row takes its words from here. */
+export function press(key, say, { disabled = false } = {}) {
   return { key, action: PRESS_ACTIONS[key], label: say(`row.press.${key}`), tip: say(`row.press.${key}Tip`), icon: PRESS_ICONS[key], variant: PRESS_VARIANTS[key], disabled };
 }
 

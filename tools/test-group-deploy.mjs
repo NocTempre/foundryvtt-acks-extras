@@ -662,6 +662,80 @@ t("a body whose token vanished is given its item once: record and stamp were wri
   }
 });
 
+/* -------------------------------------------- */
+/*  A press on a stack row                      */
+/* -------------------------------------------- */
+
+t("`carrying` sends the resting body stamped with the row before an earlier unstamped one", async () => {
+  try {
+    const calls = resolver({ rowA: lantern });
+    const plain = record("m1", { value: 4, max: 4 });
+    const bearer = { ...record("m2", { value: 4, max: 4 }), carries: ["rowA"], delta: { system: { hp: { value: 4, max: 4 } }, items: [{ _id: "own", name: "Lantern", type: "item" }] } };
+    const group = groupActor(monster(), 2, [plain, bearer], { gen: { carry: { rowA: 1 } } });
+    systemRolls.push(4);
+    const [made] = await deploy(group, scene(), { count: 1, carrying: "rowA" });
+    assert.equal(made.getFlag(MODULE_ID, "member"), "m2", "the carrier, not the lower ordinal");
+    assert.deepEqual(namesOf(made.delta), ["Lantern"]);
+    assert.deepEqual(calls, [], "its slot was spent, nothing is asked again");
+    assert.deepEqual(rosterOf(group).map((m) => m.state), ["materialized", "deployed"]);
+  } finally {
+    registerCarryResolver(null);
+  }
+});
+
+t("without `carrying`, the lower ordinal goes first, as before", async () => {
+  const group = groupActor(monster(), 2, [record("m1", { value: 4, max: 4 }), { ...record("m2", { value: 4, max: 4 }), carries: ["rowA"] }]);
+  systemRolls.push(4);
+  const [made] = await deploy(group, scene(), { count: 1 });
+  assert.equal(made.getFlag(MODULE_ID, "member"), "m1");
+});
+
+t("deployAnchor is the group's own token on the scene, else the playable area's centre", async () => {
+  const { deployAnchor } = await import("../scripts/lib/group.mjs");
+  const group = groupActor(monster(), 1);
+  const bare = { tokens: [], width: 4000, height: 3000, dimensions: { sceneRect: { x: 100, y: 200, width: 1000, height: 600 } } };
+  assert.deepEqual(deployAnchor(group, bare), { x: 600, y: 500 });
+  assert.deepEqual(deployAnchor(group, { ...bare, dimensions: undefined }), { x: 2000, y: 1500 });
+  bare.tokens.push({ actorId: group.id, x: 340, y: 270 });
+  assert.deepEqual(deployAnchor(group, bare), { x: 340, y: 270 });
+});
+
+t("the stack-row control seam: one registration, replaced or cleared, read safely, pressed only by a seat that can deploy", async () => {
+  const { registerStackRowControl, stackRowControls, pressStackRowControl } = await import("../scripts/lib/group.mjs");
+  const group = groupActor(monster(), 1, [], { gen: { carry: { rowA: 1 } } });
+  const stack = group.system.stacks[0];
+  assert.deepEqual(stackRowControls(group, stack), [], "nothing registered");
+  const pressed = [];
+  const undo = registerStackRowControl((grp, stk) => [{ key: "a", label: "Raise", press: async () => pressed.push(["a", grp.uuid, stk.key]) }, { label: "no key" }, null, { key: "off", disabled: true, press: async () => pressed.push("off") }]);
+  assert.deepEqual(stackRowControls(group, stack).map((c) => c.key), ["a", "off"], "an entry with no key is dropped");
+  globalThis.game.user = { can: () => true };
+  group.isOwner = false;
+  assert.equal(await pressStackRowControl(group, "s1", "a"), undefined, "a seat that owns nothing presses nothing");
+  group.isOwner = true;
+  assert.equal(await pressStackRowControl(group, "s1", "off"), undefined, "a held-off control does not run");
+  assert.equal(await pressStackRowControl(group, "s1", "gone"), undefined);
+  await pressStackRowControl(group, "s1", "a");
+  assert.deepEqual(pressed, [["a", group.uuid, "s1"]]);
+  globalThis.game.user = { can: () => false };
+  assert.equal(await pressStackRowControl(group, "s1", "a"), undefined, "no right to create tokens");
+  const warned = console.warn;
+  console.warn = () => {};
+  try {
+    registerStackRowControl(() => {
+      throw new Error("broken");
+    });
+    assert.deepEqual(stackRowControls(group, stack), [], "a throw gives none");
+    undo();
+    assert.deepEqual(stackRowControls(group, stack), [], "the first registration's undo leaves the one that replaced it");
+    registerStackRowControl(null);
+  } finally {
+    console.warn = warned;
+  }
+  registerStackRowControl(() => [{ key: "z" }])();
+  assert.deepEqual(stackRowControls(group, stack), [], "an undone registration leaves none");
+  delete globalThis.game.user;
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {

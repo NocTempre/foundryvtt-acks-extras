@@ -136,6 +136,20 @@
       </header>
 
       <div class="stack-nest">
+        {{!-- What a feature puts on this row (registerStackRowControl): a line and,
+              where the seat can place tokens, its press. --}}
+        {{#each this.controls}}
+          <div class="stack-control">
+            <span class="stack-control-line" data-tooltip-text="{{this.lineTip}}">{{this.line}}</span>
+            {{#if this.label}}
+              <button type="button" class="stack-control-press" data-action="stackControl" data-control-key="{{this.key}}"
+                      data-tooltip-text="{{this.tip}}" aria-label="{{this.label}}"{{#if this.disabled}} aria-disabled="true"{{/if}}>
+                <i class="{{this.icon}}" inert></i> {{this.label}}
+              </button>
+            {{/if}}
+          </div>
+        {{/each}}
+
         {{!-- What a Roll cannot do with this stack, for the Judge who would press it. --}}
         {{#each this.rollNotes}}
           <p class="hint stack-roll-note">{{this}}</p>

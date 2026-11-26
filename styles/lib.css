@@ -400,6 +400,22 @@
 .acks-lib-group-sheet .stack-roll-note {
   margin: 0.15rem 0;
 }
+/* A control a feature puts on a stack's row: its line, then its press. */
+.acks-lib-group-sheet .stack-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-1, 0.25rem) var(--acks-sp-2, 0.5rem);
+  font-size: var(--acks-fs-label);
+}
+.acks-lib-group-sheet .stack-control-line {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.acks-lib-group-sheet .stack-control-press[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 /* Destructive action: ink, not fill, so it takes the `-ink` variant. */
 .acks-lib-group-sheet button.danger {
   color: var(--acks-danger-ink);

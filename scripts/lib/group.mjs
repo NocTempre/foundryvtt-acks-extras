@@ -754,6 +754,25 @@ function applyBodySize(tokenData, kept) {
   }
 }
 
+/**
+ * Where a group's own Deploy puts its first body on a scene: on the group's own
+ * token where the scene has one, else the centre of the playable area, not the
+ * padded canvas. The anchor a press that sends a body out takes as `deploy`'s
+ * `x` and `y`.
+ *
+ * @param {Actor} group
+ * @param {Scene} scene
+ * @returns {{x: number, y: number}}
+ */
+export function deployAnchor(group, scene) {
+  const token = scene.tokens.find((t) => t.actorId === group.id);
+  const rect = scene.dimensions?.sceneRect;
+  return {
+    x: token?.x ?? Math.floor(rect ? rect.x + rect.width / 2 : (scene.width ?? 0) / 2),
+    y: token?.y ?? Math.floor(rect ? rect.y + rect.height / 2 : (scene.height ?? 0) / 2),
+  };
+}
+
 /** The registered answer to "what does a body of this `gen.carry` row carry", or null. */
 let carryResolver = null;
 
@@ -876,9 +895,12 @@ function giveDelta(delta, extra, items = []) {
  * @param {object|((member: object, i: number) => object|null)|null} [opts.extraDelta]
  *   merged into each going body's delta as `mergeObject` merges, its `items` joined
  *   to the body's own list by `_id`; a function is asked once per body in order
+ * @param {string} [opts.carrying] a `gen.carry` row key: resting records stamped
+ *   with it go before the others, so a press that needs its carrier sends it
+ *   (ordinal order within each side)
  * @returns {Promise<TokenDocument[]>}
  */
-export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, place = null, extraDelta = null } = {}) {
+export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, place = null, extraDelta = null, carrying = null } = {}) {
   if (!isGroup(group) || !scene) return [];
   const key = stackKey ?? group.system.primaryStack?.key;
   if (!key) return [];
@@ -893,7 +915,8 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
   const stack = group.system.stackOf(key);
   // Resting records first — a body that has already diverged keeps its history
   // rather than a pristine one being spent beside it.
-  const going = [...(stack?.roster ?? [])].filter((m) => m.state === GROUP_STATE.materialized).sort(byOrdinal);
+  const stamped = (m) => (carrying && m.carries?.includes(carrying) ? 0 : 1);
+  const going = [...(stack?.roster ?? [])].filter((m) => m.state === GROUP_STATE.materialized).sort((a, b) => stamped(a) - stamped(b) || byOrdinal(a, b));
   going.length = Math.min(going.length, wanted);
   going.push(...(await materializeMembers(group, key, wanted - going.length)));
   if (!going.length) return [];
@@ -942,6 +965,70 @@ export const STACK_DRAG_TYPE = `${MODULE_ID}.groupStack`;
 
 /** Whether this seat can put a group's bodies on a map. */
 export const canDeploy = (group) => !!group?.isOwner && game.user.can("TOKEN_CREATE");
+
+/** The registered answer to "what controls does this stack's row carry", or null. */
+let stackRowControlFn = null;
+
+/**
+ * Register the one function that tells the group sheet what a stack's row carries
+ * beside its own actions. `fn(group, stack)` answers an array of controls, or null
+ * for none; a control is `{key, line, lineTip, label, tip, icon, variant, disabled,
+ * press}`: `line` is the words the row reads (with `lineTip` as its tooltip),
+ * `label`, `tip` and `icon` (a Font Awesome class) the button (a blank `label`
+ * draws the line alone), `disabled` a button held off, and `press` the async
+ * function a press runs (it is never put in a template; the sheet asks again by
+ * `key` when the press lands). The sheet draws
+ * them only where `canDeploy` answers true. A feature that knows what a stack's
+ * bodies carry registers it; lib reads only this slot. A second registration
+ * replaces the first, and `null` clears it.
+ *
+ * @param {((group: Actor, stack: object) => object[]|null)|null} fn
+ * @returns {() => void} undoes this registration
+ */
+export function registerStackRowControl(fn) {
+  stackRowControlFn = typeof fn === "function" ? fn : null;
+  return () => {
+    if (stackRowControlFn === fn) stackRowControlFn = null;
+  };
+}
+
+/**
+ * The controls a stack's row carries, read from the registered function: each one
+ * a plain object with a `key`, in the order answered. A null, a throw, no
+ * registration or an entry with no key gives none of that entry.
+ *
+ * @param {Actor} group
+ * @param {object} stack
+ * @returns {object[]}
+ */
+export function stackRowControls(group, stack) {
+  if (!stackRowControlFn) return [];
+  let answer = null;
+  try {
+    answer = stackRowControlFn(group, stack);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | the stack-row control reader failed`, err);
+  }
+  return (Array.isArray(answer) ? answer : []).filter((c) => c && typeof c === "object" && c.key);
+}
+
+/**
+ * Press one of a stack's row controls by its key: only where this seat `canDeploy`
+ * the group, since a press may send a body out. The control is read again, so the
+ * press acts on what the row holds now.
+ *
+ * @param {Actor} group
+ * @param {string} stackKey
+ * @param {string} key the control's key
+ * @returns {Promise<unknown>} what the press answered, or undefined where nothing ran
+ */
+export async function pressStackRowControl(group, stackKey, key) {
+  if (!canDeploy(group)) return undefined;
+  const stack = group.system.stackOf(stackKey);
+  const control = stack ? stackRowControls(group, stack).find((c) => c.key === key) : null;
+  if (!control || control.disabled || typeof control.press !== "function") return undefined;
+  return control.press();
+}
 
 /**
  * Deploy a dropped row's whole stack where core would seat a dropped actor: the

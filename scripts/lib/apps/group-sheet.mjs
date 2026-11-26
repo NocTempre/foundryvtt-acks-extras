@@ -81,6 +81,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     form: { submitOnChange: true, closeOnSubmit: false },
     actions: {
       deploy: GroupSheet.#onDeploy,
+      stackControl: GroupSheet.#onStackControl,
       recall: GroupSheet.#onRecall,
       materialize: GroupSheet.#onMaterialize,
       addCasualty: GroupSheet.#onAddCasualty,
@@ -147,6 +148,8 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
         countTip: GroupSheet.#countTip(stack, sources[i]),
         rollLabel: judge && offersRoll(stack, sources[i]) ? loc(stack.rolled?.total != null ? "roll.again" : "roll.press") : null,
         rollNotes: judge ? GroupSheet.#rollNotes(stack, sources[i]) : [],
+        // What a feature puts on the row (a press for what the bodies carry), without the press functions; drawn only where this seat can send a body out.
+        controls: context.canDeploy ? groups.stackRowControls(this.actor, stack).map(({ press, ...shown }) => shown) : [],
         members: sys.livingRecordedOf(stack).map(view).sort((a, b) => a.ordinal - b.ordinal),
         dead: sys.deadOf(stack).map(view).sort((a, b) => a.ordinal - b.ordinal),
         detached: (stack.roster ?? []).filter((m) => m.state === GROUP_STATE.detached).map(view),
@@ -405,14 +408,27 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     if (!stackKey) return;
     const scene = game.scenes?.viewed;
     if (!scene) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.group.warn.noScene"));
-    const token = scene.tokens.find((t) => t.actorId === this.actor.id);
-    // With no group token, centre on the playable area, not the padded canvas.
-    const rect = scene.dimensions?.sceneRect;
-    const x = token?.x ?? Math.floor(rect ? rect.x + rect.width / 2 : (scene.width ?? 0) / 2);
-    const y = token?.y ?? Math.floor(rect ? rect.y + rect.height / 2 : (scene.height ?? 0) / 2);
-    const made = await groups.deploy(this.actor, scene, { stackKey, count: GroupSheet.#count(target), x, y });
+    const made = await groups.deploy(this.actor, scene, { stackKey, count: GroupSheet.#count(target), ...groups.deployAnchor(this.actor, scene) });
     ui.notifications.info(game.i18n.format("ACKS-LIB.group.info.deployed", { n: made.length }));
     this.render();
+  }
+
+  /**
+   * A control on a stack's row, from the sheet: the registered control is read
+   * again by its key and run. The button is held off while the press runs, so a
+   * double press sends one body out, not two.
+   */
+  static async #onStackControl(event, target) {
+    const stackKey = GroupSheet.#stackKey(target);
+    const key = target.dataset.controlKey;
+    if (!stackKey || !key || target.getAttribute("aria-disabled") === "true" || target.dataset.busy === "1") return;
+    target.dataset.busy = "1";
+    try {
+      await groups.pressStackRowControl(this.actor, stackKey, key);
+    } finally {
+      if (target.isConnected) delete target.dataset.busy;
+      this.render();
+    }
   }
 
   static async #onRecall() {
