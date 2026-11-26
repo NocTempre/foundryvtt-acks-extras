@@ -35,6 +35,14 @@ Unbuilt, found by the sweep:
 
 ## Standing cleanup passes
 
+- **A nightly walk run with no model.** `node tools/live/run.mjs` already runs
+  every walk unattended and writes the result file the release preflight
+  reads. What is not built is the schedule around it: a job on the test
+  machine that brings the world up, runs the whole list once a night against
+  `main`, and opens one `nightly-failure` intake row per walk that did not
+  pass (`.claude/rules/delegation.md`, Tier A). The schedule itself is
+  machine-specific and belongs in the local test-environment file, never in
+  the repo.
 - **Rename the module-wide identifiers.** Low priority. The 18 lang key roots
   (`ACKS-CLASSES`, `ACKS-LIB`, and the rest of the list in `CLAUDE.md`) and the
   lib hook names (`MOUNT_HOOKS` in `scripts/lib/mount.mjs`, the storage hooks in
