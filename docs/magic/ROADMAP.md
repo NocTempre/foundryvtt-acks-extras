@@ -2,12 +2,9 @@
 
 Re-issued 2026-11-14.
 
-What is designed and not built. The full decomposition — data model,
-importer recipes, engines, UI, verification, open questions — is
-[wip/20260924-scoping.md](wip/20260924-scoping.md) until each part moves
-its substance into MODEL and DECISIONS. The spell primitive, the vocabulary,
-the importer's spells and the first casting parts are built; MODEL carries
-them.
+What is designed and not built. The spell primitive, the vocabulary, the
+importer's spells and the first casting parts are built; MODEL carries them.
+Each part below carries the design of what remains.
 
 Each part below ships the Judge tools for what it adds. The order is the
 owner's ruling of 2026-09-25 (DECISIONS, "The order, and the scoping's eleven
@@ -25,25 +22,72 @@ questions, ruled"): 2 and 4a before 1b.
   contents as documents"); the Magic tab's corruption and stigma meters,
   concentration indicator, signature text and effects grouped by cast; a
   spell-effect section on the Active Effect sheet; Judge macros (drawing an NPC's
-  repertoire, sweeping expired records, dismissing summons) and settings. A
-  points or gnosis caster keeps the pool strip until its engine lands.
+  repertoire, sweeping expired records, dismissing summons) and settings; and the
+  formation's own spell countdown as a view of the cast records where world time
+  advances, since two clocks would then age one spell. A points or gnosis caster
+  keeps the pool strip until its engine lands.
 - **Levels 2 to 6.** One phase each, planned from that level's own matrix:
   standing modifiers through `standingModifiers` with spell records as sources,
   damage per level with `max`, dispel and counterspell throws, detection
   results, beholding and earshot warnings, the perpetual cap, triggered starts,
   and transform and teleport executors. Rituals come with research (part 5).
-- **4a — Magic items: JJ.** The `magicItem` flag, its fieldset and tab, the
-  use flow; `kind.magicItem` for JJ ch. 4; the classic and heroic generation
-  tables; traits; the markets bridge.
-- **1b — Foundation: the math.** The `acks.spellBuilder` document from JJ
-  ch. 14 (AXIOMS 18 and HFH ch. 8 as alternate producers); the pure cost
-  engine; the Build tab; the printed worked builds as build records.
-- **3a — Magic types.** The `acks-extras.magicType` document, its sheet and
-  builder from JJ ch. 15; publication to `acks.magicTypes`, merged over the
-  class builder's imported rows by key; inherited repertoires; the
-  `VALUE_SCALES` wiring.
-- **3b — Eldritch.** Shades promoted to code, the corruption ledger, the
-  Annals of the North ceremonies, the HFH shaded list.
+- **4a — Magic items.** Built: the generation tables and their roll
+  ([magic-items MODEL](../magic-items/MODEL.md)), and magic items imported as
+  documents (importer DECISIONS 2026-11-17, "A magic item is
+  `kind.magicItem`; …"), which write no item flag; where both books print an
+  item, the Treasure Tome wins. Not built: the
+  `flags["acks-extras"].magicItem` DataModel on core `item`, `weapon` and
+  `armor` (the item's kind, absorbing markets' `MAGIC_KINDS`; powers, each a
+  spell pointer, effect rows, a bonus, a proficiency, a class power or a
+  special, with its activation and charges; the cursed state, drawbacks,
+  restrictions, lifespan, set, traits, formula, base cost, and the scroll and
+  potion fields; value, rarity, identification state and aura stay in the
+  markets flag); a fieldset on core's item sheets and a tab on the extras
+  item sheet with the shared effect-row editor; the use flow, which casts a
+  power with the item as its source, spends a charge or consumes a one-use
+  item, and puts a cursed reveal and a user restriction to the Judge; JJ
+  traits; the markets bridge (identification, value, availability and
+  commissioning); and definition nodes for the `magicProperty` tokens, which
+  closes a spoil's `researchEffects`. The magic-items feature's own gaps are in
+  [its ROADMAP](../magic-items/ROADMAP.md).
+- **1b — Foundation: the math.** A pure cost engine (`magic/spell-cost.mjs`)
+  that does the procedure only: sum the chosen effect rows' costs with their
+  count and pick multipliers, multiply by the target, range, duration,
+  saving-throw and source factors, round by the printed rule, read the level
+  off an imported band table and apply breakthrough allowances. Every figure
+  arrives in an imported `acks.spellBuilder` document: for each spell type,
+  tables of effects, range, duration, targeting, saving throw and source
+  (JJ ch. 14's design axes), whose rows carry a key, a label and a cost or
+  factor from the page, beside a register-authored kind and parameters that
+  expand a picked row into an executable effect row. JJ ch. 14 is the primary
+  producer; AXIOMS 18 is a second recipe for the same document id, for a Judge
+  who holds only it and as a cross-check while authoring; HFH ch. 8 fills the
+  eldritch source column; a magic type's source factors multiply in the same
+  way. The printed worked builds import as build records on their spells, a
+  Build tab prices a custom spell, and extemporaneous spellsinging (3d) reuses
+  the engine at the table.
+- **3a — Magic types.** The `acks-extras.magicType` Item sub-type and its
+  sheet, in the class sheet's shape, with JJ ch. 15's ten steps as a builder
+  tab. Its fields: key and label, source factors per spell type, base XP,
+  progression (family, tier, delayed), the value ladder the class builder
+  prices from, repertoire and casting kinds, saves-as and progenitor, the code
+  of behaviour, the category value, the research menu, the save progression,
+  the spell list and the knobs the ACKS I systems need (shade, resources,
+  ceremony). Documents publish to `acks.magicTypes`, and
+  `classes/builder.mjs` `builderTables()` merges them over the imported rows
+  by key, a document winning (DECISIONS 2026-11-26, "The scoping doc
+  closes"). `kind.magicType` makes the printed types: JJ ch. 15 with the
+  ch. 12 grids, and BTA, HFH and Annals of the North for the others. Also:
+  inherited repertoires, and the `VALUE_SCALES` `arcaneValue` and
+  `divineValue` wiring.
+- **3b — Eldritch.** Shades move from the open family to code when the
+  corruption engine branches on them; a corruption ledger on the caster
+  (points and weaknesses); the Annals of the North ceremonies; the HFH shaded
+  eldritch list, its ACKS I names converting through
+  `register/_refs/conversion.json` (an unknown name stays plain text). The
+  casting engines for slots, points, stigma and corruption are pure modules
+  (`magic/engines/`) with a thin document layer, beside one shared ceremony
+  procedure.
 - **3c — Gnosis and ceremonial.** The shared ceremony procedure (performance
   ladder, mishap tiers, stigma, purification); BTA invocations and
   implements; HFH codices, trinkets and talismans — items on the flag 4a
@@ -53,10 +97,17 @@ questions, ruled"): 2 and 4a before 1b.
   and item-sheet surfaces, the ceremony procedure and the invocations' effect
   rows; the plan and its /design canvas are
   [wip/20261116-bta-magic-groundwork-plan.md](wip/20261116-bta-magic-groundwork-plan.md).
-- **3d — Spellsinging.** The points engine, tapping, extemporaneous builds
-  through the cost engine (needs 1b).
-- **4b — Magic items: Treasure Tome.** The `tt` reader; the Mechanics block;
-  gritty tables; the advanced item rules and the appendices.
+- **3d — Spellsinging.** The points engine (a cost by spell level from the
+  type's ladder, and recovery), tapping, and extemporaneous builds through the
+  cost engine (needs 1b).
+- **4b — Magic items: Treasure Tome.** The Tome's tables and entries import
+  (importer DECISIONS 2026-11-17, "The Treasure Tome wins whole: …"). Not
+  built: its Mechanics block (activation time, frequency, cancellation) read
+  onto the item flag's activation; the walk of its Gritty tables; the advanced
+  item rules (cursed, formula length, drawbacks, proficiency and power
+  granting, perpetual, periodic, random lifespan, rechargeable, set,
+  triggered, user restrictions); and the appendices (item generation, traits,
+  corruption, weapon development, potion miscibility, monsters).
 - **5 — Research.** Projects at a location, research days, Finish, rituals and
   blood sacrifice are built (MODEL, "Research projects", "Blood sacrifice").
   What remains: a visible link on the researcher's sheet; every RR ch. 8 project
@@ -66,10 +117,26 @@ questions, ruled"): 2 and 4a before 1b.
   award for its level from a table that is not imported, so the Judge's value
   box is the only way such a victim yields (DECISIONS, ruling 226).
   Congregation-scale divine power waits for the domains feature's realm
-  model.
-- **6 — Optional rules.** Overcasting, places of power, spell damage
-  against structures, magic in construction, mortal-wounds inputs from
+  model. The RR ch. 8 design also holds arcanogenesis (AX1's design and genesis
+  vat) and AX7's compounds, a substitution layer over components, and
+  magic-item research; a Judge's ledger over every project in the world; an
+  NPC repertoire helper (a random draw by level, no figures); and a project's
+  facilities, which are its location's (DECISIONS 2026-09-25, answer 4).
+- **6 — Optional rules.** Overcasting (JJ ch. 16, a setting off by default),
+  places of power (JJ ch. 2, a location flag the throw modifiers read), spell
+  damage against structures (RR ch. 12, through the vehicles feature's
+  `spellAreaFactor`), magic in construction, and mortal-wounds inputs from
   tracked effects.
+- **Recipes, books and walks the parts above need.** Table documents
+  `acks.magicTypeBuilder`, `acks.eldritch`, `acks.spellsinging`,
+  `acks.overcasting` and `acks.placesOfPower` (the magic-item tables are
+  `magicItemTables`; `magicItems` stays markets'). Books: HFH, the Almanac of
+  Unusual Magic, the two Annals of the North posts and AXIOMS, under ids that
+  cannot collide with the adventure ids (such as `axc1`, `axi17`,
+  `axse2020`), each added only once a recipe reads it. A repair keep-policy
+  for magic types. Each part is walked on content imported from the seat's own
+  PDF (a caster for each engine, an item for each activation kind, a project
+  for each research kind), never on a fixture built by the API.
 - **A held cast whose caster's whole actor is deleted.** Foundry fires no
   `deleteActiveEffect` for the embedded records of a deleted actor (confirmed
   live), so concentration's end (MODEL, "Concentration's end") never runs and

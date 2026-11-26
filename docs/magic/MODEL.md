@@ -3,9 +3,8 @@
 The magic feature is the spell primitive on the acks system's `spell` Item,
 the vocabulary every magic surface shares, and, as each part lands, the
 spell builder, the cast engine and the tracking of what a cast leaves behind.
-Two sibling features build on it: `magic-items` and `research`. The design of
-the whole program stays in [wip/20260924-scoping.md](wip/20260924-scoping.md)
-until each part lands here.
+A sibling feature, `magic-items`, builds on it; research is part of this
+feature. What is not built is in [ROADMAP.md](ROADMAP.md).
 
 ## What exists now
 
