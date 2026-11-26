@@ -52,6 +52,9 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
+    // Feeds the template's level-only option and criteria hint. Reads the role
+    // for severity (a player is blocked from that kind) and for the act (a
+    // Judge's directed submit places), never for permission.
     context.isGM = game.user.isGM;
     // Players post on behalf of characters they OWN; GMs see every PC.
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
@@ -175,7 +178,9 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     if (kind === "specialist") spec.specialistType = data.specialistType;
 
     // A player's post names what they want (the paid menu): general
-    // henchmen, a mercenary/specialist type, or a directed target.
+    // henchmen, a mercenary/specialist type, or a directed target. The role
+    // read is severity (the level-only kind blocks a player) and the act (a
+    // Judge's directed submit places a named NPC), not a permission.
     if (!game.user.isGM) {
       if (kind === "henchman" && !spec.general) {
         ui.notifications.error(game.i18n.localize("ACKS-HENCHMEN.posting.error.criteria-required"));
@@ -236,6 +241,8 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
+    // A GM seat sends no requestUserId: a Judge's directed submit is a
+    // placement (`gmAdd`), which skips the fee and the search.
     const result = await createPosting(this.location, spec, employer, {
       playersSeeDetails: data.playersSeeDetails !== false,
       requestUserId: game.user.isGM ? null : game.user.id,
@@ -244,6 +251,11 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     if (result.error) {
       refusal(result.error);
       return;
+    }
+    // The level-only kind is the module's own search, not a listed type: the
+    // Judge's post goes through and says so once.
+    if (game.user.isGM && kind === "henchman" && !spec.general && spec.level != null) {
+      ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.posting.levelOnlyJudge"));
     }
     if (result.gmPlaced) {
       ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.posting.gmPlaced", { name: result.placedName ?? "?" }));

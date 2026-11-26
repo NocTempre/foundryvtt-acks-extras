@@ -4,8 +4,9 @@
  * place sheet's GM Settings block (add a row, pick the class, read it back),
  * a class draw that rolls again on a blocked class, a GM placement whose rolled
  * class lands on the special row once every draw is blocked, that candidate
- * hired with no class bound and its Service tab offering the Judge Pick class
- * (the class picker opening on it) and the Player seat none, a player's
+ * hired with no class bound and its Service tab offering Pick class to the
+ * Judge's seat and to the Player seat that owns it (the class picker opening
+ * on each, closed unbound), a player's
  * directed search refused, and the posting dialog listing the class disabled
  * with its reason. Two relay and sheet checks run under registry layers of the
  * walk's own, holding invented figures and no imported book: the GM seat lacking
@@ -550,9 +551,10 @@ try {
     check("17: the Judge's Service tab says the class is the Judge's pick and offers a named Pick class; the hit points say not rolled and why",
       gmService.rendered && gmService.classSaysPick && !gmService.classRaw && gmService.button && gmService.buttonNamed && gmService.hpSaysNotRolled && gmService.hpTipIsPick && !gmService.rawKey, gmService);
     check("17: Pick class opens the class picker on the hireling", gmService.picker, { picker: gmService.picker });
-    const playerService = await run(player, P.service, { actorId: hired.id });
+    const playerService = await run(player, P.service, { actorId: hired.id, press: true });
     note("service (player)", playerService);
-    check("17: the Player seat that owns the hireling reads the same row with no Pick class", playerService.rendered && playerService.classSaysPick && !playerService.button && playerService.hpSaysNotRolled, playerService);
+    check("17: the Player seat that owns the hireling reads the same row and is offered a named Pick class, which opens the class picker (closed unbound)",
+      playerService.rendered && playerService.classSaysPick && playerService.button && playerService.buttonNamed && playerService.hpSaysNotRolled && playerService.picker, playerService);
   }
 
   section("17: a player's directed search for the blocked class");

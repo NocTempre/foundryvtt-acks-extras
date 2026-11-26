@@ -161,6 +161,28 @@ the GM over the relay (the `createPosting` handler), which answers `{error}`;
 the posting dialog shows a refusal by its `posting.error.*` key and says
 submitted otherwise.
 
+**Who posts what.** Permission is Foundry's: a seat posts for an employer it
+owns (`createPosting` refuses `not-yours` otherwise), and a seat that owns the
+place writes it directly. Two reads of the role stay, and they are the act and
+the severity, not a permission. A GM seat's directed submit sends no
+`requestUserId` (`runRelayed` and the dialog both send a GM as null), which makes
+it a placement (`gmAdd`): the named candidate is minted with no fee and no
+search, and a player reaches a candidate through the paid search. The
+level-only kind, "Henchmen by level", is the module's own narrower search and
+no listed search type: the dialog offers it on a GM seat only, the dialog and
+`createPosting` refuse it from a player (`criteria-required`, with the by-class
+and by-proficiency checks), and a Judge's submit goes through and raises one
+warning (`posting.levelOnlyJudge`).
+
+**A drop on the Recruitment tab.** Dropping an NPC actor on a place's
+Recruitment tab (`location-sheet.mjs` `_onDropActor`) adds it as a special hire
+(`addSpecialHire`, which reads the place's market and nothing of the seat) for
+a seat that owns both the place and the actor. A player who owns no NPC is
+offered nothing, which is the Judge's case by ownership. A drop the seat may not
+make writes nothing and says nothing. The row records who placed it
+(`origin`: `gm` for a GM seat, `owner` for a player's seat, `found` from
+an adventure), shown in the row's Origin column.
+
 ## 3. `HenchmanRecord` (hireling flag)
 
 Serialized DataModel at `actor.flags["acks-extras"].record`
@@ -200,9 +222,9 @@ default hit-dice formula — and `hpUnrolled` names which was missing
 A candidate whose class key is `special` (`JUDGE_PICK_CLASS`, the Judge's
 pick) is hired with `details.class` empty (`hiredClassName`), so no class is
 bound and nothing is rolled; `hpUnrolled` is `judgePick`. The Service panel
-reads "Judge's pick" there, and on a Judge's seat offers Pick class
-(`offersClassPick`), which opens the classes feature's picker on the
-hireling; binding a class there rolls its hit points. A hire recorded before
+reads "Judge's pick" there, and offers Pick class to a seat that owns the
+hireling (`offersClassPick`; the click handler reads `actor.isOwner` too),
+which opens the classes feature's picker on the hireling; binding a class there rolls its hit points. A hire recorded before
 this wrote `special` into `details.class` and `noClass` into the record; the
 panel reads both as the Judge's pick. The level-up wizard's kept roll (`levelUpRoll`) belongs to a climb in progress
 and is not written at hire.

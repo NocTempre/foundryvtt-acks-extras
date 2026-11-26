@@ -23,6 +23,18 @@
  * character the Player does not own, and moves the hireling and its record.
  * Dismiss, last, takes its own fixture off the roster.
  *
+ * Step "posting": placing and posting at a hand-made place the Player owns.
+ * On the Player seat the Post a search window offers no "Henchmen by level"
+ * and the GM seat's does; a level-only submit through `createPosting` with the
+ * Player's id is refused `criteria-required` and writes nothing; a real drop of
+ * an NPC the Player owns on the place's Recruitment tab adds one special hire,
+ * and a drop of one the Player does not own adds none. On the GM seat the
+ * window's own submit of the level-only kind posts and raises the one warning;
+ * that posting is closed by its id. The imported tables a post needs (arrival
+ * shares, the search fee for the place's class) are asserted and reported, never
+ * supplied; the Judge's post has no employer, so no purse is needed. The step
+ * writes the place's special hires back by the id it added.
+ *
  * Fixtures, kept and found by marker (every one a character):
  * `henchmen/owner-employer` and `henchmen/owner-employer-2` (the Player owns
  * both; the second is out of service and is the transfer target),
@@ -31,8 +43,11 @@
  * `henchmen/owner-merc` (a mercenary of the first, owned by the Player),
  * `henchmen/owner-foreign-hireling` (a henchman of the first with the Player's
  * ownership withdrawn) and `henchmen/owner-dismiss` (the hireling Dismiss acts
- * on, re-enrolled at that step's start). Each step re-asserts the shape it
- * needs. The chat cards the run's calamities and transfers post speak as a
+ * on, re-enrolled at that step's start). The posting step adds
+ * `henchmen/owner-market` (a location with a market the Player owns) and two
+ * characters standing for NPCs, `henchmen/owner-npc` (the Player owns it) and
+ * `henchmen/foreign-npc` (the Player does not). Each step re-asserts the shape
+ * it needs. The chat cards the run's calamities and transfers post speak as a
  * fixture; the GM seat lists them by id as they arrive and sweeps those ids
  * alone. The loyalty-figure check assumes the entry's delta does not hit the
  * score's upper bound. Every figure printed is a count or a boolean.
@@ -51,6 +66,9 @@ const MARKERS = {
   merc: "henchmen/owner-merc",
   foreignHireling: "henchmen/owner-foreign-hireling",
   dismiss: "henchmen/owner-dismiss",
+  market: "henchmen/owner-market",
+  ownNpc: "henchmen/owner-npc",
+  foreignNpc: "henchmen/foreign-npc",
 };
 /** The ledger entry's marker note, so the walk finds its own entry among a record's. */
 const ENTRY_NOTE = "owner-controls";
@@ -325,12 +343,193 @@ const P = {
     H.roster = null;
     return true;
   },
+  /** The posting step's modules, the drop helper and a capture of this seat's notices (restored with the rest). */
+  postingInstall: async () => {
+    const H = globalThis.__oc;
+    const M = "/modules/acks-extras/scripts";
+    H.RC = await import(`${M}/henchmen/engine/recruitment.mjs`);
+    H.PD = await import(`${M}/henchmen/apps/posting-dialog.mjs`);
+    H.AV = await import(`${M}/henchmen/rules/availability.mjs`);
+    H.LD = await import(`${M}/location/data/location-data.mjs`);
+    H.drop = (el, uuid) => {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ type: "Actor", uuid }));
+      el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    };
+    if (!H.notesPatched) {
+      H.notes = [];
+      H.noteOrig = {};
+      for (const k of ["info", "warn", "error"]) {
+        H.noteOrig[k] = ui.notifications[k];
+        ui.notifications[k] = function (msg, ...rest) {
+          H.notes.push({ kind: k, text: String(msg) });
+          return H.noteOrig[k].call(this, msg, ...rest);
+        };
+      }
+      H.notesPatched = true;
+    }
+    return true;
+  },
+  /** An empty market, for the place fixture's first build. */
+  postingMarket: async () => globalThis.__oc.LD.emptyMarket(),
+  /**
+   * GM seat. Put the place and the two NPCs in the shape the step needs: the
+   * place carries a market class (the Judge's own field), no posting and no
+   * special hire and is the Player's; the first NPC is the Player's and the
+   * second is not. Booleans and counts only.
+   */
+  postingShape: async ({ placeId, ownNpcId, foreignNpcId, playerId }) => {
+    const OWN = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+    const player = game.users.get(playerId);
+    const place = game.actors.get(placeId);
+    const own = game.actors.get(ownNpcId);
+    const foreign = game.actors.get(foreignNpcId);
+    await place.update({ "system.market.marketClassOverride": 4, "system.market.postings": [], "system.market.specialHires": [], [`ownership.${playerId}`]: OWN.OWNER });
+    if ((own.ownership?.[playerId] ?? OWN.NONE) !== OWN.OWNER) await own.update({ [`ownership.${playerId}`]: OWN.OWNER });
+    if ((foreign.ownership?.[playerId] ?? OWN.NONE) !== OWN.NONE) await foreign.update({ [`ownership.${playerId}`]: OWN.NONE });
+    return {
+      market: !!place.system.hasMarket,
+      marketClassSet: place.system.marketClass != null,
+      placeOwned: place.testUserPermission(player, "OWNER"),
+      ownNpcOwned: own.testUserPermission(player, "OWNER"),
+      foreignNpcNotOwned: !foreign.testUserPermission(player, "OWNER"),
+      hires: (place.system.specialHires ?? []).length,
+      postings: (place.system.postings ?? []).length,
+    };
+  },
+  /** GM seat. What a generic post needs from the imported tables, as booleans: nothing is supplied here. */
+  postingPre: async ({ placeId }) => {
+    const H = globalThis.__oc;
+    const place = game.actors.get(placeId);
+    return { arrivalShares: H.AV.arrivalShares() !== null, searchFee: H.AV.searchFeeFormula(place.system.marketClass) !== null };
+  },
+  /** This seat opens the Post a search window on the place and reads the values its Kind select offers. */
+  postingKinds: async ({ placeId }) => {
+    const H = globalThis.__oc;
+    const place = game.actors.get(placeId);
+    const before = new Set(foundry.applications.instances.keys());
+    H.PD.openPostingDialog(place);
+    const app = await H.poll(() => H.apps().find((a) => !before.has(a.id) && a.rendered && H.root(a)?.querySelector("select[name='kind']")), { tries: 40 });
+    if (!app) return { opened: false, kinds: [] };
+    const kinds = [...H.root(app).querySelectorAll("select[name='kind'] option")].map((o) => o.value);
+    await app.close({ animate: false });
+    return { opened: true, kinds };
+  },
+  /** Player seat. A scripted level-only submit through `createPosting` with this seat's id, as the relay hands it to the GM; reads whether the place gained a posting. */
+  postingRefuse: async ({ placeId, employerId, playerId }) => {
+    const H = globalThis.__oc;
+    const place = game.actors.get(placeId);
+    const before = (place.system.postings ?? []).length;
+    const r = await H.RC.createPosting(place, { kind: "henchman", level: 1 }, game.actors.get(employerId), { requestUserId: playerId });
+    await H.sleep(300);
+    return { error: r?.error ?? null, unchanged: (place.system.postings ?? []).length === before };
+  },
+  /** What the place's special hires hold now: id, the actor each names, its status. */
+  postingHires: async ({ placeId }) => {
+    const place = game.actors.get(placeId);
+    return (place.system.specialHires ?? []).map((s) => ({ id: s.id, actorUuid: s.actorUuid, status: s.status }));
+  },
+  /**
+   * Player seat. Open the place's sheet on its Recruitment tab and drop the
+   * actor on the tab as a user's drag does (a real `drop` event with the
+   * actor's uuid in its data), waiting for the place to gain a special hire.
+   */
+  postingDrop: async ({ placeId, actorId, expectAdd }) => {
+    const H = globalThis.__oc;
+    const place = game.actors.get(placeId);
+    const actor = game.actors.get(actorId);
+    const app = place.sheet;
+    await app.render(true);
+    await H.poll(() => app.rendered && H.root(app)?.querySelector('.tab[data-tab="recruitment"]'));
+    try { app.changeTab("recruitment", "primary"); } catch { /* the tab may already be showing */ }
+    await H.sleep(500);
+    const tab = H.root(app)?.querySelector('.tab[data-tab="recruitment"]');
+    const before = (place.system.specialHires ?? []).length;
+    const out = { tab: !!tab, before, after: before, namesActor: false };
+    if (tab) {
+      H.drop(tab, actor.uuid);
+      // A refused drop writes nothing, so it is waited out for as long as an accepted one takes.
+      await H.poll(() => (place.system.specialHires ?? []).length !== before, { tries: expectAdd ? 24 : 12, every: 250 });
+      await H.sleep(800);
+      out.after = (place.system.specialHires ?? []).length;
+      out.namesActor = (place.system.specialHires ?? []).some((s) => s.actorUuid === actor.uuid);
+    }
+    await app.close({ animate: false });
+    return out;
+  },
+  /** GM seat. Take the special hires named by `ids` off the place, leaving the others as they are. */
+  postingUnhire: async ({ placeId, ids }) => {
+    const place = game.actors.get(placeId);
+    const rows = (place.system.specialHires ?? []).map((s) => s.toObject?.() ?? s).filter((s) => !ids.includes(s.id));
+    await place.update({ "system.market.specialHires": rows });
+    return rows.length;
+  },
+  /**
+   * GM seat. Post the level-only kind through the Post a search window: pick
+   * the kind and a level, submit the form, and read the posting it made, the
+   * warnings raised since, and the chat cards this seat posted meanwhile.
+   */
+  postingGmSubmit: async ({ placeId }) => {
+    const H = globalThis.__oc;
+    const place = game.actors.get(placeId);
+    const wanted = game.i18n.localize("ACKS-HENCHMEN.posting.levelOnlyJudge");
+    const from = H.notes.length;
+    const known = new Set((place.system.postings ?? []).map((p) => p.id));
+    const cards = [];
+    const hook = Hooks.on("createChatMessage", (m, _o, userId) => { if (userId === game.user.id) cards.push(m.uuid); });
+    const before = new Set(foundry.applications.instances.keys());
+    let app = null;
+    try {
+      H.PD.openPostingDialog(place);
+      app = await H.poll(() => H.apps().find((a) => !before.has(a.id) && a.rendered && H.root(a)?.querySelector("select[name='kind']")), { tries: 40 });
+      if (!app) return { opened: false, cards };
+      const root = H.root(app);
+      const kind = root.querySelector("select[name='kind']");
+      const offered = [...kind.options].some((o) => o.value === "henchman");
+      kind.value = "henchman";
+      kind.dispatchEvent(new Event("change", { bubbles: true }));
+      const level = root.querySelector("select[name='level']");
+      // The first level the window lists; a world with no levels imported lists none and posts nothing.
+      const picked = [...level.options].find((o) => o.value !== "")?.value ?? "";
+      level.value = picked;
+      level.dispatchEvent(new Event("change", { bubbles: true }));
+      (root.matches("form") ? root : root.querySelector("form")).requestSubmit();
+      const made = await H.poll(() => (place.system.postings ?? []).find((p) => !known.has(p.id)) ?? null, { tries: 60 });
+      await H.sleep(1500);
+      const seen = H.notes.slice(from);
+      return {
+        opened: true,
+        offered,
+        postingId: made?.id ?? null,
+        segment: made?.segment ?? null,
+        level: picked,
+        warns: seen.filter((n) => n.kind === "warn" && n.text === wanted).length,
+        otherWarns: seen.filter((n) => n.kind === "warn" && n.text !== wanted).length,
+        errors: seen.filter((n) => n.kind === "error").length,
+        cards,
+      };
+    } finally {
+      Hooks.off("createChatMessage", hook);
+      if (app?.rendered) await app.close({ animate: false });
+    }
+  },
+  /** GM seat. Close a posting by its id and read its status back. */
+  postingClose: async ({ placeId, postingId }) => {
+    const H = globalThis.__oc;
+    const place = game.actors.get(placeId);
+    await H.RC.closePosting(place, postingId);
+    return (place.system.postings ?? []).find((p) => p.id === postingId)?.status ?? null;
+  },
   drain: async () => ({ errors: (globalThis.__oc?.errors ?? []).slice() }),
   restore: async () => {
     const H = globalThis.__oc;
     if (!H?.patched) return "never installed";
     console.error = H.consoleError;
     for (const [name, id] of H.hookIds) Hooks.off(name, id);
+    if (H.notesPatched) {
+      for (const [k, fn] of Object.entries(H.noteOrig)) ui.notifications[k] = fn;
+      H.notesPatched = false;
+    }
     if (H.roster) await H.roster.close();
     H.patched = false;
     return "restored";
@@ -532,6 +731,52 @@ try {
   check("roster: Dismiss takes the hireling off the employer's list, clears its manager and logs a dismissal", dm.dialog && dm.answered && gone.listedBy.length === 0 && gone.managerid === "" && gone.events.includes("dismissed"), { answered: dm.answered, listedBy: gone.listedBy.length, manager: gone.managerid === "", dismissed: gone.events.includes("dismissed") });
   note("retainer switch of the dismissed character (core's removal leaves it as it was)", gone.enabled);
   await run(player, P.rosterClose);
+
+  /* -------------------------------------------------------------- */
+  section("posting");
+  await run(gm, P.postingInstall);
+  await run(player, P.postingInstall);
+  const marketData = await run(gm, P.postingMarket);
+  const place = await gm.fixture(MARKERS.market, "Actor", { name: "QA Owner Market", type: "acks-extras.location", system: { market: marketData } });
+  const ownNpc = await gm.fixture(MARKERS.ownNpc, "Actor", make("QA Owner NPC"));
+  const foreignNpc = await gm.fixture(MARKERS.foreignNpc, "Actor", make("QA Foreign NPC"));
+  const s5 = await shape([]);
+  const ps = await run(gm, P.postingShape, { placeId: place.id, ownNpcId: ownNpc.id, foreignNpcId: foreignNpc.id, playerId });
+  check("posting: the employer is the Player's; the place has a market, a class set, no posting and no special hire and is the Player's; the first NPC is the Player's and the second is not", s5.employerOwned && ps.market && ps.marketClassSet && ps.placeOwned && ps.ownNpcOwned && ps.foreignNpcNotOwned && ps.hires === 0 && ps.postings === 0, { employerOwned: s5.employerOwned, ...ps });
+  const pre = await run(gm, P.postingPre, { placeId: place.id });
+  check("posting: the world holds the imported arrival shares and the search fee for the place's class (a generic post reads both)", pre.arrivalShares && pre.searchFee, pre);
+
+  // (i) the window's Kind select, on each seat.
+  const kp = await run(player, P.postingKinds, { placeId: place.id });
+  check("posting: the Player's Post a search window offers the general kind and no \"Henchmen by level\"", kp.opened && kp.kinds.includes("henchmanGeneral") && !kp.kinds.includes("henchman"), kp);
+  const kg = await run(gm, P.postingKinds, { placeId: place.id });
+  check("posting: the GM's Post a search window offers \"Henchmen by level\"", kg.opened && kg.kinds.includes("henchman"), kg);
+
+  // (ii) a scripted level-only submit from the Player's id.
+  const rf = await run(player, P.postingRefuse, { placeId: place.id, employerId: ids.employer, playerId });
+  check("posting: a level-only submit with the Player's id is refused criteria-required and the place gains no posting", rf.error === "criteria-required" && rf.unchanged, rf);
+
+  // (iii) and (iv) the Recruitment-tab drop, from the Player seat.
+  const d1 = await run(player, P.postingDrop, { placeId: place.id, actorId: ownNpc.id, expectAdd: true });
+  const hires1 = await run(gm, P.postingHires, { placeId: place.id });
+  const addedIds = hires1.filter((h) => h.actorUuid === `Actor.${ownNpc.id}`).map((h) => h.id);
+  check("posting: dropping the NPC the Player owns on the Recruitment tab of the Player's place adds one special hire naming it", d1.tab && d1.after === d1.before + 1 && addedIds.length === 1 && hires1.every((h) => h.status === "available"), { tab: d1.tab, added: d1.after - d1.before, naming: addedIds.length });
+  const d2 = await run(player, P.postingDrop, { placeId: place.id, actorId: foreignNpc.id, expectAdd: false });
+  const hires2 = await run(gm, P.postingHires, { placeId: place.id });
+  check("posting: dropping the NPC the Player does not own adds nothing", d2.tab && d2.after === d2.before && !hires2.some((h) => h.actorUuid === `Actor.${foreignNpc.id}`), { tab: d2.tab, added: d2.after - d2.before });
+  const left = await run(gm, P.postingUnhire, { placeId: place.id, ids: addedIds });
+  check("posting: the special hire the step added is taken off by its id and the place holds none", left === 0, { left });
+
+  // (v) the Judge's level-only post through the window.
+  if (pre.arrivalShares && pre.searchFee) {
+    const gp = await run(gm, P.postingGmSubmit, { placeId: place.id });
+    for (const uuid of gp.cards ?? []) await track(uuid, "ChatMessage");
+    check("posting: the GM's submit of the level-only kind posts, and raises the one warning that it is the module's own search kind", gp.opened && gp.offered && !!gp.postingId && gp.segment === `henchman:${gp.level}` && gp.warns === 1 && gp.otherWarns === 0 && gp.errors === 0, { opened: gp.opened, posted: !!gp.postingId, segment: gp.segment, warns: gp.warns, otherWarns: gp.otherWarns, errors: gp.errors });
+    if (gp.postingId) {
+      const status = await run(gm, P.postingClose, { placeId: place.id, postingId: gp.postingId });
+      check("posting: the posting the step made is closed by its id", status === "closed", { status });
+    }
+  } else note("posting: the Judge's level-only post was not run: a table it reads is not imported on this world", true);
 
   await trackCards(fixtureIds);
   const pe = await run(player, P.drain);

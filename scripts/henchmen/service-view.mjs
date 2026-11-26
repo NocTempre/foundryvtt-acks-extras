@@ -157,9 +157,9 @@ export function clockLine(clock) {
  * The Service panel's context for `actor`. `inService` false when the actor
  * serves nobody, and the template then renders its empty hint alone.
  * @param {Actor} actor the hireling
- * @param {{isGM?: boolean, pins?: string[]}} viewer `isGM` feeds the class pick's offer; `pins` are the sheet's pinned roll ids, so the Loyalty and Morale rows show their star
+ * @param {{pins?: string[]}} viewer `pins` are the sheet's pinned roll ids, so the Loyalty and Morale rows show their star
  */
-export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
+export function buildServicePanel(actor, { pins = [] } = {}) {
   const retainer = adapter.getRetainer(actor);
   if (!retainer.enabled) return { inService: false, emptyHint: loc("empty") };
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
@@ -276,7 +276,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
           scoresTip: rolled.scores ? scoresTip(rolled.scores) : "",
           rolledTip: rolled.judgePick ? loc("tip.judgePick") : loc("tip.rolled"),
           classLevel: [rolled.judgePick ? loc("judgePick") : rolled.classKey, rolled.level != null ? rolled.level : ""].filter((x) => x !== "").join(" · "),
-          pickClass: offersClassPick(rolled, actor.system?.details?.class, { isGM }),
+          pickClass: offersClassPick(rolled, actor.system?.details?.class, { isOwner: !!actor.isOwner }),
           template: rolled.template,
           hp: hitPointsView(rolled),
         }

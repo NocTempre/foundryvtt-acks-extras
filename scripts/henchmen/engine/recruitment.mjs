@@ -613,10 +613,10 @@ export async function createPosting(
   // it out of spec comparisons and storage.
   const { presentedLevel = null, ...spec } = rawSpec;
   const isPrivate = PRIVATE_KINDS.includes(spec.kind);
-  // A GM at the keyboard (no requestUserId) placing a directed NPC is stocking
-  // the pool, not searching: it skips the player search rules (criteria,
-  // once-per-month-per-spec) and simply adds the named NPC, so a GM can place
-  // as many as they like.
+  // A GM's directed submit (no requestUserId) is a placement: it mints the
+  // named candidate with no fee and no search, skipping the criteria and the
+  // once-per-month-per-spec rule. That act is the Judge's by role, not by
+  // ownership: a player reaches a candidate through the paid search.
   const gmAdd = isPrivate && !requestUserId;
   const segment = isPrivate ? "" : segmentKeyFor(spec);
   // A generic posting buys access to the shared pool's arrivals; with no
@@ -624,13 +624,13 @@ export async function createPosting(
   // charged. A directed search replaces pool members and arrives nowhere.
   if (!isPrivate && !arrivalShares()) return { error: "arrivals-missing" };
 
-  // Player posts name WHAT they want: at least one criterion beyond a warm
-  // body, and (for leveled searches) the level — it sets the price. Plain
-  // "any henchman of level X" posts are a GM tool. Enforced here so socket
-  // relays cannot bypass the dialog.
+  // A request carries the sender's id, never a GM's (`runRelayed` and the
+  // dialog both send a GM as null). The employer is the sender's; a directed
+  // search names its target; the level-only kind is the Judge's, so a player is
+  // blocked from it. Enforced here so socket relays cannot bypass the dialog.
   if (requestUserId) {
     const user = game.users.get(requestUserId);
-    if (user && !user.isGM) {
+    if (user) {
       const employerActor = employer?.actor ?? employer;
       if (!employerActor || !employerActor.testUserPermission(user, "OWNER")) return { error: "not-yours" };
       // Players buy the listed options: the GENERAL henchman post, a

@@ -19,8 +19,9 @@ Choose what you are looking for under **Searching for**:
 
 - **Adventuring henchmen (general)** — the general post; covers the whole
   henchman market.
-- **Henchmen by level** — offered to the Judge only; the level is capped by
-  the employer's (RR 168).
+- **Henchmen by level** — offered to the Judge only, who is warned that it is
+  this module's own narrower search and not one of the book's listed search
+  types; the level is capped by the employer's (RR 168).
 - **Henchman of a specific class**, optionally at a level — a directed search
   (JJ 118).
 - **Henchman with a proficiency** and **Recruit: by class proficiency** —
@@ -40,6 +41,10 @@ general posting adds whoever a search at the larger class finds beyond the
 town's pool; those candidates are the holder's alone to see and to hire.
 
 ![](../releases/v11.4.0/henchmen-network-posting.png)
+
+**Place an NPC yourself.** Actors sidebar → the place's sheet → **Recruitment**
+tab: drop an NPC actor onto the tab and it is listed there as a special hire.
+It takes a seat that owns both the place and the actor.
 
 **No GM needs to be online.** A location's ownership defaults to OWNER, so
 players can post, process and hire on their own. A seat that cannot write to the

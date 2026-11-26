@@ -469,3 +469,109 @@ own: it would write a wage bill and a roster entry onto another player's
 character without that player's act, a permission invented on top of Foundry's.
 If the owner wants hand-offs, it is one op plus a consent step, and a design of
 its own.
+
+## 2026-11-25 — Pick class on a "Judge's choice" hireling follows ownership (T-0792, B5)
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". On T-0793: "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular
+Player only gets ownership of the sheet itself and not subitems they don't own?
+In either case the approach is follow foundry permissions, don't invent new
+ones." Who presses Pick class is the release hub's call (B5 decision 4), made
+under the owner's instruction of the same day: "make the call yourself and
+build, as long as it follows the repo's design rules". The hub's words: "The
+class pick on a 'Judge's choice' roll goes to the owner of that actor. A
+candidate nobody has hired is the Judge's document, so the printed case holds
+by ownership; no role read."
+
+- **Pick class is drawn for, and pressable by, whoever may edit the hireling.**
+  `offersClassPick` takes `{ isOwner }` where it took `{ isGM }`, and
+  `buildServicePanel` passes the hireling's `isOwner`; the Service panel's click
+  handler (`henchmen/module.mjs`) reads `actor.isOwner` in place of the role.
+  The offer's other conditions stand: a class roll that left the class to the
+  Judge, and no class bound yet. `buildServicePanel` no longer takes `isGM`.
+- **The lang hint drops "Judge only: ".** "Judge's pick" and its tooltips stay;
+  they report what the hire's class roll recorded, not who may press.
+- **Why.** Binding the class writes `system.details.class` and the hit points on
+  a hireling the employer's players own (`employerOwnership`), and the Class tab
+  already hands its owner the same picker. A role gate in front of it guards
+  nothing Foundry guards.
+
+**Supersedes:** nothing. Only `MODEL.md` said "on a Judge's seat", and that line
+is updated.
+
+**Counter (medium-strong).** The printed table names the Judge as the one who
+picks the class. *Answer:* a candidate nobody has hired is the Judge's document,
+so the printed case holds by ownership: only a Judge owns it. Once hired, the
+hireling is its employer's players' document, and ownership is what the module
+reads; the Class tab already offers the owner the same picker.
+
+**Rejected.** Keeping Pick class on a Judge's seat and adding the same block to
+the Class tab's picker so the rule means something: new code gating a write
+Foundry lets the owner make, for a rule the module would be inventing.
+
+## 2026-11-25 — Placing a hireling at a market follows ownership of the place and the NPC; the free placement and the level-only search stay the Judge's (T-0792, B5)
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". On T-0793: "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular
+Player only gets ownership of the sheet itself and not subitems they don't own?
+In either case the approach is follow foundry permissions, don't invent new
+ones." The three calls below are the release hub's (B5 answers 1 and 2, and the
+follow-up on 1), made under the owner's instruction of the same day: "make the
+call yourself and build, as long as it follows the repo's design rules". Each is
+the hub's call and not a ruling the owner gave on the surface. Standing: "players
+get blocks, judges get warnings", so severity reads the role and permission
+reads ownership.
+
+- **The Recruitment-tab NPC drop follows ownership of both documents.**
+  `LocationSheet._onDropActor`, where a dropped actor lands on a place's
+  Recruitment tab and the place has a market, returns unless the seat owns the
+  place and owns the dropped actor (`this.actor.isOwner && actor.isOwner`); it
+  read `game.user.isGM`. `addSpecialHire` holds no seat or actor-type test of
+  its own (it returns null for a place with no market and writes the place's
+  special hires), so nothing is added there. A player who owns no NPC actor is
+  offered nothing, so the Judge's case holds by ownership.
+- **The free placement stays on a GM seat, and it is not a permission.** A GM's
+  directed submit sends no `requestUserId`, which makes it `gmAdd`: the named
+  candidate is minted with no fee and no search. That skips the printed
+  procedure; a player's route to a candidate is the paid search. It is recorded
+  as the hub's call on that ground, with severity reading the role. It is not
+  `ACTOR_CREATE`: Create New Actors is not the permission for a write that
+  creates no actor, since a placement writes the place's candidates and creates
+  nothing. The dialog's and `createPosting`'s comments say so; no code changed.
+- **"Henchmen by level" is not a printed search type, and keeps its player
+  block with the Judge warned.** The hub found the level-only kind (`henchman`
+  with a level, not the general post) is the module's own narrower search, not
+  one of the listed types. The template offers it on a GM seat only, and the
+  dialog and `createPosting` still refuse it from a non-GM sender
+  (`criteria-required`). `createPosting`'s block now reads `if (user)` in place
+  of `if (user && !user.isGM)`: inside `requestUserId` the user is never a GM,
+  since `runRelayed` stamps a GM sender as null and the dialog does the same. A
+  Judge's submit of the kind goes through and raises one warning,
+  `ACKS-HENCHMEN.posting.levelOnlyJudge`.
+
+**Supersedes:** nothing. No entry ruled the level-only kind or the criteria
+refusal; the only text was the source comment above `createPosting`'s checks,
+which is rewritten. The archived 2026-11-04 entry about a Judge who names a
+class when placing is about placement, which stays.
+
+**Counter (medium).** A hand-made place's default ownership is OWNER, so every
+player who owns a character can drop that character on it and have it listed as
+a special hire; the Judge's drop was a block on exactly that. *Answer:* a special
+hire is a row on a place the seat owns, naming an actor the seat owns, and
+writes nothing Foundry would refuse that seat. The Judge's stocking of a market
+with candidates a player does not own is the free placement, which stays.
+
+**Counter (medium-weak).** Keeping the free placement on the role is a role read
+where the owner said only a Judge's secret may be one. *Answer:* the placement
+is the act a Judge's directed submit is, the same submit that skips the fee, and
+a player has a route to a candidate that the placement skips. Recorded as the
+hub's call, to be reversed if the owner reads it otherwise.
+
+**Rejected.** Gating the free placement on Create New Actors (`ACTOR_CREATE`):
+the write creates no actor. Opening the level-only kind to players: the kind is
+the module's own and not a listed search, so a player is blocked from it as from
+any option the book does not print.

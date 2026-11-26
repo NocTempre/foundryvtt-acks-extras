@@ -1,0 +1,1 @@
+- **Pick class on a hireling whose class roll was left to the Judge is drawn for the hireling's owner.** Actors sidebar → a hireling's character sheet → Service tab → Recorded rolls: the hireling's owner now has Pick class, which opens the class picker, where only a Judge's seat had it. A hireling with a class bound shows none.

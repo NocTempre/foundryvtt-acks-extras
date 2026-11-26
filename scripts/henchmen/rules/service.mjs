@@ -243,13 +243,13 @@ export function hireHitPoints(classFound, built) {
 export const judgePickHitPoints = () => ({ hpRoll: null, hpSteps: [], hpUnrolled: "judgePick" });
 
 /**
- * Whether the Service panel offers Pick class: a Judge's seat, a class roll
- * that left the class to the Judge, and no class bound on the actor yet (the
- * roll's own key there binds nothing).
+ * Whether the Service panel offers Pick class: a seat that may edit the
+ * hireling, a class roll that left the class to the Judge, and no class bound
+ * on the actor yet (the roll's own key there binds nothing).
  */
-export function offersClassPick(rolled, boundClass, { isGM = false } = {}) {
+export function offersClassPick(rolled, boundClass, { isOwner = false } = {}) {
   const bound = String(boundClass ?? "").trim();
-  return !!isGM && !!rolled?.judgePick && (!bound || bound === JUDGE_PICK_CLASS);
+  return !!isOwner && !!rolled?.judgePick && (!bound || bound === JUDGE_PICK_CLASS);
 }
 
 /**

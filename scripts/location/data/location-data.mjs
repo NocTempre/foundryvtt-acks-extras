@@ -291,7 +291,7 @@ function marketSchema() {
         img: str(),
         addedTime: int(),
         expiresTime: int(0), // 0 = no limit
-        origin: new fields.StringField({ required: true, initial: "gm", choices: ["gm", "found"] }),
+        origin: new fields.StringField({ required: true, initial: "gm", choices: ["gm", "owner", "found"] }),
         status: new fields.StringField({
           required: true,
           initial: "available",

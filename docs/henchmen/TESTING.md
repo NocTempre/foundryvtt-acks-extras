@@ -749,7 +749,9 @@ a step it does not name is walked by hand.
       points reads "not rolled" with the Judge's-pick tooltip; pressing the
       button opens the class picker (`acks-classes-assign-<actor id>`),
       closed again unapplied. The Player seat, which owns the hireling, reads
-      the same rows with no button.
+      the same rows with the same named button, and pressing it opens the
+      class picker too, closed again unapplied. A hireling with a class bound
+      draws no button (the `offersClassPick` cases in `test-service-view`).
     - A player's directed search for the class, as the relay hands it to the
       GM: `createPosting(place, {kind: "henchmanByClass", classKey}, employer,
       {requestUserId: <the Player seat's id>})`. Then `openPostingDialog(place)`
@@ -1244,8 +1246,8 @@ walked in docs/lib/TESTING.md, "The repair tool".
 
 ## Owner controls from a Player seat
 
-Walked by `tools/live/henchmen-owner-controls.mjs`, steps "toggle" and
-"roster", on the GM seat and the Player seat. Written from the code and not yet
+Walked by `tools/live/henchmen-owner-controls.mjs`, steps "toggle", "roster" and
+"posting", on the GM seat and the Player seat. Written from the code and not yet
 run when it was added. A GM's seat owns every document, so only a Player seat
 proves an ownership gate.
 
@@ -1262,6 +1264,9 @@ whatever the last run left):
 | `henchmen/owner-merc` | category mercenary, a hireling of the first, the Player owns it |
 | `henchmen/owner-foreign-hireling` | a henchman of the first with the Player's ownership withdrawn; one compensated entry, for the read-only tick |
 | `henchmen/owner-dismiss` | the hireling Dismiss acts on; put back on the first employer's list at that step's start |
+| `henchmen/owner-market` | an `acks-extras.location` with a market (`emptyMarket`), the Player owns it; a class override set, no posting and no special hire at the posting step's start |
+| `henchmen/owner-npc` | a character standing for an NPC; the Player owns it |
+| `henchmen/foreign-npc` | a character standing for an NPC; the Player does not own it |
 
 Build a missing one with a linked `character`; `enrollHenchman` puts it in
 service and gives the employer's owners ownership, which the walk then sets as
@@ -1298,6 +1303,21 @@ fixture is taken off every other list before it is put on the first.
    hireling off the first employer's list, clears its manager and logs a
    `dismissed` event. Core's `delHenchman` leaves a dismissed character's
    retainer switch as it was, so the switch is reported and not asserted.
+8. *Posting and the Recruitment-tab drop*, on `owner-market`. Preconditions are
+   asserted and reported, never supplied: the imported arrival shares and the
+   search fee for the place's class (a Judge's post with no employer needs no
+   purse). The Player's Post a search window offers the general kind and no
+   "Henchmen by level"; the GM's offers it. A level-only `createPosting` with the
+   Player's id (and `owner-employer`) is refused `criteria-required` and the
+   place gains no posting. A real `drop` event carrying `owner-npc`'s uuid on
+   the Player's place sheet, Recruitment tab, adds one special hire naming it;
+   the same drop of `foreign-npc` adds none (the first drop is the control that
+   the event reaches the handler). The step takes the hire off by its id. On the
+   GM seat, the window's own submit of "Henchmen by level" at the first level it
+   lists posts a `henchman:<level>` posting and raises exactly one warning, `posting.levelOnlyJudge`,
+   and the posting is closed by its id. No offline suite renders the dialog or
+   the sheet; `tools/test-posting-roles.mjs` covers `createPosting`'s sender
+   checks.
 
 **Mechanics learned.** The GM seat finds the cards a Player seat posts through
 a `createChatMessage` hook it installs at the start, and its ledger lists those
@@ -1307,7 +1327,8 @@ entry's delta does not reach the score's upper bound.
 
 **Teardown.** The fixtures stay. The cards the run's calamities and transfers
 posted are tracked by id on the GM seat and swept by that list alone
-(`api.sweepTracked`). The world's `autoRollCalamity` is restored.
+(`api.sweepTracked`), as is the fee card the Judge's post throws. The world's
+`autoRollCalamity` is restored.
 
 ## Teardown
 

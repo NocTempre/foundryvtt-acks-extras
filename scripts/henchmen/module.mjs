@@ -293,14 +293,14 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   }
   // Pick class: a class roll that left the class to the Judge opens the
   // classes feature's picker on the hireling, which binds it and rolls its
-  // hit points. The panel offers it on a Judge's seat only.
+  // hit points. The panel offers it to whoever may edit the hireling.
   for (const button of root.querySelectorAll(".acks-extras-service [data-pick-class]")) {
     if (button.dataset.wired) continue;
     button.dataset.wired = "1";
     button.addEventListener("click", async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!game.user.isGM) return;
+      if (!actor.isOwner) return;
       const { openClassPicker } = await import("../classes/assign-app.mjs");
       await openClassPicker(actor);
     });

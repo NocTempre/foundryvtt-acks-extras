@@ -950,7 +950,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.special.already", { name: actor.name }));
         return;
       }
-      await addSpecialHire(this.actor, actor, { origin: "gm" });
+      // The row records who placed it: the Judge, or a player who owns both.
+      await addSpecialHire(this.actor, actor, { origin: game.user.isGM ? "gm" : "owner" });
       ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.special.added", { name: actor.name }));
       return;
     }

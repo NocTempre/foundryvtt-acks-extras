@@ -380,11 +380,13 @@ test("a class roll that left the class to the Judge: no class written, nothing r
   const older = rolledOf({ rolled: { classKey: JUDGE_PICK_CLASS, level: 2, hpRoll: null, hpUnrolled: "noClass" } });
   assert.equal(older.hpUnrolled, "judgePick", "a hire recorded before reads the Judge's pick, not a missing import");
   assert.equal(rolledOf({ rolled: { classKey: "invented-class", hpRoll: null, hpUnrolled: "noClass" } }).hpUnrolled, "noClass", "a real missing class still says so");
-  assert.equal(offersClassPick(fresh, "", { isGM: true }), true, "unbound, on a Judge's seat: offered");
-  assert.equal(offersClassPick(older, JUDGE_PICK_CLASS, { isGM: true }), true, "an older hire's written key binds nothing: offered");
-  assert.equal(offersClassPick(fresh, "", { isGM: false }), false, "never on a player's seat");
-  assert.equal(offersClassPick(fresh, "Invented class", { isGM: true }), false, "a class bound: not offered");
-  assert.equal(offersClassPick(rolledOf({ rolled: { classKey: "invented-class" } }), "", { isGM: true }), false, "a rolled class: not offered");
+  assert.equal(offersClassPick(fresh, "", { isOwner: true }), true, "unbound, on a seat that owns the hireling: offered");
+  assert.equal(offersClassPick(older, JUDGE_PICK_CLASS, { isOwner: true }), true, "an older hire's written key binds nothing: offered");
+  assert.equal(offersClassPick(fresh, "", { isOwner: false }), false, "a seat that does not own the hireling: not offered");
+  assert.equal(offersClassPick(fresh, "", { isGM: true, isOwner: false }), false, "a Judge's role alone offers nothing: ownership decides");
+  assert.equal(offersClassPick(fresh, ""), false, "no seat given: not offered");
+  assert.equal(offersClassPick(fresh, "Invented class", { isOwner: true }), false, "a class bound: not offered");
+  assert.equal(offersClassPick(rolledOf({ rolled: { classKey: "invented-class" } }), "", { isOwner: true }), false, "a rolled class: not offered");
 });
 test("a henchman takes a slot unless the record exempts them; the other kinds never do", () => {
   assert.equal(slotOf({}, "henchman"), "counted");
