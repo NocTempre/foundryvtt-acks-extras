@@ -895,4 +895,117 @@ await t("T10: the strip reads an engaged reach from the engaged card and the sub
   globalThis.fromUuidSync = t10.prior;
 });
 
+/* -------------------------------------------- */
+/*  The fuse card and the burst card             */
+/* -------------------------------------------- */
+
+const gear = { prior: globalThis.fromUuidSync, bearerOwners: tokens["S.bear"].testUserPermission };
+const vehicle = { uuid: "V.1", id: "v1", name: "Cart", actor: { testUserPermission: ownedBy("gm", "pa") }, testUserPermission: ownedBy("gm", "pa") };
+globalThis.fromUuidSync = (uuid) => (uuid === "V.1" ? vehicle : gear.prior(uuid));
+tokens["S.bear"].testUserPermission = ownedBy("gm", "pa");
+const cardOfAct = (act) => messages.find((m) => m.flags["acks-extras"]?.itemRunCard?.activationId === act);
+const fuseResult = (act, over = {}) => ({ ok: true, kind: "fuse", outcome: "lit", light: "lit", activationId: act, itemUuid: "I.1", tokenUuid: "S.bear", roll: { natural: 12, total: 12, formula: "1d20", target: 9, base: 11, modifiers: [{ label: "Craft", value: 2, cite: "" }], proficient: true, proficiency: "Craft", proficiencyRead: true }, fuse: { count: 3, combat: true, spot: { sceneId: "sc", x: 10, y: 20, elevation: 0, level: "" } }, blank: [], ...over });
+const burstResult = (act, over = {}) => ({ ok: true, kind: "burst", blank: false, activationId: act, itemUuid: "I.1", itemName: "Gear", actorName: "Bearer", actorUuid: "A.bear", rowKey: "burst", rolled: 11, dice: "3d6", types: ["fire"], radius: 20, spot: { sceneId: "sc", x: 10, y: 20 }, formula: "3d6", saveName: "Death", reduction: 0.5, subjects: [{ key: "S.a", name: "Alpha" }, { key: "S.b", name: "Beta" }], vehicles: [{ uuid: "V.1", name: "Cart" }], card: {}, ...over });
+const bodyFor = (kind, act, user) => {
+  me.current = user;
+  const message = cardOfAct(act);
+  return presenter[kind](message, message.flags["acks-extras"].itemRunCard);
+};
+
+await t("a light posts one fuse card: the roll with its throw's tooltip, the steps line, and Move the spot and Set it off now for a seat that owns the bearer", async () => {
+  const before = messages.length;
+  await presenter.presentUse(fuseResult("f1"));
+  assert.equal(messages.length - before, 1, "one card");
+  const card = cardOfAct("f1").flags["acks-extras"].itemRunCard;
+  assert.deepEqual([card.kind, card.outcome, card.title, card.bearer.name, card.fuse.count, card.burned], ["fuse", "lit", "Gear", "Bearer", 3, false], "the card stores what its body draws");
+  const gm = bodyFor("fuseBody", "f1", users[0]);
+  assert.ok(gm.includes("ACKS-LIB.itemRun.card.throw 9+"), "the throw's tooltip names the target");
+  assert.ok(gm.includes("Craft −2") && gm.includes("ACKS-LIB.itemRun.card.proficiencyHeld"), "its parts: the modifier taken off with its label, and whether the bearer has the proficiency");
+  assert.ok(gm.includes("ACKS-LIB.itemRun.card.stepsCombat") && gm.includes('data-action="itemRun.moveSpot"') && gm.includes('data-action="itemRun.setOff"'));
+  assert.ok(gm.includes('aria-label="ACKS-LIB.itemRun.card.moveSpotAria"') && gm.includes("data-activation-id=\"f1\""), "each press has an accessible name and names the fuse");
+  const owner = bodyFor("fuseBody", "f1", users[1]);
+  assert.ok(owner.includes('data-action="itemRun.moveSpot"'), "an owner of the bearer, no Judge, is offered the presses");
+  const other = bodyFor("fuseBody", "f1", users[2]);
+  assert.ok(!other.includes("itemRun.moveSpot") && !other.includes("itemRun.setOff") && other.includes("ACKS-LIB.itemRun.card.lit"), "a seat that does not own the bearer reads the card and presses nothing");
+  me.current = users[0];
+});
+
+await t("a light that is not lit, a fumble, a blank figure and a proficiency that could not be read each read plainly and press nothing", async () => {
+  await presenter.presentUse(fuseResult("f2", { outcome: "unlit", light: "unlit", fuse: null, roll: { natural: 3, total: 3, formula: "1d20", target: 9, base: 11, modifiers: [], proficient: false, proficiency: "Craft", proficiencyRead: false } }));
+  const unlit = bodyFor("fuseBody", "f2", users[0]);
+  assert.ok(unlit.includes("ACKS-LIB.itemRun.card.unlitLine") && unlit.includes("ACKS-LIB.itemRun.card.unlit") && !unlit.includes("itemRun.moveSpot"));
+  assert.ok(unlit.includes("ACKS-LIB.itemRun.card.proficiencyUnread"), "an unread proficiency is a plain note in the throw's tooltip");
+  assert.ok(unlit.includes("ACKS-LIB.itemRun.card.fuseTitleTried"), "and the title does not say lit");
+  await presenter.presentUse(fuseResult("f3", { outcome: "fumble", light: "fumble", fuse: null }));
+  assert.ok(bodyFor("fuseBody", "f3", users[0]).includes("ACKS-LIB.itemRun.card.fumbleLine"));
+  await presenter.presentUse(fuseResult("f4", { outcome: null, light: null, roll: null, fuse: null, blank: ["throw", "fumble"] }));
+  const blank = bodyFor("fuseBody", "f4", users[0]);
+  assert.ok(blank.includes('data-tooltip-text="ACKS-LIB.itemRun.card.citeFuse"') && blank.includes("ACKS-LIB.itemRun.card.judgeLine") && !blank.includes("1d20") && !blank.includes("itemRun.moveSpot"), "no roll and no number: the page alone, and the Judge's line");
+  assert.ok(!blank.includes("itemRun.card.notImported"), "no words saying a figure is missing");
+  me.current = users[0];
+});
+
+await t("the burst fills in the fuse's own card (no second card), each seat reads the bodies it owns, and a Judge alone reads the buildings line", async () => {
+  const before = messages.length;
+  await presenter.presentUse(burstResult("f1"));
+  assert.equal(messages.length, before, "the burst is written onto the fuse card");
+  const card = cardOfAct("f1").flags["acks-extras"].itemRunCard;
+  assert.deepEqual([card.kind, card.burned, card.title, card.rolled, card.saveName, card.reduction, card.types], ["burst", true, "Gear", 11, "Death", 0.5, ["fire"]]);
+  assert.deepEqual([Object.keys(card.subjects), card.subjects["S~a"].uuid, card.vehicles["V~1"]], [["S~a", "S~b"], "S.a", { uuid: "V.1", name: "Cart", state: "open" }], "subjects are keyed by safeKey with their uuid, vehicles open");
+  assert.ok(card.roll && card.fuse, "the light's facts stay");
+  const gm = bodyFor("burstBody", "f1", users[0]);
+  assert.ok(gm.includes("Alpha") && gm.includes("Beta") && gm.includes("Cart"));
+  assert.equal((gm.match(/data-action="itemRun.roll"/g) ?? []).length, 2, "each open row has its Save press");
+  assert.ok(gm.includes('data-entry-key="S~a"') && gm.includes(`data-message-id="${cardOfAct("f1").id}"`), "a Save press names the card and its entry");
+  assert.ok(gm.includes('data-action="itemRun.handOn"') && gm.includes("ACKS-LIB.itemRun.card.buildingsLine") && gm.includes("ACKS-LIB.itemRun.card.areaLine") && gm.includes("ACKS-LIB.itemRun.card.rolledLineTypes"));
+  const pa = bodyFor("burstBody", "f1", users[1]);
+  assert.ok(pa.includes("Alpha") && !pa.includes("Beta") && pa.includes("Cart") && !pa.includes("buildingsLine"), "an owner reads its own rows and the vehicle it owns, and no buildings line");
+  const pb = bodyFor("burstBody", "f1", users[2]);
+  assert.ok(pb.includes("Beta") && !pb.includes("Alpha") && !pb.includes("Cart") && !pb.includes("itemRun.handOn"), "a seat reads only what it owns");
+  me.current = users[0];
+});
+
+await t("a row's presses follow its entry: Apply once it holds a verdict, Apply all for a seat that owns one, Undo on an applied row for its presser or the subject's owner, a judge row's reason, and Hand on gives way to handed", async () => {
+  const message = cardOfAct("f1");
+  const entries = message.flags["acks-extras"].itemRunCard.entries;
+  Object.assign(entries, { "S~a": { subject: "S.a", state: "rolled", saved: true, total: 14, target: 11 }, "S~b": { subject: "S.b", state: "judge", saved: true, total: 12, target: 11, why: "several" } });
+  const gm = bodyFor("burstBody", "f1", users[0]);
+  assert.ok(gm.includes('data-action="itemRun.apply"') && gm.includes('data-action="itemRun.applyAll"') && gm.includes("ACKS-LIB.itemRun.card.why.several"));
+  assert.equal((gm.match(/data-action="itemRun.apply"/g) ?? []).length, 1, "a judge row offers no Apply");
+  const pb = bodyFor("burstBody", "f1", users[2]);
+  assert.ok(!pb.includes("itemRun.apply") && !pb.includes("itemRun.applyAll") && pb.includes("ACKS-LIB.itemRun.card.why.several"), "a seat owning only the judge row has nothing to apply");
+  entries["S~a"] = { subject: "S.a", state: "applied", saved: true, total: 14, target: 11, amount: 5, hp: [{ uuid: "A.a", amount: 5 }], presser: "pb", appliedBy: "pb" };
+  assert.ok(bodyFor("burstBody", "f1", users[1]).includes('data-action="itemRun.undo"'), "the subject's owner may undo it");
+  assert.ok(!bodyFor("burstBody", "f1", users[1]).includes("itemRun.applyAll"), "and nothing is left to apply");
+  entries["S~a"].presser = "pa";
+  assert.ok(bodyFor("burstBody", "f1", users[0]).includes('data-action="itemRun.undo"'), "a Judge owns the subject too");
+  entries["S~a"].state = "undone";
+  assert.ok(!bodyFor("burstBody", "f1", users[0]).includes("itemRun.undo"), "an undone row offers nothing");
+  message.flags["acks-extras"].itemRunCard.vehicles["V~1"].state = "handed";
+  const done = bodyFor("burstBody", "f1", users[1]);
+  assert.ok(!done.includes("itemRun.handOn") && done.includes("ACKS-LIB.itemRun.card.handed"), "a handed vehicle reads handed");
+  me.current = users[0];
+});
+
+await t("a burst that could not happen whispers the Judges a line naming the item and bearer and posts no table, and the fuse card offers no more controls; a blank burst posts a plain card", async () => {
+  await presenter.presentUse(fuseResult("f5"));
+  assert.ok(bodyFor("fuseBody", "f5", users[0]).includes("itemRun.moveSpot"));
+  const before = messages.length;
+  await presenter.presentUse({ ok: false, kind: "burst", reason: "noScene", activationId: "f5", itemUuid: "I.1", itemName: "Gear", actorName: "Bearer", actorUuid: "A.bear" });
+  const whisper = messages.at(-1);
+  assert.equal(messages.length - before, 1);
+  assert.deepEqual([...whisper.whisper], ["gm"], "the Judges alone");
+  assert.ok(whisper.content.includes("ACKS-LIB.itemRun.card.burstFailed.noScene") && !whisper.flags["acks-extras"]?.itemRunCard);
+  const after = cardOfAct("f5").flags["acks-extras"].itemRunCard;
+  assert.deepEqual([after.kind, after.burned, bodyFor("fuseBody", "f5", users[0]).includes("itemRun.moveSpot")], ["fuse", true, false], "the fuse is burned and its presses are gone");
+  await presenter.presentUse({ ok: false, kind: "burst", reason: "noBearer", activationId: "none", itemUuid: "I.1", itemName: "Gear", actorName: "Bearer", actorUuid: "A.bear" });
+  assert.ok(messages.at(-1).content.includes("ACKS-LIB.itemRun.card.burstFailed.noBearer") && messages.at(-1).whisper.length === 1, "a bearer that cannot be found is told the same way, with no fuse card to mark");
+  await presenter.presentUse(burstResult("none2", { blank: true, why: "figure", rowKey: undefined, subjects: [], vehicles: [], card: null }));
+  const blank = bodyFor("burstBody", "none2", users[0]);
+  assert.ok(blank.includes("ACKS-LIB.itemRun.card.blastRow") && blank.includes('data-tooltip-text="ACKS-LIB.itemRun.card.citeFuse"') && blank.includes("ACKS-LIB.itemRun.card.burstJudgeLine") && !blank.includes("<button"), "the blast's blank cell is the page alone, a Judge's line, no press");
+  gear.bearerOwners && (tokens["S.bear"].testUserPermission = gear.bearerOwners);
+  globalThis.fromUuidSync = gear.prior;
+  me.current = users[0];
+});
+
 console.log(`\ntest-item-run-presenter: ${passed} checks passed.`);

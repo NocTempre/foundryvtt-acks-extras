@@ -2,7 +2,9 @@
  * The cards and strips an item raised or pressed draws (canvas 4, boards 4b and
  * 4c), as data: the stored state of a raised card and its moment-keyed entries
  * (`newCard`, the patches that change it), the raised-item card's table (who is
- * in range, how far, the save and its result), the whispered save card, the strip
+ * in range, how far, the save and its result), the whispered save card, the fuse
+ * card (the light throw and the lit fuse's controls), the burst card (who the
+ * blast reached, their saves and damage), the strip
  * a body in reach reads on its sheet, and the tooltips that say where each
  * figure came from. Words are
  * the caller's, localized; a tooltip is assembled text for `data-tooltip-text`.
@@ -16,6 +18,7 @@
  */
 import { FLAG_ITEM_RUN_CARD, MODULE_ID } from "./constants.mjs";
 import { isUnset, numOrNull, unset } from "./util.mjs";
+import { burstAmount } from "./item-run-logic.mjs";
 
 /** The tooltip of a figure read from an imported table: the row's label, the figure and the page the importer read it from. Null where there is no page to point at. */
 export function importTip({ label, figure, cite }) {
@@ -339,6 +342,221 @@ export function saveCardModel({ title, subtitle, words, target, targetTip = null
   else if (canPress) line.actions = [{ action: "itemRun.roll", label: words.rollSave, icon: "fa-solid fa-dice-d20", data: { ...ids, subject, entryKey, messageId }, tooltip: words.saveTip }];
   else line.outcome = words.asked;
   return { title, subtitle, sections: [{ rows: [line] }], bare: true, ...(ifFails ? { footnote: ifFails } : {}) };
+}
+
+/* -------------------------------------------- */
+/*  The fuse card and the burst card (gear S9a)  */
+/* -------------------------------------------- */
+
+/** A true minus for a modifier that raises the target, a plus for one that lowers it: the throw's modifiers are taken off the item's own figure. */
+const takenOff = (value) => (value > 0 ? `−${value}` : `+${Math.abs(value)}`);
+
+/**
+ * The tooltip of a fuse's light throw, where the module computed its target: the
+ * item's own figure, each standing modifier taken off it with its label, notes on
+ * the proficiency used, then the page. The parts produce the target: `base` less
+ * the modifiers. Null where there is no target (a blank figure is the page alone,
+ * `blankTip`).
+ *
+ * @param {{target: number|null, base: number|null, modifiers?: Array<{label: string, value: number}>, notes?: string[], cite?: string, words: {throw: string, base: string}}} p
+ * @returns {string|null}
+ */
+export function throwTip({ target, base, modifiers = [], notes = [], cite = "", words }) {
+  if (numOrNull(target) === null) return blankTip({ cite });
+  const parts = [...(numOrNull(base) === null ? [] : [`${words.base} ${base}`]), ...modifiers.map((m) => `${m.label} ${takenOff(Number(m.value))}`)].join(" · ");
+  const note = notes.filter(Boolean).join(" · ");
+  return `${words.throw} ${target}+${parts ? `: ${parts}` : ""}${note ? ` (${note})` : ""}${cite ? ` (${cite})` : ""}`;
+}
+
+/** The light throw's one row: the roll's total, its target with the tooltip, and what it did (Lit, Not lit, Fumble, or the Judge's). */
+function lightRowOf({ roll, outcome, words, targetTip, totalTip }) {
+  const hasTarget = numOrNull(roll.target) !== null;
+  const verdict = { lit: [words.lit, "success"], unlit: [words.unlit, "failure"], fumble: [words.fumble, "failure"] }[outcome] ?? [words.judgeDecides, "muted"];
+  return {
+    name: words.light, total: roll.total ?? "", ...(totalTip ? { tooltipText: totalTip } : {}),
+    ...(hasTarget ? { target: roll.target, ...(targetTip ? { targetTooltip: targetTip } : {}) } : { targetText: " ", ...(targetTip ? { targetTooltip: targetTip } : {}) }),
+    outcome: verdict[0], emphasis: verdict[1],
+  };
+}
+
+/** The figures a light left blank that print a page, one row each with a blank cell whose tooltip is the page alone; "round" and "spot" print none and are a line. */
+const BLANK_ROWS = ["throw", "fumble", "fuseDice"];
+
+/**
+ * The model the fuse card is rendered from, for one seat: the light throw's row
+ * (its total, target and outcome, shown wherever a roll was made, including where
+ * a blank figure left the outcome to the Judge), a row for each blank figure that
+ * prints a page (a blank cell, the page as its tooltip, no number and no words
+ * saying it was not imported), the steps line of a lit fuse and, for a seat that
+ * owns the bearer's token, Move the spot and Set it off now while the fuse burns.
+ * An unlit light and a Judge's one say so in a plain line and offer no press.
+ * Data only; the words are the caller's, localized.
+ *
+ * @param {object} p
+ * @param {string} p.title
+ * @param {string} [p.subtitle]
+ * @param {object} p.words every word and tooltip the card shows (`itemRun.card.*`)
+ * @param {object|null} p.roll `{natural, total, formula, target, base, ...}` or null where nothing was rolled
+ * @param {"lit"|"unlit"|"fumble"|null} p.outcome
+ * @param {string[]} [p.blank] the figures that were blank, a subset of "throw", "fumble", "fuseDice", "round", "spot"
+ * @param {{text: string, tip?: string}|null} [p.steps] the lit fuse's "goes off" line, localized
+ * @param {string} [p.targetTip] the throw's tooltip (`throwTip`)
+ * @param {string} [p.totalTip] the total's tooltip
+ * @param {string} [p.cite] the page that prints the figures
+ * @param {{activationId: string, itemUuid: string}} p.ids
+ * @param {{ownsBearer?: boolean}} [p.seat]
+ * @param {boolean} [p.burned] the fuse is gone, so there is nothing to move or set off
+ */
+export function fuseCardModel({ title, subtitle, words, roll, outcome, blank = [], steps = null, targetTip = null, totalTip = "", cite = "", ids, seat = {}, burned = false }) {
+  const rows = [];
+  if (roll) rows.push(lightRowOf({ roll, outcome, words, targetTip, totalTip }));
+  for (const key of BLANK_ROWS) {
+    if (!blank.includes(key) || (key === "throw" && roll)) continue;
+    rows.push({ name: words.blankRow[key], total: "", targetText: " ", ...(blankTip({ cite }) ? { targetTooltip: blankTip({ cite }) } : {}) });
+  }
+  const lit = outcome === "lit" && !!steps;
+  const lines = [];
+  if (outcome === "unlit") lines.push(words.unlitLine);
+  if (outcome === "fumble") lines.push(words.fumbleLine);
+  if (outcome === null) lines.push(words.judgeLine);
+  for (const key of ["round", "spot"]) if (blank.includes(key)) lines.push(words.blankLine[key]);
+  if (lit && !burned) lines.push(words.fuseHint);
+  const buttons = lit && !burned && seat.ownsBearer === true
+    ? [
+        { action: "itemRun.moveSpot", label: words.moveSpot, icon: "fa-solid fa-location-crosshairs", data: { ...ids }, tooltip: words.moveSpotTip, ariaLabel: words.moveSpotAria },
+        { action: "itemRun.setOff", label: words.setOff, icon: "fa-solid fa-burst", data: { ...ids }, tooltip: words.setOffTip, ariaLabel: words.setOffAria },
+      ]
+    : [];
+  return {
+    title, ...(subtitle ? { subtitle } : {}),
+    ...(lit ? { note: steps.text, ...(steps.tip ? { noteTooltip: steps.tip } : {}) } : {}),
+    sections: [{ rows }], bare: true,
+    ...(lines.length ? { lines } : {}),
+    ...(buttons.length ? { buttons } : {}),
+  };
+}
+
+/**
+ * The hit points a burst does to one subject, as the Apply press will write them:
+ * `{amount, judge, defended}`. The rolled figure is read through the save's share
+ * (`burstAmount`), then the subject's defense stage, as the writer does; `defended`
+ * is true where the stage changed the figure, so the tooltip can name that part.
+ *
+ * @param {{rolled: number, saved: boolean, reduction: number|null, stage?: Function|object|null}} p
+ */
+export function burstDamageOf({ rolled, saved, reduction, stage = null }) {
+  const full = burstAmount({ rolled, saved, reduction, stages: [stage] });
+  if (full.judge) return { amount: null, judge: true, defended: false };
+  const plain = burstAmount({ rolled, saved, reduction, stages: [] });
+  return { amount: full.amount, judge: false, defended: !plain.judge && plain.amount !== full.amount };
+}
+
+/**
+ * The tooltip of one damage figure: the amount, the dice and what they rolled, the
+ * share a passed save takes off (or that the save failed and none is taken), a
+ * defense stage where it changed the figure, and the page. The parts name how the
+ * figure was made with the burst's own numbers.
+ *
+ * @param {{amount: number, dice: string, rolled: number, saved: boolean, reduction: number|null, defended?: boolean, cite?: string, words: {rolled: string, takesOff: string, noShare: string, defenses: string}}} p
+ */
+export function damageTip({ amount, dice, rolled, saved, reduction, defended = false, cite = "", words }) {
+  const share = saved ? `${words.takesOff}${numOrNull(reduction) === null ? "" : ` (${reduction})`}` : words.noShare;
+  return `${amount}: ${dice} ${words.rolled} ${rolled}, ${share}${defended ? `, ${words.defenses}` : ""}${cite ? ` (${cite})` : ""}`;
+}
+
+/** The Save column of a burst row: the target and the verdict the entry holds, "11+ · 14 Saved". */
+const saveCellOf = (entry, words) => `${numOrNull(entry.target) === null ? "" : `${entry.target}+ · `}${entry.total ?? ""} ${entry.saved ? words.saved : words.failed}`.trim();
+
+/** One subject's row of the burst card, by the state of its entry (open, rolled, applied, judge, undone). */
+function burstRowOf(r, { words, ids, seat, messageId, canSave }) {
+  const entryKey = r.entryKey;
+  const entry = r.entry ?? {};
+  const mine = seat.ownsSubject?.(r.key) === true;
+  const base = { name: r.name };
+  const verdict = { aside: saveCellOf(entry, words), ...(r.targetTip ? { asideTooltip: r.targetTip } : {}) };
+  switch (r.state) {
+    case "rolled": return {
+      ...base, ...verdict, total: r.damage?.judge || r.damage?.amount === null || r.damage?.amount === undefined ? "" : r.damage.amount, ...(r.damageTip ? { tooltipText: r.damageTip } : {}),
+      actions: mine ? [{ action: "itemRun.apply", label: words.apply, icon: "fa-solid fa-check", data: { messageId, entryKey }, tooltip: words.applyTip, ariaLabel: words.applyAria.replace("{name}", r.name) }] : [],
+    };
+    case "applied": {
+      const undo = seat.mayUndo?.(entry, r.key) === true ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data: { ...ids, subject: r.key, entryKey }, tooltip: words.undoApplyTip, ariaLabel: words.undoAria.replace("{name}", r.name) }] : [];
+      return { ...base, ...verdict, total: entry.amount ?? "", ...(r.damageTip ? { tooltipText: r.damageTip } : {}), ...(undo.length ? { actions: undo } : {}) };
+    }
+    case "judge": return { ...base, ...verdict, total: "", detail: r.whyText ?? "", emphasis: "muted" };
+    case "undone": return { ...base, ...verdict, total: "", detail: words.undone, emphasis: "muted" };
+    default: return {
+      // A blank save is a blank cell whose tooltip is the page alone; a no-break space keeps the cell and its tooltip without a figure.
+      ...base, total: "", ...(numOrNull(r.target) === null ? (r.targetTip ? { aside: " ", asideTooltip: r.targetTip } : {}) : { aside: `${r.target}+`, ...(r.targetTip ? { asideTooltip: r.targetTip } : {}) }),
+      actions: mine && canSave ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...ids, subject: r.key, entryKey, messageId }, tooltip: words.saveTip, ariaLabel: words.saveAria.replace("{name}", r.name) }] : [],
+    };
+  }
+}
+
+/** One vehicle's row of the burst card: "structure" in the Damage column and Hand on while the row is open, "handed" once done. */
+function vehicleRowOf(v, { words, seat, messageId }) {
+  const handed = v.state === "handed";
+  const press = !handed && seat.ownsVehicle?.(v.uuid) === true ? [{ action: "itemRun.handOn", label: words.handOn, icon: "fa-solid fa-hand", data: { messageId, vehicleUuid: v.uuid }, tooltip: words.handOnTip, ariaLabel: words.handOnAria.replace("{name}", v.name) }] : [];
+  return { name: v.name, total: words.structure, ...(v.tip ? { tooltipText: v.tip } : {}), ...(handed ? { detail: words.handed, emphasis: "muted" } : {}), ...(press.length ? { actions: press } : {}) };
+}
+
+/**
+ * The model the burst card (board 4b's second card: the table of who the blast
+ * reached) is rendered from, for one seat. The note names the area and its page;
+ * the table lists each body the seat owns (a Judge's seat owns every one) with its
+ * Save (a Save press while the entry is open, then its target and verdict), the
+ * damage the Apply press will write, and the press the entry's state offers:
+ * Apply for a seat that owns the subject, Undo on an applied row for the seat that
+ * applied it or owns the subject, nothing on a row the Judge must settle (its
+ * reason under the name) or one undone. A vehicle the seat owns reads "structure"
+ * with Hand on, "handed" once done. Apply all is offered where the seat owns at
+ * least one row that holds a verdict and nothing written; the writer checks each.
+ * A Judge's seat also reads the buildings line, which has no press.
+ *
+ * @param {object} p
+ * @param {string} p.title
+ * @param {string} [p.subtitle]
+ * @param {object} p.words every word and tooltip the card shows (`itemRun.card.*`)
+ * @param {string} p.note the area line, localized
+ * @param {string} [p.noteTooltip]
+ * @param {string} [p.rolledLine] "Rolled once for the area: 3d6 = 11 · fire", localized
+ * @param {Array<{key: string, name: string, state: string, entryKey: string, entry?: object, target?: number|null, targetTip?: string|null, damage?: {amount: number|null, judge: boolean}, damageTip?: string, whyText?: string}>} p.rows
+ * @param {Array<{uuid: string, name: string, state: string, tip?: string}>} [p.vehicles]
+ * @param {string} [p.buildingsLine] the Judge's line, shown to a Judge's seat alone
+ * @param {boolean} [p.canSave] the card names a save, so a Save press can roll it
+ * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
+ * @param {string} p.messageId the card's own message
+ * @param {{judge?: boolean, ownsSubject?: (key: string) => boolean, ownsVehicle?: (uuid: string) => boolean, mayUndo?: (entry: object, key: string) => boolean}} [p.seat]
+ */
+export function burstCardModel({ title, subtitle, words, note, noteTooltip, rolledLine = "", rows, vehicles = [], buildingsLine = "", canSave = true, ids, messageId, seat = {} }) {
+  const mine = rows.filter((r) => seat.ownsSubject?.(r.key) === true);
+  const tableRows = [
+    ...mine.map((r) => burstRowOf(r, { words, ids, seat, messageId, canSave })),
+    ...vehicles.filter((v) => seat.ownsVehicle?.(v.uuid) === true).map((v) => vehicleRowOf(v, { words, seat, messageId })),
+  ];
+  const applicable = mine.some((r) => r.state === "rolled");
+  const lines = seat.judge === true && buildingsLine ? [buildingsLine] : [];
+  return {
+    title, ...(subtitle ? { subtitle } : {}),
+    ...(note ? { note } : {}), ...(noteTooltip ? { noteTooltip } : {}),
+    sections: [{ rows: tableRows }], bare: true,
+    ...(rolledLine ? { footnote: rolledLine } : {}),
+    ...(lines.length ? { lines } : {}),
+    ...(applicable ? { buttons: [{ action: "itemRun.applyAll", label: words.applyAll, icon: "fa-solid fa-check-double", data: { messageId }, tooltip: words.applyAllTip, ariaLabel: words.applyAllAria }] } : {}),
+    labels: { name: words.inArea, aside: words.save, total: words.damage, actions: "" },
+  };
+}
+
+/**
+ * The model of a burst that rolled nothing (`why` "gone", "figure" or "dice"): the
+ * blast row's blank cell with the page as its tooltip where a figure was blank, and
+ * a plain line that the Judge decides. A burst whose item is gone has no row.
+ *
+ * @param {{title: string, subtitle?: string, words: object, why: string, cite?: string}} p
+ */
+export function blankBurstModel({ title, subtitle, words, why, cite = "" }) {
+  const rows = why === "gone" ? [] : [{ name: words.blastRow, total: "", targetText: " ", ...(blankTip({ cite }) ? { targetTooltip: blankTip({ cite }) } : {}) }];
+  return { title, ...(subtitle ? { subtitle } : {}), sections: [{ rows }], bare: true, lines: [why === "gone" ? words.burstGoneLine : words.burstJudgeLine] };
 }
 
 

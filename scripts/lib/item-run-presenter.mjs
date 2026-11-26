@@ -1,9 +1,17 @@
-/* global game, ChatMessage, Hooks, fromUuidSync, foundry, ui, CONFIG */
+/* global game, ChatMessage, Hooks, fromUuidSync, foundry, ui, CONFIG, canvas */
 /**
  * The cards an item the carrier ran draws in chat (`item-run.mjs` posts none):
- * the raised-item card (board 4b), the whispered save card (board 4c) and the
- * once-only use's card. Registered with `setUsePresenter`, and heard by the
+ * the raised-item card (board 4b), the whispered save card (board 4c), the
+ * once-only use's card, and a fuse's light card and the burst's table (board 4b's
+ * second and third cards). Registered with `setUsePresenter`, and heard by the
  * carrier's press, lift and tick listeners.
+ *
+ * - A fuse's light posts one card per activation (`kind: "fuse"`, everything its
+ *   body draws stored on it); the burst writes its facts onto that same card, which
+ *   becomes the burst card (`kind: "burst"`: one subject entry per body in the
+ *   area, keyed by `safeKey`, and a `vehicles` row each). A burst that could not
+ *   happen whispers the Judges a line and posts no table. The body is built for the
+ *   seat that views it, each press offered by ownership of what it acts on.
  *
  * - An always-on engaged reach (T10, `isEngagedActivation`) raises no card: its
  *   prompt posts, or joins, the engaged card of its subject's moment, one row per
@@ -31,9 +39,12 @@ import { FLAG_ITEM_RUN_CARD, FLAG_ITEM_RUN_WHISPER, LANG_PREFIX, MODULE_ID } fro
 import { renderRollCard } from "./roll-card.mjs";
 import { figureNumber, isEngagedActivation, readReach, reachAdmits, turnStamp } from "./aura-reach-logic.mjs";
 import { lowerReach, releaseReachMoment } from "./aura-reach.mjs";
-import { itemCite, itemRunRowsOf, promptCardModel, reachFigures } from "./item-run-logic.mjs";
-import { admittedWithCount, blankTip, countSubjectAction, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
-import { cardOf, kindKeyOf, notEngaged, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
+import { itemCite, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures } from "./item-run-logic.mjs";
+import { HP_REASON } from "./hp-logic.mjs";
+import { actorDefenses, defenseFigures, defenseStage } from "./defenses.mjs";
+import { pickPoint } from "./point-pick.mjs";
+import { admittedWithCount, blankBurstModel, blankTip, burstCardModel, burstDamageOf, countSubjectAction, damageTip, fuseCardModel, throwTip, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
+import { applyAllEntries, applyEntry, cardOf, handOn, kindKeyOf, moveFuseSpot, notEngaged, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setFuseOffNow, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
@@ -78,6 +89,8 @@ async function present(result) {
   if (result?.kind === "toggle" && result.active) return postRaised(result);
   if (result?.kind === "once") return postOnce(result);
   if (result?.kind === "reach") return onReach(result);
+  if (result?.kind === "fuse") return postFuse(result);
+  if (result?.kind === "burst") return postBurst(result);
   return null;
 }
 
@@ -251,6 +264,180 @@ async function postOnce(result) {
   const card = { ...newCard({ itemUuid: result.itemUuid ?? "", rowKey: result.rowKey, activationId: result.activationId, kind: "once", bearer: { uuid: "", name: result.card?.subtitle ?? "" }, cardId: foundry.utils.randomID() }), direct: !result.card, title: result.card?.title ?? result.title ?? "", subjects: Object.fromEntries(subjects.map((s) => [safeKey(s.key), { uuid: s.key, name: s.name, state: "in", latest: "" }])), undetermined: Object.fromEntries((result.undetermined ?? []).map((s) => [safeKey(s.key), { uuid: s.key, name: s.name }])), entries };
   card.title ||= item?.name ?? "";
   await ChatMessage.create({ content: storedContent(card.title, card.bearer.name), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
+}
+
+/* -------------------------------------------- */
+/*  The fuse and its burst                       */
+/* -------------------------------------------- */
+
+/** The page that prints a fuse and its burst, the module's one citation for both cards. */
+const fuseCite = () => loc("itemRun.card.citeFuse");
+
+/**
+ * Post the fuse card for a light: one card per activation, which the burst later
+ * fills in (`postBurst`). It stores everything its body draws (the roll, the
+ * outcome, the fuse, the blank figures), since the item is used up by the time the
+ * burst comes. A seat sees the presses it owns the bearer for, at render.
+ */
+async function postFuse(result) {
+  const item = fromUuidSync(result.itemUuid ?? "");
+  const token = fromUuidSync(result.tokenUuid ?? "");
+  const title = item?.name ?? "";
+  const bearer = { uuid: result.tokenUuid ?? "", name: token?.name ?? "" };
+  const card = { ...newCard({ itemUuid: result.itemUuid ?? "", rowKey: "", activationId: result.activationId, kind: "fuse", bearer, cardId: foundry.utils.randomID() }), title, cite: fuseCite(), outcome: result.outcome ?? null, roll: result.roll ?? null, fuse: result.fuse ?? null, blank: result.blank ?? [], burned: false };
+  const message = await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ token }), content: storedContent(title, bearer.name), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
+  posted.set(result.activationId, message?.id ?? null);
+}
+
+/** The facts a burst writes onto its card: what the body draws and what an Apply or a Hand on reads, since the item may be gone. */
+function burstPatch(result) {
+  const title = result.itemName ?? "";
+  if (result.blank) return { kind: "burst", burned: true, title, blankWhy: result.why ?? "figure", subjects: {}, vehicles: {}, entries: {} };
+  return {
+    kind: "burst", burned: true, title, rowKey: result.rowKey, rolled: result.rolled, dice: result.dice, types: result.types ?? [], radius: result.radius, spot: result.spot, reduction: result.reduction ?? null, saveName: result.saveName ?? "", actorUuid: result.actorUuid ?? "",
+    subjects: Object.fromEntries((result.subjects ?? []).map((s) => [safeKey(s.key), { uuid: s.key, name: s.name, state: "in", latest: "" }])),
+    vehicles: Object.fromEntries((result.vehicles ?? []).map((v) => [safeKey(v.uuid), { uuid: v.uuid, name: v.name, state: "open" }])),
+    entries: {},
+  };
+}
+
+/**
+ * A burst's result: the fuse card of its activation becomes the burst card (its
+ * light facts stay), or a new card is posted where none is found. A burst that
+ * could not happen (`ok: false`) whispers the Judges a line naming the item and the
+ * bearer and posts no table; the fuse card is marked burned either way, so it
+ * offers no more controls.
+ */
+async function postBurst(result) {
+  const messageId = messageIdFor(result.activationId);
+  if (result.ok === false) {
+    if (messageId) await serialized(messageId, () => patchCard(cardOf(messageId).message, { burned: true }));
+    const reason = ["noScene", "noBearer", "snapshot"].includes(result.reason) ? result.reason : "snapshot";
+    await ChatMessage.create({ whisper: judgeIds(), content: `<p>${esc(loc(`itemRun.card.burstFailed.${reason}`, { item: result.itemName ?? "", bearer: result.actorName ?? "" }))}</p>` });
+    return;
+  }
+  const patch = burstPatch(result);
+  const { message, card } = messageId ? cardOf(messageId) : { message: null, card: null };
+  if (message && card) {
+    await serialized(messageId, () => patchCard(message, patch));
+    return;
+  }
+  const fresh = { ...newCard({ itemUuid: result.itemUuid ?? "", rowKey: "", activationId: result.activationId, kind: "burst", bearer: { uuid: result.actorUuid ?? "", name: result.actorName ?? "" }, cardId: foundry.utils.randomID() }), cite: fuseCite(), ...patch };
+  const made = await ChatMessage.create({ content: storedContent(patch.title, result.actorName ?? ""), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: fresh } } });
+  posted.set(result.activationId, made?.id ?? null);
+}
+
+/** The words the fuse card and the burst card show, localized: `itemRun.card.<key>` for each, with the nested ones read apart. */
+const FUSE_WORD_KEYS = ["throw", "base", "lit", "unlit", "fumble", "judgeDecides", "unlitLine", "fumbleLine", "judgeLine", "fuseHint", "moveSpot", "moveSpotTip", "moveSpotAria", "setOff", "setOffTip", "setOffAria"];
+const BURST_WORD_KEYS = ["inArea", "damage", "apply", "applyTip", "applyAria", "applyAll", "applyAllTip", "applyAllAria", "undoApplyTip", "undoAria", "saveAria", "handOn", "handOnTip", "handOnAria", "handed", "structure", "blastRow", "burstGoneLine", "burstJudgeLine"];
+const readWords = (keys) => Object.fromEntries(keys.map((key) => [key, loc(`itemRun.card.${key}`)]));
+const fuseWords = () => ({
+  ...words(), ...readWords(FUSE_WORD_KEYS), light: loc("itemRun.press.light"),
+  blankRow: Object.fromEntries(["throw", "fumble", "fuseDice"].map((key) => [key, loc(`itemRun.card.blankRow.${key}`)])),
+  blankLine: Object.fromEntries(["round", "spot"].map((key) => [key, loc(`itemRun.card.blankLine.${key}`)])),
+});
+const burstWords = () => ({ ...words(), ...readWords(BURST_WORD_KEYS) });
+
+/** The notes a light's tooltip carries about the proficiency its throw named: whether the bearer has it, or that this could not be read. None where the item names none. */
+function proficiencyNotes(roll) {
+  if (!roll?.proficiency) return [];
+  if (roll.proficiencyRead === false) return [loc("itemRun.card.proficiencyUnread", { proficiency: roll.proficiency })];
+  return [loc(roll.proficient ? "itemRun.card.proficiencyHeld" : "itemRun.card.proficiencyNot", { proficiency: roll.proficiency })];
+}
+
+/** The lit fuse's "goes off" line and its tooltip: on the bearer's initiative in a fight, else on the world clock. Null where the fuse is not lit. */
+function fuseSteps(card, cite) {
+  if (!card.fuse || card.outcome !== "lit") return null;
+  const { count, combat } = card.fuse;
+  const bearer = card.bearer?.name ?? "";
+  return {
+    text: loc(combat ? "itemRun.card.stepsCombat" : "itemRun.card.stepsWorld", { n: count, bearer }),
+    tip: `${loc(combat ? "itemRun.card.stepsTipCombat" : "itemRun.card.stepsTipWorld", { n: count, bearer })}${cite ? ` (${cite})` : ""}`,
+  };
+}
+
+/** Build the body of a fuse card for a seat: the light's row, the steps and the presses the seat owns the bearer for. */
+function fuseBody(message, card) {
+  const w = fuseWords();
+  const cite = card.cite ?? "";
+  const roll = card.roll ?? null;
+  const token = card.bearer?.uuid ? fromUuidSync(card.bearer.uuid) : null;
+  const targetTip = roll ? throwTip({ target: roll.target, base: roll.base, modifiers: roll.modifiers ?? [], notes: proficiencyNotes(roll), cite, words: w }) : null;
+  const totalTip = roll ? loc("itemRun.card.lightTotalTip", { formula: roll.formula ?? "", natural: roll.natural ?? "" }) : "";
+  return renderRollCard(fuseCardModel({
+    title: loc(card.outcome === "lit" ? "itemRun.card.fuseTitle" : "itemRun.card.fuseTitleTried", { item: card.title ?? "" }), subtitle: card.bearer?.name,
+    words: w, roll, outcome: card.outcome ?? null, blank: card.blank ?? [], steps: fuseSteps(card, cite), targetTip, totalTip, cite,
+    ids: { activationId: card.activationId, itemUuid: card.itemUuid }, seat: { ownsBearer: token?.testUserPermission?.(game.user, "OWNER") === true }, burned: card.burned === true,
+  }));
+}
+
+/** The reason a Judge row names, localized: a hit-point refusal's, a write's, or the burst's own. */
+function whyText(why) {
+  if (Object.values(HP_REASON).includes(why)) return loc(`hp.reason.${why}`);
+  if (["gone", "moved", "noHp", "failed"].includes(why)) return loc(`hp.why.${why}`);
+  return loc(["figure", "several"].includes(why) ? `itemRun.card.why.${why}` : "itemRun.card.why.other");
+}
+
+/** A body's save target and its tooltip for the save a burst card names: the computed parts and the page, or a blank with the page alone. */
+function burstSaveFigure(actor, saveName, cite) {
+  if (!actor || !saveName) return { target: null, tip: blankTip({ cite }) };
+  try {
+    const spec = saveSpec(actor, saveName);
+    return spec?.target == null ? { target: null, tip: blankTip({ cite }) } : { target: spec.target, tip: saveTip({ save: saveName, target: spec.target, parts: spec.parts ?? [], cite }) };
+  } catch {
+    return { target: null, tip: blankTip({ cite }) };
+  }
+}
+
+/** The damage an Apply would write to a body, read as the writer reads it: the share the save takes off, then the body's defense stage against the burst's types. A stage that cannot be read is the Judge's. */
+function burstDamage(card, actor, saved) {
+  try {
+    const stage = defenseStage(actorDefenses(actor), { types: card.types ?? [] }, defenseFigures());
+    return burstDamageOf({ rolled: card.rolled, saved, reduction: card.reduction, stage });
+  } catch {
+    return { amount: null, judge: true, defended: false };
+  }
+}
+
+/** Build the body of a burst card for a seat: a table of the bodies it owns, each row read live, with the presses the entry's state offers it. */
+function burstBody(message, card) {
+  const w = burstWords();
+  const cite = card.cite ?? fuseCite();
+  const title = loc("itemRun.card.burstTitle", { item: card.title ?? "" });
+  const subtitle = card.bearer?.name;
+  if (card.blankWhy) return renderRollCard(blankBurstModel({ title, subtitle, words: w, why: card.blankWhy, cite }));
+  const damageWords = { rolled: loc("itemRun.card.damageTip.rolled"), takesOff: loc("itemRun.card.damageTip.takesOff"), noShare: loc("itemRun.card.damageTip.noShare"), defenses: loc("itemRun.card.damageTip.defenses") };
+  const owns = (doc) => doc?.testUserPermission?.(game.user, "OWNER") === true;
+  const rows = Object.values(card.subjects ?? {}).map((sub) => {
+    const entryKey = safeKey(sub.uuid);
+    const entry = card.entries?.[entryKey] ?? null;
+    const state = ["rolled", "applied", "judge", "undone"].includes(entry?.state) ? entry.state : "open";
+    const actor = fromUuidSync(sub.uuid)?.actor ?? null;
+    const figure = burstSaveFigure(actor, card.saveName, cite);
+    const row = { key: sub.uuid, name: sub.name, state, entryKey, entry, target: figure.target, targetTip: figure.tip };
+    if (state === "rolled" || state === "applied") {
+      const saved = entry.saved === true;
+      const damage = burstDamage(card, actor, saved);
+      const amount = state === "applied" ? (Number.isFinite(entry.amount) ? entry.amount : null) : damage.amount;
+      row.damage = { amount, judge: amount === null };
+      if (amount !== null) row.damageTip = damageTip({ amount, dice: card.dice, rolled: card.rolled, saved, reduction: card.reduction, defended: damage.defended && damage.amount === amount, cite, words: damageWords });
+    }
+    if (state === "judge") row.whyText = whyText(entry.why);
+    return row;
+  });
+  const vehicles = Object.values(card.vehicles ?? {}).map((v) => ({ ...v, tip: loc("itemRun.card.structureTip", { rolled: card.rolled, name: v.name, cite }) }));
+  const types = (card.types ?? []).join(", ");
+  return renderRollCard(burstCardModel({
+    title, subtitle, words: w, note: `${loc("itemRun.card.areaLine", { radius: card.radius })} (${cite})`, noteTooltip: loc("itemRun.card.areaTip", { radius: card.radius, cite }),
+    rolledLine: loc(types ? "itemRun.card.rolledLineTypes" : "itemRun.card.rolledLine", { dice: card.dice, rolled: card.rolled, types }), rows, vehicles,
+    buildingsLine: loc("itemRun.card.buildingsLine", { rolled: card.rolled, cite }), canSave: !!card.saveName,
+    ids: { itemUuid: card.itemUuid, rowKey: card.rowKey ?? "", activationId: card.activationId }, messageId: message.id,
+    seat: {
+      judge: judgeDeclares(), ownsSubject: (key) => owns(fromUuidSync(key)),
+      ownsVehicle: (uuid) => { const doc = fromUuidSync(uuid); return owns(doc?.actor ?? doc); },
+      mayUndo: (entry, key) => mayUndoEntry(entry, game.user.id, ownerIdsOf(fromUuidSync(key))),
+    },
+  }));
 }
 
 /* -------------------------------------------- */
@@ -503,8 +690,29 @@ function whisperBody(w) {
 
 /** Say why a press was refused. */
 function refusal(reason) {
-  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure"].includes(reason) ? reason : "press";
+  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure", "noVerdict", "noStructure", "noSpot", "noScene", "notViewing", "failed", "relay"].includes(reason) ? reason : "press";
   ui.notifications?.warn?.(loc(`itemRun.refused.${key}`));
+}
+
+/**
+ * Move a lit fuse's spot: one click on the board of the scene the fuse is on
+ * (`pickPoint`), then the relayed write, which checks the seat owns the bearer.
+ * Nothing opens beyond the pick's banner; Escape or a right press cancels.
+ */
+async function moveSpot(message, ids) {
+  const spot = cardOf(message.id).card?.fuse?.spot ?? null;
+  if (!spot || canvas?.scene?.id !== spot.sceneId) return refusal("notViewing");
+  const picked = await pickPoint({ text: { banner: loc("itemRun.card.pickSpot"), tip: loc("itemRun.card.pickSpotTip") } });
+  if (!picked) return null;
+  const out = await moveFuseSpot({ activationId: ids.activationId, spot: { sceneId: picked.sceneId, x: picked.x, y: picked.y, elevation: spot.elevation ?? 0, level: spot.level ?? "" } });
+  return out?.ok === false ? refusal(out.reason) : null;
+}
+
+/** Apply every row of a burst card the seat owns that holds a verdict; the writer refuses each row the seat does not own, which is not told. A seat that wrote nothing is told why. */
+async function applyAll(messageId) {
+  const out = await applyAllEntries({ messageId });
+  if (out?.ok === false) return refusal(out.reason);
+  return out?.applied?.length || !out?.refused?.length ? null : refusal(out.refused[0].reason);
 }
 
 /** The press a button names, run from this seat. */
@@ -522,6 +730,11 @@ async function press(message, button) {
     case "itemRun.lower": return lowerReach({ tokenUuid: cardOf(messageId).card?.bearer?.uuid, activationId: ids.activationId });
     case "itemRun.recheck": return fail(await recheck({ messageId }));
     case "itemRun.notEngaged": return fail(await notEngaged({ messageId, entryKey: d.entryKey ?? "" }));
+    case "itemRun.apply": return fail(await applyEntry({ messageId, entryKey: d.entryKey ?? "" }));
+    case "itemRun.applyAll": return applyAll(messageId);
+    case "itemRun.handOn": return fail(await handOn({ messageId, vehicleUuid: d.vehicleUuid }));
+    case "itemRun.moveSpot": return moveSpot(message, ids);
+    case "itemRun.setOff": return fail(await setFuseOffNow({ activationId: ids.activationId }));
     default: return null;
   }
 }
@@ -534,7 +747,7 @@ function onRender(message, html) {
   const root = html?.nodeType === 1 ? html : (html?.[0] ?? null);
   const body = root?.querySelector?.(".message-content");
   if (!body || !(card || whisper)) return;
-  body.innerHTML = whisper ? whisperBody(whisper) : card.kind === "once" ? onceBody(message, card) : card.kind === "engaged" ? engagedBody(message, card) : raisedBody(message, card);
+  body.innerHTML = whisper ? whisperBody(whisper) : card.kind === "once" ? onceBody(message, card) : card.kind === "engaged" ? engagedBody(message, card) : card.kind === "fuse" ? fuseBody(message, card) : card.kind === "burst" ? burstBody(message, card) : raisedBody(message, card);
   body.querySelectorAll("[data-action^='itemRun.']").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -561,4 +774,4 @@ export function installItemRunPresenter() {
   Hooks.on("renderChatMessageHTML", onRender);
 }
 
-export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, lifeWord, messageIdFor, refusal, saveFigureOf };
+export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, lifeWord, messageIdFor, refusal, saveFigureOf };

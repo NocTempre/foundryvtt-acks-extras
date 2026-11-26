@@ -430,4 +430,114 @@ t("the strip finds the open engaged entry of a subject and kind across the chat'
   assert.equal("timed" in stripModel([{ key: "k", name: "n", tag: "failed" }]).rows[0], false, "and every other row is as it was");
 });
 
+/* -------------------------------------------- */
+/*  The fuse card and the burst card             */
+/* -------------------------------------------- */
+
+const { blankBurstModel, burstCardModel, burstDamageOf, damageTip, fuseCardModel, throwTip } = await import("../scripts/lib/item-run-card-logic.mjs");
+const fuseWords = { ...words, throw: "Throw", base: "Base", light: "Light", lit: "Lit", unlit: "Not lit", fumble: "Fumble", judgeDecides: "Judge", blankRow: { throw: "Light throw", fumble: "Fumble range", fuseDice: "Fuse dice" }, blankLine: { round: "no rounds", spot: "no spot" }, unlitLine: "unlit line", fumbleLine: "fumble line", judgeLine: "judge line", fuseHint: "hint", moveSpot: "Move the spot", moveSpotTip: "ms tip", moveSpotAria: "ms aria", setOff: "Set it off now", setOffTip: "so tip", setOffAria: "so aria" };
+const fuseIds = { activationId: "act", itemUuid: "I.1" };
+const pressesOf = (model) => [...(model.buttons ?? []), ...model.sections.flatMap((s) => s.rows.flatMap((r) => r.actions ?? []))].map((a) => a.action);
+
+t("the light throw's tooltip names its parts so they produce the target: the item's figure less each standing modifier, the proficiency note and the page", () => {
+  assert.equal(throwTip({ target: 9, base: 11, modifiers: [{ label: "Ability", value: 2 }], notes: ["Ability: the bearer has it"], cite: "MM p. 55", words: fuseWords }), "Throw 9+: Base 11 · Ability −2 (Ability: the bearer has it) (MM p. 55)");
+  assert.equal(throwTip({ target: 12, base: 11, modifiers: [{ label: "Penalty", value: -1 }], words: fuseWords }), "Throw 12+: Base 11 · Penalty +1", "a penalty raises the target");
+  assert.equal(throwTip({ target: null, base: null, cite: "MM p. 55", words: fuseWords }), "MM p. 55", "a blank throw is the page alone");
+  assert.equal(throwTip({ target: null, base: null, words: fuseWords }), null, "and null where the module ships no page");
+});
+
+t("a lit fuse's card reads the roll and the steps, and offers Move the spot and Set it off now to a seat that owns the bearer alone", () => {
+  const roll = { natural: 12, total: 12, formula: "1d20", target: 9, base: 11 };
+  const lit = fuseCardModel({ title: "Gear lit", subtitle: "Bearer", words: fuseWords, roll, outcome: "lit", steps: { text: "Goes off in 3 rounds", tip: "steps tip" }, targetTip: "ttip", totalTip: "1d20: 12", cite: "MM p. 55", ids: fuseIds, seat: { ownsBearer: true } });
+  const [row] = lit.sections[0].rows;
+  assert.deepEqual([row.name, row.total, row.target, row.targetTooltip, row.tooltipText, row.outcome, row.emphasis], ["Light", 12, 9, "ttip", "1d20: 12", "Lit", "success"]);
+  assert.deepEqual([lit.note, lit.noteTooltip], ["Goes off in 3 rounds", "steps tip"]);
+  assert.deepEqual(lit.lines, ["hint"], "the hint says the table comes when the fuse burns down");
+  assert.deepEqual(lit.buttons.map((b) => [b.action, b.data.activationId, !!b.ariaLabel, !!b.tooltip]), [["itemRun.moveSpot", "act", true, true], ["itemRun.setOff", "act", true, true]]);
+  const other = fuseCardModel({ title: "Gear lit", words: fuseWords, roll, outcome: "lit", steps: { text: "x" }, ids: fuseIds, seat: { ownsBearer: false } });
+  assert.equal(other.buttons, undefined, "a seat that does not own the bearer is offered no press");
+  const burned = fuseCardModel({ title: "Gear lit", words: fuseWords, roll, outcome: "lit", steps: { text: "x" }, ids: fuseIds, seat: { ownsBearer: true }, burned: true });
+  assert.equal(burned.buttons, undefined, "and once the fuse is gone nobody is");
+});
+
+t("an unlit light, a fumble and a Judge's one say so in a plain line and offer no press; a blank figure is a blank cell with the page alone and a throw with no target keeps its roll", () => {
+  const roll = { natural: 3, total: 3, formula: "1d20", target: 9, base: 11 };
+  const unlit = fuseCardModel({ title: "t", words: fuseWords, roll, outcome: "unlit", ids: fuseIds, seat: { ownsBearer: true } });
+  assert.deepEqual([unlit.sections[0].rows[0].outcome, unlit.sections[0].rows[0].emphasis, unlit.lines, unlit.note, unlit.buttons], ["Not lit", "failure", ["unlit line"], undefined, undefined]);
+  const fumble = fuseCardModel({ title: "t", words: fuseWords, roll: { ...roll, natural: 1, total: 1 }, outcome: "fumble", ids: fuseIds, seat: { ownsBearer: true } });
+  assert.deepEqual([fumble.sections[0].rows[0].outcome, fumble.lines, fumble.buttons], ["Fumble", ["fumble line"], undefined]);
+  const blank = fuseCardModel({ title: "t", words: fuseWords, roll: null, outcome: null, blank: ["throw", "fumble"], cite: "MM p. 55", ids: fuseIds, seat: { ownsBearer: true } });
+  assert.deepEqual(blank.sections[0].rows.map((r) => [r.name, r.total, r.target, r.targetText, r.targetTooltip]), [["Light throw", "", undefined, " ", "MM p. 55"], ["Fumble range", "", undefined, " ", "MM p. 55"]], "no roll and no number, the page alone");
+  assert.deepEqual([blank.lines, blank.buttons], [["judge line"], undefined]);
+  const held = fuseCardModel({ title: "t", words: fuseWords, roll: { natural: 14, total: 14, formula: "1d20", target: null, base: null }, outcome: null, blank: ["throw", "fuseDice", "round", "spot"], targetTip: throwTip({ target: null, base: null, cite: "MM p. 55", words: fuseWords }), cite: "MM p. 55", ids: fuseIds });
+  const [rollRow, diceRow] = held.sections[0].rows;
+  assert.deepEqual([rollRow.total, rollRow.targetText, rollRow.targetTooltip, rollRow.outcome, diceRow.name], [14, " ", "MM p. 55", "Judge", "Fuse dice"], "the roll is kept where a later figure was blank, its blank target the page alone, and the throw's own row is not repeated");
+  assert.deepEqual(held.lines, ["judge line", "no rounds", "no spot"]);
+});
+
+const burstWords = { ...words, inArea: "In the area", damage: "Damage", apply: "Apply", applyTip: "apply tip", applyAria: "Apply to {name}", applyAll: "Apply all", applyAllTip: "all tip", applyAllAria: "all aria", undoApplyTip: "undo tip", undoAria: "Undo {name}", saveAria: "Save {name}", handOn: "Hand on", handOnTip: "hand tip", handOnAria: "Hand on {name}", handed: "handed", structure: "structure", blastRow: "Blast", burstGoneLine: "gone line", burstJudgeLine: "judge line" };
+const burstIds = { itemUuid: "I.1", rowKey: "burst", activationId: "act" };
+const burstRows = [
+  { key: "T.a", name: "Alpha", state: "open", entryKey: "T~a", target: 11, targetTip: "ttip" },
+  { key: "T.b", name: "Beta", state: "rolled", entryKey: "T~b", entry: { saved: true, total: 14, target: 11 }, target: 11, targetTip: "ttip", damage: { amount: 5, judge: false }, damageTip: "dtip" },
+  { key: "T.c", name: "Gamma", state: "applied", entryKey: "T~c", entry: { saved: false, total: 6, target: 11, amount: 11, presser: "pa" }, target: 11, targetTip: "ttip", damage: { amount: 11, judge: false }, damageTip: "dtip2" },
+  { key: "T.d", name: "Delta", state: "judge", entryKey: "T~d", entry: { saved: true, total: 12, target: 11, why: "figure" }, whyText: "Judge settles" },
+  { key: "T.e", name: "Epsilon", state: "undone", entryKey: "T~e", entry: { saved: false, total: 4, target: 11 } },
+];
+const burstSeat = (over) => ({ judge: true, ownsSubject: () => true, ownsVehicle: () => true, mayUndo: (entry) => entry.presser === "pa", ...over });
+const burstModel = (seat, over = {}) => burstCardModel({ title: "Gear goes off", subtitle: "Bearer", words: burstWords, note: "Area 20′ about the spot (MM p. 55)", noteTooltip: "area tip", rolledLine: "Rolled once for the area: 3d6 = 11", rows: burstRows, vehicles: [{ uuid: "V.1", name: "Cart", state: "open", tip: "vtip" }, { uuid: "V.2", name: "Wagon", state: "handed" }], buildingsLine: "Buildings line (MM p. 55)", ids: burstIds, messageId: "M1", seat, ...over });
+
+t("the burst card's table: each row's Save, damage and press by the entry's state, with Apply for the subject's owner, Undo on an applied row by lib's undo rule, and a Judge row's reason under its name", () => {
+  const model = burstModel(burstSeat());
+  const rows = model.sections[0].rows;
+  assert.deepEqual(model.labels, { name: "In the area", aside: "Save", total: "Damage", actions: "" });
+  const [a, b, c, d, e, v1, v2] = rows;
+  assert.deepEqual([a.aside, a.asideTooltip, a.actions.map((x) => x.action), a.actions[0].data.entryKey, a.actions[0].data.messageId], ["11+", "ttip", ["itemRun.roll"], "T~a", "M1"], "an open row's Save press names the card and the entry");
+  assert.deepEqual([b.aside, b.total, b.tooltipText, b.actions.map((x) => [x.action, x.data.entryKey, x.data.messageId])], ["11+ · 14 Holds", 5, "dtip", [["itemRun.apply", "T~b", "M1"]]]);
+  assert.deepEqual([c.aside, c.total, c.actions.map((x) => x.action)], ["11+ · 6 Fails", 11, ["itemRun.undo"]]);
+  assert.deepEqual([d.detail, d.total, d.actions], ["Judge settles", "", undefined], "a Judge row shows its reason and offers nothing");
+  assert.deepEqual([e.detail, e.total, e.actions], ["Undone", "", undefined]);
+  assert.deepEqual([v1.total, v1.tooltipText, v1.actions.map((x) => [x.action, x.data.vehicleUuid, x.data.messageId, !!x.ariaLabel])], ["structure", "vtip", [["itemRun.handOn", "V.1", "M1", true]]]);
+  assert.deepEqual([v2.detail, v2.actions], ["handed", undefined], "a handed vehicle reads handed and offers nothing");
+  assert.deepEqual([model.note, model.noteTooltip, model.footnote, model.lines, model.buttons.map((x) => x.action)], ["Area 20′ about the spot (MM p. 55)", "area tip", "Rolled once for the area: 3d6 = 11", ["Buildings line (MM p. 55)"], ["itemRun.applyAll"]]);
+  for (const action of rows.flatMap((r) => r.actions ?? []).concat(model.buttons)) assert.ok(action.ariaLabel && action.tooltip, `${action.action} carries an accessible name and a tooltip`);
+});
+
+t("a seat sees the rows of the bodies it owns: no Apply or Undo on another's, no Apply all with nothing of its own to apply, no buildings line for a seat that is not a Judge's", () => {
+  const mine = burstModel(burstSeat({ judge: false, ownsSubject: (key) => key === "T.b", ownsVehicle: () => false }));
+  assert.deepEqual(mine.sections[0].rows.map((r) => r.name), ["Beta"]);
+  assert.equal(mine.lines, undefined, "the buildings line is the Judge's alone");
+  assert.deepEqual(mine.buttons.map((x) => x.action), ["itemRun.applyAll"]);
+  const none = burstModel(burstSeat({ judge: false, ownsSubject: (key) => key === "T.a", ownsVehicle: () => false }));
+  assert.equal(none.buttons, undefined, "a row still open holds no verdict to apply");
+  const undoOnly = burstModel(burstSeat({ judge: false, ownsSubject: (key) => key === "T.c", mayUndo: () => false, ownsVehicle: () => false }));
+  assert.equal(undoOnly.sections[0].rows[0].actions, undefined, "an applied row's Undo is the presser's or the subject's owners'");
+  const vehicleSeat = burstModel(burstSeat({ judge: false, ownsSubject: () => false, ownsVehicle: (uuid) => uuid === "V.1" }));
+  assert.deepEqual(vehicleSeat.sections[0].rows.map((r) => r.name), ["Cart"], "a vehicle's owner is shown its row alone");
+});
+
+t("a burst whose save is blank has no Save press and a blank cell with the page alone", () => {
+  const model = burstModel(burstSeat(), { canSave: false, rows: [{ key: "T.a", name: "Alpha", state: "open", entryKey: "T~a", target: null, targetTip: "MM p. 55" }], vehicles: [] });
+  const [row] = model.sections[0].rows;
+  assert.deepEqual([row.aside, row.asideTooltip, row.actions], [" ", "MM p. 55", []]);
+});
+
+t("a figure's damage is the share a passed save takes off, then the body's defense stage; the tooltip names the dice, what they rolled, the share and the page", () => {
+  assert.deepEqual(burstDamageOf({ rolled: 11, saved: false, reduction: 0.5, stage: null }), { amount: 11, judge: false, defended: false });
+  const saved = burstDamageOf({ rolled: 10, saved: true, reduction: 0.5, stage: null });
+  assert.deepEqual([saved.amount, saved.judge], [5, false]);
+  assert.equal(burstDamageOf({ rolled: 10, saved: true, reduction: null, stage: null }).judge, true, "a passed save with no share imported is the Judge's");
+  const damageWords = { rolled: "rolled", takesOff: "the share a passed save takes off", noShare: "the failed save takes none off", defenses: "then defenses" };
+  assert.equal(damageTip({ amount: 5, dice: "3d6", rolled: 10, saved: true, reduction: 0.5, cite: "MM p. 55", words: damageWords }), "5: 3d6 rolled 10, the share a passed save takes off (0.5) (MM p. 55)");
+  assert.equal(damageTip({ amount: 11, dice: "3d6", rolled: 11, saved: false, reduction: 0.5, defended: true, words: damageWords }), "11: 3d6 rolled 11, the failed save takes none off, then defenses");
+});
+
+t("a burst that rolled nothing is a plain line, with the blast's blank cell and the page where a figure was blank, and no row where the item is gone", () => {
+  const figure = blankBurstModel({ title: "t", words: burstWords, why: "figure", cite: "MM p. 55" });
+  assert.deepEqual([figure.sections[0].rows[0].name, figure.sections[0].rows[0].targetText, figure.sections[0].rows[0].targetTooltip, figure.lines], ["Blast", " ", "MM p. 55", ["judge line"]]);
+  const gone = blankBurstModel({ title: "t", words: burstWords, why: "gone", cite: "MM p. 55" });
+  assert.deepEqual([gone.sections[0].rows, gone.lines], [[], ["gone line"]]);
+  assert.deepEqual(pressesOf(figure), []);
+});
+
 console.log(`\ntest-item-run-cards: ${passed} checks passed.`);
