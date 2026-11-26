@@ -18,8 +18,12 @@ import { makeLoc } from "../lib/util.mjs";
 import { carriedGearItems, importedOrganisation } from "./organisation.mjs";
 import { carryControls, chooseCarrier } from "./carry-press-logic.mjs";
 
-const say = makeLoc("ACKS-LIB.itemRun.row");
-const tr = makeLoc("ACKS-LIB.group.carry");
+/** lib's lang root; the two prefixes below are built from it, since each names a group of keys and no key of its own. */
+const LIB_ROOT = "ACKS-LIB";
+const ROW_LANG_PREFIX = `${LIB_ROOT}.itemRun.row`;
+const CARRY_LANG_PREFIX = `${LIB_ROOT}.group.carry`;
+const say = makeLoc(ROW_LANG_PREFIX);
+const tr = makeLoc(CARRY_LANG_PREFIX);
 
 /** The cookbook id a minted gear item carries, which its copy on a body keeps. */
 const cookbookId = (item) => item?.flags?.[MODULE_ID]?.cookbook?.id ?? item?.getFlag?.(MODULE_ID, "cookbook")?.id ?? "";
