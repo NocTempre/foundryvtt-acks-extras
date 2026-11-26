@@ -174,11 +174,12 @@ export function splitShares({ org = {}, rules = {} } = {}) {
  * @param {{trait?: string, shareKind?: string, troop?: string}} [args.inherit] what an ancestor's roll already fixed for the unit: a trait key (blank for none), the share the unit took, and the troop its special unit rolled
  * @param {(role: string) => number|null} [args.hdOf] a leader's Hit Dice, for a chance per Hit Die
  * @param {(proto: object) => number|null} [args.printedHp] the hit points a prototype's own page prints
+ * @param {(cell: string) => boolean} [args.hasCell] whether the family template holds a `variant|role` cell; a part naming one it lacks stands as its label
  * @returns {object} `{ok, reason?, context, state, lair, treasure, top, prototypes, findings, steps, gen, village}`
  */
 export function planOrganisationRoll({
   recipe = [], encounter = null, variant = "", context = "wilderness", state = "wandering", unit = "", rng = Math.random,
-  rules = {}, leaderSource = "", villageSource = "page", org = {}, library = [], choices = {}, inherit = {}, hdOf = () => null, printedHp = () => null,
+  rules = {}, leaderSource = "", villageSource = "page", org = {}, library = [], choices = {}, inherit = {}, hdOf = () => null, printedHp = () => null, hasCell = () => true,
 } = {}) {
   const findings = [];
   const on = { troops: !!rules.troops, traits: !!rules.traits, gear: !!rules.gear };
@@ -262,7 +263,8 @@ export function planOrganisationRoll({
     let proto;
     if (p.role === "body") proto = protoOf(cellProto("", troop, { role: "", partKey: p.part }));
     else if (src.uuid) proto = protoOf({ kind: "entry", uuid: src.uuid });
-    else if (src.templateCell) proto = protoOf(cellProto(src.templateCell, troop, { partKey: p.part }));
+    // A cell the template lacks would mint under whatever the Role axis falls back to, so the part stands as its label instead.
+    else if (src.templateCell && hasCell(src.templateCell)) proto = protoOf(cellProto(src.templateCell, troop, { partKey: p.part }));
     else if (src.name && p.role !== "captive") {
       const r = outside(src.name, p.part);
       proto = protoOf(r.status === REFERENCE.resolved ? { kind: "entry", uuid: r.entry.uuid ?? "" } : { kind: "label", label: src.name });

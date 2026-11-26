@@ -154,6 +154,16 @@ const tests = [];
 const t = (name, fn) => tests.push([name, fn]);
 const stacksOf = (g) => g.system.stacks;
 
+t("a part naming a Role cell the family template lacks is a labelled stack, never a creature minted under another role", async () => {
+  const recipe = [...RECIPE, part("whelps", "dependant", { source: { templateCell: "alba|whelp" }, count: { literal: 2 }, when: { units: ["hold"] } })];
+  const specs = (over) => Object.values(rollTree({ recipe, ...over }).prototypes);
+  const missing = specs({ hasCell: (cell) => cell !== "alba|whelp" });
+  assert.ok(missing.some((s) => s.kind === "label" && s.label === "whelps"), "the part stands as its label");
+  assert.ok(!missing.some((s) => s.kind === "cell" && s.role === "whelp"), "no creature is minted for a cell that is not there");
+  assert.ok(specs({ hasCell: () => true }).some((s) => s.kind === "cell" && s.role === "whelp"), "a cell the template holds is minted from it");
+  assert.ok(specs({}).some((s) => s.kind === "cell" && s.role === "whelp"), "with no cell test, the cell is taken as there");
+});
+
 t("a roll's ops are carried out in order, and every ref is a uuid wherever it stood", async () => {
   reset();
   const host = faction("Holdfast");

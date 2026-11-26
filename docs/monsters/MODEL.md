@@ -90,6 +90,10 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
   `name` a creature as printed, and `uuid` and `stat` are for a Judge's own
   part. The variant is the key the family files the creature under; an entry in
   no family takes the key `mintLeaderTemplate` files its own leaders under.
+  A Roll mints a part from its cell only where the template holds that cell
+  (`planOrganisationRoll`'s `hasCell`); a part naming a cell no printed role
+  sentence built stands as a labelled stack under its label, since the Role
+  axis would otherwise fall back to Standard and mint it as the rank and file.
 - `count` is `dice` or `literal`. A share of another part is `ratioOf` with
   `percent` and `round`: `ratioOf` is a part's key, or `unit`, a share of the
   units the sentence names counted in whole units (the gangs of a warband, the

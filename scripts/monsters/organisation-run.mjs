@@ -179,6 +179,7 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
     recipe: encounter.recipe ?? [], encounter, variant: key, context: use(context, "context", "wilderness"), state: use(state, "state", "wandering"),
     unit: target?.kind ?? "", rng, rules: use(rules, "rules", {}), leaderSource: use(leaderSource, "leaderSource", ""), villageSource: use(villageSource, "villageSource", "page"),
     org, library, choices: use(choices, "choices", {}), inherit, hdOf, printedHp,
+    hasCell: (cell) => (family.system?.cells ?? []).some((c) => c.key === cell),
   });
   if (!tree.ok) return refused(tree.reason ?? "noTree");
   tree.gen.template = family.uuid;
