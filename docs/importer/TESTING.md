@@ -969,8 +969,8 @@ which is also the rename a repair must keep. Create them in page context and
   made with `game.items.fromCompendium(<library trap>)` — the Judge's dragged
   copy, which carries `compendiumSource`.
 
-The system's actor create drops `system` from data without items: update a
-vehicle row's `system` from the library row after creating it, and compare.
+The system's actor create keeps a create's `system` (acks 14.2.0): create
+the vehicle row with the library row's `system`, and compare.
 
 Then hide each library original from THIS client for the length of the steps,
 so every lookup lands on a fixture. The item lookups ask the packs first

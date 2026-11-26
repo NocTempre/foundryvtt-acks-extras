@@ -49,11 +49,11 @@ carrying its marker where none stands:
 
 ## Core drive mechanics
 
-- **Create, then update.** The ACKS system overrides `Actor.create` and
-  replaces a single create's `system` unless the data carries `items`, so a
-  domain created with its record lands blank. Create the bare actor, then
-  `update({system: acksExtras.domains.normalizeDomain(record)})` — the order the
-  importer's binding uses, and the order a Judge works in.
+- **A create keeps its record.** The ACKS system's `Actor.create` override
+  (acks 14.2.0) adds `system.isNew` beneath a create's own `system`, so
+  `create({…, system: acksExtras.domains.normalizeDomain(record)})` lands the
+  record whole. A bare create and then an update lands the same, and is the
+  order a Judge works in.
 - **List fields are named form rows**: `system.territory.0.families`,
   `system.vassalRows.1.domainHexes.classes.outlands`. A scripted edit sets the
   control's value and dispatches `new Event("change", {bubbles: true})`; the

@@ -44,12 +44,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `navigationThrow`, `damageToVessel`, `repairPlan`, the bucket packer — takes
   plain objects and is covered by `tools/test-vehicles.mjs`. Live testing is
   for the SHEET and the drops; do not re-assert the arithmetic here.
-- **A page-side `Actor.create` of a fixture carrying `system` needs
-  `items: []`**: the system's create override replaces `system` otherwise
+- **A page-side `Actor.create` of a fixture carrying `system` keeps it**
   ([../monsters/TESTING.md](../monsters/TESTING.md), "`Actor.create` from a
-  `toObject()` needs `items`"). The capture driver's `api.create` adds it on
-  its own. Without it a vessel arrives `kind: "land"` with no capacity, and
-  every sea step exercises nothing.
+  `toObject()` keeps its stats"). A vessel that arrives `kind: "land"` with
+  no capacity was created without its `system`, and every sea step then
+  exercises nothing.
 - **The sheet is five tabs**: `[data-action="tab"][data-group="primary"]`
   with `data-tab` travel, aboard, hold, place, details. Click the tab before
   querying its controls, so what you assert is what a user sees.

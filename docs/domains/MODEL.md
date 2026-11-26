@@ -354,9 +354,9 @@ patterns and takes on invented text.
   `foundSettlement`, each returning why it refused;
 - the vocabularies and `DomainSheet`.
 
-A domain is created like any actor, then updated: the system's own
-`Actor.create` replaces a single create's `system` unless the data carries
-items ([TESTING.md](TESTING.md), "Core drive mechanics").
+A domain is created like any actor, its record in the create: the system's
+own `Actor.create` keeps a create's `system` beneath the new-actor flag it
+adds ([TESTING.md](TESTING.md), "Core drive mechanics").
 
 Its prototype token is a marker — named on hover, neutral, no bars, no sight —
 and its picture is core's castle where the maker names none.

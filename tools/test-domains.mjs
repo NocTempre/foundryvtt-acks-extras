@@ -391,6 +391,8 @@ globalThis.Actor = {
     if (refuseCreate) return null;
     const uuid = `Actor.new${created.length + 1}`;
     const doc = data.type === DOMAIN_TYPE ? domainDoc(uuid, data.name, {}) : placeDoc(uuid, data.name);
+    // The system's create keeps a create's own system data.
+    Object.assign(doc.system, data.system ?? {});
     const plain = doc.update;
     doc.update = async (changes) => {
       if (!changes.system) {
@@ -430,10 +432,10 @@ updates.length = 0;
 const promotion = await api.promoteVassal(top, "row1", { label });
 assert.equal(promotion.ok, true);
 const madeDomain = promotion.domain;
-assert.deepEqual(created.at(-1).data, { name: "Domain 4", type: DOMAIN_TYPE, folder: "f1" }, "made bare, filed beside its liege: the system's create drops a create's system");
+assert.deepEqual([created.at(-1).data.name, created.at(-1).data.type, created.at(-1).data.folder, created.at(-1).data.system?.rulerName], ["Domain 4", DOMAIN_TYPE, "f1", "NPC 4"], "made with its record in one create, filed beside its liege");
 assert.deepEqual([madeDomain.system.parentUuid, madeDomain.system.rulerName, madeDomain.system.tributeGp], ["Actor.top", "NPC 4", 15]);
 assert.deepEqual(top.system.vassalRows.map((r) => r.id), ["row2"], "the row goes: a vassal is an actor or a row, never both");
-assert.deepEqual(updates.map((u) => u.uuid), [madeDomain.uuid, "Actor.top"], "the row goes only once the new domain holds its record");
+assert.deepEqual(updates.map((u) => u.uuid), ["Actor.top"], "no follow-up write to the new domain; the row goes once it exists");
 assert.deepEqual(api.vassalsOf(top).map((d) => d.uuid), [madeDomain.uuid], "the new domain is a vassal domain of its liege");
 assert.deepEqual(api.ledgerFor(top).tributeIn, tributeBefore, "the liege's tribute in is what it was: the row's tribute is now the domain's tribute out");
 const promotedUnnamed = await api.promoteVassal(top, "row2");
@@ -445,8 +447,8 @@ assert.deepEqual(await api.foundSettlement(vassal, { market: {} }), { ok: false,
 isGM = true;
 const founded = await api.foundSettlement(vassal, { name: "Place 9", market: { urbanFamilies: null } });
 assert.equal(founded.ok, true);
-assert.deepEqual(created.at(-1).data, { name: "Place 9", type: "acks-extras.location", img: "icons/svg/village.svg" }, "a location made bare");
-assert.deepEqual(founded.place.system.market, { urbanFamilies: null }, "and given its market after");
+assert.deepEqual(created.at(-1).data, { name: "Place 9", type: "acks-extras.location", img: "icons/svg/village.svg", system: { market: { urbanFamilies: null } } }, "a location made with its market in one create");
+assert.deepEqual(founded.place.system.market, { urbanFamilies: null });
 const heldRow = vassal.system.holdings.at(-1);
 assert.deepEqual([heldRow.uuid, heldRow.role, heldRow.name], [founded.place.uuid, "settlement", "Place 9"], "held at once, as a settlement");
 assert.equal(api.domainOf(founded.place)?.uuid, "Actor.vas");

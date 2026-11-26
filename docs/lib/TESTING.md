@@ -1512,10 +1512,10 @@ The scan reads the whole world, so a shared world shows other sessions' rows.
 **Tick only the rows that name your own fixtures.**
 
 **Drive notes (learned live):**
-- **Write every `system` field with an update after the create.** The
-  system's actor create replaces creation-time `system` data unless `items`
-  rides along, and `api.create` goes through it. A place created with a
-  `sceneUuid` stores `""` and scans clean.
+- **A create keeps its `system` fields.** The system's actor create
+  (acks 14.2.0) adds `system.isNew` beneath creation-time `system` data, and
+  `api.create` goes through it. A place that stores `sceneUuid` `""` was
+  created without one, and scans clean.
 - **The clothing declaration hooks refuse the disagreeing items.** Every
   `preCreateItem` and `preUpdateItem` entry whose function source contains
   `clothingDeclarationPatch` keeps an item's two halves together. Detach them
@@ -1643,9 +1643,8 @@ the party token, are formation's recipe "An unlinked member's own hit points"
 (docs/formation/TESTING.md). Walk it after this one.
 
 **Drive notes:**
-- **Write `system.hp` with an update after the create.** The system's actor
-  create replaces creation-time `system` data (the repair recipe's first
-  drive note).
+- **`system.hp` may ride the create.** The system's actor create keeps
+  creation-time `system` data (the repair recipe's first drive note).
 - **An unlinked monster token rolls its own hit points when it is placed,**
   while the system's `autoRollMonsterHP` setting is on. The world actor's 8
   of 8 does not reach it. Write each token's own with

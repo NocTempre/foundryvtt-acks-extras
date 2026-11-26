@@ -34,14 +34,11 @@ Shut the world down and relaunch it, then check again.
   `controls` wants Region uuids — `acksExtras.factions.districtRegionOptions()`
   lists every district on every scene as `{uuid, label}`; pick from it rather
   than composing a uuid.
-- **Create, then update — creation `system` data does not survive the
-  system's own class.** The ACKS system overrides `Actor.create` on its
-  document class and replaces a single create's `system` wholesale unless the
-  data carries `items`. The capture driver's `api.create`, and anything else
-  that goes through `getDocumentClass("Actor").create`, therefore lands a
-  faction with `kind: "other"` and empty `controls` whatever it was given,
-  while the base `Actor.create` keeps it. Create the bare actor and `update`
-  its `system.*` afterwards, which is also the order a Judge works in.
+- **A create keeps its `system`.** The ACKS system's `Actor.create` override
+  on its document class (acks 14.2.0) adds `system.isNew` beneath a create's
+  own `system`, so the capture driver's `api.create`, and anything else that
+  goes through `getDocumentClass("Actor").create`, lands a faction's `kind`
+  and `controls` as given, as the base `Actor.create` does.
 - **Schema rows are plain objects.** `system.standing`, `system.members` and
   a location's `market.rarityOverrides` are arrays of plain objects, not data
   models: `row.toObject()` throws. Read them as they are.

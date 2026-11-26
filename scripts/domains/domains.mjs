@@ -131,9 +131,7 @@ export async function release(domain, placeUuid) {
  * Promote one of a liege's vassal rows to a domain of its own: a domain actor
  * answering to the liege, carrying what the row said (`promoteVassalRow`), and
  * the row deleted, because a vassal is an actor or a row, never both. GM
- * only. The new domain is created bare and then written, because the system's
- * `Actor.create` drops a single create's `system`; the row goes only once the
- * new domain holds the record.
+ * only. The row goes only once the new domain exists.
  * @param {(key: string) => string} [label] names a figure the record has no field for, in its notes
  * @returns {Promise<{ok: boolean, domain?: Actor, reason?: "judgeOnly"|"notDomain"|"noRow"|"notCreated"}>}
  */
@@ -148,17 +146,16 @@ export async function promoteVassal(liege, rowId, { label } = {}) {
     name: name || game.i18n.localize(`${LANG_PREFIX}.sheet.unnamed`),
     type: DOMAIN_TYPE,
     folder: liege.folder?.id ?? null,
+    system,
   });
   if (!domain) return { ok: false, reason: "notCreated" };
-  await domain.update({ system });
   await liege.update({ "system.vassalRows": rows.filter((r) => r.id !== rowId) });
   return { ok: true, domain };
 }
 
 /**
  * Found a settlement for a domain: a world location with a market, held by
- * the domain at once as a settlement. GM only. Created bare and then given
- * its market, as the location sheet's own Add a market writes it.
+ * the domain at once as a settlement. GM only.
  * @param {object} [market] the market to give it; the location model's empty one where omitted
  * @returns {Promise<{ok: boolean, place?: Actor, reason?: string, other?: Actor}>} `hold`'s refusal where the hold fails
  */
@@ -170,9 +167,9 @@ export async function foundSettlement(domain, { name = "", market = null } = {})
     name: name || game.i18n.localize(`${LANG_PREFIX}.sheet.newSettlement`),
     type: LOCATION_TYPE,
     img: SETTLEMENT_IMG,
+    system: { market: marketData },
   });
   if (!place) return { ok: false, reason: "notCreated" };
-  await place.update({ "system.market": marketData });
   const held = await hold(domain, place, { role: "settlement" });
   return held.ok ? { ok: true, place } : { ...held, place };
 }

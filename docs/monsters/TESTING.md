@@ -291,10 +291,9 @@ import's own result, and the generated creature.
   the connected book and rewrites the actor it is handed, so a disposable
   copy of a shelf monster (`toObject()`, the cookbook flag kept, no `_id`)
   is the fixture and the shelf document is never touched.
-- **`Actor.create` from a `toObject()` needs `items`.** The system's
-  create override replaces `system` unless the data carries an `items`
-  array; a source with no embedded items loses its stats on the copy. Pass
-  `items: []`.
+- **`Actor.create` from a `toObject()` keeps its stats.** The system's
+  create override (acks 14.2.0) adds `system.isNew` beneath the copy's own
+  `system`; `items`, present or not, changes nothing about that.
 - **The binder reads the entry's description paragraphs, not the actor.** A
   stored monster keeps its prose in `flags.acks-extras.extras.description`
   channels; `bindMonsterSpells` and `castsAsClass` run on the executed
