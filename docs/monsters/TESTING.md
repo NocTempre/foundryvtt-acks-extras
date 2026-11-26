@@ -1172,3 +1172,115 @@ template's `flags["acks-extras"].plate` (MODEL, "The family's plate"). Needs the
 
 **Teardown.** `api.sweepTracked()`, and quote its result. The template and the
 host are kept.
+
+## The recipe editor
+
+The Judge's window over `extras.encounter.recipe` (MODEL, "The recipe editor"), driven from
+its three doors. Needs the Monstrous Manual connected (`ACKS_TEST_BOOKS`) and the family
+template in the library. `tools/live/monsters-beastman-recipe.mjs` carries this recipe; the
+walk logs keys' positions, counts and booleans, and nothing the book prints.
+
+**Fixtures.**
+
+- `monsters/beastman-recipe`: a **world copy** of a family member's library entry, its
+  recipe emptied and read again by the importer. Built so because the driver marks world
+  documents only and an import lands in the library pack. Take the member's `toObject()`,
+  stamp `_stats.compendiumSource` with the library entry's uuid and read it back (a copy
+  without the stamp is not a copy, and a picker repair would then write it), delete
+  `flags["acks-extras"].extras.encounter.recipe` and `cookbook.read.recipe`, create it, then
+  run `refillMonster(actor, {whole: true})` from `importer/cookbook/monster.mjs`. A library
+  entry imported before this release holds parts with no `origin`, and no repair restamps
+  one, which is why the recipe is read fresh. The fixture is usable when every part reads
+  `register`, the read copy has as many parts, and one part has a count of its own. The setup
+  retires the standing fixture with `api.retire` and marks the result with `api.mark`.
+- The family template: the library's, found by cookbook id (`mm.familyBeastman`) and read,
+  never written, except that a library with no variant option holding stamped parts is
+  repaired in place first through the entry picker. The run edits a **tracked world copy** of
+  it (the same stamp), so no library document changes. A variant option is chosen at run
+  time: stamped, with a Roll side (`sidesOf`: wilderness before dungeon, wandering before
+  lair, a top unit that counts bodies first) whose top unit word some part names.
+- A faction host, tracked, whose one row `top` carries `gen: {template: <copy>, variant}`.
+  The chart's Recipe… needs a row or a record naming template and variant.
+
+**Drive mechanics.**
+
+- *Door 1.* A plain `monster` opens the follower card, so build the sheet: the entry of
+  `CONFIG.Actor.sheetClasses.monster` named `FullMonsterSheet`, `new Cls({document})`,
+  `render(true)`, `changeTab("ecology", "primary")`, press `button[data-action="organisation"]`.
+- *Door 2.* The variant option's Recipe… exists only in the template sheet's **Edit
+  structure** mode: render the copy's sheet, press `[data-action="editToggle"]`, then
+  `li.editor-option[data-axis-key="variant"][data-option-key=<key>] button.acksm-recipe-door`.
+  A render hook adds it, and the toggle is absent where the sheet is not editable (a locked
+  pack).
+- *Door 3.* Seed the host, open it on the Org chart tab (`sheet.tabGroups.primary =
+  "orgChart"`), press `[data-action="orgRecipe"]`.
+- A window is found by `app.title` over the instances whose constructor is `RecipeEditor`.
+  The title is `Recipe · <name>` or `Recipe · <name> · <option>`, composed from the lang.
+  `app._prepareContext({})` returns `canWrite` and `foot.canResetAll`. The window re-renders
+  after every write: re-query a control after each change, and read the stored recipe to know
+  a write landed. A part's controls sit under its row (`li[data-key]`), opened by the pen
+  `[data-action="editPart"]`, which toggles. `[data-field=count|label|role|fixedHp|linkQuery]`
+  take a value and a bubbling `change`; `[data-field="unit"][data-word]` is a checkbox.
+- *Which stored recipe a door writes.* The Ecology door writes the actor's, which no Roll
+  reads. A Roll reads the option's, so the Roll steps run on the option window.
+- *Rolling.* `acksExtras.monsters.rollOrganisation({host, rowKey: "top", template, variant,
+  context, state, scope: "below", card})`, template and variant passed as the chart's Roll
+  passes them. It refuses a filled row, so reseed the host's rows before each Roll. Track
+  `result.created` (and `result.pot`) with `api.track(uuid)` and no kind: it can hold a pot
+  and a faction card. A group's stack names its part in `gen.part`; a labelled stack has
+  `template.uuid` blank and `template.label` the part's Label. Findings are
+  `result.findings` and, on the whispered card, `li[data-finding="unlinked"]`.
+- A part reaches a unit only through its unit words (`appliesTo`), whatever its state, so the
+  Judge part ticks the top unit's word or no Roll applies it. The editor's hint reads "None
+  ticked: every unit", which the evaluator does not do for a part with no words.
+- *Repair.* A picker repair passes a copy by. The walk calls the refill the picker runs for a
+  stat-block monster (`refillMonster`, `whole`).
+- The 460-wide measure: `setPosition({width: 460, height: 420})`. The part root is
+  `[data-application-part="body"]` (`overflow-y` auto, `scrollHeight > clientHeight`); the
+  footer part `[data-application-part="footer"]` stays inside the frame.
+- The Player seat needs a real second seat. The monster's ownership is written with
+  `update({ownership}, {diff: false, recursive: false})` and the editor reopened for each level.
+
+**Steps.** Each observable is read from the stored recipe or the window, not from a return value.
+
+**Setup, and the lock (before step 1).** A Roll on the host before any edit (step 8's baseline). Record, as
+a note and never a failure, whether the seat may edit the library family template:
+`pack.locked`, `canUserModify(update)`, the sheet's `isEditable`. A chart host naming the
+library template opens its editor read-only while the pack is locked. The check is only
+that the editor agrees with Foundry.
+
+1. *Three doors.* Each opens a window headed by its document: `Recipe · <monster>` from the
+   Ecology tab's Organisation…, and `Recipe · <template> · <option>` from the template
+   sheet's option and from the chart's Recipe….
+2. *Hand mark.* Change a part's count. *Observable:* the part's `origin` is blank and every
+   other part's is `register`; the head reads "1 of N parts changed by hand"; the row has
+   `is-hand`; its tooltip names the figure the import read and its page reference.
+3. *Reset this part.* *Observable:* `origin` is `register`, the part equals the read copy
+   (compared without `origin`), and the head reads 0 of N.
+4. *Add from a sentence.* Press a sentence marked unread. *Observable:* a part `_…` with a
+   blank origin whose row shows the "No role yet" text, muted.
+5. *Mount, unlinked, then linked.* On the option window: Add a part, type a QA Label, Role
+   Mount, Count 1, tick the top unit word. Roll with the card on. *Observable:* a labelled
+   stack named by the Label, a finding of kind `unlinked` naming the part, and a card carrying
+   it (track the message, found by the Label). Then search the library and press Link on an
+   entry. *Observable:* the part's `source.uuid` is the entry's, and the next Roll's stack has
+   that entry as its template.
+6. *fixedHp.* Type 13. *Observable:* the stack on the entry carries `fixedHp` 13. A labelled
+   stack drops it (T-0852), which the walk does not assert.
+7. *Repair keeps the hand part.* On the monster: change a count again, then refill in place.
+   *Observable:* the hand part and the Judge part stand byte for byte, and every other part
+   equals its read copy.
+8. *Rolled earlier keeps its figures.* The baseline group's stacks read the `gen` and `size`
+   they were rolled with, after the option was edited in steps 5 and 6.
+9. *Narrow.* At 460 wide: one column (the reading pane under the tables), the body scrolls,
+    the footer is inside the frame.
+10. *Player seat.* Observer: the window opens, rows draw, and there is no pen, no Add a part,
+    no sentence button, no Reset all, and the read-only line shows. Owner: pens, Add a part
+    and sentence buttons are there.
+11. *Reset all.* *Observable:* the recipe equals the read copy part for part, the Judge part
+    is gone, and the head reads 0 of N.
+
+**Teardown.** `api.sweepTracked({only})` over the unmarked ledger, quoted: the template copy,
+the host, every group, prototype, faction card and pot the Rolls made, and the whispered card.
+The monster's ownership is set back to what the run found. The marked monster stays; the next
+run retires and rebuilds it.
