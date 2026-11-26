@@ -1121,7 +1121,10 @@ re-written with E for S6b and back, removed by its id at the end. The world's
 - **S8.** As A: leave. *Observable:* A's row stands with `entered` false and
   A's pool is gone; B's row and pool stand; A entering as the party is
   refused `enteredSeparately`. B leaves, then C (GM seat); A enters as the
-  party through the api and it is resolved. *Observable:* the entry has
+  party through the api and it is resolved. Before each next seat acts it
+  waits until it reads the last leave (`seesLeft`): a leave written from a
+  seat that has not yet read B's writes the whole venture list it holds,
+  and B's row stands entered again. *Observable:* the entry has
   `entrantUuid` "" and `entrants` 0 under D's privilege; its row's
   `impactCap` is the full imported maximum; B's status line reads "This
   month: In the market" with no "separately".

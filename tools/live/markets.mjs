@@ -885,6 +885,19 @@ const P = {
     const done = await H.poll(() => actionIds.every((id) => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.id === id)?.status === "done") || null, { tries: 40, every: 250 });
     return { done: !!done };
   },
+  /**
+   * Wait until this seat reads the separate venture row of each of
+   * `entrantUuids` this month as left: another seat's leave reaches it over
+   * the socket, and a venture write from this seat before then writes the
+   * arrays it still holds, the left row standing entered again.
+   */
+  seesLeft: async ({ locationId, entrantUuids }) => {
+    const H = globalThis.__c2;
+    const ms = H.m.TR.marketMonthStart();
+    const left = () => entrantUuids.every((u) => !(game.actors.get(locationId).system.market.goods.ventures ?? []).some((v) => v.entrantUuid === u && v.entered && Number(v.monthStartTime) === ms));
+    const done = await H.poll(() => left() || null, { tries: 40, every: 250 });
+    return { left: !!done };
+  },
   /** Wait until this seat reads an actor's spendable coin move off `from`; the last read either way. */
   coinMoved: async ({ actorId, from }) => {
     const H = globalThis.__c2;
@@ -1670,20 +1683,25 @@ try {
     check("S7: M, first entered this visit, is not a known market for B", kB.known === false, kB);
 
     // S8: leaving is each one's own; once all have left, the party may enter as one, at the full maximum.
+    // Each leave is written by the seat that runs it, and the next seat to act reads
+    // the market from its own copy: it waits for the write before acting.
     const leftA = await run(player, P.partiesLeave, { locationId: M.id, actorId: A.id });
+    const seenA = await run(gm, P.seesLeft, { locationId: M.id, entrantUuids: [A.uuid] });
     const s8 = await state();
     const aOneEarly = await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: A.id, mode: "party" });
-    note("A leaves; A entering as the party while B and C stand", { leftA, rows: { A: rowOf(s8, A), B: rowOf(s8, B) }, pools: { A: poolOf(s8, A), B: poolOf(s8, B) }, aOneEarly });
-    check("S8a: A leaving ends A's venture and A's pool, and leaves B's standing with its pool; A cannot yet enter as the party (enteredSeparately)", leftA.ok && rowOf(s8, A)?.entered === false && !poolOf(s8, A) && rowOf(s8, B)?.entered && poolOf(s8, B)?.stones === pB.stones - 1 && aOneEarly.error === "enteredSeparately", { leftA, aOneEarly });
+    note("A leaves; A entering as the party while B and C stand", { leftA, seenA, rows: { A: rowOf(s8, A), B: rowOf(s8, B) }, pools: { A: poolOf(s8, A), B: poolOf(s8, B) }, aOneEarly });
+    check("S8a: A leaving ends A's venture and A's pool, and leaves B's standing with its pool; A cannot yet enter as the party (enteredSeparately)", leftA.ok && seenA.left && rowOf(s8, A)?.entered === false && !poolOf(s8, A) && rowOf(s8, B)?.entered && poolOf(s8, B)?.stones === pB.stones - 1 && aOneEarly.error === "enteredSeparately", { leftA, seenA, aOneEarly });
     const leftB = await run(player, P.partiesLeave, { locationId: M.id, actorId: B.id });
+    const seenB = await run(gm, P.seesLeft, { locationId: M.id, entrantUuids: [B.uuid] });
     const leftC = await run(gm, P.partiesLeave, { locationId: M.id, actorId: C.id });
+    const seenBC = await run(player, P.seesLeft, { locationId: M.id, entrantUuids: [B.uuid, C.uuid] });
     const aOne = trackChat(player, await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: A.id, mode: "party" }));
     const res8 = trackChat(gm, await run(gm, P.partiesResolve, { locationId: M.id, actionIds: [aOne.action?.id] }));
     const s8b = await state();
     const vP = rowOf(s8b, null);
     const tabB8 = await run(player, P.tradeTab, { locationId: M.id, traderId: B.id });
-    note("B and C leave; A enters as the party", { leftB, leftC, aOne, row: vP, status: tabB8.ventureStatus });
-    check("S8b: with every entrant gone, A enters as the party: the entry is no one's own, A's privilege covers the party, and its row has the full maximum impact; B's Trade tab now reads the party's venture", leftB.ok && leftC.ok && aOne.ok && aOne.action?.entrantUuid === "" && aOne.action.entrants === 0 && aOne.action.privilegeUuid === D.uuid && res8.done && vP?.entered && vP.entrants === 0 && vP.impactCap === cap && tabB8.ventureStatus.startsWith("This month: In the market") && !tabB8.ventureStatus.includes("separately"), { aOne: aOne.action, row: vP, status: tabB8.ventureStatus });
+    note("B and C leave; A enters as the party", { leftB, seenB, leftC, seenBC, aOne, row: vP, status: tabB8.ventureStatus });
+    check("S8b: with every entrant gone, A enters as the party: the entry is no one's own, A's privilege covers the party, and its row has the full maximum impact; B's Trade tab now reads the party's venture", leftB.ok && seenB.left && leftC.ok && seenBC.left && aOne.ok && aOne.action?.entrantUuid === "" && aOne.action.entrants === 0 && aOne.action.privilegeUuid === D.uuid && res8.done && vP?.entered && vP.entrants === 0 && vP.impactCap === cap && tabB8.ventureStatus.startsWith("This month: In the market") && !tabB8.ventureStatus.includes("separately"), { seenB, seenBC, aOne: aOne.action, row: vP, status: tabB8.ventureStatus });
 
     // S9: a row written before entering separately existed reads as the party's.
     const pre = await run(gm, P.partiesPreUpgrade, { locationId: M.id, partyId: partiesRoster });
