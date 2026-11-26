@@ -3265,6 +3265,137 @@ await atest("a legacy ledger write re-renders the open sheets of that player's c
   }
 });
 
+await atest("a legacy ledger is written by the seat Foundry lets write that User on a character it owns; a funeral stays the Judge's press", async () => {
+  const saved = {
+    game: globalThis.game, foundry: globalThis.foundry, CONST: globalThis.CONST, Hooks: globalThis.Hooks,
+    ui: globalThis.ui, ChatMessage: globalThis.ChatMessage,
+  };
+  globalThis.Hooks = { on() {}, once() {} };
+  globalThis.foundry = {
+    applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} }, instances: new Map() },
+    utils: { randomID: (() => { let n = 0; return () => `id${++n}`; })(), deepClone: (o) => structuredClone(o) },
+  };
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
+  const paid = [];
+  const warned = [];
+  // The adapter holds the namespace object itself, so the coin sink is set on it and put back.
+  const ns = (globalThis.acksExtras ??= {});
+  const savedLib = ns.lib;
+  ns.lib = { ...(savedLib ?? {}), money: { sinkCoin: async (_actor, gp) => { paid.push(gp); return { ok: true }; } } };
+  globalThis.ui = { notifications: { warn: (m) => warned.push(m) } };
+  globalThis.ChatMessage = { create: () => {}, getSpeaker: () => ({}) };
+  // Invented figures: the imported percentages are the Judge's own.
+  registerTable({ id: "experience", tables: { reserveRate: 5, funeralRate: 10, bankFee: 2 } }, { priority: PRIORITY.WORLD });
+  try {
+      const { recordLegacy, deleteLegacyEntry, startFromLegacy, ledgerOf } = await import("../scripts/classes/legacy.mjs");
+    const user = (id, isGM = false) => ({
+      id, isGM, name: id, flags: {},
+      canUserModify(who) { return who.isGM || who.id === this.id; },
+      getFlag(_m, k) { return this.flags[k]; },
+      async setFlag(_m, k, v) { this.flags[k] = v; return v; },
+    });
+    const judge = user("judge", true);
+    const alice = user("alice");
+    const bob = user("bob");
+    const people = [judge, alice, bob];
+    globalThis.game = {
+      user: alice,
+      users: { get: (id) => people.find((u) => u.id === id) ?? null, find: (fn) => people.find(fn), filter: (fn) => people.filter(fn) },
+      i18n: { format: (key) => key },
+      time: { worldTime: 0 },
+    };
+    // `ownedBy` is the user whose character this is; `isOwner` is what the SEAT reading it holds.
+    const character = (name, ownedBy, flags = {}) => {
+      const updates = [];
+      return {
+        name, uuid: `Actor.${name}`, isOwner: false, updates,
+        system: { details: { xp: { value: 0 } } },
+        getFlag: (_m, k) => flags[k],
+        testUserPermission: (u) => u.id === ownedBy.id,
+        update: async (data) => { updates.push(data); },
+      };
+    };
+    const seat = (who, actor) => { globalThis.game.user = who; actor.isOwner = who.isGM || actor.testUserPermission(who); };
+    const reset = () => { paid.length = 0; warned.length = 0; alice.flags = {}; bob.flags = {}; };
+
+    const mine = character("Mine", alice);
+    seat(alice, mine);
+    const entry = await recordLegacy(mine, { kind: "reserve", gp: 1000, pay: true });
+    assert.ok(entry, "the ledger's own player records the reserve fund on a character they own");
+    assert.deepEqual(paid, [1000], "and the coin leaves the purse first");
+    assert.equal(ledgerOf(alice).entries.length, 1, "the entry lands on their own User");
+    assert.equal(entry.xp, 50, "its experience is worked out from the rate");
+
+    seat(bob, mine);
+    assert.equal(await deleteLegacyEntry(alice, entry.id), false, "another non-GM user cannot strike it");
+    assert.equal(ledgerOf(alice).entries.length, 1, "and the entry stands");
+    seat(alice, mine);
+    assert.equal(await deleteLegacyEntry(alice, entry.id), true, "a player strikes their own entry");
+    assert.equal(ledgerOf(alice).entries.length, 0);
+
+    reset();
+    seat(alice, mine);
+    assert.equal(await recordLegacy(mine, { kind: "funeral", gp: 1000, pay: true }), null, "a funeral is refused on a player's seat");
+    assert.deepEqual(paid, [], "nothing is paid for it");
+    assert.equal(ledgerOf(alice).entries.length, 0, "nothing is written");
+    assert.deepEqual(warned, ["ACKS-CLASSES.legacy.funeralJudge"], "and the seat is told");
+
+    reset();
+    const theirs = character("Theirs", bob);
+    seat(alice, theirs);
+    assert.equal(await recordLegacy(theirs, { kind: "reserve", gp: 1000, pay: true }), null, "a seat that owns no part of the character records nothing");
+    assert.deepEqual(paid, [], "and pays nothing");
+    assert.equal(ledgerOf(bob).entries.length, 0);
+    // The seat owns the character but it feeds another player's ledger: the User is not the seat's to write.
+    const named = character("Named", alice, { legacyPlayer: "bob" });
+    seat(alice, named);
+    assert.equal(await recordLegacy(named, { kind: "reserve", gp: 1000, pay: true }), null, "a ledger the seat may not write refuses it");
+    assert.deepEqual(paid, [], "before any coin leaves the purse");
+    assert.equal(ledgerOf(bob).entries.length, 0);
+
+    reset();
+    seat(judge, mine);
+    assert.ok(await recordLegacy(mine, { kind: "reserve", gp: 1000, pay: true }), "a GM writes a reserve entry");
+    assert.ok(await recordLegacy(mine, { kind: "funeral", gp: 1000, pay: true }), "and a funeral");
+    assert.deepEqual(paid, [1000, 1000]);
+    assert.equal(ledgerOf(alice).entries.length, 2);
+    assert.equal(await deleteLegacyEntry(alice, ledgerOf(alice).entries[0].id), true, "a GM strikes any user's entry");
+
+    // Starting a character from the legacy: the owning player's seat writes.
+    reset();
+    const fallen = character("Fallen", alice);
+    fallen.system.details.xp.value = 1000;
+    seat(alice, mine);
+    assert.ok(await recordLegacy(mine, { kind: "reserve", gp: 1000, pay: false }));
+    const result = await startFromLegacy(mine, fallen);
+    assert.ok(result, "the owning player starts their character from the legacy");
+    assert.equal(mine.updates.length, 1, "the character's experience is raised");
+    assert.equal(mine.updates[0]["system.details.xp.value"], result.xp);
+    assert.equal(ledgerOf(alice).starts.length, 1, "and the start is recorded");
+    // Bob's ledger holds a fund, so a start for his character would raise it were the seat allowed.
+    const other = character("Other", bob);
+    seat(bob, other);
+    assert.ok(await recordLegacy(other, { kind: "reserve", gp: 1000, pay: false }));
+    warned.length = 0;
+    seat(alice, other);
+    assert.equal(await startFromLegacy(other, fallen), null, "a seat that does not own the successor starts nothing");
+    assert.equal(other.updates.length, 0, "its experience is not raised");
+    assert.equal(ledgerOf(bob).starts?.length ?? 0, 0, "and no start is recorded");
+    assert.deepEqual(warned, [], "refused for the seat, not for want of a grant");
+    assert.equal(await startFromLegacy(mine, null), null, "no prior, no start");
+  } finally {
+    unregisterTable("experience", { priority: PRIORITY.WORLD });
+    globalThis.game = saved.game;
+    globalThis.Hooks = saved.Hooks;
+    if (savedLib === undefined) delete ns.lib;
+    else ns.lib = savedLib;
+    for (const key of ["foundry", "CONST", "ui", "ChatMessage"]) {
+      if (saved[key] === undefined) delete globalThis[key];
+      else globalThis[key] = saved[key];
+    }
+  }
+});
+
 await atest("a class with no bands of its own takes its throws from the chassis class it names, at every level, and its own bands win when it has them", async () => {
   const { saveBandAt, attackBandAt, effectiveSaves, effectiveAttack } = await import("../scripts/classes/registry.mjs");
   const save = (minLevel, maxLevel, n) => ({ minLevel, maxLevel, paralysis: n, death: n + 1, blast: n + 2, implements: n + 3, spells: n + 4 });

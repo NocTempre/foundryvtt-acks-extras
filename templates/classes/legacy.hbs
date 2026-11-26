@@ -8,7 +8,7 @@
     {{else}}
     <p class="hint">{{localize "ACKS-CLASSES.legacy.noPlayerHint"}}</p>
     {{/if}}
-    {{#if isGM}}
+    {{#if canName}}
     <div class="form-group">
       <label>{{localize "ACKS-CLASSES.legacy.setPlayer"}}</label>
       <div class="form-fields">
@@ -35,7 +35,7 @@
         <th>{{localize "ACKS-CLASSES.legacy.col.gp"}}</th>
         <th>{{localize "ACKS-CLASSES.legacy.col.xp"}}</th>
         <th>{{localize "ACKS-CLASSES.legacy.col.note"}}</th>
-        {{#if @root.isGM}}<th aria-label="{{localize 'ACKS-CLASSES.legacy.delete'}}"></th>{{/if}}
+        {{#if @root.canLedger}}<th aria-label="{{localize 'ACKS-CLASSES.legacy.delete'}}"></th>{{/if}}
       </tr></thead>
       <tbody>
       {{#each entries}}
@@ -45,7 +45,7 @@
           <td>{{gp}}</td>
           <td>{{xp}}{{#if claimed}} <span class="hint">{{localize "ACKS-CLASSES.legacy.claimedBy" name=claimed}}</span>{{/if}}</td>
           <td>{{note}}</td>
-          {{#if @root.isGM}}<td><button type="button" class="icon fa-solid fa-trash" data-action="deleteEntry" data-entry-id="{{id}}" aria-label="{{localize 'ACKS-CLASSES.legacy.delete'}}" data-tooltip="{{localize 'ACKS-CLASSES.legacy.delete'}}"></button></td>{{/if}}
+          {{#if @root.canLedger}}<td><button type="button" class="icon fa-solid fa-trash" data-action="deleteEntry" data-entry-id="{{id}}" aria-label="{{localize 'ACKS-CLASSES.legacy.delete'}}" data-tooltip="{{localize 'ACKS-CLASSES.legacy.delete'}}"></button></td>{{/if}}
         </tr>
       {{/each}}
       </tbody>
@@ -55,7 +55,7 @@
     {{/if}}
   </fieldset>
 
-  {{#if isGM}}
+  {{#if canLedger}}
   <fieldset data-legacy-section>
     <legend>{{localize "ACKS-CLASSES.legacy.recordLegend"}}</legend>
     <div class="form-group">
@@ -73,7 +73,7 @@
     </div>
     <div class="form-fields">
       <button type="button" data-action="record" data-kind="reserve" {{#unless player}}disabled{{/unless}}><i class="fa-solid fa-coins" inert></i> {{localize "ACKS-CLASSES.legacy.recordReserve"}}</button>
-      <button type="button" data-action="record" data-kind="funeral" {{#unless player}}disabled{{/unless}}><i class="fa-solid fa-fire" inert></i> {{localize "ACKS-CLASSES.legacy.recordFuneral"}}</button>
+      {{#if isGM}}<button type="button" data-action="record" data-kind="funeral" {{#unless player}}disabled{{/unless}}><i class="fa-solid fa-fire" inert></i> {{localize "ACKS-CLASSES.legacy.recordFuneral"}}</button>{{/if}}
     </div>
     <p class="hint">{{localize "ACKS-CLASSES.legacy.recordHint"}}</p>
   </fieldset>

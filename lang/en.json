@@ -9763,6 +9763,7 @@
   "ACKS-CLASSES.legacy.kind.reserve": "Reserve",
   "ACKS-CLASSES.legacy.kind.funeral": "Funeral",
   "ACKS-CLASSES.legacy.noPlayer": "{name} has no player to keep a legacy for. Assign one in the Legacy window.",
+  "ACKS-CLASSES.legacy.funeralJudge": "A heroic funeral is recorded by the Judge.",
   "ACKS-CLASSES.legacy.nothingToGrant": "{name} already holds {xp} XP; the legacy would grant {grant}. Nothing changed.",
   "ACKS-CLASSES.legacy.heirGone": "The heir {name} no longer exists.",
   "ACKS-CLASSES.legacy.noVault": "No vault could be made for {name}, so nothing was paid and the will is not settled.",

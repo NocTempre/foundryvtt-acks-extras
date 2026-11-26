@@ -708,9 +708,15 @@ window; the Class tab's **Legacy** chip opens it, showing the player's fund
 when it holds any.
 
 - **The ledger is the player's.** It is a User flag (`legacy`: `entries`,
-  `starts`). A character feeds the ledger of the player the Judge named on it
-  (actor flag `legacyPlayer`), else its first non-GM owner. Only a GM writes
-  a ledger; a player reads their own.
+  `starts`). A character feeds the ledger of the player named on it by a seat
+  that owns it (actor flag `legacyPlayer`; a GM names any non-GM user, an owner
+  one of the character's own owners), else its first non-GM owner. The writes
+  follow Foundry's ownership (`canLedger`: the seat owns the character and may
+  update that User, which holds for the player themself and for a GM): the
+  reserve fund, a strike and a start are the owning player's or a GM's. A heroic
+  funeral stays the Judge's press (RR ch. 6, Heroic Funeral: whether a death
+  qualifies is the Judge's), so a non-GM seat draws no Record funeral and
+  `recordLegacy` refuses it with a notice.
 - **An entry records its experience when made**, `floor(gp × rate)` from the
   imported `experience.reserveRate` / `funeralRate`, so a later re-import
   never rewrites history. With "pay from the purse" the coin leaves the
@@ -722,12 +728,14 @@ when it holds any.
   prior character's experience (`startingXp`); a start that would not raise
   it is refused and claims nothing. The level-up wizard then climbs it.
 - **A will lives on the character** (actor flag `will`: heir, estate in gp,
-  note), written by the character's owner. Settling it is the Judge's: the
-  estate less `experience.bankFee` (rounded up to whole gp) is paid into the
-  heir's vault (the location feature's `payIntoVault`, which makes the vault
-  if the heir keeps none), and the will is marked settled so it pays once. A
-  vault that cannot be made refuses the settlement whole. The deceased's own
-  belongings are not moved.
+  note), written by the character's owner. Settling it is the Judge's press (RR
+  ch. 6, Inheritance names the Judge's permission), so `settleWill` reads
+  `isGM` and the window draws Settle estate on a GM seat only. The estate less
+  `experience.bankFee` (rounded up to whole gp) is paid into the heir's vault
+  (the location feature's `payIntoVault`, which makes the vault if the heir
+  keeps none), and the will is marked settled so it pays once. A vault that
+  cannot be made refuses the settlement whole. The deceased's own belongings
+  are not moved.
 
 ## Level-up
 

@@ -56,7 +56,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-16 — [A class answer is a document or nothing](DECISIONS-through-v11.14.5.md#2026-09-16--a-class-answer-is-a-document-or-nothing)
 - 2026-09-22 — [A class named in text loads the rows of that name, not the library](DECISIONS-through-v11.14.5.md#2026-09-22--a-class-named-in-text-loads-the-rows-of-that-name-not-the-library)
 - 2026-09-24 — [One builder of the training effect, and a CSV box is split after the model casts it](DECISIONS-through-v11.14.5.md#2026-09-24--one-builder-of-the-training-effect-and-a-csv-box-is-split-after-the-model-casts-it)
-- 2026-09-30 — [A legacy is the player's, kept on the User, written by the Judge](DECISIONS-through-v11.14.5.md#2026-09-30--a-legacy-is-the-players-kept-on-the-user-written-by-the-judge)
+- 2026-09-30 — [A legacy is the player's, kept on the User, written by the Judge](DECISIONS-through-v11.14.5.md#2026-09-30--a-legacy-is-the-players-kept-on-the-user-written-by-the-judge) — qualified in part 2026-11-25 (the entry of that date below: the reserve fund, a strike and a start follow Foundry's ownership, where this entry gave them to a GM seat; a funeral and a will's settling stay the Judge's)
 - 2026-09-30 — [The key-attribute adjustment is derived, and the Tweaks field outranks it](DECISIONS-through-v11.14.5.md#2026-09-30--the-key-attribute-adjustment-is-derived-and-the-tweaks-field-outranks-it)
 - 2026-09-25 — [A tradition's list narrows the picker, a level caps it, and a kept spell relinks](DECISIONS-through-v11.14.5.md#2026-09-25--a-traditions-list-narrows-the-picker-a-level-caps-it-and-a-kept-spell-relinks)
 - 2026-10-01 — [A will pays the heir's vault](DECISIONS-through-v11.14.5.md#2026-10-01--a-will-pays-the-heirs-vault)
@@ -148,3 +148,55 @@ This supersedes in part "a template naming a sword copies the imported Sword" in
 **Rejected.** Widening `plainNameMatch` to slash variants: a separate behaviour change, since it makes more entries link the base instead of minting a skin.
 
 *Cost.* A world that built packages since v2026.11.19 may hold both skins. Each bundle links a valid item, so nothing breaks, and no tool repairs them (owner, 2026-11-11: no repair tools for previous-version data). A plural-named skin minted before this change is not found by the new key either, so the next build mints the singular one beside it.
+
+## 2026-11-25 — A legacy's ledger follows Foundry's ownership; a funeral and a will's settling stay the Judge's (T-0792, B5)
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". On T-0793: "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular
+Player only gets ownership of the sheet itself and not subitems they don't own?
+In either case the approach is follow foundry permissions, don't invent new
+ones." Severity keeps reading the role ("players get blocks, judges get
+warnings"); permission reads ownership. The calls below are the release hub's
+(B5 decisions 6 and 7), made under the owner's instruction of the same day:
+"make the call yourself and build, as long as it follows the repo's design rules
+and has had a reasonable pass for these general principles: every value has a
+control, everything has a manual override or entry point, and nothing is buried
+in a hidden table."
+
+This supersedes in part "2026-09-30 — A legacy is the player's, kept on the User,
+written by the Judge" (archived in `DECISIONS-through-v11.14.5.md`): its "only a GM
+seat records into it" and its Rejected "A player recording their own entries".
+The rest of it stands: one ledger per player on the User, the imported
+percentages, pay in the same act, no item bequest, and "the Judge settles".
+
+- **The ledger follows ownership.** `recordLegacy` (the reserve fund),
+  `startFromLegacy` and the naming of a player need the seat to own the
+  character; the ledger's writes also need Foundry to let the seat update that
+  User (`canUserModify`: the User itself, or a GM). `deleteLegacyEntry` writes
+  only the User, so it needs only the second. The refusal comes before any coin
+  leaves a purse. The window draws a control on the same test (`canLedger`,
+  `canName`).
+- **A heroic funeral stays the Judge's press.** The builder's read of RR ch. 6,
+  Heroic Funeral: whether a death qualifies is left to the Judge's discretion.
+  That is printed procedure, not a module permission, so a non-GM seat gets no
+  Record funeral button and `recordLegacy` with a funeral refuses it with a
+  notice, severity reading the role.
+- **Settling a will stays the Judge's press.** RR ch. 6, Inheritance names the
+  Judge's permission for an heir and a will. A control for the deceased's owner
+  that asks the Judge to settle is a ROADMAP row, not built.
+
+**Evidence.** The builder's read of RR ch. 6, Reserve XP Fund: the section names
+no Judge act, and its worked example has the player note the fund. The 2026-09-30
+"Why" held that what counts as spending to no tangible benefit is a Judge's
+ruling; the section it cites does not say so. The entry was a session ruling
+(2026-09-30) and was 56 days old.
+
+**Rejected.** Keeping every write on the GM seat: it reads a role where the page
+names none, for the reserve fund. Opening the funeral and the settling to
+ownership too: each leaves the decision to the Judge in print.
+
+*Cost.* A player's seat records, strikes and starts with no Judge in the loop.
+The Judge's check is the ledger, which their window shows, and the whisper each
+entry sends them.

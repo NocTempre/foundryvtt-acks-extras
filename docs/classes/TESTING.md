@@ -1409,6 +1409,11 @@ coin) and "Successor", both OWNER for the Player seat; a third, "Heir". The
 ledger lives on the Player User: record its `legacy` flag before the run and
 restore exactly that value at teardown — the User is a world seat, not a
 fixture, so this one write is restored rather than swept.
+`tools/live/classes-legacy.mjs` walks steps 2 (the reserve only), 4 and 6 to 9
+from the two seats, with the fixtures it keeps under the markers
+`classes/legacy-dead` (with a will naming the heir) and `classes/legacy-next`
+(both owned by the Player), `classes/legacy-heir` and `classes/legacy-foreign`
+(only observed, naming the Player as its player, holding coin).
 
 1. Open Fallen's sheet, Class tab. *Observable:* a **Legacy** chip; the window
    names the Player seat as the player.
@@ -1430,8 +1435,28 @@ fixture, so this one write is restored rather than swept.
    Heir kept none: `api.track` it), Heir's own purse is unchanged, no row's
    `system.quantitybank` moved, and the card says "in their vault"; the will
    reads settled, and the window offers no settle control after it.
-6. **As the Player seat** (a real join): Fallen's Legacy window shows the
-   ledger and the will form, and no record, start, strike or settle control.
+6. **As the Player seat** (a real join, who owns Fallen and Successor): the
+   Legacy window from Fallen's Class tab draws the select (the Player alone), the
+   Record reserve and Start sections and a delete button on each ledger row,
+   and no Record funeral and no Settle estate. *Observables:* **Record reserve**
+   with pay on lowers Fallen's coin by the gp, adds the entry to the Player's
+   `legacy` flag and whispers the Judges and the Player; Successor's window
+   **Start** raises its experience to the grant the ledger gives and adds a
+   `starts` row; the delete button removes the entry from the flag; **Name the
+   player** writes Fallen's `legacyPlayer`.
+7. Still as the Player: `acksExtras.classes.legacy.record(fallen, {kind:
+   "funeral", gp, pay: true})` returns null, raises the funeral notice, writes
+   no entry and lowers no coin; `settleWill(fallen)`, over a will that names an
+   heir (needs `experience.bankFee` imported), returns null and leaves the
+   will as it was.
+8. A character the Player only observes and that feeds the Player's ledger:
+   the window shows the ledger's rows and no select, Record, Start, delete
+   column, Save will or Settle; `record` on it writes nothing, pays nothing
+   and raises no notice.
+9. As the GM seat: the window draws the select (every non-GM user), both
+   Record buttons, Start and Settle estate, and a funeral recorded through the
+   API writes one entry. A second non-GM seat striking the Player's entry is
+   refused (`tools/test-classes.mjs` covers it; the world has one Player seat).
 
 **Teardown.** Delete the fixture actors and every card the run posted by the
 ids read back as each resolved; set the Player User's `legacy` flag back to

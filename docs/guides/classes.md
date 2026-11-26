@@ -272,20 +272,25 @@ The **Legacy** chip on the character sheet's Class tab opens the player's legacy
 Experience). The fund belongs to the player, so every character that player
 owns shows the same ledger; the chip shows the fund once it holds anything.
 
-- **Recording (Judge).** Enter the gold a character spent, choose **Into the
-  reserve** or **Heroic funeral**, and the ledger records the experience it is
-  worth at the imported rate. Leave "pay from the purse" on to take the coin
-  from the character at the same time. A mistaken row can be struck.
-- **Starting a character (Judge).** On the new character's window, pick the
+- **Recording the reserve (the player).** On a character you own, enter the gold
+  it spent and press **Into the reserve**: the ledger records the experience it
+  is worth at the imported rate. Leave "pay from the purse" on to take the coin
+  from the character at the same time. You can strike a mistaken row. A Judge
+  can do all of this on any character.
+- **A heroic funeral (the Judge).** Whether a death earns one is the Judge's
+  call, so only a Judge's window has **Heroic funeral**.
+- **Starting a character (the player).** On the new character's window, pick the
   character they follow and press **Start**: their experience rises to the
   figure shown, and any funeral used is marked claimed. The level-up button
   then climbs them.
 - **A will.** The character's owner names an heir and an estate; the Judge
   settles it when the time comes, and the heir's vault receives the estate less
   the bank's charge. An heir with no vault is given one
-  ([Places and storage](location.md#give-a-character-a-vault)).
-- **A character nobody owns** (a Judge's back-up character) needs a player
-  assigned at the top of the window before anything records.
+  ([Places and storage](location.md#give-a-character-a-vault)). Only a Judge's
+  window has **Settle estate**.
+- **Naming the player.** A character nobody owns (a Judge's back-up character)
+  needs a player assigned at the top of the window before anything records. An
+  owner can name one of the character's own owners there, and a Judge any player.
 
 Import the rules tables once so the rates are read from your book; until then
 nothing records.

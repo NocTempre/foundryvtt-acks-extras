@@ -4,9 +4,13 @@
  * ledger kept on the PLAYER's User, a will kept on the character, the writes
  * that record into them, and the window that shows both.
  *
- * Every ledger write is the Judge's — a GM seat writes any User — so a player
- * reads their own ledger and records nothing into it. A will is the
- * character's owner's to write; settling it is the Judge's.
+ * A ledger write follows Foundry's own permissions: a User writes its own flags
+ * and a GM writes any, so the seat that owns the character may record the
+ * reserve fund, strike an entry and start a character from it for the player
+ * whose ledger it is. A heroic funeral and the settling of a will stay the
+ * Judge's presses, since the printed procedure leaves each to the Judge
+ * (RR ch. 6, Heroic Funeral and Inheritance). A will is the character's
+ * owner's to write.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
@@ -37,14 +41,20 @@ export function legacyRates() {
 }
 
 /**
- * The player whose ledger a character feeds: the one the Judge named on it,
- * else the first non-GM owner, else null.
+ * The player whose ledger a character feeds: the one named on it (by whoever
+ * owns the character), else the first non-GM owner, else null.
  */
 export function playerOf(actor) {
   const named = game.users.get(actor?.getFlag?.(MODULE_ID, FLAG_LEGACY_PLAYER) ?? "");
   if (named) return named;
   return game.users.find((u) => !u.isGM && actor?.testUserPermission?.(u, CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER)) ?? null;
 }
+
+/**
+ * Whether this seat may write `user`'s ledger on behalf of `actor`: it owns the
+ * character and Foundry lets it update that User (the User itself, or a GM).
+ */
+const canLedger = (actor, user) => !!user && !!actor?.isOwner && user.canUserModify(game.user, "update");
 
 /** A user's ledger, never null. */
 export const ledgerOf = (user) => foundry.utils.deepClone(user?.getFlag(MODULE_ID, FLAG_LEGACY) ?? { entries: [], starts: [] });
@@ -107,11 +117,14 @@ function announce(user, content, actor = null) {
  * @returns {Promise<object|null>} the entry, or null when refused
  */
 export async function recordLegacy(actor, { kind, gp, note = "", pay = false } = {}) {
-  if (!game.user.isGM) return null;
   const user = playerOf(actor);
   const rate = kind === LEGACY_KIND.funeral ? legacyRates().funeral : legacyRates().reserve;
   const amount = Math.max(0, Math.floor(Number(gp) || 0));
   if (!user) return refuse("noPlayer", { name: actor.name });
+  // Refused before any coin leaves the purse.
+  if (!canLedger(actor, user)) return null;
+  // Whether a death earns a funeral is left to the Judge (RR ch. 6, Heroic Funeral).
+  if (kind === LEGACY_KIND.funeral && !game.user.isGM) return refuse("funeralJudge", { name: actor.name });
   if (rate == null || !amount) return null;
   return serial(user.id, async () => {
     if (pay && !(await spendGold(actor, amount, loc(kind === LEGACY_KIND.funeral ? "kind.funeral" : "kind.reserve"), { chat: false, gate: false }))) return null;
@@ -133,9 +146,12 @@ export async function recordLegacy(actor, { kind, gp, note = "", pay = false } =
   });
 }
 
-/** Strike one entry from a player's ledger (a Judge's correction). */
+/**
+ * Strike one entry from a player's ledger. The strike writes only the User, so
+ * it is the seat Foundry lets update that User: the player themself, or a GM.
+ */
 export async function deleteLegacyEntry(user, entryId) {
-  if (!game.user.isGM || !user) return false;
+  if (!user?.canUserModify(game.user, "update")) return false;
   return serial(user.id, async () => {
     const ledger = ledgerOf(user);
     const before = ledger.entries?.length ?? 0;
@@ -154,9 +170,10 @@ export async function deleteLegacyEntry(user, entryId) {
  * @returns {Promise<object|null>} the `startingXp` result, or null when refused
  */
 export async function startFromLegacy(actor, prior) {
-  if (!game.user.isGM || !prior) return null;
+  if (!prior) return null;
   const user = playerOf(actor);
   if (!user) return refuse("noPlayer", { name: actor.name });
+  if (!canLedger(actor, user)) return null;
   return serial(user.id, async () => {
     const ledger = ledgerOf(user);
     const result = startingXp(ledger, prior.system?.details?.xp?.value);
@@ -197,6 +214,7 @@ export async function saveWill(actor, { heirUuid = "", estateGp = 0, note = "" }
  * @returns {Promise<object|null>} `{fee, net}`, or null when refused
  */
 export async function settleWill(actor) {
+  // The Judge's press: the printed procedure names the Judge's permission (RR ch. 6, Inheritance).
   if (!game.user.isGM) return null;
   return serial(`will:${actor.uuid}`, async () => {
     const will = actor.getFlag(MODULE_ID, FLAG_WILL);
@@ -270,12 +288,16 @@ export class LegacyApp extends HandlebarsApplicationMixin(ApplicationV2) {
       : [];
     const will = actor.getFlag(MODULE_ID, FLAG_WILL) ?? {};
     const settle = rates.bankFee == null ? null : settleEstate(will.estateGp, rates.bankFee);
+    // A GM names any non-GM user; an owner names one of the character's own owners.
+    const namable = game.users.filter((u) => !u.isGM && (isGM || actor.testUserPermission(u, "OWNER")));
     return {
       isGM,
+      canLedger: canLedger(actor, user),
+      canName: !!actor.isOwner,
       canWill: actor.isOwner,
       actorName: actor.name,
       player: user ? { id: user.id, name: user.name } : null,
-      players: isGM ? game.users.filter((u) => !u.isGM).map((u) => ({ id: u.id, name: u.name, selected: u.id === user?.id })) : [],
+      players: namable.map((u) => ({ id: u.id, name: u.name, selected: u.id === user?.id })),
       rates,
       fund: totals.fund,
       funerals: totals.funerals,
@@ -340,7 +362,7 @@ export class LegacyApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async #onSetPlayer(_event, target) {
     const id = this.#read(target, "player");
-    if (!game.user.isGM || !id) return;
+    if (!this.actor.isOwner || !id) return;
     await this.actor.setFlag(MODULE_ID, FLAG_LEGACY_PLAYER, id);
     this.render();
   }

@@ -188,3 +188,9 @@ built.
 - **The class-level-cap walk's literal points.** `tools/live/classes-level-cap.mjs`
   asserts printed point figures as literals; it wants them read from the
   imported table.
+
+## A press that asks the Judge to settle a will
+
+Settling a will is the Judge's press (docs/classes/DECISIONS.md, 2026-11-25), so
+the deceased's owner has no control for it. A button on the Legacy window for
+that owner, asking the Judge to settle, is not built.
