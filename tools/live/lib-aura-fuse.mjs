@@ -1,7 +1,8 @@
 /**
  * Live walk, lib/aura-fuse: the fuse item (a beastman's E2 shape) through its use,
  * its cards and its burst, on the GM seat and a real Player seat together.
- * Walks docs/lib/TESTING.md, "S9a: E2, the fuse item", steps 1 to 13.
+ * Walks docs/lib/TESTING.md, "S9a: E2, the fuse item", steps 1 to 13, and "S9c: Light and Lit,
+ * Swigs left, the Judge's call", step 6b (the bearer's sheet row and the Token HUD).
  * Machine values arrive through ./_env.mjs.
  *
  * WRITTEN FROM THE CODE AND NOT YET RUN. Every assertion below follows
@@ -362,6 +363,46 @@ const P = {
   started: () => !!game.combat?.started,
   advance: async ({ seconds }) => { await game.time.advance(seconds); await globalThis.__laf.sleep(1200); return game.time.worldTime; },
 
+  /** Write an item's stack size. */
+  setQuantity: async ({ uuid, quantity }) => { await fromUuidSync(uuid).update({ "system.quantity": quantity }); await globalThis.__laf.sleep(500); return true; },
+
+  /** An item's row as the bearer's sheet says it: the row model the sheet is given, and the DOM's tag and presses, read on a fresh render of the sheet's tab. */
+  rowRead: async ({ actorUuid, itemUuid, tab }) => {
+    const H = globalThis.__laf;
+    const V = await import("/modules/acks-extras/scripts/lib/item-run-row-view.mjs");
+    const item = fromUuidSync(itemUuid);
+    const sheet = fromUuidSync(actorUuid).sheet;
+    await sheet.render({ force: true });
+    await H.until(() => sheet.rendered && sheet.element, 8000);
+    if (tab) { try { await sheet.changeTab(tab, "primary", { force: true }); } catch { /* the sheet has no such tab */ } }
+    await H.sleep(700);
+    const txt = (n) => (n?.textContent ?? "").replace(/\s+/g, " ").trim();
+    const model = V.itemRunRowFor(item);
+    const run = sheet.element?.querySelector?.(`[data-item-id="${item.id}"] .acks-extras-run`) ?? null;
+    const tag = run?.querySelector?.(".acks-tag") ?? null;
+    return {
+      model: model ? { state: model.state, tag: { label: model.tag.label, tip: model.tag.tip ?? "" }, presses: model.presses.map((p) => ({ key: p.key, label: p.label, disabled: p.disabled })) } : null,
+      dom: run ? { state: run.dataset.runState ?? "", tag: txt(tag), tagTip: tag?.dataset.tooltipText ?? "", presses: [...run.querySelectorAll('button[data-action="itemRunPress"]')].map((b) => ({ press: b.dataset.press ?? null, label: b.getAttribute("aria-label") ?? "", text: txt(b), uuid: b.dataset.itemUuid ?? "" })) } : null,
+    };
+  },
+  closeSheet: async ({ uuid }) => { try { await fromUuidSync(uuid).sheet.close({ animate: false }); } catch { /* closed */ } return true; },
+
+  /** Open the Token HUD on a token and read its item controls (each one's accessible name). */
+  hud: async ({ tokenUuid }) => {
+    const H = globalThis.__laf;
+    const tok = fromUuidSync(tokenUuid)?.object;
+    if (!tok) return { ok: false, reason: "no token on this seat's canvas", controls: [] };
+    try { tok.control({ releaseOthers: true }); } catch { /* the bind below still names the token */ }
+    const bind = canvas.hud.bind ? canvas.hud : canvas.hud.token;
+    await bind.bind(tok);
+    const hud = canvas.hud.token;
+    await H.until(() => hud.rendered && hud.element, 6000);
+    await H.sleep(500);
+    const controls = [...(hud.element?.querySelectorAll?.(".acks-extras-item-hud") ?? [])].map((b) => ({ label: b.getAttribute("aria-label") ?? "", active: b.classList.contains("active") }));
+    return { ok: true, controls };
+  },
+  hudClose: () => { try { canvas.hud.clear(); } catch { /* none open */ } return true; },
+
   /** The Judges' whispered lines naming an item and a bearer since a moment. */
   whispers: ({ since, item, bearer }) => game.messages.filter((m) => Number(m.timestamp) >= since && (m.whisper ?? []).length && !m.flags?.["acks-extras"]?.itemRunCard && String(m.content).includes(item) && String(m.content).includes(bearer)).map((m) => ({ id: m.id, to: [...m.whisper].sort() })),
   deleteToken: async ({ uuid }) => { await fromUuidSync(uuid).delete(); await globalThis.__laf.sleep(1500); return true; },
@@ -633,6 +674,49 @@ try {
     const told = await gmRun(P.whispers, { since, item: "Aura Fuse Disposable Item", bearer: "Aura Fuse Disposable" });
     check("6 one line is whispered to the Judges alone, naming the item and the bearer", told.length === 1 && same(told[0]?.to, await gmRun(P.judges)), told);
     check("6 no body took damage and the item was not used up", same(hpBefore, [await gmRun(P.hp, { tokenUuid: T.N.uuid }), await gmRun(P.hp, { tokenUuid: T.P.uuid })]) && (await gmRun(P.quantity, { uuid: item.uuid })) === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  await step("6b", async () => {
+    section("6b Light and Lit: the bearer's sheet row and the Token HUD");
+    await reset({ quantity: 1 });
+    const fmt = (key, data) => gmRun((a) => globalThis.__laf.fmt(a.key, a.data), { key, data });
+    const hud = async () => { const h = await gmRun(P.hud, { tokenUuid: T.B.uuid }); await gmRun(P.hudClose); return h; };
+    const row = () => gmRun(P.rowRead, { actorUuid: A.B.uuid, itemUuid: I.item.uuid, tab: "inventory" });
+    const wantHud = await fmt("ACKS-LIB.itemRun.hud.light", { item: ITEM_NAME });
+    const hasHud = (h) => h.ok && h.controls.some((c) => c.label === wantHud);
+
+    // Ready: a stack of one, nothing burning.
+    const r0 = await row();
+    check("6b before the light the row is ready and offers one press, Light, labelled with the localized press.light", r0.model?.state === "ready" && r0.model.presses.length === 1 && r0.model.presses[0].key === "light" && r0.model.presses[0].label === W.light && r0.model.presses[0].disabled === false, r0.model);
+    const d0 = r0.dom?.presses.filter((p) => p.uuid === I.item.uuid) ?? [];
+    check("6b the sheet draws that one button: press light, its accessible name the Light word", r0.dom?.state === "ready" && d0.length === 1 && d0[0].press === "light" && d0[0].label === W.light, r0.dom);
+    const h0 = await hud();
+    check("6b the Token HUD draws a control for the fuse whose accessible name is '{item} · Light' and ends with the Light word", hasHud(h0) && wantHud.endsWith(W.light), { want: wantHud, controls: h0.controls, ok: h0.ok });
+
+    // Lit, a stack of one: no spare to light.
+    const r = await useItem(I.item, DIE.top);
+    const card = await gmRun(P.card, { id: r.messageId });
+    const count = card.fuse?.count;
+    check("6b the light took (a fuse lit on the world clock, a count of rounds)", card.outcome === "lit" && card.fuse?.combat === false && count >= 1, { outcome: card.outcome, fuse: card.fuse });
+    const litTag = await fmt("ACKS-LIB.itemRun.strip.tag.lit", { n: count });
+    const litTip = await fmt("ACKS-LIB.itemRun.strip.tagTip.lit", { n: count });
+    const r1 = await row();
+    check("6b lit on a stack of one the row model reads lit, its tag naming the rounds left, and offers no press", r1.model?.state === "lit" && r1.model.tag.label === litTag && r1.model.presses.length === 0, { model: r1.model, want: litTag });
+    check("6b the sheet reads the same: state lit, the tag's text naming the rounds, its tooltip set, and no press drawn for the item", r1.dom?.state === "lit" && r1.dom.tag === litTag && r1.dom.tagTip === litTip && r1.dom.presses.filter((p) => p.uuid === I.item.uuid).length === 0, r1.dom);
+    const h1 = await hud();
+    check("6b the HUD draws no control for the burning fuse with no spare, and still draws the other fuse item's", h1.ok && !hasHud(h1) && h1.controls.some((c) => c.label.startsWith(BLANK_NAME)), { want: wantHud, controls: h1.controls, ok: h1.ok });
+
+    // Lit, a stack of two: a spare.
+    await gmRun(P.setQuantity, { uuid: I.item.uuid, quantity: 2 });
+    const r2 = await row();
+    check("6b with the stack raised to 2 while one burns the row is still lit and Light is offered again", r2.model?.state === "lit" && r2.model.presses.length === 1 && r2.model.presses[0].key === "light" && r2.model.presses[0].label === W.light, r2.model);
+    const d2 = r2.dom?.presses.filter((p) => p.uuid === I.item.uuid) ?? [];
+    check("6b the sheet draws the Light button beside the lit tag", r2.dom?.state === "lit" && r2.dom.tag === litTag && d2.length === 1 && d2[0].press === "light" && d2[0].label === W.light, r2.dom);
+    const h2 = await hud();
+    check("6b the HUD's Light control for the item is back", hasHud(h2), { want: wantHud, controls: h2.controls, ok: h2.ok });
+    await gmRun(P.closeSheet, { uuid: A.B.uuid });
+    await reset();
   });
 
   /* ---------------------------------------------------------------- */

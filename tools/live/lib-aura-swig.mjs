@@ -2,7 +2,8 @@
  * Live walk, lib/aura-swig: a consumable's swig (a beastman's grog), a hit with
  * on-hit ammunition, and the grog's breakage, on the GM seat and a real Player
  * seat together. Walks docs/lib/TESTING.md, "S9b-2: E5 the swig, E8 on-hit, E5
- * breakage", steps 1 to 8. Machine values arrive through ./_env.mjs.
+ * breakage", steps 1 to 8, and "S9c: Light and Lit, Swigs left, the Judge's call", steps 9
+ * and 10 and the leftFrom checks in step 6. Machine values arrive through ./_env.mjs.
  *
  * WRITTEN FROM THE CODE AND NOT YET RUN. Every assertion below follows
  * scripts/lib/item-run.mjs (`runConsume`, `swigOutcomeWriter`, `swigHeal`,
@@ -256,6 +257,7 @@ const P = {
       healed: card("healed"), saved: card("saved"), failed: card("failed"), undone: card("undone"), undo: card("undo"), heal: card("heal"), askSave: card("askSave"),
       unknownNote: card("unknownNote"), unknownNoteOther: card("unknownNoteOther"), unknownHealBlank: card("unknownHealBlank"), whyFigure: card("why.figure"),
       refusedSpent: L("ACKS-LIB.itemRun.refused.spent"),
+      declared: card("declared"), declarePass: card("declarePass"), declareFail: card("declareFail"), noSaveLine: card("noSaveLine"), refusedNotOwner: L("ACKS-LIB.itemRun.refused.notOwner"),
     };
 
     try { if (!ui.chat?.rendered) { await ui.hotbar?.render?.({ force: true }); await ui.chat.render({ force: true }); } } catch { /* the walk finds out when it looks for a card */ }
@@ -358,7 +360,7 @@ const P = {
       drinkerActorUuid: c.drinkerActorUuid ?? "", drinkerTokenUuid: c.drinkerTokenUuid ?? "",
       formula: c.formula ?? null, delayTurns: c.delayTurns ?? null, source: c.source ?? "", struckAt: c.struckAt ?? null,
       subjects: Object.values(c.subjects ?? {}).map((s) => ({ uuid: s.uuid, name: s.name })),
-      entries: Object.entries(c.entries ?? {}).map(([key, e]) => ({ key, subject: e.subject, state: e.state, saved: e.saved ?? null, total: e.total ?? null, target: e.target ?? null, amount: e.amount ?? null, hp: e.hp ?? [], recordIds: e.recordIds ?? [], names: e.names ?? [], life: e.life ?? "", why: e.why ?? "", presser: e.presser ?? "" })),
+      entries: Object.entries(c.entries ?? {}).map(([key, e]) => ({ key, subject: e.subject, state: e.state, saved: e.saved ?? null, declared: e.declared === true, total: e.total ?? null, target: e.target ?? null, amount: e.amount ?? null, hp: e.hp ?? [], recordIds: e.recordIds ?? [], names: e.names ?? [], life: e.life ?? "", why: e.why ?? "", presser: e.presser ?? "" })),
     };
   },
 
@@ -387,7 +389,7 @@ const P = {
   activation: ({ uuid }) => {
     const i = fromUuidSync(uuid);
     const a = i?.flags?.["acks-extras"]?.itemRun?.activation;
-    return { exists: !!i, left: a?.left ?? null, bearerUuid: a?.bearerUuid ?? "" };
+    return { exists: !!i, left: a?.left ?? null, leftFrom: a?.leftFrom ? foundry.utils.deepClone(a.leftFrom) : null, bearerUuid: a?.bearerUuid ?? "" };
   },
   actorItems: ({ uuid }) => [...(fromUuidSync(uuid)?.items ?? [])].map((i) => ({ uuid: i.uuid, name: i.name })),
   /** What an actor holds as effects, with the carrier's flags. */
@@ -422,7 +424,7 @@ const P = {
       if (die !== null) H.unrig();
     }
     const a = made.flags?.["acks-extras"]?.itemRun?.activation;
-    return { uuid: made.uuid, left: a?.left ?? null, bearerUuid: a?.bearerUuid ?? "" };
+    return { uuid: made.uuid, left: a?.left ?? null, leftFrom: a?.leftFrom ? foundry.utils.deepClone(a.leftFrom) : null, bearerUuid: a?.bearerUuid ?? "" };
   },
 
   /** Mark a body defeated by the token HUD's status control, as a user does; the status written by the actor's own toggle where the control is not found. */
@@ -523,6 +525,53 @@ const P = {
     }
   },
 
+  /* ---- the sheets' "Swigs left" box ---- */
+
+  /** Whether this seat owns a document by Foundry's own test, and at what level. */
+  owns: ({ uuid }) => { const d = fromUuidSync(uuid); return { owner: d?.isOwner === true, level: d?.getUserLevel?.(game.user) ?? null }; },
+  /** Write the drink flag of an item (merged), so a step can blank one figure. */
+  setDrink: async ({ uuid, drink }) => { await fromUuidSync(uuid).update({ "flags.acks-extras.drink": drink }); return true; },
+  /** Open an actor's sheet on a tab and wait for its element; a tab the sheet lacks is not an error. */
+  openSheet: async ({ uuid, tab }) => {
+    const H = globalThis.__las;
+    const sheet = fromUuidSync(uuid).sheet;
+    await sheet.render({ force: true });
+    await H.until(() => sheet.rendered && sheet.element, 8000);
+    let changed = null;
+    if (tab) { try { await sheet.changeTab(tab, "primary", { force: true }); changed = true; } catch (e) { changed = String(e?.message ?? e); } }
+    await H.sleep(700);
+    return { rendered: !!sheet.rendered, sheet: sheet.constructor.name, changed };
+  },
+  closeSheet: async ({ uuid }) => { try { await fromUuidSync(uuid).sheet.close({ animate: false }); } catch { /* closed */ } return true; },
+  /** The "Swigs left" boxes an open actor sheet draws (each with its item, text, tooltip and whether it is wired) and the item uuids of the Use presses it draws. */
+  leftBoxes: ({ uuid }) => {
+    const sheet = fromUuidSync(uuid).sheet;
+    const el = sheet.element;
+    const txt = (n) => (n?.textContent ?? "").replace(/\s+/g, " ").trim();
+    return {
+      rendered: !!sheet.rendered,
+      boxes: [...(el?.querySelectorAll?.("input[data-acks-extras-run-left]") ?? [])].map((i) => ({ itemUuid: i.dataset.itemUuid ?? "", value: i.value, tip: i.dataset.tooltipText ?? "", wired: i.dataset.wired === "1", label: txt(i.closest("label")) })),
+      presses: [...(el?.querySelectorAll?.('button[data-action="itemRunPress"]') ?? [])].map((b) => b.dataset.itemUuid ?? ""),
+    };
+  },
+  /** Type into an item's box as a user does: the text is set and a real `change` event is dispatched on the input; false where no such box is drawn. */
+  typeLeft: async ({ uuid, itemUuid, text }) => {
+    const H = globalThis.__las;
+    const input = [...(fromUuidSync(uuid).sheet.element?.querySelectorAll?.("input[data-acks-extras-run-left]") ?? [])].find((i) => i.dataset.itemUuid === itemUuid);
+    if (!input) return false;
+    input.value = text;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await H.sleep(900);
+    return true;
+  },
+  /** The sheet's own write for the box, called with a box-shaped stand-in where this seat's sheet draws none; answers whether anything was written. */
+  writeLeft: async ({ itemUuid, text }) => {
+    const V = await import("/modules/acks-extras/scripts/lib/item-run-row-view.mjs");
+    const input = { dataset: { itemUuid }, value: text };
+    const done = await V.writeRunLeft(input);
+    return { written: !!done, boxText: input.value };
+  },
+
   /** The cards this page posted that the walk may claim: they carry a fixture item or name one. */
   claim: ({ itemUuids, names }) => {
     const out = [];
@@ -582,7 +631,7 @@ async function step(name, fn) {
 async function reset({ own = {}, left = {}, hp = HP } = {}) {
   const actors = Object.entries(ROLES).map(([k, r]) => ({ uuid: A[k].uuid, owned: own[k] ?? !!r.owned, hp, max: MAXHP, save: SAVE_TARGET, types: r.types }));
   const tokens = Object.keys(ROLES).map((k) => ({ uuid: T[k].uuid, x: ROLES[k].at[0], y: ROLES[k].at[1] }));
-  const items = Object.entries(GROGS).map(([k, g]) => ({ uuid: I[k].uuid, patch: { "flags.acks-extras.cookbook.cite": ITEM_CITE, "flags.acks-extras.drink": drinkOf(g.blank), "flags.acks-extras.itemRun.activation.kind": "consume", "flags.acks-extras.itemRun.activation.uses": ref("swig", "swigs"), "flags.acks-extras.itemRun.activation.left": left[k] ?? null, "flags.acks-extras.itemRun.activation.bearerUuid": A[g.role].uuid, "system.quantity": 1 } }));
+  const items = Object.entries(GROGS).map(([k, g]) => ({ uuid: I[k].uuid, patch: { "flags.acks-extras.cookbook.cite": ITEM_CITE, "flags.acks-extras.drink": drinkOf(g.blank), "flags.acks-extras.itemRun.activation.kind": "consume", "flags.acks-extras.itemRun.activation.uses": ref("swig", "swigs"), "flags.acks-extras.itemRun.activation.left": left[k] ?? null, "flags.acks-extras.itemRun.activation.leftFrom": null, "flags.acks-extras.itemRun.activation.bearerUuid": A[g.role].uuid, "system.quantity": 1 } }));
   items.push({ uuid: I.ammo.uuid, patch: { "system.quantity": AMMO, "flags.acks-extras.cookbook.cite": ITEM_CITE, "flags.acks-extras.onHit": { ...ONHIT }, "flags.acks-extras.nocked": true } });
   const out = await gmRun(P.reset, { view: S.scene, actors, tokens, items, playerId: S.playerId, cond: COND });
   if (!out.viewing || out.warnings.length) check("the fixtures reset to a step's start shape", false, out);
@@ -860,7 +909,7 @@ try {
     await sleep(2500);
     const firstItems = await gmRun(P.actorItems, { uuid: first.uuid });
     const fa = firstItems[0] ? await gmRun(P.activation, { uuid: firstItems[0].uuid }) : null;
-    check("an actor created with the grog stamps it with its own uuid and rolls no count", firstItems.length === 1 && fa?.bearerUuid === first.uuid && fa.left === null, { items: firstItems.length, activation: fa });
+    check("an actor created with the grog stamps it with its own uuid and rolls no count, so no provenance is stored either", firstItems.length === 1 && fa?.bearerUuid === first.uuid && fa.left === null && fa.leftFrom === null, { items: firstItems.length, activation: fa });
 
     const recipient = await gm.create("Actor", { name: "Aura Swig Recipient", type: "monster", prototypeToken: { actorLink: true } });
     disposables.push(recipient.uuid);
@@ -869,13 +918,20 @@ try {
     disposables.push(gm.track(dragged.uuid, "Item"));
     note("6 the count rolled for the drag (a 1d3 swig count)", dragged.left);
     check("the grog copied from its bearer onto another actor, as a drop does, is stamped with the new actor and rolled its count once, within the swig dice's faces", dragged.bearerUuid === recipient.uuid && Number.isInteger(dragged.left) && dragged.left >= 1 && dragged.left <= 3, dragged);
+    const from = dragged.leftFrom;
+    check("the roll is recorded where the count is: leftFrom is a roll, its formula the swig dice and its total a whole number equal to the count", from?.by === "roll" && /^1d3$/i.test(String(from.formula ?? "").replace(/\s+/g, "")) && Number.isInteger(from.total) && from.total === dragged.left, { leftFrom: from, left: dragged.left });
+    const opened = await gmRun(P.openSheet, { uuid: recipient.uuid, tab: "inventory" });
+    const boxes = await gmRun(P.leftBoxes, { uuid: recipient.uuid });
+    const box = boxes.boxes.find((b) => b.itemUuid === dragged.uuid);
+    check("the recipient's sheet draws the Swigs left box with the rolled count, and its tooltip names the total, the formula and the page", opened.rendered === true && !!box && box.value === String(dragged.left) && box.tip.includes(String(from?.total)) && box.tip.includes(String(from?.formula)) && box.tip.includes(ITEM_CITE), { opened, box });
+    await gmRun(P.closeSheet, { uuid: recipient.uuid });
     const afterSource = await activation(I.bearer);
     check("the copy leaves its source alone (a drop is driven as a copy; whether a real drop copies or moves is the walker's to see): still stamped with the bearer and its count as it was", afterSource.bearerUuid === before.bearerUuid && afterSource.left === before.left, { before, afterSource });
 
     await gmRun(async (a) => { await fromUuidSync(a.uuid).update({ "flags.acks-extras.itemRun.activation.left": 2 }); return true; }, { uuid: I.bearer.uuid });
     const kept = await gmRun(P.handOn, { sourceUuid: I.bearer.uuid, actorUuid: recipient.uuid, die: DIE.top });
     disposables.push(gm.track(kept.uuid, "Item"));
-    check("a part-drunk grog copied on keeps its count (2) and takes the new bearer's stamp", kept.bearerUuid === recipient.uuid && kept.left === 2, kept);
+    check("a part-drunk grog copied on keeps its count (2) and takes the new bearer's stamp, and no roll is recorded for it", kept.bearerUuid === recipient.uuid && kept.left === 2 && kept.leftFrom === null, kept);
   });
 
   /* ---------------------------------------------------------------- */
@@ -975,10 +1031,144 @@ try {
     check("a passed Save writes nothing: the entry reads saved with no record and the target holds no delayed damage", passed.found && ep?.saved === true && ep.recordIds.length === 0 && (await effectsOf("X")).filter((e) => e.delayed).length === 0, { entry: ep });
   });
 
+  /* ---------------------------------------------------------------- */
+  await step("9", async () => {
+    begin("9", "Swigs left: the box on an owner's sheet, a hand's write, a blank, an invalid entry, and a seat that does not own the item");
+    const uuid = A.U.uuid;
+    const item = I.unknown.uuid;
+    const rollTip = (total, formula) => fmt("ACKS-LIB.itemRun.row.leftTipRolled", { total, formula, cite: ITEM_CITE });
+    const handTip = () => fmt("ACKS-LIB.itemRun.row.leftTipHand");
+    const blankTip = () => fmt("ACKS-LIB.itemRun.row.leftTipBlank", { cite: ITEM_CITE });
+    const boxOn = async (run, actorUuid) => (await run(P.leftBoxes, { uuid: actorUuid })).boxes.find((b) => b.itemUuid === item) ?? null;
+    const stored = async (want, ms = 6000) => (await until(async () => { const a = await activation(I.unknown); return want(a) ? a : null; }, ms, 400)) ?? activation(I.unknown);
+    /** Type into the box on the Player's seat, as a user does, and answer the item's stored count and provenance once `want` holds (or after the wait). */
+    const typeAs = async (text, want, ms) => { const typed = await plRun(P.typeLeft, { uuid, itemUuid: item, text }); return { typed, a: await stored(want, ms) }; };
+
+    // The start shape: a count that was rolled at hand-on, so a hand's write has a provenance to replace.
+    await reset({ left: { unknown: 2 } });
+    await gmRun(async (a) => { await fromUuidSync(a.uuid).update({ "flags.acks-extras.itemRun.activation.leftFrom": a.from }); return true; }, { uuid: item, from: { by: "roll", formula: FIGURES.swig.swigs, total: 2 } });
+    const hpU0 = await hp("U");
+    const own = await plRun(P.owns, { uuid: item });
+    check("the Player seat owns the unknown drinker's grog by Foundry's own test", own.owner === true, own);
+    const opened = await plRun(P.openSheet, { uuid, tab: "inventory" });
+    const b0 = await boxOn(plRun, uuid);
+    const label = await fmt("ACKS-LIB.itemRun.row.left");
+    check("the Player's sheet of the drinker draws the Swigs left box for the grog: wired, labelled, holding the rolled count, its tooltip naming the roll and the page", opened.rendered === true && !!b0 && b0.wired === true && b0.label.includes(label) && b0.value === "2" && b0.tip === (await rollTip(2, FIGURES.swig.swigs)), { opened, box: b0 });
+
+    const t3 = await typeAs("3", (a) => a.left === 3);
+    check("typing 3 and a real change event wrote left 3, and leftFrom is exactly {by: hand} (the rolled provenance's formula and total did not linger)", t3.typed === true && t3.a.left === 3 && same(t3.a.leftFrom, { by: "hand" }), { typed: t3.typed, activation: t3.a });
+    const b3 = await boxOn(plRun, uuid);
+    check("the box reads 3 and its tooltip now says the count was typed", b3?.value === "3" && b3.tip === (await handTip()), b3);
+
+    const neg = await typeAs("-2", (a) => a.left !== 3, 1500);
+    const bNeg = await boxOn(plRun, uuid);
+    check("-2 wrote nothing: the count is still 3, by hand, and the box is set back to 3", neg.typed === true && neg.a.left === 3 && same(neg.a.leftFrom, { by: "hand" }) && bNeg?.value === "3", { activation: neg.a, box: bNeg?.value });
+    const frac = await typeAs("1.5", (a) => a.left !== 3, 1500);
+    const bFrac = await boxOn(plRun, uuid);
+    check("1.5 wrote nothing either: the count is still 3 and the box reads 3", frac.typed === true && frac.a.left === 3 && same(frac.a.leftFrom, { by: "hand" }) && bFrac?.value === "3", { activation: frac.a, box: bFrac?.value });
+
+    const blank = await typeAs("", (a) => a.left === null);
+    const bBlank = await boxOn(plRun, uuid);
+    check("a blank box cleared both: left null and leftFrom null, the box empty and its tooltip the not-yet-rolled one with the page", blank.typed === true && blank.a.left === null && blank.a.leftFrom === null && bBlank?.value === "" && bBlank.tip === (await blankTip()), { activation: blank.a, box: bBlank });
+    check("none of these writes touched the drinker's hit points", (await hp("U")) === hpU0);
+
+    // Below owner: the box is not drawn, and the sheet's own write refuses.
+    await gmRun(P.own, { uuid, playerId: S.playerId, level: 2 });
+    const seen = await until(async () => (await plRun(P.owns, { uuid: item })).owner === false, 6000, 400);
+    const lowered = await plRun(P.owns, { uuid: item });
+    await plRun(P.openSheet, { uuid, tab: "inventory" });
+    const gone = await boxOn(plRun, uuid);
+    check("with the Player's ownership lowered to Observer the grog is no longer the Player's (isOwner false) and the Player's sheet draws no Swigs left box for it", !!seen && lowered.owner === false && gone === null, { lowered, box: gone });
+    await gmRun(P.openSheet, { uuid, tab: "inventory" });
+    const gmBox = await boxOn(gmRun, uuid);
+    check("the GM seat's sheet of the same drinker still draws the box", !!gmBox && gmBox.wired === true, gmBox);
+    const refused = await plRun(P.writeLeft, { itemUuid: item, text: "7" });
+    check("the sheet's own write called from the Player's page is refused and nothing is written", refused.written === false && (await activation(I.unknown)).left === null, { refused, activation: await activation(I.unknown) });
+    await plRun(P.closeSheet, { uuid });
+    await gmRun(P.closeSheet, { uuid });
+
+    // The character sheet's gear row hides its presses and keeps the box.
+    await reset({ left: { human: null } });
+    const hItem = I.human.uuid;
+    const openedH = await plRun(P.openSheet, { uuid: A.H.uuid, tab: "equipment" });
+    const hb = await plRun(P.leftBoxes, { uuid: A.H.uuid });
+    const hBox = hb.boxes.find((b) => b.itemUuid === hItem) ?? null;
+    check("the Player's character sheet (Equipment tab) draws the box on the grog's gear row, wired, and no press for it", openedH.rendered === true && !!hBox && hBox.wired === true && !hb.presses.includes(hItem), { opened: openedH, box: hBox, presses: hb.presses.length });
+    if (hBox) {
+      await plRun(P.typeLeft, { uuid: A.H.uuid, itemUuid: hItem, text: "2" });
+      const a = (await until(async () => { const x = await activation(I.human); return x.left === 2 ? x : null; }, 6000, 400)) ?? (await activation(I.human));
+      check("a typed 2 on the character sheet's row wrote left 2, by hand", a.left === 2 && same(a.leftFrom, { by: "hand" }), a);
+    }
+    await plRun(P.closeSheet, { uuid: A.H.uuid });
+    await reset({ left: {} });
+  });
+
+  /* ---------------------------------------------------------------- */
+  await step("10", async () => {
+    begin("10", "The Judge's call: a swig card that names no save");
+    const entryKey = keyOf(T.H.uuid);
+    const noSave = () => gmRun(P.setDrink, { uuid: I.human.uuid, drink: { ...drinkOf(false), saveKind: null } });
+    const idsOf = (d) => ({ itemUuid: d.itemUuid, rowKey: d.rowKey, activationId: d.activationId, subject: d.subject, messageId: d.messageId, entryKey: d.entryKey });
+    const gmId = await gmRun(P.userId, MACHINE.gm);
+
+    await reset({ left: { human: 5 } });
+    await noSave();
+    const hp0 = await hp("H");
+    const r = await useItem(I.human, null);
+    const id = r.messageId;
+    const card = await cardWhen(id, (c) => c.kind === "swig");
+    check("the swig posted a card whose save name is blank, for the drinker's token, with no entry yet", card?.kind === "swig" && card.saveName === "" && same(card.subjects.map((s) => s.uuid), [T.H.uuid]) && card.entries.length === 0, { kind: card?.kind, save: card?.saveName, entries: card?.entries.length });
+    const gd = await read(gmRun, id);
+    const pd = await read(plRun, id);
+    const declares = (gd?.buttons ?? []).filter((b) => b.action === "itemRun.declare");
+    check("the GM seat is drawn two declare buttons on the drinker's row, Passed (data-declared true) and Failed (false), each carrying the subject and the entry key, and no Save", declares.length === 2 && declares.some((b) => b.data.declared === "true" && b.label.includes(W.declarePass)) && declares.some((b) => b.data.declared === "false" && b.label.includes(W.declareFail)) && declares.every((b) => b.data.subject === T.H.uuid && b.data.entryKey === entryKey) && !hasBtn(gd.buttons, "itemRun.roll"), { buttons: gd?.buttons.map((b) => [b.action, b.data.declared, b.label]) });
+    check("the Player seat that owns the drinker is drawn no declare button and no Save, and both seats read the Judge's line", !!pd && !hasBtn(pd.buttons, "itemRun.declare") && !hasBtn(pd.buttons, "itemRun.roll") && gd.text.includes(W.noSaveLine) && pd.text.includes(W.noSaveLine), { player: pd?.buttons.map((b) => b.action), line: W.noSaveLine });
+    const ids = declares[0] ? idsOf(declares[0].data) : null;
+    const judgeOnly = ids ? await plRun(P.api, { call: "pressRoll", args: { ...ids, declared: true } }) : null;
+    const still = await gmRun(P.card, { id });
+    check("the Player's call to the lib with declared true answers judgeOnly (the lib's call from that page: the card draws it no button), and nothing was written", judgeOnly?.ok === false && judgeOnly.reason === "judgeOnly" && still.entries.length === 0 && (await hp("H")) === hp0, { judgeOnly, entries: still.entries.length });
+
+    // Failed: the condition's write, the Judge's call as the verdict.
+    const fail = await press(gmRun, { id, action: "itemRun.declare", match: { declared: "false" } }, { until: (c) => entryOf(c, "H")?.state === "applied" });
+    const ef = entryOf(fail.card, "H");
+    const held = (await effectsOf("H")).filter((e) => e.statuses.includes(COND));
+    check("the GM's Failed wrote the entry as the Judge's call: state applied, saved false, declared true, no total and no target, pressed by the GM seat's user", fail.found && ef?.state === "applied" && ef.saved === false && ef.declared === true && ef.total === null && ef.target === null && ef.presser === gmId, ef);
+    check("the failure wrote the condition, outside a fight as the mark, as a rolled failure does", ef?.life === "mark" && held.length === 1 && held[0].mark === true, { life: ef?.life, held });
+    const gAfter = await read(gmRun, id);
+    const pAfter = await read(plRun, id);
+    check("the row reads Failed with the condition's name and the Judge's call after it, on both seats; the GM seat is offered Undo", !!gAfter && !!pAfter && [gAfter, pAfter].every((d) => d.text.includes(W.failed) && d.text.includes(`(${W.declared})`) && ef?.names?.length > 0 && d.text.includes(ef.names[0])) && hasBtn(gAfter.buttons, "itemRun.undo") && !hasBtn(gAfter.buttons, "itemRun.declare"), { gm: gAfter?.text, actions: gAfter?.buttons.map((b) => b.action) });
+    const again = await gmRun(P.api, { call: "pressRoll", args: { ...ids, declared: true } });
+    check("a second declared press on the settled row is refused as applied and nothing more is written", again.ok === false && again.reason === "applied" && (await effectsOf("H")).filter((e) => e.statuses.includes(COND)).length === 1, again);
+    const undo = await press(gmRun, { id, action: "itemRun.undo", match: { entryKey } }, { until: (c) => entryOf(c, "H")?.state === "undone" });
+    check("Undo took the Judge's call back: the entry reads undone and the condition record is gone", undo.found && entryOf(undo.card, "H")?.state === "undone" && (await effectsOf("H")).filter((e) => e.statuses.includes(COND)).length === 0, entryOf(undo.card, "H"));
+
+    // Passed: the success heal, rolled on the GM's page.
+    await reset({ left: { human: 5 } });
+    await noSave();
+    const hp1 = await hp("H");
+    const r2 = await useItem(I.human, null);
+    const pass = await press(gmRun, { id: r2.messageId, action: "itemRun.declare", match: { declared: "true" } }, { gmDie: "top", until: (c) => entryOf(c, "H")?.state === "applied" });
+    const ep = entryOf(pass.card, "H");
+    check("the GM's Passed wrote saved true as the Judge's call with the success heal: declared true, no total or target, an amount within the success dice's faces, the hit points risen by exactly it", pass.found && ep?.saved === true && ep.declared === true && ep.total === null && ep.target === null && Number.isInteger(ep.amount) && ep.amount >= 1 && ep.amount <= 6 && (await hp("H")) - hp1 === ep.amount, { entry: ep, hp1, now: await hp("H") });
+    const passDom = await read(gmRun, r2.messageId);
+    check("the row reads Saved with the healed amount and the Judge's call after it", !!passDom && passDom.text.includes(W.saved) && passDom.text.includes(String(ep?.amount)) && passDom.text.includes(`(${W.declared})`), passDom?.text);
+    const undo2 = await press(gmRun, { id: r2.messageId, action: "itemRun.undo", match: { entryKey } }, { until: (c) => entryOf(c, "H")?.state === "undone" });
+    check("Undo gave the healed hit points back", undo2.found && (await hp("H")) === hp1, { now: await hp("H"), hp1 });
+
+    // A card that names a save refuses a declared press, even from the Judge's seat.
+    await reset({ left: { human: 5 } });
+    const r3 = await useItem(I.human, null);
+    const named = await read(gmRun, r3.messageId);
+    const save = named?.buttons.find((b) => b.action === "itemRun.roll");
+    const refused = save ? await gmRun(P.api, { call: "pressRoll", args: { ...idsOf(save.data), declared: true } }) : null;
+    check("a card that names a save draws no declare button, and a declared press on it from the GM seat is refused figure with nothing written", !!save && !hasBtn(named.buttons, "itemRun.declare") && refused?.ok === false && refused.reason === "figure" && (await gmRun(P.card, { id: r3.messageId })).entries.length === 0, { refused, actions: named?.buttons.map((b) => b.action) });
+    await reset({ left: {} });
+  });
+
   const late = await gmRun(P.caught);
   const lateP = await plRun(P.caught);
   note("errors this walk's seats recorded after ready", { gm: late.errors, player: lateP.errors });
-  begin("9", "the walk's close");
+  begin("11", "the walk's close");
   check("neither seat logged a console error during the walk", late.errors.length === 0 && lateP.errors.length === 0, { gm: late.errors.length, player: lateP.errors.length });
   walkDone();
 } catch (err) {

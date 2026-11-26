@@ -5220,7 +5220,7 @@ Found by marker (`flags.world.fixture`) and kept. Each step asserts the shape it
 
 ### Not walked
 
-The proficiency's standing modifiers and an automatic success for a bearer who holds the proficiency (they need the imported throw figures and a bearer holding the ability), a blast row naming damage types and a body's defenses against them, a bearer with two tokens on two scenes, a burst whose scene was deleted, a use made from a Player seat's own page, the sheet-row Light press and "Lit" tag (not built, `docs/lib/ROADMAP.md`), and the burst of a blank blast row.
+The proficiency's standing modifiers and an automatic success for a bearer who holds the proficiency (they need the imported throw figures and a bearer holding the ability), a blast row naming damage types and a body's defenses against them, a bearer with two tokens on two scenes, a burst whose scene was deleted, a use made from a Player seat's own page, the sheet-row Light press and "Lit" tag (walked in S9c), and the burst of a blank blast row.
 
 ## S9b-2: E5 the swig, E8 on-hit, E5 breakage
 
@@ -5280,4 +5280,62 @@ Found by marker (`flags.world.fixture`) with `api.fixture` and kept. Each step w
 
 ### Not walked, and known gaps
 
-A card whose save name is blank cannot be pressed from any seat (the card draws no Save and reads "No save is named for this. The Judge decides."), a swig card and a burst card alike. Out of a fight a failed swig's condition is the mark, which lifts at the bearer's first turn START, not at the end of its next turn. Not walked: an actor with several tokens (a `several` refusal), a drinker with no hit-point field (`failed`), a swig from a Player's own page (the use relays through `itemRun.useItem`), a count typed on the sheet row, a condition the catalogue does not resolve, and the imported (non-invented) figures of the Beastman book's gear rows.
+A card whose save name is blank is settled by the Judge's call, walked in the next section. Out of a fight a failed swig's condition is the mark, which lifts at the bearer's first turn START, not at the end of its next turn. Not walked: an actor with several tokens (a `several` refusal), a drinker with no hit-point field (`failed`), a swig from a Player's own page (the use relays through `itemRun.useItem`), a condition the catalogue does not resolve, and the imported (non-invented) figures of the Beastman book's gear rows.
+
+## S9c: Light and Lit, Swigs left, the Judge's call
+
+Offline: `tools/test-item-run-row.mjs`, `test-item-run-hud.mjs`, `test-item-run.mjs`, `test-item-run-consume.mjs`, `test-item-run-cards.mjs`, `test-item-run-presenter.mjs` and `test-stack-row-press.mjs`. The model is [MODEL.md](MODEL.md), "The aura reach and the item carrier" (the sheet rows' presses, the HUD, the consume item's row, "An outcome card from any seat"). Walked by `tools/live/lib-aura-fuse.mjs` step 6b and `tools/live/lib-aura-swig.mjs` step 6 (its `leftFrom` checks), 9 and 10, on the GM seat and a real Player seat; written from the code and not yet run. Where: step 6b, Actors tab → the bearer's monster sheet → Inventory tab (the row) and the bearer's token's Token HUD (right-click the token); step 9, the drinker's sheet (Actors tab → the monster's sheet → Inventory tab, or the character's sheet → Equipment tab); step 10, the Chat tab. Every box and every press gates on Foundry's own ownership of the item (`isOwner`), never on a role; the Judge's call is the Judge's seat's alone (`judgeDeclares`).
+
+### Fixtures
+
+No fixture is new. Each step writes the shape it needs at its start, as the walks' `reset` does.
+
+- **Light and Lit** (`lib-aura-fuse.mjs` step 6b): the S9a markers `lib/aura-fuse-scene`, `lib/aura-fuse-bearer` with its `-token`, `lib/aura-fuse-item` (its quantity written to 1 at the start) and `lib/aura-fuse-item-blank` (the HUD's second control, which proves the HUD drew). The scene is viewed on the GM seat (the HUD needs the token's placeable), no combat exists (the step runs before the fight), no fuse record is on the bearer.
+- **Swigs left** (`lib-aura-swig.mjs` step 9): the S9b-2 markers `lib/aura-swig-unknown` (a monster the Player seat owns) with its grog `lib/aura-swig-grog-unknown`, and `lib/aura-swig-human` (a character the Player seat owns) with `lib/aura-swig-grog-human`. The unknown grog starts with `left` 2 and a stored provenance `{by: "roll", formula, total: 2}`; `reset` writes `leftFrom` null on every grog, so no step inherits a provenance. The Player's ownership of the drinker is lowered by the step and written back by the next `reset`.
+- **Hand on** (`lib-aura-swig.mjs` step 6): the S9b-2 bearer's grog and the disposable recipient, as that step builds them.
+- **The Judge's call** (`lib-aura-swig.mjs` step 10): `lib/aura-swig-grog-human` on `lib/aura-swig-human`, its `flags["acks-extras"].drink.saveKind` written null so the swig card names no save (`reset` writes the save name back).
+
+### Steps
+
+Step 6b, the fuse (`lib-aura-fuse.mjs`):
+
+1. **Ready.** Quantity 1, nothing lit. Read `itemRunRowFor(item)` (from `scripts/lib/item-run-row-view.mjs`, imported in the page) on a fresh render of the sheet, and the DOM. *Observable:* the model's state is `ready` with one press, key `light`, labelled `ACKS-LIB.itemRun.press.light` ("Light"); the sheet draws one `button[data-press="light"]` for the item whose `aria-label` is that word; the Token HUD opened on the bearer's token draws a control whose `aria-label` is `ACKS-LIB.itemRun.hud.light` ("{item} · Light") for the item, ending with the Light word.
+2. **Lit, a stack of one.** Use the item with the die at the top (lit on the world clock; `fuse.count` read off the card). *Observable:* the model's state is `lit` and its tag label is `ACKS-LIB.itemRun.strip.tag.lit` with the card's count; the row's `data-run-state` is `lit`, the tag's text is that label and its `data-tooltip-text` is `ACKS-LIB.itemRun.strip.tagTip.lit` with the same count; the model has no press and the sheet draws no button for the item; the HUD draws no control for the item and still draws the blank item's.
+3. **Lit, a stack of two.** Raise the quantity to 2 while the fuse burns. *Observable:* the state is still `lit`, with the Light press back (model and sheet), and the HUD's control for the item is back.
+
+Step 6, hand on (`lib-aura-swig.mjs`, beside the S9b-2 checks):
+
+4. **The roll is recorded.** After the bearer's grog is copied onto another actor with its count null. *Observable:* the copy's `itemRun.activation.leftFrom` is `{by: "roll", formula, total}`, the formula the swig dice (`1d3`) and `total` a whole number equal to `left`; the recipient's sheet (GM seat, Inventory tab) draws the Swigs left box holding that count, its `data-tooltip-text` naming the total, the formula and the page; the first-bearer grog and the part-drunk copy hold `leftFrom` null.
+
+Step 9, the Swigs left box (`lib-aura-swig.mjs`):
+
+5. **An owner's box.** The Player opens the drinker's sheet (Inventory tab). *Observable:* the box for the grog is drawn (`input[data-acks-extras-run-left]`, `data-item-uuid` the grog's, wired by the sheet), labelled "Swigs left", holding 2, its tooltip the rolled one with total 2 and the formula.
+6. **A hand's write.** Type 3 and dispatch a real `change` event on the input. *Observable:* the item holds `left` 3 and `leftFrom` exactly `{by: "hand"}` (the rolled provenance's formula and total did not linger), the box reads 3 and its tooltip is the typed one.
+7. **An invalid entry.** Type -2, then 1.5. *Observable:* nothing is written (`left` 3, `leftFrom` `{by: "hand"}`) and the box is set back to 3.
+8. **A blank box.** Clear it. *Observable:* `left` null and `leftFrom` null, the box empty, its tooltip the not-yet-rolled one with the page reference; the drinker's hit points are as they were.
+9. **A seat below owner.** The GM lowers the Player's ownership of the drinker to Observer. *Observable:* the Player's `item.isOwner` is false and its sheet draws no box for the grog; the GM seat's sheet of the same drinker still does; the sheet's own write (`writeRunLeft`, called from the Player's page) is refused and writes nothing.
+10. **The character sheet.** The Player's character sheet, Equipment tab. *Observable:* the box is drawn on the grog's gear row and no press is (that row hides presses); typing 2 writes `left` 2 by hand.
+
+Step 10, the Judge's call (`lib-aura-swig.mjs`):
+
+11. **A card that names no save.** The human drinker's grog with `saveKind` null, used by the GM seat. *Observable:* a `swig` card with `saveName` "" and no entry; the GM seat's page has two `itemRun.declare` buttons on the drinker's row, Passed (`data-declared` "true") and Failed ("false"), each with the subject and the entry key, and no Save; the Player's page has neither a declare button nor a Save; both read "No save is named for this. The Judge decides."
+12. **A Player cannot declare.** The Player's `acksExtras.lib.itemRun.pressRoll` call with `declared: true` (the lib's call from that page: the card draws it no button), with the ids read off the GM seat's button. *Observable:* `{ok: false, reason: "judgeOnly"}`, no entry, hit points as they were.
+13. **Failed.** The GM seat presses Failed. *Observable:* the entry is `applied`, `saved` false, `declared` true, with no `total` and no `target`, the presser the GM seat's user; one effect carries the condition's status as the mark, as a rolled failure writes it; the row reads Failed, the condition's name and `(` `ACKS-LIB.itemRun.card.declared` `)` on both seats, and the GM seat is drawn Undo and no declare button; a second declared press is refused `applied`. Undo: the entry reads `undone` and the condition record is gone.
+14. **Passed.** A new card, the GM seat presses Passed with its die at the top. *Observable:* `saved` true, `declared` true, no `total` or `target`, `amount` within the success dice's faces, the hit points risen by exactly `amount`; the row reads Saved, the amount and the Judge's-call mark. Undo gives the hit points back.
+15. **A card that names a save.** A new swig card with the save name restored. *Observable:* no declare button; the GM seat's `pressRoll` call with `declared: true` is refused `figure` and writes nothing.
+
+### Teardown
+
+`api.sweepTracked({only})` for the run's own products, as S9a and S9b-2 name them (the disposable bearer, recipient, hand-on copies, the cards the run's clients posted that name a fixture item or speak as a fixture); quote its result. The fixtures stay. Quantities, counts, provenance, drink flags and the Player's ownership are written at the next walk's start, not rolled back at the end.
+
+### What a walker verifies (inferred, not read from a running world)
+
+- Step 9's `leftFrom` equality rests on `writeRunLeft` writing the provenance through `ForcedReplacement`, so a roll's formula and total do not survive a hand's write; a failure there is a finding on that write.
+- That an embedded item takes its ownership from its actor, so lowering the actor's level lowers the item's (the step reads `item.isOwner` on the Player's page and fails loudly where it did not change).
+- That a `number` input keeps `-2` and `1.5` as typed text, so the entry reaches the parse and is refused there; and that the Equipment tab of the character sheet lists the human grog.
+- That the lit tag's count equals the card's `fuse.count`, which holds while the world clock does not move between the light and the read.
+- The stand-ins: the light is `item.use()` on the GM seat, not a click on the row's Light button or the HUD control (the presses walk drives those clicks for Raise and Use); the Judge's seat presses the card's own buttons, and a Player's refusal is the lib's call from that page.
+
+### Not walked
+
+A Light press from the sheet row or the HUD control (only their labels and presence), a Player's own seat lighting a fuse, a Judge's call on a burst card or an on-hit card whose save name is blank (the swig card is the one walked; the row model is shared), a GM seat that is not the primary one, and a Player's seat seeing a lit tag on a body it only observes.
