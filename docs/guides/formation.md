@@ -1139,6 +1139,18 @@ figure blank. You can change any of them in the Ruledata Browser.
 *The Kit tab's light sources, each with the turns its imported burn time
 leaves. Hover the turns to see where the figure came from.*
 
+A member who carries a light spell can cast it from the Kit tab. Under **Light
+Sources**, pick the spell and its caster from the menu and press **Cast**: the
+caster's own cast window opens, as it would from the character's sheet. A spell
+on two of the caster's lists is offered once for each. The line under the menu
+reads the list, its level and the slots used, in the words of the character
+sheet's Magic tab; hover each for where it came from. A player sees only the
+casters they own, and the Judge sees every member. Where the list refuses the
+cast, a player's **Cast** is off and the reason is written beneath it; the Judge
+reads the same reason as a warning and can cast anyway. Once cast, the light is
+listed with the party's other lights, with its **Shutter** (see the [magic
+guide](magic.md#the-spell-sheet) for where its reach is typed).
+
 The light figures and the wandering-monster cadence (below) arrive with the
 **Rules tables**. Until they are imported the Kit tab leaves the light figures
 blank and no automatic throw is scheduled. To bring them in without a full import, run the **Reimport One Shelf (GM)**

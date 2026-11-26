@@ -947,6 +947,21 @@ flag with no relay, and every control names the item, never the effect. A
 member's sheet redraws on an item's change as well as an effect's, so a seat
 that is not the primary GM sees a light stow or return.
 
+Below the lights, the Kit tab offers a cast of a light spell (`light-cast.mjs`
+over `magic/light-offers.mjs`). Its menu lists, for each member the seat owns
+(every member for a GM), each spell carrying a light row that is not reversed,
+once per list the member can cast it from now, or off list where the spell is on
+none of the member's lists. The line under the menu is `standingLineOf` over the
+character sheet's `magicStanding`, so its list, level and slot words and their
+tooltips are the Magic tab's; a levels-mode caster with no list tooltip takes the
+spell's page, and its slot count names the sheet's own field. A refusal the
+Magic tab's `listGate` gives is written under the line: a Player's Cast is
+disabled by it and a GM's is not. Cast checks the item's own ownership again and
+calls the spell's `use` with the list picked, so the caster's cast window is the
+one every other door opens. The menu's pick is held on the sheet
+(`lightCastPick`) across redraws; a member's spell list, class flag or spell
+items changing redraws the row.
+
 Whether the party carries light at all (`formationHasLight`) reads both kinds:
 a lit, unshuttered flame on the record, or a member whose shining magic lights
 have a reach (`effectLight` above zero). It decides `isPartyInDark`, and so the

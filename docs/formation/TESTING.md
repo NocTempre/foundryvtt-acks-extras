@@ -5964,3 +5964,116 @@ compendium that cannot open. The drag out of a shelf is
 `game.actors.importFromCompendium`, which names the default None on core 14
 with or without the stamp; it is skipped with a note where no compendium holds
 an imported place.
+
+## Casting a light spell from the Kit tab (added with T-0791)
+
+Walked by `tools/live/formation-kit-cast-light.mjs`; its ids K-c1 to K-c9 are
+this section's step numbers. The Kit tab's **Cast a light spell** row (Party
+sheet → Kit tab → Light Sources) offers each light spell a seat can cast among
+the party's members, and Cast opens the caster's own cast window
+(`docs/magic/MODEL.md`). Every name and figure is invented; the page is
+invented too.
+
+**Fixtures** (kept; found by marker, built when none carries it; each step brings
+them to the shape it needs at its start, `P.shape` in the walk):
+
+- `formation/kit-cast-scene`: a room, as `formation/magic-light-scene` (above).
+- `formation/kit-cast-party`: a party actor with its token, marked
+  `formation/kit-cast-token`, on that scene, seating the two members below in
+  order through the party sheet's drop.
+- `formation/kit-cast-class`: a class with one list (its key equal to the
+  folded label, no hyphen) and one first-level slot at level 1.
+- `formation/kit-cast-caster`: a character the Player owns (3), bound to the
+  class at level 1 with spells enabled and core's slot grid at 0, carrying
+  `formation/kit-cast-spell`: a spell on that list at level 1 with a cite, a
+  one-hour fixed duration, a `self` target, and two Light rows: its own form
+  (`appliesTo: "self"`, `lasts: "duration"`, bright and dim typed, daylight
+  blank) and a `reversed` row with a reach of its own, so a leak of the reverse
+  shows. `appliesTo: "self"` is the caster in the spell vocabulary; the
+  effect-subject list has no `"caster"`.
+- `formation/kit-cast-other`: a character the Player only observes (default
+  Observer, no entry for the Player), bound to the same class, carrying
+  `formation/kit-cast-other-spell`, a copy of the spell under another name.
+
+At the start no record of a cast stands on either member (a dead run's are
+read, tracked by uuid and swept), no pool is spent, nobody is deployed, and the
+world clock is read for the end.
+
+1. **K-c1. The Player's offer.** Player seat, Kit tab. *Observable:* the cast
+   row's select holds one option, the owned caster's spell under its list, and
+   none for the other member (`data-light-cast`, `select[data-pick=lightCast]`);
+   the line reads "{list} 1 · Slots 0 / 1" (`[data-light-cast-part=list]` and
+   `slots`, the slots word from `ACKS.spells.Slots`); each part carries a
+   `data-tooltip-text`; Cast is enabled and the refusal part is `hidden`; no
+   magic-light row stands. The cast window claims the spell
+   (`castSpellClaims`), or Cast would open nothing.
+2. **K-c2. Cast, and the light it writes.** Player seat: press Cast and confirm
+   the window in its normal mode. *Observable:* the window is titled with the
+   spell and the caster and offers both forms; the caster's record of that cast
+   id carries three changes on `flags.acks-extras.magicLight.daylight|bright|dim`
+   reading "", "20", "40" in that order, each of the type `magicLightChanges`
+   writes, the flag `flags.acks-extras.magicLightCite` equal to the spell's cite,
+   the clock fields, and `effectLight(caster)` reads 20 / 40; exactly one record
+   of the cast carries the band keys. The Kit tab lists one magic-light row,
+   "{spell} — {caster}", Shining, its reach cell the tab's "{bright} / {dim} ft"
+   and its tooltip `ACKS-FORMATION.app.magicLightCastTip` with the spell, the
+   caster, the cite and the reach.
+3. **K-c3. The Shutter.** The Judge deploys the caster out of the party token
+   (the token's light reads 20 / 40), then the Player presses Shutter on the row.
+   *Observable:* the row reads Shuttered on both seats; `effectLight(caster)` is
+   zero while `magicLights` still lists the record; the deployed token's light is
+   0 / 0. Where the Order tab's detach control cannot be reached the token lines
+   print NOT WALKED and the actor lines stand.
+4. **K-c4. The slot is spent.** Player seat, a fresh Kit tab. *Observable:* the
+   line reads "Slots 1 / 1"; Cast is `disabled`; the refusal part is visible
+   with the Magic tab's blocked sentence (`ACKS-MAGIC.cast.notice.blocked.noSlot`);
+   the option is still offered; a press on the disabled Cast opens no window.
+5. **K-c5. The Judge's row.** GM seat, the caster's pool set full by hand.
+   *Observable:* both spells are options; picking the spent-out one reads
+   "Slots 1 / 1", Cast enabled and the refusal part the warning sentence
+   (`ACKS-MAGIC.cast.notice.verdict.noSlot`), which is not the Player's; picking
+   the other member's reads "Slots 0 / 1", Cast enabled, no refusal. No cast
+   goes past the slot.
+6. **K-c6. A reversed cast.** The Judge picks the other member's spell, presses
+   Cast and confirms in the reversed mode. *Observable:* the window offers the
+   reverse; no record of that cast carries a band change or the cite flag (a
+   timed record without light may stand, so the check reads the keys, not the
+   count); the other member sheds nothing and the Kit tab's magic-light row
+   keys are unchanged.
+7. **K-c7. Blank radii.** The other member's spell is rewritten with all three
+   radii null (the item flag, restored in the same step), pools reset, then the
+   Judge casts it in the normal mode. *Observable:* the record carries the three
+   band changes, each blank, and the cite flag; its Kit row's reach cell is empty
+   and its tooltip equals the cite string exactly (no words, no figure).
+8. **K-c8. The clock.** The Judge advances the world clock two hours past casts
+   of a one-hour spell. *Observable:* both lights' records are gone, both seats'
+   Kit tabs list no magic light and the caster sheds nothing. The walk advances a
+   second time if the first left a record standing, and says so.
+9. **K-c9. The editor.** The Judge opens the spell's sheet, Mechanics tab, and
+   presses Edit on the Light row. *Observable:* the effect-row editor holds three
+   number inputs named `lightBands.daylight`, `.bright` and `.dim`, holding "",
+   "20" and "40"; the blank one's group carries `ACKS-LIB.effectEditor.tip.cite`
+   ("Page: {cite}") as its tooltip, and the typed one's is the field hint, which
+   does not name the page. The Kit row of step 7 is where the cite stands alone;
+   the editor's wording adds "Page: ".
+
+Teardown: the run puts back the spells' radii, counts and pools (`P.shape`), the
+deployed member, the world clock (`game.time.set` to the value read at the
+start), and closes the cast window and the sheets; then the capture driver's
+`sweepTracked({only})` over the run's ledger removes each cast's chat card and
+record and the token a deploy made, by the ids the run read back. The fixtures
+stay.
+
+Drive mechanics: Cast is pressed with a plain `click()`, so no skip-dialog key
+is held and the window opens; the sheet does not await the cast (its window
+waits on the seat), so the walk polls for `.application.acks-extras-cast`, then
+sets the `mode` radio (present only where the spell has a reversed row) and
+presses the window's `button[data-action=cast]` as `_magic-cast-kit.mjs` `P.cast`
+does, and finds the card by `flags.acks-extras.castCard` among the messages made
+since the press. A pick is the select's `value` set and a bubbling `change`
+fired: the line follows with no redraw. A record is told from a peer's by its
+cast id and then by `${actorId}.${effectId}` in `data-magic-light`; never
+"the only row". The Player seat proves the ownership gate; the GM seat's
+`isOwner` is true for every actor, so its option list says nothing about it.
+Offline, `tools/test-light-offers.mjs` pins the offers and
+`tools/test-cast-kinds.mjs` the light a cast writes.
