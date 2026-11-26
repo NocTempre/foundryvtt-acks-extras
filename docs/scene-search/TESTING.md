@@ -884,18 +884,19 @@ What driving it taught:
 
 ## The keyed place and the clean-up
 
-**Walked 2026-11-19** by `tools/live/location-prune-keyed.mjs` (`node tools/live/run.mjs location-prune-keyed`), GM seat only, lane B, log `aia-tmp/live/location-prune-keyed-20261119-150852.log`: 7 pass, 0 fail, with the real trigger. An earlier run that day (`-150652`) found another lane's GM primary and ran the dry check alone. Offline: nothing, since the prune reads `game`.
+`tools/live/location-prune-keyed.mjs` (`node tools/live/run.mjs location-prune-keyed`), GM seat only. **Last walked 2026-11-19** (lane B, log `aia-tmp/live/location-prune-keyed-20261119-150852.log`: 7 pass, 0 fail, with the real trigger), before the ready sweep spared a place made since launch; steps 2 and 3 below are unwalked since. Offline: the age decision (`tools/test-location-prune-age.mjs`); the sweep itself reads `game`.
 
 Fixtures: `scene-search/prune-keyed`, a location holding one thing (kind fixture, no ref) and nothing else, its list brought to that one thing at the step's start. A bare location the run builds with `api.create` and sweeps by its uuid.
 
-1. **Run dry.** Call `pruneEmptyLocations({ dryRun: true })` (import `scripts/location/module.mjs`; the prune is not on the api). *Observable:* the keyed place is not among `doomed`; the bare place is.
-2. **The real trigger.** Only where this seat is the primary GM (`game.users.activeGM.isSelf`) and **Clean up empty locations** is on, reload the seat. *Observable:* after its `ready` the keyed place stands and the bare place is gone. Elsewhere the step is not walked, and the log says so.
+1. **Run dry.** Call `pruneEmptyLocations({ dryRun: true })` (import `scripts/location/module.mjs`; the prune is not on the api). A call with no `bornBefore` sweeps by contents alone. *Observable:* the keyed place is not among `doomed`; the bare place is.
+2. **The bare place is new.** Read `game.world.lastPlayed` (the server stamps it at world launch) and the bare place's `_stats.createdTime` (stamped on create). *Observable:* the place's time is at or after the launch's.
+3. **The real trigger.** Only where this seat is the primary GM (`game.users.activeGM.isSelf`) and **Clean up empty locations** is on, reload the seat (a page reload does not move `lastPlayed`). Wait for `primaryGMSettled()`, then a bounded interval. *Observable:* the keyed place stands for its contents, and the bare place stands because it was made since the launch, which the ready sweep spares. Elsewhere the step is not walked, and the log says so. A place made before the launch being swept is not walked here, since a walk cannot launch the world; `tools/test-location-prune-age.mjs` covers the decision.
 
 What driving it taught:
 
 - The primary GM is whichever lane's GM Foundry elects, and a seat on another lane outranks this one while it is connected. Check `activeGM` before the reload; never move another lane's seat to get the trigger.
-- Never call the prune for real from a walk: it takes every empty place in the world. The reload is the trigger, and the dry count says beforehand what it will take (1 here: the bare place alone).
-- The prune's delete has no fixed arrival after `ready`. It waits for the primary GM to settle and deletes one place at a time, and it has landed after a fixed five-second sleep. Poll for the bare place's absence, bounded, and log the seconds it took.
+- Never call the prune for real from a walk: it takes every empty place in the world. The reload is the trigger, and the dry count says beforehand what it would take by contents (the bare place alone).
+- The ready sweep has no fixed arrival after `ready`: it starts when the primary GM election settles and deletes one place at a time, and it has landed after a fixed five-second sleep. A place that stands is observed after the settle plus a bounded wait, so the walk logs how long the settle took.
 
 ## What this walk does not reach
 

@@ -4,17 +4,19 @@
  * keyed place and the clean-up", on the GM seat: a place holding one thing and
  * nothing else (no token, no scene or Region link, no items, no notes) is not
  * among what `pruneEmptyLocations` would take, while a bare place built by
- * this run is. Where this seat is the primary GM and the world's setting is on,
- * the seat's recorded reload is the prune's real trigger, and the keyed place
- * must be standing after it while the bare one is gone; elsewhere the prune is
- * run dry in page context only, and the log says which of the two ran. The
- * prune is never run for real from here: it sweeps every empty place in the
- * world, a peer's included. Machine values arrive through ./_env.mjs.
+ * this run is, by contents. Where this seat is the primary GM and the world's
+ * setting is on, the seat's recorded reload is the ready sweep's real trigger,
+ * and both places must be standing after it: the keyed one for its contents,
+ * the bare one because it was made since the world was launched, which the
+ * sweep spares. Elsewhere the prune is run dry in page context only, and the
+ * log says which of the two ran. The prune is never run for real from here: it
+ * sweeps every empty place in the world, a peer's included. A place made
+ * before the launch being swept is covered offline (test-location-prune-age);
+ * this walk cannot launch the world. Machine values arrive through ./_env.mjs.
  *
  * Fixtures: `scene-search/prune-keyed`, kept and found by marker, a location
  * whose things list is brought to one fixture thing at the step's start; and a
- * bare location built with `api.create` every run and swept by its uuid (the
- * real trigger may already have taken it, which the sweep reports as missing).
+ * bare location built with `api.create` every run and swept by its uuid.
  * The keyed place stays for the next run, even the run that built it.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -57,7 +59,7 @@ const P = {
     primary: game.users.activeGM?.isSelf ?? false,
     activeGM: game.users.activeGM?.name ?? null,
     setting: game.settings.get("acks-extras", "pruneEmptyLocations"),
-    served: (await (await fetch("/modules/acks-extras/scripts/location/module.mjs", { cache: "no-store" })).text()).includes("thingsOf(a).length > 0"),
+    served: (await (await fetch("/modules/acks-extras/scripts/location/module.mjs", { cache: "no-store" })).text()).includes("thingsOf(a).length > 0") && (await (await fetch("/modules/acks-extras/scripts/location/module.mjs", { cache: "no-store" })).text()).includes("sparedByAge"),
   }),
 
   /** The keyed place brought to one thing and nothing else that keeps a place. */
@@ -80,6 +82,19 @@ const P = {
     const LM = await import("/modules/acks-extras/scripts/location/module.mjs");
     const { doomed } = await LM.pruneEmptyLocations({ dryRun: true });
     return { keyed: doomed.includes(keyed), bare: doomed.includes(bare), count: doomed.length };
+  },
+
+  /** Whether the place was made since the world was launched, by the server's two stamps. */
+  age: async ({ uuid }) => {
+    const launch = Date.parse(game.world?.lastPlayed ?? "");
+    const created = fromUuidSync(uuid)?._stats?.createdTime;
+    return { lastPlayed: game.world?.lastPlayed ?? null, launch, created, sinceLaunch: Number.isFinite(launch) && typeof created === "number" && created >= launch };
+  },
+
+  /** Resolves once the primary GM election has settled on this seat, which is what starts the ready sweep. */
+  settled: async () => {
+    const util = await import("/modules/acks-extras/scripts/lib/util.mjs");
+    return await Promise.race([util.primaryGMSettled(), new Promise((r) => setTimeout(() => r(null), 60000))]);
   },
 
   exists: async ({ uuids }) => Object.fromEntries(uuids.map((u) => [u, !!fromUuidSync(u)])),
@@ -141,7 +156,7 @@ try {
   const census = await run(gm, P.census);
   note("census", census);
   if (census.role !== 4) throw new Error("the GM seat is not a gamemaster");
-  check("the served location module carries the things guard", census.served);
+  check("the served location module carries the things guard and the age guard", census.served);
 
   section("fixtures");
   const keyed = await gm.fixture("scene-search/prune-keyed", "Actor", { name: "Prune Walk Keyed Place", type: LOCATION });
@@ -156,23 +171,24 @@ try {
   const dry = await run(gm, P.dry, { keyed: keyed.uuid, bare: bare.uuid });
   note("dry", dry);
   check("run dry, the prune spares the keyed place", !dry.keyed, dry);
-  check("run dry, the prune would take the bare place", dry.bare, dry);
+  check("run dry, the prune would take the bare place by its contents", dry.bare, dry);
 
-  section("the prune's real trigger: the primary GM's ready");
+  section("the ready sweep's real trigger: the primary GM's ready");
+  const age = await run(gm, P.age, { uuid: bare.uuid });
+  note("bare place's age against the world's launch", age);
+  check("the bare place was made since the world was launched", age.sinceLaunch, age);
   if (census.primary && census.setting) {
-    note("trigger", "this seat is the primary GM and the setting is on: the recorded reload runs the prune");
+    note("trigger", "this seat is the primary GM and the setting is on: the recorded reload runs the ready sweep");
     await reloadRecorded(gm);
-    // The prune waits for the primary GM to settle and deletes one place at a time, so its delete of the bare
-    // place has no fixed arrival: the walk polls for it, bounded, and logs how long it took.
+    // The sweep starts when the primary GM election settles and deletes one place at a time, so a delete has
+    // no fixed arrival: the walk waits for the settle, then a bounded interval past it, and logs both.
     const t1 = Date.now();
-    let after = await run(gm, P.exists, { uuids: [keyed.uuid, bare.uuid] });
-    while (after[bare.uuid] && Date.now() - t1 < 60000) {
-      await sleep(1000);
-      after = await run(gm, P.exists, { uuids: [keyed.uuid, bare.uuid] });
-    }
-    note("prune's delete seen after (s)", after[bare.uuid] ? "not within 60" : Math.round((Date.now() - t1) / 1000));
+    note("election settled on this seat", await run(gm, P.settled));
+    note("settled after (s)", Math.round((Date.now() - t1) / 1000));
+    await sleep(15000);
+    const after = await run(gm, P.exists, { uuids: [keyed.uuid, bare.uuid] });
     check("after the primary GM's ready, the keyed place stands", after[keyed.uuid], after);
-    check("after the primary GM's ready, the bare place is gone", !after[bare.uuid], after);
+    check("after the primary GM's ready, the bare place, made since launch, stands", after[bare.uuid], after);
   } else {
     note("trigger", `NOT RUN: primary=${census.primary} (active GM: ${census.activeGM}), setting=${census.setting}; page-context dry run only`);
   }

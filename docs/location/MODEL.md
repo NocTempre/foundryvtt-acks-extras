@@ -374,6 +374,18 @@ map's rooms sit in stays with them, and an empty place inside an empty one
 goes with it in the same sweep. A dry run (`dryRun`) deletes nothing, whatever
 the setting, and answers with the uuids a sweep would remove.
 
+**It leaves a new place for the next launch.** The sweep at the primary GM's
+ready passes `bornBefore`, the world's launch time (`worldLaunchTime`, read from
+the `lastPlayed` the server stamps at launch), and `sparedByAge`
+(`prune-age.mjs`) spares a place whose `_stats.createdTime`, the server's stamp
+on create, is at or after it. The election settles seconds after the world
+loads, and the place may have been made by another seat before that, so a cut
+at this seat's own ready would miss it. A place with no creation time is not
+spared, and a call without `bornBefore` (a direct `pruneEmptyLocations()`, or a
+dry run) sweeps by contents alone. A new place that holds nothing is swept at
+the next launch. The setting still gates the ready sweep, and a place is
+deleted by hand as ever.
+
 **A quarter's own place.** A scene Region can carry the same
 `flags["acks-extras"].location` the scene carries, at the Region's grain, and
 the place mirrors it in `system.regionUuid`. `locationOfRegion` /

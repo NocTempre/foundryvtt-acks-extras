@@ -18,6 +18,7 @@ import { primaryGMSettled, setPendingOwnership } from "../lib/util.mjs";
 import { allPlaces, emptyOfPlaces, placeOpensToTable } from "../lib/place.mjs";
 import { thingsOf } from "../lib/place-things.mjs";
 import { hasWrittenNotes } from "./notes.mjs";
+import { launchTimeOf, sparedByAge } from "./prune-age.mjs";
 
 /** World setting: empty, unremarkable locations self-clean at ready. */
 const PRUNE_SETTING = "pruneEmptyLocations";
@@ -211,9 +212,18 @@ Hooks.once("ready", () => {
   primaryGMSettled().then((primary) => {
     if (!primary) return;
     runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
-    pruneEmptyLocations().catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
+    pruneEmptyLocations({ bornBefore: worldLaunchTime() }).catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
   });
 });
+
+/**
+ * When this world was launched, in milliseconds, from the `lastPlayed` the
+ * server stamps at launch; null when the world carries none that parses.
+ * @returns {number|null}
+ */
+export function worldLaunchTime() {
+  return launchTimeOf(game.world?.lastPlayed);
+}
 
 /**
  * Deletes the empty, unremarkable locations. A location survives empty when it
@@ -224,11 +234,15 @@ Hooks.once("ready", () => {
  * or a place that a surviving place sits in
  * (`emptyOfPlaces`). Gated by the `pruneEmptyLocations` setting. `dryRun`
  * deletes nothing, setting or not, and answers with the uuids a sweep would
- * remove. See docs/lib/DECISIONS.md, "Money is physical; four rulings land at
- * once".
+ * remove. `bornBefore` (milliseconds) also spares a place created at or after
+ * it (`sparedByAge`); the ready sweep passes the world's launch time, so a
+ * place made since the launch waits for the next one, and a direct call
+ * without it sweeps by contents alone. See docs/lib/DECISIONS.md, "Money is
+ * physical; four rulings land at once".
+ * @param {{dryRun?: boolean, bornBefore?: number|null}} [options]
  * @returns {Promise<{pruned: number, doomed?: string[]}>}
  */
-export async function pruneEmptyLocations({ dryRun = false } = {}) {
+export async function pruneEmptyLocations({ dryRun = false, bornBefore = null } = {}) {
   if (!dryRun && !game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
   // Every actor with a token on any scene, hidden tokens included, collected
   // in one pass for the whole sweep.
@@ -238,6 +252,7 @@ export async function pruneEmptyLocations({ dryRun = false } = {}) {
   }
   const empty = game.actors.filter((a) => {
     if (a.type !== LOCATION_TYPE) return false;
+    if (sparedByAge(a._stats?.createdTime, bornBefore)) return false;
     if (a.items.size > 0) return false;
     if ((a.system?.roster ?? []).length > 0) return false;
     if (a.system?.market != null || a.system?.marketClass != null) return false;
