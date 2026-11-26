@@ -92,11 +92,40 @@ questions, ruled"): 2 and 4a before 1b.
   ladder, mishap tiers, stigma, purification); BTA invocations and
   implements; HFH codices, trinkets and talismans — items on the flag 4a
   ships. Built: the level cap, the ceremony record and the invocation throw
-  as pure functions, read by no surface yet. Deferred past the next minor
-  (owner, 2026-11-19): the prose figures, the corruption kind, the Magic-tab
-  and item-sheet surfaces, the ceremony procedure and the invocations' effect
-  rows; the plan and its /design canvas are
-  [wip/20261116-bta-magic-groundwork-plan.md](wip/20261116-bta-magic-groundwork-plan.md).
+  as pure functions, read by no surface yet. Deferred (owner, 2026-11-19);
+  the rulings these build to are [DECISIONS.md](DECISIONS.md), "Gnosis and
+  ceremony". What remains:
+  - the gnosis prose figures (`gnosisProse`: the corruption multipliers, the
+    purification times, the stigma marks of a failure and the damage marks of
+    a botch), read by the importer under `scripts/importer/books/bta/`;
+  - the corruption kind on the spell (`SpellExtras.corruption`) and the
+    invocation register rows that author it;
+  - the invocation throw wired into the procedure seam (a `gnosis` procedure,
+    with its lang and recipe), and after it the invocations' effect rows, which
+    no cast executes until the throw exists (their per-level row matrix is on
+    the rules shelf, LOCAL-ONLY; one invocation summons, and a `summon` row
+    would hand its cast to `castSummon`, which has no By This Axe creatures);
+  - the surfaces, which await `/design` approval: a pace choice and a
+    situational modifier in the cast window (D1); the throw section on the card,
+    with the damage mark, the mishap, stigma against its threshold, corruption
+    with a wound line and a press that opens the Mortal Wounds window, and the
+    Judge's Undo (D2); the casting strip's stigma chip with a Judge-only step,
+    and Purify (D3) with its confirm (D4); the corruption chip (D5); the
+    implement level and its Judge-only damage reset on the item sheet (D6); the
+    corruption kind on the spell Overview (D7); and the warnings and blocks of
+    ruling 7 (D8). The canvas is
+    https://claude.ai/artifact/DyscmRWo2r7x3fpzbSRMZT, version
+    1794984538-829c, which draws no placeholder art and awaits the owner's
+    approval;
+  - an HFH ceremony table set, once a reader exists; a record held for a
+    regular or methodical invocation's performing time; purification as a turn
+    activity. Extemporaneous invocations and the printed builds need 1b;
+    trinkets, talismans and scrolls need 4a; a sigil's grant of its invocation
+    waits for part 2's repertoire work;
+  - not yet walked: casting an invocation from a character (importer TESTING,
+    "By This Axe invocations and the gnostic classes' lists", step 3), and
+    importing the gnostic tables with the book closed (importer TESTING, "The
+    gnostic tables, read from By This Axe", step 4).
 - **3d — Spellsinging.** The points engine (a cost by spell level from the
   type's ladder, and recovery), tapping, and extemporaneous builds through the
   cost engine (needs 1b).
