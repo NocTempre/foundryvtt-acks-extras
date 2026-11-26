@@ -67,8 +67,7 @@ family template. `scripts/importer/ecology-recipe.mjs` reads the creature's
 Combat and Ecology paragraphs and its parsed encounter lines; shipped locators
 find each structure, and every figure and every creature word is the page's.
 The evaluator that rolls a recipe into a tree of units is "The organisation
-roll", below; the Judge's editor for it is a later slice
-(`docs/monsters/wip/20261124-beastman-organisation-plan.md`, S4b).
+roll", below; the Judge's editor for it is "The recipe editor", below.
 
 A part carries `key`, `origin`, `label` (the word as printed), `role`,
 `source`, `count`, `chance` (percent; null for always), `when`, `branch`,
@@ -132,6 +131,57 @@ declares the field, so a sheet submit keeps the parts it does not render.
 `tools/importer/check-ecology-recipe.mjs` reads the local Monstrous Manual
 through the importer's path and reports the parts read per breed.
 
+## The recipe editor
+
+`scripts/monsters/recipe-editor.mjs` is the Judge's window over the stored
+recipe `extras.encounter.recipe`. It edits one recipe at a time, one field per
+write, against the recipe read again at the write, and nothing waits on a Save:
+a change lands as it is made. Its tabs are the encounter states (wandering, in
+lair, either); the Units table lists the size rows the recipe holds and the
+Parts table the parts, the part in edit opening under its row. A **Found in**
+control filters the Parts table and changes nothing stored.
+
+**Which document each door writes.** Three doors open it, and each writes the
+one document it opens from, never a second (`recipe-editor-view.mjs`
+`doorOf`; the window's header names the document):
+
+| Door | Where it is | Writes |
+|---|---|---|
+| Organisation… | the monster's Ecology tab, in the Encounter section | the actor's own recipe |
+| Recipe… on a variant option | the family template's edit mode, on each option of the variant axis (`recipe-doors.mjs`) | that option's recipe |
+| Recipe… on the chart | the org chart's Roll panel | the option the host's Roll record names |
+
+The variant axis is the template axis `rollOrganisation` reads through
+`variantOptionOf` (`organisation-run.mjs`), named by its key. A roll reads the
+variant option's recipe and never the actor's, so the Ecology door edits a
+recipe no roll of a family reads; the chart's Recipe… is the door that edits
+what a roll reads. Groups already rolled keep the recipe they were rolled with.
+The window is read-only for a seat Foundry's ownership does not let update the
+document, and every write path tests that again; the doors add no gate of
+their own.
+
+**What a Judge can do.** A part changed by a hand wears the edge the origin mark
+draws: `origin` blank, the tooltip naming what the import read (the merge that
+keeps it is `docs/importer/MODEL.md`, "A monster's recipe parts ride the same
+per-row mechanism"). **Reset this part to the import** puts one part back to the
+import's stored copy of it. **Reset all to the import** writes the copy back
+whole at once, asks nothing and has no undo: a part a Judge added is gone with
+the rest, and with no copy (nothing imported) it does nothing. The reading pane
+shows the paragraph from the world's own import with each sentence marked read
+into a part or read by none, and a sentence pressed starts a part.
+
+The Role select offers the shipped roles and Mount and Beast. A Mount or Beast
+part names its creature by a link to that creature's own entry (**Link**, then
+**Change…**): its figures and its own recipe are read there and never copied in.
+A word the import read for it is written into the part only on Link. A part with
+no link is the labelled stack, and a Roll for a Mount or Beast part with none
+writes that stack named by the part's Label and lists an `unlinked` finding on
+the Judges' card ("The organisation roll"). A part with no source at all is the
+labelled stack too, whatever its role.
+
+`fixedHp` is edited as "Hit points fixed", a whole number or blank, validated
+where it is typed. A blank-label part shows its role in the list.
+
 ## Item flag metadata (`flags["acks-extras"]`)
 
 Set via the "ACKS Monster" group injected into monster-owned item sheets
@@ -170,6 +220,7 @@ api.getExtras(actor);      // → MonsterExtras (typed view of the flag)
 api.MonsterExtras;         // the DataModel class
 api.config;                // all enum tables (MONSTER_TYPES, SIZES, …)
 api.FLAG_EXTRAS;           // "extras"
+api.openRecipeEditor(subject, {axisKey, optionKey}); // the recipe editor onto a monster, a template's variant option or a chart host ("The recipe editor"); resolves to the window, or null with a notice
 ```
 
 Read raw: `actor.getFlag("acks-extras", "extras")`.

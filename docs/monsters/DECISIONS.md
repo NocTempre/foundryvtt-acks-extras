@@ -595,3 +595,47 @@ above and "No shipping house rules please":
 Rejected: a flag marking a part combatant or not (the owner: "Add no combatant or non-combatant
 flag, gate or sort"); a camp row under the village. Cost: a village whose top unit holds bodies is
 the old shape until it is ruled on.
+
+## 2026-11-25 — The recipe editor (S4b)
+
+The editor is `scripts/monsters/recipe-editor.mjs`; what it does now is `MODEL.md`, "The recipe
+editor". Ruled and picked while it was built:
+
+**The Role select (the hub's approval of frame 1t).** "The Role select offers the shipped roles
+plus Mount and Beast. A Mount or Beast part names its creature by a link to that creature's own
+imported entry: its figures and its own recipe are read there and never copied in. 'Label' is not
+a role: a part with no source is the labelled stack." This **reverses the S4b brief's pick 1**
+(no mount, beast or label role), which was the phase session's pick and not an owner ruling.
+
+**A Roll for a part with no link (the hub's ruling).** "A Roll for a Mount or Beast part with no
+link writes a labelled stack named by the part's Label, with a finding on the Judges' card." The
+finding is `unlinked` (`MODEL.md`, "The organisation roll").
+
+**Five departures from canvas 3, by the orchestrator.**
+
+1. The Units table shows the recipe's size rows; the village, warband and gang chain is not
+   derived.
+2. No caster Level field (the owner: "A recipe part carries no grade").
+3. "Hit points fixed" is the new `fixedHp` field on a part.
+4. Each door edits its own document, and the window's header names it.
+5. A blank-label part shows its role.
+
+**The editor's own picks.** No Save and no confirm, and Reset all writes at once; When is a
+checkbox per unit word; Found in is a view filter and stores nothing; a share is edited as NN%;
+a Mount or Beast word the import resolved is written into the part only on Link; unticking and
+reticking a unit word reorders `when.units` and reads as a hand change.
+
+**Three doors, one document each.** The Ecology tab's Organisation… writes the actor's own
+recipe; a template's variant option writes that option's; the chart's Recipe… writes the option
+the host's roll record names, which is what a roll reads. The template door is added from
+`scripts/monsters/recipe-doors.mjs` by a render hook on lib's option rows, so lib's template sheet
+is unchanged; it is offered where lib's edit mode lists the rows.
+
+Rejected: a preview roll in the editor (canvas 3's answer 2); a derived unit chain; one door
+writing the actor's recipe and the option's together.
+
+Strongest counter-argument to departure 4 (medium): a Judge who edits a monster's Ecology tab
+may expect a roll to change. The rating is medium because the header names the document each
+door edits and `MODEL.md` says which one a roll reads, so the surprise is answered where it is
+met; it stays real because a Judge who never reads the header still edits a recipe nothing rolls.
+Cost: two stored recipes for one family can differ, and only the option's is rolled.

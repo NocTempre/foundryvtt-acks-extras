@@ -965,3 +965,17 @@
 .acks-extras-recipe .acks-extras-recipe-sentence.is-selected {
   outline: var(--acks-rule) solid var(--acks-spot);
 }
+
+/* The recipe editor's two doors: a legend button on the Ecology tab's Encounter
+   section and a button on a family template's variant option row. Type rides the
+   ramp step, so the size setting reaches both. */
+.acks-extras.monster-v2 .acksm-recipe-door,
+.acks-lib-template-sheet .acksm-recipe-door {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0 var(--acks-sp-2);
+  padding: 0 var(--acks-sp-2);
+  font-size: var(--acks-fs-fine);
+  line-height: 1.6;
+  cursor: pointer;
+}

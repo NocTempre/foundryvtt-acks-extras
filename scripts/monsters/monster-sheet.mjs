@@ -216,11 +216,12 @@ export function createFullMonsterSheet(Base) {
         editTags: FullMonsterSheet.#onEditTags,
         ownership: FullMonsterSheet.#onOwnership,
         makeEncounter: FullMonsterSheet.#onMakeEncounter,
+        organisation: FullMonsterSheet.#onOrganisation,
       },
     };
 
     /** Actions a read-only seat keeps: the frame's, the rolls and the menus, and what only opens or shows. */
-    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "itemShow", "toggleSummary", "dealTreasure"]);
+    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "itemShow", "toggleSummary", "dealTreasure", "organisation"]);
 
     /** The folded card is narrower than a character's: the rails and the portrait alone. */
     static FRAME_WIDTHS = Object.freeze({ open: 900, folded: 348 });
@@ -871,6 +872,12 @@ export function createFullMonsterSheet(Base) {
     static async #onMakeEncounter() {
       const group = await makeEncounter(this.actor);
       group?.sheet?.render(true);
+    }
+
+    /** Open the recipe editor onto this monster's own recipe; the window reads for itself whether this seat may write. */
+    static async #onOrganisation() {
+      const { openRecipeEditor } = await import("./recipe-editor.mjs");
+      await openRecipeEditor(this.actor);
     }
 
     /** Alignment and the XP award, the two tags the art row prints that have no other pen on the frame. */

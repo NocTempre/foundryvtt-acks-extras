@@ -20,6 +20,7 @@ import * as services from "../lib/services.mjs";
 import { createFullMonsterSheet, MONSTER_SHEET_TEMPLATES } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
+import { registerRecipeDoors } from "./recipe-doors.mjs";
 import * as config from "./config.mjs";
 import { escape, findActor, makeLoc, primaryGMSettled } from "../lib/util.mjs";
 import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
@@ -80,6 +81,7 @@ function resolveMonsterSheetBase() {
 Hooks.once("init", () => {
   registerHelpers();
   registerItemAnnotations();
+  registerRecipeDoors();
 
   // Public API for consumer modules (which add behavior on this stored data).
   const api = {

@@ -249,6 +249,37 @@ while a row is open, *Failed* with the turns left while the failure lasts, and
 *Immune* with the turns left after a pass. Several bearers of one kind make one
 row.
 
+### Editing a recipe
+
+An imported creature, and each variant of an imported family, carries a
+**recipe**: the parts a group of it is made of, as the import read them from
+the pages. The recipe editor shows them, and lets you change a figure, add a
+part of your own, or link a mount or a beast to its own entry. Every change is
+written as you make it; there is no Save. A part you changed wears a yellow
+edge, and its tooltip says what the import read. You need to be allowed to edit
+the document; without that the window opens and only reads.
+
+Three doors open it, and each edits a different copy:
+
+1. **A monster's own recipe.** `Actors sidebar tab → a monster → its sheet →
+   Ecology tab → Encounter → Organisation…`. This edits the monster's own
+   recipe. A Roll on an organisation chart does not read it.
+2. **A variant of a family.** `Actors sidebar tab → a family template → its
+   sheet → Edit structure → an option of the variant axis → Recipe…`. This
+   edits that option's recipe, the copy a Roll reads. The window's title names
+   the template and the option.
+3. **What a chart's Roll reads.** `Actors sidebar tab → a faction or a group →
+   Org chart tab → Recipe…`, beside **Roll**. It opens the variant the
+   chart's Roll recorded, so it edits the copy the next Roll will read. Groups
+   already rolled keep the recipe they were rolled with.
+
+In the window, **Reset this part to the import** puts one part back as the
+import read it. **Reset all to the import**, at the foot, does it for every
+part at once, asks nothing, removes the parts you added and cannot be undone.
+A part whose role is Mount or Beast is linked to a creature with **Link**; until
+it is, a Roll makes a stack named by the part's label and lists a finding on the
+Judges' card.
+
 ## What an attack card shows
 
 An attack posts the system's own card. What this module knows about the
