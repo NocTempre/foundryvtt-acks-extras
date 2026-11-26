@@ -358,15 +358,16 @@ export function getLoadout(actor, opts = {}) {
       detail: { handsUsed, budget, heldLights, mappingHands, mappingUnlisted: mappingHands - mappingKit.length },
     });
   }
+  // `items` is what the resolve takes off: all but the last-equipped. `named`
+  // is every one worn, which the message lists, since the system sums the AC
+  // of each equipped armour and shield while they stand.
   if (suits.length > 1) {
-    violations.push({ type: VIOLATION.MULTIPLE_ARMOR, items: suits.slice(0, -1) }); // keep the last-equipped
+    violations.push({ type: VIOLATION.MULTIPLE_ARMOR, items: suits.slice(0, -1), named: suits });
   }
-  // RAW (RR p141): a character benefits from only ONE shield at a time. This
-  // holds however a shield is carried — an in-hand shield PLUS a back-strapped
-  // one is still two shields — so count every equipped shield, strapped or not,
-  // and flag all but the last-equipped (which keeps the benefit).
+  // One shield at a time (RR p141), however it is carried: an in-hand shield
+  // and a back-strapped one are two, so every equipped shield is counted.
   if (shields.length > 1) {
-    violations.push({ type: VIOLATION.TOO_MANY_SHIELDS, items: shields.slice(0, -1) });
+    violations.push({ type: VIOLATION.TOO_MANY_SHIELDS, items: shields.slice(0, -1), named: shields });
   }
   if (!shieldStyled) {
     violations.push({ type: VIOLATION.SHIELD_NO_STYLE, items: shields, advisory: true });
@@ -489,6 +490,6 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {boolean} styleProficient
  * @property {boolean} shieldStyled the in-hand shield is backed by the style, so its AC counts
  * @property {{blocked: string[], undecided: string[]}} armourLimits the actor's abilities whose armour limit the loadout breaks, and those it cannot be judged for
- * @property {{type,items,advisory?,detail?}[]} violations
+ * @property {{type,items,named?,advisory?,detail?}[]} violations `named`, where present, is what the message lists in place of `items`
  * @property {boolean} legal
  */

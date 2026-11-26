@@ -64,7 +64,7 @@ function blockingViolations(loadout) {
 
 function violationMessage(v) {
   const key = `ACKS-EQUIPMENT.violation.${v.type}`;
-  const names = (v.items ?? []).map((i) => i.name).join(", ");
+  const names = (v.named ?? v.items ?? []).map((i) => i.name).join(", ");
   // A hand overflow quotes a total the listed items cannot add up to whenever
   // the party sheet is holding a hand, so it states that alongside the count
   // rather than after the sentence — a separate key, because the ordinary

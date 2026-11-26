@@ -185,6 +185,11 @@ lo = getLoadout(actor([armor("Plate", "heavy", { id: "p" }), armor("Chain", "med
 check("two suits → multipleArmor, keeps last", lo.violations.some((v) => v.type === VIOLATION.MULTIPLE_ARMOR) && lo.armor?.id === "c");
 lo = getLoadout(actor([armor("Plate", "heavy", { id: "p" }), armor("Heavy Helmet", "medium", { id: "h" })]));
 check("helmet excluded from suit count", !lo.violations.some((v) => v.type === VIOLATION.MULTIPLE_ARMOR) && lo.hasHelmet);
+// The system sums every equipped armour, so the advisory names every suit worn;
+// the resolve still takes off all but the last-equipped.
+lo = getLoadout(actor([armor("Plate", "heavy", { id: "p" }), armor("Chain", "medium", { id: "c" })]));
+const twoSuits = lo.violations.find((v) => v.type === VIOLATION.MULTIPLE_ARMOR);
+check("two suits: the advisory names both, the resolve removes the first", twoSuits?.named?.map((i) => i.id).join() === "p,c" && twoSuits.items.map((i) => i.id).join() === "p");
 
 // loadout Active Effect (v14 string mode; no deprecated CONST; case-insensitive spec)
 // Fighting Style Specialization's bonuses are the proficiency's own typed
@@ -663,6 +668,10 @@ check(
   getLoadout(wsActor([shieldItem("Shield", "standard", "hand"), shieldItem("Buckler", "buckler", "hand")], true))
     .violations.some((v) => v.type === VIOLATION.TOO_MANY_SHIELDS),
 );
+{
+  const two = getLoadout(wsActor([shieldItem("Shield", "standard", "hand"), shieldItem("Buckler", "buckler", "hand")], true)).violations.find((v) => v.type === VIOLATION.TOO_MANY_SHIELDS);
+  check("two shields: the advisory names both, the resolve removes the first", two?.named?.map((i) => i.name).join() === "Shield,Buckler" && two.items.map((i) => i.name).join() === "Shield");
+}
 // One in hand PLUS one strapped on the back is STILL two shields — the strapped
 // one costing no hand must not become a loophole for a second shield.
 check(
