@@ -2984,6 +2984,47 @@ Docs debts:
   walk reshapes at start.
 - `scripts/lib/README.md` lists neither `gangPartition` nor `groupGangs`.
 
+### Phase 3b, slices (f) and (e), 2026-11-25
+
+A fresh session (chart-feh) took over slices (f), (e) and (h) from the
+phase 3b orchestrator at its hand-over. Slices (a) to (d) and (g) are that
+session's, landed at `379002b6` and `18fface1`. Under the hub's protocol
+v2 each landing is logged in the gitignored `aia-tmp/20261125-landings.md`,
+and the walker runs every walk. This session ran none. Nothing is pushed.
+
+**(f), T-0836, landed at `42505a86`, lib `apiVersion` 88.** It
+reproduced by reading and by a red unit case. A gather now keeps a size a
+hand gave a body's token, and auto-size leaves it alone: every automatic
+size write stamps `sizeStamp`, the roster record keeps `tokenSize`, and
+the send-out lays it back with `footprintLock`. The ruling (architect,
+option C, held by the hub) is in `docs/lib/DECISIONS.md`. The walk step
+is in `lib-nested-groups`.
+
+**(e), S4b, the recipe editor.** It was scoped as one field. It is the
+whole editor, plus the hub's frame 1t (Mount and Beast in the Role select),
+which reverses the S4b brief's pick 1.
+- e1 and e2 (origin on a part, the repair merge for the actor and for each
+  template option, the read copy, guard keys by creature word) landed at
+  `c2b59799`.
+- e3 to e5 (the editor's logic, `fixedHp`, the `unlinked` finding, the
+  window, the Ecology and variant-option doors, the docs, and the walk
+  `monsters-beastman-recipe`) land after this entry.
+- The departures from canvas 3 and their counter-arguments are in
+  `docs/monsters/DECISIONS.md`, 2026-11-25, "The recipe editor (S4b)".
+
+**Offline only.** Each slice's suites were green as its agent reported them
+and as this session re-ran them before each landing; every mutation check
+was killed. The editor app itself (`recipe-editor.mjs`) is checked only by
+`node --check`, since no suite can import it.
+
+**Not checked:** everything live. The walks owed are listed per landing in
+the landings file.
+
+**Registered:** T-0852, a labelled stack drops `fixedHp` in lib.
+
+**Left to (h):** S12b, the Followers tab's views over `serviceNodes`
+(board 1l), in a fresh session from `aia-tmp/20261125-handover-chart-h.md`.
+
 ### Start prompt, phase 2
 
 Since this prompt was written, the owner's go-ahead on canvases 2 to 5

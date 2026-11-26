@@ -1231,8 +1231,7 @@ walk logs keys' positions, counts and booleans, and nothing the book prints.
   `template.uuid` blank and `template.label` the part's Label. Findings are
   `result.findings` and, on the whispered card, `li[data-finding="unlinked"]`.
 - A part reaches a unit only through its unit words (`appliesTo`), whatever its state, so the
-  Judge part ticks the top unit's word or no Roll applies it. The editor's hint reads "None
-  ticked: every unit", which the evaluator does not do for a part with no words.
+  Judge part ticks the top unit's word or no Roll applies it; the field's hint says so.
 - *Repair.* A picker repair passes a copy by. The walk calls the refill the picker runs for a
   stat-block monster (`refillMonster`, `whole`).
 - The 460-wide measure: `setPosition({width: 460, height: 420})`. The part root is

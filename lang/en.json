@@ -11937,7 +11937,7 @@
   "ACKS-MONSTERS.recipe.hint.morale": "Added to the unit's while this part is alive.",
   "ACKS-MONSTERS.recipe.hint.cite": "Where the part was read from.",
   "ACKS-MONSTERS.recipe.hint.fixedHp": "Blank: the bodies roll their hit points.",
-  "ACKS-MONSTERS.recipe.hint.units": "The units the part is counted for. None ticked: every unit.",
+  "ACKS-MONSTERS.recipe.hint.units": "The units the part is counted for. A part with none ticked is counted for no unit.",
   "ACKS-MONSTERS.recipe.unit.aria": "Counted for {word}",
   "ACKS-MONSTERS.recipe.leaderFigures": "Leader figures",
   "ACKS-MONSTERS.recipe.leaderNote": "The grade is the template's Leader figures axis, chosen at the Roll. A part carries none.",
