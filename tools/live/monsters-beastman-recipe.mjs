@@ -192,9 +192,26 @@ const P = {
     return { members, held: members.filter((id) => docs.some((d) => d.pack && d.type === "monster" && d.getFlag("acks-extras", "cookbook")?.id === id)) };
   },
   /** Import entries the library lacks through the importer's own call; the ones it holds are declined. */
-  importIds: async ({ ids }) => {
-    await acksExtras.importer.cookbookImportIds(ids);
-    return true;
+  importIds: async ({ ids }) => ({ made: await acksExtras.importer.cookbookImportIds(ids) }),
+
+  /**
+   * What the page can say about a family template it was just handed as fresh: when the document was
+   * created, and whether the importer's recipe reader the page runs is the one the server serves (the
+   * page's copy against a no-store read of the file, and whether the page took it from its cache).
+   */
+  freshness: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    const url = "/modules/acks-extras/scripts/importer/ecology-recipe.mjs";
+    const served = await (await fetch(url, { cache: "no-store" })).text();
+    const cached = await (await fetch(url, { cache: "force-cache" })).text();
+    const entry = performance.getEntriesByType("resource").find((r) => r.name.endsWith(url));
+    return {
+      createdTime: doc?._stats?.createdTime ?? null,
+      servedStamps: served.includes("origin: REGISTER_ORIGIN"),
+      cachedStamps: cached.includes("origin: REGISTER_ORIGIN"),
+      sameText: served === cached,
+      pageTransferSize: entry ? entry.transferSize : null,
+    };
   },
 
   /** The data of a world copy of a library actor: its recipe and the read copy of it taken out, its source stamped as a drag out of the library stamps it. */
@@ -522,16 +539,24 @@ try {
   if (lib.twins !== 1 || !lib.uuid) blocked("the library does not hold exactly one family template; import it through the entry picker first");
   // Setup is the subject: the library's copy is deleted by its id and imported fresh through the importer's own call, so no part an older import left without an origin stands in it.
   section("setup: the library's copy of the template is deleted and imported fresh");
+  const started = Date.now();
   const dropped = await run(gm, P.dropTemplate, { uuid: lib.uuid });
   note("the library copy deleted by its id", { uuid: lib.uuid, ...dropped });
   check("the library's copy of the template was deleted by its id", dropped.deleted === true, dropped);
   await run(gm, P.importTables);
   const tables = await until(gm, P.tablesDone, null, (r) => r.done, { tries: 480, every: 1000 });
   check("the Monstrous Manual's tables were imported by the importer's own call", tables.done && !tables.error, tables);
-  await run(gm, P.importIds, { ids: [FAMILY] });
+  const imported = await run(gm, P.importIds, { ids: [FAMILY] });
   lib = await run(gm, P.template, { family: FAMILY });
-  check("exactly one fresh copy of the template stands in the library", lib.twins === 1 && !!lib.uuid, { twins: lib.twins });
+  check("exactly one fresh copy of the template stands in the library", lib.twins === 1 && !!lib.uuid, { twins: lib.twins, made: imported.made });
   if (lib.twins !== 1 || !lib.uuid) blocked("the fresh import left no single family template in the library");
+  // The copy must be one this run's import wrote, and the page must run the reader the server serves: a stale read of either would pass the step above on a document the import never made.
+  const fresh = await run(gm, P.freshness, { uuid: lib.uuid });
+  note("the template's creation and the page's recipe reader", { ...fresh, madeByThisRun: fresh.createdTime == null ? null : fresh.createdTime >= started });
+  check("the template standing in the library was created by this run's import", fresh.createdTime == null || fresh.createdTime >= started, { createdTime: fresh.createdTime, started, made: imported.made });
+  if (fresh.createdTime != null && fresh.createdTime < started) blocked("the import left the template that was deleted standing: the library still answers for it, so the importer wrote nothing; read the importer's presence index after a delete made outside it");
+  check("the page's recipe reader is the one the server serves", fresh.servedStamps && fresh.cachedStamps && fresh.sameText, fresh);
+  if (!(fresh.servedStamps && fresh.cachedStamps && fresh.sameText)) blocked("the page loaded an importer file other than the one on disk: a stale module cache, not a product defect; reload the seat with the cache cleared and run again");
   let variants = await run(gm, P.variants, { uuid: lib.uuid });
   note("a fresh import's parts by origin per option (key, parts, register, blank, read copy)", variants.map((v) => [v.key, v.parts, v.register, v.blank, v.copy]));
   const dirty = variants.filter((v) => v.blank > 0 || v.register !== v.parts || v.copy !== v.parts);
