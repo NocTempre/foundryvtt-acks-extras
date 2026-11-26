@@ -1369,9 +1369,12 @@ function overrideFromForm(current, tv) {
  * A day-kind change into a forced march obeys the bar `setDayKind` does:
  * barred, the kind alone is dropped (the rest of the form lands) and the seat
  * is warned; with `{ override: true }` from a Judge's seat it is set and the
- * Judges are told who was barred.
+ * Judges are told who was barred. A caller that says the warning itself passes
+ * `report`, an object that takes the barred list as `report.barred` and is
+ * toasted nothing; `keepWanted` leaves the settlement's stored `wanted` alone
+ * when the submit does not name it.
  */
-export async function applyTravelForm(formationId, tv = {}, { override = false } = {}) {
+export async function applyTravelForm(formationId, tv = {}, { override = false, keepWanted = false, report = null } = {}) {
   let barred = [];
   let refused = false;
   let forcedHere = false;
@@ -1394,7 +1397,9 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
           ...tv.settlement,
           // An unticked checkbox is absent from the submit, so a spread would
           // keep the old value; it is read explicitly.
-          wanted: !!tv.settlement.wanted,
+          // `keepWanted` is a submit that never carries the Judge's box: its
+          // absence is no unticking.
+          wanted: keepWanted && tv.settlement.wanted === undefined ? !!t.settlement?.wanted : !!tv.settlement.wanted,
         },
       });
       // Stepping back into the street ends the stay, stamp and all.
@@ -1474,7 +1479,8 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
     }
     record.travel = next;
   });
-  if (refused) warnForcedMarchBarred(barred);
+  if (refused && report) report.barred = barred;
+  else if (refused) warnForcedMarchBarred(barred);
   else if (forcedHere && barred.length && result) await announceBarOverridden(result, barred);
   return result;
 }

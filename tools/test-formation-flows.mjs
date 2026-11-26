@@ -1975,6 +1975,209 @@ await scenario("a seat that owns a bearer or a caster puts out its light and set
   }
 });
 
+await scenario("a seat that owns a member writes the party's form fields through the relay, blocked where the Judge is warned", async () => {
+  // Owner rule: "Tool permissions are hardcoded (e.g. summons) by server role
+  // instead of object ownership, only judge secrets are supposed to be an
+  // exception to this rule". The seat test is Foundry's ownership of a member;
+  // the relay picks the allow-list, never reads `judge` and never passes
+  // `override`, so a forced march the survival ladder bars is refused at the
+  // seat where the Judge is asked.
+  const travel = await import("../scripts/formation/travel.mjs");
+  const { PARTY_FORM_PATHS, pickPartyForm, applyPartyForm } = await import("../scripts/formation/party-form.mjs");
+  const { onChangeForm } = await import("../scripts/formation/formation-actions.mjs");
+  const { PARTY_TOKEN_SHAPES } = await import("../scripts/formation/constants.mjs");
+  const { freshSurvival } = await import("../scripts/lib/survival.mjs");
+  const party = await drawnParty("Former");
+  const { id, walker: mine } = party;
+  mine.ownership = { default: 0, PL1: 3 };
+  const theirs = await member("Former B");
+  await model.addMember(model.getFormation(id), theirs, null);
+  // The party's own actor, which disbanding takes with the record.
+  const partyActor = model.getPartyActor(model.getFormation(id));
+  assert.ok(partyActor, "the party has its actor");
+  Object.defineProperty(partyActor, "isOwner", { get: () => partyActor.testUserPermission(game.user) });
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  const gmUser = game.user;
+  const asSeat = async (userId, fn) => {
+    game.user = game.users.get(userId);
+    try {
+      return await fn();
+    } finally {
+      game.user = gmUser;
+    }
+  };
+  const nest = (path, value) => path.split(".").reduceRight((inner, key) => ({ [key]: inner }), value);
+  // The sheet's submit as core hands it: flat dotted keys that `expandObject` nests.
+  const priorExpand = foundry.utils.expandObject;
+  foundry.utils.expandObject = (flat) => {
+    const out = {};
+    for (const [path, value] of Object.entries(flat)) {
+      const parts = path.split(".");
+      const last = parts.pop();
+      parts.reduce((into, part) => (into[part] ??= {}), out)[last] = value;
+    }
+    return out;
+  };
+  const relay = (userId, form, extra = {}) => asSeat(userId, () => requests.requestPartyAction(id, "partyForm", { form, ...extra }, { sent: false }));
+  const stored = () => onlyFormation();
+  const tv = () => travel.storedTravelOf(stored());
+  const reseed = async (before) => model.patchFormation(id, (rec) => { rec.travel = structuredClone(before.travel); rec.tableId = before.tableId; });
+  const app = { renders: 0, get formation() { return model.getFormation(id); }, render() { this.renders++; } };
+  const chatStart = chat.length;
+  try {
+    partyActor.ownership = { default: 0, PL1: 3 };
+    // The Judge's own fields, each at a stored word the payloads below differ from.
+    await travel.applyTravelForm(id, {
+      lostNote: "secret", shown: "unknown", hexLabel: "K7",
+      camp: { present: "yes", target: "x" }, settlement: { wanted: true },
+    });
+    await model.patchFormation(id, (rec) => {
+      rec.tableId = "tbl1";
+      const t = travel.storedTravelOf(rec);
+      rec.travel = { ...t, day: { ...t.day, activities: [null, null, null], done: [false, false, false] } };
+    });
+    assert.deepEqual([tv().lost.judgeNote, tv().shown, tv().hex.label, tv().camp.present, tv().camp.target, tv().settlement.wanted, stored().tableId], ["secret", "unknown", "K7", "yes", "x", true, "tbl1"], "the seeds are in");
+
+    // --- The allow-list: each path of it lands, and every other path is dropped.
+    assert.ok(PARTY_FORM_PATHS.every((p) => /^(name|frontage|tokenShape|columnColor|travel\.)/.test(p)), "the list names form fields only");
+    const keep = { name: "N", frontage: "2", travel: { mode: "journey", day: { slot: { 2: "forage" }, kind: "march" }, settlement: { pace: "commuting" } } };
+    assert.deepEqual(pickPartyForm(keep), keep, "allowed paths pass whole, a day slot included");
+    const mixed = pickPartyForm({ ...keep, tableId: "t", system: { description: "d" }, crossing: { kind: "k" }, travel: { ...keep.travel, ground: "hills", weather: { climate: "arid" }, camp: { present: "no", steal: true }, day: { ...keep.travel.day, slot: { 2: "forage", x: "forage", 123: "forage" } } } });
+    assert.deepEqual(mixed, { name: "N", frontage: "2", travel: { mode: "journey", day: { slot: { 2: "forage" }, kind: "march" }, settlement: { pace: "commuting" }, camp: { steal: true } } }, "a country key, a climate, a slot that is no index and a Judge's field are all dropped");
+    assert.deepEqual(pickPartyForm({ name: ["a"], frontage: { n: 1 }, tokenShape: "x".repeat(201), columnColor: NaN, __proto__: { name: "inherited" } }), {}, "a value that is no plain field, and an inherited key, are dropped");
+    assert.deepEqual(pickPartyForm(null), {});
+
+    // --- Every key the Judge keeps is dropped on the relay, and lands on the Judge's own path.
+    const judgeKeys = [
+      ["travel.override.ground", "hills"], ["travel.lostNote", "changed"], ["travel.shown", "believed"],
+      ["travel.camp.present", "no"], ["travel.camp.target", "y"], ["travel.settlement.wanted", false],
+      ["travel.hexLabel", "Z9"], ["tableId", "tbl2"], ["travel.ground", "hills"], ["system.description", "d"], ["crossing.kind", "k"],
+    ];
+    const ruled = structuredClone(stored());
+    for (const [path, value] of judgeKeys) {
+      const form = nest(path, value);
+      assert.deepEqual(await relay("PL1", form, { judge: true, override: true }), { ok: true }, `${path} from a seat is heard and dropped`);
+      assert.deepEqual(stored(), ruled, `${path} wrote nothing`);
+      if (path === "system.description" || path === "crossing.kind") continue;
+      await applyPartyForm(model.getFormation(id), form, { judge: true });
+      assert.notDeepEqual(stored(), ruled, `${path} is a live key on the Judge's own path`);
+      await reseed(ruled);
+      assert.deepEqual(stored(), ruled);
+    }
+    assert.deepEqual(await relay("PL1", { ...nest("travel.override.ground", "hills"), ...nest("travel.shown", "believed"), travel: { override: { ground: "hills" }, shown: "believed", weather: { climate: "arid" }, hexLabel: "Z9" }, tableId: "tbl2" }), { ok: true });
+    assert.deepEqual(stored(), ruled, "all of them together write nothing either");
+    assert.equal(chat.length, chatStart, "and a field edit is announced to no one");
+
+    // --- Fields that land.
+    assert.deepEqual(await relay("PL1", { name: "  Renamed Party  " }), { ok: true });
+    assert.equal(stored().name, "Renamed Party", "the record's name, trimmed");
+    assert.equal(partyActor.name, "Renamed Party", "and the party actor's with it, in one op");
+    assert.deepEqual(await relay("PL1", { travel: { mode: "journey" } }), { ok: true });
+    assert.equal(tv().mode, "journey", "the mode runs the mode change");
+    assert.deepEqual(await relay("PL1", { travel: { mode: "nowhere" } }), { ok: true });
+    assert.equal(tv().mode, "journey", "a mode that is none is not taken");
+    const pickers = { pace: "commuting", where: "alley", route: "route", hour: "night", intent: "trouble", conveyance: "wagon" };
+    assert.deepEqual(await relay("PL1", { travel: { settlement: pickers } }), { ok: true });
+    for (const [key, value] of Object.entries(pickers)) assert.equal(tv().settlement[key], value, `the city's ${key} picker`);
+    assert.equal(tv().settlement.wanted, true, "and the Judge's Hunted box stands, absent from the player's submit");
+    assert.deepEqual(await relay("PL1", { travel: { movement: { hoursAloft: "3", dayHours: "8", load: "heavy" } } }), { ok: true });
+    assert.deepEqual([tv().movement.hoursAloft, tv().movement.dayHours, tv().movement.load], [3, 8, "heavy"], "the flight fields");
+    assert.deepEqual(await relay("PL1", { travel: { weather: { season: "summer", auto: true, fronts: false, footingMud: "muddy", footingSnow: true } } }), { ok: true });
+    assert.deepEqual([tv().weather.season, tv().weather.auto, tv().weather.footing.mud, tv().weather.footing.snow], ["summer", true, "muddy", true], "the Sky fields");
+    assert.deepEqual(await relay("PL1", { travel: { exposure: { hours: "5", atHeatSource: true, wet: true } } }), { ok: true });
+    assert.deepEqual(tv().exposure, { hours: 5, atHeatSource: true, wet: true }, "the cold's inputs");
+    assert.deepEqual(await relay("PL1", { travel: { day: { slot: { 1: "forage", 9: "hunt" }, declared: "1", traps: "2", noSleep: true } } }), { ok: true });
+    assert.deepEqual([tv().day.activities, tv().day.traps, tv().day.noSleep], [[null, "forage", null], 2, true], "a day slot and the day's declarations, a slot past the board ignored");
+    assert.deepEqual(await relay("PL1", { travel: { camp: { declared: "1", steal: true, water: true, sleepInArmour: true } } }), { ok: true });
+    assert.deepEqual([tv().camp.steal, tv().camp.water, tv().camp.sleepInArmour, tv().camp.present, tv().camp.target], [true, true, true, "yes", "x"], "a camp declaration, with the Judge's search words standing");
+    assert.deepEqual(await relay("PL1", { travel: { day: { kind: "camp" } } }), { ok: true });
+    assert.equal(tv().day.kind, "camp", "a day kind the bar does not concern");
+    assert.deepEqual(await relay("PL1", { frontage: "2", tokenShape: PARTY_TOKEN_SHAPES[0], columnColor: "#AABBCC" }), { ok: true });
+    assert.deepEqual([stored().frontage, stored().tokenShape, stored().columnColor], [2, PARTY_TOKEN_SHAPES[0], "#aabbcc"], "frontage, token shape and column colour");
+    assert.equal(chat.length, chatStart, "none of it was announced");
+
+    // --- A frontage the seat typed wrongly comes back as a warning, said at the seat.
+    notices.length = 0;
+    assert.deepEqual(await relay("PL1", { frontage: "0" }), { ok: true, warned: [{ code: "frontageInvalid" }] }, "the warning travels in the answer");
+    assert.equal(stored().frontage, 2, "and nothing was written");
+    assert.deepEqual(notices, [], "the Judge's client toasted nothing for a press the Judge did not make");
+    const said = await asSeat("PL1", () => requests.requestPartyForm(model.getFormation(id), { frontage: "0" }));
+    assert.deepEqual(said, { ok: true, warned: [{ code: "frontageInvalid" }] });
+    assert.deepEqual(notices, [["warn", "ACKS-FORMATION.warn.frontageInvalid {\"code\":\"frontageInvalid\"}"]], "said on the player's seat");
+    notices.length = 0;
+    assert.deepEqual(await asSeat("PL1", () => requests.requestPartyForm(model.getFormation(id), { system: { description: "d" }, tableId: "t" })), { ok: true }, "a form with nothing to write sends nothing");
+    assert.deepEqual(notices, [], "and says nothing");
+
+    // --- A seat that owns no member is refused, and nothing is written.
+    const before = structuredClone(stored());
+    assert.deepEqual(await relay("PL9", { name: "Stolen", travel: { mode: "delve" } }), { ok: false, refused: "notOwner" });
+    assert.deepEqual(stored(), before);
+    assert.equal(partyActor.name, "Renamed Party");
+    notices.length = 0;
+    await asSeat("PL9", () => requests.requestPartyForm(model.getFormation(id), { name: "Stolen" }));
+    assert.deepEqual(notices, [["warn", "ACKS-FORMATION.request.refused"]], "told so at the seat");
+
+    // --- A forced march the ladder bars is blocked for a seat before anything is written.
+    await mine.setFlag(MODULE_ID, "survival", { ...freshSurvival(), nourishment: "underfed" });
+    await travel.applyTravelForm(id, { day: { kind: "march" } });
+    const barred = structuredClone(stored());
+    notices.length = 0;
+    const answer = await relay("PL1", { name: "Past The Bar", frontage: "3", travel: { day: { kind: "forced" }, settlement: { pace: "meandering" } } }, { judge: true, override: true });
+    assert.deepEqual(answer, { ok: false, refused: "forcedBarred", names: mine.name }, "refused, naming who bars it");
+    assert.deepEqual(stored(), barred, "and the whole submit wrote nothing");
+    assert.deepEqual(notices, [], "the Judge's client said nothing for it");
+    assert.equal((await relay("PL1", { travel: { day: { kind: "forced" }, override: true } }, { override: true })).refused, "forcedBarred", "an override in the form or beside it is not read");
+    assert.equal(tv().day.kind, "march");
+    await asSeat("PL1", () => requests.requestPartyForm(model.getFormation(id), { travel: { day: { kind: "forced" } } }));
+    assert.deepEqual(notices, [["warn", `ACKS-FORMATION.warn.forcedMarchBarred {"names":${JSON.stringify(mine.name)}}`]], "said on the player's seat, naming the barred member");
+    assert.equal((await relay("PL1", { travel: { day: { kind: "march" } } })).ok, true, "a day that is already a march is no forced one");
+
+    // --- The Judge's seat keeps its own path: the whole submit, the ask, the warning.
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const priorConfirm = DialogV2.confirm;
+    let asked = 0;
+    DialogV2.confirm = async () => (asked++, false);
+    notices.length = 0;
+    await onChangeForm.call(app, null, null, { object: { "travel.day.kind": "forced", "travel.lostNote": "kept", tableId: "tbl9" } });
+    assert.equal(asked, 1, "the Judge is asked");
+    assert.equal(tv().day.kind, "march", "a Cancel drops the kind");
+    assert.deepEqual([tv().lost.judgeNote, stored().tableId], ["kept", "tbl9"], "and the rest of the submit, the Judge's own fields included, lands");
+    assert.deepEqual(notices, [], "a declined ask is no warning");
+    DialogV2.confirm = async () => (asked++, true);
+    await onChangeForm.call(app, null, null, { object: { "travel.day.kind": "forced" } });
+    assert.equal(tv().day.kind, "forced", "a Confirm sets the barred march");
+    assert.ok(chat.slice(chatStart).some((m) => String(m.content).includes("travel.forcedBar.note")), "and the Judges are whispered who was barred");
+    DialogV2.confirm = priorConfirm;
+    await travel.applyTravelForm(id, { day: { kind: "march" } });
+    notices.length = 0;
+    const judgeAnswer = await applyPartyForm(model.getFormation(id), { travel: { day: { kind: "forced" } }, frontage: "0" }, { judge: true });
+    assert.equal(judgeAnswer.refused, "forcedBarred", "the Judge's own apply, with no confirm to ask, is refused too");
+    assert.deepEqual(notices, [], "and says nothing itself");
+
+    // --- The sheet's submit from each seat.
+    await model.patchFormation(id, (rec) => { rec.travel = { ...travel.storedTravelOf(rec), day: { ...travel.storedTravelOf(rec).day, kind: "march" } }; });
+    await mine.setFlag(MODULE_ID, "survival", freshSurvival());
+    app.renders = 0;
+    await asSeat("PL1", () => onChangeForm.call(app, null, null, { object: { name: "From The Sheet", "travel.settlement.pace": "meandering", "travel.lostNote": "no", "system.description": "A tale." } }));
+    assert.deepEqual([stored().name, tv().settlement.pace, tv().lost.judgeNote, partyActor.system.description], ["From The Sheet", "meandering", "kept", "A tale."], "a player's submit lands what is theirs and leaves the Judge's note");
+    assert.equal(app.renders, 1, "and the sheet draws once");
+    app.renders = 0;
+    await asSeat("PL9", () => onChangeForm.call(app, null, null, { object: { name: "Stranger Sheet" } }));
+    assert.equal(stored().name, "From The Sheet", "a seat owning no member writes nothing");
+    assert.equal(app.renders, 0);
+    await onChangeForm.call(app, null, null, { object: { name: "Judge Sheet", frontage: "0", "travel.hexLabel": "Q1" } });
+    assert.deepEqual([stored().name, tv().hex.label, partyActor.name], ["Judge Sheet", "Q1", "Judge Sheet"], "the Judge's seat writes the record, the hex label included");
+    assert.ok(notices.some(([level, key]) => level === "warn" && key.startsWith("ACKS-FORMATION.warn.frontageInvalid")), "and is warned of a frontage it typed wrongly");
+  } finally {
+    foundry.utils.expandObject = priorExpand;
+    if (priorExpand === undefined) delete foundry.utils.expandObject;
+    game.user = gmUser;
+    game.users.pop();
+    await dismissDrawn(party);
+    game.actors.delete(theirs.id);
+  }
+});
+
 await scenario("a player brings their own actors in and takes them out through the GM relay", async () => {
   const theirs = (name) => ActorMock.create({
     name,
@@ -7601,7 +7804,9 @@ await scenario("the party sheet's presses follow what a seat owns: a player's ch
     seat("PL1");
     await onChangeForm.call(app, null, null, { object: { "system.description": "A tale.", name: "Renamed" } });
     assert.equal(partyActor.system.description, "A tale.", "the owner writes the description");
-    assert.equal(onlyFormation().name, name, "and the record's name is not theirs");
+    assert.equal(onlyFormation().name, "Renamed", "and a seat that owns a member renames the party through the relay");
+    assert.equal(partyActor.name, "Renamed", "the party actor with it");
+    assert.notEqual(onlyFormation().name, name);
     assert.equal(app.renders, 1, "the sheet draws what was written");
     app.renders = 0;
     seat("PL9");

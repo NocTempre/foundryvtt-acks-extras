@@ -12,7 +12,6 @@ import {
   getPartyScene,
   getPartyToken,
   isHurried,
-  maxFrontage,
   removeBlank,
   removeMember,
   swapCells,
@@ -21,7 +20,6 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
-import { PARTY_TOKEN_SHAPES } from "./constants.mjs";
 import { pickPoiTarget } from "./poi.mjs";
 import {
   anchorMap,
@@ -42,7 +40,7 @@ import {
 } from "./crossing.mjs";
 import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestPartyPress, requestTakeOut, userOwnsMember } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestPartyForm, requestPartyPress, requestTakeOut, sayPartyFormAnswer, userOwnsMember } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
@@ -65,7 +63,8 @@ import {
 } from "./hex-stock-run.mjs";
 import { askStrayAndBegin, confirmDiscovery, confirmEnd, confirmReanchor, shiftTruth as moveTruth } from "./lost-dialog.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
-import { applyTravelForm, clearDeclaredCountry, setJourneyMode, rollWeatherNow, travelOf, TRAVEL_MODES } from "./travel.mjs";
+import { applyTravelForm, clearDeclaredCountry, rollWeatherNow, travelOf } from "./travel.mjs";
+import { applyPartyForm } from "./party-form.mjs";
 import { openCountryBrush, PAINT_LAYERS } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
 import { forcedMarchBar, confirmBarOverride } from "./march-bar.mjs";
@@ -1341,31 +1340,12 @@ export const SHARED_ACTIONS = {
 };
 
 /**
- * The frontage the Judge typed, or null to leave the width alone. Blank is
- * not an error. A zero, negative or fractional value is refused rather
- * than rounded; a value wider than the scene is clamped to it, and the
- * Judge is told where it stopped.
- */
-function readFrontage(value, formation) {
-  if (value === "" || value === null || value === undefined) return null;
-  const wanted = Number(value);
-  if (!Number.isInteger(wanted) || wanted < 1) {
-    ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.warn.frontageInvalid"));
-    return null;
-  }
-  const max = maxFrontage(getPartyScene(formation) ?? game.scenes?.viewed);
-  if (max && wanted > max) {
-    ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.frontageMax", { max }));
-    return max;
-  }
-  return wanted;
-}
-
-/**
  * Form submit handler: the party actor's description — the one field the
  * sheet writes to the actor itself, written by whoever owns that actor — and,
- * on a Judge's seat, the formation rename, default table, frontage and the
- * travel fields.
+ * on a seat that owns a member, the record's fields (`applyPartyForm`): the
+ * Judge's applies the whole submit, any other seat relays the allow-listed
+ * part to the Judge's client (`requestPartyForm`). The crossing's setup fields
+ * are the Judge's seat's.
  */
 export async function onChangeForm(event, form, formData) {
   const data = foundry.utils.expandObject(formData.object);
@@ -1381,74 +1361,37 @@ export async function onChangeForm(event, form, formData) {
     await actor.update({ "system.description": description });
     redraw = true;
   }
-  // The record's fields below are the Judge's seat's.
-  if (!gmFormation(this)) {
+  // The record's fields below follow the seat that owns a member: the Judge's
+  // applies them here, any other seat sends them to the Judge's client.
+  if (!seatOwnsMember(formation)) {
     if (redraw) this.render();
     return;
   }
-  if (typeof data.name === "string" && data.name.trim() && data.name !== formation.name) {
-    formation.name = data.name.trim();
-    // The actor mirrors the formation identity (and vice versa on rename).
-    await getPartyActor(formation)?.update({ name: formation.name });
-    changed = true;
+  if (!game.user.isGM) {
+    // A refused field redraws as well, or the control keeps the refused value.
+    await requestPartyForm(formation, data);
+    this.render();
+    return;
   }
-  if (typeof data.tableId === "string" && data.tableId !== (formation.tableId ?? "")) {
-    formation.tableId = data.tableId || null;
-    changed = true;
-  }
-  if ("frontage" in data) {
-    const frontage = readFrontage(data.frontage, formation);
-    if (frontage === null || frontage !== Number(data.frontage)) redraw = true;
-    if (frontage !== null && frontage !== getFrontage(formation)) {
-      formation.frontage = frontage;
-      changed = true;
+  // A forced march the survival ladder bars is the Judge's call: ask once,
+  // here, so a Cancel drops the kind from the write and the select redraws
+  // on the day it was.
+  let override = false;
+  const day = data.travel?.day;
+  if (day?.kind === "forced" && day.kind !== travelOf(formation).day.kind) {
+    const barred = forcedMarchBar(formation);
+    if (barred.length) {
+      override = await confirmBarOverride(barred);
+      if (!override) delete day.kind;
     }
   }
-  // The party's own shape, or blank to follow the world's default.
-  if (typeof data.tokenShape === "string") {
-    const shape = PARTY_TOKEN_SHAPES.includes(data.tokenShape) ? data.tokenShape : null;
-    if (shape !== (formation.tokenShape ?? null)) {
-      formation.tokenShape = shape;
-      changed = true;
-    }
-  }
-  // The column's tint, or blank to take the token's disposition colour.
-  if (typeof data.columnColor === "string") {
-    const color = /^#[0-9a-f]{6}$/i.test(data.columnColor) ? data.columnColor.toLowerCase() : null;
-    if (color !== (formation.columnColor ?? null)) {
-      formation.columnColor = color;
-      changed = true;
-    }
-  }
-  if (changed) await updateFormation(formation);
+  const applied = await applyPartyForm(formation, data, { judge: true, override });
+  sayPartyFormAnswer(applied);
+  changed = applied.changed;
+  redraw ||= applied.redraw;
   // The crossing's setup fields: each changed one is written by its own path.
-  if (game.user.isGM && data.crossing && readCrossing(formation)) {
+  if (data.crossing && readCrossing(formation)) {
     await applyCrossingForm(formation, data.crossing);
-    redraw = true;
-  }
-  // The travel fields ride the same form and write through their own
-  // TARGETED patches. The whole write above carries only the fields this
-  // handler set on the copy, none of them travel, so it leaves what the
-  // patches lay down alone in either order.
-  if (game.user.isGM && data.travel) {
-    // The band's mode picker rides this submit: a select reports its change
-    // here, where an action (which fires on click) would read the old value.
-    if (TRAVEL_MODES.includes(data.travel.mode) && data.travel.mode !== travelOf(formation).mode) {
-      await setJourneyMode(formation.id, data.travel.mode, { sceneId: formation.sceneId });
-    }
-    // A forced march the survival ladder bars is the Judge's call: ask once,
-    // here, so a Cancel drops the kind from the write and the select redraws
-    // on the day it was.
-    let override = false;
-    const day = data.travel.day;
-    if (day?.kind === "forced" && day.kind !== travelOf(formation).day.kind) {
-      const barred = forcedMarchBar(formation);
-      if (barred.length) {
-        override = await confirmBarOverride(barred);
-        if (!override) delete day.kind;
-      }
-    }
-    await applyTravelForm(formation.id, data.travel, { override });
     redraw = true;
   }
   if (changed || redraw) this.render();

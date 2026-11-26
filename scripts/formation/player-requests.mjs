@@ -21,6 +21,7 @@ import { turnActivity } from "../lib/turn-activities.mjs";
 import { formUp, getTemplate } from "./marching-templates.mjs";
 import { PARTY_PRESSES, PRESS_REFUSALS } from "./party-press.mjs";
 import { travelOf } from "./travel.mjs";
+import { PARTY_FORM_SAYS, applyPartyForm, pickPartyForm } from "./party-form.mjs";
 
 /**
  * Player-declared party actions. All formation state lives in a world setting
@@ -32,7 +33,7 @@ import { travelOf } from "./travel.mjs";
  * detaching, leaving a member behind, conveyance, bringing an actor in or out,
  * light discipline, anchoring a map, trapbreaking, a crossing's throw and the
  * party's own presses (`partyPress`: the pace, a hop to a place, the next hex,
- * a day's foraging, ending the day).
+ * a day's foraging, ending the day) and its form fields (`partyForm`).
  *
  * Ownership is validated HERE, on the executing GM client, against the sender
  * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
@@ -463,6 +464,16 @@ async function executeRequest(formation, user, type, payload) {
     case "partyPress":
       return partyPressRelay(formation, user, payload);
 
+    /* --- The party's own fields: written from a closed list, blocked where the Judge is warned --- */
+    case "partyForm": {
+      if (!userOwnsMember(formation, user)) return { ok: false, refused: "notOwner" };
+      // `judge` is false whoever sent it and nothing in the payload is read but
+      // the form; `applyPartyForm` picks the allow-list again.
+      const out = await applyPartyForm(formation, pickPartyForm(payload.form ?? {}), { judge: false });
+      const { ok, refused, names, warned } = out;
+      return { ok, ...(refused ? { refused, names } : {}), ...(warned ? { warned } : {}) };
+    }
+
     /* --- Consult (anchor) a map the player's character holds --- */
     case "anchorMap": {
       const item = await fromUuid(payload.itemUuid);
@@ -494,10 +505,12 @@ async function handlePartyRequest({ formationId, type, payload, requestUserId } 
  * GM (executeAsGM routes to exactly one GM client). A player's seat is told
  * "sent" only when the GM client did not answer with a refusal: a request kind
  * that answers `{ok: false}` (a crossing's throw) is not announced as declared.
+ * `sent: false` leaves the "sent" notice out, for a request a seat makes on
+ * every field edit.
  * @returns {Promise<{ok: boolean, refused?: string}|undefined>} the executing
  *   client's answer, where the request kind gives one
  */
-export async function requestPartyAction(formationId, type, payload = {}) {
+export async function requestPartyAction(formationId, type, payload = {}, { sent = true } = {}) {
   const formation = getFormation(formationId);
   if (!formation) return;
   if (game.user.isGM) return executeRequest(formation, game.user, type, payload);
@@ -506,7 +519,7 @@ export async function requestPartyAction(formationId, type, payload = {}) {
     return;
   }
   const answer = await executeAsGM(REQUEST_HANDLER, { formationId, type, payload });
-  if (answer?.ok !== false) ui.notifications.info(game.i18n.localize("ACKS-FORMATION.request.sent"));
+  if (sent && answer?.ok !== false) ui.notifications.info(game.i18n.localize("ACKS-FORMATION.request.sent"));
   return answer;
 }
 
@@ -636,6 +649,42 @@ export async function requestPartyPress(formation, press, args = {}) {
   else if (game.user.isGM) answer = await entry.run(formation, args, { user: game.user });
   else answer = await requestPartyAction(formation.id, "partyPress", { press, args });
   sayPressAnswer(answer);
+  return answer;
+}
+
+/**
+ * Say a party form's answer to the seat that submitted it: each warning (a
+ * frontage refused or clamped) and a refusal `PARTY_FORM_SAYS` names, as a
+ * warning with the answer's own figures in it; any other refusal goes through
+ * `sayPressAnswer`. A form that took says nothing.
+ */
+export function sayPartyFormAnswer(answer) {
+  if (!answer) return;
+  for (const said of answer.warned ?? []) {
+    if (Object.hasOwn(PARTY_FORM_SAYS, said.code)) ui.notifications.warn(game.i18n.format(PARTY_FORM_SAYS[said.code], said));
+  }
+  if (answer.ok !== false) return;
+  if (Object.hasOwn(PARTY_FORM_SAYS, answer.refused)) ui.notifications.warn(game.i18n.format(PARTY_FORM_SAYS[answer.refused], { names: answer.names ?? "" }));
+  else sayPressAnswer(answer);
+}
+
+/**
+ * A seat's party form fields (`pickPartyForm`'s allow-list). The Judge's seat
+ * applies them directly; any other seat sends them to the Judge's client, which
+ * checks the seat owns a member and applies the same fields with `judge: false`,
+ * so a forced march the ladder bars is refused where the Judge is asked. The
+ * answer is said here and returned; a form with nothing to write sends nothing.
+ * @param {object} formation
+ * @param {object} data  the submit, expanded
+ * @returns {Promise<{ok: boolean, refused?: string, names?: string, warned?: object[]}|undefined>}
+ */
+export async function requestPartyForm(formation, data) {
+  const form = pickPartyForm(data);
+  if (!Object.keys(form).length) return { ok: true };
+  const answer = game.user.isGM
+    ? await applyPartyForm(formation, form, { judge: true })
+    : await requestPartyAction(formation.id, "partyForm", { form }, { sent: false });
+  sayPartyFormAnswer(answer);
   return answer;
 }
 
