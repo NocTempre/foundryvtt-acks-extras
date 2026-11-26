@@ -220,7 +220,7 @@ reading of the lair's stock and its place on the map waits on that read.
 ## Groups
 
 The Roll sizes a group from a creature's encounter line (`docs/lib/GROUPS.md`), a
-creature's encounter recipe makes the units, leaders and young the line names
+creature's encounter recipe makes a group's units, leaders and other parts
 (`docs/monsters/MODEL.md`, "The encounter recipe"), and a group token added to a
 combat deploys the group (`GROUPS.md`, "In a fight"). The rows below are what is not
 built between the encounter card and the aftermath.
@@ -265,6 +265,15 @@ organisation generator minted (`organisationPrototype`), not these.
 that says special, or varies by something other than its side) gives no Roll
 (`lib/encounter-line.mjs`). A wandering band moved by the clock on a journey map is
 not built either.
+
+**What the recipe reader passes over.** `importer/ecology-recipe.mjs` reads a
+fixed set of sentences (`docs/monsters/MODEL.md`, "The encounter recipe"). Its
+leader ranks and caster words are fixed, so one named otherwise adds no part. It
+counts young only where one of its dependant sentences calls them whelps, and
+writes them as a `dependant`, so no imported part has the `young` role. Other
+creatures come from its guard, escort and captive sentences alone, and only a
+guard clause's "or" makes a branch, with no die band. The rest is a Judge's to add
+in the recipe editor.
 
 **A young body's own figures.** A creature's ecology prose can state a young
 body's figures in a sentence. No importer code reads that sentence (`bindNpc` binds

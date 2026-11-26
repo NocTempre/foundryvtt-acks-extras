@@ -77,9 +77,10 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
   changed it; what a repair does with each is
   `docs/importer/MODEL.md`, "A monster's recipe parts ride the same per-row
   mechanism".
-- `role` is one of `RECIPE_ROLES` (`config.mjs`, each with a label): the eight
-  the reader writes (`body`, `unit`, `leader`, `young`, `dependant`, `guard`,
-  `captive`, `caster`) and the two a Judge adds, `mount` and `beast`. A `mount`
+- `role` is one of `RECIPE_ROLES` (`config.mjs`, each with a label): the seven
+  the reader writes (`body`, `unit`, `leader`, `dependant`, `guard`,
+  `captive`, `caster`) and the three it never writes, which a Judge adds:
+  `young`, `mount` and `beast`. A `mount`
   or `beast` part names its creature by `source.uuid`, the link to that
   creature's own imported entry, whose figures and recipe are read there and
   never copied in. The roll treats both as a part that is no body: one stack

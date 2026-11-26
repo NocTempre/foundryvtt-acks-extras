@@ -856,11 +856,13 @@ than on authoring:
   the description. Reading the grants into effects needs what no feature has
   yet: an attack and damage bonus scoped to natural or thrown attacks (the
   equipment contract's melee and missile domains are flat), a wearer-level
-  mark that the wearer's own attacks deal extraordinary damage (the flag is
+  mark that the wearer's own attacks deal extraordinary damage (the mark is
   per weapon), a plain item's transferred effects gated on its worn state,
-  and a ruling on what a player character's claws are, since the class
-  powers carry them as prose. Daily powers and the hidden-weapons searching
-  penalty stay prose in any design.
+  and a player character's natural attack built from a power's row. That
+  last one is ruled (DECISIONS 2026-10-29, "A player character's natural
+  attack is a power's row") and not built: the class powers carry claws as
+  prose. Daily powers and the hidden-weapons searching penalty stay prose in
+  any design.
 - **The classes' picture tables.** All three spreads print their level table
   as a picture (p13, p17, p20), and one its spell-slot table too; the rows,
   hit dice, damage ladder, cleave and gains come from the sentences and the
