@@ -3,10 +3,11 @@
  * The item runner's presses on core's Token HUD (canvas 4): one `control-icon` in
  * the right column for each item on the token's actor that carries an
  * `itemRun.activation`, in the actor's item order. A toggle item reads Raise or
- * Lower by its state and lights core's `active` class while raised; an item of
- * any other kind reads Use. Always-on items carry no activation and draw none.
- * An item whose spending kind has nothing left draws none, so nothing dead sits
- * on the HUD.
+ * Lower by its state and lights core's `active` class while raised; a fuse
+ * reads Light and an item of any other kind reads Use. Always-on items carry no
+ * activation and draw none. An item whose spending kind has nothing left draws
+ * none, so nothing dead sits on the HUD; nor does a fuse that is lit while the
+ * stack holds no spare to light.
  *
  * - `itemRunHudControls(items, deps)` is the pure choice: which items, their
  *   verb, their picture and whether each is raised.
@@ -20,7 +21,8 @@
  *   so `active` follows the state the Judge's window wrote.
  */
 import { LANG_PREFIX, MINTED_ITEM_IMG, MODULE_ID } from "./constants.mjs";
-import { itemRunOf, itemRunUsedUp } from "./item-run-logic.mjs";
+import { itemRunOf, itemRunUsedUp, litCountOf } from "./item-run-logic.mjs";
+import { stackCountOf } from "./item-model.mjs";
 import { elementOf, makeLoc } from "./util.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
@@ -45,17 +47,22 @@ function pictureOf(item, defaultImgsOf) {
  * @param {Iterable<object>} items an actor's items
  * @param {object} [deps]
  * @param {(item: object) => boolean} [deps.owns] whether this seat may press the item; Foundry's own `isOwner` by default
+ * @param {(item: object) => Iterable<object>|null|undefined} [deps.effectsOf] the Active Effects a fuse's lit state is read from; the item's actor's by default
  * @param {(item: object) => Iterable<string>} [deps.defaultImgsOf] the pictures that stand for "no picture of its own" for this item, which the fallback replaces
- * @returns {{id: string, name: string, kind: string, verb: "raise"|"lower"|"use", active: boolean, img: string}[]}
+ * @returns {{id: string, name: string, kind: string, verb: "raise"|"lower"|"use"|"light", active: boolean, img: string}[]}
  */
-export function itemRunHudControls(items, { owns = (item) => item?.isOwner === true, defaultImgsOf = () => [] } = {}) {
+export function itemRunHudControls(items, { owns = (item) => item?.isOwner === true, defaultImgsOf = () => [], effectsOf = (item) => item?.actor?.effects } = {}) {
   const found = [];
   for (const item of Array.from(items ?? [])) {
     const run = itemRunOf(item);
     if (!run || !owns(item) || itemRunUsedUp(item)) continue;
     const { kind, state } = run.activation;
+    if (kind === "fuse") {
+      const lit = litCountOf(effectsOf(item), item.uuid);
+      if (lit > 0 && (stackCountOf(item) ?? 1) <= lit) continue;
+    }
     const active = kind === "toggle" && state.active;
-    const verb = kind === "toggle" ? (active ? "lower" : "raise") : "use";
+    const verb = kind === "toggle" ? (active ? "lower" : "raise") : kind === "fuse" ? "light" : "use";
     found.push({ order: Number(item.sort) || 0, control: { id: item.id, name: String(item.name ?? ""), kind, verb, active, img: pictureOf(item, defaultImgsOf) } });
   }
   // Array#sort is stable, so equal `sort` values keep the list's order.
@@ -117,7 +124,7 @@ function draw(hud, html) {
 
 let installed = false;
 
-/** Register the hooks: the HUD's own render, and a redraw of the open HUD when an item of its actor is made, changed or deleted. */
+/** Register the hooks: the HUD's own render, and a redraw of the open HUD when an item or an effect of its actor is made, changed or deleted. */
 export function installItemRunHud() {
   if (installed) return;
   installed = true;
@@ -131,4 +138,12 @@ export function installItemRunHud() {
     if (["flags", "system", "img", "name", "sort"].some((key) => key in (changed ?? {}))) ownItem(item)?.render();
   });
   for (const name of ["createItem", "deleteItem"]) Hooks.on(name, (item) => ownItem(item)?.render());
+  // A fuse's lit state is read off the actor's effects, so the HUD follows them too.
+  for (const name of ["createActiveEffect", "deleteActiveEffect"]) {
+    Hooks.on(name, (effect) => {
+      const hud = openHud();
+      const actor = hud?.object?.document?.actor;
+      if (hud && actor && effect?.parent?.uuid === actor.uuid) hud.render();
+    });
+  }
 }

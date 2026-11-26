@@ -382,9 +382,12 @@ async function postOutcome(result) {
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor: doc?.actor ?? doc }), content: storedContent(card.title, card.subtitle), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
 }
 
+/** The words of a Judge's declared verdict on a card that names no save: its two presses, their warning and the mark on the result line. */
+const DECLARE_WORD_KEYS = ["declarePass", "declareFail", "declareTip", "declarePassAria", "declareFailAria", "declared"];
+
 /** The words the fuse card and the burst card show, localized: `itemRun.card.<key>` for each, with the nested ones read apart. */
 const FUSE_WORD_KEYS = ["throw", "base", "lit", "unlit", "fumble", "judgeDecides", "unlitLine", "fumbleLine", "judgeLine", "fuseHint", "moveSpot", "moveSpotTip", "moveSpotAria", "setOff", "setOffTip", "setOffAria"];
-const BURST_WORD_KEYS = ["inArea", "damage", "apply", "applyTip", "applyAria", "applyAll", "applyAllTip", "applyAllAria", "undoApplyTip", "undoAria", "saveAria", "handOn", "handOnTip", "handOnAria", "handed", "structure", "blastRow", "burstGoneLine", "burstJudgeLine"];
+const BURST_WORD_KEYS = ["inArea", "damage", "apply", "applyTip", "applyAria", "applyAll", "applyAllTip", "applyAllAria", "undoApplyTip", "undoAria", "saveAria", "handOn", "handOnTip", "handOnAria", "handed", "structure", "blastRow", "burstGoneLine", "burstJudgeLine", ...DECLARE_WORD_KEYS];
 const readWords = (keys) => Object.fromEntries(keys.map((key) => [key, loc(`itemRun.card.${key}`)]));
 const fuseWords = () => ({
   ...words(), ...readWords(FUSE_WORD_KEYS), light: loc("itemRun.press.light"),
@@ -496,7 +499,7 @@ function burstBody(message, card) {
 }
 
 /** The words the swig and on-hit cards show, localized: `itemRun.card.<key>` for each, beside the common card words. */
-const OUTCOME_WORD_KEYS = ["saveAria", "swig", "healed", "successHealTip", "conditionTip", "noSaveLine", "heal", "healPressTip", "healAria", "askSave", "askSaveTip", "askSaveAria", "undoOutcomeTip", "undoOutcomeAria"];
+const OUTCOME_WORD_KEYS = ["saveAria", "swig", "healed", "successHealTip", "conditionTip", "noSaveLine", "heal", "healPressTip", "healAria", "askSave", "askSaveTip", "askSaveAria", "undoOutcomeTip", "undoOutcomeAria", ...DECLARE_WORD_KEYS];
 const outcomeWords = () => ({ ...words(), ...readWords(OUTCOME_WORD_KEYS) });
 
 /** Whether this window's user owns a document, by Foundry's own test: a Judge's seat owns every one, and no role is read. */
@@ -556,7 +559,9 @@ function outcomeResult(card, entry, cite, w) {
  * the subjects with their save targets read live, the Save press for a seat that
  * owns the subject, and each verdict's result line. The save is named with its
  * modifier where the card holds one, the modifier's tooltip naming the row it was
- * read from. A card that names no save draws the Judge's line and no press.
+ * read from. A card that names no save draws the Judge's line and no Save press;
+ * the Judge's seat reads Passed and Failed on each open row, and a verdict the
+ * Judge declared reads "(the Judge's call)" after its result.
  */
 function outcomeBody(message, card) {
   const w = outcomeWords();
@@ -575,12 +580,13 @@ function outcomeBody(message, card) {
     if (saveName) row.detail = mod === null ? saveName : `${saveName} ${signedFigure(mod)}`;
     if (saveName && mod !== null) row.nameTooltip = rowTip({ label: loc("itemRun.card.saveModTip", { source: card.source ?? card.title ?? "" }), figure: signedFigure(mod), cite });
     if (state === "applied" || state === "judge") row.result = outcomeResult(card, entry, cite, w);
+    if (state === "applied" && entry.declared === true) row.result = { ...row.result, text: `${row.result.text} (${w.declared})` };
     return row;
   });
   return renderRollCard(outcomeCardModel({
     title: swig ? loc("itemRun.card.swigTitle", { item: card.title ?? "" }) : (card.title ?? ""), subtitle: card.subtitle || card.bearer?.name, words: w, rows,
     ids: { itemUuid: card.itemUuid, rowKey: card.rowKey ?? "", activationId: card.activationId }, messageId: message.id, canSave: !!saveName, lines: saveName ? [] : [w.noSaveLine],
-    seat: { ownsSubject: (key) => ownsDoc(fromUuidSync(key)), mayUndo: (entry, key) => mayUndoEntry(entry, game.user.id, ownerIdsOf(fromUuidSync(key))) },
+    seat: { judge: judgeDeclares(), ownsSubject: (key) => ownsDoc(fromUuidSync(key)), mayUndo: (entry, key) => mayUndoEntry(entry, game.user.id, ownerIdsOf(fromUuidSync(key))) },
   }));
 }
 
@@ -849,7 +855,7 @@ function whisperBody(w) {
 
 /** Say why a press was refused. */
 function refusal(reason) {
-  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure", "noVerdict", "noStructure", "noSpot", "noScene", "notViewing", "failed", "relay", "notVehicle", "noHull"].includes(reason) ? reason : "press";
+  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure", "noVerdict", "noStructure", "noSpot", "noScene", "notViewing", "failed", "relay", "notVehicle", "noHull", "judgeOnly"].includes(reason) ? reason : "press";
   ui.notifications?.warn?.(loc(`itemRun.refused.${key}`));
 }
 
@@ -882,6 +888,7 @@ async function press(message, button) {
   const fail = (out) => (out?.ok === false ? refusal(out.reason) : null);
   switch (d.action) {
     case "itemRun.roll": return fail(await pressRoll({ ...ids, subject: d.subject, messageId, entryKey: d.entryKey ?? "" }));
+    case "itemRun.declare": return fail(await pressRoll({ ...ids, subject: d.subject, messageId, entryKey: d.entryKey ?? "", declared: d.declared === "true" }));
     case "itemRun.undo": return fail(await undoCardEntry({ messageId, entryKey: d.entryKey || safeKey(d.subject) }));
     case "itemRun.tick": return fail(await tickBearer({ itemUuid: ids.itemUuid, rowKey: ids.rowKey, messageId }));
     case "itemRun.tickSubject": return fail(await tickSubject({ messageId, subject: d.subject }));

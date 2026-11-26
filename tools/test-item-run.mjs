@@ -304,6 +304,32 @@ await t("a consume activation reads its swigs left, its figure and its last bear
   assert.equal(logic.readItemRun({ activation: { kind: "consume", left: "x" } }).activation.left, null);
   assert.equal(logic.readItemRun({ activation: { kind: "consume", bearerUuid: 7 } }).activation.bearerUuid, "", "a bearer that is no string is none");
   assert.equal("left" in logic.readItemRun({ activation: { kind: "once", left: 2 } }).activation, false, "another kind answers no count");
+  assert.equal("leftFrom" in logic.readItemRun({ activation: { kind: "once", leftFrom: { by: "hand" } } }).activation, false, "nor where it came from");
+});
+
+await t("a consume activation reads where its count came from: a roll with its formula and whole total, a hand, or none", () => {
+  const from = (leftFrom) => logic.readItemRun({ activation: { kind: "consume", left: 3, leftFrom } }).activation.leftFrom;
+  assert.deepEqual(from({ by: "roll", formula: " 1d6 ", total: 3 }), { by: "roll", formula: "1d6", total: 3 });
+  assert.deepEqual(from({ by: "roll", formula: "1d6", total: "4" }), { by: "roll", formula: "1d6", total: 4 }, "a typed numeral reads as its number");
+  assert.deepEqual(from({ by: "hand", total: 9, formula: "x" }), { by: "hand" }, "a hand carries nothing else");
+  assert.equal(from(undefined), null, "none stored");
+  assert.equal(from(null), null);
+  assert.equal(from({ by: "roll", formula: "", total: 3 }), null, "a roll with no formula");
+  assert.equal(from({ by: "roll", formula: "1d6" }), null, "a roll with no total");
+  assert.equal(from({ by: "roll", formula: "1d6", total: 1.5 }), null, "a fraction is no total");
+  assert.equal(from({ by: "roll", formula: 6, total: 3 }), null, "a formula that is no string");
+  assert.equal(from({ by: "magic" }), null);
+  assert.equal(from("hand"), null);
+});
+
+await t("litCountOf counts the fuse records an item lit on an actor, on either clock, and no other item's", () => {
+  const rec = (source, extra) => ({ flags: { "acks-extras": { fuse: { source, activationId: `a${Math.random()}`, spot: {}, ...extra } } } });
+  const effects = [rec("I.1", { dueAt: 10 }), rec("I.1", { clock: { combatId: "c", combatantId: "k", count: 3, seen: 0 } }), rec("I.2", { dueAt: 5 }), { flags: {} }, { flags: { "acks-extras": { fuse: { source: "I.1" } } } }];
+  assert.equal(logic.litCountOf(effects, "I.1"), 2, "a record that reads as no fuse is not counted");
+  assert.equal(logic.litCountOf(effects, "I.2"), 1);
+  assert.equal(logic.litCountOf(effects, "I.3"), 0);
+  assert.equal(logic.litCountOf(null, "I.1"), 0);
+  assert.equal(logic.litCountOf(undefined, "I.1"), 0);
 });
 
 await t("a consume item is used up when its own count is 0 or below, whatever its quantity, and a null count never spends", () => {
@@ -1159,6 +1185,19 @@ await t("a blank lasts refuses a press from any seat but the Judge's own, and a 
   assert.equal(ask({ blankLasts: false }).ok, true);
   assert.equal(ask({ blankLasts: true, judge: true }, { requestUserId: "u2" }).reason, "notOwner", "ownership is asked first");
   const lastsOf = (reach) => { const f = logic.reachFigures({ reach }); return [f.lasts, f.lastsNamed]; };
+  // A declared press (the Judge's call on a card that names no save): no total, no target, only the Judge's seat.
+  const declare = (declared, over = {}, req = {}) => logic.checkPressRequest({ declared, ...req }, { ...world, target: null, ...over });
+  assert.deepEqual(declare(true, { judge: true }), { ok: true, total: null, target: null, saved: true, early: false, declared: true }, "a passed call");
+  assert.deepEqual(declare(false, { judge: true }), { ok: true, total: null, target: null, saved: false, early: false, declared: true }, "a failed call is a verdict, not an absence");
+  assert.equal(declare(true).reason, "judgeOnly", "a seat the world does not say is a Judge's");
+  assert.equal(declare(false, { judge: false }).reason, "judgeOnly", "a player's seat cannot declare");
+  assert.equal(declare(true, { judge: true, waiting: true }).early, true, "a waiting subject goes through early, as a rolled press does");
+  assert.equal(declare(true, { judge: true }, { requestUserId: "u2" }).reason, "notOwner", "ownership is asked first");
+  assert.equal(declare(true, { judge: true, entryState: "applied" }).reason, "applied", "an entry already written stays written");
+  assert.equal(declare(true, { judge: true, struck: true }).reason, "struck");
+  assert.equal(declare(true, { judge: true, item: null }).reason, "gone");
+  assert.equal(declare(true, { judge: true, row: null }).reason, "noRow");
+  assert.equal(logic.checkPressRequest({ total: 12, target: 10 }, { ...world, judge: true }).declared, undefined, "an ordinary rolled press is not declared");
   assert.deepEqual(lastsOf({ pulse: "turnStart+enter", lasts: { value: "3" } }), [3, true]);
   assert.deepEqual(lastsOf({ pulse: "action", lasts: {} }), [null, false], "an emptied reference names none");
   assert.deepEqual(lastsOf({ pulse: "action", lasts: { value: "x" } }), [null, true], "a figure named and unresolved is a blank");
@@ -2661,6 +2700,60 @@ await t("a burst card's Save writes no damage; an Apply, by an owner of the subj
     delete subjects["T.two"];
     delete subjects["A.one"];
     delete subjects["A.two"];
+    world.restore();
+  }
+});
+
+await t("a burst card that names no save is settled by the Judge's declared verdict: no throw, no total or target on the entry, a player's seat and a card that names a save refused", async () => {
+  const one = hpActor("one", "owner");
+  const world = stageFuseWorld([bodyTok("one", one)]);
+  gameStub.actors = Users.from([one]);
+  subjects["T.one"] = bodyTok("one", one);
+  subjects["A.one"] = one;
+  const { newCard, applyPatch } = await import("../scripts/lib/item-run-card-logic.mjs");
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  const stored = (over = {}) => ({ ...newCard({ itemUuid: "I.1", rowKey: "burst", activationId: "act", kind: "burst", bearer: { uuid: "", name: "Bearer" }, cardId: "c" }), title: "Gear", rolled: 11, dice: "3d5", types: ["typeA"], reduction: 0.5, saveName: "", subjects: { "T~one": { uuid: "T.one", name: "Tok one", state: "in", latest: "" } }, ...over });
+  const message = { id: "MB", flags: { "acks-extras": { itemRunCard: stored() } }, getFlag(scope, key) { return this.flags[scope][key]; }, async update(data) { this.flags["acks-extras"].itemRunCard = applyPatch(this.flags["acks-extras"].itemRunCard, Object.fromEntries(Object.entries(data).map(([path, value]) => [path.replace("flags.acks-extras.itemRunCard.", ""), value]))); } };
+  gameStub.messages = { get: (id) => (id === "MB" ? message : null) };
+  const entry = () => message.flags["acks-extras"].itemRunCard.entries?.["T~one"];
+  const base = { itemUuid: "I.1", rowKey: "burst", activationId: "act", subject: "T.one", messageId: "MB", entryKey: "T~one" };
+  const relayed = (declared, requestUserId) => executeAsGM("acks-extras.itemRun.press", { ...base, declared, requestUserId });
+  const priorLookup = globalThis.fromUuidSync;
+  const priorUser = gameStub.user;
+  try {
+    itemFlags = {};
+    globalThis.fromUuidSync = (uuid) => (uuid === "I.1" ? null : priorLookup(uuid));
+    assert.deepEqual(await relayed(true, "owner"), { ok: false, reason: "judgeOnly" }, "the subject's owner relaying the call is not the Judge");
+    assert.equal(entry(), undefined, "nothing written for a refusal");
+    assert.deepEqual(await executeAsGM("acks-extras.itemRun.press", { ...base, total: 5, target: 12, requestUserId: "owner" }), { ok: false, reason: "noFigure" }, "an ordinary press on a blank save is still refused");
+    // The Judge's own seat declares; a failed call is a verdict like a passed one.
+    gameStub.user = { id: "gm", isGM: true };
+    RollStub.posted.length = 0;
+    const passed = await run.pressRoll({ ...base, declared: true });
+    assert.deepEqual([passed.ok, passed.saved, passed.entry.state, passed.entry.saved, passed.entry.declared, "total" in passed.entry, "target" in passed.entry, RollStub.posted], [true, true, "rolled", true, true, false, false, []], "the entry holds the verdict and the call, and nothing was rolled");
+    assert.equal((await run.pressRoll({ ...base, declared: false })).reason, "applied", "the entry is settled once");
+    message.flags["acks-extras"].itemRunCard = stored();
+    const failed = await run.pressRoll({ ...base, declared: false });
+    assert.deepEqual([failed.ok, failed.saved, entry().saved, entry().declared], [true, false, false, true]);
+    assert.equal((await executeAsGM("acks-extras.itemRun.apply", { messageId: "MB", entryKey: "T~one" })).ok, true, "the verdict is applied as a rolled one is: a failed call takes the whole roll");
+    assert.equal(one.system.hp.value, 9);
+    const undone = await executeAsGM("acks-extras.itemRun.undo", { messageId: "MB", entryKey: "T~one" });
+    assert.deepEqual([undone.ok, one.system.hp.value, entry().state], [true, 20, "undone"], "the Undo works on a declared entry unchanged");
+    // A player's seat is refused before anything is relayed.
+    message.flags["acks-extras"].itemRunCard = stored();
+    gameStub.user = { id: "owner", isGM: false };
+    assert.deepEqual(await run.pressRoll({ ...base, declared: true }), { ok: false, reason: "judgeOnly" });
+    // A card that names a save takes no declared verdict, from the Judge's seat or by relay.
+    gameStub.user = { id: "gm", isGM: true };
+    message.flags["acks-extras"].itemRunCard = stored({ saveName: "paralysis" });
+    assert.deepEqual(await run.pressRoll({ ...base, declared: true }), { ok: false, reason: "figure" });
+    assert.equal(entry(), undefined);
+  } finally {
+    gameStub.user = priorUser;
+    globalThis.fromUuidSync = priorLookup;
+    delete gameStub.messages;
+    delete subjects["T.one"];
+    delete subjects["A.one"];
     world.restore();
   }
 });

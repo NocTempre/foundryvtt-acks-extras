@@ -296,6 +296,38 @@ await t("a writer's judge answer at the verdict wins over everything else it ans
   }
 });
 
+await t("a swig card that names no save is settled by the Judge's declared verdict: the writer is asked with the declared saved, the entry holds the call and no figures, any other seat and a card that names a save are refused", async () => {
+  reset();
+  const asked = [];
+  run.registerPressOutcome("probe", async (args) => { asked.push(args.saved); return { names: [], records: [], life: "raised" }; });
+  try {
+    const { actor, token } = bodyOf("d1");
+    const post = (saveName) => run.postOutcomeCard({ kind: "probe", itemUuid: "I.none", title: "Probe", subjects: [{ key: token.uuid, name: token.name }], saveName, facts: {}, speakerActorUuid: actor.uuid });
+    const base = (made) => ({ itemUuid: "I.none", rowKey: made.rowKey, activationId: made.activationId, subject: token.uuid, messageId: posted.at(-1), entryKey: safeKey(token.uuid) });
+    const blank = await post("");
+    const key = safeKey(token.uuid);
+    assert.deepEqual(await press(blank, token.uuid, 12, { declared: true }), { ok: false, reason: "judgeOnly" }, "the subject's owner is not the Judge");
+    assert.deepEqual(await press(blank, token.uuid, 12, { declared: true, requestUserId: "other" }), { ok: false, reason: "notOwner" }, "ownership stands before the Judge's seat is asked");
+    assert.deepEqual(asked, [], "the writer is asked for nothing refused");
+    const passed = await run.pressRoll({ ...base(blank), declared: true });
+    assert.deepEqual([passed.ok, passed.saved, asked, passed.entry.declared, passed.entry.state, "total" in passed.entry, "target" in passed.entry, RollStub.made], [true, true, [true], true, "applied", false, false, []], "the writer takes the declared verdict and nothing is thrown");
+    assert.equal(cardAt(posted.at(-1)).entries[key].declared, true);
+    const second = await post("");
+    const failed = await run.pressRoll({ ...base(second), declared: false });
+    assert.deepEqual([failed.ok, failed.saved, asked], [true, false, [true, false]], "a failed call is the writer's failed save");
+    assert.equal((await run.pressRoll({ ...base(second), declared: true })).reason, "applied", "settled once");
+    const named = await post("paralysis");
+    assert.deepEqual(await press(named, token.uuid, 12, { declared: true, requestUserId: null }), { ok: false, reason: "figure" }, "a card that names a save is thrown for");
+    assert.deepEqual(await run.pressRoll({ ...base(named), declared: true }), { ok: false, reason: "figure" }, "from the Judge's seat too");
+    assert.equal(asked.length, 2);
+    gameStub.user = { id: "owner", isGM: false };
+    assert.deepEqual(await run.pressRoll({ ...base(blank), declared: true }), { ok: false, reason: "judgeOnly" }, "a player's seat is refused on its own side");
+  } finally {
+    gameStub.user = gm;
+    run.registerPressOutcome("probe", null);
+  }
+});
+
 /* --- the unknown drinker's card --- */
 
 async function unknownCard(drink = {}) {
@@ -435,7 +467,7 @@ await t("an item handed to a different actor rolls its imported swig dice into t
   const handed = itemOf("p1", actor, flagsFor({ bearerUuid: "A.old", uses: { value: "4d3" } }));
   RollStub.queue.push(4);
   await create(handed);
-  assert.deepEqual(handed.updates, [{ [`${SWIG_FLAG}.bearerUuid`]: "A.c2", [`${SWIG_FLAG}.left`]: 4 }], "one update holds the stamp and the count");
+  assert.deepEqual(handed.updates, [{ [`${SWIG_FLAG}.bearerUuid`]: "A.c2", [`${SWIG_FLAG}.left`]: 4, [`${SWIG_FLAG}.leftFrom`]: { by: "roll", formula: "4d3", total: 4 } }], "one update holds the stamp, the count and the roll it came from");
   assert.deepEqual(RollStub.made, ["4d3"]);
   assert.deepEqual(order.filter(([kind]) => kind === "roll"), [], "the count is rolled for no one's chat");
   assert.equal(handed.flags["acks-extras"].itemRun.activation.left, 4);

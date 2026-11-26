@@ -45,7 +45,7 @@ import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensate
 import { getManager } from "../henchmen/acks-adapter.mjs";
 import { blankedFigures, blankUnreadRows } from "./unread-figures.mjs";
 import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
-import { itemRunRowFor, openItemRunCard, pressItemRun } from "../lib/item-run-row-view.mjs";
+import { bindItemRunRows, itemRunRowFor, openItemRunCard, pressItemRun } from "../lib/item-run-row-view.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 const loc = makeLoc("ACKS-MONSTERS");
@@ -234,6 +234,12 @@ export function createFullMonsterSheet(Base) {
     static TABS = { primary: { tabs: [...TAB_LIST], initial: "statblock" } };
 
     tabGroups = { primary: "statblock" };
+
+    /** The frame's pass first, then the wiring of each inventory row's "Swigs left" box. */
+    async _onRender(context, options) {
+      await super._onRender(context, options);
+      this._renderSteps([["runRows", () => bindItemRunRows(this.element)]]);
+    }
 
     /** Sheet-local state that survives the re-render every form change causes. */
     #ui = { editingBio: false, moveRow: 0 };

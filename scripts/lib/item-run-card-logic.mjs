@@ -466,8 +466,20 @@ export function damageTip({ amount, dice, rolled, saved, reduction, defended = f
   return `${amount}: ${dice} ${words.rolled} ${rolled}, ${share}${defended ? `, ${words.defenses}` : ""}${cite ? ` (${cite})` : ""}`;
 }
 
-/** The Save column of a burst row: the target and the verdict the entry holds, "11+ · 14 Saved". */
-const saveCellOf = (entry, words) => `${numOrNull(entry.target) === null ? "" : `${entry.target}+ · `}${entry.total ?? ""} ${entry.saved ? words.saved : words.failed}`.trim();
+/** The Save column of a burst row: the target and the verdict the entry holds, "11+ · 14 Saved"; a declared verdict is marked as the Judge's call. */
+const saveCellOf = (entry, words) => `${numOrNull(entry.target) === null ? "" : `${entry.target}+ · `}${entry.total ?? ""} ${entry.saved ? words.saved : words.failed}${entry.declared === true ? ` (${words.declared})` : ""}`.trim();
+
+/**
+ * The two presses the Judge's seat is offered on an open row of a card that names no
+ * save: Passed and Failed, each carrying the verdict it declares (`data.declared`)
+ * and the warning that nothing is rolled. Absent for any seat but the Judge's, for a
+ * seat that does not own the subject, and where the card names a save.
+ */
+function declareActionsOf(r, { words, ids, seat, messageId, canSave }) {
+  if (canSave || seat.judge !== true || seat.ownsSubject?.(r.key) !== true) return [];
+  const press = (declared, label, aria) => ({ action: "itemRun.declare", label, icon: declared ? "fa-solid fa-check" : "fa-solid fa-xmark", data: { ...ids, subject: r.key, entryKey: r.entryKey, messageId, declared }, tooltip: words.declareTip, ariaLabel: aria.replace("{name}", r.name) });
+  return [press(true, words.declarePass, words.declarePassAria), press(false, words.declareFail, words.declareFailAria)];
+}
 
 /** One subject's row of the burst card, by the state of its entry (open, rolled, applied, judge, undone). */
 function burstRowOf(r, { words, ids, seat, messageId, canSave }) {
@@ -490,7 +502,7 @@ function burstRowOf(r, { words, ids, seat, messageId, canSave }) {
     default: return {
       // A blank save is a blank cell whose tooltip is the page alone; a no-break space keeps the cell and its tooltip without a figure.
       ...base, total: "", ...(numOrNull(r.target) === null ? (r.targetTip ? { aside: " ", asideTooltip: r.targetTip } : {}) : { aside: `${r.target}+`, ...(r.targetTip ? { asideTooltip: r.targetTip } : {}) }),
-      actions: mine && canSave ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...ids, subject: r.key, entryKey, messageId }, tooltip: words.saveTip, ariaLabel: words.saveAria.replace("{name}", r.name) }] : [],
+      actions: mine && canSave ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...ids, subject: r.key, entryKey, messageId }, tooltip: words.saveTip, ariaLabel: words.saveAria.replace("{name}", r.name) }] : declareActionsOf(r, { words, ids, seat, messageId, canSave }),
     };
   }
 }
@@ -525,7 +537,7 @@ function vehicleRowOf(v, { words, seat, messageId }) {
  * @param {Array<{key: string, name: string, state: string, entryKey: string, entry?: object, target?: number|null, targetTip?: string|null, damage?: {amount: number|null, judge: boolean}, damageTip?: string, whyText?: string}>} p.rows
  * @param {Array<{uuid: string, name: string, state: string, tip?: string}>} [p.vehicles]
  * @param {string} [p.buildingsLine] the Judge's line, shown to a Judge's seat alone
- * @param {boolean} [p.canSave] the card names a save, so a Save press can roll it
+ * @param {boolean} [p.canSave] the card names a save, so a Save press can roll it; where it does not, an open row offers the Judge's seat Passed and Failed (`declareActionsOf`)
  * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
  * @param {string} p.messageId the card's own message
  * @param {{judge?: boolean, ownsSubject?: (key: string) => boolean, ownsVehicle?: (uuid: string) => boolean, mayUndo?: (entry: object, key: string) => boolean}} [p.seat]
@@ -636,7 +648,7 @@ function outcomeRowOf(r, { words, ids, seat, messageId, canSave }) {
     case "undone": return { ...base, total: "", ...figure, outcome: words.undone, emphasis: "muted" };
     default: return {
       ...base, total: "", ...figure,
-      actions: seat.ownsSubject?.(r.key) === true && canSave ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...ids, subject: r.key, entryKey: r.entryKey, messageId }, tooltip: words.saveTip, ariaLabel: words.saveAria.replace("{name}", r.name) }] : [],
+      actions: seat.ownsSubject?.(r.key) === true && canSave ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...ids, subject: r.key, entryKey: r.entryKey, messageId }, tooltip: words.saveTip, ariaLabel: words.saveAria.replace("{name}", r.name) }] : declareActionsOf(r, { words, ids, seat, messageId, canSave }),
     };
   }
 }
@@ -649,18 +661,19 @@ function outcomeRowOf(r, { words, ids, seat, messageId, canSave }) {
  * and the result line the caller built (`result`: `{text, tip}`), with Undo for
  * the seat that pressed or owns the subject while the entry holds something
  * written. A judge row reads the caller's reason in the Result column. A card
- * that names no save has no press and draws `lines`.
+ * that names no save has no Save press and draws `lines`; its open rows offer the
+ * Judge's seat (`seat.judge`) the Passed and Failed presses (`declareActionsOf`).
  *
  * @param {object} p
  * @param {string} p.title
  * @param {string} [p.subtitle]
- * @param {object} p.words `undo`, `undone`, `save`, `saveTip`, `saveAria`, `undoOutcomeTip`, `undoOutcomeAria`, localized
+ * @param {object} p.words `undo`, `undone`, `save`, `saveTip`, `saveAria`, `undoOutcomeTip`, `undoOutcomeAria`, and the declared presses' `declarePass`, `declareFail`, `declareTip`, `declarePassAria`, `declareFailAria`, localized
  * @param {Array<{key: string, name: string, state: string, entryKey: string, entry?: object, target?: number|null, targetTip?: string|null, detail?: string, nameTooltip?: string, result?: {text: string, tip?: string|null}}>} p.rows
  * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
  * @param {string} p.messageId the card's own message
  * @param {boolean} [p.canSave] the card names a save, so a Save press can roll it
  * @param {string[]} [p.lines] small print under the table
- * @param {{ownsSubject?: (key: string) => boolean, mayUndo?: (entry: object, key: string) => boolean}} [p.seat]
+ * @param {{judge?: boolean, ownsSubject?: (key: string) => boolean, mayUndo?: (entry: object, key: string) => boolean}} [p.seat]
  */
 export function outcomeCardModel({ title, subtitle, words, rows, ids, messageId, canSave = true, lines = [], seat = {} }) {
   return {

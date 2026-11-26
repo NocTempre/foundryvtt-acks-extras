@@ -87,6 +87,20 @@ t("a row with no share, no table row, no pressable item or no runner for its kin
   assert.deepEqual(controls(stack([]), { runnable: () => false }), []);
 });
 
+t("a fuse row, where a runner takes the kind, offers Light, and spent once the carrier's own fuse is used up", () => {
+  const runnable = (k) => k === "fuse";
+  const [light] = controls(stack([], { carry: { rowC: 1 } }), { runnable });
+  assert.equal(light.label, "press.light");
+  assert.equal(light.tip, "row.press.lightTip");
+  assert.equal(light.icon, "fa-solid fa-fire");
+  assert.equal(light.disabled, false);
+  const out = stack([{ ...carrying("m1", "deployed", { tokenUuid: "here.1" }), carries: ["rowC"] }], { carry: { rowC: 1 } });
+  const [live] = controls(out, { runnable, live: () => ({ active: false, usedUp: false }) });
+  assert.equal(live.label, "press.light");
+  const [spent] = controls(out, { runnable, live: () => ({ active: false, usedUp: true }) });
+  assert.equal([spent.label, spent.disabled].join(), "row.press.spent,true");
+});
+
 t("an out carrier's own item decides the press: raised reads Lower, used up reads the spent press, held off", () => {
   const roster = [carrying("m1", "deployed", { tokenUuid: "here.1" })];
   const [lower] = controls(stack(roster), { live: () => ({ active: true, usedUp: false }) });

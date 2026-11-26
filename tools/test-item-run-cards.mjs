@@ -475,7 +475,7 @@ t("an unlit light, a fumble and a Judge's one say so in a plain line and offer n
   assert.deepEqual(held.lines, ["judge line", "no rounds", "no spot"]);
 });
 
-const burstWords = { ...words, inArea: "In the area", damage: "Damage", apply: "Apply", applyTip: "apply tip", applyAria: "Apply to {name}", applyAll: "Apply all", applyAllTip: "all tip", applyAllAria: "all aria", undoApplyTip: "undo tip", undoAria: "Undo {name}", saveAria: "Save {name}", handOn: "Hand on", handOnTip: "hand tip", handOnAria: "Hand on {name}", handed: "handed", structure: "structure", blastRow: "Blast", burstGoneLine: "gone line", burstJudgeLine: "judge line" };
+const burstWords = { ...words, inArea: "In the area", damage: "Damage", apply: "Apply", applyTip: "apply tip", applyAria: "Apply to {name}", applyAll: "Apply all", applyAllTip: "all tip", applyAllAria: "all aria", undoApplyTip: "undo tip", undoAria: "Undo {name}", saveAria: "Save {name}", handOn: "Hand on", handOnTip: "hand tip", handOnAria: "Hand on {name}", handed: "handed", structure: "structure", blastRow: "Blast", burstGoneLine: "gone line", burstJudgeLine: "judge line", declarePass: "Passed", declareFail: "Failed", declareTip: "declare tip", declarePassAria: "Declare {name} passed", declareFailAria: "Declare {name} failed", declared: "the Judge's call" };
 const burstIds = { itemUuid: "I.1", rowKey: "burst", activationId: "act" };
 const burstRows = [
   { key: "T.a", name: "Alpha", state: "open", entryKey: "T~a", target: 11, targetTip: "ttip" },
@@ -516,10 +516,16 @@ t("a seat sees the rows of the bodies it owns: no Apply or Undo on another's, no
   assert.deepEqual(vehicleSeat.sections[0].rows.map((r) => r.name), ["Cart"], "a vehicle's owner is shown its row alone");
 });
 
-t("a burst whose save is blank has no Save press and a blank cell with the page alone", () => {
-  const model = burstModel(burstSeat(), { canSave: false, rows: [{ key: "T.a", name: "Alpha", state: "open", entryKey: "T~a", target: null, targetTip: "MM p. 55" }], vehicles: [] });
-  const [row] = model.sections[0].rows;
-  assert.deepEqual([row.aside, row.asideTooltip, row.actions], [" ", "MM p. 55", []]);
+t("a burst whose save is blank has no Save press and a blank cell with the page alone, and offers the Judge's seat alone Passed and Failed on an open row", () => {
+  const blankRows = [{ key: "T.a", name: "Alpha", state: "open", entryKey: "T~a", target: null, targetTip: "MM p. 55" }, { key: "T.b", name: "Beta", state: "rolled", entryKey: "T~b", entry: { saved: true, declared: true }, target: null, damage: { amount: 5, judge: false } }];
+  const blank = (seat) => burstModel(seat, { canSave: false, rows: blankRows, vehicles: [] }).sections[0].rows;
+  const [row, rolled] = blank(burstSeat());
+  assert.deepEqual([row.aside, row.asideTooltip, row.actions.map((a) => [a.action, a.label, a.data.declared, a.data.entryKey, a.data.messageId, a.tooltip, a.ariaLabel])], [" ", "MM p. 55", [["itemRun.declare", "Passed", true, "T~a", "M1", "declare tip", "Declare Alpha passed"], ["itemRun.declare", "Failed", false, "T~a", "M1", "declare tip", "Declare Alpha failed"]]], "Passed and Failed carry the verdict and the warning; no Save press");
+  assert.deepEqual([rolled.aside, rolled.actions.map((a) => a.action)], ["Holds (the Judge's call)", ["itemRun.apply"]], "a declared verdict is marked as the Judge's call, and only the open row offers a declared press");
+  assert.deepEqual(blank(burstSeat({ judge: false }))[0].actions, [], "a seat that is not the Judge's is offered none");
+  assert.deepEqual(blank(burstSeat({ ownsSubject: () => false })), [], "nor a seat that owns no subject");
+  const named = burstModel(burstSeat()).sections[0].rows[0];
+  assert.deepEqual(named.actions.map((a) => a.action), ["itemRun.roll"], "a card that names a save keeps its Save press and no declared one");
 });
 
 t("a figure's damage is the share a passed save takes off, then the body's defense stage; the tooltip names the dice, what they rolled, the share and the page", () => {
@@ -545,7 +551,7 @@ t("a burst that rolled nothing is a plain line, with the blast's blank cell and 
 /* -------------------------------------------- */
 
 const { healTip, outcomeCardModel, resultCardModel, swigUnknownModel } = await import("../scripts/lib/item-run-card-logic.mjs");
-const swigWords = { ...words, save: "Save", saveTip: "Roll this body's save", saveAria: "Roll the save for {name}", undo: "Undo", undone: "Undone", undoOutcomeTip: "Take back", undoOutcomeAria: "Undo the result for {name}", heal: "Heal", healPressTip: "Heal tip", healAria: "Heal the drinker", askSave: "Ask the save", askSaveTip: "Ask tip", askSaveAria: "Ask the drinker" };
+const swigWords = { ...words, save: "Save", saveTip: "Roll this body's save", saveAria: "Roll the save for {name}", undo: "Undo", undone: "Undone", undoOutcomeTip: "Take back", undoOutcomeAria: "Undo the result for {name}", heal: "Heal", healPressTip: "Heal tip", healAria: "Heal the drinker", askSave: "Ask the save", askSaveTip: "Ask tip", askSaveAria: "Ask the drinker", declarePass: "Passed", declareFail: "Failed", declareTip: "Declare tip", declarePassAria: "Declare {name} passed", declareFailAria: "Declare {name} failed" };
 const swigIds = { itemUuid: "I.1", rowKey: "swig", activationId: "act" };
 const swigSeat = (owned, presser = "") => ({ ownsSubject: (key) => owned.includes(key), mayUndo: (entry, key) => entry?.presser === presser || owned.includes(key) });
 const swigRow = (over = {}) => ({ key: "S.d", name: "Drinker", state: "open", entryKey: "S~d", entry: null, target: 12, targetTip: "death 12+ (Book p. 7)", ...over });
@@ -586,6 +592,17 @@ t("a save card's open row: the Save press for a seat that owns the subject names
   const blank = outcomeModel([swigRow({ target: null, targetTip: "Book p. 7" })], { canSave: false, lines: ["No save is named"] });
   const [cell] = blank.sections[0].rows;
   assert.deepEqual([cell.targetText, cell.targetTooltip, "target" in cell, cell.actions, blank.lines], [" ", "Book p. 7", false, [], ["No save is named"]]);
+  // The Judge's seat settles a blank-save card by declaring the verdict; the card's line stays.
+  const judge = { ...swigSeat(["S.d"]), judge: true };
+  const declared = outcomeModel([swigRow({ target: null, targetTip: "Book p. 7" })], { canSave: false, lines: ["No save is named"], seat: judge });
+  assert.deepEqual(declared.sections[0].rows[0].actions.map((a) => [a.action, a.label, a.data, a.tooltip, a.ariaLabel]), [
+    ["itemRun.declare", "Passed", { ...swigIds, subject: "S.d", entryKey: "S~d", messageId: "M1", declared: true }, "Declare tip", "Declare Drinker passed"],
+    ["itemRun.declare", "Failed", { ...swigIds, subject: "S.d", entryKey: "S~d", messageId: "M1", declared: false }, "Declare tip", "Declare Drinker failed"],
+  ]);
+  assert.deepEqual(declared.lines, ["No save is named"], "the no-save line stays");
+  assert.deepEqual(pressesOf(outcomeModel([swigRow()], { seat: judge })), ["itemRun.roll"], "a card that names a save offers the Judge no declared press");
+  assert.deepEqual(pressesOf(outcomeModel([swigRow({ target: null })], { canSave: false, seat: { ...swigSeat([]), judge: true } })), [], "nor a seat that owns no subject");
+  assert.deepEqual(pressesOf(outcomeModel([swigRow({ target: null, state: "applied", entry: { state: "applied", saved: true, declared: true, recordIds: ["e1"], presser: "pa" }, result: { text: "Saved (the Judge's call)" } })], { canSave: false, seat: judge })), ["itemRun.undo"], "an applied declared row offers the Undo as any other");
   const detailed = outcomeModel([swigRow({ detail: "blast +2", nameTooltip: "Save modifier read from the Barb row: +2 (Book p. 12)" })]).sections[0].rows[0];
   assert.deepEqual([detailed.detail, detailed.nameTooltip], ["blast +2", "Save modifier read from the Barb row: +2 (Book p. 12)"]);
 });

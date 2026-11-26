@@ -2,8 +2,8 @@
  * What a generated stack's row says of the item its bodies carry, and which body a
  * press on it acts through, as data. A stack whose `gen.carry` names a row of the
  * imported optional-equipment table says "{n} carry {item}" and, where the item is
- * one the carrier runs, offers the press the item's own row offers (Raise or
- * Use). Reading the world (the tokens, the minted item, the live item's state) is
+ * one the carrier runs, offers the press the item's own row offers (Raise, Light
+ * or Use). Reading the world (the tokens, the minted item, the live item's state) is
  * the caller's (`carry-press.mjs`); this module decides what the row says and
  * who acts. Foundry-free.
  *
@@ -19,8 +19,9 @@ import { press as itemRunPress } from "../lib/item-run-row.mjs";
 const RESTING = "materialized";
 const OUT = "deployed";
 
-/** The activation kinds whose press is Raise or Lower (`toggle`) and Use (`once`). */
+/** The activation kinds whose press is Raise or Lower (`toggle`) and Light (`fuse`); every other kind's is Use. */
 const TOGGLE = "toggle";
+const FUSE = "fuse";
 
 /** A share as a count of bodies: a whole number, zero where it is no figure. */
 export const shareOf = (n) => (Number.isFinite(Number(n)) ? Math.max(0, Math.floor(Number(n))) : 0);
@@ -59,8 +60,8 @@ export function chooseCarrier({ roster = [], rowKey, share = 0, pristine = 0, wh
 
 /**
  * The press a carried item offers on a stack row: Raise (Lower where the carrier
- * already out holds it raised) for a toggle, Use for a once item, off and saying
- * the item is used up where the live one has none. Null for a kind no runner takes.
+ * already out holds it raised) for a toggle, Light for a fuse, Use for any other
+ * kind, off and saying the item is used up where the live one has none. Null for a kind no runner takes.
  *
  * @param {string} kind the item's activation kind
  * @param {{active: boolean, usedUp: boolean}|null} live the carrier's own item, where a carrier is out on the viewed scene
@@ -69,7 +70,7 @@ export function chooseCarrier({ roster = [], rowKey, share = 0, pristine = 0, wh
 function pressFor(kind, live, say) {
   if (kind === TOGGLE) return itemRunPress(live?.active ? "lower" : "raise", say);
   if (live?.usedUp) return itemRunPress("spent", say, { disabled: true });
-  return itemRunPress("use", say);
+  return itemRunPress(kind === FUSE ? "light" : "use", say);
 }
 
 /**

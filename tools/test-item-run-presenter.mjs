@@ -1153,9 +1153,57 @@ await t("a swig's verdict lines: a pass reads Saved with what it healed (the suc
 await t("a swig that names no save has no Save press: the target cell is blank with the page alone, and the Judge's line says so", async () => {
   await presenter.presentUse(outcomePost("swig", "sw5", { saveName: "", facts: { successHealDice: null, condition: null, cite: "" } }));
   const html = bodyOf("outcomeBody", "sw5", users[0]);
-  assert.ok(!html.includes("<button") && html.includes(L("noSaveLine")), "no press, the Judge's line");
+  assert.ok(!html.includes('data-action="itemRun.roll"') && html.includes(L("noSaveLine")), "no Save press, the Judge's line");
   assert.ok(html.includes(`data-tooltip-text="${L("citeSwig")}"`), "a blank swig kind cites the swig's page; no number stands in");
   assert.ok(!html.includes("acks-extras-roll-detail"), "no save is named");
+});
+
+await t("a card that names no save offers the Judge's seat Passed and Failed on an open row, carrying the verdict and the warning, and no other seat; a card that names a save offers none, and a declared verdict reads as the Judge's call", async () => {
+  const id = cardOfAct("sw5").id;
+  const judge = bodyOf("outcomeBody", "sw5", users[0]);
+  assert.equal(buttons(judge, "itemRun.declare"), 2, "Passed and Failed");
+  assert.ok(judge.includes(`<span>${L("declarePass")}</span>`) && judge.includes(`<span>${L("declareFail")}</span>`), "each named");
+  assert.ok(judge.includes('data-declared="true"') && judge.includes('data-declared="false"') && judge.includes('data-entry-key="S~d"') && judge.includes(`data-message-id="${id}"`), "each carries its verdict, the entry's key and the card");
+  assert.ok(judge.includes(`data-tooltip-text="${L("declareTip")}"`) && judge.includes(`aria-label="${L("declarePassAria")}"`) && judge.includes(`aria-label="${L("declareFailAria")}"`), "the warning is the tooltip and each press has its accessible name");
+  assert.ok(judge.includes(L("noSaveLine")), "the no-save line stays");
+  for (const user of [users[1], users[2]]) assert.equal(buttons(bodyOf("outcomeBody", "sw5", user), "itemRun.declare"), 0, `${user.id}: a seat that is not the Judge's has none`);
+  assert.equal(buttons(bodyOf("outcomeBody", "sw1", users[0]), "itemRun.declare"), 0, "a card that names a save keeps its Save press and offers no declared one");
+  const entries = outcomeFor("sw5").entries;
+  entries["S~d"] = { subject: "S.d", state: "applied", saved: true, declared: true, recordIds: ["e1"], names: [], presser: "gm" };
+  const done = bodyOf("outcomeBody", "sw5", users[0]);
+  assert.ok(done.includes(`${L("saved")} (${L("declared")})`) && buttons(done, "itemRun.declare") === 0 && buttons(done, "itemRun.undo") === 1, "an applied declared entry reads the Judge's call, takes no second press, and keeps the Undo");
+  entries["S~d"] = { subject: "S.d", state: "applied", saved: true, recordIds: ["e1"], names: [], presser: "gm" };
+  assert.ok(!bodyOf("outcomeBody", "sw5", users[0]).includes(L("declared")), "a rolled verdict does not");
+  delete entries["S~d"];
+  me.current = users[0];
+});
+
+await t("a burst whose save is blank offers the Judge's seat Passed and Failed and the others nothing, and a declared verdict reads as the Judge's call in its Save cell", async () => {
+  await presenter.presentUse(burstResult("f6", { saveName: "" }));
+  const judge = bodyFor("burstBody", "f6", users[0]);
+  assert.equal(buttons(judge, "itemRun.declare"), 4, "Passed and Failed on each of the two open rows");
+  assert.equal(buttons(judge, "itemRun.roll"), 0, "no Save press");
+  assert.ok(judge.includes('data-declared="true"') && judge.includes('data-declared="false"'));
+  assert.equal(buttons(bodyFor("burstBody", "f6", users[1]), "itemRun.declare"), 0, "an owner who is not the Judge has none");
+  cardOfAct("f6").flags["acks-extras"].itemRunCard.entries["S~a"] = { subject: "S.a", state: "rolled", saved: false, declared: true };
+  const declared = bodyFor("burstBody", "f6", users[0]);
+  assert.ok(declared.includes(`${L("failed")} (${L("declared")})`) && buttons(declared, "itemRun.declare") === 2, "the declared row reads the call and only the open row keeps its presses");
+  me.current = users[0];
+});
+
+await t("a declared press from a card's button reaches the runtime with its verdict: the Judge's seat settles a blank-save card, any other seat is refused and told", async () => {
+  const message = cardOfAct("sw5");
+  const press = (declared) => ({ dataset: { action: "itemRun.declare", messageId: message.id, subject: "S.d", entryKey: "S~d", declared: String(declared), itemUuid: "I.dr", rowKey: "swig", activationId: "sw5" } });
+  me.current = users[1];
+  warned.length = 0;
+  await presenter.press(message, press(true));
+  assert.deepEqual(warned, ["ACKS-LIB.itemRun.refused.judgeOnly"], "a seat that is not the Judge's is refused with its own line");
+  assert.equal(outcomeFor("sw5").entries["S~d"], undefined);
+  me.current = users[0];
+  warned.length = 0;
+  await presenter.press(message, press(false));
+  assert.deepEqual([warned, outcomeFor("sw5").entries["S~d"]?.declared, outcomeFor("sw5").entries["S~d"]?.saved], [[], true, false], "the Judge's press wrote the entry with the verdict it named");
+  delete outcomeFor("sw5").entries["S~d"];
 });
 
 await t("an on-hit card speaks for the attacker: the struck token's owner presses Save, the attacker's owner does not, the save reads with its modifier and the row it came from, and a failure reads the delayed damage with its tooltip", async () => {

@@ -80,7 +80,7 @@ import { isGroundPile } from "../lib/place.mjs";
 import { mountOf, ride, dismount } from "../lib/mount.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { reachStripFor, pressStripSave } from "../lib/item-run-strip.mjs";
-import { openItemRunCard, pressItemRun } from "../lib/item-run-row-view.mjs";
+import { bindItemRunRows, openItemRunCard, pressItemRun } from "../lib/item-run-row-view.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -664,6 +664,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
       ["itemInputs", () => this.#bindItemInputs()],
       ["paths", () => this.#bindPathSelects()],
       ["overrides", () => this.#markOverriddenInputs()],
+      ["runRows", () => bindItemRunRows(this.element)],
     ]);
   }
 

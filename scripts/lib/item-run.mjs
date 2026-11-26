@@ -64,7 +64,7 @@ import { isMarkerActor } from "./place.mjs";
 const loc = makeLoc(LANG_PREFIX);
 
 /** The refusals the Judge and the Player have a line for; any other reason reads as a plain refusal. */
-const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down", "spent"]);
+const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down", "spent", "judgeOnly"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
 const HANDLER = Object.freeze({
@@ -390,7 +390,11 @@ export const ownerIdsOf = (doc) => (game.users ?? []).filter((u) => doc?.testUse
  * item and row being gone with a consumed item, and asks that writer what the
  * entry holds: its `records`, `names`, `life`, `hp` and `amount`, or, where it
  * answers `judge`, nothing but the verdict and a `why` (entry state "judge").
- * Answers `{ok, saved, entry}`.
+ * A press carrying `declared` (a boolean) is the Judge's call on an outcome card
+ * that names no save: nothing is thrown, the writer is asked with `saved` the
+ * declared verdict, and the entry holds `declared: true` and no total or target. A
+ * declared press on any other card is refused `figure`, and from a seat that is
+ * not the Judge's, `judgeOnly`. Answers `{ok, saved, entry}`.
  */
 async function pressHere(payload) {
   const { itemUuid, subject: subjectUuid, total, target, messageId = "", requestUserId = null } = payload;
@@ -417,8 +421,11 @@ async function pressHere(payload) {
     const key = asked || (waiting ? freshKey(card.entries, safeKey(momentKey({ ...fightNow(), subjectUuid, kindKey: kindKeyOf(item, row) }) ?? subKey)) : subKey);
     const figures = row ? reachFigures(row) : null;
     const timed = figures?.lastsNamed === true;
+    // A declared verdict is taken only on an outcome card that names no save; a card that names one is thrown for.
+    const declared = typeof payload.declared === "boolean" ? payload.declared : undefined;
+    if (declared !== undefined && !(outcome && !card.saveName)) return { ok: false, reason: "figure" };
     const verdict = checkPressRequest(
-      { requestUserId, total, target },
+      { requestUserId, total, target, declared },
       {
         item, row, subjectOwnerIds: ownerIdsOf(subjectToken), target: spec?.target ?? null, entryState: entryStateOf(card, key), waiting, judge: judgeDeclares(requestUserId),
         struck: card?.kind !== "once" && !outcome && !!asked && !!card?.entries && !card.entries[asked],
@@ -485,7 +492,7 @@ async function pressHere(payload) {
     }
     const made = !records.length ? [] : timed ? await actor.createEmbeddedDocuments("ActiveEffect", records, { keepId: true }) : await actor.createEmbeddedDocuments("ActiveEffect", records);
     const prior = card?.entries?.[key] ?? {};
-    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, total: verdict.total, target: verdict.target, recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(hp ? { hp } : {}), ...(amount !== null ? { amount } : {}), ...(why ? { why } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
+    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, ...(verdict.declared ? { declared: true } : { total: verdict.total, target: verdict.target }), recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(hp ? { hp } : {}), ...(amount !== null ? { amount } : {}), ...(why ? { why } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
     if (message && card) {
       const patch = { [`entries.${key}`]: entry };
@@ -537,9 +544,12 @@ function fightNow() {
  * A press on a prompt card's row, from the presser's seat: roll the subject's
  * save here and relay the ids and the total, never a verdict, a window or an
  * entry state; the GM reads those from the card and the item and writes. A
- * Judge's press runs here.
+ * Judge's press runs here. A press carrying `declared` (a boolean) is the Judge's
+ * call on an outcome card that names no save: nothing is thrown, a seat that is not
+ * the Judge's is refused `judgeOnly` and a card that names a save `figure`, and
+ * the verdict goes to the writer as the declared one.
  *
- * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, messageId?: string, entryKey?: string}} p
+ * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, messageId?: string, entryKey?: string, declared?: boolean}} p
  * @returns {Promise<{ok: boolean, entry?: object, reason?: string}>}
  */
 export async function pressRoll(p) {
@@ -547,6 +557,12 @@ export async function pressRoll(p) {
   const row = itemRunRowsOf(item).find((r) => r?.key === p.rowKey);
   const actor = subjectOf(p.subject)?.actor;
   const stored = outcomes.has(cardOf(p.messageId).card?.kind) ? cardOf(p.messageId).card : null;
+  if (typeof p.declared === "boolean") {
+    if (!judgeDeclares()) return { ok: false, reason: "judgeOnly" };
+    if (!actor || !stored || stored.saveName) return { ok: false, reason: stored ? "figure" : "noFigure" };
+    const declaredPayload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", entryKey: p.entryKey ?? "", declared: p.declared };
+    return pressHere(declaredPayload);
+  }
   const name = stored ? String(stored.saveName ?? "") : saveNameOf(row);
   if (!actor || !name) return { ok: false, reason: "noFigure" };
   const figures = stored ? null : reachFigures(row);
@@ -1810,7 +1826,8 @@ export async function swigAskSave(p) {
  * A consume item landing on an actor, on the primary GM's window: `swigStampPlan`
  * says whether its `bearerUuid` is stamped with the actor's, and, only when `roll`
  * is asked and the plan allows it, its `uses` figure (`resolveFigure`) is rolled
- * into `left`. The roll is a plain one, posted to no one, and a blank or invalid
+ * into `left`, with `leftFrom` recording the formula and total it came from. The
+ * roll is a plain one, posted to no one, and a blank or invalid
  * figure writes only the stamp. Both land in ONE `item.update`, which is an
  * update and so fires no create hook again.
  */
@@ -1825,7 +1842,10 @@ async function stampConsumeItem(item, actor, { roll }) {
     const dice = diceOf(resolveFigure(a.uses));
     if (dice !== null) {
       const total = Math.floor(Number((await new Roll(dice).evaluate()).total));
-      if (Number.isFinite(total)) update[`${base}.left`] = total;
+      if (Number.isFinite(total)) {
+        update[`${base}.left`] = total;
+        update[`${base}.leftFrom`] = { by: "roll", formula: dice, total };
+      }
     }
   }
   await item.update(update);

@@ -1,10 +1,12 @@
 {{!-- What an item the carrier runs says on its row of a sheet: its state tag, the
-      line naming its use and reach, and (unless `hideButtons`) its presses.
+      line naming its use and reach, a consume item's "Swigs left" box (a
+      control, so drawn under `hideButtons` too; `bindItemRunRows` wires it), and
+      (unless `hideButtons`) its presses.
       Context: a row model (`item-run-row.mjs` `itemRunRowModel`, with
       `itemUuid` on each press, from `item-run-row-view.mjs` `itemRunRowFor`).
       Carries no id, so two open copies never collide. --}}
 <div class="acks-extras-run{{#if raised}} is-raised{{/if}}" data-run-state="{{state}}">
-  <span class="acks-tag acks-tag--{{tag.variant}}">{{tag.label}}</span>
+  <span class="acks-tag acks-tag--{{tag.variant}}"{{#if tag.tip}} data-tooltip-text="{{tag.tip}}"{{/if}}>{{tag.label}}</span>
   <span class="acks-extras-run__line">
     {{#if use}}{{use}}{{/if}}
     {{#if reach}}{{#if use}} · {{/if}}{{#if reach.engaged}}<span data-tooltip-text="{{reach.tip}}">{{reach.label}}</span>{{else}}{{reach.label}} {{#if reach.blank}}<span class="acks-extras-run__blank" data-tooltip-text="{{reach.tip}}" aria-label="{{localize 'ACKS-LIB.itemRun.strip.blank'}} {{reach.cite}}"><i class="fa-solid fa-book" inert></i></span>{{else}}<span class="acks-nums" data-tooltip-text="{{reach.tip}}">{{reach.feet}}′</span>{{/if}}{{#if reach.cite}} <span class="acks-extras-run__cite">{{reach.cite}}</span>{{/if}}{{/if}}{{/if}}
@@ -12,6 +14,7 @@
     {{#if ring}} · <span data-tooltip-text="{{ring.tip}}">{{ring.label}}</span>{{/if}}
     {{#if nothing}} · {{nothing}}{{/if}}
   </span>
+  {{#if left}}<label class="acks-extras-run__left">{{left.label}} <input type="number" min="0" step="1" value="{{left.value}}" data-acks-extras-run-left data-item-uuid="{{itemUuid}}" data-tooltip-text="{{left.tip}}"></label>{{/if}}
   {{#unless hideButtons}}{{#each presses}}
   <button type="button" class="acks-btn acks-btn--{{variant}} acks-btn--sm{{#if disabled}} is-off{{/if}}" data-action="{{action}}" data-press="{{key}}" data-item-uuid="{{itemUuid}}" data-tooltip-text="{{tip}}" aria-label="{{label}}"{{#if disabled}} aria-disabled="true"{{/if}}><i class="{{icon}}" inert></i> {{label}}</button>
   {{/each}}{{/unless}}

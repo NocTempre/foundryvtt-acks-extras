@@ -40,18 +40,32 @@ const leftOf = (raw) => {
 };
 
 /**
+ * Where a stored swig count came from, as `{by: "roll", formula, total}` (rolled
+ * from the item's dice when it reached an actor) or `{by: "hand"}` (typed on a
+ * row); null for anything else, a roll with no formula or no whole total included.
+ */
+function leftFromOf(raw) {
+  if (raw?.by === "hand") return { by: "hand" };
+  if (raw?.by !== "roll") return null;
+  const formula = typeof raw.formula === "string" ? raw.formula.trim() : "";
+  const total = numOrNull(raw.total);
+  return formula && total !== null && Number.isInteger(total) ? { by: "roll", formula, total } : null;
+}
+
+/**
  * A stored `itemRun` flag as `{activation, rows}`, or null where it holds no
  * activation of a known kind. The figures a fuse and a counted item name stay
  * figure references (`resolveFigure` reads them live). A fuse also names the
  * proficiency its light rides on, the bomb sizes by breed (`sizes`), the blast
  * rows by size (`blast`) and `variant`, the breed key that indexes `sizes` (a
  * trimmed string, "" where none is stored). A `consume` activation also answers
- * `left`, the swigs it has left (a finite integer, null where uncounted), and
- * `bearerUuid`, the uuid of the actor that last took the item ("" where none);
+ * `left`, the swigs it has left (a finite integer, null where uncounted),
+ * `leftFrom`, where that count came from (`{by: "roll", formula, total}`,
+ * `{by: "hand"}` or null), and `bearerUuid`, the uuid of the actor that last took the item ("" where none);
  * `uses` is the figure reference its count is rolled from.
  *
  * @param {object} [raw]
- * @returns {{activation: {kind: string, state: {active: boolean, activationId: string, regionId: string}, throw: object|null, fumble: object|null, fuseDice: object|null, proficiency: object|null, sizes: object|null, blast: object|null, variant: string, uses: object|null, left?: number|null, bearerUuid?: string}, rows: object[]}|null}
+ * @returns {{activation: {kind: string, state: {active: boolean, activationId: string, regionId: string}, throw: object|null, fumble: object|null, fuseDice: object|null, proficiency: object|null, sizes: object|null, blast: object|null, variant: string, uses: object|null, left?: number|null, leftFrom?: {by: string, formula?: string, total?: number}|null, bearerUuid?: string}, rows: object[]}|null}
  */
 export function readItemRun(raw) {
   const kind = raw?.activation?.kind;
@@ -69,7 +83,7 @@ export function readItemRun(raw) {
       blast: figure("blast"),
       variant: typeof raw.activation.variant === "string" ? raw.activation.variant.trim() : "",
       uses: figure("uses"),
-      ...(kind === "consume" ? { left: leftOf(raw.activation.left), bearerUuid: typeof raw.activation.bearerUuid === "string" ? raw.activation.bearerUuid.trim() : "" } : {}),
+      ...(kind === "consume" ? { left: leftOf(raw.activation.left), leftFrom: leftFromOf(raw.activation.leftFrom), bearerUuid: typeof raw.activation.bearerUuid === "string" ? raw.activation.bearerUuid.trim() : "" } : {}),
     },
     rows: Array.isArray(raw.rows) ? raw.rows : [],
   };
@@ -408,7 +422,7 @@ export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?
  * own the subject, for an item or row that is gone, or for an entry already
  * applied is refused. A Judge's own press carries no `requestUserId`.
  *
- * @param {{requestUserId?: string|null, total: *, target: *}} req
+ * @param {{requestUserId?: string|null, total?: *, target?: *, declared?: boolean}} req
  * A subject that is `waiting` (listed, its moment not come) is pressed only where
  * `world.judge` (`judgeDeclares(requestUserId)`) holds, and it goes through as an
  * `early` press; any other seat is
@@ -416,8 +430,15 @@ export const entryStateOf = (card, subject) => card?.entries?.[subject]?.state ?
  * names `reach.lasts` and holds no figure for it (`world.blankLasts`) refuses a
  * press from any seat but the Judge's own, which writes the condition untimed.
  *
+ * A declared press (`req.declared` a boolean: the verdict the Judge calls on a card
+ * that names no save, which the caller admits only for such a card) rolls nothing.
+ * It goes through only where `world.judge` holds (any other seat is refused
+ * `judgeOnly`), skips the target and total checks, and answers `total` and `target`
+ * null, `saved` the declared verdict and `declared: true`. Every check above stands
+ * for it, ownership and the entry's state included.
+ *
  * @param {{item: object|null, row: object|null, subjectOwnerIds?: string[], target: *, entryState?: string, waiting?: boolean, judge?: boolean, struck?: boolean, blankLasts?: boolean}} world
- * @returns {{ok: true, total: number, target: number, saved: boolean, early: boolean}|{ok: false, reason: string}}
+ * @returns {{ok: true, total: number|null, target: number|null, saved: boolean, early: boolean, declared?: true}|{ok: false, reason: string}}
  */
 export function checkPressRequest(req, world) {
   if (!world?.item) return { ok: false, reason: "gone" };
@@ -427,6 +448,10 @@ export function checkPressRequest(req, world) {
   if (world.waiting && world.judge !== true) return { ok: false, reason: "waiting" };
 
   if (world.entryState && world.entryState !== "open") return { ok: false, reason: "applied" };
+  if (typeof req?.declared === "boolean") {
+    if (world.judge !== true) return { ok: false, reason: "judgeOnly" };
+    return { ok: true, total: null, target: null, saved: req.declared, early: world.waiting === true, declared: true };
+  }
   if (world.blankLasts === true && world.judge !== true) return { ok: false, reason: "noFigure" };
   const target = numOrNull(world.target);
   if (target === null) return { ok: false, reason: "noFigure" };
@@ -585,6 +610,19 @@ export function litStateOf(effects, itemUuid) {
   if (counted.length) return { roundsLeft: Math.min(...counted), combat: true, dueAt: null };
   const due = records.filter((record) => "dueAt" in record).map((record) => record.dueAt);
   return due.length ? { roundsLeft: null, combat: false, dueAt: Math.min(...due) } : null;
+}
+
+/**
+ * How many fuses an item has lit on an actor: the count of the actor's fuse
+ * records whose source is the item, on either clock. A stack that holds more than
+ * this has a spare to light.
+ *
+ * @param {Iterable<{flags?: object}>|null|undefined} effects the actor's Active Effects
+ * @param {string} itemUuid the lit item's uuid
+ * @returns {number}
+ */
+export function litCountOf(effects, itemUuid) {
+  return [...(effects ?? [])].filter((effect) => readFuse(effect?.flags?.[MODULE_ID]?.[FLAG_FUSE])?.source === itemUuid).length;
 }
 
 /* -------------------------------------------- */

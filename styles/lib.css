@@ -1864,6 +1864,18 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   color: var(--acks-ink-soft);
 }
 
+/* A drinkable item's "Swigs left" box: a control beside the line, so it stays
+   where the presses are hidden. Sized in em, off the row's own type size. */
+.acks-extras-run__left {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-run__left input {
+  width: 4em;
+}
+
 .acks-extras-run .is-off,
 .acks-extras-frame__ctl.is-off {
   opacity: 0.5;

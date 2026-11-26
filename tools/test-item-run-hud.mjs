@@ -2,7 +2,8 @@
  * The item runner's presses on the Token HUD (`item-run-hud.mjs`), offline: which
  * of an actor's items draw a control (one with an activation, owned by this
  * seat, not used up), the verb each reads (a toggle's Raise or Lower by its
- * state, Use for any other kind), `active` while raised, the item's own picture
+ * state, Light for a fuse, held off while it is lit and the stack holds no spare,
+ * Use for any other kind), `active` while raised, the item's own picture
  * or the aura glyph where it has none or wears a default one, and the actor's
  * item order. Foundry-free with stand-ins; every name below is invented.
  *
@@ -55,7 +56,7 @@ await t("only an item with an activation draws; an always-on item, an unflagged 
   assert.deepEqual(itemRunHudControls(null), []);
 });
 
-await t("a toggle reads Raise while lowered and Lower and active while raised; every other kind reads Use and is never active", () => {
+await t("a toggle reads Raise while lowered and Lower and active while raised; a fuse reads Light and every other kind reads Use, none ever active", () => {
   const [lowered] = itemRunHudControls([item("a", toggle(false))]);
   assert.equal(lowered.verb, "raise");
   assert.equal(lowered.active, false);
@@ -64,7 +65,7 @@ await t("a toggle reads Raise while lowered and Lower and active while raised; e
   assert.equal(raised.active, true);
   for (const k of ["once", "fuse", "consume"]) {
     const [c] = itemRunHudControls([item("a", kind(k))]);
-    assert.equal(c.verb, "use", k);
+    assert.equal(c.verb, k === "fuse" ? "light" : "use", k);
     assert.equal(c.active, false, k);
     assert.equal(c.kind, k);
   }
@@ -126,6 +127,23 @@ await t("the controls follow the actor's item order: by sort, ties in the list's
   const items = [item("c", kind("once"), { sort: 300 }), item("a", kind("once"), { sort: 100 }), item("tie1", kind("once"), { sort: 200 }), item("tie2", kind("once"), { sort: 200 }), item("z", kind("once"), { sort: undefined })];
   assert.deepEqual(ids(itemRunHudControls(items)), ["z", "a", "tie1", "tie2", "c"]);
   assert.deepEqual(ids(itemRunHudControls(new Set(items.slice(0, 2)))), ["a", "c"], "any iterable of items");
+});
+
+await t("a fuse that is lit draws Light only while the stack holds a spare, reading the lit fuses through the effects dep", () => {
+  const fuse = (quantity) => ({ ...item("f", kind("fuse"), quantity === undefined ? {} : { quantity }), uuid: "I.f" });
+  const record = (source, dueAt) => ({ flags: { "acks-extras": { fuse: { source, activationId: `a${dueAt}`, spot: {}, dueAt } } } });
+  const lit = [record("I.f", 100)];
+  const withEffects = (effects) => ({ effectsOf: () => effects });
+  assert.deepEqual(ids(itemRunHudControls([fuse(2)], withEffects(lit))), ["f"], "two in the stack, one lit");
+  assert.equal(itemRunHudControls([fuse(2)], withEffects(lit))[0].verb, "light");
+  assert.deepEqual(itemRunHudControls([fuse(1)], withEffects(lit)), [], "one in the stack, one lit: no spare");
+  assert.deepEqual(itemRunHudControls([fuse()], withEffects(lit)), [], "no quantity counts one");
+  assert.deepEqual(itemRunHudControls([fuse(2)], withEffects([record("I.f", 100), record("I.f", 200)])), [], "two lit of two");
+  assert.deepEqual(ids(itemRunHudControls([fuse(2)], withEffects([record("I.other", 100)]))), ["f"], "another item's fuse is not this one's");
+  assert.deepEqual(ids(itemRunHudControls([fuse(1)], withEffects([]))), ["f"], "nothing lit");
+  assert.deepEqual(ids(itemRunHudControls([{ ...fuse(1), actor: { effects: lit } }])), [], "by default the item's actor's effects");
+  assert.deepEqual(ids(itemRunHudControls([{ ...fuse(1), actor: { effects: [] } }])), ["f"]);
+  assert.deepEqual(ids(itemRunHudControls([{ ...item("o", kind("once"), { quantity: 1 }), uuid: "I.f" }], withEffects(lit))), ["o"], "only a fuse is held off by a lit one");
 });
 
 await t("a control holds only what the HUD draws from", () => {

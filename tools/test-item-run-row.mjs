@@ -23,7 +23,7 @@ globalThis.game = { i18n: { format: (key) => key, localize: (key) => key }, user
 const notes = [];
 globalThis.ui = { notifications: { warn: (text) => notes.push(["warn", text]), error: (text) => notes.push(["error", text]) } };
 
-const { hasRunRow, itemRunRowModel } = await import("../scripts/lib/item-run-row.mjs");
+const { hasRunRow, itemRunRowModel, parseRunLeft } = await import("../scripts/lib/item-run-row.mjs");
 const run = await import("../scripts/lib/item-run.mjs");
 const view = await import("../scripts/lib/item-run-row-view.mjs");
 const { engagedActivationId } = await import("../scripts/lib/aura-reach-logic.mjs");
@@ -82,11 +82,11 @@ await t("a raised toggle whose card is not readable leaves the count out and sti
   assert.equal(none.count.tip, 'row.inRangeTip{"n":0}', "a blank reach leaves the radius out of the tooltip");
 });
 
-await t("a used-up kind offers Use while it has stock, and once spent a press that is off and says so", () => {
+await t("a used-up kind offers Use (a fuse, Light) while it has stock, and once spent a press that is off and says so", () => {
   for (const kind of ["once", "fuse", "consume"]) {
     const ready = itemRunRowModel({ kind, runnable: true, owner: true, reach, say });
     assert.equal(ready.state, "ready");
-    assert.deepEqual(keys(ready), ["use"]);
+    assert.deepEqual(keys(ready), [kind === "fuse" ? "light" : "use"]);
     assert.equal(ready.presses[0].disabled, false);
     const spent = itemRunRowModel({ kind, stocked: false, runnable: true, owner: true, reach, say });
     assert.equal(spent.state, "spent");
@@ -95,6 +95,69 @@ await t("a used-up kind offers Use while it has stock, and once spent a press th
     assert.equal(spent.presses[0].disabled, true);
     assert.equal(spent.presses[0].label, "row.press.spent", "the off press carries its own word");
   }
+});
+
+await t("a fuse's press reads Light: the runner's own word, its own tooltip, the fire glyph and the primary variant, through the same action", () => {
+  const row = itemRunRowModel({ kind: "fuse", runnable: true, owner: true, reach, say });
+  const [light] = row.presses;
+  assert.equal(light.key, "light");
+  assert.equal(light.label, "press.light");
+  assert.equal(light.tip, "row.press.lightTip");
+  assert.equal(light.icon, "fa-solid fa-fire");
+  assert.equal(light.variant, "primary");
+  assert.equal(light.action, "itemRunPress");
+  assert.equal(itemRunRowModel({ kind: "once", runnable: true, owner: true, reach, say }).presses[0].label, "row.press.use", "a once item keeps Use");
+});
+
+await t("a lit fuse reads state lit with a solid tag naming its rounds and a tip, and offers Light only where the stack holds a spare", () => {
+  const spare = itemRunRowModel({ kind: "fuse", lit: { n: 3 }, spare: true, runnable: true, owner: true, reach, say });
+  assert.equal(spare.state, "lit");
+  assert.equal(spare.tag.label, 'strip.tag.lit{"n":3}');
+  assert.equal(spare.tag.tip, 'strip.tagTip.lit{"n":3}');
+  assert.equal(spare.tag.variant, "solid");
+  assert.deepEqual(keys(spare), ["light"]);
+  const none = itemRunRowModel({ kind: "fuse", lit: { n: 3 }, spare: false, stocked: false, runnable: true, owner: true, reach, say });
+  assert.equal(none.state, "lit", "the tag carries the state where no press is left");
+  assert.deepEqual(none.presses, []);
+  const seen = itemRunRowModel({ kind: "fuse", lit: { n: 1 }, spare: false, runnable: true, owner: false, reach, say });
+  assert.equal(seen.state, "lit", "a seat that is no owner reads the tag");
+  assert.equal(seen.tag.tip, 'strip.tagTip.lit{"n":1}');
+  assert.equal(itemRunRowModel({ kind: "fuse", runnable: true, owner: true, reach, say }).tag.tip, undefined, "an unlit tag carries no tip");
+  assert.equal(itemRunRowModel({ kind: "once", lit: { n: 2 }, runnable: true, owner: true, reach, say }).state, "ready", "only a fuse reads lit");
+});
+
+await t("a consume item an owner holds carries its swigs left, with the tooltip of where the figure came from, and no other kind carries one", () => {
+  const model = (left, extra = {}) => itemRunRowModel({ kind: "consume", runnable: true, owner: true, reach, left, say, ...extra });
+  const rolled = model({ value: 4, from: { by: "roll", formula: "1d6", total: 4 }, cite: "PG 9" }).left;
+  assert.equal(rolled.value, 4);
+  assert.equal(rolled.label, "row.left");
+  assert.equal(rolled.tip, 'row.leftTipRolled{"total":4,"formula":"1d6","cite":"PG 9"}');
+  assert.equal(model({ value: 2, from: { by: "hand" }, cite: "PG 9" }).left.tip, "row.leftTipHand");
+  const blank = model({ value: null, from: null, cite: "PG 9" }).left;
+  assert.equal(blank.value, null);
+  assert.equal(blank.tip, 'row.leftTipBlank{"cite":"PG 9"}');
+  assert.equal(model(null).left.value, null, "a row read with no figures is blank");
+  assert.equal(model({ value: null, from: { by: "hand" }, cite: "" }).left.tip, 'row.leftTipBlank{"cite":""}', "a hand tip needs a figure typed");
+  assert.equal(itemRunRowModel({ kind: "consume", runnable: true, owner: false, reach, say }).left, null, "a seat that is no owner has no box");
+  for (const kind of ["once", "fuse", "toggle", ""]) assert.equal(itemRunRowModel({ kind, runnable: true, owner: true, reach, say }).left, null);
+});
+
+await t("a blank page reference drops the empty parentheses from a swig tooltip", () => {
+  const real = (key, data) => ({ "row.leftTipRolled": `Rolled ${data?.total} on ${data?.formula}; each swig takes one. (${data?.cite})`, "row.leftTipBlank": `Rolled from dice, or typed here. (${data?.cite})`, "row.left": "Swigs left" })[key] ?? key;
+  const left = (from, cite) => itemRunRowModel({ kind: "consume", runnable: true, owner: true, left: { value: 3, from, cite }, say: real }).left.tip;
+  assert.equal(left({ by: "roll", formula: "1d6", total: 3 }, ""), "Rolled 3 on 1d6; each swig takes one.");
+  assert.equal(left({ by: "roll", formula: "1d6", total: 3 }, "PG 9"), "Rolled 3 on 1d6; each swig takes one. (PG 9)");
+  assert.equal(left(null, ""), "Rolled from dice, or typed here.");
+});
+
+await t("parseRunLeft: blank is no count, a whole number from none up is that count, anything else is refused", () => {
+  assert.deepEqual(parseRunLeft(""), { ok: true, left: null });
+  assert.deepEqual(parseRunLeft("   "), { ok: true, left: null });
+  assert.deepEqual(parseRunLeft(null), { ok: true, left: null });
+  assert.deepEqual(parseRunLeft("0"), { ok: true, left: 0 });
+  assert.deepEqual(parseRunLeft(" 7 "), { ok: true, left: 7 });
+  assert.deepEqual(parseRunLeft(3), { ok: true, left: 3 });
+  for (const bad of ["-1", "2.5", "1e2", "abc", "3 swigs", -2, 1.5, NaN, {}]) assert.deepEqual(parseRunLeft(bad), { ok: false }, String(bad));
 });
 
 await t("a kind no runner takes offers no press: it would reach the system's own card", () => {
@@ -308,6 +371,130 @@ await t("a raised card's making, change or deletion re-renders the open sheet of
   hooked.createChatMessage({ flags: {} });
   assert.equal(renders, 3, "a message that is no card renders nothing");
   delete globalThis.foundry.applications;
+});
+
+/* -------------------------------------------- */
+/*  A fuse's light and a drinkable's swigs left  */
+/* -------------------------------------------- */
+
+const fuseRecord = (extra) => ({ flags: { "acks-extras": { fuse: { source: "I.1", activationId: "a", spot: { x: 0 }, ...extra } } } });
+const fuseRows = [{ key: "r", reach: { pulse: "action", radius: { value: "10" }, filter: {} } }];
+
+await t("a fuse row reads its rounds from the clock it burns on: the bearer's turns in a fight, the world clock's due moment out of one", () => {
+  run.registerActivationRunner("fuse", async () => ({ ok: true }));
+  const fuseItem = (effects, quantity) => put(itemOf({ activation: { kind: "fuse", state: { active: false } }, rows: fuseRows }, { actor: { effects }, ...(quantity === undefined ? {} : { system: { quantity } }) }));
+  game.time.worldTime = 100;
+  const world = view.itemRunRowFor(fuseItem([fuseRecord({ dueAt: 250 })], 2));
+  assert.equal(world.state, "lit");
+  assert.equal(world.tag.label, "ACKS-LIB.itemRun.strip.tag.lit", "the strip's own words, with the rounds as data");
+  assert.equal(world.tag.tip, "ACKS-LIB.itemRun.strip.tagTip.lit");
+  assert.deepEqual(world.presses.map((p) => p.key), ["light"], "a second one in the stack can be lit");
+  const roundsOf = (effects) => view.itemRunRowFor(fuseItem(effects, 2));
+  const seen = [];
+  const real = globalThis.game.i18n.format;
+  globalThis.game.i18n.format = (key, data) => (seen.push([key, data]), key);
+  roundsOf([fuseRecord({ dueAt: 250 })]);
+  roundsOf([fuseRecord({ dueAt: 101 })]);
+  roundsOf([fuseRecord({ dueAt: 50 })]);
+  roundsOf([fuseRecord({ clock: { combatId: "c", combatantId: "k", count: 5, seen: 2 } })]);
+  globalThis.game.i18n.format = real;
+  const rounds = seen.filter(([key]) => key === "ACKS-LIB.itemRun.strip.tag.lit").map(([, data]) => data.n);
+  assert.deepEqual(rounds, [3, 1, 1, 3], "150s on 60s rounds is three; a moment inside the next round, or past, is one; 5 counted less 2 seen is three");
+  game.time.worldTime = 0;
+  assert.equal(view.itemRunRowFor(fuseItem([], 2)).state, "ready", "no fuse of the item on the actor, not lit");
+  const other = view.itemRunRowFor(fuseItem([{ flags: { "acks-extras": { fuse: { source: "I.other", activationId: "a", spot: {}, dueAt: 9 } } } }], 2));
+  assert.equal(other.state, "ready", "another item's fuse is not this one's");
+});
+
+await t("a lit fuse's Light is offered only where the stack holds more than it has lit; an item with no quantity counts one", () => {
+  const fuseItem = (effects, quantity) => put(itemOf({ activation: { kind: "fuse", state: { active: false } }, rows: fuseRows }, { actor: { effects }, ...(quantity === undefined ? {} : { system: { quantity } }) }));
+  const lit = [fuseRecord({ dueAt: 600 })];
+  assert.deepEqual(view.itemRunRowFor(fuseItem(lit, 2)).presses.map((p) => p.key), ["light"]);
+  assert.deepEqual(view.itemRunRowFor(fuseItem(lit, 1)).presses, [], "one in the stack, one lit: no spare");
+  assert.deepEqual(view.itemRunRowFor(fuseItem(lit)).presses, [], "no quantity reads as one");
+  const two = [fuseRecord({ dueAt: 600 }), fuseRecord({ dueAt: 700, activationId: "b" })];
+  assert.deepEqual(view.itemRunRowFor(fuseItem(two, 2)).presses, [], "two lit of two");
+  assert.deepEqual(view.itemRunRowFor(fuseItem(two, 3)).presses.map((p) => p.key), ["light"], "two lit of three");
+  assert.equal(view.itemRunRowFor(fuseItem(two, 2)).state, "lit");
+  run.registerActivationRunner("fuse", null);
+});
+
+const consumeFlag = (activation) => ({ activation: { kind: "consume", ...activation }, rows: [] });
+
+await t("a consume row carries its swigs left from the item with the tooltip of its provenance and the item's page", () => {
+  run.registerActivationRunner("consume", async () => ({ ok: true }));
+  const rowOf = (activation) => view.itemRunRowFor(put(itemOf(consumeFlag(activation))));
+  const rolled = rowOf({ left: 4, leftFrom: { by: "roll", formula: "1d6", total: 4 } }).left;
+  assert.equal(rolled.value, 4);
+  assert.equal(rolled.label, "ACKS-LIB.itemRun.row.left");
+  assert.equal(rolled.tip, "ACKS-LIB.itemRun.row.leftTipRolled");
+  assert.equal(rowOf({ left: 2, leftFrom: { by: "hand" } }).left.tip, "ACKS-LIB.itemRun.row.leftTipHand");
+  const blank = rowOf({}).left;
+  assert.equal(blank.value, null);
+  assert.equal(blank.tip, "ACKS-LIB.itemRun.row.leftTipBlank");
+  const data = [];
+  const real = globalThis.game.i18n.format;
+  globalThis.game.i18n.format = (key, d) => (data.push([key, d]), key);
+  rowOf({ left: 4, leftFrom: { by: "roll", formula: "1d6", total: 4 } });
+  globalThis.game.i18n.format = real;
+  assert.deepEqual(data.find(([key]) => key === "ACKS-LIB.itemRun.row.leftTipRolled")[1], { total: 4, formula: "1d6", cite: "PG 1" }, "the page is the item's own");
+  owned.value = false;
+  assert.equal(rowOf({ left: 4 }).left, null, "a seat that does not own the item has no box");
+  owned.value = true;
+  run.registerActivationRunner("consume", null);
+});
+
+/** A swigs-left box as a sheet draws it: its dataset and value, and the listeners it takes. */
+const box = (uuid, value) => {
+  const listeners = {};
+  return { dataset: { itemUuid: uuid }, value, listeners, addEventListener: (name, fn) => (listeners[name] = fn) };
+};
+
+await t("writeRunLeft writes the typed count and its hand provenance for an owner, clears both on a blank, and writes nothing for a bad entry or a seat that is no owner", async () => {
+  const writes = [];
+  notes.length = 0;
+  const base = "flags.acks-extras.itemRun.activation";
+  put(itemOf(consumeFlag({ left: 5, leftFrom: { by: "roll", formula: "1d6", total: 5 } }), { update: async (data) => (writes.push(data), data) }));
+  await view.writeRunLeft(box("I.1", "3"));
+  assert.deepEqual(writes.pop(), { [`${base}.left`]: 3, [`${base}.leftFrom`]: { by: "hand" } });
+  await view.writeRunLeft(box("I.1", "0"));
+  assert.deepEqual(writes.pop(), { [`${base}.left`]: 0, [`${base}.leftFrom`]: { by: "hand" } }, "none left is a count");
+  await view.writeRunLeft(box("I.1", " "));
+  assert.deepEqual(writes.pop(), { [`${base}.left`]: null, [`${base}.leftFrom`]: null });
+  const bad = box("I.1", "2.5");
+  assert.equal(await view.writeRunLeft(bad), null);
+  assert.equal(writes.length, 0, "an invalid entry writes nothing");
+  assert.equal(bad.value, "5", "and the box is set back to the stored count");
+  owned.value = false;
+  const refused = box("I.1", "1");
+  await view.writeRunLeft(refused);
+  owned.value = true;
+  assert.equal(writes.length, 0, "Foundry's ownership of the item decides, not the role");
+  assert.equal(notes.at(-1)[1], "ACKS-LIB.itemRun.refused.notOwner");
+  assert.equal(refused.value, "5");
+  await view.writeRunLeft(box("I.missing", "1"));
+  assert.equal(notes.at(-1)[1], "ACKS-LIB.itemRun.refused.gone");
+  put(itemOf({ activation: { kind: "once", state: {} }, rows: [] }, { update: async (data) => (writes.push(data), data) }));
+  await view.writeRunLeft(box("I.1", "1"));
+  assert.equal(writes.length, 0, "only a consume item has swigs");
+});
+
+await t("bindItemRunRows wires each box once, and its change reaches writeRunLeft without bubbling to the sheet's form", async () => {
+  const writes = [];
+  put(itemOf(consumeFlag({}), { update: async (data) => (writes.push(data), data) }));
+  const one = box("I.1", "4");
+  one.dataset = { itemUuid: "I.1" };
+  const root = { nodeType: 1, querySelectorAll: (selector) => (selector === "input[data-acks-extras-run-left]" ? [one] : []) };
+  view.bindItemRunRows(root);
+  view.bindItemRunRows(root);
+  assert.equal(one.dataset.wired, "1");
+  let stopped = 0;
+  one.listeners.change({ stopPropagation: () => (stopped += 1) });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(stopped, 1);
+  assert.equal(writes.length, 1);
+  view.bindItemRunRows(null);
+  view.bindItemRunRows({});
 });
 
 console.log(`\ntest-item-run-row: ${passed} checks passed.`);
