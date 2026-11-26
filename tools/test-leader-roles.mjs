@@ -42,7 +42,8 @@ import { chooseAxes, optionAvailable, resolveActor, rollDice, seededRng } from "
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { REFILL_STAT_PATHS, REPAIR, refreshPlan } from "../scripts/importer/refresh.mjs";
 import { derivationTips } from "../scripts/monsters/statblock.mjs";
-import { bindLegacyMonster, bindNpc, templateOption } from "../scripts/importer/cookbook.mjs";
+import { bindLegacyMonster, bindMonster, bindNpc, templateOption } from "../scripts/importer/cookbook.mjs";
+import { weaponsFromRoutine } from "../scripts/importer/cookbook/monster.mjs";
 
 const MID = "acks-extras";
 
@@ -582,6 +583,72 @@ ok("a person's by-weapon damage moves its modifier; a die keeps its own", () => 
   const q = bindNpc({ fields: { statline: { atk: { text: "spear", throw: 9 }, dmg: "1d6+1" } } });
   assert.equal(q.system.damage, undefined);
   assert.equal(q.items[0].system.damage.base.formula, "1d6+1");
+});
+
+/* ---------------- a by-weapon modifier is not counted twice ---------------- */
+
+/** What core adds to a weapon's roll: the actor's modifier and the weapon's own damage bonus. */
+const netOf = (system, item) => (Number(system.damage?.mod?.melee) || 0) + (Number(item.system.bonus?.damage) || 0);
+const attacksOf = (modes) => ({ fields: { attacks: { modes: modes.map((segments) => ({ segments })) } } });
+
+ok("bindMonster: a die beside a by-weapon modifier nets to the die, whichever mode prints it first", () => {
+  for (const order of [[["1d6"], ["By weapon +2"]], [["By weapon +2"], ["1d6"]]]) {
+    const b = bindMonster(attacksOf(order.map(([damage]) => [{ name: "Strike", damage }])));
+    assert.deepEqual(b.system.damage, { mod: { melee: 2, missile: 2 } }, "the actor keeps the modifier");
+    const die = b.items.find((i) => i.system.damage.base.formula === "1d6");
+    const marker = b.items.find((i) => i.system.damage.base.formula === "By weapon");
+    assert.equal(die.system.bonus.damage, -2);
+    assert.equal(netOf(b.system, die), 0, "the die counts the modifier once, as the die");
+    assert.equal(marker.system.bonus.damage, 0);
+    assert.equal(netOf(b.system, marker), 2, "the by-weapon attack adds the modifier");
+  }
+  const natural = bindMonster(attacksOf([[{ name: "Bite", damage: "1d4" }, { name: "Spear", damage: "By weapon -1" }]]));
+  assert.equal(natural.items.find((i) => i.name === "Bite").system.bonus.damage, 1, "a natural die gains no modifier");
+  const alone = bindMonster(attacksOf([[{ name: "Bite", damage: "1d4" }]]));
+  assert.equal(alone.system.damage, undefined);
+  assert.equal(alone.items[0].system.bonus.damage, 0, "no modifier, nothing to take back");
+});
+
+ok("bindMonster: a segment printing another by-weapon modifier keeps its text and its bonus", () => {
+  const b = bindMonster(attacksOf([[{ name: "A", damage: "By weapon +2" }], [{ name: "B", damage: "By weapon +1" }]]));
+  assert.deepEqual(b.system.damage, { mod: { melee: 2, missile: 2 } });
+  assert.deepEqual(b.items.map((i) => [i.system.damage.base.formula, i.system.bonus.damage]), [["By weapon", 0], ["By weapon +1", 0]]);
+});
+
+ok("a form cell's die beside a by-weapon modifier nets to the die", () => {
+  const w = weaponsFromRoutine("2 (bite, claw)", "1d6 or by weapon +2", null);
+  assert.equal(w.mod, 2);
+  const die = w.items.filter((i) => i.system.damage.base.formula === "1d6");
+  const marker = w.items.filter((i) => i.system.damage.base.formula === "By weapon");
+  assert.ok(die.length && marker.length);
+  assert.ok(die.every((i) => i.system.bonus.damage === -2));
+  assert.ok(marker.every((i) => i.system.bonus.damage === 0));
+  const plain = weaponsFromRoutine("1 (bite)", "1d6", null);
+  assert.equal(plain.mod, null);
+  assert.equal(plain.items[0].system.bonus.damage, 0);
+});
+
+ok("a grid row's by-weapon Strike is the marker alone and keeps a zero bonus", () => {
+  const o = templateOption(gridAx, { key: "adult", label: "Adult" }, { hitDice: "2", damage: "By weapon +3" }, gridOpts);
+  assert.deepEqual(o.items.map((i) => [i.system.damage.base.formula, i.system.bonus.damage]), [["By weapon", 0]]);
+  const die = templateOption(gridAx, { key: "adult", label: "Adult" }, { hitDice: "2", damage: "1d6" }, gridOpts);
+  assert.equal(die.items[0].system.bonus.damage, 0);
+});
+
+ok("a person's routines beside a lifted modifier each net to their own die", () => {
+  const sl = { atk: { count: "2", text: "(bite 8+, claw 8+)", throw: 8 }, atks: [{ text: "bite", throw: 8, dmg: "1d4" }, { text: "claw", throw: 8, dmg: "1d6" }], dmg: "By weapon +1" };
+  const p = bindNpc({ fields: { statline: sl } });
+  assert.deepEqual(p.system.damage, { mod: { melee: 1, missile: 1 } });
+  assert.deepEqual(p.items.map((i) => i.system.bonus.damage), [-1, -1]);
+  const q = bindNpc({ fields: { statline: { ...sl, dmg: undefined } } });
+  assert.deepEqual(q.items.map((i) => i.system.bonus.damage), [0, 0]);
+});
+
+ok("a person's by-weapon attack keeps a zero bonus beside its modifier", () => {
+  const p = bindNpc({ fields: { statline: { atk: { text: "spear", throw: 9 }, dmg: "By weapon +1" } } });
+  assert.equal(p.items[0].system.bonus.damage, 0);
+  const b = bindLegacyMonster({ fields: { stats: { attacks: "1 (weapon)", damage: "by weapon -2" } } });
+  assert.equal(b.items.find((i) => i.name === "Weapon").system.bonus.damage, 0);
 });
 
 ok("a person's built items carry the minted stamp, so a repair replaces them", () => {

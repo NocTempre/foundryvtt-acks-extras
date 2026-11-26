@@ -592,7 +592,11 @@ block) and the generic Lycanthrope (a werebear's).
 
 **The "by weapon" modifier** of every monster stat line moves at bind time out
 of the weapon item's formula into `system.damage.mod`, where core adds it to
-every melee and missile damage roll; the item keeps "By weapon". Every binder
+every melee and missile damage roll; the item keeps "By weapon". A weapon the
+binder mints beside that modifier with a die of its own (a converted equivalent
+or a natural attack) takes the modifier back on its own `system.bonus.damage`,
+so core's addition nets to the die; a weapon that still says "By weapon" keeps a
+bonus of 0 (`takeBackWeaponModifier`). Every binder
 that writes a monster does it: `bindMonster`, the legacy stat line
 (`bindLegacyMonster`), the person block (`bindNpc`), and a grid template's row
 and form cells (`templateOption`, `weaponsFromRoutine`). A die with its own

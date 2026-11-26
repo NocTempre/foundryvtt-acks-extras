@@ -644,3 +644,45 @@ monster-type key the kind reader carries.
 
 Rejected: breaking at no hit points (the Judge's call, not the hit-point
 track's); breaking any bearer's grog (the page names the beastman's own).
+
+## 2026-11-26 — An imported die takes the by-weapon modifier back off its own damage bonus (T-0724)
+
+A stat line that prints a die or "by weapon ±N" moves the ±N onto the actor's
+`system.damage.mod`, and core adds that modifier to every weapon the creature
+rolls. A die that is the converted equivalent of the by-weapon damage counted
+the modifier twice, and a natural attack beside a by-weapon one gained a bonus
+it should not have. **Ruled** (the release scope's call, the route the beastman
+phase 2 architect named): every weapon the binder mints beside a lifted
+modifier whose formula is a die takes the modifier back on its own
+`system.bonus.damage`, so core's addition nets to the die. The actor keeps the
+modifier, which stays where a Judge edits it, exactly as for a leader-table die
+(2026-11-24). It is applied where a die item and a lifted modifier meet:
+`bindMonster` (the modifier is known only after every mode is read, so the
+take-back is a second pass over the weapons), a form's attack routine
+(`weaponsFromRoutine`) and a person block that prints routines beside a damage
+clause. The legacy stat line, a grid row's single Strike and a person's single
+weapon carry only the marker beside a lifted modifier, so they have nothing to
+take back.
+
+A weapon whose formula still says "by weapon" keeps a bonus of 0, including one
+printing a different modifier than the first (it keeps that text, as before): a
+by-weapon attack is what the actor's modifier is for, and nothing the page
+prints would say what its bonus should be.
+
+**Rejected.** Zeroing the actor's modifier, for the 2026-11-24 reasons. Writing
+the difference onto a differently-modified by-weapon segment: it would invent a
+figure for a case no page forced and cross the grade-die take-back, which reads
+a bare marker.
+
+**Cost.** The take-back is written at import against the modifier then on the
+actor. Where a later stage rewrites the actor's modifier (a leader's printed
+bonus, a kit, a trait), a die weapon nets to the change from the imported
+figure rather than to zero. A repair in place replaces a creature's minted
+weapons, so it writes the take-back too. The Statblock and the Follower Card
+already add the weapon's bonus, so a converted die shows alone with no
+modifier part and no converted-die note, and a natural die beside a by-weapon
+attack shows its die alone.
+
+Strongest counter-argument (medium): the take-back is a figure on each weapon
+that a Judge who edits the actor's modifier must change too. The weapon's own
+Damage bonus field (Item sheet) shows it.

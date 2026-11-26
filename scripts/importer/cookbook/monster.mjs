@@ -432,6 +432,8 @@ export function bindMonster(node) {
   // equipped, later modes tagged. A repeated name within a mode gets a number.
   // A "by weapon ±N" modifier is the creature's, so it moves to `system.damage.mod`;
   // the first such modifier wins and a segment printing another keeps it in its text.
+  // Core adds that modifier to every weapon the creature rolls, so each attack that
+  // states a die of its own takes it back (`takeBackWeaponModifier`).
   const items = [];
   let weaponMod = null;
   for (const [mi, mode] of (atk?.modes ?? []).entries()) {
@@ -463,6 +465,7 @@ export function bindMonster(node) {
   }
   // Melee and missile alike: the page gives the modifier no delivery.
   if (weaponMod) system.damage = { mod: { melee: weaponMod, missile: weaponMod } };
+  takeBackWeaponModifier(items, weaponMod);
   // The pools are built once per monster, and only when it prints a proficiency.
   const profs = (f.stats?.proficiencies ?? []).filter((p) => p.text && !/^none/i.test(p.text));
   const pools = profs.length ? proficiencyPools() : null;
@@ -593,14 +596,34 @@ const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, 
 });
 
 /**
+ * Core adds the actor's `damage.mod` to every weapon the creature rolls. A
+ * weapon that states a die of its own (a converted equivalent of a by-weapon
+ * attack, or a natural attack) would count the creature's by-weapon modifier
+ * on top of it, so its own damage bonus takes `mod` back and the roll nets to
+ * the die. A weapon whose formula still says "by weapon", whatever modifier
+ * its text prints, and one with no formula keep their bonus: the actor's
+ * modifier is what a by-weapon attack adds. The actor keeps the modifier.
+ * Changes `items` in place; a zero or absent `mod` changes nothing.
+ */
+function takeBackWeaponModifier(items, mod) {
+  if (!mod) return;
+  for (const item of items) {
+    const formula = item?.system?.damage?.base?.formula;
+    if (!formula || /by weapon/i.test(formula)) continue;
+    item.system.bonus = { ...(item.system.bonus ?? {}), damage: -mod };
+  }
+}
+
+/**
  * Weapon items from a form's attack routine and one damage cell, via the
  * shared `attackModel`. Form tables separate attack names with "/" where stat
  * lines use ","; only the parenthetical is normalized. `types` is the form's
  * damage-type list in segment order. The first "by weapon ±N" modifier is the
- * creature's, as in `bindMonster`. Returns `{items, mod}`, `mod` null where no
+ * creature's, as in `bindMonster`, and each attack that states a die takes it
+ * back (`takeBackWeaponModifier`). Returns `{items, mod}`, `mod` null where no
  * segment prints one.
  */
-function weaponsFromRoutine(routine, damageText, types) {
+export function weaponsFromRoutine(routine, damageText, types) {
   if (!routine || !damageText) return { items: [], mod: null };
   const normalized = String(routine).replace(/\(([^)]*)\)/g, (_, inner) => `(${inner.replace(/\s*\/\s*/g, ", ")})`);
   const { modes } = attackModel(normalized, String(damageText));
@@ -626,6 +649,7 @@ function weaponsFromRoutine(routine, damageText, types) {
       gi++;
     }
   }
+  takeBackWeaponModifier(items, mod);
   return { items, mod };
 }
 
@@ -1568,6 +1592,8 @@ export function bindNpc(node) {
       if (!gone("atk") && Number.isInteger(sl.atk?.throw) && Number.isInteger(r.throw)) weapon.system.bonus.attack = sl.atk.throw - r.throw;
       items.push(weapon);
     }
+    // A creature modifier lifted from the line's own damage clause is core's addition to each routine's die.
+    takeBackWeaponModifier(items, lift?.mod);
   } else if (sl.atk?.text) {
     items.push({
       name: capitalize(sl.atk.text),
