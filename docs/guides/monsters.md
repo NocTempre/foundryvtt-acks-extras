@@ -86,7 +86,12 @@ The tabs:
   contribution.
 - **Inventory** — generic items, armor and clothing the monster carries.
   Armor Class is the value set on Classification and is not changed by
-  anything carried here.
+  anything carried here. An item that is raised and lowered or used up
+  shows its state on its row (Lowered or Raised, Ready or Used up, or
+  Always on) with **Raise**, **Lower**, **Use** and **Card** buttons for
+  whoever owns the item; **Card** scrolls the chat log to the item's
+  card. The same buttons are on the token's HUD (right-click the token),
+  and a token inside a raised reach wears a small ring on the canvas.
 - **Spoils** — what a body is worth.
 - **Defenses & Magic** — immunities, resistances and susceptibilities with
   the silver flaw, and what the creature casts as (class and level). The
@@ -320,6 +325,13 @@ scene: the row and everyone under it go together, except any who have fallen or 
 or who are already out. Hold Shift to place them off the grid, or Alt to place them
 hidden. To send only some, set the small Count field and press the row's Deploy button,
 which places them at the group's token, or at the middle of the scene.
+
+A stack whose bodies were generated carrying an item reads "n carry <item>" under
+its row, and the row carries a **Raise**, **Lower** or **Use** button for it. With
+none of the carriers out, the button sends one out where Deploy would and then
+acts through it; with one already on the scene it acts through that body. The
+button shows only where you may place tokens and own the body that would act.
+Deploy sends those bodies out carrying the item too.
 
 To move a monster to another group, open both sheets and drag the row's art or name onto
 the other sheet. Everyone under the row goes with it, the fallen and those who left

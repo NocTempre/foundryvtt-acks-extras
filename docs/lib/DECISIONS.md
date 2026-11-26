@@ -2736,3 +2736,85 @@ name would become a filter key, which `matchKinds` refuses for the same reason).
 Cost: a kind the module does not list cannot be typed; a client without the
 monsters feature offers the race keys alone; and the race keys read as their
 keys, since no lang label exists for them.
+
+## 2026-11-25 — The press sits on the Inventory row, one row per item, and reads Raised with no round
+
+The release hub, ruling 1: an item's press goes on the row the monster sheet's
+Inventory tab already draws for it, and on the character sheet's gear row. Board
+frame 4a draws a separate "Carried" section; none is built. The row reads
+Lowered or Raised, Ready or Used up, or Always on, and the press (Raise,
+Lower, Use, Card) is offered to whoever owns the item by Foundry's own test.
+
+Why: a second list of the same items would repeat the Inventory and split where
+an item is found, so a Judge looking for a creature's gear would have two places
+to look and two rows to keep in step.
+
+The hub's ruling 4: the tag reads "Raised" and carries no round. Board 4a's
+"Raised · round n" is not built, because `activation.state` stores no round and
+nothing reads one; a figure drawn from a field nobody writes would be invented.
+
+Rejected: the separate section (a duplicate list); a round stored on the state
+only to be drawn (a new write path for a caption).
+
+Cost: nothing shows how long an item has been up, and the Inventory row of an
+item with an activation is taller than one without.
+
+## 2026-11-25 — The stack row's press sends a body by the group's placement and then acts
+
+The hub's stack-row ruling. A group sheet's stack row carries the press for the
+item its `gen.carry` share names. It is drawn only where `canDeploy` answers
+true (the group's owner with Foundry's Create Tokens) and the seat would own the
+body that acts; elsewhere the row keeps its line and draws nothing, so no press
+sends a body the seat cannot act through. With no carrier out it sends one body
+out by the group's own placement (`deployAnchor`, the Deploy button's own) with
+`carrying` the row's key, then acts through that body's copy; with a carrier out
+on the viewed scene it acts through it.
+
+Two lib registrations, one function each, and monsters fills both:
+`registerCarryResolver` (what a row's bodies carry) and `registerStackRowControl`
+(the line and press a row draws). lib imports no feature. The count of carriers
+is the roster record's `carries` list and is read from the records, so no new
+document, setting or flag holds a count.
+
+Rejected: a press that sends a body wherever the seat could place it (a second
+placement rule beside Deploy's); a carrier count kept on the group or in a
+setting (a second copy of what the records say); the lib sheet naming the item
+(lib would import monsters).
+
+Cost: a Player who owns the group but not the stack's base actor sees the line
+and no press, and a share spent on bodies that are not on the scene draws no
+press until one is recalled.
+
+## 2026-11-25 — The Token HUD carries one control per item, and a used-up item draws none
+
+The control is as board 4 approved it: one `control-icon` in the HUD's right
+column for each item on the token's actor that carries an `itemRun.activation`,
+the item's picture where it has one of its own and core's `icons/svg/aura.svg`
+where it has none, named by `aria-label` ("<item> · Raise", "Lower" or "Use")
+with an empty `data-tooltip`, `active` while a toggle is raised, drawn where the
+seat passes Foundry's `isOwner`. Its press is `Item#use`. The hub's addition: an
+item whose spending kind has nothing left draws no control, so nothing dead sits
+on the HUD.
+
+Rejected: a disabled control for a used-up item (the row already says Used up,
+and a HUD column is short); a control for an always-on item (it has nothing to
+press).
+
+Cost: a used-up item's name is read on the sheet and nowhere on the HUD.
+
+## 2026-11-25 — The reach glyph is drawn per client, from core's aura icon
+
+The hub's ruling 6. A body inside a reach carries one small ring on its token
+(`reach-glyph.mjs`), drawn from core's `icons/svg/aura.svg`, with a readout on
+hover. It is a child of the token that each client draws for itself, found by
+name, and a Player sees it only where the reach's `showReach` is ticked (the
+Region's own visibility, so the glyph follows the ring).
+
+Rejected: an Active Effect's `showIcon` (core draws it for every seat, so a
+Judge-only reach would show its glyph to a Player and tell them a body is in
+it); a child of core's `token.effects` (core clears that container on its own
+redraws); art the module makes (`ip-doctrine.md`). The icon is a path because a
+canvas sprite needs one.
+
+Cost: every client works the glyph out itself, on a debounced pass over the
+viewed scene, where a document flag would have been read once.

@@ -1,0 +1,1 @@
+- **On the canvas, a token inside a raised item's reach wears a small ring on its right edge, and hovering the token shows what the reach says of it.** The ring is drawn on each player's own screen, so a Judge's reach does not tell a Player a body is inside it; a Player sees it where the item's **Players see the ring** is ticked. Lowering the reach takes the ring away.
