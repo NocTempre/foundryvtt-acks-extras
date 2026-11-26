@@ -258,7 +258,8 @@ would be made once for each unit the treasure line names, for a group in its lai
 **Base actors.** `ensureBaseActor` (`lib/group.mjs`) mints a hidden world actor for
 a stack whose creature has none in the world, one for each such stack of each group.
 None is reused by source or filed in a folder, and deleting the group leaves them
-behind. Only the organisation chart's row delete removes the ones it minted.
+behind. The organisation chart's row delete removes only the prototypes the
+organisation generator minted (`organisationPrototype`), not these.
 
 **A line with no count to roll.** A side that states no count the parser reads (one
 that says special, or varies by something other than its side) gives no Roll
