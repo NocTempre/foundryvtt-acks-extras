@@ -16,11 +16,8 @@ import { hasActivationRunner } from "../lib/item-run.mjs";
 import { itemRunOf, itemRunUsedUp } from "../lib/item-run-logic.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { carriedGearItems, importedOrganisation } from "./organisation.mjs";
-import { RUN_LANG_PREFIX, carryControls, chooseCarrier } from "./carry-press-logic.mjs";
+import { CARRY_LANG_PREFIX, RUN_LANG_PREFIX, carryControls, chooseCarrier } from "./carry-press-logic.mjs";
 
-/** lib's lang root; the carry prefix is built from it, since it names a group of keys and no key of its own. */
-const LIB_ROOT = "ACKS-LIB";
-const CARRY_LANG_PREFIX = `${LIB_ROOT}.group.carry`;
 const say = makeLoc(RUN_LANG_PREFIX);
 const tr = makeLoc(CARRY_LANG_PREFIX);
 

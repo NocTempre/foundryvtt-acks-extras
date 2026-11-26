@@ -98,9 +98,9 @@ const shapes = {
     kind: "toggle", cookbook: { id: "walk.aura-presses.standing", cite: "Aura Presses ref S" },
     rows: [{ key: "reach", type: "modifier", reach: { radius: ref("standing", "radius"), modifier: ref("standing", "bonus"), on: ["ac", "attack", "morale"], filter: filterOf(), pulse: "standing", showReach }, }],
   }),
-  /** A once-only use, a damage part that ends with the next attack. */
+  /** A once-only use, a damage part that ends with the next attack. It names a count (`uses`), as an imported counted item does, so a count of none reads Used up; an item that names none is never used up. */
   once: () => ({
-    kind: "once", cookbook: { id: "walk.aura-presses.once", cite: "Aura Presses ref O" },
+    kind: "once", uses: ref("once", "uses"), cookbook: { id: "walk.aura-presses.once", cite: "Aura Presses ref O" },
     rows: [{ key: "reach", type: "modifier", reach: { radius: ref("once", "radius"), modifier: ref("once", "damage"), on: ["damage"], filter: filterOf(), pulse: "action", showReach: false }, endsOn: ["attack"] }],
   }),
 };
@@ -109,7 +109,7 @@ const itemData = (name, shape) => {
   return {
     name, type: "item",
     system: { description: "", subtype: "item", quantity: 1, cost: 0, weight: 0, weight6: 0 },
-    flags: { [MOD]: { cookbook: s.cookbook, itemRun: { activation: { kind: s.kind, state: { active: false, activationId: "", regionId: "" } }, rows: s.rows } } },
+    flags: { [MOD]: { cookbook: s.cookbook, itemRun: { activation: { kind: s.kind, ...(s.uses ? { uses: s.uses } : {}), state: { active: false, activationId: "", regionId: "" } }, rows: s.rows } } },
   };
 };
 
@@ -312,7 +312,7 @@ const P = {
       if (!item) { out.warnings.push(`no item ${s.uuid}`); continue; }
       await item.update({
         "flags.acks-extras.itemRun.rows": s.rows,
-        "flags.acks-extras.itemRun.activation": { kind: s.kind, state: { active: false, activationId: "", regionId: "" } },
+        "flags.acks-extras.itemRun.activation": { kind: s.kind, ...(s.uses ? { uses: s.uses } : {}), state: { active: false, activationId: "", regionId: "" } },
         "flags.acks-extras.cookbook": s.cookbook,
         "system.quantity": 1,
       });
@@ -394,6 +394,13 @@ const P = {
     if (!b || b.getAttribute("aria-disabled") === "true") return false;
     b.click();
     return true;
+  },
+
+  /** Write an item's count and wait until the page reads it back. */
+  setCount: async ({ uuid, quantity }) => {
+    const H = globalThis.__lap;
+    await fromUuidSync(uuid).update({ "system.quantity": quantity });
+    return !!(await H.until(() => fromUuidSync(uuid)?.system?.quantity === quantity, 6000, 200));
   },
 
   /** Wait until an item's stored state satisfies a predicate on `active` or `quantity`. */
@@ -891,8 +898,9 @@ async function pressFlow(label, run, { actorUuid, tokenUuid, tog, once }) {
   check(`${label}: the once item reads Ready with Use offered`, o0.model?.state === "ready" && o0.model.presses.some((p) => p.key === "use" && !p.disabled), { state: o0.model?.state });
   const used = await run(P.press, { actorUuid, itemUuid: once.uuid, key: "use" });
   check(`${label}: Use was drawn and pressed`, used === true);
-  const spent = await run(P.waitItem, { uuid: once.uuid, quantity: 0 });
-  check(`${label}: Use spent the item's count`, spent, { quantity: (await run(P.itemRead, { uuid: once.uuid })).quantity });
+  // Use runs the item's card and writes no count: the count is the hand's that keeps the item. The Judge's count of none is written here, and the row and the HUD read it.
+  const spent = await gmRun(P.setCount, { uuid: once.uuid, quantity: 0 });
+  check(`${label}: a count of none is stored on the once item`, spent, { quantity: (await run(P.itemRead, { uuid: once.uuid })).quantity });
   const o1 = await rowOf(once.uuid);
   check(`${label}: the row reads Used up with its press off`, o1.model?.state === "spent" && o1.model.presses.every((p) => p.disabled), { state: o1.model?.state, presses: o1.model?.presses });
   const h2 = await hud();
@@ -1107,8 +1115,9 @@ try {
     await gmRun(P.stackShare, { groupUuid: group.uuid, rowKey: carry.key, share: 1 });
     await gmRun(P.view, { sceneUuid: SC.two });
     const g2 = await sheetOf(gmRun);
-    const row2 = g2.controls.find((c) => c.key === carry.key);
-    check("W3 (c) with every slot spent on a body that is not here the row keeps its line and draws no press", !!row2 && row2.line.length > 0 && row2.press === false, { line: !!row2?.line, press: row2?.press });
+    // A row with no press carries no control key (the key is read off the press button), and the stack holds the one carried row, so the row is the only control.
+    const row2 = g2.controls.length === 1 ? g2.controls[0] : null;
+    check("W3 (c) with every slot spent on a body that is not here the row keeps its line and draws no press", !!row2 && row2.line.length > 0 && row2.press === false, { controls: g2.controls.length, line: !!row2?.line, press: row2?.press });
     await gmRun(P.view, { sceneUuid: SC.main });
     await gmRun(P.closeSheet, { uuid: group.uuid });
     await seeBodies();

@@ -530,6 +530,19 @@ const worldPackOf = (uuid) => game.packs?.get?.(packIdOfUuid(uuid)) ?? null;
 /** A stored `amount` as a Number box compares it: blank is null. */
 const storedAmount = (value) => (String(value ?? "").trim() === "" ? null : Number(value));
 
+/**
+ * A store as a window writes it: the store itself with a `write` that sends
+ * nothing where the user may not write its document (`editable()`, Foundry's
+ * ownership), answering the rows it was given. A change that reaches a
+ * disabled or read-only window by any route then never asks the server for a
+ * write it would refuse.
+ */
+function writableOnly(store) {
+  return Object.assign(Object.create(store), {
+    write: async (rows, options) => (store.editable?.() === true ? store.write(rows, options) : rows),
+  });
+}
+
 /** One row of one list, in a window of its own. */
 export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
@@ -540,7 +553,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   constructor({ store, index, ...options } = {}) {
     super({ id: `acks-extras-effect-${foundry.utils.randomID(8)}`, ...options });
-    this.store = store;
+    this.store = store ? writableOnly(store) : store;
     this.index = index;
   }
 

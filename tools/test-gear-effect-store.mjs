@@ -145,6 +145,20 @@ await t("an item with no itemRun, or one with rows and no activation, reads its 
   assert.deepEqual(rows.gearEffectStore(bare).read(), [{ key: "a", type: "modifier" }]);
 });
 
+await t("an editor opened on a store its seat may not write writes nothing when a change reaches it, and one on a writable store writes", async () => {
+  const change = (it) => editor.EffectRowEditor.DEFAULT_OPTIONS.form.handler.call(new editor.EffectRowEditor({ store: rows.gearEffectStore(it), index: 0 }));
+  const stored = [{ key: "a", type: "modifier" }];
+  const refused = item({ rows: stored, owner: false });
+  await change(refused);
+  assert.deepEqual(refused.updates, [], "a seat that does not own the item sends no write for the server to refuse");
+  const locked = item({ rows: stored, owner: true, locked: true });
+  await change(locked);
+  assert.deepEqual(locked.updates, [], "a locked pack is not written either");
+  const owned = item({ rows: stored, owner: true });
+  await change(owned);
+  assert.equal(owned.updates.length, 1, "an owner's change is written");
+});
+
 await t("the store is writable by Foundry ownership alone, never by the seat's role", () => {
   assert.equal(rows.gearEffectStore(item({ owner: true })).editable(), true);
   assert.equal(rows.gearEffectStore(item({ owner: false })).editable(), false);

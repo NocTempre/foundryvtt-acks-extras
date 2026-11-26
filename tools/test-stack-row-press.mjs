@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { RUN_LANG_PREFIX, carryControls, chooseCarrier, shareOf } from "../scripts/monsters/carry-press-logic.mjs";
+import { CARRY_LANG_PREFIX, RUN_LANG_PREFIX, carryControls, chooseCarrier, shareOf } from "../scripts/monsters/carry-press-logic.mjs";
 import { press } from "../scripts/lib/item-run-row.mjs";
 
 const tests = [];
@@ -166,6 +166,34 @@ t("nothing is asked of ownership where no carrier could act", () => {
   let asked = 0;
   controls(stack([carrying("m1", "dead"), carrying("m2", "dead")]), { owns: () => (asked++, true) });
   assert.equal(asked, 0);
+});
+
+t("every word `carryControls` and the Foundry half ask for through `say` and `tr` is a key the lang file holds under that localizer's own prefix", () => {
+  const en = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const asked = new Map();
+  const ask = (prefix) => (key, data) => (asked.set(`${prefix}.${key}`, prefix), `${key}${data ? JSON.stringify(data) : ""}`);
+  const rows = [
+    stack([]),
+    stack([], { part: undefined }),
+    stack([carrying("m1", "deployed", { tokenUuid: "here.1" })], { carry: { rowA: 1 } }),
+    stack([], { carry: { rowB: 1, rowC: 1 } }),
+  ];
+  const live = [null, { active: true, usedUp: false }, { active: false, usedUp: true }];
+  for (const st of rows) {
+    for (const l of live) {
+      for (const owns of [true, false]) controls(st, { say: ask(RUN_LANG_PREFIX), tr: ask(CARRY_LANG_PREFIX), live: () => l, owns: () => owns, runnable: () => true });
+    }
+  }
+  // The Foundry half is not importable here: its literal calls are read off its source, and its localizers are bound to the prefixes under test.
+  const source = fs.readFileSync(new URL("../scripts/monsters/carry-press.mjs", import.meta.url), "utf8");
+  assert.ok(source.includes("makeLoc(RUN_LANG_PREFIX)") && source.includes("makeLoc(CARRY_LANG_PREFIX)"), "the Foundry half localizes under the two prefixes this test checks against");
+  for (const [localizer, prefix] of [["say", RUN_LANG_PREFIX], ["tr", CARRY_LANG_PREFIX]]) {
+    for (const [, key] of source.matchAll(new RegExp(`\\b${localizer}\\("([^"]+)"`, "g"))) asked.set(`${prefix}.${key}`, prefix);
+  }
+  assert.ok(asked.size >= 8, "the drive reached the line, both tooltips, every press and the Foundry half's warning");
+  assert.ok([...asked.keys()].some((key) => key.startsWith(`${CARRY_LANG_PREFIX}.`)) && [...asked.keys()].some((key) => key.startsWith(`${RUN_LANG_PREFIX}.row.press.`)));
+  const missing = [...asked.keys()].filter((key) => typeof en[key] !== "string");
+  assert.deepEqual(missing, [], "a missing key is drawn on the row as the raw key");
 });
 
 let failures = 0;

@@ -4,7 +4,7 @@
  * gone, as Foundry's does.
  */
 import assert from "node:assert/strict";
-import { deleteRecords } from "../scripts/lib/record-delete.mjs";
+import { deleteRecords, inTurn } from "../scripts/lib/record-delete.mjs";
 
 /** An actor holding `ids`, with every delete it was sent in `sent`. */
 function actorOf(ids, { list = false } = {}) {
@@ -67,6 +67,16 @@ await t("a delete that fails for another reason rejects, and the actor's next de
   await assert.rejects(() => deleteRecords(actor, ["a"]), /the server said no/);
   actor.deleteEmbeddedDocuments = real;
   assert.deepEqual(await deleteRecords(actor, ["a"]), ["a"]);
+});
+
+await t("a write in the actor's turn waits for the delete before it, and reads the actor after it", async () => {
+  const actor = actorOf(["a"]);
+  const gone = deleteRecords(actor, ["a"]);
+  const seen = await inTurn(actor, async () => [...actor.effects.keys()]);
+  await gone;
+  assert.deepEqual(seen, [], "the turn read the actor once the delete had come back");
+  await assert.rejects(() => inTurn(actor, async () => { throw new Error("no"); }), /no/);
+  assert.equal(await inTurn(actor, async () => "next"), "next", "a throwing turn leaves the queue running");
 });
 
 console.log(`test-record-delete: ${passed} checks passed.`);

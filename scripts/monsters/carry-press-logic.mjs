@@ -21,6 +21,12 @@ import { press as itemRunPress } from "../lib/item-run-row.mjs";
  */
 export const RUN_LANG_PREFIX = "ACKS-LIB.itemRun";
 
+/** lib's lang root; the carry prefix is built from it, since it names a group of keys and no key of its own. */
+const LIB_ROOT = "ACKS-LIB";
+
+/** The lang prefix of the localizer `carryControls` takes as `tr`, which `carry-press.mjs` also asks its own warning of: the stack row's words. */
+export const CARRY_LANG_PREFIX = `${LIB_ROOT}.group.carry`;
+
 /** The record states a carrier can be in that this module reads. */
 const RESTING = "materialized";
 const OUT = "deployed";

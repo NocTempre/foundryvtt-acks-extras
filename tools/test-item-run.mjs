@@ -2864,4 +2864,27 @@ await t("a burst's vehicle row is handed on by an owner of the vehicle to the on
   }
 });
 
+await t("two holds of one subject's standing part that overlap write one record: the second reads the first's and neither throws", async () => {
+  seatOf(true);
+  const row = { key: "s", reach: { pulse: "standing", radius: { value: "10" }, modifier: { value: "-1" }, on: ["morale"], filter: { self: "count" } } };
+  const item = { uuid: "I.h1", name: "Gear h1", type: "item", flags: { "acks-extras": { cookbook: { id: "kindH" }, itemRun: { activation: { kind: "toggle", state: { active: true, activationId: "actH", regionId: "R.h1" } }, rows: [row] } } } };
+  const effects = Object.assign([], { get: (id) => effects.find((e) => e.id === id) });
+  const created = [];
+  // The server answers a create after a tick and refuses a fixed id it already holds, as Foundry's does.
+  const actor = {
+    effects,
+    async createEmbeddedDocuments(kind, data) {
+      created.push(data.map((d) => d._id));
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      for (const d of data) if (effects.some((e) => e.id === d._id)) throw new Error(`The _id [${d._id}] already exists within the parent collection`);
+      return data.map((d) => { const e = { ...d, id: d._id, update: async () => {} }; effects.push(e); return e; });
+    },
+  };
+  const hold = () => run.holdStanding({ config: { activationId: "actH" }, item, row, subject: { token: { uuid: "S.h1" }, actor } });
+  const both = await Promise.all([hold(), hold()]);
+  assert.deepEqual(both.map((r) => r.written).sort(), [false, true], "one writes and the other finds the record there");
+  assert.equal(effects.length, 1);
+  assert.equal(created.length, 1, "one create reached the server");
+});
+
 console.log(`\ntest-item-run: ${passed} checks passed.`);

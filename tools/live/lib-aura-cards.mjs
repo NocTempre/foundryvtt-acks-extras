@@ -1315,8 +1315,12 @@ try {
       const pc = await waitCard(plRun, r.messageId, (c) => !!c);
       check("W9f a seat that does not own the item sees neither control", !anyBtn(pc, "itemRun.tick") && !anyBtn(pc, "itemRun.untick"));
       await gmRun(async (a) => { await fromUuidSync(a.uuid).update({ ownership: { default: 0, [a.player]: 3 } }); return true; }, { uuid: A.B.uuid, player: S.playerId });
-      await plRun(async () => { await ui.chat.render({ force: true }); return true; });
       await sleep(1500);
+      // A card is drawn once, with the ownership the seat holds when it renders: lower this one and raise again, so the Player's page draws a card made after the grant.
+      await gmRun(P.click, { id: r.messageId, action: "itemRun.lower" });
+      await until(async () => (await gmRun(P.card, { id: r.messageId }))?.lowered === true, 10000);
+      await sleep(1200);
+      r = await raise("S");
       const owning = await waitCard(plRun, r.messageId, (c) => anyBtn(c, "itemRun.tick"));
       check("W9f a seat that owns the bearer is offered Count in", anyBtn(owning, "itemRun.tick"));
       const clickedIn = await plRun(P.click, { id: r.messageId, action: "itemRun.tick" });
@@ -1373,9 +1377,9 @@ try {
       const rt2 = await raise("T");
       await sleep(1200);
       const reheld = (await carrier("BS")).filter((e) => e.run.activationId === rt2.activationId);
-      tcard = await waitCard(gmRun, rt2.messageId, (c) => rowsOf(c).some((x) => x.name === NAME.BS));
-      const row2 = rowsOf(tcard).find((x) => x.name === NAME.BS);
-      check("W9f raised again with the bearer still counted: the part is held from the raise and the row reads Always on, no press", reheld.length === 1 && outcomeOf(row2) === W.always && !hasBtn(row2, "itemRun.roll"), { held: reheld.length, outcome: outcomeOf(row2) });
+      tcard = await waitCard(gmRun, rt2.messageId, (c) => outcomeOf(rowsOf(c).find((x) => x.name === NAME.BS && x.section === W.bearer)) === W.always);
+      const row2 = rowsOf(tcard).find((x) => x.name === NAME.BS && x.section === W.bearer);
+      check("W9f raised again with the bearer still counted: the part is held from the raise and the row reads Always on, no press", reheld.length === 1 && outcomeOf(row2) === W.always && !hasBtn(row2, "itemRun.roll"), { held: reheld.length, outcome: outcomeOf(row2), rows: rowsOf(tcard).filter((x) => x.name === NAME.BS).map((x) => [x.section, outcomeOf(x)]) });
       const ptcard = await waitCard(plRun, rt2.messageId, (c) => !!c);
       check("W9f no Save for a Player on the standing card", !anyBtn(ptcard, "itemRun.roll"));
       await gmRun(P.click, { id: rt2.messageId, action: "itemRun.untick" });

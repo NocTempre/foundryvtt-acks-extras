@@ -53,7 +53,7 @@ import { quantityOf } from "./storage-logic.mjs";
 import { admittedWithCount, freshKey, patchCountIn, patchEngagedClose, patchEngagedReopen, patchOut, ownsEveryBearer, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
-import { deleteRecords } from "./record-delete.mjs";
+import { deleteRecords, inTurn } from "./record-delete.mjs";
 import { statusEffectData } from "./held-condition.mjs";
 import { recordImmunity } from "./roll-mods.mjs";
 import { saveSpec, saveThrow } from "./saves.mjs";
@@ -1069,7 +1069,10 @@ export async function handleReachMoment({ moment, config, item, row, reach, subj
  * subject per item kind under the fixed id `standingPartId`, whose parts are
  * the row's modifier read now. Written only where the record is absent or
  * differs, so a re-entry or a second bearer of the kind rewrites nothing and
- * never stacks a second record. A blank modifier writes nothing.
+ * never stacks a second record. A blank modifier writes nothing. The record is
+ * read and written in the actor's turn (`inTurn`), so two holds of one part
+ * that overlap find the first's record in the second's read, never creating a
+ * fixed id twice.
  */
 export async function holdStanding({ config, item, row, subject }) {
   const figures = reachFigures(row);
@@ -1077,11 +1080,13 @@ export async function holdStanding({ config, item, row, subject }) {
   if (!parts.length) return { written: false, reason: "noFigure" };
   const kindKey = kindKeyOf(item, row);
   const wanted = standingPartRecordData({ kindKey, name: item.name, parts, source: item.uuid, activationId: config.activationId, rowKey: row.key, cite: itemCite(item) });
-  const existing = subject.actor.effects.get?.(wanted._id) ?? null;
-  if (!standingPartDiffers(existing, wanted)) return { written: false, reason: "same" };
-  if (existing) await existing.update({ name: wanted.name, origin: wanted.origin, flags: wanted.flags }, managedDelete());
-  else await subject.actor.createEmbeddedDocuments("ActiveEffect", [wanted], { keepId: true });
-  return { written: true };
+  return inTurn(subject.actor, async () => {
+    const existing = subject.actor.effects.get?.(wanted._id) ?? null;
+    if (!standingPartDiffers(existing, wanted)) return { written: false, reason: "same" };
+    if (existing) await existing.update({ name: wanted.name, origin: wanted.origin, flags: wanted.flags }, managedDelete());
+    else await subject.actor.createEmbeddedDocuments("ActiveEffect", [wanted], { keepId: true });
+    return { written: true };
+  });
 }
 
 /**
