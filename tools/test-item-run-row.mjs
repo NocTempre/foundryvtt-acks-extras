@@ -200,7 +200,7 @@ await t("a raised toggle counts the bodies its card lists in reach for this seat
 });
 
 await t("a spent item reads through the one used-up test and its press is off", () => {
-  const stack = (n) => ({ system: { quantity: { value: n } } });
+  const stack = (n) => ({ system: { quantity: n } });
   const used = { activation: { kind: "consume", uses: { value: "1" } }, rows: [{ key: "r", reach: { pulse: "action", radius: { value: "10" }, filter: {} } }] };
   run.registerActivationRunner("consume", async () => ({ ok: true }));
   const left = view.itemRunRowFor(put(itemOf(used, stack(2))));

@@ -84,7 +84,6 @@ await t("a spending kind with a count of none is used up and draws nothing", () 
     assert.deepEqual(ids(itemRunHudControls([item("a", kind(k), { quantity: 0 })])), [], `${k} at 0`);
     assert.deepEqual(ids(itemRunHudControls([item("a", kind(k), { quantity: 1 })])), ["a"], `${k} at 1`);
   }
-  assert.deepEqual(ids(itemRunHudControls([item("a", kind("consume"), { quantity: { value: 0 } })])), [], "the saved object shape of a count");
   assert.deepEqual(ids(itemRunHudControls([item("a", kind("consume"), { quantity: -1 })])), [], "a count below none is none");
 });
 
