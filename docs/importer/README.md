@@ -11,6 +11,9 @@ concerns:
 - [COOKBOOK.md](COOKBOOK.md) — the shipped, engine-agnostic database and its
   frozen instruction set.
 - [RECIPES.md](RECIPES.md) — the offline authoring pipeline that produces it.
+  [`tools/importer/fleet/`](../../tools/importer/fleet/README.md) is the
+  runbook for authoring a book's register with an orchestrator and parallel
+  page-batch workers.
 - [BINDING-FOUNDRY.md](BINDING-FOUNDRY.md) — how the Foundry engine consumes it.
 - [EXTRACTION.md](EXTRACTION.md) — the map of the extraction engine and
   pipeline operators, and the running ledger of extractor gotchas (double-strikes,

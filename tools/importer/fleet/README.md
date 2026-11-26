@@ -13,15 +13,16 @@ the LOCAL-ONLY reference PDFs at `C:\Proj\acks-reference` (never CI).
 npm run harvest:index -- mm --write   # seed: book outline -> register/_manifest/mm.json
 npm run harvest -- mm 170 178         # structural report for a page window (authoring sense)
 npm run ledger -- mm 25 350 10        # (re)build register/_ledger.json batches
-npm run compile                       # register -> cookbook/, every book (needs PDFs; ALL judgment here)
-npm run compile -- mm --out <scratch> # one book, to a scratch dir only: a book-scoped run cannot write cookbook/
-npm run verify:cookbook -- mm 170 178 # execute via the SHIPPING executor vs PDFs (gate)
+npm run compile -- --out <scratch>    # register -> every book's cookbook files, in a scratch dir (needs PDFs; ALL judgment here)
+npm run check:drift                   # does cookbook/ match a fresh compile? (needs PDFs)
+npm run verify:cookbook -- mm 170 178 # execute cookbook/ via the SHIPPING executor vs PDFs (gate; reads cookbook/ only)
 npm run lint:register                 # IP + schema gate (no PDFs; runs in CI via validate)
 ```
 
 ## Roles
 
-- **Orchestrator (Opus):** owns the ledger and the registers. Dispatches
+- **Orchestrator (Opus):** owns the ledger, the registers and `cookbook/`,
+  which no worker writes. Dispatches
   batches, merges register proposals between waves, re-runs compile+verify,
   re-queues failures. Never lets two workers own overlapping pages.
 - **Worker (Sonnet, one page-batch):** judgment over harvest reports — author
@@ -45,8 +46,12 @@ npm run lint:register                 # IP + schema gate (no PDFs; runs in CI vi
    its final report (entries, skips, NEEDS-REVIEW items).
 3. **Merge:** orchestrator + resolver agent fold proposals into
    `register/_refs/**` (idempotent upsert; conflicts -> resolver ruling).
-4. **Gate:** `npm run compile` then `npm run verify:cookbook -- mm <a> <b>`
-   then `npm run lint:register`. Green -> ledger `verified`. Failures or
+4. **Gate, after the merge:** `npm run compile -- --out <scratch>`, then copy
+   into `cookbook/` only the files whose entries changed. A book-scoped compile
+   cannot write `cookbook/`, and a spliced one drops fields a full compile
+   derives across books. Then run `npm run check:drift` (cookbook/ matches a
+   fresh compile), `npm run verify:cookbook -- mm <a> <b>` and
+   `npm run lint:register`. Green -> ledger `verified`. Failures or
    unexplained residue -> re-queue the batch with the report attached.
 5. Repeat until the ledger is all `verified`; residue per page trends to zero
    (remaining unclaimed items become note nodes or recorded skips).

@@ -43,18 +43,17 @@ only in `C:\Proj\foundryvtt-acks-extras`.
    `register/_proposals/p{START}-p{END}.json` as
    `{ "registry": "...", "token": "...", "suggest": { "key": "...", "ref": "def...." }, "definingPage": N? }`.
    Never edit `register/_refs/**` directly — the orchestrator merges.
-4. Gate your batch: `npm run compile` (every book: a book-scoped compile
-   cannot write `cookbook/`) then
-   `npm run verify:cookbook -- {BOOK} {START} {END}` then
-   `npm run lint:register`. Iterate until: 0 failures, and every RESIDUE line
-   for your pages is triaged (fix an entry, add a proposal, or list it as
-   NEEDS-REVIEW with page + symptom). Compile warnings about YOUR entries
-   (unmatched color runs, unclaimed items) must be resolved or reported.
+4. Gate your batch: `npm run compile -- --out <your scratch dir>` (every book,
+   never into `cookbook/`, which only the orchestrator writes) then
+   `npm run lint:register`. Iterate until: 0 failures, and every compile
+   warning about YOUR entries (unmatched color runs, unclaimed items) is
+   resolved or reported. RESIDUE is read at the merge, by the orchestrator's
+   `verify:cookbook`, and comes back to you as a re-queue.
 5. Do not touch pages outside your batch, `register/_refs/**`, `_kinds/`,
    `cookbook/registers.json`, or other batches' files.
 
 ## Deliverable (final message back to the orchestrator)
 - entries authored (count) + pages covered;
 - proposals filed (registry: token, count);
-- residue status per page (zero / triaged-as / NEEDS-REVIEW);
-- verify + lint output summary (must be green or explained).
+- compile warnings for your pages (resolved / NEEDS-REVIEW with page + symptom);
+- compile + lint output summary (must be green or explained).
