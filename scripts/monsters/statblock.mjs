@@ -323,7 +323,7 @@ export function derivationTips(snapHeld, loc) {
     throwTip: joined(throwTip, orgText("attack", snapHeld.attackMod)),
     savesTip,
     leaderTip,
-    acTip: joined(acTip || (orgHeld(org.ac, snapHeld.ac) ? loc("frame.rail.ac", { n: snap.ac }) : ""), orgText("ac", snapHeld.ac)),
+    acTip: joined(acTip, orgText("ac", snapHeld.ac)),
     moraleTip: joined(moraleTip, orgText("morale", snapHeld.morale)),
     damageTip: joined(damageTip, orgText("damage", snapHeld.damageMod)),
     initiativeTip: orgText("initiative", snapHeld.initiative),

@@ -1052,6 +1052,11 @@ test("the save row carries the shared modifier in force and a tooltip naming the
     assert.ok(t.saveModNow.tip.includes('stats.part|{"label":"Steady","value":"+2"}'), "the recipe's part is named, unmarked");
     const plain = buildThrows({ _source: { system: { save: { mod: 0 } } }, system: { save: { mod: 0 } } });
     assert.equal(plain.saveModNow.value, "+0", "a record with nothing on it reads +0");
+    // The page reference rides the head of the save figure's tip, ahead of its effect lines, and no other modifier's.
+    assert.ok(t.saveModNow.tip.includes("stats.saveCite"), "the save modifier's tip carries its page reference");
+    assert.ok(t.saveModNow.tip.indexOf("stats.saveCite") < t.saveModNow.tip.indexOf("stats.part|"), "in the head, before the lines");
+    assert.ok(plain.saveModNow.tip.includes("stats.saveCite"), "also when nothing moves the figure");
+    assert.ok(!plain.avoidSurpriseNow.tip.includes("stats.saveCite") && !t.initiativeTip.includes("stats.saveCite"), "no other figure takes it");
   } finally {
     delete globalThis.game;
   }
@@ -1245,7 +1250,7 @@ test("the save row's tooltip states the stored value, a line per effect in order
   const hand = { statuses: [], name: "Test Hand", changes: [{ key: "system.save.mod", type: "add", value: 3 }] };
   const hero = fixtureActor("character", [fixtureEffect("hungry", { name: condName("hungry") }), fixtureEffect("hungry", hand)], { saveMod: 0, extra: { _source: { system: { save: { mod: 0 } } } } });
   const tip = buildThrows(hero).saveModNow.tip.split(" · ");
-  assert.equal(tip[0], `ACKS-CHARACTER.stats.modifierTipListed|${JSON.stringify({ stored: "+0", value: signedFigure(step + 3) })}`);
+  assert.equal(tip[0], `ACKS-CHARACTER.stats.modifierTipListed|${JSON.stringify({ stored: "+0", value: signedFigure(step + 3) })} ACKS-CHARACTER.stats.saveCite|{}`, "the head carries the page reference");
   assert.deepEqual(tip.slice(1), [partText(condName("hungry"), signedFigure(step)), partText("Test Hand", "+3")]);
   hero.system.save.mod += 4;
   assert.deepEqual(buildThrows(hero).saveModNow.tip.split(" · ").filter((l) => l.includes(OTHER_EFFECTS)), [partText(OTHER_EFFECTS, "+4")]);

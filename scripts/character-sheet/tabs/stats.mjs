@@ -438,6 +438,8 @@ export function buildThrows(actor) {
   const saveModInForce = num(sys.save?.mod, saveModStored);
   const saveEffects = effectBreakdown(actor, "system.save.mod", saveModStored, saveModInForce);
   const saveFigure = inForceFigure(saveModStored, saveModInForce, saveEffects);
+  // The page that prints the saving throw rides the head of the tip, ahead of the lines that name its parts.
+  saveFigure.tip = `${saveFigure.tip} ${loc("stats.saveCite")}`;
   let perSave = {};
   try {
     perSave = actor.items ? saveModifiers(actor) : {};

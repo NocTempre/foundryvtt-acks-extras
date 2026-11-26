@@ -466,6 +466,16 @@ const snap = (over = {}) => ({ derived: kex.derived, kit: kex.kit, ac: kitted.sy
 let tips = derivationTips(snap(), loc);
 check("the armour class tip keeps the kit's part and names each organisation part with its page", tips.acTip.includes("statblock.tip.acKit") && tips.acTip.includes("statblock.tip.orgFigure") && tips.acTip.includes("Row A") && tips.acTip.includes("XX p. 3"));
 check("the tip is gone once a Judge changes the figure", !derivationTips(snap({ ac: 99 }), loc).acTip.includes("orgFigure"));
+{
+  // With no printed or worked-out base to name, the tip is the organisation
+  // figure alone: one armour class (the one shown), the base a part of it.
+  const bare = derivationTips(
+    { derived: { organisation: { ac: { value: 7, base: 5, troop: 2 }, troop: { label: "Row A", cite: "XX p. 3" } } }, ac: 7, morale: 0, damageMod: 0, attackMod: 0, initiative: 0, surpriseAvoid: 0 },
+    loc,
+  ).acTip;
+  check("a figure an organisation piece moved is not headed by the unwound base as an armour class of its own", !bare.includes("frame.rail.ac"));
+  check("and the tip is the shown figure with its base and part, and the page", bare.startsWith('statblock.tip.orgFigure{"value":7,"base":5,') && bare.includes("Row A") && bare.includes("XX p. 3"));
+}
 check("the attack throw's tip names the troop's bonus while the modifier stands, and not after an edit", derivationTips(snap(), loc).throwTip.includes("orgFigure") && !derivationTips(snap({ attackMod: 9 }), loc).throwTip.includes("orgFigure"));
 const sc = gen({ troop: "rb", role: "standard" });
 tips = derivationTips({ derived: sc.ex.derived, ac: 5, morale: 0, damageMod: 0, attackMod: 0, initiative: sc.r.system.initiative.mod, surpriseAvoid: sc.r.system.surprise.avoidsurprise }, loc);

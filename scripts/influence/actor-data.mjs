@@ -6,10 +6,10 @@
 import { AGING_PAGE, BEWITCH_PAGE, BRIBE_CRIME_PAGE, CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_DOC, INFLUENCE_MODIFIERS, MODULE_ID, TONE_PAGES } from "./constants.mjs";
 import { ageRow, printedFigure, printedQuantity } from "./printed.mjs";
 import { meetsQuantity } from "../lib/tables.mjs";
-import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
+import { optionalRuleEnabled, parseKindList } from "./racial.mjs";
 // Ability mod and level-or-HD read once from the lib subsystem (the
 // henchmen feature reads the same schema).
-import { abilityMod, hitDiceOrLevel } from "../lib/actor-read.mjs";
+import { abilityMod, hitDiceOrLevel, raceOfCharacter } from "../lib/actor-read.mjs";
 import { ITEM_TYPE, alignmentKey } from "../lib/vocab.mjs";
 
 const GENERIC_IMG = "icons/svg/mystery-man.svg";
@@ -292,7 +292,7 @@ const UNSTATED_AGE_CATEGORY = 1;
  * when the table is not imported.
  */
 export function ageCategoryIndex(actor) {
-  const race = inferRace(actor);
+  const race = raceOfCharacter(actor);
   const row = ageRow(AGING_PAGE.table, race, INFLUENCE_DOC) ?? ageRow(AGING_PAGE.table, "human", INFLUENCE_DOC);
   if (!row) return null;
   const age = Number(actor?.system?.details?.age);

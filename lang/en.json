@@ -9805,6 +9805,7 @@
   "ACKS-CHARACTER.stats.modifierTip": "Stored {stored}, effects {effects}: Rolls adds {value}",
   "ACKS-CHARACTER.stats.modifierTipPlain": "No effect changes the stored value: Rolls adds {value}",
   "ACKS-CHARACTER.stats.modifierTipListed": "Stored {stored}: Rolls adds {value}",
+  "ACKS-CHARACTER.stats.saveCite": "(RR ch. 6, Saving Throws)",
   "ACKS-CHARACTER.stats.initiativeTip": "Stored {stored}, Dexterity {dex}, effects {effects}: Rolls adds {value}",
   "ACKS-CHARACTER.stats.acTip": "{armour}, Dexterity {dex}, shield {shield}, stored bonus {stored}: AC {value} (RR ch. 1, Armor Class)",
   "ACKS-CHARACTER.stats.acTipNoShield": "{armour}, Dexterity {dex}, stored bonus {stored}: AC {value} (RR ch. 1, Armor Class)",
