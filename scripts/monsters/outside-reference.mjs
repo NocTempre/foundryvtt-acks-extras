@@ -137,7 +137,7 @@ export function beastCellPart({ key, text, variant, units, cite = "" }) {
     label: cell.word,
     role: "guard",
     source: { uuid: "", templateCell: role ? cellOf(variant, role) : "", stat: "", name: role ? "" : cell.word },
-    count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", ...cell.count },
+    count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", forEvery: null, ...cell.count },
     chance: cell.chance,
     when: { state: "", place: "", units: [...units] },
     branch: { group: "", band: "" },

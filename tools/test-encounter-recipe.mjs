@@ -197,6 +197,54 @@ t("a count read per unit is rolled once for each unit of that word under the uni
   assert.equal(captives[0].count, out.steps.filter((s) => s.why === "captives count").reduce((s, x) => s + x.total, 0));
 });
 
+/** A recipe with no split: every body keeps one key, and a dependant counts every one of them. */
+const UNSPLIT = [
+  part("blocks", "dependant", { source: { templateCell: "alba|x" }, count: { dice: "1d4", ratioOf: "bodies", forEvery: 5 }, when: { units: ["hold"] } }),
+];
+const bodiesUnder = (node) => walk(node).reduce((s, n) => s + n.parts.filter((p) => p.role === "body").reduce((x, p) => x + p.count, 0), 0);
+
+t("a count printed for every so many bodies is thrown once for each block the bodies make, rounded as printed or as the Judge chose", () => {
+  const village = (recipe, choices = {}) => evaluateRecipe({ recipe, encounter: ENCOUNTER, context: "wilderness", state: "lair", rng: steady, choices });
+  const out = village(UNSPLIT);
+  const bodies = bodiesUnder(out.top);
+  assert.ok(bodies > 0 && bodies % 5 !== 0, "an invented village whose bodies leave a fraction of a block");
+  const made = partsOf(out.top, "blocks");
+  assert.equal(made.length, 1);
+  assert.equal(made[0].count, Math.round(bodies / 5), "the default rounding is the Judge's choice and takes the nearest");
+  assert.equal(out.steps.filter((s) => s.why === "blocks count").length, made[0].count, "one throw of the die for each block");
+  assert.equal(made[0].formula, Array.from({ length: made[0].count }, () => "(1d4)").join("+"));
+  assert.equal(village(UNSPLIT.map((p) => ({ ...p, count: { ...p.count, round: "up" } }))).top.parts.find((p) => p.part === "blocks").count, Math.ceil(bodies / 5));
+  assert.equal(village(UNSPLIT.map((p) => ({ ...p, count: { ...p.count, round: "down" } }))).top.parts.find((p) => p.part === "blocks").count, Math.floor(bodies / 5));
+  assert.equal(village(UNSPLIT, { unprintedRound: "up" }).top.parts.find((p) => p.part === "blocks").count, Math.ceil(bodies / 5), "the Judge's rounding applies where the page prints none");
+  assert.ok(out.steps.some((s) => s.why === "blocks" && s.formula === `${bodies}/5`), "the block count is a recorded step");
+});
+
+t("a for-every count that is a figure adds the figure for each block, and one with no figure is missing", () => {
+  const village = (count) => evaluateRecipe({ recipe: [{ ...UNSPLIT[0], count: { ...UNSPLIT[0].count, ...count } }], encounter: ENCOUNTER, context: "wilderness", state: "lair", rng: steady });
+  const bodies = bodiesUnder(village({}).top);
+  assert.equal(partsOf(village({ dice: "", literal: 3 }).top, "blocks")[0].count, 3 * Math.round(bodies / 5));
+  const none = village({ dice: "" });
+  assert.deepEqual(none.missing.filter((m) => m.part === "blocks"), [{ what: "count", part: "blocks" }]);
+  assert.equal(partsOf(none.top, "blocks")[0].count, 0);
+});
+
+t("fewer bodies than a block make no throw, and a recipe that never states the field counts as before", () => {
+  const small = evaluateRecipe({ recipe: [{ ...UNSPLIT[0], count: { ...UNSPLIT[0].count, forEvery: 500 } }], encounter: ENCOUNTER, context: "wilderness", state: "lair", rng: steady });
+  assert.equal(partsOf(small.top, "blocks")[0].count, 0);
+  assert.equal(partsOf(small.top, "blocks")[0].formula, "");
+  const out = evaluateRecipe({ recipe: RECIPE, encounter: ENCOUNTER, context: "wilderness", state: "lair", rng: steady });
+  assert.equal(partsOf(out.top, "dependant-x")[0].count, walk(out.top).flatMap((n) => partsOf(n, "warriors")).reduce((s, p) => s + p.count, 0));
+});
+
+t("a base named for the warriors counts every body where the recipe has no split, and a split in force still keeps its kinds", () => {
+  const share = (ratioOf, recipe) => evaluateRecipe({ recipe, encounter: ENCOUNTER, context: "wilderness", state: "lair", rng: steady });
+  const bodies = bodiesUnder(share("bodies", UNSPLIT).top);
+  const byWord = share("warriors", [part("dep", "dependant", { count: { ratioOf: "warriors", percent: 50 }, when: { units: ["hold"] } })]);
+  assert.equal(partsOf(byWord.top, "dep")[0].count, Math.round(bodies / 2), "the printed word names the creature's rank and file");
+  const split = share("bodies", [...RECIPE.slice(0, 2), part("dep", "dependant", { count: { ratioOf: "bodies", percent: 50 }, when: { units: ["hold"] } })]);
+  assert.equal(partsOf(split.top, "dep")[0].count, Math.round(bodiesUnder(split.top) / 2), "the bodies word spans both kinds");
+});
+
 t("the lair chance chooses the side before anything is sized", () => {
   const throwDie = (die, enc = ENCOUNTER) => evaluateRecipe({ recipe: RECIPE, encounter: enc, context: "wilderness", state: "chance", rng: rngOf(face(die, 100)) });
   const inLair = throwDie(30);

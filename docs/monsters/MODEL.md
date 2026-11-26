@@ -94,7 +94,12 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
   `percent` and `round`: `ratioOf` is a part's key, or `unit`, a share of the
   units the sentence names counted in whole units (the gangs of a warband, the
   warbands of a lair or village), rounded as printed. `perUnit` names the unit
-  a count is rolled once for.
+  a count is rolled once for. `forEvery` is a count printed for every so many of
+  something: with `ratioOf` (a part's key, or `bodies`, every body of the unit
+  whatever kind each took) and one of `dice` or `literal`, the figure is thrown
+  once for each block of `forEvery` of what `ratioOf` counts. It is no share, so
+  it carries no `percent`, and `round` (blank where the page prints none) rounds
+  the number of blocks.
 - `when.units` are the unit words the part applies to, as the stat block's
   lines print them; `state` and `place` are set only where a line fixes them.
 - Parts of one `branch.group` are alternatives. `band` names a die's share
@@ -107,7 +112,7 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
 |---|---|---|
 | `archers`, `warriors` | `body` | each share (`ratioOf: unit`) of the gangs or warbands the sentence names, in whole units, with its printed rounding |
 | `leader-<role>` | `leader` | the rank that leads each unit and how many; the chieftain's part carries `moraleWhileAlive`, the printed bonus while that rank lives |
-| `dependant-drudge`, `dependant-whelp` | `dependant` | each share of the warriors; the rounding stays blank where the page prints none |
+| `dependant-drudge`, `dependant-whelp` | `dependant` | each share of the warriors (a percent), or a die or figure for every so many of the creature's own kind (`forEvery`); the rounding stays blank where the page prints none |
 | `guard-<creature word>` | `guard` | a village guard's chance, dice and creature, the key made from the creature word as printed (a numbered suffix where the same word is named again); beasts joined by "or" share one `branch.group` |
 | `chieftain-guard` | `guard` | the chieftain's escort, pointing at the Role cell the page says it is equivalent to |
 | `captives` | `captive` | chance and dice per unit |
@@ -119,6 +124,12 @@ import goes on. A creature whose prose yields no part has no recipe, and the
 size parts join only a recipe the prose started. A morale sentence with no
 leader part to carry it adds nothing. Any creature whose pages state the same
 structures gets the same read, so the recipe is not limited to one family.
+
+The unit words a sentence may name are the fixed four of the beastman pages and,
+once those have started a recipe, every other word the creature's own encounter
+lines name as a side's noun or unit: the evaluator treats each such word as a
+unit, so a part a sentence scopes to it applies to it. A creature whose
+sentences name only such words has no recipe.
 
 A whole repair merges the recipe it reads by origin: the parts the import
 wrote are rewritten or dropped as the page now reads, and a part a hand changed
@@ -181,6 +192,13 @@ labelled stack too, whatever its role.
 
 `fixedHp` is edited as "Hit points fixed", a whole number or blank, validated
 where it is typed. A blank-label part shows its role in the list.
+
+The Count box takes a figure, a die, or blank. On a share it also takes a
+percentage and keeps what the share is of. On a count for every so many (`forEvery`)
+a typed die or figure is the one thrown per block, and what it counts and the block
+size stay; a percentage is refused. The row reads such a count as the die for every
+block ("3d5 for every 6 of the bodies"). The block size, what is counted, the
+rounding and the unit a count is rolled per are shown and never edited here.
 
 ## Item flag metadata (`flags["acks-extras"]`)
 
@@ -1090,7 +1108,11 @@ unless named). The evaluator never asks; the surface that shows the choices does
 `moraleWhileAlive` rides on it). A chance is one throw of 1d100 for the part, or
 for its branch group's chosen alternative. A count `perUnit` is rolled for each
 unit of that word under the unit, after one chance throw. A dependant is its
-percent of the bodies of the part it names under the unit. A part that is no body
+percent of the bodies of the part it names under the unit. A dependant counted for
+every so many bodies is thrown once for each block the bodies make, rounded as the
+part prints or by the Judge's `unprintedRound`. Where no split is in force every
+body has one key, so a share's base, whatever word names it, is all the bodies under
+the unit. A part that is no body
 (guards, captives, dependants, casters) goes to the unit's **camp**, a node of its
 own under the unit that holds those stacks, so the unit's group holds its bodies
 and its leader. The village is the exception at its own level: its parts are not gathered

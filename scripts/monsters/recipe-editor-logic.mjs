@@ -80,6 +80,7 @@ export function shapePart(part = {}) {
       percent: figure(p.count?.percent),
       round: text(p.count?.round),
       perUnit: text(p.count?.perUnit),
+      forEvery: figure(p.count?.forEvery),
     },
     chance: figure(p.chance),
     when: { state: text(p.when?.state), place: text(p.when?.place), units: (p.when?.units ?? []).map(text).filter((u) => u.trim()) },
@@ -121,18 +122,24 @@ const copyPartOf = (readCopy, key) => partOf(readCopy, key);
 /*  The tables                                   */
 /* -------------------------------------------- */
 
-/** A part's count as the editor shows it: the figure's text, and the share a count is of another part. */
+/**
+ * A part's count as the editor shows it: the figure's text, the share a count is
+ * of another part, and the block size (`every`) a die or figure is thrown once
+ * per block of what `of` names. A count for every so many is no share: its text
+ * is the die, and `share` is false.
+ */
 function countFigure(count = {}) {
-  const share = !blank(count.ratioOf);
+  const every = Number(count.forEvery) > 0 && !blank(count.ratioOf) ? Number(count.forEvery) : "";
+  const share = !blank(count.ratioOf) && every === "";
   const textual = count.dice ? String(count.dice) : Number.isFinite(count.literal) ? String(count.literal) : share ? `${count.percent ?? ""}%` : "";
-  return { text: textual, share, of: share ? String(count.ratioOf) : "", round: String(count.round ?? ""), perUnit: String(count.perUnit ?? "") };
+  return { text: textual, share, of: share || every !== "" ? String(count.ratioOf) : "", every, round: String(count.round ?? ""), perUnit: String(count.perUnit ?? "") };
 }
 
 /** A part's figures as tooltip data: its count, chance, morale bonus and units, each blank where the part holds none, and its page. */
 function figuresOf(part) {
   const count = countFigure(part.count);
   return {
-    count: count.text, share: count.share, of: count.of, round: count.round, perUnit: count.perUnit,
+    count: count.text, share: count.share, of: count.of, every: count.every, round: count.round, perUnit: count.perUnit,
     chance: Number.isFinite(part.chance) ? part.chance : "",
     morale: Number.isFinite(part.moraleWhileAlive) ? part.moraleWhileAlive : "",
     units: (part.when?.units ?? []).join(", "),
@@ -152,7 +159,7 @@ function tipOf(part, copy) {
 /**
  * One row, with the figures a table shows: `label` (as stored, blank where a Judge has not typed one; the window names such a row by its `key`), `role` (the key) and
  * `roleLabel`, `fixedHp` (a whole figure or null), `madeOf` (what a Units row counts: the unit the part names, or
- * `""` for bodies), `count` (`{text, share, of, round, perUnit}`), `chance`
+ * `""` for bodies), `count` (`{text, share, of, every, round, perUnit}`), `chance`
  * (a percent or null), `when` (`{state, place, units}`), `morale`, `cite` (the
  * page), `from` (`hand`, or the part's `basis`), `hand` (origin blank) and `tip`.
  */
@@ -223,7 +230,7 @@ export function handCount(recipe) {
  */
 export function parseCount(input) {
   const t = diceOf(input);
-  const cleared = { dice: "", literal: null, ratioOf: "", percent: null };
+  const cleared = { dice: "", literal: null, ratioOf: "", percent: null, forEvery: null };
   if (!t) return { ok: true, count: cleared };
   if (/^\d+$/.test(t)) return { ok: true, count: { ...cleared, literal: parseInt(t, 10) } };
   if (readsAsDice(t)) return { ok: true, count: { ...cleared, dice: t } };
@@ -248,16 +255,19 @@ export function validatePart(part) {
     if (!Number.isFinite(n) || n < 0 || n > 100) problems.push({ field: "chance", key: RECIPE_TEXT.problemChance });
   }
   const c = p.count ?? {};
-  const set = [!blank(c.dice), !blank(c.literal), !blank(c.ratioOf)].filter(Boolean).length;
   const literal = Number(c.literal);
   const percent = Number(c.percent);
+  const every = Number(c.forEvery);
+  // A count for every so many is one die or figure, what it counts and a block size from 1; it is no share, so it carries no percent.
+  const blocks = !blank(c.forEvery);
+  const set = [!blank(c.dice), !blank(c.literal), !blank(c.ratioOf)].filter(Boolean).length;
+  const shape = blocks
+    ? blank(c.ratioOf) || blank(c.dice) === blank(c.literal) || !blank(c.percent) || !(Number.isInteger(every) && every >= 1)
+    : set > 1 || (!blank(c.ratioOf) && blank(c.percent)) || (blank(c.ratioOf) && !blank(c.percent)) || (!blank(c.percent) && !(Number.isFinite(percent) && percent >= 0));
   const bad =
-    set > 1 ||
+    shape ||
     (!blank(c.dice) && !readsAsDice(diceOf(c.dice))) ||
-    (!blank(c.literal) && !(Number.isInteger(literal) && literal >= 0)) ||
-    (!blank(c.ratioOf) && blank(c.percent)) ||
-    (blank(c.ratioOf) && !blank(c.percent)) ||
-    (!blank(c.percent) && !(Number.isFinite(percent) && percent >= 0));
+    (!blank(c.literal) && !(Number.isInteger(literal) && literal >= 0));
   if (bad) problems.push({ field: "count", key: RECIPE_TEXT.problemCount });
   if (!blank(p.fixedHp)) {
     const n = Number(p.fixedHp);

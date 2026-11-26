@@ -14,7 +14,9 @@
  * `percent` and `round` for a share of another part, `"unit"` being a share of
  * the units the sentence names, counted in whole units (the gangs of a
  * warband, the warbands of a lair or village) and rounded as printed;
- * `perUnit` for a count rolled once per unit),
+ * `perUnit` for a count rolled once per unit; `forEvery` with `ratioOf` and a
+ * `dice` or `literal` for a count thrown once for every so many of `ratioOf`,
+ * `RECIPE_BODIES` naming every body of the unit),
  * `chance` (percent, null for always), `when` (the units, and state and place
  * where a line fixes them), `branch` (parts of one group are alternatives, a
  * band naming the share of a die where the page prints one), `moraleWhileAlive`
@@ -28,14 +30,13 @@
  */
 import { roleKeyOf } from "./leader-roles.mjs";
 import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
+import { RECIPE_BODIES } from "../monsters/config.mjs";
 
 /** Where every part this reader writes was read from. */
 export const RECIPE_BASIS = "page";
 
-/** The unit words a sentence may name: a group the stat block's lines count. */
-const UNIT = String.raw`(?:gang|warband|lair|village)`;
-/** One or several units, joined by a comma, "or" or "and": "lairs and villages". */
-const UNITS = String.raw`(${UNIT}s?(?:\s*(?:,|or|and)\s*${UNIT}s?)*)`;
+/** The unit words every creature's sentences may name: a group the stat block's lines count. */
+const BASE_UNITS = ["gang", "warband", "lair", "village"];
 /** A die, a sum on it, or a plain figure. */
 const DICE = String.raw`(?:\d+\s*d\s*\d+(?:\s*[+-]\s*\d+)?|\d+)`;
 /** A printed rank. */
@@ -45,27 +46,11 @@ const COUNT_WORD = String.raw`(?:an?|one|two|three|\d+)`;
 /** A rounding note: "(round up)". */
 const ROUND = /round(?:ed|ing)?\s+(up|down)/i;
 
-const LEADER_RX = new RegExp(
-  String.raw`\b(?:each|an?|the|every)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+led\s+by\s+(?:(${COUNT_WORD})\s+)?(${RANK})s?\b`,
-  "iu",
-);
 const MORALE_RX = new RegExp(
   String.raw`\bas\s+long\s+as\s+the\s+(${RANK})\s+is\s+(?:alive|living|not\s+slain)\s*,?\s+[^.]*?\b(?:gain|gains|receive|receives|have|has)\s+an?\s+([+-]\s*\d+)\s+(bonus|penalty)\s+to\s+morale`,
   "i",
 );
-const SPLIT_FIRST_RX = new RegExp(
-  String.raw`(\d+)\s*%\s+of\s+(${UNIT}s?(?:\s*(?:,|or|and)\s*${UNIT}s?)*)\s+(?:\w+\s+)?will\s+be\s+(archers|warriors)\b(.*)$`,
-  "i",
-);
 const SPLIT_NEXT_RX = /^\s*(?:\(\s*round[^)]*\))?\s*,?\s*(?:and\s+)?(\d+)\s*%\s+will\s+be\s+(archers|warriors)\b(.*)$/i;
-const DEPENDANT_RX = new RegExp(
-  String.raw`\b${UNITS}\s+will\s+have\s+(drudges?|whelps?)(?:\s*(?:,|and)\s*(drudges?|whelps?))?\s+equal\s+to\s+(\d+)\s*%(?:\s*(?:,|and)\s*(\d+)\s*%)?\s+of\s+(?:the\s+)?(?:number\s+of\s+)?(archers|warriors)\b(.*)$`,
-  "i",
-);
-const GUARD_RX = new RegExp(
-  String.raw`\bthere\s+is\s+an?\s+(\d+)\s*%\s+chance\s+(?:that\s+)?(?:an?|the)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+(?:guarded|defended|protected)\s+by\s+(.+?)\s*\.?$`,
-  "iu",
-);
 const GUARD_CLAUSE_RX = new RegExp(
   String.raw`^(?:(\d+)\s*%\s+chance\s+(?:for|of|(?:that\s+)?it\s+will\s+be\s+(?:guarded|defended|protected)\s+by|of\s+being\s+(?:guarded|defended|protected)\s+by)\s+)?(.+)$`,
   "i",
@@ -75,12 +60,78 @@ const ESCORT_RX = new RegExp(
   String.raw`\bthe\s+(${RANK})\s+will\s+be\s+(?:defended|guarded|protected|attended)\s+by\s+(${DICE})\s+([\p{L}'’ -]+?)\s*(?:\(\s*equivalent\s+to\s+(${RANK})s?\s+statistically\s*\))?\s*\.?$`,
   "iu",
 );
-const CAPTIVE_RX = new RegExp(
-  String.raw`\bthere\s+is\s+an?\s+(\d+)\s*%\s+chance\s+(?:for|of)\s+(${DICE})\s+([\p{L}'’ -]*?captives?)\s+per\s+(${UNIT})\b`,
-  "iu",
-);
 const CASTER_RX = /(\d+)\s*%\s+chance\s+(?:of|to\s+have)\s+an?\s+(shaman|witch[\s-]*doctor)\b/gi;
-const ENCOUNTERED_IN_RX = new RegExp(String.raw`\bencountered\s+in\s+an?\s+(${UNIT})\b`, "i");
+
+/**
+ * The unit words an encounter's lines add to the fixed ones: the noun and the
+ * unit of every side, singular, one plain word each. A creature whose lines
+ * count in a group the fixed list lacks has its sentences read against that
+ * word too, since the evaluator treats every word of the lines as a unit.
+ * @param {object|null} encounter `extras.encounter`
+ * @returns {string[]}
+ */
+export function unitWordsOf(encounter) {
+  const out = [];
+  for (const place of ["dungeon", "wilderness"]) {
+    for (const state of ["wandering", "lair"]) {
+      const side = encounter?.[place]?.[state];
+      if (!side?.number) continue;
+      for (const raw of [side.noun, side.unit]) {
+        const word = String(raw ?? "").trim().toLowerCase().replace(/(?<!s)s$/, "");
+        if (/^\p{L}[\p{L}-]{2,}$/u.test(word) && !BASE_UNITS.includes(word) && !out.includes(word)) out.push(word);
+      }
+    }
+  }
+  return out;
+}
+
+/** The locators that name a unit, built over the fixed unit words and any extra; one set per vocabulary. */
+const LOCATORS = new Map();
+
+/**
+ * The regexes that read a unit word, over the fixed words and `extra`. `units`
+ * is the capture of one or several units joined by a comma, "or" or "and"
+ * ("lairs and villages"); `word` matches a single unit word.
+ * @param {string[]} [extra]
+ */
+function locators(extra = []) {
+  const words = [...new Set([...BASE_UNITS, ...extra])].sort((a, b) => b.length - a.length || a.localeCompare(b));
+  const id = words.join("|");
+  const hit = LOCATORS.get(id);
+  if (hit) return hit;
+  const UNIT = `(?:${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)).join("|")})`;
+  const UNITS = String.raw`(${UNIT}s?(?:\s*(?:,|or|and)\s*${UNIT}s?)*)`;
+  const built = {
+    word: new RegExp(String.raw`\b(${UNIT})s?\b`, "gi"),
+    leader: new RegExp(
+      String.raw`\b(?:each|an?|the|every)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+led\s+by\s+(?:(${COUNT_WORD})\s+)?(${RANK})s?\b`,
+      "iu",
+    ),
+    splitFirst: new RegExp(
+      String.raw`(\d+)\s*%\s+of\s+(${UNIT}s?(?:\s*(?:,|or|and)\s*${UNIT}s?)*)\s+(?:\w+\s+)?will\s+be\s+(archers|warriors)\b(.*)$`,
+      "i",
+    ),
+    dependant: new RegExp(
+      String.raw`\b${UNITS}\s+will\s+have\s+(drudges?|whelps?)(?:\s*(?:,|and)\s*(drudges?|whelps?))?\s+equal\s+to\s+(\d+)\s*%(?:\s*(?:,|and)\s*(\d+)\s*%)?\s+of\s+(?:the\s+)?(?:number\s+of\s+)?(archers|warriors)\b(.*)$`,
+      "i",
+    ),
+    dependantEvery: new RegExp(
+      String.raw`\b(?:([\p{L}'’-]+)\s+)?${UNITS}\s+will\s+have\s+(${DICE})\s+(drudges?|whelps?)(?:\s*(?:,|and)\s*(${DICE})\s+(drudges?|whelps?))?\s+for\s+every\s+(\d+)\s+([\p{L}'’-]+)\b(.*)$`,
+      "iu",
+    ),
+    guard: new RegExp(
+      String.raw`\bthere\s+is\s+an?\s+(\d+)\s*%\s+chance\s+(?:that\s+)?(?:an?|the)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+(?:guarded|defended|protected)\s+by\s+(.+?)\s*\.?$`,
+      "iu",
+    ),
+    captive: new RegExp(
+      String.raw`\bthere\s+is\s+an?\s+(\d+)\s*%\s+chance\s+(?:for|of)\s+(${DICE})\s+([\p{L}'’ -]*?captives?)\s+per\s+(${UNIT})\b`,
+      "iu",
+    ),
+    encounteredIn: new RegExp(String.raw`\bencountered\s+in\s+an?\s+(${UNIT})\b`, "i"),
+  };
+  LOCATORS.set(id, built);
+  return built;
+}
 
 /** A die or a figure with its spacing closed up, lowercase. */
 const diceText = (s) => String(s).replace(/\s+/g, "").toLowerCase();
@@ -88,10 +139,13 @@ const diceText = (s) => String(s).replace(/\s+/g, "").toLowerCase();
 /** A count as the part's `count` object: a plain figure is a literal, anything else dice. */
 const countOf = (s) => (/^\d+$/.test(diceText(s)) ? { literal: parseInt(diceText(s), 10) } : { dice: diceText(s) });
 
-/** The unit nouns a phrase names, singular, in the order printed, each once. */
-export function unitsIn(text) {
+/**
+ * The unit nouns a phrase names, singular, in the order printed, each once.
+ * `extra` are the words a creature's own lines add (`unitWordsOf`).
+ */
+export function unitsIn(text, extra = []) {
   const out = [];
-  for (const m of String(text ?? "").matchAll(new RegExp(String.raw`\b(${UNIT})s?\b`, "gi"))) {
+  for (const m of String(text ?? "").matchAll(locators(extra).word)) {
     const noun = m[1].toLowerCase();
     if (!out.includes(noun)) out.push(noun);
   }
@@ -118,7 +172,7 @@ function part({ key, label = "", role, source = {}, count = {}, chance = null, u
     label,
     role,
     source: { uuid: "", templateCell: "", stat: "", name: "", ...source },
-    count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", ...count },
+    count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", forEvery: null, ...count },
     chance,
     when: { state, place, units: [...units] },
     branch: { group: "", band: "", ...branch },
@@ -164,6 +218,31 @@ function sizeParts(encounter, cite) {
   return out;
 }
 
+/** The letters of a word, lowercase: how a plural is compared with the name it pluralises. */
+const letters = (w) => String(w ?? "").toLowerCase().replace(/[^\p{L}]+/gu, "");
+
+/** Whether `word` is the plural (or the name itself) of the creature called `name`. */
+function pluralOf(word, name) {
+  const w = letters(word);
+  const n = letters(name);
+  if (!w || !n) return false;
+  return [n, `${n}s`, `${n}es`, n.replace(/man$/, "men"), n.replace(/f$/, "ves"), n.replace(/y$/, "ies")].includes(w);
+}
+
+/**
+ * What a for-every sentence counts, as a part's `count.ratioOf`: the printed
+ * `archers` or `warriors` where the page names them, `RECIPE_BODIES` (every
+ * body of the unit) where it names the creature's own kind, and "" where it
+ * names anything else, so a count of something other than the creature's own
+ * bodies adds no part. The creature's own name is any of `names`: the word the
+ * sentence puts before its unit, and the entry's variant key.
+ */
+function ratioOfWord(word, names) {
+  const w = String(word ?? "").toLowerCase();
+  if (w === "archers" || w === "warriors") return w;
+  return names.some((name) => pluralOf(w, name)) ? RECIPE_BODIES : "";
+}
+
 /** A creature word as a key segment: lowercase letters and digits, runs of anything else one hyphen. */
 const wordKey = (word) =>
   String(word ?? "")
@@ -193,12 +272,24 @@ export function readEcologyRecipe(args = {}) {
  * paragraph's `sentencesOf`). The first entry is the sentence that made the
  * part; a later one added a unit to it or its morale bonus. A part the
  * encounter lines made has no entry. The parts are the stored rows, so nothing
- * here changes what a recipe holds.
+ * here changes what a recipe holds. A creature's recipe starts from the fixed
+ * unit words alone; once they have started one, the unit words its own lines
+ * name (`unitWordsOf`) scope its parts and add the parts only they reach.
  *
  * @param {{combat?: string[], ecology?: string[], encounter?: object|null, variant?: string, cite?: string}} [args]
  * @returns {{parts: object[], sentences: Object<string, {field: string, paragraph: number, sentence: number}[]>}}
  */
 export function readEcologyRecipeWithSentences({ combat = [], ecology = [], encounter = null, variant = "", cite = "" } = {}) {
+  const args = { combat, ecology, variant, cite };
+  const started = readPass(args, []);
+  if (!started.parts.size) return { parts: [], sentences: {} };
+  const extra = unitWordsOf(encounter);
+  const { parts, sentences } = extra.length ? readPass(args, extra) : started;
+  return { parts: [...sizeParts(encounter, cite), ...parts.values()], sentences };
+}
+
+/** One read of the prose over the fixed unit words and `extra`: the parts by key, and each part's sentences. */
+function readPass({ combat, ecology, variant, cite }, extra) {
   const parts = new Map();
   const sentences = {};
   let at = null;
@@ -212,6 +303,8 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
     touch(p.key);
   };
   const cell = (role) => ({ templateCell: cellOf(variant, role) });
+  const rx = locators(extra);
+  const unitsOf = (text) => unitsIn(text, extra);
 
   const paragraphs = [
     ...combat.map((text, paragraph) => ({ text, field: "combat", paragraph })),
@@ -221,12 +314,12 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
     let here = [];
     for (const [si, sentence] of sentencesOf(paragraph).entries()) {
       at = { field, paragraph: pi, sentence: si };
-      const encountered = ENCOUNTERED_IN_RX.exec(sentence);
+      const encountered = rx.encounteredIn.exec(sentence);
       if (encountered) here = [encountered[1].toLowerCase()];
 
-      const split = SPLIT_FIRST_RX.exec(sentence);
+      const split = rx.splitFirst.exec(sentence);
       if (split) {
-        const units = unitsIn(split[2]);
+        const units = unitsOf(split[2]);
         add(part({ key: split[3].toLowerCase(), label: split[3], role: "body", count: { ratioOf: "unit", percent: parseInt(split[1], 10), round: ROUND.exec(split[4].split(",")[0])?.[1]?.toLowerCase() ?? "" }, units, cite }));
         const next = SPLIT_NEXT_RX.exec(split[4]);
         if (next) {
@@ -234,20 +327,20 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
         }
       }
 
-      const lead = LEADER_RX.exec(sentence);
+      const lead = rx.leader.exec(sentence);
       if (lead) {
         const role = roleKeyOf(lead[3]);
         if (role) {
           const key = `leader-${role}`;
           const have = parts.get(key);
           if (have) {
-            for (const u of unitsIn(lead[1])) {
+            for (const u of unitsOf(lead[1])) {
               if (have.when.units.includes(u)) continue;
               have.when.units.push(u);
               touch(key);
             }
           } else {
-            add(part({ key, label: lead[3], role: "leader", source: cell(role), count: { literal: countWord(lead[2]) }, units: unitsIn(lead[1]), cite }));
+            add(part({ key, label: lead[3], role: "leader", source: cell(role), count: { literal: countWord(lead[2]) }, units: unitsOf(lead[1]), cite }));
           }
         }
       }
@@ -262,7 +355,7 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
         }
       }
 
-      const dep = DEPENDANT_RX.exec(sentence);
+      const dep = rx.dependant.exec(sentence);
       if (dep) {
         const words = [dep[2], dep[3]].filter(Boolean);
         const figures = [dep[4], dep[5]].filter(Boolean);
@@ -271,8 +364,23 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
           const role = word.toLowerCase().replace(/s$/, "");
           const percent = parseInt(figures[i] ?? figures[0], 10);
           if (!Number.isFinite(percent)) return;
-          add(part({ key: `dependant-${role}`, label: word, role: "dependant", source: cell(role), count: { ratioOf: dep[6].toLowerCase(), percent, round }, units: unitsIn(dep[1]), cite }));
+          add(part({ key: `dependant-${role}`, label: word, role: "dependant", source: cell(role), count: { ratioOf: dep[6].toLowerCase(), percent, round }, units: unitsOf(dep[1]), cite }));
         });
+      }
+
+      // A die or a figure of each dependant word for every so many of the creature's own rank and file: a block count of the bodies, thrown once per block.
+      const every = rx.dependantEvery.exec(sentence);
+      if (every) {
+        const ratioOf = ratioOfWord(every[8], [every[1], variant]);
+        const per = parseInt(every[7], 10);
+        const round = ROUND.exec(every[9])?.[1]?.toLowerCase() ?? "";
+        if (ratioOf && per > 0) {
+          for (const [dice, word] of [[every[3], every[4]], [every[5], every[6]]]) {
+            if (!word) continue;
+            const role = word.toLowerCase().replace(/s$/, "");
+            add(part({ key: `dependant-${role}`, label: word, role: "dependant", source: cell(role), count: { ...countOf(dice), ratioOf, forEvery: per, round }, units: unitsOf(every[2]), cite }));
+          }
+        }
       }
 
       const escort = ESCORT_RX.exec(sentence);
@@ -281,9 +389,9 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
         add(part({ key: "chieftain-guard", label: escort[3].trim(), role: "guard", source: equal ? cell(equal) : { name: escort[3].trim() }, count: countOf(escort[2]), units: here, cite }));
       }
 
-      const guard = GUARD_RX.exec(sentence);
+      const guard = rx.guard.exec(sentence);
       if (guard) {
-        const units = unitsIn(guard[2]);
+        const units = unitsOf(guard[2]);
         const clauses = guard[3].split(/\s+(?:and|,)\s+(?:(?:another|an?)\s+)?(?=\d+\s*%\s+chance)/i);
         clauses.forEach((clause, ci) => {
           const m = GUARD_CLAUSE_RX.exec(clause.trim());
@@ -305,20 +413,19 @@ export function readEcologyRecipeWithSentences({ combat = [], ecology = [], enco
         });
       }
 
-      const captive = CAPTIVE_RX.exec(sentence);
+      const captive = rx.captive.exec(sentence);
       if (captive) {
         add(part({ key: "captives", label: captive[3], role: "captive", source: { name: captive[3] }, count: { ...countOf(captive[2]), perUnit: captive[4].toLowerCase() }, chance: parseInt(captive[1], 10), units: here, cite }));
       }
 
       for (const m of sentence.matchAll(CASTER_RX)) {
         const role = /witch/i.test(m[2]) ? "witchDoctor" : "shaman";
-        const before = unitsIn(sentence.slice(0, m.index));
+        const before = unitsOf(sentence.slice(0, m.index));
         add(part({ key: `caster-${role}`, label: m[2], role: "caster", source: cell(role), count: { literal: 1 }, chance: parseInt(m[1], 10), units: before.length ? [before[before.length - 1]] : here, cite }));
       }
     }
   }
-  if (!parts.size) return { parts: [], sentences: {} };
-  return { parts: [...sizeParts(encounter, cite), ...parts.values()], sentences };
+  return { parts, sentences };
 }
 
 /** The part kinds the local check counts, by the key a reader gives each. */

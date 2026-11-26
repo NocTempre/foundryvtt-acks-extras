@@ -10,7 +10,7 @@
  * button: the context carries `canWrite` and the template draws nothing that
  * writes without it.
  */
-import { RECIPE_ROLES } from "./config.mjs";
+import { RECIPE_BODIES, RECIPE_ROLES } from "./config.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { MODULE_ID, MONSTER_TYPE } from "./constants.mjs";
 import { LINKED_ROLES, editorRows, handCount, laid, mountBeastLink, parseCount, recipeTarget, validatePart } from "./recipe-editor-logic.mjs";
@@ -34,17 +34,22 @@ const text = (v) => (v === null || v === undefined ? "" : String(v));
 
 /**
  * A count field's text as the `changes` it makes to `part`. A share part keeps
- * its `ratioOf` and takes a typed percentage as its new `percent`; any other text
- * is `parseCount`'s (a figure, a die, or blank to clear).
+ * its `ratioOf` and takes a typed percentage as its new `percent`; a count for
+ * every so many keeps its `ratioOf` and block size and takes a typed die or
+ * figure as the one thrown per block; any other text is `parseCount`'s (a
+ * figure, a die, or blank to clear).
  * @param {string} input
  * @param {object} part the stored part
  * @returns {{ok: boolean, count?: object}}
  */
 export function countEdit(input, part) {
   const t = text(input).trim();
+  const blocks = Number(part?.count?.forEvery) > 0 && !blank(part?.count?.ratioOf);
   const share = /^(\d+(?:\.\d+)?)\s*%$/.exec(t);
-  if (share && !blank(part?.count?.ratioOf)) return { ok: true, count: { percent: Number(share[1]) } };
-  return parseCount(t);
+  if (share && !blank(part?.count?.ratioOf) && !blocks) return { ok: true, count: { percent: Number(share[1]) } };
+  const read = parseCount(t);
+  if (blocks && read.ok && (read.count.dice || read.count.literal !== null)) return { ok: true, count: { ...read.count, ratioOf: part.count.ratioOf, forEvery: part.count.forEvery } };
+  return read;
 }
 
 /**
@@ -139,6 +144,7 @@ export function extrasAt(doc, target) {
 function readText(data, loc) {
   const out = [];
   if (data.count) out.push(loc(K("figure.count"), { v: data.share ? `${data.count} ${loc(K("figure.of"), { of: data.of })}` : data.count }));
+  if (data.every) out.push(loc(K("figure.every"), { v: `${data.every} ${data.of}` }));
   if (data.round) out.push(loc(K("figure.round"), { v: data.round }));
   if (data.perUnit) out.push(loc(K("figure.per"), { v: data.perUnit }));
   if (data.chance !== "") out.push(loc(K("figure.chance"), { v: data.chance }));
@@ -154,13 +160,17 @@ const tipText = (tip, loc) => loc(tip.key, { ...tip.data, read: readText(tip.dat
 /*  Rows                                         */
 /* -------------------------------------------- */
 
-/** A part's count as the table writes it: the text, the share it is of, and the unit it is rolled per. */
+/** A part's count as the table writes it: the text, the share it is of or the block it is thrown for every, and the unit it is rolled per. */
 function countText(row, recipe, loc) {
   let out = row.count.text;
   if (!out) return "";
   if (row.count.share) {
     const of = row.count.of === "unit" ? loc(K("count.ofUnits")) : recipe.find((p) => p?.key === row.count.of)?.label || row.count.of;
     out = loc(K("count.share"), { text: out, of });
+  }
+  if (row.count.every) {
+    const of = row.count.of === RECIPE_BODIES ? loc(K("count.ofBodies")) : recipe.find((p) => p?.key === row.count.of)?.label || row.count.of;
+    out = loc(K("count.every"), { text: out, n: row.count.every, of });
   }
   if (row.count.perUnit) out = loc(K("count.per"), { text: out, unit: row.count.perUnit });
   return out;

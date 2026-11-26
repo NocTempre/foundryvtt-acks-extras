@@ -130,6 +130,12 @@ export const RECIPE_ROLES = {
   beast: { label: "Beast" },
 };
 
+/**
+ * The `count.ratioOf` word that names every body of a unit, whatever kind each
+ * took: what a count of "the creature's own kind" is a share or a block count of.
+ */
+export const RECIPE_BODIES = "bodies";
+
 /** Where a recipe part's figures were read from: the creature's own page, or a printed table. */
 export const RECIPE_BASES = { page: {}, table: {} };
 

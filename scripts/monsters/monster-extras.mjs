@@ -83,6 +83,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
           percent: num(),
           round: choice(RECIPE_ROUNDS),
           perUnit: str(),
+          forEvery: num({ integer: true, min: 1 }),
         }),
         chance: num(), // percent; null = always
         when: new SchemaField({ state: choice(RECIPE_STATES), place: choice(RECIPE_PLACES), units: wordList() }),

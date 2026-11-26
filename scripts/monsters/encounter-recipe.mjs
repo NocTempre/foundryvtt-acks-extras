@@ -29,6 +29,7 @@
  */
 import { rollDice } from "../lib/template-logic.mjs";
 import { singular } from "./outside-reference.mjs";
+import { RECIPE_BODIES } from "./config.mjs";
 
 /** The Judge's choices where the page is silent, with the default each takes. */
 export const DEFAULT_CHOICES = Object.freeze({
@@ -186,6 +187,12 @@ export function reachedWords({ recipe = [], encounter = null, context = "wildern
 /** The formula a part's count states, or "" where it states none a roll reads. */
 const formulaOf = (p) => (p.count?.dice ? String(p.count.dice) : p.count?.literal != null ? String(p.count.literal) : "");
 
+/** The bodies a count is thrown once for, where the part states a count for every so many of `ratioOf`; 0 where it states none. */
+export const forEveryOf = (p) => {
+  const n = Number(p?.count?.forEvery);
+  return p?.count?.forEvery !== null && p?.count?.forEvery !== "" && Number.isFinite(n) && n > 0 ? n : 0;
+};
+
 /** The expression a stack records to be thrown again: the formula as given where the roll read it, else blank. */
 const recordedFormula = (formula) => (formula !== "" && formula != null && rollFormula(formula, () => 0) !== null ? String(formula) : "");
 
@@ -326,10 +333,12 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
   const branches = evaluate(others);
   const passes = (p) => (p.chance === null || p.chance === undefined ? true : roll("1d100", `${p.key} chance`) <= Number(p.chance));
 
+  // With no split in force every body keeps one key, so the key a count names the bodies by (the printed word, or `RECIPE_BODIES`) is all of them.
   const subtreeBodies = (node, partKey) => {
+    const every = partKey === RECIPE_BODIES || !splitParts.length;
     let sum = 0;
     const walkNode = (n) => {
-      for (const part of n.parts) if (part.role === "body" && part.part === partKey) sum += part.count;
+      for (const part of n.parts) if (part.role === "body" && (every || part.part === partKey)) sum += part.count;
       n.children.forEach(walkNode);
     };
     walkNode(node);
@@ -365,7 +374,21 @@ export function evaluateRecipe({ recipe = [], encounter = null, context = "wilde
 
       let count = null;
       let recorded = "";
-      if (p.count?.ratioOf) {
+      if (p.count?.ratioOf && forEveryOf(p)) {
+        const every = forEveryOf(p);
+        const base = subtreeBodies(node, p.count.ratioOf);
+        const blocks = Math.max(0, round(base / every, p.count.round || chosen.unprintedRound));
+        steps.push({ formula: `${base}/${every}`, total: blocks, why: p.key });
+        const formula = formulaOf(p);
+        if (!formula) missing.push({ what: "count", part: p.key });
+        else {
+          count = 0;
+          for (let i = 0; i < blocks; i++) count += roll(formula, `${p.key} count`) ?? 0;
+          // One throw for each block: the expression, summed that many times.
+          recorded = blocks ? recordedFormula(formula) : "";
+          if (recorded && blocks > 1) recorded = Array.from({ length: blocks }, () => `(${recorded})`).join("+");
+        }
+      } else if (p.count?.ratioOf) {
         const base = subtreeBodies(node, p.count.ratioOf);
         count = round((base * Number(p.count.percent)) / 100, p.count.round || chosen.unprintedRound);
         steps.push({ formula: `${p.count.percent}% of ${base}`, total: count, why: p.key });

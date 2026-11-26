@@ -9,7 +9,7 @@
  * every label, formula and page reference is the imported part's own, and an absent
  * figure stays blank.
  */
-import { DEFAULT_CHOICES, appliesTo, reachedWords, sidesOf, splitUnitsOf, unitWord } from "./encounter-recipe.mjs";
+import { DEFAULT_CHOICES, appliesTo, forEveryOf, reachedWords, sidesOf, splitUnitsOf, unitWord } from "./encounter-recipe.mjs";
 import { SPECIAL } from "./organisation-logic.mjs";
 
 const isSize = (p) => String(p?.key ?? "").startsWith("size-");
@@ -39,7 +39,7 @@ export function silentChoices({ recipe = [], rules = {}, chosen = {}, splitting 
   const parts = (recipe ?? []).filter((p) => p && !isSize(p));
   const pick = (key) => chosen[key] ?? DEFAULT_CHOICES[key];
   const divides = splitting ?? (rules.troops || splitParts(recipe).length > 0);
-  if ((rules.troops && divides) || parts.some((p) => p.count?.percent != null && !p.count?.round)) {
+  if ((rules.troops && divides) || parts.some((p) => (p.count?.percent != null || forEveryOf(p)) && !p.count?.round)) {
     out.push({ key: "unprintedRound", options: ["nearest", "up", "down"].map((key) => ({ key })), current: pick("unprintedRound") });
   }
   if (divides) {
@@ -94,7 +94,7 @@ function splits({ recipe, shares, reached }) {
  * @param {object} [args.chosen] the branch choices (`chosen.branch`)
  * @param {{key: string, percent: number}[]|null} [args.shares] the imported shares (`splitShares`), null where the recipe's own apply
  * @param {string} [args.shareCite] the page the imported shares were read from
- * @returns {{line: {noun: string, number: string, unit: string}|null, rows: {key: string, role: string, label: string, formula: string, chance: number|null, cite: string, perUnit: string}[]}}
+ * @returns {{line: {noun: string, number: string, unit: string}|null, rows: {key: string, role: string, label: string, formula: string, chance: number|null, cite: string, perUnit: string, forEvery: number|"", of: string}[]}} `forEvery` and `of` are the block size and the part key the formula is thrown once per block of, blank on a row with no such count
  */
 export function willMake({ recipe = [], encounter = null, context = "wilderness", state = "wandering", chosen = {}, shares = null, shareCite = "" } = {}) {
   const side = state === "chance" ? "lair" : state;
@@ -110,9 +110,9 @@ export function willMake({ recipe = [], encounter = null, context = "wilderness"
   const isSplit = (p) => p.role === "body" && p.count?.ratioOf === "unit";
   const rows = (recipe ?? [])
     .filter((p) => p && !isSize(p) && !isSplit(p) && !(p.branch?.group && p.key !== chosenOf(p.branch.group)) && [...words].some((w) => appliesTo(p, w)))
-    .map((p) => ({ key: p.key, role: p.role ?? "", label: p.label ?? "", formula: formulaOf(p), chance: p.chance ?? null, cite: p.cite ?? "", perUnit: p.count?.perUnit ?? "" }));
+    .map((p) => ({ key: p.key, role: p.role ?? "", label: p.label ?? "", formula: formulaOf(p), chance: p.chance ?? null, cite: p.cite ?? "", perUnit: p.count?.perUnit ?? "", forEvery: forEveryOf(p) || "", of: forEveryOf(p) ? p.count.ratioOf : "" }));
   const split = splits({ recipe, shares, reached })
-    ? sharesOf(recipe, shares).map((x) => ({ key: x.key, role: "body", label: x.label, formula: `${x.percent}%`, chance: null, cite: shares ? shareCite : x.cite, perUnit: "" }))
+    ? sharesOf(recipe, shares).map((x) => ({ key: x.key, role: "body", label: x.label, formula: `${x.percent}%`, chance: null, cite: shares ? shareCite : x.cite, perUnit: "", forEvery: "", of: "" }))
     : [];
   const order = new Map((recipe ?? []).map((p, i) => [p.key, i]));
   const all = [...rows, ...split].sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity));

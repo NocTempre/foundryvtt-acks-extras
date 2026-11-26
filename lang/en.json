@@ -12081,6 +12081,9 @@
   "ACKS-MONSTERS.recipe.count.ofUnits": "the units",
   "ACKS-MONSTERS.recipe.count.share": "{text} of {of}",
   "ACKS-MONSTERS.recipe.count.per": "{text} per {unit}",
+  "ACKS-MONSTERS.recipe.count.ofBodies": "the bodies",
+  "ACKS-MONSTERS.recipe.count.every": "{text} for every {n} of {of}",
+  "ACKS-MONSTERS.recipe.figure.every": "for every {v}",
   "ACKS-MONSTERS.recipe.figure.count": "count {v}",
   "ACKS-MONSTERS.recipe.figure.of": "of {of}",
   "ACKS-MONSTERS.recipe.figure.round": "rounded {v}",
@@ -12224,6 +12227,8 @@
   "ACKS-MONSTERS.organisation.choice.branch": "Which of the alternatives of {group}",
   "ACKS-MONSTERS.organisation.choice.branchTip": "The line lists alternatives of one group; one is present.",
   "ACKS-MONSTERS.organisation.willMake.chance": "{n}% chance",
+  "ACKS-MONSTERS.organisation.willMake.every": "{formula} for every {n} of {of}",
+  "ACKS-MONSTERS.organisation.willMake.ofBodies": "the bodies",
   "ACKS-MONSTERS.organisation.willMake.rowTip": "{label}: read from the family's imported line, not rolled here. {cite}",
   "ACKS-MONSTERS.organisation.willMake.lineTip": "The line as the importer read it for {where}."
 }

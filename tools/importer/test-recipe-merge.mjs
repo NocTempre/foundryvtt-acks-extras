@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { REPAIR, actorPolicy, decidedPolicy, refreshPlan, rowTakeKey } from "../../scripts/importer/refresh.mjs";
 import { recipeReadStamp } from "../../scripts/importer/ecology-recipe.mjs";
 import { describeRecipePart } from "../../scripts/monsters/recipe-describe.mjs";
+import { samePart } from "../../scripts/monsters/recipe-editor-logic.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 
 let n = 0;
@@ -131,6 +132,21 @@ t("describeRecipePart names a part by its role and label, and reads each figure 
     "Beast: QA a (2 per gang, morale +1, lair gang)");
   assert.equal(describeRecipePart(part("a", { count: { dice: "", literal: null, ratioOf: "body", percent: 40, round: "up", perUnit: "" } })), "Guard: QA a (40% of body (round up))");
   assert.equal(describeRecipePart({ key: "k" }), "k");
+});
+
+t("describeRecipePart reads a count thrown for every so many of another part, with its rounding", () => {
+  const count = { dice: "3d5", literal: null, ratioOf: "bodies", percent: null, round: "", perUnit: "", forEvery: 6 };
+  assert.equal(describeRecipePart(part("a", { count })), "Guard: QA a (3d5 for every 6 of bodies)");
+  assert.equal(describeRecipePart(part("a", { count: { ...count, dice: "", literal: 1, round: "down" } })), "Guard: QA a (1 for every 6 of bodies (round down))");
+});
+
+t("a stored part written before the for-every field equals the import's copy carrying it blank, so it is not read as a hand's change", () => {
+  const stored = part("a");
+  const read = structuredClone(stored);
+  read.count.forEvery = null;
+  assert.ok(!("forEvery" in stored.count));
+  assert.ok(samePart(stored, read));
+  assert.ok(!samePart(stored, { ...read, count: { ...read.count, forEvery: 4 } }), "a block size is a figure, so a changed one differs");
 });
 
 /* --- a template's variant options: the same merge, walked through the keyed arrays of `system` --- */

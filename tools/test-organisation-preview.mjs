@@ -53,7 +53,7 @@ t("what a Roll will make is read from the parts as expressions and page referenc
     assert.equal(out.line.noun, "hold", "the corrected size part stands in for the imported line");
     assert.equal(out.line.number, "2d4");
     assert.deepEqual(out.rows.map((r) => r.key), ["guard", "split-a", "split-b", "dep", "alt1"], "size parts stand in the line, a branch lists its chosen part only");
-    assert.deepEqual(out.rows[0], { key: "guard", role: "guard", label: "Guards", formula: "1d6", chance: 40, cite: "XX p. 3", perUnit: "" });
+    assert.deepEqual(out.rows[0], { key: "guard", role: "guard", label: "Guards", formula: "1d6", chance: 40, cite: "XX p. 3", perUnit: "", forEvery: "", of: "" });
     assert.equal(out.rows.find((r) => r.key === "dep").formula, "20%", "a share is shown as its percentage, not a thrown number");
     assert.equal(willMake({ recipe: RECIPE, encounter: ENCOUNTER, state: "lair", chosen: { branch: { g1: "alt2" } } }).rows.at(-1).formula, "2");
     assert.equal(willMake({ recipe: RECIPE, encounter: ENCOUNTER, state: "chance" }).line.noun, "hold", "the chance state reads the lair line");
@@ -61,6 +61,15 @@ t("what a Roll will make is read from the parts as expressions and page referenc
   } finally {
     Math.random = real;
   }
+});
+
+t("a count printed for every so many bodies is listed as its die with the block size and what it counts, and asks for a rounding where none is printed", () => {
+  const blocks = (round) => ({ key: "blocks", role: "dependant", label: "Strays", cite: "XX p. 5", when: { units: ["hold"] }, count: { dice: "3d5", ratioOf: "bodies", forEvery: 6, round } });
+  const row = willMake({ recipe: [...RECIPE, blocks("")], encounter: ENCOUNTER, state: "lair" }).rows.find((r) => r.key === "blocks");
+  assert.deepEqual(row, { key: "blocks", role: "dependant", label: "Strays", formula: "3d5", chance: null, cite: "XX p. 5", perUnit: "", forEvery: 6, of: "bodies" });
+  const only = (p) => silentChoices({ recipe: [p] }).map((c) => c.key);
+  assert.deepEqual(only(blocks("")), ["unprintedRound"], "the rounding the page leaves blank is the Judge's to pick");
+  assert.deepEqual(only(blocks("up")), [], "a printed rounding asks nothing");
 });
 
 t("a part is listed only in the state whose tree it applies to: a lair part is absent from a wandering roll, and chance lists what either side could make", () => {

@@ -26,7 +26,7 @@ const t = (name, fn) => tests.push([name, fn]);
 const part = (key, role, over = {}) => ({
   key, origin: REGISTER_ORIGIN, label: over.label ?? key, role,
   source: { uuid: "", templateCell: "", stat: "", name: "", ...(over.source ?? {}) },
-  count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", ...(over.count ?? {}) },
+  count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", forEvery: null, ...(over.count ?? {}) },
   chance: over.chance ?? null,
   when: { state: "", place: "", units: [], ...(over.when ?? {}) },
   branch: { group: "", band: "" },
@@ -68,7 +68,7 @@ t("a Units row says what it is made of; a bodies row says nothing; a Judge's par
 t("a row carries its figures as the table shows them", () => {
   const rows = editorRows({ recipe: IMPORT, readCopy: IMPORT, state: "lair" });
   const byKey = Object.fromEntries([...rows.units, ...rows.parts].map((r) => [r.key, r]));
-  assert.deepEqual(byKey.archers.count, { text: "40%", share: true, of: "unit", round: "up", perUnit: "" });
+  assert.deepEqual(byKey.archers.count, { text: "40%", share: true, of: "unit", every: "", round: "up", perUnit: "" });
   assert.deepEqual([byKey["leader-chief"].count.text, byKey["leader-chief"].morale, byKey["leader-chief"].roleLabel], ["1", 2, "Leader"]);
   assert.deepEqual([byKey["guard-qux"].chance, byKey["guard-qux"].cite, byKey["guard-qux"].from, byKey["guard-qux"].hand], [30, "XX p. 1", "page", false]);
   assert.equal(byKey["pen-lair"].count.perUnit, "band");
@@ -120,6 +120,26 @@ t("a count is blank, a die, a whole figure or a share, and only one of them", ()
   for (const no of [{ dice: "lots" }, { dice: "d" }, { literal: 1.5 }, { literal: -1 }, { dice: "1d4", literal: 2 }, { ratioOf: "unit" }, { percent: 40 }, { ratioOf: "unit", percent: "x" }]) assert.deepEqual(bad(no), ["count"], JSON.stringify(no));
 });
 
+t("a count for every so many of another part is a die or a figure, what it counts and a block size from 1, and nothing else", () => {
+  const bad = (count) => validatePart({ count }).map((p) => p.field);
+  for (const ok of [{ dice: "3d5", ratioOf: "bodies", forEvery: 6 }, { literal: 1, ratioOf: "warriors", forEvery: "5" }, { dice: "1d4", forEvery: null }]) assert.deepEqual(bad(ok), [], JSON.stringify(ok));
+  for (const no of [{ dice: "3d5", forEvery: 6 }, { dice: "3d5", ratioOf: "bodies", forEvery: 0 }, { dice: "3d5", ratioOf: "bodies", forEvery: 2.5 }, { ratioOf: "bodies", forEvery: 5 }, { dice: "3d5", ratioOf: "bodies", forEvery: 5, percent: 40 }, { dice: "3d5", literal: 1, ratioOf: "bodies", forEvery: 5 }, { dice: "lots", ratioOf: "bodies", forEvery: 5 }, { dice: "3d5", ratioOf: "bodies", forEvery: null }]) assert.deepEqual(bad(no), ["count"], JSON.stringify(no));
+});
+
+t("a part with a for-every count keeps it through a shape, an edit of another figure and a typed die, and shows it as a count that is no share", () => {
+  const dep = part("dep", "dependant", { count: { dice: "3d5", ratioOf: "bodies", forEvery: 6 }, when: { units: ["village"] } });
+  assert.equal(shapePart({ ...dep, count: { ...dep.count, forEvery: "6" } }).count.forEvery, 6);
+  assert.equal(shapePart(part("a", "guard")).count.forEvery, null, "a part written before the field reads it blank");
+  const rows = editorRows({ recipe: [dep], readCopy: [dep], state: "lair" });
+  assert.deepEqual(rows.parts[0].count, { text: "3d5", share: false, of: "bodies", every: 6, round: "", perUnit: "" });
+  const chance = savePart([dep], [dep], "dep", { chance: 40 });
+  assert.equal(chance[0].count.forEvery, 6);
+  assert.equal(chance[0].origin, "", "a changed chance is a hand's, and the for-every count stays");
+  assert.deepEqual(rows.parts[0].tip.data.every, 6, "the tooltip names the block size");
+  const typed = savePart([dep], [dep], "dep", { count: parseCount("3d4").count });
+  assert.deepEqual([typed[0].count.dice, typed[0].count.ratioOf, typed[0].count.forEvery], ["3d4", "", null], "typing a count over the share's text makes a plain count");
+});
+
 t("a fixed hit-point figure is blank or a whole number from 1; a form's text is read as the figure", () => {
   const bad = (fixedHp) => validatePart({ fixedHp }).map((p) => p.field);
   for (const ok of [null, undefined, "", " ", 1, 7, "7", 120]) assert.deepEqual(bad(ok), [], String(ok));
@@ -146,9 +166,9 @@ t("a mount or beast link is an Actor uuid, a world actor's or a compendium's; an
 });
 
 t("a count's text is a figure or a die, and blank clears every shape of a count", () => {
-  assert.deepEqual(parseCount("3"), { ok: true, count: { dice: "", literal: 3, ratioOf: "", percent: null } });
-  assert.deepEqual(parseCount(" 2 D 4 + 1 "), { ok: true, count: { dice: "2d4+1", literal: null, ratioOf: "", percent: null } });
-  assert.deepEqual(parseCount(""), { ok: true, count: { dice: "", literal: null, ratioOf: "", percent: null } });
+  assert.deepEqual(parseCount("3"), { ok: true, count: { dice: "", literal: 3, ratioOf: "", percent: null, forEvery: null } });
+  assert.deepEqual(parseCount(" 2 D 4 + 1 "), { ok: true, count: { dice: "2d4+1", literal: null, ratioOf: "", percent: null, forEvery: null } });
+  assert.deepEqual(parseCount(""), { ok: true, count: { dice: "", literal: null, ratioOf: "", percent: null, forEvery: null } });
   assert.equal(parseCount("many").ok, false);
   const typedOver = savePart(IMPORT, IMPORT, "archers", { count: parseCount("2d4").count });
   assert.deepEqual([typedOver[2].count.dice, typedOver[2].count.ratioOf, typedOver[2].count.percent, typedOver[2].count.round], ["2d4", "", null, "up"], "a typed die replaces the share and keeps the rounding field untouched");

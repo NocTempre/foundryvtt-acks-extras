@@ -100,7 +100,7 @@ export function withTableVillage(recipe, villageRows, variant, cite = "") {
       captives.push({
         key: `village-${row.key}`, label: row.label, role: "captive",
         source: { uuid: "", templateCell: "", stat: "", name: row.label },
-        count: { dice: cell.count.dice ?? "", literal: cell.count.literal ?? null, ratioOf: "", percent: null, round: "", perUnit: cell.perUnit },
+        count: { dice: cell.count.dice ?? "", literal: cell.count.literal ?? null, ratioOf: "", percent: null, round: "", perUnit: cell.perUnit, forEvery: null },
         chance: cell.chance, when: { state: "", place: "", units: [...units] }, branch: { group: "", band: "" }, moraleWhileAlive: null, cite, basis: "table",
       });
     } else {

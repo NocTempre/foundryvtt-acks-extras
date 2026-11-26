@@ -7,6 +7,7 @@
  * is written. Every string it returns is worded here, from imported labels and lang keys.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { RECIPE_BODIES } from "./config.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { registryBands } from "../lib/template-bands.mjs";
 import { splitShares } from "./organisation-logic.mjs";
@@ -46,12 +47,18 @@ export const orgRollService = {
       options: c.options.map((o) => ({ key: o.key, label: o.label ?? loc(`organisation.choiceOption.${c.key}.${o.key}`), selected: o.key === c.current })),
     }));
     const made = willMake({ recipe, encounter, context, state, chosen, shares: imported, shareCite: org.organisation?.cite ?? "" });
-    const rows = made.rows.map((r) => ({
-      label: r.label,
-      formula: r.formula,
-      chance: r.chance == null ? "" : loc("organisation.willMake.chance", { n: r.chance }),
-      tip: loc("organisation.willMake.rowTip", { label: r.label, cite: r.cite }),
-    }));
+    // What a for-every row counts: the label of the part its key names, every body of the unit where the key is `RECIPE_BODIES`, else the key as printed.
+    const countedOf = (key) => recipe.find((p) => p?.key === key)?.label || (key === RECIPE_BODIES ? loc("organisation.willMake.ofBodies") : key);
+    const rows = made.rows.map((r) => {
+      const formula = r.forEvery ? loc("organisation.willMake.every", { formula: r.formula, n: r.forEvery, of: countedOf(r.of) }) : r.formula;
+      return {
+        label: r.label,
+        formula,
+        chance: r.chance == null ? "" : loc("organisation.willMake.chance", { n: r.chance }),
+        // A for-every row's tip names its parts (the die, the block size, what is counted) beside the page.
+        tip: loc("organisation.willMake.rowTip", { label: r.forEvery ? `${r.label} (${formula})` : r.label, cite: r.cite }),
+      };
+    });
     const line = made.line ? { text: `${made.line.noun} ${made.line.number}`, tip: loc("organisation.willMake.lineTip", { where: `${variant}, ${context}, ${state}` }) } : null;
     const slotUnits = Object.fromEntries(slots.map((s) => [s.key, slotUnit({ recipe, encounter, context, state, topKind: s.topKind ?? "", depth: s.depth })]));
     const system = family?.system?.toObject?.() ?? family?.system;

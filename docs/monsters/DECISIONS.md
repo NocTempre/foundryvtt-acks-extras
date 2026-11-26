@@ -730,3 +730,48 @@ has no Role choice, so a kit cell keyed by Standard does not apply to it.
 Strongest counter-argument (medium): `noRoll` is a lib option for one axis's sake.
 It is generic and defaults to none, and a `$none`-style pin cannot express "the
 pin if available, else nothing", which is the case that matters.
+
+## 2026-11-26 — A count for every so many bodies, and a creature's own unit words (T-0722, T-0721)
+
+A page that prints a die of dependants for every so many of the creature's own
+kind is a count the shape could not hold: one block per N is not a percent once
+rounded (a third of nine bodies, rounded down, is two where nine holds three
+blocks of three), and `ratioOf` with `dice` already means a share and fails
+`validatePart`. So `count.forEvery` joins `perUnit` and `round`: with
+`ratioOf` and one of `dice` or `literal`, the figure is thrown once per block.
+The reader writes it for a `drudge`/`whelp` sentence worded "for every N <word>"
+where the word is `archers`, `warriors` or the plural of the creature's own
+name; any other word adds no part.
+
+What a block count rounds by: the page prints none, so the part's `round` stays
+blank and the evaluator takes the Judge's `unprintedRound`, the choice a
+percentage with no rounding already has (the Roll panel lists it for a for-every
+part too). The throws follow `perUnit`: one throw of the expression per block,
+recorded as the sum, so a repeat of the roll throws the same number of dice.
+
+What the blocks count: a recipe with no split keeps every body under one key, so
+the printed word names nothing the evaluator can match. `RECIPE_BODIES` is the
+reserved `ratioOf` word for every body of the unit, and with no split in force
+any `ratioOf` a share names resolves to all of them. Before this a share of
+"warriors" on a creature the page never splits made zero, silently.
+
+The reader's unit words: the fixed four started every recipe, and a creature
+whose lines count in another group (a side's noun or unit) had its scoped parts
+read with no unit, which the evaluator never applies. The words the lines name
+now scope the parts once a fixed word has started the recipe. They do not start
+one: taking them as a start would give four more creatures a recipe, from one
+leader or guard sentence each, that no walk has seen. Whether the Role cells those
+leader parts name exist for them is unmeasured (the leader locator in
+`importer/leader-roles.mjs` names no unit, so it likely does).
+
+Rejected: a percent with a rounding (inexact, above); overloading `ratioOf`
+with a die (`validatePart`, the editor's count text and the preview's formula
+all read that pair as a share); a start from the lines' words (above).
+Cost: the editor shows a for-every count and edits its die or figure, but the
+block size, the base and the rounding have no control; that needs a design board
+and is on `ROADMAP.md`.
+
+Strongest counter-argument (medium): "bodies" is a word the evaluator reads
+beside the printed keys, and a creature whose bodies are split could mean one
+kind by it. A split creature's page names the kind (`archers`, `warriors`), which
+keeps its own key, so the reserved word only ever means all of them.

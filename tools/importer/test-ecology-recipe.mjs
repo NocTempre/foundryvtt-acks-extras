@@ -79,8 +79,8 @@ check("every part carries every field, its page reference and its basis", () => 
 
 check("the split: each share with its own rounding, over the units the sentence names", () => {
   assert.equal(parts.archers.role, "body");
-  assert.deepEqual(parts.archers.count, { dice: "", literal: null, ratioOf: "unit", percent: 35, round: "down", perUnit: "" });
-  assert.deepEqual(parts.warriors.count, { dice: "", literal: null, ratioOf: "unit", percent: 65, round: "up", perUnit: "" });
+  assert.deepEqual(parts.archers.count, { dice: "", literal: null, ratioOf: "unit", percent: 35, round: "down", perUnit: "", forEvery: null });
+  assert.deepEqual(parts.warriors.count, { dice: "", literal: null, ratioOf: "unit", percent: 65, round: "up", perUnit: "", forEvery: null });
   assert.deepEqual(parts.archers.when.units, ["gang", "warband"]);
   assert.equal(partKind(parts.archers), "split");
 });
@@ -100,7 +100,7 @@ check("a leader per unit, naming the Role cell, with the chieftain carrying the 
 check("dependants: a share of the warriors per word, the rounding blank where the page prints none", () => {
   assert.equal(parts["dependant-drudge"].role, "dependant");
   assert.equal(parts["dependant-drudge"].source.templateCell, "zorb|drudge");
-  assert.deepEqual(parts["dependant-drudge"].count, { dice: "", literal: null, ratioOf: "warriors", percent: 150, round: "", perUnit: "" });
+  assert.deepEqual(parts["dependant-drudge"].count, { dice: "", literal: null, ratioOf: "warriors", percent: 150, round: "", perUnit: "", forEvery: null });
   assert.equal(parts["dependant-whelp"].count.percent, 85);
   assert.equal(parts["dependant-whelp"].source.templateCell, "zorb|whelp");
   assert.deepEqual(parts["dependant-whelp"].when.units, ["lair", "village"]);
@@ -224,6 +224,82 @@ check("a split whose first clause prints no rounding, and the second a rounding"
   assert.equal(r.archers.count.percent, 80);
   assert.equal(r.archers.count.round, "down");
   assert.deepEqual(r.warriors.when.units, ["gang"]);
+});
+
+/* ---- the unit words the creature's own encounter lines name ---- */
+
+/** Invented lines whose nouns and units are words the fixed locator list does not hold. */
+const OWN_LINES = {
+  dungeon: { wandering: { noun: "Pack", number: "1d6", unit: "" }, lair: { noun: "Hive", number: "1", unit: "pack" } },
+  wilderness: { wandering: { noun: "Drove", number: "1d4", unit: "packs" }, lair: { noun: "Stockade", number: "1d3", unit: "droves" } },
+};
+
+check("a unit word the creature's own lines name scopes a part the fixed list never reached, once a fixed word has started the recipe", () => {
+  const ecology = [
+    "Each zorb gang will be led by a champion with 3 AC and 9 HD.",
+    "A zorb hive or stockade will be led by a chieftain with 13 AC and 21 HD.",
+    "When zorbs are encountered in a stockade. There is an 88% chance for 2d8 bound captives per drove. A stockade has a 29% chance of a shaman being present, and a 12% chance of a witch doctor.",
+  ];
+  const r = byKey(read({ combat: [], ecology, encounter: OWN_LINES }));
+  assert.deepEqual(r["leader-chieftain"].when.units, ["hive", "stockade"]);
+  assert.deepEqual(r.captives.when.units, ["stockade"]);
+  assert.equal(r.captives.count.perUnit, "drove");
+  assert.deepEqual(r["caster-shaman"].when.units, ["stockade"]);
+  assert.deepEqual(r["caster-witchDoctor"].when.units, ["stockade"]);
+  // Without the lines that name the word, the sentences state no unit the reader knows.
+  const bare = byKey(read({ combat: [], ecology, encounter: null }));
+  assert.ok(!("leader-chieftain" in bare), "no leader sentence is read without its unit word");
+  assert.deepEqual(bare["caster-shaman"].when.units, []);
+});
+
+check("a creature whose sentences name only its own unit words has no recipe, however its lines count", () => {
+  const ecology = ["A zorb hive or stockade will be led by a chieftain with 13 AC and 21 HD.", "There is an 88% chance for 2d8 bound captives per drove."];
+  assert.deepEqual(read({ combat: [], ecology, encounter: OWN_LINES }), []);
+});
+
+check("the unit words a phrase names include the extra words handed in, and the fixed ones stay", () => {
+  assert.deepEqual(unitsIn("a stockade and a lair", ["stockade"]), ["stockade", "lair"]);
+  assert.deepEqual(unitsIn("a stockade"), []);
+});
+
+check("a dependant printed as a die for every so many of the creature's own kind", () => {
+  const r = byKey(read({ combat: [], ecology: ["Zorb villages will have 3d4 drudges and 3d5 whelps for every 6 zorbs."] }));
+  assert.equal(r["dependant-drudge"].role, "dependant");
+  assert.equal(r["dependant-drudge"].count.dice, "3d4");
+  assert.equal(r["dependant-drudge"].count.ratioOf, "bodies");
+  assert.equal(r["dependant-drudge"].count.forEvery, 6);
+  assert.equal(r["dependant-drudge"].count.percent, null);
+  assert.equal(r["dependant-drudge"].count.round, "");
+  assert.equal(r["dependant-whelp"].count.dice, "3d5");
+  assert.equal(r["dependant-whelp"].count.forEvery, 6);
+  assert.deepEqual(r["dependant-whelp"].when.units, ["village"]);
+  assert.equal(r["dependant-whelp"].source.templateCell, "zorb|whelp");
+});
+
+check("a for-every share names the creature's own kind by the word its sentence puts before the unit, whatever variant key is given", () => {
+  const sentence = "Zorb villages will have 3d4 drudges for every 6 zorbs.";
+  assert.equal(byKey(read({ combat: [], ecology: [sentence], variant: "" }))["dependant-drudge"].count.ratioOf, "bodies");
+  assert.equal(byKey(read({ combat: [], ecology: [sentence], variant: "other" }))["dependant-drudge"].count.ratioOf, "bodies");
+  assert.deepEqual(read({ combat: [], ecology: ["Zorb villages will have 3d4 drudges for every 6 flumps."], variant: "" }), []);
+});
+
+check("a for-every share takes a plain figure as a literal, a printed rounding, and the warriors as its base", () => {
+  const one = byKey(read({ combat: [], ecology: ["Zorb lairs will have 1 drudge for every 5 warriors (round up)."] }));
+  assert.equal(one["dependant-drudge"].count.literal, 1);
+  assert.equal(one["dependant-drudge"].count.dice, "");
+  assert.equal(one["dependant-drudge"].count.ratioOf, "warriors");
+  assert.equal(one["dependant-drudge"].count.forEvery, 5);
+  assert.equal(one["dependant-drudge"].count.round, "up");
+});
+
+check("mutation: a for-every share of a word that names no body of the creature adds no part", () => {
+  const r = read({ combat: [], ecology: ["Zorb villages will have 3d4 drudges for every 7 hostages."] });
+  assert.deepEqual(r, []);
+});
+
+check("a part read without a for-every share carries the field blank", () => {
+  assert.equal(parts["dependant-drudge"].count.forEvery, null);
+  assert.equal(parts.captives.count.forEvery, null);
 });
 
 check("a morale penalty is stored with its printed sign", () => {

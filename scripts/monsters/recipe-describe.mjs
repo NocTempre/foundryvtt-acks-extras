@@ -6,12 +6,13 @@
  */
 import { RECIPE_ROLES } from "./config.mjs";
 
-/** A part's count as text: its dice or figure, or a share of another part, per unit where it is rolled once per unit. */
+/** A part's count as text: its dice or figure, or a share of another part, per unit where it is rolled once per unit, for every so many of another part where it is thrown once per block. */
 function countText(count = {}) {
   let text = "";
   if (count.dice) text = String(count.dice);
   else if (Number.isFinite(count.literal)) text = String(count.literal);
   else if (count.ratioOf) text = `${count.percent ?? ""}% of ${count.ratioOf}`;
+  if (text && count.ratioOf && Number(count.forEvery) > 0 && (count.dice || Number.isFinite(count.literal))) text += ` for every ${count.forEvery} of ${count.ratioOf}`;
   if (text && count.round) text += ` (round ${count.round})`;
   if (text && count.perUnit) text += ` per ${count.perUnit}`;
   return text;

@@ -38,7 +38,7 @@ const foot = hb.compile(read("recipe-editor-footer.hbs"));
 const part = (key, role, over = {}) => ({
   key, origin: REGISTER_ORIGIN, label: over.label ?? key, role,
   source: { uuid: "", templateCell: "", stat: "", name: "", ...(over.source ?? {}) },
-  count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", ...(over.count ?? {}) },
+  count: { dice: "", literal: null, ratioOf: "", percent: null, round: "", perUnit: "", forEvery: null, ...(over.count ?? {}) },
   chance: over.chance ?? null,
   when: { state: "", place: "", units: [], ...(over.when ?? {}) },
   branch: { group: "", band: "" },
@@ -111,6 +111,16 @@ t("a share reads as a share of the units, and a count rolled per unit says which
   const c = ctxOf();
   assert.equal(c.parts[0].countText, format(K("count.share"), { text: "40%", of: format(K("count.ofUnits")) }));
   assert.equal(c.parts.find((r) => r.key === "pen-lair").countText, format(K("count.per"), { text: "2d4", unit: "band" }));
+});
+
+t("a count for every so many bodies reads as its die for every block, names what it counts, and its tooltip gives the block size", () => {
+  const dep = part("dep", "dependant", { label: "QA dep", count: { dice: "3d5", ratioOf: "bodies", forEvery: 6 }, when: { units: ["band"] } });
+  const recipe = [...clone(IMPORT), dep];
+  const row = ctxOf({ recipe, readCopy: recipe }).parts.find((r) => r.key === "dep");
+  assert.equal(row.countText, format(K("count.every"), { text: "3d5", n: 6, of: format(K("count.ofBodies")) }));
+  assert.match(row.tip, /for every 6 bodies/);
+  const named = [...clone(IMPORT), part("dep", "dependant", { label: "QA dep", count: { literal: 1, ratioOf: "archers", forEvery: 4 }, when: { units: ["band"] } })];
+  assert.equal(ctxOf({ recipe: named, readCopy: named }).parts.find((r) => r.key === "dep").countText, format(K("count.every"), { text: "1", n: 4, of: "archers" }));
 });
 
 t("a share of another part names that part, and a unit word's case does not matter to its checkbox", () => {
@@ -225,6 +235,17 @@ t("a unit word's checkbox keeps the part's other words", () => {
   const next = savePart(clone(IMPORT), IMPORT, "leader-chief", changesFor("unit", false, leader, "band").changes);
   assert.deepEqual(next.find((p) => p.key === "leader-chief").when.units, ["hold"]);
   assert.equal(next.find((p) => p.key === "leader-chief").origin, "");
+});
+
+t("a for-every count keeps what it counts and its block size when a die or figure is typed, and takes no percentage", () => {
+  const dep = part("dep", "dependant", { count: { dice: "3d5", ratioOf: "bodies", forEvery: 6 } });
+  assert.deepEqual(countEdit("3d4", dep), { ok: true, count: { dice: "3d4", literal: null, ratioOf: "bodies", percent: null, forEvery: 6 } });
+  assert.deepEqual(countEdit("2", dep), { ok: true, count: { dice: "", literal: 2, ratioOf: "bodies", percent: null, forEvery: 6 } });
+  assert.equal(countEdit("40%", dep).ok, false, "a percentage is a count only for a share");
+  assert.deepEqual(countEdit("", dep), { ok: true, count: { dice: "", literal: null, ratioOf: "", percent: null, forEvery: null } }, "blank clears the count whole");
+  const recipe = [...clone(IMPORT), dep];
+  const saved = savePart(recipe, recipe, "dep", changesFor("count", "3d4", dep).changes);
+  assert.deepEqual([saved.find((p) => p.key === "dep").count.dice, saved.find((p) => p.key === "dep").count.forEvery], ["3d4", 6]);
 });
 
 t("a share keeps its ratio when a percentage is typed, and a figure typed over it replaces the share", () => {
