@@ -427,7 +427,7 @@ const P = {
   /** What the place's special hires hold now: id, the actor each names, its status. */
   postingHires: async ({ placeId }) => {
     const place = game.actors.get(placeId);
-    return (place.system.specialHires ?? []).map((s) => ({ id: s.id, actorUuid: s.actorUuid, status: s.status }));
+    return (place.system.specialHires ?? []).map((s) => ({ id: s.id, actorUuid: s.actorUuid, status: s.status, origin: s.origin }));
   },
   /**
    * Player seat. Open the place's sheet on its Recruitment tab and drop the
@@ -760,7 +760,8 @@ try {
   const d1 = await run(player, P.postingDrop, { placeId: place.id, actorId: ownNpc.id, expectAdd: true });
   const hires1 = await run(gm, P.postingHires, { placeId: place.id });
   const addedIds = hires1.filter((h) => h.actorUuid === `Actor.${ownNpc.id}`).map((h) => h.id);
-  check("posting: dropping the NPC the Player owns on the Recruitment tab of the Player's place adds one special hire naming it", d1.tab && d1.after === d1.before + 1 && addedIds.length === 1 && hires1.every((h) => h.status === "available"), { tab: d1.tab, added: d1.after - d1.before, naming: addedIds.length });
+  const addedOrigin = hires1.find((h) => addedIds.includes(h.id))?.origin ?? null;
+  check("posting: dropping the NPC the Player owns on the Recruitment tab of the Player's place adds one special hire naming it, recorded as placed by a player", d1.tab && d1.after === d1.before + 1 && addedIds.length === 1 && hires1.every((h) => h.status === "available") && addedOrigin === "owner", { tab: d1.tab, added: d1.after - d1.before, naming: addedIds.length, origin: addedOrigin });
   const d2 = await run(player, P.postingDrop, { placeId: place.id, actorId: foreignNpc.id, expectAdd: false });
   const hires2 = await run(gm, P.postingHires, { placeId: place.id });
   check("posting: dropping the NPC the Player does not own adds nothing", d2.tab && d2.after === d2.before && !hires2.some((h) => h.actorUuid === `Actor.${foreignNpc.id}`), { tab: d2.tab, added: d2.after - d2.before });

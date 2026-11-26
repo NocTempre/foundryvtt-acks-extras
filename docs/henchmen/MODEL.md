@@ -175,11 +175,8 @@ and by-proficiency checks), and a Judge's submit goes through and raises one
 warning (`posting.levelOnlyJudge`).
 
 **A drop on the Recruitment tab.** Dropping an NPC actor on a place's
-Recruitment tab (`location-sheet.mjs` `_onDropActor`) adds it as a special hire
-(`addSpecialHire`, which reads the place's market and nothing of the seat) for
-a seat that owns both the place and the actor. A player who owns no NPC is
-offered nothing, which is the Judge's case by ownership. A drop the seat may not
-make writes nothing and says nothing. The row records who placed it
+Recruitment tab adds it as a special hire (`addSpecialHire`); who may drop is
+the place's (`docs/location/MODEL.md`). The row records who placed it
 (`origin`: `gm` for a GM seat, `owner` for a player's seat, `found` from
 an adventure), shown in the row's Origin column.
 
@@ -668,7 +665,7 @@ Two surfaces read the record on the lib frame's vocabulary
 pure (`rules/service.mjs`: the roster buckets, which kinds keep loyalty, the
 wage clock, the loyalty and morale parts, the ledger order, the share words,
 the slot kind); `service-view.mjs` reads an actor through them and localizes,
-so a sheet renders what `buildServicePanel(actor, {isGM, pins})` answers and
+so a sheet renders what `buildServicePanel(actor, {pins})` answers and
 decides nothing itself. Both are pinned by `tools/test-service-view.mjs`.
 
 **The Service panel** (`templates/henchmen/service-panel.hbs`) is the

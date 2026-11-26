@@ -128,15 +128,6 @@ each feature does without a class is in `docs/henchmen/MODEL.md` ("A market
 whose class is not known") and `docs/markets/MODEL.md` ("A market whose class
 is not known").
 
-## A drop on the sheet
-
-An actor dropped on a place's sheet means what the tab it lands on says
-(`docs/location/DECISIONS.md`, 2026-11-13). On the Recruitment tab of a place
-with a market it becomes a special hire for a seat that owns both the place and
-the actor; the engine's side is `docs/henchmen/MODEL.md` ("A drop on the
-Recruitment tab"). No offline suite renders the sheet, so the seat test is
-walked by `tools/live/henchmen-owner-controls.mjs`, step "posting".
-
 ## Reaching a place
 
 Depositing is gated on being able to reach the place; **retrieving is not** —

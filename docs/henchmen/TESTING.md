@@ -1310,7 +1310,7 @@ fixture is taken off every other list before it is put on the first.
    "Henchmen by level"; the GM's offers it. A level-only `createPosting` with the
    Player's id (and `owner-employer`) is refused `criteria-required` and the
    place gains no posting. A real `drop` event carrying `owner-npc`'s uuid on
-   the Player's place sheet, Recruitment tab, adds one special hire naming it;
+   the Player's place sheet, Recruitment tab, adds one special hire naming it, its `origin` `owner`;
    the same drop of `foreign-npc` adds none (the first drop is the control that
    the event reaches the handler). The step takes the hire off by its id. On the
    GM seat, the window's own submit of "Henchmen by level" at the first level it

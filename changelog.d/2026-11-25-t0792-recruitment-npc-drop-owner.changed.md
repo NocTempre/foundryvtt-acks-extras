@@ -1,1 +1,0 @@
-- **A player who owns a place and an NPC can drop that NPC on the place's Recruitment tab as a special hire.** Actors sidebar → a place's sheet → Recruitment tab: the drop follows ownership of the place and of the NPC, where only the Judge could; posting Henchmen by level (Recruitment tab → New Posting) stays the Judge's, who is now warned that it is the module's own search kind.

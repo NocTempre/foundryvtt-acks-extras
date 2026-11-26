@@ -511,7 +511,7 @@ reads; the Class tab already offers the owner the same picker.
 the Class tab's picker so the rule means something: new code gating a write
 Foundry lets the owner make, for a rule the module would be inventing.
 
-## 2026-11-25 — Placing a hireling at a market follows ownership of the place and the NPC; the free placement and the level-only search stay the Judge's (T-0792, B5)
+## 2026-11-25 — A player's special hire says who placed it; the free placement and the level-only search stay the Judge's (T-0792, B5)
 
 The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
 role instead of object ownership, only judge secrets are supposed to be an
@@ -519,21 +519,19 @@ exception to this rule". On T-0793: "Spell owner can setup the spell as needed.
 Trusted players own their sheet and instances of items within. I guess regular
 Player only gets ownership of the sheet itself and not subitems they don't own?
 In either case the approach is follow foundry permissions, don't invent new
-ones." The three calls below are the release hub's (B5 answers 1 and 2, and the
+ones." The calls below are the release hub's (B5 answers 1 and 2, and the
 follow-up on 1), made under the owner's instruction of the same day: "make the
 call yourself and build, as long as it follows the repo's design rules". Each is
 the hub's call and not a ruling the owner gave on the surface. Standing: "players
 get blocks, judges get warnings", so severity reads the role and permission
 reads ownership.
 
-- **The Recruitment-tab NPC drop follows ownership of both documents.**
-  `LocationSheet._onDropActor`, where a dropped actor lands on a place's
-  Recruitment tab and the place has a market, returns unless the seat owns the
-  place and owns the dropped actor (`this.actor.isOwner && actor.isOwner`); it
-  read `game.user.isGM`. `addSpecialHire` holds no seat or actor-type test of
-  its own (it returns null for a place with no market and writes the place's
-  special hires), so nothing is added there. A player who owns no NPC actor is
-  offered nothing, so the Judge's case holds by ownership.
+- **The Recruitment-tab NPC drop** needs OWNER of the place and of the
+  dropped actor, the places batch's ruling (`docs/location/DECISIONS.md`,
+  "2026-11-25 — A place's owner administers it"). What this entry adds is the
+  row's record of who placed it: a drop from a player's seat records `origin`
+  `owner` ("Placed by a player" in the row's Origin column), where every
+  drop recorded `gm` ("Placed by the Judge").
 - **The free placement stays on a GM seat, and it is not a permission.** A GM's
   directed submit sends no `requestUserId`, which makes it `gmAdd`: the named
   candidate is minted with no fee and no search. That skips the printed
@@ -557,13 +555,6 @@ reads ownership.
 refusal; the only text was the source comment above `createPosting`'s checks,
 which is rewritten. The archived 2026-11-04 entry about a Judge who names a
 class when placing is about placement, which stays.
-
-**Counter (medium).** A hand-made place's default ownership is OWNER, so every
-player who owns a character can drop that character on it and have it listed as
-a special hire; the Judge's drop was a block on exactly that. *Answer:* a special
-hire is a row on a place the seat owns, naming an actor the seat owns, and
-writes nothing Foundry would refuse that seat. The Judge's stocking of a market
-with candidates a player does not own is the free placement, which stays.
 
 **Counter (medium-weak).** Keeping the free placement on the role is a role read
 where the owner said only a Judge's secret may be one. *Answer:* the placement
