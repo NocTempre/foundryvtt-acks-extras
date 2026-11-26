@@ -2675,7 +2675,7 @@ Engaged, so it acts on nothing until an import or Engaged gives it one
 (`readReach` drops it); the group shows on every kind of ability row, including
 kinds whose reach the runner never reads a part from.
 
-## 2026-11-25 — "How it is used" folds once, fuse and consume into one option, Used up
+## 2026-11-25 — "How it is used" folds once, fuse and consume into one option, Used up — SUPERSEDED IN PART 2026-11-26
 
 The release hub: "'How it is used' is built as frame 4d draws it, one select
 that writes the item-level `activation.kind`. Record the fold of once, fuse and
@@ -3150,3 +3150,13 @@ Supersedes in part the 2026-11-25 entry above, whose ruling "stays a member unti
 **Rejected.** *Leaving the creature in the party as the 2026-11-25 ruling had it:* the owner's words name the departure. *Removing a stash the roster cannot stand on a scene and telling the Judge where it went:* the stash holds the only per-creature record (hit points, cast record, stamp) and the world copy is shared by every creature of that kind, so the drop would lose it; the row is kept and named instead. *A "temporary" flag or tick box on a member:* the ruling's set is what the module can tell from its own records, and a guest or a hired creature has no record to read. *Warning on a Judge's hidden reading* (a GM-only flag or note): the ruling's "public knowledge" is what every seat sees.
 
 *Cost:* a stashed creature whose party has no token on a scene stays on the roster, against the ruling, until the Judge removes it. A consumer on `party-roster` v5 has no `ejectSummons`, so a hostile stash stays a member there. Not walked live.
+
+## 2026-11-26 — A once-only item is spent by its use only where the Judge ticks it (T-0882)
+
+The 2026-11-25 entry "\"How it is used\" folds once, fuse and consume into one option, Used up" says the carrier writes `activation.kind` and nothing else. **New evidence:** a live walk pressed Use on a once-only item with a count of one and the count stayed; `itemRunUsedUp` already read a once-only item that names `uses` as spent at none, nothing took the count down, and no surface set `uses` on a once-only item, so the state was reachable only through the API.
+
+**Ruled (the release hub).** A once-only use spends one of the item's Quantity only where its activation names `uses`, and the row editor's reach group draws a tick box for it, "Each use spends one", while the stored kind is `once`. Ticked stores an empty object at `activation.uses`; unticked removes it. The carrier's write of the kind now also removes `uses` on a move into or out of `once`, since on a once-only item `uses` is the tick and nothing else; every other change of kind still writes the kind alone, so a consume item keeps its swig reference. At the last one the item is kept at none and reads Used up; a fuse still deletes its last.
+
+**Rejected.** Spending every once-only item's count: every item carries a Quantity of one, so each reusable once-press item, the imported one included, would read Used up after its first use, which no page says. Deleting the item at its last use: the row's Used up state would never be seen.
+
+**Cost.** The option is named Used up and the box under it says whether a use spends one, two controls where a reader may expect one. An imported once-only item arrives unticked; the importer reads nothing that says a thing is spent by its use.

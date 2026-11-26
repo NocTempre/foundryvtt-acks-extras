@@ -274,6 +274,19 @@ await t("a spent item reads through the one used-up test and its press is off", 
   run.registerActivationRunner("consume", null);
 });
 
+await t("a once-only item the editor's tick marks (an empty `uses`) reads Ready with a count and Used up at none, its press off", () => {
+  const stack = (n) => ({ system: { quantity: n } });
+  const ticked = { activation: { kind: "once", uses: {} }, rows: [{ key: "r", reach: { pulse: "action", radius: { value: "10" }, filter: {} } }] };
+  run.registerActivationRunner("once", async () => ({ ok: true }));
+  assert.deepEqual(view.itemRunRowFor(put(itemOf(ticked, stack(2)))).presses.map((p) => [p.key, p.disabled]), [["use", false]]);
+  const none = view.itemRunRowFor(put(itemOf(ticked, stack(0))));
+  assert.equal(none.state, "spent");
+  assert.deepEqual(none.presses.map((p) => [p.key, p.disabled]), [["spent", true]]);
+  const unticked = view.itemRunRowFor(put(itemOf({ ...ticked, activation: { kind: "once" } }, stack(0))));
+  assert.notEqual(unticked.state, "spent", "unticked, a count of none leaves it usable");
+  run.registerActivationRunner("once", null);
+});
+
 await t("a non-owner's row has the tag alone, and an item with nothing to draw has no row", () => {
   owned.value = false;
   const row = view.itemRunRowFor(put(itemOf({ activation: { kind: "toggle", state: { active: false } }, rows })));

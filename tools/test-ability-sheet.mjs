@@ -205,14 +205,16 @@ check("an ability's effect store answers editable from the pack's lock and the u
   assert.equal(editable({}, true), false, "nothing read off the document is not an edit right");
 });
 
-check("an ability's effect store hands the reach group its item's carrier: the stored kind, and a write of the kind alone", () => {
+check("an ability's effect store hands the reach group its item's carrier: the stored kind, and a write of the kind, which also drops the once mark when it leaves once", () => {
   const updates = [];
   const item = { uuid: "Item.a", name: "Invented", type: "ability", getFlag: (scope, key) => ({ itemRun: { activation: { kind: "once" } } })[key], flags: {}, update: (data) => updates.push(data) };
   const store = abilityEffectStore(item);
   assert.equal(store.domain, "ability");
   assert.equal(store.carrier.activationKind(), "once", "an ability item carries an itemRun.activation like any other item");
   store.carrier.setActivation("toggle");
-  assert.deepEqual(updates, [{ "flags.acks-extras.itemRun.activation.kind": "toggle" }]);
+  assert.deepEqual(Object.keys(updates[0]), ["flags.acks-extras.itemRun.activation.kind", "flags.acks-extras.itemRun.activation.uses"], "once to toggle writes the kind and removes the once mark");
+  assert.equal(updates[0]["flags.acks-extras.itemRun.activation.kind"], "toggle");
+  assert.ok(updates[0]["flags.acks-extras.itemRun.activation.uses"] instanceof foundry.data.operators.ForcedDeletion);
   assert.equal(abilityEffectStore({ uuid: "Item.b", name: "Invented", getFlag: () => undefined, flags: {} }).carrier.activationKind(), "", "no activation reads no kind");
 });
 

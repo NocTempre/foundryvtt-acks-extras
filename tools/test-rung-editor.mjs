@@ -1486,12 +1486,17 @@ await t("every key the list reads is in the lang file, and the neutral label is 
  * controls `submit` is given (as `FormDataExtended` reads them), and a carrier
  * that records every activation write. `kind` is the activation kind stored now.
  */
-function reachEditor(row, { kind = "toggle", editable = true, domain = "ability", raised = false } = {}) {
+function reachEditor(row, { kind = "toggle", editable = true, domain = "ability", raised = false, uses = false } = {}) {
   const rows = { current: [row] };
-  const activation = { kind, sets: [] };
+  const activation = { kind, sets: [], uses, usesSets: [] };
   const carrier = {
     cite: () => "XX p. 9",
     activationKind: () => activation.kind,
+    usesNamed: () => activation.uses,
+    setUses: async (on) => {
+      activation.usesSets.push(on);
+      activation.uses = on;
+    },
     raised: () => raised,
     setActivation: async (next) => {
       activation.sets.push(next);
@@ -1520,7 +1525,9 @@ function reachEditor(row, { kind = "toggle", editable = true, domain = "ability"
   };
   /** The use select changed, as core's change handler hands it to the window: a control with no name, so never the form's. */
   const choose = (option) => editor._onChangeForm({}, { target: { matches: (sel) => sel === "[data-acks-extras-item-use]", closest: () => null, value: option } });
-  return { editor, rows, writes, activation, submit, choose };
+  /** The once-only tick box changed, as core's change handler hands it to the window: a control with no name, so never the form's. */
+  const tick = (checked) => editor._onChangeForm({}, { target: { matches: (sel) => sel === "[data-acks-extras-item-uses]", closest: () => null, checked } });
+  return { editor, rows, writes, activation, submit, choose, tick };
 }
 const expand = (flat) => {
   const out = {};
@@ -1645,6 +1652,60 @@ await t("a raised item's use select is disabled with a tooltip saying to lower i
   assert.ok(`${root}.effectEditor.reach.useRaisedTip` in lang);
 });
 
+await t("a once-only item's group shows one tick box, Each use spends one, beside How it is used: drawn for the stored kind once alone, ticked where the item names `uses`", async () => {
+  canEdit(true);
+  const once = async (kind, uses) => fieldOf(await reachEditor(STORED(), { kind, uses }).editor._prepareContext({}), "reach").once;
+  assert.deepEqual(await once("once", false), { label: `${root}.effectEditor.reach.usesLabel`, checked: false, tip: `${root}.effectEditor.reach.usesTip` });
+  assert.equal((await once("once", true)).checked, true);
+  for (const kind of ["toggle", "fuse", "consume", ""]) assert.equal(await once(kind, true), null, `a ${kind || "always-on"} item is offered no tick, whatever its \`uses\` holds`);
+  const html = async (kind, uses, opts = {}) => render("lib/effect-row-editor", { ...(await reachEditor(STORED(), { kind, uses, ...opts }).editor._prepareContext({})), partId: "p" });
+  const drawn = await html("once", true);
+  assert.match(drawn, /<input type="checkbox" data-acks-extras-item-uses [^>]*aria-label="[^"]+"[^>]*checked>/, "drawn ticked, with its own name for assistive technology");
+  assert.ok(!/<input[^>]*data-acks-extras-item-uses[^>]*name=/.test(drawn), "the box has no name, so the row's form never submits it");
+  assert.ok(!/<input[^>]*data-acks-extras-item-uses[^>]*checked/.test(await html("once", false)), "drawn unticked");
+  assert.ok(!(await html("toggle", true)).includes("data-acks-extras-item-uses"), "not drawn for another kind");
+  assert.match(await html("once", false, { editable: false }), /<fieldset class="acks-extras-effect-reach" disabled>/, "a seat that may not write gets the group disabled, the tick box with it");
+  const src = read("templates/lib/effect-row-editor.hbs");
+  assert.ok(src.indexOf("data-acks-extras-item-uses") > src.indexOf("data-acks-extras-item-use "), "it sits after the use select");
+});
+
+await t("ticking writes the item's `uses` through the carrier and unticking clears it, only for a seat that may write and only while the stored kind is once; the row is never written", async () => {
+  canEdit(true);
+  const e = reachEditor({ ...STORED(), origin: "register" }, { kind: "once" });
+  await e.tick(true);
+  assert.deepEqual(e.activation.usesSets, [true]);
+  await e.tick(true);
+  assert.deepEqual(e.activation.usesSets, [true], "a tick that matches what is stored writes nothing");
+  await e.tick(false);
+  assert.deepEqual(e.activation.usesSets, [true, false]);
+  assert.deepEqual([e.writes, e.activation.sets, e.rows.current[0].origin], [[], [], "register"], "the row and the kind are untouched, and the row stays the importer's");
+  assert.equal(e.editor.renders, 3, "the window redraws on each change, as the select does");
+  for (const kind of ["consume", "fuse", "toggle", ""]) {
+    const other = reachEditor(STORED(), { kind, uses: kind === "consume" });
+    await other.tick(false);
+    await other.tick(true);
+    assert.deepEqual(other.activation.usesSets, [], `a ${kind || "always-on"} item's \`uses\` is not the tick's to write`);
+  }
+  canEdit(false);
+  const locked = reachEditor(STORED(), { kind: "once", editable: false });
+  await locked.tick(true);
+  assert.deepEqual(locked.activation.usesSets, [], "a seat the store does not let write never writes it");
+  canEdit(true);
+  const sparse = reachEditor(STORED(), { kind: "once", uses: true });
+  await sparse.submit({ ...SHOWN(), note: "x" });
+  assert.deepEqual([sparse.activation.usesSets, sparse.activation.sets], [[], []], "a submit of the whole form writes neither");
+});
+
+await t("a consume item's `uses` (its swig reference) survives the editor: its group draws no tick, a submit and a Used up choice write neither the kind nor `uses`", async () => {
+  canEdit(true);
+  const e = reachEditor(STORED(), { kind: "consume", uses: true });
+  const group = fieldOf(await e.editor._prepareContext({}), "reach");
+  assert.deepEqual([group.use.value, group.once], ["spent", null]);
+  await e.choose("spent");
+  await e.submit({ ...SHOWN(), note: "x" });
+  assert.deepEqual([e.activation.sets, e.activation.usesSets, e.activation.kind, e.activation.uses], [[], [], "consume", true]);
+});
+
 await t("a row with no reach takes one only when a control is moved, a seat that may not write writes nothing, and the reach tests read no role", async () => {
   canEdit(true);
   const none = reachEditor({ key: "a", type: "modifier" }, { kind: "" });
@@ -1681,10 +1742,10 @@ await t("the template draws the group: each control under its name, the figure a
 });
 
 await t("every key the reach group reads is in the lang file, and the template draws each control by name", () => {
-  for (const key of ["title", "useLabel", "useTip", "useOption.toggle", "useOption.spent", "useOption.always", "modeLabel", "modeOption.distance", "modeOption.engaged", "radiusLabel", "radiusHint", "adjacent", "sideLabel", "sideOption.foe", "sideOption.side", "sideOption.all", "kindsLabel", "kindsTip", "exceptKindsLabel", "exceptKindsTip", "unitLabel", "showLabel", "ringHint", "ringHintAlways"]) assert.ok(`${root}.effectEditor.reach.${key}` in lang, `${key} is missing`);
+  for (const key of ["title", "useLabel", "useTip", "useOption.toggle", "useOption.spent", "useOption.always", "usesLabel", "usesTip", "modeLabel", "modeOption.distance", "modeOption.engaged", "radiusLabel", "radiusHint", "adjacent", "sideLabel", "sideOption.foe", "sideOption.side", "sideOption.all", "kindsLabel", "kindsTip", "exceptKindsLabel", "exceptKindsTip", "unitLabel", "showLabel", "ringHint", "ringHintAlways"]) assert.ok(`${root}.effectEditor.reach.${key}` in lang, `${key} is missing`);
   assert.ok(!(`${root}.effectEditor.reach` in lang), "a key is a leaf or a parent, never both");
   const html = read("templates/lib/effect-row-editor.hbs");
-  for (const name of ["data-acks-extras-item-use", 'name="reach.mode"', 'name="reach.side"', 'name="reach.showReach"', 'name="{{pick.name}}.{{o.key}}"']) assert.ok(html.includes(name), `${name} is drawn`);
+  for (const name of ["data-acks-extras-item-use", "data-acks-extras-item-uses", 'name="reach.mode"', 'name="reach.side"', 'name="reach.showReach"', 'name="{{pick.name}}.{{o.key}}"']) assert.ok(html.includes(name), `${name} is drawn`);
   assert.ok(!/\btitle=/.test(html) && !/\bid="[^{]/.test(html), "no title attribute and no literal id");
 });
 

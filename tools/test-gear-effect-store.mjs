@@ -218,6 +218,46 @@ await t("the gear store hands the reach group its item: the page, the stored kin
   assert.equal(rows.gearEffectStore(item({ flag: {} })).carrier.activationKind(), "", "an item with no itemRun reads no kind");
 });
 
+const RUN_PATH = "flags.acks-extras.itemRun.activation";
+const withActivation = (activation) => item({ flag: { itemRun: { activation, rows: [] } } });
+const FORCED = () => globalThis.foundry.data.operators.ForcedDeletion;
+
+await t("the carrier's once mark: `uses` as an empty object is what a ticked item stores, an unticked one has none, and a stored figure reference reads as ticked too", async () => {
+  const { readItemRun } = await import("../scripts/lib/item-run-logic.mjs");
+  const mark = (activation) => rows.gearEffectStore(withActivation(activation)).carrier.usesNamed();
+  assert.deepEqual([mark({ kind: "once" }), mark({ kind: "once", uses: {} }), mark({ kind: "once", uses: { doc: "d", table: "t", row: "r", figure: "uses" } })], [false, true, true]);
+  assert.equal(mark({ kind: "once", uses: null }), false);
+  assert.equal(mark({ kind: "once", uses: "2" }), false, "only an object is a named `uses`, readItemRun's own test");
+  const it = withActivation({ kind: "once" });
+  const { carrier } = rows.gearEffectStore(it);
+  await carrier.setUses(true);
+  assert.deepEqual(it.updates, [{ [`${RUN_PATH}.uses`]: {} }], "ticked writes `uses` at its own path and nothing else");
+  assert.ok(readItemRun({ activation: { kind: "once", uses: {} } }).activation.uses, "readItemRun reads the stored shape as named, truthy");
+  assert.equal(readItemRun({ activation: { kind: "once" } }).activation.uses, null, "and an unticked item as naming none");
+  await carrier.setUses(false);
+  assert.ok(it.updates[1][`${RUN_PATH}.uses`] instanceof FORCED(), "unticked removes `uses` through Foundry's own operator");
+  assert.deepEqual(Object.keys(it.updates[1]), [`${RUN_PATH}.uses`]);
+});
+
+await t("each change of kind and what it does to `uses`: leaving or entering once drops the once mark in the same write, any other change leaves `uses` where it is", async () => {
+  const change = async (activation, next) => {
+    const it = withActivation(activation);
+    await rows.gearEffectStore(it).carrier.setActivation(next);
+    return it.updates[0];
+  };
+  const gone = (update) => update[`${RUN_PATH}.uses`] instanceof FORCED();
+  const toggled = await change({ kind: "once", uses: {} }, "toggle");
+  assert.deepEqual([toggled[`${RUN_PATH}.kind`], gone(toggled)], ["toggle", true], "once to toggle: the once mark goes with the kind");
+  const entered = await change({ kind: "toggle", uses: { doc: "d", table: "t", row: "r", figure: "swigs" } }, "once");
+  assert.deepEqual([entered[`${RUN_PATH}.kind`], gone(entered)], ["once", true], "a toggle that still holds a swig reference starts a once item unticked");
+  for (const [from, to] of [["consume", "toggle"], ["fuse", "toggle"], ["consume", "consume"], ["once", "once"]]) {
+    const update = await change({ kind: from, uses: { value: "1d4" } }, to);
+    assert.deepEqual(Object.keys(update), [`${RUN_PATH}.kind`], `${from} to ${to} writes the kind alone, so a swig reference is kept`);
+  }
+  const removed = await change({ kind: "once", uses: {} }, null);
+  assert.deepEqual(Object.keys(removed), [RUN_PATH], "Always on removes the whole activation, the mark with it");
+});
+
 await t("the carrier's reach face carries the page beside the figure, the engaged square's tip, and nothing where a figure is blank", () => {
   const { carrier } = rows.gearEffectStore(item({ rows: [], cite: "XX p. 9" }));
   const face = carrier.reachFace({ radius: { value: "15" }, engaged: false }, say);

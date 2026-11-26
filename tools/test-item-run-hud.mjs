@@ -92,6 +92,9 @@ await t("a kind that names `uses` spends a count too, and a kind that does not i
   const counted = kind("once", { uses: { doc: "d", table: "t", row: "r", figure: "uses" } });
   assert.deepEqual(ids(itemRunHudControls([item("a", counted, { quantity: 0 })])), []);
   assert.deepEqual(ids(itemRunHudControls([item("a", counted, { quantity: 2 })])), ["a"]);
+  const ticked = kind("once", { uses: {} });
+  assert.deepEqual(ids(itemRunHudControls([item("a", ticked, { quantity: 0 })])), [], "the editor's tick, an empty `uses`, names a count: none draws no control");
+  assert.deepEqual(ids(itemRunHudControls([item("a", ticked, { quantity: 1 })])), ["a"], "and one left draws it");
   assert.deepEqual(ids(itemRunHudControls([item("a", kind("once"), { quantity: 0 })])), ["a"], "an uncounted once-only item keeps its press");
   assert.deepEqual(ids(itemRunHudControls([item("a", toggle(false), { quantity: 0 })])), ["a"], "an uncounted toggle keeps its press");
 });

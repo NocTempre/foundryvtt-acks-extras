@@ -32,17 +32,23 @@ function storedRows(item) {
 /**
  * What the effect-row editor's reach group reads and writes of the ITEM a row
  * belongs to, as the store's `carrier`: the item's page, its stored activation
- * kind, the one write of that kind and the face of a reach's figure. A carried
- * item and an ability item hold the same `itemRun.activation`, so both stores
- * hand over this one. The write touches `activation.kind` alone, so a raised
- * item's state and the figures a fuse or a counted item names are kept; an
- * absent kind removes the activation, which leaves the item always on.
+ * kind, the one write of that kind, the once-only mark and the face of a
+ * reach's figure. A carried item and an ability item hold the same
+ * `itemRun.activation`, so both stores hand over this one. A write of the kind
+ * touches `activation.kind` alone, so a raised item's state and the figures a
+ * fuse or a counted item names are kept, with one exception: a move into or out
+ * of `once` also removes `activation.uses`, since on a once-only item `uses`
+ * is the tick and nothing else, and a toggle or a fresh once item must not
+ * inherit another kind's. An absent kind removes the activation, which leaves
+ * the item always on.
  *
  * @param {Item} item
- * @returns {{cite: Function, activationKind: Function, raised: Function, setActivation: Function, reachFace: Function}}
+ * @returns {{cite: Function, activationKind: Function, usesNamed: Function, setUses: Function, raised: Function, setActivation: Function, reachFace: Function}}
  *   `reachFace(reach, say)` is `reachFace` for this item; `raised()` is whether
  *   the item is raised now (its activation's `state.active`); `setActivation(kind)`
- *   takes a kind, or null to remove the activation.
+ *   takes a kind, or null to remove the activation; `usesNamed()` is whether the
+ *   activation names `uses` (a stored object, as `readItemRun` reads it) and
+ *   `setUses(on)` stores an empty object where on, else removes `uses`.
  */
 export function itemCarrier(item) {
   const path = `flags.${MODULE_ID}.${FLAG_ITEM_RUN}.activation`;
@@ -50,7 +56,17 @@ export function itemCarrier(item) {
     cite: () => itemCite(item),
     activationKind: () => String(storedRun(item)?.activation?.kind ?? ""),
     raised: () => storedRun(item)?.activation?.state?.active === true,
-    setActivation: (kind) => item.update({ [kind ? `${path}.kind` : path]: kind || unset() }),
+    usesNamed: () => {
+      const uses = storedRun(item)?.activation?.uses;
+      return !!uses && typeof uses === "object";
+    },
+    setUses: (on) => item.update({ [`${path}.uses`]: on ? {} : unset() }),
+    setActivation: (kind) => {
+      const stored = String(storedRun(item)?.activation?.kind ?? "");
+      const update = { [kind ? `${path}.kind` : path]: kind || unset() };
+      if (kind && kind !== stored && (kind === "once" || stored === "once")) update[`${path}.uses`] = unset();
+      return item.update(update);
+    },
     reachFace: (reach, say) => reachFace(reach, { itemName: item.name, cite: itemCite(item), say }),
   };
 }

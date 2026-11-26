@@ -10588,6 +10588,8 @@
   "ACKS-LIB.effectEditor.reach.useOption.toggle": "Raised and lowered",
   "ACKS-LIB.effectEditor.reach.useOption.spent": "Used up",
   "ACKS-LIB.effectEditor.reach.useOption.always": "Always on",
+  "ACKS-LIB.effectEditor.reach.usesLabel": "Each use spends one",
+  "ACKS-LIB.effectEditor.reach.usesTip": "Ticked, each use takes one off the item's Quantity, and at none the item stays in the inventory reading Used up. Unticked, a use leaves the Quantity as it is. The count is the item's Quantity, on the item itself.",
   "ACKS-LIB.effectEditor.reach.modeLabel": "Reaches by",
   "ACKS-LIB.effectEditor.reach.modeOption.distance": "A distance",
   "ACKS-LIB.effectEditor.reach.modeOption.engaged": "Engaged",

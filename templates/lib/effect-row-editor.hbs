@@ -110,6 +110,15 @@
             </div>
           </div>
         {{/if}}
+        {{#if f.once}}
+          <div class="form-group" data-tooltip-text="{{f.once.tip}}">
+            <label>{{f.once.label}}</label>
+            <div class="form-fields">
+              {{!-- No name: the item's once mark is the item's, written on change by the window, never by the row's form. --}}
+              <input type="checkbox" data-acks-extras-item-uses aria-label="{{f.once.label}}" {{checked f.once.checked}}>
+            </div>
+          </div>
+        {{/if}}
         <div class="form-group">
           <label>{{f.mode.label}}</label>
           <div class="form-fields">

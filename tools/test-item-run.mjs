@@ -888,6 +888,45 @@ await t("a once-only use that names `uses` spends one of the item's count after 
   }
 });
 
+await t("a once-only item the editor ticked, `uses` stored as an empty object, spends one at each use exactly as one that names a figure reference does", async () => {
+  stage();
+  seatOf(true);
+  presented.length = 0;
+  const priorSystem = theItem.system;
+  const priorDelete = theItem.delete;
+  theItem.delete = async () => {};
+  try {
+    const s1 = { id: "s1", uuid: "T.s1", name: "Tok s1", flags: { "acks-extras": {} }, disposition: -1, actor: monster(["alpha"]), testInsideRegion: () => true };
+    bearerTok.parent = sceneOf([bearerTok, s1]);
+    bearerTok.disposition = 1;
+    bearerTok.testInsideRegion = () => true;
+    const row = { key: "k", reach: { pulse: "action", radius: { value: "15" }, filter: { kinds: ["alpha"], side: "opposing" } } };
+    itemFlags = { itemRun: { activation: { kind: "once", uses: {} }, rows: [row] } };
+    assert.ok(logic.itemRunOf(theItem).activation.uses, "the stored empty object reads as named");
+    theItem.system = { quantity: 2 };
+    updates.length = 0;
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual(updates, [{ "system.quantity": 1 }], "a count of 2 reads 1 after the use");
+    theItem.system = { quantity: 1 };
+    updates.length = 0;
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true);
+    assert.deepEqual(updates, [{ "system.quantity": 0 }], "the last one leaves the item at none");
+    theItem.system = { quantity: 0 };
+    assert.equal(logic.itemRunUsedUp(theItem), true);
+    itemFlags = { itemRun: { activation: { kind: "once" }, rows: [row] } };
+    updates.length = 0;
+    assert.equal((await run.runUse({ itemUuid: "I.1" })).ok, true, "unticked, the same item at none is used again");
+    assert.deepEqual(updates, [], "and spends nothing");
+  } finally {
+    theItem.system = priorSystem;
+    theItem.delete = priorDelete;
+    bearerTok.parent = null;
+    delete bearerTok.testInsideRegion;
+    delete bearerTok.disposition;
+    unstage();
+  }
+});
+
 await t("a window the carrier itself wrote makes its subject immune: the once-only use and the reach's moment both skip it, and another kind's window or none prompts", async () => {
   stage();
   seatOf(true);

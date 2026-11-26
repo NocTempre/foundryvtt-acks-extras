@@ -9,9 +9,10 @@
  * control changed comes back as the very object stored, and a row that holds
  * none stays without one unless a control is moved off its neutral position.
  *
- * The group owns six things: the item's use (`itemRun.activation.kind`, an
+ * The group owns seven things: the item's use (`itemRun.activation.kind`, an
  * item-level setting the editor writes through the store's carrier, never the
- * row), the distance or the engaged adjacent square (`reach.engaged`, with the
+ * row), for a once-only item whether a use spends one of its count (the
+ * activation's `uses`, also the carrier's and never the row's), the distance or the engaged adjacent square (`reach.engaged`, with the
  * pulse that goes with Engaged), who counts (`reach.filter.side`), the kinds
  * counted and left out (`reach.filter.kinds`, `exceptKinds`) and whether the
  * Region is drawn for every seat (`reach.showReach`). It never writes `radius`,

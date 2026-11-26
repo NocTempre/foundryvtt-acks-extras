@@ -69,8 +69,9 @@
  *
  * An ability's row and a carried item's row end with the reach group
  * (`reach-edit.mjs`; a spell's row has none): how the item is used (the item's
- * `itemRun.activation.kind`, written through the store's `carrier`), the
- * reach's figure as the import read it (read-only, with its page), a distance
+ * `itemRun.activation.kind`, written through the store's `carrier`, and for
+ * a once-only item whether a use spends one of its count, the activation's
+ * `uses`), the reach's figure as the import read it (read-only, with its page), a distance
  * or Engaged, who counts, the kinds counted and left out (a pick among the
  * closed kind keys), the unit where one was imported (read-only) and whether
  * players see the ring. The group is disabled for a seat the store does not let
@@ -595,6 +596,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   _onChangeForm(formConfig, event) {
     if (event?.target?.closest?.("[data-acks-extras-summon-list]")) return;
     if (event?.target?.matches?.("[data-acks-extras-item-use]")) return this.#applyUse(event.target.value);
+    if (event?.target?.matches?.("[data-acks-extras-item-uses]")) return this.#applyUses(event.target.checked === true);
     return super._onChangeForm(formConfig, event);
   }
 
@@ -707,7 +709,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
    * shows what the stored reach holds (`reachControls`) and the group is
    * disabled for a seat the store does not let write, so it submits nothing.
    * The use select is the item's, offered only under a store that hands over
-   * a `carrier`; the figure and the unit are read-only, read from the import
+   * a `carrier`, and the tick box for a once-only item (`once`, the item's `uses`) is the item's too; the figure and the unit are read-only, read from the import
    * and carrying the page they were read from. The reach's `radius`, `save`,
    * `immunity`, `lasts`, `modifier`, `on`, `saveWhen`, `filter.unit` and
    * `filter.self` are never written from here (`reach-edit.mjs`).
@@ -734,6 +736,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       label: loc("reach.title"),
       disabled: this.store.editable?.() !== true,
       use: carrier?.setActivation ? { label: loc("reach.useLabel"), disabled: carrier.raised?.() === true, tip: loc(carrier.raised?.() === true ? "reach.useRaisedTip" : "reach.useTip"), value: use, choices: Object.fromEntries(USE_OPTIONS.map((key) => [key, loc(`reach.useOption.${key}`)])) } : null,
+      once: carrier?.setUses && carrier.activationKind?.() === "once" ? { label: loc("reach.usesLabel"), checked: carrier.usesNamed?.() === true, tip: loc("reach.usesTip") } : null,
       mode: { label: loc("reach.modeLabel"), value: shown.engaged ? "engaged" : "distance", choices: { distance: loc("reach.modeOption.distance"), engaged: loc("reach.modeOption.engaged") } },
       figure: { label: loc("reach.radiusLabel"), hint: loc("reach.radiusHint"), text: !face ? "" : face.engaged ? loc("reach.adjacent") : face.radius === null ? "" : `${face.radius}′`, tip: face?.tip ?? "", page: face && !face.engaged ? face.page : "" },
       side: { label: loc("reach.sideLabel"), value: shown.side, choices: Object.fromEntries(Object.keys(SIDE_OPTIONS).map((key) => [key, loc(`reach.sideOption.${key}`)])) },
@@ -988,6 +991,21 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.#gone || !USE_OPTIONS.includes(option) || typeof carrier?.setActivation !== "function" || this.store.editable?.() !== true || carrier.raised?.() === true) return;
     const stored = carrier.activationKind();
     if (useOptionOf(stored) !== option) await carrier.setActivation(useKindFor(option, stored));
+    this.render();
+  }
+
+  /**
+   * Write the once-only tick through the store's carrier: the item's `uses`
+   * stored where ticked and removed where not, only for a seat the store lets
+   * write and only while the item's stored kind, read again here, is `once`.
+   * Another kind's `uses` (a consume item's swig reference) is not this box's
+   * to write. The box carries no `name`, so the row is never written for it.
+   * @param {boolean} checked the box's state
+   */
+  async #applyUses(checked) {
+    const { carrier } = this.store;
+    if (this.#gone || typeof carrier?.setUses !== "function" || this.store.editable?.() !== true || carrier.activationKind?.() !== "once") return;
+    if (carrier.usesNamed?.() !== checked) await carrier.setUses(checked);
     this.render();
   }
 
