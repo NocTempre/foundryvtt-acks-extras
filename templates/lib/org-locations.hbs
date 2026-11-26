@@ -8,7 +8,7 @@
     <div class="acks-extras-org-place">
       <div class="acks-extras-org-place__head">
         <a data-action="orgOpen" data-uuid="{{uuid}}">{{name}}</a>
-        <span class="acks-extras-org-place__total" data-tooltip="ACKS-LIB.org.locations.totalTip">{{localize "ACKS-LIB.org.card.bodies" n=total}}</span>
+        <span class="acks-extras-org-place__total" data-tooltip="{{#if ../service}}ACKS-LIB.org.service.placeTotalTip{{else}}ACKS-LIB.org.locations.totalTip{{/if}}">{{localize "ACKS-LIB.org.card.bodies" n=total}}</span>
       </div>
       <ul class="acks-extras-org-place__groups">
         {{#each groups}}
