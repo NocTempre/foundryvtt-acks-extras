@@ -64,7 +64,8 @@ declaration lapses when that turn ends without the cast, or when the fight is
 deleted, and the slot stays spent. A fight has begun once the Judge has been
 asked for the round's declarations, so a caster still listed in a fight left
 in the **Combat Tracker** sidebar tab declares every cast until that fight is
-ended.
+ended. This holds for a fight on the scene where the caster's token stands, and
+for a fight with no scene; a fight on another scene does not hold the caster.
 
 ## Importing your spells
 

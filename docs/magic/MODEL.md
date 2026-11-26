@@ -480,7 +480,9 @@ at its edge (lib MODEL, "A record that lasts turns"): `nextTurn` is
 many begun since the cast. It is written only where the writing client finds the
 bearer a combatant of a begun fight (`cast-moment.mjs` `fightHolding`, over the
 viewed fight and every other, matching a token by its id before an actor, with
-`begun` the notion `castMoment` reads), through `deps.fight`; with no fight, a
+`begun` the notion `castMoment` reads, and a fight on a scene counting only
+where the bearer's token stands on it: "A declaration", below),
+through `deps.fight`; with no fight, a
 bearer who is no combatant, or a fight that has ended, the clock alone ends the
 record. `lifeOf(row, {count, fight})` answers the kind, the rounds, the flag and
 the row's formula; `spellEffectData` takes the flag as `turnLife` (a malformed
@@ -1036,7 +1038,16 @@ round by its unit and with no conversion figure: a `timed` time of more than one
 round, or of any other `TIME_UNITS` unit (`longerThanRound`). The time is the
 procedure's `castingTime(ctx, answer)`, else the spell's own (its library twin's
 where the copy prints none), and it is read again from the dialog's answer in the
-dialog and from the final answer in the cast. A `long` cast is never declared:
+dialog and from the final answer in the cast. Which fight holds a creature is
+`heldFight` (`cast-fight.mjs`), which the cast's reading of the world, the
+bearer's turn count and the recurring Next round all ask: a begun fight on a
+scene holds it only where that scene is one a token of it stands on, and a begun
+fight with no scene holds it wherever it stands (`fightHolding`'s `scenes`;
+`combatSceneId` reads a fight's scene from its stored id, else its scene
+document). The creature's scenes (`casterSceneIds`) are read from every scene's
+tokens and never from the canvas in view: a given token's scene, else a
+synthetic actor's token's, else each scene holding a linked token of the actor,
+and none at all leaves only a sceneless fight to hold it. A `long` cast is never declared:
 `longCast` blocks a Player and warns a Judge, whose cast resolves at its confirm
 and whose card names the time (`card.castingTime {value, unit, source}`). A
 declaration being resolved stays `resolve`. A summons is declared like any other cast ("Casting a summoning spell", above). At `declare` the dialog's

@@ -68,7 +68,7 @@ import { actorAlignment } from "../lib/actor-read.mjs";
 import { instanceCount, assignedOf } from "./cast-instances.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife, readsFight } from "./cast-life.mjs";
-import { fightHolding } from "./cast-moment.mjs";
+import { heldFight } from "./cast-fight.mjs";
 import { anchorsNeeded } from "./cast-recur.mjs";
 import { undoableEntry } from "./cast-card.mjs";
 
@@ -882,7 +882,7 @@ export async function liveApplyDeps(messageId, { writeEntry, by = null, anchor =
     },
     // The begun fight the bearer is a combatant of, as this client reads it; none where the bearer holds no turn to count.
     fight: async ({ actor, token }) => {
-      const held = fightHolding([game.combat, ...(game.combats ?? [])], { actor, token });
+      const held = heldFight(actor, { token });
       return held ? { combatId: held.combat.id, combatantId: held.combatant.id } : null;
     },
     createRecords: async (actor, datas) => (await actor.createEmbeddedDocuments("ActiveEffect", datas)).map((e) => e.id),

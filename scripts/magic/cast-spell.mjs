@@ -52,7 +52,8 @@ import { spellCapacity, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration, heldByConjuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
-import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
+import { castMoment, declarationOf, MOMENT } from "./cast-moment.mjs";
+import { heldFight } from "./cast-fight.mjs";
 import { declaredFightOf } from "./declared-fight.mjs";
 import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, withoutMissing, BUCKETS_KEY } from "./cast-procedure.mjs";
 import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
@@ -171,8 +172,8 @@ export async function rowSpecOf(caster, spell, card, keyed) {
   return magicDamageSpec(caster, carrier);
 }
 
-/** The begun fight that holds this actor, with the actor's combatant in it; null where there is none. */
-const castFight = (actor) => fightHolding([game.combat, ...(game.combats ?? [])], { actor });
+/** The begun fight that holds this actor on a scene it stands on, with the actor's combatant in it; null where there is none. */
+const castFight = (actor) => heldFight(actor);
 
 /** The figures of `castFiguresOf` as the spell prints them, before the invocation scale is read. */
 function rawFiguresOf(spell, lookups) {

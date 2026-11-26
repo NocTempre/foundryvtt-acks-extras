@@ -7,7 +7,9 @@
  * flag is. At the caster's turn (the tracker's current combatant is the
  * caster's, and its initiative is rolled) a cast resolves; at any other moment
  * of a begun fight it is declared; with no begun fight holding the caster it is
- * free, as a cast always was. A casting time longer than a round, in a begun
+ * free, as a cast always was. A fight on a scene holds a caster whose token
+ * stands on that scene, and a fight on no scene holds every caster
+ * (`fightHolding`). A casting time longer than a round, in a begun
  * fight, is a fourth moment, `long`: it is never declared, and the plan decides
  * whether the seat may cast it at all.
  */
@@ -32,19 +34,40 @@ export function longerThanRound(time) {
 export const begun = (combat) => Boolean(combat) && (combat.started === true || combat.flags?.acks?.initDone === true);
 
 /**
+ * The id of the scene a fight is on, or null for a fight on none. Read from the
+ * stored id first, else the scene document or a bare id, so a v14 document and a
+ * plain object answer alike.
+ *
+ * @param {object|null} combat
+ * @returns {string|null}
+ */
+export function combatSceneId(combat) {
+  const own = combat?._source?.scene;
+  const id = own || combat?.scene?.id || (typeof combat?.scene === "string" ? combat.scene : null);
+  return id ? String(id) : null;
+}
+
+/**
  * The begun fight that holds a creature, with its combatant in it, or null where
  * no begun fight does. A token, where one is given, is matched to a combatant by
  * its own id first, since one linked actor can stand in a fight as two tokens;
  * otherwise the actor is, by identity or by uuid. The first begun fight to hold
  * it answers.
  *
+ * With `scenes` given, a fight on a scene holds the creature only where that scene
+ * is one of them; a fight on no scene holds it wherever it stands. Omitted or null
+ * (the default), no fight is ruled out by its scene.
+ *
  * @param {Iterable<object|null>} combats  the fights to look in, the viewed one first
- * @param {{actor: object, token?: {id?: string}|null}} of
+ * @param {{actor: object, token?: {id?: string}|null, scenes?: Iterable<string>|null}} of  `scenes`: the ids of the scenes the creature stands on
  * @returns {{combat: object, combatant: object}|null}
  */
-export function fightHolding(combats, { actor, token = null } = {}) {
+export function fightHolding(combats, { actor, token = null, scenes = null } = {}) {
+  const standing = scenes == null ? null : new Set(Array.from(scenes, String));
   for (const combat of combats ?? []) {
     if (!begun(combat)) continue;
+    const sceneId = standing ? combatSceneId(combat) : null;
+    if (sceneId && !standing.has(sceneId)) continue;
     const all = Array.from(combat.combatants ?? []);
     const combatant =
       (token?.id ? all.find((c) => (c.tokenId ?? c.token?.id) === token.id) : null) ?? all.find((c) => c.actor === actor || (c.actor?.uuid && c.actor.uuid === actor?.uuid));

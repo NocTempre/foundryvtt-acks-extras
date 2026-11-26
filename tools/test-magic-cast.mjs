@@ -2051,7 +2051,7 @@ await ta("a cast keeps every row of the picked option on the card", async () => 
 /* ------------------------------------------------------------------ */
 
 const { lifeOf, lifeEntry, roundsBounds, roundsCount } = await import("../scripts/magic/cast-life.mjs");
-const { fightHolding } = await import("../scripts/magic/cast-moment.mjs");
+const { fightHolding, combatSceneId } = await import("../scripts/magic/cast-moment.mjs");
 const { requestOf } = await import("../scripts/magic/cast-throw.mjs");
 
 /** A card whose one row is an invented condition that lasts as the given fields say. */
@@ -2113,6 +2113,80 @@ t("a fight that holds the caster and not the bearer gives the bearer no turn; a 
   assert.equal(fightHolding([two], { actor: bearer, token: { id: "t2" } }).combatant.id, "k2", "the second token of a linked actor");
   assert.equal(fightHolding([null, two], { actor: bearer }).combat.id, "c1", "an absent fight is passed by");
 });
+
+t("a begun fight holds a caster only where its scene is one of the caster's scenes, or it has none", () => {
+  const caster = { uuid: "Actor.c1" };
+  const fight = (scene, over = {}) => ({ id: "c1", started: true, ...(scene === undefined ? {} : { _source: { scene } }), combatants: [{ id: "kc", actor: caster, tokenId: "tc" }], ...over });
+  const holds = (combat, scenes) => fightHolding([combat], { actor: caster, scenes })?.combatant.id ?? null;
+  assert.equal(holds(fight("B"), ["A"]), null, "a fight on scene B does not hold a caster whose token is on A");
+  assert.equal(holds(fight("A"), ["A"]), "kc", "a fight on A holds");
+  assert.equal(holds(fight("A"), new Set(["A", "B"])), "kc", "a set of scenes is read as one");
+  assert.equal(holds(fight(undefined), ["A"]), "kc", "a fight with no scene holds");
+  assert.equal(holds(fight(null), ["A"]), "kc", "a fight whose scene is null holds");
+  assert.equal(holds(fight("B"), undefined), "kc", "no scoping option: any begun fight holds, as before");
+  assert.equal(holds(fight("B"), null), "kc", "a null scoping is no scoping");
+  assert.equal(holds(fight("B"), []), null, "a caster with no token is held by no fight that has a scene");
+  assert.equal(holds(fight(undefined), []), "kc", "a caster with no token is held by a sceneless fight");
+  const other = fight("B", { id: "c2" });
+  assert.equal(fightHolding([other, fight("A")], { actor: caster, scenes: ["A"] }).combat.id, "c1", "the scan goes on past a fight on another scene");
+});
+
+t("a fight's scene is read from the source id, the scene document, or a string, and is null otherwise", () => {
+  assert.equal(combatSceneId({ _source: { scene: "A" }, scene: { id: "Z" } }), "A", "the source id first");
+  assert.equal(combatSceneId({ scene: { id: "B" } }), "B", "the scene document's id");
+  assert.equal(combatSceneId({ scene: "C" }), "C", "a string scene");
+  assert.equal(combatSceneId({ _source: { scene: null }, scene: null }), null, "no scene");
+  assert.equal(combatSceneId({ _source: { scene: "" }, scene: "" }), null, "an empty id is none");
+  assert.equal(combatSceneId({}), null);
+  assert.equal(combatSceneId(null), null);
+});
+
+{
+  const { casterSceneIds, heldFight } = await import("../scripts/magic/cast-fight.mjs");
+  const world = { id: "w1", uuid: "Actor.w1" };
+  const synthetic = { id: "w1", uuid: "Scene.B.Token.s1.Actor.w1", isToken: true, token: { parent: { id: "B" } } };
+  const scene = (id, tokens) => ({ id, tokens });
+  const saved = globalThis.game;
+  const withWorld = (extra, fn) => {
+    globalThis.game = { ...saved, ...extra };
+    try {
+      return fn();
+    } finally {
+      globalThis.game = saved;
+    }
+  };
+  const fight = (sceneId, actor) => ({ id: `c-${sceneId ?? "none"}`, started: true, ...(sceneId ? { _source: { scene: sceneId } } : {}), combatants: [{ id: "kc", actor, tokenId: "tc" }] });
+  const scenes = [
+    scene("A", [{ actorId: "w1", actorLink: true }, { actorId: "other", actorLink: true }]),
+    scene("B", [{ actorId: "w1", actorLink: false }]),
+    scene("C", [{ actorId: "w1", actorLink: true }]),
+  ];
+  t("a given token answers with its own scene", () => {
+    assert.deepEqual(casterSceneIds(world, { parent: { id: "B" } }), ["B"]);
+    assert.deepEqual(withWorld({ scenes }, () => casterSceneIds(world, { document: { parent: { id: "A" } } })), ["A"], "a placeable answers through its document");
+  });
+  t("a synthetic actor answers with its token's scene; a world actor with every scene holding a linked token of it", () => {
+    assert.deepEqual(casterSceneIds(synthetic), ["B"]);
+    assert.deepEqual(withWorld({ scenes }, () => casterSceneIds(world)), ["A", "C"], "an unlinked token of the same base actor is another body");
+    assert.deepEqual(withWorld({ scenes: [] }, () => casterSceneIds(world)), [], "no token anywhere");
+    assert.deepEqual(withWorld({ scenes }, () => casterSceneIds({ uuid: "Actor.none" })), [], "an actor with no id");
+  });
+  t("heldFight reads the fight by the caster's scenes, the canvas in view playing no part", () => {
+    const stale = fight("B", world);
+    const here = fight("A", world);
+    const sceneless = fight(null, world);
+    const answer = (combats, canvasScene, actor = world, token = null) =>
+      withWorld({ scenes, combat: combats[0] ?? null, combats, canvas: { scene: { id: canvasScene } } }, () => heldFight(actor, { token })?.combat.id ?? null);
+    assert.equal(answer([stale], "B"), null, "a fight on B, the scene in view, does not hold a caster standing on A and C");
+    assert.equal(answer([here], "B"), "c-A", "a fight on A holds, with B in view");
+    assert.equal(answer([stale, here], "A"), "c-A", "the other-scene fight is passed by");
+    assert.equal(answer([sceneless], "B"), "c-none", "a fight with no scene holds");
+    assert.equal(answer([fight("B", synthetic)], "A", synthetic), "c-B", "a synthetic caster standing on B is held by B's fight");
+    assert.equal(answer([fight("A", synthetic)], "B", synthetic), null, "and not by a fight on A, whichever scene is in view");
+    assert.equal(answer([here], "A", world, { parent: { id: "B" } }), null, "a given token's scene decides");
+    assert.equal(answer([stale, here, sceneless], "A", { id: "w9", uuid: "Actor.w1" }), "c-none", "no token anywhere: only a sceneless fight holds");
+  });
+}
 
 await ta("a rounds row with a blank formula, or no count, leaves its record untimed", async () => {
   for (const [fields, request] of [

@@ -455,8 +455,8 @@ export async function magicCastNextRound(payload = {}) {
   const caster = fromUuidSync(card.casterUuid);
   if (!caster) return { ok: false, reason: "noCaster" };
   if (user && !user.isGM && caster.testUserPermission?.(user, "OWNER") !== true) return { ok: false, reason: "notOwner" };
-  const { fightHolding } = await import("./cast-moment.mjs");
-  if (fightHolding([game.combat, ...(game.combats ?? [])], { actor: caster })) return { ok: false, reason: "inFight" };
+  const { heldFight } = await import("./cast-fight.mjs");
+  if (heldFight(caster)) return { ok: false, reason: "inFight" };
   const cast = await castOf(card.castId);
   if (!cast) return { ok: false, reason: "noRecur" };
   const round = (Number(card.recurRound) || 0) + 1;
