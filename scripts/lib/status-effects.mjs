@@ -38,7 +38,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, countsOnce, kindedLabel, moraleShift, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, acStepsCounted, conditionSteps, countsOnce, kindedLabel, moraleShift, sheetSaveShift, stepLabel, sumSteps, tellRollMods } from "./roll-mods.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { impliedStatuses } from "./held-condition.mjs";
 import {
@@ -372,12 +372,13 @@ function attackKind(item, type) {
 
 /**
  * The conditions' reading of one attack, or null when neither side has any.
- * A character target's Armor Class already holds what the system's condition
- * effects add to it, so core's throw counts it; a monster's does not, so each
- * step its condition effects make to `system.ac.mod` is a term here, sign
- * reversed as the module's own Armor Class rows are, and the steps the waiver
- * spares join `waived` the same way. Each of those carries its change's `type`,
- * which the module's own terms do not.
+ * A target whose prepared Armor Class already holds what the system's
+ * condition effects add to it (`acStepsCounted`: a character's, and another
+ * type's once the system is seen to count it) has it counted by core's throw;
+ * any other's does not, so each step its condition effects make to
+ * `system.ac.mod` is a term here, sign reversed as the module's own Armor Class
+ * rows are, and the steps the waiver spares join `waived` the same way. Each of
+ * those carries its change's `type`, which the module's own terms do not.
  */
 function attackConditions(actor, targetActor, item, type) {
   const attacker = subjectOf(actor);
@@ -385,7 +386,7 @@ function attackConditions(actor, targetActor, item, type) {
   if (!attacker?.statuses?.size && !target?.statuses?.size) return null;
   const kind = attackKind(item, type);
   const math = attackMath({ attacker, target, kind, attackerSize: sizeRank(actor), targetSize: sizeRank(targetActor) });
-  if (!targetActor || targetActor.type === ACTOR_TYPE.character) return { kind, ...math };
+  if (!targetActor || acStepsCounted(targetActor)) return { kind, ...math };
   const read = conditionSteps(targetActor, CONDITION_STEP_KEYS.ac);
   return {
     kind,
@@ -545,7 +546,10 @@ function recordSaveShift(actor, save) {
  * throw: core's roll adds `system.save.mod` for a character only, so a
  * monster's steps (`conditionSteps`) are this module's to add, and the notice
  * names each by its effect (`stepLabel`), since core's card shows one bare
- * number. Zero for a character, whose roll already carries them.
+ * number. Zero for a character, whose roll already carries them. While the
+ * system rolls, `onRollSave` holds the same total off the monster's
+ * `save.mod`, so a system that adds that field to a monster's roll counts its
+ * stored part and not these steps a second time.
  */
 function monsterSaveSteps(actor) {
   if (!actor || actor.type === ACTOR_TYPE.character) return 0;
@@ -578,9 +582,10 @@ function onRollSave(wrapped, save, ...rest) {
     console.error(`${MODULE_ID} | conditions could not read a saving throw; it rolls without them`, err);
   }
   const cell = this.system?.saves?.[save];
-  const shift = -((math?.total ?? 0) + recordSaveShift(this, save) + monsterSaveSteps(this));
+  const steps = monsterSaveSteps(this);
+  const shift = -((math?.total ?? 0) + recordSaveShift(this, save) + steps);
   const target = numOrNull(cell?.value) == null ? null : Number(cell.value) + shift;
-  const rolled = withShift(cell, "value", shift, () => wrapped(save, ...rest));
+  const rolled = withShift(this.system?.save, "mod", -steps, () => withShift(cell, "value", shift, () => wrapped(save, ...rest)));
   if (target != null && lostTo(this.statuses, "save").length) void loseOnFailedSave(this, rolled, target);
   return rolled;
 }

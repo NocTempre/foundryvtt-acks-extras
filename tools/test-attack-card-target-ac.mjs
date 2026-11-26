@@ -238,6 +238,37 @@ await ok("a monster's waived row names every ability that waives it, once each, 
   assert.deepEqual(targetAcRows(target)[0].by, []);
 });
 
+/** Run `fn` under a stand-in system whose prepared Armor Class counts the stored `ac.mod` (`counts`) or ignores it. */
+const withSystemAc = async (counts, fn) => {
+  const saved = { Doc: CONFIG.Actor.documentClass, ready: game.ready };
+  CONFIG.Actor.documentClass = class ProbeActor {
+    constructor({ type, system }) {
+      const mod = system?.ac?.mod ?? 0;
+      this.type = type;
+      this.system = { ac: { mod, value: 11 + (counts ? mod : 0) } };
+    }
+  };
+  game.ready = true;
+  try {
+    return await fn();
+  } finally {
+    CONFIG.Actor.documentClass = saved.Doc;
+    game.ready = saved.ready;
+  }
+};
+
+await ok("a monster whose system counts its Armor Class modifier is read as a character is: each step a row with its figure, a waived one too", async () => {
+  const target = monster([effectOf("disordered", { name: "Spared" }), effectOf("shaken", { name: "Kept" })]);
+  target.items = [waiverAbility("Ability 3", "XX p. 00", "disordered")];
+  await withSystemAc(true, () => {
+    assert.deepEqual(targetAcRows(target), [
+      { name: named("Kept", "shaken"), value: step("shaken") },
+      { name: named("Spared", "disordered"), value: step("disordered") },
+    ]);
+  });
+  await withSystemAc(false, () => assert.deepEqual(targetAcRows(monster([effectOf("disordered")])), [], "a system seen to leave it out keeps the steps as terms"));
+});
+
 await ok("an effect that moves Armor Class but carries no condition status has no row", () => {
   const hand = effectOf("disordered", { statuses: [], name: "Hand Effect" });
   const plain = effectOf("restrained", { name: "Plain Core", changes: [{ key: AC, type: "add", value: 5 }] });

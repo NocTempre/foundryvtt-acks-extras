@@ -924,10 +924,12 @@ await (async () => {
     }
     /**
      * The number the roll reads, as core reads it: before it awaits anything.
-     * With a die set, the roll core resolves to afterwards.
+     * With a die set, the roll core resolves to afterwards. `readsSaveMod`
+     * stands in for a system that adds `save.mod` to this creature's roll,
+     * which lowers the number by it.
      */
     rollSave(save) {
-      const target = this.system.saves[save].value;
+      const target = this.system.saves[save].value - (this.readsSaveMod ? (this.system.save?.mod ?? 0) : 0);
       return this.die == null ? target : Promise.resolve({ total: this.die });
     }
     async toggleStatusEffect(id, { active }) {
@@ -1015,6 +1017,21 @@ await (async () => {
       assert.equal(holder("character").rollSave("death"), 14, `${id}: a character's throw carries no figure from the module`);
       assert.equal(holder("monster").rollSave("death"), 14 - step, `${id}: a monster's throw takes the step once`);
     }
+    // A system that adds `save.mod` to a monster's roll as well: the steps are held off the field while it rolls,
+    // so the system counts the stored part and the module the steps, each once, and the field is put back.
+    const hungryStep = conditionValue("hungry", "system.save.mod");
+    const reading = (stored) => {
+      const actor = hungryActor("monster");
+      actor.readsSaveMod = true;
+      // Foundry has applied the effect's change to the field: the stored figure plus the step.
+      actor.system.save = { mod: stored + hungryStep };
+      return actor;
+    };
+    assert.equal(reading(0).rollSave("death"), 14 - hungryStep, "the step counts once");
+    assert.equal(reading(2).rollSave("death"), 14 - hungryStep - 2, "the stored part is the system's");
+    const heldBack = reading(2);
+    heldBack.rollSave("death");
+    assert.equal(heldBack.system.save.mod, 2 + hungryStep, "the field is put back");
     assert.equal(new SystemActor([]).rollSave("breath"), 15);
     assert.ok(said.some((line) => line.includes("notice.applied")), "what was applied is told");
     passed++;
@@ -1385,6 +1402,33 @@ await (async () => {
     }
     passed++;
     console.log("ok   each of the eleven's figure reaches an attack from one place: core's effect for a character, the step read once for a monster target");
+
+    // A stand-in system whose prepared Armor Class counts a monster's `ac.mod`, as it counts a character's: the
+    // monster's step is then core's, and the module adds no term for it.
+    {
+      const saved = { Doc: globalThis.CONFIG.Actor.documentClass, ready: globalThis.game.ready };
+      globalThis.CONFIG.Actor.documentClass = class ProbeActor {
+        constructor({ type, system }) {
+          const mod = system?.ac?.mod ?? 0;
+          this.type = type;
+          this.system = { ac: { mod, value: 11 + mod } };
+        }
+      };
+      globalThis.game.ready = true;
+      try {
+        for (const id of CONDITION_ORDER) {
+          for (const kind of ATTACK_KINDS) {
+            const onMonster = await rowsOf(holding("character", [], "Striker"), holding("monster", [id], "Beast"), kind);
+            assert.deepEqual(named(onMonster.attack, id), [], `${id} ${kind}: no term once the system counts the monster's modifier`);
+          }
+        }
+      } finally {
+        globalThis.CONFIG.Actor.documentClass = saved.Doc;
+        globalThis.game.ready = saved.ready;
+      }
+    }
+    passed++;
+    console.log("ok   a monster target whose system counts its Armor Class modifier takes no term from the module, as a character does not");
 
     // A step that sets the target's Armor Class is a term (and a waived entry) that names the change's type in
     // Foundry's word (invented here), still by its condition; a step that adds reads as before.

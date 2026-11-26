@@ -628,6 +628,69 @@ await ok("recordImmunity reads the spells and conditions a record's immune parts
   assert.deepEqual(recordImmunity(bearer([]), ask), { spell: null, conditions: {}, pending: [] });
 });
 
+/* --- Whether the system counts a non-character's Armor Class modifier ------------- */
+
+/** A stand-in for the system's actor class: its prepared Armor Class is `base` plus `fold` times the stored `ac.mod`. */
+const probeClass = (fold, { base = 11, built = [] } = {}) =>
+  class ProbeActor {
+    constructor(data) {
+      built.push(data);
+      const mod = data.system?.ac?.mod ?? 0;
+      this.type = data.type;
+      this.system = { ac: { mod, value: base + fold * mod } };
+    }
+  };
+/** Run `fn` with `Doc` as the system's actor class, the world ready unless said otherwise. */
+const withActorClass = async (Doc, fn, { ready = true } = {}) => {
+  const saved = { Doc: CONFIG.Actor.documentClass, ready: game.ready };
+  CONFIG.Actor.documentClass = Doc;
+  game.ready = ready;
+  try {
+    return await fn();
+  } finally {
+    CONFIG.Actor.documentClass = saved.Doc;
+    game.ready = saved.ready;
+  }
+};
+
+await ok("the Armor Class probe reads the system's own preparation: counted, not counted, or not to be told", async () => {
+  const { systemCountsAcMod, acStepsCounted } = mods;
+  await withActorClass(probeClass(1), () => assert.equal(systemCountsAcMod("monster"), true));
+  await withActorClass(probeClass(0), () => assert.equal(systemCountsAcMod("monster"), false));
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...args) => warned.push(args.join(" "));
+  try {
+    await withActorClass(probeClass(2), () => assert.equal(systemCountsAcMod("monster"), null, "a difference that is not the mod"));
+    await withActorClass(class { constructor() { throw new Error("refused"); } }, () => assert.equal(systemCountsAcMod("monster"), null, "a construction that throws"));
+    await withActorClass(class { constructor() { this.system = {}; } }, () => assert.equal(systemCountsAcMod("monster"), null, "no figure"));
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(warned.length, 3, "each told once");
+  // Before the world is ready nothing is built and nothing kept; once ready the probe runs once per type.
+  const built = [];
+  const Doc = probeClass(1, { built });
+  await withActorClass(Doc, () => assert.equal(systemCountsAcMod("monster"), null), { ready: false });
+  assert.equal(built.length, 0, "nothing built before ready");
+  await withActorClass(Doc, () => {
+    assert.equal(systemCountsAcMod("monster"), true);
+    assert.equal(systemCountsAcMod("monster"), true);
+  });
+  assert.equal(built.length, 2, "two actors, built once and the answer kept");
+  // A character is never built and a package's sub-type is not probed; a character's steps are the system's.
+  await withActorClass(Doc, () => {
+    assert.equal(systemCountsAcMod("character"), null);
+    assert.equal(systemCountsAcMod("acks-extras.place"), null);
+    assert.equal(acStepsCounted({ type: "character" }), true);
+    assert.equal(acStepsCounted({ type: "monster" }), true);
+    assert.equal(acStepsCounted(null), false);
+  });
+  assert.equal(built.length, 2, "nothing more built");
+  await withActorClass(probeClass(0), () => assert.equal(acStepsCounted({ type: "monster" }), false));
+  assert.equal(acStepsCounted({ type: "monster" }), false, "where it cannot be told the steps stay the module's");
+});
+
 /* --- An armour class set by the kind of attack --------------------------------- */
 
 const armoured = (parts, { ac = 12, dex = 2, type = "character", effects } = {}) => {
@@ -681,6 +744,15 @@ await ok("a character's Armor Class already holds the system's step, so the lift
   // A prepared character: core folded the step into ac.value.
   const character = holding(armoured([setAc(SET_FIGURE)], { ac: 12 + step, dex: 2 }), "disordered");
   assert.deepEqual(labelsOf(against(character).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(SET_FIGURE - (12 + step - 2))}`]);
+});
+
+await ok("a monster whose system counts its Armor Class modifier is lifted as a character is: the step is in its Armor Class once", async () => {
+  const step = conditionValue("disordered", "system.ac.mod");
+  await withActorClass(probeClass(1), () => {
+    // A prepared monster under such a system: the step is already in ac.value.
+    const monster = holding(armoured([setAc(SET_FIGURE)], { ac: 12 + step, type: "monster" }), "disordered");
+    assert.deepEqual(labelsOf(against(monster).rows), [`Test Edge (Test cite) on Ally, missile attack|${-(SET_FIGURE - (12 + step))}`]);
+  });
 });
 
 await ok("the module's own Armor Class rows still compete with the set: Defend's", () => {

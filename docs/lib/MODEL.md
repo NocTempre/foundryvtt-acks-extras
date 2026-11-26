@@ -2696,8 +2696,9 @@ target's `ac` parts are narrowed by the attack's kind and tested through
 conditions))`, where `ac.value` carries armour, shield, powers and a character's
 Dexterity modifier, `dexMod` is read out of the comparison for a character (and is
 0 for a monster, whose figure is its stat line's) and `conditions` is
-`acMath(…, {kind}).total` and, for a monster, the sum of the steps its condition
-effects make to `system.ac.mod` (a character's `ac.value` already holds them).
+`acMath(…, {kind}).total` and the sum of the steps its condition effects make
+to `system.ac.mod` where its `ac.value` does not already hold them, as a
+character's does (`acStepsCounted`, below).
 Armour, shield, powers and conditions therefore compete
 with the set and never add to it, and Dexterity stays on top. The lift joins the
 add parts in one resolution, so a set and an add give the larger and two sets
@@ -3169,6 +3170,24 @@ steps lower its saving throw's number (`onRollSave`) and its spec's
 (`saveSpec`). `saveSpec` also lets the steps of a condition reach every save,
 as the system's roll does for a character: they are named parts of the throw,
 and the rest of `save.mod` stays the magical throw's alone.
+
+Whether a target's Armor Class already holds its steps is one predicate,
+`acStepsCounted(actor)` (`roll-mods.mjs`), which the throw's terms, the lift
+and the attack card's rows read: true for a character, and for another of the
+system's types where `systemCountsAcMod(type)` sees the system count the
+modifier. That probe builds two bare actors of the type in memory, never
+stored, once the world is ready, differing only in their stored `ac.mod`, and
+compares their prepared `ac.value`: a difference of that mod is counted, none
+is not, anything else cannot be told and keeps the steps as terms with one
+console warning. It runs on the first attack against the type and the answer
+is kept per type. A character is never built for it, and a package's sub-type
+is not probed. A system that starts counting a monster's Armor Class modifier
+therefore retires the terms, the lift's steps and the card's monster-only rows
+without an edit, and such a monster is read as a character is, its waiver not
+applied. The save steps do not stand down, since the system's roll leaves no
+prepared figure to compare: while the system rolls, `onRollSave` holds their
+total off the monster's `save.mod`, so a system that adds that field to a
+monster's roll counts its stored part and the module the steps, each once.
 
 **An effect's step is named where it is shown.** `stepLabel(effect, condition,
 type)` (`roll-mods.mjs`) names a step by the effect's own name, followed by the

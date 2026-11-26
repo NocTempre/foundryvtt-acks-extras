@@ -3373,3 +3373,54 @@ holds nothing.
 
 **Cost.** A table nothing produces is reachable in the Ruledata Browser only in
 a world that already holds one.
+
+## 2026-11-26 — A monster's Armor Class steps stand down where the system counts them, and its save steps are held off its save modifier
+
+Qualifies "Core's condition effects carry the figures they reach" (2026-11-24),
+whose third bullet has the module add a monster's Armor Class and save steps
+because the system leaves them out. New evidence (T-0894, the core 14.2.0
+upgrade check): the four places that add them decided by actor type, so the
+release in which the system starts counting a monster's `ac.mod` or
+`save.mod` (its ADR 0003 calls the gap temporary) would count every step twice
+and nothing would say so; the core repair plan's "deleted when core computes
+monster AC" was a note in a wip file with no row and no test behind it.
+
+**Ruled.**
+- Whether a target's prepared Armor Class already holds its steps is one
+  predicate, `acStepsCounted`, read by the throw's terms (`attackConditions`),
+  the lift (`armourLift`) and the attack card's rows (`targetAcRows`). A
+  character's always does. Another of the system's types does where
+  `systemCountsAcMod` sees it: two bare actors of the type built in memory and
+  never stored, differing only in their stored `ac.mod`, their prepared
+  `ac.value` compared once per type. Where it cannot be told the steps stay
+  the module's, as before. The adders retire themselves when the system
+  changes, with no version gate, as the lib system patches do.
+- A monster whose Armor Class the system is seen to count is read as a
+  character is: no term, no lift step, the card listing each step with its
+  figure, and the waiver not applied. That is the character's case, and it
+  keeps the 2026-11-24 rejection of acting on a figure the system applies.
+- The save steps are not stood down: the system adds `save.mod` inside its roll
+  and leaves no prepared figure to compare. `onRollSave` holds their total off
+  the monster's `save.mod` while the system rolls, so the steps count once,
+  through the number rolled against, whether or not the system adds the field,
+  and the system counts the stored part. `saveSpec` never calls the system's
+  roll and is not changed.
+
+**Rejected.** A version gate: it retires nothing on a release it does not
+name. Probing the system's `rollSave` with a stand-in actor: the answer would
+hang on the order the method reads its fields. A bare character as the probe:
+the system's character preparation may write to the stored document. A
+roadmap row alone: the change would still go unseen until someone walked it.
+
+**Strongest counter, MEDIUM.** The probe judges the system by two bare actors,
+so a system that counts the modifier only for an actor with items or a stat
+line would read as not counting it, and the steps would double as before. Not
+HIGH: that answer is today's behaviour, no worse than the type gate it
+replaces, and the live walk's once-only checks on a monster target still catch
+it.
+
+**Cost.** The probe builds two in-memory actors on the first attack against a
+type, and its answer holds for the session. A system that folds `save.mod`
+into a prepared saving-throw target, rather than adding it at the roll, is not
+covered. `saveSpec` still leaves a monster's stored `save.mod` out of its
+throws, which may part from the system's roll once the system adds it.

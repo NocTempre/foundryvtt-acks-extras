@@ -227,6 +227,73 @@ export function conditionSteps(actor, key) {
 /** The figures of `steps` summed. */
 export const sumSteps = (steps) => steps.reduce((total, step) => total + step.value, 0);
 
+/** The `ac.mod` the Armor Class probe stores on its second actor: a probe input, read off no page. */
+const PROBE_AC_MOD = 3;
+
+/** Per actor document class, what the probe found for each actor type: true, false or null. */
+const acModCountedBy = new WeakMap();
+
+/** One prepared Armor Class of a bare in-memory actor of `type` storing `mod`; never written to the world. */
+const probedAc = (Doc, type, mod) => Number(new Doc({ name: "ac-probe", type, system: { ac: { mod } } }).system?.ac?.value);
+
+/**
+ * Whether the system's own data preparation counts `system.ac.mod` in the
+ * prepared `system.ac.value` of an actor of `type`. Two bare actors of the
+ * type are built in memory, differing only in their stored `ac.mod`, and their
+ * prepared figures are compared: `true` where they differ by that mod, `false`
+ * where they are equal, `null` where it cannot be told (a figure that is not a
+ * number, a construction that throws, or any other difference), with one
+ * console warning. Asked on the first call for a type once the world is ready,
+ * and kept per document class. Only the system's own types are probed: a
+ * package's sub-type (an id with a dot) answers `null` unasked. A character is
+ * never built here, since the system's character preparation may write to
+ * the stored document; `acStepsCounted` answers for one without asking.
+ *
+ * @param {string} type  an actor type
+ * @returns {boolean|null}
+ */
+export function systemCountsAcMod(type) {
+  const Doc = globalThis.CONFIG?.Actor?.documentClass;
+  if (typeof Doc !== "function" || !type || type.includes(".") || type === ACTOR_TYPE.character) return null;
+  let found = acModCountedBy.get(Doc);
+  if (found?.has(type)) return found.get(type);
+  if (globalThis.game?.ready !== true) return null;
+  let answer = null;
+  try {
+    const without = probedAc(Doc, type, 0);
+    const holding = probedAc(Doc, type, PROBE_AC_MOD);
+    if (Number.isFinite(without) && Number.isFinite(holding)) {
+      if (holding === without) answer = false;
+      else if (holding - without === PROBE_AC_MOD) answer = true;
+    }
+  } catch (err) {
+    console.warn(`${MODULE_ID} | building an in-memory ${type} to read the system's Armor Class failed; its condition steps are added as terms`, err);
+    answer = undefined;
+  }
+  if (answer === null) console.warn(`${MODULE_ID} | whether the system counts a ${type}'s Armor Class modifier could not be told; its condition steps are added as terms`);
+  answer ??= null;
+  if (!found) acModCountedBy.set(Doc, (found = new Map()));
+  found.set(type, answer);
+  return answer;
+}
+
+/**
+ * Whether a target's prepared Armor Class already holds the steps its
+ * condition effects make to `system.ac.mod`, so nothing of the module's adds
+ * them again: a character's always, by the system's own computation; any other
+ * type's where the system is seen to count the modifier (`systemCountsAcMod`).
+ * Where that cannot be told the steps are the module's to add, as they are
+ * while the system leaves them out.
+ *
+ * @param {object|null} actor
+ * @returns {boolean}
+ */
+export function acStepsCounted(actor) {
+  if (!actor) return false;
+  if (actor.type === ACTOR_TYPE.character) return true;
+  return systemCountsAcMod(actor.type) === true;
+}
+
 /** A condition's name: its lang string, or its id before any translation is loaded. */
 const conditionName = (id) => globalThis.game?.i18n?.localize?.(conditionNameKey(id)) ?? id;
 
@@ -786,9 +853,10 @@ function wardSaveTarget(attacker, part) {
  * conditions compete with the set and never add to it; a character's Dexterity
  * modifier, which `ac.value` carries, is read out of that comparison and
  * stays on top, and a monster has none. The conditions are the module's own
- * rows (`acMath`) and, for a monster, the steps its condition effects make to
- * `system.ac.mod` (`conditionSteps`); a character's `ac.value` already holds
- * those. Null where the target's armour class is not a number.
+ * rows (`acMath`) and the steps its condition effects make to `system.ac.mod`
+ * (`conditionSteps`) where its `ac.value` does not already hold them, as a
+ * character's does (`acStepsCounted`). Null where the target's armour class is
+ * not a number.
  */
 function armourLift(targetActor, figure, kind) {
   const base = Number(targetActor?.system?.ac?.value);
@@ -797,7 +865,7 @@ function armourLift(targetActor, figure, kind) {
   const dex = character ? Number(targetActor.system?.scores?.dex?.mod) || 0 : 0;
   const subject = subjectOf(targetActor);
   const own = subject?.statuses && [...subject.statuses].length ? acMath(subject, undefined, { kind }).total : 0;
-  const steps = character ? 0 : sumSteps(conditionSteps(targetActor, CONDITION_STEP_KEYS.ac).steps);
+  const steps = acStepsCounted(targetActor) ? 0 : sumSteps(conditionSteps(targetActor, CONDITION_STEP_KEYS.ac).steps);
   return Math.max(0, figure - (base - dex + own + steps));
 }
 

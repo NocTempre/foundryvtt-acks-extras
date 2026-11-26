@@ -20,7 +20,7 @@
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { acWaiverSources } from "./conditions.mjs";
 import { TARGET_AC_FLAG, setTargetAcReader } from "./patches/attack-throw.mjs";
-import { CONDITION_STEP_KEYS, conditionSteps, stepLabel } from "./roll-mods.mjs";
+import { CONDITION_STEP_KEYS, acStepsCounted, conditionSteps, stepLabel } from "./roll-mods.mjs";
 import { signed } from "./frame-model.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { el, elementOf } from "./util.mjs";
@@ -46,7 +46,9 @@ const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.
  * Foundry applied (`conditionSteps`), by the effect's name and the step as it
  * stands in the effect (a bonus positive). A step the Armor Class waiver
  * spares is listed too on a character: its waiver is not applied, because the
- * system folded the step into the Armor Class shown.
+ * system folded the step into the Armor Class shown. Any target whose
+ * prepared Armor Class holds its steps (`acStepsCounted`) is read as a
+ * character is.
  *
  * A monster's steps are terms on the throw, so a monster target has rows only
  * where its waiver spares a step the throw therefore does not count: those
@@ -59,7 +61,7 @@ const text = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.
  * @returns {Array<{name: string, value: number}|{name: string, waived: true, by: Array<{name: string, cite: string}>}>}
  */
 export function targetAcRows(actor) {
-  if (actor?.type === ACTOR_TYPE.character) {
+  if (acStepsCounted(actor)) {
     const read = conditionSteps(actor, CONDITION_STEP_KEYS.ac);
     return [...read.steps, ...read.waived].map((step) => ({ name: stepLabel(step.effect, step.condition, step.type), value: step.value }));
   }
