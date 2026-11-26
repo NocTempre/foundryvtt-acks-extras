@@ -299,6 +299,20 @@ t("a leader is an officer of its unit with its morale part, never a stack; an ou
   assert.ok(wild.findings.some((f) => f.what === "morale" && f.figure === 9));
 });
 
+t("a leader whose morale part lowers morale keeps it, within the field's signed range", () => {
+  const withBonus = (moraleWhileAlive) => roll({ recipe: RECIPE.map((p) => (p.key === "leader-c" ? { ...p, moraleWhileAlive } : p)) });
+  for (const figure of [-4, -1, 0, 4]) {
+    const r = withBonus(figure);
+    assert.equal(r.top.officers[0].moraleBonus, figure, `${figure} is kept`);
+    assert.equal(r.findings.some((f) => f.what === "morale"), false, `${figure} is no finding`);
+  }
+  for (const figure of [-5, 5]) {
+    const r = withBonus(figure);
+    assert.equal(r.top.officers[0].moraleBonus, null, `${figure} is out of range`);
+    assert.ok(r.findings.some((f) => f.what === "morale" && f.figure === figure));
+  }
+});
+
 t("an outside reference that folds to one entry is an entry prototype; the others stay labelled and are listed", () => {
   const r = roll();
   const guard1 = stacksOf(r).find((s) => s.gen.part === "guard-1");

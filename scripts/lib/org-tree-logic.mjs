@@ -319,6 +319,17 @@ export function isOfficerUp(actor) {
 }
 
 /**
+ * What an officer's morale part adds: its bonus while the officer is up, nothing
+ * while it is down or the bonus is unread. The one reading a group's own term and
+ * each unit above it share.
+ * @param {{bonus: number|null, up: boolean}|null|undefined} part
+ * @returns {number}
+ */
+export function officerPartValue(part) {
+  return part?.up && Number.isFinite(part.bonus) ? part.bonus : 0;
+}
+
+/**
  * The morale part a unit takes from the units above it: the bonus of each
  * ancestor row's holder whose officer is up, summed. Walks the chart's own rows
  * whichever host holds them, so a chieftain's part reaches every gang under it
@@ -335,7 +346,7 @@ export function moraleFromAbove(key, nodes, read) {
   for (const above of rowAncestors(key, nodes)) {
     const holder = byKey.get(above)?.holderUuid;
     const part = holder ? read(holder) : null;
-    if (part?.up && Number.isFinite(part.bonus)) sum += part.bonus;
+    sum += officerPartValue(part);
   }
   return sum;
 }

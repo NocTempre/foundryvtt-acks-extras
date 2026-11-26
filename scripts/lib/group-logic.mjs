@@ -26,6 +26,25 @@ export function isGroupActor(actor) {
   return actor?.type === GROUP_ACTOR_TYPE;
 }
 
+/**
+ * The range a group's officer morale bonus (`unit.officerMoraleBonus`) takes, signed:
+ * a warband modifier may lower morale as well as raise it. It mirrors the field's own
+ * maximum, as the signed range `unit.loyalty` takes, and is the one range the data
+ * model's field, the beastman organisation roll's check and a hire's write all read.
+ */
+export const OFFICER_MORALE_RANGE = Object.freeze({ min: -4, max: 4 });
+
+/**
+ * An officer morale figure held to `OFFICER_MORALE_RANGE`, or null where there is no
+ * figure to hold (an unread one stays unread and is never made a zero).
+ * @param {number|null|undefined} value
+ * @returns {number|null}
+ */
+export function clampOfficerMoraleBonus(value) {
+  if (!Number.isFinite(value)) return null;
+  return Math.min(OFFICER_MORALE_RANGE.max, Math.max(OFFICER_MORALE_RANGE.min, Math.trunc(value)));
+}
+
 /** Token/flag keys linking a deployed token back to its group, stack, and member. */
 export const GROUP_FLAG = "group"; // on the token: the group actor's uuid
 /** The token flag holding the stack's key within the group. */

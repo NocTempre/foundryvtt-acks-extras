@@ -348,7 +348,9 @@ recorded before the levels were imported carry reason `firstLevel` or
 
 Hire as Group links an officer as the unit's commander and caches the
 officer's morale modifier on the group (`unit.officerMoraleBonus`), which
-`commandMorale` adds to the unit's morale. `rules/wages.mjs >
+`commandMorale` adds to the unit's morale while that officer is up. The
+figure is held to the field's signed range, so a modifier that lowers morale
+keeps its sign. `rules/wages.mjs >
 officerMoraleModifier` answers it: a `mercOfficer*` row reads its own row of
 `wages.mercenaryOfficers` (RR 171), a marshal or master mariner reads the
 imported `wages.officerMorale` table (RR 166, the Morale paragraph's figure

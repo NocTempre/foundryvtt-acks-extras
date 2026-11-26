@@ -1408,6 +1408,24 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
         assert.strictEqual(stack.baseMorale, expected, `${type} in a ${variant} settlement: the group stack takes the wage row's figure`);
       }
 
+      // The officer's cached morale modifier keeps its sign and is held to the field's range;
+      // an unread one is stored null.
+      const officerWrites = [];
+      const mercWages = wagesTables;
+      group.update = async (u) => { officerWrites.push(u); };
+      try {
+        for (const [read, stored] of [[-2, -2], [3, 3], [-9, -4], [9, 4], [undefined, null]]) {
+          wagesTables = { ...mercWages, officerMorale: read === undefined ? {} : { modifier: read } };
+          location.system.candidates.push({ ...candidate, id: `g-officer-${read}`, status: "available", kind: "specialist", specialistType: "marshalLightInfantry" });
+          officerWrites.length = 0;
+          await quiet(() => hireAsGroup(location, employer, { officerCandidateId: `g-officer-${read}` }));
+          assert.strictEqual(officerWrites.at(-1)?.["system.unit.officerMoraleBonus"], stored, `an officer figure of ${read} is stored as ${stored}`);
+        }
+      } finally {
+        group.update = async () => {};
+        wagesTables = mercWages;
+      }
+
       // An employer with no company yet: the unit block rides the create, and
       // the system's override (which keeps the caller's `system` and flags the
       // actor new) is the only thing between the call and the database.

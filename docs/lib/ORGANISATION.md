@@ -178,8 +178,10 @@ a character's Followers tab. Pure functions over plain data in
 
 A unit's leader is one actor, named by its group's `unit.officerUuid`
 (GROUPS.md). A village's chieftain is also the faction's `leaderUuid`. The
-officer's morale part is the group's `unit.officerMoraleBonus`, which
-`commandMorale` already adds.
+officer's morale part is the group's `unit.officerMoraleBonus`, a signed whole number
+(`OFFICER_MORALE_RANGE`, lib's `group-logic.mjs`), which `commandMorale` adds while the
+officer is up. A negative part, a warband modifier that lowers morale, subtracts while
+its officer is up and adds nothing while down.
 
 `moraleFromUnitsAbove(group)` is the other half, and `commandMorale` adds it: each
 **ancestor** row's holder group contributes its `officerMoraleBonus` while its
@@ -189,7 +191,9 @@ carries it to every gang under the chieftain, and takes it from all of them when
 the chieftain falls. An officer is up when it resolves, is above zero hit points
 and is not marked `dead`. An officer that does not resolve, an empty row and a
 null part add nothing. A group's own officer stays `commandMorale`'s own term and
-is not read here. The influence feature's `moraleRatingOf` and every sheet that reads
+is not read here, but it is read the same way: `org-host.mjs`'s `officerPartOf` is the one
+read of a unit's officer part, shared by the own term and every unit above, so a group's
+own part counts only while its own officer is up. The influence feature's `moraleRatingOf` and every sheet that reads
 `commandMorale` or `unitMoraleOf` take it with no change of their own. The sum is
 held to the character's morale range as before.
 

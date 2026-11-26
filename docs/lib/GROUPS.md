@@ -228,10 +228,13 @@ Its visited set ends it on data that loops, so no reader can hang. `groupDescend
 `groupAncestors`, `wouldCycleGroup` and `groupTree` (a group and every group inside it,
 as actors, the group first) are that walk.
 
-`setParentGroup(group, parentUuid)` is the one writer. It refuses a loop (a group
-inside itself or inside its own descendant), a parent that is no group, and a seat that
-cannot write the group, and answers `{ok, reason}`. A blank parent takes the group out.
-Data written around it and looping is read safely and counted once.
+`setParentGroup(group, parentUuid)` is the writer the lib offers. It refuses a loop (a
+group inside itself or inside its own descendant), a parent that is no group, and a seat
+that cannot write the group, and answers `{ok, reason}`. A blank parent takes the group
+out. The group's data model refuses the loop as well, in `_preUpdate`, so a direct
+`update` from a hand or a macro cannot nest a group inside its own descendant either: the
+update is cancelled and the console says why. Data written around both (a create, an
+imported world) and looping is read safely and counted once.
 
 The leader of a unit is the group's `unit.officerUuid`; nesting adds no field for it.
 

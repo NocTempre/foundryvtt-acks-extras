@@ -9,7 +9,7 @@
  * snapshots on `addStack`. Army-scale command is not this file's.
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
-import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
+import { GROUP_ACTOR_TYPE as GROUP_TYPE, clampOfficerMoraleBonus } from "../../lib/group-logic.mjs";
 import { hire, employerOwnership } from "./hire.mjs";
 import { commandRungs, hiredMorale, officerMoraleModifier, officerTitle, wageTroopType } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
@@ -171,11 +171,10 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     officer = result?.actor ?? null;
     if (officer) {
       // An unread modifier is stored as null (unknown), never as a 0 that
-      // claims the officer adds nothing.
-      const modifier = officerMoraleModifier(specialistType);
+      // claims the officer adds nothing; a read one is held to the field's range.
       await group.update({
         "system.unit.officerUuid": officer.uuid,
-        "system.unit.officerMoraleBonus": modifier === null ? null : Math.max(0, modifier),
+        "system.unit.officerMoraleBonus": clampOfficerMoraleBonus(officerMoraleModifier(specialistType)),
         "system.unit.officerLevel": commandLevel(specialistType, employer),
       });
     }

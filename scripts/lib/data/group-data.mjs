@@ -12,9 +12,10 @@
  */
 import { acksCompatStubs, creatureAttackModifiers, savingThrowFields } from "../actor-compat.mjs";
 import { unitField } from "../fields.mjs";
-import { moraleFromUnitsAbove } from "../org-host.mjs";
+import { MODULE_ID } from "../constants.mjs";
+import { officerMoraleOf, moraleFromUnitsAbove } from "../org-host.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
-import { commandStatus } from "../group-logic.mjs";
+import { OFFICER_MORALE_RANGE, commandStatus, wouldCycleGroup } from "../group-logic.mjs";
 import { clampScore, moraleBounds } from "../score-bounds.mjs";
 import { ACTOR_TYPE } from "../vocab.mjs";
 
@@ -183,17 +184,19 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         employerUuid: str(),
         locationUuid: str(),
         // The group this one stands inside (a gang inside a warband). Blank is a group
-        // inside none. Written by `setParentGroup`, which refuses a loop; the walk
-        // over it is group-logic's `groupTree`. See docs/lib/GROUPS.md, "A group inside a group".
+        // inside none. Written by `setParentGroup`; `_preUpdate` refuses a loop from any
+        // writer, a hand or a macro included. The walk over it is group-logic's
+        // `groupTree`. See docs/lib/GROUPS.md, "A group inside a group".
         parentGroupUuid: str(),
         // The commanding officer (RR 171): a lone leveled actor, not a stack.
         // Only the skirmish-scale bit lives here (uuid + cached morale
-        // modifier, so `commandMorale` computes without loading the officer);
-        // domain-scale command is the army layer's. The modifier is null while
-        // the figure it was read from is not imported, and `commandMorale`
-        // counts a null as adding nothing.
+        // modifier, so `commandMorale` reads the bonus without loading the officer,
+        // and counts it while that officer is up); domain-scale command is the army
+        // layer's. The modifier is null while the figure it was read from is not
+        // imported, and `commandMorale` counts a null as adding nothing. Signed: a
+        // warband modifier may lower morale (`OFFICER_MORALE_RANGE`).
         officerUuid: str(),
-        officerMoraleBonus: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0, max: 4 }),
+        officerMoraleBonus: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: OFFICER_MORALE_RANGE.min, max: OFFICER_MORALE_RANGE.max }),
         // The commander's level (cached from the officer, or the personally-leading
         // employer) — drives the RR 169 "personally led" command capacity.
         officerLevel: int(0, { min: 0 }),
@@ -238,6 +241,27 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
     const allowed = await super._preCreate(data, options, user);
     if (allowed === false) return false;
     if (data.prototypeToken?.actorLink === undefined) this.parent.updateSource({ "prototypeToken.actorLink": true });
+    return allowed;
+  }
+
+  /**
+   * Refuses a write of `unit.parentGroupUuid` that would put this group inside
+   * itself or inside a group already inside it, whoever writes it, so a hand or a
+   * macro cannot close the loop `setParentGroup` refuses. Reads the new parent from
+   * the expanded changes core hands over and from a flat dotted key alike. A blank
+   * parent, a parent this client cannot see and an update that leaves the parent
+   * alone pass.
+   * @override
+   */
+  async _preUpdate(changes, options, user) {
+    const allowed = await super._preUpdate(changes, options, user);
+    if (allowed === false) return false;
+    const path = "system.unit.parentGroupUuid";
+    const next = foundry.utils.getProperty(changes, path) ?? changes?.[path];
+    if (typeof next === "string" && next && wouldCycleGroup(this.parent.uuid, next)) {
+      console.warn(`${MODULE_ID} | refused: ${this.parent.name} cannot stand inside ${next}, which is the group itself or one inside it`);
+      return false;
+    }
     return allowed;
   }
 
@@ -320,14 +344,15 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
   }
 
   /** Unit morale including the commanding officer's RR 171 modifier (skirmish
-   *  scale) and the part each unit above it in an organisation chart brings while
-   *  its officer is up (`moraleFromUnitsAbove`, docs/lib/ORGANISATION.md), held to
+   *  scale) and the part each unit above it in an organisation chart brings, each
+   *  counted only while its officer is up, this group's own included
+   *  (`officerMoraleOf`, `moraleFromUnitsAbove`, docs/lib/ORGANISATION.md), held to
    *  the morale range the system gives a character (`moraleBounds`), the
    *  hireling's own score. `unit.morale` carries the employer's leader modifiers
    *  (CHA, Command, led-by-5th …) that the consumer computes; a stack's own
    *  troop-type base is added per stack. */
   get commandMorale() {
-    const m = (this.unit?.morale ?? 0) + (this.unit?.officerMoraleBonus ?? 0) + moraleFromUnitsAbove(this.parent);
+    const m = (this.unit?.morale ?? 0) + officerMoraleOf(this.parent) + moraleFromUnitsAbove(this.parent);
     return clampScore(m, moraleBounds(ACTOR_TYPE.character));
   }
 

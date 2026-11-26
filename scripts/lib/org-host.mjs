@@ -8,7 +8,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { isGroupActor } from "./group-logic.mjs";
-import { isOfficerUp, moraleFromAbove, nodesOf, preferredHost } from "./org-tree-logic.mjs";
+import { isOfficerUp, moraleFromAbove, nodesOf, officerPartValue, preferredHost } from "./org-tree-logic.mjs";
 import { ORG_GEN_FLAG } from "./org-write-logic.mjs";
 import { docOf } from "./util.mjs";
 
@@ -114,24 +114,48 @@ export function registerOrgIndex() {
 /*  Leader and morale                            */
 /* -------------------------------------------- */
 
+/** A group as the chart knows it: an unlinked token's actor is read as its base actor. */
+const baseOf = (group) => (group?.isToken ? (group.baseActor ?? group) : group);
+
+/**
+ * A group's officer part as the world has it now: the cached bonus, and whether the
+ * officer it names is up (resolved, above zero hit points, not marked dead). The one
+ * read a group's own term and every unit above it share, so the two cannot differ.
+ * @param {Actor|null|undefined} group; an unlinked token's actor is read as its base actor
+ * @returns {{bonus: number|null, up: boolean}}
+ */
+export function officerPartOf(group) {
+  const unit = baseOf(group)?.system?.unit;
+  return { bonus: unit?.officerMoraleBonus ?? null, up: isOfficerUp(docOf(unit?.officerUuid)) };
+}
+
+/**
+ * What a group's officer adds to morale now: the bonus while the officer is up,
+ * nothing while it is down, unresolved or the bonus unread.
+ * @param {Actor|null|undefined} group; an unlinked token's actor is read as its base actor
+ * @returns {number}
+ */
+export function officerMoraleOf(group) {
+  return officerPartValue(officerPartOf(group));
+}
+
 /**
  * The morale part a group takes from the units above it in whichever chart holds
  * its row: each ancestor row's holder group contributes its officer's morale part
- * while that officer is up (resolved, above zero hit points, not marked dead). A
- * group no chart names, or one with nothing above it, takes none. A group's own
- * officer is `commandMorale`'s own term and is not read here.
+ * while that officer is up (`officerPartOf`). A group no chart names, or one with
+ * nothing above it, takes none. A group's own officer is `commandMorale`'s own
+ * term, read the same way (`officerMoraleOf`), and is not read here.
  *
  * @param {Actor|null} group the group asking; an unlinked token's actor is read as its base actor
  * @returns {number}
  */
 export function moraleFromUnitsAbove(group) {
-  const owner = group?.isToken ? (group.baseActor ?? group) : group;
+  const owner = baseOf(group);
   const found = owner?.uuid ? orgHostOf(owner.uuid) : null;
   if (!found) return 0;
   return moraleFromAbove(found.row.key, nodesOf(unitsOf(found.host)), (holderUuid) => {
     const holder = docOf(holderUuid);
     if (!isGroupActor(holder)) return null;
-    const unit = holder.system?.unit;
-    return { bonus: unit?.officerMoraleBonus ?? null, up: isOfficerUp(docOf(unit?.officerUuid)) };
+    return officerPartOf(holder);
   });
 }

@@ -18,14 +18,26 @@ globalThis.Hooks = {
   callAll() {},
 };
 const fire = (name, ...args) => (handlers[name] ?? []).forEach((fn) => fn(...args));
+/** A field that keeps its options and the fields it nests, so the schema's ranges can be read back. */
+const keeping = class {
+  constructor(first, second) {
+    this.options = second ?? first;
+    this.fields = first;
+  }
+};
 globalThis.foundry = {
-  abstract: { TypeDataModel: class {} },
-  data: { fields: new Proxy({}, { get: () => class {} }) },
-  utils: { deepClone: (v) => structuredClone(v) },
+  abstract: { TypeDataModel: class { async _preUpdate() {} } },
+  data: { fields: new Proxy({}, { get: () => keeping }) },
+  utils: {
+    deepClone: (v) => structuredClone(v),
+    getProperty: (o, p) => p.split(".").reduce((a, k) => a?.[k], o),
+  },
 };
 
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
-const { registerOrgIndex } = await import("../scripts/lib/org-host.mjs");
+const groupLogic = await import("../scripts/lib/group-logic.mjs");
+const org = await import("../scripts/lib/org-host.mjs");
+const { registerOrgIndex } = org;
 registerOrgIndex();
 
 const RUNGS = [
@@ -138,8 +150,8 @@ t("a chart hosted on a group reads the same, with no faction", () => {
 });
 
 t("a group no chart names, and an officer that does not resolve, take nothing from above", () => {
-  const lone = groupDoc("lone", { unit: { officerMoraleBonus: 1 } });
-  assert.equal(lone.system.commandMorale, 1);
+  const lone = groupDoc("lone", { unit: { morale: 1, officerMoraleBonus: 1 } });
+  assert.equal(lone.system.commandMorale, 1, "a bonus with no officer linked adds nothing, the group's own morale stands");
   const { g, chief } = village();
   world.delete(chief.uuid);
   assert.equal(g.system.commandMorale, 2 + 1, "the village's officer is gone");
@@ -156,6 +168,8 @@ t("a gang's unlinked token reads its base actor's chart", () => {
   const synthetic = Object.assign(Object.create(GroupData.prototype), { stacks: [], unit: { morale: 0, officerMoraleBonus: 2 } });
   synthetic.parent = { uuid: "Scene.s.Token.t.Actor.g", isToken: true, baseActor: g };
   assert.equal(synthetic.commandMorale, 2 + 1 + 3);
+  world.get("Actor.champion").system.hp.value = 0;
+  assert.equal(synthetic.commandMorale, 1 + 3, "and its own officer's part is the base actor's, down with that officer");
 });
 
 t("a row on a faction and on a group answers by the faction", () => {
@@ -166,10 +180,119 @@ t("a row on a faction and on a group answers by the faction", () => {
   assert.equal(g.system.commandMorale, 6, "the faction's rows, where the gang stands under the warband");
 });
 
+/* -------------------------------------------- */
+/*  A group's own officer, and a negative bonus  */
+/* -------------------------------------------- */
+
+t("a group's own officer part applies only while that officer is up, as the part of a unit above it does", () => {
+  const { g, v } = village();
+  const champion = world.get("Actor.champion");
+  const chief = world.get("Actor.chief");
+  champion.system.hp.value = 0;
+  assert.equal(g.system.commandMorale, 1 + 3, "its own officer is down: only the warband's and the village's parts");
+  champion.system.hp.value = 6;
+  assert.equal(g.system.commandMorale, 2 + 1 + 3, "up again, the part is back");
+  champion.statuses.add("dead");
+  assert.equal(g.system.commandMorale, 1 + 3, "marked dead");
+  champion.statuses.delete("dead");
+  chief.system.hp.value = 0;
+  assert.equal(v.system.commandMorale, 0, "a top unit whose officer is down takes nothing");
+  world.delete(chief.uuid);
+  assert.equal(v.system.commandMorale, 0, "an officer that does not resolve is not up");
+});
+
+t("a negative officer bonus subtracts while its officer is up and adds nothing while down", () => {
+  const { g, w } = village();
+  const champion = world.get("Actor.champion");
+  g.system.unit.officerMoraleBonus = -2;
+  assert.equal(g.system.commandMorale, -2 + 1 + 3, "up: the group's own negative part and the units above");
+  champion.system.hp.value = 0;
+  assert.equal(g.system.commandMorale, 1 + 3, "down: it adds nothing, and does not lower the figure");
+  w.system.unit.officerMoraleBonus = -1;
+  assert.equal(g.system.commandMorale, -1 + 3, "a negative part of a unit above reads the same way");
+});
+
+t("the officer part of one unit is the one read the own term and the ancestor read share", () => {
+  village();
+  const held = (unit) => ({ system: { unit } });
+  assert.deepEqual(org.officerPartOf(held({ officerUuid: "Actor.champion", officerMoraleBonus: -3 })), { bonus: -3, up: true });
+  assert.equal(org.officerPartOf(held({ officerUuid: "", officerMoraleBonus: 2 })).up, false, "no officer is not up");
+  assert.equal(org.officerPartOf(undefined).bonus, null, "no group, no figure");
+  const token = { isToken: true, baseActor: held({ officerUuid: "Actor.champion", officerMoraleBonus: 1 }), system: { unit: {} } };
+  assert.deepEqual(org.officerPartOf(token), { bonus: 1, up: true }, "an unlinked token's actor reads as its base actor");
+  assert.equal(org.officerMoraleOf(held({ officerUuid: "Actor.champion", officerMoraleBonus: -3 })), -3);
+});
+
+t("the officer bonus field takes the full signed range", () => {
+  const { OFFICER_MORALE_RANGE } = groupLogic;
+  assert.deepEqual({ ...OFFICER_MORALE_RANGE }, { min: -4, max: 4 });
+  const field = GroupData.defineSchema().unit.fields.officerMoraleBonus.options;
+  assert.equal(field.min, OFFICER_MORALE_RANGE.min, "the schema takes a negative bonus");
+  assert.equal(field.max, OFFICER_MORALE_RANGE.max);
+  assert.equal(field.integer, true);
+});
+
+t("clampOfficerMoraleBonus holds a figure to the range and leaves an unread one null", () => {
+  const { clampOfficerMoraleBonus } = groupLogic;
+  assert.equal(clampOfficerMoraleBonus(-2), -2);
+  assert.equal(clampOfficerMoraleBonus(-9), -4);
+  assert.equal(clampOfficerMoraleBonus(9), 4);
+  assert.equal(clampOfficerMoraleBonus(0), 0, "zero is a figure");
+  assert.equal(clampOfficerMoraleBonus(null), null);
+  assert.equal(clampOfficerMoraleBonus(undefined), null);
+  assert.equal(clampOfficerMoraleBonus(Number.NaN), null);
+});
+
+/* -------------------------------------------- */
+/*  The model refuses a loop from any writer     */
+/* -------------------------------------------- */
+
+/** Three nested groups, `c` inside `b` inside `a`, and `d` standing apart. */
+function nest() {
+  world.clear();
+  const a = groupDoc("a");
+  const b = groupDoc("b", { unit: { parentGroupUuid: a.uuid } });
+  const c = groupDoc("c", { unit: { parentGroupUuid: b.uuid } });
+  const d = groupDoc("d");
+  return { a, b, c, d };
+}
+
+/** Run the model's `_preUpdate` as core does, with `console.warn` captured. */
+async function preUpdate(group, changes) {
+  const warned = [];
+  const was = console.warn;
+  console.warn = (...args) => warned.push(args.join(" "));
+  try {
+    return { result: await group.system._preUpdate(changes, {}, null), warned };
+  } finally {
+    console.warn = was;
+  }
+}
+
+t("a direct write that would nest a group inside its own descendant is refused", async () => {
+  const { a, c } = nest();
+  const expanded = await preUpdate(a, { system: { unit: { parentGroupUuid: c.uuid } } });
+  assert.equal(expanded.result, false, "the expanded shape core hands over");
+  assert.ok(expanded.warned.some((m) => m.startsWith("acks-extras |")), "and says so on the console");
+  const flat = await preUpdate(a, { "system.unit.parentGroupUuid": c.uuid });
+  assert.equal(flat.result, false, "a flat dotted key is caught the same way");
+  assert.equal((await preUpdate(a, { system: { unit: { parentGroupUuid: a.uuid } } })).result, false, "a group inside itself");
+});
+
+t("a direct write that closes no loop is let through", async () => {
+  const { a, c, d } = nest();
+  assert.notEqual((await preUpdate(c, { system: { unit: { parentGroupUuid: a.uuid } } })).result, false, "a deeper group moves up");
+  assert.notEqual((await preUpdate(d, { system: { unit: { parentGroupUuid: c.uuid } } })).result, false, "an outside group goes inside");
+  assert.notEqual((await preUpdate(a, { system: { unit: { parentGroupUuid: "" } } })).result, false, "a blank parent is a group inside none");
+  assert.notEqual((await preUpdate(a, { system: { unit: { parentGroupUuid: "Actor.unseen" } } })).result, false, "a parent this client cannot see closes nothing");
+  assert.notEqual((await preUpdate(a, { system: { unit: { morale: 1 } } })).result, false, "an update that leaves the parent alone");
+  assert.notEqual((await preUpdate(a, { name: "A" })).result, false, "and one that touches no system data");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {
-    fn();
+    await fn();
     console.log(`ok    ${name}`);
   } catch (err) {
     failures++;

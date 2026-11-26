@@ -1088,7 +1088,7 @@ with every control of a unit row's line but Make (the entry names no leader role
 
 **Leaders.** A unit's first leader is made an actor and named as its group's
 officer; the others are actors too. A leader is never a stack. The officer carries
-its `moraleBonus` when that is a whole number the group field holds (0 to 4), else
+its `moraleBonus` when that is a whole number the group field holds (-4 to 4), else
 null and a `morale` finding.
 
 **The optional rules** (`planOrganisationRoll`), each read from the imported

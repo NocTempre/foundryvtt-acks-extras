@@ -33,6 +33,7 @@
  *
  * Rulings: docs/monsters/MODEL.md, "The organisation roll".
  */
+import { OFFICER_MORALE_RANGE } from "../lib/group-logic.mjs";
 import { rollDie } from "../lib/template-logic.mjs";
 import { bandDie } from "../lib/tables.mjs";
 import { evaluateRecipe, rollFormula, unitWord, walk } from "./encounter-recipe.mjs";
@@ -41,8 +42,6 @@ import { REFERENCE, beastCellPart, readBeastCell, readMountCell, resolveOutside 
 /** The share key a three-way split gives the units its troops are rolled for. */
 export const SPECIAL = "special";
 
-/** The morale field's range on a group's officer (`unit.officerMoraleBonus`). */
-const MORALE_BONUS_RANGE = [0, 4];
 /** The roles whose part names its creature by a link to that creature's entry. */
 const LINKED_ROLES = new Set(["mount", "beast"]);
 
@@ -294,7 +293,7 @@ export function planOrganisationRoll({
       const leaderTroop = troop || troopAbove(en);
       for (let i = 0; i < Math.max(0, l.count); i++) {
         const bonus = l.moraleWhileAlive;
-        const inRange = Number.isInteger(bonus) && bonus >= MORALE_BONUS_RANGE[0] && bonus <= MORALE_BONUS_RANGE[1];
+        const inRange = Number.isInteger(bonus) && bonus >= OFFICER_MORALE_RANGE.min && bonus <= OFFICER_MORALE_RANGE.max;
         if (bonus != null && !inRange) findings.push({ what: "morale", part: l.part, figure: bonus });
         node.officers.push({
           proto: protoOf(cellProto(cell, leaderTroop, { grade: leaderSource === "table" ? "table" : "", partKey: l.part })),
