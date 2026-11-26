@@ -448,6 +448,41 @@ export function isHexScene(scene) {
 }
 
 /**
+ * The lang key that says why the brush cannot paint on a scene, or null where
+ * it can. The first-click refusal and the toolbar's off state both read this,
+ * so they cannot disagree.
+ */
+export function brushRefusalKey(scene) {
+  return isHexScene(scene) ? null : `${LANG_PREFIX}.terrain.hexOnly`;
+}
+
+/**
+ * Draw the Country brush's toolbar button off, with its reason, where the
+ * scene refuses the brush, and on again where it does not. Core's tool
+ * template carries no disabled state, so the button is marked after each
+ * render. The pointer passes through the off button (its CSS class) to the list
+ * item, which carries the reason as tooltip text; a press cannot arm it.
+ * `root` is the scene controls' element.
+ */
+export function markBrushControl(root, scene) {
+  const button = root?.querySelector?.(`button.tool[data-tool="${BRUSH_TOOL}"]`);
+  if (!button) return;
+  const key = brushRefusalKey(scene);
+  const off = key !== null;
+  const reason = off ? game.i18n.localize(key) : null;
+  const item = button.parentElement;
+  button.disabled = off;
+  button.classList.toggle("acks-extras-brush-off", off);
+  const put = (el, name, value) => (value === null ? el.removeAttribute(name) : el.setAttribute(name, value));
+  put(button, "aria-disabled", off ? "true" : null);
+  put(button, "aria-description", reason);
+  if (item) {
+    put(item, "data-tooltip-text", reason);
+    put(item, "data-tooltip-direction", off ? "RIGHT" : null);
+  }
+}
+
+/**
  * Every region a layer has painted on a scene, in the scene's order: one that
  * carries the layer's value flag and at least one `grid` shape. A region the
  * flag names but no grid shape backs paints nothing.
@@ -886,11 +921,13 @@ class TerrainPaintSession {
   #paintAt(ev) {
     if (!this.brush || !canvas?.scene) return;
     const point = ev.getLocalPosition(canvas.stage);
-    if (!isHexScene(canvas.scene)) {
-      // Once per STROKE, not once per pointermove: the sentinel is cleared by
-      // pointerup, and checked before the warning re-fires.
+    const refusal = brushRefusalKey(canvas.scene);
+    if (refusal) {
+      // The backstop for a brush armed without the toolbar button (a script, a
+      // sheet chip). Once per STROKE, not once per pointermove: the sentinel
+      // is cleared by pointerup, and checked before the warning re-fires.
       if (this.#lastKey !== "warned") {
-        ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.terrain.hexOnly`));
+        ui.notifications?.warn(game.i18n.localize(refusal));
         this.#lastKey = "warned";
       }
       return;

@@ -8102,6 +8102,8 @@
   "ACKS-BATTLEMAP.warn.notSquareGrid": "This scene uses a hex grid, so a square fit is refused. Choose a hex family in “{family}”, or scale only. To apply a square grid, set the grid back to gridless first: the scene's Scene configuration, Grid tab, Grid type, Gridless.",
   "ACKS-BATTLEMAP.warn.noBackground": "This scene has no background image to calibrate against. Set one in Scene configuration.",
   "ACKS-BATTLEMAP.warn.highResidual": "The fit is loose — samples disagree. Erase outliers or add better ones.",
+  "ACKS-BATTLEMAP.warn.highResidualBox": "The fit is loose — samples disagree: box {n} sits furthest off. Erase it or redraw it, or add better samples.",
+  "ACKS-BATTLEMAP.warn.highResidualCorner": "The fit is loose — samples disagree: corner {n} sits furthest off. Erase it or pick it again, or add better samples.",
   "ACKS-BATTLEMAP.warn.notAligned": "The Foundry squares will not line up with the map's drawn boxes (the ratio is not a whole number).",
   "ACKS-BATTLEMAP.warn.noUpload": "You lack file upload permission, so a corrected image cannot be saved.",
   "ACKS-BATTLEMAP.warn.uploadFailed": "Saving the corrected image failed.",

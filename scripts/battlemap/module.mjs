@@ -32,6 +32,7 @@ import {
   hexLabelFromOffset,
   paintHexAt,
   isHexScene,
+  markBrushControl,
   layerRegionsOf,
   layerValueAt,
   paintableValues,
@@ -380,6 +381,14 @@ export function installSceneControls() {
         else session.disarm();
       },
     };
+  });
+  // The brush's button is drawn off on a scene with no hex grid, and the tools
+  // are redrawn when the scene in view changes its grid type.
+  Hooks.on("renderSceneControls", (_app, element) => {
+    if (game.user.isGM) markBrushControl(elementOf(element), canvas?.scene);
+  });
+  Hooks.on("updateScene", (scene, changes) => {
+    if (game.user.isGM && scene === canvas?.scene && changes?.grid?.type !== undefined) ui.controls?.render?.({ parts: ["tools"] });
   });
 }
 

@@ -803,19 +803,31 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   }
 
   /**
-   * The fit's warnings as lines, for the worst-box slot. A loose hex fit names
-   * the box that sits furthest off by its row number, or none where the fit
-   * names none; boxes left out as unreachable, and a family the boxes do not
-   * read as, are stated here too, so none vanishes without a word. The square
-   * family's loose line is its own.
+   * The loose-fit line. `worst` is the fit's own: a hex fit's box index, or a
+   * square fit's sample index among the boxes and then the corners. The line
+   * names that sample by its row number, or names none where the fit names none.
+   */
+  #looseLine(worst) {
+    if (this.isHex) return worst == null ? loc("warn.looseHex") : loc("warn.looseHexWorst", { n: worst + 1 });
+    if (worst == null) return loc("warn.highResidual");
+    const boxes = this.samples.squares.length;
+    return worst < boxes
+      ? loc("warn.highResidualBox", { n: worst + 1 })
+      : loc("warn.highResidualCorner", { n: worst - boxes + 1 });
+  }
+
+  /**
+   * The fit's warnings as lines, for the worst-box slot. A loose fit names
+   * the box or corner that sits furthest off by its row number, or none where
+   * the fit names none; boxes left out as unreachable, and a family the boxes
+   * do not read as, are stated here too, so none vanishes without a word.
    */
   #warningLines(plan) {
     const family = loc("setup.family");
     const lines = [];
     for (const w of plan.warnings) {
       if (w.id === "looseFit") {
-        if (!this.isHex) lines.push(loc("warn.highResidual"));
-        else lines.push(w.worst == null ? loc("warn.looseHex") : loc("warn.looseHexWorst", { n: w.worst + 1 }));
+        lines.push(this.#looseLine(w.worst));
       } else if (w.id === "unreachable") {
         lines.push(loc("warn.unreachable", { count: w.count }));
       } else if (w.id === "familyMismatch") {

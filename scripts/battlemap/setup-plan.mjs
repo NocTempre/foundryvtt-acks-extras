@@ -55,9 +55,10 @@
  * shape-based `familyMismatch` over exactly one used box: one box cannot show
  * its own size, so a box drawn around several hexes reads as the other family
  * just as a wrong family does, and only a second box tells the two apart.
- * `worst` is the index of the box that sits
- * furthest off, null where the fit names none (a square fit scores no single
- * box; a hex fit names one only from three used boxes).
+ * `worst` is the index of the sample that sits
+ * furthest off, null where the fit names none (a hex fit names a box only from
+ * three used boxes, and a square fit a sample only from three; a square fit's
+ * index counts the boxes, then the corners).
  *
  * ## Rows
  *

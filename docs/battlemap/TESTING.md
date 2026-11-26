@@ -454,6 +454,15 @@ outlines (a shot).
     to `Miles` at the step's start), drag a scale bar, choose mi and Apply. *Observable:*
     `grid.units` still reads `Miles`, and the done notice shows `Miles`. A
     scene in `ft` with mi chosen is written `mi`.
+23. **A loose square fit names its worst sample.** On `battlemap/scale-bar-map`
+    with the square family, draw four boxes over four drawn cells (cell by
+    cell, one drawn a third of a cell off its grid lines). *Observable:* the
+    fit panel's warning reads "box 4 sits furthest off" with that box's row
+    number (the same shape as the hex family's "box N"); erase the box and
+    pick one corner a third of a cell off with Pick corners: the warning names
+    "corner 1", counted among the corners alone. Erase down to two samples
+    while the fit is still loose: the warning names none. `session.fit.worst`
+    is the box index, or the box count plus the corner index.
 
 ## Teardown
 
@@ -506,7 +515,18 @@ read).
    unpainted (`layerValueAt`), the Territory or Domains mode stops drawing it
    and a domain's territory row for it reads as unpainted, with no repaint;
    put back, all three read it again.
-4. Click the square-grid scene with the brush armed.
+4. View the square-grid scene and open Scene controls → Battlemap.
+   *Observable:* the Country brush button (`button.tool[data-tool="terrain"]`
+   in `#scene-controls-tools`) is `disabled` with `aria-disabled="true"` and
+   the class `acks-extras-brush-off`, drawn dimmed and struck through, and its
+   list item carries `data-tooltip-text` reading the hex-only line;
+   `document.elementFromPoint` at the button's centre returns that list item
+   (so hovering it shows the line through the tooltip manager), and a press
+   on it arms nothing. View the hex scene: the button is enabled with no
+   class and no tooltip text. Set the square scene's grid type to a hex type
+   through its Scene configuration and back: the button follows at once,
+   without a reload. Then arm the brush by script (`acksExtras.battlemap.terrain.
+   openCountryBrush()`) on the square scene and click the board.
    *Observable:* the hex-only warning, once per stroke; no region appears.
 5. Journey read: begin a journey on the painted hex scene and move the party
    token across a painted boundary.

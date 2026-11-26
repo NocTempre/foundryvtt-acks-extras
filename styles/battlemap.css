@@ -667,3 +667,19 @@
 .acks-extras-scene-system-current > span {
   font-weight: bold;
 }
+
+/* The Country brush's toolbar button on a scene with no hex grid: dimmed and
+   struck through, and out of the pointer's way so the list item behind it
+   shows the reason as its tooltip (`markBrushControl`). */
+#scene-controls-tools button.tool.acks-extras-brush-off {
+  position: relative;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+#scene-controls-tools button.tool.acks-extras-brush-off::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), currentColor calc(50% - 1px), currentColor calc(50% + 1px), transparent calc(50% + 1px));
+}

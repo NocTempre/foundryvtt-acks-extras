@@ -153,4 +153,66 @@ for (const by of ["sheet", "palette"]) {
   assert.deepEqual(activated, [], `${by}: and does not touch the toolbar`);
 }
 
+// The Country brush's button is drawn off, with its reason, on a scene that is
+// not a hex grid; the first-click refusal reads the same condition.
+{
+  const paint = await import(root("scripts/battlemap/terrain-paint.mjs").href);
+  assert.equal(typeof paint.brushRefusalKey, "function", "one predicate names the refusal");
+  assert.equal(typeof paint.markBrushControl, "function", "the control is marked from it");
+  Object.assign(CONST.GRID_TYPES, { GRIDLESS: 0, HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 });
+  const square = { grid: { type: CONST.GRID_TYPES.SQUARE } };
+  const hex = { grid: { type: CONST.GRID_TYPES.HEXODDQ } };
+  const gridless = { grid: { type: CONST.GRID_TYPES.GRIDLESS } };
+  assert.equal(paint.brushRefusalKey(hex), null, "a hex grid refuses nothing");
+  for (const scene of [square, gridless, null]) {
+    assert.equal(paint.brushRefusalKey(scene), "ACKS-BATTLEMAP.terrain.hexOnly", "any other grid refuses with the key the click speaks");
+  }
+
+  /** A stand-in for core's tool button and the list item around it. */
+  const element = (extra = {}) => {
+    const attrs = new Map();
+    const classes = new Set();
+    return {
+      attrs,
+      classes,
+      disabled: false,
+      setAttribute: (k, v) => attrs.set(k, String(v)),
+      removeAttribute: (k) => attrs.delete(k),
+      classList: { toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) },
+      ...extra,
+    };
+  };
+  const item = element();
+  const button = element({ parentElement: item });
+  const html = { nodeType: 1, querySelector: (s) => (s === 'button.tool[data-tool="terrain"]' ? button : null) };
+
+  paint.markBrushControl(html, square);
+  assert.equal(button.disabled, true, "the brush's button is off on a square scene");
+  assert.equal(button.attrs.get("aria-disabled"), "true", "and says so to assistive technology");
+  assert.ok(button.classes.has("acks-extras-brush-off"), "and is drawn off");
+  assert.equal(item.attrs.get("data-tooltip-text"), "ACKS-BATTLEMAP.terrain.hexOnly", "the reason is its tooltip, through the manager");
+  assert.equal(button.attrs.get("aria-description"), "ACKS-BATTLEMAP.terrain.hexOnly", "and its description");
+
+  paint.markBrushControl(html, hex);
+  assert.equal(button.disabled, false, "a hex scene turns it back on");
+  assert.ok(!button.attrs.has("aria-disabled") && !item.attrs.has("data-tooltip-text") && !button.attrs.has("aria-description"), "and clears the reason");
+  assert.ok(!button.classes.has("acks-extras-brush-off"), "and the cue");
+
+  assert.doesNotThrow(() => paint.markBrushControl({ querySelector: () => null }, square), "a toolbar with no brush button is left alone");
+
+  // The hook marks every render of the toolbar, and a grid change on the scene in view redraws it.
+  assert.equal(typeof hooks.renderSceneControls, "function", "the toolbar's render is hooked");
+  canvas.scene = square;
+  hooks.renderSceneControls({}, html);
+  assert.equal(button.disabled, true, "a render of the toolbar on a square scene marks the brush");
+  const rendered = [];
+  ui.controls.render = (arg) => rendered.push(arg);
+  hooks.updateScene(square, { grid: { type: CONST.GRID_TYPES.HEXODDQ } });
+  assert.deepEqual(rendered, [{ parts: ["tools"] }], "a grid change on the scene in view redraws the tools");
+  hooks.updateScene(square, { name: "x" });
+  hooks.updateScene({ grid: {} }, { grid: { type: 1 } });
+  assert.equal(rendered.length, 1, "another change, or another scene, does not");
+  canvas.scene = null;
+}
+
 console.log("battlemap controls: ok");

@@ -663,6 +663,32 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
+  // The square family's loose-fit line names its furthest sample as the hex one does: a box or a corner by its row number.
+  const scene = makeScene();
+  const far = squareBox(3, 2);
+  const boxes = [squareBox(0, 0), squareBox(1, 3), squareBox(2, 1), { ...far, x: far.x + 25 }];
+  setup({ family: "square", scene, samples: { squares: boxes }, opts: { mapCellFeet: 5 }, units: "ft" });
+  assert.equal(session.fit.confidence, "loose", "the displaced box makes the fit loose");
+  let c = await ctx();
+  const box = c.warnLines.find((l) => keyOf(l) === "warn.highResidualBox");
+  assert.ok(box, "a loose square fit that names a box says which");
+  assert.equal(JSON.parse(box.slice(box.indexOf("{"))).n, 4, "the row number is the box's index plus one");
+  assert.ok(!c.warnLines.map(keyOf).includes("warn.highResidual"), "and the line that names none is not drawn beside it");
+
+  const exact = [squareBox(0, 0), squareBox(1, 3), squareBox(2, 1)];
+  setup({ family: "square", scene, samples: { squares: exact, corners: [{ x: 100 + 4 * 60 + 25, y: 80 + 2 * 60 }] }, opts: { mapCellFeet: 5 }, units: "ft" });
+  c = await ctx();
+  const corner = c.warnLines.find((l) => keyOf(l) === "warn.highResidualCorner");
+  assert.ok(corner, "a loose square fit that names a corner says which");
+  assert.equal(JSON.parse(corner.slice(corner.indexOf("{"))).n, 1, "the corner's row number counts the corners alone");
+
+  setup({ family: "square", scene, samples: { squares: [boxes[0], boxes[3]] }, opts: { mapCellFeet: 5 }, units: "ft" });
+  assert.equal(session.fit.confidence, "loose", "two displaced boxes are a loose fit");
+  c = await ctx();
+  assert.deepEqual(c.warnLines.map(keyOf), ["warn.highResidual"], "from fewer than three samples the line names none");
+}
+
+{
   // A hex bar measures one step between hex centres, whichever way it runs.
   const k = 1.5;
   const { grid, probe } = LATTICE.hexRows;

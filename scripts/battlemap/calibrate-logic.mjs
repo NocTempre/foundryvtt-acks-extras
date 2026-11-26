@@ -59,24 +59,53 @@ export const boxSpan = (r, axis) => {
   return n > 0 ? n : 1;
 };
 
-/** Per-axis observations: cell-span deltas and grid-line phase offsets. */
+/**
+ * Per-axis observations: cell-span deltas and grid-line phase offsets. Each
+ * comes with its owner in `deltaOwners` and `phaseOwners`: the sample's index
+ * among the boxes and then the corners, or null for a delta between two
+ * corners, which no one corner owns.
+ */
 function axisObservations(squares, corners, axis) {
   const pos = axis === "x" ? (p) => p.x : (p) => p.y;
   const side = axis === "x" ? (r) => r.w : (r) => r.h;
   const deltas = [];
   const phases = [];
-  for (const r of squares) {
+  const deltaOwners = [];
+  const phaseOwners = [];
+  squares.forEach((r, n) => {
     deltas.push(side(r) / boxSpan(r, axis));
+    deltaOwners.push(n);
     phases.push(pos(r), pos(r) + side(r));
-  }
+    phaseOwners.push(n, n);
+  });
   for (let i = 0; i < corners.length; i++) {
     phases.push(pos(corners[i]));
+    phaseOwners.push(squares.length + i);
     for (let j = i + 1; j < corners.length; j++) {
       const d = Math.abs(pos(corners[i]) - pos(corners[j]));
-      if (d >= MIN_DELTA) deltas.push(d);
+      if (d >= MIN_DELTA) {
+        deltas.push(d);
+        deltaOwners.push(null);
+      }
     }
   }
-  return { deltas, phases };
+  return { deltas, phases, deltaOwners, phaseOwners };
+}
+
+/**
+ * The owner of the largest residual: `residuals` and `owners` run in step, and
+ * a null owner is passed over. Null where every residual is zero.
+ */
+function furthestOwner(residuals, owners) {
+  let worst = null;
+  let top = 0;
+  residuals.forEach((r, k) => {
+    if (owners[k] != null && r > top) {
+      top = r;
+      worst = owners[k];
+    }
+  });
+  return worst;
 }
 
 /**
@@ -156,7 +185,9 @@ const confidence = (rmsPct) => (rmsPct < RMS_TIGHT ? "tight" : rmsPct < RMS_FAIR
  * @param {"square"|"rect"|"affine"} [input.mode]
  * @param {number} [input.minSize] / [input.maxSize]  Cell-size bounds in px.
  * @returns {object} `{ ok, mode, sizeX, sizeY, phaseX, phaseY, rmsPx, rmsPct,
- *   maxPx, confidence, samples }`; affine adds `{ origin, u, v, skewDeg,
+ *   maxPx, confidence, worst, samples }`; `worst` is the sample that sits
+ *   furthest off, as an index among the boxes and then the corners, and null
+ *   from fewer than three samples or on a tight fit; affine adds `{ origin, u, v, skewDeg,
  *   rotationDeg }`. `ok:false` carries a `reason` ("noSamples" | "noSeed").
  */
 export function fitGrid({ squares = [], corners = [], mode = "square", minSize = 20, maxSize = 600 }) {
@@ -203,14 +234,20 @@ export function fitGrid({ squares = [], corners = [], mode = "square", minSize =
     if (affine) result = { ...base, ok: true, ...affine };
   }
 
-  const rs =
-    result.u == null
-      ? [...axisResiduals(ox.deltas, ox.phases, result.sizeX, result.phaseX), ...axisResiduals(oy.deltas, oy.phases, result.sizeY, result.phaseY)]
-      : latticeResiduals(corners, result);
+  // The lattice read scores the corners alone; the orthogonal read scores every sample.
+  const lattice = result.u != null;
+  const rs = lattice
+    ? latticeResiduals(corners, result)
+    : [...axisResiduals(ox.deltas, ox.phases, result.sizeX, result.phaseX), ...axisResiduals(oy.deltas, oy.phases, result.sizeY, result.phaseY)];
+  const owners = lattice
+    ? corners.map((_, i) => squares.length + i)
+    : [...ox.deltaOwners, ...ox.phaseOwners, ...oy.deltaOwners, ...oy.phaseOwners];
   const rmsPx = rs.length ? Math.sqrt(rs.reduce((a, r) => a + r * r, 0) / rs.length) : 0;
   const maxPx = rs.length ? Math.max(...rs) : 0;
   const rmsPct = rmsPx / Math.min(result.sizeX, result.sizeY);
-  return { ...result, rmsPx, maxPx, rmsPct, confidence: confidence(rmsPct) };
+  const band = confidence(rmsPct);
+  const worst = samples >= 3 && band !== "tight" ? furthestOwner(rs, owners) : null;
+  return { ...result, rmsPx, maxPx, rmsPct, confidence: band, worst };
 }
 
 /** Solve the 3-parameter regression c = [a, b, d] minimizing Σ(a + b·i + c·j − t)². */

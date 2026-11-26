@@ -122,6 +122,35 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.ok(fit.rmsPx < 0.01, `affine residual should vanish on exact data, got ${fit.rmsPx}`);
 }
 
+{
+  // A loose square fit names the sample that sits furthest off: an index into the
+  // boxes, then the corners, and none from fewer than three samples or on a tight fit.
+  const s = 100;
+  const box = (i, j, dx = 0) => ({ x: 10 + i * s + dx, y: 20 + j * s, w: s, h: s });
+  const four = [box(0, 0), box(3, 1), box(5, 5, 40), box(8, 2)];
+  const fit = fitGrid({ squares: four, corners: [] });
+  assert.equal(fit.confidence, "loose", "a box a hand off the grid makes the fit loose");
+  assert.equal(fit.worst, 2, "and the fit names that box");
+
+  const corners = [{ x: 10 + 9 * s + 40, y: 20 + 2 * s }];
+  const mixed = fitGrid({ squares: [box(0, 0), box(3, 1), box(5, 5)], corners });
+  assert.equal(mixed.confidence, "loose", "a corner a hand off the grid makes the fit loose");
+  assert.equal(mixed.worst, 3, "the corner is named by its index after the boxes");
+
+  const exact = fitGrid({ squares: [box(0, 0), box(3, 1), box(5, 5), box(8, 2)], corners: [] });
+  assert.equal(exact.worst, null, "a tight fit names no sample");
+  assert.equal(fitGrid({ squares: [box(0, 0), box(5, 5, 40)], corners: [] }).worst, null, "two samples name none");
+
+  // The lattice read scores corners alone, so it names one after the boxes too.
+  const lat = (i, j) => ({ x: 20 + 70 * i - 4 * j, y: 30 + 5 * i + 65 * j });
+  const first = lat(0, 0);
+  const lattice = [{ x: first.x + 5, y: first.y - 5 }, lat(3, 1), lat(6, 2), lat(1, 5), lat(8, 7), lat(4, 4), lat(2, 8)];
+  const affine = fitGrid({ squares: [box(0, 0)], corners: lattice, mode: "affine" });
+  assert.ok(affine.u, "a lattice read");
+  assert.equal(affine.confidence, "fair");
+  assert.equal(affine.worst, 1, "a lattice fit names the displaced corner by its index after the boxes");
+}
+
 /* -------------------------------------------- */
 /*  Scale conversions                           */
 /* -------------------------------------------- */

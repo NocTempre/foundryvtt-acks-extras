@@ -54,7 +54,6 @@ Re-issued 2026-11-14.
    - T-0628: "px" names image pixels on the card and the box rows, and canvas
      pixels in the grid-size fields and the measured scale.
    - T-0629: a sample row's delete button has no spoken name.
-   - T-0591: the square family's loose-fit warning names no sample.
    The hex fit, each measured offline in Phase 1, re-measured on 2026-11-25
    and not fixed: T-0593 (after several boxes sharing one outline bias, a far
    box lands a hex short, on the row types as well as the column types);
@@ -69,8 +68,6 @@ Re-issued 2026-11-14.
    - T-0635: three names for removing: Wipe clears every sample unasked and
      has no hint, Eraser removes samples where the palette's Erase unpaints
      hexes, and the brush has no Escape.
-   - T-0590: the Country brush is offered on a scene that is not a hex grid
-     and refuses only at the first click.
    The brush, the wall layers and the navigation card: T-0601 (the
    palette's layer pills and the Map modes pills look alike and do different
    things), T-0603 (the alley preset's notice and the shore's names disagree; three

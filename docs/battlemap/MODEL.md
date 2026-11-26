@@ -19,7 +19,12 @@ canvas and names it in its title.
 The group's **Country brush** tool arms a brush over hex-gridded scenes
 (`terrain-paint.mjs`) on one of its registered LAYERS — the module's two,
 terrain and territory, and any a feature registers (§The layer registry) —
-chosen by the pills at the head of its palette window.
+chosen by the pills at the head of its palette window. On a scene whose grid
+is not a hex grid the tool's button is drawn off, with its reason as the
+tooltip (`markBrushControl`, after each render of the toolbar and on a grid
+change of the scene in view); `brushRefusalKey` is the one condition behind
+that and the first-click refusal, which still answers a brush armed another
+way.
 Clicks and drags paint hex cells into scene REGIONS (a drag paints only
 inside a stroke that began on the board, and only while the pointer is over
 it, never through a window in front): one region per value per
