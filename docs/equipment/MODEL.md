@@ -971,12 +971,25 @@ of the row's name and block.
   read because the attack throw's masterwork figure
   (`printed-layers.mjs` `masterworkFigure`) reads them from the library
   synchronously, and a shelf holds what it has loaded until Foundry evicts it.
-  A change is read again once per burst of hooks (`ROWS_REREAD_MS` after the
-  last, and once more when a hook lands during a read), from the index, so a
+  A change is read again once per burst of hooks through `lib/republish.mjs`
+  (`ROWS_REREAD_MS` after the last, no later than `ROWS_REREAD_MAX_MS` after the
+  first, and once more when a hook lands during a read), from the index, so a
   shelf evicted after idle still republishes every row; a deleted document's id
   is left out of that read, since its hook can fire while the collection still
-  lists it. An action's `rowsSettled()` also waits for a republish a hook has
-  queued. The first publication sets two `performance.mark`s
+  lists it. A read that could not reach a shelf leaves the published rows as
+  they were and says so on the console, and the first publication, which has
+  none to keep, publishes what the other shelves answered. An action's
+  `rowsSettled()` also waits for the republish a hook has queued: it resumes once
+  a read that began after the change has been published, so a long import's
+  steady hooks hold it back by the cap and no longer. The attack throw's wait
+  (`equipmentContributor.ready`) also reads the variation documents again by
+  type (`libraryVariations`), since Foundry drops a shelf's documents after it
+  idles and the masterwork part reads them from the shelf synchronously; the
+  masterwork and silver layers a write recomputes
+  (`recomputeItemFields`) read them the same way and hand the list to
+  `layerDeltas`; where that read missed a shelf the write is not made and the
+  console says so, since only a read that answered can say a figure is not
+  imported. The first publication sets two `performance.mark`s
   (`ROWS_MARK_STARTED`, `ROWS_MARK_PUBLISHED`). With no row left the document
   is withdrawn.
 - **A reader waits with `rowsReady()`**, which resolves when the first

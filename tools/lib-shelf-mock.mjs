@@ -70,6 +70,9 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
     visible,
     metadata: { packageType: "world", label },
     calls,
+    /** Make the next index reads / loads reject (or stop rejecting): a shelf that fails after it has answered. */
+    failIndex,
+    failLoad,
     index: new Map(docs.map((d) => [d._id, coreRow(d)])),
     has: (id) => stored.has(id),
     get: (id) => stored.get(id),
@@ -86,7 +89,7 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
     async getIndex(...args) {
       calls.getIndex.push(args);
       await later();
-      if (failIndex) throw new Error("index refused");
+      if (pack.failIndex) throw new Error("index refused");
       if (!indexed) {
         for (const d of docs) {
           const row = coreRow(d);
@@ -104,7 +107,7 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
     async getDocuments(query) {
       calls.getDocuments.push(query);
       await later();
-      if (failLoad) throw new Error("load refused");
+      if (pack.failLoad) throw new Error("load refused");
       const ids = query?._id__in ? new Set(query._id__in) : null;
       const found = docs.filter((d) => !ids || ids.has(d._id)).reverse().map(instance);
       for (const doc of found) if (!stored.has(doc.id)) stored.set(doc.id, doc);

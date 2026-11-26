@@ -435,7 +435,9 @@ carries a `ref`. Shape:
 
 `id` is a cookbook entry id (`<book>.item<n>`). The provider answers the Item the
 importer made of that entry, one merged into another document included, and null
-when none stands; a consumer treats a null, a throw and no registered provider alike
+when none stands. It answers from the Item shelves' indexes and loads no
+document (`importedItemUuid`): a shelf's document before a sidebar one, a class
+template's part never. A consumer treats a null, a throw and no registered provider alike
 and leaves the uuid null. The roll's result carries the uuid as data; no card or
 window draws it yet.
 

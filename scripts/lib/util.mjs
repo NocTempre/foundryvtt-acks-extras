@@ -317,3 +317,16 @@ export function announceChange(hook, ...args) {
     console.error(`acks-extras | ${hook} listener failed`, err);
   }
 }
+
+/**
+ * Set a `performance.mark`, which a live timing script reads back
+ * (tools/live/perf-leads.mjs). A seat with no timeline loses only the
+ * measurement; nothing throws.
+ */
+export function perfMark(name) {
+  try {
+    globalThis.performance?.mark?.(name);
+  } catch {
+    /* no timeline to mark */
+  }
+}

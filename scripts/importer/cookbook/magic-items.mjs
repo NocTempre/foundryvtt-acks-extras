@@ -16,7 +16,7 @@ import { executeEntry } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { data, ctx, cookbookEntry } from "./state.mjs";
 import { repairFromEntry } from "./read.mjs";
-import { createDoc, claimImport, importedItem, targetFolder } from "./target.mjs";
+import { createDoc, claimImport, importedItem, importedItemUuid, targetFolder } from "./target.mjs";
 
 /**
  * The magic-item categories a register row's `meta.category` names: the keys of
@@ -72,8 +72,8 @@ export function keysByBook(books = data.books) {
  */
 export const cookbookItemsProvider = Object.freeze({
   documentOf: async (id) => {
-    const doc = await importedItem(id);
-    return doc?.uuid ? { uuid: doc.uuid } : null;
+    const uuid = await importedItemUuid(id);
+    return uuid ? { uuid } : null;
   },
 });
 

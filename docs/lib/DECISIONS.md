@@ -3254,3 +3254,73 @@ silently. The target figures of the follow-up run (first Deal under 3,000 ms in 
 fresh page, the rows published within 3,500 ms of `ready`) are inferred from the
 Item shelf's 4,556 ms and are not results. The class registry, the warm at `ready`
 and the `documentOf` lookup are the next slice.
+
+## 2026-11-26 — The class registry, the warm and `documentOf` read through the index
+
+Builds the second half of "2026-11-26 — The library is read narrowly from the
+index, and its stamp is declared", whose Cost line named it, and settles that
+entry's open item: the warm at `ready` is deferred, not removed. It qualifies
+"2026-09-02 — the library reads every shelf, and a caller that cannot re-render
+awaits" on when the warm runs and nothing else.
+
+**New evidence.** None beyond the first entry's measurements; what this entry
+adds is what building the first slice showed. Core has no in-flight dedupe, so
+two readers of the Item shelf at `ready` (the weapon rows and the class registry)
+each pay the server's pass for its index. The class registry republished from
+`classItems()` on an item hook, the same defect as the weapon rows'. A republish
+that ran while a long import's hooks kept arriving was held until they stopped,
+since an action waited for "no republish queued", and a read that failed on a
+shelf published a short set without a word.
+
+**Ruled.**
+- *The class registry* publishes from `libraryDocsWhere` by type at `ready` and
+  on each burst of class-item hooks. `publish(docs)` takes the list and takes
+  the chassis tables from it, never from a synchronous reader, which answers only
+  what the shelf holds and starts a whole-shelf load on a cold one.
+- *One coalescer for both publishers* (`lib/republish.mjs`): a read starts at
+  most `maxWaitMs` after the first hook of a burst, however steadily the rest
+  arrive; an action's wait resolves once a read that began after its change has
+  been applied, so a stream of hooks holds it back by the cap and not until the
+  stream ends; an answer naming a shelf it could not read (`failed`) is not
+  published, the document stands as last published and the ids deleted meanwhile
+  stay left out. The first publication has no earlier one to keep and publishes
+  what answered; where it missed a shelf the class registry is marked incomplete
+  and `materializeAll` writes and sweeps nothing until a complete read clears it,
+  and `recomputeItemFields` writes no item on a variation read that missed a
+  shelf, since only a read that answered can say a figure is not imported. The caps are timing choices of the modules (`ROWS_REREAD_MAX_MS`,
+  `CLASS_REREAD_MAX_MS`, 500 ms each) and no page value.
+- *`libraryDocsWhere`'s answer carries `failed`*, a non-enumerable list of the
+  shelves it could not read, so a caller tells a failed read from a match of
+  none and every caller that ignores it is unchanged.
+- *One index read per shelf in flight* (`shelfIndex`): concurrent readers of a
+  shelf share a pending `getIndex()`, dropped when it settles. The id loads stay
+  separate, one `_id__in` per reader.
+- *The warm* starts a macrotask after it is registered and waits for the narrow
+  reads in flight, so its whole-shelf loads follow the module's own startup reads.
+  It is kept, since the synchronous readers' sheets still depend on it; it goes
+  when they have moved (docs/lib/ROADMAP.md, "Library reads off the index").
+- *`documentOf`* answers from the Item shelves' indexes (`importedItemUuid`) with
+  `importedIndex`'s rules, the shelves before the sidebar, a template part never,
+  a merged id with the document that took it, and loads no document. It reads
+  `cookbook.merged` and `templatePart`, which join the declared Item index
+  fields.
+- *The masterwork and silver reads* of a write (`recomputeItemFields`) and of the
+  attack throw's wait (`equipmentContributor.ready`) read the variation documents
+  by type, so neither waits on the library and neither reads a figure as not
+  imported after an eviction.
+
+**Rejected.** Sharing one `_id__in` between the two startup readers: it merges
+two readers' ids behind a timing the loads do not otherwise need. Narrowing the
+cast's wait (`cast-spell.mjs` `ready: whenReady`) to the spell's twin: a grep of
+`scripts/magic` (not traced call by call) finds the cast's files also reading the
+actor's class by name or key, spells by name and summon creatures by stamp,
+which an index row does not carry, and a narrowing that covers only
+the twin makes a cast read short where it reads whole (docs/lib/ROADMAP.md names
+what it waits on). Dropping the warm: the synchronous readers still need it.
+
+*Cost:* a seat that loses its weapon rows to a failed read keeps the last good
+set until the next hook, with a console warning as the only sign. The Item shelf
+is scanned once for its index and twice for its documents at `ready`, where the
+design counted two scans. The first live rerun of `tools/live/perf-leads.mjs`
+(`rowsPublication`, `firstDocumentOf`, `firstDeal`) has not been made, so no
+figure of this entry is a result.

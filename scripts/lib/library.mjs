@@ -7,6 +7,7 @@
  * `library-target.mjs`, which opens the shelves this file reads.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { perfMark } from "./util.mjs";
 
 /**
  * The definition id the importer stamped on a document, or the empty string;
@@ -263,7 +264,9 @@ export function byCookbookId(type, id, { original = false, prefer = null } = {})
  * `CONFIG.<Type>.compendiumIndexFields` and a client `getIndex()` has been
  * built with it, so a reader that matches on a stamp declares it here.
  */
-export const LIBRARY_INDEX_FIELDS = Object.freeze({ Item: Object.freeze([`flags.${MODULE_ID}.cookbook.id`]) });
+export const LIBRARY_INDEX_FIELDS = Object.freeze({
+  Item: Object.freeze([`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`, `flags.${MODULE_ID}.templatePart`]),
+});
 
 /**
  * Add `LIBRARY_INDEX_FIELDS` to Foundry's per-type index fields, once each. Run
@@ -309,45 +312,105 @@ const rowOf = (source) => ({
  * absent from a shelf's rows and matches nothing.
  *
  * A shelf that cannot be read, its index or its load, is reported and left out
- * whole; the others answer. A
+ * whole; the others answer. The answer is an array that also carries `failed`,
+ * the collection ids of the shelves left out (a non-enumerable property, so the
+ * list is a plain array to a caller that never looks): an empty `failed` means
+ * the list is what the library holds, and a non-empty one means it may be short,
+ * which a caller that republishes from the answer must not publish as whole. A
  * document is left out when its id is in `except`, which a caller uses for a
  * delete whose hook fires before the collection drops the document.
+ *
+ * The read is tracked while it runs, so the warm (`registerLibraryWarm`) starts
+ * behind the narrow reads under way rather than beside them.
  *
  * @param {string} type a document type the importer keeps a shelf for
  * @param {(row: {_id: string, id: string, uuid?: string, name: string, type: string, flags: object}) => boolean} match
  * @param {object} [options]
  * @param {Iterable<string>} [options.except] document ids to leave out
- * @returns {Promise<object[]>}
+ * @returns {Promise<object[] & {failed: string[]}>}
  */
-export async function libraryDocsWhere(type, match, { except = null } = {}) {
+export function libraryDocsWhere(type, match, options = {}) {
+  const read = readWhere(type, match, options);
+  narrowReads.add(read);
+  const done = () => narrowReads.delete(read);
+  read.then(done, done);
+  return read;
+}
+
+/** The narrow reads (`libraryDocsWhere`) in flight, which the warm waits behind. */
+const narrowReads = new Set();
+
+/** The index reads in flight, by pack: one server pass is shared by every reader that arrives while it runs. */
+const indexReads = new Map();
+
+/**
+ * One shelf's index, from one `getIndex()` shared by every caller that asks
+ * while it is pending. Core answers each concurrent call with a server query of
+ * its own, so two readers of a shelf at startup would scan it twice. The shared
+ * read is dropped when it settles, a rejection included, and the next caller
+ * asks again. The call carries no argument: the declared index fields are the
+ * ones a row carries (`declareLibraryIndexFields`).
+ *
+ * @param {object} pack a compendium collection
+ * @returns {Promise<Map<string, object>>}
+ */
+export function shelfIndex(pack) {
+  let read = indexReads.get(pack);
+  if (!read) {
+    read = (async () => pack.getIndex())();
+    indexReads.set(pack, read);
+    const drop = () => indexReads.delete(pack);
+    read.then(drop, drop);
+  }
+  return read;
+}
+
+/** `libraryDocsWhere`'s read: the world's documents, then every shelf's. */
+async function readWhere(type, match, { except = null } = {}) {
   const skip = except instanceof Set ? except : new Set(except ?? []);
   const wanted = (source) => !skip.has(source._id ?? source.id) && match(rowOf(source));
   const docs = [...(worldCollection(type) ?? [])].filter(wanted);
+  const packs = libraryPacks(type);
   const perShelf = await Promise.all(
-    libraryPacks(type).map(async (pack) => {
+    packs.map(async (pack) => {
       try {
-        const index = await pack.getIndex();
+        const index = await shelfIndex(pack);
         const hits = [...index.values()].filter(wanted).map((row) => row._id);
         const missing = hits.filter((id) => !pack.get(id));
         if (missing.length) await pack.getDocuments({ _id__in: missing });
         return hits.map((id) => pack.get(id)).filter(Boolean);
       } catch (err) {
         console.warn(`${MODULE_ID} | could not read the imported ${type} library from ${pack.collection}`, err);
-        return [];
+        return null;
       }
     }),
   );
-  for (const list of perShelf) docs.push(...list);
+  for (const list of perShelf) if (list) docs.push(...list);
+  const failed = packs.filter((_, n) => !perShelf[n]).map((pack) => pack.collection);
+  Object.defineProperty(docs, "failed", { value: failed, enumerable: false });
   return docs;
 }
 
+/** The `performance.mark` set when the warm begins loading whole shelves, read by tools/live/perf-leads.mjs. */
+export const WARM_MARK_STARTED = "acks-extras:libraryWarm:started";
+
 /**
- * Warm at ready, so the first sheet render is already complete. Registered
- * from the lib module's own ready hook rather than at module scope: this file
- * is imported by pure logic the offline suite exercises with no Foundry
- * global in sight, and a top-level `Hooks` call there is a ReferenceError
- * before any test body runs.
+ * Warm the library at ready, so a synchronous read is complete once it has run.
+ * It starts a macrotask after it is registered, which lets every `ready` hook
+ * begin its narrow read (`libraryDocsWhere`) first, and then waits until no
+ * narrow read is in flight, so the whole-shelf loads queue behind the reads the
+ * module's own startup needs rather than beside them. A narrow read that never
+ * settles holds the warm back, and a synchronous reader still loads its own
+ * shelf on demand. Registered from the lib module's own ready hook rather than
+ * at module scope: this file is imported by pure logic the offline suite
+ * exercises with no Foundry global in sight, and a top-level `Hooks` call there
+ * is a ReferenceError before any test body runs.
+ *
+ * @returns {Promise<unknown>} resolves once the whole-shelf loads have settled
  */
-export function registerLibraryWarm() {
-  warmLibrary();
+export async function registerLibraryWarm() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  while (narrowReads.size) await Promise.allSettled([...narrowReads]);
+  perfMark(WARM_MARK_STARTED);
+  return warmLibrary();
 }

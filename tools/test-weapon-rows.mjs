@@ -442,6 +442,130 @@ check("a withdrawal of nothing announces nothing", fired.length === 0);
   await sleep(1);
   check("and resumes with the new row", acted === "7d7");
 
+  // A long import keeps hooks arriving; a read starts at the cap and an action does not wait for the import to end.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  {
+    check("the cap is a named constant above the debounce", rows.ROWS_REREAD_MAX_MS > rows.ROWS_REREAD_MS && rows.ROWS_REREAD_MAX_MS < rows.ROWS_WAIT_MS);
+    shelf.calls.getIndex.length = 0;
+    const pumpFor = 1600;
+    const began = Date.now();
+    const pump = (async () => {
+      while (Date.now() - began < pumpFor) {
+        handlers.updateItem.at(-1)({ id: "a1", type: "weapon", flags: { "acks-extras": { cookbook: { id: "def.weapon.alpha" } } } });
+        await sleep(Math.max(1, Math.floor(rows.ROWS_REREAD_MS / 2)));
+      }
+    })();
+    await sleep(30);
+    await rows.rowsSettled();
+    const waited = Date.now() - began;
+    check("an action started in a continuous burst resumes within the cap plus a read", waited < rows.ROWS_REREAD_MAX_MS + 500);
+    check("because a read ran while the hooks were still arriving", shelf.calls.getIndex.length >= 1 && Date.now() - began < pumpFor);
+    await pump;
+    await settled();
+    check("and the burst's end is read too, once", shelf.calls.getIndex.length >= 2 && keys() === "alpha,beta,gamma");
+  }
+
+  // A shelf whose read fails leaves the published rows as they were.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  {
+    const warned = [];
+    const savedWarn = console.warn;
+    console.warn = (...a) => warned.push(a);
+    shelf.failIndex = true;
+    handlers.updateItem.at(-1)(shelf.get("a2"));
+    await settled();
+    check("a failed shelf read does not publish a short grid: the last good rows stand", keys() === "alpha,beta,gamma");
+    check("and says the rows were kept", warned.some((w) => String(w[0]).includes("kept as published")));
+    handlers.deleteItem.at(-1)(shelf.get("a1"));
+    await settled();
+    check("a delete heard during a failed read changes nothing yet", keys() === "alpha,beta,gamma");
+    shelf.failIndex = false;
+    handlers.updateItem.at(-1)(shelf.get("a2"));
+    await settled();
+    check("the next good read publishes, with the delete that was heard during the failure left out", keys() === "beta,gamma");
+    console.warn = savedWarn;
+  }
+
+  // The first publication has no last good: it publishes what the shelves that answered held.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  {
+    const warned = [];
+    const savedWarn = console.warn;
+    console.warn = (...a) => warned.push(a);
+    resetHooks();
+    reg.unregisterTable("weapons");
+    game.items = [zorgle];
+    shelf.failIndex = true;
+    rows.registerWeaponRows();
+    await publishAtReady();
+    await rows.rowsReady();
+    check("a first publication read that failed on a shelf publishes what answered, and says so", keys() === "zorgle" && warned.length >= 2);
+    shelf.failIndex = false;
+    game.items = [];
+    console.warn = savedWarn;
+  }
+
+  // The attack throw's wait holds the variations after the cache lifetime has evicted them.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  {
+    const { equipmentContributor } = await import("../scripts/equipment/roll-wrap.mjs");
+    shelf.evict();
+    check("the variation is not held after an eviction", shelf.get("v1") === undefined);
+    await equipmentContributor.ready();
+    check("the throw's wait reads it back, so the masterwork figure is not answered as not imported", shelf.get("v1") != null);
+  }
+
+  // A masterwork change reads the variations by id, never the whole library, and not as missing after an eviction.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  {
+    const { recomputeItemFields } = await import("../scripts/equipment/properties.mjs");
+    const figure = sourceDoc("mw1", "Invented masterwork", "acks-extras.variation", "def.variation.masterwork.weaponBoth", {
+      key: "masterwork.weaponBoth",
+      deltas: { bonus: 3, damage: 2, ac: 0, weight6: 0 },
+      cost: { baseMul: 1, add: 11, mul: 1 },
+    });
+    const filler25 = () => Array.from({ length: 25 }, (_, i) => sourceDoc(`g${i}`, `Filler ${i}`, "equipment"));
+    const mw = shelfMock({ docs: [...filler25(), figure] });
+    game.packs = [mw];
+    game.items = [];
+    const sword = () => {
+      const writes = [];
+      return {
+        writes,
+        id: "s1",
+        type: "weapon",
+        system: { bonus: { attack: 0 }, damage: { base: { formula: "1d6" } }, weight6: 6, cost: 10 },
+        getFlag: () => undefined,
+        update: async (u) => writes.push(u),
+        unsetFlag: async () => {},
+      };
+    };
+    const first = sword();
+    await recomputeItemFields(first, { masterwork: "weaponBoth" });
+    check("a masterwork change writes the figure the variation states", first.writes[0]?.["system.bonus.attack"] === 3);
+    check("and read it by id: no whole-shelf load", mw.calls.getDocuments.length >= 1 && mw.calls.getDocuments.every((q) => Array.isArray(q?._id__in)));
+    mw.evict();
+    const second = sword();
+    await recomputeItemFields(second, { masterwork: "weaponBoth" });
+    check("after an eviction the figure is read again, not taken as not imported", second.writes[0]?.["system.bonus.attack"] === 3);
+
+    // A read that failed writes nothing; a read that answered and found none writes the item without a figure.
+    const warned = [];
+    const savedWarn = console.warn;
+    console.warn = (...a) => warned.push(a);
+    mw.failIndex = true;
+    const third = sword();
+    await recomputeItemFields(third, { masterwork: "weaponBoth" });
+    check("a failed variation read leaves the item as it stands", third.writes.length === 0);
+    check("and says which shelf could not be read, once", warned.filter((w) => String(w[0]).includes("left as it stands")).length === 1);
+    mw.failIndex = false;
+    game.packs = [shelfMock({ docs: filler25() })];
+    const fourth = sword();
+    await recomputeItemFields(fourth, { masterwork: "weaponBoth" });
+    console.warn = savedWarn;
+    check("a read that answered and found no variation writes the item without a figure, as before", fourth.writes[0]?.["system.bonus.attack"] === 0);
+  }
+
   await sleep(rows.ROWS_REREAD_MS * 2);
   resetHooks();
   game.packs = [];

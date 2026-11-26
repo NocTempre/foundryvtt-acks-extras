@@ -246,7 +246,80 @@ check("the own shelf answers first, whatever order the world lists its packs in"
 check("and the others are not asked once it has", own.asked === 1 && twin.asked === 0);
 check("the shelves stayed as they were", minted === 0 && packs.length === 2);
 
+/* --- the uuid a linked row needs comes off the index, with no document loaded --- */
+
+{
+  const { importedItemUuid } = await import("../../scripts/importer/cookbook/target.mjs");
+  const { cookbookItemsProvider } = await import("../../scripts/importer/cookbook/magic-items.mjs");
+  const { declareLibraryIndexFields } = await import("../../scripts/lib/library.mjs");
+  const { shelfMock, sourceDoc } = await import("../lib-shelf-mock.mjs");
+  globalThis.CONFIG = { Item: { compendiumIndexFields: [] } };
+  declareLibraryIndexFields();
+
+  const stamped = (id, name, cookbook, extra = {}) => {
+    const doc = sourceDoc(id, name, "item", null);
+    doc.flags = { [MODULE_ID]: { cookbook, ...extra } };
+    return doc;
+  };
+  const filler = Array.from({ length: 30 }, (_, i) => sourceDoc(`z${i}`, `Filler ${i}`, "item"));
+  const shelfWith = (docs, line = null) => shelfMock({ line, docs: [...filler, ...docs] });
+  const uuidIn = (shelf, id) => `Compendium.${shelf.collection}.Item.${id}`;
+  const useShelves = (...shelves) => {
+    packs.splice(0, packs.length, ...shelves);
+    game.items = [];
+  };
+
+  const alpha = shelfWith([stamped("i1", "Invented thing", { id: "def.invented.thing" }), stamped("i2", "Joined thing", { id: "def.invented.joined", merged: ["def.invented.absorbed"] })]);
+  useShelves(alpha);
+  check("a cold shelf answers the uuid of a stamped document from its index", (await importedItemUuid("def.invented.thing")) === uuidIn(alpha, "i1"));
+  check("and loaded nothing to do it", alpha.calls.getDocuments.length === 0 && alpha.size === 0);
+  check("an id another document absorbed on merge answers with the document that took it", (await importedItemUuid("def.invented.absorbed")) === uuidIn(alpha, "i2"));
+  check("an id nothing carries, and no id, answer null", (await importedItemUuid("def.invented.none")) === null && (await importedItemUuid("")) === null);
+
+  const concurrent = shelfWith([stamped("i1", "Invented thing", { id: "def.invented.thing" })]);
+  useShelves(concurrent);
+  const answers = await Promise.all(["def.invented.thing", "def.invented.thing", "def.invented.none"].map((id) => importedItemUuid(id)));
+  check("a deal's linked rows asked together share one index read", concurrent.calls.getIndex.length === 1 && answers[0] === answers[1] && answers[2] === null);
+
+  const partFirst = shelfWith([
+    stamped("p1", "Invented thing (a specialty)", { id: "def.invented.def" }, { templatePart: { classKey: "someClass", kind: "ability" } }),
+    stamped("d1", "Invented thing", { id: "def.invented.def" }),
+  ]);
+  useShelves(partFirst);
+  check("a class template's part never answers for its definition, whichever the index lists first", (await importedItemUuid("def.invented.def")) === uuidIn(partFirst, "d1"));
+  const onlyPart = shelfWith([stamped("p1", "Invented thing (a specialty)", { id: "def.invented.def" }, { templatePart: { classKey: "someClass", kind: "ability" } })]);
+  useShelves(onlyPart);
+  check("and a definition held only as a part is not imported", (await importedItemUuid("def.invented.def")) === null);
+
+  const second = shelfWith([stamped("s1", "Invented thing", { id: "def.invented.thing" })], "Sample Line");
+  const first = shelfWith([stamped("f1", "Invented thing", { id: "def.invented.thing" })]);
+  useShelves(second, first);
+  game.items = [{ id: "w1", uuid: "Item.w1", flags: { [MODULE_ID]: { cookbook: { id: "def.invented.thing" } } }, getFlag: (scope, key) => (scope === MODULE_ID && key === "cookbook" ? { id: "def.invented.thing" } : undefined) }];
+  check("a shelf's document answers before a sidebar one, as `importedIndex` has it", (await importedItemUuid("def.invented.thing")) === uuidIn(second, "s1"));
+  useShelves();
+  game.items = [
+    { id: "copy", uuid: "Item.copy", flags: { [MODULE_ID]: { cookbook: { id: "def.invented.only" }, worldCopy: true } }, getFlag: (s, k) => (s === MODULE_ID && k === "cookbook" ? { id: "def.invented.only" } : undefined) },
+    { id: "w2", uuid: "Item.w2", flags: { [MODULE_ID]: { cookbook: { id: "def.invented.only" } } }, getFlag: (s, k) => (s === MODULE_ID && k === "cookbook" ? { id: "def.invented.only" } : undefined) },
+  ];
+  check("with no shelf holding it the sidebar's import answers, never a copy of one", (await importedItemUuid("def.invented.only")) === "Item.w2");
+
+  const broken = shelfWith([stamped("i1", "Invented thing", { id: "def.invented.thing" })]);
+  broken.failIndex = true;
+  useShelves(broken);
+  const savedWarn = console.warn;
+  console.warn = () => {};
+  check("a shelf whose index cannot be read answers null rather than throwing", (await importedItemUuid("def.invented.thing")) === null);
+  console.warn = savedWarn;
+
+  useShelves(alpha);
+  check("the cookbook-items service answers `{uuid}` from the index", JSON.stringify(await cookbookItemsProvider.documentOf("def.invented.thing")) === JSON.stringify({ uuid: uuidIn(alpha, "i1") }));
+  check("and null for an id nothing carries", (await cookbookItemsProvider.documentOf("def.invented.none")) === null);
+  check("the service never loaded a document", alpha.calls.getDocuments.length === 0);
+  useShelves();
+}
+
 delete globalThis.foundry;
 delete globalThis.ui;
 delete globalThis.game;
+delete globalThis.CONFIG;
 console.log(`test-imported-index: ${pass} checks passed.`);

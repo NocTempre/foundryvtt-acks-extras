@@ -10,7 +10,7 @@ import {
   gateChangedActor,
 } from "../refresh.mjs";
 import { coversFigure, decides, heldEdit } from "../held-edits.mjs";
-import { libraryPackLabel, findLibraryPack, isWorldCopy } from "../../lib/library.mjs";
+import { libraryPackLabel, findLibraryPack, isWorldCopy, shelfIndex } from "../../lib/library.mjs";
 import { ensureLibraryPack } from "../../lib/library-target.mjs";
 import { stableDocId } from "../adventure-binding.mjs";
 import { nameKeys } from "../../lib/vocab.mjs";
@@ -680,6 +680,34 @@ export function forgetImportedIndex() {
  * file asks before it points at a document.
  */
 export const importedItemFor = (id) => importedItem(id);
+
+/**
+ * The uuid of the imported item for a cookbook id, or null, answered from the
+ * shelves' indexes with no document loaded or instantiated: what a binding that
+ * only links to the item asks, where `importedItemFor` would load every Item
+ * shelf to hand back a document. It reads as `importedIndex` does: the shelves
+ * first, in `ourPacksOfType` order, then the sidebar's imports; a class
+ * template's part never answers; an id another document absorbed on merge
+ * answers with the document that took it. An index carries the stamp, the merged
+ * ids and the part flag only where `LIBRARY_INDEX_FIELDS` declares them
+ * (docs/lib/MODEL.md). A shelf whose index cannot be read is skipped, so an item
+ * held only there answers null.
+ */
+export async function importedItemUuid(id) {
+  if (!id) return null;
+  for (const pack of ourPacksOfType("Item")) {
+    const index = await shelfIndex(pack).catch((err) => {
+      console.warn(`${MODULE_ID} | importedItemUuid: index of ${pack.collection} unreadable`, err);
+      return null;
+    });
+    for (const row of index?.values?.() ?? []) {
+      const flags = row.flags?.[MODULE_ID];
+      if (flags?.[TEMPLATE_PART]) continue;
+      if (answersFor(flags?.cookbook, id)) return row.uuid ?? `Compendium.${pack.collection}.Item.${row._id}`;
+    }
+  }
+  return sidebarImports("Item").find((doc) => answersFor(doc.getFlag(MODULE_ID, "cookbook"), id))?.uuid ?? null;
+}
 
 /**
  * The imported ACTOR for a cookbook id, or null — the same question against the

@@ -2051,7 +2051,7 @@ try {
     const items = globalThis.game.items;
     globalThis.game.items = [cls("fighter", "RR p.9"), cls("tinkerer", "")];
     try {
-      publish();
+      publish(globalThis.game.items);
       assert.deepEqual(getLayer(PROGRESSIONS_DOC_ID, PRIORITY.WORLD).cites, { fighter: "RR p.9" });
       assert.deepEqual(getLayer("acks.class.fighter", PRIORITY.WORLD).cites, { saves: "RR p.9", attack: "RR p.9", "ladder.sneak": "RR p.9" });
       assert.equal(citeOf("acks.class.fighter", "ladder.sneak"), "RR p.9");
@@ -2059,7 +2059,7 @@ try {
       assert.equal(citeOf("acks.class.tinkerer", "saves"), null);
     } finally {
       globalThis.game.items = items;
-      publish();
+      publish(items);
     }
   });
 } finally {

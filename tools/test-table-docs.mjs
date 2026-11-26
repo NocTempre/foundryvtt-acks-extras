@@ -691,11 +691,28 @@ await test("a pass begun before the classes registry publishes waits for it, and
   world({ registry: emptied });
   installShelf("JournalEntry", { contents: [journal] });
   registerRegistryHooks();
+  const realPacks = game.packs;
   game.packs = { filter() { throw new Error("shelf unreadable"); }, find() { return undefined; } };
   const waiting = materializeAll().catch((err) => err);
+  // The failed publication is reported on the console, and the case expects the report.
+  const savedError = console.error;
+  const reported = [];
+  console.error = (...args) => reported.push(args);
   await ready().catch(() => null);
+  console.error = savedError;
+  assert.ok(reported.some((args) => String(args[0]).includes("class tables could not be published")), "the failure is reported, not swallowed");
   const released = await Promise.race([waiting, new Promise((resolve) => setTimeout(() => resolve("hung"), 500))]);
   assert.notEqual(released, "hung", "a failed publication does not hold the pass forever");
+  assert.equal(journal.pages.length, 3, "and the registry it left names nothing, yet no page is retired from it");
+  assert.ok(!calls.some((c) => c.startsWith("page.delete")), `no delete call: ${calls.join(", ")}`);
+
+  // The next good publication sweeps as it always has.
+  game.packs = realPacks;
+  installShelf("JournalEntry", { contents: [journal] });
+  registerRegistryHooks();
+  await ready();
+  await materializeAll();
+  assert.equal(journal.pages.length, 0, "a registry published from a complete read retires the pages it no longer names");
 });
 
 await test("a world with no JSON tables gets no empty journal, and no empty shelf for it", async () => {

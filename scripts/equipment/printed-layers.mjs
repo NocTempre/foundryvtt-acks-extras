@@ -16,7 +16,7 @@
  * stamp names, "by hand" where the document was typed in, or "edited by hand"
  * where a Judge changed the figures the import stamped as read.
  */
-import { libraryItems, cookbookId } from "../lib/library.mjs";
+import { libraryItems, libraryDocsWhere, cookbookId } from "../lib/library.mjs";
 import { containedIn, capacityOf, contentsIn } from "../lib/item-model.mjs";
 import { MODULE_ID, ITEM_FLAGS, VARIATION_ITEM_TYPE } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
@@ -36,6 +36,17 @@ export function libraryVariation(key, items = libraryItems()) {
   if (!key) return null;
   return items.find((i) => i.type === VARIATION_ITEM_TYPE && i.system?.key === key && !containedIn(i)) ?? null;
 }
+
+/**
+ * Every library variation document, read by type from the shelves' indexes
+ * (`libraryDocsWhere`) with no whole-shelf load, and held by the shelves
+ * afterwards, so the synchronous figure readers below find them. The list is
+ * what a caller hands those readers as `items` where it must not depend on the
+ * shelf still holding them. An action that reads a figure awaits this first:
+ * Foundry drops a shelf's documents after it idles, and a figure read from an
+ * evicted shelf reads as not imported.
+ */
+export const libraryVariations = () => libraryDocsWhere("Item", (row) => row.type === VARIATION_ITEM_TYPE);
 
 /** The page a variation document's import stamp names, or the empty string. */
 const citeOfVariation = (doc) =>
@@ -88,9 +99,10 @@ function figureOf(key, items) {
 
 /**
  * The silver plating's figures (its `costBaseMul` scales the weapon's listed
- * price), or null when the document is not imported.
+ * price), or null when the document is not imported. `items` is the library
+ * documents the variation is found among, as `libraryVariation` takes it.
  */
-export const silverFigure = () => figureOf(SILVER.variation);
+export const silverFigure = (items) => figureOf(SILVER.variation, items);
 
 /**
  * One masterwork tier's figures (`bonus`, `damage`, `ac`, `weight6`,

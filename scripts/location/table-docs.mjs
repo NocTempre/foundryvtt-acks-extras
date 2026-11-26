@@ -22,7 +22,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { findLibraryPack, whenReady } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
 import { slug } from "../lib/vocab.mjs";
-import { whenPublished as classesPublished } from "../classes/registry.mjs";
+import { whenPublished as classesPublished, publicationIncomplete as classesIncomplete } from "../classes/registry.mjs";
 
 const FOLDER_NAME = "ACKS Imported Tables";
 const JOURNAL_NAME = "ACKS Ruledata (Imported)";
@@ -971,6 +971,8 @@ export async function exportEntry(entry) {
  */
 export async function materializeAll() {
   await classesPublished();
+  // A registry published from a read that missed a shelf names fewer classes than exist; nothing is written or swept from it (the registry has said so on the console).
+  if (classesIncomplete()) return { exported: 0, placeholders: 0 };
   const entries = listEntries();
   const t = lib()?.tables;
   let exported = 0;

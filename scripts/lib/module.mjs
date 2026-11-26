@@ -1155,8 +1155,9 @@ function applyClientPins() {
  * rather than failing the world, and the console says which.
  */
 Hooks.once("ready", () => {
-  // Load the importer's packs, so the synchronous library reads every sheet
-  // makes are complete from the first render.
+  // Load the importer's packs once the module's own narrow reads at `ready`
+  // have landed, so the synchronous library reads a sheet makes are complete
+  // from the warm's end on; a read before it starts its shelf's load itself.
   registerLibraryWarm();
 
   // File any compendium that has no folder, or names one that is gone — the

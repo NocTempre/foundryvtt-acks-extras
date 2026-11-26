@@ -331,8 +331,20 @@ ladders. `resolveLevelValue` completes lib's resolver: the `progression` kind
 ("as a fighter of half his level") reads the published chassis attack table —
 the seam named in [abilities/ROADMAP](../abilities/ROADMAP.md).
 
-The first publication waits for the library to warm, seconds after `ready`;
-`whenPublished()` resolves once it has run or failed, and at once where none is
+Every publication is made from the class documents `readClasses` answers with:
+`libraryDocsWhere` by type, from the shelves' indexes and one id load, never a
+whole shelf, and never "the documents held" (after Foundry evicts a shelf only a
+changed class is held, and a table built from it alone would be short). The
+first publication is that read at `ready`, marked `CLASS_MARK_STARTED` and
+`CLASS_MARK_PUBLISHED`. A class item's create, update or delete is read again
+through `lib/republish.mjs` (docs/lib/MODEL.md, "A republished document is read
+again from the index"): one read per burst, no later than `CLASS_REREAD_MAX_MS`
+after the burst's first hook, and the published tables stand when a shelf could
+not be read. A first publication from a read that missed a shelf, or that threw,
+publishes what answered and is marked `publicationIncomplete()`: `materializeAll`
+then writes and sweeps nothing, leaving every materialized table as it stands,
+until a publication from a complete read clears the mark. `whenPublished()` resolves once the first publication has run or
+failed, and at once where none is
 pending. `materializeAll` (`location/table-docs.mjs`) awaits it before it reads
 an entry: its stale-page sweep retires every page no entry names, and before
 the first publication the `acks.class.*` docs are absent, not gone.

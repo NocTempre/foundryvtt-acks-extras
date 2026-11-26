@@ -53,7 +53,7 @@ await ok("the stamp field is declared once on the Item index, and only once howe
   assert.deepEqual(globalThis.CONFIG.Item.compendiumIndexFields, []);
   declareLibraryIndexFields();
   declareLibraryIndexFields();
-  assert.deepEqual(globalThis.CONFIG.Item.compendiumIndexFields, [STAMP]);
+  assert.deepEqual(globalThis.CONFIG.Item.compendiumIndexFields, [STAMP, `${STAMP.slice(0, -2)}merged`, "flags.acks-extras.templatePart"]);
 });
 
 await ok("module.mjs declares it at init, beside the plate", () => {
@@ -190,6 +190,82 @@ await ok("a shelf found only at the second read is read at the second read", asy
   assert.deepEqual(await libraryDocsWhere("Item", isWeapon), []);
   game.packs = [shelf({ docs: filler("a", 1) })];
   assert.deepEqual(idsOf(await libraryDocsWhere("Item", isWeapon)), ["aw0"]);
+});
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+await ok("two readers of one shelf at once share one index read; a read after it settles asks again", async () => {
+  const pack = shelf({ docs: filler("a", 3) });
+  game.packs = [pack];
+  const [first, second] = await Promise.all([libraryDocsWhere("Item", isWeapon), libraryDocsWhere("Item", (row) => row.type === "equipment")]);
+  assert.equal(pack.calls.getIndex.length, 1, "one server pass for both readers");
+  assert.deepEqual(idsOf(first), ["aw0", "aw1", "aw2"]);
+  assert.equal(second.length, 20);
+  await libraryDocsWhere("Item", isWeapon);
+  assert.equal(pack.calls.getIndex.length, 2, "the shared read is dropped once it settles");
+});
+
+await ok("a shared index read that rejects is reported to each reader, and the next read tries again", async () => {
+  const pack = shelf({ docs: filler("a", 2), failIndex: true });
+  game.packs = [pack];
+  const { value } = await withWarnings(() => Promise.all([libraryDocsWhere("Item", isWeapon), libraryDocsWhere("Item", isWeapon)]));
+  assert.equal(pack.calls.getIndex.length, 1);
+  assert.deepEqual(value.map((found) => found.failed), [[pack.collection], [pack.collection]]);
+  pack.failIndex = false;
+  const again = await libraryDocsWhere("Item", isWeapon);
+  assert.deepEqual(idsOf(again), ["aw0", "aw1"]);
+  assert.equal(pack.calls.getIndex.length, 2);
+});
+
+await ok("an answer names the shelves that could not be read, so a failure is told from a match of none", async () => {
+  const bad = shelf({ docs: filler("a", 2), failLoad: true });
+  const brokenIndex = shelf({ line: "Sample Line", docs: filler("b", 2), failIndex: true });
+  const fine = shelf({ line: "Other Line", docs: filler("c", 2) });
+  const empty = shelf({ line: "Empty Line", docs: filler("d", 0) });
+  game.packs = [bad, brokenIndex, fine, empty];
+  const { value } = await withWarnings(() => libraryDocsWhere("Item", isWeapon));
+  assert.deepEqual(idsOf(value), ["cw0", "cw1"]);
+  assert.deepEqual(value.failed, [bad.collection, brokenIndex.collection]);
+  game.packs = [fine, empty];
+  const clean = await libraryDocsWhere("Item", (row) => row.name === "no such name");
+  assert.deepEqual(clean, []);
+  assert.deepEqual(clean.failed, [], "a read that matched nothing has failed nowhere");
+  assert.equal(Object.keys(clean).length, 0, "the list is still a plain array to every caller that ignores `failed`");
+});
+
+await ok("the warm waits for the narrow reads in flight, and starts after them", async () => {
+  const pack = shelf({ docs: filler("a", 3) });
+  game.packs = [pack];
+  let open;
+  const gate = new Promise((resolve) => (open = resolve));
+  const realIndex = pack.getIndex.bind(pack);
+  pack.getIndex = async (...args) => {
+    await gate;
+    return realIndex(...args);
+  };
+  const bare = () => pack.calls.getDocuments.filter((query) => !query?._id__in).length;
+  const reading = libraryDocsWhere("Item", isWeapon);
+  const warming = lib.registerLibraryWarm();
+  await sleep(15);
+  assert.equal(bare(), 0, "no whole-shelf load while a narrow read is under way");
+  open();
+  await reading;
+  await warming;
+  assert.equal(bare(), 1, "the warm loads the whole shelf once the narrow read has landed");
+  pack.getIndex = realIndex;
+});
+
+await ok("the warm is deferred a macrotask even with nothing in flight, so a reader started in the same tick is seen", async () => {
+  const pack = shelf({ docs: filler("a", 3) });
+  game.packs = [pack];
+  const warming = lib.registerLibraryWarm();
+  const late = libraryDocsWhere("Item", isWeapon);
+  assert.equal(pack.calls.getDocuments.length, 0, "the warm has not started synchronously");
+  await Promise.all([warming, late]);
+  const loads = pack.calls.getDocuments;
+  const narrowAt = loads.findIndex((query) => query?._id__in);
+  const wholeAt = loads.findIndex((query) => !query?._id__in);
+  assert.ok(narrowAt >= 0 && wholeAt > narrowAt, "the narrow read's load goes first, the whole-shelf load after it");
 });
 
 console.log(`\n${passed} passed`);

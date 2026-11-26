@@ -23,9 +23,13 @@
  *   glyphPassAfterHp       g. the reach glyph pass after a hit-point change
  *   firstDeal              h. the treasure Deal, first in a freshly loaded page; with the magic cards it staged and
  *                          the magic errors it reported, the proxies for the placeholders it held
+ *   firstDocumentOf        h. the `cookbook-items` service's first `documentOf`, first in a freshly loaded page, with
+ *                          the Item shelves' first index read timed apart and the documents the shelves hold
+ *                          counted before and after
  *   firstUnequip           h. a weapon's unequip, first in a freshly loaded page; with `rowsPublication`, the
- *                          weapon rows' `performance.mark`s read after the redraw (when the first publication
- *                          began, when it landed, and the read between), in ms since navigation
+ *                          `performance.mark`s of the weapon rows and the class registry read after the redraw (when
+ *                          each first publication began, when it landed, and the read between) and of the library's
+ *                          warm (when it began loading whole shelves), in ms since navigation
  *
  * The seats come from `_env.mjs` (CAPTURE_BROWSER, CAPTURE_ORIGIN, SEAT_GM; the
  * Player seat is not driven). It takes the repository's landing lease as the
@@ -587,17 +591,61 @@ const P = {
   },
 
   /**
-   * h. When the weapon rows' first publication began and landed, from the marks `weapon-rows.mjs` sets, in ms since
-   * navigation; null where a mark is absent (a build that does not set them, or a publication not yet made).
+   * h. When the weapon rows' and the class registry's first publications began and landed, and when the library's warm
+   * began loading whole shelves, from the marks `weapon-rows.mjs`, `classes/registry.mjs` and `lib/library.mjs` set, in
+   * ms since navigation; null where a mark is absent (a build that does not set them, or a publication not yet made).
    */
   rowsPublication: () => {
     const at = (name) => {
       const entry = performance.getEntriesByName(name)[0];
       return entry ? Math.round(entry.startTime * 10) / 10 : null;
     };
+    const span = (a, b) => (a !== null && b !== null ? Math.round((b - a) * 10) / 10 : null);
     const startedMs = at("acks-extras:weaponRows:started");
     const publishedMs = at("acks-extras:weaponRows:published");
-    return { startedMs, publishedMs, readMs: startedMs !== null && publishedMs !== null ? Math.round((publishedMs - startedMs) * 10) / 10 : null, readAtMs: Math.round(performance.now() * 10) / 10 };
+    const classStartedMs = at("acks-extras:classRegistry:started");
+    const classPublishedMs = at("acks-extras:classRegistry:published");
+    return {
+      startedMs,
+      publishedMs,
+      readMs: span(startedMs, publishedMs),
+      classRegistry: { startedMs: classStartedMs, publishedMs: classPublishedMs, readMs: span(classStartedMs, classPublishedMs) },
+      warmStartedMs: at("acks-extras:libraryWarm:started"),
+      readAtMs: Math.round(performance.now() * 10) / 10,
+    };
+  },
+
+  /**
+   * h. The first `documentOf` a magic deal's linked row asks (the `cookbook-items` service), in a freshly loaded page:
+   * the Item shelves' first index read is timed apart from the ask, and the documents the shelves hold are counted
+   * before and after, so a load of any shelf shows. The id is the first stamped, non-part row of the index and is
+   * never printed.
+   */
+  documentOfOnce: async () => {
+    const services = await import("/modules/acks-extras/scripts/lib/services.mjs");
+    const provider = services.get("cookbook-items");
+    if (typeof provider?.documentOf !== "function") return { skip: "no cookbook-items provider is registered" };
+    const shelves = game.packs.filter((p) => p.documentName === "Item" && p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith("ACKS Cookbook"));
+    const held = () => shelves.reduce((n, p) => n + p.size, 0);
+    const heldBefore = held();
+    const t0 = performance.now();
+    let id = null;
+    for (const pack of shelves) {
+      const index = await pack.getIndex();
+      for (const row of index) {
+        const stamp = row.flags?.["acks-extras"];
+        if (!id && stamp?.cookbook?.id && !stamp.templatePart) id = stamp.cookbook.id;
+      }
+    }
+    const indexMs = Math.round((performance.now() - t0) * 10) / 10;
+    if (!id) return { skip: "no stamped Item row in the index", indexMs };
+    const t1 = performance.now();
+    const found = await provider.documentOf(id);
+    const firstMs = Math.round((performance.now() - t1) * 10) / 10;
+    const t2 = performance.now();
+    await provider.documentOf(id);
+    const secondMs = Math.round((performance.now() - t2) * 10) / 10;
+    return { shelves: shelves.length, indexMs, firstMs, secondMs, answered: typeof found?.uuid === "string", heldBefore, heldAfter: held() };
   },
 
   /** h. A weapon's unequip, the call the sheet's toggle makes, first in a page that has done nothing else; drawn again after. */
@@ -1050,6 +1098,11 @@ try {
     await lead("firstDeal", async () => {
       if (prep.dealNote) throw new Error(prep.dealNote);
       return freshPage(async (page, bare) => ({ freshPage: bare, ...(await run(page, P.dealOnce, { potId: prep.potId, letters: [prep.letters[0]] })) }));
+    });
+    await lead("firstDocumentOf", async () => {
+      const out = await freshPage(async (page, bare) => ({ freshPage: bare, ...(await run(page, P.documentOfOnce)) }));
+      if (out.skip) throw new Error(out.skip);
+      return out;
     });
     await lead("firstUnequip", async () => {
       if (prep.unequipNote) throw new Error(prep.unequipNote);

@@ -55,7 +55,9 @@ whichever pack Foundry registered first.
   meant.
 - `whenReady()` — awaits the warm, for callers that can.
 - `libraryDocsWhere(type, match, {except})` — the narrow, async reader: the
-  documents of a type that pass `match`, with no whole-shelf load (below).
+  documents of a type that pass `match`, with no whole-shelf load, and a
+  `failed` list on the answer (below). `shelfIndex(pack)` is one shelf's index
+  through the shared read.
 
 **A seat's library is the shelves it opens, and a closed shelf is not a
 secret one.** A Judge's shelf (`judgeLine`) is made with
@@ -77,7 +79,14 @@ The reads are **synchronous**, because their callers are sheet getters and
 `_prepareContext` bodies. That is paid for by warming the packs at `ready`
 (`registerLibraryWarm`, called from the lib module's own ready hook):
 `getDocuments()` instantiates them, and a read afterwards is a filter over
-memory — the same cost the `game.items` reads had. A pack that is cold (the
+memory — the same cost the `game.items` reads had. The warm starts a macrotask
+after it is registered, so every `ready` hook has begun its own narrow read, and
+then waits until no narrow read (`libraryDocsWhere`) is in flight; the weapon
+rows and the class registry read the library that way at `ready`, so the
+whole-shelf loads follow them rather than queue beside them (a narrow read that
+never settles holds the warm back, and a synchronous reader still loads its own
+shelf on demand). `registerLibraryWarm` marks its start
+(`WARM_MARK_STARTED`). A pack that is cold (the
 importer creates its packs on first use, and core emits no hook when a
 compendium is created) starts loading in the background and the read answers
 with what is in hand.
@@ -109,13 +118,41 @@ row alike and never `system`: core returns an index result as stored, with no
 `fromSource` (`client/data/client-backend.mjs`, the `operation.index` branch),
 so the system's migration of a document's record (docs/lib/DECISIONS.md, "The
 system migrates a stamped record") has not run on a row. A shelf that cannot be read
-is reported and the others answer. Every compendium query is a full pass over
+is reported and the others answer; the answer carries `failed`, the collection
+ids of the shelves left out (a non-enumerable property of the array), so a caller
+that publishes from it tells "the read failed" from "none match" and does not
+publish a short list as whole. Every compendium query is a full pass over
 the pack on the server, a `getDocument` included, so a loop of them is a scan
-per id and the one `_id__in` is the batch.
+per id and the one `_id__in` is the batch. Core does not share a pass between
+concurrent callers, so `shelfIndex(pack)` holds one `getIndex()` per pack while
+it is pending and every reader that arrives meanwhile awaits it: the weapon rows
+and the class registry, reading at the same `ready`, scan the Item shelf's index
+once, and each then loads its own ids in one `_id__in`. The pending read is
+dropped when it settles, a rejection included.
 
-The stamp the readers match on is **declared, never passed**.
-`declareLibraryIndexFields()`, run at `init`, adds `flags.acks-extras.cookbook.id`
-to `CONFIG.Item.compendiumIndexFields`, beside the family plate on
+**A republished document is read again from the index.** The weapon rows and the
+class tables publish a registry document from library documents and republish it
+when a library document of theirs is created, updated or deleted. A republish
+never takes "the documents held": after the cache lifetime evicts a shelf only
+the changed document is held, and a document built from it alone would publish
+short. `lib/republish.mjs` coalesces the hooks into reads through
+`libraryDocsWhere`: one read per burst, starting `debounceMs` after the burst's
+last hook and no later than `maxWaitMs` after its first, a hook that lands during
+a read read again after it, the read held behind the feature's first publication,
+and a deleted id left out of the next read (its hook can fire while the
+collection still lists it). An answer with a non-empty `failed` is not published:
+the document stands as last published, a warning says so, and the ids deleted
+meanwhile stay left out. A first publication has no earlier one to keep and
+publishes what the shelves that answered hold. `whenCurrent()` is how an action
+waits for the republish its change causes: it resolves once a read that began
+after the change has been applied, so a long import's steady hooks do not hold an
+action back past the cap.
+
+The stamps the readers match on are **declared, never passed**.
+`declareLibraryIndexFields()`, run at `init`, adds `LIBRARY_INDEX_FIELDS` to the
+index fields: `flags.acks-extras.cookbook.id`, `.cookbook.merged` (the ids a
+document absorbed on merge) and `.templatePart` for Items, to
+`CONFIG.Item.compendiumIndexFields`, beside the family plate on
 `CONFIG.Actor`. A pack's startup index holds core fields only; its first
 client `getIndex()` after the declaration is one more server pass, and from then
 on core builds each index row with the declared fields on every create, update

@@ -19,7 +19,9 @@ import {
   levelFactor,
 } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
-import { libraryItems, libraryPacks, cookbookId, whenReady } from "../lib/library.mjs";
+import { libraryItems, libraryPacks, libraryDocsWhere, cookbookId } from "../lib/library.mjs";
+import { createRepublisher } from "../lib/republish.mjs";
+import { perfMark } from "../lib/util.mjs";
 import { skillLadderRungs } from "../abilities/skill-ladders.mjs";
 
 /** Every class Item the library holds — the sidebar's and the imported pack's. */
@@ -292,19 +294,23 @@ export const PRODUCES = Object.freeze({
 const _published = new Set();
 
 /**
- * Rebuild and publish every class-derived registry document. Idempotent:
- * ids that vanished are unregistered, the rest replace their WORLD layer.
- * Each table cites the page its class item names (`source.cite`); a class
- * naming none, as a homebrew one does, cites nothing.
+ * Rebuild and publish every class-derived registry document from the class
+ * documents `items` (what `readClasses` answers with; a publication reads no
+ * other, so a shelf the cache lifetime has evicted cannot make it short).
+ * Idempotent: ids that vanished are unregistered, the rest replace their WORLD
+ * layer. Each table cites the page its class item names (`source.cite`); a
+ * class naming none, as a homebrew one does, cites nothing.
+ *
+ * @param {object[]} items the library's class documents
+ * @returns {number} how many registry documents were published
  */
-export function publish() {
-  const items = classItems();
+export function publish(items) {
   const next = new Map();
 
   const chassisTables = {};
   const chassisCites = {};
   for (const key of CHASSIS_KEYS) {
-    const item = classByKey(key);
+    const item = items.find((i) => (i.system?.key || "").toLowerCase() === key);
     if (!item) continue;
     const saves = saveRows(item.system);
     const attack = attackRows(item.system);
@@ -498,7 +504,62 @@ let firstPublication = Promise.resolve();
  */
 export const whenPublished = () => firstPublication;
 
-/** Wire publication to the world lifecycle: ready + class-item CRUD. */
+/** How long a burst of class hooks settles before the library is read again, in milliseconds. */
+export const CLASS_REREAD_MS = 40;
+
+/**
+ * The longest a burst of class hooks may hold the republish read back, in
+ * milliseconds: a read starts at most this long after the burst's first hook,
+ * however steadily the rest arrive. A timing choice of this module, no page
+ * value.
+ */
+export const CLASS_REREAD_MAX_MS = 500;
+
+/** The `performance.mark` set when the first publication of the class tables begins, read by tools/live/perf-leads.mjs. */
+export const CLASS_MARK_STARTED = "acks-extras:classRegistry:started";
+
+/** The `performance.mark` set when the first publication of the class tables has landed or failed. */
+export const CLASS_MARK_PUBLISHED = "acks-extras:classRegistry:published";
+
+/**
+ * Every class document the library holds, read through the shelves' indexes by
+ * type (`libraryDocsWhere`): the sidebar's and each shelf's, none of the shelf's
+ * other documents loaded. Unlike `classItems`, it does not depend on what the
+ * shelves still hold.
+ */
+const readClasses = (except = null) => libraryDocsWhere("Item", (row) => row.type === CLASS_TYPE, { except });
+
+/** Whether the registry stands on a read that could not reach a shelf, or on none at all. */
+let incomplete = false;
+
+/**
+ * Whether the registry as published may name fewer classes than the library
+ * holds: its first publication read a shelf that failed, or failed itself. A
+ * pass that retires what the registry no longer names (`materializeAll`) does
+ * not run while this is true; the next good publication clears it.
+ */
+export const publicationIncomplete = () => incomplete;
+
+/** Reads the library again once per burst of class hooks and publishes it (`lib/republish.mjs`). */
+const republisher = createRepublisher({
+  read: readClasses,
+  apply: (docs) => {
+    incomplete = false;
+    return publish(docs);
+  },
+  after: () => firstPublication,
+  debounceMs: CLASS_REREAD_MS,
+  maxWaitMs: CLASS_REREAD_MAX_MS,
+  label: "class tables",
+});
+
+/**
+ * Wire publication to the world lifecycle: ready + class-item CRUD. The first
+ * publication reads the class documents by type, and publishes what the shelves
+ * that answered hold, since no earlier publication stands to be kept; a class
+ * item's change is read again through the republisher, which keeps the
+ * published tables when a shelf could not be read.
+ */
 export function registerRegistryHooks() {
   // A ready hook registered after `ready` never fires, so nothing is pending then.
   if (!settleFirstPublication && !globalThis.game?.ready) {
@@ -506,14 +567,21 @@ export function registerRegistryHooks() {
       settleFirstPublication = resolve;
     });
   }
-  // The library warms in the background and this publication is not repeated,
-  // so the shelves are awaited before they are read.
+  // The read starts before this hook's first await, so the library's warm, which
+  // waits a macrotask for the narrow reads, finds it in flight.
   Hooks.once("ready", async () => {
+    perfMark(CLASS_MARK_STARTED);
     try {
-      await whenReady();
-      const count = publish();
+      const docs = await readClasses();
+      incomplete = docs.failed?.length > 0;
+      if (incomplete) console.warn(`${MODULE_ID} | the class tables are published from the shelves that could be read; ${docs.failed.join(", ")} could not be, so the materialized tables are left as they stand until a read reaches every shelf.`);
+      const count = publish(docs);
       if (count) console.log(`${MODULE_ID} | classes registry published ${count} ruledata doc(s).`);
+    } catch (err) {
+      incomplete = true;
+      console.error(`${MODULE_ID} | the class tables could not be published`, err);
     } finally {
+      perfMark(CLASS_MARK_PUBLISHED);
       settleFirstPublication?.();
       settleFirstPublication = null;
     }
@@ -522,7 +590,7 @@ export function registerRegistryHooks() {
     Hooks.on(hook, (item) => {
       if (item?.type !== CLASS_TYPE || item.parent) return;
       if (!game.ready) return;
-      publish();
+      republisher.queue(item.id, hook === "deleteItem");
     });
   }
 }

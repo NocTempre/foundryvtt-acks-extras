@@ -17,17 +17,29 @@ import { encumbranceDelta6 } from "./containers.mjs";
 import { settleShot } from "./on-hit.mjs";
 import { settleManeuver } from "./maneuver-save.mjs";
 import { rowsSettled } from "./weapon-rows.mjs";
+import { libraryVariations } from "./printed-layers.mjs";
 import { attackThrowRows, damageRows, attackTypesFor, damageModesFor, damageFormulaFor, ATTACK_TYPE } from "./attack-mods.mjs";
 import { addAttackContributor, attackInFlight, POST_ATTACK_HOOK } from "../lib/patches/attack-throw.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /**
+ * What the attack waits for: the weapon rows, which every answer below
+ * classifies the weapon from, and the library's variation documents, which the
+ * masterwork part of the throw reads synchronously from the shelf. Foundry drops
+ * a shelf's documents after it idles, so the variations are read again here
+ * (by type, from the index) rather than taken as held.
+ */
+async function ready() {
+  await rowsSettled();
+  await libraryVariations();
+}
+
+/**
  * The attack seam's contributor for this feature; each answer fails safe to the
- * list it was given. Its `ready` is the wait for the weapon rows, which every
- * answer below classifies the weapon from.
+ * list it was given. Its `ready` is `ready` above.
  */
 export const equipmentContributor = Object.freeze({
-  ready: rowsSettled,
+  ready,
   attack(ctx, attackType, modifiers) {
     return [...modifiers, ...attackThrowRows(ctx.actor, ctx.weapon, attackType, { maneuver: ctx.maneuver })];
   },

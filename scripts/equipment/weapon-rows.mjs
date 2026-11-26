@@ -31,7 +31,8 @@
 import { registerTable, unregisterTable, PRIORITY } from "../lib/tables.mjs";
 import { libraryDocsWhere, cookbookId } from "../lib/library.mjs";
 import { ITEM_TYPE, slug } from "../lib/vocab.mjs";
-import { announceChange } from "../lib/util.mjs";
+import { announceChange, perfMark } from "../lib/util.mjs";
+import { createRepublisher } from "../lib/republish.mjs";
 import { MODULE_ID, VARIATION_ITEM_TYPE } from "./constants.mjs";
 import { WEAPONS_DOC, WEAPONS_TABLE } from "./weapon-source.mjs";
 
@@ -49,20 +50,20 @@ const MINTED_PREFIX = "def.weapon.";
 /** How long a burst of weapon hooks settles before the library is read again, in milliseconds. */
 export const ROWS_REREAD_MS = 40;
 
+/**
+ * The longest a burst of weapon hooks may hold the republish read back, in
+ * milliseconds: a read starts at most this long after the first hook of a
+ * burst, however steadily the rest arrive, so a long import never keeps an
+ * action waiting on the rows until it ends. A timing choice of this module, no
+ * page value.
+ */
+export const ROWS_REREAD_MAX_MS = 500;
+
 /** The `performance.mark` set when the first publication of the rows begins, read by tools/live/perf-leads.mjs. */
 export const ROWS_MARK_STARTED = "acks-extras:weaponRows:started";
 
 /** The `performance.mark` set when the first publication of the rows has landed or failed. */
 export const ROWS_MARK_PUBLISHED = "acks-extras:weaponRows:published";
-
-/** Set a `performance.mark`; a seat with none loses only the measurement. */
-function mark(name) {
-  try {
-    globalThis.performance?.mark?.(name);
-  } catch {
-    /* no timeline to mark */
-  }
-}
 
 /**
  * What the rows need from the library, tested on an index row (`type`, the
@@ -183,20 +184,15 @@ let _first = Promise.resolve();
 /** Whether the first publication has settled; true where no publisher was ever registered. */
 let _settled = true;
 
-/** The pending debounce timer of a republish read, or null. */
-let _reread = null;
-
-/** The republish read in flight, or null. */
-let _rereading = null;
-
-/** Whether a hook has changed the library since the read in flight began. */
-let _dirty = false;
-
-/** Document ids deleted since the last read began, left out of the next one. */
-const _gone = new Set();
-
-/** Resolvers of the actions waiting for a quiet republish. */
-let _quiet = [];
+/** Reads the library again, once per burst of weapon hooks, and publishes it (`lib/republish.mjs`). */
+const republisher = createRepublisher({
+  read: readRowSources,
+  apply: publish,
+  after: () => _first,
+  debounceMs: ROWS_REREAD_MS,
+  maxWaitMs: ROWS_REREAD_MAX_MS,
+  label: "weapon rows",
+});
 
 /** The longest an action waits for the first publication, in milliseconds. */
 export const ROWS_WAIT_MS = 60000;
@@ -230,7 +226,8 @@ export const rowsReady = () => _first;
  * @returns {Promise<void>}
  */
 export async function rowsSettled({ timeoutMs = ROWS_WAIT_MS } = {}) {
-  if (_settled && !_reread && !_rereading) return;
+  const current = _settled ? republisher.whenCurrent() : _first.then(() => republisher.whenCurrent());
+  if (!current) return;
   let timer;
   const bound = new Promise((resolve) => {
     timer = setTimeout(() => {
@@ -239,14 +236,11 @@ export async function rowsSettled({ timeoutMs = ROWS_WAIT_MS } = {}) {
     }, timeoutMs);
   });
   try {
-    await Promise.race([_first.then(whenQuiet), bound]);
+    await Promise.race([current, bound]);
   } finally {
     clearTimeout(timer);
   }
 }
-
-/** Resolves once no republish is queued or in flight. */
-const whenQuiet = () => (_reread || _rereading ? new Promise((resolve) => _quiet.push(resolve)) : undefined);
 
 /**
  * Rebuild the `weapons` document from the library documents `docs` and
@@ -288,68 +282,29 @@ export function publish(docs) {
 const isLibraryWeapon = (item) =>
   item?.type === ITEM_TYPE.weapon && !item.parent && cookbookId(item).startsWith(MINTED_PREFIX);
 
-/** Let the actions waiting on a quiet republish go. */
-function releaseQuiet() {
-  const waiting = _quiet;
-  _quiet = [];
-  for (const resolve of waiting) resolve();
-}
-
-/**
- * Read the library again and publish, once for every change that arrived since
- * the last read began: a hook that lands while a read is in flight is read
- * again after it. It starts behind the first publication, so a change heard
- * before the rows were first published cannot publish ahead of it.
- */
-async function republish() {
-  await _first;
-  while (_dirty) {
-    _dirty = false;
-    const except = new Set(_gone);
-    _gone.clear();
-    try {
-      publish(await readRowSources(except));
-    } catch (err) {
-      console.error(`${MODULE_ID} | the weapon rows could not be republished`, err);
-    }
-  }
-}
-
-/** Queue one republish for a library weapon's create, update or delete; a burst of them is one read. */
-function queueRepublish(item, deleted) {
-  if (deleted) _gone.add(item.id);
-  else _gone.delete(item.id);
-  _dirty = true;
-  clearTimeout(_reread);
-  _reread = setTimeout(() => {
-    _reread = null;
-    _rereading ??= republish().finally(() => {
-      _rereading = null;
-      if (!_reread && !_dirty) releaseQuiet();
-    });
-  }, ROWS_REREAD_MS);
-}
-
 /**
  * Publish once the library's weapons and variations have been read, and again
  * whenever a library weapon is created, updated or deleted. The first
  * publication reads the shelves' indexes (`rowsReady` resolves when it has
- * landed, even where it failed); a change is read again from the index, once per
- * burst, with a deleted document's id left out because its hook can fire while
- * the collection still lists it.
+ * landed, even where it failed) and publishes what the shelves that answered
+ * hold, since no earlier publication stands to be kept; a change is read again
+ * from the index through the republisher (`lib/republish.mjs`), which keeps the
+ * published rows when a shelf could not be read.
  */
 export function registerWeaponRows() {
   _settled = false;
   _first = new Promise((resolve) => {
     Hooks.once("ready", async () => {
-      mark(ROWS_MARK_STARTED);
+      perfMark(ROWS_MARK_STARTED);
       try {
-        const count = publish(await readRowSources());
+        const docs = await readRowSources();
+        if (docs.failed?.length) console.warn(`${MODULE_ID} | the weapon rows are published from the shelves that could be read; ${docs.failed.join(", ")} could not be.`);
+        const count = publish(docs);
         if (count) console.log(`${MODULE_ID} | equipment published ${count} weapon row(s).`);
       } catch (err) {
         console.error(`${MODULE_ID} | the weapon rows could not be published`, err);
       } finally {
-        mark(ROWS_MARK_PUBLISHED);
+        perfMark(ROWS_MARK_PUBLISHED);
         _settled = true;
         resolve();
       }
@@ -358,7 +313,7 @@ export function registerWeaponRows() {
   for (const hook of ["createItem", "updateItem", "deleteItem"]) {
     Hooks.on(hook, (item) => {
       if (!isLibraryWeapon(item) || !game.ready) return;
-      queueRepublish(item, hook === "deleteItem");
+      republisher.queue(item.id, hook === "deleteItem");
     });
   }
 }

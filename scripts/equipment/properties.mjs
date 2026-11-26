@@ -1,4 +1,4 @@
-/* global game */
+/* global game, console */
 /**
  * ITEM PROPERTY LAYERS — one baseline, recomputed.
  *
@@ -16,9 +16,8 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
-import { silverFigure, masterworkFigure, provenanceTip } from "./printed-layers.mjs";
+import { silverFigure, masterworkFigure, provenanceTip, libraryVariations } from "./printed-layers.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { whenReady } from "../lib/library.mjs";
 import { sumDeltas, entryOf, definitionFrom } from "./variations.mjs";
 import { variationItemsOf } from "./variation-items.mjs";
 
@@ -100,12 +99,14 @@ export const scavengedOf = (item) => item?.getFlag?.(MODULE_ID, "scavenged") ?? 
 export const itemLossAcOf = (item) => Math.max(0, Number(item?.getFlag?.(MODULE_ID, ITEM_FLAGS.ITEM_LOSS_AC)) || 0);
 
 /**
- * The combined deltas of every active layer.
+ * The combined deltas of every active layer. `library` is the library
+ * documents the silver and masterwork variations are found among
+ * (`libraryVariations`); left out, the instantiated library is read.
  * @returns {{bonus:number, damage:number, ac:number, weight6:number}}
  */
 export function layerDeltas(
   item,
-  { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true, itemLossAc = itemLossAcOf(item) } = {},
+  { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true, itemLossAc = itemLossAcOf(item), library } = {},
 ) {
   // `costBaseMul` scales the weapon's OWN listed price, `costAdd` is then added,
   // and `costMul` scales the whole: silver (RR ch.4) cannot multiply a
@@ -114,8 +115,8 @@ export function layerDeltas(
   const d = { bonus: 0, damage: 0, ac: 0, weight6: 0, costAdd: 0, costMul: 1, costBaseMul: 1 };
   // Both layers read the imported variation documents (`printed-layers.mjs`);
   // a layer whose document is not imported applies nothing.
-  const sv = silvered ? silverFigure() : null;
-  const mw = masterwork && masterwork !== "none" ? masterworkFigure(masterwork) : null;
+  const sv = silvered ? silverFigure(library) : null;
+  const mw = masterwork && masterwork !== "none" ? masterworkFigure(masterwork, library) : null;
   for (const fig of [sv, mw]) {
     if (!fig) continue;
     d.bonus += fig.bonus;
@@ -162,12 +163,18 @@ export function layerDeltas(
  */
 export async function recomputeItemFields(item, overrides = {}) {
   if (!item) return;
-  // The layers' figures are library documents read synchronously; wait for the
-  // shelf so a still-loading one does not write the item back to pristine.
-  await whenReady();
   const masterwork = "masterwork" in overrides ? overrides.masterwork : masterworkTierOf(item);
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
   const silvered = "silvered" in overrides ? overrides.silvered : silveredFlagOf(item) === true;
+  // A layer whose figure is a library variation reads the variations by type
+  // before the write, so a shelf that is still loading, or that Foundry has
+  // evicted, does not write the item back to pristine.
+  const library = (masterwork && masterwork !== "none") || silvered ? await libraryVariations() : undefined;
+  // A read that missed a shelf cannot say a figure is not imported, which is what writing the item without it would state.
+  if (library?.failed?.length) {
+    console.warn(`${MODULE_ID} | "${item.name}" was left as it stands: ${library.failed.join(", ")} could not be read for the masterwork and silver figures.`);
+    return;
+  }
   const itemLossAc = "itemLossAc" in overrides ? overrides.itemLossAc : itemLossAcOf(item);
   const anyLayer =
     !!(masterwork && masterwork !== "none") || !!scavenged || silvered || itemLossAc > 0 || variationItemsOf(item).length > 0;
@@ -191,7 +198,7 @@ export async function recomputeItemFields(item, overrides = {}) {
     return;
   }
 
-  const d = layerDeltas(item, { masterwork, scavenged, silvered, itemLossAc });
+  const d = layerDeltas(item, { masterwork, scavenged, silvered, itemLossAc, library });
   if (item.type === ITEM_TYPE.weapon) {
     update["system.bonus.attack"] = base.bonus + d.bonus;
     // A blank baseline stays blank: a delta over no die is no formula.
