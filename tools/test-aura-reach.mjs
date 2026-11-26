@@ -4,8 +4,9 @@
  * area counts and which clauses answer null, what each moment does, the
  * snapshot's area in pixels, the figure a row names, the raise's verdict and
  * the Region it asks core for, a hand-made behavior doing nothing, the bearer
- * going down, and the row schema carrying a reach no editor offers. Foundry-free
- * with stand-ins; every kind, name and figure below is invented.
+ * going down, the row schema carrying a reach, and the editor's reach group
+ * editing it as a diff (`reach-edit.mjs`). Foundry-free with stand-ins; every
+ * kind, name and figure below is invented.
  *
  * Usage: node tools/test-aura-reach.mjs
  */
@@ -418,7 +419,7 @@ await t("creature kinds read a character's race and its category, and a monster'
   assert.equal(actorRead.kindToken(" Demi Human_x! "), "demi-human-x");
 });
 
-/* --- the row schema: a reach no editor offers --- */
+/* --- the row schema: a reach, and the editor's group over it --- */
 class Field {
   constructor(options = {}) { this.options = options; }
 }
@@ -432,6 +433,7 @@ globalThis.foundry.data = { fields: { SchemaField: Schema, ArrayField: List, Str
 globalThis.game.i18n = { format: (key) => key, localize: (key) => key };
 const { effectField } = await import("../scripts/lib/fields.mjs");
 const editor = await import("../scripts/lib/apps/effect-row-editor.mjs");
+const reachEdit = await import("../scripts/lib/reach-edit.mjs");
 
 await t("effectField carries a nullable reach of radius, filter and pulse, empty by default, so a row cleaned without one stays without", () => {
   const field = effectField().fields.reach;
@@ -449,18 +451,101 @@ await t("effectField carries a nullable reach of radius, filter and pulse, empty
   assert.equal(field.fields.filter.fields.side.options.initial, "any");
 });
 
-await t("no editor field list offers reach, for any type in any domain, and an edit keeps a stored one", () => {
+await t("the gear and ability domains end every kind's fields with the reach group and a spell offers none; an edit that moves no reach control keeps a stored reach", () => {
   const types = Object.keys(vocab.EFFECT_TYPES);
   assert.ok(types.length > 30);
-  for (const domain of ["spell", "ability", "gear", "domain", undefined]) {
+  for (const domain of [vocab.GEAR_DOMAIN, "ability"]) {
     for (const type of types) {
       const fields = editor.fieldsForType(type, domain);
-      assert.ok(!fields.some((name) => name === "reach" || name.startsWith("reach.")), `${type} in ${domain} offers no reach`);
+      assert.equal(fields.filter((name) => name === "reach").length, 1, `${type} in ${domain} offers the reach group once`);
+      assert.equal(fields.at(-1), "reach", `${type} in ${domain} ends with it`);
+      assert.ok(!fields.some((name) => name.startsWith("reach.")), "and no reach member is a field of its own");
     }
   }
-  const stored = { type: "modifier", key: "k", reach: { pulse: "standing", radius: { value: "5" }, filter: { kinds: ["alpha"] } } };
+  for (const domain of ["spell", "domain", undefined]) {
+    for (const type of types) assert.ok(!editor.fieldsForType(type, domain).some((name) => name === "reach" || name.startsWith("reach.")), `${type} in ${domain} offers no reach`);
+  }
+  const stored = { type: "modifier", key: "k", reach: { pulse: "standing", radius: { value: "5", doc: "d", table: "t", row: "r", figure: "f" }, filter: { kinds: ["alpha"], unit: "own", self: "count" }, save: { value: "x" }, on: ["attack"], saveWhen: { when: "w", magical: true } } };
   assert.deepEqual(editor.mergeRowEdit(stored, { note: "x" }).reach, stored.reach, "an edit that never names reach keeps it");
-  assert.equal(editor.mergeRowEdit({ type: "modifier" }, { note: "x" }).reach, undefined, "a row with none stays without");
+  // The window submits the whole group at its shown values on every change of any field.
+  const shown = { mode: "distance", side: "all", kinds: ["alpha"], exceptKinds: [], showReach: false };
+  assert.equal(editor.mergeRowEdit(stored, { note: "x", reach: shown }).reach, stored.reach, "the group submitted at its shown values leaves the stored reach as it is, the very object");
+  assert.equal(editor.mergeRowEdit(stored, { note: "x", reach: shown }).note, "x");
+  const none = editor.mergeRowEdit({ type: "modifier" }, { note: "x", reach: { mode: "distance", side: "all", kinds: [], exceptKinds: [], showReach: false } });
+  assert.ok(!("reach" in none), "a row with none stays without one while no control is moved off its neutral position");
+  assert.equal(none.note, "x");
+  assert.equal(editor.mergeRowEdit({ type: "modifier", reach: null }, { reach: { side: "all" } }).reach, null, "a stored null stays null");
+});
+
+await t("a moved reach control writes only its own member and keeps every figure the group does not own", () => {
+  const stored = { type: "modifier", key: "k", reach: { pulse: "standing", engaged: false, radius: { value: "5" }, save: { value: "x" }, immunity: { value: "i" }, lasts: { value: "2" }, modifier: { value: "1" }, on: ["attack"], saveWhen: { when: "w", magical: true }, filter: { kinds: ["alpha"], exceptKinds: [], side: "opposing", unit: "own", self: "count" }, showReach: false } };
+  const at = (fragment) => editor.mergeRowEdit(stored, { reach: { mode: "distance", side: "foe", kinds: ["alpha"], exceptKinds: [], showReach: false, ...fragment } }).reach;
+  const kept = ["radius", "save", "immunity", "lasts", "modifier", "on", "saveWhen"];
+  const sameExcept = (next, ...changed) => {
+    for (const key of kept) assert.deepEqual(next[key], stored.reach[key], `${key} is never written`);
+    assert.equal(next.filter.unit, "own", "filter.unit is never written");
+    assert.equal(next.filter.self, "count", "filter.self is never written");
+    for (const key of Object.keys(stored.reach)) if (!changed.includes(key)) assert.deepEqual(next[key], stored.reach[key], `${key} is as stored`);
+  };
+  const ring = at({ showReach: true });
+  assert.equal(ring.showReach, true);
+  assert.deepEqual(ring.filter, stored.reach.filter);
+  sameExcept(ring, "showReach");
+  // Who counts: the three options write the three REACH_SIDES keys.
+  for (const [option, key] of [["foe", "opposing"], ["side", "own"], ["all", "any"]]) assert.equal(at({ side: option }).filter.side, key, `${option} writes ${key}`);
+  assert.deepEqual(Object.values(reachEdit.SIDE_OPTIONS).sort(), Object.keys(vocab.REACH_SIDES).sort(), "the options are the sides REACH_SIDES defines, one each");
+  const side = at({ side: "all" });
+  assert.equal(side.pulse, "standing", "the pulse is left as stored");
+  sameExcept(side, "filter");
+  // The kinds are keys only, deduplicated, and a stored word the pick cannot name is kept.
+  const kinds = at({ kinds: ["alpha", "beta", "beta", " Gamma "], exceptKinds: ["delta"] });
+  assert.deepEqual(kinds.filter.kinds, ["alpha", "beta", "gamma"]);
+  assert.deepEqual(kinds.filter.exceptKinds, ["delta"]);
+  assert.deepEqual(at({ kinds: [] }).filter.kinds, [], "untick the last kind and the filter is open again");
+  const odd = editor.mergeRowEdit({ type: "modifier", reach: { pulse: "standing", filter: { kinds: ["a.b", "alpha"] } } }, { reach: { kinds: ["beta"] } }).reach;
+  assert.deepEqual(odd.filter.kinds, ["beta", "a.b"], "a stored word no checkbox can name is not the pick's to drop");
+  // Engaged writes the engaged flag and its pulse; switching back takes the engaged pulse off and leaves any other alone.
+  const engaged = at({ mode: "engaged" });
+  assert.deepEqual([engaged.engaged, engaged.pulse], [true, "turnStart+enter"]);
+  sameExcept(engaged, "engaged", "pulse");
+  const back = editor.mergeRowEdit({ type: "modifier", reach: engaged }, { reach: { mode: "distance" } }).reach;
+  assert.ok(back.engaged === false && !("pulse" in back), "back to a distance, the engaged pulse is gone, so the reach engages nothing");
+  assert.equal(logic.readReach(back), null, "and reads as acting on nothing until an import gives it a pulse");
+  sameExcept(back, "engaged", "pulse");
+  const other = editor.mergeRowEdit({ type: "modifier", reach: { ...engaged, pulse: "standing" } }, { reach: { mode: "distance" } }).reach;
+  assert.deepEqual([other.engaged, other.pulse], [false, "standing"], "any other stored pulse is left alone");
+  assert.equal(at({ mode: "distance" }).pulse, "standing", "a distance reach that was never engaged keeps its pulse");
+  // A row with no reach takes one only where a control is moved, and then only the members that moved.
+  const made = editor.mergeRowEdit({ type: "modifier" }, { reach: { mode: "distance", side: "foe", kinds: [], exceptKinds: [], showReach: false } }).reach;
+  assert.deepEqual(made, { filter: { side: "opposing" } }, "no pulse is written for a distance reach a hand makes");
+  assert.deepEqual(editor.mergeRowEdit({ type: "modifier" }, { reach: { showReach: true } }).reach, { showReach: true }, "no empty filter is left behind");
+  assert.deepEqual(editor.mergeRowEdit({ type: "modifier" }, { reach: { mode: "engaged" } }).reach, { engaged: true, pulse: "turnStart+enter" });
+  // A control the window did not submit (a seat that may not write) changes nothing.
+  assert.equal(editor.mergeRowEdit(stored, { note: "y", reach: {} }).reach, stored.reach);
+});
+
+await t("kindKeys lists the closed keys matchKinds resolves onto, once each, and the pick offers a stored word beside them", () => {
+  const closed = actorRead.kindKeys(["Beta", "alpha", "demi-human"]);
+  assert.deepEqual(closed.slice(0, 2), actorRead.RACE_CATEGORIES, "the race categories lead");
+  for (const key of [...actorRead.MEN_RACES, ...actorRead.DEMI_HUMAN_RACES, "alpha", "beta"]) assert.ok(closed.includes(key), `${key} is a closed key`);
+  assert.equal(new Set(closed).size, closed.length, "no key twice");
+  assert.deepEqual(actorRead.kindKeys(), actorRead.kindKeys([]), "the race keys stand without a caller's types");
+  for (const key of closed) assert.deepEqual(actorRead.matchKinds(key, closed).kinds, [key], `${key} resolves to itself`);
+  assert.deepEqual(reachEdit.kindOptions(closed, ["gamma", "alpha", "a.b"]).slice(closed.length), ["gamma"], "a stored word the checkbox can name is offered after the closed keys");
+});
+
+await t("How it is used folds once, fuse and consume into Used up, keeps the kind stored, and Always on removes the kind", () => {
+  for (const kind of ["once", "fuse", "consume"]) {
+    assert.equal(reachEdit.useOptionOf(kind), "spent", `${kind} reads as Used up`);
+    assert.equal(reachEdit.useKindFor("spent", kind), kind, `Used up keeps a stored ${kind}`);
+  }
+  assert.equal(reachEdit.useOptionOf("toggle"), "toggle");
+  for (const kind of ["", undefined, "unknown"]) assert.equal(reachEdit.useOptionOf(kind), "always", `${kind} reads as Always on`);
+  assert.equal(reachEdit.useKindFor("spent", "toggle"), "once", "Used up on a toggle writes once");
+  assert.equal(reachEdit.useKindFor("spent", ""), "once");
+  assert.equal(reachEdit.useKindFor("toggle", "fuse"), "toggle");
+  assert.equal(reachEdit.useKindFor("always", "toggle"), null, "Always on writes no kind");
+  assert.deepEqual(Object.keys(vocab.ITEM_RUN_ACTIVATIONS).filter((kind) => reachEdit.useOptionOf(kind) === "spent"), ["once", "fuse", "consume"], "every activation kind the vocabulary knows has an option");
 });
 
 await t("the vocabularies hold exactly the keys the logic reads", () => {

@@ -205,4 +205,15 @@ check("an ability's effect store answers editable from the pack's lock and the u
   assert.equal(editable({}, true), false, "nothing read off the document is not an edit right");
 });
 
+check("an ability's effect store hands the reach group its item's carrier: the stored kind, and a write of the kind alone", () => {
+  const updates = [];
+  const item = { uuid: "Item.a", name: "Invented", type: "ability", getFlag: (scope, key) => ({ itemRun: { activation: { kind: "once" } } })[key], flags: {}, update: (data) => updates.push(data) };
+  const store = abilityEffectStore(item);
+  assert.equal(store.domain, "ability");
+  assert.equal(store.carrier.activationKind(), "once", "an ability item carries an itemRun.activation like any other item");
+  store.carrier.setActivation("toggle");
+  assert.deepEqual(updates, [{ "flags.acks-extras.itemRun.activation.kind": "toggle" }]);
+  assert.equal(abilityEffectStore({ uuid: "Item.b", name: "Invented", getFlag: () => undefined, flags: {} }).carrier.activationKind(), "", "no activation reads no kind");
+});
+
 console.log(`test-ability-sheet: ${pass} passed`);

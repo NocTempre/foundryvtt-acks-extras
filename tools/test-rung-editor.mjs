@@ -1477,4 +1477,215 @@ await t("every key the list reads is in the lang file, and the neutral label is 
   assert.ok(`${root}.summons.neutral` in lang && `${root}.summons.refused.unreadable` in lang);
 });
 
+/* ------------------------------------------------------------------ */
+/*  The reach group                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A row editor over one ability row, the form stood in by the flat dotted
+ * controls `submit` is given (as `FormDataExtended` reads them), and a carrier
+ * that records every activation write. `kind` is the activation kind stored now.
+ */
+function reachEditor(row, { kind = "toggle", editable = true, domain = "ability", raised = false } = {}) {
+  const rows = { current: [row] };
+  const activation = { kind, sets: [] };
+  const carrier = {
+    cite: () => "XX p. 9",
+    activationKind: () => activation.kind,
+    raised: () => raised,
+    setActivation: async (next) => {
+      activation.sets.push(next);
+      activation.kind = next ?? "";
+    },
+    reachFace: (reach) => ({ engaged: reach.engaged, blank: reach.radius === null, radius: reach.radius ? Number(reach.radius.value) : null, tip: "face tip", aria: "face tip", page: "XX p. 9" }),
+  };
+  const writes = [];
+  const store = {
+    key: "ability:fx",
+    label: "Invented",
+    domain,
+    editable: () => editable,
+    carrier,
+    read: () => structuredClone(rows.current),
+    write: async (next) => {
+      writes.push(structuredClone(next));
+      rows.current = structuredClone(next);
+      return next;
+    },
+  };
+  const editor = new EffectRowEditor({ store, index: 0 });
+  const submit = async (controls) => {
+    editor.element = { controls };
+    await EffectRowEditor.DEFAULT_OPTIONS.form.handler.call(editor);
+  };
+  /** The use select changed, as core's change handler hands it to the window: a control with no name, so never the form's. */
+  const choose = (option) => editor._onChangeForm({}, { target: { matches: (sel) => sel === "[data-acks-extras-item-use]", closest: () => null, value: option } });
+  return { editor, rows, writes, activation, submit, choose };
+}
+const expand = (flat) => {
+  const out = {};
+  for (const [key, value] of Object.entries(flat)) setProperty(out, key, value);
+  return out;
+};
+foundry.utils.expandObject = expand;
+foundry.applications.ux = { FormDataExtended: class { constructor(el) { this.object = el.controls; } } };
+
+const root = ["ACKS", "LIB"].join("-");
+const STORED = () => ({ key: "a", type: "modifier", reach: { pulse: "standing", engaged: false, radius: { value: "15" }, save: { value: "x" }, lasts: { value: "2" }, on: ["attack"], filter: { kinds: ["alpha"], exceptKinds: [], side: "opposing", unit: "own", self: "no" }, showReach: false } });
+/** The whole group at the values `STORED` shows, as the window submits it on any change, with `over` laid on. */
+const SHOWN = (over = {}) => ({ type: "modifier", "reach.mode": "distance", "reach.side": "foe", "reach.kinds.alpha": true, "reach.showReach": false, ...over });
+
+await t("the reach group shows the stored reach: the item's use, a distance, the figure read-only with its page, who counts, the kinds, the unit and the ring", async () => {
+  canEdit(true);
+  const { editor } = reachEditor({ ...STORED(), reach: { ...STORED().reach, showReach: true } }, { kind: "fuse" });
+  const ctx = await editor._prepareContext({});
+  const group = fieldOf(ctx, "reach");
+  assert.equal(ctx.fields.at(-1).name, "reach", "the group ends the row's fields");
+  assert.deepEqual([group.disabled, group.use.value, Object.keys(group.use.choices), group.mode.value], [false, "spent", ["toggle", "spent", "always"], "distance"], "a fuse reads as Used up");
+  assert.deepEqual([group.figure.text, group.figure.page, group.figure.tip], ["15′", "XX p. 9", "face tip"]);
+  assert.deepEqual([group.side.value, Object.keys(group.side.choices)], ["foe", ["foe", "side", "all"]]);
+  const [kinds, except] = group.picks;
+  assert.deepEqual([kinds.name, except.name], ["reach.kinds", "reach.exceptKinds"]);
+  assert.equal(kinds.options.find((o) => o.key === "alpha").checked, true, "a stored kind outside the closed keys stays offered and ticked");
+  assert.ok(kinds.options.some((o) => o.key === "human") && kinds.options.some((o) => o.key === "demi-human"), "the closed keys are offered");
+  assert.deepEqual([group.unit.text, group.unit.tip], ["The bearer's own unit", "XX p. 9"], "an imported unit is shown with its page");
+  assert.deepEqual([group.show.checked, group.show.hint], [true, `${root}.effectEditor.reach.ringHint`]);
+  globalThis.acksExtras = { monsters: { config: { MONSTER_TYPES: { beastman: { label: "Beastman" } } } } };
+  const typed = fieldOf(await editor._prepareContext({}), "reach").picks[0].options.find((o) => o.key === "beastman");
+  delete globalThis.acksExtras;
+  assert.deepEqual([typed.label, typed.checked], ["Beastman", false], "the monsters feature's types are offered where the client has them, under their own labels");
+});
+
+await t("an always-on item's ring hint reads the fight, an unimported unit is not shown, Engaged shows the adjacent square with the page's tip, and a seat that may not write gets a disabled group", async () => {
+  canEdit(true);
+  const always = fieldOf(await reachEditor({ ...STORED(), reach: { ...STORED().reach, filter: { side: "any" } } }, { kind: "" }).editor._prepareContext({}), "reach");
+  assert.deepEqual([always.use.value, always.show.hint, always.unit], ["always", `${root}.effectEditor.reach.ringHintAlways`, null]);
+  const engaged = fieldOf(await reachEditor({ ...STORED(), reach: { engaged: true, pulse: "turnStart+enter" } }).editor._prepareContext({}), "reach");
+  assert.deepEqual([engaged.mode.value, engaged.figure.text, engaged.figure.tip, engaged.figure.page], ["engaged", `${root}.effectEditor.reach.adjacent`, "face tip", ""]);
+  const blank = fieldOf(await reachEditor({ key: "a", type: "modifier", reach: { pulse: "standing", radius: null } }).editor._prepareContext({}), "reach");
+  assert.deepEqual([blank.figure.text, blank.figure.tip, blank.figure.page], ["", "face tip", "XX p. 9"], "a blank figure draws no number, only its page");
+  assert.equal(fieldOf(await reachEditor(STORED(), { editable: false }).editor._prepareContext({}), "reach").disabled, true);
+  assert.equal(fieldOf(await rowEditor({ current: [{ key: "a", type: "damage" }] }).editor._prepareContext({}), "reach"), undefined, "a spell's row has no reach group");
+});
+
+await t("a note edit submits the group at its shown values and leaves the reach, the row's origin and the item's use alone", async () => {
+  canEdit(true);
+  const e = reachEditor({ ...STORED(), origin: "register" });
+  await e.submit({ ...SHOWN(), note: "x" });
+  assert.equal(e.writes.length, 1);
+  assert.deepEqual(e.writes[0][0].reach, STORED().reach, "the reach is as stored");
+  assert.equal(e.writes[0][0].note, "x");
+  assert.deepEqual(e.activation.sets, [], "the use is untouched");
+  assert.ok(!("itemUse" in e.writes[0][0]), "the use select never rides into the row");
+});
+
+await t("How it is used writes the item's kind: Used up keeps a stored fuse and otherwise writes once, Always on removes it, and the row is not written for it", async () => {
+  canEdit(true);
+  const at = async (kind, option) => {
+    const e = reachEditor({ ...STORED(), origin: "register" }, { kind });
+    await e.choose(option);
+    return e;
+  };
+  for (const kind of ["once", "fuse", "consume"]) assert.deepEqual((await at(kind, "spent")).activation.sets, [], `${kind} already reads as Used up`);
+  assert.deepEqual((await at("toggle", "spent")).activation.sets, ["once"], "Used up on a toggle writes once");
+  assert.deepEqual((await at("", "spent")).activation.sets, ["once"]);
+  assert.deepEqual((await at("fuse", "toggle")).activation.sets, ["toggle"]);
+  assert.deepEqual((await at("toggle", "always")).activation.sets, [null], "Always on removes the activation");
+  assert.deepEqual((await at("", "toggle")).activation.sets, ["toggle"]);
+  const alone = await at("toggle", "always");
+  assert.deepEqual(alone.writes, [], "a change of the use writes no row, so the row stays the importer's");
+  assert.equal(alone.rows.current[0].origin, "register");
+  assert.equal(alone.editor.renders, 1, "and the window redraws");
+  // The fold keeps a stored kind when the select is moved away and back.
+  const e = reachEditor(STORED(), { kind: "consume" });
+  await e.choose("always");
+  assert.deepEqual(e.activation.sets, [null]);
+  await e.choose("spent");
+  assert.deepEqual(e.activation.sets, [null, "once"], "once the consume is gone, Used up writes once");
+  for (const junk of ["", undefined, "fuse"]) await e.choose(junk);
+  assert.deepEqual(e.activation.sets, [null, "once"], "a value outside the three options writes nothing");
+  // The select has no name, so a window's submit never carries it: a submit of the whole form is a row write and nothing else.
+  const sparse = reachEditor({ key: "a", type: "modifier", origin: "register" }, { kind: "toggle" });
+  await sparse.submit({ type: "modifier", appliesTo: "", note: "", "reach.mode": "distance", "reach.side": "all", "reach.showReach": false });
+  assert.deepEqual(sparse.activation.sets, [], "no submit writes the item's use");
+});
+
+await t("Who counts, the kinds, the ring and Engaged each write their own member of the reach, and the figures the group does not own are never written", async () => {
+  canEdit(true);
+  const run = async (over) => {
+    const e = reachEditor(STORED());
+    await e.submit(SHOWN(over));
+    return e.writes[0]?.[0].reach;
+  };
+  const sides = { foe: "opposing", side: "own", all: "any" };
+  for (const [option, key] of Object.entries(sides)) assert.equal((await run({ "reach.side": option, note: "n" })).filter.side, key, `${option} writes ${key}`);
+  const kinds = await run({ "reach.kinds.alpha": true, "reach.kinds.human": true, "reach.kinds.demi-human": false, "reach.exceptKinds.beastman": true, "reach.exceptKinds.human": false });
+  assert.deepEqual(kinds.filter.kinds, ["alpha", "human"], "ticked keys, in the order the window lists them");
+  assert.deepEqual(kinds.filter.exceptKinds, ["beastman"]);
+  assert.deepEqual((await run({ "reach.kinds.alpha": false })).filter.kinds, [], "no kind ticked is an open filter");
+  assert.equal((await run({ "reach.showReach": true })).showReach, true);
+  const engaged = await run({ "reach.mode": "engaged" });
+  assert.deepEqual([engaged.engaged, engaged.pulse], [true, "turnStart+enter"], "Engaged writes the pulse that goes with it");
+  const tampered = await run({ "reach.showReach": true, "reach.unit": "under", "reach.radius.value": "99", "reach.pulse": "burst", "reach.filter.self": "count", "reach.save.value": "y" });
+  const stored = STORED().reach;
+  assert.deepEqual([tampered.filter.unit, tampered.filter.self, tampered.radius, tampered.save, tampered.lasts, tampered.on, tampered.pulse], [stored.filter.unit, stored.filter.self, stored.radius, stored.save, stored.lasts, stored.on, stored.pulse], "no control of the group, or anything posing as one, writes a figure, the unit, the pulse or the self flag");
+});
+
+await t("a raised item's use select is disabled with a tooltip saying to lower it first, and a change of it writes nothing", async () => {
+  canEdit(true);
+  const up = reachEditor(STORED(), { kind: "toggle", raised: true });
+  const group = fieldOf(await up.editor._prepareContext({}), "reach");
+  assert.deepEqual([group.use.disabled, group.use.tip], [true, `${root}.effectEditor.reach.useRaisedTip`]);
+  assert.match(render("lib/effect-row-editor", { ...(await up.editor._prepareContext({})), partId: "p" }), /<select data-acks-extras-item-use [^>]*disabled>/);
+  await up.choose("always");
+  await up.choose("spent");
+  assert.deepEqual(up.activation.sets, [], "no write reaches a raised item");
+  const down = fieldOf(await reachEditor(STORED(), { kind: "toggle" }).editor._prepareContext({}), "reach");
+  assert.deepEqual([down.use.disabled, down.use.tip], [false, `${root}.effectEditor.reach.useTip`], "a lowered item's select is live");
+  assert.ok(`${root}.effectEditor.reach.useRaisedTip` in lang);
+});
+
+await t("a row with no reach takes one only when a control is moved, a seat that may not write writes nothing, and the reach tests read no role", async () => {
+  canEdit(true);
+  const none = reachEditor({ key: "a", type: "modifier" }, { kind: "" });
+  await none.submit({ type: "modifier", "reach.mode": "distance", "reach.side": "all", "reach.showReach": false, note: "x" });
+  assert.ok(!("reach" in none.writes[0][0]), "the neutral group makes no reach");
+  await none.submit({ type: "modifier", "reach.mode": "distance", "reach.side": "foe", "reach.showReach": false });
+  assert.deepEqual(none.writes[1][0].reach, { filter: { side: "opposing" } }, "a moved control makes a reach of that member alone, with no pulse");
+  canEdit(false);
+  const locked = reachEditor(STORED(), { kind: "toggle", editable: false });
+  await locked.choose("always");
+  assert.deepEqual(locked.activation.sets, [], "a seat the store does not let write never writes the item's use");
+  canEdit(true);
+  const src = read("scripts/lib/apps/effect-row-editor.mjs").replace(/\/\*[\s\S]*?\*\//g, "") + read("scripts/lib/reach-edit.mjs").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/isGM|\.role\b/.test(src), "no role is read");
+});
+
+await t("the template draws the group: each control under its name, the figure and unit as output, the page beside the figure, and a disabled fieldset for a seat that may not write", async () => {
+  canEdit(true);
+  const drawn = async (opts) => render("lib/effect-row-editor", { ...(await reachEditor(STORED(), opts).editor._prepareContext({})), partId: "p" });
+  const html = await drawn({ kind: "toggle" });
+  const group = html.slice(html.indexOf('<fieldset class="acks-extras-effect-reach"'));
+  assert.ok(!/<fieldset class="acks-extras-effect-reach" disabled/.test(group), "a seat that may write has live controls");
+  assert.match(group, /<select data-acks-extras-item-use /);
+  assert.ok(!/name="itemUse"/.test(group), "the use select has no name, so the form never submits it");
+  assert.match(group, /<select name="reach\.mode"/);
+  assert.match(group, /<select name="reach\.side"/);
+  assert.match(group, /<input type="checkbox" name="reach\.kinds\.alpha" checked>/, "a stored kind is drawn ticked");
+  assert.match(group, /<input type="checkbox" name="reach\.exceptKinds\.human" >/, "and the closed keys unticked among the kinds left out");
+  assert.match(group, /<input type="checkbox" name="reach\.showReach" >/);
+  assert.match(group, /<output class="acks-extras-effect-readonly" tabindex="0">15′<\/output>\s*<span class="acks-extras-effect-cite">XX p\. 9<\/span>/, "the figure is read-only with its page beside it");
+  assert.match(group, /<output class="acks-extras-effect-readonly" tabindex="0">The bearer(?:'|&#x27;)s own unit<\/output>/);
+  assert.ok(!/name="reach\.(radius|unit|pulse)/.test(group), "no control is the radius, the unit or the pulse");
+  assert.match(await drawn({ editable: false }), /<fieldset class="acks-extras-effect-reach" disabled>/);
+});
+
+await t("every key the reach group reads is in the lang file, and the template draws each control by name", () => {
+  for (const key of ["title", "useLabel", "useTip", "useOption.toggle", "useOption.spent", "useOption.always", "modeLabel", "modeOption.distance", "modeOption.engaged", "radiusLabel", "radiusHint", "adjacent", "sideLabel", "sideOption.foe", "sideOption.side", "sideOption.all", "kindsLabel", "kindsTip", "exceptKindsLabel", "exceptKindsTip", "unitLabel", "showLabel", "ringHint", "ringHintAlways"]) assert.ok(`${root}.effectEditor.reach.${key}` in lang, `${key} is missing`);
+  assert.ok(!(`${root}.effectEditor.reach` in lang), "a key is a leaf or a parent, never both");
+  const html = read("templates/lib/effect-row-editor.hbs");
+  for (const name of ["data-acks-extras-item-use", 'name="reach.mode"', 'name="reach.side"', 'name="reach.showReach"', 'name="{{pick.name}}.{{o.key}}"']) assert.ok(html.includes(name), `${name} is drawn`);
+  assert.ok(!/\btitle=/.test(html) && !/\bid="[^{]/.test(html), "no title attribute and no literal id");
+});
+
 console.log(`\n${n} passed`);

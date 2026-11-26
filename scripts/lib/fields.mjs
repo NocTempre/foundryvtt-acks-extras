@@ -574,8 +574,9 @@ export function effectField() {
       occasion: bool(),
     }),
     // A live reach (`aura-reach-logic.mjs`): the radius, who of those inside it counts
-    // and when it acts. Null on every row that has none; no editor offers it, so a
-    // stored reach is kept as it stands and a row cleaned without one stays without.
+    // and when it acts. Null on every row that has none. The ability and carried-item
+    // row editors edit part of it (`reach-edit.mjs`); the rest is kept as it stands,
+    // and a row cleaned without one stays without.
     reach: new SchemaField(
       {
         radius: figureRefField(),

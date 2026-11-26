@@ -66,6 +66,15 @@
  * page alone as its tooltip. `extraordinary` is nullable, since a capture that read none is
  * not a "no": its select offers unset, yes and no, and unset stores null. A
  * row's `key` is shown and never edited.
+ *
+ * An ability's row and a carried item's row end with the reach group
+ * (`reach-edit.mjs`; a spell's row has none): how the item is used (the item's
+ * `itemRun.activation.kind`, written through the store's `carrier`), the
+ * reach's figure as the import read it (read-only, with its page), a distance
+ * or Engaged, who counts, the kinds counted and left out (a pick among the
+ * closed kind keys), the unit where one was imported (read-only) and whether
+ * players see the ring. The group is disabled for a seat the store does not let
+ * write, and an edit of any other field keeps the stored reach as it is.
  */
 import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
 import * as V from "../vocab.mjs";
@@ -80,6 +89,8 @@ import { ATTACK_KINDS } from "../conditions.mjs";
 import { ENDS_ON_CAUSES } from "../ends-on.mjs";
 import { RungDrafts, isInvocationLadder, withKindChoice } from "../rung-ladder.mjs";
 import { RUNG_ACTIONS, actionsContext, kindAllowed, kindContext, ladderContext, wireRungs } from "../rung-view.mjs";
+import { kindKeys } from "../actor-read.mjs";
+import { SIDE_OPTIONS, USE_OPTIONS, kindOptions, mergeReachEdit, reachControls, useKindFor, useOptionOf } from "../reach-edit.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -212,6 +223,8 @@ const FIELD_SPECS = {
   "lightBands.daylight": { kind: "number", step: "1", min: "0" },
   "lightBands.bright": { kind: "number", step: "1", min: "0" },
   "lightBands.dim": { kind: "number", step: "1", min: "0" },
+  // The reach group of an ability's or a carried item's row: one block, built by `#reachGroup`.
+  reach: { kind: "reach" },
 };
 
 /** The three figures of a spellcasting row's `target`, each with the lang label it is offered under. */
@@ -264,6 +277,15 @@ function untimedChoices(row) {
 function sizeChoices() {
   const sizes = globalThis.acksExtras?.monsters?.config?.SIZES ?? {};
   return Object.fromEntries(Object.entries(sizes).map(([key, v]) => [key, game.i18n.localize(v.label ?? key)]));
+}
+
+/**
+ * The monsters feature's creature types, `{key: {label}}`, read off its
+ * published config where the client has it and empty otherwise: lib sits below
+ * the feature, and a kinds pick still offers the race keys without it.
+ */
+function monsterTypes() {
+  return globalThis.acksExtras?.monsters?.config?.MONSTER_TYPES ?? {};
 }
 
 /** The gate kind a limitation row takes once an armour limit field is set on it. */
@@ -371,9 +393,20 @@ const SPELL_ONLY_FIELDS = new Set([
 /** What a spell-only field is still offered on, outside a spell: an ability's spellcasting row stacks by it. */
 const ABILITY_KEEPS = { spellcastingMod: new Set(["stacksWith"]) };
 
-/** The fields a row of this type edits in a store of this domain; outside a spell the cast's fields are left out. */
+/** The name of the reach group among a row's fields. */
+const REACH_GROUP = "reach";
+
+/** The domains whose rows the item runner reads a `reach` from: an ability's and a carried item's, never a spell's. */
+const REACH_DOMAINS = new Set(["ability", V.GEAR_DOMAIN]);
+
+/**
+ * The fields a row of this type edits in a store of this domain; outside a
+ * spell the cast's fields are left out, and an ability's or a carried item's
+ * row ends with the reach group (`reach`), on every kind.
+ */
 export const fieldsForType = (type, domain = "spell") => [
   ...new Set([...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...PICK_FIELDS, ...INVOCATION_FIELDS, ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name) || ABILITY_KEEPS[type]?.has(name))),
+  ...(REACH_DOMAINS.has(domain) ? [REACH_GROUP] : []),
 ];
 
 /**
@@ -400,6 +433,13 @@ export function mergeRowEdit(current, form) {
   }
   // The radii arrive as a fragment and merge member by member into the stored ones, so a radius the controls do not carry keeps its figure.
   if (form.lightBands && typeof form.lightBands === "object") next.lightBands = { ...(current.lightBands ?? {}), ...form.lightBands };
+  // The reach group arrives as the controls' values and edits the stored reach member by member (`mergeReachEdit`):
+  // a reach no control changed stays as stored, and a row with none stays without one.
+  if ("reach" in form) {
+    const reach = mergeReachEdit(current.reach, form.reach);
+    if (reach !== undefined || "reach" in current) next.reach = reach;
+    else delete next.reach;
+  }
   // A frequency picked here is the Judge's own: the phrase the importer read
   // for the previous one no longer describes it.
   if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;
@@ -538,9 +578,10 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     return super.close(options);
   }
 
-  /** @override — a box of the creature list is written by the list, never by the form's submit. */
+  /** @override — a box of the creature list is written by the list, and the item's use select by the item, never by the form's submit. */
   _onChangeForm(formConfig, event) {
     if (event?.target?.closest?.("[data-acks-extras-summon-list]")) return;
+    if (event?.target?.matches?.("[data-acks-extras-item-use]")) return this.#applyUse(event.target.value);
     return super._onChangeForm(formConfig, event);
   }
 
@@ -581,6 +622,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const ladders = domain === "spell" ? names.filter((name) => FIELD_SPECS[name]?.kind === "levelValue" && isInvocationLadder(foundry.utils.getProperty(row, name))) : [];
     context.fields = names.filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
       if (listed && name === "ref") return { name, kind: "creatures", label: loc("creatures"), lines: this.#creatureLines(cite) };
+      if (name === REACH_GROUP) return this.#reachGroup(row);
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
       const value = foundry.utils.getProperty(row, name);
       const field = { name, kind: spec.kind, label: loc(`field.${name}`) };
@@ -645,6 +687,47 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     context.fields = context.fields.filter((field) => !(FIELD_SPECS[field.name]?.hideEmpty && !field.options?.length));
     context.footer = { show: ladders.length > 0 && this.rungs.editable(),...actionsContext(this.rungs, { group: "row", keys: ladders, idBase: this.id, saveLabel: "saveRow" }) };
     return context;
+  }
+
+  /**
+   * The reach group of the open row, as the template draws it. Every control
+   * shows what the stored reach holds (`reachControls`) and the group is
+   * disabled for a seat the store does not let write, so it submits nothing.
+   * The use select is the item's, offered only under a store that hands over
+   * a `carrier`; the figure and the unit are read-only, read from the import
+   * and carrying the page they were read from. The reach's `radius`, `save`,
+   * `immunity`, `lasts`, `modifier`, `on`, `saveWhen`, `filter.unit` and
+   * `filter.self` are never written from here (`reach-edit.mjs`).
+   */
+  #reachGroup(row) {
+    const { carrier } = this.store;
+    const stored = row.reach && typeof row.reach === "object" ? row.reach : null;
+    const shown = reachControls(stored);
+    const say = (key, data) => game.i18n.format(`${LANG_PREFIX}.${key}`, data ?? {});
+    const face = carrier?.reachFace?.({ radius: stored?.radius ?? null, engaged: shown.engaged }, say);
+    const use = useOptionOf(carrier?.activationKind?.());
+    const types = monsterTypes();
+    const closed = kindKeys(Object.keys(types));
+    const pick = (name) => ({
+      name: `reach.${name}`,
+      label: loc(`reach.${name}Label`),
+      tip: loc(`reach.${name}Tip`),
+      options: kindOptions(closed, shown[name]).map((key) => ({ key, label: game.i18n.localize(types[key]?.label ?? key), checked: shown[name].includes(key) })),
+    });
+    const unit = stored?.filter?.unit && stored.filter.unit !== "any" ? V.REACH_UNITS[stored.filter.unit]?.label : "";
+    return {
+      name: REACH_GROUP,
+      kind: "reach",
+      label: loc("reach.title"),
+      disabled: this.store.editable?.() !== true,
+      use: carrier?.setActivation ? { label: loc("reach.useLabel"), disabled: carrier.raised?.() === true, tip: loc(carrier.raised?.() === true ? "reach.useRaisedTip" : "reach.useTip"), value: use, choices: Object.fromEntries(USE_OPTIONS.map((key) => [key, loc(`reach.useOption.${key}`)])) } : null,
+      mode: { label: loc("reach.modeLabel"), value: shown.engaged ? "engaged" : "distance", choices: { distance: loc("reach.modeOption.distance"), engaged: loc("reach.modeOption.engaged") } },
+      figure: { label: loc("reach.radiusLabel"), hint: loc("reach.radiusHint"), text: !face ? "" : face.engaged ? loc("reach.adjacent") : face.radius === null ? "" : `${face.radius}′`, tip: face?.tip ?? "", page: face && !face.engaged ? face.page : "" },
+      side: { label: loc("reach.sideLabel"), value: shown.side, choices: Object.fromEntries(Object.keys(SIDE_OPTIONS).map((key) => [key, loc(`reach.sideOption.${key}`)])) },
+      picks: [pick("kinds"), pick("exceptKinds")],
+      unit: unit ? { label: loc("reach.unitLabel"), text: unit, tip: face?.page ?? "" } : null,
+      show: { label: loc("reach.showLabel"), checked: shown.showReach, hint: loc(use === "always" ? "reach.ringHintAlways" : "reach.ringHint") },
+    };
   }
 
   /**
@@ -865,7 +948,34 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
           .filter(Boolean);
       }
     }
+    // The reach group's two kind picks are sets one level down.
+    for (const name of ["kinds", "exceptKinds"]) {
+      const v = data.reach?.[name];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        data.reach[name] = Object.entries(v)
+          .filter(([, on]) => on === true)
+          .map(([key]) => key);
+      }
+    }
     return data;
+  }
+
+  /**
+   * Write the item's use where the group's select differs from the kind the
+   * item stores, through the store's carrier and only for a seat the store lets
+   * write: Used up keeps a stored once, fuse or consume and otherwise writes
+   * once, and Always on removes the activation (`useKindFor`). The select
+   * carries no `name`, so the form never submits it: the item's use is not a
+   * row edit, and a change of it leaves the row, and its importer mark, as it was.
+   * @param {string} option the select's value
+   */
+  async #applyUse(option) {
+    const { carrier } = this.store;
+    // A raised item's use is left alone: changing it would strand the Region it raised.
+    if (this.#gone || !USE_OPTIONS.includes(option) || typeof carrier?.setActivation !== "function" || this.store.editable?.() !== true || carrier.raised?.() === true) return;
+    const stored = carrier.activationKind();
+    if (useOptionOf(stored) !== option) await carrier.setActivation(useKindFor(option, stored));
+    this.render();
   }
 
   /**
@@ -877,8 +987,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const rows = this.store.read();
     const current = rows[this.index];
     if (!current) return this.close();
-    const form = { ...(this.#fromForm() ?? {}), ...patch };
-    rows[this.index] = mergeRowEdit(current, form);
+    rows[this.index] = mergeRowEdit(current, { ...(this.#fromForm() ?? {}), ...patch });
     await this.store.write(rows);
     this.render();
   }

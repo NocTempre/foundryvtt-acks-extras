@@ -18,22 +18,52 @@ import { figureNumber, readReach } from "./aura-reach-logic.mjs";
 import { itemCite, reachFigures } from "./item-run-logic.mjs";
 import { blankTip, importTip } from "./item-run-card-logic.mjs";
 import { citeOf } from "./tables.mjs";
+import { unset } from "./util.mjs";
+
+/** The stored `itemRun` flag of an item, whole and uncoerced. */
+const storedRun = (item) => item?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN) ?? item?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN];
 
 /** The stored rows of an item, whole and uncoerced, `[]` where it holds none. */
 function storedRows(item) {
-  const rows = item?.getFlag?.(MODULE_ID, FLAG_ITEM_RUN)?.rows ?? item?.flags?.[MODULE_ID]?.[FLAG_ITEM_RUN]?.rows;
+  const rows = storedRun(item)?.rows;
   return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * What the effect-row editor's reach group reads and writes of the ITEM a row
+ * belongs to, as the store's `carrier`: the item's page, its stored activation
+ * kind, the one write of that kind and the face of a reach's figure. A carried
+ * item and an ability item hold the same `itemRun.activation`, so both stores
+ * hand over this one. The write touches `activation.kind` alone, so a raised
+ * item's state and the figures a fuse or a counted item names are kept; an
+ * absent kind removes the activation, which leaves the item always on.
+ *
+ * @param {Item} item
+ * @returns {{cite: Function, activationKind: Function, raised: Function, setActivation: Function, reachFace: Function}}
+ *   `reachFace(reach, say)` is `reachFace` for this item; `raised()` is whether
+ *   the item is raised now (its activation's `state.active`); `setActivation(kind)`
+ *   takes a kind, or null to remove the activation.
+ */
+export function itemCarrier(item) {
+  const path = `flags.${MODULE_ID}.${FLAG_ITEM_RUN}.activation`;
+  return {
+    cite: () => itemCite(item),
+    activationKind: () => String(storedRun(item)?.activation?.kind ?? ""),
+    raised: () => storedRun(item)?.activation?.state?.active === true,
+    setActivation: (kind) => item.update({ [kind ? `${path}.kind` : path]: kind || unset() }),
+    reachFace: (reach, say) => reachFace(reach, { itemName: item.name, cite: itemCite(item), say }),
+  };
 }
 
 /**
  * The store the effect-row editor writes a carried item's rows through: the
  * stored `itemRun.rows` flag, read and written whole and uncoerced, so a row
  * the window did not touch (its `reach` included) is written back as it was
- * stored. Only the rows path is written: the item's `itemRun.activation` is
- * never read or rewritten here.
+ * stored. `write` touches only the rows path; the item's `itemRun.activation`
+ * is written by the `carrier` the reach group's "How it is used" calls.
  *
  * @param {Item} item
- * @returns {{key: string, label: string, domain: string, cite: Function, read: Function, write: Function, editable: Function}}
+ * @returns {{key: string, label: string, domain: string, cite: Function, carrier: object, read: Function, write: Function, editable: Function}}
  *   `editable()` is Foundry's ownership: the item's pack is not locked and the
  *   user owns it. Nothing here reads the user's role.
  */
@@ -44,6 +74,7 @@ export function gearEffectStore(item) {
     label: item.name,
     domain: GEAR_DOMAIN,
     cite: () => itemCite(item),
+    carrier: itemCarrier(item),
     editable: () => !item.compendium?.locked && item.isOwner === true,
     read: () => foundry.utils.deepClone(storedRows(item)),
     write: async (rows) => {
@@ -60,20 +91,22 @@ export function gearEffectStore(item) {
  * number, only the page reference (`blankTip`). The page is the table's own
  * where the reference names one, else the item's.
  *
- * @param {object} reach a stored reach read by `readReach`
+ * @param {{radius: object|null, engaged: boolean}} reach a stored reach read by `readReach`, or those two members of one
  * @param {{itemName: string, cite: string, say: Function, read?: Function}} ctx
- * @returns {{engaged: boolean, blank: boolean, radius: number|null, tip: string, aria: string}}
+ * @returns {{engaged: boolean, blank: boolean, radius: number|null, tip: string, aria: string, page: string}}
+ *   `page` is the page the figure is read from: the table's own where the
+ *   reference names one, else the item's
  */
 function reachFace(reach, { itemName, cite, say, read }) {
   if (reach.engaged) {
     const tip = say("itemRun.card.engagedNoteTip");
-    return { engaged: true, blank: false, radius: null, tip, aria: tip };
+    return { engaged: true, blank: false, radius: null, tip, aria: tip, page: cite };
   }
   const radius = figureNumber(reach.radius, read);
   const ref = reach.radius ?? {};
   const page = (ref.doc && ref.table ? citeOf(ref.doc, ref.table) : null) ?? cite;
   const tip = (radius === null ? blankTip({ cite: page }) : importTip({ label: itemName, figure: `${radius}′`, cite: page })) ?? "";
-  return { engaged: false, blank: radius === null, radius, tip, aria: radius === null ? tip || say("gearRows.reach") : tip };
+  return { engaged: false, blank: radius === null, radius, tip, aria: radius === null ? tip || say("gearRows.reach") : tip, page };
 }
 
 /**

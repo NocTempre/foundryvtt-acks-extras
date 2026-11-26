@@ -2631,3 +2631,108 @@ exception to this rule" and "follow foundry permissions, don't invent new
 ones". Nothing on the card is a secret.
 
 Rejected: a third press for "neither", which the page does not print.
+
+## 2026-11-25 — The reach is editable: the row editor's group supersedes "no editor offers it"
+
+The release hub: "`reach` becomes editable. Write the DECISIONS entry that
+supersedes lib MODEL's 'no editor offers it' and A7.7, naming its evidence
+(board 4d, S7 point 2), and change the pin in `tools/test-aura-reach.mjs` on
+purpose." An ability's row editor and a carried item's end every row with a
+reach group (`docs/lib/MODEL.md`, "The aura reach and the item carrier").
+
+Supersedes in part A7.7 of the S7 ruling, "`effectField.reach` stays
+invisible" (`docs/monsters/wip/20261124-s7-ruling-reader-carrier.md`), which said
+`effect-row-editor.mjs` is untouched and pinned that `fieldsForType` lacks
+`reach` for every type and domain, and lib MODEL's "and no editor offers it".
+What stands of A7.7: the field's shape (a nullable `SchemaField`, `initial:
+null`, a `figureRefField` radius) and the pins that `mergeRowEdit` keeps a
+stored reach and that a row cleaned without one stays without. The old pin,
+"no editor field list offers reach, for any type in any domain, and an edit
+keeps a stored one", is replaced on purpose by one that says the gear and
+ability domains end every kind's fields with the group, a spell offers none,
+and an edit that moves no reach control returns the stored reach as the very
+object stored.
+
+New evidence, since A7.7 is a day old: board 4d of canvas 4 v7 draws the
+group, and the owner approved the board ("Go ahead"); and S7 point 2, that the
+carrier reuses the editor's rows, so a Judge who cannot reach `reach` from the
+editor cannot make the rows the carrier runs.
+
+Built so the old invariants hold. The window submits the whole group on every
+change of any field, so an edit is a diff against what the stored reach shows
+and writes only the member a control moved. The group never writes `radius`,
+`save`, `immunity`, `lasts`, `modifier`, `on`, `saveWhen`, `filter.unit` or
+`filter.self`, and it writes a pulse only with Engaged (`turnStart+enter`; no
+control draws it). It is disabled for a seat whose store's `editable()` is
+false: Foundry's ownership, no role read.
+
+Rejected: typing the radius (it is a printed value, read from the import);
+a control for the pulse (A8.5 item 1); the group on a spell's row (the carrier
+declines a spell, so no runner reads its reach).
+
+Cost: a reach a hand makes on a row with none carries no pulse unless it is
+Engaged, so it acts on nothing until an import or Engaged gives it one
+(`readReach` drops it); the group shows on every kind of ability row, including
+kinds whose reach the runner never reads a part from.
+
+## 2026-11-25 — "How it is used" folds once, fuse and consume into one option, Used up
+
+The release hub: "'How it is used' is built as frame 4d draws it, one select
+that writes the item-level `activation.kind`. Record the fold of once, fuse and
+consume into one option in DECISIONS." The board draws three options, and the
+select offers three: Raised and lowered (`toggle`), Used up (one option
+standing for `once`, `fuse` and `consume`) and Always on (no activation).
+
+Used up on an item whose kind is already `once`, `fuse` or `consume` keeps that
+kind, and on any other writes `once`. Always on removes `itemRun.activation`
+(the rows stay; the item then reads as always on). The write is the item's
+`itemRun.activation.kind` and nothing else (`itemCarrier`), so a raised item's
+state and the figures a fuse or a counted item names are kept by every change
+but Always on.
+
+Why one option: the three spent kinds differ in the figures they read (a fuse's
+dice, a count), none of which this select edits, so telling them apart here
+would offer a choice that changes nothing visible; keeping the stored kind is
+what stops an imported fuse becoming a once on the first touch.
+
+Rejected: a four-option select (the board draws three); a Used up that always
+writes `once` (it would rewrite an imported fuse).
+
+Cost: a Judge cannot turn a `once` into a fuse or a consume from this select,
+and a toggle switched to Used up becomes a `once` with no figure. The select is
+disabled while the item is raised (`itemRun.activation.state.active`), with a
+tooltip saying to lower it first, since a changed activation would strand the
+Region it raised (the release hub's ruling on 2026-11-25). Always on removes the
+whole activation, so it is offered only for an item that is not raised.
+
+Also ruled the same day: switching Engaged back to A distance removes the
+engaged pulse `turnStart+enter` where it is stored, because the runtime engages
+on that pulse and the reach would otherwise still engage. The reach then acts on
+nothing until an import gives it a pulse, as a hand-made distance reach does. Any
+other stored pulse stays.
+
+## 2026-11-25 — The kinds are a pick among the closed keys, and the unit is read-only
+
+The release hub: "'Kinds counted / left out' uses A9.4's closed keys, as a pick
+among those keys in the place the board draws the text field; no free text.
+`filter.unit` is shown read-only where it was imported, with its `citeOf`
+tooltip." The two lists are checkbox sets in the reach group. The keys are
+`actor-read.mjs` `kindKeys(types)`: the race categories, `MEN_RACES`,
+`DEMI_HUMAN_RACES` and the types the caller passes (the editor passes the
+monsters feature's `MONSTER_TYPES` where its published config is there, since
+lib imports no feature), which is the list `matchKinds` resolves a printed
+qualifier onto. A key's label is its creature type's own where one exists, else
+the key. A stored word outside the closed keys that a checkbox can name stays
+offered and ticked, and one it cannot name is kept untouched, so a first tick
+drops nothing.
+
+`filter.unit` is shown, never edited, only where it was imported (a unit other
+than `any`). Its tooltip is the page the radius's table cites (`citeOf`), else
+the item's page: the unit has no table address of its own.
+
+Rejected: the board's text field, and free text in any form (a printed proper
+name would become a filter key, which `matchKinds` refuses for the same reason).
+
+Cost: a kind the module does not list cannot be typed; a client without the
+monsters feature offers the race keys alone; and the race keys read as their
+keys, since no lang label exists for them.

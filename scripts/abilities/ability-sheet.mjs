@@ -21,6 +21,7 @@ import { modifierDisposition, isUnverified } from "../lib/typed-modifiers.mjs";
 import { QUICK_EFFECT_ACTIONS, quickEffectStatus } from "./quick-effects.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
+import { itemCarrier } from "../lib/gear-effect-rows.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
 import { filledLanguages } from "../classes/languages.mjs";
 
@@ -344,9 +345,10 @@ export function nameForSelections(name, stored, picks, vocab) {
 /**
  * The store the effect-row editor writes an ability's rows through: the
  * stored `extras.effects` flag, read and written whole and uncoerced, so a row
- * the window did not touch is written back exactly as it was stored.
+ * the window did not touch is written back exactly as it was stored. The
+ * `carrier` is the reach group's door to the item's own `itemRun.activation`.
  * @param {Item} item
- * @returns {{key: string, label: string, domain: string, read: Function, write: Function, editable: Function}}
+ * @returns {{key: string, label: string, domain: string, carrier: object, read: Function, write: Function, editable: Function}}
  *   `editable()` answers whether this user may write the item: its pack is not
  *   locked and the user owns it.
  */
@@ -356,6 +358,7 @@ export function abilityEffectStore(item) {
     key: `${item.uuid}:${FLAG_EXTRAS}.effects`,
     label: item.name,
     domain: "ability",
+    carrier: itemCarrier(item),
     editable: () => !item.compendium?.locked && item.isOwner === true,
     read: () => foundry.utils.deepClone(item.getFlag(MODULE_ID, FLAG_EXTRAS)?.effects ?? []),
     write: async (rows) => {

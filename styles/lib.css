@@ -1324,6 +1324,17 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   margin: 0;
 }
 
+/* The reach group of an ability's or a carried item's row. The page beside the
+   read-only figure rides at the label size and never wraps mid-reference. */
+.acks-extras-effect-reach {
+  min-width: 0;
+}
+
+.acks-extras-effect-cite {
+  font-size: var(--acks-fs-label);
+  white-space: nowrap;
+}
+
 /* A spell's summon row: the creatures it may call. Each line stacks the
    creature's label over where it is from, with the Number box and Remove to
    the right; the line wraps, so in a narrow window they drop under the label. */

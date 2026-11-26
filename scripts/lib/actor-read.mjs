@@ -154,6 +154,19 @@ function formsOf(key) {
 }
 
 /**
+ * The closed kind keys `matchKinds` resolves onto, as `kindToken` folds them:
+ * the race categories, `MEN_RACES`, `DEMI_HUMAN_RACES` and the `types` the
+ * caller passes, each once, in that order. A kinds pick offers exactly these
+ * keys, so a hand never writes a word `matchKinds` would have refused.
+ *
+ * @param {Iterable<string>} [types]  the consumer's own type keys (lib imports no feature's vocabulary)
+ * @returns {string[]}
+ */
+export function kindKeys(types = []) {
+  return [...new Set([...RACE_CATEGORIES, ...MEN_RACES, ...DEMI_HUMAN_RACES, ...types].map((k) => kindToken(k)).filter(Boolean))];
+}
+
+/**
  * Resolve a printed qualifier to the module's kind keys, the vocabulary
  * `creatureKinds` carries. The text is split on commas, `or` and `and`, each
  * part folded by `kindToken` and matched against the forms of the closed keys:
@@ -168,7 +181,7 @@ function formsOf(key) {
  */
 export function matchKinds(text, types = []) {
   const byForm = new Map();
-  for (const key of [...RACE_CATEGORIES, ...MEN_RACES, ...DEMI_HUMAN_RACES, ...types].map((k) => kindToken(k)).filter(Boolean)) {
+  for (const key of kindKeys(types)) {
     for (const form of formsOf(key)) if (!byForm.has(form)) byForm.set(form, key);
   }
   const kinds = [];

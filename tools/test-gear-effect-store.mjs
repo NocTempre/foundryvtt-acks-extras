@@ -176,13 +176,42 @@ await t("the gear domain offers an ability's kinds, subjects and scales, and non
   assert.ok(Object.keys(vocab.effectTypesFor("spell")).length > Object.keys(kinds).length);
 });
 
-await t("the gear domain's fields are an ability's, and no editor field is the reach", () => {
+await t("the gear domain's fields are an ability's, both ending with the reach group", () => {
   for (const type of Object.keys(vocab.EFFECT_TYPES)) {
     assert.deepEqual(editor.fieldsForType(type, vocab.GEAR_DOMAIN), editor.fieldsForType(type, "ability"), `${type} edits the same fields`);
-    assert.ok(!editor.fieldsForType(type, vocab.GEAR_DOMAIN).some((name) => name === "reach" || name.startsWith("reach.")));
+    assert.equal(editor.fieldsForType(type, vocab.GEAR_DOMAIN).at(-1), "reach");
   }
   const stored = { type: "modifier", key: "k", reach: { pulse: "standing", radius: { value: "5" }, filter: { kinds: ["alpha"] } } };
   assert.deepEqual(editor.mergeRowEdit(stored, { note: "x" }).reach, stored.reach, "an edit keeps the stored reach");
+});
+
+/* --- the carrier: the item's use, written through the store --- */
+globalThis.foundry.data = { operators: { ForcedDeletion: class ForcedDeletion {} } };
+
+await t("the gear store hands the reach group its item: the page, the stored kind, and a write of the kind alone", async () => {
+  const it = item({ rows: [{ key: "a", type: "modifier" }], cite: "XX p. 9", flag: { itemRun: { activation: { kind: "fuse", state: { active: true, activationId: "x" }, uses: { value: "2" } }, rows: [] } } });
+  const { carrier } = rows.gearEffectStore(it);
+  assert.equal(carrier.cite(), "XX p. 9");
+  assert.equal(carrier.activationKind(), "fuse");
+  assert.equal(carrier.raised(), true, "the stored state says the item is raised");
+  assert.equal(rows.gearEffectStore(item({ rows: [] })).carrier.raised(), false, "a lowered item, and one with no state, is not");
+  await carrier.setActivation("toggle");
+  assert.deepEqual(it.updates, [{ "flags.acks-extras.itemRun.activation.kind": "toggle" }], "the kind's own path, so state, uses and the rest are kept");
+  await carrier.setActivation(null);
+  assert.deepEqual(Object.keys(it.updates[1]), ["flags.acks-extras.itemRun.activation"]);
+  assert.ok(it.updates[1]["flags.acks-extras.itemRun.activation"] instanceof globalThis.foundry.data.operators.ForcedDeletion, "Always on removes the activation key through Foundry's own operator");
+  assert.equal(rows.gearEffectStore(item({ rows: [] })).carrier.activationKind(), "toggle", "an item stored with rows and a toggle reads it");
+  assert.equal(rows.gearEffectStore(item({ flag: {} })).carrier.activationKind(), "", "an item with no itemRun reads no kind");
+});
+
+await t("the carrier's reach face carries the page beside the figure, the engaged square's tip, and nothing where a figure is blank", () => {
+  const { carrier } = rows.gearEffectStore(item({ rows: [], cite: "XX p. 9" }));
+  const face = carrier.reachFace({ radius: { value: "15" }, engaged: false }, say);
+  assert.deepEqual([face.radius, face.page, face.tip], [15, "XX p. 9", "Invented Charm: 15′ (XX p. 9)"]);
+  const blank = carrier.reachFace({ radius: null, engaged: false }, say);
+  assert.deepEqual([blank.blank, blank.radius, blank.tip, blank.page], [true, null, "XX p. 9", "XX p. 9"], "no number, and the page alone");
+  const engaged = carrier.reachFace({ radius: null, engaged: true }, say);
+  assert.deepEqual([engaged.engaged, engaged.radius, engaged.tip], [true, null, "itemRun.card.engagedNoteTip"]);
 });
 
 /* --- the line a row wears --- */

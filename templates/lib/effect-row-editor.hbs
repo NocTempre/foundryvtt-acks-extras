@@ -97,6 +97,70 @@
           <button type="button" data-action="summonAdd">{{localize "ACKS-LIB.effectEditor.add"}}</button>
         </div>
       </fieldset>
+    {{else if (eq f.kind "reach")}}
+      {{!-- The reach group. A disabled fieldset submits nothing, so a seat the store does not let write changes nothing. The figure and the unit are read from the import and typed nowhere. --}}
+      <fieldset class="acks-extras-effect-reach"{{#if f.disabled}} disabled{{/if}}>
+        <legend>{{f.label}}</legend>
+        {{#if f.use}}
+          <div class="form-group" data-tooltip-text="{{f.use.tip}}">
+            <label>{{f.use.label}}</label>
+            <div class="form-fields">
+              {{!-- No name: the item's use is the item's, written on change by the window, never by the row's form. --}}
+              <select data-acks-extras-item-use aria-label="{{f.use.label}}"{{#if f.use.disabled}} disabled{{/if}}>{{selectOptions f.use.choices selected=f.use.value}}</select>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <label>{{f.mode.label}}</label>
+          <div class="form-fields">
+            <select name="reach.mode" aria-label="{{f.mode.label}}">{{selectOptions f.mode.choices selected=f.mode.value}}</select>
+          </div>
+        </div>
+        <div class="form-group"{{#if f.figure.tip}} data-tooltip-text="{{f.figure.tip}}"{{/if}}>
+          {{!-- label-ok: read-only text, not a control a label can name --}}
+          <label>{{f.figure.label}}</label>
+          <div class="form-fields">
+            <output class="acks-extras-effect-readonly" tabindex="0">{{f.figure.text}}</output>
+            {{#if f.figure.page}}<span class="acks-extras-effect-cite">{{f.figure.page}}</span>{{/if}}
+          </div>
+          <p class="hint">{{f.figure.hint}}</p>
+        </div>
+        <div class="form-group">
+          <label>{{f.side.label}}</label>
+          <div class="form-fields">
+            <select name="reach.side" aria-label="{{f.side.label}}">{{selectOptions f.side.choices selected=f.side.value}}</select>
+          </div>
+        </div>
+        {{#each f.picks as |pick|}}
+          <fieldset class="acks-extras-effect-set" data-tooltip-text="{{pick.tip}}">
+            <legend>{{pick.label}}</legend>
+            <div class="acks-extras-effect-picks">
+              {{#each pick.options as |o|}}
+                <label class="acks-extras-effect-pick">
+                  <input type="checkbox" name="{{pick.name}}.{{o.key}}" {{checked o.checked}}>
+                  <span>{{o.label}}</span>
+                </label>
+              {{/each}}
+            </div>
+          </fieldset>
+        {{/each}}
+        {{#if f.unit}}
+          <div class="form-group"{{#if f.unit.tip}} data-tooltip-text="{{f.unit.tip}}"{{/if}}>
+            {{!-- label-ok: read-only text, not a control a label can name --}}
+            <label>{{f.unit.label}}</label>
+            <div class="form-fields">
+              <output class="acks-extras-effect-readonly" tabindex="0">{{f.unit.text}}</output>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <label>{{f.show.label}}</label>
+          <div class="form-fields">
+            <input type="checkbox" name="reach.showReach" {{checked f.show.checked}}>
+          </div>
+          <p class="hint">{{f.show.hint}}</p>
+        </div>
+      </fieldset>
     {{else if (eq f.kind "readonly")}}
       <div class="form-group"{{#if f.tip}} data-tooltip-text="{{f.tip}}"{{/if}}>
         {{!-- label-ok: read-only text, not a control a label can name --}}
