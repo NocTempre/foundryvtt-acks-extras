@@ -129,10 +129,12 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   /**
    * Two parts, because a part must render exactly ONE root element and the
    * pinned footer has to be a SIBLING of the scrolling body — the app element
-   * is the flex column that holds one down while the other scrolls.
+   * is the flex column that holds one down while the other scrolls. The body's
+   * root IS the scroller, so its retention names the root (`""`): a selector
+   * would search only its descendants and never fire.
    */
   static PARTS = {
-    body: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs` },
+    body: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`, scrollable: [""] },
     foot: { template: `modules/${MODULE_ID}/templates/battlemap/assistant-foot.hbs` },
   };
 

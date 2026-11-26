@@ -385,17 +385,17 @@ function installRoadRow(app, element) {
   row.className = "form-group acks-extras-road-row";
   row.innerHTML = `<label>${esc(loc("routes.wallLabel"))}</label>
     <div class="form-fields">
-      <select class="acks-extras-road-surface">
+      <select class="acks-extras-road-surface" aria-label="${esc(loc("routes.wallLabel"))}">
         ${option("", loc("routes.notARoad"), !road)}
         ${roadSurfaceKeys().map((k) => option(k, roadSurfaceLabel(k), road?.surface === k)).join("")}
       </select>
-      <select class="acks-extras-road-street">
+      <select class="acks-extras-road-street" aria-label="${esc(loc("routes.streetLabel"))}">
         ${option("", loc("routes.streetNone"), !road?.street)}
         ${ROAD_STREETS.map((k) =>
     option(k, loc(`routes.street.${k}`), road?.street === k)).join("")}
       </select>
       <input type="text" class="acks-extras-road-name" value="${esc(road?.name)}"
-             placeholder="${esc(loc("routes.namePlaceholder"))}">
+             aria-label="${esc(loc("routes.namePlaceholder"))}" placeholder="${esc(loc("routes.namePlaceholder"))}">
     </div>
     <p class="hint">${esc(loc(road && blocksMovement(wall) ? "routes.wallBlocks" : "routes.wallHint"))}</p>`;
 

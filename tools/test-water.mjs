@@ -426,4 +426,22 @@ await okAsync("a placed wall's sheet gets the water row; the palette's preview a
   assert.equal(wall.writes.at(-1).value, undefined, "the layer was unset, not written empty");
 });
 
-console.log(`test-water: OK (${passed} checks: the line's shape and read, reach, a shore beside a river, never a road, presets, from selection, the tool, the wall row)`);
+await okAsync("the road row names each of its controls", async () => {
+  const { registerRoadHooks } = await import("../scripts/battlemap/roads.mjs");
+  const before = hooks.get("renderApplicationV2").length;
+  registerRoadHooks();
+  const [roadRowHook] = hooks.get("renderApplicationV2").slice(before);
+  const root = {
+    nodeType: 1,
+    querySelector: (sel) => (sel === ".window-content .standard-form" ? { append() {} } : null),
+  };
+  built = null;
+  roadRowHook({ document: makeWall([0, 0, 100, 0], { road: { surface: "paved" } }), render() {} }, root);
+  assert.ok(built, "a placed wall gets the road row");
+  for (const cls of ["acks-extras-road-surface", "acks-extras-road-street", "acks-extras-road-name"]) {
+    const tag = new RegExp(`<(select|input)[^>]*class="${cls}"[^>]*>`).exec(built.innerHTML)?.[0] ?? "";
+    assert.match(tag, /aria-label="[^"]+"/, `${cls} names itself`);
+  }
+});
+
+console.log(`test-water: OK (${passed} checks: the line's shape and read, reach, a shore beside a river, never a road, presets, from selection, the tool, the wall row, the road row's names)`);

@@ -8811,6 +8811,7 @@
   "ACKS-BATTLEMAP.routes.wallLabel": "Road",
   "ACKS-BATTLEMAP.routes.notARoad": "Not a road",
   "ACKS-BATTLEMAP.routes.streetNone": "No street kind",
+  "ACKS-BATTLEMAP.routes.streetLabel": "Street kind",
   "ACKS-BATTLEMAP.routes.street.avenue": "Avenue",
   "ACKS-BATTLEMAP.routes.street.alley": "Alley",
   "ACKS-BATTLEMAP.routes.namePlaceholder": "Street name",

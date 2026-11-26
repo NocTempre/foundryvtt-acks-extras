@@ -122,7 +122,7 @@
             <input class="acks-extras-battlemap-count" type="number" name="boxCells.{{index}}.y" min="1" step="1" value="{{down}}" aria-label="{{localize 'ACKS-BATTLEMAP.samples.downAria' n=number}}">
           </label>
           {{/unless}}
-          <button type="button" data-action="deleteSample" data-kind="squares" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+          <button type="button" data-action="deleteSample" data-kind="squares" data-index="{{index}}" aria-label="{{localize 'ACKS-BATTLEMAP.samples.drop'}}" data-tooltip=""><i class="fa-solid fa-xmark"></i></button>
         </li>
       {{/each}}
     </ul>
@@ -133,7 +133,7 @@
       {{#each cornerRows}}
         <li>
           <span>{{label}}</span>
-          <button type="button" data-action="deleteSample" data-kind="corners" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+          <button type="button" data-action="deleteSample" data-kind="corners" data-index="{{index}}" aria-label="{{localize 'ACKS-BATTLEMAP.samples.drop'}}" data-tooltip=""><i class="fa-solid fa-xmark"></i></button>
         </li>
       {{/each}}
     </ul>
@@ -148,7 +148,7 @@
           <input type="number" name="scaleValue" min="0" step="any" value="{{opts.scaleValue}}">
           <span>{{unitLabel}}</span>
         </label>
-        <button type="button" data-action="deleteSample" data-kind="scale" data-index="0" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" data-action="deleteSample" data-kind="scale" data-index="0" aria-label="{{localize 'ACKS-BATTLEMAP.samples.drop'}}" data-tooltip=""><i class="fa-solid fa-xmark"></i></button>
       </li>
     </ul>
   {{/if}}

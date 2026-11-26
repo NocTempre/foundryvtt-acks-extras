@@ -1557,4 +1557,25 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.ok(body.indexOf("session.onSceneUpdated(scene)") > body.indexOf("sessionFollowsScene"), "and the session is told of the update after it");
 }
 
+/* -------------------------------------------- */
+/*  What the panel names and keeps              */
+/* -------------------------------------------- */
+
+{
+  // The body part's root is the scroller, so retention names the root itself.
+  assert.deepEqual(App.PARTS.body.scrollable, [""], "the body part keeps its scroll across a re-render");
+
+  // Every sample's drop button names itself to assistive technology.
+  const html = read("templates/battlemap/assistant-body.hbs");
+  const drops = html.match(/<button[^>]*data-action="deleteSample"[^>]*>/g) ?? [];
+  assert.ok(drops.length >= 3, "the three drop buttons are found");
+  for (const b of drops) assert.match(b, /aria-label="\{\{localize 'ACKS-BATTLEMAP\.samples\.drop'\}\}"/, `a drop button names itself: ${b}`);
+
+  // A swatch's label is a world's own table text: written as text, never parsed as HTML.
+  const palette = read("templates/battlemap/terrain-palette.hbs");
+  const swatch = /<button[^>]*data-brush="\{\{key\}\}"[^>]*>/.exec(palette)?.[0] ?? "";
+  assert.match(swatch, /data-tooltip-text="\{\{label\}\}"/, "a swatch's world label goes in data-tooltip-text");
+  assert.doesNotMatch(swatch, /data-tooltip="\{\{label\}\}"/, "and not in data-tooltip, which renders HTML");
+}
+
 console.log("battlemap panel: ok");
