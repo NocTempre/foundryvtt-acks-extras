@@ -2907,3 +2907,44 @@ create: the window is the create itself.
 state the winner left. Mocks prove
 the id and the refusal handling; whether the server refuses the second create as
 this entry says is read from its source and owed a live two-seat walk.
+
+## 2026-11-26 — The group control's write drops token ids no combatant holds
+
+Qualifies "2026-11-25 — The group control keeps each group's own initiative modifier
+and returns its write" and, through it, "2026-11-25 — A group's bodies in a combat are
+grouped by the system's own call" (its "Lib writes no list"; GROUPS.md said lib never
+prunes): lib still makes no write of its own, and the one write the system's own call
+makes is now corrected a third way.
+
+Ruled by the owner's words on a defect found in the `acks` system: "patch and include
+found fixes with the issue reports". The module patches the defect for its own users
+now, and the upstream report carries the same fix. For this defect,
+`patches/group-initiative.mjs` drops from each stored group, before the real write,
+every token id that no combatant of the combat holds, and then any group those ids
+left with fewer than two tokens, which is the system's own rule for a group. A
+surviving group keeps its initiative and its bonus, a group with no dead id is not
+touched, and the group just made always passes since the system refuses a token that is
+no combatant. On a list with nothing stale the write is the system's list unchanged, so
+the patch stands down by observation as the other two corrections do.
+
+**New evidence.** The qualified entry had not read this from the system's source:
+`AcksCombat#manageGroup` (`src/module/combat.mjs`) removes the new tokens from the other
+groups and drops groups under two tokens, but never drops an id whose combatant is gone.
+The ledger finding is that a gang gathered back to one row leaves its group stored with
+dead ids and that sending it out again stores a second group beside the dead one, which
+shifts the index the tracker marks each group by (`[G<index>]`).
+
+**Rejected.** Writing the list from `group-combat.mjs` when a gang gathers: it is a write
+of lib's own to the system's namespace, which the in-force ruling that lib makes none
+and only corrects the system's call forbids, and it would be a second writer racing the
+system's call on the same flag. A `preUpdateCombat` hook: it rewrites every writer of the
+combat, as the entry it qualifies rejected.
+
+**Cost.** The dead group is not removed when the gang gathers. It stands until the next
+group call on that combat, harmless to a roll since it holds no live token, and a combat
+that never makes another call keeps it. The module also reads each combatant's token id
+to decide what is dead. **Strongest counter, LOW.** Pruning goes beyond what the
+defect's reporter saw, since only the second send-out was reported; held, because the
+dead ids can never name a body again and the second group is what shifted the marks.
+The report to the system carries the same fix: drop the ids no combatant holds before
+the groups under two are filtered.

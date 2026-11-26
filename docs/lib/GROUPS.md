@@ -392,10 +392,13 @@ group as one row. The partition is `gangPartition` (`group-logic.mjs`), the call
   read until it holds the group, which passes at once and still orders the calls where that
   patch stands down. The wait writes nothing. If the list never holds the group, the wait
   ends at three seconds, a line goes to the console and the next gang goes on.
-- Lib never writes the list, so it never prunes it. An early gather deletes the bodies'
-  combatants and leaves their group stored with token ids that no longer exist, and
-  sending the bodies out again stores a second group beside it. The stale one holds no
-  live body and is harmless to the roll.
+- Lib writes no list of its own, but the write the system's call makes drops what is dead
+  (`patches/group-initiative.mjs`): every token id no combatant of the combat holds, and
+  any group that leaves with fewer than two tokens. An early gather deletes the bodies'
+  combatants and leaves their group stored with token ids that no longer exist; it stands
+  until the next group call on that combat, which removes it, so sending the bodies out
+  again stores one group and not two. While it stands it holds no live body and is
+  harmless to the roll.
 - A body that joins a combat on its own, as a monster added by hand, is no group's and is
   never grouped.
 

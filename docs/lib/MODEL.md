@@ -1983,7 +1983,7 @@ different combatant at that index until the next turn is taken.
 
 `scripts/lib/patches/group-initiative.mjs` is the one wrapper on the system's
 `AcksCombat#manageGroup`, the call behind the Combat Tracker's group control.
-Two defects of that method are repaired for the module's users.
+Three defects of that method are repaired for the module's users.
 
 The method stores each group's `initiativeBonus`, the lowest
 `system.initiative.value` among its actors, which the group rolls with. Its loop
@@ -1992,13 +1992,19 @@ overwrites every earlier group's bonus with the lowest among the new tokens. And
 its `this.setFlag("acks", "groups", groups)` is neither awaited nor returned;
 Foundry applies an update when the server replies, so a caller cannot wait on the
 call, and a second call made before the first lands starts from a list that lacks
-the first group and drops it.
+the first group and drops it. And it never drops a token id that is no longer a
+combatant, so a group whose bodies were gathered back to one row stays stored with
+dead ids, and the tracker's `[G<index>]` marks count it.
 
 The wrapper runs the system's method unmodified. For the length of that
 synchronous call it puts an own `setFlag` on the combat, and a `finally` removes it
 (or puts back an own one the combat carried), so `setFlag` is never wrapped and no
 other document's write is touched. The shadow answers one write: scope `acks`,
-key `groups`, an array. Before the real `setFlag` receives it, a stored group
+key `groups`, an array. Before the real `setFlag` receives it, every token id that
+no combatant of the combat holds is dropped from each stored group (an object with a
+`tokens` array), and a group those ids leave with fewer than two tokens is dropped, as
+the system drops one; a group with no dead id is left as it is, and the list is pruned
+only when a group call writes it. Then a stored group
 (an object with a `tokens` array and an `initiativeBonus`) is put right where its
 bonus equals the lowest among the tokens just passed and differs from the lowest
 among its own tokens; its own tokens are the combatants whose token id matches and

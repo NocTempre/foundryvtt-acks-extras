@@ -1,15 +1,19 @@
 /* global CONFIG */
 /**
  * Core patch: `AcksCombat#manageGroup`, the tracker's group control, keeps each
- * group's own initiative modifier and returns its write.
+ * group's own initiative modifier, returns its write and drops the token ids no
+ * combatant holds.
  *
- * Two defects of the system's method, one patch. The loop that finds a group's
+ * Three defects of the system's method, one patch. The loop that finds a group's
  * "worst initiative value" walks the tokens just passed for EVERY stored group,
  * so a new group overwrites every earlier group's `initiativeBonus` with the
- * lowest value among the new tokens. And the method neither awaits nor returns
- * write of the stored list; Foundry applies an update when
- * the server replies, so a caller cannot wait on the call, and a second call
- * made before the first lands starts from a list that lacks the first group.
+ * lowest value among the new tokens. The method neither awaits nor returns its
+ * write of the stored list; Foundry applies an update when the server replies, so
+ * a caller cannot wait on the call, and a second call made before the first lands
+ * starts from a list that lacks the first group. And it never drops a token id
+ * that is no longer a combatant, so a group whose bodies were gathered back to one
+ * row stays stored with dead ids and shifts the index the tracker marks each
+ * group by (`[G<index>]`).
  *
  * This file is the one owner of `manageGroup`: nothing else shipped wraps it,
  * and `group-combat.mjs` only calls it. The wrapper never replaces the method.
@@ -19,8 +23,16 @@
  * touched. The shadow acts on one write only, scope `acks`, key `groups`, an
  * array value. Anything else goes straight to the real `setFlag`.
  *
- * The shadow corrects the list before the real write. A stored group, an object
- * with a `tokens` array and an `initiativeBonus`, takes the lowest
+ * The shadow corrects the list before the real write, in two steps. First it
+ * drops from each stored group, an object with a `tokens` array, every token id
+ * that no combatant of this combat holds, and then any group those ids left with
+ * fewer than two tokens, which is the system's own rule for a group. The group
+ * just made always passes, since the method refuses a token that is no combatant;
+ * a surviving group keeps its initiative and its bonus. A group with no dead id
+ * is not touched, whatever its size. The list is pruned only when a group call
+ * writes it, so a group stale from an early gather stands until the next call on
+ * that combat. Second, a stored group, an object with a `tokens` array and an
+ * `initiativeBonus`, takes the lowest
  * `actor.system.initiative.value` among its own tokens' combatants where its
  * bonus equals the lowest among the tokens just passed and differs from its
  * own. A group none of whose tokens resolve to a combatant with an actor, and
@@ -30,9 +42,10 @@
  * by this patch.
  *
  * It stands down by observation. A system that computes each group's bonus from
- * its own tokens leaves every bonus equal to its group's own lowest, so nothing
- * is corrected and the list written is the one the system built, and the
- * promise returned waits on the system's own before it resolves to the write.
+ * its own tokens leaves every bonus equal to its group's own lowest, so on a list
+ * with no dead id nothing is corrected and the list written is the one the system
+ * built, and the promise returned waits on the system's own before it resolves to
+ * the write. A system that prunes dead ids itself leaves the pruning nothing to do.
  * There is no version gate. Should the system move its write behind an `await`,
  * the shadow catches nothing and the system's behaviour stands; the live walk's
  * checks on each group's bonus and on two awaited calls report that.
@@ -67,6 +80,31 @@ function lowestOf(combatants, tokenIds) {
     .map(initiativeOf)
     .filter((v) => v !== null);
   return values.length ? Math.min(...values) : null;
+}
+
+/**
+ * The stored list without the token ids no combatant of this combat holds, and
+ * without a group those ids left with fewer than two tokens (the system's own rule
+ * for a group): the same array when nothing is stale, else a copy. A group with no
+ * dead id keeps its place, its initiative and its bonus, whatever its token count;
+ * a group of any other shape is passed through.
+ * @param {Combat} combat
+ * @param {Array} groups the list the system is writing
+ */
+function pruned(combat, groups) {
+  const held = new Set(Array.from(combat.combatants ?? []).map((c) => c?.token?.id ?? c?.tokenId));
+  let changed = false;
+  const out = [];
+  for (const g of groups) {
+    if (!g || !Array.isArray(g.tokens) || g.tokens.every((id) => held.has(id))) {
+      out.push(g);
+      continue;
+    }
+    changed = true;
+    const tokens = g.tokens.filter((id) => held.has(id));
+    if (tokens.length > 1) out.push({ ...g, tokens });
+  }
+  return changed ? out : groups;
 }
 
 /**
@@ -116,7 +154,7 @@ function onManageGroup(wrapped, ...args) {
     writable: true,
     value: (scope, key, value, ...rest) => {
       if (scope !== SCOPE || key !== KEY || !Array.isArray(value)) return real.call(this, scope, key, value, ...rest);
-      written = real.call(this, scope, key, corrected(this, value, args[0] ?? []), ...rest);
+      written = real.call(this, scope, key, corrected(this, pruned(this, value), args[0] ?? []), ...rest);
       return written;
     },
   });

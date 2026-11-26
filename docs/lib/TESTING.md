@@ -4440,7 +4440,8 @@ tokens}`), and the tracker's group mark beside each name.
    from the list and the other is present, lib's wait ended at its limit, which leaves a
    console warning naming the gang. Where a group holds tokens of the wrong gang,
    lib's partition is at fault. A group holding token ids that no longer exist is the
-   stale group of an earlier gather (step 6 makes one), not a fault.
+   stale group of an earlier gather (step 6 makes one) that no group call has pruned yet,
+   not a fault; a list written by a group call holds none.
 3. Roll all initiative (the tracker's Roll All). *Observable:* each gang rolls once:
    one roll for the gang, every one of its three combatants showing the same initiative,
    and the warband's lone body rolls its own. The initiative card prints one row for
@@ -4462,9 +4463,11 @@ tokens}`), and the tracker's group mark beside each name.
 6. A gang as one row. Repeat step 5 up to gang A's token, then add it again so the bodies
    gather and it stands as one row, then add the warband's token. *Observable:* gang A's
    row is gone from the tracker, its token is hidden and flagged to the combat, its three
-   bodies fight, and its group is stored with them. The list also still holds the group
-   the gather left, with the ids of bodies that no longer exist, since lib never prunes
-   the system's list; it holds no live token.
+   bodies fight, and its group is stored with them. Read the list before the warband's
+   token is added: it still holds the group the gather left, with the ids of bodies that
+   no longer exist, and no live token. Gang B's group call, made when the warband joins,
+   drops it (`patches/group-initiative.mjs` prunes each write of the list), so after the
+   join the list holds gang A's and gang B's groups and no group of dead ids.
 7. Regroup with the system's control. Select two bodies of different gangs on the map
    and press the tracker's group control. *Observable:* the system's own notice, a group
    of those two, and each of the two gangs' groups loses the body taken from it (a group

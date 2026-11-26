@@ -9,7 +9,9 @@
  * stand-in computes each bonus from the group's own tokens and awaits its write.
  * What this pins is the correction's fingerprint, that the fixed system's list
  * is written untouched, that the shadow on `setFlag` is confined to one call and
- * to one write, and that the call hands back its write. That the system's real
+ * to one write, that the call hands back its write, and that the list written
+ * holds no token id that no combatant holds and no group those ids left under two
+ * tokens. That the system's real
  * method behaves so is the live recipe's to prove (docs/lib/TESTING.md). A combat
  * holding a combatant with no token is refused before the system's method, which
  * reads every combatant's token and throws on that one, is called.
@@ -210,15 +212,46 @@ await test("on a system with both fixes the real write receives the list the sys
   assert.deepEqual(realWrites[0].value.map((g) => g.initiativeBonus), [1]);
 });
 
-await test("a stale group whose tokens left the combat keeps the system's figure, and the rest are corrected", async () => {
+await test("a stale group is dropped before it could be given a value it has no token for, and the rest are corrected", async () => {
   const combat = new (patched(defectiveClass()))(INITS);
-  combat.flags["acks.groups"] = [{ initiative: -1, initiativeBonus: 3, tokens: ["gone1", "gone2"] }];
+  combat.flags["acks.groups"] = [{ initiative: -1, initiativeBonus: 3, tokens: ["gone1", "gone2"] }, { initiative: -1, initiativeBonus: 3, tokens: ["a1", "a2"] }];
   await combat.manageGroup(tok("b1", "b2"));
-  const list = stored(combat);
-  assert.deepEqual(list.map((g) => [g.tokens.join("+"), g.initiativeBonus]), [["gone1+gone2", 3], ["b1+b2", 3]], "the stale group holds what the system wrote");
-  combat.flags["acks.groups"] = [{ initiative: -1, initiativeBonus: 3, tokens: ["gone1", "gone2"] }];
-  await combat.manageGroup(tok("a1", "a2"));
-  assert.deepEqual(stored(combat).map((g) => g.initiativeBonus), [1, 1], "a stale group is never given a value it has no token for");
+  assert.deepEqual(stored(combat).map((g) => [g.tokens.join("+"), g.initiativeBonus]), [["a1+a2", 1], ["b1+b2", 3]]);
+});
+
+await test("a stored group of two dead token ids is dropped from the list a fresh call writes", async () => {
+  for (const make of [defectiveClass, fixedClass]) {
+    const combat = new (patched(make()))(INITS);
+    combat.flags["acks.groups"] = [{ initiative: -1, initiativeBonus: 3, tokens: ["gone1", "gone2"] }];
+    realWrites.length = 0;
+    await combat.manageGroup(tok("a1", "a2"));
+    assert.equal(realWrites.length, 1);
+    assert.deepEqual(stored(combat).map((g) => g.tokens.join("+")), ["a1+a2"], "only the new group is written, so its mark is the first");
+  }
+});
+
+await test("a group with one dead id and two live ones keeps the two live and its own initiative", async () => {
+  const combat = new (patched(defectiveClass()))(INITS);
+  combat.flags["acks.groups"] = [{ initiative: 7, initiativeBonus: 1, tokens: ["a1", "gone1", "a2"] }];
+  await combat.manageGroup(tok("b1", "b2"));
+  assert.deepEqual(stored(combat).map((g) => [g.tokens.join("+"), g.initiative, g.initiativeBonus]), [["a1+a2", 7, 1], ["b1+b2", -1, 3]]);
+});
+
+await test("a group left with one live id after the dead ones go is dropped", async () => {
+  const combat = new (patched(defectiveClass()))(INITS);
+  combat.flags["acks.groups"] = [{ initiative: 7, initiativeBonus: 1, tokens: ["a1", "gone1", "gone2"] }];
+  await combat.manageGroup(tok("b1", "b2"));
+  assert.deepEqual(stored(combat).map((g) => g.tokens.join("+")), ["b1+b2"]);
+});
+
+await test("a list with nothing stale is written as the system built it, the same groups in the same places", async () => {
+  const live = () => [{ initiative: 5, initiativeBonus: 1, tokens: ["a1", "a2"] }, { initiative: -1, initiativeBonus: 3, tokens: ["b1", "b2"] }];
+  const combat = new (patched(fixedClass()))(INITS);
+  combat.flags["acks.groups"] = live();
+  realWrites.length = 0;
+  await combat.manageGroup(tok("c1", "c2"));
+  assert.equal(realWrites.length, 1);
+  assert.deepEqual(realWrites[0].value, [...live(), { initiative: -1, initiativeBonus: 5, tokens: ["c1", "c2"] }]);
 });
 
 /** A stand-in whose method makes the writes named by `writes`, then returns what `after` says. */
