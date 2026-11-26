@@ -1759,13 +1759,36 @@ check("loadout AE changes use string `type`, not `mode`", typedChanges.every((c)
 // Every register* entry point runs too. These have function-body references
 // that node --check cannot see — exactly how the buildApi ReferenceError hid.
 const registered = [];
-globalThis.game.settings.register = (_m, k) => registered.push(k);
+const registeredData = {};
+globalThis.game.settings.register = (_m, k, data) => { registered.push(k); registeredData[k] = data; };
 globalThis.game.user = { isGM: false };
 globalThis.libWrapper = { register: () => {} };
 globalThis.CONFIG = { Actor: { documentClass: { prototype: {} } } };
 const { registerSettings } = await import(new URL("settings.mjs", S));
 registerSettings();
 check("registerSettings() runs and registers the settings", registered.includes("enforceMode") && registered.includes("overlayNamed"));
+// The overlays the loadout effect reads rebuild every owned character's effect
+// when flipped; a character the client does not own and a non-character are left.
+{
+  const refreshed = [];
+  registerSettings({ refreshLoadout: async (actor) => { refreshed.push(actor.name); } });
+  const savedActors = globalThis.game.actors;
+  globalThis.game.actors = [
+    { name: "Mine", type: "character", isOwner: true },
+    { name: "Theirs", type: "character", isOwner: false },
+    { name: "Beast", type: "monster", isOwner: true },
+    { name: "Mine too", type: "character", isOwner: true },
+  ];
+  for (const key of ["overlayEnclosingHelm", "overlayShieldVariants"]) {
+    refreshed.length = 0;
+    const onChange = registeredData[key]?.onChange;
+    check(`the ${key} overlay carries an onChange`, typeof onChange === "function");
+    onChange?.();
+    check(`flipping ${key} refreshes each owned character's loadout and nothing else`, refreshed.join("|") === "Mine|Mine too");
+  }
+  check("an overlay the loadout does not read carries no onChange", registeredData.overlayNamed?.onChange === undefined && registeredData.overlayManeuvers?.onChange === undefined);
+  globalThis.game.actors = savedActors;
+}
 // The load is weighed whatever the roll setting says, so the two wrappers
 // register apart: the encumbrance one names core's method, the attack one is
 // composed by the lib's own patch and registers nothing with libWrapper.

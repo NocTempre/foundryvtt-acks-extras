@@ -41,7 +41,7 @@ import { registerItemBonusSource } from "../lib/roll-mods.mjs";
 import { masterworkBonusParts } from "./printed-layers.mjs";
 
 Hooks.once("init", () => {
-  registerSettings();
+  registerSettings({ refreshLoadout });
   // The loadout effect is machinery, not a note: a hand must not delete it.
   registerManagedEffect(LOADOUT_EFFECT_FLAG, "ACKS-LIB.managedEffect.ownerLoadout");
   buildApi();

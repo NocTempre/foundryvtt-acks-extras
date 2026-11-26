@@ -186,8 +186,9 @@ in document order, and `flags.acks-extras.loadoutParts[i]` names what wrote
 `unverified` and `gated` for an ability's typed modifier (`loadoutPart(effect,
 change)` reads it). Typed modifiers come from lib's `standingModifiers`, with
 the loadout as the gates' context, so equipping armour drops a gated part.
-The effect rebuilds on any equip change, any `acks-extras` flag write, and a
-level change. Gates registered here: `lightlyEquipped` (`proficiency.mjs`
+The effect rebuilds on any equip change, any `acks-extras` flag write, a
+level change, and a change of the enclosing-helm or shield-variant overlay
+setting (`settings.mjs` `onChange`, every owned character). Gates registered here: `lightlyEquipped` (`proficiency.mjs`
 `lightlyEquipped`: the armour rung at most `armourMax` and the load at most
 `loadMax` stone, null when either was not imported) and `activeStyle`.
 
