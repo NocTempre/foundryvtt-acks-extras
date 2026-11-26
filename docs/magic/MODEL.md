@@ -96,11 +96,11 @@ group), `recurAt` (the caster's turn, or the start or the end of the bearer's),
 cast), `recurTarget` (blank for the bearer, or a target the caster picks each
 time), `rounds` (the dice formula a `lasts: rounds` row counts, located from the
 page) and `exemptSizeFrom` (the monsters size key at or above which a target is
-exempt from that row). `lasts` is `instant`, `duration`, `nextTurn` or `rounds`
-("A record that lives", below, for the last two); `recur` is `none`,
-`eachRound` or `laterRounds`. No cast reads `recur`, `recurAt`, `recurSave` or
-`recurTarget` yet; they are authored, imported and edited so a recurring row
-exists as data.
+exempt from that row). `lasts` is `instant`, `duration`, `nextTurn`,
+`followingTurn` or `rounds` ("A record that lives", below, for the last three);
+`recur` is `none`,
+`eachRound` or `laterRounds`. A recurring row's moment, save and target are read
+by the recurring prompts ("Recurring rows", below).
 
 **The sheet** (`spell-sheet.mjs`, `createSpellSheet(Base)`) is built at
 ready as a subclass of the system's registered spell sheet and registered as
@@ -213,8 +213,9 @@ drops added ones; a rung a hand removed is not kept anywhere.
 (docs/lib/API.md, "Scoping"): kinds, an alignment fixed or the source's, an enemy
 test and an `anyOf` of branches. A spell's rows author them as structure, and
 the importer's recipe ships them with the row; the row editor edits the flat
-fields and shows an `anyOf` as text, keeping it as stored. No cast reads a
-spell's scope against an attacker yet.
+fields and shows an `anyOf` as text, keeping it as stored. A cast's record
+carries them on its parts, and lib settles them against the other party at the
+roll (lib MODEL, "A record's modifiers at the roll").
 
 **Printed names** (`spell-names.mjs`, pure). `titleIndex(pairs)` resolves a
 printed title whole, in the singular, or from a column's closing abbreviation
@@ -472,16 +473,18 @@ clock; a record anchored to turns is aged by turns instead ("A record that
 lives", below).
 
 **A record that lives** (`cast-life.mjs`, pure; `cast-apply.mjs`). A condition
-row whose `lasts` is `nextTurn` or `rounds` writes its condition record with
-two ends, and the first to come deletes the record by id. The clock end is the
-record's own flag `duration` and `startTime` (above): one round for `nextTurn`,
-the rolled rounds for `rounds`, counted at `ROUND_SECONDS`. The turn end is lib's
-`turnLife` flag, `flags["acks-extras"].turnLife` beside the `spellEffect` mark,
+row whose `lasts` is `nextTurn`, `followingTurn` or `rounds` writes its
+condition record with two ends, and the first to come deletes the record by id.
+The clock end is the record's own flag `duration` and `startTime` (above): one
+round for `nextTurn`, two for `followingTurn`, the rolled rounds for `rounds`,
+counted at `ROUND_SECONDS`. The turn end is lib's `turnLife` flag,
+`flags["acks-extras"].turnLife` beside the `spellEffect` mark,
 `{combatId, combatantId, edge, count, seen}` with `seen` zero, which lib lifts
 at its edge (lib MODEL, "A record that lasts turns"): `nextTurn` is
-`{edge: "end", count: 1}`, the end of the bearer's next turn, and `rounds` is
-`{edge: "start", count: rolled}`, the start of the bearer's turn that makes that
-many begun since the cast. It is written only where the writing client finds the
+`{edge: "end", count: 1}`, the end of the bearer's next turn; `followingTurn` is
+the start of the second of the bearer's turns to begin after the record was
+written; and `rounds` is `{edge: "start", count: rolled}`, the start of the
+bearer's turn that makes that many begun since the cast. It is written only where the writing client finds the
 bearer a combatant of a begun fight (`cast-moment.mjs` `fightHolding`, over the
 viewed fight and every other, matching a token by its id before an actor, with
 `begun` the notion `castMoment` reads, and a fight on a scene counting only
@@ -502,7 +505,43 @@ sent for a formula that cannot be read). A blank formula, a missing or invalid
 count and a formula that will not roll leave the record untimed; the card then
 carries the page reference alone. A modifier or ward row's `lasts` of either kind
 times nothing. A condition record lives, and so does the recipient record of an
-`ignite` row (below), written status-free with the same `life`.
+`ignite` row (below), written status-free with the same `life`. A condition the
+row lists in `untimed` is written with no clock and no turn end.
+
+*What else ends a record.* A row's `endsOn` (`damage`, `attack`) rides every
+condition record the row writes, and the buff record takes the causes of all the
+rows that feed it (`modParts`). Lib ends such a record (`ends-on.mjs`; lib
+README): a drop in the bearer's hit points is marked before the update, and the
+updating client deletes the records that end on damage and then lifts the states
+damage costs; an attack of the bearer's own, a spell carrier's included, ends
+those that end on `attack` on the attacker's client.
+
+**The apply kinds** (`cast-kinds.mjs` `APPLY_KINDS`; `cast-apply.mjs`
+`APPLIERS`). A row type with no amount of its own is keyed in these two tables by
+its type: where its row goes on the card, whether it opens an entry per target,
+whether a saving throw governs it, what its entry starts with, the write
+(`apply`) and what the relay holds a request for it to (`check`). A new kind is
+one entry in each, and a kind that takes a step of its own in place of an apply (a
+summoning) is in `APPLY_KINDS` alone. A passed save that negates writes nothing;
+a save the module cannot price as whole or nothing makes the entry the Judge's.
+- *Removal* (`conditionRemove`) lifts the conditions the row names through lib's
+  `lift` on the writing client, and the entry stores the lifted effects whole so
+  that Undo recreates them under their ids (only what has left the actor is
+  stored). `liftPlan` lists on the entry, and leaves standing, an effect with a
+  status the lifted id does not bring; a feature-managed or held effect blocks
+  its id altogether, since the lift ends every effect carrying the id.
+- *Slaying* (`slay`) has no defense stage. It takes the hit points to zero through
+  `adjustHp` with `floorAtZero`, leaving a creature already at zero or below where
+  it is, and writes a record holding the dead status; Undo restores both. A target
+  whose hit points cannot be written is the Judge's.
+- *Destroying a weapon* (`destroyItem`) takes one weapon of its holder on a failed
+  save: the pick the cast window made for that holder (`chosenWeapon`), else the
+  equipped one, else the first live one (`pickWeapon`). Equipment's
+  `setDestroyed` marks it and never deletes it, and Undo clears the mark. The
+  spell's target count caps the weapons destroyed across the cast (`overCount`
+  past it); a weapon gone, not a weapon or already destroyed is refused
+  (`badItem`); a holder with no weapon is an applied entry that names none. The
+  relay holds the card's weapon to one the target still carries.
 
 **A ruling-14 kind with a recipient writes the recipient's record.** A kind with
 no arithmetic is a card line and a record. `writesRecipientRecord(row)`
@@ -843,29 +882,44 @@ cancel at any point before the spend costs nothing:
    any other effect is left to the Judge (`saveFractionOf`).
 
    *The gates* (`cast-gates.mjs`, pure). `targetGate({actor, extras, row,
-   level})` answers `{affected, noSave, why: {key, parts}}` for one target and
-   one of the spell's own rows. Three figures, each read from the world and none
-   shipped: `target.hdCap`, the most Hit Dice a target may have for the spell to
-   touch it, so a target over it is unaffected on every row (the cap is
-   inclusive: a target at it is affected); `save.exemptBelowHd`, the Hit Dice
-   below which a target makes no save and takes the effect as on a failed save;
-   and a row's `exemptSizeFrom`, a monsters size key, from which a target of that
-   size or a larger one in the monsters feature's size ladder is exempt from that
-   row only (lib's `actor-read.mjs` `sizeKeyOf` and `rankOfSize`, which lib's
-   conditions also read through `sizeRank`). A target's Hit Dice are
-   `hitDiceOrLevel` (a character's class level; a monster's rating with its
-   bonus ignored). Both Hit Dice figures are LevelValues read at the card's
-   caster level through `modifierFigure`, so one that scales by level and meets
-   no level gives no gate, a blank one gates nothing, and a target whose Hit
-   Dice are unread (blank or none) is gated by no Hit Dice figure. The cap is
-   checked before the size, and a target that is unaffected makes no save to
-   skip. `why` names the gate that decided (`hd`, `size`, `noSave`) with its
-   parts: the target's figure, the threshold, and the caster level where the
-   threshold scales. `levelNeeded` reads `hdCap` and `exemptBelowHd`, so the
-   dialog asks for a level where either scales. The spell's figures come from
-   one reader, `castGateExtrasOf` (`target` from the copy or its twin as
-   `castFiguresOf` reads it, `save` from the copy), on the casting client, the
-   card's presses and the GM's relay alike.
+   level})` answers `{affected, noSave, why: {key, parts}, immune?}` for one
+   target and one of the spell's own rows. Every figure is read from the world and
+   none is shipped. `target.hdCap` is the most Hit Dice a target may have for the
+   spell to touch it, so a target over it is unaffected on every row (the cap is
+   inclusive: a target at it is affected), and `target.hdBelow` is a strict bound
+   a target must stay under. `save.exemptBelowHd` is the Hit Dice below which a
+   target makes no save and takes the effect as on a failed save. A row's
+   `exemptSizeFrom` exempts a target of that size or larger from that row only,
+   and its `exemptSizeOver` one strictly larger, both on the monsters feature's
+   size ladder (lib's `actor-read.mjs` `sizeKeyOf` and `rankOfSize`, which lib's
+   conditions also read through `sizeRank`).
+
+   `target.filters` gate through the target's creature kinds (`kindGate`,
+   `KIND_RULES`): `living` fails on undead alone and is a condition of its own;
+   `undead`, `enchanted`, `humanoid` (humanoid, beastman or character), `animal`
+   and `plant` are alternatives, any one of which admits a creature. A creature
+   with no known kinds is not gated, a list holding a filter no rule decides
+   cannot exempt on its alternatives, and every other filter is shown on the card
+   and gates nothing. A target's own records can also exempt it (lib's
+   `recordImmunity`): a record that grants immunity to the spell exempts it from
+   every row, and one that covers every condition a row writes exempts it from the
+   row; a row covered in part stays affected, with the covered conditions listed
+   as `immune`, which the row's applier leaves unwritten.
+
+   A target's Hit Dice are `hitDiceOrLevel` (a character's class level; a
+   monster's rating with its bonus ignored). Both Hit Dice figures are
+   LevelValues read at the card's caster level through `modifierFigure`, so one
+   that scales by level and meets no level gives no gate, a blank one gates
+   nothing, and a target whose Hit Dice are unread (blank or none) is gated by no
+   Hit Dice figure. The cap and the bound are checked first, then the kinds, then
+   immunity, then the sizes, and a target that is unaffected makes no save to
+   skip. `why` names the gate that decided (`hd`, `kind`, `size`, `immune`,
+   `noSave`; `GATE_KEYS`) with its parts: the target's own figure or kinds, the
+   threshold, and the caster level where the threshold scales. `levelNeeded` reads
+   `hdCap` and `exemptBelowHd`, so the dialog asks for a level where either
+   scales. The spell's figures come from one reader, `castGateExtrasOf` (`target`
+   from the copy or its twin as `castFiguresOf` reads it, `save` from the copy),
+   on the casting client, the card's presses and the GM's relay alike.
 
    `buildTargets` asks the gate per token and row. A row the target is exempt
    from has the entry `{state: "exempt", gate: why}`, a thrown row's and a
@@ -1011,6 +1065,35 @@ only the target's effects whose spell-effect mark carries the card's `castId` an
 `casterUuid`, and an in-flight set keyed by message and entry passes a second
 press by. A press kept by the check is told `undoKept`, one refused for ownership
 `undoRefused`; with no GM connected the transport says so.
+
+**Caster abilities** (`cast-abilities.mjs`, pure; `cast-ability-use.mjs` the
+live side; `cast-ability-tips.mjs` the tooltips). A caster's `spellcastingMod`
+rows, gathered by lib's `spellcastingRows`, buff a cast at three places, named by
+a row's `target`: the caster level, the save and the damage. The importer's half,
+authoring the rows from the Judge's copy, is `docs/importer/MODEL.md`.
+
+*Which rows match.* A row narrows on schools (the legacy `school` string with
+them, matched against the spell's type and schools), elements, `bySelection` (the
+ability's own `selections` against the spell's elements, type and schools), save
+categories, and a named spell (told by cookbook id, else uuid, else folded name).
+The fields AND, the members of one field OR, and a word matches in its folded
+form, singular or plural. A row with no narrowing field matches nothing, and a
+row's `ifHas` must be held. The spell's facts come from the copy and, where it
+holds none, its library twin (`spellFacts`). A row with a blank figure is kept
+and applies nothing, so its tooltip can still carry the page reference.
+
+*Stacking.* Two abilities add unless a row names the pair (lib's `stackingPart`
+and `resolveStacking`), and the rows of one ability never add to each other: the
+one best for the caster stands, the most negative for a save. A part that lost
+is kept, marked `yieldsTo`.
+
+*Where they land.* The caster-level parts go onto the level (`castAbilityLevel`;
+a level typed by hand takes none and lists them, and a level nothing resolved
+stays null). A save part joins the target's own throw, keyed `ability:<row>`
+(`castSaveParts`). A damage part is added by an attack contributor on the spell's
+carrier (`abilityDamageContributor`), a `perDie` part once for each die of the
+scaled formula. Every site gathers live from the caster, so the cast, its presses
+and the relay read one answer; an ability's per-day uses and slots are never read.
 
 **A cast the window does not take** (`cast-gate.mjs`, registered at `init`
 after the cast claimant, so it is offered only what that one declined). The
@@ -1323,7 +1406,7 @@ changes only its record and says so, and a refusal reads in the presser's words
 (`ACKS-MAGIC.castControl.refused.*`). The decision is in
 [DECISIONS.md](DECISIONS.md), "The Judge's hand on one cast's control end".
 
-What is not built yet is in [ROADMAP.md](ROADMAP.md) and the plan, `wip/`.
+What is not built yet is in [ROADMAP.md](ROADMAP.md).
 
 **A damage row that states no die** (`spell-die.mjs`, `spell-die-prompt.mjs`).
 A damage row whose `roll` is blank asks for one when the cast reaches it. A

@@ -13,24 +13,25 @@ Each part below ships the Judge tools for what it adds. The order is the
 owner's ruling of 2026-09-25 (DECISIONS, "The order, and the scoping's eleven
 questions, ruled"): 2 and 4a before 1b.
 
-- **2 — Casting and tracking.** A claimant on lib's cast seam, the one wrap
-  of core's `use()` → `_useSpell()` (falling through for spell items without
-  the flag, which core's packs use as monster attacks),
-  the cast dialog, targets and templates, per-target saves inside the card,
-  spell effects as flag-marked Active Effects aged by Foundry's own expiry
-  with the rounds-to-seconds rewrite when a combat ends (the flag weighed
-  against a sub-type first), damage and healing cards, summons placed by
-  click (a summoning spell's cast is built; MODEL, "Casting a summoning
-  spell", and its expiry card, "A cast's end"), the same expiry card for a
-  non-summoning spell's record, combat rounds that age a cast record (combat
-  does not move the clock), disruption
-  prompts, repertoires (a prayerful caster's first-level repertoire among
-  them) and the spellbook migration to references, the Magic tab redesign,
-  settings and macros. A printed spell executes the effect rows the
-  register authors for it; a points or gnosis caster keeps the pool
-  strip until its engine lands. The cast of a spell that is not a
-  summoning spell is planned level by level in
-  [wip/20261115-spell-effects-plan.md](wip/20261115-spell-effects-plan.md).
+- **2 — Casting and tracking.** The cast of a spell, its card, targets and
+  saves, records, concentration, declarations, summons and recurring prompts are
+  built for the level 1 spells (MODEL, "Casting a spell" and the sections after
+  it). Not built: area templates, line of sight, and what a creature that enters
+  an area later gains (nothing today); an expiry card for a non-summoning
+  spell's record; combat rounds that age a cast record by the clock (combat does
+  not move it); preparing and unpreparing a repertoire, signature spells and a
+  prayerful caster's first-level repertoire; the spellbook migration to
+  references ([equipment ROADMAP](../equipment/ROADMAP.md), "Spell book
+  contents as documents"); the Magic tab's corruption and stigma meters,
+  concentration indicator, signature text and effects grouped by cast; a
+  spell-effect section on the Active Effect sheet; Judge macros (drawing an NPC's
+  repertoire, sweeping expired records, dismissing summons) and settings. A
+  points or gnosis caster keeps the pool strip until its engine lands.
+- **Levels 2 to 6.** One phase each, planned from that level's own matrix:
+  standing modifiers through `standingModifiers` with spell records as sources,
+  damage per level with `max`, dispel and counterspell throws, detection
+  results, beholding and earshot warnings, the perpetual cap, triggered starts,
+  and transform and teleport executors. Rituals come with research (part 5).
 - **4a — Magic items: JJ.** The `magicItem` flag, its fieldset and tab, the
   use flow; `kind.magicItem` for JJ ch. 4; the classic and heroic generation
   tables; traits; the markets bridge.
@@ -56,12 +57,14 @@ questions, ruled"): 2 and 4a before 1b.
   through the cost engine (needs 1b).
 - **4b — Magic items: Treasure Tome.** The `tt` reader; the Mechanics block;
   gritty tables; the advanced item rules and the appendices.
-- **5 — Research.** The project record on the location and its Research
-  tab are built (MODEL, ruling 220); what remains: posting and crediting
-  research days, the outcome writers, a visible link on the researcher's
-  sheet, every RR ch. 8 project kind beyond the four built; experimentation;
-  components and compounds; rituals learned and
-  cast; XP; the spellcasting-services bridge.
+- **5 — Research.** Projects at a location, research days, Finish, rituals and
+  blood sacrifice are built (MODEL, "Research projects", "Blood sacrifice").
+  What remains: a visible link on the researcher's sheet; every RR ch. 8 project
+  kind beyond the four built; experimentation; components and compounds;
+  rituals learned (casting one is built); XP; material paid is recorded and
+  charges no coin; the spellcasting-services bridge. A sacrificed character's value reads the XP
+  award for its level from a table that is not imported, so the Judge's value
+  box is the only way such a victim yields (DECISIONS, ruling 226).
   Congregation-scale divine power waits for the domains feature's realm
   model.
 - **6 — Optional rules.** Overcasting, places of power, spell damage
@@ -86,7 +89,7 @@ questions, ruled"): 2 and 4a before 1b.
   "Creating Magic Items" and "Proficiencies and Powers"), each add to the
   research throw by a printed size. Neither is imported or read; when built,
   the size is a register row and the throw names it as a part.
-- **A range ring while summons are placed.** Board 21 of the cast canvas (approved by the owner, "Build it now", then moved out of the 2026-11-19 minor: "no new surfaces") draws a dashed ring of the spell's range around the caster's token while the seat clicks the summons' points, with a counting banner. The range check itself is built (lib `pickPlacement`); the ring is not. The 1d-B rulings are in `docs/magic/wip/20261115-spell-effects-plan.md`.
+- **A range ring while summons are placed.** Board 21 of the cast canvas (approved by the owner, "Build it now", then moved out of the 2026-11-19 minor: "no new surfaces") draws a dashed ring of the spell's range around the caster's token while the seat clicks the summons' points, with a counting banner. The range check itself is built (lib `pickPlacement`); the ring is not. The rulings are [DECISIONS.md](DECISIONS.md), "Summons join the spell cast".
 - **A caster stashed in a party that is in a fight summons by click.** A summoning joins its caster's party only while the party is in no fight (MODEL, "Casting a summoning spell"). A caster still stashed in a party that is in a fight has its cast placed by click, and a spell that states a range is refused to a Player for want of a caster token to measure from.
 - **The Magic tab's summon row counts the scene in view.** Creatures held in a party read 0 from a scene the party's token does not stand on, on the standing figure and on the joined one.
 - **Creatures of one cast made into a party share one appended number**, where the creature's prototype token appends one to its name.
@@ -98,7 +101,53 @@ questions, ruled"): 2 and 4a before 1b.
 - **A light spell held by concentration.** A cast held by concentration writes the held record (`heldRecordData`) and no light: its light rows change nothing until the held record carries them.
 - **A dice formula the cast rolls for a summon's number.** A summon row's number is a whole figure (`amount`), and the cast window's count is one too. Two of the calling spells print their number as dice (RR ch. 5, the spell descriptions); neither carries a summon row today. Rolling it needs a formula on the row, a reader in the importer and a roll at the cast, with the figure's tooltip naming the dice and the page.
 - **A reversed purify spell.** The purify entry's reverse, which spoils what its forward form cleans, has no rows: no apply kind models it.
-- **The seal stage failed once in three walks.** In one `magic-cast-tracked` run on 2026-11-19, the door that stage I makes locked read as closed straight after its create. The later clicks then met the wrong doors, and nine checks failed. The next run passed with the same code. The cause is not known; the 1d-B part of "Results, 1d" in `docs/magic/wip/20261115-spell-effects-plan.md` names the runs.
+- **The seal stage failed once in three walks.** In one `magic-cast-tracked` run on 2026-11-19, the door that stage I makes locked read as closed straight after its create. The later clicks then met the wrong doors, and nine checks failed. The next run passed with the same code. The cause is not known.
+- **What the level 1 spells leave to the Judge or to another feature.** Each is a card line, a default or a blank today:
+  a points tradition's cost is shown and never spent (DECISIONS, ruling 98); the heal at each rest of the Death-save spell, and
+  its save part, which needs a status gate kind in the register lint; the casting time one invocation level prints (ruling 207);
+  a magic weapon's bonus on the save a weapon-destroying spell asks (ruling 124); an XP-valued character victim (above, part 5);
+  the leaping spell's distances (formation's); tracking and evasion for the spell that hides trails (ruling 137); an automatic
+  climb or trap disarm in the crossing and trap paths, which ignore records; a spell-granted Climbing as a candidate for a
+  party's best skill; a reaction bonus for a proficiency a record grants (`ifHas` reads ability items only, and the
+  bonus of the spell that grants Mystic Aura reaches only a bearer who holds the item); the target's side of an opposed
+  reaction roll, which reads no records; a per-row target filter, since the spell's filters cover both forms and so one
+  reversed form's living-only gate is not applied.
+- **A scroll, or a monster's spell-like ability, is not a source of castable spells.** Only magic's repertoire registers one
+  (`registerSpellSource`), so a carried scroll shows no pale throw. The scroll waits for the spell pointer of the magic items
+  (part 4a).
+- **A grant with no level pair of its own is read at the bearer's level.** The spell that hides trails therefore reads its
+  throw at the bearer's level, against ruling 137, which reads it at a level the cast supplies (`cast-mods.mjs` `partOf` sets
+  a part's `atLevel` only where the row carries the pair). Giving such a grant the caster's level is not built.
+- **The pale caster level leaves out the caster's ability deltas.** `repertoire.mjs` takes `casterLevel` alone, while a cast
+  adds the deltas (`castAbilityLevel`), so a pale throw can read at a lower level than the cast would use.
+- **The creature-kind pick offers no dragon kind,** since no module kind key exists.
+- **Caster abilities the cast does not read** (ruling 111): a caster level that counts only for dispelling or against magic
+  resistance; `spellLike` as a source of casts; a summoned creature's hit points; a damage type tied to a selection; a swap of
+  attack progression; a concentration save; and buffs from places and items. A missing register entry for one lore proficiency
+  leaves its power's combined row and that row's progression unauthored.
+- **A card that stores an inventory answer.** A declared cast drops an item that leaves its holder; no chat card stores a bucket
+  answer yet, so nothing drops one from a card. A value set by hand in a bucket is not in the stored answer, so re-reading a
+  stored answer loses it.
+- **A relayed Throw, and Apply to the presser's targets.** An owner of the caster who did not cast is offered Apply and not
+  Throw: a thrown row on a card the Judge cast for a Player's character waits for the Judge (DECISIONS 2026-11-26, "A cast
+  card's Apply is an owner of the caster's, not the card's author's").
+- **Tooltips that stop short of their source.** An unaffected target row's reason is in its tooltip only; the invocation cap's
+  tooltip names the ladder and the class level, and the ladder carries no page reference; the workshop research project's level
+  tooltip cites the library's page for every kind; a chip under a table set by hand shows an empty citation; the save and damage
+  parts of caster abilities sit in the cast card's level note tooltip, which a cast with no level drops (needs `/design`).
+- **Open for the owner on the level 1 spells.** Whether lawful undead count with the lawful incarnations that holy circle's
+  reverse names (as shipped, they do not); and three questions proceeded on at their defaults (DECISIONS, "Owner questions at
+  their defaults, on abilities, saves and the sheet"): whether Humanoid should count giants, whether Living should leave out
+  constructs, incarnations and enchanted creatures, and whether a Judge's line keeps the page's clause or becomes a
+  structural line.
+- **Cast behaviour no walk has driven** (named unwalked when its slice landed, and not read as walked since): the spell
+  Overview's submit on a spell whose row has an `anyOf` branch; the cast, a held end and a declaration with no GM connected at
+  all (the recipe's no-GM steps only make a Player seat read no active GM while the Judge's seat stays up); a two-handed or several-weapon
+  carrier; Dice So Nice with rigged dice; the masterwork tie where a spell's figure is one below masterwork's; a Player's
+  recurring Save on a bearer it owns; two lanes at once, the seal relay among them; the effect-row editor's Lasts, Effects and
+  "When control ends" fields; the battlemap's modes and country parts after the pointer catcher moved to lib. Also unchecked:
+  whether the monster book's overview prints a general susceptibility multiple that ruling 67 does not read, and whether the
+  Eldritch Magic supplements or AXIOMS add component rules that rulings 209 onward leave out.
 - **A spell on two lists reads its first list in two places.** A cast pressed under a list's heading spends that list's slot, but the tradition's procedure (`cast-procedure.mjs`) and a declaration's lost-procedure check (`cast-declare.mjs` `procedureLost`) still resolve the first of the class's lists the spell stands on. A class whose two lists are of different kinds would find the first list's procedure for a cast pressed under the second.
 - **The system's own sheet has no row gate.** The Magic tab's rows show the cast's verdict before the press; on the system's sheet a Player learns of a refused cast from the notification (`cast-gate.mjs`) or the cast window's foot.
 - **The cast window reads the system's one slot grid where no list's slot row answers.** A spell with effect rows that names no list, or whose list has no slot row at the character's level, is judged in the cast window by the system's count at its level (`castCapacity`'s `core` source), which on a class with two lists is the first list's maxima against every list's casts. The Magic tab's row and the gate claimant no longer read it (`listGate`).

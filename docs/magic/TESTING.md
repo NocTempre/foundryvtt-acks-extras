@@ -1935,7 +1935,7 @@ on each seat for the run (`acksExtras.magic.registerCastProcedure`, `buckets` re
    carries the finding as a block and Cast is off; the GM's warns and Cast is on.
 5. **The level reaches the card.** The GM casts at level 3. *Observable:* the card's
    `invocationLevel` is 3 and its source `chosen`, and the level note reads Invocation 3.
-6. **A declared cast** (finding 1c.35, step 18 of the cast steps). In a begun fight the
+6. **A declared cast** (step 18 of the cast steps). In a begun fight the
    Player declares with the Foe targeted, then targets the caster instead and the tracker
    reaches the turn. *Observable:* the pending record stores the declared target; the cast
    resolves with no dialog and the card posts on the declared target; with the band, the
