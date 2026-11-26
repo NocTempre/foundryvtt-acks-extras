@@ -421,7 +421,7 @@ date), so every Player's seat of one now has the tab, along with the places a Ju
 OBSERVER and every ground pile, which is Observer to every seat. A Judge's seat of a pile loses
 the deposit control it had on one.
 
-## 2026-11-25 — A place's owner administers it
+## 2026-11-25 — A place's owner administers it — SUPERSEDED IN PART 2026-11-26
 
 **Authority** (owner, 2026-11-25, verbatim): "Tool permissions are hardcoded (e.g. summons)
 by server role instead of object ownership, only judge secrets are supposed to be an
@@ -586,3 +586,26 @@ A report asked for a way to move money to the house through a place sheet instea
 **Rejected.** Paying a sum in gold through `transferCoin`: its planner picks the coins and makes change, so a payer could not choose the coins and a barter place would refuse for want of change. A deposit (`stash`): it stamps the depositor, so the coin stays theirs. Coin the payer keeps at another place is not offered; that is a later extension.
 
 *Cost.* A second coin-writing path beside `transferCoin` and `exchangeCoins`, built from the same `credit` and `takeCoin`. Walked live in TESTING.md, step 30.
+
+## 2026-11-26 — A posting's details mask is its employer's, not the Judge's
+
+**Ruled.** The eye control on a posting row (a place's sheet → Recruitment tab → Paid searches),
+which flips whether players see the posting's candidate details, is drawn for the posting's
+employer and for the Judge. A seat without the place's write relays the flip through the Judge's
+client, which re-reads the sender's ownership of the employer, and the employer sees their own
+candidates whatever the mask says (T-0821).
+
+**New evidence** (the 2026-11-25 entry "A place's owner administers it" is under seven days old):
+that entry kept "the details mask on a posting" among the Judge's secrets. The flag is not one.
+The posting dialog draws its "Players see details" box to every seat that can create a posting, so
+the employer sets the mask at creation; only the flip after it was the Judge's, which left an
+employer able to set the mask and never undo it, and masked from their own candidates while it was
+off (T-0821, read in code on 2026-11-25). The owner's standing rule follows Foundry's permissions
+with only the Judge's secrets excepted ([repo DECISIONS](../DECISIONS.md), 2026-11-26), and a
+setting the employer makes is not a Judge's secret.
+
+**Rejected.** Keeping the flip the Judge's and taking the box out of the posting dialog instead: it
+removes a choice the employer already makes.
+
+*Cost:* a Judge can no longer hold a player's own posting masked against that player; the mask
+hides the details from the other players only.

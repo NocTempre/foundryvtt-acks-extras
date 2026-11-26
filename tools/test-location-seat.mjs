@@ -255,7 +255,7 @@ ok("the candidate and special-hire removals are drawn for the editor and not the
   const rows = template.match(/\{\{#if @root\.(editable|isGM)\}\}\s*<a data-action="(removeCandidate|editSpecialNote)"/g) ?? [];
   assert.equal(rows.length, 4 + 1, "four candidate removals and the special-hire group");
   for (const row of rows) assert.match(row, /@root\.editable/);
-  assert.match(template, /\{\{#if @root\.isGM\}\}\s*<a data-action="togglePlayerDetails"/, "the details mask stays the Judge's");
+  assert.match(template, /\{\{#if isMine\}\}\s*<a data-action="togglePlayerDetails"/, "the details mask is drawn for the posting's employer, and for a Judge, whose isMine is always true");
 });
 
 /* ---- the seat fields and the handlers, cut out of the source ---- */
