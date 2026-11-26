@@ -45,8 +45,11 @@
  * its client posted that name a fixture item or speak as a fixture, and any
  * Region left on a fixture scene. The fixtures stay.
  *
- * Steps that need what this walk cannot build print `SKIP <step>: <reason>`;
- * a SKIP is not a check and is counted apart. `SHOTS=1` also takes two plates
+ * W10 presses the item the imported equipment rows mint, on a Beastman generated
+ * from the imported family template (one body, its item and its token tracked by id and
+ * swept); where the world holds no such import it prints `HELD W10` and the walk ends
+ * WALK BLOCKED after W11 and W12. Steps that need what this walk cannot build print
+ * `SKIP <step>: <reason>`; a SKIP is not a check and is counted apart. `SHOTS=1` also takes two plates
  * of the raised card at a 320 px chat width, one waiting and one answered.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -621,11 +624,53 @@ const P = {
     return { opened: true, rolled: !!msg, id, uuid: msg?.uuid ?? null, content: html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), tips };
   },
 
-  /** Does the template the Beastman import makes exist? Read only. */
-  template: async () => {
-    const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
-    const held = (await CB.importedDocs("Actor")).filter((d) => d.pack && d.getFlag("acks-extras", "cookbook")?.id === "mm.familyBeastman");
-    return { held: held.length };
+  /**
+   * The imported equipment rows whose minted item the carrier runs, one row key per activation kind (`toggle`, `once`), or null for a kind
+   * no row mints. Read only; the key is read at run time and never written here.
+   */
+  w10Rows: async () => {
+    const O = await import("/modules/acks-extras/scripts/monsters/organisation.mjs");
+    const org = O.importedOrganisation();
+    const out = { toggle: null, once: null };
+    for (const row of org?.equipment?.rows ?? []) {
+      for (const item of O.carriedGearItems(row.key, org) ?? []) {
+        const kind = item?.flags?.["acks-extras"]?.itemRun?.activation?.kind;
+        if (kind in out && !out[kind]) out[kind] = row.key;
+      }
+    }
+    return out;
+  },
+
+  /**
+   * One Beastman from the imported family template, given the item the imported row mints (`carriedGearItems`, the call a deploy's
+   * carry takes) and a linked token on the scene. Answers each uuid the moment it exists, so a failure part way leaves ids to sweep.
+   */
+  w10Make: async ({ sceneUuid, rowKey, x, y }) => {
+    const out = { ok: false, held: 0, actor: null, name: null, item: null, token: null };
+    try {
+      const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+      const GEN = await import("/modules/acks-extras/scripts/lib/template-generate.mjs");
+      const O = await import("/modules/acks-extras/scripts/monsters/organisation.mjs");
+      const held = (await CB.importedDocs("Actor")).filter((d) => d.pack && d.getFlag("acks-extras", "cookbook")?.id === "mm.familyBeastman");
+      out.held = held.length;
+      if (held.length !== 1) return { ...out, reason: "template" };
+      const actor = await GEN.generateFromTemplate(held[0]);
+      if (!actor) return { ...out, reason: "generate" };
+      out.actor = actor.uuid;
+      out.name = actor.name;
+      const wanted = (O.carriedGearItems(rowKey) ?? []).filter((i) => i?.flags?.["acks-extras"]?.itemRun?.activation?.kind);
+      const [item] = await actor.createEmbeddedDocuments("Item", wanted.slice(0, 1));
+      out.item = item?.uuid ?? null;
+      const data = (await actor.getTokenDocument({ x, y })).toObject();
+      delete data._id;
+      data.actorLink = true;
+      const [token] = await fromUuidSync(sceneUuid).createEmbeddedDocuments("Token", [data]);
+      out.token = token?.uuid ?? null;
+      out.ok = !!out.item && !!out.token;
+      return out;
+    } catch (err) {
+      return { ...out, reason: String(err?.message ?? err).slice(0, 200) };
+    }
   },
 
   /** Sheet: open an actor's sheet in this seat and read its strip (rows and the surrounding frame). */
@@ -743,6 +788,10 @@ const I = {};
 const SC = {};
 const TK = { hex: {}, gridless: {} };
 const disposables = [];
+/** What W10's generated bodies add to the teardown's claim: the item uuids and the names their cards speak as. */
+const W10 = { itemUuids: [], aliases: [] };
+/** Why W10 could not run on this world; the walk ends WALK BLOCKED with it after W11 and W12, never earlier. */
+let w10Hold = null;
 const marked = (marker) => (MACHINE.own ? `${marker}@${MACHINE.own}` : marker);
 
 /** A step runs on its own: a throw is a failed check and the walk goes on, unless the world is not the walk's to drive. */
@@ -1524,10 +1573,44 @@ try {
   /* ---------------------------------------------------------------- */
   await step("W10", async () => {
     section("W10 kinds on a generated Beastman");
-    const t = await gmRun(P.template);
-    skip("W10", t.held === 1
-      ? "the imported Beastman template exists, but a creature comes of its village Roll, which makes many documents this ledger cannot sweep by id without the Roll's own list; lib-beastman-warband walks that Roll"
-      : `no imported Beastman template is present (${t.held} found), so there is no creature to generate and read kinds off`);
+    const rows = await gmRun(P.w10Rows);
+    const kinds = ["toggle", "once"].filter((k) => rows[k]);
+    note("W10 the activation kinds the import's equipment rows mint", kinds);
+    if (!kinds.length) {
+      w10Hold = "no imported equipment row mints an item the carrier runs, so there is no minted item to press";
+      console.log(`HELD W10: ${w10Hold}`);
+      return;
+    }
+    for (const kind of kinds) {
+      await reset({ place: {} });
+      const made = await gmRun(P.w10Make, { sceneUuid: SC.main, rowKey: rows[kind], x: 100, y: 1300 });
+      // Tracked the moment each id is read, so a failure part way is still swept by id.
+      for (const [uuid, docKind] of [[made.actor, "Actor"], [made.token, "Token"]]) if (uuid) disposables.push(gm.track(uuid, docKind));
+      if (made.item) W10.itemUuids.push(made.item);
+      if (made.name) W10.aliases.push(made.name);
+      if (!made.ok && made.reason === "template") {
+        w10Hold = `no imported Beastman template is present (${made.held} found), so there is no creature to generate and press an item on`;
+        console.log(`HELD W10: ${w10Hold}`);
+        return;
+      }
+      check(`W10 ${kind}: a Beastman was generated, given the imported row's minted item and placed on the scene`, made.ok === true, { reason: made.reason ?? null });
+      if (!made.ok) continue;
+      const regionsOn = () => gmRun((a) => [...(fromUuidSync(a.t)?.attachments?.regions ?? [])].filter((x) => [...x.behaviors].some((b) => b.type === "acks-extras.aura")).length, { t: made.token });
+      const r = await gmRun(P.use, { itemUuid: made.item });
+      if (!r.ok && (r.notes ?? []).length) {
+        note(`W10 ${kind}: the press was refused with a notice`, r.notes);
+        skip(`W10 ${kind}`, "the minted item's figures read blank on this world (an imported figure is missing), so the press was refused with a notice and wrote nothing, as a blank figure should");
+        continue;
+      }
+      check(`W10 ${kind}: item.use() on the minted item acted and posted its card`, r.ok === true && r.kind === kind, { ok: r.ok, kind: r.kind });
+      const card = r.messageId ? await gmRun(P.card, { id: r.messageId }) : null;
+      check(`W10 ${kind}: the card's kind is the item's activation kind`, card?.kind === kind, { card: card?.kind ?? null });
+      if (kind === "toggle") {
+        check("W10 toggle: the item reads raised and a Region stands on the body's token", r.state?.active === true && (await regionsOn()) === 1, { active: r.state?.active });
+        const down = await gmRun(P.use, { itemUuid: made.item });
+        check("W10 toggle: using it again lowers it and the Region is gone", down.state?.active === false && (await regionsOn()) === 0, { active: down.state?.active });
+      }
+    }
   });
 
   /* ---------------------------------------------------------------- */
@@ -1574,19 +1657,22 @@ try {
   const lateP = await plRun(P.caught);
   note("errors this walk's seats recorded after ready", { gm: late.errors, player: lateP.errors });
   check("neither seat logged a console error during the walk", late.errors.length === 0 && lateP.errors.length === 0, { gm: late.errors.length, player: lateP.errors.length });
+  if (w10Hold) blocked(`W10: ${w10Hold}`);
   walkDone();
 } catch (err) {
-  if (err?.name !== "WalkBlocked") console.error("WALK ERROR:", err?.stack ?? err);
-  checks.push(["walk ran to the end", false]);
+  if (err?.name !== "WalkBlocked") {
+    console.error("WALK ERROR:", err?.stack ?? err);
+    checks.push(["walk ran to the end", false]);
+  }
 } finally {
   section("teardown");
   try {
     if (gm) {
-      const claimed = await gmRun(P.claim, { itemUuids: Object.values(I).map((i) => i.uuid), aliases: Object.values(ROLES).map((r) => r.name), names: [...new Set(Object.values(ITEMS).map((s) => s.name))] });
+      const claimed = await gmRun(P.claim, { itemUuids: [...Object.values(I).map((i) => i.uuid), ...W10.itemUuids], aliases: [...Object.values(ROLES).map((r) => r.name), ...W10.aliases], names: [...new Set(Object.values(ITEMS).map((s) => s.name))] });
       for (const u of claimed) disposables.push(gm.track(u, "ChatMessage"));
       // The Player page records the cards it posted itself; the GM seat deletes them by those ids.
       if (pl) {
-        const posted = await plRun(P.claim, { itemUuids: Object.values(I).map((i) => i.uuid), aliases: Object.values(ROLES).map((r) => r.name), names: [...new Set(Object.values(ITEMS).map((s) => s.name))] });
+        const posted = await plRun(P.claim, { itemUuids: [...Object.values(I).map((i) => i.uuid), ...W10.itemUuids], aliases: [...Object.values(ROLES).map((r) => r.name), ...W10.aliases], names: [...new Set(Object.values(ITEMS).map((s) => s.name))] });
         for (const u of posted) if (!claimed.includes(u)) disposables.push(gm.track(u, "ChatMessage"));
       }
       const left = [];
